@@ -1,0 +1,80 @@
+{
+  "concernTimeline": [],
+  "dateRange": {
+    "from": "2023-06-01",
+    "to": "2026-09-13"
+  },
+  "disclaimer": "Prepared from information recorded by the pet owner in Furvise. It may be incomplete and does not contain a diagnosis or replace veterinary assessment.",
+  "documentVersion": 1,
+  "excludedSections": [],
+  "foodChanges": [],
+  "generatedAt": "2026-09-13T05:32:21.316Z",
+  "historyCoverage": [
+    "Only part of the requested history could be reviewed because the search or report reached its limit. Earlier or intervening events may be missing; complete trends cannot be established."
+  ],
+  "includePetPhoto": false,
+  "medicationsSupplements": [
+    {
+      "date": "2026-09-01",
+      "text": "Prednisone was recorded as 5 mg once daily 2026-09-01 through 2026-09-05, then 2.5 mg once daily 2026-09-06 through 2026-09-10. The saved record says the owner confirmed the last dose was 2026-09-10."
+    }
+  ],
+  "missingInformation": [
+    "Any vaccination records outside this chart, including vaccines other than the documented 2023-09-13 rabies vaccination, and any other prior vaccine-reaction or premedication history.",
+    "Confirmation of the actual last prednisone dose date and whether any doses were given after 2026-09-10.",
+    "Any additional intervening or full laboratory reports that would add context to the 2023-06-01 and 2026-08-28 creatinine results."
+  ],
+  "ownerNotes": "",
+  "ownerReportedChanges": [],
+  "pet": {
+    "age": "4 years",
+    "breed": "Synthetic launch QA - Labrador",
+    "name": "Sable",
+    "photoUrl": null,
+    "species": "Dog",
+    "weight": "Not recorded"
+  },
+  "productsUsed": [],
+  "questionsForVeterinarian": [
+    "Given the rabies-vaccine reaction recorded on 2023-09-13, what prior reaction details and any outside vaccination records should be reviewed before making a vaccination plan?",
+    "How should the prednisone timing be reconciled between the saved course ending with a recorded last dose on 2026-09-10 and the owner's current uncertain recollection of 2026-09-12, and does that timing affect interpretation of the itching improvement and recurrence?",
+    "Are the creatinine results from 2023-06-01 and 2026-08-28 directly comparable in this record, and is any additional lab context needed for the vaccination consultation?",
+    "What monitoring or next-step plan is appropriate for the itching that improved on 2026-09-08 and returned on 2026-09-12?"
+  ],
+  "reasonForVisit": "Vaccination consultation with review of prior vaccine reaction, recurrent itching, and comparison of the 2023-06-01 and 2026-08-28 creatinine results.",
+  "relevantCareHistory": [
+    {
+      "category": "laboratory result",
+      "date": "2023-06-01",
+      "text": "Clinic blood result listed creatinine 1.1 mg/dL, reference interval 0.5-1.6 mg/dL. No kidney diagnosis was documented."
+    },
+    {
+      "category": "vaccination and reaction",
+      "date": "2023-09-13",
+      "text": "Rabies vaccination was given. The owner reported facial swelling that evening, contacted the clinic, and reported that the swelling resolved the same evening; no breathing difficulty was recorded. The clinic-recorded next due date was 2026-09-13."
+    },
+    {
+      "category": "laboratory result",
+      "date": "2026-08-28",
+      "text": "Clinic blood result listed creatinine 1.4 mg/dL, reference interval 0.5-1.6 mg/dL. No new kidney diagnosis was documented."
+    },
+    {
+      "category": "itching update",
+      "date": "2026-09-08",
+      "text": "The owner reported itching had improved. No vomiting was observed."
+    },
+    {
+      "category": "itching recurrence",
+      "date": "2026-09-12",
+      "text": "The owner reported itching had returned. The owner reported no heavy breathing or weakness."
+    },
+    {
+      "category": "owner report",
+      "date": "2026-09-13",
+      "text": "The owner now reports that the last prednisone dose may have been 2026-09-12, but is unsure; this differs from the saved medication record stating the last dose was 2026-09-10."
+    }
+  ],
+  "reportedPatterns": [],
+  "title": "Furvise Vet Visit Brief",
+  "visitSummary": "Clinic labs recorded creatinine 1.1 mg/dL on 2023-06-01 (reference interval 0.5-1.6 mg/dL) and 1.4 mg/dL on 2026-08-28 (reference interval 0.5-1.6 mg/dL); the documented units and reference ranges match, but only part of the history was reviewed so a fuller trend cannot be established here. After a rabies vaccination on 2023-09-13, the owner reported facial swelling that evening that resolved the same evening, with no breathing difficulty recorded; the clinic-recorded next due date was 2026-09-13. Prednisone was prescribed on 2026-09-01 as 5 mg once daily for 2026-09-01 to 2026-09-05, then 2.5 mg once daily for 2026-09-06 to 2026-09-10, and the saved record says the last dose was 2026-09-10, while the owner now uncertainly recalls 2026-09-12; itching was reported improved on 2026-09-08 and returned on 2026-09-12, with no heavy breathing or weakness reported that day."
+}

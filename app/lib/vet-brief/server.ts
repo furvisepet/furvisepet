@@ -5,6 +5,7 @@ import { validateSensitiveRequestOriginResponse } from "../security/headers/orig
 import type { PlanId } from "../billing/plan-limits";
 import { EntitlementResolutionError, resolveEffectiveEntitlements } from "../billing/entitlements";
 import { parseVetBriefDocument } from "./schema";
+import { verifyVetBriefUser } from "./auth";
 
 export async function getVetBriefRequestContext(request: Request): Promise<
   | { response: Response }
@@ -19,8 +20,14 @@ export async function getVetBriefRequestContext(request: Request): Promise<
     auth: { persistSession: false },
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
-  const { data } = await supabase.auth.getUser(token);
-  if (!data.user) return { response: Response.json({ error: "Your session has expired." }, { status: 401 }) };
+  const verified = await verifyVetBriefUser(() => supabase.auth.getUser(token));
+  if (!verified.user) {
+    console.warn("[Furvise Vet Brief] authentication verification", { failure: verified.failure });
+    return { response: Response.json(verified.failure === "unavailable"
+      ? { error: "Sign-in verification is temporarily unavailable. Your work has been kept; please try again.", code: "VET_BRIEF_AUTH_UNAVAILABLE" }
+      : { error: "Please sign in again to continue. Your work has been kept.", code: "VET_BRIEF_AUTH_REQUIRED" },
+    { status: verified.failure === "unavailable" ? 503 : 401, headers: { "Cache-Control": "private, no-store" } }) };
+  }
   const originResponse = validateSensitiveRequestOriginResponse(request);
   if (originResponse) return { response: originResponse };
   let entitlements;
@@ -35,7 +42,7 @@ export async function getVetBriefRequestContext(request: Request): Promise<
   if (entitlements.effectivePlan !== "plus" || !entitlements.capabilities.vetPrepExports) {
     return { response: Response.json({ error: "Furvise Plus is required for Vet Visit Briefs." }, { headers: { "Cache-Control": "private, no-store" }, status: 403 }) };
   }
-  return { monthlyAiCredits: entitlements.limits.monthlyAiCredits, planId: entitlements.effectivePlan, supabase, userId: data.user.id };
+  return { monthlyAiCredits: entitlements.limits.monthlyAiCredits, planId: entitlements.effectivePlan, supabase, userId: verified.user.id };
 }
 
 export type VetBriefDatabaseRow = {
