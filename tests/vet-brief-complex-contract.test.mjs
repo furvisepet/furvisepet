@@ -105,3 +105,11 @@ test('appointment search terms obey both candidate and correction RPC bounds',()
  for(const term of ['OA','x'.repeat(33),'blood%','blood_work','  a ']) assert.equal(parseVetBriefAppointmentPlan({...plan,topics:[{label:'Condition',terms:[term]}]},'2026-09-12'),null);
  for(const term of ['CBC','osteoarthritis','x'.repeat(32)]) assert.ok(parseVetBriefAppointmentPlan({...plan,topics:[{label:'Condition',terms:[term]}]},'2026-09-12'));
 });
+
+test('generated dates cannot be silently normalized from timestamps or invalid dates into unknown',()=>{
+ for(const date of ['2026-09-12T19:00:00Z','2026-02-30','September 12, 2026']) {
+  const input=raw(); input.content.events[0].date=date; assert.equal(parseVetBriefContent(input,baseline,['verified']),null);
+ }
+ const input=raw(); input.content.events[0].date='2026-09-12';
+ assert.equal(parseVetBriefContent(input,baseline,['verified']).document.concernTimeline[0].date,'2026-09-12');
+});

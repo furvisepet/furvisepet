@@ -1,6 +1,14 @@
 import type { AiModelPrice, ProviderUsage } from "./types";
 
 export const AI_MODEL_PRICING: Record<string, AiModelPrice> = {
+  "gpt-5.4": {
+    cachedInputMicrodollarsPerMillionTokens: 250_000,
+    effectiveDate: "2026-09-13",
+    inputMicrodollarsPerMillionTokens: 2_500_000,
+    model: "gpt-5.4",
+    outputMicrodollarsPerMillionTokens: 15_000_000,
+    source: "Verified OpenAI Standard pricing (<272K input): https://developers.openai.com/api/docs/models/gpt-5.4",
+  },
   "gpt-5.4-mini": {
     cachedInputMicrodollarsPerMillionTokens: 75_000,
     effectiveDate: "2026-07-29",

@@ -12,7 +12,7 @@ test('feature reasoning and time budgets reach provider transport without changi
   const calls = [];
   const context = vm.createContext({
     createClient: () => ({}),
-    getAskModelConfiguration: () => ({ primary: 'gpt-5.4-mini', fallback: null }),
+    getStructuredFeatureModelConfiguration: () => ({ primary: 'gpt-5.4-mini', fallback: null }),
     getAskProviderCooldown: () => ({ active: false }),
     runProviderRequest: async call => { calls.push(call); return call.parseOutput('{"okay":true}'); },
   });
@@ -38,7 +38,7 @@ test('fallback keeps its existing deadline unless a reasoning budget is explicit
   class PipelineError extends Error {}
   const context = vm.createContext({
     createClient: () => ({}),
-    getAskModelConfiguration: () => ({ primary: 'primary', fallback: 'fallback' }),
+    getStructuredFeatureModelConfiguration: () => ({ primary: 'primary', fallback: 'fallback' }),
     getAskProviderCooldown: () => ({ active: false }),
     AskPipelineError: PipelineError,
     isRetryableProviderLimit: () => true,
