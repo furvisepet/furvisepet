@@ -4,7 +4,7 @@ import type { VetBriefDocument, VetBriefSectionId } from "./types.ts";
 export type BriefReportSection = { id: string; title: string; items: Array<{ date?: string; text: string; category?: string }> };
 
 // One publication contract for screen, print, PDF and text sharing. Only exact
-// duplicate facts are collapsed; different dates, negation and amounts survive.
+// duplicate facts are collapsed; attribution, dates, negation and amounts survive.
 export function vetBriefReport(document: VetBriefDocument): BriefReportSection[] {
   const included = (id: VetBriefSectionId) => !document.excludedSections.includes(id);
   const seen = new Set<string>();
@@ -17,7 +17,7 @@ export function vetBriefReport(document: VetBriefDocument): BriefReportSection[]
       seen.add(key);
       return true;
     });
-    if (unique.length) sections.push({ id, title, items: unique.map(item => ({ ...item, text: item.date ? presentationText(item.text) : item.text })) });
+    if (unique.length) sections.push({ id, title, items: unique.map(item => ({ ...item, text: item.text.trim() })) });
   };
   if (document.urgency) add("urgency", "Care should not wait", [{ text: vetBriefUrgencyText(document.urgency) }]);
   if (included("visit-reason")) add("reason", "Owner-reported reason for visit", [{ text: document.reasonForVisit }]);
@@ -42,18 +42,12 @@ export function vetBriefReport(document: VetBriefDocument): BriefReportSection[]
   return sections;
 }
 
-// Strip only our attribution wrapper; the report header retains attribution.
-// Do not remove owner wording, dates, units, negations or repeated phrases.
-function presentationText(text: string) {
-  return text.replace(/^(?:Owner reported:|Saved care history shows:|Saved note shows:)\s*/i, "").trim();
-}
-
 export function vetBriefDatedEntryCount(document: VetBriefDocument) {
   return vetBriefReport(document).reduce((count, section) => count + section.items.filter(item => Boolean(item.date)).length, 0);
 }
 
 function factText(text: string) {
-  return text.replace(/^(?:Owner reported:|Saved care history shows:|Saved note shows:)\s*/i, "").replace(/\s+/g, " ").trim();
+  return text.replace(/\s+/g, " ").trim();
 }
 
 function byDate(a: { date: string }, b: { date: string }) {
