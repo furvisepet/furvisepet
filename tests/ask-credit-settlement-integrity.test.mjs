@@ -105,7 +105,7 @@ test("canonical replay identity changes for every protected payload field and re
   ]) assert.notEqual(hashAiCreditPayload("ask", changed), payloadHash);
 
   const route = readFileSync("app/api/ask/route.ts", "utf8");
-  const claim = route.indexOf("idempotency = await claimIdempotentOperation");
+  const claim = route.indexOf("return claimIdempotentOperation");
   const replay = route.indexOf("completed response replayed after canonical identity validation");
   assert.ok(claim >= 0 && replay > claim);
   assert.doesNotMatch(route.slice(0, claim), /return completedResponseFromPersisted/);

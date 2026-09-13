@@ -208,7 +208,7 @@ test("migration removes client release authority and enforces database identity/
   assert.match(settlementSql, /status = 'released'[\s\S]*settlement_disposition = 'release'/);
   assert.match(settlementSql, /settlement_disposition is not null[\s\S]*for update skip locked/);
   assert.match(settlementSql, /ai_credit_missing_disposition/);
-  const claim = askRoute.indexOf("idempotency = await claimIdempotentOperation");
+  const claim = askRoute.indexOf("return claimIdempotentOperation");
   const replay = askRoute.indexOf("completed response replayed after canonical identity validation");
   assert.ok(claim >= 0 && replay > claim, "persisted answers replay only after canonical payload claim");
   assert.doesNotMatch(askRoute.slice(askRoute.indexOf('logAskStage("assistant message persisted"'), askRoute.indexOf("async function safeReleaseAiCredit")), /safeReleaseAiCredit/);

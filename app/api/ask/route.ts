@@ -97,6 +97,7 @@ import {
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid as isSecurityUuid, readBoundedJson } from "../../lib/security/request";
 import { RateLimitRejection, requireRateLimitedRequest } from "../../lib/security/rate-limit";
 import { claimIdempotentOperation } from "../../lib/security/idempotency";
+import { claimWithRestoredAskOrigin } from "../../lib/ask-restored-retry";
 import { validateSensitiveRequestOriginResponse } from "../../lib/security/headers/origin-policy";
 import { extractTurnSubjectFrame } from "../../lib/intelligence/semantic-frame/extract-turn-subject";
 import {
@@ -226,8 +227,8 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
   const logicalTurnId = typeof body?.logicalTurnId === "string" && isUuid(body.logicalTurnId) ? body.logicalTurnId : "";
   const requestId = logicalTurnId;
   const locale = resolveAskLocale(body?.locale, request.headers.get("accept-language"));
-  const aiCreditPayload = { conversationId, locale, petId, question };
-  const aiCreditPayloadHash = hashAiCreditPayload("ask", aiCreditPayload);
+  let aiCreditPayload = { conversationId, locale, petId, question };
+  let aiCreditPayloadHash = hashAiCreditPayload("ask", aiCreditPayload);
   logAskStage("authentication succeeded", { requestId });
 
   if (!question || !requestId) {
@@ -301,35 +302,47 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
   }
   let idempotency: Awaited<ReturnType<typeof claimIdempotentOperation>>;
   try {
-    idempotency = await claimIdempotentOperation({
-      candidateKey: requestId,
-      leaseSeconds: 180,
-      operationType: "ask.submit.persisted_answer_v2",
+    idempotency = await claimWithRestoredAskOrigin({
       payload: aiCreditPayload,
-      preserveResponseOnCompletionFailure: true,
-      reconcilePersistedReplay: async ({ claimOutcome }) => {
-        const persisted = persistedBeforeClaim || await loadPersistedRequest({ petId, requestId, supabase, userId });
-        if (!persisted?.assistantMessage?.response_data) {
-          if (claimOutcome === "completed") {
-            throw new AskApiError("DATABASE_ERROR", "Furvise could not load this answer.", 503, "request_lookup");
-          }
-          return null;
-        }
-        assertPersistedReplayIdentity({ conversationId, question, state: persisted });
-        const replayUsage = await reconcilePersistedAskCredit({
-          logicalRequestId: logicalTurnId,
-          payloadHash: aiCreditPayloadHash,
+      persisted: persistedBeforeClaim ? {
+        conversationId: persistedBeforeClaim.conversationId,
+        question: persistedBeforeClaim.userMessage.user_text,
+        userSequence: persistedBeforeClaim.userSequence,
+      } : null,
+      claim: async (canonicalPayload) => {
+        aiCreditPayload = canonicalPayload;
+        aiCreditPayloadHash = hashAiCreditPayload("ask", canonicalPayload);
+        return claimIdempotentOperation({
+          candidateKey: requestId,
+          leaseSeconds: 180,
+          operationType: "ask.submit.persisted_answer_v2",
+          payload: aiCreditPayload,
+          preserveResponseOnCompletionFailure: true,
+          reconcilePersistedReplay: async ({ claimOutcome }) => {
+            const persisted = persistedBeforeClaim || await loadPersistedRequest({ petId, requestId, supabase, userId });
+            if (!persisted?.assistantMessage?.response_data) {
+              if (claimOutcome === "completed") {
+                throw new AskApiError("DATABASE_ERROR", "Furvise could not load this answer.", 503, "request_lookup");
+              }
+              return null;
+            }
+            assertPersistedReplayIdentity({ conversationId, question, state: persisted });
+            const replayUsage = await reconcilePersistedAskCredit({
+              logicalRequestId: logicalTurnId,
+              payloadHash: aiCreditPayloadHash,
+              supabase,
+              usage,
+              userId,
+            });
+            logAskStage("completed response replayed after canonical identity validation", { requestId });
+            return completedResponseFromPersisted(persisted, replayUsage);
+          },
+          request,
+          retention: "financial",
           supabase,
-          usage,
           userId,
         });
-        logAskStage("completed response replayed after canonical identity validation", { requestId });
-        return completedResponseFromPersisted(persisted, replayUsage);
       },
-      request,
-      retention: "financial",
-      supabase,
-      userId,
     });
   } catch (error) {
     return handleAskApiError(error, requestId);

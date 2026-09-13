@@ -53,7 +53,7 @@ test("failure preserves the visible user message and retry reuses its logical tu
 test("a failed turn cannot lend its request identity or edit state to a new composer submission", () => {
   const askFunction = page.slice(page.indexOf("async function ask("), page.indexOf("function saveCurrentDraft"));
   assert.match(askFunction, /const logicalTurnId = retry\?\.logicalTurnId \|\| crypto\.randomUUID\(\)/);
-  const claim = route.indexOf("idempotency = await claimIdempotentOperation");
+  const claim = route.indexOf("return claimIdempotentOperation");
   const replay = route.indexOf("completed response replayed after canonical identity validation");
   assert.ok(claim >= 0 && replay > claim);
   assert.match(route, /assertPersistedReplayIdentity/);
