@@ -3,6 +3,7 @@ import "server-only";
 import { idempotencyErrorResponse, replayResponse } from "./errors";
 import { logIdempotencyEvent } from "./logging";
 import { hashIdempotencyPayload } from "./payload-hash";
+import { isRetryableOperationResponse } from "./retryable-response";
 import { resolveIdempotencyKey } from "./request-key";
 import { abandonStoredOperation, claimStoredOperation, completeStoredOperation, failStoredOperation } from "./store";
 import type { ClaimIdempotencyInput, IdempotencyOperation } from "./types";
@@ -50,7 +51,7 @@ export async function claimIdempotentOperation(input: ClaimIdempotencyInput): Pr
         throw error;
       }
       const body = await responseBody(response);
-      if (response.status >= 500) {
+      if (isRetryableOperationResponse(input.operationType, response.status, body)) {
         await failStoredOperation({ body, errorCode: "RETRYABLE_RESPONSE", key: key.key, operationType: input.operationType, ownerToken: claim.owner_token!, retryable: true, status: response.status, userId: input.userId });
         return response;
       }

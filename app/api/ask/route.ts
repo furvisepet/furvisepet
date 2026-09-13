@@ -841,7 +841,9 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
     if (rateGateRef.current) await rateGateRef.current.release();
     if (error instanceof RateLimitRejection) {
       turnLifecycle.fail("rate_limit", true); emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
-      return askFailure("RATE_LIMITED", "Wait a moment, then try again.", error.response.status, {}, "rate_limit");
+      const retryAfterSeconds = Number(error.response.headers.get("Retry-After") || 0);
+      return askFailure("RATE_LIMITED", "Wait a moment, then try again.", error.response.status,
+        Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0 ? { retryAfterSeconds: Math.ceil(retryAfterSeconds) } : {}, "rate_limit");
     }
     if (error instanceof AiAdmissionError) {
       if (providerCallCount === 0) logAskPreProvider503({
