@@ -48,6 +48,7 @@ export type VetBriefDocument = {
   questionsForVeterinarian: string[];
   missingInformation: string[];
   historyCoverage?: string[];
+  reviewWarnings?: Array<"duplicate_details">;
   ownerNotes: string;
   excludedSections: VetBriefSectionId[];
   includePetPhoto: boolean;

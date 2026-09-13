@@ -3,7 +3,7 @@
 import { vetBriefUrgency, vetBriefUrgencyText } from "../lib/vet-brief/urgency";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { type FormEvent, Suspense, useEffect, useState } from "react";
+import { type FormEvent, Suspense, useEffect, useRef, useState } from "react";
 import { AppPage } from "../components/app-page";
 import { VetBriefLoading } from "../components/vet-brief-loading";
 import { appPageContainer, PageHeader } from "../components/product-primitives";
@@ -19,7 +19,7 @@ import { isTerminalVetBriefFailure, MAX_VET_BRIEF_REASON_LENGTH } from "../lib/v
 import { clearClientMutationKey, getOrCreateClientMutationKey, idempotentClientFetch } from "../lib/security/idempotency/client";
 import { getVetBriefFilename, parseVetBriefDocument } from "../lib/vet-brief/schema";
 import type { VetBriefDatedItem, VetBriefDocument, VetBriefHistoryItem, VetBriefRecord, VetBriefSectionId } from "../lib/vet-brief/types";
-import { readVetBriefClientDraft, removeVetBriefClientDraft, saveVetBriefClientDraft } from "../lib/vet-brief/client-drafts";
+import { readVetBriefClientDraft, removeVetBriefClientDraft, saveAuthorizedVetBriefClientDraft } from "../lib/vet-brief/client-drafts";
 
 const outline: Array<{ id: VetBriefSectionId; label: string }> = [
   { id: "visit-reason", label: "Visit reason" },
@@ -64,9 +64,11 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
+  const workspaceActive = useRef(false);
 
   useEffect(() => {
     let active = true;
+    workspaceActive.current = true;
     async function load() {
       try {
         if (existingBriefId) {
@@ -105,7 +107,7 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
       } finally { if (active) setLoading(false); }
     }
     void load();
-    return () => { active = false; };
+    return () => { active = false; workspaceActive.current = false; };
   }, [existingBriefId, petId, source, conversationId, userId]);
 
   const documentStatus = confirmed ? "Confirmed" : previousVersionId ? "New version in progress" : "Draft";
@@ -162,12 +164,14 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
     setConfirmed(null);
   }
 
-  function saveDraft() {
-    if (!document || !documentPetId) return;
+  async function saveDraft() {
+    if (!document || !documentPetId || saving) return;
+    setSaving(true); setError("");
     try {
-      saveVetBriefClientDraft(window.localStorage, { briefId: previousVersionId, petId: documentPetId, userId }, { document, sourceEntryIds });
+      await saveAuthorizedVetBriefClientDraft(window.localStorage, { briefId: previousVersionId, petId: documentPetId, userId }, { document, sourceEntryIds }, validateDraftScope, () => workspaceActive.current);
       setStatus("Draft saved on this device.");
-    } catch { setError("The draft could not be saved on this device."); }
+    } catch (saveError) { setError(saveError instanceof Error ? saveError.message : "The draft could not be saved on this device."); }
+    finally { setSaving(false); }
   }
 
   function createNewVersion() {
@@ -217,6 +221,7 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
   const askReturnHref = documentPetId ? `/ask?pet=${encodeURIComponent(documentPetId)}${conversationId ? `&conversation=${encodeURIComponent(conversationId)}` : ""}` : "/ask";
   return <AppPage layout="workspace"><div className="w-full pb-36">
     <PageHeader eyebrow={<Link href={askReturnHref}>Back to Ask</Link>} title={retrospective ? "Care history summary" : "Vet brief"} supportingText={retrospective ? "Your pet’s recorded care, organised for review." : "The important history. The right questions. Ready for your appointment."} actions={<WorkflowDocumentStatus status={documentStatus} />} />
+    {document?.reviewWarnings?.includes("duplicate_details") ? <Status tone="warn" text="Some supporting details may repeat. Use Edit details to remove repetition before confirming." /> : null}
     {document && !loading ? <div aria-label="Choose review or preview" className="mt-6 flex items-center justify-between border-b border-[var(--pw-border)] pb-4"><p className="text-sm text-[var(--pw-muted)]">{mode === "preview" ? "Read through once. Edit only what needs changing." : "Open a section to make changes."}</p><button className={secondaryButton} onClick={() => setMode(mode === "preview" ? "review" : "preview")} type="button">{mode === "preview" ? "Edit details" : "Read brief"}</button></div> : null}
     {immediateUrgency && (!document || loading || mode === "review") ? <div role="alert" className="mt-6 rounded-xl border border-[var(--pw-warning-border)] bg-[var(--pw-surface)] p-5 text-[var(--pw-warning-text)]"><h2 className="font-semibold">Care should not wait</h2><p className="mt-2">{vetBriefUrgencyText(immediateUrgency)}</p></div> : null}
     {error ? <Status text={error} tone="warn" /> : null}{status ? <Status text={status} /> : null}
@@ -272,7 +277,7 @@ function DateField({ label, onChange, unknownAllowed = false, value }: { label: 
 function TextField({ label, onChange, value }: { label: string; onChange: (value: string) => void; value: string }) { return <label className="block text-sm font-semibold text-[var(--pw-heading)]">{label}<input className={`${inputClass} mt-1`} onChange={(event) => onChange(event.target.value)} value={value} /></label>; }
 function TextArea({ label, onChange, value }: { label: string; onChange: (value: string) => void; value: string }) { return <label className="mt-3 block text-sm font-semibold text-[var(--pw-heading)]">{label}<textarea className={`${inputClass} mt-1 min-h-36 rounded-2xl py-3 leading-7`} onChange={(event) => onChange(event.target.value)} value={value} /></label>; }
 
-function ActionBar({ confirmed, documentStatus, onConfirm, onCreateVersion, onDownload, onSaveDraft, onShare, saving }: { confirmed: VetBriefRecord | null; documentStatus: "Draft" | "Confirmed" | "New version in progress"; onConfirm: () => void; onCreateVersion: () => void; onDownload: () => void; onSaveDraft: () => void; onShare: () => void; saving: boolean }) { return <div className="fixed inset-x-0 bottom-14 z-30 border-t border-[var(--pw-border-strong)] bg-[var(--pw-surface)] pt-3 shadow-[0_-8px_24px_var(--pw-shadow)] lg:bottom-0" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}><div className={`${appPageContainer} flex flex-wrap items-center justify-between gap-3`}><WorkflowDocumentStatus status={documentStatus} />{confirmed ? <div className="flex flex-wrap gap-2"><button className={primaryButtonCompact} onClick={onDownload} type="button">Download PDF</button>{typeof navigator !== "undefined" && "share" in navigator ? <button className={secondaryButtonCompact} onClick={onShare} type="button">Share</button> : null}<Link className={secondaryButtonCompact} href={`/vet-briefs/${confirmed.id}/print`} target="_blank">Print</Link><button className={secondaryButtonCompact} onClick={onCreateVersion} type="button">Create new version</button></div> : <div className="flex flex-wrap gap-2"><button className={secondaryButtonCompact} onClick={onSaveDraft} type="button">Save draft</button><button className={primaryButtonCompact} disabled={saving} onClick={onConfirm} type="button">{saving ? "Confirming\u2026" : "Confirm brief"}</button></div>}</div></div>; }
+function ActionBar({ confirmed, documentStatus, onConfirm, onCreateVersion, onDownload, onSaveDraft, onShare, saving }: { confirmed: VetBriefRecord | null; documentStatus: "Draft" | "Confirmed" | "New version in progress"; onConfirm: () => void; onCreateVersion: () => void; onDownload: () => void; onSaveDraft: () => void; onShare: () => void; saving: boolean }) { return <div className="fixed inset-x-0 bottom-14 z-30 border-t border-[var(--pw-border-strong)] bg-[var(--pw-surface)] pt-3 shadow-[0_-8px_24px_var(--pw-shadow)] lg:bottom-0" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}><div className={`${appPageContainer} flex flex-wrap items-center justify-between gap-3`}><WorkflowDocumentStatus status={documentStatus} />{confirmed ? <div className="flex flex-wrap gap-2"><button className={primaryButtonCompact} onClick={onDownload} type="button">Download PDF</button>{typeof navigator !== "undefined" && "share" in navigator ? <button className={secondaryButtonCompact} onClick={onShare} type="button">Share</button> : null}<Link className={secondaryButtonCompact} href={`/vet-briefs/${confirmed.id}/print`} target="_blank">Print</Link><button className={secondaryButtonCompact} onClick={onCreateVersion} type="button">Create new version</button></div> : <div className="flex flex-wrap gap-2"><button className={secondaryButtonCompact} disabled={saving} onClick={onSaveDraft} type="button">Save draft</button><button className={primaryButtonCompact} disabled={saving} onClick={onConfirm} type="button">{saving ? "Saving\u2026" : "Confirm brief"}</button></div>}</div></div>; }
 function Status({ text, tone = "neutral" }: { text: string; tone?: "neutral" | "warn" }) { return <div className={`mt-5 border-y px-1 py-3 text-sm leading-6 ${tone === "warn" ? "border-[var(--pw-warning-border)] text-[var(--pw-warning-text)]" : "border-[var(--pw-border)] text-[var(--pw-muted)]"}`} role="status">{text}</div>; }
 
 function isSectionEmpty(document: VetBriefDocument, id: VetBriefSectionId) { switch (id) { case "visit-reason": return !document.reasonForVisit.trim() || document.reasonForVisit === "Not recorded"; case "changes-noticed": return !document.ownerReportedChanges.length && !document.reportedPatterns.length; case "timeline": return !document.concernTimeline.length; case "food-products": return !document.foodChanges.length && !document.productsUsed.length; case "medications": return !document.medicationsSupplements.length; case "care-history": return !document.relevantCareHistory.length; case "questions": return !document.questionsForVeterinarian.length; case "owner-notes": return !document.ownerNotes.trim(); } }
