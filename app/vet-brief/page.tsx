@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, Suspense, useEffect, useState } from "react";
 import { AppPage } from "../components/app-page";
-import { appPageContainer } from "../components/product-primitives";
+import { VetBriefLoading } from "../components/vet-brief-loading";
+import { appPageContainer, PageHeader } from "../components/product-primitives";
 import { vetBriefDatedEntryCount, vetBriefText } from "../lib/vet-brief/report";
 import { VetBriefDocumentView } from "../components/vet-brief-document";
 import { WorkflowDocumentStatus } from "../components/workflow-primitives";
@@ -29,7 +30,7 @@ const outline: Array<{ id: VetBriefSectionId; label: string }> = [
   { id: "owner-notes", label: "Owner notes" },
 ];
 
-export default function VetBriefPage() { return <Suspense fallback={<AppPage>{null}</AppPage>}><VetBriefPageContent /></Suspense>; }
+export default function VetBriefPage() { return <Suspense fallback={<AppPage><VetBriefLoading /></AppPage>}><VetBriefPageContent /></Suspense>; }
 
 function VetBriefPageContent() {
   const searchParams = useSearchParams();
@@ -38,7 +39,7 @@ function VetBriefPageContent() {
   const existingBriefId = searchParams.get("brief") || "";
   const source = searchParams.get("source") || "";
   const conversationId = searchParams.get("conversation") || "";
-  if (authStatus !== "signedIn" || !user) return <AppPage>{null}</AppPage>;
+  if (authStatus !== "signedIn" || !user) return <AppPage><VetBriefLoading /></AppPage>;
   return <VetBriefWorkspace conversationId={conversationId} existingBriefId={existingBriefId} key={`${user.id}:${petId}:${existingBriefId || "new"}`} petId={petId} source={source} userId={user.id} />;
 }
 
@@ -122,7 +123,7 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
 
   async function refreshRange(event: FormEvent) {
     event.preventDefault();
-    if (!documentPetId || from > to) return;
+    if (!documentPetId || from > to || loading) return;
     setLoading(true); setError("");
     try {
       const draft = await fetchDraft(documentPetId, from, to, source === "ask" ? conversationId : "", document);
@@ -211,19 +212,19 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
   const emptySections = document ? outline.filter((item) => isSectionEmpty(document, item.id) && !editingEmpty.has(item.id)) : [];
 
   const askReturnHref = documentPetId ? `/ask?pet=${encodeURIComponent(documentPetId)}${conversationId ? `&conversation=${encodeURIComponent(conversationId)}` : ""}` : "/ask";
-  return <AppPage layout="focused" width="wide"><div className="mx-auto w-full max-w-3xl pb-36">
-    <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between"><div><Link className="text-sm font-semibold text-[var(--pw-primary)]" href={askReturnHref}>Back to Ask</Link><h1 className="mt-3 text-4xl font-semibold tracking-[-0.035em] text-[var(--pw-heading)] sm:text-5xl">{retrospective ? "Care history summary" : "Vet brief"}</h1><p className="mt-3 max-w-3xl leading-7 text-[var(--pw-muted)]">{retrospective ? "Review the timeline and records, then choose how to keep or share the summary." : "Your pet’s history, ready for the appointment."}</p></div><WorkflowDocumentStatus status={documentStatus} /></header>
+  return <AppPage layout="workspace"><div className="w-full pb-36">
+    <PageHeader eyebrow={<Link href={askReturnHref}>Back to Ask</Link>} title={retrospective ? "Care history summary" : "Vet brief"} supportingText={retrospective ? "Your pet’s recorded care, organised for review." : "The important history. The right questions. Ready for your appointment."} actions={<WorkflowDocumentStatus status={documentStatus} />} />
     {document && !loading ? <div aria-label="Choose review or preview" className="mt-6 flex items-center justify-between border-b border-[var(--pw-border)] pb-4"><p className="text-sm text-[var(--pw-muted)]">{mode === "preview" ? "Read through once. Edit only what needs changing." : "Open a section to make changes."}</p><button className={secondaryButton} onClick={() => setMode(mode === "preview" ? "review" : "preview")} type="button">{mode === "preview" ? "Edit details" : "Read brief"}</button></div> : null}
     {immediateUrgency ? <div role="alert" className="mt-6 rounded-xl border border-[var(--pw-warning-border)] bg-[var(--pw-surface)] p-5 text-[var(--pw-warning-text)]"><h2 className="font-semibold">Care should not wait</h2><p className="mt-2">{vetBriefUrgencyText(immediateUrgency)}</p></div> : null}
     {error ? <Status text={error} tone="warn" /> : null}{status ? <Status text={status} /> : null}
 
 
-    {needsPurpose && !document ? <form className="mt-10 space-y-6" onSubmit={prepareBrief}>
-      <div><h2 className="text-2xl font-semibold text-[var(--pw-heading)]">What is the appointment for?</h2><p className="mt-3 leading-7 text-[var(--pw-muted)]">A concern, a follow-up, or a routine checkup. Furvise will use saved history to prepare your brief.</p><TextArea label="Reason for the appointment" onChange={setPurpose} value={purpose} /></div>
+    {needsPurpose && !document && !loading ? <form className="mt-10 space-y-6" onSubmit={prepareBrief}>
+      <div><h2 className="app-section-title">What is the appointment for?</h2><p className="mt-3 leading-7 text-[var(--pw-muted)]">A concern, a follow-up, or a routine checkup. Furvise will use saved history to prepare your brief.</p><TextArea label="Reason for the appointment" onChange={setPurpose} value={purpose} /></div>
       <details className="border-y border-[var(--pw-border)] py-4"><summary className="cursor-pointer font-semibold">Choose history dates</summary><p className="mt-3 text-sm text-[var(--pw-muted)]">These dates guide the review. Furvise also searches earlier background when your appointment needs it.</p><div className="mt-4 grid grid-cols-2 gap-4"><DateField label="From" onChange={setFrom} value={from} /><DateField label="To" onChange={setTo} value={to} /></div></details>
       <button className={primaryButtonCompact} disabled={loading || !purpose.trim() || from > to} type="submit">{loading ? "Preparing your brief…" : "Prepare my brief"}</button>
     </form> : null}
-    {loading ? <Status text="Reading saved history and preparing your brief…" /> : document ? <div className="mt-7 min-w-0">
+    {loading ? <VetBriefLoading preparing={Boolean(purpose || document)} /> : document ? <div className="mt-7 min-w-0">
       <section aria-label="Edit Vet Visit Brief" className={`${mode === "review" ? "block" : "hidden"} min-w-0`}>
         <details className="border-y border-[var(--pw-border)] py-5"><summary className="cursor-pointer font-semibold">Report title and history dates</summary><form className="mt-4 space-y-4" onSubmit={refreshRange}><TextField label="Document title" onChange={(value) => editDocument((current) => ({ ...current, title: value }))} value={document.title} /><div className="grid grid-cols-2 gap-3"><DateField label="From" onChange={setFrom} value={from} /><DateField label="To" onChange={setTo} value={to} /></div><p className="text-sm text-[var(--pw-muted)]">Preparing again replaces generated sections. Save your draft before changing dates if you want to keep your edits.</p><button className={secondaryButton} type="submit">Prepare again with these dates</button></form></details>
 
@@ -251,7 +252,7 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
       </section>
     </div> : null}
 
-    {document ? <ActionBar confirmed={confirmed} documentStatus={documentStatus} onConfirm={() => void confirmBrief()} onCreateVersion={createNewVersion} onDownload={() => void downloadPdf()} onSaveDraft={saveDraft} onShare={() => void shareBrief()} saving={saving} /> : null}
+    {document && !loading ? <ActionBar confirmed={confirmed} documentStatus={documentStatus} onConfirm={() => void confirmBrief()} onCreateVersion={createNewVersion} onDownload={() => void downloadPdf()} onSaveDraft={saveDraft} onShare={() => void shareBrief()} saving={saving} /> : null}
   </div></AppPage>;
 }
 
@@ -266,7 +267,7 @@ function QuestionsEditor({ items, onChange }: { items: string[]; onChange: (item
 function FieldGroup({ children, title }: { children: React.ReactNode; title: string }) { return <fieldset className="mt-5 first:mt-0"><legend className="text-sm font-semibold text-[var(--pw-heading)]">{title}</legend><div className="mt-2">{children}</div></fieldset>; }
 function DateField({ label, onChange, unknownAllowed = false, value }: { label: string; onChange: (value: string) => void; unknownAllowed?: boolean; value: string }) { const unknown = value === "Date unknown"; return <label className="block text-sm font-semibold text-[var(--pw-heading)]">{label}<input className={`${inputClass} mt-1`} onChange={(event) => onChange(event.target.value)} onInput={(event) => onChange(event.currentTarget.value)} type="date" value={unknown ? "" : value} />{unknownAllowed && unknown ? <span className="mt-1 block text-xs font-normal text-[var(--pw-muted)]">Date unknown</span> : null}</label>; }
 function TextField({ label, onChange, value }: { label: string; onChange: (value: string) => void; value: string }) { return <label className="block text-sm font-semibold text-[var(--pw-heading)]">{label}<input className={`${inputClass} mt-1`} onChange={(event) => onChange(event.target.value)} value={value} /></label>; }
-function TextArea({ label, onChange, value }: { label: string; onChange: (value: string) => void; value: string }) { return <label className="mt-3 block text-sm font-semibold text-[var(--pw-heading)]">{label}<textarea className={`${inputClass} mt-1 min-h-24 py-3`} onChange={(event) => onChange(event.target.value)} value={value} /></label>; }
+function TextArea({ label, onChange, value }: { label: string; onChange: (value: string) => void; value: string }) { return <label className="mt-3 block text-sm font-semibold text-[var(--pw-heading)]">{label}<textarea className={`${inputClass} mt-1 min-h-36 rounded-2xl py-3 leading-7`} onChange={(event) => onChange(event.target.value)} value={value} /></label>; }
 
 function ActionBar({ confirmed, documentStatus, onConfirm, onCreateVersion, onDownload, onSaveDraft, onShare, saving }: { confirmed: VetBriefRecord | null; documentStatus: "Draft" | "Confirmed" | "New version in progress"; onConfirm: () => void; onCreateVersion: () => void; onDownload: () => void; onSaveDraft: () => void; onShare: () => void; saving: boolean }) { return <div className="fixed inset-x-0 bottom-14 z-30 border-t border-[var(--pw-border-strong)] bg-[var(--pw-surface)] pt-3 shadow-[0_-8px_24px_var(--pw-shadow)] lg:bottom-0" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}><div className={`${appPageContainer} flex flex-wrap items-center justify-between gap-3`}><WorkflowDocumentStatus status={documentStatus} />{confirmed ? <div className="flex flex-wrap gap-2"><button className={primaryButtonCompact} onClick={onDownload} type="button">Download PDF</button>{typeof navigator !== "undefined" && "share" in navigator ? <button className={secondaryButtonCompact} onClick={onShare} type="button">Share</button> : null}<Link className={secondaryButtonCompact} href={`/vet-briefs/${confirmed.id}/print`} target="_blank">Print</Link><button className={secondaryButtonCompact} onClick={onCreateVersion} type="button">Create new version</button></div> : <div className="flex flex-wrap gap-2"><button className={secondaryButtonCompact} onClick={onSaveDraft} type="button">Save draft</button><button className={primaryButtonCompact} disabled={saving} onClick={onConfirm} type="button">{saving ? "Confirming\u2026" : "Confirm brief"}</button></div>}</div></div>; }
 function Status({ text, tone = "neutral" }: { text: string; tone?: "neutral" | "warn" }) { return <div className={`mt-5 border-y px-1 py-3 text-sm leading-6 ${tone === "warn" ? "border-[var(--pw-warning-border)] text-[var(--pw-warning-text)]" : "border-[var(--pw-border)] text-[var(--pw-muted)]"}`} role="status">{text}</div>; }

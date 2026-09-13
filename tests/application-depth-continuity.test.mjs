@@ -22,7 +22,7 @@ test("shared focused and workspace layouts use semantic outer application shells
   assert.match(appPage, /layout\?: "focused" \| "workspace"/);
   assert.match(ask, /<AppPage layout="focused"/);
   assert.match(products, /<AppPage layout="focused"/);
-  assert.match(vetBrief, /<AppPage layout="focused"/);
+  assert.match(vetBrief, /<AppPage layout="workspace"/);
   assert.match(today, /<AppPage layout="workspace"/);
   assert.match(pets, /<AppPage layout="workspace"/);
   assert.match(history, /<AppPage layout="workspace"/);

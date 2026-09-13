@@ -80,7 +80,7 @@ test('corrected claim provenance saves through the authenticated RPC and never t
  await assert.rejects(()=>verifyVetBriefClaimSources({rpc:()=>({abortSignal:async()=>({error:{code:'42501'}})})},['claim-'+id],'owner','pet'),/verification_unavailable/);
 });
 const {parseVetBriefPublicationReview}=await import('../app/lib/vet-brief/publication-review.ts');
-const verdict={factsSupported:true,importantHistoryPreserved:true,categoriesAccurate:true,uncertaintyPreserved:true,noDuplication:false,questionsUseful:true,visitFocused:true,repairInstructions:'Remove the alleged duplicate.',duplicatePairs:[]};
+const verdict={factsSupported:true,importantHistoryPreserved:true,categoriesAccurate:true,uncertaintyPreserved:true,noDuplication:false,questionsUseful:true,visitFocused:true,repairSections:['timeline','medications'],repairInstructions:'Remove the alleged duplicate.',duplicatePairs:[]};
 test('a duplication verdict requires real same-date entries in different supporting sections; factual failures remain failures',()=>{
  const document={...baseline,visitSummary:'A synopsis may repeat medication facts.',concernTimeline:[{date:'2026-09-11',text:'Medication course recorded.'}],medicationsSupplements:[{date:'2026-09-11',text:'The medication course was recorded.'}]};
  assert.equal(parseVetBriefPublicationReview(verdict,document).noDuplication,true);
@@ -115,7 +115,7 @@ test('generated dates cannot be silently normalized from timestamps or invalid d
 });
 
 test('publication diagnostics expose only allowlisted fact kinds and sections',()=>{
- const review={factsSupported:false,importantHistoryPreserved:true,categoriesAccurate:true,uncertaintyPreserved:true,noDuplication:true,questionsUseful:true,visitFocused:true,repairInstructions:'Keep prescription separate from administration.',duplicatePairs:[],factualIssues:[{kind:'medication_status',section:'reason'}]};
+ const review={factsSupported:false,importantHistoryPreserved:true,categoriesAccurate:true,uncertaintyPreserved:true,noDuplication:true,questionsUseful:true,visitFocused:true,repairSections:['reason'],repairInstructions:'Keep prescription separate from administration.',duplicatePairs:[],factualIssues:[{kind:'medication_status',section:'reason'}]};
  assert.deepEqual(parseVetBriefPublicationReview(review,baseline).factualIssueCodes,['medication_status:reason']);
  assert.equal(parseVetBriefPublicationReview({...review,factualIssues:[{kind:'patient text',section:'reason'}]},baseline),null);
 });

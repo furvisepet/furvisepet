@@ -1,5 +1,5 @@
 import { rgb } from "pdf-lib";
-import { PDFDocument, type PDFFont, type PDFPage } from "pdf-lib";
+import { PDFDocument, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -8,20 +8,20 @@ import type { VetBriefDocument } from "./types.ts";
 
 /* The Vet Brief uses the same approved palette as the application. */
 export const PDF_THEME = {
-  brand: rgb(57 / 255, 56 / 255, 49 / 255),
-  accent: rgb(198 / 255, 201 / 255, 210 / 255),
-  text: rgb(57 / 255, 56 / 255, 49 / 255),
-  muted: rgb(57 / 255, 56 / 255, 49 / 255),
-  border: rgb(184 / 255, 174 / 255, 168 / 255),
+  brand: rgb(18 / 255, 63 / 255, 39 / 255),
+  accent: rgb(227 / 255, 243 / 255, 222 / 255),
+  text: rgb(23 / 255, 48 / 255, 35 / 255),
+  muted: rgb(64 / 255, 86 / 255, 72 / 255),
+  border: rgb(205 / 255, 216 / 255, 206 / 255),
 } as const;
 
 const LETTER = { width: 612, height: 792 };
 const A4 = { width: 595.28, height: 841.89 };
-const MARGIN = 54;
+const MARGIN = 48;
 const FOOTER_Y = 30;
 const fontData = Promise.all([
-  readFile(join(process.cwd(), "app/lib/vet-brief/fonts/DejaVuSans.ttf")),
-  readFile(join(process.cwd(), "app/lib/vet-brief/fonts/DejaVuSans-Bold.ttf")),
+  readFile(join(process.cwd(), "public/fonts/Inter-Regular.ttf")),
+  readFile(join(process.cwd(), "public/fonts/Inter-Bold.ttf")),
 ]);
 
 export class UnsupportedBriefPdfTextError extends Error {
@@ -32,13 +32,17 @@ export async function generateVetBriefPdf(document: VetBriefDocument, options: {
   const pdf = await PDFDocument.create();
   pdf.registerFontkit(fontkit);
   const [regularData, boldData] = await fontData;
-  const regular = await pdf.embedFont(regularData, { subset: true });
-  const bold = await pdf.embedFont(boldData, { subset: true });
+  const regular = await pdf.embedFont(regularData, { subset: false });
+  const bold = await pdf.embedFont(boldData, { subset: false });
+  const logo = await pdf.embedPng(await readFile(join(process.cwd(), "app/lib/vet-brief/fonts/brand-print.png")));
   const dimensions = options.pageSize === "a4" ? A4 : LETTER;
-  const state = { pdf, page: pdf.addPage([dimensions.width, dimensions.height]), y: dimensions.height - MARGIN, regular, bold, pageWidth: dimensions.width, pageHeight: dimensions.height, contentWidth: dimensions.width - (MARGIN * 2) };
+  const state = { pdf, logo, petName: document.pet.name, page: pdf.addPage([dimensions.width, dimensions.height]), y: dimensions.height - MARGIN, regular, bold, pageWidth: dimensions.width, pageHeight: dimensions.height, contentWidth: dimensions.width - (MARGIN * 2) };
 
-  drawText(state, "FURVISE", { font: bold, size: 9, color: PDF_THEME.brand, spacingAfter: 8 });
-  drawText(state, document.title, { font: bold, size: 22, color: PDF_THEME.text, spacingAfter: 7 });
+  const logoHeight = 128 * logo.height / logo.width;
+  state.page.drawImage(logo, { x: MARGIN, y: state.y - logoHeight, width: 128, height: logoHeight });
+  state.page.drawText('APPOINTMENT BRIEF', { x: state.pageWidth - MARGIN - bold.widthOfTextAtSize('APPOINTMENT BRIEF', 8), y: state.y - 12, font: bold, size: 8, color: PDF_THEME.muted });
+  state.y -= logoHeight + 28;
+  drawText(state, document.title, { font: bold, size: 23, color: PDF_THEME.brand, spacingAfter: 7 });
   drawText(state, `Prepared ${formatDateTime(document.generatedAt)} | Covers ${formatDate(document.dateRange.from)} to ${formatDate(document.dateRange.to)}`, {
     font: regular,
     size: 9,
@@ -54,7 +58,7 @@ export async function generateVetBriefPdf(document: VetBriefDocument, options: {
     : "Selected owner records, not a complete medical record.";
   drawText(state, scopeNote, { font: regular, size: 9, color: PDF_THEME.muted, spacingAfter: 14 });
   for (const section of vetBriefReport(document)) {
-    drawSection(state, section.title, section.items.map(item => `${item.date ? `${formatItemDate(item.date)} | ` : ""}${item.category ? `${item.category}: ` : ""}${item.text}`));
+    drawSection(state, section.title, section.items);
   }
 
   const disclaimerHeight = 14 + wrapText(document.disclaimer, regular, 8, state.contentWidth).length * 10.8 + 4;
@@ -64,7 +68,7 @@ export async function generateVetBriefPdf(document: VetBriefDocument, options: {
 
   const pages = pdf.getPages();
   pages.forEach((page, index) => {
-    page.drawText(`Furvise Vet Visit Brief | Page ${index + 1} of ${pages.length}`, {
+    page.drawText(`Furvise | ${document.pet.name} | Page ${index + 1} of ${pages.length}`, {
       x: MARGIN,
       y: FOOTER_Y,
       font: regular,
@@ -80,6 +84,8 @@ export async function generateVetBriefPdf(document: VetBriefDocument, options: {
 
 type PdfState = {
   pdf: PDFDocument;
+  logo: PDFImage;
+  petName: string;
   page: PDFPage;
   y: number;
   regular: PDFFont;
@@ -89,12 +95,21 @@ type PdfState = {
   contentWidth: number;
 };
 
-function drawSection(state: PdfState, title: string, items: string[], emptyText = "Not recorded") {
-  const visible = items.length ? items : [emptyText];
-  ensureSpace(state, estimateSectionHeight(title, visible, state));
-  drawText(state, title, { font: state.bold, size: 12, color: PDF_THEME.text, spacingAfter: 6 });
-  visible.forEach((item) => drawText(state, items.length > 1 ? `- ${item}` : item, { font: state.regular, size: 10, color: PDF_THEME.text, spacingAfter: 4 }));
-  state.y -= 7;
+function drawSection(state: PdfState, title: string, items: Array<{ date?: string; category?: string; text: string }>) {
+  // Keep a heading with the first evidence lines, not an entire long section.
+  const first = items[0];
+  const firstHeight = first ? wrapText(first.text, state.regular, 10, state.contentWidth).length * 14 + (first.date || first.category ? 18 : 0) : 14;
+  ensureSpace(state, Math.min(48 + firstHeight, state.pageHeight - MARGIN - FOOTER_Y - 90));
+  drawRule(state);
+  drawText(state, title, { font: state.bold, size: 11, color: PDF_THEME.brand, spacingAfter: 9 });
+  items.forEach(item => {
+    const label = [item.date ? formatItemDate(item.date) : '', item.category].filter(Boolean).join(' | ');
+    const height = wrapText(item.text, state.regular, 10, state.contentWidth).length * 14 + (label ? 18 : 0) + 10;
+    ensureSpace(state, Math.min(height, state.pageHeight - MARGIN - FOOTER_Y - 90));
+    if (label) drawText(state, label, { font: state.bold, size: 8, color: PDF_THEME.muted, spacingAfter: 5 });
+    drawText(state, item.text, { font: state.regular, size: 10, color: PDF_THEME.text, spacingAfter: 7 });
+  });
+  state.y -= 2;
 }
 
 function drawText(
@@ -102,7 +117,7 @@ function drawText(
   text: string,
   options: { font: PDFFont; size: number; color: typeof PDF_THEME.text; spacingAfter: number },
 ) {
-  const lineHeight = options.size * 1.35;
+  const lineHeight = options.size * 1.4;
   const lines = wrapText(text || "Not recorded", options.font, options.size, state.contentWidth);
   for (const line of lines) {
     ensureSpace(state, lineHeight + 4);
@@ -122,6 +137,11 @@ function ensureSpace(state: PdfState, required: number) {
   if (state.y - required > FOOTER_Y + 25) return;
   state.page = state.pdf.addPage([state.pageWidth, state.pageHeight]);
   state.y = state.pageHeight - MARGIN;
+  state.page.drawImage(state.logo, { x: MARGIN, y: state.y - 16, width: 80, height: 80 * state.logo.height / state.logo.width });
+  const continuation = `${state.petName} | Continued`;
+  const heading = wrapText(continuation, state.regular, 8, state.contentWidth - 100)[0];
+  state.page.drawText(heading, { x: MARGIN + 105, y: state.y - 12, font: state.regular, size: 8, color: PDF_THEME.muted });
+  state.y -= 45;
 }
 
 function wrapText(text: string, font: PDFFont, size: number, maxWidth: number) {
@@ -159,12 +179,6 @@ function splitLongWord(word: string, font: PDFFont, size: number, maxWidth: numb
   }
   if (part) parts.push(part);
   return parts;
-}
-
-function estimateSectionHeight(title: string, items: string[], state: PdfState) {
-  const titleLines = wrapText(title, state.bold, 12, state.contentWidth).length;
-  const itemLines = items.reduce((total, item) => total + wrapText(item, state.regular, 10, state.contentWidth).length, 0);
-  return Math.min(620, (titleLines * 16.2) + 6 + (itemLines * 13.5) + (items.length * 4) + 7);
 }
 
 function sanitizePdfText(value: string) {
