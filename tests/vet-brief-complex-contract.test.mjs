@@ -99,3 +99,9 @@ test('one canonical event gets one placement, preserving owner symptom and confl
  assert.deepEqual(doc.ownerReportedChanges,[]);assert.deepEqual(doc.relevantCareHistory,[]);
  assert.match(doc.medicationsSupplements[0].text,/conflicting/);
 });
+
+test('appointment search terms obey both candidate and correction RPC bounds',()=>{
+ const plan={focus:'Review',from:null,to:'2026-09-12',topics:[{label:'Condition',terms:['osteoarthritis']}],questionsToResolve:[]};
+ for(const term of ['OA','x'.repeat(33),'blood%','blood_work','  a ']) assert.equal(parseVetBriefAppointmentPlan({...plan,topics:[{label:'Condition',terms:[term]}]},'2026-09-12'),null);
+ for(const term of ['CBC','osteoarthritis','x'.repeat(32)]) assert.ok(parseVetBriefAppointmentPlan({...plan,topics:[{label:'Condition',terms:[term]}]},'2026-09-12'));
+});
