@@ -1,0 +1,94 @@
+{
+  "purpose": "Current architecture behavior; not a live model test",
+  "results": [
+    {
+      "probe": "episode_reference_projection",
+      "quantity": "episodes",
+      "accepted": true,
+      "operation": "episode",
+      "ordinal": "second"
+    },
+    {
+      "probe": "episode_reference_projection",
+      "quantity": "records",
+      "accepted": false,
+      "error": "ASK_REQUEST_INVALID:episode_reference"
+    },
+    {
+      "probe": "episode_reference_projection",
+      "quantity": "duration",
+      "accepted": true,
+      "operation": "recall",
+      "ordinal": null
+    },
+    {
+      "probe": "reviewer_profile_field_selection",
+      "supplied": [
+        "profile:pet-a:species",
+        "profile:pet-a:sex",
+        "profile:pet-a:pronouns",
+        "profile:pet-a:age",
+        "profile:pet-a:breed",
+        "profile:pet-a:weight"
+      ],
+      "retained": [
+        "profile:pet-a:species",
+        "profile:pet-a:sex",
+        "profile:pet-a:pronouns"
+      ]
+    },
+    {
+      "probe": "csv_contract",
+      "maxRows": 10,
+      "minRows": 1,
+      "limitation": {
+        "type": "null"
+      }
+    },
+    {
+      "probe": "csv_row_count",
+      "rows": 0,
+      "accepted": false,
+      "error": "INVALID_READ_TABLE"
+    },
+    {
+      "probe": "csv_row_count",
+      "rows": 4,
+      "accepted": true
+    },
+    {
+      "probe": "csv_row_count",
+      "rows": 11,
+      "accepted": false,
+      "error": "INVALID_READ_TABLE"
+    },
+    {
+      "probe": "open_episode_window",
+      "from": null,
+      "to": "2025-01-01",
+      "accepted": true,
+      "history": {
+        "from": null,
+        "to": "2025-01-01T00:00:00.000Z",
+        "terms": [
+          "vomiting"
+        ],
+        "interpretation": "lexical"
+      }
+    },
+    {
+      "probe": "open_episode_window",
+      "from": "2024-01-01",
+      "to": null,
+      "accepted": true,
+      "history": {
+        "from": "2024-01-01T00:00:00.000Z",
+        "to": null,
+        "terms": [
+          "vomiting"
+        ],
+        "interpretation": "lexical"
+      }
+    }
+  ]
+}

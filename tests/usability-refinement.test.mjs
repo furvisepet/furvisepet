@@ -1,0 +1,119 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+
+const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+
+const header = read("app/components/app-header.tsx");
+const primitives = read("app/components/product-primitives.tsx");
+const homepage = read("app/components/homepage-client.tsx");
+const today = read("app/today/page.tsx");
+const pets = read("app/pets/page.tsx");
+const history = read("app/components/care-log-workspace.tsx");
+const ask = read("app/ask/page.tsx");
+const products = read("app/shop/page.tsx");
+const vetBrief = read("app/vet-brief/page.tsx");
+const globals = read("app/globals.css");
+const accountUtility = read("app/components/account-utility.tsx");
+
+test("application navigation uses the reset route labels", () => {
+  for (const label of ["Today", "Pets", "History", "Ask"]) {
+    assert.match(header, new RegExp(`label: "${label}"`));
+  }
+  assert.match(header, /const MOBILE_NAV_ITEMS = \[[\s\S]*Today[\s\S]*History[\s\S]*Ask[\s\S]*Pets/);
+  assert.doesNotMatch(header.slice(header.indexOf("const MOBILE_NAV_ITEMS"), header.indexOf("export function AppHeader")), /Account/);
+  assert.doesNotMatch(header, /label: "Dashboard"|label: "Care history"|label: "Ask Furvise"/);
+});
+
+test("shared primitives cover the production interaction vocabulary", () => {
+  for (const name of ["AppShell", "PageHeader", "Section", "Divider", "PrimaryButton", "SecondaryButton", "TextButton", "Field", "Select", "Dialog", "Drawer", "EmptyState", "Timeline", "PetIdentity", "Composer", "Notice", "ActionBar", "DocumentStatus", "LoadingState"]) {
+    assert.match(primitives, new RegExp(`export function ${name}`));
+  }
+});
+
+test("the color system exposes layered surfaces and centralized semantic roles", () => {
+  for (const token of ["--surface-page", "--surface-primary", "--surface-raised", "--surface-interactive", "--surface-overlay", "--text-primary", "--text-secondary", "--action-primary", "--action-secondary", "--selection", "--focus"]) {
+    assert.match(globals, new RegExp(token));
+  }
+  assert.match(globals, /:root \{[\s\S]*color-scheme: light/);
+  assert.doesNotMatch(globals, /html\[data-theme|prefers-color-scheme/);
+});
+
+test("homepage uses the final human company story", () => {
+  assert.match(homepage, /aria-label="Remember what matters\."/);
+  assert.doesNotMatch(homepage, /Takes about two minutes\./);
+  for (const story of ["PETS CHANGE.", "ONE STORY.", "WHEN YOU NEED IT,", "YOUR PET&apos;S STORY", "START WITH"]) {
+    assert.equal(homepage.split(story).length - 1, 1);
+  }
+  assert.match(homepage, /secondaryCopy="You don't have to track everything\. Use Furvise when something matters\."/);
+  assert.doesNotMatch(homepage, /id="track-less"/);
+  assert.doesNotMatch(homepage, />0[123]</);
+  assert.doesNotMatch(homepage, /Mani|Illustrative example|ProductWindow/);
+});
+
+test("Today is a recent file with one focused Remember surface", () => {
+  assert.match(today, /data-ui="today-present-file"/);
+  assert.match(today, /Anything you want Furvise to remember\?/);
+  assert.match(today, /data-ui="today-recent"/);
+  assert.doesNotMatch(today, /ASK ABOUT|Full story/);
+  assert.doesNotMatch(today, /TodayGreeting|Make .*guidance|Next best action|missing-field|Products for/);
+});
+
+test("Pets renders a simple pet directory instead of dashboard summaries", () => {
+  assert.match(pets, /The pets Furvise remembers with you\./);
+  assert.match(pets, /aria-label=\{`Open \$\{name\}`\}/);
+  assert.match(pets, />OPEN<\/span>/);
+  assert.doesNotMatch(pets, /Care goal|Most recent update|Add update|Ask about|Vet brief/);
+});
+
+test("History has compact filters and the intentional empty state", () => {
+  assert.match(history, /Everything you have recorded for your pets, in one timeline\./);
+  assert.match(history, /aria-label="History filters"/);
+  assert.match(history, /Start your pets' history/);
+  assert.match(history, /Food changes, routines, symptoms, products, and small observations will appear here in order\./);
+  assert.doesNotMatch(history, />Care history</);
+});
+
+test("Ask fresh state uses a compact pet selector and one disclaimer", () => {
+  assert.match(ask, /Not sure where to start\?/);
+  assert.match(ask, /Try one of these, or say it your own way\./);
+  assert.match(ask, /function CompactPetSelector/);
+  assert.doesNotMatch(ask, /function PetContextRail|Known context|Make this more specific/);
+  assert.equal(ask.split("Furvise helps keep your pet&apos;s story together. It does not replace veterinary care.").length - 1, 1);
+});
+
+test("Products is absent while Account settings remains in the shared utility menu", () => {
+  const mobileNavigation = header.slice(header.indexOf("const MOBILE_NAV_ITEMS"), header.indexOf("export function AppHeader"));
+  assert.doesNotMatch(mobileNavigation, /icon: "more", label: "Account"/);
+  assert.match(header, /<AccountUtility email=\{accountEmail\} \/>/);
+  assert.match(accountUtility, /href="\/account" label="Account settings"/);
+  const desktopNavigation = header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS"));
+  assert.doesNotMatch(desktopNavigation, /\/shop|Products/);
+  assert.doesNotMatch(accountUtility, /href="\/shop"|Products/);
+  assert.doesNotMatch(read("app/components/signed-in-header.tsx"), /href: "\/shop"|Browse products/);
+});
+
+test("Vet brief presents Review, Confirm, Share while retaining export controls", () => {
+  assert.match(vetBrief, /Read through once/);
+  assert.match(vetBrief, /Confirm/);
+  assert.match(vetBrief, /Share/);
+  assert.match(vetBrief, /Download PDF/);
+  assert.match(vetBrief, /\/print/);
+  assert.match(vetBrief, /Information not yet recorded/);
+});
+
+test("primary product surfaces contain no banned visible phrases", () => {
+  const source = [homepage, today, pets, history, ask, products, vetBrief].join("\n");
+  for (const phrase of ["Practical guidance that remembers your pet", "Search carefully using saved context", "Product AI included this month", "Known context", "Make this more specific", "Next best action", "powered by AI", "saved data analysis"]) {
+    assert.doesNotMatch(source, new RegExp(phrase, "i"));
+  }
+  assert.doesNotMatch(source, /—/);
+});
+
+test("mobile task surfaces reserve space for reachable navigation and composers", () => {
+  assert.match(header, /fixed inset-x-0 bottom-0/);
+  assert.match(ask, /app-sticky-composer sticky/);
+  assert.match(globals, /--mobile-nav-safe-area: env\(safe-area-inset-bottom, 0px\)[\s\S]*\.app-sticky-composer[\s\S]*var\(--mobile-nav-safe-area\)/);
+  assert.match(vetBrief, /bottom-14[\s\S]*lg:bottom-0/);
+  assert.match(globals, /max-width: 100vw/);
+});

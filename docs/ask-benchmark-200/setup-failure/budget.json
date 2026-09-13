@@ -1,0 +1,12 @@
+{
+  "authorizedUsd": 5,
+  "stopUsd": 4.5,
+  "priorMeasuredUsd": 0.8519789999999998,
+  "priorCalls": 100,
+  "pricing": {
+    "inputPerMillion": 0.75,
+    "outputPerMillion": 4.5
+  },
+  "calls": [],
+  "accountedUsd": 0.8519789999999998
+}

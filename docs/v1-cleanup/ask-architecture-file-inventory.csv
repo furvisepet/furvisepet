@@ -1,0 +1,73 @@
+category,file,review_depth,file_lines_not_lines_certified,findings
+Interpretation,app/lib/ai/ask-orchestrator.ts,module review,169,A2 A4
+Interpretation,app/lib/intelligence/interpret-ask.ts,module review,172,A2 A4
+Interpretation,app/lib/intelligence/ask-request-contract.ts,module review,303,A2 A4
+Interpretation,app/lib/intelligence/conversation-scope.ts,module review,18,A2 A4
+Interpretation,app/lib/intelligence/conversation-read-anchor.ts,module review,73,A2 A4
+Interpretation,app/lib/intelligence/request-reference-context.ts,module review,18,A2 A4
+Interpretation,app/lib/intelligence/episode-reference-language.ts,module review,14,A2 A4
+Interpretation,app/lib/intelligence/generate-ask-history.ts,module review,43,A2 A4
+Evidence,app/lib/intelligence/history-retrieval.ts,targeted boundary review,528,A1 A5
+Evidence,app/lib/intelligence/ask-evidence.ts,targeted boundary review,411,A1 A5
+Evidence,app/lib/intelligence/evidence-needs.ts,module review,43,A1 A5 A9
+Evidence,app/lib/intelligence/history-access.ts,module review,69,A1 A5 A9
+Evidence,app/lib/ai/context-builder.ts,module review,37,A1 A5 A9
+Evidence,app/lib/intelligence/history-obligations.ts,module review,52,A1 A5 A9
+Generation,app/lib/ai/ask-reasoning.ts,targeted boundary review,1617,A1 A3 A6 A8
+Governance,app/lib/intelligence/run-intelligence.ts,module review,468,A3 A4 A7
+Governance,app/lib/intelligence/semantic-event-persistence.ts,module review,61,A3 A4 A7
+Governance,app/lib/intelligence/care-history-policy.ts,targeted boundary review,290,A3 A7
+Review,app/lib/intelligence/review-history-narrative.ts,targeted boundary review,309,A1 A4 A5 A10
+Review,app/lib/intelligence/review-task-completion.ts,module review,217,A4 A5 A10
+Review,app/lib/intelligence/history-review-selection.ts,module review,96,A4 A5 A10
+Review,app/lib/intelligence/history-review-state.ts,module review,25,A4 A5 A10
+Review,app/lib/intelligence/answer-assessment.ts,module review,35,A4 A5 A10
+Review,app/lib/intelligence/validation/validate-answer.ts,module review,308,A4 A5 A10
+Review,app/lib/intelligence/history-narrative-facts.ts,module review,144,A4 A5 A10
+Episodes,app/lib/intelligence/episode-history.ts,module review,285,A2 A4 A9
+Episodes,app/lib/intelligence/episode-contract.ts,module review,80,A2 A4 A9
+Episodes,app/lib/intelligence/episode-presentation.ts,module review,20,A2 A4 A9
+Episodes,app/lib/intelligence/recorded-inventory.ts,targeted boundary review,71,A2 A9
+Results and publication,app/lib/intelligence/history-narrative.ts,module review,35,A4 A5
+Results and publication,app/lib/intelligence/history-synthesis.ts,module review,94,A4 A5
+Results and publication,app/lib/intelligence/read-projection.ts,module review,68,A4 A5
+Results and publication,app/lib/intelligence/historical-read-response.ts,module review,132,A4 A5
+Results and publication,app/lib/intelligence/structured-history-json.ts,module review,36,A4 A5
+Results and publication,app/lib/ask-publication.ts,module review,29,A4 A5
+Results and publication,app/lib/intelligence/inspect-ask-publication.ts,module review,21,A4 A5
+Results and publication,app/lib/intelligence/ask-evidence-presentation.ts,module review,46,A4 A5
+Results and publication,app/lib/intelligence/history-calculation.ts,targeted boundary review,191,A5 A6 A10
+Results and publication,app/lib/furvise-voice.ts,targeted boundary review,73,A5 A6 A10
+Results and publication,app/lib/furvise-output.ts,targeted boundary review,446,A5 A6 A10
+Results and publication,app/lib/ask.mjs,targeted boundary review,755,A5 A6 A10
+Results and publication,app/lib/application-actions/state-claims.ts,targeted boundary review,160,A5 A6 A10
+Product facts,app/lib/ai/ask-internal-product-policy.ts,module review,76,A6
+Durable turn and API,app/api/ask/route.ts,targeted boundary review,2569,A3 A6 A7 A8 A10
+Durable turn and API,app/ask/page.tsx,targeted boundary review,971,A3 A6 A7 A8 A10
+Durable turn and API,app/lib/ask-conversation-server.ts,targeted boundary review,217,A3 A6 A7 A8 A10
+Durable turn and API,app/lib/ai/ask-turn-model.ts,targeted boundary review,211,A3 A6 A7 A8 A10
+Durable turn and API,app/lib/ask-conversation-authority.ts,module review,174,A7
+Durable turn and API,app/lib/ai/ask-admission-settlement.ts,module review,55,A7
+Budgets,app/lib/ai/execution-deadline.ts,module review,54,A8
+Budgets,app/lib/ai/usage-guard/provider-call-budget.ts,module review,64,A8
+Budgets,app/lib/ai/usage-guard/admission.ts,targeted boundary review,225,A8
+Budgets,app/lib/ai/usage-guard/features.ts,targeted boundary review,22,A8
+SQL,supabase/migrations/20260903203626_add_ask_conversation_service_authority.sql,targeted function review; deployed interval guard also inspected,736,A3 A7 A9
+SQL,supabase/migrations/20260906054006_ask_writer_backed_lifetime_history.sql,targeted function review; deployed interval guard also inspected,841,A3 A7 A9
+Tests,tests/ask-shared-request-contract.test.mjs,executed focused entry file,10,A1 A2 A3 A4 A5 A7 A8 A10
+Tests,tests/ask-completion-integration.test.mjs,executed focused entry file,8,A1 A2 A3 A4 A5 A7 A8 A10
+Tests,tests/ask-completion-execution.test.mjs,executed focused entry file,143,A1 A2 A3 A4 A5 A7 A8 A10
+Tests,tests/ask-save-completion.test.mjs,executed focused entry file,7,A1 A2 A3 A4 A5 A7 A8 A10
+Tests,tests/ask-provider-deadline.test.mjs,executed focused entry file,14,A1 A2 A3 A4 A5 A7 A8 A10
+Tests,tests/ask-publication-contract.test.mjs,executed focused entry file,28,A1 A2 A3 A4 A5 A7 A8 A10
+Tests,tests/ask-credit-settlement-integrity.test.mjs,executed focused entry file,276,A1 A2 A3 A4 A5 A7 A8 A10
+Tests,tests/ask-history-duration-facts.test.mjs,executed focused entry file,52,A1 A2 A3 A4 A5 A7 A8 A10
+Tests,tests/ask-episode-history.test.mjs,executed focused entry file,8,A1 A2 A3 A4 A5 A7 A8 A10
+Tests,tests/ask-structured-output-reliability.test.mjs,executed focused entry file,245,A1 A2 A3 A4 A5 A7 A8 A10
+Tests,tests/ask-evidence-needs.test.mjs,executed focused entry file,107,A1 A2 A3 A4 A5 A7 A8 A10
+Tests,tests/ask-recorded-completeness.test.mjs,executed focused entry file,8,A1 A2 A3 A4 A5 A7 A8 A10
+Test methodology,scripts/audits/helpers/lifetime-harness.mjs,targeted source review,243,A10
+Test methodology,scripts/audits/ask-shared-request-contract.cases.mjs,targeted source review,1316,A10
+Test methodology,tests/ask-first20-reliability.test.mjs,targeted source review,267,A10
+Test methodology,tests/ask-request-contract.test.mjs,targeted source review,42,A10
+Test methodology,tests/ask-profile-read.test.mjs,targeted source review,93,A10

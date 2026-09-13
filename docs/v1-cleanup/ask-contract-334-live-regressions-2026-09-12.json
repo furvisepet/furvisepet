@@ -1,0 +1,57 @@
+{
+  "deployment": "dpl_DUESxbvJcFkAqWnj4xdhQM87x9pL",
+  "merge": "cd3c25617e020e2e61d8724d69c86d6ecb8acc39",
+  "results": [
+    {
+      "n": 2,
+      "result": "pass",
+      "answer": "Furvise\n\n{\"pets\":[{\"name\":\"Atlas\",\"species\":\"dog\",\"age\":\"9 years\",\"sex\":\"male\"},{\"name\":\"Mochi\",\"species\":\"cat\",\"age\":\"8 years\",\"sex\":\"female\"},{\"name\":\"Rowan\",\"species\":\"dog\",\"age\":\"4 years\",\"sex\":\"male\"}]}\n\nCopy",
+      "at": "2026-09-12T05:39:43.391Z"
+    },
+    {
+      "n": 4,
+      "result": "pass",
+      "answer": "Furvise\n\nAtlas had more active minutes on May 15, 2023.\nAtlas had 28 minutes of park walk and 4 minutes of separate rest. Mochi had 17 minutes of puzzle-feeder play and 4 minutes of separate rest. Atlas had 11 more active minutes than Mochi.\n\nCopy",
+      "at": "2026-09-12T05:40:18.997Z"
+    },
+    {
+      "n": 6,
+      "result": "pass",
+      "answer": "Furvise\n\nEl 18 de mayo de 2023, Mochi tuvo una sesión de cepillado de 7 minutos, y en esa revisión se retiró fácilmente un enredo. La nota aclara que eso no fue un diagnóstico veterinario de piel. El 21 de mayo de 2023, ignoró un juguete nuevo pero sí interactuó con su juguete familiar. La nota también dice que el desencadenante y la frecuencia fuera de esa observación no se establecieron.\n\nCopy",
+      "at": "2026-09-12T05:41:06.506Z"
+    },
+    {
+      "n": 8,
+      "result": "fail",
+      "answer": "Furvise\n\nExactly 2 recorded vomiting episodes in your verified saved care history for 2024, checked on 2026-09-12. Showing 2. This count covers episodes established by saved care records. Chat messages that were not saved to history are outside this count; unrecorded episodes remain unknown.\n\nRecorded episodes\nEpisode 1: 2024-02-01, vomiting.\nEpisode 2: 2024-06-09, vomiting.\nCopy",
+      "note": "Count/start dates returned, but requested stop dates and day differences omitted.",
+      "at": "2026-09-12T05:42:01.637Z"
+    },
+    {
+      "n": 11,
+      "result": "fail",
+      "answer": "Furvise\n\nI'm sorry, I couldn't finish answering that from Rowan's history. You can check a few of the notes I found below, but they aren't a full answer.\n\nView saved notes\nCopy",
+      "at": "2026-09-12T05:42:48.671Z"
+    },
+    {
+      "n": 14,
+      "result": "partial",
+      "answer": "Furvise\n\nI'm sorry, I couldn't finish answering that from Sable's history. You can check a few of the notes I found below, but they aren't a full answer.\n\nView saved notes\nCopy\n\nEdit the history update\n\nNovember 4, 2025: played with a puzzle toy for 14 minutes.\n\nReview action",
+      "note": "Exact existing row corrected12→14 after confirmation; date unchanged. Prose still failed.",
+      "at": "2026-09-12T05:43:32.792Z"
+    },
+    {
+      "n": 20,
+      "result": "fail",
+      "answer": "Request failed before persistence: REQUEST_LOOKUP503.",
+      "at": "2026-09-12T05:45:59.462Z"
+    },
+    {
+      "n": 20,
+      "result": "fail",
+      "answer": "Furvise\n\nI'm sorry, I couldn't finish answering that from Sable's history. You can check a few of the notes I found below, but they aren't a full answer.\n\nView saved notes\nPrepare vet brief\nCopy",
+      "note": "Same-key retry recovered transport; complete answer still failed.",
+      "at": "2026-09-12T05:47:52.324Z"
+    }
+  ]
+}

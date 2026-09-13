@@ -1,0 +1,32 @@
+{
+  "base_commit": "1cf5da21e264e81c17b968f298b000b465a05d00",
+  "definition": "git-tracked files at base versus final review tree including audit/archives; distinct direct manifest keys; non-root package-lock packages",
+  "before": {
+    "tracked": 1488,
+    "scanned": 1488,
+    "runtimeDependencies": 10,
+    "devDependencies": 9,
+    "lockfilePackages": 621
+  },
+  "after": {
+    "tracked": 1481,
+    "runtimeDependencies": 10,
+    "devDependencies": 9,
+    "lockfilePackages": 621
+  },
+  "removed_files": 16,
+  "archived_files": 12,
+  "added_paths_including_archive_destinations": 21,
+  "new_files_excluding_archive_destinations": 9,
+  "classifications_all_base_and_added_paths": {
+    "KEEP": 1397,
+    "CONSOLIDATE": 26,
+    "DECISION NEEDED": 70,
+    "REMOVE": 16
+  },
+  "manifest_rows": 1509,
+  "baseline_coverage": 1488,
+  "public_asset_changes": 0,
+  "migration_changes": 0,
+  "dependency_manifest_changes": 0
+}

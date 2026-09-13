@@ -1,0 +1,317 @@
+{
+  "syntheticDatabase": true,
+  "realProviders": true,
+  "phase": "percent-repair",
+  "turns": [
+    {
+      "id": 4,
+      "question": "Between Milo’s June 4 and July 24 body weights, what percentage decrease is recorded? Round to two decimals.",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "outputFormat": "prose",
+          "question": "What percentage decrease is recorded between Milo’s body weight on June 4 and July 24? Round the result to two decimals.",
+          "requirements": [
+            "Answer in prose.",
+            "Use the recorded body weights for Milo on June 4 and July 24.",
+            "Compute the percentage decrease from June 4 to July 24.",
+            "Round the final percentage to two decimal places."
+          ],
+          "referenceTurnIds": [],
+          "quantity": "measurement"
+        },
+        "operation": "comparison",
+        "readOperation": "comparison",
+        "selection": "comparison",
+        "petIds": [
+          "milo"
+        ],
+        "topic": "body weight",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "What percentage decrease is recorded between Milo’s body weight on June 4 and July 24? Round the result to two decimals.",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": "2026-06-04T00:00:00.000Z",
+          "to": "2026-07-25T00:00:00.000Z",
+          "terms": [
+            "body weight",
+            "June  ipped",
+            "July  ipped",
+            "percentage decrease"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "Milo’s weight decreased by 1.76% from 28.4 kg on June 4 to 27.9 kg on July 24.",
+      "beforeFinalGuard": "Milo’s weight decreased by 1.76% from 28.4 kg on June 4 to 27.9 kg on July 24.",
+      "draft": {
+        "sentences": [
+          {
+            "text": "Milo’s weight decreased by 1.76% from 28.4 kg on June 4 to 27.9 kg on July 24.",
+            "sourceIds": [
+              "care:diag-18",
+              "care:diag-25"
+            ],
+            "calculations": [
+              {
+                "operation": "percent_change",
+                "operands": [
+                  {
+                    "sourceId": "care:diag-18",
+                    "field": "text",
+                    "literal": "28.4 kg"
+                  },
+                  {
+                    "sourceId": "care:diag-25",
+                    "field": "text",
+                    "literal": "27.9 kg"
+                  }
+                ],
+                "value": -1.76,
+                "unit": "%"
+              }
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "deterministicCalculationHints": [],
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Between Milo’s June 4 and July 24 body weights, what percentage decrease is recorded? Round to two decimals.",
+          "referenceQuestion": "What percentage decrease is recorded between Milo’s body weight on June 4 and July 24? Round the result to two decimals.",
+          "scope": {
+            "authorizedPetIds": [
+              "milo"
+            ],
+            "requestedTopic": "body weight",
+            "requestText": "Between Milo’s June 4 and July 24 body weights, what percentage decrease is recorded? Round to two decimals.",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2026-06-04T00:00:00.000Z"
+            },
+            "requestKind": "comparison",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Milo"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "outputFormat": "prose",
+              "question": "What percentage decrease is recorded between Milo’s body weight on June 4 and July 24? Round the result to two decimals.",
+              "requirements": [
+                "Answer in prose.",
+                "Use the recorded body weights for Milo on June 4 and July 24.",
+                "Compute the percentage decrease from June 4 to July 24.",
+                "Round the final percentage to two decimal places."
+              ],
+              "referenceTurnIds": [],
+              "quantity": "measurement"
+            },
+            "operation": "comparison",
+            "readOperation": "comparison",
+            "selection": "comparison",
+            "petIds": [
+              "milo"
+            ],
+            "topic": "body weight",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "What percentage decrease is recorded between Milo’s body weight on June 4 and July 24? Round the result to two decimals.",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2026-06-04T00:00:00.000Z",
+              "to": "2026-07-25T00:00:00.000Z",
+              "terms": [
+                "body weight",
+                "June  ipped",
+                "July  ipped",
+                "percentage decrease"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "milo": "Milo"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "outputFormat": "prose",
+            "question": "What percentage decrease is recorded between Milo’s body weight on June 4 and July 24? Round the result to two decimals.",
+            "requirements": [
+              "Answer in prose.",
+              "Use the recorded body weights for Milo on June 4 and July 24.",
+              "Compute the percentage decrease from June 4 to July 24.",
+              "Round the final percentage to two decimal places."
+            ],
+            "referenceTurnIds": [],
+            "quantity": "measurement"
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "What percentage decrease is recorded between Milo’s body weight on June 4 and July 24? Round the result to two decimals."
+            },
+            {
+              "index": 1,
+              "text": "Answer in prose."
+            },
+            {
+              "index": 2,
+              "text": "Use the recorded body weights for Milo on June 4 and July 24."
+            },
+            {
+              "index": 3,
+              "text": "Compute the percentage decrease from June 4 to July 24."
+            },
+            {
+              "index": 4,
+              "text": "Round the final percentage to two decimal places."
+            }
+          ],
+          "coverage": {
+            "retrieval": "partial",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "bidirectional_endpoint_subset",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:milo:sex",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:milo:species",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:diag-18",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 28.4 kg today. He is eating chicken-and-rice adult dry food. His appetite, energy and stools are normal.",
+              "occurredAt": "2026-06-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-25",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 27.9 kg today. His appetite and activity are normal.",
+              "occurredAt": "2026-07-24T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-19",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: We started giving Milo new chicken training treats yesterday. His regular food has not changed.",
+              "occurredAt": "2026-06-12T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-24",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo has finished the food transition. He now eats only the salmon-and-rice adult dry food for meals. His stools are normal.",
+              "occurredAt": "2026-07-10T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-20",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo had two soft stools today. He is still eating and playing normally. I wonder whether the new treats are involved, but I do not know.",
+              "occurredAt": "2026-06-15T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-23",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: We started gradually changing Milo's main food to salmon-and-rice adult dry food. The change is our choice; no chicken allergy has been diagnosed.",
+              "occurredAt": "2026-07-03T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-21",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: We stopped the new chicken training treats today. We kept his regular chicken-and-rice food the same.",
+              "occurredAt": "2026-06-16T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-22",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo has had normal stools for three days and his energy is normal. The soft stools seem to have ended.",
+              "occurredAt": "2026-06-20T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "Milo’s weight decreased by 1.76% from 28.4 kg on June 4 to 27.9 kg on July 24.",
+                "sourceIds": [
+                  "care:diag-18",
+                  "care:diag-25"
+                ],
+                "calculations": [
+                  {
+                    "operation": "percent_change",
+                    "operands": [
+                      {
+                        "sourceId": "care:diag-18",
+                        "field": "text",
+                        "literal": "28.4 kg"
+                      },
+                      {
+                        "sourceId": "care:diag-25",
+                        "field": "text",
+                        "literal": "27.9 kg"
+                      }
+                    ],
+                    "value": -1.76,
+                    "unit": "%"
+                  }
+                ],
+                "index": 0
+              }
+            ]
+          }
+        }
+      ],
+      "providerCalls": 3,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    }
+  ]
+}

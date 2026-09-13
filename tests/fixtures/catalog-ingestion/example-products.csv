@@ -1,0 +1,5 @@
+external_id,brand,product_name,category,subcategory,species,countries,product_type,gtin,size,images,ingredients,directions,warnings,retailer,destination_url,currency,price,availability,source_url
+csv-dog-1,North Trail,Adult Dog Food,Food,Dry Food,dogs,US,dry_food,0123456789012,5 lb,https://example.com/dog-food.jpg,"Chicken;Brown rice",Follow package feeding directions.,Keep fresh water available.,Example Pets,https://shop.example.com/dog-food,USD,29.99,in stock,https://manufacturer.example.com/dog-food
+csv-cat-ca-1,Maple Cat,Indoor Cat Food,Food,Dry Food,feline,CA,dry_food,1234567890123,2 kg,https://example.com/cat-food.jpg,"Salmon;Rice",Follow package feeding directions.,Store in a cool dry place.,Canada Pet Shop,https://shop.example.ca/cat-food,CAD,34.50,in_stock,https://manufacturer.example.com/cat-food
+csv-invalid-1,,Unsafe URL Product,Grooming,Shampoo,dog,US,shampoo,,16 oz,,,Use as directed.,Avoid eyes.,Example Pets,javascript:alert(1),USD,-3.00,unknown,
+csv-minimal-1,Simple Care,Simple Grooming Brush,Grooming,Brush,dog,US,brush,,,,,,,,,,,,

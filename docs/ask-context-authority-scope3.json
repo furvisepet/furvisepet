@@ -1,0 +1,224 @@
+{
+  "syntheticDatabase": true,
+  "realProviders": true,
+  "phase": "scope3",
+  "turns": [
+    {
+      "id": 7,
+      "question": "Fictional test only; do not save any of this or apply it to my pets. Aki was recorded limping on 2021-10-01 and comfortable on 2026-08-01, with no entries between. Give the number of documented limping episodes and explain whether we know the recovery date.",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "conversation",
+          "evidenceBasis": "supplied_context",
+          "outputFormat": "prose",
+          "question": "In the fictional scenario, how many documented limping episodes are described for Aki, and do we know the recovery date?",
+          "requirements": [
+            "Answer in English.",
+            "State the number of documented limping episodes for Aki.",
+            "Explain whether the recovery date is known from the supplied dates and the gap between entries.",
+            "Keep the response concise."
+          ],
+          "referenceTurnIds": [],
+          "quantity": "episodes"
+        },
+        "operation": "general",
+        "readOperation": "general",
+        "selection": "summary",
+        "petIds": [],
+        "topic": "Aki limping episodes and recovery date",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "In the fictional scenario, how many documented limping episodes are described for Aki, and do we know the recovery date?",
+        "conversationOnly": true,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": null
+      },
+      "answer": "There is 1 documented limping episode: Aki was recorded limping on 2021-10-01.\n\nWe do not know the recovery date. The record only shows that Aki was comfortable by 2026-08-01, and the gap between those dates does not tell us when the limping ended or how long it lasted.",
+      "beforeFinalGuard": "There is 1 documented limping episode: Aki was recorded limping on 2021-10-01.\n\nWe do not know the recovery date. The record only shows that Aki was comfortable by 2026-08-01, and the gap between those dates does not tell us when the limping ended or how long it lasted.",
+      "reviewInputs": [],
+      "providerCalls": 2,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 8,
+      "question": "Fictional test only; do not save any of this or apply it to my pets. As of 2026-06-15, available notes are June 10 \"vomited once\" and June 20 \"well since June 12.\" The June 20 note was entered that day. What was actually knowable from saved notes on June 15?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "conversation",
+          "evidenceBasis": "supplied_context",
+          "outputFormat": "prose",
+          "question": "In the fictional scenario, what was actually knowable from the notes that were available on 2026-06-15, given a June 10 note saying \"vomited once\" and a June 20 note saying \"well since June 12\" that was not entered until June 20?",
+          "requirements": [
+            "Answer in English.",
+            "Use concise prose.",
+            "Focus only on what could be known from notes available on 2026-06-15.",
+            "Do not treat the June 20 note as knowable on June 15.",
+            "Keep the scenario fictional and separate from any real pets or saved history."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "general",
+        "readOperation": "general",
+        "selection": "latest",
+        "petIds": [],
+        "topic": "what was knowable from the notes as of 2026-06-15",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "In the fictional scenario, what was actually knowable from the notes that were available on 2026-06-15, given a June 10 note saying \"vomited once\" and a June 20 note saying \"well since June 12\" that was not entered until June 20?",
+        "conversationOnly": true,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": null
+      },
+      "answer": "As of **June 15**, from the notes that were actually saved by then, the only knowable fact was: **on June 10, the pet vomited once**.\n\nWhat was **not** knowable on June 15:\n- that the pet was “well since June 12”\n- any recovery date\n- any symptom duration beyond the June 10 observation\n- whether the pet stayed well continuously after June 10\n\nThe June 20 note was entered later, so it could not have informed knowledge on June 15.",
+      "beforeFinalGuard": "As of **June 15**, from the notes that were actually saved by then, the only knowable fact was: **on June 10, the pet vomited once**.\n\nWhat was **not** knowable on June 15:\n- that the pet was “well since June 12”\n- any recovery date\n- any symptom duration beyond the June 10 observation\n- whether the pet stayed well continuously after June 10\n\nThe June 20 note was entered later, so it could not have informed knowledge on June 15.",
+      "reviewInputs": [],
+      "providerCalls": 2,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 40,
+      "question": "Who won the match happening right now? I haven’t told you the sport or teams.",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "conversation",
+          "evidenceBasis": "supplied_context",
+          "outputFormat": "prose",
+          "question": "Which sport and teams are you referring to so I can identify who won the ongoing match?",
+          "requirements": [
+            "Reply in English.",
+            "Ask a single concise clarifying question.",
+            "Request the missing sport and team names needed to identify the winner."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "general",
+        "readOperation": "general",
+        "selection": "summary",
+        "petIds": [],
+        "topic": "ongoing match winner",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "Which sport and teams are you referring to so I can identify who won the ongoing match?",
+        "conversationOnly": true,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": null
+      },
+      "answer": "I can’t tell who won because you haven’t told me which sport or which teams/players are playing, and I don’t have live external verification to check a match in progress.\n\nIf you want, send me the sport and the teams/players, and I’ll help you figure out the likely current status from the information you have.",
+      "beforeFinalGuard": "I can’t tell who won because you haven’t told me which sport or which teams/players are playing, and I don’t have live external verification to check a match in progress.\n\nIf you want, send me the sport and the teams/players, and I’ll help you figure out the likely current status from the information you have.",
+      "reviewInputs": [],
+      "providerCalls": 2,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 55,
+      "question": "Fictional test only; do not save any of this or apply it to my pets. Remember only for this conversation: Echo’s carrier is 1.2 kg; Echo’s body is 4.8 kg. What is their combined mass?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "conversation",
+          "evidenceBasis": "supplied_context",
+          "outputFormat": "prose",
+          "question": "In the fictional scenario, what is Echo’s combined mass when adding the carrier mass (1.2 kg) and body mass (4.8 kg)?",
+          "requirements": [
+            "Answer in English.",
+            "Give the combined mass as a single arithmetic result.",
+            "Keep the answer concise."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "general",
+        "readOperation": "general",
+        "selection": "summary",
+        "petIds": [],
+        "topic": "combined mass of Echo's carrier and body",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "In the fictional scenario, what is Echo’s combined mass when adding the carrier mass (1.2 kg) and body mass (4.8 kg)?",
+        "conversationOnly": true,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": null
+      },
+      "answer": "Combined mass = 1.2 kg + 4.8 kg = 6.0 kg.\n\nSo, Echo and the carrier together have a mass of 6.0 kg.",
+      "beforeFinalGuard": "Combined mass = 1.2 kg + 4.8 kg = 6.0 kg.\n\nSo, Echo and the carrier together have a mass of 6.0 kg.",
+      "reviewInputs": [],
+      "providerCalls": 2,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 56,
+      "question": "Now give just the animal’s mass in grams, excluding the equipment from that fictional example.",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "conversation",
+          "evidenceBasis": "supplied_context",
+          "outputFormat": null,
+          "question": "What is Echo’s mass in grams, excluding the carrier from the fictional example?",
+          "requirements": [
+            "Give only the animal’s mass.",
+            "Use grams.",
+            "Exclude the equipment/carrier from the fictional example.",
+            "Keep the answer concise."
+          ],
+          "referenceTurnIds": [
+            "diag-u-1",
+            "diag-a-1"
+          ],
+          "quantity": "measurement"
+        },
+        "operation": "general",
+        "readOperation": "general",
+        "selection": "reference",
+        "petIds": [],
+        "topic": "Echo's mass excluding the carrier",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "What is Echo’s mass in grams, excluding the carrier from the fictional example?",
+        "conversationOnly": true,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": null
+      },
+      "answer": "4800 g",
+      "beforeFinalGuard": "4800 g",
+      "reviewInputs": [],
+      "providerCalls": 2,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    }
+  ]
+}

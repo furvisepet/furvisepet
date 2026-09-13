@@ -1,0 +1,530 @@
+Script failed
+Wall time 0.1 seconds
+Output:
+
+Script error:
+Exit code: 1
+Wall time: 24.2 seconds
+Total output lines: 875
+Output:
+
+> furvise@0.1.0 lint
+> eslint
+
+
+C:\Users\gwara\petwise\types\react-meta-value.d.ts
+  4:32  warning  'T' is defined but never used  @typescript-eslint/no-unused-vars
+
+? 1 problem (0 errors, 1 warning)
+
+
+> furvise@0.1.0 build
+> next build --webpack
+
+? Next.js 16.2.9 (webpack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+? Compiled successfully in 3.3s
+  Running TypeScript ...
+  Finished TypeScript in 4.2s ...
+  Collecting page data using 31 workers ...
+  Generating static pages using 31 workers (0/30) ...
+  Generating static pages using 31 workers (7/30) 
+  Generating static pages using 31 workers (14/30) 
+  Generating static pages using 31 workers (22/30) 
+? Generating static pages using 31 workers (30/30) in 352ms
+  Finalizing page optimization ...
+  Collecting build traces ...
+
+Route (app)
++ ? /
++ ? /_not-found
++ ? /account
++ ƒ /api/account/detect-country
++ ƒ /api/analyze
++ ƒ /api/ask
++ ƒ /api/ask/conversations
++ ƒ /api/ask/conversations/[id]
++ ƒ /api/ask/conversations/[id]/messages
++ ƒ /api/safety-followup
++ ƒ /api/shop/catalog
++ ƒ /api/shop/explain-product-fit
++ ƒ /api/shop/interpret-query
++ ƒ /api/shop/product-question
++ ƒ /api/vet-briefs
++ ƒ /api/vet-briefs/[id]
++ ƒ /api/vet-briefs/[id]/pdf
++ ƒ /api/vet-briefs/draft
++ ? /ask
++ ? /care-log
++ ? /dashboard
++ ƒ /dogs/[id]/care
++ ƒ /dogs/[id]/edit
++ ƒ /dogs/[id]/feedback
++ ƒ /dogs/[id]/memories
++ ? /forgot-password
++ ? /login
++ ? /onboarding
++ ? /pets
++ ƒ /pets/[id]
++ ƒ /pets/[id]/care
++ ƒ /pets/[id]/edit
++ ƒ /pets/[id]/feedback
++ ƒ /pets/[id]/memories
++ ? /privacy
++ ? /results
++ ? /robots.txt
++ ? /shop
++ ? /sitemap.xml
++ ? /update-password
++ ? /vet-brief
++ ƒ /vet-briefs/[id]/print
+
+
+?  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+
+> furvise@0.1.0 test
+> node --test
+
+(node:25244) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/petwise.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\petwise\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+? formatPetDisplayName preserves intentional capitalization (2.0257ms)
+? formatPetDisplayName falls back for blank or missing values (0.1926ms)
+? care log pet-name rendering smoke test handles rocky without throwing (7.5786ms)
+? account settings displays and persists Product country manual override (0.7852ms)
+? signed-out account redirects before rendering editable settings controls (0.2458ms)
+? Results ignores product country and does not render a region product empty state (1.2705ms)
+? urgent safety continues to render care-first Results UI without product copy (0.2654ms)
+? privacy page includes approximate country copy (0.3395ms)
+(node:6880) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/account-country.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\petwise\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+? account country normalizes only supported MVP countries (1.3431ms)
+? x-vercel-ip-country CA stores CA for a new user (30.375ms)
+? x-vercel-ip-country US stores US for a new user (0.3685ms)
+? unsupported country header does not store the unsupported value (0.3478ms)
+? missing country header uses configured env fallback (0.2228ms)
+? existing manual country is not overwritten by detection (0.2629ms)
+? existing stored country is not re-detected on every call (0.164ms)
+? manual override payload stores account-level manual source (1.2383ms)
+? product country save upserts user profile for first-time users (0.5789ms)
+? first-time manual save does not require an existing profile row (0.3299ms)
+? active product country source order prefers account profile before env (0.1714ms)
+? user_profiles migrations store only account country with owner RLS (2.8587ms)
+? app code uses the public user_profiles table for account country (0.7721ms)
+(node:29932) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/furvise-voice.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\petwise\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+? conversation decision supports the complete practical intent vocabulary (3.7682ms)
+? multi-turn references resolve from the thread and ambiguous references ask once (4.8498ms)
+? corrections override temporary thread assumptions without becoming diagnoses (1.1755ms)
+? new conversations do not inherit unsaved thread assumptions (0.6387ms)
+? context selection excludes unrelated history and labels only selected sources (0.7912ms)
+? memory candidates stay attributed, require confirmation, and suppress duplicates (1.1293ms)
+? tracking plans are bounded and relevant (0.8906ms)
+? prior tracking is available to a related follow-up and stays out of unrelated topics (2.0577ms)
+? urgent guidance remains deterministic and action-first (1.0214ms)
+? public response accepts useful presentation fields but drops the internal plan (1.4828ms)
+? user-facing Ask output rejects templated internal language in regression fixtures (2.6334ms)
+? route keeps continuity owner-scoped, does not persist plans, and charges after validation (0.7655ms)
+? analytics contract has lifecycle events and cannot accept private text (0.5738ms)
+(node:7260) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/furvise-voice.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\petwise\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+? Ask conversation contract supports every adaptive answer type (3.5537ms)
+? Ask conversation contract rejects model-selected actions outside the deterministic allowlist (0.2767ms)
+? Ask workspace keeps one composer, chronological thread, compact context, and one general disclaimer (1.0582ms)
+? Ask analytics accepts only privacy-safe metadata (1.5866ms)
+? Results and Products remain outside the Ask redesign (0.7419ms)
+(node:30416) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/ai/ask-furvise.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\petwise\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+? grounded Ask fallback is disabled without OpenAI configuration (5.029ms)
+? grounded Ask fallback uses configured OpenAI client and current model schema (25.7589ms)
+? grounded Ask payload includes water, paw, and eating facts from saved memory only (1.3896ms)
+? grounded Ask output rejects unsupported saved facts and unsafe product or diagnosis claims (1.459ms)
+? grounded Ask fallback can answer supported water and eating questions (2.1846ms)
+? grounded Ask fallback says when saved data does not support the question (0.4227ms)
+(node:30744) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/furvise-voice.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\petwise\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+? Ask Furvise safety gate catches urgent symptom language (0.9987ms)
+? Ask Furvise only adds product feedback for relevant questions (0.2218ms)
+? Ask Furvise validates and renders structured responses without raw Markdown (0.406ms)
+? Ask Furvise rejects malformed structured responses (0.1184ms)
+? Ask Furvise builds clean copy, save, context, and urgent safety content (1.2773ms)
+? saving vet prep guidance creates a concise Furvise care-history entry (0.7128ms)
+? Ask Furvise save eligibility blocks no-record and generic answers (2.0573ms)
+? Ask Furvise save eligibility allows useful saved facts and maps categories (2.231ms)
+? vet prep save eligibility requires actual recent saved updates (0.8094ms)
+? saved Furvise guidance titles match answer type when available (0.8784ms)
+? saved symptom guidance uses actual saved facts instead of no-record phrasing (0.3311ms)
+(node:30816) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/ask-conversations.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\petwise\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+? conversation titles are concise and human (1.3745ms)
+? Ask exposes separate new-question, history, pet-switch, and thread-open actions (1.0224ms)
+? Ask persists chronological conversations with owner RLS (0.701ms)
+? Ask fresh and follow-up states differ and formal print is absent (0.8709ms)
+? missing Ask details have one primary responsive location (1.7358ms)
+? Vet Brief uses outline, grouped empty state, external preview controls, and gated exports (0.8554ms)
+? Vet Brief print route hides controls and explains browser headers (0.5757ms)
+(node:31172) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/auth-routing.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\petwise\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+? signed-out Add pet links target login with next onboarding (2.0535ms)
+? signed-in Add pet actions go directly to new-pet onboarding (0.9275ms)
+? signed-out direct onboarding redirects to login with next before restoring draft storage (1.4076ms)
+? login next handling rejects external URLs and allows internal onboarding (0.4305ms)
+? login redirects to next after successful auth (0.5322ms)
+? signed-out login with onboarding next keeps the form tree stable (0.5084ms)
+? login and onboarding use confirmed auth state instead of competing cached session checks (0.858ms)
+? auth loading state does not redirect between login and onboarding (0.807ms)
+? protected pages redirect signed-out users to login with current path next (1.9485ms)
+? protected page loading paths no longer render signed-out error copy (1.6077ms)
+? signed-in onboarding restores and renders instead of redirecting to login (0.5218ms)
+? redirect guards fire once to prevent login onboarding ping-pong (0.8001ms)
+? Results does not show unsigned local draft results (0.4161ms)
+? signed-out Shop redirects preserve current path and safe query string (0.6479ms)
+(node:28332) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/catalog-ingestion/adapters/authorized-catalog-adapter.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\petwise\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+? authorized provider templates are structural, pending, and credential-free (2.6894ms)
+? synthetic fixture covers 12 products, variants, categories, one invalid row, and one exact batch duplicate (19.5839ms)
+? approved agreements retain eligible fields and pass the provider permission gate after review (6.7425ms)
+? pending and expired agreements block publication (8.469ms)
+? disallowed images and descriptions are omitted without altering raw payloads (10.0085ms)
+? country restrictions and authorization metadata are enforced (4.82ms)
+? field mapping is exact and ambiguous aliases require review (0.3588ms)
+? authorized adapter accepts quoted affiliate TSV without provider-specific parsing (0.83ms)
+? affiliate links are preserved exactly and invalid tracking URLs are rejected (5.5163ms)
+? stale offers retain links but omit price and current stock (5.4755ms)
+? Impact access fails safely when credentials or authorization are absent (0.8042ms)
+? authorized Impact readiness verifies metadata and relationship and skips an unchanged feed (28.8828ms)
+? private upload paths reject traversal and the private directory is ignored (3.7037ms)
+? Purina remains blocked and public surfaces exclude contract metadata (26.8088ms)
+? freshness schema and publication logic keep stale prices out of public catalog selects (3.9945ms)
+(node:26104) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/billing/plan-limits.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\petwise\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+? plan capabilities define generous free and future plus limits (1.3093ms)
+? early access unlock affects hard gates only (0.2764ms)
+? pet limit gates new pets but never edits existing pets (0.5479ms)
+? Ask Furvise usage gate allows 20 free messages and early access bypass (0.2632ms)
+? Products AI usage gate allows 80 free AI uses and early access bypass (0.2349ms)
+? Ask usage reads current month, increments successful answers, and resets by month key (1.7069ms)
+? Ask usage treats a missing monthly row as zero for new users (0.3166ms)
+? Products AI usage increments fresh AI work and resets by month key (1.8945ms)
+? Ask usage read errors log Supabase details and early access falls back safely (2.0669ms)
+? Ask usage still hard gates over-limit users when the usage table works (0.4566ms)
+? plan source defaults safely to free and paid gate messages exist (0.3147ms)
+(node:8468) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/dashboard.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\petwise\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+? createCareEntry stores an owned entry and rejects another user's pet (3.7927ms)
+? care log pet preselect chooses only filtered, scoped, or single-pet defaults (0.2897ms)
+? care history-created entries reload for dashboard and Ask Furvise memory (25.7058ms)
+? Ask Furvise care-history saves skip duplicate generated notes within 24 hours (0.7015ms)
+? Ask Furvise duplicate check still allows different useful summaries (0.5341ms)
+? listCareEntriesForPet only returns the signed-in user's rows (0.3748ms)
+? listRecentCareEntries only returns entries owned by the signed-in user (0.3032ms)
+? listCareEntriesForPet rejects another user's pet (0.4259ms)
+? updateCareEntry edits the stored row (0.7118ms)
+? deleteCareEntry removes the user's row and rejects others (0.7381ms)
+? display helpers preserve intentional casing and show severe caution (0.3518ms)
+? dashboard helpers render real care activity and keep no-update messaging (1.2666ms)
+? validateCareEntryDraft enforces required fields (0.1983ms)
+? dashboard care state renders a real preview and no-pet fallback (1.268ms)
+(node:1844) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/petwise.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\petwise\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+? legacy profile storage supports cats without introducing duplicate core tables (2.9232ms)
+? application profile model and onboarding are species-ready (1.3217ms)
+? young dog and cat profiles use species-aware life stages (0.453ms)
+? generic pet routes reuse compatibility implementations (2.087ms)
+? user-facing cat-ready changes contain no em dash (1.7355ms)
+? Products uses the bounded catalog endpoint without changing product-card markup (1.8498ms)
+? product explanation and question routes use the shared catalog adapter (1.675ms)
+? the static catalog is isolated to an explicitly temporary error fallback (0.5781ms)
+? Results remains product-free (0.5743ms)
+(node:23764) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/catalog/constants.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\petwise\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+? one catalog product supports multiple species and variants (2.9373ms)
+? species, country, and lifecycle checks exclude unsafe products (1.8737ms)
+? offers retain decimal strings, support multiples, and prefer an active affiliate URL (0.4401ms)
+? the legacy product-card adapter supplies the existing required fields (0.742ms)
+? catalog limits are always bounded (0.1832ms)
+(node:31308) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/catalog-ingestion/adapters/csv-adapter.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\petwise\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+? CSV parsing handles UTF-8, quotes, embedded commas, and row numbers (5.2513ms)
+? CSV parsing validates headers, malformed quoting, and configurable columns (3.2685ms)
+? CSV formula-like cells are preserved and flagged without execution (0.4123ms)
+? JSON supports arrays and wrapped products with explicit object validation (0.8067ms)
+? JSON rejects malformed text, executable JavaScript, and non-object records (0.5651ms)
+(node:27356) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/catalog-ingestion/deduplicate.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\petwise\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+? duplicate detection finds exact GTIN and provider external IDs (3.1887ms)
+? brand and name matches are held for review instead of auto-merged (0.3532ms)
+? unchanged normalized hashes propose a no-op (0.2285ms)
+? stable …6547 tokens truncated… stays query-first with pet preselect and no auto-rendered products (0.5942ms)
+(node:31180) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/petwise.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\petwise\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+? Shop avoid-ingredient normalization treats typed none values like the None known chip (6.3544ms)
+? Shop avoid-ingredient normalization preserves real ingredients while ignoring none tokens (0.7355ms)
+? Shop avoid normalization only applies to user avoid inputs, not arbitrary product text (0.3782ms)
+? Shop country filtering never falls back across US, CA, or invalid account countries (0.5202ms)
+? Shop ingredient verification excludes unverified ingestible and allergy-sensitive products without fill-in fallback (1.9377ms)
+(node:3928) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/shop/product-fit-explanation.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\petwise\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+? product fit explanation schema validates sales-copy fields and exact safety line (3.1547ms)
+? product fit prompt asks for benefit-focused copy without audit wording (0.7487ms)
+? verified product payload includes ingredients only when ingredientsVerified is true (2.4749ms)
+? fallback explanation reads like concise product advisor copy (1.8518ms)
+? product fit prompt input includes no unverified ingredient claims (0.5848ms)
+? parser strips audit wording and raw internal fields from visible paragraphs (0.5083ms)
+? parser removes assistant offers and blocks unsafe product claims (0.4693ms)
+? parser keeps product fit safety line only once at the bottom (0.343ms)
+? product fit explanation panel renders only sales-style paragraphs (1.3805ms)
+? product UI copy contains no em dash (1.4189ms)
+(node:29468) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/shop/product-question.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\petwise\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+? product question prompt uses a direct, human store-advisor voice (2.2811ms)
+? product question fallback states missing ingredient certainty honestly (5.4494ms)
+? product question watch fallback uses verified warnings when present (1.2037ms)
+? product question fallback gives rich itchy paws buyer guidance (0.6984ms)
+? product question fallback preserves uncertainty for dental product and itchy paws (0.645ms)
+? product question fallback answers shampoo and sensitive teeth casually (0.4348ms)
+? product question fallback answers shampoo and no-teeth questions without extra weird phrasing (0.3651ms)
+? product question fallback can show ingredient details when asked (0.3383ms)
+? product question fallback answers food without-water questions safely (0.4753ms)
+? product question classifier accepts broad buyer doubts (0.7713ms)
+? product question fallback answers taste and like-it doubts (0.5099ms)
+? product question fallback answers messy ingredient preference doubts (0.7586ms)
+? product question fallback bridges mixed off-topic and product questions (0.3097ms)
+? product question fallback answers size age compare and symptom doubts (0.8317ms)
+? product question fallback answers category use questions safely (0.5006ms)
+? product question fallback avoids verification language for broad fit questions (0.3136ms)
+? product question fallback answers breed suitability naturally (0.2793ms)
+? product question parser blocks unsafe or internal copy (0.5366ms)
+? product question parser keeps direct default answer compact (0.1744ms)
+? product question parser accepts useful minimal fallback-shaped answers (0.0909ms)
+? product question prompt input does not expose unverified ingredients as verified (0.4546ms)
+? product question fallback uses verified directions only when present (0.3847ms)
+? product question fallback uses verified warnings only when present (0.3902ms)
+? product question fallback does not claim full verification when enrichment is partial (0.2233ms)
+? product question off-topic guard redirects non-product questions without product advice (0.1909ms)
+? product question route authenticates, rechecks filters, and uses shared Products AI usage (0.9675ms)
+? product question usage spends the shared Products AI pool (1.0994ms)
+? product question UI opens from a compact product card action and only submits on question action (1.0312ms)
+? product question route does not increment for empty questions or explanation clicks (0.4462ms)
+? product question usage read errors fall back to honest unavailable state (0.1365ms)
+(node:1980) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/shop/query-interpretation-cache.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\petwise\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+? Shop cache query normalization covers casing, whitespace, and simple punctuation (1.8479ms)
+? Shop interpretation cache key separates pet, context hash, and schema version (1.2394ms)
+? Shop interpretation cache returns strict schema rows and ignores malformed rows (2.3564ms)
+(node:31552) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/shop-query.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\petwise\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+? Shop query interpretation schema uses strict bounded enums (2.7178ms)
+? Shop query prompt is interpretation-only and forbids product claims (0.4953ms)
+? fallback classifies common Shop queries without recommending products (4.8929ms)
+? fallback handles explicit species conflict and urgent shopping intent safely (0.3167ms)
+? fallback maps vague grooming and fur language to Grooming search terms (0.3475ms)
+? urgent or medical safety intent overrides grooming synonym category floor (0.2282ms)
+? vague Shop query pre-validation blocks only queries without shopping signals (0.5454ms)
+? fallback maps something for itching paws to skin and grooming search signals (0.2219ms)
+(node:31408) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/billing/plan-limits.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\petwise\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+? Products AI usage increments fresh AI interpretations only (1.6175ms)
+? Shop interpretation cache normalization prevents duplicate spend for casing and whitespace variants (1.5274ms)
+? Shop deterministic filtering and invalid query states do not touch usage (3.0709ms)
+? Products AI cap blocks fresh uncached queries while allowing cached interpretations (0.6714ms)
+? Shop route never increments usage for invalid bodies, cached hits, fallback, or product explanation (0.4477ms)
+? Products AI cap reached UI copy is visible and calm (0.446ms)
+? vague Shop queries do not call AI or increment usage before specificity state (1.3204ms)
+(node:9076) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/petwise.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\petwise\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+? shop search requires a pet and a specific query before returning products (3.9072ms)
+? shop query matching covers product names, categories, tags, concerns, brand, retailer, and source notes (0.4569ms)
+? shop search returns multiple dog grooming products for shampoo queries (10.0419ms)
+? Shop static curated catalog is loaded and reports careful shampoo diagnostics (1.3939ms)
+? Shop obvious US curated searches match existing catalog products when present (10.6848ms)
+? Shop search returns grooming wipes and reports no match for a missing flea comb (2.1639ms)
+? Shop matching keeps raw query terms when AI interpretation terms are too broad (1.9571ms)
+? shop search returns dental products for dental treats and keeps species filtering (1.6593ms)
+? shop search never crosses selected species for obvious dog and cat queries (0.6303ms)
+? explicitly shared products can appear for both dogs and cats (1.6925ms)
+? shop search applies account country filtering and reports region-empty matches (1.392ms)
+? shop search applies saved avoid ingredients before showing product matches (1.438ms)
+? shop search treats chicken-free food as a careful ingredient intent (1.1893ms)
+? shop food search returns verified food products including sensitive stomach options (0.8524ms)
+? shop interpretation cannot bypass deterministic species, region, or avoid filters (1.5611ms)
+? shop filtering fails closed for invalid country and never falls back across countries (0.1616ms)
+? shop ingredient verification excludes sensitive unverified products but allows non-ingestible tools (0.437ms)
+? shop ranking is deterministic by category, species specificity, ingredient verification, source, secondary signal, and name (0.7189ms)
+? shop avoid ingredient normalization treats typed none like the None known chip (0.1347ms)
+? shop safety and medical intent empty states suppress products deterministically (0.3545ms)
+? urgent care signs suppress normal shop product results (0.1665ms)
+? shop search maps vague hair, fur, bath, smell, and shedding queries to grooming signals (1.1835ms)
+? shop grooming synonyms keep country, species, and ingredient verification filters strict (0.4733ms)
+? shop search returns specificity state for vague queries without showing products (0.3449ms)
+(node:8580) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/products/static-products.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\petwise\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+? static curated products are audited and enriched with verified source metadata (1.4062ms)
+? ingredientsVerified true requires verifiedIngredients (0.1923ms)
+? partial enrichment keeps ingredientsVerified false when ingredient details are not applicable or incomplete (0.1336ms)
+? curated catalog IDs are unique and products do not carry prices (0.1107ms)
+? curated products use explicit species arrays and retain a small sourced cat set (0.1964ms)
+? Earthbath enrichment uses verified label fields and not name-derived ingredients (0.1738ms)
+? verified catalog fields avoid restricted commercial and medical claims (0.3347ms)
+(node:9392) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/supabase.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\petwise\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+? getBrowserSupabase returns one browser client across persistence changes (17.1053ms)
+? pet profile baseline creates the historical prerequisite without absorbing later changes (1.8468ms)
+? role grant reconciliation keeps anonymous, catalog, and ingestion access least-privileged (1.1259ms)
+? appearance is mode-only and persists through the shared storage key (2.6997ms)
+? appearance modal only exposes light and dark mode (1.8547ms)
+? login page exposes forgot password and premium auth surfaces (0.5158ms)
+? forgot password page renders a reset form and calls the Supabase reset flow (0.4339ms)
+? update password page prepares the recovery session and updates the password (0.4911ms)
+? signed-out account menus show sign in and appearance, not account or sign out (1.0542ms)
+? signed-in account menus keep account, appearance, and sign out only (1.0785ms)
+? authenticated header uses the shared app navigation contract (0.5056ms)
+? Care history keeps Log update out of top nav and exposes page-level create action (1.4005ms)
+? authenticated header switches to compact navigation before tablet labels wrap (0.8594ms)
+? homepage header keeps Add pet and Care hub out of top nav and includes Dashboard (0.5762ms)
+? sticky shared header uses a translucent pinned shell (0.5844ms)
+? homepage uses a wider premium shell with elevated sections (0.3289ms)
+? dark theme tokens stay neutral charcoal while accents remain green (0.3936ms)
+? shared header active state covers dashboard, pets, care history, and ask (0.8597ms)
+? shared header keeps a stable account shell and removes loading pills (0.5064ms)
+? root layout bootstraps the theme without rendering a raw script tag (0.6069ms)
+? root layout renders the Impact verification tag with a value attribute (0.4778ms)
+? account menu items use stable explicit link and button markup (2.3959ms)
+? How it works cards use numeric step labels without icons (0.5648ms)
+? homepage copy presents a stronger care history story without fake social proof (1.1015ms)
+? homepage feature and connected care sections use unified divider components (0.4965ms)
+? homepage hero uses a product card instead of placeholder media (0.5229ms)
+? homepage page still renders the homepage client without gating on assets (0.3312ms)
+? onboarding uses shared nav without onboarding actions in the header (0.446ms)
+? Pets supports a wide single card and responsive multi-pet grid (0.3085ms)
+? Dashboard pet pill, empty care state, and contextual actions stay focused (0.4662ms)
+? Ask Furvise renders an ongoing pet-aware conversation workspace (0.7505ms)
+? Ask Furvise saves concise guidance summaries to care history (0.4423ms)
+? Ask Furvise omits save actions when an answer is not saveable (0.4497ms)
+? Care history cards render saved Furvise guidance cleanly without layout changes (0.3137ms)
+? Ask Furvise disables ask controls at the monthly limit and keeps core features available (0.5199ms)
+? Save guidance confirmation clearly targets care history, not saved details (1.2023ms)
+? Saved details empty state explains reusable facts and includes useful next actions (0.4107ms)
+? Results stays care-guidance only and removes product recommendation UI (1.1128ms)
+? Onboarding current food and avoid ingredients remain reversible (0.5521ms)
+? finish profile prompts appear after value on Results, Dashboard, and pet profile (0.8648ms)
+? Onboarding saves the profile before navigating to results (1.4433ms)
+? Results keeps safety panels ahead of care summary and removes product flow gating (0.5304ms)
+? Results stays care-summary focused and avoids diagnostic framing (0.7722ms)
+? free plan gates only pets and Ask while core loop stays available (1.6862ms)
+? mobile pet profile actions are labeled and never render a visible ellipsis button (0.6038ms)
+? shared mobile header keeps menu and account controls available without desktop nav (0.5955ms)
+? mobile layout shells and Ask chips avoid horizontal clipping (1.3501ms)
+? onboarding fallback copy does not expose demo or mock language (0.4039ms)
+? Results no longer renders product cards or product empty states (0.5572ms)
+? edit profile mobile form avoids horizontal overflow and keeps bottom actions tappable (0.5041ms)
+(node:7068) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/vet-brief/builder.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\petwise\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+? Vet Visit Brief includes only recorded facts and keeps suspicions owner-attributed (3.7685ms)
+? Vet Visit Brief shows missing values without filling gaps (0.2199ms)
+? Vet Visit Brief date filtering and relevance exclude unrelated history (1.4051ms)
+? confirmed user edits are preserved and removed items stay removed (0.3715ms)
+? Vet Visit Brief PDF filename is stable and PDF omits internal and affiliate fields (44.637ms)
+? Vet Visit Brief persistence is private, versioned, and owner-scoped (0.3935ms)
+? Vet Visit Brief review is mobile-ready, explicit, and analytics receives no document content (0.5987ms)
+? Vet Visit Brief builder introduces no diagnosis or treatment claims (0.2637ms)
+? tests 495
+? suites 0
+? pass 493
+? fail 2
+? cancelled 0
+? skipped 0
+? todo 0
+? duration_ms 3280.9383
+
+? failing tests:
+
+test at tests\ask-conversation-intelligence.test.mjs:86:1
+? prior tracking is available to a related follow-up and stays out of unrelated topics (2.0577ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'grooming'
+  - 'routine'
+  
+      at TestContext.<anonymous> (file:///C:/Users/gwara/petwise/tests/ask-conversation-intelligence.test.mjs:91:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:897:18)
+      at Test.postRun (node:internal/test_runner/test:1447:19)
+      at Test.run (node:internal/test_runner/test:1372:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'grooming',
+    expected: 'routine',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\ask-conversation-intelligence.test.mjs:103:1
+? public response accepts useful presentation fields but drops the internal plan (1.4828ms)
+  TypeError: Cannot read properties of undefined (reading '0')
+      at TestContext.<anonymous> (file:///C:/Users/gwara/petwise/tests/ask-conversation-intelligence.test.mjs:108:38)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:897:18)
+      at Test.postRun (node:internal/test_runner/test:1447:19)
+      at Test.run (node:internal/test_runner/test:1372:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7)
+

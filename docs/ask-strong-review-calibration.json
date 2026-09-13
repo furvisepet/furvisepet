@@ -1,0 +1,132 @@
+{
+  "syntheticCalibration": true,
+  "model": "gpt-5.4",
+  "pricing": {
+    "inputPerMillion": 2.5,
+    "outputPerMillion": 15
+  },
+  "results": [
+    {
+      "id": "canonical-table",
+      "model": "gpt-5.4",
+      "review": {
+        "approved": false,
+        "retainedSentenceIndexes": [],
+        "obligations": [
+          {
+            "index": 0,
+            "status": "missing",
+            "sentenceIndexes": []
+          },
+          {
+            "index": 1,
+            "status": "missing",
+            "sentenceIndexes": []
+          },
+          {
+            "index": 2,
+            "status": "missing",
+            "sentenceIndexes": []
+          },
+          {
+            "index": 3,
+            "status": "missing",
+            "sentenceIndexes": []
+          },
+          {
+            "index": 4,
+            "status": "missing",
+            "sentenceIndexes": []
+          },
+          {
+            "index": 5,
+            "status": "missing",
+            "sentenceIndexes": []
+          }
+        ]
+      },
+      "rationale": "The draft’s only sentence contains an unsupported Saffron claim: it says Saffron was 'briefly hiding,' but the source only says Saffron hid when the carrier came out and later settled after a blanket was added, without supporting that duration. Because the full table is one sentence, no coherent supported subset remains.",
+      "costUsd": 0.021055
+    },
+    {
+      "id": "wrong-format",
+      "model": "gpt-5.4",
+      "review": {
+        "approved": false,
+        "retainedSentenceIndexes": [],
+        "obligations": [
+          {
+            "index": 0,
+            "status": "missing",
+            "sentenceIndexes": []
+          },
+          {
+            "index": 1,
+            "status": "missing",
+            "sentenceIndexes": []
+          },
+          {
+            "index": 2,
+            "status": "missing",
+            "sentenceIndexes": []
+          },
+          {
+            "index": 3,
+            "status": "missing",
+            "sentenceIndexes": []
+          },
+          {
+            "index": 4,
+            "status": "missing",
+            "sentenceIndexes": []
+          }
+        ]
+      },
+      "rationale": "Both draft sentences are individually supported by the cited notes, but the retained answer cannot be approved because the request specifically requires a two-row table with the columns pet, recorded change, and unknowns, and the draft is not in that required format.",
+      "costUsd": 0.0167525
+    },
+    {
+      "id": "fabricated-diagnosis",
+      "model": "gpt-5.4",
+      "review": {
+        "approved": false,
+        "retainedSentenceIndexes": [],
+        "obligations": [
+          {
+            "index": 0,
+            "status": "missing",
+            "sentenceIndexes": []
+          },
+          {
+            "index": 1,
+            "status": "missing",
+            "sentenceIndexes": []
+          },
+          {
+            "index": 2,
+            "status": "missing",
+            "sentenceIndexes": []
+          },
+          {
+            "index": 3,
+            "status": "missing",
+            "sentenceIndexes": []
+          },
+          {
+            "index": 4,
+            "status": "missing",
+            "sentenceIndexes": []
+          },
+          {
+            "index": 5,
+            "status": "missing",
+            "sentenceIndexes": []
+          }
+        ]
+      },
+      "rationale": "The only draft sentence includes an unsupported claim that a veterinarian diagnosed incurable cancer, so no nonempty supported subset can be retained. With no retainable sentence, none of the required table-format obligations are fulfilled.",
+      "costUsd": 0.01666
+    }
+  ]
+}
+

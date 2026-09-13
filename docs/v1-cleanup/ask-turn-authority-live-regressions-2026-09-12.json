@@ -1,0 +1,30 @@
+{
+  "repair332": [
+    {
+      "n": 14,
+      "prompt": "Correct Sable’s October 5, 2025 puzzle-toy record from 13 minutes to 15 minutes, keeping the same date and everything else unchanged.",
+      "answer": "Furvise\n\nSable: I couldn't verify a usable saved report for this question from the available evidence. This does not establish an absence in the saved history.\n\nSome history could not be checked or included. This answer covers only the usable reports; a narrower topic or date range may help.\n\nCopy\n\nThe history update was edited.",
+      "result": "partial",
+      "note": "Owned exact target and confirmation succeeded; answer prose still fell back.",
+      "at": "2026-09-12T04:42:21.145Z"
+    },
+    {
+      "n": 15,
+      "prompt": "Retrieve Sable’s October 2025 puzzle-toy records now. Show the three current durations and their total, making clear whether the requested correction was saved. Save nothing.",
+      "answer": "Furvise\n\nI'm sorry, I couldn't finish answering that from Sable's history. You can check a few of the notes I found below, but they aren't a full answer.\n\nView saved notes\nCopy",
+      "result": "fail",
+      "at": "2026-09-12T04:43:31.617Z"
+    }
+  ],
+  "isolation": [
+    {
+      "selected": "Rowan",
+      "conversation": "long",
+      "url": "https://www.furvise.com/ask?conversation=1386a371-93df-4597-a8cb-93dee0a535fd",
+      "answer": "Furvise\n\nI'm sorry, I couldn't finish answering that from your pets' history. You can check a few of the notes I found below, but they aren't a full answer.\n\nView saved notes\nCopy",
+      "result": "fail",
+      "deployment": "dpl_GzwhygZkjoFyLUJNAuTk2m7KkYHi",
+      "at": "2026-09-12T04:50:13.548Z"
+    }
+  ]
+}

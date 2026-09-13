@@ -1,0 +1,2248 @@
+{
+  "syntheticDatabase": true,
+  "realProviders": true,
+  "phase": "repair3",
+  "turns": [
+    {
+      "id": 14,
+      "question": "Did Luna’s July 17 accident-free update come before or after the tray was put back? Include the reversal date.",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "outputFormat": "prose",
+          "question": "Did Luna’s July 17 accident-free update come before or after the tray was put back? Include the reversal date.",
+          "requirements": [
+            "Answer as a comparison of the two dated events.",
+            "Include the reversal date.",
+            "Use the requested language and preserve the user's wording about Luna and the tray.",
+            "Do not answer from the selected pet alone; retrieve the relevant saved evidence."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "comparison",
+        "readOperation": "comparison",
+        "selection": "period",
+        "petIds": [
+          "luna"
+        ],
+        "topic": "Luna accident-free update and tray put back timing",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "Did Luna’s July 17 accident-free update come before or after the tray was put back? Include the reversal date.",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": "2026-07-17T00:00:00.000Z",
+          "to": "2026-07-18T00:00:00.000Z",
+          "terms": [
+            "Luna",
+            "July  seventeen",
+            "accident-free",
+            "tray",
+            "put back",
+            "reversal date"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "I couldn't verify a complete answer to the request. These are the saved reports I could check for Luna: Luna's 2026-07-17 report: \"Note: Luna has had no more accidents since July 10. She is using the tray normally.\"\n\nSome history could not be checked or included. This answer covers only the usable reports; a narrower topic or date range may help.",
+      "beforeFinalGuard": "I couldn't verify a complete answer to the request. These are the saved reports I could check for Luna: Luna's 2026-07-17 report: \"Note: Luna has had no more accidents since July 10. She is using the tray normally.\"\n\nSome history could not be checked or included. This answer covers only the usable reports; a narrower topic or date range may help.",
+      "draft": {
+        "sentences": [
+          {
+            "text": "Luna’s July 17 accident-free update was after the reversal; the record says she had had no more accidents since July 10 and was using the tray normally.",
+            "sourceIds": [
+              "care:diag-10"
+            ]
+          },
+          {
+            "text": "The reversal date can be dated to July 10, but this record does not give an exact separate timestamp for when the tray was put back.",
+            "sourceIds": [
+              "care:diag-10"
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [
+            0
+          ],
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Did Luna’s July 17 accident-free update come before or after the tray was put back? Include the reversal date.",
+          "referenceQuestion": "Did Luna’s July 17 accident-free update come before or after the tray was put back? Include the reversal date.",
+          "scope": {
+            "authorizedPetIds": [
+              "luna"
+            ],
+            "requestedTopic": "Luna accident-free update and tray put back timing",
+            "requestText": "Did Luna’s July 17 accident-free update come before or after the tray was put back? Include the reversal date.",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2026-07-17T00:00:00.000Z"
+            },
+            "requestKind": "comparison",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Luna"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "outputFormat": "prose",
+              "question": "Did Luna’s July 17 accident-free update come before or after the tray was put back? Include the reversal date.",
+              "requirements": [
+                "Answer as a comparison of the two dated events.",
+                "Include the reversal date.",
+                "Use the requested language and preserve the user's wording about Luna and the tray.",
+                "Do not answer from the selected pet alone; retrieve the relevant saved evidence."
+              ],
+              "referenceTurnIds": [],
+              "quantity": null
+            },
+            "operation": "comparison",
+            "readOperation": "comparison",
+            "selection": "period",
+            "petIds": [
+              "luna"
+            ],
+            "topic": "Luna accident-free update and tray put back timing",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "Did Luna’s July 17 accident-free update come before or after the tray was put back? Include the reversal date.",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2026-07-17T00:00:00.000Z",
+              "to": "2026-07-18T00:00:00.000Z",
+              "terms": [
+                "Luna",
+                "July  seventeen",
+                "accident-free",
+                "tray",
+                "put back",
+                "reversal date"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "luna": "Luna"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "outputFormat": "prose",
+            "question": "Did Luna’s July 17 accident-free update come before or after the tray was put back? Include the reversal date.",
+            "requirements": [
+              "Answer as a comparison of the two dated events.",
+              "Include the reversal date.",
+              "Use the requested language and preserve the user's wording about Luna and the tray.",
+              "Do not answer from the selected pet alone; retrieve the relevant saved evidence."
+            ],
+            "referenceTurnIds": [],
+            "quantity": null
+          },
+          "historyAccess": null,
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Did Luna’s July 17 accident-free update come before or after the tray was put back? Include the reversal date."
+            },
+            {
+              "index": 1,
+              "text": "Answer as a comparison of the two dated events."
+            },
+            {
+              "index": 2,
+              "text": "Include the reversal date."
+            },
+            {
+              "index": 3,
+              "text": "Use the requested language and preserve the user's wording about Luna and the tray."
+            },
+            {
+              "index": 4,
+              "text": "Do not answer from the selected pet alone; retrieve the relevant saved evidence."
+            }
+          ],
+          "coverage": {
+            "retrieval": "partial",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "bounded_period_context_not_semantic_completeness",
+              "bidirectional_endpoint_subset",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:luna:sex",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "female",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:luna:species",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "cat",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:diag-10",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Luna has had no more accidents since July 10. She is using the tray normally.",
+              "occurredAt": "2026-07-17T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "Luna’s July 17 accident-free update was after the reversal; the record says she had had no more accidents since July 10 and was using the tray normally.",
+                "sourceIds": [
+                  "care:diag-10"
+                ],
+                "index": 0
+              },
+              {
+                "text": "The reversal date can be dated to July 10, but this record does not give an exact separate timestamp for when the tray was put back.",
+                "sourceIds": [
+                  "care:diag-10"
+                ],
+                "index": 1
+              }
+            ]
+          }
+        },
+        {
+          "deterministicInvalidSentenceIndexes": [
+            0
+          ],
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Did Luna’s July 17 accident-free update come before or after the tray was put back? Include the reversal date.",
+          "referenceQuestion": "Did Luna’s July 17 accident-free update come before or after the tray was put back? Include the reversal date.",
+          "scope": {
+            "authorizedPetIds": [
+              "luna"
+            ],
+            "requestedTopic": "Luna accident-free update and tray put back timing",
+            "requestText": "Did Luna’s July 17 accident-free update come before or after the tray was put back? Include the reversal date.",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2026-07-17T00:00:00.000Z"
+            },
+            "requestKind": "comparison",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Luna"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "outputFormat": "prose",
+              "question": "Did Luna’s July 17 accident-free update come before or after the tray was put back? Include the reversal date.",
+              "requirements": [
+                "Answer as a comparison of the two dated events.",
+                "Include the reversal date.",
+                "Use the requested language and preserve the user's wording about Luna and the tray.",
+                "Do not answer from the selected pet alone; retrieve the relevant saved evidence."
+              ],
+              "referenceTurnIds": [],
+              "quantity": null
+            },
+            "operation": "comparison",
+            "readOperation": "comparison",
+            "selection": "period",
+            "petIds": [
+              "luna"
+            ],
+            "topic": "Luna accident-free update and tray put back timing",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "Did Luna’s July 17 accident-free update come before or after the tray was put back? Include the reversal date.",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2026-07-17T00:00:00.000Z",
+              "to": "2026-07-18T00:00:00.000Z",
+              "terms": [
+                "Luna",
+                "July  seventeen",
+                "accident-free",
+                "tray",
+                "put back",
+                "reversal date"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "luna": "Luna"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "outputFormat": "prose",
+            "question": "Did Luna’s July 17 accident-free update come before or after the tray was put back? Include the reversal date.",
+            "requirements": [
+              "Answer as a comparison of the two dated events.",
+              "Include the reversal date.",
+              "Use the requested language and preserve the user's wording about Luna and the tray.",
+              "Do not answer from the selected pet alone; retrieve the relevant saved evidence."
+            ],
+            "referenceTurnIds": [],
+            "quantity": null
+          },
+          "historyAccess": null,
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Did Luna’s July 17 accident-free update come before or after the tray was put back? Include the reversal date."
+            },
+            {
+              "index": 1,
+              "text": "Answer as a comparison of the two dated events."
+            },
+            {
+              "index": 2,
+              "text": "Include the reversal date."
+            },
+            {
+              "index": 3,
+              "text": "Use the requested language and preserve the user's wording about Luna and the tray."
+            },
+            {
+              "index": 4,
+              "text": "Do not answer from the selected pet alone; retrieve the relevant saved evidence."
+            }
+          ],
+          "coverage": {
+            "retrieval": "partial",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "bounded_period_context_not_semantic_completeness",
+              "bidirectional_endpoint_subset",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "draft": {
+            "sentences": [
+              {
+                "text": "Luna’s July 17 accident-free update was after the reversal; the record says she had had no more accidents since July 10 and was using the tray normally.",
+                "sourceIds": [
+                  "care:diag-10"
+                ],
+                "index": 0
+              },
+              {
+                "text": "The reversal date can be dated to July 10, but this record does not give an exact separate timestamp for when the tray was put back.",
+                "sourceIds": [
+                  "care:diag-10"
+                ],
+                "index": 1
+              }
+            ]
+          },
+          "rejectionReason": "Sentence 0 makes an unsupported before/after comparison about the tray being put back. The records only show Luna had no more accidents since July 10 and was using the tray normally on July 17; they do not provide the tray put-back timestamp, so the comparison cannot be answered. The reversal date July 10 is supported, but the draft needs repair to state the missing timing limitation instead of an unsupported ordering claim.",
+          "contextRecords": [
+            {
+              "sourceId": "profile:luna:sex",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "female",
+              "occurredAt": null,
+              "id": "profile:luna:sex"
+            },
+            {
+              "sourceId": "profile:luna:species",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "cat",
+              "occurredAt": null,
+              "id": "profile:luna:species"
+            },
+            {
+              "sourceId": "care:diag-10",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Luna has had no more accidents since July 10. She is using the tray normally.",
+              "occurredAt": "2026-07-17T12:00:00Z",
+              "id": "care:diag-10"
+            }
+          ],
+          "evidenceContract": {
+            "interpretation": {
+              "version": "ask-interpretation.v1",
+              "request": {
+                "version": "ask-request.v2",
+                "mode": "read",
+                "outputFormat": "prose",
+                "question": "Did Luna’s July 17 accident-free update come before or after the tray was put back? Include the reversal date.",
+                "requirements": [
+                  "Answer as a comparison of the two dated events.",
+                  "Include the reversal date.",
+                  "Use the requested language and preserve the user's wording about Luna and the tray.",
+                  "Do not answer from the selected pet alone; retrieve the relevant saved evidence."
+                ],
+                "referenceTurnIds": [],
+                "quantity": null
+              },
+              "operation": "comparison",
+              "readOperation": "comparison",
+              "selection": "period",
+              "petIds": [
+                "luna"
+              ],
+              "topic": "Luna accident-free update and tray put back timing",
+              "readOnly": true,
+              "clarification": null,
+              "referenceQuestion": "Did Luna’s July 17 accident-free update come before or after the tray was put back? Include the reversal date.",
+              "episodeTopic": null,
+              "ordinal": null,
+              "history": {
+                "from": "2026-07-17T00:00:00.000Z",
+                "to": "2026-07-18T00:00:00.000Z",
+                "terms": [
+                  "Luna",
+                  "July  seventeen",
+                  "accident-free",
+                  "tray",
+                  "put back",
+                  "reversal date"
+                ],
+                "interpretation": "lexical"
+              }
+            }
+          }
+        }
+      ],
+      "providerCalls": 4,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 23,
+      "question": "For Oscar, place June course completion and August recurrence in order with the recorded event dates.",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "outputFormat": "table",
+          "question": "For Oscar, retrieve the recorded June course completion and August recurrence and order them by their event dates.",
+          "requirements": [
+            "Use the owned pet Oscar, not the currently selected pet Milo.",
+            "Return the events in date order using the recorded event dates.",
+            "Preserve the June completion and August recurrence distinction.",
+            "Do not answer from memory; read the saved records."
+          ],
+          "referenceTurnIds": [],
+          "quantity": "records"
+        },
+        "operation": "recall",
+        "readOperation": "recall",
+        "selection": "period",
+        "petIds": [
+          "oscar"
+        ],
+        "topic": "Oscar June course completion and August recurrence event dates",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "For Oscar, retrieve the recorded June course completion and August recurrence and order them by their event dates.",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": null,
+          "to": null,
+          "terms": [
+            "Oscar",
+            "June course completion",
+            "August recurrence",
+            "event dates"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "| Order | Event | Recorded event date |\n| --- | --- | --- |\n| 1 | June course completion | 2026-06-24T12:00:00Z |\n| 2 | August recurrence | 2026-08-12T12:00:00Z |",
+      "beforeFinalGuard": "| Order | Event | Recorded event date |\n| --- | --- | --- |\n| 1 | June course completion | 2026-06-24T12:00:00Z |\n| 2 | August recurrence | 2026-08-12T12:00:00Z |",
+      "draft": {
+        "sentences": [
+          {
+            "text": "| Order | Event | Recorded event date |\n| --- | --- | --- |\n| 1 | June course completion | 2026-06-24T12:00:00Z |\n| 2 | August recurrence | 2026-08-12T12:00:00Z |",
+            "sourceIds": [
+              "care:diag-35",
+              "care:diag-38"
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "For Oscar, place June course completion and August recurrence in order with the recorded event dates.",
+          "referenceQuestion": "For Oscar, retrieve the recorded June course completion and August recurrence and order them by their event dates.",
+          "scope": {
+            "authorizedPetIds": [
+              "oscar"
+            ],
+            "requestedTopic": "Oscar June course completion and August recurrence event dates",
+            "requestText": "For Oscar, place June course completion and August recurrence in order with the recorded event dates.",
+            "requestedPeriod": {
+              "kind": "unspecified",
+              "surface": null
+            },
+            "requestKind": "ordinary",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Oscar"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "outputFormat": "table",
+              "question": "For Oscar, retrieve the recorded June course completion and August recurrence and order them by their event dates.",
+              "requirements": [
+                "Use the owned pet Oscar, not the currently selected pet Milo.",
+                "Return the events in date order using the recorded event dates.",
+                "Preserve the June completion and August recurrence distinction.",
+                "Do not answer from memory; read the saved records."
+              ],
+              "referenceTurnIds": [],
+              "quantity": "records"
+            },
+            "operation": "recall",
+            "readOperation": "recall",
+            "selection": "period",
+            "petIds": [
+              "oscar"
+            ],
+            "topic": "Oscar June course completion and August recurrence event dates",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "For Oscar, retrieve the recorded June course completion and August recurrence and order them by their event dates.",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": null,
+              "to": null,
+              "terms": [
+                "Oscar",
+                "June course completion",
+                "August recurrence",
+                "event dates"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "oscar": "Oscar"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "outputFormat": "table",
+            "question": "For Oscar, retrieve the recorded June course completion and August recurrence and order them by their event dates.",
+            "requirements": [
+              "Use the owned pet Oscar, not the currently selected pet Milo.",
+              "Return the events in date order using the recorded event dates.",
+              "Preserve the June completion and August recurrence distinction.",
+              "Do not answer from memory; read the saved records."
+            ],
+            "referenceTurnIds": [],
+            "quantity": "records"
+          },
+          "historyAccess": null,
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "For Oscar, retrieve the recorded June course completion and August recurrence and order them by their event dates."
+            },
+            {
+              "index": 1,
+              "text": "Use the owned pet Oscar, not the currently selected pet Milo."
+            },
+            {
+              "index": 2,
+              "text": "Return the events in date order using the recorded event dates."
+            },
+            {
+              "index": 3,
+              "text": "Preserve the June completion and August recurrence distinction."
+            },
+            {
+              "index": 4,
+              "text": "Do not answer from memory; read the saved records."
+            }
+          ],
+          "coverage": {
+            "retrieval": "unknown",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "bounded_period_context_not_semantic_completeness"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:oscar:sex",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:oscar:species",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:diag-29",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 walk-old: Oscar completed a 12-minute walk with one sniffing pause and no observed limp.",
+              "occurredAt": "2021-10-07T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-30",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 walk-later: Oscar completed an 18-minute walk with two sniffing pauses. No cause for the difference in walk length was recorded.",
+              "occurredAt": "2023-03-13T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-31",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 travel-bag: Oscar’s travel bag weighed 6 lb. This was not Oscar’s body weight.",
+              "occurredAt": "2026-05-22T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-32",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar weighed 7.2 kg today. He eats chicken-and-rice senior dry food and usually enjoys two 20-minute walks.",
+              "occurredAt": "2026-06-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-33",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar hesitated before jumping onto the sofa twice this week. He is still willing to walk. I do not know why he hesitated.",
+              "occurredAt": "2026-06-11T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-34",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: The vet examined Oscar because of the stiffness. We were given a seven-day medication course and told to return if the problem continued. I have not recorded the medication name, dose or a diagnosis here.",
+              "occurredAt": "2026-06-17T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-35",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar finished the seven-day medication course today. He has seemed more comfortable over the last few days.",
+              "occurredAt": "2026-06-24T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-36",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar is getting up comfortably again and is willing to take his normal walks. I have not noticed stiffness this week.",
+              "occurredAt": "2026-07-01T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-37",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar weighed 7.1 kg today. His appetite is normal and he is still eating chicken-and-rice senior food.",
+              "occurredAt": "2026-07-20T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-38",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar seemed stiff again after a much longer walk than usual yesterday. This is the first stiffness I have noticed since late June.",
+              "occurredAt": "2026-08-12T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-39",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar is moving more comfortably on the shorter walks, but he still hesitates before jumping onto the sofa.",
+              "occurredAt": "2026-08-18T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-40",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: We had a follow-up vet visit for Oscar's recurring stiffness. The vet asked us to keep observing his comfort and activity. I have not recorded a diagnosis or any new medication instructions here.",
+              "occurredAt": "2026-08-27T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-41",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar still enjoys two shorter walks each day. He occasionally hesitates at the sofa. His appetite is normal and he weighs 7.1 kg.",
+              "occurredAt": "2026-09-03T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-42",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar is now getting onto the sofa without hesitating and has looked comfortable for the last three days.",
+              "occurredAt": "2026-09-04T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "| Order | Event | Recorded event date |\n| --- | --- | --- |\n| 1 | June course completion | 2026-06-24T12:00:00Z |\n| 2 | August recurrence | 2026-08-12T12:00:00Z |",
+                "sourceIds": [
+                  "care:diag-35",
+                  "care:diag-38"
+                ],
+                "index": 0
+              }
+            ]
+          }
+        }
+      ],
+      "providerCalls": 3,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 28,
+      "question": "What dose in milligrams was saved for Oscar’s June medication?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "outputFormat": "prose",
+          "question": "What dose in milligrams was saved for Oscar’s June medication?",
+          "requirements": [
+            "Answer in a concise response.",
+            "Use the requested unit milligrams if the evidence provides it.",
+            "Focus on Oscar’s saved June medication record.",
+            "Do not answer from the selected pet Milo unless the evidence specifically links him to the record."
+          ],
+          "referenceTurnIds": [],
+          "quantity": "measurement"
+        },
+        "operation": "recall",
+        "readOperation": "recall",
+        "selection": "summary",
+        "petIds": [
+          "oscar"
+        ],
+        "topic": "Oscar June medication dose",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "What dose in milligrams was saved for Oscar’s June medication?",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": null,
+          "to": null,
+          "terms": [
+            "Oscar",
+            "June medication",
+            "dose",
+            "milligrams"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "No milligram dose was saved in Oscar’s June medication record; the note says the medication name, dose, and diagnosis were not recorded there.",
+      "beforeFinalGuard": "No milligram dose was saved in Oscar’s June medication record; the note says the medication name, dose, and diagnosis were not recorded there.",
+      "draft": {
+        "sentences": [
+          {
+            "text": "No milligram dose was saved in Oscar’s June medication record; the note says the medication name, dose, and diagnosis were not recorded there.",
+            "sourceIds": [
+              "care:diag-34"
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "What dose in milligrams was saved for Oscar’s June medication?",
+          "referenceQuestion": "What dose in milligrams was saved for Oscar’s June medication?",
+          "scope": {
+            "authorizedPetIds": [
+              "oscar"
+            ],
+            "requestedTopic": "Oscar June medication dose",
+            "requestText": "What dose in milligrams was saved for Oscar’s June medication?",
+            "requestedPeriod": {
+              "kind": "unspecified",
+              "surface": null
+            },
+            "requestKind": "ordinary",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Oscar"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "outputFormat": "prose",
+              "question": "What dose in milligrams was saved for Oscar’s June medication?",
+              "requirements": [
+                "Answer in a concise response.",
+                "Use the requested unit milligrams if the evidence provides it.",
+                "Focus on Oscar’s saved June medication record.",
+                "Do not answer from the selected pet Milo unless the evidence specifically links him to the record."
+              ],
+              "referenceTurnIds": [],
+              "quantity": "measurement"
+            },
+            "operation": "recall",
+            "readOperation": "recall",
+            "selection": "summary",
+            "petIds": [
+              "oscar"
+            ],
+            "topic": "Oscar June medication dose",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "What dose in milligrams was saved for Oscar’s June medication?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": null,
+              "to": null,
+              "terms": [
+                "Oscar",
+                "June medication",
+                "dose",
+                "milligrams"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "oscar": "Oscar"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "outputFormat": "prose",
+            "question": "What dose in milligrams was saved for Oscar’s June medication?",
+            "requirements": [
+              "Answer in a concise response.",
+              "Use the requested unit milligrams if the evidence provides it.",
+              "Focus on Oscar’s saved June medication record.",
+              "Do not answer from the selected pet Milo unless the evidence specifically links him to the record."
+            ],
+            "referenceTurnIds": [],
+            "quantity": "measurement"
+          },
+          "historyAccess": null,
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "What dose in milligrams was saved for Oscar’s June medication?"
+            },
+            {
+              "index": 1,
+              "text": "Answer in a concise response."
+            },
+            {
+              "index": 2,
+              "text": "Use the requested unit milligrams if the evidence provides it."
+            },
+            {
+              "index": 3,
+              "text": "Focus on Oscar’s saved June medication record."
+            },
+            {
+              "index": 4,
+              "text": "Do not answer from the selected pet Milo unless the evidence specifically links him to the record."
+            }
+          ],
+          "coverage": {
+            "retrieval": "partial",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "bounded_period_context_not_semantic_completeness",
+              "bidirectional_endpoint_subset"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:oscar:sex",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:oscar:species",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:diag-29",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 walk-old: Oscar completed a 12-minute walk with one sniffing pause and no observed limp.",
+              "occurredAt": "2021-10-07T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-42",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar is now getting onto the sofa without hesitating and has looked comfortable for the last three days.",
+              "occurredAt": "2026-09-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-30",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 walk-later: Oscar completed an 18-minute walk with two sniffing pauses. No cause for the difference in walk length was recorded.",
+              "occurredAt": "2023-03-13T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-41",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar still enjoys two shorter walks each day. He occasionally hesitates at the sofa. His appetite is normal and he weighs 7.1 kg.",
+              "occurredAt": "2026-09-03T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-31",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 travel-bag: Oscar’s travel bag weighed 6 lb. This was not Oscar’s body weight.",
+              "occurredAt": "2026-05-22T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-40",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: We had a follow-up vet visit for Oscar's recurring stiffness. The vet asked us to keep observing his comfort and activity. I have not recorded a diagnosis or any new medication instructions here.",
+              "occurredAt": "2026-08-27T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-32",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar weighed 7.2 kg today. He eats chicken-and-rice senior dry food and usually enjoys two 20-minute walks.",
+              "occurredAt": "2026-06-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-39",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar is moving more comfortably on the shorter walks, but he still hesitates before jumping onto the sofa.",
+              "occurredAt": "2026-08-18T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-33",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar hesitated before jumping onto the sofa twice this week. He is still willing to walk. I do not know why he hesitated.",
+              "occurredAt": "2026-06-11T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-38",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar seemed stiff again after a much longer walk than usual yesterday. This is the first stiffness I have noticed since late June.",
+              "occurredAt": "2026-08-12T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-34",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: The vet examined Oscar because of the stiffness. We were given a seven-day medication course and told to return if the problem continued. I have not recorded the medication name, dose or a diagnosis here.",
+              "occurredAt": "2026-06-17T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-37",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar weighed 7.1 kg today. His appetite is normal and he is still eating chicken-and-rice senior food.",
+              "occurredAt": "2026-07-20T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-35",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar finished the seven-day medication course today. He has seemed more comfortable over the last few days.",
+              "occurredAt": "2026-06-24T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-36",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar is getting up comfortably again and is willing to take his normal walks. I have not noticed stiffness this week.",
+              "occurredAt": "2026-07-01T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "No milligram dose was saved in Oscar’s June medication record; the note says the medication name, dose, and diagnosis were not recorded there.",
+                "sourceIds": [
+                  "care:diag-34"
+                ],
+                "index": 0
+              }
+            ]
+          }
+        }
+      ],
+      "providerCalls": 3,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 34,
+      "question": "As of June 19, was Milo’s June 20 recovery report already available?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "outputFormat": "prose",
+          "question": "As of 2026-06-19, was Milo’s 2026-06-20 recovery report already available?",
+          "requirements": [
+            "Answer whether the June 20 recovery report was already available as of June 19.",
+            "Use a concise factual response.",
+            "Use the selected pet Milo as the subject."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "recall",
+        "readOperation": "recall",
+        "selection": "period",
+        "petIds": [
+          "milo"
+        ],
+        "topic": "recovery report availability",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "As of 2026-06-19, was Milo’s 2026-06-20 recovery report already available?",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": "2021-09-09T00:00:00.000Z",
+          "to": "2026-06-21T00:00:00.000Z",
+          "terms": [
+            "recovery report"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "No. Milo’s recovery report is dated June 20, so it was not already available as of June 19.",
+      "beforeFinalGuard": "No. Milo’s recovery report is dated June 20, so it was not already available as of June 19.",
+      "draft": {
+        "sentences": [
+          {
+            "text": "No. Milo’s recovery report is dated June 20, so it was not already available as of June 19.",
+            "sourceIds": [
+              "care:diag-22"
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "As of June 19, was Milo’s June 20 recovery report already available?",
+          "referenceQuestion": "As of 2026-06-19, was Milo’s 2026-06-20 recovery report already available?",
+          "scope": {
+            "authorizedPetIds": [
+              "milo"
+            ],
+            "requestedTopic": "recovery report availability",
+            "requestText": "As of June 19, was Milo’s June 20 recovery report already available?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2021-09-09T00:00:00.000Z"
+            },
+            "requestKind": "ordinary",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Milo"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "outputFormat": "prose",
+              "question": "As of 2026-06-19, was Milo’s 2026-06-20 recovery report already available?",
+              "requirements": [
+                "Answer whether the June 20 recovery report was already available as of June 19.",
+                "Use a concise factual response.",
+                "Use the selected pet Milo as the subject."
+              ],
+              "referenceTurnIds": [],
+              "quantity": null
+            },
+            "operation": "recall",
+            "readOperation": "recall",
+            "selection": "period",
+            "petIds": [
+              "milo"
+            ],
+            "topic": "recovery report availability",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "As of 2026-06-19, was Milo’s 2026-06-20 recovery report already available?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2021-09-09T00:00:00.000Z",
+              "to": "2026-06-21T00:00:00.000Z",
+              "terms": [
+                "recovery report"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "milo": "Milo"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "outputFormat": "prose",
+            "question": "As of 2026-06-19, was Milo’s 2026-06-20 recovery report already available?",
+            "requirements": [
+              "Answer whether the June 20 recovery report was already available as of June 19.",
+              "Use a concise factual response.",
+              "Use the selected pet Milo as the subject."
+            ],
+            "referenceTurnIds": [],
+            "quantity": null
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "As of 2026-06-19, was Milo’s 2026-06-20 recovery report already available?"
+            },
+            {
+              "index": 1,
+              "text": "Answer whether the June 20 recovery report was already available as of June 19."
+            },
+            {
+              "index": 2,
+              "text": "Use a concise factual response."
+            },
+            {
+              "index": 3,
+              "text": "Use the selected pet Milo as the subject."
+            }
+          ],
+          "coverage": {
+            "retrieval": "unknown",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:milo:sex",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:milo:species",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:diag-15",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 carrier-old: Milo tolerated a 10-minute car ride calmly. The empty carrier weighed 2 kg. This was the carrier weight, not Milo’s weight.",
+              "occurredAt": "2021-10-05T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-16",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 carrier-later: Milo tolerated a 20-minute car ride calmly. The empty carrier weighed 2.5 kg. No reason for the weight difference was recorded.",
+              "occurredAt": "2023-04-11T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-17",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 nail-trim: During a nail trim Milo withdrew his right forepaw once. No injury or diagnosis was recorded.",
+              "occurredAt": "2026-05-20T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-18",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 28.4 kg today. He is eating chicken-and-rice adult dry food. His appetite, energy and stools are normal.",
+              "occurredAt": "2026-06-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-19",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: We started giving Milo new chicken training treats yesterday. His regular food has not changed.",
+              "occurredAt": "2026-06-12T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-20",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo had two soft stools today. He is still eating and playing normally. I wonder whether the new treats are involved, but I do not know.",
+              "occurredAt": "2026-06-15T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-21",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: We stopped the new chicken training treats today. We kept his regular chicken-and-rice food the same.",
+              "occurredAt": "2026-06-16T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-22",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo has had normal stools for three days and his energy is normal. The soft stools seem to have ended.",
+              "occurredAt": "2026-06-20T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "No. Milo’s recovery report is dated June 20, so it was not already available as of June 19.",
+                "sourceIds": [
+                  "care:diag-22"
+                ],
+                "index": 0
+              }
+            ]
+          }
+        }
+      ],
+      "providerCalls": 3,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 36,
+      "question": "Is the August table-scrap account direct observation of what Milo ate, or an uncertain report? Identify who reported it.",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "outputFormat": null,
+          "question": "For Milo, is the August table-scrap account a direct observation of what he ate, or an uncertain report? Identify who reported it.",
+          "requirements": [
+            "Answer only from retrieved evidence about Milo.",
+            "Determine whether the August table-scrap account is direct observation or an uncertain report.",
+            "Identify the reporter if the account was reported by someone.",
+            "Preserve the uncertainty distinction in the answer.",
+            "Use the requested format if any is provided; none was requested, so format may be chosen as needed."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "recall",
+        "readOperation": "recall",
+        "selection": "period",
+        "petIds": [
+          "milo"
+        ],
+        "topic": "August table-scrap account and its reporting source",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "For Milo, is the August table-scrap account a direct observation of what he ate, or an uncertain report? Identify who reported it.",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": "2026-08-01T00:00:00.000Z",
+          "to": "2026-09-01T00:00:00.000Z",
+          "terms": [
+            "August",
+            "table scrap",
+            "ate",
+            "reported",
+            "observation",
+            "uncertain"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "It was an uncertain report, not a direct observation of what Milo ate. His sister reported that he may have eaten some table scraps, and the note says nobody saw exactly what he ate.",
+      "beforeFinalGuard": "It was an uncertain report, not a direct observation of what Milo ate. His sister reported that he may have eaten some table scraps, and the note says nobody saw exactly what he ate.",
+      "draft": {
+        "sentences": [
+          {
+            "text": "It was an uncertain report, not a direct observation of what Milo ate. His sister reported that he may have eaten some table scraps, and the note says nobody saw exactly what he ate.",
+            "sourceIds": [
+              "care:diag-26"
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Is the August table-scrap account direct observation of what Milo ate, or an uncertain report? Identify who reported it.",
+          "referenceQuestion": "For Milo, is the August table-scrap account a direct observation of what he ate, or an uncertain report? Identify who reported it.",
+          "scope": {
+            "authorizedPetIds": [
+              "milo"
+            ],
+            "requestedTopic": "August table-scrap account and its reporting source",
+            "requestText": "Is the August table-scrap account direct observation of what Milo ate, or an uncertain report? Identify who reported it.",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2026-08-01T00:00:00.000Z"
+            },
+            "requestKind": "ordinary",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Milo"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "outputFormat": null,
+              "question": "For Milo, is the August table-scrap account a direct observation of what he ate, or an uncertain report? Identify who reported it.",
+              "requirements": [
+                "Answer only from retrieved evidence about Milo.",
+                "Determine whether the August table-scrap account is direct observation or an uncertain report.",
+                "Identify the reporter if the account was reported by someone.",
+                "Preserve the uncertainty distinction in the answer.",
+                "Use the requested format if any is provided; none was requested, so format may be chosen as needed."
+              ],
+              "referenceTurnIds": [],
+              "quantity": null
+            },
+            "operation": "recall",
+            "readOperation": "recall",
+            "selection": "period",
+            "petIds": [
+              "milo"
+            ],
+            "topic": "August table-scrap account and its reporting source",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "For Milo, is the August table-scrap account a direct observation of what he ate, or an uncertain report? Identify who reported it.",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2026-08-01T00:00:00.000Z",
+              "to": "2026-09-01T00:00:00.000Z",
+              "terms": [
+                "August",
+                "table scrap",
+                "ate",
+                "reported",
+                "observation",
+                "uncertain"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "milo": "Milo"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "outputFormat": null,
+            "question": "For Milo, is the August table-scrap account a direct observation of what he ate, or an uncertain report? Identify who reported it.",
+            "requirements": [
+              "Answer only from retrieved evidence about Milo.",
+              "Determine whether the August table-scrap account is direct observation or an uncertain report.",
+              "Identify the reporter if the account was reported by someone.",
+              "Preserve the uncertainty distinction in the answer.",
+              "Use the requested format if any is provided; none was requested, so format may be chosen as needed."
+            ],
+            "referenceTurnIds": [],
+            "quantity": null
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "For Milo, is the August table-scrap account a direct observation of what he ate, or an uncertain report? Identify who reported it."
+            },
+            {
+              "index": 1,
+              "text": "Answer only from retrieved evidence about Milo."
+            },
+            {
+              "index": 2,
+              "text": "Determine whether the August table-scrap account is direct observation or an uncertain report."
+            },
+            {
+              "index": 3,
+              "text": "Identify the reporter if the account was reported by someone."
+            },
+            {
+              "index": 4,
+              "text": "Preserve the uncertainty distinction in the answer."
+            },
+            {
+              "index": 5,
+              "text": "Use the requested format if any is provided; none was requested, so format may be chosen as needed."
+            }
+          ],
+          "coverage": {
+            "retrieval": "unknown",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:milo:sex",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:milo:species",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:diag-26",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo had one soft stool after staying with my sister for the weekend. She says he may have eaten some table scraps, but nobody saw exactly what he ate.",
+              "occurredAt": "2026-08-08T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-27",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo's stools are normal again. There have been no more soft stools since August 8.",
+              "occurredAt": "2026-08-10T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "It was an uncertain report, not a direct observation of what Milo ate. His sister reported that he may have eaten some table scraps, and the note says nobody saw exactly what he ate.",
+                "sourceIds": [
+                  "care:diag-26"
+                ],
+                "index": 0
+              }
+            ]
+          }
+        }
+      ],
+      "providerCalls": 3,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 38,
+      "question": "Which pet had the July litter-arrangement advice, and which pet had the June seven-day course?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "outputFormat": "prose",
+          "question": "Which owned pet had the July litter-arrangement advice, and which owned pet had the June seven-day course?",
+          "requirements": [
+            "Answer with the pet names for both records.",
+            "Keep the comparison between the July advice and the June course.",
+            "Do not add unsupported details."
+          ],
+          "referenceTurnIds": [],
+          "quantity": "records"
+        },
+        "operation": "recall",
+        "readOperation": "recall",
+        "selection": "reference",
+        "petIds": [
+          "milo",
+          "luna",
+          "oscar"
+        ],
+        "topic": "July litter-arrangement advice and June seven-day course",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "Which owned pet had the July litter-arrangement advice, and which owned pet had the June seven-day course?",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": "2021-09-09T00:00:00.000Z",
+          "to": "2026-09-10T00:00:00.000Z",
+          "terms": [
+            "litter arrangement",
+            "advice",
+            "seven-day course",
+            "June",
+            "July"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "Luna had the July litter-arrangement advice.\nOscar had the June seven-day course.",
+      "beforeFinalGuard": "Luna had the July litter-arrangement advice.\nOscar had the June seven-day course.",
+      "draft": {
+        "sentences": [
+          {
+            "text": "Luna had the July litter-arrangement advice.",
+            "sourceIds": [
+              "care:diag-8"
+            ]
+          },
+          {
+            "text": "Oscar had the June seven-day course.",
+            "sourceIds": [
+              "care:diag-34"
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Which pet had the July litter-arrangement advice, and which pet had the June seven-day course?",
+          "referenceQuestion": "Which owned pet had the July litter-arrangement advice, and which owned pet had the June seven-day course?",
+          "scope": {
+            "authorizedPetIds": [
+              "milo",
+              "luna",
+              "oscar"
+            ],
+            "requestedTopic": "July litter-arrangement advice and June seven-day course",
+            "requestText": "Which pet had the July litter-arrangement advice, and which pet had the June seven-day course?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2021-09-09T00:00:00.000Z"
+            },
+            "requestKind": "ordinary",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Milo"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "outputFormat": "prose",
+              "question": "Which owned pet had the July litter-arrangement advice, and which owned pet had the June seven-day course?",
+              "requirements": [
+                "Answer with the pet names for both records.",
+                "Keep the comparison between the July advice and the June course.",
+                "Do not add unsupported details."
+              ],
+              "referenceTurnIds": [],
+              "quantity": "records"
+            },
+            "operation": "recall",
+            "readOperation": "recall",
+            "selection": "reference",
+            "petIds": [
+              "milo",
+              "luna",
+              "oscar"
+            ],
+            "topic": "July litter-arrangement advice and June seven-day course",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "Which owned pet had the July litter-arrangement advice, and which owned pet had the June seven-day course?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2021-09-09T00:00:00.000Z",
+              "to": "2026-09-10T00:00:00.000Z",
+              "terms": [
+                "litter arrangement",
+                "advice",
+                "seven-day course",
+                "June",
+                "July"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "milo": "Milo",
+            "luna": "Luna",
+            "oscar": "Oscar"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "outputFormat": "prose",
+            "question": "Which owned pet had the July litter-arrangement advice, and which owned pet had the June seven-day course?",
+            "requirements": [
+              "Answer with the pet names for both records.",
+              "Keep the comparison between the July advice and the June course.",
+              "Do not add unsupported details."
+            ],
+            "referenceTurnIds": [],
+            "quantity": "records"
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Which owned pet had the July litter-arrangement advice, and which owned pet had the June seven-day course?"
+            },
+            {
+              "index": 1,
+              "text": "Answer with the pet names for both records."
+            },
+            {
+              "index": 2,
+              "text": "Keep the comparison between the July advice and the June course."
+            },
+            {
+              "index": 3,
+              "text": "Do not add unsupported details."
+            }
+          ],
+          "coverage": {
+            "retrieval": "partial",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:luna:sex",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "female",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:luna:species",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "cat",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:milo:sex",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:milo:species",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:oscar:sex",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:oscar:species",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:diag-8",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: We took Luna to the vet about the two accidents. The vet asked us to restore her previous litter arrangement and monitor her. I have not entered any test results or diagnosis into Furvise.",
+              "occurredAt": "2026-07-09T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-15",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 carrier-old: Milo tolerated a 10-minute car ride calmly. The empty carrier weighed 2 kg. This was the carrier weight, not Milo’s weight.",
+              "occurredAt": "2021-10-05T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-38",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar seemed stiff again after a much longer walk than usual yesterday. This is the first stiffness I have noticed since late June.",
+              "occurredAt": "2026-08-12T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-10",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Luna has had no more accidents since July 10. She is using the tray normally.",
+              "occurredAt": "2026-07-17T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-16",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 carrier-later: Milo tolerated a 20-minute car ride calmly. The empty carrier weighed 2.5 kg. No reason for the weight difference was recorded.",
+              "occurredAt": "2023-04-11T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-29",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 walk-old: Oscar completed a 12-minute walk with one sniffing pause and no observed limp.",
+              "occurredAt": "2021-10-07T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-0",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Synthetic benchmark 2026-09-09 water-filled: Luna’s bowl was filled with 250 mL of water. The amount Luna drank was not measured.",
+              "occurredAt": "2021-10-06T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-17",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 nail-trim: During a nail trim Milo withdrew his right forepaw once. No injury or diagnosis was recorded.",
+              "occurredAt": "2026-05-20T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-30",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 walk-later: Oscar completed an 18-minute walk with two sniffing pauses. No cause for the difference in walk length was recorded.",
+              "occurredAt": "2023-03-13T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-1",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Synthetic benchmark 2026-09-09 water-remaining: There were 100 mL of water remaining in Luna’s bowl. The amount spilled was unknown. Water intake was not measured.",
+              "occurredAt": "2023-03-12T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-18",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 28.4 kg today. He is eating chicken-and-rice adult dry food. His appetite, energy and stools are normal.",
+              "occurredAt": "2026-06-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-31",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 travel-bag: Oscar’s travel bag weighed 6 lb. This was not Oscar’s body weight.",
+              "occurredAt": "2026-05-22T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-2",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Synthetic benchmark 2026-09-09 brushing: Luna tolerated 6 minutes of brushing calmly.",
+              "occurredAt": "2026-05-21T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-19",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: We started giving Milo new chicken training treats yesterday. His regular food has not changed.",
+              "occurredAt": "2026-06-12T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-32",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar weighed 7.2 kg today. He eats chicken-and-rice senior dry food and usually enjoys two 20-minute walks.",
+              "occurredAt": "2026-06-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-3",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Luna weighed 4.2 kg today. She eats chicken complete adult wet food. She normally uses her uncovered litter tray in the quiet spare room.",
+              "occurredAt": "2026-06-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-20",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo had two soft stools today. He is still eating and playing normally. I wonder whether the new treats are involved, but I do not know.",
+              "occurredAt": "2026-06-15T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-33",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar hesitated before jumping onto the sofa twice this week. He is still willing to walk. I do not know why he hesitated.",
+              "occurredAt": "2026-06-11T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-4",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Luna hid under the bed while a plumber was working in the apartment. She came out and ate normally after he left.",
+              "occurredAt": "2026-06-18T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-21",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: We stopped the new chicken training treats today. We kept his regular chicken-and-rice food the same.",
+              "occurredAt": "2026-06-16T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-34",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: The vet examined Oscar because of the stiffness. We were given a seven-day medication course and told to return if the problem continued. I have not recorded the medication name, dose or a diagnosis here.",
+              "occurredAt": "2026-06-17T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-5",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Luna has behaved normally since the plumber left. She is not continuing to hide.",
+              "occurredAt": "2026-06-21T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-22",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo has had normal stools for three days and his energy is normal. The soft stools seem to have ended.",
+              "occurredAt": "2026-06-20T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-35",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar finished the seven-day medication course today. He has seemed more comfortable over the last few days.",
+              "occurredAt": "2026-06-24T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-6",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: We moved Luna's litter tray from the spare room to the laundry room and changed to scented litter on the same day.",
+              "occurredAt": "2026-07-05T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-36",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar is getting up comfortably again and is willing to take his normal walks. I have not noticed stiffness this week.",
+              "occurredAt": "2026-07-01T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-7",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Luna urinated on the bath mat once yesterday and once today. I have not noticed straining or repeated trips to the tray. I do not know whether the tray changes are connected.",
+              "occurredAt": "2026-07-08T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "Luna had the July litter-arrangement advice.",
+                "sourceIds": [
+                  "care:diag-8"
+                ],
+                "index": 0
+              },
+              {
+                "text": "Oscar had the June seven-day course.",
+                "sourceIds": [
+                  "care:diag-34"
+                ],
+                "index": 1
+              }
+            ]
+          }
+        }
+      ],
+      "providerCalls": 3,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 89,
+      "question": "Luna tray jul5 vs jul10: rooms + scented or not?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "outputFormat": "prose",
+          "question": "For Luna, compare the tray records on July 5 and July 10: what rooms were recorded, and were they scented or not?",
+          "requirements": [
+            "Answer as a comparison between the July 5 and July 10 tray records for Luna.",
+            "Include the room recorded on each date.",
+            "State whether each tray was scented or not scented.",
+            "Use the requested language and keep the answer focused on the comparison."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "comparison",
+        "readOperation": "comparison",
+        "selection": "period",
+        "petIds": [
+          "luna"
+        ],
+        "topic": "tray records",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "For Luna, compare the tray records on July 5 and July 10: what rooms were recorded, and were they scented or not?",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": "2026-07-05T00:00:00.000Z",
+          "to": "2026-07-11T00:00:00.000Z",
+          "terms": [
+            "tray",
+            "room",
+            "scented",
+            "not scented"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "On July 5, Luna’s tray was recorded in the laundry room and the litter was scented.\nOn July 10, her tray was recorded back in the spare room and the litter was unscented.",
+      "beforeFinalGuard": "On July 5, Luna’s tray was recorded in the laundry room and the litter was scented.\nOn July 10, her tray was recorded back in the spare room and the litter was unscented.",
+      "draft": {
+        "sentences": [
+          {
+            "text": "On July 5, Luna’s tray was recorded in the laundry room and the litter was scented.",
+            "sourceIds": [
+              "care:diag-6"
+            ]
+          },
+          {
+            "text": "On July 10, her tray was recorded back in the spare room and the litter was unscented.",
+            "sourceIds": [
+              "care:diag-9"
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Luna tray jul5 vs jul10: rooms + scented or not?",
+          "referenceQuestion": "For Luna, compare the tray records on July 5 and July 10: what rooms were recorded, and were they scented or not?",
+          "scope": {
+            "authorizedPetIds": [
+              "luna"
+            ],
+            "requestedTopic": "tray records",
+            "requestText": "Luna tray jul5 vs jul10: rooms + scented or not?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2026-07-05T00:00:00.000Z"
+            },
+            "requestKind": "comparison",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Luna"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "outputFormat": "prose",
+              "question": "For Luna, compare the tray records on July 5 and July 10: what rooms were recorded, and were they scented or not?",
+              "requirements": [
+                "Answer as a comparison between the July 5 and July 10 tray records for Luna.",
+                "Include the room recorded on each date.",
+                "State whether each tray was scented or not scented.",
+                "Use the requested language and keep the answer focused on the comparison."
+              ],
+              "referenceTurnIds": [],
+              "quantity": null
+            },
+            "operation": "comparison",
+            "readOperation": "comparison",
+            "selection": "period",
+            "petIds": [
+              "luna"
+            ],
+            "topic": "tray records",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "For Luna, compare the tray records on July 5 and July 10: what rooms were recorded, and were they scented or not?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2026-07-05T00:00:00.000Z",
+              "to": "2026-07-11T00:00:00.000Z",
+              "terms": [
+                "tray",
+                "room",
+                "scented",
+                "not scented"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "luna": "Luna"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "outputFormat": "prose",
+            "question": "For Luna, compare the tray records on July 5 and July 10: what rooms were recorded, and were they scented or not?",
+            "requirements": [
+              "Answer as a comparison between the July 5 and July 10 tray records for Luna.",
+              "Include the room recorded on each date.",
+              "State whether each tray was scented or not scented.",
+              "Use the requested language and keep the answer focused on the comparison."
+            ],
+            "referenceTurnIds": [],
+            "quantity": null
+          },
+          "historyAccess": null,
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "For Luna, compare the tray records on July 5 and July 10: what rooms were recorded, and were they scented or not?"
+            },
+            {
+              "index": 1,
+              "text": "Answer as a comparison between the July 5 and July 10 tray records for Luna."
+            },
+            {
+              "index": 2,
+              "text": "Include the room recorded on each date."
+            },
+            {
+              "index": 3,
+              "text": "State whether each tray was scented or not scented."
+            },
+            {
+              "index": 4,
+              "text": "Use the requested language and keep the answer focused on the comparison."
+            }
+          ],
+          "coverage": {
+            "retrieval": "partial",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "bounded_period_context_not_semantic_completeness",
+              "bidirectional_endpoint_subset",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:luna:sex",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "female",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:luna:species",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "cat",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:diag-6",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: We moved Luna's litter tray from the spare room to the laundry room and changed to scented litter on the same day.",
+              "occurredAt": "2026-07-05T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-8",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: We took Luna to the vet about the two accidents. The vet asked us to restore her previous litter arrangement and monitor her. I have not entered any test results or diagnosis into Furvise.",
+              "occurredAt": "2026-07-09T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-7",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Luna urinated on the bath mat once yesterday and once today. I have not noticed straining or repeated trips to the tray. I do not know whether the tray changes are connected.",
+              "occurredAt": "2026-07-08T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-9",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: We moved Luna's tray back to the spare room and returned to unscented litter. We changed both things together.",
+              "occurredAt": "2026-07-10T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "On July 5, Luna’s tray was recorded in the laundry room and the litter was scented.",
+                "sourceIds": [
+                  "care:diag-6"
+                ],
+                "index": 0
+              },
+              {
+                "text": "On July 10, her tray was recorded back in the spare room and the litter was unscented.",
+                "sourceIds": [
+                  "care:diag-9"
+                ],
+                "index": 1
+              }
+            ]
+          }
+        }
+      ],
+      "providerCalls": 3,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    }
+  ]
+}

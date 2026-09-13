@@ -1,0 +1,384 @@
+# Ask: first 20 files — code audit
+
+## Three production gaps — repair and acceptance (September 11, 2026)
+
+This work addresses explicit observation saves rejected by completion review, navigation/calculation failures from invalid reviewer references, and pending Add buttons that disagreed with care persistence. The related invisible cancellation receipt was also corrected.
+
+Implementation:
+
+- Literal single-observation save commands now use the existing deterministic command router. The original owner text is preserved, including duration, signs and decimals. The parser requires the selected pet's name and a complete explicit save command. Quoted, fictional, conditional, compound and oversized input stays with full interpretation. Emergency and lifecycle handling retain priority. Capability creation still re-reads the owned persisted source; the database remains the write authority. No model approval is required to repeat the owner's exact note into an authorized action.
+- Non-history AI review distinguishes prepared mutations from execution success. Its strict provider schema encodes available action indexes, required support for limitations, and mutation-only readiness; the parser independently enforces those constraints. Invalid first verdicts receive only the existing one repair and independent re-review. Compound questions continue to require review against the whole original request and all advisory requirements.
+- Harmless duration hyphenation is normalized only for literal matching, preserving quantities, signs, decimals and qualifiers. Explicit new saves do not reuse fuzzy matches from older source turns.
+- A private executor migration (`20260911040257_reconcile_ask_care_save_receipts.sql`, matching the applied production version) reconciles an existing unique owned source-turn care entry into its immutable terminal capability receipt. It preserves ownership/source binding, cancellation, confirmation, expiry and target-freshness checks. Multiple candidate capabilities fail closed. The public wrapper remains the sole service entry point; no new caller gains write authority.
+- Cancelled receipts remain visible in the action card, including after reload; they render no action buttons.
+
+Verification: **167 focused tests passed**, scoped TypeScript and ESLint passed, and the preview build passed. Disposable PostgreSQL executed both the new receipt suite and the existing target freshness/expiry suite. The new rollback-only receipt suite also passed against production PostgreSQL; all fixture users/records rolled back. It covered same-turn reuse, fresh insertion, wrong-pet/older-turn isolation, denied foreign-user access, explicit-intent rejection, cancellation, ambiguity, duplicate replay and executor privileges. Supabase advisors found no affected-function privilege/search-path warning; pre-existing unrelated notices remain outside this change.
+
+Development acceptance failures are retained here:
+
+- On `2a6e287`, the twelve-minute save succeeded (conversation `d1e86301-5b75-472b-a78a-7b051391954a`, request `0dac76da-7004-4de2-96ab-a455c0d24499`) and persisted one exact entry, but navigation + 8 + 5 failed with `ASK_TASK_REVIEW_INVALID_ACTION_NOT_READY` (conversation `5c052140-c357-4827-903c-066adf72014f`). The seven-minute save failed on checklist index 3 (conversation `f1d0b294-40d5-4281-bbe7-66cfefbc9455`). Those failures led to the constrained review schema.
+- On `4d28761`, navigation + 8 + 5 passed and its link survived reload/opened Clover's profile (conversation `0b6d8297-378e-429e-8fa5-a293991c6b2b`, request `c96d520b-e651-4a4f-a122-9280001f3c79`). The seven-minute save passed and retained a succeeded card after reload (conversation `777b69a6-60ec-4914-9705-3a277c85ad39`, request `48928e05-3d78-48c4-a0ed-8a2fcd6d0e86`). Repeating twelve minutes failed on checklist index 4 (conversation `8183193d-fdd3-4a45-b0ce-f0207440da6d`). This demonstrated that prompt/schema work alone was insufficient for literal commands and motivated the deterministic route.
+- A fictional fourteen-minute explanation passed without actions or new records on `2a6e287` (conversation `eb1afd87-33ea-4bbf-ba73-3f69084074de`).
+
+These failed attempts are not counted as successful first attempts or erased by later retries. They produced no care entries. Two authorized test saves were created before the final rollout; active test entries rose from 3,731 to 3,733.
+
+Final deployed source: **`9a32be4f31d8eb6fd5e488c2cf800e4997d0d383`**, deployment **`dpl_6XY8r9VgRCzy8HVacL8L1iiq9PTf`**, READY on `www.furvise.com`, `furvise.com` and `furvise.vercel.app`. PRs #291, #292 and #293 are merged. Preview and production builds passed.
+
+| Final-release scenario | Result and durable evidence |
+|---|---|
+| Exact twelve-minute save | **Pass.** One exact owned entry `2de72421-b177-4333-8ad6-6676b7ac65e9`, source `365a13af-3d0a-4988-80ab-a6929100584e`; capability `succeeded`; reload keeps the saved status and no Add button. Conversation `94c06a91-84c3-4211-93da-e8f084767477`, request `591bd083-b310-4ea6-ae5f-497cc968b98e`. |
+| Exact seven-minute save | **Pass.** One exact owned entry `cb3b48fe-c052-4b9a-88af-3ac2cb7a8ceb`, source `16d2fc7e-e489-4767-878c-7633d9046348`; capability `succeeded`; reload retains terminal status. Runtime explicitly reports deterministic execution, providerCallCount 0, success and HTTP 200. A rollback-only replay of this actual capability returned the same succeeded receipt without changing the entry count. Conversation `c15280ea-1890-466e-91e1-6e49ca00f433`, request `9ef480c9-2492-481c-82f7-2266049634d2`. |
+| Decimal-duration save | **Pass.** Entry `d968d83b-da12-43fe-b1df-396118e456a8` contains exactly “Clover had a 7.5 minute play session today”; succeeded receipt; no conversion to 75 or reuse of the seven-minute entry. Conversation `3ff31c33-340e-413d-99c3-45c69ae0218d`, request `9624dd6f-43f0-4db7-a351-2ee55542b40e`. |
+| Fictional fourteen-minute explanation, explicitly no save | **Pass.** Explanation only, no actions, no added entry. Conversation `514b460b-f135-4f8c-bbf1-1a6d22daf07d`, request `44921345-d8a2-41ff-b3d0-65848bbd8ff1`. |
+| Open Clover’s profile and explain 8 + 5 | **Pass.** Answer 13 plus the correct owned profile link; both persisted after reload, and the link opened Clover’s actual profile. Task-completion check passed. Conversation `b6a18167-5a2d-4bdd-9fb3-1522aaaf4746`, request `4ec0d327-0521-4136-b314-6c09e3ebc9fd`. |
+| Reload the previously cancelled archive | **Pass.** “The action was cancelled” is now visible, with no confirmation button. Reload preserves it. Existing conversation `2363b61d-6982-40bd-ada7-8c5017b6c891`; database capability remains cancelled and Clover remains active. No new archive was attempted. |
+
+The final release had five new first-attempt requests, all delivered successfully, plus the saved cancellation reload. Active synthetic-account care entries ended at **3,736**: two earlier development saves plus three final-release saves, each with its own source turn. No fictional-control entry or archive was created. No HTTP 5xx logs were found for the final deployment during its acceptance window.
+
+**Rating: 9/10 for these repaired and tested flows**, an engineering judgment rather than a statistical reliability estimate. The three reported reproductions now pass, with deterministic literal saves removing their model-dependent failure mode. This is not a 10/10 certification of every Ask path: compound free-form saves still require independent review, and non-history assessment still conservatively reports `limited` when history-specific checks are not evaluated, even when task completion passes. This work does not rewrite historical answer prose or retrospectively re-author old ambiguous capabilities. Concurrency was not load-tested against a native database; the locked/unique receipt path was exercised in PostgreSQL and terminal replay was verified in production.
+
+## Compound historical navigation repair — production acceptance and rating
+
+September 11, 2026. PR #290 merged as `da9dd805011c45b7b9cf887e8afcf23d72e1841f`. Deployment `dpl_FREGYpEWvxVA4xYiamf2pp9MxxTw` reached READY and owns `www.furvise.com`, `furvise.com` and `furvise.vercel.app`. Preview and production builds passed.
+
+Historical answer composition now permits a bounded navigation-only field. It supplies no arbitrary URL, pet identifier or mutation fields. The existing parser verifies the action's current-message evidence; the server prepares the owned target and link. Historical review checks the original question against the factual prose and actual indexed action cards in the same existing review call. A single repair can supply missing navigation and requires independent re-review. No provider-call budget was expanded. Review signatures bind the proposals, and final presentation receipts reject removed or changed reviewed cards. An explicitly limited historical obligation no longer counts as passed task completion.
+
+**Local verification: 143 focused tests passed.** These cover the new historical generation/repair/publication path plus existing owner-update interpretation, save intent, non-history completion, admission settlement, failed-turn recovery, credit-ledger integrity, structured output and deadline behavior. Scoped TypeScript and lint checks passed. No full local codebase suite was run.
+
+**Production reliability rating: 6/10 for the tested Ask experience.** This is an engineering judgment from the observed flows, not a statistical success-rate estimate or certification of all Ask files. The new historical-navigation defect is resolved in its exact reproduction, and failure containment worked. However, two ordinary requests failed, and a save receipt/action presentation remained inconsistent. These outcomes prevent calling Ask consistently reliable or assigning a near-perfect rating.
+
+Six first-attempt user scenarios were exercised through the signed-in production app. None of the failed turns was retried and relabelled as a pass. The original seven-minute save was a separate control from the twelve-minute variation.
+
+| Scenario | Production result | Evidence |
+|---|---|---|
+| Exact failure: open Clover's profile plus exact collar color at birth | **Pass.** Correct owned profile link and honest missing-fact explanation. Link survived reload and opened Clover's real profile. Assessment `limited`, taskCompletion `failed`, other factual checks passed. Existing bounded repair and re-review were used. | Conversation `2341f73e-247d-426a-a289-e3fa64cd9675`; request `de088925-599c-4c50-842e-22d678b83e3a`. |
+| Owner update: twelve-minute play session, save to care history | **Fail.** Interpretation and generation succeeded, but completion review rejected the answer after repair/re-review; HTTP 503, `ASK_TASK_INCOMPLETE`. No assistant answer or care entry was written. | Conversation `06cf4cb5-e627-41ef-ba3a-25cb54597f75`; request `83b8d026-8aa5-4dee-957c-2d7d246f320b`. |
+| Fictional fourteen-minute play example, explain and do not save | **Pass.** Explanation only; no action or care entry. | Conversation `62e66ca3-ff5c-429e-82b1-ee901bbb95f1`. |
+| Open Clover's profile plus explain 8 + 5 | **Fail.** A malformed completion verdict was rejected with `ASK_TASK_REVIEW_INVALID_LIMITATION_SUPPORT`; HTTP 503. No assistant answer was written. | Conversation `905185ab-2922-405f-aa46-115aff9b66c6`; request `c4e8b58a-abaa-46df-8200-9e4478eef212`. |
+| Archive Clover, inspect confirmation, then cancel | **Pass for authorization/cancellation.** Review action exposed Confirm/Cancel; Cancel persisted and reload did not revive the action. Clover stayed active. **Presentation caveat:** the original sentence “She’s set to be archived” remained after cancellation while the action card disappeared. | Conversation `2363b61d-6982-40bd-ada7-8c5017b6c891`; stored capability `cancelled`, profile `active`. |
+| Original seven-minute save request | **Partial.** The stored persistence receipt recognized the pre-existing seven-minute care entry with `alreadyPersisted: true`; no new entry was created. The UI nevertheless retained an Add to care history button alongside Added to care history, including after reload. The proposed detail changed `7 minute` to `7-minute`; the strict intent matcher left the action pending with `explicitIntent: false`. No Add button was clicked. | Conversation `f6a98b5b-c2d2-4405-94ee-987d6756f6ab`; receipt references existing entry `aa98580a-98da-4312-8caa-4638a0be0f4d`; assistant `bb4d05a3-3a42-4679-84c6-8b72436913db`. |
+
+Issue 3 was verified on a real delivered limited answer: runtime logs show HTTP 200 and admission's `operation failed` settlement for the exact historical compound request, while the answer remained durable and usable. Admission bookkeeping is separate from billing; this patch does not change charging policy for delivered limited answers.
+
+Issue 4 was verified on both naturally failed first turns: immediately opening Conversations, before any reload, showed the newly persisted failed question. Database reads confirmed saved user messages without assistant messages. Both failed requests' credit ledger rows were `released` with release disposition. The existing deterministic tests separately verify unchanged retry identity and isolation of list-refresh failures. A synthetic nonexistent-pet failure was unnecessary once these real failures occurred.
+
+Care-history count started and ended at **3,731 active entries**. No pet was archived. No new care-history entry was created during this acceptance run.
+
+Remaining work, in priority order:
+
+1. Non-history completion review is still brittle: an ordinary explicit save can fail after bounded repair, and a malformed reviewer reference can reject an otherwise ordinary navigation/calculation request. The save error does not expose enough structured rejection detail to establish the exact semantic cause from logs; no cause is invented here.
+2. Exact save-intent matching and receipt presentation need to agree on harmless duration typography and already-persisted observations. The observed seven-minute action remained pending while another persistence receipt referenced an existing saved event. Do not weaken quantity/sign/negation or write-authorization checks to mask this.
+3. Cancelled action copy must remain truthful after reload. Immutable original prose cannot serve as the current execution status.
+
+The earlier failures below remain historical evidence. This section supersedes any implication that all previously fixed Ask flows passed this production run.
+
+
+## Issues 3 and 4 — admission assessment and failed-turn discovery
+
+September 11, 2026. These changes address the two exact mechanisms in the follow-up audit.
+
+- **Issue 3:** `finalizeAiAdmissionAfterPersistence` now requires the live server-derived answer assessment. Only a durably delivered answer assessed `complete` calls `admission.complete()`. Limited, failed and unassessed answers call the existing failure settlement, which releases queued provider reservations without erasing the stored answer. A failed HTTP response takes precedence over a complete assessment. Already-finalized and absent admissions remain untouched; bookkeeping exceptions remain non-fatal to answer delivery. The generated answer's assessment cannot transfer to the replacement capability-response body, so that branch explicitly passes no assessment.
+- **Issue 4:** the Ask submit catch path records the original failure and retry payload, then refreshes recent conversations. This discovers a conversation created before answer generation or transport failed. A list refresh failure is isolated; retry retains the same logical turn, scope, payload and user-message identity. The existing list generation guard continues to prevent stale list overwrites.
+
+Verification: **47 focused tests passed** across completion execution, first-20 reliability, pre-provider retry, credit settlement integrity and last-mile integrity. New executable failure tests cover HTTP and connection failures after server conversation creation, unchanged retry identity, list refresh failure, limited/failed/missing assessments, misleading successful response JSON/action receipts, and both completion/failure bookkeeping errors. Scoped TypeScript and lint checks passed. No full local project suite was run. PR #289 merged as `f732f3d8dc3d87ffa10f0de2cefdaba0487696ea`. Production deployment `dpl_HLPpAAzmihmqadb7ojHcpxgQkWjk` reached READY and owns the production domains. Both preview and production builds passed.
+
+Production checks:
+
+- The request for Clover's collar color at birth, explicitly allowing an unknown-record answer, returned an honest absence-of-evidence response and survived reload. Stored assessment: complete. Conversation `b3ff2b43-6a26-42ca-a2c1-890d7c1137f4`, assistant message `4591b5a9-5619-4936-aea4-f17d6a497cf1`.
+- **New upstream completion failure:** “Open Clover's profile and tell me the exact color of her collar on the day she was born. Do not change any pet records.” returned only the unknown-color response. There was no profile link/action, yet the stored assessment marked task completion passed and outcome complete. Conversation `78c02206-45b5-411f-b590-c3c21f37b68e`, assistant message `d0a2e1bd-8704-4f27-9d9d-b753cc468dbd`. This is a remaining compound-request assessment defect; making settlement consume that assessment does not correct an upstream false-complete verdict. It is not counted as a successful limited-answer settlement check.
+
+The limited/failed settlement branches and first-turn failure refresh were verified with executable injected-failure tests, not induced production outages. No live limited-assessment settlement claim is made. The new completion-review finding remains open for the next focused fix.
+
+**Scope clarification:** AI admission bookkeeping and the user-credit ledger are separate mechanisms. Earlier entries called issue 3 “credit settlement” too broadly. This patch fixes the cited admission helper; it does not change billing policy or refund credits. A successful later action receipt does not upgrade a pre-execution limited answer assessment or certify that other requested work was completed. That distinction remains explicit.
+
+
+## Explicit-save gap and issue 2 — implemented and live verified
+
+Final verified production source: `c914539015fb3ef181cca1741c27c1c0fd5ddb55`, deployment `dpl_5XuqUWUJ7BCQib7gdvXaEjxtrwWp`, September 11, 2026. PRs #286–#288 are merged. The intermediate production failures below are retained as failures, not counted as passing retries.
+
+The explicit-save matcher now binds a directly stated named-pet observation followed by a save command to the exact observation detail. It preserves decimals, signs, negation and qualifiers; ambiguous or materially changed details retain confirmation through their action card. The tested equivalent detail forms include the full observation, predicate, and an explicit quantity without its indefinite article. In-progress save wording is checked before publication. Only server execution receipts establish a successful write.
+
+Navigation now has a read-only route independent of historical retrieval. Irrelevant retrieval hints cannot force a navigation request into the records-only answer format. Non-history request contracts receive independent completion review against the entire original question, advisory requirements, canonical answer and server-prepared action cards. One prose/navigation repair may receive a separate re-review under the existing shared admission/deadline budget; it cannot create or alter mutation proposals. Review references use server indexes rather than asking a model to reproduce answer quotations. A live, non-serializable receipt detects changed answer content or missing/changed action cards at publication. Missing obligations cannot silently pass; explicit limitations are not certified as complete. Factual-history review and write authorization remain separate.
+
+Verification on the final source: **140 focused tests passed**, including 41 save/completion cases, real generation/governance/publication wiring, existing first-20 reliability and adjacent contract, authority, rendering and deadline regressions. Scoped TypeScript had zero diagnostics; scoped ESLint passed. Preview and production builds passed. No full local project suite was run. Existing conversational test fixtures explicitly mock the newly introduced review call; their prior behavior assertions remain intact. Mocked verdicts test wiring and enforcement, not real-model semantic accuracy; the live observations below provide separate evidence.
+
+| Live scenario | Observed result |
+|---|---|
+| Original “Show Clover's profile … 2 plus 3 … do not change” request | Returned the profile details and **5** in one answer; survived reload. The stated sex, age, breed, weight and food were subsequently checked against Clover's actual profile page. Stored task-completion check: passed. |
+| Explicit “Open Clover's profile … 8 plus 5 … do not change” request | Returned **13** and an Open action. Both survived reload. Clicking the action opened the correct Clover profile. Stored task-completion check: passed. |
+| Original seven-minute observation followed by “Save this update to care history” | Automatically added exactly one Clover entry, without clicking an action button. The server capability reports succeeded. Answer and success receipt survived reload; reload did not duplicate the entry. |
+| Fictional nine-minute play example with explicit no-save instruction | Explained the fictional sentence, produced no action, and added no care entry. Clover remains active. |
+
+The account's active care-entry count moved from **3,730 to 3,731**, solely for the deliberate automatic-save test, and remained 3,731 after reloads and the no-save control. Exactly one entry is bound to the tested source turn `24a4b2af-671b-4a42-aae3-1c561e8237cf`; entry ID `aa98580a-98da-4312-8caa-4638a0be0f4d`, note `7 minute play session today`.
+
+Evidence conversations: original compound `6d8631fd-b0db-4134-98bc-1906248c7e36`; explicit navigation `bdc473e9-dd64-43c7-bf50-ee7db25723f7`; automatic save `4114f44c-09ac-4603-ac25-25201df903af`; fictional control `990dd688-653a-4d06-a3a1-e6f84ec58c83`.
+
+Intermediate failures:
+
+- On `bc72d640ae8256df69f86c728fbcadf0dcb9c043`, the compound request stopped at `ASK_REQUEST_CONTRACT_NAVIGATION` (conversation `6a64cd08-f429-4d63-8862-eb35d0c05313`). A save also stopped after its review call before persistence (`fc79948b-3697-4d6b-af1b-63c5e823f4e7`); that revision did not expose a specific review subreason. Both left the entry count unchanged.
+- On `4aa0ee5c8fc3f54dd32cc6c582e47563dbfed15b`, navigation reached generation and independent review, but the quoted supporting text did not match the canonical answer (`ASK_TASK_REVIEW_INVALID_QUOTE`, conversation `2425630d-554c-4b09-bcda-543ec022862a`). The final revision replaced this duplicate textual channel with canonical answer indexes while retaining immutable-body and action checks.
+
+**Remaining scope:** issue 3 (credit settlement) and issue 4 (failed-first-turn sidebar refresh) are not changed. The successful save's answer assessment is still a pre-execution limited assessment; the subsequent authoritative capability receipt records the successful write. Reconciling execution outcomes with final settlement remains separate work. These targeted results are not a fault-free certification of all Ask behavior.
+
+## Issue 1 follow-up — owner-update interpretation
+
+Deployed through PRs #283–#285; final production commit `20e1fd3fe9fa11ef97a82e1f45ded8f79d97a04e`, deployment `dpl_9T1JtCxZwowMfqTniK2e7631FjBf`. Issues 2–4 were not changed.
+
+The interpreter now explicitly distinguishes new owner updates/action intent from non-writing supplied examples: update/mixed may use the existing null evidence basis when no saved facts are needed; action-only requests require a valid empty semantic frame; their scope identifies the owned target even without history retrieval. Evidence-basis, frame and scope conflicts receive at most one admitted re-interpretation, sharing the existing deadline/call budget. The validator still rejects these conflicts, foreign subjects, bad source references and invalid frames. No rejected contract is promoted into write authority.
+
+Verification: 35 focused contract cases passed on the final changes (17 newly added), and 36 adjacent regression cases passed during this fix. Scoped lint and TypeScript checks passed; Vercel builds passed. No full local project suite was rerun.
+
+| Live check | Result |
+|---|---|
+| Original seven-minute Clover save | Interpretation succeeds and proposes the correct action. Clicking Add to care history creates exactly one Clover entry; the successful receipt survives reload. |
+| Original Archive Clover request | On the final deployment, reaches Review action and Confirm/Cancel. Cancel produces a stored `cancelled` capability; reload does not revive the action; Clover stays active. |
+| Fictional nine-minute play example with no-save instruction | Explanation only; no action or care entry added. |
+
+Intermediate results remain failures: the first evidence-basis fix exposed `ASK_REQUEST_CONTRACT_FRAME` for archive; the frame correction then exposed `ASK_REQUEST_CONTRACT_SCOPE`. These were distinct deployed revisions, not retries counted as first-attempt successes. The final scope correction resolved the tested archive request.
+
+**Remaining save execution/copy gap:** the explicit save did not run automatically. It required the action button although the response said it was sending the update to history. Therefore the interpretation error is resolved in these cases, but automatic explicit-save completion is not certified. This requires follow-up without weakening authorization.
+
+Evidence: save conversation `9fbe0587-fb31-4148-b024-d1649f664d91`; saved entry `f810d1b8-1b1c-4f4b-8fab-6ffc04e8bd9a`; final archive conversation `80554de5-864b-4e44-b38b-a78570847d6c`; fictional control `3155d249-d133-46de-94c7-5db8e738aca6`. Care-entry count increased from 3,729 to 3,730 solely for the deliberate save-action test.
+
+## Production verification — 11 September 2026
+
+**Live acceptance failed.** Five first-attempt prompts were submitted through the signed-in production app: two passed and three failed. No failed prompt was resubmitted. These results supersede any impression that the local checks established end-to-end readiness.
+
+Approved rollout: PR #282 merged as `f0e164858419784c4021ebdb384e5b806a78e333`. Vercel deployment `dpl_4F1c6m8ZisWXYdvoKPNvCZuJTauZ` reached READY and owns `www.furvise.com`. The suggestion-transition migration was applied before rollout; production PostgreSQL confirms EXECUTE is denied to anon/authenticated and granted to service_role. The prior “not deployed” note below describes the earlier local verification stage.
+
+Tests used the existing synthetic Clover profile, the real browser session, real API/model calls and production database reads. No mocked network responses or authentication were used.
+
+| Scenario | Live result | Evidence |
+|---|---|---|
+| Fictional red=2/blue=3 counts, CSV only | Pass | Exact stored answer: `color,count\nred,2\nblue,3`; no capability detour. |
+| Reload that answer | Pass, additional check | Visible conversation body identical before and after reload; database answer agrees. |
+| Ask whether Vet Brief exports PDF; do not create one | Pass | Correct availability answer, with an optional preparation button; no action invoked. |
+| Show Clover's profile AND explain fictional 2+3 | Fail | History fallback instead of either requested result. Trace: `ASK_HISTORY_REPAIR_INVALID`; initial output validation: `MISSING_READ_BODY`. Four provider calls. |
+| Archive Clover, then cancel confirmation | Setup failed | HTTP 503; interpretation rejected with `ASK_REQUEST_CONTRACT_BASIS_UPDATE`. No action capability created, so Cancel could not be tested. Credit released. |
+| Save Clover's seven-minute play session | Fail | HTTP 503 with the same interpretation-contract error. No care entry created. Credit released. |
+| Recover a failed first turn | Partial | Failed conversations were absent from the already-loaded list until a full page reload. After reload, the failed save reopened with the original question and retry control. No retry performed. |
+
+**Additional completion concern:** the compound-request fallback was stored with `finalStage=COMPLETED`, `creditDisposition=complete`, and no final error, despite `providerFailureClass=ASK_HISTORY_REPAIR_INVALID`. Treat this as an unresolved failure/credit-accounting contract issue, not a successful answer.
+
+**Database outcome:** live care entries remained 3,729; Clover remained active; no action capabilities were created by this run. Conversation records for the five submitted prompts were retained as evidence.
+
+**Not established by this run:** successful save/repeat-save/cross-pet-save behavior (initial save failed), cancellation persistence (proposal failed), monitor/dismiss behavior through the UI, native concurrent transitions, and pagination beyond 40 conversations/100 messages. The existing account's conversations did not reach those pagination boundaries. Earlier offline checks for these paths remain useful but are not live passes.
+
+Reproduction conversations: CSV `dceb8218-e601-4ab4-9222-21b227738d4a`; PDF capability `8a9cc9d7-6c7d-4d4a-9e67-f6ca11b18e89`; compound request `83dbac36-bd30-4a4e-b6c2-c7c52a49fc27`; archive `00c9cd44-c157-44e3-9030-2164dd1cc294`; save `0866ffb8-808b-4b8d-ba32-571d7241b489`.
+
+Next repair priorities are the interpretation contract for explicit mutations, mixed navigation/question handling through the full pipeline, unsuccessful-fallback completion/credit policy, and conversation-list refresh after a failed first turn. Validation and write-authorization checks must remain intact while correcting these failures.
+
+## Repair verification — 11 September 2026
+
+The repairs for F1–F9 pass the focused checks below. Verification covers the original 20 application files, two directly changed conversation helpers, and the suggestion-transition migration. Fourteen of the 20 application files required edits; six were reviewed without unnecessary changes. No full-project test suite or build was rerun for this verification pass.
+
+| Check | Result | Scope and evidence |
+|---|---|---|
+| Focused regression tests | 245 passed; 0 failed or skipped | 23 relevant test files, including 16 new executable regression cases in `tests/ask-first20-reliability.test.mjs`. Existing suites also contain source assertions; the count is not 245 end-to-end scenarios. |
+| ESLint | No errors or warnings | Original 20 files plus the two changed conversation helpers. |
+| TypeScript | No diagnostics | Options/global diagnostics and syntactic/semantic diagnostics for the 22 scoped source files, resolving their imports. |
+| Browser interactions | Passed | Actual Ask page with mocked authentication/network: old conversation deep link, one cancellation request, earlier messages, history pagination, reversed conversation responses, and escaped HTML. |
+| Browser reload | Passed | Old deep link and cancelled action survive reload against the fixture's stored response. This does not exercise a deployed database. |
+| Mobile layout | Passed overflow check | At 390px, document width equals viewport width. Screenshot inspected; the isolated fixture does not serve the production logo asset. |
+| Suggestion SQL | Passed | PostgreSQL 18.3 through PGlite 0.5.8; 103 migrations loaded and `supabase/tests/ask_suggestion_transitions.sql` executed. Includes freshness, ownership, terminal states, service-only grants and injected rollback. |
+| Diff whitespace | Clean | `git diff --check`. |
+
+**Repairs:** Existing-save acknowledgements now require one live receipt for the immediately preceding owner turn and the selected pet. Final answer persistence retries and reads back a verified durable response on failure; reviewed prose is no longer rewritten after review. Capability questions and compound navigation preserve their intent. Cancel reaches the server, stale conversation loads cannot replace newer selections, and suggestion status follows the canonical result. Monitor/dismiss transitions are transactional. Conversation and message pagination restore access to older history, and read failures return explicit errors. Additional hardening preserves urgent instructions, rejects incomplete provider output items, separates history eligibility from presentation depth, and contains optional telemetry failures.
+
+**Limits:** These results support the exercised behavior, not a fault-free or “10/10” certification. Live model quality, deployed authentication/PostgREST, and native multi-connection PostgreSQL concurrency remain unverified. The new migration must be applied before deploying the route that calls `transition_ask_suggestion`; it has not been deployed here.
+
+The original audit and scores below are retained as a **before-repair baseline**. Its line numbers, findings, recommendations and diagnostic harness describe the base commit, not the repaired working tree. Use the regression tests above for current acceptance; the historical harness deliberately asserts old defects.
+
+## Original audit — before repairs
+
+Reviewed 10 September 2026 against commit `d2a3d7c8bba70cd0ed238e655282f8d3328bd36a`.
+
+**Overall judgment: 6.5/10.** The architecture has useful authority boundaries, structured provider handling, and substantial regression coverage. However, ordinary save, cancellation, history-loading and fallback paths still contain correctness gaps. This batch does not yet meet the “boringly reliable” goal.
+
+**Scope and method.** These are the first 20 Ask application files in the existing `docs/v1-cleanup/file-categories.csv` inventory order: 7,104 lines. Each file was read, and relevant callers, persistence helpers, SQL migrations and tests were traced. Dependencies outside these 20 were inspected to verify findings; they are not included in the file ratings. This is a source audit plus offline execution, not a live production or veterinary-quality evaluation.
+
+**Rating scale.** Scores are engineering judgments about correctness, authorization boundaries, failure handling, maintainability and meaningful test coverage. 9 means strong within the reviewed scope; 8 means sound with limited concerns; 7 means usable but needs hardening; 6 means material reliability gaps; 5 means important correctness problems; 4 means an owner needs substantial correction. Small files earn their score through a clear, correct responsibility, not their size. The overall rating weights the central request and user flows more heavily than tiny helpers; it is not an arithmetic average or an accuracy percentage.
+
+| # | File | Lines | Rating | Assessment |
+|---|---|---:|---:|---|
+| 1 | `app/api/ask/actions/[messageId]/route.ts` | 39 | 8/10 | Thin, bounded endpoint. Delegates exact action execution to the capability authority; owner/message binding is preserved. |
+| 2 | `app/api/ask/conversations/[id]/messages/route.ts` | 73 | 7/10 | Input limits and transactional exchange authority are useful. Client-supplied presentation remains a separate trust boundary; database read errors are currently conflated with unavailable conversations. |
+| 3 | `app/api/ask/conversations/[id]/route.ts` | 95 | 6/10 | Ownership checks and reload reconciliation are useful. Some read failures silently become missing data; message loading has no explicit pagination/completeness contract. |
+| 4 | `app/api/ask/conversations/route.ts` | 176 | 6/10 | Good bounded creation and idempotency. Latest-40-only listing and assistant-only filtering interact poorly with reopening and failed first turns. F9. |
+| 5 | `app/api/ask/route.ts` | 2,605 | 5/10 | Strong checks exist, but early shortcuts and optional finalization weaken end-to-end correctness. Excessive responsibilities make ordering defects hard to reason about. F1, F2, F3. |
+| 6 | `app/api/ask/suggestions/[id]/route.ts` | 271 | 5/10 | Save RPC provides a solid transactional foundation. Dismiss and monitor do not uphold the same result/freshness contract. F7, F8. |
+| 7 | `app/ask/layout.tsx` | 8 | 8.5/10 | Appropriate thin private-page composition. No material defect identified in this wrapper. |
+| 8 | `app/ask/page.tsx` | 911 | 5/10 | Thoughtful retry and draft support, but independent asynchronous flows can disagree with server state. F5, F6, F7, F9. |
+| 9 | `app/components/ask-answer-text.tsx` | 31 | 8.5/10 | Small renderer using React text rendering and shared parsing. Clear ownership; no material defect identified in the reviewed rendering paths. |
+| 10 | `app/components/ask-usage-notice.tsx` | 34 | 8/10 | Focused allowance-exhaustion presentation. Usage-experience assertions pass; no material defect identified. |
+| 11 | `app/lib/ai/ask-answer-economy.ts` | 556 | 6.5/10 | Useful format preservation and prose handling. Lexical classification, deduplication, and history-offer eligibility are coupled to presentation depth. Needs mixed-intent behavior coverage. |
+| 12 | `app/lib/ai/ask-command-router.ts` | 94 | 6/10 | Simple explicit language commands work. Navigation recognition accepts compound requests and assumes the selected pet. F4. |
+| 13 | `app/lib/ai/ask-error-diagnostic.ts` | 10 | 9/10 | Small allowlist for public diagnostic stages, with a safe fallback. Clear and easy to verify. |
+| 14 | `app/lib/ai/ask-internal-product-policy.ts` | 63 | 4/10 | Export keywords conflate output requests with feature availability. Its route consumer still emits obsolete capability copy. F3. |
+| 15 | `app/lib/ai/ask-orchestrator.ts` | 170 | 7.5/10 | Useful generation seam and grounded suggestion checks. Concern selection and presentation-depth gating need continued cross-intent coverage. |
+| 16 | `app/lib/ai/ask-provider.ts` | 127 | 8/10 | Explicit incomplete/refused/failed/invalid states; parsing failures cannot report provider success. Missing status defaults to completed, which is a defensive-contract concern rather than a demonstrated production failure. |
+| 17 | `app/lib/ai/ask-reasoning.ts` | 1,585 | 6.5/10 | Strong evidence coverage, bounded provider calls and repair machinery. Context selection, prompts, parsing, retries and presentation remain one large owner; lenient normalization increases reliance on downstream validation. |
+| 18 | `app/lib/ai/ask-turn-model.ts` | 210 | 8/10 | Useful typed lifecycle and optional-failure telemetry. Treat it as instrumentation, not the authority enforcing valid state transitions. |
+| 19 | `app/lib/ai/config.ts` | 9 | 8/10 | Clear model/timeout/output constants. Shared non-Ask budget names are a minor ownership issue, not a reason to delete it. |
+| 20 | `app/lib/ai/context-builder.ts` | 37 | 7.5/10 | Tenant/pet-scoped queries with explicit failure. Active-concern retrieval lacks an explicit result-bound/coverage contract; recent resolved selection is deliberately limited. |
+
+**Findings, ordered by impact.** P1 means a material correctness problem to address before expanding Ask; P2 means a reproducible interaction defect or a well-supported failure-path gap. No production incident frequency is inferred from this audit.
+
+**F1 — P1: a new save can be acknowledged using an unrelated older saved recovery.**
+
+Location: `app/api/ask/route.ts:1405`, with the early branch at line 429 and confirmation text at line 1345.
+
+`findExistingCareEventForSaveRequest` accepts broad save/history wording, then searches backwards for any prior user turn containing words such as “better” or “fine”. It looks for a care entry attached to that older turn. It does not establish that the current request refers to that event or the same subject. The route selects this result before normal subject resolution and interpretation.
+
+Offline reproduction: an older “Milo is eating better” turn has a saved entry. The current request is “Please save that Luna missed breakfast to her history”. The actual helper returns `alreadyPersisted: true`, the old entry ID and `recently_resolved`. The route's corresponding answer is “Yes, that improvement is already in Milo's history.” The newly requested event can therefore be skipped while success is asserted. This demonstrates incorrect event matching; it does not demonstrate a cross-account write.
+
+Required correction: only acknowledge an existing save after resolving the current reference to that exact source event and pet. Acceptance check: a genuinely repeated save reuses its receipt, while a new observation or different pet is processed as a new request.
+
+**F2 — P1: the final answer returned to the client is not guaranteed to be the answer saved for reload.**
+
+Location: `app/api/ask/route.ts:1569`, `:1810`, `:1817`; authority implementation: `supabase/migrations/20260903203626_add_ask_conversation_service_authority.sql:597`.
+
+The route first completes the assistant message. Later it reconciles save-related copy, attaches actions and completes the turn snapshot. Saving that final response is wrapped in an optional subsystem: a false RPC result or exception is logged and swallowed. The route still returns the newer canonical response with `saved: true`. The SQL function confirms that this second operation updates the actual stored response and care-persistence metadata; it is not merely analytics.
+
+Evidence: source and SQL failure-path trace, not a live database fault injection. Under finalization failure, the initial persisted response can survive while the client receives different text/metadata. Reload reconciliation can repair some related action/suggestion state, but does not guarantee the identical final answer body.
+
+Required correction: make final response persistence part of successful completion, with bounded idempotent recovery. Acceptance check: inject finalization failure and verify either identical durable/replayed output or an explicit recoverable outcome, without duplicate effects or charges.
+
+**F3 — P2: output-format requests can trigger stale product-capability answers.**
+
+Location: `app/lib/ai/ask-internal-product-policy.ts:14`; consumers: `app/api/ask/route.ts:875` and `:2565`.
+
+Direct execution classifies “Export Milo's weight records as CSV” as `vet_prep_exports`. It is an output request, not necessarily a question about a paid report feature. The route can replace a generated answer with the planned-capability response when reasoning exists, safety is normal, and shopping is not suppressed. Those conditions matter: this audit does not claim every history export is intercepted.
+
+The fallback also says exportable vet-prep reports are not built and advertises Results/static product suggestions as available. The repository contains the Vet Brief PDF route and records the Results implementation as retired. Current capability copy and actual features have drifted apart.
+
+Required correction: distinguish feature-availability questions from requested serialization, and derive availability from the current feature owner. Acceptance checks: CSV requests preserve their task; actual PDF/capability questions get truthful current availability without the retired catalogue copy.
+
+**F4 — P2: deterministic navigation silently drops the rest of a compound request.**
+
+Location: `app/lib/ai/ask-command-router.ts:17`; route shortcut: `app/api/ask/route.ts:590`.
+
+Direct execution of “Show Milo's profile and explain his weight trend” returns a provider-independent navigation result: “Open Milo's profile below.” The regex only requires an opening navigation verb and one target anywhere in the message. The second obligation is lost. Navigation proposals also use `target: selected`, so named-pet commands need identity resolution before this shortcut can be trusted.
+
+Required correction: use this shortcut only for unambiguous standalone commands with a resolved subject. Acceptance checks: compound requests retain all obligations; asking for another pet's profile never silently selects the current pet.
+
+**F5 — P2: Cancel closes review but never cancels the pending action.**
+
+Location: `app/ask/page.tsx:715`, Cancel handler at line 740.
+
+The Cancel button exists only while confirmation is open. Its handler checks `confirming` and closes that view. The branch that calls `decide("cancel")` cannot be reached from the rendered button. Executing the actual extracted component with a state/JSX harness reproduced Review → Cancel → Review, with zero cancellation calls. The capability remains pending. This does not mean cancellation executes the destructive action; the defect is the missing durable cancellation.
+
+Required correction: distinguish closing a review from cancelling the proposed action, and connect the latter to server cancellation. Acceptance check: cancelling yields a persisted cancelled status and the action remains cancelled after reload.
+
+**F6 — P2: slower conversation loads can overwrite the last selected conversation.**
+
+Location: `app/ask/page.tsx:241`.
+
+`openConversation` blocks active Ask submissions but does not identify or cancel competing history reads. Both completions can update pet, URL, thread and selected conversation. The history picker remains available during the read. An offline execution of the actual function started A, then B; B completed first, A completed last. The final displayed selection was A even though B was clicked last.
+
+Required correction: apply a request-generation guard across all post-fetch state changes, or abort and ignore obsolete loads. Acceptance check: resolving A after B cannot overwrite B's thread, pet, URL or loading state.
+
+**F7 — P2: dismiss can contradict a saved suggestion's canonical state.**
+
+Location: `app/ask/page.tsx:526`; server dismiss branch: `app/api/ask/suggestions/[id]/route.ts:123`.
+
+The server explicitly returns `already_applied` when the suggestion was already saved. The UI handles a dismiss request by setting `dismissed` regardless of that returned status. The actual handler, supplied a successful `already_applied` response and care-entry ID, reproduced a dismissed UI state.
+
+There is a second gap in the same operation: the server's pending-only update checks only the error, not whether a row changed. A concurrent save after the initial read can produce zero updated rows followed by “Not saved.” This race is source-traced rather than exercised against a database.
+
+Required correction: render the returned canonical state and make the dismiss result conditional on the row transition. Acceptance check: save-versus-dismiss races consistently show the saved receipt or a confirmed dismissal.
+
+**F8 — P2: monitoring is a separate, partially committable write path.**
+
+Location: `app/api/ask/suggestions/[id]/route.ts:137`.
+
+Monitor updates an eligible concern, then separately marks the suggestion saved. It checks query errors but not the concern update's affected-row count. It also does not require the suggestion to be pending before this path. A stale concern can yield no update but a monitoring success response; a second-write failure can leave a changed concern with an unsettled suggestion. Separate idempotency wrappers do not make these two writes atomic across operation types.
+
+Evidence: source-traced failure/concurrency conditions. The current reviewed suggestion card does not expose a Monitor button, so this is an authenticated endpoint reliability issue, not a demonstrated everyday UI flow.
+
+Required correction: if retained, place monitor's validation, conditional state change and receipt in one transaction. Otherwise establish that the endpoint action is unused before removing it. Acceptance checks: stale/dismissed suggestions, simultaneous resolution, and a failed second write cannot report false success.
+
+**F9 — P2: older and first-turn-failed conversations can become inaccessible through normal history loading.**
+
+Location: `app/api/ask/conversations/route.ts:17`; deep-link check: `app/ask/page.tsx:180`.
+
+The history list returns the latest 40 conversations and requires an assistant message. There is no continuation cursor. Initial page loading only opens a requested conversation if it appears in that list. A valid link to conversation 41 is therefore ignored even though the detail endpoint can retrieve it. A newly created conversation whose first answer failed is excluded by the assistant-message join, weakening the available retry/recovery path after reload.
+
+Evidence: API query and UI control-flow trace; a 41-conversation live account was not created. This is an access/discoverability defect, not evidence that stored conversations are deleted.
+
+Required correction: load valid requested IDs independently of the recent list; expose pagination and a deliberate failed-turn recovery policy. Acceptance checks: the 41st conversation opens by URL and a failed first turn remains recoverable after reload.
+
+**Additional observations, not counted as confirmed defects.**
+
+- Conversation-detail loading maps a conversation lookup error to 404 and discards some suggestion/receipt query errors. Distinguish missing records from temporary inability to read them.
+- Conversation messages are requested in ascending order without an explicit pagination or completeness contract. A configured API row cap could truncate long threads; the deployed cap was not verified, so no specific truncation threshold is asserted.
+- Answer economy controls `allowsAutomaticHistory`, and reasoning/orchestration use that to suppress history proposals. Presentation depth consequently affects suggestion eligibility. Keep factual/write decisions independently owned even if the final display remains shared.
+- The request route and reasoning owner together contain 4,190 lines, about 59% of this batch. Their risk is responsibility density and ordering, not simply line count. Merging additional semantic, persistence or authorization owners into these files would make this harder to maintain.
+
+**What is already worth keeping.**
+
+Capability-only action execution, tenant-scoped reads, bounded request bodies, transactional exchange authority, idempotent save RPCs, explicit provider terminal states, evidence coverage tracking, deadline budgeting, and separate factual review are useful foundations. The audit did not establish an ownership bypass in the reviewed action endpoint. This is not a full security certification.
+
+**Validation performed.**
+
+- `npm run typecheck`: passed, exit 0.
+- Focused existing tests: 153 passed, 0 failed, 0 skipped. Coverage included action capabilities, conversation authority, command routing, suggestions, inflight navigation, completion, turn lifecycle, context reasoning, answer economy, rendering, error UX, usage, credit settlement and structured provider output.
+- Six new offline diagnostic probes reproduced F1, F3, F4, F5, F6 and the UI portion of F7. These probes intentionally assert the observed defective behavior; they are evidence of gaps, not six successful product acceptance tests.
+- F2, F8, F9 and the server race in F7 were established by source/control-flow inspection. No live provider calls, database mutations or browser end-to-end run were performed for this batch. Historical full-suite results were not represented as a fresh full-suite run.
+- Several relevant tests assert strings/regexes in source or SQL. Other tests execute real functions. The existing green suite therefore does not substitute for state-transition, failure-injection and concurrent-interaction tests.
+
+**Recommended next work.**
+
+Fix F1 and F2 first so acknowledgements and stored answers can be trusted. Then close the UI/server result gaps in F5–F8, correct routing/capability truthfulness in F3–F4, and restore reliable history access in F9. Add behavior tests for each failure before further consolidation. Keep evidence validation and write authorization separate; further file reduction should follow stable responsibility boundaries.
+
+Application source was not modified during this audit.
+
+**Reproduction harness.** Run the following CommonJS script from the repository root with its installed TypeScript dependency. It extracts the actual named functions from the audited source and supplies minimal offline dependencies. It does not reproduce a browser, SQL locking, authentication or a full HTTP request.
+
+```javascript
+const fs=require('node:fs'); const vm=require('node:vm'); const assert=require('node:assert/strict');
+const root=process.cwd();
+const ts=require(root+'/node_modules/typescript');
+function extract(path,name,globals={}) {
+ const source=fs.readFileSync(root+'/'+path,'utf8'); const ast=ts.createSourceFile(path,source,ts.ScriptTarget.Latest,true,path.endsWith('tsx')?ts.ScriptKind.TSX:ts.ScriptKind.TS);
+ let found; function walk(n){if(ts.isFunctionDeclaration(n)&&n.name?.text===name)found=n;ts.forEachChild(n,walk);}walk(ast); assert.ok(found,name);
+ const compiled=ts.transpileModule(found.getText(ast).replace(/^export /,''),{compilerOptions:{target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.React}}).outputText;
+ return vm.runInNewContext(compiled+'\n'+name,globals);
+}
+(async()=>{
+ const findings=[];
+ const policy=await import(root+'/app/lib/ai/ask-internal-product-policy.ts');
+ const command=await import(root+'/app/lib/ai/ask-command-router.ts');
+ const q="Export Milo's weight records as CSV";
+ assert.equal(policy.classifyFurviseCapabilityQuestion(q),'vet_prep_exports');
+ findings.push({probe:'capability false positive',input:q,actual:policy.classifyFurviseCapabilityQuestion(q)});
+ const mixed="Show Milo's profile and explain his weight trend";
+ const routed=command.planDeterministicAskCommand(mixed,'Milo');
+ assert.equal(routed.orchestration.handledWithoutAi,true);
+ findings.push({probe:'compound navigation loses question',input:mixed,actual:routed.orchestration.answer.summary});
+ const lookup=extract('app/api/ask/route.ts','findExistingCareEventForSaveRequest');
+ const query={};for(const method of ['select','eq','order','limit'])query[method]=()=>query;
+ query.maybeSingle=async()=>({data:{id:'older-recovery-entry',concern_id:null},error:null});
+ const result=await lookup({context:{conversationTurns:[{id:'old-turn',role:'user',text:'Milo is eating better'}]},currentSourceMessageId:'new-turn',message:"Please save that Luna missed breakfast to her history",petId:'milo',userId:'owner',supabase:{from:()=>query}});
+ assert.equal(result.alreadyPersisted,true);
+ findings.push({probe:'new save misidentified as prior recovery',actual:result});
+ let slots=[],cursor=0,calls=[];
+ const React={createElement:(type,props,...children)=>({type,props:props||{},children})};
+ const card=extract('app/ask/page.tsx','ApplicationActionCard',{React,useState:initial=>{const i=cursor++;if(!(i in slots))slots[i]=initial;return [slots[i],v=>slots[i]=v]},secondaryButton:'',quietButton:'',dangerButton:''});
+ const action={id:'pending-action',status:'pending',confirmationPolicy:'always',safetyClass:'DESTRUCTIVE',label:'Delete',description:'Review'};
+ function render(){cursor=0;return card({action,onAction:async(_,decision)=>calls.push(decision)})}
+ function button(tree,label){if(!tree||typeof tree!=='object')return null;if(tree.type==='button'&&tree.children.includes(label))return tree;for(const c of tree.children||[]){const found=button(c,label);if(found)return found;}return null;}
+ button(render(),'Review action').props.onClick(); button(render(),'Cancel').props.onClick();
+ assert.equal(calls.length,0);assert.ok(button(render(),'Review action'));
+ findings.push({probe:'Cancel does not cancel capability',serverDecisions:calls,pendingCardStillRendered:true});
+ const pending=new Map();let active=null;const noop=()=>{};
+ const open=extract('app/ask/page.tsx','openConversation',{conversations:[{id:'A'},{id:'B'}],askRequestActiveRef:{current:false},saveCurrentDraft:noop,setError:noop,setStatus:noop,setLoading:noop,dismissOnboardingEntry:noop,conversationJson:url=>new Promise(resolve=>pending.set(url.split('/').at(-1),resolve)),parseConversationDetail:()=>[],setSelectedPet:noop,window:{localStorage:{}},persistActivePetId:noop,replaceAskLocation:noop,setActiveConversationId:id=>active=id,setThread:noop,setFailedRequest:noop,setQuestion:noop,readAskDraft:()=>'',setHistoryOpen:noop,trackAskEvent:noop,requestAnimationFrame:noop});
+ const a=open('A'),b=open('B');pending.get('B')({conversation:{id:'B',petId:'pet-B'}});await b;pending.get('A')({conversation:{id:'A',petId:'pet-A'}});await a;assert.equal(active,'A');
+ findings.push({probe:'out-of-order conversation load',lastClicked:'B',displayed:active});
+ let state=[];
+ const apply=extract('app/ask/page.tsx','applyStateSuggestion',{setThread:fn=>state=fn(state),updateMessageSuggestion:(current,id,sid,patch)=>[...current,patch],suggestionJson:async()=>({status:'already_applied',careEntryId:'saved-entry'}),updateMessageSuggestionIfSaving:current=>current});
+ await apply('message',{id:'suggestion'},'dismiss');assert.equal(state.at(-1).status,'dismissed');
+ findings.push({probe:'dismiss ignores saved server result',serverStatus:'already_applied',uiStatus:state.at(-1).status});
+ console.log(JSON.stringify({sourceCommit:'d2a3d7c8bba70cd0ed238e655282f8d3328bd36a',method:'Actual functions extracted with TypeScript AST, executed offline with mocked external dependencies; command/policy imported directly.',probes:findings},null,2));
+})().catch(e=>{console.error(e);process.exitCode=1});
+```

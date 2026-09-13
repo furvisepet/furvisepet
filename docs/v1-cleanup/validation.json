@@ -1,0 +1,439 @@
+{
+  "scope": "Isolated Windows worktree on Node 24.19.0; no live credentials loaded, no paid AI/provider benchmarks, no external data mutations.",
+  "baseline": {
+    "commit": "1cf5da2",
+    "node_tests": {
+      "passed": 2511,
+      "failed": 0
+    },
+    "lint_errors": 0,
+    "lint_warnings": 39,
+    "typecheck": "passed"
+  },
+  "checks": [
+    {
+      "name": "locked dependency install",
+      "command": "npm ci --ignore-scripts --no-audit --no-fund",
+      "status": "passed",
+      "note": "Install skipped package lifecycle scripts. Native production build subsequently passed; CI uses ordinary npm ci."
+    },
+    {
+      "name": "lint",
+      "command": "npm run lint",
+      "status": "passed",
+      "exit_code": 0,
+      "errors": 0,
+      "warnings": 39,
+      "note": "All 39 warnings predate cleanup; none suppressed."
+    },
+    {
+      "name": "typecheck",
+      "command": "npm run typecheck",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "name": "focused security",
+      "command": "npm run test:security",
+      "status": "passed",
+      "tests": 163,
+      "failures": 0
+    },
+    {
+      "name": "full offline tests",
+      "command": "npm test with absolute offline fetch preload",
+      "status": "passed",
+      "exit_code": 0,
+      "tests": 2508,
+      "failures": 0,
+      "skipped": 0,
+      "note": "2511 base - 6 tests solely for retired Results/UI + 3 new mounted redirect tests. No remaining expected results relaxed."
+    },
+    {
+      "name": "dependency tree",
+      "command": "npm ls --all --json",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "name": "production dependency audit",
+      "command": "npm audit --omit=dev --audit-level=high --json",
+      "status": "passed",
+      "exit_code": 0,
+      "vulnerabilities": 0
+    },
+    {
+      "name": "production build",
+      "command": "npm run build",
+      "status": "passed",
+      "exit_code": 0,
+      "environment": "CI placeholder public Supabase URL/key; FURVISE_LOCAL_VALIDATION=1; NEXT_TELEMETRY_DISABLED=1; no Sentry artifact upload"
+    },
+    {
+      "name": "Python local runner",
+      "command": "python -m unittest test_runner.py -q",
+      "status": "passed",
+      "exit_code": 0,
+      "tests": 9,
+      "note": "Mock CLI and disposable Git fixtures; no agent queue or external model executed."
+    },
+    {
+      "name": "ignore equivalence",
+      "status": "passed",
+      "paths_checked": 1490,
+      "differences": [
+        "tmp/new.txt",
+        "nested/__pycache__/test.pyc",
+        "nested/file.pyc"
+      ]
+    },
+    {
+      "name": "archive hashes",
+      "status": "passed",
+      "files": 12,
+      "note": "Byte-identical to original tmp paths."
+    }
+  ],
+  "fresh_sql": {
+    "engine": "PostgreSQL 18.3 (PGlite 0.5.8) on wasm32-unknown-emscripten, compiled by emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 3.1.74 (1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5), 32-bit",
+    "migrations": 102,
+    "suites": [
+      {
+        "name": "ask_history_candidate_read",
+        "status": "passed",
+        "elapsedMs": 355
+      },
+      {
+        "name": "ask_history_latest_candidates",
+        "status": "passed",
+        "elapsedMs": 1243
+      },
+      {
+        "name": "ask_history_scoped_read",
+        "status": "passed",
+        "elapsedMs": 94
+      },
+      {
+        "name": "ask_lifetime_time_and_privileges",
+        "status": "passed",
+        "elapsedMs": 26
+      },
+      {
+        "name": "ask_lifetime_census",
+        "status": "passed",
+        "elapsedMs": 751
+      },
+      {
+        "name": "ask_century_census",
+        "status": "passed",
+        "elapsedMs": 2324
+      },
+      {
+        "name": "ask_century_scale",
+        "status": "passed",
+        "elapsedMs": 6797
+      }
+    ],
+    "callback": {
+      "status": "passed",
+      "output": "{\n  \"passed\": [\n    \"real writer: two episodes, four notes, recurrence, natural wording\",\n    \"old 2011 episode survives 26 newer irrelevant real writer entries\",\n    \"stored sequence 2 displays as ordinal 1 in the requested 2014 period\",\n    \"original four Milo stool-note meanings through real writer and callback establish two episodes\",\n    \"production callback + persisted reload: exact count, displayed second identity\",\n    \"Luna writer in Milo-anchored chat; pronoun/ordinal subject and persisted second reference retain Luna\",\n    \"70 relevant source notes counted as two episodes by SQL; bounded display\",\n    \"real duplicate import retains two episode identities and 70 unique care sources\",\n    \"committed mutation during generation invalidates undisplayed-source aggregate\",\n    \"source correction invalidates census and saved reference; idempotent replay deduplicated\",\n    \"soft deletion invalidates a previously valid saved first episode; hard deletion retains unknown completeness\"\n  ]\n}\nSynthetic owner and data cleaned up.\n(node:11448) ExperimentalWarning: Transform Types is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:11448) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/furvise-repository-v1-cleanup/app/lib/intelligence/retrieve-context.ts is not specified and it doesn't parse as CommonJS.\nReparsing as ES module because module syntax was detected. This incurs a performance overhead.\nTo eliminate this warning, add \"type\": \"module\" to \\\\?\\C:\\Users\\gwara\\furvise-repository-v1-cleanup\\package.json.\n\u2714 scripts\\audits\\ask-lifetime-postgres.mjs (3932.9982ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 3938.8916\n"
+    },
+    "cleanup": {
+      "users": 0,
+      "care_rows": 0,
+      "disabled_triggers": 0
+    }
+  },
+  "supplemental_sql": {
+    "status": "incomplete",
+    "note": "Sequential supplemental probe in the owned PGlite DB, not native Supabase. Stopped after slow execution; lexical plan probe alone took 93 seconds. SQL bytes are unchanged; independent native validation remains required.",
+    "completed": [
+      {
+        "name": "account_entitlements_verification.sql",
+        "status": "failed",
+        "code": "23502",
+        "message": "null value in column \"logical_request_id\" of relation \"ai_usage_events\" violates not-null constraint",
+        "elapsedMs": 318
+      },
+      {
+        "name": "ai_credit_rpc_verification.sql",
+        "status": "failed",
+        "code": "42883",
+        "message": "function \"public.reserve_ai_credit(uuid,uuid,text,text)\" does not exist",
+        "elapsedMs": 8
+      },
+      {
+        "name": "ask_action_capability_target_freshness_expiry.sql",
+        "status": "passed",
+        "elapsedMs": 124
+      },
+      {
+        "name": "ask_century_census.sql",
+        "status": "passed",
+        "elapsedMs": 2149
+      },
+      {
+        "name": "ask_century_scale.sql",
+        "status": "passed",
+        "elapsedMs": 6307
+      },
+      {
+        "name": "ask_conversation_authority.sql",
+        "status": "failed",
+        "code": "42883",
+        "message": "function extensions.plan(integer) does not exist",
+        "elapsedMs": 2
+      },
+      {
+        "name": "ask_conversation_authority_phase_a.sql",
+        "status": "failed",
+        "code": "42883",
+        "message": "function extensions.plan(integer) does not exist",
+        "elapsedMs": 1
+      },
+      {
+        "name": "ask_episode_membership_contract.sql",
+        "status": "passed",
+        "elapsedMs": 178
+      },
+      {
+        "name": "ask_episode_membership_reversal.sql",
+        "status": "passed",
+        "elapsedMs": 13
+      },
+      {
+        "name": "ask_episode_references.sql",
+        "status": "failed",
+        "code": "P0001",
+        "message": "Unexpected definer authority",
+        "elapsedMs": 110
+      },
+      {
+        "name": "ask_governed_freeform.sql",
+        "status": "passed",
+        "elapsedMs": 172
+      },
+      {
+        "name": "ask_governed_freeform_reversal.sql",
+        "status": "passed",
+        "elapsedMs": 25
+      },
+      {
+        "name": "ask_history_candidate_read.sql",
+        "status": "passed",
+        "elapsedMs": 361
+      },
+      {
+        "name": "ask_history_latest_candidates.sql",
+        "status": "passed",
+        "elapsedMs": 1245
+      },
+      {
+        "name": "ask_history_latest_readiness.sql",
+        "status": "passed",
+        "elapsedMs": 138
+      },
+      {
+        "name": "ask_history_lexical_plan_probe.sql",
+        "status": "passed",
+        "elapsedMs": 92754
+      },
+      {
+        "name": "ask_history_scoped_read.sql",
+        "status": "passed",
+        "elapsedMs": 96
+      }
+    ],
+    "not_completed": [
+      "ask_history_scoped_scale.sql",
+      "ask_lifetime_census.sql",
+      "ask_lifetime_time_and_privileges.sql",
+      "ask_memory_authority_verification.sql",
+      "ask_readiness_compatibility.sql",
+      "ask_recorded_completeness.sql",
+      "ask_recorded_completeness_reversal.sql",
+      "ask_suggestion_canonical_memory.sql",
+      "ask_v2_phase_2.sql",
+      "ask_v2_phase_2_linked_audit.sql",
+      "ask_v2_semantic_claims.sql",
+      "auth_abuse_verification.sql",
+      "billing_checkout_currency_alignment.sql",
+      "billing_checkout_currency_readiness.sql",
+      "billing_checkout_single_flight.sql",
+      "billing_launch_verification.sql",
+      "billing_payment_recovery_grace.sql",
+      "canonical_care_state_authority.sql",
+      "canonical_care_state_rollout_compatibility.sql",
+      "care_entry_write_authority.sql",
+      "entitlement_pet_boundary_verification.sql",
+      "history_lifecycle_dismissal.sql",
+      "idempotency_operations_verification.sql",
+      "operational_readiness_verification.sql",
+      "password_auth_capability.sql",
+      "permanent_delete_admin_role_repair_verification.sql",
+      "pet_profile_lifecycle_v1.sql",
+      "postgrest_service_authority.sql",
+      "security_phase_s1_authorization.sql",
+      "security_schema_compatibility_readiness.sql",
+      "service_role_lifecycle_event_access_verification.sql",
+      "tenant_link_ownership_integrity.sql"
+    ]
+  },
+  "browser": {
+    "memory_management": {
+      "status": "passed",
+      "checks": [
+        "Actual loaders/projection filter other pets, accounts and rejected rows",
+        "Legacy card exposes Forget only",
+        "Legacy Forget captures selected pet and storage ID",
+        "Colliding canonical ID remains after legacy Forget",
+        "Canonical Forget routes PATCH with real idempotency header",
+        "Mounted card reopens corrected value after same-key props refresh",
+        "Pet switch while auth pending prevents stale dispatch under real unmount",
+        "Changed session principal before auth UI remount prevents dispatch",
+        "Dispatched old-account fetch completion cannot refresh new-account DOM",
+        "Old loader completion cannot replace newly mounted pet",
+        "No uncaught browser errors or unhandled rejections"
+      ],
+      "writes": [
+        {
+          "url": "/api/legacy-memories",
+          "method": "DELETE",
+          "body": {
+            "memoryIds": [
+              "33333333-3333-4333-8333-333333333333"
+            ],
+            "petId": "11111111-1111-4111-8111-111111111111"
+          },
+          "key": "00290ed3-aa46-4e8f-a84f-3f36a184cdfc"
+        },
+        {
+          "url": "/api/memories/33333333-3333-4333-8333-333333333333",
+          "method": "PATCH",
+          "body": {
+            "action": "forget"
+          },
+          "key": "5979951e-94ff-4c57-9eca-5af32d6e1aaa"
+        },
+        {
+          "url": "/api/memories/33333333-3333-4333-8333-333333333333",
+          "method": "PATCH",
+          "body": {
+            "action": "edit",
+            "value": "chicken"
+          },
+          "key": "d13625f0-5e22-47d8-b51e-78f268368165"
+        },
+        {
+          "url": "/api/legacy-memories",
+          "method": "DELETE",
+          "body": {
+            "memoryIds": [
+              "33333333-3333-4333-8333-333333333333"
+            ],
+            "petId": "11111111-1111-4111-8111-111111111111"
+          },
+          "key": "dfed4d0d-46e4-4c43-8c33-c45f473f9f3c"
+        }
+      ],
+      "minimumFreeGB": 6.140148162841797,
+      "modules": 25
+    },
+    "conversation_reload": {
+      "status": "passed",
+      "checks": [
+        "production response serialization",
+        "local-storage reload",
+        "three answer paragraphs",
+        "exact 2.7 kg, test_A #2, >1.5 and negation",
+        "literal untrusted HTML",
+        "no mandatory summary heading"
+      ],
+      "text": "Milo had soft stool for two days in February 2011.\n\nThe 2014-07-09 note reports: Milo weighed 2.7 kg; test_A #2 was >1.5, not normal. <script>alert(1)</script>\n\nSome saved records couldn't be loaded. This covers only the notes I could check.",
+      "minimumFreeGB": 6.104923248291016,
+      "modules": 22
+    },
+    "presentation": {
+      "status": "failed",
+      "error": "Two-point layout lost after reload/render",
+      "errors": [],
+      "minimumFreeGB": 6.0389251708984375,
+      "modules": 23
+    },
+    "presentation_untouched_base": {
+      "status": "failed",
+      "error": "Two-point layout lost after reload/render",
+      "errors": [],
+      "minimumFreeGB": 6.115016937255859,
+      "modules": 23
+    }
+  },
+  "blocked_checks": [
+    {
+      "name": "Full running Next application smoke",
+      "status": "blocked",
+      "command": "npm run start -- --hostname 127.0.0.1 --port 3147",
+      "reason": "Automatic approval review: blocked by policy; no detailed reason supplied."
+    },
+    {
+      "name": "Native Postgres / PostgREST / pgTAP",
+      "status": "unverified",
+      "reason": "Docker CLI present, daemon unavailable. PGlite covers SQL execution but not native service/concurrency parity."
+    }
+  ],
+  "flow_coverage": [
+    {
+      "flow": "sign-in/account access",
+      "evidence": "auth routing/OTP/Google/recovery/password capability/account deletion/export security Node suites",
+      "limit": "No live Auth, email, CAPTCHA or full-app sign-in journey"
+    },
+    {
+      "flow": "pet creation/switch/management",
+      "evidence": "onboarding draft, pet save/lifecycle/limit and tenant-boundary Node suites; Chrome memory page pet/account-switch races",
+      "limit": "No full-app persisted pet creation against Supabase"
+    },
+    {
+      "flow": "history/corrections/retrieval",
+      "evidence": "history/effective projection/write-authority Node suites; 7 SQL suites and writer callback; Chrome memory edit/forget",
+      "limit": "Native SQL test compatibility gaps remain"
+    },
+    {
+      "flow": "Ask submit/delivery/reload",
+      "evidence": "orchestrator/session/idempotency/settlement/history offline cases; SQL writer-to-reader callback; Chrome response serialize/reload",
+      "limit": "No real provider request or running Next HTTP end-to-end journey; existing presentation fixture failure"
+    },
+    {
+      "flow": "Vet Brief create/view",
+      "evidence": "builder, draft isolation, persistence, PDF/document/source-bound tests",
+      "limit": "No running-app authenticated PDF/download smoke"
+    },
+    {
+      "flow": "Products/shop",
+      "evidence": "catalogue adapters, trust/publication, regional filtering, product provider and entitlement/source tests; production build of placeholder route",
+      "limit": "UI is coming-soon; no live retailer/feed/credential checks"
+    },
+    {
+      "flow": "subscriptions/entitlements",
+      "evidence": "Node checkout single-flight, currency, webhook ordering, payment recovery, limits and credit settlement tests",
+      "limit": "No live Stripe checkout/webhook delivery; older SQL acceptance failures unresolved"
+    }
+  ],
+  "intermediate_failures": [
+    {
+      "check": "baseline tests with relative preload",
+      "failed": 4,
+      "resolution": "Absolute file URL restored temp-directory child execution; unchanged tests all passed."
+    },
+    {
+      "check": "first post-cleanup full tests",
+      "failed": 1,
+      "resolution": "Found final source-only test of unmounted Results headings; removed with retired implementation. Final suite passed."
+    }
+  ],
+  "not_verified": [
+    "deployed migration ledger or customer-data upgrade",
+    "external scheduler/alerts/backup recovery",
+    "production Supabase/Stripe/Redis/OpenAI/Turnstile/SMTP configuration",
+    "paid AI quality or benchmark score"
+  ]
+}

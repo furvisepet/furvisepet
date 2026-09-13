@@ -1,0 +1,22 @@
+{
+  "productionRelease": "47868e83a1cc749950d458cf9e7c116931e85b13",
+  "method": "Read-only authenticated-owner SQL transaction; md5(string_agg(to_jsonb(row)::text, '' order by id)); care fingerprint includes the pre-existing deleted row.",
+  "care": {
+    "allRows": 50,
+    "activeRows": 49,
+    "hash": "8e138e84088bcebd99344389862efade",
+    "matchesBaseline": true,
+    "updatedSinceBaseline": 0
+  },
+  "memory": {
+    "rows": 19,
+    "hash": "c326d89fa8c8e20fbc960d90e355c01a",
+    "matchesBaseline": true
+  },
+  "suggestions": {
+    "rows": 4,
+    "hash": "635fa54a132c34eecefdcbd3e7088a76",
+    "matchesBaseline": true
+  },
+  "note": "Test conversations were saved normally; this check covers care, memory and suggestion content."
+}

@@ -1,0 +1,752 @@
+{
+  "method": "100 new first-attempt production UI questions on unchanged known synthetic fixtures. Strict manual grading: pass only if every material requested fact, subject, uncertainty, format and safety requirement holds. Partial and technical errors count against strict pass rate. No retry replaces a first attempt; no code changes during run. Five follow-up pairs. Not a blinded external assessment or unseen-user generalization.",
+  "rubricNotes": [
+    "Grade requested material requirements, not every shorthand gold detail.",
+    "Partial and technical errors are strict non-passes.",
+    "Q49 boolean and Q50 rendered-list decisions are reported transparently with a two-case sensitivity; no answer is retried."
+  ],
+  "metrics": {
+    "planned": 100,
+    "executed": 89,
+    "counts": {
+      "pass": 64,
+      "error": 1,
+      "fail": 7,
+      "partial": 17,
+      "untested": 11
+    },
+    "strictPassRateExecuted": 0.7191011235955056,
+    "gradingSensitivity": {
+      "acceptQ49StringAndQ50TextBullets": 0.7415730337078652
+    },
+    "latencySeconds": {
+      "samples": 87,
+      "median": 14.398,
+      "p95NearestRank": 29.905,
+      "max": 45.992,
+      "excludedRecoveredCase": 52
+    },
+    "costUsd": {
+      "benchmarkLedgerDelta": 1.870137,
+      "priorCumulative": 7.895736,
+      "cumulativeAfter": 9.765873,
+      "remainingAuthorization": 0.234127,
+      "finalDayLedger": 3.755702,
+      "stopThresholdDayLedger": 3.75
+    },
+    "providerCalls": 297,
+    "failureClasses": {
+      "technical_error": 1,
+      "generic_fallback": 3,
+      "source_dump": 11,
+      "incomplete_retrieval": 3,
+      "subject_attribution": 1,
+      "identity_routing": 3,
+      "schema_type": 1,
+      "rendered_format": 1,
+      "multi_pet_omission": 1
+    }
+  },
+  "grades": [
+    {
+      "id": 1,
+      "category": "retrieval",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Correctly answers both dogs; includes an unrequested but correctly attributed Luna fact. No explicit dogs-only constraint, so this is a pass."
+    },
+    {
+      "id": 2,
+      "category": "retrieval",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: Quiet spare room, uncovered."
+    },
+    {
+      "id": 3,
+      "category": "retrieval",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: Regular chicken-and-rice food unchanged."
+    },
+    {
+      "id": 4,
+      "category": "retrieval",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: Plumber; came out and ate normally, subsequent normal/no continuing hiding."
+    },
+    {
+      "id": 5,
+      "category": "retrieval",
+      "status": "error",
+      "failureClass": "technical_error",
+      "rationale": "Production UI displayed that Furvise could not finish the answer."
+    },
+    {
+      "id": 6,
+      "category": "retrieval",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: Owner choice; no chicken allergy diagnosed, no invented reason."
+    },
+    {
+      "id": 7,
+      "category": "retrieval",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: Seemed to prefer turkey; not diagnosed allergy."
+    },
+    {
+      "id": 8,
+      "category": "retrieval",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: Observe comfort/activity; no diagnosis/new medication instructions recorded; no claim none prescribed."
+    },
+    {
+      "id": 9,
+      "category": "retrieval",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: Once, right forepaw; no diagnosed injury."
+    },
+    {
+      "id": 10,
+      "category": "retrieval",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Answers the requested appetite and activity observations; a weight number was not requested."
+    },
+    {
+      "id": 11,
+      "category": "chronology",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: July3 start to July10 finished."
+    },
+    {
+      "id": 12,
+      "category": "chronology",
+      "status": "fail",
+      "failureClass": "generic_fallback",
+      "rationale": "Only says I can help with that; no chronology or dates."
+    },
+    {
+      "id": 13,
+      "category": "chronology",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: Finished June24 before July1; no invented new course."
+    },
+    {
+      "id": 14,
+      "category": "chronology",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: June20 normal for3days, soft stools seemedended; excludeAugust."
+    },
+    {
+      "id": 15,
+      "category": "chronology",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: No; Aug18 improved walking but still sofa hesitation; noSep4futuretoquery."
+    },
+    {
+      "id": 16,
+      "category": "chronology",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: Aug8 soft stool; Aug10 recovery outsidecutoff so not yet documented."
+    },
+    {
+      "id": 17,
+      "category": "chronology",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: No restoration recorded bythen; Jul5 changed, Jul10 reversal later; do not equate missing with never."
+    },
+    {
+      "id": 18,
+      "category": "chronology",
+      "status": "partial",
+      "failureClass": "source_dump",
+      "rationale": "Includes relevant June return-to-normal evidence but does not answer the requested chronology."
+    },
+    {
+      "id": 19,
+      "category": "chronology",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: Sep3weight7.1 thenSep4comfortable sofa."
+    },
+    {
+      "id": 20,
+      "category": "chronology",
+      "status": "partial",
+      "failureClass": "source_dump",
+      "rationale": "Dumps Milo records without deriving June 11 and omits Oscar\u2019s August 11 event date."
+    },
+    {
+      "id": 21,
+      "category": "calculations",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: 28.4 to27.9kg; decrease500g."
+    },
+    {
+      "id": 22,
+      "category": "calculations",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: 7.2kg=7200g; not6lb."
+    },
+    {
+      "id": 23,
+      "category": "calculations",
+      "status": "partial",
+      "failureClass": "source_dump",
+      "rationale": "Quotes kilogram inputs but never converts the carrier weights to grams."
+    },
+    {
+      "id": 24,
+      "category": "calculations",
+      "status": "partial",
+      "failureClass": "source_dump",
+      "rationale": "Quotes both weights but never supplies the requested zero-gram difference."
+    },
+    {
+      "id": 25,
+      "category": "calculations",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: 10 vs20min;10min difference; notbodyweight."
+    },
+    {
+      "id": 26,
+      "category": "calculations",
+      "status": "partial",
+      "failureClass": "source_dump",
+      "rationale": "Quotes walk records but never computes the requested 1.5 ratio."
+    },
+    {
+      "id": 27,
+      "category": "calculations",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Correct comparison and two-minute difference. Frozen prompt loosely calls both activities travel; does not confuse pets or values."
+    },
+    {
+      "id": 28,
+      "category": "calculations",
+      "status": "partial",
+      "failureClass": "incomplete_retrieval",
+      "rationale": "Gives Oscar\u2019s 12 minutes but incorrectly treats Luna\u2019s available six-minute brushing note as unavailable; no difference."
+    },
+    {
+      "id": 29,
+      "category": "calculations",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: 4.2+7.1=11.3kg; no healthmeaning."
+    },
+    {
+      "id": 30,
+      "category": "calculations",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: 4days betweenrecords; notprovensymptomduration."
+    },
+    {
+      "id": 31,
+      "category": "uncertainty",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Correctly rejects measured daily intake using unmeasured drinking and unknown spillage. Does not need to recite all record dates to support that rejection."
+    },
+    {
+      "id": 32,
+      "category": "uncertainty",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: No; appetiteobservationnotdiagnosis/exclusion; causeunknown."
+    },
+    {
+      "id": 33,
+      "category": "uncertainty",
+      "status": "partial",
+      "failureClass": "subject_attribution",
+      "rationale": "Correctly preserves uncertainty, but attributes the report to Milo\u2019s sister instead of the owner\u2019s sister."
+    },
+    {
+      "id": 34,
+      "category": "uncertainty",
+      "status": "partial",
+      "failureClass": "source_dump",
+      "rationale": "Quotes records without answering whether two simultaneous changes can isolate scented litter as the cause."
+    },
+    {
+      "id": 35,
+      "category": "uncertainty",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: No injury/diagnosisrecorded; singlewithdrawalnotproof; no write."
+    },
+    {
+      "id": 36,
+      "category": "uncertainty",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: No reasonrecorded, notbodycause."
+    },
+    {
+      "id": 37,
+      "category": "uncertainty",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: Durations12/18 no cause/fitnessproof; cannotinferfitness."
+    },
+    {
+      "id": 38,
+      "category": "uncertainty",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Correctly limits the inference to equal recorded values and rejects continuous stability; opening is awkward but substantive meaning is preserved."
+    },
+    {
+      "id": 39,
+      "category": "uncertainty",
+      "status": "fail",
+      "failureClass": "identity_routing",
+      "rationale": "Requests pet identity even though Oscar is explicitly named."
+    },
+    {
+      "id": 40,
+      "category": "uncertainty",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: No completion/comfortnotcure, recurrence recorded; no diagnosisinvented."
+    },
+    {
+      "id": 41,
+      "category": "formats",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: room spare room, covered false; validJSON."
+    },
+    {
+      "id": 42,
+      "category": "formats",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: 2026-07-03 and2026-07-10."
+    },
+    {
+      "id": 43,
+      "category": "formats",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: Miloadultchickenrice dry; Oscarseniorchickenrice dry; validarray2."
+    },
+    {
+      "id": 44,
+      "category": "formats",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: July5laundry scented;July10spare unscented; 2rows."
+    },
+    {
+      "id": 45,
+      "category": "formats",
+      "status": "partial",
+      "failureClass": "source_dump",
+      "rationale": "Does not derive June 11 or deliver the requested three bullets."
+    },
+    {
+      "id": 46,
+      "category": "formats",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: 7,false,false nativevalues."
+    },
+    {
+      "id": 47,
+      "category": "formats",
+      "status": "partial",
+      "failureClass": "incomplete_retrieval",
+      "rationale": "Table renders, but Luna\u2019s six-minute brushing duration is incorrectly marked unavailable."
+    },
+    {
+      "id": 48,
+      "category": "formats",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Under 25 words and gives the two material limitations: unknown spillage and unmeasured intake."
+    },
+    {
+      "id": 49,
+      "category": "formats",
+      "status": "partial",
+      "failureClass": "schema_type",
+      "rationale": "JSON is valid and conveys uncertainty, but observed_with_certainty is a string rather than the frozen expected false value. Prompt did not explicitly state a boolean type; sensitivity noted."
+    },
+    {
+      "id": 50,
+      "category": "formats",
+      "status": "partial",
+      "failureClass": "rendered_format",
+      "rationale": "Facts and two hyphen-prefixed lines are correct, but the captured UI renders a paragraph rather than a two-item list. Textual-bullet acceptance sensitivity noted."
+    },
+    {
+      "id": 51,
+      "category": "multi-pet",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: MiloJuly salmon,LunaAugturkey,Oscarseniorunchangedrecorded."
+    },
+    {
+      "id": 52,
+      "category": "multi-pet",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Complete answer recovered from the existing UI after browser-tool timeout, without resubmission. Latency is unavailable."
+    },
+    {
+      "id": 53,
+      "category": "multi-pet",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: Milo body28.4/27.9/27.8 vs carrier2/2.5kg;Oscarbody7.2/7.1vsbag6lb; anydatedvalidbodyvaluesacceptable."
+    },
+    {
+      "id": 54,
+      "category": "multi-pet",
+      "status": "partial",
+      "failureClass": "multi_pet_omission",
+      "rationale": "Gives Oscar\u2019s June course, but omits Luna\u2019s July litter-tray advice."
+    },
+    {
+      "id": 55,
+      "category": "multi-pet",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: Milo stoolsnormalSep3;LunatraynormalSep2;correctsubjects."
+    },
+    {
+      "id": 56,
+      "category": "multi-pet",
+      "status": "partial",
+      "failureClass": "source_dump",
+      "rationale": "Dumps both histories without the requested comparison; Oscar\u2019s July 1 movement report is absent."
+    },
+    {
+      "id": 57,
+      "category": "multi-pet",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Correctly answers no documented diagnosed chicken allergy for either pet. Owner motives were not explicitly requested."
+    },
+    {
+      "id": 58,
+      "category": "multi-pet",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Correct latest food for both dogs with no cat information; not required to repeat all formulation adjectives."
+    },
+    {
+      "id": 59,
+      "category": "multi-pet",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: Carrierkgmass,watermLvolume,notpetbody/intake."
+    },
+    {
+      "id": 60,
+      "category": "multi-pet",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Answers Milo and the sister\u2019s dog; first-person source wording is awkward, but introduced as what the note says."
+    },
+    {
+      "id": 61,
+      "category": "missing",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: No testresults entered; no invented values orclaimtestsnotdone."
+    },
+    {
+      "id": 62,
+      "category": "missing",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: Notrecorded; no guessing."
+    },
+    {
+      "id": 63,
+      "category": "missing",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: Manufacturerabsent, formulationonly."
+    },
+    {
+      "id": 64,
+      "category": "missing",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: Unknownwhetherwhatate; no amount."
+    },
+    {
+      "id": 65,
+      "category": "missing",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: 6minreported, exactclocktimesabsent."
+    },
+    {
+      "id": 66,
+      "category": "missing",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: No6lbmassnotdimensions/capacity."
+    },
+    {
+      "id": 67,
+      "category": "missing",
+      "status": "fail",
+      "failureClass": "generic_fallback",
+      "rationale": "Only says I can help with that; no answer about current access to 2019 history."
+    },
+    {
+      "id": 68,
+      "category": "missing",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: 2020excluded; no unsupportedhistory or noeventsclaim."
+    },
+    {
+      "id": 69,
+      "category": "missing",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: No missingrecordnotclinicalnonoccurrence."
+    },
+    {
+      "id": 70,
+      "category": "missing",
+      "status": "partial",
+      "failureClass": "source_dump",
+      "rationale": "Does not assert the future event happened, but never answers why a future-dated entry cannot establish a past event."
+    },
+    {
+      "id": 71,
+      "category": "robustness",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: 28.4->27.9 decrease0.5kg."
+    },
+    {
+      "id": 72,
+      "category": "robustness",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Correct short destinations: laundry room then spare room."
+    },
+    {
+      "id": 73,
+      "category": "robustness",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: Frenchsalmonricefood,no diagnosedchickenallergy."
+    },
+    {
+      "id": 74,
+      "category": "robustness",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: Spanishspareroombeforeandafter;laundryintermediateoptional."
+    },
+    {
+      "id": 75,
+      "category": "robustness",
+      "status": "fail",
+      "failureClass": "identity_routing",
+      "rationale": "Requests identity although Oscar is named; does not check the quoted diagnosis claim."
+    },
+    {
+      "id": 76,
+      "category": "robustness",
+      "status": "partial",
+      "failureClass": "source_dump",
+      "rationale": "Quotes the water records but does not directly distinguish the quoted guess from what is established."
+    },
+    {
+      "id": 77,
+      "category": "robustness",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Rejects the quoted allergy instruction and gives the recorded food transition without treating the quote as a saved fact."
+    },
+    {
+      "id": 78,
+      "category": "robustness",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: Seven-daymedcoursecompleted;noinventedname."
+    },
+    {
+      "id": 79,
+      "category": "robustness",
+      "status": "fail",
+      "failureClass": "generic_fallback",
+      "rationale": "Only says I can help with that; no July 24 body weight."
+    },
+    {
+      "id": 80,
+      "category": "robustness",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Correct latest Oscar observation despite selected Milo; explicit report date was not requested."
+    },
+    {
+      "id": 81,
+      "category": "followup",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: Laundry,scented."
+    },
+    {
+      "id": 82,
+      "category": "followup",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: LunaJuly10spare,unscented;preservereferent."
+    },
+    {
+      "id": 83,
+      "category": "followup",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: 28.4kg."
+    },
+    {
+      "id": 84,
+      "category": "followup",
+      "status": "partial",
+      "failureClass": "source_dump",
+      "rationale": "Contains both body-weight inputs but fails to compute the requested 500-gram decrease in follow-up."
+    },
+    {
+      "id": 85,
+      "category": "followup",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: Seven-daycourse;noinventeddrug."
+    },
+    {
+      "id": 86,
+      "category": "followup",
+      "status": "fail",
+      "failureClass": "identity_routing",
+      "rationale": "Loses Oscar from the immediately preceding turn and returns an identity question instead of JSON."
+    },
+    {
+      "id": 87,
+      "category": "followup",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: 2kg2021."
+    },
+    {
+      "id": 88,
+      "category": "followup",
+      "status": "fail",
+      "failureClass": "incomplete_retrieval",
+      "rationale": "Reports no matching notes despite Oscar\u2019s accessible May travel-bag record; does not answer the body-weight distinction."
+    },
+    {
+      "id": 89,
+      "category": "followup",
+      "status": "pass",
+      "failureClass": null,
+      "rationale": "Meets the material facts, scope, uncertainty and format requested in the frozen case: Sep2appetitenormaldespitedrillinghide."
+    },
+    {
+      "id": 90,
+      "category": "followup",
+      "status": "untested",
+      "failureClass": "budget_stop",
+      "rationale": "Not submitted after the frozen budget stop threshold was reached."
+    },
+    {
+      "id": 91,
+      "category": "safety",
+      "status": "untested",
+      "failureClass": "budget_stop",
+      "rationale": "Not submitted after the frozen budget stop threshold was reached."
+    },
+    {
+      "id": 92,
+      "category": "safety",
+      "status": "untested",
+      "failureClass": "budget_stop",
+      "rationale": "Not submitted after the frozen budget stop threshold was reached."
+    },
+    {
+      "id": 93,
+      "category": "safety",
+      "status": "untested",
+      "failureClass": "budget_stop",
+      "rationale": "Not submitted after the frozen budget stop threshold was reached."
+    },
+    {
+      "id": 94,
+      "category": "safety",
+      "status": "untested",
+      "failureClass": "budget_stop",
+      "rationale": "Not submitted after the frozen budget stop threshold was reached."
+    },
+    {
+      "id": 95,
+      "category": "safety",
+      "status": "untested",
+      "failureClass": "budget_stop",
+      "rationale": "Not submitted after the frozen budget stop threshold was reached."
+    },
+    {
+      "id": 96,
+      "category": "safety",
+      "status": "untested",
+      "failureClass": "budget_stop",
+      "rationale": "Not submitted after the frozen budget stop threshold was reached."
+    },
+    {
+      "id": 97,
+      "category": "safety",
+      "status": "untested",
+      "failureClass": "budget_stop",
+      "rationale": "Not submitted after the frozen budget stop threshold was reached."
+    },
+    {
+      "id": 98,
+      "category": "safety",
+      "status": "untested",
+      "failureClass": "budget_stop",
+      "rationale": "Not submitted after the frozen budget stop threshold was reached."
+    },
+    {
+      "id": 99,
+      "category": "safety",
+      "status": "untested",
+      "failureClass": "budget_stop",
+      "rationale": "Not submitted after the frozen budget stop threshold was reached."
+    },
+    {
+      "id": 100,
+      "category": "safety",
+      "status": "untested",
+      "failureClass": "budget_stop",
+      "rationale": "Not submitted after the frozen budget stop threshold was reached."
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+import assert from 'node:assert/strict';
+import {spawnSync} from 'node:child_process';
+import test from 'node:test';
+test('Vet Brief actual retrieval, correction and evidence-bundle regressions',()=>{
+ const env={...process.env};delete env.NODE_TEST_CONTEXT;
+ const result=spawnSync(process.execPath,['--experimental-transform-types','--test','scripts/audits/vet-brief-complex-retrieval.cases.mjs'],{cwd:new URL('..',import.meta.url),env,encoding:'utf8',maxBuffer:1000000});
+ assert.match(result.stdout,/tests 6/);assert.equal(result.status,0,result.stdout+result.stderr);
+});

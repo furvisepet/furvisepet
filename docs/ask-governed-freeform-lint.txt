@@ -1,0 +1,5 @@
+C:\Users\gwara\furvise-runner-governed-freeform-2\governed-freeform-episodes\worktree\app\lib\intelligence\persist-learnings.ts
+  141:79  warning  'supabase' is defined but never used  @typescript-eslint/no-unused-vars
+  374:77  warning  'supabase' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 2 problems (0 errors, 2 warnings)

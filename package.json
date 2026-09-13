@@ -1,0 +1,52 @@
+{
+  "name": "furvise",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "npm@11.18.0",
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
+  "scripts": {
+    "vet-brief:samples": "node scripts/generate-vet-brief-samples.mjs",
+    "idempotency:cleanup": "node --env-file=.env.local scripts/cleanup-idempotency-operations.mjs",
+    "billing:sandbox:verify": "node --env-file=.env.billing-sandbox.local scripts/verify-billing-sandbox-config.mjs",
+    "billing:sandbox:dev": "npm run billing:sandbox:verify && node scripts/start-billing-sandbox-dev.mjs",
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test:security": "node --test tests/security-phase-s2a.test.mjs tests/security-phase-s2b.test.mjs tests/security-phase-s2c.test.mjs tests/security-phase-s2d.test.mjs tests/security-phase-s2e.test.mjs tests/security-phase-s2f.test.mjs tests/security-phase-s2g.test.mjs tests/security-phase-s2h.test.mjs tests/password-capability-state.test.mjs tests/ask-conversation-authority-foundation.test.mjs tests/ask-conversation-authority-lock.test.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@pdf-lib/fontkit": "1.1.1",
+    "@sentry/nextjs": "^10.69.0",
+    "@supabase/ssr": "0.10.0",
+    "@supabase/supabase-js": "^2.108.2",
+    "@upstash/redis": "1.38.0",
+    "next": "16.3.4",
+    "openai": "^6.44.0",
+    "pdf-lib": "^1.17.1",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "stripe": "22.5.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "16.3.4",
+    "supabase": "^2.111.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^6.0.3"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "8.5.25",
+      "sharp": "0.35.4"
+    }
+  }
+}

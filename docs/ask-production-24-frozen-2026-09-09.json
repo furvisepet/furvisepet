@@ -1,0 +1,209 @@
+{
+  "frozenAt": "2026-09-09T19:26:36.599762+00:00",
+  "applicationCommit": "8637ce9fc8b5814dd11774f0cf921175cecd287f",
+  "kind": "production UI acceptance; 4 known regressions and 20 new questions on existing fixture",
+  "baselineOvernight": {
+    "strict": 163,
+    "total": 200,
+    "records": 1169
+  },
+  "authorizedAdditionalUsd": 5,
+  "maxSubmissions": 24,
+  "perSubmissionAppReservationUsd": 0.16716,
+  "maxAppReservationUsd": 4.01184,
+  "pricingQualification": "Application policy reservation at 20000 input and4096 output tokens times5 calls; not measured provider invoice. Stop on unexpected provider/model or extra calls.",
+  "cases": [
+    {
+      "id": 1,
+      "group": "regression",
+      "pet": "Luna",
+      "question": "What was the combined price of Luna's October 2023 feather toy and replacement wand?",
+      "expected": "20.00 CAD; operands 7.50 and12.50, no unrelated currency.",
+      "continuePrevious": false
+    },
+    {
+      "id": 2,
+      "group": "regression",
+      "pet": "Luna",
+      "question": "For Luna's September 7, 2024 note, separate the note date, refused-breakfast date and normal-eating date.",
+      "expected": "NoteSep7; refusalSep5; normalSep6 2024.",
+      "continuePrevious": false
+    },
+    {
+      "id": 3,
+      "group": "regression",
+      "pet": "Milo",
+      "question": "Fictional exercise only; do not save or apply this to my pets. The quotation says 'I saved a booking', but it is dialogue in a novel. Identify it as fictional dialogue without claiming you booked anything.",
+      "expected": "Identify fictional dialogue; no actual booking receipt or generic replacement disclaimer.",
+      "continuePrevious": false
+    },
+    {
+      "id": 4,
+      "group": "regression",
+      "pet": "Luna",
+      "question": "What triggered Luna's hiding on December 3, 2021, and how long did the noise last?",
+      "expected": "Vacuum cleaner;9minutes; does not invent disease.",
+      "continuePrevious": false
+    },
+    {
+      "id": 5,
+      "group": "new_history",
+      "pet": "Milo",
+      "question": "For Milo's October 3, 2025 scale reading, apply only the correction recorded the following day. What corrected body mass results?",
+      "expected": "29.0\u22120.5=28.5kg; no changing other readings.",
+      "continuePrevious": false
+    },
+    {
+      "id": 6,
+      "group": "new_history",
+      "pet": "Oscar",
+      "question": "In Oscar's August 2023 weighing, use the corrected blanket mass. Give the loaded mass, corrected blanket mass, and body-only result.",
+      "expected": "8.6kg loaded;0.6kg blanket;8.0kg body.",
+      "continuePrevious": false
+    },
+    {
+      "id": 7,
+      "group": "new_history",
+      "pet": "Luna",
+      "question": "Who actually saw Luna pawing at the window in the July 4, 2023 note, and who relayed it?",
+      "expected": "Lea observed; Maya relayed; Lea is Maya sister.",
+      "continuePrevious": false
+    },
+    {
+      "id": 8,
+      "group": "new_history",
+      "pet": "Luna",
+      "question": "Luna's September 9 reminder is newer than her clinic check. Does it change the latest recorded body mass? Give the mass and measurement date.",
+      "expected": "No;4.7kg Sep8 2026; bowl reminder no measurement.",
+      "continuePrevious": false
+    },
+    {
+      "id": 9,
+      "group": "new_history",
+      "pet": "Oscar",
+      "question": "Oscar's September 8, 2026 visit describes comfortable ramp use. Can you give the exact day his ramp hesitation ended?",
+      "expected": "No; observationonSep8 doesnotdate recovery.",
+      "continuePrevious": false
+    },
+    {
+      "id": 10,
+      "group": "new_history",
+      "pet": "Milo",
+      "question": "Compare the subject of Milo's October 2024 illness note with the subject of his August 2026 'sick find' comment.",
+      "expected": "Owner ill Oct2024; toy slang Aug2026; neither note establishes Milo illness; avoid universal noillness.",
+      "continuePrevious": false
+    },
+    {
+      "id": 11,
+      "group": "new_history",
+      "pet": "Luna",
+      "question": "In Luna's February 7, 2026 record, is the 40-minute appointment her grooming time? State whose durations are whose.",
+      "expected": "No;Luna7minutes grooming;ownerMaya40minutes appointment.",
+      "continuePrevious": false
+    },
+    {
+      "id": 12,
+      "group": "new_history",
+      "pet": "Oscar",
+      "question": "Use Oscar's May 6, 2024 note: convert the morning walk to minutes and add the evening walk. Give one total.",
+      "expected": "600sec=10min;+12=22minutes.",
+      "continuePrevious": false
+    },
+    {
+      "id": 13,
+      "group": "new_history",
+      "pet": "Milo",
+      "question": "From Milo's April 5, 2026 treat-bag note, give the bag-mass decrease and explain whether that is Milo's personal intake.",
+      "expected": "50g decrease;sharedwithOscar possible;individualintakeunknown.",
+      "continuePrevious": false
+    },
+    {
+      "id": 14,
+      "group": "new_history",
+      "pet": "Luna",
+      "question": "In Luna's December 7, 2022 record, what does the 1200 g measurement belong to? Answer in one sentence.",
+      "expected": "Foodparcel1.2kg;notLunabody;onesentence.",
+      "continuePrevious": false
+    },
+    {
+      "id": 15,
+      "group": "new_supplied",
+      "pet": "Milo",
+      "question": "Fictional arithmetic only, do not save: a mat costs 9.25 CAD and delivery 3.75 CAD. Return the combined cost, currency included, nothing else.",
+      "expected": "13.00 CAD or13CAD only.",
+      "continuePrevious": false
+    },
+    {
+      "id": 16,
+      "group": "new_supplied",
+      "pet": "Milo",
+      "question": "Fictional exercise, no saving: a collar costs 8 CAD and a tag costs 6 USD. Can these be totaled as 14 CAD without an exchange rate?",
+      "expected": "No;differentcurrencies;exchange raterequired;noinventedrate.",
+      "continuePrevious": false
+    },
+    {
+      "id": 17,
+      "group": "new_supplied",
+      "pet": "Milo",
+      "question": "Fictional record interpretation, no saving: 'Owner Jo had a headache; cat Vale stayed home.' Who is reported to have the headache, and what is unknown about Vale?",
+      "expected": "Jo;Vale headache/healthunknown;avoidVale didnot haveit.",
+      "continuePrevious": false
+    },
+    {
+      "id": 18,
+      "group": "new_supplied",
+      "pet": "Milo",
+      "question": "Fictional lab sheet: the status is NOT PERFORMED. Is 'negative' or 'indeterminate test result' an accurate replacement? Keep it concise; save nothing.",
+      "expected": "Neither;notperformedmeansnotest;indeterminate impliesperformedinconclusive.",
+      "continuePrevious": false
+    },
+    {
+      "id": 19,
+      "group": "new_supplied",
+      "pet": "Milo",
+      "question": "Fictional table only; save nothing. Return CSV with header item,cost and two rows: item 'Toy, blue' costs 4; item 'Mat' costs 6.",
+      "expected": "CSVonly;\"Toy, blue\",4;Mat,6;headeritem,cost.",
+      "continuePrevious": false
+    },
+    {
+      "id": 20,
+      "group": "new_capability",
+      "pet": "Milo",
+      "question": "If Ask is limited to three months on a plan, does that itself erase older History entries? Explain access versus storage without changing anything.",
+      "expected": "No;Askaccesswindownotdeletion;doesnotdenystoredhistorycapability.",
+      "continuePrevious": false
+    },
+    {
+      "id": 21,
+      "group": "new_followup",
+      "pet": "Milo",
+      "question": "Fictional scenario only, do not save: Tess the cat ate no breakfast on Monday, but ate her normal dinner Monday. What missed meal is established?",
+      "expected": "BreakfastMondayonly;fictionalTess.",
+      "continuePrevious": false
+    },
+    {
+      "id": 22,
+      "group": "new_followup",
+      "pet": "Milo",
+      "question": "Does that prove she ate nothing all Monday?",
+      "expected": "No;dinnernormal;retainTessfiction.",
+      "continuePrevious": true
+    },
+    {
+      "id": 23,
+      "group": "new_followup",
+      "pet": "Milo",
+      "question": "Her owner says 'I felt nauseous that afternoon'. Whose nausea is actually reported?",
+      "expected": "OwnernotTess;attributionfirstperson.",
+      "continuePrevious": true
+    },
+    {
+      "id": 24,
+      "group": "new_followup",
+      "pet": "Milo",
+      "question": "Now give two bullets: the established meal facts, and whose symptom was reported. Do not turn any of this into saved pet history.",
+      "expected": "Exactly2bullets;Tessmissedbreakfastatedinner;ownernausea;nosave.",
+      "continuePrevious": true
+    }
+  ]
+}

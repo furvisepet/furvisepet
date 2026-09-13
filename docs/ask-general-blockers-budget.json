@@ -1,0 +1,2584 @@
+{
+  "authorizedUsd": 2.4,
+  "reservationStopUsd": 2.4,
+  "priorTrackedUsd": 7.35527075,
+  "reservedUsd": 0.43858424999999984,
+  "measuredUsd": 0.4385842500000002,
+  "calls": [
+    {
+      "number": 1,
+      "question": "Return only JSON with Juniper’s earlier_crate_kg, later_crate_kg and crate_increase_kg. Use the crate measurements.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.035427,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 4080,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"What are Juniper’s earlier_crate_kg, later_crate_kg, and crate_increase_kg based on the crate measurements?\",\"requirements\":[\"Return only JSON.\",\"Include Juniper’s earlier_crate_kg, later_crate_kg, and crate_increase_kg.\",\"Use the crate measurements.\",\"Compute crate_increase_kg from the earlier and later crate measurements.\"],\"referenceTurnIds\":[],\"outputFormat\":\"json\",\"scope\":\"selected\",\"petNames\":[],\"operation\":\"comparison\",\"selection\":\"comparison\",\"quantity\":\"measurement\",\"topic\":\"crate measurements\",\"terms\":[\"crate measurements\",\"earlier crate\",\"later crate\",\"increase\"],\"from\":null,\"to\":null,\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4718,
+      "outputTokens": 328,
+      "measuredUsd": 0.0050145,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "What are Juniper’s earlier_crate_kg, later_crate_kg, and crate_increase_kg based on the crate measurements?",
+        "requirements": [
+          "Return only JSON.",
+          "Include Juniper’s earlier_crate_kg, later_crate_kg, and crate_increase_kg.",
+          "Use the crate measurements.",
+          "Compute crate_increase_kg from the earlier and later crate measurements."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "json",
+        "scope": "selected",
+        "petNames": [],
+        "operation": "comparison",
+        "selection": "comparison",
+        "quantity": "measurement",
+        "topic": "crate measurements",
+        "terms": [
+          "crate measurements",
+          "earlier crate",
+          "later crate",
+          "increase"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 2,
+      "question": "Return only JSON with Juniper’s earlier_crate_kg, later_crate_kg and crate_increase_kg. Use the crate measurements.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.041067,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 4290,
+      "rawOutput": "{\"historyNarrative\":null,\"safetyLevel\":\"normal\",\"responseMode\":\"clarification\",\"userIntent\":\"Return Juniper’s earlier crate weight, later crate weight, and the crate increase from the crate measurements in JSON.\",\"relevantContextIds\":[\"care:gear-old\",\"care:gear-new\"],\"json\":{\"value\":{\"kind\":\"object\",\"entries\":[{\"key\":\"earlier_crate_kg\",\"value\":4},{\"key\":\"later_crate_kg\",\"value\":6},{\"key\":\"crate_increase_kg\",\"value\":2}]},\"sourceIds\":[\"care:gear-old\",\"care:gear-new\"],\"calculations\":[{\"operation\":\"difference\",\"operands\":[{\"sourceId\":\"care:gear-new\",\"field\":\"text\",\"literal\":\"6 kg\"},{\"sourceId\":\"care:gear-old\",\"field\":\"text\",\"literal\":\"4 kg\"}],\"value\":2,\"unit\":\"kg\"}]},\"readVersion\":\"history-answer.v1\",\"layout\":\"json\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 6281,
+      "outputTokens": 610,
+      "measuredUsd": 0.00745575,
+      "syntheticResponse": {
+        "historyNarrative": null,
+        "safetyLevel": "normal",
+        "responseMode": "clarification",
+        "userIntent": "Return Juniper’s earlier crate weight, later crate weight, and the crate increase from the crate measurements in JSON.",
+        "relevantContextIds": [
+          "care:gear-old",
+          "care:gear-new"
+        ],
+        "json": {
+          "value": {
+            "kind": "object",
+            "entries": [
+              {
+                "key": "earlier_crate_kg",
+                "value": 4
+              },
+              {
+                "key": "later_crate_kg",
+                "value": 6
+              },
+              {
+                "key": "crate_increase_kg",
+                "value": 2
+              }
+            ]
+          },
+          "sourceIds": [
+            "care:gear-old",
+            "care:gear-new"
+          ],
+          "calculations": [
+            {
+              "operation": "difference",
+              "operands": [
+                {
+                  "sourceId": "care:gear-new",
+                  "field": "text",
+                  "literal": "6 kg"
+                },
+                {
+                  "sourceId": "care:gear-old",
+                  "field": "text",
+                  "literal": "4 kg"
+                }
+              ],
+              "value": 2,
+              "unit": "kg"
+            }
+          ]
+        },
+        "readVersion": "history-answer.v1",
+        "layout": "json",
+        "limitation": null,
+        "table": null
+      }
+    },
+    {
+      "number": 3,
+      "question": "Return only JSON with Juniper’s earlier_crate_kg, later_crate_kg and crate_increase_kg. Use the crate measurements.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.02017275,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1282,
+      "rawOutput": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rejectionReason\":null}",
+      "inputTokens": 3730,
+      "outputTokens": 130,
+      "measuredUsd": 0.0033825,
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rejectionReason\":null}"
+    },
+    {
+      "number": 4,
+      "question": "Compare the two recorded ride durations for Juniper, including their difference in minutes.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0354075,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 2158,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"Compare the two recorded ride durations for Juniper and include their difference in minutes.\",\"requirements\":[\"Compare both recorded ride durations for Juniper.\",\"Include the difference between the two durations in minutes.\",\"Use the selected pet Juniper.\",\"Return the answer in prose unless a different format is required.\"],\"referenceTurnIds\":[],\"outputFormat\":\"prose\",\"scope\":\"selected\",\"petNames\":[],\"operation\":\"comparison\",\"selection\":\"comparison\",\"quantity\":\"duration\",\"topic\":\"ride durations\",\"terms\":[\"ride duration\",\"duration\",\"minutes\"],\"from\":null,\"to\":null,\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4704,
+      "outputTokens": 242,
+      "measuredUsd": 0.004617,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "Compare the two recorded ride durations for Juniper and include their difference in minutes.",
+        "requirements": [
+          "Compare both recorded ride durations for Juniper.",
+          "Include the difference between the two durations in minutes.",
+          "Use the selected pet Juniper.",
+          "Return the answer in prose unless a different format is required."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "prose",
+        "scope": "selected",
+        "petNames": [],
+        "operation": "comparison",
+        "selection": "comparison",
+        "quantity": "duration",
+        "topic": "ride durations",
+        "terms": [
+          "ride duration",
+          "duration",
+          "minutes"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 5,
+      "question": "Compare the two recorded ride durations for Juniper, including their difference in minutes.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.040632,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 4016,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[],\"text\":\"Juniper's recorded ride durations were 7 minutes and 18 minutes.\",\"sourceIds\":[\"care:gear-old\",\"care:gear-new\"]},{\"calculations\":[{\"operation\":\"difference\",\"operands\":[{\"sourceId\":\"care:gear-new\",\"field\":\"text\",\"literal\":\"18 minutes\"},{\"sourceId\":\"care:gear-old\",\"field\":\"text\",\"literal\":\"7 minutes\"}],\"value\":11,\"unit\":\"minutes\"}],\"text\":\"The 18-minute ride was 11 minutes longer than the 7-minute ride.\",\"sourceIds\":[\"care:gear-old\",\"care:gear-new\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"Compare two recorded ride durations and report their difference in minutes.\",\"relevantContextIds\":[\"care:gear-old\",\"care:gear-new\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 6121,
+      "outputTokens": 735,
+      "measuredUsd": 0.00789825,
+      "syntheticResponse": {
+        "historyNarrative": {
+          "sentences": [
+            {
+              "calculations": [],
+              "text": "Juniper's recorded ride durations were 7 minutes and 18 minutes.",
+              "sourceIds": [
+                "care:gear-old",
+                "care:gear-new"
+              ]
+            },
+            {
+              "calculations": [
+                {
+                  "operation": "difference",
+                  "operands": [
+                    {
+                      "sourceId": "care:gear-new",
+                      "field": "text",
+                      "literal": "18 minutes"
+                    },
+                    {
+                      "sourceId": "care:gear-old",
+                      "field": "text",
+                      "literal": "7 minutes"
+                    }
+                  ],
+                  "value": 11,
+                  "unit": "minutes"
+                }
+              ],
+              "text": "The 18-minute ride was 11 minutes longer than the 7-minute ride.",
+              "sourceIds": [
+                "care:gear-old",
+                "care:gear-new"
+              ]
+            }
+          ]
+        },
+        "safetyLevel": "normal",
+        "responseMode": "practical_guidance",
+        "userIntent": "Compare two recorded ride durations and report their difference in minutes.",
+        "relevantContextIds": [
+          "care:gear-old",
+          "care:gear-new"
+        ],
+        "json": null,
+        "readVersion": "history-answer.v1",
+        "layout": "prose",
+        "limitation": null,
+        "table": null
+      }
+    },
+    {
+      "number": 6,
+      "question": "Compare the two recorded ride durations for Juniper, including their difference in minutes.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.020154,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 2895,
+      "rawOutput": "{\"approved\":false,\"retainedSentenceIndexes\":[],\"obligations\":[{\"index\":0,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":1,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":2,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":3,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":4,\"status\":\"missing\",\"sentenceIndexes\":[]}],\"rejectionReason\":\"The draft’s comparison sentence is supportable, but the difference sentence is deterministically invalid and cannot be approved, so the answer does not fully include the requested comparison in minutes.\"}",
+      "inputTokens": 3627,
+      "outputTokens": 246,
+      "measuredUsd": 0.00382725,
+      "review": "{\"approved\":false,\"retainedSentenceIndexes\":[],\"obligations\":[{\"index\":0,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":1,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":2,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":3,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":4,\"status\":\"missing\",\"sentenceIndexes\":[]}],\"rejectionReason\":\"The draft’s comparison sentence is supportable, but the difference sentence is deterministically invalid and cannot be approved, so the answer does not fully include the requested comparison in minutes.\"}"
+    },
+    {
+      "number": 7,
+      "question": "Compare the two recorded ride durations for Juniper, including their difference in minutes.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.02656125,
+      "phase": "furvise_history_repair",
+      "status": "completed",
+      "elapsedMs": 6196,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[],\"text\":\"Juniper’s recorded ride durations were 7 minutes and 18 minutes.\",\"sourceIds\":[\"care:gear-old\",\"care:gear-new\"]},{\"calculations\":[{\"operation\":\"difference\",\"operands\":[{\"sourceId\":\"care:gear-new\",\"field\":\"text\",\"literal\":\"18 minutes\"},{\"sourceId\":\"care:gear-old\",\"field\":\"text\",\"literal\":\"7 minutes\"}],\"value\":11,\"unit\":\"minutes\"}],\"text\":\"The 18-minute ride was 11 minutes longer than the 7-minute ride.\",\"sourceIds\":[\"care:gear-old\",\"care:gear-new\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"history\",\"relevantContextIds\":[\"care:gear-old\",\"care:gear-new\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 4002,
+      "outputTokens": 646,
+      "measuredUsd": 0.0059085
+    },
+    {
+      "number": 8,
+      "question": "How much water did Maple drink between the two bowl observations? Explain whether the saved measurements can establish intake.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03543375,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 2458,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"How much water did Maple drink between the two bowl observations, and can the saved measurements establish Maple's intake?\",\"requirements\":[\"Answer in prose.\",\"Explain the calculation or comparison used, if the records support one.\",\"State clearly whether the saved measurements are sufficient to establish intake or only suggest it.\"],\"referenceTurnIds\":[],\"outputFormat\":\"prose\",\"scope\":\"named\",\"petNames\":[\"Maple\"],\"operation\":\"comparison\",\"selection\":\"summary\",\"quantity\":\"measurement\",\"topic\":\"water intake from bowl observations\",\"terms\":[\"water\",\"bowl\",\"measurement\",\"intake\"],\"from\":null,\"to\":null,\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4709,
+      "outputTokens": 320,
+      "measuredUsd": 0.0049717500000000005,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "How much water did Maple drink between the two bowl observations, and can the saved measurements establish Maple's intake?",
+        "requirements": [
+          "Answer in prose.",
+          "Explain the calculation or comparison used, if the records support one.",
+          "State clearly whether the saved measurements are sufficient to establish intake or only suggest it."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "prose",
+        "scope": "named",
+        "petNames": [
+          "Maple"
+        ],
+        "operation": "comparison",
+        "selection": "summary",
+        "quantity": "measurement",
+        "topic": "water intake from bowl observations",
+        "terms": [
+          "water",
+          "bowl",
+          "measurement",
+          "intake"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 9,
+      "question": "How much water did Maple drink between the two bowl observations? Explain whether the saved measurements can establish intake.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.040403999999999995,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 3332,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[],\"text\":\"The saved measurements do not establish how much Maple drank between the two bowl observations.\",\"sourceIds\":[\"care:drink-old\",\"care:drink-new\"]},{\"calculations\":[],\"text\":\"One record only says 320 ml was offered and that drinking was not measured, while the later record says 90 ml remained after a spill and that the spilled amount and Maple’s intake are unknown, so there is no reliable way to calculate her intake from these entries.\",\"sourceIds\":[\"care:drink-old\",\"care:drink-new\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"Compare two bowl observations to determine whether Maple's water intake can be established from saved measurements.\",\"relevantContextIds\":[\"care:drink-old\",\"care:drink-new\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 6039,
+      "outputTokens": 554,
+      "measuredUsd": 0.007022250000000001,
+      "syntheticResponse": {
+        "historyNarrative": {
+          "sentences": [
+            {
+              "calculations": [],
+              "text": "The saved measurements do not establish how much Maple drank between the two bowl observations.",
+              "sourceIds": [
+                "care:drink-old",
+                "care:drink-new"
+              ]
+            },
+            {
+              "calculations": [],
+              "text": "One record only says 320 ml was offered and that drinking was not measured, while the later record says 90 ml remained after a spill and that the spilled amount and Maple’s intake are unknown, so there is no reliable way to calculate her intake from these entries.",
+              "sourceIds": [
+                "care:drink-old",
+                "care:drink-new"
+              ]
+            }
+          ]
+        },
+        "safetyLevel": "normal",
+        "responseMode": "practical_guidance",
+        "userIntent": "Compare two bowl observations to determine whether Maple's water intake can be established from saved measurements.",
+        "relevantContextIds": [
+          "care:drink-old",
+          "care:drink-new"
+        ],
+        "json": null,
+        "readVersion": "history-answer.v1",
+        "layout": "prose",
+        "limitation": null,
+        "table": null
+      }
+    },
+    {
+      "number": 10,
+      "question": "How much water did Maple drink between the two bowl observations? Explain whether the saved measurements can establish intake.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.020139,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1492,
+      "rawOutput": "{\"approved\":true,\"retainedSentenceIndexes\":[0,1],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[1]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0,1]}],\"rejectionReason\":null}",
+      "inputTokens": 3568,
+      "outputTokens": 204,
+      "measuredUsd": 0.003594,
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0,1],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[1]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0,1]}],\"rejectionReason\":null}"
+    },
+    {
+      "number": 11,
+      "question": "Quote Tansy’s blanket and settling note exactly, then give one limitation of that observation.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03541125,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 2986,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"For Tansy, quote the blanket and settling note exactly, then give one limitation of that observation.\",\"requirements\":[\"Answer in English.\",\"Quote the note exactly, preserving wording and punctuation.\",\"Then provide one limitation of the observation.\",\"Do not add unrelated details.\"],\"referenceTurnIds\":[],\"outputFormat\":\"prose\",\"scope\":\"named\",\"petNames\":[\"Tansy\"],\"operation\":\"recall\",\"selection\":\"latest\",\"quantity\":null,\"topic\":\"blanket and settling note\",\"terms\":[\"blanket\",\"settling\",\"note\",\"observation\",\"limitation\"],\"from\":null,\"to\":null,\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4707,
+      "outputTokens": 383,
+      "measuredUsd": 0.00525375,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "For Tansy, quote the blanket and settling note exactly, then give one limitation of that observation.",
+        "requirements": [
+          "Answer in English.",
+          "Quote the note exactly, preserving wording and punctuation.",
+          "Then provide one limitation of the observation.",
+          "Do not add unrelated details."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "prose",
+        "scope": "named",
+        "petNames": [
+          "Tansy"
+        ],
+        "operation": "recall",
+        "selection": "latest",
+        "quantity": null,
+        "topic": "blanket and settling note",
+        "terms": [
+          "blanket",
+          "settling",
+          "note",
+          "observation",
+          "limitation"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 12,
+      "question": "Quote Tansy’s blanket and settling note exactly, then give one limitation of that observation.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.039909,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 5112,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[],\"text\":\"“Tansy’s blanket was dry. Tansy settled after the door closed.”\",\"sourceIds\":[\"care:blanket\"]},{\"calculations\":[],\"text\":\"One limitation is that this is only a brief observation, so it does not explain why he settled or how long that state lasted.\",\"sourceIds\":[\"care:blanket\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"conversational\",\"userIntent\":\"Recall and quote the blanket and settling note for Tansy, then state one limitation of the observation.\",\"relevantContextIds\":[\"care:blanket\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 5991,
+      "outputTokens": 466,
+      "measuredUsd": 0.00659025,
+      "syntheticResponse": {
+        "historyNarrative": {
+          "sentences": [
+            {
+              "calculations": [],
+              "text": "“Tansy’s blanket was dry. Tansy settled after the door closed.”",
+              "sourceIds": [
+                "care:blanket"
+              ]
+            },
+            {
+              "calculations": [],
+              "text": "One limitation is that this is only a brief observation, so it does not explain why he settled or how long that state lasted.",
+              "sourceIds": [
+                "care:blanket"
+              ]
+            }
+          ]
+        },
+        "safetyLevel": "normal",
+        "responseMode": "conversational",
+        "userIntent": "Recall and quote the blanket and settling note for Tansy, then state one limitation of the observation.",
+        "relevantContextIds": [
+          "care:blanket"
+        ],
+        "json": null,
+        "readVersion": "history-answer.v1",
+        "layout": "prose",
+        "limitation": null,
+        "table": null
+      }
+    },
+    {
+      "number": 13,
+      "question": "Quote Tansy’s blanket and settling note exactly, then give one limitation of that observation.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.01953675,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 2897,
+      "rawOutput": "{\"approved\":false,\"retainedSentenceIndexes\":[],\"obligations\":[{\"index\":0,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":1,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":2,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":3,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":4,\"status\":\"missing\",\"sentenceIndexes\":[]}],\"rejectionReason\":\"The quote is supported, but the limitation sentence adds unsupported details (“brief observation,” “how long that state lasted”) and the draft does not provide a fully supported limitation in the required form.\"}",
+      "inputTokens": 3441,
+      "outputTokens": 417,
+      "measuredUsd": 0.00445725,
+      "review": "{\"approved\":false,\"retainedSentenceIndexes\":[],\"obligations\":[{\"index\":0,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":1,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":2,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":3,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":4,\"status\":\"missing\",\"sentenceIndexes\":[]}],\"rejectionReason\":\"The quote is supported, but the limitation sentence adds unsupported details (“brief observation,” “how long that state lasted”) and the draft does not provide a fully supported limitation in the required form.\"}"
+    },
+    {
+      "number": 14,
+      "question": "Quote Tansy’s blanket and settling note exactly, then give one limitation of that observation.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.025896750000000003,
+      "phase": "furvise_history_repair",
+      "status": "completed",
+      "elapsedMs": 2293,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[],\"text\":\"“Tansy’s blanket was dry. Tansy settled after the door closed.”\",\"sourceIds\":[\"care:blanket\"]},{\"calculations\":[],\"text\":\"One limitation is that it does not say why Tansy settled.\",\"sourceIds\":[\"care:blanket\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"history\",\"relevantContextIds\":[\"care:blanket\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 3802,
+      "outputTokens": 368,
+      "measuredUsd": 0.004507499999999999
+    },
+    {
+      "number": 15,
+      "question": "Quote Tansy’s blanket and settling note exactly, then give one limitation of that observation.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.01948575,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1375,
+      "rawOutput": "{\"approved\":true,\"retainedSentenceIndexes\":[0,1],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[1]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0,1]}],\"rejectionReason\":null}",
+      "inputTokens": 3429,
+      "outputTokens": 183,
+      "measuredUsd": 0.00339525,
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0,1],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[1]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0,1]}],\"rejectionReason\":null}"
+    },
+    {
+      "number": 16,
+      "question": "As of September 5, what was Tansy’s latest recorded overnight waking observation? Include the date and any unknown cause.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0354315,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 3007,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"As of September 5, what was Tansy’s latest recorded overnight waking observation, including the date and any unknown cause?\",\"requirements\":[\"Return the latest recorded overnight waking observation for Tansy as of September 5.\",\"Include the observation date.\",\"Include any cause that is unknown, if recorded.\"],\"referenceTurnIds\":[],\"outputFormat\":\"prose\",\"scope\":\"named\",\"petNames\":[\"Tansy\"],\"operation\":\"recall\",\"selection\":\"latest\",\"quantity\":\"episodes\",\"topic\":\"overnight waking observation\",\"terms\":[\"overnight waking\",\"waking\",\"unknown cause\"],\"from\":null,\"to\":\"2026-09-06\",\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4714,
+      "outputTokens": 449,
+      "measuredUsd": 0.005556,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "As of September 5, what was Tansy’s latest recorded overnight waking observation, including the date and any unknown cause?",
+        "requirements": [
+          "Return the latest recorded overnight waking observation for Tansy as of September 5.",
+          "Include the observation date.",
+          "Include any cause that is unknown, if recorded."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "prose",
+        "scope": "named",
+        "petNames": [
+          "Tansy"
+        ],
+        "operation": "recall",
+        "selection": "latest",
+        "quantity": "episodes",
+        "topic": "overnight waking observation",
+        "terms": [
+          "overnight waking",
+          "waking",
+          "unknown cause"
+        ],
+        "from": null,
+        "to": "2026-09-06",
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 17,
+      "question": "As of September 5, what was Tansy’s latest recorded overnight waking observation? Include the date and any unknown cause.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03945675,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 1941,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[],\"text\":\"As of September 5, Tansy’s latest recorded overnight waking observation was on September 2: he woke three times overnight, and no cause was recorded.\",\"sourceIds\":[\"care:rest\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"Find the latest recorded overnight waking observation for Tansy as of September 5, including the date and any unknown or\"\n,\"relevantContextIds\":[\"care:rest\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 5849,
+      "outputTokens": 320,
+      "measuredUsd": 0.00582675,
+      "syntheticResponse": {
+        "historyNarrative": {
+          "sentences": [
+            {
+              "calculations": [],
+              "text": "As of September 5, Tansy’s latest recorded overnight waking observation was on September 2: he woke three times overnight, and no cause was recorded.",
+              "sourceIds": [
+                "care:rest"
+              ]
+            }
+          ]
+        },
+        "safetyLevel": "normal",
+        "responseMode": "practical_guidance",
+        "userIntent": "Find the latest recorded overnight waking observation for Tansy as of September 5, including the date and any unknown or",
+        "relevantContextIds": [
+          "care:rest"
+        ],
+        "json": null,
+        "readVersion": "history-answer.v1",
+        "layout": "prose",
+        "limitation": null,
+        "table": null
+      }
+    },
+    {
+      "number": 18,
+      "question": "As of September 5, what was Tansy’s latest recorded overnight waking observation? Include the date and any unknown cause.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.01936125,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 2798,
+      "rawOutput": "{\"approved\":false,\"retainedSentenceIndexes\":[],\"obligations\":[{\"index\":0,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":1,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":2,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":3,\"status\":\"missing\",\"sentenceIndexes\":[]}],\"rejectionReason\":\"The only draft sentence is marked deterministically invalid, so no supported coherent answer can be approved.\"}",
+      "inputTokens": 3401,
+      "outputTokens": 194,
+      "measuredUsd": 0.00342375,
+      "review": "{\"approved\":false,\"retainedSentenceIndexes\":[],\"obligations\":[{\"index\":0,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":1,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":2,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":3,\"status\":\"missing\",\"sentenceIndexes\":[]}],\"rejectionReason\":\"The only draft sentence is marked deterministically invalid, so no supported coherent answer can be approved.\"}"
+    },
+    {
+      "number": 19,
+      "question": "As of September 5, what was Tansy’s latest recorded overnight waking observation? Include the date and any unknown cause.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.02567175,
+      "phase": "furvise_history_repair",
+      "status": "completed",
+      "elapsedMs": 2561,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[],\"text\":\"As of September 5, Tansy’s latest recorded overnight waking observation was on September 2: Tansy woke three times overnight, and no cause was recorded.\",\"sourceIds\":[\"care:rest\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"history\",\"relevantContextIds\":[\"care:rest\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 3761,
+      "outputTokens": 389,
+      "measuredUsd": 0.00457125
+    },
+    {
+      "number": 20,
+      "question": "Return only JSON with Juniper’s earlier_crate_kg, later_crate_kg and crate_increase_kg. Use the crate measurements.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.035427,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 2591,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"What are Juniper’s earlier_crate_kg, later_crate_kg, and crate_increase_kg based on the crate measurements?\",\"requirements\":[\"Return only JSON.\",\"Include Juniper’s earlier_crate_kg, later_crate_kg, and crate_increase_kg.\",\"Use the crate measurements.\"],\"referenceTurnIds\":[],\"outputFormat\":\"json\",\"scope\":\"selected\",\"petNames\":[],\"operation\":\"comparison\",\"selection\":\"comparison\",\"quantity\":\"measurement\",\"topic\":\"crate measurements\",\"terms\":[\"crate\",\"measurement\",\"kg  entityRefID\",\"select PET\"],\"from\":null,\"to\":null,\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4718,
+      "outputTokens": 323,
+      "measuredUsd": 0.004992,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "What are Juniper’s earlier_crate_kg, later_crate_kg, and crate_increase_kg based on the crate measurements?",
+        "requirements": [
+          "Return only JSON.",
+          "Include Juniper’s earlier_crate_kg, later_crate_kg, and crate_increase_kg.",
+          "Use the crate measurements."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "json",
+        "scope": "selected",
+        "petNames": [],
+        "operation": "comparison",
+        "selection": "comparison",
+        "quantity": "measurement",
+        "topic": "crate measurements",
+        "terms": [
+          "crate",
+          "measurement",
+          "kg  entityRefID",
+          "select PET"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 21,
+      "question": "Return only JSON with Juniper’s earlier_crate_kg, later_crate_kg and crate_increase_kg. Use the crate measurements.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.04948575,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 2726,
+      "rawOutput": "{\"historyNarrative\":null,\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"Return only JSON with Juniper’s earlier_crate_kg, later_crate_kg and crate_increase_kg using the crate measurements.\",\"relevantContextIds\":[\"care:gear-old\",\"care:gear-new\"],\"json\":{\"value\":{\"kind\":\"object\",\"entries\":[{\"key\":\"earlier_crate_kg\",\"value\":4},{\"key\":\"later_crate_kg\",\"value\":6},{\"key\":\"crate_increase_kg\",\"value\":2}]},\"sourceIds\":[\"care:gear-old\",\"care:gear-new\"],\"calculations\":[{\"operation\":\"difference\",\"operands\":[{\"sourceId\":\"care:gear-new\",\"field\":\"text\",\"literal\":\"6 kg\"},{\"sourceId\":\"care:gear-old\",\"field\":\"text\",\"literal\":\"4 kg\"}],\"value\":2,\"unit\":\"kg\"}]},\"readVersion\":\"history-answer.v1\",\"layout\":\"json\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 9198,
+      "outputTokens": 398,
+      "measuredUsd": 0.0086895,
+      "syntheticResponse": {
+        "historyNarrative": null,
+        "safetyLevel": "normal",
+        "responseMode": "practical_guidance",
+        "userIntent": "Return only JSON with Juniper’s earlier_crate_kg, later_crate_kg and crate_increase_kg using the crate measurements.",
+        "relevantContextIds": [
+          "care:gear-old",
+          "care:gear-new"
+        ],
+        "json": {
+          "value": {
+            "kind": "object",
+            "entries": [
+              {
+                "key": "earlier_crate_kg",
+                "value": 4
+              },
+              {
+                "key": "later_crate_kg",
+                "value": 6
+              },
+              {
+                "key": "crate_increase_kg",
+                "value": 2
+              }
+            ]
+          },
+          "sourceIds": [
+            "care:gear-old",
+            "care:gear-new"
+          ],
+          "calculations": [
+            {
+              "operation": "difference",
+              "operands": [
+                {
+                  "sourceId": "care:gear-new",
+                  "field": "text",
+                  "literal": "6 kg"
+                },
+                {
+                  "sourceId": "care:gear-old",
+                  "field": "text",
+                  "literal": "4 kg"
+                }
+              ],
+              "value": 2,
+              "unit": "kg"
+            }
+          ]
+        },
+        "readVersion": "history-answer.v1",
+        "layout": "json",
+        "limitation": null,
+        "table": null
+      }
+    },
+    {
+      "number": 22,
+      "question": "Return only JSON with Juniper’s earlier_crate_kg, later_crate_kg and crate_increase_kg. Use the crate measurements.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.023747249999999998,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1350,
+      "rawOutput": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rejectionReason\":null}",
+      "inputTokens": 5016,
+      "outputTokens": 138,
+      "measuredUsd": 0.004383,
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rejectionReason\":null}"
+    },
+    {
+      "number": 23,
+      "question": "Compare the two recorded ride durations for Juniper, including their difference in minutes.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0354075,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 1989,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"Compare the two recorded ride durations for Juniper, including their difference in minutes.\",\"requirements\":[\"Compare the two recorded ride durations for Juniper.\",\"Include the difference between the durations in minutes.\"],\"referenceTurnIds\":[],\"outputFormat\":\"prose\",\"scope\":\"selected\",\"petNames\":[],\"operation\":\"comparison\",\"selection\":\"comparison\",\"quantity\":\"duration\",\"topic\":\"ride durations\",\"terms\":[\"ride duration\",\"minutes\",\"difference\"],\"from\":null,\"to\":null,\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4704,
+      "outputTokens": 205,
+      "measuredUsd": 0.0044505,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "Compare the two recorded ride durations for Juniper, including their difference in minutes.",
+        "requirements": [
+          "Compare the two recorded ride durations for Juniper.",
+          "Include the difference between the durations in minutes."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "prose",
+        "scope": "selected",
+        "petNames": [],
+        "operation": "comparison",
+        "selection": "comparison",
+        "quantity": "duration",
+        "topic": "ride durations",
+        "terms": [
+          "ride duration",
+          "minutes",
+          "difference"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 24,
+      "question": "Compare the two recorded ride durations for Juniper, including their difference in minutes.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.04891875,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 3096,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[],\"text\":\"Juniper’s recorded ride durations are 7 minutes and 18 minutes.\",\"sourceIds\":[\"care:gear-old\",\"care:gear-new\"]},{\"calculations\":[{\"operation\":\"difference\",\"operands\":[{\"sourceId\":\"care:gear-new\",\"field\":\"text\",\"literal\":\"18 minutes\"},{\"sourceId\":\"care:gear-old\",\"field\":\"text\",\"literal\":\"7 minutes\"}],\"value\":11,\"unit\":\"minutes\"}],\"text\":\"The 18-minute ride is 11 minutes longer than the 7-minute ride.\",\"sourceIds\":[\"care:gear-old\",\"care:gear-new\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"Compare recorded ride durations and compute their difference.\",\"relevantContextIds\":[\"care:gear-old\",\"care:gear-new\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 8973,
+      "outputTokens": 533,
+      "measuredUsd": 0.00912825,
+      "syntheticResponse": {
+        "historyNarrative": {
+          "sentences": [
+            {
+              "calculations": [],
+              "text": "Juniper’s recorded ride durations are 7 minutes and 18 minutes.",
+              "sourceIds": [
+                "care:gear-old",
+                "care:gear-new"
+              ]
+            },
+            {
+              "calculations": [
+                {
+                  "operation": "difference",
+                  "operands": [
+                    {
+                      "sourceId": "care:gear-new",
+                      "field": "text",
+                      "literal": "18 minutes"
+                    },
+                    {
+                      "sourceId": "care:gear-old",
+                      "field": "text",
+                      "literal": "7 minutes"
+                    }
+                  ],
+                  "value": 11,
+                  "unit": "minutes"
+                }
+              ],
+              "text": "The 18-minute ride is 11 minutes longer than the 7-minute ride.",
+              "sourceIds": [
+                "care:gear-old",
+                "care:gear-new"
+              ]
+            }
+          ]
+        },
+        "safetyLevel": "normal",
+        "responseMode": "practical_guidance",
+        "userIntent": "Compare recorded ride durations and compute their difference.",
+        "relevantContextIds": [
+          "care:gear-old",
+          "care:gear-new"
+        ],
+        "json": null,
+        "readVersion": "history-answer.v1",
+        "layout": "prose",
+        "limitation": null,
+        "table": null
+      }
+    },
+    {
+      "number": 25,
+      "question": "Compare the two recorded ride durations for Juniper, including their difference in minutes.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.023535,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 2272,
+      "rawOutput": "{\"approved\":false,\"retainedSentenceIndexes\":[],\"obligations\":[{\"index\":0,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":1,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":2,\"status\":\"missing\",\"sentenceIndexes\":[]}],\"rejectionReason\":\"The only supported sentence reports the two durations, but the difference is not supported without the deterministic-invalid sentence, so the draft cannot fully answer the comparison request.\"}",
+      "inputTokens": 4831,
+      "outputTokens": 269,
+      "measuredUsd": 0.00483375,
+      "review": "{\"approved\":false,\"retainedSentenceIndexes\":[],\"obligations\":[{\"index\":0,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":1,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":2,\"status\":\"missing\",\"sentenceIndexes\":[]}],\"rejectionReason\":\"The only supported sentence reports the two durations, but the difference is not supported without the deterministic-invalid sentence, so the draft cannot fully answer the comparison request.\"}"
+    },
+    {
+      "number": 26,
+      "question": "Compare the two recorded ride durations for Juniper, including their difference in minutes.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03014625,
+      "phase": "furvise_history_repair",
+      "status": "completed",
+      "elapsedMs": 3178,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[],\"text\":\"Juniper’s recorded ride durations are 7 minutes and 18 minutes.\",\"sourceIds\":[\"care:gear-old\",\"care:gear-new\"]},{\"calculations\":[{\"operation\":\"difference\",\"operands\":[{\"sourceId\":\"care:gear-new\",\"field\":\"text\",\"literal\":\"18 minutes\"},{\"sourceId\":\"care:gear-old\",\"field\":\"text\",\"literal\":\"7 minutes\"}],\"value\":11,\"unit\":\"minutes\"}],\"text\":\"The 18-minute ride is 11 minutes longer than the 7-minute ride.\",\"sourceIds\":[\"care:gear-old\",\"care:gear-new\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"history\",\"relevantContextIds\":[\"care:gear-old\",\"care:gear-new\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 5295,
+      "outputTokens": 557,
+      "measuredUsd": 0.00647775
+    },
+    {
+      "number": 27,
+      "question": "How much water did Maple drink between the two bowl observations? Explain whether the saved measurements can establish intake.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03543375,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 3271,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"How much water did Maple drink between the two bowl observations, and can the saved measurements establish intake?\",\"requirements\":[\"Answer in prose.\",\"Explain whether the saved measurements are sufficient to establish intake, not just the bowl-level change.\",\"Preserve any uncertainty if the records do not support an exact amount.\"],\"referenceTurnIds\":[],\"outputFormat\":\"prose\",\"scope\":\"named\",\"petNames\":[\"Maple\"],\"operation\":\"comparison\",\"selection\":\"period\",\"quantity\":\"measurement\",\"topic\":\"water intake between bowl observations\",\"terms\":[\"water\",\"bowl\",\"measurement\",\"intake\"],\"from\":null,\"to\":null,\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4709,
+      "outputTokens": 334,
+      "measuredUsd": 0.00503475,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "How much water did Maple drink between the two bowl observations, and can the saved measurements establish intake?",
+        "requirements": [
+          "Answer in prose.",
+          "Explain whether the saved measurements are sufficient to establish intake, not just the bowl-level change.",
+          "Preserve any uncertainty if the records do not support an exact amount."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "prose",
+        "scope": "named",
+        "petNames": [
+          "Maple"
+        ],
+        "operation": "comparison",
+        "selection": "period",
+        "quantity": "measurement",
+        "topic": "water intake between bowl observations",
+        "terms": [
+          "water",
+          "bowl",
+          "measurement",
+          "intake"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 28,
+      "question": "How much water did Maple drink between the two bowl observations? Explain whether the saved measurements can establish intake.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.052188750000000006,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 4307,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[{\"operation\":\"difference\",\"operands\":[{\"sourceId\":\"care:drink-old\",\"field\":\"text\",\"literal\":\"320 ml\"},{\"sourceId\":\"care:drink-new\",\"field\":\"text\",\"literal\":\"90 ml\"}],\"value\":230,\"unit\":\"ml\"}],\"text\":\"The bowl-level change between the two observations was 230 ml, but that does not establish Maple’s intake.\",\"sourceIds\":[\"care:drink-old\",\"care:drink-new\"]},{\"calculations\":[],\"text\":\"The saved measurements cannot establish how much she drank, because the later note says the spilled amount and her intake are unknown.\",\"sourceIds\":[\"care:drink-new\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"Compare bowl observations to assess water intake and explain evidentiary limits.\",\"relevantContextIds\":[\"care:drink-old\",\"care:drink-new\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 10139,
+      "outputTokens": 746,
+      "measuredUsd": 0.01096125,
+      "syntheticResponse": {
+        "historyNarrative": {
+          "sentences": [
+            {
+              "calculations": [
+                {
+                  "operation": "difference",
+                  "operands": [
+                    {
+                      "sourceId": "care:drink-old",
+                      "field": "text",
+                      "literal": "320 ml"
+                    },
+                    {
+                      "sourceId": "care:drink-new",
+                      "field": "text",
+                      "literal": "90 ml"
+                    }
+                  ],
+                  "value": 230,
+                  "unit": "ml"
+                }
+              ],
+              "text": "The bowl-level change between the two observations was 230 ml, but that does not establish Maple’s intake.",
+              "sourceIds": [
+                "care:drink-old",
+                "care:drink-new"
+              ]
+            },
+            {
+              "calculations": [],
+              "text": "The saved measurements cannot establish how much she drank, because the later note says the spilled amount and her intake are unknown.",
+              "sourceIds": [
+                "care:drink-new"
+              ]
+            }
+          ]
+        },
+        "safetyLevel": "normal",
+        "responseMode": "practical_guidance",
+        "userIntent": "Compare bowl observations to assess water intake and explain evidentiary limits.",
+        "relevantContextIds": [
+          "care:drink-old",
+          "care:drink-new"
+        ],
+        "json": null,
+        "readVersion": "history-answer.v1",
+        "layout": "prose",
+        "limitation": null,
+        "table": null
+      }
+    },
+    {
+      "number": 29,
+      "question": "How much water did Maple drink between the two bowl observations? Explain whether the saved measurements can establish intake.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.02535975,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1141,
+      "rawOutput": "{\"approved\":true,\"retainedSentenceIndexes\":[0,1],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[1]}],\"rejectionReason\":null}",
+      "inputTokens": 5415,
+      "outputTokens": 131,
+      "measuredUsd": 0.0046507499999999995,
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0,1],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[1]}],\"rejectionReason\":null}"
+    },
+    {
+      "number": 30,
+      "question": "Quote Tansy’s blanket and settling note exactly, then give one limitation of that observation.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03541125,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 2204,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"Retrieve Tansy’s blanket and settling note and quote it exactly, then state one limitation of that observation.\",\"requirements\":[\"Answer in English.\",\"Include the exact quoted text from Tansy’s blanket and settling note.\",\"Add one limitation of that observation.\",\"Do not add unrelated details.\"],\"referenceTurnIds\":[],\"outputFormat\":\"prose\",\"scope\":\"named\",\"petNames\":[\"Tansy\"],\"operation\":\"recall\",\"selection\":\"reference\",\"quantity\":null,\"topic\":\"blanket and settling note\",\"terms\":[\"blanket\",\"settling note\"],\"from\":null,\"to\":null,\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4707,
+      "outputTokens": 273,
+      "measuredUsd": 0.00475875,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "Retrieve Tansy’s blanket and settling note and quote it exactly, then state one limitation of that observation.",
+        "requirements": [
+          "Answer in English.",
+          "Include the exact quoted text from Tansy’s blanket and settling note.",
+          "Add one limitation of that observation.",
+          "Do not add unrelated details."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "prose",
+        "scope": "named",
+        "petNames": [
+          "Tansy"
+        ],
+        "operation": "recall",
+        "selection": "reference",
+        "quantity": null,
+        "topic": "blanket and settling note",
+        "terms": [
+          "blanket",
+          "settling note"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 31,
+      "question": "Quote Tansy’s blanket and settling note exactly, then give one limitation of that observation.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.051838499999999996,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 6476,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[],\"text\":\"I can’t quote Tansy’s blanket and settling note exactly from the accessible records because that text is not included here.\",\"sourceIds\":[\"care:blanket\"]},{\"calculations\":[],\"text\":\"One limitation is that the retrieval is partial, so the observation cannot be confirmed as complete.\",\"sourceIds\":[\"care:blanket\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"Retrieve a specific historical note and state one limitation of that observation.\",\"relevantContextIds\":[\"care:blanket\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 10262,
+      "outputTokens": 1198,
+      "measuredUsd": 0.0130875,
+      "syntheticResponse": {
+        "historyNarrative": {
+          "sentences": [
+            {
+              "calculations": [],
+              "text": "I can’t quote Tansy’s blanket and settling note exactly from the accessible records because that text is not included here.",
+              "sourceIds": [
+                "care:blanket"
+              ]
+            },
+            {
+              "calculations": [],
+              "text": "One limitation is that the retrieval is partial, so the observation cannot be confirmed as complete.",
+              "sourceIds": [
+                "care:blanket"
+              ]
+            }
+          ]
+        },
+        "safetyLevel": "normal",
+        "responseMode": "practical_guidance",
+        "userIntent": "Retrieve a specific historical note and state one limitation of that observation.",
+        "relevantContextIds": [
+          "care:blanket"
+        ],
+        "json": null,
+        "readVersion": "history-answer.v1",
+        "layout": "prose",
+        "limitation": null,
+        "table": null
+      }
+    },
+    {
+      "number": 32,
+      "question": "Quote Tansy’s blanket and settling note exactly, then give one limitation of that observation.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.024849000000000003,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 2381,
+      "rawOutput": "{\"approved\":false,\"retainedSentenceIndexes\":[],\"obligations\":[{\"index\":0,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":1,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":2,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":3,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":4,\"status\":\"missing\",\"sentenceIndexes\":[]}],\"rejectionReason\":\"The draft does not contain the requested exact quote from Tansy’s blanket and settling note, and its limitation is unsupported by the supplied records; both sentences are invalid.\"}",
+      "inputTokens": 5366,
+      "outputTokens": 215,
+      "measuredUsd": 0.004992,
+      "review": "{\"approved\":false,\"retainedSentenceIndexes\":[],\"obligations\":[{\"index\":0,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":1,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":2,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":3,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":4,\"status\":\"missing\",\"sentenceIndexes\":[]}],\"rejectionReason\":\"The draft does not contain the requested exact quote from Tansy’s blanket and settling note, and its limitation is unsupported by the supplied records; both sentences are invalid.\"}"
+    },
+    {
+      "number": 33,
+      "question": "Quote Tansy’s blanket and settling note exactly, then give one limitation of that observation.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03159,
+      "phase": "furvise_history_repair",
+      "status": "completed",
+      "elapsedMs": 7288,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[],\"text\":\"I can’t quote Tansy’s blanket and settling note exactly because that text is not included in the accessible records here.\",\"sourceIds\":[\"care:routine-95\"]},{\"calculations\":[],\"text\":\"One limitation is that the retrieval is partial, so the observation may be incomplete.\",\"sourceIds\":[\"care:routine-95\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"history\",\"relevantContextIds\":[\"care:routine-95\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 5885,
+      "outputTokens": 1189,
+      "measuredUsd": 0.00976425
+    },
+    {
+      "number": 34,
+      "question": "Quote Tansy’s blanket and settling note exactly, then give one limitation of that observation.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.02483925,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 2335,
+      "rawOutput": "{\"approved\":false,\"retainedSentenceIndexes\":[],\"obligations\":[{\"index\":0,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[1]}],\"rejectionReason\":\"The draft does not include any exact quote from Tansy’s blanket and settling note, so it fails the main request; only the limitation sentence is supported.\"}",
+      "inputTokens": 5363,
+      "outputTokens": 323,
+      "measuredUsd": 0.00547575,
+      "review": "{\"approved\":false,\"retainedSentenceIndexes\":[],\"obligations\":[{\"index\":0,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[1]}],\"rejectionReason\":\"The draft does not include any exact quote from Tansy’s blanket and settling note, so it fails the main request; only the limitation sentence is supported.\"}"
+    },
+    {
+      "number": 35,
+      "question": "As of September 5, what was Tansy’s latest recorded overnight waking observation? Include the date and any unknown cause.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0354315,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 2810,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"As of September 5, what was Tansy’s latest recorded overnight waking observation? Include the date and any unknown cause.\",\"requirements\":[\"Return the answer in prose.\",\"Include the date of the latest overnight waking observation for Tansy as of September 5.\",\"Include any cause information that is unknown, if recorded.\"],\"referenceTurnIds\":[],\"outputFormat\":\"prose\",\"scope\":\"named\",\"petNames\":[\"Tansy\"],\"operation\":\"recall\",\"selection\":\"latest\",\"quantity\":\"records\",\"topic\":\"overnight waking observation\",\"terms\":[\"overnight waking\",\"wake\",\"observation\",\"cause\",\"unknown\"],\"from\":\"2026-09-05\",\"to\":\"2026-09-06\",\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4714,
+      "outputTokens": 293,
+      "measuredUsd": 0.004854,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "As of September 5, what was Tansy’s latest recorded overnight waking observation? Include the date and any unknown cause.",
+        "requirements": [
+          "Return the answer in prose.",
+          "Include the date of the latest overnight waking observation for Tansy as of September 5.",
+          "Include any cause information that is unknown, if recorded."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "prose",
+        "scope": "named",
+        "petNames": [
+          "Tansy"
+        ],
+        "operation": "recall",
+        "selection": "latest",
+        "quantity": "records",
+        "topic": "overnight waking observation",
+        "terms": [
+          "overnight waking",
+          "wake",
+          "observation",
+          "cause",
+          "unknown"
+        ],
+        "from": "2026-09-05",
+        "to": "2026-09-06",
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 36,
+      "question": "As of September 5, what was Tansy’s latest recorded overnight waking observation? Include the date and any unknown cause.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0519825,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 2507,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[],\"text\":\"As of September 5, the latest recorded overnight waking observation was on September 2, 2026: he woke three times overnight, and no cause was recorded.\",\"sourceIds\":[\"care:rest\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"Recall the latest recorded overnight waking observation for Tansy as of September 5, including date and any unknown caus\",\"relevantContextIds\":[\"care:rest\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 10299,
+      "outputTokens": 480,
+      "measuredUsd": 0.00988425,
+      "syntheticResponse": {
+        "historyNarrative": {
+          "sentences": [
+            {
+              "calculations": [],
+              "text": "As of September 5, the latest recorded overnight waking observation was on September 2, 2026: he woke three times overnight, and no cause was recorded.",
+              "sourceIds": [
+                "care:rest"
+              ]
+            }
+          ]
+        },
+        "safetyLevel": "normal",
+        "responseMode": "practical_guidance",
+        "userIntent": "Recall the latest recorded overnight waking observation for Tansy as of September 5, including date and any unknown caus",
+        "relevantContextIds": [
+          "care:rest"
+        ],
+        "json": null,
+        "readVersion": "history-answer.v1",
+        "layout": "prose",
+        "limitation": null,
+        "table": null
+      }
+    },
+    {
+      "number": 37,
+      "question": "As of September 5, what was Tansy’s latest recorded overnight waking observation? Include the date and any unknown cause.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.024912000000000004,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1369,
+      "rawOutput": "{\"approved\":false,\"retainedSentenceIndexes\":[],\"obligations\":[{\"index\":0,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":1,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":2,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":3,\"status\":\"missing\",\"sentenceIndexes\":[]}],\"rejectionReason\":\"The only draft sentence is deterministically invalid and cannot be approved; no supported prose answer remains to state the latest overnight waking observation or the unknown cause.\"}",
+      "inputTokens": 5401,
+      "outputTokens": 170,
+      "measuredUsd": 0.00481575,
+      "review": "{\"approved\":false,\"retainedSentenceIndexes\":[],\"obligations\":[{\"index\":0,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":1,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":2,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":3,\"status\":\"missing\",\"sentenceIndexes\":[]}],\"rejectionReason\":\"The only draft sentence is deterministically invalid and cannot be approved; no supported prose answer remains to state the latest overnight waking observation or the unknown cause.\"}"
+    },
+    {
+      "number": 38,
+      "question": "As of September 5, what was Tansy’s latest recorded overnight waking observation? Include the date and any unknown cause.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0317445,
+      "phase": "furvise_history_repair",
+      "status": "completed",
+      "elapsedMs": 1783,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[],\"text\":\"As of September 5, Tansy’s latest recorded overnight waking observation was on September 2, 2026: Tansy woke three times overnight, and no cause was recorded.\",\"sourceIds\":[\"care:rest\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"history\",\"relevantContextIds\":[\"care:rest\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 5945,
+      "outputTokens": 317,
+      "measuredUsd": 0.00588525
+    },
+    {
+      "number": 39,
+      "question": "Return only JSON with Juniper’s earlier_crate_kg, later_crate_kg and crate_increase_kg. Use the crate measurements.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.035427,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 2220,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"What are Juniper’s earlier_crate_kg, later_crate_kg, and crate_increase_kg based on the crate measurements?\",\"requirements\":[\"Return only JSON.\",\"Include Juniper’s earlier_crate_kg, later_crate_kg, and crate_increase_kg.\",\"Use the crate measurements.\",\"Do not include any extra text.\"],\"referenceTurnIds\":[],\"outputFormat\":\"json\",\"scope\":\"selected\",\"petNames\":[],\"operation\":\"recall\",\"selection\":\"period\",\"quantity\":\"measurement\",\"topic\":\"crate measurements\",\"terms\":[\"crate\",\"measurement\",\"kgr\"],\"from\":null,\"to\":null,\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4718,
+      "outputTokens": 226,
+      "measuredUsd": 0.0045555,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "What are Juniper’s earlier_crate_kg, later_crate_kg, and crate_increase_kg based on the crate measurements?",
+        "requirements": [
+          "Return only JSON.",
+          "Include Juniper’s earlier_crate_kg, later_crate_kg, and crate_increase_kg.",
+          "Use the crate measurements.",
+          "Do not include any extra text."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "json",
+        "scope": "selected",
+        "petNames": [],
+        "operation": "recall",
+        "selection": "period",
+        "quantity": "measurement",
+        "topic": "crate measurements",
+        "terms": [
+          "crate",
+          "measurement",
+          "kgr"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 40,
+      "question": "Return only JSON with Juniper’s earlier_crate_kg, later_crate_kg and crate_increase_kg. Use the crate measurements.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.040767,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 2221,
+      "rawOutput": "{\"historyNarrative\":null,\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"Return Juniper’s earlier crate weight, later crate weight, and increase from the crate measurements.\",\"relevantContextIds\":[\"care:gear-old\",\"care:gear-new\"],\"json\":{\"value\":{\"kind\":\"object\",\"entries\":[{\"key\":\"earlier_crate_kg\",\"value\":4},{\"key\":\"later_crate_kg\",\"value\":6},{\"key\":\"crate_increase_kg\",\"value\":2}]},\"sourceIds\":[\"care:gear-old\",\"care:gear-new\"],\"calculations\":[{\"operation\":\"difference\",\"operands\":[{\"sourceId\":\"care:gear-new\",\"field\":\"text\",\"literal\":\"6 kg\"},{\"sourceId\":\"care:gear-old\",\"field\":\"text\",\"literal\":\"4 kg\"}],\"value\":2,\"unit\":\"kg\"}]},\"readVersion\":\"history-answer.v1\",\"layout\":\"json\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 6191,
+      "outputTokens": 360,
+      "measuredUsd": 0.00626325,
+      "syntheticResponse": {
+        "historyNarrative": null,
+        "safetyLevel": "normal",
+        "responseMode": "practical_guidance",
+        "userIntent": "Return Juniper’s earlier crate weight, later crate weight, and increase from the crate measurements.",
+        "relevantContextIds": [
+          "care:gear-old",
+          "care:gear-new"
+        ],
+        "json": {
+          "value": {
+            "kind": "object",
+            "entries": [
+              {
+                "key": "earlier_crate_kg",
+                "value": 4
+              },
+              {
+                "key": "later_crate_kg",
+                "value": 6
+              },
+              {
+                "key": "crate_increase_kg",
+                "value": 2
+              }
+            ]
+          },
+          "sourceIds": [
+            "care:gear-old",
+            "care:gear-new"
+          ],
+          "calculations": [
+            {
+              "operation": "difference",
+              "operands": [
+                {
+                  "sourceId": "care:gear-new",
+                  "field": "text",
+                  "literal": "6 kg"
+                },
+                {
+                  "sourceId": "care:gear-old",
+                  "field": "text",
+                  "literal": "4 kg"
+                }
+              ],
+              "value": 2,
+              "unit": "kg"
+            }
+          ]
+        },
+        "readVersion": "history-answer.v1",
+        "layout": "json",
+        "limitation": null,
+        "table": null
+      }
+    },
+    {
+      "number": 41,
+      "question": "Return only JSON with Juniper’s earlier_crate_kg, later_crate_kg and crate_increase_kg. Use the crate measurements.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.01986075,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1387,
+      "rawOutput": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rejectionReason\":null}",
+      "inputTokens": 3636,
+      "outputTokens": 165,
+      "measuredUsd": 0.0034695,
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rejectionReason\":null}"
+    },
+    {
+      "number": 42,
+      "question": "Compare the two recorded ride durations for Juniper, including their difference in minutes.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0354075,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 2104,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"Compare the two recorded ride durations for Juniper and include the difference between them in minutes.\",\"requirements\":[\"Answer in English.\",\"Compare the two recorded ride durations for Juniper.\",\"Include the difference between the two durations in minutes.\"],\"referenceTurnIds\":[],\"outputFormat\":null,\"scope\":\"selected\",\"petNames\":[],\"operation\":\"comparison\",\"selection\":\"comparison\",\"quantity\":\"duration\",\"topic\":\"ride durations for Juniper\",\"terms\":[\"ride duration\",\"minutes\",\"difference\"],\"from\":null,\"to\":null,\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4704,
+      "outputTokens": 281,
+      "measuredUsd": 0.0047925,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "Compare the two recorded ride durations for Juniper and include the difference between them in minutes.",
+        "requirements": [
+          "Answer in English.",
+          "Compare the two recorded ride durations for Juniper.",
+          "Include the difference between the two durations in minutes."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": null,
+        "scope": "selected",
+        "petNames": [],
+        "operation": "comparison",
+        "selection": "comparison",
+        "quantity": "duration",
+        "topic": "ride durations for Juniper",
+        "terms": [
+          "ride duration",
+          "minutes",
+          "difference"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 43,
+      "question": "Compare the two recorded ride durations for Juniper, including their difference in minutes.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.042939000000000005,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 3779,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[{\"operation\":\"difference\",\"operands\":[{\"sourceId\":\"care:gear-new\",\"field\":\"text\",\"literal\":\"26-minute ride\"},{\"sourceId\":\"care:gear-old\",\"field\":\"text\",\"literal\":\"9-minute ride\"}],\"value\":17,\"unit\":\"minutes\"}],\"text\":\"Juniper's recorded ride durations were 9 minutes and 26 minutes, so the 26-minute ride was 17 minutes longer.\",\"sourceIds\":[\"care:gear-old\",\"care:gear-new\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"compare two recorded ride durations and compute the difference in minutes\",\"relevantContextIds\":[\"care:gear-old\",\"care:gear-new\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 6561,
+      "outputTokens": 712,
+      "measuredUsd": 0.00812475,
+      "syntheticResponse": {
+        "historyNarrative": {
+          "sentences": [
+            {
+              "calculations": [
+                {
+                  "operation": "difference",
+                  "operands": [
+                    {
+                      "sourceId": "care:gear-new",
+                      "field": "text",
+                      "literal": "26-minute ride"
+                    },
+                    {
+                      "sourceId": "care:gear-old",
+                      "field": "text",
+                      "literal": "9-minute ride"
+                    }
+                  ],
+                  "value": 17,
+                  "unit": "minutes"
+                }
+              ],
+              "text": "Juniper's recorded ride durations were 9 minutes and 26 minutes, so the 26-minute ride was 17 minutes longer.",
+              "sourceIds": [
+                "care:gear-old",
+                "care:gear-new"
+              ]
+            }
+          ]
+        },
+        "safetyLevel": "normal",
+        "responseMode": "practical_guidance",
+        "userIntent": "compare two recorded ride durations and compute the difference in minutes",
+        "relevantContextIds": [
+          "care:gear-old",
+          "care:gear-new"
+        ],
+        "json": null,
+        "readVersion": "history-answer.v1",
+        "layout": "prose",
+        "limitation": null,
+        "table": null
+      }
+    },
+    {
+      "number": 44,
+      "question": "Compare the two recorded ride durations for Juniper, including their difference in minutes.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.01994775,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1797,
+      "rawOutput": "{\"approved\":false,\"retainedSentenceIndexes\":[],\"obligations\":[{\"index\":0,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":1,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":2,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":3,\"status\":\"missing\",\"sentenceIndexes\":[]}],\"rejectionReason\":\"The only draft sentence is deterministically invalid and cannot be approved, so the answer must be repaired rather than retained.\"}",
+      "inputTokens": 3569,
+      "outputTokens": 171,
+      "measuredUsd": 0.0034462499999999997,
+      "review": "{\"approved\":false,\"retainedSentenceIndexes\":[],\"obligations\":[{\"index\":0,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":1,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":2,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":3,\"status\":\"missing\",\"sentenceIndexes\":[]}],\"rejectionReason\":\"The only draft sentence is deterministically invalid and cannot be approved, so the answer must be repaired rather than retained.\"}"
+    },
+    {
+      "number": 45,
+      "question": "Compare the two recorded ride durations for Juniper, including their difference in minutes.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.02859525,
+      "phase": "furvise_history_repair",
+      "status": "completed",
+      "elapsedMs": 3661,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[{\"operation\":\"difference\",\"operands\":[{\"sourceId\":\"care:gear-new\",\"field\":\"text\",\"literal\":\"26-minute ride\"},{\"sourceId\":\"care:gear-old\",\"field\":\"text\",\"literal\":\"9-minute ride\"}],\"value\":17,\"unit\":\"minutes\"}],\"text\":\"Juniper had a 9-minute ride and a 26-minute ride, so the difference was 17 minutes.\",\"sourceIds\":[\"care:gear-old\",\"care:gear-new\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"history\",\"relevantContextIds\":[\"care:gear-old\",\"care:gear-new\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 4369,
+      "outputTokens": 698,
+      "measuredUsd": 0.00641775
+    },
+    {
+      "number": 46,
+      "question": "How much water did Maple drink between the two bowl observations? Explain whether the saved measurements can establish intake.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03543375,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 2353,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"How much water did Maple drink between the two bowl observations, and can the saved measurements establish Maple’s intake?\",\"requirements\":[\"Answer in prose.\",\"Explain whether the saved measurements are sufficient to establish intake.\",\"Preserve any uncertainty in the evidence rather than assuming the amount was actually drunk.\"],\"referenceTurnIds\":[],\"outputFormat\":\"prose\",\"scope\":\"named\",\"petNames\":[\"Maple\"],\"operation\":\"comparison\",\"selection\":\"period\",\"quantity\":\"measurement\",\"topic\":\"Maple water intake between bowl observations\",\"terms\":[\"water\",\"bowl observations\",\"intake\",\"measurement\",\"drank\"],\"from\":null,\"to\":null,\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4709,
+      "outputTokens": 276,
+      "measuredUsd": 0.00477375,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "How much water did Maple drink between the two bowl observations, and can the saved measurements establish Maple’s intake?",
+        "requirements": [
+          "Answer in prose.",
+          "Explain whether the saved measurements are sufficient to establish intake.",
+          "Preserve any uncertainty in the evidence rather than assuming the amount was actually drunk."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "prose",
+        "scope": "named",
+        "petNames": [
+          "Maple"
+        ],
+        "operation": "comparison",
+        "selection": "period",
+        "quantity": "measurement",
+        "topic": "Maple water intake between bowl observations",
+        "terms": [
+          "water",
+          "bowl observations",
+          "intake",
+          "measurement",
+          "drank"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 47,
+      "question": "How much water did Maple drink between the two bowl observations? Explain whether the saved measurements can establish intake.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.04045125,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 3818,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[],\"text\":\"The saved measurements do not establish how much Maple drank between the two bowl observations.\",\"sourceIds\":[\"care:drink-old\",\"care:drink-new\"]},{\"calculations\":[],\"text\":\"One record says 320 ml of water was offered and drinking was not measured, and the later record says the bowl contained 90 ml after a spill while the spilled amount and Maple’s intake were unknown, so the difference in bowl contents cannot be treated as her intake.\",\"sourceIds\":[\"care:drink-old\",\"care:drink-new\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"Explain whether saved bowl measurements can establish Maple's water intake between two observations.\",\"relevantContextIds\":[\"care:drink-old\",\"care:drink-new\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 6049,
+      "outputTokens": 643,
+      "measuredUsd": 0.007430249999999999,
+      "syntheticResponse": {
+        "historyNarrative": {
+          "sentences": [
+            {
+              "calculations": [],
+              "text": "The saved measurements do not establish how much Maple drank between the two bowl observations.",
+              "sourceIds": [
+                "care:drink-old",
+                "care:drink-new"
+              ]
+            },
+            {
+              "calculations": [],
+              "text": "One record says 320 ml of water was offered and drinking was not measured, and the later record says the bowl contained 90 ml after a spill while the spilled amount and Maple’s intake were unknown, so the difference in bowl contents cannot be treated as her intake.",
+              "sourceIds": [
+                "care:drink-old",
+                "care:drink-new"
+              ]
+            }
+          ]
+        },
+        "safetyLevel": "normal",
+        "responseMode": "practical_guidance",
+        "userIntent": "Explain whether saved bowl measurements can establish Maple's water intake between two observations.",
+        "relevantContextIds": [
+          "care:drink-old",
+          "care:drink-new"
+        ],
+        "json": null,
+        "readVersion": "history-answer.v1",
+        "layout": "prose",
+        "limitation": null,
+        "table": null
+      }
+    },
+    {
+      "number": 48,
+      "question": "How much water did Maple drink between the two bowl observations? Explain whether the saved measurements can establish intake.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.020185500000000002,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1477,
+      "rawOutput": "{\"approved\":true,\"retainedSentenceIndexes\":[0,1],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0,1]}],\"rejectionReason\":null}",
+      "inputTokens": 3574,
+      "outputTokens": 172,
+      "measuredUsd": 0.0034545,
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0,1],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0,1]}],\"rejectionReason\":null}"
+    },
+    {
+      "number": 49,
+      "question": "Quote Tansy’s mat and settling note exactly, then give one limitation of that observation.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03540825,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 3073,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"Quote Tansy’s mat and settling note exactly, then give one limitation of that observation.\",\"requirements\":[\"Return the exact quoted wording of Tansy’s mat and settling note.\",\"Then give one limitation of that observation.\",\"Use English.\",\"Keep the response concise.\"],\"referenceTurnIds\":[],\"outputFormat\":\"prose\",\"scope\":\"named\",\"petNames\":[\"Tansy\"],\"operation\":\"recall\",\"selection\":\"reference\",\"quantity\":null,\"topic\":\"Tansy mat and settling note\",\"terms\":[\"mat\",\"settling\",\"note\"],\"from\":null,\"to\":null,\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4707,
+      "outputTokens": 299,
+      "measuredUsd": 0.00487575,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "Quote Tansy’s mat and settling note exactly, then give one limitation of that observation.",
+        "requirements": [
+          "Return the exact quoted wording of Tansy’s mat and settling note.",
+          "Then give one limitation of that observation.",
+          "Use English.",
+          "Keep the response concise."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "prose",
+        "scope": "named",
+        "petNames": [
+          "Tansy"
+        ],
+        "operation": "recall",
+        "selection": "reference",
+        "quantity": null,
+        "topic": "Tansy mat and settling note",
+        "terms": [
+          "mat",
+          "settling",
+          "note"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 50,
+      "question": "Quote Tansy’s mat and settling note exactly, then give one limitation of that observation.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03976275,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 2728,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[],\"text\":\"“Tansy’s mat was dry. Tansy settled after the lights dimmed.”\",\"sourceIds\":[\"care:blanket\"]},{\"calculations\":[],\"text\":\"One limitation is that it is only one recorded moment, so it does not explain why he settled.\",\"sourceIds\":[\"care:blanket\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"Quote the recorded mat and settling note exactly and provide one limitation of that observation.\",\"relevantContextIds\":[\"care:blanket\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 5956,
+      "outputTokens": 498,
+      "measuredUsd": 0.0067079999999999996,
+      "syntheticResponse": {
+        "historyNarrative": {
+          "sentences": [
+            {
+              "calculations": [],
+              "text": "“Tansy’s mat was dry. Tansy settled after the lights dimmed.”",
+              "sourceIds": [
+                "care:blanket"
+              ]
+            },
+            {
+              "calculations": [],
+              "text": "One limitation is that it is only one recorded moment, so it does not explain why he settled.",
+              "sourceIds": [
+                "care:blanket"
+              ]
+            }
+          ]
+        },
+        "safetyLevel": "normal",
+        "responseMode": "practical_guidance",
+        "userIntent": "Quote the recorded mat and settling note exactly and provide one limitation of that observation.",
+        "relevantContextIds": [
+          "care:blanket"
+        ],
+        "json": null,
+        "readVersion": "history-answer.v1",
+        "layout": "prose",
+        "limitation": null,
+        "table": null
+      }
+    },
+    {
+      "number": 51,
+      "question": "Quote Tansy’s mat and settling note exactly, then give one limitation of that observation.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.01934475,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 2280,
+      "rawOutput": "{\"approved\":true,\"retainedSentenceIndexes\":[0,1],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[1]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0,1]}],\"rejectionReason\":null}",
+      "inputTokens": 3400,
+      "outputTokens": 214,
+      "measuredUsd": 0.003513,
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0,1],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[1]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0,1]}],\"rejectionReason\":null}"
+    },
+    {
+      "number": 52,
+      "question": "As of September 7, what was Tansy’s latest recorded overnight waking observation? Include the date and any unknown cause.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0354315,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 2553,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"As of September 7, what was Tansy’s latest recorded overnight waking observation, including the date and any unknown cause?\",\"requirements\":[\"Answer in prose.\",\"Include the date of the latest overnight waking observation.\",\"Include any recorded unknown cause for that observation.\",\"Use Tansy as the subject.\"],\"referenceTurnIds\":[],\"outputFormat\":\"prose\",\"scope\":\"named\",\"petNames\":[\"Tansy\"],\"operation\":\"status\",\"selection\":\"latest\",\"quantity\":\"records\",\"topic\":\"overnight waking observation\",\"terms\":[\"overnight waking\",\"waking observation\",\"unknown cause\"],\"from\":null,\"to\":\"2026-09-08\",\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4714,
+      "outputTokens": 356,
+      "measuredUsd": 0.0051375,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "As of September 7, what was Tansy’s latest recorded overnight waking observation, including the date and any unknown cause?",
+        "requirements": [
+          "Answer in prose.",
+          "Include the date of the latest overnight waking observation.",
+          "Include any recorded unknown cause for that observation.",
+          "Use Tansy as the subject."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "prose",
+        "scope": "named",
+        "petNames": [
+          "Tansy"
+        ],
+        "operation": "status",
+        "selection": "latest",
+        "quantity": "records",
+        "topic": "overnight waking observation",
+        "terms": [
+          "overnight waking",
+          "waking observation",
+          "unknown cause"
+        ],
+        "from": null,
+        "to": "2026-09-08",
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 53,
+      "question": "As of September 7, what was Tansy’s latest recorded overnight waking observation? Include the date and any unknown cause.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.04007025,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 2835,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[],\"text\":\"As of September 7, the latest recorded overnight waking observation for Tansy was on September 2: he woke three times overnight, and no cause was recorded.\",\"sourceIds\":[\"care:rest\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"Find the latest recorded overnight waking observation for Tansy as of September 7, including the date and any unknown or\"\n, \"relevantContextIds\":[\"care:rest\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 6063,
+      "outputTokens": 425,
+      "measuredUsd": 0.00645975,
+      "syntheticResponse": {
+        "historyNarrative": {
+          "sentences": [
+            {
+              "calculations": [],
+              "text": "As of September 7, the latest recorded overnight waking observation for Tansy was on September 2: he woke three times overnight, and no cause was recorded.",
+              "sourceIds": [
+                "care:rest"
+              ]
+            }
+          ]
+        },
+        "safetyLevel": "normal",
+        "responseMode": "practical_guidance",
+        "userIntent": "Find the latest recorded overnight waking observation for Tansy as of September 7, including the date and any unknown or",
+        "relevantContextIds": [
+          "care:rest"
+        ],
+        "json": null,
+        "readVersion": "history-answer.v1",
+        "layout": "prose",
+        "limitation": null,
+        "table": null
+      }
+    },
+    {
+      "number": 54,
+      "question": "As of September 7, what was Tansy’s latest recorded overnight waking observation? Include the date and any unknown cause.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.01966725,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1667,
+      "rawOutput": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rejectionReason\":null}",
+      "inputTokens": 3502,
+      "outputTokens": 230,
+      "measuredUsd": 0.0036615,
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rejectionReason\":null}"
+    },
+    {
+      "number": 55,
+      "question": "Return only JSON with Juniper’s earlier_crate_kg, later_crate_kg and crate_increase_kg. Use the crate measurements.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.035427,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 3958,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"What are Juniper’s earlier_crate_kg, later_crate_kg, and crate_increase_kg based on the crate measurements?\",\"requirements\":[\"Return only JSON.\",\"Include Juniper’s earlier_crate_kg, later_crate_kg, and crate_increase_kg.\",\"Use the crate measurements.\",\"Do not add extra text.\"],\"referenceTurnIds\":[],\"outputFormat\":\"json\",\"scope\":\"selected\",\"petNames\":[],\"operation\":\"recall\",\"selection\":\"summary\",\"quantity\":\"measurement\",\"topic\":\"crate measurements\",\"terms\":[\"crate\"],\"from\":null,\"to\":null,\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4718,
+      "outputTokens": 294,
+      "measuredUsd": 0.0048614999999999995,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "What are Juniper’s earlier_crate_kg, later_crate_kg, and crate_increase_kg based on the crate measurements?",
+        "requirements": [
+          "Return only JSON.",
+          "Include Juniper’s earlier_crate_kg, later_crate_kg, and crate_increase_kg.",
+          "Use the crate measurements.",
+          "Do not add extra text."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "json",
+        "scope": "selected",
+        "petNames": [],
+        "operation": "recall",
+        "selection": "summary",
+        "quantity": "measurement",
+        "topic": "crate measurements",
+        "terms": [
+          "crate"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 56,
+      "question": "Return only JSON with Juniper’s earlier_crate_kg, later_crate_kg and crate_increase_kg. Use the crate measurements.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.04941975,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 4770,
+      "rawOutput": "{\"historyNarrative\":null,\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"Return only JSON with Juniper’s earlier_crate_kg, later_crate_kg and crate_increase_kg. Use the crate measurements.\",\"relevantContextIds\":[\"care:gear-old\",\"care:gear-new\"],\"json\":{\"value\":{\"kind\":\"object\",\"entries\":[{\"key\":\"earlier_crate_kg\",\"value\":4},{\"key\":\"later_crate_kg\",\"value\":6},{\"key\":\"crate_increase_kg\",\"value\":2}]},\"sourceIds\":[\"care:gear-old\",\"care:gear-new\"],\"calculations\":[{\"operation\":\"difference\",\"operands\":[{\"sourceId\":\"care:gear-new\",\"field\":\"text\",\"literal\":\"6 kg\"},{\"sourceId\":\"care:gear-old\",\"field\":\"text\",\"literal\":\"4 kg\"}],\"value\":2,\"unit\":\"kg\"}]},\"readVersion\":\"history-answer.v1\",\"layout\":\"json\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 9184,
+      "outputTokens": 741,
+      "measuredUsd": 0.010222499999999999,
+      "syntheticResponse": {
+        "historyNarrative": null,
+        "safetyLevel": "normal",
+        "responseMode": "practical_guidance",
+        "userIntent": "Return only JSON with Juniper’s earlier_crate_kg, later_crate_kg and crate_increase_kg. Use the crate measurements.",
+        "relevantContextIds": [
+          "care:gear-old",
+          "care:gear-new"
+        ],
+        "json": {
+          "value": {
+            "kind": "object",
+            "entries": [
+              {
+                "key": "earlier_crate_kg",
+                "value": 4
+              },
+              {
+                "key": "later_crate_kg",
+                "value": 6
+              },
+              {
+                "key": "crate_increase_kg",
+                "value": 2
+              }
+            ]
+          },
+          "sourceIds": [
+            "care:gear-old",
+            "care:gear-new"
+          ],
+          "calculations": [
+            {
+              "operation": "difference",
+              "operands": [
+                {
+                  "sourceId": "care:gear-new",
+                  "field": "text",
+                  "literal": "6 kg"
+                },
+                {
+                  "sourceId": "care:gear-old",
+                  "field": "text",
+                  "literal": "4 kg"
+                }
+              ],
+              "value": 2,
+              "unit": "kg"
+            }
+          ]
+        },
+        "readVersion": "history-answer.v1",
+        "layout": "json",
+        "limitation": null,
+        "table": null
+      }
+    },
+    {
+      "number": 57,
+      "question": "Return only JSON with Juniper’s earlier_crate_kg, later_crate_kg and crate_increase_kg. Use the crate measurements.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.023739000000000003,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1026,
+      "rawOutput": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rejectionReason\":null}",
+      "inputTokens": 5021,
+      "outputTokens": 128,
+      "measuredUsd": 0.00434175,
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rejectionReason\":null}"
+    },
+    {
+      "number": 58,
+      "question": "Compare the two recorded ride durations for Juniper, including their difference in minutes.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0354075,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 2414,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"Compare the two recorded ride durations for Juniper, including their difference in minutes.\",\"requirements\":[\"Use Juniper's selected-pet history only.\",\"Find the two recorded ride durations for Juniper.\",\"Compare the two durations and include the difference in minutes.\",\"Preserve any uncertainty if the records are ambiguous.\",\"Respond in a concise factual format.\"],\"referenceTurnIds\":[],\"outputFormat\":\"prose\",\"scope\":\"selected\",\"petNames\":[],\"operation\":\"comparison\",\"selection\":\"comparison\",\"quantity\":\"duration\",\"topic\":\"ride durations\",\"terms\":[\"ride duration\",\"duration\",\"minutes\"],\"from\":null,\"to\":null,\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4704,
+      "outputTokens": 286,
+      "measuredUsd": 0.004815,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "Compare the two recorded ride durations for Juniper, including their difference in minutes.",
+        "requirements": [
+          "Use Juniper's selected-pet history only.",
+          "Find the two recorded ride durations for Juniper.",
+          "Compare the two durations and include the difference in minutes.",
+          "Preserve any uncertainty if the records are ambiguous.",
+          "Respond in a concise factual format."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "prose",
+        "scope": "selected",
+        "petNames": [],
+        "operation": "comparison",
+        "selection": "comparison",
+        "quantity": "duration",
+        "topic": "ride durations",
+        "terms": [
+          "ride duration",
+          "duration",
+          "minutes"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 59,
+      "question": "Compare the two recorded ride durations for Juniper, including their difference in minutes.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.049028249999999995,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 4152,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[{\"operation\":\"difference\",\"operands\":[{\"sourceId\":\"care:gear-new\",\"field\":\"text\",\"literal\":\"26 minutes\"},{\"sourceId\":\"care:gear-old\",\"field\":\"text\",\"literal\":\"9 minutes\"}],\"value\":17,\"unit\":\"minutes\"}],\"text\":\"Juniper’s recorded ride durations were 9 minutes and 26 minutes, and the 26-minute ride was 17 minutes longer.\",\"sourceIds\":[\"care:gear-old\",\"care:gear-new\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"Compare two recorded ride durations and compute their difference in minutes.\",\"relevantContextIds\":[\"care:gear-old\",\"care:gear-new\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 9002,
+      "outputTokens": 710,
+      "measuredUsd": 0.0099465,
+      "syntheticResponse": {
+        "historyNarrative": {
+          "sentences": [
+            {
+              "calculations": [
+                {
+                  "operation": "difference",
+                  "operands": [
+                    {
+                      "sourceId": "care:gear-new",
+                      "field": "text",
+                      "literal": "26 minutes"
+                    },
+                    {
+                      "sourceId": "care:gear-old",
+                      "field": "text",
+                      "literal": "9 minutes"
+                    }
+                  ],
+                  "value": 17,
+                  "unit": "minutes"
+                }
+              ],
+              "text": "Juniper’s recorded ride durations were 9 minutes and 26 minutes, and the 26-minute ride was 17 minutes longer.",
+              "sourceIds": [
+                "care:gear-old",
+                "care:gear-new"
+              ]
+            }
+          ]
+        },
+        "safetyLevel": "normal",
+        "responseMode": "practical_guidance",
+        "userIntent": "Compare two recorded ride durations and compute their difference in minutes.",
+        "relevantContextIds": [
+          "care:gear-old",
+          "care:gear-new"
+        ],
+        "json": null,
+        "readVersion": "history-answer.v1",
+        "layout": "prose",
+        "limitation": null,
+        "table": null
+      }
+    },
+    {
+      "number": 60,
+      "question": "Compare the two recorded ride durations for Juniper, including their difference in minutes.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0238485,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1507,
+      "rawOutput": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":5,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rejectionReason\":null}",
+      "inputTokens": 4913,
+      "outputTokens": 178,
+      "measuredUsd": 0.00448575,
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":5,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rejectionReason\":null}"
+    },
+    {
+      "number": 61,
+      "question": "How much water did Maple drink between the two bowl observations? Explain whether the saved measurements can establish intake.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03543375,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 2306,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"How much water did Maple drink between the two bowl observations, and can the saved measurements establish actual intake?\",\"requirements\":[\"Answer in clear English.\",\"Explain the amount of water if it can be derived from the saved measurements.\",\"State whether the measurements are sufficient to establish actual intake or only suggest it.\",\"Do not invent facts beyond the retrieved records.\"],\"referenceTurnIds\":[],\"outputFormat\":\"prose\",\"scope\":\"named\",\"petNames\":[\"Maple\"],\"operation\":\"comparison\",\"selection\":\"comparison\",\"quantity\":\"measurement\",\"topic\":\"water intake from bowl observations\",\"terms\":[\"water\",\"bowl observation\",\"intake\",\"measurement\"] ,\"from\":null,\"to\":null,\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4709,
+      "outputTokens": 264,
+      "measuredUsd": 0.00471975,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "How much water did Maple drink between the two bowl observations, and can the saved measurements establish actual intake?",
+        "requirements": [
+          "Answer in clear English.",
+          "Explain the amount of water if it can be derived from the saved measurements.",
+          "State whether the measurements are sufficient to establish actual intake or only suggest it.",
+          "Do not invent facts beyond the retrieved records."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "prose",
+        "scope": "named",
+        "petNames": [
+          "Maple"
+        ],
+        "operation": "comparison",
+        "selection": "comparison",
+        "quantity": "measurement",
+        "topic": "water intake from bowl observations",
+        "terms": [
+          "water",
+          "bowl observation",
+          "intake",
+          "measurement"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 62,
+      "question": "How much water did Maple drink between the two bowl observations? Explain whether the saved measurements can establish intake.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.052256250000000004,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 4863,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[{\"operation\":\"difference\",\"operands\":[{\"sourceId\":\"care:drink-old\",\"field\":\"text\",\"literal\":\"320 ml\"},{\"sourceId\":\"care:drink-new\",\"field\":\"text\",\"literal\":\"90 ml\"}],\"value\":230,\"unit\":\"ml\"}],\"text\":\"The bowl measurements differ by 230 ml, but that is only the change between the saved observations, not Maple’s actual intake.\",\"sourceIds\":[\"care:drink-old\",\"care:drink-new\"]},{\"calculations\":[],\"text\":\"The records do not establish how much she drank, because the later note says the spilled amount and her intake are unknown.\",\"sourceIds\":[\"care:drink-new\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"Ask how much water Maple drank between two bowl observations and whether saved measurements can establish actual intake.\",\"relevantContextIds\":[\"care:drink-old\",\"care:drink-new\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 10151,
+      "outputTokens": 617,
+      "measuredUsd": 0.01038975,
+      "syntheticResponse": {
+        "historyNarrative": {
+          "sentences": [
+            {
+              "calculations": [
+                {
+                  "operation": "difference",
+                  "operands": [
+                    {
+                      "sourceId": "care:drink-old",
+                      "field": "text",
+                      "literal": "320 ml"
+                    },
+                    {
+                      "sourceId": "care:drink-new",
+                      "field": "text",
+                      "literal": "90 ml"
+                    }
+                  ],
+                  "value": 230,
+                  "unit": "ml"
+                }
+              ],
+              "text": "The bowl measurements differ by 230 ml, but that is only the change between the saved observations, not Maple’s actual intake.",
+              "sourceIds": [
+                "care:drink-old",
+                "care:drink-new"
+              ]
+            },
+            {
+              "calculations": [],
+              "text": "The records do not establish how much she drank, because the later note says the spilled amount and her intake are unknown.",
+              "sourceIds": [
+                "care:drink-new"
+              ]
+            }
+          ]
+        },
+        "safetyLevel": "normal",
+        "responseMode": "practical_guidance",
+        "userIntent": "Ask how much water Maple drank between two bowl observations and whether saved measurements can establish actual intake.",
+        "relevantContextIds": [
+          "care:drink-old",
+          "care:drink-new"
+        ],
+        "json": null,
+        "readVersion": "history-answer.v1",
+        "layout": "prose",
+        "limitation": null,
+        "table": null
+      }
+    },
+    {
+      "number": 63,
+      "question": "How much water did Maple drink between the two bowl observations? Explain whether the saved measurements can establish intake.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.025548,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1783,
+      "rawOutput": "{\"approved\":true,\"retainedSentenceIndexes\":[0,1],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[1]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0,1]}],\"rejectionReason\":null}",
+      "inputTokens": 5457,
+      "outputTokens": 190,
+      "measuredUsd": 0.00494775,
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0,1],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[1]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0,1]}],\"rejectionReason\":null}"
+    },
+    {
+      "number": 64,
+      "question": "Quote Tansy’s mat and settling note exactly, then give one limitation of that observation.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03540825,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 2225,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"Find Tansy’s mat-and-settling note, quote it exactly, and give one limitation of that observation.\",\"requirements\":[\"Return the quoted note exactly as written.\",\"Include one limitation of the observation.\",\"Use the user's language.\",\"Do not add unsupported details.\"],\"referenceTurnIds\":[],\"outputFormat\":\"prose\",\"scope\":\"named\",\"petNames\":[\"Tansy\"],\"operation\":\"recall\",\"selection\":\"reference\",\"quantity\":null,\"topic\":\"Tansy's mat and settling note\",\"terms\":[\"mat\",\"settling note\"],\"from\":null,\"to\":null,\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4707,
+      "outputTokens": 228,
+      "measuredUsd": 0.0045562499999999995,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "Find Tansy’s mat-and-settling note, quote it exactly, and give one limitation of that observation.",
+        "requirements": [
+          "Return the quoted note exactly as written.",
+          "Include one limitation of the observation.",
+          "Use the user's language.",
+          "Do not add unsupported details."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "prose",
+        "scope": "named",
+        "petNames": [
+          "Tansy"
+        ],
+        "operation": "recall",
+        "selection": "reference",
+        "quantity": null,
+        "topic": "Tansy's mat and settling note",
+        "terms": [
+          "mat",
+          "settling note"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 65,
+      "question": "Quote Tansy’s mat and settling note exactly, then give one limitation of that observation.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.051807000000000006,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 3267,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[],\"text\":\"“Tansy’s mat was dry. Tansy settled after the lights dimmed.”\",\"sourceIds\":[\"care:blanket\"]},{\"calculations\":[],\"text\":\"One limitation is that this is only a single recorded observation, so it does not show whether that pattern held before or after that moment.\",\"sourceIds\":[\"care:blanket\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"Find Tansy’s mat-and-settling note, quote it exactly, and give one limitation of that observation.\",\"relevantContextIds\":[\"care:blanket\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 10272,
+      "outputTokens": 532,
+      "measuredUsd": 0.010098,
+      "syntheticResponse": {
+        "historyNarrative": {
+          "sentences": [
+            {
+              "calculations": [],
+              "text": "“Tansy’s mat was dry. Tansy settled after the lights dimmed.”",
+              "sourceIds": [
+                "care:blanket"
+              ]
+            },
+            {
+              "calculations": [],
+              "text": "One limitation is that this is only a single recorded observation, so it does not show whether that pattern held before or after that moment.",
+              "sourceIds": [
+                "care:blanket"
+              ]
+            }
+          ]
+        },
+        "safetyLevel": "normal",
+        "responseMode": "practical_guidance",
+        "userIntent": "Find Tansy’s mat-and-settling note, quote it exactly, and give one limitation of that observation.",
+        "relevantContextIds": [
+          "care:blanket"
+        ],
+        "json": null,
+        "readVersion": "history-answer.v1",
+        "layout": "prose",
+        "limitation": null,
+        "table": null
+      }
+    },
+    {
+      "number": 66,
+      "question": "Quote Tansy’s mat and settling note exactly, then give one limitation of that observation.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.024744750000000003,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1040,
+      "rawOutput": "{\"approved\":true,\"retainedSentenceIndexes\":[0,1],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[1]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0,1]}],\"rejectionReason\":null}",
+      "inputTokens": 5367,
+      "outputTokens": 138,
+      "measuredUsd": 0.00464625,
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0,1],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[1]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0,1]}],\"rejectionReason\":null}"
+    },
+    {
+      "number": 67,
+      "question": "As of September 7, what was Tansy’s latest recorded overnight waking observation? Include the date and any unknown cause.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0354315,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 3917,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"As of 2026-09-07, what was Tansy’s latest recorded overnight waking observation? Include the date and any unknown cause.\",\"requirements\":[\"Return the answer in prose.\",\"Include the date of the latest overnight waking observation.\",\"Include any unknown cause associated with that observation.\"],\"referenceTurnIds\":[],\"outputFormat\":\"prose\",\"scope\":\"named\",\"petNames\":[\"Tansy\"],\"operation\":\"recall\",\"selection\":\"latest\",\"quantity\":\"episodes\",\"topic\":\"overnight waking observation\",\"terms\":[\"overnight waking\",\"unknown cause\"],\"from\":\"2026-09-07\",\"to\":\"2026-09-08\",\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4714,
+      "outputTokens": 289,
+      "measuredUsd": 0.004836,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "As of 2026-09-07, what was Tansy’s latest recorded overnight waking observation? Include the date and any unknown cause.",
+        "requirements": [
+          "Return the answer in prose.",
+          "Include the date of the latest overnight waking observation.",
+          "Include any unknown cause associated with that observation."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "prose",
+        "scope": "named",
+        "petNames": [
+          "Tansy"
+        ],
+        "operation": "recall",
+        "selection": "latest",
+        "quantity": "episodes",
+        "topic": "overnight waking observation",
+        "terms": [
+          "overnight waking",
+          "unknown cause"
+        ],
+        "from": "2026-09-07",
+        "to": "2026-09-08",
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 68,
+      "question": "As of September 7, what was Tansy’s latest recorded overnight waking observation? Include the date and any unknown cause.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.051914249999999995,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 2057,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[],\"text\":\"As of September 7, Tansy’s latest recorded overnight waking observation was on September 2: he woke three times overnight, and no cause was recorded.\",\"sourceIds\":[\"care:rest\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"Recall Tansy’s latest recorded overnight waking observation as of September 7, including date and unknown cause.\",\"relevantContextIds\":[\"care:rest\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 10286,
+      "outputTokens": 325,
+      "measuredUsd": 0.009177,
+      "syntheticResponse": {
+        "historyNarrative": {
+          "sentences": [
+            {
+              "calculations": [],
+              "text": "As of September 7, Tansy’s latest recorded overnight waking observation was on September 2: he woke three times overnight, and no cause was recorded.",
+              "sourceIds": [
+                "care:rest"
+              ]
+            }
+          ]
+        },
+        "safetyLevel": "normal",
+        "responseMode": "practical_guidance",
+        "userIntent": "Recall Tansy’s latest recorded overnight waking observation as of September 7, including date and unknown cause.",
+        "relevantContextIds": [
+          "care:rest"
+        ],
+        "json": null,
+        "readVersion": "history-answer.v1",
+        "layout": "prose",
+        "limitation": null,
+        "table": null
+      }
+    },
+    {
+      "number": 69,
+      "question": "As of September 7, what was Tansy’s latest recorded overnight waking observation? Include the date and any unknown cause.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.024801000000000004,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1301,
+      "rawOutput": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rejectionReason\":null}",
+      "inputTokens": 5375,
+      "outputTokens": 135,
+      "measuredUsd": 0.0046387500000000005,
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rejectionReason\":null}"
+    },
+    {
+      "number": 70,
+      "question": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0354075,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 2139,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?\",\"requirements\":[\"Answer in a concise comparison.\",\"Include both ride lengths for Juniper.\",\"State how many minutes longer the later ride length was.\",\"Use plain language.\",\"Do not include unrelated history.\"],\"referenceTurnIds\":[],\"outputFormat\":\"prose\",\"scope\":\"selected\",\"petNames\":[],\"operation\":\"comparison\",\"selection\":\"comparison\",\"quantity\":\"measurement\",\"topic\":\"Juniper ride lengths\",\"terms\":[\"ride length\",\"minutes\",\"longer\"],\"from\":null,\"to\":null,\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4709,
+      "outputTokens": 232,
+      "measuredUsd": 0.00457575,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?",
+        "requirements": [
+          "Answer in a concise comparison.",
+          "Include both ride lengths for Juniper.",
+          "State how many minutes longer the later ride length was.",
+          "Use plain language.",
+          "Do not include unrelated history."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "prose",
+        "scope": "selected",
+        "petNames": [],
+        "operation": "comparison",
+        "selection": "comparison",
+        "quantity": "measurement",
+        "topic": "Juniper ride lengths",
+        "terms": [
+          "ride length",
+          "minutes",
+          "longer"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 71,
+      "question": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.04061625,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 3243,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[],\"text\":\"Juniper’s saved ride lengths were 8 minutes and 23 minutes.\",\"sourceIds\":[\"care:gear-old\",\"care:gear-new\"]},{\"calculations\":[{\"operation\":\"difference\",\"operands\":[{\"sourceId\":\"care:gear-new\",\"field\":\"text\",\"literal\":\"23 minutes\"},{\"sourceId\":\"care:gear-old\",\"field\":\"text\",\"literal\":\"8 minutes\"}],\"value\":15,\"unit\":\"minutes\"}],\"text\":\"The later ride was 15 minutes longer.\",\"sourceIds\":[\"care:gear-old\",\"care:gear-new\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"Compare Juniper’s two saved ride lengths and state the difference\",\"relevantContextIds\":[\"care:gear-old\",\"care:gear-new\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 6147,
+      "outputTokens": 599,
+      "measuredUsd": 0.00730575,
+      "syntheticResponse": {
+        "historyNarrative": {
+          "sentences": [
+            {
+              "calculations": [],
+              "text": "Juniper’s saved ride lengths were 8 minutes and 23 minutes.",
+              "sourceIds": [
+                "care:gear-old",
+                "care:gear-new"
+              ]
+            },
+            {
+              "calculations": [
+                {
+                  "operation": "difference",
+                  "operands": [
+                    {
+                      "sourceId": "care:gear-new",
+                      "field": "text",
+                      "literal": "23 minutes"
+                    },
+                    {
+                      "sourceId": "care:gear-old",
+                      "field": "text",
+                      "literal": "8 minutes"
+                    }
+                  ],
+                  "value": 15,
+                  "unit": "minutes"
+                }
+              ],
+              "text": "The later ride was 15 minutes longer.",
+              "sourceIds": [
+                "care:gear-old",
+                "care:gear-new"
+              ]
+            }
+          ]
+        },
+        "safetyLevel": "normal",
+        "responseMode": "practical_guidance",
+        "userIntent": "Compare Juniper’s two saved ride lengths and state the difference",
+        "relevantContextIds": [
+          "care:gear-old",
+          "care:gear-new"
+        ],
+        "json": null,
+        "readVersion": "history-answer.v1",
+        "layout": "prose",
+        "limitation": null,
+        "table": null
+      }
+    },
+    {
+      "number": 72,
+      "question": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0201045,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1742,
+      "rawOutput": "{\"approved\":true,\"retainedSentenceIndexes\":[0,1],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[1]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":5,\"status\":\"answered\",\"sentenceIndexes\":[0,1]}],\"rejectionReason\":null}",
+      "inputTokens": 3656,
+      "outputTokens": 157,
+      "measuredUsd": 0.0034485,
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0,1],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[1]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":5,\"status\":\"answered\",\"sentenceIndexes\":[0,1]}],\"rejectionReason\":null}"
+    },
+    {
+      "number": 73,
+      "question": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0354075,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 3181,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?\",\"requirements\":[\"Answer with the two ride lengths for Juniper.\",\"State how many minutes longer the later ride was than the earlier one.\",\"Use the requested selected pet context only.\",\"Respond in prose.\"],\"referenceTurnIds\":[],\"outputFormat\":\"prose\",\"scope\":\"selected\",\"petNames\":[],\"operation\":\"comparison\",\"selection\":\"comparison\",\"quantity\":\"measurement\",\"topic\":\"ride length\",\"terms\":[\"ride length\",\"minutes\",\"longer\"],\"from\":null,\"to\":null,\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4709,
+      "outputTokens": 268,
+      "measuredUsd": 0.004737750000000001,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?",
+        "requirements": [
+          "Answer with the two ride lengths for Juniper.",
+          "State how many minutes longer the later ride was than the earlier one.",
+          "Use the requested selected pet context only.",
+          "Respond in prose."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "prose",
+        "scope": "selected",
+        "petNames": [],
+        "operation": "comparison",
+        "selection": "comparison",
+        "quantity": "measurement",
+        "topic": "ride length",
+        "terms": [
+          "ride length",
+          "minutes",
+          "longer"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 74,
+      "question": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.04896225,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 3411,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[],\"text\":\"His saved ride lengths were 8 minutes and 23 minutes.\",\"sourceIds\":[\"care:gear-old\",\"care:gear-new\"]},{\"calculations\":[{\"operation\":\"difference\",\"operands\":[{\"sourceId\":\"care:gear-new\",\"field\":\"text\",\"literal\":\"23 minutes\"},{\"sourceId\":\"care:gear-old\",\"field\":\"text\",\"literal\":\"8 minutes\"}],\"value\":15,\"unit\":\"minutes\"}],\"text\":\"The later ride was 15 minutes longer.\",\"sourceIds\":[\"care:gear-old\",\"care:gear-new\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"Compare Juniper’s two saved ride lengths and the difference in minutes\",\"relevantContextIds\":[\"care:gear-old\",\"care:gear-new\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 9015,
+      "outputTokens": 708,
+      "measuredUsd": 0.00994725,
+      "syntheticResponse": {
+        "historyNarrative": {
+          "sentences": [
+            {
+              "calculations": [],
+              "text": "His saved ride lengths were 8 minutes and 23 minutes.",
+              "sourceIds": [
+                "care:gear-old",
+                "care:gear-new"
+              ]
+            },
+            {
+              "calculations": [
+                {
+                  "operation": "difference",
+                  "operands": [
+                    {
+                      "sourceId": "care:gear-new",
+                      "field": "text",
+                      "literal": "23 minutes"
+                    },
+                    {
+                      "sourceId": "care:gear-old",
+                      "field": "text",
+                      "literal": "8 minutes"
+                    }
+                  ],
+                  "value": 15,
+                  "unit": "minutes"
+                }
+              ],
+              "text": "The later ride was 15 minutes longer.",
+              "sourceIds": [
+                "care:gear-old",
+                "care:gear-new"
+              ]
+            }
+          ]
+        },
+        "safetyLevel": "normal",
+        "responseMode": "practical_guidance",
+        "userIntent": "Compare Juniper’s two saved ride lengths and the difference in minutes",
+        "relevantContextIds": [
+          "care:gear-old",
+          "care:gear-new"
+        ],
+        "json": null,
+        "readVersion": "history-answer.v1",
+        "layout": "prose",
+        "limitation": null,
+        "table": null
+      }
+    },
+    {
+      "number": 75,
+      "question": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.02370675,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 3774,
+      "rawOutput": "{\"approved\":true,\"retainedSentenceIndexes\":[0,1],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[1]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0,1]}],\"rejectionReason\":null}",
+      "inputTokens": 4921,
+      "outputTokens": 160,
+      "measuredUsd": 0.00441075,
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0,1],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[1]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0,1]}],\"rejectionReason\":null}"
+    }
+  ],
+  "pricingSource": "https://developers.openai.com/api/docs/models/gpt-5.4-mini",
+  "pricing": {
+    "inputPerMillion": 0.75,
+    "outputPerMillion": 4.5
+  },
+  "syntheticClock": "2026-09-15T12:00:00Z"
+}

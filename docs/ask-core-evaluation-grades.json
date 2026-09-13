@@ -1,0 +1,422 @@
+{
+  "strict": true,
+  "pass": 73,
+  "total": 80,
+  "percent": 91.25,
+  "grading": [
+    {
+      "phase": "core-full60",
+      "total": 60,
+      "pass": 54,
+      "grades": [
+        {
+          "id": 1,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 2,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 3,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 4,
+          "status": "partial",
+          "reason": "No observation was overstated as proof of absence."
+        },
+        {
+          "id": 5,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 6,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 7,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 8,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 9,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 10,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 11,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 12,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 13,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 14,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 15,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 16,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 17,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 18,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 19,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 20,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 21,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 22,
+          "status": "error",
+          "reason": "Serialized source quote rejected."
+        },
+        {
+          "id": 23,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 24,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 25,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 26,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 27,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 28,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 29,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 30,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 31,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 32,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 33,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 34,
+          "status": "fail",
+          "reason": "Planner changed topic."
+        },
+        {
+          "id": 35,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 36,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 37,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 38,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 39,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 40,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 41,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 42,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 43,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 44,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 45,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 46,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 47,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 48,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 49,
+          "status": "error",
+          "reason": "Planner timeout."
+        },
+        {
+          "id": 50,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 51,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 52,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 53,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 54,
+          "status": "fail",
+          "reason": "Access limitation not explained."
+        },
+        {
+          "id": 55,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 56,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 57,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 58,
+          "status": "error",
+          "reason": "Planner timeout."
+        },
+        {
+          "id": 59,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 60,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        }
+      ]
+    },
+    {
+      "phase": "core-repeat20",
+      "total": 20,
+      "pass": 19,
+      "grades": [
+        {
+          "id": 1,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 2,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 3,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 4,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 5,
+          "status": "partial",
+          "reason": "Combined change causality overstated."
+        },
+        {
+          "id": 6,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 7,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 8,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 9,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 10,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 11,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 12,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 13,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 14,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 15,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 16,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 17,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 18,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 19,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        },
+        {
+          "id": 20,
+          "status": "pass",
+          "reason": "Meets the frozen requested content and format."
+        }
+      ]
+    }
+  ]
+}

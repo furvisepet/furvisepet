@@ -1,0 +1,9 @@
+{
+  "syntheticDatabase": true,
+  "mockedInterpretationAndDraft": true,
+  "realReview": true,
+  "question": "Brief Juniper drinking history summary.",
+  "answer": "Juniper was drinking more water during a hot week in July, but the owner did not know whether heat explained it. In August, her drinking seemed back to usual and her appetite was normal. This covers the matching saved notes I could verify, not necessarily every event in their life.",
+  "providerCalls": 1,
+  "passed": true
+}

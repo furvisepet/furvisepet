@@ -1,0 +1,376 @@
+{
+  "syntheticDatabase": true,
+  "realProviders": true,
+  "phase": "repair7",
+  "turns": [
+    {
+      "id": 25,
+      "question": "Do Milo’s carrier-weight records explain why the empty carrier got heavier?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "outputFormat": "prose",
+          "question": "Do Milo’s carrier-weight records explain why the empty carrier got heavier?",
+          "requirements": [
+            "Answer whether Milo’s carrier-weight records account for the empty carrier getting heavier.",
+            "Use the relevant recorded measurements and their relationship to the empty carrier’s weight change.",
+            "If the records do not support an explanation, say so clearly.",
+            "Respond in prose."
+          ],
+          "referenceTurnIds": [],
+          "quantity": "measurement"
+        },
+        "operation": "comparison",
+        "readOperation": "comparison",
+        "selection": "comparison",
+        "petIds": [
+          "milo"
+        ],
+        "topic": "carrier weight",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "Do Milo’s carrier-weight records explain why the empty carrier got heavier?",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": "2021-09-09T00:00:00.000Z",
+          "to": "2026-09-10T00:00:00.000Z",
+          "terms": [
+            "carrier weight",
+            "empty carrier",
+            "heavier",
+            "Milo"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "The empty carrier got 0.5 kg heavier, from 2 kg to 2.5 kg, and the later carrier note says no reason for the difference was recorded.\nSo the carrier-weight records do not explain why it got heavier; the other notes in Milo’s record are about his own weight and routine care, not the carrier.",
+      "beforeFinalGuard": "The empty carrier got 0.5 kg heavier, from 2 kg to 2.5 kg, and the later carrier note says no reason for the difference was recorded.\nSo the carrier-weight records do not explain why it got heavier; the other notes in Milo’s record are about his own weight and routine care, not the carrier.",
+      "draft": {
+        "sentences": [
+          {
+            "text": "The empty carrier got 0.5 kg heavier, from 2 kg to 2.5 kg, and the later carrier note says no reason for the difference was recorded.",
+            "sourceIds": [
+              "care:diag-15",
+              "care:diag-16"
+            ],
+            "calculations": [
+              {
+                "operation": "difference",
+                "operands": [
+                  {
+                    "sourceId": "care:diag-16",
+                    "field": "text",
+                    "literal": "2.5 kg"
+                  },
+                  {
+                    "sourceId": "care:diag-15",
+                    "field": "text",
+                    "literal": "2 kg"
+                  }
+                ],
+                "value": 0.5,
+                "unit": "kg"
+              }
+            ]
+          },
+          {
+            "text": "So the carrier-weight records do not explain why it got heavier; the other notes in Milo’s record are about his own weight and routine care, not the carrier.",
+            "sourceIds": [
+              "care:diag-18",
+              "care:diag-25",
+              "care:diag-28"
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "deterministicCalculationHints": [],
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Do Milo’s carrier-weight records explain why the empty carrier got heavier?",
+          "referenceQuestion": "Do Milo’s carrier-weight records explain why the empty carrier got heavier?",
+          "scope": {
+            "authorizedPetIds": [
+              "milo"
+            ],
+            "requestedTopic": "carrier weight",
+            "requestText": "Do Milo’s carrier-weight records explain why the empty carrier got heavier?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2021-09-09T00:00:00.000Z"
+            },
+            "requestKind": "comparison",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Milo"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "outputFormat": "prose",
+              "question": "Do Milo’s carrier-weight records explain why the empty carrier got heavier?",
+              "requirements": [
+                "Answer whether Milo’s carrier-weight records account for the empty carrier getting heavier.",
+                "Use the relevant recorded measurements and their relationship to the empty carrier’s weight change.",
+                "If the records do not support an explanation, say so clearly.",
+                "Respond in prose."
+              ],
+              "referenceTurnIds": [],
+              "quantity": "measurement"
+            },
+            "operation": "comparison",
+            "readOperation": "comparison",
+            "selection": "comparison",
+            "petIds": [
+              "milo"
+            ],
+            "topic": "carrier weight",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "Do Milo’s carrier-weight records explain why the empty carrier got heavier?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2021-09-09T00:00:00.000Z",
+              "to": "2026-09-10T00:00:00.000Z",
+              "terms": [
+                "carrier weight",
+                "empty carrier",
+                "heavier",
+                "Milo"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "milo": "Milo"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "outputFormat": "prose",
+            "question": "Do Milo’s carrier-weight records explain why the empty carrier got heavier?",
+            "requirements": [
+              "Answer whether Milo’s carrier-weight records account for the empty carrier getting heavier.",
+              "Use the relevant recorded measurements and their relationship to the empty carrier’s weight change.",
+              "If the records do not support an explanation, say so clearly.",
+              "Respond in prose."
+            ],
+            "referenceTurnIds": [],
+            "quantity": "measurement"
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Do Milo’s carrier-weight records explain why the empty carrier got heavier?"
+            },
+            {
+              "index": 1,
+              "text": "Answer whether Milo’s carrier-weight records account for the empty carrier getting heavier."
+            },
+            {
+              "index": 2,
+              "text": "Use the relevant recorded measurements and their relationship to the empty carrier’s weight change."
+            },
+            {
+              "index": 3,
+              "text": "If the records do not support an explanation, say so clearly."
+            },
+            {
+              "index": 4,
+              "text": "Respond in prose."
+            }
+          ],
+          "coverage": {
+            "retrieval": "partial",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "bidirectional_endpoint_subset",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:milo:sex",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:milo:species",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:diag-15",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 carrier-old: Milo tolerated a 10-minute car ride calmly. The empty carrier weighed 2 kg. This was the carrier weight, not Milo’s weight.",
+              "occurredAt": "2021-10-05T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-28",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 27.8 kg today. He is still eating salmon-and-rice food. His appetite, energy and stools are normal.",
+              "occurredAt": "2026-09-03T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-16",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 carrier-later: Milo tolerated a 20-minute car ride calmly. The empty carrier weighed 2.5 kg. No reason for the weight difference was recorded.",
+              "occurredAt": "2023-04-11T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-25",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 27.9 kg today. His appetite and activity are normal.",
+              "occurredAt": "2026-07-24T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-18",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 28.4 kg today. He is eating chicken-and-rice adult dry food. His appetite, energy and stools are normal.",
+              "occurredAt": "2026-06-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-17",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 nail-trim: During a nail trim Milo withdrew his right forepaw once. No injury or diagnosis was recorded.",
+              "occurredAt": "2026-05-20T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-27",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo's stools are normal again. There have been no more soft stools since August 8.",
+              "occurredAt": "2026-08-10T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-19",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: We started giving Milo new chicken training treats yesterday. His regular food has not changed.",
+              "occurredAt": "2026-06-12T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-26",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo had one soft stool after staying with my sister for the weekend. She says he may have eaten some table scraps, but nobody saw exactly what he ate.",
+              "occurredAt": "2026-08-08T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-20",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo had two soft stools today. He is still eating and playing normally. I wonder whether the new treats are involved, but I do not know.",
+              "occurredAt": "2026-06-15T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-24",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo has finished the food transition. He now eats only the salmon-and-rice adult dry food for meals. His stools are normal.",
+              "occurredAt": "2026-07-10T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-21",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: We stopped the new chicken training treats today. We kept his regular chicken-and-rice food the same.",
+              "occurredAt": "2026-06-16T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-23",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: We started gradually changing Milo's main food to salmon-and-rice adult dry food. The change is our choice; no chicken allergy has been diagnosed.",
+              "occurredAt": "2026-07-03T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-22",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo has had normal stools for three days and his energy is normal. The soft stools seem to have ended.",
+              "occurredAt": "2026-06-20T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "The empty carrier got 0.5 kg heavier, from 2 kg to 2.5 kg, and the later carrier note says no reason for the difference was recorded.",
+                "sourceIds": [
+                  "care:diag-15",
+                  "care:diag-16"
+                ],
+                "calculations": [
+                  {
+                    "operation": "difference",
+                    "operands": [
+                      {
+                        "sourceId": "care:diag-16",
+                        "field": "text",
+                        "literal": "2.5 kg"
+                      },
+                      {
+                        "sourceId": "care:diag-15",
+                        "field": "text",
+                        "literal": "2 kg"
+                      }
+                    ],
+                    "value": 0.5,
+                    "unit": "kg"
+                  }
+                ],
+                "index": 0
+              },
+              {
+                "text": "So the carrier-weight records do not explain why it got heavier; the other notes in Milo’s record are about his own weight and routine care, not the carrier.",
+                "sourceIds": [
+                  "care:diag-18",
+                  "care:diag-25",
+                  "care:diag-28"
+                ],
+                "index": 1
+              }
+            ]
+          }
+        }
+      ],
+      "providerCalls": 3,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    }
+  ]
+}

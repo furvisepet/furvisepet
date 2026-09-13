@@ -1,0 +1,3034 @@
+TAP version 13
+# (node:35068) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/petwise.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: formatPetDisplayName preserves intentional capitalization
+ok 1 - formatPetDisplayName preserves intentional capitalization
+  ---
+  duration_ms: 1.2197
+  type: 'test'
+  ...
+# Subtest: formatPetDisplayName falls back for blank or missing values
+ok 2 - formatPetDisplayName falls back for blank or missing values
+  ---
+  duration_ms: 0.1783
+  type: 'test'
+  ...
+# Subtest: care log pet-name rendering smoke test handles rocky without throwing
+ok 3 - care log pet-name rendering smoke test handles rocky without throwing
+  ---
+  duration_ms: 7.2493
+  type: 'test'
+  ...
+# Subtest: account settings displays and persists Product country manual override
+ok 4 - account settings displays and persists Product country manual override
+  ---
+  duration_ms: 0.7761
+  type: 'test'
+  ...
+# Subtest: signed-out account redirects before rendering editable settings controls
+ok 5 - signed-out account redirects before rendering editable settings controls
+  ---
+  duration_ms: 0.2591
+  type: 'test'
+  ...
+# Subtest: Results ignores product country and does not render a region product empty state
+ok 6 - Results ignores product country and does not render a region product empty state
+  ---
+  duration_ms: 1.0328
+  type: 'test'
+  ...
+# Subtest: urgent safety continues to render care-first Results UI without product copy
+ok 7 - urgent safety continues to render care-first Results UI without product copy
+  ---
+  duration_ms: 0.3147
+  type: 'test'
+  ...
+# Subtest: privacy page includes approximate country copy
+ok 8 - privacy page includes approximate country copy
+  ---
+  duration_ms: 0.3528
+  type: 'test'
+  ...
+# (node:1436) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/account-country.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: account country normalizes only supported MVP countries
+ok 9 - account country normalizes only supported MVP countries
+  ---
+  duration_ms: 2.013
+  type: 'test'
+  ...
+# Subtest: x-vercel-ip-country CA stores CA for a new user
+ok 10 - x-vercel-ip-country CA stores CA for a new user
+  ---
+  duration_ms: 28.624
+  type: 'test'
+  ...
+# Subtest: x-vercel-ip-country US stores US for a new user
+ok 11 - x-vercel-ip-country US stores US for a new user
+  ---
+  duration_ms: 0.2995
+  type: 'test'
+  ...
+# Subtest: unsupported country header does not store the unsupported value
+ok 12 - unsupported country header does not store the unsupported value
+  ---
+  duration_ms: 0.3339
+  type: 'test'
+  ...
+# Subtest: missing country header uses configured env fallback
+ok 13 - missing country header uses configured env fallback
+  ---
+  duration_ms: 0.2536
+  type: 'test'
+  ...
+# Subtest: existing manual country is not overwritten by detection
+ok 14 - existing manual country is not overwritten by detection
+  ---
+  duration_ms: 0.2235
+  type: 'test'
+  ...
+# Subtest: existing stored country is not re-detected on every call
+ok 15 - existing stored country is not re-detected on every call
+  ---
+  duration_ms: 0.2021
+  type: 'test'
+  ...
+# Subtest: manual override payload stores account-level manual source
+ok 16 - manual override payload stores account-level manual source
+  ---
+  duration_ms: 1.5352
+  type: 'test'
+  ...
+# Subtest: product country save upserts user profile for first-time users
+ok 17 - product country save upserts user profile for first-time users
+  ---
+  duration_ms: 0.6866
+  type: 'test'
+  ...
+# Subtest: first-time manual save does not require an existing profile row
+ok 18 - first-time manual save does not require an existing profile row
+  ---
+  duration_ms: 0.5743
+  type: 'test'
+  ...
+# Subtest: active product country source order prefers account profile before env
+ok 19 - active product country source order prefers account profile before env
+  ---
+  duration_ms: 0.3467
+  type: 'test'
+  ...
+# Subtest: user_profiles migrations store only account country with owner RLS
+ok 20 - user_profiles migrations store only account country with owner RLS
+  ---
+  duration_ms: 3.4762
+  type: 'test'
+  ...
+# Subtest: app code uses the public user_profiles table for account country
+ok 21 - app code uses the public user_profiles table for account country
+  ---
+  duration_ms: 0.7224
+  type: 'test'
+  ...
+# (node:1376) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/furvise-voice.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: conversation decision supports the complete practical intent vocabulary
+ok 22 - conversation decision supports the complete practical intent vocabulary
+  ---
+  duration_ms: 2.7647
+  type: 'test'
+  ...
+# Subtest: multi-turn references resolve from the thread and ambiguous references ask once
+ok 23 - multi-turn references resolve from the thread and ambiguous references ask once
+  ---
+  duration_ms: 4.2389
+  type: 'test'
+  ...
+# Subtest: corrections override temporary thread assumptions without becoming diagnoses
+ok 24 - corrections override temporary thread assumptions without becoming diagnoses
+  ---
+  duration_ms: 1.1881
+  type: 'test'
+  ...
+# Subtest: new conversations do not inherit unsaved thread assumptions
+ok 25 - new conversations do not inherit unsaved thread assumptions
+  ---
+  duration_ms: 0.6484
+  type: 'test'
+  ...
+# Subtest: context selection excludes unrelated history and labels only selected sources
+ok 26 - context selection excludes unrelated history and labels only selected sources
+  ---
+  duration_ms: 0.7387
+  type: 'test'
+  ...
+# Subtest: memory candidates stay attributed, require confirmation, and suppress duplicates
+ok 27 - memory candidates stay attributed, require confirmation, and suppress duplicates
+  ---
+  duration_ms: 0.7838
+  type: 'test'
+  ...
+# Subtest: tracking plans are bounded and relevant
+ok 28 - tracking plans are bounded and relevant
+  ---
+  duration_ms: 0.5638
+  type: 'test'
+  ...
+# Subtest: prior tracking is available to a related follow-up and stays out of unrelated topics
+ok 29 - prior tracking is available to a related follow-up and stays out of unrelated topics
+  ---
+  duration_ms: 0.6903
+  type: 'test'
+  ...
+# Subtest: urgent guidance remains deterministic and action-first
+ok 30 - urgent guidance remains deterministic and action-first
+  ---
+  duration_ms: 0.7511
+  type: 'test'
+  ...
+# Subtest: public response accepts useful presentation fields but drops the internal plan
+ok 31 - public response accepts useful presentation fields but drops the internal plan
+  ---
+  duration_ms: 0.9326
+  type: 'test'
+  ...
+# Subtest: user-facing Ask output rejects templated internal language in regression fixtures
+ok 32 - user-facing Ask output rejects templated internal language in regression fixtures
+  ---
+  duration_ms: 1.6142
+  type: 'test'
+  ...
+# Subtest: route keeps continuity owner-scoped, does not persist plans, and charges after validation
+ok 33 - route keeps continuity owner-scoped, does not persist plans, and charges after validation
+  ---
+  duration_ms: 0.6178
+  type: 'test'
+  ...
+# Subtest: analytics contract has lifecycle events and cannot accept private text
+ok 34 - analytics contract has lifecycle events and cannot accept private text
+  ---
+  duration_ms: 1.0544
+  type: 'test'
+  ...
+# (node:34664) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/furvise-voice.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: Ask conversation contract supports every adaptive answer type
+ok 35 - Ask conversation contract supports every adaptive answer type
+  ---
+  duration_ms: 3.6246
+  type: 'test'
+  ...
+# Subtest: Ask conversation contract rejects model-selected actions outside the deterministic allowlist
+ok 36 - Ask conversation contract rejects model-selected actions outside the deterministic allowlist
+  ---
+  duration_ms: 0.3211
+  type: 'test'
+  ...
+# Subtest: Ask workspace keeps one composer, chronological thread, compact pet selection, and one general disclaimer
+ok 37 - Ask workspace keeps one composer, chronological thread, compact pet selection, and one general disclaimer
+  ---
+  duration_ms: 2.4962
+  type: 'test'
+  ...
+# Subtest: Ask analytics accepts only privacy-safe metadata
+ok 38 - Ask analytics accepts only privacy-safe metadata
+  ---
+  duration_ms: 0.5319
+  type: 'test'
+  ...
+# Subtest: Results and Products remain outside the Ask redesign
+ok 39 - Results and Products remain outside the Ask redesign
+  ---
+  duration_ms: 0.9426
+  type: 'test'
+  ...
+# (node:4336) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/ai/ask-furvise.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: grounded Ask fallback is disabled without OpenAI configuration
+ok 40 - grounded Ask fallback is disabled without OpenAI configuration
+  ---
+  duration_ms: 4.2938
+  type: 'test'
+  ...
+# Subtest: grounded Ask fallback uses configured OpenAI client and current model schema
+ok 41 - grounded Ask fallback uses configured OpenAI client and current model schema
+  ---
+  duration_ms: 27.7942
+  type: 'test'
+  ...
+# Subtest: grounded Ask payload includes water, paw, and eating facts from saved memory only
+ok 42 - grounded Ask payload includes water, paw, and eating facts from saved memory only
+  ---
+  duration_ms: 1.487
+  type: 'test'
+  ...
+# Subtest: grounded Ask output rejects unsupported saved facts and unsafe product or diagnosis claims
+ok 43 - grounded Ask output rejects unsupported saved facts and unsafe product or diagnosis claims
+  ---
+  duration_ms: 1.2801
+  type: 'test'
+  ...
+# Subtest: grounded Ask fallback can answer supported water and eating questions
+ok 44 - grounded Ask fallback can answer supported water and eating questions
+  ---
+  duration_ms: 1.9544
+  type: 'test'
+  ...
+# Subtest: grounded Ask fallback says when saved data does not support the question
+ok 45 - grounded Ask fallback says when saved data does not support the question
+  ---
+  duration_ms: 0.3648
+  type: 'test'
+  ...
+# (node:31140) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/furvise-voice.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: Ask Furvise safety gate catches urgent symptom language
+ok 46 - Ask Furvise safety gate catches urgent symptom language
+  ---
+  duration_ms: 1.7683
+  type: 'test'
+  ...
+# Subtest: Ask Furvise only adds product feedback for relevant questions
+ok 47 - Ask Furvise only adds product feedback for relevant questions
+  ---
+  duration_ms: 0.3377
+  type: 'test'
+  ...
+# Subtest: Ask Furvise validates and renders structured responses without raw Markdown
+ok 48 - Ask Furvise validates and renders structured responses without raw Markdown
+  ---
+  duration_ms: 0.5986
+  type: 'test'
+  ...
+# Subtest: Ask Furvise rejects malformed structured responses
+ok 49 - Ask Furvise rejects malformed structured responses
+  ---
+  duration_ms: 0.1354
+  type: 'test'
+  ...
+# Subtest: Ask Furvise builds clean copy, save, context, and urgent safety content
+ok 50 - Ask Furvise builds clean copy, save, context, and urgent safety content
+  ---
+  duration_ms: 1.9668
+  type: 'test'
+  ...
+# Subtest: saving vet prep guidance creates a concise Furvise care-history entry
+ok 51 - saving vet prep guidance creates a concise Furvise care-history entry
+  ---
+  duration_ms: 1.5123
+  type: 'test'
+  ...
+# Subtest: Ask Furvise save eligibility blocks no-record and generic answers
+ok 52 - Ask Furvise save eligibility blocks no-record and generic answers
+  ---
+  duration_ms: 2.1024
+  type: 'test'
+  ...
+# Subtest: Ask Furvise save eligibility allows useful saved facts and maps categories
+ok 53 - Ask Furvise save eligibility allows useful saved facts and maps categories
+  ---
+  duration_ms: 1.9707
+  type: 'test'
+  ...
+# Subtest: vet prep save eligibility requires actual recent saved updates
+ok 54 - vet prep save eligibility requires actual recent saved updates
+  ---
+  duration_ms: 0.9031
+  type: 'test'
+  ...
+# Subtest: saved Furvise guidance titles match answer type when available
+ok 55 - saved Furvise guidance titles match answer type when available
+  ---
+  duration_ms: 0.7942
+  type: 'test'
+  ...
+# Subtest: saved symptom guidance uses actual saved facts instead of no-record phrasing
+ok 56 - saved symptom guidance uses actual saved facts instead of no-record phrasing
+  ---
+  duration_ms: 0.3658
+  type: 'test'
+  ...
+# (node:5340) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/ask-conversations.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: conversation titles are concise and human
+ok 57 - conversation titles are concise and human
+  ---
+  duration_ms: 1.1088
+  type: 'test'
+  ...
+# Subtest: Ask exposes separate new-question, history, pet-switch, and thread-open actions
+ok 58 - Ask exposes separate new-question, history, pet-switch, and thread-open actions
+  ---
+  duration_ms: 0.645
+  type: 'test'
+  ...
+# Subtest: Ask persists chronological conversations with owner RLS
+ok 59 - Ask persists chronological conversations with owner RLS
+  ---
+  duration_ms: 0.4861
+  type: 'test'
+  ...
+# Subtest: Ask fresh and follow-up states differ and formal print is absent
+ok 60 - Ask fresh and follow-up states differ and formal print is absent
+  ---
+  duration_ms: 1.2387
+  type: 'test'
+  ...
+# Subtest: missing Ask details have one primary responsive location
+ok 61 - missing Ask details have one primary responsive location
+  ---
+  duration_ms: 0.5463
+  type: 'test'
+  ...
+# Subtest: Vet Brief uses outline, grouped empty state, external preview controls, and gated exports
+ok 62 - Vet Brief uses outline, grouped empty state, external preview controls, and gated exports
+  ---
+  duration_ms: 0.7257
+  type: 'test'
+  ...
+# Subtest: Vet Brief print route hides controls and explains browser headers
+ok 63 - Vet Brief print route hides controls and explains browser headers
+  ---
+  duration_ms: 0.5448
+  type: 'test'
+  ...
+# (node:34944) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/auth-routing.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: signed-out Add pet links target login with next onboarding
+ok 64 - signed-out Add pet links target login with next onboarding
+  ---
+  duration_ms: 2.0768
+  type: 'test'
+  ...
+# Subtest: signed-in Add pet actions go directly to new-pet onboarding
+ok 65 - signed-in Add pet actions go directly to new-pet onboarding
+  ---
+  duration_ms: 0.8532
+  type: 'test'
+  ...
+# Subtest: signed-out direct onboarding redirects to login with next before restoring draft storage
+ok 66 - signed-out direct onboarding redirects to login with next before restoring draft storage
+  ---
+  duration_ms: 0.6395
+  type: 'test'
+  ...
+# Subtest: login next handling rejects external URLs and allows internal onboarding
+ok 67 - login next handling rejects external URLs and allows internal onboarding
+  ---
+  duration_ms: 1.413
+  type: 'test'
+  ...
+# Subtest: login redirects to next after successful auth
+ok 68 - login redirects to next after successful auth
+  ---
+  duration_ms: 0.506
+  type: 'test'
+  ...
+# Subtest: signed-out login with onboarding next keeps the form tree stable
+ok 69 - signed-out login with onboarding next keeps the form tree stable
+  ---
+  duration_ms: 0.4765
+  type: 'test'
+  ...
+# Subtest: login and onboarding use confirmed auth state instead of competing cached session checks
+ok 70 - login and onboarding use confirmed auth state instead of competing cached session checks
+  ---
+  duration_ms: 0.8453
+  type: 'test'
+  ...
+# Subtest: auth loading state does not redirect between login and onboarding
+ok 71 - auth loading state does not redirect between login and onboarding
+  ---
+  duration_ms: 0.7846
+  type: 'test'
+  ...
+# Subtest: protected pages redirect signed-out users to login with current path next
+ok 72 - protected pages redirect signed-out users to login with current path next
+  ---
+  duration_ms: 1.9234
+  type: 'test'
+  ...
+# Subtest: protected page loading paths no longer render signed-out error copy
+ok 73 - protected page loading paths no longer render signed-out error copy
+  ---
+  duration_ms: 1.8408
+  type: 'test'
+  ...
+# Subtest: signed-in onboarding restores and renders instead of redirecting to login
+ok 74 - signed-in onboarding restores and renders instead of redirecting to login
+  ---
+  duration_ms: 0.4929
+  type: 'test'
+  ...
+# Subtest: redirect guards fire once to prevent login onboarding ping-pong
+ok 75 - redirect guards fire once to prevent login onboarding ping-pong
+  ---
+  duration_ms: 0.9069
+  type: 'test'
+  ...
+# Subtest: Results does not show unsigned local draft results
+ok 76 - Results does not show unsigned local draft results
+  ---
+  duration_ms: 0.4572
+  type: 'test'
+  ...
+# Subtest: signed-out Shop redirects preserve current path and safe query string
+ok 77 - signed-out Shop redirects preserve current path and safe query string
+  ---
+  duration_ms: 0.8435
+  type: 'test'
+  ...
+# (node:33592) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/catalog-ingestion/adapters/authorized-catalog-adapter.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: authorized provider templates are structural, pending, and credential-free
+ok 78 - authorized provider templates are structural, pending, and credential-free
+  ---
+  duration_ms: 2.5983
+  type: 'test'
+  ...
+# Subtest: synthetic fixture covers 12 products, variants, categories, one invalid row, and one exact batch duplicate
+ok 79 - synthetic fixture covers 12 products, variants, categories, one invalid row, and one exact batch duplicate
+  ---
+  duration_ms: 25.7874
+  type: 'test'
+  ...
+# Subtest: approved agreements retain eligible fields and pass the provider permission gate after review
+ok 80 - approved agreements retain eligible fields and pass the provider permission gate after review
+  ---
+  duration_ms: 5.0981
+  type: 'test'
+  ...
+# Subtest: pending and expired agreements block publication
+ok 81 - pending and expired agreements block publication
+  ---
+  duration_ms: 10.061
+  type: 'test'
+  ...
+# Subtest: disallowed images and descriptions are omitted without altering raw payloads
+ok 82 - disallowed images and descriptions are omitted without altering raw payloads
+  ---
+  duration_ms: 9.6547
+  type: 'test'
+  ...
+# Subtest: country restrictions and authorization metadata are enforced
+ok 83 - country restrictions and authorization metadata are enforced
+  ---
+  duration_ms: 4.7938
+  type: 'test'
+  ...
+# Subtest: field mapping is exact and ambiguous aliases require review
+ok 84 - field mapping is exact and ambiguous aliases require review
+  ---
+  duration_ms: 0.4068
+  type: 'test'
+  ...
+# Subtest: authorized adapter accepts quoted affiliate TSV without provider-specific parsing
+ok 85 - authorized adapter accepts quoted affiliate TSV without provider-specific parsing
+  ---
+  duration_ms: 0.9229
+  type: 'test'
+  ...
+# Subtest: affiliate links are preserved exactly and invalid tracking URLs are rejected
+ok 86 - affiliate links are preserved exactly and invalid tracking URLs are rejected
+  ---
+  duration_ms: 6.324
+  type: 'test'
+  ...
+# Subtest: stale offers retain links but omit price and current stock
+ok 87 - stale offers retain links but omit price and current stock
+  ---
+  duration_ms: 6.7322
+  type: 'test'
+  ...
+# Subtest: Impact access fails safely when credentials or authorization are absent
+ok 88 - Impact access fails safely when credentials or authorization are absent
+  ---
+  duration_ms: 1.408
+  type: 'test'
+  ...
+# Subtest: authorized Impact readiness verifies metadata and relationship and skips an unchanged feed
+ok 89 - authorized Impact readiness verifies metadata and relationship and skips an unchanged feed
+  ---
+  duration_ms: 31.1925
+  type: 'test'
+  ...
+# Subtest: private upload paths reject traversal and the private directory is ignored
+ok 90 - private upload paths reject traversal and the private directory is ignored
+  ---
+  duration_ms: 3.9846
+  type: 'test'
+  ...
+# Subtest: Purina remains blocked and public surfaces exclude contract metadata
+ok 91 - Purina remains blocked and public surfaces exclude contract metadata
+  ---
+  duration_ms: 31.588
+  type: 'test'
+  ...
+# Subtest: freshness schema and publication logic keep stale prices out of public catalog selects
+ok 92 - freshness schema and publication logic keep stale prices out of public catalog selects
+  ---
+  duration_ms: 5.8966
+  type: 'test'
+  ...
+# (node:14304) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/billing/plan-limits.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: plan capabilities define generous free and future plus limits
+ok 93 - plan capabilities define generous free and future plus limits
+  ---
+  duration_ms: 2.0888
+  type: 'test'
+  ...
+# Subtest: early access unlock affects hard gates only
+ok 94 - early access unlock affects hard gates only
+  ---
+  duration_ms: 0.2054
+  type: 'test'
+  ...
+# Subtest: pet limit gates new pets but never edits existing pets
+ok 95 - pet limit gates new pets but never edits existing pets
+  ---
+  duration_ms: 0.6052
+  type: 'test'
+  ...
+# Subtest: Ask Furvise usage gate allows 20 free messages and early access bypass
+ok 96 - Ask Furvise usage gate allows 20 free messages and early access bypass
+  ---
+  duration_ms: 0.2488
+  type: 'test'
+  ...
+# Subtest: product search usage gate allows 80 free searches and early access bypass
+ok 97 - product search usage gate allows 80 free searches and early access bypass
+  ---
+  duration_ms: 0.2482
+  type: 'test'
+  ...
+# Subtest: Ask usage reads current month, increments successful answers, and resets by month key
+ok 98 - Ask usage reads current month, increments successful answers, and resets by month key
+  ---
+  duration_ms: 2.0649
+  type: 'test'
+  ...
+# Subtest: Ask usage treats a missing monthly row as zero for new users
+ok 99 - Ask usage treats a missing monthly row as zero for new users
+  ---
+  duration_ms: 0.345
+  type: 'test'
+  ...
+# Subtest: Products AI usage increments fresh AI work and resets by month key
+ok 100 - Products AI usage increments fresh AI work and resets by month key
+  ---
+  duration_ms: 0.9346
+  type: 'test'
+  ...
+# Subtest: Ask usage read errors log Supabase details and early access falls back safely
+ok 101 - Ask usage read errors log Supabase details and early access falls back safely
+  ---
+  duration_ms: 1.9401
+  type: 'test'
+  ...
+# Subtest: Ask usage still hard gates over-limit users when the usage table works
+ok 102 - Ask usage still hard gates over-limit users when the usage table works
+  ---
+  duration_ms: 0.4816
+  type: 'test'
+  ...
+# Subtest: plan source defaults safely to free and paid gate messages exist
+ok 103 - plan source defaults safely to free and paid gate messages exist
+  ---
+  duration_ms: 0.3346
+  type: 'test'
+  ...
+# Subtest: light and dark themes expose the reset semantic contract
+ok 104 - light and dark themes expose the reset semantic contract
+  ---
+  duration_ms: 1.6293
+  type: 'test'
+  ...
+# Subtest: the dark theme avoids pure black and uses clay for primary actions
+ok 105 - the dark theme avoids pure black and uses clay for primary actions
+  ---
+  duration_ms: 0.4914
+  type: 'test'
+  ...
+# Subtest: component source contains no one-off hexadecimal colors or gradients
+ok 106 - component source contains no one-off hexadecimal colors or gradients
+  ---
+  duration_ms: 27.0168
+  type: 'test'
+  ...
+# Subtest: theme persistence remains cookie-backed and controls consume semantic roles
+ok 107 - theme persistence remains cookie-backed and controls consume semantic roles
+  ---
+  duration_ms: 0.9782
+  type: 'test'
+  ...
+# (node:35764) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/dashboard.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: createCareEntry stores an owned entry and rejects another user's pet
+ok 108 - createCareEntry stores an owned entry and rejects another user's pet
+  ---
+  duration_ms: 4.1826
+  type: 'test'
+  ...
+# Subtest: care log pet preselect chooses only filtered, scoped, or single-pet defaults
+ok 109 - care log pet preselect chooses only filtered, scoped, or single-pet defaults
+  ---
+  duration_ms: 0.3754
+  type: 'test'
+  ...
+# Subtest: care history-created entries reload for dashboard and Ask Furvise memory
+ok 110 - care history-created entries reload for dashboard and Ask Furvise memory
+  ---
+  duration_ms: 29.2534
+  type: 'test'
+  ...
+# Subtest: Ask Furvise care-history saves skip duplicate generated notes within 24 hours
+ok 111 - Ask Furvise care-history saves skip duplicate generated notes within 24 hours
+  ---
+  duration_ms: 0.7114
+  type: 'test'
+  ...
+# Subtest: Ask Furvise duplicate check still allows different useful summaries
+ok 112 - Ask Furvise duplicate check still allows different useful summaries
+  ---
+  duration_ms: 0.4628
+  type: 'test'
+  ...
+# Subtest: listCareEntriesForPet only returns the signed-in user's rows
+ok 113 - listCareEntriesForPet only returns the signed-in user's rows
+  ---
+  duration_ms: 0.4723
+  type: 'test'
+  ...
+# Subtest: listRecentCareEntries only returns entries owned by the signed-in user
+ok 114 - listRecentCareEntries only returns entries owned by the signed-in user
+  ---
+  duration_ms: 0.287
+  type: 'test'
+  ...
+# Subtest: listCareEntriesForPet rejects another user's pet
+ok 115 - listCareEntriesForPet rejects another user's pet
+  ---
+  duration_ms: 0.3322
+  type: 'test'
+  ...
+# Subtest: updateCareEntry edits the stored row
+ok 116 - updateCareEntry edits the stored row
+  ---
+  duration_ms: 0.6146
+  type: 'test'
+  ...
+# Subtest: deleteCareEntry removes the user's row and rejects others
+ok 117 - deleteCareEntry removes the user's row and rejects others
+  ---
+  duration_ms: 0.8954
+  type: 'test'
+  ...
+# Subtest: display helpers preserve intentional casing and show severe caution
+ok 118 - display helpers preserve intentional casing and show severe caution
+  ---
+  duration_ms: 0.442
+  type: 'test'
+  ...
+# Subtest: dashboard helpers render real care activity and keep no-update messaging
+ok 119 - dashboard helpers render real care activity and keep no-update messaging
+  ---
+  duration_ms: 1.2901
+  type: 'test'
+  ...
+# Subtest: validateCareEntryDraft enforces required fields
+ok 120 - validateCareEntryDraft enforces required fields
+  ---
+  duration_ms: 0.1616
+  type: 'test'
+  ...
+# Subtest: dashboard care state renders a real preview and no-pet fallback
+ok 121 - dashboard care state renders a real preview and no-pet fallback
+  ---
+  duration_ms: 1.2481
+  type: 'test'
+  ...
+# (node:9320) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/petwise.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: legacy profile storage supports cats without introducing duplicate core tables
+ok 122 - legacy profile storage supports cats without introducing duplicate core tables
+  ---
+  duration_ms: 2.2151
+  type: 'test'
+  ...
+# Subtest: application profile model and onboarding are species-ready
+ok 123 - application profile model and onboarding are species-ready
+  ---
+  duration_ms: 1.5833
+  type: 'test'
+  ...
+# Subtest: young dog and cat profiles use species-aware life stages
+ok 124 - young dog and cat profiles use species-aware life stages
+  ---
+  duration_ms: 0.4768
+  type: 'test'
+  ...
+# Subtest: generic pet routes reuse compatibility implementations
+ok 125 - generic pet routes reuse compatibility implementations
+  ---
+  duration_ms: 1.4801
+  type: 'test'
+  ...
+# Subtest: user-facing cat-ready changes contain no em dash
+ok 126 - user-facing cat-ready changes contain no em dash
+  ---
+  duration_ms: 2.1178
+  type: 'test'
+  ...
+# Subtest: Products uses the bounded catalog endpoint without changing product-card markup
+ok 127 - Products uses the bounded catalog endpoint without changing product-card markup
+  ---
+  duration_ms: 2.2354
+  type: 'test'
+  ...
+# Subtest: product explanation and question routes use the shared catalog adapter
+ok 128 - product explanation and question routes use the shared catalog adapter
+  ---
+  duration_ms: 0.612
+  type: 'test'
+  ...
+# Subtest: the static catalog is isolated to an explicitly temporary error fallback
+ok 129 - the static catalog is isolated to an explicitly temporary error fallback
+  ---
+  duration_ms: 0.4757
+  type: 'test'
+  ...
+# Subtest: Results remains product-free
+ok 130 - Results remains product-free
+  ---
+  duration_ms: 0.5293
+  type: 'test'
+  ...
+# (node:31604) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/catalog/constants.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: one catalog product supports multiple species and variants
+ok 131 - one catalog product supports multiple species and variants
+  ---
+  duration_ms: 4.0957
+  type: 'test'
+  ...
+# Subtest: species, country, and lifecycle checks exclude unsafe products
+ok 132 - species, country, and lifecycle checks exclude unsafe products
+  ---
+  duration_ms: 0.6827
+  type: 'test'
+  ...
+# Subtest: offers retain decimal strings, support multiples, and prefer an active affiliate URL
+ok 133 - offers retain decimal strings, support multiples, and prefer an active affiliate URL
+  ---
+  duration_ms: 0.3205
+  type: 'test'
+  ...
+# Subtest: the legacy product-card adapter supplies the existing required fields
+ok 134 - the legacy product-card adapter supplies the existing required fields
+  ---
+  duration_ms: 0.8084
+  type: 'test'
+  ...
+# Subtest: catalog limits are always bounded
+ok 135 - catalog limits are always bounded
+  ---
+  duration_ms: 0.213
+  type: 'test'
+  ...
+# (node:31272) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/catalog-ingestion/adapters/csv-adapter.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: CSV parsing handles UTF-8, quotes, embedded commas, and row numbers
+ok 136 - CSV parsing handles UTF-8, quotes, embedded commas, and row numbers
+  ---
+  duration_ms: 5.8122
+  type: 'test'
+  ...
+# Subtest: CSV parsing validates headers, malformed quoting, and configurable columns
+ok 137 - CSV parsing validates headers, malformed quoting, and configurable columns
+  ---
+  duration_ms: 1.1065
+  type: 'test'
+  ...
+# Subtest: CSV formula-like cells are preserved and flagged without execution
+ok 138 - CSV formula-like cells are preserved and flagged without execution
+  ---
+  duration_ms: 0.4175
+  type: 'test'
+  ...
+# Subtest: JSON supports arrays and wrapped products with explicit object validation
+ok 139 - JSON supports arrays and wrapped products with explicit object validation
+  ---
+  duration_ms: 0.7203
+  type: 'test'
+  ...
+# Subtest: JSON rejects malformed text, executable JavaScript, and non-object records
+ok 140 - JSON rejects malformed text, executable JavaScript, and non-object records
+  ---
+  duration_ms: 0.325
+  type: 'test'
+  ...
+# (node:2008) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/catalog-ingestion/deduplicate.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: duplicate detection finds exact GTIN and provider external IDs
+ok 141 - duplicate detection finds exact GTIN and provider external IDs
+  ---
+  duration_ms: 2.8936
+  type: 'test'
+  ...
+# Subtest: brand and name matches are held for review instead of auto-merged
+ok 142 - brand and name matches are held for review instead of auto-merged
+  ---
+  duration_ms: 0.3059
+  type: 'test'
+  ...
+# Subtest: unchanged normalized hashes propose a no-op
+ok 143 - unchanged normalized hashes propose a no-op
+  ---
+  duration_ms: 0.172
+  type: 'test'
+  ...
+# Subtest: stable hashes ignore object key order but still detect content changes
+ok 144 - stable hashes ignore object key order but still detect content changes
+  ---
+  duration_ms: 0.8928
+  type: 'test'
+  ...
+# Subtest: source precedence is field-specific and updates are non-destructive
+ok 145 - source precedence is field-specific and updates are non-destructive
+  ---
+  duration_ms: 0.453
+  type: 'test'
+  ...
+# (node:20300) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/catalog-ingestion/adapters/csv-adapter.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: small CSV and JSON batches produce accurate review summaries
+ok 146 - small CSV and JSON batches produce accurate review summaries
+  ---
+  duration_ms: 18.6529
+  type: 'test'
+  ...
+# Subtest: repeated unchanged imports are idempotent no-ops
+ok 147 - repeated unchanged imports are idempotent no-ops
+  ---
+  duration_ms: 2.8384
+  type: 'test'
+  ...
+# Subtest: record-level publication failures produce partial batch outcomes
+ok 148 - record-level publication failures produce partial batch outcomes
+  ---
+  duration_ms: 0.2633
+  type: 'test'
+  ...
+# Subtest: publishing rejects records that were not explicitly approved
+ok 149 - publishing rejects records that were not explicitly approved
+  ---
+  duration_ms: 1.1181
+  type: 'test'
+  ...
+# Subtest: staging tables preserve raw input and append-only audit history
+ok 150 - staging tables preserve raw input and append-only audit history
+  ---
+  duration_ms: 1.1674
+  type: 'test'
+  ...
+# Subtest: normal users cannot read or write ingestion data
+ok 151 - normal users cannot read or write ingestion data
+  ---
+  duration_ms: 3.0587
+  type: 'test'
+  ...
+# Subtest: publication creates provenance, reuses product IDs, and uses idempotent conflict keys
+ok 152 - publication creates provenance, reuses product IDs, and uses idempotent conflict keys
+  ---
+  duration_ms: 0.5472
+  type: 'test'
+  ...
+# Subtest: batch counters distinguish partial success and Results remains product-free
+ok 153 - batch counters distinguish partial success and Results remains product-free
+  ---
+  duration_ms: 0.7117
+  type: 'test'
+  ...
+# (node:29556) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/catalog-ingestion/category-mapping.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: normalization trims values, standardizes codes and slugs, and does not invent facts
+ok 154 - normalization trims values, standardizes codes and slugs, and does not invent facts
+  ---
+  duration_ms: 2.8384
+  type: 'test'
+  ...
+# Subtest: missing optional details create warnings while required fields create errors
+ok 155 - missing optional details create warnings while required fields create errors
+  ---
+  duration_ms: 1.2583
+  type: 'test'
+  ...
+# Subtest: species and category mappings are controlled and ambiguous values remain reviewable
+ok 156 - species and category mappings are controlled and ambiguous values remain reviewable
+  ---
+  duration_ms: 0.3279
+  type: 'test'
+  ...
+# Subtest: country, currency, decimal price, and URL validation is strict
+ok 157 - country, currency, decimal price, and URL validation is strict
+  ---
+  duration_ms: 1.2328
+  type: 'test'
+  ...
+# Subtest: valid prices remain decimal strings and duplicate variants are rejected
+ok 158 - valid prices remain decimal strings and duplicate variants are rejected
+  ---
+  duration_ms: 0.6928
+  type: 'test'
+  ...
+# Subtest: size parsing preserves source text and only structures confident units
+ok 159 - size parsing preserves source text and only structures confident units
+  ---
+  duration_ms: 0.3677
+  type: 'test'
+  ...
+# Subtest: display product images require HTTPS and reject placeholders and tracking pixels
+ok 160 - display product images require HTTPS and reject placeholders and tracking pixels
+  ---
+  duration_ms: 0.3559
+  type: 'test'
+  ...
+# Subtest: the unified catalog migration creates every normalized catalog table
+ok 161 - the unified catalog migration creates every normalized catalog table
+  ---
+  duration_ms: 2.2678
+  type: 'test'
+  ...
+# Subtest: catalog lifecycle, market, money, and relationship constraints are explicit
+ok 162 - catalog lifecycle, market, money, and relationship constraints are explicit
+  ---
+  duration_ms: 0.2859
+  type: 'test'
+  ...
+# Subtest: catalog writes are not granted to public clients
+ok 163 - catalog writes are not granted to public clients
+  ---
+  duration_ms: 1.6749
+  type: 'test'
+  ...
+# Subtest: frequent catalog query indexes and the hard result cap are present
+ok 164 - frequent catalog query indexes and the hard result cap are present
+  ---
+  duration_ms: 0.4423
+  type: 'test'
+  ...
+# (node:34404) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/catalog/seed.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: all current curated products are included in a deterministic seed plan
+ok 165 - all current curated products are included in a deterministic seed plan
+  ---
+  duration_ms: 17.1469
+  type: 'test'
+  ...
+# Subtest: seed identities prevent repeated products, brands, and retailers
+ok 166 - seed identities prevent repeated products, brands, and retailers
+  ---
+  duration_ms: 0.5893
+  type: 'test'
+  ...
+# Subtest: curated country and species relationships are preserved
+ok 167 - curated country and species relationships are preserved
+  ---
+  duration_ms: 0.6598
+  type: 'test'
+  ...
+# Subtest: results loads saved profileId from Supabase before local draft fallback
+ok 168 - results loads saved profileId from Supabase before local draft fallback
+  ---
+  duration_ms: 3.0343
+  type: 'test'
+  ...
+# Subtest: results shows a friendly error for a missing or unauthorized route profileId
+ok 169 - results shows a friendly error for a missing or unauthorized route profileId
+  ---
+  duration_ms: 0.6254
+  type: 'test'
+  ...
+# Subtest: pet profile guidance links carry profileId and Products links carry petId
+ok 170 - pet profile guidance links carry profileId and Products links carry petId
+  ---
+  duration_ms: 0.4714
+  type: 'test'
+  ...
+# Subtest: core Supabase migration enforces ownership RLS for profiles, care, memories, and feedback
+ok 171 - core Supabase migration enforces ownership RLS for profiles, care, memories, and feedback
+  ---
+  duration_ms: 0.5248
+  type: 'test'
+  ...
+# Subtest: Ask Furvise uses required friendly failure messages
+ok 172 - Ask Furvise uses required friendly failure messages
+  ---
+  duration_ms: 0.6667
+  type: 'test'
+  ...
+# Subtest: Ask Furvise usage migration tracks monthly counts with owner RLS
+ok 173 - Ask Furvise usage migration tracks monthly counts with owner RLS
+  ---
+  duration_ms: 0.3997
+  type: 'test'
+  ...
+# Subtest: Ask Furvise route keeps usage tracking from masking successful answers
+ok 174 - Ask Furvise route keeps usage tracking from masking successful answers
+  ---
+  duration_ms: 0.3925
+  type: 'test'
+  ...
+# Subtest: Ask Furvise route keeps grounded LLM fallback behind general answer success
+ok 175 - Ask Furvise route keeps grounded LLM fallback behind general answer success
+  ---
+  duration_ms: 0.3497
+  type: 'test'
+  ...
+# (node:31548) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/furvise-voice.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: central voice module defines and shares the Furvise writing principles
+ok 176 - central voice module defines and shares the Furvise writing principles
+  ---
+  duration_ms: 2.0442
+  type: 'test'
+  ...
+# Subtest: advisor prompts lead directly, stay compact, and hide internal terminology
+ok 177 - advisor prompts lead directly, stay compact, and hide internal terminology
+  ---
+  duration_ms: 0.6549
+  type: 'test'
+  ...
+# Subtest: messy product questions get a useful answer with honest uncertainty
+ok 178 - messy product questions get a useful answer with honest uncertainty
+  ---
+  duration_ms: 10.1639
+  type: 'test'
+  ...
+# Subtest: Why this product remains a short explanation rather than a buying report
+ok 179 - Why this product remains a short explanation rather than a buying report
+  ---
+  duration_ms: 3.3757
+  type: 'test'
+  ...
+# Subtest: urgent wording is first and normal product answers avoid unsafe claims
+ok 180 - urgent wording is first and normal product answers avoid unsafe claims
+  ---
+  duration_ms: 1.6352
+  type: 'test'
+  ...
+# Subtest: user-facing app and prompt files contain no em dash character
+ok 181 - user-facing app and prompt files contain no em dash character
+  ---
+  duration_ms: 37.1808
+  type: 'test'
+  ...
+# (node:31276) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/onboarding/summary.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: selecting current food unknown clears the saved text
+ok 182 - selecting current food unknown clears the saved text
+  ---
+  duration_ms: 2.7736
+  type: 'test'
+  ...
+# Subtest: clicking current food input clears unknown without changing the value
+ok 183 - clicking current food input clears unknown without changing the value
+  ---
+  duration_ms: 0.3403
+  type: 'test'
+  ...
+# Subtest: typing current food clears unknown and keeps the entered value
+ok 184 - typing current food clears unknown and keeps the entered value
+  ---
+  duration_ms: 0.31
+  type: 'test'
+  ...
+# Subtest: stale current food is not saved when unknown is selected
+ok 185 - stale current food is not saved when unknown is selected
+  ---
+  duration_ms: 2.2702
+  type: 'test'
+  ...
+# Subtest: review shows known and unknown current food values
+ok 186 - review shows known and unknown current food values
+  ---
+  duration_ms: 0.4427
+  type: 'test'
+  ...
+# Subtest: normalized profile clears stale current food when unknown is set
+ok 187 - normalized profile clears stale current food when unknown is set
+  ---
+  duration_ms: 0.3891
+  type: 'test'
+  ...
+# (node:29652) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/onboarding/header-controls.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: onboarding header loading state is deterministic
+ok 188 - onboarding header loading state is deterministic
+  ---
+  duration_ms: 1.9466
+  type: 'test'
+  ...
+# Subtest: authenticated onboarding header keeps navigation actions out of header controls
+ok 189 - authenticated onboarding header keeps navigation actions out of header controls
+  ---
+  duration_ms: 0.2216
+  type: 'test'
+  ...
+# Subtest: anonymous onboarding header keeps sign-in out of header controls
+ok 190 - anonymous onboarding header keeps sign-in out of header controls
+  ---
+  duration_ms: 0.1543
+  type: 'test'
+  ...
+# (node:33800) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/onboarding/mode-state.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: explicit new mode ignores stale edit profile state and inserts a fresh profile
+ok 191 - explicit new mode ignores stale edit profile state and inserts a fresh profile
+  ---
+  duration_ms: 1.878
+  type: 'test'
+  ...
+# Subtest: explicit new mode with no stale profile keeps the current new draft
+ok 192 - explicit new mode with no stale profile keeps the current new draft
+  ---
+  duration_ms: 0.3329
+  type: 'test'
+  ...
+# Subtest: edit mode loads a valid stored profile and falls back when the id is missing
+ok 193 - edit mode loads a valid stored profile and falls back when the id is missing
+  ---
+  duration_ms: 0.1983
+  type: 'test'
+  ...
+# Subtest: switching from edit to new clears the stale load path before review
+ok 194 - switching from edit to new clears the stale load path before review
+  ---
+  duration_ms: 0.2179
+  type: 'test'
+  ...
+# Subtest: save failures stay on the save error path and never reuse the load error branch
+ok 195 - save failures stay on the save error path and never reuse the load error branch
+  ---
+  duration_ms: 1.2048
+  type: 'test'
+  ...
+# Subtest: new pet onboarding uses a four-step first result flow while edit keeps full profile
+ok 196 - new pet onboarding uses a four-step first result flow while edit keeps full profile
+  ---
+  duration_ms: 0.8637
+  type: 'test'
+  ...
+# Subtest: new pet first result flow excludes full profile-only fields before results
+ok 197 - new pet first result flow excludes full profile-only fields before results
+  ---
+  duration_ms: 1.3895
+  type: 'test'
+  ...
+# (node:19872) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/onboarding/summary.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: selecting age unknown clears the saved numeric value
+ok 198 - selecting age unknown clears the saved numeric value
+  ---
+  duration_ms: 2.9797
+  type: 'test'
+  ...
+# Subtest: clicking age input clears unknown without changing the unit
+ok 199 - clicking age input clears unknown without changing the unit
+  ---
+  duration_ms: 0.3635
+  type: 'test'
+  ...
+# Subtest: typing age clears unknown and keeps the entered value
+ok 200 - typing age clears unknown and keeps the entered value
+  ---
+  duration_ms: 0.3215
+  type: 'test'
+  ...
+# Subtest: age validation accepts only non-negative numbers or unknown
+ok 201 - age validation accepts only non-negative numbers or unknown
+  ---
+  duration_ms: 0.5555
+  type: 'test'
+  ...
+# Subtest: changing age unit clears unknown and preserves the new unit
+ok 202 - changing age unit clears unknown and preserves the new unit
+  ---
+  duration_ms: 0.3601
+  type: 'test'
+  ...
+# Subtest: selecting weight unknown clears the saved numeric value
+ok 203 - selecting weight unknown clears the saved numeric value
+  ---
+  duration_ms: 0.2472
+  type: 'test'
+  ...
+# Subtest: clicking weight input clears unknown without changing the unit
+ok 204 - clicking weight input clears unknown without changing the unit
+  ---
+  duration_ms: 0.2701
+  type: 'test'
+  ...
+# Subtest: typing weight clears unknown and keeps the entered value
+ok 205 - typing weight clears unknown and keeps the entered value
+  ---
+  duration_ms: 0.2413
+  type: 'test'
+  ...
+# Subtest: changing weight unit clears unknown and preserves the new unit
+ok 206 - changing weight unit clears unknown and preserves the new unit
+  ---
+  duration_ms: 0.3205
+  type: 'test'
+  ...
+# Subtest: stale numeric values are not saved when unknown is selected
+ok 207 - stale numeric values are not saved when unknown is selected
+  ---
+  duration_ms: 2.2483
+  type: 'test'
+  ...
+# Subtest: review shows known and unknown values
+ok 208 - review shows known and unknown values
+  ---
+  duration_ms: 0.9419
+  type: 'test'
+  ...
+# (node:28416) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/petwise.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: onboarding summary rows always return display-safe strings
+ok 209 - onboarding summary rows always return display-safe strings
+  ---
+  duration_ms: 4.8339
+  type: 'test'
+  ...
+# Subtest: onboarding summary rows keep the callback shape
+ok 210 - onboarding summary rows keep the callback shape
+  ---
+  duration_ms: 0.3705
+  type: 'test'
+  ...
+# Subtest: onboarding review uses canonical profile completeness status
+ok 211 - onboarding review uses canonical profile completeness status
+  ---
+  duration_ms: 0.8127
+  type: 'test'
+  ...
+# Subtest: onboarding summary labels the budget as care budget
+ok 212 - onboarding summary labels the budget as care budget
+  ---
+  duration_ms: 0.2653
+  type: 'test'
+  ...
+# Subtest: species is required and displayed in onboarding review
+ok 213 - species is required and displayed in onboarding review
+  ---
+  duration_ms: 0.4413
+  type: 'test'
+  ...
+# Subtest: short onboarding review only shows first-result fields
+ok 214 - short onboarding review only shows first-result fields
+  ---
+  duration_ms: 1.603
+  type: 'test'
+  ...
+# (node:6780) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/pet-memory.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: pet memory builder creates one structured context from saved profile rows
+ok 215 - pet memory builder creates one structured context from saved profile rows
+  ---
+  duration_ms: 5.8336
+  type: 'test'
+  ...
+# Subtest: pet memory and Ask vet prep preserve a selected cat species
+ok 216 - pet memory and Ask vet prep preserve a selected cat species
+  ---
+  duration_ms: 2.47
+  type: 'test'
+  ...
+# Subtest: pet memory builder derives missing context and urgent safety flags
+ok 217 - pet memory builder derives missing context and urgent safety flags
+  ---
+  duration_ms: 0.6642
+  type: 'test'
+  ...
+# Subtest: dashboard helper uses memory entries and honest empty state
+ok 218 - dashboard helper uses memory entries and honest empty state
+  ---
+  duration_ms: 1.0252
+  type: 'test'
+  ...
+# Subtest: dashboard helper separates missing context and urgent saved context
+ok 219 - dashboard helper separates missing context and urgent saved context
+  ---
+  duration_ms: 1.3356
+  type: 'test'
+  ...
+# Subtest: results helper is built from memory and suppresses products on urgent flags
+ok 220 - results helper is built from memory and suppresses products on urgent flags
+  ---
+  duration_ms: 36.1417
+  type: 'test'
+  ...
+# Subtest: Ask Furvise last-week recall returns actual saved entries and honest empty answer
+ok 221 - Ask Furvise last-week recall returns actual saved entries and honest empty answer
+  ---
+  duration_ms: 2.7836
+  type: 'test'
+  ...
+# Subtest: Ask Furvise last-week recall does not depend on the recentEntries cap
+ok 222 - Ask Furvise last-week recall does not depend on the recentEntries cap
+  ---
+  duration_ms: 3.1114
+  type: 'test'
+  ...
+# Subtest: Ask Furvise summaries use saved entries and do not hallucinate symptoms
+ok 223 - Ask Furvise summaries use saved entries and do not hallucinate symptoms
+  ---
+  duration_ms: 4.1314
+  type: 'test'
+  ...
+# Subtest: Ask Furvise food notes separate food updates from related meal-time updates
+ok 224 - Ask Furvise food notes separate food updates from related meal-time updates
+  ---
+  duration_ms: 1.7846
+  type: 'test'
+  ...
+# Subtest: Ask Furvise handles thin first-result profiles honestly
+ok 225 - Ask Furvise handles thin first-result profiles honestly
+  ---
+  duration_ms: 1.2808
+  type: 'test'
+  ...
+# Subtest: Ask Furvise cause-style questions return tracking and vet framing
+ok 226 - Ask Furvise cause-style questions return tracking and vet framing
+  ---
+  duration_ms: 1.8078
+  type: 'test'
+  ...
+# Subtest: Ask Furvise grounded fallback routing is only for safe general questions
+ok 227 - Ask Furvise grounded fallback routing is only for safe general questions
+  ---
+  duration_ms: 0.5902
+  type: 'test'
+  ...
+# Subtest: Ask Furvise vet prep uses polished grounded sections
+ok 228 - Ask Furvise vet prep uses polished grounded sections
+  ---
+  duration_ms: 2.467
+  type: 'test'
+  ...
+# Subtest: Ask Furvise vet prep uses behavior questions for behavior-only context
+ok 229 - Ask Furvise vet prep uses behavior questions for behavior-only context
+  ---
+  duration_ms: 1.0234
+  type: 'test'
+  ...
+# Subtest: Ask Furvise vet prep uses skin and paw questions only for skin or paw context
+ok 230 - Ask Furvise vet prep uses skin and paw questions only for skin or paw context
+  ---
+  duration_ms: 0.9081
+  type: 'test'
+  ...
+# Subtest: Ask Furvise vet prep uses food and appetite questions for food context
+ok 231 - Ask Furvise vet prep uses food and appetite questions for food context
+  ---
+  duration_ms: 0.873
+  type: 'test'
+  ...
+# Subtest: Ask Furvise vet prep keeps missing profile details out of the answer body
+ok 232 - Ask Furvise vet prep keeps missing profile details out of the answer body
+  ---
+  duration_ms: 1.7598
+  type: 'test'
+  ...
+# Subtest: urgent Ask question triggers safety response before normal guidance
+ok 233 - urgent Ask question triggers safety response before normal guidance
+  ---
+  duration_ms: 0.7075
+  type: 'test'
+  ...
+# Subtest: persistence-style rebuild uses the same saved care row after reload
+ok 234 - persistence-style rebuild uses the same saved care row after reload
+  ---
+  duration_ms: 2.1517
+  type: 'test'
+  ...
+# (node:33000) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/pet-profile.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: pet profile access accepts owned pets and rejects another user's pet
+ok 235 - pet profile access accepts owned pets and rejects another user's pet
+  ---
+  duration_ms: 2.1188
+  type: 'test'
+  ...
+# Subtest: pet profile overview marks complete and incomplete profiles
+ok 236 - pet profile overview marks complete and incomplete profiles
+  ---
+  duration_ms: 5.0067
+  type: 'test'
+  ...
+# Subtest: incomplete unknown context does not display high confidence and prioritizes weight
+ok 237 - incomplete unknown context does not display high confidence and prioritizes weight
+  ---
+  duration_ms: 1.9944
+  type: 'test'
+  ...
+# Subtest: legacy null species remains accessible and requires species
+ok 238 - legacy null species remains accessible and requires species
+  ---
+  duration_ms: 0.4206
+  type: 'test'
+  ...
+# Subtest: pet profile overview handles no care history and several care updates
+ok 239 - pet profile overview handles no care history and several care updates
+  ---
+  duration_ms: 1.7814
+  type: 'test'
+  ...
+# Subtest: routine walking does not outrank missing profile information
+ok 240 - routine walking does not outrank missing profile information
+  ---
+  duration_ms: 0.5089
+  type: 'test'
+  ...
+# Subtest: routine walking does not create a high-priority follow-up
+ok 241 - routine walking does not create a high-priority follow-up
+  ---
+  duration_ms: 0.7168
+  type: 'test'
+  ...
+# Subtest: meaningful symptom follow-up outranks missing profile details unless severe
+ok 242 - meaningful symptom follow-up outranks missing profile details unless severe
+  ---
+  duration_ms: 0.5883
+  type: 'test'
+  ...
+# Subtest: severe symptom priority takes precedence and hides products
+ok 243 - severe symptom priority takes precedence and hides products
+  ---
+  duration_ms: 0.6438
+  type: 'test'
+  ...
+# Subtest: stored Furvise guidance is summarized without being required
+ok 244 - stored Furvise guidance is summarized without being required
+  ---
+  duration_ms: 32.7892
+  type: 'test'
+  ...
+# Subtest: stored guidance snapshot is shared by Today and pet profile readers
+ok 245 - stored guidance snapshot is shared by Today and pet profile readers
+  ---
+  duration_ms: 0.8844
+  type: 'test'
+  ...
+# Subtest: urgent stored guidance has highest next-step priority
+ok 246 - urgent stored guidance has highest next-step priority
+  ---
+  duration_ms: 1.0599
+  type: 'test'
+  ...
+# Subtest: saved details are limited to three user-facing memory texts
+ok 247 - saved details are limited to three user-facing memory texts
+  ---
+  duration_ms: 0.4311
+  type: 'test'
+  ...
+# Subtest: profile overview route keeps mobile layout from overflowing
+ok 248 - profile overview route keeps mobile layout from overflowing
+  ---
+  duration_ms: 0.6052
+  type: 'test'
+  ...
+# Subtest: profile overview source removes duplicate log actions and keeps quiet empty states
+ok 249 - profile overview source removes duplicate log actions and keeps quiet empty states
+  ---
+  duration_ms: 0.7572
+  type: 'test'
+  ...
+# (node:34184) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/petwise.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# [Furvise] Recommendation filtering {
+#   hardExcludedCount: 0,
+#   tooExpensiveDemotedCount: 0,
+#   strictEligibleCount: 3,
+#   reviewFillCount: 0
+# }
+# [Furvise] Recommendation filtering {
+#   hardExcludedCount: 0,
+#   tooExpensiveDemotedCount: 0,
+#   strictEligibleCount: 2,
+#   reviewFillCount: 0
+# }
+# [Furvise] Recommendation filtering {
+#   hardExcludedCount: 0,
+#   tooExpensiveDemotedCount: 0,
+#   strictEligibleCount: 3,
+#   reviewFillCount: 0
+# }
+# [Furvise] Recommendation filtering {
+#   hardExcludedCount: 0,
+#   tooExpensiveDemotedCount: 0,
+#   strictEligibleCount: 2,
+#   reviewFillCount: 0
+# }
+# [Furvise] Recommendation filtering {
+#   hardExcludedCount: 0,
+#   tooExpensiveDemotedCount: 0,
+#   strictEligibleCount: 14,
+#   reviewFillCount: 0
+# }
+# [Furvise] Recommendation filtering {
+#   hardExcludedCount: 0,
+#   tooExpensiveDemotedCount: 0,
+#   strictEligibleCount: 3,
+#   reviewFillCount: 0
+# }
+# [Furvise] Recommendation filtering {
+#   hardExcludedCount: 0,
+#   tooExpensiveDemotedCount: 0,
+#   strictEligibleCount: 11,
+#   reviewFillCount: 0
+# }
+# [Furvise] Recommendation filtering {
+#   hardExcludedCount: 0,
+#   tooExpensiveDemotedCount: 0,
+#   strictEligibleCount: 3,
+#   reviewFillCount: 0
+# }
+# [Furvise] Recommendation filtering {
+#   hardExcludedCount: 0,
+#   tooExpensiveDemotedCount: 0,
+#   strictEligibleCount: 2,
+#   reviewFillCount: 0
+# }
+# [Furvise] Recommendation filtering {
+#   hardExcludedCount: 0,
+#   tooExpensiveDemotedCount: 0,
+#   strictEligibleCount: 2,
+#   reviewFillCount: 0
+# }
+# [Furvise] Recommendation filtering {
+#   hardExcludedCount: 0,
+#   tooExpensiveDemotedCount: 0,
+#   strictEligibleCount: 2,
+#   reviewFillCount: 0
+# }
+# [Furvise] Recommendation filtering {
+#   hardExcludedCount: 0,
+#   tooExpensiveDemotedCount: 0,
+#   strictEligibleCount: 2,
+#   reviewFillCount: 0
+# }
+# Subtest: normalizeOnboardingMode normalizes valid and invalid values
+ok 250 - normalizeOnboardingMode normalizes valid and invalid values
+  ---
+  duration_ms: 1.9841
+  type: 'test'
+  ...
+# Subtest: main concern options are a non-empty runtime array
+ok 251 - main concern options are a non-empty runtime array
+  ---
+  duration_ms: 1.5266
+  type: 'test'
+  ...
+# Subtest: custom main concerns remain supported
+ok 252 - custom main concerns remain supported
+  ---
+  duration_ms: 0.3682
+  type: 'test'
+  ...
+# Subtest: avoid ingredient normalization treats typed none values like None known
+ok 253 - avoid ingredient normalization treats typed none values like None known
+  ---
+  duration_ms: 1.231
+  type: 'test'
+  ...
+# Subtest: recommendations are hard-gated when species is absent
+ok 254 - recommendations are hard-gated when species is absent
+  ---
+  duration_ms: 1.3062
+  type: 'test'
+  ...
+# Subtest: dog and cat contexts remain explicit and distinct
+ok 255 - dog and cat contexts remain explicit and distinct
+  ---
+  duration_ms: 5.5178
+  type: 'test'
+  ...
+# Subtest: dog never receives cat products and cat never receives dog products
+ok 256 - dog never receives cat products and cat never receives dog products
+  ---
+  duration_ms: 4.8183
+  type: 'test'
+  ...
+# Subtest: general wellness asks for a focused goal instead of broad products
+ok 257 - general wellness asks for a focused goal instead of broad products
+  ---
+  duration_ms: 0.7443
+  type: 'test'
+  ...
+# Subtest: flea and tick reminders are not rendered as products
+ok 258 - flea and tick reminders are not rendered as products
+  ---
+  duration_ms: 0.6922
+  type: 'test'
+  ...
+# Subtest: established food without nutrition concern does not trigger food recommendations
+ok 259 - established food without nutrition concern does not trigger food recommendations
+  ---
+  duration_ms: 1.1444
+  type: 'test'
+  ...
+# Subtest: dental wellness goal filters to dental recommendations
+ok 260 - dental wellness goal filters to dental recommendations
+  ---
+  duration_ms: 0.6776
+  type: 'test'
+  ...
+# Subtest: grooming wellness goal filters to grooming recommendations
+ok 261 - grooming wellness goal filters to grooming recommendations
+  ---
+  duration_ms: 0.7109
+  type: 'test'
+  ...
+# Subtest: reminders wellness goal renders non-product cards
+ok 262 - reminders wellness goal renders non-product cards
+  ---
+  duration_ms: 0.4064
+  type: 'test'
+  ...
+# Subtest: nutrition goal asks for a nutrition focus before switching established food
+ok 263 - nutrition goal asks for a nutrition focus before switching established food
+  ---
+  duration_ms: 1.6633
+  type: 'test'
+  ...
+# Subtest: unknown product species is excluded from food matching
+ok 264 - unknown product species is excluded from food matching
+  ---
+  duration_ms: 0.1823
+  type: 'test'
+  ...
+# Subtest: no cat products falls back to no products instead of dog food
+ok 265 - no cat products falls back to no products instead of dog food
+  ---
+  duration_ms: 0.272
+  type: 'test'
+  ...
+# Subtest: mock provider normalizes and filters species-compatible demo products
+ok 266 - mock provider normalizes and filters species-compatible demo products
+  ---
+  duration_ms: 1.4979
+  type: 'test'
+  ...
+# Subtest: disabled live provider is safe to call and returns no results
+ok 267 - disabled live provider is safe to call and returns no results
+  ---
+  duration_ms: 0.2265
+  type: 'test'
+  ...
+# Subtest: static real provider returns curated species-compatible products
+ok 268 - static real provider returns curated species-compatible products
+  ---
+  duration_ms: 1.6335
+  type: 'test'
+  ...
+# Subtest: product link info distinguishes live links from demo products
+ok 269 - product link info distinguishes live links from demo products
+  ---
+  duration_ms: 1.3423
+  type: 'test'
+  ...
+# Subtest: profile fields are not suggested as saved details
+ok 270 - profile fields are not suggested as saved details
+  ---
+  duration_ms: 1.6902
+  type: 'test'
+  ...
+# Subtest: unknown weight produces limited guidance readiness
+ok 271 - unknown weight produces limited guidance readiness
+  ---
+  duration_ms: 0.6198
+  type: 'test'
+  ...
+# Subtest: saved profile rows round-trip into the draft with the returned profile id preserved
+ok 272 - saved profile rows round-trip into the draft with the returned profile id preserved
+  ---
+  duration_ms: 2.033
+  type: 'test'
+  ...
+# Subtest: payload builder only includes database columns and persists wellness goal when present
+ok 273 - payload builder only includes database columns and persists wellness goal when present
+  ---
+  duration_ms: 0.4109
+  type: 'test'
+  ...
+# Subtest: profile payload drops typed none avoid values before saving
+ok 274 - profile payload drops typed none avoid values before saving
+  ---
+  duration_ms: 0.2507
+  type: 'test'
+  ...
+# Subtest: thin first-result profiles save optional fields as database-safe empty values
+ok 275 - thin first-result profiles save optional fields as database-safe empty values
+  ---
+  duration_ms: 0.3899
+  type: 'test'
+  ...
+# Subtest: thin first-result profiles show all useful finish-profile prompts
+ok 276 - thin first-result profiles show all useful finish-profile prompts
+  ---
+  duration_ms: 0.3177
+  type: 'test'
+  ...
+# Subtest: chicken avoid blocks chicken food and treats
+ok 277 - chicken avoid blocks chicken food and treats
+  ---
+  duration_ms: 2.7342
+  type: 'test'
+  ...
+# Subtest: lower-cost nutrition keeps over-budget catalog matches out of best-match labeling
+ok 278 - lower-cost nutrition keeps over-budget catalog matches out of best-match labeling
+  ---
+  duration_ms: 0.6476
+  type: 'test'
+  ...
+# Subtest: legacy dog profile rows with null species remain loadable
+ok 279 - legacy dog profile rows with null species remain loadable
+  ---
+  duration_ms: 0.1937
+  type: 'test'
+  ...
+# (node:30004) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/shop/product-display.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: product result count uses careful match pluralization
+ok 280 - product result count uses careful match pluralization
+  ---
+  duration_ms: 1.8251
+  type: 'test'
+  ...
+# Subtest: product cards keep useful deterministic format differentiators
+ok 281 - product cards keep useful deterministic format differentiators
+  ---
+  duration_ms: 0.5153
+  type: 'test'
+  ...
+# Subtest: product display copy avoids restricted claims and em dashes
+ok 282 - product display copy avoids restricted claims and em dashes
+  ---
+  duration_ms: 0.8086
+  type: 'test'
+  ...
+# (node:35028) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/product-providers.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: canonical product URL uses the supported field priority
+ok 283 - canonical product URL uses the supported field priority
+  ---
+  duration_ms: 3.9537
+  type: 'test'
+  ...
+# Subtest: product URL validation rejects missing, non-http, local, and placeholder values
+ok 284 - product URL validation rejects missing, non-http, local, and placeholder values
+  ---
+  duration_ms: 0.4501
+  type: 'test'
+  ...
+# Subtest: document URLs are valid references but never valid product pages
+ok 285 - document URLs are valid references but never valid product pages
+  ---
+  duration_ms: 0.5699
+  type: 'test'
+  ...
+# Subtest: every curated product has a normal product page and audited label fields
+ok 286 - every curated product has a normal product page and audited label fields
+  ---
+  duration_ms: 4.7649
+  type: 'test'
+  ...
+# Subtest: invalid or missing product URLs never produce a clickable link
+ok 287 - invalid or missing product URLs never produce a clickable link
+  ---
+  duration_ms: 0.3838
+  type: 'test'
+  ...
+# Subtest: label documents cannot become View product and remain available as View label
+ok 288 - label documents cannot become View product and remain available as View label
+  ---
+  duration_ms: 0.7621
+  type: 'test'
+  ...
+# Subtest: View product renders a validated accessible new-tab anchor
+ok 289 - View product renders a validated accessible new-tab anchor
+  ---
+  duration_ms: 1.7391
+  type: 'test'
+  ...
+# Subtest: product links add no price or availability UI and Results stays product-free
+ok 290 - product links add no price or availability UI and Results stays product-free
+  ---
+  duration_ms: 4.1123
+  type: 'test'
+  ...
+# (node:26520) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/catalog-ingestion/adapters/purina-ca-manual-adapter.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: provider 001 parses the controlled official Canada batch and preserves every raw row
+ok 291 - provider 001 parses the controlled official Canada batch and preserves every raw row
+  ---
+  duration_ms: 51.2045
+  type: 'test'
+  ...
+# Subtest: provider 001 rejects malformed headers, unapproved hosts, and ambiguous markets
+ok 292 - provider 001 rejects malformed headers, unapproved hosts, and ambiguous markets
+  ---
+  duration_ms: 15.7033
+  type: 'test'
+  ...
+# Subtest: provider configuration is isolated and conservative
+ok 293 - provider configuration is isolated and conservative
+  ---
+  duration_ms: 0.5262
+  type: 'test'
+  ...
+# Subtest: safe provider access validates host, content type, response size, and bounded retries
+ok 294 - safe provider access validates host, content type, response size, and bounded retries
+  ---
+  duration_ms: 237.2915
+  type: 'test'
+  ...
+# Subtest: safe provider access times out without logging request credentials
+ok 295 - safe provider access times out without logging request credentials
+  ---
+  duration_ms: 1.3654
+  type: 'test'
+  ...
+# Subtest: image, label wording, money, and claim handling preserve facts without invention
+ok 296 - image, label wording, money, and claim handling preserve facts without invention
+  ---
+  duration_ms: 1.8703
+  type: 'test'
+  ...
+# Subtest: quality and publication gates require permission, Canada evidence, claims review, and human approval
+ok 297 - quality and publication gates require permission, Canada evidence, claims review, and human approval
+  ---
+  duration_ms: 9.8594
+  type: 'test'
+  ...
+# Subtest: repeated imports are hash-idempotent and source failure cannot remove live products
+ok 298 - repeated imports are hash-idempotent and source failure cannot remove live products
+  ---
+  duration_ms: 15.4749
+  type: 'test'
+  ...
+# Subtest: review overrides are append-only and ingestion internals remain server-only
+ok 299 - review overrides are append-only and ingestion internals remain server-only
+  ---
+  duration_ms: 2.357
+  type: 'test'
+  ...
+# (node:34280) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/petwise.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# [Furvise] Recommendation filtering {
+#   hardExcludedCount: 0,
+#   tooExpensiveDemotedCount: 0,
+#   strictEligibleCount: 2,
+#   reviewFillCount: 0
+# }
+# [Furvise] Recommendation filtering {
+#   hardExcludedCount: 0,
+#   tooExpensiveDemotedCount: 0,
+#   strictEligibleCount: 2,
+#   reviewFillCount: 0
+# }
+# Subtest: production always resolves static_real and never mock
+ok 300 - production always resolves static_real and never mock
+  ---
+  duration_ms: 1.7308
+  type: 'test'
+  ...
+# Subtest: production filters mock and demo products out even if called directly
+ok 301 - production filters mock and demo products out even if called directly
+  ---
+  duration_ms: 6.0354
+  type: 'test'
+  ...
+# Subtest: static_real catalog filters species and avoids ingredients before recommendations
+ok 302 - static_real catalog filters species and avoids ingredients before recommendations
+  ---
+  duration_ms: 8.9154
+  type: 'test'
+  ...
+# Subtest: static_real products declare valid country eligibility metadata
+ok 303 - static_real products declare valid country eligibility metadata
+  ---
+  duration_ms: 1.3716
+  type: 'test'
+  ...
+# Subtest: static_real ingredient verification only marks structured ingredient metadata as verified
+ok 304 - static_real ingredient verification only marks structured ingredient metadata as verified
+  ---
+  duration_ms: 0.2743
+  type: 'test'
+  ...
+# Subtest: product provider defaults future feed ingredient verification conservatively
+ok 305 - product provider defaults future feed ingredient verification conservatively
+  ---
+  duration_ms: 0.473
+  type: 'test'
+  ...
+# Subtest: active product country resolves configured US and CA with temporary US fallback
+ok 306 - active product country resolves configured US and CA with temporary US fallback
+  ---
+  duration_ms: 0.3737
+  type: 'test'
+  ...
+# Subtest: static_real country filtering excludes non-eligible products
+ok 307 - static_real country filtering excludes non-eligible products
+  ---
+  duration_ms: 1.3323
+  type: 'test'
+  ...
+# Subtest: product filtering reads account country before configured product country
+ok 308 - product filtering reads account country before configured product country
+  ---
+  duration_ms: 0.6796
+  type: 'test'
+  ...
+# Subtest: country filtering combines with species and avoid ingredient filtering
+ok 309 - country filtering combines with species and avoid ingredient filtering
+  ---
+  duration_ms: 2.7058
+  type: 'test'
+  ...
+# Subtest: avoid ingredient filtering excludes unverified ingestible products
+ok 310 - avoid ingredient filtering excludes unverified ingestible products
+  ---
+  duration_ms: 0.3456
+  type: 'test'
+  ...
+# Subtest: production price labels never render demo or estimated prices
+ok 311 - production price labels never render demo or estimated prices
+  ---
+  duration_ms: 0.5718
+  type: 'test'
+  ...
+# Subtest: global metadata uses the canonical Furvise title and clean description
+ok 312 - global metadata uses the canonical Furvise title and clean description
+  ---
+  duration_ms: 4.0691
+  type: 'test'
+  ...
+# Subtest: home canonical and social metadata use the selected canonical domain
+ok 313 - home canonical and social metadata use the selected canonical domain
+  ---
+  duration_ms: 0.9904
+  type: 'test'
+  ...
+# Subtest: apex and production Vercel alias redirect to the canonical host
+ok 314 - apex and production Vercel alias redirect to the canonical host
+  ---
+  duration_ms: 0.8113
+  type: 'test'
+  ...
+# Subtest: sitemap includes only existing public indexable routes
+ok 315 - sitemap includes only existing public indexable routes
+  ---
+  duration_ms: 0.9209
+  type: 'test'
+  ...
+# Subtest: robots allows public pages and blocks private and API routes
+ok 316 - robots allows public pages and blocks private and API routes
+  ---
+  duration_ms: 0.7772
+  type: 'test'
+  ...
+# Subtest: manifest and generated icon inventory use only Furvise brand assets
+ok 317 - manifest and generated icon inventory use only Furvise brand assets
+  ---
+  duration_ms: 3.0669
+  type: 'test'
+  ...
+# Subtest: app UI has no default Next, Vercel, triangle, or house logo references
+ok 318 - app UI has no default Next, Vercel, triangle, or house logo references
+  ---
+  duration_ms: 1.1011
+  type: 'test'
+  ...
+# Subtest: private app routes use shared noindex metadata
+ok 319 - private app routes use shared noindex metadata
+  ---
+  duration_ms: 5.8014
+  type: 'test'
+  ...
+# Subtest: home JSON-LD is limited to WebSite and Organization
+ok 320 - home JSON-LD is limited to WebSite and Organization
+  ---
+  duration_ms: 0.8427
+  type: 'test'
+  ...
+# Subtest: Shop interpretation reuses the existing AI provider abstraction
+ok 321 - Shop interpretation reuses the existing AI provider abstraction
+  ---
+  duration_ms: 4.476
+  type: 'test'
+  ...
+# Subtest: Shop interpretation API route authenticates and loads pet memory server-side
+ok 322 - Shop interpretation API route authenticates and loads pet memory server-side
+  ---
+  duration_ms: 1.3857
+  type: 'test'
+  ...
+# Subtest: Shop interpretation usage cap checks cache before spending a fresh AI search
+ok 323 - Shop interpretation usage cap checks cache before spending a fresh AI search
+  ---
+  duration_ms: 1.0739
+  type: 'test'
+  ...
+# Subtest: Shop product fit explanation API authenticates and gates through deterministic filters
+ok 324 - Shop product fit explanation API authenticates and gates through deterministic filters
+  ---
+  duration_ms: 1.1126
+  type: 'test'
+  ...
+# Subtest: Shop product search logs safe diagnostic counts without private data
+ok 325 - Shop product search logs safe diagnostic counts without private data
+  ---
+  duration_ms: 0.9346
+  type: 'test'
+  ...
+# Subtest: Shop page calls interpretation only after submit and keeps query-first rendering
+ok 326 - Shop page calls interpretation only after submit and keeps query-first rendering
+  ---
+  duration_ms: 0.962
+  type: 'test'
+  ...
+# Subtest: Shop product fit explanation is click-only and cached per page session
+ok 327 - Shop product fit explanation is click-only and cached per page session
+  ---
+  duration_ms: 2.8805
+  type: 'test'
+  ...
+# Subtest: Shop AI interpretation does not change Results or Ask Furvise product behavior
+ok 328 - Shop AI interpretation does not change Results or Ask Furvise product behavior
+  ---
+  duration_ms: 1.2633
+  type: 'test'
+  ...
+# Subtest: Shop product explanation route gates eligibility before calling AI and never spends interpretation usage
+ok 329 - Shop product explanation route gates eligibility before calling AI and never spends interpretation usage
+  ---
+  duration_ms: 23.5131
+  type: 'test'
+  ...
+# Subtest: Shop product explanation remains click-only from page source
+ok 330 - Shop product explanation remains click-only from page source
+  ---
+  duration_ms: 1.5932
+  type: 'test'
+  ...
+# Subtest: Shop cost controls use dedicated usage and cache tables with own-row RLS
+ok 331 - Shop cost controls use dedicated usage and cache tables with own-row RLS
+  ---
+  duration_ms: 2.5111
+  type: 'test'
+  ...
+# Subtest: Shop cache helper keeps country out of the interpretation cache key
+ok 332 - Shop cache helper keeps country out of the interpretation cache key
+  ---
+  duration_ms: 0.811
+  type: 'test'
+  ...
+# (node:31488) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/petwise.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: Shop empty state shows no careful match when no catalog item matches deterministically
+ok 333 - Shop empty state shows no careful match when no catalog item matches deterministically
+  ---
+  duration_ms: 9.8037
+  type: 'test'
+  ...
+# Subtest: Shop empty state shows region message when country filtering removes every match
+ok 334 - Shop empty state shows region message when country filtering removes every match
+  ---
+  duration_ms: 1.9764
+  type: 'test'
+  ...
+# Subtest: Shop empty state shows ingredient-verification message when every candidate is unverified
+ok 335 - Shop empty state shows ingredient-verification message when every candidate is unverified
+  ---
+  duration_ms: 1.219
+  type: 'test'
+  ...
+# Subtest: Shop empty state does not fill with unsafe products when avoid ingredients remove every match
+ok 336 - Shop empty state does not fill with unsafe products when avoid ingredients remove every match
+  ---
+  duration_ms: 3.4447
+  type: 'test'
+  ...
+# Subtest: Shop empty state suppresses products for urgent query and urgent saved pet context
+ok 337 - Shop empty state suppresses products for urgent query and urgent saved pet context
+  ---
+  duration_ms: 4.2271
+  type: 'test'
+  ...
+# Subtest: Shop empty state blocks explicit species conflicts without showing other-species products
+ok 338 - Shop empty state blocks explicit species conflicts without showing other-species products
+  ---
+  duration_ms: 1.7249
+  type: 'test'
+  ...
+# Subtest: Shop empty-state copy stays honest and avoids cross-country fallback language
+ok 339 - Shop empty-state copy stays honest and avoids cross-country fallback language
+  ---
+  duration_ms: 1.6708
+  type: 'test'
+  ...
+# Subtest: Shop vague query state asks for a specific product type
+ok 340 - Shop vague query state asks for a specific product type
+  ---
+  duration_ms: 0.9833
+  type: 'test'
+  ...
+# Subtest: Products remains protected, pet-scoped, and query-first
+ok 341 - Products remains protected, pet-scoped, and query-first
+  ---
+  duration_ms: 4.5748
+  type: 'test'
+  ...
+# Subtest: Products uses one centered search and the four approved categories
+ok 342 - Products uses one centered search and the four approved categories
+  ---
+  duration_ms: 1.2373
+  type: 'test'
+  ...
+# Subtest: Products keeps bounded catalog loading and deterministic filtering
+ok 343 - Products keeps bounded catalog loading and deterministic filtering
+  ---
+  duration_ms: 1.5312
+  type: 'test'
+  ...
+# Subtest: Results remains product-free
+ok 344 - Results remains product-free
+  ---
+  duration_ms: 1.0829
+  type: 'test'
+  ...
+# Subtest: Products keeps deterministic urgent and ingredient safety states
+ok 345 - Products keeps deterministic urgent and ingredient safety states
+  ---
+  duration_ms: 2.9249
+  type: 'test'
+  ...
+# (node:16340) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/petwise.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: Shop avoid-ingredient normalization treats typed none values like the None known chip
+ok 346 - Shop avoid-ingredient normalization treats typed none values like the None known chip
+  ---
+  duration_ms: 12.5107
+  type: 'test'
+  ...
+# Subtest: Shop avoid-ingredient normalization preserves real ingredients while ignoring none tokens
+ok 347 - Shop avoid-ingredient normalization preserves real ingredients while ignoring none tokens
+  ---
+  duration_ms: 1.2283
+  type: 'test'
+  ...
+# Subtest: Shop avoid normalization only applies to user avoid inputs, not arbitrary product text
+ok 348 - Shop avoid normalization only applies to user avoid inputs, not arbitrary product text
+  ---
+  duration_ms: 0.662
+  type: 'test'
+  ...
+# Subtest: Shop country filtering never falls back across US, CA, or invalid account countries
+ok 349 - Shop country filtering never falls back across US, CA, or invalid account countries
+  ---
+  duration_ms: 1.0305
+  type: 'test'
+  ...
+# Subtest: Shop ingredient verification excludes unverified ingestible and allergy-sensitive products without fill-in fallback
+ok 350 - Shop ingredient verification excludes unverified ingestible and allergy-sensitive products without fill-in fallback
+  ---
+  duration_ms: 4.972
+  type: 'test'
+  ...
+# (node:34376) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/shop/product-fit-explanation.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: product fit explanation schema validates sales-copy fields and exact safety line
+ok 351 - product fit explanation schema validates sales-copy fields and exact safety line
+  ---
+  duration_ms: 6.2181
+  type: 'test'
+  ...
+# Subtest: product fit prompt asks for benefit-focused copy without audit wording
+ok 352 - product fit prompt asks for benefit-focused copy without audit wording
+  ---
+  duration_ms: 1.2063
+  type: 'test'
+  ...
+# Subtest: verified product payload includes ingredients only when ingredientsVerified is true
+ok 353 - verified product payload includes ingredients only when ingredientsVerified is true
+  ---
+  duration_ms: 2.6558
+  type: 'test'
+  ...
+# Subtest: fallback explanation reads like concise product advisor copy
+ok 354 - fallback explanation reads like concise product advisor copy
+  ---
+  duration_ms: 2.5299
+  type: 'test'
+  ...
+# Subtest: product fit prompt input includes no unverified ingredient claims
+ok 355 - product fit prompt input includes no unverified ingredient claims
+  ---
+  duration_ms: 1.0264
+  type: 'test'
+  ...
+# Subtest: parser strips audit wording and raw internal fields from visible paragraphs
+ok 356 - parser strips audit wording and raw internal fields from visible paragraphs
+  ---
+  duration_ms: 0.9608
+  type: 'test'
+  ...
+# Subtest: parser removes assistant offers and blocks unsafe product claims
+ok 357 - parser removes assistant offers and blocks unsafe product claims
+  ---
+  duration_ms: 0.8662
+  type: 'test'
+  ...
+# Subtest: parser keeps product fit safety line only once at the bottom
+ok 358 - parser keeps product fit safety line only once at the bottom
+  ---
+  duration_ms: 0.645
+  type: 'test'
+  ...
+# Subtest: product fit explanation panel renders only sales-style paragraphs
+ok 359 - product fit explanation panel renders only sales-style paragraphs
+  ---
+  duration_ms: 1.9672
+  type: 'test'
+  ...
+# Subtest: product UI copy contains no em dash
+ok 360 - product UI copy contains no em dash
+  ---
+  duration_ms: 2.7071
+  type: 'test'
+  ...
+# (node:29064) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/shop/product-question.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: product question prompt uses a direct, human store-advisor voice
+ok 361 - product question prompt uses a direct, human store-advisor voice
+  ---
+  duration_ms: 2.2543
+  type: 'test'
+  ...
+# Subtest: product question fallback states missing ingredient certainty honestly
+ok 362 - product question fallback states missing ingredient certainty honestly
+  ---
+  duration_ms: 10.3713
+  type: 'test'
+  ...
+# Subtest: product question watch fallback uses verified warnings when present
+ok 363 - product question watch fallback uses verified warnings when present
+  ---
+  duration_ms: 3.2201
+  type: 'test'
+  ...
+# Subtest: product question fallback gives rich itchy paws buyer guidance
+ok 364 - product question fallback gives rich itchy paws buyer guidance
+  ---
+  duration_ms: 0.985
+  type: 'test'
+  ...
+# Subtest: product question fallback preserves uncertainty for dental product and itchy paws
+ok 365 - product question fallback preserves uncertainty for dental product and itchy paws
+  ---
+  duration_ms: 0.9166
+  type: 'test'
+  ...
+# Subtest: product question fallback answers shampoo and sensitive teeth casually
+ok 366 - product question fallback answers shampoo and sensitive teeth casually
+  ---
+  duration_ms: 0.6689
+  type: 'test'
+  ...
+# Subtest: product question fallback answers shampoo and no-teeth questions without extra weird phrasing
+ok 367 - product question fallback answers shampoo and no-teeth questions without extra weird phrasing
+  ---
+  duration_ms: 0.6254
+  type: 'test'
+  ...
+# Subtest: product question fallback can show ingredient details when asked
+ok 368 - product question fallback can show ingredient details when asked
+  ---
+  duration_ms: 0.5872
+  type: 'test'
+  ...
+# Subtest: product question fallback answers food without-water questions safely
+ok 369 - product question fallback answers food without-water questions safely
+  ---
+  duration_ms: 0.7668
+  type: 'test'
+  ...
+# Subtest: product question classifier accepts broad buyer doubts
+ok 370 - product question classifier accepts broad buyer doubts
+  ---
+  duration_ms: 1.4147
+  type: 'test'
+  ...
+# Subtest: product question fallback answers taste and like-it doubts
+ok 371 - product question fallback answers taste and like-it doubts
+  ---
+  duration_ms: 0.7807
+  type: 'test'
+  ...
+# Subtest: product question fallback answers messy ingredient preference doubts
+ok 372 - product question fallback answers messy ingredient preference doubts
+  ---
+  duration_ms: 1.4479
+  type: 'test'
+  ...
+# Subtest: product question fallback bridges mixed off-topic and product questions
+ok 373 - product question fallback bridges mixed off-topic and product questions
+  ---
+  duration_ms: 0.5752
+  type: 'test'
+  ...
+# Subtest: product question fallback answers size age compare and symptom doubts
+ok 374 - product question fallback answers size age compare and symptom doubts
+  ---
+  duration_ms: 3.0942
+  type: 'test'
+  ...
+# Subtest: product question fallback answers category use questions safely
+ok 375 - product question fallback answers category use questions safely
+  ---
+  duration_ms: 1.2531
+  type: 'test'
+  ...
+# Subtest: product question fallback avoids verification language for broad fit questions
+ok 376 - product question fallback avoids verification language for broad fit questions
+  ---
+  duration_ms: 0.6831
+  type: 'test'
+  ...
+# Subtest: product question fallback answers breed suitability naturally
+ok 377 - product question fallback answers breed suitability naturally
+  ---
+  duration_ms: 0.6125
+  type: 'test'
+  ...
+# Subtest: product question parser blocks unsafe or internal copy
+ok 378 - product question parser blocks unsafe or internal copy
+  ---
+  duration_ms: 1.2064
+  type: 'test'
+  ...
+# Subtest: product question parser keeps direct default answer compact
+ok 379 - product question parser keeps direct default answer compact
+  ---
+  duration_ms: 0.2992
+  type: 'test'
+  ...
+# Subtest: product question parser accepts useful minimal fallback-shaped answers
+ok 380 - product question parser accepts useful minimal fallback-shaped answers
+  ---
+  duration_ms: 0.1823
+  type: 'test'
+  ...
+# Subtest: product question prompt input does not expose unverified ingredients as verified
+ok 381 - product question prompt input does not expose unverified ingredients as verified
+  ---
+  duration_ms: 0.7595
+  type: 'test'
+  ...
+# Subtest: product question fallback uses verified directions only when present
+ok 382 - product question fallback uses verified directions only when present
+  ---
+  duration_ms: 0.5693
+  type: 'test'
+  ...
+# Subtest: product question fallback uses verified warnings only when present
+ok 383 - product question fallback uses verified warnings only when present
+  ---
+  duration_ms: 0.4806
+  type: 'test'
+  ...
+# Subtest: product question fallback does not claim full verification when enrichment is partial
+ok 384 - product question fallback does not claim full verification when enrichment is partial
+  ---
+  duration_ms: 0.3117
+  type: 'test'
+  ...
+# Subtest: product question off-topic guard redirects non-product questions without product advice
+ok 385 - product question off-topic guard redirects non-product questions without product advice
+  ---
+  duration_ms: 0.2836
+  type: 'test'
+  ...
+# Subtest: product question route authenticates, rechecks filters, and uses shared Products AI usage
+ok 386 - product question route authenticates, rechecks filters, and uses shared Products AI usage
+  ---
+  duration_ms: 1.6815
+  type: 'test'
+  ...
+# Subtest: product question usage spends the shared product search pool
+ok 387 - product question usage spends the shared product search pool
+  ---
+  duration_ms: 1.7166
+  type: 'test'
+  ...
+# Subtest: product question UI opens from a compact product card action and only submits on question action
+ok 388 - product question UI opens from a compact product card action and only submits on question action
+  ---
+  duration_ms: 1.7136
+  type: 'test'
+  ...
+# Subtest: product question route does not increment for empty questions or explanation clicks
+ok 389 - product question route does not increment for empty questions or explanation clicks
+  ---
+  duration_ms: 0.7266
+  type: 'test'
+  ...
+# Subtest: product question usage read errors fall back to honest unavailable state
+ok 390 - product question usage read errors fall back to honest unavailable state
+  ---
+  duration_ms: 0.2107
+  type: 'test'
+  ...
+# (node:16196) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/shop/query-interpretation-cache.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: Shop cache query normalization covers casing, whitespace, and simple punctuation
+ok 391 - Shop cache query normalization covers casing, whitespace, and simple punctuation
+  ---
+  duration_ms: 2.8319
+  type: 'test'
+  ...
+# Subtest: Shop interpretation cache key separates pet, context hash, and schema version
+ok 392 - Shop interpretation cache key separates pet, context hash, and schema version
+  ---
+  duration_ms: 1.8041
+  type: 'test'
+  ...
+# Subtest: Shop interpretation cache returns strict schema rows and ignores malformed rows
+ok 393 - Shop interpretation cache returns strict schema rows and ignores malformed rows
+  ---
+  duration_ms: 3.6141
+  type: 'test'
+  ...
+# (node:23928) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/shop-query.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: Shop query interpretation schema uses strict bounded enums
+ok 394 - Shop query interpretation schema uses strict bounded enums
+  ---
+  duration_ms: 5.2518
+  type: 'test'
+  ...
+# Subtest: Shop query prompt is interpretation-only and forbids product claims
+ok 395 - Shop query prompt is interpretation-only and forbids product claims
+  ---
+  duration_ms: 0.7253
+  type: 'test'
+  ...
+# Subtest: fallback classifies common Shop queries without recommending products
+ok 396 - fallback classifies common Shop queries without recommending products
+  ---
+  duration_ms: 8.167
+  type: 'test'
+  ...
+# Subtest: fallback handles explicit species conflict and urgent shopping intent safely
+ok 397 - fallback handles explicit species conflict and urgent shopping intent safely
+  ---
+  duration_ms: 0.6978
+  type: 'test'
+  ...
+# Subtest: fallback maps vague grooming and fur language to Grooming search terms
+ok 398 - fallback maps vague grooming and fur language to Grooming search terms
+  ---
+  duration_ms: 0.8812
+  type: 'test'
+  ...
+# Subtest: urgent or medical safety intent overrides grooming synonym category floor
+ok 399 - urgent or medical safety intent overrides grooming synonym category floor
+  ---
+  duration_ms: 0.6322
+  type: 'test'
+  ...
+# Subtest: vague Shop query pre-validation blocks only queries without shopping signals
+ok 400 - vague Shop query pre-validation blocks only queries without shopping signals
+  ---
+  duration_ms: 1.5731
+  type: 'test'
+  ...
+# Subtest: fallback maps something for itching paws to skin and grooming search signals
+ok 401 - fallback maps something for itching paws to skin and grooming search signals
+  ---
+  duration_ms: 0.5593
+  type: 'test'
+  ...
+# (node:35284) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/billing/plan-limits.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: Products AI usage increments fresh AI interpretations only
+ok 402 - Products AI usage increments fresh AI interpretations only
+  ---
+  duration_ms: 4.4709
+  type: 'test'
+  ...
+# Subtest: Shop interpretation cache normalization prevents duplicate spend for casing and whitespace variants
+ok 403 - Shop interpretation cache normalization prevents duplicate spend for casing and whitespace variants
+  ---
+  duration_ms: 3.5252
+  type: 'test'
+  ...
+# Subtest: Shop deterministic filtering and invalid query states do not touch usage
+ok 404 - Shop deterministic filtering and invalid query states do not touch usage
+  ---
+  duration_ms: 11.3206
+  type: 'test'
+  ...
+# Subtest: product search cap blocks fresh uncached queries while allowing cached interpretations
+ok 405 - product search cap blocks fresh uncached queries while allowing cached interpretations
+  ---
+  duration_ms: 1.2601
+  type: 'test'
+  ...
+# Subtest: Shop route never increments usage for invalid bodies, cached hits, fallback, or product explanation
+ok 406 - Shop route never increments usage for invalid bodies, cached hits, fallback, or product explanation
+  ---
+  duration_ms: 1.0065
+  type: 'test'
+  ...
+# Subtest: product search cap reached UI copy is visible and calm
+ok 407 - product search cap reached UI copy is visible and calm
+  ---
+  duration_ms: 1.2474
+  type: 'test'
+  ...
+# Subtest: vague Shop queries do not call AI or increment usage before specificity state
+ok 408 - vague Shop queries do not call AI or increment usage before specificity state
+  ---
+  duration_ms: 3.6686
+  type: 'test'
+  ...
+# (node:30740) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/petwise.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: shop search requires a pet and a specific query before returning products
+ok 409 - shop search requires a pet and a specific query before returning products
+  ---
+  duration_ms: 7.6287
+  type: 'test'
+  ...
+# Subtest: shop query matching covers product names, categories, tags, concerns, brand, retailer, and source notes
+ok 410 - shop query matching covers product names, categories, tags, concerns, brand, retailer, and source notes
+  ---
+  duration_ms: 1.2161
+  type: 'test'
+  ...
+# Subtest: shop search returns multiple dog grooming products for shampoo queries
+ok 411 - shop search returns multiple dog grooming products for shampoo queries
+  ---
+  duration_ms: 27.1954
+  type: 'test'
+  ...
+# Subtest: Shop static curated catalog is loaded and reports careful shampoo diagnostics
+ok 412 - Shop static curated catalog is loaded and reports careful shampoo diagnostics
+  ---
+  duration_ms: 3.5473
+  type: 'test'
+  ...
+# Subtest: Shop obvious US curated searches match existing catalog products when present
+ok 413 - Shop obvious US curated searches match existing catalog products when present
+  ---
+  duration_ms: 20.6427
+  type: 'test'
+  ...
+# Subtest: Shop search returns grooming wipes and reports no match for a missing flea comb
+ok 414 - Shop search returns grooming wipes and reports no match for a missing flea comb
+  ---
+  duration_ms: 4.1516
+  type: 'test'
+  ...
+# Subtest: Shop matching keeps raw query terms when AI interpretation terms are too broad
+ok 415 - Shop matching keeps raw query terms when AI interpretation terms are too broad
+  ---
+  duration_ms: 5.1345
+  type: 'test'
+  ...
+# Subtest: shop search returns dental products for dental treats and keeps species filtering
+ok 416 - shop search returns dental products for dental treats and keeps species filtering
+  ---
+  duration_ms: 2.9076
+  type: 'test'
+  ...
+# Subtest: shop search never crosses selected species for obvious dog and cat queries
+ok 417 - shop search never crosses selected species for obvious dog and cat queries
+  ---
+  duration_ms: 1.0892
+  type: 'test'
+  ...
+# Subtest: explicitly shared products can appear for both dogs and cats
+ok 418 - explicitly shared products can appear for both dogs and cats
+  ---
+  duration_ms: 2.6233
+  type: 'test'
+  ...
+# Subtest: shop search applies account country filtering and reports region-empty matches
+ok 419 - shop search applies account country filtering and reports region-empty matches
+  ---
+  duration_ms: 2.4142
+  type: 'test'
+  ...
+# Subtest: shop search applies saved avoid ingredients before showing product matches
+ok 420 - shop search applies saved avoid ingredients before showing product matches
+  ---
+  duration_ms: 2.2612
+  type: 'test'
+  ...
+# Subtest: shop search treats chicken-free food as a careful ingredient intent
+ok 421 - shop search treats chicken-free food as a careful ingredient intent
+  ---
+  duration_ms: 1.837
+  type: 'test'
+  ...
+# Subtest: shop food search returns verified food products including sensitive stomach options
+ok 422 - shop food search returns verified food products including sensitive stomach options
+  ---
+  duration_ms: 1.4534
+  type: 'test'
+  ...
+# Subtest: shop interpretation cannot bypass deterministic species, region, or avoid filters
+ok 423 - shop interpretation cannot bypass deterministic species, region, or avoid filters
+  ---
+  duration_ms: 2.5236
+  type: 'test'
+  ...
+# Subtest: shop filtering fails closed for invalid country and never falls back across countries
+ok 424 - shop filtering fails closed for invalid country and never falls back across countries
+  ---
+  duration_ms: 0.2654
+  type: 'test'
+  ...
+# Subtest: shop ingredient verification excludes sensitive unverified products but allows non-ingestible tools
+ok 425 - shop ingredient verification excludes sensitive unverified products but allows non-ingestible tools
+  ---
+  duration_ms: 0.6406
+  type: 'test'
+  ...
+# Subtest: shop ranking is deterministic by category, species specificity, ingredient verification, source, secondary signal, and name
+ok 426 - shop ranking is deterministic by category, species specificity, ingredient verification, source, secondary signal, and name
+  ---
+  duration_ms: 1.079
+  type: 'test'
+  ...
+# Subtest: shop avoid ingredient normalization treats typed none like the None known chip
+ok 427 - shop avoid ingredient normalization treats typed none like the None known chip
+  ---
+  duration_ms: 0.1962
+  type: 'test'
+  ...
+# Subtest: shop safety and medical intent empty states suppress products deterministically
+ok 428 - shop safety and medical intent empty states suppress products deterministically
+  ---
+  duration_ms: 0.4787
+  type: 'test'
+  ...
+# Subtest: urgent care signs suppress normal shop product results
+ok 429 - urgent care signs suppress normal shop product results
+  ---
+  duration_ms: 0.268
+  type: 'test'
+  ...
+# Subtest: shop search maps vague hair, fur, bath, smell, and shedding queries to grooming signals
+ok 430 - shop search maps vague hair, fur, bath, smell, and shedding queries to grooming signals
+  ---
+  duration_ms: 1.4332
+  type: 'test'
+  ...
+# Subtest: shop grooming synonyms keep country, species, and ingredient verification filters strict
+ok 431 - shop grooming synonyms keep country, species, and ingredient verification filters strict
+  ---
+  duration_ms: 0.4842
+  type: 'test'
+  ...
+# Subtest: shop search returns specificity state for vague queries without showing products
+ok 432 - shop search returns specificity state for vague queries without showing products
+  ---
+  duration_ms: 0.404
+  type: 'test'
+  ...
+# (node:30032) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/products/static-products.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: static curated products are audited and enriched with verified source metadata
+ok 433 - static curated products are audited and enriched with verified source metadata
+  ---
+  duration_ms: 3.3257
+  type: 'test'
+  ...
+# Subtest: ingredientsVerified true requires verifiedIngredients
+ok 434 - ingredientsVerified true requires verifiedIngredients
+  ---
+  duration_ms: 0.4988
+  type: 'test'
+  ...
+# Subtest: partial enrichment keeps ingredientsVerified false when ingredient details are not applicable or incomplete
+ok 435 - partial enrichment keeps ingredientsVerified false when ingredient details are not applicable or incomplete
+  ---
+  duration_ms: 0.3669
+  type: 'test'
+  ...
+# Subtest: curated catalog IDs are unique and products do not carry prices
+ok 436 - curated catalog IDs are unique and products do not carry prices
+  ---
+  duration_ms: 0.3815
+  type: 'test'
+  ...
+# Subtest: curated products use explicit species arrays and retain a small sourced cat set
+ok 437 - curated products use explicit species arrays and retain a small sourced cat set
+  ---
+  duration_ms: 0.6686
+  type: 'test'
+  ...
+# Subtest: Earthbath enrichment uses verified label fields and not name-derived ingredients
+ok 438 - Earthbath enrichment uses verified label fields and not name-derived ingredients
+  ---
+  duration_ms: 0.5378
+  type: 'test'
+  ...
+# Subtest: verified catalog fields avoid restricted commercial and medical claims
+ok 439 - verified catalog fields avoid restricted commercial and medical claims
+  ---
+  duration_ms: 0.8474
+  type: 'test'
+  ...
+# (node:29868) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/supabase.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: getBrowserSupabase returns one browser client across persistence changes
+ok 440 - getBrowserSupabase returns one browser client across persistence changes
+  ---
+  duration_ms: 26.4046
+  type: 'test'
+  ...
+# Subtest: pet profile baseline creates the historical prerequisite without absorbing later changes
+ok 441 - pet profile baseline creates the historical prerequisite without absorbing later changes
+  ---
+  duration_ms: 4.738
+  type: 'test'
+  ...
+# Subtest: role grant reconciliation keeps anonymous, catalog, and ingestion access least-privileged
+ok 442 - role grant reconciliation keeps anonymous, catalog, and ingestion access least-privileged
+  ---
+  duration_ms: 1.8479
+  type: 'test'
+  ...
+# Subtest: application navigation uses the reset route labels
+ok 443 - application navigation uses the reset route labels
+  ---
+  duration_ms: 4.0426
+  type: 'test'
+  ...
+# Subtest: shared primitives cover the production interaction vocabulary
+ok 444 - shared primitives cover the production interaction vocabulary
+  ---
+  duration_ms: 0.5434
+  type: 'test'
+  ...
+# Subtest: the theme exposes three surfaces and centralized semantic roles
+ok 445 - the theme exposes three surfaces and centralized semantic roles
+  ---
+  duration_ms: 0.3505
+  type: 'test'
+  ...
+# Subtest: homepage uses the concise editorial care story
+ok 446 - homepage uses the concise editorial care story
+  ---
+  duration_ms: 0.5484
+  type: 'test'
+  ...
+# Subtest: Today has one primary update moment and a quiet profile reminder
+ok 447 - Today has one primary update moment and a quiet profile reminder
+  ---
+  duration_ms: 0.4416
+  type: 'test'
+  ...
+# Subtest: Pets renders personal summaries instead of database labels
+ok 448 - Pets renders personal summaries instead of database labels
+  ---
+  duration_ms: 0.3358
+  type: 'test'
+  ...
+# Subtest: History has compact filters and the intentional empty state
+ok 449 - History has compact filters and the intentional empty state
+  ---
+  duration_ms: 0.3114
+  type: 'test'
+  ...
+# Subtest: Ask fresh state uses a compact pet selector and one disclaimer
+ok 450 - Ask fresh state uses a compact pet selector and one disclaimer
+  ---
+  duration_ms: 0.7024
+  type: 'test'
+  ...
+# Subtest: Products centers one search with four popular categories
+ok 451 - Products centers one search with four popular categories
+  ---
+  duration_ms: 0.5668
+  type: 'test'
+  ...
+# Subtest: Vet brief presents Review, Confirm, Share while retaining export controls
+ok 452 - Vet brief presents Review, Confirm, Share while retaining export controls
+  ---
+  duration_ms: 0.5254
+  type: 'test'
+  ...
+# Subtest: primary product surfaces contain no banned visible phrases
+ok 453 - primary product surfaces contain no banned visible phrases
+  ---
+  duration_ms: 3.571
+  type: 'test'
+  ...
+# Subtest: mobile task surfaces reserve space for reachable navigation and composers
+ok 454 - mobile task surfaces reserve space for reachable navigation and composers
+  ---
+  duration_ms: 0.556
+  type: 'test'
+  ...
+# (node:29236) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/petwise/app/lib/vet-brief/builder.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to \\\\?\\C:\\Users\\gwara\\petwise\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: Vet Visit Brief includes only recorded facts and keeps suspicions owner-attributed
+ok 455 - Vet Visit Brief includes only recorded facts and keeps suspicions owner-attributed
+  ---
+  duration_ms: 3.3275
+  type: 'test'
+  ...
+# Subtest: Vet Visit Brief shows missing values without filling gaps
+ok 456 - Vet Visit Brief shows missing values without filling gaps
+  ---
+  duration_ms: 0.1804
+  type: 'test'
+  ...
+# Subtest: Vet Visit Brief date filtering and relevance exclude unrelated history
+ok 457 - Vet Visit Brief date filtering and relevance exclude unrelated history
+  ---
+  duration_ms: 0.3512
+  type: 'test'
+  ...
+# Subtest: confirmed user edits are preserved and removed items stay removed
+ok 458 - confirmed user edits are preserved and removed items stay removed
+  ---
+  duration_ms: 0.4141
+  type: 'test'
+  ...
+# Subtest: Vet Visit Brief PDF filename is stable and PDF omits internal and affiliate fields
+ok 459 - Vet Visit Brief PDF filename is stable and PDF omits internal and affiliate fields
+  ---
+  duration_ms: 53.8728
+  type: 'test'
+  ...
+# Subtest: Vet Visit Brief persistence is private, versioned, and owner-scoped
+ok 460 - Vet Visit Brief persistence is private, versioned, and owner-scoped
+  ---
+  duration_ms: 0.458
+  type: 'test'
+  ...
+# Subtest: Vet Visit Brief review is mobile-ready, explicit, and analytics receives no document content
+ok 461 - Vet Visit Brief review is mobile-ready, explicit, and analytics receives no document content
+  ---
+  duration_ms: 0.69
+  type: 'test'
+  ...
+# Subtest: Vet Visit Brief builder introduces no diagnosis or treatment claims
+ok 462 - Vet Visit Brief builder introduces no diagnosis or treatment claims
+  ---
+  duration_ms: 0.315
+  type: 'test'
+  ...
+1..462
+# tests 462
+# suites 0
+# pass 462
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3701.7458

@@ -1,0 +1,1809 @@
+{
+  "syntheticDatabase": true,
+  "realProviders": true,
+  "model": "gpt-5.4-mini",
+  "phase": "unseen-recheck",
+  "clock": "2026-09-15T12:00:00Z",
+  "turns": [
+    {
+      "id": "3months-portion-json",
+      "history": "3months",
+      "records": 36,
+      "question": "Return only JSON for Basil’s feeder portions: earlier_g, later_g, increase_g, and reason_known. Use recorded grams, not a count of meals.",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "question": "What were Basil’s feeder portions earlier and later, in grams, what was the increase in grams, and is the reason known? Use recorded grams rather than counting meals.",
+          "requirements": [
+            "Return only JSON.",
+            "Include the fields earlier_g, later_g, increase_g, and reason_known.",
+            "Use recorded grams, not a count of meals."
+          ],
+          "referenceTurnIds": [],
+          "quantity": "measurement"
+        },
+        "operation": "recall",
+        "readOperation": "recall",
+        "selection": "comparison",
+        "petIds": [
+          "basil"
+        ],
+        "topic": "feeder portions",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "What were Basil’s feeder portions earlier and later, in grams, what was the increase in grams, and is the reason known? Use recorded grams rather than counting meals.",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": null,
+          "to": null,
+          "terms": [
+            "feeder portions",
+            "grams",
+            "increase"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "Her earlier feeder portion was 50 g, her later feeder portion was 75 g, the increase was 25 g, and the reason is not known from the record.",
+      "sections": [],
+      "reviewed": true,
+      "draft": {
+        "sentences": [
+          {
+            "text": "Basil’s earlier feeder portion was 50 g, her later feeder portion was 75 g, the increase was 25 g, and the reason is not known from the record.",
+            "sourceIds": [
+              "care:portion-old",
+              "care:portion-new"
+            ],
+            "calculations": [
+              {
+                "operation": "difference",
+                "operands": [
+                  {
+                    "sourceId": "care:portion-new",
+                    "field": "text",
+                    "literal": "75 g"
+                  },
+                  {
+                    "sourceId": "care:portion-old",
+                    "field": "text",
+                    "literal": "50 g"
+                  }
+                ],
+                "value": 25,
+                "unit": "g"
+              }
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "today": "2026-09-15T12:00:00.000Z",
+          "question": "Return only JSON for Basil’s feeder portions: earlier_g, later_g, increase_g, and reason_known. Use recorded grams, not a count of meals.",
+          "referenceQuestion": "What were Basil’s feeder portions earlier and later, in grams, what was the increase in grams, and is the reason known? Use recorded grams rather than counting meals.",
+          "scope": {
+            "authorizedPetIds": [
+              "basil"
+            ],
+            "requestedTopic": "feeder portions",
+            "requestText": "Return only JSON for Basil’s feeder portions: earlier_g, later_g, increase_g, and reason_known. Use recorded grams, not a count of meals.",
+            "requestedPeriod": {
+              "kind": "unspecified",
+              "surface": null
+            },
+            "requestKind": "ordinary",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Basil"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "question": "What were Basil’s feeder portions earlier and later, in grams, what was the increase in grams, and is the reason known? Use recorded grams rather than counting meals.",
+              "requirements": [
+                "Return only JSON.",
+                "Include the fields earlier_g, later_g, increase_g, and reason_known.",
+                "Use recorded grams, not a count of meals."
+              ],
+              "referenceTurnIds": [],
+              "quantity": "measurement"
+            },
+            "operation": "recall",
+            "readOperation": "recall",
+            "selection": "comparison",
+            "petIds": [
+              "basil"
+            ],
+            "topic": "feeder portions",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "What were Basil’s feeder portions earlier and later, in grams, what was the increase in grams, and is the reason known? Use recorded grams rather than counting meals.",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": null,
+              "to": null,
+              "terms": [
+                "feeder portions",
+                "grams",
+                "increase"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "basil": "Basil"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "question": "What were Basil’s feeder portions earlier and later, in grams, what was the increase in grams, and is the reason known? Use recorded grams rather than counting meals.",
+            "requirements": [
+              "Return only JSON.",
+              "Include the fields earlier_g, later_g, increase_g, and reason_known.",
+              "Use recorded grams, not a count of meals."
+            ],
+            "referenceTurnIds": [],
+            "quantity": "measurement"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "What were Basil’s feeder portions earlier and later, in grams, what was the increase in grams, and is the reason known? Use recorded grams rather than counting meals."
+            },
+            {
+              "index": 1,
+              "text": "Return only JSON."
+            },
+            {
+              "index": 2,
+              "text": "Include the fields earlier_g, later_g, increase_g, and reason_known."
+            },
+            {
+              "index": 3,
+              "text": "Use recorded grams, not a count of meals."
+            }
+          ],
+          "coverage": {
+            "plan": {
+              "from": null,
+              "to": null,
+              "terms": [
+                "feeder portions",
+                "grams",
+                "increase"
+              ],
+              "interpretation": "lexical"
+            },
+            "candidateIds": [
+              "care:portion-old",
+              "care:routine-1",
+              "care:routine-4",
+              "care:routine-7",
+              "care:routine-10",
+              "care:routine-13",
+              "care:routine-16",
+              "care:routine-19",
+              "care:routine-22",
+              "care:routine-25",
+              "care:portion-new",
+              "care:routine-28"
+            ],
+            "queryCount": 5,
+            "retrieval": "partial",
+            "corrections": "unknown",
+            "extraction": "unknown",
+            "grouping": "unknown",
+            "continuation": [
+              {
+                "petId": "basil",
+                "occurredAt": "2026-08-26T12:00:00Z",
+                "id": "routine-28"
+              },
+              {
+                "petId": "basil",
+                "occurredAt": "2026-06-15T12:00:00Z",
+                "id": "portion-old"
+              }
+            ],
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "bounded_period_context_not_semantic_completeness",
+              "bidirectional_endpoint_subset"
+            ],
+            "consistency": "read_committed_no_snapshot",
+            "perPet": [
+              {
+                "petId": "basil",
+                "rows": 12,
+                "pages": 4,
+                "exhausted": false,
+                "status": "partial"
+              }
+            ],
+            "provenance": [
+              {
+                "sourceId": "care:portion-old",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-1",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-4",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-7",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-10",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-13",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-16",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-19",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-22",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-25",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:portion-new",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-28",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              }
+            ],
+            "claimSources": [
+              {
+                "petId": "basil",
+                "sourceIds": []
+              }
+            ],
+            "excludedIds": []
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:basil:sex",
+              "petId": "basil",
+              "sourceType": "profile",
+              "field": "value",
+              "start": 0,
+              "end": 6,
+              "text": "female",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:basil:species",
+              "petId": "basil",
+              "sourceType": "profile",
+              "field": "value",
+              "start": 0,
+              "end": 3,
+              "text": "cat",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:portion-old",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 49,
+              "text": "The feeder dispensed 50 g for Basil at breakfast.",
+              "occurredAt": "2026-06-15T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-28",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-26T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-1",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-06-17T12:00:00Z"
+            },
+            {
+              "sourceId": "care:portion-new",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 96,
+              "text": "The feeder dispensed 75 g for Basil at breakfast. No reason for the setting change was recorded.",
+              "occurredAt": "2026-08-20T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-4",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-06-25T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-25",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-19T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-7",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-03T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-22",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-11T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-10",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-11T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-19",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-03T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-13",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-18T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-16",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-26T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "Basil’s earlier feeder portion was 50 g, her later feeder portion was 75 g, the increase was 25 g, and the reason is not known from the record.",
+                "sourceIds": [
+                  "care:portion-old",
+                  "care:portion-new"
+                ],
+                "calculations": [
+                  {
+                    "operation": "difference",
+                    "operands": [
+                      {
+                        "sourceId": "care:portion-new",
+                        "field": "text",
+                        "literal": "75 g"
+                      },
+                      {
+                        "sourceId": "care:portion-old",
+                        "field": "text",
+                        "literal": "50 g"
+                      }
+                    ],
+                    "value": 25,
+                    "unit": "g"
+                  }
+                ],
+                "index": 0
+              }
+            ]
+          }
+        }
+      ],
+      "retainedIds": [
+        "care:portion-old",
+        "care:routine-1",
+        "care:routine-4",
+        "care:routine-7",
+        "care:routine-10",
+        "care:routine-13",
+        "care:routine-16",
+        "care:routine-19",
+        "care:routine-22",
+        "care:routine-25",
+        "care:portion-new",
+        "care:routine-28"
+      ],
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rejectionReason\":null}",
+      "providerCalls": 3,
+      "elapsedMs": 9202,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": "3months-medication-premise",
+      "history": "3months",
+      "records": 36,
+      "question": "Clover finished the course, so Clover takes no medicine now. Does the saved history establish that? Name the completed medicine and separate it from what is unknown today. Do not save this claim.",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "question": "Does Clover’s saved history establish that Clover finished a medicine course and now takes no medicine? Identify the completed medicine, and separate that from what is still unknown today. Do not save this claim.",
+          "requirements": [
+            "Use Clover’s saved history to verify whether the claim is established.",
+            "Name the completed medicine if the history supports it.",
+            "Separate confirmed facts from what is unknown today.",
+            "Do not save or update any memory; this is a read-only lookup.",
+            "Answer in a concise, clearly separated format."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "recall",
+        "readOperation": "recall",
+        "selection": "summary",
+        "petIds": [
+          "clover"
+        ],
+        "topic": "medicine course and current medication status",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "Does Clover’s saved history establish that Clover finished a medicine course and now takes no medicine? Identify the completed medicine, and separate that from what is still unknown today. Do not save this claim.",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": null,
+          "to": null,
+          "terms": [
+            "medicine",
+            "course",
+            "takes no medicine",
+            "finished",
+            "unknown today"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "I couldn't verify a complete answer to the request. These are the saved reports I could check for Clover: Clover's 2026-06-20, 2026-06-28, 2026-07-05, 2026-07-13, 2026-07-21, 2026-07-29, 2026-08-06, 2026-08-13, 2026-08-21, 2026-08-29 report: \"Clover had a routine grooming check. Coat looked clean.\" Clover's 2026-08-25 report: \"Clover completed the prescribed amoxicillin course today. No current medication list was recorded.\"\n\nSome history could not be checked or included. This answer covers only the usable reports; a narrower topic or date range may help.",
+      "sections": [],
+      "reviewed": true,
+      "draft": {
+        "sentences": [
+          {
+            "text": "- Yes. The saved history does establish that Clover completed amoxicillin, recorded as a prescribed course finished on 2026-08-25.",
+            "sourceIds": [
+              "care:course"
+            ]
+          },
+          {
+            "text": "- What is still unknown today is whether he takes no medicine now, because the record only says that no current medication list was recorded and does not confirm his present medication status.",
+            "sourceIds": [
+              "care:course"
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "today": "2026-09-15T12:00:00.000Z",
+          "question": "Clover finished the course, so Clover takes no medicine now. Does the saved history establish that? Name the completed medicine and separate it from what is unknown today. Do not save this claim.",
+          "referenceQuestion": "Does Clover’s saved history establish that Clover finished a medicine course and now takes no medicine? Identify the completed medicine, and separate that from what is still unknown today. Do not save this claim.",
+          "scope": {
+            "authorizedPetIds": [
+              "clover"
+            ],
+            "requestedTopic": "medicine course and current medication status",
+            "requestText": "Clover finished the course, so Clover takes no medicine now. Does the saved history establish that? Name the completed medicine and separate it from what is unknown today. Do not save this claim.",
+            "requestedPeriod": {
+              "kind": "unspecified",
+              "surface": null
+            },
+            "requestKind": "ordinary",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Clover"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "question": "Does Clover’s saved history establish that Clover finished a medicine course and now takes no medicine? Identify the completed medicine, and separate that from what is still unknown today. Do not save this claim.",
+              "requirements": [
+                "Use Clover’s saved history to verify whether the claim is established.",
+                "Name the completed medicine if the history supports it.",
+                "Separate confirmed facts from what is unknown today.",
+                "Do not save or update any memory; this is a read-only lookup.",
+                "Answer in a concise, clearly separated format."
+              ],
+              "referenceTurnIds": [],
+              "quantity": null
+            },
+            "operation": "recall",
+            "readOperation": "recall",
+            "selection": "summary",
+            "petIds": [
+              "clover"
+            ],
+            "topic": "medicine course and current medication status",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "Does Clover’s saved history establish that Clover finished a medicine course and now takes no medicine? Identify the completed medicine, and separate that from what is still unknown today. Do not save this claim.",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": null,
+              "to": null,
+              "terms": [
+                "medicine",
+                "course",
+                "takes no medicine",
+                "finished",
+                "unknown today"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "clover": "Clover"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "question": "Does Clover’s saved history establish that Clover finished a medicine course and now takes no medicine? Identify the completed medicine, and separate that from what is still unknown today. Do not save this claim.",
+            "requirements": [
+              "Use Clover’s saved history to verify whether the claim is established.",
+              "Name the completed medicine if the history supports it.",
+              "Separate confirmed facts from what is unknown today.",
+              "Do not save or update any memory; this is a read-only lookup.",
+              "Answer in a concise, clearly separated format."
+            ],
+            "referenceTurnIds": [],
+            "quantity": null
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Does Clover’s saved history establish that Clover finished a medicine course and now takes no medicine? Identify the completed medicine, and separate that from what is still unknown today. Do not save this claim."
+            },
+            {
+              "index": 1,
+              "text": "Use Clover’s saved history to verify whether the claim is established."
+            },
+            {
+              "index": 2,
+              "text": "Name the completed medicine if the history supports it."
+            },
+            {
+              "index": 3,
+              "text": "Separate confirmed facts from what is unknown today."
+            },
+            {
+              "index": 4,
+              "text": "Do not save or update any memory; this is a read-only lookup."
+            },
+            {
+              "index": 5,
+              "text": "Answer in a concise, clearly separated format."
+            }
+          ],
+          "coverage": {
+            "plan": {
+              "from": null,
+              "to": null,
+              "terms": [
+                "medicine",
+                "course",
+                "takes no medicine",
+                "finished",
+                "unknown today"
+              ],
+              "interpretation": "lexical"
+            },
+            "candidateIds": [
+              "care:course",
+              "care:routine-2",
+              "care:routine-5",
+              "care:routine-8",
+              "care:routine-11",
+              "care:routine-14",
+              "care:routine-17",
+              "care:routine-20",
+              "care:routine-23",
+              "care:routine-26",
+              "care:routine-29"
+            ],
+            "queryCount": 5,
+            "retrieval": "partial",
+            "corrections": "unknown",
+            "extraction": "unknown",
+            "grouping": "unknown",
+            "continuation": [
+              {
+                "petId": "clover",
+                "occurredAt": "2026-08-25T12:00:00Z",
+                "id": "course"
+              },
+              {
+                "petId": "clover",
+                "occurredAt": "2026-08-29T12:00:00Z",
+                "id": "routine-29"
+              },
+              {
+                "petId": "clover",
+                "occurredAt": "2026-08-25T12:00:00Z",
+                "id": "course"
+              },
+              {
+                "petId": "clover",
+                "occurredAt": "2026-06-20T12:00:00Z",
+                "id": "routine-2"
+              }
+            ],
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "bounded_period_context_not_semantic_completeness",
+              "bidirectional_endpoint_subset"
+            ],
+            "consistency": "read_committed_no_snapshot",
+            "perPet": [
+              {
+                "petId": "clover",
+                "rows": 11,
+                "pages": 4,
+                "exhausted": false,
+                "status": "partial"
+              }
+            ],
+            "provenance": [
+              {
+                "sourceId": "care:course",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-2",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-5",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-8",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-11",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-14",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-17",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-20",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-23",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-26",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-29",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              }
+            ],
+            "claimSources": [
+              {
+                "petId": "clover",
+                "sourceIds": []
+              }
+            ],
+            "excludedIds": []
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:clover:sex",
+              "petId": "clover",
+              "sourceType": "profile",
+              "field": "value",
+              "start": 0,
+              "end": 4,
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:clover:species",
+              "petId": "clover",
+              "sourceType": "profile",
+              "field": "value",
+              "start": 0,
+              "end": 3,
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:routine-2",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-06-20T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-29",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-29T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-5",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-06-28T12:00:00Z"
+            },
+            {
+              "sourceId": "care:course",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 98,
+              "text": "Clover completed the prescribed amoxicillin course today. No current medication list was recorded.",
+              "occurredAt": "2026-08-25T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-8",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-05T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-26",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-21T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-11",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-13T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-23",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-13T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-14",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-21T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-20",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-06T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-17",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-29T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "- Yes. The saved history does establish that Clover completed amoxicillin, recorded as a prescribed course finished on 2026-08-25.",
+                "sourceIds": [
+                  "care:course"
+                ],
+                "index": 0
+              }
+            ]
+          }
+        },
+        {
+          "today": "2026-09-15T12:00:00.000Z",
+          "question": "Clover finished the course, so Clover takes no medicine now. Does the saved history establish that? Name the completed medicine and separate it from what is unknown today. Do not save this claim.",
+          "referenceQuestion": "Does Clover’s saved history establish that Clover finished a medicine course and now takes no medicine? Identify the completed medicine, and separate that from what is still unknown today. Do not save this claim.",
+          "scope": {
+            "authorizedPetIds": [
+              "clover"
+            ],
+            "requestedTopic": "medicine course and current medication status",
+            "requestText": "Clover finished the course, so Clover takes no medicine now. Does the saved history establish that? Name the completed medicine and separate it from what is unknown today. Do not save this claim.",
+            "requestedPeriod": {
+              "kind": "unspecified",
+              "surface": null
+            },
+            "requestKind": "ordinary",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Clover"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "question": "Does Clover’s saved history establish that Clover finished a medicine course and now takes no medicine? Identify the completed medicine, and separate that from what is still unknown today. Do not save this claim.",
+              "requirements": [
+                "Use Clover’s saved history to verify whether the claim is established.",
+                "Name the completed medicine if the history supports it.",
+                "Separate confirmed facts from what is unknown today.",
+                "Do not save or update any memory; this is a read-only lookup.",
+                "Answer in a concise, clearly separated format."
+              ],
+              "referenceTurnIds": [],
+              "quantity": null
+            },
+            "operation": "recall",
+            "readOperation": "recall",
+            "selection": "summary",
+            "petIds": [
+              "clover"
+            ],
+            "topic": "medicine course and current medication status",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "Does Clover’s saved history establish that Clover finished a medicine course and now takes no medicine? Identify the completed medicine, and separate that from what is still unknown today. Do not save this claim.",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": null,
+              "to": null,
+              "terms": [
+                "medicine",
+                "course",
+                "takes no medicine",
+                "finished",
+                "unknown today"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "clover": "Clover"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "question": "Does Clover’s saved history establish that Clover finished a medicine course and now takes no medicine? Identify the completed medicine, and separate that from what is still unknown today. Do not save this claim.",
+            "requirements": [
+              "Use Clover’s saved history to verify whether the claim is established.",
+              "Name the completed medicine if the history supports it.",
+              "Separate confirmed facts from what is unknown today.",
+              "Do not save or update any memory; this is a read-only lookup.",
+              "Answer in a concise, clearly separated format."
+            ],
+            "referenceTurnIds": [],
+            "quantity": null
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Does Clover’s saved history establish that Clover finished a medicine course and now takes no medicine? Identify the completed medicine, and separate that from what is still unknown today. Do not save this claim."
+            },
+            {
+              "index": 1,
+              "text": "Use Clover’s saved history to verify whether the claim is established."
+            },
+            {
+              "index": 2,
+              "text": "Name the completed medicine if the history supports it."
+            },
+            {
+              "index": 3,
+              "text": "Separate confirmed facts from what is unknown today."
+            },
+            {
+              "index": 4,
+              "text": "Do not save or update any memory; this is a read-only lookup."
+            },
+            {
+              "index": 5,
+              "text": "Answer in a concise, clearly separated format."
+            }
+          ],
+          "coverage": {
+            "plan": {
+              "from": null,
+              "to": null,
+              "terms": [
+                "medicine",
+                "course",
+                "takes no medicine",
+                "finished",
+                "unknown today"
+              ],
+              "interpretation": "lexical"
+            },
+            "candidateIds": [
+              "care:course",
+              "care:routine-2",
+              "care:routine-5",
+              "care:routine-8",
+              "care:routine-11",
+              "care:routine-14",
+              "care:routine-17",
+              "care:routine-20",
+              "care:routine-23",
+              "care:routine-26",
+              "care:routine-29"
+            ],
+            "queryCount": 5,
+            "retrieval": "partial",
+            "corrections": "unknown",
+            "extraction": "unknown",
+            "grouping": "unknown",
+            "continuation": [
+              {
+                "petId": "clover",
+                "occurredAt": "2026-08-25T12:00:00Z",
+                "id": "course"
+              },
+              {
+                "petId": "clover",
+                "occurredAt": "2026-08-29T12:00:00Z",
+                "id": "routine-29"
+              },
+              {
+                "petId": "clover",
+                "occurredAt": "2026-08-25T12:00:00Z",
+                "id": "course"
+              },
+              {
+                "petId": "clover",
+                "occurredAt": "2026-06-20T12:00:00Z",
+                "id": "routine-2"
+              }
+            ],
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "bounded_period_context_not_semantic_completeness",
+              "bidirectional_endpoint_subset"
+            ],
+            "consistency": "read_committed_no_snapshot",
+            "perPet": [
+              {
+                "petId": "clover",
+                "rows": 11,
+                "pages": 4,
+                "exhausted": false,
+                "status": "partial"
+              }
+            ],
+            "provenance": [
+              {
+                "sourceId": "care:course",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-2",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-5",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-8",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-11",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-14",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-17",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-20",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-23",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-26",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-29",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              }
+            ],
+            "claimSources": [
+              {
+                "petId": "clover",
+                "sourceIds": []
+              }
+            ],
+            "excludedIds": []
+          },
+          "losses": [],
+          "draft": {
+            "sentences": [
+              {
+                "text": "- Yes. The saved history does establish that Clover completed amoxicillin, recorded as a prescribed course finished on 2026-08-25.",
+                "sourceIds": [
+                  "care:course"
+                ],
+                "index": 0
+              }
+            ]
+          },
+          "rejectionReason": "The draft only states that Clover completed amoxicillin; it does not separate that confirmed fact from what is unknown today (the record says no current medication list was recorded).",
+          "contextRecords": [
+            {
+              "sourceId": "profile:clover:sex",
+              "petId": "clover",
+              "sourceType": "profile",
+              "field": "value",
+              "start": 0,
+              "end": 4,
+              "text": "male",
+              "occurredAt": null,
+              "id": "profile:clover:sex"
+            },
+            {
+              "sourceId": "profile:clover:species",
+              "petId": "clover",
+              "sourceType": "profile",
+              "field": "value",
+              "start": 0,
+              "end": 3,
+              "text": "dog",
+              "occurredAt": null,
+              "id": "profile:clover:species"
+            },
+            {
+              "sourceId": "care:routine-2",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-06-20T12:00:00Z",
+              "id": "care:routine-2"
+            },
+            {
+              "sourceId": "care:routine-29",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-29T12:00:00Z",
+              "id": "care:routine-29"
+            },
+            {
+              "sourceId": "care:routine-5",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-06-28T12:00:00Z",
+              "id": "care:routine-5"
+            },
+            {
+              "sourceId": "care:course",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 98,
+              "text": "Clover completed the prescribed amoxicillin course today. No current medication list was recorded.",
+              "occurredAt": "2026-08-25T12:00:00Z",
+              "id": "care:course"
+            },
+            {
+              "sourceId": "care:routine-8",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-05T12:00:00Z",
+              "id": "care:routine-8"
+            },
+            {
+              "sourceId": "care:routine-26",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-21T12:00:00Z",
+              "id": "care:routine-26"
+            },
+            {
+              "sourceId": "care:routine-11",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-13T12:00:00Z",
+              "id": "care:routine-11"
+            },
+            {
+              "sourceId": "care:routine-23",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-13T12:00:00Z",
+              "id": "care:routine-23"
+            },
+            {
+              "sourceId": "care:routine-14",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-21T12:00:00Z",
+              "id": "care:routine-14"
+            },
+            {
+              "sourceId": "care:routine-20",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-06T12:00:00Z",
+              "id": "care:routine-20"
+            },
+            {
+              "sourceId": "care:routine-17",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-29T12:00:00Z",
+              "id": "care:routine-17"
+            }
+          ],
+          "evidenceContract": {
+            "interpretation": {
+              "version": "ask-interpretation.v1",
+              "request": {
+                "version": "ask-request.v2",
+                "mode": "read",
+                "question": "Does Clover’s saved history establish that Clover finished a medicine course and now takes no medicine? Identify the completed medicine, and separate that from what is still unknown today. Do not save this claim.",
+                "requirements": [
+                  "Use Clover’s saved history to verify whether the claim is established.",
+                  "Name the completed medicine if the history supports it.",
+                  "Separate confirmed facts from what is unknown today.",
+                  "Do not save or update any memory; this is a read-only lookup.",
+                  "Answer in a concise, clearly separated format."
+                ],
+                "referenceTurnIds": [],
+                "quantity": null
+              },
+              "operation": "recall",
+              "readOperation": "recall",
+              "selection": "summary",
+              "petIds": [
+                "clover"
+              ],
+              "topic": "medicine course and current medication status",
+              "readOnly": true,
+              "clarification": null,
+              "referenceQuestion": "Does Clover’s saved history establish that Clover finished a medicine course and now takes no medicine? Identify the completed medicine, and separate that from what is still unknown today. Do not save this claim.",
+              "episodeTopic": null,
+              "ordinal": null,
+              "history": {
+                "from": null,
+                "to": null,
+                "terms": [
+                  "medicine",
+                  "course",
+                  "takes no medicine",
+                  "finished",
+                  "unknown today"
+                ],
+                "interpretation": "lexical"
+              }
+            }
+          }
+        },
+        {
+          "today": "2026-09-15T12:00:00.000Z",
+          "question": "Clover finished the course, so Clover takes no medicine now. Does the saved history establish that? Name the completed medicine and separate it from what is unknown today. Do not save this claim.",
+          "referenceQuestion": "Does Clover’s saved history establish that Clover finished a medicine course and now takes no medicine? Identify the completed medicine, and separate that from what is still unknown today. Do not save this claim.",
+          "scope": {
+            "authorizedPetIds": [
+              "clover"
+            ],
+            "requestedTopic": "medicine course and current medication status",
+            "requestText": "Clover finished the course, so Clover takes no medicine now. Does the saved history establish that? Name the completed medicine and separate it from what is unknown today. Do not save this claim.",
+            "requestedPeriod": {
+              "kind": "unspecified",
+              "surface": null
+            },
+            "requestKind": "ordinary",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Clover"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "question": "Does Clover’s saved history establish that Clover finished a medicine course and now takes no medicine? Identify the completed medicine, and separate that from what is still unknown today. Do not save this claim.",
+              "requirements": [
+                "Use Clover’s saved history to verify whether the claim is established.",
+                "Name the completed medicine if the history supports it.",
+                "Separate confirmed facts from what is unknown today.",
+                "Do not save or update any memory; this is a read-only lookup.",
+                "Answer in a concise, clearly separated format."
+              ],
+              "referenceTurnIds": [],
+              "quantity": null
+            },
+            "operation": "recall",
+            "readOperation": "recall",
+            "selection": "summary",
+            "petIds": [
+              "clover"
+            ],
+            "topic": "medicine course and current medication status",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "Does Clover’s saved history establish that Clover finished a medicine course and now takes no medicine? Identify the completed medicine, and separate that from what is still unknown today. Do not save this claim.",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": null,
+              "to": null,
+              "terms": [
+                "medicine",
+                "course",
+                "takes no medicine",
+                "finished",
+                "unknown today"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "clover": "Clover"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "question": "Does Clover’s saved history establish that Clover finished a medicine course and now takes no medicine? Identify the completed medicine, and separate that from what is still unknown today. Do not save this claim.",
+            "requirements": [
+              "Use Clover’s saved history to verify whether the claim is established.",
+              "Name the completed medicine if the history supports it.",
+              "Separate confirmed facts from what is unknown today.",
+              "Do not save or update any memory; this is a read-only lookup.",
+              "Answer in a concise, clearly separated format."
+            ],
+            "referenceTurnIds": [],
+            "quantity": null
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Does Clover’s saved history establish that Clover finished a medicine course and now takes no medicine? Identify the completed medicine, and separate that from what is still unknown today. Do not save this claim."
+            },
+            {
+              "index": 1,
+              "text": "Use Clover’s saved history to verify whether the claim is established."
+            },
+            {
+              "index": 2,
+              "text": "Name the completed medicine if the history supports it."
+            },
+            {
+              "index": 3,
+              "text": "Separate confirmed facts from what is unknown today."
+            },
+            {
+              "index": 4,
+              "text": "Do not save or update any memory; this is a read-only lookup."
+            },
+            {
+              "index": 5,
+              "text": "Answer in a concise, clearly separated format."
+            }
+          ],
+          "coverage": {
+            "plan": {
+              "from": null,
+              "to": null,
+              "terms": [
+                "medicine",
+                "course",
+                "takes no medicine",
+                "finished",
+                "unknown today"
+              ],
+              "interpretation": "lexical"
+            },
+            "candidateIds": [
+              "care:course",
+              "care:routine-2",
+              "care:routine-5",
+              "care:routine-8",
+              "care:routine-11",
+              "care:routine-14",
+              "care:routine-17",
+              "care:routine-20",
+              "care:routine-23",
+              "care:routine-26",
+              "care:routine-29"
+            ],
+            "queryCount": 5,
+            "retrieval": "partial",
+            "corrections": "unknown",
+            "extraction": "unknown",
+            "grouping": "unknown",
+            "continuation": [
+              {
+                "petId": "clover",
+                "occurredAt": "2026-08-25T12:00:00Z",
+                "id": "course"
+              },
+              {
+                "petId": "clover",
+                "occurredAt": "2026-08-29T12:00:00Z",
+                "id": "routine-29"
+              },
+              {
+                "petId": "clover",
+                "occurredAt": "2026-08-25T12:00:00Z",
+                "id": "course"
+              },
+              {
+                "petId": "clover",
+                "occurredAt": "2026-06-20T12:00:00Z",
+                "id": "routine-2"
+              }
+            ],
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "bounded_period_context_not_semantic_completeness",
+              "bidirectional_endpoint_subset"
+            ],
+            "consistency": "read_committed_no_snapshot",
+            "perPet": [
+              {
+                "petId": "clover",
+                "rows": 11,
+                "pages": 4,
+                "exhausted": false,
+                "status": "partial"
+              }
+            ],
+            "provenance": [
+              {
+                "sourceId": "care:course",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-2",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-5",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-8",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-11",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-14",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-17",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-20",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-23",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-26",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-29",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              }
+            ],
+            "claimSources": [
+              {
+                "petId": "clover",
+                "sourceIds": []
+              }
+            ],
+            "excludedIds": []
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:clover:sex",
+              "petId": "clover",
+              "sourceType": "profile",
+              "field": "value",
+              "start": 0,
+              "end": 4,
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:clover:species",
+              "petId": "clover",
+              "sourceType": "profile",
+              "field": "value",
+              "start": 0,
+              "end": 3,
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:routine-2",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-06-20T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-29",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-29T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-5",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-06-28T12:00:00Z"
+            },
+            {
+              "sourceId": "care:course",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 98,
+              "text": "Clover completed the prescribed amoxicillin course today. No current medication list was recorded.",
+              "occurredAt": "2026-08-25T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-8",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-05T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-26",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-21T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-11",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-13T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-23",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-13T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-14",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-21T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-20",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-06T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-17",
+              "petId": "clover",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 55,
+              "text": "Clover had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-29T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "- Confirmed: Clover completed the prescribed amoxicillin course.",
+                "sourceIds": [
+                  "care:course"
+                ],
+                "index": 0
+              }
+            ]
+          }
+        }
+      ],
+      "retainedIds": [
+        "care:routine-2",
+        "care:routine-5",
+        "care:routine-8",
+        "care:routine-11",
+        "care:routine-14",
+        "care:routine-17",
+        "care:routine-20",
+        "care:routine-23",
+        "care:routine-26",
+        "care:course",
+        "care:routine-29"
+      ],
+      "review": "{\"approved\":false,\"retainedSentenceIndexes\":[],\"obligations\":[{\"index\":0,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[]},{\"index\":3,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[]},{\"index\":5,\"status\":\"missing\",\"sentenceIndexes\":[]}],\"rejectionReason\":\"The draft only supports that Clover completed the prescribed amoxicillin course; it does not separate that fact from what is unknown today, and it does not establish that Clover takes no medicine now.\"}",
+      "providerCalls": 5,
+      "elapsedMs": 20364,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    }
+  ]
+}

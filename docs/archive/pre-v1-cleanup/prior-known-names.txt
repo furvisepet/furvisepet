@@ -1,0 +1,323 @@
+conversation decision supports the complete practical intent vocabulary
+multi-turn references resolve from the thread and ambiguous references ask once
+corrections override temporary thread assumptions without becoming diagnoses
+new conversations do not inherit unsaved thread assumptions
+context selection excludes unrelated history and labels only selected sources
+memory candidates stay attributed, require confirmation, and suppress duplicates
+tracking plans are bounded and relevant
+prior tracking is available to a related follow-up and stays out of unrelated topics
+urgent guidance remains deterministic and action-first
+public response accepts useful presentation fields but drops the internal plan
+user-facing Ask output rejects templated internal language in regression fixtures
+route keeps continuity owner-scoped, does not persist plans, and charges after validation
+analytics contract has lifecycle events and cannot accept private text
+formatPetDisplayName preserves intentional capitalization
+formatPetDisplayName falls back for blank or missing values
+care log pet-name rendering smoke test handles rocky without throwing
+account settings displays and persists Product country manual override
+signed-out account redirects before rendering editable settings controls
+Results ignores product country and does not render a region product empty state
+urgent safety continues to render care-first Results UI without product copy
+privacy page includes approximate country copy
+account country normalizes only supported MVP countries
+x-vercel-ip-country CA stores CA for a new user
+x-vercel-ip-country US stores US for a new user
+unsupported country header does not store the unsupported value
+missing country header uses configured env fallback
+existing manual country is not overwritten by detection
+existing stored country is not re-detected on every call
+manual override payload stores account-level manual source
+product country save upserts user profile for first-time users
+first-time manual save does not require an existing profile row
+active product country source order prefers account profile before env
+user_profiles migrations store only account country with owner RLS
+app code uses the public user_profiles table for account country
+conversation decision supports the complete practical intent vocabulary
+multi-turn references resolve from the thread and ambiguous references ask once
+corrections override temporary thread assumptions without becoming diagnoses
+new conversations do not inherit unsaved thread assumptions
+context selection excludes unrelated history and labels only selected sources
+memory candidates stay attributed, require confirmation, and suppress duplicates
+tracking plans are bounded and relevant
+prior tracking is available to a related follow-up and stays out of unrelated topics
+urgent guidance remains deterministic and action-first
+public response accepts useful presentation fields but drops the internal plan
+user-facing Ask output rejects templated internal language in regression fixtures
+route keeps continuity owner-scoped, does not persist plans, and charges after validation
+analytics contract has lifecycle events and cannot accept private text
+Ask conversation contract supports every adaptive answer type
+Ask conversation contract rejects model-selected actions outside the deterministic allowlist
+Ask workspace keeps one composer, chronological thread, compact context, and one general disclaimer
+Ask analytics accepts only privacy-safe metadata
+Results and Products remain outside the Ask redesign
+grounded Ask fallback is disabled without OpenAI configuration
+grounded Ask fallback uses configured OpenAI client and current model schema
+grounded Ask payload includes water, paw, and eating facts from saved memory only
+grounded Ask output rejects unsupported saved facts and unsafe product or diagnosis claims
+grounded Ask fallback can answer supported water and eating questions
+grounded Ask fallback says when saved data does not support the question
+Ask Furvise safety gate catches urgent symptom language
+Ask Furvise only adds product feedback for relevant questions
+Ask Furvise validates and renders structured responses without raw Markdown
+Ask Furvise rejects malformed structured responses
+Ask Furvise builds clean copy, save, context, and urgent safety content
+saving vet prep guidance creates a concise Furvise care-history entry
+Ask Furvise save eligibility blocks no-record and generic answers
+Ask Furvise save eligibility allows useful saved facts and maps categories
+vet prep save eligibility requires actual recent saved updates
+saved Furvise guidance titles match answer type when available
+saved symptom guidance uses actual saved facts instead of no-record phrasing
+conversation titles are concise and human
+Ask exposes separate new-question, history, pet-switch, and thread-open actions
+Ask persists chronological conversations with owner RLS
+Ask fresh and follow-up states differ and formal print is absent
+missing Ask details have one primary responsive location
+Vet Brief uses outline, grouped empty state, external preview controls, and gated exports
+Vet Brief print route hides controls and explains browser headers
+signed-out Add pet links target login with next onboarding
+signed-in Add pet actions go directly to new-pet onboarding
+signed-out direct onboarding redirects to login with next before restoring draft storage
+login next handling rejects external URLs and allows internal onboarding
+login redirects to next after successful auth
+signed-out login with onboarding next keeps the form tree stable
+login and onboarding use confirmed auth state instead of competing cached session checks
+auth loading state does not redirect between login and onboarding
+protected pages redirect signed-out users to login with current path next
+protected page loading paths no longer render signed-out error copy
+signed-in onboarding restores and renders instead of redirecting to login
+redirect guards fire once to prevent login onboarding ping-pong
+Results does not show unsigned local draft results
+signed-out Shop redirects preserve current path and safe query string
+authorized provider templates are structural, pending, and credential-free
+synthetic fixture covers 12 products, variants, categories, one invalid row, and one exact batch duplicate
+approved agreements retain eligible fields and pass the provider permission gate after review
+pending and expired agreements block publication
+disallowed images and descriptions are omitted without altering raw payloads
+country restrictions and authorization metadata are enforced
+field mapping is exact and ambiguous aliases require review
+authorized adapter accepts quoted affiliate TSV without provider-specific parsing
+affiliate links are preserved exactly and invalid tracking URLs are rejected
+stale offers retain links but omit price and current stock
+Impact access fails safely when credentials or authorization are absent
+authorized Impact readiness verifies metadata and relationship and skips an unchanged feed
+private upload paths reject traversal and the private directory is ignored
+Purina remains blocked and public surfaces exclude contract metadata
+freshness schema and publication logic keep stale prices out of public catalog selects
+plan capabilities define generous free and future plus limits
+early access unlock affects hard gates only
+pet limit gates new pets but never edits existing pets
+Ask Furvise usage gate allows 20 free messages and early access bypass
+Products AI usage gate allows 80 free AI uses and early access bypass
+Ask usage reads current month, increments successful answers, and resets by month key
+Ask usage treats a missing monthly row as zero for new users
+Products AI usage increments fresh AI work and resets by month key
+Ask usage read errors log Supabase details and early access falls back safely
+Ask usage still hard gates over-limit users when the usage table works
+plan source defaults safely to free and paid gate messages exist
+createCareEntry stores an owned entry and rejects another user's pet
+care log pet preselect chooses only filtered, scoped, or single-pet defaults
+care history-created entries reload for dashboard and Ask Furvise memory
+Ask Furvise care-history saves skip duplicate generated notes within 24 hours
+Ask Furvise duplicate check still allows different useful summaries
+listCareEntriesForPet only returns the signed-in user's rows
+listRecentCareEntries only returns entries owned by the signed-in user
+listCareEntriesForPet rejects another user's pet
+updateCareEntry edits the stored row
+deleteCareEntry removes the user's row and rejects others
+display helpers preserve intentional casing and show severe caution
+dashboard helpers render real care activity and keep no-update messaging
+validateCareEntryDraft enforces required fields
+dashboard care state renders a real preview and no-pet fallback
+legacy profile storage supports cats without introducing duplicate core tables
+application profile model and onboarding are species-ready
+young dog and cat profiles use species-aware life stages
+generic pet routes reuse compatibility implementations
+user-facing cat-ready changes contain no em dash
+Products uses the bounded catalog endpoint without changing product-card markup
+product explanation and question routes use the shared catalog adapter
+the static catalog is isolated to an explicitly temporary error fallback
+Results remains product-free
+one catalog product supports multiple species and variants
+species, country, and lifecycle checks exclude unsafe products
+offers retain decimal strings, support multiples, and prefer an active affiliate URL
+the legacy product-card adapter supplies the existing required fields
+catalog limits are always bounded
+CSV parsing handles UTF-8, quotes, embedded commas, and row numbers
+CSV parsing validates headers, malformed quoting, and configurable columns
+CSV formula-like cells are preserved and flagged without execution
+JSON supports arrays and wrapped products with explicit object validation
+JSON rejects malformed text, executable JavaScript, and non-object records
+duplicate detection finds exact GTIN and provider external IDs
+brand and name matches are held for review instead of auto-merged
+unchanged normalized hashes propose a no-op
+stable hashes ignore object key order but still detect content changes
+source precedence is field-specific and updates are non-destructive
+Shop cost controls use dedicated usage and cache tables with own-row RLS
+Shop cache helper keeps country out of the interpretation cache key
+Shop empty state shows no careful match when no catalog item matches deterministically
+Shop empty state shows region message when country filtering removes every match
+Shop empty state shows ingredient-verification message when every candidate is unverified
+Shop empty state does not fill with unsafe products when avoid ingredients remove every match
+Shop empty state suppresses products for urgent query and urgent saved pet context
+Shop empty state blocks explicit species conflicts without showing other-species products
+Shop empty-state copy stays honest and avoids cross-country fallback language
+Shop vague query state asks for a specific product type
+Shop route renders protected query-first product discovery
+Products renders a compact result count and cards without compare UI
+Shop entry points link to pet-scoped Shop without inline product displays
+Shop search uses static curated catalog filters and no OpenAI or live import path
+Shop safety and empty states use modest non-commercial copy
+Results remains care-only after Shop is introduced
+Shop stays query-first with pet preselect and no auto-rendered products
+Shop avoid-ingredient normalization treats typed none values like the None known chip
+Shop avoid-ingredient normalization preserves real ingredients while ignoring none tokens
+Shop avoid normalization only applies to user avoid inputs, not arbitrary product text
+Shop country filtering never falls back across US, CA, or invalid account countries
+Shop ingredient verification excludes unverified ingestible and allergy-sensitive products without fill-in fallback
+product fit explanation schema validates sales-copy fields and exact safety line
+product fit prompt asks for benefit-focused copy without audit wording
+verified product payload includes ingredients only when ingredientsVerified is true
+fallback explanation reads like concise product advisor copy
+product fit prompt input includes no unverified ingredient claims
+parser strips audit wording and raw internal fields from visible paragraphs
+parser removes assistant offers and blocks unsafe product claims
+parser keeps product fit safety line only once at the bottom
+product fit explanation panel renders only sales-style paragraphs
+product UI copy contains no em dash
+product question prompt uses a direct, human store-advisor voice
+product question fallback states missing ingredient certainty honestly
+product question watch fallback uses verified warnings when present
+product question fallback gives rich itchy paws buyer guidance
+product question fallback preserves uncertainty for dental product and itchy paws
+product question fallback answers shampoo and sensitive teeth casually
+product question fallback answers shampoo and no-teeth questions without extra weird phrasing
+product question fallback can show ingredient details when asked
+product question fallback answers food without-water questions safely
+product question classifier accepts broad buyer doubts
+product question fallback answers taste and like-it doubts
+product question fallback answers messy ingredient preference doubts
+product question fallback bridges mixed off-topic and product questions
+product question fallback answers size age compare and symptom doubts
+product question fallback answers category use questions safely
+product question fallback avoids verification language for broad fit questions
+product question fallback answers breed suitability naturally
+product question parser blocks unsafe or internal copy
+product question parser keeps direct default answer compact
+product question parser accepts useful minimal fallback-shaped answers
+product question prompt input does not expose unverified ingredients as verified
+product question fallback uses verified directions only when present
+product question fallback uses verified warnings only when present
+product question fallback does not claim full verification when enrichment is partial
+product question off-topic guard redirects non-product questions without product advice
+product question route authenticates, rechecks filters, and uses shared Products AI usage
+product question usage spends the shared Products AI pool
+product question UI opens from a compact product card action and only submits on question action
+product question route does not increment for empty questions or explanation clicks
+product question usage read errors fall back to honest unavailable state
+Shop cache query normalization covers casing, whitespace, and simple punctuation
+Shop interpretation cache key separates pet, context hash, and schema version
+Shop interpretation cache returns strict schema rows and ignores malformed rows
+Shop query interpretation schema uses strict bounded enums
+Shop query prompt is interpretation-only and forbids product claims
+fallback classifies common Shop queries without recommending products
+fallback handles explicit species conflict and urgent shopping intent safely
+fallback maps vague grooming and fur language to Grooming search terms
+urgent or medical safety intent overrides grooming synonym category floor
+vague Shop query pre-validation blocks only queries without shopping signals
+fallback maps something for itching paws to skin and grooming search signals
+Products AI usage increments fresh AI interpretations only
+Shop interpretation cache normalization prevents duplicate spend for casing and whitespace variants
+Shop deterministic filtering and invalid query states do not touch usage
+Products AI cap blocks fresh uncached queries while allowing cached interpretations
+Shop route never increments usage for invalid bodies, cached hits, fallback, or product explanation
+Products AI cap reached UI copy is visible and calm
+vague Shop queries do not call AI or increment usage before specificity state
+shop search requires a pet and a specific query before returning products
+shop query matching covers product names, categories, tags, concerns, brand, retailer, and source notes
+shop search returns multiple dog grooming products for shampoo queries
+Shop static curated catalog is loaded and reports careful shampoo diagnostics
+Shop obvious US curated searches match existing catalog products when present
+Shop search returns grooming wipes and reports no match for a missing flea comb
+Shop matching keeps raw query terms when AI interpretation terms are too broad
+shop search returns dental products for dental treats and keeps species filtering
+shop search never crosses selected species for obvious dog and cat queries
+explicitly shared products can appear for both dogs and cats
+shop search applies account country filtering and reports region-empty matches
+shop search applies saved avoid ingredients before showing product matches
+shop search treats chicken-free food as a careful ingredient intent
+shop food search returns verified food products including sensitive stomach options
+shop interpretation cannot bypass deterministic species, region, or avoid filters
+shop filtering fails closed for invalid country and never falls back across countries
+shop ingredient verification excludes sensitive unverified products but allows non-ingestible tools
+shop ranking is deterministic by category, species specificity, ingredient verification, source, secondary signal, and name
+shop avoid ingredient normalization treats typed none like the None known chip
+shop safety and medical intent empty states suppress products deterministically
+urgent care signs suppress normal shop product results
+shop search maps vague hair, fur, bath, smell, and shedding queries to grooming signals
+shop grooming synonyms keep country, species, and ingredient verification filters strict
+shop search returns specificity state for vague queries without showing products
+static curated products are audited and enriched with verified source metadata
+ingredientsVerified true requires verifiedIngredients
+partial enrichment keeps ingredientsVerified false when ingredient details are not applicable or incomplete
+curated catalog IDs are unique and products do not carry prices
+curated products use explicit species arrays and retain a small sourced cat set
+Earthbath enrichment uses verified label fields and not name-derived ingredients
+verified catalog fields avoid restricted commercial and medical claims
+getBrowserSupabase returns one browser client across persistence changes
+pet profile baseline creates the historical prerequisite without absorbing later changes
+role grant reconciliation keeps anonymous, catalog, and ingestion access least-privileged
+appearance is mode-only and persists through the shared storage key
+appearance modal only exposes light and dark mode
+login page exposes forgot password and premium auth surfaces
+forgot password page renders a reset form and calls the Supabase reset flow
+update password page prepares the recovery session and updates the password
+signed-out account menus show sign in and appearance, not account or sign out
+signed-in account menus keep account, appearance, and sign out only
+authenticated header uses the shared app navigation contract
+Care history keeps Log update out of top nav and exposes page-level create action
+authenticated header switches to compact navigation before tablet labels wrap
+homepage header keeps Add pet and Care hub out of top nav and includes Dashboard
+sticky shared header uses a translucent pinned shell
+homepage uses a wider premium shell with elevated sections
+dark theme tokens stay neutral charcoal while accents remain green
+shared header active state covers dashboard, pets, care history, and ask
+shared header keeps a stable account shell and removes loading pills
+root layout bootstraps the theme without rendering a raw script tag
+root layout renders the Impact verification tag with a value attribute
+account menu items use stable explicit link and button markup
+How it works cards use numeric step labels without icons
+homepage copy presents a stronger care history story without fake social proof
+homepage feature and connected care sections use unified divider components
+homepage hero uses a product card instead of placeholder media
+homepage page still renders the homepage client without gating on assets
+onboarding uses shared nav without onboarding actions in the header
+Pets supports a wide single card and responsive multi-pet grid
+Dashboard pet pill, empty care state, and contextual actions stay focused
+Ask Furvise renders an ongoing pet-aware conversation workspace
+Ask Furvise saves concise guidance summaries to care history
+Ask Furvise omits save actions when an answer is not saveable
+Care history cards render saved Furvise guidance cleanly without layout changes
+Ask Furvise disables ask controls at the monthly limit and keeps core features available
+Save guidance confirmation clearly targets care history, not saved details
+Saved details empty state explains reusable facts and includes useful next actions
+Results stays care-guidance only and removes product recommendation UI
+Onboarding current food and avoid ingredients remain reversible
+finish profile prompts appear after value on Results, Dashboard, and pet profile
+Onboarding saves the profile before navigating to results
+Results keeps safety panels ahead of care summary and removes product flow gating
+Results stays care-summary focused and avoids diagnostic framing
+free plan gates only pets and Ask while core loop stays available
+mobile pet profile actions are labeled and never render a visible ellipsis button
+shared mobile header keeps menu and account controls available without desktop nav
+mobile layout shells and Ask chips avoid horizontal clipping
+onboarding fallback copy does not expose demo or mock language
+Results no longer renders product cards or product empty states
+edit profile mobile form avoids horizontal overflow and keeps bottom actions tappable
+Vet Visit Brief includes only recorded facts and keeps suspicions owner-attributed
+Vet Visit Brief shows missing values without filling gaps
+Vet Visit Brief date filtering and relevance exclude unrelated history
+confirmed user edits are preserved and removed items stay removed
+Vet Visit Brief PDF filename is stable and PDF omits internal and affiliate fields
+Vet Visit Brief persistence is private, versioned, and owner-scoped
+Vet Visit Brief review is mobile-ready, explicit, and analytics receives no document content
+Vet Visit Brief builder introduces no diagnosis or treatment claims

@@ -1,0 +1,34 @@
+{
+  "date": "2026-09-09",
+  "scope": "Verified existing test account; Milo, Luna and Oscar only. No other account targeted.",
+  "userAuthorization": "Replace all current test-pet history with fresh five-year data before a 200-question benchmark.",
+  "transaction": "Committed atomically after a successful rollback validation; original history count and fingerprint checked inside transaction.",
+  "removed": {
+    "careRows": 50,
+    "petSemanticClaims": 25,
+    "petSpecificOwnerMemories": 2,
+    "oldSuggestions": 4,
+    "oldEpisodes": 3,
+    "oldConcerns": 3,
+    "oldCurrentStates": 3
+  },
+  "retained": {
+    "profiles": 3,
+    "ownerSemanticClaims": 9,
+    "ownerMemories": 17
+  },
+  "inserted": {
+    "careRows": 1169,
+    "from": "2021-09-09",
+    "through": "2026-09-09",
+    "Milo": 393,
+    "Luna": 389,
+    "Oscar": 387
+  },
+  "verified": {
+    "oldCareRowsRemaining": 0,
+    "fixtureRowsMatchedReadback": 1169,
+    "careFingerprint": "e4f01af840175bbadff48bdaab0ad521"
+  },
+  "profileRefresh": "Latest food and weight refreshed from new September clinic entries; obsolete routine summaries cleared. Core evaluation remaps synthetic identifiers and uses a verified record snapshot, not a production API session."
+}

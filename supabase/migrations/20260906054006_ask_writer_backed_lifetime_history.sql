@@ -1,0 +1,841 @@
+-- Packages validated lifetime-history components in dependency order.
+-- Deployment still requires authenticated PostgREST acceptance.
+
+-- Source: supabase/drafts/ask_episode_membership_contract.sql
+-- UNVALIDATED SQL DRAFT: CLI creation failed; no database execution.
+-- Replaces the existing five-argument reader; preserves rollback compatibility.
+create or replace function public.read_ask_episode_sources(p_pet_id uuid,p_keys text[],p_episode_ids uuid[] default null,p_from timestamptz default null,p_to timestamptz default null)
+returns jsonb language plpgsql stable security definer set search_path=pg_catalog as $$
+declare episodes jsonb; sources jsonb; memberships jsonb; claims jsonb; ids uuid[]; timeout_ms numeric;
+begin
+  if auth.uid() is null or not exists(select 1 from public.dog_profiles
+    where id=p_pet_id and user_id=auth.uid()) then
+    raise exception using errcode='42501',message='Pet unavailable';
+  end if;
+  timeout_ms := extract(epoch from current_setting('statement_timeout')::interval)*1000;
+  if timeout_ms<=0 or timeout_ms>8000 then
+    raise exception using errcode='55000',message='Bounded request timeout required';
+  end if;
+  if (p_from is null)<>(p_to is null) or (p_from is not null and
+    (not isfinite(p_from) or not isfinite(p_to) or p_from>=p_to)) then
+    raise exception using errcode='22023',message='Invalid episode period';
+  end if;
+  if p_keys is null or cardinality(p_keys) not between 1 and 4
+    or exists(select 1 from unnest(p_keys) k where k is null or k not in ('vomiting','vomit','soft_stool','stool','diarrhea','breathing'))
+    or (p_episode_ids is not null and (cardinality(p_episode_ids) not between 1 and 8
+      or array_position(p_episode_ids,null) is not null)) then
+    raise exception using errcode='22023',message='Invalid episode scope';
+  end if;
+  if p_episode_ids is null then
+    -- Bound each exact indexed topic probe before merging at most 36 rows.
+    -- A global sort across every matching episode is not required.
+    select coalesce(jsonb_agg(to_jsonb(e) order by started_at,id),'[]'::jsonb),array_agg(id order by started_at,id)
+    into episodes,ids from (
+      select e.* from (select distinct unnest(p_keys) k) keys cross join lateral (
+        select id,user_id,pet_profile_id,normalized_key,sequence_number,recurrence_of,
+          started_at,last_event_at,resolved_at,status,updated_at,missing_source_event_ids[1:9] as missing_source_event_ids
+        from public.pet_care_episodes where user_id=auth.uid() and pet_profile_id=p_pet_id
+          and normalized_key=k
+          and (p_from is null or (started_at>=p_from and started_at<p_to))
+          order by started_at,id limit 9
+      ) e order by started_at,id limit 9
+    ) e;
+  else
+    -- Pinned references use primary keys, never a chronological prefix scan.
+    select coalesce(jsonb_agg(to_jsonb(e) order by started_at,id),'[]'::jsonb),array_agg(id order by started_at,id)
+    into episodes,ids from (
+      select id,user_id,pet_profile_id,normalized_key,sequence_number,recurrence_of,
+        started_at,last_event_at,resolved_at,status,updated_at,missing_source_event_ids[1:9] as missing_source_event_ids
+      from public.pet_care_episodes where id=any(p_episode_ids)
+        and user_id=auth.uid() and pet_profile_id=p_pet_id and normalized_key=any(p_keys)
+    ) e;
+  end if;
+  -- The authoritative edge table, including claim-only memberships. Raw edges
+  -- are retained even if their payload is missing, changed, or oversized.
+  select coalesce(jsonb_agg(to_jsonb(m) order by m.episode_id,m.event_ordinal,m.id),'[]'::jsonb)
+  into memberships from unnest(ids[1:8]) i cross join lateral (
+    select m.*,
+      case when exists (
+        select 1 from public.semantic_claim_legacy_lineage l
+        left join lateral (
+          -- Exactly the import writer's source-row hash shape: entry.*, species,
+          -- membership_role. Never compare a projection title or date heuristic.
+          select e.*, p.species, cm.event_role as membership_role
+          from public.pet_care_entries e
+          join public.dog_profiles p on p.id=e.pet_profile_id and p.user_id=auth.uid()
+          left join public.pet_care_episode_events cm on cm.care_entry_id=e.id and cm.user_id=auth.uid()
+          where e.id=l.legacy_row_id and e.user_id=auth.uid() and e.pet_profile_id=p_pet_id
+        ) current_source on true
+        where l.user_id=auth.uid() and l.legacy_table='pet_care_entries'
+          and (l.claim_id=m.claim_id or l.legacy_row_id=m.care_entry_id)
+          and (l.claim_role<>'primary' or current_source.id is null or current_source.deleted_at is not null
+            or l.source_row_hash is distinct from encode(extensions.digest(convert_to(to_jsonb(current_source)::text,'UTF8'),'sha256'),'hex'))
+      ) then 'legacy_source_changed_or_missing' else null end source_issue
+    from public.pet_care_episode_events m
+    where m.episode_id=i and m.user_id=auth.uid() and m.pet_profile_id=p_pet_id
+    order by m.event_ordinal,m.id limit 9
+  ) m;
+  select coalesce(jsonb_agg(to_jsonb(e) order by e.episode_id,e.id),'[]'::jsonb) into sources from (
+    select e.id,e.user_id,e.pet_profile_id,e.episode_id,e.category,
+      case when length(e.title)<=200 then e.title else null end title,
+      case when length(e.note)<=2000 then e.note else null end note,
+      (length(e.note)>2000 or length(e.title)>200) as content_omitted,
+      e.severity,e.occurred_at,e.created_at,e.updated_at,e.deleted_at
+    from public.pet_care_entries e
+    where e.id in (select (m->>'care_entry_id')::uuid from jsonb_array_elements(memberships) m)
+      and e.user_id=auth.uid() and e.pet_profile_id=p_pet_id
+  ) e;
+  select coalesce(jsonb_agg(case when octet_length(to_jsonb(c)::text)>16000
+      or length(c.structured_value->>'note')>2000 or length(c.structured_value->>'title')>200
+    then jsonb_build_object('id',c.id,'content_omitted',true) else to_jsonb(c) end order by c.id),'[]'::jsonb)
+  into claims from public.semantic_claims c
+  where c.id in (select (m->>'claim_id')::uuid from jsonb_array_elements(memberships) m)
+    and c.user_id=auth.uid() and c.subject_type='pet' and c.subject_id=p_pet_id;
+  return jsonb_build_object('episodes',episodes,'sources',sources,'memberships',memberships,'claims',claims,
+    'membership_contract','ask-episode-membership.v1',
+    'coverage','bounded_candidates_not_complete','snapshot',statement_timestamp());
+end $$;
+-- Definer is necessary because semantic claims/lineage are service-only tables.
+-- No table grants, RLS changes, service-role app fallback, or write capability.
+revoke all on function public.read_ask_episode_sources(uuid,text[],uuid[],timestamptz,timestamptz) from public,anon,service_role;
+grant execute on function public.read_ask_episode_sources(uuid,text[],uuid[],timestamptz,timestamptz) to authenticated;
+notify pgrst,'reload schema';
+
+-- Source: supabase/drafts/ask_historical_event_time.sql
+-- Remove the age ceiling for explicitly dated recorded history; retain future and finite-time checks.
+CREATE OR REPLACE FUNCTION public.persist_furvise_semantic_event_exact_20260807(p_user_id uuid, p_pet_id uuid, p_source_message_id uuid, p_event jsonb)
+ RETURNS TABLE(persistence_status text, care_entry_id uuid, episode_id uuid, normalized_topic text, resulting_state text, already_persisted boolean)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare
+  v_auth_user_id uuid := auth.uid();
+  v_source_text text;
+  v_source_created_at timestamptz;
+  v_occurred_at timestamptz;
+  v_subject_type text := p_event#>>'{subject,type}';
+  v_domain text := p_event->>'domain';
+  v_topic text := regexp_replace(lower(btrim(coalesce(p_event->>'topic', ''))), '[^a-z0-9]+', '_', 'g');
+  v_transition text := p_event->>'transition';
+  v_state text := p_event->>'state';
+  v_importance text := p_event->>'importance';
+  v_confidence numeric;
+  v_excerpt text := btrim(coalesce(p_event->>'sourceExcerpt', ''));
+  v_key text;
+  v_category text;
+  v_episode_type text;
+  v_entry_id uuid;
+  v_existing_episode_id uuid;
+  v_linked_concern_id uuid;
+  v_episode public.pet_care_episodes%rowtype;
+  v_compatible_count integer := 0;
+  v_sequence integer;
+  v_episode_status text;
+  v_title text;
+  v_current_state public.pet_current_state%rowtype;
+  v_state_json jsonb;
+  v_active_ids uuid[];
+  v_monitoring_ids uuid[];
+  v_overall_state text;
+begin
+  if v_auth_user_id is null or p_user_id is null or v_auth_user_id is distinct from p_user_id then
+    raise exception using errcode = '42501', message = 'SEMANTIC_EVENT_FORBIDDEN';
+  end if;
+  if p_pet_id is null or p_source_message_id is null or p_event is null or jsonb_typeof(p_event) <> 'object' then
+    raise exception using errcode = '22023', message = 'SEMANTIC_EVENT_INVALID';
+  end if;
+  if not (p_event ?& array['subject','domain','topic','transition','state','temporal','importance','confidence','sourceExcerpt']) then
+    raise exception using errcode = '22023', message = 'SEMANTIC_EVENT_INVALID';
+  end if;
+  if jsonb_typeof(p_event->'subject') <> 'object' or jsonb_typeof(p_event->'temporal') <> 'object' then
+    raise exception using errcode = '22023', message = 'SEMANTIC_EVENT_INVALID';
+  end if;
+  if jsonb_typeof(p_event->'domain') <> 'string' or jsonb_typeof(p_event->'topic') <> 'string'
+    or jsonb_typeof(p_event->'transition') <> 'string' or jsonb_typeof(p_event->'state') <> 'string'
+    or jsonb_typeof(p_event->'importance') <> 'string' or jsonb_typeof(p_event->'confidence') <> 'number'
+    or jsonb_typeof(p_event->'sourceExcerpt') <> 'string'
+    or coalesce(jsonb_typeof(p_event#>'{subject,name}'), 'null') not in ('string','null')
+    or coalesce(jsonb_typeof(p_event#>'{temporal,occurredAt}'), 'null') not in ('string','null')
+    or coalesce(jsonb_typeof(p_event#>'{temporal,explicitTime}'), 'null') not in ('string','null')
+  then
+    raise exception using errcode = '22023', message = 'SEMANTIC_EVENT_INVALID';
+  end if;
+  if p_event ? 'references' or coalesce(p_event->'subject', '{}'::jsonb) ? 'id' then
+    raise exception using errcode = '22023', message = 'SEMANTIC_EVENT_MODEL_REFERENCE_FORBIDDEN';
+  end if;
+  if exists (select 1 from jsonb_object_keys(p_event) as key_name where key_name not in
+      ('subject','domain','topic','transition','state','temporal','importance','confidence','sourceExcerpt'))
+    or exists (select 1 from jsonb_object_keys(coalesce(p_event->'subject', '{}'::jsonb)) as key_name where key_name not in ('type','name'))
+    or exists (select 1 from jsonb_object_keys(coalesce(p_event->'temporal', '{}'::jsonb)) as key_name where key_name not in ('occurredAt','explicitTime'))
+  then
+    raise exception using errcode = '22023', message = 'SEMANTIC_EVENT_UNSUPPORTED_FIELD';
+  end if;
+  if not exists (
+    select 1 from public.dog_profiles as pet_row
+    where pet_row.id = p_pet_id and pet_row.user_id = p_user_id
+  ) then
+    raise exception using errcode = '42501', message = 'SEMANTIC_EVENT_PET_NOT_OWNED';
+  end if;
+  select message_row.user_text, message_row.created_at
+    into v_source_text, v_source_created_at
+  from public.ask_conversation_messages as message_row
+  join public.ask_conversations as conversation_row on conversation_row.id = message_row.conversation_id
+  where message_row.id = p_source_message_id
+    and message_row.user_id = p_user_id
+    and message_row.role = 'user'
+    and conversation_row.user_id = p_user_id;
+  if v_source_created_at is null then
+    raise exception using errcode = '42501', message = 'SEMANTIC_EVENT_SOURCE_NOT_OWNED';
+  end if;
+  v_occurred_at := v_source_created_at;
+  if nullif(btrim(coalesce(p_event#>>'{temporal,occurredAt}', '')), '') is not null then
+    begin v_occurred_at := (p_event#>>'{temporal,occurredAt}')::timestamptz;
+    exception when others then raise exception using errcode = '22023', message = 'SEMANTIC_EVENT_TIME_INVALID'; end;
+    if v_occurred_at > v_source_created_at + interval '5 minutes' or not isfinite(v_occurred_at) then
+      raise exception using errcode = '22023', message = 'SEMANTIC_EVENT_TIME_INVALID';
+    end if;
+    -- Older admissions need an actual quoted time cue from the owner's source.
+    -- Interpreting that cue remains the semantic pipeline's responsibility.
+    if v_occurred_at < v_source_created_at - interval '10 years' and
+      (nullif(btrim(p_event#>>'{temporal,explicitTime}'),'') is null
+       or position(lower(p_event#>>'{temporal,explicitTime}') in lower(v_source_text))=0) then
+      raise exception using errcode = '22023', message = 'SEMANTIC_EVENT_TIME_INVALID';
+    end if;
+  end if;
+
+  begin v_confidence := (p_event->>'confidence')::numeric;
+  exception when others then raise exception using errcode = '22023', message = 'SEMANTIC_EVENT_INVALID_CONFIDENCE'; end;
+  if v_confidence = 'NaN'::numeric or v_confidence < 0 or v_confidence > 1
+    or length(coalesce(p_event#>>'{subject,name}', '')) > 120
+    or length(coalesce(p_event#>>'{temporal,explicitTime}', '')) > 120
+    or v_subject_type <> 'pet'
+    or v_domain not in ('health','behavior','nutrition','medication','safety','routine','preference','profile','shopping','care','other')
+    or v_transition not in ('observed','started','continued','changed','improved','worsened','resolved','corrected','confirmed','preference_set')
+    or v_state not in ('active','monitoring','resolved','historical','unknown')
+    or v_importance not in ('routine','important','urgent')
+    or v_topic !~ '^[a-z0-9][a-z0-9_]{1,99}$'
+    or length(v_excerpt) < 1 or length(v_excerpt) > 240
+    or position(lower(v_excerpt) in lower(coalesce(v_source_text, ''))) = 0
+  then
+    raise exception using errcode = '22023', message = 'SEMANTIC_EVENT_INVALID';
+  end if;
+  if v_confidence < (case when v_transition in ('resolved','corrected') then 0.95 when v_state in ('active','resolved') then 0.90 else 0.85 end) then
+    raise exception using errcode = '22023', message = 'SEMANTIC_EVENT_LOW_CONFIDENCE';
+  end if;
+  if (v_transition = 'resolved' and v_state <> 'resolved')
+    or (v_state = 'resolved' and v_transition <> 'resolved')
+    or (v_transition in ('started','continued','worsened') and v_state = 'resolved')
+    or (v_transition = 'preference_set' and v_domain not in ('preference','shopping'))
+  then
+    raise exception using errcode = '22023', message = 'SEMANTIC_EVENT_TRANSITION_INVALID';
+  end if;
+
+  v_key := left(v_domain || '_' || v_topic, 120);
+  v_category := case v_domain
+    when 'health' then 'symptom' when 'nutrition' then 'food' when 'medication' then 'medication'
+    when 'behavior' then 'behavior' when 'care' then 'general' else 'general' end;
+  v_episode_type := case v_domain
+    when 'health' then 'symptom' when 'nutrition' then 'food_transition' when 'medication' then 'medication_course'
+    when 'behavior' then 'behavior_change' else 'care_tracking' end;
+  v_title := left(case
+    when v_domain = 'medication' and v_transition = 'started' then 'Started ' || initcap(replace(v_topic, '_', ' '))
+    when v_domain = 'medication' and v_transition = 'resolved' then 'Stopped ' || initcap(replace(v_topic, '_', ' '))
+    else initcap(replace(v_topic, '_', ' ')) end, 120);
+
+  perform pg_advisory_xact_lock(hashtextextended(p_user_id::text || ':' || p_pet_id::text || ':semantic-source:' || p_source_message_id::text, 0));
+  perform pg_advisory_xact_lock(hashtextextended(p_user_id::text || ':' || p_pet_id::text || ':semantic-topic:' || v_key, 0));
+
+  select entry_row.id, entry_row.episode_id into v_entry_id, v_existing_episode_id
+  from public.pet_care_entries as entry_row
+  where entry_row.user_id = p_user_id
+    and entry_row.pet_profile_id = p_pet_id
+    and entry_row.intelligence_source_message_id = p_source_message_id
+  limit 1 for update;
+  if v_entry_id is not null then
+    return query select 'persisted'::text, v_entry_id, v_existing_episode_id, v_key, v_state, true;
+    return;
+  end if;
+
+  select count(*) into v_compatible_count
+  from public.pet_care_episodes as episode_row
+  where episode_row.user_id = p_user_id and episode_row.pet_profile_id = p_pet_id
+    and episode_row.normalized_key = v_key and episode_row.status in ('active','monitoring');
+  if v_compatible_count > 1 then
+    raise exception using errcode = '22023', message = 'SEMANTIC_EVENT_EPISODE_AMBIGUOUS';
+  end if;
+  if v_compatible_count = 1 then
+    select episode_row.* into v_episode
+    from public.pet_care_episodes as episode_row
+    where episode_row.user_id = p_user_id and episode_row.pet_profile_id = p_pet_id
+      and episode_row.normalized_key = v_key and episode_row.status in ('active','monitoring')
+    order by episode_row.last_event_at desc limit 1 for update;
+  end if;
+  if v_transition in ('continued','improved','worsened','resolved') and v_episode.id is null then
+    raise exception using errcode = '22023', message = 'SEMANTIC_EVENT_ACTIVE_EPISODE_REQUIRED';
+  end if;
+  if v_episode.id is not null and v_occurred_at < v_episode.started_at then
+    raise exception using errcode = '22023', message = 'SEMANTIC_EVENT_CHRONOLOGY_INVALID';
+  end if;
+  if v_transition = 'started' and v_episode.id is not null then
+    raise exception using errcode = '22023', message = 'SEMANTIC_EVENT_ALREADY_ACTIVE';
+  end if;
+
+  v_entry_id := gen_random_uuid();
+  v_episode_status := case when v_state = 'resolved' then 'resolved' when v_state = 'monitoring' then 'monitoring' else 'active' end;
+  if v_state in ('active','monitoring','resolved') then
+    if v_episode.id is null then
+      select coalesce(max(episode_row.sequence_number), 0) + 1 into v_sequence
+      from public.pet_care_episodes as episode_row
+      where episode_row.user_id = p_user_id and episode_row.pet_profile_id = p_pet_id and episode_row.normalized_key = v_key;
+      insert into public.pet_care_episodes(
+        user_id, pet_profile_id, episode_type, normalized_key, title, status, severity, sequence_number,
+        started_at, last_event_at, resolved_at, summary, source_type
+      ) values (
+        p_user_id, p_pet_id, v_episode_type, v_key, v_title, v_episode_status, v_importance, v_sequence,
+        v_occurred_at, v_occurred_at, case when v_episode_status = 'resolved' then v_occurred_at end,
+        jsonb_build_object('eventCount', 1, 'latestStatus', v_episode_status, 'semanticDomain', v_domain,
+          'semanticTopic', v_topic, 'sourceRecordIds', jsonb_build_array(v_entry_id)), 'semantic_event'
+      ) returning * into v_episode;
+    else
+      update public.pet_care_episodes as episode_row set
+        status = v_episode_status,
+        severity = case when v_importance = 'urgent' then 'urgent' when v_importance = 'important' and episode_row.severity = 'routine' then 'important' else episode_row.severity end,
+        last_event_at = greatest(episode_row.last_event_at, v_occurred_at),
+        resolved_at = case when v_episode_status = 'resolved' then v_occurred_at else null end,
+        updated_at = now(),
+        summary = jsonb_set(jsonb_set(episode_row.summary, '{eventCount}', to_jsonb(coalesce((episode_row.summary->>'eventCount')::integer, 0) + 1)),
+          '{latestStatus}', to_jsonb(v_episode_status)) || jsonb_build_object('semanticDomain', v_domain, 'semanticTopic', v_topic,
+          'sourceRecordIds', coalesce(episode_row.summary->'sourceRecordIds', '[]'::jsonb) || jsonb_build_array(v_entry_id))
+      where episode_row.id = v_episode.id and episode_row.user_id = p_user_id and episode_row.pet_profile_id = p_pet_id
+      returning * into v_episode;
+    end if;
+  end if;
+  v_linked_concern_id := v_episode.linked_concern_id;
+
+  insert into public.pet_care_entries(
+    id, user_id, pet_profile_id, category, title, note, occurred_at, severity, concern_id,
+    intelligence_source_message_id, intelligence_source_type, intelligence_confidence,
+    state_action_type, care_event_metadata, episode_id
+  ) values (
+    v_entry_id, p_user_id, p_pet_id, v_category, v_title, v_excerpt, v_occurred_at,
+    case when v_importance = 'urgent' then 'severe' when v_importance = 'important' then 'moderate' else null end,
+    v_linked_concern_id, p_source_message_id, 'ask_semantic_event', v_confidence,
+    case when v_transition = 'resolved' then 'resolve_concern' else 'semantic_' || v_transition end,
+    jsonb_build_object('semanticDomain', v_domain, 'semanticTopic', v_topic, 'semanticTransition', v_transition,
+      'semanticState', v_state, 'importance', v_importance, 'explicitTime', p_event#>>'{temporal,explicitTime}', 'source', 'ask_furvise'),
+    v_episode.id
+  );
+
+  if v_transition = 'resolved' and v_linked_concern_id is not null then
+    update public.pet_concerns as concern_row set
+      status = 'resolved', resolved_at = v_occurred_at, resolution_note = v_excerpt,
+      active_episode_id = null, updated_at = now()
+    where concern_row.id = v_linked_concern_id
+      and concern_row.user_id = p_user_id and concern_row.pet_profile_id = p_pet_id
+      and concern_row.status in ('active','reopened');
+  elsif v_episode.id is not null then
+    select concern_row.id into v_linked_concern_id
+    from public.pet_concerns as concern_row
+    where concern_row.user_id = p_user_id and concern_row.pet_profile_id = p_pet_id
+      and concern_row.source_care_entry_id = v_entry_id
+    order by concern_row.updated_at desc limit 1 for update;
+    if v_linked_concern_id is not null then
+      update public.pet_care_episodes as episode_row set linked_concern_id = v_linked_concern_id, updated_at = now()
+      where episode_row.id = v_episode.id and episode_row.user_id = p_user_id and episode_row.pet_profile_id = p_pet_id;
+      update public.pet_concerns as concern_row set active_episode_id = v_episode.id, updated_at = now()
+      where concern_row.id = v_linked_concern_id and concern_row.user_id = p_user_id and concern_row.pet_profile_id = p_pet_id;
+      update public.pet_care_entries as entry_row set concern_id = v_linked_concern_id
+      where entry_row.id = v_entry_id and entry_row.user_id = p_user_id and entry_row.pet_profile_id = p_pet_id;
+    end if;
+  end if;
+
+  select * into v_current_state from public.pet_current_state
+  where pet_profile_id = p_pet_id and user_id = p_user_id for update;
+  v_state_json := coalesce(v_current_state.state, '{}'::jsonb);
+  if v_state in ('active','monitoring','resolved') then
+    v_state_json := jsonb_set(v_state_json, '{semanticStates}', coalesce(v_state_json->'semanticStates', '{}'::jsonb), true);
+    v_state_json := jsonb_set(v_state_json, array['semanticStates', v_key], jsonb_build_object(
+      'domain', v_domain, 'topic', v_topic, 'status', v_state, 'transition', v_transition,
+      'importance', v_importance, 'confidence', v_confidence, 'lastObservedAt', v_occurred_at,
+      'sourceEventId', v_entry_id, 'episodeId', v_episode.id
+    ), true);
+  end if;
+  select coalesce(array_agg(episode_row.id order by episode_row.last_event_at), '{}') into v_active_ids
+  from public.pet_care_episodes as episode_row where episode_row.user_id = p_user_id and episode_row.pet_profile_id = p_pet_id and episode_row.status = 'active';
+  select coalesce(array_agg(episode_row.id order by episode_row.last_event_at), '{}') into v_monitoring_ids
+  from public.pet_care_episodes as episode_row where episode_row.user_id = p_user_id and episode_row.pet_profile_id = p_pet_id and episode_row.status = 'monitoring';
+  v_overall_state := case
+    when v_state_json#>>'{breathing,status}' = 'abnormal' or exists (
+      select 1 from public.pet_care_episodes as episode_row
+      where episode_row.user_id = p_user_id and episode_row.pet_profile_id = p_pet_id
+        and episode_row.status = 'active' and (episode_row.severity = 'urgent' or episode_row.episode_type = 'symptom')
+    ) then 'urgent'
+    when cardinality(v_active_ids) > 0 or cardinality(v_monitoring_ids) > 0 or v_state = 'resolved' then 'monitoring'
+    else 'normal' end;
+  v_state_json := jsonb_set(v_state_json, '{wellbeing}', coalesce(v_state_json->'wellbeing', '{}'::jsonb), true);
+  v_state_json := jsonb_set(v_state_json, '{wellbeing,overall}', to_jsonb(v_overall_state), true);
+  insert into public.pet_current_state(
+    pet_profile_id, user_id, state_version, state, active_episode_ids, monitoring_episode_ids, source_event_ids, computed_at, updated_at
+  ) values (
+    p_pet_id, p_user_id, 1, v_state_json, v_active_ids, v_monitoring_ids, array[v_entry_id], now(), now()
+  ) on conflict (pet_profile_id) do update set
+    state_version = public.pet_current_state.state_version + 1,
+    state = excluded.state,
+    active_episode_ids = excluded.active_episode_ids,
+    monitoring_episode_ids = excluded.monitoring_episode_ids,
+    source_event_ids = case when v_entry_id = any(public.pet_current_state.source_event_ids) then public.pet_current_state.source_event_ids else public.pet_current_state.source_event_ids || v_entry_id end,
+    computed_at = now(), updated_at = now();
+
+  return query select 'persisted'::text, v_entry_id, v_episode.id, v_key, v_state, false;
+end;
+$function$;
+
+-- Source: supabase/drafts/ask_governed_freeform.sql
+-- PREPARATION ONLY: apply before the revised ask_recorded_completeness draft.
+-- No backfill. Only new, current server semantic writes may acquire provenance.
+create table private.ask_recorded_source_evidence (
+ care_id uuid primary key, user_id uuid not null references auth.users(id) on delete cascade,
+ pet_id uuid not null, source_message_id uuid not null, membership_id uuid not null,
+ evidence jsonb not null, care_hash text not null check(care_hash ~ '^[a-f0-9]{64}$'),
+ member_hash text not null check(member_hash ~ '^[a-f0-9]{64}$')
+);
+alter table private.ask_recorded_source_evidence enable row level security;
+revoke all on private.ask_recorded_source_evidence from public,anon,authenticated,service_role;
+create function private.read_ask_recorded_source_evidence(p_care_id uuid) returns jsonb
+language sql stable security definer set search_path=pg_catalog as $$
+ select p.evidence from private.ask_recorded_source_evidence p
+ join public.pet_care_entries e on e.id=p.care_id and e.user_id=p.user_id and e.pet_profile_id=p.pet_id
+ join public.pet_care_episode_events m on m.id=p.membership_id and m.care_entry_id=e.id
+   and m.user_id=p.user_id and m.pet_profile_id=p.pet_id and m.episode_id=e.episode_id
+ join public.ask_conversation_messages msg on msg.id=p.source_message_id and msg.user_id=p.user_id and msg.role='user'
+ join public.ask_conversations c on c.id=msg.conversation_id and c.user_id=p.user_id
+ join public.dog_profiles pet on pet.id=p.pet_id and pet.user_id=p.user_id
+ where p.care_id=p_care_id and p.user_id=auth.uid() and e.deleted_at is null
+   and p.care_hash=encode(extensions.digest(convert_to(to_jsonb(e)::text,'UTF8'),'sha256'),'hex')
+   and p.member_hash=encode(extensions.digest(convert_to(to_jsonb(m)::text,'UTF8'),'sha256'),'hex')
+   and p.evidence->>'sourceHash'=encode(extensions.digest(convert_to(msg.user_text,'UTF8'),'sha256'),'hex')
+   and p.evidence->>'noteHash'=encode(extensions.digest(convert_to(e.note,'UTF8'),'sha256'),'hex')
+$$;
+revoke all on function private.read_ask_recorded_source_evidence(uuid) from public,anon,authenticated,service_role;
+create or replace function public.persist_furvise_server_semantic_event(
+ p_user_id uuid,p_pet_id uuid,p_source_message_id uuid,p_event jsonb
+) returns table(persistence_status text,care_entry_id uuid,episode_id uuid,normalized_topic text,resulting_state text,already_persisted boolean)
+language plpgsql security definer set search_path=pg_catalog as $$
+declare r record; source_text text; proof jsonb:=p_event->'recordedEvidence'; e public.pet_care_entries;
+ m public.pet_care_episode_events; role text;
+begin
+ perform private.set_furvise_server_actor(p_user_id);
+ if proof is not null then
+   select msg.user_text into source_text from public.ask_conversation_messages msg
+   join public.ask_conversations c on c.id=msg.conversation_id
+   where msg.id=p_source_message_id and msg.user_id=p_user_id and msg.role='user'
+     and c.user_id=p_user_id for share of msg,c;
+   if source_text is null or proof->>'version' is distinct from 'ask-governed-source.v1'
+     or proof->>'sourceHash' is distinct from encode(extensions.digest(convert_to(source_text,'UTF8'),'sha256'),'hex')
+     or proof->>'noteHash' is distinct from encode(extensions.digest(convert_to(p_event->>'sourceExcerpt','UTF8'),'sha256'),'hex')
+     or proof->>'petId' is distinct from p_pet_id::text
+     or coalesce(proof->>'inventoryTopic','') not in ('vomiting','soft_stool','breathing','outside_supported_topics')
+     or proof->>'topic' is distinct from p_event->>'topic'
+     or proof->>'transition' is distinct from p_event->>'transition'
+     or proof->>'transition' not in ('started','continued','observed','confirmed','resolved')
+     or not (proof ? 'priorEpisodeId') then
+     raise exception using errcode='22023',message='RECORDED_SOURCE_PROVENANCE_INVALID';
+   end if;
+   if proof ? 'assessment' and (
+     proof#>>'{assessment,policy}' is distinct from 'ask-semantic-boundary.v1'
+     or coalesce(proof#>>'{assessment,kind}','') not in ('opening','continuation','resolution')
+     or coalesce(proof#>>'{assessment,evidence}','') = ''
+     or position(proof#>>'{assessment,evidence}' in source_text)=0
+     or position(proof#>>'{assessment,evidence}' in p_event->>'sourceExcerpt')=0
+     or coalesce((proof#>>'{assessment,confidence}')::numeric,0) not between 0.95 and 1
+     or proof#>>'{assessment,kind}' is distinct from case proof->>'transition'
+       when 'started' then 'opening' when 'continued' then 'continuation' when 'resolved' then 'resolution' end
+   ) then raise exception using errcode='22023',message='RECORDED_BOUNDARY_ASSESSMENT_INVALID'; end if;
+ end if;
+ if not exists(select 1 from public.dog_profiles where id=p_pet_id and user_id=p_user_id) then
+   raise exception using errcode='42501',message='SEMANTIC_EVENT_PET_NOT_OWNED';
+ end if;
+ -- The underlying compatibility writer updates titles/timestamps even on a
+ -- replay. Return the existing owned source before that mutation so retries do
+ -- not invalidate its proof or a previously displayed reference.
+ perform pg_advisory_xact_lock(hashtextextended(p_user_id::text || ':' || p_pet_id::text || ':semantic-source:' || p_source_message_id::text,0));
+ select ce.* into e from public.pet_care_entries ce where ce.user_id=p_user_id and ce.pet_profile_id=p_pet_id
+   and ce.intelligence_source_message_id=p_source_message_id for update;
+ if e.id is not null then
+   return query select 'persisted'::text,e.id,e.episode_id,
+     coalesce((select ep.normalized_key from public.pet_care_episodes ep where ep.id=e.episode_id),p_event->>'topic'),
+     e.care_event_metadata->>'semanticState',true;
+   return;
+ end if;
+ for r in select * from public.persist_furvise_semantic_event(p_user_id,p_pet_id,p_source_message_id,p_event-'recordedEvidence') loop
+   -- Replays cannot bless old rows, or overwrite a snapshot after a correction.
+   if proof is not null and not r.already_persisted and r.care_entry_id is not null then
+     select ce.* into e from public.pet_care_entries ce where ce.id=r.care_entry_id and ce.user_id=p_user_id and ce.pet_profile_id=p_pet_id;
+     select em.* into m from public.pet_care_episode_events em where em.care_entry_id=e.id and em.episode_id=e.episode_id
+       and em.user_id=p_user_id and em.pet_profile_id=p_pet_id;
+     if m.id is not null and e.note=p_event->>'sourceExcerpt' then
+       role:=case
+         when proof->>'transition'='started' and proof->>'priorEpisodeId' is null and m.event_role='opening' then 'opening'
+         when proof->>'transition'='continued' and proof->>'priorEpisodeId'=e.episode_id::text and m.event_role='continuation' then 'continuation'
+         when proof->>'transition'='resolved' and proof->>'priorEpisodeId'=e.episode_id::text and m.event_role='resolution'
+           and proof#>>'{assessment,kind}'='resolution' then 'resolution'
+         else 'unknown' end;
+       insert into private.ask_recorded_source_evidence values(e.id,p_user_id,p_pet_id,p_source_message_id,m.id,
+         proof || jsonb_build_object('ownerId',p_user_id,'careId',e.id,'episodeId',e.episode_id,'membershipId',m.id,'role',role),
+         encode(extensions.digest(convert_to(to_jsonb(e)::text,'UTF8'),'sha256'),'hex'),
+         encode(extensions.digest(convert_to(to_jsonb(m)::text,'UTF8'),'sha256'),'hex'));
+       -- The base writer serializes the owner/pet/topic and increments sequence.
+       -- Retain the preceding resolved recorded episode as recurrence identity.
+       if role='opening' then
+         update public.pet_care_episodes ep set recurrence_of=(
+           select prior.id from public.pet_care_episodes prior
+           where prior.user_id=p_user_id and prior.pet_profile_id=p_pet_id
+             and prior.normalized_key=ep.normalized_key and prior.status='resolved'
+             and prior.sequence_number<ep.sequence_number and prior.last_event_at<=ep.started_at
+           order by prior.sequence_number desc limit 1
+         ) where ep.id=e.episode_id and ep.user_id=p_user_id and ep.pet_profile_id=p_pet_id
+           and ep.recurrence_of is null;
+       end if;
+     end if;
+   end if;
+   return query select r.persistence_status,r.care_entry_id,r.episode_id,r.normalized_topic,r.resulting_state,r.already_persisted;
+ end loop;
+end $$;
+revoke all on function public.persist_furvise_server_semantic_event(uuid,uuid,uuid,jsonb) from public,anon,authenticated,service_role;
+grant execute on function public.persist_furvise_server_semantic_event(uuid,uuid,uuid,jsonb) to service_role;
+
+-- Source: supabase/drafts/ask_recorded_completeness.sql
+-- CODE PREPARATION ONLY. NOT DATABASE-VALIDATED. Requires existing membership schema.
+create table public.ask_recorded_inventory_revision (
+ user_id uuid primary key references auth.users(id) on delete cascade, revision bigint not null check(revision>0)
+);
+create table public.ask_recorded_registry_revision (
+ singleton boolean primary key default true check(singleton), revision bigint not null check(revision>0)
+);
+insert into public.ask_recorded_registry_revision values(true,1);
+alter table public.ask_recorded_registry_revision enable row level security;
+revoke all on public.ask_recorded_registry_revision from public,anon,authenticated,service_role;
+create table public.ask_recorded_inventory_removals (user_id uuid primary key references auth.users(id) on delete cascade);
+alter table public.ask_recorded_inventory_revision enable row level security;
+alter table public.ask_recorded_inventory_removals enable row level security;
+revoke all on public.ask_recorded_inventory_revision, public.ask_recorded_inventory_removals from public,anon,authenticated,service_role;
+-- A transactional row update, NOT a sequence: rollback restores the old revision,
+-- and only writers for the same owner serialize. Registry changes have a separate version.
+create function public.invalidate_ask_recorded_inventory() returns trigger
+language plpgsql security definer set search_path=pg_catalog as $$
+declare affected uuid;
+begin
+ if tg_table_name in ('semantic_concepts','semantic_concept_aliases') then
+   update public.ask_recorded_registry_revision set revision=revision+1 where singleton;
+ else
+   -- Both sides of an ownership change invalidate, in deterministic lock order.
+   for affected in select distinct value::uuid from jsonb_array_elements_text(jsonb_build_array(
+     case when tg_op<>'INSERT' then to_jsonb(old)->>'user_id' end,
+     case when tg_op<>'DELETE' then to_jsonb(new)->>'user_id' end)) where value is not null order by 1 loop
+     insert into public.ask_recorded_inventory_revision(user_id,revision)
+       select affected,2 where exists(select 1 from auth.users where id=affected)
+     on conflict(user_id) do update set revision=public.ask_recorded_inventory_revision.revision+1;
+   end loop;
+ end if;
+ if tg_op='DELETE' and tg_table_name in ('pet_care_entries','pet_care_episodes','pet_care_episode_events','semantic_claims','semantic_claim_relations','semantic_claim_legacy_lineage','ask_history_removed_relation_targets','ask_recorded_source_evidence') then
+   insert into public.ask_recorded_inventory_removals(user_id) select id from auth.users where id=(to_jsonb(old)->>'user_id')::uuid on conflict do nothing;
+ end if;
+ if tg_op='DELETE' then return old; end if;
+ return new;
+end $$;
+revoke all on function public.invalidate_ask_recorded_inventory() from public,anon,authenticated,service_role;
+-- TRUNCATE cannot silently erase the inventory or its removal debt.
+create function public.reject_ask_recorded_truncate() returns trigger
+language plpgsql security definer set search_path=pg_catalog as $$
+begin raise exception 'Recorded inventory requires row-level removal' using errcode='55000'; end $$;
+revoke all on function public.reject_ask_recorded_truncate() from public,anon,authenticated,service_role;
+create trigger ask_recorded_revision after insert or update or delete on public.dog_profiles for each row execute function public.invalidate_ask_recorded_inventory();
+create trigger ask_recorded_no_truncate before truncate on public.dog_profiles for each statement execute function public.reject_ask_recorded_truncate();
+create trigger ask_recorded_revision after insert or update or delete on public.pet_care_entries for each row execute function public.invalidate_ask_recorded_inventory();
+create trigger ask_recorded_no_truncate before truncate on public.pet_care_entries for each statement execute function public.reject_ask_recorded_truncate();
+create trigger ask_recorded_revision after insert or update or delete on public.pet_care_episodes for each row execute function public.invalidate_ask_recorded_inventory();
+create trigger ask_recorded_no_truncate before truncate on public.pet_care_episodes for each statement execute function public.reject_ask_recorded_truncate();
+create trigger ask_recorded_revision after insert or update or delete on public.pet_care_episode_events for each row execute function public.invalidate_ask_recorded_inventory();
+create trigger ask_recorded_no_truncate before truncate on public.pet_care_episode_events for each statement execute function public.reject_ask_recorded_truncate();
+create trigger ask_recorded_revision after insert or update or delete on public.semantic_claims for each row execute function public.invalidate_ask_recorded_inventory();
+create trigger ask_recorded_no_truncate before truncate on public.semantic_claims for each statement execute function public.reject_ask_recorded_truncate();
+create trigger ask_recorded_revision after insert or update or delete on public.semantic_claim_relations for each row execute function public.invalidate_ask_recorded_inventory();
+create trigger ask_recorded_no_truncate before truncate on public.semantic_claim_relations for each statement execute function public.reject_ask_recorded_truncate();
+create trigger ask_recorded_revision after insert or update or delete on public.semantic_claim_legacy_lineage for each row execute function public.invalidate_ask_recorded_inventory();
+create trigger ask_recorded_no_truncate before truncate on public.semantic_claim_legacy_lineage for each statement execute function public.reject_ask_recorded_truncate();
+create trigger ask_recorded_revision after insert or update or delete on public.ask_history_removed_relation_targets for each row execute function public.invalidate_ask_recorded_inventory();
+create trigger ask_recorded_no_truncate before truncate on public.ask_history_removed_relation_targets for each statement execute function public.reject_ask_recorded_truncate();
+create trigger ask_recorded_revision after insert or update or delete on public.semantic_concepts for each row execute function public.invalidate_ask_recorded_inventory();
+create trigger ask_recorded_no_truncate before truncate on public.semantic_concepts for each statement execute function public.reject_ask_recorded_truncate();
+create trigger ask_recorded_revision after insert or update or delete on public.semantic_concept_aliases for each row execute function public.invalidate_ask_recorded_inventory();
+create trigger ask_recorded_no_truncate before truncate on public.semantic_concept_aliases for each statement execute function public.reject_ask_recorded_truncate();
+create trigger ask_recorded_revision after insert or update or delete on public.ask_conversation_messages for each row execute function public.invalidate_ask_recorded_inventory();
+create trigger ask_recorded_no_truncate before truncate on public.ask_conversation_messages for each statement execute function public.reject_ask_recorded_truncate();
+create trigger ask_recorded_revision after insert or update or delete on public.ask_conversations for each row execute function public.invalidate_ask_recorded_inventory();
+create trigger ask_recorded_no_truncate before truncate on public.ask_conversations for each statement execute function public.reject_ask_recorded_truncate();
+create trigger ask_recorded_revision after insert or update or delete on public.furvise_memories for each row execute function public.invalidate_ask_recorded_inventory();
+create trigger ask_recorded_no_truncate before truncate on public.furvise_memories for each statement execute function public.reject_ask_recorded_truncate();
+create trigger ask_recorded_revision after insert or update or delete on public.dog_memories for each row execute function public.invalidate_ask_recorded_inventory();
+create trigger ask_recorded_no_truncate before truncate on public.dog_memories for each statement execute function public.reject_ask_recorded_truncate();
+create trigger ask_recorded_revision after insert or update or delete on private.ask_recorded_source_evidence for each row execute function public.invalidate_ask_recorded_inventory();
+create trigger ask_recorded_no_truncate before truncate on private.ask_recorded_source_evidence for each statement execute function public.reject_ask_recorded_truncate();
+create or replace function public.read_ask_recorded_membership_batch(p_pet_id uuid,p_keys text[],p_episode_ids uuid[] default null,p_from timestamptz default null,p_to timestamptz default null)
+returns jsonb language plpgsql stable security definer set search_path=pg_catalog as $$
+declare episodes jsonb; sources jsonb; memberships jsonb; claims jsonb; ids uuid[]; timeout_ms numeric;
+begin
+  if auth.uid() is null or not exists(select 1 from public.dog_profiles
+    where id=p_pet_id and user_id=auth.uid()) then
+    raise exception using errcode='42501',message='Pet unavailable';
+  end if;
+  timeout_ms := extract(epoch from current_setting('statement_timeout')::interval)*1000;
+  if timeout_ms<=0 or timeout_ms>8000 then
+    raise exception using errcode='55000',message='Bounded request timeout required';
+  end if;
+  if (p_from is null)<>(p_to is null) or (p_from is not null and
+    (not isfinite(p_from) or not isfinite(p_to) or p_from>=p_to)) then
+    raise exception using errcode='22023',message='Invalid episode period';
+  end if;
+  if p_keys is null or cardinality(p_keys) not between 1 and 4
+    or exists(select 1 from unnest(p_keys) k where k is null or k not in ('vomiting','vomit','soft_stool','stool','diarrhea','breathing'))
+    or (p_episode_ids is not null and (cardinality(p_episode_ids) not between 1 and 8
+      or array_position(p_episode_ids,null) is not null)) then
+    raise exception using errcode='22023',message='Invalid episode scope';
+  end if;
+  if p_episode_ids is null then
+    -- Bound each exact indexed topic probe before merging at most 36 rows.
+    -- A global sort across every matching episode is not required.
+    select coalesce(jsonb_agg(to_jsonb(e) order by started_at,id),'[]'::jsonb),array_agg(id order by started_at,id)
+    into episodes,ids from (
+      select e.* from (select distinct unnest(p_keys) k) keys cross join lateral (
+        select id,user_id,pet_profile_id,regexp_replace(normalized_key,'^health_','') as normalized_key,sequence_number,recurrence_of,
+          started_at,last_event_at,resolved_at,status,updated_at,missing_source_event_ids[1:9] as missing_source_event_ids
+        from public.pet_care_episodes where user_id=auth.uid() and pet_profile_id=p_pet_id
+          and normalized_key in (k,'health_'||k)
+          and (p_from is null or (started_at>=p_from and started_at<p_to))
+          order by started_at,id limit 9
+      ) e order by started_at,id limit 9
+    ) e;
+  else
+    -- Pinned references use primary keys, never a chronological prefix scan.
+    select coalesce(jsonb_agg(to_jsonb(e) order by started_at,id),'[]'::jsonb),array_agg(id order by started_at,id)
+    into episodes,ids from (
+      select id,user_id,pet_profile_id,regexp_replace(normalized_key,'^health_','') as normalized_key,sequence_number,recurrence_of,
+        started_at,last_event_at,resolved_at,status,updated_at,missing_source_event_ids[1:9] as missing_source_event_ids
+      from public.pet_care_episodes where id=any(p_episode_ids)
+        and user_id=auth.uid() and pet_profile_id=p_pet_id and (normalized_key=any(p_keys) or normalized_key=any(select 'health_'||k from unnest(p_keys) k))
+    ) e;
+  end if;
+  -- The authoritative edge table, including claim-only memberships. Raw edges
+  -- are retained even if their payload is missing, changed, or oversized.
+  select coalesce(jsonb_agg(to_jsonb(m) || case when exists(select 1 from private.ask_recorded_source_evidence p where p.care_id=m.care_entry_id and p.user_id=auth.uid()) then jsonb_build_object('recorded_provenance',private.read_ask_recorded_source_evidence(m.care_entry_id)) else '{}'::jsonb end order by m.episode_id,m.event_ordinal,m.id),'[]'::jsonb)
+  into memberships from unnest(ids[1:8]) i cross join lateral (
+    select m.*,
+      case when exists (
+        select 1 from public.semantic_claim_legacy_lineage l
+        left join lateral (
+          -- Exactly the import writer's source-row hash shape: entry.*, species,
+          -- membership_role. Never compare a projection title or date heuristic.
+          select e.*, p.species, cm.event_role as membership_role
+          from public.pet_care_entries e
+          join public.dog_profiles p on p.id=e.pet_profile_id and p.user_id=auth.uid()
+          left join public.pet_care_episode_events cm on cm.care_entry_id=e.id and cm.user_id=auth.uid()
+          where e.id=l.legacy_row_id and e.user_id=auth.uid() and e.pet_profile_id=p_pet_id
+        ) current_source on true
+        where l.user_id=auth.uid() and l.legacy_table='pet_care_entries'
+          and (l.claim_id=m.claim_id or l.legacy_row_id=m.care_entry_id)
+          and (l.claim_role<>'primary' or current_source.id is null or current_source.deleted_at is not null
+            or l.source_row_hash is distinct from encode(extensions.digest(convert_to(to_jsonb(current_source)::text,'UTF8'),'sha256'),'hex'))
+      ) then 'legacy_source_changed_or_missing' else null end source_issue
+    from public.pet_care_episode_events m
+    where m.episode_id=i and m.user_id=auth.uid() and m.pet_profile_id=p_pet_id
+    order by m.event_ordinal,m.id limit 9
+  ) m;
+  select coalesce(jsonb_agg(to_jsonb(e) order by e.episode_id,e.id),'[]'::jsonb) into sources from (
+    select e.id,e.user_id,e.pet_profile_id,e.episode_id,e.category,
+      case when length(e.title)<=200 then e.title else null end title,
+      case when length(e.note)<=2000 then e.note else null end note,
+      (length(e.note)>2000 or length(e.title)>200) as content_omitted,
+      e.severity,e.occurred_at,e.created_at,e.updated_at,e.deleted_at
+    from public.pet_care_entries e
+    where e.id in (select (m->>'care_entry_id')::uuid from jsonb_array_elements(memberships) m)
+      and e.user_id=auth.uid() and e.pet_profile_id=p_pet_id
+  ) e;
+  select coalesce(jsonb_agg(case when octet_length(to_jsonb(c)::text)>16000
+      or length(c.structured_value->>'note')>2000 or length(c.structured_value->>'title')>200
+    then jsonb_build_object('id',c.id,'content_omitted',true) else to_jsonb(c) end order by c.id),'[]'::jsonb)
+  into claims from public.semantic_claims c
+  where c.id in (select (m->>'claim_id')::uuid from jsonb_array_elements(memberships) m)
+    and c.user_id=auth.uid() and c.subject_type='pet' and c.subject_id=p_pet_id;
+  return jsonb_build_object('episodes',episodes,'sources',sources,'memberships',memberships,'claims',claims,
+    'membership_contract','ask-episode-membership.v1',
+    'coverage','bounded_candidates_not_complete','snapshot',statement_timestamp());
+end $$;
+revoke all on function public.read_ask_recorded_membership_batch(uuid,text[],uuid[],timestamptz,timestamptz) from public,anon,authenticated,service_role;
+
+-- Complete native-source census runs in PostgreSQL, independently of the bounded
+-- display page. Unknown legacy/import/correction state uses the existing graph
+-- reader instead; it cannot receive a native-source completeness certificate.
+create function private.ask_native_episode_census(p_pet_id uuid,p_keys text[],p_from timestamptz,p_to timestamptz)
+returns jsonb language sql stable security definer set search_path=pg_catalog as $$
+ with scoped_episodes as materialized (
+   select e.* from public.pet_care_episodes e where e.user_id=auth.uid() and e.pet_profile_id=p_pet_id
+     and regexp_replace(e.normalized_key,'^health_','')=any(p_keys)
+     and (p_from is null or e.started_at>=p_from and e.started_at<p_to)
+ ), evidence as materialized (
+   select e.*,private.read_ask_recorded_source_evidence(e.id) proof
+   from public.pet_care_entries e where e.user_id=auth.uid() and e.pet_profile_id=p_pet_id
+     and (p_from is null or e.occurred_at>=p_from and e.occurred_at<p_to
+       or e.episode_id in (select id from scoped_episodes))
+ ), relevant as materialized (
+   select * from evidence where episode_id in (select id from scoped_episodes)
+     or proof is null or proof->>'inventoryTopic'=any(p_keys)
+ ), imported_copies as materialized (
+   -- Import identities are aliases of the original care source, never new
+   -- episodes. Validate the import writer's exact source-row hash and payload.
+   select c.id,c.subject_id,l.legacy_row_id from public.semantic_claims c
+   join public.semantic_claim_legacy_lineage l on l.claim_id=c.id and l.user_id=auth.uid()
+     and l.legacy_table='pet_care_entries' and l.claim_role='primary'
+   join evidence e on e.id=l.legacy_row_id and e.proof is not null
+   join public.pet_care_episode_events m on m.care_entry_id=e.id and m.user_id=auth.uid() and m.pet_profile_id=p_pet_id
+   join lateral (
+     select ce.*,p.species,m.event_role as membership_role from public.pet_care_entries ce
+     join public.dog_profiles p on p.id=ce.pet_profile_id and p.user_id=auth.uid() where ce.id=e.id
+   ) source_row on true
+   where c.user_id=auth.uid() and c.subject_type='pet' and c.subject_id=p_pet_id
+     and c.source_type='legacy_import' and c.knowledge_status='effective' and c.operation_type in ('assert','confirm')
+     and c.structured_value->>'note'=e.note and (c.structured_value->>'title') is not distinct from e.title
+     and (c.structured_value->>'severity') is not distinct from e.severity
+     -- An import may have no registry concept. Its exact source alias cannot
+     -- add independent topic authority or a second count; native proof owns it.
+     and (c.canonical_concept_key is null or c.canonical_concept_key=e.care_event_metadata->>'semanticTopic')
+     and c.polarity='affirmed' and c.modality in ('asserted','reported')
+     and c.occurred_at=e.occurred_at and c.lifecycle_role=m.event_role
+     and l.source_row_hash=encode(extensions.digest(convert_to(to_jsonb(source_row)::text,'UTF8'),'sha256'),'hex')
+ ), groups as (
+   select ep.id, count(r.id) members,
+     count(r.id) filter(where r.proof->>'role'='opening' and r.occurred_at=ep.started_at) openings,
+     bool_and(r.proof is not null and r.proof->>'inventoryTopic'=any(p_keys)
+       and r.proof->>'role' in ('opening','continuation','resolution')) valid
+   from scoped_episodes ep left join relevant r on r.episode_id=ep.id group by ep.id
+ )
+ select case when
+   exists(select 1 from public.dog_profiles where id=p_pet_id and user_id=auth.uid())
+   and not exists(select 1 from relevant r where r.proof is null or r.episode_id is null
+     or r.episode_id not in (select id from scoped_episodes) or r.deleted_at is not null)
+   and not exists(select 1 from groups where members=0 or openings<>1 or valid is distinct from true)
+   and not exists(select 1 from scoped_episodes where status not in ('active','monitoring','resolved')
+     or cardinality(missing_source_event_ids)>0)
+   and not exists(select 1 from public.pet_care_episode_events m where m.user_id=auth.uid()
+     and m.episode_id in (select id from scoped_episodes) and
+       (m.claim_id is not null and not exists(select 1 from imported_copies c join relevant r on r.id=c.legacy_row_id
+         where c.id=m.claim_id and r.episode_id=m.episode_id)
+       or m.care_entry_id is not null and m.care_entry_id not in (select id from relevant)))
+   and not exists(select 1 from public.semantic_claims c where c.user_id=auth.uid()
+     and (c.subject_type='unknown' or c.subject_id=p_pet_id)
+     and (p_from is null or c.occurred_at is null or c.occurred_at>=p_from and c.occurred_at<p_to
+       or exists(select 1 from public.pet_care_episode_events m where m.claim_id=c.id and m.episode_id in (select id from scoped_episodes)))
+     and c.id not in (select id from imported_copies))
+   and not exists(select 1 from public.semantic_claim_relations where user_id=auth.uid()
+     and relation_type in ('corrects','supersedes','retracts'))
+   and not exists(select 1 from public.ask_recorded_inventory_removals where user_id=auth.uid())
+   and not exists(select 1 from public.ask_history_removed_relation_targets where user_id=auth.uid())
+ then jsonb_build_object('version','ask-native-census.v1','ownerId',auth.uid(),'petId',p_pet_id,
+   'keys',p_keys,'from',p_from,'to',p_to,'episodeCount',(select count(*) from scoped_episodes),
+   'sourceCount',(select count(*) from relevant),'snapshot',statement_timestamp(),
+   'revision',coalesce((select revision from public.ask_recorded_inventory_revision where user_id=auth.uid()),1)::text
+     || '.' || (select revision::text from public.ask_recorded_registry_revision where singleton)) end
+$$;
+revoke all on function private.ask_native_episode_census(uuid,text[],timestamptz,timestamptz) from public,anon,authenticated,service_role;
+
+create or replace function public.read_ask_episode_sources(p_pet_id uuid,p_keys text[],p_episode_ids uuid[] default null,p_from timestamptz default null,p_to timestamptz default null)
+returns jsonb language plpgsql stable security definer set search_path=pg_catalog as $$
+declare
+ result jsonb; batch jsonb; ids uuid[]; care_ids uuid[]; claim_ids uuid[];
+ rev text; failures text[] := '{}'; offset_idx integer;
+ episode_rows jsonb := '[]'; source_rows jsonb := '[]'; member_rows jsonb := '[]'; claim_rows jsonb := '[]';
+begin
+ -- Reuse all validated argument, ownership and timeout checks. Pinned references
+ -- retain the existing bounded membership contract and version hashes.
+ result:=public.read_ask_recorded_membership_batch(p_pet_id,p_keys,p_episode_ids,p_from,p_to);
+ if p_episode_ids is not null then return result; end if;
+ select coalesce((select revision from public.ask_recorded_inventory_revision where user_id=auth.uid()),1)::text
+   || '.' || revision::text into rev from public.ask_recorded_registry_revision where singleton;
+ select coalesce(array_agg(id order by started_at,id),'{}') into ids from (
+   select id,started_at from public.pet_care_episodes
+   where user_id=auth.uid() and pet_profile_id=p_pet_id and (normalized_key=any(p_keys) or normalized_key=any(select 'health_'||k from unnest(p_keys) k))
+     and (p_from is null or started_at>=p_from and started_at<p_to)
+   order by started_at,id limit 33
+ ) e;
+ if cardinality(ids)>32 then failures:=array_append(failures,'episode_overflow'); end if;
+ -- Include every retained source except unchanged writer-classified evidence
+ -- reliably outside the requested topic. Missing classification remains in the census.
+ -- Members of a scoped group are included even when their continuation is later.
+ select coalesce(array_agg(id order by id),'{}') into care_ids from (
+   select e.id from public.pet_care_entries e where e.user_id=auth.uid() and e.pet_profile_id=p_pet_id
+     and (e.episode_id=any(ids) or coalesce(private.read_ask_recorded_source_evidence(e.id)->>'inventoryTopic'=any(p_keys),true))
+     and (p_from is null or e.occurred_at>=p_from and e.occurred_at<p_to or e.episode_id=any(ids))
+   order by e.id limit 65
+ ) e;
+ select coalesce(array_agg(id order by id),'{}') into claim_ids from (
+   select c.id from public.semantic_claims c where c.user_id=auth.uid() and c.subject_type='pet' and c.subject_id=p_pet_id
+     and (p_from is null or c.occurred_at is null or c.occurred_at>=p_from and c.occurred_at<p_to
+       or exists(select 1 from public.pet_care_episode_events m where m.claim_id=c.id and m.user_id=auth.uid() and m.pet_profile_id=p_pet_id and m.episode_id=any(ids)))
+   order by c.id limit 65
+ ) c;
+ if exists(select 1 from public.semantic_claims c where c.user_id=auth.uid() and c.subject_type='unknown') then
+   failures:=array_append(failures,'unknown_subject_classification');
+ end if;
+ if cardinality(care_ids)+cardinality(claim_ids)>64 then failures:=array_append(failures,'source_overflow'); end if;
+ if exists(select 1 from public.ask_recorded_inventory_removals where user_id=auth.uid()) then
+   failures:=array_append(failures,'retained_removal_debt');
+ end if;
+ if exists(select 1 from public.pet_care_entries e where e.id=any(care_ids) and (e.deleted_at is not null
+   or coalesce(e.state_action_type,'') in ('semantic_corrected')
+   or lower(coalesce(e.care_event_metadata->>'semanticTransition','')) in ('corrected','correction','retracted','dismissed','unknown')
+   or not exists(
+   select 1 from public.pet_care_episode_events m where m.care_entry_id=e.id and m.episode_id=any(ids)
+     and m.user_id=auth.uid() and m.pet_profile_id=p_pet_id and (m.event_role in ('opening','recurrence','continuation')
+       or m.event_role='resolution' and private.read_ask_recorded_source_evidence(e.id)->>'role'='resolution')
+ ))) or exists(select 1 from public.semantic_claims c where c.id=any(claim_ids) and (
+   c.knowledge_status<>'effective' or c.operation_type not in ('assert','confirm') or c.concept_resolution_status<>'canonical'
+   or c.canonical_concept_key<>all(p_keys) or c.persistence_destination<>'history' or not exists(
+    select 1 from public.pet_care_episode_events m where m.claim_id=c.id and m.episode_id=any(ids)
+      and m.user_id=auth.uid() and m.pet_profile_id=p_pet_id and m.event_role in ('opening','recurrence','continuation')
+   ) or (c.source_type='ask_message' and not exists(
+     select 1 from public.ask_conversation_messages msg join public.ask_conversations conv on conv.id=msg.conversation_id and conv.user_id=auth.uid()
+     where msg.id=c.source_message_id and msg.user_id=auth.uid() and msg.role='user'
+   )) or c.source_type not in ('ask_message','manual_history','legacy_import')
+ )) then failures:=array_append(failures,'unclassified_or_inactive_source'); end if;
+ -- Once import lineage exists for this pet, a partial frontier cannot masquerade
+ -- as a fully imported register. Unimported native care alone is supported.
+ if exists(select 1 from public.semantic_claim_legacy_lineage l join public.pet_care_entries e on e.id=l.legacy_row_id
+    where l.user_id=auth.uid() and e.user_id=auth.uid() and e.pet_profile_id=p_pet_id and l.legacy_table='pet_care_entries')
+ and exists(select 1 from unnest(care_ids) as care_root(care_id) where not exists(
+   select 1 from public.semantic_claim_legacy_lineage l where l.user_id=auth.uid() and l.legacy_table='pet_care_entries'
+     and l.legacy_row_id=care_root.care_id and l.claim_role='primary' and l.claim_id=any(claim_ids)
+ )) then failures:=array_append(failures,'import_frontier_gap'); end if;
+ if cardinality(ids)<=32 and cardinality(care_ids)+cardinality(claim_ids)<=64 then
+   for offset_idx in 0..3 loop
+     exit when offset_idx*8>=cardinality(ids);
+     batch:=public.read_ask_recorded_membership_batch(p_pet_id,p_keys,ids[offset_idx*8+1:offset_idx*8+8],null,null);
+     episode_rows:=episode_rows || (batch->'episodes'); source_rows:=source_rows || (batch->'sources');
+     member_rows:=member_rows || (batch->'memberships'); claim_rows:=claim_rows || (batch->'claims');
+   end loop;
+   if jsonb_array_length(member_rows)>64 then failures:=array_append(failures,'membership_overflow'); end if;
+   if cardinality(failures)=0 then
+     result:=jsonb_build_object('episodes',episode_rows,'sources',source_rows,'memberships',member_rows,'claims',claim_rows,
+       'membership_contract','ask-episode-membership.v1','coverage','bounded_candidates_not_complete');
+   end if;
+ end if;
+ -- Legacy inventory still requires application graph validation. The optional
+ -- native census independently validates every source in SQL and is revision
+ -- bracketed with the bounded display page by the application.
+ return result || jsonb_build_object('recorded_census',private.ask_native_episode_census(p_pet_id,p_keys,p_from,p_to),'recorded_inventory',jsonb_build_object(
+   'version','ask-recorded-inventory.v1','ownerId',auth.uid(),'petId',p_pet_id,'keys',p_keys,
+   'from',p_from,'to',p_to,'revision',rev,'snapshot',statement_timestamp(),
+   'episodeCount',cardinality(ids),'careIds',care_ids,'claimIds',claim_ids,'failures',failures));
+end $$;
+revoke all on function public.read_ask_episode_sources(uuid,text[],uuid[],timestamptz,timestamptz) from public,anon,service_role;
+grant execute on function public.read_ask_episode_sources(uuid,text[],uuid[],timestamptz,timestamptz) to authenticated;
+notify pgrst,'reload schema';

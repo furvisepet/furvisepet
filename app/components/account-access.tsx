@@ -1,0 +1,112 @@
+import Link from "next/link";
+import { BrandMark } from "./brand-mark";
+import { PageShell } from "./product-primitives";
+
+export const accountInputClass =
+  "min-h-12 w-full rounded-xl border border-[var(--input-border)] bg-[var(--input-background)] px-4 text-base text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-tertiary)] focus:border-[var(--focus-ring)] focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-page)]";
+
+export const accountPrimaryClass =
+  "account-auth-primary inline-flex min-h-12 w-full items-center justify-center rounded-full bg-[var(--deep-forest)] px-5 text-base font-semibold text-[color:var(--warm-cream)] transition hover:bg-[var(--forest)] active:bg-[var(--deep-forest)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-page)] disabled:cursor-not-allowed disabled:bg-[var(--soft-sage)] disabled:text-[color:var(--deep-forest)] disabled:opacity-100";
+
+const accountCornerControlClass =
+  "absolute top-[max(1rem,env(safe-area-inset-top,0px))] z-10 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface-primary)] text-[var(--text-primary)] transition hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-primary)] sm:top-5";
+
+export function AccountAccessLayout({
+  backLabel = "Back",
+  children,
+  closeHref = "/",
+  closeLabel = "Close and return to Furvise home",
+  compact = false,
+  onBack,
+  supportingText,
+  title,
+}: {
+  backLabel?: string;
+  children: React.ReactNode;
+  closeHref?: string;
+  closeLabel?: string;
+  compact?: boolean;
+  onBack?: () => void;
+  supportingText?: React.ReactNode;
+  title: string;
+}) {
+  return (
+    <main className="min-h-[100svh] bg-[var(--surface-page)] text-[var(--text-primary)]">
+      <PageShell
+        className={`flex min-h-[100svh] justify-center py-3 ${compact ? "items-start" : "items-stretch"} sm:items-center sm:px-8 sm:py-12`}
+        preset="reading"
+      >
+        <section
+          className={`relative flex w-full flex-col overflow-x-hidden rounded-[1.75rem] border border-[var(--line)] bg-[var(--surface-primary)] px-5 pb-[max(2rem,env(safe-area-inset-bottom,0px))] pt-[max(1.25rem,env(safe-area-inset-top,0px))] shadow-[var(--shadow-surface-1)] sm:min-h-0 sm:max-w-[500px] sm:rounded-3xl sm:p-9 ${compact ? "min-h-0" : "min-h-[calc(100svh-1.5rem)]"}`}
+          data-ui="account-access-surface"
+        >
+          {onBack ? (
+            <button
+              aria-label={backLabel}
+              className={`${accountCornerControlClass} left-[max(1rem,env(safe-area-inset-left,0px))] text-lg sm:left-5`}
+              onClick={onBack}
+              title={backLabel}
+              type="button"
+            >
+              <span aria-hidden="true">←</span>
+            </button>
+          ) : null}
+          <Link
+            aria-label={closeLabel}
+            className={`${accountCornerControlClass} right-[max(1rem,env(safe-area-inset-right,0px))] text-xl font-light leading-none sm:right-5`}
+            href={closeHref}
+          >
+            <span aria-hidden="true">×</span>
+          </Link>
+          <div className="pt-12 sm:pt-10">
+            <div className="mb-5 flex justify-center" data-ui="account-access-brand">
+              <span className="inline-flex [--brand-mark-size:1.875rem] sm:[--brand-mark-size:2rem]">
+                <BrandMark priority showName={false} size={30} />
+              </span>
+            </div>
+            <div className="text-center" data-ui="account-access-intro">
+              <h1 className="text-[2rem] font-semibold leading-[1.08] tracking-[-0.035em] sm:text-[2.375rem]">{title}</h1>
+              {supportingText ? <p className="mt-3 text-base leading-7 text-[var(--text-secondary)] sm:text-lg">{supportingText}</p> : null}
+            </div>
+            <div className="mt-6 sm:mt-7" data-ui="account-access-form">{children}</div>
+          </div>
+        </section>
+      </PageShell>
+    </main>
+  );
+}
+
+export function AccountPendingLabel() {
+  return (
+    <span className="inline-flex items-center justify-center gap-2" role="status">
+      <span aria-hidden="true" className="size-4 shrink-0 animate-spin rounded-full border-2 border-[var(--disabled-text)] border-r-transparent motion-reduce:animate-none" />
+      <span>Checking security…</span>
+    </span>
+  );
+}
+
+export function AccountField({ children, label, name }: { children: React.ReactNode; label: string; name: string }) {
+  return (
+    <label className="grid gap-2 text-sm font-semibold text-[var(--text-primary)]" htmlFor={name}>
+      <span>{label}</span>
+      {children}
+    </label>
+  );
+}
+
+export function AccountStatus({
+  text,
+  tone = "neutral",
+}: {
+  text: string;
+  tone?: "neutral" | "warning" | "danger";
+}) {
+  const toneClasses =
+    tone === "warning"
+      ? "border-[var(--warning-text)] text-[var(--warning-text)]"
+      : tone === "danger"
+        ? "border-[var(--danger-text)] text-[var(--danger-text)]"
+        : "border-[var(--line)] text-[var(--text-secondary)]";
+
+  return <div aria-live="polite" className={`border-y py-3 text-sm font-medium leading-6 ${toneClasses}`} role="status">{text}</div>;
+}

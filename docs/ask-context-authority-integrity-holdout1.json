@@ -1,0 +1,51 @@
+{
+  "syntheticDatabase": true,
+  "realProviders": true,
+  "phase": "integrity-holdout1",
+  "turns": [
+    {
+      "id": 1,
+      "question": "Fictional ledger only, no saving: Oren’s bag plus body weighed 9.1 kg. An amendment replaces that total with 8.8 kg. The empty bag was 600 g both times. What corrected body mass should be used? Answer in grams only.",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "conversation",
+          "evidenceBasis": "supplied_context",
+          "outputFormat": "prose",
+          "question": "In the fictional ledger, Oren’s bag plus body weighed 9.1 kg, then an amendment replaced that total with 8.8 kg, and the empty bag was 600 g both times. What corrected body mass should be used?",
+          "requirements": [
+            "Answer with the corrected body mass in grams only."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "general",
+        "readOperation": "general",
+        "selection": "summary",
+        "petIds": [],
+        "topic": "corrected body mass",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "In the fictional ledger, Oren’s bag plus body weighed 9.1 kg, then an amendment replaced that total with 8.8 kg, and the empty bag was 600 g both times. What corrected body mass should be used?",
+        "conversationOnly": true,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": null
+      },
+      "answer": "8200 g",
+      "beforeFinalGuard": "8200 g",
+      "reviewInputs": [],
+      "providerCalls": 2,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 5,
+      "error": "I couldn't understand the request reliably this time. Please try again."
+    }
+  ]
+}

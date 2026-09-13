@@ -1,0 +1,31 @@
+(node:30528) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:30528) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/furvise-runner-governed-freeform-2/governed-freeform-episodes/worktree/app/lib/intelligence/retrieve-context.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\furvise-runner-governed-freeform-2\governed-freeform-episodes\worktree\package.json.
+✔ current governed writer -> inventory reader -> callback counts persisted identity across natural onset and continuation (122.8673ms)
+✔ missing provenance cannot certify (6.5433ms)
+✔ changed provenance cannot certify (5.2502ms)
+✔ foreign owner provenance cannot certify (5.2949ms)
+✔ foreign pet provenance cannot certify (4.8602ms)
+✔ foreign topic provenance cannot certify (3.6815ms)
+✔ inferred role provenance cannot certify (3.1628ms)
+✔ corrected provenance cannot certify (4.4297ms)
+✔ forgotten provenance cannot certify (6.8978ms)
+✔ revision provenance cannot certify (7.0299ms)
+✔ writer withholds provenance: Milo did not start vomiting after breakfast. (0.5749ms)
+✔ writer withholds provenance: If Milo started vomiting after breakfast, I would call the vet. (0.5978ms)
+✔ writer withholds provenance: You said Milo started vomiting after breakfast. (0.1996ms)
+✔ writer withholds provenance: Milo might have started vomiting after breakfast. (0.27ms)
+✔ writer withholds provenance: Bruno started vomiting after breakfast. (0.6995ms)
+✔ writer withholds provenance: Correction: Milo never vomited after breakfast. (0.2085ms)
+✔ a model opening label without explicit onset and a wrong topic cannot mint provenance (0.7545ms)
+✔ ordinary other-topic health note receives source-bound classification (0.4269ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1537.7107

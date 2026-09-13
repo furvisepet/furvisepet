@@ -1,0 +1,9 @@
+# Ask presentation checkpoint
+Base004c6fc4a4f299c61c9944360a3fc58804d382dc; branch codex/ask-presentation; worktree C:/Users/gwara/furvise-ask-presentation.
+Lock50412; editor33008; no overlapping writer found. Scope: preserve useful formatting after source review without rewriting validated prose or changing evidence/write authority. Reproduce callback behavior before implementation. No live calls: preserve cumulative budget ledger100 calls USD0.851979 estimated, USD4.367871 reserved. No DB/Docker/remote changes.
+
+Reproduced3/3 failing callback layout cases before edits; now7/7 pass including sanitation/partial rejection/quantity preservation. Source review formats accepted sentences; final validator restores only whitespace-equivalent text. Generated5 callback browser samples. No agent-browser CLI installed; using existing isolated local Chrome/CDP fixture harness. Next full verification and browser.
+
+Browser exposed downstream serializer flattening lists/inventing Useful next steps. Shared cleanAnswerProse and action-copy filtering now preserve line boundaries; phantom action copy still removed. Browser presentation8 checks and original quotation6 checks pass, owned profile cleanup succeeds. Full suite found one old list-flattening expectation; replaced only that obsolete presentation assertion with exact preservation, retaining action ID/authority checks. Original lifetime audit untouched. Final tests/lint verification pending; application build/typecheck already passed with current production code.
+
+Completed verification: focused8/8; full2295/2295; typecheck/build passed; final lint two old warnings only. Browser8 presentation plus6 quotation checks passed; profiles removed. Verification41800 completed; no provider calls/DB/remote changes. Report docs/ask-presentation-report.md. Next stage/check/commit/export then release lock50412/editor33008.

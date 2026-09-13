@@ -1,0 +1,74 @@
+[
+  {
+    "pet": "Milo",
+    "date": "2021-10-05",
+    "title": "Synthetic benchmark 2026-09-09 carrier-old",
+    "note": "Milo tolerated a 10-minute car ride calmly. The empty carrier weighed 2 kg. This was the carrier weight, not Milo’s weight."
+  },
+  {
+    "pet": "Milo",
+    "date": "2023-04-11",
+    "title": "Synthetic benchmark 2026-09-09 carrier-later",
+    "note": "Milo tolerated a 20-minute car ride calmly. The empty carrier weighed 2.5 kg. No reason for the weight difference was recorded."
+  },
+  {
+    "pet": "Milo",
+    "date": "2026-05-20",
+    "title": "Synthetic benchmark 2026-09-09 nail-trim",
+    "note": "During a nail trim Milo withdrew his right forepaw once. No injury or diagnosis was recorded."
+  },
+  {
+    "pet": "Luna",
+    "date": "2021-10-06",
+    "title": "Synthetic benchmark 2026-09-09 water-filled",
+    "note": "Luna’s bowl was filled with 250 mL of water. The amount Luna drank was not measured."
+  },
+  {
+    "pet": "Luna",
+    "date": "2023-03-12",
+    "title": "Synthetic benchmark 2026-09-09 water-remaining",
+    "note": "There were 100 mL of water remaining in Luna’s bowl. The amount spilled was unknown. Water intake was not measured."
+  },
+  {
+    "pet": "Luna",
+    "date": "2026-05-21",
+    "title": "Synthetic benchmark 2026-09-09 brushing",
+    "note": "Luna tolerated 6 minutes of brushing calmly."
+  },
+  {
+    "pet": "Oscar",
+    "date": "2021-10-07",
+    "title": "Synthetic benchmark 2026-09-09 walk-old",
+    "note": "Oscar completed a 12-minute walk with one sniffing pause and no observed limp."
+  },
+  {
+    "pet": "Oscar",
+    "date": "2023-03-13",
+    "title": "Synthetic benchmark 2026-09-09 walk-later",
+    "note": "Oscar completed an 18-minute walk with two sniffing pauses. No cause for the difference in walk length was recorded."
+  },
+  {
+    "pet": "Oscar",
+    "date": "2026-05-22",
+    "title": "Synthetic benchmark 2026-09-09 travel-bag",
+    "note": "Oscar’s travel bag weighed 6 lb. This was not Oscar’s body weight."
+  },
+  {
+    "pet": "Milo",
+    "date": "2019-02-01",
+    "title": "Synthetic benchmark 2026-09-09 excluded-archive",
+    "note": "Milo’s old carrier label was amber triangle."
+  },
+  {
+    "pet": "Luna",
+    "date": "2019-02-02",
+    "title": "Synthetic benchmark 2026-09-09 excluded-archive",
+    "note": "Luna’s old carrier label was violet circle."
+  },
+  {
+    "pet": "Oscar",
+    "date": "2019-02-03",
+    "title": "Synthetic benchmark 2026-09-09 excluded-archive",
+    "note": "Oscar’s old carrier label was silver square."
+  }
+]

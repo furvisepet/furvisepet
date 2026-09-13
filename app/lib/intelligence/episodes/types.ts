@@ -1,0 +1,2 @@
+export type EpisodeStatus = "active" | "monitoring" | "resolved" | "dismissed" | "superseded" | "archived";
+export type CareEpisode = { id: string; pet_profile_id: string; normalized_key: string; episode_type: string; title?: string; linked_concern_id?: string | null; severity?: string; summary?: Record<string, unknown>; status: EpisodeStatus; sequence_number: number; recurrence_of: string | null; started_at: string | null; last_event_at: string; resolved_at: string | null };

@@ -1,0 +1,28 @@
+[
+  {
+    "id": "existing-product-1",
+    "brandName": "North Trail",
+    "name": "Adult Dog Food",
+    "productSlug": "north-trail-adult-dog-food",
+    "manufacturerProductCode": "NT-100",
+    "gtins": ["0123456789012"],
+    "sourceExternalIds": [{ "provider": "fixture_provider", "externalId": "csv-dog-1" }],
+    "offerExternalIds": [],
+    "sourceUrls": ["https://manufacturer.example.com/dog-food"],
+    "variantSizes": ["5 lb"],
+    "defaultImageUrl": "https://example.com/dog-food.jpg"
+  },
+  {
+    "id": "existing-product-2",
+    "brandName": "Gentle Works",
+    "name": "Shared Coat Brush",
+    "productSlug": "gentle-works-shared-coat-brush",
+    "manufacturerProductCode": null,
+    "gtins": [],
+    "sourceExternalIds": [],
+    "offerExternalIds": [],
+    "sourceUrls": [],
+    "variantSizes": ["5 count"],
+    "defaultImageUrl": "https://example.com/shared-brush.jpg"
+  }
+]

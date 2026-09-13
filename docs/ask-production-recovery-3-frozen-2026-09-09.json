@@ -1,0 +1,37 @@
+{
+  "run": "production-recovery-3",
+  "frozenAt": "2026-09-09T20:01:11.613Z",
+  "applicationHead": "847508d92f0228dff816ac1d456c63cbecd7d522",
+  "applicationTree": "469b59a49784c652b29486b19d0763391b171773",
+  "originalFrozenCommit": "d6dc6ca192fb1dd51cb96edac604bdfa032b4805",
+  "policy": "Wait for production READY, reload app, submit cases 13,16,17 exactly once each in fresh Milo conversations. Preserve original questions and criteria. App-internal admitted repair is part of a first attempt and all calls/costs count. No manual retry; no code changes during this gate. No new acceptance questions. Existing 24 and 200 grades unchanged.",
+  "cases": [
+    {
+      "continuePrevious": false,
+      "expected": "50g decrease;sharedwithOscar possible;individualintakeunknown.",
+      "group": "new_history",
+      "id": 13,
+      "pet": "Milo",
+      "question": "From Milo's April 5, 2026 treat-bag note, give the bag-mass decrease and explain whether that is Milo's personal intake."
+    },
+    {
+      "continuePrevious": false,
+      "expected": "No;differentcurrencies;exchange raterequired;noinventedrate.",
+      "group": "new_supplied",
+      "id": 16,
+      "pet": "Milo",
+      "question": "Fictional exercise, no saving: a collar costs 8 CAD and a tag costs 6 USD. Can these be totaled as 14 CAD without an exchange rate?"
+    },
+    {
+      "continuePrevious": false,
+      "expected": "Jo;Vale headache/healthunknown;avoidVale didnot haveit.",
+      "group": "new_supplied",
+      "id": 17,
+      "pet": "Milo",
+      "question": "Fictional record interpretation, no saving: 'Owner Jo had a headache; cat Vale stayed home.' Who is reported to have the headache, and what is unknown about Vale?"
+    }
+  ],
+  "historyFingerprint": "e4f01af840175bbadff48bdaab0ad521",
+  "historyCount": 1169,
+  "budgetRemainingBeforeRun": 4.64258
+}

@@ -1,0 +1,1312 @@
+{
+  "syntheticDatabase": true,
+  "realProviders": true,
+  "model": "gpt-5.4-mini",
+  "phase": "general-blockers-duration-check",
+  "clock": "2026-09-15T12:00:00Z",
+  "turns": [
+    {
+      "id": "3months-duration-final",
+      "history": "3months",
+      "records": 36,
+      "question": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "outputFormat": "prose",
+          "question": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?",
+          "requirements": [
+            "Answer in a concise comparison.",
+            "Include both ride lengths for Juniper.",
+            "State how many minutes longer the later ride length was.",
+            "Use plain language.",
+            "Do not include unrelated history."
+          ],
+          "referenceTurnIds": [],
+          "quantity": "measurement"
+        },
+        "operation": "comparison",
+        "readOperation": "comparison",
+        "selection": "comparison",
+        "petIds": [
+          "juniper"
+        ],
+        "topic": "Juniper ride lengths",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": "2026-06-15T00:00:00.000Z",
+          "to": "2026-09-16T00:00:00.000Z",
+          "terms": [
+            "ride length",
+            "minutes",
+            "longer"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "Juniper’s saved ride lengths were 8 minutes and 23 minutes.\nThe later ride was 15 minutes longer.",
+      "sections": [],
+      "reviewed": true,
+      "draft": {
+        "sentences": [
+          {
+            "text": "Juniper’s saved ride lengths were 8 minutes and 23 minutes.",
+            "sourceIds": [
+              "care:gear-old",
+              "care:gear-new"
+            ]
+          },
+          {
+            "text": "The later ride was 15 minutes longer.",
+            "sourceIds": [
+              "care:gear-old",
+              "care:gear-new"
+            ],
+            "calculations": [
+              {
+                "operation": "difference",
+                "operands": [
+                  {
+                    "sourceId": "care:gear-new",
+                    "field": "text",
+                    "literal": "23 minutes"
+                  },
+                  {
+                    "sourceId": "care:gear-old",
+                    "field": "text",
+                    "literal": "8 minutes"
+                  }
+                ],
+                "value": 15,
+                "unit": "minutes"
+              }
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "today": "2026-09-15T12:00:00.000Z",
+          "question": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?",
+          "referenceQuestion": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?",
+          "scope": {
+            "authorizedPetIds": [
+              "juniper"
+            ],
+            "requestedTopic": "Juniper ride lengths",
+            "requestText": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2026-06-15T00:00:00.000Z"
+            },
+            "requestKind": "comparison",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Juniper"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "outputFormat": "prose",
+              "question": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?",
+              "requirements": [
+                "Answer in a concise comparison.",
+                "Include both ride lengths for Juniper.",
+                "State how many minutes longer the later ride length was.",
+                "Use plain language.",
+                "Do not include unrelated history."
+              ],
+              "referenceTurnIds": [],
+              "quantity": "measurement"
+            },
+            "operation": "comparison",
+            "readOperation": "comparison",
+            "selection": "comparison",
+            "petIds": [
+              "juniper"
+            ],
+            "topic": "Juniper ride lengths",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2026-06-15T00:00:00.000Z",
+              "to": "2026-09-16T00:00:00.000Z",
+              "terms": [
+                "ride length",
+                "minutes",
+                "longer"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "juniper": "Juniper"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "outputFormat": "prose",
+            "question": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?",
+            "requirements": [
+              "Answer in a concise comparison.",
+              "Include both ride lengths for Juniper.",
+              "State how many minutes longer the later ride length was.",
+              "Use plain language.",
+              "Do not include unrelated history."
+            ],
+            "referenceTurnIds": [],
+            "quantity": "measurement"
+          },
+          "historyAccess": {
+            "months": 3,
+            "from": "2026-06-15T00:00:00.000Z",
+            "to": "2026-09-16T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?"
+            },
+            {
+              "index": 1,
+              "text": "Answer in a concise comparison."
+            },
+            {
+              "index": 2,
+              "text": "Include both ride lengths for Juniper."
+            },
+            {
+              "index": 3,
+              "text": "State how many minutes longer the later ride length was."
+            },
+            {
+              "index": 4,
+              "text": "Use plain language."
+            },
+            {
+              "index": 5,
+              "text": "Do not include unrelated history."
+            }
+          ],
+          "coverage": {
+            "plan": {
+              "from": "2026-06-15T00:00:00.000Z",
+              "to": "2026-09-16T00:00:00.000Z",
+              "terms": [
+                "ride length",
+                "minutes",
+                "longer"
+              ],
+              "interpretation": "lexical"
+            },
+            "candidateIds": [
+              "care:gear-old",
+              "care:routine-0",
+              "care:routine-3",
+              "care:routine-6",
+              "care:routine-9",
+              "care:routine-12",
+              "care:routine-15",
+              "care:routine-18",
+              "care:gear-new",
+              "care:routine-21",
+              "care:routine-24",
+              "care:routine-27"
+            ],
+            "queryCount": 6,
+            "retrieval": "partial",
+            "corrections": "unknown",
+            "extraction": "unknown",
+            "grouping": "unknown",
+            "continuation": [
+              {
+                "petId": "juniper",
+                "occurredAt": "2026-09-03T12:00:00Z",
+                "id": "routine-27"
+              },
+              {
+                "petId": "juniper",
+                "occurredAt": "2026-07-02T12:00:00Z",
+                "id": "gear-old"
+              }
+            ],
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "bidirectional_endpoint_subset",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ],
+            "consistency": "read_committed_no_snapshot",
+            "perPet": [
+              {
+                "petId": "juniper",
+                "rows": 12,
+                "pages": 4,
+                "exhausted": false,
+                "status": "partial"
+              }
+            ],
+            "provenance": [
+              {
+                "sourceId": "care:gear-old",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-0",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-3",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-6",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-9",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-12",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-15",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-18",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:gear-new",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-21",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-24",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-27",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              }
+            ],
+            "claimSources": [
+              {
+                "petId": "juniper",
+                "sourceIds": []
+              }
+            ],
+            "excludedIds": []
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:juniper:sex",
+              "petId": "juniper",
+              "sourceType": "profile",
+              "field": "value",
+              "start": 0,
+              "end": 4,
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:juniper:species",
+              "petId": "juniper",
+              "sourceType": "profile",
+              "field": "value",
+              "start": 0,
+              "end": 3,
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:gear-old",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 88,
+              "text": "Juniper weighed 14 kg. The travel crate weighed 4 kg. Juniper tolerated a 8-minute ride.",
+              "occurredAt": "2026-07-02T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-27",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-09-03T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-0",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-02T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-24",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-27T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-3",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-09T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-21",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-20T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-6",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-16T12:00:00Z"
+            },
+            {
+              "sourceId": "care:gear-new",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 90,
+              "text": "Juniper weighed 15 kg. The travel crate weighed 6 kg. Juniper tolerated an 23-minute ride.",
+              "occurredAt": "2026-08-19T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-9",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-23T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-18",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-13T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-12",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-30T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-15",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-06T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "Juniper’s saved ride lengths were 8 minutes and 23 minutes.",
+                "sourceIds": [
+                  "care:gear-old",
+                  "care:gear-new"
+                ],
+                "index": 0
+              },
+              {
+                "text": "The later ride was 15 minutes longer.",
+                "sourceIds": [
+                  "care:gear-old",
+                  "care:gear-new"
+                ],
+                "calculations": [
+                  {
+                    "operation": "difference",
+                    "operands": [
+                      {
+                        "sourceId": "care:gear-new",
+                        "field": "text",
+                        "literal": "23 minutes"
+                      },
+                      {
+                        "sourceId": "care:gear-old",
+                        "field": "text",
+                        "literal": "8 minutes"
+                      }
+                    ],
+                    "value": 15,
+                    "unit": "minutes"
+                  }
+                ],
+                "index": 1
+              }
+            ]
+          }
+        }
+      ],
+      "retainedIds": [
+        "care:gear-old",
+        "care:routine-0",
+        "care:routine-3",
+        "care:routine-6",
+        "care:routine-9",
+        "care:routine-12",
+        "care:routine-15",
+        "care:routine-18",
+        "care:gear-new",
+        "care:routine-21",
+        "care:routine-24",
+        "care:routine-27"
+      ],
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0,1],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[1]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":5,\"status\":\"answered\",\"sentenceIndexes\":[0,1]}],\"rejectionReason\":null}",
+      "providerCalls": 3,
+      "elapsedMs": 7207,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": "5years-duration-final",
+      "history": "5years",
+      "records": 186,
+      "question": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "outputFormat": "prose",
+          "question": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?",
+          "requirements": [
+            "Answer with the two ride lengths for Juniper.",
+            "State how many minutes longer the later ride was than the earlier one.",
+            "Use the requested selected pet context only.",
+            "Respond in prose."
+          ],
+          "referenceTurnIds": [],
+          "quantity": "measurement"
+        },
+        "operation": "comparison",
+        "readOperation": "comparison",
+        "selection": "comparison",
+        "petIds": [
+          "juniper"
+        ],
+        "topic": "ride length",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": "2021-09-15T00:00:00.000Z",
+          "to": "2026-09-16T00:00:00.000Z",
+          "terms": [
+            "ride length",
+            "minutes",
+            "longer"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "His saved ride lengths were 8 minutes and 23 minutes.\nThe later ride was 15 minutes longer.",
+      "sections": [],
+      "reviewed": true,
+      "draft": {
+        "sentences": [
+          {
+            "text": "His saved ride lengths were 8 minutes and 23 minutes.",
+            "sourceIds": [
+              "care:gear-old",
+              "care:gear-new"
+            ]
+          },
+          {
+            "text": "The later ride was 15 minutes longer.",
+            "sourceIds": [
+              "care:gear-old",
+              "care:gear-new"
+            ],
+            "calculations": [
+              {
+                "operation": "difference",
+                "operands": [
+                  {
+                    "sourceId": "care:gear-new",
+                    "field": "text",
+                    "literal": "23 minutes"
+                  },
+                  {
+                    "sourceId": "care:gear-old",
+                    "field": "text",
+                    "literal": "8 minutes"
+                  }
+                ],
+                "value": 15,
+                "unit": "minutes"
+              }
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "today": "2026-09-15T12:00:00.000Z",
+          "question": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?",
+          "referenceQuestion": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?",
+          "scope": {
+            "authorizedPetIds": [
+              "juniper"
+            ],
+            "requestedTopic": "ride length",
+            "requestText": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2021-09-15T00:00:00.000Z"
+            },
+            "requestKind": "comparison",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Juniper"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "outputFormat": "prose",
+              "question": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?",
+              "requirements": [
+                "Answer with the two ride lengths for Juniper.",
+                "State how many minutes longer the later ride was than the earlier one.",
+                "Use the requested selected pet context only.",
+                "Respond in prose."
+              ],
+              "referenceTurnIds": [],
+              "quantity": "measurement"
+            },
+            "operation": "comparison",
+            "readOperation": "comparison",
+            "selection": "comparison",
+            "petIds": [
+              "juniper"
+            ],
+            "topic": "ride length",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2021-09-15T00:00:00.000Z",
+              "to": "2026-09-16T00:00:00.000Z",
+              "terms": [
+                "ride length",
+                "minutes",
+                "longer"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "juniper": "Juniper"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "outputFormat": "prose",
+            "question": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?",
+            "requirements": [
+              "Answer with the two ride lengths for Juniper.",
+              "State how many minutes longer the later ride was than the earlier one.",
+              "Use the requested selected pet context only.",
+              "Respond in prose."
+            ],
+            "referenceTurnIds": [],
+            "quantity": "measurement"
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-15T00:00:00.000Z",
+            "to": "2026-09-16T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?"
+            },
+            {
+              "index": 1,
+              "text": "Answer with the two ride lengths for Juniper."
+            },
+            {
+              "index": 2,
+              "text": "State how many minutes longer the later ride was than the earlier one."
+            },
+            {
+              "index": 3,
+              "text": "Use the requested selected pet context only."
+            },
+            {
+              "index": 4,
+              "text": "Respond in prose."
+            }
+          ],
+          "coverage": {
+            "plan": {
+              "from": "2021-09-15T00:00:00.000Z",
+              "to": "2026-09-16T00:00:00.000Z",
+              "terms": [
+                "ride length",
+                "minutes",
+                "longer"
+              ],
+              "interpretation": "lexical"
+            },
+            "candidateIds": [
+              "care:gear-old",
+              "care:routine-0",
+              "care:routine-3",
+              "care:routine-6",
+              "care:routine-9",
+              "care:routine-12",
+              "care:routine-15",
+              "care:routine-18",
+              "care:routine-21",
+              "care:routine-24",
+              "care:routine-27",
+              "care:routine-30",
+              "care:routine-33",
+              "care:gear-new",
+              "care:routine-177",
+              "care:routine-174",
+              "care:routine-171",
+              "care:routine-168",
+              "care:routine-165",
+              "care:routine-162",
+              "care:routine-159",
+              "care:routine-156",
+              "care:routine-153",
+              "care:routine-150",
+              "care:routine-147",
+              "care:routine-144"
+            ],
+            "queryCount": 6,
+            "retrieval": "partial",
+            "corrections": "unknown",
+            "extraction": "unknown",
+            "grouping": "unknown",
+            "continuation": [
+              {
+                "petId": "juniper",
+                "occurredAt": "2022-12-16T12:00:00Z",
+                "id": "routine-33"
+              },
+              {
+                "petId": "juniper",
+                "occurredAt": "2025-10-11T12:00:00Z",
+                "id": "routine-144"
+              }
+            ],
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "bidirectional_endpoint_subset",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ],
+            "consistency": "read_committed_no_snapshot",
+            "perPet": [
+              {
+                "petId": "juniper",
+                "rows": 26,
+                "pages": 4,
+                "exhausted": false,
+                "status": "partial"
+              }
+            ],
+            "provenance": [
+              {
+                "sourceId": "care:gear-old",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-0",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-3",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-6",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-9",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-12",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-15",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-18",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-21",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-24",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-27",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-30",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-33",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:gear-new",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-177",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-174",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-171",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-168",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-165",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-162",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-159",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-156",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-153",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-150",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-147",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-144",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              }
+            ],
+            "claimSources": [
+              {
+                "petId": "juniper",
+                "sourceIds": []
+              }
+            ],
+            "excludedIds": []
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:juniper:sex",
+              "petId": "juniper",
+              "sourceType": "profile",
+              "field": "value",
+              "start": 0,
+              "end": 4,
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:juniper:species",
+              "petId": "juniper",
+              "sourceType": "profile",
+              "field": "value",
+              "start": 0,
+              "end": 3,
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:gear-old",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 88,
+              "text": "Juniper weighed 14 kg. The travel crate weighed 4 kg. Juniper tolerated a 8-minute ride.",
+              "occurredAt": "2022-02-14T12:00:00Z"
+            },
+            {
+              "sourceId": "care:gear-new",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 90,
+              "text": "Juniper weighed 15 kg. The travel crate weighed 6 kg. Juniper tolerated an 23-minute ride.",
+              "occurredAt": "2026-08-19T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-0",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2022-02-14T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-177",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-13T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-3",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2022-03-13T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-174",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-16T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-6",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2022-04-10T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-171",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-06-18T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-9",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2022-05-08T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-168",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-05-21T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-12",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2022-06-05T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-165",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-04-23T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-15",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2022-07-03T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-162",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-03-27T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-18",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2022-07-30T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-159",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-02-27T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-21",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2022-08-27T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-156",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-01-30T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-24",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2022-09-24T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-153",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-01-02T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-27",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2022-10-22T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-150",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2025-12-05T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-30",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2022-11-19T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-147",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2025-11-08T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-33",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2022-12-16T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-144",
+              "petId": "juniper",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 56,
+              "text": "Juniper had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2025-10-11T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "His saved ride lengths were 8 minutes and 23 minutes.",
+                "sourceIds": [
+                  "care:gear-old",
+                  "care:gear-new"
+                ],
+                "index": 0
+              },
+              {
+                "text": "The later ride was 15 minutes longer.",
+                "sourceIds": [
+                  "care:gear-old",
+                  "care:gear-new"
+                ],
+                "calculations": [
+                  {
+                    "operation": "difference",
+                    "operands": [
+                      {
+                        "sourceId": "care:gear-new",
+                        "field": "text",
+                        "literal": "23 minutes"
+                      },
+                      {
+                        "sourceId": "care:gear-old",
+                        "field": "text",
+                        "literal": "8 minutes"
+                      }
+                    ],
+                    "value": 15,
+                    "unit": "minutes"
+                  }
+                ],
+                "index": 1
+              }
+            ]
+          }
+        }
+      ],
+      "retainedIds": [
+        "care:gear-old",
+        "care:routine-0",
+        "care:routine-3",
+        "care:routine-6",
+        "care:routine-9",
+        "care:routine-12",
+        "care:routine-15",
+        "care:routine-18",
+        "care:routine-21",
+        "care:routine-24",
+        "care:routine-27",
+        "care:routine-30",
+        "care:routine-33",
+        "care:routine-144",
+        "care:routine-147",
+        "care:routine-150",
+        "care:routine-153",
+        "care:routine-156",
+        "care:routine-159",
+        "care:routine-162",
+        "care:routine-165",
+        "care:routine-168",
+        "care:routine-171",
+        "care:routine-174",
+        "care:routine-177",
+        "care:gear-new"
+      ],
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0,1],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[1]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0,1]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0,1]}],\"rejectionReason\":null}",
+      "providerCalls": 3,
+      "elapsedMs": 10394,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    }
+  ]
+}

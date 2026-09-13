@@ -1,0 +1,18 @@
+{
+  "observedAt": "2026-09-09T20:42:54Z",
+  "completedIds": [
+    1,
+    65
+  ],
+  "interruptedId": 66,
+  "unreconciledCallNumber": 206,
+  "originalCommittedUsd": 1.3314044999999997,
+  "originalMeasuredUsd": 1.2059857500000002,
+  "continuationCapUsd": 3.2685,
+  "continueIds": [
+    67,
+    200
+  ],
+  "reason": "Original terminal session missing, no matching node worker, files ceased advancing. Host-process interruption; exact termination cause unverified.",
+  "policy": "Preserve original attempts and budget unmodified. Count question66 as interrupted/no pass; never resubmit it. Run only67–200 with identical application/question/fixture and fresh artifact paths. Combined reservations remain below4.60. These are independent questions at the resume boundary; no dialogue context is lost."
+}

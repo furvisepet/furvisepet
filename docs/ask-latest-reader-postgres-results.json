@@ -1,0 +1,6 @@
+{
+  "fingerprints": "read_ask_history_candidates:20a5ff1db88c905d8cb3d0d36353bcfe\nread_ask_history_candidates_latest:3a7a7f2ee18d6ec9eaf0e91d052268fb\nread_ask_history_correction_page:7c4b1db58d569f81caabc17d8b611111",
+  "readiness": "{compatibility_input}",
+  "counts": "0|0|0|0|0|0",
+  "readinessWithRequiredMigrations": "{}"
+}
