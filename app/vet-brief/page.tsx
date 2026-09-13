@@ -3,7 +3,7 @@
 import { vetBriefUrgency, vetBriefUrgencyText } from "../lib/vet-brief/urgency";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { type FormEvent, Suspense, useEffect, useState } from "react";
+import { type FormEvent, Suspense, useEffect, useRef, useState } from "react";
 import { AppPage } from "../components/app-page";
 import { VetBriefLoading } from "../components/vet-brief-loading";
 import { appPageContainer, PageHeader } from "../components/product-primitives";
@@ -64,9 +64,11 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
+  const workspaceActive = useRef(false);
 
   useEffect(() => {
     let active = true;
+    workspaceActive.current = true;
     async function load() {
       try {
         if (existingBriefId) {
@@ -105,7 +107,7 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
       } finally { if (active) setLoading(false); }
     }
     void load();
-    return () => { active = false; };
+    return () => { active = false; workspaceActive.current = false; };
   }, [existingBriefId, petId, source, conversationId, userId]);
 
   const documentStatus = confirmed ? "Confirmed" : previousVersionId ? "New version in progress" : "Draft";
@@ -166,7 +168,7 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
     if (!document || !documentPetId || saving) return;
     setSaving(true); setError("");
     try {
-      await saveAuthorizedVetBriefClientDraft(window.localStorage, { briefId: previousVersionId, petId: documentPetId, userId }, { document, sourceEntryIds }, validateDraftScope);
+      await saveAuthorizedVetBriefClientDraft(window.localStorage, { briefId: previousVersionId, petId: documentPetId, userId }, { document, sourceEntryIds }, validateDraftScope, () => workspaceActive.current);
       setStatus("Draft saved on this device.");
     } catch (saveError) { setError(saveError instanceof Error ? saveError.message : "The draft could not be saved on this device."); }
     finally { setSaving(false); }

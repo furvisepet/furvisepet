@@ -35,8 +35,9 @@ export function saveVetBriefClientDraft(storage: DraftStorage, scope: VetBriefDr
 
 /** Recheck paid access and pet ownership at the time of saving an open workspace.
  * A failed check preserves the previous draft and never writes the new state. */
-export async function saveAuthorizedVetBriefClientDraft(storage: DraftStorage, scope: VetBriefDraftScope, draft: VetBriefClientDraft, authorize: (petId: string) => Promise<void>) {
+export async function saveAuthorizedVetBriefClientDraft(storage: DraftStorage, scope: VetBriefDraftScope, draft: VetBriefClientDraft, authorize: (petId: string) => Promise<void>, isCurrentWorkspace: () => boolean) {
   await authorize(scope.petId);
+  if (!isCurrentWorkspace()) throw new Error("The active account or pet changed. Reopen the brief before saving.");
   saveVetBriefClientDraft(storage, scope, draft);
 }
 
