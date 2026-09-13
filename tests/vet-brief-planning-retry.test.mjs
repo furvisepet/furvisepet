@@ -5,14 +5,14 @@ import test from 'node:test';
 import ts from 'typescript';
 import {prepareReviewedVetBrief} from '../app/lib/vet-brief/review.ts';
 
-function pipeline({planFailures=0,contentFailures=0,reviewFailures=0,historyUnavailable=false,failureKind='incomplete_output'}={}) {
- const calls=[];
+function pipeline({planFailures=0,contentFailures=0,reviewFailures=0,semanticFailures=0,historyUnavailable=false,failureKind='incomplete_output'}={}) {
+ const calls=[], inputs=[];
  const document={pet:{name:'Synthetic'},dateRange:{from:'2026-06-01',to:'2026-09-12'},missingInformation:[]};
  const plan={from:null,to:'2026-09-12',topics:[{label:'History',terms:['history']}],questionsToResolve:[]};
  const mocks={
   'server-only':{},
   './publication-review.ts':{vetBriefPublicationReviewSchema:{},vetBriefDuplicationReviewInstructions:''},
-  '../ai/ask-reasoning':{generateStructuredFeatureResponse:async input=>{calls.push(input.schemaName);if(input.schemaName==='vet_brief_evidence_plan'){if(planFailures-->0)throw Error('incomplete');return plan;}if(input.schemaName==='vet_brief_content'){if(contentFailures-->0)throw Error('incomplete');return {document};}if(reviewFailures-->0)throw Error('incomplete');return {factsSupported:true,importantHistoryPreserved:true,categoriesAccurate:true,uncertaintyPreserved:true,noDuplication:true,questionsUseful:true,visitFocused:true,repairInstructions:''};}},
+  '../ai/ask-reasoning':{generateStructuredFeatureResponse:async input=>{calls.push(input.schemaName);inputs.push(input);if(input.schemaName==='vet_brief_evidence_plan'){if(planFailures-->0)throw Error('incomplete');return plan;}if(input.schemaName==='vet_brief_content'){if(contentFailures-->0)throw Error('incomplete');return {document};}if(reviewFailures-->0)throw Error('incomplete');return {factsSupported:semanticFailures--<=0,repairSections:['overview'],importantHistoryPreserved:true,categoriesAccurate:true,uncertaintyPreserved:true,noDuplication:true,questionsUseful:true,visitFocused:true,repairInstructions:'Correct unsupported wording while keeping supported history.'};}},
   '../intelligence/feature-failure.ts':{featureFailureDetails:()=>({failureKind})},
   '../intelligence/feature-modes.ts':{getIntelligenceFeatureMode:()=>({promptInstructions:[]})},
   '../intelligence/history-retrieval.ts':{retrieveAskHistory:async c=>({...c,askHistory:{entries:[],coverage:{retrieval:'unknown',corrections:historyUnavailable?'unavailable':'unknown',reasons:[]}}})},
@@ -26,7 +26,7 @@ function pipeline({planFailures=0,contentFailures=0,reviewFailures=0,historyUnav
  };
  const exports={};
  vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../app/lib/vet-brief/prepare.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,require:name=>{assert.ok(name in mocks,name);return mocks[name];},console});
- return {calls,run:()=>exports.prepareVetBrief({context:{pet:{id:'synthetic',species:'dog'},currentMessage:'Review history',currentTimestamp:'2026-09-12'},supabase:{},baseline:document,requestId:'synthetic'})};
+ return {calls,inputs,run:()=>exports.prepareVetBrief({context:{pet:{id:'synthetic',species:'dog'},currentMessage:'Review history',currentTimestamp:'2026-09-12'},supabase:{},baseline:document,requestId:'synthetic'})};
 }
 test('incomplete planning receives one structural retry, then generation and independent review',async()=>{
  const p=pipeline({planFailures:1}); await p.run();
@@ -61,4 +61,15 @@ test('a transient review timeout retries the same candidate once without bypassi
  assert.deepEqual(p.calls,['vet_brief_evidence_plan','vet_brief_content','vet_brief_review','vet_brief_review']);
  const repeated=pipeline({reviewFailures:2,failureKind:'timeout'}); await assert.rejects(repeated.run(),/incomplete/);
  assert.equal(repeated.calls.filter(c=>c==='vet_brief_review').length,2);
+});
+
+
+test('production repair receives the rejected wording separately from unchanged evidence',async()=>{
+ const p=pipeline({semanticFailures:1}); await p.run();
+ const generations=p.inputs.filter(input=>input.schemaName==='vet_brief_content');
+ assert.equal(generations.length,2);
+ assert.equal(generations[0].input.reviewRepair,null);
+ assert.ok(generations[1].input.reviewRepair.draftToRepair);
+ assert.equal(generations[1].input.evidence,generations[0].input.evidence);
+ assert.equal('draftToRepair' in generations[1].input.evidence,false);
 });

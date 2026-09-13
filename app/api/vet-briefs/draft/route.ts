@@ -132,6 +132,7 @@ export async function POST(request: Request) {
       feature: "vet_brief", intendedModel: getAskModelConfiguration().primary,
       payload: { conversationId, existingDocument, from, petId, reasonForVisit, to }, requestId, userId: auth.userId,
     }, () => runWithAiCredit<IntelligenceVetBrief>({
+      includeUsage: false,
       feature: "vet_brief", monthlyAiCredits: auth.monthlyAiCredits, payload: { conversationId, existingDocument, from, petId, reasonForVisit, to }, planId: auth.planId, requestId, supabase: auth.supabase, userId: auth.userId,
       generate: () => prepareVetBrief({ context, supabase: auth.supabase, baseline: { ...baseline.document, excludedSections: existingDocument?.excludedSections || [] }, retrospective, requestId }),
     }));

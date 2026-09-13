@@ -14,6 +14,7 @@ import { downloadGeneratedFile } from "../lib/furvise-output";
 import { trackAskEvent } from "../lib/ask-analytics";
 import { useRequireConfirmedSupabaseAuth } from "../lib/auth-session";
 import { getBrowserSupabase } from "../lib/supabase";
+import { vetBriefSessionToken } from "../lib/vet-brief/session";
 import { getOrCreateClientMutationKey, idempotentClientFetch } from "../lib/security/idempotency/client";
 import { getVetBriefFilename, parseVetBriefDocument } from "../lib/vet-brief/schema";
 import type { VetBriefDatedItem, VetBriefDocument, VetBriefHistoryItem, VetBriefRecord, VetBriefSectionId } from "../lib/vet-brief/types";
@@ -291,7 +292,8 @@ async function fetchDraft(petId: string, from: string, to: string, conversationI
   throw new Error("The brief could not be prepared. Please try again.");
 }
 async function authenticatedJson(url: string, init: RequestInit = {}, mutationScope?: string) {
-  const token = await getAuthToken();
+  // Generation may run for 300 seconds. Refresh before capturing its bearer.
+  const token = await getAuthToken(url === "/api/vet-briefs/draft" && init.method?.toUpperCase() === "POST" ? 360 : 60);
   if (!token) throw new Error("Please sign in again.");
   const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(init.headers || {}) };
   const method = (init.method || "GET").toUpperCase();
@@ -307,7 +309,7 @@ async function authenticatedJson(url: string, init: RequestInit = {}, mutationSc
   if (!response.ok) throw Object.assign(new Error(payload?.error || "The Vet Visit Brief is temporarily unavailable."), { code: payload?.code });
   return payload;
 }
-async function getAuthToken() { const client = getBrowserSupabase(); const { data } = client ? await client.auth.getSession() : { data: { session: null } }; return data.session?.access_token || ""; }
+async function getAuthToken(minimumLifetimeSeconds = 60) { return vetBriefSessionToken(getBrowserSupabase()?.auth || null, minimumLifetimeSeconds); }
 async function fetchPdfFile(brief: VetBriefRecord, paperSize: "letter" | "a4") { const token = await getAuthToken(); const response = await fetch(`/api/vet-briefs/${encodeURIComponent(brief.id)}/pdf?size=${paperSize}`, { headers: { Authorization: `Bearer ${token}` } }); if (!response.ok) { const payload = await response.json().catch(() => null); throw new Error(payload?.error || "The PDF could not be downloaded."); } const blob = await response.blob(); return new File([blob], getVetBriefFilename(brief.document.pet.name, brief.generatedAt), { type: "application/pdf" }); }
 function formatBriefForCopy(document: VetBriefDocument) { return vetBriefText(document); }
 function getDefaultRange() { const to = new Date(); const from = new Date(to); from.setUTCDate(from.getUTCDate() - 90); return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) }; }

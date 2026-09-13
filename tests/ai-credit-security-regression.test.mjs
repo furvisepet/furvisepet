@@ -92,6 +92,19 @@ test("successful persisted answer completes once and UI allowance remains correc
   assert.equal(ledger.calls.filter((call) => call.name === "complete_ai_credit").length, 1);
 });
 
+test("a brief can return its durably completed result without an unused allowance read", async () => {
+  const ledger = new AuthoritativeLedger();
+  const result = await runWithAiCredit({
+    feature: "vet_brief", generate: async () => "reviewed brief", includeUsage: false,
+    ledgerClient: ledger, payload: askPayload, requestId,
+    supabase: { from: () => assert.fail("no post-completion allowance query"), rpc: () => assert.fail("no post-completion allowance RPC") }, userId: userA,
+  });
+  assert.equal(result.value, "reviewed brief");
+  assert.equal(result.usage, null);
+  assert.equal(result.creditsUsed, 1);
+  assert.equal(ledger.event(userA, "vet_brief", requestId).status, "completed");
+});
+
 test("a completed replay never invokes the provider or charges again", async () => {
   const ledger = new AuthoritativeLedger();
   await reserve(ledger);
