@@ -35,6 +35,15 @@ function quantities(text: string): string[] {
     .map(match => `${words[match[1]] ?? Number(match[1])}:${match[2].replace(/s$/, "").replace(/^entrie$/, "entry").replace(/^soft /, "").replace(/^pound$/, "lb").replace(/^kilogram$/, "kg").replace(/^milligram$/, "mg").replace(/^gram$/, "g").replace(/^milliliter$/, "ml")}`)];
 }
 
+/** Candidate bindings for a repair writer, never an approval or new evidence.
+ * Literal dates identify possible records; semantic review must still verify
+ * the subject, occasion and complete claim against the original source. */
+export function historyDateBindingHints(text: string, sources: Array<Source & {sourceId: string}>) {
+  return [...new Set(dates(text))].map(anchor => ({ anchor, sourceIds: sources.filter(source =>
+    [...dates(source.text), ...dates(source.occurredAt?.slice(0,10) || "")].some(date =>
+      date === anchor || date.replace(/^\d{4}:/, "") === anchor)).map(source => source.sourceId) }));
+}
+
 function equivalentQuantity(target: string, candidates: readonly string[]) {
   const split = (value: string) => {
     const separator = value.lastIndexOf(":");
