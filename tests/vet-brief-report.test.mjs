@@ -17,11 +17,11 @@ test('a routine breakfast appears once and is not a change or a pattern', () => 
   assert.equal(vetBriefText(document).match(/83 g/g).length, 1);
 });
 
-test('legacy duplication collapses but separate dates and contradictory observations survive', () => {
+test('exact duplication collapses but separate dates and contradictory observations survive', () => {
   const document = draft();
   document.concernTimeline = [{ date: '2026-09-10', text: 'Owner reported: Did not vomit.' }, { date: '2026-09-11', text: 'Owner reported: Did not vomit.' }];
   document.ownerReportedChanges = [{ date: '2026-09-10', text: 'Owner reported: Did not vomit.' }, { date: '2026-09-10', text: 'Owner reported: Vomited once.' }];
-  document.relevantCareHistory = [{ date: '2026-09-10', category: 'Symptom', text: 'Saved care history shows: Did not vomit.' }];
+  document.relevantCareHistory = [{ date: '2026-09-10', category: 'Symptom', text: 'Owner reported: Did not vomit.' }];
   const output = vetBriefText(document);
   assert.equal(output.match(/Did not vomit/g).length, 2);
   assert.equal(output.match(/Vomited once/g).length, 1);
@@ -108,7 +108,7 @@ test('a valid first draft is returned without a repair call', async () => {
   assert.equal(generations, 1);
 });
 
-test('publication removes only attribution wrappers and preserves clinical wording and the saved document', () => {
+test('publication preserves source attribution, clinical wording and the saved document', () => {
   const document = draft();
   document.medicationsSupplements = [{ date: '2026-09-10', text: 'Owner reported: Vet said do not restart 2.5 mg; owner suspects nausea, cause unknown.' }];
   document.relevantCareHistory = [{ date: '2026-09-11', category: 'General', text: 'Saved care history shows: Weight 3.97 kg, no carrier. Previous note said "Owner reported: 4 kg".' }];
@@ -116,7 +116,8 @@ test('publication removes only attribution wrappers and preserves clinical wordi
   const text = vetBriefText(document);
   assert.match(text, /Vet said do not restart 2\.5 mg; owner suspects nausea, cause unknown\./);
   assert.match(text, /Weight 3\.97 kg, no carrier\. Previous note said "Owner reported: 4 kg"\./);
-  assert.doesNotMatch(text, /Saved care history shows:/);
+  assert.match(text, /Saved care history shows:/);
+  assert.match(text, /Owner reported: Vet said/);
   assert.equal(JSON.stringify(document), before);
 });
 
@@ -125,7 +126,7 @@ test('dated evidence count respects deduplication and exclusions without treatin
   const document = draft();
   document.visitSummary = 'Two events mentioned in prose are not two dated entries.';
   document.concernTimeline = [{ date: '2026-09-10', text: 'Owner reported: Scratched once.' }];
-  document.relevantCareHistory = [{ date: '2026-09-10', category: 'Symptom', text: 'Saved care history shows: Scratched once.' }];
+  document.relevantCareHistory = [{ date: '2026-09-10', category: 'Symptom', text: 'Owner reported: Scratched once.' }];
   assert.equal(vetBriefDatedEntryCount(document), 1);
   document.excludedSections = ['timeline', 'care-history'];
   assert.equal(vetBriefDatedEntryCount(document), 0);
@@ -136,7 +137,7 @@ test('review sees the same included and deduplicated facts as every publication 
   const document = draft();
   document.visitSummary = 'Owner observed scratching on September 10.';
   document.concernTimeline = [{ date: '2026-09-10', text: 'Owner reported: Scratched once.' }];
-  document.relevantCareHistory = [{ date: '2026-09-10', category: 'Symptom', text: 'Saved care history shows: Scratched once.' }];
+  document.relevantCareHistory = [{ date: '2026-09-10', category: 'Symptom', text: 'Owner reported: Scratched once.' }];
   document.ownerNotes = 'Excluded private note';
   document.excludedSections = ['owner-notes'];
   const review = vetBriefReviewPublication(document);
@@ -170,4 +171,18 @@ test('clinical review retains dated measurements without asking the model to rep
  assert.equal('pet' in review,false); assert.equal('dateRange' in review,false);
  assert.ok(review.sections.some(s=>s.items.some(i=>i.text==='Weight recorded as 15 kg.')));
  assert.deepEqual(review.sections,vetBriefReport(document));
+});
+
+
+test('publication does not erase owner attribution or collapse a report into a clinical assertion',async()=>{
+ const {vetBriefReviewContent}=await import('../app/lib/vet-brief/report.ts');
+ const document=draft();
+ document.relevantCareHistory=[
+  {date:'2020-02-14',category:'owner history',text:'Owner reported: Kidney disease.'},
+  {date:'2020-02-14',category:'clinic history',text:'Kidney disease.'},
+  {date:'2020-02-14',category:'lab note',text:'Saved note shows: No kidney diagnosis documented.'},
+ ];
+ const entries=vetBriefReport(document).find(s=>s.id==='history').items;
+ assert.equal(entries.length,3);assert.equal(entries[0].text,'Owner reported: Kidney disease.');assert.equal(entries[2].text,'Saved note shows: No kidney diagnosis documented.');
+ assert.deepEqual(vetBriefReviewContent(document).sections,vetBriefReport(document));
 });
