@@ -16,7 +16,7 @@ export function VetBriefLoading({ preparing = false }: { preparing?: boolean }) 
       </div>
     </div>
     <div aria-hidden="true" className="mt-8 space-y-8 border-t border-[var(--pw-border)] pt-8 motion-safe:animate-pulse">
-      {[0, 1, 2].map(index => <div key={index} className="space-y-3"><div className="h-4 w-36 rounded bg-[var(--pw-card-muted)]" /><div className="h-3 w-full rounded bg-[var(--pw-card-muted)]" /><div className="h-3 w-4/5 rounded bg-[var(--pw-card-muted)]" /><div className="h-3 w-3/5 rounded bg-[var(--pw-card-muted)]" /></div>)}
+      {[0, 1, 2].map(index => <div key={index} className="space-y-3"><div className="h-4 w-36 rounded bg-[var(--pw-border)]" /><div className="h-3 w-full rounded bg-[var(--pw-border)]" /><div className="h-3 w-4/5 rounded bg-[var(--pw-border)]" /><div className="h-3 w-3/5 rounded bg-[var(--pw-border)]" /></div>)}
     </div>
   </section>;
 }
