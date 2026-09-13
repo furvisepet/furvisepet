@@ -100,3 +100,12 @@ All CI gates passed (run 34727296275). Production `55a1e27397d44460281ecc4a27bda
 
 - Exact Rowan request PASS on content: ten verified records retrieved; symptoms/emergency guidance, September 11 prescription and exact doses, conflicting owner completion, and missing arthritis/lab evidence preserved. First review exhausted 8,192 tokens; the bounded retry recovered. The medication detail labels its date unknown while the synopsis correctly retains the prescription date; this is a presentation limitation, not an invented date.
 - Sparse coat request remains PARTIAL for usefulness: correct dates, seven-minute brushing and removed tangle; no invented skin diagnosis and only two questions, but those questions still ask what the supplied note says. The next refinement separates private evidence-retrieval questions from the published appointment purpose and requires clinician-facing questions to support assessment, care/monitoring, prevention, or reconciliation of a genuine conflict. Search terms are no longer exposed as appointment facts.
+
+
+## PR359 production result and bounded reviewer allocation
+
+PR359 passed all CI gates (run 34727725410), deployed as `00a8e67c7988c2c67312b2e484c2581b7b24ca6d` / `dpl_4W4sT9PcuLvqdsveePJq15zaAPts` on both production domains.
+
+- PR358 vaccination retry FAILED after factual repair and final questionsUseful rejection; credit released.
+- PR359 vaccination retry FAILED because both high-reasoning reviews exhausted 8,192 output tokens without a verdict (request `addd25ab-f09a-4046-a630-21b2e7032a0e`). History retrieval succeeded with 10 verified records. This is an execution-allocation failure, not evidence that the generated content passed.
+- Change the reviewer to medium reasoning with 12,288 output tokens and the existing 35-second medium execution ceiling. Keep the identical seven acceptance criteria, structured schema, same-candidate structural retry, one semantic repair and six-call operation bound. High reasoning repeatedly consumed the budget before returning a compact decision; this change aims to reserve useful output headroom and bound latency. Final live verification remains required.
