@@ -58,7 +58,7 @@ test("canonical response, conflict, and in-progress contracts are stable and pri
 test("completion is stored before a replay can return and 5xx remains retryable", () => {
   const operation = source("app/lib/security/idempotency/operation.ts");
   assert.match(operation, /claim_outcome === "completed"/);
-  assert.match(operation, /response\.status >= 500/);
+  assert.match(operation, /isRetryableOperationResponse\(input.operationType, response.status, body\)/);
   assert.match(operation, /retryable: true/);
   assert.match(operation, /POST_MUTATION_RECONCILIATION/);
   assert.match(operation, /Idempotency-Replayed", "false"/);
