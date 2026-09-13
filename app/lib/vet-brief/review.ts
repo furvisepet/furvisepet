@@ -71,12 +71,12 @@ function presentationWarnings(verdict: ReturnType<typeof parseVetBriefReview>) {
 
 export type VetBriefRepairFeedback = { document: VetBriefDocument; failedChecks: string[]; repairInstructions: string; repairSections?: RepairSection[] };
 
-export async function prepareReviewedVetBrief<T extends { value: { document: VetBriefDocument; sourceRecordIds?: string[] } }>({ generate, review, onRejected, onWarning, reserveOverviewReview, canUseReviewedDraftOnRepairFailure }: {
+export async function prepareReviewedVetBrief<T extends { value: { document: VetBriefDocument; sourceRecordIds?: string[] } }>({ generate, review, onRejected, onWarning, reserveRecoveryReview, canUseReviewedDraftOnRepairFailure }: {
   generate: (feedback: VetBriefRepairFeedback | null) => Promise<T>;
   review: (document: VetBriefDocument) => Promise<ReturnType<typeof parseVetBriefReview>>;
   onRejected?: (failedChecks: string[], verdict: ReturnType<typeof parseVetBriefReview>) => void;
   onWarning?: (warnings: NonNullable<VetBriefDocument["reviewWarnings"]>) => void;
-  reserveOverviewReview?: () => boolean;
+  reserveRecoveryReview?: () => boolean;
   canUseReviewedDraftOnRepairFailure?: (error: unknown) => boolean;
 }): Promise<T> {
   let feedback: VetBriefRepairFeedback | null = null;
@@ -111,14 +111,35 @@ export async function prepareReviewedVetBrief<T extends { value: { document: Vet
       if (recovered) return recovered;
       throw error;
     }
+    // A repair can introduce a new defect in a previously acceptable section.
+    // Restore only those regressed sections from the immutable original, never
+    // a section the first verdict asked us to repair. This assembled candidate
+    // is still untrusted until a fresh whole-report review passes.
+    let recoveryReviewed = false;
+    const restoreSections = verdict?.repairSections;
+    const canRestore = attempt === 1 && previousCandidate && previousVerdict && parseVetBriefReview(previousVerdict)
+      && previousVerdict.importantHistoryPreserved && previousVerdict.repairSections?.length
+      && verdict && parseVetBriefReview(verdict) && verdict.importantHistoryPreserved
+      && !verdict.factsSupported && verdict.factualIssueCodes?.length && restoreSections?.length
+      && restoreSections.every(section => !previousVerdict!.repairSections!.includes(section))
+      && verdict.factualIssueCodes.every(code => restoreSections.includes(code.split(":")[1] as RepairSection));
+    if (canRestore && previousCandidate) {
+      const restored = applyVetBriefSectionRepair(candidate.value.document, previousCandidate.value.document, restoreSections);
+      if (JSON.stringify(restored) !== JSON.stringify(candidate.value.document) && reserveRecoveryReview?.()) {
+        onRejected?.(vetBriefReviewChecks.filter(key => verdict![key] !== true), verdict);
+        candidate.value.document = restored;
+        verdict = await review(candidate.value.document);
+        recoveryReviewed = true;
+      }
+    }
     let overviewOmitted = false;
     // Optional synopsis recovery cannot delete arbitrary sections or bypass review.
     // The remaining report must still preserve every material fact on re-review.
-    if (attempt === 1 && candidate.value.document.visitSummary && verdict && parseVetBriefReview(verdict)
+    if (attempt === 1 && !recoveryReviewed && candidate.value.document.visitSummary && verdict && parseVetBriefReview(verdict)
       && verdict.importantHistoryPreserved && !verdict.factsSupported
       && verdict.repairSections?.length === 1 && verdict.repairSections[0] === "overview"
       && verdict.factualIssueCodes?.length && verdict.factualIssueCodes.every(code => code.endsWith(":overview"))
-      && reserveOverviewReview?.()) {
+      && reserveRecoveryReview?.()) {
       onRejected?.(vetBriefReviewChecks.filter(key => verdict![key] !== true), verdict);
       candidate.value.document = { ...candidate.value.document, visitSummary: "" };
       verdict = await review(candidate.value.document);

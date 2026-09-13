@@ -126,7 +126,7 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
     if (!purpose.trim() || loading) return;
     if (purpose.trim().length > MAX_VET_BRIEF_REASON_LENGTH) { setError("Keep the appointment note within 12,000 characters. Your text has not been submitted."); return; }
     savePendingVetBriefInput(window.sessionStorage, { userId, petId }, { purpose, from, to });
-    setLoading(true); setError("");
+    setLoading(true); setError(""); setStatus("");
     try {
       const draft = await fetchDraft(petId, from, to, source === "ask" ? conversationId : "", null, purpose);
       setDocument(draft.document); setSourceEntryIds(draft.sourceEntryIds);
@@ -139,7 +139,7 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
   async function refreshRange(event: FormEvent) {
     event.preventDefault();
     if (!documentPetId || from > to || loading) return;
-    setLoading(true); setError("");
+    setLoading(true); setError(""); setStatus("");
     try {
       const draft = await fetchDraft(documentPetId, from, to, source === "ask" ? conversationId : "", document);
       setDocument(draft.document); setSourceEntryIds(draft.sourceEntryIds); setConfirmed(null);

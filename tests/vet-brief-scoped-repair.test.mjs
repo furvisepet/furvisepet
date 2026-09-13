@@ -51,3 +51,36 @@ test('a factual correction repairs repeated premises together and still requires
  }});
  assert.equal(reviews,2);assert.equal(result.value.document.visitSummary,replacement.visitSummary);
 });
+
+test('new repair regressions restore original sections only after a fresh whole-publication review',async()=>{
+ const first={...original,visitSummary:'Administration is not confirmed.',questionsForVeterinarian:['Why was no treatment given?']};
+ const repaired={...first,visitSummary:'Medication was administered.',questionsForVeterinarian:['What was actually administered?']};
+ for(const allowed of [true,false]){
+  let reviews=0;
+  const run=prepareReviewedVetBrief({
+   generate:async feedback=>({value:{document:structuredClone(feedback?repaired:first),sourceRecordIds:['same-source']}}),
+   reserveRecoveryReview:()=>true,
+   review:async document=>{
+    reviews++;
+    if(reviews===1)return {...pass,factsSupported:false,factualIssueCodes:['source_scope:questions'],repairSections:['questions'],repairInstructions:'Remove the unsupported premise.'};
+    if(reviews===2)return {...pass,factsSupported:false,factualIssueCodes:['medication_status:overview'],repairSections:['overview'],repairInstructions:'Do not claim administration.'};
+    assert.equal(document.visitSummary,first.visitSummary);assert.deepEqual(document.questionsForVeterinarian,repaired.questionsForVeterinarian);
+    return allowed?pass:{...pass,factsSupported:false,factualIssueCodes:['source_scope:questions'],repairSections:['questions'],repairInstructions:'Still unsupported.'};
+   }
+  });
+  if(allowed)assert.equal((await run).value.document.visitSummary,first.visitSummary);else await assert.rejects(run,{name:'FeatureValidationError'});
+  assert.equal(reviews,3);
+ }
+});
+
+test('section restoration cannot reuse initially rejected sections or exceed the shared recovery budget',async()=>{
+ for(const overlap of [false,true]){
+  let reviews=0;
+  await assert.rejects(prepareReviewedVetBrief({
+   generate:async feedback=>({value:{document:{...original,visitSummary:feedback?'new':'old'}}}),
+   reserveRecoveryReview:()=>false,
+   review:async()=>{reviews++;const section=reviews===1||overlap?'questions':'overview';return {...pass,factsSupported:false,factualIssueCodes:[`source_scope:${section}`],repairSections:[section],repairInstructions:'Correct the unsupported claim.'};},
+  }),{name:'FeatureValidationError'});
+  assert.equal(reviews,2);
+ }
+});

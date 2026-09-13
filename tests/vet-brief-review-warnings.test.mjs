@@ -87,7 +87,7 @@ test('overview-only failure may omit the optional synopsis only after repair and
   const source = { ...structuredClone(original), visitSummary: 'Unsupported global absence claim.' };
   const result = await prepareReviewedVetBrief({
     generate: async () => { generated++; return { value: { document: structuredClone(source), sourceRecordIds: ['unchanged-source'] } }; },
-    reserveOverviewReview: () => { reserved++; return true; },
+    reserveRecoveryReview: () => { reserved++; return true; },
     review: async document => {
       reviewed++;
       if (reviewed < 3) { assert.equal(document.visitSummary, source.visitSummary); return bad; }
@@ -117,7 +117,7 @@ test('overview omission cannot override missing material history, broader failur
     let reviews = 0;
     await assert.rejects(prepareReviewedVetBrief({
       generate: async () => ({ value: { document: { ...structuredClone(original), visitSummary: 'Only copy of a material clinical fact.' } } }),
-      reserveOverviewReview: () => options.budget !== false,
+      reserveRecoveryReview: () => options.budget !== false,
       review: async () => { reviews++; return reviews === 3 ? options.final : options.verdict; },
     }), { name: 'FeatureValidationError' });
     assert.equal(reviews, options.final ? 3 : 2);

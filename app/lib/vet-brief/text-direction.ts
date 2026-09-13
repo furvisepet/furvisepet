@@ -7,7 +7,7 @@ export function briefTextDirection(text: string): "ltr" | "rtl" {
 
 export function briefTextRuns(text: string) {
   const runs: Array<{ text: string; isolate: boolean }> = [];
-  const notation = /[A-Za-z0-9](?:[A-Za-z0-9._/:+\-\u2010-\u2015]*[A-Za-z0-9])?(?:[ \u00a0]+(?:mg\/dL|mmol\/L|g\/dL|mEq\/L|kg|mg|mcg|µg|mL|IU|%))?/gu;
+  const notation = /\b[A-Za-z]{3,9} [0-9]{1,2}, [0-9]{4}\b|[A-Za-z0-9](?:[A-Za-z0-9._/:+\-\u2010-\u2015]*[A-Za-z0-9])?(?:[ \u00a0]+(?:mg\/dL|mmol\/L|g\/dL|mEq\/L|kg|mg|mcg|µg|mL|IU|%))?/gu;
   let start = 0;
   for (const match of text.matchAll(notation)) {
     if (match.index > start) runs.push({ text: text.slice(start, match.index), isolate: false });

@@ -5,7 +5,7 @@ import test from 'node:test';
 import ts from 'typescript';
 import {prepareReviewedVetBrief} from '../app/lib/vet-brief/review.ts';
 
-function pipeline({planFailures=0,contentFailures=0,reviewFailures=0,semanticFailures=0,overviewFailures=0,presentationFailures=0,repairContentFails=false,historyUnavailable=false,failureKind='incomplete_output'}={}) {
+function pipeline({repairRegressions=false,planFailures=0,contentFailures=0,reviewFailures=0,semanticFailures=0,overviewFailures=0,presentationFailures=0,repairContentFails=false,historyUnavailable=false,failureKind='incomplete_output'}={}) {
  const calls=[], inputs=[];
  const document={visitSummary:'Overview',pet:{name:'Synthetic'},dateRange:{from:'2026-06-01',to:'2026-09-12'},missingInformation:[]};
  const plan={from:null,to:'2026-09-12',topics:[{label:'History',terms:['history']}],questionsToResolve:[]};
@@ -13,7 +13,7 @@ function pipeline({planFailures=0,contentFailures=0,reviewFailures=0,semanticFai
   './uncertainty-language.ts':{vetBriefUncertaintyLanguageInstructions:'Apply equal evidence standards in every language.'},
   'server-only':{},
   './publication-review.ts':{vetBriefPublicationReviewSchema:{},vetBriefDuplicationReviewInstructions:''},
-  '../ai/ask-reasoning':{generateStructuredFeatureResponse:async input=>{calls.push(input.schemaName);inputs.push(input);if(input.schemaName==='vet_brief_evidence_plan'){if(planFailures-->0)throw Error('incomplete');return plan;}if(input.schemaName==='vet_brief_content'){if(contentFailures-->0||(repairContentFails&&input.input.reviewRepair))throw Error('incomplete');return {document};}if(reviewFailures-->0)throw Error('incomplete');const overviewFailed=overviewFailures-->0;return {factsSupported:!overviewFailed&&semanticFailures--<=0,factualIssueCodes:overviewFailed?['source_scope:overview']:[],repairSections:['overview'],importantHistoryPreserved:true,categoriesAccurate:true,uncertaintyPreserved:true,noDuplication:true,questionsUseful:true,visitFocused:presentationFailures--<=0,repairInstructions:'Correct unsupported wording while keeping supported history.'};}},
+  '../ai/ask-reasoning':{generateStructuredFeatureResponse:async input=>{calls.push(input.schemaName);inputs.push(input);if(input.schemaName==='vet_brief_evidence_plan'){if(planFailures-->0)throw Error('incomplete');return plan;}if(input.schemaName==='vet_brief_content'){if(contentFailures-->0||(repairContentFails&&input.input.reviewRepair))throw Error('incomplete');return {document:repairRegressions&&input.input.reviewRepair?{...document,visitSummary:"Drift"}:document};}if(reviewFailures-->0)throw Error('incomplete');const reviewNumber=calls.filter(c=>c==='vet_brief_review').length;const regressionSection=repairRegressions&&reviewNumber<3?(reviewNumber===1?'questions':'overview'):null;const overviewFailed=overviewFailures-->0;return {factsSupported:!regressionSection&&!overviewFailed&&semanticFailures--<=0,factualIssueCodes:regressionSection?[`source_scope:${regressionSection}`]:overviewFailed?['source_scope:overview']:[],repairSections:regressionSection?[regressionSection]:['overview'],importantHistoryPreserved:true,categoriesAccurate:true,uncertaintyPreserved:true,noDuplication:true,questionsUseful:true,visitFocused:presentationFailures--<=0,repairInstructions:'Correct unsupported wording while keeping supported history.'};}},
   '../intelligence/feature-failure.ts':{featureFailureDetails:()=>({failureKind})},
   '../intelligence/feature-modes.ts':{getIntelligenceFeatureMode:()=>({promptInstructions:[]})},
   '../intelligence/history-retrieval.ts':{retrieveAskHistory:async c=>({...c,askHistory:{entries:[],coverage:{retrieval:'unknown',corrections:historyUnavailable?'unavailable':'unknown',reasons:[]}}})},
@@ -118,3 +118,9 @@ test('timeout recovery and targeted edits reduce reasoning effort without skippi
   assert.equal(p.calls.at(-1),'vet_brief_review');
  }
 });
+
+ test('production section restoration shares the sixth call with structural retries',async()=>{
+ const p=pipeline({repairRegressions:true});await p.run();assert.equal(p.calls.length,6);assert.equal(p.calls.at(-1),'vet_brief_review');
+ assert.ok(p.inputs.reduce((n,input)=>n+input.timeoutMs,0)<=245000);
+ const consumed=pipeline({repairRegressions:true,planFailures:1});await assert.rejects(consumed.run(),{name:'FeatureValidationError'});assert.equal(consumed.calls.length,6);
+ });
