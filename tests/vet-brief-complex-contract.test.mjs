@@ -113,3 +113,9 @@ test('generated dates cannot be silently normalized from timestamps or invalid d
  const input=raw(); input.content.events[0].date='2026-09-12';
  assert.equal(parseVetBriefContent(input,baseline,['verified']).document.concernTimeline[0].date,'2026-09-12');
 });
+
+test('publication diagnostics expose only allowlisted fact kinds and sections',()=>{
+ const review={factsSupported:false,importantHistoryPreserved:true,categoriesAccurate:true,uncertaintyPreserved:true,noDuplication:true,questionsUseful:true,visitFocused:true,repairInstructions:'Keep prescription separate from administration.',duplicatePairs:[],factualIssues:[{kind:'medication_status',section:'reason'}]};
+ assert.deepEqual(parseVetBriefPublicationReview(review,baseline).factualIssueCodes,['medication_status:reason']);
+ assert.equal(parseVetBriefPublicationReview({...review,factualIssues:[{kind:'patient text',section:'reason'}]},baseline),null);
+});
