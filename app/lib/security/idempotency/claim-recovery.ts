@@ -2,6 +2,9 @@ type Failure = { code?: unknown; status?: unknown; name?: unknown; message?: unk
 export function transientClaimFailure(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
   const e = error as Failure;
+  // A definitive client/auth/permission refusal takes priority over ambiguous
+  // transport wording. Retrying it cannot repair the same authorized request.
+  if (Number(e.status) >= 400 && Number(e.status) < 500) return false;
   // PostgREST group 0 represents database connection/pool availability. Its
   // errors often omit HTTP status in the client error object. A bounded replay
   // is safe only at the read/idempotent admission callers of this classifier.

@@ -7,7 +7,7 @@ import { isOwnerAssertedEvidence } from "./owner-assertion.ts";
 import { evidenceRemovalCost } from "../intelligence/evidence-need-coverage.ts";
 import { withProviderDeadline } from "./execution-deadline.ts";
 import { recoveryUpdateTitle, stripKnownHistoryCitations } from "../furvise-output.ts";
-import { companionVoiceInstructions, FURVISE_SHARED_PROMPT_RULES } from "../furvise-voice.ts";
+import { companionVoiceInstructions, concernVoiceInstructions, FURVISE_SHARED_PROMPT_RULES } from "../furvise-voice.ts";
 import { historicalReadInstructions, historicalReadSchema, canonicalHistoricalRead } from "../intelligence/historical-read-response.ts";
 import { deterministicReadProjection } from "../intelligence/read-projection.ts";
 import { requestReferenceContext } from "../intelligence/request-reference-context.ts";
@@ -1317,7 +1317,7 @@ export function buildAskProviderRequest(promptContext: object) {
   // Legacy instructions already contain the full voice guidance. Add the
   // shared voice only to v2 paths that use their own task instructions.
   const requestInstructions = dedicatedRead || !evidence?.interpretation?.request
-    ? taskInstructions : taskInstructions + "\n" + companionVoiceInstructions;
+    ? taskInstructions : taskInstructions + "\n" + companionVoiceInstructions + "\n" + concernVoiceInstructions;
   const currentRequestSources = !conversationOnly && evidence?.scope?.readOnlyRecall === false ? eligibleAnswerSources(evidence).filter(source => source.sourceType === "current_request") : [];
   const lookupEvidence = !conversationOnly && evidence?.interpretation?.request?.evidenceNeeds?.length ? eligibleAnswerSources(evidence).filter(source => source.sourceType === "lookup_receipt") : [];
   let transported = conversationOnly ? conversationPromptContext(promptContext) : currentRequestSources.length
