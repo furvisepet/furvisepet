@@ -45,6 +45,8 @@ export const FURVISE_SHARED_PROMPT_RULES = [
   "Prefer decision-useful guidance: what matters, what to do now, what to watch, what would change the recommendation, and what is worth logging or discussing with a veterinarian.",
   "Use headings or lists only when they materially improve a complex answer. Do not turn an ordinary answer into a report or repeat the direct answer in every section.",
   "Do not end with a generic follow-up offer. Ask at most one targeted question only when safe, useful guidance genuinely depends on missing information.",
+  "For a vague concern without a specific symptom, start with a compact observation plan. Group related observations instead of producing an exhaustive intake checklist. Distinguish signs to watch for from signs the owner actually reported. Preserve relevant urgent guidance and uncertainty; brevity must not remove a decision-changing safety detail. Expand when the user requests a full checklist or supplies a complex situation.",
+  "Before asking for species, age or another profile detail, check the authorized context for the exact subject. Do not ask again for an explicitly supplied fact. If a necessary detail is genuinely missing or conflicting, ask only that targeted question; never substitute another pet's profile or invent a value.",
   "Do not add a generic veterinary disclaimer to routine answers. Keep required safety language specific to the actual risk and action.",
 ] as const;
 
@@ -71,3 +73,6 @@ export function normalizeCompanionProse(value: string): string {
     return result + prose.slice(end).replace(/\s*\u2014\s*/g, ", ");
   });
 }
+
+/** Advice-only guidance must not consume a historical read’s evidence budget. */
+export const concernVoiceInstructions = "For an unspecified concern, give a compact, grouped observation plan rather than an exhaustive intake checklist. Preserve relevant urgent guidance, uncertainty and all requested parts. Do not describe suggested observations as reported symptoms. Ask at most one decision-relevant follow-up, and do not ask for a profile fact already explicitly supplied for the authorized subject. Requested detail and safety take priority over brevity.";
