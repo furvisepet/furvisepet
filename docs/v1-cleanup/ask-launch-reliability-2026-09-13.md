@@ -25,3 +25,7 @@ Regression evidence: the old implementation fails the dense-history reproduction
 Production 796a33ebe507807578043beac5a623f056e02d19, deployment dpl_4entoyEiowdrjipYFaJ6PwP7hkc9. Four prior failure cases passed first attempt through the app today: multi-pet JSON; Spanish two-date Mochi recall; Rowan breakfast sum/mean; Sable episode start/stop and day differences. These are baseline retests, not the final deployed acceptance score.
 
 Budget: only targeted live calls; no broad model sweep. Provider cost will be reported from usage reconciliation. No guarantee of all possible requests, medical/research certification, or unlimited history coverage is claimed.
+
+## Oversized input handling
+
+Ask retains its existing 1,200-character API allowance. The composer previously accepted larger drafts and then surfaced a misleading empty-message failure. It now displays the allowance, preserves the entire pasted draft, blocks oversized submission before allocating a turn, and gives a clear edit instruction. Direct API clients receive an accurate length error. A regression exercises the actual client submission function: oversized input makes no request or turn; exactly 1,200 characters, including a final no-save instruction, reaches the request unchanged.

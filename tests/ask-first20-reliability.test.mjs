@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import test from 'node:test';
 import ts from 'typescript';
-import { ASK_CLIENT_TIMEOUT_MS } from '../app/lib/ai/ask-execution-limits.ts';
+import { ASK_CLIENT_TIMEOUT_MS, ASK_MAX_QUESTION_CHARACTERS } from '../app/lib/ai/ask-execution-limits.ts';
 import { planDeterministicAskCommand } from '../app/lib/ai/ask-command-router.ts';
 import { classifyFurviseCapabilityQuestion, buildFurviseCapabilityResponse } from '../app/lib/ai/ask-internal-product-policy.ts';
 
@@ -221,7 +221,7 @@ function failedSubmitHarness({refreshFails=false,requestFailure='http'}={}) {
     setAskRequestActive:v=>state.active=v,setRequestPhase:v=>state.phase=v,setFailedRequest:v=>state.failed=v,
     setError:noop,setPersistenceWarning:noop,setStatus:noop,setQuestion:noop,
     setThread:updater=>state.thread=updater(state.thread),trackAskEvent:noop,
-    ASK_CLIENT_TIMEOUT_MS,AbortSignal:{timeout:()=>({})},getBrowserSupabase:()=>({auth:{}}),
+    ASK_CLIENT_TIMEOUT_MS,ASK_MAX_QUESTION_CHARACTERS,AbortSignal:{timeout:()=>({})},getBrowserSupabase:()=>({auth:{}}),
     requestAskWithSession:(_auth,send)=>send('token'),
     idempotentClientFetch:async(_url,options,scope,id)=>{
       state.requests.push({payload:JSON.parse(options.body),scope,id});
@@ -265,4 +265,15 @@ test('a failed sidebar refresh preserves the original failure and unlocks retry'
   assert.equal(h.state.failed.retryAfterSeconds,4);
   assert.equal(h.state.phase,'failed');assert.equal(h.state.active,false);assert.equal(h.activeRef.current,false);
   assert.equal(h.state.failed.payload.message,'Save my question');
+});
+
+test('oversized Ask drafts do not submit, allocate a turn, or clear the composer; exact boundary stays intact',async()=>{
+ const h=failedSubmitHarness();
+ await h.run('x'.repeat(ASK_MAX_QUESTION_CHARACTERS+1),'composer');
+ assert.equal(h.state.requests.length,0);assert.equal(h.state.thread.length,0);
+ assert.equal(h.state.active,false);assert.equal(h.state.phase,'idle');assert.equal(h.state.refreshes,0);
+ const tail=' Do not save anything.';
+ const boundary='x'.repeat(ASK_MAX_QUESTION_CHARACTERS-tail.length)+tail;
+ await h.run(boundary,'composer');
+ assert.equal(h.state.requests.length,1);assert.equal(h.state.requests[0].payload.message,boundary);
 });

@@ -27,7 +27,8 @@ test("critical request bodies, UUIDs, arrays, dates, and text are bounded", () =
   assert.match(boundary, /ask: 64 \* 1024/);
   assert.match(boundary, /conversation: 384 \* 1024/);
   assert.match(boundary, /bytesRead > maxBytes/);
-  assert.match(ask, /question\.length > 1200/);
+  assert.match(ask, /question\.length > ASK_MAX_QUESTION_CHARACTERS/);
+  assert.match(read("app/lib/ai/ask-execution-limits.ts"), /ASK_MAX_QUESTION_CHARACTERS = 1200/);
   assert.match(ask, /hasOnlyKeys\(rawBody/);
   assert.match(vetDraft, /MAX_VET_BRIEF_RANGE_DAYS = 36_600/);
   assert.match(vetDraft, /MAX_REASON_FOR_VISIT_LENGTH = 12_000/);
