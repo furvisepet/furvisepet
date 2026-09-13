@@ -101,7 +101,7 @@ export async function getMonthlyAiUsage({
     .eq("user_id", userId)
     .eq("period_start", periodStart)
     .eq("status", "completed")
-    .neq("feature", "ask")
+    .not("feature", "in", "(ask,vet_brief)")
     .returns<Array<{ credits_used: number }>>();
   if (error) throw new AiCreditLedgerError("usage_read_failed", error, AI_USAGE_EVENTS_TABLE, "select");
   return (data || []).reduce((total, event) => total + Math.max(0, event.credits_used || 0), 0);
@@ -121,6 +121,7 @@ export async function getRemainingAiCredits({
   userId: string;
 }): Promise<AiCreditStatus> {
   if (feature === "ask") return getAskAllowanceStatus({ supabase });
+  if (feature === "vet_brief") return getVetBriefAllowanceStatus({ supabase });
   const limit = getMonthlyAiAllowance(userId, planId, monthlyAiCredits);
   const count = await getMonthlyAiUsage({ supabase, userId });
   const remaining = Math.max(0, limit - count);
@@ -151,6 +152,18 @@ export async function getAskAllowanceStatus({ supabase }: { supabase: SupabaseCl
     resetAt: row.period_end,
     subscriptionStatus: typeof row.subscription_status === "string" ? row.subscription_status : "none",
   };
+}
+
+export async function getVetBriefAllowanceStatus({ supabase }: { supabase: SupabaseClient }): Promise<AiCreditStatus> {
+  const { data, error } = await supabase.rpc("get_my_vet_brief_allowance_status");
+  const row = (Array.isArray(data) ? data[0] : data) as AskAllowanceRpcRow | null;
+  if (error || !row || !nonNegativeInteger(row.allowance) || !nonNegativeInteger(row.used)
+    || !nonNegativeInteger(row.remaining) || !["free", "plus"].includes(row.effective_plan || "")
+    || typeof row.period_start !== "string" || typeof row.period_end !== "string") {
+    throw new AiCreditLedgerError("usage_read_failed", error || new Error("INVALID_VET_BRIEF_ALLOWANCE_RESPONSE"), "get_my_vet_brief_allowance_status", "rpc");
+  }
+  return { allowed: row.remaining > 0, count: row.used, limit: row.allowance, remaining: row.remaining,
+    monthKey: row.period_start, resetAt: row.period_end, planId: row.effective_plan === "plus" ? "plus" : "free" };
 }
 
 export async function reserveAiCredit({

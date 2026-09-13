@@ -8,14 +8,14 @@ test("Membership promises only current plan limits and one shared-quality clarif
   assert.match(membership, /FREE_ASK_ALLOWANCE/);
   assert.match(membership, /PLUS_ASK_ALLOWANCE/);
   assert.match(membership, /"1 pet"/);
-  assert.match(membership, /Up to 10 pets/);
-  assert.match(membership, /Plus gives you more room to use Furvise\. It does not change Furvise&apos;s safety standards\./);
+  assert.match(membership, /PLAN_CAPABILITIES\.plus\.maxPets/);
+  assert.match(membership, /failed preparation does not/);
 });
 
 test("plan features appear once in consumer pricing cards", () => {
   assert.match(membership, /aria-label="Furvise membership plans"/);
   assert.match(membership, /"Care history"/);
-  assert.match(membership, /PLAN_CAPABILITIES\.plus\.vetPrepExports \? \["Vet Brief"\]/);
+  assert.match(membership, /PLUS_VET_BRIEF_ALLOWANCE/);
   assert.doesNotMatch(membership, /Compare plans|Care history and tracking|same reasoning and safety standards/i);
 });
 

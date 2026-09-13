@@ -22,7 +22,7 @@ test("checkout creation uses durable user/product single-flight authority", () =
   assert.doesNotMatch(route, /furvise_checkout_\$\{gate\.operation\.key\}/);
   assert.match(route, /CHECKOUT_IN_PROGRESS/);
   assert.match(route, /CHECKOUT_PROCESSING/);
-  assert.match(route, /checkout\.sessions\.retrieve\(singleFlight\.stripe_checkout_session_id\)/);
+  assert.match(route, /checkout\.sessions\.retrieve\(singleFlight\.stripe_checkout_session_id,/);
   assert.doesNotMatch(route, /\bexpires_at\s*:/);
 });
 

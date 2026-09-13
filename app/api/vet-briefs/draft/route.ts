@@ -156,7 +156,7 @@ export async function POST(request: Request) {
       return Response.json({ code: "AI_REQUEST_RELEASED", error: "The previous attempt ended without a charge. Prepare the brief with a new request." }, { status: 409 });
     }
     if (error instanceof AiCreditLimitReachedError) {
-      return Response.json({ error: "You've used all of your AI guidance for this month.", limitReached: true }, { status: 402 });
+      return Response.json({ error: "You've used your Vet Brief generations for this period. You can still reopen and download saved briefs.", limitReached: true }, { status: 402 });
     }
     logIntelligenceEvent("vet brief generation failed", { feature: "vet_brief", petId, requestId, ...featureFailureDetails(error) });
     return Response.json({ code: "VET_BRIEF_PREPARATION_FAILED", error: "The Vet Visit Brief could not be prepared right now. Try again in a moment." }, { status: 503 });

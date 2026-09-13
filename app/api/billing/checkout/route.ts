@@ -8,7 +8,7 @@ import {
   resetPlusCheckoutSingleFlight,
 } from "../../../lib/billing/billing-admin";
 import { resolveBillingPresentation } from "../../../lib/billing/billing-market";
-import { getPlusPriceId, isTerminalStripeSubscriptionStatus } from "../../../lib/billing/launch-plans";
+import { getPlusPriceId, isPlusCheckoutPrice, isTerminalStripeSubscriptionStatus } from "../../../lib/billing/launch-plans";
 import { resolveEffectiveEntitlements } from "../../../lib/billing/entitlements";
 import { getStripeServerClient } from "../../../lib/billing/stripe-server";
 import { createOperationsAdminClient } from "../../../lib/operations/admin-client";
@@ -37,6 +37,8 @@ export async function POST(request: Request) {
 
       const priceId = getPlusPriceId(process.env);
       const stripe = getStripeServerClient();
+      const price = await stripe.prices.retrieve(priceId, { expand: ["currency_options"] });
+      if (!isPlusCheckoutPrice(price)) return billingError("STRIPE_PRICE_CONFIGURATION_MISMATCH", "Secure checkout is temporarily unavailable. Please try again later.", 503);
       const admin = createOperationsAdminClient();
       const account = await getBillingAccountForUser(admin, context.userId);
       let customerId = account?.stripe_customer_id || "";
@@ -84,14 +86,19 @@ export async function POST(request: Request) {
           if (!singleFlight.stripe_checkout_session_id) throw new Error("CHECKOUT_SINGLE_FLIGHT_SESSION_MISSING");
           let existingSession;
           try {
-            existingSession = await stripe.checkout.sessions.retrieve(singleFlight.stripe_checkout_session_id);
+            existingSession = await stripe.checkout.sessions.retrieve(singleFlight.stripe_checkout_session_id, { expand: ["line_items"] });
           } catch {
             // Do not clear durable state on an ambiguous Stripe read failure. A
             // blind reset could create a second live Checkout Session.
             return billingRetry("CHECKOUT_RECONCILING", "Secure checkout is being reconciled. Try again in a moment.", 2);
           }
           if (existingSession.status === "open" && existingSession.url) {
-            return Response.json({ url: existingSession.url }, { headers: PRIVATE_CACHE_HEADERS });
+            if (existingSession.line_items?.data.length === 1 && existingSession.line_items.data[0].price?.id === priceId) {
+              return Response.json({ url: existingSession.url }, { headers: PRIVATE_CACHE_HEADERS });
+            }
+            // Expire the old offer before clearing its single-flight reservation.
+            // An ambiguous failure leaves the durable reservation intact.
+            existingSession = await stripe.checkout.sessions.expire(existingSession.id);
           }
           if (existingSession.status === "complete") {
             const subscriptionId = typeof existingSession.subscription === "string"

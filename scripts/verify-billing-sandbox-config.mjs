@@ -4,6 +4,7 @@ import Stripe from "stripe";
 const PRODUCTION_SUPABASE_HOST_SUFFIX = ".supabase.co";
 const LOCAL_SUPABASE_HOSTS = new Set(["127.0.0.1", "localhost", "host.docker.internal"]);
 const REQUIRED_BILLING_MIGRATIONS = [
+  "add_vet_brief_monthly_allowance",
   "security_compatibility_contract_v2",
   "add_billing_checkout_single_flight",
   "align_billing_checkout_currency_authority",
@@ -32,7 +33,7 @@ function safeHost(value, code) {
 async function main() {
   const stripeSecretKey = required("STRIPE_SECRET_KEY");
   const webhookSecret = required("STRIPE_WEBHOOK_SECRET");
-  const priceId = required("STRIPE_PLUS_PRICE_ID");
+  const priceId = process.env.STRIPE_PLUS_NEW_PRICE_ID?.trim() || required("STRIPE_PLUS_PRICE_ID");
   const supabaseUrl = required("NEXT_PUBLIC_SUPABASE_URL");
   const supabaseSecretKey = required("SUPABASE_SECRET_KEY");
   const displayMarket = required("FURVISE_BILLING_DISPLAY_MARKET").toUpperCase();
@@ -91,8 +92,8 @@ async function main() {
 
   const cad = price.currency_options?.cad;
   const usd = price.currency_options?.usd;
-  assert(cad?.unit_amount === 549, "BILLING_SANDBOX_CAD_PRICE_NOT_549");
-  assert(usd?.unit_amount === 549, "BILLING_SANDBOX_USD_PRICE_NOT_549");
+  assert(cad?.unit_amount === 848, "BILLING_SANDBOX_CAD_PRICE_NOT_848");
+  assert(usd?.unit_amount === 848, "BILLING_SANDBOX_USD_PRICE_NOT_848");
 
   const product = typeof price.product === "string" ? await stripe.products.retrieve(price.product) : price.product;
   assert(product && !product.deleted, "BILLING_SANDBOX_PRODUCT_MISSING");
@@ -103,8 +104,8 @@ async function main() {
   console.log("PASS billing sandbox configuration");
   console.log(`- Stripe mode: test`);
   console.log(`- Plus price: ${price.id}`);
-  console.log(`- CAD: 5.49/month`);
-  console.log(`- USD: 5.49/month`);
+  console.log(`- CAD: 8.48/month`);
+  console.log(`- USD: 8.48/month`);
   console.log(`- Billing display market: ${displayMarket}`);
   console.log(`- Supabase: local (${supabaseHost})`);
   console.log("- Supabase admin authority: verified");
