@@ -47,6 +47,7 @@ export type VetBriefDocument = {
   reportedPatterns: string[];
   questionsForVeterinarian: string[];
   missingInformation: string[];
+  historyCoverage?: string[];
   ownerNotes: string;
   excludedSections: VetBriefSectionId[];
   includePetPhoto: boolean;

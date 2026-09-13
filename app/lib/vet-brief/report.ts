@@ -32,12 +32,13 @@ export function vetBriefReport(document: VetBriefDocument): BriefReportSection[]
     add("food", "Reported food changes", document.foodChanges);
     add("products", "Recorded products", document.productsUsed);
   }
-  if (included("care-history")) add("history", "Supporting care history", [...document.relevantCareHistory].sort(byDate));
   if (included("questions")) add("questions", "Questions to discuss", document.questionsForVeterinarian.map(text => ({ text })));
   if (included("owner-notes")) add("notes", "Owner additions", [{ text: document.ownerNotes }]);
   const gaps = [...document.missingInformation];
   if (included("visit-reason") && (!document.reasonForVisit || document.reasonForVisit === "Not recorded")) gaps.unshift("Reason for visit not provided");
   add("gaps", "Not established in the available records", [...new Set(gaps)].map(text => ({ text })));
+  if (included("care-history")) add("history", "Supporting care history", [...document.relevantCareHistory].sort(byDate));
+  add("coverage", "History reviewed", (document.historyCoverage || []).map(text => ({ text })));
   return sections;
 }
 
@@ -59,8 +60,13 @@ function byDate(a: { date: string }, b: { date: string }) {
   return (a.date === "Date unknown" ? "9999" : a.date).localeCompare(b.date === "Date unknown" ? "9999" : b.date);
 }
 
+export function vetBriefProfileWeight(document: VetBriefDocument) {
+  return document.pet.weight && document.pet.weight !== "Not recorded"
+    ? `Profile weight (date not recorded): ${document.pet.weight}` : "";
+}
+
 export function vetBriefText(document: VetBriefDocument) {
-  return [document.title, `${document.pet.name} | ${document.pet.species} | ${document.pet.breed} | Age: ${document.pet.age} | Profile weight: ${document.pet.weight}`,
+  return [document.title, `${document.pet.name} | ${document.pet.species} | ${document.pet.breed} | Age: ${document.pet.age} ${vetBriefProfileWeight(document) ? ` | ${vetBriefProfileWeight(document)}` : ""}`,
     `Selected records: ${document.dateRange.from} to ${document.dateRange.to}. This is a preparation summary, not a complete medical record.`,
     ...vetBriefReport(document).map(section => `${section.title}\n${section.items.map(item => `${item.date ? `${item.date}: ` : ""}${item.category ? `${item.category} · ` : ""}${item.text}`).join("\n")}`), document.disclaimer].join("\n\n");
 }

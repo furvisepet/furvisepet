@@ -30,7 +30,7 @@ test("critical request bodies, UUIDs, arrays, dates, and text are bounded", () =
   assert.match(ask, /question\.length > 1200/);
   assert.match(ask, /hasOnlyKeys\(rawBody/);
   assert.match(vetDraft, /MAX_VET_BRIEF_RANGE_DAYS = 36_600/);
-  assert.match(vetDraft, /MAX_REASON_FOR_VISIT_LENGTH = 1_200/);
+  assert.match(vetDraft, /MAX_REASON_FOR_VISIT_LENGTH = 12_000/);
   assert.match(vetSave, /filter\(isUuid\)\.slice\(0, 300\)/);
   for (const path of ["app/api/ask/conversations/route.ts", "app/api/ask/conversations/[id]/route.ts", "app/api/ask/conversations/[id]/messages/route.ts"]) {
     const source = read(path);

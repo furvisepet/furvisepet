@@ -15,7 +15,7 @@ import { trackAskEvent } from "../lib/ask-analytics";
 import { useRequireConfirmedSupabaseAuth } from "../lib/auth-session";
 import { getBrowserSupabase } from "../lib/supabase";
 import { vetBriefSessionToken } from "../lib/vet-brief/session";
-import { isTerminalVetBriefFailure } from "../lib/vet-brief/request";
+import { isTerminalVetBriefFailure, MAX_VET_BRIEF_REASON_LENGTH } from "../lib/vet-brief/request";
 import { clearClientMutationKey, getOrCreateClientMutationKey, idempotentClientFetch } from "../lib/security/idempotency/client";
 import { getVetBriefFilename, parseVetBriefDocument } from "../lib/vet-brief/schema";
 import type { VetBriefDatedItem, VetBriefDocument, VetBriefHistoryItem, VetBriefRecord, VetBriefSectionId } from "../lib/vet-brief/types";
@@ -114,6 +114,7 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
   async function prepareBrief(event: FormEvent) {
     event.preventDefault();
     if (!purpose.trim() || loading) return;
+    if (purpose.trim().length > MAX_VET_BRIEF_REASON_LENGTH) { setError("Keep the appointment note within 12,000 characters. Your text has not been submitted."); return; }
     setLoading(true); setError("");
     try {
       const draft = await fetchDraft(petId, from, to, source === "ask" ? conversationId : "", null, purpose);
@@ -217,14 +218,14 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
   return <AppPage layout="workspace"><div className="w-full pb-36">
     <PageHeader eyebrow={<Link href={askReturnHref}>Back to Ask</Link>} title={retrospective ? "Care history summary" : "Vet brief"} supportingText={retrospective ? "Your pet’s recorded care, organised for review." : "The important history. The right questions. Ready for your appointment."} actions={<WorkflowDocumentStatus status={documentStatus} />} />
     {document && !loading ? <div aria-label="Choose review or preview" className="mt-6 flex items-center justify-between border-b border-[var(--pw-border)] pb-4"><p className="text-sm text-[var(--pw-muted)]">{mode === "preview" ? "Read through once. Edit only what needs changing." : "Open a section to make changes."}</p><button className={secondaryButton} onClick={() => setMode(mode === "preview" ? "review" : "preview")} type="button">{mode === "preview" ? "Edit details" : "Read brief"}</button></div> : null}
-    {immediateUrgency ? <div role="alert" className="mt-6 rounded-xl border border-[var(--pw-warning-border)] bg-[var(--pw-surface)] p-5 text-[var(--pw-warning-text)]"><h2 className="font-semibold">Care should not wait</h2><p className="mt-2">{vetBriefUrgencyText(immediateUrgency)}</p></div> : null}
+    {immediateUrgency && (!document || loading || mode === "review") ? <div role="alert" className="mt-6 rounded-xl border border-[var(--pw-warning-border)] bg-[var(--pw-surface)] p-5 text-[var(--pw-warning-text)]"><h2 className="font-semibold">Care should not wait</h2><p className="mt-2">{vetBriefUrgencyText(immediateUrgency)}</p></div> : null}
     {error ? <Status text={error} tone="warn" /> : null}{status ? <Status text={status} /> : null}
 
 
     {needsPurpose && !document && !loading ? <form className="mt-10 space-y-6" onSubmit={prepareBrief}>
-      <div><h2 className="app-section-title">What is the appointment for?</h2><p className="mt-3 leading-7 text-[var(--pw-muted)]">A concern, a follow-up, or a routine checkup. Furvise will use saved history to prepare your brief.</p><TextArea label="Reason for the appointment" onChange={setPurpose} value={purpose} /></div>
+      <div><h2 className="app-section-title">What is the appointment for?</h2><p className="mt-3 leading-7 text-[var(--pw-muted)]">A concern, a follow-up, or a routine checkup. Furvise will use saved history to prepare your brief.</p><TextArea label="Reason for the appointment" onChange={setPurpose} value={purpose} /><p aria-live="polite" className={`mt-2 text-sm ${purpose.trim().length > MAX_VET_BRIEF_REASON_LENGTH ? "text-[var(--pw-warning-text)]" : "text-[var(--pw-muted)]"}`}>{purpose.trim().length.toLocaleString()} / 12,000 characters · Include concerns, timing, and anything you want the vet to review.</p></div>
       <details className="border-y border-[var(--pw-border)] py-4"><summary className="cursor-pointer font-semibold">Choose history dates</summary><p className="mt-3 text-sm text-[var(--pw-muted)]">These dates guide the review. Furvise also searches earlier background when your appointment needs it.</p><div className="mt-4 grid grid-cols-2 gap-4"><DateField label="From" onChange={setFrom} value={from} /><DateField label="To" onChange={setTo} value={to} /></div></details>
-      <button className={primaryButtonCompact} disabled={loading || !purpose.trim() || from > to} type="submit">{loading ? "Preparing your brief…" : "Prepare my brief"}</button>
+      <button className={primaryButtonCompact} disabled={loading || !purpose.trim() || purpose.trim().length > MAX_VET_BRIEF_REASON_LENGTH || from > to} type="submit">{loading ? "Preparing your brief…" : "Prepare my brief"}</button>
     </form> : null}
     {loading ? <VetBriefLoading preparing={Boolean(purpose || document)} /> : document ? <div className="mt-7 min-w-0">
       <section aria-label="Edit Vet Visit Brief" className={`${mode === "review" ? "block" : "hidden"} min-w-0`}>

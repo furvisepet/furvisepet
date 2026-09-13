@@ -1,5 +1,5 @@
 import type { VetBriefDocument } from "../lib/vet-brief/types";
-import { vetBriefReport } from "../lib/vet-brief/report";
+import { vetBriefReport, vetBriefProfileWeight } from "../lib/vet-brief/report";
 import { BrandMark } from "./brand-mark";
 
 export function VetBriefDocumentView({ document, version }: { document: VetBriefDocument; version?: number }) {
@@ -10,7 +10,7 @@ export function VetBriefDocumentView({ document, version }: { document: VetBrief
         <div className="flex flex-wrap items-center justify-between gap-4"><BrandMark size={32} /><p className="text-xs text-[var(--pw-document-muted)]">Appointment preparation{version ? ` · Version ${version}` : " · Draft"}</p></div>
         <h1 className="mt-6 text-2xl font-semibold tracking-tight sm:text-3xl">{document.title}</h1>
         <p className="mt-2 text-base">{[document.pet.name, document.pet.species, document.pet.breed, document.pet.age].filter(value => value && value !== "Not recorded").join(" · ")}</p>
-        <p className="mt-2 text-sm">Profile weight: {document.pet.weight}</p>
+        {vetBriefProfileWeight(document) ? <p className="mt-2 text-sm">{vetBriefProfileWeight(document)}</p> : null}
         <p className="mt-3 text-xs leading-5 text-[var(--pw-document-muted)]">Prepared {formatDate(document.generatedAt.slice(0, 10))}. Selected records: {formatDate(document.dateRange.from)}–{formatDate(document.dateRange.to)}.<br />Owner-recorded history; this is not a complete medical record.</p>
       </header>
       {sections.map(section => <section className={`border-b border-[var(--pw-border)] py-5 ${section.id === "overview" ? "border-l-2 border-l-[var(--pw-document-brand)] pl-4" : ""}`} key={section.id}>

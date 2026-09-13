@@ -110,7 +110,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   // Vet Brief always reviews history through its already bounded as-of date.
   const futureSourceRequested = !vetBriefRead && (/\b(?:future[- ]dated|tomorrow)\b/i.test(context.currentMessage)
     || namedDays.some(day => Date.parse(day) > asOf));
-  const deadline = asOf + HISTORY_BUDGET.timeMs;
+  const deadline = asOf + (vetBriefRead ? 15_000 : HISTORY_BUDGET.timeMs);
   const owned = new Set(context.eligiblePets.filter(pet => pet.user_id === context.owner.userId).map(pet => pet.id));
   const ids = [...new Set(petIds)].filter(id => owned.has(id)).sort();
   const coverage: HistoryCoverage = { plan, candidateIds: [], queryCount: 0, retrieval: "unknown", corrections: "unknown", extraction: "unknown", grouping: "unknown",
@@ -133,7 +133,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   // lookups. Supplemental discovery must not expand the graph/input budgets.
   const correctionReserve = plan.from || namedDays.length ? 12 : 0;
   const rowsPerPet = Math.floor((HISTORY_BUDGET.candidateRows - correctionReserve) / Math.max(1, Math.min(ids.length, HISTORY_BUDGET.pets)));
-  const pagesPerPet = Math.min(vetBriefRead ? Math.min(12, vetBriefRead.termGroups.length + 6) : HISTORY_BUDGET.pagesPerPet, Math.floor(HISTORY_BUDGET.totalPages / Math.max(1, Math.min(ids.length, HISTORY_BUDGET.pets))));
+  const pagesPerPet = Math.min(vetBriefRead ? HISTORY_BUDGET.totalPages - HISTORY_BUDGET.graphCalls : HISTORY_BUDGET.pagesPerPet, Math.floor(HISTORY_BUDGET.totalPages / Math.max(1, Math.min(ids.length, HISTORY_BUDGET.pets))));
   for (const petId of ids.slice(0, HISTORY_BUDGET.pets)) {
     let failed = false; let pages = 0; let exhausted = true;
     const collected: CareEntryRow[] = [];
@@ -183,7 +183,11 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
       // Empty and overlapping strategies return unused capacity to the remaining
       // searches. Total distinct candidates and page limits stay unchanged.
       const directionRows = Math.floor((rowsPerPet - priorIds.size) / (strategies.length - strategyIndex));
-      const directionPages = Math.floor(pagesPerPet / strategies.length);
+      const directionPages = Math.floor((pagesPerPet - pages) / (strategies.length - strategyIndex));
+      if (directionPages < 1 || directionRows < 1) {
+        exhausted = false;
+        coverage.reasons.push("history_query_budget");
+      }
       try {
         for (let attempt = 0; attempt < directionPages && !traversalExhausted && rows.length < directionRows; attempt++) {
           pages++;

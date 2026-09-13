@@ -25,7 +25,7 @@ import { addVetBriefCoverage } from "../../../lib/vet-brief/review";
 export const maxDuration = 300;
 
 const MAX_VET_BRIEF_RANGE_DAYS = 36_600;
-const MAX_REASON_FOR_VISIT_LENGTH = 1_200;
+const MAX_REASON_FOR_VISIT_LENGTH = 12_000;
 
 export async function GET(request: Request) {
   const auth = await getVetBriefRequestContext(request);
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
   }
 
   const reasonForVisit = typeof body?.reasonForVisit === "string" ? body.reasonForVisit.trim() : "";
-  if (reasonForVisit.length > MAX_REASON_FOR_VISIT_LENGTH) return Response.json({ error: "Keep the visit note under 1,200 characters." }, { status: 400 });
+  if (reasonForVisit.length > MAX_REASON_FOR_VISIT_LENGTH) return Response.json({ error: "Keep the appointment note within 12,000 characters. Your text has not been submitted." }, { status: 400 });
   let context: Awaited<ReturnType<typeof buildFurviseContext>>;
   try {
     context = await buildFurviseContext({

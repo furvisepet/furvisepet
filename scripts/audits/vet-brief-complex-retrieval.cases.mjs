@@ -80,3 +80,16 @@ test('tomorrow appointment retains historical RPC bounds and does not request fu
  }
  for(const id of ['old-vaccine','recent-med']) assert.ok(result.bundle.allowedIds.includes(id));
 });
+
+test('six topics plus six date anchors cannot round every query allocation down to zero', async t => {
+ clock(t);
+ const terms=Array.from({length:6},(_,i)=>'facet'+i);
+ const many=terms.map((term,i)=>care('dense-'+i,'milo',`2024-02-0${i+1}`,'general',`${term}: relevant dated evidence.`));
+ const db=database(many);
+ const context=await buildFurviseContext({supabase:db,userId:ownerId,petId:'milo',feature:'vet_brief',dateRange:{from:'2024-01-01',to:'2026-09-04'},currentMessage:'Review '+many.map(r=>r.occurred_at.slice(0,10)).join(', ')});
+ const result=await retrieveAskHistory(context,db,['milo'],{plan:{from:null,to:'2026-09-05T00:00:00Z',terms,interpretation:'lexical'},termGroups:terms.map(t=>[t]),periodFrom:'2024-01-01T00:00:00Z'});
+ for(const row of many) assert.ok(result.askHistory.entries.some(r=>r.id===row.id),row.id);
+ assert.ok(result.askHistory.coverage.queryCount>6);
+ assert.ok(result.askHistory.coverage.queryCount<=20);
+ assert.ok(result.askHistory.coverage.candidateIds.length<=64);
+});
