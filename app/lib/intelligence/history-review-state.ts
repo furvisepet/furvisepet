@@ -17,6 +17,21 @@ export function readReviewedHistoryAnswer(result: AskReasoningResult): Omit<Rece
 
 export type HistoryReviewDiagnostic = { status: "approved" | "declined"; reason: string };
 const diagnostics = new WeakMap<AskReasoningResult, HistoryReviewDiagnostic>();
+export type HistoryReviewAudit = {
+  repairAttempted: boolean;
+  rejectionReason?: string;
+  dateBindings: Array<{index: number; citedSourceIds: string[]; candidates: Array<{anchor: string; sourceIds: string[]}>}>;
+};
+const audits = new WeakMap<AskReasoningResult, HistoryReviewAudit[]>();
+/** Private persisted validation metadata only. Never log these source bindings
+ * or present them as an answer, source of facts, or approval capability. */
+export function recordHistoryReviewAudit(result: AskReasoningResult, audit: HistoryReviewAudit) {
+  audits.set(result, [...(audits.get(result) || []).filter(item => item.repairAttempted !== audit.repairAttempted),
+    structuredClone({...audit, rejectionReason: audit.rejectionReason?.slice(0,1600)})].slice(-2));
+}
+export function readHistoryReviewAudit(result: AskReasoningResult): HistoryReviewAudit[] {
+  return structuredClone(audits.get(result) || []);
+}
 export function recordHistoryReviewDiagnostic(result: AskReasoningResult, status: HistoryReviewDiagnostic["status"], reason: string) {
   diagnostics.set(result, { status, reason });
 }

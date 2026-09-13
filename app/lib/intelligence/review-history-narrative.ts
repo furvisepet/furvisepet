@@ -8,7 +8,7 @@ import { eligibleAnswerSources } from "./ask-evidence.ts";
 import { completedEmptyEvidenceNeeds } from "./evidence-need-coverage.ts";
 import { prepareFurviseApplicationActions } from "../application-actions/planner.ts";
 import { parseModelApplicationActions } from "../application-actions/contracts.ts";
-import { readHistoryReviewDiagnostic, recordHistoryReviewDiagnostic } from "./history-review-state.ts";
+import { readHistoryReviewAudit, recordHistoryReviewAudit, readHistoryReviewDiagnostic, recordHistoryReviewDiagnostic } from "./history-review-state.ts";
 import { buildHistoryObligations, reviewObligationCompletion } from "./history-obligations.ts";
 import { normalizeCompanionProse } from "../furvise-voice.ts";
 import { readPublicationFailure, readPublicationStages, canonicalReadPresentation } from "../ask-publication.ts";
@@ -185,6 +185,10 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   }) : [];
   const invalidIndexes = draft.sentences.flatMap((sentence, index) => supported(sentence, Boolean(result.historicalResult && result.historicalResult.layout === sharedRequest?.outputFormat))
     && !publicationFailures.some(failure => failure.index === index) ? [] : [index]);
+  const audit = { repairAttempted, dateBindings: invalidIndexes.map(index => ({index,
+    citedSourceIds: draft.sentences[index].sourceIds,
+    candidates: historyDateBindingHints(draft.sentences[index].text, sources) })) };
+  if (invalidIndexes.length) recordHistoryReviewAudit(result, audit);
   if (!sharedRequest) draft.sentences = draft.sentences.filter(sentence => !/^This covers the matching saved notes I could verify\b/i.test(sentence.text));
   if (!draft.sentences.length || repairAttempted && invalidIndexes.length) {
     console.info("[Ask history review] anchor rejection", { repairAttempted, invalidSentenceIndexes: invalidIndexes,
@@ -280,6 +284,8 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     const formatValid = !exactRecordFailures.length && !invalidResultItems.length && matchesHistoryOutputFormat(selectedText, sharedRequest?.outputFormat) && completeSelection && anchorsValid && !completionCheck.failures.length
       && (!sharedRequest || !readPublicationFailure(selectedText));
     if (!selection.approved || !formatValid) {
+      recordHistoryReviewAudit(result, {...audit,
+        rejectionReason: "rejectionReason" in selection && typeof selection.rejectionReason === "string" ? selection.rejectionReason : undefined });
       console.info("[Ask history review] rejected", {
         rejectionCategories: "rejectionReason" in selection && typeof selection.rejectionReason === "string"
           ? Object.entries({ coverage: /absence|absent|empty|missing|coverage|not found|no record/i, attribution: /attribut|subject|wrong pet/i,
@@ -309,8 +315,9 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
       const repairedActions = repaired.preserveNavigation ? result.applicationActions
         : [...result.applicationActions.filter(action => !action.kind.startsWith("navigation.")), ...repaired.applicationActions];
       const candidate = { ...result, historicalResult: repaired.historicalResult, historyNarrative: repaired.narrative, applicationActions: repairedActions, historyNarrativeDeclined: false };
-      if (!await reviewHistoricalAnswer({ result: candidate, client: provider, onProviderEvent, repairAttempted: true, executionPlan })
-        || before !== signature(result)) return decline("repair_independent_review_failed:" + (readHistoryReviewDiagnostic(candidate)?.reason || "unknown"));
+      const repairApproved = await reviewHistoricalAnswer({ result: candidate, client: provider, onProviderEvent, repairAttempted: true, executionPlan });
+      for (const item of readHistoryReviewAudit(candidate)) recordHistoryReviewAudit(result, item);
+      if (!repairApproved || before !== signature(result)) return decline("repair_independent_review_failed:" + (readHistoryReviewDiagnostic(candidate)?.reason || "unknown"));
       const receipt = readReviewedHistoryAnswer(candidate);
       if (!receipt) return decline("repair_receipt_unavailable");
       // Only reviewed prose and read-only navigation cross this boundary. Repairs

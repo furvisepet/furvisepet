@@ -1,5 +1,5 @@
 import { parseDatedNoteBatch, noteBatchReviewActions, type DatedCareNote } from "./dated-note-batch.ts";
-import { readReviewedHistoryAnswer, recordHistoryReview, historyReviewSignature } from "./history-review-state.ts";
+import { readHistoryReviewAudit, readReviewedHistoryAnswer, recordHistoryReview, historyReviewSignature, type HistoryReviewAudit } from "./history-review-state.ts";
 import { enforceAskHistoryAccess } from "./history-access.ts";
 import { safetyTemporalScope } from "../ai/safety-temporal-scope.ts";
 import { scopeConversationContext } from "./conversation-scope.ts";
@@ -75,7 +75,7 @@ export type FurviseIntelligenceResult = {
   acceptedSemanticEvents: ReturnType<typeof governCanonicalEvents>["accepted"];
   rejectedCareActionCount: number;
   governance: GovernanceResult;
-  answerValidation: Omit<AnswerValidationResult, "response">;
+  answerValidation: Omit<AnswerValidationResult, "response"> & { historyReviewAudit?: HistoryReviewAudit[] };
   semanticTrace: SemanticTrace;
   v2GovernedTurn: GovernedSemanticTurn;
 };
@@ -420,6 +420,7 @@ export async function runFurviseIntelligence({
     rejectedCareActionCount: carePolicy.rejected.length,
     governance,
     answerValidation: {
+      ...(readHistoryReviewAudit(reasoning).length ? { historyReviewAudit: readHistoryReviewAudit(reasoning) } : {}),
       valid: answerValidation.valid,
       assessment: answerValidation.assessment,
       repairs: answerValidation.repairs,
