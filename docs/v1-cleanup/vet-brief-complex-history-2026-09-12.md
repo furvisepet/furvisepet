@@ -1,5 +1,17 @@
 # Vet Brief complex-history repair — 2026-09-12
 
+## Current release status — September 13, 2026
+
+The sections below are a chronological audit: earlier pending statements and failures describe their original checkpoints, not the current release. PR363 is deployed and READY on furvise.com at ccde8eeb4922022fe0428c77aa54b2569578537f (dpl_2CpfKxecvSMVXda3WTVoVSQT8PRN). CI run 34729702206 passed lint, TypeScript, focused security, full tests, dependency audit and production build.
+
+The exact urgent Rowan request, rich multi-year Sable history and sparse Mochi coat case passed live on PR361. The rich Sable brief was confirmed, reloaded with identical clinical content and verified as a readable two-page production-rendered PDF with all six source references retained. PR363 vaccination passes with prescription versus actual administration kept distinct and unavailable vaccine/reaction records explicit. PR363 historical weight comparison also passes, preserving the April 9, 2024 body-only 3.97 kg measurement, the undated 3.8 kg profile value and the noncomparable carrier-inclusive 5.15 kg older record.
+
+Current synthesis and independent review use GPT-5.4 with registered metered pricing; planning retains the configured primary model. Strict date contracts, bounded retries, verified evidence retrieval and separate immutable-metadata validation address the observed failure classes. See later entries for the successive changes and first-attempt failures.
+
+This establishes the bounded Vet Brief acceptance results, not overall Furvise readiness, complete lifetime medical records, diagnosis or willingness to pay. The earlier Ask first-attempt score remains 12 pass / 7 fail / 1 partial. Retries are recorded separately.
+
+Final sample: artifacts/vet-brief-complex/Sable-Final-Vet-Brief.pdf, generated from the unchanged confirmed document in sable-final-confirmed.json.
+
 ## Trigger and actual production evidence
 
 User supplied a failed Rowan request combining current lethargy, hind-leg weakness, heavy breathing, a five-year osteoarthritis/blood-work review and a prednisone taper said to have ended yesterday. Production diagnostics contained both incomplete output and compatibility validation failures. No patient text was logged by the new diagnostics.
@@ -140,3 +152,9 @@ PR362 all CI gates passed (run 34729246485), production `1c5da789dafab497273d6ed
 The new diagnostics located the initial factual rejection as `measurement:metadata` (request `c78ed5ca-9ffa-46e6-8bc5-d4d4de44129a`). The profile weight is empty while a dated care record contains 15 kg. This is not a model-editable metadata defect. The model reviewer now receives the authored publication sections, with immutable identity/profile/version/date metadata validated separately by the server. A historical measurement can remain in its dated section without contradicting a missing profile measurement. All authored clinical statements and questions still undergo the same independent checks; no failed factual verdict is overridden. A regression test preserves the dated measurement in the exact section representation while excluding immutable metadata from the model repair target.
 
 PR361 also passed the exact urgent request and sparse coat-care case. Final rich report `ce70fe18-9a58-479f-a6f6-35cf74f82288` retains all six fixture source IDs, survives reload unchanged, and renders as a clean two-page PDF; both pages visually inspected.
+
+## PR363 final acceptance
+
+All CI gates passed and production aliases were verified at the exact PR363 merge SHA listed at the top. Both affected live regressions passed: Rowan vaccination preserves recorded prescription timing and unknown actual use; Mochi weight comparison preserves historical versus profile authority and carrier measurement limitations. The latest raw previews are appended to final-release-retries.json. Earlier failures and intermediate retries remain intact.
+
+The frozen Vet Brief set now has accepted live results for all five content scenarios plus confirmation/reload/export. Three content scenarios and the final complex artifact were verified on PR361; the two cases affected by the final review-boundary change were reverified on PR363. This is not a claim that all six flows were rerun on one identical deployment or that a fresh 30/20-question broad Ask suite was completed in this task. No further optional test expansion or case-specific patch was made after the final affected checks passed.
