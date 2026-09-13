@@ -41,3 +41,34 @@ begin
 end;
 $$;
 rollback;
+
+-- Exercise actual authenticated RLS, rather than only SECURITY DEFINER helpers.
+begin;
+insert into auth.users(id,email,email_confirmed_at,is_anonymous) values
+ ('79000000-0000-4000-8000-000000000001','trial-rls-owner@example.test',now(),false),
+ ('79000000-0000-4000-8000-000000000002','trial-rls-other@example.test',now(),false);
+insert into public.dog_profiles(id,user_id,name) values
+ ('79000000-0000-4000-8000-000000000003','79000000-0000-4000-8000-000000000001','Trial RLS Pet'),
+ ('79000000-0000-4000-8000-000000000004','79000000-0000-4000-8000-000000000002','Other RLS Pet');
+select set_config('request.jwt.claim.sub','79000000-0000-4000-8000-000000000001',true);
+select set_config('request.jwt.claim.role','authenticated',true);
+set local role authenticated;
+insert into public.vet_visit_briefs(id,user_id,pet_profile_id,date_range_start,date_range_end,confirmed_title,confirmed_data)
+ values('79000000-0000-4000-8000-000000000005','79000000-0000-4000-8000-000000000001','79000000-0000-4000-8000-000000000003',current_date,current_date,'Free trial access fixture','{}');
+do $$
+begin
+ if (select count(*) from public.vet_visit_briefs where id='79000000-0000-4000-8000-000000000005')<>1 then raise exception 'Free cannot read saved own brief';end if;
+ begin
+ insert into public.vet_visit_briefs(user_id,pet_profile_id,date_range_start,date_range_end,confirmed_title,confirmed_data)
+ values('79000000-0000-4000-8000-000000000002','79000000-0000-4000-8000-000000000004',current_date,current_date,'Forbidden cross-owner fixture','{}');
+ raise exception 'Free cross-owner write admitted';
+ exception when insufficient_privilege then null;end;
+end;
+$$;
+select set_config('request.jwt.claim.sub','79000000-0000-4000-8000-000000000002',true);
+do $$
+begin
+ if exists(select 1 from public.vet_visit_briefs where id='79000000-0000-4000-8000-000000000005') then raise exception 'Free cross-owner read leaked';end if;
+end;
+$$;
+rollback;
