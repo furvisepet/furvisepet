@@ -28,7 +28,7 @@ test("Vet Brief shared request context enforces the canonical paid capability an
   assert.equal(entitlement("plus", true)?.capabilities.vetPrepExports, true);
   assert.match(vetServer, /await resolveEffectiveEntitlements\(supabase\)/);
   assert.match(vetServer, /entitlements\.effectivePlan !== "plus" \|\| !entitlements\.capabilities\.vetPrepExports/);
-  assert.match(vetServer, /error instanceof EntitlementResolutionError[\s\S]*status: 503/);
+  assert.match(vetServer, /error instanceof EntitlementResolutionError[\s\S]*vetBriefReadUnavailable/);
   assert.match(vetServer, /status: 403/);
 });
 

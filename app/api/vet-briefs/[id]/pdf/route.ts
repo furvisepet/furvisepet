@@ -1,3 +1,4 @@
+import { readVetBrief, vetBriefReadUnavailable } from "../../../../lib/vet-brief/read";
 import { generateVetBriefPdf, UnsupportedBriefPdfTextError } from "../../../../lib/vet-brief/pdf";
 import { getVetBriefFilename, parseVetBriefDocument } from "../../../../lib/vet-brief/schema";
 import { getVetBriefRequestContext, type VetBriefDatabaseRow } from "../../../../lib/vet-brief/server";
@@ -8,7 +9,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if ("response" in context) return context.response;
   const { id } = await params;
   if (!isUuid(id)) return Response.json({ error: "That Vet Visit Brief identifier is invalid." }, { status: 400 });
-  const { data } = await context.supabase.from("vet_visit_briefs").select("*").eq("id", id).eq("user_id", context.userId).maybeSingle<VetBriefDatabaseRow>();
+  const { data, error } = await readVetBrief(() => context.supabase.from("vet_visit_briefs").select("*").eq("id", id).eq("user_id", context.userId).maybeSingle<VetBriefDatabaseRow>());
+  if (error) return vetBriefReadUnavailable("confirmed_brief", error);
   const document = data ? parseVetBriefDocument(data.confirmed_data) : null;
   if (!data || !document) return Response.json({ error: "That Vet Visit Brief is not available." }, { status: 404 });
   const pageSize = new URL(request.url).searchParams.get("size") === "a4" ? "a4" : "letter";
