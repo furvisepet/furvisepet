@@ -29,6 +29,9 @@ export async function getVetBriefRequestContext(request: Request): Promise<
       : { error: "Please sign in again to continue. Your work has been kept.", code: "VET_BRIEF_AUTH_REQUIRED" },
     { status: verified.failure === "unavailable" ? 503 : 401, headers: { "Cache-Control": "private, no-store" } }) };
   }
+  if (!verified.user.email_confirmed_at || verified.user.is_anonymous) {
+    return { response: Response.json({ error: "Confirm your email to use Vet Brief." }, { status: 403 }) };
+  }
   const originResponse = validateSensitiveRequestOriginResponse(request);
   if (originResponse) return { response: originResponse };
   let entitlements;
@@ -40,8 +43,8 @@ export async function getVetBriefRequestContext(request: Request): Promise<
     }
     throw error;
   }
-  if (entitlements.effectivePlan !== "plus" || !entitlements.capabilities.vetPrepExports) {
-    return { response: Response.json({ error: "Furvise Plus is required for Vet Visit Briefs." }, { headers: { "Cache-Control": "private, no-store" }, status: 403 }) };
+  if (!entitlements.capabilities.vetPrepExports) {
+    return { response: Response.json({ error: "Vet Brief access is unavailable for this account." }, { headers: { "Cache-Control": "private, no-store" }, status: 403 }) };
   }
   return { monthlyAiCredits: entitlements.limits.monthlyAiCredits, planId: entitlements.effectivePlan, supabase, userId: verified.user.id };
 }

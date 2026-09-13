@@ -28,6 +28,7 @@ export const PLUS_PLAN_ID: PlanId = "plus";
 export const FREE_ASK_ALLOWANCE = 15;
 export const PLUS_ASK_ALLOWANCE = 55;
 export const PLUS_VET_BRIEF_ALLOWANCE = 4;
+export const FREE_VET_BRIEF_ALLOWANCE = 1;
 
 export const PLAN_CAPABILITIES: Record<PlanId, PlanCapabilities> = {
   free: {
@@ -45,7 +46,7 @@ export const PLAN_CAPABILITIES: Record<PlanId, PlanCapabilities> = {
     productQuestionMonthlyLimit: 50,
     productsAiMonthlyLimit: 50,
     shopSearchMonthlyLimit: 50,
-    vetPrepExports: false,
+    vetPrepExports: true,
   },
   plus: {
     id: "plus",

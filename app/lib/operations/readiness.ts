@@ -9,6 +9,7 @@ export const REQUIRED_SECURITY_MIGRATION_NAMES = [
   "secure_ai_credit_state_machine",
   "enforce_ai_credit_settlement_disposition",
   "add_vet_brief_monthly_allowance",
+  "add_free_vet_brief_trial",
   "enforce_furvise_memory_semantic_integrity",
   "server_authored_ask_action_capabilities",
   "harden_entitlement_and_pet_data_boundaries",

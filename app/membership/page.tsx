@@ -12,7 +12,7 @@ import {
   shouldManageExistingSubscription,
   type BillingSubscriptionStatus,
 } from "../lib/billing/launch-plans";
-import { PLAN_CAPABILITIES, PLUS_VET_BRIEF_ALLOWANCE } from "../lib/billing/plan-limits";
+import { PLAN_CAPABILITIES, PLUS_VET_BRIEF_ALLOWANCE, FREE_VET_BRIEF_ALLOWANCE } from "../lib/billing/plan-limits";
 import { idempotentClientFetch } from "../lib/security/idempotency/client";
 import { getBrowserSupabase } from "../lib/supabase";
 
@@ -142,9 +142,10 @@ export default function MembershipPage() {
           <section className="grid gap-6 lg:grid-cols-2" aria-label="Furvise membership plans" data-ui="membership-plan-cards">
             <PlanCard
               current={!isPlus}
-              features={[`${FREE_ASK_ALLOWANCE} Ask each month`, "1 pet", "Care history"]}
+              features={[`${FREE_ASK_ALLOWANCE} Ask each month`, "1 pet", "Care history", `${FREE_VET_BRIEF_ALLOWANCE} free Vet Brief generation, once per account. Save, reopen, and print it.`]}
               price="$0"
               usage={!isPlus ? membership.askUsage : undefined}
+              vetBriefUsage={!isPlus ? membership.vetBriefUsage : undefined}
               value="A simple way to start with Furvise."
             />
             <PlanCard
@@ -165,7 +166,7 @@ export default function MembershipPage() {
             />
           </section>
 
-          <p className="mt-10 max-w-3xl text-sm leading-6 text-[var(--text-secondary)]">Monthly allowances reset each period and do not roll over. Preparing a new brief or regenerating one uses a generation; failed preparation does not. Reopening saved drafts and downloading them again do not use another generation.</p>
+          <p className="mt-10 max-w-3xl text-sm leading-6 text-[var(--text-secondary)]">The Free Vet Brief allowance is once per account. Plus monthly allowances reset each period and do not roll over. Preparing a new brief or regenerating one uses a generation; failed preparation does not. Reopening saved drafts and downloading them again do not use another generation.</p>
         </div>
       )}
     </AppPage>
@@ -203,7 +204,7 @@ function PlanCard({
       <p className={`mt-4 min-h-14 leading-7 ${premium ? "text-[color-mix(in_srgb,var(--warm-cream)_78%,transparent)]" : "text-[var(--text-secondary)]"}`}>{value}</p>
 
       {usage ? <UsageSummary premium={premium} usage={usage} /> : null}
-      {vetBriefUsage ? <p className="mt-3 text-sm">{vetBriefUsage.remaining} of {vetBriefUsage.limit} Vet Brief generations remaining. Resets {formatBillingDate(vetBriefUsage.resetAt)}.</p> : null}
+      {vetBriefUsage ? <p className="mt-3 text-sm">{vetBriefUsage.remaining} of {vetBriefUsage.limit} Vet Brief generations remaining. {vetBriefUsage.planId === "free" ? "One-time allowance. Does not reset." : `Resets ${formatBillingDate(vetBriefUsage.resetAt)}.`}</p> : null}
 
       <ul className={`mt-8 grid gap-3 border-t pt-7 text-sm leading-6 ${premium ? "border-[color-mix(in_srgb,var(--warm-cream)_25%,transparent)]" : "border-[var(--line)] text-[var(--text-secondary)]"}`}>
         {features.map((feature) => <li className="flex gap-3" key={feature}><span aria-hidden="true">✓</span><span>{feature}</span></li>)}

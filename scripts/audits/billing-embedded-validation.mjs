@@ -39,7 +39,7 @@ for(const file of readdirSync('supabase/migrations').filter(f=>f.endsWith('.sql'
  report.migrations++;
 }
 report.engine=(await db.query('select version()')).rows[0].version;
-for(const name of ['vet_brief_allowance']) {
+for(const name of ['vet_brief_allowance','free_vet_brief_trial']) {
  await db.exec(readFileSync(`supabase/tests/${name}.sql`,'utf8'));
  console.log('PASS',name);
 }

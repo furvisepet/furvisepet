@@ -5,6 +5,7 @@ const PRODUCTION_SUPABASE_HOST_SUFFIX = ".supabase.co";
 const LOCAL_SUPABASE_HOSTS = new Set(["127.0.0.1", "localhost", "host.docker.internal"]);
 const REQUIRED_BILLING_MIGRATIONS = [
   "add_vet_brief_monthly_allowance",
+  "add_free_vet_brief_trial",
   "security_compatibility_contract_v2",
   "add_billing_checkout_single_flight",
   "align_billing_checkout_currency_authority",

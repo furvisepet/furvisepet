@@ -46,7 +46,7 @@ begin
  req:=gen_random_uuid();select * into r from public.reserve_ai_credit(u,req,req,'product_query',repeat('b',64));
  if r.reservation_status<>'reserved' or r.remaining<>500 then raise exception 'product allowance consumed by briefs';end if;
  req:=gen_random_uuid();select * into r from public.reserve_ai_credit(f,req,req,'vet_brief',repeat('a',64));
- if r.reservation_status<>'limit_reached' then raise exception 'Free admitted brief';end if;
+ if r.reservation_status<>'reserved' then raise exception 'Free trial was not admitted';end if;
  -- Server-resolved subscription boundary resets the separate allowance.
  update public.billing_accounts set current_period_start=now(),current_period_end=now()+interval '1 month' where user_id=u;
  select * into r from public.get_my_vet_brief_allowance_status();
@@ -64,7 +64,7 @@ begin
  if r.reservation_status<>'limit_reached' then raise exception 'legacy carryover bypassed cap';end if;
  perform set_config('request.jwt.claim.sub',f::text,true);
  select * into r from public.get_my_vet_brief_allowance_status();
- if r.used<>0 or r.allowance<>0 then raise exception 'cross-account usage leaked';end if;
+ if r.used<>1 or r.allowance<>1 then raise exception 'cross-account usage leaked';end if;
 end;
 $$;
 rollback;

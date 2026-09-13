@@ -163,7 +163,7 @@ export async function getVetBriefAllowanceStatus({ supabase }: { supabase: Supab
     throw new AiCreditLedgerError("usage_read_failed", error || new Error("INVALID_VET_BRIEF_ALLOWANCE_RESPONSE"), "get_my_vet_brief_allowance_status", "rpc");
   }
   return { allowed: row.remaining > 0, count: row.used, limit: row.allowance, remaining: row.remaining,
-    monthKey: row.period_start, resetAt: row.period_end, planId: row.effective_plan === "plus" ? "plus" : "free" };
+    monthKey: row.period_start, resetAt: row.effective_plan === "free" ? undefined : row.period_end, planId: row.effective_plan === "plus" ? "plus" : "free" };
 }
 
 export async function reserveAiCredit({

@@ -28,7 +28,7 @@ begin
  cross join lateral (
    select coalesce(sum(e.credits_used),0)::integer used from public.ai_usage_events e
    where e.user_id=auth.uid() and e.feature='vet_brief' and ((e.period_start=a.period_start and e.allowance_period_key=a.period_key)
-       or (e.allowance_period_key is null and e.created_at>=a.period_start and e.created_at<a.period_end)) and e.status in ('reserved','completed')
+       or (a.period_key <> 'free:vet_brief:lifetime' and e.allowance_period_key is null and e.created_at>=a.period_start and e.created_at<a.period_end)) and e.status in ('reserved','completed')
      and e.settlement_disposition is distinct from 'release'
  ) u;
 end;
@@ -112,7 +112,7 @@ begin
     where usage.user_id = p_user_id
       and ((usage.period_start = v_existing.period_start
     and (p_feature not in ('ask', 'vet_brief') or usage.allowance_period_key = v_existing.allowance_period_key))
-      or (p_feature = 'vet_brief' and usage.allowance_period_key is null
+      or (p_feature = 'vet_brief' and v_existing.allowance_period_key <> 'free:vet_brief:lifetime' and usage.allowance_period_key is null
         and usage.created_at >= v_existing.period_start
         and usage.created_at < (select a.period_end from private.resolve_feature_allowance(p_user_id, 'vet_brief') a)))
       and usage.status = 'completed'
@@ -188,7 +188,7 @@ begin
   where usage.user_id = p_user_id
     and ((usage.period_start = v_period_start
     and (p_feature not in ('ask', 'vet_brief') or usage.allowance_period_key = v_period_key))
-      or (p_feature = 'vet_brief' and usage.allowance_period_key is null
+      or (p_feature = 'vet_brief' and v_period_key <> 'free:vet_brief:lifetime' and usage.allowance_period_key is null
         and usage.created_at >= v_period_start
         and usage.created_at < (select a.period_end from private.resolve_feature_allowance(p_user_id, 'vet_brief') a)))
     and ((p_feature in ('ask', 'vet_brief') and usage.feature = p_feature) or (p_feature not in ('ask', 'vet_brief') and usage.feature not in ('ask', 'vet_brief')));
@@ -281,7 +281,7 @@ begin
   where usage.user_id = p_user_id
     and ((usage.period_start = v_event.period_start
     and (v_event.feature not in ('ask', 'vet_brief') or usage.allowance_period_key = v_event.allowance_period_key))
-      or (v_event.feature = 'vet_brief' and usage.allowance_period_key is null
+      or (v_event.feature = 'vet_brief' and v_event.allowance_period_key <> 'free:vet_brief:lifetime' and usage.allowance_period_key is null
         and usage.created_at >= v_event.period_start
         and usage.created_at < (select a.period_end from private.resolve_feature_allowance(p_user_id, 'vet_brief') a)))
     and usage.status = 'completed'
