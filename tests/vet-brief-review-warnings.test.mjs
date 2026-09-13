@@ -80,3 +80,46 @@ test('Spanish attribution, source scope, timing and negation survive publication
   for (const entry of entries) assert.ok(vetBriefText(restored).includes(entry.text), entry.text);
   assert.deepEqual(restored.concernTimeline, entries);
 });
+
+test('overview-only failure may omit the optional synopsis only after repair and successful whole-report re-review', async () => {
+  const bad = { ...pass, factsSupported: false, uncertaintyPreserved: false, factualIssueCodes: ['source_scope:overview'], repairSections: ['overview'], repairInstructions: 'Keep the negative claim scoped to the cited note.' };
+  let generated = 0, reviewed = 0, reserved = 0;
+  const source = { ...structuredClone(original), visitSummary: 'Unsupported global absence claim.' };
+  const result = await prepareReviewedVetBrief({
+    generate: async () => { generated++; return { value: { document: structuredClone(source), sourceRecordIds: ['unchanged-source'] } }; },
+    reserveOverviewReview: () => { reserved++; return true; },
+    review: async document => {
+      reviewed++;
+      if (reviewed < 3) { assert.equal(document.visitSummary, source.visitSummary); return bad; }
+      assert.equal(document.visitSummary, '');
+      assert.deepEqual({ ...document, visitSummary: source.visitSummary }, source);
+      return pass;
+    },
+  });
+  assert.equal(generated, 2);
+  assert.equal(reviewed, 3);
+  assert.equal(reserved, 1);
+  assert.deepEqual(result.value.sourceRecordIds, ['unchanged-source']);
+  assert.deepEqual(result.value.document.reviewWarnings, ['overview_omitted']);
+});
+
+test('overview omission cannot override missing material history, broader failures, malformed verdicts or exhausted budget', async () => {
+  const bad = { ...pass, factsSupported: false, uncertaintyPreserved: false, factualIssueCodes: ['source_scope:overview'], repairSections: ['overview'], repairInstructions: 'Correct the overview claim.' };
+  for (const options of [
+    { verdict: { ...bad, factualIssueCodes: ['source_scope:overview', 'medication_status:medications'] } },
+    { verdict: { ...bad, repairSections: ['overview', 'questions'] } },
+    { verdict: { ...bad, importantHistoryPreserved: false } },
+    { verdict: { ...bad, factualIssueCodes: [] } },
+    { verdict: null },
+    { verdict: bad, budget: false },
+    { verdict: bad, final: { ...bad, importantHistoryPreserved: false } },
+  ]) {
+    let reviews = 0;
+    await assert.rejects(prepareReviewedVetBrief({
+      generate: async () => ({ value: { document: { ...structuredClone(original), visitSummary: 'Only copy of a material clinical fact.' } } }),
+      reserveOverviewReview: () => options.budget !== false,
+      review: async () => { reviews++; return reviews === 3 ? options.final : options.verdict; },
+    }), { name: 'FeatureValidationError' });
+    assert.equal(reviews, options.final ? 3 : 2);
+  }
+});

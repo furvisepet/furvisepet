@@ -2,7 +2,7 @@ export const VET_BRIEF_DISCLAIMER =
   "Prepared from information recorded by the pet owner in Furvise. It may be incomplete and does not contain a diagnosis or replace veterinary assessment.";
 
 export const VET_BRIEF_DOCUMENT_VERSION = 1;
-export const VET_BRIEF_REVIEW_WARNINGS = ["duplicate_details", "question_usefulness", "visit_focus"] as const;
+export const VET_BRIEF_REVIEW_WARNINGS = ["duplicate_details", "question_usefulness", "visit_focus", "overview_omitted"] as const;
 
 export type VetBriefDatedItem = {
   date: string;
