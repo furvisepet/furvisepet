@@ -514,6 +514,7 @@ export async function runWithAiCredit<T>({
   beforeComplete,
   feature,
   generate,
+  includeUsage = true,
   monthlyAiCredits,
   ledgerClient,
   payload,
@@ -525,6 +526,7 @@ export async function runWithAiCredit<T>({
   beforeComplete?: (value: T) => Promise<void>;
   feature: AiFeature;
   generate: () => Promise<T>;
+  includeUsage?: boolean;
   monthlyAiCredits?: number;
   ledgerClient?: SupabaseClient;
   payload: unknown;
@@ -549,7 +551,9 @@ export async function runWithAiCredit<T>({
     } catch {
       await completeAiCredit({ feature, ledgerClient, payloadHash, requestId, userId });
     }
-    const usage = await getRemainingAiCredits({ feature, monthlyAiCredits, planId, supabase, userId });
+    // A caller that does not display allowance need not make another user-token
+    // read after durable completion. That read must not discard a paid result.
+    const usage = includeUsage ? await getRemainingAiCredits({ feature, monthlyAiCredits, planId, supabase, userId }) : null;
     return { creditsUsed: 1, usage, value };
   } catch (error) {
     if (!completionAttempted) {
