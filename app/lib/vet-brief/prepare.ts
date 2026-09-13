@@ -29,7 +29,7 @@ export async function prepareVetBrief({ context, supabase, baseline, retrospecti
   try { plan = await generatePlan(); }
   catch (error) {
     const kind = featureFailureDetails(error).failureKind;
-    if (!['incomplete_output', 'invalid_output', 'compatibility_validation'].includes(kind)) throw error;
+    if (!['incomplete_output', 'invalid_output', 'compatibility_validation', 'timeout'].includes(kind)) throw error;
     structureRetried = true;
     logIntelligenceEvent('vet brief structural retry', { feature: 'vet_brief', requestId, failureKind: kind, stage: 'planning' });
     plan = await generatePlan();
@@ -88,7 +88,7 @@ export async function prepareVetBrief({ context, supabase, baseline, retrospecti
       try { return { value: await generate() }; }
       catch (error) {
         const kind = featureFailureDetails(error).failureKind;
-        if (structureRetried || reviewRepair || !['incomplete_output', 'invalid_output', 'compatibility_validation'].includes(kind)) throw error;
+        if (structureRetried || reviewRepair || !['incomplete_output', 'invalid_output', 'compatibility_validation', 'timeout'].includes(kind)) throw error;
         structureRetried = true;
         logIntelligenceEvent('vet brief structural retry', { feature: 'vet_brief', requestId, failureKind: kind });
         return { value: await generate() };
@@ -98,12 +98,12 @@ export async function prepareVetBrief({ context, supabase, baseline, retrospecti
       const review = () => generateStructuredFeatureResponse({
       input: { draft: vetBriefReviewPublication(document), evidence, visitReason: context.currentMessage },
       instructions: vetBriefReviewInstructions + '\n' + vetBriefDuplicationReviewInstructions + '\nThe currentOwnerReport is admissible as an owner report, not as independently verified historical evidence. Current owner symptoms must be preserved. A request to correlate conditions must be answered with supported chronology and explicit uncertainty, never a fabricated diagnosis. The server-provided urgent guidance is appropriate triage, not a factual history claim. Two to four useful questions are allowed for complex visits. The evidence is bounded: do not demand unavailable history, invent missing records or interpret coverage limits as proof of absence.',
-      schema: vetBriefPublicationReviewSchema, schemaName: 'vet_brief_review', maxOutputTokens: 8192, reasoningEffort: 'high', timeoutMs: 60000, parse: value => parseVetBriefPublicationReview(value, document),
+      schema: vetBriefPublicationReviewSchema, schemaName: 'vet_brief_review', maxOutputTokens: 12288, reasoningEffort: 'medium', timeoutMs: 35000, parse: value => parseVetBriefPublicationReview(value, document),
       });
       try { return await review(); }
       catch (error) {
         const kind = featureFailureDetails(error).failureKind;
-        if (structureRetried || !['incomplete_output', 'invalid_output', 'compatibility_validation'].includes(kind)) throw error;
+        if (structureRetried || !['incomplete_output', 'invalid_output', 'compatibility_validation', 'timeout'].includes(kind)) throw error;
         structureRetried = true;
         logIntelligenceEvent('vet brief structural retry', { feature: 'vet_brief', requestId, failureKind: kind, stage: 'review' });
         return await review();
