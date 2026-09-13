@@ -11,7 +11,7 @@ import { parseVetBriefAppointmentPlan, vetBriefAppointmentPlanInstructions, vetB
 import { parseVetBriefContent, vetBriefContentSchema } from './content.ts';
 import { vetBriefEvidence } from './evidence.ts';
 import { prepareReviewedVetBrief, vetBriefReviewInstructions } from './review.ts';
-import { vetBriefGenerationTemplate, vetBriefReviewPublication } from './report.ts';
+import { vetBriefGenerationTemplate, vetBriefReviewContent } from './report.ts';
 import { vetBriefUrgency } from './urgency.ts';
 import type { VetBriefDocument } from './types';
 
@@ -97,7 +97,7 @@ export async function prepareVetBrief({ context, supabase, baseline, retrospecti
     },
     review: async document => {
       const review = () => generateStructuredFeatureResponse({
-      input: { draft: vetBriefReviewPublication(document), evidence, visitReason: context.currentMessage },
+      input: { draft: vetBriefReviewContent(document), evidence, visitReason: context.currentMessage },
       instructions: vetBriefReviewInstructions + '\n' + vetBriefDuplicationReviewInstructions + '\nThe currentOwnerReport is admissible as an owner report, not as independently verified historical evidence. Current owner symptoms must be preserved. A request to correlate conditions must be answered with supported chronology and explicit uncertainty, never a fabricated diagnosis. The server-provided urgent guidance is appropriate triage, not a factual history claim. Two to four useful questions are allowed for complex visits. The evidence is bounded: do not demand unavailable history, invent missing records or interpret coverage limits as proof of absence.',
       schema: vetBriefPublicationReviewSchema, schemaName: 'vet_brief_review', maxOutputTokens: 12288, reasoningEffort: 'medium', timeoutMs: 35000, parse: value => parseVetBriefPublicationReview(value, document),
       });
