@@ -10,9 +10,9 @@ const cases=[
  ['Japanese','保存記録では2020-02-14のクレアチニンは1.0 mg/dL、基準範囲は0.8–2.4 mg/dLです。投薬の実施は確認されていません。'],
 ];
 test('Arabic direction follows the prose and keeps dates, ranges, doses and units in intact LTR runs',()=>{
- const text='Mochi 2018–2026: '+cases[0][1];assert.equal(briefTextDirection(text),'rtl');
+ const text='Mochi 2018–2026: Sep 13, 2018: '+cases[0][1];assert.equal(briefTextDirection(text),'rtl');
  const runs=briefTextRuns(text);assert.equal(runs.map(r=>r.text).join(''),text);
- for(const expected of ['2018–2026','2020-02-14','1.0 mg/dL','0.8–2.4 mg/dL'])assert.ok(runs.some(r=>r.isolate&&r.text===expected),expected);
+ for(const expected of ['2018–2026','Sep 13, 2018','2020-02-14','1.0 mg/dL','0.8–2.4 mg/dL'])assert.ok(runs.some(r=>r.isolate&&r.text===expected),expected);
  assert.equal(briefTextDirection(cases[1][1]),'ltr');
 });
 for(const [language,text] of cases)test(`${language} exports an embedded, searchable PDF on Letter and A4`,async()=>{
