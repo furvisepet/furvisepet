@@ -12,7 +12,7 @@ export const vetBriefContentSchema = {
     content: { type: 'object', additionalProperties: false, required: [...vetBriefContentFields], properties: {
       reasonForVisit: text, visitSummary: text,
       events: { type: 'array', maxItems: 40, items: { type: 'object', additionalProperties: false, required: ['kind', 'date', 'category', 'text'], properties: {
-        kind: { type: 'string', enum: ['medication', 'observation', 'food', 'product', 'history'] }, date: { type: 'string', pattern: '^(\\d{4}-\\d{2}-\\d{2}|Date unknown)$' }, category: { type: 'string', maxLength: 80 }, text,
+        kind: { type: 'string', enum: ['medication', 'history'] }, date: { type: 'string', pattern: '^(\\d{4}-\\d{2}-\\d{2}|Date unknown)$' }, category: { type: 'string', maxLength: 80 }, text,
       } } },
       questionsForVeterinarian: strings(6), missingInformation: strings(16),
     } },
@@ -38,12 +38,9 @@ export function parseVetBriefContent(value: unknown, baseline: VetBriefDocument,
     questionsForVeterinarian: content.questionsForVeterinarian as string[], missingInformation: content.missingInformation as string[],
   };
   for (const event of content.events) {
-    if (!event || typeof event !== 'object' || !['medication', 'observation', 'food', 'product', 'history'].includes(event.kind) || (event.date !== 'Date unknown' && !validBriefDay(event.date)) || typeof event.text !== 'string' || event.text.length > 1200 || typeof event.category !== 'string' || event.category.length > 80) return null;
+    if (!event || typeof event !== 'object' || !['medication', 'history'].includes(event.kind) || (event.date !== 'Date unknown' && !validBriefDay(event.date)) || typeof event.text !== 'string' || event.text.length > 1200 || typeof event.category !== 'string' || event.category.length > 80) return null;
     const item = { date: event.date, text: event.text };
     if (event.kind === 'medication') assembled.medicationsSupplements.push(item);
-    else if (event.kind === 'observation') assembled.concernTimeline.push(item);
-    else if (event.kind === 'food') assembled.foodChanges.push(item);
-    else if (event.kind === 'product') assembled.productsUsed.push(item);
     else assembled.relevantCareHistory.push({ ...item, category: event.category });
   }
   const document = parseVetBriefDocument(assembled);

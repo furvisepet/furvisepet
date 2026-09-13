@@ -20,7 +20,7 @@ const {vetBriefReport}=await import('../app/lib/vet-brief/report.ts');
 const baseline=buildVetBriefDraft({profile:{name:'Synthetic',species:'dog',breed:'Synthetic — Labrador',age_value:5,age_unit:'years'},careEntries:[],memories:[],from:'2026-06-01',to:'2026-09-12',reasonForVisit:'Review'}).document;
 const content=Object.fromEntries(vetBriefContentFields.map(key=>[key,key==='events'?[]:baseline[key]??'']));
 content.visitSummary='Owner reports weakness today; the cause is unknown.';
-content.events=[{kind:'observation',category:'Symptoms',date:'2026-09-12',text:'Owner reports weakness; no cause established.'}];
+content.events=[{kind:'history',category:'Symptoms',date:'2026-09-12',text:'Owner reports weakness; no cause established.'}];
 const raw=()=>({content:structuredClone(content),sourceRecordIds:['verified'],confidence:'low'});
 test('server assembles immutable metadata and retains explicit owner report, doses, conflicts and negation',()=>{
   const input=raw(); input.content.events.push({kind:'medication',category:'Medication',date:'2026-09-11',text:'Saved note: 2.5 mg twice daily for 5 days, then 1.25 mg once daily for 5 days, starting tomorrow. Owner now says completed yesterday; dates conflict.'});
@@ -28,7 +28,7 @@ test('server assembles immutable metadata and retains explicit owner report, dos
   assert.equal(parsed.document.pet,baseline.pet);
   assert.deepEqual(parsed.document.dateRange,baseline.dateRange);
   assert.equal(parsed.document.medicationsSupplements[0].text,input.content.events[1].text);
-  assert.match(parsed.document.concernTimeline[0].text,/no cause established/);
+  assert.match(parsed.document.relevantCareHistory[0].text,/no cause established/);
 });
 test('model cannot overwrite identity, settings or insert an unauthorized source',()=>{
   const injected=raw();injected.content.pet={name:'Another pet'};
@@ -95,8 +95,8 @@ test('a duplication verdict requires real same-date entries in different support
 test('one canonical event gets one placement, preserving owner symptom and conflicting saved medication separately',()=>{
  const input=raw();input.content.events.push({kind:'medication',category:'Medication',date:'2026-09-11',text:'Saved prescription starts tomorrow, conflicting with the owner report.'});
  const doc=parseVetBriefContent(input,baseline,['verified']).document;
- assert.equal(doc.concernTimeline.length,1);assert.equal(doc.medicationsSupplements.length,1);
- assert.deepEqual(doc.ownerReportedChanges,[]);assert.deepEqual(doc.relevantCareHistory,[]);
+ assert.equal(doc.relevantCareHistory.length,1);assert.equal(doc.medicationsSupplements.length,1);
+ assert.deepEqual(doc.ownerReportedChanges,[]);assert.deepEqual(doc.concernTimeline,[]);
  assert.match(doc.medicationsSupplements[0].text,/conflicting/);
 });
 
@@ -111,7 +111,7 @@ test('generated dates cannot be silently normalized from timestamps or invalid d
   const input=raw(); input.content.events[0].date=date; assert.equal(parseVetBriefContent(input,baseline,['verified']),null);
  }
  const input=raw(); input.content.events[0].date='2026-09-12';
- assert.equal(parseVetBriefContent(input,baseline,['verified']).document.concernTimeline[0].date,'2026-09-12');
+ assert.equal(parseVetBriefContent(input,baseline,['verified']).document.relevantCareHistory[0].date,'2026-09-12');
 });
 
 test('publication diagnostics expose only allowlisted fact kinds and sections',()=>{
