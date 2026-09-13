@@ -134,6 +134,7 @@ export async function prepareVetBrief({ context, supabase, baseline, retrospecti
       structureRetried = true;
       return true;
     },
+    canUseReviewedDraftOnRepairFailure: error => ['timeout', 'incomplete_output', 'invalid_output', 'compatibility_validation'].includes(featureFailureDetails(error).failureKind),
   });
   logIntelligenceEvent('vet brief evidence prepared', { feature: 'vet_brief', requestId, recordCount: evidence.records.length, topicCount: plan.topics.length, historicalQueryCount: retrieved.askHistory?.coverage.queryCount || 0, structuralRetry: structureRetried });
   return { ...result.value, document: { ...result.value.document, historyCoverage: warnings } };
