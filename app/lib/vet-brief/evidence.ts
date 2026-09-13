@@ -21,7 +21,12 @@ export function vetBriefEvidence(context: FurviseLiveContext, plan: VetBriefAppo
     selectedMemories.push(memory); memoryChars += size;
   }
   const evidence = {
-    asOf: context.currentTimestamp, appointment: plan, currentOwnerReport: context.currentMessage,
+    asOf: context.currentTimestamp,
+    appointment: { focus: plan.focus, requestedFrom: plan.from, requestedTo: plan.to },
+    // Search stems and private retrieval questions are not clinical assertions
+    // or a ready-made list of questions to hand back to the veterinarian.
+    evidenceChecks: plan.questionsToResolve,
+    currentOwnerReport: context.currentMessage,
     profile: context.pet,
     records: records.map(r => ({ id: r.id, date: r.occurred_at, category: r.category, title: r.title, text: r.note })),
     backgroundNotes: selectedMemories,
