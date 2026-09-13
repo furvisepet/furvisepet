@@ -8,6 +8,7 @@ import {
   readVetBriefClientDraft,
   removeVetBriefClientDraft,
   saveVetBriefClientDraft,
+  saveAuthorizedVetBriefClientDraft,
 } from "../app/lib/vet-brief/client-drafts.ts";
 import { VET_BRIEF_DISCLAIMER } from "../app/lib/vet-brief/types.ts";
 
@@ -32,6 +33,27 @@ test("draft storage is bound to the exact account, pet, and brief", () => {
   assert.equal(readVetBriefClientDraft(storage, scope(userA, petB, briefA)), null);
   assert.equal(readVetBriefClientDraft(storage, scope(userA, petA, briefB)), null);
   assert.equal(readVetBriefClientDraft(storage, scope(userA, petA, null)), null);
+});
+
+test("saving from an open tab rechecks paid access and preserves existing work on denial or outage", async () => {
+  const storage = new MemoryStorage();
+  const exact = scope(userA, petA, briefA);
+  saveVetBriefClientDraft(storage, exact, clientDraft("previous paid draft"));
+  const previous = storage.getItem(getVetBriefDraftStorageKey(exact));
+  for (const failure of ["Plus required", "Pet not owned", "Sign-in required", "Entitlements unavailable"]) {
+    await assert.rejects(saveAuthorizedVetBriefClientDraft(storage, exact, clientDraft("new edits"), async petId => {
+      assert.equal(petId, petA);
+      throw new Error(failure);
+    }), { message: failure });
+    assert.equal(storage.getItem(getVetBriefDraftStorageKey(exact)), previous);
+  }
+  let release;
+  const authorization = new Promise(resolve => { release = resolve; });
+  const saving = saveAuthorizedVetBriefClientDraft(storage, exact, clientDraft("authorized edits"), () => authorization);
+  assert.equal(storage.getItem(getVetBriefDraftStorageKey(exact)), previous);
+  release();
+  await saving;
+  assert.equal(readVetBriefClientDraft(storage, exact).document.ownerNotes, "authorized edits");
 });
 
 test("account transitions remove foreign and legacy Vet Brief state but preserve the active account", () => {

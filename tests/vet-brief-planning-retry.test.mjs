@@ -10,6 +10,7 @@ function pipeline({planFailures=0,contentFailures=0,reviewFailures=0,semanticFai
  const document={pet:{name:'Synthetic'},dateRange:{from:'2026-06-01',to:'2026-09-12'},missingInformation:[]};
  const plan={from:null,to:'2026-09-12',topics:[{label:'History',terms:['history']}],questionsToResolve:[]};
  const mocks={
+  './uncertainty-language.ts':{vetBriefUncertaintyLanguageInstructions:'Apply equal evidence standards in every language.'},
   'server-only':{},
   './publication-review.ts':{vetBriefPublicationReviewSchema:{},vetBriefDuplicationReviewInstructions:''},
   '../ai/ask-reasoning':{generateStructuredFeatureResponse:async input=>{calls.push(input.schemaName);inputs.push(input);if(input.schemaName==='vet_brief_evidence_plan'){if(planFailures-->0)throw Error('incomplete');return plan;}if(input.schemaName==='vet_brief_content'){if(contentFailures-->0)throw Error('incomplete');return {document};}if(reviewFailures-->0)throw Error('incomplete');return {factsSupported:semanticFailures--<=0,repairSections:['overview'],importantHistoryPreserved:true,categoriesAccurate:true,uncertaintyPreserved:true,noDuplication:true,questionsUseful:true,visitFocused:true,repairInstructions:'Correct unsupported wording while keeping supported history.'};}},
@@ -72,4 +73,8 @@ test('production repair receives the rejected wording separately from unchanged 
  assert.ok(generations[1].input.reviewRepair.draftToRepair);
  assert.equal(generations[1].input.evidence,generations[0].input.evidence);
  assert.equal('draftToRepair' in generations[1].input.evidence,false);
+ for (const review of p.inputs.filter(input=>input.schemaName==='vet_brief_review')) {
+   assert.equal('selectionProposals' in review.input,false);
+   assert.ok(review.input.draft);
+ }
 });

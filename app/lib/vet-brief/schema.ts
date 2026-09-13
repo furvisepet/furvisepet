@@ -49,6 +49,7 @@ export function parseVetBriefDocument(value: unknown): VetBriefDocument | null {
 
   const historyCoverage = draft.historyCoverage === undefined ? undefined : parseStrings(draft.historyCoverage);
   if (historyCoverage === null) return null;
+  if (draft.reviewWarnings !== undefined && (!Array.isArray(draft.reviewWarnings) || draft.reviewWarnings.some(code => code !== "duplicate_details"))) return null;
   const photoUrl = pet.photoUrl && isSafePrivatePhotoUrl(pet.photoUrl) ? pet.photoUrl : null;
   return {
     documentVersion: VET_BRIEF_DOCUMENT_VERSION,
@@ -76,6 +77,7 @@ export function parseVetBriefDocument(value: unknown): VetBriefDocument | null {
     questionsForVeterinarian,
     missingInformation,
     ...(historyCoverage ? { historyCoverage } : {}),
+    ...(draft.reviewWarnings?.length ? { reviewWarnings: [...new Set(draft.reviewWarnings)] } : {}),
     ownerNotes: cleanText(draft.ownerNotes, 4000),
     excludedSections: Array.isArray(draft.excludedSections)
       ? [...new Set(draft.excludedSections.filter((item): item is VetBriefDocument["excludedSections"][number] => typeof item === "string" && SECTION_IDS.has(item)))]
