@@ -1072,7 +1072,9 @@ export async function generateStructuredFeatureResponse<T>({
       providerErrorType: "requests", providerStatus: 429, retryAfterMs: cooldown.retryAfterMs,
     });
   }
-  const timeoutCeiling = reasoningEffort === "high" ? 60_000 : 35_000;
+  // Brief synthesis can use its route's explicit 50-second budget without
+  // raising reasoning effort or changing deadlines for other feature callers.
+  const timeoutCeiling = reasoningEffort === "high" ? 60_000 : schemaName === "vet_brief_content" ? 50_000 : 35_000;
   let response: T;
   let usedModel = models.primary;
   try {

@@ -98,3 +98,15 @@ test('production presentation-edit timeout returns the already reviewed original
  const unsafe=pipeline({semanticFailures:1,repairContentFails:true,failureKind:'timeout'});await assert.rejects(unsafe.run(),/incomplete/);
  const denied=pipeline({presentationFailures:1,repairContentFails:true,failureKind:'admission_denied'});await assert.rejects(denied.run(),/incomplete/);
 });
+
+test('all supported repair/retry paths fit the unchanged route and six-call budget with 50-second synthesis',async()=>{
+ for(const options of [{},{semanticFailures:1},{planFailures:1,semanticFailures:1},{contentFailures:1,semanticFailures:1},{reviewFailures:1,semanticFailures:1},{overviewFailures:2}]){
+  const p=pipeline(options);await p.run();
+  assert.ok(p.calls.length<=6);
+  for(const input of p.inputs) assert.equal(input.timeoutMs,{vet_brief_evidence_plan:25000,vet_brief_content:50000,vet_brief_review:35000}[input.schemaName]);
+  const providerCeiling=p.inputs.reduce((total,input)=>total+input.timeoutMs,0);
+  assert.ok(providerCeiling<=245000,`${JSON.stringify(options)}: ${providerCeiling}`);
+ }
+ const route=readFileSync(new URL('../app/api/vet-briefs/draft/route.ts',import.meta.url),'utf8');
+ assert.match(route,/export const maxDuration = 300;/);
+});
