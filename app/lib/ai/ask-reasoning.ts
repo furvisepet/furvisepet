@@ -402,6 +402,14 @@ export function getAskModelConfiguration(env: Record<string, string | undefined>
   return { primary, fallback, primaryUsedDefault: !env.OPENAI_ASK_PRIMARY_MODEL?.trim() && !env.OPENAI_ASK_MODEL?.trim() };
 }
 
+/** Clinical synthesis/review use a separately priced, server-selected model.
+ * Planning and every non-brief schema preserve the existing Ask routing. */
+export function getStructuredFeatureModelConfiguration(schemaName: string, env: Record<string, string | undefined> = process.env) {
+  return schemaName === "vet_brief_content" || schemaName === "vet_brief_review"
+    ? { primary: "gpt-5.4", fallback: null, primaryUsedDefault: false }
+    : getAskModelConfiguration(env);
+}
+
 export function getAskProviderCooldown(model: string, now = Date.now()) {
   const until = providerCooldowns.get(model) || 0;
   if (until <= now) {
@@ -1042,7 +1050,7 @@ export async function generateStructuredFeatureResponse<T>({
   timeoutMs?: number;
 }): Promise<T> {
   const client = createClient(apiKey || process.env.OPENAI_API_KEY);
-  const models = getAskModelConfiguration();
+  const models = getStructuredFeatureModelConfiguration(schemaName);
   if (!client) throw new AskPipelineError("configuration_failed", "OPENAI_API_KEY is not configured.", { elapsedMs: 0, model: models.primary });
   const request = (modelInput: unknown, outputTokens: number) => ({
     temperature,

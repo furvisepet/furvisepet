@@ -1,0 +1,34 @@
+[
+  {
+    "case": "Exact Rowan urgent complex request",
+    "notes": "Current symptoms and urgency retained; September 11 prescription date and exact doses in overview; owner completion conflict explicit; unavailable arthritis/lab trends not invented. Internal review structural retry recovered. Medication detail date label remains Date unknown although prescription date appears in overview.",
+    "preview": "FURVISE · APPOINTMENT PREPARATION · DRAFT\n\nFurvise Vet Visit Brief\n\nRowan · Dog · Synthetic launch test - Labrador · 4 years\n\nProfile weight: Not recorded\n\nPrepared Sep 13, 2026. Selected records: Jun 15, 2026–Sep 13, 2026.\nOwner-recorded history; this is not a complete medical record.\n\nCare should not wait\n\nContact an emergency veterinarian now about the symptoms reported for this appointment. Do not wait for this brief. Keep handling and exertion to a minimum and follow the clinic’s instructions.\n\nOwner-reported reason for visit\n\nLethargy, hind-limb weakness, and heavy breathing after a prednisone taper.\n\nVisit overview\n\nOwner reports Rowan is lethargic, weak in his hind legs, and breathing heavily today. The only saved treatment record is a prednisone taper prescribed on 2026-09-11 (2.5 mg twice daily for 5 days starting the next morning, then 1.25 mg daily for 5 days), but the owner says it was completed yesterday, creating a timing conflict; no retrieved records document osteoarthritis progression, blood-work trends, or a response/adverse effects during the course. The available record set is otherwise sparse for this concern, so current symptoms need clinical correlation with any outside history or labs.\n\nConcern timeline · owner observations\n\nSep 13, 2026\n\nOwner reports lethargy, hind-limb weakness, and heavy breathing today.\n\nRecorded medications and supplements\n\nDate unknown\n\nPrednisone prescribed at 2.5 mg twice a day for 5 days starting the next morning, then 1.25 mg once a day in the morning for another 5 days; owner reports the 10-day taper was completed yesterday.\n\nRecorded use does not establish current use. Confirm names, doses and schedule with the owner.\n\nQuestions to discuss\n\nHow urgent are the reported heavy breathing, lethargy, and hind-limb weakness, and do exam findings point more toward pain, weakness, or a respiratory/cardiac problem?\n\nCan the prednisone timeline be reconciled with the prescription record and the owner's report that the taper ended yesterday?\n\nAre there any outside osteoarthritis exams, mobility notes, or imaging results that should be compared with today's weakness?\n\nAre there any prior blood-work abnormalities or recent labs not in the saved record that would change interpretation of this episode?\n\nNot established in the available records\n\nExact onset, severity, and progression of the lethargy, weakness, and heavy breathing.\n\nAny documented osteoarthritis or mobility trend over time.\n\nBlood-work results, dates, units, and reference ranges.\n\nWhether the prednisone taper was actually completed yesterday, since that conflicts with the saved 10-day schedule.\n\nAny prior similar episodes or clinician notes not present in the retrieved record set.\n\nRelevant saved records were searched; the available history may be incomplete.\n\nPrepared from information recorded by the pet owner in Furvise. It may be incomplete and does not contain a diagnosis or replace veterinary assessment.\nPaper size",
+    "release": "PR358",
+    "status": "PASS"
+  },
+  {
+    "case": "Mochi sparse coat",
+    "notes": "Correct dated brushing and removed tangle, no diagnosis, two questions; still asks about note contents rather than useful next-step care discussion.",
+    "preview": "FURVISE · APPOINTMENT PREPARATION · DRAFT\n\nFurvise Vet Visit Brief\n\nMochi · Cat · Calico domestic shorthair · 8 years\n\nProfile weight: 3.8 kg\n\nPrepared Sep 13, 2026. Selected records: Sep 18, 2021–Apr 30, 2024.\nOwner-recorded history; this is not a complete medical record.\n\nOwner-reported reason for visit\n\nDiscussion of Mochi’s April 2024 coat-care observation.\n\nVisit overview\n\nOn 2024-04-18, Mochi had a 7-minute brushing session and Jamie noted an easily removed tangle. Earlier coat checks on 2024-01-18 and 2024-02-18 noted no visible tangles. The retrieved records do not mention matting, shedding, dandruff, skin irritation, or a grooming plan/follow-up, and only part of the requested history was reviewed.\n\nSupporting care history\n\nJan 18, 2024 · coat care\n\nMochi had an 8-minute brushing session. Jamie noted no visible tangles at this check; this was not a veterinary skin diagnosis.\n\nFeb 18, 2024 · coat care\n\nMochi had a 12-minute brushing session. Jamie noted no visible tangles at this check; this was not a veterinary skin diagnosis.\n\nApr 18, 2024 · coat care\n\nMochi had a 7-minute brushing session. Jamie noted an easily removed tangle at this check; this was not a veterinary skin diagnosis.\n\nQuestions to discuss\n\nDid the April 18 note document any matting, shedding, dandruff, skin irritation, or cleanliness concern beyond the easily removed tangle?\n\nWas any grooming advice, home coat-care plan, or follow-up recorded or recommended for Mochi?\n\nNot established in the available records\n\nWhether the April 2024 note included matting, shedding, dandruff, cleanliness concerns, or skin/coat changes.\n\nWhether any grooming advice, home care plan, or follow-up was recorded.\n\nWhether additional April 2024 coat-care notes exist in records not retrieved here.\n\nOnly part of the requested history could be reviewed. This brief cannot establish complete trends or that an unmentioned event never happened.\n\nRelevant saved records were searched; the available history may be incomplete.\n\nPrepared from information recorded by the pet owner in Furvise. It may be incomplete and does not contain a diagnosis or replace veterinary assessment.\nPaper size",
+    "release": "PR358",
+    "status": "PARTIAL"
+  },
+  {
+    "case": "Rowan vaccination",
+    "notes": "Generic preparation failure after review structural retry and factual repair; not a content pass.",
+    "release": "PR358",
+    "status": "FAIL"
+  },
+  {
+    "case": "Rowan vaccination",
+    "notes": "Independent reviewer exhausted response budget on both bounded attempts.",
+    "release": "PR359",
+    "status": "FAIL"
+  },
+  {
+    "case": "Mochi sparse coat",
+    "notes": "Preparation failed; details retained in runtime audit.",
+    "release": "PR359",
+    "status": "FAIL"
+  }
+]
