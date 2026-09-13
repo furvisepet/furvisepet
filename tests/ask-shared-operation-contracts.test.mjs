@@ -161,6 +161,17 @@ test('a read about a correction drops a contradictory edit hint without granting
  assert.deepEqual(result.request.referenceTurnIds,['edit']);
  assert.throws(()=>validateAskRequest({...proposal,mode:'mixed',evidenceBasis:'general'},context),/correction_workflow/);
 });
+test('receipt reads preserve separate save and edit references but exclude unrelated or non-write turns',()=>{
+ const pet={id:'pet',user_id:'owner',name:'Fern'},other={id:'other',user_id:'owner',name:'Birch'};
+ const currentMessage='Check Fern’s saved notes and correction receipts. Quote both notes. Save nothing.';
+ const turns=[{id:'save',role:'user',text:'Save two notes for Fern: January 2: walked. January 4: played.'},
+ {id:'other',role:'user',text:'Save a note for Birch: January 3: walked.'},
+ {id:'check',role:'user',text:'Check Fern’s save receipts.'},
+ {id:'assistant',role:'furvise',text:'Saved notes for Fern.'},
+ {id:'edit',role:'user',text:'Correct Fern’s January 2 note to walked slowly.'}];
+ const result=validateAskRequest({version:'ask-request.v2',mode:'read',question:currentMessage,requirements:[],referenceTurnIds:turns.map(t=>t.id),scope:'named',petNames:['Fern'],operation:'recall',selection:'reference',quantity:null,topic:'receipts',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:null,evidenceBasis:'saved_history'}, {owner:{userId:'owner'},eligiblePets:[pet,other],pet,currentMessage,conversationTurns:turns});
+ assert.deepEqual(result.request.referenceTurnIds,['save','edit']);assert.equal(result.readOnly,true);assert.deepEqual(result.petIds,['pet']);
+});
 test('publishable presentation is compiled before review and removes mutation claims before approval', () => {
   const text=canonicalReadPresentation('The recorded total is **140 g**.');
   assert.equal(text,'The recorded total is 140 g.');

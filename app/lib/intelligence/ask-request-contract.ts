@@ -204,7 +204,16 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
       p.question = context.currentMessage;
       // A prior receipt question is not the write request. Stale planner
       // references to that question would introduce a newer empty receipt.
-      p.referenceTurnIds.splice(0, p.referenceTurnIds.length, referencedTurn.id);
+      // A save followed by a correction has separate receipts. Keep validated
+      // references to both owned USER write requests, while discarding prior
+      // receipt questions (which have no linked writes of their own).
+      const writeReferences = p.referenceTurnIds.filter(id => context.conversationTurns.some(turn =>
+        turn.id === id && turn.role === "user" && turn.text !== context.currentMessage
+        && !/\b(?:receipts?|do not save|don't save|never save)\b/i.test(turn.text)
+        && /\b(?:save|log|record|add|correct|edit|update)\b/i.test(turn.text)
+        && explicitlyNamedOwnedPets(turn.text, owned).some(pet => pet.id === targets[0].id)
+        && explicitlyNamedOwnedPets(turn.text, owned).every(pet => pet.id === targets[0].id)));
+      p.referenceTurnIds.splice(0, p.referenceTurnIds.length, ...[...new Set([...writeReferences, referencedTurn.id])].slice(-8));
       p.from = null; p.to = null; p.ordinal = null; p.episodeTopic = null; p.frame = null;
     }
   }
