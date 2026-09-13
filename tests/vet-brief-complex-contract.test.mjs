@@ -70,6 +70,13 @@ test('one evidence bundle uses only corrected retained records and exposes omiss
   assert.equal(result.evidence.currentOwnerReport,context.currentMessage);
 });
 const {vetBriefClaimSourceIds,verifyVetBriefClaimSources}=await import('../app/lib/vet-brief/source-ids.ts');
+test('retrieval planning cannot promote extra category reviews into the owner purpose',()=>{
+ const context={currentTimestamp:'2026-09-13',currentMessage:'Mochi seems off. I cannot describe it.',pet:{name:'Mochi'},memories:[],legacyPetMemories:[],activeConcerns:[],recentlyResolvedConcerns:[],conversationTurns:[]};
+ const result=vetBriefEvidence(context,{focus:'Owner requests a comparison of every grooming, play and feeding entry',from:null,to:'2026-09-13',questionsToResolve:['Search recent baseline observations']});
+ assert.equal(result.evidence.appointment.focus,context.currentMessage);
+ assert.equal(result.evidence.currentOwnerReport,context.currentMessage);
+ assert.ok(!JSON.stringify(result).includes('Owner requests a comparison'));
+});
 test('corrected claim provenance saves through the authenticated RPC and never trusts foreign, inactive or invented IDs',async()=>{
  const id='11111111-1111-4111-8111-111111111111', foreign='22222222-2222-4222-8222-222222222222';
  assert.deepEqual(vetBriefClaimSourceIds(['claim-'+id,'claim-'+id,'claim-invalid',id]),[id]);
