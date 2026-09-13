@@ -21,7 +21,7 @@ export async function prepareVetBrief({ context, supabase, baseline, retrospecti
   let structureRetried = false;
   let selectionProposals: unknown = [];
   const generatePlan = () => generateStructuredFeatureResponse({
-    input: { reason: context.currentMessage, selectedDates: baseline.dateRange, asOf: context.currentTimestamp, species: context.pet.species, searchVocabulary: vetBriefSearchVocabulary(context.careEntries, context.pet.id) },
+    input: { reason: context.currentMessage, selectedDates: baseline.dateRange, asOf: context.currentTimestamp, species: context.pet.species, searchVocabulary: vetBriefSearchVocabulary(context.careEntries, context.pet.id, [...(context.activeConcerns || []), ...(context.recentlyResolvedConcerns || [])]) },
     instructions: vetBriefAppointmentPlanInstructions, schema: vetBriefAppointmentPlanSchema, schemaName: 'vet_brief_evidence_plan',
     maxOutputTokens: 6144, reasoningEffort: 'low', timeoutMs: 25000,
     parse: value => parseVetBriefAppointmentPlan(value, context.currentTimestamp),
