@@ -29,7 +29,7 @@ export async function prepareVetBrief({ context, supabase, baseline, retrospecti
   try { plan = await generatePlan(); }
   catch (error) {
     const kind = featureFailureDetails(error).failureKind;
-    if (!['incomplete_output', 'invalid_output', 'compatibility_validation'].includes(kind)) throw error;
+    if (!['incomplete_output', 'invalid_output', 'compatibility_validation', 'timeout'].includes(kind)) throw error;
     structureRetried = true;
     logIntelligenceEvent('vet brief structural retry', { feature: 'vet_brief', requestId, failureKind: kind, stage: 'planning' });
     plan = await generatePlan();
@@ -88,7 +88,7 @@ export async function prepareVetBrief({ context, supabase, baseline, retrospecti
       try { return { value: await generate() }; }
       catch (error) {
         const kind = featureFailureDetails(error).failureKind;
-        if (structureRetried || reviewRepair || !['incomplete_output', 'invalid_output', 'compatibility_validation'].includes(kind)) throw error;
+        if (structureRetried || reviewRepair || !['incomplete_output', 'invalid_output', 'compatibility_validation', 'timeout'].includes(kind)) throw error;
         structureRetried = true;
         logIntelligenceEvent('vet brief structural retry', { feature: 'vet_brief', requestId, failureKind: kind });
         return { value: await generate() };
@@ -103,7 +103,7 @@ export async function prepareVetBrief({ context, supabase, baseline, retrospecti
       try { return await review(); }
       catch (error) {
         const kind = featureFailureDetails(error).failureKind;
-        if (structureRetried || !['incomplete_output', 'invalid_output', 'compatibility_validation'].includes(kind)) throw error;
+        if (structureRetried || !['incomplete_output', 'invalid_output', 'compatibility_validation', 'timeout'].includes(kind)) throw error;
         structureRetried = true;
         logIntelligenceEvent('vet brief structural retry', { feature: 'vet_brief', requestId, failureKind: kind, stage: 'review' });
         return await review();
