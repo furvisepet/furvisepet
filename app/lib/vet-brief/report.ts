@@ -76,3 +76,10 @@ export function vetBriefReviewPublication(document: VetBriefDocument) {
 export function vetBriefGenerationTemplate(document: VetBriefDocument): VetBriefDocument {
   return { ...document, visitSummary: "", ownerReportedChanges: [], concernTimeline: [], foodChanges: [], productsUsed: [], medicationsSupplements: [], relevantCareHistory: [], reportedPatterns: [], questionsForVeterinarian: [], ownerNotes: "" };
 }
+
+/** Model review covers authored sections. Identity/profile/version/date metadata
+ * is immutable server-owned data validated separately, not a generation defect
+ * the model can repair by dropping historical evidence. */
+export function vetBriefReviewContent(document: VetBriefDocument) {
+  return { sections: vetBriefReport(document), excludedSections: document.excludedSections };
+}

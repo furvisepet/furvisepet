@@ -162,3 +162,12 @@ test('generation starts with a neutral template while immutable facts and the so
   assert.equal(template.disclaimer, document.disclaimer);
   assert.equal(JSON.stringify(document), before);
 });
+
+test('clinical review retains dated measurements without asking the model to repair immutable empty profile fields',async()=>{
+ const {vetBriefReviewContent}=await import('../app/lib/vet-brief/report.ts');
+ const document=draft(); document.pet.weight='Not recorded'; document.relevantCareHistory=[{date:'2026-09-11',category:'Weight',text:'Weight recorded as 15 kg.'}];
+ const review=vetBriefReviewContent(document);
+ assert.equal('pet' in review,false); assert.equal('dateRange' in review,false);
+ assert.ok(review.sections.some(s=>s.items.some(i=>i.text==='Weight recorded as 15 kg.')));
+ assert.deepEqual(review.sections,vetBriefReport(document));
+});

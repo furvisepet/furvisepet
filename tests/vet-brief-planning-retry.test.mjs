@@ -21,7 +21,7 @@ function pipeline({planFailures=0,contentFailures=0,reviewFailures=0,historyUnav
   './content.ts':{vetBriefContentSchema:{}},
   './evidence.ts':{vetBriefEvidence:()=>({evidence:{records:[]},allowedIds:[],warnings:[]})},
   './review.ts':{prepareReviewedVetBrief,vetBriefReviewInstructions:''},
-  './report.ts':{vetBriefGenerationTemplate:d=>({...d}),vetBriefReviewPublication:d=>d},
+  './report.ts':{vetBriefGenerationTemplate:d=>({...d}),vetBriefReviewContent:d=>d},
   './urgency.ts':{vetBriefUrgency:()=>null},
  };
  const exports={};

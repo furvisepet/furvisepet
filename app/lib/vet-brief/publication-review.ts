@@ -3,7 +3,7 @@ import { vetBriefReport } from './report.ts';
 import { parseVetBriefReview, vetBriefReviewSchema } from './review.ts';
 const section = { type: 'string', enum: ['timeline', 'changes', 'food', 'products', 'medications', 'history'] };
 const issueKinds = ['date_or_time', 'medication_status', 'measurement', 'diagnosis_or_causation', 'source_scope', 'profile', 'other'];
-const issueSections = ['reason', 'overview', 'timeline', 'medications', 'history', 'questions', 'gaps', 'metadata'];
+const issueSections = ['reason', 'overview', 'timeline', 'medications', 'history', 'questions', 'gaps'];
 export const vetBriefPublicationReviewSchema = {
   ...vetBriefReviewSchema,
   required: [...vetBriefReviewSchema.required, 'duplicatePairs', 'factualIssues'],

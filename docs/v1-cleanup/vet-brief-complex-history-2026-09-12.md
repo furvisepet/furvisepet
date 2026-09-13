@@ -131,3 +131,12 @@ All CI gates passed (run 34728796131; 2,254 tests after adapting the isolated tr
 - Rich Sable PASS: all six supporting event dates, both creatinine values/reference intervals, vaccine reaction/resolution/recorded due date, prednisone schedule/confirmed last dose, and symptom response retained. Questions support clinical decisions; no diagnosis or vaccination clearance invented.
 - Vaccination FAIL: full reviewer rejected factsSupported before and after the single semantic repair (request `b2f7b73a-1b30-47d0-be0b-867de7d68f05`). The exact unsupported field was not previously available in categorical diagnostics.
 - Repair generation now receives the failed checks and private correction feedback, but not the rejected draft as an additional apparent source. It explicitly regenerates from the authoritative evidence and corrects each identified failure. Publication review adds allowlisted fact-kind/section locations for diagnostics; raw patient text, values and source identifiers are never logged in those fields. The original seven checks and bounded attempts remain.
+
+
+## PR362 result and immutable metadata review boundary
+
+PR362 all CI gates passed (run 34729246485), production `1c5da789dafab497273d6ed600eb6453ae015d73` / `dpl_8Bd7D5Y2Zd8VZ8tD2KZWc2SGrzMp` verified. Vaccination content PASS after its bounded repair: prescription timing remains distinct from actual administration, missing external vaccine records explicit, no invented clearance or due date.
+
+The new diagnostics located the initial factual rejection as `measurement:metadata` (request `c78ed5ca-9ffa-46e6-8bc5-d4d4de44129a`). The profile weight is empty while a dated care record contains 15 kg. This is not a model-editable metadata defect. The model reviewer now receives the authored publication sections, with immutable identity/profile/version/date metadata validated separately by the server. A historical measurement can remain in its dated section without contradicting a missing profile measurement. All authored clinical statements and questions still undergo the same independent checks; no failed factual verdict is overridden. A regression test preserves the dated measurement in the exact section representation while excluding immutable metadata from the model repair target.
+
+PR361 also passed the exact urgent request and sparse coat-care case. Final rich report `ce70fe18-9a58-479f-a6f6-35cf74f82288` retains all six fixture source IDs, survives reload unchanged, and renders as a clean two-page PDF; both pages visually inspected.
