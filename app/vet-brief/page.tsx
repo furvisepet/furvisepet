@@ -13,6 +13,8 @@ import { WorkflowDocumentStatus } from "../components/workflow-primitives";
 import { downloadGeneratedFile } from "../lib/furvise-output";
 import { trackAskEvent } from "../lib/ask-analytics";
 import { useRequireConfirmedSupabaseAuth } from "../lib/auth-session";
+import { buildLoginHref } from "../lib/auth-routing";
+import { readPendingVetBriefInput, savePendingVetBriefInput, removePendingVetBriefInput } from "../lib/vet-brief/pending-input";
 import { getBrowserSupabase } from "../lib/supabase";
 import { vetBriefAuthenticatedFetch } from "../lib/vet-brief/session";
 import { isTerminalVetBriefFailure, MAX_VET_BRIEF_REASON_LENGTH } from "../lib/vet-brief/request";
@@ -63,6 +65,7 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [status, setStatus] = useState("");
   const workspaceActive = useRef(false);
 
@@ -101,6 +104,11 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
             return;
           }
           setNeedsPurpose(true);
+          const pending = readPendingVetBriefInput(window.sessionStorage, { userId, petId });
+          if (pending) {
+            setPurpose(pending.purpose); setFrom(pending.from); setTo(pending.to);
+            setStatus("Your appointment note has been restored. Review it before preparing your brief.");
+          }
         }
       } catch (loadError) {
         if (active) setError(loadError instanceof Error ? loadError.message : "The Vet Visit Brief could not be prepared.");
@@ -108,7 +116,7 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
     }
     void load();
     return () => { active = false; workspaceActive.current = false; };
-  }, [existingBriefId, petId, source, conversationId, userId]);
+  }, [existingBriefId, petId, source, conversationId, userId, loadAttempt]);
 
   const documentStatus = confirmed ? "Confirmed" : previousVersionId ? "New version in progress" : "Draft";
   const retrospective = document?.title === "Furvise Care History Summary";
@@ -117,11 +125,13 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
     event.preventDefault();
     if (!purpose.trim() || loading) return;
     if (purpose.trim().length > MAX_VET_BRIEF_REASON_LENGTH) { setError("Keep the appointment note within 12,000 characters. Your text has not been submitted."); return; }
+    savePendingVetBriefInput(window.sessionStorage, { userId, petId }, { purpose, from, to });
     setLoading(true); setError("");
     try {
       const draft = await fetchDraft(petId, from, to, source === "ask" ? conversationId : "", null, purpose);
       setDocument(draft.document); setSourceEntryIds(draft.sourceEntryIds);
       setNeedsPurpose(false); setMode("preview");
+      removePendingVetBriefInput(window.sessionStorage, { userId, petId });
     } catch (error) { setError(error instanceof Error ? error.message : "The brief could not be prepared."); }
     finally { setLoading(false); }
   }
@@ -225,6 +235,7 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
     {document && !loading ? <div aria-label="Choose review or preview" className="mt-6 flex items-center justify-between border-b border-[var(--pw-border)] pb-4"><p className="text-sm text-[var(--pw-muted)]">{mode === "preview" ? "Read through once. Edit only what needs changing." : "Open a section to make changes."}</p><button className={secondaryButton} onClick={() => setMode(mode === "preview" ? "review" : "preview")} type="button">{mode === "preview" ? "Edit details" : "Read brief"}</button></div> : null}
     {immediateUrgency && (!document || loading || mode === "review") ? <div role="alert" className="mt-6 rounded-xl border border-[var(--pw-warning-border)] bg-[var(--pw-surface)] p-5 text-[var(--pw-warning-text)]"><h2 className="font-semibold">Care should not wait</h2><p className="mt-2">{vetBriefUrgencyText(immediateUrgency)}</p></div> : null}
     {error ? <Status text={error} tone="warn" /> : null}{status ? <Status text={status} /> : null}
+    {error && /sign in again/i.test(error) ? <Link className={secondaryButtonCompact} href={buildLoginHref(`/vet-brief?${new URLSearchParams({ pet: petId, ...(existingBriefId ? { brief: existingBriefId } : {}), ...(source ? { source } : {}), ...(conversationId ? { conversation: conversationId } : {}) })}`)}>Sign in to continue</Link> : error && !document && !needsPurpose && !loading ? <button className={secondaryButtonCompact} type="button" onClick={() => { setError(""); setLoading(true); setLoadAttempt(value => value + 1); }}>Retry loading</button> : null}
 
 
     {needsPurpose && !document && !loading ? <form className="mt-10 space-y-6" onSubmit={prepareBrief}>

@@ -110,3 +110,11 @@ test('all supported repair/retry paths fit the unchanged route and six-call budg
  const route=readFileSync(new URL('../app/api/vet-briefs/draft/route.ts',import.meta.url),'utf8');
  assert.match(route,/export const maxDuration = 300;/);
 });
+
+test('timeout recovery and targeted edits reduce reasoning effort without skipping the independent review',async()=>{
+ for(const [options,schema] of [[{contentFailures:1,failureKind:'timeout'},'vet_brief_content'],[{reviewFailures:1,failureKind:'timeout'},'vet_brief_review'],[{semanticFailures:1},'vet_brief_content']]){
+  const p=pipeline(options);await p.run();const calls=p.inputs.filter(input=>input.schemaName===schema);
+  assert.deepEqual(calls.map(input=>input.reasoningEffort),['medium','low']);
+  assert.equal(p.calls.at(-1),'vet_brief_review');
+ }
+});

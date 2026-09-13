@@ -40,3 +40,14 @@ test('publication review rejects missing or invalid repair targets', () => {
   for (const repairSections of [undefined, [], ['metadata'], ['patient text']]) assert.equal(parseVetBriefPublicationReview({ ...verdict, repairSections }, original), null);
   assert.ok(parseVetBriefPublicationReview({ ...verdict, repairSections: ['questions'] }, original));
 });
+
+test('a factual correction repairs repeated premises together and still requires a complete second review',async()=>{
+ const previous={...original,visitSummary:'The records prove no treatment was given.',missingInformation:['No treatment was given.'],questionsForVeterinarian:['Why was no treatment given?']};
+ const replacement={...previous,visitSummary:'Actual administration is not confirmed.',missingInformation:['Confirm what was administered.'],questionsForVeterinarian:['What was actually administered?']};
+ let reviews=0;
+ const result=await prepareReviewedVetBrief({generate:async feedback=>({value:{document:feedback?replacement:previous}}),review:async document=>{
+  if(++reviews===1)return {...pass,factsSupported:false,factualIssueCodes:['source_scope:overview'],repairSections:['overview'],repairInstructions:'Absence in this note does not prove treatment was not administered.'};
+  assert.equal(document.visitSummary,replacement.visitSummary);assert.deepEqual(document.missingInformation,replacement.missingInformation);assert.deepEqual(document.questionsForVeterinarian,replacement.questionsForVeterinarian);return pass;
+ }});
+ assert.equal(reviews,2);assert.equal(result.value.document.visitSummary,replacement.visitSummary);
+});

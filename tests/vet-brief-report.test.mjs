@@ -75,7 +75,7 @@ test('PDF embeds readable fonts and preserves accented names and units', async (
   document.ownerNotes = 'Recorded amount 25 µg; température 38.5 °C.';
   const pdf = await PDFDocument.load(await generateVetBriefPdf(document));
   assert.equal(pdf.getPageCount(), 1);
-  document.ownerNotes = '漢字';
+  document.ownerNotes = '🧬';
   await assert.rejects(generateVetBriefPdf(document), UnsupportedBriefPdfTextError);
 });
 

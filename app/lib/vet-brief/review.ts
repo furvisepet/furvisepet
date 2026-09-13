@@ -22,6 +22,13 @@ export function applyVetBriefSectionRepair(previous: VetBriefDocument, replaceme
 }
 type VetBriefReview = Record<typeof vetBriefReviewChecks[number], boolean> & { repairInstructions: string; factualIssueCodes?: string[]; repairSections?: RepairSection[] };
 
+/** Repair repeated factual premises together before whole-publication review. */
+export function vetBriefRepairScope(verdict: VetBriefReview | null) {
+  const sections = verdict?.repairSections;
+  if (!sections || verdict?.factsSupported !== false || !verdict.factualIssueCodes?.some(code => /^(source_scope|date_or_time|medication_status|diagnosis_or_causation|measurement):/.test(code))) return sections;
+  return [...new Set<RepairSection>([...sections, "reason", "overview", "history", "questions", "gaps", "medications"])];
+}
+
 export const vetBriefReviewSchema = {
   type: "object", additionalProperties: false,
   required: [...vetBriefReviewChecks, "repairInstructions"],
@@ -140,7 +147,7 @@ export async function prepareReviewedVetBrief<T extends { value: { document: Vet
     previousCandidate = { ...candidate, value: { ...candidate.value, document: structuredClone(candidate.value.document), sourceRecordIds: candidate.value.sourceRecordIds?.slice() } };
     previousVerdict = verdict;
     previousSourceIds = candidate.value.sourceRecordIds || [];
-    feedback = { repairSections: verdict?.repairSections, document: candidate.value.document, failedChecks, repairInstructions: verdict?.repairInstructions || "The review response was malformed. Check every criterion against the supplied evidence." };
+    feedback = { repairSections: vetBriefRepairScope(verdict), document: candidate.value.document, failedChecks, repairInstructions: verdict?.repairInstructions || "The review response was malformed. Check every criterion against the supplied evidence." };
   }
   const error = new Error("Vet brief evidence review failed after one repair.");
   error.name = "FeatureValidationError";
