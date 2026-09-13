@@ -12,7 +12,7 @@ import {
   shouldManageExistingSubscription,
   type BillingSubscriptionStatus,
 } from "../lib/billing/launch-plans";
-import { PLAN_CAPABILITIES } from "../lib/billing/plan-limits";
+import { PLAN_CAPABILITIES, PLUS_VET_BRIEF_ALLOWANCE, FREE_VET_BRIEF_ALLOWANCE } from "../lib/billing/plan-limits";
 import { idempotentClientFetch } from "../lib/security/idempotency/client";
 import { getBrowserSupabase } from "../lib/supabase";
 
@@ -28,6 +28,7 @@ type AskUsage = {
 
 type MembershipPayload = {
   askUsage: AskUsage;
+  vetBriefUsage: AskUsage;
   billingPresentation: BillingPresentation;
   entitlements: EffectiveEntitlements;
 };
@@ -141,9 +142,10 @@ export default function MembershipPage() {
           <section className="grid gap-6 lg:grid-cols-2" aria-label="Furvise membership plans" data-ui="membership-plan-cards">
             <PlanCard
               current={!isPlus}
-              features={[`${FREE_ASK_ALLOWANCE} Ask each month`, "1 pet", "Care history"]}
+              features={[`${FREE_ASK_ALLOWANCE} Ask each month`, "1 pet", "Care history", `${FREE_VET_BRIEF_ALLOWANCE} free Vet Brief generation, once per account. Save, reopen, and print it.`]}
               price="$0"
               usage={!isPlus ? membership.askUsage : undefined}
+              vetBriefUsage={!isPlus ? membership.vetBriefUsage : undefined}
               value="A simple way to start with Furvise."
             />
             <PlanCard
@@ -159,11 +161,12 @@ export default function MembershipPage() {
               premium
               price={membership.billingPresentation.priceLabel}
               usage={isPlus ? membership.askUsage : undefined}
-              value="More room for the pets you care for."
+              vetBriefUsage={isPlus ? membership.vetBriefUsage : undefined}
+              value="Everyday care and less stressful vet visits, all in one place."
             />
           </section>
 
-          <p className="mt-10 max-w-3xl text-sm leading-6 text-[var(--text-secondary)]">Plus gives you more room to use Furvise. It does not change Furvise&apos;s safety standards.</p>
+          <p className="mt-10 max-w-3xl text-sm leading-6 text-[var(--text-secondary)]">The Free Vet Brief allowance is once per account. Plus monthly allowances reset each period and do not roll over. Preparing a new brief or regenerating one uses a generation; failed preparation does not. Reopening saved drafts and downloading them again do not use another generation.</p>
         </div>
       )}
     </AppPage>
@@ -178,6 +181,7 @@ function PlanCard({
   price,
   usage,
   value,
+  vetBriefUsage,
 }: {
   action?: React.ReactNode;
   current: boolean;
@@ -186,6 +190,7 @@ function PlanCard({
   price: string;
   usage?: AskUsage;
   value: string;
+  vetBriefUsage?: AskUsage;
 }) {
   const title = premium ? "PLUS" : "FREE";
   return (
@@ -194,10 +199,12 @@ function PlanCard({
         <h2 className="app-plan-name">{title}</h2>
         {current && premium ? <span className="rounded-full border border-[color-mix(in_srgb,var(--warm-cream)_45%,transparent)] px-3 py-1 text-xs font-bold uppercase tracking-[0.08em]">Current plan</span> : null}
       </div>
-      <p className="app-plan-price mt-7">{price}</p>
+      <p className="app-plan-price mt-7">{premium && current ? "Your Plus membership" : price}</p>
+      {premium ? <p className="mt-2 text-sm leading-6">{current ? "Manage billing to see your current subscription price." : "Same monthly amount in USD and CAD. Your checkout currency is shown above."}</p> : null}
       <p className={`mt-4 min-h-14 leading-7 ${premium ? "text-[color-mix(in_srgb,var(--warm-cream)_78%,transparent)]" : "text-[var(--text-secondary)]"}`}>{value}</p>
 
       {usage ? <UsageSummary premium={premium} usage={usage} /> : null}
+      {vetBriefUsage ? <p className="mt-3 text-sm">{vetBriefUsage.remaining} of {vetBriefUsage.limit} Vet Brief generations remaining. {vetBriefUsage.planId === "free" ? "One-time allowance. Does not reset." : `Resets ${formatBillingDate(vetBriefUsage.resetAt)}.`}</p> : null}
 
       <ul className={`mt-8 grid gap-3 border-t pt-7 text-sm leading-6 ${premium ? "border-[color-mix(in_srgb,var(--warm-cream)_25%,transparent)]" : "border-[var(--line)] text-[var(--text-secondary)]"}`}>
         {features.map((feature) => <li className="flex gap-3" key={feature}><span aria-hidden="true">✓</span><span>{feature}</span></li>)}
@@ -259,10 +266,11 @@ function billingStatusMessage(status: BillingSubscriptionStatus | undefined, isP
 
 function plusFeatures() {
   return [
-    `${PLUS_ASK_ALLOWANCE} Ask each month`,
-    "Up to 10 pets",
-    "Care history",
-    ...(PLAN_CAPABILITIES.plus.vetPrepExports ? ["Vet Brief"] : []),
+    `Up to ${PLAN_CAPABILITIES.plus.maxPets} pet profiles. Keep the whole family’s care history together.`,
+    `${PLUS_ASK_ALLOWANCE} Asks each month. Help with everyday behavior, training, and food questions.`,
+    `${PLUS_VET_BRIEF_ALLOWANCE} Vet Brief generations each month. Organize vaccine dates, saved notes, and concerns for routine clinic visits.`,
+    "Save and reopen Vet Brief drafts. Pick up where you left off after saving.",
+    "Printable reports in English, Spanish, French, German, Arabic, and Japanese. Document headings stay in English.",
   ];
 }
 

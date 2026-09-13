@@ -74,7 +74,7 @@ test("Membership uses consumer pricing cards and isolates internal testing acces
   assert.match(membership, /data-ui="membership-plan-cards"/);
   assert.match(membership, /lg:grid-cols-2/);
   assert.match(membership, /A simple way to start with Furvise\./);
-  assert.match(membership, /More room for the pets you care for\./);
+  assert.match(membership, /Everyday care and less stressful vet visits, all in one place\./);
   assert.match(membership, /membership\.billingPresentation\.priceLabel/);
   assert.match(membership, /isInternalQa \? \([\s\S]*<InternalAccessCard[\s\S]*\) : \([\s\S]*data-ui="membership-plan-cards"/);
   assert.doesNotMatch(membership, /paywall_free|paywall_paid|Compare plans|Care history and tracking|same reasoning and safety standards/i);

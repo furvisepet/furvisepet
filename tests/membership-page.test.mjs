@@ -30,7 +30,7 @@ test("Free and Plus show canonical Ask allowances and remaining usage without ne
   assert.match(page, /FREE_ASK_ALLOWANCE/);
   assert.match(page, /PLUS_ASK_ALLOWANCE/);
   assert.match(page, /`\$\{FREE_ASK_ALLOWANCE\} Ask each month`/);
-  assert.match(page, /`\$\{PLUS_ASK_ALLOWANCE\} Ask each month`/);
+  assert.match(page, /`\$\{PLUS_ASK_ALLOWANCE\} Asks each month/);
   assert.match(page, /const remaining = Math\.min\(limit, Math\.max\(0, usage\.remaining\)\)/);
   assert.match(page, /Ask remaining/);
   assert.match(page, /get_my_ask_allowance_status|\/api\/account\/entitlements/);
@@ -64,7 +64,7 @@ test("Membership billing actions preserve checkout, recovery, portal, confirmati
 
 test("Account details does not duplicate Membership pricing or state", () => {
   assert.doesNotMatch(account, /href="\/membership"|\/api\/account\/entitlements|Internal testing access|Furvise Plus/);
-  assert.doesNotMatch(account, /openBilling\(|Manage billing|Upgrade to Plus|CA\$5\.49|US\$5\.49/);
+  assert.doesNotMatch(account, /openBilling\(|Manage billing|Upgrade to Plus|CA\$8\.48|US\$8\.48/);
 });
 
 test("localized billing presentation shows exactly one supported market price", () => {
@@ -78,11 +78,11 @@ test("localized billing presentation shows exactly one supported market price", 
     serverFallback: "CA",
     trustedPlatformCountry: "US",
   });
-  assert.deepEqual(ca, { currency: "CAD", market: "CA", priceLabel: "CA$5.49/month", source: "platform_geo" });
-  assert.deepEqual(us, { currency: "USD", market: "US", priceLabel: "US$5.49/month", source: "platform_geo" });
+  assert.deepEqual(ca, { currency: "CAD", market: "CA", priceLabel: "CA$8.48/month", source: "platform_geo" });
+  assert.deepEqual(us, { currency: "USD", market: "US", priceLabel: "US$8.48/month", source: "platform_geo" });
   assert.doesNotMatch(ca.priceLabel, /US\$/);
   assert.doesNotMatch(us.priceLabel, /CA\$/);
-  assert.doesNotMatch(page, /CA\$5\.49|US\$5\.49/);
+  assert.doesNotMatch(page, /CA\$8\.48|US\$8\.48/);
   assert.match(page, /membership\.billingPresentation\.priceLabel/);
 });
 
@@ -97,8 +97,8 @@ test("active Plus projected currency takes precedence over current location", ()
     serverFallback: "CA",
     trustedPlatformCountry: "CA",
   });
-  assert.deepEqual(cadTraveler, { currency: "CAD", market: "CA", priceLabel: "CA$5.49/month", source: "stripe_projection" });
-  assert.deepEqual(usdTraveler, { currency: "USD", market: "US", priceLabel: "US$5.49/month", source: "stripe_projection" });
+  assert.deepEqual(cadTraveler, { currency: "CAD", market: "CA", priceLabel: "CA$8.48/month", source: "stripe_projection" });
+  assert.deepEqual(usdTraveler, { currency: "USD", market: "US", priceLabel: "US$8.48/month", source: "stripe_projection" });
 
   const route = read("app/api/account/entitlements/route.ts");
   const admin = read("app/lib/billing/billing-admin.ts");

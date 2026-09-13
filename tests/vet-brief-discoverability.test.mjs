@@ -15,8 +15,7 @@ test("the pet profile exposes Vet Brief as a pet-scoped primary action", () => {
   assert.match(petProfilePage, /<SecondaryButton href=\{`\/pets\/\$\{petId\}\/edit`\}>EDIT PET<\/SecondaryButton>/);
 });
 
-test("Vet Brief remains server-authorized as a Plus capability", () => {
-  assert.match(vetBriefServer, /entitlements\.effectivePlan !== "plus"/);
+test("Vet Brief remains server-authorized for confirmed accounts with a separate generation allowance", () => {
   assert.match(vetBriefServer, /!entitlements\.capabilities\.vetPrepExports/);
-  assert.match(vetBriefServer, /Furvise Plus is required for Vet Visit Briefs\./);
+  assert.match(vetBriefServer, /Vet Brief access is unavailable for this account\./);
 });

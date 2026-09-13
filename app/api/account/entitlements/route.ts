@@ -1,7 +1,7 @@
 import { getAuthenticatedApiContext } from "../../../lib/authenticated-api-server";
 import { EntitlementResolutionError, resolveEffectiveEntitlements } from "../../../lib/billing/entitlements";
 import { PRIVATE_CACHE_HEADERS } from "../../../lib/security/private-routes";
-import { AiCreditLedgerError, getAskAllowanceStatus } from "../../../lib/ai/usage-ledger";
+import { AiCreditLedgerError, getAskAllowanceStatus, getVetBriefAllowanceStatus } from "../../../lib/ai/usage-ledger";
 import { resolveBillingPresentation } from "../../../lib/billing/billing-market";
 import { BillingProjectionError, getProjectedBillingCurrencyForUser } from "../../../lib/billing/billing-admin";
 import { shouldManageExistingSubscription } from "../../../lib/billing/launch-plans";
@@ -11,9 +11,10 @@ export async function GET(request: Request) {
   const context = await getAuthenticatedApiContext(request);
   if ("response" in context) return context.response;
   try {
-    const [entitlements, askUsage] = await Promise.all([
+    const [entitlements, askUsage, vetBriefUsage] = await Promise.all([
       resolveEffectiveEntitlements(context.supabase),
       getAskAllowanceStatus({ supabase: context.supabase }),
+      getVetBriefAllowanceStatus({ supabase: context.supabase }),
     ]);
     const hasExistingBillingRelationship = entitlements.billingPlan === "plus"
       || shouldManageExistingSubscription(askUsage.subscriptionStatus);
@@ -21,7 +22,7 @@ export async function GET(request: Request) {
       ? await getProjectedBillingCurrencyForUser(createOperationsAdminClient(), context.userId)
       : null;
     const billingPresentation = resolveBillingPresentation({ headers: request.headers, projectedCurrency });
-    return Response.json({ askUsage, billingPresentation, entitlements }, { headers: PRIVATE_CACHE_HEADERS });
+    return Response.json({ askUsage, vetBriefUsage, billingPresentation, entitlements }, { headers: PRIVATE_CACHE_HEADERS });
   } catch (error) {
     if (error instanceof EntitlementResolutionError || error instanceof AiCreditLedgerError || error instanceof BillingProjectionError) {
       return Response.json({ error: "Furvise could not verify account access." }, { headers: PRIVATE_CACHE_HEADERS, status: 503 });

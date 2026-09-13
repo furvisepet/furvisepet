@@ -17,7 +17,7 @@ test("plan capabilities define generous free and future plus limits", () => {
   assert.equal(free.shopSearchMonthlyLimit, 50);
   assert.equal(free.productQuestionMonthlyLimit, 50);
   assert.equal(free.longHistoryPatternDetection, false);
-  assert.equal(free.vetPrepExports, false);
+  assert.equal(free.vetPrepExports, true);
   assert.equal(free.liveProductResearch, false);
   assert.equal(plus.aiCreditsMonthlyLimit, 500);
   assert.equal(plus.askFurviseMonthlyLimit, 55);

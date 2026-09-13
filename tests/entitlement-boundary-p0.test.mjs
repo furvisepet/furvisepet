@@ -23,11 +23,11 @@ function entitlement(effectivePlan, vetPrepExports, overrides = {}) {
   });
 }
 
-test("Vet Brief shared request context enforces the canonical paid capability and fails closed", () => {
+test("Vet Brief shared request context enforces the canonical capability and fails closed", () => {
   assert.equal(entitlement("free", false)?.capabilities.vetPrepExports, false);
   assert.equal(entitlement("plus", true)?.capabilities.vetPrepExports, true);
   assert.match(vetServer, /await resolveEffectiveEntitlements\(supabase\)/);
-  assert.match(vetServer, /entitlements\.effectivePlan !== "plus" \|\| !entitlements\.capabilities\.vetPrepExports/);
+  assert.match(vetServer, /!entitlements\.capabilities\.vetPrepExports/);
   assert.match(vetServer, /error instanceof EntitlementResolutionError[\s\S]*vetBriefReadUnavailable/);
   assert.match(vetServer, /status: 403/);
 });

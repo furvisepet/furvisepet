@@ -28,7 +28,7 @@ export function getAskAllowance(plan: PlanId) {
 }
 
 export function getPlusPriceId(env: Record<string, string | undefined>) {
-  const priceId = env.STRIPE_PLUS_PRICE_ID?.trim() || "";
+  const priceId = env.STRIPE_PLUS_NEW_PRICE_ID?.trim() || env.STRIPE_PLUS_PRICE_ID?.trim() || "";
   if (!isStripePriceId(priceId)) throw new Error("STRIPE_PRICE_CONFIGURATION_MISSING");
   return priceId;
 }
@@ -39,7 +39,8 @@ export function recognizePlusPriceId(
 ): boolean {
   const candidate = priceId?.trim() || "";
   const configured = env.STRIPE_PLUS_PRICE_ID?.trim() || "";
-  return isStripePriceId(candidate) && isStripePriceId(configured) && candidate === configured;
+  const current = env.STRIPE_PLUS_NEW_PRICE_ID?.trim() || "";
+  return isStripePriceId(candidate) && [configured, current].some(price => isStripePriceId(price) && candidate === price);
 }
 
 export function resolvesToPlus({
@@ -66,4 +67,13 @@ export function resolvesToPlus({
 
 function isStripePriceId(value: string) {
   return /^price_[A-Za-z0-9]+$/.test(value);
+}
+
+export function isPlusCheckoutPrice(price: {
+  active?: boolean; type?: string; recurring?: { interval: string; interval_count: number } | null;
+  currency_options?: Record<string, { unit_amount: number | null }> | null;
+}) {
+  return price.active === true && price.type === "recurring"
+    && price.recurring?.interval === "month" && price.recurring.interval_count === 1
+    && price.currency_options?.cad?.unit_amount === 848 && price.currency_options?.usd?.unit_amount === 848;
 }

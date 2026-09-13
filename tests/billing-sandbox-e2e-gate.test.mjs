@@ -48,7 +48,7 @@ test("billing sandbox verifier checks the real launch price contract without log
   assert.match(verifier, /price\.recurring\?\.interval === "month"/);
   assert.match(verifier, /currency_options\?\.cad/);
   assert.match(verifier, /currency_options\?\.usd/);
-  assert.match(verifier, /unit_amount === 549/);
+  assert.match(verifier, /unit_amount === 848/);
   assert.match(verifier, /product\.name === "Furvise Plus"/);
   assert.match(verifier, /WEBHOOK_SECRET_INVALID/);
   assert.doesNotMatch(verifier, /console\.(?:log|error)\([^\n]*(?:stripeSecretKey|webhookSecret|supabaseSecretKey)/);
