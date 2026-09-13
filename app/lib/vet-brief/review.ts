@@ -1,7 +1,7 @@
 import type { VetBriefDocument } from "./types.ts";
 
 export const vetBriefReviewChecks = ["factsSupported", "importantHistoryPreserved", "categoriesAccurate", "uncertaintyPreserved", "noDuplication", "questionsUseful", "visitFocused"] as const;
-type VetBriefReview = Record<typeof vetBriefReviewChecks[number], boolean> & { repairInstructions: string };
+type VetBriefReview = Record<typeof vetBriefReviewChecks[number], boolean> & { repairInstructions: string; factualIssueCodes?: string[] };
 
 export const vetBriefReviewSchema = {
   type: "object", additionalProperties: false,
@@ -39,7 +39,7 @@ export type VetBriefRepairFeedback = { document: VetBriefDocument; failedChecks:
 export async function prepareReviewedVetBrief<T extends { value: { document: VetBriefDocument } }>({ generate, review, onRejected }: {
   generate: (feedback: VetBriefRepairFeedback | null) => Promise<T>;
   review: (document: VetBriefDocument) => Promise<ReturnType<typeof parseVetBriefReview>>;
-  onRejected?: (failedChecks: string[]) => void;
+  onRejected?: (failedChecks: string[], verdict: ReturnType<typeof parseVetBriefReview>) => void;
 }): Promise<T> {
   let feedback: VetBriefRepairFeedback | null = null;
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -47,7 +47,7 @@ export async function prepareReviewedVetBrief<T extends { value: { document: Vet
     const verdict = await review(candidate.value.document);
     if (vetBriefReviewPassed(verdict)) return candidate;
     const failedChecks = vetBriefReviewChecks.filter(key => !verdict || verdict[key] !== true);
-    onRejected?.(failedChecks);
+    onRejected?.(failedChecks, verdict);
     feedback = { document: candidate.value.document, failedChecks, repairInstructions: verdict?.repairInstructions || "The review response was malformed. Check every criterion against the supplied evidence." };
   }
   const error = new Error("Vet brief evidence review failed after one repair.");
