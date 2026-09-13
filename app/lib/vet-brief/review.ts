@@ -55,24 +55,55 @@ export function vetBriefReviewPassed(value: ReturnType<typeof parseVetBriefRevie
   return value !== null && !value.factualIssueCodes?.length && vetBriefReviewChecks.every(key => value[key] === true);
 }
 
+function presentationWarnings(verdict: ReturnType<typeof parseVetBriefReview>) {
+  if (!verdict || !parseVetBriefReview(verdict) || verdict.factualIssueCodes?.length !== 0
+    || !vetBriefBlockingReviewChecks.every(key => verdict[key] === true)) return null;
+  return (Object.keys(advisoryWarnings) as Array<keyof typeof advisoryWarnings>)
+    .filter(key => verdict[key] === false).map(key => advisoryWarnings[key]);
+}
+
 export type VetBriefRepairFeedback = { document: VetBriefDocument; failedChecks: string[]; repairInstructions: string; repairSections?: RepairSection[] };
 
-export async function prepareReviewedVetBrief<T extends { value: { document: VetBriefDocument; sourceRecordIds?: string[] } }>({ generate, review, onRejected, onWarning, reserveOverviewReview }: {
+export async function prepareReviewedVetBrief<T extends { value: { document: VetBriefDocument; sourceRecordIds?: string[] } }>({ generate, review, onRejected, onWarning, reserveOverviewReview, canUseReviewedDraftOnRepairFailure }: {
   generate: (feedback: VetBriefRepairFeedback | null) => Promise<T>;
   review: (document: VetBriefDocument) => Promise<ReturnType<typeof parseVetBriefReview>>;
   onRejected?: (failedChecks: string[], verdict: ReturnType<typeof parseVetBriefReview>) => void;
   onWarning?: (warnings: NonNullable<VetBriefDocument["reviewWarnings"]>) => void;
   reserveOverviewReview?: () => boolean;
+  canUseReviewedDraftOnRepairFailure?: (error: unknown) => boolean;
 }): Promise<T> {
   let feedback: VetBriefRepairFeedback | null = null;
   let previousSourceIds: string[] = [];
+  let previousCandidate: T | null = null;
+  let previousVerdict: ReturnType<typeof parseVetBriefReview> = null;
+  function recoverReviewedSnapshot(error: unknown): T | null {
+    const warnings = presentationWarnings(previousVerdict);
+    if (!previousCandidate || !warnings?.length || !canUseReviewedDraftOnRepairFailure?.(error)) return null;
+    // This exact snapshot already passed every substantive check. Never use
+    // partial repair output or an original with a factual/uncertainty failure.
+    previousCandidate.value.document.reviewWarnings = [...warnings, "repair_unavailable"];
+    onWarning?.(previousCandidate.value.document.reviewWarnings);
+    return previousCandidate;
+  }
   for (let attempt = 0; attempt < 2; attempt++) {
-    const candidate = await generate(feedback);
+    let candidate: T;
+    try { candidate = await generate(feedback); }
+    catch (error) {
+      const recovered = recoverReviewedSnapshot(error);
+      if (recovered) return recovered;
+      throw error;
+    }
     if (feedback?.repairSections) {
       candidate.value.document = applyVetBriefSectionRepair(feedback.document, candidate.value.document, feedback.repairSections);
       if (candidate.value.sourceRecordIds) candidate.value.sourceRecordIds = [...new Set([...previousSourceIds, ...candidate.value.sourceRecordIds])];
     }
-    let verdict = await review(candidate.value.document);
+    let verdict: ReturnType<typeof parseVetBriefReview>;
+    try { verdict = await review(candidate.value.document); }
+    catch (error) {
+      const recovered = recoverReviewedSnapshot(error);
+      if (recovered) return recovered;
+      throw error;
+    }
     let overviewOmitted = false;
     // Optional synopsis recovery cannot delete arbitrary sections or bypass review.
     // The remaining report must still preserve every material fact on re-review.
@@ -97,16 +128,17 @@ export async function prepareReviewedVetBrief<T extends { value: { document: Vet
     const failedChecks = vetBriefReviewChecks.filter(key => !verdict || verdict[key] !== true);
     // Presentation issues never override factual, category, uncertainty or
     // material-history failures. Malformed/contradictory verdicts fail closed.
-    if (attempt === 1 && verdict && parseVetBriefReview(verdict) && verdict.factualIssueCodes?.length === 0
-      && vetBriefBlockingReviewChecks.every(key => verdict[key] === true)) {
-      const warnings: NonNullable<VetBriefDocument["reviewWarnings"]> = (Object.keys(advisoryWarnings) as Array<keyof typeof advisoryWarnings>)
-        .filter(key => verdict[key] === false).map(key => advisoryWarnings[key]);
+    const advisory = presentationWarnings(verdict);
+    if (attempt === 1 && advisory?.length) {
+      const warnings: NonNullable<VetBriefDocument["reviewWarnings"]> = [...advisory];
       if (overviewOmitted) warnings.push("overview_omitted");
       candidate.value.document = { ...candidate.value.document, reviewWarnings: warnings };
       onWarning?.(warnings);
       return candidate;
     }
     onRejected?.(failedChecks, verdict);
+    previousCandidate = { ...candidate, value: { ...candidate.value, document: structuredClone(candidate.value.document), sourceRecordIds: candidate.value.sourceRecordIds?.slice() } };
+    previousVerdict = verdict;
     previousSourceIds = candidate.value.sourceRecordIds || [];
     feedback = { repairSections: verdict?.repairSections, document: candidate.value.document, failedChecks, repairInstructions: verdict?.repairInstructions || "The review response was malformed. Check every criterion against the supplied evidence." };
   }

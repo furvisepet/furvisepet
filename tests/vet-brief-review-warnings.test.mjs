@@ -123,3 +123,41 @@ test('overview omission cannot override missing material history, broader failur
     assert.equal(reviews, options.final ? 3 : 2);
   }
 });
+
+test('presentation repair generation or review outage returns only the immutable substantively reviewed original', async () => {
+  for (const failedStage of ['generate', 'review']) {
+    const first = structuredClone(original);
+    let calls = 0, reviews = 0;
+    const result = await prepareReviewedVetBrief({
+      generate: async feedback => {
+        calls++;
+        if (!feedback) return { value: { document: first, sourceRecordIds: ['original-source'] } };
+        // Even an attempted repair mutating its input must not contaminate the snapshot.
+        feedback.document.visitSummary = 'UNREVIEWED DIAGNOSIS';
+        if (failedStage === 'generate') throw new Error('timeout');
+        return { value: { document: { ...first, visitSummary: 'UNREVIEWED DIAGNOSIS' }, sourceRecordIds: ['unreviewed-source'] } };
+      },
+      review: async () => {
+        if (++reviews > 1) throw new Error('timeout');
+        return { ...pass, visitFocused: false, repairSections: ['overview'], repairInstructions: 'Trim incidental routine activity.' };
+      },
+      canUseReviewedDraftOnRepairFailure: error => error.message === 'timeout',
+    });
+    assert.equal(calls, 2);
+    assert.deepEqual(result.value.document, { ...original, reviewWarnings: ['visit_focus', 'repair_unavailable'] });
+    assert.deepEqual(result.value.sourceRecordIds, ['original-source']);
+    assert.deepEqual(parseVetBriefDocument(JSON.parse(JSON.stringify(result.value.document))).reviewWarnings, ['visit_focus', 'repair_unavailable']);
+  }
+});
+
+test('repair outages never expose substantively rejected originals or bypass unrelated operation errors', async () => {
+  for (const key of [...vetBriefBlockingReviewChecks, 'operation_denied', 'malformed']) {
+    let generated = 0;
+    const timeout = new Error('timeout');
+    await assert.rejects(prepareReviewedVetBrief({
+      generate: async () => { if (++generated > 1) throw timeout; return { value: { document: structuredClone(original) } }; },
+      review: async () => key === 'malformed' ? null : { ...pass, visitFocused: false, ...(key === 'operation_denied' ? {} : { [key]: false }), repairInstructions: 'Repair the issue.', repairSections: ['overview'] },
+      canUseReviewedDraftOnRepairFailure: () => key !== 'operation_denied',
+    }), error => error === timeout, key);
+  }
+});

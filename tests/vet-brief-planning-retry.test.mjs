@@ -5,7 +5,7 @@ import test from 'node:test';
 import ts from 'typescript';
 import {prepareReviewedVetBrief} from '../app/lib/vet-brief/review.ts';
 
-function pipeline({planFailures=0,contentFailures=0,reviewFailures=0,semanticFailures=0,overviewFailures=0,historyUnavailable=false,failureKind='incomplete_output'}={}) {
+function pipeline({planFailures=0,contentFailures=0,reviewFailures=0,semanticFailures=0,overviewFailures=0,presentationFailures=0,repairContentFails=false,historyUnavailable=false,failureKind='incomplete_output'}={}) {
  const calls=[], inputs=[];
  const document={visitSummary:'Overview',pet:{name:'Synthetic'},dateRange:{from:'2026-06-01',to:'2026-09-12'},missingInformation:[]};
  const plan={from:null,to:'2026-09-12',topics:[{label:'History',terms:['history']}],questionsToResolve:[]};
@@ -13,7 +13,7 @@ function pipeline({planFailures=0,contentFailures=0,reviewFailures=0,semanticFai
   './uncertainty-language.ts':{vetBriefUncertaintyLanguageInstructions:'Apply equal evidence standards in every language.'},
   'server-only':{},
   './publication-review.ts':{vetBriefPublicationReviewSchema:{},vetBriefDuplicationReviewInstructions:''},
-  '../ai/ask-reasoning':{generateStructuredFeatureResponse:async input=>{calls.push(input.schemaName);inputs.push(input);if(input.schemaName==='vet_brief_evidence_plan'){if(planFailures-->0)throw Error('incomplete');return plan;}if(input.schemaName==='vet_brief_content'){if(contentFailures-->0)throw Error('incomplete');return {document};}if(reviewFailures-->0)throw Error('incomplete');const overviewFailed=overviewFailures-->0;return {factsSupported:!overviewFailed&&semanticFailures--<=0,factualIssueCodes:overviewFailed?['source_scope:overview']:[],repairSections:['overview'],importantHistoryPreserved:true,categoriesAccurate:true,uncertaintyPreserved:true,noDuplication:true,questionsUseful:true,visitFocused:true,repairInstructions:'Correct unsupported wording while keeping supported history.'};}},
+  '../ai/ask-reasoning':{generateStructuredFeatureResponse:async input=>{calls.push(input.schemaName);inputs.push(input);if(input.schemaName==='vet_brief_evidence_plan'){if(planFailures-->0)throw Error('incomplete');return plan;}if(input.schemaName==='vet_brief_content'){if(contentFailures-->0||(repairContentFails&&input.input.reviewRepair))throw Error('incomplete');return {document};}if(reviewFailures-->0)throw Error('incomplete');const overviewFailed=overviewFailures-->0;return {factsSupported:!overviewFailed&&semanticFailures--<=0,factualIssueCodes:overviewFailed?['source_scope:overview']:[],repairSections:['overview'],importantHistoryPreserved:true,categoriesAccurate:true,uncertaintyPreserved:true,noDuplication:true,questionsUseful:true,visitFocused:presentationFailures--<=0,repairInstructions:'Correct unsupported wording while keeping supported history.'};}},
   '../intelligence/feature-failure.ts':{featureFailureDetails:()=>({failureKind})},
   '../intelligence/feature-modes.ts':{getIntelligenceFeatureMode:()=>({promptInstructions:[]})},
   '../intelligence/history-retrieval.ts':{retrieveAskHistory:async c=>({...c,askHistory:{entries:[],coverage:{retrieval:'unknown',corrections:historyUnavailable?'unavailable':'unknown',reasons:[]}}})},
@@ -88,4 +88,13 @@ test('optional overview recovery uses the unused sixth provider call and cannot 
   const bounded=pipeline({...failures,overviewFailures:2});await assert.rejects(bounded.run(),{name:'FeatureValidationError'});
   assert.equal(bounded.calls.length,6);
  }
+});
+
+test('production presentation-edit timeout returns the already reviewed original without another call or a factual bypass',async()=>{
+ const p=pipeline({presentationFailures:1,repairContentFails:true,failureKind:'timeout'});
+ const result=await p.run();
+ assert.deepEqual(p.calls,['vet_brief_evidence_plan','vet_brief_content','vet_brief_review','vet_brief_content']);
+ assert.deepEqual(result.document.reviewWarnings,['visit_focus','repair_unavailable']);
+ const unsafe=pipeline({semanticFailures:1,repairContentFails:true,failureKind:'timeout'});await assert.rejects(unsafe.run(),/incomplete/);
+ const denied=pipeline({presentationFailures:1,repairContentFails:true,failureKind:'admission_denied'});await assert.rejects(denied.run(),/incomplete/);
 });
