@@ -1,3 +1,5 @@
+export const MAX_VET_BRIEF_REASON_LENGTH = 12_000;
+
 /** Only a completed application failure can retire its retry key.
  * Transport failures and requests still running must retain theirs. */
 export function isTerminalVetBriefFailure(status: number, payload: { code?: unknown; error?: unknown } | null) {

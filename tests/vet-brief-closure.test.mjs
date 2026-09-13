@@ -1,0 +1,40 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { vetBriefEvidence } from '../app/lib/vet-brief/evidence.ts';
+import { parseVetBriefDocument } from '../app/lib/vet-brief/schema.ts';
+import { buildVetBriefDraft } from '../app/lib/vet-brief/builder.ts';
+import { vetBriefReport, vetBriefText } from '../app/lib/vet-brief/report.ts';
+import { addVetBriefCoverage } from '../app/lib/vet-brief/review.ts';
+const context=(coverage)=>({currentMessage:'Concern',memories:[],legacyPetMemories:[],activeConcerns:[],recentlyResolvedConcerns:[],conversationTurns:[],askHistory:{entries:[],coverage:{retrieval:'unknown',corrections:'unknown',continuation:[],reasons:[],...coverage}}});
+const warnings=coverage=>vetBriefEvidence(context(coverage),{}).warnings;
+test('targeted search, truncation, timeout and changed evidence have distinct coverage explanations',()=>{
+ assert.match(warnings({}).join(' '),/targeted search/);
+ assert.doesNotMatch(warnings({}).join(' '),/Only part/);
+ assert.match(warnings({reasons:['effective_evidence_budget']}).join(' '),/search or report reached its limit/);
+ assert.doesNotMatch(warnings({reasons:['history_query_budget']}).join(' '),/found more matching records/);
+ assert.match(warnings({reasons:['history_time_budget']}).join(' '),/time limit/);
+ assert.match(warnings({reasons:['source_deleted_or_changed']}).join(' '),/records changed/);
+ assert.equal(warnings({reasons:['effective_evidence_budget','history_time_budget']}).length,1);
+ assert.match(warnings({retrieval:'unavailable'}).join(' '),/check failed/);
+});
+test('coverage survives save parsing and publication without replacing clinical gaps or reviving initial caps',()=>{
+ const d=buildVetBriefDraft({profile:{name:'Test',species:'dog'},careEntries:[],memories:[],from:'2026-01-01',to:'2026-09-13'}).document;
+ d.missingInformation=['Confirm last medication dose.'];d.historyCoverage=warnings({});
+ d.relevantCareHistory=[{date:'2026-09-11',category:'Weight',text:'Body weight recorded as 15 kg.'}];
+ const parsed=parseVetBriefDocument(d);assert.ok(parsed);
+ assert.deepEqual(parsed.historyCoverage,d.historyCoverage);
+ assert.deepEqual(addVetBriefCoverage(parsed,[{source:'care_entries',status:'capped'}]),parsed);
+ const report=vetBriefReport(parsed);
+ assert.ok(report.find(s=>s.id==='gaps').items.some(i=>i.text===d.missingInformation[0]));
+ assert.deepEqual(report.find(s=>s.id==='coverage').items.map(i=>i.text),d.historyCoverage);
+ assert.doesNotMatch(vetBriefText(parsed),/Profile weight/);
+ assert.match(vetBriefText(parsed),/15 kg/);
+ assert.equal(vetBriefText(parsed).split(d.historyCoverage[0]).length-1,1);
+});
+test('the entire long owner report reaches the evidence bundle including final negation',()=>{
+ const c=context({}); c.currentMessage='Relevant appointment detail. '.repeat(300)+'She did NOT receive the second dose.';
+ const e=vetBriefEvidence(c,{}).evidence;
+ assert.ok(c.currentMessage.length>1200);
+ assert.equal(e.currentOwnerReport,c.currentMessage);
+ assert.equal(e.appointment.focus,c.currentMessage);
+});

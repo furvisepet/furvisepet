@@ -47,6 +47,8 @@ export function parseVetBriefDocument(value: unknown): VetBriefDocument | null {
     !questionsForVeterinarian || !missingInformation
   ) return null;
 
+  const historyCoverage = draft.historyCoverage === undefined ? undefined : parseStrings(draft.historyCoverage);
+  if (historyCoverage === null) return null;
   const photoUrl = pet.photoUrl && isSafePrivatePhotoUrl(pet.photoUrl) ? pet.photoUrl : null;
   return {
     documentVersion: VET_BRIEF_DOCUMENT_VERSION,
@@ -73,6 +75,7 @@ export function parseVetBriefDocument(value: unknown): VetBriefDocument | null {
     reportedPatterns,
     questionsForVeterinarian,
     missingInformation,
+    ...(historyCoverage ? { historyCoverage } : {}),
     ownerNotes: cleanText(draft.ownerNotes, 4000),
     excludedSections: Array.isArray(draft.excludedSections)
       ? [...new Set(draft.excludedSections.filter((item): item is VetBriefDocument["excludedSections"][number] => typeof item === "string" && SECTION_IDS.has(item)))]

@@ -82,5 +82,8 @@ export function addVetBriefCoverage(document: VetBriefDocument, sources: Array<{
   const warnings = sources.filter(source => ["care_entries", "legacy_memories", "furvise_memories"].includes(source.source))
     .flatMap(source => source.status === "capped" ? ["Only part of the selected history was available. Earlier records may be missing."]
       : source.status === "unavailable" ? ["Some saved history could not be loaded. This report may omit relevant information."] : []);
+  // Prepared briefs already carry coverage from the correction-aware search,
+  // including memory-source limits. The initial recent-history cap is superseded.
+  if (document.historyCoverage) return document;
   return { ...document, missingInformation: [...new Set([...document.missingInformation, ...warnings])] };
 }

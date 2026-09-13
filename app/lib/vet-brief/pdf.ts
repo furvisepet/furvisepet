@@ -3,7 +3,7 @@ import { PDFDocument, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib"
 import fontkit from "@pdf-lib/fontkit";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { vetBriefReport } from "./report.ts";
+import { vetBriefReport, vetBriefProfileWeight } from "./report.ts";
 import type { VetBriefDocument } from "./types.ts";
 
 /* The Vet Brief uses the same approved palette as the application. */
@@ -52,7 +52,7 @@ export async function generateVetBriefPdf(document: VetBriefDocument, options: {
 
   drawRule(state);
   drawText(state, `${document.pet.name} | ${document.pet.species}`, { font: bold, size: 12, color: PDF_THEME.text, spacingAfter: 4 });
-  drawText(state, `Breed: ${document.pet.breed} | Age: ${document.pet.age} | Profile weight: ${document.pet.weight}`, { font: regular, size: 10, color: PDF_THEME.text, spacingAfter: 8 });
+  drawText(state, `Breed: ${document.pet.breed} | Age: ${document.pet.age}${vetBriefProfileWeight(document) ? ` | ${vetBriefProfileWeight(document)}` : ""}`, { font: regular, size: 10, color: PDF_THEME.text, spacingAfter: 8 });
   const scopeNote = document.medicationsSupplements.length && !document.excludedSections.includes("medications")
     ? "Selected owner records, not a complete medical record. Medication entries describe recorded use; current use needs confirmation."
     : "Selected owner records, not a complete medical record.";

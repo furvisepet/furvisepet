@@ -8,10 +8,24 @@ export function vetBriefEvidence(context: FurviseLiveContext, plan: VetBriefAppo
   const records = history?.entries || [];
   const coverage = history?.coverage;
   const warnings: string[] = [];
-  if (!history || coverage?.retrieval === 'unavailable' || coverage?.corrections === 'unavailable') warnings.push('Some requested historical evidence could not be verified. Bring the original records; this brief may omit relevant information.');
-  if (coverage?.continuation.length || coverage?.reasons.some(reason => /budget|timeout|unavailable|changed|unsupported|unknown_effective/.test(reason))) warnings.push('Only part of the requested history could be reviewed. This brief cannot establish complete trends or that an unmentioned event never happened.');
-  // A lexical search is never a completeness certificate, even if exhausted.
-  warnings.push('Relevant saved records were searched; the available history may be incomplete.');
+  const reasons = coverage?.reasons || [];
+  if (!history || coverage?.retrieval === 'unavailable' || coverage?.corrections === 'unavailable') {
+    warnings.push('Some requested historical evidence could not be verified because a history read or correction check failed. Bring the original records; this brief may omit relevant information.');
+  } else if (reasons.some(reason => /timeout|time_budget/.test(reason))) {
+    warnings.push('Only part of the requested history could be reviewed because the history search reached its time limit. Bring earlier records relevant to this visit.');
+  } else if (reasons.some(reason => /changed|unsupported|unknown_effective|unlinked_correction/.test(reason))) {
+    warnings.push('Only part of the requested history could be verified: some records changed or their corrected content or event dates could not be established. Do not infer absence from an omitted record.');
+  } else if (coverage?.continuation?.length || reasons.some(reason => /budget|not_represented/.test(reason))) {
+    warnings.push('Only part of the requested history could be reviewed because the search or report reached its limit. Earlier or intervening events may be missing; complete trends cannot be established.');
+  } else {
+    warnings.push('Searched saved records for this appointment and reviewed the selected matches. This is a targeted search, not a review of every lifetime record; no match does not mean an event never happened.');
+  }
+  if (reasons.some(reason => /outside.*(?:window|scope)|subscription_history_window/.test(reason))) warnings.push('The search was restricted to the history accessible under this account. Records outside that period were not reviewed.');
+  for (const source of context.evidenceLoading?.sources || []) {
+    if (!['legacy_memories', 'furvise_memories'].includes(source.source)) continue;
+    if (source.status === 'unavailable') warnings.push('Some saved background notes could not be loaded. Bring relevant diagnoses and treatment records.');
+    else if (source.status === 'capped') warnings.push('Some saved background notes could not fit in this brief.');
+  }
   const memories = [...context.memories.map(m => ({ id: m.id, kind: m.category, text: typeof m.fact_value === 'string' ? m.fact_value : JSON.stringify(m.fact_value), confirmedAt: m.last_confirmed_at })),
     ...context.legacyPetMemories.map(m => ({ id: m.id, kind: m.type, text: m.text, confirmedAt: m.created_at }))];
   const selectedMemories: typeof memories = []; let memoryChars = 0;
@@ -37,5 +51,5 @@ export function vetBriefEvidence(context: FurviseLiveContext, plan: VetBriefAppo
     coverageWarnings: warnings,
   };
   const allowedIds = [...new Set([...records.map(r => r.id), ...selectedMemories.map(m => m.id), ...context.activeConcerns.map(c => c.id), ...context.recentlyResolvedConcerns.map(c => c.id)])];
-  return { evidence, warnings, allowedIds };
+  return { evidence, warnings: [...new Set(warnings)], allowedIds };
 }
