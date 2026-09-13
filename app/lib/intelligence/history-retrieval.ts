@@ -111,6 +111,11 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const futureSourceRequested = !vetBriefRead && (/\b(?:future[- ]dated|tomorrow)\b/i.test(context.currentMessage)
     || namedDays.some(day => Date.parse(day) > asOf));
   const deadline = asOf + (vetBriefRead ? 15_000 : HISTORY_BUDGET.timeMs);
+  // Candidate discovery cannot spend the time needed to validate those
+  // candidates. Reserve both correction discovery and linked-source closure
+  // within the same overall Ask budget; Vet Brief retains its own allocation.
+  const candidateDeadline = vetBriefRead ? deadline : deadline - 2_500;
+  const correctionDiscoveryDeadline = vetBriefRead ? deadline : deadline - 1_250;
   const owned = new Set(context.eligiblePets.filter(pet => pet.user_id === context.owner.userId).map(pet => pet.id));
   const ids = [...new Set(petIds)].filter(id => owned.has(id)).sort();
   const coverage: HistoryCoverage = { plan, candidateIds: [], queryCount: 0, retrieval: "unknown", corrections: "unknown", extraction: "unknown", grouping: "unknown",
@@ -203,7 +208,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
           // Duplicate hits from another strategy do not consume new-evidence quota.
           // Overfetch remains bounded by pageSize; only unique rows count toward candidateRows.
           const pageLimit = Math.min(HISTORY_BUDGET.pageSize, directionRows - rows.length + priorIds.size);
-          const timeoutMs = historyReadRemaining(deadline);
+          const timeoutMs = historyReadRemaining(candidateDeadline);
           let result: { data: unknown; error: { code?: string } | null };
           if (lexical) {
             // The RPC derives auth.uid(). Never pass an owner or fall back to a
@@ -285,7 +290,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   if (endpointComparison) coverage.reasons.push("bidirectional_endpoint_subset");
   coverage.retrieval = coverage.perPet.some(p => p.status === "unavailable") ? "unavailable" : coverage.continuation.length || ids.length > HISTORY_BUDGET.pets ? "partial" : "unknown";
   if (correctionReserve && coverage.retrieval !== "unavailable") {
-    candidates.push(...await discoverDatedCorrectionNotes(candidates, ids.slice(0, HISTORY_BUDGET.pets), context.owner.userId, db, coverage, deadline));
+    candidates.push(...await discoverDatedCorrectionNotes(candidates, ids.slice(0, HISTORY_BUDGET.pets), context.owner.userId, db, coverage, correctionDiscoveryDeadline));
   }
   coverage.candidateIds = candidates.map(row => `care:${row.id}`);
   const entries = await effectiveCandidates(candidates, owned, ids, context.owner.userId, db, coverage, deadline);
