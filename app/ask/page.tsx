@@ -846,7 +846,24 @@ function Composer({ disabled, hasThread, inputRef, loading, onBlur, onChange, on
   </form>;
 }
 
-function Thinking() { return <div className="flex items-center gap-3 py-3 text-sm text-[var(--pw-muted)]" role="status"><BrandMark showName={false} size={24} /><span>Furvise is thinking this through...</span></div>; }
+function Thinking() {
+  const [takingLonger, setTakingLonger] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setTakingLonger(true), 12000);
+    return () => window.clearTimeout(timer);
+  }, []);
+  return <div className="ask-thinking max-w-xl rounded-2xl border border-[var(--line)] bg-[var(--surface-supportive)] p-4" role="status" aria-live="polite" aria-atomic="true">
+    <div className="flex items-center gap-3">
+      <span className="ask-thinking-heron inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--surface-primary)]" aria-hidden="true"><BrandMark showName={false} size={32} /></span>
+      <span className="text-sm font-medium text-[var(--text-primary)]">{takingLonger ? "Still working on your answer…" : "Furvise is thinking this through…"}</span>
+    </div>
+    <div className="mt-4 space-y-2.5" aria-hidden="true">
+      <div className="ask-thinking-line h-2.5 w-[92%] rounded-full" />
+      <div className="ask-thinking-line h-2.5 w-full rounded-full" />
+      <div className="ask-thinking-line h-2.5 w-[66%] rounded-full" />
+    </div>
+  </div>;
+}
 
 function AskFailureState({ code, onEdit, onRetry, planId, retryAfterSeconds }: { code: AskFailureCode; onEdit: () => void; onRetry: () => void; planId?: "free" | "plus"; retryAfterSeconds?: number }) {
   const presentation = getAskErrorPresentation(code, retryAfterSeconds);

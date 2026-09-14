@@ -27,7 +27,7 @@ import { governSemanticTurnV2 } from "./v2/governance/govern-turn.ts";
 import { projectGovernedPreferencesToLegacyMemories } from "./v2/projections/legacy-memory.ts";
 import { memoryDisplayContent } from "./memory-integrity.ts";
 import { normalizeKnownPreferenceMemory, preferenceSemanticIdentity } from "./preference-semantics.ts";
-import { buildExplicitCareHistoryAction, omitGovernedCareSaveDuplicates, prepareGovernedCareHistoryAction } from "./care-history-policy.ts";
+import { buildExplicitCareHistoryAction, isExplicitCareHistorySaveRequest, omitGovernedCareSaveDuplicates, prepareGovernedCareHistoryAction } from "./care-history-policy.ts";
 import { buildConfirmedLossCareAction, resolvePetLossContext } from "../ai/pet-loss.ts";
 import { buildSourceGroundedResolutionAction, isRecoveryGroundedForConcern } from "../ai/concern-engine.ts";
 import { createAskEvidenceContract, type AskEvidenceContract } from "./ask-evidence.ts";
@@ -154,8 +154,8 @@ export async function runFurviseIntelligence({
   });
   // Recall remains read-only even when model classifications propose writes.
   // Mixed owner observations and explicit saves are not question-only recall.
-  const readOnlyRecall = Boolean(context.askInterpretation?.readOnly || reasoning.evidenceContract?.scope.readOnlyRecall);
-  if (readOnlyRecall) {
+  let readOnlyRecall = Boolean(context.askInterpretation?.readOnly || reasoning.evidenceContract?.scope.readOnlyRecall);
+  const suppressPersistence = () => {
     reasoning.learnings = [];
     reasoning.careActions = [];
     reasoning.semanticEvents = [];
@@ -168,7 +168,8 @@ export async function runFurviseIntelligence({
       userIsProvidingPreference: false, userIsMakingSmallTalk: false,
       recoveryStatus: "none", recoveryConfidence: 1,
       recoveryEvidence: { outcome: "none", surfaceText: null, targetConcept: null, confidence: 1 } };
-  }
+  };
+  if (readOnlyRecall) suppressPersistence();
   // A record edit is a distinct operation from an observed care transition.
   // Remove only the duplicated correction proposal when the typed edit channel
   // is present; the action still needs an owned binding and confirmation.
@@ -218,10 +219,21 @@ export async function runFurviseIntelligence({
     resolutionSafetyAllowed: semanticGovernanceInput.allowTerminalResolution,
   });
 
-  // A legacy care action cannot replace a rejected semantic write: that path
-  // cannot preserve the rejected proposal's date, episode boundary, or proof.
-  if (semanticGovernance.rejected.length) throw Object.assign(
-    new Error("FURVISE_SEMANTIC_WRITE_REJECTED"), { code: "ASK_SEMANTIC_WRITE_REJECTED" });
+  if (semanticGovernance.rejected.length) {
+    // Optional extraction cannot veto an independently reviewed answer. Drop
+    // ALL persistence channels, including legacy fallbacks and the V2 frame.
+    // Explicit writes and identity/episode integrity failures still fail closed.
+    const optionalObservation = context.askInterpretation?.request?.mode === "mixed"
+      && !context.askInterpretation.request.mutationIntent
+      && !isExplicitCareHistorySaveRequest(context.currentMessage)
+      && semanticGovernance.rejected.every(item => ["low_confidence", "not_save_worthy"].includes(item.reason));
+    if (!optionalObservation) throw Object.assign(
+      new Error("FURVISE_SEMANTIC_WRITE_REJECTED"), { code: "ASK_SEMANTIC_WRITE_REJECTED" });
+    readOnlyRecall = true;
+    suppressPersistence();
+    semanticGovernance.accepted = [];
+    console.info("[Ask semantic governance] optional persistence suppressed", { requestId });
+  }
 
   const proposedResolutionPolicy = evaluateCareActionPolicy({
     actions: hasOwnedPetSubject ? reasoning.careActions : [],
