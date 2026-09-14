@@ -51,7 +51,11 @@ export function unquotedOwnerText(message: string): string {
 
 /** An explicit current-message opt-out can only remove persistence authority. */
 export function ownerDeclinesPersistence(message: string): boolean {
-  return splitSentencesPreservingFacts(unquotedOwnerText(message)).some(sentence =>
+  const text = unquotedOwnerText(message);
+  // Opt-outs often qualify a larger preparation request or coordinate two
+  // forbidden actions. They remove authority regardless of model write intent.
+  if (/\b(?:do not|don['’]t|never)\s+(?:save|log|record|store|remember)\b|\bsave\s+nothing\b|\bwithout\s+(?:(?:creating|making|adding)\b[^.!?;]{0,100}\b(?:or|and)\s+)?(?:saving|logging|recording|storing|remembering)\b/i.test(text)) return true;
+  return splitSentencesPreservingFacts(text).some(sentence =>
     /^(?:please\s+)?(?:do not|don['’]t|never)\s+(?:save|log|record|store|remember)\s+(?:this|that|anything|any of this|these details)(?:\s+(?:message|information|update|observation|details))?(?:\s+(?:to|in|as)\s+[^.!?;]+)?[.!]?$/i.test(sentence.trim()));
 }
 
