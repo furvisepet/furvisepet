@@ -10,6 +10,7 @@ import type { AskInterpretation } from "./interpret-ask.ts";
 import type { FurviseLiveContext } from "./types.ts";
 import { buildRecentSubjectState } from "./entities/recent-subject-state.ts";
 import { explicitlyNamedOwnedPets } from "./entities/resolve-turn-subject.ts";
+import { ownerDeclinesPersistence } from "../ai/owner-assertion.ts";
 
 /** One semantic read request. This is not evidence and grants no mutation authority.
  * Names are resolved against the authenticated owner's supplied profiles only.
@@ -116,6 +117,13 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (!Array.isArray(p.profileFields) || p.profileFields.some(field => !askRequestSchema({}).properties.profileFields.items.enum.includes(String(field))) || p.profileFields.length > 14) return fail("profile_fields");
   if (![null, "historical", "current", "historical_and_current"].includes(p.temporalScope as null | string)) return fail("temporal_scope");
   if (![null, "correct_record"].includes(p.mutationIntent as null | string)) return fail("mutation_intent");
+  // An observation can inform an answer without permission to save it. Strip
+  // advisory write mode before frame validation and all downstream governance.
+  if (ownerDeclinesPersistence(context.currentMessage) && ["update", "mixed"].includes(String(p.mode))) {
+    p.mode = "read";
+    p.mutationIntent = null;
+    p.frame = null;
+  }
   // A read about an earlier correction is not another edit. Resolve a
   // contradictory planner hint toward less authority, never promote to mixed.
   if (["read", "conversation", "clarify"].includes(String(p.mode))) p.mutationIntent = null;
@@ -336,7 +344,9 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   // A read request cannot silently lose retrieval through a redundant label.
   if (p.mode === "read" && operation === "general" && !conversationOnly && !navigation) operation = "recall";
   const clarification = conversationOnly ? null : !petIds.length ? "subject" : p.mode === "clarify" || operation === "clarify" ? "reference" : null;
-  const historical = !conversationOnly && p.mode !== "update" && operation !== "general" && !clarification;
+  const historical = !conversationOnly && p.mode !== "update"
+    && !(p.mode === "mixed" && p.evidenceBasis === null)
+    && operation !== "general" && !clarification;
   // A literal replacement value is not a request for a JSON response. Keep
   // explicit JSON/array requests and referenced user format instructions, but
   // do not let a planner invent a machine-readable container from "exactly".

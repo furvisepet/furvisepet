@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { analyzeOwnerAssertions, isOwnerAssertedEvidence } from "../app/lib/ai/owner-assertion.ts";
+import { analyzeOwnerAssertions, isOwnerAssertedEvidence, ownerDeclinesPersistence } from "../app/lib/ai/owner-assertion.ts";
 
 test("reported measurement wording is evidence; calculation instructions are not", () => {
   const earlier = "Atlas weighed exactly 5.45 kg during our vet visit last summer on July 12.";
@@ -20,4 +20,10 @@ test("measurement variants preserve quote, attribution, hypothetical and questio
       assert.equal(isOwnerAssertedEvidence(wrapped, text), false, wrapped);
     }
   }
+});
+
+
+test("explicit persistence opt-out narrows authority without interpreting quoted instructions", () => {
+ for(const text of ["Do not save this message.", "Please don't save this to history.", "Never record anything."]) assert.equal(ownerDeclinesPersistence(text),true,text);
+ for(const text of ['The note says "Do not save this message."', "If I say do not save this message, what happens?", "Don't save this as a new note; edit the old note.", "Save this message."]) assert.equal(ownerDeclinesPersistence(text),false,text);
 });
