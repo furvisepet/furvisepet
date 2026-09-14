@@ -51,3 +51,21 @@ test('standalone conversation keeps the whole user task rather than isolated pla
   assert.equal(r.context.askInterpretation.request.question,question);
   assert.deepEqual(r.context.askInterpretation.request.requirements,[]);
 });
+
+test('twelve multi-field JSON profiles preserve all 24 citations including recorded emptiness',async t=>{
+ clock(t);
+ const fixturePets=Array.from({length:12},(_,i)=>({...pets[0],id:randomUUID(),name:`Animal${i}`,species:i%2?'cat':'dog',current_food:i<10?'Complete adult food':null}));
+ const ids=fixturePets.flatMap(p=>[`profile:${p.id}:species`,`profile:${p.id}:current_food`]);
+ const r=await exercise('Return only JSON with name, species and current_food for all twelve of my saved profiles. Use null for unrecorded food. Save nothing.',{
+ fixturePets,petId:fixturePets[0].id,conversationPetId:fixturePets[0].id,history:true,rows:[],messages:[],
+ interpretationProposal:{subject:'account',scope:'account',petNames:[],profileFields:['species','current_food'],evidenceBasis:'saved_profile',operation:'recall',selection:'summary',topic:'profiles',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:null,outputFormat:'json'},
+ providerResponse:async request=>{
+ assert.ok(request.text.format.schema.properties.json.properties.sourceIds.maxItems>=ids.length);
+ return {status:'completed',output_text:JSON.stringify({readVersion:'history-answer.v1',layout:'json',json:{value:{kind:'array',items:fixturePets.map(p=>({kind:'object',entries:[{key:'name',value:p.name},{key:'species',value:p.species},{key:'current_food',value:p.current_food}]}))},sourceIds:ids,calculations:[]},historyNarrative:null,table:null,limitation:null,navigationActions:[],safetyLevel:'normal',responseMode:'practical_guidance',userIntent:'profiles',relevantContextIds:ids}),usage:{input_tokens:1000,output_tokens:1000}};
+ },reviewResponse:{approved:true},expectedReviewCalls:null});
+ assert.equal(r.reviewRequests.length,1);
+ assert.equal(r.publication.failure,null);
+ for(const id of ids)assert.ok(r.result.reasoning.evidenceContract.represented.some(s=>s.sourceId===id),id);
+ const empty=r.result.reasoning.evidenceContract.represented.find(s=>s.sourceId===`profile:${fixturePets[11].id}:current_food`);
+ assert.match(empty.text,/Not recorded/);
+});
