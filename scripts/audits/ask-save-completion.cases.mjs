@@ -76,6 +76,14 @@ const verification=()=>Object.fromEntries(['evidenceSupport','subjectDateCorrect
 const review=()=>({verification:verification(),obligations:[0,1,2].map(index=>({index,status:'answered',answerIndexes:index===1?[]:[0],actionIndexes:index===1?[0]:[]})),reason:null});
 const mock=(values,seen=[])=>({responses:{create:async request=>{seen.push(request);assert.ok(values.length,'unexpected provider call');return {status:'completed',output_text:JSON.stringify(values.shift()),usage:{input_tokens:10,output_tokens:10}};}}});
 const run=(values,r=response(),seen=[])=>reviewTaskCompletion({validation:validation(r),context,requestId:'audit',validate:validation,client:mock(values,seen)});
+test('unrequested JSON must be repaired before prose completion can pass',async()=>{
+ const seen=[];
+ const result=await run([review(),{answer:body,navigation:null},review()],response(JSON.stringify({message:body})),seen);
+ assert.equal(seen.length,3);
+ assert.equal(result.response.answer.summary,body);
+ assert.equal(result.assessment.checks.taskCompletion,'passed');
+ await assert.rejects(run([review(),{answer:JSON.stringify({message:body}),navigation:null},review()],response(JSON.stringify({message:body}))),/ASK_TASK_INCOMPLETE/);
+});
 test('compound answer requires both explanation and the actual navigation card',async()=>{
   const seen=[];const result=await run([review()],response(),seen);
   assert.equal(result.assessment.checks.taskCompletion,'passed');

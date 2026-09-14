@@ -1,4 +1,5 @@
 import { CLAIM_AUTHORITY_POLICY, CLAIM_REVIEW_POLICY } from "./claim-authority-policy.ts";
+import { matchesHistoryOutputFormat } from "./historical-read-response.ts";
 import { readPublicationFailure, canonicalReadPresentation } from "../ask-publication.ts";
 import { TASK_COMPLETION_STATUSES } from "./history-review-selection.ts";
 import { furviseProductFacts } from "../ai/ask-internal-product-policy.ts";
@@ -170,6 +171,7 @@ export async function reviewTaskCompletion(input: {
     response.answer.summary = canonicalReadPresentation(response.answer.summary);
     response.answer.sections = response.answer.sections.map(section => ({ ...section, items: section.items.map(canonicalReadPresentation) }));
     const body = visible(response);
+    const formatFailure = request.outputFormat !== "json" && !matchesHistoryOutputFormat(body, "prose");
     const automaticSaveWordingFailure = pendingActions.length > 0 && /\b(?:persistence|application action|ready for review)\b/i.test(body);
     const snapshot = JSON.stringify({ answer: response.answer, actions, evidence: response.evidenceContract, pendingEvents, pendingCareActions });
     const payload = { productFacts: furviseProductFacts(), obligations: obligations.map((text, index) => ({ index, text })), plannerHints: request.requirements,
@@ -190,7 +192,7 @@ export async function reviewTaskCompletion(input: {
     const reviewed = parseTaskCompletion(await invoke(attempt ? "task_rereview" : "task_review", payload, schema, instructions + "\n" + CLAIM_REVIEW_POLICY), obligations, 1, actions.length + pendingActions.length, reason => { reviewFailure = reason; }, readyActionIndexes);
     if (snapshot !== JSON.stringify({ answer: response.answer, actions: prepare(response), evidence: response.evidenceContract, pendingEvents: pending(), pendingCareActions: isExplicitCareHistorySaveRequest(input.context.currentMessage) ? input.pendingCareActions || [] : [] })) throw taskFailure("ASK_TASK_REVIEW_BODY_CHANGED");
     if (!reviewed && attempt) throw taskFailure("ASK_TASK_REVIEW_INVALID_" + reviewFailure);
-    if (reviewed?.accepted && !containsUnverifiedStateClaim(body) && !readPublicationFailure(body) && !automaticSaveWordingFailure) {
+    if (reviewed?.accepted && !formatFailure && !containsUnverifiedStateClaim(body) && !readPublicationFailure(body) && !automaticSaveWordingFailure) {
       rememberReviewedTaskPresentation(response.evidenceContract, response.answer, actions);
       return { ...validation, completion: reviewed.completion.map(item => ({ index: item.index, status: item.status, sentenceIndexes: [...item.answerIndexes], actionIndexes: [...item.actionIndexes], sourceIds: [] })), assessment: createAnswerAssessment({ body: response.answer, evidence: response.evidenceContract || null,
         checks: { ...validation.assessment.checks,
@@ -217,7 +219,7 @@ export async function reviewTaskCompletion(input: {
     // envelope whose unrelated fields can silently discard a valid destination.
     const navigationSchema = { type: "object", additionalProperties: false,
       required: ["kind"], properties: { kind: { type: "string", enum: ["navigation.open_pet_profile", "navigation.open_memories", "navigation.open_care_history", "navigation.open_vet_brief"] } } };
-    const repaired = await invoke("task_repair", { ...payload, reviewFindings: reviewed?.completion || null, verificationFindings: reviewed?.verification || null, rejectionReason: automaticSaveWordingFailure ? "Use a neutral list of the dated notes. These automatic writes need no user review or click. Do not mention application actions or persistence, and do not claim episode grouping from general note actions." : readPublicationFailure(body) ? "The answer changes under publication/reload; preserve every factual obligation using publishable wording." : containsUnverifiedStateClaim(body) ? "The answer claims unverified action execution." : reviewed?.reason || "Invalid review references: " + reviewFailure }, {
+    const repaired = await invoke("task_repair", { ...payload, reviewFindings: reviewed?.completion || null, verificationFindings: reviewed?.verification || null, rejectionReason: formatFailure ? "Use the requested response format. With no explicit structured-format request, write natural prose, not a JSON envelope. Preserve all requested content. Clarifications ask for a human-readable date or note text, never an internal source ID." : automaticSaveWordingFailure ? "Use a neutral list of the dated notes. These automatic writes need no user review or click. Do not mention application actions or persistence, and do not claim episode grouping from general note actions." : readPublicationFailure(body) ? "The answer changes under publication/reload; preserve every factual obligation using publishable wording." : containsUnverifiedStateClaim(body) ? "The answer claims unverified action execution." : reviewed?.reason || "Invalid review references: " + reviewFailure }, {
       type: "object", additionalProperties: false, required: ["answer", "navigation"], properties: {
         answer: { type: "string", minLength: 1, maxLength: 8000 },
         navigation: { type: ["array", "null"], maxItems: 3, items: navigationSchema },
