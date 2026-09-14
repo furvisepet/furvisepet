@@ -111,9 +111,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   const ids = new Set(sources.map(source => source.sourceId));
   // A missing optional narrative must not prevent review of useful plain prose.
   // These broad citations are candidates for the reviewer, never proof.
-  const hasRequestedMutation = sharedRequest && !evidence.scope.readOnlyRecall
-    && actions.some(action => action.mutationClass === "mutation" && action.confirmationPolicy === "always");
-  if (!proposedDraft && (result.historyNarrativeDeclined || hasRequestedMutation)) {
+  if (!proposedDraft && (result.historyNarrativeDeclined || sharedRequest && !evidence.scope.readOnlyRecall)) {
     const relevantIds = result.relevantContextIds.filter(id => ids.has(id));
     const sourceIds = relevantIds.length ? [...new Set(relevantIds)] : [...ids];
     proposedDraft = parseHistoryNarrative({ sentences: splitSentencesPreservingFacts(result.answer.summary)

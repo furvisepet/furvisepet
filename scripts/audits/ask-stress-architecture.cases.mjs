@@ -40,6 +40,22 @@ for (const withNarrative of [true,false]) test('mixed history review preserves a
  const actions=prepareFurviseApplicationActions({proposals:r.result.reasoning.applicationActions,petId:owned[0].id,petName:'Aster',requestId:'test',sourceMessage:question});
  assert.deepEqual(resolveFurviseActionTargetBindings({actions,referencedRecords:r.result.reasoning.referencedRecords}),{'test:1':'11000000-0000-4000-8000-000000000101'});
 });
+test('plain-text missing-target clarification gets independent review without a mutation',async t=>{
+ clock(t);
+ const answer='What date was that note recorded, and what does its current text say?';
+ const r=await exercise('Edit the note titled Unmatched administrative note.',{fixturePets:owned,messages:[],history:true,
+  rows:[care('11000000-0000-4000-8000-000000000101','milo','2026-06-04','general','Aster walked for 18 minutes.')],
+  interpretationProposal:proposal({mode:'mixed',mutationIntent:'correct_record'}),
+  providerOverrides:{answer,historyNarrative:null,applicationActions:[],semanticEvents:[]},expectedReviewCalls:1,
+  reviewProviderResponse:async request=>{
+   const input=JSON.parse(request.input);assert.deepEqual(input.actions,[]);
+   return {status:'completed',output_text:JSON.stringify({approved:true,retainedSentenceIndexes:[0],rejectionReason:null,
+    obligations:input.obligations.map(o=>({index:o.index,status:'needs_information',sentenceIndexes:[0],actionIndexes:[]}))}),usage:{input_tokens:100,output_tokens:50}};
+  }});
+ assert.match(r.result.reasoning.answer.summary,/What date was that note recorded/);
+ assert.deepEqual(r.result.reasoning.applicationActions,[]);
+ assert.equal(r.result.acceptedSemanticEvents.length,0);
+});
 test('receipt records retain per-record dates through generation and shared eligibility',async t=>{
  clock(t);
  const {eligibleAnswerSources}=await import('../../app/lib/intelligence/ask-evidence.ts');
