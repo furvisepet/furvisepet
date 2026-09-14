@@ -350,6 +350,7 @@ export type AskFailureCode =
   | "SERVICE_DAILY_LIMIT"
   | "PLAN_LIMIT"
   | "RATE_LIMIT"
+  | "ANSWER_ALREADY_ACTIVE"
   | "TEMPORARY_PROVIDER_FAILURE"
   | "TEMPORARY_DATABASE_FAILURE"
   | "ACTION_FAILED"
@@ -365,6 +366,7 @@ export type AskInternalFailure =
   | "service_daily_limit"
   | "plan_limit"
   | "rate_limit"
+  | "answer_already_active"
   | "provider_failure"
   | "database_failure"
   | "action_failure"
@@ -388,6 +390,7 @@ const publicCodeByFailure: Readonly<Record<AskInternalFailure, AskFailureCode>> 
   service_daily_limit: "SERVICE_DAILY_LIMIT",
   plan_limit: "PLAN_LIMIT",
   rate_limit: "RATE_LIMIT",
+  answer_already_active: "ANSWER_ALREADY_ACTIVE",
   provider_failure: "TEMPORARY_PROVIDER_FAILURE",
   database_failure: "TEMPORARY_DATABASE_FAILURE",
   action_failure: "ACTION_FAILED",
@@ -411,6 +414,8 @@ export function getAskErrorPresentation(code: AskFailureCode, retryAfterSeconds?
     case "SERVICE_DAILY_LIMIT": return state("Ask has reached its daily service limit", "Furvise has reached its daily AI limit. Please return after the daily limit resets. Your question is still here, and your saved pet information and history remain available.", false, "saved_data");
     case "PLAN_LIMIT": return state("You've reached your Ask plan limit", buildFurviseQuotaMessage(), false, "saved_data");
     case "RATE_LIMIT": return state("You're sending questions a little too quickly", retryAfter ? `Try again in about ${formatSeconds(retryAfter)}.` : "Wait a moment, then try again.", true, "retry", retryAfter);
+    // A concurrency lease can be released early; its expiry is not a cooldown.
+    case "ANSWER_ALREADY_ACTIVE": return state("Another answer is still finishing", "Your question is kept here. Try again shortly, once the other answer finishes.", true, "retry");
     case "REQUEST_IN_PROGRESS": return state("Furvise is still working on this question", retryAfter ? `Please wait about ${formatSeconds(retryAfter)} before checking again.` : "Please wait while the current answer finishes.", false, "wait", retryAfter);
     case "ACTION_FAILED": return state("That action didn't finish", "Your answer is still available. Review the action and try it again when you're ready.", true, "retry");
     case "TEMPORARY_DATABASE_FAILURE": return state("Furvise couldn't finish this answer", "Your question is still here. Try again in a moment.", true, "retry");

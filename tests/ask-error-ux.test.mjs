@@ -24,6 +24,16 @@ test("rate, plan, provider, database, and in-progress states remain distinct", (
   assert.equal(getAskErrorPresentation("REQUEST_IN_PROGRESS").recommendedAction, "wait");
 });
 
+test("an active answer never presents the remaining lease as a mandatory cooldown", () => {
+  const presentation = getAskErrorPresentation(publicAskFailureCode("answer_already_active"), 82);
+  assert.equal(presentation.retryable, true);
+  assert.equal(presentation.recommendedAction, "retry");
+  assert.equal(presentation.retryAfterSeconds, undefined);
+  assert.doesNotMatch(presentation.message + presentation.title, /82|too quickly|seconds/);
+  assert.match(presentation.message, /question is kept/);
+  assert.equal(getAskErrorPresentation("RATE_LIMIT", 82).retryAfterSeconds, 82);
+});
+
  test("daily service cap does not invite retry, editing, or a plan upgrade", () => {
   const code = publicAskFailureCode("service_daily_limit");
   assert.equal(code, "SERVICE_DAILY_LIMIT");
