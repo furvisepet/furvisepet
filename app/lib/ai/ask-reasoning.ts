@@ -711,7 +711,11 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   let retryUsed = false;
   try {
     parsed = await runProviderRequest({
-      client, model: models.primary, onEvent: input.onProviderEvent, parseOutput, request, stage: "primary", timeoutMs: 40_000,
+      client, model: models.primary, onEvent: input.onProviderEvent, parseOutput, request, stage: "primary",
+      // Historical composition uses medium reasoning plus an 8192-token body.
+      // Let it use the shared operation budget instead of cutting it off at
+      // the ordinary answer's 40s ceiling. Review/publication reserve remains.
+      timeoutMs: input.evidenceContract?.history && input.evidenceContract.interpretation?.request ? 60_000 : 40_000,
     });
   } catch (error) {
     if (!(error instanceof AskPipelineError)) throw error;
