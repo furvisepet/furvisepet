@@ -42,3 +42,13 @@ test('completed replay and already-canonical claims are returned without another
   assert.equal(calls,1);assert.equal(result.response,response);
  }
 });
+test('new browser can restore legacy zone-free turns but cannot change a zone-bound identity',async()=>{
+ for(const userSequence of [1,3]) {
+  const prior={...original,conversationId:userSequence===1?'':'owned-conversation'};
+  const result=await claimWithRestoredAskOrigin({payload:{...restored,timeZone:'America/Los_Angeles'},persisted:{...persisted,userSequence},claim:async p=>hash(p)===hash(prior)?{operation:{payloadHash:hash(p)}}:conflict()});
+  assert.equal(result.operation.payloadHash,hash(prior));
+ }
+ const zoneBound={...original,timeZone:'America/Los_Angeles'};
+ const result=await claimWithRestoredAskOrigin({payload:{...restored,timeZone:'Europe/London'},persisted,claim:async p=>hash(p)===hash(zoneBound)?{operation:{}}:conflict()});
+ assert.equal(result.response.status,409);
+});
