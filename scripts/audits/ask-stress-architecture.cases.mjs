@@ -10,6 +10,11 @@ const context = {owner:{userId:ownerId},eligiblePets:owned,pet:owned[0],currentM
 const proposal = patch => ({version:ASK_REQUEST_VERSION,mode:'read',question:'Read the requested facts.',requirements:[],
  referenceTurnIds:[],scope:'named',petNames:['Aster'],operation:'recall',selection:'summary',quantity:null,topic:'observations',terms:[],
  from:null,to:null,episodeTopic:null,ordinal:null,frame:null,evidenceBasis:'saved_history',premiseQuotes:[],...patch});
+test('an exact note replacement does not authorize an invented JSON container',()=>{
+ const input={...context,currentMessage:'Edit the note. Use exactly this text: administrative reminder.'};
+ assert.equal(validateAskRequest(proposal({mode:'mixed',mutationIntent:'correct_record',outputFormat:'json'}),input).request.outputFormat,null);
+ assert.equal(validateAskRequest(proposal({outputFormat:'json'}),{...input,currentMessage:'Return the saved notes as JSON.'}).request.outputFormat,'json');
+});
 for (const withNarrative of [true,false]) test('mixed history review preserves a requested record-edit confirmation without creating an observation; narrative='+withNarrative,async t=>{
  clock(t);
  const question='Correct Aster’s June 4, 2026 walking note to 19 minutes, keeping the same date.';
@@ -39,6 +44,22 @@ for (const withNarrative of [true,false]) test('mixed history review preserves a
  const {prepareFurviseApplicationActions,resolveFurviseActionTargetBindings}=await import('../../app/lib/application-actions/planner.ts');
  const actions=prepareFurviseApplicationActions({proposals:r.result.reasoning.applicationActions,petId:owned[0].id,petName:'Aster',requestId:'test',sourceMessage:question});
  assert.deepEqual(resolveFurviseActionTargetBindings({actions,referencedRecords:r.result.reasoning.referencedRecords}),{'test:1':'11000000-0000-4000-8000-000000000101'});
+});
+test('plain-text missing-target clarification gets independent review without a mutation',async t=>{
+ clock(t);
+ const answer='What date was that note recorded, and what does its current text say?';
+ const r=await exercise('Edit the note titled Unmatched administrative note.',{fixturePets:owned,messages:[],history:true,
+  rows:[care('11000000-0000-4000-8000-000000000101','milo','2026-06-04','general','Aster walked for 18 minutes.')],
+  interpretationProposal:proposal({mode:'mixed',mutationIntent:'correct_record'}),
+  providerOverrides:{answer,historyNarrative:null,applicationActions:[],semanticEvents:[]},expectedReviewCalls:1,
+  reviewProviderResponse:async request=>{
+   const input=JSON.parse(request.input);assert.deepEqual(input.actions,[]);
+   return {status:'completed',output_text:JSON.stringify({approved:true,retainedSentenceIndexes:[0],rejectionReason:null,
+    obligations:input.obligations.map(o=>({index:o.index,status:'needs_information',sentenceIndexes:[0],actionIndexes:[]}))}),usage:{input_tokens:100,output_tokens:50}};
+  }});
+ assert.match(r.result.reasoning.answer.summary,/What date was that note recorded/);
+ assert.deepEqual(r.result.reasoning.applicationActions,[]);
+ assert.equal(r.result.acceptedSemanticEvents.length,0);
 });
 test('receipt records retain per-record dates through generation and shared eligibility',async t=>{
  clock(t);

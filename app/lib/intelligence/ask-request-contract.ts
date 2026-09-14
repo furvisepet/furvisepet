@@ -336,6 +336,12 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (p.mode === "read" && operation === "general" && !conversationOnly && !navigation) operation = "recall";
   const clarification = conversationOnly ? null : !petIds.length ? "subject" : p.mode === "clarify" || operation === "clarify" ? "reference" : null;
   const historical = !conversationOnly && p.mode !== "update" && operation !== "general" && !clarification;
+  // A literal replacement value is not a request for a JSON response. Keep
+  // explicit JSON/array requests and referenced user format instructions, but
+  // do not let a planner invent a machine-readable container from "exactly".
+  const formatRequestText = [context.currentMessage, ...context.conversationTurns
+    .filter(turn => turn.role === "user" && (p.referenceTurnIds as string[]).includes(turn.id)).map(turn => turn.text)].join("\n");
+  if (p.outputFormat === "json" && !/\b(?:json|array)\b/i.test(formatRequestText)) p.outputFormat = null;
   // As-of is an upper bound, not an exact-date lookup. Preserve a separately
   // requested lower bound, but never turn an as-of day into a one-day window.
   if (/\bas\s+of\b/i.test(context.currentMessage) && !/\b(?:since|from|between)\b/i.test(context.currentMessage)) p.from = null;
