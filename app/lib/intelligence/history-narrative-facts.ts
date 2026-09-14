@@ -207,7 +207,13 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
   }
   const unsupportedDates = dates(text).filter(date => !supportedDates.has(date));
   const requestedUnitConversion = /\b(?:convert|conversion|express(?:ed)?|in\s+(?:kilograms?|grams?|milligrams?|pounds?|lbs?|milliliters?|liters?|litres?))\b/i.test(requestText);
-  const unsupportedQuantities = quantities(text).filter(quantity => !supportedQuantities.has(quantity)
+  // Attributive record-year labels are dates, not counts ("the 2024 notes").
+  // Require that year in a cited source date; explicit totals still remain
+  // quantities, and independent review still checks the complete claim.
+  const sourceYears = new Set(sourceDates.filter(date => /^\d{4}:/.test(date)).map(date => date.slice(0, 4)));
+  const quantityText = text.replace(/\b(the|these|those|his|her|their|your|our|[\p{L}]+['’]s)\s+((?:19|20)\d{2})(?=\s+(?:notes?|records?|entries|entry)\b)/giu,
+    (label, determiner, year) => sourceYears.has(year) ? `${determiner} ` : label);
+  const unsupportedQuantities = quantities(quantityText).filter(quantity => !supportedQuantities.has(quantity)
     && !equivalentQuantity(quantity, derivedQuantities)
     && !(requestedUnitConversion && equivalentQuantity(quantity, sourceQuantities)));
   for (const date of unsupportedDates) onUnsupported?.("Unsupported date anchor: " + date);

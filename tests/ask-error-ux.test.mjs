@@ -35,3 +35,11 @@ test("rate, plan, provider, database, and in-progress states remain distinct", (
   assert.doesNotMatch(presentation.message, /try again|upgrade|your.*plan limit/i);
   assert.equal(getAskErrorPresentation("TEMPORARY_PROVIDER_FAILURE").retryable, true);
 });
+
+
+test("identity conflicts preserve the question through edit instead of repeating the same failed retry", () => {
+  const state = getAskErrorPresentation(publicAskFailureCode("request_identity_changed"));
+  assert.equal(state.retryable, false);
+  assert.equal(state.recommendedAction, "edit");
+  assert.match(state.message, /question is kept/);
+});
