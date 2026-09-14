@@ -1412,3 +1412,16 @@ test('plain mixed-history answers retain owner-report anchors when legacy contex
  assert.deepEqual(r.result.executionPlan.semanticEvents,[]);
  assert.deepEqual(r.result.executionPlan.careActions,[]);
 });
+
+for (const count of [2,3]) test(`incidental cited-note count is exact and distinct: ${count}`, async t => {
+ clock(t);
+ const text=`The ${count} notes describe Aster resting normally.`;
+ const r=await exercise('Summarize the saved rest observations.',{fixturePets,messages:[],history:true,
+  rows:[care('rest-a','milo','2026-06-03','general','Aster rested normally.'),care('rest-b','milo','2026-06-04','general','Aster rested normally.')],
+  interpretationProposal:proposal(),
+  providerOverrides:{historyNarrative:{sentences:[{text,sourceIds:['care:rest-a','care:rest-b'],calculations:[]}]}},
+  reviewResponse:{approved:true},expectedReviewCalls:count===2?1:2,
+ });
+ if(count===2) assert.equal(r.result.reasoning.answer.summary,text);
+ else assert.notEqual(r.result.reasoning.answer.summary,text);
+});
