@@ -1,4 +1,4 @@
-import { CLAIM_AUTHORITY_POLICY } from "./claim-authority-policy.ts";
+import { CLAIM_AUTHORITY_POLICY, CLAIM_REVIEW_POLICY } from "./claim-authority-policy.ts";
 import { readPublicationFailure, canonicalReadPresentation } from "../ask-publication.ts";
 import { TASK_COMPLETION_STATUSES } from "./history-review-selection.ts";
 import { furviseProductFacts } from "../ai/ask-internal-product-policy.ts";
@@ -185,7 +185,7 @@ export async function reviewTaskCompletion(input: {
         .concat(pendingActions.map((_,index) => actions.length + index)) };
     const schema = taskReviewSchema(obligations.length, actions.length + pendingActions.length, readyActionIndexes);
     let reviewFailure = "INVALID";
-    const reviewed = parseTaskCompletion(await invoke(attempt ? "task_rereview" : "task_review", payload, schema, instructions + "\n" + CLAIM_AUTHORITY_POLICY), obligations, 1, actions.length + pendingActions.length, reason => { reviewFailure = reason; }, readyActionIndexes);
+    const reviewed = parseTaskCompletion(await invoke(attempt ? "task_rereview" : "task_review", payload, schema, instructions + "\n" + CLAIM_REVIEW_POLICY), obligations, 1, actions.length + pendingActions.length, reason => { reviewFailure = reason; }, readyActionIndexes);
     if (snapshot !== JSON.stringify({ answer: response.answer, actions: prepare(response), evidence: response.evidenceContract, pendingEvents: pending(), pendingCareActions: isExplicitCareHistorySaveRequest(input.context.currentMessage) ? input.pendingCareActions || [] : [] })) throw taskFailure("ASK_TASK_REVIEW_BODY_CHANGED");
     if (!reviewed && attempt) throw taskFailure("ASK_TASK_REVIEW_INVALID_" + reviewFailure);
     if (reviewed?.accepted && !containsUnverifiedStateClaim(body) && !readPublicationFailure(body) && !automaticSaveWordingFailure) {
