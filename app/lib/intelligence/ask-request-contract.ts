@@ -119,7 +119,8 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (![null, "correct_record"].includes(p.mutationIntent as null | string)) return fail("mutation_intent");
   // An observation can inform an answer without permission to save it. Strip
   // advisory write mode before frame validation and all downstream governance.
-  if (ownerDeclinesPersistence(context.currentMessage) && ["update", "mixed"].includes(String(p.mode))) {
+  const persistenceDeclined = ownerDeclinesPersistence(context.currentMessage);
+  if (persistenceDeclined && ["update", "mixed"].includes(String(p.mode))) {
     p.mode = "read";
     p.mutationIntent = null;
     p.frame = null;
@@ -342,10 +343,11 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   const conversationOnly = p.scope === "none" && (p.mode === "conversation" || p.mode === "clarify" || p.mode === "read" && operation === "general");
   if (p.mode === "conversation" && !conversationOnly) return fail("conversation_scope");
   // A read request cannot silently lose retrieval through a redundant label.
-  if (p.mode === "read" && operation === "general" && !conversationOnly && !navigation) operation = "recall";
+  if (p.mode === "read" && operation === "general" && !conversationOnly && !navigation
+    && !(persistenceDeclined && p.evidenceBasis === null)) operation = "recall";
   const clarification = conversationOnly ? null : !petIds.length ? "subject" : p.mode === "clarify" || operation === "clarify" ? "reference" : null;
   const historical = !conversationOnly && p.mode !== "update"
-    && !(p.mode === "mixed" && p.evidenceBasis === null)
+    && !((p.mode === "mixed" || persistenceDeclined) && p.evidenceBasis === null)
     && operation !== "general" && !clarification;
   // A literal replacement value is not a request for a JSON response. Keep
   // explicit JSON/array requests and referenced user format instructions, but
