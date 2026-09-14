@@ -1356,6 +1356,7 @@ test('explicit do-not-save strips every proposed persistence channel before sema
    references:{priorEventIds:[],episodeId:null,concernId:null},importance:'important',confidence:.79}]},
  });
  assert.equal(r.context.askInterpretation.readOnly,true);
+ assert.equal(r.context.askInterpretation.history,null);
  assert.deepEqual(r.result.executionPlan.careActions,[]);
  assert.deepEqual(r.result.executionPlan.semanticEvents,[]);
  assert.deepEqual(r.result.executionPlan.learnings,[]);
