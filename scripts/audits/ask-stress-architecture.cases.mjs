@@ -10,7 +10,7 @@ const context = {owner:{userId:ownerId},eligiblePets:owned,pet:owned[0],currentM
 const proposal = patch => ({version:ASK_REQUEST_VERSION,mode:'read',question:'Read the requested facts.',requirements:[],
  referenceTurnIds:[],scope:'named',petNames:['Aster'],operation:'recall',selection:'summary',quantity:null,topic:'observations',terms:[],
  from:null,to:null,episodeTopic:null,ordinal:null,frame:null,evidenceBasis:'saved_history',premiseQuotes:[],...patch});
-test('mixed history review preserves a requested record-edit confirmation without creating an observation',async t=>{
+for (const withNarrative of [true,false]) test('mixed history review preserves a requested record-edit confirmation without creating an observation; narrative='+withNarrative,async t=>{
  clock(t);
  const question='Correct Aster’s June 4, 2026 walking note to 19 minutes, keeping the same date.';
  let reviewedAction;
@@ -18,7 +18,7 @@ test('mixed history review preserves a requested record-edit confirmation withou
   rows:[care('11000000-0000-4000-8000-000000000101','milo','2026-06-04','general','Aster walked for 18 minutes.')],
   interpretationProposal:proposal({mode:'mixed',mutationIntent:'correct_record',from:'2026-06-04',to:'2026-06-05',frame:null}),
   providerOverrides:{answer:'Review the proposed correction below.',relevantContextIds:['care:11000000-0000-4000-8000-000000000101'],semanticEvents:[],
-    historyNarrative:{sentences:[{text:'The proposed correction is 19 minutes; review it below.',sourceIds:['care:11000000-0000-4000-8000-000000000101','request:current'],calculations:[]}]},
+    historyNarrative:withNarrative ? {sentences:[{text:'The proposed correction is 19 minutes; review it below.',sourceIds:['care:11000000-0000-4000-8000-000000000101','request:current'],calculations:[]}]} : null,
     applicationActions:[{kind:'care_history.edit',explicitIntent:true,evidence:question,input:{field:null,value:null,title:null,detail:'Aster walked for 19 minutes.',category:'general',target:'specified'}}]},
   expectedReviewCalls:1,reviewProviderResponse:async request=>{
     const input=JSON.parse(request.input);reviewedAction=input.actions[0];
@@ -29,6 +29,7 @@ test('mixed history review preserves a requested record-edit confirmation withou
       obligations:input.obligations.map(o=>({index:o.index,status:'action_ready',sentenceIndexes:[0],actionIndexes:[0]}))}),usage:{input_tokens:500,output_tokens:100}};
   }});
  assert.ok(reviewedAction);
+ assert.doesNotMatch(r.result.reasoning.answer.summary,/couldn.t finish|aren.t a full answer/);
  assert.equal(r.result.acceptedSemanticEvents.length,0);
  assert.equal(r.result.reasoning.applicationActions[0].kind,'care_history.edit');
  assert.ok(r.result.reasoning.referencedRecords.some(record=>record.id==='care:11000000-0000-4000-8000-000000000101'));
