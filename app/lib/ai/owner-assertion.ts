@@ -3,8 +3,10 @@ import { splitSentencesPreservingFacts } from "./text-segmentation.ts";
 const noteReference = /^(?:it|this|that) is [\p{L}][\p{L} '-]{0,80}['\u2019]s (?:note|entry|report)[.!?]*$/iu;
 const leadingQuestion = /^(?:and\s+|but\s+)?(?:can|could|did|do|does|has|have|how|is|may|might|should|was|were|what|when|where|which|who|whose|why|will|would)\b/i;
 const attributedHistory = /^(?:(?:and|but)\s+)?(?:(?:earlier|previously)\s*,?\s*)?(?:according to\b|in\s+(?:his|her|the)\s+(?:care log|history|memory|note|record|timeline)\b|(?:you|furvise|the assistant)\s+(?:also\s+|previously\s+)?(?:said|mentioned|noted|recorded|remembered|summari[sz]ed|told me)\b|(?:his|her|the)\s+(?:care log|history|memory|note|record|timeline)\s+(?:indicates|lists|mentions|notes|records|says|shows)\b|(?:i|we)\s+(?:asked|mentioned|reported|said|told you)\b)/i;
-const subjectAssertion = /\b(?:(?:i|we|he|she|they|it|this|that)\b|(?:my|our)\s+(?:animal|cat|dog|pet)\b|[A-Z][\p{L}'’-]{1,40}\b)\s+(?:(?:always|currently|never|now|often|sometimes|still|usually)\s+|['’](?:d|ll|re|s|ve)\s+)*(?:acting|am|are|ate|back|became|began|better|came|can|cannot|changed|continued|coughed|did|dislikes?|does|drank|felt|flinched|found|gave|getting|got|had|has|hates?|have|hides?|is|keeps?|likes?|limped|made|may|might|needs?|normal|noticed|observed|okay|prefers?|ran|refuses?|returned|saw|seems?|shops?|started|stopped|switched|takes?|thinks?|threw|uses?|vomited|was|weighs?|went|were|will|won't|worse)\b/iu;
+const subjectAssertion = /\b(?:(?:i|we|he|she|they|it|this|that)\b|(?:my|our)\s+(?:animal|cat|dog|pet)\b|[A-Z][\p{L}'’-]{1,40}\b)\s+(?:(?:always|currently|never|now|often|sometimes|still|usually)\s+|['’](?:d|ll|re|s|ve)\s+)*(?:acting|am|are|ate|back|became|began|better|came|can|cannot|changed|continued|coughed|did|dislikes?|does|drank|felt|flinched|found|gave|getting|got|had|has|hates?|have|hides?|is|keeps?|likes?|limped|made|may|might|needs?|normal|noticed|observed|okay|prefers?|ran|refuses?|returned|saw|seems?|shops?|started|stopped|switched|takes?|thinks?|threw|uses?|vomited|was|weigh(?:s|ed)?|went|were|will|won't|worse)\b/iu;
 const contractedSubjectAssertion = /\b(?:he|she|it|they|we|i)['’](?:d|ll|re|s|ve)\s+(?:acting|back|better|fine|good|normal|okay|stopped|worse)\b/iu;
+const measurementAssertion = /\b(?:weight|temperature|pulse|heart rate|respiratory rate|blood pressure|scale|thermometer)\b[^.!?;]{0,80}\b(?:registered|measured|read|reads|showed|shows)\s+(?:at\s+)?-?\d+(?:\.\d+)?\s*(?:kg|g|lb|lbs|oz|°?c|°?f|bpm|mmhg)\b/i;
+const taskDirective = /^(?:please\s+)?(?:calculate|compare|tell|explain|check|find|show|summari[sz]e|translate|rewrite|draft)\b/i;
 const issueAssertion = /\b(?:the\s+)?(?:appetite|bleeding|breathing|coughing|diarrhea|dose|hiding|itching|limp|limping|medication|pain|pacing|rash|scratching|stool|swelling|symptoms?|urination|vomiting|weight)\b[\s\S]{0,60}\b(?:began|came back|changed|continued|improved|increased|is|resolved|returned|started|stopped|was|worsened)\b/i;
 const statusFragment = /^(?:(?:a little|much|somewhat)\s+)?(?:better|worse)|^(?:still\s+)?(?:breathing\s+(?:deeply|fast|hard)|tired|vomiting)(?:\s+(?:less|more))?|^(?:breathing\s+normally|no\s+(?:further|more)\s+[\p{L}\p{N}'’-]+|seems?\s+(?:somewhat\s+)?better)\b/iu;
 const preferenceDirective = /^(?:please\s+)?(?:answer|don't recommend|do not recommend|keep (?:answers?|product suggestions)|remember|reply|respond|use)\b/i;
@@ -59,7 +61,8 @@ export function analyzeOwnerAssertions(message: string): OwnerAssertionAnalysis 
   const assertionSpans = scopedClauses.filter((clause) => {
     if ((clause.isQuestion && !explicitAssertionRequest.test(clause.text))
       || clause.isAttributed
-      || clause.isConditional) return false;
+      || clause.isConditional
+      || taskDirective.test(clause.text.trim())) return false;
     const unquoted = unquotedOwnerText(clause.text);
     return looksLikeOwnerAssertion(unquoted);
   });
@@ -213,7 +216,7 @@ function startsIndependentClause(value: string, allowAuxiliaryQuestion: boolean)
   if (/^(?:according\s+to|as\s+(?:you|furvise|the assistant)|you|furvise|the assistant|i|we|he|she|they|it|this|that|how|what|when|where|which|who|whose|why)\b/i.test(text)) return true;
   if (allowAuxiliaryQuestion && /^(?:can|could|did|do|does|has|have|is|may|might|should|was|were|will|would)\b/i.test(text)) return true;
   if (/^(?:appears?|seems?)\b/i.test(text)) return true;
-  return /^[A-Z][\p{L}'’-]{1,40}\s+(?:(?:always|currently|never|now|often|sometimes|still|usually)\s+)?(?:acting|are|ate|became|began|changed|continued|did|does|drank|gave|had|has(?:n't)?|hides?|is|likes?|limped|prefers?|started|stopped|takes?|vomited|was|weighs?|were)\b/u.test(text);
+  return /^[A-Z][\p{L}'’-]{1,40}\s+(?:(?:always|currently|never|now|often|sometimes|still|usually)\s+)?(?:acting|are|ate|became|began|changed|continued|did|does|drank|gave|had|has(?:n't)?|hides?|is|likes?|limped|prefers?|started|stopped|takes?|vomited|was|weigh(?:s|ed)?|were)\b/u.test(text);
 }
 
 function looksLikePotentialClause(value: string) {
@@ -225,6 +228,7 @@ function looksLikeOwnerAssertion(value: string) {
   return subjectAssertion.test(value)
     || contractedSubjectAssertion.test(value)
     || issueAssertion.test(value)
+    || measurementAssertion.test(value)
     || statusFragment.test(value.trim())
     || preferenceDirective.test(value.trim())
     || ownerPurchaseHabit.test(value)
