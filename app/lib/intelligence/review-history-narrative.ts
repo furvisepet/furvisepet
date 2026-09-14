@@ -148,7 +148,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     // Incidental "two notes" means two distinct cited records, not two clinical
     // episodes or an exhaustive history total. Keep explicitly requested counts
     // on their calculation/coverage path; semantic review still checks scope.
-    if (derived && sharedRequest && sharedRequest.quantity === null && evidence.interpretation?.operation !== "count") {
+    if (derived && sharedRequest && sharedRequest.quantity !== "records" && evidence.interpretation?.operation !== "count") {
       const citedNotes = new Set(cited.filter(source => source.sourceType === "care_update"
         && /^(?:care|claim):/.test(source.sourceId)).map(source => source.sourceId)).size;
       if (citedNotes) derived.push(...["note", "record", "entry"].map(unit => `${citedNotes}:${unit}`));

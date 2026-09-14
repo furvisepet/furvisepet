@@ -19,9 +19,9 @@ test('calendar stripping preserves genuine adjacent quantities and exact quotati
 
 test('source-grounded record years are not counts; totals and wrong years still fail',()=>{
  const sources=[{text:'Skin redness was reported.',occurredAt:'2024-03-12T12:00:00Z'}];
- for(const text of ['The 2024 notes describe skin redness.', "Rowan's 2024 records describe skin redness."])
+ for(const text of ['The available 2024 notes describe skin redness.', 'The saved historical 2024 records describe skin redness.', 'The 2024 notes describe skin redness.', "Rowan's 2024 records describe skin redness."])
   assert.equal(supported(text,sources,'',[],false),true,text);
- for(const text of ['The 2023 notes describe skin redness.', 'There were 2024 notes.', 'All 2024 records describe redness.', 'Exactly 2024 records describe redness.', 'The 2024 notes report three episodes.'])
+ for(const text of ['The total of 2024 notes describes skin redness.', 'The available 2023 notes describe skin redness.', 'The 2023 notes describe skin redness.', 'There were 2024 notes.', 'All 2024 records describe redness.', 'Exactly 2024 records describe redness.', 'The 2024 notes report three episodes.'])
   assert.equal(supported(text,sources,'',[],false),false,text);
 });
 
