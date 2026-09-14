@@ -1376,14 +1376,14 @@ test('mixed supplied operands do not trigger an unrelated historical lookup', ()
  assert.notEqual(lookup.history,null);
 });
 
-for (const explicitSave of [false, true]) test(`rejected optional observation preserves answer without fallback writes; explicit save=${explicitSave}`, async t => {
+for (const invalidTransition of [false,true]) for (const explicitSave of [false, true]) test(`rejected optional observation preserves answer without fallback writes; explicit save=${explicitSave}; invalid transition=${invalidTransition}`, async t => {
  clock(t);
  const question='Aster vomited this morning. What should I discuss at the appointment?' + (explicitSave ? ' Log this in history.' : '');
  const pending=exercise(question,{fixturePets,rows:[],messages:[],taskReviewResponse:true,
   interpretationProposal:proposal({mode:'mixed',operation:'general',evidenceBasis:null}),
   providerOverrides:{semanticEvents:[{subject:{type:'pet',name:'Aster'},domain:'health',topic:'vomiting',eventTitle:'Aster vomited',
-   state:'monitoring',transition:'observed',temporal:{occurredAt:null,explicitTime:'this morning'},
-   sourceExcerpt:'Aster vomited this morning.',importance:'important',confidence:.79}]},
+   state:invalidTransition?'historical':'monitoring',transition:invalidTransition?'resolved':'observed',temporal:{occurredAt:null,explicitTime:'this morning'},
+   sourceExcerpt:'Aster vomited this morning.',importance:'important',confidence:invalidTransition?.98:.79}]},
  });
  if(explicitSave) { await assert.rejects(pending,{code:'ASK_SEMANTIC_WRITE_REJECTED'}); return; }
  const r=await pending;

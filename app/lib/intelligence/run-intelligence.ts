@@ -226,7 +226,7 @@ export async function runFurviseIntelligence({
     const optionalObservation = context.askInterpretation?.request?.mode === "mixed"
       && !context.askInterpretation.request.mutationIntent
       && !isExplicitCareHistorySaveRequest(context.currentMessage)
-      && semanticGovernance.rejected.every(item => ["low_confidence", "not_save_worthy"].includes(item.reason));
+      && semanticGovernance.rejected.every(item => ["low_confidence", "not_save_worthy", "invalid_transition"].includes(item.reason));
     if (!optionalObservation) throw Object.assign(
       new Error("FURVISE_SEMANTIC_WRITE_REJECTED"), { code: "ASK_SEMANTIC_WRITE_REJECTED" });
     readOnlyRecall = true;
