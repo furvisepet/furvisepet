@@ -41,7 +41,9 @@ function quantities(text: string): string[] {
   // carry their sign and fractional precision into both scalars and rates.
   const numericText = text.replaceAll("−", "-")
     .replace(/(?<![\d.,])\d{1,3}(?:,\d{3})+(?:\.\d+)?(?![\d.,])/g, value => value.replaceAll(",", ""))
-    .replace(/(?<![\d.,])([+-]?\d+),(\d{1,2}|\d{4,})(?![\d.,])/g, "$1.$2");
+    .replace(/(?<![\d.,])([+-]?\d+),(\d{1,2}|\d{4,})(?![\d.,])/g, "$1.$2")
+    // Unit spacing is presentation, not a different source quantity: 5mg = 5 mg.
+    .replace(/(?<![\p{L}\p{N}_.,+-])([+-]?\d+(?:\.\d+)?)(?=(?:kg|mg|ml|g|lbs?|km|cm|mm|m)\b)/giu, "$1 ");
   const prose = withoutCalendarDates(numericText)
     .replace(/\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{4}\b/gi, " ");
   const rates: string[] = [];
