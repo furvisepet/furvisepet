@@ -125,8 +125,17 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     const completeAnswer = [result.answer.summary, ...result.answer.sections.map(section =>
       [section.heading ? section.heading + ":" : "", ...section.items].filter(Boolean).join(" ")), result.answer.safetyNote]
       .filter((text): text is string => Boolean(text));
-    proposedDraft = parseHistoryNarrative({ sentences: completeAnswer.flatMap(text => splitSentencesPreservingFacts(text.replace(/[\r\n]+/g, " ")))
-      .map(text => ({ text, sourceIds })) });
+    // The review schema bounds chunks, not grammatical sentences. Pack complete
+    // sentences without dropping any text; a nine-sentence brief still fits the
+    // existing total budget. Candidate citations remain independently reviewed.
+    const sentences = completeAnswer.flatMap(text => splitSentencesPreservingFacts(text.replace(/[\r\n]+/g, " ")));
+    const chunks: string[] = [];
+    for (const text of sentences) {
+      const last = chunks.at(-1);
+      if (sentences.length > 8 && last && last.length + text.length + 1 <= 650) chunks[chunks.length - 1] = last + " " + text;
+      else chunks.push(text);
+    }
+    proposedDraft = parseHistoryNarrative({ sentences: chunks.map(text => ({ text, sourceIds })) });
   }
   if (!proposedDraft) return decline("narrative_unavailable");
   try { if (sharedRequest) for (const chunk of proposedDraft.sentences) assertNoInternalReasoningLeak(chunk.text,

@@ -139,7 +139,11 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
         text: `${record.occurredAt.slice(0,10)} linked saved note: ${JSON.stringify(record.note)}`,
         sourceIds: [source!.sourceId], calculations: [],
       }))] }) || null;
-      if (!records.length && header) return parseHistoryNarrative({sentences:[{text:"No current care-history entry is linked to that prior request.",sourceIds:[header.sourceId],calculations:[]}]}) || null;
+      if (!records.length && header) return parseHistoryNarrative({sentences:[{text:
+        "No current care-history entry is linked to that prior request. "
+        + (receipt.answerPersisted ? "The conversation answer was saved; that is separate from a care record. " : "No conversation answer was saved for that turn. ")
+        + (receipt.actionReceipts ? "No mutation action receipt was found for that turn." : "Action receipt availability is unknown."),
+        sourceIds:[header.sourceId],calculations:[]}]}) || null;
     }
   }
 

@@ -200,12 +200,14 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   const explicitPets = explicitlyNamedOwnedPets(context.currentMessage, owned).filter(pet => !excluded.has(pet.id));
   // Receipt follow-ups are owned reads even when a planner emits conversation
   // or empty scope. Recover only from an explicit receipt question and the
-  // latest USER-authored save/edit request; assistant prose grants no scope.
+  // referenced USER-authored request, including a request to save nothing;
+  // assistant prose grants no scope or proof of persistence.
   const receiptFollowup = /\b(?:linked\s+)?receipts?\b/i.test(context.currentMessage)
-    && /\b(?:check|confirm|verify|saved?|edited?|updated?|completed?|actually|how many|quote|list)\b/i.test(context.currentMessage);
+    && /\b(?:check|confirm|verify|saved?|edited?|updated?|completed?|actually|how many|quote|list)\b/i.test(context.currentMessage)
+    || /\b(?:did|have)\s+you\s+(?:actually\s+)?(?:sav(?:e|ed)|add(?:ed)?|log(?:ged)?|record(?:ed)?|creat(?:e|ed)|updat(?:e|ed))\b/i.test(context.currentMessage);
   if (receiptFollowup) {
     const referencedTurn = [...context.conversationTurns].reverse().find(turn => turn.role === "user" && turn.text !== context.currentMessage
-      && !/\b(?:receipts?|do not save|don't save|never save)\b/i.test(turn.text)
+      && !/\b(?:receipts?|(?:did|have)\s+you\s+(?:actually\s+)?(?:save|add|log|record|create|update))\b/i.test(turn.text)
       && /\b(?:save|log|record|add|correct|edit|update)\b/i.test(turn.text));
     const referencedPets = referencedTurn ? explicitlyNamedOwnedPets(referencedTurn.text, owned) : [];
     const targets = explicitPets.length === 1 ? explicitPets : referencedPets.length === 1 ? referencedPets
@@ -222,7 +224,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
       // receipt questions (which have no linked writes of their own).
       const writeReferences = p.referenceTurnIds.filter(id => context.conversationTurns.some(turn =>
         turn.id === id && turn.role === "user" && turn.text !== context.currentMessage
-        && !/\b(?:receipts?|do not save|don't save|never save)\b/i.test(turn.text)
+        && !/\b(?:receipts?|(?:did|have)\s+you\s+(?:actually\s+)?(?:save|add|log|record|create|update))\b/i.test(turn.text)
         && /\b(?:save|log|record|add|correct|edit|update)\b/i.test(turn.text)
         && explicitlyNamedOwnedPets(turn.text, owned).some(pet => pet.id === targets[0].id)
         && explicitlyNamedOwnedPets(turn.text, owned).every(pet => pet.id === targets[0].id)));
