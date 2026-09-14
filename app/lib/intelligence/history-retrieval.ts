@@ -1,4 +1,5 @@
 import { calendarDateInZone } from "../ask-time-zone.ts";
+import { careOccurrence, calendarCandidateWindow } from "./care-occurrence.ts";
 import { withExecutionDeadline } from "../ai/execution-deadline.ts";
 import { readRecordInventory } from "./record-inventory.ts";
 import { ASK_HISTORY_MAX_PETS } from "./history-limits.ts";
@@ -195,6 +196,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     // Split the existing candidate/page budget across both ends. Never scan a
     // decade sequentially just to compare the first and last recorded values.
     for (const [strategyIndex, { descending: readDescending, lexical, terms, from, to, target, needId }] of strategies.entries()) {
+      const candidatesWindow = clipHistoryPlan(calendarCandidateWindow({ from, to }, context.timeZone), context.historyAccess);
       let cursor: Cursor | null = null; let traversalExhausted = false;
       const rows: CareEntryRow[] = [];
       const matchedIds = new Set<string>();
@@ -221,8 +223,8 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
             // different lexical authority when its migration/service is missing.
             result = await withExecutionDeadline(signal => db.rpc(readDescending ? "read_ask_history_candidates_latest" : "read_ask_history_candidates", {
               p_pet_id: petId, p_terms: terms.length ? terms : plan.terms,
-              p_from: from || (futureSourceRequested ? null : "1900-01-01T00:00:00.000Z"),
-              p_to: futureSourceRequested ? to : new Date(Math.min(to ? Date.parse(to) : Infinity, asOf + 1)).toISOString(),
+              p_from: candidatesWindow.from || (futureSourceRequested ? null : "1900-01-01T00:00:00.000Z"),
+              p_to: futureSourceRequested ? candidatesWindow.to : new Date(Math.min(candidatesWindow.to ? Date.parse(candidatesWindow.to) : Infinity, asOf + 1)).toISOString(),
               p_after_time: cursor?.occurredAt ?? null, p_after_id: cursor?.id ?? null, p_limit: pageLimit,
             }).abortSignal(signal), timeoutMs);
             if (result.error) coverage.reasons.push(result.error.code === "57014" ? "candidate_rpc_timeout"
@@ -230,8 +232,8 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
           } else {
             let query = db.from("pet_care_entries").select("id,user_id,pet_profile_id,category,title,note,severity,occurred_at,created_at,updated_at,deleted_at").eq("user_id", context.owner.userId).eq("pet_profile_id", petId).is("deleted_at", null);
             if (!futureSourceRequested) query = query.lt("occurred_at", new Date(asOf + 1).toISOString());
-            if (from) query = query.gte("occurred_at", from);
-            if (to) query = query.lt("occurred_at", to);
+            if (candidatesWindow.from) query = query.gte("occurred_at", candidatesWindow.from);
+            if (candidatesWindow.to) query = query.lt("occurred_at", candidatesWindow.to);
             if (cursor) query = query.or(`occurred_at.${readDescending ? "lt" : "gt"}.${cursor.occurredAt},and(occurred_at.eq.${cursor.occurredAt},id.${readDescending ? "lt" : "gt"}.${cursor.id})`);
             result = await withExecutionDeadline(signal => query.order("occurred_at", { ascending: !readDescending }).order("id", { ascending: !readDescending }).limit(pageLimit).abortSignal(signal).returns<CareEntryRow[]>(), timeoutMs);
           }
@@ -305,6 +307,8 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const occurrence = (entry: CareEntryRow) => classifyOccurrenceReport([entry.title, entry.note].filter(Boolean).join(": "),
     context.eligiblePets.find(pet => pet.id === entry.pet_profile_id)?.name || "", plan.terms);
   const matchingEntries = entries.filter(entry => historyDateAccessible(entry.occurred_at, context.historyAccess) && (futureSourceRequested || Date.parse(entry.occurred_at) <= asOf)
+    && (!plan.from || Date.parse(careOccurrence(entry, context.timeZone)) >= Date.parse(plan.from))
+    && (!plan.to || Date.parse(careOccurrence(entry, context.timeZone)) < Date.parse(plan.to))
     && (!!vetBriefRead || !!context.askInterpretation?.request || !plan.terms.length || plan.terms.some(term =>
     `${entry.title || ""} ${entry.note}`.toLocaleLowerCase().includes(term.toLocaleLowerCase()))));
   const relevant = selection === "earliest_occurrence" ? ids.flatMap(petId => occurrenceCandidates(matchingEntries.filter(entry => entry.pet_profile_id === petId), occurrence, entry => entry.occurred_at)) : matchingEntries;
@@ -346,9 +350,9 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   // Reserve representation for each requested day before general ranking can
   // fill the evidence budget. Round-robin keeps multiple dates/pets represented.
   const targetGroups = (coverage.targets || []).map(target => ordered.filter(entry =>
-    entry.pet_profile_id === target.petId && calendarDateInZone(entry.occurred_at || "", context.timeZone).startsWith(target.day)));
+    entry.pet_profile_id === target.petId && calendarDateInZone(careOccurrence(entry, context.timeZone), context.timeZone).startsWith(target.day)));
   const needGroups = (context.askInterpretation?.request?.evidenceNeeds || []).flatMap(need => ids.filter(petId => !need.petIds || need.petIds.includes(petId)).map(petId =>
-    ordered.filter(entry => entry.pet_profile_id === petId && withinEvidenceNeedWindow(entry.occurred_at, need.window) && ((coverage.needs || []).some(query => query.petId === petId && query.needId === need.id && query.candidateIds.includes(`care:${entry.id}`)) || need.terms.some(term =>
+    ordered.filter(entry => entry.pet_profile_id === petId && withinEvidenceNeedWindow(careOccurrence(entry, context.timeZone), need.window) && ((coverage.needs || []).some(query => query.petId === petId && query.needId === need.id && query.candidateIds.includes(`care:${entry.id}`)) || need.terms.some(term =>
       `${entry.title || ""} ${entry.note}`.toLowerCase().includes(term.toLowerCase())))).sort((a, b) =>
       need.order === "earliest" ? compareHistoryTime(a.occurred_at, b.occurred_at)
         : need.order === "latest" ? compareHistoryTime(b.occurred_at, a.occurred_at) : 0)));
@@ -368,7 +372,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     kept.push(entry); chars += size;
   }
   for (const target of coverage.targets || []) {
-    target.retainedIds = kept.filter(entry => entry.pet_profile_id === target.petId && calendarDateInZone(entry.occurred_at || "", context.timeZone).startsWith(target.day))
+    target.retainedIds = kept.filter(entry => entry.pet_profile_id === target.petId && calendarDateInZone(careOccurrence(entry, context.timeZone), context.timeZone).startsWith(target.day))
       .map(entry => careEvidenceId(entry.id, coverage));
     if (target.candidateIds.length && !target.retainedIds.length) {
       target.status = "partial"; coverage.reasons.push("explicit_date_target_not_represented");
@@ -529,12 +533,12 @@ export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set
         const unlinkedCorrection = /\b(?:correct\w*|retract\w*|supersed\w*)\b/i.test(`${original.title || ""} ${original.note}`);
         coverage.provenance.push({ sourceId: `care:${original.id}`, claimIds: [], status: unlinkedCorrection ? "unlinked_correction_uncertain" : "unverified_legacy" });
         if (unlinkedCorrection) coverage.reasons.push("unlinked_correction_uncertain");
-        output.push(original); continue;
+        output.push({ ...original, care_event_metadata: sources.get(original.id)?.care_event_metadata }); continue;
       }
       const effective = related.some(link => graph.effectiveClaimIds.has(link.claim_id));
       const inactive = related.some(link => claims.get(link.claim_id)?.knowledge_status !== "effective");
       coverage.provenance.push({ sourceId: `care:${original.id}`, claimIds: related.map(link => link.claim_id), status: effective ? "effective_linked" : inactive ? "tombstoned_or_inactive" : "superseded" });
-      if (effective) output.push(original);
+      if (effective) output.push({ ...original, care_event_metadata: sources.get(original.id)?.care_event_metadata });
     }
     const replacementAuthors = new Set(graphRelations.filter(edge => ["corrects", "supersedes"].includes(edge.relation_type)).map(edge => edge.from_claim_id));
     for (const claim of mapped.filter(claim => graph.effectiveClaimIds.has(claim.id) && !linkedCandidates.has(claim.id) && replacementAuthors.has(claim.id))) {

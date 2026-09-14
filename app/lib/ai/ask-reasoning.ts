@@ -11,6 +11,7 @@ import { recoveryUpdateTitle, stripKnownHistoryCitations } from "../furvise-outp
 import { companionVoiceInstructions, concernVoiceInstructions, FURVISE_SHARED_PROMPT_RULES } from "../furvise-voice.ts";
 import { historicalReadInstructions, historicalReadSchema, canonicalHistoricalRead } from "../intelligence/historical-read-response.ts";
 import { deterministicReadProjection } from "../intelligence/read-projection.ts";
+import { careOccurrence } from "../intelligence/care-occurrence.ts";
 import { requestReferenceContext } from "../intelligence/request-reference-context.ts";
 import { safetyTemporalScope } from "./safety-temporal-scope.ts";
 import { compactHistorySourceCoverage } from "./history-source-transport.ts";
@@ -1498,8 +1499,13 @@ function buildContextRecords(input: BuildContextInput): AskContextRecord[] {
       ["lifecycle_status", readOptionalString(profile, "lifecycle_status")], ["deceased_at", readOptionalString(profile, "deceased_at")],
     ];
     for (const [kind, value] of facts) {
+      // Complement planner hints with literal field names, including camelCase
+      // and snake_case output keys. Avoid loading every field for large cohorts.
+      const fieldText = input.evidenceContract?.scope.requestText.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/_/g, " ") || "";
+      const literalField = kind.replace(/_/g, " ");
       if (input.evidenceContract?.interpretation?.request?.evidenceBasis === "saved_profile"
-        && !input.evidenceContract.interpretation.request.profileFields?.includes(kind === "avoid_ingredients" ? "avoid" : kind)) continue;
+        && !input.evidenceContract.interpretation.request.profileFields?.includes(kind === "avoid_ingredients" ? "avoid" : kind)
+        && !new RegExp(`\\b${literalField}(?:s)?\\b`, "i").test(fieldText)) continue;
       if (value === null || value === undefined || String(value).trim() === "") {
         const storageKey = ({ age: "age_value", weight: "weight_value", care_goal: "wellness_goal", sex: "sex" in profile ? "sex" : "gender" } as Record<string, string>)[kind] || kind;
         // A loaded empty field supports null/not-recorded, unlike an omitted
@@ -1597,7 +1603,7 @@ function buildContextRecords(input: BuildContextInput): AskContextRecord[] {
     const concernTags = update?.concernTags.map(formatConcernTag) || [];
     records.push({
       ...baseRecord(careEvidenceId(entry.id, input.evidenceContract?.history), "care_update", profile, entry.category, careEvidenceId(entry.id, input.evidenceContract?.history).startsWith("claim:") ? [entry.title, entry.note].filter(Boolean).join(": ") : entry.note, entry.created_at),
-      occurredAt: input.evidenceContract?.scope.requestKind === "resolution_status" ? entry.occurred_at : entry.occurred_at || entry.created_at,
+      occurredAt: careOccurrence(entry, input.evidenceContract?.timeZone) || entry.created_at,
       status: update?.active === true ? "active" : update?.active === false ? "resolved" : concernTags.length ? "possibly_active" : "unknown",
       priority: concernTags.length || entry.severity === "severe" ? "urgent" : entry.severity === "moderate" ? "important" : "routine",
       metadata: { category: entry.category, severity: entry.severity, title: entry.title || "Care update", concerns: concernTags.join(", ") },

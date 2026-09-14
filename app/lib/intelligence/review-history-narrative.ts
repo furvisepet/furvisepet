@@ -113,7 +113,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   const ids = new Set(sources.map(source => source.sourceId));
   // A missing optional narrative must not prevent review of useful plain prose.
   // These broad citations are candidates for the reviewer, never proof.
-  if (!proposedDraft && (result.historyNarrativeDeclined || sharedRequest && !evidence.scope.readOnlyRecall)) {
+  if (!proposedDraft && (result.historyNarrativeDeclined || sharedRequest)) {
     const relevantIds = result.relevantContextIds.filter(id => ids.has(id));
     // Legacy relevantContextIds selects saved context and may omit the current
     // report. Plain-prose fallback must offer that separate provenance to the
