@@ -178,3 +178,13 @@ test('historical state requires attribution and assessments remain bound to the 
   assert.equal(assessment.outcome, 'complete'); assert.equal(assessmentMatches(assessment, '8 kg', ['record']), false);
   assert.equal(createAnswerAssessment({ checks: { ...checks, calculationCorrectness: 'not_evaluated' }, body: '7 kg', evidence: [] }).outcome, 'limited');
 });
+
+ test('repeated source coverage compacts losslessly with explicit columns',()=>{
+ const sources=Array.from({length:12},(_,i)=>({petId:'pet-'+i,source:'care_entries',loadedIds:[],loadedCount:0,cap:null,status:'not_loaded',reasons:['source_not_loaded_for_pet']}));
+ const compact=compactHistorySourceCoverage(sources,new Set());
+ const group=compact.unrepresentedSourceGroups[0];
+ assert.deepEqual(group.memberColumns,['petId','source','loadedCount','cap']);
+ assert.deepEqual(group.memberRows,sources.map(s=>[s.petId,s.source,s.loadedCount,s.cap]));
+ assert.deepEqual(group.reasons,['source_not_loaded_for_pet']);
+ assert.ok(JSON.stringify(compact).length<JSON.stringify(sources).length);
+ });

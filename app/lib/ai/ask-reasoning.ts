@@ -1,3 +1,4 @@
+import { CLAIM_AUTHORITY_POLICY } from "../intelligence/claim-authority-policy.ts";
 import { parseDatedNoteBatch } from "../intelligence/dated-note-batch.ts";
 import { recordInventoryEvidence } from "../intelligence/record-inventory.ts";
 import { sourceBoundSchema } from "../intelligence/source-bound-schema.ts";
@@ -182,6 +183,7 @@ type BuildContextInput = {
   question: string;
   requestId: string;
   locale?: string;
+  timeZone?: string;
   concernStateHint?: ActiveConcernMessageState;
   turnSemanticFrame?: ProposedSemanticFrame;
   discourseFocus?: {
@@ -548,6 +550,7 @@ export function buildAskContext(input: BuildContextInput) {
       safetyTemporalContext: safetyTemporalScope(input.question),
       currentTimestamp: (input.now || new Date()).toISOString(),
       locale: input.locale || "en",
+      timeZone: input.timeZone || "UTC",
       minimumSafetyLevel,
       answerEconomy,
       activeConcernMessageState: input.concernStateHint || "unclear",
@@ -1316,8 +1319,9 @@ export function buildAskProviderRequest(promptContext: object) {
     : "");
   // Legacy instructions already contain the full voice guidance. Add the
   // shared voice only to v2 paths that use their own task instructions.
-  const requestInstructions = dedicatedRead || !evidence?.interpretation?.request
-    ? taskInstructions : taskInstructions + "\n" + companionVoiceInstructions + "\n" + concernVoiceInstructions;
+  const requestInstructions = (dedicatedRead || !evidence?.interpretation?.request
+    ? taskInstructions : taskInstructions + "\n" + companionVoiceInstructions + "\n" + concernVoiceInstructions)
+    + (evidence?.interpretation?.request ? "\n" + CLAIM_AUTHORITY_POLICY : "");
   const currentRequestSources = !conversationOnly && evidence?.scope?.readOnlyRecall === false ? eligibleAnswerSources(evidence).filter(source => source.sourceType === "current_request") : [];
   const lookupEvidence = !conversationOnly && evidence?.interpretation?.request?.evidenceNeeds?.length ? eligibleAnswerSources(evidence).filter(source => source.sourceType === "lookup_receipt") : [];
   let transported = conversationOnly ? conversationPromptContext(promptContext) : currentRequestSources.length
@@ -1489,6 +1493,8 @@ function buildContextRecords(input: BuildContextInput): AskContextRecord[] {
       ["lifecycle_status", readOptionalString(profile, "lifecycle_status")], ["deceased_at", readOptionalString(profile, "deceased_at")],
     ];
     for (const [kind, value] of facts) {
+      if (input.evidenceContract?.interpretation?.request?.evidenceBasis === "saved_profile"
+        && !input.evidenceContract.interpretation.request.profileFields?.includes(kind === "avoid_ingredients" ? "avoid" : kind)) continue;
       if (value === null || value === undefined || String(value).trim() === "") continue;
       records.push(baseRecord(`profile:${profile.id}:${kind}`, "profile", profile, kind, String(value), profile.updated_at));
     }

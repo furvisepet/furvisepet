@@ -137,7 +137,7 @@ test("the Ask request contract has no client-controlled emergency override", () 
     question: "luna cant breathe",
     requestId: "123e4567-e89b-42d3-a456-426614174000",
   });
-  assert.deepEqual(Object.keys(payload).sort(), [...ASK_REQUEST_KEYS].sort());
+  assert.deepEqual(Object.keys(payload).sort(), [...ASK_REQUEST_KEYS].filter(key => key !== "timeZone").sort());
   assert.equal(Object.hasOwn(payload, "emergency"), false);
   assert.equal(Object.hasOwn(payload, "emergencyBypass"), false);
 });

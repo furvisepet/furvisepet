@@ -29,6 +29,7 @@ export type AskEvidenceScope = {
   status: "resolved" | "ambiguous"; readOnlyRecall: boolean;
 };
 export type AskEvidenceContract = {
+  timeZone?: string;
   recordInventory?: import("./record-inventory.ts").RecordInventory[];
   operationReceipts?: import("./types.ts").AskOperationReceipt[];
   needCoverage?: NeedCoverage[];
@@ -122,8 +123,11 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
         reasons: profileOnly ? [] : ["source_not_loaded_for_pet"] });
     }
   }
+  if (context.askInterpretation?.request?.evidenceBasis === "saved_profile") {
+    for (let i = sources.length - 1; i >= 0; i--) if (sources[i].source !== "profile") sources.splice(i, 1);
+  }
   const selected = new Set(context.selectedCareEntries.map(row => row.id));
-  const contract: AskEvidenceContract = { ...(context.historyAccess ? { historyAccess: context.historyAccess } : {}), version: "ask-evidence.v1", scope: askEvidenceScope(context.currentMessage, ids), sources,
+  const contract: AskEvidenceContract = { timeZone: context.timeZone || "UTC", ...(context.historyAccess ? { historyAccess: context.historyAccess } : {}), version: "ask-evidence.v1", scope: askEvidenceScope(context.currentMessage, ids), sources,
     completeness: unknown(), losses: [...(context.evidenceLoading?.losses || []), ...context.careEntries
       .filter(row => ids.includes(row.pet_profile_id) && !selected.has(row.id)).map(row => ({ sourceId: `care:${row.id}`, reason: "intermediate_selection" }))],
     represented: [], representation: "complete", verifiedFacts: [] };

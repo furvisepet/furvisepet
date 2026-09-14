@@ -1,3 +1,4 @@
+import { calendarBoundaryToInstant } from "../ask-time-zone.ts";
 import { explicitHistoryMonths } from "./history-dates.ts";
 import type { EvidenceNeed } from "./evidence-needs.ts";
 import { explicitHistoryDays } from "./history-dates.ts";
@@ -5,14 +6,16 @@ type Window = { from: string | null; to: string | null };
 export type HistoryReadStrategy = Window & { descending: boolean; lexical: boolean; terms: string[]; target?: string; needId?: string };
 /** Date targets and ordering are independent. Targets narrow the authorized
  * window; they never expand access, synthesize facts or change query budgets. */
-export function compileHistoryReadStrategies(question: string, year: number, window: Window, proposed: HistoryReadStrategy[], pageBudget: number, needs: readonly EvidenceNeed[] = []) {
+export function compileHistoryReadStrategies(question: string, year: number, window: Window, proposed: HistoryReadStrategy[], pageBudget: number, needs: readonly EvidenceNeed[] = [], timeZone = "UTC") {
   const days = [...new Set([...explicitHistoryDays(question, year, 8), ...(question.match(/\b\d{4}-\d{2}-\d{2}\b/g) || [])])]
     .filter(day => Number.isFinite(Date.parse(day)) && new Date(day).toISOString().slice(0, 10) === day).sort();
   const anchors = [...days, ...explicitHistoryMonths(question)];
   const targets = anchors.map(day => {
-    const start = day + (day.length === 7 ? "-01" : "") + "T00:00:00.000Z";
-    const end = day.length === 7 ? new Date(Date.UTC(Number(day.slice(0,4)), Number(day.slice(5,7)), 1)).toISOString()
-      : new Date(Date.parse(start) + 86400000).toISOString();
+    const calendarStart = day + (day.length === 7 ? "-01" : "") + "T00:00:00.000Z";
+    const calendarEnd = day.length === 7 ? new Date(Date.UTC(Number(day.slice(0,4)), Number(day.slice(5,7)), 1)).toISOString()
+      : new Date(Date.parse(calendarStart) + 86400000).toISOString();
+    const start = calendarBoundaryToInstant(calendarStart, timeZone);
+    const end = calendarBoundaryToInstant(calendarEnd, timeZone);
     return { target: day, from: window.from && window.from > start ? window.from : start,
       to: window.to && window.to < end ? window.to : end, descending: false, lexical: false, terms: [] as string[] };
   }).filter(target => target.from < target.to && (target.from !== window.from || target.to !== window.to));

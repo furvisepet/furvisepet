@@ -1,3 +1,4 @@
+import { resolveAskTimeZone } from "../../lib/ask-time-zone.ts";
 import { eligibleAnswerSources } from "../../lib/intelligence/ask-evidence.ts";
 import { recoverTransientRead } from "../../lib/security/read-recovery.ts";
 import { assertGovernedAskExecutionPlan } from "../../lib/intelligence/run-intelligence.ts";
@@ -220,6 +221,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
     message?: unknown;
     logicalTurnId?: unknown;
     locale?: unknown;
+    timeZone?: unknown;
   } | null;
   const question = typeof body?.message === "string" ? body.message.trim() : "";
   const petId = typeof body?.petId === "string" ? body.petId : "";
@@ -227,7 +229,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
   const logicalTurnId = typeof body?.logicalTurnId === "string" && isUuid(body.logicalTurnId) ? body.logicalTurnId : "";
   const requestId = logicalTurnId;
   const locale = resolveAskLocale(body?.locale, request.headers.get("accept-language"));
-  let aiCreditPayload = { conversationId, locale, petId, question };
+  let aiCreditPayload = { conversationId, locale, petId, question, ...(body?.timeZone ? { timeZone: resolveAskTimeZone(body.timeZone) } : {}) };
   let aiCreditPayloadHash = hashAiCreditPayload("ask", aiCreditPayload);
   logAskStage("authentication succeeded", { requestId });
 
@@ -393,6 +395,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
       conversationId: preparedRequest.conversationId,
       currentMessage: question,
       feature: "ask",
+      timeZone: resolveAskTimeZone(aiCreditPayload.timeZone),
       locale,
       petId,
       supabase,
@@ -577,6 +580,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
             conversationPetId: petId,
             currentMessage: question,
             feature: "ask",
+            timeZone: resolveAskTimeZone(aiCreditPayload.timeZone),
             locale,
             petId: turnPetId,
             supabase,
@@ -757,6 +761,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
           conversationPetId: petId,
           currentMessage: question,
           feature: "ask",
+          timeZone: resolveAskTimeZone(aiCreditPayload.timeZone),
           locale,
           petId: turnPetId,
           supabase,
@@ -1707,7 +1712,17 @@ async function persistAssistantAnswer({
 
   let nextUsage = usage;
   let creditsUsed = 0;
-  if (creditReserved) {
+  const incompleteRead = intelligenceResult?.reasoning.evidenceContract?.scope.readOnlyRecall === true
+    && intelligenceResult.answerValidation.assessment.outcome !== "complete";
+  if (creditReserved && incompleteRead) {
+    const released = await safeReleaseAiCredit({ logicalRequestId: requestId, payloadHash, requestId: creditRequestId, userId });
+    turnLifecycle.credit(released ? "released" : "release_pending").settlement("release", released ? "reconciled" : "pending");
+    nextUsage = await runOptionalAskSubsystem({
+      component: "conversation_metadata", fallback: usage,
+      operation: () => getRemainingAiCredits({ feature: "ask", monthlyAiCredits: usage.limit, planId: usage.planId, supabase, userId }),
+      onFailure: optionalFailure,
+    });
+  } else if (creditReserved) {
     await setAiCreditDisposition({
       disposition: "complete",
       feature: "ask",

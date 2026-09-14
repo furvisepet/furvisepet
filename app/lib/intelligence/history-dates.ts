@@ -106,6 +106,11 @@ export function explicitHistoryMonths(text: string): string[] {
     // second query on its incidental month/year substring.
     if (/(?<!\d)\d{1,2}(?:st|nd|rd|th|\.)?\s+(?:de\s+)?$/iu.test(text.slice(0, match.index))) continue;
     found.push(match[2] + "-" + String(literalMonthNumbers.get(match[1].toLowerCase())).padStart(2,"0"));
+    // A coordinated month list shares the trailing year. Without this, a
+    // whole-request window can incorrectly narrow July and August to August.
+    const prefix = text.slice(0, match.index);
+    const coordinated = new RegExp("(" + literalMonthPattern + ")\\.?\\s*(?:,\\s*|(?:and|y|et|und|و)\\s+)$", "iu").exec(prefix);
+    if (coordinated) found.push(match[2] + "-" + String(literalMonthNumbers.get(coordinated[1].toLowerCase())).padStart(2,"0"));
   }
   for (const match of text.matchAll(/\b(19\d{2}|20\d{2}|2100)-(0[1-9]|1[0-2])(?!-\d{2})\b/g)) found.push(match[0]);
   for (const match of text.matchAll(/(?<!\d)(19\d{2}|20\d{2}|2100)年\s*(1[0-2]|0?[1-9])月(?!\s*\d{1,2}日)/gu)) found.push(match[1]+"-"+match[2].padStart(2,"0"));
@@ -116,11 +121,7 @@ export function literalHistoryMonthWindow(text: string): {from: string; to: stri
   // Relative/open bounds and comparisons against an unspecified endpoint need
   // the semantic planner; do not silently narrow them to one named month.
   if (/\b(?:before|after|since|until|between|from|as of)\b/i.test(text)) return null;
-  const months=["january","february","march","april","may","june","july","august","september","october","november","december"];
-  const found: Array<{year:number;month:number}>=[];
-  const pattern=new RegExp("\\b("+months.join("|")+")\\s+(19\\d{2}|20\\d{2}|2100)\\b","gi");
-  for(const match of text.matchAll(pattern)) found.push({year:Number(match[2]),month:months.indexOf(match[1].toLowerCase())});
-  for(const match of text.matchAll(/\b(19\d{2}|20\d{2}|2100)-(0[1-9]|1[0-2])(?!-\d{2})\b/g)) found.push({year:Number(match[1]),month:Number(match[2])-1});
+  const found = explicitHistoryMonths(text).map(label => ({year:Number(label.slice(0,4)),month:Number(label.slice(5,7))-1}));
   const unique=[...new Map(found.map(x=>[x.year+":"+x.month,x])).values()].sort((a,b)=>a.year-b.year||a.month-b.month);
   if(!unique.length||unique.length>2)return null;
   if(unique.length===1&&/\b(?:compar\w*|versus|vs\.?|latest|earliest|current)\b/i.test(text))return null;

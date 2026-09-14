@@ -289,6 +289,7 @@ function AskPageContent() {
             payload: buildAskRequestPayload({
               conversationId: payload.conversation.id,
               locale: navigator.language,
+              timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
               logicalTurnId: lastMessage.requestId,
               message: lastMessage.text,
               petId: payload.conversation.petId,
@@ -397,6 +398,7 @@ function AskPageContent() {
     const requestPayload = retry?.payload || buildAskRequestPayload({
       conversationId: conversationIdAtSubmit,
       locale: navigator.language,
+              timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       logicalTurnId,
       message: prompt,
       petId: selectedPet,

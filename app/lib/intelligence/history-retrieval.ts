@@ -1,3 +1,4 @@
+import { calendarDateInZone } from "../ask-time-zone.ts";
 import { withExecutionDeadline } from "../ai/execution-deadline.ts";
 import { readRecordInventory } from "./record-inventory.ts";
 import { ASK_HISTORY_MAX_PETS } from "./history-limits.ts";
@@ -121,6 +122,10 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const coverage: HistoryCoverage = { plan, candidateIds: [], queryCount: 0, retrieval: "unknown", corrections: "unknown", extraction: "unknown", grouping: "unknown",
     continuation: [], reasons: ["lexical_or_period_matches_not_semantic_completeness", "no_cross_query_snapshot"], consistency: "read_committed_no_snapshot", perPet: [], provenance: [], claimSources: [], excludedIds: [] };
   if (context.historyAccess) coverage.reasons.push("subscription_history_window");
+  if (context.askInterpretation?.request?.evidenceBasis === "saved_profile") {
+    coverage.reasons = ["current_profile_read_no_history_requested"];
+    return { ...context, askHistory: { coverage, entries: [], originals: [] } };
+  }
   if (plan.from && plan.to && plan.from >= plan.to) {
     coverage.reasons.push("requested_period_outside_subscription_window");
     return { ...context, askHistory: { coverage, entries: [], originals: [] } };
@@ -176,8 +181,9 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     }
     const compiled = appointmentDates
       ? { ...appointmentDates, strategies: [...appointmentDates.strategies, ...scopedStrategies].filter((strategy, index, all) => all.findIndex(other => JSON.stringify(other) === JSON.stringify(strategy)) === index) }
-      : compileHistoryReadStrategies(retrievalQuestion, new Date(asOf).getUTCFullYear(), plan, scopedStrategies, pagesPerPet, context.askInterpretation?.request?.evidenceNeeds?.filter(need => !need.petIds || need.petIds.includes(petId)));
-    const strategies = compiled.strategies;
+      : compileHistoryReadStrategies(retrievalQuestion, new Date(asOf).getUTCFullYear(), plan, scopedStrategies, pagesPerPet, context.askInterpretation?.request?.evidenceNeeds?.filter(need => !need.petIds || need.petIds.includes(petId)), context.timeZone);
+    const strategies = compiled.strategies.map(strategy => strategy.target?.length === 7 && searchTerms.length
+      ? { ...strategy, lexical: true, terms: searchTerms } : strategy);
     coverage.needs ??= [];
     coverage.needs.push(...compiled.outsideNeeds.map(needId => ({ petId, needId, candidateIds: [], exhausted: false, status: "unavailable" as const, reason: "need_window_outside_scope" })));
     if (compiled.outsideNeeds.length) coverage.reasons.push("need_window_outside_scope");
@@ -340,7 +346,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   // Reserve representation for each requested day before general ranking can
   // fill the evidence budget. Round-robin keeps multiple dates/pets represented.
   const targetGroups = (coverage.targets || []).map(target => ordered.filter(entry =>
-    entry.pet_profile_id === target.petId && entry.occurred_at?.startsWith(target.day)));
+    entry.pet_profile_id === target.petId && calendarDateInZone(entry.occurred_at || "", context.timeZone).startsWith(target.day)));
   const needGroups = (context.askInterpretation?.request?.evidenceNeeds || []).flatMap(need => ids.filter(petId => !need.petIds || need.petIds.includes(petId)).map(petId =>
     ordered.filter(entry => entry.pet_profile_id === petId && withinEvidenceNeedWindow(entry.occurred_at, need.window) && ((coverage.needs || []).some(query => query.petId === petId && query.needId === need.id && query.candidateIds.includes(`care:${entry.id}`)) || need.terms.some(term =>
       `${entry.title || ""} ${entry.note}`.toLowerCase().includes(term.toLowerCase())))).sort((a, b) =>
@@ -362,7 +368,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     kept.push(entry); chars += size;
   }
   for (const target of coverage.targets || []) {
-    target.retainedIds = kept.filter(entry => entry.pet_profile_id === target.petId && entry.occurred_at?.startsWith(target.day))
+    target.retainedIds = kept.filter(entry => entry.pet_profile_id === target.petId && calendarDateInZone(entry.occurred_at || "", context.timeZone).startsWith(target.day))
       .map(entry => careEvidenceId(entry.id, coverage));
     if (target.candidateIds.length && !target.retainedIds.length) {
       target.status = "partial"; coverage.reasons.push("explicit_date_target_not_represented");

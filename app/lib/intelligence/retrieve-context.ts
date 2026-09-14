@@ -35,6 +35,7 @@ export async function buildFurviseContext({
   historyAccess,
   feature = "ask",
   locale = "en",
+  timeZone = "UTC",
   petId,
   supabase,
   userId,
@@ -46,6 +47,7 @@ export async function buildFurviseContext({
   historyAccess?: AskHistoryAccess;
   feature?: IntelligenceFeature;
   locale?: string;
+  timeZone?: string;
   petId: string;
   supabase: SupabaseClient;
   userId: string;
@@ -199,7 +201,7 @@ export async function buildFurviseContext({
     episodePresentation: deletedCareSources.unavailable || inactiveMemories.unavailable || selectedMemories.inactiveMemoryMarkers.length || deletedCareEntryIds.size ? undefined
       : episodePresentation(messages.data, new Set(conversationTurns.filter(turn => turn.role !== "user"
         || messages.data.find(message => message.id === turn.id)?.user_text === turn.text).map(turn => turn.id)), selectedProfile, eligiblePets.data || [selectedProfile]),
-    feature, locale, currentMessage, currentTimestamp: new Date().toISOString(), conversationId,
+    feature, locale, timeZone, currentMessage, currentTimestamp: new Date().toISOString(), conversationId,
     pet: selectedProfile,
     eligiblePets: (eligiblePets.data || [selectedProfile]).filter((pet) => pet.id === selectedProfile.id || getPetLifecycleStatus(pet) === "active"),
     owner: { userId, profile: owner.data }, careEntries: longitudinalCareEntries,

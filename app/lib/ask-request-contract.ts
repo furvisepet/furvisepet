@@ -4,11 +4,13 @@ export const ASK_REQUEST_KEYS = [
   "message",
   "logicalTurnId",
   "locale",
+  "timeZone",
 ] as const;
 
 export type AskRequestPayload = {
   conversationId: string | null;
   locale: string;
+  timeZone?: string;
   logicalTurnId: string;
   message: string;
   petId: string;
@@ -18,6 +20,7 @@ export function buildAskRequestPayload(payload: AskRequestPayload): AskRequestPa
   return {
     conversationId: payload.conversationId,
     locale: payload.locale,
+    ...(payload.timeZone ? { timeZone: payload.timeZone } : {}),
     logicalTurnId: payload.logicalTurnId,
     message: payload.message,
     petId: payload.petId,
