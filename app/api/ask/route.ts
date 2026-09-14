@@ -2315,6 +2315,9 @@ function internalFailureClass(code: InternalAskFailureCode): AskInternalFailure 
 async function canonicalizeAskInfrastructureResponse(response: Response) {
   if (response.ok) return response;
   const payload = await response.clone().json().catch(() => null) as { code?: string; error?: string; message?: string; retryAfterSeconds?: number } | null;
+  // A failed idempotency backend lookup establishes no identity conflict.
+  // Keep the same retryable request rather than asking the owner to edit it.
+  if (response.status >= 500) return askFailure("DATABASE_ERROR", "Furvise could not finish that answer. Please try again.", response.status, {}, "idempotency_backend");
   if (payload?.code === "REQUEST_IN_PROGRESS") {
     return Response.json({
       code: publicAskFailureCode("request_in_progress"),
