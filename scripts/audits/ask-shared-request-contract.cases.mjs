@@ -89,7 +89,7 @@ test('an omitted exact report-day window reaches retrieval without changing subj
  assert.equal(parsed.history.to,'2024-04-08T00:00:00.000Z');
  const rows=[care('dated','milo','2024-04-07','general','Aster sneezed yesterday.'),
   care('irrelevant','milo','2023-04-07','general','Aster played normally.')];
- const r=await exercise(question,{fixturePets,rows,messages:[],history:true,interpretationProposal:proposal()});
+ const r=await exercise(question,{fixturePets,rows,messages:[],history:true,expectedReviewCalls:1,interpretationProposal:proposal()});
  assert.ok(r.context.askHistory.entries.some(entry=>entry.id==='dated'));
  assert.ok(!r.context.askHistory.entries.some(entry=>entry.id==='irrelevant'));
  assert.deepEqual(r.context.askInterpretation.petIds,[fixturePets[0].id]);
@@ -270,7 +270,7 @@ test('as-of retrieval applies upper bound with no lower bound', async t => {
   clock(t);
   const r = await exercise('What was recorded for Aster before July?', { fixturePets, rows: [
     care('before', 'milo', '2026-06-04', 'general', 'Aster slept normally.'),
-    care('after', 'milo', '2026-07-04', 'general', 'Aster slept less.')], messages: [], history: true,
+    care('after', 'milo', '2026-07-04', 'general', 'Aster slept less.')], messages: [], history:true,expectedReviewCalls:1,
     interpretationProposal: proposal({ to: '2026-07-01' }) });
   assert.deepEqual(r.context.askHistory.entries.map(row => row.id), ['before']);
 });
@@ -278,7 +278,7 @@ test('comparison retrieves both temporal ends for arbitrary topics within the ex
   clock(t);
   const rows = Array.from({ length: 80 }, (_, index) => care('travel-' + String(index).padStart(3, '0'), 'milo',
     new Date(Date.UTC(2026, 0, index + 1)).toISOString().slice(0, 10), 'general', 'Aster tolerated travel.'));
-  const r = await exercise('Compare recorded travel observations.', { fixturePets, rows, messages: [], history: true,
+  const r = await exercise('Compare recorded travel observations.', { fixturePets, rows, messages: [], history:true,expectedReviewCalls:1,
     interpretationProposal: proposal({ operation: 'comparison', selection: 'comparison', terms: ['travel'] }) });
   const ids = r.context.askHistory.entries.map(row => row.id);
   assert.ok(ids.includes('travel-000'));
@@ -294,7 +294,7 @@ test('conversation identity must match a complete owned name', () => {
 });
 test('shared lexical retrieval reserves scoped context for different wording without growing query budgets', async t => {
   clock(t);
-  const r = await exercise('Explain the saved rest history.', { fixturePets, messages: [], history: true,
+  const r = await exercise('Explain the saved rest history.', { fixturePets, messages: [], history:true,expectedReviewCalls:1,
     rows: [care('contextual', 'milo', '2026-06-04', 'general', 'Aster slept through the night.'),
       care('foreign', 'luna', '2026-06-04', 'general', 'Bramble rested.')],
     interpretationProposal: proposal({ terms: ['rest'], topic: 'rest', selection: 'latest' }) });
@@ -320,7 +320,7 @@ test('shared status reads retain resolved multi-pet scope through evidence creat
 });
 test('read premise produces no memory or care proposal through full pipeline', async t => {
   clock(t);
-  const r = await exercise('Aster has a diagnosis. Is that premise supported?', { fixturePets, rows: [], messages: [], history: true,
+  const r = await exercise('Aster has a diagnosis. Is that premise supported?', { fixturePets, rows: [], messages: [], history:true,expectedReviewCalls:1,
     interpretationProposal: proposal(), providerOverrides: { proposedHistoryUpdate: { shouldOffer: true, category: 'general', title: 'Diagnosis', details: 'Aster has a diagnosis.', severity: null, resolvesConcernId: null } } });
   assert.equal(r.result.reasoning.proposedHistoryUpdate.shouldOffer, false);
   assert.deepEqual(r.result.acceptedCareActions, []);
@@ -732,7 +732,7 @@ test('duplicate search hits do not consume independent candidate slots', async t
   clock(t);
   const rows=fixturePets.flatMap(pet=>Array.from({length:16},(_,i)=>care(pet.id+'-overlap-'+i,pet.id,
     '2026-06-'+String(i+1).padStart(2,'0'),'general',pet.name+' had a rest observation.')));
-  const r=await exercise('Compare the saved observations across the account.',{fixturePets,rows,messages:[],history:true,
+  const r=await exercise('Compare the saved observations across the account.',{fixturePets,rows,messages:[],history:true,expectedReviewCalls:1,
     interpretationProposal:proposal({scope:'account',petNames:[],operation:'comparison',selection:'comparison',terms:['rest']})});
   assert.equal(new Set(r.context.askHistory.coverage.candidateIds).size,48);
   assert.ok(r.context.askHistory.coverage.perPet.every(pet=>pet.pages<=4));
@@ -776,7 +776,7 @@ test('empty lexical searches return their unused capacity to bounded period cont
  clock(t);
  const rows=fixturePets.flatMap(pet=>Array.from({length:16},(_,i)=>care(pet.id+'-empty-'+i,pet.id,
    '2026-06-'+String(i+1).padStart(2,'0'),'general',pet.name+' slept normally.')));
- const r=await exercise('Compare the saved observations across the account.',{fixturePets,rows,messages:[],history:true,
+ const r=await exercise('Compare the saved observations across the account.',{fixturePets,rows,messages:[],history:true,expectedReviewCalls:1,
    interpretationProposal:proposal({scope:'account',petNames:[],operation:'comparison',selection:'comparison',terms:['nonmatchingphrase']})});
  assert.equal(new Set(r.context.askHistory.coverage.candidateIds).size,48);
  assert.ok(r.context.askHistory.coverage.perPet.every(pet=>pet.pages<=4));
@@ -951,7 +951,7 @@ test('diverse candidates reach a rare middle-history transition within existing 
  clock(t);
  const rows=Array.from({length:100},(_,i)=>care('routine-'+i,'milo',new Date(Date.UTC(2020,0,i+1)).toISOString().slice(0,10),'food','Aster ate whitefish.'));
  rows.push(care('transition','milo','2024-03-06','food','Aster began a whitefish to rabbit transition.'));
- const r=await exercise('When did Aster change from whitefish to rabbit?',{fixturePets,messages:[],history:true,rows,
+ const r=await exercise('When did Aster change from whitefish to rabbit?',{fixturePets,messages:[],history:true,expectedReviewCalls:1,rows,
   interpretationProposal:proposal({terms:['whitefish','rabbit','transition'],selection:'period'}),
   answer:'The transition was reported on March 6, 2024.'});
  assert.ok(r.context.askHistory.entries.some(e=>e.id==='transition'));
@@ -990,7 +990,7 @@ test('event aliases cannot be starved by newer routine notes or a common alias',
  ]) {
   const rows=Array.from({length:120},(_,i)=>care('noise-'+i,'milo',new Date(Date.UTC(2025,0,i+1)).toISOString().slice(0,10),category,'Routine food and supplement check. Reason for any change unknown.'));
   rows.push(care('decisive-event','milo','2022-04-07',category,eventText));
-  const r=await exercise(question,{fixturePets,messages:[],history:true,rows,
+  const r=await exercise(question,{fixturePets,messages:[],history:true,expectedReviewCalls:1,rows,
    interpretationProposal:proposal({terms,selection:'latest'}),
    answer:'The event was reported on April 7, 2022.'});
   assert.ok(r.context.askHistory.entries.some(e=>e.id==='decisive-event'),question);
@@ -1020,7 +1020,7 @@ test('event evidence survives both budgets among verbose routine observations', 
    'Aster was offered food A at the routine check. Reason for any change was not established. '+ 'Only this observed meal was recorded; other meals and causes remain unknown. '.repeat(7)));
   rows.push(care('event-start','milo','2024-03-06','food','Aster started a gradual transition from food A to food B. The owner recorded a preference change, not a diagnosed allergy.'));
   rows.push(care('event-end','milo','2024-03-13','food','Aster completed the transition to food B. No other reason was recorded.'));
-  const r=await exercise('When did Aster switch to the current food?',{fixturePets,messages:[],history:true,rows,
+  const r=await exercise('When did Aster switch to the current food?',{fixturePets,messages:[],history:true,expectedReviewCalls:1,rows,
    interpretationProposal:proposal({terms:['food'],selection}),answer:'The gradual transition started on March 6, 2024 and completed on March 13, 2024.'});
   for(const id of ['event-start','event-end']) {
    assert.ok(r.context.askHistory.coverage.candidateIds.includes('care:'+id),'candidate '+selection+' '+id);
@@ -1073,7 +1073,7 @@ test('review receives correction uncertainty attached to its own source', async 
 
 test('past versus present retrieval preserves both periods despite a narrowed planner range', async t => {
  clock(t);
- const r=await exercise('Was Aster using the same bedding in 2023 as now?',{fixturePets,messages:[],history:true,
+ const r=await exercise('Was Aster using the same bedding in 2023 as now?',{fixturePets,messages:[],history:true,expectedReviewCalls:1,
   rows:[care('old','milo','2023-05-03','general','Aster used a fleece mat.'),care('now','milo','2026-06-04','general','Aster currently uses a cotton mat.')],
   interpretationProposal:proposal({operation:'comparison',selection:'comparison',terms:['bedding','mat'],from:'2023-01-01',to:'2024-01-01'})});
  assert.ok(r.context.askHistory.entries.some(row=>row.id==='old'));
@@ -1086,7 +1086,7 @@ test('event reason retrieval is independent of a summary or comparison planner l
  const rows=Array.from({length:100},(_,i)=>care('routine'+i,'milo',new Date(Date.UTC(2020+Math.floor(i/12),i%12,1)).toISOString().slice(0,10),'general','Aster used the same bedding. The reason for any change was not established.'));
  rows.push(care('decisive','milo','2023-05-03','general','Aster started a transition to a cotton mat. The owner recorded a preference change, not a diagnosis.'));
  for(const selection of ['summary','comparison','latest']) {
-  const r=await exercise('Why did we move Aster to a cotton mat?',{fixturePets,messages:[],history:true,rows,
+  const r=await exercise('Why did we move Aster to a cotton mat?',{fixturePets,messages:[],history:true,expectedReviewCalls:1,rows,
    interpretationProposal:proposal({operation:selection==='comparison'?'comparison':'recall',selection,terms:['bedding','mat']})});
   assert.ok(r.context.askHistory.entries.some(row=>row.id==='decisive'),selection);
   assert.ok(r.prompt.evidenceContract.represented.some(row=>row.sourceId==='care:decisive'),selection);
@@ -1103,7 +1103,7 @@ test('ordinary read layouts reject unsolicited JSON while explicit JSON remains 
 test('past-present recovery never bypasses plan access or explicit as-of bounds', async t => {
  clock(t);
  const historyAccess={months:3,from:'2026-03-05T00:00:00.000Z',to:'2026-06-06T00:00:00.000Z'};
- const r=await exercise('Was Aster using the same bedding in 2023 as now?',{fixturePets,messages:[],history:true,historyAccess,
+ const r=await exercise('Was Aster using the same bedding in 2023 as now?',{fixturePets,messages:[],history:true,expectedReviewCalls:1,historyAccess,
   rows:[care('old','milo','2023-05-03','general','Aster used a fleece mat.'),care('now','milo','2026-06-04','general','Aster currently uses a cotton mat.')],
   interpretationProposal:proposal({operation:'comparison',selection:'comparison',terms:['mat'],from:'2023-01-01',to:'2024-01-01'})});
  assert.ok(!r.context.askHistory.entries.some(row=>row.id==='old'));
@@ -1217,7 +1217,7 @@ test('unsupported planner need is discarded without replacing the original task'
 test('different needs stay attached to their own pets through retrieval and evidence',async t=>{
  clock(t);
  const question='Summarize Aster’s bedding and Bramble’s sleep.';
- const run=await exercise(question,{fixturePets,messages:[],history:true,
+ const run=await exercise(question,{fixturePets,messages:[],history:true,expectedReviewCalls:1,
   rows:[care('mat','milo','2024-04-17','general','Aster uses cotton bedding.'),care('rest','luna','2024-04-17','general','Bramble slept normally.')],
   interpretationProposal:proposal({petNames:['Aster','Bramble'],terms:['bedding','sleep'],evidenceNeeds:[
    {quote:'Aster’s bedding',sourceTurnId:null,petNames:['Aster'],terms:['bedding']},
@@ -1231,7 +1231,7 @@ test('need candidates survive verbose routine evidence without exceeding the pro
  const rows=Array.from({length:120},(_,i)=>care('pressure-'+i,'milo',new Date(Date.UTC(2020,0,i+1)).toISOString().slice(0,10),'general',
   'Aster rested on bedding. '+ 'This was an ordinary observation with no further conclusion about other days. '.repeat(7)));
  rows.push(care('rare','milo','2024-04-17','general','The supplement reaction was loose stool. The cause remains uncertain.'));
- const run=await exercise(question,{fixturePets,messages:[],history:true,rows,
+ const run=await exercise(question,{fixturePets,messages:[],history:true,expectedReviewCalls:1,rows,
   interpretationProposal:proposal({terms:['bedding'],evidenceNeeds:[
    {quote:'bedding',sourceTurnId:null,terms:['bedding']},
    {quote:'supplement reaction',sourceTurnId:null,terms:['supplement','reaction']}]})});
@@ -1245,7 +1245,7 @@ test('need candidates survive verbose routine evidence without exceeding the pro
 test('need coverage records actual query hits without reinterpreting database matching',async t=>{
  clock(t);
  const row=care('matched','milo','2024-04-17','general','The owner reported a dietary transition.');
- const run=await exercise('Explain Aster’s food change.',{fixturePets,messages:[],history:true,rows:[row],candidateRowsOverride:[row],
+ const run=await exercise('Explain Aster’s food change.',{fixturePets,messages:[],history:true,expectedReviewCalls:1,rows:[row],candidateRowsOverride:[row],
   interpretationProposal:proposal({terms:['food'],evidenceNeeds:[{quote:'food change',sourceTurnId:null,terms:['food']}]})});
  assert.ok(run.context.askHistory.coverage.needs[0].candidateIds.includes('care:matched'));
  assert.ok(run.prompt.evidenceContract.needCoverage[0].pets[0].representedSourceIds.includes('care:matched'));
@@ -1288,7 +1288,7 @@ test('a middle-history month survives comparison retrieval among dense unrelated
   {quote:'Aster’s February 2023 brushing',sourceTurnId:null,terms:['brushing','loose fur'],petNames:['Aster'],order:'latest'},
   {quote:'the time before',sourceTurnId:null,terms:['brushing','previous'],petNames:['Aster'],order:'earliest'},
  ]});
- const r=await exercise(question,{fixturePets,rows,messages:[],history:true,interpretationProposal:p});
+ const r=await exercise(question,{fixturePets,rows,messages:[],history:true,expectedReviewCalls:1,interpretationProposal:p});
  assert.ok(r.context.askHistory.entries.some(e=>e.id==='anchor'));
  assert.ok(r.context.askHistory.coverage.targets.some(target=>target.day==='2023-02'&&target.retainedIds.includes('care:anchor')));
  assert.ok(r.context.askHistory.coverage.perPet.every(p=>p.pages<=4));
@@ -1297,7 +1297,7 @@ test('a middle-history month survives comparison retrieval among dense unrelated
 test('a note-frequency question reaches ordinary evidence rather than an unrelated episode clarification', async t => {
  clock(t);
  const question='Does Aster’s January 2025 noise note establish how often that happens?';
- const r=await exercise(question,{fixturePets,messages:[],history:true,
+ const r=await exercise(question,{fixturePets,messages:[],history:true,expectedReviewCalls:1,
   rows:[care('noise-note','milo','2025-01-21','general','Aster rested in a quieter room. Frequency outside this observation was not established.')],
   interpretationProposal:proposal({operation:'count',quantity:'episodes',episodeTopic:null,terms:['noise']}),
  });
@@ -1396,13 +1396,13 @@ for (const explicitSave of [false, true]) test(`rejected optional observation pr
  assert.deepEqual(r.result.reasoning.applicationActions,[]);
 });
 
-test('plain mixed-history answers retain owner-report anchors when legacy context IDs omit the request', async t => {
+for (const mode of ['read','mixed']) test(`plain ${mode}-history answers retain owner-report anchors when legacy context IDs omit the request`, async t => {
  clock(t);
  const question='I have leftover 5mg tablets. Help me prepare for the vet using the saved rest note. Do not log an unconfirmed status.';
  const text='You report having leftover 5mg tablets. The saved note says Aster rested normally.';
  const r=await exercise(question,{fixturePets,messages:[],history:true,
   rows:[care('rest','milo','2026-06-04','general','Aster rested normally.')],
-  interpretationProposal:proposal({mode:'mixed',evidenceBasis:'saved_history',mutationIntent:null}),
+  interpretationProposal:proposal({mode,evidenceBasis:'saved_history',mutationIntent:null}),
   providerOverrides:{answer:text,historyNarrative:null,relevantContextIds:['care:rest']},
   reviewResponse:{approved:true},expectedReviewCalls:1,
  });
@@ -1424,4 +1424,30 @@ for (const count of [2,3]) test(`incidental cited-note count is exact and distin
  });
  if(count===2) assert.equal(r.result.reasoning.answer.summary,text);
  else assert.notEqual(r.result.reasoning.answer.summary,text);
+});
+
+for (const zone of ['America/Los_Angeles','Asia/Tokyo']) test(`date-only history stays on its saved calendar day in ${zone}`, async t => {
+ clock(t);
+ const dated={...care('date-only','milo','2024-02-01','symptom','Aster started vomiting on 2024-02-01.'),occurred_at:'2024-02-01T00:00:00Z',care_event_metadata:{explicitTime:'2024-02-01'}};
+ const outside=care('previous-instant','milo',zone==='America/Los_Angeles'?'2024-02-01':'2024-01-31','general','A timestamped observation.',{occurred_at:'2024-02-01T00:00:00Z'});
+ const r=await exercise('Read Aster’s February 2024 vomiting notes.',{fixturePets,messages:[],history:true,
+  rows:[dated,outside],prepareContext:c=>{c.timeZone=zone;},
+  interpretationProposal:proposal({evidenceBasis:'saved_history',from:'2024-02-01',to:'2024-03-01',terms:['vomiting']}),
+  expectedReviewCalls:1,
+ });
+ assert.ok(r.context.askHistory.entries.some(e=>e.id==='date-only'));
+ if(zone==='America/Los_Angeles') assert.ok(!r.context.askHistory.entries.some(e=>e.id==='previous-instant'));
+ const source=r.result.reasoning.evidenceContract.represented.find(s=>s.sourceId==='care:date-only');
+ assert.ok(source);
+ const {calendarDateInZone}=await import('../../app/lib/ask-time-zone.ts');
+ assert.equal(calendarDateInZone(source.occurredAt,zone),'2024-02-01');
+});
+
+test('omitted planner field does not erase loaded age evidence for custom JSON keys',async t=>{
+ clock(t);
+ const r=await exercise('Return JSON with name, species, and ageYears for Aster. Save nothing.',{fixturePets:fixturePets.map(p=>({...p,age_value:4,age_unit:'years'})),messages:[],history:true,
+  interpretationProposal:proposal({evidenceBasis:'saved_profile',profileFields:['species'],outputFormat:'json',frame:null}),expectedReviewCalls:null});
+ const age=r.result.reasoning.evidenceContract.represented.find(s=>s.sourceId==='profile:milo:age');
+ assert.ok(age);
+ assert.equal(age.text,'4 years');
 });
