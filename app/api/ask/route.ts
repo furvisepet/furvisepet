@@ -845,6 +845,12 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
     logAskStage("Ask generation finalized", { creditFinalState, creditReservationId: creditRequestId, providerCallCount, requestId, retryReuse });
     if (rateGateRef.current) await rateGateRef.current.release();
     if (error instanceof RateLimitRejection) {
+      const rejection = await error.response.clone().json().catch(() => null) as { code?: string } | null;
+      if (rejection?.code === "AI_REQUEST_ALREADY_ACTIVE") {
+        turnLifecycle.fail("request_in_progress", true); emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
+        return Response.json({ code: publicAskFailureCode("answer_already_active"),
+          message: "Another answer is still finishing. Try again shortly.", success: false }, { status: 409 });
+      }
       turnLifecycle.fail("rate_limit", true); emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
       const retryAfterSeconds = Number(error.response.headers.get("Retry-After") || 0);
       return askFailure("RATE_LIMITED", "Wait a moment, then try again.", error.response.status,

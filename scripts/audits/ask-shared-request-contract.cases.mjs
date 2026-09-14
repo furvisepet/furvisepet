@@ -358,7 +358,7 @@ test('unlinked correction may be reported but does not create a verified edge', 
   assert.deepEqual(r.result.acceptedSemanticEvents, []);
 });
 
-for (const outcome of ['approved', 'empty-body', 'malformed-denial', 'rejected', 'unknown-source', 'mutation-field']) test(`shared read repair is bounded and independently checked: ${outcome}`, async t => {
+for (const outcome of ['approved', 'empty-body', 'malformed-denial', 'rejected', 'unknown-source', 'mutation-field', 'truncated-rereview']) test(`shared read repair is bounded and independently checked: ${outcome}`, async t => {
   clock(t);
   let calls = 0;
   const r = await exercise('Summarize the saved rest observation.', { fixturePets, messages: [], history: true,
@@ -367,7 +367,7 @@ for (const outcome of ['approved', 'empty-body', 'malformed-denial', 'rejected',
     providerResponse: outcome === 'empty-body' ? async () => ({ status: 'completed', usage: { input_tokens: 800, output_tokens: 100 },
       output_text: JSON.stringify({ readVersion: 'history-answer.v1', layout: 'json', historyNarrative: null, table: null, limitation: null,
         relevantContextIds: ['care:rest'], safetyLevel: 'normal', responseMode: 'practical_guidance', userIntent: 'history' }) }) : undefined,
-    expectedReviewCalls: ['approved', 'empty-body', 'malformed-denial', 'rejected'].includes(outcome) ? 3 : 2,
+    expectedReviewCalls: ['approved', 'empty-body', 'malformed-denial', 'rejected', 'truncated-rereview'].includes(outcome) ? 3 : 2,
     reviewProviderResponse: async request => {
       calls++;
       const input = JSON.parse(request.input);
@@ -386,6 +386,10 @@ for (const outcome of ['approved', 'empty-body', 'malformed-denial', 'rejected',
           obligations: input.obligations.map(({ index }) => ({ index, status: approved ? 'answered' : 'missing', sentenceIndexes: approved ? [0] : [] })) };
       }
       if (calls === 1 && outcome === 'malformed-denial') payload.obligations[0] = { index: 0, status: 'answered', sentenceIndexes: [0] };
+      if (outcome === 'truncated-rereview' && calls === 3) {
+        assert.equal(request.max_output_tokens, 8192);
+        return {status:'incomplete', incomplete_details:{reason:'max_output_tokens'}, output_text:JSON.stringify({...payload,approved:true,retainedSentenceIndexes:[0]}), usage:{input_tokens:800,output_tokens:8192}};
+      }
       return { status: 'completed', output_text: JSON.stringify(payload), usage: { input_tokens: 800, output_tokens: 200 } };
     } });
   if (['approved', 'empty-body', 'malformed-denial'].includes(outcome)) assert.equal(r.result.reasoning.answer.summary, 'Aster slept normally.');

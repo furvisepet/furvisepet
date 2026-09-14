@@ -40,7 +40,9 @@ import { parseHistoryNarrative } from "./history-narrative.ts";
 
 import { readReviewedHistoryAnswer, clearHistoryReview, recordHistoryReview, historyReviewSignature as signature } from "./history-review-state.ts";
 export { readReviewedHistoryAnswer } from "./history-review-state.ts";
-export const HISTORY_REVIEW_LIMITS = { inputCharacters: 32_000, outputTokens: 4096, timeoutMs: 40_000 } as const;
+// Review reasoning shares the output budget with its JSON receipt. Production
+// re-reviews exhausted 4096 tokens before emitting a complete receipt.
+export const HISTORY_REVIEW_LIMITS = { inputCharacters: 32_000, outputTokens: ASK_MAX_OUTPUT_TOKENS, timeoutMs: 40_000 } as const;
 const instructions = [
   "Review visible source-display obligations separately from factual grounding. sourceIds and calculations are internal metadata that the user cannot see. When the question asks to show source notes or citations, a bare conclusion with internal sourceIds does not fulfill it: require visible dated source wording or attribution in the requested container. Reject for repair if that requested clause is missing, even when the conclusion is supported.",
   "Review a proposed pet-history answer against the supplied server-scoped records. Select the supported sentences that together form a coherent answer. Return approved and retainedSentenceIndexes using the explicit zero-based sentence indexes. Do not rewrite, insert or reorder prose.",
@@ -251,15 +253,19 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     const output = await executeAdmittedProviderCall({ purpose: repairAttempted ? "history_rereview" : "history_review", model, providerInput: { input: requestInput, instructions: request.instructions },
       maxOutputTokens: HISTORY_REVIEW_LIMITS.outputTokens, stage: "verification", reserveMs: 4_000, invoke: async () => {
         attempted = true;
-        onProviderEvent?.({ stage: "verification", outcome: "started", model, elapsedMs: 0 });
+        onProviderEvent?.({ stage: "verification", outcome: "started", model, elapsedMs: 0, configuredOutputLimit: HISTORY_REVIEW_LIMITS.outputTokens });
         return withProviderDeadline(signal => provider.responses.create(request, { signal }), boundedProviderTimeout(HISTORY_REVIEW_LIMITS.timeoutMs, 4_000, "verification"));
       } });
     const parsed = interpretStructuredProviderResponse(output, raw =>
       sharedRequest ? parseRepairableTaskHistoryReview(JSON.parse(raw), draft.sentences.length, obligations.length, reviewActions.length) : parseHistoryReviewSelection(JSON.parse(raw), draft.sentences.length));
     onProviderEvent?.({ stage: "verification", outcome: parsed.status === "completed" ? "succeeded" : "failed", model,
       elapsedMs: Date.now() - started, inputTokens: parsed.usage.inputTokens, outputTokens: parsed.usage.outputTokens,
-      providerErrorCode: parsed.status === "completed" ? undefined : "ASK_HISTORY_REVIEW_INVALID",
-      validationDetails: parsed.status === "completed" ? undefined : parsed.validationReason || "ASK_HISTORY_REVIEW_INVALID" });
+      configuredOutputLimit: HISTORY_REVIEW_LIMITS.outputTokens,
+      finishReason: parsed.finishReason, incompleteReason: parsed.incompleteReason,
+      parsingAttempted: parsed.parsingAttempted, rawOutputLength: parsed.rawText?.length || 0,
+      outputLimitReached: parsed.incompleteReason === "max_output_tokens" || (parsed.usage.outputTokens || 0) >= HISTORY_REVIEW_LIMITS.outputTokens,
+      providerErrorCode: parsed.status === "completed" ? undefined : parsed.errorCode || "ASK_HISTORY_REVIEW_INVALID",
+      validationDetails: parsed.status === "completed" ? undefined : parsed.validationReason || parsed.incompleteReason || parsed.errorCode || "ASK_HISTORY_REVIEW_INVALID" });
     // A malformed review grants no approval. It may consume the existing
     // single repair, whose independently reviewed result remains mandatory.
     const selection = parsed.status === "completed" && parsed.parsed ? parsed.parsed : {
