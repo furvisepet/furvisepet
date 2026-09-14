@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { isRetryableOperationResponse as retryable } from '../app/lib/security/idempotency/retryable-response.ts';
 const ask='ask.submit.persisted_answer_v2';
 test('Ask concurrency and provider refusal remain retryable with the same canonical key',()=>{
- for(const [status,code] of [[409,'RATE_LIMIT'],[429,'RATE_LIMIT'],[429,'TEMPORARY_PROVIDER_FAILURE']]) assert.equal(retryable(ask,status,{success:false,code}),true);
+ for(const [status,code] of [[409,'RATE_LIMIT'],[429,'RATE_LIMIT'],[409,'ANSWER_ALREADY_ACTIVE'],[429,'TEMPORARY_PROVIDER_FAILURE']]) assert.equal(retryable(ask,status,{success:false,code}),true);
  const operation=readFileSync('app/lib/security/idempotency/operation.ts','utf8');
  assert.match(operation,/isRetryableOperationResponse\(input.operationType, response.status, body\)[\s\S]*?failStoredOperation\([\s\S]*?retryable: true/);
 });
