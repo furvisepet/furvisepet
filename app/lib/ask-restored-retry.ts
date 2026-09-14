@@ -1,4 +1,4 @@
-type AskIdentityPayload = { conversationId: string; locale: string; petId: string; question: string };
+type AskIdentityPayload = { conversationId: string; locale: string; timeZone?: string; petId: string; question: string };
 type OwnedPersistedTurn = { conversationId: string; question: string | null; userSequence: number };
 
 /** Restore only the transport origin of an owned first turn. Both attempts use

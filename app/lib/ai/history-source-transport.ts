@@ -18,5 +18,10 @@ export function compactHistorySourceCoverage(sources: EvidenceSource[], represen
     group.members.push({ petId, source: name, loadedCount, cap });
     groups.set(key, group);
   }
-  return { sources: direct, unrepresentedSourceGroups: [...groups.values()] };
+  return { sources: direct, unrepresentedSourceGroups: [...groups.values()].map(group => {
+    if (group.members.length < 2) return group;
+    const { members, ...coverage } = group;
+    return { ...coverage, memberColumns: ["petId", "source", "loadedCount", "cap"],
+      memberRows: members.map(member => [member.petId, member.source, member.loadedCount, member.cap]) };
+  }) };
 }

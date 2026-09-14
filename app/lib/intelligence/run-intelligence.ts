@@ -125,6 +125,7 @@ export async function runFurviseIntelligence({
       id: turn.id, role: turn.role, text: turn.text, createdAt: turn.createdAt, applicationActions: turn.applicationActions,
     })),
     locale: context.locale,
+    timeZone: context.timeZone,
     memories: context.askHistory ? [] : [
       ...context.legacyPetMemories,
       ...ownerProfileMemories(context),

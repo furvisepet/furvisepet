@@ -1,9 +1,10 @@
+import { calendarWindowToInstants } from "../ask-time-zone.ts";
 import { readProjectionSchema, parseReadProjection, type ReadProjection } from "./read-projection.ts";
 import { ASK_HISTORY_MAX_PETS } from "./history-limits.ts";
 import { conversationReadAnchor } from "./conversation-read-anchor.ts";
 import { isEpisodeSubjectReference } from "./episode-reference-language.ts";
 import { evidenceNeedsSchema, validateEvidenceNeeds, type EvidenceNeed } from "./evidence-needs.ts";
-import { evidenceNeedWindow, literalHistoryYearWindow, literalHistoryMonthWindow, literalHistoryReportDayWindow, explicitHistoryDayWindow, requestsPastPresentComparison } from "./history-dates.ts";
+import { explicitHistoryDays, evidenceNeedWindow, literalHistoryYearWindow, literalHistoryMonthWindow, literalHistoryReportDayWindow, explicitHistoryDayWindow, requestsPastPresentComparison } from "./history-dates.ts";
 import { emptyProposedSemanticFrame, validateProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
 import type { AskInterpretation } from "./interpret-ask.ts";
 import type { FurviseLiveContext } from "./types.ts";
@@ -20,7 +21,7 @@ const operations = ["recall", "overview", "comparison", "status", "count", "epis
 const selections = ["summary", "comparison", "latest", "earliest", "earliest_occurrence", "period", "reference"] as const;
 const quantities = ["episodes", "records", "measurement", "duration", null] as const;
 const ordinals = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "last", "that", null] as const;
-type Context = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "currentMessage" | "conversationTurns">;
+type Context = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "currentMessage" | "conversationTurns" | "timeZone">;
 export type AskRequestContract = {
   version: typeof ASK_REQUEST_VERSION;
   mode: typeof modes[number];
@@ -33,7 +34,7 @@ export type AskRequestContract = {
   temporalScope?: "historical" | "current" | "historical_and_current" | null;
   evidenceNeeds?: EvidenceNeed[];
   evidenceNeedIssues?: string[];
-  evidenceBasis?: "saved_history" | "supplied_context" | "general" | null;
+  evidenceBasis?: "saved_history" | "saved_profile" | "supplied_context" | "general" | null;
   outputFormat?: "prose" | "bullets" | "table" | "json" | "csv" | null;
   referenceTurnIds: string[];
   quantity: typeof quantities[number];
@@ -51,10 +52,10 @@ export function askRequestSchema(frame: object) {
       evidenceNeeds: evidenceNeedsSchema,
       version: { type: "string", enum: [ASK_REQUEST_VERSION] }, mode: { type: "string", enum: modes },
       question: { type: "string", minLength: 1, maxLength: 1600 }, requirements: strings(8, 240), referenceTurnIds: strings(8, 160),
-      evidenceBasis: { type: ["string", "null"], enum: ["saved_history", "supplied_context", "general", null] },
+      evidenceBasis: { type: ["string", "null"], enum: ["saved_history", "saved_profile", "supplied_context", "general", null] },
       outputFormat: { type: ["string", "null"], enum: ["prose", "bullets", "table", "json", "csv", null] },
       premiseQuotes: strings(6, 400), excludedPetNames: strings(3, 100),
-      scope: { type: "string", enum: scopes }, petNames: strings(ASK_HISTORY_MAX_PETS, 100), operation: { type: "string", enum: operations },
+      scope: { type: "string", enum: scopes }, petNames: strings(20, 100), operation: { type: "string", enum: operations },
       selection: { type: "string", enum: selections }, quantity: { type: ["string", "null"], enum: quantities },
       topic: { type: "string", maxLength: 160 }, terms: { type: "array", maxItems: 6, items: { type: "string", minLength: 3, maxLength: 32, pattern: "^[A-Za-z][A-Za-z -]*[A-Za-z]$" } },
       from: { type: ["string", "null"], pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }, to: { type: ["string", "null"], pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
@@ -64,6 +65,7 @@ export function askRequestSchema(frame: object) {
 }
 
 export const ASK_REQUEST_INSTRUCTIONS = [
+  "Use evidenceBasis saved_profile for requests consisting ONLY of current stored profile fields (name/species/food/weight/etc). Use mode read, profileFields for every requested field, no dates/quantity/evidenceNeeds/episode/frame, and the owned scope. Profile lookup needs no care-history scan and supports up to twenty owned profiles. If ANY part needs dated records or historical calculations, use saved_history; do not mislabel a historical endpoint as current profile data. Formatting words such as table or JSON are not evidence. General advice still uses general. Never widen subject ownership.",
   "temporalScope describes the evidence endpoints independently of the operation or comparison wording: historical for past-only facts, current for current-only facts, historical_and_current when the task asks about both past facts and present status or whether old evidence still applies, null when not temporal. A question about what an old report establishes today has both endpoints even without the word compare. Preserve past-specific needs and dates locally; the global read must also allow later relevant evidence. Do not label a current display/list of historical records as a present-health request. This is a bounded retrieval proposal, never evidence that a state continued or changed.",
   "An explicit instruction to correct an existing saved care note uses mutationIntent correct_record, mode mixed, evidenceBasis saved_history, operation recall, and the owned target/date. Retrieve the original record before proposing an edit. A correction instruction is not a new occurrence or an episode transition. Questions about corrections and hypothetical corrections have mutationIntent null and remain read-only. All other requests use mutationIntent null. This identifies a workflow, not permission to edit; the existing owned-record action and confirmation policy still govern execution.",
   "recordSelection identifies physical saved-record counting independently of lexical search. For an exact count of stored notes/entries/records, use quantity records and recordSelection with scope all_active when only the owned pet and recorded-date interval restrict the count; scope content_filtered when symptoms, category, words or other note content restrict it. quote must be the exact current USER clause including every count qualifier. Output format, as-of disclosure and instructions not to save are not content filters. Do not infer episodes from records. Use null for all other tasks. This proposes a read operation, never a count or proof of completeness.",
@@ -73,9 +75,9 @@ export const ASK_REQUEST_INSTRUCTIONS = [
   "projection is an optional typed execution proposal, never evidence. For a table/CSV consisting ONLY of pet names and recorded body mass, set projection with exact requested nameHeader/valueHeader, quantity body_mass, canonical requested unit kg/g/mg/lb and requested order. Otherwise set null. It supplies no measurements and authorizes no facts; the server can compute conversions, sort and render verified records. Additional narrative, medical conclusions, arithmetic across pets, ambiguous fields or additional columns require null. Independent review still checks the original whole question.",
   "evidenceNeeds decomposes a saved-history question into at most four distinct factual parts that need records. Each quote is an exact contiguous substring of the current USER request (sourceTurnId null), or a referenced prior USER turn whose id is in referenceTurnIds. Never use assistant text. Include the local date or period in each exact quote when it belongs to that requested fact; do not collapse differently dated facts into an undated keyword. petNames narrows each need to its requested pets within the overall authorized scope; use [] when the need applies to the entire scoped group. Never attach another pet’s attribute to this pet. order is earliest or latest when that part requests a temporal boundary, otherwise context; opposite endpoints need separately directed searches. Keep every required comparison endpoint, cause/uncertainty and requested fact in scope. Give each part up to six discriminating lexical terms and ordinary synonyms, not output-format words. Do not invent a need from a paraphrase. These are advisory search facets, not factual premises or access authority. Use [] for non-history tasks. The original entire question remains authoritative even when decomposition is incomplete.",
   "Return one ask-request.v2 contract. requirements describe visible answer content, language and format; execution constraints such as no saving belong in mode, not prose requirements. Interpret the user's intent semantically; do not answer the question. This contract controls bounded reads, never permission to write.",
-  "premiseQuotes contains verbatim factual premises from current or prior USER text only when evidenceBasis is supplied_context. Questions, output labels, requested column names and formatting instructions are NOT supplied facts. If the required values were not supplied and belong to an owned pet, choose saved_history and retrieve them, even for a one-line or structured answer. Use [] for saved_history/general/null. Never quote an instruction or question as if it supplied a missing value.",
+  "premiseQuotes contains verbatim factual premises from current or prior USER text only when evidenceBasis is supplied_context. Questions, output labels, requested column names and formatting instructions are NOT supplied facts. If the required values were not supplied and belong to an owned pet, choose saved_profile for current profile fields only, otherwise saved_history, and retrieve them even for a one-line or structured answer. Use [] for saved_history/saved_profile/general/null. Never quote an instruction or question as if it supplied a missing value.",
   "excludedPetNames lists owned pets explicitly excluded from this read; petNames lists only the requested subjects. Use canonical supplied owned names, resolving obvious unique spelling abbreviations from the whole request. An excluded name is not the subject. A clear subject, topic and ordering request needs retrieval, not reference clarification.",
-  "First identify evidenceBasis independently of topic and formatting: saved_history requires owned stored records; supplied_context uses facts or fictional premises supplied in this message or prior USER messages; general needs no personal records. Dates, animal names and words like record inside a supplied example do not turn it into a database lookup. Tasks consisting only of supplied-context or general questions use scope none, mode conversation, operation general, petNames [], frame null, even when asking for comparison, arithmetic, or clarification. When the same task also requests application navigation, retain operation navigate, mode read, evidenceBasis null and the owned destination scope as specified above; the general companion question must not erase that destination. Their referents may be fictional or non-pet and must not be forced into an owned profile. For a genuine current owner observation or explicit application action (such as saving an update or archiving a pet), use mode update, or mixed when it also includes a question. Use evidenceBasis null when no saved facts are needed; use saved_history only when the request also needs stored evidence. New owner observations are not supplied_context examples and do not need to exist in history first. Neither mode nor evidenceBasis grants write permission; the server separately validates the source, subject and action intent. Never use supplied_context or general for update/mixed.",
+  "First identify evidenceBasis independently of topic and formatting: saved_profile reads current profile fields only; saved_history requires dated/history records; supplied_context uses facts or fictional premises supplied in this message or prior USER messages; general needs no personal records. Dates, animal names and words like record inside a supplied example do not turn it into a database lookup. Tasks consisting only of supplied-context or general questions use scope none, mode conversation, operation general, petNames [], frame null, even when asking for comparison, arithmetic, or clarification. When the same task also requests application navigation, retain operation navigate, mode read, evidenceBasis null and the owned destination scope as specified above; the general companion question must not erase that destination. Their referents may be fictional or non-pet and must not be forced into an owned profile. For a genuine current owner observation or explicit application action (such as saving an update or archiving a pet), use mode update, or mixed when it also includes a question. Use evidenceBasis null when no saved facts are needed; use saved_history only when the request also needs stored evidence. New owner observations are not supplied_context examples and do not need to exist in history first. Neither mode nor evidenceBasis grants write permission; the server separately validates the source, subject and action intent. Never use supplied_context or general for update/mixed.",
   "mode read covers questions, explanations, comparisons, formatting requests, quotations and challenges to a premise. A premise or a quoted instruction is not an owner update. mode mixed requires a genuine new owner observation plus a question; update is a genuine observation or explicit application action without a question. An action request is not itself an observation: do not fabricate a factual claim for it; a valid frame may contain no claims. conversation needs no saved pet facts. clarify is only for an unresolved identity or ambiguous reference after reading the supplied dialogue. Missing factual evidence is a reason to retrieve, not clarify; the planner has not read the history yet.",
   "question is a standalone restatement of the current requested task. Resolve follow-up references from recentDialogueForReferencesOnly, listing the IDs used in referenceTurnIds. Preserve negation, uncertainty and all requested parts. Do not turn assistant claims into saved facts: dialogue identifies a referent only; saved-history factual premises must be checked against retrieved evidence. For supplied_context, prior USER messages supply the scenario premises; preserve them and their fictional status. Assistant text never establishes an owned pet, a new fact or write permission.",
   "outputFormat is the explicitly requested output container (prose, bullets, table, json, csv), or null when none is requested. Carry it through reference-based format requests. requirements lists the requested answer obligations, including format, language, brevity, calculations and comparisons. Carry every part forward; formatting is not a retrieval topic. For questions about what is unknown, preserve the subject and the attribute under discussion as an explicit answer obligation; do not substitute an unrelated unknown. Do not invent requirements.",
@@ -101,12 +103,12 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (p.version !== ASK_REQUEST_VERSION || !member(modes, p.mode) || !member(scopes, p.scope)
     || !member(operations, p.operation) || !member(selections, p.selection) || !member(quantities, p.quantity)
     || !member(["prose", "bullets", "table", "json", "csv", null], p.outputFormat)
-    || !member(["saved_history", "supplied_context", "general", null], p.evidenceBasis)
+    || !member(["saved_history", "saved_profile", "supplied_context", "general", null], p.evidenceBasis)
     || !member(ordinals, p.ordinal) || !member(["vomiting", "soft stool", "breathing", null], p.episodeTopic)
     || typeof p.question !== "string" || !p.question.trim() || p.question.length > 1600
     || typeof p.topic !== "string" || p.topic.length > 160
     || p.premiseQuotes !== null && !list(p.premiseQuotes, 6, 400) || !list(p.excludedPetNames, 3, 100)
-    || !list(p.requirements, 8, 240) || !list(p.referenceTurnIds, 8, 160) || !list(p.petNames, ASK_HISTORY_MAX_PETS, 100)
+    || !list(p.requirements, 8, 240) || !list(p.referenceTurnIds, 8, 160) || !list(p.petNames, 20, 100)
     || !Array.isArray(p.terms) || p.terms.length > 6
     || p.terms.some(x => typeof x !== "string" || x.length < 3 || x.length > 32 || !/^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(x))) return fail("schema");
   if (!Array.isArray(p.profileFields) || p.profileFields.some(field => !askRequestSchema({}).properties.profileFields.items.enum.includes(String(field))) || p.profileFields.length > 14) return fail("profile_fields");
@@ -262,7 +264,9 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     if (proposed.some(id => id !== context.pet.id)) return fail("selected_subject");
     petIds = owned.some(pet => pet.id === context.pet.id) ? [context.pet.id] : [];
   }
-  const petLimit = p.mode === "read" && p.ordinal === null && p.episodeTopic === null && p.frame === null ? ASK_HISTORY_MAX_PETS : 3;
+  const profileRead = p.evidenceBasis === "saved_profile";
+  if (profileRead && (p.mode !== "read" || !(p.profileFields as string[]).length || p.ordinal !== null || p.episodeTopic !== null || p.quantity !== null || p.from !== null || p.to !== null || (p.evidenceNeeds as unknown[]).length || p.frame !== null)) return fail("profile_scope");
+  const petLimit = profileRead ? 20 : p.mode === "read" && p.ordinal === null && p.episodeTopic === null && p.frame === null ? ASK_HISTORY_MAX_PETS : 3;
   if (p.scope === "none" && petIds.length || petIds.length > petLimit) return fail("scope");
   // Conversational referents may choose only identities established by a user,
   // never an assistant's guessed profile or a model-proposed database ID.
@@ -354,6 +358,15 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (historical) {
     const report = literalHistoryReportDayWindow(context.currentMessage);
     if (report && p.to === report.from) p.to = report.to;
+    // A literal endpoint requested as a saved observation is inclusive at the
+    // calendar-day level. The database uses an exclusive upper instant. Keep
+    // the final dated source for arithmetic as well as comparison phrasing.
+    const days = [...new Set([...explicitHistoryDays(context.currentMessage, new Date().getUTCFullYear(), 8),
+      ...(context.currentMessage.match(/\b\d{4}-\d{2}-\d{2}\b/g) || [])])].sort();
+    if (days.length > 1 && p.to === days.at(-1)
+      && !/\b(?:before|excluding|exclusive|until|as of)\b/i.test(context.currentMessage)) {
+      p.to = new Date(Date.parse(String(p.to)) + 86400000).toISOString().slice(0,10);
+    }
   }
   // A past-versus-present question has two temporal obligations. A planner's
   // single period cannot remove either endpoint. Access clipping remains server-owned.
@@ -373,8 +386,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     p.question = context.currentMessage;
     p.requirements = [];
   }
-  const from = p.from === null ? null : `${p.from}T00:00:00.000Z`;
-  const to = p.to === null ? null : `${p.to}T00:00:00.000Z`;
+  const { from, to } = calendarWindowToInstants({ from: p.from === null ? null : `${p.from}T00:00:00.000Z`, to: p.to === null ? null : `${p.to}T00:00:00.000Z` }, context.timeZone);
   const needPlan = historical && readOnly
     ? validateEvidenceNeeds(p.evidenceNeeds, context.currentMessage, context.conversationTurns, p.referenceTurnIds, owned.filter(pet => petIds.includes(pet.id)))
     : { needs: [], issues: [] };
@@ -384,17 +396,18 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     profileFields: [...new Set(p.profileFields as string[])],
     ...(p.temporalScope !== null ? { temporalScope: p.temporalScope as AskRequestContract["temporalScope"] } : {}),
     projection: historical && readOnly ? parseReadProjection(p.projection) : null,
-    ...(needPlan.needs.length ? { evidenceNeeds: needPlan.needs } : {}),
+    ...(needPlan.needs.length ? { evidenceNeeds: needPlan.needs.map(need => ({ ...need, ...(need.window ? { window: calendarWindowToInstants(need.window, context.timeZone) } : {}) })) } : {}),
     ...(needPlan.issues.length ? { evidenceNeedIssues: needPlan.issues } : {}), version: ASK_REQUEST_VERSION, mode: p.mode as AskRequestContract["mode"],
     evidenceBasis: p.evidenceBasis as AskRequestContract["evidenceBasis"], outputFormat: p.outputFormat as AskRequestContract["outputFormat"], question: p.question as string, requirements: p.requirements as string[], referenceTurnIds: p.referenceTurnIds, quantity: p.quantity as AskRequestContract["quantity"] };
   // A self-contained ordinal in an explicit period selects from a fresh owned
   // register. Conversational selectors retain their original versioned list.
-  const explicitEpisodePeriod = evidenceNeedWindow(context.currentMessage) || literalHistoryYearWindow(context.currentMessage);
+  const episodeCalendarPeriod = evidenceNeedWindow(context.currentMessage) || literalHistoryYearWindow(context.currentMessage);
+  const explicitEpisodePeriod = episodeCalendarPeriod ? calendarWindowToInstants(episodeCalendarPeriod, context.timeZone) : null;
   const target = episodeTarget ? { ...episodeTarget, basis: !p.referenceTurnIds.length && episodeTarget.topic
     && episodeTarget.ordinal !== "that" && explicitEpisodePeriod
     && !/\b(?:that list|the list|displayed|you (?:listed|showed))\b/i.test(context.currentMessage)
       ? "scoped_register" as const : "displayed_list" as const } : undefined;
-  return { ...(target ? { referenceTarget: { ...target, ...(target.basis === "scoped_register" ? { period: explicitEpisodePeriod } : {}) } } : {}), version: "ask-interpretation.v1", request, operation: readOnly ? operation : "update",
+  return { ...(target ? { referenceTarget: { ...target, ...(target.basis === "scoped_register" ? { period: explicitEpisodePeriod! } : {}) } } : {}), version: "ask-interpretation.v1", request, operation: readOnly ? operation : "update",
     readOperation: p.mode === "update" ? null : operation, selection: p.selection as AskInterpretation["selection"],
     petIds, topic: p.topic, readOnly, clarification, frame,
     referenceQuestion: p.question as string, ...(conversationOnly ? { conversationOnly: true } : {}),

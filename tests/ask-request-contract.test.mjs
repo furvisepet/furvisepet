@@ -17,7 +17,7 @@ test("Ask payload has one message and one logical-turn identity", () => {
     message: "What should I track?",
     petId,
   });
-  assert.deepEqual(Object.keys(payload).sort(), [...ASK_REQUEST_KEYS].sort());
+  assert.deepEqual(Object.keys(payload).sort(), [...ASK_REQUEST_KEYS].filter(key => key !== "timeZone").sort());
   assert.equal(hasOnlyAskRequestKeys(payload), true);
   assert.equal(payload.logicalTurnId, logicalTurnId);
   assert.equal("question" in payload, false);

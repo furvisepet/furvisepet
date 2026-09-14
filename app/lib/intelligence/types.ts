@@ -156,6 +156,7 @@ export type FurviseLiveContext = {
   historyFallback?: string;
   feature: IntelligenceFeature;
   locale: string;
+  timeZone?: string;
   currentMessage: string;
   currentTimestamp: string;
   conversationId: string | null;
