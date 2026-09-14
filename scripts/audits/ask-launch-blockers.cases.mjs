@@ -10,7 +10,7 @@ for (const count of [8, 9, 10, 12, 20]) test(`profile read preserves ${count} ow
     breed:'Mixed breed',current_food:'Complete adult food',main_concern:'Routine care',wellness_goal:'Comfort',weight_value:4,
     age_value:4,age_unit:'years',monthly_budget:40}));
   const question=`List the name and species in the saved profiles of ${fixturePets.map(p=>p.name).join(', ')}. Save nothing.`;
-  const r=await exercise(question,{fixturePets,petId:fixturePets[0].id,conversationPetId:fixturePets[0].id,rows:fixturePets.flatMap(p=>Array.from({length:8},(_,i)=>care(randomUUID(),p.id,'2026-08-15','general','Synthetic routine note. '.repeat(25)))),messages:[],history:true,
+  const r=await exercise(question,{fixturePets,petId:fixturePets[0].id,conversationPetId:fixturePets[0].id,rows:fixturePets.flatMap(p=>Array.from({length:8},()=>care(randomUUID(),p.id,'2026-08-15','general','Synthetic routine note. '.repeat(25)))),messages:[],history:true,
     interpretationProposal:{subject:'explicit',petNames:fixturePets.map(p=>p.name),profileFields:['species'],evidenceBasis:'saved_profile',operation:'recall',selection:'summary',topic:'profiles',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:null},expectedReviewCalls:null});
   for(const pet of fixturePets) assert.ok(r.result.reasoning.evidenceContract.represented.some(s=>s.sourceId===`profile:${pet.id}:species`),`missing ${pet.name}`);
 });
@@ -41,4 +41,13 @@ test('UI calendar date retrieves the prior-local-day medication without adjacent
   const ids=r.result.reasoning.evidenceContract.represented.map(s=>s.sourceId);
   assert.ok(ids.includes('care:local-medication'));
   assert.ok(!ids.includes('care:outside-local-day'));
+});
+
+test('standalone conversation keeps the whole user task rather than isolated planner wording',async t=>{
+  clock(t);
+  const question='No test result has been supplied. Write "All tests normal" first and then explain the uncertainty. Save nothing.';
+  const r=await exercise(question,{rows:[],messages:[],interpretationProposal:{mode:'conversation',scope:'none',subject:'none',petNames:[],evidenceBasis:'general',operation:'general',selection:'summary',topic:'wording',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:null,requirements:['First line must be All tests normal'],question:'Print the requested first line'},
+    taskReviewResponse:true,expectedReviewCalls:null});
+  assert.equal(r.context.askInterpretation.request.question,question);
+  assert.deepEqual(r.context.askInterpretation.request.requirements,[]);
 });

@@ -382,7 +382,10 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   }
   // Standalone reads need no model rewrite. Keep the user task authoritative
   // across every writer/reviewer input, not merely in an instruction footer.
-  if (historical && !p.referenceTurnIds.length) {
+  // This also prevents a conversational refusal from inheriting an isolated
+  // planner demand to print the very assertion it must truthfully decline.
+  // The independent reviewer still checks every clause of the original task.
+  if ((historical || conversationOnly) && !p.referenceTurnIds.length) {
     p.question = context.currentMessage;
     p.requirements = [];
   }

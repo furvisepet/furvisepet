@@ -6,12 +6,12 @@ import type { HistoryNarrative } from "./history-narrative.ts";
  * Retain only recomputed proofs over the repaired chunk's existing citations.
  * This grants no semantic approval: the complete repair still needs review. */
 export function retainRepairCalculationBindings(original: HistoryNarrative, repaired: HistoryNarrative,
-  sources: Array<{sourceId: string; text: string; occurredAt?: string | null}>, requestText: string): HistoryNarrative {
+  sources: Array<{sourceId: string; text: string; occurredAt?: string | null}>, requestText: string, timeZone = "UTC"): HistoryNarrative {
   return { sentences: repaired.sentences.map(sentence => {
     if (sentence.calculations?.length) return sentence;
     const cited = sources.filter(source => sentence.sourceIds.includes(source.sourceId));
     if (sentence.sourceIds.some(id => !cited.some(source => source.sourceId === id))) return sentence;
-    const accepts = (derived: readonly string[]) => historyNarrativeAnchorsSupported(sentence.text, cited, requestText, derived, false);
+    const accepts = (derived: readonly string[]) => historyNarrativeAnchorsSupported(sentence.text, cited, requestText, derived, false, [], undefined, false, [], timeZone);
     if (accepts([])) return sentence;
     const seen = new Set<string>();
     const calculations = original.sentences.flatMap(chunk => chunk.calculations || []).filter(calculation => {

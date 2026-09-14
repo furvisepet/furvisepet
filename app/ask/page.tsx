@@ -673,7 +673,7 @@ function AskPageContent() {
                 {olderMessagesCursor !== null ? <button className={`${quietButton} mb-4`} disabled={olderMessagesLoading} onClick={() => void loadOlderMessages()} type="button">{olderMessagesLoading ? "Loading..." : "Load earlier messages"}</button> : null}
               {thread.map((message, index) => message.role === "user"
                   ? <UserMessage key={message.id} text={message.text} />
-                  : <FurviseMessage key={message.id} lifecycleStatus={activeProfile?.lifecycle_status || "active"} likelyVetConcern={hasLikelyVetConcern(thread, index)} message={message} onAction={runAction} onApplicationAction={(action, decision) => applyApplicationAction(message.id, action, decision)} onSuggestionAction={(suggestion, action, details) => applyStateSuggestion(message.id, suggestion, action, details)} userMessage={findPreviousUserMessage(thread, index)} />)}
+                  : <FurviseMessage key={message.id} lifecycleStatus={activeProfile?.lifecycle_status || "active"} message={message} onAction={runAction} onApplicationAction={(action, decision) => applyApplicationAction(message.id, action, decision)} onSuggestionAction={(suggestion, action, details) => applyStateSuggestion(message.id, suggestion, action, details)} userMessage={findPreviousUserMessage(thread, index)} />)}
                 {requestActive ? <Thinking /> : null}
                 {failedRequest ? <AskFailureState code={failedRequest.code} onEdit={editFailedMessage} onRetry={() => void ask(failedRequest.payload.message, "composer", failedRequest)} planId={usage?.planId} retryAfterSeconds={failedRequest.retryAfterSeconds} /> : null}
                 <div aria-hidden="true" ref={conversationEndRef} />
@@ -718,10 +718,12 @@ function UserMessage({ text }: { text: string }) {
   return <article aria-label="You" className="flex min-w-0 justify-end"><div className="max-w-[90%] min-w-0 rounded-2xl rounded-tr-md border border-[var(--line)] bg-[var(--surface-primary)] px-4 py-3 sm:max-w-[78%]"><p className="text-xs font-semibold text-[var(--text-tertiary)]">You</p><p className="mt-1 whitespace-pre-wrap [overflow-wrap:anywhere] text-[1.02rem] leading-7 text-[var(--text-primary)]">{text}</p></div></article>;
 }
 
-function FurviseMessage({ lifecycleStatus, likelyVetConcern, message, onAction, onApplicationAction, onSuggestionAction, userMessage }: { lifecycleStatus: "active" | "deceased" | "archived"; likelyVetConcern: boolean; message: Extract<ConversationMessage, { role: "furvise" }>; onAction: (action: AnswerAction, message: Extract<ConversationMessage, { role: "furvise" }>) => void; onApplicationAction: (action: FurviseApplicationAction, decision: "confirm" | "cancel") => Promise<void>; onSuggestionAction: (suggestion: StateSuggestion, action: "save" | "monitor" | "dismiss" | "edit", details?: string) => Promise<void>; userMessage: string }) {
+function FurviseMessage({ lifecycleStatus, message, onAction, onApplicationAction, onSuggestionAction, userMessage }: { lifecycleStatus: "active" | "deceased" | "archived"; message: Extract<ConversationMessage, { role: "furvise" }>; onAction: (action: AnswerAction, message: Extract<ConversationMessage, { role: "furvise" }>) => void; onApplicationAction: (action: FurviseApplicationAction, decision: "confirm" | "cancel") => Promise<void>; onSuggestionAction: (suggestion: StateSuggestion, action: "save" | "monitor" | "dismiss" | "edit", details?: string) => Promise<void>; userMessage: string }) {
   const { response } = message;
   const messageVariant = getAskMessageVariant(response, userMessage);
-  const configuredActions: AnswerAction[] = messageVariant === "GRIEF" || lifecycleStatus !== "active" ? ["copy"] : likelyVetConcern && messageVariant !== "URGENT" ? ["prepare_vet_note", "copy"] : response.actions;
+  // Navigation belongs to the reviewed application cards. A mention of a vet
+  // or a legacy answer label cannot add an unrequested brief shortcut.
+  const configuredActions: AnswerAction[] = messageVariant === "GRIEF" || lifecycleStatus !== "active" ? ["copy"] : response.actions.filter(action => action !== "prepare_vet_note");
   const actions = [...new Set(configuredActions)].filter((action) => {
     const saves = action === "save_key_detail" || action === "add_to_care_history" || action === "start_tracking";
     return !saves || Boolean(message.saveMetadata?.saveable);
@@ -887,7 +889,6 @@ function SaveDialog({ draft, loading, onCancel, onChange, onConfirm, petName }: 
 }
 
 
-function hasLikelyVetConcern(thread: ConversationMessage[], assistantIndex: number) { const answer = thread[assistantIndex]; if (answer?.role !== "furvise" || answer.response.urgency === "urgent") return false; if (answer.response.answerType === "vet_prep") return true; const question = [...thread.slice(0, assistantIndex)].reverse().find((message) => message.role === "user"); return question?.role === "user" && /\b(vet|veterinarian|appointment|visit)\b/i.test(question.text); }
 function findPreviousUserMessage(thread: ConversationMessage[], assistantIndex: number) { const question = [...thread.slice(0, Math.max(0, assistantIndex))].reverse().find((message) => message.role === "user"); return question?.role === "user" ? question.text : ""; }
 function formatAge(profile: DogProfileWithMemories) { return profile.age_value === null || !profile.age_unit ? "" : `${profile.age_value} ${profile.age_unit}`; }
 function formatAction(action: AnswerAction) { return ({ add_to_care_history: "Save to care history", copy: "Copy", prepare_vet_note: "Prepare vet brief", save_key_detail: "Save useful detail", start_tracking: "Start tracking" } as const)[action]; }

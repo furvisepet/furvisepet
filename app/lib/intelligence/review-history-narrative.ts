@@ -163,7 +163,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
       sharedRequest ? [evidence.interpretation?.history?.from, evidence.interpretation?.history?.to,
         evidence.interpretation?.history?.to ? new Date(Date.parse(evidence.interpretation.history.to) - 86400000).toISOString() : null].filter((date): date is string => !!date) : [], reason => anchorFailures.push(reason), serializedResult,
       sharedRequest ? actions.filter(action => action.mutationClass === "mutation" && action.confirmationPolicy === "always")
-        .flatMap(action => action.input.detail ? [action.input.detail] : []) : [])
+        .flatMap(action => action.input.detail ? [action.input.detail] : []) : [], evidence.timeZone)
       && (sharedRequest || !hasUndatedHistoricalCareState(sentence.text, cited));
   };
   // Review the entire publishable shared answer. Publication policy runs before
@@ -188,7 +188,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     && !publicationFailures.some(failure => failure.index === index) ? [] : [index]);
   const audit = { repairAttempted, dateBindings: invalidIndexes.map(index => ({index,
     citedSourceIds: draft.sentences[index].sourceIds,
-    candidates: historyDateBindingHints(draft.sentences[index].text, sources) })) };
+    candidates: historyDateBindingHints(draft.sentences[index].text, sources, evidence.timeZone) })) };
   if (invalidIndexes.length) recordHistoryReviewAudit(result, audit);
   if (!sharedRequest) draft.sentences = draft.sentences.filter(sentence => !/^This covers the matching saved notes I could verify\b/i.test(sentence.text));
   if (!draft.sentences.length || repairAttempted && invalidIndexes.length) {
@@ -218,7 +218,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     emptyResultPolicy: "An empty export contains only headers, never a fabricated limitation row. Approve it only when the requested retrieval completed with no matching records in the authorized scope. typedResult.limitation is review metadata, not visible answer text: it cannot conceal a failed query, excluded interval, omitted matching records or incomplete retrieval. Reject those misleading empty results for repair. A correctly empty requested export needs no extra prose row.",
     productFacts: furviseProductFacts(), typedResult: result.historicalResult || null, deterministicInvalidResultItems: invalidResultItems,
     deterministicInvalidSentenceIndexes: invalidIndexes,
-    deterministicDateBindingHints: invalidIndexes.map(index => ({index, candidates: historyDateBindingHints(draft.sentences[index].text, sources)})),
+    deterministicDateBindingHints: invalidIndexes.map(index => ({index, candidates: historyDateBindingHints(draft.sentences[index].text, sources, evidence.timeZone)})),
     deterministicPublicationFailures: publicationFailures,
     exactRecordTextRequired: exactRecordFailures,
     evidenceNeedCoverage: evidence.needCoverage || [],
@@ -312,7 +312,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
       failureStage = "repair";
       const repaired = await repairRejectedRead(provider, model, requestInput, reason, onProviderEvent);
       if (!repaired || before !== signature(result)) return decline("repair_output_invalid_or_changed");
-      repaired.narrative = retainRepairCalculationBindings(draft, repaired.narrative, sources, evidence.scope.requestText);
+      repaired.narrative = retainRepairCalculationBindings(draft, repaired.narrative, sources, evidence.scope.requestText, evidence.timeZone);
       const repairedActions = repaired.preserveNavigation ? result.applicationActions
         : [...result.applicationActions.filter(action => !action.kind.startsWith("navigation.")), ...repaired.applicationActions];
       const candidate = { ...result, historicalResult: repaired.historicalResult, historyNarrative: repaired.narrative, applicationActions: repairedActions, historyNarrativeDeclined: false };
