@@ -441,7 +441,7 @@ async function repairRejectedRead(provider: { responses: { create: (request: Rec
       return withProviderDeadline(signal => provider.responses.create({ model, ...(/^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "medium" } } : {}),
       instructions: CLAIM_AUTHORITY_POLICY + "\n" + repairInstructions, input, max_output_tokens: ASK_MAX_OUTPUT_TOKENS,
       text: { format: { type: "json_schema", name: "furvise_history_repair", strict: true, schema: sourceBoundSchema(schema, payload.sources) } } },
-    { signal }), boundedProviderTimeout(30_000, 12_000, "repair")); } });
+    { signal }), boundedProviderTimeout(60_000, 40_000, "repair")); } });
   const parsed = interpretStructuredProviderResponse(output, raw => {
     const proposal = JSON.parse(raw);
     const preserveNavigation = proposal?.navigationActions === null;
