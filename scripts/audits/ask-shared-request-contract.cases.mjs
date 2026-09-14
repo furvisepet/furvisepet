@@ -1395,3 +1395,20 @@ for (const explicitSave of [false, true]) test(`rejected optional observation pr
  assert.deepEqual(r.result.reasoning.semanticFrame,emptyProposedSemanticFrame());
  assert.deepEqual(r.result.reasoning.applicationActions,[]);
 });
+
+test('plain mixed-history answers retain owner-report anchors when legacy context IDs omit the request', async t => {
+ clock(t);
+ const question='I have leftover 5mg tablets. Help me prepare for the vet using the saved rest note. Do not log an unconfirmed status.';
+ const text='You report having leftover 5mg tablets. The saved note says Aster rested normally.';
+ const r=await exercise(question,{fixturePets,messages:[],history:true,
+  rows:[care('rest','milo','2026-06-04','general','Aster rested normally.')],
+  interpretationProposal:proposal({mode:'mixed',evidenceBasis:'saved_history',mutationIntent:null}),
+  providerOverrides:{answer:text,historyNarrative:null,relevantContextIds:['care:rest']},
+  reviewResponse:{approved:true},expectedReviewCalls:1,
+ });
+ assert.equal(r.result.reasoning.answer.summary.replace(/\s+/g," "),text);
+ const review=JSON.parse(r.reviewRequests[0].input);
+ assert.ok(review.draft.sentences.every(sentence=>sentence.sourceIds.includes('request:current')));
+ assert.deepEqual(r.result.executionPlan.semanticEvents,[]);
+ assert.deepEqual(r.result.executionPlan.careActions,[]);
+});

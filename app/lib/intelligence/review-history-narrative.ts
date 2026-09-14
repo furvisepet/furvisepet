@@ -115,7 +115,11 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   // These broad citations are candidates for the reviewer, never proof.
   if (!proposedDraft && (result.historyNarrativeDeclined || sharedRequest && !evidence.scope.readOnlyRecall)) {
     const relevantIds = result.relevantContextIds.filter(id => ids.has(id));
-    const sourceIds = relevantIds.length ? [...new Set(relevantIds)] : [...ids];
+    // Legacy relevantContextIds selects saved context and may omit the current
+    // report. Plain-prose fallback must offer that separate provenance to the
+    // reviewer too; attaching a candidate never grants semantic approval.
+    const sourceIds = relevantIds.length ? [...new Set([...relevantIds,
+      ...sources.filter(source => source.sourceType === "current_request").map(source => source.sourceId)])] : [...ids];
     proposedDraft = parseHistoryNarrative({ sentences: splitSentencesPreservingFacts(result.answer.summary)
       .map(text => ({ text, sourceIds })) });
   }
