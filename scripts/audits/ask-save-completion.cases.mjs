@@ -83,6 +83,13 @@ test('compound answer requires both explanation and the actual navigation card',
   assert.equal(payload.actions[0].href,`/pets/${pet.id}`);
   assert.equal(JSON.stringify(seen[0].text.format.schema).includes('"action_ready"'),false);
 });
+test('review receives only owned scoped identities for action target verification',async()=>{
+  const seen=[];
+  await reviewTaskCompletion({validation:validation(response()),context:{...context,eligiblePets:[...pets,{id:'foreign',name:'Foreign',user_id:'other'}]},requestId:'targets',validate:validation,client:mock([review()],seen)});
+  const payload=JSON.parse(seen[0].input);
+  assert.deepEqual(payload.ownedActionTargets,[{id:pet.id,name:pet.name}]);
+  assert.equal(Object.keys(payload.ownedActionTargets[0]).length,2);
+});
 for(const [label,change] of [
   ['omitted item',r=>r.obligations.pop()],
   ['duplicate item',r=>r.obligations[2].index=1],
