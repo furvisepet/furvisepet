@@ -4,13 +4,13 @@ import { recoverTransientRead } from '../app/lib/security/read-recovery.ts';
 import { literalInventoryWindow, readRecordInventory } from '../app/lib/intelligence/record-inventory.ts';
 import { eligibleAnswerSources } from '../app/lib/intelligence/ask-evidence.ts';
 
-test('current request evidence has explicit provenance and cannot enter a read-only or multi-pet history answer',()=>{
+test('current report provenance survives read-only execution without assigning a multi-pet report to one pet',()=>{
   const e={scope:{readOnlyRecall:false,authorizedPetIds:['owned'],requestText:'Correct the duration to 19 minutes.'},
     interpretation:{request:{}},represented:[],sources:[],losses:[]};
   const sources=eligibleAnswerSources(e);
   assert.equal(sources.length,1);assert.equal(sources[0].sourceType,'current_request');
   assert.equal(sources[0].sourceId,'request:current');assert.equal(sources[0].text,e.scope.requestText);
-  assert.deepEqual(eligibleAnswerSources({...e,scope:{...e.scope,readOnlyRecall:true}}),[]);
+  assert.deepEqual(eligibleAnswerSources({...e,scope:{...e.scope,readOnlyRecall:true}}),sources);
   assert.deepEqual(eligibleAnswerSources({...e,scope:{...e.scope,authorizedPetIds:['a','b']}}),[]);
 });
 
