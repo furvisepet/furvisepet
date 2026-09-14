@@ -454,7 +454,7 @@ test('typed format rejects prose posing as JSON or a table without reinterpretin
   assert.equal(matchesHistoryOutputFormat('{"amount":25}', 'json'), true);
   assert.equal(matchesHistoryOutputFormat('Pet: Aster; status: unknown', 'table'), false);
   assert.equal(matchesHistoryOutputFormat('- Aster slept normally.', 'bullets'), true);
-  assert.equal(validateAskRequest(proposal({ outputFormat: 'json' }), context).request.outputFormat, 'json');
+  assert.equal(validateAskRequest(proposal({ outputFormat: 'json' }), {...context,currentMessage:context.currentMessage+' Return JSON.'}).request.outputFormat, 'json');
   assert.throws(() => validateAskRequest(proposal({ outputFormat: 'html' }), context));
 });
 

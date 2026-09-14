@@ -10,6 +10,11 @@ const context = {owner:{userId:ownerId},eligiblePets:owned,pet:owned[0],currentM
 const proposal = patch => ({version:ASK_REQUEST_VERSION,mode:'read',question:'Read the requested facts.',requirements:[],
  referenceTurnIds:[],scope:'named',petNames:['Aster'],operation:'recall',selection:'summary',quantity:null,topic:'observations',terms:[],
  from:null,to:null,episodeTopic:null,ordinal:null,frame:null,evidenceBasis:'saved_history',premiseQuotes:[],...patch});
+test('an exact note replacement does not authorize an invented JSON container',()=>{
+ const input={...context,currentMessage:'Edit the note. Use exactly this text: administrative reminder.'};
+ assert.equal(validateAskRequest(proposal({mode:'mixed',mutationIntent:'correct_record',outputFormat:'json'}),input).request.outputFormat,null);
+ assert.equal(validateAskRequest(proposal({outputFormat:'json'}),{...input,currentMessage:'Return the saved notes as JSON.'}).request.outputFormat,'json');
+});
 for (const withNarrative of [true,false]) test('mixed history review preserves a requested record-edit confirmation without creating an observation; narrative='+withNarrative,async t=>{
  clock(t);
  const question='Correct Aster’s June 4, 2026 walking note to 19 minutes, keeping the same date.';
