@@ -23,12 +23,12 @@ export function parseHistoryNarrative(value: unknown): HistoryNarrative | undefi
     if (Object.keys(sentence).sort().join() !== ("calculations" in sentence ? "calculations,sourceIds,text" : "sourceIds,text") || typeof sentence.text !== "string"
       || !sentence.text.trim() || sentence.text.length > (parsePlainTable(sentence.text) || parseCsvRecords(sentence.text) || isStructuredHistoryText(sentence.text) ? 3600 : 650)
       || /[\r\n]/.test(sentence.text) && !parsePlainTable(sentence.text) && !parseCsvRecords(sentence.text) && !isStructuredHistoryText(sentence.text) || !Array.isArray(sentence.sourceIds)
-      || (sentence.sourceIds.length < 1 && !parsePlainTable(sentence.text) && !parseCsvRecords(sentence.text) && !isStructuredHistoryText(sentence.text)) || sentence.sourceIds.length > (parsePlainTable(sentence.text) || parseCsvRecords(sentence.text) || isStructuredHistoryText(sentence.text) ? 64 : 12)
+      || (sentence.sourceIds.length < 1 && !parsePlainTable(sentence.text) && !parseCsvRecords(sentence.text) && !isStructuredHistoryText(sentence.text)) || sentence.sourceIds.length > 64
       || sentence.sourceIds.some(id => typeof id !== "string" || !id || id.length > 160)) return;
     const calculations = parseHistoryCalculations(sentence.calculations);
     if (!calculations) return;
     const sourceIds = calculationSourceIds(sentence.sourceIds as string[], calculations);
-    if (sourceIds.length > (parsePlainTable(sentence.text) || parseCsvRecords(sentence.text) || isStructuredHistoryText(sentence.text) ? 64 : 12)) return;
+    if (sourceIds.length > 64) return;
     sentences.push({ text: sentence.text.trim(), sourceIds,
       ...(calculations.length ? { calculations } : {}) });
   }

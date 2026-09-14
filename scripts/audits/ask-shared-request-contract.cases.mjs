@@ -1462,3 +1462,40 @@ test('plain history review includes the actual brief sections rather than only t
  assert.match(submitted,/Aster rested normally/);
  assert.match(r.result.reasoning.answer.summary,/Aster rested normally/);
 });
+
+test('long plain answer reaches independent review without losing sentences or candidate sources',async t=>{
+ clock(t);
+ const rows=Array.from({length:13},(_,i)=>care('rest-'+i,'milo','2026-06-04','general','Aster rested normally.'));
+ const answer=Array.from({length:10},()=> 'Aster rested normally.').join(' ');
+ const r=await exercise('Summarize the saved rest notes. Save nothing.',{fixturePets,messages:[],history:true,rows,
+  interpretationProposal:proposal(),providerOverrides:{answer,historyNarrative:null,relevantContextIds:rows.map(r=>'care:'+r.id)},
+  reviewResponse:{approved:true},expectedReviewCalls:1});
+ const draft=JSON.parse(r.reviewRequests[0].input).draft;
+ assert.equal(draft.sentences.map(s=>s.text).join(' '),answer);
+ assert.ok(draft.sentences.length<=8);
+});
+
+test('profile contract mistakes get one bounded repair with full ownership revalidation',async t=>{
+ clock(t);
+ const {interpretAskQuestion}=await import('../../app/lib/intelligence/interpret-ask.ts');
+ for(const invalidRepair of [false,true]) {
+  let calls=0;
+  const good=proposal({evidenceBasis:'saved_profile',profileFields:['weight'],frame:null});
+  const pending=interpretAskQuestion({context:{...context,currentMessage:'What is Aster’s current saved weight? Say if empty.'},model:'gpt-5-mini',
+   client:{responses:{async create(){calls++;return {status:'completed',output_text:JSON.stringify(calls===1?{...good,frame:emptyProposedSemanticFrame()}:invalidRepair?{...good,petNames:['Foreign']}:good)};}}}});
+  if(invalidRepair) await assert.rejects(pending);
+  else assert.deepEqual((await pending).request.profileFields,['weight']);
+  assert.equal(calls,2);
+ }
+});
+
+test('save-status questions retain a no-save user turn for authoritative receipts',()=>{
+ const currentMessage='Did you add that hypothetical event to Aster’s care history or create a shortcut?';
+ const turn={id:'prior-user',role:'user',text:'Draft a hypothetical brief for Aster. Do not save a record or shortcut.'};
+ const r=validateAskRequest(proposal({mode:'conversation',scope:'none',petNames:[],evidenceBasis:'general',frame:null}),
+  {...context,currentMessage,conversationTurns:[turn]});
+ assert.equal(r.request.evidenceBasis,'saved_history');
+ assert.deepEqual(r.request.referenceTurnIds,['prior-user']);
+ assert.equal(r.readOnly,true);
+ assert.deepEqual(r.petIds,[fixturePets[0].id]);
+});
