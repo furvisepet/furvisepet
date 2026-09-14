@@ -372,7 +372,7 @@ export async function runFurviseIntelligence({
   });
   const noteBatch = !readOnlyRecall && hasOwnedPetSubject && authoritativePetIds.length === 1 ? parseDatedNoteBatch(context.currentMessage) : [];
   if (noteBatch.length) reasoning.applicationActions = reasoning.applicationActions.filter(action => action.kind !== "care_history.add");
-  const executionPlan = buildGovernedAskExecutionPlan({ sourceMessageId, petId: context.pet.id, noteBatch,
+  let executionPlan = buildGovernedAskExecutionPlan({ sourceMessageId, petId: context.pet.id, noteBatch,
     careActions: acceptedCareActions, semanticEvents: acceptedSemanticEvents, learnings: acceptedLearnings });
   // Presentation-only reconciliation happens after persistence governance and routing.
   if (proposedRecoveryPresentation) reasoning.intelligenceSafety.level = "recently_resolved";
@@ -392,9 +392,22 @@ export async function runFurviseIntelligence({
     validate: candidate => validateGeneratedAnswer(candidate, context, reasoning.intelligenceSafety.level,
       hasOwnedPetSubject ? authoritativePetIds : [context.pet.id]),
   });
+  // A source-only failure is not a completed mixed request. Do not commit the
+  // independently proposed side effects after its answer failed final review.
+  const failedAnswer = answerValidation.assessment?.checks.taskCompletion === "failed"
+    && !readReviewedHistoryAnswer(answerValidation.response);
+  if (failedAnswer) {
+    acceptedCareActions.length = 0;
+    acceptedSemanticEvents.length = 0;
+    acceptedLearnings.length = 0;
+    governedV2Turn = null;
+    executionPlan = buildGovernedAskExecutionPlan({ sourceMessageId, petId: context.pet.id,
+      noteBatch: [], careActions: [], semanticEvents: [], learnings: [] });
+  }
   assertGovernedAskExecutionPlan(executionPlan);
   const finalHistoryReceipt = readReviewedHistoryAnswer(answerValidation.response);
   Object.assign(reasoning, answerValidation.response);
+  if (failedAnswer) suppressPersistence();
   if (finalHistoryReceipt) recordHistoryReview(reasoning, { ...finalHistoryReceipt, signature: historyReviewSignature(reasoning) });
   const shadow = buildShadowSemanticAnalysis({
     activeEpisodes: [...context.activeEpisodes, ...context.monitoringEpisodes],

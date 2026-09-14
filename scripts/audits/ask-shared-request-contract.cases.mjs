@@ -1499,3 +1499,32 @@ test('save-status questions retain a no-save user turn for authoritative receipt
  assert.equal(r.readOnly,true);
  assert.deepEqual(r.petIds,[fixturePets[0].id]);
 });
+
+test('embedded and coordinated opt-outs remove mixed-write authority without erasing saved-history scope',()=>{
+ for(const ending of ['without logging an unconfirmed medical status.', 'without creating an automatic shortcut or logging an unconfirmed medical status.', 'Do not record these symptoms.', 'Save nothing.']) {
+  const r=validateAskRequest(proposal({mode:'mixed',evidenceBasis:'saved_history'}),{...context,
+   currentMessage:'Aster has redness again. Compare the saved history and prepare a brief '+ending});
+  assert.equal(r.readOnly,true);
+  assert.equal(r.request.mode,'read');
+  assert.ok(r.history);
+ }
+});
+
+test('a failed mixed answer cannot commit proposed observation side effects',async t=>{
+ clock(t);
+ for (const approved of [true,false]) {
+ const r=await exercise('Aster vomited this morning. Compare that with the saved notes.',{fixturePets,messages:[],history:true,
+  rows:[care('old','milo','2024-02-01','symptom','Aster vomited.')],
+  interpretationProposal:proposal({mode:'mixed',evidenceBasis:'saved_history'}),
+  providerOverrides:{answer:'Aster vomited.',historyNarrative:{sentences:[{text:'Aster vomited.',sourceIds:['care:old']}]},
+   semanticEvents:[{subject:{type:'pet',name:'Aster'},domain:'health',topic:'vomiting',eventTitle:'Aster vomited',
+    state:'active',transition:'observed',temporal:{occurredAt:null,explicitTime:'this morning'},sourceExcerpt:'Aster vomited this morning.',importance:'important',confidence:.99}]},
+  reviewResponse:{approved},expectedReviewCalls:1});
+ if (approved) { assert.ok(r.result.executionPlan.semanticEvents.length>0); continue; }
+ assert.equal(r.result.answerValidation.assessment.checks.taskCompletion,'failed');
+ assert.deepEqual(r.result.executionPlan.careActions,[]);
+ assert.deepEqual(r.result.executionPlan.semanticEvents,[]);
+ assert.deepEqual(r.result.executionPlan.learnings,[]);
+ assert.deepEqual(r.result.acceptedSemanticEvents,[]);
+ }
+});
