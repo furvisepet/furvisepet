@@ -141,7 +141,7 @@ import { publicAskFailureCode, type AskInternalFailure } from "../../lib/furvise
 import { readAskProfiles, classifyAskDatabaseFailure } from "../../lib/ask-profile-read.ts";
 
 const friendlyAnswerFailure = FURVISE_ANSWER_UNAVAILABLE_MESSAGE;
-export const maxDuration = 150;
+export const maxDuration = 210;
 const askRequestTimeoutMs = ASK_OPERATION_TIMEOUT_MS;
 const askGuardOperationTtlSeconds = 90 * 24 * 60 * 60;
 
