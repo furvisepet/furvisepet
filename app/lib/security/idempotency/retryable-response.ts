@@ -6,6 +6,7 @@ export function isRetryableOperationResponse(operationType: string, status: numb
   const value = body as { success?: unknown; code?: unknown };
   return value.success === false && (
     ((status === 409 || status === 429) && value.code === "RATE_LIMIT")
+    || (status === 409 && value.code === "ANSWER_ALREADY_ACTIVE")
     || (status === 429 && value.code === "TEMPORARY_PROVIDER_FAILURE")
   );
 }
