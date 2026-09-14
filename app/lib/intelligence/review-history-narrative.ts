@@ -40,7 +40,7 @@ import { parseHistoryNarrative } from "./history-narrative.ts";
 
 import { readReviewedHistoryAnswer, clearHistoryReview, recordHistoryReview, historyReviewSignature as signature } from "./history-review-state.ts";
 export { readReviewedHistoryAnswer } from "./history-review-state.ts";
-export const HISTORY_REVIEW_LIMITS = { inputCharacters: 32_000, outputTokens: 4096, timeoutMs: 25_000 } as const;
+export const HISTORY_REVIEW_LIMITS = { inputCharacters: 32_000, outputTokens: 4096, timeoutMs: 40_000 } as const;
 const instructions = [
   "Review visible source-display obligations separately from factual grounding. sourceIds and calculations are internal metadata that the user cannot see. When the question asks to show source notes or citations, a bare conclusion with internal sourceIds does not fulfill it: require visible dated source wording or attribution in the requested container. Reject for repair if that requested clause is missing, even when the conclusion is supported.",
   "Review a proposed pet-history answer against the supplied server-scoped records. Select the supported sentences that together form a coherent answer. Return approved and retainedSentenceIndexes using the explicit zero-based sentence indexes. Do not rewrite, insert or reorder prose.",

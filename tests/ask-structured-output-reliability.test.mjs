@@ -261,3 +261,17 @@ test('count composition uses the same typed container as other historical tasks'
     assert.ok(request.text.format.schema.properties.readVersion);
   }
 });
+
+
+test('mixed history and current observations receive historical reasoning effort and current-source provenance',()=>{
+ const question='Compare the saved report with the observation I just described.';
+ const request=buildAskProviderRequest({currentMessage:question,evidenceContract:{
+  scope:{readOnlyRecall:false,requestKind:'ordinary',authorizedPetIds:['owned-pet'],requestText:question},
+  history:{provenance:[],candidateIds:[]},sources:[],losses:[],represented:[],
+  interpretation:{request:{mode:'mixed',outputFormat:'prose',requirements:[]}}
+ }});
+ assert.deepEqual(request.reasoning,{effort:'medium'});
+ const payload=JSON.parse(request.input);
+ assert.equal(payload.currentRequestEvidence[0].sourceType,'current_request');
+ assert.equal(payload.currentRequestEvidence[0].text,question);
+});
