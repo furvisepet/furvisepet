@@ -15,7 +15,7 @@ for (const withNarrative of [true,false]) test('mixed history review preserves a
  const question='Correct Aster’s June 4, 2026 walking note to 19 minutes, keeping the same date.';
  let reviewedAction;
  const r=await exercise(question,{fixturePets:owned,messages:[],history:true,
-  rows:[care('11000000-0000-4000-8000-000000000101','milo','2026-06-04','general','Aster walked for 18 minutes.')],
+  rows:[{...care('11000000-0000-4000-8000-000000000101','milo','2026-06-04','general','Aster walked for 18 minutes.'),title:'Walking note'}],
   interpretationProposal:proposal({mode:'mixed',mutationIntent:'correct_record',from:'2026-06-04',to:'2026-06-05',frame:null}),
   providerOverrides:{answer:'Review the proposed correction below.',relevantContextIds:['care:11000000-0000-4000-8000-000000000101'],semanticEvents:[],
     historyNarrative:withNarrative ? {sentences:[{text:'The proposed correction is 19 minutes; review it below.',sourceIds:['care:11000000-0000-4000-8000-000000000101','request:current'],calculations:[]}]} : null,
@@ -24,6 +24,9 @@ for (const withNarrative of [true,false]) test('mixed history review preserves a
     const input=JSON.parse(request.input);reviewedAction=input.actions[0];
     assert.equal(input.sources.find(s=>s.sourceId==='request:current').sourceType,'current_request');
     assert.equal(reviewedAction.kind,'care_history.edit');
+    const original=input.sources.find(s=>s.sourceId==='care:11000000-0000-4000-8000-000000000101');
+    assert.equal(original.title,'Walking note');
+    assert.equal(original.text,'Aster walked for 18 minutes.');
     assert.equal(reviewedAction.executionDisposition,'requires_confirmation');
     return {status:'completed',output_text:JSON.stringify({approved:true,retainedSentenceIndexes:[0],rejectionReason:null,
       obligations:input.obligations.map(o=>({index:o.index,status:'action_ready',sentenceIndexes:[0],actionIndexes:[0]}))}),usage:{input_tokens:500,output_tokens:100}};

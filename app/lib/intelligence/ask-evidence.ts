@@ -38,6 +38,8 @@ export type AskEvidenceContract = {
   /** Server-validated report renderings; never taken from provider JSON. */
   answerContent?: string[];
   petNames?: Record<string, string>;
+  /** Saved titles identify mutation targets; they do not certify medical facts. */
+  recordTitles?: Record<string, string>;
   interpretation?: Omit<import("./interpret-ask.ts").AskInterpretation, "frame">;
   episodes?: import("./episode-history.ts").EpisodeResult;
   historyFallback?: string;
@@ -224,6 +226,9 @@ export function refreshEvidenceCoverage(contract: AskEvidenceContract): AskEvide
 }
 
 export function representEvidence(contract: AskEvidenceContract, records: AskContextRecord[]) {
+  if (!contract.scope.readOnlyRecall) contract.recordTitles = Object.fromEntries(records
+    .filter(record => record.sourceType === "care_update" && typeof record.metadata.title === "string")
+    .map(record => [record.id, String(record.metadata.title).slice(0, 120)]));
   contract.represented = records.map(record => ({ sourceId: record.id, petId: record.petId, sourceType: record.sourceType,
     field: "value", start: 0, end: record.value.length, text: record.value,
     ...(contract.interpretation || contract.scope.requestKind === "resolution_status" || record.sourceType === "operation_receipt" ? { occurredAt: record.occurredAt } : {}) }));
