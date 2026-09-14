@@ -2297,6 +2297,7 @@ function internalFailureClass(code: InternalAskFailureCode): AskInternalFailure 
   if (code === "AUTH_REQUIRED") return "auth_required";
   if (code === "PET_NOT_FOUND") return "pet_unavailable";
   if (code === "INVALID_MESSAGE") return "invalid_input";
+  if (code === "IDEMPOTENCY_CONFLICT") return "request_identity_changed";
   if (code === "AI_CREDITS_EXHAUSTED") return "plan_limit";
   if (code === "RATE_LIMITED") return "rate_limit";
   if (code === "REQUEST_IN_PROGRESS") return "request_in_progress";

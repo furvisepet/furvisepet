@@ -354,7 +354,8 @@ export type AskFailureCode =
   | "TEMPORARY_DATABASE_FAILURE"
   | "ACTION_FAILED"
   | "ANSWER_RETRYABLE"
-  | "REQUEST_IN_PROGRESS";
+  | "REQUEST_IN_PROGRESS"
+  | "REQUEST_IDENTITY_CHANGED";
 
 export type AskInternalFailure =
   | "invalid_input"
@@ -368,7 +369,8 @@ export type AskInternalFailure =
   | "database_failure"
   | "action_failure"
   | "request_in_progress"
-  | "answer_retryable";
+  | "answer_retryable"
+  | "request_identity_changed";
 
 export type AskErrorPresentation = {
   title: string;
@@ -391,6 +393,7 @@ const publicCodeByFailure: Readonly<Record<AskInternalFailure, AskFailureCode>> 
   action_failure: "ACTION_FAILED",
   request_in_progress: "REQUEST_IN_PROGRESS",
   answer_retryable: "ANSWER_RETRYABLE",
+  request_identity_changed: "REQUEST_IDENTITY_CHANGED",
 };
 
 export function publicAskFailureCode(failure: AskInternalFailure) {
@@ -401,6 +404,7 @@ export function getAskErrorPresentation(code: AskFailureCode, retryAfterSeconds?
   const retryAfter = normalizeRetryAfter(retryAfterSeconds);
   switch (code) {
     case "AUTH_REQUIRED": return state("Sign in to continue", "Your session expired. Sign in again to continue with Ask.", false, "sign_in");
+    case "REQUEST_IDENTITY_CHANGED": return state("Review and resend your question", "This saved request cannot be retried with the current browser settings. Your question is kept here. Review it and send it as a new request.", false, "edit");
     case "INVALID_CURRENT_INPUT": return state("Check this message", "This message could not be sent as written. Review it and try again.", false, "edit");
     case "PET_UNAVAILABLE": return state("Choose another pet", "That pet or conversation is no longer available.", false, "saved_data");
     case "CLARIFICATION_REQUIRED": return state("One detail is missing", "Choose the intended pet so Furvise can continue safely.", false, "clarify");
