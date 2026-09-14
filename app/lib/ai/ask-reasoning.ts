@@ -1323,7 +1323,7 @@ export function buildAskProviderRequest(promptContext: object) {
   const requestInstructions = (dedicatedRead || !evidence?.interpretation?.request
     ? taskInstructions : taskInstructions + "\n" + companionVoiceInstructions + "\n" + concernVoiceInstructions)
     + (evidence?.interpretation?.request ? "\n" + CLAIM_AUTHORITY_POLICY : "");
-  const currentRequestSources = !conversationOnly && evidence?.scope?.readOnlyRecall === false ? eligibleAnswerSources(evidence).filter(source => source.sourceType === "current_request") : [];
+  const currentRequestSources = !conversationOnly && evidence?.scope?.authorizedPetIds ? eligibleAnswerSources(evidence).filter(source => source.sourceType === "current_request") : [];
   const lookupEvidence = !conversationOnly && evidence?.interpretation?.request?.evidenceNeeds?.length ? eligibleAnswerSources(evidence).filter(source => source.sourceType === "lookup_receipt") : [];
   let transported = conversationOnly ? conversationPromptContext(promptContext) : currentRequestSources.length
     ? { ...promptContext, currentRequestEvidence: currentRequestSources } : promptContext;

@@ -270,11 +270,11 @@ export function eligibleAnswerSources(evidence: AskEvidenceContract) {
     return [{ sourceId: `lookup:${needId}:${petId}`, petId, sourceType: "lookup_receipt", field: "value" as const,
       start: 0, end: text.length, text, occurredAt: null, lookupScope: { needId, ...(need.window ? { window: need.window } : {}) } }];
   });
-  // Mixed turns have two provenance classes: existing records and the owner's
-  // present request. The replacement value is not expected to exist in history.
-  // Expose it explicitly, never disguise it as a saved clinical observation.
-  if (!evidence.scope.readOnlyRecall && evidence.interpretation?.request
-    && evidence.scope.authorizedPetIds.length === 1) {
+  // Read-only is a write constraint, not a reason to discard an owner's report.
+  // Keep the present request distinct from saved clinical observations. Its
+  // attribution and historical claims still require independent review.
+  if (evidence.interpretation?.request
+    && evidence.scope.authorizedPetIds?.length === 1) {
     const text = evidence.scope.requestText;
     return [...saved, ...lookupSources, { sourceId: "request:current", petId: evidence.scope.authorizedPetIds[0],
       sourceType: "current_request", field: "value" as const, start: 0, end: text.length, text, occurredAt: null }];

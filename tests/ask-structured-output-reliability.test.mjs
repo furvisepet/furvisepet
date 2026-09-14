@@ -263,12 +263,12 @@ test('count composition uses the same typed container as other historical tasks'
 });
 
 
-test('mixed history and current observations receive historical reasoning effort and current-source provenance',()=>{
+for (const readOnly of [false,true]) test(`current-source provenance survives read-only=${readOnly}`,()=>{
  const question='Compare the saved report with the observation I just described.';
  const request=buildAskProviderRequest({currentMessage:question,evidenceContract:{
-  scope:{readOnlyRecall:false,requestKind:'ordinary',authorizedPetIds:['owned-pet'],requestText:question},
+  scope:{readOnlyRecall:readOnly,requestKind:'ordinary',authorizedPetIds:['owned-pet'],requestText:question},
   history:{provenance:[],candidateIds:[]},sources:[],losses:[],represented:[],
-  interpretation:{request:{mode:'mixed',outputFormat:'prose',requirements:[]}}
+  interpretation:{request:{mode:readOnly?'read':'mixed',outputFormat:'prose',requirements:[]}}
  }});
  assert.deepEqual(request.reasoning,{effort:'medium'});
  const payload=JSON.parse(request.input);
