@@ -24,3 +24,14 @@ test('source-grounded record years are not counts; totals and wrong years still 
  for(const text of ['The 2023 notes describe skin redness.', 'There were 2024 notes.', 'All 2024 records describe redness.', 'Exactly 2024 records describe redness.', 'The 2024 notes report three episodes.'])
   assert.equal(supported(text,sources,'',[],false),false,text);
 });
+
+
+test('compact measured units retain exact magnitude across prose formatting',()=>{
+ for(const [compact, spaced] of [['5mg','5 mg'],['0.5mg','0.5 mg'],['5.10kg','5.10 kg'],['250mL','250 ml'],['-2.5kg','-2.5 kg']]) {
+  assert.equal(supported(`Reported ${spaced}.`,[{text:`Reported ${compact}.`}],'',[],false),true,compact);
+  assert.equal(supported(`Reported ${compact}.`,[{text:`Reported ${spaced}.`}],'',[],false),true,spaced);
+ }
+ assert.equal(supported('Reported 5 mg.',[{text:'Reported 0.5mg.'}],'',[],false),false);
+ assert.equal(supported('Reported 50mg.',[{text:'Reported 5 mg.'}],'',[],false),false);
+ assert.equal(supported('Reported 5 g.',[{text:'Reported 5mg.'}],'',[],false),false);
+});
