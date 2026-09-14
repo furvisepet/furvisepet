@@ -1,0 +1,23 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { analyzeOwnerAssertions, isOwnerAssertedEvidence } from "../app/lib/ai/owner-assertion.ts";
+
+test("reported measurement wording is evidence; calculation instructions are not", () => {
+  const earlier = "Atlas weighed exactly 5.45 kg during our vet visit last summer on July 12.";
+  const current = "This morning his weight on our home scale registered at 5.10 kg.";
+  const instruction = "Calculate the exact percentage difference between these two milestones, tell me if this change is a normal minor variance, and log this morning's weight to his profile history.";
+  const message = `${earlier} ${current} ${instruction}`;
+  assert.deepEqual(analyzeOwnerAssertions(message).assertionClauses, [earlier, current]);
+  assert.equal(isOwnerAssertedEvidence(message, current), true);
+  assert.equal(isOwnerAssertedEvidence(message, instruction), false);
+  assert.equal(isOwnerAssertedEvidence(message, "his weight registered at 6.10 kg"), false);
+});
+
+test("measurement variants preserve quote, attribution, hypothetical and question boundaries", () => {
+  for (const text of ["She weighed 12 lb.", "The thermometer read 38.5 C.", "His weight measured 4.8 kg."]) {
+    assert.equal(isOwnerAssertedEvidence(text, text), true, text);
+    for (const wrapped of [`If ${text}`, `Furvise said ${text}`, `"${text}"`, `Did ${text.slice(0,-1)}?`, `Calculate whether ${text}`]) {
+      assert.equal(isOwnerAssertedEvidence(wrapped, text), false, wrapped);
+    }
+  }
+});

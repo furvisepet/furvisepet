@@ -2420,7 +2420,7 @@ function logAskServerError(stage: string, error: unknown, context: Record<string
   const requestId = typeof context.requestId === "string" ? context.requestId : crypto.randomUUID();
   if (httpStatus >= 500 || /persistence|reconciliation|credit_(?:completion|release)/.test(stage)) {
     emitOperationalEvent({
-      errorCode: safeAskOperationalCode(databaseDiagnostic.code || databaseError?.code || stage),
+      errorCode: safeAskOperationalCode((error instanceof AskPipelineError ? error.diagnostics.providerErrorCode : null) || databaseDiagnostic.code || databaseError?.code || stage),
       eventType: "application_error", feature: "ask", operationId: requestId,
       requestId, route: "/api/ask", severity: "high",
       metadata: { component: stage, finalErrorClass: classifyAskDatabaseFailure(error, 0) },
