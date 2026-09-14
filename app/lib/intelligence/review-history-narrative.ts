@@ -145,6 +145,14 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     const anchorFailures: string[] = [];
     anchorHints.set(sentence.text, anchorFailures);
     const derived = verifiedCalculationQuantities(sentence.calculations || [], cited, hint => hints.push(hint));
+    // Incidental "two notes" means two distinct cited records, not two clinical
+    // episodes or an exhaustive history total. Keep explicitly requested counts
+    // on their calculation/coverage path; semantic review still checks scope.
+    if (derived && sharedRequest && sharedRequest.quantity === null && evidence.interpretation?.operation !== "count") {
+      const citedNotes = new Set(cited.filter(source => source.sourceType === "care_update"
+        && /^(?:care|claim):/.test(source.sourceId)).map(source => source.sourceId)).size;
+      if (citedNotes) derived.push(...["note", "record", "entry"].map(unit => `${citedNotes}:${unit}`));
+    }
     if (derived === null) {
       anchorFailures.push("calculation_operands_or_value_invalid");
       // Include structural diagnostics in bounded repair and logs without
