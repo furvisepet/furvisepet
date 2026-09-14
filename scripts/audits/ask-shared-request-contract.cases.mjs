@@ -1322,3 +1322,25 @@ test('generation repair has a single admitted phase followed by independent revi
  });
  assert.equal(invoked,6);assert.equal(store.getSnapshot('2026-09-04').calls,6);
 });
+
+
+test('new observation plus calculation can repair an invalid correction plan without weakening validation', async t => {
+ clock(t);
+ const {interpretAskQuestion}=await import('../../app/lib/intelligence/interpret-ask.ts');
+ const currentMessage="Aster weighed 5.45 kg last July. This morning Aster weighed 5.10 kg. Calculate the percentage change and log this morning's weight.";
+ const good=proposal({mode:'mixed',evidenceBasis:null,mutationIntent:null,operation:'comparison',
+  question:currentMessage,requirements:['Calculate percentage change','Log only the current observation'],frame:emptyProposedSemanticFrame()});
+ for(const permanent of [false,true]) {
+  let calls=0;
+  const pending=interpretAskQuestion({context:{...context,currentMessage},model:'gpt-5-mini',
+   client:{responses:{async create(request){
+    calls++;
+    if(calls===2)assert.match(request.instructions,/Adding a new observation to history is not correcting/);
+    return {status:'completed',output_text:JSON.stringify(calls===1||permanent
+     ? {...good,mutationIntent:'correct_record',evidenceBasis:'supplied_context'} : good)};
+   }}}});
+  if(permanent)await assert.rejects(pending,/understand the request reliably/);
+  else {const result=await pending;assert.equal(result.request.mutationIntent,null);assert.deepEqual(result.petIds,[fixturePets[0].id]);}
+  assert.equal(calls,2);
+ }
+});

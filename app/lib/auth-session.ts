@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
+import { reconcileAuthState } from "./auth-state";
 import { buildLoginHref } from "./auth-routing";
 import { getBrowserSupabase } from "./supabase";
 import { enforceVetBriefDraftAccountBoundary } from "./vet-brief/client-drafts";
@@ -39,7 +40,7 @@ export function useConfirmedSupabaseAuth(): ConfirmedAuthState {
         if (!active) return;
         initialCheckComplete = true;
         enforceVetBriefDraftAccountBoundary(window.localStorage, data.user?.id || null);
-        setAuthState(data.user ? { status: "signedIn", user: data.user } : { status: "signedOut", user: null });
+        setAuthState(previous => reconcileAuthState(previous, data.user ? { status: "signedIn", user: data.user } : { status: "signedOut", user: null }));
       })
       .catch(() => {
         if (!active) return;
@@ -66,7 +67,7 @@ export function useConfirmedSupabaseAuth(): ConfirmedAuthState {
       }
 
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
-        setAuthState({ status: "signedIn", user: session.user });
+        setAuthState(previous => reconcileAuthState(previous, { status: "signedIn", user: session.user }));
       }
     });
 
@@ -75,7 +76,7 @@ export function useConfirmedSupabaseAuth(): ConfirmedAuthState {
       void client.auth.getUser().then(({ data }) => {
         if (!active) return;
         enforceVetBriefDraftAccountBoundary(window.localStorage, data.user?.id || null);
-        setAuthState(data.user ? { status: "signedIn", user: data.user } : { status: "signedOut", user: null });
+        setAuthState(previous => reconcileAuthState(previous, data.user ? { status: "signedIn", user: data.user } : { status: "signedOut", user: null }));
       }).catch(() => {
         if (active) {
           enforceVetBriefDraftAccountBoundary(window.localStorage, null);
