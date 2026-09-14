@@ -49,6 +49,12 @@ export function unquotedOwnerText(message: string): string {
   return message.replace(quotedText, text => " ".repeat(text.length));
 }
 
+/** An explicit current-message opt-out can only remove persistence authority. */
+export function ownerDeclinesPersistence(message: string): boolean {
+  return splitSentencesPreservingFacts(unquotedOwnerText(message)).some(sentence =>
+    /^(?:please\s+)?(?:do not|don['’]t|never)\s+(?:save|log|record|store|remember)\s+(?:this|that|anything|any of this|these details)(?:\s+(?:message|information|update|observation|details))?(?:\s+(?:to|in|as)\s+[^.!?;]+)?[.!]?$/i.test(sentence.trim()));
+}
+
 /** Server-owned source classification. Model discourse labels are not evidence. */
 export function analyzeOwnerAssertions(message: string): OwnerAssertionAnalysis {
   const source = String(message || "").normalize("NFKC").trim();

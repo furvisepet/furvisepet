@@ -1344,3 +1344,29 @@ test('new observation plus calculation can repair an invalid correction plan wit
   assert.equal(calls,2);
  }
 });
+
+
+test('explicit do-not-save strips every proposed persistence channel before semantic rejection', async t => {
+ clock(t);
+ const question='Aster vomited this morning. Keep the answer brief. Do not save this message.';
+ const r=await exercise(question,{fixturePets,rows:[],messages:[],taskReviewResponse:true,
+  interpretationProposal:proposal({mode:'mixed',operation:'general',evidenceBasis:null}),
+  providerOverrides:{semanticEvents:[{subject:{type:'pet',id:fixturePets[0].id},domain:'health',eventType:'observation',
+   conceptKey:'vomiting',state:'monitoring',transition:'changed',occurredAt:null,sourceExcerpt:'Aster vomited this morning.',
+   references:{priorEventIds:[],episodeId:null,concernId:null},importance:'important',confidence:.79}]},
+ });
+ assert.equal(r.context.askInterpretation.readOnly,true);
+ assert.deepEqual(r.result.executionPlan.careActions,[]);
+ assert.deepEqual(r.result.executionPlan.semanticEvents,[]);
+ assert.deepEqual(r.result.executionPlan.learnings,[]);
+});
+
+
+test('mixed supplied operands do not trigger an unrelated historical lookup', () => {
+ const currentMessage='Aster weighed 5.45 kg last July and weighs 5.10 kg today. Calculate the change and save the new weight.';
+ const parsed=validateAskRequest(proposal({mode:'mixed',operation:'comparison',evidenceBasis:null}),{...context,currentMessage});
+ assert.equal(parsed.readOnly,false);
+ assert.equal(parsed.history,null);
+ const lookup=validateAskRequest(proposal({mode:'mixed',operation:'comparison',evidenceBasis:'saved_history'}),{...context,currentMessage:'Compare the saved weight with today and log today.'});
+ assert.notEqual(lookup.history,null);
+});
