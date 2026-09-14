@@ -1,3 +1,4 @@
+import { calendarDateInZone } from "../ask-time-zone.ts";
 import {compoundUnit, units} from "./history-calculation.ts";
 import { isStructuredHistoryText } from "../furvise-output.ts";
 type Source = { text: string; occurredAt?: string | null; petId?: string };
@@ -57,9 +58,9 @@ function quantities(text: string): string[] {
 /** Candidate bindings for a repair writer, never an approval or new evidence.
  * Literal dates identify possible records; semantic review must still verify
  * the subject, occasion and complete claim against the original source. */
-export function historyDateBindingHints(text: string, sources: Array<Source & {sourceId: string}>) {
+export function historyDateBindingHints(text: string, sources: Array<Source & {sourceId: string}>, timeZone = "UTC") {
   return [...new Set(dates(text))].map(anchor => ({ anchor, sourceIds: sources.filter(source =>
-    [...dates(source.text), ...dates(source.occurredAt?.slice(0,10) || "")].some(date =>
+    [...dates(source.text), ...dates(calendarDateInZone(source.occurredAt || "", timeZone))].some(date =>
       date === anchor || date.replace(/^\d{4}:/, "") === anchor)).map(source => source.sourceId) }));
 }
 
@@ -83,7 +84,7 @@ function equivalentQuantity(target: string, candidates: readonly string[]) {
 /** A deterministic guard for explicit factual anchors, not semantic entailment.
  * Each sentence must draw its dates/quantities from its cited sources. This
  * prevents an approving model from manufacturing a date or dose. */
-export function historyNarrativeAnchorsSupported(text: string, sources: Source[], requestText = "", derivedQuantities: readonly string[] = [], legacyDerivations = true, scopeDates: readonly string[] = [], onUnsupported?: (reason: string) => void, serializedResult = false, proposedTexts: readonly string[] = []): boolean {
+export function historyNarrativeAnchorsSupported(text: string, sources: Source[], requestText = "", derivedQuantities: readonly string[] = [], legacyDerivations = true, scopeDates: readonly string[] = [], onUnsupported?: (reason: string) => void, serializedResult = false, proposedTexts: readonly string[] = [], timeZone = "UTC"): boolean {
   // Relative words in old records must not become an undated current claim.
   const prose = text.replace(/"[^"]*"|“[^”]*”/g, "");
   // Missing documentation cannot support a claim that a clinical act never occurred.
@@ -94,7 +95,7 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
   // Shared requests leave relative-time meaning (including unknown today) to
   // independent semantic review; explicit dates and quantities remain guarded.
   if (legacyDerivations && /\b(?:today|yesterday)\b/i.test(prose) && !dates(prose).length
-    && !sources.every(source => source.occurredAt?.slice(0, 10) === new Date().toISOString().slice(0, 10))) return false;
+    && !sources.every(source => calendarDateInZone(source.occurredAt || "", timeZone) === calendarDateInZone(new Date().toISOString(), timeZone))) return false;
   // A displayed quotation must be an exact substring of one source. Dates
   // outside the quotation must identify that source, not a different citation.
   // Quotation marks in a typed CSV cell are serialization delimiters, not
@@ -121,7 +122,7 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
     }
     const attribution = dates(prefix);
     if (attribution.length && !matching.some(source => {
-      const recorded = dates(source.occurredAt?.slice(0, 10) || "");
+      const recorded = dates(calendarDateInZone(source.occurredAt || "", timeZone));
       return attribution.every(date => recorded.some(value => value === date || value.replace(/^\d{4}:/, "") === date));
     })) {
       onUnsupported?.("Quotation attribution date does not match its source record");
@@ -130,7 +131,7 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
   }
   const sourceDates = sources.flatMap(source => {
     const explicit = dates(source.text);
-    const timestamp = source.occurredAt?.slice(0, 10);
+    const timestamp = calendarDateInZone(source.occurredAt || "", timeZone);
     if (!timestamp) return explicit;
     const relative = /\byesterday\b/i.test(source.text);
     const attributed = /\b(?:note|report|entry|update)\b/i.test(text);

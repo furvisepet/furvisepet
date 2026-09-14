@@ -20,3 +20,13 @@ test('date target clips local boundaries against server access instants',()=>{
  assert.equal(plan.strategies[0].from,from);
  assert.equal(plan.strategies[0].to,'2026-09-11T07:00:00.000Z');
 });
+
+test('dated quotations bind to the displayed local source date',async()=>{
+ const {historyNarrativeAnchorsSupported,historyDateBindingHints}=await import('../app/lib/intelligence/history-narrative-facts.ts');
+ const sources=[{sourceId:'care:one',text:'Recorded observation.',occurredAt:'2026-09-11T06:54:00.000Z'}];
+ const quote='September 10, 2026 note: "Recorded observation."';
+ assert.equal(historyNarrativeAnchorsSupported(quote,sources,'',[],false,[],undefined,false,[],'America/Los_Angeles'),true);
+ assert.equal(historyNarrativeAnchorsSupported(quote,sources,'',[],false),false);
+ assert.equal(historyNarrativeAnchorsSupported('September 9, 2026 note: "Recorded observation."',sources,'',[],false,[],undefined,false,[],'America/Los_Angeles'),false);
+ assert.deepEqual(historyDateBindingHints(quote,sources,'America/Los_Angeles')[0].sourceIds,['care:one']);
+});

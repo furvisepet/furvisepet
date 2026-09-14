@@ -1495,7 +1495,16 @@ function buildContextRecords(input: BuildContextInput): AskContextRecord[] {
     for (const [kind, value] of facts) {
       if (input.evidenceContract?.interpretation?.request?.evidenceBasis === "saved_profile"
         && !input.evidenceContract.interpretation.request.profileFields?.includes(kind === "avoid_ingredients" ? "avoid" : kind)) continue;
-      if (value === null || value === undefined || String(value).trim() === "") continue;
+      if (value === null || value === undefined || String(value).trim() === "") {
+        const storageKey = ({ age: "age_value", weight: "weight_value", care_goal: "wellness_goal", sex: "sex" in profile ? "sex" : "gender" } as Record<string, string>)[kind] || kind;
+        // A loaded empty field supports null/not-recorded, unlike an omitted
+        // field or an unavailable profile. Preserve that distinction as evidence.
+        if (input.evidenceContract?.interpretation?.request?.evidenceBasis === "saved_profile"
+          && Object.hasOwn(profile, storageKey) && value !== undefined) {
+          records.push(baseRecord(`profile:${profile.id}:${kind}`, "profile", profile, kind, "Not recorded in the current profile (empty field).", profile.updated_at));
+        }
+        continue;
+      }
       records.push(baseRecord(`profile:${profile.id}:${kind}`, "profile", profile, kind, String(value), profile.updated_at));
     }
   }

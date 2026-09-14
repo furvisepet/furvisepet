@@ -18,7 +18,7 @@ export const historyJsonDefinitions = {
 export const historyJsonSchema = { type: ["object", "null"], additionalProperties: false,
   required: ["value", "sourceIds", "calculations"], properties: {
     value: { anyOf: [objectNode, arrayNode] },
-    sourceIds: { type: "array", minItems: 1, maxItems: 12, items: { type: "string", minLength: 1, maxLength: 160 } },
+    sourceIds: { type: "array", minItems: 1, maxItems: 64, items: { type: "string", minLength: 1, maxLength: 160 } },
     calculations: historyCalculationSchema,
   } };
 
