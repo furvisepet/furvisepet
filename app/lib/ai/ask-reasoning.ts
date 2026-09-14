@@ -1360,7 +1360,7 @@ export function buildAskProviderRequest(promptContext: object) {
   if (dedicatedRead) transported = { ...transported, requestAuthority: { currentUserRequest: evidence.scope.requestText, plannerAuthority: "Routing and reference hints only; original user intent wins any conflict. No factual authority.", sourceAuthority: "Only scoped source records establish saved facts." } };
   return {
     max_output_tokens: ASK_MAX_OUTPUT_TOKENS,
-    ...(dedicatedRead || conversationOnly ? { reasoning: { effort: "medium" } } : {}),
+    ...(dedicatedRead || conversationOnly || evidence?.history && evidence?.interpretation?.request ? { reasoning: { effort: "medium" } } : {}),
     instructions: requestInstructions,
     input: JSON.stringify(transported),
     text: { format: { type: "json_schema", name: "furvise_ask_response", strict: true, schema: sourceBoundSchema(conversationOnly ? conversationAnswerSchema(askUnifiedJsonSchema.properties) : dedicatedRead ? historicalReadSchema(askUnifiedJsonSchema.properties, evidence.interpretation?.request?.outputFormat) : evidence?.interpretation?.request ? governedTurnAnswerSchema(askUnifiedJsonSchema.properties) : askUnifiedJsonSchema, !conversationOnly && evidence?.interpretation?.request && evidence?.scope?.authorizedPetIds ? eligibleAnswerSources(evidence) : []) } },
