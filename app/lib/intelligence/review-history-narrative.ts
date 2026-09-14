@@ -120,7 +120,12 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     // reviewer too; attaching a candidate never grants semantic approval.
     const sourceIds = relevantIds.length ? [...new Set([...relevantIds,
       ...sources.filter(source => source.sourceType === "current_request").map(source => source.sourceId)])] : [...ids];
-    proposedDraft = parseHistoryNarrative({ sentences: splitSentencesPreservingFacts(result.answer.summary)
+    // The provider places real list content in answer.sections. Reviewing only
+    // the summary drops briefs and checklists while retaining "see below".
+    const completeAnswer = [result.answer.summary, ...result.answer.sections.map(section =>
+      [section.heading ? section.heading + ":" : "", ...section.items].filter(Boolean).join(" ")), result.answer.safetyNote]
+      .filter((text): text is string => Boolean(text));
+    proposedDraft = parseHistoryNarrative({ sentences: completeAnswer.flatMap(text => splitSentencesPreservingFacts(text.replace(/[\r\n]+/g, " ")))
       .map(text => ({ text, sourceIds })) });
   }
   if (!proposedDraft) return decline("narrative_unavailable");

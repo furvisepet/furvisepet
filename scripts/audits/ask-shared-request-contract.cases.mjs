@@ -1451,3 +1451,14 @@ test('omitted planner field does not erase loaded age evidence for custom JSON k
  assert.ok(age);
  assert.equal(age.text,'4 years');
 });
+
+test('plain history review includes the actual brief sections rather than only their summary',async t=>{
+ clock(t);
+ const r=await exercise('Prepare a brief from the saved rest note. Save nothing.',{fixturePets,messages:[],history:true,
+  rows:[care('rest','milo','2026-06-04','general','Aster rested normally.')],interpretationProposal:proposal(),
+  providerOverrides:{answer:'Here is the brief.',answerSections:[{heading:'Observations',items:['Aster rested normally.']}],historyNarrative:null,relevantContextIds:['care:rest']},
+  reviewResponse:{approved:true},expectedReviewCalls:1});
+ const submitted=JSON.parse(r.reviewRequests[0].input).draft.sentences.map(s=>s.text).join('\n');
+ assert.match(submitted,/Aster rested normally/);
+ assert.match(r.result.reasoning.answer.summary,/Aster rested normally/);
+});
