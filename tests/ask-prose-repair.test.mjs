@@ -21,3 +21,11 @@ test('invalid patches cannot drop, append, reorder, or introduce action authorit
     {replacements:[replacement],applicationActions:[]},
   ]) assert.throws(()=>applyProseRepair(draft,value));
 });
+
+test('text corrections retain authorized original citation candidates for unchanged facts',()=>{
+ const original={sentences:[{text:'A dated note mentions 15 kg and a prescription.',sourceIds:['care:weight','care:medicine','care:unavailable']}]};
+ const result=applyProseRepair(original,{replacements:[{index:0,text:'A historical note mentions 15 kg and a prescription.',sourceIds:['care:medicine'],calculations:[]}]},['care:weight','care:medicine']);
+ assert.deepEqual(result.sentences[0].sourceIds,['care:medicine','care:weight']);
+ const unknown=applyProseRepair(original,{replacements:[{index:0,text:'An invented claim.',sourceIds:['care:invented'],calculations:[]}]},['care:weight','care:medicine']);
+ assert.ok(unknown.sentences[0].sourceIds.includes('care:invented'),'new invalid IDs remain visible for rejection, never silently removed');
+});
