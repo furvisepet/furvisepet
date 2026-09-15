@@ -20,7 +20,10 @@ export async function claimStoredOperation(input: { key: string; leaseSeconds: n
     p_payload_hash: input.payloadHash,
     p_retention_seconds: RETENTION_SECONDS[input.retention],
     p_user_id: input.userId,
-  }).abortSignal(AbortSignal.timeout(2000));
+  // AI admission can encounter a cold database connection. Keep its bounded
+  // deadline above the observed two-second startup tail, without changing the
+  // claim key, retry count, owner token or lease semantics.
+  }).abortSignal(AbortSignal.timeout(input.retention === "ai" ? 8000 : 2000));
   if (error) throw { ...error, status };
   return (Array.isArray(data) ? data[0] : data) as IdempotencyClaimRow | null;
   });
