@@ -500,7 +500,11 @@ async function repairRejectedRead(provider: { responses: { create: (request: Rec
   model: string, originalInput: string, rejectionReason: string, onProviderEvent?: (event: AskProviderEvent) => void) {
   const payload = JSON.parse(originalInput);
   const patchProse = !payload.typedResult && (!payload.request?.outputFormat || payload.request.outputFormat === "prose")
-    && !payload.deterministicPublicationFailures?.length && !/navigation|card|link/i.test(rejectionReason);
+    && !payload.deterministicPublicationFailures?.length
+    && (!/navigation|action|card|link/i.test(rejectionReason)
+      || payload.deterministicInvalidSentenceIndexes?.length > 0
+        && !payload.actions?.length && matchesHistoryOutputFormat(payload.draft.sentences.map((s: {text:string}) => s.text).join("\n"), "prose")
+        && rejectionReason.startsWith("Repair the complete answer,"));
   const input = JSON.stringify({ ...payload, sources: undefined, rejectionReason,
     contextRecords: payload.sources.map((source: { sourceId: string }) => ({ ...source, id: source.sourceId })),
     // The complete plan already travels once in this payload. Duplicating it

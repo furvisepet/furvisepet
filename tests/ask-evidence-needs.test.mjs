@@ -4,6 +4,14 @@ import { validateEvidenceNeeds } from '../app/lib/intelligence/evidence-needs.ts
 import { buildEvidenceNeedCoverage, evidenceRemovalCost } from '../app/lib/intelligence/evidence-need-coverage.ts';
 import { compileHistoryReadStrategies } from '../app/lib/intelligence/history-read-strategies.ts';
 const need={quote:'bedding change',sourceTurnId:null,terms:['bedding','mat']};
+test('a standalone year in a requested record clause keeps its own lookup window',()=>{
+ for(const quote of ['find the lab result from 2010','review the lab result in 2010']) {
+  const r=validateEvidenceNeeds([{...need,quote}],quote,[],[]);
+  assert.deepEqual(r.needs[0].window,{from:'2010-01-01T00:00:00.000Z',to:'2011-01-01T00:00:00.000Z'});
+ }
+ const quote='results from 2010 onward';
+ assert.equal(validateEvidenceNeeds([{...need,quote}],quote,[],[]).needs[0].window,undefined);
+});
 test('evidence needs require exact current or referenced USER text',()=>{
  const turns=[{id:'user',role:'user',text:'bedding change'},{id:'assistant',role:'furvise',text:'bedding change'}];
  assert.equal(validateEvidenceNeeds([need],'Explain the bedding change.',turns,[]).needs.length,1);
