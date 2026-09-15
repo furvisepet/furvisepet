@@ -151,6 +151,18 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
         ? sentence.sourceIds : [...sentence.sourceIds, current.sourceId],
     })) };
   }
+  // Resolve a dropped literal-date citation when exactly one eligible record
+  // matches. These are review candidates, never proof of the described event:
+  // the independent review still checks subject, occasion and complete claim.
+  // Do not infer a per-pet binding for a multi-pet statement.
+  if (sharedRequest && evidence.scope.authorizedPetIds.length === 1) {
+    proposedDraft = { sentences: proposedDraft.sentences.map(sentence => {
+      const candidates = historyDateBindingHints(sentence.text, sources, evidence.timeZone)
+        .filter(hint => hint.sourceIds.length === 1).flatMap(hint => hint.sourceIds);
+      const sourceIds = [...new Set([...sentence.sourceIds, ...candidates])];
+      return sourceIds.length <= 64 ? {...sentence, sourceIds} : sentence;
+    }) };
+  }
   try { if (sharedRequest) for (const chunk of proposedDraft.sentences) assertNoInternalReasoningLeak(chunk.text,
     evidence.represented.map(span => ({ id: span.sourceId }))); }
   catch { return decline("draft_publication_rejected"); }
