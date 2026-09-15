@@ -25,8 +25,8 @@ export async function POST(request: Request) {
     return json({ error: error instanceof Error ? error.message : "Check your report and try again." }, 400);
   }
   const key = process.env.RESEND_API_KEY;
-  const from = process.env.FURVISE_SUPPORT_FROM;
-  if (!key || !from) return json({ error: "Report sending is temporarily unavailable. Your report is still here. You can email supportfurvise@gmail.com instead." }, 503);
+  const from = process.env.FURVISE_SUPPORT_FROM || "Furvise Support <support@furvise.com>";
+  if (!key) return json({ error: "Report sending is temporarily unavailable. Your report is still here. You can email supportfurvise@gmail.com instead." }, 503);
   try {
     const reference = await sendContactReport(report, { key, from });
     return json({ reference });

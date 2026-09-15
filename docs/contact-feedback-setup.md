@@ -4,7 +4,7 @@
 
 ## Required before production release
 
-Configure server-only `RESEND_API_KEY` and `FURVISE_SUPPORT_FROM` in Vercel. The latter must be a sender verified in the same Resend account. Never use an unverified Gmail address as the sender. Configure the existing Redis rate-limit credentials as well; this public endpoint always enforces limits and fails closed without them. Limits: 5 submissions per IP per hour and 100 total per hour, including retries.
+Configure server-only `RESEND_API_KEY` in Vercel for Production and Preview. The default sender is `Furvise Support <support@furvise.com>`; its domain was verified in Resend and a setup email was confirmed delivered to the support inbox on September 15, 2026. Optional `FURVISE_SUPPORT_FROM` overrides must use a verified sender in the same Resend account. Never use an unverified Gmail address as the sender. Configure the existing Redis rate-limit credentials as well; this public endpoint always enforces limits and fails closed without them. Limits: 5 submissions per IP per hour and 100 total per hour, including retries.
 
 Without a configured sender, the API returns an honest unavailable response and preserves the form contents. The direct support email remains visible. Do not treat local mocked delivery tests as proof of live inbox delivery.
 

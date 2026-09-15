@@ -42,9 +42,9 @@ test("legal header uses the untouched approved full lockup without BrandMark rec
   );
 });
 
-test("finished legal content and metadata remain byte-for-byte unchanged", () => {
-  assert.equal(hash("app/privacy/page.tsx"), "021bb4c3b62c9c23193d3772d3729b64e1f367aca00b748cce187818baf6a24b");
-  assert.equal(hash("app/terms/page.tsx"), "40cc84ae5be56b0fa21ec4ae0c42e1e9062e6a49a0dfb364bd828f3103630351");
+test("approved legal content and metadata remain unchanged after the support inbox update", () => {
+  assert.equal(hash("app/privacy/page.tsx"), "3aed01db2169275c80a8b47e6a7dc7d9f1c8d2af68369c00cf0db43e710f95b4");
+  assert.equal(hash("app/terms/page.tsx"), "2de78ebeec43f59d2c8fbec25eda568e6e7d31ff94afc755add1510693f97976");
 });
 
 test("Privacy contains meaningful V1 data, AI, control, and contact sections", () => {
@@ -67,7 +67,7 @@ test("Privacy contains meaningful V1 data, AI, control, and contact sections", (
   assert.match(privacy, /Download a copy of your Furvise data/);
   assert.match(privacy, /delete your Furvise account/i);
   assert.match(privacy, /Furvise does not sell personal information/);
-  assert.match(privacy, /mailto:furvisepet@gmail\.com/);
+  assert.match(privacy, /mailto:supportfurvise@gmail\.com/);
 });
 
 test("Terms contains veterinary and AI limits plus the complete V1 section hierarchy", () => {
