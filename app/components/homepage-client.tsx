@@ -30,32 +30,29 @@ export function HomepageClient() {
       <main className="homepage-dark-world" data-marketing-surface="dark" data-ui="homepage-story-main">
         <section className="home-visual home-hero homepage-wide-shell" aria-labelledby="home-title">
           <div className="home-visual-copy">
-            <p className="home-eyebrow">A place for your pet’s story</p>
-            <h1 id="home-title" aria-label="Remember what matters." className="home-display">REMEMBER<br />WHAT MATTERS.</h1>
-            <p className="home-lead">One place for your pet’s notes, questions, and care history.</p>
-            <p className="home-copy">From an ordinary day to a change you want to remember. Keep the details together, so they’re there when you need them.</p>
+            <p className="home-eyebrow">Furvise for pet owners</p>
+            <h1 id="home-title" aria-label="Your pet’s care, in one place." className="home-display">Your pet’s care,<br />in one place.</h1>
+            <p className="home-lead">Keep care notes, ask questions about past entries, and prepare a summary for your vet.</p>
           </div>
-          <div className="home-visual-art home-heron" aria-hidden="true"><Image alt="" src="/images/heron.png" width={1224} height={1285} priority sizes="(min-width: 1024px) 52vw, 90vw" /></div>
-          <p className="home-hero-footnote">Built around the life you share.</p>
+          <div className="home-visual-art home-heron" aria-hidden="true"><Image alt="" src="/images/heron.png" width={1224} height={1285} priority sizes="(min-width: 1024px) 45vw, 90vw" /></div>
         </section>
 
-        <section id="how-it-works" className="home-explanation homepage-wide-shell" aria-labelledby="how-title">
-          <div className="home-section-intro"><p className="home-eyebrow">The everyday, kept together</p><h2 id="how-title" className="home-display home-display-small">A LIFE BETWEEN<br />VET VISITS.</h2><p className="home-copy">A different appetite. A new food. A quieter walk. The small things can be hard to recall months later. Furvise gives them a place to stay.</p></div>
-          <div className="home-capabilities">
-            <article><p className="home-eyebrow">Keep a record</p><h3>Start with what you notice.</h3><p>Write a note in your own words. Keep observations, routines, and changes in a dated history for each pet.</p></article>
-            <article><p className="home-eyebrow">Find the context</p><h3>Ask about their story.</h3><p>Look back at what you’ve shared. Ask Furvise to help make sense of the details, with gaps and uncertainty made clear.</p></article>
-            <article><p className="home-eyebrow">Prepare to share</p><h3>Bring the details with you.</h3><p>Put relevant notes into a vet brief you can review and share. Spend less time piecing everything together.</p></article>
+        <section id="how-it-works" className="home-visual home-explanation homepage-wide-shell" aria-labelledby="how-title">
+          <div className="home-visual-copy">
+            <h2 id="how-title" className="home-section-title">From a quick note<br />to your next vet visit.</h2>
+            <div className="home-capabilities">
+              <article><h3>Write down what happened</h3><p>A change in appetite, a new food, or how a walk went. Add a dated note in your own words. Each pet has a separate care history.</p></article>
+              <article><h3>Ask about earlier notes</h3><p>“When did we change her food?” or “How has his weight changed?” Ask Furvise to help you find and compare what you’ve recorded.</p></article>
+              <article><h3>Prepare a vet brief</h3><p>Bring relevant notes together in a summary. Check the details, then share it with your vet.</p></article>
+            </div>
+            <p id="context-title" className="home-care-note">Furvise helps organize information. It does not diagnose or replace veterinary care.</p>
           </div>
-        </section>
-
-        <section className="home-visual home-context homepage-wide-shell" aria-labelledby="context-title">
-          <div className="home-visual-art home-cat" aria-hidden="true"><Image alt="" src="/images/cat.png" width={1024} height={1536} sizes="(min-width: 1024px) 45vw, 90vw" /></div>
-          <div className="home-visual-copy"><p className="home-eyebrow">Their own history. Always.</p><h2 id="context-title" className="home-display">EVERY PET.<br />THEIR OWN STORY.</h2><p className="home-lead">Different lives deserve their own context.</p><p className="home-copy">Keep each pet’s notes and care history separate. Return to what changed, what you recorded, and what you want to ask at the next visit.</p><p className="home-care-note">Furvise helps organize information. It does not diagnose or replace veterinary care.</p></div>
+          <div className="home-visual-art home-cat" aria-hidden="true"><Image alt="" src="/images/cat.png" width={1024} height={1536} sizes="(min-width: 1024px) 40vw, 80vw" /></div>
         </section>
 
         <section className="home-progress homepage-wide-shell" aria-labelledby="progress-title">
-          <div><p className="home-eyebrow">Public beta</p><h2 id="progress-title" className="home-display home-display-small">GETTING BETTER.<br />WITH YOUR HELP.</h2></div>
-          <div><p className="home-copy">We’re improving Furvise as people use it. Read what’s changed, or tell us when something doesn’t work as it should.</p><div className="home-editorial-links"><Link href="/release-notes">Read the release notes <span aria-hidden="true">↗</span></Link><a href="/contact" target="_blank" rel="noopener noreferrer">Report a problem <span aria-hidden="true">↗</span><span className="sr-only"> (opens in a new tab)</span></a></div></div>
+          <h2 id="progress-title">Furvise is in public beta.</h2>
+          <p>Ask can make mistakes or fail to answer. If something goes wrong, <a href="/contact" target="_blank" rel="noopener noreferrer">report a problem<span className="sr-only"> (opens in a new tab)</span></a>. You can follow our progress in the <Link href="/release-notes">release notes</Link>.</p>
         </section>
       </main>
       <MarketingFooter showSignIn={visibleMode === "anonymous"} signedIn={signedIn} />
@@ -80,17 +77,30 @@ function PublicMarketingHeader({ email, mode }: { email?: string | null; mode: H
           {signedIn ? (
             <nav aria-label="Homepage application navigation" className="homepage-desktop-navigation" data-ui="homepage-desktop-navigation">
               {HOMEPAGE_DESKTOP_NAVIGATION.map((item) => <Link className="homepage-header-text-link" href={item.href} key={item.href}>{item.label}</Link>)}
+              <PublicLinksMenu />
             </nav>
           ) : <nav aria-label="About Furvise" className="homepage-desktop-navigation"><Link className="homepage-header-text-link" href="/#how-it-works">How it works</Link><Link className="homepage-header-text-link" href="/release-notes">Release notes</Link><Link className="homepage-header-text-link" href="/contact">Contact</Link></nav>}
         </div>
         <div className="homepage-header-actions" data-ui="homepage-header-actions">
+          <div className="homepage-mobile-menu"><PublicLinksMenu /></div>
           {signedIn ? <AccountUtility email={email} /> : null}
           {anonymous ? <><Link className="homepage-header-text-link" href="/login">Sign in</Link><HeaderPrimaryLink href={NEW_PET_LOGIN_PATH}>Get started</HeaderPrimaryLink></> : null}
         </div>
       </div>
-      <nav aria-label="Furvise updates" className="homepage-public-navigation" data-signed-in={signedIn}><Link href="/#how-it-works">How it works</Link><Link href="/release-notes">Release notes</Link><Link href="/contact">Contact</Link></nav>
     </header>
   );
+}
+
+
+function PublicLinksMenu() {
+  return <details className="homepage-about-menu">
+    <summary>About</summary>
+    <nav aria-label="Furvise updates">
+      <Link href="/#how-it-works">How it works</Link>
+      <Link href="/release-notes">Release notes</Link>
+      <Link href="/contact">Contact</Link>
+    </nav>
+  </details>;
 }
 
 
