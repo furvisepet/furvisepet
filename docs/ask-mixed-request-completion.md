@@ -11,3 +11,5 @@ Partial prose is explicitly labeled incomplete. Structured outputs retain their 
 Regression coverage includes conditional versus independent commands, separate historical/current dates, confirmed receipts during historical review, whole-task rejection with useful guidance, unsupported numerical anchors, and receipt invalidation after source changes or cloning.
 
 Prompt trimming protects the last owned in-window candidate matching a requested quantity before generic recency candidates. A literal match only changes retrieval priority, never semantic support or source authority. Deterministic prose anchor failures use bounded chunk repair; generic reminders about action claims do not force regeneration of the complete answer schema.
+
+A completed raw-note receipt disables duplicate event, learning and recovery extraction in every answer generation or repair result. The durable enrichment worker owns that optional work. Immediate safety evaluation and final answer validation remain active. This prevents optional extraction rejection from discarding a requested companion answer.
