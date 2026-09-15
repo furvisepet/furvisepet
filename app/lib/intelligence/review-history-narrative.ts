@@ -266,12 +266,13 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   // Preserve per-row source/calculation bindings through review. A citation
   // on another row cannot make this row's numbers or quoted values supported.
   const invalidResultItems = (result.historicalResult?.items || []).flatMap((item, index) => supported(item) ? [] : [index]);
-  const reviewSources = sharedRequest ? sources.map(({ sourceId, sourceType, petId, text, occurredAt }) => ({
-    sourceId, sourceType, petId, text, occurredAt,
+  const reviewSources = sharedRequest ? sources.map(source => {
+    const { sourceId, sourceType, petId, text, occurredAt } = source;
+    return { sourceId, sourceType, petId, text, occurredAt, recordedAt: "recordedAt" in source ? source.recordedAt : null,
     localRecordDate: occurredAt ? calendarDateInZone(occurredAt, evidence.timeZone || "UTC") : null,
     ...(sourceType === "care_update" && evidence.recordTitles?.[sourceId] ? { title: evidence.recordTitles[sourceId] } : {}),
     provenanceStatuses: [...new Set(evidence.history!.provenance.filter(item => item.sourceId === sourceId).map(item => item.status))],
-  })) : sources;
+  }; }) : sources;
   const reviewCoverage = sharedRequest ? { retrieval: evidence.history.retrieval, corrections: evidence.history.corrections, reasons: evidence.history.reasons, targets: evidence.history.targets, chronology: evidence.history.chronology } : evidence.history;
   const requestInput = JSON.stringify({
     actions: reviewActions.map((action, index) => ({ index, ...action,

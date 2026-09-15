@@ -1,7 +1,7 @@
 import { calendarDateInZone } from "../ask-time-zone.ts";
 import {compoundUnit, units} from "./history-calculation.ts";
 import { isStructuredHistoryText } from "../furvise-output.ts";
-type Source = { text: string; occurredAt?: string | null; petId?: string; sourceId?: string; sourceType?: string };
+type Source = { text: string; occurredAt?: string | null; recordedAt?: string | null; petId?: string; sourceId?: string; sourceType?: string };
 const monthPattern = "Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?";
 const months = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
 const words: Record<string, number> = {one:1,single:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10};
@@ -91,6 +91,15 @@ function equivalentQuantity(target: string, candidates: readonly string[]) {
 export function historyNarrativeAnchorsSupported(text: string, sources: Source[], requestText = "", derivedQuantities: readonly string[] = [], legacyDerivations = true, scopeDates: readonly string[] = [], onUnsupported?: (reason: string) => void, serializedResult = false, proposedTexts: readonly string[] = [], timeZone = "UTC"): boolean {
   // Relative words in old records must not become an undated current claim.
   const prose = text.replace(/"[^"]*"|“[^”]*”/g, "");
+  // A creation timestamp and an event timestamp are separate facts. Do not
+  // let a matching numeric/date anchor certify the wrong timestamp label.
+  for (const match of prose.matchAll(/\b(?:recorded|saved|created|logged|entered|added)\s+(?:at|on)\s+(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2}))/gi)) {
+    const instant = Date.parse(match[1]);
+    if (!sources.some(source => Number.isFinite(instant) && Date.parse(source.recordedAt || "") === instant)) {
+      onUnsupported?.("Recording timestamp does not match a cited source creation time");
+      return false;
+    }
+  }
   // Missing documentation cannot support a claim that a clinical act never occurred.
   // Reject this stronger prose and let source-attributed fallback preserve the note.
   const clinicalNonoccurrence = /\b(?:did not|didn't|never)\s+(?:establish|give|make|reach|confirm)\s+(?:a|any|the)\s+diagnosis\b|\bno diagnosis\s+(?:was|has been)\s+(?:made|given|established|confirmed)\b|\b(?:was not|wasn't|never was)\s+diagnosed\b/i;
@@ -150,7 +159,7 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
     }
   }
   const sourceDates = sources.flatMap(source => {
-    const explicit = dates(source.text);
+    const explicit = [...dates(source.text), ...dates(calendarDateInZone(source.recordedAt || "", timeZone))];
     const timestamp = calendarDateInZone(source.occurredAt || "", timeZone);
     if (!timestamp) return explicit;
     const relative = /\byesterday\b/i.test(source.text);
