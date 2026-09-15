@@ -10,6 +10,7 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     Sentry.captureException(error);
+    void fetch("/api/telemetry/activity", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({kind: "browser_error", feature: "other"}), keepalive: true }).catch(() => {});
   }, [error]);
 
   return (

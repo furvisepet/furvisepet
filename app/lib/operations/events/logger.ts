@@ -1,4 +1,5 @@
 import "server-only";
+import { persistDashboardEvent } from "../dashboard-telemetry";
 import * as Sentry from "@sentry/nextjs";
 import { allowlistedMetadata, safeOperationalIdentifier } from "./redaction";
 import { noopOperationalMetrics, type OperationalMetrics } from "./types";
@@ -55,6 +56,7 @@ export function emitOperationalEvent(input: OperationalEvent, adapter: Operation
   };
   try { void Promise.resolve(adapter.emit(event)).catch(() => undefined); } catch { /* Observability never breaks a user request. */ }
   try { void Promise.resolve(metrics.record({ eventType: input.eventType, severity: input.severity })).catch(() => undefined); } catch { /* Metrics never break a user request. */ }
+  persistDashboardEvent(event);
   return event;
 }
 
