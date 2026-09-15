@@ -54,7 +54,7 @@ export function PageShell({
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  return <div className="min-h-screen bg-[var(--surface-page)] text-[var(--text-primary)]">{children}</div>;
+  return <div className="flex min-h-0 flex-1 flex-col bg-[var(--surface-page)] text-[var(--text-primary)]">{children}</div>;
 }
 
 export function PageHeader({
