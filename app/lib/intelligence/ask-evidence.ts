@@ -29,6 +29,7 @@ export type AskEvidenceScope = {
   status: "resolved" | "ambiguous"; readOnlyRecall: boolean;
 };
 export type AskEvidenceContract = {
+  completedOwnerNote?: FurviseLiveContext["completedOwnerNote"];
   timeZone?: string;
   recordInventory?: import("./record-inventory.ts").RecordInventory[];
   operationReceipts?: import("./types.ts").AskOperationReceipt[];
@@ -133,6 +134,7 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
     completeness: unknown(), losses: [...(context.evidenceLoading?.losses || []), ...context.careEntries
       .filter(row => ids.includes(row.pet_profile_id) && !selected.has(row.id)).map(row => ({ sourceId: `care:${row.id}`, reason: "intermediate_selection" }))],
     represented: [], representation: "complete", verifiedFacts: [] };
+  if (context.completedOwnerNote) contract.completedOwnerNote = structuredClone(context.completedOwnerNote);
   const currentTurn = context.conversationTurns.at(-1);
   contract.recordInventory = (context.recordInventory || []).filter(item => ids.includes(item.petId));
   for (const item of recordInventoryEvidence(contract.recordInventory)) {

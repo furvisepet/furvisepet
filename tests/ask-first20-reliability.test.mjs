@@ -215,7 +215,7 @@ function failedSubmitHarness({refreshFails=false,requestFailure='http'}={}) {
   const activeRef={current:false};
   let serverConversation=null;
   const run=extract('app/ask/page.tsx','ask',{
-    composerUnavailable:false,askRequestActiveRef:activeRef,activeConversationId:null,selectedPet:'pet',
+    noteMode:false,setNoteMode:noop,composerUnavailable:false,askRequestActiveRef:activeRef,activeConversationId:null,selectedPet:'pet',
     dismissOnboardingEntry:noop,crypto:{randomUUID:()=> 'logical-turn'},navigator:{language:'en'},
     buildAskRequestPayload:input=>input,createMessageId:()=> 'user-turn',
     setAskRequestActive:v=>state.active=v,setRequestPhase:v=>state.phase=v,setFailedRequest:v=>state.failed=v,

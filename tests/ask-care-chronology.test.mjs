@@ -119,7 +119,7 @@ test("the same source message cannot create duplicate care events", () => {
 });
 
 test("deterministic already-saved confirmation spends no AI credit", () => {
-  const confirmation = askRoute.indexOf("confirmedExistingCarePersistence ?");
+  const confirmation = askRoute.indexOf("confirmedExistingCarePersistence && !ownerNotePersistence ?");
   const orchestrator = askRoute.indexOf("await orchestrateAskTurn", confirmation);
   assert.ok(confirmation > -1 && orchestrator > confirmation);
   assert.match(askRoute, /handledWithoutAi: true/);

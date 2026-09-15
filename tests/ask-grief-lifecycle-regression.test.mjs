@@ -391,7 +391,7 @@ test("pending lifecycle deterministic paths run before provider admission and de
   const providerAdmission = route.indexOf("admitAiOperation", pendingBranch);
   assert.ok(pendingBranch > 0 && pendingBranch < rateAdmission && pendingBranch < providerAdmission);
   assert.match(route, /deferHighImpactLifecyclePersistence = classifyCurrentPetLoss\(question\) === "confirmed_current"[\s\S]*pendingLifecycle\?\.kind === "reported_deceased"/);
-  assert.match(route, /if \(!deferHighImpactLifecyclePersistence && intelligenceResult/);
+  assert.match(route, /if \(!preconfirmedCarePersistence && !deferHighImpactLifecyclePersistence && intelligenceResult/);
   assert.match(route, /deterministicApplicationActions = \[pendingLifecycle\.action\]/);
   assert.match(route, /settlePendingLifecycleCancellation/);
   assert.match(route, /resultMessage: "The unconfirmed lifecycle report was cleared\. The saved profile was not changed\."/);

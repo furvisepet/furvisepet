@@ -158,7 +158,7 @@ export async function runFurviseIntelligence({
   });
   // Recall remains read-only even when model classifications propose writes.
   // Mixed owner observations and explicit saves are not question-only recall.
-  let readOnlyRecall = Boolean(context.askInterpretation?.readOnly || reasoning.evidenceContract?.scope.readOnlyRecall);
+  let readOnlyRecall = Boolean(context.ownerNoteAlreadySaved || context.askInterpretation?.readOnly || reasoning.evidenceContract?.scope.readOnlyRecall);
   const suppressPersistence = () => {
     reasoning.learnings = [];
     reasoning.careActions = [];

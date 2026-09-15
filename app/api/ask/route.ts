@@ -1,3 +1,5 @@
+import { resolveOwnerNoteRequest } from "../../lib/intelligence/owner-note-request.ts";
+import { persistOwnerNote } from "../../lib/intelligence/persist-owner-note.ts";
 import { resolveAskTimeZone } from "../../lib/ask-time-zone.ts";
 import { eligibleAnswerSources } from "../../lib/intelligence/ask-evidence.ts";
 import { recoverTransientRead } from "../../lib/security/read-recovery.ts";
@@ -182,10 +184,18 @@ export async function GET(request: Request) {
   return Response.json({ usage: context.usage });
 }
 
-type AskRequestExecution = { deadline: OperationDeadline; durable?: { conversationId: string; userMessageId: string; logicalTurnId: string } };
+type AskRequestExecution = { emergencyResponse?: () => Response; savedNoteResponse?: () => Promise<Response>; deadline: OperationDeadline; durable?: { conversationId: string; userMessageId: string; logicalTurnId: string } };
 export async function POST(request: Request) {
   const execution: AskRequestExecution = { deadline: new OperationDeadline(ASK_OPERATION_TIMEOUT_MS) };
-  const response = await executeAskRequest(request, execution);
+  let response: Response;
+  try { response = await executeAskRequest(request, execution); }
+  catch (error) {
+    if (execution.savedNoteResponse) return execution.savedNoteResponse();
+    if (execution.emergencyResponse) return execution.emergencyResponse();
+    return handleAskApiError(error, "");
+  }
+  if (!response.ok && execution.savedNoteResponse) return execution.savedNoteResponse();
+  if (!response.ok && execution.emergencyResponse) return execution.emergencyResponse();
   if (response.ok || !execution.durable) return response;
   const body = await response.clone().json().catch(() => null);
   if (!body || typeof body !== "object") return response;
@@ -223,14 +233,17 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
     logicalTurnId?: unknown;
     locale?: unknown;
     timeZone?: unknown;
+    mode?: unknown;
   } | null;
+  if (body?.mode !== undefined && body.mode !== "note") return askFailure("INVALID_MESSAGE", "Choose a valid submission mode.", 400);
+  const noteMode = body?.mode === "note" ? "note" as const : undefined;
   const question = typeof body?.message === "string" ? body.message.trim() : "";
   const petId = typeof body?.petId === "string" ? body.petId : "";
   const conversationId = typeof body?.conversationId === "string" ? body.conversationId : "";
   const logicalTurnId = typeof body?.logicalTurnId === "string" && isUuid(body.logicalTurnId) ? body.logicalTurnId : "";
   const requestId = logicalTurnId;
   const locale = resolveAskLocale(body?.locale, request.headers.get("accept-language"));
-  let aiCreditPayload = { conversationId, locale, petId, question, ...(body?.timeZone ? { timeZone: resolveAskTimeZone(body.timeZone) } : {}) };
+  let aiCreditPayload = { conversationId, locale, petId, question, ...(noteMode ? { mode: noteMode } : {}), ...(body?.timeZone ? { timeZone: resolveAskTimeZone(body.timeZone) } : {}) };
   let aiCreditPayloadHash = hashAiCreditPayload("ask", aiCreditPayload);
   logAskStage("authentication succeeded", { requestId });
 
@@ -244,7 +257,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
 
   const currentLoss = classifyCurrentPetLoss(question);
   const immediateEmergency = currentLoss === "confirmed_current" ? null : detectImmediateAskEmergency(question);
-  if (immediateEmergency) {
+  if (immediateEmergency && !noteMode && !isExplicitCareHistorySaveRequest(question)) {
     const emergencyTurn = new AskTurnLifecycle(logicalTurnId, deriveAskAttemptId(logicalTurnId, "provider-independent-emergency"));
     emergencyTurn.transition("VALIDATED").transition("ROUTED").route("emergency", "deterministic");
     const response = buildAskConversationResponse(buildImmediateEmergencyGuidance(immediateEmergency), {
@@ -264,6 +277,13 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
       turn: emergencyTurn.snapshot(),
     });
   }
+
+  if (immediateEmergency) execution.emergencyResponse = () => {
+    const guidance = buildAskConversationResponse(buildImmediateEmergencyGuidance(immediateEmergency), { intent: "general_pet_question", urgent: true, missingUsefulDetails: [], usedContextSummary: [] });
+    return Response.json({ success: true, handledWithoutAi: true, response: guidance, requestId,
+      persistence: { saved: false, warning: "The note save could not be confirmed. Check care history before trying again." },
+      carePersistence: { status: "failed", careEntryIds: [], concernIds: [], errorCode: "OWNER_NOTE_SAVE_UNCONFIRMED", currentSafetyState: "urgent", alreadyPersisted: false } });
+  };
 
   let context: Awaited<ReturnType<typeof loadAskEntitlementContext>>;
   try {
@@ -387,6 +407,44 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
   execution.durable = { conversationId: preparedRequest.conversationId, userMessageId: preparedRequest.userMessageId, logicalTurnId };
   turnLifecycle.transition("ROUTED");
 
+  let ownerNote: ReturnType<typeof resolveOwnerNoteRequest>;
+  try { ownerNote = petId !== "all" ? resolveOwnerNoteRequest({
+    message: question, mode: noteMode, pet: profiles[0], pets: await ownedNoteSubjects(), timeZone: resolveAskTimeZone(aiCreditPayload.timeZone),
+  }) : null; } catch { return askFailure("DATABASE_ERROR", "Pet details could not be checked. Please try again.", 503); }
+  async function ownedNoteSubjects() {
+    // Natural language may name another pet. Read the complete owned subject set
+    // before authorizing a save to the currently selected pet.
+    if (!noteMode && isExplicitCareHistorySaveRequest(question)) {
+      const result = await supabase.from("dog_profiles").select("id,name").eq("user_id", userId);
+      if (result.error) throw new Error("OWNER_NOTE_SUBJECTS_UNAVAILABLE");
+      return result.data as Array<{id: string; name: string | null}>;
+    }
+    return profiles!;
+  }
+  if (noteMode && !ownerNote) return askFailure("INVALID_MESSAGE", "Choose one pet and remove any conflicting instruction not to save.", 400);
+  let ownerNotePersistence: CarePersistenceResult | null = null;
+  if (ownerNote) {
+    try {
+      const gate = await requireRateLimitedRequest({ policy: "CARE_WRITE", request, requestId, idempotencyKey: requestId,
+        payload: { petId, question }, route: "/api/ask", userId });
+      try {
+        const authority = createCanonicalCareAuthorityClient();
+        ownerNotePersistence = await persistOwnerNote({ userId, petId, sourceMessageId: preparedRequest.userMessageId, requestId, note: ownerNote },
+          (name, parameters) => authority.rpc(name, parameters));
+      } finally { await gate.release(); }
+    } catch (error) {
+      if (error instanceof RateLimitRejection) return error.response;
+      return askFailure("DATABASE_ERROR", "The note could not be confirmed as saved. Try again safely.", 503);
+    }
+    const receipt = ownerNotePersistence;
+    execution.savedNoteResponse = () => completeOwnerNoteResponse({
+      preparedRequest, requestId, userId, petId, petName: profiles![0].name || "your pet", receipt, usage,
+      needsAnswer: ownerNote.needsAnswer, emergency: immediateEmergency, trace: turnLifecycle.snapshot(),
+    });
+    revalidateAskStateViews([petId]);
+    if (!ownerNote.needsAnswer || immediateEmergency) return execution.savedNoteResponse();
+  }
+
   const creditRequestId = attemptId;
 
   let liveContext: FurviseLiveContext;
@@ -413,6 +471,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
     emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
     return askFailure("DATABASE_ERROR", "Furvise could not load the latest saved details. Please try again.", 503, {}, "context_loading");
   }
+  if (ownerNotePersistence) liveContext = { ...liveContext, ownerNoteAlreadySaved: true, completedOwnerNote: { sourceMessageId: preparedRequest.userMessageId, petId, entryIds: ownerNotePersistence.careEntryIds } };
   reportOptionalContextRecovery(liveContext, requestId);
   recordContextRecoveryOnTurn(liveContext, turnLifecycle);
   turnLifecycle.transition("CONTEXT_READY");
@@ -474,7 +533,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         logAskServerError("optional_history_lookup", error, { conversationId: preparedRequest.conversationId, petId, requestId }, 200);
       },
     });
-    const preconfirmedOrchestration = confirmedExistingCarePersistence ? buildAlreadyPersistedOrchestration(liveContext.pet.name || "your pet")
+    const preconfirmedOrchestration = confirmedExistingCarePersistence && !ownerNotePersistence ? buildAlreadyPersistedOrchestration(liveContext.pet.name || "your pet")
       : null;
     const conditionalSafety = conditionalEmergencyGuidance(question);
     if (conditionalSafety) {
@@ -772,7 +831,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         reportOptionalContextRecovery(liveContext, requestId);
         recordContextRecoveryOnTurn(liveContext, turnLifecycle);
       }
-      liveContext = { ...liveContext, askInterpretation: interpretation };
+      liveContext = { ...liveContext, ownerNoteAlreadySaved: Boolean(ownerNotePersistence), completedOwnerNote: ownerNotePersistence ? { sourceMessageId: preparedRequest.userMessageId, petId, entryIds: ownerNotePersistence.careEntryIds } : undefined, askInterpretation: interpretation };
       turnView = deriveAskTurnView({ currentSourceMessageId: preparedRequest.userMessageId, liveContext, question, requestId });
       contextUsed = turnView.contextUsed;
       if (subjectResolution.discourseFocus && subjectResolution.discourseFocus.kind !== "pet") {
@@ -789,7 +848,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
           logAskServerError("optional_history_lookup", error, { conversationId: preparedRequest.conversationId, petId: turnPetId, requestId }, 200);
         },
       }) : null;
-      if (confirmedExistingCarePersistence) return buildAlreadyPersistedOrchestration(liveContext.pet.name || "your pet");
+      if (confirmedExistingCarePersistence && !ownerNotePersistence) return buildAlreadyPersistedOrchestration(liveContext.pet.name || "your pet");
 
       generationStage = "orchestration";
       return await orchestrateAskTurn({
@@ -1116,7 +1175,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
       payloadHash: aiCreditPayloadHash,
       operationPayloadHash: idempotency.operation.payloadHash,
       operationOwnerToken: idempotency.operation.ownerToken,
-      preconfirmedCarePersistence: confirmedExistingCarePersistence,
+      preconfirmedCarePersistence: ownerNotePersistence || confirmedExistingCarePersistence,
       petId: turnPetId,
       petName: liveContext.pet.name,
       preparedRequest,
@@ -1141,6 +1200,50 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
     return handleAskApiError(error, requestId);
   }
   });
+}
+
+async function completeOwnerNoteResponse(input: {
+  preparedRequest: PreparedAskRequest; requestId: string; userId: string; petId: string; petName: string;
+  receipt: CarePersistenceResult; usage: AiCreditStatus; needsAnswer: boolean;
+  emergency: ReturnType<typeof detectImmediateAskEmergency>; trace: AskTurnTrace;
+}) {
+  const { preparedRequest, requestId, userId, petId, receipt, usage } = input;
+  const guidance = input.emergency ? buildImmediateEmergencyGuidance(input.emergency) : {
+    title: "Note saved",
+    summary: input.needsAnswer
+      ? `Your note is saved in ${input.petName}'s care history. I couldn't finish the additional answer. You can ask a follow-up without saving the note again.`
+      : `Your note is saved in ${input.petName}'s care history.`,
+    sections: [], safetyNote: null,
+  };
+  const response = buildAskConversationResponse(guidance, { intent: "new_observation", urgent: Boolean(input.emergency), missingUsefulDetails: [], usedContextSummary: [] });
+  if (!response) throw new Error("OWNER_NOTE_RECEIPT_SERIALIZATION_FAILED");
+  const turn: AskTurnTrace = { ...input.trace, finalStage: "COMPLETED", mutationOutcome: "applied",
+    answerOutcome: input.needsAnswer && !input.emergency ? "limited" : "complete",
+    taskOutcome: input.needsAnswer && !input.emergency ? "limited" : "complete",
+    creditState: input.trace.creditState === "not_reserved" ? "not_required" : input.trace.creditState,
+    executionMode: input.trace.providerCallCount ? "ai" : "deterministic", routeType: "pet_care" };
+  const canonical = { ...response, turn };
+  const contextUsed = { petName: input.petName, usedSources: ["Owner note"] };
+  const completed = await completeAskConversationTurn({ conversationId: preparedRequest.conversationId,
+    userMessageId: preparedRequest.userMessageId, requestId, userId, preview: response.directAnswer.slice(0, 220),
+    responseData: canonical, contextUsed, saveMetadata: null, intelligenceValidation: null, persistenceGovernance: null });
+  const message = validAssistantCompletionRow(completed.data);
+  let conversationSaved = false;
+  if (message && !completed.error) {
+    const finalization = await finalizeAskAssistantResponse({ messageId: message.assistant_message_id, userId,
+      responseData: canonical, carePersistence: receipt });
+    conversationSaved = !finalization.error;
+  }
+  // The source note already committed. A conversation display outage cannot
+  // turn its durable success into a claim that no note was saved.
+  emitAskTurnTrace(turn, userId, petId);
+  return successfulAnswerResponse({ assistantMessageId: message?.assistant_message_id,
+    conversationId: preparedRequest.conversationId, userMessageId: preparedRequest.userMessageId,
+    requestId, response: canonical, carePersistence: receipt, contextUsed, usage,
+    handledWithoutAi: turn.providerCallCount === 0, saved: conversationSaved,
+    ...(conversationSaved ? {} : { persistenceWarning: "Your note is saved. The conversation confirmation may take a moment to appear." }),
+    saveMetadata: null, safetyLevel: input.emergency ? "urgent" : "normal", shoppingSuppressed: Boolean(input.emergency),
+    persistenceMode: "automatic", turn });
 }
 
 function deriveAskTurnView({ currentSourceMessageId, liveContext, question, requestId }: {
@@ -1775,7 +1878,7 @@ async function persistAssistantAnswer({
   let semanticTrace = intelligenceResult?.semanticTrace || null;
   const reviewableSemanticEvent = deferHighImpactLifecyclePersistence ? null
     : intelligenceResult?.executionPlan.semanticEvents.find((item) => item.destinations.some((destination) => destination === "care_event" || destination === "episode_current_state" || destination === "state_only")) || null;
-  if (!deferHighImpactLifecyclePersistence && intelligenceResult && (intelligenceResult.executionPlan.learnings.length || intelligenceResult.executionPlan.careActions.length || intelligenceResult.executionPlan.semanticEvents.length || intelligenceResult.executionPlan.noteBatch?.length)) {
+  if (!preconfirmedCarePersistence && !deferHighImpactLifecyclePersistence && intelligenceResult && (intelligenceResult.executionPlan.learnings.length || intelligenceResult.executionPlan.careActions.length || intelligenceResult.executionPlan.semanticEvents.length || intelligenceResult.executionPlan.noteBatch?.length)) {
     try {
       assertGovernedAskExecutionPlan(intelligenceResult.executionPlan);
       intelligencePersistence = await persistIntelligenceLearnings({

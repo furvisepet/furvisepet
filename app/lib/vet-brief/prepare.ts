@@ -60,7 +60,7 @@ export async function prepareVetBrief({ context, supabase, baseline, retrospecti
   const template = { ...vetBriefGenerationTemplate(baseline), ...(urgency ? { urgency } : {}) };
   // Report dates describe the reviewed evidence, not an unfulfilled claim to have
   // read a lifetime. The requested scope remains in the shared evidence contract.
-  const earliest = evidence.records.map(r => r.date.slice(0, 10)).sort()[0];
+  const earliest = evidence.records.flatMap(r => r.date ? [r.date.slice(0, 10)] : []).sort()[0];
   template.dateRange = { from: [plan.from || baseline.dateRange.from, earliest].filter((day): day is string => !!day).sort()[0], to: plan.to };
   const result = await prepareReviewedVetBrief({
     generate: async reviewRepair => {

@@ -19,7 +19,7 @@ test("Ask uses the approved human new-question copy with dynamic pet context", (
 });
 
 test("Ask visible actions and conversation empty state use natural language", () => {
-  assert.match(ask, /type="submit">Send<\/PrimaryButton>/);
+  assert.match(ask, /type="submit">\{noteMode \? "Save note" : "Send"\}<\/PrimaryButton>/);
   assert.match(ask, /type="button">Conversations<\/button>/);
   assert.match(ask, /<h2[^>]*>Conversations<\/h2>/);
   assert.match(ask, /title="No conversations yet\." text="Questions and things you tell Furvise will show up here\."/);

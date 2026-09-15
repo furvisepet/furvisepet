@@ -26,6 +26,7 @@ export function explicitCareEntryDate(value: string, metadata?: Record<string, u
   const batchIndex = metadata?.sourceNoteIndex, batchCount = metadata?.sourceNoteCount;
   const datedBatch = metadata?.source === "ask_furvise" && Number.isInteger(batchIndex) && Number.isInteger(batchCount)
     && Number(batchCount) >= 2 && Number(batchCount) <= 8 && Number(batchIndex) >= 1 && Number(batchIndex) <= Number(batchCount);
+  if (metadata?.authority === "owner_report" && typeof metadata.explicitTime === "string" && /^\d{4}-\d{2}-\d{2}$/.test(metadata.explicitTime)) return metadata.explicitTime;
   const explicitDate = metadata?.explicitTime ?? (datedBatch && Number.isFinite(instant.getTime()) ? instant.toISOString().slice(0,10) : null);
   // An explicit calendar date is stored at UTC midnight, not as an observed
   // local clock time. Do not move that date across days or invent a time of day.
@@ -37,9 +38,11 @@ export function explicitCareEntryDate(value: string, metadata?: Record<string, u
 }
 
 export function formatHistoryTimestamp(value: string, locale?: string, metadata?: Record<string, unknown> | null) {
-  if (explicitCareEntryDate(value, metadata)) return new Intl.DateTimeFormat(locale || "en-US", {
+  if (metadata?.occurrenceBasis === "recorded_at") return `Recorded ${locale ? formatCareEntryTimestamp(value, locale) : formatCareEntryTimestamp(value)} · event date unspecified`;
+  const explicitDate = explicitCareEntryDate(value, metadata);
+  if (explicitDate) return new Intl.DateTimeFormat(locale || "en-US", {
     year: "numeric", month: "short", day: "numeric", timeZone: "UTC",
-  }).format(new Date(value));
+  }).format(new Date(`${explicitDate}T00:00:00Z`));
   return locale ? formatCareEntryTimestamp(value, locale) : formatCareEntryTimestamp(value);
 }
 

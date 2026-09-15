@@ -150,7 +150,7 @@ export function formatTodayPetContext(profile: Pick<DogProfileWithMemories, "age
 }
 
 export function formatTodayTimelineDate(value: string, now = new Date(), metadata?: Record<string, unknown> | null) {
-  if (explicitCareEntryDate(value, metadata)) return formatHistoryTimestamp(value, undefined, metadata);
+  if (metadata?.occurrenceBasis === "recorded_at" || explicitCareEntryDate(value, metadata)) return formatHistoryTimestamp(value, undefined, metadata);
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return "Recently";
   const day = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
