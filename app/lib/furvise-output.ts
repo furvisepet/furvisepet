@@ -259,7 +259,14 @@ export function presentReviewedHistory(sentences: readonly string[], question: s
     for (const sentence of sentences) groups.push([sentence]);
   } else {
     // Longer prose remains readable without splitting a sentence or its numbers.
-    for (const sentence of sentences) {
+    // A reviewed chunk may contain a whole paragraph, rather than one sentence.
+    // Segment only ordinary long prose; structured and quoted content stays literal.
+    const prose = sentences.flatMap(text => text.length > 420
+      && !/["“”]/.test(text) && !isStructuredHistoryText(text)
+      ? [...new Intl.Segmenter("en", { granularity: "sentence" }).segment(text)]
+        .map(part => part.segment.trim()).filter(Boolean)
+      : [text]);
+    for (const sentence of prose) {
       const last = groups.at(-1);
       if (!last || last.join(" ").length + sentence.length + 1 > 420) groups.push([sentence]);
       else last.push(sentence);
