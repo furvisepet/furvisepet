@@ -72,7 +72,7 @@ export function evidenceRemovalCost(evidence: AskEvidenceContract, sourceId: str
       && !evidence.completedOwnerNote?.entryIds.some(id => span.sourceId === `care:${id}`)
       // An earlier raw saved question can repeat this same lookup instruction.
       // Its mentioned operand is not the requested original observation.
-      && !(/\b(?:look (?:back|up)|find|retrieve|search|check|review|verify)\b/i.test(need.quote)
+      && !(/\b(?:look (?:back|up)|find|retrieve|search|check|review|verify)\b/i.test(span.text)
         && span.text.toLowerCase().includes(need.quote.toLowerCase()))
       && withinEvidenceNeedWindow(span.occurredAt, need.window)
       && historyQuantityAnchors(span.text).includes(anchor)).map(span => span.sourceId)));

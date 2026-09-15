@@ -57,6 +57,9 @@ test('requested measurements retain their original candidate ahead of unrelated 
  e.represented.push({...e.represented[0],sourceId:'care:older-question',text:e.interpretation.request.evidenceNeeds[0].quote});
  assert.equal(evidenceRemovalCost(e,'care:old'),2,'a prior saved lookup instruction is not the original measurement');
  assert.equal(evidenceRemovalCost(e,'care:older-question'),0);
+ e.interpretation.request.evidenceNeeds[0].quote='the historical 22 kg entry';
+ assert.equal(evidenceRemovalCost(e,'care:old'),2,'a planner quote without its lookup verb must retain the original source');
+ assert.equal(evidenceRemovalCost(e,'care:older-question'),0);
 });
 test('coverage follows actual representation and never certifies semantic support',()=>{
  const evidence=fixture();
