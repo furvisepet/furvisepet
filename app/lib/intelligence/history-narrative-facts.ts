@@ -213,7 +213,7 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
   // Require that year in a cited source date; explicit totals still remain
   // quantities, and independent review still checks the complete claim.
   const sourceYears = new Set(sourceDates.filter(date => /^\d{4}:/.test(date)).map(date => date.slice(0, 4)));
-  const quantityText = text.replace(/\b(the|these|those|his|her|their|your|our|[\p{L}]+['’]s)\s+(?:(?:available|saved|matching|visible|historical|accessible|supplied|older)\s+){0,3}((?:19|20)\d{2})(?=\s+(?:notes?|records?|entries|entry)\b)/giu,
+  const quantityText = text.replace(/\b(the|these|those|his|her|their|your|our|[\p{L}]+['’]s)\s+(?:(?:only|available|saved|matching|visible|historical|accessible|supplied|older)\s+){0,5}((?:19|20)\d{2})(?=\s+(?:notes?|records?|entries|entry)\b)/giu,
     (label, determiner, year) => sourceYears.has(year) ? `${determiner} ` : label);
   const unsupportedQuantities = quantities(quantityText).filter(quantity => !supportedQuantities.has(quantity)
     && !equivalentQuantity(quantity, derivedQuantities)
