@@ -370,3 +370,15 @@ test('history review receives an exact completed-note receipt without requiring 
   return partialDenial(2,[true,true]);
  }}}});
 });
+
+test('subscription history boundary does not skip review of independent answer parts',async()=>{
+ const r=partialFixture();r.historyNarrative.sentences=r.historyNarrative.sentences.slice(0,2);
+ r.evidenceContract.historyAccess={from:'2021-09-15T00:00:00.000Z',to:'2026-09-16T00:00:00.000Z'};
+ r.evidenceContract.history.reasons=['requested_period_outside_subscription_window'];
+ let calls=0;
+ await reviewHistoricalAnswer({result:r,repairAttempted:true,client:{responses:{create:async()=>{calls++;return partialDenial(2,[false,true]);}}}});
+ assert.equal(calls,1);assert.match(readPartialHistoryReview(r)?.text,/prescribing veterinarian/);
+ const checked=validateGeneratedAnswer(r,{...context,currentMessage:r.evidenceContract.scope.requestText},'routine',['a']);
+ assert.match(checked.response.answer.summary,/prescribing veterinarian/);
+ assert.equal(checked.assessment.checks.taskCompletion,'failed');
+});
