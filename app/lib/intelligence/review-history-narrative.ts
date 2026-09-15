@@ -504,7 +504,9 @@ async function repairRejectedRead(provider: { responses: { create: (request: Rec
       instructions, input, max_output_tokens: ASK_MAX_OUTPUT_TOKENS,
       text: { format: { type: "json_schema", name: "furvise_history_repair", strict: true, schema: sourceBoundSchema(responseSchema, payload.sources) } } },
     { signal }), boundedProviderTimeout(60_000, 40_000, "repair")); } });
+  let repairValidationCode: string | undefined;
   const parsed = interpretStructuredProviderResponse(output, raw => {
+    try {
     const proposal = JSON.parse(raw);
     if (patchProse) {
       const original = { sentences: payload.draft.sentences.map(({index: _index, ...sentence}: {index: number; [key: string]: unknown}) => sentence) };
@@ -517,10 +519,15 @@ async function repairRejectedRead(provider: { responses: { create: (request: Rec
     const narrative = parseHistoryNarrative(canonical.historyNarrative);
     if (!narrative) throw new Error("INVALID_HISTORY_REPAIR");
     return { historicalResult: canonical.historicalResult, narrative, preserveNavigation, applicationActions: parseModelApplicationActions(canonical.applicationActions, payload.question) };
+    } catch (error) {
+      repairValidationCode = error instanceof Error && /^INVALID_[A-Z_]+$/.test(error.message)
+        ? error.message : "INVALID_REPAIR_RESPONSE";
+      throw error;
+    }
   });
   onProviderEvent?.({ stage: "repair", outcome: parsed.status === "completed" ? "succeeded" : "failed", model, elapsedMs: 0,
     inputTokens: parsed.usage.inputTokens, outputTokens: parsed.usage.outputTokens,
     providerErrorCode: parsed.status === "completed" ? undefined : "ASK_HISTORY_REPAIR_INVALID",
-    validationDetails: parsed.status === "completed" ? undefined : parsed.validationReason || "ASK_HISTORY_REPAIR_INVALID" });
+    validationDetails: parsed.status === "completed" ? undefined : repairValidationCode || parsed.validationReason || "ASK_HISTORY_REPAIR_INVALID" });
   return parsed.status === "completed" ? parsed.parsed : undefined;
 }

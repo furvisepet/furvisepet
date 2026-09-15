@@ -6,7 +6,9 @@ export function proseRepairSchema(count: number) {
   return { type: "object", additionalProperties: false, required: ["replacements"], properties: {
     replacements: { type: "array", minItems: 1, maxItems: count, items: {
       ...sentence, required: ["index", ...sentence.required], properties: {
-        ...sentence.properties, index: { type: "integer", enum: Array.from({length: count}, (_, i) => i) },
+        ...sentence.properties,
+        text: { ...sentence.properties.text, pattern: "^[^\\r\\n]*$" },
+        index: { type: "integer", enum: Array.from({length: count}, (_, i) => i) },
       },
     } },
   } };
