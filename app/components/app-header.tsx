@@ -13,6 +13,7 @@ import {
 } from "../lib/navigation/mobile-navigation";
 import { useMobileLiquidGlass } from "../lib/navigation/use-mobile-liquid-glass";
 import { isAskRequestActive, useAskRequestActive } from "../lib/navigation/ask-request-activity";
+import { useCompactNavigation } from "../lib/navigation/use-compact-navigation";
 import { useAskComposerFocus } from "../lib/navigation/ask-composer-focus";
 import { getBrowserSupabase } from "../lib/supabase";
 import { PrimaryButton, TextAction } from "./product-primitives";
@@ -84,6 +85,8 @@ export function AppHeader({
   const activeMobileTab = getActiveMobileNavigationTab(pathname);
   const showMobileNavigation = shouldShowMobileNavigation(pathname, resolvedAuthState === "authenticated");
   const askCompactNavigation = pathname === "/ask" && composerFocused;
+  const scrollCompactNavigation = useCompactNavigation(showMobileNavigation);
+  const compactNavigation = askCompactNavigation || scrollCompactNavigation;
   const publicPage = ["/", "/contact", "/privacy", "/terms", "/release-notes"].includes(pathname);
   const items = publicPage && resolvedAuthState !== "authenticated" ? [{ href: "/release-notes", label: "Release notes" }, { href: "/contact", label: "Contact us" }] : variant === "site" || resolvedAuthState === "authenticated" ? APP_NAV_ITEMS : navItems ?? [];
   const resolvedHomepageActions = homepageActions ?? (
@@ -151,7 +154,7 @@ export function AppHeader({
       observer?.disconnect();
       window.removeEventListener("resize", handleResize);
     };
-  }, [askCompactNavigation, showMobileNavigation]);
+  }, [compactNavigation, showMobileNavigation]);
 
   return (
     <>
@@ -206,15 +209,15 @@ export function AppHeader({
       {askRequestActive ? <p className="border-b border-[var(--line)] bg-[var(--surface-supportive)] px-4 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)]" role="status">Furvise is answering. Navigation will be available when it finishes.</p> : null}
 
       {showMobileNavigation ? (
-        <nav aria-label="Mobile navigation" className="mobile-liquid-glass-root fixed inset-x-0 bottom-0 z-[var(--z-bottom-navigation)] pb-[var(--mobile-nav-safe-area)] lg:hidden" data-liquid-glass-static="" data-state={askCompactNavigation ? "ask-compact" : "stable"} data-ui="mobile-bottom-navigation" ref={mobileGlassRootRef}>
+        <nav aria-label="Mobile navigation" className="mobile-liquid-glass-root fixed inset-x-0 bottom-0 z-[var(--z-bottom-navigation)] pb-[var(--mobile-nav-safe-area)] lg:hidden" data-liquid-glass-static="" data-state={askCompactNavigation ? "ask-compact" : compactNavigation ? "compact" : "stable"} data-ui="mobile-bottom-navigation" ref={mobileGlassRootRef}>
           <span aria-hidden="true" className="mobile-liquid-glass-scene" />
           <div aria-hidden="true" className="mobile-liquid-glass" data-liquid-glass-skip-content="" ref={mobileGlassRef} />
-          <div className={`mobile-liquid-glass-content mx-4 mb-2 grid max-w-2xl grid-cols-4 rounded-[var(--radius-xl)] sm:mx-auto ${askCompactNavigation ? "h-[var(--mobile-nav-compact-height)] p-1" : "h-[var(--mobile-nav-expanded-height)] p-1.5"}`} data-liquid-glass-ignore="" data-ui="mobile-navigation-dock" ref={mobileNavigationDockRef}>
+          <div className={`mobile-liquid-glass-content mx-4 mb-2 grid max-w-2xl grid-cols-4 rounded-[var(--radius-xl)] sm:mx-auto ${compactNavigation ? "h-[var(--mobile-nav-compact-height)] p-1" : "h-[var(--mobile-nav-expanded-height)] p-1.5"}`} data-liquid-glass-ignore="" data-ui="mobile-navigation-dock" ref={mobileNavigationDockRef}>
             {MOBILE_NAV_ITEMS.map((item) => {
               const active = activeMobileTab === item.tab;
               return (
                 <Link aria-current={active ? "page" : undefined} aria-disabled={askRequestActive || undefined} aria-label={item.label} className={`touch-manipulation flex min-h-11 min-w-0 flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] px-1 text-[0.6875rem] leading-none transition-colors duration-[var(--motion-fast)] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] active:bg-[var(--surface-hover)] ${active ? "font-semibold text-[var(--selected-navigation-foreground)]" : "font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--selected-navigation-foreground)]"}`} data-active-indicator={active ? "icon-capsule" : undefined} href={item.href} key={item.href} onClick={guardAppNavigation}>
-                  <span className={`inline-flex shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-pill)] transition-all duration-[var(--motion-fast)] motion-reduce:transition-none ${askCompactNavigation ? "h-8 w-10" : "h-10 w-12"} ${active ? "bg-[var(--selected-navigation-background)]" : ""}`}>
+                  <span className={`inline-flex shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-pill)] transition-all duration-[var(--motion-fast)] motion-reduce:transition-none ${compactNavigation ? "h-6 w-8" : "h-10 w-12"} ${active ? "bg-[var(--selected-navigation-background)]" : ""}`}>
                     <NavigationIcon asset={item.asset} />
                   </span>
                   <span className={askCompactNavigation ? "sr-only" : "block whitespace-nowrap"}>{item.label}</span>

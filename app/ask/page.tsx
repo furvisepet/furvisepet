@@ -135,7 +135,6 @@ function AskPageContent() {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [thread, setThread] = useState<ConversationMessage[]>([]);
   const [question, setQuestion] = useState("");
-  const [noteMode, setNoteMode] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [olderMessagesCursor, setOlderMessagesCursor] = useState<number | null>(null);
   const [olderMessagesLoading, setOlderMessagesLoading] = useState(false);
@@ -403,7 +402,6 @@ function AskPageContent() {
               timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       logicalTurnId,
       message: prompt,
-      ...(source === "composer" && noteMode ? { mode: "note" as const } : {}),
       petId: selectedPet,
     });
     const userMessageId = retry?.userMessageId || createMessageId("user");
@@ -425,7 +423,6 @@ function AskPageContent() {
         signal,
       }, scope, logicalTurnId), signal);
       setQuestion("");
-      setNoteMode(false);
       const result = await request;
       setRequestPhase("receiving");
       const payload = await result.json().catch(() => null) as { assistantMessageId?: string; automaticSaveConfirmation?: string | null; carePersistence?: CarePersistence | null; code?: AskFailureCode; contextUsed?: ContextUsed | null; conversationId?: string; creditsUsed?: number; dataChanged?: boolean; handledWithoutAi?: boolean; message?: string; persistence?: { saved?: boolean; warning?: string }; response?: unknown; retryAfterSeconds?: number; saveMetadata?: AskSaveMetadata | null; success?: boolean; suggestion?: StateSuggestion | null; usage?: AskUsageStatus | null; userMessageId?: string } | null;
@@ -483,7 +480,6 @@ function AskPageContent() {
     if (!failedRequest) return;
     setThread((current) => current.filter((message) => message.id !== failedRequest.userMessageId));
     setQuestion(failedRequest.payload.message);
-    setNoteMode(failedRequest.payload.mode === "note");
     setFailedRequest(null);
     setRequestPhase("idle");
     requestAnimationFrame(() => composerRef.current?.focus());
@@ -643,18 +639,14 @@ function AskPageContent() {
   return (
     <AppPage layout="focused" shell="reading">
       <div className="ask-v1-product-world contents">
-      <header>
+      <header className="ask-page-heading">
         <PageHeader
           actions={<nav aria-label="Conversation actions" className="flex flex-wrap gap-2">
-            {activeConversationId ? <button aria-label="Rename current conversation" className={quietButton} disabled={requestActive} onClick={() => { const target = conversations.find((item) => item.id === activeConversationId); if (target) { setRenameTarget(target); setRenameDraft(target.title); } }} title="Rename conversation" type="button">Rename</button> : null}
             <button className={secondaryButton} disabled={requestActive} onClick={() => setHistoryOpen(true)} type="button">Conversations</button>
             {activeConversationId || thread.length ? <button className={secondaryButton} disabled={requestActive} onClick={requestNewQuestion} type="button">New question</button> : null}
           </nav>}
-          eyebrow="ASK"
-          supportingText="Ask a question, tell Furvise what changed, or just share something that's on your mind."
-          title={`WHAT'S ON YOUR MIND ABOUT ${activeProfile ? petName.toUpperCase() : "YOUR PET"}?`}
+          title="Ask Furvise"
         />
-        <BetaFeedbackNotice />
         {usage && selectedPet ? <AskUsageNotice lifecycleStatus={activeProfile?.lifecycle_status || "active"} petId={selectedPet} usage={usage} /> : null}
       </header>
 
@@ -668,13 +660,13 @@ function AskPageContent() {
       {!loading && activeProfile ? (
         <div className="min-w-0">
           <CompactPetSelector activeProfile={activeProfile} disabled={requestActive} onChange={switchPet} profiles={selectableProfiles} selectedPet={selectedPet} />
-          <main className="min-w-0">
+          <div className="min-w-0">
             <section aria-label="Conversation with Furvise" className={`flex w-full min-w-0 flex-col ${thread.length || requestActive ? "sm:min-h-[66vh]" : ""}`} data-mobile-conversation-clearance="nav-and-composer">
               <div aria-live="polite" className="min-w-0 flex-1 space-y-5 sm:space-y-7">
                 {!thread.length && !submitting
-                  ? showOnboardingStarters
+                  ? <details className="ask-example-questions"><summary>Example questions</summary>{showOnboardingStarters
                     ? <OnboardingAskStarters onSelect={draftOnboardingQuestion} petName={petName} />
-                    : <EmptyConversation lifecycleStatus={activeProfile?.lifecycle_status || "active"} petName={petName} onSelect={draftSuggestedQuestion} />
+                    : <EmptyConversation lifecycleStatus={activeProfile?.lifecycle_status || "active"} petName={petName} onSelect={draftSuggestedQuestion} />}</details>
                   : null}
                 {olderMessagesCursor !== null ? <button className={`${quietButton} mb-4`} disabled={olderMessagesLoading} onClick={() => void loadOlderMessages()} type="button">{olderMessagesLoading ? "Loading..." : "Load earlier messages"}</button> : null}
               {thread.map((message, index) => message.role === "user"
@@ -686,11 +678,11 @@ function AskPageContent() {
               </div>
               {latestAnswer && !requestActive && !failedRequest && shouldShowSuggestedQuestions(latestAnswer.response, findPreviousUserMessage(thread, thread.lastIndexOf(latestAnswer))) ? <SuggestedQuestions currentDraft={question} onSelect={draftSuggestedQuestion} suggestions={latestAnswer.response.suggestedQuestions} /> : null}
               <div className={`app-sticky-composer sticky ${hasThread ? "lg:sticky" : "lg:relative"} mt-3 bg-[var(--surface-page)] pt-1`} data-ask-composer-focused={composerFocused} data-ui="ask-composer-region">
-                <Composer noteMode={noteMode} onNoteModeChange={setNoteMode} disabled={composerUnavailable} hasThread={hasThread} inputRef={composerRef} loading={requestActive} onBlur={() => setComposerFocused(false)} onChange={updateComposerDraft} onFocus={() => setComposerFocused(true)} onSubmit={submit} petName={petName} value={question} />
-                <p className="mt-1.5 text-center text-xs leading-5 text-[var(--pw-subtle)]">Furvise helps keep your pet&apos;s story together. It does not replace veterinary care.</p>
+                <Composer disabled={composerUnavailable} hasThread={hasThread} inputRef={composerRef} loading={requestActive} onBlur={() => setComposerFocused(false)} onChange={updateComposerDraft} onFocus={() => setComposerFocused(true)} onSubmit={submit} petName={petName} value={question} />
+                <BetaFeedbackNotice />
               </div>
             </section>
-          </main>
+          </div>
         </div>
       ) : null}
 
@@ -709,8 +701,6 @@ function EmptyConversation({ lifecycleStatus, petName, onSelect }: { lifecycleSt
     ? ["Show me what you remember about {pet}.", "Summarize {pet}'s care history.", "Help me make a timeline of what happened."]
     : emptyStarters;
   return <section className="pb-2 pt-5 sm:pt-7">
-    <h2 className="app-section-title">{lifecycleStatus === "deceased" ? `Remembering ${petName}` : "Not sure where to start?"}</h2>
-    <p className="mt-2 max-w-2xl leading-6 text-[var(--text-secondary)]">{lifecycleStatus === "deceased" ? "Review the history, make a timeline, or talk about what happened." : "Try one of these, or say it your own way."}</p>
     <div className="mt-4 flex max-w-4xl flex-col gap-2 sm:flex-row sm:flex-wrap">{starters.map((starter) => { const label = starter.replace("{pet}", petName); return <button aria-controls="ask-composer" className="group flex min-h-11 min-w-0 cursor-pointer items-center justify-between gap-3 rounded-lg border border-[var(--assistant-response-border)] bg-[var(--suggested-question-surface)] px-3.5 py-2.5 text-left text-sm font-semibold leading-5 text-[var(--suggested-question-foreground)] transition-colors hover:bg-[var(--suggested-question-hover)] active:bg-[var(--suggested-question-selected)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] sm:w-auto sm:flex-1" data-ui="starter-question" key={starter} onClick={() => onSelect(label)} type="button"><span className="min-w-0 [overflow-wrap:anywhere]">{label}</span><span aria-hidden="true" className="shrink-0 transition-transform group-hover:translate-x-0.5">↘</span></button>; })}</div>
   </section>;
 }
@@ -834,22 +824,20 @@ function AdaptiveSections({ answerType, sections }: { answerType: AnswerType; se
 
 function SuggestedQuestions({ currentDraft, onSelect, suggestions }: { currentDraft: string; onSelect: (suggestion: string) => void; suggestions: string[] }) {
   if (!suggestions.length) return null;
-  return <section aria-label="Suggested follow-up questions" className="mt-5 min-w-0" data-ui="suggested-questions"><div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="text-sm font-semibold text-[var(--assistant-response-accent)]">You could ask</h2><p className="text-xs text-[var(--text-tertiary)]">Tap to draft</p></div><div className="mt-2.5 grid min-w-0 gap-2 sm:grid-cols-2">{suggestions.slice(0, 4).map((suggestion) => { const selected = currentDraft.trim() === suggestion.trim(); return <button aria-controls="ask-composer" className={`${suggestionButton} ${selected ? "bg-[var(--suggested-question-selected)]" : "bg-[var(--suggested-question-surface)]"}`} data-selected={selected || undefined} key={suggestion} onClick={() => onSelect(suggestion)} type="button"><span className="min-w-0 [overflow-wrap:anywhere]">{suggestion}</span><span aria-hidden="true" className="shrink-0">↘</span></button>; })}</div></section>;
+  return <details aria-label="Suggested follow-up questions" className="ask-example-questions min-w-0" data-ui="suggested-questions"><summary>Follow-up questions</summary><div className="mt-2.5 grid min-w-0 gap-2 sm:grid-cols-2">{suggestions.slice(0, 4).map((suggestion) => { const selected = currentDraft.trim() === suggestion.trim(); return <button aria-controls="ask-composer" className={`${suggestionButton} ${selected ? "bg-[var(--suggested-question-selected)]" : "bg-[var(--suggested-question-surface)]"}`} data-selected={selected || undefined} key={suggestion} onClick={() => onSelect(suggestion)} type="button"><span className="min-w-0 [overflow-wrap:anywhere]">{suggestion}</span><span aria-hidden="true" className="shrink-0">↘</span></button>; })}</div></details>;
 }
 
-function Composer({ noteMode, onNoteModeChange, disabled, hasThread, inputRef, loading, onBlur, onChange, onFocus, onSubmit, petName, value }: { noteMode: boolean; onNoteModeChange: (value: boolean) => void; disabled: boolean; hasThread: boolean; inputRef: React.RefObject<HTMLTextAreaElement | null>; loading: boolean; onBlur: () => void; onChange: (value: string) => void; onFocus: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; petName: string; value: string }) {
+function Composer({ disabled, hasThread, inputRef, loading, onBlur, onChange, onFocus, onSubmit, petName, value }: { disabled: boolean; hasThread: boolean; inputRef: React.RefObject<HTMLTextAreaElement | null>; loading: boolean; onBlur: () => void; onChange: (value: string) => void; onFocus: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; petName: string; value: string }) {
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); }
   }
-  const placeholder = noteMode ? `Write a note for ${petName}’s care history…` : hasThread ? `Ask or tell Furvise more about ${petName}\u2026` : `Ask or tell Furvise anything about ${petName}\u2026`;
+  const placeholder = hasThread ? `Ask more about ${petName}\u2026` : `Ask about ${petName}\u2026`;
   const inputLength = value.trim().length;
   const overLimit = inputLength > ASK_MAX_QUESTION_CHARACTERS;
   const canSend = inputLength > 0 && !overLimit && !disabled;
   return <form className="rounded-2xl border border-[var(--line-strong)] bg-[var(--surface-primary)] p-3 shadow-[var(--shadow-surface-2)]" id="ask-composer" onSubmit={onSubmit}>
-    <label className="mb-2 flex items-center gap-2 px-1 text-xs text-[var(--pw-muted)]"><input type="checkbox" checked={noteMode} disabled={disabled || petName === "All pets"} onChange={event => onNoteModeChange(event.target.checked)} />Save note to care history</label>
-    <div className="mb-2 flex items-center justify-between gap-3 px-1"><span className="text-xs font-semibold text-[var(--pw-primary)]">{petName}</span><span className="hidden text-xs text-[var(--pw-subtle)] sm:inline">Enter to send · Shift + Enter for a new line</span></div>
-    <div className="flex items-end gap-2"><textarea aria-describedby="ask-input-limit" aria-invalid={overLimit || undefined} aria-label={placeholder.replace("\u2026", "")} className="max-h-40 min-h-14 flex-1 resize-none rounded-lg bg-transparent px-2 py-3 text-base leading-6 text-[var(--pw-text)] outline-none placeholder:text-[var(--pw-placeholder)] focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]" disabled={disabled} onBlur={onBlur} onChange={(event) => onChange(event.target.value)} onFocus={onFocus} onKeyDown={handleKeyDown} placeholder={placeholder} ref={inputRef} value={value} /><PrimaryButton aria-label={noteMode ? "Save note" : "Send"} className="mb-1 min-h-11 min-w-16 px-4" disabled={!canSend} loading={loading} type="submit">{noteMode ? "Save note" : "Send"}</PrimaryButton></div>
-    <p className="mt-2 px-1 text-xs text-[var(--pw-muted)]" id="ask-input-limit" role={overLimit ? "alert" : undefined}>{inputLength.toLocaleString("en-US")} / {ASK_MAX_QUESTION_CHARACTERS.toLocaleString("en-US")} characters{overLimit ? ". Shorten this message to send it. Your full draft is kept here." : ""}</p>
+    <div className="flex items-end gap-2"><textarea aria-describedby="ask-input-limit" aria-invalid={overLimit || undefined} aria-label={placeholder.replace("\u2026", "")} className="max-h-40 min-h-14 min-w-0 flex-1 resize-none rounded-lg bg-transparent px-2 py-3 text-base leading-6 text-[var(--pw-text)] outline-none placeholder:text-[var(--pw-placeholder)] focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]" disabled={disabled} onBlur={onBlur} onChange={(event) => onChange(event.target.value)} onFocus={onFocus} onKeyDown={handleKeyDown} placeholder={placeholder} ref={inputRef} value={value} /><PrimaryButton aria-label="Send" className="mb-1 min-h-11 min-w-16 px-4" disabled={!canSend} loading={loading} type="submit">Send</PrimaryButton></div>
+    <p className={inputLength >= ASK_MAX_QUESTION_CHARACTERS * .8 ? "mt-2 px-1 text-xs text-[var(--pw-muted)]" : "sr-only"} id="ask-input-limit" role={overLimit ? "alert" : undefined}>{inputLength.toLocaleString("en-US")} / {ASK_MAX_QUESTION_CHARACTERS.toLocaleString("en-US")} characters{overLimit ? ". Shorten this message to send it. Your full draft is kept here." : ""}</p>
   </form>;
 }
 
@@ -892,7 +880,7 @@ function CompactPetSelector({ activeProfile, disabled, onChange, profiles, selec
   if (!activeProfile) return null;
   const status = getPetLifecycleStatus(activeProfile);
   const name = formatPetDisplayName(activeProfile.name);
-  return <div className="mb-4 flex flex-wrap items-center gap-2 border-y border-[var(--line)] py-3">{profiles.length > 1 ? <select aria-label="Pet" className="min-h-10 rounded-lg border border-[var(--input-border)] bg-[var(--input-background)] px-3 text-sm font-semibold text-[var(--text-primary)]" disabled={disabled} id="ask-pet-select" onChange={(event) => onChange(event.target.value)} value={selectedPet}>{profiles.map((profile) => <option key={profile.id} value={profile.id}>{formatPetDisplayName(profile.name)}</option>)}</select> : <span className="text-sm font-semibold text-[var(--text-primary)]">{name}</span>}<span className="text-sm text-[var(--text-tertiary)]">· {formatSpecies(activeProfile.species)}{formatAge(activeProfile) ? ` · ${formatAge(activeProfile)}` : ""}{status === "deceased" ? " · Passed away" : status === "archived" ? " · Archived" : ""}</span></div>;
+  return <div className="mb-3 flex flex-wrap items-center gap-2 py-1">{profiles.length > 1 ? <select aria-label="Pet" className="min-h-10 rounded-lg border border-[var(--input-border)] bg-[var(--input-background)] px-3 text-sm font-semibold text-[var(--text-primary)]" disabled={disabled} id="ask-pet-select" onChange={(event) => onChange(event.target.value)} value={selectedPet}>{profiles.map((profile) => <option key={profile.id} value={profile.id}>{formatPetDisplayName(profile.name)}</option>)}</select> : <span className="text-sm font-semibold text-[var(--text-primary)]">{name}</span>}<span className="hidden text-sm text-[var(--text-tertiary)] sm:inline">· {formatSpecies(activeProfile.species)}{formatAge(activeProfile) ? ` · ${formatAge(activeProfile)}` : ""}</span>{status !== "active" ? <span className="text-sm text-[var(--text-tertiary)]">{status === "deceased" ? "Passed away" : "Archived"}</span> : null}</div>;
 }
 
 function RecentConversations({ conversations, error, onClose, onDelete, onOpen, onRename, onRetry, hasMore, loading, onLoadMore }: { hasMore: boolean; loading: boolean; onLoadMore: () => void; conversations: AskConversationSummary[]; error: string; onClose: () => void; onDelete: (item: AskConversationSummary) => void; onOpen: (id: string) => void; onRename: (item: AskConversationSummary) => void; onRetry: () => void }) {

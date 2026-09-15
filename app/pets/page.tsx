@@ -56,8 +56,6 @@ function PetsDirectory({
       <div data-ui="pets-directory">
         <PageHeader
           actions={profiles.length ? <Link className={addPetActionClasses} href={NEW_PET_ONBOARDING_PATH}><span className="text-[color:var(--warm-cream)]">ADD PET</span></Link> : undefined}
-          eyebrow="PETS"
-          supportingText="The pets Furvise remembers with you."
           title="Your pets"
         />
 

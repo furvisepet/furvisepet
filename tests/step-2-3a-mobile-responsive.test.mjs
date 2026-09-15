@@ -116,7 +116,7 @@ test("one stable bottom-navigation height drives safe-area clearance and compose
   );
   assert.match(
     css,
-    /\.app-sticky-composer[\s\S]*var\(--mobile-nav-height\)[\s\S]*var\(--mobile-nav-safe-area\)[\s\S]*var\(--mobile-sticky-gap\)/
+    /\.app-sticky-composer[\s\S]*var\(--mobile-nav-clearance\)[\s\S]*var\(--mobile-sticky-gap\)/
   );
   assert.match(appPage, /app-mobile-nav-clearance/);
 });
@@ -152,7 +152,7 @@ test("Ask keeps composer and disclaimer in one nav-aware sticky region", () => {
   );
   assert.match(
     ask,
-    /<Composer[\s\S]*Furvise helps keep your pet&apos;s story together\. It does not replace veterinary care/
+    /<Composer[\s\S]*<BetaFeedbackNotice \/>/
   );
   assert.match(
     ask,

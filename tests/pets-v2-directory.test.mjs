@@ -11,7 +11,7 @@ test("Pets V2 loads only owned profile rows", () => {
 });
 
 test("Pets V2 is a continuous linked directory with one action per pet", () => {
-  assert.match(pets, /supportingText="The pets Furvise remembers with you\."/);
+  assert.match(pets, /title="Your pets"/);
   assert.match(pets, /href=\{NEW_PET_ONBOARDING_PATH\}>[\s\S]*ADD PET[\s\S]*<\/Link>/);
   assert.match(pets, /data-ui="pet-directory-list"/);
   assert.match(pets, /<ul[^>]*divide-y[^>]*border-y/);

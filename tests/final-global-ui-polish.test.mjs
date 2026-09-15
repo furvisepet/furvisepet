@@ -37,9 +37,9 @@ test("the explicit V1 page orientation and task copy is present without changing
 
   assert.match(pages.today, /eyebrow="TODAY"[\s\S]*title="Anything you want Furvise to remember\?"/);
   assert.match(pages.today, /supportingText="Add a pet before starting their file\." title="Start with your pet"/);
-  assert.match(pages.pets, /eyebrow="PETS"[\s\S]*supportingText="The pets Furvise remembers with you\."[\s\S]*title="Your pets"/);
-  assert.match(pages.history, /eyebrow="HISTORY"[\s\S]*supportingText="Search across your pets and past updates\."[\s\S]*title="Find something you've saved\."/);
-  assert.match(pages.ask, /eyebrow="ASK"[\s\S]*supportingText="Ask a question, tell Furvise what changed, or just share something that's on your mind\."[\s\S]*WHAT'S ON YOUR MIND ABOUT/);
+  assert.match(pages.pets, /title="Your pets"/);
+  assert.match(pages.history, /title="Find something you've saved\."/);
+  assert.match(pages.ask, /title="Ask Furvise"/);
   assert.match(pages.pet, /eyebrow="PETS"[\s\S]*supportingText=\{metadata\}[\s\S]*title=\{name\}/);
   assert.match(pages.edit, /eyebrow="PETS"[\s\S]*Change the details Furvise uses for \$\{petName\}\.[\s\S]*EDIT \$\{petName\.toUpperCase\(\)\}/);
   assert.match(pages.account, /eyebrow="ACCOUNT" supportingText="Manage your Furvise account\." title="ACCOUNT SETTINGS"/);

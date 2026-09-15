@@ -1419,9 +1419,7 @@ body {
 
 .app-sticky-composer {
   bottom: calc(
-    max(var(--mobile-nav-height), var(--mobile-nav-expanded-height)) +
-    var(--mobile-nav-safe-area) +
-    var(--mobile-sticky-gap)
+    var(--mobile-nav-clearance) - var(--space-6) + var(--mobile-sticky-gap)
   );
   z-index: var(--z-sticky-controls);
 }
@@ -1661,4 +1659,16 @@ textarea:disabled {
   .site-footer .homepage-footer-inner { min-height: 0; flex-wrap: wrap; padding-block: .75rem; gap: .5rem; }
   .site-footer .homepage-footer-brand { display: none; }
   .site-footer .homepage-footer-navigation { width: 100%; justify-content: space-between; flex-wrap: wrap; gap: .25rem .75rem; }
+}
+
+/* Keep the conversation controls small enough to reach the composer on mobile. */
+.ask-page-heading .app-page-header { margin-bottom: 1rem; gap: .75rem; }
+.ask-example-questions { margin-block: .25rem .5rem; }
+.ask-example-questions > summary { cursor: pointer; min-height: 44px; padding-block: .75rem; font-size: .875rem; color: var(--text-secondary); }
+.ask-example-questions > summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+@media (max-width: 639px) {
+  .ask-page-heading .app-page-title { font-size: 2rem; }
+  .ask-page-heading .app-page-header { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .ask-page-heading nav { justify-content: flex-end; }
+  .ask-page-heading nav button { padding-inline: .625rem; font-size: .8125rem; }
 }

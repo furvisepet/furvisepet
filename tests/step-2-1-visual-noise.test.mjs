@@ -69,7 +69,7 @@ test("fixed mobile navigation has safe-area-aware content clearance", () => {
   assert.match(css, /--mobile-nav-height: 4\.25rem/);
   assert.match(css, /--mobile-nav-safe-area: env\(safe-area-inset-bottom, 0px\)/);
   assert.match(css, /\.app-mobile-nav-clearance[\s\S]*--mobile-nav-clearance/);
-  assert.match(css, /\.app-sticky-composer[\s\S]*--mobile-nav-height[\s\S]*--mobile-nav-safe-area/);
+  assert.match(css, /\.app-sticky-composer[\s\S]*--mobile-nav-clearance[\s\S]*--mobile-sticky-gap/);
   assert.match(css, /@media \(min-width: 1024px\)[\s\S]*\.app-mobile-nav-clearance[\s\S]*padding-bottom: var\(--space-12\)/);
 });
 

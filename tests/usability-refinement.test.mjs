@@ -54,7 +54,7 @@ test("Today is a recent file with one focused Remember surface", () => {
 });
 
 test("Pets renders a simple pet directory instead of dashboard summaries", () => {
-  assert.match(pets, /The pets Furvise remembers with you\./);
+  assert.match(pets, /title="Your pets"/);
   assert.match(pets, /aria-label=\{`Open \$\{name\}`\}/);
   assert.match(pets, />OPEN<\/span>/);
   assert.doesNotMatch(pets, /Care goal|Most recent update|Add update|Ask about|Vet brief/);
@@ -69,11 +69,11 @@ test("History has compact filters and the intentional empty state", () => {
 });
 
 test("Ask fresh state uses a compact pet selector and one disclaimer", () => {
-  assert.match(ask, /Not sure where to start\?/);
-  assert.match(ask, /Try one of these, or say it your own way\./);
+  assert.match(ask, /<summary>Example questions<\/summary>/);
+  assert.match(ask, /<details className="ask-example-questions">/);
   assert.match(ask, /function CompactPetSelector/);
   assert.doesNotMatch(ask, /function PetContextRail|Known context|Make this more specific/);
-  assert.equal(ask.split("Furvise helps keep your pet&apos;s story together. It does not replace veterinary care.").length - 1, 1);
+  assert.equal(ask.split("<BetaFeedbackNotice />").length - 1, 1);
 });
 
 test("Products is absent while Account settings remains in the shared utility menu", () => {
