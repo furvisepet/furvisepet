@@ -116,9 +116,11 @@ def drill(pg_env, key):
     for name in pg_env:
         pg_args += ["--env", name]
     # Source tools receive only read-only connection settings. No restore command uses these settings.
+    print("Connecting to the configured source database.", flush=True)
     with psycopg.connect(host=pg_env["PGHOST"], port=5432, dbname="postgres", user=pg_env["PGUSER"],
                          password=pg_env["PGPASSWORD"], sslmode="require", connect_timeout=20,
                          options=pg_env["PGOPTIONS"]) as source:
+        print("Connected; checking the read-only source snapshot.", flush=True)
         source.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
         version = source.execute("show server_version_num").fetchone()[0]
         if int(version) // 10000 != 17:
@@ -126,7 +128,9 @@ def drill(pg_env, key):
         if source.execute("select count(*) from storage.objects").fetchone()[0]:
             raise RuntimeError("Storage contains files; configure a separate object backup before claiming complete recovery")
         snapshot = source.execute("select pg_export_snapshot()").fetchone()[0]
+        print("Reading table checksums.", flush=True)
         expected = manifest(source)
+        print("Dumping the consistent snapshot.", flush=True)
         dump = run(pg_args + [IMAGE, "pg_dump", "--format=custom", "--no-tablespaces", f"--snapshot={snapshot}"], env=env)
         roles = run(pg_args + [IMAGE, "pg_dumpall", "--roles-only", "--no-role-passwords"], env=env)
     output = Path(os.environ["RUNNER_TEMP"]) / "furvise-backup-output"
@@ -195,6 +199,16 @@ if __name__ == "__main__":
         else:
             drill(*configuration_values)
     except Exception as error:
+        # Classify known failures without displaying server messages or credentials.
+        import psycopg
+        if isinstance(error, psycopg.Error):
+            code = error.sqlstate
+            print("Database error category: " + (code if code and len(code) == 5 and code.isalnum() else "connection_or_driver"))
+            message = str(error).lower()
+            for marker, label in [("password authentication failed", "Database password was rejected"), ("tenant or user not found", "Pooler tenant or user was not found"), ("network is unreachable", "Runner cannot reach the database network"), ("could not translate host name", "Database hostname could not be resolved")]:
+                if marker in message:
+                    print(label)
+                    break
         # Only explicitly authored messages are safe to log.
         print(str(error) if type(error) is RuntimeError else "Backup/restore check failed; database details withheld.")
         raise SystemExit(1) from None
