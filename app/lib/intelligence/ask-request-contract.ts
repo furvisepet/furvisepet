@@ -413,7 +413,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     p.requirements = [];
   }
   const { from, to } = calendarWindowToInstants({ from: p.from === null ? null : `${p.from}T00:00:00.000Z`, to: p.to === null ? null : `${p.to}T00:00:00.000Z` }, context.timeZone);
-  const needPlan = historical && readOnly
+  const needPlan = historical
     ? validateEvidenceNeeds(p.evidenceNeeds, context.currentMessage, context.conversationTurns, p.referenceTurnIds, owned.filter(pet => petIds.includes(pet.id)))
     : { needs: [], issues: [] };
   const request: AskRequestContract = {
