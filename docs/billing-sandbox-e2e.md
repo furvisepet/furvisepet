@@ -16,8 +16,8 @@ Never point this gate at the production Supabase project or use an `sk_live_` St
 
 The Stripe sandbox must contain one active `Furvise Plus` recurring monthly Price with both currency options:
 
-- CAD 5.49/month
-- USD 5.49/month
+- CAD 8.48/month
+- USD 8.48/month
 
 The sandbox Price ID is configured only through `STRIPE_PLUS_PRICE_ID`. Do not hard-code Stripe secrets in source control.
 
@@ -32,7 +32,7 @@ Populate it with the normal local Furvise development values plus these billing 
 ```text
 STRIPE_SECRET_KEY=<sandbox sk_test key>
 STRIPE_WEBHOOK_SECRET=<whsec value emitted by the local Stripe listener>
-STRIPE_PLUS_PRICE_ID=price_1U4VhkJwUHmDmUYQ2MAjPqZw
+STRIPE_PLUS_PRICE_ID=<sandbox monthly 8.48 CAD/USD price ID>
 FURVISE_BILLING_DISPLAY_MARKET=US
 
 NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
@@ -80,7 +80,7 @@ Use a fresh local Furvise account and one pet.
 
 1. Confirm Membership shows Free and 15 Ask/month.
 2. Open Membership and start Upgrade.
-3. Confirm the returned Stripe Checkout Session is test mode and shows exactly USD 5.49 when `FURVISE_BILLING_DISPLAY_MARKET=US`.
+3. Confirm the returned Stripe Checkout Session is test mode and shows exactly USD 8.48 when `FURVISE_BILLING_DISPLAY_MARKET=US`.
 4. Complete Checkout with Stripe's standard successful test card `4242 4242 4242 4242`, any future expiry, and any CVC.
 5. Wait for both signed events to reach the local webhook route. Checkout completion verifies association only; `customer.subscription.*` owns lifecycle projection.
 6. Reload Membership and then sign out/sign back in.
@@ -91,7 +91,7 @@ Use a fresh local Furvise account and one pet.
 8. Starting Upgrade again must not create a second nonterminal subscription.
 9. Repeating the same Checkout request/idempotency key must reuse/reconcile the durable single-flight attempt rather than create a duplicate financial attempt.
 
-Repeat the clean-success flow with a fresh local database/user and `FURVISE_BILLING_DISPLAY_MARKET=CA`; Checkout must show CAD 5.49.
+Repeat the clean-success flow with a fresh local database/user and `FURVISE_BILLING_DISPLAY_MARKET=CA`; Checkout must show CAD 8.48.
 
 ## Customer Portal and cancellation
 
