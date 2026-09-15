@@ -321,6 +321,22 @@ test('targeted repair reconstructs the full answer and still requires independen
 });
 
 const {readPartialHistoryReview} = await import('../app/lib/intelligence/history-review-state.ts');
+test('deterministic anchor failure uses bounded prose repair despite generic action-policy feedback',async()=>{
+ const e=fixture(['a']);e.scope.requestText='Describe Aster’s recorded food.';
+ e.interpretation.request={mode:'read',outputFormat:'prose',evidenceNeeds:[]};
+ const r=result(e);r.historyNarrative.sentences[0].text='Aster ate 800 g of wet food.';
+ let calls=0;
+ const ok=await reviewHistoricalAnswer({result:r,client:{responses:{create:async request=>{
+  calls++;
+  if(calls===2) {
+   assert.deepEqual(request.text.format.schema.required,['replacements']);
+   return {status:'completed',output_text:JSON.stringify({replacements:[{index:0,sentences:[{text:'Aster ate wet food.',sourceIds:['care:a'],calculations:[]}]}]})};
+  }
+  return {status:'completed',output_text:JSON.stringify({approved:true,retainedSentenceIndexes:[0],obligations:[{index:0,status:'answered',sentenceIndexes:[0],actionIndexes:[]}],rejectionReason:null})};
+ }}}});
+ assert.equal(calls,3);assert.equal(ok,true);
+ assert.doesNotMatch(readReviewedHistoryAnswer(r).text,/800/);
+});
 function partialFixture() {
  const e=fixture(['a']);
  e.scope.requestText='Describe Aster’s food history and explain whether I should restart leftover prescription tablets.';
@@ -357,8 +373,13 @@ test('whole-task rejection retains independently reviewed guidance, never unsupp
 test('unchecked chunks and invalid numeric anchors never become partial approval',async()=>{
  for (const flags of [[false,false,false],[true,true,true]]) {
   const r=partialFixture();r.historyNarrative.sentences[2].text='Aster weighs 500 kg.';
-  await reviewHistoricalAnswer({result:r,repairAttempted:true,client:{responses:{create:async()=>partialDenial(3,flags)}}});
-  assert.equal(readPartialHistoryReview(r),null);
+  await reviewHistoricalAnswer({result:r,client:{responses:{create:async()=>partialDenial(3,flags)}}});
+  const partial=readPartialHistoryReview(r);
+  if(flags.some(Boolean)) {
+   assert.match(partial?.text,/prescribing veterinarian/);
+   assert.doesNotMatch(partial?.text,/500 kg/);
+   assert.equal(readReviewedHistoryAnswer(r),null);
+  } else assert.equal(partial,null);
  }
 });
 test('history review receives an exact completed-note receipt without requiring a duplicate action',async()=>{

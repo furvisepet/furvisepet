@@ -697,7 +697,8 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     };
   }
   const request = buildProviderRequest(context.promptContext);
-  const parseOutput = (rawText: string) => parseUnifiedResponse(rawText, context.records, input.semanticFrameRecovery
+  const parseOutput = (rawText: string) => {
+    const parsed = parseUnifiedResponse(rawText, context.records, input.semanticFrameRecovery
     ? {
       ...input.semanticFrameRecovery,
       sourceMessage: input.question,
@@ -705,6 +706,20 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
         : context.minimumSafetyLevel === "monitor" ? "caution" : "urgent",
     }
     : undefined, input.question);
+  // A persisted raw note already owns its optional enrichment job. Re-extracting
+  // events in the answer path must neither abort that answer nor create a
+  // second clinical state update. Current-message safety and prose validation
+  // still run normally; this receipt is not clinical evidence.
+  if (context.promptContext.evidenceContract.completedOwnerNote) {
+    parsed.semanticEvents = [];
+    parsed.careActions = [];
+    parsed.learnings = [];
+    parsed.messageUnderstanding = { ...parsed.messageUnderstanding,
+      userIsResolvingConcern: false, recoveryStatus: "none", recoveryConfidence: 1,
+      recoveryEvidence: { outcome: "none", surfaceText: null, targetConcept: null, confidence: 1 } };
+  }
+    return parsed;
+  };
   const cooldown = getAskProviderCooldown(models.primary);
   if (cooldown.active) {
     throw new AskPipelineError("primary_provider_failed", "Ask provider is cooling down.", {

@@ -1,5 +1,6 @@
 import { withinEvidenceNeedWindow, type EvidenceNeedWindow } from "./history-dates.ts";
 import type { AskEvidenceContract } from "./ask-evidence.ts";
+import { historyQuantityAnchors } from "./history-narrative-facts.ts";
 export type NeedCoverage = { needId: string; window?: EvidenceNeedWindow; semanticSupport: "unverified";
   pets: Array<{ petId: string; candidateSourceIds: string[]; representedSourceIds: string[];
     state: "candidates_available" | "query_unavailable" | "not_represented" | "not_queried" | "no_candidate_match"; reasons: string[] }> };
@@ -62,5 +63,14 @@ export function evidenceRemovalCost(evidence: AskEvidenceContract, sourceId: str
   const dates = (evidence.history?.targets || []).map(target => evidence.represented
     .filter(span => span.sourceType === "care_update" && span.petId === target.petId && span.occurredAt?.startsWith(target.day))
     .map(span => span.sourceId));
-  return [...needs, ...dates].filter(ids => ids.length === 1 && ids[0] === sourceId).length;
+  // A requested literal can identify an older record even when a planner
+  // incorrectly prefers latest. Preserve its last candidate before generic
+  // temporal/context matches. Matching is retrieval priority, never proof.
+  const literals = (evidence.interpretation?.request?.evidenceNeeds || []).flatMap(need =>
+    historyQuantityAnchors(need.quote).map(anchor => evidence.represented.filter(span =>
+      span.sourceType === "care_update" && (!need.petIds || need.petIds.includes(span.petId))
+      && withinEvidenceNeedWindow(span.occurredAt, need.window)
+      && historyQuantityAnchors(span.text).includes(anchor)).map(span => span.sourceId)));
+  return [...needs, ...dates].filter(ids => ids.length === 1 && ids[0] === sourceId).length
+    + 2 * literals.filter(ids => ids.length === 1 && ids[0] === sourceId).length;
 }

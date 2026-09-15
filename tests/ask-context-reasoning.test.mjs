@@ -559,6 +559,21 @@ test("repeated unsupported event evidence fails before it can become a legacy sa
   assert.equal(client.requests.length, 2);
 });
 
+test('a completed raw note isolates optional event extraction from its additional answer',async()=>{
+ const question='Save this note for Mani: I put the carrier beside the door. Then give me a packing checklist.';
+ const base=input({question});const evidence=buildAskContext(base).promptContext.evidenceContract;
+ evidence.completedOwnerNote={sourceMessageId:'saved-source',petId:'pet-mani',entryIds:['saved-note']};
+ const draft=unified({answer:'Bring the carrier, the medication list, and any requested records.',semanticEvents:[{
+  subject:{type:'pet',name:'Mani'},domain:'health',topic:'vomiting',eventTitle:'Vomiting',transition:'started',state:'historical',
+  temporal:{occurredAt:null,explicitTime:null},importance:'important',confidence:0.99,sourceExcerpt:'An unsupported optional extraction',
+ }]});
+ const client=mockClient([draft]);
+ const result=await generateContextAwareAskResponse({...base,evidenceContract:evidence,client});
+ assert.equal(client.requests.length,1,'optional extraction must not spend the answer repair budget');
+ assert.match(result.answer.summary,/carrier/);
+ assert.deepEqual(result.semanticEvents,[]);assert.deepEqual(result.careActions,[]);assert.deepEqual(result.learnings,[]);
+});
+
 test('verified inventory survives ranking and generic span compaction with its as-of scope intact',async()=>{
   const {recordInventoryEvidence}=await import('../app/lib/intelligence/record-inventory.ts');
   const {deterministicReadProjection}=await import('../app/lib/intelligence/read-projection.ts');

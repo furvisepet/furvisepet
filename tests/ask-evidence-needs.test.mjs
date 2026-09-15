@@ -4,6 +4,14 @@ import { validateEvidenceNeeds } from '../app/lib/intelligence/evidence-needs.ts
 import { buildEvidenceNeedCoverage, evidenceRemovalCost } from '../app/lib/intelligence/evidence-need-coverage.ts';
 import { compileHistoryReadStrategies } from '../app/lib/intelligence/history-read-strategies.ts';
 const need={quote:'bedding change',sourceTurnId:null,terms:['bedding','mat']};
+test('a standalone year in a requested record clause keeps its own lookup window',()=>{
+ for(const quote of ['find the lab result from 2010','review the lab result in 2010']) {
+  const r=validateEvidenceNeeds([{...need,quote}],quote,[],[]);
+  assert.deepEqual(r.needs[0].window,{from:'2010-01-01T00:00:00.000Z',to:'2011-01-01T00:00:00.000Z'});
+ }
+ const quote='results from 2010 onward';
+ assert.equal(validateEvidenceNeeds([{...need,quote}],quote,[],[]).needs[0].window,undefined);
+});
 test('evidence needs require exact current or referenced USER text',()=>{
  const turns=[{id:'user',role:'user',text:'bedding change'},{id:'assistant',role:'furvise',text:'bedding change'}];
  assert.equal(validateEvidenceNeeds([need],'Explain the bedding change.',turns,[]).needs.length,1);
@@ -27,6 +35,22 @@ const fixture=()=>({scope:{authorizedPetIds:['pet']},interpretation:{request:{ev
  sources:[{petId:'pet',status:'loaded',loadedIds:['care:one']}],losses:[],
  history:{needs:[{petId:'pet',needId:'need:0',candidateIds:['care:one'],exhausted:false,status:'partial'}],provenance:[]},
  represented:[{petId:'pet',sourceId:'care:one',sourceType:'care_update',start:0,end:16,text:'Bedding changed.'}]});
+test('requested measurements retain their original candidate ahead of unrelated newer records',()=>{
+ const e=fixture();
+ e.interpretation.request.evidenceNeeds=[{...need,id:'need:0',quote:'find the historical 22 kg entry',terms:['weight'],order:'latest',petIds:['pet']}];
+ e.represented=[
+  {...e.represented[0],text:'Weight: 22 kg.',sourceId:'care:old',occurredAt:'2025-01-01'},
+  {...e.represented[0],text:'Weight: 21 kg.',sourceId:'care:new',occurredAt:'2026-01-01'},
+ ];
+ e.needCoverage=[{pets:[{representedSourceIds:['care:new']}]}];
+ assert.ok(evidenceRemovalCost(e,'care:old')>evidenceRemovalCost(e,'care:new'));
+ e.represented[0].text='Weight: 122 kg.';
+ assert.equal(evidenceRemovalCost(e,'care:old'),0,'numeric substring is not an exact measurement');
+ e.represented[0].text='Weight: 22kg.';e.represented[0].petId='foreign';
+ assert.equal(evidenceRemovalCost(e,'care:old'),0,'a different pet is not a candidate');
+ e.represented[0].petId='pet';
+ assert.equal(evidenceRemovalCost(e,'care:old'),2);
+});
 test('coverage follows actual representation and never certifies semantic support',()=>{
  const evidence=fixture();
  let coverage=buildEvidenceNeedCoverage(evidence);

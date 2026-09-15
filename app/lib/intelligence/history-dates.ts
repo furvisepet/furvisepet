@@ -157,6 +157,8 @@ export function evidenceNeedWindow(quote: string): EvidenceNeedWindow | undefine
   const days = [...new Set([...explicitHistoryDays(quote, new Date().getUTCFullYear(), 8),
     ...(quote.match(/\b\d{4}-\d{2}-\d{2}\b/g) || [])])];
   const labels = [...days, ...explicitHistoryMonths(quote)];
+  if (!labels.length && !new RegExp(`(?<![\\p{L}])(?:${literalMonthPattern})(?![\\p{L}])`, "iu").test(quote))
+    return literalHistoryYearWindow(quote.replace(/\bfrom\s+(?=(?:19|20)\d{2}(?:\s*[.,!?;:]|\s*$))/gi, "in "));
   if (labels.length !== 1) return;
   const label = labels[0], start = label.length === 7 ? label + "-01" : label;
   if (!Number.isFinite(Date.parse(start)) || new Date(start).toISOString().slice(0,10) !== start) return;
