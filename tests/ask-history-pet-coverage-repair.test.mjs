@@ -284,3 +284,17 @@ test('incidental note subsets are reviewed, while requested exact counts still r
   assert.equal(approved,!quantity);assert.equal(calls,quantity?0:1);
  }
 });
+test('unique date citations are candidates for independent review, never automatic approval',async()=>{
+ const e=fixture(['a']);e.scope.requestText='Summarize the January 1 and January 3, 2024 food notes.';
+ e.interpretation.request={mode:'history',outputFormat:'prose',evidenceNeeds:[]};
+ const extra={...e.represented[0],sourceId:'care:later',occurredAt:'2024-01-03T12:00:00Z',text:'Aster ate dry food.'};extra.end=extra.text.length;
+ e.represented.push(extra);e.sources[0].loadedIds.push(extra.sourceId);e.history.provenance.push({sourceId:extra.sourceId,status:'effective_linked',claimIds:[]});
+ const r=result(e);r.historyNarrative.sentences[0].text='The January 1 and January 3, 2024 notes report food.';
+ let calls=0;
+ assert.equal(await reviewHistoricalAnswer({result:r,repairAttempted:true,client:{responses:{create:async request=>{
+  calls++;const input=JSON.parse(request.input);assert.deepEqual(input.deterministicInvalidSentenceIndexes,[]);
+  assert.ok(input.draft.sentences[0].sourceIds.includes('care:later'));
+  return {status:'completed',output_text:JSON.stringify({approved:false,retainedSentenceIndexes:[],obligations:[{index:0,status:'missing',sentenceIndexes:[],actionIndexes:[]}],rejectionReason:'Independent rejection fixture.'})};
+ }}}}),false);assert.equal(calls,1);assert.equal(readReviewedHistoryAnswer(r),null);
+ assert.deepEqual(r.historyNarrative.sentences[0].sourceIds,['care:a']);
+});
