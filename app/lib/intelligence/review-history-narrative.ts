@@ -90,7 +90,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   const sharedRequest = evidence?.interpretation?.request;
   // An inaccessible interval is a server capability boundary. Model approval
   // cannot replace its authoritative limitation with an empty-history claim.
-  if (evidence?.historyAccess && evidence.history?.reasons.includes("requested_period_outside_subscription_window")) return decline("subscription_scope_unavailable");
+  if (!sharedRequest && evidence?.historyAccess && evidence.history?.reasons.includes("requested_period_outside_subscription_window")) return decline("subscription_scope_unavailable");
   // Only the original user task defines completeness. Planner paraphrases and
   // requirements remain advisory; they cannot omit or invent obligations.
   const obligations = sharedRequest ? buildHistoryObligations(evidence!) : [];

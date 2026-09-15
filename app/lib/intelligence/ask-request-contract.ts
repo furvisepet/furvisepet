@@ -10,7 +10,8 @@ import type { AskInterpretation } from "./interpret-ask.ts";
 import type { FurviseLiveContext } from "./types.ts";
 import { buildRecentSubjectState } from "./entities/recent-subject-state.ts";
 import { explicitMutationTarget, explicitlyNamedOwnedPets } from "./entities/resolve-turn-subject.ts";
-import { ownerDeclinesPersistence } from "../ai/owner-assertion.ts";
+import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
+import { ownerDeclinesPersistence, unquotedOwnerText } from "../ai/owner-assertion.ts";
 
 /** One semantic read request. This is not evidence and grants no mutation authority.
  * Names are resolved against the authenticated owner's supplied profiles only.
@@ -66,7 +67,7 @@ export function askRequestSchema(frame: object) {
 }
 
 export const ASK_REQUEST_INSTRUCTIONS = [
-  "Classify a combined question and save by the requested action first. Adding a newly reported measurement or observation to history is a new entry, not correct_record, even when the question compares it with an older measurement. For this combined task use mode mixed, mutationIntent null, and evidenceBasis null if the user supplies all comparison operands; saved_history only if a requested operand must be retrieved. Preserve the calculation, uncertainty and save obligations separately. Include only the current genuine observation in frame. Earlier user-supplied milestones are comparison premises, not fresh observations to save. Hypothetical or quoted save instructions do not authorize actions.",
+  "Classify a combined question and save by the requested action first. Adding a newly reported measurement or observation to history is a new entry, not correct_record, even when the question compares it with an older measurement. For this combined task use mode mixed, mutationIntent null, and evidenceBasis null only when the task needs no saved-record lookup. Supplying comparison operands does not cancel an explicit request to find, look back at, verify or compare saved records: use saved_history whenever any clause requests that lookup, even if arithmetic is independently possible from supplied numbers. Preserve the calculation, uncertainty and save obligations separately. Include only the current genuine observation in frame. Earlier user-supplied milestones are comparison premises, not fresh observations to save. Hypothetical or quoted save instructions do not authorize actions.",
   "A request merely to write, title, translate or format a predetermined claim is a wording task, not a request to retrieve evidence for that claim. If the owner supplies no supporting facts and does not ask to check/read/verify saved records, use mode conversation, scope none, evidenceBasis general, operation general and frame null; the answer can decline an unsupported real-world assertion and offer accurate uncertain wording. A named owned pet does not by itself authorize an unrequested history search. Preserve genuine factual questions and explicit verification/lookups as saved-history reads. Do not convert a quoted desired assertion or desired footnote into an owner observation or save request.",
   "Use evidenceBasis saved_profile for requests consisting ONLY of current stored profile fields (name/species/food/weight/etc). Use mode read, profileFields for every requested field, no dates/quantity/evidenceNeeds/episode/frame, and the owned scope. Profile lookup needs no care-history scan and supports up to twenty owned profiles. If ANY part needs dated records or historical calculations, use saved_history; do not mislabel a historical endpoint as current profile data. Formatting words such as table or JSON are not evidence. General advice still uses general. Never widen subject ownership.",
   "temporalScope describes the evidence endpoints independently of the operation or comparison wording: historical for past-only facts, current for current-only facts, historical_and_current when the task asks about both past facts and present status or whether old evidence still applies, null when not temporal. A question about what an old report establishes today has both endpoints even without the word compare. Preserve past-specific needs and dates locally; the global read must also allow later relevant evidence. Do not label a current display/list of historical records as a present-health request. This is a bounded retrieval proposal, never evidence that a state continued or changed.",
@@ -314,6 +315,15 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     // Language, format and factual obligations remain in the original user text.
     p.requirements = [];
   }
+  // A supplied numeric premise is not fulfillment of an explicitly requested
+  // database lookup. Recover only the already-authorized read target; never
+  // infer a new pet or mutation from this routing constraint.
+  if (petIds.length && ["read", "mixed", "update"].includes(String(p.mode))
+    && p.evidenceBasis !== "saved_history" && requestsSavedRecordLookup(context.currentMessage)) {
+    p.evidenceBasis = "saved_history";
+    if (p.mode === "update") p.mode = "mixed";
+    if (["general", "navigate"].includes(String(p.operation))) p.operation = "recall";
+  }
   const navigation = p.operation === "navigate";
   if (navigation && (p.mode !== "read" || p.evidenceBasis !== null || !petIds.length)) return fail("navigation");
   // Navigation grants no historical retrieval. Stray quantity/date/search
@@ -442,7 +452,8 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   // records being compared. A current observation date cannot bound an older
   // undated lookup. Compile the read envelope from its own grounded facets;
   // subscription access is still clipped independently by retrieval.
-  const mixedTimelines = p.mode === "mixed" && p.temporalScope === "historical_and_current";
+  const mixedTimelines = p.mode === "mixed" && p.mutationIntent !== "correct_record"
+    && p.temporalScope === "historical_and_current";
   const readWindows = request.evidenceNeeds?.map(need => need.window) || [];
   const boundedReadWindows = readWindows.filter((window): window is NonNullable<typeof window> => Boolean(window));
   const historicalFrom = mixedTimelines ? readWindows.length && boundedReadWindows.length === readWindows.length
@@ -466,4 +477,16 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     episodeTopic: episodeTarget || operation === "count" || operation === "episode" ? p.episodeTopic as AskInterpretation["episodeTopic"] : null,
     ordinal: p.ordinal as AskInterpretation["ordinal"],
     history: historical ? { from: target?.basis === "scoped_register" ? explicitEpisodePeriod!.from : historicalFrom, to: target?.basis === "scoped_register" ? explicitEpisodePeriod!.to : historicalTo, terms: p.terms as string[], interpretation: p.terms.length ? "lexical" : from || to ? "period" : "broad_comparison" } : null };
+}
+
+/** Positive read clauses are independent of save clauses and supplied operands.
+ * The semantic planner remains responsible for other languages/wording; this
+ * boundary prevents a known explicit read from being optimized away. */
+export function requestsSavedRecordLookup(message: string): boolean {
+  return splitSentencesPreservingFacts(unquotedOwnerText(message)).some(sentence => {
+    if (/^(?:if|suppose|imagine|pretend|hypothetically)\b|\bhow (?:do|can|would) I\b/i.test(sentence.trim())) return false;
+    const read = /\b(?:look back|look up|retrieve|find|check|review|search|cross[- ]?reference|verify|compare)\b/i.exec(sentence);
+    if (!read || /\b(?:do not|don’t|don't|never|without|no need to)\b[^.!?]*$/i.test(sentence.slice(0, read.index))) return false;
+    return /\b(?:saved|recorded|historical|history|records?|entr(?:y|ies)|results?)\b/i.test(sentence.slice(read.index));
+  });
 }

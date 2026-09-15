@@ -34,7 +34,7 @@ export function resolveOwnerNoteRequest(input: {
   }
   const time = explicitNoteTime(text, input.timeZone);
   return { note: text, ...time, needsAnswer: input.mode !== "note" &&
-    /\b(?:explain|compare|calculate|compute|convert|list|show|look back|recommend|advise|tell me|what|why|how|should|is (?:it|this|that|he|she)|summari[sz]e)\b/i.test(unquotedOwnerText(text)) };
+    hasAdditionalNoteTask(text) };
 }
 
 function escape(text: string) { return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
@@ -65,4 +65,15 @@ export function explicitNoteTime(text: string, timeZone?: string): { occurredAt:
     occurredAt = candidate.toISOString();
   }
   return { occurredAt, explicitTime: clocks.length ? `${literal} ${clocks[0][0]}` : day };
+}
+
+/** Unknown instructions after a save still need answer processing. Only a
+ * simple closing/format instruction may use the note-only fast path. */
+function hasAdditionalNoteTask(text: string): boolean {
+  const unquoted = unquotedOwnerText(text);
+  if (/\?|\b(?:explain|compare|calculate|compute|convert|list|show|find|retrieve|verify|check|review|search|look (?:back|up)|recommend|advise|tell me|what|why|how|should|is (?:it|this|that|he|she)|summari[sz]e)\b/i.test(unquoted)) return true;
+  const sentences = splitSentencesPreservingFacts(unquoted);
+  const lastSave = sentences.findLastIndex(sentence => /\b(?:save|log|record|add)\b/i.test(sentence));
+  return lastSave >= 0 && sentences.slice(lastSave + 1).some(sentence =>
+    !/^(?:(?:please )?keep (?:the |your )?(?:response|answer|reply) (?:brief|short|concise)|thanks|thank you)[.!]?$/i.test(sentence.trim()));
 }

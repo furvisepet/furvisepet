@@ -269,3 +269,16 @@ test('a mixed current-note date cannot narrow the independent historical lookup'
  assert.ok(result);assert.equal(result.history.from,null);assert.equal(result.history.to,null);
  assert.equal(result.request.mode,'mixed');assert.equal(result.readOnly,false);
 });
+
+test('supplied comparison numbers never fulfill an explicit saved-record lookup',()=>{
+ const pet={id:'pet',user_id:'owner',name:'Fern'};
+ for(const command of ['look back at her 15 kg historical entry','verify her saved weight record','find her recorded result']) {
+  const currentMessage=`Fern weighed 14.8 kg. Save this note. Then ${command} and calculate the difference from 15 kg.`;
+  const proposal={version:'ask-request.v2',mode:'mixed',question:currentMessage,requirements:[],referenceTurnIds:[],scope:'named',petNames:['Fern'],operation:'general',selection:'summary',quantity:'measurement',topic:'weight',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:emptyProposedSemanticFrame(),evidenceBasis:null};
+  const result=validateAskRequest(proposal,{owner:{userId:'owner'},eligiblePets:[pet],pet,currentMessage,conversationTurns:[]});
+  assert.equal(result.request.evidenceBasis,'saved_history');assert.ok(result.history);assert.equal(result.readOnly,false);
+ }
+});
+const {requestsSavedRecordLookup}=await import('../app/lib/intelligence/ask-request-contract.ts');
+for(const text of ['Do not check saved records. Use these two numbers only.', 'Suppose you could find a historical record.', 'Rowan ate normally. Save this note to history.', 'Repeat this sentence: "Find his historical entry."'])
+ test(`no invented lookup authority: ${text}`,()=>assert.equal(requestsSavedRecordLookup(text),false));

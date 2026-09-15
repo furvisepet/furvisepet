@@ -546,7 +546,7 @@ test('an explicitly excluded period performs no historical query and explains ac
   const r = await exercise('What happened in 2022?', { fixturePets, messages: [], history: true,
     rows: [care('old', 'milo', '2022-06-04', 'general', 'Aster rested normally.')],
     prepareContext: context => { context.historyAccess = resolveAskHistoryAccess('free', new Date()); },
-    interpretationProposal: proposal({ from: '2022-01-01', to: '2023-01-01' }), expectedReviewCalls: 0 });
+    interpretationProposal: proposal({ from: '2022-01-01', to: '2023-01-01' }), expectedReviewCalls: 1 });
   assert.equal(r.context.askHistory.coverage.queryCount, 0);
   assert.match(r.result.reasoning.answer.summary, /outside that window/);
   assert.doesNotMatch(r.serialized, /Aster rested normally/);
