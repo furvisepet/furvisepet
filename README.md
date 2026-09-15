@@ -14,8 +14,8 @@ Install with `npm ci`. Configure a separate development environment using
 Next.js guides under `node_modules/next/dist/docs/` before changing framework code.
 
 `npm run dev` starts development. `npm run build` and `npm start` build and run
-production output locally. Ordinary builds do not upload Sentry artifacts
-unless explicitly enabled.
+production output locally. Operational errors are recorded in the owner-only
+`/admin` dashboard and deployment logs. The dashboard does not send email alerts.
 
 ## Verification
 

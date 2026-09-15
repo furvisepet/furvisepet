@@ -10,7 +10,9 @@ export function scheduleDashboardWrite(task: () => Promise<unknown>) {
 }
 export function persistDashboardEvent(event: Record<string, unknown>) {
  if(event.eventType !== "ask_turn" && event.eventType !== "application_action" && event.severity === "info")return;
- scheduleDashboardWrite(async()=>{
+ scheduleDashboardWrite(()=>writeDashboardEvent(event));
+}
+export async function writeDashboardEvent(event: Record<string, unknown>) {
   const db=createOperationsAdminClient();
   const {error}=await db.from("owner_operational_events").upsert({
    event_key:`${event.requestId === "missing" ? event.timestamp : event.requestId}:${event.eventType}:${event.errorCode || ""}`.slice(0,300),
@@ -20,7 +22,6 @@ export function persistDashboardEvent(event: Record<string, unknown>) {
    metadata:event.metadata || {},created_at:event.timestamp,
   },{onConflict:"event_key"});
   if(error)throw error;
- });
 }
 export function persistDashboardCost(event: string,input: {operationId:string;callNumber?:number;feature:string;model?:string;reservedCostMicrodollars?:number;reconciledCostMicrodollars?:number;}) {
  if(!["provider call reserved","provider call reconciled"].includes(event) || !input.callNumber)return;
