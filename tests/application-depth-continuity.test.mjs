@@ -56,12 +56,11 @@ test("Ask fresh state keeps starters and composer together without a redundant p
   assert.doesNotMatch(ask, /Your history is temporarily unavailable\. You can still ask a question\./);
 });
 
-test("homepage ends with the final conversion section", () => {
-  const renderedHomepage = homepage.slice(homepage.indexOf("export function HomepageClient"), homepage.indexOf("function PublicMarketingHeader"));
+test("homepage ends with updates and feedback instead of repeated conversion prompts", () => {
   assert.match(homepage, /aria-label="Remember what matters\."/);
-  assert.match(homepage, /You don&apos;t need to remember everything on day one\. Just start\./);
-  assert.ok(renderedHomepage.indexOf("<FinalChapter") < renderedHomepage.indexOf("<MarketingFooter"));
-  assert.match(homepage, /<MarketingFooter showSignIn=\{visibleMode === "anonymous"\} signedIn=\{signedIn\} \/>/);
+  assert.match(homepage, /home-progress/);
+  assert.match(homepage, /Read the release notes/);
+  assert.doesNotMatch(homepage, /StoryAction|FinalChapter/);
 });
 
 test("primary user-facing surfaces contain no em dash or visible technical positioning", () => {

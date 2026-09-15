@@ -138,7 +138,7 @@ test("routine product and care-plan features require an active pet while Ask and
 
 test("Today, homepage, History, profile, Vet Brief, and export honor retained lifecycle state", () => {
   assert.match(read("app/today/page.tsx"), /activePetsOnly\(profileRows\)/);
-  assert.match(read("app/components/homepage-client.tsx"), /activePetsOnly\(profiles\)/);
+  assert.doesNotMatch(read("app/components/homepage-client.tsx"), /loadDogProfilesWithMemories|activePetId|petState/);
   assert.match(read("app/components/care-log-workspace.tsx"), /canCreateUpdate[\s\S]*isActivePet/);
   assert.match(read("app/pets/[id]/page.tsx"), /formatPetDirectoryMetadata\(profile\)/);
   assert.match(read("app/lib/vet-brief/builder.ts"), /lifecycle_status \|\| "active"\) !== "active"/);

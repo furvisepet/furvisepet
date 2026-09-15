@@ -39,16 +39,10 @@ test("the color system exposes layered surfaces and centralized semantic roles",
   assert.doesNotMatch(globals, /html\[data-theme|prefers-color-scheme/);
 });
 
-test("homepage uses the final human company story", () => {
+test("homepage explains notes, context, and sharing without repeated app prompts", () => {
   assert.match(homepage, /aria-label="Remember what matters\."/);
-  assert.doesNotMatch(homepage, /Takes about two minutes\./);
-  for (const story of ["PETS CHANGE.", "ONE STORY.", "WHEN YOU NEED IT,", "YOUR PET&apos;S STORY", "START WITH"]) {
-    assert.equal(homepage.split(story).length - 1, 1);
-  }
-  assert.match(homepage, /secondaryCopy="You don't have to track everything\. Use Furvise when something matters\."/);
-  assert.doesNotMatch(homepage, /id="track-less"/);
-  assert.doesNotMatch(homepage, />0[123]</);
-  assert.doesNotMatch(homepage, /Mani|Illustrative example|ProductWindow/);
+  for (const phrase of ["Start with what you notice.", "Ask about their story.", "Bring the details with you."]) assert.ok(homepage.includes(phrase));
+  assert.doesNotMatch(homepage, /Mani|Illustrative example|ProductWindow|StoryAction/);
 });
 
 test("Today is a recent file with one focused Remember surface", () => {

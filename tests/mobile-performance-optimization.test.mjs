@@ -23,8 +23,8 @@ const optimizedNavigationAssets = [
 
 test("the public LCP heading is server-prerendered instead of gated by auth loading", () => {
   assert.match(homepage, /const visibleMode[^=]*= mode === "loading" \? "anonymous" : mode/);
-  assert.match(homepage, /<WhyWeExist mode=\{visibleMode\} \/>/);
-  assert.match(homepage, /<h1 aria-label="Remember what matters\."[\s\S]*<span className="homepage-heading-line">REMEMBER WHAT<\/span>[\s\S]*<span className="homepage-heading-line">MATTERS\.<\/span><\/h1>/);
+  assert.match(homepage, /<section className="home-visual home-hero/);
+  assert.match(homepage, /<h1 id="home-title" aria-label="Remember what matters\."[\s\S]*REMEMBER<br \/>WHAT MATTERS\.<\/h1>/);
   assert.doesNotMatch(homepage, /HomepageLoading|animate-pulse|mode === "loading" \? <Homepage/);
 });
 

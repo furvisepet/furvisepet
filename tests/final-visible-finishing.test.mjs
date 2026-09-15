@@ -77,13 +77,10 @@ test("Ask starter drafts advertise selection as compact, unfussy cards", () => {
   assert.doesNotMatch(ask.slice(ask.indexOf("function EmptyConversation"), ask.indexOf("function UserMessage")), /rounded-2xl|shadow-/);
 });
 
-test("homepage tells each company-story chapter once and keeps authenticated actions", () => {
-  for (const benefit of ["PETS CHANGE.", "ONE STORY.", "WHEN YOU NEED IT,", "YOUR PET&apos;S STORY", "START WITH"]) assert.equal(homepage.split(benefit).length - 1, 1);
-  assert.match(homepage, /secondaryCopy="You don't have to track everything\. Use Furvise when something matters\."/);
-  assert.doesNotMatch(homepage, /id="track-less"/);
-  assert.doesNotMatch(homepage, />0[123]</);
-  assert.doesNotMatch(homepage, /Mani|Illustrative example/);
-  assert.match(homepage, /Go to Today/);
+test("homepage separates introduction, explanation, pet context, and product progress", () => {
+  for (const label of ["home-title", "how-title", "context-title", "progress-title"]) assert.match(homepage, new RegExp(`id="${label}"`));
+  assert.doesNotMatch(homepage, /Mani|Illustrative example|StoryAction/);
+  assert.match(homepage, /href: "\/today", label: "Today"/);
 });
 
 test("BrandMark keeps the canonical source without generated theme variants", () => {
