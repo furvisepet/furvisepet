@@ -379,6 +379,9 @@ for (const outcome of ['approved', 'empty-body', 'malformed-denial', 'rejected',
           safetyLevel: 'normal', responseMode: 'practical_guidance', userIntent: 'history', relevantContextIds: ['care:rest'],
           historyNarrative: { sentences: [{ text: outcome === 'rejected' ? 'Aster has cancer.' : 'Aster slept normally.',
             sourceIds: [outcome === 'unknown-source' ? 'care:foreign' : 'care:rest'], calculations: [] }] } };
+        if (request.text.format.schema.required.includes('replacements')) payload = {
+          replacements: [{index:0,sentences:payload.historyNarrative.sentences}],
+        };
         if (outcome === 'mutation-field') payload.careActions = [{ action: 'save' }];
       } else {
         const approved = calls === 3 && ['approved', 'empty-body', 'malformed-denial'].includes(outcome);
@@ -1124,6 +1127,8 @@ test('unsolicited JSON is repaired once and independently re-reviewed as prose',
     safetyLevel:'normal',responseMode:'practical_guidance',userIntent:'history',relevantContextIds:['care:rest'],
     historyNarrative:{sentences:[{text:'Aster rested normally.',sourceIds:['care:rest'],calculations:[]}]}} :
     {approved:true,retainedSentenceIndexes:[0],obligations:input.obligations.map(({index})=>({index,status:'answered',sentenceIndexes:[0]})),rejectionReason:null};
+   if(request.text.format.name==='furvise_history_repair' && request.text.format.schema.required.includes('replacements'))
+    payload={replacements:[{index:0,sentences:read(good).historyNarrative.sentences}]};
    return {status:'completed',output_text:JSON.stringify(payload),usage:{input_tokens:500,output_tokens:100}};
   }});
  assert.equal(r.result.reasoning.answer.summary,'Aster rested normally.');
@@ -1167,10 +1172,12 @@ test('schema-shaped generation repairs required meaning removed by publication p
   expectedReviewCalls:3,reviewProviderResponse:async request=>{
    const input=JSON.parse(request.input);
    if(request.text.format.name==='furvise_history_review' && input.draft?.sentences?.[0]?.text==='The underlying cause remains unknown.') sawCleanedDraft=true;
-   const payload=request.text.format.name==='furvise_history_repair'?read(good):
+   let payload=request.text.format.name==='furvise_history_repair'?read(good):
     input.draft?.sentences?.[0]?.text==='The underlying cause remains unknown.'
      ? {approved:false,retainedSentenceIndexes:[],obligations:input.obligations.map(({index})=>({index,status:'missing',sentenceIndexes:[]})),rejectionReason:'The answer omits the reported reason for the transition.'}
      : {approved:true,retainedSentenceIndexes:[0],obligations:input.obligations.map(({index})=>({index,status:'answered',sentenceIndexes:[0]})),rejectionReason:null};
+   if(request.text.format.name==='furvise_history_repair' && request.text.format.schema.required.includes('replacements'))
+    payload={replacements:[{index:0,sentences:read(good).historyNarrative.sentences}]};
    return {status:'completed',output_text:JSON.stringify(payload),usage:{input_tokens:500,output_tokens:100}};
   },
  });
