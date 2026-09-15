@@ -17,6 +17,7 @@ import { AppPage } from "../components/app-page";
 import { useAskComposerFocus } from "../lib/navigation/ask-composer-focus";
 import { AskUsageNotice } from "../components/ask-usage-notice";
 import { BrandMark } from "../components/brand-mark";
+import { BetaFeedbackNotice } from "../components/beta-feedback-notice";
 import { PageHeader, PrimaryButton } from "../components/product-primitives";
 import { WorkflowDialog, WorkflowEmptyState } from "../components/workflow-primitives";
 import { useRequireConfirmedSupabaseAuth } from "../lib/auth-session";
@@ -653,6 +654,7 @@ function AskPageContent() {
           supportingText="Ask a question, tell Furvise what changed, or just share something that's on your mind."
           title={`WHAT'S ON YOUR MIND ABOUT ${activeProfile ? petName.toUpperCase() : "YOUR PET"}?`}
         />
+        <BetaFeedbackNotice />
         {usage && selectedPet ? <AskUsageNotice lifecycleStatus={activeProfile?.lifecycle_status || "active"} petId={selectedPet} usage={usage} /> : null}
       </header>
 

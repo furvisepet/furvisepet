@@ -136,9 +136,9 @@ export default function TermsPage() {
           Questions about these terms can be sent to{" "}
           <a
             className="inline-flex min-h-11 items-center rounded-sm font-semibold text-[var(--text-primary)] underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-            href="mailto:furvisepet@gmail.com"
+            href="mailto:supportfurvise@gmail.com"
           >
-            furvisepet@gmail.com
+            supportfurvise@gmail.com
           </a>
           .
         </p>
