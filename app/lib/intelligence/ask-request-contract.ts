@@ -452,7 +452,8 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   // records being compared. A current observation date cannot bound an older
   // undated lookup. Compile the read envelope from its own grounded facets;
   // subscription access is still clipped independently by retrieval.
-  const mixedTimelines = p.mode === "mixed";
+  const mixedTimelines = p.mode === "mixed" && p.mutationIntent !== "correct_record"
+    && p.temporalScope === "historical_and_current";
   const readWindows = request.evidenceNeeds?.map(need => need.window) || [];
   const boundedReadWindows = readWindows.filter((window): window is NonNullable<typeof window> => Boolean(window));
   const historicalFrom = mixedTimelines ? readWindows.length && boundedReadWindows.length === readWindows.length
