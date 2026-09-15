@@ -178,7 +178,7 @@ def drill(pg_env, key):
              "--tmpfs", "/restore:rw,mode=1777", "--entrypoint", "bash", IMAGE, "-ceu",
              'initdb -D /restore/data -U "$1" --auth=trust >/dev/null; exec postgres -D /restore/data '
              '-c listen_addresses= -c unix_socket_directories=/tmp '
-             '-c shared_preload_libraries=pg_cron,pg_net,pg_stat_statements '
+             '-c shared_preload_libraries=supautils,pg_cron,pg_net,pg_stat_statements '
              '-c cron.database_name=postgres -c cron.launch_active_jobs=off '
              '-c supautils.superuser=supabase_admin -c supautils.privileged_role=supabase_privileged_role', "--", "supabase_admin"])
         local = ["docker", "exec", "-i", "--env", "PGOPTIONS=-c timezone=UTC -c datestyle=ISO", name]
