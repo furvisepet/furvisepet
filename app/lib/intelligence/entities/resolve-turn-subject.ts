@@ -1,3 +1,4 @@
+import { ownerDeclinesPersistence, unquotedOwnerText } from "../../ai/owner-assertion.ts";
 import type { ProposedSemanticFrame } from "../semantic-frame/types.ts";
 import { isEpisodeSubjectReference } from "../episode-reference-language.ts";
 import { groundSemanticFrameEvidence } from "../semantic-frame/ground-evidence.ts";
@@ -42,6 +43,7 @@ export type AskTurnSubjectDecision = {
 
 export async function resolveAskTurnSubject({
   extractFrame,
+  operationPetIds,
   message,
   ownerId,
   pets,
@@ -49,12 +51,18 @@ export async function resolveAskTurnSubject({
   selectedPetId,
 }: {
   extractFrame: () => Promise<ProposedSemanticFrame>;
+  operationPetIds?: string[];
   message: string;
   ownerId: string;
-  pets: EligibleSemanticPet[];
+  pets: Array<EligibleSemanticPet & { user_id?: string }>;
   recentConversation: Array<{ role?: string; text: string }>;
   selectedPetId: string;
 }): Promise<AskTurnSubjectDecision> {
+  const owned = pets.filter(pet => pet.user_id === ownerId);
+  const target = operationPetIds?.length === 1 ? explicitMutationTarget(message, owned) : null;
+  if (target && operationPetIds?.[0] === target) {
+    return { resolution: resolved(target, 0.99), frame: await extractFrame(), usedProviderExtraction: true };
+  }
   const deterministic = resolveDeterministicTurnSubject({ message, pets, recentConversation, selectedPetId });
   if (deterministic) return { resolution: deterministic, usedProviderExtraction: false };
 
@@ -412,4 +420,23 @@ function pronounsFromSurface(surface: string): AskDiscourseFocus["pronouns"] {
   if (/\b(?:sister|girlfriend|wife|mother|mom|mum|woman|lady|aunt|grandmother|grandma|daughter|niece|she|her)\b/.test(value)) return ["feminine", "neutral"];
   if (/\b(?:brother|boyfriend|husband|father|dad|man|gentleman|uncle|grandfather|grandpa|son|nephew|he|him)\b/.test(value)) return ["masculine", "neutral"];
   return ["feminine", "masculine", "neutral"];
+}
+
+/** Resolve an explicitly named destination in an affirmative action clause.
+ * This only chooses a destination; action/claim governance still decides what,
+ * if anything, can be persisted. Read subjects never become write subjects. */
+export function explicitMutationTarget(message: string, pets: EligibleSemanticPet[]): string | null {
+  if (ownerDeclinesPersistence(message)) return null;
+  const clauses = unquotedOwnerText(message).split(/[.!?;\n]|\b(?:but|and then)\b/i);
+  const targets = new Set<string>();
+  for (const raw of clauses) {
+    const clause = raw.trim();
+    if (/\b(?:if|suppose|pretend|hypothetical|do not|don't|never|without)\b/i.test(clause)) continue;
+    const action = clause.match(/^(?:(?:please|also|then|only|otherwise|and)\s+)*(?:save|log|record|add|edit|correct|update|store)\b[\s\S]*/i)?.[0];
+    if (!action) continue;
+    const named = explicitlyNamedOwnedPets(action, pets);
+    if (named.length !== 1) return null;
+    targets.add(named[0].id);
+  }
+  return targets.size === 1 ? [...targets][0] : null;
 }

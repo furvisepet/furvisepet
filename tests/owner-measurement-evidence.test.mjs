@@ -24,6 +24,6 @@ test("measurement variants preserve quote, attribution, hypothetical and questio
 
 
 test("explicit persistence opt-out narrows authority without interpreting quoted instructions", () => {
- for(const text of ["Do not save this message.", "Please don't save this to history.", "Never record anything."]) assert.equal(ownerDeclinesPersistence(text),true,text);
+ for(const text of ["Do not save this message.", "Please don't save this to history.", "Never record anything.", "Don't save this as a new note.", "If you summarize this, don't save it.", "If you write a summary, do not save it.", "Can you write a summary but don't save it?"]) assert.equal(ownerDeclinesPersistence(text),true,text);
  for(const text of ['The note says "Do not save this message."', "If I say do not save this message, what happens?", "Don't save this as a new note; edit the old note.", "Save this message."]) assert.equal(ownerDeclinesPersistence(text),false,text);
 });

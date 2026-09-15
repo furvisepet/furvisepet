@@ -16,18 +16,19 @@ export async function generateAskHistoryAnswer({ supabase, onStage, ...input }: 
   input.context = enforceAskHistoryAccess(scopeConversationContext(input.context));
   const petIds = input.context.askInterpretation?.conversationOnly ? [] : input.authoritativePetIds ?? [input.context.pet.id];
   input.authoritativePetIds = petIds;
+  const readPetIds = input.context.askInterpretation?.readPetIds || petIds;
   onStage?.("history_retrieval");
-  let context = await retrieveAskHistory(input.context, supabase, petIds);
+  let context = await retrieveAskHistory(input.context, supabase, readPetIds);
   onStage?.("episode_retrieval");
-  context = await retrieveEpisodeHistory(context, supabase, petIds);
+  context = await retrieveEpisodeHistory(context, supabase, readPetIds);
   onStage?.("answer_generation");
   const intelligenceResult = await runFurviseIntelligence({ ...input, context,
-    evidenceContract: createAskEvidenceContract(context, petIds) });
+    evidenceContract: createAskEvidenceContract(context, readPetIds) });
   if (context.episodeResult) {
     // Generation can take seconds. Revalidate after it, before returning a list
     // or references for display/persistence. Never silently substitute a new list.
     onStage?.("episode_revalidation");
-    const fresh = await retrieveEpisodeHistory(context,supabase,petIds);
+    const fresh = await retrieveEpisodeHistory(context,supabase,readPetIds);
     const signature = (value: EpisodeResult | undefined) => JSON.stringify(value && {
       ...value, recordedInventory:value.recordedInventory && {...value.recordedInventory,snapshot:null},
     });

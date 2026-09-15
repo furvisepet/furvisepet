@@ -21,6 +21,21 @@ export function compactHistorySourceCoverage(sources: EvidenceSource[], represen
   return { sources: direct, unrepresentedSourceGroups: [...groups.values()].map(group => {
     if (group.members.length < 2) return group;
     const { members, ...coverage } = group;
+    const perPet = new Map<string, Member[]>();
+    for (const member of members) perPet.set(member.petId, [...(perPet.get(member.petId) || []), member]);
+    const patterns = new Map<string, { petIds: string[]; channels: Array<[string, number, number | null]> }>();
+    for (const [petId, rows] of perPet) {
+      const channels = rows.map(row => [row.source, row.loadedCount, row.cap] as [string, number, number | null])
+        .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+      const key = JSON.stringify(channels);
+      const pattern = patterns.get(key) || { petIds: [], channels };
+      pattern.petIds.push(petId); patterns.set(key, pattern);
+    }
+    // Factor identical channel coverage across pets without dropping a single
+    // member, count, cap, or limitation. Single-channel groups keep row form.
+    if ([...patterns.values()].some(pattern => pattern.petIds.length > 1 && pattern.channels.length > 1)) {
+      return { ...coverage, channelColumns: ["source", "loadedCount", "cap"], memberSets: [...patterns.values()] };
+    }
     return { ...coverage, memberColumns: ["petId", "source", "loadedCount", "cap"],
       memberRows: members.map(member => [member.petId, member.source, member.loadedCount, member.cap]) };
   }) };

@@ -180,7 +180,7 @@ async function exercise(question, { historyAccess, fixturePets = pets, onProvide
         petId: interpretation.petIds[0], conversationId: messages ? 'chat' : null, conversationPetId: messages ? conversationPetId : null, currentMessage: question });
     }
     if (!interpretation.readOnly) {
-      const decision = await resolveAskTurnSubject({ message: question, pets: context.eligiblePets, ownerId,
+      const decision = await resolveAskTurnSubject({ operationPetIds: interpretation.readPetIds ? interpretation.petIds : undefined, message: question, pets: context.eligiblePets, ownerId,
         selectedPetId: context.pet.id, recentConversation: context.conversationTurns,
         extractFrame: async () => interpretation.frame });
       assert.ok(!decision.resolution.requiresClarification && decision.resolution.petId, 'route subject gate must allow this fixture');

@@ -32,6 +32,8 @@ export type AskInterpretation = {
   readOperation?: Exclude<Operation, "update"> | null;
   selection?: "earliest" | "earliest_occurrence" | "latest" | "period" | "summary" | "comparison" | "reference";
   petIds: string[];
+  /** Server-validated read scope, independent from mixed-task mutation targets. */
+  readPetIds?: string[];
   topic: string;
   history: HistoryPlan | null;
   episodeTopic: "vomiting" | "soft stool" | "breathing" | null;

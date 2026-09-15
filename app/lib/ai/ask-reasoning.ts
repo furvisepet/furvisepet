@@ -333,7 +333,7 @@ export const askUnifiedJsonSchema = {
 } as const;
 
 const unifiedInstructions = [
-  "unrepresentedSourceGroups compress repeated source coverage. Each member retains its petId, source name, loadedCount and cap; the enclosing group supplies its status, reasons, completeness and empty represented-ID list. Loaded records without represented text are unavailable as answer evidence. Empty represented-ID lists never establish an absence in saved history.",
+  "unrepresentedSourceGroups compress repeated source coverage. memberSets expands each petIds member across every channels row using channelColumns. Each member retains its petId, source name, loadedCount and cap; the enclosing group supplies its status, reasons, completeness and empty represented-ID list. Loaded records without represented text are unavailable as answer evidence. Empty represented-ID lists never establish an absence in saved history.",
   "In compact history input, a contextRecord may omit its duplicated value and provide valueSource instead. Its complete unchanged text is in evidenceContract.represented.text, joined by sourceId = contextRecord.id. Read that source text with its pet and date metadata; the omission is transport deduplication, not missing evidence.",
   "You are Furvise, a calm, attentive pet-care companion. Return only strict JSON matching the supplied schema.",
   ...FURVISE_SHARED_PROMPT_RULES,
@@ -623,11 +623,16 @@ function enforceAskPromptContextBudget<T extends { contextRecords: AskContextRec
     // lifecycle facts on their existing safety path. Preserve normal advice
     // while preserving the records needed by mixed read-and-edit tasks.
     if (budgeted.evidenceContract.history && budgeted.evidenceContract.interpretation?.request) {
+      const referenceIds = budgeted.evidenceContract.interpretation.request.referenceTurnIds || [];
+      const unrelatedReceipt = contextRecords.findLastIndex(record => record.sourceType === "operation_receipt"
+        && record.metadata.receiptKind !== "action"
+        && !referenceIds.some(id => record.id === `operation:${id}` || record.id.startsWith(`operation:${id}:`)));
       // Requested fields remain evidence even when the task also reads history.
       const requestedFields = budgeted.evidenceContract.interpretation?.request?.profileFields || [];
       const optionalProfile = contextRecords.findLastIndex(record => record.sourceType === "profile"
         && !requestedFields.includes(record.kind) && !["species", "avoid", "lifecycle_status"].includes(record.kind));
       if (optionalProfile >= 0) index = optionalProfile;
+      else if (unrelatedReceipt >= 0 && contextRecords[index]?.sourceType === "care_update") index = unrelatedReceipt;
       else if (budgeted.evidenceContract.scope.authorizedPetIds.length > 3
         && contextRecords[index]?.sourceType === "care_update" && (counts.get(contextRecords[index].petId) || 0) <= 1) {
         // Preserve one historical source per cohort member before redundant
@@ -1343,7 +1348,10 @@ export function buildAskProviderRequest(promptContext: object) {
     // only needs IDs for represented evidence plus complete coverage/counts.
     const represented = new Set(eligibleAnswerSources(evidence).map(span => span.sourceId));
     const contextRecords = (promptContext as { contextRecords?: AskContextRecord[] }).contextRecords;
+    const pets = (promptContext as { pets?: Array<{ id: string; name: string; species: string }> }).pets;
     transported = { ...promptContext,
+      ...(pets ? { pets: pets.map(({ id, name, species }) => ({ id, name, species })),
+        petReferenceGuidance: "Use each pet's supplied name rather than inferred pronouns; preserve source attribution." } : {}),
       ...(contextRecords ? { contextRecords: contextRecords.map(record => {
         if (!represented.has(record.id) || record.value.length < 100) return record;
         const metadata = Object.fromEntries(Object.entries(record).filter(([key]) => key !== "value"));
@@ -1354,7 +1362,12 @@ export function buildAskProviderRequest(promptContext: object) {
       // remain on the server for verification, not duplicated in transport.
       operationReceipts: undefined, recordInventory: undefined,
       ...compactHistorySourceCoverage(evidence.sources, represented),
-      history: { ...evidence.history, candidateCount: evidence.history.candidateIds.length,
+      history: { ...evidence.history,
+        // Independent retrieval passes can finish at the same cursor. Transport
+        // each exact cursor once; the server retains every query receipt.
+        continuation: evidence.history.continuation?.filter((cursor, index, all) =>
+          all.findIndex(other => JSON.stringify(other) === JSON.stringify(cursor)) === index),
+        candidateCount: evidence.history.candidateIds.length,
         provenance: evidence.history.provenance.filter(source => represented.has(source.sourceId)),
         provenanceStatusCounts: evidence.history.provenance.reduce<Record<string, number>>((counts, source) => {
           counts[source.status] = (counts[source.status] || 0) + 1; return counts;

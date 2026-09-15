@@ -14,7 +14,7 @@ const correction = care('unlinked-source', 'milo', '2026-09-06', 'general', 'Cor
 
 test('production reproduction: correction-limited digestive summary still presents saved reports', async t => {
   clock(t); t.mock.timers.setTime(new Date('2026-09-08T12:00:00Z').getTime());
-  const r = await exercise('Summarize Milo\u2019s stomach history.', {history: true, rows: [stool, correction], messages: [message('Milo had stomach trouble years ago.')], interpretationProposal: plan(),
+  const r = await exercise('Summarize Milo\u2019s stomach history.', {history: true, expectedReviewCalls: 1, rows: [stool, correction], messages: [message('Milo had stomach trouble years ago.')], interpretationProposal: plan(),
     providerOverrides: {historySynthesis: [{sourceId: 'care:stool-source', text: stool.note}]}});
   console.log('CORRECTION SUMMARY FINAL:', final(r));
   assert.ok(r.serialized.includes(stool.note));
@@ -25,7 +25,7 @@ test('production reproduction: correction-limited digestive summary still presen
 test('production reproduction: completed interpretation usage must emit a provider attempt and safe failure reason', async t => {
   clock(t);
   const {interpretAskQuestion} = await import('../../app/lib/intelligence/interpret-ask.ts');
-  const base = await exercise('Summarize Milo stomach history.', {history: true, rows: [stool], messages: [message('Tell me about Milo.')]});
+  const base = await exercise('Summarize Milo stomach history.', {history: true, expectedReviewCalls: 0, rows: [stool], messages: [message('Tell me about Milo.')]});
   const events = [];
   // One deliberately invalid date reproduces the opaque post-usage failure.
   // It is NOT evidence that this field caused the reported live 503.
@@ -57,7 +57,7 @@ test('summary, correction-limited follow-up and authoritative Bruno reassignment
   clock(t); t.mock.timers.setTime(new Date('2026-09-08T12:00:00Z').getTime());
   const rows = [stool, vomit, correction, care('milo-later', 'milo', '2014-01-01', 'symptom', 'Milo vomited after a walk.')];
   const messages = [message('Tell me about Milo.')];
-  const opts = {history: true, fixturePets, rows, messages, graph: reassignmentGraph()};
+  const opts = {history: true, expectedReviewCalls: 1, fixturePets, rows, messages, graph: reassignmentGraph()};
   const summary = await exercise('Summarize Milo stomach history.', {...opts, interpretationProposal: plan(), providerOverrides: {historySynthesis: [{sourceId: 'care:stool-source', text: stool.note}]}});
   assert.match(final(summary), /soft stool for two days/); assert.doesNotMatch(final(summary), /Milo vomited after breakfast/);
   const saved = {id: 'summary', user_id: ownerId, conversation_id: 'chat', role: 'furvise', response_data: restoreAskEvidencePresentation(buildAskConversationResponse(summary.result.reasoning.answer), summary.result.reasoning.evidenceContract, summary.context.episodeResult), sequence_number: 2};
@@ -75,7 +75,7 @@ test('summary, correction-limited follow-up and authoritative Bruno reassignment
 test('correction uncertainty does not restore superseded, deleted or forgotten source prose', async t => {
   clock(t);
   for (const graph of [{withheld_source_ids: [stool.id]}, {sources: [{...stool, deleted_at: '2026-09-06T00:00:00Z'}]}, {sources: [{...stool, note: 'New source version.'}]}]) {
-    const r = await exercise('Summarize Milo stomach history.', {history: true, rows: [stool, correction], messages: [], graph, interpretationProposal: plan(), answer: stool.note});
+    const r = await exercise('Summarize Milo stomach history.', {history: true, expectedReviewCalls: 1, rows: [stool, correction], messages: [], graph, interpretationProposal: plan(), answer: stool.note});
     assert.doesNotMatch(final(r), /soft stool for two days/); noWrites(r);
   }
 });
@@ -84,7 +84,7 @@ test('earliest matching report differs from first occurrence without discarding 
   clock(t);
   const rows = [care('neg', 'milo', '2009-01-01', 'symptom', 'Milo had no vomiting on this day.'), care('prevention', 'milo', '2010-01-01', 'general', 'The vet discussed vomiting prevention.'), vomit, stool];
   for (const selection of ['earliest', 'earliest_occurrence']) {
-    const r = await exercise('When was the earliest vomiting report?', {history: true, rows, messages: [message('Tell me about Milo.')], interpretationProposal: plan({operation: 'recall', readOperation: 'recall', subject: 'conversation', petNames: [], selection, topic: 'vomiting', terms: ['vomit']})});
+    const r = await exercise('When was the earliest vomiting report?', {history: true, expectedReviewCalls: 1, rows, messages: [message('Tell me about Milo.')], interpretationProposal: plan({operation: 'recall', readOperation: 'recall', subject: 'conversation', petNames: [], selection, topic: 'vomiting', terms: ['vomit']})});
     assert.match(final(r), selection === 'earliest' ? /2009-01-01/ : /not proof of when it first happened/);
     if (selection === 'earliest_occurrence') assert.match(final(r), /vomiting prevention/);
     noWrites(r);
@@ -94,13 +94,13 @@ test('earliest matching report differs from first occurrence without discarding 
 test('explicit names, contextual labels and ambiguous pronouns remain server scoped', async t => {
   clock(t);
   const rows = [stool, care('luna-stool', 'luna', '2013-01-01', 'symptom', 'Luna had soft stool for one day.')];
-  const luna = await exercise('Summarize Luna stool history.', {history: true, rows, messages: [message('Tell me about Milo.')], interpretationProposal: plan({subject: 'selected', petNames: [], terms: ['stool']})});
+  const luna = await exercise('Summarize Luna stool history.', {history: true, expectedReviewCalls: 1, rows, messages: [message('Tell me about Milo.')], interpretationProposal: plan({subject: 'selected', petNames: [], terms: ['stool']})});
   assert.equal(luna.context.pet.id, 'luna'); assert.match(final(luna), /one day/); assert.doesNotMatch(final(luna), /two days/);
-  const follow = await exercise('What is her earliest stool report?', {history: true, rows, messages: [message('Tell me about Milo.'), message('Now tell me about Luna.', 2)], interpretationProposal: plan({operation: 'recall', readOperation: 'recall', selection: 'earliest', subject: 'explicit', petNames: ['Luna'], terms: ['stool']})});
+  const follow = await exercise('What is her earliest stool report?', {history: true, expectedReviewCalls: 1, rows, messages: [message('Tell me about Milo.'), message('Now tell me about Luna.', 2)], interpretationProposal: plan({operation: 'recall', readOperation: 'recall', selection: 'earliest', subject: 'explicit', petNames: ['Luna'], terms: ['stool']})});
   assert.equal(follow.context.pet.id, 'luna'); assert.match(final(follow), /2013-01-01/);
-  const back = await exercise('Return to Milo stomach history.', {history: true, rows, messages: [message('Tell me about Luna.')], interpretationProposal: plan({subject: 'conversation'})});
+  const back = await exercise('Return to Milo stomach history.', {history: true, expectedReviewCalls: 1, rows, messages: [message('Tell me about Luna.')], interpretationProposal: plan({subject: 'conversation'})});
   assert.equal(back.context.pet.id, 'milo'); assert.doesNotMatch(final(back), /one day/);
-  const ambiguous = await exercise('What happened to them?', {taskReviewResponse: true, history: true, fixturePets, rows, messages: [message('Compare Milo and Bruno.')], interpretationProposal: plan({subject: 'conversation', petNames: []})});
+  const ambiguous = await exercise('What happened to them?', {taskReviewResponse: true, history: true, expectedReviewCalls: 0, fixturePets, rows, messages: [message('Compare Milo and Bruno.')], interpretationProposal: plan({subject: 'conversation', petNames: []})});
   assert.equal(ambiguous.context.askInterpretation.clarification, 'subject'); assert.deepEqual(ambiguous.context.askInterpretation.petIds, []);
   for (const r of [luna, follow, back, ambiguous]) noWrites(r);
 });
@@ -122,7 +122,7 @@ test('safe interpretation diagnostics distinguish external failure and invalid s
     [{status: 'completed', output: [], usage}, 'EMPTY_OUTPUT', 'empty_output'],
   ]) {
     events.length = 0;
-    await assert.rejects(exercise('Summarize Milo stomach history.', {history: true, rows: [stool], messages: [], interpretationProposal: plan(), onProviderEvent: e => events.push(e), interpretationResponse: async () => response}), e => {
+    await assert.rejects(exercise('Summarize Milo stomach history.', {history: true, expectedReviewCalls: 1, rows: [stool], messages: [], interpretationProposal: plan(), onProviderEvent: e => events.push(e), interpretationResponse: async () => response}), e => {
       assert.equal(e.stage, 'interpretation_failed'); assert.equal(e.diagnostics.providerErrorCode, (code.startsWith('CONTRACT_') ? 'ASK_REQUEST_' : 'ASK_INTERPRETATION_') + code); assert.equal(e.diagnostics.providerErrorType, kind); return true;
     });
     assert.deepEqual(events.map(e => [e.stage, e.outcome]), [['interpretation', 'started'], ['interpretation', 'failed']]);
@@ -130,7 +130,7 @@ test('safe interpretation diagnostics distinguish external failure and invalid s
   }
   for (const name of ['Error', 'TimeoutError']) {
     events.length = 0;
-    await assert.rejects(exercise('Summarize Milo stomach history.', {history: true, rows: [stool], interpretationProposal: plan(), onProviderEvent: e => events.push(e), interpretationResponse: async () => {const e = new Error(marker); e.name = name; throw e;}}), e => e.diagnostics.providerErrorCode === (name === 'Error' ? 'ASK_INTERPRETATION_TRANSPORT' : 'ASK_INTERPRETATION_TIMEOUT'));
+    await assert.rejects(exercise('Summarize Milo stomach history.', {history: true, expectedReviewCalls: 1, rows: [stool], interpretationProposal: plan(), onProviderEvent: e => events.push(e), interpretationResponse: async () => {const e = new Error(marker); e.name = name; throw e;}}), e => e.diagnostics.providerErrorCode === (name === 'Error' ? 'ASK_INTERPRETATION_TRANSPORT' : 'ASK_INTERPRETATION_TIMEOUT'));
     assert.equal(events.filter(e => e.outcome === 'started').length, 1); assert.ok(!JSON.stringify(events).includes(marker));
   }
 });
@@ -174,7 +174,7 @@ test('actual callback provider events, admission and ledger settlement survive f
         result = await runAdmittedAiOperation({store, feature: 'ask', intendedModel: OPENAI_ANALYSIS_MODEL, env: {NODE_ENV: 'test'}, payload: {question: 'History'}, userId: ownerId, requestId}, async () => {
           await reserveAiCredit(credit); turn.credit('reserved');
           try {
-            const r = await exercise('Summarize Milo stomach history.', {history: true, rows: [stool, correction], messages: [], interpretationModel: OPENAI_ANALYSIS_MODEL, interpretationProposal: plan(), onProviderEvent: event => turn.providerEvent(event), onStage: stage => stages.push(stage), ...overrides});
+            const r = await exercise('Summarize Milo stomach history.', {history: true, expectedReviewCalls: 1, rows: [stool, correction], messages: [], interpretationModel: OPENAI_ANALYSIS_MODEL, interpretationProposal: plan(), onProviderEvent: event => turn.providerEvent(event), onStage: stage => stages.push(stage), ...overrides});
             noWrites(r); saved.set(logicalRequestId, r);
             await completeAiCredit(credit); turn.credit('completed').settlement('complete', 'reconciled');
             return r;
@@ -195,7 +195,7 @@ test('actual callback provider events, admission and ledger settlement survive f
     if (label.startsWith('interpretation')) { assert.match(failed.trace.providerFailureClass, /ASK_(?:INTERPRETATION|REQUEST_CONTRACT)_/); assert.deepEqual(failed.stages, []); }
     else assert.equal(failed.stages.at(-1), 'answer_generation');
     if (label === 'answer_timeout') assert.equal(failed.thrown.stage, 'primary_timeout');
-    const completed = await execute({}); assert.deepEqual(completed.stages, ['history_retrieval', 'episode_retrieval', 'answer_generation', 'final_presentation']); assert.equal(completed.trace.providerCallCount, 2); assert.equal(completed.trace.creditState, 'completed');
+    const completed = await execute({}); assert.deepEqual(completed.stages, ['history_retrieval', 'episode_retrieval', 'answer_generation', 'final_presentation']); assert.equal(completed.trace.providerCallCount, 3); assert.equal(completed.trace.creditState, 'completed');
     const after = store.getSnapshot('2026-09-04').calls;
     await execute({}); assert.equal(store.getSnapshot('2026-09-04').calls, after);
     await reconcileAiCreditLogicalRequest({feature: 'ask', supabase: ledger, logicalRequestId, payloadHash, userId: ownerId});
@@ -213,12 +213,12 @@ test('actual callback provider events, admission and ledger settlement survive f
 test('partial retrieval and an unresolved correction retain both limitations and usable facts', async t => {
   clock(t);
   const earlyCorrection = {...correction, occurred_at: '2010-01-01T00:00:00Z'};
-  const r = await exercise('Summarize Milo stomach history.', {history: true, rows: [earlyCorrection, stool], messages: [], interpretationProposal: plan(), historyPageCap: 2, failHistoryPage: 2});
+  const r = await exercise('Summarize Milo stomach history.', {history: true, expectedReviewCalls: 1, rows: [earlyCorrection, stool], messages: [], interpretationProposal: plan(), historyPageCap: 2, failHistoryPage: 2});
   assert.match(final(r), /soft stool for two days/); assert.match(final(r), /couldn't be loaded/); assert.match(final(r), /has not been verified/); noWrites(r);
 });
 
 test('missing named subject remains a clarification', async t => {
   clock(t);
-  const r = await exercise('What happened to them?', {taskReviewResponse: true, history: true, rows: [stool], messages: [], interpretationProposal: requestProposal(plan({operation:'clarify',subject: 'explicit', petNames: []}), 'What happened to them?')});
+  const r = await exercise('What happened to them?', {taskReviewResponse: true, history: true, expectedReviewCalls: 0, rows: [stool], messages: [], interpretationProposal: requestProposal(plan({operation:'clarify',subject: 'explicit', petNames: []}), 'What happened to them?')});
   assert.equal(r.context.askInterpretation.clarification, 'subject'); assert.deepEqual(r.context.askInterpretation.petIds, []); noWrites(r);
 });

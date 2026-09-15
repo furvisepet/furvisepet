@@ -188,3 +188,15 @@ test('historical state requires attribution and assessments remain bound to the 
  assert.deepEqual(group.reasons,['source_not_loaded_for_pet']);
  assert.ok(JSON.stringify(compact).length<JSON.stringify(sources).length);
  });
+
+test('factored pet-channel coverage round-trips every member and limitation',()=>{
+ const sources=Array.from({length:10},(_,i)=>['care_episodes','memories','current_state'].map(source=>({petId:'pet-'+i,source,loadedIds:[],loadedCount:0,cap:null,status:'not_loaded',reasons:['source_not_loaded_for_pet']}))).flat();
+ const group=compactHistorySourceCoverage(sources,new Set()).unrepresentedSourceGroups[0];
+ assert.deepEqual(group.channelColumns,['source','loadedCount','cap']);
+ const decoded=group.memberSets.flatMap(set=>set.petIds.flatMap(petId=>set.channels.map(([source,loadedCount,cap])=>({petId,source,loadedCount,cap}))));
+ const expected=sources.map(({petId,source,loadedCount,cap})=>({petId,source,loadedCount,cap}));
+ const sort=rows=>rows.map(row=>JSON.stringify(row)).sort();
+ assert.deepEqual(sort(decoded),sort(expected));
+ assert.deepEqual(group.reasons,['source_not_loaded_for_pet']);assert.equal(group.status,'not_loaded');
+ assert.ok(JSON.stringify(group).length<JSON.stringify(sources).length/2);
+});

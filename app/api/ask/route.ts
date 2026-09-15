@@ -700,6 +700,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
       let subjectDecision: Awaited<ReturnType<typeof resolveAskTurnSubject>>;
       try {
         subjectDecision = interpretation.readOnly ? readInterpretationSubject(interpretation, petId) : await resolveAskTurnSubject({
+          operationPetIds: interpretation.readPetIds ? interpretation.petIds : undefined,
           extractFrame: async () => interpretation.frame ?? await extractTurnSubjectFrame({ message: question, model, onProviderEvent, recentConversation }),
           message: question,
           ownerId: userId,

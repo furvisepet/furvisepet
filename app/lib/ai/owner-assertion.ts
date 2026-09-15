@@ -51,11 +51,19 @@ export function unquotedOwnerText(message: string): string {
 
 /** An explicit current-message opt-out can only remove persistence authority. */
 export function ownerDeclinesPersistence(message: string): boolean {
-  const text = unquotedOwnerText(message);
+  const text = splitSentencesPreservingFacts(unquotedOwnerText(message)).filter(sentence => {
+    // Discussing what an instruction means is not issuing that instruction.
+    // An actual conditional restriction ("if you summarize, don't save") stays.
+    return !(sentence.trim().endsWith("?")
+      && /^(?:if\s+i\s+(?:say|write|type)\b|what\s+(?:does|would)\s+(?:the\s+)?(?:phrase|wording)\b)/i.test(sentence.trim()));
+  }).join(" ");
+  // A prohibition on inserting a duplicate does not prohibit an explicitly
+  // requested edit. Keep the restriction narrow; a global no-save still wins.
+  const persistenceText = text.replace(/\b(?:do not|don['’]t|never)\s+(?:save|log|record|store)\s+(?:this|that|it)\s+as\s+(?:a\s+)?new\s+(?:note|entry|record)\b(?=[,;.!]?\s*(?:please\s+)?(?:edit|correct|update|amend)\s+(?:the|that|this|an? existing)\s+(?:old\s+|existing\s+)?(?:note|entry|record)\b)/gi, "");
   // Opt-outs often qualify a larger preparation request or coordinate two
   // forbidden actions. They remove authority regardless of model write intent.
-  if (/\b(?:do not|don['’]t|never)\s+(?:(?:create|make|add)\b[^.!?;]{0,100}\b(?:or|and)\s+)?(?:save|log|record|store|remember)\b|\bsave\s+nothing\b|\bwithout\s+(?:(?:creating|making|adding)\b[^.!?;]{0,100}\b(?:or|and)\s+)?(?:saving|logging|recording|storing|remembering)\b/i.test(text)) return true;
-  return splitSentencesPreservingFacts(text).some(sentence =>
+  if (/\b(?:do not|don['’]t|never)\s+(?:(?:create|make|add)\b[^.!?;]{0,100}\b(?:or|and)\s+)?(?:save|log|record|store|remember)\b|\bsave\s+nothing\b|\bwithout\s+(?:(?:creating|making|adding)\b[^.!?;]{0,100}\b(?:or|and)\s+)?(?:saving|logging|recording|storing|remembering)\b/i.test(persistenceText)) return true;
+  return splitSentencesPreservingFacts(persistenceText).some(sentence =>
     /^(?:please\s+)?(?:do not|don['’]t|never)\s+(?:save|log|record|store|remember)\s+(?:this|that|anything|any of this|these details)(?:\s+(?:message|information|update|observation|details))?(?:\s+(?:to|in|as)\s+[^.!?;]+)?[.!]?$/i.test(sentence.trim()));
 }
 

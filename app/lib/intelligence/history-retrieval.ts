@@ -297,8 +297,11 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   if (context.askInterpretation?.request && plan.terms.length) coverage.reasons.push("bounded_period_context_not_semantic_completeness");
   if (endpointComparison) coverage.reasons.push("bidirectional_endpoint_subset");
   coverage.retrieval = coverage.perPet.some(p => p.status === "unavailable") ? "unavailable" : coverage.continuation.length || ids.length > HISTORY_BUDGET.pets ? "partial" : "unknown";
+  const supplementalCorrectionIds = new Set<string>();
   if (correctionReserve && coverage.retrieval !== "unavailable") {
-    candidates.push(...await discoverDatedCorrectionNotes(candidates, ids.slice(0, HISTORY_BUDGET.pets), context.owner.userId, db, coverage, correctionDiscoveryDeadline));
+    const supplemental = await discoverDatedCorrectionNotes(candidates, ids.slice(0, HISTORY_BUDGET.pets), context.owner.userId, db, coverage, correctionDiscoveryDeadline);
+    for (const row of supplemental) supplementalCorrectionIds.add(row.id);
+    candidates.push(...supplemental);
   }
   coverage.candidateIds = candidates.map(row => `care:${row.id}`);
   const entries = await effectiveCandidates(candidates, owned, ids, context.owner.userId, db, coverage, deadline);
@@ -306,12 +309,18 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const selection = vetBriefRead ? "summary" : context.askInterpretation?.request && endpointComparison ? "comparison" : context.askInterpretation?.selection;
   const occurrence = (entry: CareEntryRow) => classifyOccurrenceReport([entry.title, entry.note].filter(Boolean).join(": "),
     context.eligiblePets.find(pet => pet.id === entry.pet_profile_id)?.name || "", plan.terms);
-  const matchingEntries = entries.filter(entry => historyDateAccessible(entry.occurred_at, context.historyAccess) && (futureSourceRequested || Date.parse(entry.occurred_at) <= asOf)
+  const periodEntries = entries.filter(entry => historyDateAccessible(entry.occurred_at, context.historyAccess) && (futureSourceRequested || Date.parse(entry.occurred_at) <= asOf)
     && (!plan.from || Date.parse(careOccurrence(entry, context.timeZone)) >= Date.parse(plan.from))
     && (!plan.to || Date.parse(careOccurrence(entry, context.timeZone)) < Date.parse(plan.to))
     && (!!vetBriefRead || !!context.askInterpretation?.request || !plan.terms.length || plan.terms.some(term =>
     `${entry.title || ""} ${entry.note}`.toLocaleLowerCase().includes(term.toLocaleLowerCase()))));
-  const relevant = selection === "earliest_occurrence" ? ids.flatMap(petId => occurrenceCandidates(matchingEntries.filter(entry => entry.pet_profile_id === petId), occurrence, entry => entry.occurred_at)) : matchingEntries;
+  // A later correction qualifies the requested period without becoming an
+  // observation within it. Only independently discovered and freshly validated
+  // sources may cross the query window; subscription access still applies.
+  const matchingEntries = [...periodEntries, ...entries.filter(entry => supplementalCorrectionIds.has(entry.id)
+    && !periodEntries.some(row => row.id === entry.id) && historyDateAccessible(entry.occurred_at, context.historyAccess)
+    && Date.parse(entry.occurred_at) <= asOf)];
+  const relevant = selection === "earliest_occurrence" ? ids.flatMap(petId => occurrenceCandidates(periodEntries.filter(entry => entry.pet_profile_id === petId), occurrence, entry => entry.occurred_at)) : periodEntries;
   const relevantIds = new Set(relevant.map(entry => entry.id));
   const eventRelevance = historyEventRelevance(matchingEntries.map(entry => `${entry.title || ""} ${entry.note}`),
     eventTerms);

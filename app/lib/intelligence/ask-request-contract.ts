@@ -9,7 +9,7 @@ import { emptyProposedSemanticFrame, validateProposedSemanticFrame } from "./sem
 import type { AskInterpretation } from "./interpret-ask.ts";
 import type { FurviseLiveContext } from "./types.ts";
 import { buildRecentSubjectState } from "./entities/recent-subject-state.ts";
-import { explicitlyNamedOwnedPets } from "./entities/resolve-turn-subject.ts";
+import { explicitMutationTarget, explicitlyNamedOwnedPets } from "./entities/resolve-turn-subject.ts";
 import { ownerDeclinesPersistence } from "../ai/owner-assertion.ts";
 
 /** One semantic read request. This is not evidence and grants no mutation authority.
@@ -76,7 +76,7 @@ export const ASK_REQUEST_INSTRUCTIONS = [
   "Questions about whether a previous save or edit happened require an owned read scope, not conversation-only scope. Resolve the referenced user turn and pet; execution receipts are looked up by the server. Assistant wording never proves success.",
   "Use operation navigate with mode read, evidenceBasis null and the owned target scope for opening an application page, including a navigation request combined with a general question or supplied fictional calculation. Navigation needs an owned destination, not historical evidence. Use no history terms, dates, quantity or evidenceNeeds. If any part asks for actual stored facts, use the appropriate saved_history operation instead. Opening a page grants no writes. Keep every requested part in requirements and the original question.",
   "projection is an optional typed execution proposal, never evidence. For a table/CSV consisting ONLY of pet names and recorded body mass, set projection with exact requested nameHeader/valueHeader, quantity body_mass, canonical requested unit kg/g/mg/lb and requested order. Otherwise set null. It supplies no measurements and authorizes no facts; the server can compute conversions, sort and render verified records. Additional narrative, medical conclusions, arithmetic across pets, ambiguous fields or additional columns require null. Independent review still checks the original whole question.",
-  "evidenceNeeds decomposes a saved-history question into at most four distinct factual parts that need records. Each quote is an exact contiguous substring of the current USER request (sourceTurnId null), or a referenced prior USER turn whose id is in referenceTurnIds. Never use assistant text. Include the local date or period in each exact quote when it belongs to that requested fact; do not collapse differently dated facts into an undated keyword. petNames narrows each need to its requested pets within the overall authorized scope; use [] when the need applies to the entire scoped group. Never attach another pet’s attribute to this pet. order is earliest or latest when that part requests a temporal boundary, otherwise context; opposite endpoints need separately directed searches. Keep every required comparison endpoint, cause/uncertainty and requested fact in scope. Give each part up to six discriminating lexical terms and ordinary synonyms, not output-format words. Do not invent a need from a paraphrase. These are advisory search facets, not factual premises or access authority. Use [] for non-history tasks. The original entire question remains authoritative even when decomposition is incomplete.",
+  "evidenceNeeds decomposes a saved-history question into at most four distinct factual parts that need records. Each quote is an exact contiguous substring of the current USER request (sourceTurnId null), or a referenced prior USER turn whose id is in referenceTurnIds. Never use assistant text. Include the local date or period in each exact quote when it belongs to that requested fact; do not collapse differently dated facts into an undated keyword. For mixed tasks, scope/petNames identifies the write destination, while each evidenceNeed petNames identifies the explicitly named owned pet whose records must be read. Keep these independent; never copy a read pet’s facts into another pet’s update. For read tasks, petNames narrows each need to its requested pets within the overall authorized scope; use [] when the need applies to the entire scoped group. Never attach another pet’s attribute to this pet. order is earliest or latest when that part requests a temporal boundary, otherwise context; opposite endpoints need separately directed searches. Keep every required comparison endpoint, cause/uncertainty and requested fact in scope. Give each part up to six discriminating lexical terms and ordinary synonyms, not output-format words. Do not invent a need from a paraphrase. These are advisory search facets, not factual premises or access authority. Use [] for non-history tasks. The original entire question remains authoritative even when decomposition is incomplete.",
   "Return one ask-request.v2 contract. requirements describe visible answer content, language and format; execution constraints such as no saving belong in mode, not prose requirements. Interpret the user's intent semantically; do not answer the question. This contract controls bounded reads, never permission to write.",
   "premiseQuotes contains verbatim factual premises from current or prior USER text only when evidenceBasis is supplied_context. Questions, output labels, requested column names and formatting instructions are NOT supplied facts. If the required values were not supplied and belong to an owned pet, choose saved_profile for current profile fields only, otherwise saved_history, and retrieve them even for a one-line or structured answer. Use [] for saved_history/saved_profile/general/null. Never quote an instruction or question as if it supplied a missing value.",
   "excludedPetNames lists owned pets explicitly excluded from this read; petNames lists only the requested subjects. Use canonical supplied owned names, resolving obvious unique spelling abbreviations from the whole request. An excluded name is not the subject. A clear subject, topic and ordering request needs retrieval, not reference clarification.",
@@ -413,9 +413,22 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     p.requirements = [];
   }
   const { from, to } = calendarWindowToInstants({ from: p.from === null ? null : `${p.from}T00:00:00.000Z`, to: p.to === null ? null : `${p.to}T00:00:00.000Z` }, context.timeZone);
+  const explicitWriteTarget = p.mode === "mixed" ? explicitMutationTarget(context.currentMessage, owned) : null;
+  // Additional read subjects require an explicit USER name and a grounded
+  // evidence clause. They do not enter the mutation authority set.
+  const needPets = explicitWriteTarget && petIds.length === 1 && petIds[0] === explicitWriteTarget
+    ? owned.filter(pet => petIds.includes(pet.id) || explicitPets.some(named => named.id === pet.id))
+    : owned.filter(pet => petIds.includes(pet.id));
   const needPlan = historical
-    ? validateEvidenceNeeds(p.evidenceNeeds, context.currentMessage, context.conversationTurns, p.referenceTurnIds, owned.filter(pet => petIds.includes(pet.id)))
+    ? validateEvidenceNeeds(p.evidenceNeeds, context.currentMessage, context.conversationTurns, p.referenceTurnIds, needPets)
     : { needs: [], issues: [] };
+  for (let index = needPlan.needs.length - 1; index >= 0; index--) {
+    const need = needPlan.needs[index];
+    if (need.petIds?.some(id => !petIds.includes(id) && !explicitlyNamedOwnedPets(need.quote, needPets).some(pet => pet.id === id))) {
+      needPlan.needs.splice(index, 1);
+      needPlan.issues.push("unscoped_evidence_need");
+    }
+  }
   const request: AskRequestContract = {
     mutationIntent: !readOnly ? p.mutationIntent as AskRequestContract["mutationIntent"] : null,
     recordSelection: historical && readOnly ? p.recordSelection as AskRequestContract["recordSelection"] : null,
@@ -435,7 +448,9 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
       ? "scoped_register" as const : "displayed_list" as const } : undefined;
   return { ...(target ? { referenceTarget: { ...target, ...(target.basis === "scoped_register" ? { period: explicitEpisodePeriod! } : {}) } } : {}), version: "ask-interpretation.v1", request, operation: readOnly ? operation : "update",
     readOperation: p.mode === "update" ? null : operation, selection: p.selection as AskInterpretation["selection"],
-    petIds, topic: p.topic, readOnly, clarification, frame,
+    petIds, ...(explicitWriteTarget && petIds.length === 1 && petIds[0] === explicitWriteTarget
+      ? { readPetIds: [...new Set([...petIds, ...needPlan.needs.flatMap(need => need.petIds || [])])] } : {}),
+    topic: p.topic, readOnly, clarification, frame,
     referenceQuestion: p.question as string, ...(conversationOnly ? { conversationOnly: true } : {}),
     episodeTopic: episodeTarget || operation === "count" || operation === "episode" ? p.episodeTopic as AskInterpretation["episodeTopic"] : null,
     ordinal: p.ordinal as AskInterpretation["ordinal"],

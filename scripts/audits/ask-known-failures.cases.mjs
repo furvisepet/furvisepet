@@ -7,7 +7,7 @@ const proposal=(patch={})=>({operation:'recall',readOperation:'recall',selection
 test('production callback retrieves Bruno correction with no August 19 original',async t=>{
  clock(t);
  const row=care('next-day','milo','2026-08-20','general',"Correction to yesterday's vomiting note: that was my sister's dog Bruno, not Milo. Milo did not vomit and was acting normally.");
- const run=await exercise('Was the dog who vomited on August 19 Milo or Bruno?',{history:true,expectedProviderCalls:1,fixturePets:pets.filter(p=>p.id!=='bruno'),rows:[row],interpretationProposal:proposal(),answer:'Milo vomited.'});
+ const run=await exercise('Was the dog who vomited on August 19 Milo or Bruno?',{history:true,expectedReviewCalls:1,expectedProviderCalls:1,fixturePets:pets.filter(p=>p.id!=='bruno'),rows:[row],interpretationProposal:proposal(),answer:'Milo vomited.'});
  assert.ok(run.context.askHistory.entries.some(row=>row.id==='next-day'));
  assert.doesNotMatch(JSON.stringify(run.result.reasoning.answer),/Milo vomited[.!]/);
  assert.notEqual(run.result.answerValidation.assessment.outcome,'complete');
@@ -18,7 +18,7 @@ test('production callback retrieves Bruno correction with no August 19 original'
 test('historical premise is read-only through generation and governance',async t=>{
  clock(t);
  const run=await exercise('Milo had June and August stool notes. Put those two periods in order without calling June later.',{
- history:true,rows:[care('june','milo','2026-06-15','general','Milo had two soft stools.'),care('aug','milo','2026-08-15','general','Milo had one soft stool.')],
+ history:true,expectedReviewCalls:1,rows:[care('june','milo','2026-06-15','general','Milo had two soft stools.'),care('aug','milo','2026-08-15','general','Milo had one soft stool.')],
  interpretationProposal:proposal({selection:'summary',topic:'stool',terms:['stool'],from:null,to:null}),answer:'June came before August.'});
  assert.equal(run.context.askInterpretation.readOnly,true);
  assert.deepEqual(run.result.acceptedCareActions,[]);
