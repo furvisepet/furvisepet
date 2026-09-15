@@ -10,7 +10,7 @@ import { logIntelligenceEvent } from '../intelligence/logging';
 import type { FurviseLiveContext } from '../intelligence/types';
 import { parseVetBriefAppointmentPlan, vetBriefSearchVocabulary, vetBriefAppointmentPlanInstructions, vetBriefAppointmentPlanSchema } from './appointment-plan.ts';
 import { parseVetBriefContent, vetBriefContentSchema } from './content.ts';
-import { vetBriefEvidence } from './evidence.ts';
+import { vetBriefEvidence, vetBriefDateInstructions } from './evidence.ts';
 import { prepareReviewedVetBrief, vetBriefReviewInstructions } from './review.ts';
 import { vetBriefGenerationTemplate, vetBriefReviewContent } from './report.ts';
 import { vetBriefUrgency } from './urgency.ts';
@@ -68,6 +68,7 @@ export async function prepareVetBrief({ context, supabase, baseline, retrospecti
         input: { purpose: retrospective ? "retrospective_care_history_summary" : "vet_visit_preparation", evidence, reviewRepair: reviewRepair ? { failedChecks: reviewRepair.failedChecks, repairSections: reviewRepair.repairSections, repairInstructions: reviewRepair.repairInstructions, draftToRepair: vetBriefReviewContent(reviewRepair.document) } : null, allowedSourceRecordIds: allowedIds, immutableProfile: template.pet, urgency: template.urgency || null, reportDates: template.dateRange },
         instructions: [
           vetBriefUncertaintyLanguageInstructions,
+          vetBriefDateInstructions,
           ...getIntelligenceFeatureMode('vet_brief').promptInstructions.filter(rule => !rule.includes('documentTemplate') && !rule.includes('Copy immutable') && !rule.includes('one or two useful questions')),
           'For retrospective_care_history_summary, describe historical care respectfully without implying a future appointment or a current emergency. Discussion questions may be empty.',
           'Use one canonical events array. Each dated event appears once. Choose medication for a medication or supplement record; choose history for every other relevant dated fact, including current owner observations, symptoms, measurements, examinations, vaccination, laboratory findings, food and care. Use a brief descriptive category such as the actual kind of observation, never a diagnosis inferred from a storage label. The server places medication records separately and all other dated evidence under neutral supporting history. Do not emit parallel section arrays or duplicate one event. Keep multiple relevant facts from one event together. The overview may summarize the same evidence.',
@@ -114,7 +115,7 @@ export async function prepareVetBrief({ context, supabase, baseline, retrospecti
     },
     review: async document => {
       const review = (fastRecovery = false) => generateStructuredFeatureResponse({
-      input: { draft: vetBriefReviewContent(document), evidence, visitReason: context.currentMessage },
+      input: { draft: vetBriefReviewContent(document), evidence, visitReason: context.currentMessage, dateInterpretation: vetBriefDateInstructions },
       instructions: 'Ordinary toy preference, normal meal ingredients, puzzle-feeder/rest timings and routine grooming are not clinical findings for an unspecified concern unless evidence explicitly links them to an abnormal change. Their inclusion fails visitFocused; calling them isolated observations or asking the vet whether they matter does not make them relevant. A relevant event must omit incidental unrelated facts from the same source. Keep negative historical claims scoped to the particular source, and describe post-vaccination symptoms as temporal/owner-reported unless causation is documented. Reject visitFocused if normal historical meals, grooming or enrichment are labeled as a clinical concern/risk without a direct relationship to this appointment. The synopsis must not inventory routine baseline observations. Full clinical details may live in events instead of the synopsis; do not demand their duplication. Coverage disclosure is added separately by the server and must not be repeated in authored synopsis or gaps. ' + vetBriefReviewInstructions + '\n' + vetBriefDuplicationReviewInstructions + '\nThe currentOwnerReport is admissible as an owner report, not as independently verified historical evidence. Current owner symptoms must be preserved. A request to correlate conditions must be answered with supported chronology and explicit uncertainty, never a fabricated diagnosis. The server-provided urgent guidance is appropriate triage, not a factual history claim. Two to four useful questions are allowed for complex visits. The evidence is bounded: do not demand unavailable history, invent missing records or interpret coverage limits as proof of absence.',
       schema: vetBriefPublicationReviewSchema, schemaName: 'vet_brief_review', maxOutputTokens: 12288, reasoningEffort: fastRecovery ? 'low' : 'medium', timeoutMs: 35000, parse: value => parseVetBriefPublicationReview(value, document),
       });
