@@ -1,13 +1,14 @@
-import * as Sentry from "@sentry/nextjs";
+import type { Instrumentation } from "next";
+import { requestErrorEvent } from "./app/lib/operations/request-error-event";
 
-export async function register() {
-  if (process.env.NEXT_RUNTIME === "nodejs") {
-    await import("./sentry.server.config");
+export const onRequestError: Instrumentation.onRequestError = async (_error, _request, context) => {
+  const event = requestErrorEvent(context.routePath, crypto.randomUUID(), new Date().toISOString());
+  console.error("[Furvise operations]", event);
+  try {
+    const { writeDashboardEvent } = await import("./app/lib/operations/dashboard-telemetry");
+    await writeDashboardEvent(event);
+  } catch {
+    // Monitoring must never cause another failed request or expose database errors.
+    console.warn("[Owner monitoring] telemetry write unavailable");
   }
-
-  if (process.env.NEXT_RUNTIME === "edge") {
-    await import("./sentry.edge.config");
-  }
-}
-
-export const onRequestError = Sentry.captureRequestError;
+};

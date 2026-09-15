@@ -1,4 +1,3 @@
-import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 import { getSecurityHeadersForNextConfig } from "./app/lib/security/headers/security-headers";
 
@@ -83,20 +82,4 @@ const immutableAssetHeaders = [
   { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
 ] as const;
 
-// Artifact transfer is explicit; ordinary builds only compile and instrument.
-// Runtime error reporting is configured separately in the instrumentation files.
-const uploadSentryArtifacts = process.env.FURVISE_SENTRY_ARTIFACT_UPLOADS === "1"
-  && process.env.FURVISE_LOCAL_VALIDATION !== "1";
-export default withSentryConfig(nextConfig, {
-  org: "furvise",
-  project: "nextjs",
-  silent: !process.env.CI,
-  widenClientFileUpload: true,
-  ...(!uploadSentryArtifacts ? { sourcemaps: { disable: true }, telemetry: false,
-    release: { create: false, finalize: false } } : {}),
-  webpack: {
-    treeshake: {
-      removeDebugLogging: true,
-    },
-  },
-});
+export default nextConfig;

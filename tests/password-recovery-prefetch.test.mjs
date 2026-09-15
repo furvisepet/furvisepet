@@ -8,7 +8,6 @@ import {
 } from "../app/lib/security/auth-abuse/recovery-confirmation.mjs";
 import { parseRecoveryFormBody, parseRecoveryFragment } from "../app/lib/security/auth-abuse/recovery-fragment.mjs";
 import { createRecoveryContinuationIdentity } from "../app/lib/security/auth-abuse/recovery-secrets.mjs";
-import { SENTRY_DATA_COLLECTION, SENTRY_PRIVACY_OPTIONS } from "../app/lib/operations/sentry-privacy.ts";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const appOrigin = "https://www.furvise.com";
@@ -169,7 +168,7 @@ test("continuation persistence and source contain no raw token-bearing data", as
   assert.doesNotMatch(helper, /key: `[^`]*\$\{token\}/);
 });
 
-test("fragments stay out of HTTP-facing state, Sentry payloads, and request-new-link prefetch", () => {
+test("fragments stay out of HTTP-facing state and request-new-link prefetch", () => {
   const page = read("app/reset-password/confirm/page.tsx");
   const action = read("app/api/auth/recovery/continue/route.ts");
   assert.match(page, /const fragment = window\.location\.hash/);
@@ -177,10 +176,7 @@ test("fragments stay out of HTTP-facing state, Sentry payloads, and request-new-
   assert.match(page, /href="\/forgot-password" prefetch={false}/);
   assert.doesNotMatch(page, /Sentry|console\./);
   assert.doesNotMatch(action, /console\.|captureException|captureMessage|emitOperationalEvent/);
-  assert.equal(SENTRY_DATA_COLLECTION.urlQueryParams, false);
-  assert.equal(SENTRY_PRIVACY_OPTIONS.beforeBreadcrumb(), null);
-  const scrubbed = SENTRY_PRIVACY_OPTIONS.beforeSend({ request: { url: `${appOrigin}/reset-password/confirm#token_hash=${token}` } });
-  assert.equal(scrubbed.request, undefined);
+
 });
 
 test("the continuation form accepts exactly the two reconstructed fields", () => {

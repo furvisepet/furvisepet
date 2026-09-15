@@ -22,13 +22,6 @@ test("readiness exposes only component states and ignores deferred Product infra
   assert.doesNotMatch(route, /catalog|product_ingestion|impact/i);
   assert.doesNotMatch(route, /config\.missing|process\.env\[[^\]]+\].*Response/);
 });
-test("missing Sentry is an operational warning and cannot fail core readiness", () => {
-  const config = source("app/lib/operations/production-config.ts");
-  const requiredLoop = config.slice(config.indexOf("for (const name of ["), config.indexOf("]) {", config.indexOf("for (const name of [")));
-  assert.doesNotMatch(requiredLoop, /NEXT_PUBLIC_SENTRY_DSN/);
-  assert.match(config, /if \(!env\.NEXT_PUBLIC_SENTRY_DSN\?\.trim\(\)\) warnings\.push\("SENTRY_DSN_MISSING"\)/);
-  assert.match(source("app/api/readiness/route.ts"), /configuration: config\.ready \? "ready" : "misconfigured"/);
-});
 test("bounded raw body preserves normal bytes and rejects declared or streamed oversize bodies", async () => {
   const payload = new TextEncoder().encode('{"id":"evt_test"}');
   assert.deepEqual(await readBoundedRawBody(new Request("https://furvise.test", { body: payload, method: "POST" }), STRIPE_WEBHOOK_BODY_LIMIT), payload);
@@ -64,11 +57,9 @@ test("critical operational failures are durable with safe correlation tags", () 
   const logger = source("app/lib/operations/events/logger.ts");
   const webhook = source("app/api/billing/webhook/route.ts");
   const ask = source("app/api/ask/route.ts");
-  assert.match(logger, /Sentry\.captureException/);
-  assert.match(logger, /DURABLE_FAILURE_EVENT_TYPES/);
-  assert.doesNotMatch(logger.slice(logger.indexOf("DURABLE_FAILURE_EVENT_TYPES"), logger.indexOf("export const durableOperationalLogger")), /started|completed/);
-  for (const field of ["errorCode", "eventType", "operationId", "requestId", "route"]) assert.match(logger, new RegExp(`${field}: captureTag\\(event\\.${field}\\)`));
-  assert.match(logger, /severity: event\.severity/);
+  assert.match(logger, /persistDashboardEvent\(event\)/);
+  assert.match(logger, /metadata: allowlistedMetadata/);
+  assert.match(logger, /actor: safeOperationalIdentifier/);
   assert.match(webhook, /emitOperationalEvent\([\s\S]*operationId: event\.id[\s\S]*severity: "critical"/);
   assert.match(ask, /eventType: "provider_failure"[\s\S]*route: "\/api\/ask", severity: "high"/);
   assert.match(ask, /persistence\|reconciliation\|credit_/);

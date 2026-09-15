@@ -12,7 +12,6 @@ export function validateProductionConfiguration(env: Record<string, string | und
     for (const name of ["OPENAI_API_KEY", "FURVISE_AI_DAILY_CALL_LIMIT", "FURVISE_AI_DAILY_COST_LIMIT_USD"]) if (!env[name]?.trim()) missing.push(name);
   }
   if (!env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim()) warnings.push("TURNSTILE_SITE_KEY_MISSING");
-  if (!env.NEXT_PUBLIC_SENTRY_DSN?.trim()) warnings.push("SENTRY_DSN_MISSING");
   if (env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "true") warnings.push("GOOGLE_OAUTH_REQUIRES_OPERATOR_VERIFICATION");
   return { missing: [...new Set(missing)].sort(), ready: missing.length === 0, warnings };
 }
