@@ -32,6 +32,7 @@ import { buildConfirmedLossCareAction, resolvePetLossContext } from "../ai/pet-l
 import { buildSourceGroundedResolutionAction, isRecoveryGroundedForConcern } from "../ai/concern-engine.ts";
 import { createAskEvidenceContract, type AskEvidenceContract } from "./ask-evidence.ts";
 import { emptyProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
+import { explicitOwnerNote } from "./explicit-owner-note.ts";
 
 export type GovernedAskExecutionPlan = {
   version: "ask-execution.v1"; sourceMessageId: string; petId: string;
@@ -172,6 +173,17 @@ export async function runFurviseIntelligence({
       recoveryEvidence: { outcome: "none", surfaceText: null, targetConcept: null, confidence: 1 } };
   };
   if (readOnlyRecall) suppressPersistence();
+  const ownerNote = !readOnlyRecall && authoritativePetIds.length === 1
+    && authoritativePetIds[0] === context.pet.id
+    && context.eligiblePets.some(pet => pet.id === context.pet.id && pet.user_id === context.owner.userId)
+    && ["update", "mixed"].includes(context.askInterpretation?.request?.mode || "")
+    ? explicitOwnerNote({ message: context.currentMessage, pet: context.pet, pets: context.eligiblePets, timeZone: context.timeZone }) : null;
+  if (ownerNote) {
+    // A note-only instruction authorizes one verbatim record. Optional model
+    // interpretations cannot add diagnoses, resolve episodes or veto the note.
+    suppressPersistence();
+    reasoning.semanticEvents = [ownerNote];
+  }
   // A record edit is a distinct operation from an observed care transition.
   // Remove only the duplicated correction proposal when the typed edit channel
   // is present; the action still needs an owned binding and confirmation.
