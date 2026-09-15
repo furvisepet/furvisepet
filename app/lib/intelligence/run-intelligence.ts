@@ -33,6 +33,7 @@ import { buildSourceGroundedResolutionAction, isRecoveryGroundedForConcern } fro
 import { createAskEvidenceContract, type AskEvidenceContract } from "./ask-evidence.ts";
 import { emptyProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
 import { explicitOwnerNote } from "./explicit-owner-note.ts";
+import { reviewedTaskReadyForExecution } from "./answer-assessment.ts";
 
 export type GovernedAskExecutionPlan = {
   version: "ask-execution.v1"; sourceMessageId: string; petId: string;
@@ -409,7 +410,8 @@ export async function runFurviseIntelligence({
   // A source-only failure is not a completed mixed request. Do not commit the
   // independently proposed side effects after its answer failed final review.
   const failedAnswer = answerValidation.assessment?.checks.taskCompletion === "failed"
-    && !readReviewedHistoryAnswer(answerValidation.response);
+    && !readReviewedHistoryAnswer(answerValidation.response)
+    && !reviewedTaskReadyForExecution(answerValidation.completion || [], answerValidation.assessment.checks);
   if (failedAnswer) {
     acceptedCareActions.length = 0;
     acceptedSemanticEvents.length = 0;
