@@ -2,13 +2,15 @@ import { historyNarrativeSchema, parseHistoryNarrative, type HistoryNarrative } 
 
 /** Replacements are proposals. The reconstructed answer still requires review. */
 export function proseRepairSchema(count: number) {
-  const sentence = historyNarrativeSchema.properties.sentences.items;
+  const chunks = historyNarrativeSchema.properties.sentences;
   return { type: "object", additionalProperties: false, required: ["replacements"], properties: {
     replacements: { type: "array", minItems: 1, maxItems: count, items: {
-      ...sentence, required: ["index", ...sentence.required], properties: {
-        ...sentence.properties,
-        text: { ...sentence.properties.text, pattern: "^[^\\r\\n]*$" },
+      type: "object", additionalProperties: false, required: ["index", "sentences"], properties: {
         index: { type: "integer", enum: Array.from({length: count}, (_, i) => i) },
+        sentences: { ...chunks, maxItems: 9 - count, items: { ...chunks.items, properties: {
+          ...chunks.items.properties,
+          text: { ...chunks.items.properties.text, pattern: "^[^\\r\\n]*$" },
+        } } },
       },
     } },
   } };
@@ -20,21 +22,23 @@ export function applyProseRepair(draft: HistoryNarrative, value: unknown, availa
     || Object.keys(value).join() !== "replacements") return fail();
   const replacements = (value as { replacements: unknown }).replacements;
   if (!Array.isArray(replacements) || !replacements.length || replacements.length > draft.sentences.length) return fail();
-  const sentences = structuredClone(draft.sentences), seen = new Set<number>();
+  const replacementsByIndex = new Map<number, HistoryNarrative["sentences"]>();
   for (const item of replacements) {
     if (!item || typeof item !== "object" || Array.isArray(item)) return fail();
     const { index, ...sentence } = item;
-    if (!Number.isInteger(index) || index < 0 || index >= sentences.length || seen.has(index)) return fail();
-    const parsed = parseHistoryNarrative({ sentences: [sentence] });
+    if (!Number.isInteger(index) || index < 0 || index >= draft.sentences.length || replacementsByIndex.has(index)) return fail();
+    // Accept the previous single-chunk contract for in-flight proposals too.
+    const parsed = parseHistoryNarrative("sentences" in sentence ? sentence : { sentences: [sentence] });
     if (!parsed) return fail();
     // A text correction must not drop evidence for unchanged facts in that
     // chunk. These remain candidates, not an approval of the replacement.
     const available = availableSourceIds ? new Set(availableSourceIds) : null;
-    const originalIds = sentences[index].sourceIds.filter(id => !available || available.has(id));
-    seen.add(index); sentences[index] = { ...parsed.sentences[0],
-      sourceIds: [...new Set([...parsed.sentences[0].sourceIds, ...originalIds])],
-    };
+    const originalIds = draft.sentences[index].sourceIds.filter(id => !available || available.has(id));
+    replacementsByIndex.set(index, parsed.sentences.map(chunk => ({ ...chunk,
+      sourceIds: [...new Set([...chunk.sourceIds, ...originalIds])],
+    })));
   }
+  const sentences = draft.sentences.flatMap((chunk, index) => replacementsByIndex.get(index) ?? [structuredClone(chunk)]);
   const result = parseHistoryNarrative({ sentences });
   return result || fail();
 }
