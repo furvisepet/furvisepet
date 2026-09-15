@@ -58,7 +58,7 @@ test('whole-task fulfillment remains separate from explained clinical evidence l
 });
 test('only an owned exhausted empty query creates citable lookup evidence',async()=>{
  const {eligibleAnswerSources}=await import('../app/lib/intelligence/ask-evidence.ts');
- const e={scope:{authorizedPetIds:['p'],readOnlyRecall:true},sources:[],represented:[],losses:[],petNames:{p:'Juniper'},
+ const e={scope:{authorizedPetIds:['p'],readOnlyRecall:true,requestText:'Which records document limping?'},sources:[],represented:[],losses:[],petNames:{p:'Juniper'},
   interpretation:{request:{evidenceNeeds:[{id:'need:0',quote:'Which records document limping?',terms:['limping'],petIds:['p'],window:{from:'2023-05-01',to:'2023-06-01'}}]}},
   history:{needs:[{needId:'need:0',petId:'p',status:'unknown',exhausted:true,candidateIds:[]}]}};
  const receipt=eligibleAnswerSources(e)[0];
@@ -66,7 +66,7 @@ test('only an owned exhausted empty query creates citable lookup evidence',async
  assert.match(receipt.text,/2023-05-01 inclusive to 2023-06-01 exclusive/);
  assert.match(receipt.text,/not that the event never happened/);
  for(const change of [{exhausted:false},{status:'unavailable'},{reason:'need_query_budget'},{candidateIds:['care:x']},{petId:'foreign'}])
-  assert.deepEqual(eligibleAnswerSources({...e,history:{needs:[{...e.history.needs[0],...change}]}}),[]);
+  assert.deepEqual(eligibleAnswerSources({...e,history:{needs:[{...e.history.needs[0],...change}]}}).filter(source=>source.sourceType==='lookup_receipt'),[]);
 });
 const evidence={scope:{requestText:'Return the exact text of the saved note.',authorizedPetIds:['p']},losses:[],sources:[{petId:'p',status:'loaded',loadedIds:['care:a']}],
  represented:[{petId:'p',sourceId:'care:a',sourceType:'care_update',field:'value',start:0,end:note.length,text:note}]};

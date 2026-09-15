@@ -112,3 +112,46 @@ export function parseRepairableTaskHistoryReview(value: unknown, sentenceCount: 
   }
   return { ...parsed, rejectionReason: !parsed.approved && typeof rejectionReason === "string" ? rejectionReason : null };
 }
+
+/** Whole-answer reviews use fixed positions rather than asking the model to
+ * invent duplicate-prone index lists. Every sentence is retained on approval;
+ * each obligation and action must still have an explicit supporting verdict. */
+export function wholeTaskHistoryReviewSchema(sentenceCount: number, obligationCount: number, actionCount: number) {
+  const flags = (length: number) => ({type: 'array', minItems: length, maxItems: length, items: {type: 'boolean'}});
+  const keys = Array.from({length: obligationCount}, (_, index) => `obligation_${index}`);
+  return {type: 'object', additionalProperties: false, required: ['approved', 'obligations', 'rejectionReason'], properties: {
+    approved: {type: 'boolean'}, rejectionReason: {type: ['string', 'null'], maxLength: 800},
+    obligations: {type: 'object', additionalProperties: false, required: keys,
+      properties: Object.fromEntries(keys.map(key => [key, {type: 'object', additionalProperties: false,
+        required: ['status', 'sentenceSupport', 'actionSupport'], properties: {
+          status: taskHistoryReviewSchema.properties.obligations.items.properties.status,
+          sentenceSupport: flags(sentenceCount), actionSupport: flags(actionCount),
+        }}]))},
+  }};
+}
+export function parseWholeTaskHistoryReview(value: unknown, sentenceCount: number, obligationCount: number, actionCount = 0) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('INVALID_WHOLE_REVIEW');
+  const item = value as Record<string, unknown>;
+  // Existing valid receipts remain compatible. Production requests only the
+  // positional format below; neither format permits partial-answer approval.
+  if ('retainedSentenceIndexes' in item) return parseRepairableTaskHistoryReview(value, sentenceCount, obligationCount, actionCount);
+  if (Object.keys(item).sort().join() !== 'approved,obligations,rejectionReason'
+    || typeof item.approved !== 'boolean' || !item.obligations || typeof item.obligations !== 'object' || Array.isArray(item.obligations)) throw new Error('INVALID_WHOLE_REVIEW');
+  const obligations = item.obligations as Record<string, unknown>;
+  const keys = Array.from({length: obligationCount}, (_, index) => `obligation_${index}`);
+  if (Object.keys(obligations).sort().join() !== [...keys].sort().join()) throw new Error('INVALID_WHOLE_REVIEW');
+  const indexes = (flags: unknown, count: number) => {
+    if (!Array.isArray(flags) || flags.length !== count || flags.some(flag => typeof flag !== 'boolean')) throw new Error('INVALID_WHOLE_REVIEW');
+    return flags.flatMap((flag, index) => flag ? [index] : []);
+  };
+  const mapped = keys.map((key, index) => {
+    const raw = obligations[key];
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('INVALID_WHOLE_REVIEW');
+    const row = raw as Record<string, unknown>;
+    if (Object.keys(row).sort().join() !== 'actionSupport,sentenceSupport,status') throw new Error('INVALID_WHOLE_REVIEW');
+    return {index, status: row.status, sentenceIndexes: indexes(row.sentenceSupport, sentenceCount), actionIndexes: indexes(row.actionSupport, actionCount)};
+  });
+  return parseRepairableTaskHistoryReview({approved: item.approved,
+    retainedSentenceIndexes: item.approved ? Array.from({length: sentenceCount}, (_, index) => index) : [],
+    obligations: mapped, rejectionReason: item.rejectionReason}, sentenceCount, obligationCount, actionCount);
+}
