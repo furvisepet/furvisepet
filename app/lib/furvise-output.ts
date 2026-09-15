@@ -278,7 +278,7 @@ export function presentReviewedHistory(sentences: readonly string[], question: s
     }
   }
   return groups.map((group, i) =>
-    (layout?.style === "bullets" ? "- " : layout?.style === "numbered" ? (i + 1) + ". " : "") + group.join(" ")
+    (layout?.style === "bullets" ? "- " : layout?.style === "numbered" ? (i + 1) + ". " : "") + (layout?.style === "bullets" ? group.map(text => text.replace(/^\s*[-*•]\s+/, "")).join(" ") : group.join(" "))
   ).join(layout?.style === "bullets" || layout?.style === "numbered" ? "\n" : "\n\n");
 }
 
