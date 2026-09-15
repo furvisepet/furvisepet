@@ -201,9 +201,10 @@ def drill(pg_env, key):
         roles = b"".join(line for line in role_lines if line.strip() != bootstrap_create)
         print("Restoring database roles.", flush=True)
         run(psql, data=order_role_grants(roles))
+        run(bootstrap_psql + ["-c", "GRANT CREATE ON DATABASE postgres TO postgres;"])
         psql = bootstrap_psql
         print("Restoring database schema and data.", flush=True)
-        run(local + ["pg_restore", "--exit-on-error", "--clean", "--if-exists", "--no-tablespaces",
+        run(local + ["pg_restore", "--exit-on-error", "--clean", "--if-exists", "--no-tablespaces", "--use-set-session-authorization",
                      "-h", "/tmp", "-U", "supabase_admin", "-d", "postgres"], data=dump)
         # Compare canonical per-row hashes without exposing any row values to the workflow log.
         for table, expected_table in expected.items():
