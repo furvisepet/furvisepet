@@ -54,6 +54,9 @@ test('requested measurements retain their original candidate ahead of unrelated 
  e.completedOwnerNote={petId:'pet',sourceMessageId:'current-message',entryIds:['current']};
  assert.equal(evidenceRemovalCost(e,'care:old'),2,'the current saved question cannot displace its requested historical source');
  assert.equal(evidenceRemovalCost(e,'care:current'),0);
+ e.represented.push({...e.represented[0],sourceId:'care:older-question',text:e.interpretation.request.evidenceNeeds[0].quote});
+ assert.equal(evidenceRemovalCost(e,'care:old'),2,'a prior saved lookup instruction is not the original measurement');
+ assert.equal(evidenceRemovalCost(e,'care:older-question'),0);
 });
 test('coverage follows actual representation and never certifies semantic support',()=>{
  const evidence=fixture();

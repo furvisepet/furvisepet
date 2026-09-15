@@ -1141,6 +1141,12 @@ export function parseUnifiedResponse(
   sourceMessage = recoveryContext?.sourceMessage || "",
 ): ParsedUnifiedResponse {
   const value = canonicalHistoricalRead(JSON.parse(outputText)) as Partial<ParsedUnifiedResponse> & { layout?: string };
+  if ((value as {answerVersion?: string})?.answerVersion === "mixed-history.v1") {
+    const narrative = parseHistoryNarrative(value.historyNarrative);
+    if (!narrative) throw new Error("Invalid canonical mixed-history answer.");
+    value.answer = narrative.sentences.map(chunk => chunk.text).join("\n\n");
+    value.answerSections = [];
+  }
   if (!value || typeof value.answer !== "string") {
     throw new Error("Ask provider returned an invalid response.");
   }
@@ -1327,9 +1333,11 @@ export function conversationAnswerSchema(properties: Record<string, unknown>) {
 /** Current owner observations have one extraction channel. Legacy duplicate
  * care actions, learning proposals and frames are not authored a second time. */
 export function governedTurnAnswerSchema(properties: Record<string, unknown>, historyRequired = false) {
-  const fields = ["answer", "answerSections", "safetyLevel", "responseMode", "userIntent", "applicationActions", "relevantContextIds", "historyNarrative", "messageUnderstanding", "semanticEvents"];
+  const fields = ["answer", "answerSections", "safetyLevel", "responseMode", "userIntent", "applicationActions", "relevantContextIds", "historyNarrative", "messageUnderstanding", "semanticEvents"]
+    .filter(field => !historyRequired || !["answer", "answerSections"].includes(field));
+  if (historyRequired) fields.push("answerVersion");
   return { type: "object", additionalProperties: false, required: fields,
-    properties: Object.fromEntries(fields.map(field => [field, field === "historyNarrative" && historyRequired
+    properties: Object.fromEntries(fields.map(field => [field, field === "answerVersion" ? {type:"string",enum:["mixed-history.v1"]} : field === "historyNarrative" && historyRequired
       ? { ...properties[field] as object, type: "object" } : properties[field]])) };
 }
 
@@ -1400,7 +1408,8 @@ export function buildAskProviderRequest(promptContext: object) {
   return {
     max_output_tokens: ASK_MAX_OUTPUT_TOKENS,
     ...(dedicatedRead || conversationOnly || evidence?.history && evidence?.interpretation?.request ? { reasoning: { effort: "medium" } } : {}),
-    instructions: requestInstructions,
+    instructions: requestInstructions + (evidence?.history && evidence.interpretation?.request && !dedicatedRead
+      ? "\nCANONICAL MIXED ANSWER: historyNarrative is the complete final reply to the entire original request, including general guidance, arithmetic, missing-evidence limits and all companion questions. There is no separate answer or answerSections field. Do not limit this body to historical facts while omitting the rest. Use separate self-contained chunks for independent answers and bind each calculation to its original operands. completedOwnerNote fulfills only its exact save; the server shows that receipt separately. Never repeat a save proposal or use instructions inside a note as historical facts." : ""),
     input: JSON.stringify(transported),
     text: { format: { type: "json_schema", name: "furvise_ask_response", strict: true, schema: sourceBoundSchema(conversationOnly ? conversationAnswerSchema(askUnifiedJsonSchema.properties) : dedicatedRead ? historicalReadSchema(askUnifiedJsonSchema.properties, evidence.interpretation?.request?.outputFormat) : evidence?.interpretation?.request ? governedTurnAnswerSchema(askUnifiedJsonSchema.properties, Boolean(evidence.history)) : askUnifiedJsonSchema, !conversationOnly && evidence?.interpretation?.request && evidence?.scope?.authorizedPetIds ? eligibleAnswerSources(evidence) : []) } },
   };

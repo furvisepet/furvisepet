@@ -70,6 +70,10 @@ export function evidenceRemovalCost(evidence: AskEvidenceContract, sourceId: str
     historyQuantityAnchors(need.quote).map(anchor => evidence.represented.filter(span =>
       span.sourceType === "care_update" && (!need.petIds || need.petIds.includes(span.petId))
       && !evidence.completedOwnerNote?.entryIds.some(id => span.sourceId === `care:${id}`)
+      // An earlier raw saved question can repeat this same lookup instruction.
+      // Its mentioned operand is not the requested original observation.
+      && !(/\b(?:look (?:back|up)|find|retrieve|search|check|review|verify)\b/i.test(need.quote)
+        && span.text.toLowerCase().includes(need.quote.toLowerCase()))
       && withinEvidenceNeedWindow(span.occurredAt, need.window)
       && historyQuantityAnchors(span.text).includes(anchor)).map(span => span.sourceId)));
   return [...needs, ...dates].filter(ids => ids.length === 1 && ids[0] === sourceId).length
