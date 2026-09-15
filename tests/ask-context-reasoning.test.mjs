@@ -13,6 +13,7 @@ import {
   generateContextAwareAskResponse,
   getAskModelConfiguration,
   buildAskProviderRequest,
+  parseUnifiedResponse,
 } from "../app/lib/ai/ask-reasoning.ts";
 import { buildRecentAskUpdates } from "../app/lib/ask-safety-context.ts";
 import { ensureConfirmedLossAction } from "../app/lib/ai/pet-loss.ts";
@@ -28,6 +29,15 @@ test('mixed history generation requires citation-bearing narrative instead of op
  assert.equal(narrative.type,'object');
  assert.ok(narrative.properties.sentences.items.required.includes('calculations'));
  assert.ok(narrative.properties.sentences.items.required.includes('sourceIds'));
+ assert.equal(request.text.format.schema.properties.answer,undefined);
+ assert.equal(request.text.format.schema.properties.answerSections,undefined);
+ assert.equal(request.text.format.schema.properties.answerVersion.enum[0],'mixed-history.v1');
+ const body=parseUnifiedResponse(JSON.stringify({answerVersion:'mixed-history.v1',historyNarrative:{sentences:[
+  {text:'The saved note describes rest.',sourceIds:['care:one'],calculations:[]},
+  {text:'Ask the prescribing veterinarian before restarting an old prescription.',sourceIds:['request:current'],calculations:[]},
+ ]}}),[]);
+ assert.match(body.answer,/saved note/);assert.match(body.answer,/prescribing veterinarian/);
+ assert.equal(body.historyNarrative.sentences.length,2);
 });
 const maniProductionQuestion = "Mani has been acting restless since the male cat started coming to our door three days ago. She keeps meowing at the door and seems more interested in getting outside. Yesterday I think she drank some water I had left outside, but I’m not completely sure. Today she ate normally and is acting mostly like herself. Based on what you already know about Mani and what I’ve told you recently, what do you think is relevant here, what should I do today, what should I keep an eye on, and is there anything from her history that changes your advice?";
 

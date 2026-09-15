@@ -15,3 +15,5 @@ Prompt trimming protects the last owned in-window candidate matching a requested
 A completed raw-note receipt disables duplicate event, learning and recovery extraction in every answer generation or repair result. The durable enrichment worker owns that optional work. Immediate safety evaluation and final answer validation remain active. This prevents optional extraction rejection from discarding a requested companion answer.
 
 The current completed note is not eligible for requested-literal preservation when selecting older history: it can itself contain the lookup instruction. Mixed history generation requires a non-null source-bound narrative with per-chunk calculation metadata, so a plain answer cannot silently bypass that contract.
+
+Mixed history replies use the versioned mixed-history.v1 body: historyNarrative is the sole answer, including all non-history companion clauses. The server derives visible prose from that same body. Mutation proposals remain separately governed; source review never checks only a historical supplement while other requested content sits in an unreviewed duplicate field.
