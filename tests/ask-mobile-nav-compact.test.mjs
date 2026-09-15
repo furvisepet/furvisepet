@@ -20,7 +20,7 @@ test("Ask composer focus explicitly controls only the Ask compact navigation mod
 
 test("normal navigation has labels while focused Ask uses compact icon-only presentation", () => {
   assert.match(nav, /askCompactNavigation \? "sr-only" : "block whitespace-nowrap"/);
-  assert.match(nav, /askCompactNavigation \? "h-8 w-10" : "h-10 w-12"/);
+  assert.match(nav, /compactNavigation \? "h-6 w-8" : "h-10 w-12"/);
   assert.match(nav, /aria-label=\{item\.label\}/);
   assert.match(nav, /aria-current=\{active \? "page" : undefined\}/);
   assert.match(nav, /grid-cols-4/);

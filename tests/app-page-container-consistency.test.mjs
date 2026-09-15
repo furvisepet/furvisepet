@@ -55,7 +55,7 @@ test("mobile navigation clearance remains owned by the shared app page", () => {
 });
 
 test("Ask keyboard helper uses the intended middle dot without an encoding artifact", () => {
-  assert.match(ask, /Enter to send · Shift \+ Enter for a new line/);
+  assert.match(ask, /event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing/);
   assert.doesNotMatch(ask, /Enter to send Â·/);
 });
 

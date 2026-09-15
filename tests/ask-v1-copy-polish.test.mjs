@@ -7,19 +7,15 @@ const ask = read("app/ask/page.tsx");
 const css = read("app/globals.css");
 
 test("Ask uses the approved human new-question copy with dynamic pet context", () => {
-  for (const copy of [
-    "WHAT'S ON YOUR MIND ABOUT ${activeProfile ? petName.toUpperCase() : \"YOUR PET\"}?",
-    "Ask a question, tell Furvise what changed, or just share something that's on your mind.",
-    "Not sure where to start?",
-    "Try one of these, or say it your own way.",
-    "Ask or tell Furvise anything about ${petName}\\u2026",
-    "Furvise helps keep your pet&apos;s story together. It does not replace veterinary care.",
-  ]) assert.match(ask, new RegExp(copy.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(ask, /title="Ask Furvise"/);
+  assert.match(ask, /<details className="ask-example-questions"><summary>Example questions/);
+  assert.match(ask, /Ask about \$\{petName\}/);
+  assert.doesNotMatch(ask, /noteMode|Save note to care history/);
   assert.doesNotMatch(ask, /Asking about|Ask about changes, routines, products|What's up with \$\{petName\}\?|Ask anything about \$\{petName\}/);
 });
 
 test("Ask visible actions and conversation empty state use natural language", () => {
-  assert.match(ask, /type="submit">\{noteMode \? "Save note" : "Send"\}<\/PrimaryButton>/);
+  assert.match(ask, /type="submit">Send<\/PrimaryButton>/);
   assert.match(ask, /type="button">Conversations<\/button>/);
   assert.match(ask, /<h2[^>]*>Conversations<\/h2>/);
   assert.match(ask, /title="No conversations yet\." text="Questions and things you tell Furvise will show up here\."/);

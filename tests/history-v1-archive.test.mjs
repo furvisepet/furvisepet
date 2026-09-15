@@ -17,7 +17,7 @@ const accountUtility = read("app/components/account-utility.tsx");
 test("global History remains an archive without duplicated creation product jobs", () => {
   assert.match(archive, /HISTORY/);
   assert.match(archive, /Find something you've saved\./);
-  assert.match(archive, /Search across your pets and past updates\./);
+  assert.doesNotMatch(archive, /Search across your pets and past updates\./);
   assert.match(archive, /Search history\.\.\./);
   for (const forbidden of ["Add update", "Add first update", "Ask about", "Prepare vet brief", "Prepare care summary"]) {
     assert.doesNotMatch(archive, new RegExp(forbidden, "i"));

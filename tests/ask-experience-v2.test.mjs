@@ -93,6 +93,7 @@ test("suggested questions are bounded, unique, ranked in the existing response c
 
 test("suggested questions remain distinct, accessible, and reachable on mobile", () => {
   assert.match(page, /data-ui="suggested-questions"/);
+  assert.match(page, /<details[^>]*data-ui="suggested-questions"><summary>Follow-up questions<\/summary>/);
   assert.match(page, /data-ui="care-history-suggestion"/);
   assert.match(page, /Care history suggestion/);
   assert.match(page, /Nothing is added until you choose Save/);
@@ -102,7 +103,7 @@ test("suggested questions remain distinct, accessible, and reachable on mobile",
   assert.match(page, /aria-controls="ask-composer"/);
   assert.match(page, /id="ask-composer"/);
   assert.doesNotMatch(page.slice(page.indexOf("function SuggestedQuestions"), page.indexOf("function Composer")), /overflow-x-auto|min-w-\[15rem\]/);
-  assert.match(css, /\.app-sticky-composer[\s\S]*--mobile-nav-expanded-height[\s\S]*--mobile-nav-safe-area/);
+  assert.match(css, /\.app-sticky-composer[\s\S]*--mobile-nav-clearance[\s\S]*--mobile-sticky-gap/);
 });
 
 test("assistant ink roles are centralized, readable, and orange is not the normal answer fill", () => {

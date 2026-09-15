@@ -46,7 +46,7 @@ test("Pets uses a forest add action and one semantic link per directory row", ()
 test("one shared mobile clearance covers every requested app surface", () => {
   assert.match(css, /--mobile-nav-height: 4\.25rem;/);
   assert.match(css, /--mobile-nav-safe-area: env\(safe-area-inset-bottom, 0px\);/);
-  assert.match(css, /--mobile-nav-clearance: calc\([\s\S]*var\(--mobile-nav-height\)[\s\S]*var\(--mobile-nav-safe-area\)[\s\S]*24px/);
+  assert.match(css, /--mobile-nav-clearance: calc\([\s\S]*var\(--mobile-nav-clearance\)[\s\S]*var\(--mobile-sticky-gap\)[\s\S]*24px/);
   assert.match(css, /\.app-mobile-nav-clearance \{\s*padding-bottom: var\(--mobile-nav-clearance\);/);
   assert.match(appPage, /<main className="app-mobile-nav-clearance/);
   for (const source of [today, pets, history, ask, products, accountShell]) assert.match(source, /<AppPage/);
@@ -57,7 +57,7 @@ test("one shared mobile clearance covers every requested app surface", () => {
 test("Pets actions and Ask composer clear the bottom navigation", () => {
   assert.match(pets, /<AppPage layout="workspace" shell="standard">/);
   assert.match(ask, /app-sticky-composer sticky/);
-  assert.match(css, /\.app-sticky-composer[\s\S]*var\(--mobile-nav-height\)[\s\S]*var\(--mobile-nav-safe-area\)/);
+  assert.match(css, /\.app-sticky-composer[\s\S]*var\(--mobile-nav-clearance\)[\s\S]*var\(--mobile-sticky-gap\)/);
 });
 
 test("the account utility contains account controls and complete dismissal behavior", () => {

@@ -88,8 +88,8 @@ test("one persistent root-owned authenticated chrome survives application route 
 });
 
 test("scrolling cannot move or temporarily disable the interactive dock", () => {
-  assert.match(mobileNavigation, /data-state=\{askCompactNavigation \? "ask-compact" : "stable"\}/);
-  assert.match(mobileNavigation, /askCompactNavigation \? "h-\[var\(--mobile-nav-compact-height\)\] p-1" : "h-\[var\(--mobile-nav-expanded-height\)\] p-1\.5"/);
+  assert.match(mobileNavigation, /data-state=\{askCompactNavigation \? "ask-compact" : compactNavigation \? "compact" : "stable"\}/);
+  assert.match(mobileNavigation, /compactNavigation \? "h-\[var\(--mobile-nav-compact-height\)\] p-1" : "h-\[var\(--mobile-nav-expanded-height\)\] p-1\.5"/);
   assert.doesNotMatch(header, /addEventListener\("scroll"|readScrollPosition|expandAfterIdle|mobileNavigationState/);
   assert.doesNotMatch(mobileNavigation, /translate|transition-\[height|transition-\[width/);
 });

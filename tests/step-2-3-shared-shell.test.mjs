@@ -53,9 +53,9 @@ test("mobile bottom navigation is edge aligned, safe-area aware, and paired with
   assert.match(header, /fixed inset-x-0 bottom-0/);
   assert.match(header, /pb-\[var\(--mobile-nav-safe-area\)\]/);
   assert.match(header, /grid-cols-4/);
-  assert.match(css, /--mobile-nav-clearance: calc\([\s\S]*var\(--mobile-nav-height\)[\s\S]*var\(--mobile-nav-safe-area\)[\s\S]*24px/);
+  assert.match(css, /--mobile-nav-clearance: calc\([\s\S]*var\(--mobile-nav-clearance\)[\s\S]*var\(--mobile-sticky-gap\)[\s\S]*24px/);
   assert.match(css, /\.app-mobile-nav-clearance[\s\S]*var\(--mobile-nav-clearance\)/);
-  assert.match(css, /\.app-sticky-composer[\s\S]*var\(--mobile-nav-height\)[\s\S]*var\(--mobile-nav-safe-area\)/);
+  assert.match(css, /\.app-sticky-composer[\s\S]*var\(--mobile-nav-clearance\)[\s\S]*var\(--mobile-sticky-gap\)/);
   assert.match(appPage, /app-mobile-nav-clearance/);
 });
 

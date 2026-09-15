@@ -255,7 +255,6 @@ export function HistoryArchive() {
       <div className="w-full" data-ui="history-archive">
         <PageHeader
           eyebrow="HISTORY"
-          supportingText="Search across your pets and past updates."
           title="Find something you've saved."
         />
 
