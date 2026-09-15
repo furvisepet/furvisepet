@@ -48,7 +48,7 @@ export type AskEvidenceContract = {
   sourceNoteRecall?: SourceNoteRecall;
   version: "ask-evidence.v1"; scope: AskEvidenceScope; sources: EvidenceSource[];
   completeness: EvidenceCompleteness; losses: EvidenceLoss[];
-  represented: Array<{ sourceId: string; petId: string; sourceType: string; field: "value"; start: number; end: number; text: string; occurredAt?: string | null }>;
+  represented: Array<{ sourceId: string; petId: string; sourceType: string; field: "value"; start: number; end: number; text: string; occurredAt?: string | null; recordedAt?: string | null }>;
   representation: "complete" | "partial";
   /** Only a server computation can supply these, never model JSON. Stage 1's
    * loader cannot certify exhaustive facts and deliberately supplies none. */
@@ -233,6 +233,7 @@ export function representEvidence(contract: AskEvidenceContract, records: AskCon
     .map(record => [record.id, String(record.metadata.title).slice(0, 120)]));
   contract.represented = records.map(record => ({ sourceId: record.id, petId: record.petId, sourceType: record.sourceType,
     field: "value", start: 0, end: record.value.length, text: record.value,
+    ...(record.sourceType === "care_update" ? { recordedAt: record.createdAt } : {}),
     ...(contract.interpretation || contract.scope.requestKind === "resolution_status" || record.sourceType === "operation_receipt" ? { occurredAt: record.occurredAt } : {}) }));
   return refreshEvidenceCoverage(contract);
 }

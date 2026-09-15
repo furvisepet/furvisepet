@@ -14,3 +14,12 @@ test('candidate date hints neither create sources nor approve their clinical mea
  assert.equal(historyNarrativeAnchorsSupported(wrongDate,sources,'',[],false),false);
  const before=structuredClone(sources);historyDateBindingHints(text,sources);assert.deepEqual(sources,before);
 });
+
+test('recording timestamps cannot borrow event instants even when the calendar date matches',()=>{
+ const source={sourceId:'care:a',petId:'owned',sourceType:'care_update',text:'An evening observation.',occurredAt:'2026-09-15T02:30:00Z',recordedAt:'2026-09-15T06:15:42.787774Z'};
+ const check=text=>historyNarrativeAnchorsSupported(text,[source],'',[],false);
+ assert.equal(check('The note was recorded at 2026-09-15T02:30:00+00:00.'),false);
+ assert.equal(check('The note was recorded at 2026-09-15T06:15:42.787774+00:00.'),true);
+ assert.equal(historyNarrativeAnchorsSupported('The note was saved at 2026-09-15T02:30:00Z.',[{...source,recordedAt:null}],'',[],false),false);
+ assert.equal(check('The event occurred at 2026-09-15T02:30:00Z.'),true);
+});

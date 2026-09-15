@@ -1395,6 +1395,11 @@ export function buildAskProviderRequest(promptContext: object) {
         return { ...metadata, valueSource: "evidenceContract.represented.text joined by sourceId = id" };
       }) } : {}),
       evidenceContract: { ...evidence,
+      // Creation time is already present on the matching context record.
+      // Keep the full review evidence server-side without paying twice for
+      // each timestamp in the bounded writer prompt.
+      represented: evidence.represented.map(span => contextRecords?.some(record => record.id === span.sourceId && record.createdAt === span.recordedAt)
+        ? Object.fromEntries(Object.entries(span).filter(([key]) => key !== "recordedAt")) : span),
       // Their canonical source text is already represented; full receipt rows
       // remain on the server for verification, not duplicated in transport.
       operationReceipts: undefined, recordInventory: undefined,
