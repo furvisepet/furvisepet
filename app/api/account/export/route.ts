@@ -18,12 +18,13 @@ export async function POST(request: Request) {
     const started = Date.now();
     emitOperationalEvent({ actorId: context.userId, eventType: "data_export_started", requestId, route: "/api/account/export", severity: "info" });
     try {
-      const body = await buildUserDataExport(createOperationsAdminClient(), context.user);
+      const body = await buildUserDataExport(createOperationsAdminClient(), context.user, context.supabase);
       emitOperationalEvent({ actorId: context.userId, durationMs: Date.now() - started, eventType: "data_export_completed", requestId, route: "/api/account/export", severity: "info" });
       return new Response(body, { headers: { "Cache-Control": "private, no-store, max-age=0", "Content-Disposition": `attachment; filename="furvise-data-${new Date().toISOString().slice(0, 10)}.json"`, "Content-Type": "application/json; charset=utf-8", "X-Content-Type-Options": "nosniff" } });
     } catch (error) {
       const code = error instanceof Error && error.message === "EXPORT_TOO_LARGE" ? "EXPORT_TOO_LARGE" : "EXPORT_FAILED";
-      emitOperationalEvent({ actorId: context.userId, durationMs: Date.now() - started, errorCode: code, eventType: "application_error", requestId, route: "/api/account/export", severity: "high" });
+      const diagnostic = error instanceof Error && /^EXPORT_(QUERY_FAILED_[A-Z_]+|COUNT_UNAVAILABLE|INCOMPLETE|CHANGED_DURING_READ|TOO_LARGE)$/.test(error.message) ? error.message : code;
+      emitOperationalEvent({ actorId: context.userId, durationMs: Date.now() - started, errorCode: diagnostic, eventType: "application_error", requestId, route: "/api/account/export", severity: "high" });
       return safeError(code, code === "EXPORT_TOO_LARGE" ? "Your export is too large for immediate download. Contact support for an assisted export." : "Your export could not be prepared.", requestId, code === "EXPORT_TOO_LARGE" ? 413 : 503);
     }
   });
