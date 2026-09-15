@@ -17,12 +17,14 @@ const USER_TABLES = [
 
 const OMITTED_FIELDS = new Set(["context_used", "dedupe_key", "idempotency_key", "intelligence_debug", "owner_token", "payload_hash", "provider_response", "response_body", "source_excerpt"]);
 
-export async function buildUserDataExport(admin: SupabaseClient, user: User) {
+export async function buildUserDataExport(admin: SupabaseClient, user: User, ownerClient: SupabaseClient) {
   const sections: Record<string, unknown[]> = {};
   for (const [table, section] of USER_TABLES) {
     sections[section] = await readExportSection(admin, user, table, "*");
   }
-  const usage = await readExportSection(admin, user, "ai_usage_events", "feature,status,credits_used,period_start,created_at,completed_at");
+  // Usage history is intentionally readable through the authenticated owner,
+  // not the operations service role. Keep its existing RLS boundary intact.
+  const usage = await readExportSection(ownerClient, user, "ai_usage_events", "feature,status,credits_used,period_start,created_at,completed_at");
   const document = {
     account: { confirmedAt: user.email_confirmed_at || null, createdAt: user.created_at, email: user.email || null, id: user.id },
     aiUsage: usage || [], exportedAt: new Date().toISOString(), formatVersion: 1, ...sections,

@@ -23,15 +23,23 @@ function database({ cap=2, failAfterFirst=false, total=5 }={}) {
   }};
 }
 test('exports every owner row even when server caps a response below requested size', async()=>{
- const result=JSON.parse(await buildUserDataExport(database(),user));
+ const result=JSON.parse(await buildUserDataExport(database(),user,database()));
  assert.equal(result.careHistory.length,5);
  assert.equal(result.aiUsage.length,5);
  assert.deepEqual(result.careHistory.map(x=>x.id),['0','1','2','3','4']);
  assert.ok(result.careHistory.every(x=>!('secret' in x)));
 });
 test('does not return a partial export when a later page fails', async()=>{
- await assert.rejects(buildUserDataExport(database({failAfterFirst:true}),user),/EXPORT_QUERY_FAILED/);
+ await assert.rejects(buildUserDataExport(database({failAfterFirst:true}),user,database()),/EXPORT_QUERY_FAILED/);
 });
 test('uses exact totals to reject oversized sections despite a capped first response', async()=>{
- await assert.rejects(buildUserDataExport(database({total:5001}),user),/EXPORT_TOO_LARGE/);
+ await assert.rejects(buildUserDataExport(database({total:5001}),user,database()),/EXPORT_TOO_LARGE/);
+});
+
+test('usage reads use the owner client while operations access remains denied', async()=>{
+ const admin=database(), owner=database();
+ const guardedAdmin={from(table){assert.notEqual(table,'ai_usage_events');return admin.from(table);}};
+ const guardedOwner={from(table){assert.equal(table,'ai_usage_events');return owner.from(table);}};
+ const result=JSON.parse(await buildUserDataExport(guardedAdmin,user,guardedOwner));
+ assert.equal(result.aiUsage.length,5);
 });
