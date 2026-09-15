@@ -1,7 +1,7 @@
 import { calendarDateInZone } from "../ask-time-zone.ts";
 import {compoundUnit, units} from "./history-calculation.ts";
 import { isStructuredHistoryText } from "../furvise-output.ts";
-type Source = { text: string; occurredAt?: string | null; petId?: string };
+type Source = { text: string; occurredAt?: string | null; petId?: string; sourceId?: string; sourceType?: string };
 const monthPattern = "Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?";
 const months = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
 const words: Record<string, number> = {one:1,single:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10};
@@ -128,6 +128,22 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
       return attribution.every(date => recorded.some(value => value === date || value.replace(/^\d{4}:/, "") === date));
     })) {
       onUnsupported?.("Quotation attribution date does not match its source record");
+      return false;
+    }
+  }
+  // A historical measurement is not the current profile value. The ordinary
+  // literal guard below checks numbers, but cannot by itself check their time
+  // authority. Keep explicitly dated/quoted reports historical; direct current
+  // weight claims require a matching current profile field or owner report.
+  if (!legacyDerivations) for (const match of prose.matchAll(/\b(?:current\s+(?:body\s+)?weight\s*(?:is|:)|(?:currently\s+weighs|weighs\s+(?:now|today)))\s*([+-]?\d+(?:\.\d+)?)\s*(kg|kilograms?|lb|lbs|pounds?|g|grams?)\b/gi)) {
+    const prefix = prose.slice(0, match.index).split(/[.!?]\s+/).at(-1) || "";
+    if (/\b(?:note|record|entry|report)\b/i.test(prefix) && dates(prefix).length) continue;
+    const anchors = quantities(match[0]);
+    const currentSources = sources.filter(source => source.sourceType === "current_request"
+      || source.sourceType === "profile" && source.sourceId?.endsWith(":weight"));
+    const currentQuantities = currentSources.flatMap(source => quantities(source.text));
+    if (anchors.some(anchor => !currentQuantities.includes(anchor) && !equivalentQuantity(anchor, currentQuantities))) {
+      onUnsupported?.("Current measurement lacks a matching current profile or owner-report source");
       return false;
     }
   }

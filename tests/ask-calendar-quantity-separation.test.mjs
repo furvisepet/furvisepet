@@ -26,3 +26,13 @@ test('qualified record-year labels are not literal counts',()=>{
  assert.equal(supported('There are exactly 2024 notes.',records,'',[],false),false);
  assert.equal(supported('The only 2023 notes shown concern vomiting.',records,'',[],false),false);
 });
+test('dated weight literals cannot become a current measurement',()=>{
+ const old={sourceId:'care:old',sourceType:'care_update',text:'Current weight: 15 kg.',occurredAt:'2024-02-01T12:00:00Z'};
+ const empty={sourceId:'profile:pet:weight',sourceType:'profile',text:'Not recorded in the current profile (empty field).'};
+ const owner={sourceId:'request:current',sourceType:'current_request',text:'He is scratching again.'};
+ assert.equal(supported('His current weight is 15 kg.',[old,empty,owner],'',[],false),false);
+ assert.equal(supported('He currently weighs 15 kg.',[old,empty,owner],'',[],false),false);
+ assert.equal(supported('The February 1, 2024 note reports his current weight is 15 kg.',[old,empty,owner],'',[],false),true);
+ assert.equal(supported('His current weight is 15 kg.',[old,{...empty,text:'15 kg.'},owner],'',[],false),true);
+ assert.equal(supported('You report his current weight is 15 kg.',[old,empty,{...owner,text:'I weighed him at 15 kg today.'}],'',[],false),true);
+});

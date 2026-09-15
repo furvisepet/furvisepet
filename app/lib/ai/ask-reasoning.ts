@@ -1490,7 +1490,7 @@ function buildContextRecords(input: BuildContextInput): AskContextRecord[] {
   const records: AskContextRecord[] = [];
   for (const profile of input.profiles) {
     const facts: Array<[string, unknown]> = [
-      ["species", profile.species], ["breed", profile.breed],
+      ["name", profile.name], ["species", profile.species], ["breed", profile.breed],
       ["age", profile.age_value == null ? null : `${profile.age_value} ${profile.age_unit || "years"}`],
       ["weight", profile.weight_value == null ? null : `${profile.weight_value} ${profile.weight_unit || "lb"}`],
       ["current_food", profile.current_food], ["main_concern", profile.main_concern], ["care_goal", profile.wellness_goal],

@@ -580,3 +580,12 @@ test('mixed history tasks retain their target note when unrelated receipt metada
   assert.equal(context.promptContext.evidenceContract.losses.some(loss=>loss.sourceId==='care:care-1'),false);
   assert.equal(context.promptContext.evidenceContract.operationReceipts.length,12,'server receipt authority remains intact');
 });
+test('a requested saved profile name is represented as owned factual evidence',()=>{
+ const base=input({careEntries:[],question:'Return the saved profile name and species as JSON.'});
+ const evidence=buildAskContext(base).promptContext.evidenceContract;
+ evidence.interpretation={readOnly:true,request:{evidenceBasis:'saved_profile',profileFields:['name','species'],evidenceNeeds:[],referenceTurnIds:[]}};
+ const built=buildAskContext({...base,evidenceContract:evidence});
+ const name=built.records.find(record=>record.id==='profile:pet-mani:name');
+ assert.equal(name.value,'Mani');assert.equal(name.sourceType,'profile');assert.equal(name.petId,'pet-mani');
+ assert.ok(built.promptContext.evidenceContract.represented.some(span=>span.sourceId===name.id&&span.text==='Mani'));
+});

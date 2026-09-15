@@ -46,7 +46,7 @@ export function askRequestSchema(frame: object) {
     required: ["temporalScope", "mutationIntent", "recordSelection", "profileFields", "projection", "version", "mode", "question", "requirements", "evidenceNeeds", "outputFormat", "evidenceBasis", "premiseQuotes", "excludedPetNames", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
     properties: {
       temporalScope: { type: ["string", "null"], enum: ["historical", "current", "historical_and_current", null] },
-      profileFields: { type: "array", maxItems: 14, items: { type: "string", enum: ["species", "breed", "age", "weight", "current_food", "main_concern", "care_goal", "avoid", "monthly_budget", "sex", "pronouns", "lifecycle_status"] } },
+      profileFields: { type: "array", maxItems: 14, items: { type: "string", enum: ["name", "species", "breed", "age", "weight", "current_food", "main_concern", "care_goal", "avoid", "monthly_budget", "sex", "pronouns", "lifecycle_status"] } },
       mutationIntent: { type: ["string", "null"], enum: ["correct_record", null] },
       recordSelection: { type: ["object", "null"], additionalProperties: false, required: ["scope", "quote"], properties: { scope: { type: "string", enum: ["all_active", "content_filtered"] }, quote: { type: "string", minLength: 1, maxLength: 1600 } } },
       projection: readProjectionSchema,
