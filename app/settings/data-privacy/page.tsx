@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { AccountSettingsShell } from "../../components/account-settings-shell";
 import { accountInputClass, AccountStatus } from "../../components/account-access";
@@ -13,6 +14,7 @@ const forestButtonClass = "![--text-inverse:var(--warm-cream)] !bg-[var(--deep-f
 
 export default function DataPrivacyPage() {
   const { status } = useRequireConfirmedSupabaseAuth();
+  const [reauthRequired, setReauthRequired] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -24,6 +26,7 @@ export default function DataPrivacyPage() {
     setExporting(true);
     setError("");
     setMessage("");
+    setReauthRequired(false);
     try {
       const response = await idempotentClientFetch(
         "/api/account/export",
@@ -32,6 +35,7 @@ export default function DataPrivacyPage() {
       );
       if (!response.ok) {
         const body = await response.json().catch(() => null);
+        setReauthRequired(body?.code === "RECENT_AUTH_REQUIRED");
         throw new Error(body?.error || "Your export could not be prepared.");
       }
       const blob = await response.blob();
@@ -49,6 +53,7 @@ export default function DataPrivacyPage() {
     setDeleting(true);
     setError("");
     setMessage("");
+    setReauthRequired(false);
     try {
       const response = await idempotentClientFetch(
         "/api/account/delete",
@@ -60,7 +65,10 @@ export default function DataPrivacyPage() {
         "account-delete",
       );
       const body = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(body?.error || "Account deletion could not be completed.");
+      if (!response.ok) {
+        setReauthRequired(body?.code === "RECENT_AUTH_REQUIRED");
+        throw new Error(body?.error || "Account deletion could not be completed.");
+      }
       await getBrowserSupabase()?.auth.signOut().catch(() => null);
       window.location.replace("/login");
     } catch (deleteError) {
@@ -116,6 +124,7 @@ export default function DataPrivacyPage() {
           <div aria-live="polite" className="space-y-3">
             {message ? <AccountStatus text={message} /> : null}
             {error ? <AccountStatus text={error} tone="danger" /> : null}
+            {reauthRequired ? <Link className="inline-flex min-h-12 items-center font-semibold underline underline-offset-4" href="/login?next=%2Fsettings%2Fdata-privacy&reauth=account-data">Sign in again</Link> : null}
           </div>
         </div>
       )}

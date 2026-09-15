@@ -102,7 +102,7 @@ Repeat the clean-success flow with a fresh local database/user and `FURVISE_BILL
 5. Terminal `customer.subscription.deleted` must downgrade Furvise to Free:
    - 15 Ask/month
    - one-pet creation limit
-   - Vet Brief unavailable
+   - Free lifetime Vet Brief generation allowance (one if never used; otherwise zero); saved briefs remain available to reopen/download
 6. Existing pet/history data must remain intact. Downgrade changes capability, not ownership/history.
 
 ## Payment failure and recovery

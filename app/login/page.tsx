@@ -60,6 +60,8 @@ function LoginPageContent() {
   const passwordResetSucceeded = passwordResetValues.length === 1 && passwordResetValues[0] === "success";
   const reauthValues = searchParams.getAll("reauth");
   const isPetDeleteReauthentication = reauthValues.length === 1 && reauthValues[0] === "pet-delete";
+  const isAccountReauthentication = reauthValues.length === 1 && reauthValues[0] === "account-data";
+  const isReauthentication = isPetDeleteReauthentication || isAccountReauthentication;
   const nextPath = getSafeNextPath(searchParams.get("next") || searchParams.get("returnTo"), "/today");
   const { status: authStatus } = useConfirmedSupabaseAuth();
   const [mode, setMode] = useState<AuthMode>("signin");
@@ -104,11 +106,11 @@ function LoginPageContent() {
   const authChecked = authStatus !== "loading";
 
   useEffect(() => {
-    if (isPetDeleteReauthentication || didRedirectRef.current || authStatus !== "signedIn") return;
+    if (isReauthentication || didRedirectRef.current || authStatus !== "signedIn") return;
     if (mode === "signup" && signupStep === "otp") return;
     didRedirectRef.current = true;
     router.replace(nextPath);
-  }, [authStatus, isPetDeleteReauthentication, mode, nextPath, router, signupStep]);
+  }, [authStatus, isReauthentication, mode, nextPath, router, signupStep]);
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -581,7 +583,7 @@ function LoginPageContent() {
     window.requestAnimationFrame(() => otpInputRef.current?.focus());
   }
 
-  if (authStatus === "signedIn" && !isPetDeleteReauthentication) {
+  if (authStatus === "signedIn" && !isReauthentication) {
     return (
       <AccountAccessLayout title="Welcome back">
         <AccountStatus text="Opening Furvise..." />
@@ -592,7 +594,9 @@ function LoginPageContent() {
   const signinTitle = signinStep === "method" ? "Welcome back" : "Enter your password";
   const signinSupportingText = signinStep === "method" && isPetDeleteReauthentication
     ? "Sign in again to continue with permanent pet deletion."
-    : undefined;
+    : signinStep === "method" && isAccountReauthentication
+      ? "Sign in again to access your account data."
+      : undefined;
   const signupTitle = signupStep === "method"
     ? "Create your account"
     : signupStep === "password"
@@ -618,6 +622,7 @@ function LoginPageContent() {
         {error ? <AccountStatus tone="danger" text={error} /> : null}
         {mode === "signin" && passwordResetSucceeded ? <AccountStatus text="Your password has been updated. Sign in with your new password." /> : null}
         {mode === "signin" && isPetDeleteReauthentication ? <AccountStatus text="After signing in, you’ll return to the pet profile. Permanent deletion will still require a new confirmation." /> : null}
+        {mode === "signin" && isAccountReauthentication ? <AccountStatus text="After signing in, you’ll return to Data & privacy. Download or deletion still requires your confirmation." /> : null}
         {statusMessage ? <AccountStatus text={statusMessage} /> : null}
 
         {mode === "signin" && signinStep === "method" ? (
@@ -625,7 +630,7 @@ function LoginPageContent() {
             authChecked={authChecked}
             email={email}
             googleLoading={googleLoading}
-            isPetDeleteReauthentication={isPetDeleteReauthentication}
+            isReauthentication={isReauthentication}
             onContinue={continueSigninWithEmail}
             inputRef={emailInputRef}
             setEmail={setEmail}
@@ -713,7 +718,7 @@ function SigninMethodStep({
   authChecked,
   email,
   googleLoading,
-  isPetDeleteReauthentication,
+  isReauthentication,
   inputRef,
   onContinue,
   setEmail,
@@ -723,7 +728,7 @@ function SigninMethodStep({
   authChecked: boolean;
   email: string;
   googleLoading: boolean;
-  isPetDeleteReauthentication: boolean;
+  isReauthentication: boolean;
   inputRef: React.RefObject<HTMLInputElement | null>;
   onContinue: (event: FormEvent<HTMLFormElement>) => void;
   setEmail: (value: string) => void;
@@ -737,7 +742,7 @@ function SigninMethodStep({
         <button className={accountPrimaryClass} disabled={!authChecked} type="submit">Continue</button>
       </form>
       {GOOGLE_AUTH_ENABLED ? <><AuthDivider /><GoogleButton googleLoading={googleLoading} startGoogle={startGoogle} /></> : null}
-      {!isPetDeleteReauthentication ? (
+      {!isReauthentication ? (
         <button className={`${accountLinkClass} w-full`} onClick={switchToSignup} type="button">New to Furvise? Create account</button>
       ) : null}
     </>
