@@ -273,7 +273,7 @@ export function eligibleAnswerSources(evidence: AskEvidenceContract) {
   // Read-only is a write constraint, not a reason to discard an owner's report.
   // Keep the present request distinct from saved clinical observations. Its
   // attribution and historical claims still require independent review.
-  if (evidence.interpretation?.request
+  if (evidence.interpretation?.request && typeof evidence.scope.requestText === "string" && evidence.scope.requestText.trim()
     && evidence.scope.authorizedPetIds?.length === 1) {
     const text = evidence.scope.requestText;
     return [...saved, ...lookupSources, { sourceId: "request:current", petId: evidence.scope.authorizedPetIds[0],

@@ -210,7 +210,7 @@ test('offer-only conversational output survives approval and reload',async t=>{
 test('pet-switch month reaches the record through real retrieval despite newer noise',async t=>{
  clock(t);const r=await exercise('And Birch for that same month?',{fixturePets:owned,rows:[
  care('target','luna','2024-03-17','general','Birch rested on the blue mat.'),...irrelevant('luna',160)],
- messages:[],history:true,interpretationProposal:proposal({petNames:['Birch']}),
+ messages:[],history:true,expectedReviewCalls:1,interpretationProposal:proposal({petNames:['Birch']}),
  prepareContext(ctx){ctx.conversationTurns=[{id:'u1',role:'user',text:'Aster rest during March 2024?'}];}});
  assert.ok(r.context.askHistory.entries.some(row=>row.id==='target'));
  assert.ok(r.context.askHistory.entries.every(row=>row.pet_profile_id==='luna' && row.occurred_at.startsWith('2024-03')));

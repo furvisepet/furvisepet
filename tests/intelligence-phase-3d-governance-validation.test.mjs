@@ -14,8 +14,8 @@ test('reviewed incidental names require unchanged authorized cited evidence', ()
  const live={...context('Explain the shared observation.'),eligiblePets:[{id:'pet',name:'Mani'},{id:'other',name:'Bramble'}]};
  const text='Mani and Bramble shared the food; individual portions are unknown.';
  for(const variation of ['valid','foreign-source','uncited-name','changed-evidence','forged-receipt']) {
-  const evidenceContract={interpretation:{request:{outputFormat:'prose'}},scope:{},represented:[
-   {sourceId:'source',petId:variation==='foreign-source'?'other':'pet',text:variation==='uncited-name'?'Mani ate food.':text}],answerSourceIds:[]};
+  const evidenceContract={interpretation:{request:{outputFormat:'prose'}},scope:{authorizedPetIds:['pet']},sources:[{petId:'pet',source:'care_update',loadedIds:['source'],status:'available'}],losses:[],represented:[
+   {sourceId:'source',sourceType:'care_update',start:0,end:(variation==='uncited-name'?'Mani ate food.':text).length,petId:variation==='foreign-source'?'other':'pet',text:variation==='uncited-name'?'Mani ate food.':text}],answerSourceIds:[]};
   const result=reasoning(text,{evidenceContract});
   if(variation!=='forged-receipt')recordHistoryReview(result,{signature:historyReviewSignature(result),text,proseText:text,sourceIds:['source']});
   if(variation==='changed-evidence')result.evidenceContract.represented[0].text='Changed';

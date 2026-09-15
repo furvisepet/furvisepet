@@ -10,7 +10,7 @@ for (const quantity of ['records', 'duration', 'episodes']) test(`standalone sco
  clock(t); const d = many(2);
  d.recorded_inventory.from = '2011-01-01T00:00:00.000Z'; d.recorded_inventory.to = '2012-01-01T00:00:00.000Z';
  const r = await exercise('Show Milo’s second recorded vomiting episode in 2011.', {
-  history: true, rows: d.sources, messages: [], careEpisodes: d.episodes, episodeRowsOverride: d,
+  history: true, expectedReviewCalls: 1, rows: d.sources, messages: [], careEpisodes: d.episodes, episodeRowsOverride: d,
   interpretationProposal: { operation: 'episode', subject: 'explicit', petNames: ['Milo'], selection: 'reference', quantity,
    topic: 'vomiting', terms: ['vomiting'], from: '2011-01-01', to: '2012-01-01', episodeTopic: 'vomiting', ordinal: 'second' },
  });
@@ -26,7 +26,7 @@ for (const failure of ['incomplete', 'out_of_range', 'display_bound', 'access_cl
  d.recorded_inventory.from = '2011-01-01T00:00:00.000Z'; d.recorded_inventory.to = '2012-01-01T00:00:00.000Z';
  if (failure === 'incomplete') d.recorded_inventory.failures = ['unknown_classification'];
  const r = await exercise(`Show Milo’s ${failure === 'out_of_range' ? 'eighth' : 'last'} recorded vomiting episode in 2011.`, {
-  history: true, rows: d.sources, messages: [], careEpisodes: d.episodes, episodeRowsOverride: d,
+  history: true, expectedReviewCalls: 1, rows: d.sources, messages: [], careEpisodes: d.episodes, episodeRowsOverride: d,
   ...(failure === 'access_clipped' ? { historyAccess: { months: 60, from: '2011-02-01T00:00:00.000Z', to: '2016-02-01T00:00:00.000Z' } } : {}),
   interpretationProposal: { operation: 'episode', subject: 'explicit', petNames: ['Milo'], selection: 'reference', quantity: 'records',
    topic: 'vomiting', terms: ['vomiting'], from: '2011-01-01', to: '2012-01-01', episodeTopic: 'vomiting', ordinal: failure === 'out_of_range' ? 'eighth' : 'last' },

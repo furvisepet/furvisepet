@@ -159,7 +159,9 @@ test('a read about a correction drops a contradictory edit hint without granting
  const result=validateAskRequest(proposal,context);
  assert.equal(result.readOnly,true);assert.equal(result.request.mutationIntent,null);
  assert.deepEqual(result.request.referenceTurnIds,['edit']);
- assert.throws(()=>validateAskRequest({...proposal,mode:'mixed',evidenceBasis:'general'},context),/correction_workflow/);
+ const narrowed=validateAskRequest({...proposal,mode:'mixed',evidenceBasis:'general'},context);
+ assert.equal(narrowed.readOnly,true);assert.equal(narrowed.request.mutationIntent,null);
+ assert.throws(()=>validateAskRequest({...proposal,mode:'mixed',evidenceBasis:'general'},{...context,currentMessage:'Correct the saved note.'}),/correction_workflow/);
 });
 test('receipt reads preserve separate save and edit references but exclude unrelated or non-write turns',()=>{
  const pet={id:'pet',user_id:'owner',name:'Fern'},other={id:'other',user_id:'owner',name:'Birch'};

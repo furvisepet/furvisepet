@@ -103,13 +103,15 @@ export async function runFurviseIntelligence({
   discourseFocus?: import("./entities/resolve-turn-subject.ts").AskDiscourseFocus;
   evidenceContract?: AskEvidenceContract;
 }): Promise<FurviseIntelligenceResult> {
+  let readPetIds = context.askInterpretation?.readPetIds || authoritativePetIds;
   if (context.historyAccess) {
     context = enforceAskHistoryAccess(context);
-    evidenceContract = createAskEvidenceContract(context, authoritativePetIds);
+    evidenceContract = createAskEvidenceContract(context, readPetIds);
   }
   if (context.askInterpretation?.conversationOnly) {
     context = scopeConversationContext(context);
     authoritativePetIds = [];
+    readPetIds = [];
     authoritativeSemanticFrame = undefined;
     evidenceContract = createAskEvidenceContract(context, []);
   }
@@ -117,7 +119,7 @@ export async function runFurviseIntelligence({
   const safety = resolveSafetyState(context);
   const deterministicUnderstanding = classifyMessageDeterministically(context.currentMessage, context.activeConcerns.length > 0);
   const reasoning = await generateContextAwareAskResponse({
-    evidenceContract: evidenceContract || createAskEvidenceContract(context, authoritativePetIds),
+    evidenceContract: evidenceContract || createAskEvidenceContract(context, readPetIds),
     careEntries: context.askHistory?.entries || context.selectedCareEntries,
     concerns: context.activeConcerns,
     dialogueContext: separateDialogue ? context.conversationTurns.filter(turn => turn.id !== sourceMessageId).map(turn => ({ id: turn.id, role: turn.role, text: turn.text, createdAt: turn.createdAt })) : undefined,
@@ -137,7 +139,7 @@ export async function runFurviseIntelligence({
       })),
     ],
     productFeedback: context.productFeedback,
-    profiles: context.eligiblePets.filter((pet) => authoritativePetIds.includes(pet.id)),
+    profiles: context.eligiblePets.filter((pet) => readPetIds.includes(pet.id)),
     question: context.currentMessage,
     recentUpdates: context.askHistory ? [] : buildRecentAskUpdates(context.selectedCareEntries),
     recentlyResolvedConcerns: context.recentlyResolvedConcerns,
@@ -381,7 +383,7 @@ export async function runFurviseIntelligence({
     reasoning,
     context,
     reasoning.intelligenceSafety.level,
-    hasOwnedPetSubject ? authoritativePetIds : [context.pet.id],
+    readPetIds.length ? readPetIds : [context.pet.id],
   );
   if (!answerValidation.valid) throw Object.assign(
     new Error(`FURVISE_ANSWER_VALIDATION_FAILED:${answerValidation.errors.join(",")}`),
@@ -390,7 +392,7 @@ export async function runFurviseIntelligence({
   );
   answerValidation = await reviewTaskCompletion({ validation: answerValidation, context, requestId, onProviderEvent, pendingCareEvents: executionPlan.semanticEvents, pendingCareActions: [...executionPlan.careActions, ...noteBatchReviewActions(executionPlan.noteBatch || [])],
     validate: candidate => validateGeneratedAnswer(candidate, context, reasoning.intelligenceSafety.level,
-      hasOwnedPetSubject ? authoritativePetIds : [context.pet.id]),
+      readPetIds.length ? readPetIds : [context.pet.id]),
   });
   // A source-only failure is not a completed mixed request. Do not commit the
   // independently proposed side effects after its answer failed final review.

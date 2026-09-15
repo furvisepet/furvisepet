@@ -207,7 +207,8 @@ test("canonical mutations remain after provider, schema, answer validation, and 
   const runIndex = route.indexOf("generateAskHistoryAnswer({");
   const callback = readFileSync(new URL("../app/lib/intelligence/generate-ask-history.ts", import.meta.url), "utf8");
   assert.ok(callback.indexOf("await retrieveAskHistory(") < callback.indexOf("await runFurviseIntelligence({"));
-  assert.match(callback, /evidenceContract: createAskEvidenceContract\(context, petIds\)/);
+  assert.match(callback, /evidenceContract: createAskEvidenceContract\(context, readPetIds\)/);
+  assert.match(callback, /input\.authoritativePetIds = petIds/);
   const validatedIndex = route.indexOf('logAskStage("intelligence validated"');
   const assistantIndex = route.indexOf("async function persistAssistantAnswer");
   const canonicalWriteIndex = route.indexOf("persistIntelligenceLearnings({", assistantIndex);
