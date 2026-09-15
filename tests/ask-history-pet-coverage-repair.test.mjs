@@ -298,3 +298,24 @@ test('unique date citations are candidates for independent review, never automat
  }}}}),false);assert.equal(calls,1);assert.equal(readReviewedHistoryAnswer(r),null);
  assert.deepEqual(r.historyNarrative.sentences[0].sourceIds,['care:a']);
 });
+
+test('targeted repair reconstructs the full answer and still requires independent approval',async()=>{
+ for(const approve of [false,true]) {
+  const e=fixture(['a']);e.scope.requestText='I think the redness returned. Summarize my report.';
+  e.interpretation.request={mode:'history',outputFormat:'prose',evidenceNeeds:[]};
+  const r=result(e);r.historyNarrative.sentences[0].text='The redness returned.';
+  let calls=0;
+  const ok=await reviewHistoricalAnswer({result:r,client:{responses:{create:async request=>{
+   calls++;
+   if(calls===2) {
+    assert.deepEqual(request.text.format.schema.required,['replacements']);
+    return {status:'completed',output_text:JSON.stringify({replacements:[{index:0,text:'You think the redness returned.',sourceIds:['request:current'],calculations:[]}]})};
+   }
+   const accepted=calls===3&&approve;
+   if(calls===3) assert.equal(JSON.parse(request.input).draft.sentences[0].text,'You think the redness returned.');
+   return {status:'completed',output_text:JSON.stringify({approved:accepted,retainedSentenceIndexes:accepted?[0]:[],obligations:accepted?[{index:0,status:'answered',sentenceIndexes:[0],actionIndexes:[]}]:[],rejectionReason:accepted?null:'Keep the observation attributed to the owner.'})};
+  }}}});
+  assert.equal(calls,3);assert.equal(ok,approve);
+  assert.equal(!!readReviewedHistoryAnswer(r),approve);
+ }
+});
