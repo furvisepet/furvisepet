@@ -19,6 +19,13 @@ class BackupSafetyTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 backup.configuration(self.config(uri))
 
+    def test_grant_order_preserves_statements_and_psql_boundary(self):
+        source = b"CREATE ROLE x;\nGRANT x TO y GRANTED BY y;\nGRANT x TO y WITH ADMIN TRUE GRANTED BY z;\n\\unrestrict token\n"
+        ordered = backup.order_role_grants(source)
+        self.assertEqual(sorted(source.splitlines()), sorted(ordered.splitlines()))
+        self.assertLess(ordered.index(b"WITH ADMIN TRUE"), ordered.index(b"GRANTED BY y"))
+        self.assertTrue(ordered.endswith(b"\\unrestrict token\n"))
+
     def test_no_dump_without_independent_encryption_key(self):
         for key in ["", "short", "a" * 32 + "\n"]:
             env = self.config()

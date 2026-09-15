@@ -2,6 +2,8 @@ name: Encrypted database backup and restore check
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "17 7 * * *"
   push:
     branches: [main]
     paths:
