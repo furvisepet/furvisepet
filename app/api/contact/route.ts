@@ -1,3 +1,4 @@
+import { validateSensitiveRequestOriginResponse } from "../../lib/security/headers/origin-policy";
 import { randomUUID } from "node:crypto";
 import { readBoundedJson, RequestBoundaryError } from "../../lib/security/request";
 import { beginRateLimitedRequest } from "../../lib/security/rate-limit";
@@ -10,6 +11,8 @@ export const maxDuration = 30;
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
 
 export async function POST(request: Request) {
+  const originResponse = validateSensitiveRequestOriginResponse(request);
+  if (originResponse) return originResponse;
   if (request.headers.get("origin") !== new URL(request.url).origin) return json({ error: "Open the contact page to send your report." }, 403);
   if (!request.headers.get("content-type")?.startsWith("application/json")) return json({ error: "Invalid report format." }, 415);
   const limit = await beginRateLimitedRequest({ request, requestId: randomUUID(), policy: "CONTACT_REPORT", route: "/api/contact", userId: "contact-global", enabled: true });
