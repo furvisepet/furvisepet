@@ -15,8 +15,14 @@ export function resolveOwnerNoteRequest(input: {
   if (!text || ownerDeclinesPersistence(text)) return null;
   if (input.mode !== "note") {
     const commandText = unquotedOwnerText(text);
-    if (/\b(?:hypothetical|fictional|pretend|suppose|if|example|translate)\b/i.test(commandText)) return null;
-    const commands = splitSentencesPreservingFacts(commandText).filter(sentence =>
+    if (/\b(?:hypothetical|fictional|pretend|suppose|example|translate)\b/i.test(commandText)) return null;
+    const sentences = splitSentencesPreservingFacts(commandText);
+    // A conditional save is not authorized; an independent question using
+    // "if" or "whether" must not cancel an affirmative save in another clause.
+    if (sentences.some(sentence => /\bif\b/i.test(sentence)
+      && !/\b(?:tell me|explain|check|know|wonder|ask)\b[^.!?]*\bif\b/i.test(sentence))) return null;
+    if (sentences.some(sentence => /\b(?:save|log|record|add)\b[\s\S]*\b(?:only if|unless)\b/i.test(sentence))) return null;
+    const commands = sentences.filter(sentence =>
       /^(?:(?:please|also)\s+|I\s+(?:just\s+)?want\s+to\s+|(?:can|could|would)\s+you\s+)?(?:save|log|record|add)\b/i.test(sentence.trim()));
     if (!commands.length || !/\b(?:note|history|entry|observation|update|this|that|following)\b/i.test(commands.join(" "))) return null;
     if (/\b(?:notes|entries|separate|each|delete|remove|replace|correct|resolve|reopen|mark|profile|subscription|billing)\b/i.test(commands.join(" "))) return null;
@@ -28,7 +34,7 @@ export function resolveOwnerNoteRequest(input: {
   }
   const time = explicitNoteTime(text, input.timeZone);
   return { note: text, ...time, needsAnswer: input.mode !== "note" &&
-    /\b(?:explain|compare|recommend|advise|tell me|what|why|how|should|is (?:it|this|that|he|she)|summari[sz]e)\b/i.test(unquotedOwnerText(text)) };
+    /\b(?:explain|compare|calculate|compute|convert|list|show|look back|recommend|advise|tell me|what|why|how|should|is (?:it|this|that|he|she)|summari[sz]e)\b/i.test(unquotedOwnerText(text)) };
 }
 
 function escape(text: string) { return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }

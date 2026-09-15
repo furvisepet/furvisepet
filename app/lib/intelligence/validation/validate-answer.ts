@@ -1,3 +1,4 @@
+import { readPartialHistoryReview } from "../history-review-state.ts";
 import { recordHistoryReview, historyReviewSignature } from "../history-review-state.ts";
 import { rememberReviewedTaskPresentation } from "../ask-evidence-presentation.ts";
 import {
@@ -45,6 +46,8 @@ export function validateGeneratedAnswer(
   const currentSafetyText = safetyTemporalScope(context.currentMessage).currentText;
   const currentEmergency = urgent && Boolean(detectAskConcernTags(currentSafetyText).length || detectImmediateAskEmergency(currentSafetyText));
   const reviewedHistory = currentEmergency ? null : readReviewedHistoryAnswer(result);
+  const partialHistory = currentEmergency || reviewedHistory ? null : readPartialHistoryReview(result);
+  const partialText = partialHistory ? partialHistory.text + "\n\nI couldn’t complete every part of your request. The information above covers the parts I could verify; the remaining parts are incomplete." : null;
   const response = structuredClone(result);
   const conversationOnly = result.evidenceContract?.interpretation?.conversationOnly === true;
   const preserveFormat = Boolean(result.evidenceContract?.interpretation?.request?.outputFormat);
@@ -57,9 +60,13 @@ export function validateGeneratedAnswer(
     response.evidenceContract.answerSourceIds = reviewedHistory.sourceIds;
     response.evidenceContract.answerContent = reviewedHistory.sourceContent || [];
   }
+  if (partialHistory && response.evidenceContract) {
+    response.evidenceContract.answerSourceIds = [...partialHistory.sourceIds];
+    response.evidenceContract.answerContent = [];
+  }
   const sourceNote = response.evidenceContract?.scope.requestKind === "record_lookup" && response.evidenceContract.scope.status === "resolved"
     ? sourceNoteAnswer(response.evidenceContract) : null;
-  const scopedAnswer = currentEmergency ? null : (reviewedHistory?.proseText || reviewedHistory?.text) || (response.evidenceContract ? evidenceAnswerPolicy(response.evidenceContract, response.historySynthesis) : null);
+  const scopedAnswer = currentEmergency ? null : (reviewedHistory?.proseText || reviewedHistory?.text) || partialText || (response.evidenceContract ? evidenceAnswerPolicy(response.evidenceContract, response.historySynthesis) : null);
   const hasSourceQuote = Boolean(sourceNote?.sourceIds.length && scopedAnswer === sourceNote.text);
   if (scopedAnswer) {
     // Only assistant-authored prose goes through prose rewriting. The complete
@@ -101,7 +108,7 @@ export function validateGeneratedAnswer(
   // A review receipt binds the complete wording to evidence. Style rewriting
   // must not remove clauses, alter quotations or damage structured values.
   // Unsafe content in a reviewed answer is rejected, never silently edited.
-  const immutableHistory = Boolean(reviewedHistory && result.evidenceContract?.interpretation?.request);
+  const immutableHistory = Boolean((reviewedHistory || partialHistory) && result.evidenceContract?.interpretation?.request);
   if (!immutableHistory) {
     response.answer.title = sanitize(response.answer.title);
     response.answer.summary = sanitize(response.answer.summary);
@@ -214,7 +221,7 @@ export function validateGeneratedAnswer(
   if (!reviewedHistory && !resolution && !context.episodeResult && scopedAnswer && response.evidenceContract?.interpretation) {
     // Restore complete attributed source text after prose rewriting, retaining
     // the independent safety directive. Never reuse rejected model prose.
-    response.answer = { title: "Furvise", ...historyFallbackPresentation(response.evidenceContract, scopedAnswer), safetyNote: urgent ? "Contact an emergency veterinarian now." : null };
+    response.answer = { title: "Furvise", ...(partialText ? { summary: partialText, sections: [] } : historyFallbackPresentation(response.evidenceContract, scopedAnswer)), safetyNote: urgent ? "Contact an emergency veterinarian now." : null };
     repairs.push("grounded_history_in_source_reports");
   }
   if (reviewedHistory?.sourceReports?.length) {
@@ -276,7 +283,7 @@ export function validateGeneratedAnswer(
   const assessment = createAnswerAssessment({
     body: response.answer, evidence: response.evidenceContract || null, unsafe: errors.length > 0,
     reasons: [...errors, ...(diagnostic ? [diagnostic.reason] : []),
-      ...(fallbackUsed ? ["source_fallback_does_not_certify_task_completion"] : []),
+      ...(fallbackUsed ? [partialHistory ? "independent_parts_do_not_certify_task_completion" : "source_fallback_does_not_certify_task_completion"] : []),
       ...(reviewedHistory && !finalReviewMatches ? ["reviewed_body_changed"] : [])],
     checks: {
       structuralValidity: response.answer.summary ? "passed" : "failed",

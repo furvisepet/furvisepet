@@ -1831,8 +1831,10 @@ async function persistAssistantAnswer({
 
   let nextUsage = usage;
   let creditsUsed = 0;
-  const incompleteRead = intelligenceResult?.reasoning.evidenceContract?.scope.readOnlyRecall === true
-    && intelligenceResult.answerValidation.assessment.outcome !== "complete";
+  const incompleteRead = Boolean(intelligenceResult
+    && (intelligenceResult.reasoning.evidenceContract?.scope.readOnlyRecall === true
+      || intelligenceResult.answerValidation.assessment.checks.taskCompletion === "failed")
+    && intelligenceResult.answerValidation.assessment.outcome !== "complete");
   if (creditReserved && incompleteRead) {
     const released = await safeReleaseAiCredit({ logicalRequestId: requestId, payloadHash, requestId: creditRequestId, userId });
     turnLifecycle.credit(released ? "released" : "release_pending").settlement("release", released ? "reconciled" : "pending");

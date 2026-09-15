@@ -498,7 +498,7 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
       reports.push(missingHistoryPetLimitation(contract, petId));
     }
   }
-  if (contract.interpretation && !contract.interpretation.readOnly) {
+  if (contract.interpretation && !contract.interpretation.readOnly && !contract.interpretation.request) {
     const assertions = analyzeOwnerAssertions(contract.scope.requestText).assertionSpans;
     const current = splitSentencesPreservingFacts(contract.scope.requestText).filter(sentence => !sentence.endsWith("?")
       && assertions.some(assertion => sentence.includes(assertion.text))

@@ -319,3 +319,54 @@ test('targeted repair reconstructs the full answer and still requires independen
   assert.equal(!!readReviewedHistoryAnswer(r),approve);
  }
 });
+
+const {readPartialHistoryReview} = await import('../app/lib/intelligence/history-review-state.ts');
+function partialFixture() {
+ const e=fixture(['a']);
+ e.scope.requestText='Describe Aster’s food history and explain whether I should restart leftover prescription tablets.';
+ e.interpretation.request={mode:'read',outputFormat:'prose',evidenceNeeds:[]};
+ const r=result(e);
+ r.intelligenceSafety={level:'routine'};
+ r.historyNarrative.sentences=[
+  {text:'Aster ate wet food.',sourceIds:['care:a']},
+  {text:'Ask the prescribing veterinarian before restarting leftover prescription medication.',sourceIds:['request:current']},
+  {text:'Aster has a confirmed new diagnosis.',sourceIds:['care:a']},
+ ];
+ return r;
+}
+function partialDenial(count,flags) {return {status:'completed',output_text:JSON.stringify({approved:false,rejectionReason:'The diagnosis is unsupported; other independent answers remain useful.',actionVerdicts:[],independentSentenceSupport:flags,
+ obligations:{obligation_0:{status:'missing',sentenceSupport:Array(count).fill(false),actionSupport:[]}}})};}
+test('whole-task rejection retains independently reviewed guidance, never unsupported clauses or completion authority',async()=>{
+ const r=partialFixture();
+ assert.equal(await reviewHistoricalAnswer({result:r,repairAttempted:true,client:{responses:{create:async req=>{
+  assert.match(req.instructions,/independentSentenceSupport/);
+  return partialDenial(3,[true,true,false]);
+ }}}}),false);
+ assert.equal(readReviewedHistoryAnswer(r),null);
+ assert.match(readPartialHistoryReview(r)?.text,/prescribing veterinarian/);
+ assert.doesNotMatch(readPartialHistoryReview(r)?.text,/confirmed new diagnosis/);
+ const checked=validateGeneratedAnswer(r,{...context,currentMessage:r.evidenceContract.scope.requestText},'routine',['a']);
+ assert.match(checked.response.answer.summary,/prescribing veterinarian/);
+ assert.match(checked.response.answer.summary,/remaining parts are incomplete/);
+ assert.doesNotMatch(checked.response.answer.summary,/confirmed new diagnosis/);
+ assert.equal(checked.assessment.checks.taskCompletion,'failed');
+ assert.equal(readReviewedHistoryAnswer(checked.response),null);
+ const clone=structuredClone(r);assert.equal(readPartialHistoryReview(clone),null);
+ r.evidenceContract.represented[0].text='Changed source';assert.equal(readPartialHistoryReview(r),null);
+});
+test('unchecked chunks and invalid numeric anchors never become partial approval',async()=>{
+ for (const flags of [[false,false,false],[true,true,true]]) {
+  const r=partialFixture();r.historyNarrative.sentences[2].text='Aster weighs 500 kg.';
+  await reviewHistoricalAnswer({result:r,repairAttempted:true,client:{responses:{create:async()=>partialDenial(3,flags)}}});
+  assert.equal(readPartialHistoryReview(r),null);
+ }
+});
+test('history review receives an exact completed-note receipt without requiring a duplicate action',async()=>{
+ const r=partialFixture();r.historyNarrative.sentences=r.historyNarrative.sentences.slice(0,2);
+ r.evidenceContract.completedOwnerNote={sourceMessageId:'source',petId:'a',entryIds:['saved']};
+ await reviewHistoricalAnswer({result:r,repairAttempted:true,client:{responses:{create:async req=>{
+  assert.deepEqual(JSON.parse(req.input).completedOwnerNote,r.evidenceContract.completedOwnerNote);
+  assert.match(req.instructions,/fulfills the note-save obligation/);
+  return partialDenial(2,[true,true]);
+ }}}});
+});
