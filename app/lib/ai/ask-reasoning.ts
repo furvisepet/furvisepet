@@ -1,4 +1,5 @@
 import { CLAIM_AUTHORITY_POLICY } from "../intelligence/claim-authority-policy.ts";
+import { calendarDateInZone } from "../ask-time-zone.ts";
 import { parseDatedNoteBatch } from "../intelligence/dated-note-batch.ts";
 import { recordInventoryEvidence } from "../intelligence/record-inventory.ts";
 import { sourceBoundSchema } from "../intelligence/source-bound-schema.ts";
@@ -569,7 +570,10 @@ export function buildAskContext(input: BuildContextInput) {
       dialogueContext: evidence.interpretation?.request
         ? requestReferenceContext(input.dialogueContext || [], evidence.interpretation.request.referenceTurnIds)
         : { purpose: "reference_and_tone_only_not_medical_evidence", turns: (input.dialogueContext || []).filter(turn => turn.role === "user").slice(-6).map(turn => ({ role: turn.role, text: turn.text.slice(0, 700) })) },
-      contextRecords: records,
+      contextRecords: records.map((record): AskContextRecord => ({ ...record, metadata: {
+        ...record.metadata,
+        localRecordDate: record.occurredAt ? calendarDateInZone(record.occurredAt, input.timeZone || "UTC") : null,
+      } })),
       evidenceContract: evidence,
       olderUpdateSummary: updateSummary,
   });
