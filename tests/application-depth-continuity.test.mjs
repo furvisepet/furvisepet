@@ -59,7 +59,7 @@ test("Ask fresh state keeps starters and composer together without a redundant p
 test("homepage ends with updates and feedback instead of repeated conversion prompts", () => {
   assert.match(homepage, /aria-label="Your pet’s care, in one place\."/);
   assert.match(homepage, /home-progress/);
-  assert.match(homepage, /href="\/release-notes">release notes/);
+  assert.match(homepage, /href="\/release-notes">Read the release notes/);
   assert.doesNotMatch(homepage, /StoryAction|FinalChapter/);
 });
 

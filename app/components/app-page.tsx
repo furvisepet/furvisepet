@@ -1,3 +1,4 @@
+import { SiteFooter } from "./site-footer";
 import { AppShell, appPageContentClasses, focusedLayout, PageShell, workspaceLayout } from "./product-primitives";
 
 type AppPageContentPreset = keyof typeof appPageContentClasses;
@@ -19,6 +20,7 @@ export function AppPage({
           <div className={`${appPageContentClasses[shell]} ${layout === "focused" ? focusedLayout : workspaceLayout}`} data-app-page-content={shell}>{children}</div>
         </PageShell>
       </main>
+      <SiteFooter />
     </AppShell>
   );
 }

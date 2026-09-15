@@ -87,8 +87,8 @@ test("PageHeader supports shared titles and independent action slots", () => {
 });
 
 test("homepage footer uses its approved logo treatment", () => {
-  assert.match(homepage, /<MarketingFooter showSignIn=\{visibleMode === "anonymous"\} signedIn=\{signedIn\} \/>/);
-  assert.match(homepage, /data-ui="homepage-marketing-footer"[\s\S]*src="\/brand\/furvise-logo\.svg"/);
+  assert.match(homepage, /<SiteFooter \/>/);
+  assert.match(read("app/components/site-footer.tsx"), /data-ui="site-footer"[\s\S]*src="\/brand\/furvise-logo\.svg"/);
   assert.doesNotMatch(homepage, /<BrandMark/);
 });
 

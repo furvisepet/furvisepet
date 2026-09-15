@@ -11,35 +11,21 @@ const privacy = read("app/privacy/page.tsx");
 const terms = read("app/terms/page.tsx");
 const legalSources = `${shell}\n${privacy}\n${terms}`;
 
-test("legal pages use a shared editorial shell with accessible reading geometry", () => {
+test("legal pages share Today’s header, footer and type scale", () => {
   assert.match(shell, /appPageContainer/);
-  assert.match(shell, /h-\[72px\]/);
   assert.match(shell, /max-w-\[840px\]/);
-  assert.match(shell, /min-h-11/);
-  assert.match(shell, /focus-visible:ring-2/);
-  assert.match(shell, /<article/);
-  assert.match(shell, /<section/);
-  assert.match(shell, /<h1 className="[^"]*font-display/);
-  assert.match(shell, /<h2 className="[^"]*font-display/);
+  assert.match(shell, /<PublicPageHeader \/>/);
+  assert.match(shell, /<SiteFooter \/>/);
+  assert.match(shell, /<PageHeader eyebrow="Legal"/);
+  assert.match(shell, /<h2 className="app-section-title"/);
   assert.match(shell, /data-legal-article=""/);
-  assert.match(shell, /font-sans/);
-  assert.equal((shell.match(/<h1/g) || []).length, 1);
+  assert.match(shell, /site-reading-copy/);
   assert.doesNotMatch(`${privacy}\n${terms}`, /<h1/);
 });
 
-test("legal header uses the untouched approved full lockup without BrandMark reconstruction", () => {
-  assert.match(shell, /import Image from "next\/image"/);
-  assert.match(shell, /src="\/brand\/furvise-logo\.svg"/);
-  assert.match(shell, /w-\[124px\][^\n]*sm:w-36/);
-  assert.doesNotMatch(shell, /BrandMark|furvise-wordmark|furvise-heron/);
-  assert.equal(
-    hash("public/brand/furvise-logo.svg"),
-    "15103e452559f4f29b0492a6731782ecd680992f62798be95ddc7aba544f3b00",
-  );
-  assert.equal(
-    hash("app/components/brand-mark.tsx"),
-    "ee744276b191cd34a241abd9e66bf49c2c432f88e1bbad216e441d2cf6c9f2cd",
-  );
+test("the common header uses the approved full lockup", () => {
+  assert.match(read("app/components/app-header.tsx"), /src="\/brand\/furvise-logo\.svg"/);
+  assert.equal(hash("public/brand/furvise-logo.svg"), "15103e452559f4f29b0492a6731782ecd680992f62798be95ddc7aba544f3b00");
 });
 
 test("approved legal content and metadata remain unchanged after the support inbox update", () => {

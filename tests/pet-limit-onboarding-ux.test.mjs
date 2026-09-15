@@ -22,7 +22,7 @@ test("Quick Start mounts only after the shared entitlement gate allows access", 
 });
 
 test("all Add Pet entry points use the guarded onboarding constant", () => {
-  for (const path of ["app/pets/page.tsx", "app/today/page.tsx", "app/components/care-log-workspace.tsx", "app/components/homepage-client.tsx", "app/components/app-header.tsx"]) assert.match(read(path), /NEW_PET_(?:ONBOARDING|LOGIN)_PATH/, path);
+  for (const path of ["app/pets/page.tsx", "app/today/page.tsx", "app/components/care-log-workspace.tsx", "app/components/app-header.tsx"]) assert.match(read(path), /NEW_PET_(?:ONBOARDING|LOGIN)_PATH/, path);
   assert.match(read("app/lib/auth-routing.ts"), /NEW_PET_ONBOARDING_PATH = "\/onboarding\?mode=new"/);
 });
 

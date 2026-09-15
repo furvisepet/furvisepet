@@ -55,7 +55,7 @@ test("homepage uses two visuals and keeps primary actions in navigation", () => 
   assert.match(homepage, /aria-label="Your pet’s care, in one place\."/);
   assert.equal((homepage.match(/src="\/images\//g) || []).length, 2);
   assert.doesNotMatch(homepage, /flamingo|hummingbird|StoryAction/);
-  assert.match(homepage, /href=\{NEW_PET_LOGIN_PATH\}>Get started/);
+  assert.match(header, /href=\{NEW_PET_LOGIN_PATH\}>Get started/);
 });
 
 test("Products is absent from primary navigation while the shared account utility owns account actions", () => {

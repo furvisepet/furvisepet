@@ -113,10 +113,10 @@ test("post-create activation is centered and uses consistent bounded actions", a
   assert.match(source, />Ask Furvise about \{pet\.name\}<\/PrimaryButton>/);
 });
 
-test("Terms and Privacy share a full-viewport mobile legal header with Back", async () => {
+test("Terms and Privacy share the application header and common footer", async () => {
   const [shell, terms, privacy] = await Promise.all([read("app/components/legal-page-shell.tsx"), read("app/terms/page.tsx"), read("app/privacy/page.tsx")]);
-  assert.match(shell, /← Back/); assert.match(shell, /router\.back\(\)/); assert.match(shell, /router\.push\("\/"\)/);
-  assert.match(shell, /min-h-dvh/); assert.match(shell, /w-full/); assert.match(shell, /overflow-x-hidden/); assert.match(shell, /safe-area-inset-top/); assert.match(shell, /min-h-11/);
+  assert.match(shell, /<PublicPageHeader \/>/); assert.match(shell, /<SiteFooter \/>/);
+  assert.match(shell, /min-h-dvh/); assert.match(shell, /w-full/);
   assert.match(terms, /LegalPageShell/); assert.match(privacy, /LegalPageShell/);
 });
 

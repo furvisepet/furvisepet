@@ -22,7 +22,7 @@ const optimizedNavigationAssets = [
 ];
 
 test("the public LCP heading is server-prerendered instead of gated by auth loading", () => {
-  assert.match(homepage, /const visibleMode[^=]*= mode === "loading" \? "anonymous" : mode/);
+  assert.match(homepage, /auth.status === "loading" \? "loading"/);
   assert.match(homepage, /<section className="home-visual home-hero/);
   assert.match(homepage, /<h1 id="home-title" aria-label="Your pet’s care, in one place\."[\s\S]*Your pet’s care,<br \/>in one place\.<\/h1>/);
   assert.doesNotMatch(homepage, /HomepageLoading|animate-pulse|mode === "loading" \? <Homepage/);
