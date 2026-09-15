@@ -438,6 +438,17 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     ...(needPlan.needs.length ? { evidenceNeeds: needPlan.needs.map(need => ({ ...need, ...(need.window ? { window: calendarWindowToInstants(need.window, context.timeZone) } : {}) })) } : {}),
     ...(needPlan.issues.length ? { evidenceNeedIssues: needPlan.issues } : {}), version: ASK_REQUEST_VERSION, mode: p.mode as AskRequestContract["mode"],
     evidenceBasis: p.evidenceBasis as AskRequestContract["evidenceBasis"], outputFormat: p.outputFormat as AskRequestContract["outputFormat"], question: p.question as string, requirements: p.requirements as string[], referenceTurnIds: p.referenceTurnIds, quantity: p.quantity as AskRequestContract["quantity"] };
+  // Mixed requests carry two timelines: the observation being saved and the
+  // records being compared. A current observation date cannot bound an older
+  // undated lookup. Compile the read envelope from its own grounded facets;
+  // subscription access is still clipped independently by retrieval.
+  const mixedTimelines = p.mode === "mixed" && p.temporalScope === "historical_and_current";
+  const readWindows = request.evidenceNeeds?.map(need => need.window) || [];
+  const boundedReadWindows = readWindows.filter((window): window is NonNullable<typeof window> => Boolean(window));
+  const historicalFrom = mixedTimelines ? readWindows.length && boundedReadWindows.length === readWindows.length
+    ? boundedReadWindows.map(window => window.from).sort()[0] : null : from;
+  const historicalTo = mixedTimelines ? readWindows.length && boundedReadWindows.length === readWindows.length
+    ? boundedReadWindows.map(window => window.to).sort().at(-1)! : null : to;
   // A self-contained ordinal in an explicit period selects from a fresh owned
   // register. Conversational selectors retain their original versioned list.
   const episodeCalendarPeriod = evidenceNeedWindow(context.currentMessage) || literalHistoryYearWindow(context.currentMessage);
@@ -454,5 +465,5 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     referenceQuestion: p.question as string, ...(conversationOnly ? { conversationOnly: true } : {}),
     episodeTopic: episodeTarget || operation === "count" || operation === "episode" ? p.episodeTopic as AskInterpretation["episodeTopic"] : null,
     ordinal: p.ordinal as AskInterpretation["ordinal"],
-    history: historical ? { from: target?.basis === "scoped_register" ? explicitEpisodePeriod!.from : from, to: target?.basis === "scoped_register" ? explicitEpisodePeriod!.to : to, terms: p.terms as string[], interpretation: p.terms.length ? "lexical" : from || to ? "period" : "broad_comparison" } : null };
+    history: historical ? { from: target?.basis === "scoped_register" ? explicitEpisodePeriod!.from : historicalFrom, to: target?.basis === "scoped_register" ? explicitEpisodePeriod!.to : historicalTo, terms: p.terms as string[], interpretation: p.terms.length ? "lexical" : from || to ? "period" : "broad_comparison" } : null };
 }

@@ -131,3 +131,14 @@ test('emergency advice remains visible if a requested note cannot be saved',asyn
   const {send}=httpHarness({dbFailure:true});const body=await(await send('Rowan cannot breathe. Save this note.')).json();
   assert.equal(body.success,true);assert.equal(body.carePersistence.status,'failed');assert.match(body.response.directAnswer,/emergency veterinarian/);
 });
+
+for (const followup of ['tell me if I should use leftover tablets.', 'calculate the percentage change.', 'compare this with the older record.', 'convert the reported weight to pounds.', 'list questions for the clinic.']) {
+  test(`independent follow-up does not block or silently bypass note processing: ${followup}`, () => {
+    const text = `Rowan ate normally. Log this note to his care history. Then ${followup}`;
+    assert.equal(request(text)?.note, text);
+    assert.equal(request(text)?.needsAnswer, true);
+  });
+}
+for (const text of ['If Rowan were tired. Save this note.', 'Save this note for Rowan only if the vet confirms it.', 'Rowan ate normally. Save this note unless it is already there.']) {
+  test(`conditional save still requires clarification: ${text}`, () => assert.equal(request(text), null));
+}

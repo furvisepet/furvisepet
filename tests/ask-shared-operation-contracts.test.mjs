@@ -260,3 +260,12 @@ test('receipt evidence follows validated references and persisted request identi
  assert.deepEqual(build(['adjacent']).operationReceipts.map(r=>r.sourceMessageId),['adjacent']);
  assert.equal(turns[0].operationReceipt.sourceMessageId,'old');
 });
+
+test('a mixed current-note date cannot narrow the independent historical lookup',()=>{
+ const pet={id:'pet',user_id:'owner',name:'Fern'};
+ const currentMessage='Fern weighed 14.8 kg on September 15, 2026. Log this note. Compare with her older 15 kg entry.';
+ const proposal={version:'ask-request.v2',mode:'mixed',temporalScope:'historical_and_current',question:currentMessage,requirements:[],referenceTurnIds:[],scope:'named',petNames:['Fern'],operation:'comparison',selection:'comparison',quantity:'measurement',topic:'weight',terms:['weight'],from:'2026-09-15',to:'2026-09-16',episodeTopic:null,ordinal:null,frame:emptyProposedSemanticFrame(),evidenceBasis:'saved_history'};
+ const result=validateAskRequest(proposal,{owner:{userId:'owner'},eligiblePets:[pet],pet,currentMessage,conversationTurns:[]});
+ assert.ok(result);assert.equal(result.history.from,null);assert.equal(result.history.to,null);
+ assert.equal(result.request.mode,'mixed');assert.equal(result.readOnly,false);
+});

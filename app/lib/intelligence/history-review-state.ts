@@ -40,3 +40,16 @@ export function recordHistoryReviewDiagnostic(result: AskReasoningResult, status
 export function readHistoryReviewDiagnostic(result: AskReasoningResult) {
   const value = diagnostics.get(result); return value ? { ...value } : null;
 }
+
+// Independently verified prose can survive whole-task rejection. This receipt
+// never grants task completion or mutation authority, and is bound to the same
+// evidence/draft identity as complete reviews.
+type PartialReceipt = { signature: string; text: string; sourceIds: string[] };
+const partialReviews = new WeakMap<AskReasoningResult, PartialReceipt>();
+export function recordPartialHistoryReview(result: AskReasoningResult, receipt: PartialReceipt) {
+  partialReviews.set(result, structuredClone(receipt));
+}
+export function readPartialHistoryReview(result: AskReasoningResult) {
+  const receipt = partialReviews.get(result);
+  return receipt && receipt.signature === historyReviewSignature(result) ? structuredClone(receipt) : null;
+}
