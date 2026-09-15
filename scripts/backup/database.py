@@ -46,7 +46,11 @@ def configuration(env):
 def run(args, *, env=None, data=None):
     result = subprocess.run(args, input=data, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, check=False)
     if result.returncode:
-        # Database/tool output can contain rows, connection strings or SQL literals.
+        # Emit only fixed error categories; never raw server output or SQL.
+        detail = result.stderr.decode(errors="replace").lower()
+        for marker, label in [("already exists", "restore object already exists"), ("does not exist", "restore dependency missing"), ("permission denied", "database permission denied"), ("unrecognized configuration parameter", "unsupported database setting"), ("could not open extension", "extension unavailable"), ("syntax error", "SQL syntax error")]:
+            if marker in detail:
+                print("Failure category: " + label, flush=True)
         raise RuntimeError(f"{Path(args[0]).name} failed (exit {result.returncode}); raw output withheld")
     return result.stdout
 
@@ -163,7 +167,9 @@ def drill(pg_env, key):
             time.sleep(2)
         else:
             raise RuntimeError("Disposable restore database did not become ready")
+        print("Restoring database roles.", flush=True)
         run(psql, data=roles)
+        print("Restoring database schema and data.", flush=True)
         run(local + ["pg_restore", "--exit-on-error", "--clean", "--if-exists", "--no-tablespaces",
                      "-h", "/tmp", "-U", operator, "-d", "postgres"], data=dump)
         # Compare canonical per-row hashes without exposing any row values to the workflow log.
