@@ -59,12 +59,12 @@ test("the social preview is a 1200 by 630 cream PNG with visible brand content",
   assert.ok(data.some((value, index) => index % info.channels < 3 && value < 100), "card contains forest artwork or text");
 });
 
-test("sitemap includes only the three indexable pages with significant update dates", () => {
-  assert.match(sitemap, /homepage: "2026-09-03"/);
+test("sitemap includes the five public indexable pages with significant update dates", () => {
+  assert.match(sitemap, /homepage: "2026-09-15"/);
   assert.match(sitemap, /privacy: "2026-09-03"/);
   assert.match(sitemap, /terms: "2026-09-03"/);
   assert.doesNotMatch(sitemap, /2026-07-24|new Date\(\)/);
-  assert.equal((sitemap.match(/canonicalUrl\(/g) || []).length, 3);
+  assert.equal((sitemap.match(/canonicalUrl\(/g) || []).length, 5);
   for (const route of ["account", "api", "ask", "history", "membership", "pets", "settings", "today", "vet-brief"]) {
     assert.doesNotMatch(sitemap, new RegExp(`canonicalUrl\\(\"/${route}`));
   }

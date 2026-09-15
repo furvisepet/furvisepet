@@ -1597,7 +1597,7 @@ textarea:disabled {
 .home-care-note { max-width: 43ch; margin-top: 2.5rem; border-top: 1px solid var(--marketing-line); padding-top: 1.25rem; color: var(--marketing-subtle); font-size: .875rem; line-height: 1.6; }
 .home-progress { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 3vw; border-top: 1px solid var(--marketing-line); padding-block: clamp(5rem, 8vw, 8rem); }
 .home-editorial-links { display: flex; flex-direction: column; align-items: flex-start; gap: .5rem; margin-top: 2rem; }
-.home-editorial-links a { display: inline-flex; gap: 2rem; justify-content: space-between; align-items: center; min-height: 2.75rem; font-size: .9375rem; border-bottom: 1px solid var(--marketing-line); padding-bottom: .3rem; }
+.home-editorial-links a { color: var(--marketing-text); display: inline-flex; gap: 2rem; justify-content: space-between; align-items: center; min-height: 2.75rem; font-size: .9375rem; border-bottom: 1px solid var(--marketing-line); padding-bottom: .3rem; }
 .home-editorial-links a:hover { border-color: currentColor; }
 .release-notes-page { min-height: 100svh; color: var(--deep-forest); }
 .release-main { max-width: 1160px; margin-inline: auto; padding: 6rem clamp(1.25rem, 4vw, 4rem) 5rem; }

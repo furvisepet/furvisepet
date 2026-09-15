@@ -71,13 +71,13 @@ test("account notification dot is absent by default", () => {
   assert.doesNotMatch(header, /account-dot|notification-dot|unread-dot/);
 });
 
-test("homepage explicitly preserves anonymous, no-pet, and with-pet actions", () => {
+test("homepage offers signup to visitors and navigation to every signed-in account", () => {
   const homepage = read("app/components/homepage-client.tsx");
   assert.match(homepage, /showSignIn=\{visibleMode === "anonymous"\}/);
-  assert.match(homepage, /mode === "anonymous"[\s\S]*href: NEW_PET_LOGIN_PATH, label: "Get started"/);
-  assert.match(homepage, /mode === "no-pets"[\s\S]*href: NEW_PET_ONBOARDING_PATH, label: "Add your pet"/);
-  assert.match(homepage, /href: "\/today", label: "Go to Today"/);
+  assert.match(homepage, /anonymous \? <><Link[\s\S]*href=\{NEW_PET_LOGIN_PATH\}>Get started/);
+  assert.match(homepage, /signedIn \? \([\s\S]*Homepage application navigation/);
   assert.match(homepage, /auth\.status === "loading"[\s\S]*"loading"/);
+  assert.doesNotMatch(homepage, /loadDogProfilesWithMemories|activePetId/);
 });
 
 test("signed-in homepage branches do not render signed-out actions", () => {
@@ -96,7 +96,7 @@ test("action labels follow account-state conventions", () => {
 test("homepage keeps product discovery inside the application", () => {
   const homepage = read("app/components/homepage-client.tsx");
   assert.doesNotMatch(homepage, /Illustrative|Mani|ProductWindow|product-frame|Vet Visit Brief/);
-  assert.match(homepage, /ONE STORY\.[\s\S]*NOT A PILE OF NOTES\./);
+  assert.match(homepage, /EVERY PET\.[\s\S]*THEIR OWN STORY\./);
 });
 
 test("Ask localizes recent-conversation loading failures", () => {
