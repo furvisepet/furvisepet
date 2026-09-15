@@ -14,7 +14,7 @@ export function proseRepairSchema(count: number) {
   } };
 }
 
-export function applyProseRepair(draft: HistoryNarrative, value: unknown): HistoryNarrative {
+export function applyProseRepair(draft: HistoryNarrative, value: unknown, availableSourceIds?: readonly string[]): HistoryNarrative {
   const fail = (): never => { throw new Error("INVALID_PROSE_REPAIR"); };
   if (!value || typeof value !== "object" || Array.isArray(value)
     || Object.keys(value).join() !== "replacements") return fail();
@@ -27,7 +27,13 @@ export function applyProseRepair(draft: HistoryNarrative, value: unknown): Histo
     if (!Number.isInteger(index) || index < 0 || index >= sentences.length || seen.has(index)) return fail();
     const parsed = parseHistoryNarrative({ sentences: [sentence] });
     if (!parsed) return fail();
-    seen.add(index); sentences[index] = parsed.sentences[0];
+    // A text correction must not drop evidence for unchanged facts in that
+    // chunk. These remain candidates, not an approval of the replacement.
+    const available = availableSourceIds ? new Set(availableSourceIds) : null;
+    const originalIds = sentences[index].sourceIds.filter(id => !available || available.has(id));
+    seen.add(index); sentences[index] = { ...parsed.sentences[0],
+      sourceIds: [...new Set([...parsed.sentences[0].sourceIds, ...originalIds])],
+    };
   }
   const result = parseHistoryNarrative({ sentences });
   return result || fail();

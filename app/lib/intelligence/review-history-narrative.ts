@@ -512,7 +512,7 @@ async function repairRejectedRead(provider: { responses: { create: (request: Rec
       const original = { sentences: payload.draft.sentences.map(({index: _index, ...sentence}: {index: number; [key: string]: unknown}) => sentence) };
       const draft = parseHistoryNarrative(original);
       if (!draft) throw new Error("INVALID_REPAIR_DRAFT");
-      return { historicalResult: undefined, narrative: applyProseRepair(draft, proposal), preserveNavigation: true, applicationActions: [] };
+      return { historicalResult: undefined, narrative: applyProseRepair(draft, proposal, payload.sources.map((source: {sourceId: string}) => source.sourceId)), preserveNavigation: true, applicationActions: [] };
     }
     const preserveNavigation = proposal?.navigationActions === null;
     const canonical = canonicalHistoricalRead(preserveNavigation ? { ...proposal, navigationActions: [] } : proposal) as { historicalResult?: AskReasoningResult["historicalResult"]; historyNarrative?: unknown; applicationActions?: unknown };
