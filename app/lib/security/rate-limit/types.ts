@@ -1,4 +1,5 @@
 export type RateLimitPolicyName =
+  | "CONTACT_REPORT"
   | "ASK_AI"
   | "VET_BRIEF_AI"
   | "MEMORY_WRITE"

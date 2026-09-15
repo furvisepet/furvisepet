@@ -98,6 +98,7 @@ export function HomepageClient() {
           </StoryChapter>
         </HomepageStoryStage>
         <FinalChapter mode={visibleMode} />
+        <aside className="px-6 py-8 text-center text-sm leading-relaxed">Furvise is in public beta. We’re improving it with your feedback. Found a bug or an answer that didn’t help? <a href="/contact" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center underline underline-offset-4">Help us improve<span className="sr-only"> (opens in a new tab)</span></a>.</aside>
       </main>
       <MarketingFooter showSignIn={visibleMode === "anonymous"} signedIn={signedIn} />
       {signedIn ? <HomepageMobileNavigation /> : null}
@@ -240,6 +241,7 @@ function MarketingFooter({ showSignIn, signedIn }: { showSignIn: boolean; signed
           <Image alt="" aria-hidden="true" className="homepage-full-logo homepage-footer-logo" height={800} loading="lazy" sizes="128px" src="/brand/furvise-logo.svg" width={3200} />
         </Link>
         <nav aria-label="Footer navigation" className="homepage-footer-navigation">
+          <Link className={footerLinkClass} href="/contact">Contact us</Link>
           <Link className={footerLinkClass} href="/privacy">Privacy</Link>
           <Link className={footerLinkClass} href="/terms">Terms</Link>
           {showSignIn ? <Link className={footerLinkClass} href="/login">Sign in</Link> : null}
