@@ -29,7 +29,7 @@ test("navigation offers public information to visitors and the app to signed-in 
   assert.match(homepage, /aria-label="Furvise updates"/);
 });
 
-test("two visual sections alternate with compact content and stack at smaller widths", () => {
+test("two visual sections share a grid and stack at smaller widths", () => {
   assert.match(css, /\.home-visual \{[^}]*grid-template-columns: 1fr 1fr/);
   assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.home-visual \{ min-height: 0; grid-template-columns: 1fr/);
   assert.match(css, /@media \(max-width: 639px\)[\s\S]*\.home-capabilities \{ grid-template-columns: 1fr/);

@@ -40,8 +40,8 @@ test("the color system exposes layered surfaces and centralized semantic roles",
 });
 
 test("homepage explains notes, context, and sharing without repeated app prompts", () => {
-  assert.match(homepage, /aria-label="Remember what matters\."/);
-  for (const phrase of ["Start with what you notice.", "Ask about their story.", "Bring the details with you."]) assert.ok(homepage.includes(phrase));
+  assert.match(homepage, /aria-label="Your pet’s care, in one place\."/);
+  for (const phrase of ["Write down what happened", "Ask about earlier notes", "Prepare a vet brief"]) assert.ok(homepage.includes(phrase));
   assert.doesNotMatch(homepage, /Mani|Illustrative example|ProductWindow|StoryAction/);
 });
 

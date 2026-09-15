@@ -96,7 +96,7 @@ test("action labels follow account-state conventions", () => {
 test("homepage keeps product discovery inside the application", () => {
   const homepage = read("app/components/homepage-client.tsx");
   assert.doesNotMatch(homepage, /Illustrative|Mani|ProductWindow|product-frame|Vet Visit Brief/);
-  assert.match(homepage, /EVERY PET\.[\s\S]*THEIR OWN STORY\./);
+  assert.match(homepage, /Each pet has a separate care history\./);
 });
 
 test("Ask localizes recent-conversation loading failures", () => {

@@ -52,7 +52,7 @@ test("button hierarchy has explicit readable foregrounds and disabled states", (
 });
 
 test("homepage uses two visuals and keeps primary actions in navigation", () => {
-  assert.match(homepage, /aria-label="Remember what matters\."/);
+  assert.match(homepage, /aria-label="Your pet’s care, in one place\."/);
   assert.equal((homepage.match(/src="\/images\//g) || []).length, 2);
   assert.doesNotMatch(homepage, /flamingo|hummingbird|StoryAction/);
   assert.match(homepage, /href=\{NEW_PET_LOGIN_PATH\}>Get started/);
