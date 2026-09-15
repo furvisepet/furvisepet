@@ -51,5 +51,6 @@ export function isAuthenticatedAppNavigationRoute(pathname: string) {
 }
 
 export function shouldShowMobileNavigation(pathname: string, authenticated: boolean) {
-  return authenticated && isAuthenticatedAppNavigationRoute(pathname);
+  const publicPage = ["/", "/contact", "/privacy", "/terms", "/release-notes"].includes(pathname);
+  return authenticated && (isAuthenticatedAppNavigationRoute(pathname) || publicPage);
 }

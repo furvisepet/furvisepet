@@ -54,8 +54,13 @@ test("active tabs cover public aliases and established application destinations"
 test("navigation is authenticated-only and excludes public Auth surfaces", () => {
   assert.equal(shouldShowMobileNavigation("/today", true), true);
   assert.equal(shouldShowMobileNavigation("/today", false), false);
-  for (const pathname of ["/", "/login", "/login/signup", "/signup", "/auth/callback"]) {
+  for (const pathname of ["/login", "/login/signup", "/signup", "/auth/callback"]) {
     assert.equal(shouldShowMobileNavigation(pathname, true), false, `${pathname} stays hidden`);
+  }
+  for (const pathname of ["/", "/contact", "/privacy", "/terms", "/release-notes"]) {
+    assert.equal(shouldShowMobileNavigation(pathname, true), true, `${pathname} gives signed-in users app navigation`);
+    assert.equal(shouldShowMobileNavigation(pathname, false), false, `${pathname} does not show private navigation to visitors`);
+    assert.equal(isAuthenticatedAppNavigationRoute(pathname), false, `${pathname} retains its own single header`);
   }
   assert.match(mobileNavigation, /lg:hidden/);
 });
