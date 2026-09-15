@@ -119,6 +119,11 @@ export function splitAskPresentationBlocks(value: string): AskTextBlock[] {
       && /:\s*$/.test(displayText.slice(0, markers[0].index))) {
       displayText = displayText.replace(/\s+([1-8]\))\s+/g, "\n\n$1 ");
     }
+    const bullets = [...displayText.matchAll(/\s+-\s+(?=\p{Lu})/gu)];
+    if (!/["“”]/.test(displayText) && !isStructuredHistoryText(displayText)
+      && bullets.length >= 2 && /:\s*$/.test(displayText.slice(0, bullets[0].index))) {
+      displayText = displayText.replace(/\s+-\s+(?=\p{Lu})/gu, "\n- ");
+    }
     return displayText.split(/\n\s*\n/).filter(Boolean).flatMap(paragraph => {
       const runs: string[][] = [];
       let previousList: boolean | undefined;
