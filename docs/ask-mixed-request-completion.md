@@ -13,3 +13,5 @@ Regression coverage includes conditional versus independent commands, separate h
 Prompt trimming protects the last owned in-window candidate matching a requested quantity before generic recency candidates. A literal match only changes retrieval priority, never semantic support or source authority. Deterministic prose anchor failures use bounded chunk repair; generic reminders about action claims do not force regeneration of the complete answer schema.
 
 A completed raw-note receipt disables duplicate event, learning and recovery extraction in every answer generation or repair result. The durable enrichment worker owns that optional work. Immediate safety evaluation and final answer validation remain active. This prevents optional extraction rejection from discarding a requested companion answer.
+
+The current completed note is not eligible for requested-literal preservation when selecting older history: it can itself contain the lookup instruction. Mixed history generation requires a non-null source-bound narrative with per-chunk calculation metadata, so a plain answer cannot silently bypass that contract.
