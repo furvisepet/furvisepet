@@ -45,12 +45,12 @@ Configure the isolated Stripe test/local Supabase setup and verify checkout → 
 
 ### 4. Fresh authenticated walkthrough and real devices
 
-The audit browser starts signed out. Still needed on the current release:
+The initial checkpoint began signed out. The resumed authenticated results below close part of this gate. Still needed:
 
 - Consumer signup, verification delivery, sign-in, recovery, and CAPTCHA behavior with a disposable account.
-- Save a Today note, reload it, switch pets, and confirm no cross-pet contamination.
-- Ask ordinary and mixed-history questions; verify answer content, no-save intent, failure recovery, and correct credit settlement.
-- Generate, confirm, reopen, and actually download a Vet Brief; test account export after reauthentication.
+- Switch pets and confirm no cross-pet contamination in a multi-pet account; this Free account correctly permits only one pet.
+- Mixed-history and failure/retry checks on the current release; the ordinary no-save Ask and credit settlement passed in the resumed flow.
+- Account export after reauthentication; Vet Brief generation, confirmation, reload and physical PDF download passed in the resumed flow.
 - Verify the new footer, compact navigation, keyboard, and composer on a real iPhone and Android browser.
 - Send one authorized support report with a screenshot and confirm inbox delivery/reply address, not just provider acceptance.
 
@@ -62,8 +62,35 @@ In the preceding 24 hours: 96 Ask usage events completed, 50 released, and 3 Vet
 
 ## Next completion sequence
 
-1. Obtain secure browser sign-in and complete the authenticated smoke flow.
+1. Complete remaining authentication, multi-pet and account export checks; see the successful authenticated smoke results below.
 2. Reconcile the stale credit with authoritative evidence and verify failure/retry behavior.
 3. Complete the isolated payment lifecycle and support delivery checks.
 4. Record password protection, backup/restore, alerting, and real-device acceptance receipts.
 5. Reassess a limited public beta using those receipts; retain the rollback/emergency plan.
+
+## Resumed authenticated audit — September 15, 2026, approximately 20:10–20:30 UTC
+
+The browser resumed signed in to a Free account with no pets. This does not establish that signup, verification email or password recovery was exercised. Created only clearly synthetic QA records through normal product UI; no real customer record was changed, no payment was made, and no email was sent.
+
+| Check | Observed result |
+|---|---|
+| Onboarding | Created Maple QA, a synthetic four-year-old female mixed-breed dog, profile weight 15 kg. |
+| Today write | Saved an owner note about a 20-minute walk at 7:30 AM on September 15, normal breakfast, and no observed vomiting. Reload preserved the exact text. Database contains exactly one matching entry. |
+| Ask retrieval/no-save | Asked for walk duration, time and whether vomiting was reported, explicitly prohibiting saving. Answer correctly said 20 minutes, 7:30 AM, and no vomiting. Answer survived reload; care entry count stayed one. |
+| Draft preservation | An unsent follow-up survived navigation to Pets/Membership and reopening its specific conversation. The draft was then cleared without submitting. |
+| Free limit | A second pet was blocked. Membership displayed 14 of 15 Asks remaining, the unused lifetime Vet Brief generation before use, and CA$8.48/month Plus. No upgrade was attempted. |
+| Footer | On the desktop Ask empty state, viewport height, document height and footer bottom all measured 936 px; no space remained below the footer. Not a mobile-device acceptance test. |
+| Vet Brief | Generated a routine-visit brief preserving the note's event date, walk time/duration, breakfast and negative vomiting observation. The profile weight was explicitly labelled undated. Confirmed and reloaded successfully. One confirmed database brief exists. |
+| PDF | Clicked Download PDF. Browser event listener timed out, but the newly generated 431,245-byte PDF synchronized successfully. Inspected its extracted text and rendered single Letter page: correct content, readable type, no clipping or overlapping sections. |
+| Settlement | New account has exactly one completed Ask and one completed Vet Brief usage event, both disposition `complete`. No new stranded reservation was found for this account. |
+| Cost | Recorded provider-cost total increased from 1,719,402 to 1,787,567 microdollars: $0.068165 across these live checks ($0.026275 Ask; $0.041890 Vet Brief). No broad paid benchmark was repeated. |
+
+### Repairs found during this run
+
+- Conversation auto-title incorrectly read “Maple QA's vomiting” despite a question asking whether it was reported and an answer saying none was observed. Removed assertion-generating keyword titles across all topic branches; topics are now neutral. Unclassified titles preserve the owner's question wording instead of stripping interrogatives or substituting the selected pet for a pronoun. Existing saved or user-renamed titles are not rewritten. Negated, hypothetical and other-pet mentions have regression coverage.
+- Vet Brief's sparse-history guidance still directed users to add notes in Ask. It now links to Today for the same pet, matching the current note-entry workflow.
+- Local validation: 27 focused title/workflow tests, ESLint for modified title files and TypeScript passed. Full release CI remains the merge gate.
+
+### Remaining limits
+
+The old September 13 reserved credit is unchanged. Its stored response is a failed preparation (503); one brief was confirmed on the same account within the following hour, but that alone cannot establish whether it came from this request. No credit disposition was guessed or balance changed. Payment sandbox, password protection, authentication recovery, multi-pet live isolation, support attachment delivery, account export, external operator receipts and actual iPhone/Android checks remain outstanding. These are specific acceptance gaps, not a requirement to solve every possible pet-care question.
