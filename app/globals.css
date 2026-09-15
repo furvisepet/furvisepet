@@ -1653,10 +1653,12 @@ textarea:disabled {
 @media (max-width: 1023px) {
   .home-progress { grid-template-columns: 1fr; }
   .site-about-desktop { display: none; }
-  .site-footer { padding-bottom: var(--mobile-nav-clearance); }
+  .site-footer { padding-bottom: 0; }
+  body:has([data-ui="mobile-bottom-navigation"]) .site-footer { padding-bottom: calc(var(--mobile-nav-clearance) - var(--space-6) + .5rem); }
 }
 @media (max-width: 1023px) {
   .homepage-header-actions > .homepage-header-primary-link { display: none; }
-  .site-footer .homepage-footer-inner { flex-wrap: wrap; padding-block: 1.25rem; gap: 1rem; }
-  .site-footer .homepage-footer-navigation { flex-wrap: wrap; gap: .5rem 1.5rem; }
+  .site-footer .homepage-footer-inner { min-height: 0; flex-wrap: wrap; padding-block: .75rem; gap: .5rem; }
+  .site-footer .homepage-footer-brand { display: none; }
+  .site-footer .homepage-footer-navigation { width: 100%; justify-content: space-between; flex-wrap: wrap; gap: .25rem .75rem; }
 }
