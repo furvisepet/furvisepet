@@ -134,6 +134,7 @@ function AskPageContent() {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [thread, setThread] = useState<ConversationMessage[]>([]);
   const [question, setQuestion] = useState("");
+  const [noteMode, setNoteMode] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [olderMessagesCursor, setOlderMessagesCursor] = useState<number | null>(null);
   const [olderMessagesLoading, setOlderMessagesLoading] = useState(false);
@@ -401,6 +402,7 @@ function AskPageContent() {
               timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       logicalTurnId,
       message: prompt,
+      ...(source === "composer" && noteMode ? { mode: "note" as const } : {}),
       petId: selectedPet,
     });
     const userMessageId = retry?.userMessageId || createMessageId("user");
@@ -422,6 +424,7 @@ function AskPageContent() {
         signal,
       }, scope, logicalTurnId), signal);
       setQuestion("");
+      setNoteMode(false);
       const result = await request;
       setRequestPhase("receiving");
       const payload = await result.json().catch(() => null) as { assistantMessageId?: string; automaticSaveConfirmation?: string | null; carePersistence?: CarePersistence | null; code?: AskFailureCode; contextUsed?: ContextUsed | null; conversationId?: string; creditsUsed?: number; dataChanged?: boolean; handledWithoutAi?: boolean; message?: string; persistence?: { saved?: boolean; warning?: string }; response?: unknown; retryAfterSeconds?: number; saveMetadata?: AskSaveMetadata | null; success?: boolean; suggestion?: StateSuggestion | null; usage?: AskUsageStatus | null; userMessageId?: string } | null;
@@ -479,6 +482,7 @@ function AskPageContent() {
     if (!failedRequest) return;
     setThread((current) => current.filter((message) => message.id !== failedRequest.userMessageId));
     setQuestion(failedRequest.payload.message);
+    setNoteMode(failedRequest.payload.mode === "note");
     setFailedRequest(null);
     setRequestPhase("idle");
     requestAnimationFrame(() => composerRef.current?.focus());
@@ -680,7 +684,7 @@ function AskPageContent() {
               </div>
               {latestAnswer && !requestActive && !failedRequest && shouldShowSuggestedQuestions(latestAnswer.response, findPreviousUserMessage(thread, thread.lastIndexOf(latestAnswer))) ? <SuggestedQuestions currentDraft={question} onSelect={draftSuggestedQuestion} suggestions={latestAnswer.response.suggestedQuestions} /> : null}
               <div className={`app-sticky-composer sticky ${hasThread ? "lg:sticky" : "lg:relative"} mt-3 bg-[var(--surface-page)] pt-1`} data-ask-composer-focused={composerFocused} data-ui="ask-composer-region">
-                <Composer disabled={composerUnavailable} hasThread={hasThread} inputRef={composerRef} loading={requestActive} onBlur={() => setComposerFocused(false)} onChange={updateComposerDraft} onFocus={() => setComposerFocused(true)} onSubmit={submit} petName={petName} value={question} />
+                <Composer noteMode={noteMode} onNoteModeChange={setNoteMode} disabled={composerUnavailable} hasThread={hasThread} inputRef={composerRef} loading={requestActive} onBlur={() => setComposerFocused(false)} onChange={updateComposerDraft} onFocus={() => setComposerFocused(true)} onSubmit={submit} petName={petName} value={question} />
                 <p className="mt-1.5 text-center text-xs leading-5 text-[var(--pw-subtle)]">Furvise helps keep your pet&apos;s story together. It does not replace veterinary care.</p>
               </div>
             </section>
@@ -831,17 +835,18 @@ function SuggestedQuestions({ currentDraft, onSelect, suggestions }: { currentDr
   return <section aria-label="Suggested follow-up questions" className="mt-5 min-w-0" data-ui="suggested-questions"><div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="text-sm font-semibold text-[var(--assistant-response-accent)]">You could ask</h2><p className="text-xs text-[var(--text-tertiary)]">Tap to draft</p></div><div className="mt-2.5 grid min-w-0 gap-2 sm:grid-cols-2">{suggestions.slice(0, 4).map((suggestion) => { const selected = currentDraft.trim() === suggestion.trim(); return <button aria-controls="ask-composer" className={`${suggestionButton} ${selected ? "bg-[var(--suggested-question-selected)]" : "bg-[var(--suggested-question-surface)]"}`} data-selected={selected || undefined} key={suggestion} onClick={() => onSelect(suggestion)} type="button"><span className="min-w-0 [overflow-wrap:anywhere]">{suggestion}</span><span aria-hidden="true" className="shrink-0">↘</span></button>; })}</div></section>;
 }
 
-function Composer({ disabled, hasThread, inputRef, loading, onBlur, onChange, onFocus, onSubmit, petName, value }: { disabled: boolean; hasThread: boolean; inputRef: React.RefObject<HTMLTextAreaElement | null>; loading: boolean; onBlur: () => void; onChange: (value: string) => void; onFocus: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; petName: string; value: string }) {
+function Composer({ noteMode, onNoteModeChange, disabled, hasThread, inputRef, loading, onBlur, onChange, onFocus, onSubmit, petName, value }: { noteMode: boolean; onNoteModeChange: (value: boolean) => void; disabled: boolean; hasThread: boolean; inputRef: React.RefObject<HTMLTextAreaElement | null>; loading: boolean; onBlur: () => void; onChange: (value: string) => void; onFocus: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; petName: string; value: string }) {
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); }
   }
-  const placeholder = hasThread ? `Ask or tell Furvise more about ${petName}\u2026` : `Ask or tell Furvise anything about ${petName}\u2026`;
+  const placeholder = noteMode ? `Write a note for ${petName}’s care history…` : hasThread ? `Ask or tell Furvise more about ${petName}\u2026` : `Ask or tell Furvise anything about ${petName}\u2026`;
   const inputLength = value.trim().length;
   const overLimit = inputLength > ASK_MAX_QUESTION_CHARACTERS;
   const canSend = inputLength > 0 && !overLimit && !disabled;
   return <form className="rounded-2xl border border-[var(--line-strong)] bg-[var(--surface-primary)] p-3 shadow-[var(--shadow-surface-2)]" id="ask-composer" onSubmit={onSubmit}>
+    <label className="mb-2 flex items-center gap-2 px-1 text-xs text-[var(--pw-muted)]"><input type="checkbox" checked={noteMode} disabled={disabled || petName === "All pets"} onChange={event => onNoteModeChange(event.target.checked)} />Save note to care history</label>
     <div className="mb-2 flex items-center justify-between gap-3 px-1"><span className="text-xs font-semibold text-[var(--pw-primary)]">{petName}</span><span className="hidden text-xs text-[var(--pw-subtle)] sm:inline">Enter to send · Shift + Enter for a new line</span></div>
-    <div className="flex items-end gap-2"><textarea aria-describedby="ask-input-limit" aria-invalid={overLimit || undefined} aria-label={placeholder.replace("\u2026", "")} className="max-h-40 min-h-14 flex-1 resize-none rounded-lg bg-transparent px-2 py-3 text-base leading-6 text-[var(--pw-text)] outline-none placeholder:text-[var(--pw-placeholder)] focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]" disabled={disabled} onBlur={onBlur} onChange={(event) => onChange(event.target.value)} onFocus={onFocus} onKeyDown={handleKeyDown} placeholder={placeholder} ref={inputRef} value={value} /><PrimaryButton aria-label="Send" className="mb-1 min-h-11 min-w-16 px-4" disabled={!canSend} loading={loading} type="submit">Send</PrimaryButton></div>
+    <div className="flex items-end gap-2"><textarea aria-describedby="ask-input-limit" aria-invalid={overLimit || undefined} aria-label={placeholder.replace("\u2026", "")} className="max-h-40 min-h-14 flex-1 resize-none rounded-lg bg-transparent px-2 py-3 text-base leading-6 text-[var(--pw-text)] outline-none placeholder:text-[var(--pw-placeholder)] focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]" disabled={disabled} onBlur={onBlur} onChange={(event) => onChange(event.target.value)} onFocus={onFocus} onKeyDown={handleKeyDown} placeholder={placeholder} ref={inputRef} value={value} /><PrimaryButton aria-label={noteMode ? "Save note" : "Send"} className="mb-1 min-h-11 min-w-16 px-4" disabled={!canSend} loading={loading} type="submit">{noteMode ? "Save note" : "Send"}</PrimaryButton></div>
     <p className="mt-2 px-1 text-xs text-[var(--pw-muted)]" id="ask-input-limit" role={overLimit ? "alert" : undefined}>{inputLength.toLocaleString("en-US")} / {ASK_MAX_QUESTION_CHARACTERS.toLocaleString("en-US")} characters{overLimit ? ". Shorten this message to send it. Your full draft is kept here." : ""}</p>
   </form>;
 }

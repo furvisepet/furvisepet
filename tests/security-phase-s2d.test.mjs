@@ -256,7 +256,7 @@ test("every current API mutation route is inventoried behind a direct or canonic
     .filter((path) => path.endsWith("/route.ts") && /export async function (?:POST|PUT|PATCH|DELETE)/.test(readFileSync(path, "utf8")))
     .map((path) => `app/api${path.slice(apiRoot.length)}`)
     .sort();
-  const direct = new Set(["app/api/account/detect-country/route.ts", "app/api/ask/route.ts", "app/api/ask/suggestions/[id]/route.ts", "app/api/memories/[id]/route.ts"]);
+  const direct = new Set(["app/api/internal/owner-note-enrichment/route.ts", "app/api/account/detect-country/route.ts", "app/api/ask/route.ts", "app/api/ask/suggestions/[id]/route.ts", "app/api/memories/[id]/route.ts"]);
   const authenticated = new Set([
     "app/api/account/delete/route.ts", "app/api/account/export/route.ts", "app/api/account/product-country/route.ts", "app/api/ask/actions/[messageId]/route.ts", "app/api/billing/checkout/route.ts", "app/api/billing/portal/route.ts", "app/api/care-entries/[id]/route.ts", "app/api/care-entries/route.ts",
     "app/api/legacy-memories/route.ts", "app/api/pets/[id]/route.ts", "app/api/product-feedback/route.ts", "app/api/telemetry/activity/route.ts",

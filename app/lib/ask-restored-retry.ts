@@ -1,4 +1,4 @@
-type AskIdentityPayload = { conversationId: string; locale: string; timeZone?: string; petId: string; question: string };
+type AskIdentityPayload = { mode?: "note"; conversationId: string; locale: string; timeZone?: string; petId: string; question: string };
 type OwnedPersistedTurn = { conversationId: string; question: string | null; userSequence: number };
 
 /** Recover only known transport versions of an owned turn. Every candidate

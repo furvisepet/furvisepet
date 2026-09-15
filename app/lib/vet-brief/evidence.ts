@@ -43,7 +43,7 @@ export function vetBriefEvidence(context: FurviseLiveContext, plan: VetBriefAppo
     evidenceChecks: plan.questionsToResolve,
     currentOwnerReport: context.currentMessage,
     profile: context.pet,
-    records: records.map(r => ({ id: r.id, date: r.occurred_at.slice(0, 10), occurredAt: r.occurred_at, category: r.category, title: r.title, text: r.note })),
+    records: records.map(r => ({ id: r.id, date: r.care_event_metadata?.occurrenceBasis === "recorded_at" ? null : r.occurred_at.slice(0, 10), occurredAt: r.care_event_metadata?.occurrenceBasis === "recorded_at" ? null : r.occurred_at, recordedAt: r.created_at, authority: r.intelligence_source_type === "owner_note" ? "unverified_owner_report" : "saved_record", category: r.category, title: r.title, text: r.note })),
     backgroundNotes: selectedMemories,
     activeConcerns: context.activeConcerns,
     recentlyResolvedConcerns: context.recentlyResolvedConcerns,
