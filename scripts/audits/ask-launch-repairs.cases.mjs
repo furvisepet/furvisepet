@@ -20,7 +20,7 @@ test('owner-note authority preserves uncertainty and local dates without admitti
  assert.ok(uncertain);
  assert.match(uncertain.sourceExcerpt,/may have been/);
  assert.match(uncertain.sourceExcerpt,/appetite was completely normal/);
- assert.equal(uncertain.temporal.occurredAt,'2026-09-14T07:00:00.000Z');
+ assert.equal(uncertain.temporal.occurredAt,'2026-09-15T02:30:00.000Z');
  for(const q of [
   moodQuestion+' Do not save anything.',
   moodQuestion.replace('Rowan seemed','Mochi seemed'),
@@ -45,7 +45,7 @@ test('the exact dated owner note survives optional low-confidence clinical extra
  assert.equal(saved.event.sourceExcerpt,moodQuestion.split('. ')[0]+'.');
  assert.deepEqual(saved.destinations,['care_event']);
  assert.equal(saved.event.references.episodeId,null);
- assert.equal(saved.event.temporal.occurredAt,'2026-09-14T00:00:00.000Z');
+ assert.equal(saved.event.temporal.occurredAt,'2026-09-14T19:30:00.000Z');
  assert.deepEqual(r.result.executionPlan.learnings,[]);
  assert.deepEqual(r.result.reasoning.applicationActions,[]);
 });

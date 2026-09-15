@@ -1,7 +1,7 @@
 import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
 import { ownerDeclinesPersistence, unquotedOwnerText } from "../ai/owner-assertion.ts";
 import { isPetObservationEvidence } from "../ai/recovery-subject.ts";
-import { calendarBoundaryToInstant } from "../ask-time-zone.ts";
+import { calendarBoundaryToInstant, resolveAskTimeZone } from "../ask-time-zone.ts";
 import type { CanonicalEventProposal } from "./types.ts";
 
 /** A dated, explicitly requested owner note is a record of the supplied words.
@@ -34,10 +34,25 @@ export function explicitOwnerNote(input: {
   const day = new Date(parsed).toISOString().slice(0, 10);
   const dayNumber = /^\d{4}-/.test(dateText) ? Number(dateText.slice(-2)) : Number(/\s(\d{1,2})/.exec(dateText)?.[1]);
   if (Number(day.slice(-2)) !== dayNumber) return null;
-  const occurredAt = calendarBoundaryToInstant(day + "T00:00:00.000Z", input.timeZone);
+  const zone = resolveAskTimeZone(input.timeZone);
+  let occurredAt = calendarBoundaryToInstant(day + "T00:00:00.000Z", zone);
+  const clocks = [...note.matchAll(/\b(1[0-2]|0?[1-9]):([0-5]\d)\s*(AM|PM)\b/gi)];
+  if (clocks.length > 1) return null;
+  if (clocks.length) {
+    const [, hourText, minuteText, meridiem] = clocks[0];
+    const hour = Number(hourText) % 12 + (meridiem.toUpperCase() === "PM" ? 12 : 0);
+    const minute = Number(minuteText);
+    const candidate = new Date(Date.parse(occurredAt) + (hour * 60 + minute) * 60_000);
+    const parts = new Intl.DateTimeFormat("en-GB", {timeZone:zone,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(candidate);
+    const part = (type: string) => parts.find(item => item.type === type)?.value;
+    // Do not silently shift a wall-clock time across a DST transition. Such
+    // dates remain with the normal interpretation/clarification pipeline.
+    if ([part("year"),part("month"),part("day")].join("-") !== day || Number(part("hour")) !== hour || Number(part("minute")) !== minute) return null;
+    occurredAt = candidate.toISOString();
+  }
   if (Date.parse(occurredAt) > Date.now()) return null;
   return { subject: { type: "pet", name: pet.name }, domain: "other", topic: "owner_note",
     eventTitle: "Owner note", transition: "observed", state: "historical", importance: "routine",
     // Confidence is in reproducing the source, not in its clinical meaning.
-    confidence: 1, sourceExcerpt: note, temporal: { occurredAt, explicitTime: dateText } };
+    confidence: 1, sourceExcerpt: note, temporal: { occurredAt, explicitTime: dateText + (clocks.length ? " " + clocks[0][0] : "") } };
 }
