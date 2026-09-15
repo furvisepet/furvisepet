@@ -1501,7 +1501,7 @@ test('save-status questions retain a no-save user turn for authoritative receipt
 });
 
 test('embedded and coordinated opt-outs remove mixed-write authority without erasing saved-history scope',()=>{
- for(const ending of ['without logging an unconfirmed medical status.', 'without creating an automatic shortcut or logging an unconfirmed medical status.', 'Do not record these symptoms.', 'Save nothing.']) {
+ for(const ending of ['without logging an unconfirmed medical status.', 'without creating an automatic shortcut or logging an unconfirmed medical status.', 'Do not record these symptoms.', 'Save nothing.', 'Do not create shortcuts or save any care-history updates.']) {
   const r=validateAskRequest(proposal({mode:'mixed',evidenceBasis:'saved_history'}),{...context,
    currentMessage:'Aster has redness again. Compare the saved history and prepare a brief '+ending});
   assert.equal(r.readOnly,true);
@@ -1527,4 +1527,16 @@ test('a failed mixed answer cannot commit proposed observation side effects',asy
  assert.deepEqual(r.result.executionPlan.learnings,[]);
  assert.deepEqual(r.result.acceptedSemanticEvents,[]);
  }
+});
+
+
+test('mixed historical questions retain independently scoped evidence needs',()=>{
+ const currentMessage='His belly is red today. Compare the saved prednisone plan and July 2024 skin notes.';
+ const r=validateAskRequest(proposal({mode:'mixed',evidenceBasis:'saved_history',evidenceNeeds:[
+  {quote:'saved prednisone plan',sourceTurnId:null,terms:['prednisone'],petNames:['Aster'],order:'context'},
+  {quote:'July 2024 skin notes',sourceTurnId:null,terms:['skin'],petNames:['Aster'],order:'context'},
+ ]}),{...context,currentMessage});
+ assert.equal(r.request.evidenceNeeds.length,2);
+ assert.equal(r.request.evidenceNeeds[0].window,undefined);
+ assert.ok(r.request.evidenceNeeds[1].window);
 });
