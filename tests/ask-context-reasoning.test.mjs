@@ -12,12 +12,23 @@ import {
   clearAskProviderCooldownsForTests,
   generateContextAwareAskResponse,
   getAskModelConfiguration,
+  buildAskProviderRequest,
 } from "../app/lib/ai/ask-reasoning.ts";
 import { buildRecentAskUpdates } from "../app/lib/ask-safety-context.ts";
 import { ensureConfirmedLossAction } from "../app/lib/ai/pet-loss.ts";
 import { prepareFurviseApplicationActions } from "../app/lib/application-actions/index.ts";
 
 const now = new Date("2026-07-27T20:00:00Z");
+test('mixed history generation requires citation-bearing narrative instead of optional plain prose',()=>{
+ const base=input();const e=buildAskContext(base).promptContext.evidenceContract;
+ e.interpretation={request:{mode:'mixed',referenceTurnIds:[],evidenceNeeds:[]}};
+ e.history={candidateIds:[],provenance:[],reasons:[]};e.scope.readOnlyRecall=false;
+ const request=buildAskProviderRequest({evidenceContract:e,contextRecords:[]});
+ const narrative=request.text.format.schema.properties.historyNarrative;
+ assert.equal(narrative.type,'object');
+ assert.ok(narrative.properties.sentences.items.required.includes('calculations'));
+ assert.ok(narrative.properties.sentences.items.required.includes('sourceIds'));
+});
 const maniProductionQuestion = "Mani has been acting restless since the male cat started coming to our door three days ago. She keeps meowing at the door and seems more interested in getting outside. Yesterday I think she drank some water I had left outside, but I’m not completely sure. Today she ate normally and is acting mostly like herself. Based on what you already know about Mani and what I’ve told you recently, what do you think is relevant here, what should I do today, what should I keep an eye on, and is there anything from her history that changes your advice?";
 
 function profile(overrides = {}) {

@@ -1326,10 +1326,11 @@ export function conversationAnswerSchema(properties: Record<string, unknown>) {
 
 /** Current owner observations have one extraction channel. Legacy duplicate
  * care actions, learning proposals and frames are not authored a second time. */
-export function governedTurnAnswerSchema(properties: Record<string, unknown>) {
+export function governedTurnAnswerSchema(properties: Record<string, unknown>, historyRequired = false) {
   const fields = ["answer", "answerSections", "safetyLevel", "responseMode", "userIntent", "applicationActions", "relevantContextIds", "historyNarrative", "messageUnderstanding", "semanticEvents"];
   return { type: "object", additionalProperties: false, required: fields,
-    properties: Object.fromEntries(fields.map(field => [field, properties[field]])) };
+    properties: Object.fromEntries(fields.map(field => [field, field === "historyNarrative" && historyRequired
+      ? { ...properties[field] as object, type: "object" } : properties[field]])) };
 }
 
 export function buildAskProviderRequest(promptContext: object) {
@@ -1401,7 +1402,7 @@ export function buildAskProviderRequest(promptContext: object) {
     ...(dedicatedRead || conversationOnly || evidence?.history && evidence?.interpretation?.request ? { reasoning: { effort: "medium" } } : {}),
     instructions: requestInstructions,
     input: JSON.stringify(transported),
-    text: { format: { type: "json_schema", name: "furvise_ask_response", strict: true, schema: sourceBoundSchema(conversationOnly ? conversationAnswerSchema(askUnifiedJsonSchema.properties) : dedicatedRead ? historicalReadSchema(askUnifiedJsonSchema.properties, evidence.interpretation?.request?.outputFormat) : evidence?.interpretation?.request ? governedTurnAnswerSchema(askUnifiedJsonSchema.properties) : askUnifiedJsonSchema, !conversationOnly && evidence?.interpretation?.request && evidence?.scope?.authorizedPetIds ? eligibleAnswerSources(evidence) : []) } },
+    text: { format: { type: "json_schema", name: "furvise_ask_response", strict: true, schema: sourceBoundSchema(conversationOnly ? conversationAnswerSchema(askUnifiedJsonSchema.properties) : dedicatedRead ? historicalReadSchema(askUnifiedJsonSchema.properties, evidence.interpretation?.request?.outputFormat) : evidence?.interpretation?.request ? governedTurnAnswerSchema(askUnifiedJsonSchema.properties, Boolean(evidence.history)) : askUnifiedJsonSchema, !conversationOnly && evidence?.interpretation?.request && evidence?.scope?.authorizedPetIds ? eligibleAnswerSources(evidence) : []) } },
   };
 }
 

@@ -69,6 +69,7 @@ export function evidenceRemovalCost(evidence: AskEvidenceContract, sourceId: str
   const literals = (evidence.interpretation?.request?.evidenceNeeds || []).flatMap(need =>
     historyQuantityAnchors(need.quote).map(anchor => evidence.represented.filter(span =>
       span.sourceType === "care_update" && (!need.petIds || need.petIds.includes(span.petId))
+      && !evidence.completedOwnerNote?.entryIds.some(id => span.sourceId === `care:${id}`)
       && withinEvidenceNeedWindow(span.occurredAt, need.window)
       && historyQuantityAnchors(span.text).includes(anchor)).map(span => span.sourceId)));
   return [...needs, ...dates].filter(ids => ids.length === 1 && ids[0] === sourceId).length
