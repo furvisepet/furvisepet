@@ -20,7 +20,7 @@ import { sanitizeInternalProductMetadataFromCareAnswer } from "../../ai/ask-inte
 import { neutralizeMalformedPetReferences, normalizePetVisibleAnswer } from "../../ask-safety-context.ts";
 import type { FurviseLiveContext, IntelligenceSafetyLevel } from "../types.ts";
 import { memoryDisplayContent } from "../memory-integrity.ts";
-import { attributedHistoryAnswer, evidenceAnswerPolicy, resolutionStatusAnswer } from "../ask-evidence.ts";
+import { attributedHistoryAnswer, evidenceAnswerPolicy, resolutionStatusAnswer, eligibleAnswerSources } from "../ask-evidence.ts";
 import { sourceNoteAnswer } from "../source-note-recall.ts";
 import { episodeAnswer } from "../episode-contract.ts";
 
@@ -241,8 +241,9 @@ export function validateGeneratedAnswer(
       answerText = answerText.replace(JSON.stringify(content).slice(1, -1), "");
     }
   }
+  const eligibleReviewedSources = response.evidenceContract ? eligibleAnswerSources(response.evidenceContract) : [];
   const reviewedSources = reviewedHistory?.sourceIds.map(id =>
-    response.evidenceContract?.represented.filter(span => span.sourceId === id) || []) || [];
+    eligibleReviewedSources.filter(span => span.sourceId === id)) || [];
   const scopedReview = reviewedSources.length > 0 && reviewedSources.every(spans => spans.length > 0
     && spans.every(span => authoritativePetIds.includes(span.petId)));
   const unauthorizedPetNamed = !conversationOnly && (context.eligiblePets || []).some((pet) => {
@@ -252,7 +253,7 @@ export function validateGeneratedAnswer(
     // A reviewed note may mention another animal without reading that animal's
     // records. Exempt only immutable reviewed prose, backed by cited sources
     // belonging to the authorized subject. Other generated prose stays checked.
-    if (scopedReview && reviewedSources.some(spans => spans.some(span => named.test(span.text)))) {
+    if (scopedReview && reviewedSources.some(spans => spans.some(span => span.sourceType === "care_update" && named.test(span.text)))) {
       const prose = reviewedHistory?.proseText || reviewedHistory?.text;
       if (prose) unchecked = unchecked.replace(JSON.stringify(prose).slice(1, -1), "");
     }
