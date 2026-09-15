@@ -110,7 +110,16 @@ export function splitAskTextBlocks(value: string): AskTextBlock[] {
 export function splitAskPresentationBlocks(value: string): AskTextBlock[] {
   return splitAskTextBlocks(value).flatMap<AskTextBlock>(block => {
     if (block.kind === "code") return [block];
-    return block.text.split(/\n\s*\n/).filter(Boolean).flatMap(paragraph => {
+    // Restore spacing in an unambiguously numbered inline list. Preserve all
+    // wording and punctuation; leave quotations and structured text literal.
+    let displayText = block.text;
+    const markers = [...displayText.matchAll(/(?:^|\s)([1-8])\)\s+(?=\S)/g)];
+    if (!/["“”]/.test(displayText) && !isStructuredHistoryText(displayText)
+      && markers.length >= 2 && markers.every((marker, index) => Number(marker[1]) === index + 1)
+      && /:\s*$/.test(displayText.slice(0, markers[0].index))) {
+      displayText = displayText.replace(/\s+([1-8]\))\s+/g, "\n\n$1 ");
+    }
+    return displayText.split(/\n\s*\n/).filter(Boolean).flatMap(paragraph => {
       const runs: string[][] = [];
       let previousList: boolean | undefined;
       for (const line of paragraph.split(/\r?\n/)) {

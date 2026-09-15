@@ -20,3 +20,9 @@ test('both date orders retain quantities and explicit years',()=>{
  assert.equal(supported('September 3.8 kg.',[{text:'Recorded 3.8 kg.'}],'',[],false),true);
  assert.equal(supported('September 3.8 kg.',[{text:'Recorded 4.8 kg.'}],'',[],false),false);
 });
+test('qualified record-year labels are not literal counts',()=>{
+ const records=[{text:'Vomiting was reported.',occurredAt:'2024-02-01T12:00:00Z'},{text:'Vomiting stopped.',occurredAt:'2024-02-03T12:00:00Z'}];
+ for(const text of ['The only 2024 notes shown concern vomiting.','The only available 2024 notes shown concern vomiting.','In the visible 2024 notes, vomiting was reported.']) assert.equal(supported(text,records,'',[],false),true,text);
+ assert.equal(supported('There are exactly 2024 notes.',records,'',[],false),false);
+ assert.equal(supported('The only 2023 notes shown concern vomiting.',records,'',[],false),false);
+});
