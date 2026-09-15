@@ -453,7 +453,8 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     }
     // The shared reviewer checks claim-scoped limitations in the requested language.
     const limitation = sharedRequest ? "" : conversationalHistoryLimitation(evidence);
-    const composed = sharedRequest ? retained.map(sentence => sentence.text).join("\n")
+    const composed = sharedRequest && sharedRequest.outputFormat && sharedRequest.outputFormat !== "prose"
+      ? retained.map(sentence => sentence.text).join("\n")
       : presentReviewedHistory(retained.map(sentence => sentence.text), evidence.scope.requestText);
     if (proposedDraft.sentences.some(sentence => isStructuredHistoryText(sentence.text))
       && (!isStructuredHistoryText(composed) || supplements.length)) return decline("composed_structure_changed");
