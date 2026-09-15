@@ -1,6 +1,6 @@
 # Public beta contact reports
 
-`/contact` is public and sends descriptions plus one optional PNG/JPEG/WebP screenshot (2 MiB maximum) to the existing published support address, `furvisepet@gmail.com`. The reporter's address is reply-to only; no acknowledgement is sent to arbitrary addresses. No pet records or conversation bodies are attached automatically. Ask links open a separate tab so active requests and drafts remain in place.
+`/contact` is public and sends descriptions plus one optional PNG/JPEG/WebP screenshot (2 MiB maximum) to the designated support address, `supportfurvise@gmail.com`. The reporter's address is reply-to only; no acknowledgement is sent to arbitrary addresses. No pet records or conversation bodies are attached automatically. Ask links open a separate tab so active requests and drafts remain in place.
 
 ## Required before production release
 

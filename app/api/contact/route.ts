@@ -26,11 +26,11 @@ export async function POST(request: Request) {
   }
   const key = process.env.RESEND_API_KEY;
   const from = process.env.FURVISE_SUPPORT_FROM;
-  if (!key || !from) return json({ error: "Report sending is temporarily unavailable. Your report is still here. You can email furvisepet@gmail.com instead." }, 503);
+  if (!key || !from) return json({ error: "Report sending is temporarily unavailable. Your report is still here. You can email supportfurvise@gmail.com instead." }, 503);
   try {
     const reference = await sendContactReport(report, { key, from });
     return json({ reference });
   } catch {
-    return json({ error: "We couldn't confirm your report was sent. Your text and screenshot are still here. Please try again, or email furvisepet@gmail.com." }, 502);
+    return json({ error: "We couldn't confirm your report was sent. Your text and screenshot are still here. Please try again, or email supportfurvise@gmail.com." }, 502);
   }
 }
