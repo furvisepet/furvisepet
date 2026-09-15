@@ -29,3 +29,17 @@ test('text corrections retain authorized original citation candidates for unchan
  const unknown=applyProseRepair(original,{replacements:[{index:0,text:'An invented claim.',sourceIds:['care:invented'],calculations:[]}]},['care:weight','care:medicine']);
  assert.ok(unknown.sentences[0].sourceIds.includes('care:invented'),'new invalid IDs remain visible for rejection, never silently removed');
 });
+
+
+test('an incomplete paragraph can expand without losing neighboring claims',()=>{
+ const additions=[{text:'The dated note describes a plan.',sourceIds:['care:weight']},
+  {text:'The plan does not prove administration.',sourceIds:['care:weight']}];
+ const result=applyProseRepair(draft,{replacements:[{index:0,sentences:additions}]});
+ assert.equal(result.sentences.length,3);
+ assert.equal(result.sentences[0].text,additions[0].text);
+ assert.equal(result.sentences[1].text,additions[1].text);
+ assert.deepEqual(result.sentences[2],draft.sentences[1]);
+ assert.throws(()=>applyProseRepair(draft,{replacements:[{index:0,sentences:[]}]}));
+ assert.throws(()=>applyProseRepair(draft,{replacements:[{index:0,sentences:Array(8).fill(additions[0])}]}));
+ assert.throws(()=>applyProseRepair(draft,{replacements:[{index:0,sentences:[{...additions[0],text:'a'.repeat(651)}]}]}));
+});
