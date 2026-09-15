@@ -1059,6 +1059,14 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
   if (conversationResponse && publication.response) Object.assign(conversationResponse, publication.response);
   const integrityFailure = publication.failure;
   if (!conversationResponse || integrityFailure) {
+    console.info("[Ask publication] rejected", {
+      requestId, failure: integrityFailure || "serialization",
+      titlePresent: Boolean(governedAnswer.title.trim()),
+      summaryPresent: Boolean(governedAnswer.summary.trim()),
+      sectionCount: governedAnswer.sections.length,
+      preparedActionCount: preparedApplicationActions.length,
+      displayedActionCount: publication.displayed?.applicationActions?.length || 0,
+    });
     await failAiAdmission(aiAdmission, new Error(integrityFailure ? "ASK_ANSWER_INTEGRITY_FAILED" : "ASK_RESPONSE_SERIALIZATION_FAILED"), aiAdmissionFinalized, requestId);
     aiAdmissionFinalized = Boolean(aiAdmission);
     logAskServerError("response_serialization", new Error(integrityFailure ? "ASK_ANSWER_INTEGRITY_FAILED" : "ASK_RESPONSE_SERIALIZATION_FAILED"), {

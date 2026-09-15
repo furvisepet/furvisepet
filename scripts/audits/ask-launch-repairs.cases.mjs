@@ -5,10 +5,75 @@ import {care,pets} from './fixtures/ask-lifetime-history.mjs';
 import {emptyProposedSemanticFrame} from '../../app/lib/intelligence/semantic-frame/extract-frame.ts';
 import {validateAskRequest} from '../../app/lib/intelligence/ask-request-contract.ts';
 import {explicitMutationTarget} from '../../app/lib/intelligence/entities/resolve-turn-subject.ts';
+import {explicitOwnerNote} from '../../app/lib/intelligence/explicit-owner-note.ts';
 const owned=pets.slice(0,2).map((pet,i)=>({...pet,name:['Rowan','Mochi'][i]}));
 const question="Rowan is my active pet right now. My other dog, Mochi, has a known allergy to chicken fat that was logged in her history. Today, I am switching food to a new lamb formula. Tell me if this new formula is safe based strictly on Mochi's history, but log the food update as a new Care History entry only for Rowan. Keep the two pets' data completely isolated.";
 const proposal=(patch={})=>({version:'ask-request.v2',mode:'mixed',question,requirements:[],referenceTurnIds:[],scope:'named',petNames:['Rowan'],operation:'recall',selection:'summary',quantity:null,topic:'food',terms:['allergy','chicken','food'],from:null,to:null,episodeTopic:null,ordinal:null,frame:emptyProposedSemanticFrame(),evidenceBasis:'saved_history',
  evidenceNeeds:[{quote:"based strictly on Mochi's history",sourceTurnId:null,petNames:['Mochi'],terms:['allergy','chicken'],order:'context'}],...patch});
+
+const moodQuestion = 'Rowan seemed a little sluggish on our walk this evening around 7:30 PM, but his appetite was completely normal for dinner. I just want to log this mood note to his care history for tonight, September 14, 2026. Keep the response brief.';
+const moodAnswer = 'Rowan seemed a little sluggish on the walk around 7:30 PM on September 14, 2026, with a normal appetite at dinner.';
+test('owner-note authority preserves uncertainty and local dates without admitting other tasks', t=>{
+ t.mock.timers.enable({apis:['Date'],now:Date.parse('2026-09-15T05:35:00Z')});
+ const parse=message=>explicitOwnerNote({message,pet:owned[0],pets:owned,timeZone:'America/Los_Angeles'});
+ const uncertain=parse(moodQuestion.replace('seemed a little','may have been a little'));
+ assert.ok(uncertain);
+ assert.match(uncertain.sourceExcerpt,/may have been/);
+ assert.match(uncertain.sourceExcerpt,/appetite was completely normal/);
+ assert.equal(uncertain.temporal.occurredAt,'2026-09-14T07:00:00.000Z');
+ for(const q of [
+  moodQuestion+' Do not save anything.',
+  moodQuestion.replace('Rowan seemed','Mochi seemed'),
+  moodQuestion.replace('his appetite','Mochi’s appetite'),
+  moodQuestion.replace('September 14, 2026','February 30, 2026'),
+  moodQuestion.replace('September 14, 2026','September 16, 2026'),
+  moodQuestion.replace('Keep the response brief.','Does this mean he is sick?'),
+  moodQuestion.replace('for tonight,','and resolve his concern for tonight,'),
+  'If '+moodQuestion,
+  '"'+moodQuestion+'"',
+ ]) assert.equal(parse(q),null,q);
+});
+test('the exact dated owner note survives optional low-confidence clinical extraction', async t => {
+ t.mock.timers.enable({apis:['Date'],now:Date.parse('2026-09-15T05:35:00Z')});
+ const r = await exercise(moodQuestion, {fixturePets:owned, petId:owned[0].id, messages:[],rows:[],taskReviewResponse:true,
+  interpretationProposal:proposal({mode:'update',operation:'general',evidenceBasis:null,evidenceNeeds:[],terms:[]}),
+  providerOverrides:{answer:moodAnswer,historyNarrative:null,semanticEvents:[{subject:{type:'pet',name:'Rowan'},domain:'health',topic:'low_energy',eventTitle:'Low energy',transition:'observed',state:'historical',temporal:{occurredAt:null,explicitTime:'this evening'},importance:'routine',confidence:.78,sourceExcerpt:moodQuestion.split('. ')[0]+'.'}]},
+ });
+ assert.equal(r.publication.failure,null);
+ assert.equal(r.result.executionPlan.semanticEvents.length,1);
+ const saved = r.result.executionPlan.semanticEvents[0];
+ assert.equal(saved.event.sourceExcerpt,moodQuestion.split('. ')[0]+'.');
+ assert.deepEqual(saved.destinations,['care_event']);
+ assert.equal(saved.event.references.episodeId,null);
+ assert.equal(saved.event.temporal.occurredAt,'2026-09-14T00:00:00.000Z');
+ assert.deepEqual(r.result.executionPlan.learnings,[]);
+ assert.deepEqual(r.result.reasoning.applicationActions,[]);
+});
+
+test('an action-only approval cannot publish a placeholder after receipt wording is removed', async t => {
+ t.mock.timers.enable({apis:['Date'],now:Date.parse('2026-09-15T05:35:00Z')});
+ let reviews=0, repairs=0;
+ const r = await exercise(moodQuestion, {fixturePets:owned,petId:owned[0].id,messages:[],rows:[],
+  interpretationProposal:proposal({mode:'update',operation:'general',evidenceBasis:null,evidenceNeeds:[],terms:[]}),
+  providerOverrides:{answer:'I can help with that.',historyNarrative:null},
+  taskReviewProviderResponse:async request=>{
+   const payload=JSON.parse(request.input);
+   if(request.text.format.schema.properties.navigation) {
+    repairs++;
+    return {status:'completed',output_text:JSON.stringify({answer:moodAnswer,navigation:null}),usage:{input_tokens:100,output_tokens:50}};
+   }
+   reviews++;
+   return {status:'completed',output_text:JSON.stringify({reason:null,
+    verification:Object.fromEntries(['evidenceSupport','subjectDateCorrectness','calculationCorrectness'].map(key=>[key,{status:'passed',reason:'Explicit fixture verdict'}])),
+    obligations:payload.obligations.map((_,index)=>({index,status:'answered',answerIndexes:[],actionIndexes:[0]}))}),usage:{input_tokens:100,output_tokens:50}};
+  },
+ });
+ assert.equal(repairs,1);
+ assert.equal(reviews,2);
+ assert.equal(r.publication.failure,null);
+ assert.match(r.publication.displayed.summary,/normal appetite/);
+ assert.equal(r.result.executionPlan.semanticEvents.length,1);
+});
 
 test('mixed screenshot routes owned reads separately from the explicit write destination',async t=>{
  clock(t);
