@@ -18,7 +18,8 @@ test("signed-out Add pet links target login with next onboarding", () => {
 
   const homepage = read("app/components/homepage-client.tsx");
   const header = read("app/components/app-header.tsx");
-  assert.match(homepage, /href=\{NEW_PET_LOGIN_PATH\}/);
+  assert.match(homepage, /<AppHeader/);
+  assert.match(read("app/components/app-header.tsx"), /href=\{NEW_PET_LOGIN_PATH\}/);
   assert.match(header, /NEW_PET_LOGIN_PATH, label: "Add your pet"/);
   assert.match(header, /NEW_PET_ONBOARDING_PATH, label: "Add pet"/);
 });

@@ -16,7 +16,7 @@ const dataPrivacy = read("app/settings/data-privacy/page.tsx");
 const membership = read("app/membership/page.tsx");
 
 test("one shared account utility owns the same menu on homepage and application pages", () => {
-  assert.match(homepage, /<AccountUtility email=\{email\} \/>/);
+  assert.match(homepage, /<AppHeader accountEmail=/);
   assert.match(appHeader, /<AccountUtility email=\{accountEmail\} \/>/);
   assert.match(utility, /aria-label="Open account menu"/);
   assert.match(utility, /email\?\.trim\(\)\.slice\(0, 1\)\.toUpperCase\(\)/);

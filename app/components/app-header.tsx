@@ -17,6 +17,7 @@ import { useAskComposerFocus } from "../lib/navigation/ask-composer-focus";
 import { getBrowserSupabase } from "../lib/supabase";
 import { PrimaryButton, TextAction } from "./product-primitives";
 import { AccountUtility } from "./account-utility";
+import { PublicLinksMenu } from "./public-links-menu";
 
 type HeaderAction = {
   href?: string;
@@ -83,7 +84,8 @@ export function AppHeader({
   const activeMobileTab = getActiveMobileNavigationTab(pathname);
   const showMobileNavigation = shouldShowMobileNavigation(pathname, resolvedAuthState === "authenticated");
   const askCompactNavigation = pathname === "/ask" && composerFocused;
-  const items = variant === "site" || resolvedAuthState === "authenticated" ? APP_NAV_ITEMS : navItems ?? [];
+  const publicPage = ["/", "/contact", "/privacy", "/terms", "/release-notes"].includes(pathname);
+  const items = publicPage && resolvedAuthState !== "authenticated" ? [{ href: "/release-notes", label: "Release notes" }, { href: "/contact", label: "Contact us" }] : variant === "site" || resolvedAuthState === "authenticated" ? APP_NAV_ITEMS : navItems ?? [];
   const resolvedHomepageActions = homepageActions ?? (
     resolvedAuthState === "authenticated"
       ? [{ href: "/today", label: "Today", variant: "secondary" as const }, { href: NEW_PET_ONBOARDING_PATH, label: "Add pet", variant: "primary" as const }]
@@ -177,11 +179,13 @@ export function AppHeader({
                     {item.label}
                   </Link>
                 ))}
+                <div className="site-about-desktop"><PublicLinksMenu /></div>
               </nav>
             ) : null}
           </div>
 
           <div className="homepage-header-actions" data-ui="desktop-account-zone">
+            <div className="homepage-mobile-menu"><PublicLinksMenu /></div>
             {resolvedAuthState === "authenticated" ? (
               <AccountUtility email={accountEmail} />
             ) : isHomepage ? (
@@ -193,7 +197,7 @@ export function AppHeader({
                 ) : null)}
               </div>
             ) : (
-              <Link className="homepage-header-text-link" href="/login">Sign in</Link>
+              <><Link className="homepage-header-text-link" href="/login">Sign in</Link>{publicPage && resolvedAuthState === "anonymous" ? <Link className="homepage-header-primary-link" href={NEW_PET_LOGIN_PATH}>Get started</Link> : null}</>
             )}
           </div>
         </div>

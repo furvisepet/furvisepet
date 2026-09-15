@@ -73,17 +73,19 @@ test("account notification dot is absent by default", () => {
 
 test("homepage offers signup to visitors and navigation to every signed-in account", () => {
   const homepage = read("app/components/homepage-client.tsx");
-  assert.match(homepage, /showSignIn=\{visibleMode === "anonymous"\}/);
-  assert.match(homepage, /anonymous \? <><Link[\s\S]*href=\{NEW_PET_LOGIN_PATH\}>Get started/);
-  assert.match(homepage, /signedIn \? \([\s\S]*Homepage application navigation/);
+  const sharedHeader = read("app/components/app-header.tsx");
+  assert.match(homepage, /<AppHeader accountEmail=/);
+  assert.match(sharedHeader, /publicPage && resolvedAuthState === "anonymous"/);
+  assert.match(sharedHeader, /href=\{NEW_PET_LOGIN_PATH\}>Get started/);
   assert.match(homepage, /auth\.status === "loading"[\s\S]*"loading"/);
   assert.doesNotMatch(homepage, /loadDogProfilesWithMemories|activePetId/);
 });
 
 test("signed-in homepage branches do not render signed-out actions", () => {
   const homepage = read("app/components/homepage-client.tsx");
-  assert.match(homepage, /<MarketingFooter showSignIn=\{visibleMode === "anonymous"\} signedIn=\{signedIn\} \/>/);
-  assert.match(homepage, /signedIn \? <AccountUtility email=\{email\} \/>/);
+  assert.match(homepage, /<SiteFooter \/>/);
+  assert.match(read("app/components/app-header.tsx"), /resolvedAuthState === "authenticated" \? \([\s\S]*<AccountUtility/);
+
 });
 
 test("action labels follow account-state conventions", () => {
@@ -124,14 +126,12 @@ test("Pets, History, and Today keep focused empty and primary states", () => {
   assert.match(today, /createCareEntry\(/);
 });
 
-test("homepage footer follows authentication state", () => {
-  const homepage = read("app/components/homepage-client.tsx");
-  const footer = homepage.slice(homepage.indexOf("function MarketingFooter"), homepage.indexOf("function HomepageMobileNavigation"));
-  assert.match(footer, /data-ui="homepage-marketing-footer"/);
-  assert.match(footer, /href="\/privacy">Privacy/);
-  assert.match(footer, /href="\/terms">Terms/);
-  assert.match(homepage, /showSignIn=\{visibleMode === "anonymous"\}/);
-  assert.equal(footer.split('href="/login">Sign in</Link>').length - 1, 1);
+test("public and application footers share public destinations", () => {
+  const footer = read("app/components/site-footer.tsx");
+  assert.match(footer, /data-ui="site-footer"/);
+  assert.match(footer, /href:"\/privacy",label:"Privacy"/);
+  assert.match(footer, /href:"\/terms",label:"Terms"/);
+  assert.doesNotMatch(footer, /href="\/login"/);
 });
 
 test("primary UI source contains no banned mechanics copy or em dash and uses the unified AI-credit label", () => {

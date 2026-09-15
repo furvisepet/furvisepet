@@ -56,9 +56,9 @@ test("homepage navigation follows the resolved authentication state", () => {
   const header = read("app/components/app-header.tsx");
   const homepage = read("app/components/homepage-client.tsx");
   assert.match(homepage, /auth\.status === "signedIn" \? "with-pet" : "anonymous"/);
-  assert.match(homepage, /signedIn \? \([\s\S]*homepage-desktop-navigation/);
-  assert.match(homepage, /href=\{NEW_PET_LOGIN_PATH\}>Get started/);
-  assert.match(homepage, /aria-label="About Furvise"/);
+  assert.match(homepage, /<AppHeader accountEmail=/);
+  assert.match(header, /href=\{NEW_PET_LOGIN_PATH\}>Get started/);
+  assert.match(header, /<PublicLinksMenu \/>/);
   assert.doesNotMatch(homepage, /loadDogProfilesWithMemories|createConversation/);
   assert.match(header, /resolvedAuthState === "authenticated" \? APP_NAV_ITEMS/);
 });

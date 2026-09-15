@@ -34,14 +34,11 @@ test("all account flows remain wired through the shared access shell", () => {
   for (const source of [login, forgot, update]) assert.match(source, /AccountAccessLayout/);
 });
 
-test("application navigation stays intact while the homepage uses plain signed-in links", () => {
+test("application and public pages share navigation", () => {
   const primary = header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS"));
   for (const destination of ["Today", "Pets", "History", "Ask"]) assert.match(primary, new RegExp(`label: "${destination}"`));
   assert.doesNotMatch(primary, /Products|\/shop/);
-  assert.doesNotMatch(homepage, /SignedInHeader|AppHeader|APP_NAV_ITEMS/);
-  assert.match(homepage, /<PublicMarketingHeader email=\{auth\.user\?\.email\} mode=\{mode\} \/>/);
-  assert.match(homepage, /HOMEPAGE_DESKTOP_NAVIGATION[\s\S]*Today[\s\S]*Pets[\s\S]*History[\s\S]*Ask/);
-  assert.doesNotMatch(homepage.slice(homepage.indexOf("const HOMEPAGE_DESKTOP_NAVIGATION"), homepage.indexOf("const HOMEPAGE_MOBILE_NAVIGATION")), /Products/);
+  assert.match(homepage, /<AppHeader accountEmail=/);
   assert.match(header, /variant === "site" \|\| resolvedAuthState === "authenticated" \? APP_NAV_ITEMS/);
   assert.doesNotMatch(header, />Appearance<|openAppearance/);
   assert.match(header, /<AccountUtility email=\{accountEmail\} \/>/);
@@ -80,7 +77,7 @@ test("Ask starter drafts advertise selection as compact, unfussy cards", () => {
 test("homepage separates introduction, explanation, pet context, and product progress", () => {
   for (const label of ["home-title", "how-title", "context-title", "progress-title"]) assert.match(homepage, new RegExp(`id="${label}"`));
   assert.doesNotMatch(homepage, /Mani|Illustrative example|StoryAction/);
-  assert.match(homepage, /href: "\/today", label: "Today"/);
+  assert.match(header, /href: "\/today", label: "Today"/);
 });
 
 test("BrandMark keeps the canonical source without generated theme variants", () => {

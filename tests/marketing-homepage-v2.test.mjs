@@ -18,15 +18,16 @@ test("homepage has only the two requested decorative illustrations and no story 
   assert.match(main, /href="\/contact" target="_blank" rel="noopener noreferrer"/);
 });
 
-test("navigation offers public information to visitors and the app to signed-in users", () => {
-  assert.match(homepage, /auth\.status === "loading" \? "loading"/);
-  assert.match(homepage, /const anonymous = mode === "anonymous"/);
-  assert.match(homepage, /aria-label="About Furvise"/);
-  for (const label of ["Today", "Pets", "History", "Ask"]) assert.match(homepage, new RegExp(`label: "${label}"`));
-  assert.match(homepage, /href=\{NEW_PET_LOGIN_PATH\}>Get started/);
-  assert.match(homepage, /<AccountUtility email=\{email\}/);
-  assert.match(homepage, /signedIn \? <HomepageMobileNavigation/);
-  assert.match(homepage, /aria-label="Furvise updates"/);
+test("public pages reuse the Today header and a common footer", () => {
+  const header = read("app/components/app-header.tsx");
+  const menu = read("app/components/public-links-menu.tsx");
+  assert.match(homepage, /<AppHeader accountEmail=/);
+  assert.match(homepage, /<SiteFooter \/>/);
+  assert.match(header, /publicPage && resolvedAuthState !== "authenticated"/);
+  assert.match(header, /<PublicLinksMenu \/>/);
+  assert.doesNotMatch(menu, /How it works|how-it-works/);
+  for (const path of ["app/components/legal-page-shell.tsx", "app/release-notes/page.tsx", "app/components/app-page.tsx"]) assert.match(read(path), /<SiteFooter \/>/);
+  assert.doesNotMatch(css, /\.homepage-refined \.homepage-header-grid/);
 });
 
 test("two visual sections share a grid and stack at smaller widths", () => {
@@ -44,7 +45,7 @@ test("release notes are public, dated, linkable, and included in discovery", () 
   assert.match(release, /href="#september-15-2026"/);
   assert.doesNotMatch(release, /getAuthenticatedApiContext|redirect\("\/login/);
   assert.match(read("app/sitemap.ts"), /canonicalUrl\("\/release-notes"\)/);
-  assert.match(homepage, /href="\/release-notes">Release notes/);
+  assert.match(read("app/components/site-footer.tsx"), /href:"\/release-notes",label:"Release notes"/);
   assert.match(release, /Answers can be incomplete or wrong/);
 });
 
