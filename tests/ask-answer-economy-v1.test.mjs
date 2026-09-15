@@ -94,9 +94,9 @@ test("automatic care-history suggestions require longitudinal value", () => {
 test("new conversation titles are standalone topics for long messages", () => {
   assert.equal(
     deriveConversationTitle("I need real advice. Lately she’s affectionate and then bites me hard when I pet her.", "Mani"),
-    "Managing Mani's biting",
+    "About biting and behavior",
   );
-  assert.equal(deriveConversationTitle("She has been hiding under the bed for three days.", "Mani"), "Mani hiding more");
+  assert.equal(deriveConversationTitle("She has been hiding under the bed for three days.", "Mani"), "About hiding and behavior");
 });
 
 test("generation, orchestration, and UI share economy policy without touching reliability identities", () => {

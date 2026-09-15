@@ -101,33 +101,31 @@ function normalizeMessageText(value: string | null | undefined) {
 export function deriveConversationTitle(question: string, petName: string) {
   const cleanPetName = petName.trim() || "Your pet";
   const normalized = question.toLowerCase();
-  if (/\b(vet|veterinarian|appointment|visit)\b/.test(normalized)) return `Preparing for ${cleanPetName}’s vet visit`;
-  if (/\b(scratch|scratching|itch|itchy)\b/.test(normalized)) return `Tracking ${cleanPetName}’s scratching`;
-  if (/\b(food|diet|kibble|meal)\b/.test(normalized)) return `Changing ${cleanPetName}’s food`;
-  if (/\b(dental|teeth|tooth|brushing)\b/.test(normalized)) return "Building a dental routine";
-  if (/\b(bites?|biting|nips?|nipping|aggression|aggressive)\b/.test(normalized)) return `Managing ${cleanPetName}'s biting`;
-  if (/\b(litter box|pee|peeing|urine|urinating)\b/.test(normalized)) return `${cleanPetName}'s litter box change`;
-  if (/\b(hide|hiding|withdrawn)\b/.test(normalized)) return `${cleanPetName} hiding more`;
-  if (/\b(vomit|vomiting|throwing up)\b/.test(normalized)) return `${cleanPetName}'s vomiting`;
-  if (/\b(limp|limping)\b/.test(normalized)) return `${cleanPetName}'s limping`;
-  if (/\b(appetite|not eating|won't eat)\b/.test(normalized)) return `${cleanPetName}'s appetite change`;
-  if (/\b(meow|meowing|vocal|vocalizing)\b/.test(normalized)) return `${cleanPetName}'s new vocal pattern`;
-  if (/\b(routine|schedule|habit)\b/.test(normalized)) return `Building ${cleanPetName}’s care routine`;
-  if (/\b(track|monitor|watch)\b/.test(normalized)) return `Tracking changes for ${cleanPetName}`;
+  // A keyword identifies a topic, never evidence that a symptom, change, or
+  // treatment occurred. Keep titles neutral even for negated/hypothetical asks.
+  const topics: [RegExp, string][] = [
+    [/\b(vet|veterinarian|appointment|visit)\b/, "Vet visits"],
+    [/\b(scratch|scratching|itch|itchy)\b/, "Scratching and itching"],
+    [/\b(food|diet|kibble|meal)\b/, "Food and diet"],
+    [/\b(dental|teeth|tooth|brushing)\b/, "Dental care"],
+    [/\b(bites?|biting|nips?|nipping|aggression|aggressive)\b/, "Biting and behavior"],
+    [/\b(litter box|pee|peeing|urine|urinating)\b/, "Toileting"],
+    [/\b(hide|hiding|withdrawn)\b/, "Hiding and behavior"],
+    [/\b(vomit|vomiting|throwing up)\b/, "Vomiting"],
+    [/\b(limp|limping)\b/, "Limping"],
+    [/\b(appetite|not eating|won't eat)\b/, "Appetite"],
+    [/\b(meow|meowing|vocal|vocalizing)\b/, "Vocal behavior"],
+    [/\b(routine|schedule|habit)\b/, "Care routines"],
+    [/\b(track|monitor|watch)\b/, "Care tracking"],
+  ];
+  const topic = topics.find(([pattern]) => pattern.test(normalized));
+  if (topic) return `About ${topic[1].toLowerCase()}`;
 
-  const normalizedQuestion = question.normalize("NFKC").replace(/[“”]/g, "").trim();
-  const pronounLed = /^(?:she|he|they|it)(?:['’]s|\s+(?:is|has|are|have|was|were))?\b/i.test(normalizedQuestion);
-  const concise = normalizedQuestion
-    .replace(/^(?:she|he|it)(?:['’]s|\s+(?:is|has|was))?\s+(?:been\s+)?/i, "")
-    .replace(/^they(?:['’]re|['’]ve|\s+(?:are|have|were))?\s+(?:been\s+)?/i, "")
-    .replace(/^(what|when|where|why|how|can|could|should|would|is|are|do|does)\s+/i, "")
-    .replace(/\s+for\s+(?:(?:about|around|like|roughly)\s+)?\d+(?:\.\d+)?\s+(?:seconds?|minutes?|hours?|days?|weeks?).*$/i, "")
-    .replace(/[?.!]+$/g, "")
-    .trim();
-  const words = concise.split(/\s+/).filter(Boolean).slice(0, 6).join(" ");
-  if (!words) return `Question about ${cleanPetName}`;
-  if (pronounLed) return `${cleanPetName} ${words.charAt(0).toLowerCase()}${words.slice(1)}`.slice(0, 72);
-  return `${words.charAt(0).toUpperCase()}${words.slice(1)}`.slice(0, 72);
+  // Preserve the owner's wording: stripping “is”, negation, or pronouns can
+  // turn a question into a claim or assign another animal's symptoms to this pet.
+  const excerpt = question.normalize("NFKC").replace(/\s+/g, " ").trim();
+  if (!excerpt) return `Question about ${cleanPetName}`;
+  return excerpt.length > 72 ? `${excerpt.slice(0, 71).trimEnd()}…` : excerpt;
 }
 
 export function formatConversationDate(value: string, now = new Date()) {

@@ -6,8 +6,8 @@ import { deriveConversationTitle } from "../app/lib/ask-conversations.ts";
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
 test("conversation titles are concise and human", () => {
-  assert.equal(deriveConversationTitle("What should I track before the next vet visit?", "Rocky"), "Preparing for Rocky’s vet visit");
-  assert.equal(deriveConversationTitle("Why is Rocky scratching?", "Rocky"), "Tracking Rocky’s scratching");
+  assert.equal(deriveConversationTitle("What should I track before the next vet visit?", "Rocky"), "About vet visits");
+  assert.equal(deriveConversationTitle("Why is Rocky scratching?", "Rocky"), "About scratching and itching");
   assert.ok(deriveConversationTitle("Could changing food help with dinner routines and appetite?", "Rocky").length <= 80);
 });
 

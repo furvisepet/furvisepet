@@ -171,7 +171,7 @@ test("provider aborts at the configured deadline are classified as timeouts", as
 test("the production first message derives a standalone title without another provider call", () => {
   assert.equal(
     deriveConversationTitle("She’s been staring at the wall for like 10 minutes straight.", "Mani"),
-    "Mani staring at the wall",
+    "She’s been staring at the wall for like 10 minutes straight.",
   );
   assert.doesNotMatch(read("app/lib/ask-conversations.ts"), /openai|provider|completion/i);
 });
