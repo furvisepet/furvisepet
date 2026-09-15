@@ -142,3 +142,10 @@ for (const followup of ['tell me if I should use leftover tablets.', 'calculate 
 for (const text of ['If Rowan were tired. Save this note.', 'Save this note for Rowan only if the vet confirms it.', 'Rowan ate normally. Save this note unless it is already there.']) {
   test(`conditional save still requires clarification: ${text}`, () => assert.equal(request(text), null));
 }
+
+for (const followup of ['Find his earlier recorded weight.', 'Retrieve the old lab report.', 'Give me a list of questions for the clinic.', 'Prepare a short appointment checklist.']) {
+  test(`save fast path cannot swallow a separate task: ${followup}`,()=>{
+    const text=`Rowan ate normally. Save this note. ${followup}`;
+    assert.equal(request(text)?.needsAnswer,true);
+  });
+}
