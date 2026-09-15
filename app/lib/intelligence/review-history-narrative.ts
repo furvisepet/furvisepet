@@ -304,8 +304,26 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
         onProviderEvent?.({ stage: "verification", outcome: "started", model, elapsedMs: 0, configuredOutputLimit: HISTORY_REVIEW_LIMITS.outputTokens });
         return withProviderDeadline(signal => provider.responses.create(request, { signal }), boundedProviderTimeout(HISTORY_REVIEW_LIMITS.timeoutMs, 4_000, "verification"));
       } });
-    const parsed = interpretStructuredProviderResponse(output, raw =>
-      sharedRequest ? parseWholeTaskHistoryReview(JSON.parse(raw), draft.sentences.length, obligations.length, reviewActions.length) : parseHistoryReviewSelection(JSON.parse(raw), draft.sentences.length));
+    let reviewContractFailure: {code: string; shape: string} | undefined;
+    const parsed = interpretStructuredProviderResponse(output, raw => {
+      const value = JSON.parse(raw);
+      try { return sharedRequest ? parseWholeTaskHistoryReview(value, draft.sentences.length, obligations.length, reviewActions.length)
+        : parseHistoryReviewSelection(value, draft.sentences.length); }
+      catch (error) {
+        const code = error instanceof Error && /^(INVALID_[A-Z_]+|UNREVIEWED_NAVIGATION)$/.test(error.message) ? error.message : "INVALID_REVIEW";
+        // Only schema keys, booleans and status enums are persisted here, never
+        // source text or raw model output. This distinguishes contract failures
+        // from semantic rejection without making either an approval.
+        reviewContractFailure = {code, shape: JSON.stringify({keys: Object.keys(value || {}), approved: value?.approved === true,
+          rows: Object.entries(value?.obligations || {}).map(([key, rawRow]) => {
+            const row = rawRow as Record<string, unknown>;
+            return {key, status: String(row?.status).slice(0,30),
+              sentenceSupport: Array.isArray(row?.sentenceSupport) ? row.sentenceSupport.map(flag => flag === true) : null,
+              actionSupport: Array.isArray(row?.actionSupport) ? row.actionSupport.map(flag => flag === true) : null};
+          })}).slice(0,3000)};
+        throw error;
+      }
+    });
     onProviderEvent?.({ stage: "verification", outcome: parsed.status === "completed" ? "succeeded" : "failed", model,
       elapsedMs: Date.now() - started, inputTokens: parsed.usage.inputTokens, outputTokens: parsed.usage.outputTokens,
       configuredOutputLimit: HISTORY_REVIEW_LIMITS.outputTokens,
@@ -340,7 +358,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     const formatValid = !exactRecordFailures.length && !invalidResultItems.length && matchesHistoryOutputFormat(selectedText, sharedRequest?.outputFormat) && completeSelection && anchorsValid && !completionCheck.failures.length
       && (!sharedRequest || !readPublicationFailure(selectedText));
     if (!selection.approved || !formatValid) {
-      recordHistoryReviewAudit(result, {...audit,
+      recordHistoryReviewAudit(result, {...audit, ...(reviewContractFailure ? {reviewContractFailure} : {}),
         rejectionReason: "rejectionReason" in selection && typeof selection.rejectionReason === "string" ? selection.rejectionReason : undefined });
       console.info("[Ask history review] rejected", {
         rejectionCategories: "rejectionReason" in selection && typeof selection.rejectionReason === "string"
