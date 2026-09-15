@@ -178,16 +178,25 @@ def drill(pg_env, key):
              'initdb -D /restore/data -U "$1" --auth=trust >/dev/null; exec postgres -D /restore/data '
              '-c listen_addresses= -c unix_socket_directories=/tmp '
              '-c shared_preload_libraries=pg_cron,pg_net,pg_stat_statements '
-             '-c cron.database_name=postgres -c cron.launch_active_jobs=off', "--", operator])
+             '-c cron.database_name=postgres -c cron.launch_active_jobs=off', "--", "supabase_admin"])
         local = ["docker", "exec", "-i", "--env", "PGOPTIONS=-c timezone=UTC -c datestyle=ISO", name]
         psql = local + ["psql", "-X", "-h", "/tmp", "-U", operator, "-d", "postgres", "-v", "ON_ERROR_STOP=1"]
         for attempt in range(30):
-            check = subprocess.run(local + ["pg_isready", "-h", "/tmp", "-U", operator], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            check = subprocess.run(local + ["pg_isready", "-h", "/tmp", "-U", "supabase_admin"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             if check.returncode == 0:
                 break
             time.sleep(2)
         else:
             raise RuntimeError("Disposable restore database did not become ready")
+        bootstrap_psql = local + ["psql", "-X", "-h", "/tmp", "-U", "supabase_admin", "-d", "postgres", "-v", "ON_ERROR_STOP=1"]
+        run(bootstrap_psql + ["-c", f'CREATE ROLE "{operator}" SUPERUSER LOGIN;'])
+        # initdb already created the source bootstrap superuser (OID 10).
+        # Preserve its ALTER statements, avoiding only the duplicate CREATE.
+        role_lines = roles.splitlines(keepends=True)
+        bootstrap_create = b"CREATE ROLE supabase_admin;"
+        if sum(line.strip() == bootstrap_create for line in role_lines) != 1:
+            raise RuntimeError("Source bootstrap role definition changed")
+        roles = b"".join(line for line in role_lines if line.strip() != bootstrap_create)
         print("Restoring database roles.", flush=True)
         run(psql, data=order_role_grants(roles))
         print("Restoring database schema and data.", flush=True)
