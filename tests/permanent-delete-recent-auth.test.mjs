@@ -102,7 +102,7 @@ test("secured pet deletion remains available at the API boundary but is absent f
   assert.match(routing, /reauth=pet-delete/);
   assert.match(client, /code: payload\?\.code/);
   assert.doesNotMatch(detail, /Delete pet|deleteDogProfileForUser|buildPetDeletionReauthenticationHref/);
-  assert.match(login, /isPetDeleteReauthentication \|\| didRedirectRef\.current/);
+  assert.match(login, /isReauthentication \|\| didRedirectRef\.current/);
   assert.match(login, /Permanent deletion will still require a new confirmation/);
   assert.doesNotMatch(login, /deleteDogProfileForUser|method:\s*["']DELETE["']/);
 });
