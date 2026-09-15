@@ -50,6 +50,17 @@ function input(overrides = {}) {
   };
 }
 
+test('records on the same UTC day keep their distinct local display dates', () => {
+  const careEntries = [
+    care({ id: 'early', occurred_at: '2026-07-27T01:00:00Z' }),
+    care({ id: 'late', occurred_at: '2026-07-27T18:00:00Z' }),
+  ];
+  const records = buildAskContext(input({ careEntries, timeZone: 'America/Vancouver' })).promptContext.contextRecords;
+  assert.equal(records.find(record => record.id === 'care:early').metadata.localRecordDate, '2026-07-26');
+  assert.equal(records.find(record => record.id === 'care:late').metadata.localRecordDate, '2026-07-27');
+  assert.equal(records.find(record => record.id === 'care:early').occurredAt, '2026-07-27T01:00:00Z');
+});
+
 function unified(overrides = {}) {
   return {
     answer: "Short play sessions are a good starting point for Mani.",

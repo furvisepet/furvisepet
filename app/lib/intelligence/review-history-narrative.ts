@@ -1,4 +1,5 @@
 import { wholeTaskHistoryReviewSchema, parseWholeTaskHistoryReview } from "./history-review-selection.ts";
+import { calendarDateInZone } from "../ask-time-zone.ts";
 import { CLAIM_AUTHORITY_POLICY, CLAIM_REVIEW_POLICY } from "./claim-authority-policy.ts";
 import { actionCanAutoExecute } from "../application-actions/policy.ts";
 import { missingExactRecordText } from "./exact-record-text.ts";
@@ -264,6 +265,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   const invalidResultItems = (result.historicalResult?.items || []).flatMap((item, index) => supported(item) ? [] : [index]);
   const reviewSources = sharedRequest ? sources.map(({ sourceId, sourceType, petId, text, occurredAt }) => ({
     sourceId, sourceType, petId, text, occurredAt,
+    localRecordDate: occurredAt ? calendarDateInZone(occurredAt, evidence.timeZone || "UTC") : null,
     ...(sourceType === "care_update" && evidence.recordTitles?.[sourceId] ? { title: evidence.recordTitles[sourceId] } : {}),
     provenanceStatuses: [...new Set(evidence.history!.provenance.filter(item => item.sourceId === sourceId).map(item => item.status))],
   })) : sources;
