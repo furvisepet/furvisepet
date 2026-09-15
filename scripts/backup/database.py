@@ -79,6 +79,20 @@ def manifest(connection):
     return result
 
 
+def order_role_grants(roles):
+    # pg_dumpall can emit a dependent GRANTED BY before that grantor receives ADMIN.
+    # Preserve every statement; establish ADMIN memberships before dependent grants.
+    lines = roles.decode().splitlines(keepends=True)
+    grants = [line for line in lines if line.startswith("GRANT ")]
+    if any(not line.rstrip().endswith(";") for line in grants):
+        raise RuntimeError("Unexpected multiline role grant; manual recovery review required")
+    base = [line for line in lines if not line.startswith("GRANT ")]
+    # Keep grants before psql's final unrestrict command.
+    index = next((i for i, line in enumerate(base) if line.startswith("\\unrestrict")), len(base))
+    ordered = sorted(grants, key=lambda line: 0 if "ADMIN TRUE" in line or "WITH ADMIN OPTION" in line else 1)
+    return "".join(base[:index] + ordered + base[index:]).encode()
+
+
 MAGIC = b"FURVISE_BACKUP_V1\0"
 
 
@@ -175,7 +189,7 @@ def drill(pg_env, key):
         else:
             raise RuntimeError("Disposable restore database did not become ready")
         print("Restoring database roles.", flush=True)
-        run(psql, data=roles)
+        run(psql, data=order_role_grants(roles))
         print("Restoring database schema and data.", flush=True)
         run(local + ["pg_restore", "--exit-on-error", "--clean", "--if-exists", "--no-tablespaces",
                      "-h", "/tmp", "-U", operator, "-d", "postgres"], data=dump)
