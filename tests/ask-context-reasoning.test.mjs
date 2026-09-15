@@ -38,6 +38,14 @@ test('mixed history generation requires citation-bearing narrative instead of op
  ]}}),[]);
  assert.match(body.answer,/saved note/);assert.match(body.answer,/prescribing veterinarian/);
  assert.equal(body.historyNarrative.sentences.length,2);
+ const normalized=parseUnifiedResponse(JSON.stringify({answerVersion:'mixed-history.v1',historyNarrative:{sentences:[{
+  text:'The original note recorded 22 kg.\nThe reported change is 1 kg.',sourceIds:['care:one'],calculations:[{
+   operation:'difference',operands:[{sourceId:'care:one',field:'text',literal:'22 kg'},{sourceId:'request:current',field:'text',literal:'21 kg'}],value:1,unit:'kg',expression:[],
+  }],
+ }]}}),[]);
+ assert.match(normalized.answer,/22 kg\. The reported/);
+ assert.equal(normalized.historyNarrative.sentences[0].calculations[0].expression,null);
+ assert.equal(normalized.historyNarrative.sentences[0].calculations[0].value,1);
 });
 const maniProductionQuestion = "Mani has been acting restless since the male cat started coming to our door three days ago. She keeps meowing at the door and seems more interested in getting outside. Yesterday I think she drank some water I had left outside, but I’m not completely sure. Today she ate normally and is acting mostly like herself. Based on what you already know about Mani and what I’ve told you recently, what do you think is relevant here, what should I do today, what should I keep an eye on, and is there anything from her history that changes your advice?";
 

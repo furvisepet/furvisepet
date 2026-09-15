@@ -136,6 +136,7 @@ export function safeStructuredValidationReason(error: unknown): string {
   const message = error instanceof Error ? error.message : "";
   const known = new Set(["INVALID_READ_RESPONSE", "INVALID_READ_NAVIGATION", "DUPLICATE_READ_BODY", "INVALID_READ_TABLE", "INVALID_READ_LIMITATION", "EMPTY_READ_REQUIRES_EXPLANATION", "MISSING_READ_BODY", "INVALID_READ_LAYOUT", "INVALID_HISTORY_CALCULATION", "INVALID_TASK_REVIEW"]);
   if (known.has(message)) return message;
+  if (["INVALID_MIXED_HISTORY_NARRATIVE", "INVALID_MIXED_HISTORY_CALCULATIONS"].includes(message)) return message;
   if (message === "Ask provider returned an empty answer.") return "EMPTY_ANSWER";
   if (message === "Ask provider returned an invalid response.") return "INVALID_ANSWER_BODY";
   if (message === "Ask response exposed internal reasoning data.") return "INTERNAL_REASONING_EXPOSURE";

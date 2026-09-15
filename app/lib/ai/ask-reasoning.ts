@@ -3,6 +3,7 @@ import { calendarDateInZone } from "../ask-time-zone.ts";
 import { parseDatedNoteBatch } from "../intelligence/dated-note-batch.ts";
 import { recordInventoryEvidence } from "../intelligence/record-inventory.ts";
 import { sourceBoundSchema } from "../intelligence/source-bound-schema.ts";
+import { parseHistoryCalculations } from "../intelligence/history-calculation.ts";
 import { episodeResultText } from "../intelligence/episode-contract.ts";
 import { furviseProductFacts } from "./ask-internal-product-policy.ts";
 import { isOwnerAssertedEvidence } from "./owner-assertion.ts";
@@ -1142,8 +1143,19 @@ export function parseUnifiedResponse(
 ): ParsedUnifiedResponse {
   const value = canonicalHistoricalRead(JSON.parse(outputText)) as Partial<ParsedUnifiedResponse> & { layout?: string };
   if ((value as {answerVersion?: string})?.answerVersion === "mixed-history.v1") {
+    // JSON Schema permits paragraph line breaks and an empty expression array.
+    // Normalize those lossless forms before the stricter internal parser.
+    // Source bindings, numeric values and nonempty expressions stay untouched.
+    const proposed = value.historyNarrative;
+    if (proposed && Array.isArray(proposed.sentences)) value.historyNarrative = { ...proposed, sentences: proposed.sentences.map(chunk => ({ ...chunk,
+      text: typeof chunk.text === "string" && !/^[\s]*[\[{|]/.test(chunk.text) ? chunk.text.replace(/[\r\n]+/g, " ") : chunk.text,
+      ...(Array.isArray(chunk.calculations) ? {calculations: chunk.calculations.map(calculation => ({...calculation,
+        ...(calculation.operation !== "expression" && Array.isArray(calculation.expression) && !calculation.expression.length ? {expression:null} : {}),
+      }))} : {}),
+    })) };
     const narrative = parseHistoryNarrative(value.historyNarrative);
-    if (!narrative) throw new Error("Invalid canonical mixed-history answer.");
+    if (!narrative) throw new Error(value.historyNarrative?.sentences?.some(chunk => parseHistoryCalculations(chunk.calculations) === null)
+      ? "INVALID_MIXED_HISTORY_CALCULATIONS" : "INVALID_MIXED_HISTORY_NARRATIVE");
     value.answer = narrative.sentences.map(chunk => chunk.text).join("\n\n");
     value.answerSections = [];
   }
