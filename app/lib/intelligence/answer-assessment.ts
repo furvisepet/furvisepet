@@ -33,3 +33,15 @@ export function createAnswerAssessment(input: { checks: CompletionChecks; body: 
 export function assessmentMatches(assessment: AnswerAssessment, body: unknown, evidence: unknown) {
   return assessment.bodyHash === hash(body) && assessment.evidenceHash === hash(evidence);
 }
+
+/** Readiness keeps a freshly reviewed execution plan alive until its write.
+ * It is not a success receipt; completion still depends on actual persistence. */
+export function reviewedTaskReadyForExecution(completion: readonly { index: number; status: string }[], checks?: CompletionChecks): boolean {
+  const whole = completion.find(item => item.index === 0);
+  return !!whole && ["answered", "action_ready"].includes(whole.status)
+    && completion.some(item => item.status === "action_ready")
+    && completion.every(item => ["answered", "action_ready", "refused", "not_requested"].includes(item.status))
+    && !!checks && checks.structuralValidity === "passed"
+    && [checks.evidenceSupport, checks.subjectDateCorrectness, checks.calculationCorrectness]
+      .every(status => status === "passed" || status === "not_applicable");
+}
