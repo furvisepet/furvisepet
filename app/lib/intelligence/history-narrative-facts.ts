@@ -32,7 +32,7 @@ function withoutCalendarDates(text: string) {
   for (const token of calendarTokens(text).sort((a,b)=>b.start-a.start)) text=text.slice(0,token.start)+" "+text.slice(token.end);
   return text;
 }
-function quantities(text: string): string[] {
+export function historyQuantityAnchors(text: string): string[] {
   // Date tokens cannot also be quantities: "April 17 accident-free update"
   // contains a day number, not seventeen accidents. Keep the two anchor axes separate.
   // Normalize whole numeric tokens before unit extraction. Without this, a
@@ -56,6 +56,8 @@ function quantities(text: string): string[] {
   return [...rates, ...[...scalarProse.toLowerCase().matchAll(/(?<![\p{L}\p{N}_.,+-])([+-]?\d+(?:\.\d+)?|one|single|two|three|four|five|six|seven|eight|nine|ten)[ -]+(kilograms?|grams?|milligrams?|milliliters?|kg|mg|ml|g|lbs?|pounds?|days?|weeks?|hours?|minutes?|seconds?|soft stools?|stools?|accidents?|episodes?|records?|notes?|entries|entry|bouts?|courses?|cad|usd|eur|gbp|aud|nzd|jpy|chf|cny|km|cm|mm|m)\b/gu)]
     .map(match => `${words[match[1]] ?? Number(match[1])}:${match[2].replace(/s$/, "").replace(/^entrie$/, "entry").replace(/^soft /, "").replace(/^pound$/, "lb").replace(/^kilogram$/, "kg").replace(/^milligram$/, "mg").replace(/^gram$/, "g").replace(/^milliliter$/, "ml")}`)];
 }
+
+const quantities = historyQuantityAnchors;
 
 /** Candidate bindings for a repair writer, never an approval or new evidence.
  * Literal dates identify possible records; semantic review must still verify

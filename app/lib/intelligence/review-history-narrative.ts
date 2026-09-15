@@ -362,9 +362,9 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     // a subset from obligation support indexes or from a rejection explanation.
     if (sharedRequest && (!sharedRequest.outputFormat || sharedRequest.outputFormat === "prose")
       && "independentSentenceIndexes" in selection && Array.isArray(selection.independentSentenceIndexes)) {
-      const selected = selection.independentSentenceIndexes as number[];
-      if (selected.length && selected.every(index => Number.isInteger(index) && draft.sentences[index]
-        && !invalidIndexes.includes(index) && !readPublicationFailure(draft.sentences[index].text))) {
+      const selected = (selection.independentSentenceIndexes as number[]).filter(index => Number.isInteger(index) && draft.sentences[index]
+        && !invalidIndexes.includes(index) && !readPublicationFailure(draft.sentences[index].text));
+      if (selected.length) {
         const chunks = selected.map(index => draft.sentences[index]);
         const text = chunks.map(chunk => chunk.text).join("\n\n");
         if (!containsUnverifiedStateClaim(text)) recordPartialHistoryReview(result, {
@@ -500,7 +500,7 @@ async function repairRejectedRead(provider: { responses: { create: (request: Rec
   model: string, originalInput: string, rejectionReason: string, onProviderEvent?: (event: AskProviderEvent) => void) {
   const payload = JSON.parse(originalInput);
   const patchProse = !payload.typedResult && (!payload.request?.outputFormat || payload.request.outputFormat === "prose")
-    && !payload.deterministicPublicationFailures?.length && !/navigation|action|card|link/i.test(rejectionReason);
+    && !payload.deterministicPublicationFailures?.length && !/navigation|card|link/i.test(rejectionReason);
   const input = JSON.stringify({ ...payload, sources: undefined, rejectionReason,
     contextRecords: payload.sources.map((source: { sourceId: string }) => ({ ...source, id: source.sourceId })),
     // The complete plan already travels once in this payload. Duplicating it
