@@ -4,6 +4,7 @@ import hashlib
 import io
 import json
 import os
+import re
 from pathlib import Path
 import secrets
 import subprocess
@@ -48,6 +49,12 @@ def run(args, *, env=None, data=None):
     if result.returncode:
         # Emit only fixed error categories; never raw server output or SQL.
         detail = result.stderr.decode(errors="replace").lower()
+        if "psql" in args:
+            for line in detail.splitlines():
+                if line.startswith("error:"):
+                    safe = re.sub(r'"[^"\n]*"', '[identifier]', line)
+                    safe = re.sub(r"'[^'\n]*'", '[value]', safe)
+                    print("Role restore: " + safe[:250], flush=True)
         for marker, label in [("already exists", "restore object already exists"), ("does not exist", "restore dependency missing"), ("permission denied", "database permission denied"), ("unrecognized configuration parameter", "unsupported database setting"), ("could not open extension", "extension unavailable"), ("syntax error", "SQL syntax error")]:
             if marker in detail:
                 print("Failure category: " + label, flush=True)
