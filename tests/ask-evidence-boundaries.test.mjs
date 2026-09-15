@@ -116,3 +116,13 @@ test('calendar-day units are validated rather than ignored as unrecognized modif
  assert.equal(historyNarrativeAnchorsSupported('The gap is 4 calendar days.',sources,'',derived,false),true);
  assert.equal(historyNarrativeAnchorsSupported('The gap is 9 calendar days.',sources,'',derived,false),false);
 });
+
+
+test('exact wording about a fact does not require every cited note in full',()=>{
+ for(const requestText of [
+  "Quote the exact wording about when the saved plan was meant to start, and explain the date.",
+  "What was the exact wording about food intake?",
+ ]) assert.deepEqual(missingExactRecordText({...evidence,scope:{...evidence.scope,requestText}},'ate 28 g',['care:a']),[]);
+ for(const requestText of ["Return the full original note.","Show the exact wording of the saved note.","Give the notes verbatim."])
+  assert.equal(missingExactRecordText({...evidence,scope:{...evidence.scope,requestText}},'ate 28 g',['care:a']).length,1);
+});
