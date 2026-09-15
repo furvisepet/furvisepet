@@ -126,3 +126,22 @@ test('publication diagnostics expose only allowlisted fact kinds and sections',(
  assert.deepEqual(parseVetBriefPublicationReview(review,baseline).factualIssueCodes,['medication_status:reason']);
  assert.equal(parseVetBriefPublicationReview({...review,factualIssues:[{kind:'patient text',section:'reason'}]},baseline),null);
 });
+
+test('brief evidence retains owner calendar dates across UTC midnight and exposes conflicts',()=>{
+ const context={currentTimestamp:'2026-09-15T12:00:00Z',currentMessage:'Routine review',pet:{name:'Synthetic'},memories:[],legacyPetMemories:[],activeConcerns:[],recentlyResolvedConcerns:[],conversationTurns:[],askHistory:{entries:[
+  {id:'evening',occurred_at:'2026-09-15T02:30:00Z',note:'Normal dinner appetite.',care_event_metadata:{explicitTime:'September 14, 2026 7:30 PM'}},
+  {id:'morning',occurred_at:'2026-09-15T07:00:00Z',note:'Weight measurement.',care_event_metadata:{explicitTime:'2026-09-15'}},
+  {id:'unknown',occurred_at:'2026-09-15T12:00:00Z',note:'An undated report.',care_event_metadata:{occurrenceBasis:'recorded_at',explicitTime:'2026-09-14'}},
+  {id:'conflict',occurred_at:'2026-09-15T02:30:00Z',note:'Conflicting date metadata.',care_event_metadata:{explicitTime:'2026-08-01'}},
+ ],coverage:{reasons:[]}}};
+ const records=vetBriefEvidence(context,{focus:'Review'}).evidence.records;
+ assert.equal(records[0].date,'2026-09-14');
+ assert.equal(records[0].dateBasis,'explicit_owner_calendar');
+ assert.equal(records[0].occurredAt,'2026-09-15T02:30:00Z');
+ assert.equal(records[1].date,'2026-09-15');
+ assert.equal(records[2].date,null);assert.equal(records[2].occurredAt,null);assert.equal(records[2].explicitTime,null);
+ assert.equal(records[3].date,null);assert.equal(records[3].dateBasis,'conflicting');
+ context.askHistory.entries=[{id:'timestamp',occurred_at:'2026-09-15T02:30:00Z',note:'Timestamp only.'}];
+ context.timeZone='America/Vancouver';
+ assert.equal(vetBriefEvidence(context,{focus:'Review'}).evidence.records[0].date,'2026-09-14');
+});
