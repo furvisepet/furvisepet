@@ -201,11 +201,20 @@ def drill(pg_env, key):
         roles = b"".join(line for line in role_lines if line.strip() != bootstrap_create)
         print("Restoring database roles.", flush=True)
         run(psql, data=order_role_grants(roles))
-        run(bootstrap_psql + ["-c", "GRANT CREATE ON DATABASE postgres TO postgres;"])
         psql = bootstrap_psql
         print("Restoring database schema and data.", flush=True)
-        run(local + ["pg_restore", "--exit-on-error", "--clean", "--if-exists", "--no-tablespaces", "--use-set-session-authorization",
-                     "-h", "/tmp", "-U", "supabase_admin", "-d", "postgres"], data=dump)
+        # Restore event triggers last, directly as their original owner. Supautils
+        # rejects transient superuser ownership of non-superuser trigger functions.
+        listing = run(local + ["pg_restore", "--list"], data=dump).splitlines(keepends=True)
+        trigger_entries = [line for line in listing if b" EVENT TRIGGER " in line]
+        main_entries = [line for line in listing if b" EVENT TRIGGER " not in line]
+        run(local + ["sh", "-c", "cat > /tmp/main.list"], data=b"".join(main_entries))
+        run(local + ["sh", "-c", "cat > /tmp/triggers.list"], data=b"".join(trigger_entries))
+        restore = local + ["pg_restore", "--exit-on-error", "--clean", "--if-exists", "--no-tablespaces",
+                           "-h", "/tmp", "-U", "supabase_admin", "-d", "postgres"]
+        run(restore + ["--use-list=/tmp/main.list"], data=dump)
+        if trigger_entries:
+            run(restore + ["--use-list=/tmp/triggers.list", "--use-set-session-authorization"], data=dump)
         # Compare canonical per-row hashes without exposing any row values to the workflow log.
         for table, expected_table in expected.items():
             schema, table_name = table.split(".", 1)
