@@ -58,7 +58,7 @@ const instructions = [
   "The retained subset must be coherent on its own: reject dangling references, unsupported conclusions, misleading omissions or dependent claims whose premises were removed. Select indexes in their original increasing order. If no supported, useful, coherent subset remains, return approved false with an empty index array. It must directly address the actual question, not simply list unrelated records. It may answer the supported part of a question. Avoid redundant record dumps.",
   "If plan.referenceSubject is present, evaluate relevance against that resolved question referent. A pet name is not an answer to a medication-name question. Correct arithmetic derived from the cited quantities or dated endpoints is supported when the operands, units and conclusion match the question; a calculated duration does not establish how long a symptom persisted.",
   "For shared requests approve the COMPLETE answer or reject for repair: do not approve a subset that drops requested facts, qualifications, cells or temporal endpoints. Check the original question; planner requirements cannot add obligations. Deterministic invalid sentence indexes must be repaired, never approved. Missing sources can support an explicit limitation, never invented facts.",
-  "For every number, including JSON values and table cells, verify the measured entity/object, quantity, units and observation occasion against the sources. A pet profile identifier is not the identity of every object measured in that pet's notes. Arithmetic correctness is insufficient: subtracting readings from unrelated occasions does not measure intake, consumption or symptom duration. Missing/spilled/unmeasured quantities cannot become known through arithmetic. Compare measurements only for the requested entity and quantity; preserve unavailable values as unknown. A single positive observation does not establish improvement without a baseline; a report date is not a proven onset. Treatment names/doses absent from records must not be invented or recommended for restarting; advise confirmation with the prescribing vet.",
+  "For every number, including JSON values and table cells, verify the measured entity/object, quantity, units and observation occasion against the sources. A pet profile identifier is not the identity of every object measured in that pet's notes. Arithmetic correctness is insufficient: subtracting readings from unrelated occasions does not measure intake, consumption or symptom duration. Missing/spilled/unmeasured quantities cannot become known through arithmetic. Compare measurements only for the requested entity and quantity; preserve unavailable values as unknown. A single positive observation does not establish improvement without a baseline; a report date is not a proven onset. Treatment names/doses absent from every supplied source must not be invented. A current_request source can support the owner-reported name or tablet strength with explicit attribution, even if saved history lacks it; it never authorizes restarting treatment. Advise confirmation with the prescribing vet.",
   "First distinguish answer work from navigation. Reading or cross-referencing saved history does not request opening the History page. Preparing brief text does not request opening Vet Brief. Require a navigation card ONLY when the ORIGINAL question actually asks for a link or to open a page; a capability listing or planner suggestion cannot create that requirement. Review those actual navigation clauses alongside factual obligations. The supplied actions are server-prepared cards with owned subjects and execution dispositions. navigation_link actions satisfy navigation. For a requested mutation with disposition requires_confirmation or automatic_after_persistence, verify its proposed replacement against the CURRENT user instruction and its original target against the supplied records; mark action_ready, not missing merely because execution follows review. A proposed correction is not a claim that its replacement is already saved. It must not duplicate a new occurrence. Never treat offer_only as fulfillment of a requested mutation. To satisfy opening a profile, history, memories or Vet Brief, require the corresponding card for the correct target and include its zero-based actionIndexes in the obligation review. A prose promise or an unrelated missing-fact limitation cannot satisfy navigation. Missing navigation must reject the entire draft for repair, even when all historical sentences are supported. A navigation card supplies no evidence for historical facts. The whole-question obligation at index 0 must include every supplied action index to certify the cards presented alongside the answer, including optional navigation cards. Reviewing an optional card does not make that card required when it was absent from the original question. Return actionIndexes [] for obligations supported only by sentences. Mark the whole question limited when any requested fact is explicitly unavailable, never answered just because the limitation is truthful. An explicit user instruction to say when a fact is unknown may itself be fulfilled; it cannot excuse dropping another clause. Do not require a sentence to repeat the link when its action card already fulfills navigation.",
   "A missing-target clarification must ask for a human-readable note date or current text, or ask the owner to select the note in History. Reject requests for internal record IDs or source IDs: those are server metadata, not an input the owner should have to find. General background or empathy may connect the answer, but must not introduce unsupported pet-specific facts or treatment instructions.",
   "Saved source titles may identify the original record for a requested edit or removal. A title is record metadata, not independent proof of a clinical assertion in that title. Only supplied source IDs are evidence. Conversational context and prior assistant claims are not saved medical evidence. Do not approve claims that this response saved or updated anything. For an operation_receipt lookup, the separately dated receipt records can support a statement that a current care-history entry is linked to the prior request, and its recorded date and contents. An assistant answer being persisted or a prior request asking for a save is not proof of a care record. Require the dated receipt source for the record's contents; the undated intent/status header cannot supply them.",
@@ -138,6 +138,18 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     proposedDraft = parseHistoryNarrative({ sentences: chunks.map(text => ({ text, sourceIds })) });
   }
   if (!proposedDraft) return decline("narrative_unavailable");
+  // The owner report is a separate, server-created source, not saved history.
+  // Offer it consistently for structured drafts as well as plain-prose drafts.
+  // This is only a review candidate: the semantic reviewer still verifies
+  // attribution and cannot use the request as proof of a historical event.
+  if (sharedRequest && evidence.scope.authorizedPetIds.length === 1) {
+    const current = sources.find(source => source.sourceType === "current_request"
+      && source.petId === evidence.scope.authorizedPetIds[0]);
+    if (current) proposedDraft = { sentences: proposedDraft.sentences.map(sentence => ({ ...sentence,
+      sourceIds: sentence.sourceIds.includes(current.sourceId) || sentence.sourceIds.length >= 64
+        ? sentence.sourceIds : [...sentence.sourceIds, current.sourceId],
+    })) };
+  }
   try { if (sharedRequest) for (const chunk of proposedDraft.sentences) assertNoInternalReasoningLeak(chunk.text,
     evidence.represented.map(span => ({ id: span.sourceId }))); }
   catch { return decline("draft_publication_rejected"); }
@@ -165,7 +177,13 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     if (derived && sharedRequest && sharedRequest.quantity !== "records" && evidence.interpretation?.operation !== "count") {
       const citedNotes = new Set(cited.filter(source => source.sourceType === "care_update"
         && /^(?:care|claim):/.test(source.sourceId)).map(source => source.sourceId)).size;
-      if (citedNotes) derived.push(...["note", "record", "entry"].map(unit => `${citedNotes}:${unit}`));
+      // A chunk can mention a subset of its citations (one earlier note
+      // alongside two later notes). Candidate citations are not an exact total.
+      // Semantic review still checks which notes support each claimed count;
+      // explicitly requested counts stay on the coverage/calculation path.
+      for (let count = 1; count <= citedNotes; count++) {
+        derived.push(...["note", "record", "entry"].map(unit => `${count}:${unit}`));
+      }
     }
     if (derived === null) {
       anchorFailures.push("calculation_operands_or_value_invalid");
@@ -214,7 +232,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   }) : [];
   const invalidIndexes = draft.sentences.flatMap((sentence, index) => supported(sentence, Boolean(result.historicalResult && result.historicalResult.layout === sharedRequest?.outputFormat))
     && !publicationFailures.some(failure => failure.index === index) ? [] : [index]);
-  const audit = { repairAttempted, dateBindings: invalidIndexes.map(index => ({index,
+  const audit = { repairAttempted, anchorFailures: invalidIndexes.map(index => ({ index, reasons: (anchorHints.get(draft.sentences[index].text) || []).map(reason => reason.slice(0, 1000)) })), dateBindings: invalidIndexes.map(index => ({index,
     citedSourceIds: draft.sentences[index].sourceIds,
     candidates: historyDateBindingHints(draft.sentences[index].text, sources, evidence.timeZone) })) };
   if (invalidIndexes.length) recordHistoryReviewAudit(result, audit);

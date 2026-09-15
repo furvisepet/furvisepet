@@ -242,3 +242,45 @@ test('dated observation attribution survives state governance and stored present
   'I recorded the observation on September 4.'
  ]) assert.equal(containsUnverifiedStateClaim(claim), true, claim);
 });
+
+test('structured current-report drafts receive owner provenance without a paid repair',async()=>{
+ const e=fixture(['a']);e.scope.requestText='I have leftover 5mg tablets. Summarize my report, without saving.';
+ e.interpretation.request={mode:'history',outputFormat:'prose',evidenceNeeds:[]};
+ const r=result(e);r.historyNarrative.sentences[0].text='You report having leftover 5 mg tablets.';
+ let calls=0;
+ assert.equal(await reviewHistoricalAnswer({result:r,client:{responses:{create:async request=>{
+  calls++;const input=JSON.parse(request.input);
+  assert.deepEqual(input.deterministicInvalidSentenceIndexes,[]);
+  assert.equal(input.sources.find(s=>s.sourceId==='request:current').sourceType,'current_request');
+  return {status:'completed',output_text:JSON.stringify({approved:true,retainedSentenceIndexes:[0],obligations:[{index:0,status:'answered',sentenceIndexes:[0],actionIndexes:[]}],rejectionReason:null})};
+ }}}}),true);
+ assert.equal(calls,1);assert.ok(readReviewedHistoryAnswer(r).sourceIds.includes('request:current'));
+ assert.deepEqual(r.historyNarrative.sentences[0].sourceIds,['care:a'],'candidate does not rewrite the model proposal or confer authority');
+});
+test('owner provenance does not waive an invented quantity or multi-pet ambiguity',async()=>{
+ const {readHistoryReviewAudit}=await import('../app/lib/intelligence/history-review-state.ts');
+ for(const ids of [['a'],['a','b']]){
+  const e=fixture(ids);e.scope.requestText='I have leftover 5mg tablets.';
+  e.interpretation.request={mode:'history',outputFormat:'prose',evidenceNeeds:[]};
+  const r=result(e);r.historyNarrative.sentences[0].text=ids.length===1?'You report having 50 mg tablets.':'Aster has 5 mg tablets.';
+  assert.equal(await reviewHistoricalAnswer({result:r,repairAttempted:true,client:{responses:{create:async()=>{throw Error('invalid anchors must stop before review');}}}}),false);
+  assert.equal(readReviewedHistoryAnswer(r),null);
+  assert.match(readHistoryReviewAudit(r)[0].anchorFailures[0].reasons.join(' '),/Unsupported quantity anchor/);
+ }
+});
+test('incidental note subsets are reviewed, while requested exact counts still require proof',async()=>{
+ for(const quantity of [undefined,'records']){
+  const e=fixture(['a']);const extra={...e.represented[0],sourceId:'care:extra'};
+  e.represented.push(extra);e.sources[0].loadedIds.push(extra.sourceId);
+  e.history.provenance.push({sourceId:extra.sourceId,status:'effective_linked',claimIds:[]});
+  e.scope.requestText=quantity?'Give an exact count of all saved notes.':'Summarize the food notes.';
+  e.interpretation.request={mode:'history',outputFormat:'prose',evidenceNeeds:[],quantity};
+  const r=result(e,['care:a','care:extra']);r.historyNarrative.sentences[0].text='One note reports wet food.';
+  let calls=0;
+  const approved=await reviewHistoricalAnswer({result:r,repairAttempted:true,client:{responses:{create:async request=>{
+   calls++;assert.deepEqual(JSON.parse(request.input).deterministicInvalidSentenceIndexes,[]);
+   return {status:'completed',output_text:JSON.stringify({approved:true,retainedSentenceIndexes:[0],obligations:[{index:0,status:'answered',sentenceIndexes:[0],actionIndexes:[]}],rejectionReason:null})};
+  }}}});
+  assert.equal(approved,!quantity);assert.equal(calls,quantity?0:1);
+ }
+});
