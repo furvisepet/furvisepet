@@ -1,5 +1,6 @@
 const PRIVATE_ROUTE_PREFIXES = [
   "/account",
+  "/admin",
   "/ask",
   "/care-log",
   "/dashboard",

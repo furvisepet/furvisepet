@@ -11,6 +11,7 @@ for (const status of [409, 429]) test(`actual Vet Brief route abandons ${status}
   class RateLimitRejection extends Error { constructor() { super('Denied'); this.response = Response.json({code: status === 409 ? 'AI_REQUEST_ALREADY_ACTIVE' : 'RATE_LIMITED'}, {status}); } }
   const document = {pet:{name:'Synthetic'},excludedSections:[],missingInformation:[]};
   const mocks = {
+    '../../../lib/operations/events': {emitOperationalEvent: () => {}},
     '../../../lib/vet-brief/read': readRecovery,
     '../../../lib/vet-brief/prepare': {prepareVetBrief: async () => { generated++; return {document,sourceRecordIds:[]}; }},
     '../../../lib/vet-brief/appointment-plan': {validBriefDay: s => /^\d{4}-\d{2}-\d{2}$/.test(s)},

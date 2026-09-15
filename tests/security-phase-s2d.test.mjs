@@ -259,7 +259,7 @@ test("every current API mutation route is inventoried behind a direct or canonic
   const direct = new Set(["app/api/account/detect-country/route.ts", "app/api/ask/route.ts", "app/api/ask/suggestions/[id]/route.ts", "app/api/memories/[id]/route.ts"]);
   const authenticated = new Set([
     "app/api/account/delete/route.ts", "app/api/account/export/route.ts", "app/api/account/product-country/route.ts", "app/api/ask/actions/[messageId]/route.ts", "app/api/billing/checkout/route.ts", "app/api/billing/portal/route.ts", "app/api/care-entries/[id]/route.ts", "app/api/care-entries/route.ts",
-    "app/api/legacy-memories/route.ts", "app/api/pets/[id]/route.ts", "app/api/product-feedback/route.ts",
+    "app/api/legacy-memories/route.ts", "app/api/pets/[id]/route.ts", "app/api/product-feedback/route.ts", "app/api/telemetry/activity/route.ts",
   ]);
   const conversations = new Set([
     "app/api/ask/conversations/[id]/messages/route.ts", "app/api/ask/conversations/[id]/route.ts",
@@ -275,10 +275,13 @@ test("every current API mutation route is inventoried behind a direct or canonic
     "app/api/auth/verify-email-otp/route.ts",
   ]);
   const signedWebhooks = new Set(["app/api/billing/webhook/route.ts"]);
-  const inventoried = [...direct, ...authenticated, ...conversations, ...vetBriefs, ...petProfiles, ...publicAuth, ...signedWebhooks].sort();
+  const ownerRoutes = new Set(["app/api/admin/exclusions/route.ts"]);
+  const inventoried = [...direct, ...authenticated, ...conversations, ...vetBriefs, ...petProfiles, ...publicAuth, ...signedWebhooks, ...ownerRoutes].sort();
   assert.deepEqual(mutationRoutes, inventoried);
   for (const route of direct) assert.match(read(route), /validateSensitiveRequestOriginResponse/, route);
   for (const route of authenticated) assert.match(read(route), /getAuthenticatedApiContext/, route);
+  for (const route of ownerRoutes) assert.match(read(route), /requireDashboardOwner\(request\)/, route);
+  assert.match(read("app/lib/operations/owner-dashboard-server.ts"), /await getAuthenticatedApiContext\(request\)/);
   for (const route of conversations) assert.match(read(route), /getAskConversationRequestContext/, route);
   for (const route of vetBriefs) assert.match(read(route), /getVetBriefRequestContext/, route);
   for (const route of petProfiles) assert.match(read(route), /saveProfile/, route);

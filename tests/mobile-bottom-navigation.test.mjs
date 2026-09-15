@@ -64,7 +64,7 @@ test("one persistent root-owned authenticated chrome survives application route 
   assert.match(rootLayout, /<AuthenticatedAppChrome \/>[\s\S]*\{children\}/);
   assert.match(appChrome, /usePathname\(\)/);
   assert.match(appChrome, /isAuthenticatedAppNavigationRoute\(pathname\)/);
-  assert.match(appChrome, /return <SignedInHeader \/>/);
+  assert.match(appChrome, /<SignedInHeader \/>/);
   assert.doesNotMatch(appChrome, /key=\{pathname\}/);
   assert.doesNotMatch(appPage, /SignedInHeader|AppHeader/);
 

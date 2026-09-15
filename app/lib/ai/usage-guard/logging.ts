@@ -1,3 +1,4 @@
+import { persistDashboardCost } from "../../operations/dashboard-telemetry";
 import type { AiGuardFeature } from "./types";
 import { emitOperationalEvent } from "../../operations/events";
 import { classifyAiGuardOperationalEvent } from "./classification.ts";
@@ -14,6 +15,7 @@ export function logAiGuardEvent(event: string, input: {
     emitOperationalEvent({ errorCode: input.denialReason || input.safeErrorClass, eventType: type, feature: input.feature,
       operationId: input.operationId, requestId: input.requestId, severity: type === "provider_usage_reconciliation_failure" ? "critical" : "high" });
   }
+  persistDashboardCost(event,input);
   const payload = { event, ...input };
   if (input.allowed === false || input.safeErrorClass) console.warn("[Furvise AI guard]", payload);
   else console.info("[Furvise AI guard]", payload);

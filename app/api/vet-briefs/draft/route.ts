@@ -1,3 +1,4 @@
+import { emitOperationalEvent } from "../../../lib/operations/events";
 import { readVetBrief, vetBriefReadUnavailable } from "../../../lib/vet-brief/read";
 import { prepareVetBrief } from "../../../lib/vet-brief/prepare";
 import { validBriefDay } from "../../../lib/vet-brief/appointment-plan";
@@ -158,6 +159,7 @@ export async function POST(request: Request) {
     if (error instanceof AiCreditLimitReachedError) {
       return Response.json({ error: auth.planId === "free" ? "You've used your one free Vet Brief generation. Upgrade to Plus for four each month. You can still reopen and download your saved brief." : "You've used your Vet Brief generations for this period. You can still reopen and download saved briefs.", limitReached: true }, { status: 402 });
     }
+    emitOperationalEvent({eventType: "application_error", feature: "vet_brief", actorId: auth.userId, requestId, route: "/api/vet-briefs/draft", severity: "high", errorCode: "VET_BRIEF_PREPARATION_FAILED"});
     logIntelligenceEvent("vet brief generation failed", { feature: "vet_brief", petId, requestId, ...featureFailureDetails(error) });
     return Response.json({ code: "VET_BRIEF_PREPARATION_FAILED", error: "The Vet Visit Brief could not be prepared right now. Try again in a moment." }, { status: 503 });
   } finally {
