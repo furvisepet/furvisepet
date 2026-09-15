@@ -20,6 +20,7 @@ const diagnostics = new WeakMap<AskReasoningResult, HistoryReviewDiagnostic>();
 export type HistoryReviewAudit = {
   repairAttempted: boolean;
   rejectionReason?: string;
+  anchorFailures?: Array<{index: number; reasons: string[]}>;
   dateBindings: Array<{index: number; citedSourceIds: string[]; candidates: Array<{anchor: string; sourceIds: string[]}>}>;
 };
 const audits = new WeakMap<AskReasoningResult, HistoryReviewAudit[]>();
