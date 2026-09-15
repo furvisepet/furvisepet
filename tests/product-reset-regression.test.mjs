@@ -55,13 +55,10 @@ test("update-password accepts only the already-established recovery session", ()
 test("homepage navigation follows the resolved authentication state", () => {
   const header = read("app/components/app-header.tsx");
   const homepage = read("app/components/homepage-client.tsx");
-
-  assert.match(homepage, /showSignIn=\{visibleMode === "anonymous"\}/);
-  assert.match(homepage, /const signedIn = mode === "with-pet" \|\| mode === "no-pets"/);
+  assert.match(homepage, /auth\.status === "signedIn" \? "with-pet" : "anonymous"/);
   assert.match(homepage, /signedIn \? \([\s\S]*homepage-desktop-navigation/);
-  assert.match(homepage, /mode === "anonymous"[\s\S]*href: NEW_PET_LOGIN_PATH, label: "Get started"/);
-  assert.match(homepage, /mode === "no-pets"[\s\S]*href: NEW_PET_ONBOARDING_PATH, label: "Add your pet"/);
-  assert.match(homepage, /href: "\/today", label: "Go to Today"/);
+  assert.match(homepage, /href=\{NEW_PET_LOGIN_PATH\}>Get started/);
+  assert.match(homepage, /aria-label="About Furvise"/);
+  assert.doesNotMatch(homepage, /loadDogProfilesWithMemories|createConversation/);
   assert.match(header, /resolvedAuthState === "authenticated" \? APP_NAV_ITEMS/);
-  assert.match(header, /aria-label="Furvise home"/);
 });

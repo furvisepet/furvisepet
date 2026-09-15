@@ -51,17 +51,11 @@ test("button hierarchy has explicit readable foregrounds and disabled states", (
   assert.match(css, /:focus-visible[\s\S]*outline: 2px solid var\(--focus\)/);
 });
 
-test("homepage has six viewport story screens and authenticated CTA logic", () => {
+test("homepage uses two visuals and keeps primary actions in navigation", () => {
   assert.match(homepage, /aria-label="Remember what matters\."/);
-  assert.doesNotMatch(homepage, /Takes about two minutes\./);
-  for (const benefit of ["PETS CHANGE.", "ONE STORY.", "WHEN YOU NEED IT,", "YOUR PET&apos;S STORY", "START WITH"]) assert.equal(homepage.split(benefit).length - 1, 1);
-  assert.match(homepage, /secondaryCopy="You don't have to track everything\. Use Furvise when something matters\."/);
-  assert.doesNotMatch(homepage, /id="track-less"/);
-  assert.doesNotMatch(homepage, />0[123]</);
-  assert.match(homepage, /mode === "anonymous"[\s\S]*href: NEW_PET_LOGIN_PATH, label: "Get started"/);
-  assert.match(homepage, /mode === "no-pets"[\s\S]*href: NEW_PET_ONBOARDING_PATH, label: "Add your pet"/);
-  assert.match(homepage, /href: "\/today", label: "Go to Today"/);
-  assert.match(homepage, /<MarketingFooter showSignIn=\{visibleMode === "anonymous"\} signedIn=\{signedIn\} \/>/);
+  assert.equal((homepage.match(/src="\/images\//g) || []).length, 2);
+  assert.doesNotMatch(homepage, /flamingo|hummingbird|StoryAction/);
+  assert.match(homepage, /href=\{NEW_PET_LOGIN_PATH\}>Get started/);
 });
 
 test("Products is absent from primary navigation while the shared account utility owns account actions", () => {

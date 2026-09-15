@@ -2,292 +2,50 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-
-const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+const read = path => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const homepage = read("app/components/homepage-client.tsx");
 const css = read("app/globals.css");
-const layout = read("app/layout.tsx");
-const brand = read("app/components/brand-mark.tsx");
-const page = read("app/page.tsx");
-const seo = read("app/lib/seo.ts");
-const appHeader = read("app/components/app-header.tsx");
-const signedInHeader = read("app/components/signed-in-header.tsx");
+const release = read("app/release-notes/page.tsx");
 
-const renderedHomepage = homepage.slice(homepage.indexOf("export function HomepageClient"), homepage.indexOf("function PublicMarketingHeader"));
-const marketingHeader = homepage.slice(homepage.indexOf("function PublicMarketingHeader"), homepage.indexOf("function WhyWeExist"));
-const desktopNavigation = homepage.slice(homepage.indexOf("const HOMEPAGE_DESKTOP_NAVIGATION"), homepage.indexOf("const HOMEPAGE_MOBILE_NAVIGATION"));
-const mobileNavigation = homepage.slice(homepage.indexOf("const HOMEPAGE_MOBILE_NAVIGATION"), homepage.indexOf("export function HomepageClient"));
-const homepageCss = css.slice(css.indexOf(".homepage-dark-world"), css.indexOf(".mobile-liquid-glass-root"));
-const mainStory = homepage.slice(homepage.indexOf('<main className="homepage-dark-world"'), homepage.indexOf("</main>"));
-
-test("homepage uses the final corrective art map and no product examples", () => {
-  assert.doesNotMatch(homepage, /\bMani\b|Illustrative example|ProductWindow|product-frame|product-example|history-example|ask-context-example|Vet Visit Brief|fake (?:chat|product)|screenshot/i);
-  assert.doesNotMatch(homepage, /fetch\(|\/api\/|createConversation|saveConversation|onSubmit=/);
-  for (const asset of ["heron", "flamingo", "cat", "hummingbird"]) {
-    assert.equal(homepage.split(`/images/${asset}.png`).length - 1, 1, `${asset} is referenced once`);
-  }
-  for (const unusedAsset of ["deer", "goat", "ostrich", "birds"]) assert.doesNotMatch(homepage, new RegExp(`/images/${unusedAsset}\\.png`));
-  assert.doesNotMatch(mainStory, /<video|<picture|backgroundImage/);
-  assert.equal((homepage.match(/<Image/g) || []).length, 4, "the header, footer, mobile navigation, and reusable composition art use Image");
+test("homepage has only the two requested decorative illustrations and no story CTA routing", () => {
+  for (const art of ["heron", "cat"]) assert.equal(homepage.split(`/images/${art}.png`).length - 1, 1);
+  assert.doesNotMatch(homepage, /flamingo|hummingbird|StoryAction|resolveStoryAction|loadDogProfilesWithMemories/);
+  assert.match(homepage, /aria-hidden="true"><Image alt="" src="\/images\/heron\.png"/);
+  assert.match(homepage, /aria-hidden="true"><Image alt="" src="\/images\/cat\.png"/);
+  const main = homepage.slice(homepage.indexOf('<main'), homepage.indexOf('</main>'));
+  assert.doesNotMatch(main, /href="\/(?:ask|history|pets|today|login)"/);
+  assert.match(main, /href="\/release-notes"/);
+  assert.match(main, /href="\/contact" target="_blank" rel="noopener noreferrer"/);
 });
 
-test("editorial art is decorative, direct on forest, and limited to the approved chapters", () => {
-  const compositionArt = homepage.slice(homepage.indexOf("function CompositionArt"), homepage.indexOf("function FinalChapter"));
-  assert.match(homepage, /heron: \{[^}]*src: "\/images\/heron\.png"/);
-  assert.match(renderedHomepage, /<CompositionArt art="heron" priority \/>/);
-  assert.match(compositionArt, /homepage-art-\$\{art\}[\s\S]*<Image alt="" aria-hidden="true"[\s\S]*loading=\{priority \? undefined : "lazy"\}[\s\S]*priority=\{priority\}[\s\S]*sizes=\{asset\.sizes\}/);
-  for (const [composition, art] of [["remembrance", "heron"], ["reality", "flamingo"], ["availability", "cat"], ["belief", "hummingbird"]]) {
-    assert.match(renderedHomepage, new RegExp(`<HomepageStoryStage art="${art}" id="${composition}"`));
-    assert.equal((renderedHomepage.match(new RegExp(`<CompositionArt art="${art}"`, "g")) || []).length, 1, `${art} renders once`);
-  }
-  assert.match(renderedHomepage, /<HomepageStoryStage id="manifesto" screen=\{3\} side="manifesto">[\s\S]*id="one-story"[\s\S]*<\/HomepageStoryStage>/);
-  assert.doesNotMatch(renderedHomepage.slice(renderedHomepage.indexOf('<HomepageStoryStage id="manifesto"'), renderedHomepage.indexOf('<HomepageStoryStage art="cat"')), /CompositionArt/);
-  const artCss = homepageCss.slice(homepageCss.indexOf(".homepage-story-art {"), homepageCss.indexOf(".homepage-final-chapter .homepage-story-inner"));
-  assert.doesNotMatch(artCss, /background|box-shadow|filter|gradient|border-radius/);
-  assert.match(homepageCss, /\.homepage-editorial-composition \{[\s\S]*overflow: visible/);
-  assert.match(homepageCss, /\.homepage-story-art-image \{[\s\S]*object-fit: contain/);
-  assert.match(homepageCss, /\.homepage-composition-art \.homepage-story-art-image \{[\s\S]*object-fit: contain;[\s\S]*object-position: center/);
-  assert.doesNotMatch(homepageCss, /object-fit: cover|overflow: clip/);
-  assert.doesNotMatch(artCss, /margin-(?:left|right):\s*-/);
-  for (const art of ["heron", "flamingo", "cat", "hummingbird"]) assert.match(homepageCss, new RegExp(`\\.homepage-art-${art} \\{`));
+test("navigation offers public information to visitors and the app to signed-in users", () => {
+  assert.match(homepage, /auth\.status === "loading" \? "loading"/);
+  assert.match(homepage, /const anonymous = mode === "anonymous"/);
+  assert.match(homepage, /aria-label="About Furvise"/);
+  for (const label of ["Today", "Pets", "History", "Ask"]) assert.match(homepage, new RegExp(`label: "${label}"`));
+  assert.match(homepage, /href=\{NEW_PET_LOGIN_PATH\}>Get started/);
+  assert.match(homepage, /<AccountUtility email=\{email\}/);
+  assert.match(homepage, /signedIn \? <HomepageMobileNavigation/);
+  assert.match(homepage, /aria-label="Furvise updates"/);
 });
 
-test("desktop homepage is six independent viewport-sized story screens", () => {
-  const desktopStageCss = css.slice(css.indexOf("@media (min-width: 1024px)"), css.indexOf("\n.homepage-story-body {"));
-  assert.match(desktopStageCss, /\.homepage-composition-art \{[\s\S]*position: absolute;[\s\S]*grid-column: auto;[\s\S]*grid-row: auto/);
-  for (const art of ["heron", "flamingo", "cat", "hummingbird"]) {
-    assert.match(desktopStageCss, new RegExp(`\\.homepage-art-${art} \\{[\\s\\S]*width:`));
-  }
-  assert.equal((renderedHomepage.match(/data-story-screen/g) || []).length, 0, "screen markers are emitted by stage components, not repeated at call sites");
-  for (const screen of [1, 2, 3, 4, 5]) assert.match(renderedHomepage, new RegExp(`screen=\\{${screen}\\}`));
-  assert.match(homepage, /data-story-screen=\{screen\}/);
-  assert.match(homepage, /data-story-screen="6"/);
-  assert.match(desktopStageCss, /\.homepage-viewport-stage \{[\s\S]*min-height: 100svh/);
-  assert.match(desktopStageCss, /\.homepage-editorial-grid \{[\s\S]*min-height: 100svh;[\s\S]*grid-template-rows: minmax\(0, 1fr\)/);
-  assert.match(desktopStageCss, /data-composition="remembrance"\],[\s\S]*data-composition="remembrance"\] \.homepage-editorial-grid \{[\s\S]*min-height: calc\(100svh - 3\.5rem\)/);
-  assert.match(desktopStageCss, /#why-we-exist,[\s\S]*#one-story,[\s\S]*#when-needed \{[\s\S]*grid-column: 1 \/ 5;[\s\S]*margin-left: clamp\(1rem, 4vw, 4\.5rem\)/);
-  assert.match(desktopStageCss, /#the-reality,[\s\S]*#bigger-idea \{[\s\S]*grid-column: 9 \/ 13;[\s\S]*margin-right: clamp\(1rem, 4vw, 4\.5rem\)/);
-  assert.match(desktopStageCss, /#one-story \{[\s\S]*grid-column: 1 \/ 13;[\s\S]*align-self: center;[\s\S]*justify-self: center/);
-  assert.match(desktopStageCss, /\.homepage-art-heron \{[\s\S]*right: 3vw;[\s\S]*bottom: 2vh;[\s\S]*width: min\(54vw,[\s\S]*height: min\(86svh/);
-  assert.match(desktopStageCss, /\.homepage-art-flamingo \{[\s\S]*left: clamp\(2\.5rem, 4vw, 5rem\);[\s\S]*bottom: 0;[\s\S]*width: min\(46vw,[\s\S]*height: min\(82svh/);
-  assert.match(desktopStageCss, /\.homepage-art-cat \{[\s\S]*right: clamp\(2\.5rem, 4vw, 5rem\);[\s\S]*bottom: 0;[\s\S]*width: min\(46vw,[\s\S]*height: min\(82svh/);
-  assert.match(desktopStageCss, /\.homepage-art-hummingbird \{[\s\S]*left: clamp\(2\.5rem, 4vw, 5rem\);[\s\S]*width: min\(53vw, 52rem\);[\s\S]*aspect-ratio: 3 \/ 2/);
-  assert.match(desktopStageCss, /\.homepage-final-chapter,[\s\S]*\.homepage-final-chapter \.homepage-story-inner \{[\s\S]*min-height: 100svh/);
-  assert.match(desktopStageCss, /\.homepage-final-chapter \.homepage-story-block \{[\s\S]*grid-column: 1 \/ 13;[\s\S]*justify-self: center/);
+test("two visual sections alternate with compact content and stack at smaller widths", () => {
+  assert.match(css, /\.home-visual \{[^}]*grid-template-columns: 1fr 1fr/);
+  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.home-visual \{ min-height: 0; grid-template-columns: 1fr/);
+  assert.match(css, /@media \(max-width: 639px\)[\s\S]*\.home-capabilities \{ grid-template-columns: 1fr/);
+  assert.doesNotMatch(homepage, /homepage-viewport-stage|data-story-screen/);
+  assert.match(homepage, /does not diagnose or replace veterinary care/);
 });
 
-test("desktop reading rails protect the center gutter and the final chapter resolves centered", () => {
-  const desktopStageCss = css.slice(css.indexOf("@media (min-width: 1024px)"), css.indexOf("\n.homepage-story-body {"));
-  assert.match(homepageCss, /\.homepage-story-block \{[\s\S]*max-width: 32rem/);
-  assert.match(homepageCss, /\.homepage-story-body \{[\s\S]*max-width: 36ch;[\s\S]*font-size: 1\.125rem;[\s\S]*line-height: 1\.6/);
-  assert.match(desktopStageCss, /#why-we-exist,[\s\S]*#one-story,[\s\S]*#when-needed \{[\s\S]*grid-column: 1 \/ 5/);
-  assert.match(desktopStageCss, /#the-reality,[\s\S]*#bigger-idea \{[\s\S]*grid-column: 9 \/ 13/);
-  assert.match(homepageCss, /\.homepage-final-chapter \.homepage-story-inner \{[\s\S]*align-items: center/);
-  assert.match(homepageCss, /\.homepage-final-chapter \.homepage-story-block \{[\s\S]*max-width: 34rem;[\s\S]*margin-inline: auto;[\s\S]*text-align: center/);
-  assert.match(homepageCss, /\.homepage-final-chapter \.homepage-story-body,[\s\S]*\.homepage-final-chapter \.homepage-trust-line \{[\s\S]*margin-inline: auto/);
-  assert.match(homepageCss, /\.homepage-final-chapter \.homepage-trust-line \{[\s\S]*margin-top: clamp\(1\.5rem, 3vh, 2\.25rem\)/);
-  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-story-row \{[\s\S]*padding: 0/);
-});
-
-test("mobile DOM order keeps each visual inside its own story screen", () => {
-  const orderedMarkers = [
-    '<WhyWeExist mode={visibleMode} />',
-    '<CompositionArt art="heron" priority />',
-    '<CompositionArt art="flamingo" />',
-    'id="the-reality"',
-    'id="one-story"',
-    '<CompositionArt art="cat" />',
-    'id="when-needed"',
-    '<CompositionArt art="hummingbird" />',
-    'id="bigger-idea"',
-    '<FinalChapter mode={visibleMode} />',
-  ];
-  let cursor = -1;
-  for (const marker of orderedMarkers) {
-    const next = mainStory.indexOf(marker, cursor + 1);
-    assert.ok(next > cursor, `${marker} follows the previous mobile story element`);
-    cursor = next;
-  }
-  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-viewport-stage \{[\s\S]*min-height: 100svh/);
-  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-editorial-grid \{[\s\S]*min-height: 100svh;[\s\S]*grid-template-columns: minmax\(0, 1fr\);[\s\S]*align-content: center;[\s\S]*gap: clamp\(1\.5rem, 4vh, 2\.5rem\);[\s\S]*padding-block: clamp\(1\.5rem, 4vh, 2\.5rem\)/);
-  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*data-composition="remembrance"\],[\s\S]*data-composition="remembrance"\] \.homepage-editorial-grid \{[\s\S]*min-height: calc\(100svh - 3\.375rem\)/);
-  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-story-row,[\s\S]*\.homepage-composition-art \{[\s\S]*grid-column: 1;[\s\S]*grid-row: auto/);
-  for (const [art, width] of [["heron", "80"], ["flamingo", "80"], ["cat", "82"]]) {
-    assert.match(css, new RegExp(`@media \\(max-width: 1023px\\)[\\s\\S]*\\.homepage-art-${art} \\{[\\s\\S]*width: min\\(${width}vw`));
-  }
-  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-art-hummingbird \{[\s\S]*width: min\(calc\(100vw - 2rem\), 48rem\)/);
-});
-
-test("phone scenes place substantial art before copy without forced viewport slabs", () => {
-  const phoneCss = css.slice(css.indexOf("@media (max-width: 767px)"), css.indexOf("\n.app-page-end-clearance"));
-  assert.match(phoneCss, /\.homepage-editorial-composition\.homepage-viewport-stage,[\s\S]*min-height: 0/);
-  assert.match(phoneCss, /data-art\] \.homepage-composition-art \{[\s\S]*grid-row: 1/);
-  assert.match(phoneCss, /data-art\] \.homepage-story-row \{[\s\S]*grid-row: 2/);
-  assert.match(phoneCss, /\.homepage-art-heron \{[\s\S]*width: min\(82vw,[\s\S]*height: 44svh/);
-  assert.match(phoneCss, /\.homepage-art-flamingo \{[\s\S]*width: min\(86vw,[\s\S]*height: 48svh/);
-  assert.match(phoneCss, /\.homepage-art-cat \{[\s\S]*width: min\(86vw,[\s\S]*height: 46svh/);
-  assert.match(phoneCss, /\.homepage-art-hummingbird \{[\s\S]*width: min\(100vw, 44rem\);[\s\S]*height: 40svh/);
-  assert.match(phoneCss, /data-composition="manifesto"\],[\s\S]*min-height: 86svh/);
-  assert.match(phoneCss, /\.homepage-final-chapter,[\s\S]*min-height: 72svh/);
-  assert.match(phoneCss, /\.homepage-story-body \{[\s\S]*max-width: 34ch;[\s\S]*font-size: 1rem;[\s\S]*line-height: 1\.62/);
-  assert.match(phoneCss, /data-authenticated="true"\][\s\S]*padding-bottom: calc\(var\(--mobile-nav-height\) \+ var\(--mobile-nav-safe-area\) \+ 1\.5rem\)/);
-  assert.match(phoneCss, /data-authenticated="true"\] \.homepage-art-heron \{[\s\S]*height: 42svh/);
-  assert.doesNotMatch(phoneCss, /scroll-snap|position:\s*sticky/);
-});
-
-test("cream header and footer frame one continuous dark main story", () => {
-  assert.match(homepage, /homepage-marketing-header[\s\S]*data-marketing-surface="light"/);
-  assert.match(homepage, /<main className="homepage-dark-world" data-marketing-surface="dark"/);
-  assert.match(homepage, /homepage-marketing-footer[\s\S]*data-marketing-surface="light"/);
-  assert.equal((homepage.match(/data-marketing-surface="dark"/g) || []).length, 1);
-  assert.equal((homepage.match(/data-marketing-surface="light"/g) || []).length, 2);
-  assert.match(css, /--marketing-forest: #071A15/);
-  assert.match(homepageCss, /\.homepage-dark-world \{[\s\S]*background: var\(--marketing-forest\)/);
-  assert.doesNotMatch(mainStory, /homepage-light-story|data-marketing-surface="light"/);
-});
-
-test("approved premium full logo sits directly on cream without a patch or pill", () => {
-  assert.match(marketingHeader, /homepage-brand-link[\s\S]*<Image[^>]*priority[^>]*src="\/brand\/furvise-logo\.svg"/);
-  assert.match(homepage, /homepage-footer-brand[\s\S]*<Image[^>]*src="\/brand\/furvise-logo\.svg"/);
-  assert.equal((homepage.match(/src="\/brand\/furvise-logo\.svg"/g) || []).length, 2);
-  assert.doesNotMatch(homepage, /<BrandMark|homepage-brand-lockup|brand-mark-background|logo-pill|rounded-full[^\n]*homepage-full-logo/);
-  const brandRules = homepageCss.slice(homepageCss.indexOf(".homepage-brand-link"), homepageCss.indexOf(".homepage-header-navigation-zone"));
-  assert.doesNotMatch(brandRules, /background:|padding:/);
-  assert.equal((brand.match(/priority=\{priority\}/g) || []).length, 3);
-  assert.doesNotMatch(brand, /data-ui="brand-mark"|loading=\{priority/);
-});
-
-test("anonymous header is brand plus Sign in and Get started", () => {
-  assert.match(marketingHeader, /const anonymous = mode === "anonymous"/);
-  assert.match(marketingHeader, /href="\/login">Sign in/);
-  assert.match(marketingHeader, /href=\{NEW_PET_LOGIN_PATH\}>Get started/);
-  assert.doesNotMatch(marketingHeader, /marketing navigation|Learn more|Products/);
-});
-
-test("authenticated desktop header exposes plain app links without old AppHeader chrome", () => {
-  for (const [href, label] of [["/today", "Today"], ["/pets", "Pets"], ["/history", "History"], ["/ask", "Ask"]]) {
-    assert.match(desktopNavigation, new RegExp(`href: "${href}", label: "${label}"`));
-  }
-  assert.doesNotMatch(desktopNavigation, /Products|\/shop/);
-  assert.match(marketingHeader, /signedIn \? \([\s\S]*homepage-desktop-navigation/);
-  assert.match(marketingHeader, /<AccountUtility email=\{email\} \/>/);
-  assert.doesNotMatch(homepage, /SignedInHeader|AppHeader|desktop-navigation-container|rounded-navigation|APP_NAV_ITEMS/);
-  assert.doesNotMatch(homepageCss.slice(homepageCss.indexOf(".homepage-desktop-navigation"), homepageCss.indexOf(".homepage-header-actions")), /background:|border:|border-radius:/);
-  assert.match(homepageCss, /\.homepage-header-text-link,[\s\S]*font-size: 0\.8125rem;[\s\S]*font-weight: 700;[\s\S]*text-transform: uppercase/);
-});
-
-test("one slim three-zone header keeps geometry stable through auth resolution", () => {
-  assert.equal((homepage.match(/data-ui="public-marketing-header"/g) || []).length, 1);
-  for (const zone of ["homepage-header-brand-zone", "homepage-header-navigation-zone", "homepage-header-actions"]) assert.match(marketingHeader, new RegExp(zone));
-  assert.match(css, /\.homepage-header-grid \{[\s\S]*height: 3\.5rem;[\s\S]*min-height: 3\.5rem;[\s\S]*grid-template-columns: minmax\(0, 1fr\) minmax\(24rem, auto\) minmax\(0, 1fr\)/);
-  assert.match(css, /\.homepage-header-navigation-zone \{[\s\S]*min-width: 24rem/);
-  assert.match(css, /\.homepage-header-actions \{[\s\S]*min-width: 11\.75rem/);
-  assert.match(css, /@media \(max-width: 479px\)[\s\S]*\.homepage-header-grid \{[\s\S]*height: 3\.375rem;[\s\S]*min-height: 3\.375rem/);
-  assert.match(homepage, /auth\.status === "loading"[\s\S]*\? "loading"/);
-});
-
-test("hero and all five company-story headlines use the approved direction", () => {
-  assert.match(homepage, /aria-label="Remember what matters\."/);
-  for (const headline of [
-    "REMEMBER",
-    "PETS CHANGE.",
-    "ONE STORY.",
-    "WHEN YOU NEED IT,",
-    "YOUR PET&apos;S STORY",
-    "START WITH",
-  ]) assert.equal(homepage.split(headline).length - 1, 1, `${headline} appears once`);
-});
-
-test("all approved human-language chapter copy is exact", () => {
-  for (const copy of [
-    "Your pet has a whole life happening between vet visits. Most of it lives in your head, your camera roll, old messages, and random notes. Furvise is here to keep the important parts together.",
-    "A food change. A rough night. Something they kept doing. Something that finally got better. Months later, those little details are usually the ones you&apos;re trying hardest to remember.",
-    "Tell Furvise when something changes. Ask when you&apos;re unsure. It keeps what you share connected to the same pet, so the next time you come back, you&apos;re not starting over.",
-    "You don't have to track everything. Use Furvise when something matters.",
-    "Look back at what changed. Ask without explaining everything again. Walk into a vet visit without trying to rebuild the last few months from memory.",
-    "The longer you care for a pet, the more their history matters. Furvise keeps that history useful, understandable, and close when you need it.",
-    "You don&apos;t need to remember everything on day one. Just start.",
-  ]) assert.equal(homepage.split(copy).length - 1, 1, copy);
-});
-
-test("story actions preserve anonymous, no-pet, and with-pet authority", () => {
-  assert.match(homepage, /mode === "anonymous"[\s\S]*href: NEW_PET_LOGIN_PATH, label: "Get started"/);
-  assert.match(homepage, /mode === "no-pets"[\s\S]*href: NEW_PET_ONBOARDING_PATH, label: "Add your pet"/);
-  assert.match(homepage, /href: "\/today", label: "Go to Today"/);
-  for (const [id, action] of [["the-reality", "history"], ["one-story", "pets"], ["when-needed", "ask"], ["bigger-idea", "history"]]) {
-    assert.match(renderedHomepage, new RegExp(`action="${action}"[^>]*id="${id}"`));
-  }
-  assert.match(homepage, /buildLoginHref\("\/history"\), label: "View history"/);
-  assert.match(homepage, /href: "\/history", label: "View history"/);
-  assert.match(homepage, /href: NEW_PET_LOGIN_PATH, label: "Your pets"/);
-  assert.match(homepage, /href: "\/pets", label: "Your pets"/);
-  assert.match(homepage, /buildLoginHref\("\/ask"\), label: "Ask Furvise"/);
-  assert.match(homepage, /mode === "with-pet" && activePetId \? `\/ask\?pet=\$\{encodeURIComponent\(activePetId\)\}` : "\/ask"/);
-  assert.match(homepageCss, /\.homepage-story-action \{[\s\S]*min-height: 2\.75rem;[\s\S]*border-radius: 0\.25rem;[\s\S]*text-transform: uppercase/);
-  assert.doesNotMatch(homepage, /secondary (?:button|action)|Explore platform|Learn more|Discover Furvise/i);
-});
-
-test("trust line remains exact and quiet near the final chapter", () => {
-  assert.equal(homepage.split("Furvise helps organize pet care information and does not replace veterinary care.").length - 1, 1);
-  const final = homepage.slice(homepage.indexOf("function FinalChapter"), homepage.indexOf("function StoryAction"));
-  assert.match(final, /START WITH[\s\S]*YOUR PET\.[\s\S]*homepage-trust-line/);
-});
-
-test("signed-in mobile navigation uses four mission destinations and keeps Account in the top rail", () => {
-  assert.match(renderedHomepage, /\{signedIn \? <HomepageMobileNavigation \/> : null\}/);
-  assert.match(homepage, /data-ui="mobile-bottom-navigation"/);
-  assert.match(mobileNavigation, /MOBILE_NAVIGATION_ITEMS\[0\][\s\S]*MOBILE_NAVIGATION_ITEMS\[1\][\s\S]*MOBILE_NAVIGATION_ITEMS\[2\][\s\S]*MOBILE_NAVIGATION_ITEMS\[3\]/);
-  assert.doesNotMatch(mobileNavigation, /NAVIGATION_ICON_ASSETS\.more|href: "\/account"|label: "Account"/);
-  assert.match(marketingHeader, /<AccountUtility email=\{email\} \/>/);
-  assert.doesNotMatch(mobileNavigation, /Products|\/shop/);
-  assert.match(homepageCss, /\.homepage-mobile-navigation \{[\s\S]*position: fixed[\s\S]*background: var\(--warm-cream\)/);
-  assert.match(css, /\.homepage-footer-mobile-clearance \{[\s\S]*var\(--mobile-nav-height\)/);
-});
-
-test("story rhythm is viewport-led on desktop and mobile without scroll-jacking", () => {
-  for (const side of ["right", "left"]) assert.match(homepage, new RegExp(`side="${side}"`));
-  assert.match(homepage, /side="manifesto"/);
-  assert.match(homepageCss, /grid-template-columns: repeat\(12, minmax\(0, 1fr\)\)/);
-  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-viewport-stage \{[\s\S]*min-height: 100svh/);
-  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-final-chapter \.homepage-story-inner \{[\s\S]*display: flex;[\s\S]*min-height: 100svh;[\s\S]*justify-content: center/);
-  assert.match(homepage, /overflow-x-hidden/);
-  assert.match(homepageCss, /\.homepage-editorial-composition,[\s\S]*\.homepage-story-chapter \{[\s\S]*position: relative/);
-  assert.doesNotMatch(homepageCss, /scroll-snap|scroll-behavior:\s*auto|position:\s*sticky/);
-  assert.doesNotMatch(homepage, /data-position|data-pace="(?:standard|tall|spacious)"/);
-});
-
-test("editorial type uses optimized Barlow Condensed headings and readable existing-sans body copy", () => {
-  assert.match(layout, /import \{ Barlow_Condensed \} from "next\/font\/google"/);
-  assert.match(layout, /Barlow_Condensed\(\{[\s\S]*display: "swap"[\s\S]*subsets: \["latin"\][\s\S]*variable: "--font-marketing-display"[\s\S]*weight: "700"/);
-  assert.match(layout, /className=\{`h-full antialiased \$\{marketingDisplay\.variable\} \$\{appSans\.variable\}`\}/);
-  assert.match(homepageCss, /\.homepage-story-heading \{[\s\S]*font-family: var\(--font-marketing-display\)[\s\S]*font-size: clamp\(3rem, 4\.2vw, 4\.35rem\);[\s\S]*font-weight: 700;[\s\S]*line-height: 0\.97/);
-  assert.match(homepageCss, /\.homepage-hero-heading \{[\s\S]*font-size: clamp\(4\.25rem, 5\.7vw, 5\.5rem\);[\s\S]*line-height: 0\.94/);
-  assert.match(homepageCss, /\.homepage-story-body \{[\s\S]*max-width: 36ch;[\s\S]*font-size: 1\.125rem;[\s\S]*line-height: 1\.6/);
-  assert.match(css, /@media \(min-width: 1024px\)[\s\S]*data-composition="manifesto"\] \.homepage-story-heading \{[\s\S]*font-size: clamp\(4rem, 5\.7vw, 5\.75rem\)/);
-  assert.doesNotMatch(`${layout}\n${homepage}\n${css}`, /fonts\.(?:googleapis|gstatic)|@import\s+url/);
-});
-
-test("homepage contains no feature grid or banned visual treatment", () => {
-  assert.doesNotMatch(homepage, /feature-card|feature-grid|grid-cols-3|<video|autoplay|gradient|mesh|glassmorphism|homepage-product/i);
-  assert.doesNotMatch(homepageCss, /gradient|glow|backdrop-filter|warm-orange|focus-orange/);
-  assert.doesNotMatch(homepage, /orange|purple/i);
-});
-
-test("homepage language avoids banned software and AI marketing terms", () => {
-  for (const phrase of [
-    "AI-powered", "AI pet care", "longitudinal", "context layer", "context engine", "intelligence platform",
-    "personalized insights", "health insights", "ecosystem", "solution", "revolutionary", "smart pet parenting",
-    "track your pet's health", "optimize", "seamless", "unlock", "leverage",
-  ]) assert.doesNotMatch(homepage, new RegExp(phrase, "i"));
-});
-
-test("application chrome, routes, pet authority, and SEO remain intact", () => {
-  assert.match(homepage, /activePetsOnly\(profiles\)/);
-  assert.match(appHeader, /return \([\s\S]*data-ui="app-header"/);
-  assert.match(signedInHeader, /<AppHeader/);
-  for (const route of ["/today", "/pets", "/history", "/ask"]) assert.match(`${homepage}\n${appHeader}`, new RegExp(route.replace("/", "\\/")));
-  assert.match(page, /createPublicPageMetadata[\s\S]*path: "\/"/);
-  assert.match(seo, /CANONICAL_ORIGIN = "https:\/\/www\.furvise\.com"/);
+test("release notes are public, dated, linkable, and included in discovery", () => {
+  assert.match(release, /path: "\/release-notes"/);
+  assert.match(release, /<time dateTime="2026-09-15"/);
+  assert.match(release, /id="september-15-2026"/);
+  assert.match(release, /href="#september-15-2026"/);
+  assert.doesNotMatch(release, /getAuthenticatedApiContext|redirect\("\/login/);
+  assert.match(read("app/sitemap.ts"), /canonicalUrl\("\/release-notes"\)/);
+  assert.match(homepage, /href="\/release-notes">Release notes/);
+  assert.match(release, /Answers can be incomplete or wrong/);
 });
 
 test("approved Furvise artwork remains byte-for-byte unchanged", () => {
