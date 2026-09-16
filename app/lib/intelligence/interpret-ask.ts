@@ -83,17 +83,20 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
   const state = buildRecentSubjectState({ pets: context.eligiblePets.filter(pet => pet.user_id === context.owner.userId), selectedPetId: context.pet.id, recentConversation: context.conversationTurns });
   const input = { pendingTask: context.pendingTask || null, currentTurn: context.currentTurn || null, timeZone: context.timeZone || "UTC", conversationSubject: state.entities.find(entity => entity.key === state.currentFocusKey)?.label || null, currentMessage: context.currentMessage, today: calendarDateInZone(new Date().toISOString(), context.timeZone),
     ownerNoteSources: [...context.conversationTurns, context.pendingTask?.source, context.currentTurn]
-      .filter((turn, index, turns) => turn?.role === "user" && turns.findIndex(other => other?.id === turn.id) === index)
+      .filter((turn, index, turns) => turn?.role === "user" && !turn.recoveredReceiptReference && turns.findIndex(other => other?.id === turn.id) === index)
       .slice(-ASK_INTERPRETATION_LIMITS.turns - 1).map(turn => ({ id: turn!.id, text: turn!.text })),
     inputAuthority: "Only currentMessage and recentUserMessages are user-supplied factual premises. selectedPet, ownedPets, conversationSubject, today and reformulation are server routing metadata, never premiseQuotes. Profile identifiers alone do not supply the stored values the user asks for. Output labels are instructions, not factual values.",
     selectedPet: context.pet.name,
+    storedNoteReferences: context.conversationTurns.filter(turn => turn.recoveredReceiptReference && turn.operationReceipt?.records.length)
+      .slice(-4).map(turn => ({ id: turn.id, role: turn.role, text: turn.text, recordedAt: turn.createdAt,
+        petId: turn.operationReceipt!.petId, purpose: "readback_reference_only_not_write_authority" })),
     reformulation: /\b(?:last|previous|that)\s+(?:answer|response)\b/i.test(context.currentMessage)
       && /\b(?:briefly|shorter|shorten|rephrase|explain|translate)\b/i.test(context.currentMessage)
       ? { task: "Re-answer this user question using newly retrieved evidence, applying the current format request",
         priorUserQuestion: context.conversationTurns.filter(turn => turn.role === "user" && turn.text !== context.currentMessage).at(-1)?.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars) || null }
       : null,
     ownedPets: context.eligiblePets.filter(pet => pet.user_id === context.owner.userId).map(pet => ({ name: pet.name, species: pet.species })),
-    recentUserMessages: context.conversationTurns.filter(turn => turn.role === "user").slice(-ASK_INTERPRETATION_LIMITS.turns).map(turn => turn.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars)),
+    recentUserMessages: context.conversationTurns.filter(turn => turn.role === "user" && !turn.recoveredReceiptReference).slice(-ASK_INTERPRETATION_LIMITS.turns).map(turn => turn.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars)),
     // Assistant wording can identify a referent, never establish a saved fact,
     // an owned identity, or authority for a write. All reads are re-executed.
     recentDialogueForReferencesOnly: context.conversationTurns.slice(-ASK_INTERPRETATION_LIMITS.turns)

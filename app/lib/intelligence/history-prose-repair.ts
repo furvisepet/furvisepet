@@ -9,6 +9,7 @@ export function proseRepairSchema(count: number) {
         index: { type: "integer", enum: Array.from({length: count}, (_, i) => i) },
         sentences: { ...chunks, maxItems: 9 - count, items: { ...chunks.items, properties: {
           ...chunks.items.properties,
+          sourceIds: { ...chunks.items.properties.sourceIds, minItems: 0 },
           text: { ...chunks.items.properties.text, pattern: "^[^\\r\\n]*$" },
         } } },
       },
@@ -28,12 +29,17 @@ export function applyProseRepair(draft: HistoryNarrative, value: unknown, availa
     const { index, ...sentence } = item;
     if (!Number.isInteger(index) || index < 0 || index >= draft.sentences.length || replacementsByIndex.has(index)) return fail();
     // Accept the previous single-chunk contract for in-flight proposals too.
-    const parsed = parseHistoryNarrative("sentences" in sentence ? sentence : { sentences: [sentence] });
-    if (!parsed) return fail();
     // A text correction must not drop evidence for unchanged facts in that
     // chunk. These remain candidates, not an approval of the replacement.
     const available = availableSourceIds ? new Set(availableSourceIds) : null;
     const originalIds = draft.sentences[index].sourceIds.filter(id => !available || available.has(id));
+    // Empty additional citations inherit the unchanged server-held bindings.
+    // Old single-chunk proposals remain strict for in-flight compatibility.
+    const proposed = "sentences" in sentence && Array.isArray(sentence.sentences)
+      ? { ...sentence, sentences: sentence.sentences.map((chunk: unknown) => chunk && typeof chunk === "object" && "sourceIds" in chunk && Array.isArray(chunk.sourceIds)
+        ? { ...chunk, sourceIds: [...new Set([...chunk.sourceIds, ...originalIds])] } : chunk) } : { sentences: [sentence] };
+    const parsed = parseHistoryNarrative(proposed);
+    if (!parsed) return fail();
     replacementsByIndex.set(index, parsed.sentences.map(chunk => ({ ...chunk,
       sourceIds: [...new Set([...chunk.sourceIds, ...originalIds])],
     })));
