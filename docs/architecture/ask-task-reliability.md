@@ -190,3 +190,31 @@ partially initialized container: database roles are cluster-wide.
 This resolves native PostgreSQL validation for this task adapter. Hosted auth,
 PostgREST, scheduler operation, and real-provider conversational accuracy remain
 separate release gates. No production database or deployment was changed.
+
+### Real-model verification: release blocked
+
+The connected owner workstation has model credentials. Using only synthetic
+context, the actual interpreter and server validator were exercised with the
+configured `gpt-5.4-mini` at revision `368d4f9`. This was 13 provider calls,
+104,847 input tokens and 6,481 output tokens. No database writes were made.
+The captured results are in `ask-continuation-interpreter-results.json`.
+
+Ten of twelve scenarios meet the assertions. Two release blockers remain:
+
+- The original observation followed by a pet clarification and a save request
+  selects the save instruction as the source instead of the earlier observation.
+  Exact-text persistence cannot correct a semantically wrong source selection.
+- A pure note save with an unresolved pet incorrectly sets `answerRequired=true`,
+  preventing the intended free, provider-independent subject completion path.
+
+The initial harness checked true answer obligations but missed false obligations;
+the captured missing-subject result was regraded, and the harness now asserts both.
+A two-case experiment adding structural clarification/requirement checks still
+failed both cases (two further provider calls, 15,926 input and 887 output tokens).
+Those ineffective product changes were discarded. Do not present the 10/12 result
+as end-to-end, final-answer, billing, or browser acceptance.
+
+Next: repair semantic source selection and distinguish task clarification from an
+independent answer obligation, rerun these failures plus held-out paraphrases,
+then run the authenticated app against the same revision and an isolated database.
+Manual testing on the current production app cannot validate this unmerged change.
