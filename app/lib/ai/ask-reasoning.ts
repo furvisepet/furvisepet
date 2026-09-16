@@ -1,6 +1,7 @@
 import { CLAIM_AUTHORITY_POLICY } from "../intelligence/claim-authority-policy.ts";
 import { calendarDateInZone } from "../ask-time-zone.ts";
 import { parseDatedNoteBatch } from "../intelligence/dated-note-batch.ts";
+import { isExplicitCareHistorySaveRequest } from "../intelligence/care-history-policy.ts";
 import { recordInventoryEvidence } from "../intelligence/record-inventory.ts";
 import { sourceBoundSchema } from "../intelligence/source-bound-schema.ts";
 import { parseHistoryCalculations } from "../intelligence/history-calculation.ts";
@@ -842,7 +843,21 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   // history read; final governance still clears every forbidden write channel.
   const unsupportedEventEvidence = context.promptContext.evidenceContract.scope.readOnlyRecall ? [] : parsed.semanticEvents.filter(event =>
     !isOwnerAssertedEvidence(input.question, event.sourceExcerpt));
-  if (unsupportedEventEvidence.length) {
+  if (unsupportedEventEvidence.length && !isExplicitCareHistorySaveRequest(input.question)) {
+    // An ordinary observation is not a request to execute an inferred clinical
+    // write. Discard unsupported enrichment, including alternate write channels,
+    // and let the independent answer/safety/task checks review the clarification.
+    // Never spend the answer's repair allowance fixing optional extraction.
+    parsed.semanticEvents = [];
+    parsed.careActions = [];
+    parsed.learnings = [];
+    parsed.applicationActions = parsed.applicationActions.filter(action => action.kind.startsWith("navigation.")
+      || ["pet.read", "memory.list", "care_history.query"].includes(action.kind));
+    parsed.proposedHistoryUpdate = emptyHistoryUpdate();
+    parsed.semanticFrame = emptyProposedSemanticFrame();
+    input.onProviderEvent?.({ stage: "verification", outcome: "succeeded", model: usedModel, elapsedMs: 0,
+      validationDetails: "Unsupported optional event extraction omitted; answer still requires validation." });
+  } else if (unsupportedEventEvidence.length) {
     if (retryUsed) throw new AskPipelineError("fallback_invalid_output", "Ask event evidence remained unsupported.", {
       elapsedMs: 0, model: usedModel, providerErrorCode: "ASK_EVENT_EVIDENCE_UNSUPPORTED",
     });
