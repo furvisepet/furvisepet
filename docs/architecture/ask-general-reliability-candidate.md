@@ -57,3 +57,14 @@ Broad temporal summaries distribute the existing query slots across the authoriz
 Saved-note readback renders event dates in the same user timezone as evidence validation, avoiding a UTC-date mismatch that could trigger repairs. Independent review and the single repair limit remain unchanged.
 
 Local validation: 2,491 tests pass, including route-level credit release, temporal sampling, literal cutoffs, lexical-receipt authority and completion gates; TypeScript passes. No provider calls were made for implementation or these tests. Production verification is pending; this is not a new frozen-26 score or a claim that every latency issue is resolved.
+
+
+### Targeted live follow-up and cost boundary
+
+PR 496 passed full CI and deployed. Live pet-boundary refusal took 5.31 seconds, one provider call and zero credits; mobility evidence no longer contradicted the platform observations (21.90 seconds, three calls, one credit). Multi-year coverage reached 2021–2024 with zero credits but still took 63.56 seconds after a rejected draft. Oldest-year coverage reached November and December, explicitly partial, at 28.33 seconds and zero credits.
+
+The food-change probe still published an unsupported event interpretation despite releasing the credit. PR 497 closes that final-publication gap. A late-thread readback also exposed UTC today and inventory/count precedence issues: planning now uses the user calendar and count projection cannot displace requested text or receipts. Full CI passed. Subsequent live food-change checks returned scoped uncertainty for Sable and Rowan; an explicitly disambiguated readback returned both exact saved texts. The latter is a diagnostic, not a rerun of the immediate frozen save/readback sequence.
+
+The missing-event limitation is now projected before answer generation and declines semantic review because no care fact or model prose will be published. Interpretation, retrieval, ownership, access limits, emergency priority, final validation and credit release remain enforced. No factual answer inherits this exception. Local full tests (2,491), including zero generation/review calls for this path, pass. This removes calls previously spent composing and repairing an answer the server must withhold. CI and a live latency check are pending for this final optimization.
+
+The frozen 26 score is unchanged by these separate targeted checks. Broad-summary repair latency and exhaustive-history coverage remain limitations; do not declare launch-ready or 26/26 from this follow-up.

@@ -1,5 +1,5 @@
 import { readPartialHistoryReview } from "../history-review-state.ts";
-import { historyCompletionLimits } from "../evidence-need-coverage.ts";
+import { historyCompletionLimits, UNVERIFIED_EVENT_LIMITATION } from "../evidence-need-coverage.ts";
 import { recordHistoryReview, historyReviewSignature } from "../history-review-state.ts";
 import { rememberReviewedTaskPresentation } from "../ask-evidence-presentation.ts";
 import {
@@ -246,7 +246,7 @@ export function validateGeneratedAnswer(
     // an event. Describe this answer's verification limit, never semantic
     // absence from the pet's entire history. This also removes dangling partial
     // references to a rejected event claim, without another provider call.
-    response.answer = { title: "Furvise", summary: "I couldn’t verify the specific event you asked about from the records retrieved for this answer. That doesn’t establish that it never happened.",
+    response.answer = { title: "Furvise", summary: UNVERIFIED_EVENT_LIMITATION,
       sections: [], safetyNote: urgent ? "Contact an emergency veterinarian now." : null };
     response.suggestedFollowUps = [];
     response.relevantContextIds = [];
