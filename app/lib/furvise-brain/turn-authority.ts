@@ -20,6 +20,15 @@ export type FurviseSubjectSource =
   | "conversation"
   | "unresolved";
 
+export type FurviseSubjectKind =
+  | "pet"
+  | "multi_pet"
+  | "external_animal"
+  | "person"
+  | "owner"
+  | "other"
+  | "unresolved";
+
 export type FurviseMutationKind =
   | "record_care"
   | "correct_record"
@@ -37,6 +46,8 @@ export type FurviseAuthorizationSource =
 
 export type FurviseTurnSubject = Readonly<{
   petIds: readonly string[];
+  kind: FurviseSubjectKind;
+  label: string | null;
   source: FurviseSubjectSource;
   unresolved: boolean;
 }>;
@@ -70,23 +81,21 @@ export type CreateFurviseTurnAuthorityInput = {
 };
 
 const unique = (values: readonly string[]) => [...new Set(values.filter(Boolean))];
+const inferSubjectKind = (petIds: readonly string[], unresolved: boolean): FurviseSubjectKind =>
+  unresolved ? "unresolved" : petIds.length > 1 ? "multi_pet" : petIds.length === 1 ? "pet" : "other";
 
-/**
- * Create the one authoritative decision envelope for an Ask turn.
- *
- * This deliberately starts mutation authority CLOSED. Understanding a message,
- * resolving a pet, retrieving history, or producing a model proposal can never
- * grant write authority by itself.
- */
 export function createFurviseTurnAuthority(input: CreateFurviseTurnAuthorityInput): FurviseTurnAuthority {
   const petIds = unique(input.subject?.petIds || []);
+  const unresolved = input.subject?.unresolved ?? petIds.length === 0;
   return Object.freeze({
     version: FURVISE_BRAIN_TURN_VERSION,
     logicalTurnId: input.logicalTurnId,
     subject: Object.freeze({
       petIds: Object.freeze(petIds),
+      kind: input.subject?.kind || inferSubjectKind(petIds, unresolved),
+      label: input.subject?.label || null,
       source: input.subject?.source || (petIds.length ? "selected_pet" : "unresolved"),
-      unresolved: input.subject?.unresolved ?? petIds.length === 0,
+      unresolved,
     }),
     intent: input.intent || "conversation",
     memoryNeed: input.memoryNeed || "working",
@@ -103,21 +112,20 @@ export function createFurviseTurnAuthority(input: CreateFurviseTurnAuthorityInpu
   });
 }
 
-/**
- * Subject clarification is intentionally narrow. It may resolve who the user
- * means, but it can never mutate intent, memory scope, write authority, or
- * confirmation state. This is the firewall for cases such as "I mean Pebble".
- */
 export function clarifyFurviseTurnSubject(
   turn: FurviseTurnAuthority,
   petIds: readonly string[],
+  label: string | null = null,
 ): FurviseTurnAuthority {
+  const uniquePetIds = unique(petIds);
   return Object.freeze({
     ...turn,
     subject: Object.freeze({
-      petIds: Object.freeze(unique(petIds)),
+      petIds: Object.freeze(uniquePetIds),
+      kind: uniquePetIds.length > 1 ? "multi_pet" as const : uniquePetIds.length === 1 ? "pet" as const : "unresolved" as const,
+      label,
       source: "clarified" as const,
-      unresolved: petIds.length === 0,
+      unresolved: uniquePetIds.length === 0,
     }),
   });
 }
@@ -131,15 +139,6 @@ export type GrantFurviseMutationInput = {
   confirmationSatisfied?: boolean;
 };
 
-/**
- * The only primitive that can open mutation authority.
- *
- * Authorization may come from the current user turn, an explicit transport
- * control, or a server-verified durable capability minted by an earlier user
- * turn. A clarification may exercise an existing capability, but it can never
- * create one. Model inference, retrieval, and pending-task presence are not
- * authorization.
- */
 export function grantFurviseMutationAuthority(
   turn: FurviseTurnAuthority,
   input: GrantFurviseMutationInput,
@@ -163,7 +162,6 @@ export function grantFurviseMutationAuthority(
   });
 }
 
-/** A second, deterministic barrier immediately before any side effect. */
 export function assertFurviseMutationAllowed(turn: FurviseTurnAuthority, expectedKind?: FurviseMutationKind) {
   if (!turn.mutation.allowed || !turn.mutation.userAuthorizationVerified
     || !turn.mutation.authorizationSource || !turn.mutation.authorizationTurnId) {
