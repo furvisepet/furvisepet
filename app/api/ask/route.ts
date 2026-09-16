@@ -1,3 +1,4 @@
+import { attachTaskReceipts, executeAskTask, resolvePendingTaskSubject, taskMutationParameters, type PendingAskTask } from "../../lib/intelligence/ask-task-continuation.ts";
 import { isDeepStrictEqual } from "node:util";
 import { assessTaskExecution } from "../../lib/intelligence/task-execution-contract.ts";
 import { resolveOwnerNoteRequest } from "../../lib/intelligence/owner-note-request.ts";
@@ -424,6 +425,9 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
   }
   if (noteMode && !ownerNote) return askFailure("INVALID_MESSAGE", "Choose one pet and remove any conflicting instruction not to save.", 400);
   let ownerNotePersistence: CarePersistenceResult | null = null;
+  let ownerNoteSourceMessageId = preparedRequest.userMessageId;
+  let ownerNotePetId = petId;
+  let completedContinuation: (() => Promise<Response>) | null = null;
   if (ownerNote) {
     try {
       const gate = await requireRateLimitedRequest({ policy: "CARE_WRITE", request, requestId, idempotencyKey: requestId,
@@ -472,10 +476,36 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
     emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
     return askFailure("DATABASE_ERROR", "Furvise could not load the latest saved details. Please try again.", 503, {}, "context_loading");
   }
-  if (ownerNotePersistence) liveContext = { ...liveContext, ownerNoteAlreadySaved: true, completedOwnerNote: { sourceMessageId: preparedRequest.userMessageId, petId, entryIds: ownerNotePersistence.careEntryIds } };
+  if (ownerNotePersistence) liveContext = { ...liveContext, ownerNoteAlreadySaved: true, completedOwnerNote: { sourceMessageId: ownerNoteSourceMessageId, petId: ownerNotePetId, entryIds: ownerNotePersistence.careEntryIds } };
+  const taskAuthority = createCanonicalCareAuthorityClient();
+  const pendingTaskResult = await recoverTransientRead(signal => taskAuthority.rpc("read_ask_task_context", { p_user_id: userId, p_conversation_id: preparedRequest.conversationId, p_message_ids: liveContext.conversationTurns.map(turn => turn.id).slice(-64) }).abortSignal(signal), { attemptTimeoutMs: 3_000 });
+  if (pendingTaskResult.error) return askFailure("DATABASE_ERROR", "Furvise could not check the unfinished request. Please try again.", 503);
+  liveContext = { ...liveContext, pendingTask: pendingTaskResult.data?.pendingTask as PendingAskTask | null,
+    conversationTurns: attachTaskReceipts(liveContext.conversationTurns, pendingTaskResult.data?.receipts || [], petId),
+    currentTurn: liveContext.conversationTurns.find(turn => turn.id === preparedRequest.userMessageId) };
   reportOptionalContextRecovery(liveContext, requestId);
   recordContextRecoveryOnTurn(liveContext, turnLifecycle);
   turnLifecycle.transition("CONTEXT_READY");
+
+  const suppliedTaskSubject = resolvePendingTaskSubject(liveContext);
+  if (suppliedTaskSubject) {
+    const gate = await requireRateLimitedRequest({ policy: "CARE_WRITE", request, requestId, idempotencyKey: requestId,
+      payload: { sourceId: suppliedTaskSubject.source.id, petId: suppliedTaskSubject.petId }, route: "/api/ask", userId });
+    try {
+      const taskResult = await executeAskTask(taskMutationParameters(suppliedTaskSubject, {
+        userId, conversationId: preparedRequest.conversationId, currentMessageId: preparedRequest.userMessageId, timeZone: liveContext.timeZone,
+      }), (name, args) => taskAuthority.rpc(name, args));
+      if (taskResult.status !== "completed" || !taskResult.entryId || !taskResult.petId) throw new Error("ASK_TASK_WRITE_UNCONFIRMED");
+      const savedPetId = taskResult.petId;
+      const receipt: CarePersistenceResult = { status: "persisted", careEntryIds: [taskResult.entryId], concernIds: [], memoryIds: [],
+        errorCode: null, currentSafetyState: null, alreadyPersisted: false };
+      execution.savedNoteResponse = () => completeOwnerNoteResponse({ preparedRequest, requestId, userId, petId: savedPetId,
+        petName: liveContext.eligiblePets.find(pet => pet.id === savedPetId)?.name || "your pet", receipt, usage,
+        needsAnswer: false, emergency: immediateEmergency, trace: turnLifecycle.snapshot() });
+      revalidateAskStateViews([savedPetId]);
+      return await execution.savedNoteResponse();
+    } finally { await gate.release(); }
+  }
 
   const pendingLifecycle = derivePendingLifecycleAssertion({
     turns: liveContext.conversationTurns,
@@ -694,7 +724,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
       message: question,
       petName: liveContext.pet.name || "your pet",
     });
-    if (deterministicCommand) {
+    if (deterministicCommand && !liveContext.pendingTask) {
       turnLifecycle.route(deterministicCommand.routeType, "deterministic");
       deterministicApplicationActions = prepareFurviseApplicationActions({
         proposals: deterministicCommand.proposals,
@@ -705,7 +735,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         lifecycleStatus: durableLifecycleStatus,
       }).map((action) => ({ ...action, sourceMessageId: preparedRequest.userMessageId }));
       orchestration = deterministicCommand.orchestration;
-    } else if (providerIndependent) {
+    } else if (providerIndependent && !liveContext.pendingTask) {
       turnLifecycle.route("acknowledgement", "deterministic");
       orchestration = providerIndependent;
     } else {
@@ -757,6 +787,46 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
       const recentConversation = liveContext.conversationTurns.filter((turn) => turn.id !== preparedRequest.userMessageId);
       generationStage = "interpretation";
       const interpretation = await interpretAskQuestion({ context: { ...liveContext, conversationTurns: recentConversation }, model, onProviderEvent });
+      const task = interpretation.request?.task;
+      if (task && !ownerNotePersistence) {
+        const gate = await requireRateLimitedRequest({ policy: "CARE_WRITE", request, requestId, idempotencyKey: requestId,
+          payload: { sourceId: task.source.id, petId: task.petId, intent: task.intent }, route: "/api/ask", userId });
+        let taskResult;
+        try {
+          const parameters = taskMutationParameters(task, { userId, conversationId: preparedRequest.conversationId,
+            currentMessageId: preparedRequest.userMessageId, timeZone: liveContext.timeZone });
+          taskResult = await executeAskTask(parameters, (name, args) => taskAuthority.rpc(name, args));
+        } finally { await gate.release(); }
+        if (taskResult.status === "completed" && taskResult.entryId && taskResult.petId) {
+          const savedPetId = taskResult.petId;
+          ownerNoteSourceMessageId = task.source.id;
+          ownerNotePetId = savedPetId;
+          ownerNotePersistence = { status: "persisted", careEntryIds: [taskResult.entryId], concernIds: [], memoryIds: [],
+            errorCode: null, currentSafetyState: null, alreadyPersisted: false };
+          const receipt = ownerNotePersistence;
+          execution.savedNoteResponse = () => completeOwnerNoteResponse({ preparedRequest, requestId, userId,
+            petId: savedPetId, petName: liveContext.eligiblePets.find(pet => pet.id === savedPetId)?.name || "your pet",
+            receipt, usage, needsAnswer: interpretation.request?.mode === "mixed", emergency: immediateEmergency,
+            trace: turnLifecycle.snapshot() });
+          revalidateAskStateViews([savedPetId]);
+          if (interpretation.request?.mode !== "mixed" || immediateEmergency) completedContinuation = execution.savedNoteResponse;
+        }
+        if (completedContinuation || taskResult.status === "awaiting_subject" || taskResult.status === "cancelled") {
+          if (creditReserved) {
+            const released = await safeReleaseAiCredit({ logicalRequestId: logicalTurnId, payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
+            creditReserved = false;
+            creditFinalState = released ? "released" : "release_pending";
+            turnLifecycle.credit(released ? "released" : "release_pending").settlement("release", released ? "reconciled" : "pending");
+          }
+          turnLifecycle.route("clarification", "deterministic");
+          const reply = buildSubjectClarificationOrchestration(question, liveContext.eligiblePets.map(pet => pet.name).filter((name): name is string => Boolean(name)));
+          if (taskResult.status === "cancelled") {
+            reply.answer = { title: "Save cancelled", summary: "The pending note was not saved.", sections: [], safetyNote: null };
+            reply.clarificationQuestion = "";
+          }
+          return reply;
+        }
+      }
       generationStage = "subject_resolution";
       let subjectDecision: Awaited<ReturnType<typeof resolveAskTurnSubject>>;
       try {
@@ -829,10 +899,11 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
           supabase,
           userId,
         });
+        liveContext.conversationTurns = attachTaskReceipts(liveContext.conversationTurns, pendingTaskResult.data?.receipts || [], turnPetId);
         reportOptionalContextRecovery(liveContext, requestId);
         recordContextRecoveryOnTurn(liveContext, turnLifecycle);
       }
-      liveContext = { ...liveContext, ownerNoteAlreadySaved: Boolean(ownerNotePersistence), completedOwnerNote: ownerNotePersistence ? { sourceMessageId: preparedRequest.userMessageId, petId, entryIds: ownerNotePersistence.careEntryIds } : undefined, askInterpretation: interpretation };
+      liveContext = { ...liveContext, ownerNoteAlreadySaved: Boolean(ownerNotePersistence), completedOwnerNote: ownerNotePersistence ? { sourceMessageId: ownerNoteSourceMessageId, petId: ownerNotePetId, entryIds: ownerNotePersistence.careEntryIds } : undefined, askInterpretation: interpretation };
       turnView = deriveAskTurnView({ currentSourceMessageId: preparedRequest.userMessageId, liveContext, question, requestId });
       contextUsed = turnView.contextUsed;
       if (subjectResolution.discourseFocus && subjectResolution.discourseFocus.kind !== "pet") {
@@ -968,6 +1039,19 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
     });
     turnLifecycle.fail(internalStage, true); emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
     return askFailure("AI_UNAVAILABLE", friendlyAnswerFailure, 503, { requestId }, internalStage);
+  }
+
+  if (completedContinuation) {
+    try {
+      const result = await (completedContinuation as () => Promise<Response>)();
+      try { await aiAdmission?.complete(); } catch (error) { logAskServerError("ai_operation_completion", error, { requestId }, 200); }
+      return result;
+    } catch (error) {
+      await failAiAdmission(aiAdmission, error, aiAdmissionFinalized, requestId);
+      throw error;
+    } finally {
+      try { await rateGateRef.current?.release(); } catch (error) { logAskServerError("rate_gate_release", error, { requestId }, 200); }
+    }
   }
 
   const reasoning = orchestration.aiResult;

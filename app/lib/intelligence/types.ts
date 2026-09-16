@@ -146,6 +146,8 @@ export type IntelligenceConversationTurn = {
 };
 
 export type FurviseLiveContext = {
+  pendingTask?: import("./ask-task-continuation.ts").PendingAskTask | null;
+  currentTurn?: IntelligenceConversationTurn;
   /** Server receipt exists; optional interpretation has no mutation authority. */
   ownerNoteAlreadySaved?: boolean;
   completedOwnerNote?: { sourceMessageId: string; petId: string; entryIds: string[] };

@@ -36,7 +36,7 @@ An interrupted task is not automatically resumed by this change.
 
 These are required work, not features implemented by this change:
 
-1. Durable task continuation: persist a task ID, original request/source-message
+1. General task continuation beyond owner-note saves: persist a task ID, original request/source-message
    IDs, authorized subject, requested operations, missing inputs, revision, and
    state (`awaiting_input`, `ready`, `executing`, `completed`, `failed`,
    `cancelled`). Interpret each new turn against that state. Server validation
@@ -62,3 +62,64 @@ These are required work, not features implemented by this change:
 
 The Sable conversation remains an acceptance scenario for task continuation.
 Passing the completion/billing tests alone does not establish launch readiness.
+
+
+## Owner-note continuation implementation
+
+The note operation now has a durable task adapter. The existing interpretation
+call proposes save, resume, or cancellation using message references and an owned
+pet name. The server resolves the reference to an actual USER message and saves
+its exact text. Assistant drafts cannot supply note content. There is no list of
+follow-up phrases or topic-specific save handler.
+
+A private, RLS-enabled task journal retains the source and authorization message
+IDs independently. A save with an unknown subject becomes `awaiting_subject`;
+a later subject answer can complete it. An exact, uniquely owned pet name fills
+that missing field by data lookup before AI admission, even when the Ask allowance
+is exhausted. Extra instructions or ambiguous names retain semantic interpretation. The pending task survives the short
+conversation window. Unrelated turns do not execute it. A new save can supersede
+it, and cancellation ends it. Revision checks and conversation locks reject
+stale turns. The care entry, enrichment outbox, and completion receipt commit
+in one database transaction. Exact replay reuses the receipt; it never restores
+a deleted or edited entry.
+
+A bounded task-context read provides active task state and database-confirmed
+receipts associated with the source, save instruction, and completing follow-up.
+Receipt questions therefore do not rely on the assistant saying it saved
+something. Ownership and source text are checked again inside the transaction.
+Only the trusted service role can call the task functions; neither browser roles
+nor model output can write the private journal directly.
+
+Pure note continuations and missing-subject clarification release the Ask credit.
+Mixed note-and-answer requests preserve the saved note if answer generation
+fails. Relative `today`/`yesterday` dates use the original source timestamp in
+the request timezone, not the later save time. Other unresolved dates retain
+literal source wording and recorded-date provenance; no exact occurrence is
+invented. Source-timezone changes between turns remain a limitation until source
+messages carry their own timezone metadata.
+
+### Verification and release gates
+
+- PostgreSQL checks run against a disposable PGlite database with both the existing
+  owner-note migration and the new task migration. They cover ownership, source
+  text, revisions, long conversations, replay, cancellation, stale turns,
+  deleted entries, enrichment outbox insertion, receipts, grants and RLS.
+- Executable route tests use the actual admitted callback and request validator,
+  substituting only infrastructure and provider boundaries.
+- New retrieval scenarios use three unrelated topics, records a century apart,
+  and 10,000 distractor rows. All six requested sources remain retrievable within
+  the existing query and record budgets. Missing-evidence cases distinguish a
+  completed empty query from unavailable, bounded, unqueried, omitted or
+  foreign-pet evidence.
+- These are deterministic tests with synthetic provider contracts. They do not
+  measure real-model intent accuracy. Live provider credentials were unavailable
+  in this workspace, so real-provider paraphrase and multi-turn acceptance is
+  still required before merging/deploying. Do not present test counts as launch
+  readiness.
+- Deploy the new migration before the application change. A missing task backend
+  fails closed rather than silently losing pending-task state. No production
+  migration or deployment has been performed by this change.
+- This adapter covers owner-note saves, not every mutation category. Multi-note
+  splitting, corrections and other application actions retain their existing
+  governed paths. Extend the task mechanism by operation category only after
+  defining its authority and receipt contracts.

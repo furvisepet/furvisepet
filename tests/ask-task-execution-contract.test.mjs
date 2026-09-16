@@ -99,7 +99,7 @@ for (const status of ['succeeded', 'failed']) test(`route settles only after cap
   const calls = [];
   const trace = {};
   const lifecycle = Object.fromEntries(['transition', 'actions', 'credit', 'settlement', 'optionalFailure'].map(key => [key, () => lifecycle]));
-  lifecycle.outcomes = (answer, mutation, ready) => { trace.taskOutcome = mutation === 'failed' ? 'failed' : 'complete'; return lifecycle; };
+  lifecycle.outcomes = (answer, mutation) => { trace.taskOutcome = mutation === 'failed' ? 'failed' : 'complete'; return lifecycle; };
   lifecycle.snapshot = () => trace;
   const proposed = { ...action('proposed'), id: 'capability', kind: 'pet.update' };
   const receipt = { status: 'skipped', careEntryIds: [] };

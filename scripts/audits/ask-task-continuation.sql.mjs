@@ -1,0 +1,70 @@
+// Run with FURVISE_PGLITE_MODULE pointing to @electric-sql/pglite's dist/index.js.
+// Disposable PostgreSQL engine; never connects to a hosted project.
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const { PGlite } = await import(process.env.FURVISE_PGLITE_MODULE || '@electric-sql/pglite');
+const db = new PGlite();
+const id = n => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+await db.exec(`create role anon; create role authenticated; create role service_role;
+create schema auth; create schema private;
+create table auth.users(id uuid primary key);
+create table public.dog_profiles(id uuid primary key,user_id uuid,name text,lifecycle_status text default 'active');
+create table public.ask_conversations(id uuid primary key,user_id uuid,pet_profile_id uuid);
+create table public.ask_conversation_messages(id uuid primary key,conversation_id uuid,user_id uuid,role text,user_text text,created_at timestamptz default now(),request_id uuid,sequence_number bigint);
+create table public.pet_care_entries(id uuid primary key default gen_random_uuid(),user_id uuid,pet_profile_id uuid,category text,title text,note text,occurred_at timestamptz,created_at timestamptz default now(),deleted_at timestamptz,intelligence_source_message_id uuid,intelligence_request_id uuid,intelligence_source_type text,care_event_metadata jsonb);
+create function private.require_service_role_request() returns void language plpgsql as $$ begin
+if current_setting('request.jwt.claim.role',true) is distinct from 'service_role' then raise exception using errcode='42501',message='SERVICE_ONLY'; end if; end $$;
+set request.jwt.claim.role='service_role';`);
+await db.exec(readFileSync(new URL('../../supabase/migrations/20260915063244_decouple_owner_note_persistence.sql', import.meta.url), 'utf8'));
+await db.exec(readFileSync(new URL('../../supabase/migrations/20260916020025_ask_task_continuation.sql', import.meta.url), 'utf8'));
+await db.query('insert into auth.users values ($1),($2)', [id(1),id(2)]);
+await db.query('insert into dog_profiles(id,user_id,name) values ($1,$2,$3),($4,$5,$6)',[id(10),id(1),'Sable',id(11),id(2),'Other owner']);
+await db.query('insert into ask_conversations values ($1,$2,$3)',[id(20),id(1),id(10)]);
+async function message(n,text) { await db.query('insert into ask_conversation_messages(id,conversation_id,user_id,role,user_text,created_at,request_id,sequence_number) values($1,$2,$3,\'user\',$4,\'2026-09-15T20:00:00Z\',$1,$5)',[id(n),id(20),id(1),text,n]); }
+async function apply(n,source,text,{intent='save',pet=null,task=null,revision=null,user=id(1)}={}) {
+ return (await db.query('select apply_ask_task($1,$2,$3,$4,$5,$6,$7,$8,$9,null,null) as result',[user,id(20),id(n),intent,id(source),text,pet,task,revision])).rows[0].result;
+}
+let checks=0;
+await message(30,'so i gave him medicine yesterday');
+await message(31,'put that in notes');
+const pending=await apply(31,30,'so i gave him medicine yesterday');
+assert.equal(pending.status,'awaiting_subject');checks++;
+assert.equal((await db.query('select count(*)::int as n from pet_care_entries')).rows[0].n,0);checks++;
+const loaded=(await db.query('select read_ask_task_context($1,$2) as task',[id(1),id(20)])).rows[0].task.pendingTask;
+assert.equal(loaded.source.text,'so i gave him medicine yesterday');checks++;
+// More turns than the interpreter's ordinary dialogue window cannot erase a task.
+for(let n=32;n<43;n++)await message(n,'Unrelated discussion');
+await message(43,'Sable');
+await assert.rejects(apply(43,30,'so i gave him medicine yesterday',{intent:'resume',pet:id(11),task:pending.id,revision:1}),/ASK_TASK_PET_NOT_OWNED/);checks++;
+await assert.rejects(apply(43,30,'Invented dose',{intent:'resume',pet:id(10),task:pending.id,revision:1}),/ASK_TASK_SOURCE_MISMATCH/);checks++;
+await assert.rejects(apply(43,30,'so i gave him medicine yesterday',{intent:'resume',pet:id(10),task:pending.id,revision:2}),/ASK_TASK_REVISION_CONFLICT/);checks++;
+const saved=await apply(43,30,'so i gave him medicine yesterday',{intent:'resume',pet:id(10),task:pending.id,revision:1});
+assert.equal(saved.status,'completed');checks++;
+const replay=await apply(43,30,'so i gave him medicine yesterday',{intent:'resume',pet:id(10),task:pending.id,revision:1});
+assert.equal(replay.entryId,saved.entryId);checks++;
+assert.equal((await db.query('select count(*)::int as n from pet_care_entries')).rows[0].n,1);checks++;
+const row=(await db.query('select * from pet_care_entries')).rows[0];
+assert.equal(row.note,'so i gave him medicine yesterday');assert.equal(row.intelligence_source_message_id,id(30));
+assert.equal(row.care_event_metadata.authorizationMessageId,id(31));checks++;
+const receiptContext=(await db.query('select read_ask_task_context($1,$2,$3::uuid[]) as result',[id(1),id(20),[id(31),id(43)]])).rows[0].result;
+assert.equal(receiptContext.receipts.length,2);assert.ok(receiptContext.receipts.every(r=>r.record.id===saved.entryId));checks++;
+
+assert.equal((await db.query('select count(*)::int as n from owner_note_jobs')).rows[0].n,1);checks++;
+await message(44,'another owner observation');await message(45,'retain the previous observation');
+const second=await apply(45,44,'another owner observation');
+await message(46,'forget it');
+const cancelled=await apply(46,44,'another owner observation',{intent:'cancel',task:second.id,revision:1});
+assert.equal(cancelled.status,'cancelled');checks++;
+await message(47,'Sable');
+await assert.rejects(apply(47,44,'another owner observation',{intent:'resume',pet:id(10),task:second.id,revision:1}),/ASK_TASK_REVISION_CONFLICT/);checks++;
+await assert.rejects(apply(45,44,'another owner observation'),/ASK_TASK_STALE_TURN/);checks++;
+await assert.rejects(apply(47,44,'another owner observation',{pet:id(10),user:id(2)}),/ASK_TASK_NOT_OWNED/);checks++;
+await db.query('update pet_care_entries set deleted_at=now() where id=$1',[saved.entryId]);
+await assert.rejects(apply(43,30,'so i gave him medicine yesterday',{intent:'resume',pet:id(10),task:pending.id,revision:1}),/ASK_TASK_SOURCE_CHANGED/);checks++;
+for(const role of ['anon','authenticated']) {
+ const privileges=(await db.query("select has_function_privilege($1,'public.apply_ask_task(uuid,uuid,uuid,text,uuid,text,uuid,uuid,integer,timestamptz,text)','execute') as allowed",[role])).rows[0];
+ assert.equal(privileges.allowed,false);checks++;
+}
+assert.equal((await db.query("select relrowsecurity from pg_class where oid='private.ask_tasks'::regclass")).rows[0].relrowsecurity,true);checks++;
+await db.close();
+console.log(`${checks} PostgreSQL continuation assertions passed`);

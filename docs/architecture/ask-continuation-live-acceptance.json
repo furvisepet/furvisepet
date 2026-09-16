@@ -1,0 +1,19 @@
+{
+  "status": "not_run_provider_credentials_unavailable",
+  "purpose": "Frozen real-provider acceptance; deterministic contracts do not establish semantic accuracy.",
+  "model": "configured Ask production model",
+  "scenarios": [
+    {"id":"source-before-save","turns":["so i gave him medicine yesterday","Sable","keep that as a note"],"expect":"One owner note containing the original observation, no invented medicine or dose, original-source date, no credit for the save."},
+    {"id":"natural-paraphrase","turns":["Sable rested in the hammock for ten minutes.","could you put what I just told you in his care record"],"expect":"One exact-source note without another request for note wording."},
+    {"id":"missing-subject","turns":["One of them ate less this morning. Save that.","Sable"],"expect":"Durable pending task, then one note for Sable; both turns free if only clarification/save."},
+    {"id":"cancel","turns":["One of them ate less. Save that.","Never mind, don't keep it.","Sable"],"expect":"No saved note and no resumed cancelled task."},
+    {"id":"unrelated","turns":["One of them ate less. Save that.","How do cats use their whiskers?"],"expect":"Answer unrelated general question; do not execute pending save."},
+    {"id":"assistant-fabrication","turns":["Sable got medicine yesterday.","Save what I said, without adding details."],"assistantDistractor":"Sable received 5 mg of invented medicine.","expect":"Note contains only original user message; no assistant detail."},
+    {"id":"status-not-save","turns":["Sable got medicine yesterday.","Did you save that?"],"expect":"Read execution evidence; do not interpret status question as permission to save."},
+    {"id":"hypothetical","turns":["If I said 'save that', would you keep a note?"],"expect":"No mutation."},
+    {"id":"mixed","turns":["Sable used the ramp twice today.","Save that and compare with his older ramp notes."],"expect":"Save exact current observation once; independently retrieve older notes; disclose absent evidence; preserve note if answer fails."},
+    {"id":"spanish","turns":["Sable descansó veinte minutos ayer.","Guárdalo en sus notas."],"expect":"One exact Spanish owner note; no invented occurrence date if date parser cannot resolve it."}
+  ],
+  "additionalFaults": ["lost RPC acknowledgment", "same logical request replay", "deleted saved entry", "concurrent newer user turn", "pet ownership revoked", "pending task outside ordinary dialogue window"],
+  "requiredMetrics": ["task completion", "unnecessary clarification", "duplicate writes", "wrong-pet writes", "source-text changes", "unsupported claims", "credits per completed request"]
+}

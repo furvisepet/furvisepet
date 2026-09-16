@@ -1,3 +1,4 @@
+import { askTaskSchema, ASK_TASK_INSTRUCTIONS, validateAskTask, type ValidatedAskTask } from "./ask-task-continuation.ts";
 import { calendarWindowToInstants } from "../ask-time-zone.ts";
 import { readProjectionSchema, parseReadProjection, type ReadProjection } from "./read-projection.ts";
 import { ASK_HISTORY_MAX_PETS } from "./history-limits.ts";
@@ -23,8 +24,9 @@ const operations = ["recall", "overview", "comparison", "status", "count", "epis
 const selections = ["summary", "comparison", "latest", "earliest", "earliest_occurrence", "period", "reference"] as const;
 const quantities = ["episodes", "records", "measurement", "duration", null] as const;
 const ordinals = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "last", "that", null] as const;
-type Context = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "currentMessage" | "conversationTurns" | "timeZone">;
+type Context = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask">;
 export type AskRequestContract = {
+  task?: ValidatedAskTask | null;
   version: typeof ASK_REQUEST_VERSION;
   mode: typeof modes[number];
   question: string;
@@ -44,8 +46,9 @@ export type AskRequestContract = {
 const strings = (maxItems: number, maxLength: number) => ({ type: "array", maxItems, items: { type: "string", minLength: 1, maxLength } });
 export function askRequestSchema(frame: object) {
   return { type: "object", additionalProperties: false,
-    required: ["temporalScope", "mutationIntent", "recordSelection", "profileFields", "projection", "version", "mode", "question", "requirements", "evidenceNeeds", "outputFormat", "evidenceBasis", "premiseQuotes", "excludedPetNames", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
+    required: ["task", "temporalScope", "mutationIntent", "recordSelection", "profileFields", "projection", "version", "mode", "question", "requirements", "evidenceNeeds", "outputFormat", "evidenceBasis", "premiseQuotes", "excludedPetNames", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
     properties: {
+      task: askTaskSchema,
       temporalScope: { type: ["string", "null"], enum: ["historical", "current", "historical_and_current", null] },
       profileFields: { type: "array", maxItems: 14, items: { type: "string", enum: ["name", "species", "breed", "age", "weight", "current_food", "main_concern", "care_goal", "avoid", "monthly_budget", "sex", "pronouns", "lifecycle_status"] } },
       mutationIntent: { type: ["string", "null"], enum: ["correct_record", null] },
@@ -67,6 +70,7 @@ export function askRequestSchema(frame: object) {
 }
 
 export const ASK_REQUEST_INSTRUCTIONS = [
+  ASK_TASK_INSTRUCTIONS,
   "Classify a combined question and save by the requested action first. Adding a newly reported measurement or observation to history is a new entry, not correct_record, even when the question compares it with an older measurement. For this combined task use mode mixed, mutationIntent null, and evidenceBasis null only when the task needs no saved-record lookup. Supplying comparison operands does not cancel an explicit request to find, look back at, verify or compare saved records: use saved_history whenever any clause requests that lookup, even if arithmetic is independently possible from supplied numbers. Preserve the calculation, uncertainty and save obligations separately. Include only the current genuine observation in frame. Earlier user-supplied milestones are comparison premises, not fresh observations to save. Hypothetical or quoted save instructions do not authorize actions.",
   "A request merely to write, title, translate or format a predetermined claim is a wording task, not a request to retrieve evidence for that claim. If the owner supplies no supporting facts and does not ask to check/read/verify saved records, use mode conversation, scope none, evidenceBasis general, operation general and frame null; the answer can decline an unsupported real-world assertion and offer accurate uncertain wording. A named owned pet does not by itself authorize an unrequested history search. Preserve genuine factual questions and explicit verification/lookups as saved-history reads. Do not convert a quoted desired assertion or desired footnote into an owner observation or save request.",
   "Use evidenceBasis saved_profile for requests consisting ONLY of current stored profile fields (name/species/food/weight/etc). Use mode read, profileFields for every requested field, no dates/quantity/evidenceNeeds/episode/frame, and the owned scope. Profile lookup needs no care-history scan and supports up to twenty owned profiles. If ANY part needs dated records or historical calculations, use saved_history; do not mislabel a historical endpoint as current profile data. Formatting words such as table or JSON are not evidence. General advice still uses general. Never widen subject ownership.",
@@ -99,7 +103,7 @@ export const ASK_REQUEST_INSTRUCTIONS = [
 const fail = (reason: string): never => { throw new Error(`ASK_REQUEST_INVALID:${reason}`); };
 export function validateAskRequest(value: unknown, context: Context): AskInterpretation {
   if (!value || typeof value !== "object" || Array.isArray(value)) return fail("shape");
-  const p = { temporalScope: null, mutationIntent: null, recordSelection: null, profileFields: [], projection: null, evidenceNeeds: [], outputFormat: null, evidenceBasis: null, premiseQuotes: null, excludedPetNames: [], ...value } as Record<string, unknown>; // Older stored v2 contracts predate these optional fields.
+  const p = { task: null, temporalScope: null, mutationIntent: null, recordSelection: null, profileFields: [], projection: null, evidenceNeeds: [], outputFormat: null, evidenceBasis: null, premiseQuotes: null, excludedPetNames: [], ...value } as Record<string, unknown>; // Older stored v2 contracts predate these optional fields.
   if (Object.keys(p).sort().join() !== askRequestSchema({}).required.sort().join()) return fail("fields");
   const member = (values: readonly unknown[], value: unknown) => values.includes(value);
   const list = (value: unknown, count: number, size: number): value is string[] => Array.isArray(value) && value.length <= count
@@ -142,6 +146,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     && Number.isFinite(Date.parse(v)) && new Date(v).toISOString().slice(0, 10) === v && v >= "1900-01-01" && v <= "2100-01-01";
   if (!date(p.from) || !date(p.to) || p.from !== null && p.to !== null && p.from >= p.to) return fail("dates");
   const turnIds = new Set(context.conversationTurns.map(turn => turn.id));
+  if (p.task && context.pendingTask) turnIds.add(context.pendingTask.source.id);
   const anchor = conversationReadAnchor(context);
   const recoverableAnchor = anchor && ["read", "conversation", "clarify"].includes(String(p.mode))
     && p.ordinal === null && p.frame === null && p.evidenceBasis !== "supplied_context";
@@ -440,6 +445,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     }
   }
   const request: AskRequestContract = {
+    task: validateAskTask(p.task, context),
     mutationIntent: !readOnly ? p.mutationIntent as AskRequestContract["mutationIntent"] : null,
     recordSelection: historical && readOnly ? p.recordSelection as AskRequestContract["recordSelection"] : null,
     profileFields: [...new Set(p.profileFields as string[])],
