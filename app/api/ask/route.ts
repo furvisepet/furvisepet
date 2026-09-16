@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+import { assessTaskExecution } from "../../lib/intelligence/task-execution-contract.ts";
 import { resolveOwnerNoteRequest } from "../../lib/intelligence/owner-note-request.ts";
 import { persistOwnerNote } from "../../lib/intelligence/persist-owner-note.ts";
 import { resolveAskTimeZone } from "../../lib/ask-time-zone.ts";
@@ -101,7 +103,6 @@ import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid as isSecurit
 import { RateLimitRejection, requireRateLimitedRequest } from "../../lib/security/rate-limit";
 import { claimIdempotentOperation } from "../../lib/security/idempotency";
 import { claimWithRestoredAskOrigin } from "../../lib/ask-restored-retry";
-import { reviewedTaskReadyForExecution } from "../../lib/intelligence/answer-assessment.ts";
 import { validateSensitiveRequestOriginResponse } from "../../lib/security/headers/origin-policy";
 import { extractTurnSubjectFrame } from "../../lib/intelligence/semantic-frame/extract-turn-subject";
 import {
@@ -1756,48 +1757,52 @@ async function persistAssistantAnswer({
   if (messageError || !assistantMessage) {
     const existing = await loadPersistedRequestByConversation({ conversationId, requestId, supabase, userId });
     if (existing?.assistantMessage?.response_data) {
-      if (creditReserved) {
-        await setAiCreditDisposition({
-          disposition: "complete",
-          feature: "ask",
-          logicalRequestId: requestId,
-          payloadHash,
-          requestId: creditRequestId,
-          userId,
-        });
-        turnLifecycle.credit("completion_pending").settlement("complete", "pending");
+      if (existing.assistantMessage.response_data.turn?.finalStage === "COMPLETED") {
+        // A finalized result replays its ledger decision; message existence must
+        // never create a new completion disposition.
+        const replayUsage = await reconcilePersistedAskCredit({ logicalRequestId: requestId, payloadHash, supabase, usage, userId });
+        return completedResponseFromPersisted(existing, replayUsage);
       }
-      const replayUsage = await reconcilePersistedAskCredit({ logicalRequestId: requestId, payloadHash, supabase, usage, userId });
-      return completedResponseFromPersisted(existing, replayUsage);
-    }
-    logAskServerError("persistence_failed", messageError, { conversationId, requestId }, 200);
-    completion = await completeAskConversationTurn({
-      contextUsed,
-      conversationId,
-      intelligenceValidation: intelligenceResult?.answerValidation || null,
-      persistenceGovernance,
-      preview: response.directAnswer.slice(0, 220),
-      requestId,
-      responseData: responseWithTurn,
-      saveMetadata,
-      userId,
-      userMessageId,
-    });
-    completionRow = validAssistantCompletionRow(completion.data);
-    assistantMessage = completionRow ? { id: completionRow.assistant_message_id } : null;
-    messageError = completion.error;
-    if (!assistantMessage || messageError) {
+      const { turn: storedTurn, ...storedBody } = existing.assistantMessage.response_data;
+      const { turn: proposedTurn, ...proposedBody } = responseWithTurn;
+      void storedTurn; void proposedTurn;
+      if (!isDeepStrictEqual(storedBody, JSON.parse(JSON.stringify(proposedBody)))) {
+        throw new AskApiError("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503, "persistence_failed");
+      }
+      // The insertion committed but its acknowledgment was lost. Continue the
+      // same reviewed execution, under the existing operation lease and keys.
+      assistantMessage = { id: existing.assistantMessage.id };
+      messageError = null;
+    } else {
       logAskServerError("persistence_failed", messageError, { conversationId, requestId }, 200);
-      const released = creditReserved
-        ? await safeReleaseAiCredit({ logicalRequestId: requestId, payloadHash, requestId: creditRequestId, userId })
-        : false;
-      turnLifecycle.credit(creditReserved ? released ? "released" : "release_pending" : "not_required");
-      if (creditReserved) turnLifecycle.settlement("release", released ? "reconciled" : "pending");
-      turnLifecycle.fail("assistant_persistence", true);
-      emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
-      return askFailure("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503, {}, "persistence_failed");
+      completion = await completeAskConversationTurn({
+        contextUsed,
+        conversationId,
+        intelligenceValidation: intelligenceResult?.answerValidation || null,
+        persistenceGovernance,
+        preview: response.directAnswer.slice(0, 220),
+        requestId,
+        responseData: responseWithTurn,
+        saveMetadata,
+        userId,
+        userMessageId,
+      });
+      completionRow = validAssistantCompletionRow(completion.data);
+      assistantMessage = completionRow ? { id: completionRow.assistant_message_id } : null;
+      messageError = completion.error;
+      if (!assistantMessage || messageError) {
+        logAskServerError("persistence_failed", messageError, { conversationId, requestId }, 200);
+        const released = creditReserved
+          ? await safeReleaseAiCredit({ logicalRequestId: requestId, payloadHash, requestId: creditRequestId, userId })
+          : false;
+        turnLifecycle.credit(creditReserved ? released ? "released" : "release_pending" : "not_required");
+        if (creditReserved) turnLifecycle.settlement("release", released ? "reconciled" : "pending");
+        turnLifecycle.fail("assistant_persistence", true);
+        emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
+        return askFailure("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503, {}, "persistence_failed");
+      }
+      logAskStage("assistant message persisted after idempotent retry", { requestId });
     }
-    logAskStage("assistant message persisted after idempotent retry", { requestId });
   }
   logAskStage("assistant message persisted", { requestId });
   turnLifecycle.transition("ANSWER_PERSISTED");
@@ -1827,52 +1832,6 @@ async function persistAssistantAnswer({
       await updateAskAssistantResponse({ messageId: assistantMessage.id, responseData: responseWithTurn, userId });
       logAskServerError("action_capability_creation", error, { conversationId, petId, requestId }, 200);
     }
-  }
-
-  let nextUsage = usage;
-  let creditsUsed = 0;
-  const incompleteRead = Boolean(intelligenceResult
-    && (intelligenceResult.reasoning.evidenceContract?.scope.readOnlyRecall === true
-      || intelligenceResult.answerValidation.assessment.checks.taskCompletion === "failed")
-    && intelligenceResult.answerValidation.assessment.outcome !== "complete");
-  if (creditReserved && incompleteRead) {
-    const released = await safeReleaseAiCredit({ logicalRequestId: requestId, payloadHash, requestId: creditRequestId, userId });
-    turnLifecycle.credit(released ? "released" : "release_pending").settlement("release", released ? "reconciled" : "pending");
-    nextUsage = await runOptionalAskSubsystem({
-      component: "conversation_metadata", fallback: usage,
-      operation: () => getRemainingAiCredits({ feature: "ask", monthlyAiCredits: usage.limit, planId: usage.planId, supabase, userId }),
-      onFailure: optionalFailure,
-    });
-  } else if (creditReserved) {
-    await setAiCreditDisposition({
-      disposition: "complete",
-      feature: "ask",
-      logicalRequestId: requestId,
-      payloadHash,
-      requestId: creditRequestId,
-      userId,
-    });
-    creditsUsed = 1;
-    turnLifecycle.settlement("complete", "pending");
-    try {
-      try {
-        await completeAiCredit({ feature: "ask", logicalRequestId: requestId, payloadHash, requestId: creditRequestId, userId });
-      } catch {
-        await completeAiCredit({ feature: "ask", logicalRequestId: requestId, payloadHash, requestId: creditRequestId, userId });
-      }
-      turnLifecycle.credit("completed").settlement("complete", "reconciled");
-      logAskStage("AI credit completed", { creditFinalState: "completed", creditReservationId: creditRequestId, requestId });
-    } catch (error) {
-      if (isAiCreditIntegrityError(error)) throw error;
-      turnLifecycle.credit("completion_pending").settlement("complete", "pending");
-      optionalFailure("credit_completion", error);
-    }
-    nextUsage = await runOptionalAskSubsystem({
-      component: "conversation_metadata",
-      fallback: usage,
-      operation: () => getRemainingAiCredits({ feature: "ask", monthlyAiCredits: usage.limit, planId: usage.planId, supabase, userId }),
-      onFailure: optionalFailure,
-    });
   }
 
   let intelligencePersistence: IntelligencePersistenceSummary | null = null;
@@ -2000,16 +1959,66 @@ async function persistAssistantAnswer({
   // The reviewed answer body is immutable. Persistence outcomes belong in
   // receipts/cards, never in a second unreviewed prose rewrite.
   turnLifecycle.actions(applicationActions.length);
-  const requestedMutations = applicationActions.filter(action => action.mutationClass === "mutation" && action.explicitIntent);
-  const explicitHistoryWrite = isExplicitCareHistorySaveRequest(sourceMessage)
-    && intelligenceResult?.answerValidation.completion?.find(item => item.index === 0)?.status !== "refused";
-  const mutationOutcome = requestedMutations.some(action => action.status === "failed") || explicitHistoryWrite && carePersistence.status === "failed" ? "failed"
-    : requestedMutations.some(action => action.status !== "succeeded") || explicitHistoryWrite && carePersistence.status !== "persisted" ? "pending"
-    : requestedMutations.length || explicitHistoryWrite || carePersistence.careEntryIds.length ? "applied" : "not_requested";
   const reviewedCompletion = intelligenceResult?.answerValidation.completion || [];
-  const checks = intelligenceResult?.answerValidation.assessment.checks;
-  const readyForExecution = reviewedTaskReadyForExecution(reviewedCompletion, checks);
-  turnLifecycle.outcomes(intelligenceResult?.answerValidation.assessment.outcome || "not_assessed", mutationOutcome, readyForExecution);
+  const reviewedCareWrite = reviewedCompletion.some(item => item.status === "action_ready"
+    && (item.actionIndexes || []).some(index => index >= proposedActions.length));
+  const explicitHistoryWrite = (reviewedCareWrite || isExplicitCareHistorySaveRequest(sourceMessage))
+    && reviewedCompletion.find(item => item.index === 0)?.status !== "refused";
+  const taskExecution = assessTaskExecution({
+    assessment: intelligenceResult?.answerValidation.assessment || null,
+    completion: reviewedCompletion,
+    responseMode: intelligenceResult?.reasoning.responseMode || null,
+    actions: applicationActions,
+    careWriteRequired: explicitHistoryWrite,
+    minimumCareEntries: intelligenceResult?.executionPlan.noteBatch?.length || 1,
+    careReceipt: carePersistence,
+    careExecutionFailed: Boolean(intelligencePersistenceWarning),
+  });
+  turnLifecycle.outcomes(taskExecution.answerOutcome, taskExecution.mutationOutcome, taskExecution.readyForExecution);
+  // Requested effects finish before their task can acquire a charge disposition.
+  let nextUsage = usage;
+  let creditsUsed = 0;
+  const incompleteTask = taskExecution.creditDisposition === "release";
+  if (creditReserved && incompleteTask) {
+    const released = await safeReleaseAiCredit({ logicalRequestId: requestId, payloadHash, requestId: creditRequestId, userId });
+    turnLifecycle.credit(released ? "released" : "release_pending").settlement("release", released ? "reconciled" : "pending");
+    nextUsage = await runOptionalAskSubsystem({
+      component: "conversation_metadata", fallback: usage,
+      operation: () => getRemainingAiCredits({ feature: "ask", monthlyAiCredits: usage.limit, planId: usage.planId, supabase, userId }),
+      onFailure: optionalFailure,
+    });
+  } else if (creditReserved) {
+    await setAiCreditDisposition({
+      disposition: "complete",
+      feature: "ask",
+      logicalRequestId: requestId,
+      payloadHash,
+      requestId: creditRequestId,
+      userId,
+    });
+    creditsUsed = 1;
+    turnLifecycle.settlement("complete", "pending");
+    try {
+      try {
+        await completeAiCredit({ feature: "ask", logicalRequestId: requestId, payloadHash, requestId: creditRequestId, userId });
+      } catch {
+        await completeAiCredit({ feature: "ask", logicalRequestId: requestId, payloadHash, requestId: creditRequestId, userId });
+      }
+      turnLifecycle.credit("completed").settlement("complete", "reconciled");
+      logAskStage("AI credit completed", { creditFinalState: "completed", creditReservationId: creditRequestId, requestId });
+    } catch (error) {
+      if (isAiCreditIntegrityError(error)) throw error;
+      turnLifecycle.credit("completion_pending").settlement("complete", "pending");
+      optionalFailure("credit_completion", error);
+    }
+    nextUsage = await runOptionalAskSubsystem({
+      component: "conversation_metadata",
+      fallback: usage,
+      operation: () => getRemainingAiCredits({ feature: "ask", monthlyAiCredits: usage.limit, planId: usage.planId, supabase, userId }),
+      onFailure: optionalFailure,
+    });
+  }
+
   turnLifecycle.transition("COMPLETED");
   const canonicalResponse = {
     ...attachEpisodeReferences(applicationActions.length ? { ...response, applicationActions } : response, intelligenceResult?.reasoning.evidenceContract?.episodes, intelligenceResult?.reasoning),
@@ -2106,8 +2115,13 @@ async function reconcilePersistedAskCredit({
 }) {
   if (usage.ledgerMode === "development_missing_migration") return usage;
   const states = await getAiCreditEventsForLogicalRequest({ feature: "ask", logicalRequestId, payloadHash, supabase, userId });
-  if (states.some((state) => state.disposition === null)) {
-    throw new AiCreditLedgerError("reconciliation_failed", new Error("AI_CREDIT_DISPOSITION_REQUIRED"), "ai_usage_events", "select");
+  for (const state of states) {
+    if (state.disposition !== null) continue;
+    // An interrupted execution has no durable billable-task decision. Preserve
+    // any already terminal decisions and release only this undecided attempt.
+    await setAiCreditDisposition({ disposition: "release", feature: "ask", logicalRequestId,
+      payloadHash, requestId: state.requestId, userId });
+    state.disposition = "release";
   }
   if (states.filter((state) => state.disposition === "complete").length > 1) {
     throw new AiCreditLedgerError("reconciliation_failed", new Error("AI_CREDIT_DISPOSITION_CONFLICT"), "ai_usage_events", "select");
@@ -2127,7 +2141,7 @@ async function reconcilePersistedAskCredit({
   } catch (error) {
     if (isAiCreditIntegrityError(error)) throw error;
     // Terminal RPC execution may degrade only after every attempt has durable,
-    // compatible disposition. Identity and missing-disposition checks happen
+    // compatible disposition. Identity checks and durable decisions happen
     // above and remain answer-critical.
     logAskServerError("optional_credit_reconciliation", error, { requestId: logicalRequestId }, 200);
     return usage;
@@ -2373,7 +2387,10 @@ async function finalizePersistedAskAnswer(input: {
 function completedResponseFromPersisted(state: PersistedRequestState, usage: AiCreditStatus, persistenceWarning?: string) {
   const assistantMessage = state.assistantMessage;
   if (!assistantMessage?.response_data) throw new AskApiError("DATABASE_ERROR", "Furvise could not load this answer.", 503, "request_lookup");
-  const response = assistantMessage.response_data;
+  const storedResponse = assistantMessage.response_data;
+  const unfinished = Boolean(storedResponse.turn && storedResponse.turn.finalStage !== "COMPLETED");
+  const response = unfinished ? { ...storedResponse, turn: { ...storedResponse.turn!, taskOutcome: "limited" as const } } : storedResponse;
+  if (unfinished) persistenceWarning = "The earlier attempt did not finish. Any requested changes are not confirmed.";
   return successfulAnswerResponse({
     assistantMessageId: assistantMessage.id,
     contextUsed: assistantMessage.context_used,

@@ -211,11 +211,11 @@ test("migration removes client release authority and enforces database identity/
   const claim = askRoute.indexOf("return claimIdempotentOperation");
   const replay = askRoute.indexOf("completed response replayed after canonical identity validation");
   assert.ok(claim >= 0 && replay > claim, "persisted answers replay only after canonical payload claim");
-  const settlement = askRoute.slice(askRoute.indexOf('const incompleteRead ='), askRoute.indexOf('let intelligencePersistence:'));
-  assert.match(settlement, /scope.readOnlyRecall === true/);
-  assert.match(settlement, /assessment.outcome !== "complete"/);
-  assert.match(settlement, /if \(creditReserved && incompleteRead\)[\s\S]*safeReleaseAiCredit[\s\S]*else if \(creditReserved\)[\s\S]*disposition: "complete"/);
+  const settlement = askRoute.slice(askRoute.indexOf('const incompleteTask ='), askRoute.indexOf('const canonicalResponse ='));
+  assert.match(settlement, /taskExecution.creditDisposition === "release"/);
+  assert.match(settlement, /if \(creditReserved && incompleteTask\)[\s\S]*safeReleaseAiCredit[\s\S]*else if \(creditReserved\)[\s\S]*disposition: "complete"/);
   assert.doesNotMatch(settlement.slice(settlement.indexOf('else if (creditReserved)')), /safeReleaseAiCredit/);
+  assert.ok(askRoute.indexOf('const taskExecution = assessTaskExecution') > askRoute.indexOf('const carePersistence = resolveAutomaticCareHistoryPresentation'));
 });
 
 async function reserve(ledger) {

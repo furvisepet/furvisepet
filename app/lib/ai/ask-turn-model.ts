@@ -97,6 +97,11 @@ export type AskTurnTrace = {
 
 const stageOrder = new Map<AskTurnStage, number>(ASK_TURN_STAGES.map((stage, index) => [stage, index]));
 
+export function deriveAskTaskOutcome(answer: NonNullable<AskTurnTrace["answerOutcome"]>, mutation: NonNullable<AskTurnTrace["mutationOutcome"]>, readyForExecution = false): NonNullable<AskTurnTrace["taskOutcome"]> {
+  return answer === "failed" || mutation === "failed" ? "failed"
+    : (answer === "complete" && mutation !== "pending") || (answer === "limited" && readyForExecution && mutation === "applied") ? "complete" : "limited";
+}
+
 export class AskTurnLifecycle {
   private stateValue: AskTurnState = "RECEIVED";
   private readonly traceValue: AskTurnTrace;
@@ -126,8 +131,7 @@ export class AskTurnLifecycle {
   outcomes(answer: NonNullable<AskTurnTrace["answerOutcome"]>, mutation: NonNullable<AskTurnTrace["mutationOutcome"]>, readyForExecution = false) {
     this.traceValue.answerOutcome = answer;
     this.traceValue.mutationOutcome = mutation;
-    this.traceValue.taskOutcome = answer === "failed" || mutation === "failed" ? "failed"
-      : (answer === "complete" && mutation !== "pending") || (answer === "limited" && readyForExecution && mutation === "applied") ? "complete" : "limited";
+    this.traceValue.taskOutcome = deriveAskTaskOutcome(answer, mutation, readyForExecution);
     return this;
   }
 
