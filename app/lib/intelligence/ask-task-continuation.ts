@@ -1,5 +1,6 @@
 import { ownerDeclinesPersistence } from '../ai/owner-assertion.ts';
 import { findExplicitCareRecordAuthorization, findExplicitPendingTaskCancellation, type FurviseMutationAuthorizationEvidence } from '../furvise-brain/mutation-authorization.ts';
+import { assertFurviseMutationAllowed, createFurviseTurnAuthority, grantFurviseMutationAuthority } from '../furvise-brain/turn-authority.ts';
 import { explicitNoteTime } from './owner-note-request.ts';
 import type { IntelligenceConversationTurn } from './types.ts';
 import { resolveDeterministicTurnSubject } from './entities/resolve-turn-subject.ts';
@@ -14,7 +15,7 @@ export type PendingAskTask = {
 export type AskTaskProposal = { intent: 'save' | 'resume' | 'cancel'; sourceTurnId: string | null; petName: string | null; answerRequired?: boolean; answerRequest?: { turnId: string; quote: string } | null };
 export type ValidatedAskTask = { intent: AskTaskProposal['intent']; source: IntelligenceConversationTurn;
   petId: string | null; taskId: string | null; revision: number | null; requiresAnswer: boolean; originalRequest?: IntelligenceConversationTurn;
-  authorization: FurviseMutationAuthorizationEvidence };
+  authorization: FurviseMutationAuthorizationEvidence; authorizationTurnId: string | null };
 export const askTaskSchema = { anyOf: [{ type: 'null' }, { type: 'object', additionalProperties: false,
   required: ['intent', 'sourceTurnId', 'petName', 'answerRequest'], properties: {
     answerRequest: { anyOf: [{ type: 'null' }, { type: 'object', additionalProperties: false, required: ['turnId', 'quote'], properties: { turnId: { type: 'string', minLength: 1, maxLength: 160 }, quote: { type: 'string', minLength: 1, maxLength: 1200 } } }] },
@@ -54,7 +55,6 @@ export function validateAskTask(value: unknown, context: {
       || Object.keys(evidence).sort().join() !== 'quote,turnId'
       || typeof evidence.turnId !== 'string' || typeof evidence.quote !== 'string'
       || !evidence.quote.trim() || evidence.quote.length > 1200) return fail();
-    // Only this request or the retained original request may add an obligation.
     const request = [context.currentTurn, pending?.request].find(turn => turn?.id === evidence.turnId);
     if (!request || request.role !== 'user' || !request.text.includes(evidence.quote)) return fail();
     citedAnswer = true;
@@ -77,8 +77,6 @@ export function validateAskTask(value: unknown, context: {
   let proposedPetId = pets[0]?.id || null;
   if (p.answerRequest !== undefined && p.intent === 'save' && proposedPetId
     && context.eligiblePets.filter(pet => pet.user_id === context.owner.userId).length > 1) {
-    // A model-selected profile is not proof of the write destination. Bind a
-    // multi-pet save to a USER name in its source or subsequent clarification.
     const index = context.conversationTurns.findIndex(turn => turn.id === source.id);
     const relevant = [source, ...(index >= 0 ? context.conversationTurns.slice(index + 1) : []), context.currentTurn];
     const normalize = (text: string) => ` ${text.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()} `;
@@ -90,8 +88,6 @@ export function validateAskTask(value: unknown, context: {
       const resolution = resolveDeterministicTurnSubject({ message: source.text,
         pets: owned.map(pet => ({ ...pet, name: pet.name || '', species: pet.species || null, age_value: null, age_unit: null })),
         recentConversation: prior, selectedPetId: proposedPetId });
-      // Only an immediately preceding database-confirmed save plus resolved
-      // USER discourse can bind an unnamed follow-up. Selection alone cannot.
       if (!receipt?.records.length || receipt.petId !== proposedPetId
         || !/\b(?:she|her|he|him|his|they|them|their|it|its)\b/i.test(source.text)
         || resolution?.petId !== proposedPetId || resolution?.requiresClarification
@@ -105,12 +101,13 @@ export function validateAskTask(value: unknown, context: {
       : { kind: 'record_care', source: 'current_turn', evidence: currentAuthorization! };
   return { ...(p.intent === 'resume' && pending?.requiresAnswer && pending.request ? { originalRequest: pending.request } : {}), intent: p.intent, source, petId: p.intent === 'cancel' ? null : retainedPet?.id || proposedPetId,
     taskId: pending?.id || null, revision: pending?.revision ?? null, authorization,
+    authorizationTurnId: p.intent === 'resume' ? pending?.authorizationMessageId || null : null,
     requiresAnswer: p.intent !== 'cancel' && Boolean(requiresAnswer || p.intent === 'resume' && pending?.requiresAnswer) };
 }
 
 export function assertValidatedAskTaskAuthorization(task: ValidatedAskTask) {
   if (!task.authorization?.evidence?.trim()) throw new Error('FURVISE_MUTATION_NOT_AUTHORIZED');
-  if (task.intent === 'resume' && task.authorization.source !== 'durable_capability') throw new Error('FURVISE_MUTATION_NOT_AUTHORIZED');
+  if (task.intent === 'resume' && (task.authorization.source !== 'durable_capability' || !task.authorizationTurnId)) throw new Error('FURVISE_MUTATION_NOT_AUTHORIZED');
   if (task.intent !== 'resume' && task.authorization.source !== 'current_turn') throw new Error('FURVISE_MUTATION_NOT_AUTHORIZED');
   if (task.intent === 'cancel' && task.authorization.kind !== 'cancel_pending') throw new Error('FURVISE_MUTATION_KIND_MISMATCH');
   if (task.intent !== 'cancel' && task.authorization.kind !== 'record_care') throw new Error('FURVISE_MUTATION_KIND_MISMATCH');
@@ -120,14 +117,29 @@ export function taskMutationParameters(task: ValidatedAskTask, input: {
   userId: string; conversationId: string; currentMessageId: string; timeZone?: string;
 }) {
   assertValidatedAskTaskAuthorization(task);
+  const mutationKind = task.intent === 'cancel' ? 'cancel_pending' as const : 'record_care' as const;
+  let turn = createFurviseTurnAuthority({
+    logicalTurnId: input.currentMessageId,
+    subject: task.petId ? { petIds: [task.petId], source: task.intent === 'resume' ? 'clarified' : 'explicit', unresolved: false }
+      : { petIds: [], source: 'unresolved', unresolved: true },
+    intent: task.intent === 'cancel' ? 'clarify' : 'record',
+    memoryNeed: 'working',
+  });
+  turn = grantFurviseMutationAuthority(turn, {
+    kind: mutationKind,
+    userAuthorizationVerified: true,
+    authorizationSource: task.authorization.source,
+    authorizationTurnId: task.authorization.source === 'durable_capability'
+      ? task.authorizationTurnId!
+      : input.currentMessageId,
+  });
+  assertFurviseMutationAllowed(turn, mutationKind);
   const time = explicitNoteTime(task.source.text, input.timeZone, task.source.createdAt);
   return { p_user_id: input.userId, p_conversation_id: input.conversationId, p_message_id: input.currentMessageId,
     p_intent: task.intent, p_source_id: task.source.id, p_source_text: task.source.text, p_pet_id: task.petId,
     p_task_id: task.taskId, p_revision: task.revision, p_requires_answer: task.requiresAnswer, p_occurred_at: time.occurredAt, p_explicit_time: time.explicitTime };
 }
 
-/** Attach only database-confirmed, currently active records to their request.
- * This is not reconstructed from assistant claims or client response JSON. */
 export function attachTaskReceipts(turns: IntelligenceConversationTurn[], receipts: Array<{
   messageId: string; petId: string; record: { id: string; note: string; occurredAt: string };
 }>, petId: string): IntelligenceConversationTurn[] {
@@ -164,8 +176,6 @@ export async function executeAskTask(parameters: ReturnType<typeof taskMutationP
   throw new Error('ASK_TASK_WRITE_UNCONFIRMED');
 }
 
-/** Filling the sole missing subject is a data lookup, not language generation.
- * Any extra instruction or ambiguous name stays with semantic interpretation. */
 export function resolvePendingTaskSubject(context: Parameters<typeof validateAskTask>[1]): ValidatedAskTask | null {
   if (!context.pendingTask || context.pendingTask.status !== 'awaiting_subject' || context.pendingTask.requiresAnswer) return null;
   const request = context.pendingTask.request;
@@ -177,7 +187,6 @@ export function resolvePendingTaskSubject(context: Parameters<typeof validateAsk
   return validateAskTask({ intent: 'resume', sourceTurnId: null, petName: named[0].name }, context);
 }
 
-/** Restore the original request independently of the recent-message window. */
 export function restorePendingTaskTurns(turns: IntelligenceConversationTurn[], pending?: PendingAskTask | null): IntelligenceConversationTurn[] {
   if (!pending) return turns;
   const missing = [pending.source, pending.request].filter((turn): turn is IntelligenceConversationTurn => Boolean(turn)
@@ -185,8 +194,6 @@ export function restorePendingTaskTurns(turns: IntelligenceConversationTurn[], p
   return [...new Map([...missing, ...turns].map(turn => [turn.id, turn])).values()];
 }
 
-/** Completion is checked against the server-retained request, not a model's
- * restatement of a short subject reply. This grants no additional write scope. */
 export function wholeAskTaskQuestion(context: { currentMessage: string; askInterpretation?: { request?: { task?: ValidatedAskTask | null } } }): string {
   const task = context.askInterpretation?.request?.task;
   return task?.intent === 'resume' && task.requiresAnswer && task.originalRequest
