@@ -9,6 +9,20 @@ type CalendarToken = {start: number; end: number; anchor: string};
 function calendarTokens(text: string): CalendarToken[] {
   const found: CalendarToken[] = [];
   for (const match of text.matchAll(/\b(\d{4})-(\d{2})-(\d{2})\b/g)) found.push({start:match.index!,end:match.index!+match[0].length,anchor:`${match[1]}:${Number(match[2])}-${Number(match[3])}`});
+  // A shared month/year applies to both explicit endpoints, not just the
+  // first day. Keep the whole span masked from quantity parsing; do not
+  // invent intermediate dates or infer a year from another observation.
+  const range = new RegExp("\\b("+monthPattern+")\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?\\s*[\u2013\u2014-]\\s*(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(\\d{4}))?\\b(?![.,]\\d)", "gi");
+  for (const match of text.matchAll(range)) {
+    const month = months.indexOf(match[1].slice(0,3).toLowerCase()) + 1;
+    const start = Number(match[2]), end = Number(match[3]);
+    const year = match[4] ? Number(match[4]) : 2000;
+    const maxDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    if (start < 1 || end < start || end > maxDay) continue;
+    const nextWord = /^\s+([a-z]+)\b/i.exec(text.slice(match.index!+match[0].length))?.[1]?.toLowerCase();
+    if (!match[4] && nextWord && units[nextWord]) continue;
+    for (const day of new Set([start, end])) found.push({start:match.index!,end:match.index!+match[0].length,anchor:`${match[4] ? match[4]+":" : ""}${month}-${day}`});
+  }
   // Recognize the date before looking for month-first dates. Otherwise
   // "3. August 31 g" invents August 31 and erases the actual 31 g measurement.
   const dayFirst = new RegExp("(?<![\\p{L}\\p{N}])(\\d{1,2})(st|nd|rd|th|\\.)?\\s+("+monthPattern+")\\.?(?:\\s+(\\d{4}))?(?![\\p{L}\\p{N}])", "giu");
@@ -29,7 +43,8 @@ function calendarTokens(text: string): CalendarToken[] {
 }
 function dates(text: string): string[] { return calendarTokens(text).map(token=>token.anchor); }
 function withoutCalendarDates(text: string) {
-  for (const token of calendarTokens(text).sort((a,b)=>b.start-a.start)) text=text.slice(0,token.start)+" "+text.slice(token.end);
+  const spans = new Map(calendarTokens(text).map(token => [`${token.start}:${token.end}`, token]));
+  for (const token of [...spans.values()].sort((a,b)=>b.start-a.start)) text=text.slice(0,token.start)+" "+text.slice(token.end);
   return text;
 }
 export function historyQuantityAnchors(text: string): string[] {
