@@ -27,7 +27,13 @@ export type FurviseMutationKind =
   | "mark_deceased"
   | "restore_living"
   | "archive_pet"
+  | "cancel_pending"
   | "other";
+
+export type FurviseAuthorizationSource =
+  | "current_turn"
+  | "transport"
+  | "durable_capability";
 
 export type FurviseTurnSubject = Readonly<{
   petIds: readonly string[];
@@ -38,7 +44,9 @@ export type FurviseTurnSubject = Readonly<{
 export type FurviseMutationAuthority = Readonly<{
   allowed: boolean;
   kind: FurviseMutationKind | null;
-  explicitUserAuthorization: boolean;
+  userAuthorizationVerified: boolean;
+  authorizationSource: FurviseAuthorizationSource | null;
+  authorizationTurnId: string | null;
   confirmationRequired: boolean;
   confirmationSatisfied: boolean;
 }>;
@@ -71,20 +79,23 @@ const unique = (values: readonly string[]) => [...new Set(values.filter(Boolean)
  * grant write authority by itself.
  */
 export function createFurviseTurnAuthority(input: CreateFurviseTurnAuthorityInput): FurviseTurnAuthority {
+  const petIds = unique(input.subject?.petIds || []);
   return Object.freeze({
     version: FURVISE_BRAIN_TURN_VERSION,
     logicalTurnId: input.logicalTurnId,
     subject: Object.freeze({
-      petIds: Object.freeze(unique(input.subject?.petIds || [])),
-      source: input.subject?.source || "unresolved",
-      unresolved: input.subject?.unresolved ?? true,
+      petIds: Object.freeze(petIds),
+      source: input.subject?.source || (petIds.length ? "selected_pet" : "unresolved"),
+      unresolved: input.subject?.unresolved ?? petIds.length === 0,
     }),
     intent: input.intent || "conversation",
     memoryNeed: input.memoryNeed || "working",
     mutation: Object.freeze({
       allowed: false,
       kind: null,
-      explicitUserAuthorization: false,
+      userAuthorizationVerified: false,
+      authorizationSource: null,
+      authorizationTurnId: null,
       confirmationRequired: false,
       confirmationSatisfied: false,
     }),
@@ -113,7 +124,9 @@ export function clarifyFurviseTurnSubject(
 
 export type GrantFurviseMutationInput = {
   kind: FurviseMutationKind;
-  explicitUserAuthorization: boolean;
+  userAuthorizationVerified: boolean;
+  authorizationSource: FurviseAuthorizationSource;
+  authorizationTurnId: string;
   confirmationRequired?: boolean;
   confirmationSatisfied?: boolean;
 };
@@ -121,15 +134,17 @@ export type GrantFurviseMutationInput = {
 /**
  * The only primitive that can open mutation authority.
  *
- * A write requires explicit authorization from the CURRENT user turn. Prior
- * dialogue, model inference, subject clarification, retrieved evidence, or a
- * pending task are not authorization.
+ * Authorization may come from the current user turn, an explicit transport
+ * control, or a server-verified durable capability minted by an earlier user
+ * turn. A clarification may exercise an existing capability, but it can never
+ * create one. Model inference, retrieval, and pending-task presence are not
+ * authorization.
  */
 export function grantFurviseMutationAuthority(
   turn: FurviseTurnAuthority,
   input: GrantFurviseMutationInput,
 ): FurviseTurnAuthority {
-  if (!input.explicitUserAuthorization) return turn;
+  if (!input.userAuthorizationVerified || !input.authorizationTurnId.trim()) return turn;
   const confirmationRequired = input.confirmationRequired === true;
   const confirmationSatisfied = input.confirmationSatisfied === true;
   const allowed = !confirmationRequired || confirmationSatisfied;
@@ -139,7 +154,9 @@ export function grantFurviseMutationAuthority(
     mutation: Object.freeze({
       allowed,
       kind: input.kind,
-      explicitUserAuthorization: true,
+      userAuthorizationVerified: true,
+      authorizationSource: input.authorizationSource,
+      authorizationTurnId: input.authorizationTurnId,
       confirmationRequired,
       confirmationSatisfied,
     }),
@@ -148,7 +165,8 @@ export function grantFurviseMutationAuthority(
 
 /** A second, deterministic barrier immediately before any side effect. */
 export function assertFurviseMutationAllowed(turn: FurviseTurnAuthority, expectedKind?: FurviseMutationKind) {
-  if (!turn.mutation.allowed || !turn.mutation.explicitUserAuthorization) {
+  if (!turn.mutation.allowed || !turn.mutation.userAuthorizationVerified
+    || !turn.mutation.authorizationSource || !turn.mutation.authorizationTurnId) {
     throw new Error("FURVISE_MUTATION_NOT_AUTHORIZED");
   }
   if (turn.mutation.confirmationRequired && !turn.mutation.confirmationSatisfied) {
