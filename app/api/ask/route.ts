@@ -1,4 +1,5 @@
 import { resolveOwnerNoteRequest } from "../../lib/intelligence/owner-note-request.ts";
+import { isConversationNoteSave, resolveConversationOwnerNote, type OwnerNoteSource } from "../../lib/intelligence/conversation-owner-note.ts";
 import { persistOwnerNote } from "../../lib/intelligence/persist-owner-note.ts";
 import { resolveAskTimeZone } from "../../lib/ask-time-zone.ts";
 import { eligibleAnswerSources } from "../../lib/intelligence/ask-evidence.ts";
@@ -6,7 +7,7 @@ import { recoverTransientRead } from "../../lib/security/read-recovery.ts";
 import { assertGovernedAskExecutionPlan } from "../../lib/intelligence/run-intelligence.ts";
 import { OperationDeadline } from "../../lib/ai/execution-deadline.ts";
 import { ASK_OPERATION_TIMEOUT_MS, ASK_MAX_QUESTION_CHARACTERS } from "../../lib/ai/ask-execution-limits.ts";
-import { createAskAdmissionSettlement } from "../../lib/ai/ask-admission-settlement.ts";
+import { createAskAdmissionSettlement, shouldReleaseAskCredit } from "../../lib/ai/ask-admission-settlement.ts";
 import { resolveAskHistoryAccess } from "../../lib/intelligence/history-access.ts";
 import { persistPendingSuggestion } from "../../lib/intelligence/persist-pending-suggestion.ts";
 import { generateAskHistoryAnswer } from "../../lib/intelligence/generate-ask-history.ts";
@@ -408,13 +409,25 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
   turnLifecycle.transition("ROUTED");
 
   let ownerNote: ReturnType<typeof resolveOwnerNoteRequest>;
+  let ownerNoteSource = { id: preparedRequest.userMessageId, request_id: requestId };
   try { ownerNote = petId !== "all" ? resolveOwnerNoteRequest({
     message: question, mode: noteMode, pet: profiles[0], pets: await ownedNoteSubjects(), timeZone: resolveAskTimeZone(aiCreditPayload.timeZone),
-  }) : null; } catch { return askFailure("DATABASE_ERROR", "Pet details could not be checked. Please try again.", 503); }
+  }) : null;
+    if (!ownerNote && petId !== "all" && isConversationNoteSave(question)) {
+      const previous = await supabase.from("ask_conversation_messages")
+        .select("id,request_id,user_text,created_at")
+        .eq("user_id", userId).eq("conversation_id", preparedRequest.conversationId).eq("role", "user")
+        .lt("sequence_number", preparedRequest.userSequence).order("sequence_number", { ascending: false }).limit(12);
+      if (previous.error) throw new Error("OWNER_NOTE_CONTEXT_UNAVAILABLE");
+      const followup = resolveConversationOwnerNote({ message: question, sources: previous.data as OwnerNoteSource[],
+        pet: profiles[0], pets: await ownedNoteSubjects(), timeZone: resolveAskTimeZone(aiCreditPayload.timeZone) });
+      if (followup) { ownerNote = followup.note; ownerNoteSource = followup.source; }
+    }
+  } catch { return askFailure("DATABASE_ERROR", "Pet details could not be checked. Please try again.", 503); }
   async function ownedNoteSubjects() {
     // Natural language may name another pet. Read the complete owned subject set
     // before authorizing a save to the currently selected pet.
-    if (!noteMode && isExplicitCareHistorySaveRequest(question)) {
+    if (!noteMode && (isExplicitCareHistorySaveRequest(question) || isConversationNoteSave(question))) {
       const result = await supabase.from("dog_profiles").select("id,name").eq("user_id", userId);
       if (result.error) throw new Error("OWNER_NOTE_SUBJECTS_UNAVAILABLE");
       return result.data as Array<{id: string; name: string | null}>;
@@ -429,7 +442,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         payload: { petId, question }, route: "/api/ask", userId });
       try {
         const authority = createCanonicalCareAuthorityClient();
-        ownerNotePersistence = await persistOwnerNote({ userId, petId, sourceMessageId: preparedRequest.userMessageId, requestId, note: ownerNote },
+        ownerNotePersistence = await persistOwnerNote({ userId, petId, sourceMessageId: ownerNoteSource.id, requestId: ownerNoteSource.request_id, note: ownerNote },
           (name, parameters) => authority.rpc(name, parameters));
       } finally { await gate.release(); }
     } catch (error) {
@@ -1831,10 +1844,11 @@ async function persistAssistantAnswer({
 
   let nextUsage = usage;
   let creditsUsed = 0;
-  const incompleteRead = Boolean(intelligenceResult
-    && (intelligenceResult.reasoning.evidenceContract?.scope.readOnlyRecall === true
-      || intelligenceResult.answerValidation.assessment.checks.taskCompletion === "failed")
-    && intelligenceResult.answerValidation.assessment.outcome !== "complete");
+  const incompleteRead = shouldReleaseAskCredit(intelligenceResult ? {
+    responseMode: intelligenceResult.reasoning.responseMode,
+    readOnlyRecall: intelligenceResult.reasoning.evidenceContract?.scope.readOnlyRecall === true,
+    assessment: intelligenceResult.answerValidation.assessment,
+  } : null);
   if (creditReserved && incompleteRead) {
     const released = await safeReleaseAiCredit({ logicalRequestId: requestId, payloadHash, requestId: creditRequestId, userId });
     turnLifecycle.credit(released ? "released" : "release_pending").settlement("release", released ? "reconciled" : "pending");
