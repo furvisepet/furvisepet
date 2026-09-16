@@ -46,3 +46,14 @@ Seven credits were charged (2, 4, 7, 9, 11, 12, 22). Partial-answer billing stil
 The date-range parser follow-up addresses the question 24 trace: dates explicitly present in a shared-month range were rejected as unsupported. It binds only literal endpoints, preserves adjacent dose quantities, and does not infer intermediate dates, years or clinical meaning. Independent semantic review remains mandatory. Its live verification is separate from the frozen score above.
 
 The smoke harness also now uses the application client timeout. Its earlier 90-second abort deleted the synthetic account while the server could still be processing; this changes test cleanup timing, not application timeouts.
+
+
+## Remaining-mechanism follow-up, September 16
+
+Interactive Ask now stops saved-history/profile requests outside the selected pet before executing a task or retrieving history, and releases the reserved credit. Pure writes retain their existing authorization rules. Empty lexical searches no longer override differently worded represented observations.
+
+Broad temporal summaries distribute the existing query slots across the authorized interval and protect two candidate records per slice through trimming. Literal age cutoffs use the user's calendar; oldest-year/month queries resolve a provisional accessible boundary and reject it if source-version/correction validation cannot confirm it. Page, row, character and subscription limits are unchanged. These are bounded samples, not exhaustive histories. Unexhausted or omitted period candidates and missing requested transition candidates prevent a complete, billable outcome even if the model approves its answer.
+
+Saved-note readback renders event dates in the same user timezone as evidence validation, avoiding a UTC-date mismatch that could trigger repairs. Independent review and the single repair limit remain unchanged.
+
+Local validation: 2,491 tests pass, including route-level credit release, temporal sampling, literal cutoffs, lexical-receipt authority and completion gates; TypeScript passes. No provider calls were made for implementation or these tests. Production verification is pending; this is not a new frozen-26 score or a claim that every latency issue is resolved.

@@ -1,4 +1,6 @@
 import { wholeAskTaskQuestion } from "./ask-task-continuation.ts";
+import { calendarPeriodContaining, oldestCalendarUnit } from "./history-periods.ts";
+import { calendarWindowToInstants } from "../ask-time-zone.ts";
 import { calendarDateInZone } from "../ask-time-zone.ts";
 import { careOccurrence, calendarCandidateWindow } from "./care-occurrence.ts";
 import { withExecutionDeadline } from "../ai/execution-deadline.ts";
@@ -24,6 +26,8 @@ export const HISTORY_BUDGET = { pageSize: 25, pagesPerPet: 4, totalPages: 20, ca
 type Cursor = { petId: string; occurredAt: string; id: string };
 export type HistoryPlan = { from: string | null; to: string | null; terms: string[]; interpretation: "period" | "lexical" | "broad_comparison" };
 export type HistoryCoverage = {
+  periods?: Array<{ petId: string; from: string; to: string; candidateIds: string[]; exhausted: boolean }>;
+  eventCandidateIds?: string[];
   requiredSourceIds?: string[];
   needs?: Array<{ petId: string; needId: string; candidateIds: string[]; exhausted: boolean; status: Completeness; reason?: string }>;
   targets?: Array<{ petId: string; day: string; candidateIds: string[]; retainedIds: string[]; exhausted: boolean; status: Completeness }>;
@@ -133,6 +137,34 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     coverage.reasons.push("requested_period_outside_subscription_window");
     return { ...context, askHistory: { coverage, entries: [], originals: [] } };
   }
+  const oldestUnit = sharedRead && ids.length === 1 ? oldestCalendarUnit(context.currentMessage) : null;
+  let boundaryPages = 0;
+  let oldestProbe: { id: string; occurredAt: string } | null = null;
+  if (oldestUnit) {
+    // Resolve data-relative calendar operators from the owned accessible
+    // history, not a year guessed by the model or an earlier answer.
+    try {
+      let query = db.from("pet_care_entries").select("id,user_id,pet_profile_id,occurred_at")
+        .eq("user_id", context.owner.userId).eq("pet_profile_id", ids[0]).is("deleted_at", null);
+      if (plan.from) query = query.gte("occurred_at", plan.from);
+      query = query.lt("occurred_at", plan.to || new Date(asOf + 1).toISOString());
+      coverage.queryCount++; boundaryPages = 1;
+      const result = await withExecutionDeadline(signal => query.order("occurred_at", { ascending: true })
+        .order("id", { ascending: true }).limit(1).abortSignal(signal).returns<CareEntryRow[]>(), historyReadRemaining(candidateDeadline));
+      const row = result.data?.[0];
+      if (result.error || row && (row.user_id !== context.owner.userId || row.pet_profile_id !== ids[0])) throw new Error("oldest_period_unavailable");
+      if (row) {
+        oldestProbe = { id: row.id, occurredAt: row.occurred_at };
+        const period = calendarWindowToInstants(calendarPeriodContaining(row.occurred_at, oldestUnit, context.timeZone), context.timeZone);
+        plan.from = plan.from && plan.from > period.from! ? plan.from : period.from;
+        plan.to = plan.to && plan.to < period.to! ? plan.to : period.to;
+      }
+    } catch {
+      coverage.retrieval = "unavailable";
+      coverage.reasons.push("oldest_period_unavailable");
+      return { ...context, askHistory: { coverage, entries: [], originals: [] } };
+    }
+  }
   const descending = context.askInterpretation?.selection === "latest";
   const endpointComparison = context.askInterpretation?.request
     ? ["summary", "comparison"].includes(context.askInterpretation.selection || "") || ["comparison", "overview"].includes(context.askInterpretation.readOperation || "")
@@ -146,7 +178,9 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   // lookups. Supplemental discovery must not expand the graph/input budgets.
   const correctionReserve = plan.from || namedDays.length ? 12 : 0;
   const rowsPerPet = Math.floor((HISTORY_BUDGET.candidateRows - correctionReserve) / Math.max(1, Math.min(ids.length, HISTORY_BUDGET.pets)));
-  const pagesPerPet = Math.min(vetBriefRead ? HISTORY_BUDGET.totalPages - HISTORY_BUDGET.graphCalls : HISTORY_BUDGET.pagesPerPet, Math.floor(HISTORY_BUDGET.totalPages / Math.max(1, Math.min(ids.length, HISTORY_BUDGET.pets))));
+  const pagesPerPet = Math.min(vetBriefRead ? HISTORY_BUDGET.totalPages - HISTORY_BUDGET.graphCalls : HISTORY_BUDGET.pagesPerPet - boundaryPages, Math.floor(HISTORY_BUDGET.totalPages / Math.max(1, Math.min(ids.length, HISTORY_BUDGET.pets))));
+  const distributePeriod = sharedRead && (Boolean(oldestUnit)
+    || context.askInterpretation?.readOperation === "overview" || context.askInterpretation?.selection === "summary" && !searchTerms.length);
   for (const petId of ids.slice(0, HISTORY_BUDGET.pets)) {
     let failed = false; let pages = 0; let exhausted = true;
     const collected: CareEntryRow[] = [];
@@ -184,7 +218,8 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     }
     const compiled = appointmentDates
       ? { ...appointmentDates, strategies: [...appointmentDates.strategies, ...scopedStrategies].filter((strategy, index, all) => all.findIndex(other => JSON.stringify(other) === JSON.stringify(strategy)) === index) }
-      : compileHistoryReadStrategies(retrievalQuestion, new Date(asOf).getUTCFullYear(), plan, scopedStrategies, pagesPerPet, context.askInterpretation?.request?.evidenceNeeds?.filter(need => !need.petIds || need.petIds.includes(petId)), context.timeZone);
+      : compileHistoryReadStrategies(retrievalQuestion, new Date(asOf).getUTCFullYear(), plan, scopedStrategies, pagesPerPet, context.askInterpretation?.request?.evidenceNeeds?.filter(need => !need.petIds || need.petIds.includes(petId))
+        .map(need => ({ ...need, terms: historyQueryTerms(need.terms, context.eligiblePets.map(pet => pet.name || "")) })), context.timeZone, distributePeriod);
     const strategies = compiled.strategies.map(strategy => strategy.target?.length === 7 && searchTerms.length
       ? { ...strategy, lexical: true, terms: searchTerms } : strategy);
     coverage.needs ??= [];
@@ -197,7 +232,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     coverage.targets.push(...compiled.omittedTargets.map(day => ({ petId, day, candidateIds: [], retainedIds: [], exhausted: false, status: "partial" as const })));
     // Split the existing candidate/page budget across both ends. Never scan a
     // decade sequentially just to compare the first and last recorded values.
-    for (const [strategyIndex, { descending: readDescending, lexical, terms, from, to, target, needId }] of strategies.entries()) {
+    for (const [strategyIndex, { descending: readDescending, lexical, terms, from, to, target, needId, period }] of strategies.entries()) {
       const candidatesWindow = clipHistoryPlan(calendarCandidateWindow({ from, to }, context.timeZone), context.historyAccess);
       let cursor: Cursor | null = null; let traversalExhausted = false;
       const rows: CareEntryRow[] = [];
@@ -277,6 +312,8 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
         exhausted: traversalExhausted, status: failed ? "unavailable" : traversalExhausted ? "unknown" : "partial" });
       if (target) coverage.targets.push({ petId, day: target, candidateIds: rows.map(row => `care:${row.id}`), retainedIds: [],
         exhausted: traversalExhausted, status: failed ? "unavailable" : traversalExhausted ? "unknown" : "partial" });
+      if (period && from && to) (coverage.periods ??= []).push({ petId, from, to,
+        candidateIds: rows.filter(row => Date.parse(row.occurred_at) >= Date.parse(from) && Date.parse(row.occurred_at) < Date.parse(to)).map(row => `care:${row.id}`), exhausted: traversalExhausted });
       collected.push(...rows);
     }
     const unique = new Map<string, CareEntryRow>();
@@ -307,6 +344,17 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   }
   coverage.candidateIds = candidates.map(row => `care:${row.id}`);
   const entries = await effectiveCandidates(candidates, owned, ids, context.owner.userId, db, coverage, deadline);
+  // The physical boundary is provisional until the ordinary correction and
+  // source-version checks have confirmed it. Never present a superseded or
+  // concurrently changed boundary as the oldest effective calendar period.
+  if (oldestProbe && !entries.some(entry => entry.id === oldestProbe.id
+    && entry.occurred_at === oldestProbe.occurredAt
+    && (!plan.from || Date.parse(careOccurrence(entry, context.timeZone)) >= Date.parse(plan.from))
+    && (!plan.to || Date.parse(careOccurrence(entry, context.timeZone)) < Date.parse(plan.to)))) {
+    coverage.retrieval = "unavailable";
+    coverage.reasons.push("oldest_period_boundary_unverified");
+    return { ...context, askHistory: { coverage, entries: [], originals: [] } };
+  }
   if (!candidates.length && !entries.length && coverage.retrieval !== "unavailable" && coverage.corrections !== "unavailable") coverage.reasons.push("no_matching_candidates_not_absence");
   const selection = vetBriefRead ? "summary" : context.askInterpretation?.request && endpointComparison ? "comparison" : context.askInterpretation?.selection;
   const occurrence = (entry: CareEntryRow) => classifyOccurrenceReport([entry.title, entry.note].filter(Boolean).join(": "),
@@ -326,6 +374,8 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const relevantIds = new Set(relevant.map(entry => entry.id));
   const eventRelevance = historyEventRelevance(matchingEntries.map(entry => `${entry.title || ""} ${entry.note}`),
     eventTerms);
+  if (eventTerms.length && ["latest", "earliest", "earliest_occurrence"].includes(selection || "")) coverage.eventCandidateIds = matchingEntries.filter(entry => eventRelevance(`${entry.title || ""} ${entry.note}`) > 0)
+    .map(entry => careEvidenceId(entry.id, coverage));
   const ordered = orderHistoryEvidence(matchingEntries, selection, entry => entry.occurred_at, entry => entry.id, entry => entry.pet_profile_id,
     selection === "earliest_occurrence" ? entry => relevantIds.has(entry.id) ? 0 : 1
       : context.askInterpretation?.request && (searchTerms.length || eventTerms.length) ? entry => {
@@ -373,11 +423,14 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const currentRead = ["current", "historical_and_current"].includes(context.askInterpretation?.request?.temporalScope || "");
   const currentGroups = currentRead ? ids.map(petId => ordered.filter(entry => entry.pet_profile_id === petId)
     .sort((a, b) => compareHistoryTime(b.occurred_at, a.occurred_at)).slice(0, 2)) : [];
+  const periodGroups = (coverage.periods || []).map(period => ordered.filter(entry => entry.pet_profile_id === period.petId
+    && Date.parse(entry.occurred_at) >= Date.parse(period.from) && Date.parse(entry.occurred_at) < Date.parse(period.to)));
   const boundaryIds = new Set((coverage.chronology || []).flatMap(boundary => boundary.boundaryIds));
   const required = [...ordered.filter(entry => boundaryIds.has(careEvidenceId(entry.id, coverage))),
-    ...targetGroups.flatMap(group => group.slice(0, 1)), ...needGroups.flatMap(group => group.slice(0, 1)), ...currentGroups.flat()];
+    ...targetGroups.flatMap(group => group.slice(0, 1)), ...needGroups.flatMap(group => group.slice(0, 1)), ...currentGroups.flat(),
+    ...periodGroups.flatMap(group => group.slice(0, 2))];
   coverage.requiredSourceIds = [...new Set(required.map(entry => careEvidenceId(entry.id, coverage)))];
-  const priorityGroups = [...petGroups, ...targetGroups, ...needGroups, ...currentGroups, ...vetGroups];
+  const priorityGroups = [...petGroups, ...targetGroups, ...needGroups, ...currentGroups, ...periodGroups, ...vetGroups];
   const anchoredIds = new Set(priorityGroups.flat().map(entry => entry.id));
   const groups = [...priorityGroups, ordered.filter(entry => !anchoredIds.has(entry.id))];
   const prioritized: CareEntryRow[] = [...new Map(required.map(entry => [entry.id, entry])).values()];

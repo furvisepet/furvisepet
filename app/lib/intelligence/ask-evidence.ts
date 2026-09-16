@@ -270,7 +270,7 @@ export function eligibleAnswerSources(evidence: AskEvidenceContract) {
     const [needId, petId] = JSON.parse(key) as [string, string];
     const need = evidence.interpretation?.request?.evidenceNeeds?.find(item => item.id === needId);
     if (!need || !evidence.scope.authorizedPetIds.includes(petId)) return [];
-    const text = `The completed scoped lookup for ${evidence.petNames?.[petId] || petId} found no matching saved care records for request clause ${JSON.stringify(need.quote)}${need.window ? `, from ${need.window.from} inclusive to ${need.window.to} exclusive` : ""}. This establishes only the lookup result, not that the event never happened, the pet was healthy, or no records exist outside this lookup.`;
+    const text = `The bounded keyword search for ${evidence.petNames?.[petId] || petId} returned no candidates using terms ${JSON.stringify(need.terms)} for request clause ${JSON.stringify(need.quote)}${need.window ? `, from ${need.window.from} inclusive to ${need.window.to} exclusive` : ""}. This is a search result, not a semantic finding. Records with different wording may exist. It does not establish that the event never happened, that the pet was healthy, or that no relevant records exist.`;
     return [{ sourceId: `lookup:${needId}:${petId}`, petId, sourceType: "lookup_receipt", field: "value" as const,
       start: 0, end: text.length, text, occurredAt: null, lookupScope: { needId, ...(need.window ? { window: need.window } : {}) } }];
   });

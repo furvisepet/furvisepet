@@ -3,6 +3,7 @@ import { calendarWindowToInstants } from "../ask-time-zone.ts";
 import { readProjectionSchema, parseReadProjection, type ReadProjection } from "./read-projection.ts";
 import { ASK_HISTORY_MAX_PETS } from "./history-limits.ts";
 import { conversationReadAnchor } from "./conversation-read-anchor.ts";
+import { historicalAgeCutoff } from "./history-periods.ts";
 import { isEpisodeSubjectReference } from "./episode-reference-language.ts";
 import { evidenceNeedsSchema, validateEvidenceNeeds, type EvidenceNeed } from "./evidence-needs.ts";
 import { explicitHistoryDays, evidenceNeedWindow, literalHistoryYearWindow, literalHistoryMonthWindow, literalHistoryReportDayWindow, explicitHistoryDayWindow, requestsPastPresentComparison } from "./history-dates.ts";
@@ -478,6 +479,11 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if ((historical || conversationOnly) && !p.referenceTurnIds.length) {
     p.question = context.currentMessage;
     p.requirements = [];
+  }
+  const ageCutoff = historical ? historicalAgeCutoff(context.currentMessage, new Date(), context.timeZone) : null;
+  if (ageCutoff && !/\b(?:between|since|from|and now|versus|compare)\b/i.test(context.currentMessage)) {
+    p.from = null; p.to = ageCutoff;
+    p.question = context.currentMessage; p.referenceTurnIds.splice(0);
   }
   const { from, to } = calendarWindowToInstants({ from: p.from === null ? null : `${p.from}T00:00:00.000Z`, to: p.to === null ? null : `${p.to}T00:00:00.000Z` }, context.timeZone);
   const explicitWriteTarget = p.mode === "mixed" ? explicitMutationTarget(context.currentMessage, owned) : null;

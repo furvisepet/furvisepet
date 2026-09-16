@@ -3,10 +3,10 @@ import { explicitHistoryMonths } from "./history-dates.ts";
 import type { EvidenceNeed } from "./evidence-needs.ts";
 import { explicitHistoryDays } from "./history-dates.ts";
 type Window = { from: string | null; to: string | null };
-export type HistoryReadStrategy = Window & { descending: boolean; lexical: boolean; terms: string[]; target?: string; needId?: string };
+export type HistoryReadStrategy = Window & { descending: boolean; lexical: boolean; terms: string[]; target?: string; needId?: string; period?: boolean };
 /** Date targets and ordering are independent. Targets narrow the authorized
  * window; they never expand access, synthesize facts or change query budgets. */
-export function compileHistoryReadStrategies(question: string, year: number, window: Window, proposed: HistoryReadStrategy[], pageBudget: number, needs: readonly EvidenceNeed[] = [], timeZone = "UTC") {
+export function compileHistoryReadStrategies(question: string, year: number, window: Window, proposed: HistoryReadStrategy[], pageBudget: number, needs: readonly EvidenceNeed[] = [], timeZone = "UTC", distributePeriod = false) {
   const days = [...new Set([...explicitHistoryDays(question, year, 8), ...(question.match(/\b\d{4}-\d{2}-\d{2}\b/g) || [])])]
     .filter(day => Number.isFinite(Date.parse(day)) && new Date(day).toISOString().slice(0, 10) === day).sort();
   const anchors = [...days, ...explicitHistoryMonths(question)];
@@ -37,11 +37,21 @@ export function compileHistoryReadStrategies(question: string, year: number, win
   const reserved = specialized.slice(0, Math.max(0, pageBudget - 1));
   const omitted = specialized.slice(reserved.length);
   const remaining = pageBudget - reserved.length;
-  const broad = proposed.length <= remaining ? [...proposed]
+  let broad = proposed.length <= remaining ? [...proposed]
     : [...proposed].sort((a, b) => Number(b.descending) - Number(a.descending) || Number(b.lexical) - Number(a.lexical)).slice(0, remaining);
   if (needs.length && broad.length && broad.every(strategy => strategy.lexical)) {
     const periodContext = proposed.find(strategy => !strategy.lexical && strategy.descending) || proposed.find(strategy => !strategy.lexical);
     if (periodContext) broad[broad.length - 1] = periodContext;
+  }
+  // Spend the same broad-query budget across time, instead of consuming it at
+  // the oldest/newest endpoints. This is sampling, not exhaustive coverage.
+  if (distributePeriod && window.from && window.to && Date.parse(window.from) < Date.parse(window.to) && remaining > 0) {
+    const start = Date.parse(window.from), length = Date.parse(window.to) - start;
+    broad = Array.from({ length: remaining }, (_, index) => ({
+      from: new Date(start + Math.floor(length * index / remaining)).toISOString(),
+      to: new Date(start + Math.floor(length * (index + 1) / remaining)).toISOString(),
+      descending: false, lexical: false, terms: [], period: true,
+    }));
   }
   return { strategies: [...reserved, ...broad], outsideNeeds, omittedTargets: omitted.flatMap(t => t.target ? [t.target] : []),
     omittedNeeds: omitted.flatMap(t => t.needId ? [t.needId] : []) };
