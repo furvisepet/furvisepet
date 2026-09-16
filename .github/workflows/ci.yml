@@ -26,6 +26,10 @@ jobs:
         env:
           FURVISE_PGLITE_MODULE: ${{ runner.temp }}/ask-postgres/node_modules/@electric-sql/pglite/dist/index.js
         run: node scripts/audits/ask-task-continuation.sql.mjs
+      - name: Verify continuation against repository schema and triggers
+        env:
+          FURVISE_PGLITE_MODULE: ${{ runner.temp }}/ask-postgres/node_modules/@electric-sql/pglite/dist/index.js
+        run: node scripts/audits/ask-task-continuation.sql.mjs --full-schema
 
   verify:
     runs-on: ubuntu-latest

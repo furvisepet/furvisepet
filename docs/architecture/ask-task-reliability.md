@@ -158,3 +158,15 @@ hosted database credentials. This runs the migration, receipt, replay, ownership
 and transaction rollback assertions automatically; it does not substitute for
 testing against the complete hosted schema. Branch-protection requirements are
 managed separately and have not been changed.
+
+The continuation audit also supports `--full-schema`: it bootstraps Supabase auth
+primitives locally and applies 121 repository migrations with their actual table
+constraints and triggers. All 31 continuation assertions pass in this mode. The
+hosted owner-note scheduler migration is explicitly excluded because PGlite does
+not provide pg_cron/pg_net. Native concurrency, PostgREST, hosted auth, the scheduler
+and live-model behavior remain outside this validation. Both SQL modes run in CI.
+
+An authorized attempt to provision isolated hosted validation was rejected by
+Supabase: branching requires Pro or above on this project. No branch was created
+and no plan upgrade was performed. Preview access and model credentials also
+remain unavailable; the release gates above still apply.

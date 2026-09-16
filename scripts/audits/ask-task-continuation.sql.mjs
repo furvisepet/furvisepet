@@ -2,24 +2,38 @@
 // Disposable PostgreSQL engine; never connects to a hosted project.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-const { PGlite } = await import(process.env.FURVISE_PGLITE_MODULE || '@electric-sql/pglite');
-const db = new PGlite();
+const modulePath=process.env.FURVISE_PGLITE_MODULE || '@electric-sql/pglite';
+const { PGlite } = await import(modulePath);
+const fullSchema=process.argv.includes('--full-schema');
+const extensions={};
+if(fullSchema) {
+ const {pathToFileURL}=await import('node:url');
+ const base=modulePath.startsWith('/') ? pathToFileURL(modulePath) : import.meta.resolve(modulePath);
+ for(const name of ['pgcrypto','pg_trgm','uuid_ossp']) extensions[name]=(await import(new URL(`contrib/${name}.js`,base)))[name];
+}
+const db = new PGlite({extensions});
 const id = n => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+if(fullSchema) {
+ const {initializeAskSchema}=await import('./helpers/ask-schema.mjs');
+ console.log(`${await initializeAskSchema(db)} repository migrations applied; hosted scheduler excluded`);
+ await db.exec("set request.jwt.claim.role='service_role'");
+} else {
 await db.exec(`create role anon; create role authenticated; create role service_role;
 create schema auth; create schema private;
 create table auth.users(id uuid primary key);
 create table public.dog_profiles(id uuid primary key,user_id uuid,name text,lifecycle_status text default 'active');
-create table public.ask_conversations(id uuid primary key,user_id uuid,pet_profile_id uuid);
+create table public.ask_conversations(id uuid primary key,user_id uuid,pet_profile_id uuid,title text);
 create table public.ask_conversation_messages(id uuid primary key,conversation_id uuid,user_id uuid,role text,user_text text,response_data jsonb,created_at timestamptz default now(),request_id uuid,sequence_number bigint);
-create table public.pet_care_entries(id uuid primary key default gen_random_uuid(),user_id uuid,pet_profile_id uuid,category text,title text,note text,occurred_at timestamptz,created_at timestamptz default now(),deleted_at timestamptz,intelligence_source_message_id uuid,intelligence_request_id uuid,intelligence_source_type text,care_event_metadata jsonb);
+create table public.pet_care_entries(id uuid primary key default gen_random_uuid(),user_id uuid,pet_profile_id uuid,category text,title text,note text,occurred_at timestamptz,created_at timestamptz default now(),deleted_at timestamptz,deletion_reason text,intelligence_source_message_id uuid,intelligence_request_id uuid,intelligence_source_type text,care_event_metadata jsonb);
 create function private.require_service_role_request() returns void language plpgsql as $$ begin
 if current_setting('request.jwt.claim.role',true) is distinct from 'service_role' then raise exception using errcode='42501',message='SERVICE_ONLY'; end if; end $$;
 set request.jwt.claim.role='service_role';`);
 await db.exec(readFileSync(new URL('../../supabase/migrations/20260915063244_decouple_owner_note_persistence.sql', import.meta.url), 'utf8'));
 await db.exec(readFileSync(new URL('../../supabase/migrations/20260916020025_ask_task_continuation.sql', import.meta.url), 'utf8'));
-await db.query('insert into auth.users values ($1),($2)', [id(1),id(2)]);
+}
+await db.query('insert into auth.users(id) values ($1),($2)', [id(1),id(2)]);
 await db.query('insert into dog_profiles(id,user_id,name) values ($1,$2,$3),($4,$5,$6)',[id(10),id(1),'Sable',id(11),id(2),'Other owner']);
-await db.query('insert into ask_conversations values ($1,$2,$3)',[id(20),id(1),id(10)]);
+await db.query("insert into ask_conversations(id,user_id,pet_profile_id,title) values ($1,$2,$3,'Task continuation audit')",[id(20),id(1),id(10)]);
 async function message(n,text) { await db.query('insert into ask_conversation_messages(id,conversation_id,user_id,role,user_text,created_at,request_id,sequence_number) values($1,$2,$3,\'user\',$4,\'2026-09-15T20:00:00Z\',$1,$5)',[id(n),id(20),id(1),text,n]); }
 async function apply(n,source,text,{intent='save',pet=null,task=null,revision=null,user=id(1),requiresAnswer=false}={}) {
  return (await db.query('select apply_ask_task($1,$2,$3,$4,$5,$6,$7,$8,$9,null,null,$10) as result',[user,id(20),id(n),intent,id(source),text,pet,task,revision,requiresAnswer])).rows[0].result;
@@ -59,7 +73,7 @@ await message(47,'Sable');
 await assert.rejects(apply(47,44,'another owner observation',{intent:'resume',pet:id(10),task:second.id,revision:1}),/ASK_TASK_REVISION_CONFLICT/);checks++;
 await assert.rejects(apply(45,44,'another owner observation'),/ASK_TASK_STALE_TURN/);checks++;
 await assert.rejects(apply(47,44,'another owner observation',{pet:id(10),user:id(2)}),/ASK_TASK_NOT_OWNED/);checks++;
-await db.query('update pet_care_entries set deleted_at=now() where id=$1',[saved.entryId]);
+await db.query("update pet_care_entries set deleted_at=now(),deletion_reason='Owner deleted test entry' where id=$1",[saved.entryId]);
 await assert.rejects(apply(43,30,'so i gave him medicine yesterday',{intent:'resume',pet:id(10),task:pending.id,revision:1}),/ASK_TASK_SOURCE_CHANGED/);checks++;
 // Supersession binds the new source to its own authorization, not the old task.
 await message(50,'first pending source');await message(51,'save it');
