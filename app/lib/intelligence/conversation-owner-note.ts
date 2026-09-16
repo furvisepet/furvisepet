@@ -20,6 +20,7 @@ export function resolveConversationOwnerNote(input: {
   message: string; sources: OwnerNoteSource[]; pet: Subject; pets: Subject[]; timeZone?: string;
 }): { source: OwnerNoteSource; note: OwnerNoteRequest } | null {
   if (!isConversationNoteSave(input.message)) return null;
+  const referencedDrafts: string[] = [];
   for (const source of input.sources) {
     const text = source.user_text.trim();
     if (!text || !source.request_id) return null;
@@ -27,11 +28,17 @@ export function resolveConversationOwnerNote(input: {
     const named = input.pets.filter(p => p.name && new RegExp(`(?<![\\p{L}])${escape(p.name)}(?![\\p{L}])`, "iu").test(unquotedOwnerText(text)));
     if (named.some(p => p.id !== input.pet.id)) return null;
     if (isConversationNoteSave(text)) continue;
+    const draftReference = /^(?:(?:ok(?:ay)?|yes|yeah|please|just|so)[,\s]+)*save\s+something\s+like\s+(.+)$/i.exec(text);
+    if (draftReference) { referencedDrafts.push(draftReference[1]); continue; }
     if (input.pet.name && new RegExp(`^(?:(?:yes|yeah|it['’]s|i mean)\\s+)?${escape(input.pet.name)}[.!]*$`, "iu").test(text)) continue;
     if (/^(?:ok(?:ay)?|yes|yeah|yep|sure|thanks|thank you)(?:[,\s]+(?:please|do (?:the |a )?simple one))?[.!]*$/i.test(text)) continue;
     const analysis = analyzeOwnerAssertions(text);
     if (!analysis.hasOwnerAssertion || analysis.hasExplicitCorrection || analysis.isPureQuestion
       || /\?|\b(?:save|log|record|draft|translate|example|hypothetical|pretend|suppose|instead|delete|replace)\b/i.test(unquotedOwnerText(text))) return null;
+    // A requested shorthand may refer back to the same observation, but cannot
+    // introduce a dose, medication, date or other fact absent from owner text.
+    const words = new Set(text.toLowerCase().match(/[\p{L}\p{N}]+/gu) || []);
+    if (referencedDrafts.some(draft => (draft.toLowerCase().match(/[\p{L}\p{N}]+/gu) || []).some(word => !words.has(word)))) return null;
     // Keep the original source and request identity. The database verifies its
     // exact text, owner and pet and deduplicates repeated save commands by source.
     return { source, note: { note: source.user_text, ...explicitNoteTime(source.user_text, input.timeZone), needsAnswer: false } };
