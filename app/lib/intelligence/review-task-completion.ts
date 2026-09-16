@@ -1,5 +1,5 @@
 import { wholeAskTaskQuestion } from "./ask-task-continuation.ts";
-import { missingRequiredEvidence } from "./evidence-need-coverage.ts";
+import { historyCompletionLimits } from "./evidence-need-coverage.ts";
 import { CLAIM_AUTHORITY_POLICY, CLAIM_REVIEW_POLICY } from "./claim-authority-policy.ts";
 import { matchesHistoryOutputFormat } from "./historical-read-response.ts";
 import { readPublicationFailure, canonicalReadPresentation } from "../ask-publication.ts";
@@ -224,7 +224,7 @@ export async function reviewTaskCompletion(input: {
       return { ...validation, completion: completion.map(item => ({ index: item.index, status: item.status, sentenceIndexes: [...item.answerIndexes], actionIndexes: [...item.actionIndexes], sourceIds: [] })), assessment: createAnswerAssessment({ body: response.answer, evidence: response.evidenceContract || null,
         checks: { ...validation.assessment.checks,
           ...Object.fromEntries(verificationKeys.map(key => [key, validation.assessment.checks[key] === "failed"
-            ? "failed" : reviewed.verification[key].status])), taskCompletion: reviewed.complete && !missingRequiredEvidence(response.evidenceContract).length ? "passed" : "failed" },
+            ? "failed" : reviewed.verification[key].status])), taskCompletion: reviewed.complete && !historyCompletionLimits(response.evidenceContract).length ? "passed" : "failed" },
         reasons: [...validation.assessment.reasons, "task_verification_reviewed", ...(reviewed.complete ? [] : ["task_explicitly_limited"])] }) };
     }
     if (attempt) {

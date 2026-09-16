@@ -1,5 +1,5 @@
 import { readPartialHistoryReview } from "../history-review-state.ts";
-import { missingRequiredEvidence } from "../evidence-need-coverage.ts";
+import { historyCompletionLimits } from "../evidence-need-coverage.ts";
 import { recordHistoryReview, historyReviewSignature } from "../history-review-state.ts";
 import { rememberReviewedTaskPresentation } from "../ask-evidence-presentation.ts";
 import {
@@ -283,7 +283,7 @@ export function validateGeneratedAnswer(
   const diagnostic = readHistoryReviewDiagnostic(result);
   const assessment = createAnswerAssessment({
     body: response.answer, evidence: response.evidenceContract || null, unsafe: errors.length > 0,
-    reasons: [...errors, ...(diagnostic ? [diagnostic.reason] : []),
+    reasons: [...errors, ...historyCompletionLimits(response.evidenceContract), ...(diagnostic ? [diagnostic.reason] : []),
       ...(fallbackUsed ? [partialHistory ? "independent_parts_do_not_certify_task_completion" : "source_fallback_does_not_certify_task_completion"] : []),
       ...(reviewedHistory && !finalReviewMatches ? ["reviewed_body_changed"] : [])],
     checks: {
@@ -291,7 +291,7 @@ export function validateGeneratedAnswer(
       evidenceSupport: finalReviewMatches ? "passed" : conversationOnly ? "not_applicable" : "not_evaluated",
       subjectDateCorrectness: unauthorizedPetNamed ? "failed" : finalReviewMatches ? "passed" : conversationOnly ? "not_applicable" : "not_evaluated",
       calculationCorrectness: finalReviewMatches ? "passed" : "not_evaluated",
-      taskCompletion: missingRequiredEvidence(response.evidenceContract).length ? "failed" : obligationChecks?.length ? historyTaskCompleted(obligationChecks) ? "passed" : "failed"
+      taskCompletion: historyCompletionLimits(response.evidenceContract).length ? "failed" : obligationChecks?.length ? historyTaskCompleted(obligationChecks) ? "passed" : "failed"
         : fallbackUsed ? "failed" : "not_evaluated",
     },
   });

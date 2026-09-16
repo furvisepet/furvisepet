@@ -8,12 +8,33 @@ import {validateAskRequest} from '../../app/lib/intelligence/ask-request-contrac
 import {emptyProposedSemanticFrame} from '../../app/lib/intelligence/semantic-frame/extract-frame.ts';
 import {executeAskTask,taskMutationParameters} from '../../app/lib/intelligence/ask-task-continuation.ts';
 import {requestProposal} from './helpers/request-proposal.mjs';
+import {exceedsSelectedPetRead} from '../../app/lib/intelligence/selected-pet-read.ts';
 const route=readFileSync(new URL('../../app/api/ask/route.ts',import.meta.url),'utf8');
 const ast=ts.createSourceFile('route.ts',route,ts.ScriptTarget.Latest,true);
 let callback;
 function visit(n){if(ts.isCallExpression(n)&&n.expression.getText(ast)==='aiAdmission.run')callback=n.arguments[0];ts.forEachChild(n,visit);}visit(ast);
 assert.ok(callback);
 const code=ts.transpileModule('const run = '+callback.getText(ast),{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText+'\nrun';
+test('actual admitted route refuses another pet before history or mutations and releases its credit',async()=>{
+ const calls=[];
+ const lifecycle={transition(){return this;},credit(){return this;},settlement(){return this;},route(){return this;}};
+ const sandbox={liveContext:{pet:{id:'selected',name:'Sable'},conversationTurns:[]},preparedRequest:{userMessageId:'current'},
+  requestId:'request',logicalTurnId:'request',userId:'owner',petId:'selected',question:'Compare both pets.',
+  model:'test',onProviderEvent:()=>{},usage:{allowed:true},creditRequestId:'attempt',aiCreditPayloadHash:'hash',retryReuse:false,
+  turnLifecycle:lifecycle,creditReserved:false,creditFinalState:'not_reserved',generationStage:'',
+  turnAuthoritativePetIds:['selected'],contextUsed:{},ownerNotePersistence:null,execution:{},immediateEmergency:null,
+  reserveAiCredit:async()=>{calls.push('reserve');return{status:'reserved'};},logAskStage:()=>{},
+  interpretAskQuestion:async()=>({petIds:['other'],request:{evidenceBasis:'saved_history'}}),exceedsSelectedPetRead,
+  safeReleaseAiCredit:async()=>{calls.push('release');return true;},
+  buildSubjectClarificationOrchestration:()=>({answer:{},clarificationQuestion:'Which pet?'}),
+ };
+ const response=await vm.runInNewContext(code,sandbox)();
+ assert.deepEqual(calls,['reserve','release']);
+ assert.match(response.answer.summary,/only Sable's records/);
+ assert.equal(sandbox.creditFinalState,'released');
+ assert.equal(sandbox.turnAuthoritativePetIds.length,0);
+ assert.equal(sandbox.contextUsed.usedSources.length,0);
+});
 for(const scenario of ['save','resume','cancel','cancel_saved','failure'])test(`actual admitted route continuation ${scenario}`,async()=>{
  const cancelling=scenario.startsWith('cancel');
  const calls=[];const source={id:'source',role:'user',text:'gave medicine yesterday',createdAt:'2026-09-15T12:00:00Z'};
@@ -27,7 +48,7 @@ for(const scenario of ['save','resume','cancel','cancel_saved','failure'])test(`
   request:{},model:'test',onProviderEvent:()=>{},usage:{allowed:true},creditRequestId:'attempt',aiCreditPayloadHash:'hash',retryReuse:false,
   turnLifecycle:lifecycle,creditReserved:false,creditFinalState:'not_reserved',generationStage:'',ownerNotePersistence:null,ownerNoteSourceMessageId:'current',ownerNotePetId:'pet',completedContinuation:null,execution:{},immediateEmergency:null,
   reserveAiCredit:async()=>{calls.push('reserve');return{status:'reserved'};},logAskStage:()=>{},
-  interpretAskQuestion:async({context})=>validateAskRequest(proposal,context),
+  interpretAskQuestion:async({context})=>validateAskRequest(proposal,context),exceedsSelectedPetRead,
   requireRateLimitedRequest:async()=>({release:async()=>{}}),taskMutationParameters,executeAskTask,
   taskAuthority:{rpc:async(name,args)=>{calls.push('execute');assert.equal(name,'apply_ask_task');assert.equal(args.p_source_text,source.text);assert.equal(args.p_message_id,'current');return scenario==='failure'?{data:null,error:{code:'42501'}}:{data:{id:'task',revision:1,status:cancelling?'cancelled':'completed',petId:'pet',entryId:scenario==='cancel'?null:'entry'},error:null};}},
   completeOwnerNoteResponse:async input=>input,revalidateAskStateViews:()=>{},

@@ -1,4 +1,5 @@
 import { receiptCompletionText } from "./receipt-completion.ts";
+import { calendarDateInZone } from "../ask-time-zone.ts";
 import { unquotedOwnerText, analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import { units } from "./history-calculation.ts";
 import { parseHistoryNarrative, type HistoryNarrative } from "./history-narrative.ts";
@@ -138,7 +139,7 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
         const header = sources.find(source => source.sourceId === `operation:${receipt.sourceMessageId}`);
         if (!header || records.some(item => !item.source)) return null;
         if (records.length) sentences.push({ text: receiptCompletionText(receipt), sourceIds: [header.sourceId], calculations: [] }, ...records.map(({record, source}) => ({
-          text: `${record.occurredAt.slice(0,10)} linked saved note: ${JSON.stringify(record.note)}`,
+          text: `${calendarDateInZone(record.occurredAt, evidence.timeZone)} linked saved note: ${JSON.stringify(record.note)}`,
           sourceIds: [source!.sourceId], calculations: [],
         })));
         else sentences.push({text:

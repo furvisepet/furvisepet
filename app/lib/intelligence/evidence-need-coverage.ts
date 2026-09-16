@@ -10,6 +10,13 @@ export function completedEmptyEvidenceNeeds(evidence: AskEvidenceContract): stri
   if (evidence.interpretation?.request?.evidenceNeedIssues?.length) return [];
   return buildEvidenceNeedCoverage(evidence).flatMap(need => need.pets.flatMap(pet => {
     const queries = (evidence.history?.needs || []).filter(query => query.needId === need.needId && query.petId === pet.petId);
+    // Keyword absence cannot certify semantic absence while other in-scope
+    // observations are available. Those may describe the requested event using
+    // different words; the reviewer must assess them rather than obey an empty
+    // lexical receipt (for example, a movement observation without a diagnosis).
+    if (evidence.represented.some(span => span.petId === pet.petId && span.sourceType === "care_update"
+      && withinEvidenceNeedWindow(span.occurredAt, need.window) && span.text.trim()
+      && !evidence.losses.some(loss => loss.sourceId === span.sourceId))) return [];
     // Receipt scope is this exact query, not every record considered for the
     // turn. Unrelated prompt omissions cannot turn a completed zero-hit query
     // into an unavailable query. Any omitted matching candidate still leaves
@@ -87,4 +94,19 @@ export function missingRequiredEvidence(evidence?: AskEvidenceContract | null): 
   return (evidence?.history?.requiredSourceIds || []).filter(id =>
     evidence!.losses.some(loss => loss.sourceId === id) || !evidence!.represented.some(span =>
       span.sourceId === id && span.sourceType === "care_update" && span.start === 0 && span.end === span.text.length && span.text.trim()));
+}
+
+/** A model cannot certify unvisited time slices or substitute routine topic
+ * observations for a requested transition. These limits affect completion and
+ * billing, not whether grounded partial information may be shown. */
+export function historyCompletionLimits(evidence?: AskEvidenceContract | null): string[] {
+  if (!evidence?.interpretation?.request) return [];
+  const reasons: string[] = [];
+  if (missingRequiredEvidence(evidence).length) reasons.push("required_evidence_missing");
+  if (evidence.history?.periods?.some(period => !period.exhausted || period.candidateIds.some(id =>
+    evidence.losses.some(loss => loss.sourceId === id) || !evidence.represented.some(span => span.sourceId === id)))) {
+    reasons.push("requested_period_sampled_not_complete");
+  }
+  if (evidence.history?.eventCandidateIds?.length === 0) reasons.push("requested_transition_not_retrieved");
+  return reasons;
 }

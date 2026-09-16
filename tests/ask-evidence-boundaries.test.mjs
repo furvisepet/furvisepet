@@ -64,7 +64,7 @@ test('only an owned exhausted empty query creates citable lookup evidence',async
  const receipt=eligibleAnswerSources(e)[0];
  assert.equal(receipt.sourceId,'lookup:need:0:p'); assert.equal(receipt.sourceType,'lookup_receipt');
  assert.match(receipt.text,/2023-05-01 inclusive to 2023-06-01 exclusive/);
- assert.match(receipt.text,/not that the event never happened/);
+ assert.match(receipt.text,/does not establish that the event never happened/);
  for(const change of [{exhausted:false},{status:'unavailable'},{reason:'need_query_budget'},{candidateIds:['care:x']},{petId:'foreign'}])
   assert.deepEqual(eligibleAnswerSources({...e,history:{needs:[{...e.history.needs[0],...change}]}}).filter(source=>source.sourceType==='lookup_receipt'),[]);
 });

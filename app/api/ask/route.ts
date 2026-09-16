@@ -1,5 +1,6 @@
 import { attachTaskReceipts, executeAskTask, resolvePendingTaskSubject, restorePendingTaskTurns, taskMutationParameters, type PendingAskTask } from "../../lib/intelligence/ask-task-continuation.ts";
 import { isDeepStrictEqual } from "node:util";
+import { exceedsSelectedPetRead } from "../../lib/intelligence/selected-pet-read.ts";
 import { assessTaskExecution } from "../../lib/intelligence/task-execution-contract.ts";
 import { resolveOwnerNoteRequest } from "../../lib/intelligence/owner-note-request.ts";
 import { persistOwnerNote } from "../../lib/intelligence/persist-owner-note.ts";
@@ -787,6 +788,21 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
       const recentConversation = liveContext.conversationTurns.filter((turn) => turn.id !== preparedRequest.userMessageId);
       generationStage = "interpretation";
       const interpretation = await interpretAskQuestion({ context: { ...liveContext, conversationTurns: recentConversation }, model, onProviderEvent });
+      if (exceedsSelectedPetRead(interpretation, petId)) {
+        if (creditReserved) {
+          const released = await safeReleaseAiCredit({ logicalRequestId: logicalTurnId, payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
+          creditReserved = false;
+          creditFinalState = released ? "released" : "release_pending";
+          turnLifecycle.credit(released ? "released" : "release_pending").settlement("release", released ? "reconciled" : "pending");
+        }
+        turnLifecycle.route("clarification", "deterministic");
+        turnAuthoritativePetIds = [];
+        contextUsed = { petName: null, usedSources: [] };
+        const reply = buildSubjectClarificationOrchestration(question);
+        reply.answer = { title: "One pet at a time", summary: `I can read only ${liveContext.pet.name || "the selected pet"}'s records in this conversation. Ask about this pet, or switch pets to read another pet's history.`, sections: [], safetyNote: null };
+        reply.clarificationQuestion = "";
+        return reply;
+      }
       const task = interpretation.request?.task;
       if (task && !ownerNotePersistence) {
         const gate = await requireRateLimitedRequest({ policy: "CARE_WRITE", request, requestId, idempotencyKey: requestId,

@@ -19,6 +19,42 @@ const proposal = patch => ({ version: ASK_REQUEST_VERSION, mode: 'read', questio
   operation: 'recall', selection: 'summary', quantity: null, topic: 'observations', terms: [],
   from: null, to: null, episodeTopic: null, ordinal: null, frame: emptyProposedSemanticFrame(), ...patch });
 
+test('broad historical reads retain multiple time slices and cannot bill a sampled summary', async t => {
+ clock(t);
+ const rows=[2021,2022,2023,2024,2025].flatMap(year=>[3,9].map(month=>
+  care(`period-${year}-${month}`,'milo',`${year}-${String(month).padStart(2,'0')}-10`,'behavior','Aster explored the room and returned to the mat.')));
+ const r=await exercise('Summarize observations recorded more than 2 years ago.',{
+  fixturePets,messages:[],history:true,rows,historyAccess:{months:60,from:'2021-01-01T00:00:00.000Z',to:'2026-06-06T00:00:00.000Z'},
+  interpretationProposal:proposal({operation:'overview',selection:'summary',terms:[]}),
+  providerOverrides:{answer:'The sampled notes describe room exploration followed by returning to the mat.',
+   historyNarrative:{sentences:[{text:'The sampled notes describe room exploration followed by returning to the mat.',sourceIds:['care:period-2021-3','care:period-2022-9','care:period-2023-9','care:period-2024-3']}]}},
+  reviewResponse:{approved:true},expectedReviewCalls:1,
+ });
+ assert.equal(r.context.askHistory.coverage.plan.to,'2024-09-04T00:00:00.000Z');
+ assert.ok(r.context.askHistory.entries.every(row=>row.occurred_at<'2024-09-04'));
+ assert.ok(new Set(r.context.askHistory.entries.map(row=>row.occurred_at.slice(0,4))).size>=3);
+ assert.ok(r.context.askHistory.coverage.periods.length>=3);
+ assert.notEqual(r.result.answerValidation.assessment.outcome,'complete');
+ assert.ok(r.result.answerValidation.assessment.reasons.includes('requested_period_sampled_not_complete'));
+});
+
+test('oldest calendar-period retrieval reads its full eligible year rather than a guessed year or oldest page',async t=>{
+ clock(t);
+ const rows=[care('old-september','milo','2021-09-18','general','Aster had a brushing session.'),
+  care('old-december','milo','2021-12-21','behavior','Aster explored a tunnel.'),
+  care('new-year','milo','2025-01-02','general','Aster rested.')];
+ const r=await exercise('List events from the oldest year of history you have.',{
+  fixturePets,messages:[],history:true,rows,historyAccess:{months:60,from:'2021-09-16T00:00:00.000Z',to:'2026-06-06T00:00:00.000Z'},
+  interpretationProposal:proposal({operation:'overview',selection:'summary',terms:[]}),
+  providerOverrides:{answer:'Aster had a brushing session and explored a tunnel.',historyNarrative:{sentences:[{text:'Aster had a brushing session and explored a tunnel.',sourceIds:['care:old-september','care:old-december']}]}},
+  reviewResponse:{approved:true},expectedReviewCalls:1,
+ });
+ assert.equal(r.context.askHistory.coverage.plan.from,'2021-09-16T00:00:00.000Z');
+ assert.equal(r.context.askHistory.coverage.plan.to,'2022-01-01T00:00:00.000Z');
+ assert.deepEqual(new Set(r.context.askHistory.entries.map(row=>row.id)),new Set(['old-september','old-december']));
+ assert.ok(r.context.askHistory.coverage.perPet[0].pages+1<=4);
+});
+
 test('reviewed shared-source attribution does not widen the record subject', async t => {
  clock(t);
  const text='Aster and Bramble shared the food. Their individual portions were not recorded.';
