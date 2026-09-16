@@ -33,7 +33,8 @@ test("persisted answer replay only degrades terminal execution after durable ide
   assert.match(route, /optional_credit_reconciliation/);
   assert.match(route, /return usage;/);
   assert.match(route, /const states = await getAiCreditEventsForLogicalRequest/);
-  assert.match(route, /states\.some\(\(state\) => state\.disposition === null\)/);
+  assert.match(route, /if \(state.disposition !== null\) continue/);
+  assert.match(route, /setAiCreditDisposition\(\{ disposition: "release", feature: "ask", logicalRequestId/);
   assert.match(route, /if \(isAiCreditIntegrityError\(error\)\) throw error/);
   assert.match(route, /setAiCreditDisposition\([\s\S]*disposition: "complete"[\s\S]*completeAiCredit/);
 });

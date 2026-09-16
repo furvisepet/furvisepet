@@ -1,3 +1,4 @@
+import { wholeAskTaskQuestion } from "./ask-task-continuation.ts";
 import { calendarDateInZone } from "../ask-time-zone.ts";
 import { careOccurrence, calendarCandidateWindow } from "./care-occurrence.ts";
 import { withExecutionDeadline } from "../ai/execution-deadline.ts";
@@ -99,7 +100,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   if (context.askInterpretation && !plan) return context;
   if (!plan) return isHistoricalRecall(context.currentMessage) ? { ...context, historyFallback: "unsupported_query_interpretation_recent_context_only" } : context;
   const sharedRead = context.askInterpretation?.request?.mode === "read";
-  const retrievalQuestion = context.askInterpretation?.request?.referenceTurnIds.length
+  const retrievalQuestion = context.askInterpretation?.request?.task?.originalRequest ? wholeAskTaskQuestion(context) : context.askInterpretation?.request?.referenceTurnIds.length
     ? context.askInterpretation.referenceQuestion || context.currentMessage : context.currentMessage;
   const eventTerms = sharedRead ? historyEventTerms(context.currentMessage) : [];
   const searchTerms = context.askInterpretation?.request

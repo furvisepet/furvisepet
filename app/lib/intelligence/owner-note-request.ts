@@ -41,9 +41,20 @@ function escape(text: string) { return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&
 
 /** Dates are optional metadata. Failure to resolve one must never reject text.
  * Multiple/invalid dates retain their literal wording with unknown occurrence. */
-export function explicitNoteTime(text: string, timeZone?: string): { occurredAt: string | null; explicitTime: string | null } {
+export function explicitNoteTime(text: string, timeZone?: string, sourceRecordedAt?: string): { occurredAt: string | null; explicitTime: string | null } {
   const unknown = { occurredAt: null, explicitTime: null };
   const dates = [...text.matchAll(/\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}\b|\b\d{4}-\d{2}-\d{2}\b/gi)];
+  if (!dates.length && sourceRecordedAt && Number.isFinite(Date.parse(sourceRecordedAt))) {
+    const relative = [...text.matchAll(/\b(yesterday|today)\b/gi)];
+    if (relative.length === 1) {
+      const zone = resolveAskTimeZone(timeZone);
+      const parts = new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(sourceRecordedAt));
+      const part = (type: string) => parts.find(item => item.type === type)?.value;
+      const day = new Date(`${part('year')}-${part('month')}-${part('day')}T00:00:00.000Z`);
+      day.setUTCDate(day.getUTCDate() - (relative[0][0].toLowerCase() === 'yesterday' ? 1 : 0));
+      return { occurredAt: calendarBoundaryToInstant(day.toISOString(), zone), explicitTime: relative[0][0] };
+    }
+  }
   if (dates.length !== 1) return unknown;
   const literal = dates[0][0];
   const timestamp = Date.parse(literal + " UTC");

@@ -1,3 +1,4 @@
+import { wholeAskTaskQuestion } from "./ask-task-continuation.ts";
 import { receiptCompletionText } from "./receipt-completion.ts";
 import { episodeResultText } from "./episode-contract.ts";
 import { recordInventoryEvidence } from "./record-inventory.ts";
@@ -162,7 +163,7 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
     const kind: AskEvidenceScope["requestKind"] = operation === "status" ? "resolution_status"
       : operation === "count" ? "count" : operation === "overview" ? "overview"
       : operation === "comparison" ? "comparison" : "ordinary";
-    contract.scope = { authorizedPetIds: ids, requestedTopic: plan.topic, requestText: context.currentMessage,
+    contract.scope = { authorizedPetIds: ids, requestedTopic: plan.topic, requestText: wholeAskTaskQuestion(context),
       requestedPeriod: { kind: plan.history?.from || plan.history?.to ? "requested" : "unspecified", surface: plan.history?.from || plan.history?.to || null },
       requestKind: kind, readOnlyRecall: plan.readOnly, status: plan.clarification ? "ambiguous" : "resolved",
       resolutionSubject: ids.length === 1 ? context.eligiblePets.find(pet => pet.id === ids[0])?.name || context.pet.name : context.pet.name };

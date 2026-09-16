@@ -1,0 +1,462 @@
+{
+  "scope": "Live interpreter only; not browser, final answer, persistence or billing acceptance",
+  "model": "gpt-5.4-mini",
+  "calls": 13,
+  "inputTokens": 104847,
+  "outputTokens": 6481,
+  "results": [
+    {
+      "id": "original-flow",
+      "status": "failed",
+      "error": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'current'\n- 'source'\n",
+      "mode": "clarify",
+      "task": {
+        "intent": "save",
+        "source": {
+          "id": "current",
+          "text": "idk just save in notes",
+          "role": "user",
+          "createdAt": "2026-09-16T12:00:00Z"
+        },
+        "petId": "sable",
+        "taskId": null,
+        "revision": null,
+        "requiresAnswer": false
+      },
+      "events": [
+        {
+          "stage": "interpretation",
+          "outcome": "started",
+          "model": "gpt-5.4-mini",
+          "elapsedMs": 0,
+          "configuredOutputLimit": 4096
+        },
+        {
+          "stage": "interpretation",
+          "outcome": "succeeded",
+          "model": "gpt-5.4-mini",
+          "elapsedMs": 4190,
+          "inputTokens": 7980,
+          "outputTokens": 342,
+          "parsingAttempted": true,
+          "configuredOutputLimit": 4096
+        }
+      ]
+    },
+    {
+      "id": "paraphrase",
+      "status": "passed",
+      "error": null,
+      "mode": "update",
+      "task": {
+        "intent": "save",
+        "source": {
+          "id": "source",
+          "text": "Sable rested in the hammock for ten minutes.",
+          "role": "user",
+          "createdAt": "2026-09-16T12:00:00Z"
+        },
+        "petId": "sable",
+        "taskId": null,
+        "revision": null,
+        "requiresAnswer": false
+      },
+      "events": [
+        {
+          "stage": "interpretation",
+          "outcome": "started",
+          "model": "gpt-5.4-mini",
+          "elapsedMs": 0,
+          "configuredOutputLimit": 4096
+        },
+        {
+          "stage": "interpretation",
+          "outcome": "succeeded",
+          "model": "gpt-5.4-mini",
+          "elapsedMs": 4309,
+          "inputTokens": 7983,
+          "outputTokens": 506,
+          "parsingAttempted": true,
+          "configuredOutputLimit": 4096
+        }
+      ]
+    },
+    {
+      "id": "missing-subject",
+      "status": "failed",
+      "error": "Pure save incorrectly requires an additional answer.",
+      "mode": "clarify",
+      "task": {
+        "intent": "save",
+        "source": {
+          "id": "current",
+          "text": "One of them ate less this morning. Save that.",
+          "role": "user",
+          "createdAt": "2026-09-16T12:00:00Z"
+        },
+        "petId": null,
+        "taskId": null,
+        "revision": null,
+        "requiresAnswer": true
+      },
+      "events": [
+        {
+          "stage": "interpretation",
+          "outcome": "started",
+          "model": "gpt-5.4-mini",
+          "elapsedMs": 0,
+          "configuredOutputLimit": 4096
+        },
+        {
+          "stage": "interpretation",
+          "outcome": "succeeded",
+          "model": "gpt-5.4-mini",
+          "elapsedMs": 4801,
+          "inputTokens": 7946,
+          "outputTokens": 396,
+          "parsingAttempted": true,
+          "configuredOutputLimit": 4096
+        }
+      ]
+    },
+    {
+      "id": "cancel",
+      "status": "passed",
+      "error": null,
+      "mode": "conversation",
+      "task": {
+        "intent": "cancel",
+        "source": {
+          "id": "source",
+          "text": "Sable rested in the hammock for ten minutes.",
+          "role": "user",
+          "createdAt": "2026-09-16T12:00:00Z"
+        },
+        "petId": null,
+        "taskId": "task",
+        "revision": 1,
+        "requiresAnswer": false
+      },
+      "events": [
+        {
+          "stage": "interpretation",
+          "outcome": "started",
+          "model": "gpt-5.4-mini",
+          "elapsedMs": 0,
+          "configuredOutputLimit": 4096
+        },
+        {
+          "stage": "interpretation",
+          "outcome": "succeeded",
+          "model": "gpt-5.4-mini",
+          "elapsedMs": 2657,
+          "inputTokens": 8110,
+          "outputTokens": 245,
+          "parsingAttempted": true,
+          "configuredOutputLimit": 4096
+        }
+      ]
+    },
+    {
+      "id": "unrelated",
+      "status": "passed",
+      "error": null,
+      "mode": "conversation",
+      "task": null,
+      "events": [
+        {
+          "stage": "interpretation",
+          "outcome": "started",
+          "model": "gpt-5.4-mini",
+          "elapsedMs": 0,
+          "configuredOutputLimit": 4096
+        },
+        {
+          "stage": "interpretation",
+          "outcome": "succeeded",
+          "model": "gpt-5.4-mini",
+          "elapsedMs": 2657,
+          "inputTokens": 8114,
+          "outputTokens": 321,
+          "parsingAttempted": true,
+          "configuredOutputLimit": 4096
+        }
+      ]
+    },
+    {
+      "id": "assistant-fabrication",
+      "status": "passed",
+      "error": null,
+      "mode": "update",
+      "task": {
+        "intent": "save",
+        "source": {
+          "id": "source",
+          "text": "Sable rested in the hammock for ten minutes.",
+          "role": "user",
+          "createdAt": "2026-09-16T12:00:00Z"
+        },
+        "petId": "sable",
+        "taskId": null,
+        "revision": null,
+        "requiresAnswer": false
+      },
+      "events": [
+        {
+          "stage": "interpretation",
+          "outcome": "started",
+          "model": "gpt-5.4-mini",
+          "elapsedMs": 0,
+          "configuredOutputLimit": 4096
+        },
+        {
+          "stage": "interpretation",
+          "outcome": "succeeded",
+          "model": "gpt-5.4-mini",
+          "elapsedMs": 5463,
+          "inputTokens": 7997,
+          "outputTokens": 588,
+          "parsingAttempted": true,
+          "configuredOutputLimit": 4096
+        }
+      ]
+    },
+    {
+      "id": "status-not-save",
+      "status": "passed",
+      "error": null,
+      "mode": "read",
+      "task": null,
+      "events": [
+        {
+          "stage": "interpretation",
+          "outcome": "started",
+          "model": "gpt-5.4-mini",
+          "elapsedMs": 0,
+          "configuredOutputLimit": 4096
+        },
+        {
+          "stage": "interpretation",
+          "outcome": "succeeded",
+          "model": "gpt-5.4-mini",
+          "elapsedMs": 5183,
+          "inputTokens": 7969,
+          "outputTokens": 602,
+          "parsingAttempted": true,
+          "configuredOutputLimit": 4096
+        }
+      ]
+    },
+    {
+      "id": "hypothetical",
+      "status": "passed",
+      "error": null,
+      "mode": "conversation",
+      "task": null,
+      "events": [
+        {
+          "stage": "interpretation",
+          "outcome": "started",
+          "model": "gpt-5.4-mini",
+          "elapsedMs": 0,
+          "configuredOutputLimit": 4096
+        },
+        {
+          "stage": "interpretation",
+          "outcome": "succeeded",
+          "model": "gpt-5.4-mini",
+          "elapsedMs": 2615,
+          "inputTokens": 7952,
+          "outputTokens": 256,
+          "parsingAttempted": true,
+          "configuredOutputLimit": 4096
+        }
+      ]
+    },
+    {
+      "id": "mixed",
+      "status": "passed",
+      "error": null,
+      "mode": "mixed",
+      "task": {
+        "intent": "save",
+        "source": {
+          "id": "source",
+          "text": "Sable rested in the hammock for ten minutes.",
+          "role": "user",
+          "createdAt": "2026-09-16T12:00:00Z"
+        },
+        "petId": "sable",
+        "taskId": null,
+        "revision": null,
+        "requiresAnswer": true
+      },
+      "events": [
+        {
+          "stage": "interpretation",
+          "outcome": "started",
+          "model": "gpt-5.4-mini",
+          "elapsedMs": 0,
+          "configuredOutputLimit": 4096
+        },
+        {
+          "stage": "interpretation",
+          "outcome": "succeeded",
+          "model": "gpt-5.4-mini",
+          "elapsedMs": 4903,
+          "inputTokens": 7977,
+          "outputTokens": 588,
+          "parsingAttempted": true,
+          "configuredOutputLimit": 4096
+        }
+      ]
+    },
+    {
+      "id": "spanish",
+      "status": "passed",
+      "error": null,
+      "mode": "update",
+      "task": {
+        "intent": "save",
+        "source": {
+          "id": "source",
+          "text": "Sable descansA3 veinte minutos ayer.",
+          "role": "user",
+          "createdAt": "2026-09-16T12:00:00Z"
+        },
+        "petId": "sable",
+        "taskId": null,
+        "revision": null,
+        "requiresAnswer": false
+      },
+      "events": [
+        {
+          "stage": "interpretation",
+          "outcome": "started",
+          "model": "gpt-5.4-mini",
+          "elapsedMs": 0,
+          "configuredOutputLimit": 4096
+        },
+        {
+          "stage": "interpretation",
+          "outcome": "succeeded",
+          "model": "gpt-5.4-mini",
+          "elapsedMs": 6606,
+          "inputTokens": 7969,
+          "outputTokens": 568,
+          "parsingAttempted": true,
+          "configuredOutputLimit": 4096
+        }
+      ]
+    },
+    {
+      "id": "mixed-subject-continuation",
+      "status": "passed",
+      "error": null,
+      "mode": "mixed",
+      "task": {
+        "originalRequest": {
+          "id": "request",
+          "text": "Save that and compare with his older hammock notes.",
+          "role": "user",
+          "createdAt": "2026-09-16T12:00:00Z"
+        },
+        "intent": "resume",
+        "source": {
+          "id": "source",
+          "text": "Sable rested in the hammock for ten minutes.",
+          "role": "user",
+          "createdAt": "2026-09-16T12:00:00Z"
+        },
+        "petId": "sable",
+        "taskId": "task",
+        "revision": 1,
+        "requiresAnswer": true
+      },
+      "events": [
+        {
+          "stage": "interpretation",
+          "outcome": "started",
+          "model": "gpt-5.4-mini",
+          "elapsedMs": 0,
+          "configuredOutputLimit": 4096
+        },
+        {
+          "stage": "interpretation",
+          "outcome": "succeeded",
+          "model": "gpt-5.4-mini",
+          "elapsedMs": 4228,
+          "inputTokens": 8102,
+          "outputTokens": 543,
+          "parsingAttempted": true,
+          "configuredOutputLimit": 4096
+        }
+      ]
+    },
+    {
+      "id": "answer-outage-resume",
+      "status": "passed",
+      "error": null,
+      "mode": "mixed",
+      "task": {
+        "originalRequest": {
+          "id": "request",
+          "text": "Save that and compare with his older hammock notes.",
+          "role": "user",
+          "createdAt": "2026-09-16T12:00:00Z"
+        },
+        "intent": "resume",
+        "source": {
+          "id": "source",
+          "text": "Sable rested in the hammock for ten minutes.",
+          "role": "user",
+          "createdAt": "2026-09-16T12:00:00Z"
+        },
+        "petId": "sable",
+        "taskId": "task",
+        "revision": 1,
+        "requiresAnswer": true
+      },
+      "events": [
+        {
+          "stage": "interpretation",
+          "outcome": "started",
+          "model": "gpt-5.4-mini",
+          "elapsedMs": 0,
+          "configuredOutputLimit": 4096
+        },
+        {
+          "stage": "interpretation",
+          "outcome": "failed",
+          "model": "gpt-5.4-mini",
+          "elapsedMs": 16668,
+          "providerErrorCode": "ASK_REQUEST_CONTRACT_FRAME",
+          "providerErrorType": "semantic",
+          "inputTokens": 8116,
+          "outputTokens": 671,
+          "parsingAttempted": true,
+          "configuredOutputLimit": 4096
+        },
+        {
+          "stage": "interpretation",
+          "outcome": "started",
+          "model": "gpt-5.4-mini",
+          "elapsedMs": 0,
+          "configuredOutputLimit": 4096
+        },
+        {
+          "stage": "interpretation",
+          "outcome": "succeeded",
+          "model": "gpt-5.4-mini",
+          "elapsedMs": 22746,
+          "inputTokens": 8632,
+          "outputTokens": 855,
+          "parsingAttempted": true,
+          "configuredOutputLimit": 4096
+        }
+      ]
+    }
+  ],
+  "revision": "368d4f9e4aaa7d2485c6a763fc25230de404bb77",
+  "regrading": "The initial harness omitted a false assertion for answerRequired on pure saves. Regraded the captured missing-subject output without making another provider call."
+}
