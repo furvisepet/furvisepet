@@ -1,5 +1,6 @@
 // Explicit live smoke with a newly created synthetic account; never uses an owner session.
 import assert from 'node:assert/strict';
+import {ASK_CLIENT_TIMEOUT_MS} from '../../app/lib/ai/ask-execution-limits.ts';
 import {randomUUID,randomBytes} from 'node:crypto';
 import {writeFileSync} from 'node:fs';
 import {createClient} from '@supabase/supabase-js';
@@ -35,7 +36,7 @@ try {
  for(const message of ['What was the last food change I recorded?','Did the vet ever diagnose arthritis?','What is the earliest care note you have for this pet?','Sable seemed more tired than usual on this morning’s walk and only ate half her breakfast. Save this.','Also add that she drank normally.','Did the note from this morning save correctly? Show me exactly what was stored.','Is there anything in the history that would make a long car ride risky right now?']) {
   lastPayload={conversationId,petId:pet.data.id,message,logicalTurnId:randomUUID(),locale:'en-CA',timeZone:'America/Vancouver'};
   const started=Date.now();
-  const response=await fetch(target+'/api/ask',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(lastPayload),signal:AbortSignal.timeout(90000)});
+  const response=await fetch(target+'/api/ask',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(lastPayload),signal:AbortSignal.timeout(ASK_CLIENT_TIMEOUT_MS)});
   const body=await response.json();
   report.turns.push({message,status:response.status,elapsedMs:Date.now()-started,body});save();
   assert.equal(response.status,200,JSON.stringify({status:response.status,code:body.code,error:body.error}));

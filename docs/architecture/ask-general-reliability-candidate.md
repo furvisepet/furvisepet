@@ -1,6 +1,6 @@
 # Ask reliability candidate — September 16, 2026
 
-Status: candidate only. Not deployed or launch-certified. The production baseline remains 10 passed / 9 failed / 7 weak.
+Status: initial fixes deployed in PR #494, main de0bb0c705d0140892e4201eb29a724c467e9e7b. Not launch-certified. Frozen production rerun: 19 passed / 2 failed / 5 weak; original baseline 10 / 9 / 7 (earliest-record grading correction below).
 
 ## Changes
 
@@ -35,3 +35,14 @@ The first admitted seven-turn run returned HTTP 200 on every turn, saved both US
 The follow-up change projects every referenced receipt and removes unreferenced earlier questions from writer context. Local full tests (2,484), TypeScript, and changed-file lint pass. The repeat live readback returned both exact saved texts, with zero credits for the saves and readback. Full release verification remains pending.
 
 Audit correction: the baseline question 6 expected Atlas's September 9, 2021 record, but `resolveAskHistoryAccess` restricts Plus retrieval to five years. On September 16, 2026 that record is outside the accessible window. The frozen question is unchanged; grade earliest retrieval against eligible records and disclose the access window. Do not count an excluded record as a retrieval failure or broaden subscription access to satisfy the test.
+
+
+## Frozen production rerun
+
+All 26 prompts were submitted verbatim through the authenticated production UI in seven conversations, without answer retries. All produced terminal persisted responses and no Retry error. Questions 5 and 24 fail; 1, 2, 3, 7 and 9 remain weak. Saves 16 and 17 stored the exact USER texts once each for Sable, and 18 returned both. Question 22 retained fatigue, reduced breakfast and normal drinking. Question 24 returned a non-answer fallback with zero credits.
+
+Seven credits were charged (2, 4, 7, 9, 11, 12, 22). Partial-answer billing still needs work: questions 2, 7 and 9 were charged despite weak relevance or breadth. Median persisted-user-to-answer processing interval was 24.08 seconds, p95 59.73 seconds, maximum 70.93 seconds. This interval excludes browser polling overhead and is not exact end-to-end UI latency. Shared test budget after the run was 348 calls and $3.807899, within the approved 400/$5 ceiling.
+
+The date-range parser follow-up addresses the question 24 trace: dates explicitly present in a shared-month range were rejected as unsupported. It binds only literal endpoints, preserves adjacent dose quantities, and does not infer intermediate dates, years or clinical meaning. Independent semantic review remains mandatory. Its live verification is separate from the frozen score above.
+
+The smoke harness also now uses the application client timeout. Its earlier 90-second abort deleted the synthetic account while the server could still be processing; this changes test cleanup timing, not application timeouts.
