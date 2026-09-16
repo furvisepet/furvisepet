@@ -241,6 +241,19 @@ export function validateGeneratedAnswer(
     response.referencedRecords = response.referencedRecords.filter(record => response.relevantContextIds.includes(record.id));
     repairs.push("replaced_disclaimer_only_history_with_sources");
   }
+  if (!currentEmergency && historyCompletionLimits(response.evidenceContract).includes("requested_transition_not_retrieved")) {
+    // A positive review cannot turn topic-only observations into evidence of
+    // an event. Describe this answer's verification limit, never semantic
+    // absence from the pet's entire history. This also removes dangling partial
+    // references to a rejected event claim, without another provider call.
+    response.answer = { title: "Furvise", summary: "I couldn’t verify the specific event you asked about from the records retrieved for this answer. That doesn’t establish that it never happened.",
+      sections: [], safetyNote: urgent ? "Contact an emergency veterinarian now." : null };
+    response.suggestedFollowUps = [];
+    response.relevantContextIds = [];
+    response.referencedRecords = [];
+    response.applicationActions = [];
+    repairs.push("withheld_unverified_event_interpretation");
+  }
   let answerText = JSON.stringify(response.answer);
   if (response.evidenceContract?.interpretation && scopedAnswer) {
     // A full attributed correction may name the former pet. Check surrounding
