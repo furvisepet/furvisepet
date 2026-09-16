@@ -33,7 +33,7 @@ test("Ask sends selected pet context and one idempotent request", () => {
   assert.match(askFunction, /logicalTurnId/);
   assert.match(askFunction, /const signal = AbortSignal\.timeout\(ASK_CLIENT_TIMEOUT_MS\)/);
   assert.match(askFunction, /requestAskWithSession/);
-  assert.match(askFunction, /\}, scope, logicalTurnId\), signal\)/);
+  assert.match(askFunction, /\}, scope, logicalTurnId\), signal, token => fetch/);
   assert.doesNotMatch(askFunction, /\/api\/ask\/conversations\/.*\/messages/);
 });
 

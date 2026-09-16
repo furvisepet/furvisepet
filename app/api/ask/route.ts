@@ -184,6 +184,21 @@ class AiCreditLimitError extends Error {
 export async function GET(request: Request) {
   const context = await loadAskRequestContext(request);
   if ("response" in context) return context.response;
+  const params = new URL(request.url).searchParams;
+  if (params.has("requestId")) {
+    const requestId = params.get("requestId") || "", petId = params.get("petId") || "";
+    if (!isUuid(requestId) || !isUuid(petId)) return askFailure("INVALID_MESSAGE", "Choose a valid request and pet.", 400);
+    try {
+      // Read-only recovery: no generation, write execution, credit reservation
+      // or reconciliation. Reuse the owned/pet-scoped persistence lookup.
+      const state = await loadPersistedRequest({ requestId, petId, supabase: context.supabase, userId: context.userId });
+      const response = state?.assistantMessage?.response_data?.turn?.finalStage === "COMPLETED"
+        ? completedResponseFromPersisted(state, context.usage)
+        : Response.json({ success: false, code: "ANSWER_ALREADY_ACTIVE" }, { status: 202 });
+      response.headers.set("Cache-Control", "private, no-store, max-age=0");
+      return response;
+    } catch (error) { return handleAskApiError(error, requestId); }
+  }
   return Response.json({ usage: context.usage });
 }
 

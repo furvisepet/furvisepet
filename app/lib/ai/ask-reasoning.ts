@@ -17,7 +17,7 @@ import { deterministicReadProjection } from "../intelligence/read-projection.ts"
 import { careOccurrence } from "../intelligence/care-occurrence.ts";
 import { requestReferenceContext } from "../intelligence/request-reference-context.ts";
 import { safetyTemporalScope } from "./safety-temporal-scope.ts";
-import { compactHistorySourceCoverage } from "./history-source-transport.ts";
+import { compactHistorySourceCoverage, compactHistoryQueryCoverage } from "./history-source-transport.ts";
 import { getAiFeaturePolicy } from "./usage-guard/features.ts";
 import { estimateInputTokens } from "./usage-guard/cost-estimator.ts";
 import { historyNarrativeSchema, parseHistoryNarrative, type HistoryNarrative } from "../intelligence/history-narrative.ts";
@@ -1399,6 +1399,7 @@ export function buildAskProviderRequest(promptContext: object) {
     // Retain full authority and candidate identities on the server. The model
     // only needs IDs for represented evidence plus complete coverage/counts.
     const represented = new Set(eligibleAnswerSources(evidence).map(span => span.sourceId));
+    const queryCoverage = compactHistoryQueryCoverage(evidence, represented);
     const contextRecords = (promptContext as { contextRecords?: AskContextRecord[] }).contextRecords;
     const pets = (promptContext as { pets?: Array<{ id: string; name: string; species: string }> }).pets;
     transported = { ...promptContext,
@@ -1409,7 +1410,7 @@ export function buildAskProviderRequest(promptContext: object) {
         const metadata = Object.fromEntries(Object.entries(record).filter(([key]) => key !== "value"));
         return { ...metadata, valueSource: "evidenceContract.represented.text joined by sourceId = id" };
       }) } : {}),
-      evidenceContract: { ...evidence,
+      evidenceContract: { ...evidence, ...queryCoverage,
       // Creation time is already present on the matching context record.
       // Keep the full review evidence server-side without paying twice for
       // each timestamp in the bounded writer prompt.
@@ -1419,7 +1420,7 @@ export function buildAskProviderRequest(promptContext: object) {
       // remain on the server for verification, not duplicated in transport.
       operationReceipts: undefined, recordInventory: undefined,
       ...compactHistorySourceCoverage(evidence.sources, represented),
-      history: { ...evidence.history,
+      history: { ...queryCoverage.history,
         // Budget pinning is enforced by the server. Avoid duplicating boundary
         // IDs in transport when chronology/represented already identify them.
         requiredSourceIds: undefined,

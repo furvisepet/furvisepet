@@ -1,4 +1,45 @@
-import type { EvidenceSource } from "../intelligence/ask-evidence.ts";
+import type { AskEvidenceContract, EvidenceSource } from "../intelligence/ask-evidence.ts";
+
+/** Writer transport only: unrepresented identity lists are audit metadata, not
+ * factual evidence. Keep their counts and every limitation without spending
+ * the note-text budget on the same candidate IDs in several query receipts.
+ * Never feed this projection back into server eligibility/completion checks.
+ */
+export function compactHistoryQueryCoverage(evidence: AskEvidenceContract, represented: ReadonlySet<string>) {
+  const visible = (id: string) => represented.has(id) || represented.has(`care:${id}`);
+  const candidates = (ids: readonly string[]) => {
+    const filtered = ids.filter(visible);
+    return filtered.length === ids.length ? { candidateIds: ids } : { candidateCount: ids.length, candidateIds: filtered };
+  };
+  const history = evidence.history;
+  const lossGroups = new Map<string, { reason: string; lossCount: number; representedSourceIds: string[] }>();
+  for (const loss of evidence.losses) {
+    const group = lossGroups.get(loss.reason) || { reason: loss.reason, lossCount: 0, representedSourceIds: [] };
+    group.lossCount++;
+    if (visible(loss.sourceId)) group.representedSourceIds.push(loss.sourceId);
+    lossGroups.set(loss.reason, group);
+  }
+  return {
+    // Explicit counts prevent an empty visible list from becoming a zero-hit
+    // lookup. Need state, exhaustion, reasons and semantic uncertainty survive.
+    needCoverage: evidence.needCoverage?.map(need => ({ ...need, pets: need.pets.map(pet => ({ ...pet,
+      ...(pet.candidateSourceIds.every(visible) ? {} : { candidateSourceCount: pet.candidateSourceIds.length }),
+      candidateSourceIds: pet.candidateSourceIds.filter(visible),
+    })) })),
+    losses: evidence.losses.filter(loss => visible(loss.sourceId)),
+    ...(evidence.losses.length ? { lossGroups: [...lossGroups.values()] } : {}),
+    ...(history ? { history: { ...history,
+      ...candidates(history.candidateIds),
+      needs: history.needs?.map(need => ({ ...need, ...candidates(need.candidateIds) })),
+      targets: history.targets?.map(target => ({ ...target, ...candidates(target.candidateIds),
+        ...(target.retainedIds.every(visible) ? {} : { retainedCount: target.retainedIds.length }), retainedIds: target.retainedIds.filter(visible) })),
+      periods: history.periods?.map(period => ({ ...period, ...candidates(period.candidateIds) })),
+      ...(history.excludedIds.every(visible) ? {} : { excludedCount: history.excludedIds.length }), excludedIds: history.excludedIds.filter(visible),
+      claimSources: history.claimSources.map(source => ({ ...source,
+        ...(source.sourceIds.every(visible) ? {} : { sourceCount: source.sourceIds.length }), sourceIds: source.sourceIds.filter(visible) })),
+    } } : {}),
+  };
+}
 
 /** Lossless grouping of source channels whose IDs are not represented in the
  * prompt. Full identity lists remain in the server contract. Counts, caps and
