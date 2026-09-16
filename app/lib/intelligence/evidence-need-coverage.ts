@@ -76,6 +76,15 @@ export function evidenceRemovalCost(evidence: AskEvidenceContract, sourceId: str
         && span.text.toLowerCase().includes(need.quote.toLowerCase()))
       && withinEvidenceNeedWindow(span.occurredAt, need.window)
       && historyQuantityAnchors(span.text).includes(anchor)).map(span => span.sourceId)));
-  return [...needs, ...dates].filter(ids => ids.length === 1 && ids[0] === sourceId).length
+  return (evidence.history?.requiredSourceIds?.includes(sourceId) ? 1000 : 0)
+    + [...needs, ...dates].filter(ids => ids.length === 1 && ids[0] === sourceId).length
     + 2 * literals.filter(ids => ids.length === 1 && ids[0] === sourceId).length;
+}
+
+/** Required candidates are fixed before trimming; a later candidate cannot
+ * silently replace a missing chronological boundary or present observation. */
+export function missingRequiredEvidence(evidence?: AskEvidenceContract | null): string[] {
+  return (evidence?.history?.requiredSourceIds || []).filter(id =>
+    evidence!.losses.some(loss => loss.sourceId === id) || !evidence!.represented.some(span =>
+      span.sourceId === id && span.sourceType === "care_update" && span.start === 0 && span.end === span.text.length && span.text.trim()));
 }

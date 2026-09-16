@@ -96,3 +96,17 @@ test('multi-pet current source without a user-named destination remains unresolv
  const result=validateAskTask({intent:'save',sourceTurnId:'current',petName:'Sable',answerRequest:null},{...context,currentMessage:currentTurn.text,currentTurn,conversationTurns:[],eligiblePets:[{id:'pet',name:'Sable',user_id:'owner'},{id:'other',name:'Rowan',user_id:'owner'}]});
  assert.equal(result.petId,null);
 });
+
+
+test('receipt-backed pronoun continuation retains the saved subject, without trusting selection alone',()=>{
+ const previous={...source,text:'Sable seemed tired and ate half her breakfast. Save this.',operationReceipt:{petId:'pet',sourceMessageId:'source',requestText:'Save this.',records:[{id:'saved',note:'Original note',occurredAt:source.createdAt}]}};
+ const currentTurn={...source,id:'next',text:'Also add that she drank normally.'};
+ const eligiblePets=[{id:'pet',name:'Sable',user_id:'owner',sex:'male',species:'dog'}, {id:'second',name:'Rowan',user_id:'owner',sex:'female',species:'dog'}];
+ const input={...context,eligiblePets,currentTurn,currentMessage:currentTurn.text,conversationTurns:[previous]};
+ const p={intent:'save',sourceTurnId:'next',petName:'Sable',answerRequest:null};
+ assert.equal(validateAskTask(p,input).petId,'pet');
+ assert.equal(validateAskTask(p,{...input,conversationTurns:[{...previous,operationReceipt:undefined}]}).petId,null);
+ assert.equal(validateAskTask(p,{...input,conversationTurns:[previous,{...source,id:'human',text:'My sister came home.'}]}).petId,null);
+ assert.equal(validateAskTask(p,{...input,currentTurn:{...currentTurn,text:'One of my dogs drank normally. Save it.'}}).petId,null);
+ assert.equal(validateAskTask({...p,petName:'Rowan'},input).petId,null);
+});

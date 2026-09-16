@@ -101,7 +101,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
   };
   const request = { model, max_output_tokens: ASK_INTERPRETATION_LIMITS.outputTokens,
     ...(/^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}),
-    instructions: ASK_REQUEST_INSTRUCTIONS, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: askRequestSchema(proposedSemanticFrameJsonSchema) } } };
+    instructions: ASK_REQUEST_INSTRUCTIONS, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: askRequestSchema(proposedSemanticFrameJsonSchema, context) } } };
   const started = Date.now();
   let attempted = false;
   let providerSignal: AbortSignal | undefined;

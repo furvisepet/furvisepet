@@ -44,8 +44,8 @@ export type AskRequestContract = {
   quantity: typeof quantities[number];
 };
 const strings = (maxItems: number, maxLength: number) => ({ type: "array", maxItems, items: { type: "string", minLength: 1, maxLength } });
-export function askRequestSchema(frame: object) {
-  return { type: "object", additionalProperties: false,
+export function askRequestSchema(frame: object, context?: Context) {
+  const schema = { type: "object", additionalProperties: false,
     required: ["task", "temporalScope", "mutationIntent", "recordSelection", "profileFields", "projection", "version", "mode", "question", "requirements", "evidenceNeeds", "outputFormat", "evidenceBasis", "premiseQuotes", "excludedPetNames", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
     properties: {
       task: askTaskSchema,
@@ -67,6 +67,25 @@ export function askRequestSchema(frame: object) {
       episodeTopic: { type: ["string", "null"], enum: ["vomiting", "soft stool", "breathing", null] },
       ordinal: { type: ["string", "null"], enum: ordinals }, frame: { anyOf: [frame, { type: "null" }] },
     } };
+  if (context) {
+    const references = [...new Set(context.conversationTurns.map(turn => turn.id))];
+    const users = [...new Set(context.conversationTurns.filter(turn => turn.role === "user").map(turn => turn.id))];
+    // The provider may only propose identities actually present in this request.
+    // Empty enums are invalid JSON Schema; an empty reference set permits [] only.
+    Object.assign(schema.properties.referenceTurnIds, references.length
+      ? { items: { type: "string", enum: references } } : { maxItems: 0 });
+    const needs = structuredClone(evidenceNeedsSchema);
+    Object.assign(needs.items.properties.sourceTurnId, { enum: [null, ...users] });
+    schema.properties.evidenceNeeds = needs;
+    const task = structuredClone(askTaskSchema);
+    for (const variant of task.anyOf) if (variant.properties) {
+      Object.assign(variant.properties.sourceTurnId, { enum: [null, ...new Set([...users,
+        ...(context.currentTurn ? [context.currentTurn.id] : []), ...(context.pendingTask ? [context.pendingTask.source.id] : [])])] });
+      if (!context.pendingTask) variant.properties.intent.enum = ["save"];
+    }
+    schema.properties.task = task;
+  }
+  return schema;
 }
 
 export const ASK_REQUEST_INSTRUCTIONS = [
@@ -122,6 +141,9 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (!Array.isArray(p.profileFields) || p.profileFields.some(field => !askRequestSchema({}).properties.profileFields.items.enum.includes(String(field))) || p.profileFields.length > 14) return fail("profile_fields");
   if (![null, "historical", "current", "historical_and_current"].includes(p.temporalScope as null | string)) return fail("temporal_scope");
   if (![null, "correct_record"].includes(p.mutationIntent as null | string)) return fail("mutation_intent");
+  // Read mode has no write authority. Contradictory advisory task/frame fields
+  // cannot turn an ordinary lookup into a save or a failed save contract.
+  if (p.mode === "read") { p.task = null; p.frame = null; }
   const task = validateAskTask(ownerDeclinesPersistence(context.currentMessage) && !context.pendingTask ? null : p.task, { ...context, requiresAnswer: p.mode === "mixed" });
   if (task && task.intent !== "cancel" && p.mode === "mixed" && !task.requiresAnswer) return fail("task");
   if (task?.requiresAnswer && task.petId && p.mode !== "mixed") return fail("task");
@@ -287,12 +309,16 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   }
   // A selected conversation container is not a cohort-search constraint. Resolve
   // explicit scope language before allocating bounded evidence across profiles.
-  const cohortRequested = /\b(?:all|each|every|other|both|three|two|across|among)\b[^.!?]{0,35}\b(?:pets?|dogs?|cats?|animals?)\b|\b(?:which|whose)\s+(?:(?:of|the|my|our)\s+)*(?:pets?|dogs?|cats?|animals?)\b|\bname\s+the\s+(?:pet|dog|cat|animal)\b/i.test(context.currentMessage);
+  const cohortRequested = /\b(?:all|each|every|other|both|three|two|across|among)\b[^.!?]{0,35}\b(?:pets?|dogs?|cats?|animals?|profiles?)\b|\b(?:which|whose)\s+(?:(?:of|the|my|our)\s+)*(?:pets?|dogs?|cats?|animals?)\b|\bname\s+the\s+(?:pet|dog|cat|animal)\b|\b(?:across|whole|entire)\s+(?:(?:the|my|our)\s+)?account\b/i.test(context.currentMessage);
   if (["read", "clarify"].includes(String(p.mode)) && cohortRequested && !explicitPets.length && !anchor) {
     p.scope = "account"; p.mode = "read"; petIds = owned.filter(pet => !excluded.has(pet.id)).map(pet => pet.id);
     if (p.operation === "clarify") p.operation = "recall";
   } else if (p.mode === "read" && p.scope === "account" && explicitPets.length && !cohortRequested) {
     p.scope = "named"; petIds = explicitPets.map(pet => pet.id);
+  } else if (p.mode === "read" && p.scope === "account" && !cohortRequested && !proposed.length && !p.referenceTurnIds.length) {
+    // An unnamed standalone lookup stays inside the selected pet boundary.
+    // Model-proposed account scope alone cannot broaden an ordinary question.
+    p.scope = "selected"; petIds = [context.pet.id];
   }
   // A planner clarification cannot erase an explicitly identified owned pet.
   // This only recovers read scope, never grants mutation authority.

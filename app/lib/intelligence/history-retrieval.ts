@@ -24,6 +24,7 @@ export const HISTORY_BUDGET = { pageSize: 25, pagesPerPet: 4, totalPages: 20, ca
 type Cursor = { petId: string; occurredAt: string; id: string };
 export type HistoryPlan = { from: string | null; to: string | null; terms: string[]; interpretation: "period" | "lexical" | "broad_comparison" };
 export type HistoryCoverage = {
+  requiredSourceIds?: string[];
   needs?: Array<{ petId: string; needId: string; candidateIds: string[]; exhausted: boolean; status: Completeness; reason?: string }>;
   targets?: Array<{ petId: string; day: string; candidateIds: string[]; retainedIds: string[]; exhausted: boolean; status: Completeness }>;
   chronology?: Array<{ petId: string; boundaryIds: string[]; blocked: boolean }>;
@@ -369,10 +370,17 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   // Larger cohorts receive one evidence slot per pet before any pet gets more.
   const petGroups = ids.length > 3 ? ids.map(petId => ordered.filter(entry => entry.pet_profile_id === petId)) : [];
   const vetGroups = vetBriefRead?.termGroups.map(terms => ordered.filter(entry => terms.some(term => `${entry.title || ""} ${entry.note}`.toLowerCase().includes(term.toLowerCase())))) || [];
-  const priorityGroups = [...petGroups, ...targetGroups, ...needGroups, ...vetGroups];
+  const currentRead = ["current", "historical_and_current"].includes(context.askInterpretation?.request?.temporalScope || "");
+  const currentGroups = currentRead ? ids.map(petId => ordered.filter(entry => entry.pet_profile_id === petId)
+    .sort((a, b) => compareHistoryTime(b.occurred_at, a.occurred_at)).slice(0, 2)) : [];
+  const boundaryIds = new Set((coverage.chronology || []).flatMap(boundary => boundary.boundaryIds));
+  const required = [...ordered.filter(entry => boundaryIds.has(careEvidenceId(entry.id, coverage))),
+    ...targetGroups.flatMap(group => group.slice(0, 1)), ...needGroups.flatMap(group => group.slice(0, 1)), ...currentGroups.flat()];
+  coverage.requiredSourceIds = [...new Set(required.map(entry => careEvidenceId(entry.id, coverage)))];
+  const priorityGroups = [...petGroups, ...targetGroups, ...needGroups, ...currentGroups, ...vetGroups];
   const anchoredIds = new Set(priorityGroups.flat().map(entry => entry.id));
   const groups = [...priorityGroups, ordered.filter(entry => !anchoredIds.has(entry.id))];
-  const prioritized: CareEntryRow[] = [];
+  const prioritized: CareEntryRow[] = [...new Map(required.map(entry => [entry.id, entry])).values()];
   for (let index = 0; groups.some(group => index < group.length); index++)
     for (const group of groups) if (group[index] && !prioritized.some(entry => entry.id === group[index].id)) prioritized.push(group[index]);
   const kept: CareEntryRow[] = []; let chars = 0; let budgetExcluded = false;

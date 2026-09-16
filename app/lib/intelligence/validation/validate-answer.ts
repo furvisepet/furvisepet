@@ -1,4 +1,5 @@
 import { readPartialHistoryReview } from "../history-review-state.ts";
+import { missingRequiredEvidence } from "../evidence-need-coverage.ts";
 import { recordHistoryReview, historyReviewSignature } from "../history-review-state.ts";
 import { rememberReviewedTaskPresentation } from "../ask-evidence-presentation.ts";
 import {
@@ -290,7 +291,7 @@ export function validateGeneratedAnswer(
       evidenceSupport: finalReviewMatches ? "passed" : conversationOnly ? "not_applicable" : "not_evaluated",
       subjectDateCorrectness: unauthorizedPetNamed ? "failed" : finalReviewMatches ? "passed" : conversationOnly ? "not_applicable" : "not_evaluated",
       calculationCorrectness: finalReviewMatches ? "passed" : "not_evaluated",
-      taskCompletion: obligationChecks?.length ? historyTaskCompleted(obligationChecks) ? "passed" : "failed"
+      taskCompletion: missingRequiredEvidence(response.evidenceContract).length ? "failed" : obligationChecks?.length ? historyTaskCompleted(obligationChecks) ? "passed" : "failed"
         : fallbackUsed ? "failed" : "not_evaluated",
     },
   });

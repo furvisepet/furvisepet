@@ -1,5 +1,8 @@
 /** Search hints select candidates only; they never establish facts or grant scope. */
-const uninformative = new Set("about after again before between compare comparison date dates earlier empty earliest first from give history latest later last main note notes observation observations owned pet pets please record recorded records saved show than that their then these this through using what when which with would could does did have has had current currently back because".split(" "));
+const uninformative = new Set("about after again before between care compare comparison date dates earlier empty earliest entries entry first from give history latest later last main note notes observation observations owned pet pets please record recorded records saved show than that their then these this through using what when which with would could does did have has had current currently back because".split(" "));
+export function meaningfulHistoryTerms(terms: string[]): string[] {
+  return terms.filter(term => words(term).some(word => !uninformative.has(word)));
+}
 function words(value: string) { return value.toLowerCase().match(/[a-z]{3,}/g) || []; }
 const stem = (word: string) => word.length > 5 ? word.slice(0, 5) : word.replace(/s$/, "");
 export function historyQueryTerms(terms: string[], petNames: string[] = []): string[] {

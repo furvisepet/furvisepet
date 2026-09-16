@@ -102,6 +102,7 @@ export function resolveDeterministicTurnSubject({
   }
   if (explicitNames.length === 1) return resolved(explicitNames[0].id, 0.99);
   if (explicitNames.length > 1 || isExplicitExternalAnimalSurface(message)) return null;
+  if (/\b(?:one|some|any|either)\s+of\s+(?:(?:my|our|the|these|those)\s+)?(?:pets|dogs|cats|animals)\b/i.test(message)) return null;
   const species = explicitOwnedSpecies(message);
   if (species) {
     const compatible = pets.filter((pet) => normalize(pet.species || "") === species);

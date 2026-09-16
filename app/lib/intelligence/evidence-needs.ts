@@ -1,4 +1,5 @@
 import { evidenceNeedWindow, type EvidenceNeedWindow } from "./history-dates.ts";
+import { meaningfulHistoryTerms } from "./history-query-relevance.ts";
 /** Advisory retrieval needs, grounded in USER text. They never authorize a
  * subject, date range, mutation or an assertion that a requested fact exists. */
 export type EvidenceNeed = { id: string; quote: string; sourceTurnId: string | null; terms: string[]; order?: "earliest" | "latest" | "context"; petIds?: string[]; window?: EvidenceNeedWindow };
@@ -37,7 +38,7 @@ export function validateEvidenceNeeds(raw: unknown, question: string, turns: rea
     seen.add(key);
     const window = evidenceNeedWindow(value.quote);
     needs.push({ ...(window ? { window } : {}), order: value.order, ...(petIds.length ? { petIds } : {}), id: "need:" + needs.length, quote: value.quote, sourceTurnId: value.sourceTurnId,
-      terms: [...new Set<string>(value.terms.map((term: string) => term.toLowerCase()))] });
+      terms: meaningfulHistoryTerms([...new Set<string>(value.terms.map((term: string) => term.toLowerCase()))]) });
   }
   return { needs, issues: [...new Set(issues)] };
 }
