@@ -7,7 +7,7 @@ import { persistOwnerNote } from "../../lib/intelligence/persist-owner-note.ts";
 import { resolveAskTimeZone } from "../../lib/ask-time-zone.ts";
 import { eligibleAnswerSources } from "../../lib/intelligence/ask-evidence.ts";
 import { recoverTransientRead } from "../../lib/security/read-recovery.ts";
-import { assertGovernedAskExecutionPlan } from "../../lib/intelligence/run-intelligence.ts";
+import { assertGovernedAskExecutionPlan } from "../../lib/intelligence/ask-execution-plan.ts";
 import { OperationDeadline } from "../../lib/ai/execution-deadline.ts";
 import { ASK_OPERATION_TIMEOUT_MS, ASK_MAX_QUESTION_CHARACTERS } from "../../lib/ai/ask-execution-limits.ts";
 import { createAskAdmissionSettlement } from "../../lib/ai/ask-admission-settlement.ts";

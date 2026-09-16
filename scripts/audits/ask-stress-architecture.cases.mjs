@@ -318,7 +318,7 @@ test('ten-pet read keeps every pet represented and batches correction seeds with
 const { eligibleAnswerSources, evidenceSource } = await import('../../app/lib/intelligence/ask-evidence.ts');
 const { boundedEpisodePlan } = await import('../../app/lib/intelligence/history-access.ts');
 const { verifiedCalculationQuantities } = await import('../../app/lib/intelligence/history-calculation.ts');
-const { buildGovernedAskExecutionPlan, assertGovernedAskExecutionPlan } = await import('../../app/lib/intelligence/run-intelligence.ts');
+const { buildGovernedAskExecutionPlan, assertGovernedAskExecutionPlan } = await import('../../app/lib/intelligence/ask-execution-plan.ts');
 const { AskTurnLifecycle } = await import('../../app/lib/ai/ask-turn-model.ts');
 const { safeStructuredValidationReason } = await import('../../app/lib/ai/ask-provider.ts');
 const { parseTaskHistoryReview } = await import('../../app/lib/intelligence/history-review-selection.ts');
