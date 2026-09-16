@@ -1,6 +1,7 @@
 import { ownerDeclinesPersistence, unquotedOwnerText } from "../ai/owner-assertion.ts";
 import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
 import { calendarBoundaryToInstant, resolveAskTimeZone } from "../ask-time-zone.ts";
+import { findExplicitCareRecordAuthorization } from "../furvise-brain/mutation-authorization.ts";
 
 export type OwnerNoteRequest = { note: string; occurredAt: string | null; explicitTime: string | null; needsAnswer: boolean };
 
@@ -17,14 +18,10 @@ export function resolveOwnerNoteRequest(input: {
     const commandText = unquotedOwnerText(text);
     if (/\b(?:hypothetical|fictional|pretend|suppose|example|translate)\b/i.test(commandText)) return null;
     const sentences = splitSentencesPreservingFacts(commandText);
-    // A conditional save is not authorized; an independent question using
-    // "if" or "whether" must not cancel an affirmative save in another clause.
-    if (sentences.some(sentence => /\bif\b/i.test(sentence)
-      && !/\b(?:tell me|explain|check|know|wonder|ask)\b[^.!?]*\bif\b/i.test(sentence))) return null;
-    if (sentences.some(sentence => /\b(?:save|log|record|add)\b[\s\S]*\b(?:only if|unless)\b/i.test(sentence))) return null;
-    const commands = sentences.filter(sentence =>
-      /^(?:(?:please|also)\s+|I\s+(?:just\s+)?want\s+to\s+|(?:can|could|would)\s+you\s+)?(?:save|log|record|add)\b/i.test(sentence.trim()));
-    if (!commands.length || !/\b(?:note|history|entry|observation|update|this|that|following)\b/i.test(commands.join(" "))) return null;
+    const authorization = findExplicitCareRecordAuthorization(text);
+    if (!authorization) return null;
+    const commands = sentences.filter(sentence => sentence.includes(authorization));
+    if (!commands.length) return null;
     if (/\b(?:notes|entries|separate|each|delete|remove|replace|correct|resolve|reopen|mark|profile|subscription|billing)\b/i.test(commands.join(" "))) return null;
     const named = input.pets.filter(pet => pet.name && new RegExp(`(?<![\\p{L}])${escape(pet.name)}(?![\\p{L}])`, "iu").test(commandText));
     if (named.some(pet => pet.id !== input.pet.id)) return null;
