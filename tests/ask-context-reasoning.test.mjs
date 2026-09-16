@@ -644,3 +644,25 @@ test('a requested saved profile name is represented as owned factual evidence',(
  assert.equal(name.value,'Mani');assert.equal(name.sourceType,'profile');assert.equal(name.petId,'pet-mani');
  assert.ok(built.promptContext.evidenceContract.represented.some(span=>span.sourceId===name.id&&span.text==='Mani'));
 });
+
+test('unsupported optional extraction cannot abort an ordinary medicine clarification',async()=>{
+ const question='I give him medicine  yesterday';
+ const draft=unified({answer:'What medicine did you give him, and how much?',responseMode:'clarification',semanticEvents:[{
+  subject:{type:'pet',name:'Mani'},domain:'health',topic:'medication',eventTitle:'Medicine given',transition:'started',state:'historical',
+  temporal:{occurredAt:null,explicitTime:'yesterday'},importance:'important',confidence:0.99,sourceExcerpt:'I gave him 5 mg of a named medicine yesterday.',
+ }]});
+ const client=mockClient([draft]);
+ const result=await generateContextAwareAskResponse({...input({question}),client});
+ assert.equal(client.requests.length,1);
+ assert.match(result.answer.summary,/What medicine/);
+ assert.deepEqual(result.semanticEvents,[]);assert.deepEqual(result.careActions,[]);assert.deepEqual(result.learnings,[]);
+ assert.deepEqual(result.applicationActions,[]);assert.equal(result.proposedHistoryUpdate.shouldOffer,false);
+});
+test('present-tense owner medicine reports retain provenance without authorizing commands or questions',async()=>{
+ const {isOwnerAssertedEvidence}=await import('../app/lib/ai/owner-assertion.ts');
+ for(const message of ['I give him medicine  yesterday','We give her medicine every evening','She gives him medicine yesterday'])
+  assert.equal(isOwnerAssertedEvidence(message,message),true,message);
+ for(const message of ['Give him medicine yesterday','Should I give him medicine?','If I give him medicine tomorrow','"I give him medicine yesterday"'])
+  assert.equal(isOwnerAssertedEvidence(message,message),false,message);
+ assert.equal(isOwnerAssertedEvidence('I give him medicine yesterday','I gave him 5 mg yesterday'),false);
+});
