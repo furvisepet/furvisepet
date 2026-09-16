@@ -41,30 +41,31 @@ export function retainedOwnerNoteAuthorization(input: {
 }
 
 function englishAuthorization(text: string) {
-  if (/^(?:(?:please|also)\s+|i\s+(?:just\s+)?want\s+(?:you\s+)?to\s+|(?:can|could|would|will)\s+you\s+)?(?:save|log|record|add|store)\b/iu.test(text)) return true;
-  if (/^(?:(?:please|also)\s+)?put\b[\s\S]{0,100}\b(?:note|notes|history|record|records|timeline|care log)\b/iu.test(text)) return true;
-  if (/^(?:(?:please|also)\s+)?keep\b[\s\S]{0,100}\b(?:as|in)\b[\s\S]{0,40}\b(?:note|notes|history|record|records|timeline|care log)\b/iu.test(text)) return true;
+  const boundary = "(?:^|[.!?]\\s*)";
+  if (new RegExp(`${boundary}(?:(?:please|also)\\s+|i\\s+(?:just\\s+)?want\\s+(?:you\\s+)?to\\s+|(?:can|could|would|will)\\s+you\\s+)?(?:save|log|record|add|store)\\b`, "iu").test(text)) return true;
+  if (new RegExp(`${boundary}(?:(?:please|also)\\s+)?put\\b[\\s\\S]{0,100}\\b(?:note|notes|history|record|records|timeline|care log)\\b`, "iu").test(text)) return true;
+  if (new RegExp(`${boundary}(?:(?:please|also)\\s+)?keep\\b[\\s\\S]{0,100}\\b(?:as|in)\\b[\\s\\S]{0,40}\\b(?:note|notes|history|record|records|timeline|care log)\\b`, "iu").test(text)) return true;
   return false;
 }
 
 function spanishAuthorization(text: string) {
-  return /^(?:(?:por favor|también|tambien)\s+)?(?:guarda(?:lo|la)?|guárda(?:lo|la)?|registr(?:a|alo|ála)|anota|añade|agrega)\b/iu.test(text)
-    || /^(?:puedes|podrías|podrias)\s+(?:guardar|registrar|anotar|añadir|agregar)\b/iu.test(text);
+  return /(?:^|[.!?]\s*)(?:(?:por favor|también|tambien)\s+)?(?:guarda(?:lo|la)?|guárda(?:lo|la)?|registr(?:a|alo|ála)|anota|añade|agrega)\b/iu.test(text)
+    || /(?:^|[.!?]\s*)(?:puedes|podrías|podrias)\s+(?:guardar|registrar|anotar|añadir|agregar)\b/iu.test(text);
 }
 
 function frenchAuthorization(text: string) {
-  return /^(?:(?:s['’]il te plaît|s['’]il vous plaît|merci de)\s+)?(?:sauvegarde|enregistre|note|ajoute|consigne)\b/iu.test(text)
-    || /^(?:peux-tu|pouvez-vous)\s+(?:sauvegarder|enregistrer|noter|ajouter|consigner)\b/iu.test(text);
+  return /(?:^|[.!?]\s*)(?:(?:s['’]il te plaît|s['’]il vous plaît|merci de)\s+)?(?:sauvegarde|enregistre|note|ajoute|consigne)\b/iu.test(text)
+    || /(?:^|[.!?]\s*)(?:peux-tu|pouvez-vous)\s+(?:sauvegarder|enregistrer|noter|ajouter|consigner)\b/iu.test(text);
 }
 
 function germanAuthorization(text: string) {
-  return /^(?:(?:bitte)\s+)?(?:speicher(?:e)?|protokollier(?:e)?|notier(?:e)?|füg(?:e)?\s+.+\s+hinzu)\b/iu.test(text)
-    || /^(?:kannst du|können sie)\s+(?:speichern|protokollieren|notieren|hinzufügen)\b/iu.test(text);
+  return /(?:^|[.!?]\s*)(?:(?:bitte)\s+)?(?:speicher(?:e)?|protokollier(?:e)?|notier(?:e)?|füg(?:e)?\s+.+\s+hinzu)\b/iu.test(text)
+    || /(?:^|[.!?]\s*)(?:kannst du|können sie)\s+(?:speichern|protokollieren|notieren|hinzufügen)\b/iu.test(text);
 }
 
 function arabicAuthorization(text: string) {
-  return /^(?:(?:من فضلك|لو سمحت)\s+)?(?:احفظ|سجل|سجّل|دوّن|دون|أضف)\b/u.test(text)
-    || /^(?:هل يمكنك|ممكن)\s+(?:حفظ|تسجيل|تدوين|إضافة)\b/u.test(text);
+  return /(?:^|[.!?؟]\s*)(?:(?:من فضلك|لو سمحت)\s+)?(?:احفظ|سجل|سجّل|دوّن|دون|أضف)\b/u.test(text)
+    || /(?:^|[.!?؟]\s*)(?:هل يمكنك|ممكن)\s+(?:حفظ|تسجيل|تدوين|إضافة)\b/u.test(text);
 }
 
 function japaneseAuthorization(text: string) {
