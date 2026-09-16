@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { validateAskTask, taskMutationParameters, executeAskTask, attachTaskReceipts, resolvePendingTaskSubject } from '../app/lib/intelligence/ask-task-continuation.ts';
+import { validateAskTask, taskMutationParameters, executeAskTask, attachTaskReceipts, resolvePendingTaskSubject, restorePendingTaskTurns, wholeAskTaskQuestion } from '../app/lib/intelligence/ask-task-continuation.ts';
 const source={id:'source',role:'user',text:'so i gave him medicine yesterday',createdAt:'2026-09-15T01:00:00Z'};
 const context={currentMessage:'keep that as a note',conversationTurns:[source],owner:{userId:'owner'},eligiblePets:[{id:'pet',name:'Sable',user_id:'owner'},{id:'alien',name:'Other',user_id:'someone'}]};
 const proposal={intent:'save',sourceTurnId:'source',petName:'Sable'};
@@ -43,7 +43,7 @@ test('lost task acknowledgment replays unchanged parameters exactly once',async(
  const calls=[];
  const result=await executeAskTask(parameters,async(name,args)=>{
   calls.push({name,args});if(calls.length===1)throw Error('response lost after commit');
-  return {data:{status:'completed',entryId:'entry',petId:'pet'},error:null};
+  return {data:{id:'task',revision:1,status:'completed',entryId:'entry',petId:'pet'},error:null};
  });
  assert.equal(result.entryId,'entry');assert.equal(calls.length,2);assert.deepEqual(calls[0],calls[1]);
 });
@@ -63,4 +63,21 @@ test('pending subject completion is a provider-independent owned-entity lookup',
  assert.equal(resolvePendingTaskSubject({...context,pendingTask,currentMessage:'sable'}).petId,'pet');
  for(const currentMessage of ['Sable, and compare his history','Other','not Sable'])assert.equal(resolvePendingTaskSubject({...context,pendingTask,currentMessage}),null);
  assert.equal(resolvePendingTaskSubject({...context,currentMessage:'Sable'}),null,'a name alone does not invent a pending save');
+});
+
+test('mixed pending task preserves the original request and cannot use note-only shortcut',()=>{
+ const request={...source,id:'permission',text:'Save that and compare with the older history.'};
+ const pendingTask={id:'task',revision:1,kind:'owner_note',status:'awaiting_subject',source,request,requiresAnswer:true,authorizationMessageId:request.id};
+ assert.equal(resolvePendingTaskSubject({...context,pendingTask,currentMessage:'Sable'}),null);
+ const task=validateAskTask({intent:'resume',sourceTurnId:null,petName:'Sable',answerRequired:false},{...context,pendingTask});
+ assert.equal(task.requiresAnswer,true,'a planner flag cannot erase an existing obligation');
+ assert.equal(wholeAskTaskQuestion({currentMessage:'Sable',askInterpretation:{request:{task}}}),request.text+'\nFollow-up: Sable');
+ assert.deepEqual(restorePendingTaskTurns([],pendingTask).map(t=>t.id),['source','permission']);
+ assert.equal(restorePendingTaskTurns([source,request],pendingTask).length,2);
+});
+test('resuming the remaining answer retains its already-saved pet',()=>{
+ const pendingTask={id:'task',revision:2,kind:'owner_note',status:'awaiting_answer',source,requiresAnswer:true,petId:'pet',entryId:'entry',authorizationMessageId:'permission'};
+ const task=validateAskTask({intent:'resume',sourceTurnId:null,petName:null},{...context,pendingTask});
+ assert.equal(task.petId,'pet');assert.equal(task.requiresAnswer,true);
+ assert.equal(resolvePendingTaskSubject({...context,pendingTask,currentMessage:'Sable'}),null);
 });

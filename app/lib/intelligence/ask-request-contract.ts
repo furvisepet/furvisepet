@@ -444,8 +444,12 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
       needPlan.issues.push("unscoped_evidence_need");
     }
   }
+  const task = validateAskTask(p.task, { ...context, requiresAnswer: p.mode === "mixed" });
+  if (task?.requiresAnswer && task.petId && p.mode !== "mixed") return fail("task");
+  if (task?.intent === "resume" && task.requiresAnswer && context.pendingTask?.request
+    && !p.referenceTurnIds.includes(context.pendingTask.request.id)) return fail("task");
   const request: AskRequestContract = {
-    task: validateAskTask(p.task, context),
+    task,
     mutationIntent: !readOnly ? p.mutationIntent as AskRequestContract["mutationIntent"] : null,
     recordSelection: historical && readOnly ? p.recordSelection as AskRequestContract["recordSelection"] : null,
     profileFields: [...new Set(p.profileFields as string[])],

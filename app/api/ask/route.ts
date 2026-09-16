@@ -1,4 +1,4 @@
-import { attachTaskReceipts, executeAskTask, resolvePendingTaskSubject, taskMutationParameters, type PendingAskTask } from "../../lib/intelligence/ask-task-continuation.ts";
+import { attachTaskReceipts, executeAskTask, resolvePendingTaskSubject, restorePendingTaskTurns, taskMutationParameters, type PendingAskTask } from "../../lib/intelligence/ask-task-continuation.ts";
 import { isDeepStrictEqual } from "node:util";
 import { assessTaskExecution } from "../../lib/intelligence/task-execution-contract.ts";
 import { resolveOwnerNoteRequest } from "../../lib/intelligence/owner-note-request.ts";
@@ -481,7 +481,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
   const pendingTaskResult = await recoverTransientRead(signal => taskAuthority.rpc("read_ask_task_context", { p_user_id: userId, p_conversation_id: preparedRequest.conversationId, p_message_ids: liveContext.conversationTurns.map(turn => turn.id).slice(-64) }).abortSignal(signal), { attemptTimeoutMs: 3_000 });
   if (pendingTaskResult.error) return askFailure("DATABASE_ERROR", "Furvise could not check the unfinished request. Please try again.", 503);
   liveContext = { ...liveContext, pendingTask: pendingTaskResult.data?.pendingTask as PendingAskTask | null,
-    conversationTurns: attachTaskReceipts(liveContext.conversationTurns, pendingTaskResult.data?.receipts || [], petId),
+    conversationTurns: attachTaskReceipts(restorePendingTaskTurns(liveContext.conversationTurns, pendingTaskResult.data?.pendingTask), pendingTaskResult.data?.receipts || [], petId),
     currentTurn: liveContext.conversationTurns.find(turn => turn.id === preparedRequest.userMessageId) };
   reportOptionalContextRecovery(liveContext, requestId);
   recordContextRecoveryOnTurn(liveContext, turnLifecycle);
@@ -806,10 +806,10 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
           const receipt = ownerNotePersistence;
           execution.savedNoteResponse = () => completeOwnerNoteResponse({ preparedRequest, requestId, userId,
             petId: savedPetId, petName: liveContext.eligiblePets.find(pet => pet.id === savedPetId)?.name || "your pet",
-            receipt, usage, needsAnswer: interpretation.request?.mode === "mixed", emergency: immediateEmergency,
+            receipt, usage, needsAnswer: task.requiresAnswer, emergency: immediateEmergency,
             trace: turnLifecycle.snapshot() });
           revalidateAskStateViews([savedPetId]);
-          if (interpretation.request?.mode !== "mixed" || immediateEmergency) completedContinuation = execution.savedNoteResponse;
+          if (!task.requiresAnswer || immediateEmergency) completedContinuation = execution.savedNoteResponse;
         }
         if (completedContinuation || taskResult.status === "awaiting_subject" || taskResult.status === "cancelled") {
           if (creditReserved) {
@@ -821,7 +821,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
           turnLifecycle.route("clarification", "deterministic");
           const reply = buildSubjectClarificationOrchestration(question, liveContext.eligiblePets.map(pet => pet.name).filter((name): name is string => Boolean(name)));
           if (taskResult.status === "cancelled") {
-            reply.answer = { title: "Save cancelled", summary: "The pending note was not saved.", sections: [], safetyNote: null };
+            reply.answer = { title: "Save cancelled", summary: taskResult.entryId ? "The pending follow-up was cancelled. Your existing note is still saved." : "The pending note was not saved.", sections: [], safetyNote: null };
             reply.clarificationQuestion = "";
           }
           return reply;
@@ -1303,8 +1303,8 @@ async function completeOwnerNoteResponse(input: {
   const response = buildAskConversationResponse(guidance, { intent: "new_observation", urgent: Boolean(input.emergency), missingUsefulDetails: [], usedContextSummary: [] });
   if (!response) throw new Error("OWNER_NOTE_RECEIPT_SERIALIZATION_FAILED");
   const turn: AskTurnTrace = { ...input.trace, finalStage: "COMPLETED", mutationOutcome: "applied",
-    answerOutcome: input.needsAnswer && !input.emergency ? "limited" : "complete",
-    taskOutcome: input.needsAnswer && !input.emergency ? "limited" : "complete",
+    answerOutcome: input.needsAnswer ? "limited" : "complete",
+    taskOutcome: input.needsAnswer ? "limited" : "complete",
     creditState: input.trace.creditState === "not_reserved" ? "not_required" : input.trace.creditState,
     executionMode: input.trace.providerCallCount ? "ai" : "deterministic", routeType: "pet_care" };
   const canonical = { ...response, turn };

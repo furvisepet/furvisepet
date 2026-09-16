@@ -123,3 +123,30 @@ messages carry their own timezone metadata.
   splitting, corrections and other application actions retain their existing
   governed paths. Extend the task mechanism by operation category only after
   defining its authority and receipt contracts.
+
+
+## Follow-up integration audit
+
+The preview build and Security CI passed for the initial continuation revision
+(`8f6402b`). The review then found and fixed these additional boundaries:
+
+- A pending mixed task retains its original USER request and an independent
+  answer obligation. Resolving the pet cannot turn it into a note-only success.
+  Retrieval and both answer-review paths see that server-retained whole request,
+  not only a short subject reply or a model restatement.
+- A saved note with an unfinished answer remains `awaiting_answer`. The note
+  receipt and original question survive another turn or an answer failure.
+  Finalizing a reviewed complete assistant answer completes the task in the same
+  database transaction. Rolling back the answer also rolls back task completion.
+- Cancelling that remaining answer leaves the already-saved note intact and says
+  so. It cannot falsely claim that the note was never saved.
+- Superseding a pending task binds the new source to the new authorization.
+  Exact replay and receipt reads recheck current pet ownership.
+
+Validation now includes 31 disposable-PostgreSQL assertions and additional
+executable contract/route cases for mixed tasks and cancellation after a save.
+The production database remains unchanged. The connected deployment tools could
+not create access to the protected preview, no Supabase development branch
+exists, and no live model credential is available locally. Therefore the hosted
+migration, authenticated app flow and real-provider acceptance remain unverified.
+The successful build is not a substitute for these release gates.

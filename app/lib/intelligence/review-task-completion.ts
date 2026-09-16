@@ -1,3 +1,4 @@
+import { wholeAskTaskQuestion } from "./ask-task-continuation.ts";
 import { CLAIM_AUTHORITY_POLICY, CLAIM_REVIEW_POLICY } from "./claim-authority-policy.ts";
 import { matchesHistoryOutputFormat } from "./historical-read-response.ts";
 import { readPublicationFailure, canonicalReadPresentation } from "../ask-publication.ts";
@@ -121,7 +122,7 @@ export async function reviewTaskCompletion(input: {
     || ["urgent", "emergency"].includes(input.validation.response.intelligenceSafety.level)) return input.validation;
   const provider = input.client || new OpenAI({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 0 }) as unknown as NonNullable<typeof input.client>;
   const model = getAskModelConfiguration().primary;
-  const obligations = [input.context.currentMessage, ...request.requirements];
+  const obligations = [wholeAskTaskQuestion(input.context), ...request.requirements];
   let validation = input.validation;
   const scope = input.context.askInterpretation!;
   const petIds = scope.petIds;
