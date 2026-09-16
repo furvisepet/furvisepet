@@ -1,0 +1,18 @@
+export {
+  FURVISE_TURN_AUTHORITY_VERSION,
+  applySubjectClarification,
+  assertMutationCommitAllowed,
+  assertTurnAuthority,
+  canCommitMutation,
+  issueTurnAuthority,
+  type FurviseIntent,
+  type FurviseTurnAuthority,
+  type MemoryDepth,
+  type MutationAuthorization,
+  type MutationAuthorizationBasis,
+  type MutationAuthority,
+  type MutationKind,
+  type SubjectBasis,
+  type TurnAuthorityInput,
+  type TurnSubject,
+} from "./turn-authority.ts";
