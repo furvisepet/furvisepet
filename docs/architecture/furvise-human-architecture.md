@@ -61,28 +61,34 @@ Examples:
 - Billing can admit or reject work. It does not reinterpret the request.
 - The language model may reason and propose actions. A proposal is not authority.
 
-### 3. Reads may be probabilistic; writes are deterministic
+### 3. Reads may be probabilistic; writes require proof
 
-A natural-language interpretation may be uncertain. A database mutation may not be.
+Natural-language interpretation may be uncertain. A database mutation may not be.
 
-No write can occur unless the current authoritative turn contains explicit user authorization for that mutation class.
+A write requires server-verifiable user authorization for that mutation class. Authorization has explicit provenance:
+
+- `current_turn`: the current user message contains an affirmative command.
+- `transport`: an explicit product control, such as a Save action, supplied the authorization.
+- `durable_capability`: an earlier user turn was already verified as an authorization and the server retained that capability while waiting for missing information.
 
 The following are never write authorization by themselves:
 
 - subject clarification
 - selected-pet context
 - prior assistant wording
-- prior user wording
-- pending tasks
+- arbitrary prior user wording
+- the mere existence of a pending task
 - retrieved history
 - model inference
 - a suggestion that a note would be useful
+
+A durable capability is different from trusting prior prose: the server must be able to identify the exact user authorization turn and re-verify that it contained an affirmative command.
 
 ### 4. Clarification is field-local
 
 A clarification resolves only the missing field it was requested for.
 
-Example:
+Example without prior authorization:
 
 ```text
 User: he rolled down the hill yesterday
@@ -92,7 +98,7 @@ User: Pebble
 
 The second user turn may resolve `subject = Pebble`.
 
-It may not change:
+It may not create or change:
 
 - `intent`
 - `mutation.allowed`
@@ -100,11 +106,21 @@ It may not change:
 - `confirmation`
 - unrelated retrieval scope
 
-This invariant prevents subject clarification from turning into accidental persistence.
+This prevents `I mean Pebble` from becoming an accidental save command.
+
+A different flow is valid when the user already authorized an action:
+
+```text
+User: save that as a note
+Furvise: Which pet?
+User: Pebble
+```
+
+The final turn does not create permission. It supplies the missing subject to a previously verified durable capability.
 
 ### 5. Memory and action are separate systems
 
-Understanding or remembering a fact does not imply permission to store it permanently.
+Understanding or recalling a fact does not imply permission to create a permanent record.
 
 Furvise may understand:
 
@@ -112,13 +128,13 @@ Furvise may understand:
 
 without creating a care-history entry.
 
-Permanent storage requires its own current-turn authorization.
+Permanent storage requires verified write authority.
 
 ### 6. One final voice
 
 Organs return structured results to the brain. Only the brain publishes the final user-facing response.
 
-A subsystem must never independently return a contradictory completion such as "Note saved" when the authoritative turn did not authorize a write.
+A subsystem must never independently return a contradictory completion such as `Note saved` when no authorized write actually committed.
 
 ### 7. History behaves like an event ledger
 
@@ -126,7 +142,7 @@ Pet history remains correction-aware and append-oriented.
 
 Corrections, deletions, source changes, and lifecycle events are represented through lineage and authoritative projection rather than pretending old records never existed.
 
-The existing lifetime-history retrieval and evidence work should be preserved and moved behind the memory organ boundary rather than rewritten.
+The existing lifetime-history retrieval and evidence work should be preserved and moved behind the memory-organ boundary rather than rewritten.
 
 ### 8. Retry is a workflow concern, not a second attempt at meaning
 
@@ -165,17 +181,50 @@ RECEIVED
 
 Failures are explicit stage outcomes. A retry resumes or replays from durable state where safe.
 
+## Mutation capability lifecycle
+
+```text
+user message / product control
+        |
+        v
+verify authorization
+        |
+        +---- invalid ----> no capability, no write
+        |
+        v
+mint turn capability
+        |
+        +---- complete input ----> action gate ----> commit
+        |
+        +---- missing field -----> durable pending capability
+                                      |
+                                      v
+                              clarification fills field
+                                      |
+                                      v
+                              re-verify capability
+                                      |
+                                      v
+                                  action gate
+                                      |
+                                      v
+                                    commit
+```
+
+A pending object without valid authorization provenance is inert. It may not be resumed into a write.
+
 ## Migration strategy from current Ask
 
 The current Ask implementation contains valuable capabilities but overlapping decision makers. Migration is incremental:
 
 1. Introduce the canonical turn authority and mutation firewall.
-2. Route subject resolution through the canonical turn.
-3. Make interpretation/classification modules advisory inputs rather than independent authorities.
-4. Move lifetime retrieval behind a memory-organ interface.
-5. Move all writes behind the action-organ gate.
-6. Centralize response publication through one brain-owned finalizer.
-7. Reduce `app/api/ask/route.ts` to transport, admission, orchestration, and response delivery.
+2. Require server-verifiable authorization provenance for every current or resumed write.
+3. Route subject resolution through the canonical turn.
+4. Make interpretation/classification modules advisory inputs rather than independent authorities.
+5. Move lifetime retrieval behind a memory-organ interface.
+6. Move all writes behind the action-organ gate.
+7. Centralize response publication through one brain-owned finalizer.
+8. Reduce `app/api/ask/route.ts` to transport, admission, orchestration, and response delivery.
 
 No broad rewrite is required. Each stage can be migrated behind stable interfaces with regression coverage.
 
