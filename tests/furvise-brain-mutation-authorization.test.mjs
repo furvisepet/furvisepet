@@ -11,6 +11,7 @@ for (const message of [
   "keep that as a note",
   "please put that in his care record",
   "could you record what I just told you",
+  "Also add that she drank normally.",
   "guárdalo en sus notas",
   "記録に残して",
 ]) {
