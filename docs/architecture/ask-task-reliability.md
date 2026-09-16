@@ -218,3 +218,30 @@ Next: repair semantic source selection and distinguish task clarification from a
 independent answer obligation, rerun these failures plus held-out paraphrases,
 then run the authenticated app against the same revision and an isolated database.
 Manual testing on the current production app cannot validate this unmerged change.
+
+### Release correction
+
+The interpreter now receives a separate bounded list of full original USER note
+sources, independent of assistant reference dialogue. A new answer obligation
+requires an exact quote from the current or retained original USER request.
+Missing-pet clarification and save confirmation do not themselves create an
+answer obligation. The server preserves previously recorded mixed-task duties.
+
+Validated pure saves, cancellations and missing-subject tasks are compiled before
+unrelated history-plan validation. Resumed/prior-source tasks cannot create new
+semantic claims from a repeated assistant draft. Multi-pet write destinations must
+be named in the source or subsequent USER clarification; otherwise the task stays
+unresolved. A no-save acknowledgment never acquires a history scope from dialogue.
+
+Expanded real-model results are in `ask-continuation-live-release-results.json`:
+17/18 passed in the expanded run; the remaining no-save conversation passed a
+focused live retest after correcting scope handling. The extra draft scenario
+explicitly requests saving; merely editing draft wording is not write permission.
+These results cover interpretation, not the full authenticated app flow.
+
+The reviewed task migration was applied to the hosted project with deployment
+authorization. Its write RPC is executable by service_role and denied to the
+authenticated browser role. The authenticated HTTP smoke test uses only a newly
+created synthetic account and an admin-issued one-time login, never an owner's
+session; it signs out and deletes the test account afterward. Password CAPTCHA
+remains enabled and is outside this smoke test.

@@ -50,3 +50,21 @@ test('whole-request validation rejects a resumed mixed task recast as only savin
  proposal.mode='mixed';proposal.referenceTurnIds=['authorization'];proposal.question=request.text;
  assert.equal(validateAskRequest(proposal,context).request.task.requiresAnswer,true);
 });
+
+test('source-bound cancellation ignores unrelated advisory read scope',()=>{
+ const source={id:'source',role:'user',text:'Sable rested in the hammock.',createdAt:'2026-09-15T12:00:00Z'};
+ const context={owner:{userId:'owner'},pet:{id:'pet',name:'Sable',user_id:'owner'},eligiblePets:[{id:'pet',name:'Sable',user_id:'owner'}],currentMessage:"Don't keep it.",conversationTurns:[source],pendingTask:{id:'task',revision:1,kind:'owner_note',status:'awaiting_subject',requiresAnswer:false,source,authorizationMessageId:'request'}};
+ const proposal=requestProposal({operation:'general',subject:'selected',petNames:['Sable'],topic:'owner note',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,evidenceBasis:'general',task:{intent:'cancel',sourceTurnId:'source',petName:null,answerRequest:null}},context.currentMessage);
+ proposal.mode='conversation';proposal.referenceTurnIds=['invalid-advisory-reference'];
+ const result=validateAskRequest(proposal,context);
+ assert.equal(result.request.task.intent,'cancel');assert.deepEqual(result.petIds,[]);assert.equal(result.history,null);
+});
+
+test('declining a save cannot be reanchored into a pet-history conversation',()=>{
+ const source={id:'source',role:'user',text:'Sable rested in the hammock.',createdAt:'2026-09-15T12:00:00Z'};
+ const context={owner:{userId:'owner'},pet:{id:'pet',name:'Sable',user_id:'owner'},eligiblePets:[{id:'pet',name:'Sable',user_id:'owner'}],currentMessage:'Please do not save that.',conversationTurns:[source]};
+ const proposal=requestProposal({operation:'general',subject:'selected',petNames:['Sable'],topic:'owner note',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,evidenceBasis:'general'},context.currentMessage);
+ proposal.mode='conversation';
+ const result=validateAskRequest(proposal,context);
+ assert.equal(result.request.task,null);assert.deepEqual(result.petIds,[]);assert.equal(result.history,null);assert.equal(result.readOnly,true);
+});

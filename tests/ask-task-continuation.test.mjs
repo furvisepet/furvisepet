@@ -4,6 +4,15 @@ import { validateAskTask, taskMutationParameters, executeAskTask, attachTaskRece
 const source={id:'source',role:'user',text:'so i gave him medicine yesterday',createdAt:'2026-09-15T01:00:00Z'};
 const context={currentMessage:'keep that as a note',conversationTurns:[source],owner:{userId:'owner'},eligiblePets:[{id:'pet',name:'Sable',user_id:'owner'},{id:'alien',name:'Other',user_id:'someone'}]};
 const proposal={intent:'save',sourceTurnId:'source',petName:'Sable'};
+test('answer obligations need an exact current-user request, not a clarification flag',()=>{
+ const currentTurn={...source,id:'current',text:'Save that and compare with his older notes.'};
+ const input={...context,currentTurn,currentMessage:currentTurn.text};
+ assert.equal(validateAskTask({...proposal,answerRequest:null},{...input,requiresAnswer:true}).requiresAnswer,false);
+ assert.equal(validateAskTask({...proposal,answerRequest:{turnId:'current',quote:'compare with his older notes'}},input).requiresAnswer,true);
+ for(const answerRequest of [{turnId:'assistant',quote:'compare with his older notes'}, {turnId:'current',quote:'Invented question'}, {turnId:'source',quote:source.text}]) {
+  assert.throws(()=>validateAskTask({...proposal,answerRequest},input),/ASK_REQUEST_INVALID:task/);
+ }
+});
 for(const message of ['keep that as a note','save it, please','please put that in his care record','could you record what I just told you','guárdalo en sus notas','記録に残して']) {
  test(`validated semantic note intent has no wording-dependent execution: ${message}`,()=>{
   const task=validateAskTask(proposal,{...context,currentMessage:message});
@@ -80,4 +89,10 @@ test('resuming the remaining answer retains its already-saved pet',()=>{
  const task=validateAskTask({intent:'resume',sourceTurnId:null,petName:null},{...context,pendingTask});
  assert.equal(task.petId,'pet');assert.equal(task.requiresAnswer,true);
  assert.equal(resolvePendingTaskSubject({...context,pendingTask,currentMessage:'Sable'}),null);
+});
+
+test('multi-pet current source without a user-named destination remains unresolved',()=>{
+ const currentTurn={...source,id:'current',text:'One of my dogs rested in the hammock. Save it.'};
+ const result=validateAskTask({intent:'save',sourceTurnId:'current',petName:'Sable',answerRequest:null},{...context,currentMessage:currentTurn.text,currentTurn,conversationTurns:[],eligiblePets:[{id:'pet',name:'Sable',user_id:'owner'},{id:'other',name:'Rowan',user_id:'owner'}]});
+ assert.equal(result.petId,null);
 });

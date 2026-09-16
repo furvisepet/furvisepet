@@ -122,9 +122,35 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (!Array.isArray(p.profileFields) || p.profileFields.some(field => !askRequestSchema({}).properties.profileFields.items.enum.includes(String(field))) || p.profileFields.length > 14) return fail("profile_fields");
   if (![null, "historical", "current", "historical_and_current"].includes(p.temporalScope as null | string)) return fail("temporal_scope");
   if (![null, "correct_record"].includes(p.mutationIntent as null | string)) return fail("mutation_intent");
+  const task = validateAskTask(ownerDeclinesPersistence(context.currentMessage) && !context.pendingTask ? null : p.task, { ...context, requiresAnswer: p.mode === "mixed" });
+  if (task && task.intent !== "cancel" && p.mode === "mixed" && !task.requiresAnswer) return fail("task");
+  if (task?.requiresAnswer && task.petId && p.mode !== "mixed") return fail("task");
+  // A source-bound save/cancel or a missing-subject task needs no history plan.
+  // Compile its scope from the validated task instead of letting unrelated
+  // advisory read fields reject a valid operation or introduce new authority.
+  if (task && p.mutationIntent === null && (!task.requiresAnswer || !task.petId)) {
+    const cancelling = task.intent === "cancel";
+    const mode = cancelling ? "conversation" : task.petId ? "update" : "clarify";
+    return { version: "ask-interpretation.v1", operation: cancelling ? "general" : task.petId ? "update" : "clarify",
+      readOperation: null, petIds: task.petId ? [task.petId] : [], topic: "owner note", history: null,
+      episodeTopic: null, ordinal: null, readOnly: cancelling, clarification: !cancelling && !task.petId ? "subject" : null,
+      frame: emptyProposedSemanticFrame(), request: { version: ASK_REQUEST_VERSION, task, mode,
+        question: context.currentMessage, requirements: p.requirements, referenceTurnIds: [],
+        quantity: null, evidenceBasis: null, outputFormat: null } };
+  }
+  if (task && task.source.id !== context.currentTurn?.id && ["update", "mixed"].includes(String(p.mode))) p.frame = emptyProposedSemanticFrame();
   // An observation can inform an answer without permission to save it. Strip
   // advisory write mode before frame validation and all downstream governance.
   const persistenceDeclined = ownerDeclinesPersistence(context.currentMessage);
+  if (persistenceDeclined && !context.pendingTask && p.mode === "conversation" && p.evidenceBasis === "general") {
+    // A refusal/acknowledgment does not read pet data. Discard advisory pet scope
+    // rather than turning a no-write conversation into a failed read contract.
+    return { version: "ask-interpretation.v1", operation: "general", readOperation: "general", conversationOnly: true,
+      petIds: [], topic: "general conversation", history: null, episodeTopic: null, ordinal: null, readOnly: true,
+      clarification: null, frame: emptyProposedSemanticFrame(), request: { version: ASK_REQUEST_VERSION, task: null,
+        mode: "conversation", question: context.currentMessage, requirements: [], referenceTurnIds: [],
+        quantity: null, evidenceBasis: "general", outputFormat: null } };
+  }
   const declinedObservationUpdate = persistenceDeclined && ["update", "mixed"].includes(String(p.mode));
   if (declinedObservationUpdate) {
     p.mode = "read";
@@ -444,7 +470,6 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
       needPlan.issues.push("unscoped_evidence_need");
     }
   }
-  const task = validateAskTask(p.task, { ...context, requiresAnswer: p.mode === "mixed" });
   if (task?.requiresAnswer && task.petId && p.mode !== "mixed") return fail("task");
   if (task?.intent === "resume" && task.requiresAnswer && context.pendingTask?.request
     && !p.referenceTurnIds.includes(context.pendingTask.request.id)) return fail("task");

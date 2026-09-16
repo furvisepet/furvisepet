@@ -46,14 +46,22 @@ const cases=[
  {id:'mixed-subject-continuation',turns:[sourceNamed,request],pendingTask:{...pending,requiresAnswer:true},text:'Sable',intent:'resume',source:'source',pet:'sable',answer:true},
  {id:'answer-outage-resume',turns:[sourceNamed,request],pendingTask:{...pending,status:'awaiting_answer',requiresAnswer:true,petId:'sable',entryId:'entry'},text:'Continue the comparison.',intent:'resume',source:'source',pet:'sable',answer:true},
 ];
-const report={scope:'Live interpreter only; not browser, final answer, persistence or billing acceptance',model,maxCalls:24,calls:0,inputTokens:0,outputTokens:0,results:[]};
+cases.push(
+ {id:'held-out-source-after-name',turns:[turn('source','he played with the towel for a few minutes'),turn('pet','Rowan')],text:'put what i mentioned in his log please',intent:'save',source:'source',pet:'rowan'},
+ {id:'held-out-source-after-draft',turns:[turn('source','Atlas skipped the ramp today.'),turn('assistant','Draft: Atlas has a joint injury.','furvise')],text:'save my original words as a note',intent:'save',source:'source',pet:'atlas'},
+ {id:'held-out-missing-subject',turns:[],text:'One of my dogs spent ten minutes in the hammock. Record it.',intent:'save',source:'current',pet:null},
+ {id:'held-out-missing-mixed',turns:[],text:'One of my dogs spent ten minutes in the hammock. Record it and compare with the older notes.',intent:'save',source:'current',pet:null,answer:true},
+ {id:'held-out-no-save',turns:[sourceNamed],text:'Please do not save that.',intent:null},
+ {id:'held-out-simple-note',turns:[],text:'Juniper rested beside the window today. Keep that in her notes.',intent:'save',source:'current',pet:'juniper'}
+);
+const report={scope:'Live interpreter only; not browser, final answer, persistence or billing acceptance',model,maxCalls:36,calls:0,inputTokens:0,outputTokens:0,results:[]};
 const save=()=>writeFileSync(new URL('../../docs/architecture/ask-continuation-interpreter-results.json',import.meta.url),JSON.stringify(report,null,2)+'\n');
 const ids=process.argv.find(arg=>arg.startsWith('--ids='))?.slice(6).split(',');
 const selected=cases.filter(c=>!ids||ids.includes(c.id));
 assert.ok(selected.length,'No matching scenarios');
 for(const c of selected){
  const result={id:c.id,status:'running',events:[]};report.results.push(result);save();
- const admission={async beginProviderCall(input){assert.ok(report.calls<24);assert.ok(input.maxOutputTokens<=4096);assert.ok(Buffer.byteLength(JSON.stringify(input.input))<60000);report.calls++;save();return {reservation:{}};},async recordProviderUsage(_r,_m,usage){report.inputTokens+=usage.inputTokens;report.outputTokens+=usage.outputTokens;save();},recordProviderFailure(){}};
+ const admission={async beginProviderCall(input){assert.ok(report.calls<36);assert.ok(input.maxOutputTokens<=4096);assert.ok(Buffer.byteLength(JSON.stringify(input.input))<60000);report.calls++;save();return {reservation:{}};},async recordProviderUsage(_r,_m,usage){report.inputTokens+=usage.inputTokens;report.outputTokens+=usage.outputTokens;save();},recordProviderFailure(){}};
  try {
   const context={owner:{userId:'synthetic-owner'},eligiblePets:pets,pet:pets[0],currentMessage:c.text,currentTurn:turn('current',c.text),conversationTurns:c.turns,timeZone:'UTC',pendingTask:c.pendingTask||null};
   const output=await runWithAiAdmission(admission,()=>interpretAskQuestion({context,model,client:{responses:{create:(r,o)=>provider.responses.create({...r,store:false},o)}},onProviderEvent:e=>result.events.push(e)}));
