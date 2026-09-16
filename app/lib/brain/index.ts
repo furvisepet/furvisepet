@@ -16,3 +16,8 @@ export {
   type TurnAuthorityInput,
   type TurnSubject,
 } from "./turn-authority.ts";
+
+export {
+  isExplicitOwnerNoteMutationAuthorization,
+  retainedOwnerNoteAuthorization,
+} from "./mutation-authorization.ts";
