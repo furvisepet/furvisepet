@@ -19,7 +19,7 @@ const proposal = patch => ({ version: ASK_REQUEST_VERSION, mode: 'read', questio
   operation: 'recall', selection: 'summary', quantity: null, topic: 'observations', terms: [],
   from: null, to: null, episodeTopic: null, ordinal: null, frame: emptyProposedSemanticFrame(), ...patch });
 
-test('a positive review cannot publish a routine observation as the requested transition',async t=>{
+test('missing event candidates return a server limitation without generation or review calls',async t=>{
  clock(t);
  const text='The latest change was that Aster spent eight minutes on the mat.';
  const r=await exercise('What was the latest routine change I recorded?',{
@@ -27,7 +27,7 @@ test('a positive review cannot publish a routine observation as the requested tr
   rows:[care('routine-only','milo','2026-06-04','behavior','Aster spent eight minutes on the usual mat.')],
   interpretationProposal:proposal({selection:'latest',terms:['routine','change']}),
   providerOverrides:{answer:text,historyNarrative:{sentences:[{text,sourceIds:['care:routine-only']}]}},
-  reviewResponse:{approved:true},expectedReviewCalls:1,
+  reviewResponse:{approved:true},expectedReviewCalls:0,expectedProviderCalls:0,
  });
  assert.match(r.result.reasoning.answer.summary,/couldn’t verify the specific event/);
  assert.doesNotMatch(r.result.reasoning.answer.summary,/latest change|eight minutes/);

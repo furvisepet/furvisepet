@@ -110,3 +110,5 @@ export function historyCompletionLimits(evidence?: AskEvidenceContract | null): 
   if (evidence.history?.eventCandidateIds?.length === 0) reasons.push("requested_transition_not_retrieved");
   return reasons;
 }
+
+export const UNVERIFIED_EVENT_LIMITATION = "I couldn’t verify the specific event you asked about from the records retrieved for this answer. That doesn’t establish that it never happened.";

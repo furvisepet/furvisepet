@@ -89,6 +89,10 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   recordHistoryReviewDiagnostic(result, "declined", "review_not_completed");
   const evidence = result.evidenceContract;
   const sharedRequest = evidence?.interpretation?.request;
+  // Final validation replaces this case with a server-owned uncertainty
+  // statement. There is no factual draft to approve or repair.
+  if (sharedRequest?.mode === "read" && evidence?.scope.readOnlyRecall && evidence.history?.eventCandidateIds?.length === 0)
+    return decline("requested_transition_not_retrieved");
   // An inaccessible interval is a server capability boundary. Model approval
   // cannot replace its authoritative limitation with an empty-history claim.
   if (!sharedRequest && evidence?.historyAccess && evidence.history?.reasons.includes("requested_period_outside_subscription_window")) return decline("subscription_scope_unavailable");
