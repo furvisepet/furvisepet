@@ -1,4 +1,5 @@
 import "server-only";
+import { calendarDateInZone } from "../ask-time-zone.ts";
 import OpenAI from "openai";
 import { withProviderDeadline } from "../ai/execution-deadline.ts";
 import { interpretStructuredProviderResponse } from "../ai/ask-provider.ts";
@@ -80,7 +81,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
   client?: { responses: { create: (request: Record<string, unknown>, options?: { signal: AbortSignal }) => Promise<Record<string, unknown>> } };
 }): Promise<AskInterpretation> {
   const state = buildRecentSubjectState({ pets: context.eligiblePets.filter(pet => pet.user_id === context.owner.userId), selectedPetId: context.pet.id, recentConversation: context.conversationTurns });
-  const input = { pendingTask: context.pendingTask || null, currentTurn: context.currentTurn || null, timeZone: context.timeZone || "UTC", conversationSubject: state.entities.find(entity => entity.key === state.currentFocusKey)?.label || null, currentMessage: context.currentMessage, today: new Date().toISOString().slice(0, 10),
+  const input = { pendingTask: context.pendingTask || null, currentTurn: context.currentTurn || null, timeZone: context.timeZone || "UTC", conversationSubject: state.entities.find(entity => entity.key === state.currentFocusKey)?.label || null, currentMessage: context.currentMessage, today: calendarDateInZone(new Date().toISOString(), context.timeZone),
     ownerNoteSources: [...context.conversationTurns, context.pendingTask?.source, context.currentTurn]
       .filter((turn, index, turns) => turn?.role === "user" && turns.findIndex(other => other?.id === turn.id) === index)
       .slice(-ASK_INTERPRETATION_LIMITS.turns - 1).map(turn => ({ id: turn!.id, text: turn!.text })),
