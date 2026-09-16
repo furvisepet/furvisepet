@@ -213,7 +213,10 @@ test("migration removes client release authority and enforces database identity/
   assert.ok(claim >= 0 && replay > claim, "persisted answers replay only after canonical payload claim");
   const settlement = askRoute.slice(askRoute.indexOf('const incompleteRead ='), askRoute.indexOf('let intelligencePersistence:'));
   assert.match(settlement, /scope.readOnlyRecall === true/);
-  assert.match(settlement, /assessment.outcome !== "complete"/);
+  assert.match(settlement, /shouldReleaseAskCredit\(intelligenceResult/);
+  const creditPolicy = readFileSync("app/lib/ai/ask-admission-settlement.ts", "utf8");
+  assert.match(creditPolicy, /assessment.outcome !== "complete"/);
+  assert.match(creditPolicy, /responseMode === "clarification"/);
   assert.match(settlement, /if \(creditReserved && incompleteRead\)[\s\S]*safeReleaseAiCredit[\s\S]*else if \(creditReserved\)[\s\S]*disposition: "complete"/);
   assert.doesNotMatch(settlement.slice(settlement.indexOf('else if (creditReserved)')), /safeReleaseAiCredit/);
 });
