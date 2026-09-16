@@ -356,3 +356,39 @@ test('navigation claim cleanup preserves explanation and does not bless write cl
  assert.equal(removeNavigationExecutionClaims('I have opened the history page. A note is an observation; an episode groups related observations.'),'A note is an observation; an episode groups related observations.');
  assert.equal(containsUnverifiedStateClaim(removeNavigationExecutionClaims('I have saved the note.')),true);
 });
+
+for (const mode of ['answer', 'clarification']) test(`vague medicine observation publishes an independent clarification without a write: ${mode}`, async () => {
+ const {rememberReviewedTaskPresentation,reviewedTaskPresentationFailure}=await import('../../app/lib/intelligence/ask-evidence-presentation.ts');
+ const {buildAskConversationResponse,parseAskConversationResponse}=await import('../../app/lib/ask.mjs');
+ const ctx={...context,currentMessage:'I give him medicine  yesterday',askInterpretation:{...context.askInterpretation,readOnly:false,request:{...context.askInterpretation.request,requirements:[]}}};
+ const r=response('What medicine did you give him, and how much?',[{...action,input:{...action.input,detail:'Owner reports giving medicine yesterday.'}}]);
+ r.responseMode=mode;r.evidenceContract={};
+ const verdict={verification:verification(),obligations:[{index:0,status:'needs_information',answerIndexes:[0],actionIndexes:[]}],reason:'Medicine and amount are unknown.'};
+ const seen=[];
+ const result=await reviewTaskCompletion({validation:validation(r),context:ctx,requestId:'medicine',validate:validation,client:mock([verdict],seen)});
+ assert.deepEqual(result.response.applicationActions,[]);
+ assert.equal(result.assessment.outcome,'limited');
+ const displayed=parseAskConversationResponse(buildAskConversationResponse(result.response.answer,{applicationActions:[],clarificationQuestion:mode==='clarification'?r.answer.summary:null}));
+ assert.equal(reviewedTaskPresentationFailure(r.evidenceContract,displayed,[]),null);
+ assert.ok(reviewedTaskPresentationFailure(r.evidenceContract,displayed,[{kind:'care_history.add',petId:pet.id,input:action.input}]));
+ assert.equal(JSON.parse(seen[0].input).actions.length,mode==='clarification'?0:1);
+});
+test('limited completion cannot silently discard an action supporting its answer',async()=>{
+ const ctx={...context,currentMessage:'Save the medicine note and explain the dose.',askInterpretation:{...context.askInterpretation,request:{...context.askInterpretation.request,requirements:[]}}};
+ const verdict={verification:verification(),obligations:[{index:0,status:'needs_information',answerIndexes:[0],actionIndexes:[0]}],reason:'Dose unknown.'};
+ await assert.rejects(reviewTaskCompletion({validation:validation(response('What amount was given?',[action])),context:ctx,requestId:'dependent',validate:validation,client:mock([verdict])}),/ASK_TASK_LIMITED_ACTION_DEPENDENCY/);
+});
+test('medicine clarification survives full intelligence suppression and final publication',async t=>{
+ clock(t);
+ const message='I give him medicine  yesterday';
+ const r=await exercise(message,{rows:[],answer:'What medicine did you give him, and how much?',
+  providerOverrides:{applicationActions:[{...action,evidence:message,input:{...action.input,detail:'Owner reports giving medicine yesterday.'}}]},
+  prepareContext:ctx=>{ctx.askInterpretation={...context.askInterpretation,readOnly:false,history:null,request:{...context.askInterpretation.request,question:message,requirements:[]}};},
+  taskReviewProviderResponse:async request=>({status:'completed',output_text:JSON.stringify({verification:verification(),obligations:JSON.parse(request.input).obligations.map((_,index)=>({index,status:'needs_information',answerIndexes:[0],actionIndexes:[]})),reason:'Missing medicine and amount.'}),usage:{input_tokens:10,output_tokens:10}})
+ });
+ assert.equal(r.publication.failure,null);
+ assert.match(r.publication.displayed.summary,/What medicine/);
+ assert.deepEqual(r.result.reasoning.applicationActions,[]);
+ assert.equal(r.result.acceptedCareActions.length,0);
+ assert.equal(r.result.acceptedSemanticEvents.length,0);
+});

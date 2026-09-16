@@ -14,7 +14,7 @@ import { prepareFurviseApplicationActions } from "../application-actions/planner
 import { actionCanAutoExecute } from "../application-actions/policy.ts";
 import { isExplicitCareHistorySaveRequest } from "./care-history-policy.ts";
 import { containsUnverifiedStateClaim, removeNavigationExecutionClaims } from "../application-actions/state-claims.ts";
-import { createAnswerAssessment, type CheckStatus } from "./answer-assessment.ts";
+import { createAnswerAssessment, reviewedTaskReadyForExecution, type CheckStatus } from "./answer-assessment.ts";
 import { rememberReviewedTaskPresentation } from "./ask-evidence-presentation.ts";
 import { answerIntegrityFailure } from "../answer-integrity.ts";
 import type { AnswerValidationResult } from "./validation/validate-answer.ts";
@@ -157,6 +157,9 @@ export async function reviewTaskCompletion(input: {
   };
   for (let attempt = 0; attempt < 2; attempt++) {
     const response = validation.response;
+    // Clarifications cannot display action cards. Review the same action-free
+    // presentation the renderer will publish, rather than approving hidden work.
+    if (response.responseMode === "clarification") response.applicationActions = [];
     const actions = prepare(response);
     const pendingEvents = pending();
     const pendingCareActions = isExplicitCareHistorySaveRequest(input.context.currentMessage) ? input.pendingCareActions || [] : [];
@@ -197,8 +200,26 @@ export async function reviewTaskCompletion(input: {
     if (snapshot !== JSON.stringify({ answer: response.answer, actions: prepare(response), evidence: response.evidenceContract, pendingEvents: pending(), pendingCareActions: isExplicitCareHistorySaveRequest(input.context.currentMessage) ? input.pendingCareActions || [] : [] })) throw taskFailure("ASK_TASK_REVIEW_BODY_CHANGED");
     if (!reviewed && attempt) throw taskFailure("ASK_TASK_REVIEW_INVALID_" + reviewFailure);
     if (reviewed?.accepted && !emptyAnswer && !formatFailure && !containsUnverifiedStateClaim(body) && !readPublicationFailure(body) && !automaticSaveWordingFailure) {
-      rememberReviewedTaskPresentation(response.evidenceContract, response.answer, actions);
-      return { ...validation, completion: reviewed.completion.map(item => ({ index: item.index, status: item.status, sentenceIndexes: [...item.answerIndexes], actionIndexes: [...item.actionIndexes], sourceIds: [] })), assessment: createAnswerAssessment({ body: response.answer, evidence: response.evidenceContract || null,
+      const reviewChecks = { ...validation.assessment.checks,
+        ...Object.fromEntries(verificationKeys.map(key => [key, reviewed.verification[key].status])) };
+      const suppressMutations = !reviewed.complete && !reviewedTaskReadyForExecution(reviewed.completion, reviewChecks);
+      let publishedActions = actions;
+      let completion = reviewed.completion;
+      if (suppressMutations) {
+        const retained = actions.flatMap((action, index) => action.kind.startsWith("navigation.")
+          || ["pet.read", "memory.list", "care_history.query"].includes(action.kind) ? [index] : []);
+        // Only independent, reviewed prose survives a deferred write. Never
+        // silently remove an action that the reviewer used to satisfy a task.
+        if (completion.some(item => item.actionIndexes.some(index => !retained.includes(index)))) {
+          throw taskFailure("ASK_TASK_LIMITED_ACTION_DEPENDENCY");
+        }
+        publishedActions = retained.map(index => actions[index]);
+        completion = completion.map(item => ({ ...item, actionIndexes: item.actionIndexes.map(index => retained.indexOf(index)) }));
+        response.applicationActions = response.applicationActions.filter(action => action.kind.startsWith("navigation.")
+          || ["pet.read", "memory.list", "care_history.query"].includes(action.kind));
+      }
+      rememberReviewedTaskPresentation(response.evidenceContract, response.answer, publishedActions);
+      return { ...validation, completion: completion.map(item => ({ index: item.index, status: item.status, sentenceIndexes: [...item.answerIndexes], actionIndexes: [...item.actionIndexes], sourceIds: [] })), assessment: createAnswerAssessment({ body: response.answer, evidence: response.evidenceContract || null,
         checks: { ...validation.assessment.checks,
           ...Object.fromEntries(verificationKeys.map(key => [key, validation.assessment.checks[key] === "failed"
             ? "failed" : reviewed.verification[key].status])), taskCompletion: reviewed.complete ? "passed" : "failed" },
