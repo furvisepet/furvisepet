@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { shouldReleaseAskCredit } from "../app/lib/ai/ask-admission-settlement.ts";
 
 import {
   hashAiCreditPayload,
@@ -17,6 +18,15 @@ const attemptB = "30000000-0000-4000-8000-000000000002";
 const petId = "40000000-0000-4000-8000-000000000001";
 const payload = { conversationId: "50000000-0000-4000-8000-000000000001", locale: "en", petId, question: "Is she okay?" };
 const payloadHash = hashAiCreditPayload("ask", payload);
+
+for (const responseMode of ['clarification','conversational']) test(`credit settlement for a reviewed ${responseMode}`,async()=>{
+  const ledger=new SettlementLedger();await reserve(ledger,attemptA);
+  const release=shouldReleaseAskCredit({responseMode,readOnlyRecall:false,assessment:{outcome:'complete',checks:{taskCompletion:'passed'}}});
+  await decide(ledger,attemptA,release?'release':'complete');
+  await reconcile(ledger,attemptA);
+  assert.equal(ledger.events.get(attemptA).status,responseMode==='clarification'?'released':'completed');
+  assert.equal(ledger.events.get(attemptA).credits,responseMode==='clarification'?0:1);
+});
 
 test("persisted chargeable answer survives terminal RPC failure because MUST_COMPLETE is durable", async () => {
   const ledger = new SettlementLedger({ reconcileFailures: 1 });

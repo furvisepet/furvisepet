@@ -376,7 +376,7 @@ for (const mode of ['answer', 'clarification']) test(`vague medicine observation
 test('limited completion cannot silently discard an action supporting its answer',async()=>{
  const ctx={...context,currentMessage:'Save the medicine note and explain the dose.',askInterpretation:{...context.askInterpretation,request:{...context.askInterpretation.request,requirements:[]}}};
  const verdict={verification:verification(),obligations:[{index:0,status:'needs_information',answerIndexes:[0],actionIndexes:[0]}],reason:'Dose unknown.'};
- await assert.rejects(reviewTaskCompletion({validation:validation(response('What amount was given?',[action])),context:ctx,requestId:'dependent',validate:validation,client:mock([verdict])}),/ASK_TASK_LIMITED_ACTION_DEPENDENCY/);
+ await assert.rejects(reviewTaskCompletion({validation:validation(response('What amount was given?',[action])),context:ctx,requestId:'dependent',validate:validation,client:mock([verdict,{answer:'What amount was given?',navigation:null},verdict])}),/ASK_TASK_REVIEW_INVALID_LIMITATION_ACTION_DEPENDENCY/);
 });
 test('medicine clarification survives full intelligence suppression and final publication',async t=>{
  clock(t);

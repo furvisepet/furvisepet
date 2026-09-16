@@ -3,6 +3,12 @@ import type { AiOperationAdmission } from "./usage-guard/admission.ts";
 
 type ErrorLogger = (stage: string, error: unknown, context: Record<string, unknown>, status: number) => void;
 
+/** Clarification is part of completing the owner's request, not a paid answer. */
+export function shouldReleaseAskCredit(input: { responseMode: string; readOnlyRecall: boolean; assessment: AnswerAssessment } | null): boolean {
+  return Boolean(input && (input.responseMode === "clarification"
+    || ((input.readOnlyRecall || input.assessment.checks.taskCompletion === "failed") && input.assessment.outcome !== "complete")));
+}
+
 /** Admission records assessed answer success, separately from delivery and billing. */
 export function createAskAdmissionSettlement(logAskServerError: ErrorLogger) {
   async function failAiAdmission(
