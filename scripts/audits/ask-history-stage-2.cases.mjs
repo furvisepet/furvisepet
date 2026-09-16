@@ -340,7 +340,8 @@ test('multi-pet saturated candidate pages retain bounded mandatory coverage meta
   assert.ok(run.serialized.length <= ASK_PROMPT_CONTEXT_CHAR_BUDGET);
   assert.match(run.result.reasoning.answer.summary, /incomplete/);
   assert.equal(run.prompt.evidenceContract.history.perPet.length, 3);
-  assert.ok(run.prompt.evidenceContract.losses.some(loss => loss.reason === 'prompt_budget'));
+  assert.ok(run.prompt.evidenceContract.losses.some(loss => loss.reason === 'prompt_budget')
+    || run.prompt.evidenceContract.lossGroups?.some(group => group.reason === 'prompt_budget' && group.lossCount > 0));
   t.diagnostic(`saturated multi-pet mock queries=${run.queries.length}, serialized input chars=${run.serialized.length}`);
 });
 

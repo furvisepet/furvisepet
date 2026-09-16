@@ -61,3 +61,44 @@ test('auth recovery uses the same payload and idempotency key through the real c
  assert.equal(calls[0].key,calls[1].key);assert.equal(calls[0].signal,calls[1].signal);
  assert.deepEqual(calls.map(c=>c.token),['Bearer old','Bearer fresh']);
 });
+test('lost response recovers the durable answer without replaying the POST',async()=>{
+ const s=setup();let sends=0,reads=0;
+ const r=await requestAskWithSession(s.auth,async()=>{sends++;throw new TypeError('Failed to fetch');},new AbortController().signal,
+ async token=>{reads++;assert.equal(token,'old');return Response.json({success:true,requestId:'original'});});
+ assert.equal((await r.json()).requestId,'original');assert.equal(sends,1);assert.equal(reads,1);
+});
+test('provider and active-request responses only permit read-only recovery',async()=>{
+ for(const [status,code] of [[503,'ANSWER_RETRYABLE'],[409,'ANSWER_ALREADY_ACTIVE'],[409,'REQUEST_IN_PROGRESS']]){
+  const s=setup();let sends=0,reads=0;
+  const r=await requestAskWithSession(s.auth,async()=>{sends++;return response(status,code);},new AbortController().signal,
+   async()=>{reads++;return Response.json({success:true});});
+  assert.equal(r.status,200);assert.equal(sends,1);assert.equal(reads,1);
+ }
+});
+test('read-only polling stops after three attempts and preserves the original error',async()=>{
+ const s=setup();let sends=0,reads=0;const original=response(503,'ANSWER_RETRYABLE');
+ const r=await requestAskWithSession(s.auth,async()=>{sends++;return original;},new AbortController().signal,
+ async()=>{reads++;return response(202,'ANSWER_ALREADY_ACTIVE');});
+ assert.equal(r,original);assert.equal(sends,1);assert.equal(reads,3);
+});
+test('recovery stops on cancellation or account change',async()=>{
+ const s=setup(),controller=new AbortController();let reads=0;
+ await assert.rejects(requestAskWithSession(s.auth,async()=>response(503),controller.signal,async()=>{
+  reads++;controller.abort(new Error('deadline'));return response(202);
+ }),/deadline/);assert.equal(reads,1);
+ const switched=setup();let sessions=0;
+ switched.auth.getSession=async()=>result(session('token',sessions++?'other':'owner'));
+ await assert.rejects(requestAskWithSession(switched.auth,async()=>response(503),new AbortController().signal,
+ async()=>assert.fail('must not probe under another account')),AskSessionExpiredError);
+});
+test('quota and unrelated conflicts do not trigger recovery; unavailable recovery preserves failure',async()=>{
+ for(const [status,code] of [[403,'LIMIT'],[429,'RATE_LIMITED'],[409,'IDEMPOTENCY_CONFLICT'],[200,undefined]]){
+  const s=setup(),original=response(status,code);
+  assert.equal(await requestAskWithSession(s.auth,async()=>original,new AbortController().signal,
+   async()=>assert.fail('must not probe')),original);
+ }
+ for(const recovered of [response(404),Response.json({success:false})]){
+  const s=setup(),original=response(503);
+  assert.equal(await requestAskWithSession(s.auth,async()=>original,new AbortController().signal,async()=>recovered),original);
+ }
+});

@@ -421,7 +421,9 @@ function AskPageContent() {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify(requestPayload),
         signal,
-      }, scope, logicalTurnId), signal);
+      }, scope, logicalTurnId), signal, token => fetch(`/api/ask?requestId=${encodeURIComponent(logicalTurnId)}&petId=${encodeURIComponent(requestPayload.petId)}`, {
+        method: "GET", headers: { Authorization: `Bearer ${token}` }, signal, cache: "no-store",
+      }));
       setQuestion("");
       const result = await request;
       setRequestPhase("receiving");

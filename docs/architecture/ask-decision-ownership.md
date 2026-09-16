@@ -41,3 +41,13 @@ Remaining work should use these boundaries rather than add more orchestration br
 - Consolidate receipt-reference resolution with other typed read-reference resolution without expanding write authority.
 - Gradually reduce the large HTTP route by extracting persistence/delivery stages only when replay, duplicate-save and settlement integration tests cover the handoff.
 - Run the frozen 26-question live suite after behavioral fixes, within a fresh approved API budget. Structural cleanup alone is not launch certification.
+
+## Evidence transport and response recovery checkpoint
+
+Historical writer transport now compacts unrepresented query identity lists while retaining counts, query exhaustion, semantic uncertainty, correction limits, and grouped loss reasons. Full identities and note text remain in the server evidence contract. No compaction feeds eligibility, review, or completion decisions. Counts are added only when identities are omitted, avoiding metadata growth for completely represented small histories.
+
+The offline 48-note/four-year fixture retains 22 complete notes instead of 20 in the same prompt budget (32,733 versus 33,295 serialized input characters). The existing 30-record same-timestamp case retains all 30. This is an evidence-budget improvement, not a measured production latency improvement.
+
+The browser may recover a completed response with an authenticated, uncached GET for the original request and pet after a lost response, server error, or active-request conflict. At most three reads share the original deadline and account identity. The endpoint checks owned conversation/pet scope and only returns a durably COMPLETED response through the existing replay serializer. It cannot generate, execute writes, reserve credits, or reconcile accounting. Missing/incomplete results do not authorize another POST; the original error remains recoverable through the existing UI.
+
+Offline coverage includes wrong-owner/pet isolation, unfinished responses, auth expiry/account changes, cancellation, bounded recovery, unchanged POST count, and history coverage/uncertainty retention. Production first-draft grounding, latency, and the frozen suite remain separate launch gates.
