@@ -65,6 +65,7 @@ type StructuredResponse = {
   summary: string;
   directAnswer: string;
   supportingText: string | null;
+  completionNotice?: string;
   sections: { heading: string; items: string[] }[];
   safetyNote: string | null;
   answerType: AnswerType;
@@ -738,6 +739,7 @@ function FurviseMessage({ lifecycleStatus, message, onAction, onApplicationActio
     <AskAnswerText afterHeading={shouldShowAnswerHeading(response.title)} text={response.directAnswer} />
     {response.supportingText ? <p className="mt-3 leading-7 text-[var(--pw-muted)]">{response.supportingText}</p> : null}
     <AdaptiveSections answerType={response.answerType} sections={response.sections} />
+    {response.completionNotice ? <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]" data-answer-completion="limited">{response.completionNotice}</p> : null}
     {actions.length ? <div className="mt-4 flex flex-wrap gap-2">{actions.map((action) => <button className={action === "copy" ? quietButton : secondaryButton} key={action} onClick={() => onAction(action, message)} type="button">{formatAction(action)}</button>)}</div> : null}
     {messageVariant !== "CASUAL" && message.suggestion && message.suggestion.status !== "saved" && !message.suggestion.applyStatus ? <StateUpdateSuggestion onAction={onSuggestionAction} suggestion={message.suggestion} /> : null}
     {response.applicationActions?.length ? <ApplicationActions actions={response.applicationActions} onAction={onApplicationAction} /> : null}

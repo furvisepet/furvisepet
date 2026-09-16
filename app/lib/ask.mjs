@@ -99,6 +99,10 @@ export function parseAskConversationResponse(value) {
     ...response,
     answerType,
     directAnswer: response.summary,
+    // Completion is settled by the server, not inferred from fluent prose.
+    // Keep this product status outside the reviewed body and structured data.
+    ...(draft.turn?.finalStage === "COMPLETED" && draft.turn.answerOutcome === "limited"
+      ? { completionNotice: "Partial answer: I couldn’t verify everything you asked about." } : {}),
     supportingText: typeof draft.supportingText === "string" ? cleanText(draft.supportingText) : null,
     suggestedQuestions,
     actions,
@@ -381,6 +385,7 @@ export function formatAskResponsePlainText(response) {
     lines.push("", section.heading, ...section.items.map((item) => `- ${item}`));
   }
   if (response.safetyNote) lines.push("", "Safety note", response.safetyNote);
+  if (response.completionNotice) lines.push("", response.completionNotice);
   return lines.join("\n").trim();
 }
 
