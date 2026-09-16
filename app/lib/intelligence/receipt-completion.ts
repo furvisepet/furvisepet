@@ -6,7 +6,7 @@ import type { AskOperationReceipt } from "./types.ts";
 export function receiptCompletionText(receipt: AskOperationReceipt): string {
   const requested = parseDatedNoteBatch(receipt.requestText);
   const records = [...new Map(receipt.records.map(record => [record.id, record])).values()];
-  if (!requested.length) return `This lookup found ${records.length} current care-history entries linked to that prior request.`;
+  if (!requested.length) return `This lookup found ${records.length} current care-history ${records.length === 1 ? "entry" : "entries"} linked to that prior request.`;
   const used = new Set<string>();
   const matched = requested.filter(note => {
     const record = records.find(row => !used.has(row.id) && row.note === note.note
