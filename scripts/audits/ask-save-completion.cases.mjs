@@ -392,3 +392,18 @@ test('medicine clarification survives full intelligence suppression and final pu
  assert.equal(r.result.acceptedCareActions.length,0);
  assert.equal(r.result.acceptedSemanticEvents.length,0);
 });
+test('unsupported optional medication extraction still reaches a reviewed clarification',async t=>{
+ clock(t);
+ const message='I give him medicine yesterday';
+ const r=await exercise(message,{rows:[],answer:'What medicine did you give him, and how much?',
+  providerOverrides:{responseMode:'clarification',semanticEvents:[{subject:{type:'pet',name:pet.name},domain:'health',topic:'medication',eventTitle:'Medicine given',transition:'started',state:'historical',temporal:{occurredAt:null,explicitTime:null},importance:'important',confidence:0.99,sourceExcerpt:'I gave him a specific tablet at a specific dose.'}]},
+  prepareContext:ctx=>{ctx.askInterpretation={...context.askInterpretation,readOnly:false,history:null,request:{...context.askInterpretation.request,question:message,requirements:[]}};},
+  taskReviewProviderResponse:async request=>({status:'completed',output_text:JSON.stringify({verification:verification(),obligations:JSON.parse(request.input).obligations.map((_,index)=>({index,status:'needs_information',answerIndexes:[0],actionIndexes:[]})),reason:'Missing medicine and amount.'}),usage:{input_tokens:10,output_tokens:10}})
+ });
+ assert.equal(r.publication.failure,null);
+ assert.match(r.publication.displayed.summary,/What medicine/);
+ assert.deepEqual(r.result.reasoning.applicationActions,[]);
+ assert.equal(r.result.acceptedCareActions.length,0);
+ assert.equal(r.result.acceptedSemanticEvents.length,0);
+ assert.equal(r.result.acceptedLearnings.length,0);
+});
