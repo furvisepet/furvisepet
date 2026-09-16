@@ -54,7 +54,7 @@ export function validateAskTask(value: unknown, context: {
   if (p.intent !== 'cancel' && ownerDeclinesPersistence(context.currentMessage)) return fail();
   const source = p.intent === 'cancel' || p.intent === 'resume' ? pending?.source
     : [context.currentTurn, ...context.conversationTurns, pending?.source].find(turn => turn?.id === p.sourceTurnId);
-  if (!source || source.role !== 'user' || !source.text.trim() || source.text.length > 1200
+  if (!source || source.recoveredReceiptReference || source.role !== 'user' || !source.text.trim() || source.text.length > 1200
     || !Number.isFinite(Date.parse(source.createdAt))) return fail();
   if (p.intent !== 'save' && p.sourceTurnId !== null && p.sourceTurnId !== source.id) return fail();
   const pets = context.eligiblePets.filter(pet => pet.user_id === context.owner.userId

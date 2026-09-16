@@ -68,3 +68,11 @@ The food-change probe still published an unsupported event interpretation despit
 The missing-event limitation is now projected before answer generation and declines semantic review because no care fact or model prose will be published. Interpretation, retrieval, ownership, access limits, emergency priority, final validation and credit release remain enforced. No factual answer inherits this exception. Local full tests (2,491), including zero generation/review calls for this path, pass. This removes calls previously spent composing and repairing an answer the server must withhold. CI and a live latency check are pending for this final optimization.
 
 The frozen 26 score is unchanged by these separate targeted checks. Broad-summary repair latency and exhaustive-history coverage remain limitations; do not declare launch-ready or 26/26 from this follow-up.
+
+## September 16: bounded receipt continuity and smaller repair requests
+
+Recovered up to four saved-note source references beyond the 12-message dialogue window with one bounded owner/pet/conversation join. Discovery is reference-only: current receipt lineage is re-read, deleted sources are suppressed, historical access is checked, and recovered references cannot authorize new note mutations or become current factual premises. No migration or model call is added by recovery. The production read-only join returned both original saved sources in the long-running test conversation.
+
+Prose repairs now send only additional citations; server-held accessible original citations are inherited before strict parsing. Unknown proposed citations remain visible to independent review. Removed duplicated request/task metadata from reviewer input. All factual review and model settings remain intact; latency improvement requires live measurement.
+
+Validation: 2,497 offline tests passed, plus the new context-lineage wrapper covering window recovery, deletion, and access. Typecheck passes; changed-file ESLint has no errors (one pre-existing unused-parameter warning). No paid model calls during implementation. Targeted production verification follows CI/deployment; this is not a new full 26-prompt certification.

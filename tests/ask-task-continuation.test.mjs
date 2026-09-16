@@ -110,3 +110,9 @@ test('receipt-backed pronoun continuation retains the saved subject, without tru
  assert.equal(validateAskTask(p,{...input,currentTurn:{...currentTurn,text:'One of my dogs drank normally. Save it.'}}).petId,null);
  assert.equal(validateAskTask({...p,petName:'Rowan'},input).petId,null);
 });
+
+
+test('recovered readback references cannot authorize another note mutation',()=>{
+ assert.throws(()=>validateAskTask(proposal,{...context,conversationTurns:[{...source,recoveredReceiptReference:true}]}));
+ assert.equal(validateAskTask(proposal,context).source.id,source.id);
+});

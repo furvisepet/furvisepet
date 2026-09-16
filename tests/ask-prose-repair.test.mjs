@@ -43,3 +43,13 @@ test('an incomplete paragraph can expand without losing neighboring claims',()=>
  assert.throws(()=>applyProseRepair(draft,{replacements:[{index:0,sentences:Array(8).fill(additions[0])}]}));
  assert.throws(()=>applyProseRepair(draft,{replacements:[{index:0,sentences:[{...additions[0],text:'a'.repeat(651)}]}]}));
 });
+
+
+test('incremental repair inherits only available original citations without hiding new invalid IDs',()=>{
+ const original={sentences:[{text:'Two observations.',sourceIds:['care:one','care:two','care:gone']}]};
+ const patch=ids=>({replacements:[{index:0,sentences:[{text:'Attributed observations.',sourceIds:ids,calculations:[]}]}]});
+ assert.deepEqual(applyProseRepair(original,patch([]),['care:one','care:two']).sentences[0].sourceIds,['care:one','care:two']);
+ assert.deepEqual(applyProseRepair(original,patch(['care:new']),['care:one']).sentences[0].sourceIds,['care:new','care:one']);
+ assert.throws(()=>applyProseRepair(original,patch([]),[]),'no accessible evidence cannot become a cited answer');
+ assert.deepEqual(original.sentences[0].sourceIds,['care:one','care:two','care:gone']);
+});
