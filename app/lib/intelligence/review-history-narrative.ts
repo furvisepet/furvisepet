@@ -9,7 +9,7 @@ import { missingExactRecordText } from "./exact-record-text.ts";
 import { noteBatchReviewActions } from "./dated-note-batch.ts";
 import { furviseProductFacts } from "../ai/ask-internal-product-policy.ts";
 import { isExplicitCareHistorySaveRequest } from "./care-history-policy.ts";
-import type { GovernedAskExecutionPlan } from "./run-intelligence.ts";
+import type { GovernedAskExecutionPlan } from "./ask-execution-plan.ts";
 import { eligibleAnswerSources } from "./ask-evidence.ts";
 import { completedEmptyEvidenceNeeds } from "./evidence-need-coverage.ts";
 import { prepareFurviseApplicationActions } from "../application-actions/planner.ts";

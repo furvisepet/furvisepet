@@ -10,11 +10,11 @@ const adapter = `import { generateContextAwareAskResponse as generate } from ${J
 export const generateContextAwareAskResponse = async input => { const result = await generate({...input, client: globalThis.__historyAuditClient}); globalThis.__historyAuditAfterGeneration?.(result); return result; };`;
 registerHooks({
   resolve(specifier, context, nextResolve) {
-    if (context.parentURL?.endsWith('/run-intelligence.ts') && /review-history-narrative/.test(specifier)) {
+    if (context.parentURL?.endsWith('/finalize-ask-answer.ts') && /review-history-narrative/.test(specifier)) {
       const url = new URL('../../../app/lib/intelligence/review-history-narrative.ts', import.meta.url).href;
       return {shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent('import {reviewHistoricalAnswer as review} from '+JSON.stringify(url)+'; export const reviewHistoricalAnswer = input => review({...input,client:globalThis.__historyAuditReviewClient});')};
     }
-    if (context.parentURL?.endsWith('/run-intelligence.ts') && /review-task-completion/.test(specifier)) {
+    if (context.parentURL?.endsWith('/finalize-ask-answer.ts') && /review-task-completion/.test(specifier)) {
       const url = new URL('../../../app/lib/intelligence/review-task-completion.ts', import.meta.url).href;
       return {shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent('import {reviewTaskCompletion as review} from '+JSON.stringify(url)+'; export const reviewTaskCompletion = input => review({...input,client:globalThis.__taskAuditReviewClient});')};
     }

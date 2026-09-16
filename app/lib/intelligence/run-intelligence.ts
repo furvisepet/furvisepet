@@ -1,10 +1,10 @@
-import { parseDatedNoteBatch, noteBatchReviewActions, type DatedCareNote } from "./dated-note-batch.ts";
-import { readHistoryReviewAudit, readReviewedHistoryAnswer, recordHistoryReview, historyReviewSignature, type HistoryReviewAudit } from "./history-review-state.ts";
+import { parseDatedNoteBatch } from "./dated-note-batch.ts";
+import { readHistoryReviewAudit, type HistoryReviewAudit } from "./history-review-state.ts";
 import { enforceAskHistoryAccess } from "./history-access.ts";
 import { safetyTemporalScope } from "../ai/safety-temporal-scope.ts";
 import { scopeConversationContext } from "./conversation-scope.ts";
-import { reviewHistoricalAnswer } from "./review-history-narrative.ts";
-import { reviewTaskCompletion } from "./review-task-completion.ts";
+import { finalizeAskAnswer } from "./finalize-ask-answer.ts";
+import { buildGovernedAskExecutionPlan, assertGovernedAskExecutionPlan, type GovernedAskExecutionPlan } from "./ask-execution-plan.ts";
 import "server-only";
 
 import type { AskProviderEvent, AskReasoningResult } from "../ai/ask-reasoning";
@@ -17,7 +17,7 @@ import { allowsAcceptedRecoverySafetyReconciliation, allowsProposedRecoveryPrese
 import type { FurviseLiveContext } from "./types";
 import { calculateMemoryFreshness } from "./memory-freshness.ts";
 import { authorizeProposedActions, type GovernanceResult } from "./governance/index.ts";
-import { validateGeneratedAnswer, type AnswerValidationResult } from "./validation/index.ts";
+import type { AnswerValidationResult } from "./validation/index.ts";
 import { routePersistenceDestinations } from "./persistence-destination.ts";
 import { governCanonicalEvents, governCanonicalEventsForOwnedPets, learningFromSemanticEvent } from "./semantic-events.ts";
 import { buildShadowSemanticAnalysis, logSemanticTrace, type SemanticTrace } from "./semantic-observability.ts";
@@ -33,38 +33,6 @@ import { buildSourceGroundedResolutionAction, isRecoveryGroundedForConcern } fro
 import { createAskEvidenceContract, type AskEvidenceContract } from "./ask-evidence.ts";
 import { emptyProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
 import { explicitOwnerNote } from "./explicit-owner-note.ts";
-import { reviewedTaskReadyForExecution } from "./answer-assessment.ts";
-
-export type GovernedAskExecutionPlan = {
-  version: "ask-execution.v1"; sourceMessageId: string; petId: string;
-  noteBatch?: DatedCareNote[];
-  careActions: AskReasoningResult["careActions"];
-  semanticEvents: ReturnType<typeof governCanonicalEvents>["accepted"];
-  learnings: AskReasoningResult["learnings"];
-};
-const issuedExecutionPlans = new WeakMap<GovernedAskExecutionPlan, string>();
-export function assertGovernedAskExecutionPlan(plan: GovernedAskExecutionPlan) {
-  if (issuedExecutionPlans.get(plan) !== JSON.stringify(plan)) throw new Error("ASK_EXECUTION_PLAN_CHANGED");
-}
-
-/** Normalize compatibility channels before review. Persistence consumes this
- * exact plan, rather than choosing a different winner after approval. */
-export function buildGovernedAskExecutionPlan(input: Omit<GovernedAskExecutionPlan, "version">): GovernedAskExecutionPlan {
-  const events = input.semanticEvents.filter(item => item.destinations.some(d => ["care_event", "episode_current_state", "state_only"].includes(d)));
-  const seenPets = new Set<string>();
-  const executableEvents = events.filter(item => {
-    const id = item.event.subject.id || input.petId;
-    if (seenPets.has(id)) return false;
-    seenPets.add(id); return true;
-  });
-  const resolution = input.careActions.find(action => action.action === "resolve_concern" && action.relatedRecordId);
-  const plan: GovernedAskExecutionPlan = structuredClone({ version: "ask-execution.v1", sourceMessageId: input.sourceMessageId, petId: input.petId,
-    noteBatch: input.noteBatch || [],
-    careActions: input.noteBatch?.length ? [] : resolution ? [resolution] : events.length ? [] : input.careActions.slice(0, 1),
-    semanticEvents: input.noteBatch?.length || resolution ? [] : executableEvents, learnings: input.noteBatch?.length ? [] : input.learnings });
-  issuedExecutionPlans.set(plan, JSON.stringify(plan));
-  return plan;
-}
 
 export type FurviseIntelligenceResult = {
   executionPlan: GovernedAskExecutionPlan;
@@ -391,27 +359,10 @@ export async function runFurviseIntelligence({
     careActions: acceptedCareActions, semanticEvents: acceptedSemanticEvents, learnings: acceptedLearnings });
   // Presentation-only reconciliation happens after persistence governance and routing.
   if (proposedRecoveryPresentation) reasoning.intelligenceSafety.level = "recently_resolved";
-  await reviewHistoricalAnswer({ result: reasoning, onProviderEvent, executionPlan });
-  let answerValidation = validateGeneratedAnswer(
-    reasoning,
-    context,
-    reasoning.intelligenceSafety.level,
-    readPetIds.length ? readPetIds : [context.pet.id],
-  );
-  if (!answerValidation.valid) throw Object.assign(
-    new Error(`FURVISE_ANSWER_VALIDATION_FAILED:${answerValidation.errors.join(",")}`),
-    // Enumerated validator codes only; never include answer or source text.
-    { code: `ASK_ANSWER_${answerValidation.errors[0] || "VALIDATION_FAILED"}`.toUpperCase() },
-  );
-  answerValidation = await reviewTaskCompletion({ validation: answerValidation, context, requestId, onProviderEvent, pendingCareEvents: executionPlan.semanticEvents, pendingCareActions: [...executionPlan.careActions, ...noteBatchReviewActions(executionPlan.noteBatch || [])],
-    validate: candidate => validateGeneratedAnswer(candidate, context, reasoning.intelligenceSafety.level,
-      readPetIds.length ? readPetIds : [context.pet.id]),
+  const { validation: answerValidation, suppressWrites: failedAnswer } = await finalizeAskAnswer({
+    reasoning, context, requestId, onProviderEvent, executionPlan,
+    authoritativePetIds: readPetIds.length ? readPetIds : [context.pet.id],
   });
-  // A source-only failure is not a completed mixed request. Do not commit the
-  // independently proposed side effects after its answer failed final review.
-  const failedAnswer = answerValidation.assessment?.checks.taskCompletion === "failed"
-    && !readReviewedHistoryAnswer(answerValidation.response)
-    && !reviewedTaskReadyForExecution(answerValidation.completion || [], answerValidation.assessment.checks);
   if (failedAnswer) {
     acceptedCareActions.length = 0;
     acceptedSemanticEvents.length = 0;
@@ -421,10 +372,7 @@ export async function runFurviseIntelligence({
       noteBatch: [], careActions: [], semanticEvents: [], learnings: [] });
   }
   assertGovernedAskExecutionPlan(executionPlan);
-  const finalHistoryReceipt = readReviewedHistoryAnswer(answerValidation.response);
-  Object.assign(reasoning, answerValidation.response);
   if (failedAnswer) suppressPersistence();
-  if (finalHistoryReceipt) recordHistoryReview(reasoning, { ...finalHistoryReceipt, signature: historyReviewSignature(reasoning) });
   const shadow = buildShadowSemanticAnalysis({
     activeEpisodes: [...context.activeEpisodes, ...context.monitoringEpisodes],
     acceptedCareActions,

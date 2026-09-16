@@ -286,11 +286,11 @@ test("quality normalization is degradable while core-invalid output still fails 
   assert.ok(coreInvalid.errors.includes("empty_after_grounding_repair"));
 
   const validator = readFileSync(new URL("../app/lib/intelligence/validation/validate-answer.ts", import.meta.url), "utf8");
-  const intelligence = readFileSync(new URL("../app/lib/intelligence/run-intelligence.ts", import.meta.url), "utf8");
+  const finalizer = readFileSync(new URL("../app/lib/intelligence/finalize-ask-answer.ts", import.meta.url), "utf8");
   const reasoningSource = readFileSync(new URL("../app/lib/ai/ask-reasoning.ts", import.meta.url), "utf8");
   assert.doesNotMatch(validator, /errors\.push\("(?:malformed_pet_reference|mixed_purpose_bullet)/);
   assert.match(validator, /qualityWarnings\.push\("personalization_defect_remaining"\)/);
-  assert.match(intelligence, /if \(!answerValidation\.valid\) throw/);
+  assert.match(finalizer, /if \(!validation\.valid\) throw/);
   assert.doesNotMatch(reasoningSource, /personalization_defect_remaining|pet_name_overuse_remaining|mixed_purpose_bullet_remaining/);
 });
 
