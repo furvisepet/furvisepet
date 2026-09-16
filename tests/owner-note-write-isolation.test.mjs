@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolveOwnerNoteRequest, explicitNoteTime } from '../app/lib/intelligence/owner-note-request.ts';
+import { isConversationNoteSave, resolveConversationOwnerNote } from '../app/lib/intelligence/conversation-owner-note.ts';
 import { persistOwnerNote } from '../app/lib/intelligence/persist-owner-note.ts';
 import { processOwnerNoteJob, validateOwnerNoteEnrichment } from '../app/lib/intelligence/owner-note-enrichment.ts';
 import { buildAskRequestPayload } from '../app/lib/ask-request-contract.ts';
@@ -9,6 +10,22 @@ const pet = { id: 'rowan', name: 'Rowan' };
 const pets = [pet, { id: 'mochi', name: 'Mochi' }];
 const request = message => resolveOwnerNoteRequest({ message, pet, pets, timeZone: 'America/Vancouver' });
 const original = "Rowan seemed a little sluggish on our walk this evening around 7:30 PM, but his appetite was completely normal for dinner. I just want to log this mood note to his care history for tonight, September 14, 2026. Keep the response brief.";
+const source = text => ({id:'89100000-0000-4000-8000-000000000071',request_id:'89100000-0000-4000-8000-000000000081',user_text:text,created_at:'2026-09-15T20:00:00Z'});
+const followup = (message, texts) => resolveConversationOwnerNote({message,sources:texts.map(source),pet,pets});
+for (const command of ['idk just save in notes','bro save it already','please save that','can you log it?','save this to care history']) {
+  test(`conversation save preserves the prior owner words: ${command}`,()=>{
+    const result=followup(command,['Rowan','so i gave him medicine yesterday']);
+    assert.equal(result.note.note,'so i gave him medicine yesterday');
+    assert.equal(result.source.request_id,source('').request_id);
+    assert.equal(result.note.needsAnswer,false);
+  });
+}
+for (const command of ['Do not save it','If he improves, save it','save it and explain the dose','"save it"','save the other note','save it unless it is wrong']) {
+  test(`reference save does not broaden authorization: ${command}`,()=>assert.equal(followup(command,['I gave him medicine yesterday']),null));
+}
+for (const texts of [['Mochi','I gave him medicine yesterday'],['Do not save this','I gave him medicine yesterday'],['What about his food?','I gave him medicine yesterday'],['Actually it was today','I gave him medicine yesterday'],['yes'],['If I gave him medicine yesterday']]) {
+  test(`ambiguous or changed conversation cannot write: ${JSON.stringify(texts)}`,()=>assert.equal(followup('save it',texts),null));
+}
 
 test('original request saves full source text, including normal findings, without semantic confidence', () => {
   const note = request(original);
@@ -83,18 +100,19 @@ import { ASK_REQUEST_KEYS } from '../app/lib/ask-request-contract.ts';
 import { resolveAskTimeZone } from '../app/lib/ask-time-zone.ts';
 import { detectImmediateAskEmergency, buildImmediateEmergencyGuidance } from '../app/lib/ask-safety-context.ts';
 import { isExplicitCareHistorySaveRequest } from '../app/lib/intelligence/care-history-policy.ts';
-function httpHarness({mixed=false,denied=false,conversationFailure=false,dbFailure=false}={}) {
-  const calls={provider:0,writes:0,context:0};
+function httpHarness({mixed=false,denied=false,conversationFailure=false,dbFailure=false,prior=[]}={}) {
+  const calls={provider:0,writes:0,context:0,parameters:null};
   const userId='89100000-0000-4000-8000-000000000001',petId='89100000-0000-4000-8000-000000000011',requestId='89100000-0000-4000-8000-000000000041';
   const profiles=[{id:petId,user_id:userId,name:'Rowan'}];
-  const db={from:()=>({select:()=>({eq:async()=>({data:profiles,error:null})})})};
+  const historyQuery={eq:()=>historyQuery,lt:()=>historyQuery,order:()=>historyQuery,limit:async()=>({data:prior,error:null})};
+  const db={from:table=>({select:()=>table==='ask_conversation_messages'?historyQuery:{eq:async()=>({data:profiles,error:null})}})};
   const source=readFileSync(new URL('../app/api/ask/route.ts',import.meta.url),'utf8');
   const ast=ts.createSourceFile('route.ts',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);
   const names=['POST','executeAskRequest','completeOwnerNoteResponse','successfulAnswerResponse'];
   const code=ast.statements.filter(n=>ts.isFunctionDeclaration(n)&&names.includes(n.name?.text)).map(n=>n.getText(ast).replace(/^export /,'')).join('\n');
   const noop=()=>{};
   const sandbox={Response,Request,Headers,AbortSignal,console:{warn:noop,info:noop},ASK_REQUEST_KEYS,AskTurnLifecycle,deriveAskAttemptId,OperationDeadline,
-    resolveOwnerNoteRequest,persistOwnerNote,resolveAskTimeZone,buildAskConversationResponse,isExplicitCareHistorySaveRequest,detectImmediateAskEmergency,buildImmediateEmergencyGuidance,
+    resolveOwnerNoteRequest,isConversationNoteSave,resolveConversationOwnerNote,persistOwnerNote,resolveAskTimeZone,buildAskConversationResponse,isExplicitCareHistorySaveRequest,detectImmediateAskEmergency,buildImmediateEmergencyGuidance,
     ASK_OPERATION_TIMEOUT_MS:150000,ASK_MAX_QUESTION_CHARACTERS:1200,API_BODY_LIMITS:{ask:10000},RequestBoundaryError:class extends Error{},RateLimitRejection:class extends Error{},FurviseContextError:class extends Error{},
     loadAskAuthenticationContext:async()=>denied?{response:Response.json({success:false},{status:401})}:{supabase:db,userId},
     readBoundedJson:r=>r.json(),hasOnlyKeys:()=>true,isUuid:()=>true,isSecurityUuid:()=>true,resolveAskLocale:()=> 'en',hashAiCreditPayload:()=> 'hash',
@@ -104,7 +122,7 @@ function httpHarness({mixed=false,denied=false,conversationFailure=false,dbFailu
     claimWithRestoredAskOrigin:({claim,payload})=>claim(payload),claimIdempotentOperation:async()=>({operation:{execute:fn=>fn(),ownerToken:'lease',payloadHash:'hash'}}),
     ensureConversationAndUserMessage:async()=>({conversationId:'89100000-0000-4000-8000-000000000021',userMessageId:'89100000-0000-4000-8000-000000000031',userSequence:1}),
     requireRateLimitedRequest:async()=>({release:async()=>{}}),
-    createCanonicalCareAuthorityClient:()=>({rpc:async()=>{if(dbFailure)return{error:{code:'42501'},data:null};calls.writes++;return{data:{entryId:'89100000-0000-4000-8000-000000000051',alreadyPersisted:false},error:null};}}),
+    createCanonicalCareAuthorityClient:()=>({rpc:async(_name,args)=>{calls.parameters=args;if(dbFailure)return{error:{code:'42501'},data:null};calls.writes++;return{data:{entryId:'89100000-0000-4000-8000-000000000051',alreadyPersisted:false},error:null};}}),
     buildFurviseContext:async()=>{calls.context++;throw Error('optional context unavailable');},revalidateAskStateViews:noop,
     completeAskConversationTurn:async()=>conversationFailure?{error:Error('conversation unavailable'),data:null}:{data:[{assistant_message_id:'89100000-0000-4000-8000-000000000061'}],error:null},
     validAssistantCompletionRow:data=>data?.[0]||null,finalizeAskAssistantResponse:async()=>({error:null}),
@@ -123,6 +141,16 @@ for (const options of [{},{conversationFailure:true},{mixed:true}]) test(`HTTP s
   if(options.mixed){assert.equal(body.turn.taskOutcome,'limited');assert.match(body.answer,/couldn't finish/);}
   else assert.equal(calls.context,0);
   if(options.conversationFailure){assert.equal(body.persistence.saved,false);assert.match(body.persistence.warning,/note is saved/);}
+});
+test('HTTP follow-up saves exact prior source with zero provider calls or credits',async()=>{
+  const prior=[source('Rowan'),source('I give him medicine yesterday')];
+  const {send,calls}=httpHarness({prior});
+  const response=await send('idk just save in notes');const body=await response.json();
+  assert.equal(response.status,200);assert.equal(body.carePersistence.status,'persisted');
+  assert.equal(calls.parameters.p_note,'I give him medicine yesterday');
+  assert.equal(calls.parameters.p_source_message_id,prior[1].id);
+  assert.equal(calls.parameters.p_request_id,prior[1].request_id);
+  assert.equal(calls.provider,0);assert.equal(calls.context,0);assert.equal(body.creditsUsed,0);
 });
 test('HTTP unauthorized and rejected database writes cannot claim saved success',async()=>{
   for(const options of [{denied:true},{dbFailure:true}]){const {send,calls}=httpHarness(options);const response=await send();assert.equal(response.ok,false);assert.equal(calls.writes,0);}
