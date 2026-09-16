@@ -1845,6 +1845,8 @@ async function persistAssistantAnswer({
   let nextUsage = usage;
   let creditsUsed = 0;
   const incompleteRead = shouldReleaseAskCredit(intelligenceResult ? {
+    sourceMessage,
+    petName,
     responseMode: intelligenceResult.reasoning.responseMode,
     readOnlyRecall: intelligenceResult.reasoning.evidenceContract?.scope.readOnlyRecall === true,
     assessment: intelligenceResult.answerValidation.assessment,

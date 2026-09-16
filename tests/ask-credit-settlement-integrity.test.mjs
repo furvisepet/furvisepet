@@ -28,6 +28,15 @@ for (const responseMode of ['clarification','conversational']) test(`credit sett
   assert.equal(ledger.events.get(attemptA).credits,responseMode==='clarification'?0:1);
 });
 
+for (const [message,expected] of [['sable',0],[' Sable. ',0],['What medicine did Sable get?',1],['Sable was sick yesterday. What should I do?',1]]) {
+  test(`name-only clarification never consumes a credit despite a complete-answer label: ${message}`,async()=>{
+    const ledger=new SettlementLedger();await reserve(ledger,attemptA);
+    const release=shouldReleaseAskCredit({sourceMessage:message,petName:'Sable',responseMode:'conversational',readOnlyRecall:false,assessment:{outcome:'complete',checks:{taskCompletion:'passed'}}});
+    await decide(ledger,attemptA,release?'release':'complete');await reconcile(ledger,attemptA);
+    assert.equal(ledger.events.get(attemptA).credits,expected);
+  });
+}
+
 test("persisted chargeable answer survives terminal RPC failure because MUST_COMPLETE is durable", async () => {
   const ledger = new SettlementLedger({ reconcileFailures: 1 });
   await reserve(ledger, attemptA);

@@ -4,8 +4,13 @@ import type { AiOperationAdmission } from "./usage-guard/admission.ts";
 type ErrorLogger = (stage: string, error: unknown, context: Record<string, unknown>, status: number) => void;
 
 /** Clarification is part of completing the owner's request, not a paid answer. */
-export function shouldReleaseAskCredit(input: { responseMode: string; readOnlyRecall: boolean; assessment: AnswerAssessment } | null): boolean {
-  return Boolean(input && (input.responseMode === "clarification"
+export function shouldReleaseAskCredit(input: { responseMode: string; readOnlyRecall: boolean; assessment: AnswerAssessment; sourceMessage?: string; petName?: string | null } | null): boolean {
+  // A name-only subject selection is not a new chargeable question, even if
+  // the provider incorrectly labels its acknowledgment a complete answer.
+  const normalize = (value: string) => value.normalize("NFKC").trim().replace(/[.!?]+$/, "").trim().toLowerCase();
+  const subjectSelectionOnly = Boolean(input?.petName?.trim() && input.sourceMessage
+    && normalize(input.sourceMessage) === normalize(input.petName));
+  return Boolean(input && (subjectSelectionOnly || input.responseMode === "clarification"
     || ((input.readOnlyRecall || input.assessment.checks.taskCompletion === "failed") && input.assessment.outcome !== "complete")));
 }
 
