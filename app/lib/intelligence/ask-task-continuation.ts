@@ -1,4 +1,5 @@
 import { ownerDeclinesPersistence } from '../ai/owner-assertion.ts';
+import { findExplicitCareRecordAuthorization, findExplicitPendingTaskCancellation, type FurviseMutationAuthorizationEvidence } from '../furvise-brain/mutation-authorization.ts';
 import { explicitNoteTime } from './owner-note-request.ts';
 import type { IntelligenceConversationTurn } from './types.ts';
 import { resolveDeterministicTurnSubject } from './entities/resolve-turn-subject.ts';
@@ -12,7 +13,8 @@ export type PendingAskTask = {
 };
 export type AskTaskProposal = { intent: 'save' | 'resume' | 'cancel'; sourceTurnId: string | null; petName: string | null; answerRequired?: boolean; answerRequest?: { turnId: string; quote: string } | null };
 export type ValidatedAskTask = { intent: AskTaskProposal['intent']; source: IntelligenceConversationTurn;
-  petId: string | null; taskId: string | null; revision: number | null; requiresAnswer: boolean; originalRequest?: IntelligenceConversationTurn };
+  petId: string | null; taskId: string | null; revision: number | null; requiresAnswer: boolean; originalRequest?: IntelligenceConversationTurn;
+  authorization: FurviseMutationAuthorizationEvidence };
 export const askTaskSchema = { anyOf: [{ type: 'null' }, { type: 'object', additionalProperties: false,
   required: ['intent', 'sourceTurnId', 'petName', 'answerRequest'], properties: {
     answerRequest: { anyOf: [{ type: 'null' }, { type: 'object', additionalProperties: false, required: ['turnId', 'quote'], properties: { turnId: { type: 'string', minLength: 1, maxLength: 160 }, quote: { type: 'string', minLength: 1, maxLength: 1200 } } }] },
@@ -37,6 +39,14 @@ export function validateAskTask(value: unknown, context: {
     || p.sourceTurnId !== null && typeof p.sourceTurnId !== 'string'
     || p.petName !== null && typeof p.petName !== 'string') return fail();
   const pending = context.pendingTask;
+  const currentAuthorization = p.intent === 'save' ? findExplicitCareRecordAuthorization(context.currentMessage)
+    : p.intent === 'cancel' ? findExplicitPendingTaskCancellation(context.currentMessage) : null;
+  const durableAuthorization = p.intent === 'resume' && pending?.request
+    && pending.request.role === 'user' && pending.request.id === pending.authorizationMessageId
+    ? findExplicitCareRecordAuthorization(pending.request.text) : null;
+  if (p.intent === 'save' && !currentAuthorization) return fail();
+  if (p.intent === 'cancel' && !currentAuthorization) return fail();
+  if (p.intent === 'resume' && !durableAuthorization) return fail();
   let citedAnswer = false;
   if (p.answerRequest !== undefined && p.answerRequest !== null) {
     const evidence = p.answerRequest;
@@ -88,14 +98,28 @@ export function validateAskTask(value: unknown, context: {
         || resolution.discourseFocus && resolution.discourseFocus.kind !== 'pet') proposedPetId = null;
     }
   }
+  const authorization: FurviseMutationAuthorizationEvidence = p.intent === 'resume'
+    ? { kind: 'record_care', source: 'durable_capability', evidence: durableAuthorization! }
+    : p.intent === 'cancel'
+      ? { kind: 'cancel_pending', source: 'current_turn', evidence: currentAuthorization! }
+      : { kind: 'record_care', source: 'current_turn', evidence: currentAuthorization! };
   return { ...(p.intent === 'resume' && pending?.requiresAnswer && pending.request ? { originalRequest: pending.request } : {}), intent: p.intent, source, petId: p.intent === 'cancel' ? null : retainedPet?.id || proposedPetId,
-    taskId: pending?.id || null, revision: pending?.revision ?? null,
+    taskId: pending?.id || null, revision: pending?.revision ?? null, authorization,
     requiresAnswer: p.intent !== 'cancel' && Boolean(requiresAnswer || p.intent === 'resume' && pending?.requiresAnswer) };
+}
+
+export function assertValidatedAskTaskAuthorization(task: ValidatedAskTask) {
+  if (!task.authorization?.evidence?.trim()) throw new Error('FURVISE_MUTATION_NOT_AUTHORIZED');
+  if (task.intent === 'resume' && task.authorization.source !== 'durable_capability') throw new Error('FURVISE_MUTATION_NOT_AUTHORIZED');
+  if (task.intent !== 'resume' && task.authorization.source !== 'current_turn') throw new Error('FURVISE_MUTATION_NOT_AUTHORIZED');
+  if (task.intent === 'cancel' && task.authorization.kind !== 'cancel_pending') throw new Error('FURVISE_MUTATION_KIND_MISMATCH');
+  if (task.intent !== 'cancel' && task.authorization.kind !== 'record_care') throw new Error('FURVISE_MUTATION_KIND_MISMATCH');
 }
 
 export function taskMutationParameters(task: ValidatedAskTask, input: {
   userId: string; conversationId: string; currentMessageId: string; timeZone?: string;
 }) {
+  assertValidatedAskTaskAuthorization(task);
   const time = explicitNoteTime(task.source.text, input.timeZone, task.source.createdAt);
   return { p_user_id: input.userId, p_conversation_id: input.conversationId, p_message_id: input.currentMessageId,
     p_intent: task.intent, p_source_id: task.source.id, p_source_text: task.source.text, p_pet_id: task.petId,
@@ -144,6 +168,9 @@ export async function executeAskTask(parameters: ReturnType<typeof taskMutationP
  * Any extra instruction or ambiguous name stays with semantic interpretation. */
 export function resolvePendingTaskSubject(context: Parameters<typeof validateAskTask>[1]): ValidatedAskTask | null {
   if (!context.pendingTask || context.pendingTask.status !== 'awaiting_subject' || context.pendingTask.requiresAnswer) return null;
+  const request = context.pendingTask.request;
+  if (!request || request.role !== 'user' || request.id !== context.pendingTask.authorizationMessageId
+    || !findExplicitCareRecordAuthorization(request.text)) return null;
   const named = context.eligiblePets.filter(pet => pet.user_id === context.owner.userId && pet.name
     && pet.name.trim().toLocaleLowerCase() === context.currentMessage.trim().toLocaleLowerCase());
   if (named.length !== 1) return null;
