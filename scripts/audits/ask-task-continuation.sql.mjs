@@ -3,19 +3,19 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 const modulePath=process.env.FURVISE_PGLITE_MODULE || '@electric-sql/pglite';
-const { PGlite } = await import(modulePath);
-const fullSchema=process.argv.includes('--full-schema');
+const native=process.argv.includes('--docker');
+const fullSchema=native || process.argv.includes('--full-schema');
 const extensions={};
-if(fullSchema) {
+if(fullSchema && !native) {
  const {pathToFileURL}=await import('node:url');
  const base=modulePath.startsWith('/') ? pathToFileURL(modulePath) : import.meta.resolve(modulePath);
  for(const name of ['pgcrypto','pg_trgm','uuid_ossp']) extensions[name]=(await import(new URL(`contrib/${name}.js`,base)))[name];
 }
-const db = new PGlite({extensions});
+const db = native ? (await import('./helpers/docker-postgres.mjs')).dockerPostgres() : new (await import(modulePath)).PGlite({extensions});
 const id = n => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 if(fullSchema) {
  const {initializeAskSchema}=await import('./helpers/ask-schema.mjs');
- console.log(`${await initializeAskSchema(db)} repository migrations applied; hosted scheduler excluded`);
+ console.log(`${await initializeAskSchema(db,{existingRoles:native})} repository migrations applied; hosted scheduler excluded`);
  await db.exec("set request.jwt.claim.role='service_role'");
 } else {
 await db.exec(`create role anon; create role authenticated; create role service_role;
@@ -112,5 +112,22 @@ for(const role of ['anon','authenticated']) {
  assert.equal(privileges.allowed,false);checks++;
 }
 assert.equal((await db.query("select relrowsecurity from pg_class where oid='private.ask_tasks'::regclass")).rows[0].relrowsecurity,true);checks++;
+if(native) {
+ // Two actual server connections race the same authorized save under the real
+ // service role. Neither may duplicate the note or the enrichment outbox job.
+ await message(60,'Sable rested by the window');await message(61,'save that');
+ const other=(await import('./helpers/docker-postgres.mjs')).dockerPostgres();
+ try {
+  await db.exec('set role service_role;');
+  await other.exec("set role service_role; set request.jwt.claim.role='service_role';");
+  const args=[id(1),id(20),id(61),'save',id(60),'Sable rested by the window',id(10),null,null,false];
+  const statement='select apply_ask_task($1,$2,$3,$4,$5,$6,$7,$8,$9,null,null,$10) as result';
+  const results=await Promise.all([db.query(statement,args),other.query(statement,args)]);
+  assert.equal(results[0].rows[0].result.entryId,results[1].rows[0].result.entryId);checks++;
+  await db.exec('reset role;');
+  assert.equal((await db.query('select count(*)::int as n from pet_care_entries where intelligence_source_message_id=$1',[id(60)])).rows[0].n,1);checks++;
+  assert.equal((await db.query('select count(*)::int as n from owner_note_jobs where entry_id=$1',[results[0].rows[0].result.entryId])).rows[0].n,1);checks++;
+ } finally {await other.close();}
+}
 await db.close();
 console.log(`${checks} PostgreSQL continuation assertions passed`);

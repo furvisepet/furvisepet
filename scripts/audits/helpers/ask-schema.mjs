@@ -1,12 +1,12 @@
 // Disposable schema integration: applies every repository migration except the
 // hosted pg_cron/pg_net worker scheduler, unavailable in PostgreSQL/WASM.
 import { readFileSync, readdirSync } from 'node:fs';
-export async function initializeAskSchema(db) {
+export async function initializeAskSchema(db, {existingRoles=false}={}) {
  let migrations=0;
 await db.exec(`
-create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
+${existingRoles ? '' : `create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
 create role authenticator nologin noinherit; create role supabase_admin superuser nologin;
-grant anon,authenticated,service_role to authenticator;
+grant anon,authenticated,service_role to authenticator;`}
 create schema auth; create schema extensions; create schema supabase_migrations;
 create extension pgcrypto with schema extensions; create extension "uuid-ossp" with schema extensions;
 create table supabase_migrations.schema_migrations(version text primary key, name text, statements text[]);
@@ -21,7 +21,7 @@ grant execute on all functions in schema auth to anon,authenticated,service_role
 `);
 
 for(const file of readdirSync('supabase/migrations').filter(f=>f.endsWith('.sql') && !f.endsWith('_schedule_owner_note_enrichment.sql')).sort()) {
- await db.exec(readFileSync(`supabase/migrations/${file}`,'utf8'));
+ await db.exec('begin;\n'+readFileSync(`supabase/migrations/${file}`,'utf8')+'\ncommit;');
  await db.query('insert into supabase_migrations.schema_migrations(version,name) values($1,$2)',[file.split('_')[0],file.replace(/^\d+_|\.sql$/g,'')]);
  migrations++;
 }

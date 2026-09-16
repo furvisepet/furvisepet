@@ -170,3 +170,23 @@ An authorized attempt to provision isolated hosted validation was rejected by
 Supabase: branching requires Pro or above on this project. No branch was created
 and no plan upgrade was performed. Preview access and model credentials also
 remain unavailable; the release gates above still apply.
+
+### Native Docker validation
+
+After connecting the owner's Docker device, the audit passed against
+`public.ecr.aws/supabase/postgres:17.6.1.165` in a disposable container with no
+network access, a 512 MB memory limit, and one CPU. All 121 non-scheduler migrations
+were applied. The native run passed 34 assertions, including two simultaneous
+connections executing the same authorized save as `service_role`: both returned
+the same entry, with exactly one owner note and one outbox job.
+
+Run `node scripts/audits/ask-task-continuation.sql.mjs --docker` with
+`FURVISE_TEST_CONTAINER=furvise-ask-validation-<suffix>` and
+`FURVISE_TEST_DATABASE=ask_continuation_validation` against a fresh disposable
+Supabase PostgreSQL container/database. The runner preserves a connection for
+transaction tests and applies each migration in a transaction. Never reuse a
+partially initialized container: database roles are cluster-wide.
+
+This resolves native PostgreSQL validation for this task adapter. Hosted auth,
+PostgREST, scheduler operation, and real-provider conversational accuracy remain
+separate release gates. No production database or deployment was changed.
