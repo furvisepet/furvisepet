@@ -26,6 +26,12 @@ for (const command of ['Do not save it','If he improves, save it','save it and e
 for (const texts of [['Mochi','I gave him medicine yesterday'],['Do not save this','I gave him medicine yesterday'],['What about his food?','I gave him medicine yesterday'],['Actually it was today','I gave him medicine yesterday'],['yes'],['If I gave him medicine yesterday']]) {
   test(`ambiguous or changed conversation cannot write: ${JSON.stringify(texts)}`,()=>assert.equal(followup('save it',texts),null));
 }
+test('the full reported clarification loop resolves to original owner text, never the assistant draft',()=>{
+  const texts=['yeah do simple one','yeah so save something like gave medicine','idk just save in notes','Rowan','so i gave him medicine yesterday'];
+  assert.equal(followup('bro save it already',texts)?.note.note,texts.at(-1));
+  texts[1]='yeah so save something like gave 5mg prednisone';
+  assert.equal(followup('bro save it already',texts),null);
+});
 
 test('original request saves full source text, including normal findings, without semantic confidence', () => {
   const note = request(original);
