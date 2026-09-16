@@ -150,3 +150,11 @@ not create access to the protected preview, no Supabase development branch
 exists, and no live model credential is available locally. Therefore the hosted
 migration, authenticated app flow and real-provider acceptance remain unverified.
 The successful build is not a substitute for these release gates.
+
+The latest application revision (`baf0049`) also passed the hosted build and
+Security CI. The disposable PostgreSQL audit now has a separate required-to-pass
+workflow job on pull requests and main pushes, using pinned PGlite 0.5.8 without
+hosted database credentials. This runs the migration, receipt, replay, ownership
+and transaction rollback assertions automatically; it does not substitute for
+testing against the complete hosted schema. Branch-protection requirements are
+managed separately and have not been changed.
