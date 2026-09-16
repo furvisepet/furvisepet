@@ -38,10 +38,11 @@ test('actual admitted route refuses another pet before history or mutations and 
 for(const scenario of ['save','resume','cancel','cancel_saved','failure'])test(`actual admitted route continuation ${scenario}`,async()=>{
  const cancelling=scenario.startsWith('cancel');
  const calls=[];const source={id:'source',role:'user',text:'gave medicine yesterday',createdAt:'2026-09-15T12:00:00Z'};
- const pending=scenario==='resume'||cancelling?{id:'pending',revision:1,kind:'owner_note',status:'awaiting_subject',source,authorizationMessageId:'prior-save'}:null;
+ const priorSave={...source,id:'prior-save',text:'save that as a note'};
+ const pending=scenario==='resume'||cancelling?{id:'pending',revision:1,kind:'owner_note',status:'awaiting_subject',source,request:priorSave,authorizationMessageId:'prior-save'}:null;
  const message=scenario==='resume'?'Sable':cancelling?'cancel the note':'keep that as a note';
  const pet={id:'pet',name:'Sable',user_id:'owner'};
- const liveContext={owner:{userId:'owner'},pet,eligiblePets:[pet],currentMessage:message,currentTurn:{...source,id:'current',text:message},conversationTurns:[source],pendingTask:pending,timeZone:'UTC'};
+ const liveContext={owner:{userId:'owner'},pet,eligiblePets:[pet],currentMessage:message,currentTurn:{...source,id:'current',text:message},conversationTurns:pending?[source,priorSave]:[source],pendingTask:pending,timeZone:'UTC'};
  const proposal=requestProposal({operation:cancelling?'general':'update',subject:cancelling?'non_pet':'selected',petNames:[],topic:'owner note',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:emptyProposedSemanticFrame(),evidenceBasis:cancelling?'general':null,task:{intent:scenario==='failure'?'save':cancelling?'cancel':scenario,sourceTurnId:'source',petName:cancelling?null:'Sable'}},message);
  const lifecycle={transition(){return this;},credit(){return this;},settlement(){return this;},route(){return this;},snapshot(){return {};}};
  const sandbox={liveContext,preparedRequest:{conversationId:'conversation',userMessageId:'current'},requestId:'request',logicalTurnId:'request',userId:'owner',petId:'pet',question:message,
@@ -74,7 +75,8 @@ test('whole-request validation rejects a resumed mixed task recast as only savin
 
 test('source-bound cancellation ignores unrelated advisory read scope',()=>{
  const source={id:'source',role:'user',text:'Sable rested in the hammock.',createdAt:'2026-09-15T12:00:00Z'};
- const context={owner:{userId:'owner'},pet:{id:'pet',name:'Sable',user_id:'owner'},eligiblePets:[{id:'pet',name:'Sable',user_id:'owner'}],currentMessage:"Don't keep it.",conversationTurns:[source],pendingTask:{id:'task',revision:1,kind:'owner_note',status:'awaiting_subject',requiresAnswer:false,source,authorizationMessageId:'request'}};
+ const request={...source,id:'request',text:'save that as a note'};
+ const context={owner:{userId:'owner'},pet:{id:'pet',name:'Sable',user_id:'owner'},eligiblePets:[{id:'pet',name:'Sable',user_id:'owner'}],currentMessage:"Don't keep it.",conversationTurns:[source,request],pendingTask:{id:'task',revision:1,kind:'owner_note',status:'awaiting_subject',requiresAnswer:false,source,request,authorizationMessageId:'request'}};
  const proposal=requestProposal({operation:'general',subject:'selected',petNames:['Sable'],topic:'owner note',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,evidenceBasis:'general',task:{intent:'cancel',sourceTurnId:'source',petName:null,answerRequest:null}},context.currentMessage);
  proposal.mode='conversation';proposal.referenceTurnIds=['invalid-advisory-reference'];
  const result=validateAskRequest(proposal,context);
