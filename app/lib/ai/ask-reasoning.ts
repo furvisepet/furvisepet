@@ -615,7 +615,7 @@ function enforceAskPromptContextBudget<T extends { contextRecords: AskContextRec
     const largest = Math.max(0, ...counts.values());
     let index = contextRecords.length - 1;
     if (largest > 1) index = contextRecords.findLastIndex(record => record.sourceType === "care_update" && counts.get(record.petId) === largest);
-    if (budgeted.evidenceContract.needCoverage?.length && contextRecords[index]?.sourceType === "care_update") {
+    if ((budgeted.evidenceContract.needCoverage?.length || budgeted.evidenceContract.history?.requiredSourceIds?.length) && contextRecords[index]?.sourceType === "care_update") {
       const candidates = contextRecords.flatMap((record, recordIndex) => record.sourceType === "care_update"
         ? [{ recordIndex, cost: evidenceRemovalCost(budgeted.evidenceContract, record.id), petCount: counts.get(record.petId) || 0 }] : []);
       candidates.sort((a, b) => a.cost - b.cost || b.petCount - a.petCount || b.recordIndex - a.recordIndex);
@@ -1420,6 +1420,9 @@ export function buildAskProviderRequest(promptContext: object) {
       operationReceipts: undefined, recordInventory: undefined,
       ...compactHistorySourceCoverage(evidence.sources, represented),
       history: { ...evidence.history,
+        // Budget pinning is enforced by the server. Avoid duplicating boundary
+        // IDs in transport when chronology/represented already identify them.
+        requiredSourceIds: undefined,
         // Independent retrieval passes can finish at the same cursor. Transport
         // each exact cursor once; the server retains every query receipt.
         continuation: evidence.history.continuation?.filter((cursor, index, all) =>

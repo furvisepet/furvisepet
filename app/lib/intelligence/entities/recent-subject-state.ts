@@ -1,4 +1,5 @@
 import type { EligibleSemanticPet } from "../entity-matching.ts";
+import { unquotedOwnerText } from "../../ai/owner-assertion.ts";
 
 export type SubjectPronounClass = "feminine" | "masculine" | "neutral";
 
@@ -62,6 +63,17 @@ export function buildRecentSubjectState(input: {
     for (const sentence of splitSentences(turn.text)) {
       const leading = leadingSubjectResolution(sentence, entities, input.selectedPetId);
       if (leading.status !== "resolved") continue;
+      // Discourse pronouns describe the user's referent, not a profile edit.
+      // A single named subject can establish its own pronouns even when a
+      // stored sex field differs. Mixed human/animal sentences cannot do so.
+      if (namedPets.length === 1 && !externalEntities.length && !people.length
+        && leading.entity.petId === namedPets[0].id
+        && normalize(sentence).startsWith(normalize(namedPets[0].name || ""))) {
+        for (const word of unquotedOwnerText(sentence).match(/\b(?:she|her|hers|he|him|his|they|them|their|it|its)\b/gi) || []) {
+          const kind = pronounClass(word);
+          if (kind && !leading.entity.pronouns.includes(kind)) leading.entity.pronouns.push(kind);
+        }
+      }
       leading.entity.lastSubjectTurn = turnIndex;
       leading.entity.grammaticalRole = "subject";
       for (const mentioned of entities.values()) {

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { validateEvidenceNeeds } from '../app/lib/intelligence/evidence-needs.ts';
-import { buildEvidenceNeedCoverage, evidenceRemovalCost } from '../app/lib/intelligence/evidence-need-coverage.ts';
+import { buildEvidenceNeedCoverage, evidenceRemovalCost, missingRequiredEvidence } from '../app/lib/intelligence/evidence-need-coverage.ts';
 import { compileHistoryReadStrategies } from '../app/lib/intelligence/history-read-strategies.ts';
 const need={quote:'bedding change',sourceTurnId:null,terms:['bedding','mat']};
 test('a standalone year in a requested record clause keeps its own lookup window',()=>{
@@ -138,4 +138,16 @@ test('month anchors retain broad context, respect access, and protect representa
  assert.equal(evidenceRemovalCost(evidence,'care:one'),1);
  evidence.represented[0].occurredAt='2023-03-18T00:00:00.000Z';
  assert.equal(evidenceRemovalCost(evidence,'care:one'),0);
+});
+
+
+test('required source identity survives trimming and cannot slide to a different candidate',()=>{
+ const evidence=fixture();evidence.history.requiredSourceIds=['care:one'];
+ assert.deepEqual(missingRequiredEvidence(evidence),[]);
+ assert.ok(evidenceRemovalCost(evidence,'care:one')>evidenceRemovalCost(evidence,'care:other'));
+ evidence.represented=[{...evidence.represented[0],sourceId:'care:other'}];
+ assert.deepEqual(missingRequiredEvidence(evidence),['care:one']);
+ evidence.represented=[{...evidence.represented[0],sourceId:'care:one'}];
+ evidence.losses=[{sourceId:'care:one',reason:'prompt_budget'}];
+ assert.deepEqual(missingRequiredEvidence(evidence),['care:one']);
 });

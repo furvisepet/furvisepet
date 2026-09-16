@@ -230,7 +230,7 @@ test('reading one pet does not require selecting every name mentioned', () => {
   assert.deepEqual(result.petIds, ['luna']);
 });
 test('account scope expands authenticated profiles and rejects foreign names', () => {
-  assert.deepEqual(validateAskRequest(proposal({ scope: 'account', petNames: [] }), context).petIds, fixturePets.map(p => p.id));
+  assert.deepEqual(validateAskRequest(proposal({ scope: 'account', petNames: [] }), {...context,currentMessage:'Compare all my pets.'}).petIds, fixturePets.map(p => p.id));
   assert.throws(() => validateAskRequest(proposal({ scope: 'account', petNames: ['Foreign'] }), context));
 });
 test('reference metadata identifies discourse without supplying source evidence', () => {
@@ -592,7 +592,7 @@ test('all provider phases share the Ask deadline and cannot start after it', asy
 test('a redundant account label cannot widen an explicitly resolved owned-pet subset', () => {
   const subset = validateAskRequest(proposal({ scope: 'account', petNames: ['Aster', 'Bramble'] }), context);
   assert.deepEqual(subset.petIds, [fixturePets[0].id, fixturePets[1].id]);
-  assert.equal(validateAskRequest(proposal({ scope: 'account', petNames: [] }), context).petIds.length, 3);
+  assert.equal(validateAskRequest(proposal({ scope: 'account', petNames: [] }), {...context,currentMessage:'Compare all my pets.'}).petIds.length, 3);
 });
 
 // New structural regressions; these are not additional benchmark successes.
@@ -1489,7 +1489,7 @@ test('profile contract mistakes get one bounded repair with full ownership reval
   let calls=0;
   const good=proposal({evidenceBasis:'saved_profile',profileFields:['weight'],frame:null});
   const pending=interpretAskQuestion({context:{...context,currentMessage:'What is Aster’s current saved weight? Say if empty.'},model:'gpt-5-mini',
-   client:{responses:{async create(){calls++;return {status:'completed',output_text:JSON.stringify(calls===1?{...good,frame:emptyProposedSemanticFrame()}:invalidRepair?{...good,petNames:['Foreign']}:good)};}}}});
+   client:{responses:{async create(){calls++;return {status:'completed',output_text:JSON.stringify(calls===1?{...good,quantity:'records'}:invalidRepair?{...good,petNames:['Foreign']}:good)};}}}});
   if(invalidRepair) await assert.rejects(pending);
   else assert.deepEqual((await pending).request.profileFields,['weight']);
   assert.equal(calls,2);
@@ -1546,4 +1546,38 @@ test('mixed historical questions retain independently scoped evidence needs',()=
  assert.equal(r.request.evidenceNeeds.length,2);
  assert.equal(r.request.evidenceNeeds[0].window,undefined);
  assert.ok(r.request.evidenceNeeds[1].window);
+});
+
+
+test('read mode discards contradictory mutation hints without a provider repair', async () => {
+ const {interpretAskQuestion}=await import('../../app/lib/intelligence/interpret-ask.ts');
+ let calls=0;
+ const result=await interpretAskQuestion({context:{...context,currentMessage:'What is recorded about Aster?'},model:'gpt-5-mini',
+  client:{responses:{async create(request){calls++;
+   assert.equal(request.text.format.schema.properties.referenceTurnIds.maxItems,0);
+   return {status:'completed',output_text:JSON.stringify(proposal({task:{intent:'resume',sourceTurnId:null,petName:'Aster',answerRequest:null}}))};
+  }}}});
+ assert.equal(calls,1);assert.equal(result.readOnly,true);assert.equal(result.request.task,null);
+ assert.deepEqual(result.petIds,[fixturePets[0].id]);
+});
+
+test('earliest unfiltered care record does not become a keyword lookup',async t=>{
+ clock(t);
+ const rows=[care('first','milo','2021-09-09','weight','Aster weighed 31.49 kg.'),
+  care('later','milo','2021-09-18','general','Routine care and grooming.')];
+ const text='The earliest record is September 9, 2021: Aster weighed 31.49 kg.';
+ const run=await exercise('What is the earliest care note you have for Aster?',{
+  fixturePets,messages:[],history:true,rows,interpretationProposal:proposal({selection:'earliest',terms:['care','note'],
+   evidenceNeeds:[{quote:'earliest care note',sourceTurnId:null,terms:['care','note'],petNames:['Aster'],order:'earliest'}]}),
+  providerOverrides:{answer:text,historyNarrative:{sentences:[{text,sourceIds:['care:first']}]}},reviewResponse:{approved:true},expectedReviewCalls:1});
+ assert.ok(run.prompt.contextRecords.some(record=>record.id==='care:first'));
+ assert.ok(run.context.askHistory.coverage.chronology[0].boundaryIds.includes('care:first'));
+});
+
+
+test('unnamed standalone reads cannot expand to the account from a planner hint',()=>{
+ for(const currentMessage of ['What was the last food change I recorded?','Show the earliest observation.','Has a harness problem ever been recorded?']) {
+  const plan=validateAskRequest(proposal({scope:'account',petNames:[],frame:null}),{...context,currentMessage});
+  assert.deepEqual(plan.petIds,[context.pet.id]);assert.equal(plan.readOnly,true);
+ }
 });

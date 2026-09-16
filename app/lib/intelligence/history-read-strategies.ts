@@ -21,7 +21,7 @@ export function compileHistoryReadStrategies(question: string, year: number, win
   }).filter(target => target.from < target.to && (target.from !== window.from || target.to !== window.to));
   // Retain a global strategy even with many anchors. Excess targets are an
   // explicit coverage loss, never silently treated as an absent record.
-  const facets: HistoryReadStrategy[] = needs.filter(need => need.terms.length || need.window).map(need => ({
+  const facets: HistoryReadStrategy[] = needs.filter(need => need.terms.length || need.window || need.order === "earliest" || need.order === "latest").map(need => ({
     from: need.window ? window.from && window.from > need.window.from ? window.from : need.window.from : window.from,
     to: need.window ? window.to && window.to < need.window.to ? window.to : need.window.to : window.to,
     needId: need.id, descending: need.order === "earliest" ? false : need.order === "latest" ? true : proposed.some(strategy => strategy.descending),

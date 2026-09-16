@@ -1,6 +1,8 @@
 import { ownerDeclinesPersistence } from '../ai/owner-assertion.ts';
 import { explicitNoteTime } from './owner-note-request.ts';
 import type { IntelligenceConversationTurn } from './types.ts';
+import { resolveDeterministicTurnSubject } from './entities/resolve-turn-subject.ts';
+import type { DogProfileRow } from '../supabase.ts';
 
 export type PendingAskTask = {
   id: string; revision: number; kind: 'owner_note'; status: 'awaiting_subject' | 'awaiting_answer';
@@ -23,7 +25,7 @@ export const ASK_TASK_INSTRUCTIONS = 'task is null unless the user requests savi
 export function validateAskTask(value: unknown, context: {
   currentMessage: string; currentTurn?: IntelligenceConversationTurn; conversationTurns: IntelligenceConversationTurn[];
   requiresAnswer?: boolean; pendingTask?: PendingAskTask | null; owner: { userId: string };
-  eligiblePets: Array<{ id: string; name: string | null; user_id: string }>;
+  eligiblePets: Array<{ id: string; name: string | null; user_id: string; species?: DogProfileRow['species']; sex?: DogProfileRow['sex'] }>;
 }): ValidatedAskTask | null {
   if (value === null || value === undefined) return null;
   const fail = (): never => { throw new Error('ASK_REQUEST_INVALID:task'); };
@@ -70,7 +72,21 @@ export function validateAskTask(value: unknown, context: {
     const index = context.conversationTurns.findIndex(turn => turn.id === source.id);
     const relevant = [source, ...(index >= 0 ? context.conversationTurns.slice(index + 1) : []), context.currentTurn];
     const normalize = (text: string) => ` ${text.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()} `;
-    if (!relevant.some(turn => turn?.role === 'user' && normalize(turn.text).includes(normalize(p.petName!)))) proposedPetId = null;
+    if (!relevant.some(turn => turn?.role === 'user' && normalize(turn.text).includes(normalize(p.petName!)))) {
+      const prior = index >= 0 ? context.conversationTurns.slice(0, index) : context.conversationTurns;
+      const lastUser = prior.filter(turn => turn.role === 'user').at(-1);
+      const receipt = lastUser?.operationReceipt;
+      const owned = context.eligiblePets.filter(pet => pet.user_id === context.owner.userId);
+      const resolution = resolveDeterministicTurnSubject({ message: source.text,
+        pets: owned.map(pet => ({ ...pet, name: pet.name || '', species: pet.species || null, age_value: null, age_unit: null })),
+        recentConversation: prior, selectedPetId: proposedPetId });
+      // Only an immediately preceding database-confirmed save plus resolved
+      // USER discourse can bind an unnamed follow-up. Selection alone cannot.
+      if (!receipt?.records.length || receipt.petId !== proposedPetId
+        || !/\b(?:she|her|he|him|his|they|them|their|it|its)\b/i.test(source.text)
+        || resolution?.petId !== proposedPetId || resolution?.requiresClarification
+        || resolution.discourseFocus && resolution.discourseFocus.kind !== 'pet') proposedPetId = null;
+    }
   }
   return { ...(p.intent === 'resume' && pending?.requiresAnswer && pending.request ? { originalRequest: pending.request } : {}), intent: p.intent, source, petId: p.intent === 'cancel' ? null : retainedPet?.id || proposedPetId,
     taskId: pending?.id || null, revision: pending?.revision ?? null,
