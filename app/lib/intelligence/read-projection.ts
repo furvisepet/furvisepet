@@ -50,8 +50,6 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
   diagnostic?.({ stage: "eligibility", readOnly: evidence.scope.readOnlyRecall,
     profileWeight: Boolean(request?.profileFields?.includes("weight")), temporalScope: request?.temporalScope || null,
     outputFormat: request?.outputFormat || null, petCount: evidence.scope.authorizedPetIds.length });
-  const inventory = eligibleAnswerSources(evidence).filter(source => source.sourceType === "record_inventory");
-  if (evidence.scope.readOnlyRecall && inventory.length && (!request?.outputFormat || ["prose", "bullets"].includes(request.outputFormat))) return parseHistoryNarrative({ sentences: inventory.map(source => ({text: source.text, sourceIds: [source.sourceId], calculations: []})) }) || null;
   // A current profile field is the authoritative present endpoint when the
   // owner explicitly compares it with one dated body-mass report. Later care
   // notes are observations, not substitutes for that requested profile value.
@@ -151,6 +149,12 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
       return parseHistoryNarrative({sentences}) || null;
     }
   }
+
+  // Counts can support record selection, but cannot substitute for requested
+  // note content or a write receipt. Project them only for an explicit count.
+  const inventory = eligibleAnswerSources(evidence).filter(source => source.sourceType === "record_inventory");
+  if (evidence.scope.readOnlyRecall && inventory.length && /\b(?:how many|count|number of|total)\b/i.test(requestText)
+    && (!request?.outputFormat || ["prose", "bullets"].includes(request.outputFormat))) return parseHistoryNarrative({ sentences: inventory.map(source => ({text: source.text, sourceIds: [source.sourceId], calculations: []})) }) || null;
 
   if (!projection || !["table","csv"].includes(request.outputFormat || "") || !evidence.history
     || evidence.scope.status !== "resolved" || !evidence.scope.readOnlyRecall || evidence.scope.requestKind === "count"

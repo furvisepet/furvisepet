@@ -1651,6 +1651,18 @@ test('readback preserves every referenced saved operation, not just the latest',
   represented:spans,sources:[{petId:'pet',source:'operation_receipts',status:'loaded',loadedIds:spans.map(s=>s.sourceId)}],losses:[]};
  const all=deterministicReadProjection(e);assert.ok(all);
  const text=JSON.stringify(all);assert.match(text,/Tired on the morning walk/);assert.match(text,/Also drank normally/);
+ const inventory={sourceId:'record-inventory:pet',petId:'pet',sourceType:'record_inventory',field:'value',text:'Exactly zero notes in an unrelated interval.',start:0,end:44};
+ e.represented.push(inventory);e.sources.push({petId:'pet',source:'record_inventory',status:'loaded',loadedIds:[inventory.sourceId]});
+ assert.match(JSON.stringify(deterministicReadProjection(e)),/Tired on the morning walk/);
  e.interpretation.request.referenceTurnIds=['original'];
  assert.doesNotMatch(JSON.stringify(deterministicReadProjection(e)),/Also drank normally/);
+});
+
+test('interpretation uses the user calendar day across the UTC date boundary',async t=>{
+ clock(t);t.mock.timers.setTime(Date.parse('2026-09-16T06:00:00Z'));
+ const {interpretAskQuestion}=await import('../../app/lib/intelligence/interpret-ask.ts');
+ let input;
+ await interpretAskQuestion({context:{...context,currentMessage:'Show today’s notes.',timeZone:'America/Vancouver'},model:'gpt-5-mini',
+  client:{responses:{async create(request){input=JSON.parse(request.input);return {status:'completed',output_text:JSON.stringify(proposal({question:'Show today’s notes.'})),usage:{input_tokens:1,output_tokens:1}};}}}});
+ assert.equal(input.today,'2026-09-15');assert.equal(input.timeZone,'America/Vancouver');
 });
