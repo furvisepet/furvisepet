@@ -4,10 +4,9 @@ type Turn = { id: string; role: "user" | "furvise"; text: string };
 export function requestReferenceContext(turns: readonly Turn[], referenceIds: readonly string[]) {
   const requested = new Set(referenceIds);
   const retained = turns.filter(turn => requested.has(turn.id));
-  for (const turn of [...turns].reverse()) {
-    if (retained.length >= 8) break;
-    if (turn.role === "user" && !retained.some(item => item.id === turn.id)) retained.push(turn);
-  }
+  // Interpretation already resolved dialogue dependencies. Unreferenced old
+  // questions are not additional tasks for the writer and must not compete
+  // with the current request or consume its evidence budget.
   const ids = new Set(retained.map(turn => turn.id));
   return {
     purpose: "reference_and_tone_only_not_medical_evidence",

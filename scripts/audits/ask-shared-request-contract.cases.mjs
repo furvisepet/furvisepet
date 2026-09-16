@@ -1581,3 +1581,24 @@ test('unnamed standalone reads cannot expand to the account from a planner hint'
   assert.deepEqual(plan.petIds,[context.pet.id]);assert.equal(plan.readOnly,true);
  }
 });
+
+
+test('unreferenced old questions cannot become new writer obligations',()=>{
+ const turns=[{id:'old',role:'user',text:'Was a diagnosis recorded?'},{id:'linked',role:'user',text:'Aster rested normally.'}];
+ assert.deepEqual(requestReferenceContext(turns,[]).turns,[]);
+ assert.deepEqual(requestReferenceContext(turns,['linked']).turns.map(t=>t.id),['linked']);
+});
+
+test('readback preserves every referenced saved operation, not just the latest',async()=>{
+ const {deterministicReadProjection}=await import('../../app/lib/intelligence/read-projection.ts');
+ const {operationReceiptEvidence}=await import('../../app/lib/intelligence/ask-evidence.ts');
+ const receipts=['original','addition'].map((id,i)=>({sourceMessageId:id,petId:'pet',requestText:'Save this.',answerPersisted:true,records:[{id:'entry-'+id,occurredAt:'2026-09-16T08:00:00Z',note:i?'Also drank normally.':'Tired on the morning walk.'}]}));
+ const spans=operationReceiptEvidence(receipts).map(s=>({...s,sourceType:'operation_receipt',field:'value',start:0,end:s.text.length}));
+ const e={scope:{readOnlyRecall:true,authorizedPetIds:['pet'],requestText:'Did those notes save? Show exactly what was stored.'},
+  interpretation:{request:{referenceTurnIds:['original','addition']}},operationReceipts:receipts,
+  represented:spans,sources:[{petId:'pet',source:'operation_receipts',status:'loaded',loadedIds:spans.map(s=>s.sourceId)}],losses:[]};
+ const all=deterministicReadProjection(e);assert.ok(all);
+ const text=JSON.stringify(all);assert.match(text,/Tired on the morning walk/);assert.match(text,/Also drank normally/);
+ e.interpretation.request.referenceTurnIds=['original'];
+ assert.doesNotMatch(JSON.stringify(deterministicReadProjection(e)),/Also drank normally/);
+});

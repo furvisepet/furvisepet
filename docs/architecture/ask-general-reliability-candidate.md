@@ -25,3 +25,13 @@ The frozen suite is `scripts/audits/fixtures/ask-launch-frozen-26.json`. Rerun a
 Continuity (16–18), earliest record (6), and fresh evidence (22 and 24) must pass. A sharply reduced hard-failure count is necessary but does not alone establish launch readiness. The selected-pet-only criterion for question 5 remains a product-policy gate; this candidate still permits explicitly requested multi-pet reads.
 
 The opt-in synthetic route smoke is `scripts/audits/ask-reliability-smoke.live.mjs`. It checks two pets, ordinary reads, chronology, save continuity, stored text, and current evidence among long older notes. It uses normal admission controls and cleans up its temporary account. It is additional diagnostic coverage, not a substitute for the frozen live suite.
+
+## Verification continuation
+
+The owner approved a temporary 400-call test limit while retaining the $5 daily cost cap. This is a process-only override on the isolated test server; stored configuration and production limits were not changed.
+
+The first admitted seven-turn run returned HTTP 200 on every turn, saved both USER texts exactly once to Sable, and retained the fresh fatigue observation in the travel answer. It failed the readback check because deterministic receipt projection chose only the last referenced operation. The travel answer also included an unrelated earlier question and took 81.5 seconds, so that run was not a release pass.
+
+The follow-up change projects every referenced receipt and removes unreferenced earlier questions from writer context. Local full tests (2,484), TypeScript, and changed-file lint pass. The repeat live readback returned both exact saved texts, with zero credits for the saves and readback. Full release verification remains pending.
+
+Audit correction: the baseline question 6 expected Atlas's September 9, 2021 record, but `resolveAskHistoryAccess` restricts Plus retrieval to five years. On September 16, 2026 that record is outside the accessible window. The frozen question is unchanged; grade earliest retrieval against eligible records and disclose the access window. Do not count an excluded record as a retrieval failure or broaden subscription access to satisfy the test.

@@ -126,24 +126,28 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
     && /\b(?:did|actually|receipts?|confirm|verify)\b/i.test(requestText)) {
     const receipts = evidence.operationReceipts || [];
     const referenced = receipts.filter(receipt => request?.referenceTurnIds.includes(receipt.sourceMessageId));
-    const receipt = referenced.at(-1) || receipts.filter(item => /\b(?:save|log|record|add)\b/i.test(item.requestText)).at(-1);
-    if (receipt) {
-      // Edits and other capability actions have execution receipts rather than
-      // new note rows. Compose their status alongside the requested current
-      // records; an insert-only projection would incorrectly erase that task.
-      if (receipt.actionReceipts?.length) return null;
+    const selected = referenced.length ? referenced : receipts.filter(item => /\b(?:save|log|record|add)\b/i.test(item.requestText)).slice(-1);
+    if (selected.length) {
+      // Every explicitly referenced operation remains part of the readback.
+      // Choosing only the last receipt silently erased earlier saved content.
+      if (selected.some(receipt => receipt.actionReceipts?.length)) return null;
       const sources = eligibleAnswerSources(evidence);
-      const records = receipt.records.map(record => ({ record, source: sources.find(source => source.sourceId === `operation:${receipt.sourceMessageId}:record:${record.id}`) }));
-      const header = sources.find(source => source.sourceId === `operation:${receipt.sourceMessageId}`);
-      if (records.length && header && records.every(item => item.source)) return parseHistoryNarrative({ sentences: [{ text: receiptCompletionText(receipt), sourceIds: [header.sourceId], calculations: [] }, ...records.map(({record, source}) => ({
-        text: `${record.occurredAt.slice(0,10)} linked saved note: ${JSON.stringify(record.note)}`,
-        sourceIds: [source!.sourceId], calculations: [],
-      }))] }) || null;
-      if (!records.length && header) return parseHistoryNarrative({sentences:[{text:
-        "No current care-history entry is linked to that prior request. "
-        + (receipt.answerPersisted ? "The conversation answer was saved; that is separate from a care record. " : "No conversation answer was saved for that turn. ")
-        + (receipt.actionReceipts ? "No mutation action receipt was found for that turn." : "Action receipt availability is unknown."),
-        sourceIds:[header.sourceId],calculations:[]}]}) || null;
+      const sentences = [];
+      for (const receipt of selected) {
+        const records = receipt.records.map(record => ({ record, source: sources.find(source => source.sourceId === `operation:${receipt.sourceMessageId}:record:${record.id}`) }));
+        const header = sources.find(source => source.sourceId === `operation:${receipt.sourceMessageId}`);
+        if (!header || records.some(item => !item.source)) return null;
+        if (records.length) sentences.push({ text: receiptCompletionText(receipt), sourceIds: [header.sourceId], calculations: [] }, ...records.map(({record, source}) => ({
+          text: `${record.occurredAt.slice(0,10)} linked saved note: ${JSON.stringify(record.note)}`,
+          sourceIds: [source!.sourceId], calculations: [],
+        })));
+        else sentences.push({text:
+          "No current care-history entry is linked to that prior request. "
+          + (receipt.answerPersisted ? "The conversation answer was saved; that is separate from a care record. " : "No conversation answer was saved for that turn. ")
+          + (receipt.actionReceipts ? "No mutation action receipt was found for that turn." : "Action receipt availability is unknown."),
+          sourceIds:[header.sourceId],calculations:[]});
+      }
+      return parseHistoryNarrative({sentences}) || null;
     }
   }
 
