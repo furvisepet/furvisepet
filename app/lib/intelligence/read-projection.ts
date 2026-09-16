@@ -134,6 +134,11 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
     const referenced = receipts.filter(receipt => request?.referenceTurnIds.includes(receipt.sourceMessageId));
     const selected = referenced.length ? referenced : receipts.filter(item => /\b(?:save|log|record|add)\b/i.test(item.requestText)).slice(-1);
     if (selected.length) {
+      // Mixed linked/unlinked requests need their individual referents explained.
+      // A flat receipt list makes earlier readback questions sound like failed
+      // writes. Leave all receipts available to generation and independent review;
+      // never silently discard an unconfirmed save to make the result look complete.
+      if (selected.some(receipt => receipt.records.length) && selected.some(receipt => !receipt.records.length)) return null;
       // Every explicitly referenced operation remains part of the readback.
       // Choosing only the last receipt silently erased earlier saved content.
       if (selected.some(receipt => receipt.actionReceipts?.length)) return null;

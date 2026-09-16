@@ -76,3 +76,9 @@ Recovered up to four saved-note source references beyond the 12-message dialogue
 Prose repairs now send only additional citations; server-held accessible original citations are inherited before strict parsing. Unknown proposed citations remain visible to independent review. Removed duplicated request/task metadata from reviewer input. All factual review and model settings remain intact; latency improvement requires live measurement.
 
 Validation: 2,497 offline tests passed, plus the new context-lineage wrapper covering window recovery, deletion, and access. Typecheck passes; changed-file ESLint has no errors (one pre-existing unused-parameter warning). No paid model calls during implementation. Targeted production verification follows CI/deployment; this is not a new full 26-prompt certification.
+
+### Targeted production findings after PR499
+
+The recovered-readback check returned both exact original notes beyond the dialogue window, but also projected empty receipts for earlier readback questions. The follow-up fix leaves mixed linked/unlinked operations to attributed generation and independent review, preserving every receipt rather than silently dropping a possibly unconfirmed save. Single-entry receipt grammar is corrected.
+
+The frozen Q7 prompt on Atlas still required repair: 74.836 seconds, a disclosed partial answer, and zero credits. The reviewer rejected an unsupported interpretation initially and an unsupported attribution after repair. Payload compaction is not a demonstrated latency fix. No further broad API sampling is justified under the remaining daily budget. Continued work must improve first-pass evidence attribution and retrieval coverage without removing factual review or pretending sampled history is complete.

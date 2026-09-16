@@ -282,3 +282,14 @@ test('supplied comparison numbers never fulfill an explicit saved-record lookup'
 const {requestsSavedRecordLookup}=await import('../app/lib/intelligence/ask-request-contract.ts');
 for(const text of ['Do not check saved records. Use these two numbers only.', 'Suppose you could find a historical record.', 'Rowan ate normally. Save this note to history.', 'Repeat this sentence: "Find his historical entry."'])
  test(`no invented lookup authority: ${text}`,()=>assert.equal(requestsSavedRecordLookup(text),false));
+
+test('mixed linked and unlinked receipts require attributed prose, never an ambiguous flat success/failure list',()=>{
+ const receipts=[{sourceMessageId:'save',petId:'pet',requestText:'Save this observation.',answerPersisted:true,records:[{id:'note',note:'An observation.',occurredAt:'2026-09-15T12:00:00Z'}]},
+ {sourceMessageId:'check',petId:'pet',requestText:'Did the note save correctly?',answerPersisted:true,records:[]}];
+ const evidence={scope:{requestText:'Did my notes save correctly? Show what was stored.',readOnlyRecall:true,authorizedPetIds:['pet']},
+ interpretation:{request:{referenceTurnIds:['save','check']}},operationReceipts:receipts};
+ const before=structuredClone(evidence);
+ assert.equal(deterministicReadProjection(evidence),null);
+ assert.deepEqual(evidence,before,'unconfirmed requests must remain available for generation and review');
+ assert.match(receiptCompletionText(receipts[0]),/1 current care-history entry linked/);
+});
