@@ -88,7 +88,7 @@ test('replay refuses conflicting disposition and identity errors', async () => {
   await assert.rejects(fn({ usage: {} }), error => error === conflict);
 });
 test('unfinished assistant persistence is presented as incomplete without rewriting reviewed prose', () => {
-  const fn = routeFunction('completedResponseFromPersisted', { successfulAnswerResponse: input => input });
+  const fn = routeFunction('completedResponseFromPersisted', { buildSuccessfulAskResponse: input => input });
   const result = fn({ assistantMessage: { id: 'answer', response_data: { directAnswer: 'Reviewed draft.', turn: { finalStage: 'ANSWER_VALIDATED', taskOutcome: 'complete' } } } }, {});
   assert.equal(result.response.directAnswer, 'Reviewed draft.');
   assert.equal(result.turn.taskOutcome, 'limited');
@@ -123,8 +123,8 @@ for (const status of ['succeeded', 'failed']) test(`route settles only after cap
     completeAiCredit: async () => calls.push('charged'),
     getRemainingAiCredits: async () => ({}),
     finalizePersistedAskAnswer: async () => { calls.push('finalize'); return null; },
-    didPersistEffectiveState: () => false, revalidateAskStateViews: () => {}, emitAskTurnTrace: () => {},
-    successfulAnswerResponse: input => input,
+    didPersistEffectiveAskState: () => false, revalidateAskStateViews: () => {}, emitAskTurnTrace: () => {},
+    buildSuccessfulAskResponse: input => input,
   });
   const result = await fn({
     authorizedPetIds: ['pet'], creditRequestId: 'attempt', creditReserved: true,
