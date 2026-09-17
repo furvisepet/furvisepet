@@ -33,9 +33,15 @@ export type FurviseMutationKind =
   | "record_care"
   | "correct_record"
   | "delete_record"
+  | "resolve_care_state"
+  | "reopen_care_state"
+  | "update_profile"
+  | "set_preference"
+  | "forget_preference"
   | "mark_deceased"
   | "restore_living"
   | "archive_pet"
+  | "delete_pet"
   | "cancel_pending"
   | "other";
 
@@ -57,6 +63,7 @@ export type FurviseMutationAuthority = Readonly<{
   kind: FurviseMutationKind | null;
   userAuthorizationVerified: boolean;
   authorizationSource: FurviseAuthorizationSource | null;
+  /** Opaque provenance id: user turn id for language, capability id for UI transport. */
   authorizationTurnId: string | null;
   confirmationRequired: boolean;
   confirmationSatisfied: boolean;
