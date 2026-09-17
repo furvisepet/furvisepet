@@ -17,8 +17,8 @@ test("reviewed Ask effects execute inside the single Brain handoff", () => {
   const delegate = finalizer.indexOf("return finalizeAskPostReview({");
   assert.ok(delegate > 0);
   const prepared = finalizer.slice(0, delegate);
-  assert.match(prepared, /completeAskConversationTurn\(\{/);
   for (const stage of [
+    "completeAskConversationTurn({",
     "createActionCapabilities({",
     "persistIntelligenceLearnings({",
     "executeActionCapability({",
@@ -27,6 +27,7 @@ test("reviewed Ask effects execute inside the single Brain handoff", () => {
   ]) assert.doesNotMatch(prepared, new RegExp(stage.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `${stage} is Brain-owned`);
   const delegateBody = finalizer.slice(delegate);
   for (const stage of [
+    "completeAskConversationTurn({",
     "createActionCapabilities({",
     "persistIntelligenceLearnings({",
     "executeActionCapability({",

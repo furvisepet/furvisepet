@@ -33,6 +33,18 @@ test("Brain executive control owns the complete post-review stage order", async 
   assert.deepEqual(calls, ASK_POST_REVIEW_FINALIZATION_STAGES);
 });
 
+test("a persistence-stage early response stops every later effect", async () => {
+  const calls = [];
+  const result = await finalizeAskPostReview(operations(calls, {
+    persistReviewedAnswer: async () => {
+      calls.push("persist_reviewed_answer");
+      return { kind: "early_response", response: "stored-response" };
+    },
+  }));
+  assert.equal(result, "stored-response");
+  assert.deepEqual(calls, ["persist_reviewed_answer"]);
+});
+
 test("a durable replay still invalidates committed state but skips a second publication", async () => {
   const calls = [];
   const result = await finalizeAskPostReview(operations(calls, {

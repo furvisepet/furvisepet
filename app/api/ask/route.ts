@@ -1854,44 +1854,11 @@ async function persistAssistantAnswer({
     turnLifecycle.optionalFailure(component);
     logAskServerError(`optional_${component}`, error, { conversationId, petId, requestId }, 200);
   };
-  let completion = await completeAskConversationTurn({
-    contextUsed,
-    conversationId,
-    intelligenceValidation: intelligenceResult?.answerValidation || null,
-    persistenceGovernance,
-    preview: response.directAnswer.slice(0, 220),
-    requestId,
-    responseData: responseWithTurn,
-    saveMetadata,
-    userId,
-    userMessageId,
-  });
-  let completionRow = validAssistantCompletionRow(completion.data);
-  let assistantMessage = completionRow ? { id: completionRow.assistant_message_id } : null;
-  let messageError = completion.error;
-
-  if (messageError || !assistantMessage) {
-    const existing = await loadPersistedRequestByConversation({ conversationId, requestId, supabase, userId });
-    if (existing?.assistantMessage?.response_data) {
-      if (existing.assistantMessage.response_data.turn?.finalStage === "COMPLETED") {
-        // A finalized result replays its ledger decision; message existence must
-        // never create a new completion disposition.
-        const replayUsage = await reconcilePersistedAskCredit({ logicalRequestId: requestId, payloadHash, supabase, usage, userId });
-        return completedResponseFromPersisted(existing, replayUsage);
-      }
-      const { turn: storedTurn, ...storedBody } = existing.assistantMessage.response_data;
-      const { turn: proposedTurn, ...proposedBody } = responseWithTurn;
-      void storedTurn; void proposedTurn;
-      if (!isDeepStrictEqual(storedBody, JSON.parse(JSON.stringify(proposedBody)))) {
-        throw new AskApiError("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503, "persistence_failed");
-      }
-      // The insertion committed but its acknowledgment was lost. Continue the
-      // same reviewed execution, under the existing operation lease and keys.
-      assistantMessage = { id: existing.assistantMessage.id };
-      messageError = null;
-    } else {
-      logAskServerError("persistence_failed", messageError, { conversationId, requestId }, 200);
-      completion = await completeAskConversationTurn({
+  // Furvise Brain now owns the entire reviewed post-review lifecycle, including
+  // exactly-once assistant persistence and persistence-stage replay short-circuiting.
+  return finalizeAskPostReview({
+    persistReviewedAnswer: async () => {
+      let completion = await completeAskConversationTurn({
         contextUsed,
         conversationId,
         intelligenceValidation: intelligenceResult?.answerValidation || null,
@@ -1903,31 +1870,66 @@ async function persistAssistantAnswer({
         userId,
         userMessageId,
       });
-      completionRow = validAssistantCompletionRow(completion.data);
-      assistantMessage = completionRow ? { id: completionRow.assistant_message_id } : null;
-      messageError = completion.error;
-      if (!assistantMessage || messageError) {
-        logAskServerError("persistence_failed", messageError, { conversationId, requestId }, 200);
-        const released = creditReserved
-          ? await safeReleaseAiCredit({ logicalRequestId: requestId, payloadHash, requestId: creditRequestId, userId })
-          : false;
-        turnLifecycle.credit(creditReserved ? released ? "released" : "release_pending" : "not_required");
-        if (creditReserved) turnLifecycle.settlement("release", released ? "reconciled" : "pending");
-        turnLifecycle.fail("assistant_persistence", true);
-        emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
-        return askFailure("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503, {}, "persistence_failed");
-      }
-      logAskStage("assistant message persisted after idempotent retry", { requestId });
-    }
-  }
-  logAskStage("assistant message persisted", { requestId });
-  turnLifecycle.transition("ANSWER_PERSISTED");
+      let completionRow = validAssistantCompletionRow(completion.data);
+      let assistantMessage = completionRow ? { id: completionRow.assistant_message_id } : null;
+      let messageError = completion.error;
 
-  // The persisted reviewed answer is the last route-owned stage. From capability
-  // minting onward, Furvise Brain owns effect ordering and the only success exit.
-  return finalizeAskPostReview({
-    persistReviewedAnswer: () => assistantMessage,
-    mintActionCapabilities: async () => {
+      if (messageError || !assistantMessage) {
+        const existing = await loadPersistedRequestByConversation({ conversationId, requestId, supabase, userId });
+        if (existing?.assistantMessage?.response_data) {
+          if (existing.assistantMessage.response_data.turn?.finalStage === "COMPLETED") {
+            // A finalized result replays its ledger decision; message existence must
+            // never create a new completion disposition.
+            const replayUsage = await reconcilePersistedAskCredit({ logicalRequestId: requestId, payloadHash, supabase, usage, userId });
+            return { kind: "early_response" as const, response: completedResponseFromPersisted(existing, replayUsage) };
+          }
+          const { turn: storedTurn, ...storedBody } = existing.assistantMessage.response_data;
+          const { turn: proposedTurn, ...proposedBody } = responseWithTurn;
+          void storedTurn; void proposedTurn;
+          if (!isDeepStrictEqual(storedBody, JSON.parse(JSON.stringify(proposedBody)))) {
+            throw new AskApiError("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503, "persistence_failed");
+          }
+          // The insertion committed but its acknowledgment was lost. Continue the
+          // same reviewed execution, under the existing operation lease and keys.
+          assistantMessage = { id: existing.assistantMessage.id };
+          messageError = null;
+        } else {
+          logAskServerError("persistence_failed", messageError, { conversationId, requestId }, 200);
+          completion = await completeAskConversationTurn({
+            contextUsed,
+            conversationId,
+            intelligenceValidation: intelligenceResult?.answerValidation || null,
+            persistenceGovernance,
+            preview: response.directAnswer.slice(0, 220),
+            requestId,
+            responseData: responseWithTurn,
+            saveMetadata,
+            userId,
+            userMessageId,
+          });
+          completionRow = validAssistantCompletionRow(completion.data);
+          assistantMessage = completionRow ? { id: completionRow.assistant_message_id } : null;
+          messageError = completion.error;
+          if (!assistantMessage || messageError) {
+            logAskServerError("persistence_failed", messageError, { conversationId, requestId }, 200);
+            const released = creditReserved
+              ? await safeReleaseAiCredit({ logicalRequestId: requestId, payloadHash, requestId: creditRequestId, userId })
+              : false;
+            turnLifecycle.credit(creditReserved ? released ? "released" : "release_pending" : "not_required");
+            if (creditReserved) turnLifecycle.settlement("release", released ? "reconciled" : "pending");
+            turnLifecycle.fail("assistant_persistence", true);
+            emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
+            return { kind: "early_response" as const, response: askFailure("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503, {}, "persistence_failed") };
+          }
+          logAskStage("assistant message persisted after idempotent retry", { requestId });
+        }
+      }
+      logAskStage("assistant message persisted", { requestId });
+      turnLifecycle.transition("ANSWER_PERSISTED");
+
+      return assistantMessage;
+    },
+    mintActionCapabilities: async (persisted) => {
       // Persist immutable capability authority before exposing display action ids.
       // The presentation row remains non-executable and is updated only by the API.
       const proposedActions = parseStoredApplicationActions(response.applicationActions);
@@ -1935,7 +1937,7 @@ async function persistAssistantAnswer({
         try {
           const capabilityActions = await createActionCapabilities({
             actions: proposedActions,
-            assistantMessageId: assistantMessage.id,
+            assistantMessageId: persisted.id,
             sourceMessageId: userMessageId,
             supabase,
             targetBindings: actionTargetBindings,
@@ -1943,20 +1945,20 @@ async function persistAssistantAnswer({
           });
           response = { ...response, applicationActions: capabilityActions };
           responseWithTurn = { ...response, turn: turnLifecycle.snapshot() };
-          const persisted = await updateAskAssistantResponse({ messageId: assistantMessage.id, responseData: responseWithTurn, userId });
-          if (persisted.error || persisted.data !== true) throw new Error("ACTION_CAPABILITY_PRESENTATION_UPDATE_FAILED");
+          const presentationUpdate = await updateAskAssistantResponse({ messageId: persisted.id, responseData: responseWithTurn, userId });
+          if (presentationUpdate.error || presentationUpdate.data !== true) throw new Error("ACTION_CAPABILITY_PRESENTATION_UPDATE_FAILED");
         } catch (error) {
           // Fail closed: a response-data proposal is never executable without its capability.
           const unavailableActions = proposedActions.map((action) => ({ ...action, status: "failed" as const, resultMessage: null, errorMessage: "That action could not be prepared safely." }));
           response = { ...response, applicationActions: unavailableActions };
           responseWithTurn = { ...response, turn: turnLifecycle.snapshot() };
-          await updateAskAssistantResponse({ messageId: assistantMessage.id, responseData: responseWithTurn, userId });
+          await updateAskAssistantResponse({ messageId: persisted.id, responseData: responseWithTurn, userId });
           logAskServerError("action_capability_creation", error, { conversationId, petId, requestId }, 200);
         }
       }
       return proposedActions;
     },
-    persistAuthorizedIntelligence: async () => {
+    persistAuthorizedIntelligence: async ({ persisted }) => {
       let intelligencePersistence: IntelligencePersistenceSummary | null = null;
       let intelligencePersistenceWarning = "";
       let semanticTrace = intelligenceResult?.semanticTrace || null;
@@ -1964,7 +1966,7 @@ async function persistAssistantAnswer({
         try {
           assertGovernedAskExecutionPlan(intelligenceResult.executionPlan);
           intelligencePersistence = await persistIntelligenceLearnings({
-            assistantMessageId: assistantMessage.id,
+            assistantMessageId: persisted.id,
             authorizedPetIds,
             careActions: historyReviewRequired ? [] : intelligenceResult.executionPlan.careActions,
             currentMessage: sourceMessage,
@@ -2015,7 +2017,7 @@ async function persistAssistantAnswer({
       if (semanticTrace) logSemanticTrace(semanticTrace);
       return { intelligencePersistence, intelligencePersistenceWarning };
     },
-    executeAuthorizedActions: async () => {
+    executeAuthorizedActions: async ({ persisted }) => {
       let applicationActions = parseStoredApplicationActions((response as { applicationActions?: unknown }).applicationActions);
       let applicationStateChanged = false;
       if (applicationActions.length) {
@@ -2030,7 +2032,7 @@ async function persistAssistantAnswer({
             fallback: null,
             operation: async () => {
               if (!isSecurityUuid(action.id)) return { action: { ...action, status: "failed" as const, errorMessage: "That action could not be prepared safely." }, changed: false, audit: { actionKind: action.kind, authorization: "allowed" as const, mutationClass: action.mutationClass, outcome: "failed" as const, petIdPresent: Boolean(action.petId) } };
-              const executed = await executeActionCapability({ capabilityId: action.id, assistantMessageId: assistantMessage.id, userId, mode: "auto" });
+              const executed = await executeActionCapability({ capabilityId: action.id, assistantMessageId: persisted.id, userId, mode: "auto" });
               return executed ? { action: executed.action, changed: executed.changed, audit: { actionKind: executed.action.kind, authorization: "allowed" as const, mutationClass: executed.action.mutationClass, outcome: executed.action.status === "succeeded" ? "succeeded" as const : "failed" as const, petIdPresent: Boolean(executed.action.petId) } } : null;
             },
             onFailure: optionalFailure,

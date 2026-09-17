@@ -17,6 +17,15 @@ export type DurableAskFinalization<TDurableReceipt, TResponse> =
   | { kind: "committed"; receipt: TDurableReceipt }
   | { kind: "replay"; response: TResponse };
 
+export type EarlyAskPostReviewResponse<TResponse> = {
+  kind: "early_response";
+  response: TResponse;
+};
+
+function isEarlyAskPostReviewResponse<TResponse>(value: unknown): value is EarlyAskPostReviewResponse<TResponse> {
+  return Boolean(value && typeof value === "object" && (value as { kind?: unknown }).kind === "early_response" && "response" in value);
+}
+
 type MaybePromise<T> = T | Promise<T>;
 
 type PostReviewEffectSnapshot<
@@ -78,7 +87,7 @@ export async function finalizeAskPostReview<
   TDurableReceipt,
   TResponse,
 >(operations: {
-  persistReviewedAnswer: () => MaybePromise<TPersisted>;
+  persistReviewedAnswer: () => MaybePromise<TPersisted | EarlyAskPostReviewResponse<TResponse>>;
   mintActionCapabilities: (persisted: TPersisted) => MaybePromise<TCapabilities>;
   persistAuthorizedIntelligence: (input: { persisted: TPersisted; capabilities: TCapabilities }) => MaybePromise<TIntelligence>;
   executeAuthorizedActions: (input: { persisted: TPersisted; capabilities: TCapabilities; intelligence: TIntelligence }) => MaybePromise<TActions>;
@@ -97,7 +106,9 @@ export async function finalizeAskPostReview<
   invalidateCommittedState: (snapshot: PostReviewEffectSnapshot<TPersisted, TCapabilities, TIntelligence, TActions, TCare, TAssessment, TSettlement, TDurableReceipt, TResponse>) => MaybePromise<void>;
   publishSuccess: (snapshot: PostReviewPublicationSnapshot<TPersisted, TCapabilities, TIntelligence, TActions, TCare, TAssessment, TSettlement, TDurableReceipt>) => MaybePromise<TResponse>;
 }): Promise<TResponse> {
-  const persisted = await operations.persistReviewedAnswer();
+  const persistence = await operations.persistReviewedAnswer();
+  if (isEarlyAskPostReviewResponse<TResponse>(persistence)) return persistence.response;
+  const persisted = persistence as TPersisted;
   const capabilities = await operations.mintActionCapabilities(persisted);
   const intelligence = await operations.persistAuthorizedIntelligence({ persisted, capabilities });
   const actions = await operations.executeAuthorizedActions({ persisted, capabilities, intelligence });
