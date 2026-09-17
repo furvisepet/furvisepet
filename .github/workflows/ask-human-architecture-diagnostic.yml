@@ -41,6 +41,8 @@ jobs:
             tests: tests/ask-credit-settlement.test.mjs
           - group: state-revalidation
             tests: tests/ask-state-revalidation.test.mjs
+          - group: durable-finalization
+            tests: tests/furvise-brain-durable-answer-finalization.test.mjs
           - group: post-review-finalizer
             tests: tests/ask-post-review-finalizer-contract.test.mjs
           - group: executive-control
