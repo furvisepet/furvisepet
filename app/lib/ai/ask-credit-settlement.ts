@@ -16,6 +16,22 @@ type AskCreditSettlementLoggers = {
   logAskStage: (message: string, context: Record<string, unknown>) => void;
 };
 
+type AskCreditSettlementLedger = {
+  getEvents: typeof getAiCreditEventsForLogicalRequest;
+  getRemaining: typeof getRemainingAiCredits;
+  isIntegrityError: typeof isAiCreditIntegrityError;
+  reconcile: typeof reconcileAiCredit;
+  setDisposition: typeof setAiCreditDisposition;
+};
+
+const defaultAskCreditLedger: AskCreditSettlementLedger = {
+  getEvents: getAiCreditEventsForLogicalRequest,
+  getRemaining: getRemainingAiCredits,
+  isIntegrityError: isAiCreditIntegrityError,
+  reconcile: reconcileAiCredit,
+  setDisposition: setAiCreditDisposition,
+};
+
 /**
  * Owns terminal Ask-credit release and replay reconciliation.
  *
@@ -23,7 +39,11 @@ type AskCreditSettlementLoggers = {
  * durable ledger disposition and terminal ledger state for the same logical
  * request + payload identity.
  */
-export function createAskCreditSettlement({ logAskServerError, logAskStage }: AskCreditSettlementLoggers) {
+export function createAskCreditSettlement({
+  ledger = defaultAskCreditLedger,
+  logAskServerError,
+  logAskStage,
+}: AskCreditSettlementLoggers & { ledger?: AskCreditSettlementLedger }) {
   async function safeReleaseAiCredit({
     logicalRequestId,
     payloadHash,
@@ -35,7 +55,7 @@ export function createAskCreditSettlement({ logAskServerError, logAskStage }: As
     requestId: string;
     userId: string;
   }) {
-    await setAiCreditDisposition({
+    await ledger.setDisposition({
       disposition: "release",
       feature: "ask",
       logicalRequestId,
@@ -44,11 +64,11 @@ export function createAskCreditSettlement({ logAskServerError, logAskStage }: As
       userId,
     });
     try {
-      await reconcileAiCredit({ feature: "ask", logicalRequestId, payloadHash, requestId, userId });
+      await ledger.reconcile({ feature: "ask", logicalRequestId, payloadHash, requestId, userId });
       logAskStage("AI credit released", { requestId });
       return true;
     } catch (error) {
-      if (isAiCreditIntegrityError(error)) throw error;
+      if (ledger.isIntegrityError(error)) throw error;
       logAskServerError("credit_release_failed", error, { requestId }, 200);
       return false;
     }
@@ -68,10 +88,10 @@ export function createAskCreditSettlement({ logAskServerError, logAskStage }: As
     userId: string;
   }) {
     if (usage.ledgerMode === "development_missing_migration") return usage;
-    const states = await getAiCreditEventsForLogicalRequest({ feature: "ask", logicalRequestId, payloadHash, supabase, userId });
+    const states = await ledger.getEvents({ feature: "ask", logicalRequestId, payloadHash, supabase, userId });
     for (const state of states) {
       if (state.disposition !== null) continue;
-      await setAiCreditDisposition({
+      await ledger.setDisposition({
         disposition: "release",
         feature: "ask",
         logicalRequestId,
@@ -92,7 +112,7 @@ export function createAskCreditSettlement({ logAskServerError, logAskStage }: As
     try {
       for (const state of states) {
         if (state.status !== "reserved") continue;
-        await reconcileAiCredit({
+        await ledger.reconcile({
           feature: "ask",
           logicalRequestId,
           payloadHash,
@@ -100,7 +120,7 @@ export function createAskCreditSettlement({ logAskServerError, logAskStage }: As
           userId,
         });
       }
-      return await getRemainingAiCredits({
+      return await ledger.getRemaining({
         feature: "ask",
         monthlyAiCredits: usage.limit,
         planId: usage.planId,
@@ -108,7 +128,7 @@ export function createAskCreditSettlement({ logAskServerError, logAskStage }: As
         userId,
       });
     } catch (error) {
-      if (isAiCreditIntegrityError(error)) throw error;
+      if (ledger.isIntegrityError(error)) throw error;
       logAskServerError("optional_credit_reconciliation", error, { requestId: logicalRequestId }, 200);
       return usage;
     }
