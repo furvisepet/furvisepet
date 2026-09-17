@@ -14,7 +14,7 @@ export type FurviseMemoryRead = Readonly<{
 
 export function planFurviseMemoryRead(turn: FurviseTurnAuthority): FurviseMemoryRead {
   const depth = turn.memoryNeed;
-  const petIds = depth === "none" || depth === "working" ? [] : [...turn.memoryPetIds];
+  const petIds = depth === "none" ? [] : [...turn.memoryPetIds];
   return Object.freeze({
     turnId: turn.logicalTurnId,
     petIds: Object.freeze(petIds),
@@ -24,9 +24,9 @@ export function planFurviseMemoryRead(turn: FurviseTurnAuthority): FurviseMemory
 
 /**
  * Memory is an organ: it can retrieve only the exact owner-pet read scope the
- * brain approved. It cannot widen subjects, reinterpret intent, grant writes,
- * or publish an answer. Read scope is deliberately independent from mutation
- * subject so mixed questions can read one pet without writing to that pet.
+ * brain approved. Working memory may expose already-loaded context but does not
+ * trigger a lifetime/history database traversal. Read scope is independent from
+ * mutation subject so mixed questions cannot accidentally write to read pets.
  */
 export async function retrieveFurviseMemory(
   context: FurviseLiveContext,
