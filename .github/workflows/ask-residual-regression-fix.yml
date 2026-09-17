@@ -90,6 +90,12 @@ jobs:
               "    } : null,\n"
               "    learnings: multi ? [learning, { ...learning, subjectId: \"pet-b\" }] : [learning], currentMessage: \"Evening walks\", operationOwnerToken: \"test-lease\", payloadHash: \"test-hash\",\n",
           )
+
+          patch(
+              "scripts/audits/ask-shared-request-contract.cases.mjs",
+              "const proposal = patch => ({ version: ASK_REQUEST_VERSION, mode: 'read', question: 'What is recorded about Aster?',\n  requirements: ['Answer the requested facts only'], referenceTurnIds: [], scope: 'named', petNames: ['Aster'],\n",
+              "const proposal = patch => ({ version: ASK_REQUEST_VERSION, mode: 'read', question: 'What is recorded about Aster?',\n  requirements: ['Answer the requested facts only'], referenceTurnIds: [], evidenceBasis: 'saved_history', scope: 'named', petNames: ['Aster'],\n",
+          )
       - name: Verify residual failures
         run: >-
           node --test
