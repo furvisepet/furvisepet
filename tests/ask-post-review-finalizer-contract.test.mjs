@@ -41,10 +41,12 @@ test("post-review publication happens only after the turn reaches COMPLETED", ()
   assert.ok(completed >= 0 && durable > completed && publish > durable);
 });
 
-test("lost finalization acknowledgement replays durable state instead of rerunning effects", () => {
+test("lost finalization acknowledgement refreshes durable state then replays without rerunning effects", () => {
   const finalizer = functionSlice("persistAssistantAnswer", "async function safeReleaseAiCredit");
   assert.match(finalizer, /if \(durableFallback\) return completedResponseFromPersisted/);
+  const durable = finalizer.indexOf("finalizePersistedAskAnswer({");
+  const freshness = finalizer.indexOf("revalidateAskStateViews(", durable);
   const readback = finalizer.indexOf("if (durableFallback)");
-  assert.ok(readback > finalizer.indexOf("finalizePersistedAskAnswer({"));
+  assert.ok(durable >= 0 && freshness > durable && readback > freshness);
   assert.doesNotMatch(finalizer.slice(readback), /executeActionCapability\(|persistIntelligenceLearnings\(/);
 });
