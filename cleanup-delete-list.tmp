@@ -1,0 +1,6 @@
+.cleanup-marker.tmp
+.github/workflows/cleanup-diagnostics.yml
+.github/workflows/full-test-diagnostic.yml
+.github/workflows/full-test-fast-diagnostic.yml
+full-test-fast-diagnostic.txt
+full-test-diagnostic.txt
