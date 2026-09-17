@@ -1,8 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { registerHooks } from "node:module";
 
-import { planFurviseMemoryRead } from "../app/lib/furvise-brain/memory-organ.ts";
-import { createFurviseTurnAuthority } from "../app/lib/furvise-brain/turn-authority.ts";
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (specifier === "server-only") {
+      return { url: "data:text/javascript,export {};", format: "module", shortCircuit: true };
+    }
+    return nextResolve(specifier, context);
+  },
+});
+
+const { planFurviseMemoryRead } = await import("../app/lib/furvise-brain/memory-organ.ts");
+const { createFurviseTurnAuthority } = await import("../app/lib/furvise-brain/turn-authority.ts");
 
 test("unresolved subject with no approved memory pets cannot read history", () => {
   const turn = createFurviseTurnAuthority({
