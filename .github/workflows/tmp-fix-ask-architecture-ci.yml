@@ -21,7 +21,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: Patch discourse focus and Node strip-only compatibility
+      - name: Patch discourse focus and native Node test compatibility
         shell: bash
         run: |
           python3 - <<'PY'
@@ -42,6 +42,25 @@ jobs:
           if text.count(old) != 1:
               raise SystemExit(f"expected one interpretation validation constructor, found {text.count(old)}")
           interpretation.write_text(text.replace(old, new))
+
+          test_path = Path("tests/ask-working-memory-interpretation.test.mjs")
+          text = test_path.read_text()
+          old = 'import { interpretAskQuestion } from "../app/lib/intelligence/interpret-ask.ts";'
+          new = '''import { registerHooks } from "node:module";
+
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (specifier === "server-only") {
+      return { url: "data:text/javascript,export {};", format: "module", shortCircuit: true };
+    }
+    return nextResolve(specifier, context);
+  },
+});
+
+const { interpretAskQuestion } = await import("../app/lib/intelligence/interpret-ask.ts");'''
+          if text.count(old) != 1:
+              raise SystemExit(f"expected one static interpretation import, found {text.count(old)}")
+          test_path.write_text(text.replace(old, new))
           PY
       - name: Run affected regressions
         run: |
@@ -53,7 +72,7 @@ jobs:
           rm .github/workflows/tmp-fix-ask-architecture-ci.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/lib/intelligence/entities/recent-subject-state.ts app/lib/intelligence/interpret-ask.ts .github/workflows/tmp-fix-ask-architecture-ci.yml
+          git add app/lib/intelligence/entities/recent-subject-state.ts app/lib/intelligence/interpret-ask.ts tests/ask-working-memory-interpretation.test.mjs .github/workflows/tmp-fix-ask-architecture-ci.yml
           git diff --cached --check
           git commit -m "Stabilize Ask discourse focus and Node test loading"
           git push origin HEAD:codex/ask-human-architecture-v1
