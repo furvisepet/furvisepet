@@ -67,7 +67,10 @@ export type FurviseTurnAuthority = Readonly<{
   logicalTurnId: string;
   subject: FurviseTurnSubject;
   intent: FurviseTurnIntent;
+  /** How deeply the memory organ may search. */
   memoryNeed: FurviseMemoryNeed;
+  /** Exact owner-pet scope the memory organ may read. Independent of action target. */
+  memoryPetIds: readonly string[];
   mutation: FurviseMutationAuthority;
   referenceTurnIds: readonly string[];
 }>;
@@ -77,6 +80,7 @@ export type CreateFurviseTurnAuthorityInput = {
   subject?: Partial<FurviseTurnSubject>;
   intent?: FurviseTurnIntent;
   memoryNeed?: FurviseMemoryNeed;
+  memoryPetIds?: readonly string[];
   referenceTurnIds?: readonly string[];
 };
 
@@ -87,6 +91,7 @@ const inferSubjectKind = (petIds: readonly string[], unresolved: boolean): Furvi
 export function createFurviseTurnAuthority(input: CreateFurviseTurnAuthorityInput): FurviseTurnAuthority {
   const petIds = unique(input.subject?.petIds || []);
   const unresolved = input.subject?.unresolved ?? petIds.length === 0;
+  const memoryPetIds = unique(input.memoryPetIds ?? (unresolved ? [] : petIds));
   return Object.freeze({
     version: FURVISE_BRAIN_TURN_VERSION,
     logicalTurnId: input.logicalTurnId,
@@ -99,6 +104,7 @@ export function createFurviseTurnAuthority(input: CreateFurviseTurnAuthorityInpu
     }),
     intent: input.intent || "conversation",
     memoryNeed: input.memoryNeed || "working",
+    memoryPetIds: Object.freeze(memoryPetIds),
     mutation: Object.freeze({
       allowed: false,
       kind: null,
@@ -112,6 +118,7 @@ export function createFurviseTurnAuthority(input: CreateFurviseTurnAuthorityInpu
   });
 }
 
+/** Subject clarification is field-local. It cannot alter memory or mutation scope. */
 export function clarifyFurviseTurnSubject(
   turn: FurviseTurnAuthority,
   petIds: readonly string[],
@@ -127,6 +134,17 @@ export function clarifyFurviseTurnSubject(
       source: "clarified" as const,
       unresolved: uniquePetIds.length === 0,
     }),
+  });
+}
+
+export function setFurviseMemoryAuthority(
+  turn: FurviseTurnAuthority,
+  input: { need: FurviseMemoryNeed; petIds: readonly string[] },
+): FurviseTurnAuthority {
+  return Object.freeze({
+    ...turn,
+    memoryNeed: input.need,
+    memoryPetIds: Object.freeze(unique(input.petIds)),
   });
 }
 
