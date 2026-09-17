@@ -9,9 +9,9 @@ test('two explicit dated observations both survive into final evidence',async t=
  clock(t);const q='How much longer did Milo play with the violet ball on August 12 than on August 11, 2026?';
  const rows=[care('play11','milo','2026-08-11','general','Milo played with a violet ball for 14 minutes.'),care('play12','milo','2026-08-12','general','Milo played with a violet ball for 17 minutes.')];
  const text='Milo played for 14 minutes on August 11 and 17 minutes on August 12, which was 3 minutes longer.';
- const r=await exercise(q,{history:true,rows,messages:[],interpretationProposal:proposal(q,{operation:'comparison',selection:'comparison',topic:'activity',terms:['play','violet ball']}),expectedReviewCalls:2,reviewResponse:{approved:true},providerOverrides:{historyNarrative:{sentences:[{text,sourceIds:['care:play11','care:play12'],calculations:[]}]}}});
+ const r=await exercise(q,{history:true,rows,messages:[],interpretationProposal:proposal(q,{operation:'comparison',selection:'comparison',topic:'activity',terms:['play','violet ball']}),expectedReviewCalls:1,reviewResponse:{approved:true},providerOverrides:{historyNarrative:{sentences:[{text,sourceIds:['care:play11','care:play12'],calculations:[]}]}}});
  for(const id of ['care:play11','care:play12'])assert.ok(r.prompt.contextRecords.some(x=>x.id===id),id);
- noWrites(r);
+ assert.equal(r.result.answerValidation.assessment.outcome,'complete');noWrites(r);
 });
 test('three coordinated months retain one observation from every named month',async t=>{
  clock(t);const q='Across June, July, and August 2026, what pattern is recorded in Milo’s puzzle-feeder play time?';

@@ -28,3 +28,14 @@ test('read-only subject resolution uses the validated multi-pet read scope',()=>
  assert.match(source,/subjects\.length > 1 \? "multi_subject"/);
  assert.match(source,/petIds: subjects/);
 });
+test('missing simple comparison metadata is reconstructed only from two cited compatible source measurements',async()=>{
+ const {attachDeterministicCalculationBindings}=await import('../app/lib/intelligence/repair-calculation-bindings.ts');
+ const narrative={sentences:[{text:'Sable played 3 minutes longer.',sourceIds:['care:a','care:b']}]};
+ const sources=[{sourceId:'care:a',text:'Sable played for 14 minutes.'},{sourceId:'care:b',text:'Sable played for 17 minutes.'}];
+ const repaired=attachDeterministicCalculationBindings(narrative,sources,'How much longer did Sable play?');
+ assert.equal(repaired.sentences[0].calculations?.[0]?.operation,'absolute_difference');
+ assert.equal(repaired.sentences[0].calculations?.[0]?.value,3);
+ assert.equal(repaired.sentences[0].calculations?.[0]?.unit,'minute');
+ const unsafe=attachDeterministicCalculationBindings({sentences:[{...narrative.sentences[0],sourceIds:['care:a','care:b','care:c']}]},[...sources,{sourceId:'care:c',text:'Sable rested for 2 minutes.'}],'How much longer did Sable play?');
+ assert.equal(unsafe.sentences[0].calculations,undefined);
+});

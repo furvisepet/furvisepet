@@ -1,4 +1,4 @@
-import { MAX_HISTORY_CALCULATIONS, verifiedCalculationQuantities } from "./history-calculation.ts";
+import { MAX_HISTORY_CALCULATIONS, units, verifiedCalculationQuantities, type HistoryCalculation } from "./history-calculation.ts";
 import { historyNarrativeAnchorsSupported } from "./history-narrative-facts.ts";
 import type { HistoryNarrative } from "./history-narrative.ts";
 
@@ -23,4 +23,40 @@ export function retainRepairCalculationBindings(original: HistoryNarrative, repa
     if (!calculations.length || !derived || !accepts(derived)) return sentence;
     return { ...sentence, calculations: structuredClone(calculations) };
   }) };
+}
+
+const measuredToken = /(?<![\p{L}\p{N}_.+−-])([+−-]?\d+(?:\.\d+)?)[ -]+([A-Za-z]+)(?![\p{L}\p{N}_])/gu;
+function oneMeasurement(source: {sourceId:string;text:string}) {
+  const matches=[...source.text.matchAll(measuredToken)].flatMap(match=>{
+    const unit=units[match[2].toLowerCase()];
+    if(!unit || unit.dimension.startsWith('currency:') || unit.dimension==='instant')return [];
+    const value=Number(match[1].replace('−','-'));
+    return Number.isFinite(value)?[{sourceId:source.sourceId,literal:match[0],value,unit}]:[];
+  });
+  return matches.length===1?matches[0]:null;
+}
+
+/** A missing proof for a simple requested difference may be reconstructed only
+ * from two already-cited saved measurements. This adds arithmetic provenance,
+ * never a fact, subject, source, or semantic interpretation. */
+export function attachDeterministicCalculationBindings(narrative: HistoryNarrative,
+  sources:Array<{sourceId:string;text:string;occurredAt?:string|null}>,requestText:string):HistoryNarrative {
+  if(!/\b(?:how much\s+(?:longer|shorter|more|less|heavier|lighter)|difference|change)\b/i.test(requestText))return narrative;
+  return {sentences:narrative.sentences.map(sentence=>{
+    if(sentence.calculations?.length)return sentence;
+    const cited=sources.filter(source=>sentence.sourceIds.includes(source.sourceId)&&/^(?:care|claim):/.test(source.sourceId));
+    if(cited.length!==2)return sentence;
+    const operands=cited.map(oneMeasurement); if(operands.some(value=>!value))return sentence;
+    const [a,b]=operands as [NonNullable<ReturnType<typeof oneMeasurement>>,NonNullable<ReturnType<typeof oneMeasurement>>];
+    if(a.unit.dimension!==b.unit.dimension || a.unit.canonical!==b.unit.canonical)return sentence;
+    const rawValue=Math.abs(a.value*a.unit.scale-b.value*b.unit.scale)/a.unit.scale;
+    const value=Number(rawValue.toFixed(10));
+    if(!Number.isFinite(value))return sentence;
+    const derived=[...sentence.text.matchAll(measuredToken)].some(match=>units[match[2].toLowerCase()]?.canonical===a.unit.canonical
+      && Math.abs(Number(match[1].replace('−','-'))-value)<1e-9);
+    if(!derived)return sentence;
+    const calculation:HistoryCalculation={operation:'absolute_difference',expression:null,operands:[a,b].map(item=>({sourceId:item.sourceId,field:'text',literal:item.literal})),value,unit:a.unit.canonical};
+    if(verifiedCalculationQuantities([calculation],cited)===null)return sentence;
+    return {...sentence,calculations:[calculation]};
+  })};
 }

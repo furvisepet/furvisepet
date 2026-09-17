@@ -28,7 +28,7 @@ import {
   stripHistoryBullet,
 } from "../furvise-output.ts";
 import { verifiedCalculationQuantities } from "./history-calculation.ts";
-import { retainRepairCalculationBindings } from "./repair-calculation-bindings.ts";
+import { attachDeterministicCalculationBindings, retainRepairCalculationBindings } from "./repair-calculation-bindings.ts";
 import { hasUndatedHistoricalCareState } from "./historical-care-state.ts";
 import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
 import { historyReviewSelectionSchema, parseHistoryReviewSelection, parseRepairableTaskHistoryReview } from "./history-review-selection.ts";
@@ -172,6 +172,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
       return sourceIds.length <= 64 ? {...sentence, sourceIds} : sentence;
     }) };
   }
+  if (sharedRequest) proposedDraft = attachDeterministicCalculationBindings(proposedDraft, sources, evidence.scope.requestText);
   try { if (sharedRequest) for (const chunk of proposedDraft.sentences) assertNoInternalReasoningLeak(chunk.text,
     evidence.represented.map(span => ({ id: span.sourceId }))); }
   catch { return decline("draft_publication_rejected"); }
