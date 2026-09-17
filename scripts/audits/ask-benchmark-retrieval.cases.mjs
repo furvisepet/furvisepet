@@ -30,3 +30,28 @@ test('explicit owned multi-pet read preserves both pet evidence and no write aut
  for(const id of ['care:milo-w','care:luna-w'])assert.ok(r.prompt.contextRecords.some(x=>x.id===id),id);
  assert.deepEqual(r.result.reasoning.evidenceContract.scope.authorizedPetIds.sort(),['milo',luna.id].sort());noWrites(r);
 });
+test('latest semantic obligation pins the newest matching candidate through representation',async t=>{
+ clock(t);const q="What is the latest saved note about Milo's appetite and energy?";
+ const rows=[
+  care('latest-tired','milo','2026-08-16','general','Milo seemed more tired than usual and only ate half breakfast.'),
+  care('older-food','milo','2026-08-10','food','Milo ate 83 g of his usual food at breakfast.'),
+ ];
+ const text='The latest matching note says Milo seemed more tired than usual and ate only half breakfast on August 16, 2026.';
+ const r=await exercise(q,{history:true,rows,messages:[],interpretationProposal:proposal(q,{selection:'latest',topic:'appetite and energy',terms:['appetite','energy'],evidenceNeeds:[{quote:q,sourceTurnId:null,petNames:['Milo'],terms:['appetite','energy'],order:'latest'}]}),expectedReviewCalls:1,reviewResponse:{approved:true},providerOverrides:{historyNarrative:{sentences:[{text,sourceIds:['care:latest-tired'],calculations:[]}]}}});
+ assert.ok(r.prompt.contextRecords.some(x=>x.id==='care:latest-tired'),'latest matching candidate must be represented');
+ assert.ok(!r.result.reasoning.evidenceContract.history?.requiredSourceIds?.includes('care:older-food'),'older match must not replace latest obligation');
+ noWrites(r);
+});
+test('duplicate newest semantic matches cannot let an older candidate replace latest',async t=>{
+ clock(t);const q="What is the latest saved note about Milo's appetite and energy?";
+ const rows=[
+  care('latest-a','milo','2026-08-16','general','Milo seemed more tired than usual and only ate half breakfast.',{occurred_at:'2026-08-16T05:50:26.945Z'}),
+  care('latest-b','milo','2026-08-16','general','Milo seemed more tired than usual and only ate half breakfast.',{occurred_at:'2026-08-16T04:29:20.720Z'}),
+  care('older-food','milo','2026-08-10','food','On August 10, 2026, Milo ate 83 g of his usual food at breakfast.'),
+ ];
+ const text='The latest matching note says Milo seemed more tired than usual and ate only half breakfast on August 16, 2026.';
+ const r=await exercise(q,{history:true,rows,messages:[],interpretationProposal:proposal(q,{selection:'latest',topic:'appetite and energy',terms:['appetite','energy'],evidenceNeeds:[{quote:q,sourceTurnId:null,petNames:['Milo'],terms:['appetite','energy'],order:'latest'}]}),expectedReviewCalls:1,reviewResponse:{approved:true},providerOverrides:{historyNarrative:{sentences:[{text,sourceIds:['care:latest-a'],calculations:[]}]}}});
+ assert.ok(r.prompt.contextRecords.some(x=>x.id==='care:latest-a'),'newest duplicate must survive representation');
+ assert.ok(!r.result.reasoning.evidenceContract.history?.requiredSourceIds?.includes('care:older-food'));
+ noWrites(r);
+});

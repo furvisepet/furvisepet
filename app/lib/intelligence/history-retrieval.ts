@@ -432,11 +432,21 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     .map(id => effectiveBySourceId.get(id))
     .filter((entry): entry is CareEntryRow => Boolean(entry))
     .sort((a, b) => compareHistoryTime(a.occurred_at, b.occurred_at) || a.id.localeCompare(b.id)));
-  const needGroups = (context.askInterpretation?.request?.evidenceNeeds || []).flatMap(need => ids.filter(petId => !need.petIds || need.petIds.includes(petId)).map(petId =>
-    ordered.filter(entry => entry.pet_profile_id === petId && withinEvidenceNeedWindow(careOccurrence(entry, context.timeZone), need.window) && ((coverage.needs || []).some(query => query.petId === petId && query.needId === need.id && query.candidateIds.includes(`care:${entry.id}`)) || need.terms.some(term =>
-      `${entry.title || ""} ${entry.note}`.toLowerCase().includes(term.toLowerCase())))).sort((a, b) =>
-      need.order === "earliest" ? compareHistoryTime(a.occurred_at, b.occurred_at)
-        : need.order === "latest" ? compareHistoryTime(b.occurred_at, a.occurred_at) : 0)));
+  const needGroups = (context.askInterpretation?.request?.evidenceNeeds || []).flatMap(need => ids.filter(petId => !need.petIds || need.petIds.includes(petId)).map(petId => {
+    const queries = (coverage.needs || []).filter(query => query.petId === petId && query.needId === need.id);
+    const queriedIds = [...new Set(queries.flatMap(query => query.candidateIds))];
+    // A successful need-specific search owns candidate identity. General
+    // relevance ranking may add context, but it cannot replace the newest/
+    // oldest effective candidate selected for this evidence obligation.
+    const candidates = queriedIds.length
+      ? queriedIds.map(id => effectiveBySourceId.get(id)).filter((entry): entry is CareEntryRow => Boolean(entry))
+      : ordered.filter(entry => entry.pet_profile_id === petId
+        && withinEvidenceNeedWindow(careOccurrence(entry, context.timeZone), need.window)
+        && need.terms.some(term => `${entry.title || ""} ${entry.note}`.toLowerCase().includes(term.toLowerCase())));
+    return candidates.filter(entry => entry.pet_profile_id === petId && withinEvidenceNeedWindow(careOccurrence(entry, context.timeZone), need.window)).sort((a, b) =>
+      need.order === "earliest" ? compareHistoryTime(a.occurred_at, b.occurred_at) || a.id.localeCompare(b.id)
+        : need.order === "latest" ? compareHistoryTime(b.occurred_at, a.occurred_at) || b.id.localeCompare(a.id) : 0);
+  }));
   // Larger cohorts receive one evidence slot per pet before any pet gets more.
   const petGroups = ids.length > 3 ? ids.map(petId => ordered.filter(entry => entry.pet_profile_id === petId)) : [];
   const vetGroups = vetBriefRead?.termGroups.map(terms => ordered.filter(entry => terms.some(term => `${entry.title || ""} ${entry.note}`.toLowerCase().includes(term.toLowerCase())))) || [];
