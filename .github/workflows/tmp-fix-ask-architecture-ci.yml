@@ -46,18 +46,7 @@ jobs:
           test_path = Path("tests/ask-working-memory-interpretation.test.mjs")
           text = test_path.read_text()
           old = 'import { interpretAskQuestion } from "../app/lib/intelligence/interpret-ask.ts";'
-          new = '''import { registerHooks } from "node:module";
-
-registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (specifier === "server-only") {
-      return { url: "data:text/javascript,export {};", format: "module", shortCircuit: true };
-    }
-    return nextResolve(specifier, context);
-  },
-});
-
-const { interpretAskQuestion } = await import("../app/lib/intelligence/interpret-ask.ts");'''
+          new = 'import { registerHooks } from "node:module";\n\nregisterHooks({\n  resolve(specifier, context, nextResolve) {\n    if (specifier === "server-only") {\n      return { url: "data:text/javascript,export {};", format: "module", shortCircuit: true };\n    }\n    return nextResolve(specifier, context);\n  },\n});\n\nconst { interpretAskQuestion } = await import("../app/lib/intelligence/interpret-ask.ts");'
           if text.count(old) != 1:
               raise SystemExit(f"expected one static interpretation import, found {text.count(old)}")
           test_path.write_text(text.replace(old, new))
