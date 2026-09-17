@@ -1,0 +1,103 @@
+full_suite_exit=1
+===== FAILURE BLOCKS =====
+===== FINAL TAIL =====
+        at <anonymous> (/home/runner/work/furvisepet/furvisepet/app/lib/intelligence/review-task-completion.ts:151:28)
+        at <anonymous> (/home/runner/work/furvisepet/furvisepet/app/lib/ai/execution-deadline.ts:47:61)
+        at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+        at async withExecutionDeadline (/home/runner/work/furvisepet/furvisepet/app/lib/ai/execution-deadline.ts:47:12) {
+      generatedMessage: false,
+      code: 'ERR_ASSERTION',
+      actual: undefined,
+      expected: true,
+      operator: 'strictEqual',
+      diff: 'simple'
+    }
+  
+  test at scripts/audits/ask-shared-request-contract.cases.mjs:1525:1
+  ✖ long plain answer reaches independent review without losing sentences or candidate sources (3.029005ms)
+    AssertionError [ERR_ASSERTION]: non-history task review needs an explicit provider verdict fixture
+    + actual - expected
+    
+    + undefined
+    - true
+    
+        at Object.create (file:///home/runner/work/furvisepet/furvisepet/scripts/audits/helpers/lifetime-harness.mjs:199:12)
+        at <anonymous> (/home/runner/work/furvisepet/furvisepet/app/lib/intelligence/review-task-completion.ts:151:28)
+        at <anonymous> (/home/runner/work/furvisepet/furvisepet/app/lib/ai/execution-deadline.ts:47:61)
+        at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+        at async withExecutionDeadline (/home/runner/work/furvisepet/furvisepet/app/lib/ai/execution-deadline.ts:47:12) {
+      generatedMessage: false,
+      code: 'ERR_ASSERTION',
+      actual: undefined,
+      expected: true,
+      operator: 'strictEqual',
+      diff: 'simple'
+    }
+  
+  test at scripts/audits/ask-shared-request-contract.cases.mjs:1616:1
+  ✖ earliest unfiltered care record does not become a keyword lookup (2.797922ms)
+    AssertionError [ERR_ASSERTION]: non-history task review needs an explicit provider verdict fixture
+    + actual - expected
+    
+    + undefined
+    - true
+    
+        at Object.create (file:///home/runner/work/furvisepet/furvisepet/scripts/audits/helpers/lifetime-harness.mjs:199:12)
+        at <anonymous> (/home/runner/work/furvisepet/furvisepet/app/lib/intelligence/review-task-completion.ts:151:28)
+        at <anonymous> (/home/runner/work/furvisepet/furvisepet/app/lib/ai/execution-deadline.ts:47:61)
+        at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+        at async withExecutionDeadline (/home/runner/work/furvisepet/furvisepet/app/lib/ai/execution-deadline.ts:47:12) {
+      generatedMessage: false,
+      code: 'ERR_ASSERTION',
+      actual: undefined,
+      expected: true,
+      operator: 'strictEqual',
+      diff: 'simple'
+    }
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/ask-shared-request-contract.test.mjs:9:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Test.start (node:internal/test_runner/test:1257:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/owner-note-write-isolation.test.mjs:143:3
+✖ conditional save still requires clarification: If Rowan were tired. Save this note. (1.23326ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + {
+  +   authorizationEvidence: 'Save this note.',
+  +   authorizationSource: 'current_turn',
+  +   explicitTime: null,
+  +   needsAnswer: false,
+  +   note: 'If Rowan were tired. Save this note.',
+  +   occurredAt: null
+  + }
+  - null
+  
+      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/owner-note-write-isolation.test.mjs:143:79)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:969:18)
+      at Test.postRun (node:internal/test_runner/test:1537:19)
+      at Test.run (node:internal/test_runner/test:1462:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { note: 'If Rowan were tired. Save this note.', occurredAt: null, explicitTime: null, needsAnswer: false, authorizationSource: 'current_turn', authorizationEvidence: 'Save this note.' },
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
