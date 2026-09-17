@@ -246,7 +246,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     // decade sequentially just to compare the first and last recorded values.
     for (const [strategyIndex, { descending: readDescending, lexical, terms, from, to, target, needId, period }] of strategies.entries()) {
       const candidatesWindow = clipHistoryPlan(calendarCandidateWindow({ from, to }, context.timeZone), context.historyAccess);
-      let cursor: Cursor | null = null; let traversalExhausted = false;
+      let cursor: Cursor | null = null; let traversalExhausted = false; let strategyFailed = false;
       const rows: CareEntryRow[] = [];
       const matchedIds = new Set<string>();
       const priorIds = new Set(collected.map(row => row.id));
@@ -312,7 +312,12 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
           // smaller than requested. An empty next page is the only traversal end.
         }
       } catch (error) {
-        failed = true; coverage.reasons.push("history_page_unavailable_or_changed");
+        strategyFailed = true;
+        // An advisory lexical need is not allowed to invalidate successful
+        // exact-date/period reads for the same pet. Global retrieval becomes
+        // unavailable only when a primary broad/target strategy fails.
+        if (!needId || target) failed = true;
+        coverage.reasons.push("history_page_unavailable_or_changed");
         if (error instanceof Error && (error.message === "history_time_budget" || ["AbortError", "TimeoutError"].includes(error.name))) {
           coverage.reasons.push(plan.terms.length ? "candidate_rpc_timeout" : "history_time_budget");
         }
@@ -321,9 +326,9 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
       exhausted = exhausted && traversalExhausted;
       if (needId) coverage.needs.push({ petId, needId,
         candidateIds: [...matchedIds],
-        exhausted: traversalExhausted, status: failed ? "unavailable" : traversalExhausted ? "unknown" : "partial" });
+        exhausted: traversalExhausted, status: strategyFailed ? "unavailable" : traversalExhausted ? "unknown" : "partial" });
       if (target) coverage.targets.push({ petId, day: target, candidateIds: rows.map(row => `care:${row.id}`), retainedIds: [],
-        exhausted: traversalExhausted, status: failed ? "unavailable" : traversalExhausted ? "unknown" : "partial" });
+        exhausted: traversalExhausted, status: strategyFailed ? "unavailable" : traversalExhausted ? "unknown" : "partial" });
       if (period && from && to) (coverage.periods ??= []).push({ petId, from, to,
         candidateIds: rows.filter(row => Date.parse(row.occurred_at) >= Date.parse(from) && Date.parse(row.occurred_at) < Date.parse(to)).map(row => `care:${row.id}`), exhausted: traversalExhausted });
       collected.push(...rows);
@@ -422,8 +427,11 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   }
   // Reserve representation for each requested day before general ranking can
   // fill the evidence budget. Round-robin keeps multiple dates/pets represented.
-  const targetGroups = (coverage.targets || []).map(target => ordered.filter(entry =>
-    entry.pet_profile_id === target.petId && calendarDateInZone(careOccurrence(entry, context.timeZone), context.timeZone).startsWith(target.day)));
+  const effectiveBySourceId = new Map(entries.map(entry => [careEvidenceId(entry.id, coverage), entry]));
+  const targetGroups = (coverage.targets || []).map(target => target.candidateIds
+    .map(id => effectiveBySourceId.get(id))
+    .filter((entry): entry is CareEntryRow => Boolean(entry))
+    .sort((a, b) => compareHistoryTime(a.occurred_at, b.occurred_at) || a.id.localeCompare(b.id)));
   const needGroups = (context.askInterpretation?.request?.evidenceNeeds || []).flatMap(need => ids.filter(petId => !need.petIds || need.petIds.includes(petId)).map(petId =>
     ordered.filter(entry => entry.pet_profile_id === petId && withinEvidenceNeedWindow(careOccurrence(entry, context.timeZone), need.window) && ((coverage.needs || []).some(query => query.petId === petId && query.needId === need.id && query.candidateIds.includes(`care:${entry.id}`)) || need.terms.some(term =>
       `${entry.title || ""} ${entry.note}`.toLowerCase().includes(term.toLowerCase())))).sort((a, b) =>

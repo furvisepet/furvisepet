@@ -1,0 +1,30 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { explicitHistoryDays, explicitHistoryMonths } from '../app/lib/intelligence/history-dates.ts';
+import { historyQueryTerms } from '../app/lib/intelligence/history-query-relevance.ts';
+import { compileHistoryReadStrategies } from '../app/lib/intelligence/history-read-strategies.ts';
+import { readFileSync } from 'node:fs';
+
+test('benchmark shared trailing year keeps every explicit date/month target',()=>{
+ assert.deepEqual(explicitHistoryDays('between September 8 and September 12, 2026',2026,8),['2026-09-08','2026-09-12']);
+ assert.deepEqual(explicitHistoryMonths('Across June, July, and August 2026'),['2026-06','2026-07','2026-08']);
+ const window={from:'2026-09-01T00:00:00.000Z',to:'2026-10-01T00:00:00.000Z'};
+ const r=compileHistoryReadStrategies('September 12 than on September 11, 2026',2026,window,[{...window,descending:false,lexical:false,terms:[]}],4,[]);
+ assert.deepEqual(r.strategies.filter(x=>x.target).map(x=>x.target).sort(),['2026-09-11','2026-09-12']);
+});
+
+test('latest appetite and energy hints include bounded owner-language aliases',()=>{
+ const terms=historyQueryTerms(['appetite','energy'],['Sable']);
+ assert.ok(terms.includes('appet'));
+ assert.ok(terms.some(term=>['tired','slugg','letha','activ'].includes(term)));
+ assert.ok(terms.some(term=>['eat','ate','intak','break'].includes(term)));
+ assert.ok(terms.length<=6);
+});
+
+test('read-only subject resolution uses the validated multi-pet read scope',()=>{
+ const source=readFileSync('app/lib/intelligence/interpret-ask.ts','utf8');
+ assert.match(source,/interpretation\.readOnly && interpretation\.readPetIds\?\.length/);
+ assert.match(source,/\? interpretation\.readPetIds : interpretation\.petIds/);
+ assert.match(source,/subjects\.length > 1 \? "multi_subject"/);
+ assert.match(source,/petIds: subjects/);
+});

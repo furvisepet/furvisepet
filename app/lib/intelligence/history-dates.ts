@@ -112,6 +112,14 @@ export function explicitHistoryMonths(text: string): string[] {
     const coordinated = new RegExp("(" + literalMonthPattern + ")\\.?\\s*(?:,\\s*|(?:and|y|et|und|و)\\s+)$", "iu").exec(prefix);
     if (coordinated) found.push(match[2] + "-" + String(literalMonthNumbers.get(coordinated[1].toLowerCase())).padStart(2,"0"));
   }
+  // Coordinated month lists may share one trailing year (for example
+  // "June, July, and August 2026"). Recover every named month without
+  // treating the list itself as evidence that an event exists in each month.
+  const sharedYearList = new RegExp("((?:(?:" + literalMonthPattern + ")\\.?\\s*(?:,\\s*(?:(?:and|y|et|und|و)\\s+)?|(?:and|y|et|und|و)\\s+)){1,5}(?:" + literalMonthPattern + ")\\.?)\\s+(?:de\\s+)?(19\\d{2}|20\\d{2}|2100)(?!\\d)", "giu");
+  for (const match of text.matchAll(sharedYearList)) {
+    const months = [...match[1].matchAll(new RegExp("(" + literalMonthPattern + ")", "giu"))];
+    for (const month of months) found.push(match[2] + "-" + String(literalMonthNumbers.get(month[1].toLowerCase())).padStart(2,"0"));
+  }
   // Closed month ranges often share one trailing year (for example
   // "June through August 2026"). Recover both endpoints deterministically.
   const sharedYearRange = new RegExp("(?<![\\p{L}\\p{N}])(" + literalMonthPattern + ")\\.?\\s+(?:through|thru|to|[-\\u2013\\u2014])\\s+(" + literalMonthPattern + ")\\.?\\s+(?:de\\s+)?(19\\d{2}|20\\d{2}|2100)(?!\\d)", "giu");

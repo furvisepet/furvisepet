@@ -218,12 +218,14 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
 
 /** The conversation has a selected-pet container; that is not evidence authority. */
 export function readInterpretationSubject(interpretation: AskInterpretation, selectedPetId: string) {
+  const subjects = interpretation.readOnly && interpretation.readPetIds?.length
+    ? interpretation.readPetIds : interpretation.petIds;
   return {
     usedProviderExtraction: true,
     resolution: {
-      status: interpretation.conversationOnly ? "resolved" as const : interpretation.petIds.length > 1 ? "multi_subject" as const : interpretation.petIds.length ? "resolved" as const : "ambiguous" as const,
-      petId: interpretation.petIds[0] || (interpretation.conversationOnly ? selectedPetId : null),
-      petIds: interpretation.petIds,
+      status: interpretation.conversationOnly ? "resolved" as const : subjects.length > 1 ? "multi_subject" as const : subjects.length ? "resolved" as const : "ambiguous" as const,
+      petId: subjects[0] || (interpretation.conversationOnly ? selectedPetId : null),
+      petIds: subjects,
       reasonCode: null,
       requiresClarification: interpretation.clarification === "subject",
       explicitSubject: !interpretation.conversationOnly,

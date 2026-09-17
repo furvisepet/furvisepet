@@ -7,7 +7,13 @@ function words(value: string) { return value.toLowerCase().match(/[a-z]{3,}/g) |
 const stem = (word: string) => word.length > 5 ? word.slice(0, 5) : word.replace(/s$/, "");
 export function historyQueryTerms(terms: string[], petNames: string[] = []): string[] {
   const names = new Set(petNames.flatMap(words));
-  return [...new Set(terms.flatMap(words).filter(word => !uninformative.has(word) && !names.has(word)).map(stem))]
+  const base = terms.flatMap(words).filter(word => !uninformative.has(word) && !names.has(word));
+  const aliases: string[] = [];
+  for (const word of base) {
+    if (/^appetit/.test(word)) aliases.push("eat", "ate", "intake", "breakfast");
+    if (/^energ/.test(word)) aliases.push("tired", "sluggish", "lethargy", "activity");
+  }
+  return [...new Set([...base, ...aliases].map(stem))]
     .sort((a,b) => b.length-a.length || a.localeCompare(b)).slice(0,6);
 }
 export function historyQueryRelevance(text: string, terms: string[]): number {

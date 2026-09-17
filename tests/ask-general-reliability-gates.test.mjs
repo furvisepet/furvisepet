@@ -12,6 +12,10 @@ test('interactive read scope rejects foreign selected subjects across every read
   assert.equal(exceedsSelectedPetRead({...read,...patch},'a'),true);
  for(const evidenceBasis of ['general','supplied_context',null]) assert.equal(exceedsSelectedPetRead({petIds:['b'],request:{evidenceBasis}},'a'),false);
  assert.equal(exceedsSelectedPetRead({...read,request:{evidenceBasis:'saved_profile'},petIds:['b']},'a'),true);
+ const multi={petIds:['a','b'],readPetIds:['a','b'],readOnly:true,request:{evidenceBasis:'saved_history',mode:'read',evidenceNeeds:[{petIds:['a']},{petIds:['b']}]}};
+ assert.equal(exceedsSelectedPetRead(multi,'a',['a','b']),false,'explicit owned multi-pet reads may widen read scope');
+ assert.equal(exceedsSelectedPetRead(multi,'a',['a']),true,'unowned subjects still fail closed');
+ assert.equal(exceedsSelectedPetRead({...multi,readOnly:false},'a',['a','b']),true,'writes never inherit widened read scope');
 });
 
 test('relative history cutoffs use the local calendar, clamp month endpoints, and do not guess ambiguous ages',()=>{
