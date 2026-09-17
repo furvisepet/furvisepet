@@ -1,0 +1,75 @@
+name: Temporary Ask Publication Receipt Fix
+
+on:
+  push:
+    branches:
+      - codex/ask-human-architecture-v1
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch receipt publication contract
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("app/api/ask/route.ts")
+          source = path.read_text()
+          old = '      saved: !intelligencePersistenceWarning && intelligencePersistence?.carePersistence.status !== "failed",'
+          new = '''      saved: Boolean(
+                !intelligencePersistenceWarning
+                && intelligencePersistence
+                && didPersistEffectiveState(intelligencePersistence, intelligencePersistence.carePersistence)
+              ),'''
+          count = source.count(old)
+          if count != 1:
+              raise SystemExit(f"expected exactly one unsafe intelligencePersistence.saved expression, found {count}")
+          path.write_text(source.replace(old, new))
+          PY
+
+      - name: Add publication receipt regression
+        shell: bash
+        run: |
+          cat > tests/ask-publication-receipt.test.mjs <<'EOF'
+          import assert from "node:assert/strict";
+          import { readFileSync } from "node:fs";
+          import test from "node:test";
+
+          const route = readFileSync(new URL("../app/api/ask/route.ts", import.meta.url), "utf8");
+
+          test("Ask publishes intelligence saved only from an effective persistence receipt", () => {
+            assert.doesNotMatch(
+              route,
+              /saved:\s*!intelligencePersistenceWarning\s*&&\s*intelligencePersistence\?\.carePersistence\.status\s*!==\s*"failed"/,
+            );
+            assert.match(
+              route,
+              /saved:\s*Boolean\(\s*!intelligencePersistenceWarning\s*&&\s*intelligencePersistence\s*&&\s*didPersistEffectiveState\(intelligencePersistence,\s*intelligencePersistence\.carePersistence\)\s*\)/s,
+            );
+          });
+          EOF
+
+      - name: Run publication regression
+        run: node --test tests/ask-publication-receipt.test.mjs
+
+      - name: Commit real fix and remove temporary workflow
+        shell: bash
+        run: |
+          rm .github/workflows/tmp-ask-publication-receipt-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/api/ask/route.ts tests/ask-publication-receipt.test.mjs .github/workflows/tmp-ask-publication-receipt-fix.yml
+          git diff --cached --check
+          git commit -m "Require durable receipt for Ask persistence publication"
+          git push origin HEAD:codex/ask-human-architecture-v1
