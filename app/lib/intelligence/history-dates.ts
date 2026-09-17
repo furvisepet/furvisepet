@@ -112,6 +112,13 @@ export function explicitHistoryMonths(text: string): string[] {
     const coordinated = new RegExp("(" + literalMonthPattern + ")\\.?\\s*(?:,\\s*|(?:and|y|et|und|و)\\s+)$", "iu").exec(prefix);
     if (coordinated) found.push(match[2] + "-" + String(literalMonthNumbers.get(coordinated[1].toLowerCase())).padStart(2,"0"));
   }
+  // Closed month ranges often share one trailing year (for example
+  // "June through August 2026"). Recover both endpoints deterministically.
+  const sharedYearRange = new RegExp("(?<![\\p{L}\\p{N}])(" + literalMonthPattern + ")\\.?\\s+(?:through|thru|to|[-\\u2013\\u2014])\\s+(" + literalMonthPattern + ")\\.?\\s+(?:de\\s+)?(19\\d{2}|20\\d{2}|2100)(?!\\d)", "giu");
+  for (const match of text.matchAll(sharedYearRange)) {
+    found.push(match[3] + "-" + String(literalMonthNumbers.get(match[1].toLowerCase())).padStart(2,"0"));
+    found.push(match[3] + "-" + String(literalMonthNumbers.get(match[2].toLowerCase())).padStart(2,"0"));
+  }
   for (const match of text.matchAll(/\b(19\d{2}|20\d{2}|2100)-(0[1-9]|1[0-2])(?!-\d{2})\b/g)) found.push(match[0]);
   for (const match of text.matchAll(/(?<!\d)(19\d{2}|20\d{2}|2100)年\s*(1[0-2]|0?[1-9])月(?!\s*\d{1,2}日)/gu)) found.push(match[1]+"-"+match[2].padStart(2,"0"));
   return [...new Set(found)].sort();
@@ -120,7 +127,11 @@ export function explicitHistoryMonths(text: string): string[] {
 export function literalHistoryMonthWindow(text: string): {from: string; to: string} | null {
   // Relative/open bounds and comparisons against an unspecified endpoint need
   // the semantic planner; do not silently narrow them to one named month.
-  if (/\b(?:before|after|since|until|between|from|as of)\b/i.test(text)) return null;
+  if (/\b(?:before|after|since|until|between|as of)\b/i.test(text)) return null;
+  const closedSharedYearRange = new RegExp("(?<![\\p{L}\\p{N}])(?:" + literalMonthPattern + ")\\.?\\s+(?:through|thru|to|[-\\u2013\\u2014])\\s+(?:" + literalMonthPattern + ")\\.?\\s+(?:de\\s+)?(?:19\\d{2}|20\\d{2}|2100)(?!\\d)", "iu");
+  // `from` is open-ended only when the request does not also provide a closed
+  // month endpoint. "from June through August 2026" is a bounded interval.
+  if (/\bfrom\b/i.test(text) && !closedSharedYearRange.test(text)) return null;
   const found = explicitHistoryMonths(text).map(label => ({year:Number(label.slice(0,4)),month:Number(label.slice(5,7))-1}));
   const unique=[...new Map(found.map(x=>[x.year+":"+x.month,x])).values()].sort((a,b)=>a.year-b.year||a.month-b.month);
   if(!unique.length||unique.length>2)return null;

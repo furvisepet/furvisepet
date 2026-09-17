@@ -6,7 +6,7 @@ import { careOccurrence, calendarCandidateWindow } from "./care-occurrence.ts";
 import { withExecutionDeadline } from "../ai/execution-deadline.ts";
 import { readRecordInventory } from "./record-inventory.ts";
 import { ASK_HISTORY_MAX_PETS } from "./history-limits.ts";
-import { withinEvidenceNeedWindow } from "./history-dates.ts";
+import { literalHistoryMonthWindow, literalHistoryYearWindow, withinEvidenceNeedWindow } from "./history-dates.ts";
 import { historyQueryTerms, historyQueryRelevance, historyEventTerms, historySearchGroups, historyEventRelevance } from "./history-query-relevance.ts";
 import { clipHistoryPlan, historyDateAccessible } from "./history-access.ts";
 import "server-only";
@@ -51,7 +51,8 @@ type GraphPage = { claims: DbClaim[]; relations: DbRelation[]; lineage: Lineage[
  * authority. Unknown/disjoint/relative periods stay on the disclosed old path. */
 export function planHistoricalQuery(message: string, allowBroadComparison = false): HistoryPlan | null {
   if (!isHistoricalRecall(message)) return null;
-  if (!askEvidenceScope(message, []).readOnlyRecall && !(/\b(?:history|lifetime|records?)\b/i.test(message)
+  const literalPeriod = literalHistoryMonthWindow(message) || literalHistoryYearWindow(message) || null;
+  if (!askEvidenceScope(message, []).readOnlyRecall && !literalPeriod && !(/\b(?:history|lifetime|records?)\b/i.test(message)
     && !analyzeOwnerAssertions(message).hasOwnerAssertion && !/\b(?:save|log|remember)\b/i.test(message))) return null;
   if (/\b(?:second|third|that|which) episode\b/i.test(message)) return null;
   const years = [...new Set(message.match(/\b(?:19|20)\d{2}\b/g) || [])];
@@ -69,20 +70,24 @@ export function planHistoricalQuery(message: string, allowBroadComparison = fals
     terms.push("stomach", "vomit", "threw up", "thrown up", "stool", "diarrh");
   }
   if (new Set(terms).size > 6) return null;
-  let from: string | null = null; let to: string | null = null;
-  if (years.length === 1) {
+  let from: string | null = literalPeriod?.from ? new Date(literalPeriod.from).toISOString() : null;
+  let to: string | null = literalPeriod?.to ? new Date(literalPeriod.to).toISOString() : null;
+  const explicitDays = years.length === 1 ? explicitHistoryDays(message, Number(years[0]), 8).sort() : [];
+  const closedDayRange = explicitDays.length === 2 && /\b(?:from|between)\b[\s\S]*\b(?:through|thru|to|and)\b/i.test(message);
+  if (closedDayRange) {
+    from = new Date(`${explicitDays[0]}T00:00:00Z`).toISOString();
+    to = new Date(Date.parse(`${explicitDays[1]}T00:00:00Z`) + 86400000).toISOString();
+  } else if (years.length === 1 && !literalPeriod) {
     const year = Number(years[0]);
-    const monthName = /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b/i.exec(message)?.[0];
-    const month = monthName ? ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"].indexOf(monthName.slice(0, 3).toLowerCase()) : null;
-    from = new Date(Date.UTC(year, month ?? 0, 1)).toISOString();
-    to = new Date(Date.UTC(month === null ? year + 1 : year, month === null ? 0 : month + 1, 1)).toISOString();
-    // Explicit ISO day is narrower than the surrounding year.
-    const day = /\b(\d{4}-\d{2}-\d{2})\b/.exec(message)?.[1];
-    if (day) {
-      const instant = Date.parse(`${day}T00:00:00Z`);
-      if (!Number.isFinite(instant) || new Date(instant).toISOString().slice(0, 10) !== day) return null;
-      from = new Date(instant).toISOString(); to = new Date(instant + 86400000).toISOString();
-    }
+    from = new Date(Date.UTC(year, 0, 1)).toISOString();
+    to = new Date(Date.UTC(year + 1, 0, 1)).toISOString();
+  }
+  // Explicit ISO day is narrower than the surrounding month/year.
+  const day = /\b(\d{4}-\d{2}-\d{2})\b/.exec(message)?.[1];
+  if (day) {
+    const instant = Date.parse(`${day}T00:00:00Z`);
+    if (!Number.isFinite(instant) || new Date(instant).toISOString().slice(0, 10) !== day) return null;
+    from = new Date(instant).toISOString(); to = new Date(instant + 86400000).toISOString();
   }
   if (!from && !terms.length) return allowBroadComparison && /\bcompare\b/i.test(message) && /\bhistor(?:y|ies)\b/i.test(message)
     ? { from: null, to: null, terms: [], interpretation: "broad_comparison" } : null;

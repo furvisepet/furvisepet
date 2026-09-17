@@ -625,12 +625,14 @@ function enforceAskPromptContextBudget<T extends { contextRecords: AskContextRec
     // dated records that answer it. Keep species, ingredient exclusions and
     // lifecycle facts on their existing safety path. Preserve normal advice
     // while preserving the records needed by mixed read-and-edit tasks.
-    if (budgeted.evidenceContract.history && budgeted.evidenceContract.interpretation?.request) {
-      const referenceIds = budgeted.evidenceContract.interpretation.request.referenceTurnIds || [];
+    if (budgeted.evidenceContract.history) {
+      const referenceIds = budgeted.evidenceContract.interpretation?.request?.referenceTurnIds || [];
       const unrelatedReceipt = contextRecords.findLastIndex(record => record.sourceType === "operation_receipt"
         && record.metadata.receiptKind !== "action"
         && !referenceIds.some(id => record.id === `operation:${id}` || record.id.startsWith(`operation:${id}:`)));
       // Requested fields remain evidence even when the task also reads history.
+      // Deterministic fallback history has no requested profile fields, so
+      // optional identity metadata must not displace a dated care source.
       const requestedFields = budgeted.evidenceContract.interpretation?.request?.profileFields || [];
       const optionalProfile = contextRecords.findLastIndex(record => record.sourceType === "profile"
         && !requestedFields.includes(record.kind) && !["species", "avoid", "lifecycle_status"].includes(record.kind));

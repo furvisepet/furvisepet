@@ -292,7 +292,8 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   // actually refers to an earlier result. Planner-added turn IDs cannot narrow
   // a whole-month export/count to the last save receipt or displayed list.
   const preciseReadPeriod = evidenceNeedWindow(context.currentMessage);
-  const explicitReadPeriod = preciseReadPeriod || literalHistoryYearWindow(context.currentMessage);
+  const literalMonthReadPeriod = literalHistoryMonthWindow(context.currentMessage);
+  const explicitReadPeriod = preciseReadPeriod || literalMonthReadPeriod || literalHistoryYearWindow(context.currentMessage);
   if (["read", "clarify"].includes(String(p.mode)) && explicitPets.length === 1 && explicitReadPeriod
     && Date.parse(explicitReadPeriod.to) - Date.parse(explicitReadPeriod.from) > 86400000
     && !/\b(?:these|those|that|above|previous|earlier|displayed|linked|receipts?|you (?:listed|showed))\b/i.test(context.currentMessage)) {
