@@ -149,10 +149,13 @@ test("visible prose sanity remains quality-degradable and never requests provide
 
 test("route publishes persistence success only from an effective durable receipt", () => {
   const route = readFileSync(new URL("../app/api/ask/route.ts", import.meta.url), "utf8");
+  const publication = readFileSync(new URL("../app/lib/intelligence/finalize-ask-publication.ts", import.meta.url), "utf8");
   assert.match(route, /resolveAutomaticCareHistoryPresentation/);
+  assert.match(route, /buildSuccessfulAskResponse/);
   assert.doesNotMatch(route, /suggestionFailure\s*\?/);
   assert.doesNotMatch(route, /intelligencePersistence\?\.carePersistence\.status !== "failed"/);
-  assert.match(route, /didPersistEffectiveState\(intelligencePersistence, intelligencePersistence\.carePersistence\)/);
+  assert.match(publication, /didPersistEffectiveAskState\(intelligencePersistence, intelligencePersistence\.carePersistence\)/);
+  assert.match(publication, /carePersistence\.status === "persisted" && \(carePersistence\.careEntryIds\.length \|\| carePersistence\.concernIds\.length\)/);
 });
 
 function reasoning(answer) {
