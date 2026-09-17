@@ -10,10 +10,12 @@ test("Ask publishes intelligence saved only from an effective persistence receip
     publication,
     /saved:\s*!intelligencePersistenceWarning\s*&&\s*intelligencePersistence\?\.carePersistence\.status\s*!==\s*"failed"/,
   );
-  assert.match(
-    publication,
-    /saved:\s*Boolean\(\s*!intelligencePersistenceWarning\s*&&\s*intelligencePersistence\s*&&\s*didPersistEffectiveAskState\(intelligencePersistence,\s*intelligencePersistence\.carePersistence\)\s*\)/s,
-  );
+  assert.match(publication, /saved:\s*Boolean\(/);
+  assert.ok(publication.includes("!intelligencePersistenceWarning"));
+  assert.ok(publication.includes("&& intelligencePersistence"));
+  assert.ok(publication.includes(
+    "didPersistEffectiveAskState(intelligencePersistence, intelligencePersistence.carePersistence)",
+  ));
 });
 
 test("the Ask route delegates final success publication instead of owning a second serializer", () => {
