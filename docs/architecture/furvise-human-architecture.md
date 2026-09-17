@@ -192,8 +192,8 @@ A pending object without valid authorization provenance is inert. It may not be 
 4. Make interpretation/classification modules advisory inputs rather than independent authorities. **Established for the canonical interpretation adapter and working-memory follow-ups.**
 5. Move lifetime retrieval behind a memory-organ interface. **Established while preserving correction-aware lifetime retrieval.**
 6. Move remaining writes behind the action-organ gate. **Core Ask write paths are gated; continue auditing any newly added mutation path against this rule.**
-7. Centralize response publication through one brain-owned finalizer. **Publication truthfulness is now receipt-gated; remaining work is consolidation of the finalizer/orchestration boundary.**
-8. Reduce `app/api/ask/route.ts` to transport, admission, orchestration, and response delivery. **Next structural simplification after behavior is locked by regressions.**
+7. Centralize response publication through one brain-owned finalizer. **Established for public success serialization in `finalize-ask-publication.ts`; the remaining consolidation is persistence/action/credit finalization behind the same server-owned boundary.**
+8. Reduce `app/api/ask/route.ts` to transport, admission, orchestration, and response delivery. **In progress: duplicate success serialization is removed; `persistAssistantAnswer` remains the primary route-owned orchestration block to extract.**
 
 No broad rewrite is required. Each stage can be migrated behind stable interfaces with regression coverage.
 
