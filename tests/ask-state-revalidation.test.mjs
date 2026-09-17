@@ -1,7 +1,20 @@
 import assert from "node:assert/strict";
+import { registerHooks } from "node:module";
 import test from "node:test";
 
-import { revalidateAskStateViews } from "../app/lib/intelligence/revalidate-ask-state.ts";
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (specifier === "next/cache") {
+      return {
+        shortCircuit: true,
+        url: "data:text/javascript,export const revalidatePath = () => {};",
+      };
+    }
+    return nextResolve(specifier, context);
+  },
+});
+
+const { revalidateAskStateViews } = await import("../app/lib/intelligence/revalidate-ask-state.ts");
 
 test("Ask state invalidation refreshes shared app views and each unique pet scope", () => {
   const paths = [];
