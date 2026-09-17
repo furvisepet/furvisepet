@@ -2325,7 +2325,11 @@ function successfulAnswerResponse({
     automaticSaveConfirmation: carePersistence.status === "persisted" && carePersistence.careEntryIds.length > 0 ? "Added to care history" : persistedLearningConfirmation(intelligencePersistence),
     carePersistence,
     intelligencePersistence: {
-      saved: !intelligencePersistenceWarning && intelligencePersistence?.carePersistence.status !== "failed",
+      saved: Boolean(
+      !intelligencePersistenceWarning
+      && intelligencePersistence
+      && didPersistEffectiveState(intelligencePersistence, intelligencePersistence.carePersistence)
+    ),
       ...(intelligencePersistenceWarning ? { warning: intelligencePersistenceWarning } : {}),
     },
     remainingCredits: usage.remaining,
