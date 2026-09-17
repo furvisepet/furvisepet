@@ -13,8 +13,13 @@ test("Ask marks request activity around exactly one guarded submission", async (
 });
 
 test("server invalidation targets downstream state and never the active Ask route", async () => {
-  const route = await text("app/api/ask/route.ts");
-  const invalidation = route.slice(route.indexOf("function revalidateAskStateViews"), route.indexOf("function textPayloadValue"));
+  const [route, invalidation] = await Promise.all([
+    text("app/api/ask/route.ts"),
+    text("app/lib/intelligence/revalidate-ask-state.ts"),
+  ]);
+  assert.match(route, /revalidateAskStateViews\(/);
+  assert.match(route, /revalidate-ask-state\.ts/);
+  assert.doesNotMatch(route, /function revalidateAskStateViews/);
   assert.match(invalidation, /"\/dashboard"/);
   assert.match(invalidation, /"\/pets"/);
   assert.match(invalidation, /"\/care-log"/);

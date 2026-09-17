@@ -64,7 +64,7 @@ test("Ask uses four truthful care-history states and never turns an auxiliary fa
   assert.match(pendingPersistence, /HISTORY_SUGGESTION_PERSISTENCE_FAILED/);
   assert.match(askRoute, /return buildSuccessfulAskResponse\(/);
   assert.match(publication, /export function buildSuccessfulAskResponse/);
-  assert.doesNotMatch(askRoute.slice(askRoute.indexOf("const automaticCareFailure"), askRoute.indexOf("async function safeReleaseAiCredit")), /return askFailure\(/);
+  assert.doesNotMatch(askRoute.slice(askRoute.indexOf("const automaticCareFailure"), askRoute.indexOf("function standaloneEmergencyResponse")), /return askFailure\(/);
 });
 
 test("a resolved semantic update reconciles the pending event instead of inserting a noisy duplicate", () => {

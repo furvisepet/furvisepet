@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { finalizeDurableAskAnswer } from "../app/lib/furvise-brain/durable-answer-finalization.ts";
+
+const route = readFileSync(new URL("../app/api/ask/route.ts", import.meta.url), "utf8");
 
 test("durable Ask finalization returns immediately after a confirmed commit", async () => {
   let attempts = 0;
@@ -88,4 +91,14 @@ test("false finalization acknowledgements also require matching durable proof", 
     /UNCONFIRMED/,
   );
   assert.equal(attempts, 2);
+});
+
+
+test("Ask route delegates acknowledgement retry and readback policy to the Brain durable boundary", () => {
+  const start = route.indexOf("async function finalizePersistedAskAnswer");
+  const end = route.indexOf("function completedResponseFromPersisted", start);
+  assert.ok(start >= 0 && end > start);
+  const adapter = route.slice(start, end);
+  assert.match(adapter, /finalizeDurableAskAnswer/);
+  assert.doesNotMatch(adapter, /for \(let attempt/);
 });

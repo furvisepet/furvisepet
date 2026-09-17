@@ -67,25 +67,12 @@ function routeFunction(name, mocks) {
   const js = ts.transpileModule(node.getText(ast), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
   return vm.runInNewContext(js + '\n' + name, mocks);
 }
-for (const disposition of [null, 'release', 'complete']) test(`durable replay preserves settlement authority: ${disposition}`, async () => {
-  const calls = [];
-  const fn = routeFunction('reconcilePersistedAskCredit', {
-    getAiCreditEventsForLogicalRequest: async () => [{ requestId: 'attempt', status: 'reserved', disposition }],
-    setAiCreditDisposition: async input => calls.push(['decide', input.disposition]),
-    reconcileAiCredit: async () => calls.push(['reconcile']),
-    getRemainingAiCredits: async () => ({ remaining: 15 }),
-  });
-  const result = await fn({ logicalRequestId: 'turn', payloadHash: 'hash', supabase: {}, usage: {}, userId: 'owner' });
-  assert.equal(result.remaining, 15);
-  assert.deepEqual(calls, disposition === null ? [['decide', 'release'], ['reconcile']] : [['reconcile']]);
-});
-test('replay refuses conflicting disposition and identity errors', async () => {
-  const conflict = new Error('identity conflict');
-  const fn = routeFunction('reconcilePersistedAskCredit', {
-    getAiCreditEventsForLogicalRequest: async () => [{ requestId: 'attempt', status: 'reserved', disposition: null }],
-    setAiCreditDisposition: async () => { throw conflict; },
-  });
-  await assert.rejects(fn({ usage: {} }), error => error === conflict);
+const creditSettlement = readFileSync(new URL('../app/lib/ai/ask-credit-settlement.ts', import.meta.url), 'utf8');
+test('durable replay settlement authority lives in the shared Ask credit boundary', () => {
+  assert.match(route, /createAskCreditSettlement\(\{ logAskServerError, logAskStage \}\)/);
+  assert.doesNotMatch(route, /async function (?:safeReleaseAiCredit|reconcilePersistedAskCredit)/);
+  assert.match(creditSettlement, /if \(state\.disposition !== null\) continue/);
+  assert.match(creditSettlement, /AI_CREDIT_DISPOSITION_CONFLICT/);
 });
 test('unfinished assistant persistence is presented as incomplete without rewriting reviewed prose', () => {
   const fn = routeFunction('completedResponseFromPersisted', { buildSuccessfulAskResponse: input => input });

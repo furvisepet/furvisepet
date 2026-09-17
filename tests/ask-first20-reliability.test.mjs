@@ -6,6 +6,7 @@ import ts from 'typescript';
 import { ASK_CLIENT_TIMEOUT_MS, ASK_MAX_QUESTION_CHARACTERS } from '../app/lib/ai/ask-execution-limits.ts';
 import { planDeterministicAskCommand } from '../app/lib/ai/ask-command-router.ts';
 import { classifyFurviseCapabilityQuestion, buildFurviseCapabilityResponse } from '../app/lib/ai/ask-internal-product-policy.ts';
+import { finalizeDurableAskAnswer } from '../app/lib/furvise-brain/durable-answer-finalization.ts';
 
 const root = new URL('../', import.meta.url);
 // Run production functions, not copies of their implementation. Dependencies at
@@ -130,6 +131,7 @@ test('finalization retries idempotently and returns only durable fallback state'
   for(const succeedsAt of [1,2,Infinity]){
     let calls=0,reads=0;const persisted={assistantMessage:{id:'m',response_data:{directAnswer:'durable'}}};
     const run=extract('app/api/ask/route.ts','finalizePersistedAskAnswer',{
+      finalizeDurableAskAnswer,
       finalizeAskAssistantResponse:async()=>++calls===succeedsAt?{data:true,error:null}:{data:null,error:new Error('offline')},
       loadPersistedRequestByConversation:async()=>{reads++;return persisted;},logAskServerError:noop,
     });
@@ -139,6 +141,7 @@ test('finalization retries idempotently and returns only durable fallback state'
 });
 test('missing durable finalization cannot be returned as saved success',async()=>{
   const run=extract('app/api/ask/route.ts','finalizePersistedAskAnswer',{
+    finalizeDurableAskAnswer,
     finalizeAskAssistantResponse:async()=>({data:false,error:null}),loadPersistedRequestByConversation:async()=>null,
     AskApiError:Error,FURVISE_ASK_UNAVAILABLE_MESSAGE:'Unavailable',
   });

@@ -13,7 +13,7 @@ function functionSlice(name, nextName) {
 }
 
 test("post-review Ask finalization has one ordered effect pipeline", () => {
-  const finalizer = functionSlice("persistAssistantAnswer", "async function safeReleaseAiCredit");
+  const finalizer = functionSlice("persistAssistantAnswer", "function standaloneEmergencyResponse");
   const stages = [
     "completeAskConversationTurn({",
     "createActionCapabilities({",
@@ -34,7 +34,7 @@ test("post-review Ask finalization has one ordered effect pipeline", () => {
 });
 
 test("post-review publication happens only after the turn reaches COMPLETED", () => {
-  const finalizer = functionSlice("persistAssistantAnswer", "async function safeReleaseAiCredit");
+  const finalizer = functionSlice("persistAssistantAnswer", "function standaloneEmergencyResponse");
   const completed = finalizer.indexOf('turnLifecycle.transition("COMPLETED")');
   const durable = finalizer.indexOf("finalizePersistedAskAnswer({");
   const publish = finalizer.indexOf("buildSuccessfulAskResponse({");
@@ -42,7 +42,7 @@ test("post-review publication happens only after the turn reaches COMPLETED", ()
 });
 
 test("lost finalization acknowledgement refreshes durable state then replays without rerunning effects", () => {
-  const finalizer = functionSlice("persistAssistantAnswer", "async function safeReleaseAiCredit");
+  const finalizer = functionSlice("persistAssistantAnswer", "function standaloneEmergencyResponse");
   assert.match(finalizer, /if \(durableFallback\) return completedResponseFromPersisted/);
   const durable = finalizer.indexOf("finalizePersistedAskAnswer({");
   const freshness = finalizer.indexOf("revalidateAskStateViews(", durable);

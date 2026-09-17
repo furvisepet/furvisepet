@@ -5,6 +5,7 @@ import test from "node:test";
 const notice = readFileSync(new URL("../app/components/ask-usage-notice.tsx", import.meta.url), "utf8");
 const page = readFileSync(new URL("../app/ask/page.tsx", import.meta.url), "utf8");
 const route = readFileSync(new URL("../app/api/ask/route.ts", import.meta.url), "utf8");
+const creditSettlement = readFileSync(new URL("../app/lib/ai/ask-credit-settlement.ts", import.meta.url), "utf8");
 
 test("Ask usage notice stays hidden until the allowance is exhausted", () => {
   assert.doesNotMatch(notice, /AI credits included each month/);
@@ -34,7 +35,11 @@ test("failed provider or persistence paths do not consume usage", () => {
   assert.match(failedSave, /safeReleaseAiCredit/);
   assert.doesNotMatch(failedSave, /completeAiCredit/);
   assert.equal(route.match(/await completeAiCredit/g)?.length, 2, "foreground completion is retried once");
-  assert.match(route, /getAiCreditEventsForLogicalRequest[\s\S]*await reconcileAiCredit/);
+  assert.match(route, /createAskCreditSettlement/);
+  assert.doesNotMatch(route, /async function (?:safeReleaseAiCredit|reconcilePersistedAskCredit)/);
+  assert.match(creditSettlement, /getEvents: getAiCreditEventsForLogicalRequest/);
+  assert.match(creditSettlement, /await ledger\.reconcile/);
+  assert.match(creditSettlement, /optional_credit_reconciliation/);
 });
 
 test("assistant persistence retries idempotently before returning a retryable failure", () => {

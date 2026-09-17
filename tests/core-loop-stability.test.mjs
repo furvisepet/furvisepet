@@ -75,6 +75,7 @@ test("Ask Furvise route keeps usage tracking from masking successful answers", (
 
 test("Ask Furvise route uses context planning before response persistence", () => {
   const route = read("app/api/ask/route.ts");
+  const creditSettlement = read("app/lib/ai/ask-credit-settlement.ts");
   const contextLoad = route.indexOf("await buildFurviseContext");
   const pipeline = route.indexOf("orchestrateAskTurn", contextLoad);
   const persistence = route.indexOf("persistAssistantAnswer({", pipeline);
@@ -84,5 +85,7 @@ test("Ask Furvise route uses context planning before response persistence", () =
   assert.ok(persistence > pipeline);
   assert.doesNotMatch(route, /generateGroundedAskAnswer|answerSinglePetMemoryQuestion/);
   assert.equal(route.match(/await completeAiCredit/g)?.length, 2, "foreground completion is retried once");
-  assert.match(route, /getAiCreditEventsForLogicalRequest[\s\S]*await reconcileAiCredit/);
+  assert.match(route, /createAskCreditSettlement/);
+  assert.match(creditSettlement, /getEvents: getAiCreditEventsForLogicalRequest/);
+  assert.match(creditSettlement, /await ledger\.reconcile/);
 });

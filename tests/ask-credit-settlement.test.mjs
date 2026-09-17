@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { createAskCreditSettlement } from "../app/lib/ai/ask-credit-settlement.ts";
+
+const route = readFileSync(new URL("../app/api/ask/route.ts", import.meta.url), "utf8");
 
 function usage(overrides = {}) {
   return {
@@ -156,4 +159,10 @@ test("development without the ledger migration never touches settlement state", 
   });
   assert.equal(next, current);
   assert.equal(touched, false);
+});
+
+
+test("Ask route delegates terminal credit settlement to the shared boundary", () => {
+  assert.match(route, /createAskCreditSettlement\(\{ logAskServerError, logAskStage \}\)/);
+  assert.doesNotMatch(route, /async function safeReleaseAiCredit|async function reconcilePersistedAskCredit/);
 });

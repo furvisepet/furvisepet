@@ -11,6 +11,7 @@ import { assertGovernedAskExecutionPlan } from "../../lib/intelligence/ask-execu
 import { OperationDeadline } from "../../lib/ai/execution-deadline.ts";
 import { ASK_OPERATION_TIMEOUT_MS, ASK_MAX_QUESTION_CHARACTERS } from "../../lib/ai/ask-execution-limits.ts";
 import { createAskAdmissionSettlement } from "../../lib/ai/ask-admission-settlement.ts";
+import { createAskCreditSettlement } from "../../lib/ai/ask-credit-settlement.ts";
 import { resolveAskHistoryAccess } from "../../lib/intelligence/history-access.ts";
 import { persistPendingSuggestion } from "../../lib/intelligence/persist-pending-suggestion.ts";
 import { generateAskHistoryAnswer } from "../../lib/intelligence/generate-ask-history.ts";
@@ -19,10 +20,11 @@ import type { NeedCoverage } from "../../lib/intelligence/evidence-need-coverage
 import type { EvidenceNeed } from "../../lib/intelligence/evidence-needs.ts";
 import { inspectAskPublication } from "../../lib/intelligence/inspect-ask-publication.ts";
 import { buildSuccessfulAskResponse, didPersistEffectiveAskState } from "../../lib/intelligence/finalize-ask-publication.ts";
+import { revalidateAskStateViews } from "../../lib/intelligence/revalidate-ask-state.ts";
+import { finalizeDurableAskAnswer } from "../../lib/furvise-brain/durable-answer-finalization.ts";
 import { attachEpisodeReferences } from "../../lib/intelligence/episode-history.ts";
 import type { HistoryCoverage } from "../../lib/intelligence/history-retrieval.ts";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { revalidatePath } from "next/cache";
 import { createCanonicalCareAuthorityClient } from "../../lib/intelligence/care-authority-client";
 import { emitOperationalEvent } from "../../lib/operations/events";
 import {
@@ -53,13 +55,11 @@ import {
   AiCreditLedgerError,
   buildDevelopmentAiCreditFallback,
   completeAiCredit,
-  getAiCreditEventsForLogicalRequest,
   getAiCreditLedgerDiagnostic,
   getRemainingAiCredits,
   hashAiCreditPayload,
   isAiCreditIntegrityError,
   isMissingAiUsageTableError,
-  reconcileAiCredit,
   reserveAiCredit,
   setAiCreditDisposition,
   type AiCreditStatus,
@@ -2185,84 +2185,6 @@ async function persistAssistantAnswer({
 }
 
 
-async function safeReleaseAiCredit({
-  logicalRequestId,
-  payloadHash,
-  requestId,
-  userId,
-}: {
-  logicalRequestId: string;
-  payloadHash: string;
-  requestId: string;
-  userId: string;
-}) {
-  await setAiCreditDisposition({
-    disposition: "release",
-    feature: "ask",
-    logicalRequestId,
-    payloadHash,
-    requestId,
-    userId,
-  });
-  try {
-    await reconcileAiCredit({ feature: "ask", logicalRequestId, payloadHash, requestId, userId });
-    logAskStage("AI credit released", { requestId });
-    return true;
-  } catch (error) {
-    if (isAiCreditIntegrityError(error)) throw error;
-    logAskServerError("credit_release_failed", error, { requestId }, 200);
-    return false;
-  }
-}
-
-async function reconcilePersistedAskCredit({
-  logicalRequestId,
-  payloadHash,
-  supabase,
-  usage,
-  userId,
-}: {
-  logicalRequestId: string;
-  payloadHash: string;
-  supabase: SupabaseClient;
-  usage: AiCreditStatus;
-  userId: string;
-}) {
-  if (usage.ledgerMode === "development_missing_migration") return usage;
-  const states = await getAiCreditEventsForLogicalRequest({ feature: "ask", logicalRequestId, payloadHash, supabase, userId });
-  for (const state of states) {
-    if (state.disposition !== null) continue;
-    // An interrupted execution has no durable billable-task decision. Preserve
-    // any already terminal decisions and release only this undecided attempt.
-    await setAiCreditDisposition({ disposition: "release", feature: "ask", logicalRequestId,
-      payloadHash, requestId: state.requestId, userId });
-    state.disposition = "release";
-  }
-  if (states.filter((state) => state.disposition === "complete").length > 1) {
-    throw new AiCreditLedgerError("reconciliation_failed", new Error("AI_CREDIT_DISPOSITION_CONFLICT"), "ai_usage_events", "select");
-  }
-  try {
-    for (const state of states) {
-      if (state.status !== "reserved") continue;
-      await reconcileAiCredit({
-        feature: "ask",
-        logicalRequestId,
-        payloadHash,
-        requestId: state.requestId,
-        userId,
-      });
-    }
-    return await getRemainingAiCredits({ feature: "ask", monthlyAiCredits: usage.limit, planId: usage.planId, supabase, userId });
-  } catch (error) {
-    if (isAiCreditIntegrityError(error)) throw error;
-    // Terminal RPC execution may degrade only after every attempt has durable,
-    // compatible disposition. Identity checks and durable decisions happen
-    // above and remain answer-critical.
-    logAskServerError("optional_credit_reconciliation", error, { requestId: logicalRequestId }, 200);
-    return usage;
-  }
-}
-
 function standaloneEmergencyResponse({
   contextUsed,
   requestId,
@@ -2292,17 +2214,6 @@ function standaloneEmergencyResponse({
     success: true,
     turn,
   });
-}
-
-function revalidateAskStateViews(petIds: string[]) {
-  for (const path of ["/dashboard", "/today", "/pets", "/history", "/care-log"]) revalidatePath(path);
-  for (const petId of new Set(petIds.filter(Boolean))) {
-    revalidatePath(`/pets/${petId}`);
-    revalidatePath(`/pets/${petId}/care`);
-    revalidatePath(`/pets/${petId}/memories`);
-    revalidatePath(`/dogs/${petId}/care`);
-    revalidatePath(`/dogs/${petId}/memories`);
-  }
 }
 
 async function loadPersistedRequest({ petId, requestId, supabase, userId }: { petId: string; requestId: string; supabase: SupabaseClient; userId: string }): Promise<PersistedRequestState | null> {
@@ -2378,20 +2289,22 @@ async function finalizePersistedAskAnswer(input: {
   carePersistence: CarePersistenceResult; conversationId: string; messageId: string;
   responseData: CompletedAskResponse; requestId: string; supabase: SupabaseClient; userId: string;
 }): Promise<PersistedRequestState | null> {
-  let failure: unknown;
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      const result = await finalizeAskAssistantResponse(input);
-      if (!result.error && result.data === true) return null;
-      failure = result.error || new Error("ASK_RESPONSE_FINALIZE_FAILED");
-    } catch (error) { failure = error; }
-  }
-  const durable = await loadPersistedRequestByConversation(input);
-  if (!durable?.assistantMessage?.response_data || durable.assistantMessage.id !== input.messageId) {
-    throw new AskApiError("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503, "persistence_failed", failure);
-  }
-  logAskServerError("response_finalization_readback", failure, { requestId: input.requestId }, 200);
-  return durable;
+  const result = await finalizeDurableAskAnswer<PersistedRequestState>({
+    attemptFinalize: async () => {
+      const finalized = await finalizeAskAssistantResponse(input);
+      if (!finalized.error && finalized.data === true) return true;
+      throw finalized.error || new Error("ASK_RESPONSE_FINALIZE_FAILED");
+    },
+    createFailure: (failure) => new AskApiError("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503, "persistence_failed", failure),
+    isMatchingReadback: (durable) => Boolean(
+      durable?.assistantMessage?.response_data && durable.assistantMessage.id === input.messageId
+    ),
+    onRecoveredReadback: (failure) => {
+      logAskServerError("response_finalization_readback", failure, { requestId: input.requestId }, 200);
+    },
+    readback: () => loadPersistedRequestByConversation(input),
+  });
+  return result.kind === "replay" ? result.state : null;
 }
 
 function completedResponseFromPersisted(state: PersistedRequestState, usage: AiCreditStatus, persistenceWarning?: string) {
@@ -2493,6 +2406,7 @@ function isUuid(value: string) {
 }
 
 const { failAiAdmission, finalizeAiAdmissionAfterPersistence } = createAskAdmissionSettlement(logAskServerError);
+const { reconcilePersistedAskCredit, safeReleaseAiCredit } = createAskCreditSettlement({ logAskServerError, logAskStage });
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
   let timer: ReturnType<typeof setTimeout> | undefined;

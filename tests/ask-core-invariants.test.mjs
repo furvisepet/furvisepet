@@ -30,8 +30,11 @@ test("emergency safety remains before entitlement and quota", () => {
 
 test("a durable assistant is persisted before credit completion", () => {
   const route = read("app/api/ask/route.ts");
+  const settlement = read("app/lib/ai/ask-credit-settlement.ts");
   assert.ok(route.indexOf('role: "furvise"') < route.indexOf("completeAiCredit({ feature: \"ask\""));
-  assert.match(route, /optional_credit_reconciliation/);
+  assert.match(route, /createAskCreditSettlement/);
+  assert.doesNotMatch(route, /async function (?:safeReleaseAiCredit|reconcilePersistedAskCredit)/);
+  assert.match(settlement, /optional_credit_reconciliation/);
 });
 
 test("new sends cannot inherit prior failed identity", () => {

@@ -30,12 +30,15 @@ test("logical turn, attempt, persisted message, and financial identities are exp
 
 test("persisted answer replay only degrades terminal execution after durable identity and disposition validation", () => {
   const route = read("app/api/ask/route.ts");
-  assert.match(route, /optional_credit_reconciliation/);
-  assert.match(route, /return usage;/);
-  assert.match(route, /const states = await getAiCreditEventsForLogicalRequest/);
-  assert.match(route, /if \(state.disposition !== null\) continue/);
-  assert.match(route, /setAiCreditDisposition\(\{ disposition: "release", feature: "ask", logicalRequestId/);
-  assert.match(route, /if \(isAiCreditIntegrityError\(error\)\) throw error/);
+  const settlement = read("app/lib/ai/ask-credit-settlement.ts");
+  assert.match(route, /createAskCreditSettlement/);
+  assert.doesNotMatch(route, /async function (?:safeReleaseAiCredit|reconcilePersistedAskCredit)/);
+  assert.match(settlement, /optional_credit_reconciliation/);
+  assert.match(settlement, /return usage;/);
+  assert.match(settlement, /const states = await ledger\.getEvents/);
+  assert.match(settlement, /if \(state\.disposition !== null\) continue/);
+  assert.match(settlement, /ledger\.setDisposition\(\{[\s\S]*disposition: "release"/);
+  assert.match(settlement, /if \(ledger\.isIntegrityError\(error\)\) throw error/);
   assert.match(route, /setAiCreditDisposition\([\s\S]*disposition: "complete"[\s\S]*completeAiCredit/);
 });
 

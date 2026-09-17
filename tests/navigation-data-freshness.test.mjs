@@ -5,18 +5,20 @@ import { readFile } from "node:fs/promises";
 const text = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
 test("successful Ask state mutations publish one scoped freshness version", async () => {
-  const [ask, route, publication, freshness] = await Promise.all([
+  const [ask, route, publication, freshness, revalidation] = await Promise.all([
     text("app/ask/page.tsx"),
     text("app/api/ask/route.ts"),
     text("app/lib/intelligence/finalize-ask-publication.ts"),
     text("app/lib/navigation/app-data-freshness.ts"),
+    text("app/lib/intelligence/revalidate-ask-state.ts"),
   ]);
   assert.match(publication, /dataChanged: applicationStateChanged \|\| didPersistEffectiveAskState/);
   assert.match(route, /didPersistEffectiveAskState\(intelligencePersistence, carePersistence\)/);
-  assert.match(route, /revalidatePath\(path\)/);
-  assert.match(route, /"\/dashboard"[^\]]*"\/pets"[^\]]*"\/care-log"/s);
-  const invalidation = route.slice(route.indexOf("function revalidateAskStateViews"), route.indexOf("async function loadPersistedRequest"));
-  assert.doesNotMatch(invalidation, /"\/ask"|"\/shop"/);
+  assert.match(route, /revalidateAskStateViews\(/);
+  assert.match(route, /from "\.\.\/\.\.\/lib\/intelligence\/revalidate-ask-state\.ts"/);
+  assert.doesNotMatch(route, /function revalidateAskStateViews/);
+  assert.match(revalidation, /"\/dashboard"[^\]]*"\/pets"[^\]]*"\/care-log"/s);
+  assert.doesNotMatch(revalidation, /"\/ask"|"\/shop"/);
   assert.match(ask, /if \(payload\.dataChanged\) markAppDataChanged\(\)/);
   assert.match(freshness, /sessionStorage\.setItem/);
   assert.match(freshness, /dispatchEvent\(new CustomEvent/);
