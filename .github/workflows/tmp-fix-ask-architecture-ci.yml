@@ -1,0 +1,59 @@
+name: Temporary Ask Architecture CI Fixes
+
+on:
+  push:
+    branches:
+      - codex/ask-human-architecture-v1
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Patch discourse focus and Node strip-only compatibility
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          subject = Path("app/lib/intelligence/entities/recent-subject-state.ts")
+          text = subject.read_text()
+          old = "  const focused = compatible.find((entity) => entity.key === state.currentFocusKey);\n  if (focused && entityRecencyScore(focused) >= 0) return resolved(focused, [focused]);"
+          new = "  const currentFocus = state.currentFocusKey ? state.entities.find((entity) => entity.key === state.currentFocusKey) : null;\n  // An explicitly focused pet outranks stored sex/pronoun metadata. Owners may\n  // use a different pronoun, and a mere object mention must not steal focus.\n  const focused = currentFocus && (currentFocus.kind === \"pet\" || currentFocus.pronouns.includes(pronoun)) ? currentFocus : null;\n  if (focused && entityRecencyScore(focused) >= 0) return resolved(focused, [focused]);"
+          if text.count(old) != 1:
+              raise SystemExit(f"expected one recent-subject focus block, found {text.count(old)}")
+          subject.write_text(text.replace(old, new))
+
+          interpretation = Path("app/lib/intelligence/interpret-ask.ts")
+          text = interpretation.read_text()
+          old = "export class AskInterpretationValidationError extends Error {\n  constructor(readonly reason: string, readonly category: \"schema\" | \"semantic\" = \"semantic\") {\n    super(`ASK_INTERPRETATION_INVALID: ${reason}`); this.name = \"AskInterpretationValidationError\";\n  }\n}"
+          new = "export class AskInterpretationValidationError extends Error {\n  readonly reason: string;\n  readonly category: \"schema\" | \"semantic\";\n\n  constructor(reason: string, category: \"schema\" | \"semantic\" = \"semantic\") {\n    super(`ASK_INTERPRETATION_INVALID: ${reason}`);\n    this.name = \"AskInterpretationValidationError\";\n    this.reason = reason;\n    this.category = category;\n  }\n}"
+          if text.count(old) != 1:
+              raise SystemExit(f"expected one interpretation validation constructor, found {text.count(old)}")
+          interpretation.write_text(text.replace(old, new))
+          PY
+      - name: Run affected regressions
+        run: |
+          node --test tests/furvise-brain-selected-pet-anchor.test.mjs
+          node --test tests/ask-working-memory-interpretation.test.mjs
+      - name: Commit fixes and remove temporary workflow
+        shell: bash
+        run: |
+          rm .github/workflows/tmp-fix-ask-architecture-ci.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/lib/intelligence/entities/recent-subject-state.ts app/lib/intelligence/interpret-ask.ts .github/workflows/tmp-fix-ask-architecture-ci.yml
+          git diff --cached --check
+          git commit -m "Stabilize Ask discourse focus and Node test loading"
+          git push origin HEAD:codex/ask-human-architecture-v1
