@@ -94,9 +94,13 @@ The final turn does not create permission. It supplies the missing subject to a 
 
 Understanding or recalling a fact does not imply permission to create a permanent record. Furvise may understand that Pebble rolled down a hill without creating a care-history entry.
 
-### 6. One final voice
+### 6. One final voice, backed by receipts
 
 Organs return structured results to the brain. Only the brain publishes the final user-facing response. A subsystem must never independently return a contradictory completion such as `Note saved` when no authorized write actually committed.
+
+Mutation-success language and response metadata are receipt-backed. `saved`, `updated`, `resolved`, or equivalent state-change claims may be published only when the server has an effective durable persistence result for the claimed effect. Planner intent, model output, an absent persistence summary, or a non-failing/skipped persistence path is not a success receipt.
+
+Replayed responses preserve the original committed result; they do not synthesize a new success claim merely because the retry path itself did not fail.
 
 ### 7. History behaves like an event ledger
 
@@ -182,14 +186,14 @@ A pending object without valid authorization provenance is inert. It may not be 
 
 ## Migration strategy from current Ask
 
-1. Introduce canonical turn authority and mutation firewall. **Established; owner-note paths wired.**
-2. Require server-verifiable authorization provenance for every current or resumed write. **Established for owner-note paths.**
-3. Route subject resolution through canonical subject authority. **Adapter established; main route migration next.**
-4. Make interpretation/classification modules advisory inputs rather than independent authorities. **Interpretation adapter established; main route migration next.**
-5. Move lifetime retrieval behind a memory-organ interface. **Interface established; main route migration next.**
-6. Move remaining writes behind the action-organ gate.
-7. Centralize response publication through one brain-owned finalizer.
-8. Reduce `app/api/ask/route.ts` to transport, admission, orchestration, and response delivery.
+1. Introduce canonical turn authority and mutation firewall. **Established and wired into Ask.**
+2. Require server-verifiable authorization provenance for current and resumed writes. **Established for direct notes, pending-task writes, application actions, lifecycle actions, and intelligence care persistence.**
+3. Route subject resolution through canonical subject authority. **Established, including selected-pet discourse protection.**
+4. Make interpretation/classification modules advisory inputs rather than independent authorities. **Established for the canonical interpretation adapter and working-memory follow-ups.**
+5. Move lifetime retrieval behind a memory-organ interface. **Established while preserving correction-aware lifetime retrieval.**
+6. Move remaining writes behind the action-organ gate. **Core Ask write paths are gated; continue auditing any newly added mutation path against this rule.**
+7. Centralize response publication through one brain-owned finalizer. **Publication truthfulness is now receipt-gated; remaining work is consolidation of the finalizer/orchestration boundary.**
+8. Reduce `app/api/ask/route.ts` to transport, admission, orchestration, and response delivery. **Next structural simplification after behavior is locked by regressions.**
 
 No broad rewrite is required. Each stage can be migrated behind stable interfaces with regression coverage.
 
