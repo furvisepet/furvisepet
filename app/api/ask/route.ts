@@ -2326,10 +2326,10 @@ function successfulAnswerResponse({
     carePersistence,
     intelligencePersistence: {
       saved: Boolean(
-      !intelligencePersistenceWarning
-      && intelligencePersistence
-      && didPersistEffectiveState(intelligencePersistence, intelligencePersistence.carePersistence)
-    ),
+        !intelligencePersistenceWarning
+        && intelligencePersistence
+        && didPersistEffectiveState(intelligencePersistence, intelligencePersistence.carePersistence)
+      ),
       ...(intelligencePersistenceWarning ? { warning: intelligencePersistenceWarning } : {}),
     },
     remainingCredits: usage.remaining,
