@@ -6,6 +6,7 @@ import { interpretStructuredProviderResponse } from "../ai/ask-provider.ts";
 import { AskPipelineError, type AskProviderEvent } from "../ai/ask-reasoning.ts";
 import { AiAdmissionError } from "../ai/usage-guard/errors.ts";
 import { boundedProviderTimeout, executeAdmittedProviderCall } from "../ai/usage-guard/provider-call-budget.ts";
+import { resolveWorkingMemoryFollowup } from "../furvise-brain/working-memory.ts";
 import { buildRecentSubjectState } from "./entities/recent-subject-state.ts";
 import type { FurviseLiveContext } from "./types.ts";
 import type { HistoryPlan } from "./history-retrieval.ts";
@@ -57,8 +58,6 @@ export function recoverAskInterpretation(value: unknown, context: Interpretation
     try { return validateAskRequest(value, context); }
     catch (error) {
       const reason = error instanceof Error ? /^ASK_REQUEST_INVALID:([a-z_]+)$/.exec(error.message)?.[1] : null;
-      // Rejected advisory metadata grants no read/write authority. Use the
-      // existing explicit limitation path rather than failing publication.
       if (["reference", "scope"].includes(reason || "") && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion
         && "mode" in value && ["read", "conversation", "clarify"].includes(String(value.mode)))
         return unavailableAskReadPlan("ASK_REQUEST_CONTRACT_" + reason!.toUpperCase());
@@ -75,11 +74,51 @@ function unavailableAskReadPlan(reason: string): AskInterpretation {
     episodeTopic: null, ordinal: null, readOnly: true, clarification: null, frame: emptyProposedSemanticFrame() };
 }
 
+function workingMemoryAskPlan(context: InterpretationContext, sourceTurnId: string, sourceText: string): AskInterpretation {
+  return {
+    version: "ask-interpretation.v1",
+    operation: "general",
+    readOperation: "general",
+    selection: "summary",
+    conversationOnly: true,
+    referenceQuestion: sourceText,
+    petIds: [],
+    readPetIds: [],
+    topic: "working memory conversation",
+    history: null,
+    episodeTopic: null,
+    ordinal: null,
+    readOnly: true,
+    clarification: null,
+    frame: emptyProposedSemanticFrame(),
+    request: {
+      version: ASK_REQUEST_VERSION,
+      task: null,
+      mode: "conversation",
+      question: context.currentMessage,
+      requirements: [],
+      referenceTurnIds: [sourceTurnId],
+      quantity: null,
+      evidenceBasis: "general",
+      outputFormat: null,
+    },
+  };
+}
+
 export async function interpretAskQuestion({ context, model, client, onProviderEvent }: {
   context: InterpretationContext; model: string;
   onProviderEvent?: (event: AskProviderEvent) => void;
   client?: { responses: { create: (request: Record<string, unknown>, options?: { signal: AbortSignal }) => Promise<Record<string, unknown>> } };
 }): Promise<AskInterpretation> {
+  if (!context.pendingTask) {
+    const workingMemory = resolveWorkingMemoryFollowup(context.currentMessage, context.conversationTurns.map(turn => ({
+      id: turn.id,
+      role: turn.role,
+      text: turn.text,
+    })));
+    if (workingMemory) return workingMemoryAskPlan(context, workingMemory.sourceTurnId, workingMemory.sourceText);
+  }
+
   const state = buildRecentSubjectState({ pets: context.eligiblePets.filter(pet => pet.user_id === context.owner.userId), selectedPetId: context.pet.id, recentConversation: context.conversationTurns });
   const input = { pendingTask: context.pendingTask || null, currentTurn: context.currentTurn || null, timeZone: context.timeZone || "UTC", conversationSubject: state.entities.find(entity => entity.key === state.currentFocusKey)?.label || null, currentMessage: context.currentMessage, today: calendarDateInZone(new Date().toISOString(), context.timeZone),
     ownerNoteSources: [...context.conversationTurns, context.pendingTask?.source, context.currentTurn]
@@ -97,8 +136,6 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
       : null,
     ownedPets: context.eligiblePets.filter(pet => pet.user_id === context.owner.userId).map(pet => ({ name: pet.name, species: pet.species })),
     recentUserMessages: context.conversationTurns.filter(turn => turn.role === "user" && !turn.recoveredReceiptReference).slice(-ASK_INTERPRETATION_LIMITS.turns).map(turn => turn.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars)),
-    // Assistant wording can identify a referent, never establish a saved fact,
-    // an owned identity, or authority for a write. All reads are re-executed.
     recentDialogueForReferencesOnly: context.conversationTurns.slice(-ASK_INTERPRETATION_LIMITS.turns)
       .map(turn => ({ id: turn.id, role: turn.role, text: turn.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars) })),
     dialogueAuthority: "Prior USER turns may supply observations, fictional/scenario facts and referents; only the current request authorizes a new save. ownerNoteSources supplies original note content, not proof of persistence or permission to use another account. Prior assistant turns are reference hints only.",
@@ -116,7 +153,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
   try {
     const activeClient = client || new OpenAI({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 0 }) as unknown as NonNullable<typeof client>;
     for (let attempt = 0; attempt < 2; attempt++) {
-    const attemptRequest = attempt === 0 ? request : { ...request, instructions: request.instructions + "\nThe previous contract failed validation (" + previousContractFailure + "). Use referenceTurnIds only from recentDialogueForReferencesOnly. If the current question is self-contained, use []. Never invent a turn ID or copy a note ID into a conversation-reference field. Preserve a genuine episode target independently of its requested projection. Reconstruct the contract from the original input. Supplied context requires at least one factual USER premise. Each premiseQuotes item must be one exact contiguous substring of a USER message, preserving capitalization and punctuation. Split noncontiguous facts into separate quotes. Do not paraphrase premises or use assistant/routing metadata as evidence. If this is a follow-up about owned pets and their values appeared only in an assistant answer, choose saved_history, resolve the same subjects/property, and retrieve their records again rather than attempting supplied_context. Adding a new observation to history is not correcting an existing record: use mutationIntent null unless the user explicitly asks to edit an existing saved record. Re-evaluate the original user intent before choosing the evidence basis: a genuine current owner observation or explicit application action uses update/mixed with evidenceBasis null when it needs no saved facts, or saved_history when it also needs stored evidence. Fictional, hypothetical, quoted or negated action premises remain non-writing conversation/read tasks; never relabel them as real updates to satisfy validation. For update/mixed, scope identifies the owned action/observation target, not whether history needs retrieval. Resolve the target from the original user message and owned profiles; use named with that canonical name or selected for the selected pet, never scope none with a named target. Do not invent or widen the target. An action instruction supplies intent, not a factual observation. For update/mixed, return the required semantic-frame object, never null. Pure action requests without observations use the valid empty-frame shape given above; do not invent claims. For operation navigate, opening an owned application page is read-only even when combined with a general question: mode read, evidenceBasis null, and the owned target scope. It is not an update/mixed request. If the user also requires saved facts, choose the appropriate saved_history read operation instead. For saved_profile, use mode read with every requested profileFields entry, frame null, ordinal null, episodeTopic null, quantity null, from null, to null and evidenceNeeds []. Missing values are handled by the profile lookup, never by inventing a history query. If the original question really needs dated evidence too, choose saved_history instead. All original scope, frame, subject and mutation restrictions still apply." };
+    const attemptRequest = attempt === 0 ? request : { ...request, instructions: request.instructions + "\nThe previous contract failed validation (" + previousContractFailure + "). Use referenceTurnIds only from recentDialogueForReferencesOnly. If the current question is self-contained, use []. Never invent a turn ID or copy a note ID into a conversation-reference field. Preserve a genuine episode target independently of its requested projection. Reconstruct the contract from the original input. Supplied context requires at least one factual USER premise. Each premiseQuotes item must be one exact contiguous substring of a USER message, preserving capitalization and punctuation. Split noncontiguous facts into separate quotes. Do not paraphrase premises or use assistant/routing metadata as evidence. If this is a follow-up about owned pets and their values appeared only in an assistant answer, choose saved_history, resolve the same subjects/property, and retrieve their records again rather than attempting supplied_context. Adding a new observation to history is not correcting an existing record: use mutationIntent null unless the user explicitly asks to edit an existing saved record. Re-evaluate the original user intent before choosing the evidence basis: a genuine current owner observation or explicit application action uses update/mixed with evidenceBasis null when it needs no saved facts, or saved_history when it also needs stored evidence. Fictional, hypothetical, quoted or negated action premises remain non-writing conversation/read tasks; never relabel them as real updates to satisfy validation. For update/mixed, scope identifies the owned action/observation target, not whether history needs retrieval. Resolve the target from the original user message and owned profiles; use named with that canonical name or selected for the selected pet, never scope none with a named target. Do not invent or widen the target. An action instruction supplies intent, not a factual observation. For update/mixed, return the required semantic-frame object, never null. Pure action requests without observations use the valid empty-frame shape given above; do not invent claims. For operation navigate, opening an owned application page is read-only even when combined with a general question: mode read, evidenceBasis null, and the owned target scope. It is not an update/mixed request. If the user also requires saved facts, choose the appropriate saved_history operation instead. For saved_profile, use mode read with every requested profileFields entry, frame null, ordinal null, episodeTopic null, quantity null, from null, to null and evidenceNeeds []. Missing values are handled by the profile lookup, never by inventing a history query. If the original question really needs dated evidence too, choose saved_history instead. All original scope, frame, subject and mutation restrictions still apply." };
     const response = await executeAdmittedProviderCall({ model, maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens,
       ...(attempt === 1 ? { purpose: "interpretation_repair" as const } : {}),
       stage: "interpretation", reserveMs: 24_000,
@@ -129,8 +166,6 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
           return activeClient.responses.create(attemptRequest as never, { signal });
         }, boundedProviderTimeout(ASK_INTERPRETATION_LIMITS.timeoutMs, 24_000, "interpretation"));
       } });
-    // Parse transport/JSON separately from server validation. Never surface or
-    // log the parser's raw error message, response text, refusal or field values.
     const result = interpretStructuredProviderResponse(response, raw => JSON.parse(raw) as unknown);
     const metadata = { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens,
       parsingAttempted: result.parsingAttempted, configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens };
@@ -148,7 +183,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
         onProviderEvent?.({ stage: "interpretation", outcome: "failed", model, elapsedMs: Date.now() - started,
           providerErrorCode: error.reason, providerErrorType: error.category, ...metadata });
         previousContractFailure = error.reason;
-        continue; // One admitted repair; never accept or weaken the rejected contract.
+        continue;
       }
       if (error instanceof AskInterpretationValidationError) throw fail(error.reason, error.category, metadata);
       throw fail("ASK_INTERPRETATION_VALIDATION", "semantic", metadata);
@@ -160,7 +195,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
   } catch (error) {
     if (error instanceof AiAdmissionError) {
       if (attempted) onProviderEvent?.({ stage: "interpretation", outcome: "failed", model, elapsedMs: Date.now() - started, providerErrorCode: "ASK_INTERPRETATION_ADMISSION" });
-      throw error; // preserve admission budgets and settlement classification
+      throw error;
     }
     const status = error && typeof error === "object" && "status" in error && typeof error.status === "number" ? error.status : null;
     const timedOut = providerSignal?.aborted === true
