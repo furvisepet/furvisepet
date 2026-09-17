@@ -31,7 +31,9 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
       - name: Apply asserted authority handoff
-        run: python scripts/ask-route-authority-handoff.py
+        run: |
+          python scripts/ask-route-authority-handoff.py
+          python scripts/ask-route-authority-test-handoff.py
       - name: Verify extracted helper ownership
         run: |
           ! grep -n 'async function safeReleaseAiCredit' app/api/ask/route.ts
@@ -41,7 +43,7 @@ jobs:
           grep -n 'finalizeDurableAskAnswer' app/api/ask/route.ts
           grep -n 'revalidateAskStateViews' app/api/ask/route.ts
       - name: Run handoff regression tests
-        run: node --test tests/ask-credit-settlement.test.mjs tests/ask-state-revalidation.test.mjs tests/furvise-brain-durable-answer-finalization.test.mjs tests/ask-post-review-finalizer-contract.test.mjs tests/ask-task-execution-contract.test.mjs tests/navigation-data-freshness.test.mjs
+        run: node --test tests/ask-credit-settlement.test.mjs tests/ask-state-revalidation.test.mjs tests/furvise-brain-durable-answer-finalization.test.mjs tests/ask-post-review-finalizer-contract.test.mjs tests/ask-task-execution-contract.test.mjs tests/navigation-data-freshness.test.mjs tests/ask-core-invariants.test.mjs tests/ask-first20-reliability.test.mjs tests/ask-inflight-navigation.test.mjs tests/ask-p0-auxiliary-regressions.test.mjs tests/ask-pre-provider-retry.test.mjs tests/ask-usage-experience.test.mjs tests/core-loop-stability.test.mjs
       - name: TypeScript
         run: npm run typecheck
       - name: Full tests
@@ -82,7 +84,7 @@ jobs:
         run: |
           git config user.name "furvisepet"
           git config user.email "furvisepet@gmail.com"
-          git add app/api/ask/route.ts tests/ask-post-review-finalizer-contract.test.mjs tests/ask-task-execution-contract.test.mjs tests/navigation-data-freshness.test.mjs tests/ask-credit-settlement.test.mjs tests/furvise-brain-durable-answer-finalization.test.mjs
+          git add app/api/ask/route.ts tests/ask-post-review-finalizer-contract.test.mjs tests/ask-task-execution-contract.test.mjs tests/navigation-data-freshness.test.mjs tests/ask-credit-settlement.test.mjs tests/furvise-brain-durable-answer-finalization.test.mjs tests/ask-core-invariants.test.mjs tests/ask-first20-reliability.test.mjs tests/ask-inflight-navigation.test.mjs tests/ask-p0-auxiliary-regressions.test.mjs tests/ask-pre-provider-retry.test.mjs tests/ask-usage-experience.test.mjs tests/core-loop-stability.test.mjs
           git diff --cached --quiet && exit 0
           git commit -m "refactor: delegate Ask route side-effect authority"
           git push origin HEAD:codex/ask-human-architecture-v1
