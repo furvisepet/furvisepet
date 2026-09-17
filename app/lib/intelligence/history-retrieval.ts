@@ -56,7 +56,8 @@ export function planHistoricalQuery(message: string, allowBroadComparison = fals
     && !analyzeOwnerAssertions(message).hasOwnerAssertion && !/\b(?:save|log|remember)\b/i.test(message))) return null;
   if (/\b(?:second|third|that|which) episode\b/i.test(message)) return null;
   const years = [...new Set(message.match(/\b(?:19|20)\d{2}\b/g) || [])];
-  if (years.length > 1 || /\b(?:since|between|last|previous|today|yesterday)\b/i.test(message)) return null;
+  const closedYearRange = /\b(?:from\s+)?((?:19|20)\d{2})\s+(?:through|thru|to|[-\u2013\u2014])\s+((?:19|20)\d{2})\b/i.exec(message);
+  if (years.length > 2 || years.length === 2 && !closedYearRange || /\b(?:since|between|last|previous|today|yesterday)\b/i.test(message)) return null;
   const terms: string[] = [];
   for (const [pattern, words] of [
     [/\b(?:vomit\w*|throw\w* up|threw up)\b/i, ["vomit", "threw up", "thrown up"]],
@@ -72,6 +73,12 @@ export function planHistoricalQuery(message: string, allowBroadComparison = fals
   if (new Set(terms).size > 6) return null;
   let from: string | null = literalPeriod?.from ? new Date(literalPeriod.from).toISOString() : null;
   let to: string | null = literalPeriod?.to ? new Date(literalPeriod.to).toISOString() : null;
+  if (closedYearRange) {
+    const startYear = Number(closedYearRange[1]), endYear = Number(closedYearRange[2]);
+    if (startYear > endYear) return null;
+    from = new Date(Date.UTC(startYear, 0, 1)).toISOString();
+    to = new Date(Date.UTC(endYear + 1, 0, 1)).toISOString();
+  }
   const explicitDays = years.length === 1 ? explicitHistoryDays(message, Number(years[0]), 8).sort() : [];
   const closedDayRange = explicitDays.length === 2 && /\b(?:from|between)\b[\s\S]*\b(?:through|thru|to|and)\b/i.test(message);
   if (closedDayRange) {

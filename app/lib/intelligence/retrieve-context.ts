@@ -73,10 +73,19 @@ export async function buildFurviseContext({
   const feedbackQuery = supabase.from("dog_product_feedback").select("*").eq("dog_profile_id", petId).eq("user_id", userId)
     .order("created_at", { ascending: false }).limit(80).returns<DogProductFeedbackRow[]>();
   const ownerQuery = supabase.from("user_profiles").select("*").eq("user_id", userId).maybeSingle<UserProfileRow>();
+  const backwardReferenceRead = feature === "ask"
+    && /\b(?:that|those|earlier|old|previous|before)\b/i.test(currentMessage)
+    && /\b(?:weight|history|record|note|episode|event|food|diet|litter|medication|stiffness|vomit\w*|stool|itch\w*)\b/i.test(currentMessage);
   const messagesQuery = conversationId ? supabase.from("ask_conversation_messages")
     .select("id, request_id, role, user_text, response_data, created_at")
     .eq("conversation_id", conversationId).eq("user_id", userId)
     .order("sequence_number", { ascending: false }).limit(mode.contextPolicy.conversationLimit)
+    .returns<Array<{ id: string; request_id: string | null; role: "user" | "furvise"; user_text: string | null; response_data: Record<string, unknown> | null; created_at: string }>>()
+    : Promise.resolve({ data: [], error: null });
+  const olderReferenceMessagesQuery = conversationId && backwardReferenceRead ? supabase.from("ask_conversation_messages")
+    .select("id, request_id, role, user_text, response_data, created_at")
+    .eq("conversation_id", conversationId).eq("user_id", userId).eq("role", "user")
+    .order("sequence_number", { ascending: false }).limit(40)
     .returns<Array<{ id: string; request_id: string | null; role: "user" | "furvise"; user_text: string | null; response_data: Record<string, unknown> | null; created_at: string }>>()
     : Promise.resolve({ data: [], error: null });
   const episodesQuery = supabase.from("pet_care_episodes").select("*").eq("user_id", userId).eq("pet_profile_id", petId)
@@ -97,17 +106,20 @@ export async function buildFurviseContext({
   if (conversationId && !conversation.data) throw new FurviseContextError("CONVERSATION_NOT_FOUND", "That conversation is not available for this pet.", conversation.error);
   if (eligiblePets.error) throw new FurviseContextError("CONTEXT_UNAVAILABLE", "Furvise could not verify eligible pets.", eligiblePets.error);
 
-  const [care, memorySources, feedback, owner, messages, activeConcerns, resolvedConcerns, episodes, currentState] = await Promise.all([
+  const [care, memorySources, feedback, owner, messages, olderReferenceMessages, activeConcerns, resolvedConcerns, episodes, currentState] = await Promise.all([
     recoverOptionalQuery("care_entries", boundedCareQuery, [] as CareEntryRow[]),
     loadMemorySources({ supabase, userId, petId, limit: mode.contextPolicy.memoryLimit, now: new Date() }),
     recoverOptionalQuery("product_feedback", feedbackQuery, [] as DogProductFeedbackRow[]),
     recoverOptionalQuery("owner_profile", ownerQuery, null as UserProfileRow | null),
     recoverOptionalQuery("conversation_messages", messagesQuery, [] as Array<{ id: string; request_id: string | null; role: "user" | "furvise"; user_text: string | null; response_data: Record<string, unknown> | null; created_at: string }>),
+    recoverOptionalQuery("older_reference_messages", olderReferenceMessagesQuery, [] as Array<{ id: string; request_id: string | null; role: "user" | "furvise"; user_text: string | null; response_data: Record<string, unknown> | null; created_at: string }>),
     recoverOptionalValue("active_concerns", loadActiveConcerns(supabase, userId, petId), [] as Awaited<ReturnType<typeof loadActiveConcerns>>),
     recoverOptionalValue("resolved_concerns", loadRecentlyResolvedConcerns(supabase, userId, petId), [] as Awaited<ReturnType<typeof loadRecentlyResolvedConcerns>>),
     recoverOptionalQuery("care_episodes", episodesQuery, [] as CareEpisode[]),
     recoverOptionalQuery("current_state", currentStateQuery, null as PetCurrentStateRow | null),
   ]);
+  messages.data = [...messages.data, ...olderReferenceMessages.data.filter(message => !messages.data.some(existing => existing.id === message.id))]
+    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
   const { legacyMemories, sharedMemories, inactiveMemories } = memorySources;
   const recoveredReferences = feature === "ask" && conversationId && requestsStoredNoteReadback(currentMessage)
     ? await recoverOptionalValue("conversation_receipt_references", recoverConversationReceiptReferences(supabase, { userId, petId, conversationId, historyAccess }), [])
@@ -115,7 +127,7 @@ export async function buildFurviseContext({
   const recoveredReferenceIds = new Set(recoveredReferences.data.filter(message => !messages.data.some(existing => existing.id === message.id)).map(message => message.id));
   messages.data = [...messages.data, ...recoveredReferences.data.filter(message => !messages.data.some(existing => existing.id === message.id))]
     .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
-  const unavailableSources = [care, legacyMemories, sharedMemories, inactiveMemories, feedback, owner, messages, activeConcerns, resolvedConcerns, episodes, currentState]
+  const unavailableSources = [care, legacyMemories, sharedMemories, inactiveMemories, feedback, owner, messages, olderReferenceMessages, activeConcerns, resolvedConcerns, episodes, currentState]
     .filter((result) => result.unavailable)
     .map((result) => result.source);
   if (recoveredReferences.unavailable) unavailableSources.push("conversation_receipt_references");
