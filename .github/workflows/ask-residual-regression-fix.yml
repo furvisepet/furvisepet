@@ -31,72 +31,64 @@ jobs:
         run: |
           from pathlib import Path
 
-          def replace(path, old, new):
+          def patch(path, old, new):
               p = Path(path)
               text = p.read_text()
               if old not in text:
                   raise SystemExit(f"expected patch anchor missing in {path}")
               p.write_text(text.replace(old, new, 1))
 
-          replace(
+          patch(
               "app/lib/intelligence/generate-ask-history.ts",
-              '''  const legacySubjectPetIds = input.context.askInterpretation?.conversationOnly
-            ? []
-            : input.authoritativePetIds ?? [input.context.pet.id];
-''',
-              '''  // Legacy route/harness scope is untrusted at this boundary. Intersect it
-          // with the authenticated owner's eligible pets before the Brain turn exists.
-          // This preserves valid multi-pet reads while making foreign ids inert.
-          const ownedPetIds = new Set(input.context.eligiblePets
-            .filter(pet => pet.user_id === input.context.owner.userId)
-            .map(pet => pet.id));
-          const legacySubjectPetIds = input.context.askInterpretation?.conversationOnly
-            ? []
-            : [...new Set((input.authoritativePetIds ?? [input.context.pet.id]).filter(id => ownedPetIds.has(id)))];
-''',
+              "  const legacySubjectPetIds = input.context.askInterpretation?.conversationOnly\n"
+              "    ? []\n"
+              "    : input.authoritativePetIds ?? [input.context.pet.id];\n",
+              "  // Legacy route/harness scope is untrusted at this boundary. Intersect it\n"
+              "  // with the authenticated owner's eligible pets before the Brain turn exists.\n"
+              "  // This preserves valid multi-pet reads while making foreign ids inert.\n"
+              "  const ownedPetIds = new Set(input.context.eligiblePets\n"
+              "    .filter(pet => pet.user_id === input.context.owner.userId)\n"
+              "    .map(pet => pet.id));\n"
+              "  const legacySubjectPetIds = input.context.askInterpretation?.conversationOnly\n"
+              "    ? []\n"
+              "    : [...new Set((input.authoritativePetIds ?? [input.context.pet.id]).filter(id => ownedPetIds.has(id)))];\n",
           )
 
-          replace(
+          patch(
               "app/lib/intelligence/review-task-completion.ts",
-              '''  if (!request || input.validation.response.evidenceContract?.history
-            || ["urgent", "emergency"].includes(input.validation.response.intelligenceSafety.level)) return input.validation;
-''',
-              '''  // This reviewer is the non-history complement. A saved-history request
-          // remains historical even when retrieval produced no history object; the
-          // history/evidence validator already owns deterministic limitations there.
-          if (!request || request.evidenceBasis === "saved_history" || input.validation.response.evidenceContract?.history
-            || ["urgent", "emergency"].includes(input.validation.response.intelligenceSafety.level)) return input.validation;
-''',
+              "  if (!request || input.validation.response.evidenceContract?.history\n"
+              "    || [\"urgent\", \"emergency\"].includes(input.validation.response.intelligenceSafety.level)) return input.validation;\n",
+              "  // This reviewer is the non-history complement. A saved-history request\n"
+              "  // remains historical even when retrieval produced no history object; the\n"
+              "  // history/evidence validator already owns deterministic limitations there.\n"
+              "  if (!request || request.evidenceBasis === \"saved_history\" || input.validation.response.evidenceContract?.history\n"
+              "    || [\"urgent\", \"emergency\"].includes(input.validation.response.intelligenceSafety.level)) return input.validation;\n",
           )
 
-          replace(
+          patch(
               "tests/ask-memory-single-authority.test.mjs",
-              '''    "./care-authority-client.ts": { createCanonicalCareAuthorityClient: () => { throw new Error("Unexpected care RPC"); } },
-''',
-              '''    "./care-authority-client.ts": { createCanonicalCareAuthorityClient: () => { throw new Error("Unexpected care RPC"); } },
-          "../furvise-brain/turn-authority.ts": { assertFurviseMutationAllowed(authority, expectedKind) {
-            assert.equal(authority?.mutation?.allowed, true);
-            assert.equal(authority?.mutation?.kind, expectedKind);
-          } },
-''',
+              "    \"./care-authority-client.ts\": { createCanonicalCareAuthorityClient: () => { throw new Error(\"Unexpected care RPC\"); } },\n",
+              "    \"./care-authority-client.ts\": { createCanonicalCareAuthorityClient: () => { throw new Error(\"Unexpected care RPC\"); } },\n"
+              "    \"../furvise-brain/turn-authority.ts\": { assertFurviseMutationAllowed(authority, expectedKind) {\n"
+              "      assert.equal(authority?.mutation?.allowed, true);\n"
+              "      assert.equal(authority?.mutation?.kind, expectedKind);\n"
+              "    } },\n",
           )
 
-          replace(
+          patch(
               "tests/ask-memory-single-authority.test.mjs",
-              '''    assistantMessageId: "assistant", authorizedPetIds: multi ? ["pet-a", "pet-b"] : ["pet-a"], careActions: care ? [{ action: "log_care", title: "Walk", details: "Walk" }] : [],
-            learnings: multi ? [learning, { ...learning, subjectId: "pet-b" }] : [learning], currentMessage: "Evening walks", operationOwnerToken: "test-lease", payloadHash: "test-hash",
-''',
-              '''    assistantMessageId: "assistant", authorizedPetIds: multi ? ["pet-a", "pet-b"] : ["pet-a"],
-          careActions: care ? [{ action: "create_entry", category: "routine", title: "Walk", details: "Walk", severity: "routine", confidence: 1, relatedRecordId: null }] : [],
-          careWriteAuthority: care ? {
-            version: "furvise-brain-turn.v1", logicalTurnId: "request",
-            subject: { petIds: multi ? ["pet-a", "pet-b"] : ["pet-a"], kind: multi ? "multi_pet" : "pet", label: null, source: "conversation", unresolved: false },
-            intent: "record", memoryNeed: "working", memoryPetIds: [],
-            mutation: { allowed: true, kind: "record_care", userAuthorizationVerified: true, authorizationSource: "current_turn", authorizationTurnId: "source", confirmationRequired: false, confirmationSatisfied: false },
-            referenceTurnIds: [],
-          } : null,
-          learnings: multi ? [learning, { ...learning, subjectId: "pet-b" }] : [learning], currentMessage: "Evening walks", operationOwnerToken: "test-lease", payloadHash: "test-hash",
-''',
+              "    assistantMessageId: \"assistant\", authorizedPetIds: multi ? [\"pet-a\", \"pet-b\"] : [\"pet-a\"], careActions: care ? [{ action: \"log_care\", title: \"Walk\", details: \"Walk\" }] : [],\n"
+              "    learnings: multi ? [learning, { ...learning, subjectId: \"pet-b\" }] : [learning], currentMessage: \"Evening walks\", operationOwnerToken: \"test-lease\", payloadHash: \"test-hash\",\n",
+              "    assistantMessageId: \"assistant\", authorizedPetIds: multi ? [\"pet-a\", \"pet-b\"] : [\"pet-a\"],\n"
+              "    careActions: care ? [{ action: \"create_entry\", category: \"routine\", title: \"Walk\", details: \"Walk\", severity: \"routine\", confidence: 1, relatedRecordId: null }] : [],\n"
+              "    careWriteAuthority: care ? {\n"
+              "      version: \"furvise-brain-turn.v1\", logicalTurnId: \"request\",\n"
+              "      subject: { petIds: multi ? [\"pet-a\", \"pet-b\"] : [\"pet-a\"], kind: multi ? \"multi_pet\" : \"pet\", label: null, source: \"conversation\", unresolved: false },\n"
+              "      intent: \"record\", memoryNeed: \"working\", memoryPetIds: [],\n"
+              "      mutation: { allowed: true, kind: \"record_care\", userAuthorizationVerified: true, authorizationSource: \"current_turn\", authorizationTurnId: \"source\", confirmationRequired: false, confirmationSatisfied: false },\n"
+              "      referenceTurnIds: [],\n"
+              "    } : null,\n"
+              "    learnings: multi ? [learning, { ...learning, subjectId: \"pet-b\" }] : [learning], currentMessage: \"Evening walks\", operationOwnerToken: \"test-lease\", payloadHash: \"test-hash\",\n",
           )
       - name: Verify residual failures
         run: >-
