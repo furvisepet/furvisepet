@@ -38,4 +38,11 @@ test('missing simple comparison metadata is reconstructed only from two cited co
  assert.equal(repaired.sentences[0].calculations?.[0]?.unit,'minute');
  const unsafe=attachDeterministicCalculationBindings({sentences:[{...narrative.sentences[0],sourceIds:['care:a','care:b','care:c']}]},[...sources,{sourceId:'care:c',text:'Sable rested for 2 minutes.'}],'How much longer did Sable play?');
  assert.equal(unsafe.sentences[0].calculations,undefined);
+});test('route proves alternate read widening from current user explicit owned names only',()=>{
+ const route=readFileSync('app/api/ask/route.ts','utf8');
+ assert.match(route,/explicitlyNamedOwnedPets\(question, liveContext\.eligiblePets \|\| \[\]\)\.map\(pet => pet\.id\)/);
+ const guard=readFileSync('app/lib/intelligence/selected-pet-read.ts','utf8');
+ assert.match(guard,/explicitOwnedAlternateRead/);
+ assert.match(guard,/explicit\.has\(id\)/);
+ assert.match(guard,/interpretation\.readOnly && interpretation\.request\?\.mode === "read"/);
 });

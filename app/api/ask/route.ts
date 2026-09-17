@@ -109,6 +109,7 @@ import { claimWithRestoredAskOrigin } from "../../lib/ask-restored-retry";
 import { validateSensitiveRequestOriginResponse } from "../../lib/security/headers/origin-policy";
 import { extractTurnSubjectFrame } from "../../lib/intelligence/semantic-frame/extract-turn-subject";
 import {
+  explicitlyNamedOwnedPets,
   resolveAskTurnSubject,
 } from "../../lib/intelligence/entities/resolve-turn-subject";
 import {
@@ -805,7 +806,8 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
       const recentConversation = liveContext.conversationTurns.filter((turn) => turn.id !== preparedRequest.userMessageId);
       generationStage = "interpretation";
       const interpretation = await interpretAskQuestion({ context: { ...liveContext, conversationTurns: recentConversation }, model, onProviderEvent });
-      if (exceedsSelectedPetRead(interpretation, petId, liveContext.eligiblePets?.map(pet => pet.id) || [petId])) {
+      if (exceedsSelectedPetRead(interpretation, petId, liveContext.eligiblePets?.map(pet => pet.id) || [petId],
+        explicitlyNamedOwnedPets(question, liveContext.eligiblePets || []).map(pet => pet.id))) {
         if (creditReserved) {
           const released = await safeReleaseAiCredit({ logicalRequestId: logicalTurnId, payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
           creditReserved = false;

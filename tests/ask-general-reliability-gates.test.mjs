@@ -14,8 +14,11 @@ test('interactive read scope rejects foreign selected subjects across every read
  assert.equal(exceedsSelectedPetRead({...read,request:{evidenceBasis:'saved_profile'},petIds:['b']},'a'),true);
  const multi={petIds:['a','b'],readPetIds:['a','b'],readOnly:true,request:{evidenceBasis:'saved_history',mode:'read',evidenceNeeds:[{petIds:['a']},{petIds:['b']}]}};
  assert.equal(exceedsSelectedPetRead(multi,'a',['a','b']),false,'explicit owned multi-pet reads may widen read scope');
+ const alternate={petIds:['b'],readOnly:true,request:{evidenceBasis:'saved_history',mode:'read'}};
+ assert.equal(exceedsSelectedPetRead(alternate,'a',['a','b'],['b']),false,'current USER explicit owned alternate read may widen scope');
+ assert.equal(exceedsSelectedPetRead(alternate,'a',['a','b'],[]),true,'model-only alternate pet cannot widen scope');
  assert.equal(exceedsSelectedPetRead(multi,'a',['a']),true,'unowned subjects still fail closed');
- assert.equal(exceedsSelectedPetRead({...multi,readOnly:false},'a',['a','b']),true,'writes never inherit widened read scope');
+ assert.equal(exceedsSelectedPetRead({...multi,readOnly:false},'a',['a','b'],['b']),true,'writes never inherit widened read scope');
 });
 
 test('relative history cutoffs use the local calendar, clamp month endpoints, and do not guess ambiguous ages',()=>{

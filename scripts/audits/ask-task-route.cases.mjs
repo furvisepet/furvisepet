@@ -9,6 +9,7 @@ import {emptyProposedSemanticFrame} from '../../app/lib/intelligence/semantic-fr
 import {executeAskTask,taskMutationParameters} from '../../app/lib/intelligence/ask-task-continuation.ts';
 import {requestProposal} from './helpers/request-proposal.mjs';
 import {exceedsSelectedPetRead} from '../../app/lib/intelligence/selected-pet-read.ts';
+import {explicitlyNamedOwnedPets} from '../../app/lib/intelligence/entities/resolve-turn-subject.ts';
 const route=readFileSync(new URL('../../app/api/ask/route.ts',import.meta.url),'utf8');
 const ast=ts.createSourceFile('route.ts',route,ts.ScriptTarget.Latest,true);
 let callback;
@@ -24,7 +25,7 @@ test('actual admitted route refuses another pet before history or mutations and 
   turnLifecycle:lifecycle,creditReserved:false,creditFinalState:'not_reserved',generationStage:'',
   turnAuthoritativePetIds:['selected'],contextUsed:{},ownerNotePersistence:null,execution:{},immediateEmergency:null,
   reserveAiCredit:async()=>{calls.push('reserve');return{status:'reserved'};},logAskStage:()=>{},
-  interpretAskQuestion:async()=>({petIds:['other'],request:{evidenceBasis:'saved_history'}}),exceedsSelectedPetRead,
+  interpretAskQuestion:async()=>({petIds:['other'],request:{evidenceBasis:'saved_history'}}),exceedsSelectedPetRead,explicitlyNamedOwnedPets,
   safeReleaseAiCredit:async()=>{calls.push('release');return true;},
   buildSubjectClarificationOrchestration:()=>({answer:{},clarificationQuestion:'Which pet?'}),
  };
@@ -49,7 +50,7 @@ for(const scenario of ['save','resume','cancel','cancel_saved','failure'])test(`
   request:{},model:'test',onProviderEvent:()=>{},usage:{allowed:true},creditRequestId:'attempt',aiCreditPayloadHash:'hash',retryReuse:false,
   turnLifecycle:lifecycle,creditReserved:false,creditFinalState:'not_reserved',generationStage:'',ownerNotePersistence:null,ownerNoteSourceMessageId:'current',ownerNotePetId:'pet',completedContinuation:null,execution:{},immediateEmergency:null,
   reserveAiCredit:async()=>{calls.push('reserve');return{status:'reserved'};},logAskStage:()=>{},
-  interpretAskQuestion:async({context})=>validateAskRequest(proposal,context),exceedsSelectedPetRead,
+  interpretAskQuestion:async({context})=>validateAskRequest(proposal,context),exceedsSelectedPetRead,explicitlyNamedOwnedPets,
   requireRateLimitedRequest:async()=>({release:async()=>{}}),taskMutationParameters,executeAskTask,
   taskAuthority:{rpc:async(name,args)=>{calls.push('execute');assert.equal(name,'apply_ask_task');assert.equal(args.p_source_text,source.text);assert.equal(args.p_message_id,'current');return scenario==='failure'?{data:null,error:{code:'42501'}}:{data:{id:'task',revision:1,status:cancelling?'cancelled':'completed',petId:'pet',entryId:scenario==='cancel'?null:'entry'},error:null};}},
   completeOwnerNoteResponse:async input=>input,revalidateAskStateViews:()=>{},
