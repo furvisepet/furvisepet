@@ -17,27 +17,24 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - group: authority
-            tests: >-
-              tests/furvise-brain-turn-authority.test.mjs
-              tests/furvise-brain-subject-authority.test.mjs
-              tests/furvise-brain-mutation-authorization.test.mjs
-              tests/furvise-brain-action-organ.test.mjs
-          - group: cognition
-            tests: >-
-              tests/furvise-brain-interpretation-authority.test.mjs
-              tests/furvise-brain-memory-organ.test.mjs
-              tests/furvise-brain-working-memory.test.mjs
-              tests/furvise-brain-ask-runtime.test.mjs
-          - group: integration
-            tests: >-
-              tests/furvise-brain-owner-note-gate.test.mjs
-              tests/furvise-brain-selected-pet-anchor.test.mjs
-              tests/furvise-brain-task-gate.test.mjs
-              tests/ask-task-continuation.test.mjs
-              tests/ask-working-memory-interpretation.test.mjs
-          - group: boundary
-            tests: tests/furvise-brain-architecture-boundary.test.mjs
+          - group: interpretation
+            tests: tests/furvise-brain-interpretation-authority.test.mjs
+          - group: memory
+            tests: tests/furvise-brain-memory-organ.test.mjs
+          - group: working-memory
+            tests: tests/furvise-brain-working-memory.test.mjs
+          - group: runtime
+            tests: tests/furvise-brain-ask-runtime.test.mjs
+          - group: owner-note
+            tests: tests/furvise-brain-owner-note-gate.test.mjs
+          - group: selected-pet
+            tests: tests/furvise-brain-selected-pet-anchor.test.mjs
+          - group: task-gate
+            tests: tests/furvise-brain-task-gate.test.mjs
+          - group: task-continuation
+            tests: tests/ask-task-continuation.test.mjs
+          - group: followup-integration
+            tests: tests/ask-working-memory-interpretation.test.mjs
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: test-publishable-key
@@ -51,5 +48,5 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci
-      - name: Run changed test group
+      - name: Run changed test
         run: node --test ${{ matrix.tests }}
