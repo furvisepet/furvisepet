@@ -5,7 +5,7 @@ import type { AskTurnTrace } from "../ai/ask-turn-model.ts";
 import type { AiCreditStatus } from "../ai/usage-ledger.ts";
 import type { PendingUpdateSuggestion, PetConcern } from "../ai/concern-engine.ts";
 import type { CarePersistenceResult, IntelligencePersistenceSummary } from "./types.ts";
-import { persistedLearningConfirmation } from "./persist-learnings.ts";
+import { persistedLearningConfirmation } from "./response-rendering.ts";
 
 type CompletedAskResponse = NonNullable<ReturnType<typeof buildAskConversationResponse>>;
 
@@ -82,6 +82,7 @@ export function buildSuccessfulAskResponse({
   turn?: AskTurnTrace | null;
   userMessageId: string;
 }) {
+  void requestId;
   return Response.json({
     answer: response.directAnswer,
     assistantMessageId,
@@ -126,9 +127,5 @@ export function buildSuccessfulAskResponse({
     turn,
     userMessageId,
     usage,
-    publication: {
-      requestId,
-      receiptBacked: true,
-    },
   });
 }
