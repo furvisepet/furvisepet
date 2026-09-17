@@ -13,20 +13,20 @@ export type FurviseMemoryRead = Readonly<{
 }>;
 
 export function planFurviseMemoryRead(turn: FurviseTurnAuthority): FurviseMemoryRead {
-  if (turn.subject.unresolved) {
-    return Object.freeze({ turnId: turn.logicalTurnId, petIds: Object.freeze([]), depth: "none" as const });
-  }
+  const depth = turn.memoryNeed;
+  const petIds = depth === "none" || depth === "working" ? [] : [...turn.memoryPetIds];
   return Object.freeze({
     turnId: turn.logicalTurnId,
-    petIds: Object.freeze([...turn.subject.petIds]),
-    depth: turn.memoryNeed,
+    petIds: Object.freeze(petIds),
+    depth,
   });
 }
 
 /**
- * Memory is an organ: it can retrieve only the subject scope already approved
- * by the brain. It cannot widen subjects, reinterpret intent, grant writes, or
- * publish an answer.
+ * Memory is an organ: it can retrieve only the exact owner-pet read scope the
+ * brain approved. It cannot widen subjects, reinterpret intent, grant writes,
+ * or publish an answer. Read scope is deliberately independent from mutation
+ * subject so mixed questions can read one pet without writing to that pet.
  */
 export async function retrieveFurviseMemory(
   context: FurviseLiveContext,
@@ -35,8 +35,7 @@ export async function retrieveFurviseMemory(
   vetBriefRead?: { plan: HistoryPlan; termGroups: string[][]; periodFrom?: string | null; periodTo?: string | null },
 ): Promise<FurviseLiveContext> {
   const read = planFurviseMemoryRead(turn);
-  if (read.depth === "none" || read.depth === "working") return context;
-  if (!read.petIds.length) return context;
+  if (read.depth === "none" || read.depth === "working" || !read.petIds.length) return context;
 
   const owned = new Set(context.eligiblePets
     .filter(pet => pet.user_id === context.owner.userId)
