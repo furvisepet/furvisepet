@@ -4,22 +4,24 @@ import test from "node:test";
 import { planFurviseMemoryRead } from "../app/lib/furvise-brain/memory-organ.ts";
 import { createFurviseTurnAuthority } from "../app/lib/furvise-brain/turn-authority.ts";
 
-test("unresolved subject disables memory retrieval", () => {
+test("unresolved subject with no approved memory pets cannot read history", () => {
   const turn = createFurviseTurnAuthority({
     logicalTurnId: "turn",
     subject: { petIds: [], source: "unresolved", unresolved: true },
     memoryNeed: "lifetime",
+    memoryPetIds: [],
   });
   const read = planFurviseMemoryRead(turn);
-  assert.equal(read.depth, "none");
+  assert.equal(read.depth, "lifetime");
   assert.deepEqual(read.petIds, []);
 });
 
 test("memory organ receives exactly the brain-approved pets", () => {
   const turn = createFurviseTurnAuthority({
     logicalTurnId: "turn",
-    subject: { petIds: ["pebble", "mochi"], source: "explicit", unresolved: false },
+    subject: { petIds: ["pebble"], source: "explicit", unresolved: false },
     memoryNeed: "lifetime",
+    memoryPetIds: ["pebble", "mochi"],
   });
   const read = planFurviseMemoryRead(turn);
   assert.equal(read.depth, "lifetime");
@@ -28,7 +30,17 @@ test("memory organ receives exactly the brain-approved pets", () => {
   assert.equal(Object.isFrozen(read.petIds), true);
 });
 
-test("working-memory conversation does not trigger lifetime retrieval", () => {
+test("read scope may remain valid while a separate write subject is unresolved", () => {
+  const turn = createFurviseTurnAuthority({
+    logicalTurnId: "turn",
+    subject: { petIds: [], source: "unresolved", unresolved: true },
+    memoryNeed: "targeted",
+    memoryPetIds: ["mochi"],
+  });
+  assert.deepEqual(planFurviseMemoryRead(turn).petIds, ["mochi"]);
+});
+
+test("working memory keeps pet scope without triggering deep retrieval", () => {
   const turn = createFurviseTurnAuthority({
     logicalTurnId: "turn",
     subject: { petIds: ["pebble"], source: "selected_pet", unresolved: false },
