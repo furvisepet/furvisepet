@@ -39,6 +39,8 @@ jobs:
             tests: tests/ask-publication-receipt.test.mjs
           - group: credit-settlement
             tests: tests/ask-credit-settlement.test.mjs
+          - group: state-revalidation
+            tests: tests/ask-state-revalidation.test.mjs
           - group: post-review-finalizer
             tests: tests/ask-post-review-finalizer-contract.test.mjs
           - group: executive-control
