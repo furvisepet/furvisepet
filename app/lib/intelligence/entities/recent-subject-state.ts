@@ -63,9 +63,6 @@ export function buildRecentSubjectState(input: {
     for (const sentence of splitSentences(turn.text)) {
       const leading = leadingSubjectResolution(sentence, entities, input.selectedPetId);
       if (leading.status !== "resolved") continue;
-      // Discourse pronouns describe the user's referent, not a profile edit.
-      // A single named subject can establish its own pronouns even when a
-      // stored sex field differs. Mixed human/animal sentences cannot do so.
       if (namedPets.length === 1 && !externalEntities.length && !people.length
         && leading.entity.petId === namedPets[0].id
         && normalize(sentence).startsWith(normalize(namedPets[0].name || ""))) {
@@ -81,8 +78,6 @@ export function buildRecentSubjectState(input: {
       }
       turnFocus = leading.entity;
     }
-    // A question about the vet's recommendation does not switch the pet
-    // conversation to the vet. Explicit person subjects still resolve above.
     if (!turnFocus && explicitEntities.length === 1
       && (explicitEntities[0].kind !== "person"
         || /^(?:what|how) about\b|\bfocus on\b/i.test(turn.text.trim()))) {
@@ -97,17 +92,36 @@ export function buildRecentSubjectState(input: {
   return { selectedPetId: input.selectedPetId, entities: [...entities.values()], currentFocusKey };
 }
 
+/**
+ * Human-style discourse rule: explicit recent subject wins; otherwise the
+ * selected-pet conversation is the working-context anchor. Mere mentions of
+ * other pets do not make a bare pronoun ambiguous. A genuinely coordinated or
+ * competing recent subject remains ambiguous.
+ */
 export function resolveRecentPronoun(state: RecentSubjectState, surface: string): RecentPronounResolution {
   const pronoun = pronounClass(surface);
   if (!pronoun) return { status: "unresolved", entity: null, candidatePetIds: [] };
   const compatible = state.entities.filter((entity) => entity.pronouns.includes(pronoun));
   const focused = compatible.find((entity) => entity.key === state.currentFocusKey);
   if (focused && entityRecencyScore(focused) >= 0) return resolved(focused, [focused]);
-  const recentScore = Math.max(-1, ...compatible.map(entityRecencyScore));
-  const recent = compatible.filter((entity) => entityRecencyScore(entity) === recentScore && recentScore >= 0);
-  if (recent.length === 1) return resolved(recent[0], recent);
-  if (recent.length > 1) return ambiguous(recent);
-  const selected = compatible.find((entity) => entity.petId === state.selectedPetId);
+
+  const latestSubjectTurn = Math.max(-1, ...compatible.map(entity => entity.lastSubjectTurn));
+  if (latestSubjectTurn >= 0) {
+    const subjects = compatible.filter(entity => entity.lastSubjectTurn === latestSubjectTurn);
+    if (subjects.length === 1) return resolved(subjects[0], subjects);
+    if (subjects.length > 1) return ambiguous(subjects);
+  }
+
+  const latestMentionTurn = Math.max(-1, ...compatible.map(entity => entity.lastMentionTurn));
+  if (latestMentionTurn >= 0) {
+    const mentions = compatible.filter(entity => entity.lastMentionTurn === latestMentionTurn);
+    if (mentions.length === 1) return resolved(mentions[0], mentions);
+    const selectedMention = mentions.find(entity => entity.petId === state.selectedPetId);
+    if (selectedMention) return resolved(selectedMention, mentions);
+    if (mentions.length > 1) return ambiguous(mentions);
+  }
+
+  const selected = state.entities.find((entity) => entity.petId === state.selectedPetId);
   return selected ? resolved(selected, [selected]) : { status: "unresolved", entity: null, candidatePetIds: [] };
 }
 
