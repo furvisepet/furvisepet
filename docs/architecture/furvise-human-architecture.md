@@ -133,6 +133,14 @@ furvise-brain/
   memory-organ.ts             brain-scoped lifetime/profile retrieval boundary
 ```
 
+Supporting server-owned finalization boundaries now also include:
+
+```text
+intelligence/finalize-ask-publication.ts  public success serialization and durable receipt truth
+intelligence/revalidate-ask-state.ts      scoped cache invalidation after committed state change
+ai/ask-credit-settlement.ts               release/replay reconciliation for Ask credit state
+```
+
 The owner-note task continuation and direct owner-note persistence paths already cross the brain mutation gate before they can reach a database write.
 
 ## Canonical turn pipeline
@@ -151,6 +159,27 @@ RECEIVED
 ```
 
 Failures are explicit stage outcomes. A retry resumes or replays from durable state where safe.
+
+## Post-review finalization contract
+
+Once a response reaches `ANSWER_VALIDATED`, request transport no longer owns business decisions. The post-review finalizer preserves one ordered effect pipeline:
+
+```text
+persist reviewed assistant answer
+  -> mint immutable action capabilities
+  -> persist authorized intelligence learnings / care events
+  -> execute only already-authorized automatic capabilities
+  -> resolve truthful care-history presentation
+  -> assess requested task completion
+  -> settle the durable credit disposition
+  -> finalize the durable assistant record
+  -> invalidate only affected application state views
+  -> publish one success response from durable receipts
+```
+
+The ordering is part of the architecture, not an implementation accident. Credits may not become chargeable before requested effects have a server-derived completion outcome. A lost finalization acknowledgement must read back the durable answer instead of rerunning writes, action capabilities, or billing settlement.
+
+A persisted assistant message is not by itself a charge receipt. Ask credit replay trusts only durable ledger identity, disposition, and terminal state for the same logical request and payload hash. Existing terminal dispositions are preserved, undecided interrupted attempts may be released, and conflicting multiple charge dispositions fail closed.
 
 ## Mutation capability lifecycle
 
@@ -192,8 +221,8 @@ A pending object without valid authorization provenance is inert. It may not be 
 4. Make interpretation/classification modules advisory inputs rather than independent authorities. **Established for the canonical interpretation adapter and working-memory follow-ups.**
 5. Move lifetime retrieval behind a memory-organ interface. **Established while preserving correction-aware lifetime retrieval.**
 6. Move remaining writes behind the action-organ gate. **Core Ask write paths are gated; continue auditing any newly added mutation path against this rule.**
-7. Centralize response publication through one brain-owned finalizer. **Established for public success serialization in `finalize-ask-publication.ts`; the remaining consolidation is persistence/action/credit finalization behind the same server-owned boundary.**
-8. Reduce `app/api/ask/route.ts` to transport, admission, orchestration, and response delivery. **In progress: duplicate success serialization is removed; `persistAssistantAnswer` remains the primary route-owned orchestration block to extract.**
+7. Centralize response publication through one brain-owned finalizer. **Public success serialization is established in `finalize-ask-publication.ts`; cache invalidation and Ask credit reconciliation now have separate server-owned boundaries. The remaining consolidation is the ordered post-review persistence/action/settlement lifecycle itself.**
+8. Reduce `app/api/ask/route.ts` to transport, admission, orchestration, and response delivery. **In progress: duplicate success serialization is removed and the finalization ordering is now locked by `ask-post-review-finalizer-contract.test.mjs`; `persistAssistantAnswer` remains the route-owned block to move behind the finalizer.**
 
 No broad rewrite is required. Each stage can be migrated behind stable interfaces with regression coverage.
 
