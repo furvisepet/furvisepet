@@ -7,6 +7,7 @@ import { clearAskClientState } from "../app/lib/ask-conversations.ts";
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const page = read("app/ask/page.tsx");
 const route = read("app/api/ask/route.ts");
+const publication = read("app/lib/intelligence/finalize-ask-publication.ts");
 const errorUx = read("app/lib/furvise-output.ts");
 const conversationRoute = read("app/api/ask/conversations/[id]/route.ts");
 const conversationListRoute = read("app/api/ask/conversations/route.ts");
@@ -103,13 +104,16 @@ test("assistant persistence failure releases credit and returns a retryable save
 });
 
 test("provider diagnostics stay server-side and expose only safe metadata", () => {
-  for (const stage of ["authentication succeeded", "pet ownership succeeded", "context loaded", "user message persisted", "turn orchestrated", "assistant message persisted", "final response serialized"]) {
+  for (const stage of ["authentication succeeded", "pet ownership succeeded", "context loaded", "user message persisted", "turn orchestrated", "assistant message persisted"]) {
     assert.match(route, new RegExp(stage));
   }
+  assert.match(route, /return buildSuccessfulAskResponse\(/);
+  assert.match(publication, /export function buildSuccessfulAskResponse/);
   assert.match(route, /\[Ask provider\] stage/);
   assert.doesNotMatch(page, /Diagnostic:|debugStage|AI_UNAVAILABLE at|ai_provider/);
   assert.doesNotMatch(route, /\.\.\.\(process\.env\.NODE_ENV !== "production" && debugStage/);
   assert.doesNotMatch(route, /authorization headers|OPENAI_API_KEY:/i);
+  assert.doesNotMatch(publication, /console\.|logAskServerError|logAskStage/);
 });
 
 test("request IDs are indexed safely on the existing message table", () => {
