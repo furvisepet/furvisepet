@@ -3,7 +3,7 @@ import { receiptCompletionText } from "./receipt-completion.ts";
 import { episodeResultText } from "./episode-contract.ts";
 import { recordInventoryEvidence } from "./record-inventory.ts";
 import { correctionReportAnswer } from "./correction-report.ts";
-import { buildEvidenceNeedCoverage, completedEmptyEvidenceNeeds, type NeedCoverage } from "./evidence-need-coverage.ts";
+import { buildEvidenceNeedCoverage, completedEmptyEvidenceNeeds, missingRequiredEvidence, type NeedCoverage } from "./evidence-need-coverage.ts";
 import { historyEventTerms, historyEventRelevance } from "./history-query-relevance.ts";
 import { compareHistoryTime, classifyOccurrenceReport, occurrenceCandidates, supportedHistoryParaphrase, orderHistoryEvidence, type HistorySynthesisProposal } from "./history-synthesis.ts";
 import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
@@ -99,7 +99,9 @@ export function askEvidenceScope(message: string, authorizedPetIds: string[]): A
   const lifetime = /\b(?:lifetime|ever|all (?:of )?(?:the )?(?:recorded )?history|entire (?:recorded )?history|complete history|full history)\b/i.test(message);
   const period = /\b(?:(?:19|20)\d{2}|(?:this|last|previous) (?:week|month|year)|since\s+[^?!.]+|between\s+[^?!.]+)\b/i.exec(message)?.[0] || null;
   const kind: AskEvidenceScope["requestKind"] = history && /\b(?:how many|number of|total|count)\b/i.test(message) ? "count"
-    : history && /\b(?:compare|comparison|difference|change in weight|weight change)\b/i.test(message) && /\b(?:all|every|earliest|first|latest|recorded)\b/i.test(message) ? "comparison"
+    : history && /\b(?:compare|comparison|difference|change in weight|weight change)\b/i.test(message)
+      && (/\b(?:all|every|earliest|first|latest|recorded)\b/i.test(message)
+        || /\bfrom\b[^?!.]{1,100}\b(?:to|through|thru)\b/i.test(message)) ? "comparison"
     : history && (/\b(?:ever|never|any record|no record)\b/i.test(message)
       || /^(?:have|has|did|do|does|is|are)\b[\s\S]*\b(?:any|reported|recorded)\b/i.test(message)) ? "absence"
     : /\b(?:summari[sz]e|summary|overview|review|list)\b/i.test(message) && (lifetime || Boolean(period) || /\b(?:all|entire|complete|full|history|recorded)\b/i.test(message) && history) ? "overview"
@@ -334,12 +336,15 @@ export function evidenceAnswerPolicy(contract: AskEvidenceContract, synthesis: H
   if (contract.history?.provenance.some(source => ["superseded", "tombstoned_or_inactive"].includes(source.status)) && !contract.represented.some(span => span.sourceType === "care_update")) {
     return "The retrieved original report is superseded or inactive and is not effective evidence for this pet. This does not establish an absence across the pet's history.";
   }
+  const completeRequiredComparison = kind === "comparison" && Boolean(contract.history?.requiredSourceIds?.length)
+    && missingRequiredEvidence(contract).length === 0;
   if (contract.history && (contract.history.corrections === "unavailable" || contract.history.retrieval === "unavailable"
-    || contract.history.retrieval === "partial" || contract.history.corrections === "partial" || contract.history.excludedIds.length || contract.history.reasons.includes("unlinked_correction_uncertain")
+    || contract.history.retrieval === "partial" && !completeRequiredComparison || contract.history.corrections === "partial" || contract.history.excludedIds.length || contract.history.reasons.includes("unlinked_correction_uncertain")
     || contract.history.reasons.includes("unsupported_claim_payload")
     || contract.losses.some(loss => /^(?:care|claim):/.test(loss.sourceId)))) {
     return "The requested history is incomplete or its correction evidence is unavailable or uncertain. I can't establish an effective historical answer from this subset. Please narrow the period or topic, or retry the lookup; this is not evidence that an event or result is absent.";
   }
+  if (completeRequiredComparison) return attributedHistoryAnswer(contract, false, synthesis);
   if (kind === "ordinary" && contract.scope.status !== "ambiguous") return null;
   if (contract.scope.status === "ambiguous") return "Which episode do you mean? Please identify the pet and approximate date so I can keep the records separate.";
   if (kind === "record_lookup") return sourceNoteAnswer(contract).text;
