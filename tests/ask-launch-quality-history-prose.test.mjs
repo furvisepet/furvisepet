@@ -147,11 +147,12 @@ test("visible prose sanity remains quality-degradable and never requests provide
   assert.doesNotMatch(reasoningSource, /visible_prose_sanity|repaired_visible_prose_syntax/);
 });
 
-test("route keeps optional care failures out of the public failed-card state", () => {
+test("route publishes persistence success only from an effective durable receipt", () => {
   const route = readFileSync(new URL("../app/api/ask/route.ts", import.meta.url), "utf8");
   assert.match(route, /resolveAutomaticCareHistoryPresentation/);
   assert.doesNotMatch(route, /suggestionFailure\s*\?/);
-  assert.match(route, /intelligencePersistence\?\.carePersistence\.status !== "failed"/);
+  assert.doesNotMatch(route, /intelligencePersistence\?\.carePersistence\.status !== "failed"/);
+  assert.match(route, /didPersistEffectiveState\(intelligencePersistence, intelligencePersistence\.carePersistence\)/);
 });
 
 function reasoning(answer) {
