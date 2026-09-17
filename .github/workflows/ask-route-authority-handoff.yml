@@ -45,7 +45,37 @@ jobs:
       - name: TypeScript
         run: npm run typecheck
       - name: Full tests
-        run: npm test
+        shell: bash
+        run: |
+          set +e
+          npm test > /tmp/ask-full-test.log 2>&1
+          status=$?
+          if [ "$status" -ne 0 ]; then
+            echo "=== COMPACT FULL-SUITE FAILURE DIAGNOSTICS ==="
+            python <<'PY'
+          from pathlib import Path
+          lines = Path('/tmp/ask-full-test.log').read_text(errors='replace').splitlines()
+          markers = []
+          needles = ('✖ failing tests:', 'AssertionError', 'ReferenceError', 'TypeError', 'ERR_', 'not ok ', 'ℹ fail ')
+          for index, line in enumerate(lines):
+              if any(needle in line for needle in needles):
+                  markers.append(index)
+          windows = []
+          for index in markers:
+              start = max(0, index - 8)
+              end = min(len(lines), index + 28)
+              if windows and start <= windows[-1][1]:
+                  windows[-1] = (windows[-1][0], max(windows[-1][1], end))
+              else:
+                  windows.append((start, end))
+          if not windows:
+              windows = [(max(0, len(lines) - 180), len(lines))]
+          for start, end in windows[-12:]:
+              print(f'--- lines {start + 1}-{end} ---')
+              print('\n'.join(lines[start:end]))
+          PY
+          fi
+          exit "$status"
       - name: Check patch
         run: git diff --check && git diff --stat
       - name: Commit verified handoff
