@@ -13,6 +13,11 @@ import { findEquivalentRecentCareEntry, prepareGovernedCareHistoryEvent } from "
 import { areMemorySemanticsEquivalent, isEligibleStoredMemory, prepareTypedMemoryCandidate } from "./memory-integrity.ts";
 import { createOperationsAdminClient } from "../operations/admin-client.ts";
 import { createCanonicalCareAuthorityClient } from "./care-authority-client.ts";
+import {
+  assertFurviseMutationAllowed,
+  type FurviseMutationKind,
+  type FurviseTurnAuthority,
+} from "../furvise-brain/turn-authority.ts";
 
 export class IntelligencePersistenceError extends Error {
   constructor(message: string, public cause?: unknown) {
@@ -39,6 +44,7 @@ export async function persistIntelligenceLearnings({
   assistantMessageId,
   authorizedPetIds,
   careActions,
+  careWriteAuthority = null,
   semanticEvents = [],
   noteBatch = [],
   learnings,
@@ -55,6 +61,11 @@ export async function persistIntelligenceLearnings({
   assistantMessageId: string;
   authorizedPetIds: string[];
   careActions: IntelligenceCareAction[];
+  /**
+   * Model extraction is proposal-only. Authoritative care/history/state writes
+   * require a separately granted Brain mutation authority for this exact turn.
+   */
+  careWriteAuthority?: FurviseTurnAuthority | null;
   semanticEvents?: GovernedCanonicalEvent[];
   noteBatch?: DatedCareNote[];
   learnings: IntelligenceLearning[];
@@ -77,7 +88,21 @@ export async function persistIntelligenceLearnings({
   const persistableSemanticEvents = semanticEvents.filter((item) => item.destinations.some((destination) =>
     destination === "care_event" || destination === "episode_current_state" || destination === "state_only"));
   const semanticEvent = persistableSemanticEvents[0];
-  const carePersistence = noteBatch.length ? await persistDatedNoteBatch({ notes: noteBatch, userId, petId, sourceMessageId }) : resolutionAction
+  const primaryCareAction = resolutionAction || careActions[0] || null;
+  const requiredCareMutation = requiredIntelligenceCareMutation({
+    noteBatch,
+    semanticEvent,
+    careAction: primaryCareAction,
+  });
+  const carePersistenceAuthorized = requiredCareMutation
+    ? authorizeIntelligenceCarePersistence({
+        authority: careWriteAuthority,
+        expectedKind: requiredCareMutation,
+        petIds: careMutationPetIds({ noteBatch, semanticEvents: persistableSemanticEvents, careAction: primaryCareAction, fallbackPetId: petId }),
+      })
+    : false;
+  const carePersistence = !carePersistenceAuthorized ? skippedCarePersistence()
+    : noteBatch.length ? await persistDatedNoteBatch({ notes: noteBatch, userId, petId, sourceMessageId }) : resolutionAction
     ? await persistCanonicalCareAction({ action: resolutionAction, petId, sourceMessageId, supabase, userId, recentCareEntries })
     : semanticEvent && persistableSemanticEvents.length
     ? await persistCanonicalSemanticEvents({ events: persistableSemanticEvents, petId, sourceMessageId, supabase, userId, recentCareEntries })
@@ -99,7 +124,7 @@ export async function persistIntelligenceLearnings({
         p_source_message_id: sourceMessageId,
         p_user_id: userId,
       });
-      if (error && !careActions.length && !semanticEvent) throw new IntelligencePersistenceError("Furvise could not persist approved learnings.", error);
+      if (error && carePersistence.status !== "persisted") throw new IntelligencePersistenceError("Furvise could not persist approved learnings.", error);
       if (error) {
         logIntelligenceError("memory_persistence_after_care", error, {
           sourceMessageIdPresent: Boolean(sourceMessageId), petIdPresent: Boolean(targetPetId),
@@ -127,7 +152,7 @@ export async function persistIntelligenceLearnings({
   const persistedConcernId = carePersistence.concernIds[0] || null;
   return {
     careEntriesCreated: carePersistence.status === "persisted" && !carePersistence.alreadyPersisted ? carePersistence.careEntryIds.length : 0,
-    concernsResolved: carePersistence.status === "persisted" && carePersistence.concernIds.length > 0 && careActions[0]?.action === "resolve_concern" ? 1 : 0,
+    concernsResolved: carePersistence.status === "persisted" && carePersistence.concernIds.length > 0 && resolutionAction?.action === "resolve_concern" ? 1 : 0,
     memoriesCreated: persistenceRows.reduce((total, row) => total + numberValue(row.memories_created), 0),
     memoriesSuperseded: persistenceRows.reduce((total, row) => total + numberValue(row.memories_superseded), 0),
     memoryIds,
@@ -139,6 +164,50 @@ export async function persistIntelligenceLearnings({
     persistenceMode: carePersistence.status === "persisted" && persistedCareEntryId ? "automatic" : "none",
     carePersistence: { ...carePersistence, memoryIds },
   };
+}
+
+function requiredIntelligenceCareMutation(input: {
+  noteBatch: DatedCareNote[];
+  semanticEvent?: GovernedCanonicalEvent;
+  careAction: IntelligenceCareAction | null;
+}): FurviseMutationKind | null {
+  if (input.noteBatch.length) return "record_care";
+  if (input.semanticEvent) {
+    return input.semanticEvent.event.transition === "resolved" ? "resolve_care_state" : "record_care";
+  }
+  switch (input.careAction?.action) {
+    case "create_entry": return "record_care";
+    case "resolve_concern": return "resolve_care_state";
+    case "reopen_concern": return "reopen_care_state";
+    case "update_profile": return "update_profile";
+    default: return null;
+  }
+}
+
+function careMutationPetIds(input: {
+  noteBatch: DatedCareNote[];
+  semanticEvents: GovernedCanonicalEvent[];
+  careAction: IntelligenceCareAction | null;
+  fallbackPetId: string;
+}) {
+  if (input.noteBatch.length || input.careAction) return [input.fallbackPetId];
+  const ids = input.semanticEvents.map((item) => item.event.subject.id || input.fallbackPetId);
+  return [...new Set(ids.length ? ids : [input.fallbackPetId])];
+}
+
+function authorizeIntelligenceCarePersistence(input: {
+  authority: FurviseTurnAuthority | null;
+  expectedKind: FurviseMutationKind;
+  petIds: string[];
+}) {
+  if (!input.authority) return false;
+  assertFurviseMutationAllowed(input.authority, input.expectedKind);
+  for (const targetPetId of input.petIds) {
+    if (!input.authority.subject.petIds.includes(targetPetId)) {
+      throw new Error("FURVISE_MUTATION_SUBJECT_MISMATCH");
+    }
+  }
+  return true;
 }
 
 async function persistCanonicalSemanticEvent({ event, petId, sourceMessageId, supabase, userId, recentCareEntries }: {
