@@ -2,9 +2,16 @@ import type { AskRequestContract } from "../intelligence/ask-request-contract.ts
 import type { FurviseMemoryNeed, FurviseTurnAuthority, FurviseTurnIntent } from "./turn-authority.ts";
 import { setFurviseMemoryAuthority } from "./turn-authority.ts";
 
+type SemanticRequestEnvelope = AskRequestContract & {
+  operation?: "recall" | "overview" | "comparison" | "status" | "count" | "episode" | "general" | "navigate" | "clarify";
+  from?: string | null;
+  to?: string | null;
+};
+
 function intentForRequest(request: AskRequestContract): FurviseTurnIntent {
-  if (request.mode === "clarify" || request.operation === "clarify") return "clarify";
-  if (request.operation === "navigate") return "navigate";
+  const semantic = request as SemanticRequestEnvelope;
+  if (request.mode === "clarify" || semantic.operation === "clarify") return "clarify";
+  if (semantic.operation === "navigate") return "navigate";
   if (request.mutationIntent === "correct_record") return "correct";
   if (request.task?.intent === "save" || request.task?.intent === "resume") return request.mode === "mixed" ? "question" : "record";
   if (request.mode === "read" || request.mode === "mixed") return "question";
@@ -12,8 +19,9 @@ function intentForRequest(request: AskRequestContract): FurviseTurnIntent {
 }
 
 function memoryNeedForRequest(request: AskRequestContract): FurviseMemoryNeed {
+  const semantic = request as SemanticRequestEnvelope;
   if (request.evidenceBasis === "saved_history") {
-    const unbounded = request.from == null && request.to == null;
+    const unbounded = semantic.from == null && semantic.to == null;
     const lifetimeLanguage = /\b(?:ever|lifetime|entire\s+(?:life|history)|all\s+(?:history|records?))\b/i.test(request.question);
     return unbounded && lifetimeLanguage ? "lifetime" : "targeted";
   }
