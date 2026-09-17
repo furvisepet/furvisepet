@@ -1,0 +1,81 @@
+name: Ask Publication Boundary Refactor
+
+on:
+  push:
+    branches:
+      - codex/ask-human-architecture-v1
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: test-publishable-key
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/ask-human-architecture-v1
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Wire publication finalizer
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("app/api/ask/route.ts")
+          text = path.read_text()
+
+          import_anchor = 'import { inspectAskPublication } from "../../lib/intelligence/inspect-ask-publication.ts";\n'
+          publication_import = 'import { buildSuccessfulAskResponse, didPersistEffectiveAskState } from "../../lib/intelligence/finalize-ask-publication.ts";\n'
+          if publication_import not in text:
+              if import_anchor not in text:
+                  raise SystemExit("publication import anchor missing")
+              text = text.replace(import_anchor, import_anchor + publication_import, 1)
+
+          text = text.replace('  persistedLearningConfirmation,\n', '', 1)
+          text = text.replace('successfulAnswerResponse(', 'buildSuccessfulAskResponse(')
+          text = text.replace('didPersistEffectiveState(', 'didPersistEffectiveAskState(')
+
+          start = text.find('function buildSuccessfulAskResponse({')
+          end = text.find('\nfunction standaloneEmergencyResponse', start)
+          if start < 0 or end < 0:
+              raise SystemExit("success serializer block missing after rename")
+          text = text[:start] + text[end + 1:]
+
+          start = text.find('function didPersistEffectiveAskState(')
+          end = text.find('\nfunction revalidateAskStateViews', start)
+          if start < 0 or end < 0:
+              raise SystemExit("effective-state helper block missing after rename")
+          text = text[:start] + text[end + 1:]
+
+          start = text.find('function textPayloadValue(')
+          end = text.find('\nasync function loadPersistedRequest', start)
+          if start < 0 or end < 0:
+              raise SystemExit("text payload helper block missing")
+          text = text[:start] + text[end + 1:]
+
+          path.write_text(text)
+      - name: Verify publication boundary
+        run: |
+          node --test tests/ask-publication-receipt.test.mjs
+          npx tsc --noEmit
+      - name: Commit verified refactor
+        shell: bash
+        run: |
+          rm .github/workflows/ask-publication-boundary-refactor.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "refactor: route Ask publication through finalizer"
+          git fetch origin codex/ask-human-architecture-v1
+          git rebase origin/codex/ask-human-architecture-v1
+          git push origin HEAD:codex/ask-human-architecture-v1
