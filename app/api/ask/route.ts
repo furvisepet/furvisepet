@@ -22,6 +22,7 @@ import { inspectAskPublication } from "../../lib/intelligence/inspect-ask-public
 import { buildSuccessfulAskResponse, didPersistEffectiveAskState } from "../../lib/intelligence/finalize-ask-publication.ts";
 import { revalidateAskStateViews } from "../../lib/intelligence/revalidate-ask-state.ts";
 import { finalizeDurableAskAnswer } from "../../lib/furvise-brain/durable-answer-finalization.ts";
+import { finalizeAskPostReview } from "../../lib/furvise-brain/post-review-finalizer.ts";
 import { attachEpisodeReferences } from "../../lib/intelligence/episode-history.ts";
 import type { HistoryCoverage } from "../../lib/intelligence/history-retrieval.ts";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -2090,98 +2091,121 @@ async function persistAssistantAnswer({
     careExecutionFailed: Boolean(intelligencePersistenceWarning),
   });
   turnLifecycle.outcomes(taskExecution.answerOutcome, taskExecution.mutationOutcome, taskExecution.readyForExecution);
-  // Requested effects finish before their task can acquire a charge disposition.
-  let nextUsage = usage;
-  let creditsUsed = 0;
-  const incompleteTask = taskExecution.creditDisposition === "release";
-  if (creditReserved && incompleteTask) {
-    const released = await safeReleaseAiCredit({ logicalRequestId: requestId, payloadHash, requestId: creditRequestId, userId });
-    turnLifecycle.credit(released ? "released" : "release_pending").settlement("release", released ? "reconciled" : "pending");
-    nextUsage = await runOptionalAskSubsystem({
-      component: "conversation_metadata", fallback: usage,
-      operation: () => getRemainingAiCredits({ feature: "ask", monthlyAiCredits: usage.limit, planId: usage.planId, supabase, userId }),
-      onFailure: optionalFailure,
-    });
-  } else if (creditReserved) {
-    await setAiCreditDisposition({
-      disposition: "complete",
-      feature: "ask",
-      logicalRequestId: requestId,
-      payloadHash,
-      requestId: creditRequestId,
-      userId,
-    });
-    creditsUsed = 1;
-    turnLifecycle.settlement("complete", "pending");
-    try {
-      try {
-        await completeAiCredit({ feature: "ask", logicalRequestId: requestId, payloadHash, requestId: creditRequestId, userId });
-      } catch {
-        await completeAiCredit({ feature: "ask", logicalRequestId: requestId, payloadHash, requestId: creditRequestId, userId });
+  // The reviewed effects above are already complete. From settlement onward,
+  // the Furvise Brain owns irreversible ordering and the only success exit.
+  return finalizeAskPostReview({
+    persistReviewedAnswer: () => assistantMessage,
+    mintActionCapabilities: () => proposedActions,
+    persistAuthorizedIntelligence: () => intelligencePersistence,
+    executeAuthorizedActions: () => ({ applicationActions, applicationStateChanged }),
+    resolveCarePresentation: () => ({ automaticCareAction, carePersistence, persistenceMode, savedSuggestion }),
+    assessTaskCompletion: () => taskExecution,
+    settleCreditDisposition: async () => {
+      let nextUsage = usage;
+      let creditsUsed = 0;
+      const incompleteTask = taskExecution.creditDisposition === "release";
+      if (creditReserved && incompleteTask) {
+        const released = await safeReleaseAiCredit({ logicalRequestId: requestId, payloadHash, requestId: creditRequestId, userId });
+        turnLifecycle.credit(released ? "released" : "release_pending").settlement("release", released ? "reconciled" : "pending");
+        nextUsage = await runOptionalAskSubsystem({
+          component: "conversation_metadata", fallback: usage,
+          operation: () => getRemainingAiCredits({ feature: "ask", monthlyAiCredits: usage.limit, planId: usage.planId, supabase, userId }),
+          onFailure: optionalFailure,
+        });
+      } else if (creditReserved) {
+        await setAiCreditDisposition({
+          disposition: "complete",
+          feature: "ask",
+          logicalRequestId: requestId,
+          payloadHash,
+          requestId: creditRequestId,
+          userId,
+        });
+        creditsUsed = 1;
+        turnLifecycle.settlement("complete", "pending");
+        try {
+          try {
+            await completeAiCredit({ feature: "ask", logicalRequestId: requestId, payloadHash, requestId: creditRequestId, userId });
+          } catch {
+            await completeAiCredit({ feature: "ask", logicalRequestId: requestId, payloadHash, requestId: creditRequestId, userId });
+          }
+          turnLifecycle.credit("completed").settlement("complete", "reconciled");
+          logAskStage("AI credit completed", { creditFinalState: "completed", creditReservationId: creditRequestId, requestId });
+        } catch (error) {
+          if (isAiCreditIntegrityError(error)) throw error;
+          turnLifecycle.credit("completion_pending").settlement("complete", "pending");
+          optionalFailure("credit_completion", error);
+        }
+        nextUsage = await runOptionalAskSubsystem({
+          component: "conversation_metadata",
+          fallback: usage,
+          operation: () => getRemainingAiCredits({ feature: "ask", monthlyAiCredits: usage.limit, planId: usage.planId, supabase, userId }),
+          onFailure: optionalFailure,
+        });
       }
-      turnLifecycle.credit("completed").settlement("complete", "reconciled");
-      logAskStage("AI credit completed", { creditFinalState: "completed", creditReservationId: creditRequestId, requestId });
-    } catch (error) {
-      if (isAiCreditIntegrityError(error)) throw error;
-      turnLifecycle.credit("completion_pending").settlement("complete", "pending");
-      optionalFailure("credit_completion", error);
-    }
-    nextUsage = await runOptionalAskSubsystem({
-      component: "conversation_metadata",
-      fallback: usage,
-      operation: () => getRemainingAiCredits({ feature: "ask", monthlyAiCredits: usage.limit, planId: usage.planId, supabase, userId }),
-      onFailure: optionalFailure,
-    });
-  }
+      return { creditsUsed, nextUsage };
+    },
+    finalizeDurableAnswer: async ({ settlement }) => {
+      turnLifecycle.transition("COMPLETED");
+      const canonicalResponse = {
+        ...attachEpisodeReferences(applicationActions.length ? { ...response, applicationActions } : response, intelligenceResult?.reasoning.evidenceContract?.episodes, intelligenceResult?.reasoning),
+        turn: turnLifecycle.snapshot(),
+      };
+      const durableFallback = await finalizePersistedAskAnswer({
+        carePersistence, conversationId, messageId: assistantMessage.id,
+        responseData: canonicalResponse, requestId, supabase, userId,
+      });
+      if (durableFallback) {
+        return {
+          kind: "replay" as const,
+          response: completedResponseFromPersisted(
+            durableFallback,
+            settlement.nextUsage,
+            "Your answer is saved. Reopen the conversation to check the latest update and action status.",
+          ),
+        };
+      }
+      return { kind: "committed" as const, receipt: { canonicalResponse } };
+    },
+    invalidateCommittedState: () => {
+      if (didPersistEffectiveAskState(intelligencePersistence, carePersistence)) {
+        revalidateAskStateViews([
+          petId,
+          ...(intelligenceResult?.executionPlan.learnings.flatMap((learning) => learning.subjectType === "pet" && learning.subjectId ? [learning.subjectId] : []) || []),
+        ]);
+      }
+      if (applicationStateChanged) revalidateAskStateViews([petId]);
+      emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
+    },
+    publishSuccess: ({ durableReceipt, settlement }) => buildSuccessfulAskResponse({
+      assistantMessageId: assistantMessage.id,
+      applicationStateChanged,
+      concern,
+      creditsUsed: settlement.creditsUsed,
+      contextUsed,
+      conversationId,
+      handledWithoutAi,
+      intelligencePersistence,
+      intelligencePersistenceWarning,
+      requestId,
+      response: durableReceipt.canonicalResponse,
+      saveMetadata,
+      safetyLevel: safetyLevel || (urgent ? "urgent" : "normal"),
+      saved: true,
+      shoppingSuppressed: shoppingSuppressed ?? Boolean(urgent),
+      suggestion: savedSuggestion,
+      carePersistence,
+      persistenceMode,
+      persistedCareAction: automaticCareAction && intelligencePersistence ? {
+        careEntryId: intelligencePersistence.persistedCareEntryId,
+        concernId: intelligencePersistence.persistedConcernId,
+      } : null,
+      usage: settlement.nextUsage,
+      userMessageId,
+      turn: turnLifecycle.snapshot(),
+    }),
+  });
 
-  turnLifecycle.transition("COMPLETED");
-  const canonicalResponse = {
-    ...attachEpisodeReferences(applicationActions.length ? { ...response, applicationActions } : response, intelligenceResult?.reasoning.evidenceContract?.episodes, intelligenceResult?.reasoning),
-    turn: turnLifecycle.snapshot(),
-  };
-  const durableFallback = await finalizePersistedAskAnswer({
-    carePersistence, conversationId, messageId: assistantMessage.id,
-    responseData: canonicalResponse, requestId, supabase, userId,
-  });
-  if (didPersistEffectiveAskState(intelligencePersistence, carePersistence)) {
-    revalidateAskStateViews([
-      petId,
-      ...(intelligenceResult?.executionPlan.learnings.flatMap((learning) => learning.subjectType === "pet" && learning.subjectId ? [learning.subjectId] : []) || []),
-    ]);
-  }
-  if (applicationStateChanged) revalidateAskStateViews([petId]);
-  emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
-  // A lost finalization acknowledgment must never publish an unconfirmed body.
-  // Read back the durable answer rather than rerunning effects or charging again.
-  if (durableFallback) return completedResponseFromPersisted(durableFallback, nextUsage,
-    "Your answer is saved. Reopen the conversation to check the latest update and action status.");
-  return buildSuccessfulAskResponse({
-    assistantMessageId: assistantMessage.id,
-    applicationStateChanged,
-    concern,
-    creditsUsed,
-    contextUsed,
-    conversationId,
-    handledWithoutAi,
-    intelligencePersistence,
-    intelligencePersistenceWarning,
-    requestId,
-    response: canonicalResponse,
-    saveMetadata,
-    safetyLevel: safetyLevel || (urgent ? "urgent" : "normal"),
-    saved: true,
-    shoppingSuppressed: shoppingSuppressed ?? Boolean(urgent),
-    suggestion: savedSuggestion,
-    carePersistence,
-    persistenceMode,
-    persistedCareAction: automaticCareAction && intelligencePersistence ? {
-      careEntryId: intelligencePersistence.persistedCareEntryId,
-      concernId: intelligencePersistence.persistedConcernId,
-    } : null,
-    usage: nextUsage,
-    userMessageId,
-    turn: turnLifecycle.snapshot(),
-  });
 }
 
 
