@@ -1,0 +1,117 @@
+name: Ask Residual Regression Fix
+
+on:
+  push:
+    branches:
+      - codex/ask-human-architecture-v1
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: test-publishable-key
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/ask-human-architecture-v1
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Apply residual root fixes
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              if old not in text:
+                  raise SystemExit(f"expected patch anchor missing in {path}")
+              p.write_text(text.replace(old, new, 1))
+
+          replace(
+              "app/lib/intelligence/generate-ask-history.ts",
+              '''  const legacySubjectPetIds = input.context.askInterpretation?.conversationOnly
+            ? []
+            : input.authoritativePetIds ?? [input.context.pet.id];
+''',
+              '''  // Legacy route/harness scope is untrusted at this boundary. Intersect it
+          // with the authenticated owner's eligible pets before the Brain turn exists.
+          // This preserves valid multi-pet reads while making foreign ids inert.
+          const ownedPetIds = new Set(input.context.eligiblePets
+            .filter(pet => pet.user_id === input.context.owner.userId)
+            .map(pet => pet.id));
+          const legacySubjectPetIds = input.context.askInterpretation?.conversationOnly
+            ? []
+            : [...new Set((input.authoritativePetIds ?? [input.context.pet.id]).filter(id => ownedPetIds.has(id)))];
+''',
+          )
+
+          replace(
+              "app/lib/intelligence/review-task-completion.ts",
+              '''  if (!request || input.validation.response.evidenceContract?.history
+            || ["urgent", "emergency"].includes(input.validation.response.intelligenceSafety.level)) return input.validation;
+''',
+              '''  // This reviewer is the non-history complement. A saved-history request
+          // remains historical even when retrieval produced no history object; the
+          // history/evidence validator already owns deterministic limitations there.
+          if (!request || request.evidenceBasis === "saved_history" || input.validation.response.evidenceContract?.history
+            || ["urgent", "emergency"].includes(input.validation.response.intelligenceSafety.level)) return input.validation;
+''',
+          )
+
+          replace(
+              "tests/ask-memory-single-authority.test.mjs",
+              '''    "./care-authority-client.ts": { createCanonicalCareAuthorityClient: () => { throw new Error("Unexpected care RPC"); } },
+''',
+              '''    "./care-authority-client.ts": { createCanonicalCareAuthorityClient: () => { throw new Error("Unexpected care RPC"); } },
+          "../furvise-brain/turn-authority.ts": { assertFurviseMutationAllowed(authority, expectedKind) {
+            assert.equal(authority?.mutation?.allowed, true);
+            assert.equal(authority?.mutation?.kind, expectedKind);
+          } },
+''',
+          )
+
+          replace(
+              "tests/ask-memory-single-authority.test.mjs",
+              '''    assistantMessageId: "assistant", authorizedPetIds: multi ? ["pet-a", "pet-b"] : ["pet-a"], careActions: care ? [{ action: "log_care", title: "Walk", details: "Walk" }] : [],
+            learnings: multi ? [learning, { ...learning, subjectId: "pet-b" }] : [learning], currentMessage: "Evening walks", operationOwnerToken: "test-lease", payloadHash: "test-hash",
+''',
+              '''    assistantMessageId: "assistant", authorizedPetIds: multi ? ["pet-a", "pet-b"] : ["pet-a"],
+          careActions: care ? [{ action: "create_entry", category: "routine", title: "Walk", details: "Walk", severity: "routine", confidence: 1, relatedRecordId: null }] : [],
+          careWriteAuthority: care ? {
+            version: "furvise-brain-turn.v1", logicalTurnId: "request",
+            subject: { petIds: multi ? ["pet-a", "pet-b"] : ["pet-a"], kind: multi ? "multi_pet" : "pet", label: null, source: "conversation", unresolved: false },
+            intent: "record", memoryNeed: "working", memoryPetIds: [],
+            mutation: { allowed: true, kind: "record_care", userAuthorizationVerified: true, authorizationSource: "current_turn", authorizationTurnId: "source", confirmationRequired: false, confirmationSatisfied: false },
+            referenceTurnIds: [],
+          } : null,
+          learnings: multi ? [learning, { ...learning, subjectId: "pet-b" }] : [learning], currentMessage: "Evening walks", operationOwnerToken: "test-lease", payloadHash: "test-hash",
+''',
+          )
+      - name: Verify residual failures
+        run: >-
+          node --test
+          tests/ask-memory-single-authority.test.mjs
+          tests/ask-remaining-reliability.test.mjs
+          tests/ask-shared-request-contract.test.mjs
+      - name: Commit only verified fixes
+        shell: bash
+        run: |
+          rm .github/workflows/ask-residual-regression-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: close residual Ask authority regressions"
+          git fetch origin codex/ask-human-architecture-v1
+          git rebase origin/codex/ask-human-architecture-v1
+          git push origin HEAD:codex/ask-human-architecture-v1
