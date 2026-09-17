@@ -6,6 +6,7 @@ on:
       - codex/ask-human-architecture-v1
     paths:
       - .github/workflows/ask-executive-tail-handoff.yml
+      - tests/ask-task-execution-contract.test.mjs
 
 permissions:
   contents: write
