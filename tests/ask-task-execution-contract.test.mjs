@@ -16,6 +16,7 @@ function load(relative) {
 }
 const { assessTaskExecution } = load('../app/lib/intelligence/task-execution-contract.ts');
 const { createAnswerAssessment } = load('../app/lib/intelligence/answer-assessment.ts');
+const { finalizeAskPostReview } = load('../app/lib/furvise-brain/post-review-finalizer.ts');
 const checks = { structuralValidity: 'passed', evidenceSupport: 'passed', subjectDateCorrectness: 'passed', calculationCorrectness: 'not_applicable', taskCompletion: 'passed' };
 const assessment = (overrides = {}) => createAnswerAssessment({ checks: { ...checks, ...overrides }, body: {}, evidence: [] });
 const base = () => ({ assessment: assessment(), completion: [{ index: 0, status: 'answered' }], responseMode: 'answer', actions: [], careWriteRequired: false, careReceipt: { status: 'skipped', careEntryIds: [] } });
@@ -91,6 +92,7 @@ for (const status of ['succeeded', 'failed']) test(`route settles only after cap
   const proposed = { ...action('proposed'), id: 'capability', kind: 'pet.update' };
   const receipt = { status: 'skipped', careEntryIds: [] };
   const fn = routeFunction('persistAssistantAnswer', {
+    finalizeAskPostReview,
     assessTaskExecution,
     prepareAskMemoryAuthorityLearnings: () => [], semanticTraceForStorage: () => null,
     attachEpisodeReferences: response => response,
