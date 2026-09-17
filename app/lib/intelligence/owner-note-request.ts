@@ -33,6 +33,15 @@ export function resolveOwnerNoteRequest(input: {
     if (!authorization) return null;
     const commands = sentences.filter(sentence => sentence.includes(authorization));
     if (!commands.length) return null;
+    const commandIndex = sentences.findIndex(sentence => sentence.includes(authorization));
+    const commandHasCondition = commands.some(sentence => /\b(?:if|unless)\b/i.test(sentence));
+    const priorClauseConditionsReferencedNote = commandIndex > 0
+      && /\b(?:if|unless)\b/i.test(sentences[commandIndex - 1])
+      && /\b(?:this|that)\s+note\b|\bit\b/i.test(sentences[commandIndex]);
+    // A conditional save is not durable authorization. Scope this guard to the
+    // save clause (or the clause it explicitly points back to) so an unrelated
+    // follow-up such as "tell me if..." does not suppress a valid note write.
+    if (commandHasCondition || priorClauseConditionsReferencedNote) return null;
     if (/\b(?:notes|entries|separate|each|delete|remove|replace|correct|resolve|reopen|mark|profile|subscription|billing)\b/i.test(commands.join(" "))) return null;
     const named = input.pets.filter(pet => pet.name && new RegExp(`(?<![\\p{L}])${escape(pet.name)}(?![\\p{L}])`, "iu").test(commandText));
     if (named.some(pet => pet.id !== input.pet.id)) return null;

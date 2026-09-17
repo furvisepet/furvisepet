@@ -103,9 +103,16 @@ export function resolveRecentPronoun(state: RecentSubjectState, surface: string)
   if (!pronoun) return { status: "unresolved", entity: null, candidatePetIds: [] };
   const compatible = state.entities.filter((entity) => entity.pronouns.includes(pronoun));
   const currentFocus = state.currentFocusKey ? state.entities.find((entity) => entity.key === state.currentFocusKey) : null;
-  // An explicitly focused pet outranks stored sex/pronoun metadata. Owners may
-  // use a different pronoun, and a mere object mention must not steal focus.
-  const focused = currentFocus && (currentFocus.kind === "pet" || currentFocus.pronouns.includes(pronoun)) ? currentFocus : null;
+  // Stored sex/pronoun metadata is advisory, but an incompatible selected-pet
+  // focus may override it only when no competing compatible entity has already
+  // been an explicit discourse subject. This preserves independent pronoun
+  // chains while preventing a same-turn object mention from stealing focus.
+  const focused = currentFocus && (
+    currentFocus.pronouns.includes(pronoun)
+    || (currentFocus.kind === "pet" && currentFocus.petId === state.selectedPetId
+      && currentFocus.lastSubjectTurn >= 0
+      && !compatible.some(entity => entity !== currentFocus && entity.lastSubjectTurn >= 0))
+  ) ? currentFocus : null;
   if (focused && entityRecencyScore(focused) >= 0) return resolved(focused, [focused]);
 
   const latestSubjectTurn = Math.max(-1, ...compatible.map(entity => entity.lastSubjectTurn));
@@ -119,8 +126,9 @@ export function resolveRecentPronoun(state: RecentSubjectState, surface: string)
   if (latestMentionTurn >= 0) {
     const mentions = compatible.filter(entity => entity.lastMentionTurn === latestMentionTurn);
     if (mentions.length === 1) return resolved(mentions[0], mentions);
-    const selectedMention = mentions.find(entity => entity.petId === state.selectedPetId);
-    if (selectedMention) return resolved(selectedMention, mentions);
+    // Equally recent compatible explicit mentions are genuinely ambiguous,
+    // even when one happens to be the UI-selected pet. Selection is only the
+    // fallback when discourse itself does not present competing candidates.
     if (mentions.length > 1) return ambiguous(mentions);
   }
 

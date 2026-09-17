@@ -9,6 +9,7 @@ import { rememberValidatedEvidencePresentation } from "./ask-evidence-presentati
 import { episodeAnswer, type EpisodeResult } from "./episode-contract.ts";
 import { assertAskBrainScope, buildAskBrainTurn } from "../furvise-brain/ask-runtime.ts";
 import { planFurviseMemoryRead, retrieveFurviseMemory } from "../furvise-brain/memory-organ.ts";
+import { setFurviseMemoryAuthority } from "../furvise-brain/turn-authority.ts";
 
 /** The route's actual generation callback boundary, also exercised with mocked
  * provider/database dependencies. generationInput is not a second authority. */
@@ -19,11 +20,17 @@ export async function generateAskHistoryAnswer({ supabase, onStage, ...input }: 
   const legacySubjectPetIds = input.context.askInterpretation?.conversationOnly
     ? []
     : input.authoritativePetIds ?? [input.context.pet.id];
-  const brainTurn = buildAskBrainTurn({
+  let brainTurn = buildAskBrainTurn({
     context: input.context,
     logicalTurnId: input.requestId,
     authoritativePetIds: legacySubjectPetIds,
   });
+  // Entering the server-owned historical callback is itself read authority.
+  // Some deterministic/fallback paths intentionally have no model interpretation;
+  // they must still perform the bounded history read this callback promises.
+  if (!input.context.askInterpretation?.request && !input.context.askInterpretation?.conversationOnly) {
+    brainTurn = setFurviseMemoryAuthority(brainTurn, { need: "targeted", petIds: legacySubjectPetIds });
+  }
   const memoryRead = planFurviseMemoryRead(brainTurn);
   const petIds = [...brainTurn.subject.petIds];
   const readPetIds = [...memoryRead.petIds];
