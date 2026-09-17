@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createIdempotencyAdminClient } from "../security/idempotency/admin-client.ts";
+import { authorizeFurviseActionExecution } from "../furvise-brain/action-organ.ts";
 import { parseStoredApplicationActions } from "./contracts.ts";
 import { hasDeterministicUserMutationIntent } from "./planner.ts";
 import { getFurviseActionPolicy } from "./policy.ts";
@@ -18,7 +19,7 @@ type CapabilityRow = {
   expires_at: string;
 };
 
-/** Creates the only mutation authority. response_data receives only the returned display id. */
+/** Creates immutable server capabilities. Creation is not execution authority. */
 export async function createActionCapabilities(input: {
   actions: FurviseApplicationAction[];
   assistantMessageId: string;
@@ -32,17 +33,9 @@ export async function createActionCapabilities(input: {
   let authoritativeSourceMessage: string | undefined;
   const authoritativePetNames = new Map<string, string>();
   for (const action of input.actions) {
-    // Continuations carry the original opaque capability id. Never mint a
-    // second capability for that logical lifecycle action or bind it to a
-    // different assistant message. The original trusted card remains available.
     if (UUID.test(action.id)) continue;
     if (action.mutationClass !== "mutation") { display.push(action); continue; }
-    // Planner/display failures and every other terminal state are presentation
-    // only. They must never be canonicalized back into executable authority.
     if (!isExecutableSourceAction(action)) { display.push(action); continue; }
-    // Re-read the persisted user turn and owned pet at the capability boundary.
-    // Neither model evidence nor the model-authored explicitIntent field can be
-    // copied into the immutable capability as auto-execution authority.
     authoritativeSourceMessage ??= await loadAuthoritativeSourceMessage(input.sourceMessageId, input.supabase, input.userId);
     let authoritativePetName = authoritativePetNames.get(action.petId);
     if (authoritativePetName === undefined) {
@@ -56,7 +49,6 @@ export async function createActionCapabilities(input: {
       authoritativePetName,
     );
     const targetId = await bindTarget(authoritativeAction, input.targetBindings?.[action.id] || null, input.supabase, input.userId);
-    // A proposed edit/remove/concern action with no exact target must never be executable.
     if (requiresBoundTarget(authoritativeAction) && !targetId) {
       display.push({ ...authoritativeAction, status: "failed", errorMessage: "That original target is no longer available.", resultMessage: null });
       continue;
@@ -87,8 +79,6 @@ export async function createActionCapabilities(input: {
       explicit_intent: authoritativeAction.explicitIntent,
     }).select("id,assistant_message_id,action_payload,status,receipt,expires_at").single<CapabilityRow>();
     if (error || !data) {
-      // Idempotent retries and concurrent duplicate preparation keep the first
-      // immutable authority instead of changing semantics or losing the card.
       const raced = await loadExistingCapability({
         sourceActionId: authoritativeAction.id,
         sourceMessageId: input.sourceMessageId,
@@ -103,6 +93,7 @@ export async function createActionCapabilities(input: {
   return display;
 }
 
+/** Every capability execution crosses the canonical Furvise Brain action gate. */
 export async function executeActionCapability(input: {
   capabilityId: string;
   assistantMessageId: string;
@@ -111,6 +102,20 @@ export async function executeActionCapability(input: {
   correctionSourceMessageId?: string;
 }) {
   const admin = createIdempotencyAdminClient();
+  const capability = await loadExecutionCapability({
+    capabilityId: input.capabilityId,
+    assistantMessageId: input.assistantMessageId,
+    userId: input.userId,
+  });
+  if (!capability) return null;
+  const authoritativeAction = parseStoredApplicationActions([capability.action_payload])[0];
+  if (!authoritativeAction) throw new Error("ACTION_CAPABILITY_CORRUPT");
+  authorizeFurviseActionExecution({
+    action: authoritativeAction,
+    capabilityId: capability.id,
+    mode: input.mode,
+  });
+
   const { data, error } = await admin.rpc("execute_ask_action_capability", {
     p_capability_id: input.capabilityId,
     p_assistant_message_id: input.assistantMessageId,
@@ -150,7 +155,7 @@ function canonicalCapabilityAction(
   if (policy.mutationClass !== "mutation") throw new Error("ACTION_CAPABILITY_KIND_NOT_MUTABLE");
   const explicitIntent = hasDeterministicUserMutationIntent({ action, petName, sourceMessage });
   const { targetSourceId, ...capabilityAction } = action;
-  void targetSourceId; // Routing hint consumed by binding, never capability authority.
+  void targetSourceId;
   return {
     ...capabilityAction,
     ...policy,
@@ -197,6 +202,18 @@ function capabilityPresentation(row: CapabilityRow) {
     status,
     ...(expired ? { resultMessage: null, errorMessage: "That action expired before it was confirmed." } : {}),
   };
+}
+
+async function loadExecutionCapability(input: { capabilityId: string; assistantMessageId: string; userId: string }) {
+  const admin = createIdempotencyAdminClient();
+  const { data, error } = await admin.from("ask_action_capabilities")
+    .select("id,assistant_message_id,action_payload,status,receipt,expires_at")
+    .eq("id", input.capabilityId)
+    .eq("assistant_message_id", input.assistantMessageId)
+    .eq("user_id", input.userId)
+    .maybeSingle<CapabilityRow>();
+  if (error) throw new Error("ACTION_CAPABILITY_LOOKUP_FAILED");
+  return data;
 }
 
 async function loadExistingCapability(input: { sourceActionId: string; sourceMessageId: string; userId: string }) {
