@@ -1,11 +1,18 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import ts from "typescript";
 import { ASK_REQUEST_KEYS, buildAskRequestPayload } from "../app/lib/ask-request-contract.ts";
 import { buildImmediateEmergencyGuidance, detectImmediateAskEmergency } from "../app/lib/ask-safety-context.ts";
 
 const route = readFileSync(new URL("../app/api/ask/route.ts", import.meta.url), "utf8");
 const askPage = readFileSync(new URL("../app/ask/page.tsx", import.meta.url), "utf8");
+const routeAst = ts.createSourceFile("route.ts", route, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+function routeFunctionSource(name) {
+  const node = routeAst.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === name);
+  assert.ok(node, name);
+  return node.getText(routeAst);
+}
 
 test("high-confidence emergency classes are detected without pet resolution", () => {
   const cases = [
@@ -83,7 +90,7 @@ test("malformed or unavailable provider output cannot intercept emergency guidan
   const persistence = route.indexOf("await ensureConversationAndUserMessage", preflight);
   const semanticExtraction = route.indexOf("await extractTurnSubjectFrame", preflight);
   assert.ok(preflight > -1 && preflight < persistence && preflight < reservation && preflight < semanticExtraction);
-  const responseFunction = route.slice(route.indexOf("function standaloneEmergencyResponse"), route.indexOf("function didPersistEffectiveState"));
+  const responseFunction = routeFunctionSource("standaloneEmergencyResponse");
   assert.match(responseFunction, /creditsUsed: 0/);
   assert.match(responseFunction, /persistence: \{ saved: false/);
   assert.match(responseFunction, /handledWithoutAi: true/);
@@ -147,6 +154,6 @@ test("the client accepts only the explicit standalone emergency shape without in
   assert.match(askPage, /\(!payload\.conversationId && !standaloneEmergency\)/);
   assert.match(askPage, /if \(!standaloneEmergency\) void refreshConversations/);
   assert.match(askPage, /if \(payload\?\.usage\) setUsage/);
-  const responseFunction = route.slice(route.indexOf("function standaloneEmergencyResponse"), route.indexOf("function didPersistEffectiveState"));
+  const responseFunction = routeFunctionSource("standaloneEmergencyResponse");
   assert.doesNotMatch(responseFunction, /usage|remainingCredits|conversationId|userMessageId/);
 });
