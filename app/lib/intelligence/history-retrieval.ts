@@ -444,7 +444,10 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   coverage.requiredSourceIds = [...new Set(required.map(entry => careEvidenceId(entry.id, coverage)))];
   const priorityGroups = [...petGroups, ...targetGroups, ...needGroups, ...currentGroups, ...periodGroups, ...vetGroups];
   const anchoredIds = new Set(priorityGroups.flat().map(entry => entry.id));
-  const groups = [...priorityGroups, ordered.filter(entry => !anchoredIds.has(entry.id))];
+  const exactNeedComparison = context.askInterpretation?.operation === "comparison"
+    && (context.askInterpretation.request?.evidenceNeeds?.length || 0) > 1
+    && context.askInterpretation.request!.evidenceNeeds!.every(need => Boolean(need.window));
+  const groups = exactNeedComparison ? priorityGroups : [...priorityGroups, ordered.filter(entry => !anchoredIds.has(entry.id))];
   const prioritized: CareEntryRow[] = [...new Map(required.map(entry => [entry.id, entry])).values()];
   for (let index = 0; groups.some(group => index < group.length); index++)
     for (const group of groups) if (group[index] && !prioritized.some(entry => entry.id === group[index].id)) prioritized.push(group[index]);

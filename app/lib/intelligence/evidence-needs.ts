@@ -40,5 +40,14 @@ export function validateEvidenceNeeds(raw: unknown, question: string, turns: rea
     needs.push({ ...(window ? { window } : {}), order: value.order, ...(petIds.length ? { petIds } : {}), id: "need:" + needs.length, quote: value.quote, sourceTurnId: value.sourceTurnId,
       terms: meaningfulHistoryTerms([...new Set<string>(value.terms.map((term: string) => term.toLowerCase()))]) });
   }
+  const sharedYears = [...new Set(needs.flatMap(need => need.quote.match(/\b(?:19|20)\d{2}\b/g) || []))];
+  if (needs.length > 1 && sharedYears.length === 1) {
+    const year = sharedYears[0];
+    for (const need of needs) if (!need.window && !/\b(?:19|20)\d{2}\b/.test(need.quote)
+      && /\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}\b/i.test(need.quote)) {
+      const inherited = evidenceNeedWindow(`${need.quote} ${year}`);
+      if (inherited) need.window = inherited;
+    }
+  }
   return { needs, issues: [...new Set(issues)] };
 }
