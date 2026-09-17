@@ -18,6 +18,7 @@ import { interpretAskQuestion, readInterpretationSubject } from "../../lib/intel
 import type { NeedCoverage } from "../../lib/intelligence/evidence-need-coverage.ts";
 import type { EvidenceNeed } from "../../lib/intelligence/evidence-needs.ts";
 import { inspectAskPublication } from "../../lib/intelligence/inspect-ask-publication.ts";
+import { buildSuccessfulAskResponse, didPersistEffectiveAskState } from "../../lib/intelligence/finalize-ask-publication.ts";
 import { attachEpisodeReferences } from "../../lib/intelligence/episode-history.ts";
 import type { HistoryCoverage } from "../../lib/intelligence/history-retrieval.ts";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -92,7 +93,6 @@ import {
   FurviseContextError,
   prepareAskMemoryAuthorityLearnings,
   persistIntelligenceLearnings,
-  persistedLearningConfirmation,
   logSemanticTrace,
   semanticTraceForStorage,
   withSemanticPersistenceOutcome,
@@ -1353,7 +1353,7 @@ async function completeOwnerNoteResponse(input: {
   // The source note already committed. A conversation display outage cannot
   // turn its durable success into a claim that no note was saved.
   emitAskTurnTrace(turn, userId, petId);
-  return successfulAnswerResponse({ assistantMessageId: message?.assistant_message_id,
+  return buildSuccessfulAskResponse({ assistantMessageId: message?.assistant_message_id,
     conversationId: preparedRequest.conversationId, userMessageId: preparedRequest.userMessageId,
     requestId, response: canonical, carePersistence: receipt, contextUsed, usage,
     handledWithoutAi: turn.providerCallCount === 0, saved: conversationSaved,
@@ -2143,7 +2143,7 @@ async function persistAssistantAnswer({
     carePersistence, conversationId, messageId: assistantMessage.id,
     responseData: canonicalResponse, requestId, supabase, userId,
   });
-  if (didPersistEffectiveState(intelligencePersistence, carePersistence)) {
+  if (didPersistEffectiveAskState(intelligencePersistence, carePersistence)) {
     revalidateAskStateViews([
       petId,
       ...(intelligenceResult?.executionPlan.learnings.flatMap((learning) => learning.subjectType === "pet" && learning.subjectId ? [learning.subjectId] : []) || []),
@@ -2155,7 +2155,7 @@ async function persistAssistantAnswer({
   // Read back the durable answer rather than rerunning effects or charging again.
   if (durableFallback) return completedResponseFromPersisted(durableFallback, nextUsage,
     "Your answer is saved. Reopen the conversation to check the latest update and action status.");
-  return successfulAnswerResponse({
+  return buildSuccessfulAskResponse({
     assistantMessageId: assistantMessage.id,
     applicationStateChanged,
     concern,
@@ -2263,101 +2263,6 @@ async function reconcilePersistedAskCredit({
   }
 }
 
-function successfulAnswerResponse({
-  assistantMessageId = "",
-  applicationStateChanged = false,
-  concern = null,
-  creditsUsed = 0,
-  contextUsed,
-  conversationId,
-  handledWithoutAi = false,
-  intelligencePersistence = null,
-  intelligencePersistenceWarning = "",
-  carePersistence = { status: "skipped", careEntryIds: [], concernIds: [], errorCode: null, currentSafetyState: null, alreadyPersisted: false },
-  persistenceWarning,
-  persistenceMode = "none",
-  persistedCareAction = null,
-  requestId,
-  response,
-  saved,
-  saveMetadata,
-  safetyLevel,
-  usage,
-  shoppingSuppressed,
-  suggestion = null,
-  turn = null,
-  userMessageId,
-}: {
-  assistantMessageId?: string;
-  applicationStateChanged?: boolean;
-  concern?: PetConcern | null;
-  creditsUsed?: number;
-  contextUsed: unknown;
-  conversationId: string;
-  handledWithoutAi?: boolean;
-  intelligencePersistence?: IntelligencePersistenceSummary | null;
-  intelligencePersistenceWarning?: string;
-  carePersistence?: CarePersistenceResult;
-  persistenceWarning?: string;
-  persistenceMode?: "automatic" | "suggested" | "none";
-  persistedCareAction?: { careEntryId?: string | null; concernId?: string | null } | null;
-  requestId: string;
-  response: CompletedAskResponse;
-  saved: boolean;
-  saveMetadata: unknown;
-  safetyLevel: "normal" | "monitor" | "urgent";
-  usage: AiCreditStatus;
-  shoppingSuppressed: boolean;
-  suggestion?: (PendingUpdateSuggestion & { id: string }) | null;
-  turn?: AskTurnTrace | null;
-  userMessageId: string;
-}) {
-  logAskStage("final response serialized", { requestId, saved });
-  return Response.json({
-    answer: response.directAnswer,
-    assistantMessageId,
-    concern: concern ? { id: concern.id, status: concern.status, title: concern.title } : null,
-    contextUsed,
-    conversationId,
-    creditsUsed,
-    handledWithoutAi,
-    dataChanged: applicationStateChanged || didPersistEffectiveState(intelligencePersistence, carePersistence),
-    automaticSaveConfirmation: carePersistence.status === "persisted" && carePersistence.careEntryIds.length > 0 ? "Added to care history" : persistedLearningConfirmation(intelligencePersistence),
-    carePersistence,
-    intelligencePersistence: {
-      saved: Boolean(
-        !intelligencePersistenceWarning
-        && intelligencePersistence
-        && didPersistEffectiveState(intelligencePersistence, intelligencePersistence.carePersistence)
-      ),
-      ...(intelligencePersistenceWarning ? { warning: intelligencePersistenceWarning } : {}),
-    },
-    remainingCredits: usage.remaining,
-    persistence: {
-      saved,
-      ...(persistenceWarning ? { warning: persistenceWarning } : {}),
-    },
-    persistenceMode,
-    persistedCareAction,
-    proposedHistoryUpdate: suggestion ? {
-      shouldOffer: true,
-      category: textPayloadValue(suggestion.payload.category),
-      title: textPayloadValue(suggestion.payload.title),
-      details: suggestion.details || null,
-      severity: textPayloadValue(suggestion.payload.severity),
-      resolvesConcernId: suggestion.concernId || null,
-    } : null,
-    response,
-    safety: { level: safetyLevel, shoppingSuppressed },
-    saveMetadata,
-    suggestion,
-    success: true,
-    turn,
-    userMessageId,
-    usage,
-  });
-}
-
 function standaloneEmergencyResponse({
   contextUsed,
   requestId,
@@ -2389,16 +2294,6 @@ function standaloneEmergencyResponse({
   });
 }
 
-function didPersistEffectiveState(intelligencePersistence: IntelligencePersistenceSummary | null, carePersistence: CarePersistenceResult) {
-  return Boolean(
-    intelligencePersistence?.memoriesCreated
-    || intelligencePersistence?.memoriesSuperseded
-    || intelligencePersistence?.memoryIds.length
-    || intelligencePersistence?.concernsResolved
-    || carePersistence.status === "persisted" && (carePersistence.careEntryIds.length || carePersistence.concernIds.length)
-  );
-}
-
 function revalidateAskStateViews(petIds: string[]) {
   for (const path of ["/dashboard", "/today", "/pets", "/history", "/care-log"]) revalidatePath(path);
   for (const petId of new Set(petIds.filter(Boolean))) {
@@ -2408,10 +2303,6 @@ function revalidateAskStateViews(petIds: string[]) {
     revalidatePath(`/dogs/${petId}/care`);
     revalidatePath(`/dogs/${petId}/memories`);
   }
-}
-
-function textPayloadValue(value: unknown) {
-  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 async function loadPersistedRequest({ petId, requestId, supabase, userId }: { petId: string; requestId: string; supabase: SupabaseClient; userId: string }): Promise<PersistedRequestState | null> {
@@ -2510,7 +2401,7 @@ function completedResponseFromPersisted(state: PersistedRequestState, usage: AiC
   const unfinished = Boolean(storedResponse.turn && storedResponse.turn.finalStage !== "COMPLETED");
   const response = unfinished ? { ...storedResponse, turn: { ...storedResponse.turn!, taskOutcome: "limited" as const } } : storedResponse;
   if (unfinished) persistenceWarning = "The earlier attempt did not finish. Any requested changes are not confirmed.";
-  return successfulAnswerResponse({
+  return buildSuccessfulAskResponse({
     assistantMessageId: assistantMessage.id,
     contextUsed: assistantMessage.context_used,
     carePersistence: assistantMessage.care_persistence || undefined,
