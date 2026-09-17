@@ -28,6 +28,7 @@ import {
 } from "../lib/ask.mjs";
 import { buildAskRequestPayload, type AskRequestPayload } from "../lib/ask-request-contract";
 import { persistAskDraft, readAskDraft, removeAskDraft } from "../lib/ask-draft";
+import { clearPendingAskRecovery, persistPendingAskRecovery, readPendingAskRecovery, type PendingAskRecovery } from "../lib/ask-inflight-recovery";
 import { resolveAskPetSelection } from "../lib/ask-pet-selection";
 import { getActivePetId, setActivePetId } from "../lib/active-pet";
 import { trackAskEvent } from "../lib/ask-analytics";
@@ -191,11 +192,15 @@ function AskPageContent() {
         setConversations(history);
         setHistoryCursor(historyPage.nextCursor);
         const requestedConversation = searchParams.get("conversation");
-        if (requestedConversation) {
+        const pending = readPendingAskRecovery(window.sessionStorage);
+        const pendingMatchesRoute = Boolean(pending && (!requestedConversation || pending.conversationId === requestedConversation));
+        if (pendingMatchesRoute && rows.some((profile) => profile.id === pending!.petId)) {
+          const recovered = await recoverPendingFirstTurn(pending!, () => active);
+          if (!recovered && requestedConversation) await openConversation(requestedConversation, history);
+          else if (!recovered && petId) setQuestion(readAskDraft(window.localStorage, null, petId));
+        } else if (requestedConversation) {
           await openConversation(requestedConversation, history);
-        } else if (petId) {
-          setQuestion(readAskDraft(window.localStorage, null, petId));
-        }
+        } else if (petId) setQuestion(readAskDraft(window.localStorage, null, petId));
       } catch (loadError) {
         if (active) setError(loadError instanceof Error ? loadError.message : "Furvise could not open Ask.");
       } finally {
@@ -239,6 +244,67 @@ function AskPageContent() {
     if (preserveScrollRef.current) { preserveScrollRef.current = false; return; }
     conversationEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [requestPhase, thread]);
+
+  async function recoverPendingFirstTurn(pending: PendingAskRecovery, isActive: () => boolean) {
+    const token = await getAskAuthToken();
+    if (!token || !isActive()) return false;
+    const read = () => fetch(`/api/ask?requestId=${encodeURIComponent(pending.requestId)}&petId=${encodeURIComponent(pending.petId)}`, {
+      method: "GET", headers: { Authorization: `Bearer ${token}` }, cache: "no-store",
+    });
+    const first = await read();
+    const firstPayload = await first.json().catch(() => null) as { conversationId?: string; success?: boolean } | null;
+    const conversationId = firstPayload?.conversationId && /^[0-9a-f-]{36}$/i.test(firstPayload.conversationId)
+      ? firstPayload.conversationId : pending.conversationId || null;
+    if (!conversationId) return false;
+    persistPendingAskRecovery(window.sessionStorage, { ...pending, conversationId });
+    setSelectedPet(pending.petId);
+    persistActivePetId(pending.petId);
+    setActiveConversationId(conversationId);
+    replaceAskLocation({ conversationId });
+    if (first.status === 200 && firstPayload?.success) {
+      clearPendingAskRecovery(window.sessionStorage, pending.requestId);
+      await openConversation(conversationId);
+      return true;
+    }
+    const persisted = await conversationJson(`/api/ask/conversations/${encodeURIComponent(conversationId)}`) as { conversation?: AskConversationDetail };
+    if (persisted.conversation) {
+      setThread(parseConversationDetail(persisted.conversation).map(message => message.role === "user" ? { ...message, failed: false } : message));
+      setOlderMessagesCursor(persisted.conversation.olderMessagesCursor ?? null);
+    }
+    askRequestActiveRef.current = true;
+    setAskRequestActive(true);
+    setRequestPhase("receiving");
+    void pollPendingFirstTurn(pending, conversationId, isActive);
+    return true;
+  }
+
+  async function pollPendingFirstTurn(pending: PendingAskRecovery, conversationId: string, isActive: () => boolean) {
+    try {
+      while (isActive() && Date.now() - pending.startedAt <= ASK_CLIENT_TIMEOUT_MS) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const token = await getAskAuthToken();
+        if (!token || !isActive()) return;
+        const response = await fetch(`/api/ask?requestId=${encodeURIComponent(pending.requestId)}&petId=${encodeURIComponent(pending.petId)}`, {
+          method: "GET", headers: { Authorization: `Bearer ${token}` }, cache: "no-store",
+        });
+        const payload = await response.json().catch(() => null) as { success?: boolean } | null;
+        if (response.status === 200 && payload?.success) {
+          clearPendingAskRecovery(window.sessionStorage, pending.requestId);
+          askRequestActiveRef.current = false;
+          setAskRequestActive(false);
+          setRequestPhase("completed");
+          await openConversation(conversationId);
+          return;
+        }
+        if (response.status !== 202) return;
+      }
+    } finally {
+      if (!isActive()) return;
+      askRequestActiveRef.current = false;
+      setAskRequestActive(false);
+      setRequestPhase(current => current === "receiving" ? "idle" : current);
+    }
+  }
 
   async function refreshConversations(cursor: string | null = null) {
     const generation = ++conversationListRef.current;
@@ -406,6 +472,9 @@ function AskPageContent() {
       petId: selectedPet,
     });
     const userMessageId = retry?.userMessageId || createMessageId("user");
+    const pendingFirstTurn = !retry && !conversationIdAtSubmit;
+    const recoveryRequestId = logicalTurnId;
+    if (pendingFirstTurn) persistPendingAskRecovery(window.sessionStorage, { requestId: recoveryRequestId, petId: requestPayload.petId, startedAt: Date.now() });
     askRequestActiveRef.current = true;
     setAskRequestActive(true);
     setRequestPhase(retry ? "retrying" : "submitting");
@@ -432,12 +501,14 @@ function AskPageContent() {
       // Adopt durable identity even when generation failed. Retrying retains
       // the original payload/hash; a new follow-up joins this conversation.
       if (!conversationIdAtSubmit && payload?.conversationId && /^[0-9a-f-]{36}$/i.test(payload.conversationId)) {
+        clearPendingAskRecovery(window.sessionStorage, logicalTurnId);
         setActiveConversationId(payload.conversationId);
         replaceAskLocation({ conversationId: payload.conversationId });
       }
       const parsed = parseAskConversationResponse(payload?.response) as StructuredResponse | null;
       if (payload?.usage) setUsage(payload.usage);
       const standaloneEmergency = Boolean(payload?.handledWithoutAi && payload.persistence?.saved === false && parsed?.urgency === "urgent");
+      if (standaloneEmergency) clearPendingAskRecovery(window.sessionStorage, logicalTurnId);
       if (!result.ok || !payload?.success || !parsed || (!payload.conversationId && !standaloneEmergency)) throw new AskRequestError(payload?.code || "ANSWER_RETRYABLE", payload?.message, payload?.retryAfterSeconds);
       if (payload.dataChanged) markAppDataChanged();
 

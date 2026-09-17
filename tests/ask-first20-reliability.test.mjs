@@ -219,7 +219,8 @@ function failedSubmitHarness({refreshFails=false,requestFailure='http'}={}) {
   let serverConversation=null;
   const run=extract('app/ask/page.tsx','ask',{
     noteMode:false,setNoteMode:noop,composerUnavailable:false,askRequestActiveRef:activeRef,activeConversationId:null,selectedPet:'pet',
-    dismissOnboardingEntry:noop,crypto:{randomUUID:()=> 'logical-turn'},navigator:{language:'en'},
+    dismissOnboardingEntry:noop,crypto:{randomUUID:()=> 'logical-turn'},navigator:{language:'en'},window:{sessionStorage:{}},
+    persistPendingAskRecovery:noop,clearPendingAskRecovery:noop,
     buildAskRequestPayload:input=>input,createMessageId:()=> 'user-turn',
     setAskRequestActive:v=>state.active=v,setRequestPhase:v=>state.phase=v,setFailedRequest:v=>state.failed=v,
     setError:noop,setPersistenceWarning:noop,setStatus:noop,setQuestion:noop,

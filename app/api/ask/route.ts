@@ -195,7 +195,8 @@ export async function GET(request: Request) {
       const state = await loadPersistedRequest({ requestId, petId, supabase: context.supabase, userId: context.userId });
       const response = state?.assistantMessage?.response_data?.turn?.finalStage === "COMPLETED"
         ? completedResponseFromPersisted(state, context.usage)
-        : Response.json({ success: false, code: "ANSWER_ALREADY_ACTIVE" }, { status: 202 });
+        : Response.json({ success: false, code: "ANSWER_ALREADY_ACTIVE",
+            ...(state ? { conversationId: state.conversationId, userMessageId: state.userMessageId, requestId } : {}) }, { status: 202 });
       response.headers.set("Cache-Control", "private, no-store, max-age=0");
       return response;
     } catch (error) { return handleAskApiError(error, requestId); }
