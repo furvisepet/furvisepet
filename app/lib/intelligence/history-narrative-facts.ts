@@ -1,4 +1,5 @@
 import { calendarDateInZone } from "../ask-time-zone.ts";
+import { explicitLeadingSourceDate, sourceDisplayDate } from "./source-calendar-date.ts";
 import {compoundUnit, units} from "./history-calculation.ts";
 import { isStructuredHistoryText } from "../furvise-output.ts";
 type Source = { text: string; occurredAt?: string | null; recordedAt?: string | null; petId?: string; sourceId?: string; sourceType?: string };
@@ -77,10 +78,17 @@ const quantities = historyQuantityAnchors;
 /** Candidate bindings for a repair writer, never an approval or new evidence.
  * Literal dates identify possible records; semantic review must still verify
  * the subject, occasion and complete claim against the original source. */
+function sourceDateAnchors(source: Source, timeZone = "UTC") {
+  const explicit = dates(source.text);
+  const leading = explicitLeadingSourceDate(source.text);
+  const display = sourceDisplayDate(source.text, source.occurredAt, timeZone);
+  return leading || !display ? explicit : [...explicit, ...dates(display)];
+}
+
 export function historyDateBindingHints(text: string, sources: Array<Source & {sourceId: string}>, timeZone = "UTC") {
   return [...new Set(dates(text))].map(anchor => ({ anchor, sourceIds: sources.filter(source =>
-    [...dates(source.text), ...dates(calendarDateInZone(source.occurredAt || "", timeZone))].some(date =>
-      date === anchor || date.replace(/^\d{4}:/, "") === anchor)).map(source => source.sourceId) }));
+    sourceDateAnchors(source, timeZone).some(date => date === anchor || date.replace(/^\d{4}:/, "") === anchor))
+    .map(source => source.sourceId) }));
 }
 
 function equivalentQuantity(target: string, candidates: readonly string[]) {
@@ -150,7 +158,7 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
     }
     const attribution = dates(prefix);
     if (attribution.length && !matching.some(source => {
-      const recorded = dates(calendarDateInZone(source.occurredAt || "", timeZone));
+      const recorded = sourceDateAnchors(source, timeZone);
       return attribution.every(date => recorded.some(value => value === date || value.replace(/^\d{4}:/, "") === date));
     })) {
       onUnsupported?.("Quotation attribution date does not match its source record");
@@ -174,8 +182,8 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
     }
   }
   const sourceDates = sources.flatMap(source => {
-    const explicit = [...dates(source.text), ...dates(calendarDateInZone(source.recordedAt || "", timeZone))];
-    const timestamp = calendarDateInZone(source.occurredAt || "", timeZone);
+    const explicit = [...sourceDateAnchors(source, timeZone), ...dates(calendarDateInZone(source.recordedAt || "", timeZone))];
+    const timestamp = sourceDisplayDate(source.text, source.occurredAt, timeZone);
     if (!timestamp) return explicit;
     const relative = /\byesterday\b/i.test(source.text);
     const attributed = /\b(?:note|report|entry|update)\b/i.test(text);

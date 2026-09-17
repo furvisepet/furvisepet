@@ -1,7 +1,7 @@
 import { containsUnverifiedStateClaim } from "../application-actions/state-claims.ts";
 import { recordPartialHistoryReview, readPartialHistoryReview } from "./history-review-state.ts";
 import { wholeTaskHistoryReviewSchema, parseWholeTaskHistoryReview } from "./history-review-selection.ts";
-import { calendarDateInZone } from "../ask-time-zone.ts";
+import { sourceDisplayDate } from "./source-calendar-date.ts";
 import { proseRepairSchema, applyProseRepair } from "./history-prose-repair.ts";
 import { CLAIM_AUTHORITY_POLICY, CLAIM_REVIEW_POLICY } from "./claim-authority-policy.ts";
 import { actionCanAutoExecute } from "../application-actions/policy.ts";
@@ -275,7 +275,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   const reviewSources = sharedRequest ? sources.map(source => {
     const { sourceId, sourceType, petId, text, occurredAt } = source;
     return { sourceId, sourceType, petId, text, occurredAt, recordedAt: "recordedAt" in source ? source.recordedAt : null,
-    localRecordDate: occurredAt ? calendarDateInZone(occurredAt, evidence.timeZone || "UTC") : null,
+    localRecordDate: sourceDisplayDate(text, occurredAt, evidence.timeZone || "UTC"),
     ...(sourceType === "care_update" && evidence.recordTitles?.[sourceId] ? { title: evidence.recordTitles[sourceId] } : {}),
     provenanceStatuses: [...new Set(evidence.history!.provenance.filter(item => item.sourceId === sourceId).map(item => item.status))],
   }; }) : sources;

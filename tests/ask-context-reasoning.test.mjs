@@ -90,6 +90,12 @@ test('records on the same UTC day keep their distinct local display dates', () =
   assert.equal(records.find(record => record.id === 'care:early').occurredAt, '2026-07-27T01:00:00Z');
 });
 
+test('explicit leading source date stays authoritative in prompt metadata', () => {
+  const careEntries = [care({ id: 'dated', note: 'September 12, 2026: Mani played for 17 minutes.', occurred_at: '2026-09-12T00:00:00Z' })];
+  const records = buildAskContext(input({ careEntries, timeZone: 'America/Vancouver' })).promptContext.contextRecords;
+  assert.equal(records.find(record => record.id === 'care:dated').metadata.localRecordDate, '2026-09-12');
+});
+
 function unified(overrides = {}) {
   return {
     answer: "Short play sessions are a good starting point for Mani.",
