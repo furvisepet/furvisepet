@@ -12,6 +12,7 @@ import {
   clearAskProviderCooldownsForTests,
   generateContextAwareAskResponse,
   getAskModelConfiguration,
+  latestNeedScopedCareIds,
   buildAskProviderRequest,
   parseUnifiedResponse,
 } from "../app/lib/ai/ask-reasoning.ts";
@@ -78,6 +79,17 @@ function input(overrides = {}) {
     locale: "en-CA", now, ...overrides,
   };
 }
+
+test('latest need scope keeps only the newest candidate from its own query receipt', () => {
+  const evidence={scope:{authorizedPetIds:['pet-mani']},interpretation:{request:{evidenceNeeds:[{id:'need:0',order:'latest',petIds:['pet-mani']}]}},
+    history:{needs:[{needId:'need:0',petId:'pet-mani',candidateIds:['care:new','care:older'],reason:null}]}};
+  const records=[
+    {id:'care:new',sourceType:'care_update',petId:'pet-mani',occurredAt:'2026-09-16T05:50:00Z'},
+    {id:'care:older',sourceType:'care_update',petId:'pet-mani',occurredAt:'2026-09-10T00:00:00Z'},
+    {id:'care:noise',sourceType:'care_update',petId:'pet-mani',occurredAt:'2026-09-17T00:00:00Z'},
+  ];
+  assert.deepEqual([...latestNeedScopedCareIds(evidence,records)],['care:new']);
+});
 
 test('records on the same UTC day keep their distinct local display dates', () => {
   const careEntries = [

@@ -596,8 +596,24 @@ export function buildAskContext(input: BuildContextInput) {
   };
 }
 
+export function latestNeedScopedCareIds(evidence: AskEvidenceContract, records: AskContextRecord[]): Set<string> | null {
+  const needs = evidence.interpretation?.request?.evidenceNeeds || [];
+  if (evidence.scope.authorizedPetIds.length !== 1 || needs.length !== 1 || needs[0].order !== "latest") return null;
+  const petId = needs[0].petIds?.length === 1 ? needs[0].petIds[0] : evidence.scope.authorizedPetIds[0];
+  const candidateIds = new Set((evidence.history?.needs || [])
+    .filter(query => query.needId === needs[0].id && query.petId === petId && !query.reason)
+    .flatMap(query => query.candidateIds));
+  if (!candidateIds.size) return null;
+  const candidates = records.filter(record => record.sourceType === "care_update" && record.petId === petId
+    && candidateIds.has(record.id) && record.occurredAt && Number.isFinite(Date.parse(record.occurredAt)));
+  if (!candidates.length) return null;
+  const latest = Math.max(...candidates.map(record => Date.parse(record.occurredAt!)));
+  return new Set(candidates.filter(record => Date.parse(record.occurredAt!) === latest).map(record => record.id));
+}
+
 function enforceAskPromptContextBudget<T extends { contextRecords: AskContextRecord[]; evidenceContract: AskEvidenceContract }>(promptContext: T): T {
-  const contextRecords = [...promptContext.contextRecords];
+  const latestScope = latestNeedScopedCareIds(promptContext.evidenceContract, promptContext.contextRecords);
+  const contextRecords = promptContext.contextRecords.filter(record => record.sourceType !== "care_update" || !latestScope || latestScope.has(record.id));
   const budgeted = { ...promptContext, contextRecords };
   representEvidence(budgeted.evidenceContract, contextRecords);
   const policy = getAiFeaturePolicy("ask");
