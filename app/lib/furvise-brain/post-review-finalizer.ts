@@ -19,7 +19,28 @@ export type DurableAskFinalization<TDurableReceipt, TResponse> =
 
 type MaybePromise<T> = T | Promise<T>;
 
-type PostReviewSnapshot<
+type PostReviewEffectSnapshot<
+  TPersisted,
+  TCapabilities,
+  TIntelligence,
+  TActions,
+  TCare,
+  TAssessment,
+  TSettlement,
+  TDurableReceipt,
+  TResponse,
+> = {
+  persisted: TPersisted;
+  capabilities: TCapabilities;
+  intelligence: TIntelligence;
+  actions: TActions;
+  care: TCare;
+  assessment: TAssessment;
+  settlement: TSettlement;
+  durable: DurableAskFinalization<TDurableReceipt, TResponse>;
+};
+
+type PostReviewPublicationSnapshot<
   TPersisted,
   TCapabilities,
   TIntelligence,
@@ -42,8 +63,9 @@ type PostReviewSnapshot<
 /**
  * Executive-control boundary for a reviewed Ask answer.
  *
- * Every effect stage is explicit and ordered. A durable replay exits before a
- * second publication path can synthesize new success metadata or rerun effects.
+ * Every effect stage is explicit and ordered. Durable readback still publishes
+ * cache freshness because committed state exists, but it exits before a second
+ * success serializer can synthesize metadata or any effect can rerun.
  */
 export async function finalizeAskPostReview<
   TPersisted,
@@ -72,8 +94,8 @@ export async function finalizeAskPostReview<
     assessment: TAssessment;
     settlement: TSettlement;
   }) => MaybePromise<DurableAskFinalization<TDurableReceipt, TResponse>>;
-  invalidateCommittedState: (snapshot: PostReviewSnapshot<TPersisted, TCapabilities, TIntelligence, TActions, TCare, TAssessment, TSettlement, TDurableReceipt>) => MaybePromise<void>;
-  publishSuccess: (snapshot: PostReviewSnapshot<TPersisted, TCapabilities, TIntelligence, TActions, TCare, TAssessment, TSettlement, TDurableReceipt>) => MaybePromise<TResponse>;
+  invalidateCommittedState: (snapshot: PostReviewEffectSnapshot<TPersisted, TCapabilities, TIntelligence, TActions, TCare, TAssessment, TSettlement, TDurableReceipt, TResponse>) => MaybePromise<void>;
+  publishSuccess: (snapshot: PostReviewPublicationSnapshot<TPersisted, TCapabilities, TIntelligence, TActions, TCare, TAssessment, TSettlement, TDurableReceipt>) => MaybePromise<TResponse>;
 }): Promise<TResponse> {
   const persisted = await operations.persistReviewedAnswer();
   const capabilities = await operations.mintActionCapabilities(persisted);
@@ -92,9 +114,21 @@ export async function finalizeAskPostReview<
     settlement,
   });
 
+  const effectSnapshot = {
+    persisted,
+    capabilities,
+    intelligence,
+    actions,
+    care,
+    assessment,
+    settlement,
+    durable,
+  };
+  await operations.invalidateCommittedState(effectSnapshot);
+
   if (durable.kind === "replay") return durable.response;
 
-  const snapshot = {
+  return operations.publishSuccess({
     persisted,
     capabilities,
     intelligence,
@@ -103,7 +137,5 @@ export async function finalizeAskPostReview<
     assessment,
     settlement,
     durableReceipt: durable.receipt,
-  };
-  await operations.invalidateCommittedState(snapshot);
-  return operations.publishSuccess(snapshot);
+  });
 }
