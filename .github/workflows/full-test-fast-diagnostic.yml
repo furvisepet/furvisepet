@@ -37,7 +37,7 @@ jobs:
           {
             echo "full_suite_exit=$status"
             echo "===== FAILURE BLOCKS ====="
-            grep -n -B4 -A45 -E '^not ok ' /tmp/full-test.log || true
+            grep -n -B5 -A45 -E '✖|^not ok ' /tmp/full-test.log || true
             echo "===== FINAL TAIL ====="
             tail -n 100 /tmp/full-test.log
           } > full-test-fast-diagnostic.txt
