@@ -8,6 +8,7 @@ import { semanticEventRpcArguments } from "../app/lib/intelligence/semantic-even
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const askRoute = read("app/api/ask/route.ts");
+const publication = read("app/lib/intelligence/finalize-ask-publication.ts");
 const pendingPersistence = read("app/lib/intelligence/persist-pending-suggestion.ts");
 const askPage = read("app/ask/page.tsx");
 const suggestionRoute = read("app/api/ask/suggestions/[id]/route.ts");
@@ -61,7 +62,8 @@ test("Ask uses four truthful care-history states and never turns an auxiliary fa
   assert.match(askRoute, /historyReviewRequired \? \[\] : intelligenceResult\.executionPlan\.semanticEvents/);
   assert.match(askRoute, /automaticCareFailure[\s\S]*persistPendingSuggestion/);
   assert.match(pendingPersistence, /HISTORY_SUGGESTION_PERSISTENCE_FAILED/);
-  assert.match(askRoute, /return successfulAnswerResponse\(/);
+  assert.match(askRoute, /return buildSuccessfulAskResponse\(/);
+  assert.match(publication, /export function buildSuccessfulAskResponse/);
   assert.doesNotMatch(askRoute.slice(askRoute.indexOf("const automaticCareFailure"), askRoute.indexOf("async function safeReleaseAiCredit")), /return askFailure\(/);
 });
 
