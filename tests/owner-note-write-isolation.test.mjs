@@ -90,11 +90,31 @@ function httpHarness({mixed=false,denied=false,conversationFailure=false,dbFailu
   const db={from:()=>({select:()=>({eq:async()=>({data:profiles,error:null})})})};
   const source=readFileSync(new URL('../app/api/ask/route.ts',import.meta.url),'utf8');
   const ast=ts.createSourceFile('route.ts',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);
-  const names=['POST','executeAskRequest','completeOwnerNoteResponse','successfulAnswerResponse'];
+  const names=['POST','executeAskRequest','completeOwnerNoteResponse'];
   const code=ast.statements.filter(n=>ts.isFunctionDeclaration(n)&&names.includes(n.name?.text)).map(n=>n.getText(ast).replace(/^export /,'')).join('\n');
   const noop=()=>{};
+  const buildSuccessfulAskResponse=input=>Response.json({
+    answer:input.response.directAnswer,
+    assistantMessageId:input.assistantMessageId||'',
+    concern:null,
+    contextUsed:input.contextUsed,
+    conversationId:input.conversationId,
+    creditsUsed:input.creditsUsed||0,
+    handledWithoutAi:Boolean(input.handledWithoutAi),
+    dataChanged:Boolean(input.applicationStateChanged),
+    carePersistence:input.carePersistence,
+    persistence:{saved:Boolean(input.saved),...(input.persistenceWarning?{warning:input.persistenceWarning}:{})},
+    persistenceMode:input.persistenceMode||'none',
+    response:input.response,
+    safety:{level:input.safetyLevel,shoppingSuppressed:Boolean(input.shoppingSuppressed)},
+    saveMetadata:input.saveMetadata,
+    success:true,
+    turn:input.turn||null,
+    userMessageId:input.userMessageId,
+    usage:input.usage,
+  });
   const sandbox={Response,Request,Headers,AbortSignal,console:{warn:noop,info:noop},ASK_REQUEST_KEYS,AskTurnLifecycle,deriveAskAttemptId,OperationDeadline,
-    resolveOwnerNoteRequest,persistOwnerNote,resolveAskTimeZone,buildAskConversationResponse,isExplicitCareHistorySaveRequest,detectImmediateAskEmergency,buildImmediateEmergencyGuidance,
+    resolveOwnerNoteRequest,persistOwnerNote,resolveAskTimeZone,buildAskConversationResponse,buildSuccessfulAskResponse,isExplicitCareHistorySaveRequest,detectImmediateAskEmergency,buildImmediateEmergencyGuidance,
     ASK_OPERATION_TIMEOUT_MS:150000,ASK_MAX_QUESTION_CHARACTERS:1200,API_BODY_LIMITS:{ask:10000},RequestBoundaryError:class extends Error{},RateLimitRejection:class extends Error{},FurviseContextError:class extends Error{},
     loadAskAuthenticationContext:async()=>denied?{response:Response.json({success:false},{status:401})}:{supabase:db,userId},
     readBoundedJson:r=>r.json(),hasOnlyKeys:()=>true,isUuid:()=>true,isSecurityUuid:()=>true,resolveAskLocale:()=> 'en',hashAiCreditPayload:()=> 'hash',
@@ -108,7 +128,6 @@ function httpHarness({mixed=false,denied=false,conversationFailure=false,dbFailu
     buildFurviseContext:async()=>{calls.context++;throw Error('optional context unavailable');},revalidateAskStateViews:noop,
     completeAskConversationTurn:async()=>conversationFailure?{error:Error('conversation unavailable'),data:null}:{data:[{assistant_message_id:'89100000-0000-4000-8000-000000000061'}],error:null},
     validAssistantCompletionRow:data=>data?.[0]||null,finalizeAskAssistantResponse:async()=>({error:null}),
-    didPersistEffectiveState:(_,receipt)=>receipt?.status==='persisted',persistedLearningConfirmation:()=>null,
     askFailure:(_code,message,status)=>Response.json({success:false,message},{status}),handleAskApiError:()=>Response.json({success:false},{status:503}),
     FURVISE_ASK_UNAVAILABLE_MESSAGE:'unavailable',admitAiOperation:async()=>{calls.provider++;throw Error('AI offline');},
   };
