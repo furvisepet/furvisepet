@@ -18,7 +18,8 @@ test('receipt discovery is bounded and scoped to owner, pet, conversation and hi
  assert.equal(result[0].recoveredReceiptReference,true);
  assert.equal(result[0].response_data,null);
  assert.equal(result[0].user_text,source.user_text);
- for(const call of [['eq','user_id','owner'],['eq','pet_profile_id','pet'],['is','deleted_at',null],['eq','source_message.user_id','owner'],['eq','source_message.conversation_id','conversation'],['eq','source_message.role','user'],['gte','occurred_at',input.historyAccess.from],['lt','occurred_at',input.historyAccess.to],['limit',4]])assert.ok(calls.some(actual=>JSON.stringify(actual)===JSON.stringify(call)),JSON.stringify(call));
+ for(const call of [['eq','user_id','owner'],['eq','pet_profile_id','pet'],['is','deleted_at',null],['eq','source_message.user_id','owner'],['eq','source_message.conversation_id','conversation'],['eq','source_message.role','user'],['gte','occurred_at',input.historyAccess.from],['limit',4]])assert.ok(calls.some(actual=>JSON.stringify(actual)===JSON.stringify(call)),JSON.stringify(call));
+ assert.equal(calls.some(call=>call[0]==='lt'&&call[1]==='occurred_at'),false,'receipt lineage keeps the subscription lower bound but does not hide future-dated saved records');
  assert.ok(calls.find(c=>c[0]==='abortSignal')[1] instanceof AbortSignal);
  assert.match(calls.find(c=>c[0]==='select')[1],/!intelligence_source_message_id!inner/);
 });

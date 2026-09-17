@@ -1,7 +1,7 @@
 import { recoverTransientRead } from "../security/read-recovery.ts";
 import { recoverConversationReceiptReferences, requestsStoredNoteReadback } from "./conversation-receipt-recovery.ts";
 import "server-only";
-import { enforceAskHistoryAccess, historyDateAccessible, type AskHistoryAccess } from "./history-access.ts";
+import { enforceAskHistoryAccess, type AskHistoryAccess } from "./history-access.ts";
 import { episodePresentation } from "./episode-presentation.ts";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -171,7 +171,8 @@ export async function buildFurviseContext({
           actionReceipts: capabilityActions.complete ? messages.data.filter(other => other.role === "furvise" && other.request_id === message.request_id)
             .flatMap(other => parseStoredApplicationActions(capabilityActions.get(other.id) || [])).filter(action => action.petId === petId && action.mutationClass === "mutation")
             .map(action => ({ id: action.id, kind: action.kind, status: action.status, resultMessage: action.resultMessage })) : undefined,
-          records: (deletedCareSources.data || []).filter(row => !row.deleted_at && row.intelligence_source_message_id === message.id && historyDateAccessible(row.occurred_at, historyAccess))
+          records: (deletedCareSources.data || []).filter(row => !row.deleted_at && row.intelligence_source_message_id === message.id
+            && (!historyAccess || Date.parse(row.occurred_at) >= Date.parse(historyAccess.from)))
             .map(row => ({ id: row.id, note: row.note, occurredAt: row.occurred_at })),
         } } : {}),
         ...(message.role === "furvise" ? { applicationActions: parseStoredApplicationActions(trustedActions) } : {}),

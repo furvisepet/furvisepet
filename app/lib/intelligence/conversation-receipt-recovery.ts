@@ -20,7 +20,7 @@ export async function recoverConversationReceiptReferences(db: SupabaseClient, i
     .eq("user_id", input.userId).eq("pet_profile_id", input.petId).is("deleted_at", null)
     .eq("source_message.user_id", input.userId).eq("source_message.conversation_id", input.conversationId)
     .eq("source_message.role", "user");
-  if (input.historyAccess) query = query.gte("occurred_at", input.historyAccess.from).lt("occurred_at", input.historyAccess.to);
+  if (input.historyAccess) query = query.gte("occurred_at", input.historyAccess.from);
   const result = await query.order("created_at", { ascending: false }).order("id", { ascending: false })
     .limit(4).abortSignal(AbortSignal.timeout(2500));
   if (result.error) throw new Error("receipt_reference_unavailable");

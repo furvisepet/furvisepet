@@ -41,3 +41,16 @@ test('unavailable conversation lineage suppresses uncertain claims, keeps indepe
  assert.deepEqual(ctx.careEntries.map(r=>r.id),['old-weight']);
  assert.ok(ctx.contextRecovery.unavailableSources.includes('conversation_source_lineage'));
 });
+
+test('future-dated saved record remains receipt-readable without entering elapsed history',async()=>{
+ const future=care('future-saved','luna','2026-09-18','general','Luna is scheduled for a 8:15 PM observation.',{intelligence_source_message_id:'future-source',occurred_at:'2026-09-18T03:15:00Z',created_at:'2026-09-17T12:46:00Z',updated_at:'2026-09-17T12:46:00Z'});
+ const source={...messages[0],id:'future-source',request_id:'future-request',user_text:'Save this future-dated Luna note.',created_at:'2026-09-17T12:46:00Z'};
+ const assistant={id:'future-assistant',conversation_id:'chat',user_id:ownerId,request_id:'future-request',role:'furvise',user_text:null,response_data:{directAnswer:'Saved.'},sequence_number:2,created_at:'2026-09-17T12:46:01Z'};
+ const db=database([future],{fixturePets:pets,conversationPetId:'luna',messages:[source,assistant]});
+ const ctx=await buildFurviseContext({supabase:db,userId:ownerId,petId:'luna',conversationId:'chat',currentMessage:'What did I save?',
+  historyAccess:{months:3,from:'2026-06-17T00:00:00Z',to:'2026-09-18T00:00:00Z'}});
+ const recovered=ctx.conversationTurns.find(turn=>turn.id==='future-source');
+ assert.ok(recovered?.operationReceipt,'durable save lineage must survive future event time');
+ assert.deepEqual(recovered.operationReceipt.records.map(r=>r.id),['future-saved']);
+ assert.equal(ctx.careEntries.some(row=>row.id==='future-saved'),false,'future event must not enter elapsed clinical history');
+});
