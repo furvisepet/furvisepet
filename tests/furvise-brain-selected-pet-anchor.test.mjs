@@ -46,9 +46,9 @@ test("a mere mention of another pet does not outrank an explicit selected-pet su
   assert.equal(result.entity.petId, "pebble");
 });
 
-test("equally recent competing subjects remain ambiguous", () => {
+test("coordinated competing subjects remain ambiguous", () => {
   const s = state([
-    { role: "user", text: "Atlas ran. Pixel jumped." },
+    { role: "user", text: "Atlas and Pixel ran together." },
   ]);
   const result = resolveRecentPronoun(s, "he");
   assert.equal(result.status, "ambiguous");
