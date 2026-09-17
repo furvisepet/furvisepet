@@ -49,8 +49,8 @@ jobs:
           )
           replace(
               "app/lib/intelligence/owner-note-request.ts",
-              '    if (/\\b(?:hypothetical|fictional|pretend|suppose|example|translate)\\b/i.test(commandText)) return null;\n',
-              '    if (/\\b(?:hypothetical|fictional|pretend|suppose|example|translate)\\b/i.test(commandText)) return null;\n    // Conditional statements are not durable observations. The deterministic\n    // save fast path abstains so the normal turn can clarify the condition.\n    if (/\\b(?:if|unless)\\b/i.test(commandText)) return null;\n',
+              '    const commands = sentences.filter(sentence => sentence.includes(authorization));\n    if (!commands.length) return null;\n',
+              '    const commands = sentences.filter(sentence => sentence.includes(authorization));\n    if (!commands.length) return null;\n    const commandIndex = sentences.findIndex(sentence => sentence.includes(authorization));\n    const commandHasCondition = commands.some(sentence => /\\b(?:if|unless)\\b/i.test(sentence));\n    const priorClauseConditionsReferencedNote = commandIndex > 0\n      && /\\b(?:if|unless)\\b/i.test(sentences[commandIndex - 1])\n      && /\\b(?:this|that)\\s+note\\b|\\bit\\b/i.test(sentences[commandIndex]);\n    // A conditional save is not durable authorization. Scope this guard to the\n    // save clause (or the clause it explicitly points back to) so an unrelated\n    // follow-up such as "tell me if..." does not suppress a valid note write.\n    if (commandHasCondition || priorClauseConditionsReferencedNote) return null;\n',
           )
           replace(
               "app/lib/intelligence/entities/recent-subject-state.ts",
