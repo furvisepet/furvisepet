@@ -32,7 +32,7 @@ export function applyAskInterpretation(
   input: { readPetIds?: readonly string[] } = {},
 ): FurviseTurnAuthority {
   const need = memoryNeedForRequest(request);
-  const memoryPetIds = need === "working" || need === "none" ? [] : input.readPetIds || turn.subject.petIds;
+  const memoryPetIds = need === "none" ? [] : input.readPetIds || turn.subject.petIds;
   const withMemory = setFurviseMemoryAuthority(turn, { need, petIds: memoryPetIds });
   return Object.freeze({
     ...withMemory,
