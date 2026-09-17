@@ -1,0 +1,50 @@
+name: Temporary Ask Publication Receipt Format
+
+on:
+  push:
+    branches:
+      - codex/ask-human-architecture-v1
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Normalize receipt expression indentation
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("app/api/ask/route.ts")
+          source = path.read_text()
+          old = '''      saved: Boolean(
+      !intelligencePersistenceWarning
+      && intelligencePersistence
+      && didPersistEffectiveState(intelligencePersistence, intelligencePersistence.carePersistence)
+    ),'''
+          new = '''      saved: Boolean(
+        !intelligencePersistenceWarning
+        && intelligencePersistence
+        && didPersistEffectiveState(intelligencePersistence, intelligencePersistence.carePersistence)
+      ),'''
+          if source.count(old) != 1:
+              raise SystemExit("expected exactly one receipt block needing formatting")
+          path.write_text(source.replace(old, new))
+          PY
+          node --test tests/ask-publication-receipt.test.mjs
+      - name: Commit formatting and remove temporary workflow
+        shell: bash
+        run: |
+          rm .github/workflows/tmp-ask-publication-format.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/api/ask/route.ts .github/workflows/tmp-ask-publication-format.yml
+          git diff --cached --check
+          git commit -m "Normalize Ask publication receipt guard"
+          git push origin HEAD:codex/ask-human-architecture-v1
