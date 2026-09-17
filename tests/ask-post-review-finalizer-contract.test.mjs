@@ -36,7 +36,12 @@ test("reviewed Ask effects remain ordered before the Brain tail handoff", () => 
 test("Brain executive control owns settlement through final publication", () => {
   const finalizer = functionSlice("persistAssistantAnswer", "function standaloneEmergencyResponse");
   assert.match(route, /from "\.\.\/\.\.\/lib\/furvise-brain\/post-review-finalizer\.ts"/);
-  const delegate = finalizer.slice(finalizer.indexOf("return finalizeAskPostReview({"));
+  const delegateStart = finalizer.indexOf("return finalizeAskPostReview({");
+  assert.ok(delegateStart > 0);
+  assert.equal(finalizer.split("return finalizeAskPostReview({").length - 1, 1, "there is exactly one Brain terminal handoff");
+  assert.doesNotMatch(finalizer.slice(0, delegateStart), /turnLifecycle\.transition\("COMPLETED"\)/, "route cannot complete before Brain handoff");
+  assert.doesNotMatch(finalizer.slice(0, delegateStart), /buildSuccessfulAskResponse\(/, "route cannot publish success before Brain handoff");
+  const delegate = finalizer.slice(delegateStart);
   const stages = [
     "persistReviewedAnswer:",
     "mintActionCapabilities:",
