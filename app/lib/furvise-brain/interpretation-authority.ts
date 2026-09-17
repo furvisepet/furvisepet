@@ -1,5 +1,6 @@
 import type { AskRequestContract } from "../intelligence/ask-request-contract.ts";
 import type { FurviseMemoryNeed, FurviseTurnAuthority, FurviseTurnIntent } from "./turn-authority.ts";
+import { setFurviseMemoryAuthority } from "./turn-authority.ts";
 
 function intentForRequest(request: AskRequestContract): FurviseTurnIntent {
   if (request.mode === "clarify" || request.operation === "clarify") return "clarify";
@@ -21,20 +22,21 @@ function memoryNeedForRequest(request: AskRequestContract): FurviseMemoryNeed {
 }
 
 /**
- * Convert the validated semantic request into brain-owned cognitive fields.
- *
- * Deliberately preserves subject and mutation authority. The interpretation
- * organ can describe intent, memory depth and references, but cannot decide who
- * is authoritative or open a write capability.
+ * Convert validated semantic planning into brain-owned cognitive fields.
+ * Subject identity and mutation authority remain untouched. The caller supplies
+ * the already server-resolved read pet ids; the model never invents database ids.
  */
 export function applyAskInterpretation(
   turn: FurviseTurnAuthority,
   request: AskRequestContract,
+  input: { readPetIds?: readonly string[] } = {},
 ): FurviseTurnAuthority {
+  const need = memoryNeedForRequest(request);
+  const memoryPetIds = need === "working" || need === "none" ? [] : input.readPetIds || turn.subject.petIds;
+  const withMemory = setFurviseMemoryAuthority(turn, { need, petIds: memoryPetIds });
   return Object.freeze({
-    ...turn,
+    ...withMemory,
     intent: intentForRequest(request),
-    memoryNeed: memoryNeedForRequest(request),
     referenceTurnIds: Object.freeze([...new Set(request.referenceTurnIds.filter(Boolean))]),
   });
 }
