@@ -1,0 +1,68 @@
+name: Full Test Diagnostic
+
+on:
+  push:
+    branches:
+      - codex/ask-human-architecture-v1
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: test-publishable-key
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: codex/ask-human-architecture-v1
+      - name: Use repository Node version
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Isolate failing tests
+        shell: bash
+        run: |
+          set +e
+          report="full-test-diagnostic.txt"
+          : > "$report"
+          failures=0
+          total=0
+          while IFS= read -r test_file; do
+            total=$((total + 1))
+            output_file="$(mktemp)"
+            node --test "$test_file" > "$output_file" 2>&1
+            status=$?
+            if [ "$status" -ne 0 ]; then
+              failures=$((failures + 1))
+              {
+                echo "===== FAIL: $test_file ====="
+                cat "$output_file"
+                echo
+              } >> "$report"
+            fi
+            rm -f "$output_file"
+          done < <(find tests -type f -name '*.test.mjs' -print | sort)
+          {
+            echo "===== SUMMARY ====="
+            echo "files_checked=$total"
+            echo "files_failed=$failures"
+          } >> "$report"
+      - name: Publish diagnostic result to branch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add full-test-diagnostic.txt
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: capture full test diagnostic"
+            git push origin HEAD:codex/ask-human-architecture-v1
+          fi
