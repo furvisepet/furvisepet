@@ -19,6 +19,7 @@ PERCEPTION
   v
 FURVISE BRAIN  <---- working memory / conversation state
   |
+  +----> SUBJECT ORGAN -----> entity / pet resolution only
   +----> MEMORY ORGAN ------> lifetime history / profile / evidence
   +----> SAFETY ORGAN ------> deterministic risk constraints
   +----> ACTION ORGAN ------> save / correct / lifecycle / navigation
@@ -38,14 +39,7 @@ ONE FURVISE RESPONSE
 
 Every user message becomes exactly one authoritative turn contract before downstream systems act.
 
-That contract owns:
-
-- subject / pet identity
-- user intent
-- memory depth
-- references to prior turns
-- mutation authorization
-- confirmation state
+That contract owns subject identity, user intent, memory depth, prior-turn references, mutation authorization, and confirmation state.
 
 Classifiers, planners, retrievers, models, and validators may contribute signals. They do not own independent copies of these decisions.
 
@@ -53,8 +47,7 @@ Classifiers, planners, retrievers, models, and validators may contribute signals
 
 An organ can be sophisticated while remaining narrow.
 
-Examples:
-
+- Subject resolution may identify a pet, person, or external animal. It cannot change mutation authority.
 - History retrieves and projects records. It does not decide whether the user wants to save something.
 - Safety can block or constrain actions. It does not become a second conversational agent.
 - Mutation can execute an already-authorized action. It cannot infer authorization.
@@ -68,27 +61,16 @@ Natural-language interpretation may be uncertain. A database mutation may not be
 A write requires server-verifiable user authorization for that mutation class. Authorization has explicit provenance:
 
 - `current_turn`: the current user message contains an affirmative command.
-- `transport`: an explicit product control, such as a Save action, supplied the authorization.
+- `transport`: an explicit product control, such as Save note, supplied the authorization.
 - `durable_capability`: an earlier user turn was already verified as an authorization and the server retained that capability while waiting for missing information.
 
-The following are never write authorization by themselves:
+The following are never write authorization by themselves: subject clarification, selected-pet context, prior assistant wording, arbitrary prior user wording, the mere existence of a pending task, retrieved history, model inference, or a suggestion that a note would be useful.
 
-- subject clarification
-- selected-pet context
-- prior assistant wording
-- arbitrary prior user wording
-- the mere existence of a pending task
-- retrieved history
-- model inference
-- a suggestion that a note would be useful
-
-A durable capability is different from trusting prior prose: the server must be able to identify the exact user authorization turn and re-verify that it contained an affirmative command.
+A durable capability is different from trusting prior prose: the server must identify the exact user authorization turn and re-verify that it contained an affirmative command.
 
 ### 4. Clarification is field-local
 
 A clarification resolves only the missing field it was requested for.
-
-Example without prior authorization:
 
 ```text
 User: he rolled down the hill yesterday
@@ -96,17 +78,7 @@ Furvise: Which pet do you mean?
 User: Pebble
 ```
 
-The second user turn may resolve `subject = Pebble`.
-
-It may not create or change:
-
-- `intent`
-- `mutation.allowed`
-- `mutation.kind`
-- `confirmation`
-- unrelated retrieval scope
-
-This prevents `I mean Pebble` from becoming an accidental save command.
+The second user turn may resolve `subject = Pebble`. It may not create or change intent, mutation authority, confirmation state, or unrelated retrieval scope.
 
 A different flow is valid when the user already authorized an action:
 
@@ -120,56 +92,51 @@ The final turn does not create permission. It supplies the missing subject to a 
 
 ### 5. Memory and action are separate systems
 
-Understanding or recalling a fact does not imply permission to create a permanent record.
-
-Furvise may understand:
-
-> Pebble rolled down a hill yesterday.
-
-without creating a care-history entry.
-
-Permanent storage requires verified write authority.
+Understanding or recalling a fact does not imply permission to create a permanent record. Furvise may understand that Pebble rolled down a hill without creating a care-history entry.
 
 ### 6. One final voice
 
-Organs return structured results to the brain. Only the brain publishes the final user-facing response.
-
-A subsystem must never independently return a contradictory completion such as `Note saved` when no authorized write actually committed.
+Organs return structured results to the brain. Only the brain publishes the final user-facing response. A subsystem must never independently return a contradictory completion such as `Note saved` when no authorized write actually committed.
 
 ### 7. History behaves like an event ledger
 
-Pet history remains correction-aware and append-oriented.
-
-Corrections, deletions, source changes, and lifecycle events are represented through lineage and authoritative projection rather than pretending old records never existed.
+Pet history remains correction-aware and append-oriented. Corrections, deletions, source changes, and lifecycle events are represented through lineage and authoritative projection rather than pretending old records never existed.
 
 The existing lifetime-history retrieval and evidence work should be preserved and moved behind the memory-organ boundary rather than rewritten.
 
 ### 8. Retry is a workflow concern, not a second attempt at meaning
 
-A logical turn has one identity and one authoritative decision state.
-
-Retries recover or resume that turn. They do not reinterpret it from scratch after partial side effects.
+A logical turn has one identity and one authoritative decision state. Retries recover or resume that turn; they do not reinterpret it from scratch after partial side effects.
 
 ### 9. Dangerous state transitions require confirmation capability
 
-Lifecycle and destructive actions require deterministic confirmation where policy says so.
-
-The model may propose the action, but the action organ physically cannot commit it until the confirmation capability has been satisfied.
+Lifecycle and destructive actions require deterministic confirmation where policy says so. The model may propose the action, but the action organ physically cannot commit it until confirmation has been satisfied.
 
 ### 10. Extension rule
 
-Future Furvise features should be added as either:
+Future Furvise features should be added as either a new brain capability that extends the canonical turn contract, or a specialized organ with a narrow interface.
 
-1. a new brain capability that extends the canonical turn contract, or
-2. a specialized organ with a narrow interface.
+Do not add a new independent intent authority, mutation authority, subject authority, memory-scope authority, or final-response authority.
 
-Do not add a new independent intent authority, mutation authority, or final-response authority.
+## Current canonical brain modules
+
+```text
+furvise-brain/
+  turn-authority.ts           canonical immutable turn state
+  mutation-authorization.ts  deterministic write-authorization proof
+  subject-authority.ts        subject-only field updates
+  interpretation-authority.ts model interpretation -> advisory cognitive fields
+  memory-organ.ts             brain-scoped lifetime/profile retrieval boundary
+```
+
+The owner-note task continuation and direct owner-note persistence paths already cross the brain mutation gate before they can reach a database write.
 
 ## Canonical turn pipeline
 
 ```text
 RECEIVED
   -> PERCEIVED
+  -> SUBJECT_RESOLVED
   -> TURN_AUTHORIZED
   -> MEMORY_PLANNED
   -> EVIDENCE_RETRIEVED
@@ -215,14 +182,12 @@ A pending object without valid authorization provenance is inert. It may not be 
 
 ## Migration strategy from current Ask
 
-The current Ask implementation contains valuable capabilities but overlapping decision makers. Migration is incremental:
-
-1. Introduce the canonical turn authority and mutation firewall.
-2. Require server-verifiable authorization provenance for every current or resumed write.
-3. Route subject resolution through the canonical turn.
-4. Make interpretation/classification modules advisory inputs rather than independent authorities.
-5. Move lifetime retrieval behind a memory-organ interface.
-6. Move all writes behind the action-organ gate.
+1. Introduce canonical turn authority and mutation firewall. **Established; owner-note paths wired.**
+2. Require server-verifiable authorization provenance for every current or resumed write. **Established for owner-note paths.**
+3. Route subject resolution through canonical subject authority. **Adapter established; main route migration next.**
+4. Make interpretation/classification modules advisory inputs rather than independent authorities. **Interpretation adapter established; main route migration next.**
+5. Move lifetime retrieval behind a memory-organ interface. **Interface established; main route migration next.**
+6. Move remaining writes behind the action-organ gate.
 7. Centralize response publication through one brain-owned finalizer.
 8. Reduce `app/api/ask/route.ts` to transport, admission, orchestration, and response delivery.
 
