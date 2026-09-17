@@ -119,7 +119,10 @@ export async function reviewTaskCompletion(input: {
   client?: { responses: { create: (request: Record<string, unknown>, options?: { signal: AbortSignal }) => Promise<Record<string, unknown>> } };
 }): Promise<AnswerValidationResult> {
   const request = input.context.askInterpretation?.request;
-  if (!request || input.validation.response.evidenceContract?.history
+  // This reviewer is the non-history complement. A saved-history request
+  // remains historical even when retrieval produced no history object; the
+  // history/evidence validator already owns deterministic limitations there.
+  if (!request || request.evidenceBasis === "saved_history" || input.validation.response.evidenceContract?.history
     || ["urgent", "emergency"].includes(input.validation.response.intelligenceSafety.level)) return input.validation;
   const provider = input.client || new OpenAI({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 0 }) as unknown as NonNullable<typeof input.client>;
   const model = getAskModelConfiguration().primary;

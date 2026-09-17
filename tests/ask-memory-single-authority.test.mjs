@@ -34,11 +34,23 @@ function harness(error = null, { care = false, owned = true, multi = false, stal
     "./memory-integrity.ts": { prepareTypedMemoryCandidate: value => ({ accepted: true, learning: value }), isEligibleStoredMemory: () => false },
     "../operations/admin-client.ts": { createOperationsAdminClient: () => ({ rpc }) },
     "./care-authority-client.ts": { createCanonicalCareAuthorityClient: () => { throw new Error("Unexpected care RPC"); } },
+    "../furvise-brain/turn-authority.ts": { assertFurviseMutationAllowed(authority, expectedKind) {
+      assert.equal(authority?.mutation?.allowed, true);
+      assert.equal(authority?.mutation?.kind, expectedKind);
+    } },
   };
   const exports = {};
   vm.runInNewContext(compiled, { exports, require(name) { assert.ok(name in mocks, name); return mocks[name]; } });
   return { calls, run: () => exports.persistIntelligenceLearnings({
-    assistantMessageId: "assistant", authorizedPetIds: multi ? ["pet-a", "pet-b"] : ["pet-a"], careActions: care ? [{ action: "log_care", title: "Walk", details: "Walk" }] : [],
+    assistantMessageId: "assistant", authorizedPetIds: multi ? ["pet-a", "pet-b"] : ["pet-a"],
+    careActions: care ? [{ action: "create_entry", category: "routine", title: "Walk", details: "Walk", severity: "routine", confidence: 1, relatedRecordId: null }] : [],
+    careWriteAuthority: care ? {
+      version: "furvise-brain-turn.v1", logicalTurnId: "request",
+      subject: { petIds: multi ? ["pet-a", "pet-b"] : ["pet-a"], kind: multi ? "multi_pet" : "pet", label: null, source: "conversation", unresolved: false },
+      intent: "record", memoryNeed: "working", memoryPetIds: [],
+      mutation: { allowed: true, kind: "record_care", userAuthorizationVerified: true, authorizationSource: "current_turn", authorizationTurnId: "source", confirmationRequired: false, confirmationSatisfied: false },
+      referenceTurnIds: [],
+    } : null,
     learnings: multi ? [learning, { ...learning, subjectId: "pet-b" }] : [learning], currentMessage: "Evening walks", operationOwnerToken: "test-lease", payloadHash: "test-hash",
     petId: "pet-a", requestId: "request", sourceMessageId: "source", userId: "owner",
     supabase: { from: query, rpc },

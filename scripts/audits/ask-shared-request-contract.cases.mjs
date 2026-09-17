@@ -15,7 +15,7 @@ const fixturePets = pets.slice(0, 3).map((pet, index) => ({ ...pet, name: ['Aste
 const context = { owner: { userId: ownerId }, eligiblePets: fixturePets, pet: fixturePets[0],
   currentMessage: 'Compare the saved observations.', conversationTurns: [] };
 const proposal = patch => ({ version: ASK_REQUEST_VERSION, mode: 'read', question: 'What is recorded about Aster?',
-  requirements: ['Answer the requested facts only'], referenceTurnIds: [], scope: 'named', petNames: ['Aster'],
+  requirements: ['Answer the requested facts only'], referenceTurnIds: [], evidenceBasis: 'saved_history', scope: 'named', petNames: ['Aster'],
   operation: 'recall', selection: 'summary', quantity: null, topic: 'observations', terms: [],
   from: null, to: null, episodeTopic: null, ordinal: null, frame: emptyProposedSemanticFrame(), ...patch });
 

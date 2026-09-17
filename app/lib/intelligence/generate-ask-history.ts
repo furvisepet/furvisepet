@@ -17,9 +17,15 @@ export type AskHistoryStage = "history_retrieval" | "episode_retrieval" | "answe
 export async function generateAskHistoryAnswer({ supabase, onStage, ...input }: Omit<Parameters<typeof runFurviseIntelligence>[0], "evidenceContract"> & { supabase: SupabaseClient; onStage?: (stage: AskHistoryStage) => void }) {
   input.context = enforceAskHistoryAccess(scopeConversationContext(input.context));
 
+  // Legacy route/harness scope is untrusted at this boundary. Intersect it
+  // with the authenticated owner's eligible pets before the Brain turn exists.
+  // This preserves valid multi-pet reads while making foreign ids inert.
+  const ownedPetIds = new Set(input.context.eligiblePets
+    .filter(pet => pet.user_id === input.context.owner.userId)
+    .map(pet => pet.id));
   const legacySubjectPetIds = input.context.askInterpretation?.conversationOnly
     ? []
-    : input.authoritativePetIds ?? [input.context.pet.id];
+    : [...new Set((input.authoritativePetIds ?? [input.context.pet.id]).filter(id => ownedPetIds.has(id)))];
   let brainTurn = buildAskBrainTurn({
     context: input.context,
     logicalTurnId: input.requestId,
