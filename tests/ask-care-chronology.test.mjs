@@ -7,6 +7,7 @@ import { classifyCareEvent, deriveConcernChronology } from "../app/lib/intellige
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const migration = read("supabase/migrations/20260728070000_canonical_care_event_chronology.sql");
 const askRoute = read("app/api/ask/route.ts");
+const publication = read("app/lib/intelligence/finalize-ask-publication.ts");
 const askPage = read("app/ask/page.tsx");
 const persistence = read("app/lib/intelligence/persist-learnings.ts");
 const safety = read("app/lib/intelligence/safety-state.ts");
@@ -29,7 +30,8 @@ test("explicit recovery is persisted as one canonical symptom event", () => {
 
 test("UI confirmation requires a persisted status and a concrete entry id", () => {
   assert.match(askPage, /carePersistence\?\.status === "persisted" && Boolean\(payload\.carePersistence\.careEntryIds\.length\)/);
-  assert.match(askRoute, /carePersistence\.status === "persisted" && carePersistence\.careEntryIds\.length > 0/);
+  assert.match(publication, /carePersistence\.status === "persisted" && carePersistence\.careEntryIds\.length > 0/);
+  assert.match(askRoute, /buildSuccessfulAskResponse/);
 });
 
 test("persistence failure cannot show Added to care history", () => {
