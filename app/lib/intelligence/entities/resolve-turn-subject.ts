@@ -317,7 +317,9 @@ export function explicitlyNamedOwnedPets(message: string, pets: EligibleSemantic
   const normalized = ` ${normalize(message)} `;
   return pets.filter((pet) => {
     const name = normalize(pet.name || "");
-    return Boolean(name && normalized.includes(` ${name} `));
+    if (!name || !normalized.includes(` ${name} `)) return false;
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return !new RegExp(`\\b(?:not|except)\\s+(?:for\\s+)?${escaped}\\b`, "i").test(normalized);
   });
 }
 
@@ -433,7 +435,7 @@ export function explicitMutationTarget(message: string, pets: EligibleSemanticPe
   for (const raw of clauses) {
     const clause = raw.trim();
     if (/\b(?:if|suppose|pretend|hypothetical|do not|don't|never|without)\b/i.test(clause)) continue;
-    const action = clause.match(/^(?:(?:please|also|then|only|otherwise|and)\s+)*(?:save|log|record|add|edit|correct|update|store)\b[\s\S]*/i)?.[0];
+    const action = clause.match(/^(?:(?:ok(?:ay)?|yeah|yep|sure|pls|please|also|then|only|otherwise|and)\s+)*(?:save|log|record|add|edit|correct|update|store)\b[\s\S]*/i)?.[0];
     if (!action) continue;
     const named = explicitlyNamedOwnedPets(action, pets);
     if (named.length !== 1) return null;
