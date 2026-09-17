@@ -12,25 +12,27 @@ function functionSlice(name, nextName) {
   return route.slice(start, end);
 }
 
-test("reviewed Ask effects remain ordered before the Brain tail handoff", () => {
+test("reviewed Ask effects execute inside the single Brain handoff", () => {
   const finalizer = functionSlice("persistAssistantAnswer", "function standaloneEmergencyResponse");
   const delegate = finalizer.indexOf("return finalizeAskPostReview({");
   assert.ok(delegate > 0);
   const prepared = finalizer.slice(0, delegate);
-  const stages = [
-    "completeAskConversationTurn({",
+  assert.match(prepared, /completeAskConversationTurn\(\{/);
+  for (const stage of [
     "createActionCapabilities({",
     "persistIntelligenceLearnings({",
     "executeActionCapability({",
     "resolveAutomaticCareHistoryPresentation({",
     "assessTaskExecution({",
-  ];
-  let previous = -1;
-  for (const stage of stages) {
-    const index = prepared.indexOf(stage);
-    assert.ok(index > previous, `${stage} follows the previous reviewed effect`);
-    previous = index;
-  }
+  ]) assert.doesNotMatch(prepared, new RegExp(stage.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `${stage} is Brain-owned`);
+  const delegateBody = finalizer.slice(delegate);
+  for (const stage of [
+    "createActionCapabilities({",
+    "persistIntelligenceLearnings({",
+    "executeActionCapability({",
+    "resolveAutomaticCareHistoryPresentation({",
+    "assessTaskExecution({",
+  ]) assert.ok(delegateBody.includes(stage), `${stage} executes inside Brain handoff`);
 });
 
 test("Brain executive control owns settlement through final publication", () => {

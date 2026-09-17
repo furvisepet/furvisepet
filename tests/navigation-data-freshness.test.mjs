@@ -13,7 +13,7 @@ test("successful Ask state mutations publish one scoped freshness version", asyn
     text("app/lib/intelligence/revalidate-ask-state.ts"),
   ]);
   assert.match(publication, /dataChanged: applicationStateChanged \|\| didPersistEffectiveAskState/);
-  assert.match(route, /didPersistEffectiveAskState\(intelligencePersistence, carePersistence\)/);
+  assert.match(route, /didPersistEffectiveAskState\(intelligence\.intelligencePersistence, care\.carePersistence\)/);
   assert.match(route, /revalidateAskStateViews\(/);
   assert.match(route, /from "\.\.\/\.\.\/lib\/intelligence\/revalidate-ask-state\.ts"/);
   assert.doesNotMatch(route, /function revalidateAskStateViews/);

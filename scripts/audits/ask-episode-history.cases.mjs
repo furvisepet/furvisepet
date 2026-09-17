@@ -113,7 +113,7 @@ test('no references persist for a replaced list and real route calls the final a
   assert.equal(attachEpisodeReferences({...old,directAnswer:'Replaced after generation'},r.context.episodeResult).episodeReferences,undefined);
   const route=readFileSync(new URL('../../app/api/ask/route.ts',import.meta.url),'utf8');
   assert.match(route,/response = attachEpisodeReferences\(response, intelligenceResult\?\.reasoning\.evidenceContract\?\.episodes\)/);
-  assert.match(route,/attachEpisodeReferences\(applicationActions\.length/);
+  assert.match(route,/attachEpisodeReferences\(actions\.applicationActions\.length/);
 });
 test('foreign pinned episode ID is never replaced by a nearby owned episode',async t=>{
   clock(t);const saved=persisted(await run());saved.response_data.episodeReferences.items[1].id='episode:foreign';

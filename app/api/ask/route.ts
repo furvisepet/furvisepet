@@ -1923,184 +1923,193 @@ async function persistAssistantAnswer({
   logAskStage("assistant message persisted", { requestId });
   turnLifecycle.transition("ANSWER_PERSISTED");
 
-  // Persist immutable capability authority before exposing display action ids.
-  // The presentation row remains non-executable and is updated only by the API.
-  const proposedActions = parseStoredApplicationActions(response.applicationActions);
-  if (proposedActions.length) {
-    try {
-      const capabilityActions = await createActionCapabilities({
-        actions: proposedActions,
-        assistantMessageId: assistantMessage.id,
-        sourceMessageId: userMessageId,
-        supabase,
-        targetBindings: actionTargetBindings,
-        userId,
-      });
-      response = { ...response, applicationActions: capabilityActions };
-      responseWithTurn = { ...response, turn: turnLifecycle.snapshot() };
-      const persisted = await updateAskAssistantResponse({ messageId: assistantMessage.id, responseData: responseWithTurn, userId });
-      if (persisted.error || persisted.data !== true) throw new Error("ACTION_CAPABILITY_PRESENTATION_UPDATE_FAILED");
-    } catch (error) {
-      // Fail closed: a response-data proposal is never executable without its capability.
-      const unavailableActions = proposedActions.map((action) => ({ ...action, status: "failed" as const, resultMessage: null, errorMessage: "That action could not be prepared safely." }));
-      response = { ...response, applicationActions: unavailableActions };
-      responseWithTurn = { ...response, turn: turnLifecycle.snapshot() };
-      await updateAskAssistantResponse({ messageId: assistantMessage.id, responseData: responseWithTurn, userId });
-      logAskServerError("action_capability_creation", error, { conversationId, petId, requestId }, 200);
-    }
-  }
-
-  let intelligencePersistence: IntelligencePersistenceSummary | null = null;
-  let intelligencePersistenceWarning = "";
-  let semanticTrace = intelligenceResult?.semanticTrace || null;
-  const reviewableSemanticEvent = deferHighImpactLifecyclePersistence ? null
-    : intelligenceResult?.executionPlan.semanticEvents.find((item) => item.destinations.some((destination) => destination === "care_event" || destination === "episode_current_state" || destination === "state_only")) || null;
-  if (!preconfirmedCarePersistence && !deferHighImpactLifecyclePersistence && intelligenceResult && (intelligenceResult.executionPlan.learnings.length || intelligenceResult.executionPlan.careActions.length || intelligenceResult.executionPlan.semanticEvents.length || intelligenceResult.executionPlan.noteBatch?.length)) {
-    try {
-      assertGovernedAskExecutionPlan(intelligenceResult.executionPlan);
-      intelligencePersistence = await persistIntelligenceLearnings({
-        assistantMessageId: assistantMessage.id,
-        authorizedPetIds,
-        careActions: historyReviewRequired ? [] : intelligenceResult.executionPlan.careActions,
-        currentMessage: sourceMessage,
-        semanticEvents: historyReviewRequired ? [] : intelligenceResult.executionPlan.semanticEvents,
-        noteBatch: historyReviewRequired ? [] : intelligenceResult.executionPlan.noteBatch,
-        learnings: intelligenceResult.executionPlan.learnings,
-        operationOwnerToken,
-        payloadHash: operationPayloadHash,
-        petId,
-        // An explicit new observation belongs to this turn. Similar text from
-        // an older turn must not consume a newly requested save.
-        recentCareEntries: parseStoredApplicationActions((response as { applicationActions?: unknown }).applicationActions)
-          .some(action => action.kind === "care_history.add" && shouldAutoExecuteAction(action))
-          ? recentCareEntries.filter(entry => entry.intelligence_source_message_id === userMessageId)
-          : recentCareEntries,
-        requestId,
-        sourceMessageId: userMessageId,
-        supabase,
-        userId,
-      });
-      logAskStage("intelligence learnings persisted", {
-        careEntriesCreated: intelligencePersistence.careEntriesCreated,
-        concernsResolved: intelligencePersistence.concernsResolved,
-        memoriesCreated: intelligencePersistence.memoriesCreated,
-        memoriesSuperseded: intelligencePersistence.memoriesSuperseded,
-        requestId,
-      });
-      if (semanticTrace) {
-        semanticTrace = withSemanticPersistenceOutcome(semanticTrace, {
-          status: intelligencePersistence.carePersistence.status === "failed" ? "failed"
-            : intelligencePersistence.carePersistence.status === "persisted" ? "persisted" : "skipped",
-          errorCode: intelligencePersistence.carePersistence.errorCode,
-          careEntryCount: intelligencePersistence.carePersistence.careEntryIds.length,
-          memoryCount: intelligencePersistence.memoryIds.length,
-        });
-      }
-    } catch (error) {
-      intelligencePersistenceWarning = "Approved learnings could not be saved.";
-      turnLifecycle.optionalFailure("memory_persistence");
-      turnLifecycle.optionalFailure("history_persistence");
-      logAskServerError("learning_persistence_failed", error, { conversationId, petId, requestId }, 200);
-      if (semanticTrace) semanticTrace = withSemanticPersistenceOutcome(semanticTrace, { status: "failed", errorCode: "INTELLIGENCE_PERSISTENCE_EXCEPTION", careEntryCount: 0, memoryCount: 0 });
-    }
-  }
-  if (semanticTrace && !intelligencePersistence && !intelligencePersistenceWarning) {
-    semanticTrace = withSemanticPersistenceOutcome(semanticTrace, { status: "skipped", errorCode: null, careEntryCount: 0, memoryCount: 0 });
-  }
-  if (semanticTrace) logSemanticTrace(semanticTrace);
-
-  let applicationActions = parseStoredApplicationActions((response as { applicationActions?: unknown }).applicationActions);
-  let applicationStateChanged = false;
-  if (applicationActions.length) {
-    const executed: FurviseApplicationAction[] = [];
-    for (const action of applicationActions) {
-      if (!shouldAutoExecuteAction(action)) {
-        executed.push(action);
-        continue;
-      }
-      const execution = await runOptionalAskSubsystem({
-        component: "application_action_preparation",
-        fallback: null,
-        operation: async () => {
-          if (!isSecurityUuid(action.id)) return { action: { ...action, status: "failed" as const, errorMessage: "That action could not be prepared safely." }, changed: false, audit: { actionKind: action.kind, authorization: "allowed" as const, mutationClass: action.mutationClass, outcome: "failed" as const, petIdPresent: Boolean(action.petId) } };
-          const executed = await executeActionCapability({ capabilityId: action.id, assistantMessageId: assistantMessage.id, userId, mode: "auto" });
-          return executed ? { action: executed.action, changed: executed.changed, audit: { actionKind: executed.action.kind, authorization: "allowed" as const, mutationClass: executed.action.mutationClass, outcome: executed.action.status === "succeeded" ? "succeeded" as const : "failed" as const, petIdPresent: Boolean(executed.action.petId) } } : null;
-        },
-        onFailure: optionalFailure,
-      });
-      if (!execution) { executed.push({ ...action, status: "failed", errorMessage: "That action could not be prepared. Your answer is still available." }); continue; }
-      applicationStateChanged ||= execution.changed;
-      executed.push(execution.action);
-      emitOperationalEvent({
-        actorId: userId,
-        errorCode: execution.audit.outcome === "failed" ? "ASK_ACTION_FAILED" : undefined,
-        eventType: execution.audit.outcome === "failed" ? "application_error" : "application_action",
-        feature: "ask_application_action",
-        metadata: { actionKind: execution.audit.actionKind, authorization: execution.audit.authorization, outcome: execution.audit.outcome },
-        operationId: action.id,
-        requestId,
-        resourceId: petId,
-        route: "/api/ask",
-        severity: execution.audit.outcome === "failed" ? "warning" : "info",
-      });
-    }
-    applicationActions = executed;
-  }
-
-  const confirmedCarePersistence = preconfirmedCarePersistence || intelligencePersistence?.carePersistence || null;
-  const automaticCareAction = confirmedCarePersistence?.status === "persisted"
-    && confirmedCarePersistence.careEntryIds.length > 0;
-  const automaticCareFailure = intelligencePersistence?.carePersistence.status === "failed";
-  const semanticReviewSuggestion = reviewableSemanticEvent ? buildSemanticEventReviewSuggestion({ event: reviewableSemanticEvent }) : null;
-  const reviewSuggestion = !automaticCareAction
-    ? (historyReviewRequired || automaticCareFailure) && semanticReviewSuggestion
-      ? semanticReviewSuggestion
-      : suggestion || semanticReviewSuggestion
-    : null;
-  const suggestionPersistence = reviewSuggestion
-    ? await runOptionalAskSubsystem({
-      component: "history_proposal",
-      fallback: { careEntryId: null, concernId: null, effectAlreadyPresent: false, errorCode: "HISTORY_SUGGESTION_UNAVAILABLE", suggestion: null },
-      operation: () => persistPendingSuggestion({ createCanonicalCareAuthorityClient, logAskServerError, assistantMessageId: assistantMessage.id, conversationId, petId, petName, sourceMessage, suggestion: reviewSuggestion, supabase, userId }),
-      onFailure: optionalFailure,
-    })
-    : { careEntryId: null, concernId: null, effectAlreadyPresent: false, errorCode: null, suggestion: null };
-  const savedSuggestion = suggestionPersistence.suggestion;
-  const persistenceMode = automaticCareAction ? "automatic" : savedSuggestion ? "suggested" : "none";
-  const carePersistence = resolveAutomaticCareHistoryPresentation({
-    confirmedPersistence: confirmedCarePersistence,
-    hasSavedSuggestion: Boolean(savedSuggestion),
-    memoryIds: intelligencePersistence?.memoryIds || [],
-  });
-  // The reviewed answer body is immutable. Persistence outcomes belong in
-  // receipts/cards, never in a second unreviewed prose rewrite.
-  turnLifecycle.actions(applicationActions.length);
-  const reviewedCompletion = intelligenceResult?.answerValidation.completion || [];
-  const reviewedCareWrite = reviewedCompletion.some(item => item.status === "action_ready"
-    && (item.actionIndexes || []).some(index => index >= proposedActions.length));
-  const explicitHistoryWrite = (reviewedCareWrite || isExplicitCareHistorySaveRequest(sourceMessage))
-    && reviewedCompletion.find(item => item.index === 0)?.status !== "refused";
-  const taskExecution = assessTaskExecution({
-    assessment: intelligenceResult?.answerValidation.assessment || null,
-    completion: reviewedCompletion,
-    responseMode: intelligenceResult?.reasoning.responseMode || null,
-    actions: applicationActions,
-    careWriteRequired: explicitHistoryWrite,
-    minimumCareEntries: intelligenceResult?.executionPlan.noteBatch?.length || 1,
-    careReceipt: carePersistence,
-    careExecutionFailed: Boolean(intelligencePersistenceWarning),
-  });
-  turnLifecycle.outcomes(taskExecution.answerOutcome, taskExecution.mutationOutcome, taskExecution.readyForExecution);
-  // The reviewed effects above are already complete. From settlement onward,
-  // the Furvise Brain owns irreversible ordering and the only success exit.
+  // The persisted reviewed answer is the last route-owned stage. From capability
+  // minting onward, Furvise Brain owns effect ordering and the only success exit.
   return finalizeAskPostReview({
     persistReviewedAnswer: () => assistantMessage,
-    mintActionCapabilities: () => proposedActions,
-    persistAuthorizedIntelligence: () => intelligencePersistence,
-    executeAuthorizedActions: () => ({ applicationActions, applicationStateChanged }),
-    resolveCarePresentation: () => ({ automaticCareAction, carePersistence, persistenceMode, savedSuggestion }),
-    assessTaskCompletion: () => taskExecution,
-    settleCreditDisposition: async () => {
+    mintActionCapabilities: async () => {
+      // Persist immutable capability authority before exposing display action ids.
+      // The presentation row remains non-executable and is updated only by the API.
+      const proposedActions = parseStoredApplicationActions(response.applicationActions);
+      if (proposedActions.length) {
+        try {
+          const capabilityActions = await createActionCapabilities({
+            actions: proposedActions,
+            assistantMessageId: assistantMessage.id,
+            sourceMessageId: userMessageId,
+            supabase,
+            targetBindings: actionTargetBindings,
+            userId,
+          });
+          response = { ...response, applicationActions: capabilityActions };
+          responseWithTurn = { ...response, turn: turnLifecycle.snapshot() };
+          const persisted = await updateAskAssistantResponse({ messageId: assistantMessage.id, responseData: responseWithTurn, userId });
+          if (persisted.error || persisted.data !== true) throw new Error("ACTION_CAPABILITY_PRESENTATION_UPDATE_FAILED");
+        } catch (error) {
+          // Fail closed: a response-data proposal is never executable without its capability.
+          const unavailableActions = proposedActions.map((action) => ({ ...action, status: "failed" as const, resultMessage: null, errorMessage: "That action could not be prepared safely." }));
+          response = { ...response, applicationActions: unavailableActions };
+          responseWithTurn = { ...response, turn: turnLifecycle.snapshot() };
+          await updateAskAssistantResponse({ messageId: assistantMessage.id, responseData: responseWithTurn, userId });
+          logAskServerError("action_capability_creation", error, { conversationId, petId, requestId }, 200);
+        }
+      }
+      return proposedActions;
+    },
+    persistAuthorizedIntelligence: async () => {
+      let intelligencePersistence: IntelligencePersistenceSummary | null = null;
+      let intelligencePersistenceWarning = "";
+      let semanticTrace = intelligenceResult?.semanticTrace || null;
+      if (!preconfirmedCarePersistence && !deferHighImpactLifecyclePersistence && intelligenceResult && (intelligenceResult.executionPlan.learnings.length || intelligenceResult.executionPlan.careActions.length || intelligenceResult.executionPlan.semanticEvents.length || intelligenceResult.executionPlan.noteBatch?.length)) {
+        try {
+          assertGovernedAskExecutionPlan(intelligenceResult.executionPlan);
+          intelligencePersistence = await persistIntelligenceLearnings({
+            assistantMessageId: assistantMessage.id,
+            authorizedPetIds,
+            careActions: historyReviewRequired ? [] : intelligenceResult.executionPlan.careActions,
+            currentMessage: sourceMessage,
+            semanticEvents: historyReviewRequired ? [] : intelligenceResult.executionPlan.semanticEvents,
+            noteBatch: historyReviewRequired ? [] : intelligenceResult.executionPlan.noteBatch,
+            learnings: intelligenceResult.executionPlan.learnings,
+            operationOwnerToken,
+            payloadHash: operationPayloadHash,
+            petId,
+            // An explicit new observation belongs to this turn. Similar text from
+            // an older turn must not consume a newly requested save.
+            recentCareEntries: parseStoredApplicationActions((response as { applicationActions?: unknown }).applicationActions)
+              .some(action => action.kind === "care_history.add" && shouldAutoExecuteAction(action))
+              ? recentCareEntries.filter(entry => entry.intelligence_source_message_id === userMessageId)
+              : recentCareEntries,
+            requestId,
+            sourceMessageId: userMessageId,
+            supabase,
+            userId,
+          });
+          logAskStage("intelligence learnings persisted", {
+            careEntriesCreated: intelligencePersistence.careEntriesCreated,
+            concernsResolved: intelligencePersistence.concernsResolved,
+            memoriesCreated: intelligencePersistence.memoriesCreated,
+            memoriesSuperseded: intelligencePersistence.memoriesSuperseded,
+            requestId,
+          });
+          if (semanticTrace) {
+            semanticTrace = withSemanticPersistenceOutcome(semanticTrace, {
+              status: intelligencePersistence.carePersistence.status === "failed" ? "failed"
+                : intelligencePersistence.carePersistence.status === "persisted" ? "persisted" : "skipped",
+              errorCode: intelligencePersistence.carePersistence.errorCode,
+              careEntryCount: intelligencePersistence.carePersistence.careEntryIds.length,
+              memoryCount: intelligencePersistence.memoryIds.length,
+            });
+          }
+        } catch (error) {
+          intelligencePersistenceWarning = "Approved learnings could not be saved.";
+          turnLifecycle.optionalFailure("memory_persistence");
+          turnLifecycle.optionalFailure("history_persistence");
+          logAskServerError("learning_persistence_failed", error, { conversationId, petId, requestId }, 200);
+          if (semanticTrace) semanticTrace = withSemanticPersistenceOutcome(semanticTrace, { status: "failed", errorCode: "INTELLIGENCE_PERSISTENCE_EXCEPTION", careEntryCount: 0, memoryCount: 0 });
+        }
+      }
+      if (semanticTrace && !intelligencePersistence && !intelligencePersistenceWarning) {
+        semanticTrace = withSemanticPersistenceOutcome(semanticTrace, { status: "skipped", errorCode: null, careEntryCount: 0, memoryCount: 0 });
+      }
+      if (semanticTrace) logSemanticTrace(semanticTrace);
+      return { intelligencePersistence, intelligencePersistenceWarning };
+    },
+    executeAuthorizedActions: async () => {
+      let applicationActions = parseStoredApplicationActions((response as { applicationActions?: unknown }).applicationActions);
+      let applicationStateChanged = false;
+      if (applicationActions.length) {
+        const executed: FurviseApplicationAction[] = [];
+        for (const action of applicationActions) {
+          if (!shouldAutoExecuteAction(action)) {
+            executed.push(action);
+            continue;
+          }
+          const execution = await runOptionalAskSubsystem({
+            component: "application_action_preparation",
+            fallback: null,
+            operation: async () => {
+              if (!isSecurityUuid(action.id)) return { action: { ...action, status: "failed" as const, errorMessage: "That action could not be prepared safely." }, changed: false, audit: { actionKind: action.kind, authorization: "allowed" as const, mutationClass: action.mutationClass, outcome: "failed" as const, petIdPresent: Boolean(action.petId) } };
+              const executed = await executeActionCapability({ capabilityId: action.id, assistantMessageId: assistantMessage.id, userId, mode: "auto" });
+              return executed ? { action: executed.action, changed: executed.changed, audit: { actionKind: executed.action.kind, authorization: "allowed" as const, mutationClass: executed.action.mutationClass, outcome: executed.action.status === "succeeded" ? "succeeded" as const : "failed" as const, petIdPresent: Boolean(executed.action.petId) } } : null;
+            },
+            onFailure: optionalFailure,
+          });
+          if (!execution) { executed.push({ ...action, status: "failed", errorMessage: "That action could not be prepared. Your answer is still available." }); continue; }
+          applicationStateChanged ||= execution.changed;
+          executed.push(execution.action);
+          emitOperationalEvent({
+            actorId: userId,
+            errorCode: execution.audit.outcome === "failed" ? "ASK_ACTION_FAILED" : undefined,
+            eventType: execution.audit.outcome === "failed" ? "application_error" : "application_action",
+            feature: "ask_application_action",
+            metadata: { actionKind: execution.audit.actionKind, authorization: execution.audit.authorization, outcome: execution.audit.outcome },
+            operationId: action.id,
+            requestId,
+            resourceId: petId,
+            route: "/api/ask",
+            severity: execution.audit.outcome === "failed" ? "warning" : "info",
+          });
+        }
+        applicationActions = executed;
+      }
+      return { applicationActions, applicationStateChanged };
+    },
+    resolveCarePresentation: async ({ persisted, intelligence }) => {
+      const reviewableSemanticEvent = deferHighImpactLifecyclePersistence ? null
+        : intelligenceResult?.executionPlan.semanticEvents.find((item) => item.destinations.some((destination) => destination === "care_event" || destination === "episode_current_state" || destination === "state_only")) || null;
+      const confirmedCarePersistence = preconfirmedCarePersistence || intelligence.intelligencePersistence?.carePersistence || null;
+      const automaticCareAction = confirmedCarePersistence?.status === "persisted"
+        && confirmedCarePersistence.careEntryIds.length > 0;
+      const automaticCareFailure = intelligence.intelligencePersistence?.carePersistence.status === "failed";
+      const semanticReviewSuggestion = reviewableSemanticEvent ? buildSemanticEventReviewSuggestion({ event: reviewableSemanticEvent }) : null;
+      const reviewSuggestion = !automaticCareAction
+        ? (historyReviewRequired || automaticCareFailure) && semanticReviewSuggestion
+          ? semanticReviewSuggestion
+          : suggestion || semanticReviewSuggestion
+        : null;
+      const suggestionPersistence = reviewSuggestion
+        ? await runOptionalAskSubsystem({
+          component: "history_proposal",
+          fallback: { careEntryId: null, concernId: null, effectAlreadyPresent: false, errorCode: "HISTORY_SUGGESTION_UNAVAILABLE", suggestion: null },
+          operation: () => persistPendingSuggestion({ createCanonicalCareAuthorityClient, logAskServerError, assistantMessageId: persisted.id, conversationId, petId, petName, sourceMessage, suggestion: reviewSuggestion, supabase, userId }),
+          onFailure: optionalFailure,
+        })
+        : { careEntryId: null, concernId: null, effectAlreadyPresent: false, errorCode: null, suggestion: null };
+      const savedSuggestion = suggestionPersistence.suggestion;
+      const persistenceMode: "automatic" | "suggested" | "none" = automaticCareAction ? "automatic" : savedSuggestion ? "suggested" : "none";
+      const carePersistence = resolveAutomaticCareHistoryPresentation({
+        confirmedPersistence: confirmedCarePersistence,
+        hasSavedSuggestion: Boolean(savedSuggestion),
+        memoryIds: intelligence.intelligencePersistence?.memoryIds || [],
+      });
+      return { automaticCareAction, carePersistence, persistenceMode, savedSuggestion };
+    },
+    assessTaskCompletion: ({ actions, care, intelligence }) => {
+      // The reviewed answer body is immutable. Persistence outcomes belong in
+      // receipts/cards, never in a second unreviewed prose rewrite.
+      turnLifecycle.actions(actions.applicationActions.length);
+      const reviewedCompletion = intelligenceResult?.answerValidation.completion || [];
+      const reviewedCareWrite = reviewedCompletion.some(item => item.status === "action_ready"
+        && (item.actionIndexes || []).some(index => index >= actions.applicationActions.length));
+      const explicitHistoryWrite = (reviewedCareWrite || isExplicitCareHistorySaveRequest(sourceMessage))
+        && reviewedCompletion.find(item => item.index === 0)?.status !== "refused";
+      const taskExecution = assessTaskExecution({
+        assessment: intelligenceResult?.answerValidation.assessment || null,
+        completion: reviewedCompletion,
+        responseMode: intelligenceResult?.reasoning.responseMode || null,
+        actions: actions.applicationActions,
+        careWriteRequired: explicitHistoryWrite,
+        minimumCareEntries: intelligenceResult?.executionPlan.noteBatch?.length || 1,
+        careReceipt: care.carePersistence,
+        careExecutionFailed: Boolean(intelligence.intelligencePersistenceWarning),
+      });
+      turnLifecycle.outcomes(taskExecution.answerOutcome, taskExecution.mutationOutcome, taskExecution.readyForExecution);
+      // The reviewed effects above are already complete. From settlement onward,
+      // the Furvise Brain owns irreversible ordering and the only success exit.
+      return taskExecution;
+    },
+    settleCreditDisposition: async ({ assessment: taskExecution }) => {
       let nextUsage = usage;
       let creditsUsed = 0;
       const incompleteTask = taskExecution.creditDisposition === "release";
@@ -2145,14 +2154,14 @@ async function persistAssistantAnswer({
       }
       return { creditsUsed, nextUsage };
     },
-    finalizeDurableAnswer: async ({ settlement }) => {
+    finalizeDurableAnswer: async ({ persisted, actions, care, settlement }) => {
       turnLifecycle.transition("COMPLETED");
       const canonicalResponse = {
-        ...attachEpisodeReferences(applicationActions.length ? { ...response, applicationActions } : response, intelligenceResult?.reasoning.evidenceContract?.episodes, intelligenceResult?.reasoning),
+        ...attachEpisodeReferences(actions.applicationActions.length ? { ...response, applicationActions: actions.applicationActions } : response, intelligenceResult?.reasoning.evidenceContract?.episodes, intelligenceResult?.reasoning),
         turn: turnLifecycle.snapshot(),
       };
       const durableFallback = await finalizePersistedAskAnswer({
-        carePersistence, conversationId, messageId: assistantMessage.id,
+        carePersistence: care.carePersistence, conversationId, messageId: persisted.id,
         responseData: canonicalResponse, requestId, supabase, userId,
       });
       if (durableFallback) {
@@ -2167,38 +2176,38 @@ async function persistAssistantAnswer({
       }
       return { kind: "committed" as const, receipt: { canonicalResponse } };
     },
-    invalidateCommittedState: () => {
-      if (didPersistEffectiveAskState(intelligencePersistence, carePersistence)) {
+    invalidateCommittedState: ({ intelligence, actions, care }) => {
+      if (didPersistEffectiveAskState(intelligence.intelligencePersistence, care.carePersistence)) {
         revalidateAskStateViews([
           petId,
           ...(intelligenceResult?.executionPlan.learnings.flatMap((learning) => learning.subjectType === "pet" && learning.subjectId ? [learning.subjectId] : []) || []),
         ]);
       }
-      if (applicationStateChanged) revalidateAskStateViews([petId]);
+      if (actions.applicationStateChanged) revalidateAskStateViews([petId]);
       emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
     },
-    publishSuccess: ({ durableReceipt, settlement }) => buildSuccessfulAskResponse({
-      assistantMessageId: assistantMessage.id,
-      applicationStateChanged,
+    publishSuccess: ({ persisted, intelligence, actions, care, durableReceipt, settlement }) => buildSuccessfulAskResponse({
+      assistantMessageId: persisted.id,
+      applicationStateChanged: actions.applicationStateChanged,
       concern,
       creditsUsed: settlement.creditsUsed,
       contextUsed,
       conversationId,
       handledWithoutAi,
-      intelligencePersistence,
-      intelligencePersistenceWarning,
+      intelligencePersistence: intelligence.intelligencePersistence,
+      intelligencePersistenceWarning: intelligence.intelligencePersistenceWarning,
       requestId,
       response: durableReceipt.canonicalResponse,
       saveMetadata,
       safetyLevel: safetyLevel || (urgent ? "urgent" : "normal"),
       saved: true,
       shoppingSuppressed: shoppingSuppressed ?? Boolean(urgent),
-      suggestion: savedSuggestion,
-      carePersistence,
-      persistenceMode,
-      persistedCareAction: automaticCareAction && intelligencePersistence ? {
-        careEntryId: intelligencePersistence.persistedCareEntryId,
-        concernId: intelligencePersistence.persistedConcernId,
+      suggestion: care.savedSuggestion,
+      carePersistence: care.carePersistence,
+      persistenceMode: care.persistenceMode,
+      persistedCareAction: care.automaticCareAction && intelligence.intelligencePersistence ? {
+        careEntryId: intelligence.intelligencePersistence.persistedCareEntryId,
+        concernId: intelligence.intelligencePersistence.persistedConcernId,
       } : null,
       usage: settlement.nextUsage,
       userMessageId,
