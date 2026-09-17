@@ -102,7 +102,10 @@ export function resolveRecentPronoun(state: RecentSubjectState, surface: string)
   const pronoun = pronounClass(surface);
   if (!pronoun) return { status: "unresolved", entity: null, candidatePetIds: [] };
   const compatible = state.entities.filter((entity) => entity.pronouns.includes(pronoun));
-  const focused = compatible.find((entity) => entity.key === state.currentFocusKey);
+  const currentFocus = state.currentFocusKey ? state.entities.find((entity) => entity.key === state.currentFocusKey) : null;
+  // An explicitly focused pet outranks stored sex/pronoun metadata. Owners may
+  // use a different pronoun, and a mere object mention must not steal focus.
+  const focused = currentFocus && (currentFocus.kind === "pet" || currentFocus.pronouns.includes(pronoun)) ? currentFocus : null;
   if (focused && entityRecencyScore(focused) >= 0) return resolved(focused, [focused]);
 
   const latestSubjectTurn = Math.max(-1, ...compatible.map(entity => entity.lastSubjectTurn));

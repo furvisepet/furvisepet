@@ -1,7 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { interpretAskQuestion } from "../app/lib/intelligence/interpret-ask.ts";
+import { registerHooks } from "node:module";
+
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (specifier === "server-only") {
+      return { url: "data:text/javascript,export {};", format: "module", shortCircuit: true };
+    }
+    return nextResolve(specifier, context);
+  },
+});
+
+const { interpretAskQuestion } = await import("../app/lib/intelligence/interpret-ask.ts");
 
 const source = {
   id: "user-story",

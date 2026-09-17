@@ -49,8 +49,14 @@ export type AskInterpretation = {
 export const ASK_INTERPRETATION_LIMITS = { outputTokens: 4096, timeoutMs: 25_000, turns: 8, turnChars: 600, terms: 6, pets: 3 } as const;
 type InterpretationContext = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask">;
 export class AskInterpretationValidationError extends Error {
-  constructor(readonly reason: string, readonly category: "schema" | "semantic" = "semantic") {
-    super(`ASK_INTERPRETATION_INVALID: ${reason}`); this.name = "AskInterpretationValidationError";
+  readonly reason: string;
+  readonly category: "schema" | "semantic";
+
+  constructor(reason: string, category: "schema" | "semantic" = "semantic") {
+    super(`ASK_INTERPRETATION_INVALID: ${reason}`);
+    this.name = "AskInterpretationValidationError";
+    this.reason = reason;
+    this.category = category;
   }
 }
 export function recoverAskInterpretation(value: unknown, context: InterpretationContext): AskInterpretation {
