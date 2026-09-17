@@ -11,6 +11,17 @@ test("all direct owner-note writes cross the Brain mutation gate", () => {
   assert.ok(source.indexOf("assertFurviseMutationAllowed") < source.indexOf("persist_ask_owner_note"));
 });
 
+test("model-derived intelligence cannot promote itself into authoritative care history", () => {
+  const source = read("app/lib/intelligence/persist-learnings.ts");
+  assert.match(source, /careWriteAuthority\?: FurviseTurnAuthority \| null/);
+  assert.match(source, /if \(!input\.authority\) return false/);
+  assert.match(source, /assertFurviseMutationAllowed\(input\.authority, input\.expectedKind\)/);
+  assert.match(source, /FURVISE_MUTATION_SUBJECT_MISMATCH/);
+  assert.ok(source.indexOf("authorizeIntelligenceCarePersistence({") < source.indexOf("persistDatedNoteBatch({"));
+  assert.ok(source.indexOf("authorizeIntelligenceCarePersistence({") < source.indexOf("persistCanonicalSemanticEvents({"));
+  assert.ok(source.indexOf("authorizeIntelligenceCarePersistence({") < source.indexOf("persistCanonicalCareAction({"));
+});
+
 test("pending note continuations re-verify and cross the Brain mutation gate", () => {
   const source = read("app/lib/intelligence/ask-task-continuation.ts");
   assert.match(source, /findExplicitCareRecordAuthorization/);
