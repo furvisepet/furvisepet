@@ -604,11 +604,19 @@ export function latestNeedScopedCareIds(evidence: AskEvidenceContract, records: 
     .filter(query => query.needId === needs[0].id && query.petId === petId && !query.reason)
     .flatMap(query => query.candidateIds));
   if (!candidateIds.size) return null;
+  const savedRecordOrder = /\b(?:saved?|recorded|logged|entered|added)\b[^.!?]{0,40}\b(?:note|record|entry|update)\b|\b(?:note|record|entry|update)\b[^.!?]{0,40}\b(?:saved?|recorded|logged|entered|added)\b/i.test(needs[0].quote);
+  const instant = (record: AskContextRecord) => {
+    const value = record.occurredAt || (savedRecordOrder
+      ? typeof record.metadata.recordedAt === "string" ? record.metadata.recordedAt : record.createdAt
+      : null);
+    const parsed = value ? Date.parse(value) : NaN;
+    return Number.isFinite(parsed) ? parsed : null;
+  };
   const candidates = records.filter(record => record.sourceType === "care_update" && record.petId === petId
-    && candidateIds.has(record.id) && record.occurredAt && Number.isFinite(Date.parse(record.occurredAt)));
+    && candidateIds.has(record.id) && instant(record) !== null);
   if (!candidates.length) return null;
-  const latest = Math.max(...candidates.map(record => Date.parse(record.occurredAt!)));
-  return new Set(candidates.filter(record => Date.parse(record.occurredAt!) === latest).map(record => record.id));
+  const latest = Math.max(...candidates.map(record => instant(record)!));
+  return new Set(candidates.filter(record => instant(record) === latest).map(record => record.id));
 }
 
 function enforceAskPromptContextBudget<T extends { contextRecords: AskContextRecord[]; evidenceContract: AskEvidenceContract }>(promptContext: T): T {

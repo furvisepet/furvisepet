@@ -91,6 +91,18 @@ test('latest need scope keeps only the newest candidate from its own query recei
   assert.deepEqual([...latestNeedScopedCareIds(evidence,records)],['care:new']);
 });
 
+test('latest saved-note scope uses record chronology without turning it into event time', () => {
+  const base={scope:{authorizedPetIds:['pet-mani']},history:{needs:[{needId:'need:0',petId:'pet-mani',candidateIds:['care:new','care:old'],reason:null}]}};
+  const records=[
+    {id:'care:new',sourceType:'care_update',petId:'pet-mani',occurredAt:null,createdAt:'2026-09-16T05:50:00Z',metadata:{recordedAt:'2026-09-16T05:50:00Z'}},
+    {id:'care:old',sourceType:'care_update',petId:'pet-mani',occurredAt:'2026-09-10T00:00:00Z',createdAt:'2026-09-10T00:00:00Z',metadata:{}},
+  ];
+  const saved={...base,interpretation:{request:{evidenceNeeds:[{id:'need:0',order:'latest',petIds:['pet-mani'],quote:'What is the latest saved note?'}]}}};
+  assert.deepEqual([...latestNeedScopedCareIds(saved,records)],['care:new']);
+  const event={...base,interpretation:{request:{evidenceNeeds:[{id:'need:0',order:'latest',petIds:['pet-mani'],quote:'What is the latest vomiting event?'}]}}};
+  assert.deepEqual([...latestNeedScopedCareIds(event,records)],['care:old']);
+});
+
 test('records on the same UTC day keep their distinct local display dates', () => {
   const careEntries = [
     care({ id: 'early', occurred_at: '2026-07-27T01:00:00Z' }),
