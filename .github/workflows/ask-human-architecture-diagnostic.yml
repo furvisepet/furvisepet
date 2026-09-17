@@ -41,6 +41,8 @@ jobs:
             tests: tests/ask-credit-settlement.test.mjs
           - group: post-review-finalizer
             tests: tests/ask-post-review-finalizer-contract.test.mjs
+          - group: executive-control
+            tests: tests/furvise-brain-post-review-finalizer.test.mjs
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: test-publishable-key
