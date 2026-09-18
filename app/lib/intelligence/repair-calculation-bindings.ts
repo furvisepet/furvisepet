@@ -26,14 +26,13 @@ export function retainRepairCalculationBindings(original: HistoryNarrative, repa
 }
 
 const measuredToken = /(?<![\p{L}\p{N}_.+−-])([+−-]?\d+(?:\.\d+)?)[ -]+([A-Za-z]+)(?![\p{L}\p{N}_])/gu;
-function oneMeasurement(source: {sourceId:string;text:string}) {
-  const matches=[...source.text.matchAll(measuredToken)].flatMap(match=>{
+function measurements(source: {sourceId:string;text:string}) {
+  return [...source.text.matchAll(measuredToken)].flatMap(match=>{
     const unit=units[match[2].toLowerCase()];
     if(!unit || unit.dimension.startsWith('currency:') || unit.dimension==='instant')return [];
     const value=Number(match[1].replace('−','-'));
     return Number.isFinite(value)?[{sourceId:source.sourceId,literal:match[0],value,unit}]:[];
   });
-  return matches.length===1?matches[0]:null;
 }
 
 /** A missing proof for a simple requested difference may be reconstructed only
@@ -46,17 +45,28 @@ export function attachDeterministicCalculationBindings(narrative: HistoryNarrati
     if(sentence.calculations?.length)return sentence;
     const cited=sources.filter(source=>sentence.sourceIds.includes(source.sourceId)&&/^(?:care|claim):/.test(source.sourceId));
     if(cited.length!==2)return sentence;
-    const operands=cited.map(oneMeasurement); if(operands.some(value=>!value))return sentence;
-    const [a,b]=operands as [NonNullable<ReturnType<typeof oneMeasurement>>,NonNullable<ReturnType<typeof oneMeasurement>>];
-    if(a.unit.dimension!==b.unit.dimension || a.unit.canonical!==b.unit.canonical)return sentence;
-    const rawValue=Math.abs(a.value*a.unit.scale-b.value*b.unit.scale)/a.unit.scale;
-    const value=Number(rawValue.toFixed(10));
-    if(!Number.isFinite(value))return sentence;
-    const derived=[...sentence.text.matchAll(measuredToken)].some(match=>units[match[2].toLowerCase()]?.canonical===a.unit.canonical
-      && Math.abs(Number(match[1].replace('−','-'))-value)<1e-9);
-    if(!derived)return sentence;
-    const calculation:HistoryCalculation={operation:'absolute_difference',expression:null,operands:[a,b].map(item=>({sourceId:item.sourceId,field:'text',literal:item.literal})),value,unit:a.unit.canonical};
-    if(verifiedCalculationQuantities([calculation],cited)===null)return sentence;
-    return {...sentence,calculations:[calculation]};
+    const [left,right]=cited.map(measurements);
+    const resultTokens=[...sentence.text.matchAll(measuredToken)].flatMap(match=>{
+      const unit=units[match[2].toLowerCase()];
+      const value=Number(match[1].replace('−','-'));
+      return unit && Number.isFinite(value)?[{value,unit}]:[];
+    });
+    const candidates:HistoryCalculation[]=[];
+    for(const a of left) for(const b of right){
+      if(a.unit.dimension!==b.unit.dimension || a.unit.canonical!==b.unit.canonical)continue;
+      const rawValue=Math.abs(a.value*a.unit.scale-b.value*b.unit.scale)/a.unit.scale;
+      const value=Number(rawValue.toFixed(10));
+      if(!Number.isFinite(value))continue;
+      const derived=resultTokens.some(token=>token.unit.canonical===a.unit.canonical
+        && Math.abs(token.value-value)<1e-9);
+      if(!derived)continue;
+      const calculation:HistoryCalculation={operation:'absolute_difference',expression:null,
+        operands:[a,b].map(item=>({sourceId:item.sourceId,field:'text',literal:item.literal})),
+        value,unit:a.unit.canonical};
+      if(verifiedCalculationQuantities([calculation],cited)!==null)candidates.push(calculation);
+    }
+    const unique=new Map(candidates.map(calculation=>[JSON.stringify(calculation),calculation]));
+    if(unique.size!==1)return sentence;
+    return {...sentence,calculations:[structuredClone([...unique.values()][0])]};
   })};
 }
