@@ -175,7 +175,9 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   if (sharedRequest) proposedDraft = attachDeterministicCalculationBindings(proposedDraft, sources, evidence.scope.requestText);
   const completedTargetCoverage = sharedRequest && completedExplicitHistoryTargets(evidence).length > 0
     && !historyCompletionLimits(evidence).length
-    && evidence.scope.requestKind !== "overview"
+    // "What happened in April?" may be classified as an overview even when
+    // retrieval exhausted that exact target month. Completion comes from the
+    // server target receipt, not the planner's broad requestKind label.
     && !/\b(?:summary|summari[sz]e|all|every|entire|complete|full)\b/i.test(evidence.scope.requestText);
   if (completedTargetCoverage) proposedDraft = { sentences: proposedDraft.sentences.map(sentence => ({
     ...sentence, text: stripCompletedTargetCoverageCaution(sentence.text),

@@ -403,3 +403,27 @@ test('subscription history boundary does not skip review of independent answer p
  assert.match(checked.response.answer.summary,/prescribing veterinarian/);
  assert.equal(checked.assessment.checks.taskCompletion,'failed');
 });
+
+test('completed explicit month removes partial-summary prefix even when wording is classified as overview', async()=>{
+  const e=fixture(['a']);
+  e.scope.requestText="What happened with Aster's food in April 2019? Keep it tied to the saved note.";
+  e.scope.requestKind='overview';
+  e.interpretation.request={mode:'read',outputFormat:'prose',evidenceNeeds:[]};
+  e.represented[0].occurredAt='2019-04-15T12:00:00Z';
+  e.represented[0].text='Aster started a sensitive-stomach food trial.';
+  e.represented[0].end=e.represented[0].text.length;
+  e.history.targets=[{petId:'a',day:'2019-04',candidateIds:['care:a'],retainedIds:['care:a'],exhausted:true,status:'unknown'}];
+  const r=result(e);
+  r.historyNarrative.sentences[0].text='Partial summary: Aster started a sensitive-stomach food trial.';
+  let calls=0;
+  const ok=await reviewHistoricalAnswer({result:r,repairAttempted:true,client:{responses:{create:async()=>{
+    calls++;
+    return {status:'completed',output_text:JSON.stringify({approved:true,retainedSentenceIndexes:[0],obligations:[{index:0,status:'answered',sentenceIndexes:[0],actionIndexes:[]}],rejectionReason:null})};
+  }}}});
+  assert.equal(ok,true);
+  assert.equal(calls,1);
+  const reviewed=readReviewedHistoryAnswer(r);
+  assert.ok(reviewed);
+  assert.doesNotMatch(reviewed.text,/partial summary/i);
+  assert.match(reviewed.text,/sensitive-stomach food trial/i);
+});
