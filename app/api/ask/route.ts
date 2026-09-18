@@ -109,6 +109,7 @@ import { claimWithRestoredAskOrigin } from "../../lib/ask-restored-retry";
 import { validateSensitiveRequestOriginResponse } from "../../lib/security/headers/origin-policy";
 import { extractTurnSubjectFrame } from "../../lib/intelligence/semantic-frame/extract-turn-subject";
 import {
+  ambiguousBackwardMultiPetReference,
   explicitlyNamedOwnedPets,
   resolveAskTurnSubject,
 } from "../../lib/intelligence/entities/resolve-turn-subject";
@@ -804,6 +805,31 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         logAskStage("AI credit reserved", { creditReservationId: creditRequestId, feature: "ask", requestId, retryReuse, status: reservation.status });
       }
       const recentConversation = liveContext.conversationTurns.filter((turn) => turn.id !== preparedRequest.userMessageId);
+      const ambiguousBackref = ambiguousBackwardMultiPetReference({
+        message: question,
+        pets: liveContext.eligiblePets,
+        recentConversation,
+      });
+      if (ambiguousBackref) {
+        if (creditReserved) {
+          const released = await safeReleaseAiCredit({ logicalRequestId: logicalTurnId, payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
+          creditReserved = false;
+          creditFinalState = released ? "released" : "release_pending";
+          turnLifecycle.credit(released ? "released" : "release_pending").settlement("release", released ? "reconciled" : "pending");
+        }
+        turnLifecycle.route("clarification", "deterministic");
+        turnAuthoritativePetIds = [];
+        contextUsed = { petName: null, usedSources: [] };
+        const reply = buildSubjectClarificationOrchestration(question, ambiguousBackref.labels);
+        reply.answer = {
+          title: "Which earlier pet or fact?",
+          summary: "The previous question involved more than one pet, so I don’t want to guess what “that” refers to. Name the earlier pet or fact you want compared.",
+          sections: [],
+          safetyNote: null,
+        };
+        reply.clarificationQuestion = "Which earlier pet or fact do you mean?";
+        return reply;
+      }
       generationStage = "interpretation";
       const interpretation = await interpretAskQuestion({ context: { ...liveContext, conversationTurns: recentConversation }, model, onProviderEvent });
       if (exceedsSelectedPetRead(interpretation, petId, liveContext.eligiblePets?.map(pet => pet.id) || [petId],

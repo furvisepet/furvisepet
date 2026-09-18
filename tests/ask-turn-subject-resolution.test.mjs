@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { resolveAuthoritativeTurnSubject, resolveDeterministicTurnSubject } from "../app/lib/intelligence/entities/resolve-turn-subject.ts";
+import { ambiguousBackwardMultiPetReference, resolveAuthoritativeTurnSubject, resolveDeterministicTurnSubject } from "../app/lib/intelligence/entities/resolve-turn-subject.ts";
 import { evaluateLearningPolicy } from "../app/lib/intelligence/memory-policy.ts";
 import { governCanonicalEvents } from "../app/lib/intelligence/semantic-events.ts";
 import { SEMANTIC_FRAME_SCHEMA_VERSION } from "../app/lib/intelligence/semantic-frame/types.ts";
@@ -9,6 +9,33 @@ import { governSemanticTurnV2 } from "../app/lib/intelligence/v2/governance/gove
 
 const luna = { id: "pet-luna", name: "Luna", species: "dog", age_value: 5, age_unit: "years" };
 const mani = { id: "pet-mani", name: "Mani", species: "cat", age_value: 4, age_unit: "years" };
+
+test("backward demonstrative after a prior multi-pet user turn is ambiguous without a unique antecedent", () => {
+  const recentConversation = [
+    { role: "user", text: "Give one dated fact each for Luna, Mani, and Poppy." },
+    { role: "furvise", text: "Luna... Mani... Poppy..." },
+  ];
+  const ambiguous = ambiguousBackwardMultiPetReference({
+    message: "Now compare that with Mani's appetite note.",
+    pets: [luna, mani, poppy],
+    recentConversation,
+  });
+  assert.deepEqual(ambiguous, {
+    petIds: [luna.id, mani.id, poppy.id],
+    labels: ["Luna", "Mani", "Poppy"],
+  });
+});
+
+test("an explicit antecedent before the demonstrative keeps backward comparison resolvable", () => {
+  const recentConversation = [
+    { role: "user", text: "Give one dated fact each for Luna, Mani, and Poppy." },
+  ];
+  assert.equal(ambiguousBackwardMultiPetReference({
+    message: "For Luna, compare that with Mani's appetite note.",
+    pets: [luna, mani, poppy],
+    recentConversation,
+  }), null);
+});
 
 test("an explicitly named selected pet bypasses ambiguous outside-animal preflight", () => {
   const message = "Mani has been restless since the male cat started coming to our door. She keeps meowing at the door.";

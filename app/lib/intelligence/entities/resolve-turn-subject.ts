@@ -81,6 +81,33 @@ export async function resolveAskTurnSubject({
   };
 }
 
+export function ambiguousBackwardMultiPetReference({
+  message,
+  pets,
+  recentConversation,
+}: {
+  message: string;
+  pets: EligibleSemanticPet[];
+  recentConversation: Array<{ role?: string; text: string }>;
+}): { petIds: string[]; labels: string[] } | null {
+  const match = /\b(?:compare|contrast)\s+(?:that|those)\b|\b(?:that|those)\s+(?:with|against|to|one|note|record|fact|result)\b|\b(?:what|how)\s+about\s+(?:that|those)\b/i.exec(message);
+  if (!match) return null;
+  const previousUser = [...recentConversation].reverse().find(turn => turn.role === "user");
+  if (!previousUser) return null;
+  const priorPets = explicitlyNamedOwnedPets(previousUser.text, pets);
+  if (priorPets.length < 2) return null;
+  // A pet named before the demonstrative is an explicit antecedent ("For
+  // Sable, compare that with Rowan"). Names that occur only after "that" are
+  // comparators, not proof of what the backward reference denotes.
+  const demonstrative = /\b(?:that|those)\b/i.exec(message);
+  const prefix = demonstrative ? message.slice(0, demonstrative.index) : "";
+  if (explicitlyNamedOwnedPets(prefix, pets).length === 1) return null;
+  return {
+    petIds: priorPets.map(pet => pet.id),
+    labels: priorPets.map(pet => pet.name || "pet"),
+  };
+}
+
 export function resolveDeterministicTurnSubject({
   message,
   pets,
