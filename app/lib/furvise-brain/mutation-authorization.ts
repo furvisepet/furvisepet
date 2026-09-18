@@ -8,7 +8,7 @@ export type FurviseMutationAuthorizationEvidence = Readonly<{
   evidence: string;
 }>;
 
-const englishSaveCommand = /^(?:(?:(?:and|but|then)\s+)?(?:please|also|yes|okay|ok)[,!]?\s+|(?:(?:and|but|then)\s+)|(?:can|could|would|will)\s+you\s+|i\s+(?:just\s+)?want\s+(?:you\s+)?to\s+)*(?:(?:save|log|record|store)\b|add\b[\s\S]{0,100}\b(?:this|that|it|note|history|record|timeline|entry|observation|update)\b|keep\b[\s\S]{0,100}\b(?:as|in|to)\b[\s\S]{0,60}\b(?:note|record|history|timeline)\b|put\b[\s\S]{0,100}\b(?:in|into|on|as)\b[\s\S]{0,60}\b(?:note|record|history|timeline)\b)/iu;
+const englishSaveCommand = /^(?:(?:(?:and|but|then)\s+)?(?:please|also|yes|okay|ok)[,!]?\s+|(?:(?:and|but|then)\s+)|(?:can|could|would|will)\s+you\s+|i\s+(?:just\s+)?want\s+(?:you\s+)?to\s+)*(?:(?:save|log|record|store)\b|add\b[\s\S]{0,100}\b(?:this|that|it|note|history|record|timeline|entry|observation|update)\b|keep\b[\s\S]{0,100}\b(?:as|in|to)\s+(?:(?:a|an|the|my|our|your)\s+)?(?:care\s+)?(?:note|record|history|timeline)\b|put\b[\s\S]{0,100}\b(?:in|into|on|as)\b[\s\S]{0,60}\b(?:note|record|history|timeline)\b)/iu;
 const spanishSaveCommand = /^(?:(?:por\s+favor|también|si|sí)[,!:;]?\s*)*(?:gu[aá]rd(?:a|alo|ala|alos|alas)|registra|anota|a[nñ]ade|agrega)\b/iu;
 const frenchSaveCommand = /^(?:(?:s['’]il\s+te\s+pla[iî]t|s['’]il\s+vous\s+pla[iî]t|merci|aussi)[,!:;]?\s*)*(?:sauvegarde|enregistre|note|ajoute)\b/iu;
 const germanSaveCommand = /^(?:(?:bitte|auch)[,!:;]?\s*)*(?:speichere|protokolliere|notiere|f[uü]ge)\b/iu;

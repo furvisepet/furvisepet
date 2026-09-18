@@ -30,6 +30,8 @@ for (const message of [
   'she said "save this as a note"',
   "if it gets worse, save it",
   "pretend I said save that",
+  "Keep it tied to the saved note.",
+  "Keep the answer grounded in the saved record.",
 ]) {
   test(`non-authorizing language stays read/conversation only: ${message}`, () => {
     assert.equal(findExplicitCareRecordAuthorization(message), null);

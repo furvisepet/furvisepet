@@ -24,7 +24,7 @@ for (const message of ['Maybe a little different?', 'Mochi might be tired; this 
     assert.equal(resolveOwnerNoteRequest({ message, mode: 'note', pet, pets }).note, message);
   });
 }
-for (const message of ['Rowan may be tired. What do you think?', 'Rowan was tired. Do not save this.', 'Rowan was tired. "Save this note."', 'If Rowan were tired, save this note.', 'Save this note to Mochi: Rowan was tired.', 'Save these separate notes for Rowan: 2020-01-01: one. 2021-01-01: two.']) {
+for (const message of ['Rowan may be tired. What do you think?', 'Rowan was tired. Do not save this.', 'Rowan was tired. "Save this note."', 'If Rowan were tired, save this note.', 'Save this note to Mochi: Rowan was tired.', 'Save these separate notes for Rowan: 2020-01-01: one. 2021-01-01: two.', "What happened with Rowan's food in April 2019? Keep it tied to the saved note."]) {
   test(`no unauthorized natural-language save: ${message}`, () => assert.equal(request(message), null));
 }
 test('save mode does not override an explicit opt-out', () => assert.equal(resolveOwnerNoteRequest({ message: 'Do not save this note.', mode: 'note', pet, pets }), null));
