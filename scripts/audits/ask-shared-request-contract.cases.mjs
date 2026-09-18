@@ -395,6 +395,10 @@ test('five-pet earliest/latest weight retrieval certifies both endpoint pairs ev
   });
   assert.equal(r.context.askHistory.coverage.endpointPairs?.length,5);
   assert.equal(r.result.reasoning.model,'server-read-projection');
+  assert.equal(r.result.answerValidation.valid,true);
+  assert.equal(r.result.answerValidation.assessment.outcome,'complete');
+  assert.match(r.result.reasoning.answer.summary,/\| Pet \| Earliest \| Earliest date \| Latest \| Latest date \| Change \|/);
+  assert.doesNotMatch(r.result.reasoning.answer.summary,/couldn't finish answering|Saved notes/i);
   const projectedSources=new Set(r.result.reasoning.historyNarrative?.sentences.flatMap(sentence=>sentence.sourceIds)||[]);
   for(const pet of fivePets){
     assert.ok(projectedSources.has('care:'+pet.id+'-old'),pet.name+' projected earliest endpoint');

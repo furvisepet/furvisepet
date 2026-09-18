@@ -25,6 +25,8 @@ import { memoryDisplayContent } from "../memory-integrity.ts";
 import { attributedHistoryAnswer, evidenceAnswerPolicy, resolutionStatusAnswer, eligibleAnswerSources } from "../ask-evidence.ts";
 import { sourceNoteAnswer } from "../source-note-recall.ts";
 import { episodeAnswer } from "../episode-contract.ts";
+import { verifiedCalculationQuantities } from "../history-calculation.ts";
+import { matchesHistoryOutputFormat } from "../historical-read-response.ts";
 
 export type AnswerValidationResult = {
   response: AskReasoningResult;
@@ -52,6 +54,35 @@ export function validateGeneratedAnswer(
   const response = structuredClone(result);
   const conversationOnly = result.evidenceContract?.interpretation?.conversationOnly === true;
   const preserveFormat = Boolean(result.evidenceContract?.interpretation?.request?.outputFormat);
+  const projectionText = result.model === "server-read-projection" && result.historyNarrative
+    ? result.historyNarrative.sentences.map(sentence => sentence.text).join("\n") : null;
+  const projectionSources = response.evidenceContract ? eligibleAnswerSources(response.evidenceContract) : [];
+  const projectionSourceIds = projectionText && result.historyNarrative
+    ? [...new Set(result.historyNarrative.sentences.flatMap(sentence => sentence.sourceIds))] : [];
+  const projectionSourcesValid = Boolean(projectionText && response.evidenceContract?.scope.readOnlyRecall
+    && projectionSourceIds.length
+    && projectionSourceIds.every(id => {
+      const spans = projectionSources.filter(source => source.sourceId === id);
+      return spans.length > 0 && spans.every(source => authoritativePetIds.includes(source.petId));
+    }));
+  const projectionCalculationsValid = Boolean(projectionText && result.historyNarrative
+    && result.historyNarrative.sentences.every(sentence =>
+      verifiedCalculationQuantities(sentence.calculations || [], projectionSources) !== null));
+  const projectionFormatValid = Boolean(projectionText
+    && matchesHistoryOutputFormat(projectionText, response.evidenceContract?.interpretation?.request?.outputFormat));
+  const trustedServerProjection = Boolean(projectionText
+    && result.model === "server-read-projection"
+    && response.answer.summary === projectionText
+    && response.answer.sections.length === 0
+    && !response.answer.safetyNote
+    && projectionSourcesValid
+    && projectionCalculationsValid
+    && projectionFormatValid
+    && !historyCompletionLimits(response.evidenceContract).length);
+  if (trustedServerProjection && response.evidenceContract) {
+    response.evidenceContract.answerSourceIds = projectionSourceIds;
+    response.evidenceContract.answerContent = [];
+  }
   if (currentEmergency && (response.evidenceContract || context.episodeResult)) {
     response.answer = buildImmediateEmergencyGuidance(detectImmediateAskEmergency(currentSafetyText) || { tags: [] });
     response.suggestedFollowUps = [];
@@ -67,7 +98,8 @@ export function validateGeneratedAnswer(
   }
   const sourceNote = response.evidenceContract?.scope.requestKind === "record_lookup" && response.evidenceContract.scope.status === "resolved"
     ? sourceNoteAnswer(response.evidenceContract) : null;
-  const scopedAnswer = currentEmergency ? null : (reviewedHistory?.proseText || reviewedHistory?.text) || partialText || (response.evidenceContract ? evidenceAnswerPolicy(response.evidenceContract, response.historySynthesis) : null);
+  const scopedAnswer = currentEmergency ? null : trustedServerProjection ? projectionText
+    : (reviewedHistory?.proseText || reviewedHistory?.text) || partialText || (response.evidenceContract ? evidenceAnswerPolicy(response.evidenceContract, response.historySynthesis) : null);
   const hasSourceQuote = Boolean(sourceNote?.sourceIds.length && scopedAnswer === sourceNote.text);
   if (scopedAnswer) {
     // Only assistant-authored prose goes through prose rewriting. The complete
@@ -109,7 +141,7 @@ export function validateGeneratedAnswer(
   // A review receipt binds the complete wording to evidence. Style rewriting
   // must not remove clauses, alter quotations or damage structured values.
   // Unsafe content in a reviewed answer is rejected, never silently edited.
-  const immutableHistory = Boolean((reviewedHistory || partialHistory) && result.evidenceContract?.interpretation?.request);
+  const immutableHistory = Boolean((reviewedHistory || partialHistory || trustedServerProjection) && result.evidenceContract?.interpretation?.request);
   if (!immutableHistory) {
     response.answer.title = sanitize(response.answer.title);
     response.answer.summary = sanitize(response.answer.summary);
@@ -219,7 +251,7 @@ export function validateGeneratedAnswer(
     response.referencedRecords=[];
     repairs.push("applied_server_episode_result");
   }
-  if (!reviewedHistory && !resolution && !context.episodeResult && scopedAnswer && response.evidenceContract?.interpretation) {
+  if (!trustedServerProjection && !reviewedHistory && !resolution && !context.episodeResult && scopedAnswer && response.evidenceContract?.interpretation) {
     // Restore complete attributed source text after prose rewriting, retaining
     // the independent safety directive. Never reuse rejected model prose.
     response.answer = { title: "Furvise", ...(partialText ? { summary: partialText, sections: [] } : historyFallbackPresentation(response.evidenceContract, scopedAnswer)), safetyNote: urgent ? "Contact an emergency veterinarian now." : null };
@@ -288,12 +320,13 @@ export function validateGeneratedAnswer(
   });
   const finalReviewMatches = Boolean(reviewedHistory && response.answer.summary === (reviewedHistory.proseText || reviewedHistory.text)
     && response.answer.sections.length === 0 && !response.answer.safetyNote && !reviewedHistory.sourceReports?.length);
+  const finalGroundingMatches = finalReviewMatches || trustedServerProjection;
   if (finalReviewMatches && reviewedHistory?.actions) rememberReviewedTaskPresentation(response.evidenceContract, response.answer, reviewedHistory.actions);
   if (finalReviewMatches && reviewedHistory) recordHistoryReview(response, { ...reviewedHistory, signature: historyReviewSignature(response) });
   const obligationChecks = finalReviewMatches ? reviewedHistory?.completion : undefined;
   const historyTask = Boolean(response.evidenceContract?.interpretation?.request && response.evidenceContract.history && !currentEmergency);
-  const fallbackUsed = historyTask && repairs.includes("grounded_history_in_source_reports") && !finalReviewMatches;
-  const diagnostic = readHistoryReviewDiagnostic(result);
+  const fallbackUsed = historyTask && repairs.includes("grounded_history_in_source_reports") && !finalGroundingMatches;
+  const diagnostic = trustedServerProjection ? null : readHistoryReviewDiagnostic(result);
   const assessment = createAnswerAssessment({
     body: response.answer, evidence: response.evidenceContract || null, unsafe: errors.length > 0,
     reasons: [...errors, ...historyCompletionLimits(response.evidenceContract), ...(diagnostic ? [diagnostic.reason] : []),
@@ -301,10 +334,11 @@ export function validateGeneratedAnswer(
       ...(reviewedHistory && !finalReviewMatches ? ["reviewed_body_changed"] : [])],
     checks: {
       structuralValidity: response.answer.summary ? "passed" : "failed",
-      evidenceSupport: finalReviewMatches ? "passed" : conversationOnly ? "not_applicable" : "not_evaluated",
-      subjectDateCorrectness: unauthorizedPetNamed ? "failed" : finalReviewMatches ? "passed" : conversationOnly ? "not_applicable" : "not_evaluated",
-      calculationCorrectness: finalReviewMatches ? "passed" : "not_evaluated",
-      taskCompletion: historyCompletionLimits(response.evidenceContract).length ? "failed" : obligationChecks?.length ? historyTaskCompleted(obligationChecks) ? "passed" : "failed"
+      evidenceSupport: finalGroundingMatches ? "passed" : conversationOnly ? "not_applicable" : "not_evaluated",
+      subjectDateCorrectness: unauthorizedPetNamed ? "failed" : finalGroundingMatches ? "passed" : conversationOnly ? "not_applicable" : "not_evaluated",
+      calculationCorrectness: finalGroundingMatches ? "passed" : "not_evaluated",
+      taskCompletion: historyCompletionLimits(response.evidenceContract).length ? "failed" : trustedServerProjection ? "passed"
+        : obligationChecks?.length ? historyTaskCompleted(obligationChecks) ? "passed" : "failed"
         : fallbackUsed ? "failed" : "not_evaluated",
     },
   });
