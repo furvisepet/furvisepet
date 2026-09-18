@@ -30,11 +30,25 @@ export function compileHistoryReadStrategies(question: string, year: number, win
   const outsideNeeds = facets.filter(facet => facet.from && facet.to && facet.from >= facet.to).map(facet => facet.needId!);
   const accessibleFacets = facets.filter(facet => !outsideNeeds.includes(facet.needId!));
   const specialized: HistoryReadStrategy[] = [];
-  for (let index = 0; index < Math.max(targets.length, accessibleFacets.length); index++) {
-    if (targets[index]) specialized.push(targets[index]);
-    if (accessibleFacets[index]) specialized.push(accessibleFacets[index]);
-  }
-  const reserved = specialized.slice(0, Math.max(0, pageBudget - 1));
+  const exactTargets = targets.filter(target => target.target?.length === 10);
+  const monthTargets = targets.filter(target => target.target?.length === 7);
+  // Exact days are the strongest temporal anchors. Grounded evidence needs
+  // come next because a broad period query cannot substitute for a unique
+  // quoted source. Month anchors follow those obligations; broad context is
+  // optional and receives only any budget that remains.
+  specialized.push(...exactTargets, ...accessibleFacets, ...monthTargets);
+  // A true two-endpoint comparison requires both explicit anchors. Spending
+  // one of two query slots on generic context would make the comparison
+  // impossible even though both requested windows fit the existing budget.
+  // Other multi-target reads retain the legacy overflow behavior so excess
+  // anchors remain explicit coverage losses rather than silently crowding out
+  // all contextual retrieval.
+  const pairedTargetComparison = targets.length === 2 && !accessibleFacets.length
+    && /\b(?:compar\w*|versus|vs\.?|difference|chang\w*)\b/i.test(question);
+  const specializedBudget = pairedTargetComparison
+    ? Math.min(pageBudget, specialized.length)
+    : specialized.length && pageBudget === 1 ? 1 : Math.max(0, pageBudget - 1);
+  const reserved = specialized.slice(0, specializedBudget);
   const omitted = specialized.slice(reserved.length);
   const remaining = pageBudget - reserved.length;
   let broad = proposed.length <= remaining ? [...proposed]
