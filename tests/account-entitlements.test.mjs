@@ -100,3 +100,10 @@ test("all current paid-feature server contexts use centralized entitlements", ()
   assert.match(read("app/lib/pet-limit.ts"), /\/api\/account\/entitlements/);
   assert.match(read("app/lib/pet-profile-api-server.ts"), /PET_LIMIT_REACHED/);
 });
+
+test("launch pet-limit migration sets Plus to five while preserving Free one and QA isolation", () => {
+  const sql = read("supabase/migrations/20260918042000_set_launch_pet_limits.sql");
+  assert.match(sql, /billing_plan = 'plus' then 5 else 1/);
+  assert.match(sql, /active_grant\) then 1000/);
+  assert.match(sql, /resolve_active_billing_plan\(p_user_id\)/);
+});

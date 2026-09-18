@@ -142,7 +142,7 @@ export default function MembershipPage() {
           <section className="grid gap-6 lg:grid-cols-2" aria-label="Furvise membership plans" data-ui="membership-plan-cards">
             <PlanCard
               current={!isPlus}
-              features={[`${FREE_ASK_ALLOWANCE} Ask each month`, "1 pet", "Care history", `${FREE_VET_BRIEF_ALLOWANCE} free Vet Brief generation, once per account. Save, reopen, and print it.`]}
+              features={[`${FREE_ASK_ALLOWANCE} Ask each month`, "1 pet profile", "Unlimited lifetime care history", `${FREE_VET_BRIEF_ALLOWANCE} free Vet Brief generation, once per account. Save, reopen, and print it.`]}
               price="$0"
               usage={!isPlus ? membership.askUsage : undefined}
               vetBriefUsage={!isPlus ? membership.vetBriefUsage : undefined}
@@ -267,7 +267,9 @@ function billingStatusMessage(status: BillingSubscriptionStatus | undefined, isP
 function plusFeatures() {
   return [
     `Up to ${PLAN_CAPABILITIES.plus.maxPets} pet profiles. Keep the whole family’s care history together.`,
-    `${PLUS_ASK_ALLOWANCE} Asks each month. Help with everyday behavior, training, and food questions.`,
+    "Unlimited lifetime care history for every pet.",
+    `${PLUS_ASK_ALLOWANCE} Asks each month, including multi-pet comparisons and questions across years of saved history.`,
+    "Long-history pattern detection across saved care records.",
     `${PLUS_VET_BRIEF_ALLOWANCE} Vet Brief generations each month. Organize vaccine dates, saved notes, and concerns for routine clinic visits.`,
     "Save and reopen Vet Brief drafts. Pick up where you left off after saving.",
     "Printable reports in English, Spanish, French, German, Arabic, and Japanese. Document headings stay in English.",

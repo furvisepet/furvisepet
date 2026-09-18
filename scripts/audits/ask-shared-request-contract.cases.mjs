@@ -564,14 +564,17 @@ test('typed JSON rejects duplicate keys, competing bodies, excessive depth and n
   assert.equal({}.safe, undefined);
 });
 
-test('history access uses calendar months, clamps month ends and rejects unknown plans', async () => {
+test('history access is lifetime on both plans and rejects unknown plans', async () => {
   const { resolveAskHistoryAccess, historyDateAccessible } = await import('../../app/lib/intelligence/history-access.ts');
-  const free = resolveAskHistoryAccess('free', new Date('2026-05-31T12:00:00Z'));
-  assert.equal(free.from, '2026-02-28T00:00:00.000Z');
-  assert.equal(historyDateAccessible('2026-02-27T23:59:59.999Z', free), false);
-  assert.equal(historyDateAccessible(free.from, free), true);
+  const now = new Date('2026-05-31T12:00:00Z');
+  const free = resolveAskHistoryAccess('free', now);
+  const plus = resolveAskHistoryAccess('plus', now);
+  assert.deepEqual(free, plus);
+  assert.equal(free.from, '1900-01-01T00:00:00.000Z');
+  assert.equal(free.to, '2026-06-01T00:00:00.000Z');
+  assert.equal(historyDateAccessible('1900-01-01T00:00:00.000Z', free), true);
+  assert.equal(historyDateAccessible('1899-12-31T23:59:59.999Z', free), false);
   assert.equal(historyDateAccessible(free.to, free), false);
-  assert.equal(resolveAskHistoryAccess('plus', new Date('2024-02-29T12:00:00Z')).from, '2019-02-28T00:00:00.000Z');
   assert.throws(() => resolveAskHistoryAccess('pro'));
 });
 for (const plan of ['free', 'plus']) test(`shared retrieval and provider inputs respect ${plan} history access`, async t => {
@@ -586,33 +589,34 @@ for (const plan of ['free', 'plus']) test(`shared retrieval and provider inputs 
     providerOverrides: { historyNarrative: { sentences: [{ text: 'Aster rested normally.', sourceIds: ['care:boundary'] }] } },
     reviewResponse: { approved: true }, expectedReviewCalls: 1 });
   const careIds = r.prompt.contextRecords.filter(row => row.sourceType === 'care_update').map(row => row.id);
-  assert.ok(!careIds.includes('care:too-old'));
-  assert.equal(careIds.includes('care:paid-only'), plan === 'plus');
+  assert.ok(careIds.includes('care:too-old'));
+  assert.ok(careIds.includes('care:paid-only'));
   assert.ok(careIds.includes('care:boundary'));
   assert.equal(r.context.askHistory.coverage.plan.from, access.from);
   assert.deepEqual(r.prompt.evidenceContract.historyAccess, access);
 });
-test('an explicitly excluded period performs no historical query and explains access rather than absence', async t => {
+test('Free lifetime access retrieves a formerly paywalled 2022 period', async t => {
   clock(t);
   const { resolveAskHistoryAccess } = await import('../../app/lib/intelligence/history-access.ts');
   const r = await exercise('What happened in 2022?', { fixturePets, messages: [], history: true,
     rows: [care('old', 'milo', '2022-06-04', 'general', 'Aster rested normally.')],
     prepareContext: context => { context.historyAccess = resolveAskHistoryAccess('free', new Date()); },
-    interpretationProposal: proposal({ from: '2022-01-01', to: '2023-01-01' }), expectedReviewCalls: 1 });
-  assert.equal(r.context.askHistory.coverage.queryCount, 0);
-  assert.match(r.result.reasoning.answer.summary, /outside that window/);
-  assert.doesNotMatch(r.serialized, /Aster rested normally/);
+    interpretationProposal: proposal({ from: '2022-01-01', to: '2023-01-01' }),
+    providerOverrides: { historyNarrative: { sentences: [{ text: 'Aster rested normally.', sourceIds: ['care:old'] }] } },
+    reviewResponse: { approved: true }, expectedReviewCalls: 1 });
+  assert.ok(r.context.askHistory.coverage.queryCount > 0);
+  assert.match(r.serialized, /Aster rested normally/);
 });
-test('old projections and prior conversation cannot reintroduce excluded history', async t => {
+test('out-of-domain projections and prior conversation cannot reintroduce excluded history', async t => {
   clock(t);
   const { resolveAskHistoryAccess, enforceAskHistoryAccess } = await import('../../app/lib/intelligence/history-access.ts');
   const r = await exercise('Hello', { fixturePets, messages: [], rows: [] });
   const context = { ...r.context, historyAccess: resolveAskHistoryAccess('free', new Date()),
-    conversationTurns: [{ id: 'old', role: 'furvise', text: 'Excluded report', createdAt: '2022-01-01' }],
-    memories: [{ subject_type: 'pet', first_observed_at: '2022-01-01', fact_value: 'excluded' }],
-    legacyPetMemories: [{ created_at: '2022-01-01', text: 'excluded' }],
-    activeConcerns: [{ opened_at: '2022-01-01' }], activeEpisodes: [{ started_at: '2022-01-01' }],
-    currentState: { state: { energy: { lastObservedAt: '2022-01-01' }, semanticStates: {} } } };
+    conversationTurns: [{ id: 'old', role: 'furvise', text: 'Excluded report', createdAt: '1802-01-01' }],
+    memories: [{ subject_type: 'pet', first_observed_at: '1802-01-01', fact_value: 'excluded' }],
+    legacyPetMemories: [{ created_at: '1802-01-01', text: 'excluded' }],
+    activeConcerns: [{ opened_at: '1802-01-01' }], activeEpisodes: [{ started_at: '1802-01-01' }],
+    currentState: { state: { energy: { lastObservedAt: '1802-01-01' }, semanticStates: {} } } };
   const result = enforceAskHistoryAccess(context);
   for (const field of ['conversationTurns', 'memories', 'legacyPetMemories', 'activeConcerns', 'activeEpisodes']) assert.equal(result[field].length, 0);
   assert.equal(result.currentState.state.energy, undefined);

@@ -7,14 +7,14 @@ const membership = readFileSync(new URL("../app/membership/page.tsx", import.met
 test("Membership promises only current plan limits and one shared-quality clarification", () => {
   assert.match(membership, /FREE_ASK_ALLOWANCE/);
   assert.match(membership, /PLUS_ASK_ALLOWANCE/);
-  assert.match(membership, /"1 pet"/);
+  assert.match(membership, /"1 pet profile"/);
   assert.match(membership, /PLAN_CAPABILITIES\.plus\.maxPets/);
   assert.match(membership, /failed preparation does not/);
 });
 
 test("plan features appear once in consumer pricing cards", () => {
   assert.match(membership, /aria-label="Furvise membership plans"/);
-  assert.match(membership, /"Care history"/);
+  assert.match(membership, /"Unlimited lifetime care history"/);
   assert.match(membership, /PLUS_VET_BRIEF_ALLOWANCE/);
   assert.doesNotMatch(membership, /Compare plans|Care history and tracking|same reasoning and safety standards/i);
 });

@@ -58,7 +58,7 @@ export const PLAN_CAPABILITIES: Record<PlanId, PlanCapabilities> = {
     dashboard: true,
     liveProductResearch: true,
     longHistoryPatternDetection: true,
-    maxPets: 10,
+    maxPets: 5,
     productsPaidFunctionality: true,
     productQuestionMonthlyLimit: 500,
     productsAiMonthlyLimit: 500,

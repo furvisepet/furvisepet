@@ -1,16 +1,17 @@
 import type { FurviseLiveContext } from "./types.ts";
 import type { PlanId } from "../billing/plan-limits.ts";
 
-/** Server-derived access to dated Ask context. Profiles and owner preferences
- * are current account data; this window limits saved pet history, not storage. */
-export type AskHistoryAccess = { months: 3 | 60; from: string; to: string };
+/** Server-derived access to dated Ask context. Lifetime pet history is a core
+ * Furvise capability on every consumer plan; this domain is a technical date
+ * boundary, not a commercial history window. */
+export type AskHistoryAccess = { months: null; from: string; to: string };
 export function resolveAskHistoryAccess(plan: PlanId, now = new Date()): AskHistoryAccess {
   if (plan !== "free" && plan !== "plus" || !Number.isFinite(now.getTime())) throw new Error("INVALID_HISTORY_ACCESS");
-  const months = plan === "plus" ? 60 : 3;
-  const first = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - months, 1));
-  const lastDay = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
-  first.setUTCDate(Math.min(now.getUTCDate(), lastDay));
-  return { months, from: first.toISOString(), to: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)).toISOString() };
+  return {
+    months: null,
+    from: "1900-01-01T00:00:00.000Z",
+    to: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)).toISOString(),
+  };
 }
 export function historyDateAccessible(date: string | null | undefined, access?: AskHistoryAccess): boolean {
   if (!access) return true;
@@ -69,7 +70,7 @@ export function enforceAskHistoryAccess(context: FurviseLiveContext): FurviseLiv
 }
 
 /** The episode database accepts paired bounds or an unbounded interval. The request date
- * domain is 1900–2100; subscription scope is intersected before this boundary. */
+ * domain is 1900–2100; lifetime product access uses the same technical boundary. */
 export function boundedEpisodePlan<T extends { from: string | null; to: string | null }>(plan: T, access?: AskHistoryAccess): T {
   const clipped = clipHistoryPlan(plan, access);
   if (clipped.from === null && clipped.to === null) return clipped;
