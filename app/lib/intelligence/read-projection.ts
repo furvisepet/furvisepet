@@ -27,7 +27,7 @@ export function parseReadProjection(value: unknown): ReadProjection | null {
  * equipment-inclusive or multiple measurements are left to semantic generation.
  * This produces a draft: independent review must still verify task semantics. */
 function bodyMeasurement(text: string) {
-  const matches = [...text.matchAll(/\b(?:body (?:weight|mass) (?:was|is)|weighed|weight(?: on (?:our|the|a) (?:home )?scale)? registered at)\s+(-?\d+(?:\.\d+)?)\s+(kg|kilograms?|g|grams?|lb|lbs|pounds?)\b/gi)];
+  const matches = [...text.matchAll(/\b(?:body (?:weight|mass) (?:was|is)|had (?:a )?recorded body (?:weight|mass) of|weighed|weight(?: on (?:our|the|a) (?:home )?scale)? registered at)\s+(-?\d+(?:\.\d+)?)\s+(kg|kilograms?|g|grams?|lb|lbs|pounds?)\b/gi)];
   if (matches.length !== 1 || !analyzeOwnerAssertions(text).clauseSpans.some(clause =>
     unquotedOwnerText(clause.text).includes(matches[0][0]) && clause.isCertain && !clause.isNegated && !clause.isQuestion && !clause.isAttributed && !clause.isConditional)
     || /\b(?:estimated|approximately)\b/i.test(text) || /\b(?:correction|corrected|carrier|harness|equipment|parcel)\b/i.test(text)
@@ -43,6 +43,16 @@ function profileBodyMeasurement(text: string) {
 }
 const decimalPlaces = (value: string) => /\.(\d+)/.exec(value)?.[1].length || 0;
 const csv = (cell: string) => /[",\r\n]/.test(cell) ? '"' + cell.replaceAll('"','""') + '"' : cell;
+function quotedSourceHints(text: string) {
+  return [...text.matchAll(/["“]([^"”\r\n]{3,120})["”]/g)].map(match => match[1].trim().toLocaleLowerCase()).filter(Boolean);
+}
+function narrowMeasurementsByQuotedSource<T extends { source: { text: string } }>(rows: T[], requestText: string) {
+  if (rows.length <= 1) return rows;
+  const hints = quotedSourceHints(requestText);
+  if (!hints.length) return rows;
+  const matched = rows.filter(row => hints.some(hint => row.source.text.toLocaleLowerCase().includes(hint)));
+  return matched.length ? matched : rows;
+}
 export function deterministicReadProjection(evidence: AskEvidenceContract, diagnostic?: (detail: Record<string, string | number | boolean | null>) => void): HistoryNarrative | null {
   const request = evidence.interpretation?.request, projection = request?.projection;
   if (evidence.scope.readOnlyRecall && request?.mode === "read"
@@ -69,12 +79,12 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
     const month = months.length === 1 && !/\b(?:before|after|since|until|between)\b/i.test(requestText) ? months[0] : null;
     const petId = evidence.scope.authorizedPetIds[0], name = evidence.petNames?.[petId];
     const sources = eligibleAnswerSources(evidence).filter(source => source.petId === petId);
-    const historical = days.length === 1 || month ? sources.flatMap(source => {
+    const historical = days.length === 1 || month ? narrowMeasurementsByQuotedSource(sources.flatMap(source => {
       const date = source.occurredAt?.slice(0,10);
       const inPeriod = days.length === 1 ? date === days[0] : Boolean(date && month && date.startsWith(month + '-'));
       const measurement = source.sourceType === "care_update" && inPeriod ? bodyMeasurement(source.text) : null;
       return measurement ? [{source,measurement}] : [];
-    }) : [];
+    }), requestText) : [];
     const current = sources.flatMap(source => {
       const measurement = source.sourceType === "profile" && source.sourceId.endsWith(":weight") ? profileBodyMeasurement(source.text) : null;
       return measurement ? [{source,measurement}] : [];
@@ -154,10 +164,10 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
     const days = explicitHistoryDays(requestText, new Date().getUTCFullYear(), 8);
     const petId = evidence.scope.authorizedPetIds[0], name = evidence.petNames?.[petId];
     const sources = eligibleAnswerSources(evidence).filter(source => source.petId === petId && source.sourceType === "care_update");
-    const rows = days.map(day => sources.flatMap(source => {
+    const rows = days.map(day => narrowMeasurementsByQuotedSource(sources.flatMap(source => {
       const measurement = source.occurredAt?.slice(0,10) === day ? bodyMeasurement(source.text) : null;
       return measurement ? [{source,measurement}] : [];
-    }));
+    }), requestText));
     const requestedUnit = /\b(?:pounds?|lbs?)\b/i.test(requestText) ? "lb" : /\b(?:grams?|g)\b/i.test(requestText) ? "g" : "kg";
     if (name && days.length === 2 && days[0] < days[1] && rows.every(row => row.length === 1)) {
       const [first,last] = rows.map(row => row[0]);

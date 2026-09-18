@@ -120,6 +120,27 @@ test('past-to-present weight projection uses profile authority, not a later care
  const ambiguous={...monthEvidence,represented:[...evidence.represented,{...evidence.represented[1],sourceId:'care:newer',occurredAt:'2024-04-20T12:00:00Z'}]};
  assert.equal(deterministicReadProjection(ambiguous),null);
 });
+test('quoted source text disambiguates same-day body mass and accepts recorded-weight phrasing',()=> {
+ const requestText='Compare Maple\'s September 9, 2022 weight from the note marked "elm compass" with her current recorded weight and give the exact kg change.';
+ const profileText='12.7 kg';
+ const otherText='Maple weighed 13.02 kg on 2022-09-09. This was body mass on the household scale with no carrier or harness included.';
+ const markedText='Synthetic runtime QA only: On 2022-09-09, Maple had a recorded body weight of 11.8 kg. Five-year retrieval marker: elm compass. This is test data.';
+ const evidence={version:'ask-evidence.v1',scope:{authorizedPetIds:['pet'],requestedTopic:'weight',requestText,requestedPeriod:{kind:'unspecified',surface:null},requestKind:'comparison',status:'resolved',readOnlyRecall:true},
+  sources:[{petId:'pet',source:'profile',status:'loaded',loadedIds:['pet'],loadedCount:1,cap:null,reasons:[],completeness:{}},
+   {petId:'pet',source:'care_entries',status:'loaded',loadedIds:['care:other','care:marked'],loadedCount:2,cap:null,reasons:[],completeness:{}}],
+  completeness:{},losses:[],representation:'complete',verifiedFacts:[],petNames:{pet:'Maple'},
+  interpretation:{request:{mode:'read',profileFields:['weight'],temporalScope:'historical_and_current',outputFormat:null,referenceTurnIds:[]}},
+  history:{corrections:'complete',provenance:[{sourceId:'care:other',status:'effective_linked'},{sourceId:'care:marked',status:'effective_linked'}]},
+  represented:[
+   {sourceId:'profile:pet:weight',petId:'pet',sourceType:'profile',field:'value',start:0,end:profileText.length,text:profileText},
+   {sourceId:'care:other',petId:'pet',sourceType:'care_update',field:'value',start:0,end:otherText.length,text:otherText,occurredAt:'2022-09-09T12:00:00Z'},
+   {sourceId:'care:marked',petId:'pet',sourceType:'care_update',field:'value',start:0,end:markedText.length,text:markedText,occurredAt:'2022-09-09T13:00:00Z'}]};
+ const projection=deterministicReadProjection(evidence);
+ assert.ok(projection);
+ assert.match(projection.sentences[0].text,/11\.8 kg.*current profile value of 12\.7 kg.*increase of 0\.9 kg/);
+ assert.deepEqual(projection.sentences[0].sourceIds,['care:marked','profile:pet:weight']);
+});
+
 test('cross-year exact body-mass comparison projects both literal dates server-side',()=> {
  const requestText="Compare Ziggy's body weight recorded on September 13, 2022 with September 9, 2026 and give the exact kg change.";
  const oldText='Ziggy body weight was 8.7 kg on September 13, 2022 without equipment.';
