@@ -120,6 +120,24 @@ test('past-to-present weight projection uses profile authority, not a later care
  const ambiguous={...monthEvidence,represented:[...evidence.represented,{...evidence.represented[1],sourceId:'care:newer',occurredAt:'2024-04-20T12:00:00Z'}]};
  assert.equal(deterministicReadProjection(ambiguous),null);
 });
+test('latest multi-pet body mass projection requires one verified unblocked boundary per pet',()=> {
+ const ids=Array.from({length:10},(_,i)=>`pet-${i+1}`), names=['Atlas','Clover','Cosmo','Juniper','Maple','Mochi','Nori','Pixel','Ziggy','Rowan'];
+ const requestText='Give the latest recorded body weight for each of these 10 pets, keeping them separate. Include the date for each value.';
+ const rows=ids.map((petId,i)=>({petId,sourceId:`care:latest-${i+1}`,text:i===0?'This morning his weight on our home scale registered at 5.10 kg.':`${names[i]} body weight was ${(2+i/2).toFixed(1)} kg on September 15, 2026 without equipment.`,occurredAt:'2026-09-15T12:00:00Z'}));
+ const evidence={version:'ask-evidence.v1',scope:{authorizedPetIds:ids,requestedTopic:'weight',requestText,requestedPeriod:{kind:'unspecified',surface:null},requestKind:'overview',status:'resolved',readOnlyRecall:true},
+  sources:rows.map(row=>({petId:row.petId,source:'care_entries',status:'loaded',loadedIds:[row.sourceId],loadedCount:1,cap:null,reasons:[],completeness:{retrieval:'complete',corrections:'complete',extraction:'complete',grouping:'complete'}})),
+  completeness:{retrieval:'complete',corrections:'complete',extraction:'complete',grouping:'complete'},losses:[],representation:'complete',verifiedFacts:[],petNames:Object.fromEntries(ids.map((id,i)=>[id,names[i]]),
+  ),interpretation:{selection:'latest',request:{mode:'read',evidenceBasis:'saved_history',quantity:'measurement',outputFormat:'table',referenceTurnIds:[]}},
+  history:{corrections:'complete',chronology:rows.map(row=>({petId:row.petId,boundaryIds:[row.sourceId],blocked:false})),provenance:rows.map(row=>({sourceId:row.sourceId,status:'effective_linked'}))},
+  represented:rows.map(row=>({sourceId:row.sourceId,petId:row.petId,sourceType:'care_update',field:'value',start:0,end:row.text.length,text:row.text,occurredAt:row.occurredAt}))};
+ const projection=deterministicReadProjection(evidence);
+ assert.ok(projection); assert.equal(projection.sentences.length,1);
+ for(const name of names) assert.match(projection.sentences[0].text,new RegExp(`\\| ${name} \\| 2026-09-15 \\|`));
+ assert.equal(projection.sentences[0].sourceIds.length,10);
+ const blocked=structuredClone(evidence);blocked.history.chronology[4].blocked=true;
+ assert.equal(deterministicReadProjection(blocked),null);
+});
+
 test('equivalent displayed units inherit verified measurement and calculation provenance', () => {
   const source={text:'Pixel weighed 4.94 kg on 2022-10-09.',occurredAt:'2022-10-09T12:00:00Z',petId:'pet'};
   const request='Return the saved weight in kilograms, grams, and pounds rounded to one decimal.';

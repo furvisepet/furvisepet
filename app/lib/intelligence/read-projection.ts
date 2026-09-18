@@ -27,7 +27,7 @@ export function parseReadProjection(value: unknown): ReadProjection | null {
  * equipment-inclusive or multiple measurements are left to semantic generation.
  * This produces a draft: independent review must still verify task semantics. */
 function bodyMeasurement(text: string) {
-  const matches = [...text.matchAll(/\b(?:body (?:weight|mass) (?:was|is)|weighed)\s+(-?\d+(?:\.\d+)?)\s+(kg|kilograms?|g|grams?|lb|lbs|pounds?)\b/gi)];
+  const matches = [...text.matchAll(/\b(?:body (?:weight|mass) (?:was|is)|weighed|weight(?: on (?:our|the|a) (?:home )?scale)? registered at)\s+(-?\d+(?:\.\d+)?)\s+(kg|kilograms?|g|grams?|lb|lbs|pounds?)\b/gi)];
   if (matches.length !== 1 || !analyzeOwnerAssertions(text).clauseSpans.some(clause =>
     unquotedOwnerText(clause.text).includes(matches[0][0]) && clause.isCertain && !clause.isNegated && !clause.isQuestion && !clause.isAttributed && !clause.isConditional)
     || /\b(?:estimated|approximately)\b/i.test(text) || /\b(?:correction|corrected|carrier|harness|equipment|parcel)\b/i.test(text)
@@ -103,6 +103,40 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
       }]}) || null;
     }
   }
+  // Latest body mass across a multi-pet cohort is a database projection, not
+  // a language-generation task. Require an unblocked authoritative boundary for
+  // every requested pet and exactly one verified measurement at that boundary.
+  if (evidence.scope.readOnlyRecall && request?.mode === "read" && request.evidenceBasis === "saved_history"
+    && evidence.interpretation?.selection === "latest" && request.quantity === "measurement"
+    && evidence.scope.authorizedPetIds.length > 1 && /\b(?:weights?|body mass)\b/i.test(requestText)
+    && /\b(?:latest|most recent|newest)\b/i.test(requestText)
+    && !/\b(?:why|cause|because|diagnos|recommend|trend)\b/i.test(requestText)
+    && (!request.outputFormat || ["prose", "bullets", "table", "csv"].includes(request.outputFormat))) {
+    const rows: Array<{ name: string; date: string; literal: string; sourceId: string }> = [];
+    for (const petId of evidence.scope.authorizedPetIds) {
+      const boundary = evidence.history?.chronology?.find(item => item.petId === petId);
+      if (!boundary || boundary.blocked || !boundary.boundaryIds.length) return null;
+      const measurements = eligibleAnswerSources(evidence).filter(source => source.petId === petId
+        && source.sourceType === "care_update" && boundary.boundaryIds.includes(source.sourceId)).flatMap(source => {
+        const measurement = bodyMeasurement(source.text);
+        return measurement && source.occurredAt ? [{ source, measurement }] : [];
+      });
+      const name = evidence.petNames?.[petId];
+      if (!name || measurements.length !== 1) return null;
+      rows.push({ name, date: measurements[0].source.occurredAt!.slice(0, 10),
+        literal: measurements[0].measurement.literal, sourceId: measurements[0].source.sourceId });
+    }
+    if (!rows.length) return null;
+    const format = request.outputFormat || "prose";
+    const text = format === "table" ? ["| Pet | Date | Weight |", "| --- | --- | --- |",
+      ...rows.map(row => `| ${row.name} | ${row.date} | ${row.literal} |`)].join("\n")
+      : format === "csv" ? [["Pet","Date","Weight"], ...rows.map(row => [row.name,row.date,row.literal])]
+        .map(line => line.map(csv).join(",")).join("\n")
+      : format === "bullets" ? rows.map(row => `- ${row.name}: ${row.literal} on ${row.date}`).join("\n")
+      : rows.map(row => `${row.name}: ${row.literal} on ${row.date}.`).join(" ");
+    return parseHistoryNarrative({ sentences: [{ text, sourceIds: rows.map(row => row.sourceId), calculations: [] }] }) || null;
+  }
+
   // A two-date body-mass comparison is a bounded database projection, not a
   // language-model arithmetic exercise. It remains a draft for whole-task
   // semantic review, including any additional explanation the user requested.
