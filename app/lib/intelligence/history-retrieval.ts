@@ -195,6 +195,11 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     || context.askInterpretation?.readOperation === "overview" || context.askInterpretation?.selection === "summary" && !searchTerms.length);
   for (const petId of ids.slice(0, HISTORY_BUDGET.pets)) {
     let failed = false; let pages = 0; let exhausted = true;
+    let recoveredWindowedNeed = false;
+    let deferredGenericLexicalFailure = false;
+    const windowedNeedIds = new Set((context.askInterpretation?.request?.evidenceNeeds || [])
+      .filter(need => (!need.petIds || need.petIds.includes(petId)) && Boolean(need.window))
+      .map(need => need.id));
     const collected: CareEntryRow[] = [];
     const directions = endpointComparison ? [false, true] : [descending];
     // Reserve half of the same budget for period context: lexical candidates
@@ -276,6 +281,27 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
               p_to: futureSourceRequested ? candidatesWindow.to : new Date(Math.min(candidatesWindow.to ? Date.parse(candidatesWindow.to) : Infinity, asOf + 1)).toISOString(),
               p_after_time: cursor?.occurredAt ?? null, p_after_id: cursor?.id ?? null, p_limit: pageLimit,
             }).abortSignal(signal), timeoutMs);
+            // For an already-authorized evidence need with an explicit date
+            // window, lexical matching is only a candidate hint. A transient or
+            // validator RPC failure must not erase the bounded period itself.
+            // Re-read the same owner/pet/window through ordinary RLS. Auth/scope
+            // failures remain fail-closed and never take this recovery path.
+            if (result.error && candidatesWindow.from && candidatesWindow.to
+              && (needId ? windowedNeedIds.has(needId) : windowedNeedIds.size > 0)
+              && !["42501", "28000"].includes(result.error.code || "")) {
+              let fallback = db.from("pet_care_entries").select("id,user_id,pet_profile_id,category,title,note,severity,occurred_at,created_at,updated_at,deleted_at")
+                .eq("user_id", context.owner.userId).eq("pet_profile_id", petId).is("deleted_at", null)
+                .gte("occurred_at", candidatesWindow.from).lt("occurred_at", candidatesWindow.to);
+              if (!futureSourceRequested) fallback = fallback.lt("occurred_at", new Date(asOf + 1).toISOString());
+              if (cursor) fallback = fallback.or(`occurred_at.${readDescending ? "lt" : "gt"}.${cursor.occurredAt},and(occurred_at.eq.${cursor.occurredAt},id.${readDescending ? "lt" : "gt"}.${cursor.id})`);
+              const recovered = await withExecutionDeadline(signal => fallback.order("occurred_at", { ascending: !readDescending })
+                .order("id", { ascending: !readDescending }).limit(pageLimit).abortSignal(signal).returns<CareEntryRow[]>(), timeoutMs);
+              if (!recovered.error) {
+                result = recovered;
+                recoveredWindowedNeed = true;
+                coverage.reasons.push("windowed_need_lexical_fallback");
+              }
+            }
             if (result.error) coverage.reasons.push(result.error.code === "57014" ? "candidate_rpc_timeout"
               : result.error.code === "55000" ? "candidate_rpc_timeout_configuration" : "candidate_rpc_unavailable");
           } else {
@@ -313,10 +339,15 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
         }
       } catch (error) {
         strategyFailed = true;
-        // An advisory lexical need is not allowed to invalidate successful
-        // exact-date/period reads for the same pet. Global retrieval becomes
-        // unavailable only when a primary broad/target strategy fails.
-        if (!needId || target) failed = true;
+        // A generic lexical strategy is advisory when the same pet has an
+        // explicit bounded evidence need. Defer that failure until all scoped
+        // strategies have had a chance to recover through the same RLS window.
+        // Targets and unbounded primary reads remain fail-closed immediately.
+        if (target) failed = true;
+        else if (!needId) {
+          if (lexical && windowedNeedIds.size) deferredGenericLexicalFailure = true;
+          else failed = true;
+        }
         coverage.reasons.push("history_page_unavailable_or_changed");
         if (error instanceof Error && (error.message === "history_time_budget" || ["AbortError", "TimeoutError"].includes(error.name))) {
           coverage.reasons.push(plan.terms.length ? "candidate_rpc_timeout" : "history_time_budget");
@@ -333,6 +364,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
         candidateIds: rows.filter(row => Date.parse(row.occurred_at) >= Date.parse(from) && Date.parse(row.occurred_at) < Date.parse(to)).map(row => `care:${row.id}`), exhausted: traversalExhausted });
       collected.push(...rows);
     }
+    if (deferredGenericLexicalFailure && !recoveredWindowedNeed) failed = true;
     const unique = new Map<string, CareEntryRow>();
     const changed = new Set<string>();
     for (const row of collected) {

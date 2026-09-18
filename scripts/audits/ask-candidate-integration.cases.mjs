@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { exercise, clock } from './helpers/lifetime-harness.mjs';
-import { care, irrelevant, ownerId } from './fixtures/ask-lifetime-history.mjs';
+import { care, irrelevant, ownerId, pets } from './fixtures/ask-lifetime-history.mjs';
 
 test('lexical callback uses candidate RPC; title-only old evidence reaches final representation', async t => {
   clock(t);
@@ -31,6 +31,28 @@ for (const [code, reason] of [['THROW_ABORT','candidate_rpc_timeout'],['57014','
     assert.equal(run.prompt.evidenceContract.history.perPet[0].exhausted,false);
   });
 }
+test('windowed multi-pet evidence needs recover lexical RPC failure through bounded RLS periods',async t=>{
+  clock(t);
+  const q='Give me one dated September 2026 fact for Milo, one dated September 2026 fact for Luna, and one dated September 2026 fact for Oscar.';
+  const rows=[
+    care('milo-sep','milo','2026-09-02','general','On September 2, 2026, Milo played for 17 minutes.'),
+    care('luna-sep','luna','2026-09-02','general','On September 2, 2026, Luna rested after lunch.'),
+    care('oscar-sep','oscar','2026-09-02','general','On September 2, 2026, Oscar walked normally.')
+  ];
+  const interpretationProposal={version:'ask-request.v2',mode:'read',question:q,requirements:[],referenceTurnIds:[],scope:'named',petNames:['Milo','Luna','Oscar'],
+    operation:'recall',selection:'summary',quantity:'records',topic:'history',terms:['dated','fact'],from:'2026-09-01',to:'2026-10-01',
+    episodeTopic:null,ordinal:null,frame:null,evidenceBasis:'saved_history',premiseQuotes:[],excludedPetNames:[],projection:null,outputFormat:'prose',profileFields:[],temporalScope:'historical',mutationIntent:null,recordSelection:null,
+    evidenceNeeds:[
+      {quote:'one dated September 2026 fact for Milo',sourceTurnId:null,petNames:['Milo'],terms:['dated','fact'],order:'context'},
+      {quote:'one dated September 2026 fact for Luna',sourceTurnId:null,petNames:['Luna'],terms:['dated','fact'],order:'context'},
+      {quote:'one dated September 2026 fact for Oscar',sourceTurnId:null,petNames:['Oscar'],terms:['dated','fact'],order:'context'}
+    ]};
+  const run=await exercise(q,{history:true,fixturePets:pets,rows,candidateError:'PGRST202',interpretationProposal,expectedReviewCalls:2,reviewResponse:{approved:true}});
+  for(const id of ['care:milo-sep','care:luna-sep','care:oscar-sep']) assert.ok(run.prompt.contextRecords.some(r=>r.id===id),id);
+  assert.notEqual(run.prompt.evidenceContract.history.retrieval,'unavailable');
+  assert.ok(run.queries.some(query=>query.table==='pet_care_entries' && query.filters.length>=5));
+});
+
 test('all emitted lexical vocabulary fits the production RPC validator',async t=>{
   clock(t);
   const {planHistoricalQuery}=await import('../../app/lib/intelligence/history-retrieval.ts');
