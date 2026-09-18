@@ -703,8 +703,22 @@ export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set
     // Even a closed linked graph does not certify that all legacy corrections
     // were linked or imported. No semantic completeness claim is made.
     return output;
-  } catch {
+  } catch (error) {
     episodeClaims?.verified.clear();
+    const knownFailureClasses = new Set([
+      "correction_budget", "correction_read_incomplete", "correction_changed_during_read",
+      "claim_changed_during_read", "missing_relation_endpoint", "missing_lineage_source",
+      "stale_lineage", "ambiguous_correction_graph", "history_time_budget",
+    ]);
+    const rawFailure = error instanceof Error ? error.message : "";
+    const failureClass = knownFailureClasses.has(rawFailure) ? rawFailure
+      : error instanceof Error && ["AbortError", "TimeoutError"].includes(error.name) ? "history_time_budget" : "unknown";
+    console.info("[Ask history correction] closure unavailable", {
+      candidateCount: candidates.length,
+      failureClass,
+      petCount: requestedPets.length,
+      queryCount: coverage.queryCount,
+    });
     coverage.corrections = "unavailable"; coverage.reasons.push("correction_closure_unavailable_or_ambiguous");
     coverage.provenance = candidates.map(row => ({ sourceId: `care:${row.id}`, claimIds: [], status: "withheld_correction_authority" }));
     return [];
