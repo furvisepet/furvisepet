@@ -7,11 +7,11 @@ const byName=Object.fromEntries(stressPets.map(p=>[p.name,p]));
 const proposal=(patch={})=>({operation:'recall',subject:'explicit',petNames:['Aster'],topic:'history',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,evidenceBasis:'saved_history',...patch});
 const review={approved:true};
 const narrative=(text,sourceIds)=>({sentences:[{text,sourceIds:sourceIds.map(id=>'care:'+id),calculations:[]}]});
-async function run(t,{q,pet='Aster',p,answer,sources,expectReview=1}){
+async function run(t,{q,pet='Aster',p,answer,sources,expectReview=1,expectProvider=1}){
   clock(t);
   return exercise(q,{fixturePets:stressPets,petId:byName[pet].id,conversationPetId:byName[pet].id,rows,history:true,
     interpretationProposal:p,providerOverrides:{answer,relevantContextIds:sources.map(id=>'care:'+id),historyNarrative:narrative(answer,sources)},
-    expectedReviewCalls:expectReview,reviewResponse:review});
+    expectedProviderCalls:expectProvider,expectedReviewCalls:expectReview,reviewResponse:review});
 }
 
 test('1 five-year Aster endpoint comparison retains 2022 and 2026 weights',async t=>{
@@ -78,8 +78,12 @@ test('9 four-pet latest-weight cohort does not leak selected-pet context',async 
   const ids=['aster-weight-2026','fennel-weight','grove-weight','hazel-weight'];
   const r=await run(t,{q:'Give the latest recorded body weight for Aster, Fennel, Grove, and Hazel.',pet:'Aster',
     p:proposal({petNames:['Aster','Fennel','Grove','Hazel'],selection:'latest',terms:['weight']}),
-    answer:'Aster is 20.9 kg, Fennel 8.2 kg, Grove 12.7 kg, and Hazel 4.4 kg in their latest matching weight records.',sources:ids});
-  for(const id of ids)assert.ok(promptHas(r,id),id);
+    answer:'Aster is 20.9 kg, Fennel 8.2 kg, Grove 12.7 kg, and Hazel 4.4 kg in their latest matching weight records.',sources:ids,expectProvider:0});
+  assert.match(r.result.reasoning.answer.summary,/Aster: 20\.9 kg/);
+  assert.match(r.result.reasoning.answer.summary,/Fennel: 8\.2 kg/);
+  assert.match(r.result.reasoning.answer.summary,/Grove: 12\.7 kg/);
+  assert.match(r.result.reasoning.answer.summary,/Hazel: 4\.4 kg/);
+  assert.equal(new Set(r.result.reasoning.referencedRecords.filter(x=>x.id.startsWith('care:')).map(x=>x.petId)).size,4);
 });
 
 test('10 maximum 10-pet cohort preserves at least one owned history row per pet under dense noise',async t=>{

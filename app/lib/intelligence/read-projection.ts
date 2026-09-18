@@ -107,22 +107,31 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
   // a language-generation task. Require an unblocked authoritative boundary for
   // every requested pet and exactly one verified measurement at that boundary.
   if (evidence.scope.readOnlyRecall && request?.mode === "read" && request.evidenceBasis === "saved_history"
-    && evidence.interpretation?.selection === "latest" && request.quantity === "measurement"
     && evidence.scope.authorizedPetIds.length > 1 && /\b(?:weights?|body mass)\b/i.test(requestText)
     && /\b(?:latest|most recent|newest)\b/i.test(requestText)
     && !/\b(?:why|cause|because|diagnos|recommend|trend)\b/i.test(requestText)
     && (!request.outputFormat || ["prose", "bullets", "table", "csv"].includes(request.outputFormat))) {
+    diagnostic?.({ stage: "latest_cohort_candidate", readOnly: true,
+      selection: evidence.interpretation?.selection || null, quantity: request.quantity || null,
+      petCount: evidence.scope.authorizedPetIds.length });
     const rows: Array<{ name: string; date: string; literal: string; sourceId: string }> = [];
     for (const petId of evidence.scope.authorizedPetIds) {
       const boundary = evidence.history?.chronology?.find(item => item.petId === petId);
-      if (!boundary || boundary.blocked || !boundary.boundaryIds.length) return null;
+      if (!boundary || boundary.blocked || !boundary.boundaryIds.length) {
+        diagnostic?.({ stage: "latest_cohort_boundary", petId, hasBoundary: Boolean(boundary),
+          blocked: boundary?.blocked || false, boundaryCount: boundary?.boundaryIds.length || 0 });
+        return null;
+      }
       const measurements = eligibleAnswerSources(evidence).filter(source => source.petId === petId
         && source.sourceType === "care_update" && boundary.boundaryIds.includes(source.sourceId)).flatMap(source => {
         const measurement = bodyMeasurement(source.text);
         return measurement && source.occurredAt ? [{ source, measurement }] : [];
       });
       const name = evidence.petNames?.[petId];
-      if (!name || measurements.length !== 1) return null;
+      if (!name || measurements.length !== 1) {
+        diagnostic?.({ stage: "latest_cohort_measurement", petId, named: Boolean(name), measurementCount: measurements.length });
+        return null;
+      }
       rows.push({ name, date: measurements[0].source.occurredAt!.slice(0, 10),
         literal: measurements[0].measurement.literal, sourceId: measurements[0].source.sourceId });
     }
@@ -134,6 +143,7 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
         .map(line => line.map(csv).join(",")).join("\n")
       : format === "bullets" ? rows.map(row => `- ${row.name}: ${row.literal} on ${row.date}`).join("\n")
       : rows.map(row => `${row.name}: ${row.literal} on ${row.date}.`).join(" ");
+    diagnostic?.({ stage: "latest_cohort_projected", rowCount: rows.length, petCount: evidence.scope.authorizedPetIds.length });
     return parseHistoryNarrative({ sentences: [{ text, sourceIds: rows.map(row => row.sourceId), calculations: [] }] }) || null;
   }
 
