@@ -120,6 +120,25 @@ test('past-to-present weight projection uses profile authority, not a later care
  const ambiguous={...monthEvidence,represented:[...evidence.represented,{...evidence.represented[1],sourceId:'care:newer',occurredAt:'2024-04-20T12:00:00Z'}]};
  assert.equal(deterministicReadProjection(ambiguous),null);
 });
+test('cross-year exact body-mass comparison projects both literal dates server-side',()=> {
+ const requestText="Compare Ziggy's body weight recorded on September 13, 2022 with September 9, 2026 and give the exact kg change.";
+ const oldText='Ziggy body weight was 8.7 kg on September 13, 2022 without equipment.';
+ const newText='Ziggy body weight was 9.4 kg on September 9, 2026 without equipment.';
+ const evidence={version:'ask-evidence.v1',scope:{authorizedPetIds:['pet'],requestedTopic:'weight',requestText,requestedPeriod:{kind:'unspecified',surface:null},requestKind:'comparison',status:'resolved',readOnlyRecall:true},
+  sources:[{petId:'pet',source:'care_entries',status:'loaded',loadedIds:['care:old','care:new'],loadedCount:2,cap:null,reasons:[],completeness:{}}],
+  completeness:{},losses:[],representation:'complete',verifiedFacts:[],petNames:{pet:'Ziggy'},
+  interpretation:{request:{mode:'read',profileFields:[],temporalScope:'historical',outputFormat:null,referenceTurnIds:[]}},
+  history:{corrections:'complete',provenance:[{sourceId:'care:old',status:'effective_linked'},{sourceId:'care:new',status:'effective_linked'}]},
+  represented:[
+   {sourceId:'care:old',petId:'pet',sourceType:'care_update',field:'value',start:0,end:oldText.length,text:oldText,occurredAt:'2022-09-13T12:00:00Z'},
+   {sourceId:'care:new',petId:'pet',sourceType:'care_update',field:'value',start:0,end:newText.length,text:newText,occurredAt:'2026-09-09T12:00:00Z'}]};
+ const projection=deterministicReadProjection(evidence);
+ assert.ok(projection);
+ assert.match(projection.sentences.map(x=>x.text).join(' '),/8\.7 kg.*9\.4 kg.*0\.7 kg/);
+ assert.deepEqual(projection.sentences.at(-1).sourceIds,['care:old','care:new']);
+ assert.equal(projection.sentences.at(-1).calculations[0].value,0.7);
+});
+
 test('latest multi-pet body mass projection requires one verified unblocked boundary per pet',()=> {
  const ids=Array.from({length:10},(_,i)=>`pet-${i+1}`), names=['Atlas','Clover','Cosmo','Juniper','Maple','Mochi','Nori','Pixel','Ziggy','Rowan'];
  const requestText='Give the latest recorded body weight for each of these 10 pets, keeping them separate. Include the date for each value.';

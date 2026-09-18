@@ -64,8 +64,7 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
     && request.temporalScope === "historical_and_current" && (!request.outputFormat || request.outputFormat === "prose")
     && evidence.scope.authorizedPetIds.length === 1 && /\b(?:weights?|weigh(?:ed|s|ing)?|body mass)\b/i.test(requestText)
     && /\b(?:change|difference|compare)\b/i.test(requestText) && !/\b(?:why|cause|because|diagnos|recommend|trend)\b/i.test(requestText)) {
-    const years = [...new Set(requestText.match(/\b(?:19|20)\d{2}\b/g) || [])];
-    const days = years.length === 1 ? explicitHistoryDays(requestText, Number(years[0])) : [];
+    const days = explicitHistoryDays(requestText, new Date().getUTCFullYear(), 8);
     const months = days.length === 0 ? explicitHistoryMonths(requestText) : [];
     const month = months.length === 1 && !/\b(?:before|after|since|until|between)\b/i.test(requestText) ? months[0] : null;
     const petId = evidence.scope.authorizedPetIds[0], name = evidence.petNames?.[petId];
@@ -152,8 +151,7 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
   // semantic review, including any additional explanation the user requested.
   if (evidence.scope.readOnlyRecall && request && (!request.outputFormat || request.outputFormat === "prose") && evidence.scope.authorizedPetIds.length === 1
     && /\b(?:weights?|body mass)\b/i.test(requestText) && /\b(?:change|difference|compare)\b/i.test(requestText)) {
-    const explicitYears = [...new Set(requestText.match(/\b(?:19|20)\d{2}\b/g) || [])];
-    const days = explicitYears.length === 1 ? explicitHistoryDays(requestText, Number(explicitYears[0])) : [];
+    const days = explicitHistoryDays(requestText, new Date().getUTCFullYear(), 8);
     const petId = evidence.scope.authorizedPetIds[0], name = evidence.petNames?.[petId];
     const sources = eligibleAnswerSources(evidence).filter(source => source.petId === petId && source.sourceType === "care_update");
     const rows = days.map(day => sources.flatMap(source => {

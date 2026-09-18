@@ -16,8 +16,9 @@ async function run(t,{q,pet='Aster',p,answer,sources,expectReview=1,expectProvid
 
 test('1 five-year Aster endpoint comparison retains 2022 and 2026 weights',async t=>{
   const r=await run(t,{q:'Compare Aster body weight on February 14, 2022 with August 14, 2026.',p:proposal({operation:'comparison',selection:'comparison',petNames:['Aster'],terms:['weight'],from:'2022-02-14',to:'2026-08-15'}),
-    answer:'Aster was 22.4 kg on February 14, 2022 and 20.9 kg on August 14, 2026.',sources:['aster-weight-2022','aster-weight-2026']});
-  assert.ok(promptHas(r,'aster-weight-2022'));assert.ok(promptHas(r,'aster-weight-2026'));
+    answer:'Aster was 22.4 kg on February 14, 2022 and 20.9 kg on August 14, 2026.',sources:['aster-weight-2022','aster-weight-2026'],expectProvider:0});
+  const cited=new Set(r.result.reasoning.referencedRecords.map(record=>record.id));
+  assert.ok(cited.has('care:aster-weight-2022'));assert.ok(cited.has('care:aster-weight-2026'));
   assert.match(r.result.reasoning.answer.summary,/22\.4/);assert.match(r.result.reasoning.answer.summary,/20\.9/);
 });
 
