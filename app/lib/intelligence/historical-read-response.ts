@@ -118,6 +118,17 @@ export function canonicalHistoricalRead(value: unknown): unknown {
   if (narrative && !matchesHistoryOutputFormat(narrative.sentences.map(chunk => chunk.text).join("\n"), String(p.layout))) throw new Error("INVALID_READ_LAYOUT");
   return { ...p, historicalResult, applicationActions, historyNarrative: narrative || null, answer: narrative ? narrative.sentences.map(chunk => chunk.text).join("\n") : p.limitation };
 }
+/** Remove generic coverage caveats only after the server has separately
+ * certified the exact target window complete. This is presentation cleanup,
+ * never evidence: callers must enforce that coverage precondition. */
+export function stripCompletedTargetCoverageCaution(text: string) {
+  const withoutPrefix = text.replace(/^\s*partial summary\s*:\s*/i, "");
+  return withoutPrefix.split(/(?<=[.!?])\s+/).filter(sentence =>
+    !/\bpartial summary\b/i.test(sentence)
+    && !/\b(?:I|we)\s+(?:only\s+)?(?:see|found|have)\s+(?:just\s+)?(?:one|1)\b[^.!?]*\b(?:note|record|entry)\b/i.test(sentence)
+  ).join(" ").trim();
+}
+
 export const historicalReadInstructions = [
   companionVoiceInstructions,
   "Answer the requested property or relationship, not merely a nearby topic. A static measurement or routine observation is not evidence of a change, diagnosis, cause or treatment. If that relationship is not recorded, say so directly; mention nearby observations only as clearly distinct context. A keyword-search receipt cannot override the meaning of an actual saved observation. When history.periods are sampled rather than exhausted, cover the represented periods and label the answer a partial summary, not the full period history. By contrast, an explicit history.targets entry whose query is exhausted and whose candidate records are all retained represents complete database coverage for that exact target date/month. Do not add a partial-summary warning merely because such a completed target contains one record. That target receipt does not prove clinical absence or completeness outside its exact window.",

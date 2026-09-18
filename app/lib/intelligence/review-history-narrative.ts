@@ -11,7 +11,7 @@ import { furviseProductFacts } from "../ai/ask-internal-product-policy.ts";
 import { isExplicitCareHistorySaveRequest } from "./care-history-policy.ts";
 import type { GovernedAskExecutionPlan } from "./ask-execution-plan.ts";
 import { eligibleAnswerSources } from "./ask-evidence.ts";
-import { completedEmptyEvidenceNeeds, completedExplicitHistoryTargets } from "./evidence-need-coverage.ts";
+import { completedEmptyEvidenceNeeds, completedExplicitHistoryTargets, historyCompletionLimits } from "./evidence-need-coverage.ts";
 import { prepareFurviseApplicationActions } from "../application-actions/planner.ts";
 import { parseModelApplicationActions } from "../application-actions/contracts.ts";
 import { readHistoryReviewAudit, recordHistoryReviewAudit, readHistoryReviewDiagnostic, recordHistoryReviewDiagnostic } from "./history-review-state.ts";
@@ -39,7 +39,7 @@ import { getAskModelConfiguration, assertNoInternalReasoningLeak, type AskReason
 import { boundedProviderTimeout, executeAdmittedProviderCall } from "../ai/usage-guard/provider-call-budget.ts";
 import { ASK_MAX_OUTPUT_TOKENS, interpretStructuredProviderResponse } from "../ai/ask-provider.ts";
 import { attributedHistoryAnswer, conversationalHistoryLimitation } from "./ask-evidence.ts";
-import { matchesHistoryOutputFormat, canonicalHistoricalRead, historicalReadSchema, historicalReadInstructions } from "./historical-read-response.ts";
+import { matchesHistoryOutputFormat, canonicalHistoricalRead, historicalReadSchema, historicalReadInstructions, stripCompletedTargetCoverageCaution } from "./historical-read-response.ts";
 import { historyNarrativeSchema } from "./history-narrative.ts";
 import { parseHistoryNarrative } from "./history-narrative.ts";
 
@@ -173,6 +173,13 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     }) };
   }
   if (sharedRequest) proposedDraft = attachDeterministicCalculationBindings(proposedDraft, sources, evidence.scope.requestText);
+  const completedTargetCoverage = sharedRequest && completedExplicitHistoryTargets(evidence).length > 0
+    && !historyCompletionLimits(evidence).length
+    && evidence.scope.requestKind !== "overview"
+    && !/\b(?:summary|summari[sz]e|all|every|entire|complete|full)\b/i.test(evidence.scope.requestText);
+  if (completedTargetCoverage) proposedDraft = { sentences: proposedDraft.sentences.map(sentence => ({
+    ...sentence, text: stripCompletedTargetCoverageCaution(sentence.text),
+  })).filter(sentence => sentence.text) };
   try { if (sharedRequest) for (const chunk of proposedDraft.sentences) assertNoInternalReasoningLeak(chunk.text,
     evidence.represented.map(span => ({ id: span.sourceId }))); }
   catch { return decline("draft_publication_rejected"); }
