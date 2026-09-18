@@ -25,3 +25,16 @@ test('explicit comparison dates recover a model plan with both bounds missing',(
  normalizeExplicitHistoryDates(p,'Compare July 1, 2026 and August 12, 2026.');
  assert.equal(p.from,'2026-07-01');assert.equal(p.to,'2026-08-13');assert.deepEqual(p.terms,[]);
 });
+
+test('comparison across two explicit months widens a stale planner window to both user anchors',()=>{
+ const p={...plan(),operation:'comparison',from:'2021-07-01',to:'2021-08-01',terms:['puzzle','feeder']};
+ normalizeExplicitHistoryDates(p,"Compare Cedar's puzzle-feeder time in July 2021 with July 2024.");
+ assert.equal(p.from,'2021-07-01');assert.equal(p.to,'2024-08-01');assert.deepEqual(p.terms,[]);
+});
+
+test('non-comparison month mentions do not widen planner scope',()=>{
+ const p={...plan(),operation:'recall',from:'2021-07-01',to:'2021-08-01',terms:['puzzle','feeder']};
+ const before=structuredClone(p);
+ normalizeExplicitHistoryDates(p,'Show July 2021 and July 2024 notes.');
+ assert.deepEqual(p,before);
+});

@@ -64,6 +64,16 @@ export function normalizeExplicitHistoryDates(p: Record<string,unknown>, questio
      || p.from===days[0]&&[days[1],after(days[1]),after(days[0])].includes(String(p.to)))
    && Array.isArray(p.terms)&&p.terms.length<=6&&p.terms.every(t=>typeof t==='string'&&t.length>=3&&t.length<=32&&/^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(t))) {
    p.from=days[0];p.to=after(days[1]);p.selection='period';p.terms=[];
+   return;
+ }
+ const months=explicitHistoryMonths(question);
+ if(months.length===2&&/\b(?:compare|comparison|versus|vs|difference|chang\w*)\b/i.test(question)
+   && months[0]<months[1]
+   && Array.isArray(p.terms)&&p.terms.length<=6&&p.terms.every(t=>typeof t==='string'&&t.length>=3&&t.length<=32&&/^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(t))) {
+   const start=months[0]+'-01';
+   const lastYear=Number(months[1].slice(0,4)),lastMonth=Number(months[1].slice(5,7));
+   const end=new Date(Date.UTC(lastYear,lastMonth,1)).toISOString().slice(0,10);
+   p.from=start;p.to=end;p.selection='period';p.terms=[];
  }
 }
 
