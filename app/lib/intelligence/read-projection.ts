@@ -113,6 +113,71 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
       }]}) || null;
     }
   }
+  // Earliest-to-latest body mass across a multi-pet cohort is a database
+  // projection, not a prompt-budget problem. Retrieval already reads both ends;
+  // require both correction-validated endpoint sets for every pet and compute
+  // each signed difference from the cited source literals.
+  if (evidence.scope.readOnlyRecall && request?.mode === "read" && request.evidenceBasis === "saved_history"
+    && evidence.scope.authorizedPetIds.length > 1 && /\b(?:weights?|body mass)\b/i.test(requestText)
+    && /\b(?:earliest|first)\b/i.test(requestText) && /\b(?:latest|last|most recent|newest)\b/i.test(requestText)
+    && !/\b(?:why|cause|because|diagnos|recommend|trend)\b/i.test(requestText)
+    && (!request.outputFormat || ["prose", "bullets", "table", "csv"].includes(request.outputFormat))) {
+    const target = /\b(?:pounds?|lbs?)\b/i.test(requestText) ? units.lb
+      : /\b(?:grams?|g)\b/i.test(requestText) ? units.g : units.kg;
+    const sources = eligibleAnswerSources(evidence);
+    const rows: Array<{ name: string; firstDate: string; firstLiteral: string; lastDate: string; lastLiteral: string;
+      change: number; sourceIds: string[]; calculation: HistoryCalculation }> = [];
+    for (const petId of evidence.scope.authorizedPetIds) {
+      const pair = evidence.history?.endpointPairs?.find(item => item.petId === petId);
+      if (!pair || pair.blocked || !pair.earliestIds.length || !pair.latestIds.length) {
+        diagnostic?.({ stage: "endpoint_cohort_boundary", petId, hasPair: Boolean(pair), blocked: pair?.blocked || false,
+          earliestCount: pair?.earliestIds.length || 0, latestCount: pair?.latestIds.length || 0 });
+        return null;
+      }
+      const endpoint = (ids: string[]) => sources.filter(source => source.petId === petId && source.sourceType === "care_update"
+        && ids.includes(source.sourceId)).flatMap(source => {
+          const measurement = bodyMeasurement(source.text);
+          return measurement && source.occurredAt ? [{ source, measurement }] : [];
+        });
+      const first = endpoint(pair.earliestIds), last = endpoint(pair.latestIds);
+      const name = evidence.petNames?.[petId];
+      if (!name || first.length !== 1 || last.length !== 1
+        || first[0].measurement.unit.dimension !== target.dimension || last[0].measurement.unit.dimension !== target.dimension) {
+        diagnostic?.({ stage: "endpoint_cohort_measurement", petId, named: Boolean(name),
+          earliestMeasurementCount: first.length, latestMeasurementCount: last.length });
+        return null;
+      }
+      const firstValue = first[0].measurement.value * first[0].measurement.unit.scale / target.scale;
+      const lastValue = last[0].measurement.value * last[0].measurement.unit.scale / target.scale;
+      const change = Number((lastValue - firstValue).toFixed(8));
+      const sourceIds = [...new Set([first[0].source.sourceId, last[0].source.sourceId])];
+      rows.push({ name, firstDate: first[0].source.occurredAt!.slice(0, 10), firstLiteral: first[0].measurement.literal,
+        lastDate: last[0].source.occurredAt!.slice(0, 10), lastLiteral: last[0].measurement.literal, change, sourceIds,
+        calculation: { operation: "difference", expression: null,
+          operands: [{ sourceId: last[0].source.sourceId, field: "text", literal: last[0].measurement.literal },
+            { sourceId: first[0].source.sourceId, field: "text", literal: first[0].measurement.literal }],
+          value: change, unit: target.canonical } });
+    }
+    if (!rows.length) return null;
+    const format = request.outputFormat || "prose";
+    if (format === "table" || format === "csv") {
+      const cells = [["Pet","Earliest","Earliest date","Latest","Latest date",`Change (${target.canonical})`],
+        ...rows.map(row => [row.name,row.firstLiteral,row.firstDate,row.lastLiteral,row.lastDate,String(row.change)])];
+      const text = format === "csv" ? cells.map(line => line.map(csv).join(",")).join("\n")
+        : ["| Pet | Earliest | Earliest date | Latest | Latest date | Change |", "| --- | --- | --- | --- | --- | --- |",
+          ...rows.map(row => `| ${row.name} | ${row.firstLiteral} | ${row.firstDate} | ${row.lastLiteral} | ${row.lastDate} | ${row.change} ${target.canonical} |`)].join("\n");
+      diagnostic?.({ stage: "endpoint_cohort_projected", rowCount: rows.length, petCount: rows.length });
+      return parseHistoryNarrative({ sentences: [{ text, sourceIds: rows.flatMap(row => row.sourceIds),
+        calculations: rows.map(row => row.calculation) }] }) || null;
+    }
+    const sentences = rows.map(row => ({ text: format === "bullets"
+        ? `- ${row.name}: ${row.firstLiteral} on ${row.firstDate}; ${row.lastLiteral} on ${row.lastDate}; change ${row.change >= 0 ? "+" : ""}${row.change} ${target.canonical}.`
+        : `${row.name}: ${row.firstLiteral} on ${row.firstDate}; ${row.lastLiteral} on ${row.lastDate}; change ${row.change >= 0 ? "+" : ""}${row.change} ${target.canonical}.`,
+      sourceIds: row.sourceIds, calculations: [row.calculation] }));
+    diagnostic?.({ stage: "endpoint_cohort_projected", rowCount: rows.length, petCount: rows.length });
+    return parseHistoryNarrative({ sentences }) || null;
+  }
+
   // Latest body mass across a multi-pet cohort is a database projection, not
   // a language-generation task. Require an unblocked authoritative boundary for
   // every requested pet and exactly one verified measurement at that boundary.

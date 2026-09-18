@@ -32,6 +32,7 @@ export type HistoryCoverage = {
   needs?: Array<{ petId: string; needId: string; candidateIds: string[]; exhausted: boolean; status: Completeness; reason?: string }>;
   targets?: Array<{ petId: string; day: string; candidateIds: string[]; retainedIds: string[]; exhausted: boolean; status: Completeness }>;
   chronology?: Array<{ petId: string; boundaryIds: string[]; blocked: boolean }>;
+  endpointPairs?: Array<{ petId: string; earliestIds: string[]; latestIds: string[]; blocked: boolean }>;
   plan: HistoryPlan; candidateIds: string[]; queryCount: number;
   retrieval: Completeness; corrections: Completeness; extraction: Completeness; grouping: Completeness;
   continuation: Cursor[]; reasons: string[]; consistency: "read_committed_no_snapshot";
@@ -184,6 +185,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     && /\bweights?\b/i.test(context.currentMessage)
     && /\b(?:earliest|first)\b/i.test(context.currentMessage) && /\b(?:latest|last)\b/i.test(context.currentMessage);
   const candidates: CareEntryRow[] = [];
+  const endpointSeeds = new Map<string, { earliestIds: string[]; latestIds: string[]; earliestReady: boolean; latestReady: boolean }>();
   // Reserve coverage/provenance space independently of model evidence. Split
   // the candidate budget fairly so the first pet cannot consume every slot.
   // Reserve twelve of the existing roots for later correction notes on dated
@@ -195,6 +197,8 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     || context.askInterpretation?.readOperation === "overview" || context.askInterpretation?.selection === "summary" && !searchTerms.length);
   for (const petId of ids.slice(0, HISTORY_BUDGET.pets)) {
     let failed = false; let pages = 0; let exhausted = true;
+    const endpointSeed = { earliestIds: [] as string[], latestIds: [] as string[], earliestReady: false, latestReady: false };
+    if (endpointComparison) endpointSeeds.set(petId, endpointSeed);
     let recoveredWindowedNeed = false;
     let deferredGenericLexicalFailure = false;
     const windowedNeedIds = new Set((context.askInterpretation?.request?.evidenceNeeds || [])
@@ -250,6 +254,8 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     // Split the existing candidate/page budget across both ends. Never scan a
     // decade sequentially just to compare the first and last recorded values.
     for (const [strategyIndex, { descending: readDescending, lexical, terms, from, to, target, needId, period }] of strategies.entries()) {
+      const endpointDirection = endpointComparison && !target && !needId && !period && (lexical || !searchTerms.length)
+        ? readDescending ? "latest" : "earliest" : null;
       const candidatesWindow = clipHistoryPlan(calendarCandidateWindow({ from, to }, context.timeZone), context.historyAccess);
       let cursor: Cursor | null = null; let traversalExhausted = false; let strategyFailed = false;
       const rows: CareEntryRow[] = [];
@@ -319,6 +325,17 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
           // Never tolerate a mock/misconfigured boundary returning foreign rows.
           if (page.some(row => row.user_id !== context.owner.userId || row.pet_profile_id !== petId || row.deleted_at)) throw new Error("history_scope_mismatch");
           if (!page.length) { traversalExhausted = true; break; }
+          if (endpointDirection && !endpointSeed[endpointDirection === "latest" ? "latestReady" : "earliestReady"]) {
+            const boundaryTime = page[0].occurred_at;
+            const idsAtBoundary = page.filter(row => compareHistoryTime(row.occurred_at, boundaryTime) === 0).map(row => row.id);
+            if (endpointDirection === "latest") {
+              endpointSeed.latestIds = idsAtBoundary;
+              endpointSeed.latestReady = true;
+            } else {
+              endpointSeed.earliestIds = idsAtBoundary;
+              endpointSeed.earliestReady = true;
+            }
+          }
           for (const row of page) {
             if (!/^[a-zA-Z0-9_-]+$/.test(row.id) || !row.occurred_at || !Number.isFinite(Date.parse(row.occurred_at))) throw new Error("invalid_history_cursor");
             const next: Cursor = { petId, occurredAt: row.occurred_at, id: row.id };
@@ -393,6 +410,24 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   }
   coverage.candidateIds = candidates.map(row => `care:${row.id}`);
   const entries = await effectiveCandidates(candidates, owned, ids, context.owner.userId, db, coverage, deadline);
+  if (endpointComparison) {
+    const effectiveIds = new Set(entries.map(entry => careEvidenceId(entry.id, coverage)));
+    coverage.endpointPairs = ids.map(petId => {
+      const seed = endpointSeeds.get(petId);
+      const expectedEarliest = (seed?.earliestIds || []).map(id => careEvidenceId(id, coverage));
+      const expectedLatest = (seed?.latestIds || []).map(id => careEvidenceId(id, coverage));
+      const earliestIds = expectedEarliest.filter(id => effectiveIds.has(id));
+      const latestIds = expectedLatest.filter(id => effectiveIds.has(id));
+      const blocked = !seed?.earliestReady || !seed.latestReady
+        || earliestIds.length !== expectedEarliest.length || latestIds.length !== expectedLatest.length
+        || coverage.perPet.find(pet => pet.petId === petId)?.status === "unavailable"
+        || coverage.corrections === "unavailable"
+        || coverage.reasons.includes("unsupported_claim_payload") || coverage.reasons.includes("unknown_effective_event_date")
+        || candidates.some(row => row.pet_profile_id === petId
+          && coverage.provenance.some(source => source.sourceId === `care:${row.id}` && source.status === "deleted_or_changed"));
+      return { petId, earliestIds, latestIds, blocked };
+    });
+  }
   // The physical boundary is provisional until the ordinary correction and
   // source-version checks have confirmed it. Never present a superseded or
   // concurrently changed boundary as the oldest effective calendar period.
@@ -488,7 +523,9 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const periodGroups = (coverage.periods || []).map(period => ordered.filter(entry => entry.pet_profile_id === period.petId
     && Date.parse(entry.occurred_at) >= Date.parse(period.from) && Date.parse(entry.occurred_at) < Date.parse(period.to)));
   const boundaryIds = new Set((coverage.chronology || []).flatMap(boundary => boundary.boundaryIds));
-  const required = [...ordered.filter(entry => boundaryIds.has(careEvidenceId(entry.id, coverage))),
+  const endpointPairIds = new Set((coverage.endpointPairs || []).flatMap(pair => [...pair.earliestIds, ...pair.latestIds]));
+  const required = [...ordered.filter(entry => boundaryIds.has(careEvidenceId(entry.id, coverage))
+      || endpointPairIds.has(careEvidenceId(entry.id, coverage))),
     // Large owned cohorts reserve one effective row per pet before any shared
     // period/context group can consume the evidence budget. This preserves
     // subject coverage at the maximum 10-pet read scope without increasing

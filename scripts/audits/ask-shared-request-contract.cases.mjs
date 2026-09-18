@@ -338,6 +338,11 @@ test('comparison retrieves both temporal ends for arbitrary topics within the ex
   assert.ok(ids.length <= 32);
   assert.ok(r.context.askHistory.coverage.reasons.includes('bidirectional_endpoint_subset'));
   assert.notEqual(r.context.askHistory.coverage.retrieval, 'complete');
+  const pair=r.context.askHistory.coverage.endpointPairs?.find(item=>item.petId==='milo');
+  assert.ok(pair);
+  assert.deepEqual(pair.earliestIds,['care:travel-000']);
+  assert.deepEqual(pair.latestIds,['care:travel-079']);
+  assert.equal(pair.blocked,false);
 });
 test('conversation identity must match a complete owned name', () => {
   assert.throws(() => validateAskRequest(proposal({ scope: 'conversation', petNames: ['Bramble'] }), {
