@@ -120,6 +120,21 @@ test('past-to-present weight projection uses profile authority, not a later care
  const ambiguous={...monthEvidence,represented:[...evidence.represented,{...evidence.represented[1],sourceId:'care:newer',occurredAt:'2024-04-20T12:00:00Z'}]};
  assert.equal(deterministicReadProjection(ambiguous),null);
 });
+test('weight shortcut declines tasks that also request another current profile field',()=> {
+ const requestText='Compare Ziggy\'s September 13, 2022 weight with the current weight, give the change, and name the currently recorded food.';
+ const oldText='Ziggy body weight was 8.7 kg on September 13, 2022 without equipment.';
+ const evidence={version:'ask-evidence.v1',scope:{authorizedPetIds:['pet'],requestedTopic:'weight',requestText,requestedPeriod:{kind:'unspecified',surface:null},requestKind:'comparison',status:'resolved',readOnlyRecall:true},
+  sources:[{petId:'pet',source:'profile',status:'loaded',loadedIds:['pet'],loadedCount:1,cap:null,reasons:[],completeness:{}},{petId:'pet',source:'care_entries',status:'loaded',loadedIds:['care:old'],loadedCount:1,cap:null,reasons:[],completeness:{}}],
+  completeness:{},losses:[],representation:'complete',verifiedFacts:[],petNames:{pet:'Ziggy'},
+  interpretation:{request:{mode:'read',profileFields:['weight','current_food'],temporalScope:'historical_and_current',outputFormat:null,referenceTurnIds:[]}},
+  history:{corrections:'complete',provenance:[{sourceId:'care:old',status:'effective_linked'}]},
+  represented:[
+   {sourceId:'profile:pet:weight',petId:'pet',sourceType:'profile',field:'value',start:0,end:6,text:'9.4 kg'},
+   {sourceId:'profile:pet:current_food',petId:'pet',sourceType:'profile',field:'value',start:0,end:35,text:'whitefish-and-potato adult dry food'},
+   {sourceId:'care:old',petId:'pet',sourceType:'care_update',field:'value',start:0,end:oldText.length,text:oldText,occurredAt:'2022-09-13T12:00:00Z'}]};
+ assert.equal(deterministicReadProjection(evidence),null);
+});
+
 test('quoted source text disambiguates same-day body mass and accepts recorded-weight phrasing',()=> {
  const requestText='Compare Maple\'s September 9, 2022 weight from the note marked "elm compass" with her current recorded weight and give the exact kg change.';
  const profileText='12.7 kg';

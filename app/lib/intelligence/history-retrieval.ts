@@ -551,8 +551,12 @@ export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set
     const visitedCare = new Set(candidates.map(c => c.id));
     const seedBatches = Array.from({ length: Math.ceil(requestedPets.length / 3) }, (_, i) => requestedPets.slice(i * 3, (i + 1) * 3));
     if (!batches.length) batches.push([]);
+    // Ten-pet reads need four seed calls before correction traversal begins.
+    // Keep a bounded traversal reserve proportional to the authorized cohort
+    // instead of spending the fixed six-call budget mostly on ownership seeds.
+    const graphCallBudget = Math.min(12, HISTORY_BUDGET.graphCalls + Math.max(0, seedBatches.length - 1));
     for (let call = 0; batches.length || frontier.length || seedBatches.length; call++) {
-      if (call >= HISTORY_BUDGET.graphCalls) throw new Error("correction_budget");
+      if (call >= graphCallBudget) throw new Error("correction_budget");
       const rootIds = batches.shift() || [];
       const claimIds = frontier.splice(0, 64); claimIds.forEach(id => visited.add(id));
       coverage.queryCount++;

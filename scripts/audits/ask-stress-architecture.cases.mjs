@@ -315,6 +315,34 @@ test('ten-pet read keeps every pet represented and batches correction seeds with
  assert.equal(r.publication.failure,null);
 });
 
+test('ten-pet correction closure retains traversal reserve after ownership seed batches',async t=>{
+ clock(t);
+ const cohort=Array.from({length:10},(_,i)=>({...owned[0],id:'deep-'+i,name:'Deep'+i}));
+ const rows=cohort.map(p=>care('deep-row-'+p.id,p.id,'2024-04-07','general',p.name+' baseline note.'));
+ const baseClaim=(id,operation='assert')=>({id,user_id:ownerId,subject_type:'pet',subject_id:cohort[0].id,claim_kind:'event',operation_type:operation,
+  concept_key:'deep-test',canonical_concept_key:'deep-test',concept_resolution_status:'canonical',persistence_destination:'history',
+  knowledge_status:'effective',occurred_at:'2024-04-07T12:00:00Z',recorded_at:'2024-04-07T12:01:00Z',
+  provenance_classification:'imported_legacy',structured_value:{title:null,note:'Deep correction '+id,severity:null}});
+ const claims=Array.from({length:8},(_,i)=>baseClaim('deep-c'+i,i?'correct':'assert'));
+ claims[0].structured_value={title:null,note:rows[0].note,severity:null};
+ const relation=i=>({id:'deep-e'+i,user_id:ownerId,from_claim_id:claims[i+1].id,to_claim_id:claims[i].id,relation_type:'corrects'});
+ const lineage={user_id:ownerId,claim_id:claims[0].id,legacy_row_id:rows[0].id,legacy_table:'pet_care_entries',claim_role:'primary'};
+ const graphAtCall=call=>{
+  const last=Math.min(7,Math.max(1,call));
+  return {claims:claims.slice(0,last+1),relations:Array.from({length:last},(_,i)=>relation(i)),
+   lineage:[lineage],sources:[rows[0]]};
+ };
+ const question='Give one saved note for each of my ten pets in April 2024.';
+ const r=await exercise(question,{fixturePets:cohort,petId:cohort[0].id,conversationPetId:cohort[0].id,messages:[],rows,history:true,graphAtCall,
+  interpretationProposal:proposal({scope:'account',petNames:[],from:'2024-04-01',to:'2024-05-01',terms:[],outputFormat:'table'}),
+  providerResponse:async()=>({status:'completed',output_text:JSON.stringify({readVersion:'history-answer.v1',layout:'prose',json:null,table:null,limitation:null,
+   safetyLevel:'normal',responseMode:'practical_guidance',userIntent:'history',relevantContextIds:[],historyNarrative:{sentences:[{text:'The ten-pet history read completed.',sourceIds:[],calculations:[]}]}}),usage:{input_tokens:100,output_tokens:50}}),
+  reviewResponse:{approved:true},expectedReviewCalls:null});
+ const graphQueries=r.queries.filter(q=>q.table==='read_ask_history_correction_page');
+ assert.ok(graphQueries.length>=8,'expected deep traversal, got '+graphQueries.length);
+ assert.notEqual(r.context.askHistory.coverage.corrections,'unavailable');
+});
+
 const { eligibleAnswerSources, evidenceSource } = await import('../../app/lib/intelligence/ask-evidence.ts');
 const { boundedEpisodePlan } = await import('../../app/lib/intelligence/history-access.ts');
 const { verifiedCalculationQuantities } = await import('../../app/lib/intelligence/history-calculation.ts');

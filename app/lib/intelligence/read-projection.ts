@@ -71,6 +71,7 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
   // owner explicitly compares it with one dated body-mass report. Later care
   // notes are observations, not substitutes for that requested profile value.
   if (evidence.scope.readOnlyRecall && request?.profileFields?.includes("weight")
+    && request.profileFields.every(field => field === "weight")
     && request.temporalScope === "historical_and_current" && (!request.outputFormat || request.outputFormat === "prose")
     && evidence.scope.authorizedPetIds.length === 1 && /\b(?:weights?|weigh(?:ed|s|ing)?|body mass)\b/i.test(requestText)
     && /\b(?:change|difference|compare)\b/i.test(requestText) && !/\b(?:why|cause|because|diagnos|recommend|trend)\b/i.test(requestText)) {
