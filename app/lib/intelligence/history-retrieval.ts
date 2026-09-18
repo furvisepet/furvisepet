@@ -264,8 +264,13 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
       // lexical row, allow the bounded chronological strategy for that same
       // direction to certify the endpoint instead. The seed is written only
       // once per direction, so this is a fallback, never an override.
-      const endpointDirection = endpointComparison && !target && !needId && !period
-        ? readDescending ? "latest" : "earliest" : null;
+      const orderedNeed = needId ? context.askInterpretation?.request?.evidenceNeeds?.find(need =>
+        need.id === needId && (!need.petIds || need.petIds.includes(petId))) : null;
+      const endpointDirection = endpointComparison && !target && !period
+        ? needId
+          ? orderedNeed?.order === "earliest" ? "earliest" : orderedNeed?.order === "latest" ? "latest" : null
+          : readDescending ? "latest" : "earliest"
+        : null;
       const candidatesWindow = clipHistoryPlan(calendarCandidateWindow({ from, to }, context.timeZone), context.historyAccess);
       let cursor: Cursor | null = null; let traversalExhausted = false; let strategyFailed = false;
       const rows: CareEntryRow[] = [];

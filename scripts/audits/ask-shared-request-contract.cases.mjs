@@ -356,12 +356,13 @@ test('five-pet earliest/latest weight retrieval certifies both endpoint pairs ev
   }));
   const rows=fivePets.flatMap((pet,index)=>{
     const first=(3+index*4).toFixed(2), last=(Number(first)+1.25).toFixed(2);
-    const history=[
-      care(pet.id+'-old',pet.id,'2016-10-15','general',pet.name+' weighed '+first+' kg. Monthly care check.'),
-      care(pet.id+'-new',pet.id,'2026-09-03','general',pet.name+' weighed '+last+' kg. Monthly care check.'),
-    ];
-    for(let year=2017;year<=2025;year++) history.push(care(pet.id+'-noise-'+year,pet.id,year+'-06-15','general',pet.name+' routine observation with normal appetite.'));
-    return history;
+    return Array.from({length:120},(_,monthIndex)=>{
+      const date=new Date(Date.UTC(2016,9+monthIndex,15));
+      const day=monthIndex===119?'2026-09-03':date.toISOString().slice(0,10);
+      if(monthIndex===0) return care(pet.id+'-old',pet.id,day,'general',pet.name+' weighed '+first+' kg. Monthly care check.');
+      if(monthIndex===119) return care(pet.id+'-new',pet.id,day,'general',pet.name+' weighed '+last+' kg. Monthly care check.');
+      return care(pet.id+'-noise-'+String(monthIndex).padStart(3,'0'),pet.id,day,'general',pet.name+' routine observation with normal appetite.');
+    });
   });
   const question="For Aster, Bramble, Cedar, Dune, and Echo, give each pet's earliest recorded body weight and latest recorded body weight across the saved 2016-2026 history. Keep all five pets separate, include both dates, and give the exact change in kg for each pet.";
   const r=await exercise(question,{
@@ -379,8 +380,17 @@ test('five-pet earliest/latest weight retrieval certifies both endpoint pairs ev
       quantity:'measurement',
       topic:'weight',
       terms:['weight'],
+      temporalScope:'historical_and_current',
+      outputFormat:'table',
+      profileFields:['weight'],
+      evidenceNeeds:[
+        {quote:'earliest recorded body weight',sourceTurnId:null,terms:['body weight','weight','kgquery'],petNames:['Aster'],order:'earliest'},
+        {quote:'latest recorded body weight',sourceTurnId:null,terms:['body weight','weight','kgquery'],petNames:['Aster'],order:'latest'},
+        {quote:'earliest recorded body weight',sourceTurnId:null,terms:['body weight','weight'],petNames:['Bramble'],order:'earliest'},
+        {quote:'latest recorded body weight',sourceTurnId:null,terms:['body weight','weight'],petNames:['Bramble'],order:'latest'},
+      ],
     }),
-    expectedProviderCalls:null,
+    expectedProviderCalls:0,
     expectedReviewCalls:null,
   });
   assert.equal(r.context.askHistory.coverage.endpointPairs?.length,5);
