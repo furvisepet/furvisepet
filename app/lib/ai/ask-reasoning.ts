@@ -627,10 +627,19 @@ function enforceAskPromptContextBudget<T extends { contextRecords: AskContextRec
   const budgeted = { ...promptContext, contextRecords };
   representEvidence(budgeted.evidenceContract, contextRecords);
   const policy = getAiFeaturePolicy("ask");
+  // An exhaustively scanned bounded cohort may need more than the ordinary
+  // 48k presentation budget to keep every inspected source available for a
+  // subset-selection question. Stay inside the existing admission ceilings;
+  // this raises transport capacity only after the server certifies the bounded
+  // windows exhausted, never for an open-ended lifetime dump.
+  const promptCharacterBudget = budgeted.evidenceContract.history?.exhaustiveBoundedContext
+    && budgeted.evidenceContract.scope.authorizedPetIds.length <= 5
+    ? Math.min(policy.maxInputCharacters - 768, 76_000)
+    : ASK_PROMPT_CONTEXT_CHAR_BUDGET;
   const exceedsBudget = () => {
     const request = buildAskProviderRequest(budgeted);
     const admitted = { input: request.input, instructions: request.instructions };
-    return request.input.length > ASK_PROMPT_CONTEXT_CHAR_BUDGET
+    return request.input.length > promptCharacterBudget
       || estimateInputTokens(admitted) > policy.maxInputTokens - 256
       || JSON.stringify(admitted).length > policy.maxInputCharacters - 768;
   };
@@ -1432,45 +1441,60 @@ export function buildAskProviderRequest(promptContext: object) {
     || estimateInputTokens({ input: JSON.stringify(promptContext), instructions: requestInstructions }) > getAiFeaturePolicy("ask").maxInputTokens - 256)) {
     // Retain full authority and candidate identities on the server. The model
     // only needs IDs for represented evidence plus complete coverage/counts.
-    const represented = new Set(eligibleAnswerSources(evidence).map(span => span.sourceId));
-    const queryCoverage = compactHistoryQueryCoverage(evidence, represented);
+    const eligibleSources = eligibleAnswerSources(evidence);
+    const represented = new Set(eligibleSources.map(span => span.sourceId));
+    const exhaustiveBounded = evidence.history.exhaustiveBoundedContext === true
+      && evidence.scope.authorizedPetIds.length <= 5;
+    const boundedHistoryRecords = exhaustiveBounded ? eligibleSources.filter(span => span.sourceType === "care_update").map(span => ({
+      sourceId: span.sourceId, petId: span.petId, occurredAt: span.occurredAt || null, text: span.text,
+    })) : [];
+    // For a certified bounded scan, care text is transported exactly once in
+    // boundedHistoryRecords. Query/source identity lists collapse to counts;
+    // the original full contract remains server-side for validation.
+    const transportRepresented = exhaustiveBounded
+      ? new Set([...represented].filter(id => !boundedHistoryRecords.some(record => record.sourceId === id)))
+      : represented;
+    const queryCoverage = compactHistoryQueryCoverage(evidence, transportRepresented);
     const contextRecords = (promptContext as { contextRecords?: AskContextRecord[] }).contextRecords;
     const pets = (promptContext as { pets?: Array<{ id: string; name: string; species: string }> }).pets;
     transported = { ...promptContext,
       ...(pets ? { pets: pets.map(({ id, name, species }) => ({ id, name, species })),
         petReferenceGuidance: "Use each pet's supplied name rather than inferred pronouns; preserve source attribution." } : {}),
-      ...(contextRecords ? { contextRecords: contextRecords.map(record => {
+      ...(contextRecords ? { contextRecords: (exhaustiveBounded ? contextRecords.filter(record => record.sourceType !== "care_update") : contextRecords).map(record => {
         if (!represented.has(record.id) || record.value.length < 100) return record;
         const metadata = Object.fromEntries(Object.entries(record).filter(([key]) => key !== "value"));
         return { ...metadata, valueSource: "evidenceContract.represented.text joined by sourceId = id" };
       }) } : {}),
+      ...(exhaustiveBounded ? { boundedHistoryRecords,
+        boundedHistoryAuthority: "These are the complete represented care records for the server-certified bounded scan. Cite sourceId from these rows. Exhaustion certifies database window coverage only, not whether an event is clinically noteworthy." } : {}),
       evidenceContract: { ...evidence, ...queryCoverage,
       // Creation time is already present on the matching context record.
       // Keep the full review evidence server-side without paying twice for
       // each timestamp in the bounded writer prompt.
-      represented: evidence.represented.map(span => contextRecords?.some(record => record.id === span.sourceId && record.createdAt === span.recordedAt)
-        ? Object.fromEntries(Object.entries(span).filter(([key]) => key !== "recordedAt")) : span),
+      represented: evidence.represented.filter(span => !exhaustiveBounded || span.sourceType !== "care_update")
+        .map(span => contextRecords?.some(record => record.id === span.sourceId && record.createdAt === span.recordedAt)
+          ? Object.fromEntries(Object.entries(span).filter(([key]) => key !== "recordedAt")) : span),
       // Their canonical source text is already represented; full receipt rows
       // remain on the server for verification, not duplicated in transport.
       operationReceipts: undefined, recordInventory: undefined,
-      ...compactHistorySourceCoverage(evidence.sources, represented),
+      ...compactHistorySourceCoverage(evidence.sources, transportRepresented),
       history: { ...queryCoverage.history,
         // Budget pinning is enforced by the server. Avoid duplicating boundary
         // IDs in transport when chronology/represented already identify them.
         requiredSourceIds: undefined,
         periods: evidence.history.periods?.map(period => ({ ...period,
-          candidateCount: period.candidateIds.length, candidateIds: period.candidateIds.filter(id => represented.has(id)) })),
-        eventCandidateIds: evidence.history.eventCandidateIds?.filter(id => represented.has(id)),
+          candidateCount: period.candidateIds.length, candidateIds: period.candidateIds.filter(id => transportRepresented.has(id)) })),
+        eventCandidateIds: evidence.history.eventCandidateIds?.filter(id => transportRepresented.has(id)),
         // Independent retrieval passes can finish at the same cursor. Transport
         // each exact cursor once; the server retains every query receipt.
         continuation: evidence.history.continuation?.filter((cursor, index, all) =>
           all.findIndex(other => JSON.stringify(other) === JSON.stringify(cursor)) === index),
         candidateCount: evidence.history.candidateIds.length,
-        provenance: evidence.history.provenance.filter(source => represented.has(source.sourceId)),
+        provenance: evidence.history.provenance.filter(source => transportRepresented.has(source.sourceId)),
         provenanceStatusCounts: evidence.history.provenance.reduce<Record<string, number>>((counts, source) => {
           counts[source.status] = (counts[source.status] || 0) + 1; return counts;
         }, {}),
-        candidateIds: evidence.history.candidateIds.filter(id => represented.has("care:" + id) || represented.has(id)),
+        candidateIds: evidence.history.candidateIds.filter(id => transportRepresented.has("care:" + id) || transportRepresented.has(id)),
         identityListsScope: "represented_only_full_lists_retained_by_server" },
     } };
   }

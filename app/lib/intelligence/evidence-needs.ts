@@ -11,6 +11,41 @@ export const evidenceNeedsSchema = { type: "array", maxItems: 4, items: { type: 
     sourceTurnId: { type: ["string", "null"], maxLength: 160 },
     terms: { type: "array", maxItems: 6, items: { type: "string", minLength: 3, maxLength: 32, pattern: "^[A-Za-z][A-Za-z -]*[A-Za-z]$" } },
   } } };
+/** Recover subject coverage lost only to the provider's four-item need cap.
+ * The server may clone an already-grounded cohort-wide need to additional
+ * explicitly named, already-authorized pets. It cannot invent a new quote,
+ * topic, date window, order, or subject outside the validated read scope. */
+export function recoverGroundedCohortNeeds(question: string, needs: readonly EvidenceNeed[],
+  scopedPets: readonly { id: string; name: string | null }[], maxItems = 10): EvidenceNeed[] {
+  const output = needs.map(need => ({ ...need, ...(need.petIds ? { petIds: [...need.petIds] } : {}),
+    terms: [...need.terms], ...(need.window ? { window: { ...need.window } } : {}) }));
+  if (output.length < 2 || scopedPets.length <= output.length || output.length >= maxItems) return output;
+  const explicitlyNamed = scopedPets.filter(pet => {
+    const name = pet.name?.trim(); if (!name) return false;
+    return new RegExp(`\\b${name.replace(/[.*+?^$\{\}()|[\]\\]/g, "\\$&")}\\b`, "i").test(question);
+  });
+  if (explicitlyNamed.length < 2) return output;
+  const groups = new Map<string, EvidenceNeed[]>();
+  for (const need of output) {
+    if (!need.petIds?.length || need.sourceTurnId !== null
+      || !/\b(?:which pets?|each pet|all pets?|every pet|across)\b/i.test(need.quote)) continue;
+    const key = JSON.stringify([need.quote, need.order || "context", need.window || null]);
+    groups.set(key, [...(groups.get(key) || []), need]);
+  }
+  for (const group of groups.values()) {
+    const covered = new Set(group.flatMap(need => need.petIds || []));
+    if (covered.size < 2) continue;
+    const template = group[0];
+    for (const pet of explicitlyNamed) {
+      if (covered.has(pet.id) || output.length >= maxItems) continue;
+      output.push({ ...template, id: "need:" + output.length, petIds: [pet.id],
+        terms: [...template.terms], ...(template.window ? { window: { ...template.window } } : {}) });
+      covered.add(pet.id);
+    }
+  }
+  return output;
+}
+
 export function validateEvidenceNeeds(raw: unknown, question: string, turns: readonly { id: string; role: string; text: string }[], referenceIds: readonly string[], scopedPets: readonly { id: string; name: string | null }[] = []) {
   const needs: EvidenceNeed[] = [], issues: string[] = [];
   if (!Array.isArray(raw) || raw.length > 4) return { needs, issues: ["invalid_evidence_needs"] };

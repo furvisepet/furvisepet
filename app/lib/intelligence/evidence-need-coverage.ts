@@ -121,7 +121,14 @@ export function historyCompletionLimits(evidence?: AskEvidenceContract | null): 
     evidence.losses.some(loss => loss.sourceId === id) || !evidence.represented.some(span => span.sourceId === id)))) {
     reasons.push("requested_period_sampled_not_complete");
   }
-  if (evidence.history?.eventCandidateIds?.length === 0) reasons.push("requested_transition_not_retrieved");
+  // A completed explicit date/month target is stronger than an empty
+  // transition-keyword query for that same lookup. The dated record may
+  // explicitly report no change (for example, activity remained steady), so
+  // keyword absence must not erase a fully represented target. Undated event
+  // lookups still require an event candidate and fail closed as before.
+  if (evidence.history?.eventCandidateIds?.length === 0
+    && completedExplicitHistoryTargets(evidence).length === 0)
+    reasons.push("requested_transition_not_retrieved");
   return reasons;
 }
 

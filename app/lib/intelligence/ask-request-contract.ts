@@ -5,7 +5,7 @@ import { ASK_HISTORY_MAX_PETS } from "./history-limits.ts";
 import { conversationReadAnchor } from "./conversation-read-anchor.ts";
 import { historicalAgeCutoff } from "./history-periods.ts";
 import { isEpisodeSubjectReference } from "./episode-reference-language.ts";
-import { evidenceNeedsSchema, validateEvidenceNeeds, type EvidenceNeed } from "./evidence-needs.ts";
+import { evidenceNeedsSchema, recoverGroundedCohortNeeds, validateEvidenceNeeds, type EvidenceNeed } from "./evidence-needs.ts";
 import { explicitHistoryDays, evidenceNeedWindow, literalHistoryYearWindow, literalHistoryMonthWindow, literalHistoryReportDayWindow, explicitHistoryDayWindow, requestsPastPresentComparison } from "./history-dates.ts";
 import { emptyProposedSemanticFrame, validateProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
 import type { AskInterpretation } from "./interpret-ask.ts";
@@ -502,6 +502,9 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
       needPlan.needs.splice(index, 1);
       needPlan.issues.push("unscoped_evidence_need");
     }
+  }
+  if (historical && readOnly && needPlan.needs.length) {
+    needPlan.needs = recoverGroundedCohortNeeds(context.currentMessage, needPlan.needs, needPets, ASK_HISTORY_MAX_PETS);
   }
   if (task?.requiresAnswer && task.petId && p.mode !== "mixed") return fail("task");
   if (task?.intent === "resume" && task.requiresAnswer && context.pendingTask?.request

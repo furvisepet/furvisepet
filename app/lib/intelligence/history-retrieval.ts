@@ -27,6 +27,10 @@ type Cursor = { petId: string; occurredAt: string; id: string };
 export type HistoryPlan = { from: string | null; to: string | null; terms: string[]; interpretation: "period" | "lexical" | "broad_comparison" };
 export type HistoryCoverage = {
   periods?: Array<{ petId: string; from: string; to: string; candidateIds: string[]; exhausted: boolean }>;
+  /** True only when every server-owned bounded context need exhausted its full
+   * authorized window for every applicable pet. This may raise prompt capacity
+   * within the existing Ask admission ceiling; it never certifies semantics. */
+  exhaustiveBoundedContext?: boolean;
   eventCandidateIds?: string[];
   requiredSourceIds?: string[];
   needs?: Array<{ petId: string; needId: string; candidateIds: string[]; exhausted: boolean; status: Completeness; reason?: string }>;
@@ -190,7 +194,15 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   // the candidate budget fairly so the first pet cannot consume every slot.
   // Reserve twelve of the existing roots for later correction notes on dated
   // lookups. Supplemental discovery must not expand the graph/input budgets.
-  const correctionReserve = plan.from || namedDays.length ? 12 : 0;
+  const boundedContextCohort = Boolean(context.askInterpretation?.request?.evidenceNeeds?.length)
+    && (context.askInterpretation?.request?.evidenceNeeds || []).every(need => (need.order || "context") === "context"
+      && need.window && Date.parse(need.window.to) - Date.parse(need.window.from) <= 370 * 86400000);
+  // A bounded <=5-pet cohort may need 12 monthly rows per pet. Reserving the
+  // legacy 12 correction slots makes that exhaustive read mathematically
+  // impossible (52 / 5 = 10). Borrow all but four slots for the certified
+  // bounded scan; supplemental corrections are still capped below so the
+  // global 64-candidate authority never grows.
+  const correctionReserve = plan.from || namedDays.length ? boundedContextCohort && ids.length <= 5 ? 4 : 12 : 0;
   const rowsPerPet = Math.floor((HISTORY_BUDGET.candidateRows - correctionReserve) / Math.max(1, Math.min(ids.length, HISTORY_BUDGET.pets)));
   const pagesPerPet = Math.min(vetBriefRead ? HISTORY_BUDGET.totalPages - HISTORY_BUDGET.graphCalls : HISTORY_BUDGET.pagesPerPet - boundaryPages, Math.floor(HISTORY_BUDGET.totalPages / Math.max(1, Math.min(ids.length, HISTORY_BUDGET.pets))));
   const distributePeriod = sharedRead && (Boolean(oldestUnit)
@@ -241,12 +253,20 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
       appointmentDates.strategies = appointmentDates.strategies.map(strategy => strategy.target?.length === 7
         ? { ...strategy, lexical: true, terms: searchTerms } : strategy);
     }
+    const scopedNeeds = context.askInterpretation?.request?.evidenceNeeds?.filter(need => !need.petIds || need.petIds.includes(petId))
+      .map(need => ({ ...need, terms: historyQueryTerms(need.terms, context.eligiblePets.map(pet => pet.name || "")) })) || [];
     const compiled = appointmentDates
       ? { ...appointmentDates, strategies: [...appointmentDates.strategies, ...scopedStrategies].filter((strategy, index, all) => all.findIndex(other => JSON.stringify(other) === JSON.stringify(strategy)) === index) }
-      : compileHistoryReadStrategies(retrievalQuestion, new Date(asOf).getUTCFullYear(), plan, scopedStrategies, pagesPerPet, context.askInterpretation?.request?.evidenceNeeds?.filter(need => !need.petIds || need.petIds.includes(petId))
-        .map(need => ({ ...need, terms: historyQueryTerms(need.terms, context.eligiblePets.map(pet => pet.name || "")) })), context.timeZone, distributePeriod);
-    const strategies = compiled.strategies.map(strategy => strategy.target?.length === 7 && searchTerms.length
-      ? { ...strategy, lexical: true, terms: searchTerms } : strategy);
+      : compileHistoryReadStrategies(retrievalQuestion, new Date(asOf).getUTCFullYear(), plan, scopedStrategies, pagesPerPet, scopedNeeds, context.timeZone, distributePeriod);
+    const boundedContextNeed = !vetBriefRead && scopedNeeds.length === 1 && scopedNeeds[0].order === "context" && scopedNeeds[0].window
+      && Date.parse(scopedNeeds[0].window.to) - Date.parse(scopedNeeds[0].window.from) <= 370 * 86400000
+      ? scopedNeeds[0] : null;
+    const boundedFrom = boundedContextNeed ? (!plan.from || boundedContextNeed.window!.from > plan.from ? boundedContextNeed.window!.from : plan.from) : null;
+    const boundedTo = boundedContextNeed ? (!plan.to || boundedContextNeed.window!.to < plan.to ? boundedContextNeed.window!.to : plan.to) : null;
+    const strategies: HistoryReadStrategy[] = boundedContextNeed && boundedFrom && boundedTo && boundedFrom < boundedTo
+      ? [{ from: boundedFrom, to: boundedTo, descending: false, lexical: false, terms: [], needId: boundedContextNeed.id, exhaustive: true }]
+      : compiled.strategies.map(strategy => strategy.target?.length === 7 && searchTerms.length
+        ? { ...strategy, lexical: true, terms: searchTerms } : strategy);
     coverage.needs ??= [];
     coverage.needs.push(...compiled.outsideNeeds.map(needId => ({ petId, needId, candidateIds: [], exhausted: false, status: "unavailable" as const, reason: "need_window_outside_scope" })));
     if (compiled.outsideNeeds.length) coverage.reasons.push("need_window_outside_scope");
@@ -257,7 +277,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     coverage.targets.push(...compiled.omittedTargets.map(day => ({ petId, day, candidateIds: [], retainedIds: [], exhausted: false, status: "partial" as const })));
     // Split the existing candidate/page budget across both ends. Never scan a
     // decade sequentially just to compare the first and last recorded values.
-    for (const [strategyIndex, { descending: readDescending, lexical, terms, from, to, target, needId, period }] of strategies.entries()) {
+    for (const [strategyIndex, { descending: readDescending, lexical, terms, from, to, target, needId, period, exhaustive }] of strategies.entries()) {
       // Lexical endpoint strategies run before their chronological
       // counterpart when a topic term exists, so they remain preferred. If a
       // morphology mismatch (for example "weight" vs "weighed") returns no
@@ -271,6 +291,12 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
           ? orderedNeed?.order === "earliest" ? "earliest" : orderedNeed?.order === "latest" ? "latest" : null
           : readDescending ? "latest" : "earliest"
         : null;
+      // Lexical endpoint reads are the preferred measurement-specific query.
+      // Once one has certified this direction, do not spend another page on
+      // the generic chronological fallback. A failed lexical read still falls
+      // through to that fallback, and need-specific strategies are never skipped.
+      if (explicitEndpointComparison && endpointDirection && !needId && !lexical
+        && endpointSeed[endpointDirection === "latest" ? "latestReady" : "earliestReady"]) continue;
       const candidatesWindow = clipHistoryPlan(calendarCandidateWindow({ from, to }, context.timeZone), context.historyAccess);
       let cursor: Cursor | null = null; let traversalExhausted = false; let strategyFailed = false;
       const rows: CareEntryRow[] = [];
@@ -289,8 +315,10 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
           pages++;
           coverage.queryCount++;
           // Duplicate hits from another strategy do not consume new-evidence quota.
-          // Overfetch remains bounded by pageSize; only unique rows count toward candidateRows.
-          const pageLimit = Math.min(HISTORY_BUDGET.pageSize, directionRows - rows.length + priorIds.size);
+          // A bounded exhaustive need may overfetch one sentinel row. That row
+          // proves whether more data exists but never enters the candidate set.
+          const remainingRows = Math.max(0, directionRows - rows.length);
+          const pageLimit = Math.min(HISTORY_BUDGET.pageSize, remainingRows + priorIds.size + (exhaustive ? 1 : 0));
           const timeoutMs = historyReadRemaining(candidateDeadline);
           let result: { data: unknown; error: { code?: string } | null };
           if (lexical) {
@@ -340,9 +368,11 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
           // Never tolerate a mock/misconfigured boundary returning foreign rows.
           if (page.some(row => row.user_id !== context.owner.userId || row.pet_profile_id !== petId || row.deleted_at)) throw new Error("history_scope_mismatch");
           if (!page.length) { traversalExhausted = true; break; }
+          const retainedPage = exhaustive && page.length > remainingRows ? page.slice(0, remainingRows) : page;
+          if (exhaustive && !lexical && page.length < pageLimit) traversalExhausted = true;
           if (endpointDirection && !endpointSeed[endpointDirection === "latest" ? "latestReady" : "earliestReady"]) {
-            const boundaryTime = page[0].occurred_at;
-            const idsAtBoundary = page.filter(row => compareHistoryTime(row.occurred_at, boundaryTime) === 0).map(row => row.id);
+            const boundaryTime = retainedPage[0]?.occurred_at || page[0].occurred_at;
+            const idsAtBoundary = retainedPage.filter(row => compareHistoryTime(row.occurred_at, boundaryTime) === 0).map(row => row.id);
             if (endpointDirection === "latest") {
               endpointSeed.latestIds = idsAtBoundary;
               endpointSeed.latestReady = true;
@@ -351,7 +381,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
               endpointSeed.earliestReady = true;
             }
           }
-          for (const row of page) {
+          for (const row of retainedPage) {
             if (!/^[a-zA-Z0-9_-]+$/.test(row.id) || !row.occurred_at || !Number.isFinite(Date.parse(row.occurred_at))) throw new Error("invalid_history_cursor");
             const next: Cursor = { petId, occurredAt: row.occurred_at, id: row.id };
             const advance = cursor ? compareHistoryTime(next.occurredAt, cursor.occurredAt) || next.id.localeCompare(cursor.id) : 0;
@@ -420,8 +450,14 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const supplementalCorrectionIds = new Set<string>();
   if (correctionReserve && coverage.retrieval !== "unavailable") {
     const supplemental = await discoverDatedCorrectionNotes(candidates, ids.slice(0, HISTORY_BUDGET.pets), context.owner.userId, db, coverage, correctionDiscoveryDeadline);
-    for (const row of supplemental) supplementalCorrectionIds.add(row.id);
-    candidates.push(...supplemental);
+    const remaining = Math.max(0, HISTORY_BUDGET.candidateRows - candidates.length);
+    const retainedSupplemental = supplemental.slice(0, remaining);
+    for (const row of retainedSupplemental) supplementalCorrectionIds.add(row.id);
+    candidates.push(...retainedSupplemental);
+    if (supplemental.length > retainedSupplemental.length) {
+      coverage.corrections = "partial";
+      coverage.reasons.push("correction_candidate_budget");
+    }
   }
   coverage.candidateIds = candidates.map(row => `care:${row.id}`);
   const entries = await effectiveCandidates(candidates, owned, ids, context.owner.userId, db, coverage, deadline);
@@ -539,6 +575,16 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     && Date.parse(entry.occurred_at) >= Date.parse(period.from) && Date.parse(entry.occurred_at) < Date.parse(period.to)));
   const boundaryIds = new Set((coverage.chronology || []).flatMap(boundary => boundary.boundaryIds));
   const endpointPairIds = new Set((coverage.endpointPairs || []).flatMap(pair => [...pair.earliestIds, ...pair.latestIds]));
+  const requestNeeds = context.askInterpretation?.request?.evidenceNeeds || [];
+  const exhaustiveBoundedContext = requestNeeds.length > 0
+    && requestNeeds.every(need => (need.order || "context") === "context" && need.window
+      && Date.parse(need.window.to) - Date.parse(need.window.from) <= 370 * 86400000)
+    && requestNeeds.every(need => ids.filter(petId => !need.petIds || need.petIds.includes(petId)).every(petId => {
+      const queries = (coverage.needs || []).filter(query => query.needId === need.id && query.petId === petId);
+      return queries.length === 1 && queries[0].exhausted && !queries[0].reason
+        && !["unavailable", "partial"].includes(queries[0].status);
+    }));
+  coverage.exhaustiveBoundedContext = exhaustiveBoundedContext;
   const required = [...ordered.filter(entry => boundaryIds.has(careEvidenceId(entry.id, coverage))
       || endpointPairIds.has(careEvidenceId(entry.id, coverage))),
     // Large owned cohorts reserve one effective row per pet before any shared
@@ -546,8 +592,9 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     // subject coverage at the maximum 10-pet read scope without increasing
     // record or character limits.
     ...petGroups.flatMap(group => group.slice(0, 1)),
-    ...targetGroups.flatMap(group => group.slice(0, 1)), ...needGroups.flatMap(group => group.slice(0, 1)), ...currentGroups.flat(),
-    ...periodGroups.flatMap(group => group.slice(0, 2))];
+    ...targetGroups.flatMap(group => group.slice(0, 1)),
+    ...needGroups.flatMap(group => exhaustiveBoundedContext ? group : group.slice(0, 1)),
+    ...currentGroups.flat(), ...periodGroups.flatMap(group => group.slice(0, 2))];
   coverage.requiredSourceIds = [...new Set(required.map(entry => careEvidenceId(entry.id, coverage)))];
   const priorityGroups = [...petGroups, ...targetGroups, ...needGroups, ...currentGroups, ...periodGroups, ...vetGroups];
   const anchoredIds = new Set(priorityGroups.flat().map(entry => entry.id));
@@ -559,9 +606,11 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   for (let index = 0; groups.some(group => index < group.length); index++)
     for (const group of groups) if (group[index] && !prioritized.some(entry => entry.id === group[index].id)) prioritized.push(group[index]);
   const kept: CareEntryRow[] = []; let chars = 0; let budgetExcluded = false;
+  const representationRecordLimit = exhaustiveBoundedContext ? HISTORY_BUDGET.candidateRows : HISTORY_BUDGET.records;
+  const representationCharLimit = exhaustiveBoundedContext ? 36_000 : HISTORY_BUDGET.chars;
   for (const entry of prioritized) {
     const size = JSON.stringify(entry).length;
-    if (kept.length >= HISTORY_BUDGET.records || chars + size > HISTORY_BUDGET.chars) { coverage.excludedIds.push(careEvidenceId(entry.id, coverage)); budgetExcluded = true; continue; }
+    if (kept.length >= representationRecordLimit || chars + size > representationCharLimit) { coverage.excludedIds.push(careEvidenceId(entry.id, coverage)); budgetExcluded = true; continue; }
     kept.push(entry); chars += size;
   }
   for (const target of coverage.targets || []) {

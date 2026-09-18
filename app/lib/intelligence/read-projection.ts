@@ -159,6 +159,8 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
           value: change, unit: target.canonical } });
     }
     if (!rows.length) return null;
+    const compareChanges = /\b(?:how much (?:larger|greater|more)|difference between (?:their|the|those) (?:body[- ]weight )?changes?|which (?:change|increase)[^.!?]{0,80}\blarger)\b/i.test(requestText);
+    if (compareChanges && rows.length !== 2) return null;
     const format = request.outputFormat || "prose";
     if (format === "table" || format === "csv") {
       const cells = [["Pet","Earliest","Earliest date","Latest","Latest date",`Change (${target.canonical})`],
@@ -174,6 +176,19 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
         ? `- ${row.name}: ${row.firstLiteral} on ${row.firstDate}; ${row.lastLiteral} on ${row.lastDate}; change ${row.change >= 0 ? "+" : ""}${row.change} ${target.canonical}.`
         : `${row.name}: ${row.firstLiteral} on ${row.firstDate}; ${row.lastLiteral} on ${row.lastDate}; change ${row.change >= 0 ? "+" : ""}${row.change} ${target.canonical}.`,
       sourceIds: row.sourceIds, calculations: [row.calculation] }));
+    if (compareChanges) {
+      const largerIndex = rows[0].change >= rows[1].change ? 0 : 1;
+      const smallerIndex = largerIndex === 0 ? 1 : 0;
+      const larger = rows[largerIndex], smaller = rows[smallerIndex];
+      const gap = Number(Math.abs(larger.change - smaller.change).toFixed(8));
+      const operands = [...larger.calculation.operands, ...smaller.calculation.operands];
+      sentences.push({
+        text: `${larger.name}'s change was ${gap} ${target.canonical} larger than ${smaller.name}'s.`,
+        sourceIds: [...new Set([...larger.sourceIds, ...smaller.sourceIds])],
+        calculations: [{ operation: "expression", expression: [0, 1, "subtract", 2, 3, "subtract", "subtract"],
+          operands, value: gap, unit: target.canonical }],
+      });
+    }
     diagnostic?.({ stage: "endpoint_cohort_projected", rowCount: rows.length, petCount: rows.length });
     return parseHistoryNarrative({ sentences }) || null;
   }

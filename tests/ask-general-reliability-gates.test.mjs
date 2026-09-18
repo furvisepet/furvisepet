@@ -64,6 +64,12 @@ test('a positive model verdict cannot make incomplete periods or missing transit
  assert.deepEqual(historyCompletionLimits(evidence),['requested_period_sampled_not_complete']);
  evidence.history={eventCandidateIds:[]};evidence.losses=[];
  assert.deepEqual(historyCompletionLimits(evidence),['requested_transition_not_retrieved']);
+ evidence.history={
+  eventCandidateIds:[],
+  targets:[{petId:'a',day:'2024-11',candidateIds:['care:a'],retainedIds:['care:a'],exhausted:true,status:'unknown'}],
+ };
+ evidence.represented=[{sourceId:'care:a',petId:'a',sourceType:'care_update',text:'Activity remained steady.',start:0,end:'Activity remained steady.'.length}];
+ assert.deepEqual(historyCompletionLimits(evidence),[],'a completed explicit month can answer that no transition occurred');
  evidence.history.eventCandidateIds=['care:a'];
  assert.deepEqual(historyCompletionLimits(evidence),[]);
 });

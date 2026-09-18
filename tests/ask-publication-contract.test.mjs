@@ -48,3 +48,11 @@ test('canonical review text does not preserve unsupported mutation claims', () =
  assert.equal(publishable, 'Episode 2 lasted 2 calendar days.');
  assert.equal(readPublicationFailure(publishable), null);
 });
+
+test('clinical change recorded language is evidence prose, not an application receipt', () => {
+ const text="Bramble's urinary-frequency change lasted one day and returned to normal, with no ongoing urinary change recorded afterward.";
+ assert.equal(readPublicationFailure(text),null);
+ assert.equal(canonicalReadPresentation(text),text);
+ assert.equal(readPublicationFailure('The change was recorded in the profile.'),'publication_changed_text');
+ assert.equal(readPublicationFailure('The profile change was recorded successfully.'),'publication_changed_text');
+});

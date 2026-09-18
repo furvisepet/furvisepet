@@ -281,14 +281,29 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   // Preserve per-row source/calculation bindings through review. A citation
   // on another row cannot make this row's numbers or quoted values supported.
   const invalidResultItems = (result.historicalResult?.items || []).flatMap((item, index) => supported(item) ? [] : [index]);
+  const compactBoundedReview = sharedRequest && evidence.history.exhaustiveBoundedContext === true
+    && evidence.scope.authorizedPetIds.length <= 5;
   const reviewSources = sharedRequest ? sources.map(source => {
     const { sourceId, sourceType, petId, text, occurredAt } = source;
+    if (compactBoundedReview && sourceType === "care_update") {
+      // The bounded cohort transport already proved every source belongs to
+      // the authorized exhausted window. Give semantic review each source text
+      // exactly once; full provenance/identity metadata remains server-side for
+      // deterministic validation before and after this provider call.
+      return { sourceId, sourceType, petId, text, occurredAt };
+    }
     return { sourceId, sourceType, petId, text, occurredAt, recordedAt: "recordedAt" in source ? source.recordedAt : null,
-    localRecordDate: sourceDisplayDate(text, occurredAt, evidence.timeZone || "UTC"),
-    ...(sourceType === "care_update" && evidence.recordTitles?.[sourceId] ? { title: evidence.recordTitles[sourceId] } : {}),
-    provenanceStatuses: [...new Set(evidence.history!.provenance.filter(item => item.sourceId === sourceId).map(item => item.status))],
-  }; }) : sources;
-  const reviewCoverage = sharedRequest ? { retrieval: evidence.history.retrieval, corrections: evidence.history.corrections, reasons: evidence.history.reasons, targets: evidence.history.targets, chronology: evidence.history.chronology } : evidence.history;
+      localRecordDate: sourceDisplayDate(text, occurredAt, evidence.timeZone || "UTC"),
+      ...(sourceType === "care_update" && evidence.recordTitles?.[sourceId] ? { title: evidence.recordTitles[sourceId] } : {}),
+      provenanceStatuses: [...new Set(evidence.history!.provenance.filter(item => item.sourceId === sourceId).map(item => item.status))],
+    };
+  }) : sources;
+  const reviewCoverage = sharedRequest ? compactBoundedReview
+    ? { retrieval: evidence.history.retrieval, corrections: evidence.history.corrections,
+      reasons: evidence.history.reasons, exhaustiveBoundedContext: true,
+      perPet: evidence.history.perPet.map(pet => ({ petId: pet.petId, rows: pet.rows, exhausted: pet.exhausted, status: pet.status })) }
+    : { retrieval: evidence.history.retrieval, corrections: evidence.history.corrections, reasons: evidence.history.reasons, targets: evidence.history.targets, chronology: evidence.history.chronology }
+    : evidence.history;
   const requestInput = JSON.stringify({
     actions: reviewActions.map((action, index) => ({ index, ...action,
       executionDisposition: index >= actions.length ? "automatic_after_persistence"

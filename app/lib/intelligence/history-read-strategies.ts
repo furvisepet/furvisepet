@@ -3,7 +3,7 @@ import { explicitHistoryMonths } from "./history-dates.ts";
 import type { EvidenceNeed } from "./evidence-needs.ts";
 import { explicitHistoryDays } from "./history-dates.ts";
 type Window = { from: string | null; to: string | null };
-export type HistoryReadStrategy = Window & { descending: boolean; lexical: boolean; terms: string[]; target?: string; needId?: string; period?: boolean };
+export type HistoryReadStrategy = Window & { descending: boolean; lexical: boolean; terms: string[]; target?: string; needId?: string; period?: boolean; exhaustive?: boolean };
 /** Date targets and ordering are independent. Targets narrow the authorized
  * window; they never expand access, synthesize facts or change query budgets. */
 export function compileHistoryReadStrategies(question: string, year: number, window: Window, proposed: HistoryReadStrategy[], pageBudget: number, needs: readonly EvidenceNeed[] = [], timeZone = "UTC", distributePeriod = false) {

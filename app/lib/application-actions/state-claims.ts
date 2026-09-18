@@ -81,10 +81,19 @@ export function containsNavigationExecutionClaim(value: string) {
   return patterns.some(pattern => [...value.matchAll(pattern)].some(match => !isNegatedReceiptSpeech(value.slice(0, match.index))));
 }
 export function containsUntrustedTerminalMutationClaim(value: string) {
-  const pattern = /\b(?:profile|history|record|entry|preference|concern|pet|update|change)\s+(?:is\s+|has\s+been\s+|was\s+)?(saved|deleted|removed|forgotten|changed|updated|archived|recorded|completed|marked)\b/gi;
+  const pattern = /\b(profile|history|record|entry|preference|concern|pet|update|change)\s+(?:is\s+|has\s+been\s+|was\s+)?(saved|deleted|removed|forgotten|changed|updated|archived|recorded|completed|marked)\b/gi;
   for (const match of value.matchAll(pattern)) {
     if (isNegatedReceiptSpeech(value.slice(0, match.index))) continue;
-    if (match[1].toLowerCase() === "recorded" && isHistoricalRecordingAttribution(value)) continue;
+    const subject = match[1].toLowerCase(), verb = match[2].toLowerCase();
+    if (verb === "recorded" && isHistoricalRecordingAttribution(value)) continue;
+    // Clinical/history prose may say a symptom or status change was recorded.
+    // That describes source evidence, not a successful application write. Keep
+    // it unless the sentence names an application destination/actor or uses
+    // immediate execution language. Data nouns such as profile/history/record/
+    // entry/preference/update remain terminal-state claims.
+    if (verb === "recorded" && ["change", "concern", "pet"].includes(subject)
+      && !applicationDestination.test(value)
+      && !/\b(?:just|now|successfully)\s+(?:been\s+)?recorded\b|\brecorded\s+(?:now|successfully)\b/i.test(value)) continue;
     return true;
   }
   return false;

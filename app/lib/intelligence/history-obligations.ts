@@ -19,7 +19,14 @@ export function historyTaskCompleted(completion: readonly ObligationCompletion[]
 export function buildHistoryObligations(evidence: AskEvidenceContract): HistoryObligation[] {
   const obligations: HistoryObligation[] = [{ index: 0, text: evidence.scope.requestText }];
   const coverage = buildEvidenceNeedCoverage(evidence);
-  for (const need of evidence.interpretation?.request?.evidenceNeeds || []) {
+  // "Which pets?" asks for a selected subset after inspecting the authorized
+  // cohort. Per-pet retrieval hints are not five independent answer clauses:
+  // forcing one answer obligation per pet makes a correct subset answer cite
+  // routine nonmatches. Whole-task review still checks the selection against
+  // the exhaustively represented bounded evidence.
+  const subsetSelection = evidence.scope.authorizedPetIds.length > 1
+    && /\b(?:which\s+pets?|which\s+of)\b/i.test(evidence.scope.requestText);
+  if (!subsetSelection) for (const need of evidence.interpretation?.request?.evidenceNeeds || []) {
     for (const pet of coverage.find(item => item.needId === need.id)?.pets || []) {
       obligations.push({ index: obligations.length, text: need.quote, needId: need.id, petId: pet.petId,
         ...(need.window ? { window: need.window } : {}), availability: pet.state,
@@ -27,8 +34,9 @@ export function buildHistoryObligations(evidence: AskEvidenceContract): HistoryO
     }
   }
   // Larger cohorts still need per-pet completion when decomposition is absent
-  // or covers only part of the requested group.
-  if (evidence.scope.authorizedPetIds.length > 3) for (const petId of evidence.scope.authorizedPetIds) {
+  // or covers only part of the requested group. Subset-selection questions are
+  // governed by the whole-task obligation above instead.
+  if (!subsetSelection && evidence.scope.authorizedPetIds.length > 3) for (const petId of evidence.scope.authorizedPetIds) {
     if (obligations.some(item => item.petId === petId)) continue;
     obligations.push({ index: obligations.length, text: evidence.scope.requestText, petId,
       representedSourceIds: evidence.represented.filter(span => span.petId === petId && span.sourceType === "care_update")
