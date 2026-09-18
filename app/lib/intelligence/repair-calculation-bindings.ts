@@ -42,9 +42,13 @@ export function attachDeterministicCalculationBindings(narrative: HistoryNarrati
   sources:Array<{sourceId:string;text:string;occurredAt?:string|null}>,requestText:string):HistoryNarrative {
   if(!/\b(?:how much\s+(?:longer|shorter|more|less|heavier|lighter)|difference|change)\b/i.test(requestText))return narrative;
   return {sentences:narrative.sentences.map(sentence=>{
-    if(sentence.calculations?.length)return sentence;
     const cited=sources.filter(source=>sentence.sourceIds.includes(source.sourceId)&&/^(?:care|claim):/.test(source.sourceId));
     if(cited.length!==2)return sentence;
+    // Preserve valid provider arithmetic exactly. If provider metadata is
+    // structurally or numerically invalid, fall through to deterministic
+    // reconstruction from the already-cited source measurements instead of
+    // spending a repair cycle on proof the server can recompute itself.
+    if(sentence.calculations?.length && verifiedCalculationQuantities(sentence.calculations,cited)!==null)return sentence;
     const [left,right]=cited.map(measurements);
     const resultTokens=[...sentence.text.matchAll(measuredToken)].flatMap(match=>{
       const unit=units[match[2].toLowerCase()];
