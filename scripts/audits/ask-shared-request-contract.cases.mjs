@@ -344,6 +344,55 @@ test('comparison retrieves both temporal ends for arbitrary topics within the ex
   assert.deepEqual(pair.latestIds,['care:travel-079']);
   assert.equal(pair.blocked,false);
 });
+test('five-pet earliest/latest weight retrieval certifies both endpoint pairs even when lexical weight matching misses weighed prose', async t => {
+  clock(t);
+  const names=['Aster','Bramble','Cedar','Dune','Echo'];
+  const fivePets=names.map((name,index)=>({
+    ...fixturePets[0],
+    id:name.toLowerCase(),
+    name,
+    species:index===1||index===3?'cat':'dog',
+    sex:index===1||index===2?'male':'female',
+  }));
+  const rows=fivePets.flatMap((pet,index)=>{
+    const first=(3+index*4).toFixed(2), last=(Number(first)+1.25).toFixed(2);
+    const history=[
+      care(pet.id+'-old',pet.id,'2016-10-15','general',pet.name+' weighed '+first+' kg. Monthly care check.'),
+      care(pet.id+'-new',pet.id,'2026-09-03','general',pet.name+' weighed '+last+' kg. Monthly care check.'),
+    ];
+    for(let year=2017;year<=2025;year++) history.push(care(pet.id+'-noise-'+year,pet.id,year+'-06-15','general',pet.name+' routine observation with normal appetite.'));
+    return history;
+  });
+  const question="For Aster, Bramble, Cedar, Dune, and Echo, give each pet's earliest recorded body weight and latest recorded body weight across the saved 2016-2026 history. Keep all five pets separate, include both dates, and give the exact change in kg for each pet.";
+  const r=await exercise(question,{
+    fixturePets:fivePets,
+    petId:'aster',
+    conversationPetId:'aster',
+    rows,
+    messages:[],
+    history:true,
+    interpretationProposal:proposal({
+      scope:'account',
+      petNames:names,
+      operation:'comparison',
+      selection:'comparison',
+      quantity:'measurement',
+      topic:'weight',
+      terms:['weight'],
+    }),
+    expectedProviderCalls:null,
+    expectedReviewCalls:null,
+  });
+  assert.equal(r.context.askHistory.coverage.endpointPairs?.length,5);
+  for(const pet of fivePets){
+    const pair=r.context.askHistory.coverage.endpointPairs.find(item=>item.petId===pet.id);
+    assert.ok(pair);
+    assert.equal(pair.blocked,false,pet.name+' endpoint pair should be usable');
+    assert.deepEqual(pair.earliestIds,['care:'+pet.id+'-old']);
+    assert.deepEqual(pair.latestIds,['care:'+pet.id+'-new']);
+  }
+});
+
 test('conversation identity must match a complete owned name', () => {
   assert.throws(() => validateAskRequest(proposal({ scope: 'conversation', petNames: ['Bramble'] }), {
     ...context, conversationTurns: [{ id: 'x', role: 'user', text: 'The brambleberry bushes bloomed.' }],

@@ -212,7 +212,11 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     // cannot consume every slot before a rare, decisive middle-history record.
     // Event facets and temporal presentation are independent. A generic summary
     // label must not suppress searches for a decisive middle-history event.
+    const explicitEndpointComparison = endpointComparison
+      && /\b(?:earliest|first)\b/i.test(context.currentMessage)
+      && /\b(?:latest|last|most recent|newest)\b/i.test(context.currentMessage);
     const diversify = context.askInterpretation?.request
+      && !explicitEndpointComparison
       && (eventTerms.length > 0 || !endpointComparison && !["latest", "earliest", "earliest_occurrence"].includes(context.askInterpretation.selection || "") && searchTerms.length > 1);
     const termGroups = historySearchGroups(searchTerms, sharedRead ? context.currentMessage : "");
     const proposedStrategies = vetBriefRead
@@ -254,7 +258,13 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     // Split the existing candidate/page budget across both ends. Never scan a
     // decade sequentially just to compare the first and last recorded values.
     for (const [strategyIndex, { descending: readDescending, lexical, terms, from, to, target, needId, period }] of strategies.entries()) {
-      const endpointDirection = endpointComparison && !target && !needId && !period && (lexical || !searchTerms.length)
+      // Lexical endpoint strategies run before their chronological
+      // counterpart when a topic term exists, so they remain preferred. If a
+      // morphology mismatch (for example "weight" vs "weighed") returns no
+      // lexical row, allow the bounded chronological strategy for that same
+      // direction to certify the endpoint instead. The seed is written only
+      // once per direction, so this is a fallback, never an override.
+      const endpointDirection = endpointComparison && !target && !needId && !period
         ? readDescending ? "latest" : "earliest" : null;
       const candidatesWindow = clipHistoryPlan(calendarCandidateWindow({ from, to }, context.timeZone), context.historyAccess);
       let cursor: Cursor | null = null; let traversalExhausted = false; let strategyFailed = false;
