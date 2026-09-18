@@ -99,6 +99,20 @@ export function missingRequiredEvidence(evidence?: AskEvidenceContract | null): 
 /** A model cannot certify unvisited time slices or substitute routine topic
  * observations for a requested transition. These limits affect completion and
  * billing, not whether grounded partial information may be shown. */
+export function completedExplicitHistoryTargets(evidence?: AskEvidenceContract | null) {
+  if (!evidence?.interpretation?.request) return [];
+  return (evidence.history?.targets || []).flatMap(target => {
+    if (!target.exhausted || target.status === "unavailable" || target.status === "partial") return [];
+    const candidateIds = [...new Set(target.candidateIds)];
+    const retainedIds = new Set(target.retainedIds);
+    if (!candidateIds.length || candidateIds.some(id => !retainedIds.has(id)
+      || evidence.losses.some(loss => loss.sourceId === id)
+      || !evidence.represented.some(span => span.sourceId === id && span.petId === target.petId
+        && span.sourceType === "care_update" && span.start === 0 && span.end === span.text.length && span.text.trim()))) return [];
+    return [{ petId: target.petId, target: target.day, sourceIds: candidateIds }];
+  });
+}
+
 export function historyCompletionLimits(evidence?: AskEvidenceContract | null): string[] {
   if (!evidence?.interpretation?.request) return [];
   const reasons: string[] = [];
