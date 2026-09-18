@@ -47,9 +47,24 @@ export function buildHistoryObligations(evidence: AskEvidenceContract): HistoryO
 /** Semantic review remains model-assisted. This verifies its completion claims
  * have cited evidence for the assigned subject and interval, not merely a
  * syntactically valid sentence index pointing at another pet's answer. */
+function sourceTextReferencesWindow(text: string | undefined, window: EvidenceNeedWindow | undefined) {
+  if (!text || !window) return false;
+  const from = new Date(window.from), to = new Date(window.to);
+  if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime())) return false;
+  const dayWindow = to.getTime() - from.getTime() <= 86400000 + 1;
+  const year = from.getUTCFullYear(), month = from.getUTCMonth(), day = from.getUTCDate();
+  const monthLong = new Intl.DateTimeFormat("en", { month: "long", timeZone: "UTC" }).format(from);
+  const monthShort = new Intl.DateTimeFormat("en", { month: "short", timeZone: "UTC" }).format(from).replace(/\.$/, "");
+  const isoDay = String(year) + "-" + String(month + 1).padStart(2, "0") + "-" + String(day).padStart(2, "0");
+  const escape = (value: string) => value.replace(/[.*+?^$()|[\]\\]/g, "\\$&");
+  const monthPattern = "(?:" + escape(monthLong) + "|" + escape(monthShort) + ")";
+  if (dayWindow) return new RegExp("(?:\\b" + isoDay + "\\b|\\b" + monthPattern + "\\.?\\s+" + day + "(?:st|nd|rd|th)?(?:,)?\\s+" + year + "\\b)", "i").test(text);
+  return new RegExp("\\b" + monthPattern + "\\.?\\s+" + year + "\\b", "i").test(text);
+}
+
 export function reviewObligationCompletion(obligations: readonly HistoryObligation[], reviews: readonly TaskObligationReview[],
   sentences: readonly { sourceIds: string[] }[],
-  sources: readonly { sourceId: string; petId: string; occurredAt?: string | null; sourceType?: string;
+  sources: readonly { sourceId: string; petId: string; text?: string; occurredAt?: string | null; sourceType?: string;
     lookupScope?: { needId: string; window?: EvidenceNeedWindow } }[], completedEmptyNeedKeys: readonly string[] = [], inventories: readonly import("./record-inventory.ts").RecordInventory[] = []) {
   const failures: string[] = [], completion: ObligationCompletion[] = [];
   for (const obligation of obligations) {
@@ -59,6 +74,7 @@ export function reviewObligationCompletion(obligations: readonly HistoryObligati
     const matching = sources.filter(source => cited.has(source.sourceId)
       && (!obligation.petId || source.petId === obligation.petId)
       && (withinEvidenceNeedWindow(source.occurredAt, obligation.window)
+        || sourceTextReferencesWindow(source.text, obligation.window)
         // Search receipts describe an exact lookup scope, not an observation
         // timestamp. They can ground its bounded no-match explanation only.
         || source.sourceType === "lookup_receipt" && obligation.availability === "no_candidate_match"
