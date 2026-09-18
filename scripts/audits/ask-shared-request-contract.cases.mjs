@@ -361,7 +361,7 @@ test('five-pet earliest/latest weight retrieval certifies both endpoint pairs ev
       const day=monthIndex===119?'2026-09-03':date.toISOString().slice(0,10);
       if(monthIndex===0) return care(pet.id+'-old',pet.id,day,'general',pet.name+' weighed '+first+' kg. Monthly care check.');
       if(monthIndex===119) return care(pet.id+'-new',pet.id,day,'general',pet.name+' weighed '+last+' kg. Monthly care check.');
-      return care(pet.id+'-noise-'+String(monthIndex).padStart(3,'0'),pet.id,day,'general',pet.name+' routine observation with normal appetite.');
+      return care(pet.id+'-noise-'+String(monthIndex).padStart(3,'0'),pet.id,day,'general',pet.name+' routine observation with normal appetite, normal household activity, unchanged measured diet, ordinary sleep, routine grooming, and no new ongoing concern. '.repeat(5));
     });
   });
   const question="For Aster, Bramble, Cedar, Dune, and Echo, give each pet's earliest recorded body weight and latest recorded body weight across the saved 2016-2026 history. Keep all five pets separate, include both dates, and give the exact change in kg for each pet.";
@@ -394,7 +394,11 @@ test('five-pet earliest/latest weight retrieval certifies both endpoint pairs ev
     expectedReviewCalls:null,
   });
   assert.equal(r.context.askHistory.coverage.endpointPairs?.length,5);
+  assert.equal(r.result.reasoning.model,'server-read-projection');
+  const projectedSources=new Set(r.result.reasoning.historyNarrative?.sentences.flatMap(sentence=>sentence.sourceIds)||[]);
   for(const pet of fivePets){
+    assert.ok(projectedSources.has('care:'+pet.id+'-old'),pet.name+' projected earliest endpoint');
+    assert.ok(projectedSources.has('care:'+pet.id+'-new'),pet.name+' projected latest endpoint');
     const pair=r.context.askHistory.coverage.endpointPairs.find(item=>item.petId===pet.id);
     assert.ok(pair);
     assert.equal(pair.blocked,false,pet.name+' endpoint pair should be usable');

@@ -431,7 +431,7 @@ export function clearAskProviderCooldownsForTests() {
   providerCooldowns.clear();
 }
 
-export function buildAskContext(input: BuildContextInput) {
+export function buildAskContext(input: BuildContextInput, applyPromptBudget = true) {
   const allRecords = buildContextRecords(input);
   const evidence = structuredClone(input.evidenceContract || evidenceForRecords(allRecords, input.question, input.profiles.map(profile => profile.id)));
   const terms = meaningfulTerms(input.question);
@@ -550,7 +550,7 @@ export function buildAskContext(input: BuildContextInput) {
     recentConversation: input.dialogueContext || input.conversationTurns,
   });
 
-  const promptContext = enforceAskPromptContextBudget({
+  const rawPromptContext = {
       productFacts: evidence.interpretation?.request ? furviseProductFacts() : undefined,
       currentMessage: input.question,
       safetyTemporalContext: safetyTemporalScope(input.question),
@@ -579,7 +579,9 @@ export function buildAskContext(input: BuildContextInput) {
       } })),
       evidenceContract: evidence,
       olderUpdateSummary: updateSummary,
-  });
+  };
+  const promptContext = applyPromptBudget ? enforceAskPromptContextBudget(rawPromptContext) : rawPromptContext;
+  if (!applyPromptBudget) representEvidence(promptContext.evidenceContract, promptContext.contextRecords);
   // Budget selection preserves boundary coverage; presentation order should
   // still be chronological. Do this only AFTER selection, without losing,
   // compacting or substituting any represented record.
@@ -705,10 +707,14 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   if (!client) {
     throw new AskPipelineError("configuration_failed", "OPENAI_API_KEY is not configured.", { elapsedMs: 0, model: models.primary });
   }
-  const context = buildAskContext(input);
-  const projection = context.minimumSafetyLevel === "normal" ? deterministicReadProjection(context.promptContext.evidenceContract,
+  // Deterministic server projections operate on the full governed evidence
+  // before provider prompt budgeting. Lifetime-scale reads should not discard
+  // facts merely to satisfy a model input limit when no model call is needed.
+  const projectionContext = buildAskContext(input, false);
+  const projection = projectionContext.minimumSafetyLevel === "normal" ? deterministicReadProjection(projectionContext.promptContext.evidenceContract,
     detail => console.info("[Ask read projection] decision", detail)) : null;
   if (projection) {
+    const context = projectionContext;
     const evidence = context.promptContext.evidenceContract;
     const ids = [...new Set(projection.sentences.flatMap(s=>s.sourceIds))];
     return {
@@ -725,6 +731,7 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
       intelligenceMetadata:{confidence:"high",usedPetContext:true,usedCareHistory:true,usedMemories:false},
     };
   }
+  const context = buildAskContext(input, true);
   const request = buildProviderRequest(context.promptContext);
   const parseOutput = (rawText: string) => {
     const parsed = parseUnifiedResponse(rawText, context.records, input.semanticFrameRecovery
