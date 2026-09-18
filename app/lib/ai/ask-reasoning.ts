@@ -664,11 +664,12 @@ function enforceAskPromptContextBudget<T extends { contextRecords: AskContextRec
       else if (unrelatedReceipt >= 0 && contextRecords[index]?.sourceType === "care_update") index = unrelatedReceipt;
       else if (budgeted.evidenceContract.scope.authorizedPetIds.length > 3
         && contextRecords[index]?.sourceType === "care_update" && (counts.get(contextRecords[index].petId) || 0) <= 1) {
-        // Preserve one historical source per cohort member before redundant
-        // identity details. Species and the separate safety context stay intact;
-        // omitted profile fields are recorded as unavailable evidence.
+        // Preserve one historical source per cohort member before auxiliary
+        // identity details. In a large read-only history cohort, species is
+        // also auxiliary to the requested per-pet record: safety authority is
+        // carried separately and no mutation scope is widened here.
         const identityDetail = contextRecords.findLastIndex(record => record.sourceType === "profile"
-          && ["sex", "lifecycle_status"].includes(record.kind));
+          && ["sex", "lifecycle_status", "species"].includes(record.kind));
         if (identityDetail >= 0) index = identityDetail;
       }
     }

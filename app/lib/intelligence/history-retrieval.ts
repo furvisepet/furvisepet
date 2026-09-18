@@ -489,6 +489,11 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     && Date.parse(entry.occurred_at) >= Date.parse(period.from) && Date.parse(entry.occurred_at) < Date.parse(period.to)));
   const boundaryIds = new Set((coverage.chronology || []).flatMap(boundary => boundary.boundaryIds));
   const required = [...ordered.filter(entry => boundaryIds.has(careEvidenceId(entry.id, coverage))),
+    // Large owned cohorts reserve one effective row per pet before any shared
+    // period/context group can consume the evidence budget. This preserves
+    // subject coverage at the maximum 10-pet read scope without increasing
+    // record or character limits.
+    ...petGroups.flatMap(group => group.slice(0, 1)),
     ...targetGroups.flatMap(group => group.slice(0, 1)), ...needGroups.flatMap(group => group.slice(0, 1)), ...currentGroups.flat(),
     ...periodGroups.flatMap(group => group.slice(0, 2))];
   coverage.requiredSourceIds = [...new Set(required.map(entry => careEvidenceId(entry.id, coverage)))];
