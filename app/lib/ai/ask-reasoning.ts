@@ -727,7 +727,7 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   // before provider prompt budgeting. Lifetime-scale reads should not discard
   // facts merely to satisfy a model input limit when no model call is needed.
   const projectionContext = buildAskContext(input, false);
-  const labs = projectionContext.minimumSafetyLevel === "normal" ? buildLabsList(projectionContext.promptContext.evidenceContract, input.careEntries) : null;
+  const labs = projectionContext.minimumSafetyLevel !== "urgent" ? buildLabsList(projectionContext.promptContext.evidenceContract, input.careEntries) : null;
   const projection = !labs && projectionContext.minimumSafetyLevel === "normal" ? deterministicReadProjection(projectionContext.promptContext.evidenceContract,
     detail => console.info("[Ask read projection] decision", detail)) : null;
   if (labs || projection) {

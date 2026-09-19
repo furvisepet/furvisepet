@@ -15,11 +15,13 @@ const snapshots = new WeakMap<LabsList, string>();
 export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: CareEntryRow[]): LabsList | null {
   const request = evidence?.interpretation?.request, ticket = request?.readTicket;
   const coverage = evidence?.history?.ticketCoverage;
+  if (ticket) console.info("[Ask Labs] dispatch", { operation: ticket.operation, completeness: ticket.outputs.completeness,
+    mode: request?.mode, quantity: request?.quantity, outputFormat: request?.outputFormat,
+    readOnly: evidence?.scope.readOnlyRecall, scope: evidence?.scope.status, coverage: coverage?.status, recordCount: rows.length });
   if (!evidence || !ticket || !coverage || request?.mode !== "read" || request.writeJob || request.mutationIntent
     || !evidence.scope.readOnlyRecall || evidence.scope.status !== "resolved"
     || !["read", "read_since_event"].includes(ticket.operation)
-    || request.quantity !== "records" || request.profileFields?.length
-    || request.outputFormat && !["prose", "bullets"].includes(request.outputFormat)) return null;
+    || ticket.outputs.completeness !== "exhaustive" && request.quantity !== "records") return null;
   if (ticket.subjects.petIds.some(id => !evidence.scope.authorizedPetIds.includes(id))
     || rows.some(row => !ticket.subjects.petIds.includes(row.pet_profile_id) || row.deleted_at
       || !Number.isFinite(Date.parse(row.occurred_at)))
