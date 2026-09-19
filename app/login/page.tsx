@@ -13,6 +13,7 @@ import {
   accountPrimaryClass,
 } from "../components/account-access";
 import { TurnstileChallenge } from "../components/turnstile-challenge";
+import { isAuthCaptchaEnabled } from "../lib/auth-captcha-policy";
 import { useConfirmedSupabaseAuth } from "../lib/auth-session";
 import {
   FURVISE_EMAIL_OTP_HTML_PATTERN,
@@ -260,6 +261,7 @@ function LoginPageContent() {
   function continueSignupWithEmail(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (loading || accountRoutePendingRef.current) return;
+    if (!isAuthCaptchaEnabled()) { void routeSignupEmail(); return; }
     const normalizedEmail = normalizeAuthEmail(email);
     setEmail(normalizedEmail);
     setPassword("");
@@ -290,8 +292,8 @@ function LoginPageContent() {
     void routeSignupEmail(token);
   }
 
-  async function routeSignupEmail(token: string) {
-    if (!token) return;
+  async function routeSignupEmail(token?: string) {
+    if (isAuthCaptchaEnabled() && !token) return;
     const normalizedEmail = normalizeAuthEmail(email);
     const controller = new AbortController();
     accountRouteAbortRef.current?.abort();
@@ -353,6 +355,7 @@ function LoginPageContent() {
     if (mode === "signin" && signinStep !== "password") return;
     if (mode === "signup" && signupStep !== "password") return;
     if (loading || authSubmitPendingRef.current) return;
+    if (!isAuthCaptchaEnabled()) { void submitAuth(); return; }
     if (authCaptchaTokenRef.current) {
       const token = authCaptchaTokenRef.current;
       authCaptchaTokenRef.current = null;
@@ -384,8 +387,8 @@ function LoginPageContent() {
     void submitAuth(token);
   }
 
-  async function submitAuth(token: string) {
-    if (!token) return;
+  async function submitAuth(token?: string) {
+    if (isAuthCaptchaEnabled() && !token) return;
     setLoading(true);
     setError("");
     setStatusMessage("");
@@ -519,6 +522,7 @@ function LoginPageContent() {
 
   function requestResendConfirmation() {
     if (resendCooldown > 0 || loading || resendSubmitPendingRef.current) return;
+    if (!isAuthCaptchaEnabled()) { void resendConfirmation(); return; }
     if (resendCaptchaTokenRef.current) {
       const token = resendCaptchaTokenRef.current;
       resendCaptchaTokenRef.current = null;
@@ -550,9 +554,9 @@ function LoginPageContent() {
     void resendConfirmation(token);
   }
 
-  async function resendConfirmation(token: string) {
+  async function resendConfirmation(token?: string) {
     const normalizedEmail = normalizeAuthEmail(email);
-    if (!normalizedEmail || !token || resendCooldown > 0 || loading) return;
+    if (!normalizedEmail || (isAuthCaptchaEnabled() && !token) || resendCooldown > 0 || loading) return;
     setLoading(true);
     setError("");
     setStatusMessage("");

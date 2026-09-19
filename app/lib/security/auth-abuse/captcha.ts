@@ -1,9 +1,13 @@
 import "server-only";
+import { isAuthCaptchaEnabled } from "../../auth-captcha-policy";
 
 import { isCaptchaDevelopmentBypassAllowed } from "./config";
 import { resolveLoginCaptchaPolicy, validateCaptchaToken } from "./login-captcha";
 
 export function requireCaptchaToken(value: unknown, env: Record<string, string | undefined> = process.env) {
+  if (!isAuthCaptchaEnabled(env)) {
+    return { allowed: true as const, bypassed: true as const, token: undefined };
+  }
   if (isCaptchaDevelopmentBypassAllowed(env) && (value === undefined || value === null || value === "")) {
     console.warn("[Furvise auth] CAPTCHA development bypass active", { production: false });
     return { allowed: true as const, bypassed: true as const, token: undefined };

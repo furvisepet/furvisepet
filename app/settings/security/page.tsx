@@ -6,6 +6,7 @@ import { AccountSettingsShell } from "../../components/account-settings-shell";
 import { AccountStatus } from "../../components/account-access";
 import { Field, PrimaryButton, SecondaryButton } from "../../components/product-primitives";
 import { TurnstileChallenge } from "../../components/turnstile-challenge";
+import { isAuthCaptchaEnabled } from "../../lib/auth-captcha-policy";
 import { GOOGLE_AUTH_ENABLED, buildOAuthCallbackUrl, getConnectedAuthProviders } from "../../lib/auth-identity";
 import { useRequireConfirmedSupabaseAuth } from "../../lib/auth-session";
 import { getBrowserSupabase, loadCurrentPasswordAuthCapability } from "../../lib/supabase";
@@ -171,9 +172,9 @@ export default function SecuritySettingsPage() {
                     <PasswordInput autoComplete="new-password" label="New password" name="new-password" onChange={(value) => changePasswordValue(setNewPassword, value)} onToggle={() => toggleVisibility("new")} value={newPassword} visible={visible.new} />
                     <PasswordInput autoComplete="new-password" label="Confirm new password" name="confirm-password" onChange={(value) => changePasswordValue(setConfirmPassword, value)} onToggle={() => toggleVisibility("confirmation")} value={confirmPassword} visible={visible.confirmation} />
                     <p className="text-sm leading-6 text-[var(--text-secondary)]">Use 12 to 128 characters. Spaces and password-manager generated passwords are supported.</p>
-                    <TurnstileChallenge onToken={setCaptchaToken} resetSignal={captchaReset} />
+                    {isAuthCaptchaEnabled() ? <TurnstileChallenge onToken={setCaptchaToken} resetSignal={captchaReset} /> : null}
                     <div className="flex flex-col gap-3 sm:flex-row">
-                      <PrimaryButton className={`${forestButtonClass} w-full sm:w-auto`} disabled={saving || (process.env.NODE_ENV === "production" && !captchaToken)} loading={saving} type="submit">{saving ? "Changing password..." : "Change password"}</PrimaryButton>
+                      <PrimaryButton className={`${forestButtonClass} w-full sm:w-auto`} disabled={saving || (isAuthCaptchaEnabled() && process.env.NODE_ENV === "production" && !captchaToken)} loading={saving} type="submit">{saving ? "Changing password..." : "Change password"}</PrimaryButton>
                       <SecondaryButton className="w-full sm:w-auto" disabled={saving} onClick={() => setShowPasswordForm(false)} type="button">Cancel</SecondaryButton>
                     </div>
                   </form>
