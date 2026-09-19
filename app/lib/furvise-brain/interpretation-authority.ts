@@ -19,11 +19,10 @@ function intentForRequest(request: AskRequestContract): FurviseTurnIntent {
 }
 
 function memoryNeedForRequest(request: AskRequestContract): FurviseMemoryNeed {
-  const semantic = request as SemanticRequestEnvelope;
   if (request.evidenceBasis === "saved_history") {
-    const unbounded = semantic.from == null && semantic.to == null;
-    const lifetimeLanguage = /\b(?:ever|lifetime|entire\s+(?:life|history)|all\s+(?:history|records?))\b/i.test(request.question);
-    return unbounded && lifetimeLanguage ? "lifetime" : "targeted";
+    const ticket = request.readTicket;
+    return ticket && ticket.temporal.from === null && ticket.temporal.to === null
+      && ticket.outputs.completeness === "exhaustive" ? "lifetime" : "targeted";
   }
   if (request.evidenceBasis === "saved_profile") return "targeted";
   return "working";

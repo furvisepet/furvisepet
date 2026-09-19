@@ -98,7 +98,7 @@ export function askRequestSchema(frame: object, context?: Context) {
 
 export const ASK_REQUEST_INSTRUCTIONS = [
   ASK_TASK_INSTRUCTIONS,
-  "For an event-relative history read, emit readTicket with operation read_since_event, temporal.anchor identifying the minimal event concept and relation from (inclusive), after (exclusive), or before (exclusive). Dates of saved events are unknown until retrieval: do not guess a date. Encode topic matching as text_any predicates with literal terms and ordinary synonyms. Put exhaustive/sufficient, asc/desc and any explicit limit in outputs. Use mode read, evidenceBasis saved_history, operation recall, no task/writeJob/frame/episode target. The server binds owned pet IDs; never put pet IDs in the proposal. This typed read ticket, not the wording, controls the retrieval window. For other requests readTicket is null during this migration.",
+  "Every pure saved-history read MUST emit readTicket. Use read for record selection; read_since_event only when temporal.anchor names an event. Anchor relation is from (inclusive), after (exclusive), or before (exclusive). Never guess event dates or an undated request's cutoff. Encode topics as text_any predicates with literal terms and ordinary synonyms. Only ticket.temporal and ticket.outputs select time, order, depth and limit. Boundary selection across accessible history (earliest/latest) requires exhaustive coverage, asc/desc ordering and limit 1. A request for a recorded value and its date is a source-record lookup: quantity records; preserve its dated quotation. Arithmetic/comparison uses compare or rank, not an invented source value. Use mode read, evidenceBasis saved_history, no task/writeJob/frame or episode target. The server binds owned pet IDs. Non-history and write requests keep readTicket null. Legacy from/to/terms/selection fields cannot override a readTicket.",
   "Classify a combined question and save by the requested action first. Adding a newly reported measurement or observation to history is a new entry, not correct_record, even when the question compares it with an older measurement. For this combined task use mode mixed, mutationIntent null, and evidenceBasis null only when the task needs no saved-record lookup. Supplying comparison operands does not cancel an explicit request to find, look back at, verify or compare saved records: use saved_history whenever any clause requests that lookup, even if arithmetic is independently possible from supplied numbers. Preserve the calculation, uncertainty and save obligations separately. Include only the current genuine observation in frame. Earlier user-supplied milestones are comparison premises, not fresh observations to save. Hypothetical or quoted save instructions do not authorize actions.",
   "A request merely to write, title, translate or format a predetermined claim is a wording task, not a request to retrieve evidence for that claim. If the owner supplies no supporting facts and does not ask to check/read/verify saved records, use mode conversation, scope none, evidenceBasis general, operation general and frame null; the answer can decline an unsupported real-world assertion and offer accurate uncertain wording. A named owned pet does not by itself authorize an unrequested history search. Preserve genuine factual questions and explicit verification/lookups as saved-history reads. Do not convert a quoted desired assertion or desired footnote into an owner observation or save request.",
   "Use evidenceBasis saved_profile for requests consisting ONLY of current stored profile fields (name/species/food/weight/etc). Use mode read, profileFields for every requested field, no dates/quantity/evidenceNeeds/episode/frame, and the owned scope. Profile lookup needs no care-history scan and supports up to twenty owned profiles. If ANY part needs dated records or historical calculations, use saved_history; do not mislabel a historical endpoint as current profile data. Formatting words such as table or JSON are not evidence. General advice still uses general. Never widen subject ownership.",
@@ -153,6 +153,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (![null, "historical", "current", "historical_and_current"].includes(p.temporalScope as null | string)) return fail("temporal_scope");
   if (![null, "correct_record"].includes(p.mutationIntent as null | string)) return fail("mutation_intent");
   if (p.readTicket !== null && (p.mode !== "read" || p.evidenceBasis !== "saved_history" || p.writeJob !== null)) return fail("read_ticket");
+  if (p.readTicket !== null) return bindTicketedRead(p, context);
   if (p.writeJob !== null) {
     // A standalone replace has one mutation job, no observation save or essay.
     // Conflicting read obligations fail closed rather than being silently dropped.
@@ -655,6 +656,45 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     episodeTopic: episodeTarget || operation === "count" || operation === "episode" ? p.episodeTopic as AskInterpretation["episodeTopic"] : null,
     ordinal: p.ordinal as AskInterpretation["ordinal"],
     history: readTicket ? { from: readTicket.temporal.from, to: readTicket.temporal.to, terms: [], interpretation: "period" } : historical ? { from: target?.basis === "scoped_register" ? explicitEpisodePeriod!.from : historicalFrom, to: target?.basis === "scoped_register" ? explicitEpisodePeriod!.to : historicalTo, terms: p.terms as string[], interpretation: (p.terms as string[]).length ? "lexical" : from || to ? "period" : "broad_comparison" } : null };
+}
+
+/** Brain owns read semantics. This boundary checks shape, owned subjects and
+ * source-reference identity; it never reparses the sentence for scope or dates. */
+function bindTicketedRead(p: Record<string, unknown>, context: Context): AskInterpretation {
+  if (p.frame !== null || p.task !== null || p.mutationIntent !== null || p.writeJob !== null) return fail("read_ticket_write");
+  const owned = context.eligiblePets.filter(pet => pet.user_id === context.owner.userId);
+  const resolveName = (name: string) => {
+    const matches = owned.filter(pet => pet.name?.normalize("NFKC").toLocaleLowerCase() === name.normalize("NFKC").toLocaleLowerCase());
+    if (matches.length !== 1) return fail("ownership");
+    return matches[0].id;
+  };
+  const names = (p.petNames as string[]).map(resolveName);
+  const excluded = new Set((p.excludedPetNames as string[]).map(resolveName));
+  const referenceTurnIds = p.referenceTurnIds as string[];
+  if (referenceTurnIds.some(id => !context.conversationTurns.some(turn => turn.id === id && turn.role === "user"))) return fail("reference");
+  let petIds: string[];
+  if (p.scope === "selected") {
+    if (!owned.some(pet => pet.id === context.pet.id) || names.some(id => id !== context.pet.id)) return fail("selected_subject");
+    petIds = [context.pet.id];
+  } else if (p.scope === "account") petIds = owned.map(pet => pet.id).filter(id => !excluded.has(id));
+  else if (p.scope === "named" || p.scope === "conversation") {
+    if (p.scope === "conversation" && !referenceTurnIds.length) return fail("reference");
+    petIds = [...new Set(names)];
+  } else return fail("scope");
+  if (!petIds.length || petIds.length > ASK_HISTORY_MAX_PETS || petIds.some(id => excluded.has(id))) return fail("scope");
+  const readTicket = bindReadTicket(p.readTicket, petIds)!;
+  const operation = readTicket.operation === "compare" || readTicket.operation === "rank" ? "comparison" : "recall";
+  const selection = readTicket.outputs.limit === 1 ? readTicket.outputs.ordering === "asc" ? "earliest" : "latest" : "summary";
+  const request: AskRequestContract = {
+    version: ASK_REQUEST_VERSION, mode: "read", readTicket, writeJob: null, task: null, mutationIntent: null,
+    question: context.currentMessage, requirements: p.requirements as string[], referenceTurnIds,
+    quantity: p.quantity as AskRequestContract["quantity"], evidenceBasis: "saved_history",
+    outputFormat: p.outputFormat as AskRequestContract["outputFormat"], profileFields: [],
+    temporalScope: "historical", projection: null, evidenceNeeds: [],
+  };
+  return { version: "ask-interpretation.v1", request, operation, readOperation: operation, selection, petIds,
+    topic: p.topic as string, history: { from: readTicket.temporal.from, to: readTicket.temporal.to, terms: [], interpretation: "period" },
+    episodeTopic: null, ordinal: null, readOnly: true, clarification: null, frame: emptyProposedSemanticFrame() };
 }
 
 /** Positive read clauses are independent of save clauses and supplied operands.

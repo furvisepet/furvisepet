@@ -7,7 +7,6 @@ import { interpretStructuredProviderResponse } from "../ai/ask-provider.ts";
 import { AskPipelineError, type AskProviderEvent } from "../ai/ask-reasoning.ts";
 import { AiAdmissionError } from "../ai/usage-guard/errors.ts";
 import { boundedProviderTimeout, executeAdmittedProviderCall } from "../ai/usage-guard/provider-call-budget.ts";
-import { resolveWorkingMemoryFollowup } from "../furvise-brain/working-memory.ts";
 import { buildRecentSubjectState } from "./entities/recent-subject-state.ts";
 import type { FurviseLiveContext } from "./types.ts";
 import type { HistoryPlan } from "./history-retrieval.ts";
@@ -62,7 +61,12 @@ export class AskInterpretationValidationError extends Error {
 }
 export function recoverAskInterpretation(value: unknown, context: InterpretationContext): AskInterpretation {
   if (value && typeof value === "object" && "version" in value && value.version === ASK_REQUEST_VERSION) {
-    try { return validateAskRequest(value, context); }
+    try {
+      const parsed = validateAskRequest(value, context);
+      if (parsed.request?.mode === "read" && parsed.request.evidenceBasis === "saved_history" && !parsed.request.readTicket)
+        throw new Error("ASK_REQUEST_INVALID:read_ticket_required");
+      return parsed;
+    }
     catch (error) {
       const reason = error instanceof Error ? /^ASK_REQUEST_INVALID:([a-z_]+)$/.exec(error.message)?.[1] : null;
       if (reason === "write_job") {
@@ -87,117 +91,11 @@ function unavailableAskReadPlan(reason: string): AskInterpretation {
     episodeTopic: null, ordinal: null, readOnly: true, clarification: null, frame: emptyProposedSemanticFrame() };
 }
 
-function exactlyNamedOwnedPet(context: InterpretationContext) {
-  const owned=context.eligiblePets.filter(candidate=>candidate.user_id===context.owner.userId && candidate.name);
-  const named=owned.filter(candidate=>new RegExp("(?<![\\p{L}])"+candidate.name!.replace(/[.*+?^$\{\}()|[\]\\]/g,"\\$&")+"(?![\\p{L}])","iu").test(context.currentMessage));
-  return named.length===1 ? named[0] : null;
-}
-
-function fastCompletedNoteWeightReadPlan(context: InterpretationContext): AskInterpretation | null {
-  const message=context.currentMessage.trim();
-  if(!context.ownerNoteAlreadySaved || !context.completedOwnerNote?.entryIds?.length
-    || !/\b(?:last|latest|most recent|newest)\s+two\s+(?:weights?|body masses?)\b/i.test(message)
-    || !/\b(?:this|that)\s+note\b[^.!?]{0,80}\b(?:include|includes|contain|contains|have|has)\b[^.!?]{0,40}\bweight\b|\bwhether\s+(?:this|that)\s+note\b[^.!?]{0,60}\bweight\b/i.test(message)
-    || analyzeOwnerAssertions(message).hasOwnerAssertion) return null;
-  const pet=exactlyNamedOwnedPet(context)
-    || context.eligiblePets.find(candidate=>candidate.user_id===context.owner.userId && candidate.id===context.completedOwnerNote!.petId);
-  if(!pet?.name || pet.id!==context.completedOwnerNote.petId) return null;
-  return validateAskRequest({
-    version:ASK_REQUEST_VERSION,task:null,temporalScope:"historical",mutationIntent:null,recordSelection:null,profileFields:[],
-    projection:null,evidenceNeeds:[],outputFormat:null,evidenceBasis:"saved_history",premiseQuotes:[],excludedPetNames:[],
-    mode:"read",question:message,requirements:[],referenceTurnIds:[],scope:"named",petNames:[pet.name],
-    operation:"recall",selection:"latest",quantity:"measurement",topic:"weight",terms:["weight"],from:null,to:null,
-    episodeTopic:null,ordinal:null,frame:null,
-  },context);
-}
-
-function fastLatestSavedWeightPlan(context: InterpretationContext): AskInterpretation | null {
-  const message=context.currentMessage.trim();
-  if(!/\b(?:latest|last|most recent|newest)\s+(?:recorded\s+)?(?:weight|body mass)\b/i.test(message)
-    || /\b(?:profile|current profile|compare|comparison|versus|difference|change|two\s+(?:weights?|body masses?))\b/i.test(message)
-    || analyzeOwnerAssertions(message).hasOwnerAssertion) return null;
-  const pet=exactlyNamedOwnedPet(context);
-  if(!pet?.name) return null;
-  return validateAskRequest({
-    version:ASK_REQUEST_VERSION,task:null,temporalScope:"historical",mutationIntent:null,recordSelection:null,profileFields:[],
-    projection:null,evidenceNeeds:[],outputFormat:null,evidenceBasis:"saved_history",premiseQuotes:[],excludedPetNames:[],
-    mode:"read",question:message,requirements:[],referenceTurnIds:[],scope:"named",petNames:[pet.name],
-    operation:"recall",selection:"latest",quantity:"measurement",topic:"weight",terms:["weight"],from:null,to:null,
-    episodeTopic:null,ordinal:null,frame:null,
-  },context);
-}
-
-function fastSavedReadbackPlan(context: InterpretationContext): AskInterpretation | null {
-  if (!/^(?:please\s+)?(?:what did i just (?:save|log|record|add)|show me what i just (?:saved|logged|recorded))(?:\s+for\s+[\p{L}\p{M}'’ -]{1,60})?[?.!]*$/iu.test(context.currentMessage.trim())) return null;
-  const priorUsers = context.conversationTurns.filter(turn => turn.role === "user" && turn.id !== context.currentTurn?.id);
-  const source = priorUsers.at(-1);
-  if (!source?.operationReceipt?.records.length) return null;
-  const pet = context.eligiblePets.find(candidate => candidate.user_id === context.owner.userId && candidate.id === source.operationReceipt!.petId);
-  if (!pet?.name) return null;
-  const named = context.eligiblePets.filter(candidate => candidate.user_id === context.owner.userId && candidate.name
-    && new RegExp("(?<![\\p{L}])" + candidate.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?![\\p{L}])", "iu").test(context.currentMessage));
-  if (named.length > 1 || named.length === 1 && named[0].id !== pet.id) return null;
-  return validateAskRequest({
-    version: ASK_REQUEST_VERSION, task: null, temporalScope: "historical", mutationIntent: null, recordSelection: null, profileFields: [],
-    projection: null, evidenceNeeds: [], outputFormat: null, evidenceBasis: "saved_history", premiseQuotes: [], excludedPetNames: [],
-    mode: "read", question: context.currentMessage, requirements: [], referenceTurnIds: [source.id], scope: "named", petNames: [pet.name],
-    operation: "recall", selection: "reference", quantity: null, topic: "saved care history", terms: [], from: null, to: null,
-    episodeTopic: null, ordinal: null, frame: null,
-  }, context);
-}
-
-
-function workingMemoryAskPlan(context: InterpretationContext, sourceTurnId: string, sourceText: string): AskInterpretation {
-  return {
-    version: "ask-interpretation.v1",
-    operation: "general",
-    readOperation: "general",
-    selection: "summary",
-    conversationOnly: true,
-    referenceQuestion: sourceText,
-    petIds: [],
-    readPetIds: [],
-    topic: "working memory conversation",
-    history: null,
-    episodeTopic: null,
-    ordinal: null,
-    readOnly: true,
-    clarification: null,
-    frame: emptyProposedSemanticFrame(),
-    request: {
-      version: ASK_REQUEST_VERSION,
-      task: null,
-      mode: "conversation",
-      question: context.currentMessage,
-      requirements: [],
-      referenceTurnIds: [sourceTurnId],
-      quantity: null,
-      evidenceBasis: "general",
-      outputFormat: null,
-    },
-  };
-}
-
 export async function interpretAskQuestion({ context, model, client, onProviderEvent }: {
   context: InterpretationContext; model: string;
   onProviderEvent?: (event: AskProviderEvent) => void;
   client?: { responses: { create: (request: Record<string, unknown>, options?: { signal: AbortSignal }) => Promise<Record<string, unknown>> } };
 }): Promise<AskInterpretation> {
-  if (!context.pendingTask) {
-    const completedNoteWeightRead = fastCompletedNoteWeightReadPlan(context);
-    if (completedNoteWeightRead) return completedNoteWeightRead;
-    const latestWeight = fastLatestSavedWeightPlan(context);
-    if (latestWeight) return latestWeight;
-    const savedReadback = fastSavedReadbackPlan(context);
-    if (savedReadback) return savedReadback;
-    const workingMemory = resolveWorkingMemoryFollowup(context.currentMessage, context.conversationTurns.map(turn => ({
-      id: turn.id,
-      role: turn.role,
-      text: turn.text,
-    })));
-    if (workingMemory) return workingMemoryAskPlan(context, workingMemory.sourceTurnId, workingMemory.sourceText);
-  }
-
   const state = buildRecentSubjectState({ pets: context.eligiblePets.filter(pet => pet.user_id === context.owner.userId), selectedPetId: context.pet.id, recentConversation: context.conversationTurns });
   const input = { pendingTask: context.pendingTask || null, currentTurn: context.currentTurn || null, timeZone: context.timeZone || "UTC", conversationSubject: state.entities.find(entity => entity.key === state.currentFocusKey)?.label || null, currentMessage: context.currentMessage, today: calendarDateInZone(new Date().toISOString(), context.timeZone),
     ownerNoteSources: [...context.conversationTurns, context.pendingTask?.source, context.currentTurn]
@@ -208,19 +106,13 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     storedNoteReferences: context.conversationTurns.filter(turn => turn.recoveredReceiptReference && turn.operationReceipt?.records.length)
       .slice(-4).map(turn => ({ id: turn.id, role: turn.role, text: turn.text, recordedAt: turn.createdAt,
         petId: turn.operationReceipt!.petId, purpose: "readback_reference_only_not_write_authority" })),
-    reformulation: /\b(?:last|previous|that)\s+(?:answer|response)\b/i.test(context.currentMessage)
-      && /\b(?:briefly|shorter|shorten|rephrase|explain|translate)\b/i.test(context.currentMessage)
-      ? { task: "Re-answer this user question using newly retrieved evidence, applying the current format request",
-        priorUserQuestion: context.conversationTurns.filter(turn => turn.role === "user" && turn.text !== context.currentMessage).at(-1)?.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars) || null }
-      : null,
     ownedPets: context.eligiblePets.filter(pet => pet.user_id === context.owner.userId).map(pet => ({ name: pet.name, species: pet.species })),
     recentUserMessages: context.conversationTurns.filter(turn => turn.role === "user" && !turn.recoveredReceiptReference).slice(-ASK_INTERPRETATION_LIMITS.turns).map(turn => turn.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars)),
     recentDialogueForReferencesOnly: context.conversationTurns.slice(-ASK_INTERPRETATION_LIMITS.turns)
       .map(turn => ({ id: turn.id, role: turn.role, text: turn.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars) })),
-    olderUserReferenceCandidates: /\b(?:that|those|earlier|old|previous|before)\b/i.test(context.currentMessage)
-      ? context.conversationTurns.slice(0, -ASK_INTERPRETATION_LIMITS.turns).filter(turn => turn.role === "user" && !turn.recoveredReceiptReference)
-        .slice(-ASK_INTERPRETATION_LIMITS.turns).map(turn => ({ id: turn.id, text: turn.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars) }))
-      : [],
+    olderUserReferenceCandidates: context.conversationTurns.slice(0, -ASK_INTERPRETATION_LIMITS.turns)
+      .filter(turn => turn.role === "user" && !turn.recoveredReceiptReference).slice(-ASK_INTERPRETATION_LIMITS.turns)
+      .map(turn => ({ id: turn.id, text: turn.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars) })),
     dialogueAuthority: "Prior USER turns may supply observations, fictional/scenario facts and referents; olderUserReferenceCandidates are reference-only candidates for backward references and do not establish saved facts, persistence, or write authority. Only the current request authorizes a new save. ownerNoteSources supplies original note content, not proof of persistence or permission to use another account. Prior assistant turns are reference hints only.",
   };
   const request = { model, max_output_tokens: ASK_INTERPRETATION_LIMITS.outputTokens,
@@ -229,24 +121,20 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
   const started = Date.now();
   let attempted = false;
   let providerSignal: AbortSignal | undefined;
-  let previousContractFailure = "";
   const fail = (reason: string, kind: string, extras: Partial<AskProviderEvent> = {}) => new AskPipelineError("interpretation_failed",
     "I couldn't understand the request reliably this time. Please try again.",
     { model, elapsedMs: Date.now() - started, providerErrorCode: reason, providerErrorType: kind, ...extras });
   try {
     const activeClient = client || new OpenAI({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 0 }) as unknown as NonNullable<typeof client>;
-    for (let attempt = 0; attempt < 2; attempt++) {
-    const attemptRequest = attempt === 0 ? request : { ...request, instructions: request.instructions + "\nThe previous contract failed validation (" + previousContractFailure + "). Use referenceTurnIds only from recentDialogueForReferencesOnly. If the current question is self-contained, use []. Never invent a turn ID or copy a note ID into a conversation-reference field. Preserve a genuine episode target independently of its requested projection. Reconstruct the contract from the original input. Supplied context requires at least one factual USER premise. Each premiseQuotes item must be one exact contiguous substring of a USER message, preserving capitalization and punctuation. Split noncontiguous facts into separate quotes. Do not paraphrase premises or use assistant/routing metadata as evidence. If this is a follow-up about owned pets and their values appeared only in an assistant answer, choose saved_history, resolve the same subjects/property, and retrieve their records again rather than attempting supplied_context. Adding a new observation to history is not correcting an existing record: use mutationIntent null unless the user explicitly asks to edit an existing saved record. Re-evaluate the original user intent before choosing the evidence basis: a genuine current owner observation or explicit application action uses update/mixed with evidenceBasis null when it needs no saved facts, or saved_history when it also needs stored evidence. Fictional, hypothetical, quoted or negated action premises remain non-writing conversation/read tasks; never relabel them as real updates to satisfy validation. For update/mixed, scope identifies the owned action/observation target, not whether history needs retrieval. Resolve the target from the original user message and owned profiles; use named with that canonical name or selected for the selected pet, never scope none with a named target. Do not invent or widen the target. An action instruction supplies intent, not a factual observation. For update/mixed, return the required semantic-frame object, never null. Pure action requests without observations use the valid empty-frame shape given above; do not invent claims. For operation navigate, opening an owned application page is read-only even when combined with a general question: mode read, evidenceBasis null, and the owned target scope. It is not an update/mixed request. If the user also requires saved facts, choose the appropriate saved_history operation instead. For saved_profile, use mode read with every requested profileFields entry, frame null, ordinal null, episodeTopic null, quantity null, from null, to null and evidenceNeeds []. Missing values are handled by the profile lookup, never by inventing a history query. If the original question really needs dated evidence too, choose saved_history instead. All original scope, frame, subject and mutation restrictions still apply." };
     const response = await executeAdmittedProviderCall({ model, maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens,
-      ...(attempt === 1 ? { purpose: "interpretation_repair" as const } : {}),
       stage: "interpretation", reserveMs: 24_000,
-      providerInput: { input: attemptRequest.input, instructions: attemptRequest.instructions },
+      providerInput: { input: request.input, instructions: request.instructions },
       invoke: () => {
         attempted = true;
         onProviderEvent?.({ stage: "interpretation", outcome: "started", model, elapsedMs: 0, configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens });
         return withProviderDeadline(signal => {
           providerSignal = signal;
-          return activeClient.responses.create(attemptRequest as never, { signal });
+          return activeClient.responses.create(request as never, { signal });
         }, boundedProviderTimeout(ASK_INTERPRETATION_LIMITS.timeoutMs, 24_000, "interpretation"));
       } });
     const result = interpretStructuredProviderResponse(response, raw => JSON.parse(raw) as unknown);
@@ -260,25 +148,17 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     let parsed: AskInterpretation;
     try {
       parsed = recoverAskInterpretation(result.parsed, context);
-      if (attempt === 0 && parsed.planningRecovery) throw new AskInterpretationValidationError(parsed.planningRecovery, "semantic");
+      if (parsed.planningRecovery) throw new AskInterpretationValidationError(parsed.planningRecovery, "semantic");
     }
     catch (error) {
-      if (attempt === 0 && error instanceof AskInterpretationValidationError && ["ASK_REQUEST_CONTRACT_WRITE_JOB", "ASK_REQUEST_CONTRACT_TASK", "ASK_REQUEST_CONTRACT_PROFILE_SCOPE", "ASK_REQUEST_CONTRACT_REFERENCE", "ASK_REQUEST_CONTRACT_EPISODE_REFERENCE", "ASK_REQUEST_CONTRACT_PREMISE_SOURCE", "ASK_REQUEST_CONTRACT_MISSING_SUPPLIED_PREMISE", "ASK_REQUEST_CONTRACT_BASIS_UPDATE", "ASK_REQUEST_CONTRACT_CORRECTION_WORKFLOW", "ASK_REQUEST_CONTRACT_FRAME", "ASK_REQUEST_CONTRACT_SCOPE", "ASK_REQUEST_CONTRACT_NAVIGATION"].includes(error.reason)) {
-        onProviderEvent?.({ stage: "interpretation", outcome: "failed", model, elapsedMs: Date.now() - started,
-          providerErrorCode: error.reason, providerErrorType: error.category, ...metadata });
-        previousContractFailure = error.reason;
-        continue;
-      }
       if (error instanceof AskInterpretationValidationError) throw fail(error.reason, error.category, metadata);
       throw fail("ASK_INTERPRETATION_VALIDATION", "semantic", metadata);
     }
     console.info("[Ask Brain] validated", { sourceMessageId: context.currentTurn?.id, mode: parsed.request?.mode,
-      operation: parsed.request?.writeJob?.operation ?? parsed.operation, writeJob: parsed.request?.writeJob
+      operation: parsed.request?.writeJob?.operation ?? parsed.operation, readTicket: parsed.request?.readTicket || null, writeJob: parsed.request?.writeJob
         ? { target: parsed.request.writeJob.target, petId: parsed.request.writeJob.petId, bodyStart: parsed.request.writeJob.body.start, bodyEnd: parsed.request.writeJob.body.end } : null });
     onProviderEvent?.({ stage: "interpretation", outcome: "succeeded", model, elapsedMs: Date.now() - started, ...metadata });
     return parsed;
-    }
-    throw fail("ASK_INTERPRETATION_VALIDATION", "semantic");
   } catch (error) {
     if (error instanceof AiAdmissionError) {
       if (attempted) onProviderEvent?.({ stage: "interpretation", outcome: "failed", model, elapsedMs: Date.now() - started, providerErrorCode: "ASK_INTERPRETATION_ADMISSION" });

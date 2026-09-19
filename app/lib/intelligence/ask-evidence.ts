@@ -89,29 +89,9 @@ export function evidenceSource(petId: string, source: string, loadedIds: string[
 }
 
 export function askEvidenceScope(message: string, authorizedPetIds: string[]): AskEvidenceScope {
-  // A deliberately small question-only grammar. Topic/subject alternatives
-  // abstain; owner updates, saves, ordinals and safety observations stay outside.
-  const resolution = /^(?:is|has)\s+([\p{L}]+(?:\s+(?:and|or)\s+[\p{L}]+)?)(?:['’]s)?(?:\s+((?:hiding|vomiting|stool|litter|stiffness|breathing|condition|issue)(?:\s+(?:and|or)\s+(?:hiding|vomiting|stool|litter|stiffness|breathing|condition|issue))?))?\s+(?:(?:fully|completely)\s+)?(?:resolved|ended|stopped)(?:\s+in\s+((?:19|20)\d{2}))?\s*\?$/iu.exec(message.trim());
-  if (resolution) return { authorizedPetIds: [...new Set(authorizedPetIds)], requestedTopic: resolution[2]?.toLowerCase() || "unspecified",
-    requestText: message, requestedPeriod: { kind: resolution[3] ? "requested" : "unspecified", surface: resolution[3] || null }, requestKind: "resolution_status",
-    resolutionSubject: resolution[1], status: authorizedPetIds.length === 1 && Boolean(resolution[2]) && !/\b(?:and|or)\b/i.test(message) ? "resolved" : "ambiguous", readOnlyRecall: true };
-  const history = /\b(?:history|record\w*|report\w*|episodes?|vomit\w*|stool|weights?|diagnos\w*|tests?|medication|litter|stiffness)\b/i.test(message);
-  const lifetime = /\b(?:lifetime|ever|all (?:of )?(?:the )?(?:recorded )?history|entire (?:recorded )?history|complete history|full history)\b/i.test(message);
-  const period = /\b(?:(?:19|20)\d{2}|(?:this|last|previous) (?:week|month|year)|since\s+[^?!.]+|between\s+[^?!.]+)\b/i.exec(message)?.[0] || null;
-  const kind: AskEvidenceScope["requestKind"] = history && /\b(?:how many|number of|total|count)\b/i.test(message) ? "count"
-    : history && /\b(?:compare|comparison|difference|change in weight|weight change)\b/i.test(message)
-      && (/\b(?:all|every|earliest|first|latest|recorded)\b/i.test(message)
-        || /\bfrom\b[^?!.]{1,100}\b(?:to|through|thru)\b/i.test(message)) ? "comparison"
-    : history && (/\b(?:ever|never|any record|no record)\b/i.test(message)
-      || /^(?:have|has|did|do|does|is|are)\b[\s\S]*\b(?:any|reported|recorded)\b/i.test(message)) ? "absence"
-    : /\b(?:summari[sz]e|summary|overview|review|list)\b/i.test(message) && (lifetime || Boolean(period) || /\b(?:all|entire|complete|full|history|recorded)\b/i.test(message) && history) ? "overview"
-    : /\b(?:tests?|urine|diagnos\w*)\b/i.test(message) && /\b(?:results?|diagnos\w*)\b/i.test(message) ? "record_lookup" : "ordinary";
-  const topics = message.toLowerCase().match(/\b(?:soft[- ]stool|stool|vomit\w*|weights?|food|diet|litter|urine|hiding|medication|stiffness|diagnos\w*)\b/g) || [];
-  return { authorizedPetIds: [...new Set(authorizedPetIds)], requestedTopic: [...new Set(topics)].join(", ") || "unspecified", requestText: message,
-    requestedPeriod: { kind: lifetime ? "lifetime" : period ? "requested" : "unspecified", surface: lifetime ? "lifetime" : period ? message : null },
-    requestKind: kind, status: /\b(?:second|third|that|which) episode\b/i.test(message) ? "ambiguous" : "resolved",
-    readOnlyRecall: (history || kind !== "ordinary") && !analyzeOwnerAssertions(message).hasOwnerAssertion
-      && !/\b(?:save|log|record|remember|note)\s+(?:this|that|it)\b/i.test(message) };
+  // No sentence can select a history scope before Brain supplies its contract.
+  return { authorizedPetIds: [...new Set(authorizedPetIds)], requestedTopic: "unspecified", requestText: message,
+    requestedPeriod: { kind: "unspecified", surface: null }, requestKind: "ordinary", status: "resolved", readOnlyRecall: false };
 }
 
 /** Records what the existing loader/selector did; does not select more history. */
