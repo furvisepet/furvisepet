@@ -54,7 +54,7 @@ export function validateGeneratedAnswer(
   const partialText = partialHistory ? partialHistory.text : null;
   const response = structuredClone(result);
   if (result.labsList && !currentEmergency) {
-    const failure = !reviewedHistory ? "labs_list_review_required" : labsListReviewFailure(result);
+    const failure = !reviewedHistory ? readHistoryReviewDiagnostic(result)?.reason || "labs_list_review_required" : labsListReviewFailure(result);
     const scopeFailure = result.labsList.ticket.subjects.petIds.some(id => !authoritativePetIds.includes(id));
     const errors = [...(failure ? [failure] : []), ...(scopeFailure ? ["labs_list_subject_scope"] : [])];
     const complete = ["complete", "complete_empty"].includes(result.labsList.coverage.status);
