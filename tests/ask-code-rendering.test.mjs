@@ -36,6 +36,8 @@ test('multi-pet weight comparison renders as scan-friendly desktop table and mob
  const text=[
   'Aster: 23.71 kg on Oct 15, 2016 to 30.31 kg on Sep 15, 2026. Change: +6.6 kg.',
   'Dune: 4.81 kg on Oct 15, 2016 to 6.61 kg on Sep 15, 2026. Change: +1.8 kg.',
+  'Aster gained the most at +6.6 kg. No pet lost weight.',
+  'None of these endpoint dates is after today.',
  ].join('\n');
  const html=renderToStaticMarkup(React.createElement(AskAnswerText,{text}));
  assert.match(html,/data-ui="ask-comparison-grid"/);

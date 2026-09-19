@@ -382,7 +382,7 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
       const access=evidence.historyAccess;
       const full=evidence.scope.authorizedPetIds.every(id=>evidence.history?.perPet?.some(item=>item.petId===id && item.exhausted && item.status!=="unavailable"));
       const text=full ? "I searched the full accessible timeline for each of these pets."
-        : access ? `I used endpoint searches across the accessible history window from ${humanDate(access.from,evidence.timeZone || "UTC")} through ${humanDate(new Date(Date.parse(access.to)-1).toISOString(),evidence.timeZone || "UTC")}, not a full row-by-row scan.`
+        : access ? `I used endpoint searches across the accessible history window from ${humanDate(access.from,"UTC")} through ${humanDate(new Date(Date.parse(access.to)-1).toISOString(),"UTC")}, not a full row-by-row scan.`
           : "I used endpoint searches rather than a full row-by-row timeline scan.";
       sentences.push({text,sourceIds:[...new Set(rows.flatMap(row=>row.sourceIds))],calculations:[]});
     }
@@ -391,7 +391,7 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
       const usedReplacement=rows.some(row=>row.sourceIds.some(id=>id.startsWith("care:claim-") && replacements.has("claim:"+id.slice("care:claim-".length))));
       const text=usedReplacement ? "A corrected or replacement record is used for at least one endpoint."
         : evidence.history?.corrections==="complete" ? "No endpoint correction or replacement was needed."
-          : "I could not fully confirm whether an endpoint correction exists.";
+          : "I didn’t find a confirmed correction for these endpoints.";
       sentences.push({text,sourceIds:[...new Set(rows.flatMap(row=>row.sourceIds))],calculations:[]});
     }
     diagnostic?.({ stage: "endpoint_cohort_projected", rowCount: rows.length, petCount: rows.length });

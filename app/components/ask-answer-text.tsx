@@ -13,10 +13,11 @@ export function AskAnswerText({ text, afterHeading = false }: { text: string; af
           <div className="hidden overflow-x-auto sm:block">
             <table className="w-full border-collapse text-left text-sm">
               <thead className="bg-black/[0.025]"><tr><th className="px-3 py-2.5 font-semibold">Pet</th><th className="px-3 py-2.5 font-semibold">Earliest</th><th className="px-3 py-2.5 font-semibold">Latest</th><th className="px-3 py-2.5 text-right font-semibold">Change</th></tr></thead>
-              <tbody>{comparison.map((row, rowIndex) => <tr className={rowIndex % 2 ? "bg-black/[0.018]" : ""} key={row.name}><th className="border-t px-3 py-2.5 font-semibold" scope="row">{row.name}</th><td className="border-t px-3 py-2.5"><span className="block font-medium">{row.firstValue}</span><span className="block text-xs text-[var(--text-tertiary)]">{row.firstDate}</span></td><td className="border-t px-3 py-2.5"><span className="block font-medium">{row.lastValue}</span><span className="block text-xs text-[var(--text-tertiary)]">{row.lastDate}</span></td><td className="border-t px-3 py-2.5 text-right font-semibold">{row.change}</td></tr>)}</tbody>
+              <tbody>{comparison.rows.map((row, rowIndex) => <tr className={rowIndex % 2 ? "bg-black/[0.018]" : ""} key={row.name}><th className="border-t px-3 py-2.5 font-semibold" scope="row">{row.name}</th><td className="border-t px-3 py-2.5"><span className="block font-medium">{row.firstValue}</span><span className="block text-xs text-[var(--text-tertiary)]">{row.firstDate}</span></td><td className="border-t px-3 py-2.5"><span className="block font-medium">{row.lastValue}</span><span className="block text-xs text-[var(--text-tertiary)]">{row.lastDate}</span></td><td className="border-t px-3 py-2.5 text-right font-semibold">{row.change}</td></tr>)}</tbody>
             </table>
           </div>
-          <div className="divide-y divide-[var(--assistant-response-border)] sm:hidden">{comparison.map(row => <section className="p-3" key={row.name}><div className="flex items-center justify-between gap-3"><h3 className="font-semibold">{row.name}</h3><span className="font-semibold">{row.change}</span></div><dl className="mt-2 grid grid-cols-2 gap-3 text-sm"><div><dt className="text-xs text-[var(--text-tertiary)]">Earliest</dt><dd className="mt-0.5 font-medium">{row.firstValue}</dd><dd className="text-xs text-[var(--text-tertiary)]">{row.firstDate}</dd></div><div><dt className="text-xs text-[var(--text-tertiary)]">Latest</dt><dd className="mt-0.5 font-medium">{row.lastValue}</dd><dd className="text-xs text-[var(--text-tertiary)]">{row.lastDate}</dd></div></dl></section>)}</div>
+          <div className="divide-y divide-[var(--assistant-response-border)] sm:hidden">{comparison.rows.map(row => <section className="p-3" key={row.name}><div className="flex items-center justify-between gap-3"><h3 className="font-semibold">{row.name}</h3><span className="font-semibold">{row.change}</span></div><dl className="mt-2 grid grid-cols-2 gap-3 text-sm"><div><dt className="text-xs text-[var(--text-tertiary)]">Earliest</dt><dd className="mt-0.5 font-medium">{row.firstValue}</dd><dd className="text-xs text-[var(--text-tertiary)]">{row.firstDate}</dd></div><div><dt className="text-xs text-[var(--text-tertiary)]">Latest</dt><dd className="mt-0.5 font-medium">{row.lastValue}</dd><dd className="text-xs text-[var(--text-tertiary)]">{row.lastDate}</dd></div></dl></section>)}</div>
+          {comparison.remainder.length ? <div className="space-y-2 border-t border-[var(--assistant-response-border)] bg-black/[0.012] px-3.5 py-3 text-sm leading-6">{comparison.remainder.map((line, lineIndex) => <p className={lineIndex === 0 ? "font-semibold text-[var(--text-primary)]" : "text-[var(--text-secondary)]"} key={line}>{inlineText(line)}</p>)}</div> : null}
         </div>;
       }
       const bulletLines = paragraph.trim().split(/\r?\n/);
@@ -44,10 +45,13 @@ function inlineText(text: string) {
 
 function parseComparisonRows(text: string) {
   const lines=text.trim().split(/\r?\n/).filter(Boolean);
-  if(lines.length<2||lines.length>10) return null;
-  const rows=lines.map(line=>{
-    const match=/^([^:\n]{1,40}):\s+(.+?)\s+on\s+(.+?)\s+to\s+(.+?)\s+on\s+(.+?)\.\s+Change:\s+([+-]?\d+(?:\.\d+)?\s+\S+)\.$/.exec(line.trim());
-    return match?{name:match[1].trim(),firstValue:match[2].trim(),firstDate:match[3].trim(),lastValue:match[4].trim(),lastDate:match[5].trim(),change:match[6].trim()}:null;
-  });
-  return rows.every(Boolean)?rows as Array<{name:string;firstValue:string;firstDate:string;lastValue:string;lastDate:string;change:string}>:null;
+  if(lines.length<2||lines.length>14) return null;
+  const rows:Array<{name:string;firstValue:string;firstDate:string;lastValue:string;lastDate:string;change:string}>=[];
+  let index=0;
+  for(;index<lines.length;index++){
+    const match=/^([^:\n]{1,40}):\s+(.+?)\s+on\s+(.+?)\s+to\s+(.+?)\s+on\s+(.+?)\.\s+Change:\s+([+-]?\d+(?:\.\d+)?\s+\S+)\.$/.exec(lines[index].trim());
+    if(!match) break;
+    rows.push({name:match[1].trim(),firstValue:match[2].trim(),firstDate:match[3].trim(),lastValue:match[4].trim(),lastDate:match[5].trim(),change:match[6].trim()});
+  }
+  return rows.length>=2?{rows,remainder:lines.slice(index)}:null;
 }
