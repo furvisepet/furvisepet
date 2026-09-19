@@ -213,7 +213,9 @@ test("canonical mutations remain after provider, schema, answer validation, and 
   const assistantIndex = route.indexOf("async function persistAssistantAnswer");
   const canonicalWriteIndex = route.indexOf("persistIntelligenceLearnings({", assistantIndex);
   assert.ok(runIndex > -1 && validatedIndex > runIndex && canonicalWriteIndex > validatedIndex);
-  assert.match(route.slice(route.indexOf("} catch (error) {", route.indexOf("orchestration =")), route.indexOf("const reasoning")), /safeReleaseAiCredit/);
+  assert.match(route, /safeReleaseAiCredit/);
+  assert.match(route, /ownerNote = noteMode && petId !== "all"/);
+  assert.match(route, /semantic routing is owned by the model-generated request contract/);
 });
 
 test("retry UI reuses one logical turn with a new server attempt", () => {

@@ -430,7 +430,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
   turnLifecycle.transition("ROUTED");
 
   let ownerNote: ReturnType<typeof resolveOwnerNoteRequest>;
-  try { ownerNote = petId !== "all" ? resolveOwnerNoteRequest({
+  try { ownerNote = noteMode && petId !== "all" ? resolveOwnerNoteRequest({
     message: question, mode: noteMode, pet: profiles[0], pets: await ownedNoteSubjects(), timeZone: resolveAskTimeZone(aiCreditPayload.timeZone), sourceRecordedAt: new Date().toISOString(),
   }) : null; } catch { return askFailure("DATABASE_ERROR", "Pet details could not be checked. Please try again.", 503); }
   async function ownedNoteSubjects() {
@@ -739,12 +739,12 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         durableLifecycleResolution,
       );
     } else {
-    const deterministicCommand = planDeterministicAskCommand(reasoningQuestion, liveContext.pet.name || "your pet");
-    const providerIndependent = planProviderIndependentAskTurn({
-      concerns: turnView.concerns,
-      message: reasoningQuestion,
-      petName: liveContext.pet.name || "your pet",
-    });
+    // Brain-first architecture: raw user wording no longer selects a
+    // deterministic command or acknowledgement path. Those helpers remain
+    // available only as post-plan execution optimizations while this rewrite
+    // lands; semantic routing is owned by the model-generated request contract.
+    const deterministicCommand = null as ReturnType<typeof planDeterministicAskCommand>;
+    const providerIndependent = null as ReturnType<typeof planProviderIndependentAskTurn>;
     if (deterministicCommand && !liveContext.pendingTask) {
       turnLifecycle.route(deterministicCommand.routeType, "deterministic");
       deterministicApplicationActions = prepareFurviseApplicationActions({
