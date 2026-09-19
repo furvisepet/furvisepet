@@ -1,3 +1,4 @@
+import { brainProposalDiagnostic } from "../furvise-brain/replace-job.ts";
 import "server-only";
 import { calendarDateInZone } from "../ask-time-zone.ts";
 import OpenAI from "openai";
@@ -65,6 +66,12 @@ export function recoverAskInterpretation(value: unknown, context: Interpretation
     try { return validateAskRequest(value, context); }
     catch (error) {
       const reason = error instanceof Error ? /^ASK_REQUEST_INVALID:([a-z_]+)$/.exec(error.message)?.[1] : null;
+      if (reason === "write_job") {
+        console.warn("[Ask Brain] rejected write job", JSON.stringify({
+          ...brainProposalDiagnostic(value, context.currentTurn?.id),
+          validation: error instanceof Error ? error.cause : null,
+        }));
+      }
       if (["reference", "scope"].includes(reason || "") && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion
         && "mode" in value && ["read", "conversation", "clarify"].includes(String(value.mode)))
         return unavailableAskReadPlan("ASK_REQUEST_CONTRACT_" + reason!.toUpperCase());
@@ -267,13 +274,14 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
       const kind = result.status === "invalid" ? result.parsingAttempted ? "json" : "empty_output" : result.status;
       throw fail(`ASK_INTERPRETATION_${kind.toUpperCase()}`, kind, metadata);
     }
+    console.info("[Ask Brain] proposal", brainProposalDiagnostic(result.parsed, context.currentTurn?.id));
     let parsed: AskInterpretation;
     try {
       parsed = recoverAskInterpretation(result.parsed, context);
       if (attempt === 0 && parsed.planningRecovery) throw new AskInterpretationValidationError(parsed.planningRecovery, "semantic");
     }
     catch (error) {
-      if (attempt === 0 && error instanceof AskInterpretationValidationError && ["ASK_REQUEST_CONTRACT_TASK", "ASK_REQUEST_CONTRACT_PROFILE_SCOPE", "ASK_REQUEST_CONTRACT_REFERENCE", "ASK_REQUEST_CONTRACT_EPISODE_REFERENCE", "ASK_REQUEST_CONTRACT_PREMISE_SOURCE", "ASK_REQUEST_CONTRACT_MISSING_SUPPLIED_PREMISE", "ASK_REQUEST_CONTRACT_BASIS_UPDATE", "ASK_REQUEST_CONTRACT_CORRECTION_WORKFLOW", "ASK_REQUEST_CONTRACT_FRAME", "ASK_REQUEST_CONTRACT_SCOPE", "ASK_REQUEST_CONTRACT_NAVIGATION"].includes(error.reason)) {
+      if (attempt === 0 && error instanceof AskInterpretationValidationError && ["ASK_REQUEST_CONTRACT_WRITE_JOB", "ASK_REQUEST_CONTRACT_TASK", "ASK_REQUEST_CONTRACT_PROFILE_SCOPE", "ASK_REQUEST_CONTRACT_REFERENCE", "ASK_REQUEST_CONTRACT_EPISODE_REFERENCE", "ASK_REQUEST_CONTRACT_PREMISE_SOURCE", "ASK_REQUEST_CONTRACT_MISSING_SUPPLIED_PREMISE", "ASK_REQUEST_CONTRACT_BASIS_UPDATE", "ASK_REQUEST_CONTRACT_CORRECTION_WORKFLOW", "ASK_REQUEST_CONTRACT_FRAME", "ASK_REQUEST_CONTRACT_SCOPE", "ASK_REQUEST_CONTRACT_NAVIGATION"].includes(error.reason)) {
         onProviderEvent?.({ stage: "interpretation", outcome: "failed", model, elapsedMs: Date.now() - started,
           providerErrorCode: error.reason, providerErrorType: error.category, ...metadata });
         previousContractFailure = error.reason;
@@ -282,6 +290,9 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
       if (error instanceof AskInterpretationValidationError) throw fail(error.reason, error.category, metadata);
       throw fail("ASK_INTERPRETATION_VALIDATION", "semantic", metadata);
     }
+    console.info("[Ask Brain] validated", { sourceMessageId: context.currentTurn?.id, mode: parsed.request?.mode,
+      operation: parsed.request?.writeJob?.operation ?? parsed.operation, writeJob: parsed.request?.writeJob
+        ? { target: parsed.request.writeJob.target, petId: parsed.request.writeJob.petId, bodyStart: parsed.request.writeJob.body.start, bodyEnd: parsed.request.writeJob.body.end } : null });
     onProviderEvent?.({ stage: "interpretation", outcome: "succeeded", model, elapsedMs: Date.now() - started, ...metadata });
     return parsed;
     }
