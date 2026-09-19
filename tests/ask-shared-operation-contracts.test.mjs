@@ -396,3 +396,18 @@ test('owner readback phrases are recognized without granting save authority',()=
  for(const text of ['What did I write down?','What did I log for Bramble?','What did I save?','What is in my notes?','From my history, what changed?'])
   assert.equal(requestsSavedRecordLookup(text),true,text);
 });
+
+test('already-saved mixed turn strips stale save task before validating companion read',()=>{
+  const pet={id:'cedar',user_id:'owner',name:'Cedar'};
+  const current="tell me Cedar's last two weights and whether this note includes a weight.";
+  const proposal={
+    version:'ask-request.v2',mode:'mixed',question:current,requirements:[],referenceTurnIds:[],scope:'named',petNames:['Cedar'],
+    operation:'recall',selection:'latest',quantity:'measurement',topic:'weight',terms:['weight'],from:null,to:null,episodeTopic:null,ordinal:null,
+    frame:{mentions:[],claims:[]},evidenceBasis:'saved_history',task:{intent:'save',sourceTurnId:'source',petName:'Cedar',answerRequest:null},
+    temporalScope:'historical',mutationIntent:null,recordSelection:null,profileFields:[],projection:null,evidenceNeeds:[],outputFormat:null,premiseQuotes:null,excludedPetNames:[]
+  };
+  const result=validateAskRequest(proposal,{owner:{userId:'owner'},eligiblePets:[pet],pet,currentMessage:current,conversationTurns:[],currentTurn:{id:'current',role:'user',text:current,createdAt:'2026-09-19T05:30:00Z'},pendingTask:null,ownerNoteAlreadySaved:true});
+  assert.equal(result.request.mode,'read');
+  assert.equal(result.request.task,null);
+  assert.equal(result.readOnly,true);
+});

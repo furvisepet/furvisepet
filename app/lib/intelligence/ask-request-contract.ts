@@ -26,7 +26,7 @@ const operations = ["recall", "overview", "comparison", "status", "count", "epis
 const selections = ["summary", "comparison", "latest", "earliest", "earliest_occurrence", "period", "reference"] as const;
 const quantities = ["episodes", "records", "measurement", "duration", null] as const;
 const ordinals = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "last", "that", null] as const;
-type Context = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask">;
+type Context = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask" | "ownerNoteAlreadySaved">;
 export type AskRequestContract = {
   task?: ValidatedAskTask | null;
   version: typeof ASK_REQUEST_VERSION;
@@ -143,6 +143,14 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (!Array.isArray(p.profileFields) || p.profileFields.some(field => !askRequestSchema({}).properties.profileFields.items.enum.includes(String(field))) || p.profileFields.length > 14) return fail("profile_fields");
   if (![null, "historical", "current", "historical_and_current"].includes(p.temporalScope as null | string)) return fail("temporal_scope");
   if (![null, "correct_record"].includes(p.mutationIntent as null | string)) return fail("mutation_intent");
+  // Once this turn's owner note is already durably saved, the companion
+  // question cannot authorize or require that same save again. Strip stale
+  // task/mixed-write hints before validating the independent follow-up read.
+  if (context.ownerNoteAlreadySaved) {
+    p.task = null;
+    if (p.mutationIntent === null && p.mode === "mixed") p.mode = "read";
+    if (p.mode === "read") p.frame = null;
+  }
   // Natural owner readback language is server-owned read intent. A provider
   // cannot turn "what did I write down?" into a save-task contract merely
   // because it mentions a pet state or sounds conversational.

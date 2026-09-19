@@ -47,7 +47,7 @@ export type AskInterpretation = {
 // Interpretation shares the route's 50-second orchestration budget; this cap
 // leaves 25 seconds for retrieval/generation. No extra provider call is added.
 export const ASK_INTERPRETATION_LIMITS = { outputTokens: 4096, timeoutMs: 25_000, turns: 8, turnChars: 600, terms: 6, pets: 3 } as const;
-type InterpretationContext = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask">;
+type InterpretationContext = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask" | "ownerNoteAlreadySaved">;
 export class AskInterpretationValidationError extends Error {
   readonly reason: string;
   readonly category: "schema" | "semantic";
