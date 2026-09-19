@@ -44,9 +44,11 @@ test("Ask generation uses Brain-owned memory scope rather than direct history au
   assert.doesNotMatch(source, /import\s*\{[^}]*retrieveAskHistory[^}]*\}\s*from/);
 });
 
-test("casual follow-ups resolve through deterministic working memory before provider planning", () => {
-  const source = read("app/lib/intelligence/interpret-ask.ts");
-  const workingMemory = source.indexOf("resolveWorkingMemoryFollowup(context.currentMessage");
-  const provider = source.indexOf("new OpenAI(");
-  assert.ok(workingMemory >= 0 && provider >= 0 && workingMemory < provider);
+test("normal Ask language reaches Brain planning before topic-specific execution", () => {
+  const interpretation = read("app/lib/intelligence/interpret-ask.ts");
+  const route = read("app/api/ask/route.ts");
+  assert.doesNotMatch(interpretation, /fastLatestSavedWeightPlan|fastSinceAnchorReadPlan|resolveWorkingMemoryFollowup/);
+  assert.match(interpretation, /Brain-first contract/);
+  assert.match(route, /ownerNote = noteMode && petId !== "all"/);
+  assert.match(route, /semantic routing is owned by the model-generated request contract/);
 });

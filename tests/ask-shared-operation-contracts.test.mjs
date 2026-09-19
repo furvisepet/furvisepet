@@ -52,6 +52,44 @@ test('an irrelevant read-planning hint cannot terminate an owned episode questio
   assert.throws(()=>validateAskRequest({...proposal,petNames:['Another owner pet']},context),/ownership/);
 });
 
+test('brain-authored semantic event anchors compile into typed history boundaries', () => {
+  const pet={id:'bramble',user_id:'owner',name:'Bramble'};
+  const currentMessage="Starting from Bramble's dental visit, list every note about eating or food, oldest first.";
+  const result=validateAskRequest({
+    version:'ask-request.v2',mode:'read',temporalScope:'historical',mutationIntent:null,recordSelection:null,
+    profileFields:[],projection:null,coverageMode:'exhaustive',
+    historyAnchor:{quote:"Starting from Bramble's dental visit",relation:'from',terms:['dental','cleaning','clinic visit'],petNames:['Bramble']},
+    question:currentMessage,requirements:[],evidenceNeeds:[{quote:'list every note about eating or food, oldest first',sourceTurnId:null,terms:['eating','food','appetite'],petNames:['Bramble'],order:'earliest'}],
+    outputFormat:null,evidenceBasis:'saved_history',premiseQuotes:[],excludedPetNames:[],referenceTurnIds:[],
+    scope:'named',petNames:['Bramble'],operation:'recall',selection:'summary',quantity:'records',topic:'eating food',
+    terms:['eating','food','appetite'],from:null,to:null,episodeTopic:null,ordinal:null,frame:null
+  },{owner:{userId:'owner'},eligiblePets:[pet],pet,currentMessage,conversationTurns:[]});
+  assert.equal(result.request.coverageMode,'exhaustive');
+  assert.deepEqual(result.history.anchor,{relation:'from',terms:['dental','cleaning','clinic visit'],petIds:['bramble']});
+  assert.equal(result.history.coverageMode,'exhaustive');
+});
+
+test('whole-owned-cohort audits collapse repeated planner needs into one exhaustive obligation', () => {
+  const names=['Aster','Bramble','Cedar','Dune','Echo'];
+  const pets=names.map((name,index)=>({id:'pet-'+index,user_id:'owner',name}));
+  const currentMessage="List each pet and whether I have a death record for them. Don't add one.";
+  const evidenceNeeds=names.slice(0,4).map(name=>({
+    quote:'death record for them',sourceTurnId:null,terms:['death record','deceased','died','death'],petNames:[name],order:'context'
+  }));
+  const result=validateAskRequest({
+    version:'ask-request.v2',mode:'read',temporalScope:'historical',mutationIntent:null,recordSelection:null,
+    profileFields:[],projection:null,coverageMode:'exhaustive',historyAnchor:null,
+    question:currentMessage,requirements:[],evidenceNeeds,outputFormat:null,evidenceBasis:'saved_history',
+    premiseQuotes:[],excludedPetNames:[],referenceTurnIds:[],scope:'named',petNames:names,
+    operation:'recall',selection:'summary',quantity:'records',topic:'death record',
+    terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:null
+  },{owner:{userId:'owner'},eligiblePets:pets,pet:pets[1],currentMessage,conversationTurns:[]});
+  assert.equal(result.petIds.length,5);
+  assert.equal(result.request.coverageMode,'exhaustive');
+  assert.equal(result.request.evidenceNeeds.length,1);
+  assert.equal(result.request.evidenceNeeds[0].petIds,undefined);
+});
+
 test('a record correction retrieves its original interval without becoming a read-only task', () => {
   const pet={id:'pet',user_id:'owner',name:'Fern'};
   const currentMessage='Correct Fern’s January 4, 2026 walking note from 18 minutes to 19 minutes.';

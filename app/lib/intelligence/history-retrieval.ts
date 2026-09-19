@@ -435,7 +435,8 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
         ? { ...strategy, lexical: true, terms: searchTerms } : strategy;
       return plan.coverageMode === "exhaustive" ? { ...normalized, exhaustive: true } : normalized;
     });
-    const exhaustiveSemanticStrategies = plan.coverageMode === "exhaustive" && searchTerms.length
+    const hasScopedLexicalNeed = scopedNeeds.some(need => need.terms.length > 0);
+    const exhaustiveSemanticStrategies = plan.coverageMode === "exhaustive" && (searchTerms.length || hasScopedLexicalNeed)
       ? normalizedStrategies.filter(strategy => strategy.lexical)
       : normalizedStrategies;
     const strategies: HistoryReadStrategy[] = boundedContextNeed && boundedFrom && boundedTo && boundedFrom < boundedTo

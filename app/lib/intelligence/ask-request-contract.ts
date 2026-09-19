@@ -603,7 +603,9 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     // An account-wide semantic audit needs one cohort obligation, not one
     // provider slot per pet. Collapse only genuinely identical grounded needs;
     // subject authority still comes from the validated account scope.
-    if (p.scope === "account") {
+    const coversWholeOwnedCohort = petIds.length === owned.length
+      && owned.every(pet => petIds.includes(pet.id));
+    if (p.scope === "account" || coversWholeOwnedCohort) {
       const groups = new Map<string, typeof needPlan.needs>();
       for (const need of needPlan.needs) {
         const key = JSON.stringify([need.sourceTurnId, need.quote, need.order || "context", need.window || null, [...need.terms].sort()]);
