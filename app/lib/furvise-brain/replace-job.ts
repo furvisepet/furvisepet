@@ -38,30 +38,35 @@ export type ReplaceJob = Readonly<{
 
 export function validateReplaceJob(value: unknown, source: { id: string; text: string; createdAt: string },
   subject: { id: string; name: string }) : ReplaceJob {
-  const fail = (): never => { throw new Error("ASK_REQUEST_INVALID:write_job"); };
-  if (!value || typeof value !== "object" || Array.isArray(value)) return fail();
+  const fail = (field: string): never => { throw new Error("ASK_REQUEST_INVALID:write_job", { cause: { field: `writeJob.${field}` } }); };
+  if (!value || typeof value !== "object" || Array.isArray(value)) return fail("shape");
   const p = value as Record<string, unknown>;
-  if (Object.keys(p).sort().join() !== "bodyQuote,constraints,instructionQuote,operation,petName,target"
-    || p.operation !== "replace" || p.target !== "last_event_for_subject"
-    || p.petName !== subject.name || p.instructionQuote !== source.text.trim()
-    || typeof p.bodyQuote !== "string" || !p.bodyQuote.trim() || p.bodyQuote.length > 1600
-    || !Array.isArray(p.constraints) || p.constraints.length > 8
-    || !source.id || !subject.id || !Number.isFinite(Date.parse(source.createdAt))) return fail();
-  const span = (quote: unknown): SourceSpan => {
-    if (typeof quote !== "string" || !quote.trim() || quote.length > 1600) return fail();
+  if (Object.keys(p).sort().join() !== "bodyQuote,constraints,instructionQuote,operation,petName,target") return fail("fields");
+  if (p.operation !== "replace") return fail("operation");
+  if (p.target !== "last_event_for_subject") return fail("target");
+  if (p.petName !== subject.name) return fail("petName");
+  if (p.instructionQuote !== source.text.trim()) return fail("instructionQuote");
+  if (typeof p.bodyQuote !== "string" || !p.bodyQuote.trim() || p.bodyQuote.length > 1600) return fail("bodyQuote");
+  if (!Array.isArray(p.constraints) || p.constraints.length > 8) return fail("constraints");
+  if (!source.id) return fail("sourceMessageId");
+  if (!subject.id) return fail("petId");
+  if (!Number.isFinite(Date.parse(source.createdAt))) return fail("asOf");
+  const span = (quote: unknown, field: string): SourceSpan => {
+    if (typeof quote !== "string" || !quote.trim() || quote.length > 1600) return fail(field);
     const start = source.text.indexOf(quote);
-    if (start < 0 || source.text.indexOf(quote, start + 1) >= 0) return fail();
+    if (start < 0 || source.text.indexOf(quote, start + 1) >= 0) return fail(field);
     return Object.freeze({ start, end: start + quote.length, text: source.text.slice(start, start + quote.length) });
   };
-  const body = span(p.bodyQuote);
-  const spans = p.constraints.map((value: unknown) => {
-    if (!value || typeof value !== "object" || Array.isArray(value)) return fail();
+  const body = span(p.bodyQuote, "bodyQuote.sourceSpan");
+  const spans = p.constraints.map((value: unknown, index: number) => {
+    const field = `constraints[${index}]`;
+    if (!value || typeof value !== "object" || Array.isArray(value)) return fail(field);
     const c = value as Record<string, unknown>;
     if (Object.keys(c).sort().join() !== "kind,quote"
-      || !["effective_count_one", "no_additional_copy", "no_write"].includes(String(c.kind))) return fail();
-    const constraint = span(c.quote);
+      || !["effective_count_one", "no_additional_copy", "no_write"].includes(String(c.kind))) return fail(field);
+    const constraint = span(c.quote, `${field}.quote.sourceSpan`);
     // The model labels semantics; code certifies disjoint source spans and refuses prohibited writes.
-    if (constraint.start < body.end && body.start < constraint.end || c.kind === "no_write") return fail();
+    if (constraint.start < body.end && body.start < constraint.end || c.kind === "no_write") return fail(field);
     return Object.freeze({ ...constraint, kind: c.kind as ConstraintKind });
   });
   return Object.freeze({ operation: "replace", target: "last_event_for_subject", petId: subject.id,
