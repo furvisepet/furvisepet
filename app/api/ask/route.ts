@@ -1774,14 +1774,23 @@ async function ensureConversationAndUserMessage({
   if (activeConversationId) {
     const { data, error } = await supabase
       .from("ask_conversations")
-      .select("id")
+      .select("id, pet_profile_id")
       .eq("id", activeConversationId)
-      .eq("pet_profile_id", petId)
       .eq("user_id", userId)
-      .maybeSingle<{ id: string }>();
+      .maybeSingle<{ id: string; pet_profile_id: string }>();
     if (error) throw new AskApiError("DATABASE_ERROR", "Furvise could not open this conversation.", 503, "conversation_find", error);
-    if (!data) throw new AskApiError("PET_NOT_FOUND", "That conversation is not available for this pet.", 404, "conversation_find");
-    logAskStage("conversation found", { requestId });
+    if (!data) {
+      // A browser tab can outlive a conversation that was deleted from another tab,
+      // account cleanup, or an internal QA reset. Treat that stale URL as a new
+      // conversation instead of failing the user's next Ask turn.
+      activeConversationId = "";
+      logAskStage("stale conversation reset", { requestId });
+    } else {
+      if (data.pet_profile_id !== petId) {
+        throw new AskApiError("PET_NOT_FOUND", "That conversation is not available for this pet.", 404, "conversation_find");
+      }
+      logAskStage("conversation found", { requestId });
+    }
   }
 
   const { data, error } = await beginAskConversationTurn({

@@ -161,3 +161,9 @@ test("Ask client state clearing removes drafts without touching unrelated keys",
   clearAskClientState(storage);
   assert.deepEqual([...values.entries()], [["furvise:unrelated", "keep"]]);
 });
+
+test("stale deleted Ask conversation resets to a new turn while pet mismatch remains blocked", () => {
+  assert.match(route, /if \(!data\) \{[\s\S]*activeConversationId = "";[\s\S]*stale conversation reset/);
+  assert.match(route, /data\.pet_profile_id !== petId[\s\S]*PET_NOT_FOUND/);
+  assert.match(route, /conversationId: activeConversationId \|\| null/);
+});
