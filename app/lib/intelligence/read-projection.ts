@@ -113,6 +113,119 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
       }]}) || null;
     }
   }
+  // Exact-date body-mass cohort questions are deterministic database reads.
+  // Once every requested pet has exactly one represented measurement at each
+  // requested day, filtering/ranking/directional comparison is arithmetic, not
+  // a language-generation task. This keeps "which pets?" semantics out of the
+  // prompt/reviewer path and prevents false partial answers when coverage is complete.
+  if (evidence.scope.readOnlyRecall && request?.mode === "read" && request.evidenceBasis === "saved_history"
+    && evidence.scope.authorizedPetIds.length > 1 && /\b(?:weights?|weighed|body mass)\b/i.test(requestText)
+    && (!request.outputFormat || ["prose","bullets"].includes(request.outputFormat))) {
+    const days = explicitHistoryDays(requestText, new Date().getUTCFullYear(), 8).sort();
+    if (days.length === 1 || days.length === 2) {
+      const target = /\b(?:pounds?|lbs?)\b/i.test(requestText) ? units.lb
+        : /\b(?:grams?|g)\b/i.test(requestText) ? units.g : units.kg;
+      const sources = eligibleAnswerSources(evidence).filter(source => source.sourceType === "care_update" && !!source.occurredAt);
+      const rows = evidence.scope.authorizedPetIds.map(petId => {
+        const name = evidence.petNames?.[petId];
+        const byDay = days.map(day => sources.filter(source => source.petId === petId && source.occurredAt!.slice(0,10) === day)
+          .flatMap(source => {
+            const measurement = bodyMeasurement(source.text);
+            return measurement && measurement.unit.dimension === target.dimension ? [{source,measurement}] : [];
+          }));
+        if (!name || byDay.some(matches => matches.length !== 1)) return null;
+        return {petId,name,byDay};
+      });
+      if (rows.every(Boolean)) {
+        const complete = rows as NonNullable<typeof rows[number]>[];
+        const value = (row: NonNullable<typeof rows[number]>, index: number) =>
+          row.byDay[index][0].measurement.value * row.byDay[index][0].measurement.unit.scale / target.scale;
+        if (days.length === 1) {
+          const threshold = /\b(more than|over|above|less than|under|below)\s+(-?\d+(?:\.\d+)?)\s*(kg|kilograms?|g|grams?|lb|lbs|pounds?)\b/i.exec(requestText);
+          if (threshold && /\bwhich\s+pets?\b/i.test(requestText)) {
+            const thresholdUnit = units[threshold[3].toLowerCase()];
+            if (thresholdUnit?.dimension === target.dimension) {
+              const boundary = Number(threshold[2]) * thresholdUnit.scale / target.scale;
+              const high = /^(?:more than|over|above)$/i.test(threshold[1]);
+              const selected = complete.filter(row => high ? value(row,0) > boundary : value(row,0) < boundary);
+              const sourceIds = complete.map(row => row.byDay[0][0].source.sourceId);
+              const text = selected.length
+                ? `${selected.map(row => row.name).join(selected.length === 2 ? " and " : ", ")} ${selected.length === 1 ? "was" : "were"} ${threshold[1].toLowerCase()} ${threshold[2]} ${thresholdUnit.canonical} on ${days[0]}.`
+                : `None of the requested pets were ${threshold[1].toLowerCase()} ${threshold[2]} ${thresholdUnit.canonical} on ${days[0]}.`;
+              return parseHistoryNarrative({sentences:[{text,sourceIds,calculations:[]}]}) || null;
+            }
+          }
+          if (/\bhighest\b/i.test(requestText) && /\blowest\b/i.test(requestText)) {
+            const ordered=[...complete].sort((a,b)=>value(b,0)-value(a,0));
+            const highest=ordered[0], lowest=ordered[ordered.length-1];
+            return parseHistoryNarrative({sentences:[{text:`On ${days[0]}, ${highest.name} had the highest recorded weight at ${highest.byDay[0][0].measurement.literal}, and ${lowest.name} had the lowest at ${lowest.byDay[0][0].measurement.literal}.`,
+              sourceIds:[highest.byDay[0][0].source.sourceId,lowest.byDay[0][0].source.sourceId],calculations:[]}]}) || null;
+          }
+        } else if (/\bwhich\s+pets?\b/i.test(requestText) && /\b(?:lost|gained|decreased|increased)\b/i.test(requestText)) {
+          const wantsLoss=/\b(?:lost|decreased)\b/i.test(requestText);
+          const selected=complete.filter(row => wantsLoss ? value(row,1) < value(row,0) : value(row,1) > value(row,0));
+          const sourceIds=complete.flatMap(row=>row.byDay.map(matches=>matches[0].source.sourceId));
+          const verb=wantsLoss?"lost weight":"gained weight";
+          const text=selected.length ? `${selected.map(row=>row.name).join(selected.length===2?" and ":", ")} ${verb} from ${days[0]} to ${days[1]}.`
+            : `None of the requested pets ${verb} from ${days[0]} to ${days[1]}.`;
+          return parseHistoryNarrative({sentences:[{text,sourceIds,calculations:[]}]}) || null;
+        }
+      }
+    }
+  }
+
+  // Exact-day cohort care-note summaries can also be resolved without a model
+  // when every pet has exactly one represented record for that day. A "which
+  // pets?" lookup selects only records containing every grounded lexical term;
+  // an all-pet summary is allowed only when the non-measurement note body is
+  // byte-identical across the cohort.
+  if (evidence.scope.readOnlyRecall && request?.mode === "read" && request.evidenceBasis === "saved_history"
+    && evidence.scope.authorizedPetIds.length > 1 && !/\b(?:weights?|weighed|body mass)\b/i.test(requestText)) {
+    const days=explicitHistoryDays(requestText,new Date().getUTCFullYear(),8).sort();
+    if(days.length===1){
+      const day=days[0], sources=eligibleAnswerSources(evidence).filter(source=>source.sourceType==="care_update"&&source.occurredAt?.slice(0,10)===day);
+      const perPet=evidence.scope.authorizedPetIds.map(petId=>({petId,name:evidence.petNames?.[petId],
+        matches:sources.filter(source=>source.petId===petId)}));
+      const perPetReady=perPet.every(row=>row.name&&row.matches.length===1);
+
+      if(perPetReady){
+        const terms=[...new Set((request.evidenceNeeds||[]).flatMap(need=>need.terms).map(term=>term.trim().toLowerCase()).filter(term=>term.length>=4))];
+        if(/\bwhich\s+pets?\b/i.test(requestText)&&terms.length){
+          const selected=perPet.filter(row=>terms.every(term=>row.matches[0].text.toLowerCase().includes(term)));
+          if(selected.length){
+            return parseHistoryNarrative({sentences:[{text:`${selected.map(row=>row.name).join(selected.length===2?" and ":", ")} matched the requested recorded detail on ${day}.`,
+              sourceIds:selected.map(row=>row.matches[0].sourceId),calculations:[]}]})||null;
+          }
+        }
+        const noteBody=(text:string)=>{ const measurement=bodyMeasurement(text); if(!measurement) return text.trim(); const start=text.indexOf(measurement.literal); if(start<0) return text.trim(); const end=text.indexOf(".",start+measurement.literal.length); return end>=0?text.slice(end+1).trim():text.trim(); };
+        const bodies=perPet.map(row=>noteBody(row.matches[0].text));
+
+        if(bodies[0]&&bodies.every(body=>body===bodies[0])&&/\b(?:reviews?|notes?|entries|records?)\b/i.test(requestText)){
+          return parseHistoryNarrative({sentences:[{text:bodies[0],sourceIds:perPet.map(row=>row.matches[0].sourceId),calculations:[]}]})||null;
+        }
+      }
+    }
+  }
+
+  // For a cohort-wide "which pet?" factual lookup, a unique represented source
+  // that contains every grounded lexical evidence term can be published
+  // verbatim with its owned pet name. This is deliberately conservative: if
+  // zero or multiple sources satisfy the grounded terms, generation/review
+  // remains responsible instead of guessing.
+  if (evidence.scope.readOnlyRecall && request?.mode === "read" && request.evidenceBasis === "saved_history"
+    && evidence.scope.authorizedPetIds.length > 1 && /\bwhich\s+pet\b/i.test(requestText)
+    && !/\b(?:weights?|body mass|highest|lowest|more than|less than|over|under)\b/i.test(requestText)) {
+    const terms=[...new Set((request.evidenceNeeds||[]).flatMap(need=>need.terms).map(term=>term.trim().toLowerCase()).filter(term=>term.length>=4))];
+    if (terms.length) {
+      const matches=eligibleAnswerSources(evidence).filter(source=>source.sourceType==="care_update"
+        && terms.every(term=>source.text.toLowerCase().includes(term)));
+      if (matches.length===1) {
+        const source=matches[0], name=evidence.petNames?.[source.petId];
+        if (name) return parseHistoryNarrative({sentences:[{text:`${name}: ${source.text}`,sourceIds:[source.sourceId],calculations:[]}]}) || null;
+      }
+    }
+  }
+
   // Earliest-to-latest body mass across a multi-pet cohort is a database
   // projection, not a prompt-budget problem. Retrieval already reads both ends;
   // require both correction-validated endpoint sets for every pet and compute
