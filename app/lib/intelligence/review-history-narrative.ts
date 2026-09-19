@@ -1,3 +1,4 @@
+import { labsListReviewFailure } from "./labs-list.ts";
 import { containsUnverifiedStateClaim } from "../application-actions/state-claims.ts";
 import { recordPartialHistoryReview, readPartialHistoryReview } from "./history-review-state.ts";
 import { wholeTaskHistoryReviewSchema, parseWholeTaskHistoryReview } from "./history-review-selection.ts";
@@ -89,6 +90,19 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   recordHistoryReviewDiagnostic(result, "declined", "review_not_completed");
   const evidence = result.evidenceContract;
   const sharedRequest = evidence?.interpretation?.request;
+  if (result.labsList) {
+    const failure = labsListReviewFailure(result);
+    if (failure) return decline(failure);
+    if (executionPlan && (executionPlan.semanticEvents.length || executionPlan.careActions.length || executionPlan.noteBatch?.length))
+      return decline("labs_list_has_pending_write");
+    recordHistoryReview(result, { signature: signature(result), text: result.answer.summary,
+      sourceIds: [...result.relevantContextIds], sourceContent: result.labsList.records.map(row => row.body) });
+    recordHistoryReviewDiagnostic(result, "approved", "deterministic_labs_list_verified");
+    console.info("[Ask Labs] list review", JSON.stringify({ coverage: result.labsList.coverage.status,
+      recordIds: result.labsList.records.map(row => row.id), emittedCount: result.labsList.records.length,
+      bodyCharacters: result.answer.summary.length, review: "exact_records_dates_bodies_order" }));
+    return true;
+  }
   // Final validation replaces this case with a server-owned uncertainty
   // statement. There is no factual draft to approve or repair.
   if (sharedRequest?.mode === "read" && evidence?.scope.readOnlyRecall && evidence.history?.eventCandidateIds?.length === 0)

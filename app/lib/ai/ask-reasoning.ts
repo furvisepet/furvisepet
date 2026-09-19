@@ -1,3 +1,4 @@
+import { buildLabsList, serializeLabsList, type LabsList } from "../intelligence/labs-list.ts";
 import { CLAIM_AUTHORITY_POLICY } from "../intelligence/claim-authority-policy.ts";
 import { sourceDisplayDate } from "../intelligence/source-calendar-date.ts";
 import { parseDatedNoteBatch } from "../intelligence/dated-note-batch.ts";
@@ -118,6 +119,7 @@ export type ProposedHistoryUpdate = {
 export type AskReasoningResult = {
   /** Server-produced, never parsed from model JSON. */
   evidenceContract?: AskEvidenceContract;
+  labsList?: LabsList;
   historySynthesis?: Array<{ sourceId: string; text: string }>;
   historyNarrative?: HistoryNarrative;
   historicalResult?: import("../intelligence/historical-read-response.ts").HistoricalResult;
@@ -725,23 +727,24 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   // before provider prompt budgeting. Lifetime-scale reads should not discard
   // facts merely to satisfy a model input limit when no model call is needed.
   const projectionContext = buildAskContext(input, false);
-  const projection = projectionContext.minimumSafetyLevel === "normal" ? deterministicReadProjection(projectionContext.promptContext.evidenceContract,
+  const labs = projectionContext.minimumSafetyLevel === "normal" ? buildLabsList(projectionContext.promptContext.evidenceContract, input.careEntries) : null;
+  const projection = !labs && projectionContext.minimumSafetyLevel === "normal" ? deterministicReadProjection(projectionContext.promptContext.evidenceContract,
     detail => console.info("[Ask read projection] decision", detail)) : null;
-  if (projection) {
+  if (labs || projection) {
     const context = projectionContext;
     const evidence = context.promptContext.evidenceContract;
-    const visibleProjection = { sentences: projection.sentences.map(sentence => ({
+    const visibleProjection = { sentences: (projection?.sentences || []).map(sentence => ({
       ...sentence,
       text: /[\r\n]/.test(sentence.text) ? sentence.text : normalizeAskVisibleText(sentence.text),
     })) };
-    const ids = [...new Set(visibleProjection.sentences.flatMap(s=>s.sourceIds))];
+    const ids = labs ? labs.records.map(row => row.sourceId) : [...new Set(visibleProjection.sentences.flatMap(s=>s.sourceIds))];
     return {
-      answer: {title:"Furvise",summary:visibleProjection.sentences.map(s=>s.text).join("\n"),sections:[],safetyNote:null}, evidenceContract:evidence,
-      historyNarrative:visibleProjection,historyNarrativeDeclined:false,
+      answer: {title:"Furvise",summary:labs ? serializeLabsList(labs) : visibleProjection.sentences.map(s=>s.text).join("\n"),sections:[],safetyNote:null}, evidenceContract:evidence,
+      ...(labs ? {labsList:labs} : {historyNarrative:visibleProjection}),historyNarrativeDeclined:false,
       userIntent:"history recall",relevantContextIds:ids,referencedRecords:context.records.filter(record=>ids.includes(record.id)),
       safetyLevel:"normal",shoppingSuppressed:true,suggestedFollowUps:[],applicationActions:[],proposedHistoryUpdate:emptyHistoryUpdate(),
       answerDepth:planAskAnswerDepth({message:input.question,minimumSafetyLevel:"normal",responseMode:"practical_guidance",recentConversation:input.conversationTurns}),
-      responseMode:"practical_guidance",model:"server-read-projection",
+      responseMode:"practical_guidance",model:labs ? "server-labs-list" : "server-read-projection",
       messageUnderstanding:{...defaultMessageUnderstanding(input.question),primaryIntent:"question",userIsAskingQuestion:true},
       intelligenceSafety:{...defaultIntelligenceSafety("normal"),shoppingSuppressed:true},
       learnings:[],careActions:[],semanticEvents:[],semanticFrame:emptyProposedSemanticFrame(),semanticFrameValid:true,
