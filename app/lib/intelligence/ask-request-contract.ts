@@ -432,7 +432,12 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   // do not let a planner invent a machine-readable container from "exactly".
   const formatRequestText = [context.currentMessage, ...context.conversationTurns
     .filter(turn => turn.role === "user" && (p.referenceTurnIds as string[]).includes(turn.id)).map(turn => turn.text)].join("\n");
-  if (p.outputFormat === "json" && !/\b(?:json|array)\b/i.test(formatRequestText)) p.outputFormat = null;
+  const explicitFormat = p.outputFormat === "json" ? /\b(?:json|array)\b/i
+    : p.outputFormat === "csv" ? /\b(?:csv|comma[- ]separated)\b/i
+    : p.outputFormat === "table" ? /\b(?:table|tabular|columns?\s+and\s+rows?)\b/i
+    : p.outputFormat === "bullets" ? /\b(?:bullets?|bullet points?|list)\b/i
+    : p.outputFormat === "prose" ? /\b(?:prose|paragraph|sentence)\b/i : null;
+  if (p.outputFormat && explicitFormat && !explicitFormat.test(formatRequestText)) p.outputFormat = null;
   // As-of is an upper bound, not an exact-date lookup. Preserve a separately
   // requested lower bound, but never turn an as-of day into a one-day window.
   if (/\bas\s+of\b/i.test(context.currentMessage) && !/\b(?:since|from|between)\b/i.test(context.currentMessage)) p.from = null;

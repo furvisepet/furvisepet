@@ -66,3 +66,11 @@ test('descriptor follow-up widens read scope to owned account instead of selecte
   const result=validateAskRequest(proposal,{owner:{userId:'owner'},eligiblePets:pets,pet:pets[0],currentMessage:current,conversationTurns:[{id:'u1',role:'user',text:'At the September 15, 2023 records, which pet had a dental cleaning, what food was used that evening, and what was resumed the next day?'}]});
   assert.deepEqual(new Set(result.petIds),new Set(ids));
 });
+
+test('planner cannot invent table output when user asked only for exact weights',()=>{
+  const pets=ids.map((id,i)=>({id,user_id:'owner',name:names[i]}));
+  const current='On September 15, 2026, which pets weighed under 7 kg, and what were their exact weights?';
+  const proposal={version:'ask-request.v2',mode:'read',question:current,requirements:[],referenceTurnIds:[],scope:'account',petNames:[],operation:'comparison',selection:'period',quantity:null,topic:'weight',terms:['weight'],from:'2026-09-15',to:'2026-09-16',episodeTopic:null,ordinal:null,frame:null,evidenceBasis:'saved_history',outputFormat:'table'};
+  const result=validateAskRequest(proposal,{owner:{userId:'owner'},eligiblePets:pets,pet:pets[0],currentMessage:current,conversationTurns:[]});
+  assert.equal(result.request.outputFormat,null);
+});
