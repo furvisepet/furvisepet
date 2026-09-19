@@ -74,3 +74,13 @@ test('planner cannot invent table output when user asked only for exact weights'
   const result=validateAskRequest(proposal,{owner:{userId:'owner'},eligiblePets:pets,pet:pets[0],currentMessage:current,conversationTurns:[]});
   assert.equal(result.request.outputFormat,null);
 });
+test('complex Q4 preserves event context instead of substituting record timestamp',()=>{
+  const q='Which pet had mild stiffness recorded on November 15, 2024, when did it happen, and what made it improve?';
+  const weights=[29.27,4.69,14.01,6.46,6.84];
+  const rows=names.map((name,i)=>i===0
+    ? 'Aster weighed 29.27 kg. Mild stiffness was noticed after long rests, improving after a few minutes of walking. Daily activity otherwise remained steady.'
+    : name+' weighed '+weights[i]+' kg. Monthly care check recorded stable appetite, usual routine, and no new ongoing concern.');
+  const e=evidence(q,['2024-11-15'],[rows]);e.interpretation.request.evidenceNeeds=[{id:'n',quote:q,sourceTurnId:null,terms:['mild stiffness','improve'],order:'context'}];
+  const p=deterministicReadProjection(e);assert.ok(p);const t=p.sentences[0].text;
+  assert.match(t,/Aster/);assert.match(t,/after long rests/);assert.match(t,/after a few minutes of walking/);
+});

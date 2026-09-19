@@ -7,6 +7,7 @@ import { parseHistoryNarrative, type HistoryNarrative } from "./history-narrativ
 import { eligibleAnswerSources, type AskEvidenceContract } from "./ask-evidence.ts";
 import type { HistoryCalculation } from "./history-calculation.ts";
 import { explicitHistoryDays, explicitHistoryMonths } from "./history-dates.ts";
+import { historyQueryRelevance, historyQueryTerms } from "./history-query-relevance.ts";
 export type ReadProjection = { nameHeader: string; valueHeader: string; quantity: "body_mass"; unit: string; order: "name_ascending" | "name_descending" | "value_ascending" | "value_descending" | "scope" };
 export const readProjectionSchema = { type: ["object", "null"], additionalProperties: false,
   required: ["nameHeader", "valueHeader", "quantity", "unit", "order"], properties: {
@@ -215,8 +216,9 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
 
       if(perPetReady){
         const terms=[...new Set((request.evidenceNeeds||[]).flatMap(need=>need.terms).map(term=>term.trim().toLowerCase()).filter(term=>term.length>=4))];
-        if(/\bwhich(?:\s+of\b[^.!?]{0,30})?\s+pets?\b/i.test(requestText)&&terms.length){
-          const selected=perPet.filter(row=>terms.every(term=>row.matches[0].text.toLowerCase().includes(term)));
+        const queryTerms=historyQueryTerms(terms,Object.values(evidence.petNames||{}));
+        if(/\bwhich(?:\s+of\b[^.!?]{0,30})?\s+pets?\b/i.test(requestText)&&queryTerms.length){
+          const selected=perPet.filter(row=>historyQueryRelevance(row.matches[0].text,queryTerms)===queryTerms.length);
           if(selected.length){
             const text=selected.map(row=>`${row.name}: ${row.matches[0].text}`).join(" ");
             return parseHistoryNarrative({sentences:[{text,sourceIds:selected.map(row=>row.matches[0].sourceId),calculations:[]}]})||null;
