@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { validateAskTask, resolvePendingTaskSubject } from '../../app/lib/intelligence/ask-task-continuation.ts';
 import { resolveDeterministicTurnSubject, explicitMutationTarget } from '../../app/lib/intelligence/entities/resolve-turn-subject.ts';
-import { resolveWorkingMemoryFollowup } from '../../app/lib/furvise-brain/working-memory.ts';
 
 const pets=[
   {id:'milo',name:'Milo',user_id:'owner',species:'dog',sex:'male'},
@@ -38,11 +37,6 @@ test('switching to Pepper then saying change that one does not become a write wi
   const focus=resolveDeterministicTurnSubject({message:'Pepper had itching instead.',pets,recentConversation:turns.slice(0,1),selectedPetId:'milo'});
   assert.equal(focus?.petId,'pepper');
   assert.equal(explicitMutationTarget('change that one',pets),null);
-});
-
-test('fresh historical read after save/cancel language is not collapsed into working-memory continuation',()=>{
-  const turns=[source,saveRequest,{id:'u3',role:'user',text:"actually don't save it"},{id:'u4',role:'user',text:'Luna not Milo'}];
-  assert.equal(resolveWorkingMemoryFollowup('compare her old weight history',turns),null);
 });
 
 test('a later explicit save targets only the newly named pet and cannot inherit the earlier cancelled target',()=>{

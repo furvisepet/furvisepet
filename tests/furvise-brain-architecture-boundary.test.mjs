@@ -44,9 +44,7 @@ test("Ask generation uses Brain-owned memory scope rather than direct history au
   assert.doesNotMatch(source, /import\s*\{[^}]*retrieveAskHistory[^}]*\}\s*from/);
 });
 
-test("casual follow-ups resolve through deterministic working memory before provider planning", () => {
-  const source = read("app/lib/intelligence/interpret-ask.ts");
-  const workingMemory = source.indexOf("resolveWorkingMemoryFollowup(context.currentMessage");
-  const provider = source.indexOf("new OpenAI(");
-  assert.ok(workingMemory >= 0 && provider >= 0 && workingMemory < provider);
+test("the retired command router cannot bypass semantic planning", () => {
+  const source = read("app/api/ask/route.ts");
+  assert.doesNotMatch(source, /ask-command-router|planDeterministicAskCommand/);
 });

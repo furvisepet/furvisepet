@@ -74,13 +74,28 @@ test("interpretation cannot erase an already verified action capability", () => 
   assert.deepEqual(next.mutation, authorized.mutation);
 });
 
-test("unbounded lifetime wording selects lifetime memory without changing permissions", () => {
+test("memory depth follows validated bounds independently of wording", () => {
   const turn = createFurviseTurnAuthority({ logicalTurnId: "turn" });
-  const next = applyAskInterpretation(turn, request({
-    question: "Has Pebble ever had this across his entire lifetime?",
-    from: null,
-    to: null,
-  }));
-  assert.equal(next.memoryNeed, "lifetime");
+  for (const question of ["Has Pebble ever had this?", "Find the relevant records.", "Cherche dans son historique."]) {
+    const next = applyAskInterpretation(turn, request({ question }), { historyWindow: { from: null, to: null } });
+    assert.equal(next.memoryNeed, "lifetime");
+    assert.equal(next.mutation.allowed, false);
+    const bounded = applyAskInterpretation(turn, request({ question }), {
+      historyWindow: { from: "2020-01-01T00:00:00.000Z", to: "2021-01-01T00:00:00.000Z" },
+    });
+    assert.equal(bounded.memoryNeed, "targeted");
+  }
+});
+
+test("missing bounds cannot manufacture lifetime scope from words", () => {
+  const turn = createFurviseTurnAuthority({ logicalTurnId: "turn" });
+  const next = applyAskInterpretation(turn, request({ question: "all history ever" }));
+  assert.equal(next.memoryNeed, "targeted");
+});
+
+test("typed navigation intent does not require reinterpreting the question", () => {
+  const turn = createFurviseTurnAuthority({ logicalTurnId: "turn" });
+  const next = applyAskInterpretation(turn, request({ evidenceBasis: null }), { operation: "navigate" });
+  assert.equal(next.intent, "navigate");
   assert.equal(next.mutation.allowed, false);
 });

@@ -6,7 +6,6 @@ import { interpretStructuredProviderResponse } from "../ai/ask-provider.ts";
 import { AskPipelineError, type AskProviderEvent } from "../ai/ask-reasoning.ts";
 import { AiAdmissionError } from "../ai/usage-guard/errors.ts";
 import { boundedProviderTimeout, executeAdmittedProviderCall } from "../ai/usage-guard/provider-call-budget.ts";
-import { resolveWorkingMemoryFollowup } from "../furvise-brain/working-memory.ts";
 import { buildRecentSubjectState } from "./entities/recent-subject-state.ts";
 import type { FurviseLiveContext } from "./types.ts";
 import type { HistoryPlan } from "./history-retrieval.ts";
@@ -15,7 +14,6 @@ import { emptyProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
 import type { ProposedSemanticFrame } from "./semantic-frame/types.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import { ASK_REQUEST_INSTRUCTIONS, ASK_REQUEST_VERSION, askRequestSchema, validateAskRequest, type AskRequestContract } from "./ask-request-contract.ts";
-import { parseSinceAnchorRead } from "./history-anchor-read.ts";
 
 type Operation = "overview" | "recall" | "count" | "comparison" | "status" | "episode" | "general" | "update" | "clarify";
 export type AskInterpretation = {
@@ -81,134 +79,13 @@ function unavailableAskReadPlan(reason: string): AskInterpretation {
     episodeTopic: null, ordinal: null, readOnly: true, clarification: null, frame: emptyProposedSemanticFrame() };
 }
 
-function exactlyNamedOwnedPet(context: InterpretationContext) {
-  const owned=context.eligiblePets.filter(candidate=>candidate.user_id===context.owner.userId && candidate.name);
-  const named=owned.filter(candidate=>new RegExp("(?<![\\p{L}])"+candidate.name!.replace(/[.*+?^$\{\}()|[\]\\]/g,"\\$&")+"(?![\\p{L}])","iu").test(context.currentMessage));
-  return named.length===1 ? named[0] : null;
-}
-
-function fastCompletedNoteWeightReadPlan(context: InterpretationContext): AskInterpretation | null {
-  const message=context.currentMessage.trim();
-  if(!context.ownerNoteAlreadySaved || !context.completedOwnerNote?.entryIds?.length
-    || !/\b(?:last|latest|most recent|newest)\s+two\s+(?:weights?|body masses?)\b/i.test(message)
-    || !/\b(?:this|that)\s+note\b[^.!?]{0,80}\b(?:include|includes|contain|contains|have|has)\b[^.!?]{0,40}\bweight\b|\bwhether\s+(?:this|that)\s+note\b[^.!?]{0,60}\bweight\b/i.test(message)
-    || analyzeOwnerAssertions(message).hasOwnerAssertion) return null;
-  const pet=exactlyNamedOwnedPet(context)
-    || context.eligiblePets.find(candidate=>candidate.user_id===context.owner.userId && candidate.id===context.completedOwnerNote!.petId);
-  if(!pet?.name || pet.id!==context.completedOwnerNote.petId) return null;
-  return validateAskRequest({
-    version:ASK_REQUEST_VERSION,task:null,temporalScope:"historical",mutationIntent:null,recordSelection:null,profileFields:[],
-    projection:null,evidenceNeeds:[],outputFormat:null,evidenceBasis:"saved_history",premiseQuotes:[],excludedPetNames:[],
-    mode:"read",question:message,requirements:[],referenceTurnIds:[],scope:"named",petNames:[pet.name],
-    operation:"recall",selection:"latest",quantity:"measurement",topic:"weight",terms:["weight"],from:null,to:null,
-    episodeTopic:null,ordinal:null,frame:null,
-  },context);
-}
-
-function fastLatestSavedWeightPlan(context: InterpretationContext): AskInterpretation | null {
-  const message=context.currentMessage.trim();
-  if(!/\b(?:latest|last|most recent|newest)\s+(?:recorded\s+)?(?:weight|body mass)\b/i.test(message)
-    || /\b(?:profile|current profile|compare|comparison|versus|difference|change|two\s+(?:weights?|body masses?))\b/i.test(message)
-    || analyzeOwnerAssertions(message).hasOwnerAssertion) return null;
-  const pet=exactlyNamedOwnedPet(context);
-  if(!pet?.name) return null;
-  return validateAskRequest({
-    version:ASK_REQUEST_VERSION,task:null,temporalScope:"historical",mutationIntent:null,recordSelection:null,profileFields:[],
-    projection:null,evidenceNeeds:[],outputFormat:null,evidenceBasis:"saved_history",premiseQuotes:[],excludedPetNames:[],
-    mode:"read",question:message,requirements:[],referenceTurnIds:[],scope:"named",petNames:[pet.name],
-    operation:"recall",selection:"latest",quantity:"measurement",topic:"weight",terms:["weight"],from:null,to:null,
-    episodeTopic:null,ordinal:null,frame:null,
-  },context);
-}
-
-function fastSinceAnchorReadPlan(context: InterpretationContext): AskInterpretation | null {
-  const message=context.currentMessage.trim();
-  const pet=exactlyNamedOwnedPet(context);
-  if(!pet?.name || analyzeOwnerAssertions(message).hasOwnerAssertion) return null;
-  const anchor=parseSinceAnchorRead(message,[pet.name]);
-  if(!anchor) return null;
-  return validateAskRequest({
-    version:ASK_REQUEST_VERSION,task:null,temporalScope:"historical",mutationIntent:null,recordSelection:null,profileFields:[],
-    projection:null,evidenceNeeds:[],outputFormat:null,evidenceBasis:"saved_history",premiseQuotes:[],excludedPetNames:[],
-    mode:"read",question:message,requirements:[],referenceTurnIds:[],scope:"named",petNames:[pet.name],
-    operation:"recall",selection:"summary",quantity:"records",topic:anchor.topicTerms.join(" "),terms:anchor.topicTerms.slice(0,6),from:null,to:null,
-    episodeTopic:null,ordinal:null,frame:null,
-  },context);
-}
-
-function fastSavedReadbackPlan(context: InterpretationContext): AskInterpretation | null {
-  if (!/^(?:please\s+)?(?:what did i just (?:save|log|record|add)|show me what i just (?:saved|logged|recorded))(?:\s+for\s+[\p{L}\p{M}'’ -]{1,60})?[?.!]*$/iu.test(context.currentMessage.trim())) return null;
-  const priorUsers = context.conversationTurns.filter(turn => turn.role === "user" && turn.id !== context.currentTurn?.id);
-  const source = priorUsers.at(-1);
-  if (!source?.operationReceipt?.records.length) return null;
-  const pet = context.eligiblePets.find(candidate => candidate.user_id === context.owner.userId && candidate.id === source.operationReceipt!.petId);
-  if (!pet?.name) return null;
-  const named = context.eligiblePets.filter(candidate => candidate.user_id === context.owner.userId && candidate.name
-    && new RegExp("(?<![\\p{L}])" + candidate.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?![\\p{L}])", "iu").test(context.currentMessage));
-  if (named.length > 1 || named.length === 1 && named[0].id !== pet.id) return null;
-  return validateAskRequest({
-    version: ASK_REQUEST_VERSION, task: null, temporalScope: "historical", mutationIntent: null, recordSelection: null, profileFields: [],
-    projection: null, evidenceNeeds: [], outputFormat: null, evidenceBasis: "saved_history", premiseQuotes: [], excludedPetNames: [],
-    mode: "read", question: context.currentMessage, requirements: [], referenceTurnIds: [source.id], scope: "named", petNames: [pet.name],
-    operation: "recall", selection: "reference", quantity: null, topic: "saved care history", terms: [], from: null, to: null,
-    episodeTopic: null, ordinal: null, frame: null,
-  }, context);
-}
-
-
-function workingMemoryAskPlan(context: InterpretationContext, sourceTurnId: string, sourceText: string): AskInterpretation {
-  return {
-    version: "ask-interpretation.v1",
-    operation: "general",
-    readOperation: "general",
-    selection: "summary",
-    conversationOnly: true,
-    referenceQuestion: sourceText,
-    petIds: [],
-    readPetIds: [],
-    topic: "working memory conversation",
-    history: null,
-    episodeTopic: null,
-    ordinal: null,
-    readOnly: true,
-    clarification: null,
-    frame: emptyProposedSemanticFrame(),
-    request: {
-      version: ASK_REQUEST_VERSION,
-      task: null,
-      mode: "conversation",
-      question: context.currentMessage,
-      requirements: [],
-      referenceTurnIds: [sourceTurnId],
-      quantity: null,
-      evidenceBasis: "general",
-      outputFormat: null,
-    },
-  };
-}
-
 export async function interpretAskQuestion({ context, model, client, onProviderEvent }: {
   context: InterpretationContext; model: string;
   onProviderEvent?: (event: AskProviderEvent) => void;
   client?: { responses: { create: (request: Record<string, unknown>, options?: { signal: AbortSignal }) => Promise<Record<string, unknown>> } };
 }): Promise<AskInterpretation> {
-  if (!context.pendingTask) {
-    const completedNoteWeightRead = fastCompletedNoteWeightReadPlan(context);
-    if (completedNoteWeightRead) return completedNoteWeightRead;
-    const latestWeight = fastLatestSavedWeightPlan(context);
-    if (latestWeight) return latestWeight;
-    const anchoredRead = fastSinceAnchorReadPlan(context);
-    if (anchoredRead) return anchoredRead;
-    const savedReadback = fastSavedReadbackPlan(context);
-    if (savedReadback) return savedReadback;
-    const workingMemory = resolveWorkingMemoryFollowup(context.currentMessage, context.conversationTurns.map(turn => ({
-      id: turn.id,
-      role: turn.role,
-      text: turn.text,
-    })));
-    if (workingMemory) return workingMemoryAskPlan(context, workingMemory.sourceTurnId, workingMemory.sourceText);
-  }
-
+  // Every natural-language request crosses the same semantic planner. Recent
+  // dialogue is reference context, never an alternate command interpreter.
   const state = buildRecentSubjectState({ pets: context.eligiblePets.filter(pet => pet.user_id === context.owner.userId), selectedPetId: context.pet.id, recentConversation: context.conversationTurns });
   const input = { pendingTask: context.pendingTask || null, currentTurn: context.currentTurn || null, timeZone: context.timeZone || "UTC", conversationSubject: state.entities.find(entity => entity.key === state.currentFocusKey)?.label || null, currentMessage: context.currentMessage, today: calendarDateInZone(new Date().toISOString(), context.timeZone),
     ownerNoteSources: [...context.conversationTurns, context.pendingTask?.source, context.currentTurn]
@@ -219,19 +96,21 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     storedNoteReferences: context.conversationTurns.filter(turn => turn.recoveredReceiptReference && turn.operationReceipt?.records.length)
       .slice(-4).map(turn => ({ id: turn.id, role: turn.role, text: turn.text, recordedAt: turn.createdAt,
         petId: turn.operationReceipt!.petId, purpose: "readback_reference_only_not_write_authority" })),
-    reformulation: /\b(?:last|previous|that)\s+(?:answer|response)\b/i.test(context.currentMessage)
-      && /\b(?:briefly|shorter|shorten|rephrase|explain|translate)\b/i.test(context.currentMessage)
-      ? { task: "Re-answer this user question using newly retrieved evidence, applying the current format request",
-        priorUserQuestion: context.conversationTurns.filter(turn => turn.role === "user" && turn.text !== context.currentMessage).at(-1)?.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars) || null }
-      : null,
+    previousUserQuestion: context.conversationTurns.filter(turn => turn.role === "user" && turn.text !== context.currentMessage)
+      .at(-1)?.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars) || null,
+    completedOwnerNote: context.completedOwnerNote ? {
+      sourceMessageId: context.completedOwnerNote.sourceMessageId,
+      petId: context.completedOwnerNote.petId,
+      entryIds: context.completedOwnerNote.entryIds,
+      purpose: "already_completed_write_reference_only_retrieve_records_for_factual_answers",
+    } : null,
     ownedPets: context.eligiblePets.filter(pet => pet.user_id === context.owner.userId).map(pet => ({ name: pet.name, species: pet.species })),
     recentUserMessages: context.conversationTurns.filter(turn => turn.role === "user" && !turn.recoveredReceiptReference).slice(-ASK_INTERPRETATION_LIMITS.turns).map(turn => turn.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars)),
     recentDialogueForReferencesOnly: context.conversationTurns.slice(-ASK_INTERPRETATION_LIMITS.turns)
       .map(turn => ({ id: turn.id, role: turn.role, text: turn.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars) })),
-    olderUserReferenceCandidates: /\b(?:that|those|earlier|old|previous|before)\b/i.test(context.currentMessage)
-      ? context.conversationTurns.slice(0, -ASK_INTERPRETATION_LIMITS.turns).filter(turn => turn.role === "user" && !turn.recoveredReceiptReference)
-        .slice(-ASK_INTERPRETATION_LIMITS.turns).map(turn => ({ id: turn.id, text: turn.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars) }))
-      : [],
+    olderUserReferenceCandidates: context.conversationTurns.slice(0, -ASK_INTERPRETATION_LIMITS.turns)
+      .filter(turn => turn.role === "user" && !turn.recoveredReceiptReference)
+      .slice(-ASK_INTERPRETATION_LIMITS.turns).map(turn => ({ id: turn.id, text: turn.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars) })),
     dialogueAuthority: "Prior USER turns may supply observations, fictional/scenario facts and referents; olderUserReferenceCandidates are reference-only candidates for backward references and do not establish saved facts, persistence, or write authority. Only the current request authorizes a new save. ownerNoteSources supplies original note content, not proof of persistence or permission to use another account. Prior assistant turns are reference hints only.",
   };
   const request = { model, max_output_tokens: ASK_INTERPRETATION_LIMITS.outputTokens,

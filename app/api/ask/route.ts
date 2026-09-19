@@ -46,7 +46,6 @@ import {
 } from "../../lib/ai/ask-reasoning";
 import { AskTurnLifecycle, deriveAskAttemptId, runOptionalAskSubsystem, type AskSubsystem, type AskTurnTrace } from "../../lib/ai/ask-turn-model";
 import { orchestrateAskTurn, planProviderIndependentAskTurn } from "../../lib/ai/ask-orchestrator";
-import { planDeterministicAskCommand } from "../../lib/ai/ask-command-router";
 import { classifyFurviseCapabilityQuestion, buildFurviseCapabilityResponse } from "../../lib/ai/ask-internal-product-policy";
 import { safeAskDiagnosticStage } from "../../lib/ai/ask-error-diagnostic.ts";
 import { admitAiOperation, type AiOperationAdmission } from "../../lib/ai/usage-guard/admission";
@@ -739,24 +738,12 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         durableLifecycleResolution,
       );
     } else {
-    const deterministicCommand = planDeterministicAskCommand(reasoningQuestion, liveContext.pet.name || "your pet");
     const providerIndependent = planProviderIndependentAskTurn({
       concerns: turnView.concerns,
       message: reasoningQuestion,
       petName: liveContext.pet.name || "your pet",
     });
-    if (deterministicCommand && !liveContext.pendingTask) {
-      turnLifecycle.route(deterministicCommand.routeType, "deterministic");
-      deterministicApplicationActions = prepareFurviseApplicationActions({
-        proposals: deterministicCommand.proposals,
-        petId: turnPetId,
-        petName: liveContext.pet.name || "your pet",
-        requestId,
-        sourceMessage: question,
-        lifecycleStatus: durableLifecycleStatus,
-      }).map((action) => ({ ...action, sourceMessageId: preparedRequest.userMessageId }));
-      orchestration = deterministicCommand.orchestration;
-    } else if (providerIndependent && !liveContext.pendingTask) {
+    if (providerIndependent && !liveContext.pendingTask) {
       turnLifecycle.route("acknowledgement", "deterministic");
       orchestration = providerIndependent;
     } else {

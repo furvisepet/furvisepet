@@ -1,15 +1,17 @@
 import type { AskRequestContract } from "../intelligence/ask-request-contract.ts";
+import type { AskInterpretation } from "../intelligence/interpret-ask.ts";
 import type { FurviseMemoryNeed, FurviseTurnAuthority, FurviseTurnIntent } from "./turn-authority.ts";
 import { setFurviseMemoryAuthority } from "./turn-authority.ts";
 
-type SemanticRequestEnvelope = AskRequestContract & {
-  operation?: "recall" | "overview" | "comparison" | "status" | "count" | "episode" | "general" | "navigate" | "clarify";
-  from?: string | null;
-  to?: string | null;
+export type FurviseInterpretationSemantics = {
+  operation?: AskInterpretation["operation"] | "navigate";
+  /** Validated retrieval bounds; null/null means search may span the lifetime.
+   * Omission is a legacy caller with unknown bounds, never proof of coverage. */
+  historyWindow?: { from: string | null; to: string | null } | null;
+  readPetIds?: readonly string[];
 };
 
-function intentForRequest(request: AskRequestContract): FurviseTurnIntent {
-  const semantic = request as SemanticRequestEnvelope;
+function intentForRequest(request: AskRequestContract, semantic: FurviseInterpretationSemantics): FurviseTurnIntent {
   if (request.mode === "clarify" || semantic.operation === "clarify") return "clarify";
   if (semantic.operation === "navigate") return "navigate";
   if (request.mutationIntent === "correct_record") return "correct";
@@ -18,12 +20,10 @@ function intentForRequest(request: AskRequestContract): FurviseTurnIntent {
   return "conversation";
 }
 
-function memoryNeedForRequest(request: AskRequestContract): FurviseMemoryNeed {
-  const semantic = request as SemanticRequestEnvelope;
+function memoryNeedForRequest(request: AskRequestContract, semantic: FurviseInterpretationSemantics): FurviseMemoryNeed {
   if (request.evidenceBasis === "saved_history") {
-    const unbounded = semantic.from == null && semantic.to == null;
-    const lifetimeLanguage = /\b(?:ever|lifetime|entire\s+(?:life|history)|all\s+(?:history|records?))\b/i.test(request.question);
-    return unbounded && lifetimeLanguage ? "lifetime" : "targeted";
+    const window = semantic.historyWindow;
+    return window && window.from === null && window.to === null ? "lifetime" : "targeted";
   }
   if (request.evidenceBasis === "saved_profile") return "targeted";
   return "working";
@@ -37,14 +37,14 @@ function memoryNeedForRequest(request: AskRequestContract): FurviseMemoryNeed {
 export function applyAskInterpretation(
   turn: FurviseTurnAuthority,
   request: AskRequestContract,
-  input: { readPetIds?: readonly string[] } = {},
+  input: FurviseInterpretationSemantics = {},
 ): FurviseTurnAuthority {
-  const need = memoryNeedForRequest(request);
+  const need = memoryNeedForRequest(request, input);
   const memoryPetIds = need === "none" ? [] : input.readPetIds || turn.subject.petIds;
   const withMemory = setFurviseMemoryAuthority(turn, { need, petIds: memoryPetIds });
   return Object.freeze({
     ...withMemory,
-    intent: intentForRequest(request),
+    intent: intentForRequest(request, input),
     referenceTurnIds: Object.freeze([...new Set(request.referenceTurnIds.filter(Boolean))]),
   });
 }

@@ -1,13 +1,16 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import test from 'node:test';
 
 test('Ask multi-turn intent chaos preserves durable task and mutation authority',()=>{
   const env={...process.env}; delete env.NODE_TEST_CONTEXT;
+  const suites=['scripts/audits/ask-multi-turn-intent-chaos.cases.mjs',
+    'tests/ask-task-continuation.test.mjs','tests/ask-semantic-entry.test.mjs'];
+  for (const path of suites) assert.ok(existsSync(new URL('../'+path,import.meta.url)),path);
   const result=spawnSync(process.execPath,[
-    '--experimental-transform-types','--test','scripts/audits/ask-multi-turn-intent-chaos.cases.mjs',
-    'tests/ask-task-continuation.test.mjs','tests/furvise-brain-working-memory.test.mjs',
+    '--experimental-transform-types','--test','--test-reporter=tap',...suites,
   ],{cwd:new URL('..',import.meta.url),env,encoding:'utf8',maxBuffer:10_000_000});
-  assert.match(result.stdout,/tests 42/);
+  assert.match(result.stdout,/# tests [1-9]\d*/);
   assert.equal(result.status,0,result.stdout+result.stderr);
 });

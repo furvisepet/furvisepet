@@ -227,27 +227,6 @@ test('provider schema rejects unsupported references before generation',async()=
  assert.equal(ready(verdict),true);verdict.obligations[0].actionIndexes=[0];assert.equal(ready(verdict),false);
 });
 
-const {planDeterministicAskCommand}=await import('../../app/lib/ai/ask-command-router.ts');
-for (const quantity of ['7','12','7.5']) test('literal observation save compiles without model interpretation: '+quantity,()=>{
- const observation=`${pet.name} had a ${quantity} minute play session today`;
- const text=observation+'. Save this update to care history.';
- const command=planDeterministicAskCommand(text,pet.name);
- assert.equal(command.orchestration.handledWithoutAi,true);
- assert.equal(command.proposals[0].input.detail,observation);
- const prepared=prepareFurviseApplicationActions({proposals:command.proposals,petId:pet.id,petName:pet.name,requestId:'literal-save',sourceMessage:text});
- assert.equal(prepared.length,1);assert.equal(prepared[0].explicitIntent,true);
- assert.equal(prepared[0].input.detail,observation);
- assert.equal(containsUnverifiedStateClaim(command.orchestration.answer.summary),false);
-});
-for(const text of [
- 'If '+source,'Fictional: '+source,`"${observation}." Save this update to care history.`,
- source+' Explain whether that is enough exercise.',source.replace('Save','Do not save'),
- source.replace(pet.name,'Unowned Pet'),source.replace('had a','and Pixel had a'),
- source.replace('had a','said he had a'),`${pet.name} ${'a'.repeat(501)}. Save this update to care history.`,
-]) test('literal router does not consume ambiguous or compound save: '+text.slice(0,70),()=>{
- assert.equal(planDeterministicAskCommand(text,pet.name),null);
-});
-
 for (const key of ['evidenceSupport','subjectDateCorrectness','calculationCorrectness']) test('failed '+key+' requires repair despite complete task checklist',async()=>{
  const rejected=review();rejected.verification[key]={status:'failed',reason:'Independent check found a factual defect'};
  const seen=[];const result=await run([rejected,{answer:body,navigation:[nav]},review()],response(),seen);
@@ -358,7 +337,7 @@ test('navigation claim cleanup preserves explanation and does not bless write cl
 });
 
 for (const mode of ['answer', 'clarification']) test(`vague medicine observation publishes an independent clarification without a write: ${mode}`, async () => {
- const {rememberReviewedTaskPresentation,reviewedTaskPresentationFailure}=await import('../../app/lib/intelligence/ask-evidence-presentation.ts');
+ const {reviewedTaskPresentationFailure}=await import('../../app/lib/intelligence/ask-evidence-presentation.ts');
  const {buildAskConversationResponse,parseAskConversationResponse}=await import('../../app/lib/ask.mjs');
  const ctx={...context,currentMessage:'I give him medicine  yesterday',askInterpretation:{...context.askInterpretation,readOnly:false,request:{...context.askInterpretation.request,requirements:[]}}};
  const r=response('What medicine did you give him, and how much?',[{...action,input:{...action.input,detail:'Owner reports giving medicine yesterday.'}}]);

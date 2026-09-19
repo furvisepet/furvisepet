@@ -38,7 +38,11 @@ export function buildAskBrainTurn(input: {
   if (readPetIds.length !== new Set(interpretation.readPetIds || subjectPetIds).size) {
     throw new Error("FURVISE_MEMORY_SCOPE_NOT_AUTHORIZED");
   }
-  turn = applyAskInterpretation(turn, interpretation.request, { readPetIds });
+  turn = applyAskInterpretation(turn, interpretation.request, {
+    readPetIds,
+    operation: interpretation.readOperation || interpretation.operation,
+    historyWindow: interpretation.history,
+  });
   return turn;
 }
 
