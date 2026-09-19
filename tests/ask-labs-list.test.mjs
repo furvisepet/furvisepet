@@ -81,11 +81,19 @@ test('no serializer chunk cap: all 32 organ-bounded records survive',async()=>{
 });
 test('mixed/write/compare/measurement tickets never enter list serialization; legacy narrative cap stays eight',()=>{
  for(const mutate of [e=>e.interpretation.request.mode='mixed',e=>e.interpretation.request.writeJob={},
-  e=>e.interpretation.request.readTicket.operation='compare',e=>e.interpretation.request.quantity='measurement']){
+  e=>e.interpretation.request.readTicket.operation='compare',e=>{e.interpretation.request.quantity='measurement';e.interpretation.request.readTicket.outputs.completeness='sufficient';}]){
   const {evidence,rows}=fixture();mutate(evidence);assert.equal(buildLabsList(evidence,rows),null);
  }
  assert.equal(historyNarrativeSchema.properties.sentences.maxItems,8);
  assert.equal(parseHistoryNarrative({sentences:Array.from({length:12},()=>({text:'Food note.',sourceIds:['care:e']}))}),undefined);
+});
+test('exhaustive ticket controls serialization despite nullable quantity and legacy format hints',()=>{
+ for (const outputFormat of [null,'prose','bullets','table','json','csv']) {
+  const {evidence,rows}=fixture();
+  evidence.interpretation.request.quantity=null;evidence.interpretation.request.outputFormat=outputFormat;
+  const labs=buildLabsList(evidence,rows);
+  assert.ok(labs);assert.equal(labs.records.length,12);
+ }
 });
 test('real generator uses full labs with zero narrative provider calls',async()=>{
  const {evidence,rows,pet,context}=fixture();
