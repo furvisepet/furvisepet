@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRef, useState, type FormEvent } from "react";
 import { AccountField, AccountPendingLabel, AccountStatus, accountInputClass, accountPrimaryClass } from "../components/account-access";
 import { TurnstileChallenge } from "../components/turnstile-challenge";
+import { isAuthCaptchaEnabled } from "../lib/auth-captcha-policy";
 import { idempotentClientFetch } from "../lib/security/idempotency/client";
 import { getSupabaseConfigError } from "../lib/supabase";
 
@@ -25,6 +26,7 @@ export function PasswordEmailForm({ setupEmail }: { setupEmail: string | null })
   function requestReset(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (loading || submitPendingRef.current) return;
+    if (!isAuthCaptchaEnabled()) { void submitReset(); return; }
     if (captchaTokenRef.current) {
       const token = captchaTokenRef.current;
       captchaTokenRef.current = null;
@@ -56,8 +58,8 @@ export function PasswordEmailForm({ setupEmail }: { setupEmail: string | null })
     void submitReset(token);
   }
 
-  async function submitReset(token: string) {
-    if (!token) return;
+  async function submitReset(token?: string) {
+    if (isAuthCaptchaEnabled() && !token) return;
     setLoading(true);
     setErrorMessage("");
     setSuccessMessage("");
