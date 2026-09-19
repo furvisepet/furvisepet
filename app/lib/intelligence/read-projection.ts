@@ -216,9 +216,9 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
 
       if(perPetReady){
         const terms=[...new Set((request.evidenceNeeds||[]).flatMap(need=>need.terms).map(term=>term.trim().toLowerCase()).filter(term=>term.length>=4))];
-        const queryTerms=historyQueryTerms(terms,Object.values(evidence.petNames||{}));
-        if(/\bwhich(?:\s+of\b[^.!?]{0,30})?\s+pets?\b/i.test(requestText)&&queryTerms.length){
-          const selected=perPet.filter(row=>historyQueryRelevance(row.matches[0].text,queryTerms)===queryTerms.length);
+        const termGroups=terms.map(term=>historyQueryTerms([term],Object.values(evidence.petNames||{}))).filter(group=>group.length);
+        if(/\bwhich(?:\s+of\b[^.!?]{0,30})?\s+pets?\b/i.test(requestText)&&termGroups.length){
+          const selected=perPet.filter(row=>termGroups.every(group=>historyQueryRelevance(row.matches[0].text,group)>0));
           if(selected.length){
             const text=selected.map(row=>`${row.name}: ${row.matches[0].text}`).join(" ");
             return parseHistoryNarrative({sentences:[{text,sourceIds:selected.map(row=>row.matches[0].sourceId),calculations:[]}]})||null;

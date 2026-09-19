@@ -1,4 +1,5 @@
-import { unquotedOwnerText } from "./owner-assertion.ts";
+import { unquotedOwnerText, isQuestionClause } from "./owner-assertion.ts";
+import { splitSentencesPreservingFacts } from "./text-segmentation.ts";
 import type { ModelApplicationAction, FurviseApplicationAction } from "../application-actions/types.ts";
 import type { IntelligenceCareAction } from "../intelligence/types.ts";
 import { hasPendingReportedLifecycle } from "./pending-lifecycle.ts";
@@ -11,18 +12,53 @@ const correctedLossPattern = /\b(?:but|actually|correction)[^.!?]{0,80}\b(?:aliv
 
 export function classifyCurrentPetLoss(message: string): Exclude<PetLossContext, "continuation"> {
   message = unquotedOwnerText(message);
-  const death = confirmedLossPattern.exec(message);
-  if (!death) return "none";
+  const mentions = splitSentencesPreservingFacts(message).flatMap((sentence) => {
+    const matches = [...sentence.matchAll(new RegExp(confirmedLossPattern.source, confirmedLossPattern.flags.includes("g") ? confirmedLossPattern.flags : confirmedLossPattern.flags + "g"))];
+    return matches.map((match) => ({ sentence: sentence.trim(), match }));
+  });
+  if (!mentions.length) return "none";
+
   // A single question seeking words for another person is not an owner loss
   // assertion. Additional declarative sentences still follow the normal gate.
   const supportQuestion = /^(?:please\s+)?(?:what|how|can|could|would|write|draft|suggest|give)\b[^.!?]*[.!?]?\s*$/i.test(message.trim())
     && /\b(?:say|support|comfort|respond|message|write)\b/i.test(message)
     && /\b(?:friend|someone|somebody|person|neighbor|neighbour|colleague)\b/i.test(message);
   if (supportQuestion) return "none";
-  if (correctedLossPattern.test(message.slice(death.index))) return "none";
-  const evidenceWindow = message.slice(Math.max(0, death.index - 80), death.index + death[0].length + 30);
-  const questionWithoutStatement = message.trim().endsWith("?") && /^(?:did|has|is|was|could|would|what if)\b/i.test(message.trim());
-  return uncertaintyPattern.test(evidenceWindow) || questionWithoutStatement ? "uncertain_current" : "confirmed_current";
+
+  let sawUncertain = false;
+  for (const { sentence, match } of mentions) {
+    const before = sentence.slice(0, match.index || 0);
+    const local = sentence.slice(Math.max(0, (match.index || 0) - 100), (match.index || 0) + match[0].length + 60);
+
+    // High-impact lifecycle state requires an affirmative assertion. Negated,
+    // hypothetical, conditional, generic cohort, historical-query, and output-
+    // instruction mentions are not evidence that a pet just died.
+    const explicitNegation = /\b(?:nobody|no one|none|no pets?|no animals?|never)\b[^.!?]{0,60}$/i.test(before)
+      || /\b(?:did(?:n['’]?t| not)|is(?:n['’]?t| not)|was(?:n['’]?t| not)|has(?:n['’]?t| not)|have(?:n['’]?t| not))\b[^.!?]{0,35}$/i.test(before);
+    const genericRelative = /\b(?:ones?|pets?|dogs?|cats?|animals?)\s+that\s*$/i.test(before)
+      || /\bincluding\s+(?:ones?|pets?|dogs?|cats?|animals?)\s+that\s*$/i.test(before);
+    const conditional = /\b(?:if|unless|whether|suppose|supposing|assuming|imagine|even if|what if)\b[^.!?]{0,120}$/i.test(before);
+    const readDirective = /^(?:please\s+)?(?:tell|show|list|find|check|say|summari[sz]e|compare|for every|across|among)\b/i.test(sentence)
+      || /\b(?:death record|recorded as deceased|deceased status|which pets?|which pet|any pets?|any pet)\b/i.test(sentence);
+    if (explicitNegation || genericRelative || conditional || readDirective) continue;
+
+    if (correctedLossPattern.test(sentence.slice(match.index || 0))) continue;
+
+    const question = isQuestionClause(sentence);
+    const uncertain = uncertaintyPattern.test(local);
+    if (question || uncertain) {
+      sawUncertain = true;
+      continue;
+    }
+
+    // Do not create a lifecycle event from a bare keyword. Require a concrete
+    // owner-linked subject close to the death predicate.
+    const subject = /^(?:(?:my|our|the)\s+(?:pet|dog|cat|animal)|(?:one of )?(?:my|our)\s+(?:pets|dogs|cats|animals)|(?:he|she|they|it)|[A-Z][\p{L}'’-]{1,40})$/iu.test(before.trim());
+    if (!subject) continue;
+
+    return "confirmed_current";
+  }
+  return sawUncertain ? "uncertain_current" : "none";
 }
 
 export type LossSubjectPet = {

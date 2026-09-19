@@ -1,3 +1,5 @@
+import { classifyCurrentPetLoss } from "./ai/pet-loss.ts";
+
 export type AskPresentationMode = "casual" | "normal" | "complex" | "resolved" | "serious" | "grief";
 export type AskMessageVariant = "NORMAL" | "CASUAL" | "COMPLEX" | "MONITOR" | "URGENT" | "GRIEF" | "ACTION" | "ERROR";
 
@@ -9,7 +11,7 @@ type AskPresentationResponse = {
   interactionMode?: "normal" | "casual" | "complex" | "monitoring" | "urgent" | "grief" | "action_confirmation" | "action_success" | "action_failure";
 };
 
-const griefTonePattern = /\b(died|dead|death|passed away|lost (?:her|him|them|my pet)|grief|grieving|memorial|miss (?:her|him|them)|heartbroken)\b/i;
+const griefTonePattern = /\b(lost (?:her|him|them|my pet)|grief|grieving|memorial|miss (?:her|him|them)|heartbroken)\b/i;
 const seriousTonePattern = /\b(can(?:not|'t) breathe|unable to breathe|trouble breathing|open[- ]mouth breathing|collapse(?:d)?|unconscious|seizure|severe (?:pain|bleeding|injury)|hit by (?:a )?car|broken bone|large wound|poison(?:ed|ing)?|suspected toxin|gums? (?:are |look )?(?:blue|pale)|dying|distressed|terrified|panicking|can(?:not|'t) stop crying)\b/i;
 const careSignalPattern = /\b(vomit(?:ed|ing)?|diarrhea|bleed(?:ing)?|injur(?:y|ed)|pain|limp(?:ing)?|letharg(?:y|ic)|not eating|won't eat|cannot urinate|can't urinate|medicine|medication|dose|toxin|poison|breath(?:e|ing)?|symptom|vet(?:erinarian)?)\b/i;
 const casualSignalPattern = /\b(lol|lmao|bro|omg|dumb|silly|goofy|chaos|chaotic|insane|unhinged|dramatic|menace|gremlin)\b|\blook what\b.+\bdid\b|\bknocked\b.+\bover again\b/i;
@@ -19,7 +21,9 @@ export function isSeriousAskTone(message: string) {
   return seriousTonePattern.test(normalize(message)) || isGriefAskTone(message);
 }
 
-export function isGriefAskTone(message: string) { return griefTonePattern.test(normalize(message)); }
+export function isGriefAskTone(message: string) {
+  return griefTonePattern.test(normalize(message)) || classifyCurrentPetLoss(message) === "confirmed_current";
+}
 
 export function isCasualAskTone(message: string) {
   const normalized = normalize(message);
