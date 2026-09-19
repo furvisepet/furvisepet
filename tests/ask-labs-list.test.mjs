@@ -8,6 +8,7 @@ const { validateGeneratedAnswer } = await import('../app/lib/intelligence/valida
 const { readReviewedHistoryAnswer } = await import('../app/lib/intelligence/history-review-state.ts');
 const { generateContextAwareAskResponse } = await import('../app/lib/ai/ask-reasoning.ts');
 const { historyNarrativeSchema, parseHistoryNarrative } = await import('../app/lib/intelligence/history-narrative.ts');
+const { resolveSafetyState } = await import('../app/lib/intelligence/safety-state.ts');
 const { rememberValidatedEvidencePresentation, restoreAskEvidencePresentation } = await import('../app/lib/intelligence/ask-evidence-presentation.ts');
 const { buildAskConversationResponse } = await import('../app/lib/ask.mjs');
 const noProvider = {responses:{create:async()=>{throw Error('List serialization/review must not call a model');}}};
@@ -93,4 +94,14 @@ test('real generator uses full labs with zero narrative provider calls',async()=
  assert.equal(result.model,'server-labs-list');assert.equal(result.labsList.records.length,12);
  assert.equal(await reviewHistoricalAnswer({result,client:noProvider}),true);
  assert.equal(validateGeneratedAnswer(result,context,'routine',['bramble']).assessment.outcome,'complete');
+});
+test('Bramble historical list survives the live monitor floor from existing concerns',async()=>{
+ const {result,context}=fixture();
+ Object.assign(context,{activeConcerns:[{id:'existing',pet_profile_id:'bramble',status:'active',severity:'important',title:'Existing concern',normalized_key:'appetite'}],recentlyResolvedConcerns:[],activeEpisodes:[],monitoringEpisodes:[]});
+ const safety=resolveSafetyState(context);assert.equal(safety.level,'monitor');
+ result.safetyLevel=safety.level;
+ assert.equal(await reviewHistoricalAnswer({result,client:noProvider}),true);
+ assert.equal(validateGeneratedAnswer(result,context,safety.level,['bramble']).assessment.outcome,'complete');
+ result.safetyLevel='urgent';
+ assert.equal(await reviewHistoricalAnswer({result,client:noProvider}),false);
 });

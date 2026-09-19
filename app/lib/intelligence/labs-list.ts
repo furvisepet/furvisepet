@@ -60,7 +60,7 @@ export function labsListReviewFailure(result: AskReasoningResult): string | null
     || labs.records.some(row => !evidence.scope.authorizedPetIds.includes(row.petId))) return "labs_ticket_or_coverage_changed";
   if (result.applicationActions.length || result.careActions.length || result.semanticEvents.length || result.learnings.length
     || result.proposedHistoryUpdate.shouldOffer) return "labs_list_has_write";
-  if (result.safetyLevel !== "normal" || result.responseMode === "grief_support") return "labs_list_safety_path";
+  if (result.safetyLevel === "urgent" || result.responseMode === "grief_support") return "labs_list_safety_path";
   if (result.answer.summary !== serializeLabsList(labs) || result.answer.sections.length || result.answer.safetyNote || result.answer.title !== "Furvise" || result.suggestedFollowUps.length
     || JSON.stringify(result.relevantContextIds) !== JSON.stringify(labs.records.map(row => row.sourceId))) return "labs_list_omitted_or_changed";
   return null;

@@ -92,7 +92,10 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   const sharedRequest = evidence?.interpretation?.request;
   if (result.labsList) {
     const failure = labsListReviewFailure(result);
-    if (failure) return decline(failure);
+    if (failure) {
+      console.info("[Ask Labs] list rejected", { reason: failure, safetyLevel: result.safetyLevel });
+      return decline(failure);
+    }
     if (executionPlan && (executionPlan.semanticEvents.length || executionPlan.careActions.length || executionPlan.noteBatch?.length))
       return decline("labs_list_has_pending_write");
     recordHistoryReview(result, { signature: signature(result), text: result.answer.summary,
