@@ -1,0 +1,221 @@
+import type { CareEntryRow, DogMemoryRow, DogProductFeedbackRow, DogProfileRow, UserProfileRow } from "../supabase";
+import type { PetConcern } from "../ai/concern-engine";
+import type { CareEpisode } from "./episodes/types";
+import type { PetCurrentStateRow } from "./pet-state/types";
+import type { EffectiveRecoveryAssessment } from "./recovery-governance";
+
+export type IntelligenceFeature = "ask" | "vet_brief";
+export type IntelligenceSafetyLevel = "routine" | "monitor" | "urgent" | "emergency" | "recently_resolved";
+export type SemanticEventDomain = "health" | "behavior" | "nutrition" | "medication" | "safety" | "routine" | "preference" | "profile" | "shopping" | "care" | "other";
+export type SemanticEventTransition = "observed" | "started" | "continued" | "changed" | "improved" | "worsened" | "resolved" | "corrected" | "confirmed" | "preference_set";
+export type SemanticEventState = "active" | "monitoring" | "resolved" | "historical" | "unknown";
+export type SemanticEventImportance = "routine" | "important" | "urgent";
+
+export type CanonicalEventProposal = {
+  subject: { type: "pet" | "owner" | "household" | "unknown"; name: string | null };
+  domain: SemanticEventDomain;
+  topic: string;
+  /** User-facing chronology title. Never use this value as an identity key. */
+  eventTitle: string;
+  transition: SemanticEventTransition;
+  state: SemanticEventState;
+  temporal: { occurredAt: string | null; explicitTime: string | null };
+  importance: SemanticEventImportance;
+  confidence: number;
+  sourceExcerpt: string;
+  /** Semantic extraction, not a regex interpretation or a model-selected ID. */
+  episodeBoundary?: { kind: "opening" | "continuation" | "resolution" | "unknown"; evidence: string; confidence: number } | null;
+};
+
+export type CanonicalEvent = CanonicalEventProposal & {
+  subject: CanonicalEventProposal["subject"] & { id: string | null };
+  references: { priorEventIds: string[]; episodeId: string | null; concernId: string | null };
+  normalizedTopic: string;
+};
+
+export type SemanticPersistenceDestination = "care_event" | "episode_current_state" | "pet_memory" | "owner_memory" | "profile_change" | "state_only" | "none";
+export type GovernedCanonicalEvent = {
+  event: CanonicalEvent;
+  recordedEvidence?: import("./recorded-provenance.ts").RecordedWriterEvidence;
+  /** Primary destination retained for compatibility with existing consumers. */
+  destination: SemanticPersistenceDestination;
+  /** One semantic event may update chronology and current state in one atomic RPC. */
+  destinations: SemanticPersistenceDestination[];
+  /** Present when lifecycle recovery governance evaluated this event. */
+  recoveryGovernance?: EffectiveRecoveryAssessment;
+};
+export type IntelligenceIntent =
+  | "question" | "update" | "correction" | "concern_resolution" | "new_symptom"
+  | "food" | "routine" | "behavior" | "training" | "medication" | "product"
+  | "shopping" | "vet_preparation" | "general_conversation" | "owner_preference"
+  | "pet_preference" | "unknown";
+
+export type IntelligenceMessageUnderstanding = {
+  primaryIntent: IntelligenceIntent;
+  secondaryIntents: IntelligenceIntent[];
+  userIsAskingQuestion: boolean;
+  userIsProvidingUpdate: boolean;
+  userIsCorrectingPriorInformation: boolean;
+  userIsResolvingConcern: boolean;
+  userIsProvidingPreference: boolean;
+  userIsMakingSmallTalk: boolean;
+  /** Whether the current report describes no recovery, partial improvement, or a terminal return to baseline. */
+  recoveryStatus: "none" | "partial" | "terminal" | "uncertain";
+  recoveryConfidence: number;
+  recoveryEvidence: {
+    outcome: "return_to_baseline" | "symptom_absent" | "problem_ended" | "partial_improvement" | "uncertain" | "none";
+    surfaceText: string | null;
+    targetConcept: string | null;
+    confidence: number;
+  };
+  requestedTopic: string | null;
+  referencedPet: string | null;
+  safetyRelevance: "none" | "possible" | "direct";
+  needsClarification: boolean;
+  canAnswerDirectly: boolean;
+};
+
+export type IntelligenceLearning = {
+  subjectType: "pet" | "owner";
+  subjectId: string | null;
+  category: string;
+  factKey: string;
+  canonicalConceptKey?: string | null;
+  factValue: unknown;
+  confidence: number;
+  importance: "low" | "medium" | "high";
+  durability: "temporary" | "ongoing" | "durable";
+  action: "create" | "confirm" | "update" | "supersede" | "resolve" | "none";
+  sourceExcerpt: string;
+};
+
+export type IntelligenceCareAction = {
+  action: "create_entry" | "resolve_concern" | "reopen_concern" | "update_profile" | "none";
+  category: string;
+  title: string;
+  details: string;
+  severity: "routine" | "mild" | "moderate" | "urgent" | "emergency";
+  confidence: number;
+  relatedRecordId: string | null;
+  episodeOperation?: "start" | "complete";
+  normalizedEpisodeKey?: string;
+};
+
+export type FurviseMemoryRow = {
+  id: string;
+  user_id: string;
+  pet_id: string | null;
+  subject_type: "pet" | "owner";
+  category: string;
+  fact_key: string;
+  fact_value: unknown;
+  normalized_value: string | null;
+  confidence: number;
+  importance: "low" | "medium" | "high";
+  durability: "temporary" | "ongoing" | "durable";
+  status: "active" | "unconfirmed" | "resolved" | "superseded" | "rejected" | "expired";
+  source_type: string;
+  source_id: string | null;
+  source_excerpt: string | null;
+  first_observed_at: string;
+  last_confirmed_at: string;
+  superseded_by: string | null;
+  created_at: string;
+  updated_at: string;
+  observed_at?: string | null;
+  expires_at?: string | null;
+  freshness_class?: "permanent" | "long_lived" | "medium_lived" | "short_lived" | "episode_bound" | null;
+  base_confidence?: number | null;
+  current_confidence?: number | null;
+  decay_policy?: string | null;
+  confirmation_required_after?: string | null;
+  stale_at?: string | null;
+};
+
+export type AskOperationReceipt = { sourceMessageId: string; petId: string; requestText: string;
+  actionReceipts?: Array<{ id: string; kind: string; status: string; resultMessage: string | null }>;
+  answerPersisted: boolean; records: Array<{ id: string; note: string; occurredAt: string }> };
+export type IntelligenceConversationTurn = {
+  /** Recovered for readback only; cannot become a new mutation source. */
+  recoveredReceiptReference?: boolean;
+  requestId?: string | null;
+  operationReceipt?: AskOperationReceipt;
+  id: string;
+  role: "user" | "furvise";
+  text: string;
+  createdAt: string;
+  applicationActions?: import("../application-actions/types.ts").FurviseApplicationAction[];
+};
+
+export type FurviseLiveContext = {
+  pendingTask?: import("./ask-task-continuation.ts").PendingAskTask | null;
+  currentTurn?: IntelligenceConversationTurn;
+  /** Server receipt exists; optional interpretation has no mutation authority. */
+  ownerNoteAlreadySaved?: boolean;
+  completedOwnerNote?: { sourceMessageId: string; petId: string; entryIds: string[]; note?: string };
+  historyAccess?: import("./history-access.ts").AskHistoryAccess;
+  askInterpretation?: import("./interpret-ask.ts").AskInterpretation;
+  episodePresentation?: import("./episode-presentation.ts").EpisodePresentation;
+  episodeResult?: import("./episode-history.ts").EpisodeResult;
+  evidenceLoading?: import("./ask-evidence.ts").EvidenceLoading;
+  askHistory?: import("./history-retrieval.ts").RetrievedAskHistory;
+  recordInventory?: import("./record-inventory.ts").RecordInventory[];
+  historyFallback?: string;
+  feature: IntelligenceFeature;
+  locale: string;
+  timeZone?: string;
+  currentMessage: string;
+  currentTimestamp: string;
+  conversationId: string | null;
+  pet: DogProfileRow;
+  /** All authenticated-owner pets eligible for shadow entity resolution. */
+  eligiblePets: DogProfileRow[];
+  owner: { userId: string; profile: UserProfileRow | null };
+  careEntries: CareEntryRow[];
+  selectedCareEntries: CareEntryRow[];
+  activeConcerns: PetConcern[];
+  recentlyResolvedConcerns: PetConcern[];
+  activeEpisodes: CareEpisode[];
+  monitoringEpisodes: CareEpisode[];
+  recentlyResolvedEpisodes: CareEpisode[];
+  currentState: PetCurrentStateRow | null;
+  legacyPetMemories: DogMemoryRow[];
+  memories: FurviseMemoryRow[];
+  productFeedback: DogProductFeedbackRow[];
+  conversationTurns: IntelligenceConversationTurn[];
+  contextRecovery: { unavailableSources: string[] };
+};
+
+/** Server-only receipt: a successful authority call and an exact confirmed memory row. */
+export type ConfirmedMemoryWrite = {
+  memoryId: string;
+  userId: string;
+  sourceMessageId: string;
+  learning: IntelligenceLearning;
+};
+
+export type IntelligencePersistenceSummary = {
+  careEntriesCreated: number;
+  concernsResolved: number;
+  memoriesCreated: number;
+  memoriesSuperseded: number;
+  memoryIds: string[];
+  confirmedMemoryWrites?: ConfirmedMemoryWrite[];
+  rejectedLearnings: number;
+  careActionPresent: boolean;
+  persistedCareEntryId: string | null;
+  persistedConcernId: string | null;
+  persistenceMode: "automatic" | "none";
+  carePersistence: CarePersistenceResult;
+};
+
+export type CarePersistenceResult = {
+  status: "persisted" | "suggested" | "skipped" | "failed";
+  careEntryIds: string[];
+  concernIds: string[];
+  errorCode: string | null;
+  currentSafetyState: "routine" | "recently_resolved" | "urgent" | null;
+  alreadyPersisted: boolean;
+  memoryIds?: string[];
+  profileUpdated?: boolean;
+};

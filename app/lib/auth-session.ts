@@ -1,0 +1,110 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { User } from "@supabase/supabase-js";
+import { reconcileAuthState } from "./auth-state";
+import { buildLoginHref } from "./auth-routing";
+import { getBrowserSupabase } from "./supabase";
+import { enforceVetBriefDraftAccountBoundary } from "./vet-brief/client-drafts";
+
+export type ConfirmedAuthStatus = "loading" | "signedIn" | "signedOut";
+
+export type ConfirmedAuthState = {
+  status: ConfirmedAuthStatus;
+  user: User | null;
+};
+
+export function useConfirmedSupabaseAuth(): ConfirmedAuthState {
+  const [authState, setAuthState] = useState<ConfirmedAuthState>({
+    status: "loading",
+    user: null,
+  });
+
+  useEffect(() => {
+    const client = getBrowserSupabase();
+    if (!client) {
+      const timer = window.setTimeout(() => {
+        setAuthState({ status: "signedOut", user: null });
+      }, 0);
+
+      return () => window.clearTimeout(timer);
+    }
+
+    let active = true;
+    let initialCheckComplete = false;
+
+    client.auth
+      .getUser()
+      .then(({ data }) => {
+        if (!active) return;
+        initialCheckComplete = true;
+        enforceVetBriefDraftAccountBoundary(window.localStorage, data.user?.id || null);
+        setAuthState(previous => reconcileAuthState(previous, data.user ? { status: "signedIn", user: data.user } : { status: "signedOut", user: null }));
+      })
+      .catch(() => {
+        if (!active) return;
+        initialCheckComplete = true;
+        enforceVetBriefDraftAccountBoundary(window.localStorage, null);
+        setAuthState({ status: "signedOut", user: null });
+      });
+
+    const {
+      data: { subscription },
+    } = client.auth.onAuthStateChange((event, session) => {
+      if (!active) return;
+
+      enforceVetBriefDraftAccountBoundary(window.localStorage, session?.user?.id || null);
+
+      if (event === "SIGNED_OUT" || !session?.user) {
+        initialCheckComplete = true;
+        setAuthState({ status: "signedOut", user: null });
+        return;
+      }
+
+      if (!initialCheckComplete) {
+        return;
+      }
+
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+        setAuthState(previous => reconcileAuthState(previous, { status: "signedIn", user: session.user }));
+      }
+    });
+
+    const revalidateRestoredPage = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      void client.auth.getUser().then(({ data }) => {
+        if (!active) return;
+        enforceVetBriefDraftAccountBoundary(window.localStorage, data.user?.id || null);
+        setAuthState(previous => reconcileAuthState(previous, data.user ? { status: "signedIn", user: data.user } : { status: "signedOut", user: null }));
+      }).catch(() => {
+        if (active) {
+          enforceVetBriefDraftAccountBoundary(window.localStorage, null);
+          setAuthState({ status: "signedOut", user: null });
+        }
+      });
+    };
+    window.addEventListener("pageshow", revalidateRestoredPage);
+
+    return () => {
+      active = false;
+      window.removeEventListener("pageshow", revalidateRestoredPage);
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  return authState;
+}
+
+export function useRequireConfirmedSupabaseAuth(): ConfirmedAuthState {
+  const authState = useConfirmedSupabaseAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (authState.status !== "signedOut") return;
+    const nextPath = `${window.location.pathname}${window.location.search}`;
+    router.replace(buildLoginHref(nextPath));
+  }, [authState.status, router]);
+
+  return authState;
+}
