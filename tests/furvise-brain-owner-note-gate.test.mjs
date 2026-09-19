@@ -73,3 +73,13 @@ test("leading save command keeps the care fact and separates a later question",(
   assert.equal(note.companionQuestion,"Is that the first water note I have, or did I log thirst before?");
   assert.equal(note.needsAnswer,true);
 });
+
+test("exact live Cedar dinner mixed save is recognized and split",()=>{
+  const cedar={id:"cedar",name:"Cedar"};
+  const message="Cedar ate normally at dinner today. Log that, then tell me Cedar's last two weights and whether this note includes a weight.";
+  const note=resolveOwnerNoteRequest({message,pet:cedar,pets:[cedar]});
+  assert.ok(note);
+  assert.equal(note.note,"Cedar ate normally at dinner today.");
+  assert.equal(note.companionQuestion,"tell me Cedar's last two weights and whether this note includes a weight.");
+  assert.equal(note.needsAnswer,true);
+});

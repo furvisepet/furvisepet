@@ -965,7 +965,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         reportOptionalContextRecovery(liveContext, requestId);
         recordContextRecoveryOnTurn(liveContext, turnLifecycle);
       }
-      liveContext = { ...liveContext, ownerNoteAlreadySaved: Boolean(ownerNotePersistence), completedOwnerNote: ownerNotePersistence ? { sourceMessageId: ownerNoteSourceMessageId, petId: ownerNotePetId, entryIds: ownerNotePersistence.careEntryIds } : undefined, askInterpretation: interpretation };
+      liveContext = { ...liveContext, ownerNoteAlreadySaved: Boolean(ownerNotePersistence), completedOwnerNote: ownerNotePersistence ? { sourceMessageId: ownerNoteSourceMessageId, petId: ownerNotePetId, entryIds: ownerNotePersistence.careEntryIds, ...(ownerNote?.note ? { note: ownerNote.note } : {}) } : undefined, askInterpretation: interpretation };
       turnView = deriveAskTurnView({ currentSourceMessageId: preparedRequest.userMessageId, liveContext, question, requestId });
       contextUsed = turnView.contextUsed;
       if (subjectResolution.discourseFocus && subjectResolution.discourseFocus.kind !== "pet") {
