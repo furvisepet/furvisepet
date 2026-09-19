@@ -1,3 +1,4 @@
+import { labsListReviewFailure, carryLabsListSnapshot } from "../labs-list.ts";
 import { readPartialHistoryReview } from "../history-review-state.ts";
 import { historyCompletionLimits, UNVERIFIED_EVENT_LIMITATION } from "../evidence-need-coverage.ts";
 import { recordHistoryReview, historyReviewSignature } from "../history-review-state.ts";
@@ -52,6 +53,27 @@ export function validateGeneratedAnswer(
   const partialHistory = currentEmergency || reviewedHistory ? null : readPartialHistoryReview(result);
   const partialText = partialHistory ? partialHistory.text : null;
   const response = structuredClone(result);
+  if (result.labsList && !currentEmergency) {
+    const failure = !reviewedHistory ? "labs_list_review_required" : labsListReviewFailure(result);
+    const scopeFailure = result.labsList.ticket.subjects.petIds.some(id => !authoritativePetIds.includes(id));
+    const errors = [...(failure ? [failure] : []), ...(scopeFailure ? ["labs_list_subject_scope"] : [])];
+    const complete = ["complete", "complete_empty"].includes(result.labsList.coverage.status);
+    if (!errors.length && reviewedHistory) {
+      carryLabsListSnapshot(result, response);
+      if (response.evidenceContract) {
+        response.evidenceContract.answerSourceIds = [...reviewedHistory.sourceIds];
+        response.evidenceContract.answerContent = [...(reviewedHistory.sourceContent || [])];
+      }
+      recordHistoryReview(response, { ...reviewedHistory, signature: historyReviewSignature(response) });
+      rememberReviewedTaskPresentation(response.evidenceContract, response.answer, []);
+    }
+    const assessment = createAnswerAssessment({ body: response.answer, evidence: response.evidenceContract || null,
+      unsafe: !!errors.length, reasons: [...errors, ...(complete ? [] : ["labs_coverage_" + result.labsList.coverage.status])],
+      checks: { structuralValidity: errors.length ? "failed" : "passed", evidenceSupport: errors.length ? "failed" : "passed",
+        subjectDateCorrectness: errors.length ? "failed" : "passed", calculationCorrectness: "not_applicable",
+        taskCompletion: complete && !errors.length ? "passed" : "failed" } });
+    return { response, assessment, valid: !errors.length, repairs: [], errors, qualityWarnings: [] };
+  }
   const conversationOnly = result.evidenceContract?.interpretation?.conversationOnly === true;
   const preserveFormat = Boolean(result.evidenceContract?.interpretation?.request?.outputFormat);
   const projectionText = result.model === "server-read-projection" && result.historyNarrative
