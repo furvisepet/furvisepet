@@ -51,4 +51,19 @@ test("normal Ask language reaches Brain planning before topic-specific execution
   assert.match(interpretation, /Brain-first contract/);
   assert.match(route, /ownerNote = noteMode && petId !== "all"/);
   assert.match(route, /semantic routing is owned by the model-generated request contract/);
+  assert.match(route, /pendingLifecycle = null as PendingLifecycleAssertion \| null/);
+  assert.match(route, /brainFirstLifecycleRouting && currentLoss === "confirmed_current"/);
+  assert.doesNotMatch(route.slice(route.indexOf("CONTEXT_READY"), route.indexOf("generationStage = \"interpretation\"")), /resolvePendingTaskSubject\(/);
+});
+
+test("Brain-selected owner-note spans are source-bound before database persistence", () => {
+  const task = read("app/lib/intelligence/ask-task-continuation.ts");
+  const sql = read("supabase/migrations/20260919083615_ask_task_note_span_v2.sql");
+  assert.match(task, /noteQuote must be one exact contiguous substring/);
+  assert.match(task, /source\.text\.includes\(p\.noteQuote\)/);
+  assert.match(task, /p_note_text: task\.noteText/);
+  assert.match(task, /apply_ask_task_v2/);
+  assert.match(sql, /position\(p_note_text in p_source_text\)=0/);
+  assert.match(sql, /'Owner note',p_note_text/);
+  assert.match(sql, /p_explicit_time is null then 'saved_at'/);
 });

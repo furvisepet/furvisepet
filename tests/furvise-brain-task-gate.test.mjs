@@ -21,7 +21,7 @@ test("current-turn save crosses the canonical Furvise mutation gate", () => {
     text: "save that as a note",
   };
   const task = validateAskTask(
-    { intent: "save", sourceTurnId: source.id, petName: "Pebble" },
+    { intent: "save", sourceTurnId: source.id, petName: "Pebble", noteQuote: source.text },
     {
       currentMessage: currentTurn.text,
       currentTurn,
@@ -42,7 +42,7 @@ test("current-turn save crosses the canonical Furvise mutation gate", () => {
 
 test("a subject-only clarification cannot create a task or reach the mutation gate", () => {
   assert.throws(() => validateAskTask(
-    { intent: "save", sourceTurnId: source.id, petName: "Pebble" },
+    { intent: "save", sourceTurnId: source.id, petName: "Pebble", noteQuote: source.text },
     {
       currentMessage: "I mean Pebble",
       currentTurn: { ...source, id: "clarify-turn", text: "I mean Pebble" },
@@ -65,7 +65,7 @@ test("durable continuation needs the exact earlier authorization turn id", () =>
     authorizationMessageId: request.id,
   };
   const task = validateAskTask(
-    { intent: "resume", sourceTurnId: null, petName: "Pebble" },
+    { intent: "resume", sourceTurnId: null, petName: "Pebble", noteQuote: source.text },
     {
       currentMessage: "Pebble",
       currentTurn: { ...source, id: "clarify-turn", text: "Pebble" },

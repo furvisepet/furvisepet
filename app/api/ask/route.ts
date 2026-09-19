@@ -1,4 +1,4 @@
-import { attachTaskReceipts, executeAskTask, resolvePendingTaskSubject, restorePendingTaskTurns, taskMutationParameters, type PendingAskTask } from "../../lib/intelligence/ask-task-continuation.ts";
+import { attachTaskReceipts, executeAskTask, restorePendingTaskTurns, taskMutationParameters, type PendingAskTask } from "../../lib/intelligence/ask-task-continuation.ts";
 import { isDeepStrictEqual } from "node:util";
 import { exceedsSelectedPetRead } from "../../lib/intelligence/selected-pet-read.ts";
 import { assessTaskExecution } from "../../lib/intelligence/task-execution-contract.ts";
@@ -508,41 +508,16 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
   recordContextRecoveryOnTurn(liveContext, turnLifecycle);
   turnLifecycle.transition("CONTEXT_READY");
 
-  const suppliedTaskSubject = resolvePendingTaskSubject(liveContext);
-  if (suppliedTaskSubject) {
-    const gate = await requireRateLimitedRequest({ policy: "CARE_WRITE", request, requestId, idempotencyKey: requestId,
-      payload: { sourceId: suppliedTaskSubject.source.id, petId: suppliedTaskSubject.petId }, route: "/api/ask", userId });
-    try {
-      const taskResult = await executeAskTask(taskMutationParameters(suppliedTaskSubject, {
-        userId, conversationId: preparedRequest.conversationId, currentMessageId: preparedRequest.userMessageId, timeZone: liveContext.timeZone,
-      }), (name, args) => taskAuthority.rpc(name, args));
-      if (taskResult.status !== "completed" || !taskResult.entryId || !taskResult.petId) throw new Error("ASK_TASK_WRITE_UNCONFIRMED");
-      const savedPetId = taskResult.petId;
-      const receipt: CarePersistenceResult = { status: "persisted", careEntryIds: [taskResult.entryId], concernIds: [], memoryIds: [],
-        errorCode: null, currentSafetyState: null, alreadyPersisted: false };
-      execution.savedNoteResponse = () => completeOwnerNoteResponse({ preparedRequest, requestId, userId, petId: savedPetId,
-        petName: liveContext.eligiblePets.find(pet => pet.id === savedPetId)?.name || "your pet", receipt, usage,
-        needsAnswer: false, emergency: immediateEmergency, trace: turnLifecycle.snapshot() });
-      revalidateAskStateViews([savedPetId]);
-      return await execution.savedNoteResponse();
-    } finally { await gate.release(); }
-  }
+  // Pending task clarification is interpreted by the Brain with the rest of the
+  // current turn. No raw-language subject shortcut may execute a write here.
 
-  const pendingLifecycle = derivePendingLifecycleAssertion({
-    turns: liveContext.conversationTurns,
-    pets: liveContext.eligiblePets,
-  });
-  const pendingLifecycleResolution = pendingLifecycle
-    ? resolvePendingLifecycleTurn({ assertion: pendingLifecycle, message: question, pets: liveContext.eligiblePets })
-    : null;
+  // Lifecycle language is semantic input for the Brain, not a pre-Brain router.
+  // Durable profile state is still supplied for validation/governance after planning.
+  const pendingLifecycle = null as PendingLifecycleAssertion | null;
+  const pendingLifecycleResolution = null as PendingLifecycleTurnResolution | null;
   const durableLifecycleStatus = getPetLifecycleStatus(liveContext.pet);
-  const durableLifecycleCorrection = resolveDurableLifecycleCorrection({
-    message: question,
-    status: durableLifecycleStatus,
-  });
-  const durableLifecycleResolution = durableLifecycleStatus !== "active" && requiresLivingPet(question)
-    ? durableLifecycleStatus
-    : null;
+  const durableLifecycleCorrection = null as ReturnType<typeof resolveDurableLifecycleCorrection>;
+  const durableLifecycleResolution = null as "deceased" | "archived" | null;
   let turnPetId = petId;
   let turnAuthoritativePetIds = [petId];
   let turnView = deriveAskTurnView({ currentSourceMessageId: preparedRequest.userMessageId, liveContext, question: reasoningQuestion, requestId });
@@ -560,9 +535,9 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
   const rateGateRef: { current: Awaited<ReturnType<typeof requireRateLimitedRequest>> | null } = { current: null };
   let confirmedExistingCarePersistence: CarePersistenceResult | null = null;
   let deterministicApplicationActions: FurviseApplicationAction[] = [];
+  const brainFirstLifecycleRouting: boolean = false;
   let deterministicLossInteraction = false;
-  let deferHighImpactLifecyclePersistence = classifyCurrentPetLoss(question) === "confirmed_current"
-    || pendingLifecycle?.kind === "reported_deceased";
+  let deferHighImpactLifecyclePersistence = false;
   const onProviderEvent = (event: AskProviderEvent) => {
     turnLifecycle.providerEvent(event);
     providerCallCount = turnLifecycle.snapshot().providerCallCount;
@@ -661,7 +636,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         sourceMessage: question,
         lifecycleStatus: durableLifecycleStatus,
       }).map((action) => ({ ...action, sourceMessageId: preparedRequest.userMessageId }));
-    } else if (currentLoss === "confirmed_current") {
+    } else if (brainFirstLifecycleRouting && currentLoss === "confirmed_current") {
       turnLifecycle.route("lifecycle", "deterministic");
       const recentConversation = liveContext.conversationTurns.filter((turn) => turn.id !== preparedRequest.userMessageId);
       const pendingPet = pendingLifecycle && pendingLifecycleResolution?.kind === "continuation"

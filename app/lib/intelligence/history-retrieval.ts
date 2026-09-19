@@ -243,7 +243,8 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     const anchorCandidates = ((anchorResult.data || []) as CareEntryRow[])
       .filter(row => row.user_id === context.owner.userId && row.pet_profile_id === petId && !row.deleted_at
         && historyQueryRelevance(rowText(row), anchorTerms) > 0)
-      .sort((a,b) => compareHistoryTime(b.occurred_at,a.occurred_at) || b.id.localeCompare(a.id));
+      .sort((a,b) => historyQueryRelevance(rowText(b), anchorTerms) - historyQueryRelevance(rowText(a), anchorTerms)
+        || compareHistoryTime(b.occurred_at,a.occurred_at) || b.id.localeCompare(a.id));
     const anchor = anchorCandidates[0];
     if (!anchor) {
       coverage.retrieval = "complete";
@@ -281,7 +282,8 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     const effective=await effectiveCandidates(originals, owned, ids, context.owner.userId, db, coverage, deadline);
     const effectiveAnchor=[...effective]
       .filter(row=>historyQueryRelevance(rowText(row),anchorTerms)>0)
-      .sort((a,b)=>compareHistoryTime(b.occurred_at,a.occurred_at)||b.id.localeCompare(a.id))[0];
+      .sort((a,b)=>historyQueryRelevance(rowText(b),anchorTerms)-historyQueryRelevance(rowText(a),anchorTerms)
+        || compareHistoryTime(b.occurred_at,a.occurred_at)||b.id.localeCompare(a.id))[0];
     if (!effectiveAnchor) {
       coverage.retrieval="partial";
       coverage.reasons.push("event_anchor_changed_or_deleted");

@@ -52,6 +52,24 @@ test('an irrelevant read-planning hint cannot terminate an owned episode questio
   assert.throws(()=>validateAskRequest({...proposal,petNames:['Another owner pet']},context),/ownership/);
 });
 
+test('canonical lifecycle audits can use structured profile death fields instead of fuzzy history absence', () => {
+  const names=['Aster','Bramble','Cedar','Dune','Echo'];
+  const pets=names.map((name,index)=>({id:'pet-'+index,user_id:'owner',name}));
+  const currentMessage="List each pet and whether the current profile has a canonical death record for them. Don't add one.";
+  const result=validateAskRequest({
+    version:'ask-request.v2',mode:'read',temporalScope:'current',mutationIntent:null,recordSelection:null,
+    profileFields:['lifecycle_status','deceased_at'],projection:null,coverageMode:'sufficient',historyAnchor:null,
+    question:currentMessage,requirements:[],evidenceNeeds:[],outputFormat:null,evidenceBasis:'saved_profile',
+    premiseQuotes:[],excludedPetNames:[],referenceTurnIds:[],scope:'account',petNames:[],
+    operation:'recall',selection:'summary',quantity:null,topic:'canonical lifecycle',
+    terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:null
+  },{owner:{userId:'owner'},eligiblePets:pets,pet:pets[1],currentMessage,conversationTurns:[]});
+  assert.equal(result.history,null);
+  assert.deepEqual(result.petIds,pets.map(p=>p.id));
+  assert.deepEqual(result.request.profileFields,['lifecycle_status','deceased_at']);
+  assert.equal(result.request.evidenceBasis,'saved_profile');
+});
+
 test('brain-authored semantic event anchors compile into typed history boundaries', () => {
   const pet={id:'bramble',user_id:'owner',name:'Bramble'};
   const currentMessage="Starting from Bramble's dental visit, list every note about eating or food, oldest first.";
@@ -88,6 +106,25 @@ test('whole-owned-cohort audits collapse repeated planner needs into one exhaust
   assert.equal(result.request.coverageMode,'exhaustive');
   assert.equal(result.request.evidenceNeeds.length,1);
   assert.equal(result.request.evidenceNeeds[0].petIds,undefined);
+});
+
+test('latest-note correction compiles a latest-record read before any edit action', () => {
+  const pet={id:'cedar',user_id:'owner',name:'Cedar'};
+  const currentMessage="Replace Cedar's last note with: appetite was normal this morning. One row only.";
+  const result=validateAskRequest({
+    version:'ask-request.v2',mode:'mixed',temporalScope:'historical',mutationIntent:'correct_record',recordSelection:null,
+    profileFields:[],projection:null,coverageMode:'sufficient',historyAnchor:null,
+    question:currentMessage,requirements:['One row only'],evidenceNeeds:[],outputFormat:null,evidenceBasis:'saved_history',
+    premiseQuotes:[],excludedPetNames:[],referenceTurnIds:[],scope:'named',petNames:['Cedar'],
+    operation:'recall',selection:'latest',quantity:'records',topic:'saved note',
+    terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:emptyProposedSemanticFrame()
+  },{owner:{userId:'owner'},eligiblePets:[pet],pet,currentMessage,conversationTurns:[]});
+  assert.equal(result.readOnly,false);
+  assert.equal(result.request.mutationIntent,'correct_record');
+  assert.equal(result.selection,'latest');
+  assert.equal(result.history.from,null);
+  assert.equal(result.history.to,null);
+  assert.deepEqual(result.petIds,['cedar']);
 });
 
 test('a record correction retrieves its original interval without becoming a read-only task', () => {

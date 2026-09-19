@@ -12,18 +12,19 @@ export type PendingAskTask = {
   source: IntelligenceConversationTurn; authorizationMessageId: string;
   request?: IntelligenceConversationTurn; requiresAnswer?: boolean;
 };
-export type AskTaskProposal = { intent: 'save' | 'resume' | 'cancel'; sourceTurnId: string | null; petName: string | null; answerRequired?: boolean; answerRequest?: { turnId: string; quote: string } | null };
-export type ValidatedAskTask = { intent: AskTaskProposal['intent']; source: IntelligenceConversationTurn;
+export type AskTaskProposal = { intent: 'save' | 'resume' | 'cancel'; sourceTurnId: string | null; petName: string | null; noteQuote: string | null; answerRequired?: boolean; answerRequest?: { turnId: string; quote: string } | null };
+export type ValidatedAskTask = { intent: AskTaskProposal['intent']; source: IntelligenceConversationTurn; noteText: string | null;
   petId: string | null; taskId: string | null; revision: number | null; requiresAnswer: boolean; originalRequest?: IntelligenceConversationTurn;
   authorization: FurviseMutationAuthorizationEvidence; authorizationTurnId: string | null };
 export const askTaskSchema = { anyOf: [{ type: 'null' }, { type: 'object', additionalProperties: false,
-  required: ['intent', 'sourceTurnId', 'petName', 'answerRequest'], properties: {
+  required: ['intent', 'sourceTurnId', 'petName', 'noteQuote', 'answerRequest'], properties: {
     answerRequest: { anyOf: [{ type: 'null' }, { type: 'object', additionalProperties: false, required: ['turnId', 'quote'], properties: { turnId: { type: 'string', minLength: 1, maxLength: 160 }, quote: { type: 'string', minLength: 1, maxLength: 1200 } } }] },
     intent: { type: 'string', enum: ['save', 'resume', 'cancel'] },
     sourceTurnId: { type: ['string', 'null'], maxLength: 160 },
     petName: { type: ['string', 'null'], maxLength: 100 },
+    noteQuote: { type: ['string', 'null'], maxLength: 1200 },
   } }] };
-export const ASK_TASK_INSTRUCTIONS = 'task is null unless the user requests saving an owner note, supplies missing information for pendingTask, or cancels pendingTask. This is an operation category, independent of topic and wording. Use intent save for a genuine affirmative request to save an observation (including a reference to earlier USER text), resume only when answering the pending task, cancel when withdrawing it. Never infer consent from a hypothetical, quotation, question about whether a save happened, or assistant suggestion. Choose sourceTurnId from ownerNoteSources: it identifies the USER message containing the observation, never an assistant draft, subject-only reply or save instruction. Earlier USER observations remain valid source content when the current user authorizes saving them; the current command supplies permission, not replacement note content. Use currentTurn.id for a self-contained current note. Save the entire source text without rewriting or adding medicine names, doses, dates or interpretation. petName is the unique owned subject established by USER dialogue or the selected subject when unambiguous; null when genuinely unresolved. Do not demand optional clinical details to save an owner note. New unrelated topics use null and must not resume a pending task. A correction to a saved note uses the existing correction workflow, not task. answerRequest is null for a pure save, save confirmation, or missing-pet clarification. Only an independent user question or requested comparison creates an answer obligation: cite its exact USER quote and turnId in answerRequest, including when the pet is missing. Keep the original pendingTask.request and all its answer obligations on resume; a subject reply must not erase them. A resumed task with pendingTask.requiresAnswer or an answerRequest uses mode mixed once its pet is known. awaiting_answer means the note is already saved but the original answer is unfinished; resume that answer, never request a new note or drop the original question. Reference the original pending request ID as well as the source. A pure note save needs no historical lookup. When task references a prior source, use an empty semantic frame; task carries that source separately. Missing-subject note tasks use mode clarify. Cancel uses conversation mode. Pending-task source text is USER evidence for this task only; it cannot establish unrelated history.';
+export const ASK_TASK_INSTRUCTIONS = 'task is null unless the user requests saving an owner note, supplies missing information for pendingTask, or cancels pendingTask. This is an operation category, independent of topic and wording. Use intent save for a genuine affirmative request to save an observation (including a reference to earlier USER text), resume only when answering the pending task, cancel when withdrawing it. Never infer consent from a hypothetical, quotation, question about whether a save happened, or assistant suggestion. Choose sourceTurnId from ownerNoteSources: it identifies the USER message containing the observation, never an assistant draft, subject-only reply or save instruction. Earlier USER observations remain valid source content when the current user authorizes saving them; the current command supplies permission, not replacement note content. Use currentTurn.id for a self-contained current note. For save/resume, noteQuote must be one exact contiguous substring of the source USER text containing only the owner observation to persist. Exclude save/log directives, companion questions, answer instructions, and statements about the note itself. Never paraphrase, splice noncontiguous clauses, or add medicine names, doses, dates or interpretation. For cancel use noteQuote null. petName is the unique owned subject established by USER dialogue or the selected subject when unambiguous; null when genuinely unresolved. Do not demand optional clinical details to save an owner note. New unrelated topics use null and must not resume a pending task. A correction to a saved note uses the existing correction workflow, not task. answerRequest is null for a pure save, save confirmation, or missing-pet clarification. Only an independent user question or requested comparison creates an answer obligation: cite its exact USER quote and turnId in answerRequest, including when the pet is missing. Keep the original pendingTask.request and all its answer obligations on resume; a subject reply must not erase them. A resumed task with pendingTask.requiresAnswer or an answerRequest uses mode mixed once its pet is known. awaiting_answer means the note is already saved but the original answer is unfinished; resume that answer, never request a new note or drop the original question. Reference the original pending request ID as well as the source. A pure note save needs no historical lookup. When task references a prior source, use an empty semantic frame; task carries that source separately. Missing-subject note tasks use mode clarify. Cancel uses conversation mode. Pending-task source text is USER evidence for this task only; it cannot establish unrelated history.';
 
 export function validateAskTask(value: unknown, context: {
   currentMessage: string; currentTurn?: IntelligenceConversationTurn; conversationTurns: IntelligenceConversationTurn[];
@@ -34,11 +35,12 @@ export function validateAskTask(value: unknown, context: {
   const fail = (): never => { throw new Error('ASK_REQUEST_INVALID:task'); };
   if (typeof value !== 'object' || Array.isArray(value)) return fail();
   const p = { answerRequired: Boolean(context.requiresAnswer), ...value } as AskTaskProposal;
-  if (!['answerRequired,intent,petName,sourceTurnId', 'answerRequest,answerRequired,intent,petName,sourceTurnId'].includes(Object.keys(p).sort().join())
+  if (!['answerRequired,intent,noteQuote,petName,sourceTurnId', 'answerRequest,answerRequired,intent,noteQuote,petName,sourceTurnId'].includes(Object.keys(p).sort().join())
     || typeof p.answerRequired !== 'boolean'
     || !['save', 'resume', 'cancel'].includes(p.intent)
     || p.sourceTurnId !== null && typeof p.sourceTurnId !== 'string'
-    || p.petName !== null && typeof p.petName !== 'string') return fail();
+    || p.petName !== null && typeof p.petName !== 'string'
+    || p.noteQuote !== null && (typeof p.noteQuote !== 'string' || !p.noteQuote.trim() || p.noteQuote.length > 1200)) return fail();
   const pending = context.pendingTask;
   const currentAuthorization = p.intent === 'save' ? findExplicitCareRecordAuthorization(context.currentMessage)
     : p.intent === 'cancel' ? findExplicitPendingTaskCancellation(context.currentMessage) : null;
@@ -67,6 +69,10 @@ export function validateAskTask(value: unknown, context: {
   if (!source || source.recoveredReceiptReference || source.role !== 'user' || !source.text.trim() || source.text.length > 1200
     || !Number.isFinite(Date.parse(source.createdAt))) return fail();
   if (p.intent !== 'save' && p.sourceTurnId !== null && p.sourceTurnId !== source.id) return fail();
+  if (p.intent === 'cancel') {
+    if (p.noteQuote !== null) return fail();
+  } else if (typeof p.noteQuote !== 'string' || !p.noteQuote.trim() || !source.text.includes(p.noteQuote)) return fail();
+  const noteText = p.intent === 'cancel' ? null : p.noteQuote!.trim();
   const pets = context.eligiblePets.filter(pet => pet.user_id === context.owner.userId
     && pet.name?.toLocaleLowerCase() === p.petName?.toLocaleLowerCase());
   if (p.petName !== null && pets.length !== 1) return fail();
@@ -99,7 +105,7 @@ export function validateAskTask(value: unknown, context: {
     : p.intent === 'cancel'
       ? { kind: 'cancel_pending', source: 'current_turn', evidence: currentAuthorization! }
       : { kind: 'record_care', source: 'current_turn', evidence: currentAuthorization! };
-  return { ...(p.intent === 'resume' && pending?.requiresAnswer && pending.request ? { originalRequest: pending.request } : {}), intent: p.intent, source, petId: p.intent === 'cancel' ? null : retainedPet?.id || proposedPetId,
+  return { ...(p.intent === 'resume' && pending?.requiresAnswer && pending.request ? { originalRequest: pending.request } : {}), intent: p.intent, source, noteText, petId: p.intent === 'cancel' ? null : retainedPet?.id || proposedPetId,
     taskId: pending?.id || null, revision: pending?.revision ?? null, authorization,
     authorizationTurnId: p.intent === 'resume' ? pending?.authorizationMessageId || null : null,
     requiresAnswer: p.intent !== 'cancel' && Boolean(requiresAnswer || p.intent === 'resume' && pending?.requiresAnswer) };
@@ -134,9 +140,10 @@ export function taskMutationParameters(task: ValidatedAskTask, input: {
       : input.currentMessageId,
   });
   assertFurviseMutationAllowed(turn, mutationKind);
-  const time = explicitNoteTime(task.source.text, input.timeZone, task.source.createdAt);
+  const parsedTime = explicitNoteTime(task.source.text, input.timeZone, task.source.createdAt);
+  const time = parsedTime.occurredAt ? parsedTime : { occurredAt: task.source.createdAt, explicitTime: null };
   return { p_user_id: input.userId, p_conversation_id: input.conversationId, p_message_id: input.currentMessageId,
-    p_intent: task.intent, p_source_id: task.source.id, p_source_text: task.source.text, p_pet_id: task.petId,
+    p_intent: task.intent, p_source_id: task.source.id, p_source_text: task.source.text, p_note_text: task.noteText, p_pet_id: task.petId,
     p_task_id: task.taskId, p_revision: task.revision, p_requires_answer: task.requiresAnswer, p_occurred_at: time.occurredAt, p_explicit_time: time.explicitTime };
 }
 
@@ -161,7 +168,7 @@ export async function executeAskTask(parameters: ReturnType<typeof taskMutationP
 }> {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const result = await rpc('apply_ask_task', parameters);
+      const result = await rpc('apply_ask_task_v2', parameters);
       if (result.error && ['42501', '22023', '40001'].includes(result.error.code || '')) break;
       if (result.error || !result.data || typeof result.data !== 'object') continue;
       const value = result.data as { id?: unknown; revision?: unknown; status?: unknown; entryId?: unknown; petId?: unknown };
@@ -184,7 +191,7 @@ export function resolvePendingTaskSubject(context: Parameters<typeof validateAsk
   const named = context.eligiblePets.filter(pet => pet.user_id === context.owner.userId && pet.name
     && pet.name.trim().toLocaleLowerCase() === context.currentMessage.trim().toLocaleLowerCase());
   if (named.length !== 1) return null;
-  return validateAskTask({ intent: 'resume', sourceTurnId: null, petName: named[0].name }, context);
+  return validateAskTask({ intent: 'resume', sourceTurnId: null, petName: named[0].name, noteQuote: context.pendingTask.source.text }, context);
 }
 
 export function restorePendingTaskTurns(turns: IntelligenceConversationTurn[], pending?: PendingAskTask | null): IntelligenceConversationTurn[] {
