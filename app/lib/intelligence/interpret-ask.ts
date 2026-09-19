@@ -70,12 +70,6 @@ export function recoverAskInterpretation(value: unknown, context: Interpretation
         console.warn("[Ask Brain] rejected write job", JSON.stringify({
           ...brainProposalDiagnostic(value, context.currentTurn?.id),
           validation: error instanceof Error ? error.cause : null,
-          // Temporary preview evidence: complete proposal, never execution authority.
-          ...(process.env.VERCEL_ENV === "preview" ? { ticket: value, bindingContext: {
-            selectedPetId: context.pet.id, source: context.currentTurn,
-            ownedPets: context.eligiblePets.filter(pet => pet.user_id === context.owner.userId)
-              .map(pet => ({ id: pet.id, name: pet.name })),
-          } } : {}),
         }));
       }
       if (["reference", "scope"].includes(reason || "") && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion

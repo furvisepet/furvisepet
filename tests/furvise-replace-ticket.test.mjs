@@ -81,6 +81,25 @@ test('replacement body excludes source-bound ticket constraints before reaching 
   }
 });
 
+test('fe77e95 Cedar: clean 17-character body rejects a dialogue target reference, not its source span', () => {
+  const proposal = JSON.parse(readFileSync(new URL('./fixtures/cedar-replace-reference-turn.json', import.meta.url), 'utf8'));
+  const { context } = fixture(proposal.writeJob.instructionQuote);
+  context.conversationTurns = [{ id: proposal.referenceTurnIds[0], role: 'user', text: context.currentMessage,
+    createdAt: '2026-09-19T10:41:59Z' }];
+  assert.equal(proposal.writeJob.bodyQuote, 'lunch was normal.');
+  assert.equal(proposal.writeJob.bodyQuote.length, 17);
+  assert.throws(() => validateAskRequest(proposal, context), error =>
+    error.message === 'ASK_REQUEST_INVALID:write_job' && error.cause.field === 'referenceTurnIds');
+  // This is the sole field difference needed to pass; the validator does not repair it.
+  proposal.referenceTurnIds = [];
+  const job = validateAskRequest(proposal, context).request.writeJob;
+  assert.equal(job.body.text, 'lunch was normal.');
+  assert.equal(job.constraints.spans[0].text, 'One row only.');
+  assert.equal(job.constraints.effectiveCount, 1);
+  proposal.writeJob.bodyQuote += ' One row only.';
+  assert.throws(() => validateAskRequest(proposal, context), /write_job/);
+});
+
 test('a typed persistence prohibition cannot produce an executable replace job', () => {
   const { context, proposal } = fixture('Replace that last note with: lunch was normal. No lo guardes.');
   proposal.writeJob.constraints = [{ kind: 'no_write', quote: 'No lo guardes.' }];

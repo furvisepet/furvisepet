@@ -1,0 +1,63 @@
+{
+  "task": null,
+  "writeJob": {
+    "operation": "replace",
+    "target": "last_event_for_subject",
+    "petName": "Cedar",
+    "instructionQuote": "Replace that last note with: lunch was normal. One row only.",
+    "bodyQuote": "lunch was normal.",
+    "constraints": [
+      {
+        "kind": "effective_count_one",
+        "quote": "One row only."
+      }
+    ]
+  },
+  "temporalScope": null,
+  "profileFields": [],
+  "mutationIntent": "correct_record",
+  "recordSelection": null,
+  "projection": null,
+  "evidenceNeeds": [],
+  "version": "ask-request.v2",
+  "mode": "update",
+  "question": "Replace that last note with: lunch was normal. One row only.",
+  "requirements": [
+    "Replace the most recent care note for Cedar.",
+    "Keep the new note text exactly as: lunch was normal.",
+    "Use one effective row only."
+  ],
+  "referenceTurnIds": [
+    "72ef550c-6b97-44c9-a71a-cd93272c8b49"
+  ],
+  "evidenceBasis": null,
+  "outputFormat": null,
+  "premiseQuotes": [],
+  "excludedPetNames": [],
+  "scope": "named",
+  "petNames": [
+    "Cedar"
+  ],
+  "operation": "general",
+  "selection": "latest",
+  "quantity": null,
+  "topic": "replace last note",
+  "terms": [],
+  "from": null,
+  "to": null,
+  "episodeTopic": null,
+  "ordinal": null,
+  "frame": {
+    "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+    "frameLocalId": "frame_1",
+    "discourseActs": [],
+    "mentions": [],
+    "references": [],
+    "claims": [],
+    "uncertainty": {
+      "needsClarification": false,
+      "clarificationQuestion": null,
+      "reasons": []
+    }
+  }
+}
