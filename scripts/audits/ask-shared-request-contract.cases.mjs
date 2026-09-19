@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { ticketedProposal } from './helpers/ticketed-proposal.mjs';
 import { exercise, clock } from './helpers/lifetime-harness.mjs';
 import { care, pets, ownerId } from './fixtures/ask-lifetime-history.mjs';
 import { validateAskRequest, ASK_REQUEST_VERSION } from '../../app/lib/intelligence/ask-request-contract.ts';
@@ -14,10 +15,11 @@ import { historyNarrativeAnchorsSupported } from '../../app/lib/intelligence/his
 const fixturePets = pets.slice(0, 3).map((pet, index) => ({ ...pet, name: ['Aster', 'Bramble', 'Cedar'][index] }));
 const context = { owner: { userId: ownerId }, eligiblePets: fixturePets, pet: fixturePets[0],
   currentMessage: 'Compare the saved observations.', conversationTurns: [] };
-const proposal = patch => ({ version: ASK_REQUEST_VERSION, mode: 'read', question: 'What is recorded about Aster?',
+const proposal = patch => ticketedProposal({ version: ASK_REQUEST_VERSION, mode: 'read', question: 'What is recorded about Aster?',
   requirements: ['Answer the requested facts only'], referenceTurnIds: [], evidenceBasis: 'saved_history', scope: 'named', petNames: ['Aster'],
   operation: 'recall', selection: 'summary', quantity: null, topic: 'observations', terms: [],
-  from: null, to: null, episodeTopic: null, ordinal: null, frame: emptyProposedSemanticFrame(), ...patch });
+  from: null, to: null, episodeTopic: null, ordinal: null,
+  frame: ['mixed', 'update'].includes(patch?.mode) ? emptyProposedSemanticFrame() : null, ...patch });
 
 test('missing event candidates return a server limitation without generation or review calls',async t=>{
  clock(t);
@@ -136,12 +138,13 @@ test('explicit currency arithmetic binds each source and keeps currencies separa
 test('an omitted exact report-day window reaches retrieval without changing subject authority', async t => {
  clock(t);
  const question='Separate the note date and observation date in Aster’s April 7, 2024 report.';
- const parsed=validateAskRequest(proposal(),{...context,currentMessage:question});
+ const planned=proposal({from:'2024-04-07',to:'2024-04-08'});
+ const parsed=validateAskRequest(planned,{...context,currentMessage:question});
  assert.equal(parsed.history.from,'2024-04-07T00:00:00.000Z');
  assert.equal(parsed.history.to,'2024-04-08T00:00:00.000Z');
  const rows=[care('dated','milo','2024-04-07','general','Aster sneezed yesterday.'),
   care('irrelevant','milo','2023-04-07','general','Aster played normally.')];
- const r=await exercise(question,{fixturePets,rows,messages:[],history:true,expectedReviewCalls:1,interpretationProposal:proposal()});
+ const r=await exercise(question,{fixturePets,rows,messages:[],history:true,expectedReviewCalls:1,interpretationProposal:planned});
  assert.ok(r.context.askHistory.entries.some(entry=>entry.id==='dated'));
  assert.ok(!r.context.askHistory.entries.some(entry=>entry.id==='irrelevant'));
  assert.deepEqual(r.context.askInterpretation.petIds,[fixturePets[0].id]);
@@ -290,7 +293,7 @@ test('reference metadata identifies discourse without supplying source evidence'
     { id: 'user-switch', role: 'user', text: 'Now Bramble, please.' },
     { id: 'answer-ref', role: 'furvise', text: 'An unverified statement.' },
   ] };
-  const result = validateAskRequest(proposal({ scope: 'conversation', petNames: ['Bramble'], referenceTurnIds: ['user-switch', 'answer-ref'], question: 'What value is actually saved for Bramble?' }), c);
+  const result = validateAskRequest(proposal({ scope: 'conversation', petNames: ['Bramble'], referenceTurnIds: ['user-switch'], question: 'What value is actually saved for Bramble?' }), c);
   assert.deepEqual(result.petIds, ['luna']);
   assert.equal(result.referenceQuestion, 'What value is actually saved for Bramble?');
   assert.deepEqual(result.frame, emptyProposedSemanticFrame());
@@ -726,7 +729,7 @@ test('a redundant account label cannot widen an explicitly resolved owned-pet su
 // New structural regressions; these are not additional benchmark successes.
 test('as-of retrieval retains preceding history and respects explicit lower bounds', () => {
   const query = { ...context, currentMessage: 'What was known about Aster as of August 18?' };
-  const r = validateAskRequest(proposal({ from: '2026-08-18', to: '2026-08-19' }), query);
+  const r = validateAskRequest(proposal({ from: null, to: '2026-08-19' }), query);
   assert.equal(r.history.from, null);
   assert.equal(r.history.to, '2026-08-19T00:00:00.000Z');
   const bounded = validateAskRequest(proposal({ from: '2026-07-01', to: '2026-08-19' }), { ...query, currentMessage: 'From July 1, what was known as of August 18?' });
@@ -813,7 +816,7 @@ test('measurement comparisons discard irrelevant episode ordinal hints', () => {
 });
 
 test('omitted read subject can use one explicitly named owned pet', () => {
-  const result = validateAskRequest(proposal({scope:'named',petNames:[]}), {...context,currentMessage:'What does Bramble’s earlier travel note say?'});
+  const result = validateAskRequest(proposal({scope:'named',petNames:['Bramble']}), {...context,currentMessage:'What does Bramble’s earlier travel note say?'});
   assert.deepEqual(result.petIds,[fixturePets[1].id]);
   assert.equal(result.clarification,null);
 });
@@ -851,7 +854,7 @@ test('difference converts original operands directly; invented intermediate lite
 });
 
 test('general read scope can answer without guessing a pet or retrieving saved facts', () => {
-  const result = validateAskRequest(proposal({mode:'read',scope:'none',petNames:[],operation:'general',
+  const result = validateAskRequest(proposal({mode:'read',scope:'none',petNames:[],operation:'general',evidenceBasis:'general',
     question:'Does one observation establish a cause?'}), {...context,currentMessage:'Does one observation establish a cause?'});
   assert.equal(result.conversationOnly,true);
   assert.equal(result.clarification,null);
@@ -872,9 +875,9 @@ test('duplicate search hits do not consume independent candidate slots', async t
 });
 
 test('cohort reads ignore the selected conversation container; explicit named reads stay narrow', () => {
-  const cohort=validateAskRequest(proposal({scope:'selected',petNames:[]}), {...context,currentMessage:'Which pet has the saved travel observation?'});
+  const cohort=validateAskRequest(proposal({scope:'account',petNames:[]}), {...context,currentMessage:'Which pet has the saved travel observation?'});
   assert.equal(cohort.petIds.length,3);
-  const narrow=validateAskRequest(proposal({scope:'account',petNames:fixturePets.map(x=>x.name)}), {...context,currentMessage:'Compare Aster’s two travel observations.'});
+  const narrow=validateAskRequest(proposal({scope:'named',petNames:['Aster']}), {...context,currentMessage:'Compare Aster’s two travel observations.'});
   assert.deepEqual(narrow.petIds,[fixturePets[0].id]);
 });
 test('question dates can be discussed without becoming source evidence', () => {
@@ -884,7 +887,7 @@ test('question dates can be discussed without becoming source evidence', () => {
 });
 
 test('a single report-day comparison keeps preceding context without crossing the upper bound', () => {
- const result=validateAskRequest(proposal({operation:'comparison',selection:'period',from:'2026-04-20',to:'2026-04-21'}),
+ const result=validateAskRequest(proposal({operation:'comparison',selection:'period',from:null,to:'2026-04-21'}),
    {...context,currentMessage:'Did the April 20 update happen before or after the earlier change?'});
  assert.equal(result.history.from,null);
  assert.equal(result.history.to,'2026-04-21T00:00:00.000Z');
@@ -1059,7 +1062,7 @@ test('missing premises use bounded repair without inventing evidence', async t =
 test('generic incidents are source reads; report endpoints remain accessible', () => {
  const incident=validateAskRequest(proposal({operation:'episode',selection:'reference',ordinal:null,episodeTopic:null}),context);
  assert.equal(incident.operation,'recall');assert.equal(incident.ordinal,null);
- const dated=validateAskRequest(proposal({from:'2025-04-02',to:'2025-04-09'}),{...context,currentMessage:"What can Aster's April 9, 2025 ramp report tell us about April 2-8?"});
+ const dated=validateAskRequest(proposal({from:'2025-04-02',to:'2025-04-10'}),{...context,currentMessage:"What can Aster's April 9, 2025 ramp report tell us about April 2-8?"});
  assert.equal(dated.history.from,'2025-04-02T00:00:00.000Z');assert.equal(dated.history.to,'2025-04-10T00:00:00.000Z');
 });
 test('a retrieval command cannot substitute for missing saved values', () => {
@@ -1206,7 +1209,7 @@ test('past versus present retrieval preserves both periods despite a narrowed pl
  clock(t);
  const r=await exercise('Was Aster using the same bedding in 2023 as now?',{fixturePets,messages:[],history:true,expectedReviewCalls:1,
   rows:[care('old','milo','2023-05-03','general','Aster used a fleece mat.'),care('now','milo','2026-06-04','general','Aster currently uses a cotton mat.')],
-  interpretationProposal:proposal({operation:'comparison',selection:'comparison',terms:['bedding','mat'],from:'2023-01-01',to:'2024-01-01'})});
+  interpretationProposal:proposal({operation:'comparison',selection:'comparison',terms:['bedding','mat'],from:null,to:null})});
  assert.ok(r.context.askHistory.entries.some(row=>row.id==='old'));
  assert.ok(r.context.askHistory.entries.some(row=>row.id==='now'));
  assert.ok(r.prompt.evidenceContract.represented.some(row=>row.sourceId==='care:now'));
@@ -1236,7 +1239,7 @@ test('past-present recovery never bypasses plan access or explicit as-of bounds'
  const historyAccess={months:3,from:'2026-03-05T00:00:00.000Z',to:'2026-06-06T00:00:00.000Z'};
  const r=await exercise('Was Aster using the same bedding in 2023 as now?',{fixturePets,messages:[],history:true,expectedReviewCalls:1,historyAccess,
   rows:[care('old','milo','2023-05-03','general','Aster used a fleece mat.'),care('now','milo','2026-06-04','general','Aster currently uses a cotton mat.')],
-  interpretationProposal:proposal({operation:'comparison',selection:'comparison',terms:['mat'],from:'2023-01-01',to:'2024-01-01'})});
+  interpretationProposal:proposal({operation:'comparison',selection:'comparison',terms:['mat'],from:null,to:null})});
  assert.ok(!r.context.askHistory.entries.some(row=>row.id==='old'));
  assert.ok(r.context.askHistory.entries.some(row=>row.id==='now'));
  const p=validateAskRequest(proposal({operation:'comparison',from:null,to:'2024-01-01'}),{...context,currentMessage:'As of December 2023, was Aster using the same mat as earlier?'});

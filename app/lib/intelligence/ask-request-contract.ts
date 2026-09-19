@@ -663,36 +663,59 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
 function bindTicketedRead(p: Record<string, unknown>, context: Context): AskInterpretation {
   if (p.frame !== null || p.task !== null || p.mutationIntent !== null || p.writeJob !== null) return fail("read_ticket_write");
   const owned = context.eligiblePets.filter(pet => pet.user_id === context.owner.userId);
-  const resolveName = (name: string) => {
+  const resolveName = (name: string, reason = "ownership") => {
     const matches = owned.filter(pet => pet.name?.normalize("NFKC").toLocaleLowerCase() === name.normalize("NFKC").toLocaleLowerCase());
-    if (matches.length !== 1) return fail("ownership");
+    if (matches.length !== 1) return fail(reason);
     return matches[0].id;
   };
-  const names = (p.petNames as string[]).map(resolveName);
-  const excluded = new Set((p.excludedPetNames as string[]).map(resolveName));
+  const names = (p.petNames as string[]).map(name => resolveName(name));
+  const excluded = new Set((p.excludedPetNames as string[]).map(name => resolveName(name, "excluded_ownership")));
   const referenceTurnIds = p.referenceTurnIds as string[];
   if (referenceTurnIds.some(id => !context.conversationTurns.some(turn => turn.id === id && turn.role === "user"))) return fail("reference");
   let petIds: string[];
   if (p.scope === "selected") {
     if (!owned.some(pet => pet.id === context.pet.id) || names.some(id => id !== context.pet.id)) return fail("selected_subject");
     petIds = [context.pet.id];
-  } else if (p.scope === "account") petIds = owned.map(pet => pet.id).filter(id => !excluded.has(id));
+  } else if (p.scope === "account") petIds = (names.length ? [...new Set(names)] : owned.map(pet => pet.id)).filter(id => !excluded.has(id));
   else if (p.scope === "named" || p.scope === "conversation") {
     if (p.scope === "conversation" && !referenceTurnIds.length) return fail("reference");
     petIds = [...new Set(names)];
   } else return fail("scope");
-  if (!petIds.length || petIds.length > ASK_HISTORY_MAX_PETS || petIds.some(id => excluded.has(id))) return fail("scope");
+  if (petIds.some(id => excluded.has(id))) return fail("excluded_subject");
+  if (!petIds.length || petIds.length > ASK_HISTORY_MAX_PETS) return fail("scope");
   const readTicket = bindReadTicket(p.readTicket, petIds)!;
-  const operation = readTicket.operation === "compare" || readTicket.operation === "rank" ? "comparison" : "recall";
+  // Date.parse normalizes impossible dates such as February 30. Reject them
+  // rather than silently changing the planner's typed calendar boundary.
+  for (const instant of [readTicket.temporal.from, readTicket.temporal.to]) {
+    if (instant && new Date(`${instant.slice(0, 10)}T00:00:00.000Z`).toISOString().slice(0, 10) !== instant.slice(0, 10)) return fail("dates");
+  }
+  const operation = readTicket.operation === "compare" || readTicket.operation === "rank" ? "comparison"
+    : p.operation === "status" ? "status" : p.operation === "overview" ? "overview" : "recall";
   const selection = readTicket.outputs.limit === 1 ? readTicket.outputs.ordering === "asc" ? "earliest" : "latest" : "summary";
+  const needPlan = validateEvidenceNeeds(p.evidenceNeeds, context.currentMessage, context.conversationTurns,
+    referenceTurnIds, owned.filter(pet => petIds.includes(pet.id)), { scopeSource: "ticket" });
+  const projection = parseReadProjection(p.projection);
+  if (p.projection !== null && !projection) return fail("projection");
+  let recordSelection: AskRequestContract["recordSelection"] = null;
+  if (p.recordSelection !== null) {
+    const candidate = p.recordSelection as { scope?: unknown; quote?: unknown };
+    if (!candidate || Object.keys(candidate).sort().join() !== "quote,scope"
+      || !["all_active", "content_filtered"].includes(String(candidate.scope))
+      || typeof candidate.quote !== "string" || !candidate.quote.trim() || candidate.quote.length > 1600
+      || !context.currentMessage.includes(candidate.quote) || p.quantity !== "records") return fail("record_selection");
+    recordSelection = candidate as NonNullable<AskRequestContract["recordSelection"]>;
+  }
   const request: AskRequestContract = {
     version: ASK_REQUEST_VERSION, mode: "read", readTicket, writeJob: null, task: null, mutationIntent: null,
     question: context.currentMessage, requirements: p.requirements as string[], referenceTurnIds,
     quantity: p.quantity as AskRequestContract["quantity"], evidenceBasis: "saved_history",
-    outputFormat: p.outputFormat as AskRequestContract["outputFormat"], profileFields: [],
-    temporalScope: "historical", projection: null, evidenceNeeds: [],
+    outputFormat: p.outputFormat as AskRequestContract["outputFormat"], profileFields: [...new Set(p.profileFields as string[])],
+    temporalScope: p.temporalScope as AskRequestContract["temporalScope"] ?? "historical", projection, recordSelection,
+    ...(needPlan.needs.length ? { evidenceNeeds: needPlan.needs } : {}),
+    ...(needPlan.issues.length ? { evidenceNeedIssues: needPlan.issues } : {}),
   };
   return { version: "ask-interpretation.v1", request, operation, readOperation: operation, selection, petIds,
+    referenceQuestion: referenceTurnIds.length ? p.question as string : context.currentMessage,
     topic: p.topic as string, history: { from: readTicket.temporal.from, to: readTicket.temporal.to, terms: [], interpretation: "period" },
     episodeTopic: null, ordinal: null, readOnly: true, clarification: null, frame: emptyProposedSemanticFrame() };
 }

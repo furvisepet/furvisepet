@@ -103,7 +103,7 @@ function database(rows, { fixturePets = pets, conversationPetId, messages = [], 
     };
     return { select() { return this; }, abortSignal(value) { signal = value; return this; }, returns() { return this; }, then(resolve, reject) { return execute().then(resolve, reject); } };
   }, from(table) {
-    const query = { table, filters: [], orders: [], cap: null, single: false }; queries.push(query);
+    const query = { table, filters: [], orders: [], cap: null, offset: 0, single: false }; queries.push(query);
     const chain = {
       select() { return this; }, returns() { return this; },
       abortSignal() { return this; },
@@ -120,6 +120,7 @@ function database(rows, { fixturePets = pets, conversationPetId, messages = [], 
       },
       order(key, options) { query.orders.push([key, options.ascending]); return this; },
       limit(value) { query.cap = value; return this; },
+      range(from, to) { query.offset = from; query.cap = to - from + 1; return this; },
       maybeSingle() { query.single = true; return this; },
       then(resolve, reject) {
         const historical = table === 'pet_care_entries' && query.orders.some(([key]) => key === 'id');
@@ -128,7 +129,7 @@ function database(rows, { fixturePets = pets, conversationPetId, messages = [], 
         data = [...data].sort((a, b) => { for (const [key, ascending] of query.orders) {
           const cmp = typeof a[key] === 'number' && typeof b[key] === 'number' ? a[key]-b[key] : String(a[key] ?? '').localeCompare(String(b[key] ?? '')); if (cmp) return ascending ? cmp : -cmp;
         } return 0; });
-        if (query.cap !== null) data = data.slice(0, historical ? Math.min(query.cap, historyPageCap) : query.cap);
+        if (query.cap !== null) data = data.slice(query.offset, query.offset + (historical ? Math.min(query.cap, historyPageCap) : query.cap));
         return Promise.resolve({ data: query.single ? data[0] || null : data, error: failCare && table === 'pet_care_entries' ? { code: 'AUDIT_OFFLINE' } : null }).then(resolve, reject);
       },
     };

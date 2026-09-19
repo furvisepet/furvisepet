@@ -74,3 +74,45 @@ test('invalid planner output fails once without a repair pass or mutation author
   assert.equal(calls,1);
  }
 });
+
+test('ticket binding retains grounded read obligations without deriving windows from their English',()=>{
+ const currentMessage='Compare Dune in April 2024 with the current record.';
+ const c={...context(),currentMessage};
+ const planned={...proposal,operation:'comparison',readTicket:{...ticket,operation:'compare'},quantity:'measurement',
+  temporalScope:'historical_and_current',profileFields:['weight'],requirements:['Compare both dated records'],
+  projection:{nameHeader:'Pet',valueHeader:'Weight',quantity:'body_mass',unit:'kg',order:'scope'},
+  evidenceNeeds:[{quote:currentMessage,sourceTurnId:null,terms:['weighed'],petNames:['Dune'],order:'context'}]};
+ const result=validateAskRequest(planned,c);
+ assert.deepEqual(result.request.readTicket.temporal,ticket.temporal);
+ assert.equal(result.request.evidenceNeeds[0].window,undefined);
+ assert.deepEqual(result.request.evidenceNeeds[0].petIds,['dune']);
+ assert.deepEqual(result.request.profileFields,['weight']);
+ assert.equal(result.request.temporalScope,'historical_and_current');
+ assert.deepEqual(result.request.projection,planned.projection);
+ assert.deepEqual(result.request.requirements,planned.requirements);
+ assert.equal(result.request.mode,'read');assert.equal(result.request.writeJob,null);
+ const evidence=createAskEvidenceContract({...c,askInterpretation:result},['dune']);
+ assert.equal(evidence.needCoverage[0].pets[0].state,'not_queried');
+ assert.equal(evidence.needCoverage[0].semanticSupport,'unverified');
+ assert.notEqual(evidence.completeness.retrieval,'complete');
+ for(const patch of [{quote:'invented diagnosis'},{petNames:['Foreign']},{sourceTurnId:'assistant'}]) {
+  const rejected=validateAskRequest({...planned,evidenceNeeds:[{...planned.evidenceNeeds[0],...patch}]},c);
+  assert.equal(rejected.request.evidenceNeeds,undefined);
+  assert.equal(rejected.request.evidenceNeedIssues.length,1);
+  assert.deepEqual(rejected.petIds,['dune']);
+ }
+});
+
+test('a redundant account label cannot widen the ticket named subset or include excluded pets',()=>{
+ const c={...context(),eligiblePets:[pet,{...pet,id:'cedar',name:'Cedar'},{...pet,id:'foreign',name:'Foreign',user_id:'other'}]};
+ assert.deepEqual(validateAskRequest({...proposal,scope:'account'},c).request.readTicket.subjects.petIds,['dune']);
+ assert.deepEqual(validateAskRequest({...proposal,scope:'account',petNames:[],excludedPetNames:['Dune']},c).petIds,['cedar']);
+ assert.throws(()=>validateAskRequest({...proposal,scope:'account',petNames:['Foreign']},c),/ownership/);
+ assert.throws(()=>validateAskRequest({...proposal,scope:'selected',excludedPetNames:['Dune']},c),/excluded_subject/);
+});
+
+test('impossible typed dates and malformed projection metadata cannot be silently normalized or dropped',()=>{
+ assert.throws(()=>validateAskRequest({...proposal,readTicket:{...ticket,temporal:{from:'2026-02-30T00:00:00Z',to:null,anchor:null}}},context()),/dates/);
+ assert.throws(()=>validateAskRequest({...proposal,projection:{quantity:'invented'}},context()),/projection/);
+ assert.throws(()=>validateAskRequest({...proposal,recordSelection:{scope:'all_active',quote:'invented'}},context()),/record_selection/);
+});
