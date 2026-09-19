@@ -86,12 +86,16 @@ test('real Brain -> memory adapter -> lineage path uses the ticket despite unrel
  assert.deepEqual(interpretation.request.readTicket.subjects.petIds,['bramble']);
  const live={...context,currentMessage:'Show all history ever from 2016, ignore the dental window.',askInterpretation:interpretation};
  const brain=buildAskBrainTurn({context:live,logicalTurnId:'turn',authoritativePetIds:['bramble']});
+ const inputRows=[...Array.from({length:118},(_,i)=>({...old,id:'old-'+i})),dental,later];
  const calls=[];
- const db={from(table){assert.equal(table,'pet_care_entries');let offset=0,limit=64;const q={select(){return q;},eq(){return q;},is(){return q;},gte(){return q;},lt(){return q;},order(){return q;},range(a,b){offset=a;limit=b-a+1;return q;},abortSignal(){return q;},returns(){calls.push('page');return Promise.resolve({data:rows.slice(offset,offset+limit),error:null});}};return q;},rpc(name,args){assert.equal(name,'read_ask_history_correction_page');calls.push(name);return{abortSignal:async()=>({data:{claims:[],relations:[],lineage:[],sources:rows.filter(r=>args.p_care_ids.includes(r.id)),truncated:false},error:null})};}};
+ const db={from(table){assert.equal(table,'pet_care_entries');let offset=0,limit=64;const q={select(){return q;},eq(){return q;},is(){return q;},gte(){return q;},lt(){return q;},order(){return q;},range(a,b){offset=a;limit=b-a+1;return q;},abortSignal(){return q;},returns(){calls.push('page');return Promise.resolve({data:inputRows.slice(offset,offset+limit),error:null});}};return q;},rpc(name,args){assert.equal(name,'read_ask_history_correction_page');calls.push(name);return{abortSignal:async()=>({data:{claims:[],relations:[],lineage:[],sources:inputRows.filter(r=>args.p_care_ids.includes(r.id)),truncated:false},error:null})};}};
  const result=await retrieveFurviseMemory(live,db,brain);
  assert.equal(result.askHistory.coverage.ticketCoverage.status,'complete');
  assert.deepEqual(result.askHistory.entries.map(r=>r.id),['dental','later']);
  assert.ok(calls.includes('read_ask_history_correction_page'));
+ assert.deepEqual(result.askHistory.originals.map(r=>r.id),['dental','later']);
+ assert.deepEqual(result.askHistory.coverage.candidateIds,['care:dental','care:later']);
+ assert.equal(result.askHistory.coverage.perPet[0].rows,120);
 });
 
 

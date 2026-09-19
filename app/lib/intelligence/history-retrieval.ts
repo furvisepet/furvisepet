@@ -949,6 +949,18 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
     status: coverage.retrieval }));
   if (result.coverage.windows.length === 1) coverage.plan = { ...coverage.plan,
     from: result.coverage.windows[0].from, to: result.coverage.windows[0].to };
+  // Scan bookkeeping is not answer evidence. Retaining every scanned root as a
+  // loaded source creates false missing-evidence losses and overflows review.
+  // Keep counts above, but transport only the selected records and anchor proof.
+  const retainedIds = new Set([...coverage.requiredSourceIds,
+    ...result.coverage.anchors.map(anchor => anchor.eventId.startsWith("claim-")
+      ? `claim:${anchor.eventId.slice(6)}` : `care:${anchor.eventId}`)]);
+  coverage.candidateIds = [...retainedIds];
+  coverage.provenance = coverage.provenance.filter(item => retainedIds.has(item.sourceId)
+    || item.claimIds.some(id => retainedIds.has(`claim:${id}`)));
+  const retainedCareIds = new Set(coverage.provenance.filter(item => item.sourceId.startsWith("care:")).map(item => item.sourceId.slice(5)));
+  originals = originals.filter(row => retainedIds.has(`care:${row.id}`) || retainedCareIds.has(row.id));
+  coverage.claimSources = coverage.claimSources.map(source => ({ ...source, sourceIds: source.sourceIds.filter(id => retainedIds.has(id)) }));
   console.info("[Ask Lungs] ticket result", JSON.stringify({ operation: ticket.operation, petIds: ticket.subjects.petIds,
     temporal: ticket.temporal, predicates: ticket.predicates, outputs: ticket.outputs, coverage: result.coverage,
     recordIds: result.records.map(row => row.id), queryCount: coverage.queryCount, durationMs: Date.now() - started }));
