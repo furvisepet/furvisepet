@@ -80,6 +80,46 @@ function unavailableAskReadPlan(reason: string): AskInterpretation {
     episodeTopic: null, ordinal: null, readOnly: true, clarification: null, frame: emptyProposedSemanticFrame() };
 }
 
+function fastSavedReadbackPlan(context: InterpretationContext): AskInterpretation | null {
+  if (!/^(?:please\s+)?(?:what did i just (?:save|log|record|add)|show me what i just (?:saved|logged|recorded))(?:\s+for\s+[\p{L}\p{M}'’ -]{1,60})?[?.!]*$/iu.test(context.currentMessage.trim())) return null;
+  const priorUsers = context.conversationTurns.filter(turn => turn.role === "user" && turn.id !== context.currentTurn?.id);
+  const source = priorUsers.at(-1);
+  if (!source?.operationReceipt?.records.length) return null;
+  const pet = context.eligiblePets.find(candidate => candidate.user_id === context.owner.userId && candidate.id === source.operationReceipt!.petId);
+  if (!pet?.name) return null;
+  const named = context.eligiblePets.filter(candidate => candidate.user_id === context.owner.userId && candidate.name
+    && new RegExp("(?<![\\p{L}])" + candidate.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?![\\p{L}])", "iu").test(context.currentMessage));
+  if (named.length > 1 || named.length === 1 && named[0].id !== pet.id) return null;
+  return validateAskRequest({
+    version: ASK_REQUEST_VERSION, task: null, temporalScope: "historical", mutationIntent: null, recordSelection: null, profileFields: [],
+    projection: null, evidenceNeeds: [], outputFormat: null, evidenceBasis: "saved_history", premiseQuotes: [], excludedPetNames: [],
+    mode: "read", question: context.currentMessage, requirements: [], referenceTurnIds: [source.id], scope: "named", petNames: [pet.name],
+    operation: "recall", selection: "reference", quantity: null, topic: "saved care history", terms: [], from: null, to: null,
+    episodeTopic: null, ordinal: null, frame: null,
+  }, context);
+}
+
+function fastVetPrepPlan(context: InterpretationContext): AskInterpretation | null {
+  const message=context.currentMessage.trim();
+  if (!/\b(?:checkup|check-up|appointment|visit)\b/i.test(message)
+    || !/\bwhat changed since (?:the )?(?:last|previous) visit\b/i.test(message)
+    || !/\b(?:give me|give|list|suggest|prepare)\s+(?:exactly\s+)?(?:[2-5]|two|three|four|five)\s+questions?\b/i.test(message)
+    || !/\b(?:vet|veterinarian|clinic)\b/i.test(message)) return null;
+  const assertions=analyzeOwnerAssertions(message).assertionSpans;
+  const substantiveAssertions=assertions.filter(span=>!/^\s*(?:i|we)\s+(?:have|have got|got)\s+(?:an?\s+)?(?:checkup|check-up|appointment|visit)\b[^.!?]*[.!]?\s*$/i.test(span.text));
+  if(substantiveAssertions.length) return null;
+  const named=context.eligiblePets.filter(candidate=>candidate.user_id===context.owner.userId && candidate.name
+    && new RegExp("(?<![\\p{L}])"+candidate.name.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(?![\\p{L}])","iu").test(message));
+  if(named.length!==1||!named[0].name) return null;
+  return validateAskRequest({
+    version: ASK_REQUEST_VERSION, task: null, temporalScope: "historical", mutationIntent: null, recordSelection: null, profileFields: [],
+    projection: null, evidenceNeeds: [], outputFormat: null, evidenceBasis: "saved_history", premiseQuotes: [], excludedPetNames: [],
+    mode: "read", question: message, requirements: [], referenceTurnIds: [], scope: "named", petNames: [named[0].name],
+    operation: "overview", selection: "summary", quantity: null, topic: "changes since last visit", terms: [], from: null, to: null,
+    episodeTopic: null, ordinal: null, frame: null,
+  }, context);
+}
+
 function workingMemoryAskPlan(context: InterpretationContext, sourceTurnId: string, sourceText: string): AskInterpretation {
   return {
     version: "ask-interpretation.v1",
@@ -117,6 +157,10 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
   client?: { responses: { create: (request: Record<string, unknown>, options?: { signal: AbortSignal }) => Promise<Record<string, unknown>> } };
 }): Promise<AskInterpretation> {
   if (!context.pendingTask) {
+    const savedReadback = fastSavedReadbackPlan(context);
+    if (savedReadback) return savedReadback;
+    const vetPrep = fastVetPrepPlan(context);
+    if (vetPrep) return vetPrep;
     const workingMemory = resolveWorkingMemoryFollowup(context.currentMessage, context.conversationTurns.map(turn => ({
       id: turn.id,
       role: turn.role,

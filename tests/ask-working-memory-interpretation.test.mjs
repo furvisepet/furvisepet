@@ -55,3 +55,70 @@ test("fresh history question still requires semantic interpretation", async () =
   }));
   assert.equal(calls, 1);
 });
+
+test("immediate saved-note readback bypasses provider interpretation", async () => {
+  let calls = 0;
+  const saveTurn = {
+    id: "save-turn",
+    role: "user",
+    text: "Pebble skipped breakfast. Save that for today.",
+    createdAt: "2026-09-18T20:00:00.000Z",
+    operationReceipt: { sourceMessageId: "save-turn", petId: "pebble", requestText: "Pebble skipped breakfast. Save that for today.", answerPersisted: true,
+      records: [{ id: "row", note: "Pebble skipped breakfast.", occurredAt: "2026-09-18T20:00:00.000Z" }] },
+  };
+  const result = await interpretAskQuestion({
+    context: { ...context, currentMessage: "What did I just save for Pebble?", conversationTurns: [saveTurn],
+      currentTurn: { id: "current-read", role: "user", text: "What did I just save for Pebble?", createdAt: "2026-09-18T20:00:01.000Z" } },
+    model: "test-model",
+    client: { responses: { create: async () => { calls++; throw new Error("provider should not run"); } } },
+  });
+  assert.equal(calls, 0);
+  assert.equal(result.readOnly, true);
+  assert.equal(result.request.evidenceBasis, "saved_history");
+  assert.deepEqual(result.request.referenceTurnIds, ["save-turn"]);
+  assert.deepEqual(result.petIds, ["pebble"]);
+});
+
+test("saved-note shortcut refuses a different named pet", async () => {
+  let calls = 0;
+  const bramble = { id: "bramble", name: "Bramble", user_id: "owner", species: "cat" };
+  const saveTurn = { id: "save-turn", role: "user", text: "Pebble skipped breakfast. Save that for today.", createdAt: "2026-09-18T20:00:00.000Z",
+    operationReceipt: { sourceMessageId: "save-turn", petId: "pebble", requestText: "Pebble skipped breakfast. Save that for today.", answerPersisted: true,
+      records: [{ id: "row", note: "Pebble skipped breakfast.", occurredAt: "2026-09-18T20:00:00.000Z" }] } };
+  await assert.rejects(interpretAskQuestion({
+    context: { ...context, eligiblePets: [...context.eligiblePets, bramble], currentMessage: "What did I just save for Bramble?", conversationTurns: [saveTurn],
+      currentTurn: { id: "current-read", role: "user", text: "What did I just save for Bramble?", createdAt: "2026-09-18T20:00:01.000Z" } },
+    model: "test-model",
+    client: { responses: { create: async () => { calls++; throw new Error("expected provider path"); } } },
+  }));
+  assert.equal(calls, 1);
+});
+
+test("pre-vet changed-since-last-visit request bypasses provider interpretation", async () => {
+  let calls = 0;
+  const question="I have a checkup for Pebble on Friday. From my notes, what changed since the last visit, and give me 3 questions for the vet. Don't diagnose.";
+  const result=await interpretAskQuestion({
+    context:{...context,currentMessage:question,currentTurn:{id:"vet-prep",role:"user",text:question,createdAt:"2026-09-18T20:00:03.000Z"}},
+    model:"test-model",
+    client:{responses:{create:async()=>{calls++;throw new Error("provider should not run");}}},
+  });
+  assert.equal(calls,0);
+  assert.equal(result.readOnly,true);
+  assert.equal(result.request.evidenceBasis,"saved_history");
+  assert.equal(result.operation,"overview");
+  assert.deepEqual(result.petIds,["pebble"]);
+  assert.deepEqual(result.request.referenceTurnIds,[]);
+  assert.equal(result.history.from,null);
+  assert.equal(result.history.to,null);
+});
+
+test("pre-vet shortcut does not swallow a new health observation", async () => {
+  let calls=0;
+  const question="Pebble vomited today. I have a checkup for Pebble on Friday. From my notes, what changed since the last visit, and give me 3 questions for the vet.";
+  await assert.rejects(interpretAskQuestion({
+    context:{...context,currentMessage:question,currentTurn:{id:"mixed",role:"user",text:question,createdAt:"2026-09-18T20:00:04.000Z"}},
+    model:"test-model",
+    client:{responses:{create:async()=>{calls++;throw new Error("expected provider path");}}},
+  }));
+  assert.equal(calls,1);
+});
