@@ -16,7 +16,7 @@ export type OwnerNoteRequest = {
 
 export function resolveOwnerNoteRequest(input: {
   message: string; mode?: "note"; pet: { id: string; name: string | null };
-  pets: Array<{ id: string; name: string | null }>; timeZone?: string;
+  pets: Array<{ id: string; name: string | null }>; timeZone?: string; sourceRecordedAt?: string;
 }): OwnerNoteRequest | null {
   const text = input.message.trim();
   if (!text || ownerDeclinesPersistence(text)) return null;
@@ -51,7 +51,7 @@ export function resolveOwnerNoteRequest(input: {
     authorizationEvidence = authorization;
   }
 
-  const time = explicitNoteTime(text, input.timeZone);
+  const time = explicitNoteTime(text, input.timeZone, input.sourceRecordedAt);
   const split = authorizationSource === "current_turn" ? splitOwnerNoteAndCompanion(text, authorizationEvidence) : { note: text, companionQuestion: null };
   const noteText = split.note || stripStandaloneSaveDirective(text);
   if (!noteText) return null;
@@ -101,14 +101,15 @@ export function explicitNoteTime(text: string, timeZone?: string, sourceRecorded
   const unknown = { occurredAt: null, explicitTime: null };
   const dates = [...text.matchAll(/\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}\b|\b\d{4}-\d{2}-\d{2}\b/gi)];
   if (!dates.length && sourceRecordedAt && Number.isFinite(Date.parse(sourceRecordedAt))) {
-    const relative = [...text.matchAll(/\b(yesterday|today)\b/gi)];
+    const relative = [...text.matchAll(/\b(yesterday|today|tonight|this morning|this afternoon|this evening)\b/gi)];
     if (relative.length === 1) {
       const zone = resolveAskTimeZone(timeZone);
       const parts = new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(sourceRecordedAt));
       const part = (type: string) => parts.find(item => item.type === type)?.value;
       const day = new Date(`${part('year')}-${part('month')}-${part('day')}T00:00:00.000Z`);
       day.setUTCDate(day.getUTCDate() - (relative[0][0].toLowerCase() === 'yesterday' ? 1 : 0));
-      return { occurredAt: calendarBoundaryToInstant(day.toISOString(), zone), explicitTime: relative[0][0] };
+      const calendarDate = day.toISOString().slice(0, 10);
+      return { occurredAt: calendarBoundaryToInstant(calendarDate + "T00:00:00.000Z", zone), explicitTime: calendarDate };
     }
   }
   if (dates.length !== 1) return unknown;

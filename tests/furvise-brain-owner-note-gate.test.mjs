@@ -83,3 +83,21 @@ test("exact live Cedar dinner mixed save is recognized and split",()=>{
   assert.equal(note.companionQuestion,"tell me Cedar's last two weights and whether this note includes a weight.");
   assert.equal(note.needsAnswer,true);
 });
+
+test("relative owner-note dates become real calendar dates when the request timestamp is known",()=>{
+  const cedar={id:"cedar",name:"Cedar"};
+  for (const phrase of ["today","this morning","this afternoon","this evening","tonight"]) {
+    const note=resolveOwnerNoteRequest({
+      message:`Cedar ate normally ${phrase}. Save this note.`,
+      pet:cedar,pets:[cedar],timeZone:"America/Vancouver",sourceRecordedAt:"2026-09-19T07:04:12.000Z"
+    });
+    assert.ok(note, phrase);
+    assert.equal(note.explicitTime,"2026-09-19",phrase);
+    assert.ok(note.occurredAt, phrase);
+  }
+  const yesterday=resolveOwnerNoteRequest({
+    message:"Cedar ate normally yesterday. Save this note.",
+    pet:cedar,pets:[cedar],timeZone:"America/Vancouver",sourceRecordedAt:"2026-09-19T07:04:12.000Z"
+  });
+  assert.equal(yesterday.explicitTime,"2026-09-18");
+});

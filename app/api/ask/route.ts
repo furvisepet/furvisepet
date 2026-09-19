@@ -431,7 +431,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
 
   let ownerNote: ReturnType<typeof resolveOwnerNoteRequest>;
   try { ownerNote = petId !== "all" ? resolveOwnerNoteRequest({
-    message: question, mode: noteMode, pet: profiles[0], pets: await ownedNoteSubjects(), timeZone: resolveAskTimeZone(aiCreditPayload.timeZone),
+    message: question, mode: noteMode, pet: profiles[0], pets: await ownedNoteSubjects(), timeZone: resolveAskTimeZone(aiCreditPayload.timeZone), sourceRecordedAt: new Date().toISOString(),
   }) : null; } catch { return askFailure("DATABASE_ERROR", "Pet details could not be checked. Please try again.", 503); }
   async function ownedNoteSubjects() {
     // Natural language may name another pet. Read the complete owned subject set
