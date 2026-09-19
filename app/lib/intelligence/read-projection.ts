@@ -364,6 +364,75 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
     return parseHistoryNarrative({ sentences }) || null;
   }
 
+  // Pre-vet prep is a core V1 read: once semantic interpretation has resolved
+  // one pet and a historical+current saved-history scope, compile the answer
+  // from grounded records instead of paying for a second writer and a third
+  // verifier. The interpretation model still owns ambiguous language/scope.
+  const preVetRead = /\b(?:checkup|check-up|appointment|visit)\b/i.test(requestText)
+    && /\bwhat changed since (?:the )?(?:last|previous) visit\b/i.test(requestText)
+    && /\b(?:give me|give|list|suggest|prepare)\s+(?:exactly\s+)?(?:[2-5]|two|three|four|five)\s+questions?\b/i.test(requestText)
+    && /\b(?:vet|veterinarian|clinic)\b/i.test(requestText);
+  if (preVetRead && evidence.scope.readOnlyRecall && request?.mode === "read" && request.evidenceBasis === "saved_history"
+    && request.temporalScope === "historical_and_current" && evidence.scope.authorizedPetIds.length === 1
+    && evidence.history?.corrections !== "unavailable" && (!request.outputFormat || request.outputFormat === "prose")) {
+    const petId=evidence.scope.authorizedPetIds[0];
+    const sourceTime=(source:ReturnType<typeof eligibleAnswerSources>[number])=>{
+      const recorded="recordedAt" in source ? source.recordedAt : null;
+      const value=recorded && Number.isFinite(Date.parse(recorded)) ? recorded : source.occurredAt;
+      return value && Number.isFinite(Date.parse(value)) ? Date.parse(value) : Number.NEGATIVE_INFINITY;
+    };
+    const care=eligibleAnswerSources(evidence).filter(source=>source.petId===petId && source.sourceType==="care_update")
+      .sort((a,b)=>sourceTime(b)-sourceTime(a));
+    const distinct:Array<{source:typeof care[number];detail:string}>=[];
+    const seen=new Set<string>();
+    for(const source of care){
+      const detail=(displayCareNoteBody(source.text)||source.text.trim()).replace(/\s+/g," ").trim();
+      const key=detail.toLocaleLowerCase();
+      if(!detail||seen.has(key)) continue;
+      seen.add(key); distinct.push({source,detail});
+    }
+    if(distinct.length>=2){
+      const latest=distinct[0];
+      const urgent=/\b(?:difficulty breathing|trouble breathing|collapse[ds]?|unconscious|seizure|poison(?:ed|ing)?|heavy bleeding|unable to urinate|cannot urinate)\b/i;
+      if(!urgent.test(latest.detail)){
+        const visit=distinct.slice(1).find(row=>{
+          const title=evidence.recordTitles?.[row.source.sourceId] || "";
+          return /\b(?:visit|wellness|checkup|check-up|exam|veterinary|veterinarian|clinic)\b/i.test(title+" "+row.source.text);
+        });
+        const previous=visit || distinct[1], zone=evidence.timeZone || "UTC";
+        const dateOf=(row:typeof latest)=>{
+          const recorded="recordedAt" in row.source ? row.source.recordedAt : null;
+          return humanDate(row.source.occurredAt || recorded || null,zone);
+        };
+        const latestDate=dateOf(latest), previousDate=dateOf(previous);
+        const base=visit
+          ? `The last recorded visit I found is from ${previousDate}. The newer ${latestDate === "date not recorded" ? "saved" : latestDate} note adds: ${latest.detail}`
+          : `I didn't find a separate visit label in the retrieved notes, so I'm comparing with the previous saved note from ${previousDate}. The newer ${latestDate === "date not recorded" ? "saved" : latestDate} note adds: ${latest.detail}`;
+        const context=`The earlier note said: ${previous.detail}`;
+        const countToken=/\b(?:give me|give|list|suggest|prepare)\s+(?:exactly\s+)?(\d+|two|three|four|five)\s+questions?\b/i.exec(requestText)?.[1]?.toLowerCase() || "3";
+        const countWords:Record<string,number>={two:2,three:3,four:4,five:5};
+        const count=Math.min(5,Math.max(2,Number(countToken)||countWords[countToken]||3));
+        const templates:string[]=[];
+        if(/\b(?:appetite|eat|eating|food|meal|breakfast|dinner)\b/i.test(latest.detail))
+          templates.push("Is the appetite change in the newer note something you want me to keep tracking before the visit?");
+        if(/\b(?:activity|walk|slower|energy|play|exercise)\b/i.test(latest.detail))
+          templates.push("Is the activity change in the newer note something you want me to track more closely before the visit?");
+        templates.push("What details would be most useful to record if any of these changes happen again?");
+        templates.push("What changes would make you want me to call sooner rather than wait for the appointment?");
+        templates.push("Would a short log of meals, activity, or symptoms be useful to bring to the visit?");
+        const questions=[...new Set(templates)].slice(0,count);
+        const sourceIds=[...new Set([latest.source.sourceId,previous.source.sourceId])];
+        const sentences=[
+          {text:base,sourceIds,calculations:[]},
+          {text:context,sourceIds:[previous.source.sourceId],calculations:[]},
+          {text:"Questions for the vet:",sourceIds,calculations:[]},
+          ...questions.map((text,index)=>({text:`${index+1}. ${text}`,sourceIds,calculations:[]})),
+        ];
+        return parseHistoryNarrative({sentences}) || null;
+      }
+    }
+  }
+
   // A thin-file food question should still return the one saved food detail
   // we can verify. An unsupported comparison premise must not erase useful
   // evidence or promote an old food note into a current-profile fact.

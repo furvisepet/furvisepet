@@ -111,3 +111,35 @@ test('food recall with several historical notes uses the latest relevant note an
   assert.match(t,/I don't see a food note for Bramble from .*can't confirm a food switch from last month/i);
   assert.doesNotMatch(t,/turkey wet-food routine|Partial answer|couldn.t complete every part/i);
 });
+
+test('V1 pre-vet read compiles recent change and requested vet questions from grounded notes',()=>{
+  const q="I have a checkup for Aster on Friday. From my notes, what changed since the last visit, and give me 3 questions for the vet. Don't diagnose.";
+  const e=evidence(q,['2026-01-15','2026-09-18'],[
+    ['Aster weighed 30.05 kg. Annual wellness visit recorded stable appetite, normal activity for age, and no new ongoing concern.',0,0,0,0],
+    ['Aster skipped breakfast but ate dinner fine. A bit slower on the evening walk.',0,0,0,0],
+  ],['aster']);
+  e.interpretation.operation='overview';
+  e.interpretation.request.operation='overview';
+  e.interpretation.request.selection='summary';
+  e.interpretation.request.temporalScope='historical_and_current';
+  e.recordTitles={'care:aster:2026-01-15':'Annual wellness visit'};
+  const p=deterministicReadProjection(e);assert.ok(p);
+  const t=p.sentences.map(s=>s.text).join('\n');
+  assert.match(t,/last recorded visit I found is from Jan 15, 2026/i);
+  assert.match(t,/skipped breakfast but ate dinner fine/i);
+  assert.match(t,/slower on the evening walk/i);
+  assert.match(t,/Questions for the vet:/);
+  assert.equal(p.sentences.filter(s=>/^\d+\./.test(s.text)).length,3);
+  assert.doesNotMatch(t,/diagnos|2018/);
+});
+
+test('V1 pre-vet deterministic read declines urgent latest history',()=>{
+  const q="I have a checkup for Aster on Friday. From my notes, what changed since the last visit, and give me 3 questions for the vet. Don't diagnose.";
+  const e=evidence(q,['2026-01-15','2026-09-18'],[
+    ['Aster weighed 30.05 kg. Annual wellness visit recorded stable appetite and normal activity.',0,0,0,0],
+    ['Aster had difficulty breathing and collapsed.',0,0,0,0],
+  ],['aster']);
+  e.interpretation.operation='overview';e.interpretation.request.operation='overview';e.interpretation.request.selection='summary';
+  e.interpretation.request.temporalScope='historical_and_current';e.recordTitles={'care:aster:2026-01-15':'Annual wellness visit'};
+  assert.equal(deterministicReadProjection(e),null);
+});
