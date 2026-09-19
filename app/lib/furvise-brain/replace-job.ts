@@ -1,0 +1,69 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { ModelApplicationAction } from "../application-actions/types.ts";
+
+export const replaceJobSchema = {
+  anyOf: [{ type: "null" }, { type: "object", additionalProperties: false,
+    required: ["operation", "target", "petName", "instructionQuote", "bodyQuote"],
+    properties: {
+      operation: { type: "string", enum: ["replace"] },
+      target: { type: "string", enum: ["last_event_for_subject"] },
+      petName: { type: "string", minLength: 1, maxLength: 100 },
+      instructionQuote: { type: "string", minLength: 1, maxLength: 1600 },
+      bodyQuote: { type: "string", minLength: 1, maxLength: 1600 },
+    } }],
+};
+
+/** A source-bound semantic proposal, not permission to execute a capability. */
+export type ReplaceJob = Readonly<{
+  operation: "replace";
+  target: "last_event_for_subject";
+  petId: string;
+  sourceMessageId: string;
+  asOf: string;
+  body: Readonly<{ start: number; end: number; text: string }>;
+}>;
+
+export function validateReplaceJob(value: unknown, source: { id: string; text: string; createdAt: string },
+  subject: { id: string; name: string }) : ReplaceJob {
+  const fail = (): never => { throw new Error("ASK_REQUEST_INVALID:write_job"); };
+  if (!value || typeof value !== "object" || Array.isArray(value)) return fail();
+  const p = value as Record<string, unknown>;
+  if (Object.keys(p).sort().join() !== "bodyQuote,instructionQuote,operation,petName,target"
+    || p.operation !== "replace" || p.target !== "last_event_for_subject"
+    || p.petName !== subject.name || p.instructionQuote !== source.text.trim()
+    || typeof p.bodyQuote !== "string" || !p.bodyQuote.trim() || p.bodyQuote.length > 1600
+    || !source.id || !subject.id || !Number.isFinite(Date.parse(source.createdAt))) return fail();
+  const start = source.text.indexOf(p.bodyQuote);
+  if (start < 0 || source.text.indexOf(p.bodyQuote, start + 1) >= 0) return fail();
+  return Object.freeze({ operation: "replace", target: "last_event_for_subject", petId: subject.id,
+    sourceMessageId: source.id, asOf: source.createdAt,
+    body: Object.freeze({ start, end: start + p.bodyQuote.length, text: source.text.slice(start, start + p.bodyQuote.length) }) });
+}
+
+/** Resolve the typed selector against owned effective state, never answer text.
+ * The source-turn cutoff prevents a later concurrent append becoming the target. */
+export async function resolveReplaceJob(job: ReplaceJob, supabase: SupabaseClient, userId: string) {
+  const { data, error } = await supabase.from("pet_care_entries").select("id")
+    .eq("user_id", userId).eq("pet_profile_id", job.petId).is("deleted_at", null)
+    .lte("created_at", job.asOf).order("created_at", { ascending: false })
+    .order("id", { ascending: false }).limit(1).maybeSingle<{ id: string }>();
+  if (error) throw new Error("REPLACE_TARGET_UNAVAILABLE");
+  if (!data) throw new Error("REPLACE_TARGET_MISSING");
+  const target = { id: `care:${data.id}`, petId: job.petId, sourceType: "care_update" as const };
+  const proposal: ModelApplicationAction = { kind: "care_history.edit", targetSourceId: target.id,
+    input: { field: null, value: null, title: null, detail: job.body.text, category: null, target: "specified" },
+    evidence: job.body.text, explicitIntent: false };
+  return { target, proposal };
+}
+
+/** Diagnostics preserve proposed semantics without copying patient text into logs.
+ * Source spans can be reconstructed from the durable user message. */
+export function brainProposalDiagnostic(value: unknown, sourceMessageId?: string) {
+  const p = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  const task = p.task && typeof p.task === "object" ? p.task as Record<string, unknown> : {};
+  const job = p.writeJob && typeof p.writeJob === "object" ? p.writeJob as Record<string, unknown> : {};
+  return { sourceMessageId, mode: p.mode, operation: p.operation, mutationIntent: p.mutationIntent,
+    taskIntent: task.intent ?? null, evidenceBasis: p.evidenceBasis,
+    writeJob: p.writeJob ? { operation: job.operation, target: job.target,
+      bodyLength: typeof job.bodyQuote === "string" ? job.bodyQuote.length : null } : null };
+}
