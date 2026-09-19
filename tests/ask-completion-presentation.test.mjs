@@ -5,7 +5,7 @@ const base={title:'Furvise',summary:'The available notes describe a change.',sec
 test('settled partial answers retain a visible and copied notice after persistence reload',()=>{
  const stored=JSON.parse(JSON.stringify({...base,turn:{finalStage:'COMPLETED',answerOutcome:'limited',creditState:'released'}}));
  const parsed=parseAskConversationResponse(stored);
- assert.match(parsed.completionNotice,/Partial answer/);
+ assert.equal(parsed.completionNotice,'I could only verify part of this from the saved records.');
  assert.equal(parsed.summary,base.summary);assert.equal(parsed.directAnswer,base.summary);
  assert.ok(formatAskResponsePlainText(parsed).includes(parsed.completionNotice));
 });
@@ -17,6 +17,13 @@ test('model-style labels and unsettled outcomes cannot create a completion notic
 test('completion status does not rewrite exact source text, JSON, or urgent guidance',()=>{
  for(const summary of ['"Owner note, exactly as stored."','{"records":[]}','Contact an emergency veterinarian now.']){
   const parsed=parseAskConversationResponse({...base,summary,turn:{finalStage:'COMPLETED',answerOutcome:'limited'}});
-  assert.equal(parsed.summary,summary);assert.match(parsed.completionNotice,/couldn’t verify/);
+  assert.equal(parsed.summary,summary);assert.equal(parsed.completionNotice,'I could only verify part of this from the saved records.');
  }
+});
+
+test('a limited answer that already names the missing evidence does not get a second warning',()=>{
+ const summary="I don't see a food note from last month, so I can't confirm a switch.";
+ const parsed=parseAskConversationResponse({...base,summary,turn:{finalStage:'COMPLETED',answerOutcome:'limited'}});
+ assert.equal(parsed.completionNotice,undefined);
+ assert.equal(parsed.summary,summary);
 });

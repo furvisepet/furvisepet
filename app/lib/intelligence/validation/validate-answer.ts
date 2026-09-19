@@ -50,7 +50,7 @@ export function validateGeneratedAnswer(
   const currentEmergency = urgent && Boolean(detectAskConcernTags(currentSafetyText).length || detectImmediateAskEmergency(currentSafetyText));
   const reviewedHistory = currentEmergency ? null : readReviewedHistoryAnswer(result);
   const partialHistory = currentEmergency || reviewedHistory ? null : readPartialHistoryReview(result);
-  const partialText = partialHistory ? partialHistory.text + "\n\nI couldn’t complete every part of your request. The information above covers the parts I could verify; the remaining parts are incomplete." : null;
+  const partialText = partialHistory ? partialHistory.text : null;
   const response = structuredClone(result);
   const conversationOnly = result.evidenceContract?.interpretation?.conversationOnly === true;
   const preserveFormat = Boolean(result.evidenceContract?.interpretation?.request?.outputFormat);

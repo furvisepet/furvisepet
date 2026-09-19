@@ -363,7 +363,7 @@ test('whole-task rejection retains independently reviewed guidance, never unsupp
  assert.doesNotMatch(readPartialHistoryReview(r)?.text,/confirmed new diagnosis/);
  const checked=validateGeneratedAnswer(r,{...context,currentMessage:r.evidenceContract.scope.requestText},'routine',['a']);
  assert.match(checked.response.answer.summary,/prescribing veterinarian/);
- assert.match(checked.response.answer.summary,/remaining parts are incomplete/);
+ assert.doesNotMatch(checked.response.answer.summary,/remaining parts are incomplete|couldn.t complete every part/i);
  assert.doesNotMatch(checked.response.answer.summary,/confirmed new diagnosis/);
  assert.equal(checked.assessment.checks.taskCompletion,'failed');
  assert.equal(readReviewedHistoryAnswer(checked.response),null);

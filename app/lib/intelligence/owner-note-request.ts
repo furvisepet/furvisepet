@@ -63,10 +63,7 @@ export function resolveOwnerNoteRequest(input: {
 }
 
 export function stripStandaloneSaveDirective(text: string) {
-  const sentences = splitSentencesPreservingFacts(text);
-  const kept = sentences.filter(sentence => !/^(?:please\s+)?(?:save|log|record|remember|add)\s+(?:(?:that|this)\s+note|that|this|it)(?:\s+(?:for|as)\s+(?:today|tonight|tomorrow|the note|a note))?[.!]?$/i.test(sentence.trim())
-    && !/^(?:please\s+)?(?:save|log|record|remember|add)\s+(?:(?:that|this)\s+note|that|this|it)[.!]?$/i.test(sentence.trim()));
-  return kept.join(" ").trim();
+  return text.replace(/\s*(?:please\s+)?(?:save|log|record|remember|add)\s+(?:(?:that|this)\s+note|that|this|it)(?:\s+(?:for|as)\s+(?:today|tonight|tomorrow|the\s+note|a\s+note))?[.!?]?\s*$/i, "").trim();
 }
 
 function escape(text: string) { return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }

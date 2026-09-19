@@ -102,7 +102,8 @@ export function parseAskConversationResponse(value) {
     // Completion is settled by the server, not inferred from fluent prose.
     // Keep this product status outside the reviewed body and structured data.
     ...(draft.turn?.finalStage === "COMPLETED" && draft.turn.answerOutcome === "limited"
-      ? { completionNotice: "Partial answer: I couldn’t verify everything you asked about." } : {}),
+      && !/\b(?:can['’]?t|cannot|couldn['’]?t|could not|don['’]?t see|do not see|not recorded|not in (?:the )?(?:file|notes?|records?)|missing|does not tell me|not enough (?:information|history|records?))\b/i.test(response.summary)
+      ? { completionNotice: "I could only verify part of this from the saved records." } : {}),
     supportingText: typeof draft.supportingText === "string" ? cleanText(draft.supportingText) : null,
     suggestedQuestions,
     actions,
