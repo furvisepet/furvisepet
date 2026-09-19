@@ -24,6 +24,12 @@ const matches = (row: CareEntryRow, concept: string) => {
   const needle = normalized(concept);
   return !!needle && (` ${normalized(`${row.title || ""} ${row.note || ""}`)} `).includes(` ${needle} `);
 };
+// An anchor concept is a conjunction of literal normalized terms, not an
+// exact quotation. This accepts intervening words without a domain word list.
+const matchesAnchor = (row: CareEntryRow, concept: string) => {
+  const terms = normalized(concept).split(" ").filter(Boolean);
+  return terms.length > 0 && terms.every(term => matches(row, term));
+};
 const chronological = (a: CareEntryRow, b: CareEntryRow) => Date.parse(a.occurred_at) - Date.parse(b.occurred_at)
   || Date.parse(a.created_at) - Date.parse(b.created_at) || a.id.localeCompare(b.id);
 
@@ -75,7 +81,7 @@ export async function retrieveReadTicket(ticket: ReadTicket, scope: ReadScope, s
       let anchorTime: number | null = null;
       const anchor = ticket.temporal.anchor;
       if (anchor) {
-        const anchors = rows.filter(row => row.pet_profile_id === petId && matches(row, anchor.concept));
+        const anchors = rows.filter(row => row.pet_profile_id === petId && matchesAnchor(row, anchor.concept));
         // A partial scan cannot certify which anchor is intended. Ambiguity
         // also fails closed; no earliest/latest choice is inferred from prose.
         if (coverage.continuation.length) return result("partial", "anchor_search_not_exhausted");

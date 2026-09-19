@@ -18,7 +18,7 @@ export const readTicketSchema = {
       from: { type: ["string", "null"], description: "ISO instant or null; never invent the date of the anchor." },
       to: { type: ["string", "null"], description: "Exclusive ISO instant or null." },
       anchor: { type: ["object", "null"], additionalProperties: false, required: ["concept", "relation"], properties: {
-        concept: { type: "string", minLength: 1, maxLength: 80, description: "Minimal literal search concept for the event, without pet name or temporal instructions. Code resolves the actual dated event. Never guess its date." },
+        concept: { type: "string", minLength: 1, maxLength: 80, description: "Minimal search concept for the event, without pet name or temporal instructions. Every normalized term must occur in the record; terms need not be adjacent. Code resolves the actual dated event. Never guess its date." },
         relation: { type: "string", enum: ["from", "after", "before"] },
       } },
     } },
