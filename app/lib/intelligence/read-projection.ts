@@ -42,6 +42,24 @@ function profileBodyMeasurement(text: string) {
   const unit = match && units[match[2].toLowerCase()], value = match ? Number(match[1]) : Number.NaN;
   return match && unit && Number.isFinite(value) && value > 0 ? { value, unit, literal: `${match[1]} ${match[2]}` } : null;
 }
+function humanDate(value: string | null | undefined, timeZone: string) {
+  if (!value || !Number.isFinite(Date.parse(value))) return "date not recorded";
+  try { return new Intl.DateTimeFormat("en-US",{month:"short",day:"numeric",year:"numeric",timeZone}).format(new Date(value)); }
+  catch { return new Date(value).toISOString().slice(0,10); }
+}
+function humanDateTime(value: string | null | undefined, timeZone: string) {
+  if (!value || !Number.isFinite(Date.parse(value))) return "save time not recorded";
+  try {
+    const date=humanDate(value,timeZone);
+    const time=new Intl.DateTimeFormat("en-US",{hour:"numeric",minute:"2-digit",timeZone}).format(new Date(value));
+    return `${date} at ${time}`;
+  } catch { return humanDate(value,"UTC"); }
+}
+function careNoteBody(text: string) {
+  const measurement=bodyMeasurement(text); if(!measurement) return text.trim();
+  const start=text.indexOf(measurement.literal); if(start<0) return text.trim();
+  const end=text.indexOf(".",start+measurement.literal.length); return end>=0?text.slice(end+1).trim():text.trim();
+}
 const decimalPlaces = (value: string) => /\.(\d+)/.exec(value)?.[1].length || 0;
 const csv = (cell: string) => /[",\r\n]/.test(cell) ? '"' + cell.replaceAll('"','""') + '"' : cell;
 function quotedSourceHints(text: string) {
@@ -106,7 +124,7 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
       const sourceIds = [past.source.sourceId, present.source.sourceId];
       const changeText = change === 0 ? `no change (0%)` : `${direction} of ${Math.abs(change)} ${target.canonical} (${Math.abs(percent)}%)`;
       return parseHistoryNarrative({sentences:[{
-        text:`${name}'s recorded body weight changed from ${past.measurement.literal} on ${past.source.occurredAt!.slice(0,10)} to the current profile value of ${present.measurement.literal}: ${changeText}.`,
+        text:`${name} went from ${past.measurement.literal} on ${humanDate(past.source.occurredAt,evidence.timeZone || "UTC")} to ${present.measurement.literal} now, ${changeText}.`,
         sourceIds, calculations:[
           {operation:"difference",expression:null,operands:[present,past].map(row => ({sourceId:row.source.sourceId,field:"text" as const,literal:row.measurement.literal})),value:change,unit:target.canonical},
           {operation:"percent_change",expression:null,operands:[past,present].map(row => ({sourceId:row.source.sourceId,field:"text" as const,literal:row.measurement.literal})),value:percent,unit:"%"},
@@ -154,16 +172,16 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
               const selectedText = selected.map(row => `${row.name} ${row.byDay[0][0].measurement.literal}`);
               const text = selected.length
                 ? exactWeights
-                  ? `${selectedText.join(selected.length === 2 ? " and " : ", ")} ${selected.length === 1 ? "was" : "were"} ${threshold[1].toLowerCase()} ${threshold[2]} ${thresholdUnit.canonical} on ${days[0]}.`
-                  : `${selected.map(row => row.name).join(selected.length === 2 ? " and " : ", ")} ${selected.length === 1 ? "was" : "were"} ${threshold[1].toLowerCase()} ${threshold[2]} ${thresholdUnit.canonical} on ${days[0]}.`
-                : `None of the requested pets were ${threshold[1].toLowerCase()} ${threshold[2]} ${thresholdUnit.canonical} on ${days[0]}.`;
+                  ? `${selectedText.join(selected.length === 2 ? " and " : ", ")} ${selected.length === 1 ? "was" : "were"} ${threshold[1].toLowerCase()} ${threshold[2]} ${thresholdUnit.canonical} on ${humanDate(days[0]+"T12:00:00Z",evidence.timeZone || "UTC")}.`
+                  : `${selected.map(row => row.name).join(selected.length === 2 ? " and " : ", ")} ${selected.length === 1 ? "was" : "were"} ${threshold[1].toLowerCase()} ${threshold[2]} ${thresholdUnit.canonical} on ${humanDate(days[0]+"T12:00:00Z",evidence.timeZone || "UTC")}.`
+                : `No pet was ${threshold[1].toLowerCase()} ${threshold[2]} ${thresholdUnit.canonical} on ${humanDate(days[0]+"T12:00:00Z",evidence.timeZone || "UTC")}.`;
               return parseHistoryNarrative({sentences:[{text,sourceIds,calculations:[]}]}) || null;
             }
           }
           if (/\bhighest\b/i.test(requestText) && /\blowest\b/i.test(requestText)) {
             const ordered=[...complete].sort((a,b)=>value(b,0)-value(a,0));
             const highest=ordered[0], lowest=ordered[ordered.length-1];
-            return parseHistoryNarrative({sentences:[{text:`On ${days[0]}, ${highest.name} had the highest recorded weight at ${highest.byDay[0][0].measurement.literal}, and ${lowest.name} had the lowest at ${lowest.byDay[0][0].measurement.literal}.`,
+            return parseHistoryNarrative({sentences:[{text:`On ${humanDate(days[0]+"T12:00:00Z",evidence.timeZone || "UTC")}, ${highest.name} was highest at ${highest.byDay[0][0].measurement.literal}. ${lowest.name} was lowest at ${lowest.byDay[0][0].measurement.literal}.`,
               sourceIds:[highest.byDay[0][0].source.sourceId,lowest.byDay[0][0].source.sourceId],calculations:[]}]}) || null;
           }
         } else {
@@ -174,25 +192,27 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
             ?.toLowerCase().split(/[^a-z]+/).filter(term=>term.length>=4&&!["that","same","recorded","weight"].includes(term));
           if(descriptor?.length){
             const matched=deltas.filter(item=>descriptor.every(term=>item.row.byDay[0][0].source.text.toLowerCase().includes(term)));
-            if(matched.length===1){ const item=matched[0]; return parseHistoryNarrative({sentences:[{text:`${item.row.name} weighed ${item.row.byDay[1][0].measurement.literal} on ${days[1]}, which was ${Math.abs(item.change)} ${target.canonical} ${item.change>=0?"higher":"lower"} than ${item.row.byDay[0][0].measurement.literal} on ${days[0]}.`,sourceIds,calculations:[]}]})||null; }
+            if(matched.length===1){ const item=matched[0]; return parseHistoryNarrative({sentences:[{text:`${item.row.name} weighed ${item.row.byDay[1][0].measurement.literal} on ${humanDate(days[1]+"T12:00:00Z",evidence.timeZone || "UTC")}. That was ${Math.abs(item.change)} ${target.canonical} ${item.change>=0?"higher":"lower"} than ${item.row.byDay[0][0].measurement.literal} on ${humanDate(days[0]+"T12:00:00Z",evidence.timeZone || "UTC")}.`,sourceIds,calculations:[]}]})||null; }
           }
           if(/\bwhich(?:\s+of\b[^.!?]{0,30})?\s+pets?\b/i.test(requestText)&&/\b(?:lost|gained|decreased|increased)\b/i.test(requestText)){
             const wantsLoss=/\b(?:lost|decreased)\b/i.test(requestText);
             let selected=deltas.filter(item=>wantsLoss?item.change<0:item.change>0);
             if(threshold){ const u=units[threshold[2].toLowerCase()]; if(u?.dimension===target.dimension){ const min=Number(threshold[1])*u.scale/target.scale; selected=selected.filter(item=>Math.abs(item.change)>=min); }}
-            const text=selected.length?selected.map(item=>`${item.row.name} ${wantsLoss?"lost":"gained"} weight by ${Math.abs(item.change)} ${target.canonical}`).join(selected.length===2?" and ":", ")+` from ${days[0]} to ${days[1]}.`
-              : `None of the requested pets matched that weight-change condition from ${days[0]} to ${days[1]}.`;
+            const from=humanDate(days[0]+"T12:00:00Z",evidence.timeZone || "UTC"), to=humanDate(days[1]+"T12:00:00Z",evidence.timeZone || "UTC");
+            const text=selected.length?selected.map(item=>`${item.row.name} ${wantsLoss?"lost":"gained"} ${Math.abs(item.change)} ${target.canonical}`).join(selected.length===2?" and ":", ")+` from ${from} to ${to}.`
+              : `No pet matched that weight-change condition from ${from} to ${to}.`;
             return parseHistoryNarrative({sentences:[{text,sourceIds,calculations:[]}]})||null;
           }
           if(/\b(?:largest|greatest|biggest)\b/i.test(requestText)&&/\b(?:increase|gain|change)\b/i.test(requestText)){
             const absolute=/\babsolute\b/i.test(requestText);
             const ranked=[...deltas].sort((a,b)=>(absolute?Math.abs(b.change)-Math.abs(a.change):b.change-a.change));
             const best=ranked[0];
-            if(best) return parseHistoryNarrative({sentences:[{text:`${best.row.name} had the largest ${absolute?"absolute ":""}increase: ${best.change>=0?"+":""}${best.change} ${target.canonical} (${best.row.byDay[0][0].measurement.literal} on ${days[0]} to ${best.row.byDay[1][0].measurement.literal} on ${days[1]}).`,sourceIds,calculations:[]}]})||null;
+            if(best) return parseHistoryNarrative({sentences:[{text:`${best.row.name} had the largest ${absolute?"absolute ":""}increase, gaining ${Math.abs(best.change)} ${target.canonical} from ${best.row.byDay[0][0].measurement.literal} on ${humanDate(days[0]+"T12:00:00Z",evidence.timeZone || "UTC")} to ${best.row.byDay[1][0].measurement.literal} on ${humanDate(days[1]+"T12:00:00Z",evidence.timeZone || "UTC")}.`,sourceIds,calculations:[]}]})||null;
           }
           if(complete.length===2&&/\b(?:how much did each|whose gain|whose change|larger by how much|compare)\b/i.test(requestText)){
             const [a,b]=deltas; const larger=a.change>=b.change?a:b, smaller=larger===a?b:a; const gap=Number(Math.abs(larger.change-smaller.change).toFixed(8));
-            const text=`${a.row.name} changed ${a.change>=0?"+":""}${a.change} ${target.canonical}; ${b.row.name} changed ${b.change>=0?"+":""}${b.change} ${target.canonical}. ${larger.row.name}'s gain was ${gap} ${target.canonical} larger.`;
+            const describe=(item:typeof a)=>`${item.row.name} ${item.change>=0?"gained":"lost"} ${Math.abs(item.change)} ${target.canonical}.`;
+            const text=`${describe(a)} ${describe(b)} ${larger.row.name} gained ${gap} ${target.canonical} more.`;
             return parseHistoryNarrative({sentences:[{text,sourceIds,calculations:[]}]})||null;
           }
         }
@@ -353,22 +373,42 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
       return { name, source: matches[0] };
     });
     if (rows.every(Boolean)) {
-      const complete = rows as Array<{name:string;source:typeof sources[number]}>;
-      const sentences = complete.map(({name,source}) => {
+      const complete = (rows as Array<{name:string;source:typeof sources[number]}>).map(({name,source}) => {
         const weight = bodyMeasurement(source.text);
         const foodChange = /\b(?:food|diet|kibble|wet food|dry food|feeding|meal|treat)\b[^.!?]{0,80}\b(?:changed?|switched?|transition(?:ed)?|replaced?|started|stopped)\b|\b(?:changed?|switched?|transition(?:ed)?|replaced?|started|stopped)\b[^.!?]{0,80}\b(?:food|diet|kibble|feeding|meal)\b/i.test(source.text);
         const lifecycleChange = /\b(?:died|passed away|euthani[sz]ed|put (?:to sleep|down)|marked? deceased|lifecycle status changed)\b/i.test(source.text);
-        const occurred = source.occurredAt?.slice(0,10) || "date not recorded";
         const recordedAt = "recordedAt" in source ? source.recordedAt : null;
-        const saved = recordedAt || "save time not recorded";
-        const text = `${name} — saved ${saved}; dated ${occurred}. ${source.text} Weight in this receipt: ${weight ? weight.literal : "not recorded"}. Food change in this receipt: ${foodChange ? "recorded" : "not recorded"}. Alive-status change in this receipt: ${lifecycleChange ? "recorded" : "not recorded"}.`;
-        return { text: request.outputFormat === "bullets" ? `- ${text}` : text, sourceIds:[source.sourceId], calculations:[] };
+        return { name, source, weight, foodChange, lifecycleChange, detail: careNoteBody(source.text),
+          occurred: humanDate(source.occurredAt || null,evidence.timeZone || "UTC"), saved: humanDateTime(recordedAt,evidence.timeZone || "UTC") };
       });
-      sentences.push({ text: "This uses saved care-history receipts only. It does not use profile defaults, and a value appearing in a receipt is not treated as a current-profile change unless the receipt itself records that change.",
-        sourceIds: complete.map(row=>row.source.sourceId), calculations:[] });
+      const sharedDetail = complete[0].detail && complete.every(row=>row.detail===complete[0].detail) ? complete[0].detail : null;
+      const sharedNoChanges = complete.every(row=>!row.foodChange&&!row.lifecycleChange);
+      const sharedOccurred = complete.every(row=>row.occurred===complete[0].occurred) ? complete[0].occurred : null;
+      const sharedSaved = complete.every(row=>row.saved===complete[0].saved) ? complete[0].saved : null;
+      const sentences = complete.map(row => {
+        const facts=[`${row.name}: ${row.weight ? row.weight.literal : "no weight recorded"}.`];
+        if(!sharedOccurred) facts.push(`Entry dated ${row.occurred}.`);
+        if(!sharedSaved) facts.push(`Saved ${row.saved}.`);
+        if(!sharedDetail&&row.detail) facts.push(row.detail);
+        if(!sharedNoChanges) facts.push(`Food change: ${row.foodChange ? "recorded" : "not recorded"}. Life-status change: ${row.lifecycleChange ? "recorded" : "not recorded"}.`);
+        return { text:facts.join(" "), sourceIds:[row.source.sourceId], calculations:[] };
+      });
+      if(sharedOccurred||sharedSaved){
+        const countWord=["zero","one","two","three","four","five","six","seven","eight","nine","ten"][complete.length]||String(complete.length);
+        const text=sharedOccurred&&sharedSaved
+          ? `All ${countWord} entries are dated ${sharedOccurred} and were saved ${sharedSaved}.`
+          : sharedOccurred ? `All ${countWord} entries are dated ${sharedOccurred}.`
+            : `All ${countWord} entries were saved ${sharedSaved}.`;
+        sentences.push({text,sourceIds:complete.map(row=>row.source.sourceId),calculations:[]});
+      }
+      if (sharedDetail) sentences.push({ text: sharedDetail, sourceIds: complete.map(row=>row.source.sourceId), calculations:[] });
+      if (sharedNoChanges) sentences.push({ text: "None of these latest entries records a food or life-status change.", sourceIds: complete.map(row=>row.source.sourceId), calculations:[] });
+      if (complete.some(row=>row.weight)) sentences.push({ text: "The weights are recorded in the saved entries. The entries do not say that saving them changed the current profile weight.", sourceIds: complete.filter(row=>row.weight).map(row=>row.source.sourceId), calculations:[] });
+      if (/\b(?:profile defaults?|don['’]?t use profile|do not use profile)\b/i.test(requestText)) {
+        sentences.push({ text: "I only used saved care history here. I did not fill in anything from the profile.", sourceIds: complete.map(row=>row.source.sourceId), calculations:[] });
+      }
       if (/\b(?:death record|recorded as deceased)\b/i.test(requestText)) {
-        sentences.push({ text: "A latest-receipt-only lookup does not establish whether an older death record exists; no pet is labeled deceased from an absent lifecycle change in the latest receipt.",
-          sourceIds: complete.map(row=>row.source.sourceId), calculations:[] });
+        sentences.push({ text: "These latest entries do not record a life-status change. This latest-entry check does not tell us whether an older death record exists.", sourceIds: complete.map(row=>row.source.sourceId), calculations:[] });
       }
       return parseHistoryNarrative({sentences}) || null;
     }
@@ -435,9 +475,11 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
       const [first,last] = rows.map(row => row[0]);
       const change = Number(((last.measurement.value * last.measurement.unit.scale - first.measurement.value * first.measurement.unit.scale) / units[requestedUnit].scale).toFixed(8));
       const sourceIds = [first.source.sourceId,last.source.sourceId];
+      const firstDate=humanDate(first.source.occurredAt,evidence.timeZone || "UTC"), lastDate=humanDate(last.source.occurredAt,evidence.timeZone || "UTC");
+      const changeText=change>0?`gained ${Math.abs(change)} ${requestedUnit}`:change<0?`lost ${Math.abs(change)} ${requestedUnit}`:`stayed the same`;
       return parseHistoryNarrative({sentences:[
-        ...[first,last].map(({source}) => ({text:`${name}'s ${source.occurredAt!.slice(0,10)} report: ${JSON.stringify(source.text)}`,sourceIds:[source.sourceId],calculations:[]})),
-        {text:`The recorded body-mass change is ${change} ${requestedUnit} (later minus earlier). This arithmetic alone does not establish a cause.`,sourceIds,
+        {text:`${name} was ${first.measurement.literal} on ${firstDate} and ${last.measurement.literal} on ${lastDate}.`,sourceIds,calculations:[]},
+        {text:`That means ${name} ${changeText}.`,sourceIds,
           calculations:[{operation:"difference",operands:[last,first].map(row => ({sourceId:row.source.sourceId,field:"text",literal:row.measurement.literal})),value:change,unit:requestedUnit}]},
       ]}) || null;
     }

@@ -67,7 +67,7 @@ import { terminalOutcomeSupportedBySurface } from "../intelligence/recovery-gove
 import { modelApplicationActionJsonSchema, parseModelApplicationActions, type ModelApplicationAction } from "../application-actions/index.ts";
 import { buildObservationAssessmentFallback, isUselessQuestionEcho } from "./conversation-intent.ts";
 import { ensureConfirmedLossAction, resolvePetLossContext } from "./pet-loss.ts";
-import { applyAskAnswerEconomy, planAskAnswerDepth, type AskAnswerEconomyPlan } from "./ask-answer-economy.ts";
+import { applyAskAnswerEconomy, normalizeAskVisibleProseSanity, normalizeAskVisibleText, planAskAnswerDepth, type AskAnswerEconomyPlan } from "./ask-answer-economy.ts";
 import { careEvidenceId, evidenceForRecords, representEvidence, eligibleAnswerSources, operationReceiptEvidence, type AskEvidenceContract } from "../intelligence/ask-evidence.ts";
 
 export type AskContextSourceType =
@@ -365,6 +365,11 @@ const unifiedInstructions = [
   "Adapt to the conversational act, not only the pet topic. For emotional disclosure without a request for practical steps, acknowledge the feeling briefly and invite the owner to talk with at most one gentle question. Do not automatically turn vulnerability into a checklist or productivity plan. For worry about being a good owner or missing something, with no specific current symptom or request for steps, use responseMode=conversational and answerSections=[]; offer emotional support instead of an unsolicited monitoring list. Do not suggest one-off symptoms can be ignored. When practical help is requested, give useful steps. Follow requested brevity and formatting when compatible with safety and source fidelity.",
   "For a requested response language, write the entire answer and section headings in that language, not an English explanation with one translated sentence. For missed medication doses without the medicine and its instructions, do not give a generic skip/resume schedule or offer to determine a dose; advise checking the prescription missed-dose instructions or contacting the veterinarian, and do not double a dose without those instructions. The direct answer owns the core interpretation, the most important recommendation, and a brief emotional acknowledgement when useful. Every answerSection must add a new decision, action, explanation, or safety signal that is absent from the direct answer. Maximum section and bullet budgets are ceilings, not targets. Never restate the direct answer in a section.",
   "Put prose only in answer. Do not embed hyphen bullets, dot bullets, or numbered-list markers inside answer text. Put genuine list items only in answerSections.items; otherwise write one natural sentence.",
+  "Write like a knowledgeable person helping another person, not like a report generator. Prefer direct everyday wording, short varied sentences, and natural contractions when they fit. Do not narrate internal reasoning, retrieval mechanics, validation, schemas, evidence contracts, profile defaults, source plumbing, or implementation details unless the user explicitly asks about them.",
+  "Do not use em dashes in visible answers, headings, bullets, safety notes, or follow-ups. Use a period, comma, colon, or parentheses instead. Avoid generic AI-style headings such as Summary, Key takeaways, What this means, Important, or Bottom line unless the user explicitly asks for that structure.",
+  "When several pets share the same finding, say the shared finding once and keep each pet line to the facts that differ. Do not repeat the same disclaimer or label for every pet. Prefer names followed by a colon for compact multi-pet answers.",
+  "Format dates for people, not databases. Use forms such as Sep 15, 2026 or September 15, 2026. Include a clock time only when it matters to the question. Never expose a raw ISO timestamp unless the user explicitly asks for the raw timestamp.",
+  "Translate internal record language into owner-facing language. Prefer saved history, saved entry, current profile, or not recorded over phrases such as current-profile mutation, authoritative boundary, receipt projection, evidence source, retrieval result, or profile defaults. Keep caveats brief and place them next to the fact they qualify.",
   "When answerEconomy.followUpDeltaOnly is true, respond to the newest detail instead of regenerating the earlier explanation. Briefly acknowledge owner emotion when present, then help; do not turn acknowledgement into a therapy paragraph.",
   "Never diagnose. Do not repeat a generic veterinary disclaimer in routine answers.",
   "For clearly casual small talk, mirror mild slang naturally, keep the answer short, and allow a light joke or an occasional single emoji when it fits. Do not invent monitoring, logging, care-plan, or veterinary advice when the content does not warrant it.",
@@ -725,10 +730,14 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   if (projection) {
     const context = projectionContext;
     const evidence = context.promptContext.evidenceContract;
-    const ids = [...new Set(projection.sentences.flatMap(s=>s.sourceIds))];
+    const visibleProjection = { sentences: projection.sentences.map(sentence => ({
+      ...sentence,
+      text: /[\r\n]/.test(sentence.text) ? sentence.text : normalizeAskVisibleText(sentence.text),
+    })) };
+    const ids = [...new Set(visibleProjection.sentences.flatMap(s=>s.sourceIds))];
     return {
-      answer: {title:"Furvise",summary:projection.sentences.map(s=>s.text).join("\n"),sections:[],safetyNote:null}, evidenceContract:evidence,
-      historyNarrative:projection,historyNarrativeDeclined:false,
+      answer: {title:"Furvise",summary:visibleProjection.sentences.map(s=>s.text).join("\n"),sections:[],safetyNote:null}, evidenceContract:evidence,
+      historyNarrative:visibleProjection,historyNarrativeDeclined:false,
       userIntent:"history recall",relevantContextIds:ids,referencedRecords:context.records.filter(record=>ids.includes(record.id)),
       safetyLevel:"normal",shoppingSuppressed:true,suggestedFollowUps:[],applicationActions:[],proposedHistoryUpdate:emptyHistoryUpdate(),
       answerDepth:planAskAnswerDepth({message:input.question,minimumSafetyLevel:"normal",responseMode:"practical_guidance",recentConversation:input.conversationTurns}),
@@ -1023,7 +1032,10 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   if (historicalRead && context.promptContext.evidenceContract.interpretation?.request) {
     const ids = new Set(context.records.map(record => record.id));
     parsed.answer = stripKnownHistoryCitations(parsed.answer, ids);
-    if (parsed.historyNarrative) for (const chunk of parsed.historyNarrative.sentences) chunk.text = stripKnownHistoryCitations(chunk.text, ids);
+    if (parsed.historyNarrative) for (const chunk of parsed.historyNarrative.sentences) {
+      chunk.text = stripKnownHistoryCitations(chunk.text, ids);
+      if (!/[\r\n]/.test(chunk.text)) chunk.text = normalizeAskVisibleText(chunk.text);
+    }
   }
   let answerText = parsed.answer;
   if (profile && isUselessQuestionEcho(input.question, answerText, profile.name || "your pet")) {
@@ -1035,12 +1047,14 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     responseMode: parsed.responseMode,
     recentConversation: input.conversationTurns,
   });
+  const preserveAnswerFormat = Boolean(context.promptContext.evidenceContract.interpretation?.conversationOnly
+    || context.promptContext.evidenceContract.interpretation?.request?.outputFormat);
   let economicalAnswer = applyAskAnswerEconomy({
     summary: answerText,
     sections: parsed.answerSections,
     safetyNote: null,
   }, historicalRead ? { ...answerDepth, followUpDeltaOnly: false } : answerDepth, { previousAssistantText,
-    preserveFormat: Boolean(context.promptContext.evidenceContract.interpretation?.conversationOnly || context.promptContext.evidenceContract.interpretation?.request?.outputFormat),
+    preserveFormat: preserveAnswerFormat,
   });
   if (profile) {
     economicalAnswer = normalizePetVisibleAnswer(economicalAnswer, {
@@ -1050,9 +1064,10 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
       sex: readOptionalString(profile, "sex") || readOptionalString(profile, "gender"),
     }, { reduceNameOveruse: input.profiles.length === 1 });
   }
+  if (!preserveAnswerFormat) economicalAnswer = normalizeAskVisibleProseSanity(economicalAnswer);
   answerText = economicalAnswer.summary;
   parsed.answerSections = economicalAnswer.sections;
-  parsed.suggestedFollowUps = parsed.suggestedFollowUps.slice(0, answerDepth.maxFollowUps);
+  parsed.suggestedFollowUps = parsed.suggestedFollowUps.slice(0, answerDepth.maxFollowUps).map(normalizeAskVisibleText);
   if (historicalRead || context.promptContext.evidenceContract.interpretation?.conversationOnly) parsed.proposedHistoryUpdate = emptyHistoryUpdate();
   try { assertNoInternalReasoningLeak(answerText, context.records); }
   catch (error) {

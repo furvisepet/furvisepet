@@ -31,7 +31,7 @@ test('two-date cohort directional comparison returns every matching pet',()=>{
   const e=evidence(q,['2026-08-15','2026-09-15'],[[30.43,4.88,14.66,6.77,7.17],[30.31,4.71,14.51,6.61,7.01]]);
   const p=deterministicReadProjection(e); assert.ok(p);
   for(const name of names) assert.match(p.sentences[0].text,new RegExp(name));
-  assert.match(p.sentences[0].text,/lost weight/);
+  assert.match(p.sentences[0].text,/Aster lost 0\.12 kg/); assert.match(p.sentences[0].text,/Echo lost 0\.16 kg/); assert.match(p.sentences[0].text,/Aug 15, 2026 to Sep 15, 2026/); assert.doesNotMatch(p.sentences[0].text,/—|lost weight by/);
 });
 
 test('exact-date cohort ranking returns highest and lowest deterministically',()=>{

@@ -30,13 +30,13 @@ test('complex Q2 computes two-pet two-date gains and gap',()=>{
   const q="Compare Aster's and Cedar's weights from January 15, 2024 to September 15, 2026. How much did each gain, and whose gain was larger by how much?";
   const e=evidence(q,['2024-01-15','2026-09-15'],[[28.63,0,13.61,0,0],[30.31,0,14.51,0,0]],['aster','cedar']);
   const p=deterministicReadProjection(e);assert.ok(p);const t=p.sentences[0].text;
-  assert.match(t,/Aster changed \+1\.68 kg/);assert.match(t,/Cedar changed \+0\.9 kg/);assert.match(t,/0\.78 kg larger/);
+  assert.match(t,/Aster gained 1\.68 kg/);assert.match(t,/Cedar gained 0\.9 kg/);assert.match(t,/Aster gained 0\.78 kg more/);assert.doesNotMatch(t,/—|changed \+/);
 });
 test('complex Q6 filters cohort by two-date gain threshold',()=>{
   const q='Between September 15, 2024 and September 15, 2026, which of the five pets gained at least 1 kg?';
   const e=evidence(q,['2024-09-15','2026-09-15'],[[29.10,4.61,13.88,6.37,6.75],[30.31,4.71,14.51,6.61,7.01]]);
   const p=deterministicReadProjection(e);assert.ok(p);const t=p.sentences[0].text;
-  assert.match(t,/Aster gained weight by 1\.21 kg/);assert.doesNotMatch(t,/Bramble|Cedar|Dune|Echo/);
+  assert.match(t,/Aster gained 1\.21 kg from Sep 15, 2024 to Sep 15, 2026/);assert.doesNotMatch(t,/Bramble|Cedar|Dune|Echo|—/);
 });
 test('complex Q7 returns source details instead of generic matched-detail copy',()=>{
   const q='At the September 15, 2023 records, which pet had a dental cleaning, what food was used that evening, and what was resumed the next day?';
@@ -50,7 +50,7 @@ test('complex Q7 returns source details instead of generic matched-detail copy',
 test('complex Q9 finds largest absolute increase across five pets',()=>{
   const q='Across all five pets, compare their January 15, 2024 wellness weights with January 15, 2026. Which pet had the largest absolute increase, and what was the increase?';
   const e=evidence(q,['2024-01-15','2026-01-15'],[[28.63,4.50,13.61,6.22,6.59],[30.05,4.82,14.44,6.67,7.06]]);
-  const p=deterministicReadProjection(e);assert.ok(p);assert.match(p.sentences[0].text,/Aster.*\+1\.42 kg/);
+  const p=deterministicReadProjection(e);assert.ok(p);assert.match(p.sentences[0].text,/Aster had the largest absolute increase, gaining 1\.42 kg/);assert.match(p.sentences[0].text,/Jan 15, 2024/);assert.doesNotMatch(p.sentences[0].text,/—|\+1\.42/);
 });
 test('complex Q10 resolves descriptor pet from earlier dated evidence and computes later change',()=>{
   const q='For that 2023 dental-cleaning pet, what was the weight on September 15, 2026, and how much higher was it than on September 15, 2023?';

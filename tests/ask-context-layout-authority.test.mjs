@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { applyAskAnswerEconomy, planAskAnswerDepth } from '../app/lib/ai/ask-answer-economy.ts';
+import { applyAskAnswerEconomy, planAskAnswerDepth, normalizeAskVisibleProseSanity } from '../app/lib/ai/ask-answer-economy.ts';
 import { classifyCurrentPetLoss } from '../app/lib/ai/pet-loss.ts';
 
 test('explicit output containers survive low-depth economy without collapsing rows or list items', () => {
@@ -16,4 +16,12 @@ test('quotes do not establish a lifecycle event but an independent genuine repor
   assert.equal(classifyCurrentPetLoss('The article says "a dog died". My cat passed away last night.'),'confirmed_current');
   assert.equal(classifyCurrentPetLoss('My cat passed away last night.'),'confirmed_current');
   assert.equal(classifyCurrentPetLoss('I think my cat may have died.'),'uncertain_current');
+});
+
+test('visible prose house style removes em dashes without changing the factual sentence',()=>{
+  const answer={summary:'Aster — weighed 30.31 kg. It was stable — with no new concern.',sections:[],safetyNote:null};
+  const normalized=normalizeAskVisibleProseSanity(answer);
+  assert.doesNotMatch(normalized.summary,/—/);
+  assert.match(normalized.summary,/Aster: weighed 30\.31 kg/);
+  assert.match(normalized.summary,/stable, with no new concern/);
 });

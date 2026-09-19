@@ -114,6 +114,8 @@ export function normalizeAskListIntegrity<T extends AskEconomyAnswer>(answer: T)
   };
 }
 
+export function normalizeAskVisibleText(value: string) { return repairVisibleProseSyntax(value); }
+
 export function normalizeAskVisibleProseSanity<T extends AskEconomyAnswer>(answer: T): T {
   return {
     ...answer,
@@ -530,6 +532,9 @@ function countBulletIntegrityViolations(answer: AskEconomyAnswer) {
 
 function repairVisibleProseSyntax(value: string) {
   let text = String(value || "");
+  // Furvise house style avoids em dashes in visible copy. A short leading label
+  // reads more naturally with a colon; sentence-internal asides use a comma.
+  text = text.replace(/^([^.!?\n]{1,48})\s+—\s+/u, "$1: ").replace(/\s+—\s+/gu, ", ");
   text = text.replace(
     /\b((?:Over|During)\s+(?:the\s+)?(?:past|last)\s+[^,.;!?]+),\s*(?:she|he|they|it)\s*(?:['\u2019]s|is|are|has|have)\s+((?:[a-z]+ing\b[^.;!?]*?,\s*){2,}[a-z]+ing\b[^.;!?]*?)\s+are\s+(worth|concerning enough for|reasons? for)\b/gi,
     (_match, timePhrase: string, changes: string, predicate: string) => `The combination of ${clean(changes)} ${timePhrase.toLowerCase()} is ${predicate}`,
