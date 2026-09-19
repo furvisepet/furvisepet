@@ -16,7 +16,6 @@ import { emptyProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
 import type { ProposedSemanticFrame } from "./semantic-frame/types.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import { ASK_REQUEST_INSTRUCTIONS, ASK_REQUEST_VERSION, askRequestSchema, validateAskRequest, type AskRequestContract } from "./ask-request-contract.ts";
-import { parseSinceAnchorRead } from "./history-anchor-read.ts";
 
 type Operation = "overview" | "recall" | "count" | "comparison" | "status" | "episode" | "general" | "update" | "clarify";
 export type AskInterpretation = {
@@ -128,21 +127,6 @@ function fastLatestSavedWeightPlan(context: InterpretationContext): AskInterpret
   },context);
 }
 
-function fastSinceAnchorReadPlan(context: InterpretationContext): AskInterpretation | null {
-  const message=context.currentMessage.trim();
-  const pet=exactlyNamedOwnedPet(context);
-  if(!pet?.name || analyzeOwnerAssertions(message).hasOwnerAssertion) return null;
-  const anchor=parseSinceAnchorRead(message,[pet.name]);
-  if(!anchor) return null;
-  return validateAskRequest({
-    version:ASK_REQUEST_VERSION,task:null,temporalScope:"historical",mutationIntent:null,recordSelection:null,profileFields:[],
-    projection:null,evidenceNeeds:[],outputFormat:null,evidenceBasis:"saved_history",premiseQuotes:[],excludedPetNames:[],
-    mode:"read",question:message,requirements:[],referenceTurnIds:[],scope:"named",petNames:[pet.name],
-    operation:"recall",selection:"summary",quantity:"records",topic:anchor.topicTerms.join(" "),terms:anchor.topicTerms.slice(0,6),from:null,to:null,
-    episodeTopic:null,ordinal:null,frame:null,
-  },context);
-}
-
 function fastSavedReadbackPlan(context: InterpretationContext): AskInterpretation | null {
   if (!/^(?:please\s+)?(?:what did i just (?:save|log|record|add)|show me what i just (?:saved|logged|recorded))(?:\s+for\s+[\p{L}\p{M}'’ -]{1,60})?[?.!]*$/iu.test(context.currentMessage.trim())) return null;
   const priorUsers = context.conversationTurns.filter(turn => turn.role === "user" && turn.id !== context.currentTurn?.id);
@@ -204,8 +188,6 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     if (completedNoteWeightRead) return completedNoteWeightRead;
     const latestWeight = fastLatestSavedWeightPlan(context);
     if (latestWeight) return latestWeight;
-    const anchoredRead = fastSinceAnchorReadPlan(context);
-    if (anchoredRead) return anchoredRead;
     const savedReadback = fastSavedReadbackPlan(context);
     if (savedReadback) return savedReadback;
     const workingMemory = resolveWorkingMemoryFollowup(context.currentMessage, context.conversationTurns.map(turn => ({

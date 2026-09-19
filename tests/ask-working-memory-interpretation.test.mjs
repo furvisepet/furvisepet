@@ -108,17 +108,14 @@ test("latest named saved-history weight bypasses provider interpretation",async(
   assert.deepEqual(result.petIds,["pebble"]);
 });
 
-test("since-event named history read bypasses provider interpretation",async()=>{
+test("since-event named history read reaches Brain instead of a phrase shortcut",async()=>{
   let calls=0;
   const q="Since Pebble's dental, what did I write about eating or food? Don't guess months I didn't log.";
-  const result=await interpretAskQuestion({
+  await assert.rejects(interpretAskQuestion({
     context:{...context,currentMessage:q,currentTurn:{id:"since-anchor",role:"user",text:q,createdAt:"2026-09-18T23:00:01.000Z"}},
-    model:"test-model",client:{responses:{create:async()=>{calls++;throw new Error("provider should not run");}}},
-  });
-  assert.equal(calls,0);
-  assert.equal(result.request.evidenceBasis,"saved_history");
-  assert.equal(result.selection,"summary");
-  assert.deepEqual(result.petIds,["pebble"]);
+    model:"test-model",client:{responses:{create:async()=>{calls++;throw new Error("expected provider path");}}},
+  }));
+  assert.equal(calls,1);
 });
 
 test("explicit profile weight does not use the saved-history latest-weight shortcut",async()=>{
