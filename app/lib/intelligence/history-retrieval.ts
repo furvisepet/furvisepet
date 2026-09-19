@@ -21,12 +21,13 @@ import type { FurviseLiveContext } from "./types.ts";
 import { askEvidenceScope, careEvidenceId, type Completeness } from "./ask-evidence.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import { resolveEffectiveClaimGraph, type RebuildClaim, type RebuildRelation } from "./v2/projections/rebuild.ts";
-import { parseSinceAnchorRead } from "./history-anchor-read.ts";
+import { retrieveReadTicket, type ReadCoverage } from "../furvise-brain/lungs.ts";
 
 export const HISTORY_BUDGET = { pageSize: 25, pagesPerPet: 4, totalPages: 20, candidateRows: 64, pets: ASK_HISTORY_MAX_PETS, graphCalls: 6, graphRows: 128, records: 32, chars: 18000, timeMs: 5000 } as const;
 type Cursor = { petId: string; occurredAt: string; id: string };
 export type HistoryPlan = { from: string | null; to: string | null; terms: string[]; interpretation: "period" | "lexical" | "broad_comparison" };
 export type HistoryCoverage = {
+  ticketCoverage?: ReadCoverage;
   periods?: Array<{ petId: string; from: string; to: string; candidateIds: string[]; exhausted: boolean }>;
   /** True only when every server-owned bounded context need exhausted its full
    * authorized window for every applicable pet. This may raise prompt capacity
@@ -116,6 +117,7 @@ function isHistoricalRecall(message: string) {
  * generation callback. Recent safety context is retained separately. */
 export async function retrieveAskHistory(context: FurviseLiveContext, db: SupabaseClient, petIds: string[], vetBriefRead?: { plan: HistoryPlan; termGroups: string[][]; periodFrom?: string | null; periodTo?: string | null }): Promise<FurviseLiveContext> {
   if (vetBriefRead && context.feature !== "vet_brief") throw new Error("vet_brief_read_scope_required");
+  if (!vetBriefRead && context.askInterpretation?.request?.readTicket) return retrieveTicketHistory(context, db, petIds);
   context = { ...context, recordInventory: await readRecordInventory(context, db) };
   const authorizedComparisonPets = new Set(petIds.filter(id => context.eligiblePets.some(pet => pet.id === id && pet.user_id === context.owner.userId)));
   const proposedPlan = vetBriefRead?.plan ?? (context.askInterpretation ? context.askInterpretation.history : planHistoricalQuery(context.currentMessage, authorizedComparisonPets.size > 1));
@@ -205,81 +207,6 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     });
     coverage.requiredSourceIds = chosen.map(row => careEvidenceId(row.id, coverage));
     return { ...context, askHistory: { coverage, entries: chosen, originals: candidates } };
-  }
-  const sinceAnchorRead = sharedRead && ids.length === 1
-    ? parseSinceAnchorRead(context.currentMessage, context.eligiblePets.map(pet => pet.name || ""))
-    : null;
-  if (sinceAnchorRead) {
-    const petId = ids[0];
-    const rowText = (row: CareEntryRow) => [row.title || "", row.note || ""].join(" ").trim();
-    const accessibleFrom = context.historyAccess?.from || "1900-01-01T00:00:00.000Z";
-    const accessibleTo = context.historyAccess?.to
-      ? new Date(Math.min(Date.parse(context.historyAccess.to), asOf + 1)).toISOString()
-      : new Date(asOf + 1).toISOString();
-    coverage.queryCount++;
-    const anchorResult = await withExecutionDeadline(signal => db.rpc("read_ask_history_candidates_latest", {
-      p_pet_id: petId,
-      p_terms: sinceAnchorRead.anchorTerms,
-      p_from: accessibleFrom,
-      p_to: accessibleTo,
-      p_after_time: null,
-      p_after_id: null,
-      p_limit: 8,
-    }).abortSignal(signal), historyReadRemaining(candidateDeadline));
-    if (anchorResult.error) {
-      coverage.retrieval = "unavailable";
-      coverage.reasons.push("event_anchor_unavailable");
-      return { ...context, askHistory: { coverage, entries: [], originals: [] } };
-    }
-    const anchorCandidates = ((anchorResult.data || []) as CareEntryRow[])
-      .filter(row => row.user_id === context.owner.userId && row.pet_profile_id === petId && !row.deleted_at
-        && historyQueryRelevance(rowText(row), sinceAnchorRead.anchorTerms) > 0)
-      .sort((a,b) => compareHistoryTime(b.occurred_at,a.occurred_at) || b.id.localeCompare(a.id));
-    const anchor = anchorCandidates[0];
-    if (!anchor) {
-      coverage.retrieval = "complete";
-      coverage.corrections = "complete";
-      coverage.extraction = "complete";
-      coverage.grouping = "complete";
-      coverage.reasons.push("event_anchor_not_found");
-      coverage.perPet.push({petId,rows:0,pages:1,exhausted:true,status:"complete"});
-      return { ...context, askHistory: { coverage, entries: [], originals: [] } };
-    }
-    coverage.queryCount++;
-    const afterResult = await withExecutionDeadline(signal => db.from("pet_care_entries")
-      .select("id,user_id,pet_profile_id,category,title,note,severity,occurred_at,created_at,updated_at,deleted_at")
-      .eq("user_id", context.owner.userId).eq("pet_profile_id", petId).is("deleted_at", null)
-      .gte("occurred_at", anchor.occurred_at).lt("occurred_at", accessibleTo)
-      .order("occurred_at", {ascending:true}).order("id", {ascending:true}).limit(HISTORY_BUDGET.records)
-      .abortSignal(signal).returns<CareEntryRow[]>(), historyReadRemaining(candidateDeadline));
-    if (afterResult.error) {
-      coverage.retrieval = "unavailable";
-      coverage.reasons.push("event_anchor_context_unavailable");
-      return { ...context, askHistory: { coverage, entries: [], originals: anchorCandidates } };
-    }
-    const afterRows=(afterResult.data || []).filter(row => row.user_id===context.owner.userId && row.pet_profile_id===petId && !row.deleted_at);
-    const originals=[...new Map([...anchorCandidates,...afterRows].map(row=>[row.id,row])).values()];
-    coverage.candidateIds=originals.map(row=>`care:${row.id}`);
-    const effective=await effectiveCandidates(originals, owned, ids, context.owner.userId, db, coverage, deadline);
-    const effectiveAnchor=[...effective]
-      .filter(row=>historyQueryRelevance(rowText(row),sinceAnchorRead.anchorTerms)>0)
-      .sort((a,b)=>compareHistoryTime(b.occurred_at,a.occurred_at)||b.id.localeCompare(a.id))[0];
-    if (!effectiveAnchor) {
-      coverage.retrieval="partial";
-      coverage.reasons.push("event_anchor_changed_or_deleted");
-      return { ...context, askHistory: { coverage, entries: [], originals } };
-    }
-    const topicRows=effective.filter(row=>Date.parse(row.occurred_at)>=Date.parse(effectiveAnchor.occurred_at)
-      && historyQueryRelevance(rowText(row),sinceAnchorRead.topicTerms)>0)
-      .sort((a,b)=>compareHistoryTime(a.occurred_at,b.occurred_at)||a.id.localeCompare(b.id));
-    const chosen=[...new Map([effectiveAnchor,...topicRows].map(row=>[row.id,row])).values()];
-    coverage.requiredSourceIds=chosen.map(row=>careEvidenceId(row.id,coverage));
-    coverage.retrieval=afterRows.length < HISTORY_BUDGET.records ? "complete" : "partial";
-    coverage.extraction="complete";
-    coverage.grouping="complete";
-    coverage.perPet.push({petId,rows:afterRows.length,pages:2,exhausted:afterRows.length < HISTORY_BUDGET.records,status:coverage.retrieval});
-    coverage.reasons.push("event_anchor_read");
-    return { ...context, askHistory: { coverage, entries: chosen, originals } };
   }
   const oldestUnit = sharedRead && ids.length === 1 ? oldestCalendarUnit(context.currentMessage) : null;
   let boundaryPages = 0;
@@ -971,4 +898,59 @@ export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set
     coverage.provenance = candidates.map(row => ({ sourceId: `care:${row.id}`, claimIds: [], status: "withheld_correction_authority" }));
     return [];
   }
+}
+
+/** Compatibility adapter: the new organ receives only its immutable ticket and
+ * server scope. Legacy question-driven reads remain outside this branch. */
+async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseClient, authorizedPetIds: string[]): Promise<FurviseLiveContext> {
+  const ticket = context.askInterpretation!.request!.readTicket!;
+  const owned = new Set(context.eligiblePets.filter(pet => pet.user_id === context.owner.userId).map(pet => pet.id));
+  if (ticket.subjects.petIds.some(id => !owned.has(id) || !authorizedPetIds.includes(id))) throw new Error("FURVISE_MEMORY_SCOPE_NOT_AUTHORIZED");
+  const started = Date.now(), deadline = started + HISTORY_BUDGET.timeMs;
+  const asOf = new Date(started).toISOString();
+  const from = context.historyAccess?.from || "1900-01-01T00:00:00.000Z";
+  const to = new Date(Math.min(Date.parse(context.historyAccess?.to || asOf), started + 1)).toISOString();
+  const coverage: HistoryCoverage = { plan: { from, to, terms: [], interpretation: "period" },
+    candidateIds: [], queryCount: 0, retrieval: "unknown", corrections: "unknown", extraction: "unknown", grouping: "unknown",
+    continuation: [], reasons: ["no_cross_query_snapshot"], consistency: "read_committed_no_snapshot", perPet: [], provenance: [], claimSources: [], excludedIds: [] };
+  let originals: CareEntryRow[] = [];
+  const pagesByPet = new Map<string, number>();
+  const result = await retrieveReadTicket(ticket, { userId: context.owner.userId, ownedPetIds: [...owned], from, to, asOf }, {
+    page: async ({ petId, from, to, offset, limit }) => {
+      coverage.queryCount++;
+      pagesByPet.set(petId, (pagesByPet.get(petId) || 0) + 1);
+      const page = await withExecutionDeadline(signal => db.from("pet_care_entries").select("*")
+        .eq("user_id", context.owner.userId).eq("pet_profile_id", petId).is("deleted_at", null)
+        .gte("occurred_at", from).lt("occurred_at", to)
+        .order("occurred_at", { ascending: true }).order("id", { ascending: true })
+        .range(offset, offset + limit - 1).abortSignal(signal).returns<CareEntryRow[]>(), historyReadRemaining(deadline - 2000));
+      if (page.error || !page.data) throw new Error("ticket_history_unavailable");
+      return page.data;
+    },
+    effective: async rows => {
+      originals = rows;
+      coverage.candidateIds = rows.map(row => `care:${row.id}`);
+      const records = await effectiveCandidates(rows, owned, [...ticket.subjects.petIds], context.owner.userId, db, coverage, deadline);
+      const unreliable = coverage.corrections === "unavailable" || coverage.excludedIds.length > 0
+        || coverage.reasons.some(reason => ["unlinked_correction_uncertain", "unsupported_claim_payload", "unknown_effective_event_date"].includes(reason));
+      if (!unreliable) coverage.corrections = "complete";
+      return { records, reliable: !unreliable };
+    },
+  });
+  coverage.ticketCoverage = result.coverage;
+  coverage.retrieval = result.coverage.status === "complete_empty" ? "complete"
+    : result.coverage.status === "anchor_missing" ? "unavailable" : result.coverage.status;
+  coverage.extraction = "complete"; coverage.grouping = "complete";
+  coverage.reasons.push(...result.coverage.reasons, `ticket_coverage:${result.coverage.status}`);
+  coverage.requiredSourceIds = result.records.map(row => careEvidenceId(row.id, coverage));
+  coverage.perPet = ticket.subjects.petIds.map(petId => ({ petId,
+    rows: originals.filter(row => row.pet_profile_id === petId).length, pages: pagesByPet.get(petId) || 0,
+    exhausted: !result.coverage.continuation.some(cursor => cursor.petId === petId) && result.coverage.status !== "unavailable",
+    status: coverage.retrieval }));
+  if (result.coverage.windows.length === 1) coverage.plan = { ...coverage.plan,
+    from: result.coverage.windows[0].from, to: result.coverage.windows[0].to };
+  console.info("[Ask Lungs] ticket result", JSON.stringify({ operation: ticket.operation, petIds: ticket.subjects.petIds,
+    temporal: ticket.temporal, predicates: ticket.predicates, outputs: ticket.outputs, coverage: result.coverage,
+    recordIds: result.records.map(row => row.id), queryCount: coverage.queryCount, durationMs: Date.now() - started }));
+  return { ...context, askHistory: { coverage, entries: result.records, originals } };
 }
