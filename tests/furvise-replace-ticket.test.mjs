@@ -26,7 +26,7 @@ function fixture(text = 'Replace that last note with: lunch was normal.', body =
   const context = { owner: { userId: 'owner' }, pet, eligiblePets: [pet], conversationTurns: [], currentMessage: text,
     currentTurn: { id: 'source', role: 'user', text, createdAt: '2026-09-19T09:39:46Z' }, timeZone: 'UTC' };
   const proposal = { version: 'ask-request.v2', mode: 'update', mutationIntent: 'correct_record', task: null,
-    writeJob: { operation: 'replace', target: 'last_event_for_subject', petName: 'Cedar', instructionQuote: text, bodyQuote: body },
+    writeJob: { operation: 'replace', target: 'last_event_for_subject', petName: 'Cedar', instructionQuote: text, bodyQuote: body, constraints: [] },
     question: text, requirements: [], referenceTurnIds: [], evidenceBasis: null, scope: 'selected', petNames: ['Cedar'],
     operation: 'general', selection: 'latest', quantity: null, topic: '', terms: [], from: null, to: null,
     episodeTopic: null, ordinal: null, frame: null };
@@ -58,6 +58,33 @@ test('semantic spelling does not choose the operation or alter replacement text'
     const { context, proposal } = fixture(text, body);
     assert.equal(validateAskRequest(proposal, context).request.writeJob.body.text, body);
   }
+});
+
+test('replacement body excludes source-bound ticket constraints before reaching Heart', async () => {
+  for (const [clause, kind] of [['One row only.', 'effective_count_one'], ["Don't add a second copy.", 'no_additional_copy'],
+    ['Una sola fila.', 'effective_count_one']]) {
+    const { context, proposal } = fixture(`Replace that last note with: lunch was normal. ${clause}`);
+    proposal.writeJob.constraints = [{ kind, quote: clause }];
+    const job = validateAskRequest(proposal, context).request.writeJob;
+    assert.equal(job.constraints.effectiveCount, 1);
+    assert.equal(job.constraints.allowAdditionalCopy, false);
+    assert.equal(job.constraints.spans[0].text, clause);
+    const { proposal: action } = await resolveReplaceJob(job, targetDatabase(), 'owner');
+    assert.equal(action.input.detail, 'lunch was normal.');
+    assert.equal(action.explicitIntent, false);
+    // The live failure: exact source text is still invalid when it contains a constraint span.
+    proposal.writeJob.bodyQuote = `lunch was normal. ${clause}`;
+    assert.throws(() => validateAskRequest(proposal, context), /write_job/);
+    proposal.writeJob.bodyQuote = 'lunch was normal.';
+    proposal.writeJob.constraints[0].quote = 'a clause absent from this user turn';
+    assert.throws(() => validateAskRequest(proposal, context), /write_job/);
+  }
+});
+
+test('a typed persistence prohibition cannot produce an executable replace job', () => {
+  const { context, proposal } = fixture('Replace that last note with: lunch was normal. No lo guardes.');
+  proposal.writeJob.constraints = [{ kind: 'no_write', quote: 'No lo guardes.' }];
+  assert.throws(() => validateAskRequest(proposal, context), /write_job/);
 });
 
 test('conflicting reads, append jobs, foreign subjects and ungrounded bodies fail closed', () => {

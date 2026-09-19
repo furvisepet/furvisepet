@@ -3,15 +3,23 @@ import type { ModelApplicationAction } from "../application-actions/types.ts";
 
 export const replaceJobSchema = {
   anyOf: [{ type: "null" }, { type: "object", additionalProperties: false,
-    required: ["operation", "target", "petName", "instructionQuote", "bodyQuote"],
+    required: ["operation", "target", "petName", "instructionQuote", "bodyQuote", "constraints"],
     properties: {
       operation: { type: "string", enum: ["replace"] },
       target: { type: "string", enum: ["last_event_for_subject"] },
       petName: { type: "string", minLength: 1, maxLength: 100 },
       instructionQuote: { type: "string", minLength: 1, maxLength: 1600 },
       bodyQuote: { type: "string", minLength: 1, maxLength: 1600 },
+      constraints: { type: "array", maxItems: 8, items: { type: "object", additionalProperties: false,
+        required: ["kind", "quote"], properties: {
+          kind: { type: "string", enum: ["effective_count_one", "no_additional_copy", "no_write"] },
+          quote: { type: "string", minLength: 1, maxLength: 1600 },
+        } } },
     } }],
 };
+
+type SourceSpan = Readonly<{ start: number; end: number; text: string }>;
+type ConstraintKind = "effective_count_one" | "no_additional_copy" | "no_write";
 
 /** A source-bound semantic proposal, not permission to execute a capability. */
 export type ReplaceJob = Readonly<{
@@ -20,7 +28,12 @@ export type ReplaceJob = Readonly<{
   petId: string;
   sourceMessageId: string;
   asOf: string;
-  body: Readonly<{ start: number; end: number; text: string }>;
+  body: SourceSpan;
+  constraints: Readonly<{
+    effectiveCount: 1;
+    allowAdditionalCopy: false;
+    spans: readonly Readonly<SourceSpan & { kind: ConstraintKind }>[];
+  }>;
 }>;
 
 export function validateReplaceJob(value: unknown, source: { id: string; text: string; createdAt: string },
@@ -28,16 +41,32 @@ export function validateReplaceJob(value: unknown, source: { id: string; text: s
   const fail = (): never => { throw new Error("ASK_REQUEST_INVALID:write_job"); };
   if (!value || typeof value !== "object" || Array.isArray(value)) return fail();
   const p = value as Record<string, unknown>;
-  if (Object.keys(p).sort().join() !== "bodyQuote,instructionQuote,operation,petName,target"
+  if (Object.keys(p).sort().join() !== "bodyQuote,constraints,instructionQuote,operation,petName,target"
     || p.operation !== "replace" || p.target !== "last_event_for_subject"
     || p.petName !== subject.name || p.instructionQuote !== source.text.trim()
     || typeof p.bodyQuote !== "string" || !p.bodyQuote.trim() || p.bodyQuote.length > 1600
+    || !Array.isArray(p.constraints) || p.constraints.length > 8
     || !source.id || !subject.id || !Number.isFinite(Date.parse(source.createdAt))) return fail();
-  const start = source.text.indexOf(p.bodyQuote);
-  if (start < 0 || source.text.indexOf(p.bodyQuote, start + 1) >= 0) return fail();
+  const span = (quote: unknown): SourceSpan => {
+    if (typeof quote !== "string" || !quote.trim() || quote.length > 1600) return fail();
+    const start = source.text.indexOf(quote);
+    if (start < 0 || source.text.indexOf(quote, start + 1) >= 0) return fail();
+    return Object.freeze({ start, end: start + quote.length, text: source.text.slice(start, start + quote.length) });
+  };
+  const body = span(p.bodyQuote);
+  const spans = p.constraints.map((value: unknown) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return fail();
+    const c = value as Record<string, unknown>;
+    if (Object.keys(c).sort().join() !== "kind,quote"
+      || !["effective_count_one", "no_additional_copy", "no_write"].includes(String(c.kind))) return fail();
+    const constraint = span(c.quote);
+    // The model labels semantics; code certifies disjoint source spans and refuses prohibited writes.
+    if (constraint.start < body.end && body.start < constraint.end || c.kind === "no_write") return fail();
+    return Object.freeze({ ...constraint, kind: c.kind as ConstraintKind });
+  });
   return Object.freeze({ operation: "replace", target: "last_event_for_subject", petId: subject.id,
-    sourceMessageId: source.id, asOf: source.createdAt,
-    body: Object.freeze({ start, end: start + p.bodyQuote.length, text: source.text.slice(start, start + p.bodyQuote.length) }) });
+    sourceMessageId: source.id, asOf: source.createdAt, body,
+    constraints: Object.freeze({ effectiveCount: 1, allowAdditionalCopy: false, spans: Object.freeze(spans) }) });
 }
 
 /** Resolve the typed selector against owned effective state, never answer text.
