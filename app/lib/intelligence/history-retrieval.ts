@@ -21,11 +21,18 @@ import type { FurviseLiveContext } from "./types.ts";
 import { askEvidenceScope, careEvidenceId, type Completeness } from "./ask-evidence.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import { resolveEffectiveClaimGraph, type RebuildClaim, type RebuildRelation } from "./v2/projections/rebuild.ts";
-import { parseSinceAnchorRead } from "./history-anchor-read.ts";
+
 
 export const HISTORY_BUDGET = { pageSize: 25, pagesPerPet: 4, totalPages: 20, candidateRows: 64, pets: ASK_HISTORY_MAX_PETS, graphCalls: 6, graphRows: 128, records: 32, chars: 18000, timeMs: 5000 } as const;
 type Cursor = { petId: string; occurredAt: string; id: string };
-export type HistoryPlan = { from: string | null; to: string | null; terms: string[]; interpretation: "period" | "lexical" | "broad_comparison" };
+export type HistoryPlan = {
+  from: string | null;
+  to: string | null;
+  terms: string[];
+  interpretation: "period" | "lexical" | "broad_comparison";
+  coverageMode?: "sufficient" | "exhaustive";
+  anchor?: { relation: "from" | "after" | "before"; terms: string[]; petIds: string[] };
+};
 export type HistoryCoverage = {
   periods?: Array<{ petId: string; from: string; to: string; candidateIds: string[]; exhausted: boolean }>;
   /** True only when every server-owned bounded context need exhausted its full
@@ -206,10 +213,11 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     coverage.requiredSourceIds = chosen.map(row => careEvidenceId(row.id, coverage));
     return { ...context, askHistory: { coverage, entries: chosen, originals: candidates } };
   }
-  const sinceAnchorRead = sharedRead && ids.length === 1
-    ? parseSinceAnchorRead(context.currentMessage, context.eligiblePets.map(pet => pet.name || ""))
+  const plannedAnchor = sharedRead && ids.length === 1 && plan.anchor
+    && (!plan.anchor.petIds.length || plan.anchor.petIds.includes(ids[0]))
+    ? plan.anchor
     : null;
-  if (sinceAnchorRead) {
+  if (plannedAnchor) {
     const petId = ids[0];
     const rowText = (row: CareEntryRow) => [row.title || "", row.note || ""].join(" ").trim();
     const accessibleFrom = context.historyAccess?.from || "1900-01-01T00:00:00.000Z";
@@ -219,7 +227,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     coverage.queryCount++;
     const anchorResult = await withExecutionDeadline(signal => db.rpc("read_ask_history_candidates_latest", {
       p_pet_id: petId,
-      p_terms: sinceAnchorRead.anchorTerms,
+      p_terms: plannedAnchor.terms,
       p_from: accessibleFrom,
       p_to: accessibleTo,
       p_after_time: null,
@@ -233,7 +241,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     }
     const anchorCandidates = ((anchorResult.data || []) as CareEntryRow[])
       .filter(row => row.user_id === context.owner.userId && row.pet_profile_id === petId && !row.deleted_at
-        && historyQueryRelevance(rowText(row), sinceAnchorRead.anchorTerms) > 0)
+        && historyQueryRelevance(rowText(row), plannedAnchor.terms) > 0)
       .sort((a,b) => compareHistoryTime(b.occurred_at,a.occurred_at) || b.id.localeCompare(a.id));
     const anchor = anchorCandidates[0];
     if (!anchor) {
@@ -246,11 +254,20 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
       return { ...context, askHistory: { coverage, entries: [], originals: [] } };
     }
     coverage.queryCount++;
-    const afterResult = await withExecutionDeadline(signal => db.from("pet_care_entries")
+    const anchorLimit = plan.coverageMode === "exhaustive" ? 256 : HISTORY_BUDGET.records;
+    let anchoredQuery = db.from("pet_care_entries")
       .select("id,user_id,pet_profile_id,category,title,note,severity,occurred_at,created_at,updated_at,deleted_at")
-      .eq("user_id", context.owner.userId).eq("pet_profile_id", petId).is("deleted_at", null)
-      .gte("occurred_at", anchor.occurred_at).lt("occurred_at", accessibleTo)
-      .order("occurred_at", {ascending:true}).order("id", {ascending:true}).limit(HISTORY_BUDGET.records)
+      .eq("user_id", context.owner.userId).eq("pet_profile_id", petId).is("deleted_at", null);
+    if (plannedAnchor.relation === "before") {
+      anchoredQuery = anchoredQuery.lt("occurred_at", anchor.occurred_at).gte("occurred_at", accessibleFrom);
+    } else {
+      anchoredQuery = plannedAnchor.relation === "after"
+        ? anchoredQuery.gt("occurred_at", anchor.occurred_at)
+        : anchoredQuery.gte("occurred_at", anchor.occurred_at);
+      anchoredQuery = anchoredQuery.lt("occurred_at", accessibleTo);
+    }
+    const afterResult = await withExecutionDeadline(signal => anchoredQuery
+      .order("occurred_at", {ascending:true}).order("id", {ascending:true}).limit(anchorLimit)
       .abortSignal(signal).returns<CareEntryRow[]>(), historyReadRemaining(candidateDeadline));
     if (afterResult.error) {
       coverage.retrieval = "unavailable";
@@ -262,22 +279,28 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     coverage.candidateIds=originals.map(row=>`care:${row.id}`);
     const effective=await effectiveCandidates(originals, owned, ids, context.owner.userId, db, coverage, deadline);
     const effectiveAnchor=[...effective]
-      .filter(row=>historyQueryRelevance(rowText(row),sinceAnchorRead.anchorTerms)>0)
+      .filter(row=>historyQueryRelevance(rowText(row),plannedAnchor.terms)>0)
       .sort((a,b)=>compareHistoryTime(b.occurred_at,a.occurred_at)||b.id.localeCompare(a.id))[0];
     if (!effectiveAnchor) {
       coverage.retrieval="partial";
       coverage.reasons.push("event_anchor_changed_or_deleted");
       return { ...context, askHistory: { coverage, entries: [], originals } };
     }
-    const topicRows=effective.filter(row=>Date.parse(row.occurred_at)>=Date.parse(effectiveAnchor.occurred_at)
-      && historyQueryRelevance(rowText(row),sinceAnchorRead.topicTerms)>0)
+    const relationOk=(row:CareEntryRow)=>plannedAnchor.relation==="before"
+      ? Date.parse(row.occurred_at)<Date.parse(effectiveAnchor.occurred_at)
+      : plannedAnchor.relation==="after"
+        ? Date.parse(row.occurred_at)>Date.parse(effectiveAnchor.occurred_at)
+        : Date.parse(row.occurred_at)>=Date.parse(effectiveAnchor.occurred_at);
+    const topicRows=effective.filter(row=>relationOk(row)
+      && (!plan.terms.length || historyQueryRelevance(rowText(row),plan.terms)>0))
       .sort((a,b)=>compareHistoryTime(a.occurred_at,b.occurred_at)||a.id.localeCompare(b.id));
-    const chosen=[...new Map([effectiveAnchor,...topicRows].map(row=>[row.id,row])).values()];
+    const includeAnchor=plannedAnchor.relation==="from";
+    const chosen=[...new Map([...(includeAnchor?[effectiveAnchor]:[]),...topicRows].map(row=>[row.id,row])).values()];
     coverage.requiredSourceIds=chosen.map(row=>careEvidenceId(row.id,coverage));
-    coverage.retrieval=afterRows.length < HISTORY_BUDGET.records ? "complete" : "partial";
+    coverage.retrieval=afterRows.length < anchorLimit ? "complete" : "partial";
     coverage.extraction="complete";
     coverage.grouping="complete";
-    coverage.perPet.push({petId,rows:afterRows.length,pages:2,exhausted:afterRows.length < HISTORY_BUDGET.records,status:coverage.retrieval});
+    coverage.perPet.push({petId,rows:afterRows.length,pages:2,exhausted:afterRows.length < anchorLimit,status:coverage.retrieval});
     coverage.reasons.push("event_anchor_read");
     return { ...context, askHistory: { coverage, entries: chosen, originals } };
   }
@@ -408,8 +431,11 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     const boundedTo = boundedContextNeed ? (!plan.to || boundedContextNeed.window!.to < plan.to ? boundedContextNeed.window!.to : plan.to) : null;
     const strategies: HistoryReadStrategy[] = boundedContextNeed && boundedFrom && boundedTo && boundedFrom < boundedTo
       ? [{ from: boundedFrom, to: boundedTo, descending: false, lexical: false, terms: [], needId: boundedContextNeed.id, exhaustive: true }]
-      : compiled.strategies.map(strategy => strategy.target?.length === 7 && searchTerms.length
-        ? { ...strategy, lexical: true, terms: searchTerms } : strategy);
+      : compiled.strategies.map(strategy => {
+          const normalized = strategy.target?.length === 7 && searchTerms.length
+            ? { ...strategy, lexical: true, terms: searchTerms } : strategy;
+          return plan.coverageMode === "exhaustive" ? { ...normalized, exhaustive: true } : normalized;
+        });
     coverage.needs ??= [];
     coverage.needs.push(...compiled.outsideNeeds.map(needId => ({ petId, needId, candidateIds: [], exhausted: false, status: "unavailable" as const, reason: "need_window_outside_scope" })));
     if (compiled.outsideNeeds.length) coverage.reasons.push("need_window_outside_scope");
@@ -633,7 +659,19 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     coverage.reasons.push("oldest_period_boundary_unverified");
     return { ...context, askHistory: { coverage, entries: [], originals: [] } };
   }
-  if (!candidates.length && !entries.length && coverage.retrieval !== "unavailable" && coverage.corrections !== "unavailable") coverage.reasons.push("no_matching_candidates_not_absence");
+  const exhaustivePlanComplete = plan.coverageMode === "exhaustive"
+    && coverage.perPet.length === ids.length
+    && coverage.perPet.every(pet => pet.exhausted && pet.status !== "unavailable")
+    && coverage.continuation.length === 0
+    && coverage.corrections !== "unavailable";
+  if (exhaustivePlanComplete) {
+    coverage.retrieval = "complete";
+    coverage.reasons = coverage.reasons.filter(reason => reason !== "lexical_or_period_matches_not_semantic_completeness"
+      && reason !== "bounded_period_context_not_semantic_completeness"
+      && reason !== "no_matching_candidates_not_absence");
+  } else if (!candidates.length && !entries.length && coverage.retrieval !== "unavailable" && coverage.corrections !== "unavailable") {
+    coverage.reasons.push("no_matching_candidates_not_absence");
+  }
   const selection = vetBriefRead ? "summary" : context.askInterpretation?.request && endpointComparison ? "comparison" : context.askInterpretation?.selection;
   const occurrence = (entry: CareEntryRow) => classifyOccurrenceReport([entry.title, entry.note].filter(Boolean).join(": "),
     context.eligiblePets.find(pet => pet.id === entry.pet_profile_id)?.name || "", plan.terms);

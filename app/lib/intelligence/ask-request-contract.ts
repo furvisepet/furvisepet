@@ -44,11 +44,13 @@ export type AskRequestContract = {
   outputFormat?: "prose" | "bullets" | "table" | "json" | "csv" | null;
   referenceTurnIds: string[];
   quantity: typeof quantities[number];
+  coverageMode?: "sufficient" | "exhaustive";
+  historyAnchor?: { quote: string; relation: "from" | "after" | "before"; terms: string[]; petIds?: string[] } | null;
 };
 const strings = (maxItems: number, maxLength: number) => ({ type: "array", maxItems, items: { type: "string", minLength: 1, maxLength } });
 export function askRequestSchema(frame: object, context?: Context) {
   const schema = { type: "object", additionalProperties: false,
-    required: ["task", "temporalScope", "mutationIntent", "recordSelection", "profileFields", "projection", "version", "mode", "question", "requirements", "evidenceNeeds", "outputFormat", "evidenceBasis", "premiseQuotes", "excludedPetNames", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
+    required: ["task", "temporalScope", "mutationIntent", "recordSelection", "profileFields", "projection", "coverageMode", "historyAnchor", "version", "mode", "question", "requirements", "evidenceNeeds", "outputFormat", "evidenceBasis", "premiseQuotes", "excludedPetNames", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
     properties: {
       task: askTaskSchema,
       temporalScope: { type: ["string", "null"], enum: ["historical", "current", "historical_and_current", null] },
@@ -56,6 +58,14 @@ export function askRequestSchema(frame: object, context?: Context) {
       mutationIntent: { type: ["string", "null"], enum: ["correct_record", null] },
       recordSelection: { type: ["object", "null"], additionalProperties: false, required: ["scope", "quote"], properties: { scope: { type: "string", enum: ["all_active", "content_filtered"] }, quote: { type: "string", minLength: 1, maxLength: 1600 } } },
       projection: readProjectionSchema,
+      coverageMode: { type: "string", enum: ["sufficient", "exhaustive"] },
+      historyAnchor: { anyOf: [{ type: "null" }, { type: "object", additionalProperties: false,
+        required: ["quote","relation","terms","petNames"], properties: {
+          quote: { type: "string", minLength: 1, maxLength: 400 },
+          relation: { type: "string", enum: ["from","after","before"] },
+          terms: { type: "array", maxItems: 6, items: { type: "string", minLength: 3, maxLength: 32, pattern: "^[A-Za-z][A-Za-z -]*[A-Za-z]$" } },
+          petNames: { type: "array", maxItems: 3, items: { type: "string", minLength: 1, maxLength: 100 } }
+        } }] },
       evidenceNeeds: evidenceNeedsSchema,
       version: { type: "string", enum: [ASK_REQUEST_VERSION] }, mode: { type: "string", enum: modes },
       question: { type: "string", minLength: 1, maxLength: 1600 }, requirements: strings(8, 240), referenceTurnIds: strings(8, 160),
@@ -103,6 +113,8 @@ export const ASK_REQUEST_INSTRUCTIONS = [
   "Use operation navigate with mode read, evidenceBasis null and the owned target scope for opening an application page, including a navigation request combined with a general question or supplied fictional calculation. Navigation needs an owned destination, not historical evidence. Use no history terms, dates, quantity or evidenceNeeds. If any part asks for actual stored facts, use the appropriate saved_history operation instead. Opening a page grants no writes. Keep every requested part in requirements and the original question.",
   "projection is an optional typed execution proposal, never evidence. For a table/CSV consisting ONLY of pet names and recorded body mass, set projection with exact requested nameHeader/valueHeader, quantity body_mass, canonical requested unit kg/g/mg/lb and requested order. Otherwise set null. It supplies no measurements and authorizes no facts; the server can compute conversions, sort and render verified records. Additional narrative, medical conclusions, arithmetic across pets, ambiguous fields or additional columns require null. Independent review still checks the original whole question.",
   "evidenceNeeds decomposes a saved-history question into at most four distinct factual parts that need records. Each quote is an exact contiguous substring of the current USER request (sourceTurnId null), or a referenced prior USER turn whose id is in referenceTurnIds. Never use assistant text. Include the local date or period in each exact quote when it belongs to that requested fact; do not collapse differently dated facts into an undated keyword. For mixed tasks, scope/petNames identifies the write destination, while each evidenceNeed petNames identifies the explicitly named owned pet whose records must be read. Keep these independent; never copy a read pet’s facts into another pet’s update. For read tasks, petNames narrows each need to its requested pets within the overall authorized scope; use [] when the need applies to the entire scoped group. Never attach another pet’s attribute to this pet. order is earliest or latest when that part requests a temporal boundary, otherwise context; opposite endpoints need separately directed searches. Keep every required comparison endpoint, cause/uncertainty and requested fact in scope. Give each part up to six discriminating lexical terms and ordinary synonyms, not output-format words. Do not invent a need from a paraphrase. These are advisory search facets, not factual premises or access authority. Use [] for non-history tasks. The original entire question remains authoritative even when decomposition is incomplete.",
+  "coverageMode is exhaustive only when the user requires every matching record, all/every owned subject, an exact absence/presence audit, or another answer whose truth depends on proving the authorized search was exhausted. Otherwise use sufficient. This is a retrieval guarantee, not permission to infer facts from missing evidence.",
+  "historyAnchor is a semantic event boundary for a historical read. Use it when the requested range is defined relative to an event or saved occurrence rather than a literal date, such as starting from a visit, after a procedure, or before a medication change. quote must be one exact current-user substring that identifies the boundary. relation is from when the boundary record itself belongs in the requested result range, after when it must be excluded, and before for records strictly earlier. terms are concise semantic aliases for finding that boundary record, not the downstream topic. petNames contains only owned pets whose history supplies the anchor. Use null when there is no semantic event anchor.",
   "Return one ask-request.v2 contract. requirements describe visible answer content, language and format; execution constraints such as no saving belong in mode, not prose requirements. Interpret the user's intent semantically; do not answer the question. This contract controls bounded reads, never permission to write.",
   "premiseQuotes contains verbatim factual premises from current or prior USER text only when evidenceBasis is supplied_context. Questions, output labels, requested column names and formatting instructions are NOT supplied facts. If the required values were not supplied and belong to an owned pet, choose saved_profile for current profile fields only, otherwise saved_history, and retrieve them even for a one-line or structured answer. Use [] for saved_history/saved_profile/general/null. Never quote an instruction or question as if it supplied a missing value.",
   "excludedPetNames lists owned pets explicitly excluded from this read; petNames lists only the requested subjects. Use canonical supplied owned names, resolving obvious unique spelling abbreviations from the whole request. An excluded name is not the subject. A clear subject, topic and ordering request needs retrieval, not reference clarification.",
@@ -124,7 +136,8 @@ export const ASK_REQUEST_INSTRUCTIONS = [
 const fail = (reason: string): never => { throw new Error(`ASK_REQUEST_INVALID:${reason}`); };
 export function validateAskRequest(value: unknown, context: Context): AskInterpretation {
   if (!value || typeof value !== "object" || Array.isArray(value)) return fail("shape");
-  const p = { task: null, temporalScope: null, mutationIntent: null, recordSelection: null, profileFields: [], projection: null, evidenceNeeds: [], outputFormat: null, evidenceBasis: null, premiseQuotes: null, excludedPetNames: [], ...value } as Record<string, unknown>; // Older stored v2 contracts predate these optional fields.
+  const p = { task: null, temporalScope: null, mutationIntent: null, recordSelection: null, profileFields: [], projection: null,
+    coverageMode: "sufficient", historyAnchor: null, evidenceNeeds: [], outputFormat: null, evidenceBasis: null, premiseQuotes: null, excludedPetNames: [], ...value } as Record<string, unknown>; // Older stored v2 contracts predate these optional fields.
   if (Object.keys(p).sort().join() !== askRequestSchema({}).required.sort().join()) return fail("fields");
   const member = (values: readonly unknown[], value: unknown) => values.includes(value);
   const list = (value: unknown, count: number, size: number): value is string[] => Array.isArray(value) && value.length <= count
@@ -140,6 +153,24 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     || !list(p.requirements, 8, 240) || !list(p.referenceTurnIds, 8, 160) || !list(p.petNames, 20, 100)
     || !Array.isArray(p.terms) || p.terms.length > 6
     || p.terms.some(x => typeof x !== "string" || x.length < 3 || x.length > 32 || !/^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(x))) return fail("schema");
+  if (!["sufficient","exhaustive"].includes(String(p.coverageMode))) return fail("coverage_mode");
+  let historyAnchor: AskRequestContract["historyAnchor"] = null;
+  if (p.historyAnchor !== null) {
+    const anchor = p.historyAnchor as {quote?:unknown;relation?:unknown;terms?:unknown;petNames?:unknown};
+    if (!anchor || typeof anchor.quote !== "string" || !anchor.quote.trim() || anchor.quote.length > 400
+      || !context.currentMessage.includes(anchor.quote)
+      || !["from","after","before"].includes(String(anchor.relation))
+      || !Array.isArray(anchor.terms) || anchor.terms.length < 1 || anchor.terms.length > 6
+      || anchor.terms.some(term => typeof term !== "string" || term.length < 3 || term.length > 32 || !/^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(term))
+      || !Array.isArray(anchor.petNames) || anchor.petNames.length > 3
+      || anchor.petNames.some(name => typeof name !== "string" || !name.trim() || name.length > 100)) return fail("history_anchor");
+    const anchorOwned = context.eligiblePets.filter(pet => pet.user_id === context.owner.userId);
+    const anchorPets = (anchor.petNames as string[]).map(name => anchorOwned.filter(pet => pet.name?.toLowerCase() === name.toLowerCase()));
+    if (anchorPets.some(matches => matches.length !== 1)) return fail("history_anchor_scope");
+    historyAnchor = { quote: anchor.quote, relation: anchor.relation as "from"|"after"|"before",
+      terms: [...new Set((anchor.terms as string[]).map(term => term.toLowerCase()))],
+      ...(anchorPets.length ? {petIds: anchorPets.map(matches => matches[0].id)} : {}) };
+  }
   if (!Array.isArray(p.profileFields) || p.profileFields.some(field => !askRequestSchema({}).properties.profileFields.items.enum.includes(String(field))) || p.profileFields.length > 14) return fail("profile_fields");
   if (![null, "historical", "current", "historical_and_current"].includes(p.temporalScope as null | string)) return fail("temporal_scope");
   if (![null, "correct_record"].includes(p.mutationIntent as null | string)) return fail("mutation_intent");
@@ -580,6 +611,8 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     profileFields: [...new Set(p.profileFields as string[])],
     ...(p.temporalScope !== null ? { temporalScope: p.temporalScope as AskRequestContract["temporalScope"] } : {}),
     projection: historical && readOnly ? parseReadProjection(p.projection) : null,
+    coverageMode: p.coverageMode as AskRequestContract["coverageMode"],
+    historyAnchor: historical && readOnly ? historyAnchor : null,
     ...(needPlan.needs.length ? { evidenceNeeds: needPlan.needs.map(need => ({ ...need, ...(need.window ? { window: calendarWindowToInstants(need.window, context.timeZone) } : {}) })) } : {}),
     ...(needPlan.issues.length ? { evidenceNeedIssues: needPlan.issues } : {}), version: ASK_REQUEST_VERSION, mode: p.mode as AskRequestContract["mode"],
     evidenceBasis: p.evidenceBasis as AskRequestContract["evidenceBasis"], outputFormat: p.outputFormat as AskRequestContract["outputFormat"], question: p.question as string, requirements: p.requirements as string[], referenceTurnIds: p.referenceTurnIds, quantity: p.quantity as AskRequestContract["quantity"] };
@@ -611,7 +644,9 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     referenceQuestion: p.question as string, ...(conversationOnly ? { conversationOnly: true } : {}),
     episodeTopic: episodeTarget || operation === "count" || operation === "episode" ? p.episodeTopic as AskInterpretation["episodeTopic"] : null,
     ordinal: p.ordinal as AskInterpretation["ordinal"],
-    history: historical ? { from: target?.basis === "scoped_register" ? explicitEpisodePeriod!.from : historicalFrom, to: target?.basis === "scoped_register" ? explicitEpisodePeriod!.to : historicalTo, terms: p.terms as string[], interpretation: (p.terms as string[]).length ? "lexical" : from || to ? "period" : "broad_comparison" } : null };
+    history: historical ? { from: target?.basis === "scoped_register" ? explicitEpisodePeriod!.from : historicalFrom, to: target?.basis === "scoped_register" ? explicitEpisodePeriod!.to : historicalTo, terms: p.terms as string[],
+      ...(historyAnchor ? { anchor: { relation: historyAnchor.relation, terms: historyAnchor.terms, petIds: historyAnchor.petIds || [] } } : {}),
+      coverageMode: p.coverageMode as "sufficient"|"exhaustive", interpretation: (p.terms as string[]).length ? "lexical" : from || to ? "period" : "broad_comparison" } : null };
 }
 
 /** Positive read clauses are independent of save clauses and supplied operands.
