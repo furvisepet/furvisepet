@@ -130,13 +130,14 @@ export async function executeActionCapability(input: {
   if (!action) throw new Error("ACTION_CAPABILITY_CORRUPT");
   if (careWriteOperation(authoritativeAction.kind)) {
     const persisted = await loadExecutionCapability(input);
-    confirmFurviseWriteReceipt({
+    const receipt = confirmFurviseWriteReceipt({
       operationId: capability.id,
       authorized: authoritativeAction,
       returned: action,
       persistedStatus: persisted?.status || null,
       persistedReceipt: persisted?.receipt ? parseStoredApplicationActions([persisted.receipt])[0] || null : null,
     });
+    console.info("[Ask Heart] receipt confirmed", { ...receipt, changed: data.changed });
   }
   return { action, changed: data.changed };
 }

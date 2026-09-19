@@ -1,3 +1,5 @@
+import { resolveReplaceJob } from "../../lib/furvise-brain/replace-job.ts";
+import { careHistoryCorrectionOrchestration } from "../../lib/ai/ask-command-router.ts";
 import { attachTaskReceipts, executeAskTask, resolvePendingTaskSubject, restorePendingTaskTurns, taskMutationParameters, type PendingAskTask } from "../../lib/intelligence/ask-task-continuation.ts";
 import { isDeepStrictEqual } from "node:util";
 import { exceedsSelectedPetRead } from "../../lib/intelligence/selected-pet-read.ts";
@@ -560,6 +562,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
   const rateGateRef: { current: Awaited<ReturnType<typeof requireRateLimitedRequest>> | null } = { current: null };
   let confirmedExistingCarePersistence: CarePersistenceResult | null = null;
   let deterministicApplicationActions: FurviseApplicationAction[] = [];
+  let plannedReplaceTarget: { id: string; petId: string; sourceType: "care_update" } | null = null;
   let deterministicLossInteraction = false;
   let deferHighImpactLifecyclePersistence = classifyCurrentPetLoss(question) === "confirmed_current"
     || pendingLifecycle?.kind === "reported_deceased";
@@ -848,6 +851,32 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         reply.answer = { title: "One pet at a time", summary: `I can read only ${liveContext.pet.name || "the selected pet"}'s records in this conversation. Ask about this pet, or switch pets to read another pet's history.`, sections: [], safetyNote: null };
         reply.clarificationQuestion = "";
         return reply;
+      }
+      const replaceJob = interpretation.request?.writeJob;
+      if (replaceJob) {
+        // Typed write jobs stop before history generation/review. Publication
+        // mints the existing capability; only its normal gate may execute it.
+        const resolved = await resolveReplaceJob(replaceJob, supabase, userId);
+        turnPetId = replaceJob.petId;
+        turnAuthoritativePetIds = [turnPetId];
+        const subject = liveContext.eligiblePets.find(pet => pet.id === turnPetId)!;
+        if (liveContext.pet.id !== turnPetId) {
+          liveContext = await buildFurviseContext({ historyAccess, conversationId: preparedRequest.conversationId,
+            conversationPetId: petId, currentMessage: question, feature: "ask", timeZone: liveContext.timeZone,
+            locale, petId: turnPetId, supabase, userId });
+        }
+        contextUsed = { petName: subject.name, usedSources: [] };
+        turnLifecycle.subject("semantic_replace", 1);
+        plannedReplaceTarget = resolved.target;
+        deterministicApplicationActions = prepareFurviseApplicationActions({
+          proposals: [resolved.proposal], petId: turnPetId, petName: subject.name || "your pet",
+          requestId, sourceMessage: question, lifecycleStatus: getPetLifecycleStatus(subject),
+        }).map(action => ({ ...action, sourceMessageId: replaceJob.sourceMessageId }));
+        if (deterministicApplicationActions.length !== 1) throw new Error("REPLACE_ACTION_INVALID");
+        console.info("[Ask Heart] ticket prepared", { requestId, sourceMessageId: replaceJob.sourceMessageId,
+          operation: replaceJob.operation, petId: turnPetId, targetId: resolved.target.id,
+          bodyStart: replaceJob.body.start, bodyEnd: replaceJob.body.end });
+        return { ...careHistoryCorrectionOrchestration(subject.name || "your pet"), handledWithoutAi: false };
       }
       const task = interpretation.request?.task;
       if (task && !ownerNotePersistence) {
@@ -1238,9 +1267,9 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
     && !preparedApplicationActions.some((action) => action.kind === pendingLifecycle.action.kind && action.petId === pendingLifecycle.petId)) {
     preparedApplicationActions = [pendingLifecycle.action, ...preparedApplicationActions].slice(0, 4);
   }
-  let latestHistoryEditTarget: { id: string; petId: string; sourceType: "care_update" } | null = null;
+  let latestHistoryEditTarget: { id: string; petId: string; sourceType: "care_update" } | null = plannedReplaceTarget;
   const latestEditActions=preparedApplicationActions.filter(action=>action.kind==="care_history.edit" && action.input.target==="specified");
-  if(latestEditActions.length===1 && /\b(?:last|latest|most recent)\b[^.!?]{0,50}\b(?:note|entry|record)\b/i.test(question)){
+  if(!plannedReplaceTarget && latestEditActions.length===1 && /\b(?:last|latest|most recent)\b[^.!?]{0,50}\b(?:note|entry|record)\b/i.test(question)){
     const action=latestEditActions[0];
     const latest=await supabase.from("pet_care_entries").select("id")
       .eq("user_id",userId).eq("pet_profile_id",action.petId).is("deleted_at",null)

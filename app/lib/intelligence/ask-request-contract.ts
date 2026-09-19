@@ -1,3 +1,4 @@
+import { replaceJobSchema, validateReplaceJob, type ReplaceJob } from "../furvise-brain/replace-job.ts";
 import { askTaskSchema, ASK_TASK_INSTRUCTIONS, validateAskTask, type ValidatedAskTask } from "./ask-task-continuation.ts";
 import { calendarWindowToInstants } from "../ask-time-zone.ts";
 import { readProjectionSchema, parseReadProjection, type ReadProjection } from "./read-projection.ts";
@@ -29,6 +30,7 @@ const ordinals = ["first", "second", "third", "fourth", "fifth", "sixth", "seven
 type Context = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask" | "ownerNoteAlreadySaved">;
 export type AskRequestContract = {
   task?: ValidatedAskTask | null;
+  writeJob?: ReplaceJob | null;
   version: typeof ASK_REQUEST_VERSION;
   mode: typeof modes[number];
   question: string;
@@ -48,9 +50,10 @@ export type AskRequestContract = {
 const strings = (maxItems: number, maxLength: number) => ({ type: "array", maxItems, items: { type: "string", minLength: 1, maxLength } });
 export function askRequestSchema(frame: object, context?: Context) {
   const schema = { type: "object", additionalProperties: false,
-    required: ["task", "temporalScope", "mutationIntent", "recordSelection", "profileFields", "projection", "version", "mode", "question", "requirements", "evidenceNeeds", "outputFormat", "evidenceBasis", "premiseQuotes", "excludedPetNames", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
+    required: ["writeJob", "task", "temporalScope", "mutationIntent", "recordSelection", "profileFields", "projection", "version", "mode", "question", "requirements", "evidenceNeeds", "outputFormat", "evidenceBasis", "premiseQuotes", "excludedPetNames", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
     properties: {
       task: askTaskSchema,
+      writeJob: replaceJobSchema,
       temporalScope: { type: ["string", "null"], enum: ["historical", "current", "historical_and_current", null] },
       profileFields: { type: "array", maxItems: 14, items: { type: "string", enum: ["name", "species", "breed", "age", "weight", "current_food", "main_concern", "care_goal", "avoid", "monthly_budget", "sex", "pronouns", "lifecycle_status"] } },
       mutationIntent: { type: ["string", "null"], enum: ["correct_record", null] },
@@ -96,7 +99,8 @@ export const ASK_REQUEST_INSTRUCTIONS = [
   "A request merely to write, title, translate or format a predetermined claim is a wording task, not a request to retrieve evidence for that claim. If the owner supplies no supporting facts and does not ask to check/read/verify saved records, use mode conversation, scope none, evidenceBasis general, operation general and frame null; the answer can decline an unsupported real-world assertion and offer accurate uncertain wording. A named owned pet does not by itself authorize an unrequested history search. Preserve genuine factual questions and explicit verification/lookups as saved-history reads. Do not convert a quoted desired assertion or desired footnote into an owner observation or save request.",
   "Use evidenceBasis saved_profile for requests consisting ONLY of current stored profile fields (name/species/food/weight/etc). Use mode read, profileFields for every requested field, no dates/quantity/evidenceNeeds/episode/frame, and the owned scope. Profile lookup needs no care-history scan and supports up to twenty owned profiles. If ANY part needs dated records or historical calculations, use saved_history; do not mislabel a historical endpoint as current profile data. Formatting words such as table or JSON are not evidence. General advice still uses general. Never widen subject ownership.",
   "temporalScope describes the evidence endpoints independently of the operation or comparison wording: historical for past-only facts, current for current-only facts, historical_and_current when the task asks about both past facts and present status or whether old evidence still applies, null when not temporal. A question about what an old report establishes today has both endpoints even without the word compare. Preserve past-specific needs and dates locally; the global read must also allow later relevant evidence. Do not label a current display/list of historical records as a present-health request. This is a bounded retrieval proposal, never evidence that a state continued or changed.",
-  "An explicit instruction to correct an existing saved care note uses mutationIntent correct_record, mode mixed, evidenceBasis saved_history, operation recall, and the owned target/date. Retrieve the original record before proposing an edit. A correction instruction is not a new occurrence or an episode transition. Questions about corrections and hypothetical corrections have mutationIntent null and remain read-only. All other requests use mutationIntent null. This identifies a workflow, not permission to edit; the existing owned-record action and confirmation policy still govern execution.",
+  "For a standalone instruction to replace the most recently saved care note, emit writeJob with operation replace, target last_event_for_subject, the canonical owned petName, instructionQuote equal to the entire current user message, and bodyQuote equal to the exact contiguous replacement text. Use mode update, mutationIntent correct_record, task null, evidenceBasis null, operation general, no evidenceNeeds/profileFields/projection/quantity/dates, and an empty frame. The replacement text is the body of an edit, never a new observation or an essay about conflicting history. Interpret intent semantically in any wording or language; questions, quotations, hypotheticals and negated writes have writeJob null. Do not use this standalone job for requests containing an additional read or another action. Other corrections use the existing mixed workflow. All other requests use writeJob null. This job is a proposal; owned-target binding and existing confirmation/capability policy still authorize execution.",
+  "An explicit instruction to correct another existing saved care note uses mutationIntent correct_record, mode mixed, evidenceBasis saved_history, operation recall, and the owned target/date. Retrieve the original record before proposing an edit. A correction instruction is not a new occurrence or an episode transition. Questions about corrections and hypothetical corrections have mutationIntent null and remain read-only. All other requests use mutationIntent null. This identifies a workflow, not permission to edit; the existing owned-record action and confirmation policy still govern execution.",
   "recordSelection identifies physical saved-record counting independently of lexical search. For an exact count of stored notes/entries/records, use quantity records and recordSelection with scope all_active when only the owned pet and recorded-date interval restrict the count; scope content_filtered when symptoms, category, words or other note content restrict it. quote must be the exact current USER clause including every count qualifier. Output format, as-of disclosure and instructions not to save are not content filters. Do not infer episodes from records. Use null for all other tasks. This proposes a read operation, never a count or proof of completeness.",
   "profileFields lists the stored profile fields needed for the original task (including companion profile questions), independently of historical evidenceNeeds. Use field names from the schema; [] means none are requested. This is a retrieval/budget hint, not a claim that a field has a value.",
   "Questions about whether a previous save or edit happened require an owned read scope, not conversation-only scope. Resolve the referenced user turn and pet; execution receipts are looked up by the server. Assistant wording never proves success.",
@@ -124,7 +128,7 @@ export const ASK_REQUEST_INSTRUCTIONS = [
 const fail = (reason: string): never => { throw new Error(`ASK_REQUEST_INVALID:${reason}`); };
 export function validateAskRequest(value: unknown, context: Context): AskInterpretation {
   if (!value || typeof value !== "object" || Array.isArray(value)) return fail("shape");
-  const p = { task: null, temporalScope: null, mutationIntent: null, recordSelection: null, profileFields: [], projection: null, evidenceNeeds: [], outputFormat: null, evidenceBasis: null, premiseQuotes: null, excludedPetNames: [], ...value } as Record<string, unknown>; // Older stored v2 contracts predate these optional fields.
+  const p = { writeJob: null, task: null, temporalScope: null, mutationIntent: null, recordSelection: null, profileFields: [], projection: null, evidenceNeeds: [], outputFormat: null, evidenceBasis: null, premiseQuotes: null, excludedPetNames: [], ...value } as Record<string, unknown>; // Older stored v2 contracts predate these optional fields.
   if (Object.keys(p).sort().join() !== askRequestSchema({}).required.sort().join()) return fail("fields");
   const member = (values: readonly unknown[], value: unknown) => values.includes(value);
   const list = (value: unknown, count: number, size: number): value is string[] => Array.isArray(value) && value.length <= count
@@ -143,6 +147,29 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (!Array.isArray(p.profileFields) || p.profileFields.some(field => !askRequestSchema({}).properties.profileFields.items.enum.includes(String(field))) || p.profileFields.length > 14) return fail("profile_fields");
   if (![null, "historical", "current", "historical_and_current"].includes(p.temporalScope as null | string)) return fail("temporal_scope");
   if (![null, "correct_record"].includes(p.mutationIntent as null | string)) return fail("mutation_intent");
+  if (p.writeJob !== null) {
+    // A standalone replace has one mutation job, no observation save or essay.
+    // Conflicting read obligations fail closed rather than being silently dropped.
+    if (p.mode !== "update" || p.mutationIntent !== "correct_record" || p.task !== null
+      || p.operation !== "general" || p.referenceTurnIds.length || p.terms.length
+      || p.evidenceBasis !== null || !Array.isArray(p.evidenceNeeds) || p.evidenceNeeds.length
+      || (p.profileFields as unknown[])?.length || p.quantity !== null || p.projection !== null
+      || p.from !== null || p.to !== null || !context.currentTurn || context.currentTurn.role !== "user"
+      || context.currentTurn.text !== context.currentMessage || ownerDeclinesPersistence(context.currentMessage)
+      || p.petNames.length !== 1 || !["selected", "named", "conversation"].includes(String(p.scope))) return fail("write_job");
+    const subjectName = p.petNames[0];
+    const subjects = context.eligiblePets.filter(pet => pet.user_id === context.owner.userId && pet.name === subjectName);
+    if (subjects.length !== 1 || !subjects[0].name) return fail("write_job");
+    const subject = subjects[0];
+    if (subject.id !== context.pet.id && !explicitlyNamedOwnedPets(context.currentMessage, subjects).length) return fail("write_job");
+    const writeJob = validateReplaceJob(p.writeJob, context.currentTurn, { id: subject.id, name: subject.name! });
+    return { version: "ask-interpretation.v1", operation: "update", readOperation: null,
+      petIds: [subject.id], topic: "care history correction", history: null,
+      episodeTopic: null, ordinal: null, readOnly: false, clarification: null, frame: emptyProposedSemanticFrame(),
+      request: { version: ASK_REQUEST_VERSION, mode: "update", mutationIntent: "correct_record", writeJob,
+        task: null, question: context.currentMessage, requirements: p.requirements, referenceTurnIds: [],
+        quantity: null, evidenceBasis: null, outputFormat: null } };
+  }
   // Once this turn's owner note is already durably saved, the companion
   // question cannot authorize or require that same save again. Strip stale
   // task/mixed-write hints before validating the independent follow-up read.

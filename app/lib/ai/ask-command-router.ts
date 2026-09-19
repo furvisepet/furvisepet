@@ -40,7 +40,7 @@ export function planDeterministicAskCommand(message: string, petName: string): D
   if (correction) {
     return {
       routeType: "application_action",
-      orchestration: deterministicResult("Care history", `Review the correction to ${petName}'s latest care-history note below.`, "question"),
+      orchestration: careHistoryCorrectionOrchestration(petName),
       proposals: [{
         kind: "care_history.edit",
         input: { field: null, value: null, title: null, detail: correction, category: null, target: "specified" },
@@ -142,4 +142,9 @@ function deterministicResult(title: string, summary: string, intent: "preference
     safetyLevel: "normal",
     suggestion: null,
   };
+}
+
+/** Existing action presentation shared by semantic and legacy callers. */
+export function careHistoryCorrectionOrchestration(petName: string) {
+  return deterministicResult("Care history", `Review the correction to ${petName}'s latest care-history note below.`, "question");
 }
