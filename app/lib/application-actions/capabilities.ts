@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createIdempotencyAdminClient } from "../security/idempotency/admin-client.ts";
 import { authorizeFurviseActionExecution } from "../furvise-brain/action-organ.ts";
+import { careWriteOperation, confirmFurviseWriteReceipt } from "../furvise-brain/write-contract.ts";
 import { parseStoredApplicationActions } from "./contracts.ts";
 import { hasDeterministicUserMutationIntent } from "./planner.ts";
 import { getFurviseActionPolicy } from "./policy.ts";
@@ -127,6 +128,16 @@ export async function executeActionCapability(input: {
   if (!data) return null;
   const action = parseStoredApplicationActions([data.action])[0];
   if (!action) throw new Error("ACTION_CAPABILITY_CORRUPT");
+  if (careWriteOperation(authoritativeAction.kind)) {
+    const persisted = await loadExecutionCapability(input);
+    confirmFurviseWriteReceipt({
+      operationId: capability.id,
+      authorized: authoritativeAction,
+      returned: action,
+      persistedStatus: persisted?.status || null,
+      persistedReceipt: persisted?.receipt ? parseStoredApplicationActions([persisted.receipt])[0] || null : null,
+    });
+  }
   return { action, changed: data.changed };
 }
 
