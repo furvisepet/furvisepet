@@ -577,7 +577,7 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
       sourceIds:[latest.source.sourceId],calculations:[]}]})||null;
   }
 
-    const lastTwoWeights = /\b(?:last|latest|most recent|newest)\s+two\s+(?:weights?|body masses?)\b/i.test(requestText);
+    const lastTwoWeights = /\b(?:last|latest|most recent|newest)\s+two\s+(?:recorded\s+)?(?:weights?|body masses?)\b/i.test(requestText);
   if (lastTwoWeights && evidence.scope.readOnlyRecall && request?.mode === "read" && request.evidenceBasis === "saved_history"
     && evidence.scope.authorizedPetIds.length === 1) {
     const petId=evidence.scope.authorizedPetIds[0], name=evidence.petNames?.[petId] || "This pet";

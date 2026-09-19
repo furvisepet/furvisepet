@@ -163,7 +163,7 @@ test('since-dental food read keeps the anchor row and later food notes',()=>{
 });
 
 test('mixed save companion returns the last two weights and checks the saved note independently',()=>{
-  const q="tell me Cedar's last two weights and whether this note includes a weight.";
+  const q="tell me Cedar's last two recorded weights and whether this note includes a weight.";
   const e=evidence(q,['2026-08-15','2026-09-15'],[
     [0,0,14.66,0,0],
     [0,0,14.51,0,0],
