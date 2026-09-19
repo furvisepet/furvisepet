@@ -375,12 +375,31 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
     const petId=evidence.scope.authorizedPetIds[0], name=evidence.petNames?.[petId] || "This pet";
     const foodSources=eligibleAnswerSources(evidence).filter(source=>source.petId===petId && source.sourceType==="care_update"
       && /\b(?:food|diet|kibble|wet[- ]?food|dry[- ]?food|feeding|meal|turkey)\b/i.test(source.text));
-    if(foodSources.length===1){
-      const source=foodSources[0], detail=displayCareNoteBody(source.text) || source.text.trim();
-      const date=source.occurredAt ? humanDate(source.occurredAt,evidence.timeZone || "UTC") : "an undated entry";
-      const comparison=/\b(?:different|same|last month|current|now)\b/i.test(requestText);
-      const text=`The food note I found for ${name} is from ${date}: ${detail}${comparison ? ` That note alone does not tell me whether ${name}'s food is different from last month or from now.` : ""}`;
-      return parseHistoryNarrative({sentences:[{text,sourceIds:[source.sourceId],calculations:[]}]}) || null;
+    const dated=[...foodSources].filter(source=>source.occurredAt && Number.isFinite(Date.parse(source.occurredAt)))
+      .sort((a,b)=>Date.parse(b.occurredAt!)-Date.parse(a.occurredAt!));
+    const latest=dated[0] || foodSources[0];
+    if(latest){
+      const detail=displayCareNoteBody(latest.text) || latest.text.trim();
+      const date=latest.occurredAt ? humanDate(latest.occurredAt,evidence.timeZone || "UTC") : "an undated entry";
+      const sentences=[{text:`The latest food note I found for ${name} is from ${date}: ${detail}`,sourceIds:[latest.sourceId],calculations:[]}];
+      if(/\blast month\b/i.test(requestText)){
+        const zone=evidence.timeZone || "UTC";
+        const parts=new Intl.DateTimeFormat("en-CA",{timeZone:zone,year:"numeric",month:"2-digit"}).formatToParts(new Date());
+        const year=Number(parts.find(part=>part.type==="year")?.value), month=Number(parts.find(part=>part.type==="month")?.value);
+        const previous=new Date(Date.UTC(month===1?year-1:year,month===1?11:month-2,1));
+        const previousKey=`${previous.getUTCFullYear()}-${String(previous.getUTCMonth()+1).padStart(2,"0")}`;
+        const previousLabel=new Intl.DateTimeFormat("en-US",{month:"long",year:"numeric",timeZone:"UTC"}).format(previous);
+        const prior=dated.filter(source=>source.occurredAt?.slice(0,7)===previousKey);
+        if(!prior.length){
+          sentences.push({text:`I don't see a food note for ${name} from ${previousLabel}, so I can't confirm a food switch from last month.`,sourceIds:[latest.sourceId],calculations:[]});
+        }else{
+          const priorSource=prior[0], priorDetail=displayCareNoteBody(priorSource.text) || priorSource.text.trim();
+          sentences.push({text:`The ${previousLabel} food note says: ${priorDetail} These saved notes do not by themselves prove that the food changed unless a switch is explicitly recorded.`,sourceIds:[priorSource.sourceId],calculations:[]});
+        }
+      }else if(/\b(?:different|same|current|now)\b/i.test(requestText)){
+        sentences.push({text:`That saved note alone does not establish whether ${name}'s food is different now.`,sourceIds:[latest.sourceId],calculations:[]});
+      }
+      return parseHistoryNarrative({sentences}) || null;
     }
   }
 

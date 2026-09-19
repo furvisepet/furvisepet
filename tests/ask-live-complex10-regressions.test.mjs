@@ -90,9 +90,24 @@ test('thin-file food comparison still returns the one saved food note instead of
   const rows=[[0,'Bramble weighed 4.77 kg. Routine dental cleaning was completed. Eating returned to the normal turkey wet-food routine the following day.',0,0,0]];
   const e=evidence(q,['2025-06-15'],rows,['bramble']);
   e.interpretation.operation='recall';e.interpretation.request.operation='recall';e.interpretation.request.selection='summary';
-  const p=deterministicReadProjection(e);assert.ok(p);const t=p.sentences[0].text;
+  const p=deterministicReadProjection(e);assert.ok(p);const t=p.sentences.map(s=>s.text).join(' ');
   assert.match(t,/food note I found for Bramble is from Jun 15, 2025/i);
   assert.match(t,/turkey wet-food routine/i);
-  assert.match(t,/does not tell me whether Bramble's food is different from last month/i);
+  assert.match(t,/can't confirm a food switch from last month/i);
   assert.doesNotMatch(t,/Partial answer|couldn.t complete every part/i);
+});
+
+test('food recall with several historical notes uses the latest relevant note and names a missing prior-month comparison',()=>{
+  const q="Bramble's on a different food than last month right? What did I write down?";
+  const e=evidence(q,['2025-06-15','2025-12-15','2026-06-15'],[
+    [0,'Bramble weighed 4.75 kg. Dental cleaning was completed. Eating returned to the normal turkey wet-food routine the following day.',0,0,0],
+    [0,'Bramble weighed 4.78 kg. Nutrition review: the usual measured diet was continued and appetite was normal.',0,0,0],
+    [0,'Bramble weighed 4.80 kg. Monthly nutrition review: the usual measured diet was continued, appetite was normal, and no persistent digestive change was reported.',0,0,0],
+  ],['bramble']);
+  e.interpretation.operation='recall';e.interpretation.request.operation='recall';e.interpretation.request.selection='summary';
+  const p=deterministicReadProjection(e);assert.ok(p);const t=p.sentences.map(s=>s.text).join(' ');
+  assert.match(t,/latest food note I found for Bramble is from Jun 15, 2026/i);
+  assert.match(t,/usual measured diet was continued/i);
+  assert.match(t,/I don't see a food note for Bramble from .*can't confirm a food switch from last month/i);
+  assert.doesNotMatch(t,/turkey wet-food routine|Partial answer|couldn.t complete every part/i);
 });
