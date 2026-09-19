@@ -1,0 +1,82 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+
+const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+const hash = (path) => createHash("sha256").update(readFileSync(new URL(`../${path}`, import.meta.url))).digest("hex").toUpperCase();
+const css = read("app/globals.css");
+const primitives = read("app/components/product-primitives.tsx");
+const appPage = read("app/components/app-page.tsx");
+const header = read("app/components/app-header.tsx");
+const pets = read("app/pets/page.tsx");
+const today = read("app/today/page.tsx");
+const history = read("app/components/care-log-workspace.tsx");
+const ask = read("app/ask/page.tsx");
+const products = read("app/shop/page.tsx");
+const account = read("app/account/page.tsx");
+const homepage = read("app/components/homepage-client.tsx");
+
+const accountShell = read("app/components/account-settings-shell.tsx");
+const accountUtility = read("app/components/account-utility.tsx");
+
+test("one semantic Primary mapping owns forest action states", () => {
+  assert.equal((css.match(/--primary-action-background:/g) || []).length, 1);
+  assert.match(css, /--primary-action-background: var\(--deep-forest\);/);
+  assert.match(css, /--primary-action-foreground: var\(--warm-cream\);/);
+  assert.match(css, /--action-primary: var\(--primary-action\);/);
+  assert.match(primitives, /primary: "bg-\[var\(--action-primary\)\][\s\S]*hover:bg-\[var\(--action-primary-hover\)\][\s\S]*active:bg-\[var\(--action-primary-active\)\]"/);
+  assert.match(primitives, /disabled:bg-\[var\(--disabled-surface\)\][\s\S]*disabled:text-\[var\(--disabled-text\)\]/);
+});
+
+test("Soft is pale sage, restrained, and does not share Primary elevation", () => {
+  assert.match(css, /--soft-action: var\(--pale-sage\);/);
+  assert.match(css, /--soft-action-hover: var\(--soft-sage\);/);
+  assert.match(primitives, /soft: "[^"]*bg-\[var\(--soft-action\)\][^"]*shadow-none/);
+  assert.doesNotMatch(primitives.match(/soft: "([^"]+)"/)?.[1] || "", /action-primary|warm-orange|shadow-surface/);
+});
+
+test("Pets uses a forest add action and one semantic link per directory row", () => {
+  assert.match(pets, /actions=\{profiles\.length \? <Link[^>]*>[\s\S]*ADD PET[\s\S]*<\/Link>/);
+  assert.match(pets, /bg-\[var\(--deep-forest\)\][\s\S]*text-\[color:var\(--warm-cream\)\]/);
+  assert.match(pets, /aria-label=\{`Open \$\{name\}`\}[\s\S]*href=\{`\/pets\/\$\{profile\.id\}`\}/);
+  assert.doesNotMatch(pets, /PrimaryButton|SecondaryButton|SoftButton|TextAction|warm-orange|action-primary|#[0-9a-f]{3,8}/i);
+});
+
+test("one shared mobile clearance covers every requested app surface", () => {
+  assert.match(css, /--mobile-nav-height: 4\.25rem;/);
+  assert.match(css, /--mobile-nav-safe-area: env\(safe-area-inset-bottom, 0px\);/);
+  assert.match(css, /--mobile-nav-clearance: calc\([\s\S]*var\(--mobile-nav-clearance\)[\s\S]*var\(--mobile-sticky-gap\)[\s\S]*24px/);
+  assert.match(css, /\.app-mobile-nav-clearance \{\s*padding-bottom: var\(--mobile-nav-clearance\);/);
+  assert.match(appPage, /<main className="app-mobile-nav-clearance/);
+  for (const source of [today, pets, history, ask, products, accountShell]) assert.match(source, /<AppPage/);
+  assert.match(account, /<AccountSettingsShell/);
+  assert.doesNotMatch(homepage, /app-mobile-nav-clearance/);
+});
+
+test("Pets actions and Ask composer clear the bottom navigation", () => {
+  assert.match(pets, /<AppPage layout="workspace" shell="standard">/);
+  assert.match(ask, /app-sticky-composer sticky/);
+  assert.match(css, /\.app-sticky-composer[\s\S]*var\(--mobile-nav-clearance\)[\s\S]*var\(--mobile-sticky-gap\)/);
+});
+
+test("the account utility contains account controls and complete dismissal behavior", () => {
+  assert.match(accountUtility, /data-ui="account-utility"/);
+  assert.doesNotMatch(accountUtility, /href="\/shop"|Products/);
+  assert.match(accountUtility, /href="\/account" label="Account settings"/);
+  assert.match(accountUtility, /document\.addEventListener\("click", closeMenu\)/);
+  assert.match(accountUtility, /event\.key !== "Escape"/);
+  assert.match(accountUtility, /summaryRef\.current\?\.focus\(\)/);
+  assert.match(accountUtility, /top-\[calc\(100%\+0\.5rem\)\]/);
+  assert.match(accountUtility, /aria-controls=\{menuId\}/);
+});
+
+test("navigation order, desktop active treatment, and brand assets stay protected", () => {
+  const desktop = header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS"));
+  for (const label of ["Today", "Pets", "History", "Ask"]) assert.ok(desktop.includes(`label: "${label}"`));
+  assert.doesNotMatch(desktop, /Products|\/shop/);
+  assert.match(header, /data-active-indicator=\{isActive\(item\.href\) \? "underline"/);
+  assert.doesNotMatch(header, /isActive\(item\.href\) \? "[^"]*bg-\[var\(--selected-background\)\]/);
+  assert.equal(hash("public/brand/furvise-logo.svg"), "15103E452559F4F29B0492A6731782ECD680992F62798BE95DDC7ABA544F3B00");
+  assert.equal(hash("app/favicon.ico"), "7645741D1A690C78A6A235C21FB57B93533AB2C86BE3437F8AB28180497220E3");
+});

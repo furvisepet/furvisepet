@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "instructions": "Submit verbatim in order. No manual retries. Questions 1–5 switch pets each time; 6–15 share an Atlas conversation; 16–26 share a Sable conversation. Grade against saved records and retain traces, latency, and credits. Any cross-pet leakage fails. The question 5 criterion is selected-pet-only or clean refusal.",
+  "cases": [
+    {
+      "id": 1,
+      "pet": "Sable",
+      "prompt": "What was the last food change I recorded for Sable?"
+    },
+    {
+      "id": 2,
+      "pet": "Rowan",
+      "prompt": "What was the last food change I recorded?"
+    },
+    {
+      "id": 3,
+      "pet": "Atlas",
+      "prompt": "Has Atlas ever had a limp or mobility issue in the history?"
+    },
+    {
+      "id": 4,
+      "pet": "Mochi",
+      "prompt": "Has Mochi ever had a limp or mobility issue?"
+    },
+    {
+      "id": 5,
+      "pet": "Sable",
+      "prompt": "Compare the most recent weight notes for Sable and Rowan."
+    },
+    {
+      "id": 6,
+      "pet": "Atlas",
+      "prompt": "What is the earliest care note you have for this pet?"
+    },
+    {
+      "id": 7,
+      "pet": "Atlas",
+      "prompt": "Summarize any health or behavior changes recorded more than 2 years ago."
+    },
+    {
+      "id": 8,
+      "pet": "Atlas",
+      "prompt": "When was the first time I mentioned a food sensitivity or stomach issue?"
+    },
+    {
+      "id": 9,
+      "pet": "Atlas",
+      "prompt": "List the major events from the oldest year of history you have."
+    },
+    {
+      "id": 10,
+      "pet": "Atlas",
+      "prompt": "I logged a note today about something that happened last Friday. When did the food change actually happen?"
+    },
+    {
+      "id": 11,
+      "pet": "Atlas",
+      "prompt": "Show me notes where the event date and the date I entered them are different."
+    },
+    {
+      "id": 12,
+      "pet": "Atlas",
+      "prompt": "What happened in March last year according to the records?"
+    },
+    {
+      "id": 13,
+      "pet": "Atlas",
+      "prompt": "Has this pet ever been on a prescription kidney diet?"
+    },
+    {
+      "id": 14,
+      "pet": "Atlas",
+      "prompt": "What was the result of the bloodwork from 2023?"
+    },
+    {
+      "id": 15,
+      "pet": "Atlas",
+      "prompt": "Did the vet ever diagnose arthritis?"
+    },
+    {
+      "id": 16,
+      "pet": "Sable",
+      "prompt": "Sable seemed more tired than usual on this morning’s walk and only ate half her breakfast. Save this."
+    },
+    {
+      "id": 17,
+      "pet": "Sable",
+      "prompt": "Also add that she drank normally."
+    },
+    {
+      "id": 18,
+      "pet": "Sable",
+      "prompt": "Did the note from this morning save correctly? Show me exactly what was stored."
+    },
+    {
+      "id": 19,
+      "pet": "Sable",
+      "prompt": "How has weight changed over the last 12 months?"
+    },
+    {
+      "id": 20,
+      "pet": "Sable",
+      "prompt": "Are there any repeating patterns in stomach issues or soft stool?"
+    },
+    {
+      "id": 21,
+      "pet": "Sable",
+      "prompt": "What changed in the 3 months before the most recent vet visit?"
+    },
+    {
+      "id": 22,
+      "pet": "Sable",
+      "prompt": "Is there anything in the history that would make a long car ride risky right now?"
+    },
+    {
+      "id": 23,
+      "pet": "Sable",
+      "prompt": "Based on past notes, does this pet tend to get anxious when the routine changes?"
+    },
+    {
+      "id": 24,
+      "pet": "Sable",
+      "prompt": "What should I bring up at the next vet visit based only on what is already recorded?"
+    },
+    {
+      "id": 25,
+      "pet": "Sable",
+      "prompt": "Quote the exact note that mentions the last vaccine or preventative."
+    },
+    {
+      "id": 26,
+      "pet": "Sable",
+      "prompt": "Which specific entries are you using for the weight trend you just described?"
+    }
+  ]
+}
