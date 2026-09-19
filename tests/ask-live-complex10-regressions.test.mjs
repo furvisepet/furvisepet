@@ -1,0 +1,68 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { deterministicReadProjection } from '../app/lib/intelligence/read-projection.ts';
+import { validateAskRequest } from '../app/lib/intelligence/ask-request-contract.ts';
+
+const names=['Aster','Bramble','Cedar','Dune','Echo'];
+const ids=names.map(n=>n.toLowerCase());
+function evidence(question, dates, rows, selectedIds=ids){
+  const petNames=Object.fromEntries(ids.map((id,i)=>[id,names[i]]));
+  const e={version:'ask-evidence.v1',timeZone:'UTC',
+    scope:{authorizedPetIds:[...selectedIds],requestedTopic:'history',requestText:question,requestedPeriod:{kind:'unspecified',surface:null},requestKind:'comparison',readOnlyRecall:true,status:'resolved',resolutionSubject:'pets'},
+    sources:selectedIds.map(id=>({petId:id,source:'care_entries',status:'loaded',loadedIds:[],loadedCount:0,cap:null,reasons:[],completeness:{retrieval:'complete',corrections:'complete',extraction:'complete',grouping:'complete'}})),
+    completeness:{retrieval:'complete',corrections:'complete',extraction:'complete',grouping:'complete'},losses:[],represented:[],representation:'complete',verifiedFacts:[],petNames,
+    interpretation:{operation:'comparison',readOnly:true,petIds:[...selectedIds],readPetIds:true,conversationOnly:false,request:{version:'ask-request.v2',mode:'read',question,requirements:[],referenceTurnIds:[],quantity:null,evidenceBasis:'saved_history',outputFormat:'prose',premiseQuotes:[],excludedPetNames:[],projection:null,evidenceNeeds:[],scope:selectedIds.length>1?'account':'selected',operation:'comparison',selection:'comparison',frame:null}},
+    history:{plan:{from:null,to:null,terms:[],interpretation:'period'},candidateIds:[],queryCount:0,retrieval:'complete',corrections:'complete',extraction:'complete',grouping:'complete',continuation:[],reasons:[],consistency:'read_committed_no_snapshot',perPet:[],provenance:[],claimSources:[],excludedIds:[],needs:[],targets:[],endpointPairs:[],requiredSourceIds:[]}};
+  selectedIds.forEach(id=>{const i=ids.indexOf(id);dates.forEach((date,j)=>{
+    const raw=rows[j][i], text=typeof raw==='string'?raw:`${names[i]} weighed ${raw} kg.`;
+    const sourceId=`care:${id}:${date}`;
+    e.represented.push({sourceId,petId:id,sourceType:'care_update',field:'value',start:0,end:text.length,text,occurredAt:date+'T12:00:00Z'});
+    const s=e.sources.find(x=>x.petId===id);s.loadedIds.push(sourceId);s.loadedCount++;
+  })}); return e;
+}
+test('complex Q1 filters under-7kg cohort and preserves exact weights even with table output hint',()=>{
+  const q='On September 15, 2026, which pets weighed under 7 kg, and what were their exact weights?';
+  const e=evidence(q,['2026-09-15'],[[30.31,4.71,14.51,6.61,7.01]]);e.interpretation.request.outputFormat='table';
+  const p=deterministicReadProjection(e);assert.ok(p);const t=p.sentences[0].text;
+  assert.match(t,/Bramble 4\.71 kg/);assert.match(t,/Dune 6\.61 kg/);assert.doesNotMatch(t,/Echo|Cedar|Aster/);
+});
+test('complex Q2 computes two-pet two-date gains and gap',()=>{
+  const q="Compare Aster's and Cedar's weights from January 15, 2024 to September 15, 2026. How much did each gain, and whose gain was larger by how much?";
+  const e=evidence(q,['2024-01-15','2026-09-15'],[[28.63,0,13.61,0,0],[30.31,0,14.51,0,0]],['aster','cedar']);
+  const p=deterministicReadProjection(e);assert.ok(p);const t=p.sentences[0].text;
+  assert.match(t,/Aster changed \+1\.68 kg/);assert.match(t,/Cedar changed \+0\.9 kg/);assert.match(t,/0\.78 kg larger/);
+});
+test('complex Q6 filters cohort by two-date gain threshold',()=>{
+  const q='Between September 15, 2024 and September 15, 2026, which of the five pets gained at least 1 kg?';
+  const e=evidence(q,['2024-09-15','2026-09-15'],[[29.10,4.61,13.88,6.37,6.75],[30.31,4.71,14.51,6.61,7.01]]);
+  const p=deterministicReadProjection(e);assert.ok(p);const t=p.sentences[0].text;
+  assert.match(t,/Aster gained weight by 1\.21 kg/);assert.doesNotMatch(t,/Bramble|Cedar|Dune|Echo/);
+});
+test('complex Q7 returns source details instead of generic matched-detail copy',()=>{
+  const q='At the September 15, 2023 records, which pet had a dental cleaning, what food was used that evening, and what was resumed the next day?';
+  const rows=names.map((name,i)=>i===4
+    ? 'Echo weighed 6.62 kg. Routine dental cleaning was completed. Soft food was used that evening and normal kibble resumed the next day.'
+    : name+' weighed '+[28.49,4.56,13.57,6.25,6.62][i]+' kg. Monthly care check recorded stable appetite.');
+  const e=evidence(q,['2023-09-15'],[rows]);e.interpretation.request.evidenceNeeds=[{id:'n',quote:q,sourceTurnId:null,terms:['dental cleaning'],order:'context'}];
+  const p=deterministicReadProjection(e);assert.ok(p);const t=p.sentences[0].text;
+  assert.match(t,/Echo/);assert.match(t,/Soft food/);assert.match(t,/normal kibble resumed/);
+});
+test('complex Q9 finds largest absolute increase across five pets',()=>{
+  const q='Across all five pets, compare their January 15, 2024 wellness weights with January 15, 2026. Which pet had the largest absolute increase, and what was the increase?';
+  const e=evidence(q,['2024-01-15','2026-01-15'],[[28.63,4.50,13.61,6.22,6.59],[30.05,4.82,14.44,6.67,7.06]]);
+  const p=deterministicReadProjection(e);assert.ok(p);assert.match(p.sentences[0].text,/Aster.*\+1\.42 kg/);
+});
+test('complex Q10 resolves descriptor pet from earlier dated evidence and computes later change',()=>{
+  const q='For that 2023 dental-cleaning pet, what was the weight on September 15, 2026, and how much higher was it than on September 15, 2023?';
+  const early=names.map((name,i)=>i===4?'Echo weighed 6.62 kg. Routine dental cleaning was completed. Soft food was used that evening and normal kibble resumed the next day.':name+' weighed '+[28.49,4.56,13.57,6.25,6.62][i]+' kg. Routine note.');
+  const e=evidence(q,['2023-09-15','2026-09-15'],[early,[30.31,4.71,14.51,6.61,7.01]]);
+  const p=deterministicReadProjection(e);assert.ok(p);const t=p.sentences[0].text;
+  assert.match(t,/Echo weighed 7\.01 kg/);assert.match(t,/0\.39 kg higher/);
+});
+test('descriptor follow-up widens read scope to owned account instead of selected pet',()=>{
+  const pets=ids.map((id,i)=>({id,user_id:'owner',name:names[i]}));
+  const current='For that 2023 dental-cleaning pet, what was the weight on September 15, 2026, and how much higher was it than on September 15, 2023?';
+  const proposal={version:'ask-request.v2',mode:'read',question:current,requirements:[],referenceTurnIds:[],scope:'selected',petNames:[],operation:'comparison',selection:'comparison',quantity:null,topic:'weight',terms:['weight'],from:'2023-09-15',to:'2026-09-16',episodeTopic:null,ordinal:null,frame:null,evidenceBasis:'saved_history'};
+  const result=validateAskRequest(proposal,{owner:{userId:'owner'},eligiblePets:pets,pet:pets[0],currentMessage:current,conversationTurns:[{id:'u1',role:'user',text:'At the September 15, 2023 records, which pet had a dental cleaning, what food was used that evening, and what was resumed the next day?'}]});
+  assert.deepEqual(new Set(result.petIds),new Set(ids));
+});

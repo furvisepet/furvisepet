@@ -119,8 +119,8 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
   // a language-generation task. This keeps "which pets?" semantics out of the
   // prompt/reviewer path and prevents false partial answers when coverage is complete.
   if (evidence.scope.readOnlyRecall && request?.mode === "read" && request.evidenceBasis === "saved_history"
-    && evidence.scope.authorizedPetIds.length > 1 && /\b(?:weights?|weighed|body mass)\b/i.test(requestText)
-    && (!request.outputFormat || ["prose","bullets"].includes(request.outputFormat))) {
+    && evidence.scope.authorizedPetIds.length > 1 && (/\b(?:weights?|weighed|body mass)\b/i.test(requestText) || /\b(?:gained|lost|increased|decreased)\b[^.!?]{0,40}\b(?:kg|kilograms?|g|grams?|lb|lbs|pounds?)\b/i.test(requestText))
+    && (!request.outputFormat || ["prose","bullets","table","csv"].includes(request.outputFormat))) {
     const days = explicitHistoryDays(requestText, new Date().getUTCFullYear(), 8).sort();
     if (days.length === 1 || days.length === 2) {
       const target = /\b(?:pounds?|lbs?)\b/i.test(requestText) ? units.lb
@@ -142,15 +142,19 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
           row.byDay[index][0].measurement.value * row.byDay[index][0].measurement.unit.scale / target.scale;
         if (days.length === 1) {
           const threshold = /\b(more than|over|above|less than|under|below)\s+(-?\d+(?:\.\d+)?)\s*(kg|kilograms?|g|grams?|lb|lbs|pounds?)\b/i.exec(requestText);
-          if (threshold && /\bwhich\s+pets?\b/i.test(requestText)) {
+          if (threshold && /\bwhich(?:\s+of\b[^.!?]{0,30})?\s+pets?\b/i.test(requestText)) {
             const thresholdUnit = units[threshold[3].toLowerCase()];
             if (thresholdUnit?.dimension === target.dimension) {
               const boundary = Number(threshold[2]) * thresholdUnit.scale / target.scale;
               const high = /^(?:more than|over|above)$/i.test(threshold[1]);
               const selected = complete.filter(row => high ? value(row,0) > boundary : value(row,0) < boundary);
               const sourceIds = complete.map(row => row.byDay[0][0].source.sourceId);
+              const exactWeights = /\b(?:exact|weights?|what were|how much)\b/i.test(requestText);
+              const selectedText = selected.map(row => `${row.name} ${row.byDay[0][0].measurement.literal}`);
               const text = selected.length
-                ? `${selected.map(row => row.name).join(selected.length === 2 ? " and " : ", ")} ${selected.length === 1 ? "was" : "were"} ${threshold[1].toLowerCase()} ${threshold[2]} ${thresholdUnit.canonical} on ${days[0]}.`
+                ? exactWeights
+                  ? `${selectedText.join(selected.length === 2 ? " and " : ", ")} ${selected.length === 1 ? "was" : "were"} ${threshold[1].toLowerCase()} ${threshold[2]} ${thresholdUnit.canonical} on ${days[0]}.`
+                  : `${selected.map(row => row.name).join(selected.length === 2 ? " and " : ", ")} ${selected.length === 1 ? "was" : "were"} ${threshold[1].toLowerCase()} ${threshold[2]} ${thresholdUnit.canonical} on ${days[0]}.`
                 : `None of the requested pets were ${threshold[1].toLowerCase()} ${threshold[2]} ${thresholdUnit.canonical} on ${days[0]}.`;
               return parseHistoryNarrative({sentences:[{text,sourceIds,calculations:[]}]}) || null;
             }
@@ -161,14 +165,35 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
             return parseHistoryNarrative({sentences:[{text:`On ${days[0]}, ${highest.name} had the highest recorded weight at ${highest.byDay[0][0].measurement.literal}, and ${lowest.name} had the lowest at ${lowest.byDay[0][0].measurement.literal}.`,
               sourceIds:[highest.byDay[0][0].source.sourceId,lowest.byDay[0][0].source.sourceId],calculations:[]}]}) || null;
           }
-        } else if (/\bwhich\s+pets?\b/i.test(requestText) && /\b(?:lost|gained|decreased|increased)\b/i.test(requestText)) {
-          const wantsLoss=/\b(?:lost|decreased)\b/i.test(requestText);
-          const selected=complete.filter(row => wantsLoss ? value(row,1) < value(row,0) : value(row,1) > value(row,0));
+        } else {
+          const deltas=complete.map(row=>({row,change:Number((value(row,1)-value(row,0)).toFixed(8))}));
           const sourceIds=complete.flatMap(row=>row.byDay.map(matches=>matches[0].source.sourceId));
-          const verb=wantsLoss?"lost weight":"gained weight";
-          const text=selected.length ? `${selected.map(row=>row.name).join(selected.length===2?" and ":", ")} ${verb} from ${days[0]} to ${days[1]}.`
-            : `None of the requested pets ${verb} from ${days[0]} to ${days[1]}.`;
-          return parseHistoryNarrative({sentences:[{text,sourceIds,calculations:[]}]}) || null;
+          const threshold=/\b(?:at least|more than|over|above)\s+(-?\d+(?:\.\d+)?)\s*(kg|kilograms?|g|grams?|lb|lbs|pounds?)\b/i.exec(requestText);
+          const descriptor=/\b(?:that|same)\s+(?:\d{4}\s+)?([a-z][a-z -]{2,50}?)\s+(?:pet|dog|cat|animal)\b/i.exec(requestText)?.[1]
+            ?.toLowerCase().split(/[^a-z]+/).filter(term=>term.length>=4&&!["that","same","recorded","weight"].includes(term));
+          if(descriptor?.length){
+            const matched=deltas.filter(item=>descriptor.every(term=>item.row.byDay[0][0].source.text.toLowerCase().includes(term)));
+            if(matched.length===1){ const item=matched[0]; return parseHistoryNarrative({sentences:[{text:`${item.row.name} weighed ${item.row.byDay[1][0].measurement.literal} on ${days[1]}, which was ${Math.abs(item.change)} ${target.canonical} ${item.change>=0?"higher":"lower"} than ${item.row.byDay[0][0].measurement.literal} on ${days[0]}.`,sourceIds,calculations:[]}]})||null; }
+          }
+          if(/\bwhich(?:\s+of\b[^.!?]{0,30})?\s+pets?\b/i.test(requestText)&&/\b(?:lost|gained|decreased|increased)\b/i.test(requestText)){
+            const wantsLoss=/\b(?:lost|decreased)\b/i.test(requestText);
+            let selected=deltas.filter(item=>wantsLoss?item.change<0:item.change>0);
+            if(threshold){ const u=units[threshold[2].toLowerCase()]; if(u?.dimension===target.dimension){ const min=Number(threshold[1])*u.scale/target.scale; selected=selected.filter(item=>Math.abs(item.change)>=min); }}
+            const text=selected.length?selected.map(item=>`${item.row.name} ${wantsLoss?"lost":"gained"} weight by ${Math.abs(item.change)} ${target.canonical}`).join(selected.length===2?" and ":", ")+` from ${days[0]} to ${days[1]}.`
+              : `None of the requested pets matched that weight-change condition from ${days[0]} to ${days[1]}.`;
+            return parseHistoryNarrative({sentences:[{text,sourceIds,calculations:[]}]})||null;
+          }
+          if(/\b(?:largest|greatest|biggest)\b/i.test(requestText)&&/\b(?:increase|gain|change)\b/i.test(requestText)){
+            const absolute=/\babsolute\b/i.test(requestText);
+            const ranked=[...deltas].sort((a,b)=>(absolute?Math.abs(b.change)-Math.abs(a.change):b.change-a.change));
+            const best=ranked[0];
+            if(best) return parseHistoryNarrative({sentences:[{text:`${best.row.name} had the largest ${absolute?"absolute ":""}increase: ${best.change>=0?"+":""}${best.change} ${target.canonical} (${best.row.byDay[0][0].measurement.literal} on ${days[0]} to ${best.row.byDay[1][0].measurement.literal} on ${days[1]}).`,sourceIds,calculations:[]}]})||null;
+          }
+          if(complete.length===2&&/\b(?:how much did each|whose gain|whose change|larger by how much|compare)\b/i.test(requestText)){
+            const [a,b]=deltas; const larger=a.change>=b.change?a:b, smaller=larger===a?b:a; const gap=Number(Math.abs(larger.change-smaller.change).toFixed(8));
+            const text=`${a.row.name} changed ${a.change>=0?"+":""}${a.change} ${target.canonical}; ${b.row.name} changed ${b.change>=0?"+":""}${b.change} ${target.canonical}. ${larger.row.name}'s gain was ${gap} ${target.canonical} larger.`;
+            return parseHistoryNarrative({sentences:[{text,sourceIds,calculations:[]}]})||null;
+          }
         }
       }
     }
@@ -190,11 +215,11 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
 
       if(perPetReady){
         const terms=[...new Set((request.evidenceNeeds||[]).flatMap(need=>need.terms).map(term=>term.trim().toLowerCase()).filter(term=>term.length>=4))];
-        if(/\bwhich\s+pets?\b/i.test(requestText)&&terms.length){
+        if(/\bwhich(?:\s+of\b[^.!?]{0,30})?\s+pets?\b/i.test(requestText)&&terms.length){
           const selected=perPet.filter(row=>terms.every(term=>row.matches[0].text.toLowerCase().includes(term)));
           if(selected.length){
-            return parseHistoryNarrative({sentences:[{text:`${selected.map(row=>row.name).join(selected.length===2?" and ":", ")} matched the requested recorded detail on ${day}.`,
-              sourceIds:selected.map(row=>row.matches[0].sourceId),calculations:[]}]})||null;
+            const text=selected.map(row=>`${row.name}: ${row.matches[0].text}`).join(" ");
+            return parseHistoryNarrative({sentences:[{text,sourceIds:selected.map(row=>row.matches[0].sourceId),calculations:[]}]})||null;
           }
         }
         const noteBody=(text:string)=>{ const measurement=bodyMeasurement(text); if(!measurement) return text.trim(); const start=text.indexOf(measurement.literal); if(start<0) return text.trim(); const end=text.indexOf(".",start+measurement.literal.length); return end>=0?text.slice(end+1).trim():text.trim(); };

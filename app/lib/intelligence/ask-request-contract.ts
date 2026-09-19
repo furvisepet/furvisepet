@@ -312,7 +312,13 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   // A selected conversation container is not a cohort-search constraint. Resolve
   // explicit scope language before allocating bounded evidence across profiles.
   const cohortRequested = /\b(?:all|each|every|other|both|three|two|across|among)\b[^.!?]{0,35}\b(?:pets?|dogs?|cats?|animals?|profiles?)\b|\b(?:which|whose)\s+(?:(?:of|the|my|our)\s+)*(?:pets?|dogs?|cats?|animals?)\b|\bname\s+the\s+(?:pet|dog|cat|animal)\b|\b(?:across|whole|entire)\s+(?:(?:the|my|our)\s+)?account\b/i.test(context.currentMessage);
-  if (["read", "clarify"].includes(String(p.mode)) && cohortRequested && !explicitPets.length && !anchor) {
+  const descriptorFollowup = /\b(?:that|same)\b[^.!?]{0,80}\b(?:pet|dog|cat|animal)\b/i.test(context.currentMessage)
+    && [...context.conversationTurns].reverse().some(turn => turn.role === "user" && turn.text !== context.currentMessage
+      && /\bwhich\s+(?:pet|dog|cat|animal)\b/i.test(turn.text));
+  if (["read", "clarify"].includes(String(p.mode)) && descriptorFollowup && !explicitPets.length) {
+    p.scope = "account"; p.mode = "read"; petIds = owned.filter(pet => !excluded.has(pet.id)).map(pet => pet.id);
+    if (p.operation === "clarify") p.operation = "recall";
+  } else if (["read", "clarify"].includes(String(p.mode)) && cohortRequested && !explicitPets.length && !anchor) {
     p.scope = "account"; p.mode = "read"; petIds = owned.filter(pet => !excluded.has(pet.id)).map(pet => pet.id);
     if (p.operation === "clarify") p.operation = "recall";
   } else if (p.mode === "read" && p.scope === "account" && explicitPets.length && !cohortRequested) {
