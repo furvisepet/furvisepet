@@ -80,7 +80,9 @@ export function splitOwnerNoteAndCompanion(text: string, authorizationEvidence: 
     if(!sentence) continue;
     if(i<commandIndex){ noteParts.push(sentence); continue; }
     if(i>commandIndex){
-      if(/[?]$|\b(?:tell me|show me|list|find|check|review|compare|calculate|compute|verify|what|why|how|should|is (?:it|this|that|he|she)|are (?:there|they)|did i|do i|can you|could you|would you)\b/i.test(sentence)) companionParts.push(sentence);
+      const refersToSavedNote = /\b(?:this|that|the|new)\s+(?:saved\s+)?note\b/i.test(sentence)
+        && /\b(?:weight|include|contain|have|has|had|say|says|said|mention|mentions|mentioned|date|time|category)\b/i.test(sentence);
+      if(/[?]$|\b(?:tell me|show me|list|find|check|review|compare|calculate|compute|verify|what|why|how|should|is (?:it|this|that|he|she)|are (?:there|they)|did i|do i|can you|could you|would you)\b/i.test(sentence) || refersToSavedNote) companionParts.push(sentence);
       else noteParts.push(sentence);
       continue;
     }

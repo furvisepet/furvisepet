@@ -65,6 +65,16 @@ test("mixed save plus read separates the stored fact from the companion question
   assert.equal(note.needsAnswer,true);
 });
 
+test("production mixed prompt does not save a statement about the note itself",()=>{
+  const cedar={id:"cedar",name:"Cedar"};
+  const message="Log that Cedar refused breakfast. Then list Cedar’s last two weights. This new note has no weight.";
+  const note=resolveOwnerNoteRequest({message,pet:cedar,pets:[cedar]});
+  assert.ok(note);
+  assert.equal(note.note,"Cedar refused breakfast.");
+  assert.equal(note.companionQuestion,"Then list Cedar’s last two weights. This new note has no weight.");
+  assert.equal(note.needsAnswer,true);
+});
+
 test("leading save command keeps the care fact and separates a later question",()=>{
   const aster={id:"aster",name:"Aster"};
   const note=resolveOwnerNoteRequest({message:"Save this for today on Aster: drank more water than usual after the walk. Is that the first water note I have, or did I log thirst before?",pet:aster,pets:[aster]});
