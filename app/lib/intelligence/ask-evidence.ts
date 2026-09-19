@@ -238,6 +238,17 @@ export function representEvidence(contract: AskEvidenceContract, records: AskCon
     field: "value", start: 0, end: record.value.length, text: record.value,
     ...(record.sourceType === "care_update" ? { recordedAt: record.createdAt } : {}),
     ...(contract.interpretation || contract.scope.requestKind === "resolution_status" || record.sourceType === "operation_receipt" ? { occurredAt: record.occurredAt } : {}) }));
+  const completed=contract.completedOwnerNote;
+  if(completed?.note && completed.entryIds?.length && contract.scope.authorizedPetIds.includes(completed.petId)){
+    const ids=completed.entryIds.map(id=>`care:${id}`);
+    contract.losses=contract.losses.filter(loss=>!ids.includes(loss.sourceId));
+    const existing=contract.sources.find(source=>source.source==="completed_owner_note"&&source.petId===completed.petId);
+    if(existing){existing.loadedIds=[...new Set([...existing.loadedIds,...ids])];existing.loadedCount=existing.loadedIds.length;existing.status="loaded";existing.reasons=[];existing.completeness={retrieval:"complete",corrections:"complete",extraction:"complete",grouping:"complete"};}
+    else contract.sources.push({petId:completed.petId,source:"completed_owner_note",status:"loaded",loadedIds:ids,loadedCount:ids.length,cap:null,reasons:[],completeness:{retrieval:"complete",corrections:"complete",extraction:"complete",grouping:"complete"}});
+    for(const sourceId of ids) if(!contract.represented.some(span=>span.sourceId===sourceId)){
+      contract.represented.push({sourceId,petId:completed.petId,sourceType:"care_update",field:"value",start:0,end:completed.note.length,text:completed.note,occurredAt:null,recordedAt:null});
+    }
+  }
   return refreshEvidenceCoverage(contract);
 }
 

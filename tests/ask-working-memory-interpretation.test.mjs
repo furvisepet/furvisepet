@@ -93,3 +93,40 @@ test("saved-note shortcut refuses a different named pet", async () => {
   }));
   assert.equal(calls, 1);
 });
+
+test("latest named saved-history weight bypasses provider interpretation",async()=>{
+  let calls=0;
+  const q="Look at Pebble's latest weight.";
+  const result=await interpretAskQuestion({
+    context:{...context,currentMessage:q,currentTurn:{id:"latest-weight",role:"user",text:q,createdAt:"2026-09-18T23:00:00.000Z"}},
+    model:"test-model",client:{responses:{create:async()=>{calls++;throw new Error("provider should not run");}}},
+  });
+  assert.equal(calls,0);
+  assert.equal(result.request.evidenceBasis,"saved_history");
+  assert.equal(result.selection,"latest");
+  assert.equal(result.topic,"weight");
+  assert.deepEqual(result.petIds,["pebble"]);
+});
+
+test("since-event named history read bypasses provider interpretation",async()=>{
+  let calls=0;
+  const q="Since Pebble's dental, what did I write about eating or food? Don't guess months I didn't log.";
+  const result=await interpretAskQuestion({
+    context:{...context,currentMessage:q,currentTurn:{id:"since-anchor",role:"user",text:q,createdAt:"2026-09-18T23:00:01.000Z"}},
+    model:"test-model",client:{responses:{create:async()=>{calls++;throw new Error("provider should not run");}}},
+  });
+  assert.equal(calls,0);
+  assert.equal(result.request.evidenceBasis,"saved_history");
+  assert.equal(result.selection,"summary");
+  assert.deepEqual(result.petIds,["pebble"]);
+});
+
+test("explicit profile weight does not use the saved-history latest-weight shortcut",async()=>{
+  let calls=0;
+  const q="What is Pebble's current profile weight?";
+  await assert.rejects(interpretAskQuestion({
+    context:{...context,currentMessage:q,currentTurn:{id:"profile-weight",role:"user",text:q,createdAt:"2026-09-18T23:00:02.000Z"}},
+    model:"test-model",client:{responses:{create:async()=>{calls++;throw new Error("expected provider path");}}},
+  }));
+  assert.equal(calls,1);
+});

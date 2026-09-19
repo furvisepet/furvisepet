@@ -562,7 +562,22 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
     }
   }
 
-  const lastTwoWeights = /\b(?:last|latest|most recent|newest)\s+two\s+(?:weights?|body masses?)\b/i.test(requestText);
+  const latestSingleWeight=/\b(?:latest|last|most recent|newest)\s+(?:recorded\s+)?(?:weight|body mass)\b/i.test(requestText)
+    && !/\btwo\s+(?:weights?|body masses?)\b/i.test(requestText)
+    && !/\b(?:compare|comparison|versus|difference|change|profile|current profile)\b/i.test(requestText);
+  if(latestSingleWeight && evidence.scope.readOnlyRecall && request?.mode==="read" && request.evidenceBasis==="saved_history"
+    && evidence.scope.authorizedPetIds.length===1){
+    const petId=evidence.scope.authorizedPetIds[0],name=evidence.petNames?.[petId]||"This pet";
+    const rows=eligibleAnswerSources(evidence).filter(source=>source.petId===petId&&source.sourceType==="care_update"&&source.occurredAt)
+      .flatMap(source=>{const measurement=bodyMeasurement(source.text);return measurement?[{source,measurement}]:[];})
+      .sort((a,b)=>Date.parse(b.source.occurredAt||"")-Date.parse(a.source.occurredAt||"")
+        || Date.parse(("recordedAt" in b.source&&b.source.recordedAt)||"")-Date.parse(("recordedAt" in a.source&&a.source.recordedAt)||""));
+    const latest=rows[0];
+    if(latest) return parseHistoryNarrative({sentences:[{text:`${name}'s latest recorded weight is ${latest.measurement.literal} from ${humanDate(latest.source.occurredAt,evidence.timeZone||"UTC")}.`,
+      sourceIds:[latest.source.sourceId],calculations:[]}]})||null;
+  }
+
+    const lastTwoWeights = /\b(?:last|latest|most recent|newest)\s+two\s+(?:weights?|body masses?)\b/i.test(requestText);
   if (lastTwoWeights && evidence.scope.readOnlyRecall && request?.mode === "read" && request.evidenceBasis === "saved_history"
     && evidence.scope.authorizedPetIds.length === 1) {
     const petId=evidence.scope.authorizedPetIds[0], name=evidence.petNames?.[petId] || "This pet";

@@ -182,3 +182,17 @@ test('mixed save companion returns the last two weights and checks the saved not
   assert.match(text,/note you just saved does not include a weight/i);
   assert.doesNotMatch(text,/food or life-status change/i);
 });
+
+test("single latest weight uses latest saved care-history source only",()=>{
+  const q="Look at Dune's latest weight.";
+  const e=evidence(q,['2026-08-15','2026-09-15'],[
+    [0,0,0,6.77,0],
+    [0,0,0,6.61,0],
+  ],['dune']);
+  e.interpretation.operation='recall';e.interpretation.request.operation='recall';e.interpretation.request.selection='latest';
+  e.scope.requestedTopic='weight';
+  const p=deterministicReadProjection(e);assert.ok(p);
+  const text=p.sentences.map(s=>s.text).join('\n');
+  assert.match(text,/Dune's latest recorded weight is 6\.61 kg from Sep 15, 2026/);
+  assert.doesNotMatch(text,/6\.7 kg/);
+});
