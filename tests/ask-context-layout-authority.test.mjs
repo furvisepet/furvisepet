@@ -35,3 +35,18 @@ test('explicit three-question request becomes three separate vet question items'
   assert.equal(normalized.sections[0].items.length,3);
   assert.doesNotMatch(normalized.summary,/\b1\./);
 });
+
+test('existing vet-question section strips repeated question-count prefixes',()=>{
+  const answer={summary:'Aster has a new short-term appetite and activity change.',sections:[{heading:'3 questions for the vet',items:[
+    '3 questions for the vet: Is the skipped breakfast something to watch?',
+    '3 questions for the vet: Are there signs that mean I should call sooner?',
+    '3 questions for the vet: Should I bring a meal and walk log?'
+  ]}],safetyNote:null};
+  const normalized=normalizeRequestedQuestionList(answer,"Give me 3 questions for the vet.");
+  assert.equal(normalized.sections[0].heading,'Questions for the vet');
+  assert.deepEqual(normalized.sections[0].items,[
+    'Is the skipped breakfast something to watch?',
+    'Are there signs that mean I should call sooner?',
+    'Should I bring a meal and walk log?'
+  ]);
+});
