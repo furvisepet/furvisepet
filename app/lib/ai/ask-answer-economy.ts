@@ -116,6 +116,24 @@ export function normalizeAskListIntegrity<T extends AskEconomyAnswer>(answer: T)
 
 export function normalizeAskVisibleText(value: string) { return repairVisibleProseSyntax(value); }
 
+export function normalizeRequestedQuestionList<T extends AskEconomyAnswer>(answer: T, message: string): T {
+  if (answer.sections.some(section => section.items.length >= 2)) return answer;
+  const countMatch=/\b(?:give me|give|write|list|suggest|prepare|come up with)\s+(?:exactly\s+)?(\d+|one|two|three|four|five)\s+questions?\b/i.exec(message);
+  if(!countMatch) return answer;
+  const words:Record<string,number>={one:1,two:2,three:3,four:4,five:5};
+  const requested=Number(countMatch[1])||words[countMatch[1].toLowerCase()]||0;
+  if(requested<2||requested>5) return answer;
+  const raw=String(answer.summary||"");
+  const markers=[...raw.matchAll(/(?:^|\s)(\d+)[.)]\s+/g)];
+  if(markers.length!==requested||markers.some((marker,index)=>Number(marker[1])!==index+1)) return answer;
+  const items=markers.map((marker,index)=>clean(raw.slice((marker.index||0)+marker[0].length,markers[index+1]?.index??raw.length)).replace(/[.;]+$/,""));
+  if(items.some(item=>!item)) return answer;
+  let summary=clean(raw.slice(0,markers[0].index||0)).replace(/\b(?:one|two|three|four|five|\d+)\s+questions?\s+(?:to ask|for)\s+(?:the\s+)?(?:vet|veterinarian)\s*:?\s*$/i,"").trim();
+  summary=summary.replace(/\b(?:one|two|three|four|five|\d+)\s+questions?\s*:?\s*$/i,"").trim();
+  const heading=/\b(?:vet|veterinarian|clinic)\b/i.test(message)?"Questions for the vet":"Questions";
+  return {...answer,summary,sections:[...answer.sections,{heading,items}]} as T;
+}
+
 export function normalizeAskVisibleProseSanity<T extends AskEconomyAnswer>(answer: T): T {
   return {
     ...answer,

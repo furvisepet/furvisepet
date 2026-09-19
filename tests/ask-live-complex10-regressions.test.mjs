@@ -84,3 +84,15 @@ test('complex Q4 preserves event context instead of substituting record timestam
   const p=deterministicReadProjection(e);assert.ok(p);const t=p.sentences[0].text;
   assert.match(t,/Aster/);assert.match(t,/after long rests/);assert.match(t,/after a few minutes of walking/);
 });
+
+test('thin-file food comparison still returns the one saved food note instead of a generic partial',()=>{
+  const q="Bramble's on a different food than last month right? What did I write down?";
+  const rows=[[0,'Bramble weighed 4.77 kg. Routine dental cleaning was completed. Eating returned to the normal turkey wet-food routine the following day.',0,0,0]];
+  const e=evidence(q,['2025-06-15'],rows,['bramble']);
+  e.interpretation.operation='recall';e.interpretation.request.operation='recall';e.interpretation.request.selection='summary';
+  const p=deterministicReadProjection(e);assert.ok(p);const t=p.sentences[0].text;
+  assert.match(t,/food note I found for Bramble is from Jun 15, 2025/i);
+  assert.match(t,/turkey wet-food routine/i);
+  assert.match(t,/does not tell me whether Bramble's food is different from last month/i);
+  assert.doesNotMatch(t,/Partial answer|couldn.t complete every part/i);
+});

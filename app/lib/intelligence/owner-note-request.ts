@@ -51,13 +51,22 @@ export function resolveOwnerNoteRequest(input: {
   }
 
   const time = explicitNoteTime(text, input.timeZone);
+  const noteText = authorizationSource === "current_turn" ? stripStandaloneSaveDirective(text) : text;
+  if (!noteText) return null;
   return {
-    note: text,
+    note: noteText,
     ...time,
     needsAnswer: input.mode !== "note" && hasAdditionalNoteTask(text),
     authorizationSource,
     authorizationEvidence,
   };
+}
+
+export function stripStandaloneSaveDirective(text: string) {
+  const sentences = splitSentencesPreservingFacts(text);
+  const kept = sentences.filter(sentence => !/^(?:please\s+)?(?:save|log|record|remember|add)\s+(?:(?:that|this)\s+note|that|this|it)(?:\s+(?:for|as)\s+(?:today|tonight|tomorrow|the note|a note))?[.!]?$/i.test(sentence.trim())
+    && !/^(?:please\s+)?(?:save|log|record|remember|add)\s+(?:(?:that|this)\s+note|that|this|it)[.!]?$/i.test(sentence.trim()));
+  return kept.join(" ").trim();
 }
 
 function escape(text: string) { return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }

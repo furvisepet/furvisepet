@@ -14,6 +14,13 @@ test("natural-language note carries current-turn authorization provenance", () =
   });
   assert.equal(note.authorizationSource, "current_turn");
   assert.match(note.authorizationEvidence, /save this note/i);
+  assert.equal(note.note, "Pebble ate normally.");
+});
+
+test("standalone save directive authorizes persistence but is not stored as pet history",()=>{
+  const note=resolveOwnerNoteRequest({message:"Pebble skipped breakfast but ate dinner fine. A bit slower on the evening walk. Save that for today.",pet,pets:[pet]});
+  assert.equal(note.note,"Pebble skipped breakfast but ate dinner fine. A bit slower on the evening walk.");
+  assert.match(note.authorizationEvidence,/save that for today/i);
 });
 
 test("explicit note control carries transport authorization provenance", () => {

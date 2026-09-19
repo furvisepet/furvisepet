@@ -67,7 +67,7 @@ import { terminalOutcomeSupportedBySurface } from "../intelligence/recovery-gove
 import { modelApplicationActionJsonSchema, parseModelApplicationActions, type ModelApplicationAction } from "../application-actions/index.ts";
 import { buildObservationAssessmentFallback, isUselessQuestionEcho } from "./conversation-intent.ts";
 import { ensureConfirmedLossAction, resolvePetLossContext } from "./pet-loss.ts";
-import { applyAskAnswerEconomy, normalizeAskVisibleProseSanity, normalizeAskVisibleText, planAskAnswerDepth, type AskAnswerEconomyPlan } from "./ask-answer-economy.ts";
+import { applyAskAnswerEconomy, normalizeAskVisibleProseSanity, normalizeAskVisibleText, normalizeRequestedQuestionList, planAskAnswerDepth, type AskAnswerEconomyPlan } from "./ask-answer-economy.ts";
 import { careEvidenceId, evidenceForRecords, representEvidence, eligibleAnswerSources, operationReceiptEvidence, type AskEvidenceContract } from "../intelligence/ask-evidence.ts";
 
 export type AskContextSourceType =
@@ -1049,11 +1049,9 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   });
   const preserveAnswerFormat = Boolean(context.promptContext.evidenceContract.interpretation?.conversationOnly
     || context.promptContext.evidenceContract.interpretation?.request?.outputFormat);
-  let economicalAnswer = applyAskAnswerEconomy({
-    summary: answerText,
-    sections: parsed.answerSections,
-    safetyNote: null,
-  }, historicalRead ? { ...answerDepth, followUpDeltaOnly: false } : answerDepth, { previousAssistantText,
+  const structuredAnswer = normalizeRequestedQuestionList({ summary: answerText, sections: parsed.answerSections, safetyNote: null }, input.question);
+  let economicalAnswer = applyAskAnswerEconomy(structuredAnswer,
+    historicalRead ? { ...answerDepth, followUpDeltaOnly: false } : answerDepth, { previousAssistantText,
     preserveFormat: preserveAnswerFormat,
   });
   if (profile) {

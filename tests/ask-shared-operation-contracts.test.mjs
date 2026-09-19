@@ -108,7 +108,7 @@ test('past-to-present weight projection uses profile authority, not a later care
    {sourceId:'care:old',petId:'pet',sourceType:'care_update',field:'value',start:0,end:oldText.length,text:oldText,occurredAt:'2024-04-09T12:00:00Z'},
    {sourceId:'care:newer',petId:'pet',sourceType:'care_update',field:'value',start:0,end:newerText.length,text:newerText,occurredAt:'2026-08-09T12:00:00Z'}]};
  const projection=deterministicReadProjection(evidence);
- assert.match(projection.sentences[0].text,/3\.97 kg.*current profile value of 3\.8 kg.*decrease of 0\.17 kg \(4\.3%\)/);
+ assert.match(projection.sentences[0].text,/Fern went from 3\.97 kg on Apr 9, 2024 to 3\.8 kg now, a decrease of 0\.17 kg \(4\.3%\)/);
  assert.deepEqual(projection.sentences[0].sourceIds,['care:old','profile:pet:weight']);
  assert.deepEqual(projection.sentences[0].calculations.map(item=>item.value),[-0.17,-4.3]);
  const grams=deterministicReadProjection({...evidence,scope:{...evidence.scope,requestText:requestText+' Show the change in grams.'}});
@@ -116,7 +116,7 @@ test('past-to-present weight projection uses profile authority, not a later care
  assert.equal(grams.sentences[0].calculations[0].value,-170);
  assert.equal(grams.sentences[0].calculations[0].unit,'g');
  const monthEvidence={...evidence,scope:{...evidence.scope,requestText:requestText.replace('April 9,','April')+' Show the change in grams.'}};
- assert.match(deterministicReadProjection(monthEvidence).sentences[0].text,/2024-04-09.*170 g/);
+ assert.match(deterministicReadProjection(monthEvidence).sentences[0].text,/Apr 9, 2024.*170 g/);
  const ambiguous={...monthEvidence,represented:[...evidence.represented,{...evidence.represented[1],sourceId:'care:newer',occurredAt:'2024-04-20T12:00:00Z'}]};
  assert.equal(deterministicReadProjection(ambiguous),null);
 });
@@ -152,7 +152,7 @@ test('quoted source text disambiguates same-day body mass and accepts recorded-w
    {sourceId:'care:marked',petId:'pet',sourceType:'care_update',field:'value',start:0,end:markedText.length,text:markedText,occurredAt:'2022-09-09T13:00:00Z'}]};
  const projection=deterministicReadProjection(evidence);
  assert.ok(projection);
- assert.match(projection.sentences[0].text,/11\.8 kg.*current profile value of 12\.7 kg.*increase of 0\.9 kg/);
+ assert.match(projection.sentences[0].text,/Maple went from 11\.8 kg on Sep 9, 2022 to 12\.7 kg now, an increase of 0\.9 kg/);
  assert.deepEqual(projection.sentences[0].sourceIds,['care:marked','profile:pet:weight']);
 });
 
@@ -365,4 +365,17 @@ test('mixed linked and unlinked receipts require attributed prose, never an ambi
  assert.equal(deterministicReadProjection(evidence),null);
  assert.deepEqual(evidence,before,'unconfirmed requests must remain available for generation and review');
  assert.match(receiptCompletionText(receipts[0]),/1 current care-history entry linked/);
+});
+
+test('just-saved readback shows the saved note, not operation-ledger diagnostics',async()=>{
+  const {operationReceiptEvidence}=await import('../app/lib/intelligence/ask-evidence.ts');
+  const receipt={sourceMessageId:'save-turn',petId:'pet',requestText:'Fern skipped breakfast. Save that for today.',answerPersisted:true,records:[{id:'note',note:'Fern skipped breakfast.',occurredAt:'2026-09-18T12:00:00Z'}]};
+  const receiptSources=operationReceiptEvidence([receipt]);
+  const represented=receiptSources.map(source=>({...source,sourceType:'operation_receipt',field:'value',start:0,end:source.text.length}));
+  const evidence={scope:{requestText:'What did I just save for Fern?',readOnlyRecall:true,authorizedPetIds:['pet']},petNames:{pet:'Fern'},
+    sources:[{petId:'pet',source:'operation_receipt',status:'loaded',loadedIds:receiptSources.map(s=>s.sourceId),loadedCount:receiptSources.length,cap:null,reasons:[],completeness:{retrieval:'complete',corrections:'complete',extraction:'complete',grouping:'complete'}}],
+    represented,losses:[],operationReceipts:[receipt],interpretation:{request:{mode:'read',evidenceBasis:'saved_history',outputFormat:'prose',referenceTurnIds:['save-turn']}},history:null};
+  const projection=deterministicReadProjection(evidence);assert.ok(projection);const text=projection.sentences.map(s=>s.text).join('\n');
+  assert.equal(text,'You saved this for Fern: Fern skipped breakfast.');
+  assert.doesNotMatch(text,/lookup found|linked saved note|prior request|receipt/i);
 });
