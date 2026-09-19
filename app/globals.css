@@ -89,17 +89,17 @@
   --destructive: var(--danger-red);
   --success: var(--success-green);
   --warning: var(--warning-amber);
-  --assistant-response-accent: var(--deep-ink-blue);
-  --assistant-response-surface: var(--soft-ink-blue);
-  --assistant-response-surface-hover: var(--soft-ink-blue-hover);
-  --assistant-response-strong: var(--deep-ink-blue);
+  --assistant-response-accent: var(--deep-forest);
+  --assistant-response-surface: var(--soft-canvas);
+  --assistant-response-surface-hover: var(--pale-sage);
+  --assistant-response-strong: var(--forest);
   --assistant-response-foreground: var(--primary-ink);
   --assistant-response-inverse-foreground: var(--warm-cream);
-  --assistant-response-border: color-mix(in srgb, var(--deep-ink-blue) 24%, transparent);
+  --assistant-response-border: color-mix(in srgb, var(--deep-forest) 20%, transparent);
   --suggested-question-surface: var(--warm-cream);
-  --suggested-question-hover: var(--soft-ink-blue);
-  --suggested-question-selected: var(--soft-ink-blue-hover);
-  --suggested-question-foreground: var(--deep-ink-blue);
+  --suggested-question-hover: var(--soft-canvas);
+  --suggested-question-selected: var(--pale-sage);
+  --suggested-question-foreground: var(--deep-forest);
 
   /* Component-state roles preserve the existing shared architecture. */
   --surface-primary: var(--card-background);
