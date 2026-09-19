@@ -12,7 +12,7 @@ const ticket = bindReadTicket(proposal,['bramble']);
 const scope = { userId:'owner', ownedPetIds:['bramble'], from:'1900-01-01T00:00:00Z', to:'2026-09-20T00:00:00Z', asOf:'2026-09-19T12:00:00Z' };
 const row = (id,date,note,extra={}) => ({id,user_id:'owner',pet_profile_id:'bramble',category:'general',title:null,note,severity:null,occurred_at:date+'T12:00:00Z',created_at:'2026-09-01T12:00:00Z',updated_at:'2026-09-01T12:00:00Z',deleted_at:null,...extra});
 const old = row('old','2016-10-15','Monthly check: food and appetite normal.');
-const dental = row('dental','2025-06-15','Dental cleaning was completed. Eating returned to the normal turkey wet-food routine the following day.');
+const dental = row('dental','2025-06-15','Dental cleaning was completed at the routine clinic visit. Eating returned to the normal turkey wet-food routine the following day.');
 const later = row('later','2026-06-15','Usual diet continued, appetite normal.');
 const rows = [old,dental,later];
 const store = (input=rows,patch={}) => ({page:async ({offset,limit})=>input.slice(offset,offset+limit),effective:async records=>({records,reliable:true}),...patch});
@@ -92,4 +92,14 @@ test('real Brain -> memory adapter -> lineage path uses the ticket despite unrel
  assert.equal(result.askHistory.coverage.ticketCoverage.status,'complete');
  assert.deepEqual(result.askHistory.entries.map(r=>r.id),['dental','later']);
  assert.ok(calls.includes('read_ask_history_correction_page'));
+});
+
+
+test('live 43be46c: dental visit matches dental cleaning at routine clinic visit without an English shortcut',async()=>{
+ const t=bindReadTicket({...proposal,temporal:{...proposal.temporal,anchor:{concept:'dental visit',relation:'from'}}},['bramble']);
+ const r=await retrieveReadTicket(t,scope,store());
+ assert.equal(r.coverage.status,'complete');
+ assert.deepEqual(r.records.map(row=>row.id),['dental','later']);
+ const different=bindReadTicket({...proposal,temporal:{...proposal.temporal,anchor:{concept:'unrecorded dental',relation:'from'}}},['bramble']);
+ assert.equal((await retrieveReadTicket(different,scope,store())).coverage.status,'anchor_missing');
 });
