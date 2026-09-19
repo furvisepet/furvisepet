@@ -219,6 +219,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     : null;
   if (plannedAnchor) {
     const petId = ids[0];
+    const anchorTerms = historyQueryTerms(plannedAnchor.terms, context.eligiblePets.map(pet => pet.name || ""));
     const rowText = (row: CareEntryRow) => [row.title || "", row.note || ""].join(" ").trim();
     const accessibleFrom = context.historyAccess?.from || "1900-01-01T00:00:00.000Z";
     const accessibleTo = context.historyAccess?.to
@@ -227,7 +228,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     coverage.queryCount++;
     const anchorResult = await withExecutionDeadline(signal => db.rpc("read_ask_history_candidates_latest", {
       p_pet_id: petId,
-      p_terms: plannedAnchor.terms,
+      p_terms: anchorTerms,
       p_from: accessibleFrom,
       p_to: accessibleTo,
       p_after_time: null,
@@ -241,7 +242,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     }
     const anchorCandidates = ((anchorResult.data || []) as CareEntryRow[])
       .filter(row => row.user_id === context.owner.userId && row.pet_profile_id === petId && !row.deleted_at
-        && historyQueryRelevance(rowText(row), plannedAnchor.terms) > 0)
+        && historyQueryRelevance(rowText(row), anchorTerms) > 0)
       .sort((a,b) => compareHistoryTime(b.occurred_at,a.occurred_at) || b.id.localeCompare(a.id));
     const anchor = anchorCandidates[0];
     if (!anchor) {
@@ -279,7 +280,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     coverage.candidateIds=originals.map(row=>`care:${row.id}`);
     const effective=await effectiveCandidates(originals, owned, ids, context.owner.userId, db, coverage, deadline);
     const effectiveAnchor=[...effective]
-      .filter(row=>historyQueryRelevance(rowText(row),plannedAnchor.terms)>0)
+      .filter(row=>historyQueryRelevance(rowText(row),anchorTerms)>0)
       .sort((a,b)=>compareHistoryTime(b.occurred_at,a.occurred_at)||b.id.localeCompare(a.id))[0];
     if (!effectiveAnchor) {
       coverage.retrieval="partial";
@@ -292,7 +293,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
         ? Date.parse(row.occurred_at)>Date.parse(effectiveAnchor.occurred_at)
         : Date.parse(row.occurred_at)>=Date.parse(effectiveAnchor.occurred_at);
     const topicRows=effective.filter(row=>relationOk(row)
-      && (!plan.terms.length || historyQueryRelevance(rowText(row),plan.terms)>0))
+      && (!searchTerms.length || historyQueryRelevance(rowText(row),searchTerms)>0))
       .sort((a,b)=>compareHistoryTime(a.occurred_at,b.occurred_at)||a.id.localeCompare(b.id));
     const includeAnchor=plannedAnchor.relation==="from";
     const chosen=[...new Map([...(includeAnchor?[effectiveAnchor]:[]),...topicRows].map(row=>[row.id,row])).values()];
@@ -429,13 +430,17 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
       ? scopedNeeds[0] : null;
     const boundedFrom = boundedContextNeed ? (!plan.from || boundedContextNeed.window!.from > plan.from ? boundedContextNeed.window!.from : plan.from) : null;
     const boundedTo = boundedContextNeed ? (!plan.to || boundedContextNeed.window!.to < plan.to ? boundedContextNeed.window!.to : plan.to) : null;
+    const normalizedStrategies: HistoryReadStrategy[] = compiled.strategies.map(strategy => {
+      const normalized = strategy.target?.length === 7 && searchTerms.length
+        ? { ...strategy, lexical: true, terms: searchTerms } : strategy;
+      return plan.coverageMode === "exhaustive" ? { ...normalized, exhaustive: true } : normalized;
+    });
+    const exhaustiveSemanticStrategies = plan.coverageMode === "exhaustive" && searchTerms.length
+      ? normalizedStrategies.filter(strategy => strategy.lexical)
+      : normalizedStrategies;
     const strategies: HistoryReadStrategy[] = boundedContextNeed && boundedFrom && boundedTo && boundedFrom < boundedTo
       ? [{ from: boundedFrom, to: boundedTo, descending: false, lexical: false, terms: [], needId: boundedContextNeed.id, exhaustive: true }]
-      : compiled.strategies.map(strategy => {
-          const normalized = strategy.target?.length === 7 && searchTerms.length
-            ? { ...strategy, lexical: true, terms: searchTerms } : strategy;
-          return plan.coverageMode === "exhaustive" ? { ...normalized, exhaustive: true } : normalized;
-        });
+      : exhaustiveSemanticStrategies;
     coverage.needs ??= [];
     coverage.needs.push(...compiled.outsideNeeds.map(needId => ({ petId, needId, candidateIds: [], exhausted: false, status: "unavailable" as const, reason: "need_window_outside_scope" })));
     if (compiled.outsideNeeds.length) coverage.reasons.push("need_window_outside_scope");
