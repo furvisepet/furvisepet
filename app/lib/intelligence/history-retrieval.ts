@@ -154,6 +154,57 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     coverage.reasons.push("requested_period_outside_subscription_window");
     return { ...context, askHistory: { coverage, entries: [], originals: [] } };
   }
+  const latestSavedCareRead = sharedRead && (
+    /\b(?:last|latest|most recent|newest)\b[^.!?]{0,80}\b(?:care[- ]history\s+)?(?:receipt|entry|note|record)\b/i.test(context.currentMessage)
+    || /\b(?:last|latest|most recent|newest)\s+thing\s+(?:i|we)\s+(?:saved|logged|recorded)\b/i.test(context.currentMessage)
+  );
+  if (latestSavedCareRead) {
+    const candidates: CareEntryRow[] = [];
+    let failed = false;
+    // Read by actual save time, not event date. Eight roots per pet keeps the
+    // correction/tombstone fallback bounded while allowing a few recent saves
+    // to be invalidated without silently choosing a stale record.
+    for (const petId of ids.slice(0, HISTORY_BUDGET.pets)) {
+      coverage.queryCount++;
+      try {
+        const result = await withExecutionDeadline(signal => db.from("pet_care_entries").select("*")
+          .eq("user_id", context.owner.userId).eq("pet_profile_id", petId).is("deleted_at", null)
+          .order("created_at", { ascending: false }).order("id", { ascending: false }).limit(8)
+          .abortSignal(signal).returns<CareEntryRow[]>(), historyReadRemaining(candidateDeadline));
+        if (result.error) throw new Error("latest_saved_history_unavailable");
+        const rows = (result.data || []).filter(row => row.user_id === context.owner.userId && row.pet_profile_id === petId && !row.deleted_at);
+        candidates.push(...rows);
+        coverage.perPet.push({ petId, rows: rows.length, pages: 1, exhausted: rows.length < 8, status: "unknown" });
+      } catch {
+        failed = true;
+        coverage.perPet.push({ petId, rows: 0, pages: 1, exhausted: false, status: "unavailable" });
+        coverage.reasons.push("latest_saved_history_unavailable");
+      }
+    }
+    if (failed) {
+      coverage.retrieval = "unavailable";
+      return { ...context, askHistory: { coverage, entries: [], originals: candidates } };
+    }
+    coverage.candidateIds = candidates.map(row => `care:${row.id}`);
+    const effective = await effectiveCandidates(candidates, owned, ids, context.owner.userId, db, coverage, deadline);
+    const chosen = ids.flatMap(petId => {
+      const rows = effective.filter(row => row.pet_profile_id === petId && historyDateAccessible(row.occurred_at, context.historyAccess))
+        .sort((a,b) => compareHistoryTime(b.created_at, a.created_at) || b.id.localeCompare(a.id));
+      return rows.slice(0, 1);
+    });
+    if (chosen.length !== ids.length) {
+      coverage.retrieval = "partial";
+      coverage.reasons.push("latest_saved_effective_boundary_unavailable");
+    } else {
+      coverage.retrieval = "complete";
+    }
+    coverage.chronology = ids.map(petId => {
+      const row = chosen.find(entry => entry.pet_profile_id === petId);
+      return { petId, boundaryIds: row ? [careEvidenceId(row.id, coverage)] : [], blocked: !row };
+    });
+    coverage.requiredSourceIds = chosen.map(row => careEvidenceId(row.id, coverage));
+    return { ...context, askHistory: { coverage, entries: chosen, originals: candidates } };
+  }
   const oldestUnit = sharedRead && ids.length === 1 ? oldestCalendarUnit(context.currentMessage) : null;
   let boundaryPages = 0;
   let oldestProbe: { id: string; occurredAt: string } | null = null;

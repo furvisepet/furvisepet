@@ -333,6 +333,47 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
     return parseHistoryNarrative({ sentences }) || null;
   }
 
+  // "Last thing I saved" is ordered by the persisted save timestamp, not by
+  // the event date. Retrieval has already correction-validated one effective
+  // boundary record per pet. Publish only what that receipt itself establishes;
+  // a recorded value is not silently promoted into a current profile mutation.
+  const latestSavedCareRequest = /\b(?:last|latest|most recent|newest)\b[^.!?]{0,80}\b(?:care[- ]history\s+)?(?:receipt|entry|note|record)\b/i.test(requestText)
+    || /\b(?:last|latest|most recent|newest)\s+thing\s+(?:i|we)\s+(?:saved|logged|recorded)\b/i.test(requestText);
+  if (evidence.scope.readOnlyRecall && request?.mode === "read" && request.evidenceBasis === "saved_history"
+    && latestSavedCareRequest && evidence.scope.authorizedPetIds.length > 0
+    && (!request.outputFormat || ["prose","bullets"].includes(request.outputFormat))) {
+    const sources = eligibleAnswerSources(evidence);
+    const rows = evidence.scope.authorizedPetIds.map(petId => {
+      const name = evidence.petNames?.[petId];
+      const boundary = evidence.history?.chronology?.find(item => item.petId === petId);
+      if (!name || !boundary || boundary.blocked || boundary.boundaryIds.length !== 1) return null;
+      const matches = sources.filter(source => source.petId === petId && source.sourceType === "care_update"
+        && boundary.boundaryIds.includes(source.sourceId));
+      if (matches.length !== 1) return null;
+      return { name, source: matches[0] };
+    });
+    if (rows.every(Boolean)) {
+      const complete = rows as Array<{name:string;source:typeof sources[number]}>;
+      const sentences = complete.map(({name,source}) => {
+        const weight = bodyMeasurement(source.text);
+        const foodChange = /\b(?:food|diet|kibble|wet food|dry food|feeding|meal|treat)\b[^.!?]{0,80}\b(?:changed?|switched?|transition(?:ed)?|replaced?|started|stopped)\b|\b(?:changed?|switched?|transition(?:ed)?|replaced?|started|stopped)\b[^.!?]{0,80}\b(?:food|diet|kibble|feeding|meal)\b/i.test(source.text);
+        const lifecycleChange = /\b(?:died|passed away|euthani[sz]ed|put (?:to sleep|down)|marked? deceased|lifecycle status changed)\b/i.test(source.text);
+        const occurred = source.occurredAt?.slice(0,10) || "date not recorded";
+        const recordedAt = "recordedAt" in source ? source.recordedAt : null;
+        const saved = recordedAt || "save time not recorded";
+        const text = `${name} — saved ${saved}; dated ${occurred}. ${source.text} Weight in this receipt: ${weight ? weight.literal : "not recorded"}. Food change in this receipt: ${foodChange ? "recorded" : "not recorded"}. Alive-status change in this receipt: ${lifecycleChange ? "recorded" : "not recorded"}.`;
+        return { text: request.outputFormat === "bullets" ? `- ${text}` : text, sourceIds:[source.sourceId], calculations:[] };
+      });
+      sentences.push({ text: "This uses saved care-history receipts only. It does not use profile defaults, and a value appearing in a receipt is not treated as a current-profile change unless the receipt itself records that change.",
+        sourceIds: complete.map(row=>row.source.sourceId), calculations:[] });
+      if (/\b(?:death record|recorded as deceased)\b/i.test(requestText)) {
+        sentences.push({ text: "A latest-receipt-only lookup does not establish whether an older death record exists; no pet is labeled deceased from an absent lifecycle change in the latest receipt.",
+          sourceIds: complete.map(row=>row.source.sourceId), calculations:[] });
+      }
+      return parseHistoryNarrative({sentences}) || null;
+    }
+  }
+
   // Latest body mass across a multi-pet cohort is a database projection, not
   // a language-generation task. Require an unblocked authoritative boundary for
   // every requested pet and exactly one verified measurement at that boundary.

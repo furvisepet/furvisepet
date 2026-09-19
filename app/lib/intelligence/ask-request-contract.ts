@@ -328,6 +328,22 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     // Model-proposed account scope alone cannot broaden an ordinary question.
     p.scope = "selected"; petIds = [context.pet.id];
   }
+  // "Last thing I saved" / "last care-history receipt" is a chronological
+  // saved-history read, not a request-linked write-receipt lookup and not a
+  // lexical search for every field named in the requested output. Force the
+  // server-owned read axis so negated lifecycle language or "don't save" cannot
+  // turn this into a mutation/clarification.
+  const latestSavedCareRead = /\b(?:last|latest|most recent|newest)\b[^.!?]{0,80}\b(?:care[- ]history\s+)?(?:receipt|entry|note|record)\b/i.test(context.currentMessage)
+    || /\b(?:last|latest|most recent|newest)\s+thing\s+(?:i|we)\s+(?:saved|logged|recorded)\b/i.test(context.currentMessage);
+  if (latestSavedCareRead && (/\b(?:what(?:'s| is)|list|show|tell|give|which)\b/i.test(context.currentMessage)
+    || ownerDeclinesPersistence(context.currentMessage))) {
+    p.mode = "read"; p.evidenceBasis = "saved_history"; p.operation = "recall"; p.selection = "latest";
+    p.mutationIntent = null; p.recordSelection = null; p.frame = null; p.quantity = null;
+    p.from = null; p.to = null; p.ordinal = null; p.episodeTopic = null; p.terms = []; p.evidenceNeeds = [];
+    p.profileFields = []; p.temporalScope = "historical";
+    if (explicitPets.length) { p.scope = "named"; petIds = explicitPets.map(pet => pet.id); }
+    else if (cohortRequested) { p.scope = "account"; petIds = owned.filter(pet => !excluded.has(pet.id)).map(pet => pet.id); }
+  }
   // A planner clarification cannot erase an explicitly identified owned pet.
   // This only recovers read scope, never grants mutation authority.
   if (!petIds.length && ["read", "clarify"].includes(String(p.mode)) && explicitPets.length === 1 && p.scope !== "account") {
@@ -335,7 +351,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     if (p.operation === "clarify" || p.operation === "general") p.operation = "recall";
   }
   if (p.mode === "clarify" && p.evidenceBasis === "saved_history" && explicitPets.length === 1
-    && petIds.length === 1 && petIds[0] === explicitPets[0].id && p.ordinal === null && p.terms.length) {
+    && petIds.length === 1 && petIds[0] === explicitPets[0].id && p.ordinal === null && (p.terms as string[]).length) {
     p.mode = "read"; p.operation = "recall";
   }
   // A redundant group label cannot widen an explicit, validated subject list.
@@ -371,7 +387,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (!frame) return fail("frame");
   // A resolved owner and lexical ordering query can retrieve evidence before
   // asking what an unfamiliar topic means. This grants no new identity or write.
-  if (p.mode === "clarify" && petIds.length === 1 && p.terms.length > 0
+  if (p.mode === "clarify" && petIds.length === 1 && (p.terms as string[]).length > 0
     && ["latest", "earliest", "earliest_occurrence"].includes(String(p.selection))) {
     p.mode = "read";
     if (p.operation === "clarify" || p.operation === "general") p.operation = "recall";
@@ -558,7 +574,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     referenceQuestion: p.question as string, ...(conversationOnly ? { conversationOnly: true } : {}),
     episodeTopic: episodeTarget || operation === "count" || operation === "episode" ? p.episodeTopic as AskInterpretation["episodeTopic"] : null,
     ordinal: p.ordinal as AskInterpretation["ordinal"],
-    history: historical ? { from: target?.basis === "scoped_register" ? explicitEpisodePeriod!.from : historicalFrom, to: target?.basis === "scoped_register" ? explicitEpisodePeriod!.to : historicalTo, terms: p.terms as string[], interpretation: p.terms.length ? "lexical" : from || to ? "period" : "broad_comparison" } : null };
+    history: historical ? { from: target?.basis === "scoped_register" ? explicitEpisodePeriod!.from : historicalFrom, to: target?.basis === "scoped_register" ? explicitEpisodePeriod!.to : historicalTo, terms: p.terms as string[], interpretation: (p.terms as string[]).length ? "lexical" : from || to ? "period" : "broad_comparison" } : null };
 }
 
 /** Positive read clauses are independent of save clauses and supplied operands.
