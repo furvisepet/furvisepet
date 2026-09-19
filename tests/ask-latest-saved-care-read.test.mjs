@@ -41,3 +41,16 @@ test('latest saved care projection uses save timestamp and does not invent field
   assert.doesNotMatch(text,/—|2026-09-16T12:00:00Z|Save that for today|Weight in this receipt|Food change in this receipt|Alive-status change in this receipt|profile defaults|Entry dated date not recorded/);
   assert.equal((text.match(/Monthly care check recorded stable appetite, usual routine, and no new ongoing concern\./g)||[]).length,1);
 });
+
+test('self-contained multi-pet history read drops stale save-turn references',()=>{
+  const echo={id:'echo',user_id:'owner',name:'Echo'};
+  const all=[...pets,echo];
+  const message="Using only care-history receipts, ignore the profile card. For Aster, Bramble, Cedar, and Dune, not Echo, take each pet's earliest weight and latest weight by event date, not by when the row was saved. If two receipts share the same event date, use the later saved-at. Then give the kg change per pet, which gained the most and which lost the most. Do not save anything.";
+  const p=proposal(message);
+  Object.assign(p,{mode:'read',scope:'named',petNames:names,evidenceBasis:'saved_history',operation:'comparison',selection:'comparison',quantity:'measurement',temporalScope:'historical',excludedPetNames:['Echo'],referenceTurnIds:['old-save'],terms:[],from:null,to:null});
+  const r=validateAskRequest(p,{owner:{userId:'owner'},eligiblePets:all,pet:pets[0],currentMessage:message,conversationTurns:[{id:'old-save',role:'user',text:'Aster ate normally. Save that for today.',createdAt:'2026-09-18T20:00:00Z'}]});
+  assert.deepEqual(new Set(r.petIds),new Set(ids));
+  assert.equal(r.selection,'comparison');
+  assert.deepEqual(r.request.referenceTurnIds,[]);
+  assert.equal(r.request.evidenceBasis,'saved_history');
+});

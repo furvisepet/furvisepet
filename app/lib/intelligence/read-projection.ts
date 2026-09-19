@@ -343,10 +343,15 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
       return parseHistoryNarrative({ sentences: [{ text, sourceIds: rows.flatMap(row => row.sourceIds),
         calculations: rows.map(row => row.calculation) }] }) || null;
     }
-    const sentences = rows.map(row => ({ text: format === "bullets"
-        ? `- ${row.name}: ${row.firstLiteral} on ${row.firstDate}; ${row.lastLiteral} on ${row.lastDate}; change ${row.change >= 0 ? "+" : ""}${row.change} ${target.canonical}.`
-        : `${row.name}: ${row.firstLiteral} on ${row.firstDate}; ${row.lastLiteral} on ${row.lastDate}; change ${row.change >= 0 ? "+" : ""}${row.change} ${target.canonical}.`,
-      sourceIds: row.sourceIds, calculations: [row.calculation] }));
+    const sentences = rows.map(row => {
+      const firstDate=humanDate(row.firstDate+"T12:00:00Z",evidence.timeZone || "UTC");
+      const lastDate=humanDate(row.lastDate+"T12:00:00Z",evidence.timeZone || "UTC");
+      const changeText=`${row.change >= 0 ? "+" : ""}${row.change} ${target.canonical}`;
+      return { text: format === "bullets"
+        ? `- ${row.name}: ${row.firstLiteral} on ${firstDate} to ${row.lastLiteral} on ${lastDate}. Change: ${changeText}.`
+        : `${row.name}: ${row.firstLiteral} on ${firstDate} to ${row.lastLiteral} on ${lastDate}. Change: ${changeText}.`,
+        sourceIds: row.sourceIds, calculations: [row.calculation] };
+    });
     if (compareChanges) {
       const largerIndex = rows[0].change >= rows[1].change ? 0 : 1;
       const smallerIndex = largerIndex === 0 ? 1 : 0;
@@ -359,6 +364,35 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
         calculations: [{ operation: "expression", expression: [0, 1, "subtract", 2, 3, "subtract", "subtract"],
           operands, value: gap, unit: target.canonical }],
       });
+    }
+    if (/\b(?:gained? the most|lost the most|which[^.!?]{0,80}(?:gained?|lost)[^.!?]{0,40}most)\b/i.test(requestText)) {
+      const gainers=[...rows].filter(row=>row.change>0).sort((a,b)=>b.change-a.change);
+      const losers=[...rows].filter(row=>row.change<0).sort((a,b)=>a.change-b.change);
+      const rankText=(gainers.length?`${gainers[0].name} gained the most at +${gainers[0].change} ${target.canonical}`:"No pet gained weight")
+        + ". " + (losers.length?`${losers[0].name} lost the most at ${losers[0].change} ${target.canonical}`:"No pet lost weight") + ".";
+      sentences.push({text:rankText,sourceIds:[...new Set(rows.flatMap(row=>row.sourceIds))],calculations:[]});
+    }
+    if (/\b(?:after today|future[- ]dated)\b/i.test(requestText)) {
+      const today=calendarDateInZone(new Date().toISOString(), evidence.timeZone || "UTC");
+      const future=rows.filter(row=>row.firstDate>today || row.lastDate>today);
+      sentences.push({text:future.length ? `Endpoint dates after today: ${future.map(row=>row.name).join(", ")}.` : "None of these endpoint dates is after today.",
+        sourceIds:[...new Set(rows.flatMap(row=>row.sourceIds))],calculations:[]});
+    }
+    if (/\b(?:full timeline|window you used|search(?:ed)?[^.!?]{0,40}timeline)\b/i.test(requestText)) {
+      const access=evidence.historyAccess;
+      const full=evidence.scope.authorizedPetIds.every(id=>evidence.history?.perPet?.some(item=>item.petId===id && item.exhausted && item.status!=="unavailable"));
+      const text=full ? "I searched the full accessible timeline for each of these pets."
+        : access ? `I used endpoint searches across the accessible history window from ${humanDate(access.from,evidence.timeZone || "UTC")} through ${humanDate(new Date(Date.parse(access.to)-1).toISOString(),evidence.timeZone || "UTC")}, not a full row-by-row scan.`
+          : "I used endpoint searches rather than a full row-by-row timeline scan.";
+      sentences.push({text,sourceIds:[...new Set(rows.flatMap(row=>row.sourceIds))],calculations:[]});
+    }
+    if (/\b(?:corrects?|corrected|correction|replaces?|replacement)\b/i.test(requestText)) {
+      const replacements=new Set((evidence.history?.provenance || []).filter(item=>item.status==="effective_replacement").map(item=>item.sourceId));
+      const usedReplacement=rows.some(row=>row.sourceIds.some(id=>id.startsWith("care:claim-") && replacements.has("claim:"+id.slice("care:claim-".length))));
+      const text=usedReplacement ? "A corrected or replacement record is used for at least one endpoint."
+        : evidence.history?.corrections==="complete" ? "No endpoint correction or replacement was needed."
+          : "I could not fully confirm whether an endpoint correction exists.";
+      sentences.push({text,sourceIds:[...new Set(rows.flatMap(row=>row.sourceIds))],calculations:[]});
     }
     diagnostic?.({ stage: "endpoint_cohort_projected", rowCount: rows.length, petCount: rows.length });
     return parseHistoryNarrative({ sentences }) || null;

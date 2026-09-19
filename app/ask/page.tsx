@@ -810,7 +810,7 @@ function FurviseMessage({ lifecycleStatus, message, onAction, onApplicationActio
     <AskAnswerText afterHeading={shouldShowAnswerHeading(response.title)} text={response.directAnswer} />
     {response.supportingText ? <p className="mt-3 leading-7 text-[var(--pw-muted)]">{response.supportingText}</p> : null}
     <AdaptiveSections answerType={response.answerType} sections={response.sections} />
-    {response.completionNotice ? <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]" data-answer-completion="limited">{response.completionNotice}</p> : null}
+    {response.completionNotice ? <aside className="mt-4 rounded-xl border border-[var(--assistant-response-border)] bg-black/[0.018] px-3.5 py-3 text-sm text-[var(--text-secondary)]" data-answer-completion="limited"><p className="font-semibold text-[var(--text-primary)]">What I couldn’t confirm</p><p className="mt-1 leading-6">{response.completionNotice}</p></aside> : null}
     {actions.length ? <div className="mt-4 flex flex-wrap gap-2">{actions.map((action) => <button className={action === "copy" ? quietButton : secondaryButton} key={action} onClick={() => onAction(action, message)} type="button">{formatAction(action)}</button>)}</div> : null}
     {messageVariant !== "CASUAL" && message.suggestion && message.suggestion.status !== "saved" && !message.suggestion.applyStatus ? <StateUpdateSuggestion onAction={onSuggestionAction} suggestion={message.suggestion} /> : null}
     {response.applicationActions?.length ? <ApplicationActions actions={response.applicationActions} onAction={onApplicationAction} /> : null}
@@ -937,7 +937,7 @@ function Thinking() {
 
 function AskFailureState({ code, onEdit, onRetry, planId, retryAfterSeconds }: { code: AskFailureCode; onEdit: () => void; onRetry: () => void; planId?: "free" | "plus"; retryAfterSeconds?: number }) {
   const presentation = getAskErrorPresentation(code, retryAfterSeconds);
-  const message = code === "TEMPORARY_PROVIDER_FAILURE" ? `${presentation.message} No AI credit was used.` : presentation.message;
+  const message = presentation.message;
   return <div className="max-w-xl rounded-xl border border-[var(--line)] bg-[var(--surface-primary)] px-4 py-4 text-sm text-[var(--text-secondary)]" data-message-variant="ERROR" role="alert">
     <h2 className="font-semibold text-[var(--text-primary)]">{presentation.title}</h2>
     <p className="mt-1 leading-6">{message}</p>
@@ -946,6 +946,7 @@ function AskFailureState({ code, onEdit, onRetry, planId, retryAfterSeconds }: {
       {presentation.recommendedAction === "saved_data" ? <><Link className={secondaryButton} href="/pets">Back to pets</Link><Link className={quietButton} href="/history">View history</Link></> : null}
       {code === "PLAN_LIMIT" && planId === "free" ? <Link className={secondaryButton} href="/membership">Upgrade to Plus</Link> : null}
       {presentation.retryable ? <button className={secondaryButton} onClick={onRetry} type="button">Try again</button> : null}
+      {presentation.retryable ? <Link className={quietButton} href="/contact">Contact Us</Link> : null}
       {presentation.recommendedAction === "edit" ? <button className={quietButton} onClick={onEdit} type="button">Edit question</button> : null}
     </div> : null}
   </div>;

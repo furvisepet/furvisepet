@@ -271,9 +271,10 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   // or empty scope. Recover only from an explicit receipt question and the
   // referenced USER-authored request, including a request to save nothing;
   // assistant prose grants no scope or proof of persistence.
-  const receiptFollowup = /\b(?:linked\s+)?receipts?\b/i.test(context.currentMessage)
-    && /\b(?:check|confirm|verify|saved?|edited?|updated?|completed?|actually|how many|quote|list)\b/i.test(context.currentMessage)
-    || /\b(?:did|have)\s+you\s+(?:actually\s+)?(?:sav(?:e|ed)|add(?:ed)?|log(?:ged)?|record(?:ed)?|creat(?:e|ed)|updat(?:e|ed))\b/i.test(context.currentMessage);
+  const receiptFollowup = /\b(?:linked|mutation|action|save|edit|update|correction)\s+receipts?\b/i.test(context.currentMessage)
+    || /\breceipts?\s+(?:for|from)\s+(?:that|this|the|my)\s+(?:save|edit|update|change|request|turn)\b/i.test(context.currentMessage)
+    || /\b(?:did|have)\s+you\s+(?:actually\s+)?(?:sav(?:e|ed)|add(?:ed)?|log(?:ged)?|record(?:ed)?|creat(?:e|ed)|updat(?:e|ed))\b/i.test(context.currentMessage)
+    || /\b(?:was|were)\s+(?:that|this|it|those)\s+(?:actually\s+)?(?:saved?|added?|logged?|recorded?|updated?)\b/i.test(context.currentMessage);
   if (receiptFollowup) {
     const referencedTurn = [...context.conversationTurns].reverse().find(turn => turn.role === "user" && turn.text !== context.currentMessage
       && !/\b(?:receipts?|(?:did|have)\s+you\s+(?:actually\s+)?(?:save|add|log|record|create|update))\b/i.test(turn.text)
@@ -301,6 +302,21 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
       p.from = null; p.to = null; p.ordinal = null; p.episodeTopic = null; p.frame = null;
     }
   }
+  // A self-contained multi-pet history read outranks stale conversation state.
+  // Keep prior turn IDs only when the CURRENT message genuinely points back to
+  // an earlier answer/list/save. Explicit current pet names are sufficient
+  // subject authority for this new read and do not borrow write receipts.
+  const selfContainedNamedHistoryRead = p.evidenceBasis === "saved_history"
+    && ["read","clarify"].includes(String(p.mode)) && explicitPets.length >= 2
+    && !/\b(?:that|those|these|above|you (?:said|listed|showed)|what did i just|just (?:save|log|record)|previous (?:answer|list)|earlier (?:answer|list))\b/i.test(context.currentMessage);
+  if (selfContainedNamedHistoryRead) {
+    p.referenceTurnIds.splice(0);
+    p.question = context.currentMessage; p.requirements = [];
+    p.mode = "read"; p.scope = "named";
+    p.petNames = explicitPets.map(pet => pet.name);
+    petIds = explicitPets.map(pet => pet.id);
+  }
+
   // An explicit pet and calendar period define a fresh read unless the user
   // actually refers to an earlier result. Planner-added turn IDs cannot narrow
   // a whole-month export/count to the last save receipt or displayed list.

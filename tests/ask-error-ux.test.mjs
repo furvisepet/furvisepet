@@ -20,7 +20,7 @@ test("rate, plan, provider, database, and in-progress states remain distinct", (
   assert.match(getAskErrorPresentation("RATE_LIMIT", 12).message, /12 seconds/);
   assert.equal(getAskErrorPresentation("PLAN_LIMIT").retryable, false);
   assert.equal(getAskErrorPresentation("TEMPORARY_PROVIDER_FAILURE").retryable, true);
-  assert.match(getAskErrorPresentation("TEMPORARY_DATABASE_FAILURE").title, /finish/i);
+  assert.match(getAskErrorPresentation("TEMPORARY_DATABASE_FAILURE").title, /cleanly/i);
   assert.equal(getAskErrorPresentation("REQUEST_IN_PROGRESS").recommendedAction, "wait");
 });
 
@@ -40,8 +40,8 @@ test("an active answer never presents the remaining lease as a mandatory cooldow
   const presentation = getAskErrorPresentation(code);
   assert.equal(presentation.retryable, false);
   assert.equal(presentation.recommendedAction, "saved_data");
-  assert.match(presentation.message, /daily.*limit.*reset/i);
-  assert.match(presentation.message, /saved pet information and history remain available/i);
+  assert.match(presentation.message, /(?:today.*limit|service limit).*daily reset/i);
+  assert.match(presentation.message, /saved pet information and care history are still available/i);
   assert.doesNotMatch(presentation.message, /try again|upgrade|your.*plan limit/i);
   assert.equal(getAskErrorPresentation("TEMPORARY_PROVIDER_FAILURE").retryable, true);
 });
@@ -51,5 +51,14 @@ test("identity conflicts preserve the question through edit instead of repeating
   const state = getAskErrorPresentation(publicAskFailureCode("request_identity_changed"));
   assert.equal(state.retryable, false);
   assert.equal(state.recommendedAction, "edit");
-  assert.match(state.message, /question is kept/);
+  assert.match(state.message, /text is still here/);
+});
+
+test("retryable failures give a human recovery path", () => {
+  for (const code of ["TEMPORARY_PROVIDER_FAILURE","TEMPORARY_DATABASE_FAILURE","ANSWER_RETRYABLE"]) {
+    const state=getAskErrorPresentation(code);
+    assert.match(state.message,/question is still here/i);
+    assert.match(state.message,/screenshot/i);
+    assert.match(state.message,/Contact Us/i);
+  }
 });

@@ -83,7 +83,7 @@ export function buildFurviseQuotaMessage() {
 }
 
 export function buildFurviseUnavailableMessage() {
-  return "Furvise couldn't finish that answer just now. Your question is still here, so you can try again safely.";
+  return "I couldn\'t finish that reliably this time. Your question is still here, so try it once more. If it keeps happening, send us a screenshot through Contact Us and we\'ll look into it.";
 }
 
 function cleanPetName(value: string) {
@@ -428,20 +428,20 @@ export function getAskErrorPresentation(code: AskFailureCode, retryAfterSeconds?
   const retryAfter = normalizeRetryAfter(retryAfterSeconds);
   switch (code) {
     case "AUTH_REQUIRED": return state("Sign in to continue", "Your session expired. Sign in again to continue with Ask.", false, "sign_in");
-    case "REQUEST_IDENTITY_CHANGED": return state("Review and resend your question", "This saved request cannot be retried with the current browser settings. Your question is kept here. Review it and send it as a new request.", false, "edit");
-    case "INVALID_CURRENT_INPUT": return state("Check this message", "This message could not be sent as written. Review it and try again.", false, "edit");
+    case "REQUEST_IDENTITY_CHANGED": return state("Review this question before sending it again", "Something changed while this question was being retried. Your text is still here. Check it, then send it again.", false, "edit");
+    case "INVALID_CURRENT_INPUT": return state("Check this message", "I couldn’t send this one as written. Your text is still here, so check it and try again.", false, "edit");
     case "PET_UNAVAILABLE": return state("Choose another pet", "That pet or conversation is no longer available.", false, "saved_data");
     case "CLARIFICATION_REQUIRED": return state("One detail is missing", "Choose the intended pet so Furvise can continue safely.", false, "clarify");
-    case "SERVICE_DAILY_LIMIT": return state("Ask has reached its daily service limit", "Furvise has reached its daily AI limit. Please return after the daily limit resets. Your question is still here, and your saved pet information and history remain available.", false, "saved_data");
+    case "SERVICE_DAILY_LIMIT": return state("Ask is done for today", "Ask has reached today’s service limit. Your saved pet information and care history are still available, and you can come back after the daily reset.", false, "saved_data");
     case "PLAN_LIMIT": return state("You've reached your Ask plan limit", buildFurviseQuotaMessage(), false, "saved_data");
     case "RATE_LIMIT": return state("You're sending questions a little too quickly", retryAfter ? `Try again in about ${formatSeconds(retryAfter)}.` : "Wait a moment, then try again.", true, "retry", retryAfter);
     // A concurrency lease can be released early; its expiry is not a cooldown.
     case "ANSWER_ALREADY_ACTIVE": return state("Another answer is still finishing", "Your question is kept here. Try again shortly, once the other answer finishes.", true, "retry");
-    case "REQUEST_IN_PROGRESS": return state("Furvise is still working on this question", retryAfter ? `Please wait about ${formatSeconds(retryAfter)} before checking again.` : "Please wait while the current answer finishes.", false, "wait", retryAfter);
+    case "REQUEST_IN_PROGRESS": return state("Still working on this one", retryAfter ? `Give it about ${formatSeconds(retryAfter)} before checking again.` : "This answer is still finishing.", false, "wait", retryAfter);
     case "ACTION_FAILED": return state("That action didn't finish", "Your answer is still available. Review the action and try it again when you're ready.", true, "retry");
-    case "TEMPORARY_DATABASE_FAILURE": return state("Furvise couldn't finish this answer", "Your question is still here. Try again in a moment.", true, "retry");
-    case "TEMPORARY_PROVIDER_FAILURE": return state("Furvise couldn't finish that answer", buildFurviseUnavailableMessage(), true, "retry", retryAfter);
-    case "ANSWER_RETRYABLE": return state("Furvise couldn't finish that answer", buildFurviseUnavailableMessage(), true, "retry", retryAfter);
+    case "TEMPORARY_DATABASE_FAILURE": return state("That didn't come through cleanly", "Your question is still here. Try it once more. If it keeps happening, send us a screenshot through Contact Us and we'll look into it.", true, "retry");
+    case "TEMPORARY_PROVIDER_FAILURE": return state("I couldn't finish that reliably", buildFurviseUnavailableMessage(), true, "retry", retryAfter);
+    case "ANSWER_RETRYABLE": return state("I couldn't finish that reliably", buildFurviseUnavailableMessage(), true, "retry", retryAfter);
   }
 }
 
