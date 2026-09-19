@@ -94,6 +94,17 @@ test("exact live Cedar dinner mixed save is recognized and split",()=>{
   assert.equal(note.needsAnswer,true);
 });
 
+test("undated Ask saves default to the request timestamp like the normal care form",()=>{
+  const cedar={id:"cedar",name:"Cedar"};
+  const note=resolveOwnerNoteRequest({
+    message:"Log that Cedar refused breakfast.",
+    pet:cedar,pets:[cedar],timeZone:"America/Vancouver",sourceRecordedAt:"2026-09-19T07:44:00.000Z"
+  });
+  assert.ok(note);
+  assert.equal(note.occurredAt,"2026-09-19T07:44:00.000Z");
+  assert.equal(note.explicitTime,null);
+});
+
 test("relative owner-note dates become real calendar dates when the request timestamp is known",()=>{
   const cedar={id:"cedar",name:"Cedar"};
   for (const phrase of ["today","this morning","this afternoon","this evening","tonight"]) {

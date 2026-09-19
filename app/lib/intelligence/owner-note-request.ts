@@ -51,7 +51,10 @@ export function resolveOwnerNoteRequest(input: {
     authorizationEvidence = authorization;
   }
 
-  const time = explicitNoteTime(text, input.timeZone, input.sourceRecordedAt);
+  const parsedTime = explicitNoteTime(text, input.timeZone, input.sourceRecordedAt);
+  const time = parsedTime.occurredAt || !input.sourceRecordedAt || !Number.isFinite(Date.parse(input.sourceRecordedAt))
+    ? parsedTime
+    : { occurredAt: new Date(input.sourceRecordedAt).toISOString(), explicitTime: null };
   const split = authorizationSource === "current_turn" ? splitOwnerNoteAndCompanion(text, authorizationEvidence) : { note: text, companionQuestion: null };
   const noteText = split.note || stripStandaloneSaveDirective(text);
   if (!noteText) return null;

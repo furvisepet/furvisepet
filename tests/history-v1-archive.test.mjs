@@ -105,6 +105,8 @@ test("explicit calendar dates remain the stated day in negative and positive tim
   }
   process.env.TZ = "America/Los_Angeles";
   const timed = "2024-02-01T16:30:00Z";
+  assert.equal(formatHistoryTimestamp(timed,"en-US",{occurrenceBasis:"saved_at"}),formatHistoryTimestamp(timed,"en-US"));
+  assert.doesNotMatch(formatHistoryTimestamp(timed,"en-US",{occurrenceBasis:"saved_at"}),/Recorded|event date unspecified/);
   assert.equal(formatHistoryTimestamp(timed,"en-US",{source:"ask_furvise",sourceNoteIndex:1,sourceNoteCount:4}),formatHistoryTimestamp(timed,"en-US"));
   assert.equal(formatHistoryTimestamp(timed,"en-US",{explicitTime:"2024-02-01"}),formatHistoryTimestamp(timed,"en-US"));
   assert.equal(formatHistoryTimestamp("2024-02-01T00:00:00Z","en-US",{explicitTime:"2024-02-02"}),formatHistoryTimestamp("2024-02-01T00:00:00Z","en-US"));
