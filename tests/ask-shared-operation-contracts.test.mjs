@@ -379,3 +379,20 @@ test('just-saved readback shows the saved note, not operation-ledger diagnostics
   assert.equal(text,'You saved this for Fern: Fern skipped breakfast.');
   assert.doesNotMatch(text,/lookup found|linked saved note|prior request|receipt/i);
 });
+
+test('plain owner readback language cannot be rejected as an invented save task',()=>{
+ const currentMessage="Bramble's on a different food than last month right? What did I write down?";
+ const pet={id:'bramble',user_id:'owner',name:'Bramble'};
+ const currentTurn={id:'turn',role:'user',text:currentMessage,createdAt:'2026-09-18T20:00:00Z'};
+ const proposal={version:'ask-request.v2',task:{intent:'save',sourceTurnId:'turn',petName:'Bramble',answerRequest:null},temporalScope:'historical',
+  mutationIntent:null,recordSelection:null,profileFields:[],projection:null,mode:'mixed',question:currentMessage,requirements:[],evidenceNeeds:[],
+  outputFormat:'prose',evidenceBasis:'saved_history',premiseQuotes:[],excludedPetNames:[],referenceTurnIds:[],scope:'named',petNames:['Bramble'],
+  operation:'general',selection:'summary',quantity:null,topic:'food',terms:['food'],from:null,to:null,episodeTopic:null,ordinal:null,frame:emptyProposedSemanticFrame()};
+ const result=validateAskRequest(proposal,{owner:{userId:'owner'},eligiblePets:[pet],pet,currentMessage,conversationTurns:[currentTurn],currentTurn});
+ assert.equal(result.request.mode,'read'); assert.equal(result.request.task,null); assert.equal(result.request.evidenceBasis,'saved_history'); assert.equal(result.readOnly,true);
+ assert.deepEqual(result.petIds,['bramble']);
+});
+test('owner readback phrases are recognized without granting save authority',()=>{
+ for(const text of ['What did I write down?','What did I log for Bramble?','What did I save?','What is in my notes?','From my history, what changed?'])
+  assert.equal(requestsSavedRecordLookup(text),true,text);
+});

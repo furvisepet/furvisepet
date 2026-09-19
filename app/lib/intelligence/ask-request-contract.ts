@@ -14,6 +14,7 @@ import { buildRecentSubjectState } from "./entities/recent-subject-state.ts";
 import { explicitMutationTarget, explicitlyNamedOwnedPets } from "./entities/resolve-turn-subject.ts";
 import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
 import { ownerDeclinesPersistence, unquotedOwnerText } from "../ai/owner-assertion.ts";
+import { isExplicitCareHistorySaveRequest } from "./care-history-policy.ts";
 
 /** One semantic read request. This is not evidence and grants no mutation authority.
  * Names are resolved against the authenticated owner's supplied profiles only.
@@ -142,6 +143,18 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (!Array.isArray(p.profileFields) || p.profileFields.some(field => !askRequestSchema({}).properties.profileFields.items.enum.includes(String(field))) || p.profileFields.length > 14) return fail("profile_fields");
   if (![null, "historical", "current", "historical_and_current"].includes(p.temporalScope as null | string)) return fail("temporal_scope");
   if (![null, "correct_record"].includes(p.mutationIntent as null | string)) return fail("mutation_intent");
+  // Natural owner readback language is server-owned read intent. A provider
+  // cannot turn "what did I write down?" into a save-task contract merely
+  // because it mentions a pet state or sounds conversational.
+  const explicitSavedLookup = requestsSavedRecordLookup(context.currentMessage);
+  if (explicitSavedLookup && !context.pendingTask && !isExplicitCareHistorySaveRequest(context.currentMessage)) {
+    p.mode = "read";
+    p.task = null;
+    p.frame = null;
+    p.mutationIntent = null;
+    p.evidenceBasis = "saved_history";
+    if (["general","navigate","clarify"].includes(String(p.operation))) p.operation = "recall";
+  }
   // Read mode has no write authority. Contradictory advisory task/frame fields
   // cannot turn an ordinary lookup into a save or a failed save contract.
   if (p.mode === "read") { p.task = null; p.frame = null; }
@@ -582,7 +595,9 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
  * boundary prevents a known explicit read from being optimized away. */
 export function requestsSavedRecordLookup(message: string): boolean {
   return splitSentencesPreservingFacts(unquotedOwnerText(message)).some(sentence => {
-    if (/^(?:if|suppose|imagine|pretend|hypothetically)\b|\bhow (?:do|can|would) I\b/i.test(sentence.trim())) return false;
+    const trimmed=sentence.trim();
+    if (/^(?:if|suppose|imagine|pretend|hypothetically)\b|\bhow (?:do|can|would) I\b/i.test(trimmed)) return false;
+    if (/\b(?:what did i (?:write down|write|log|save|record)|what(?:'s| is) (?:in|from) (?:my )?(?:notes?|history)|from (?:my )?(?:notes?|history))\b/i.test(trimmed)) return true;
     const read = /\b(?:look back|look up|retrieve|find|check|review|search|cross[- ]?reference|verify|compare)\b/i.exec(sentence);
     if (!read || /\b(?:do not|don’t|don't|never|without|no need to)\b[^.!?]*$/i.test(sentence.slice(0, read.index))) return false;
     return /\b(?:saved|recorded|historical|history|records?|entr(?:y|ies)|results?)\b/i.test(sentence.slice(read.index));
