@@ -497,7 +497,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
     emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
     return askFailure("DATABASE_ERROR", "Furvise could not load the latest saved details. Please try again.", 503, {}, "context_loading");
   }
-  if (ownerNotePersistence) liveContext = { ...liveContext, ownerNoteAlreadySaved: true, completedOwnerNote: { sourceMessageId: ownerNoteSourceMessageId, petId: ownerNotePetId, entryIds: ownerNotePersistence.careEntryIds } };
+  if (ownerNotePersistence) liveContext = { ...liveContext, ownerNoteAlreadySaved: true, completedOwnerNote: { sourceMessageId: ownerNoteSourceMessageId, petId: ownerNotePetId, entryIds: ownerNotePersistence.careEntryIds, ...(ownerNote?.note ? { note: ownerNote.note } : {}) } };
   const taskAuthority = createCanonicalCareAuthorityClient();
   const pendingTaskResult = await recoverTransientRead(signal => taskAuthority.rpc("read_ask_task_context", { p_user_id: userId, p_conversation_id: preparedRequest.conversationId, p_message_ids: liveContext.conversationTurns.map(turn => turn.id).slice(-64) }).abortSignal(signal), { attemptTimeoutMs: 3_000 });
   if (pendingTaskResult.error) return askFailure("DATABASE_ERROR", "Furvise could not check the unfinished request. Please try again.", 503);

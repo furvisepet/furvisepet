@@ -156,7 +156,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     return { ...context, askHistory: { coverage, entries: [], originals: [] } };
   }
   const latestSavedCareRead = sharedRead && (
-    /\b(?:last|latest|most recent|newest)\b[^.!?]{0,80}\b(?:care[- ]history\s+)?(?:receipt|entry|note|record)\b/i.test(context.currentMessage)
+    /\b(?:last|latest|most recent|newest)\s+(?:care[- ]history\s+)?(?:receipt|entry|note|record)\b/i.test(context.currentMessage)
     || /\b(?:last|latest|most recent|newest)\s+thing\s+(?:i|we)\s+(?:saved|logged|recorded)\b/i.test(context.currentMessage)
   );
   if (latestSavedCareRead) {

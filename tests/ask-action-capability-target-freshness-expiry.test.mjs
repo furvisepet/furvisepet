@@ -113,3 +113,10 @@ test("the forward migration invalidates legacy unversioned pending targets", () 
   assert.match(migration, /where status = 'pending'[\s\S]*care_history\.remove[\s\S]*care_state\.resolve[\s\S]*care_state\.reopen/);
   assert.match(migration, /That action must be prepared again/);
 });
+
+test("forward policy makes exact care edits explicit-intent while removals stay confirmation-required",()=>{
+  const forward=read("supabase/migrations/20260919055424_allow_explicit_care_history_edits.sql");
+  assert.match(forward,/action_kind = 'care_history\.edit'[\s\S]*LOW_RISK_REVERSIBLE[\s\S]*confirmation_policy = 'explicit_intent'[\s\S]*owned_care_record/);
+  assert.match(forward,/action_kind = 'care_history\.remove'[\s\S]*CONFIRMATION_REQUIRED[\s\S]*confirmation_policy = 'always'[\s\S]*owned_care_record/);
+  assert.match(forward,/pet\.delete_permanently'[\s\S]*DESTRUCTIVE[\s\S]*confirmation_policy = 'always'/);
+});

@@ -161,3 +161,24 @@ test('since-dental food read keeps the anchor row and later food notes',()=>{
   assert.match(text,/Jun 15, 2026/);
   assert.match(text,/usual measured diet was continued/i);
 });
+
+test('mixed save companion returns the last two weights and checks the saved note independently',()=>{
+  const q="tell me Cedar's last two weights and whether this note includes a weight.";
+  const e=evidence(q,['2026-08-15','2026-09-15'],[
+    [0,0,14.66,0,0],
+    [0,0,14.51,0,0],
+  ],['cedar']);
+  const noteId='care:cedar:just-saved';
+  const noteText='Cedar ate less this morning.';
+  e.represented.push({sourceId:noteId,petId:'cedar',sourceType:'care_update',field:'value',start:0,end:noteText.length,text:noteText,occurredAt:'2026-09-18T12:00:00Z'});
+  e.sources[0].loadedIds.push(noteId);e.sources[0].loadedCount++;
+  e.completedOwnerNote={sourceMessageId:'turn',petId:'cedar',entryIds:['cedar:just-saved'],note:noteText};
+  e.interpretation.operation='recall';e.interpretation.request.operation='recall';e.interpretation.request.selection='latest';e.interpretation.request.quantity='measurement';
+  const p=deterministicReadProjection(e);assert.ok(p);
+  const text=p.sentences.map(s=>s.text).join('\n');
+  assert.match(text,/Cedar's two latest recorded weights are:/);
+  assert.match(text,/Sep 15, 2026: 14\.51 kg/);
+  assert.match(text,/Aug 15, 2026: 14\.66 kg/);
+  assert.match(text,/note you just saved does not include a weight/i);
+  assert.doesNotMatch(text,/food or life-status change/i);
+});

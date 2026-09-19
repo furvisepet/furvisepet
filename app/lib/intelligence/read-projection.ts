@@ -562,11 +562,38 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
     }
   }
 
+  const lastTwoWeights = /\b(?:last|latest|most recent|newest)\s+two\s+(?:weights?|body masses?)\b/i.test(requestText);
+  if (lastTwoWeights && evidence.scope.readOnlyRecall && request?.mode === "read" && request.evidenceBasis === "saved_history"
+    && evidence.scope.authorizedPetIds.length === 1) {
+    const petId=evidence.scope.authorizedPetIds[0], name=evidence.petNames?.[petId] || "This pet";
+    const rows=eligibleAnswerSources(evidence).filter(source=>source.petId===petId&&source.sourceType==="care_update"&&source.occurredAt)
+      .flatMap(source=>{const measurement=bodyMeasurement(source.text);return measurement?[{source,measurement}]:[];})
+      .sort((a,b)=>Date.parse(b.source.occurredAt||"")-Date.parse(a.source.occurredAt||"")
+        || Date.parse(("recordedAt" in b.source && b.source.recordedAt)||"")-Date.parse(("recordedAt" in a.source && a.source.recordedAt)||""));
+    const latest=rows.slice(0,2);
+    if(latest.length===2){
+      const sentences=[
+        {text:`${name}\'s two latest recorded weights are:`,sourceIds:latest.map(row=>row.source.sourceId),calculations:[] as HistoryCalculation[]},
+        ...latest.map(row=>({text:`${humanDate(row.source.occurredAt,evidence.timeZone||"UTC")}: ${row.measurement.literal}`,sourceIds:[row.source.sourceId],calculations:[] as HistoryCalculation[]})),
+      ];
+      if(/\b(?:this|that)\s+note\b[^.!?]{0,80}\b(?:include|includes|included|contain|contains|contained|have|has|had)\b[^.!?]{0,30}\bweight\b|\bwhether\s+(?:this|that)\s+note\b[^.!?]{0,50}\bweight\b/i.test(requestText)){
+        const note=evidence.completedOwnerNote?.note;
+        const currentIds=new Set((evidence.completedOwnerNote?.entryIds || []).map(id=>`care:${id}`));
+        const currentSource=eligibleAnswerSources(evidence).find(source=>source.petId===petId&&currentIds.has(source.sourceId));
+        if(note && currentSource){
+          const hasWeight=Boolean(bodyMeasurement(note));
+          sentences.push({text:`The note you just saved ${hasWeight ? "does include" : "does not include"} a weight.`,sourceIds:[currentSource.sourceId],calculations:[]});
+        }
+      }
+      return parseHistoryNarrative({sentences})||null;
+    }
+  }
+
   // "Last thing I saved" is ordered by the persisted save timestamp, not by
   // the event date. Retrieval has already correction-validated one effective
   // boundary record per pet. Publish only what that receipt itself establishes;
   // a recorded value is not silently promoted into a current profile mutation.
-  const latestSavedCareRequest = /\b(?:last|latest|most recent|newest)\b[^.!?]{0,80}\b(?:care[- ]history\s+)?(?:receipt|entry|note|record)\b/i.test(requestText)
+  const latestSavedCareRequest = /\b(?:last|latest|most recent|newest)\s+(?:care[- ]history\s+)?(?:receipt|entry|note|record)\b/i.test(requestText)
     || /\b(?:last|latest|most recent|newest)\s+thing\s+(?:i|we)\s+(?:saved|logged|recorded)\b/i.test(requestText);
   if (evidence.scope.readOnlyRecall && request?.mode === "read" && request.evidenceBasis === "saved_history"
     && latestSavedCareRequest && evidence.scope.authorizedPetIds.length > 0

@@ -152,7 +152,7 @@ export type FurviseLiveContext = {
   currentTurn?: IntelligenceConversationTurn;
   /** Server receipt exists; optional interpretation has no mutation authority. */
   ownerNoteAlreadySaved?: boolean;
-  completedOwnerNote?: { sourceMessageId: string; petId: string; entryIds: string[] };
+  completedOwnerNote?: { sourceMessageId: string; petId: string; entryIds: string[]; note?: string };
   historyAccess?: import("./history-access.ts").AskHistoryAccess;
   askInterpretation?: import("./interpret-ask.ts").AskInterpretation;
   episodePresentation?: import("./episode-presentation.ts").EpisodePresentation;
