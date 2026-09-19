@@ -2,6 +2,7 @@ import { receiptCompletionText } from "./receipt-completion.ts";
 import { historyCompletionLimits, UNVERIFIED_EVENT_LIMITATION } from "./evidence-need-coverage.ts";
 import { calendarDateInZone } from "../ask-time-zone.ts";
 import { unquotedOwnerText, analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
+import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
 import { units } from "./history-calculation.ts";
 import { parseHistoryNarrative, type HistoryNarrative } from "./history-narrative.ts";
 import { eligibleAnswerSources, type AskEvidenceContract } from "./ask-evidence.ts";
@@ -59,6 +60,17 @@ function careNoteBody(text: string) {
   const measurement=bodyMeasurement(text); if(!measurement) return text.trim();
   const start=text.indexOf(measurement.literal); if(start<0) return text.trim();
   const end=text.indexOf(".",start+measurement.literal.length); return end>=0?text.slice(end+1).trim():text.trim();
+}
+function displayCareNoteBody(text: string) {
+  return splitSentencesPreservingFacts(careNoteBody(text)).filter(sentence =>
+    !/^(?:please\s+)?(?:save|log|record|remember|add|note)\b/i.test(sentence.trim())
+    && !/^(?:please\s+)?(?:save|log|record|remember)\s+(?:that|this|it)\b/i.test(sentence.trim()))
+    .join(" ").trim();
+}
+function humanList(values: string[]) {
+  if (values.length < 2) return values[0] || "";
+  if (values.length === 2) return `${values[0]} and ${values[1]}`;
+  return `${values.slice(0,-1).join(", ")}, and ${values.at(-1)}`;
 }
 const decimalPlaces = (value: string) => /\.(\d+)/.exec(value)?.[1].length || 0;
 const csv = (cell: string) => /[",\r\n]/.test(cell) ? '"' + cell.replaceAll('"','""') + '"' : cell;
@@ -378,38 +390,40 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
         const foodChange = /\b(?:food|diet|kibble|wet food|dry food|feeding|meal|treat)\b[^.!?]{0,80}\b(?:changed?|switched?|transition(?:ed)?|replaced?|started|stopped)\b|\b(?:changed?|switched?|transition(?:ed)?|replaced?|started|stopped)\b[^.!?]{0,80}\b(?:food|diet|kibble|feeding|meal)\b/i.test(source.text);
         const lifecycleChange = /\b(?:died|passed away|euthani[sz]ed|put (?:to sleep|down)|marked? deceased|lifecycle status changed)\b/i.test(source.text);
         const recordedAt = "recordedAt" in source ? source.recordedAt : null;
-        return { name, source, weight, foodChange, lifecycleChange, detail: careNoteBody(source.text),
+        return { name, source, weight, foodChange, lifecycleChange, detail: displayCareNoteBody(source.text),
           occurred: humanDate(source.occurredAt || null,evidence.timeZone || "UTC"), saved: humanDateTime(recordedAt,evidence.timeZone || "UTC") };
       });
-      const sharedDetail = complete[0].detail && complete.every(row=>row.detail===complete[0].detail) ? complete[0].detail : null;
+      const groups = new Map<string, typeof complete>();
+      for (const row of complete) {
+        const key=JSON.stringify([row.occurred,row.saved,row.detail]);
+        groups.set(key,[...(groups.get(key)||[]),row]);
+      }
+      const repeatedGroups=[...groups.values()].filter(group=>group.length>1);
+      const groupedNames=new Set(repeatedGroups.flatMap(group=>group.map(row=>row.name)));
       const sharedNoChanges = complete.every(row=>!row.foodChange&&!row.lifecycleChange);
-      const sharedOccurred = complete.every(row=>row.occurred===complete[0].occurred) ? complete[0].occurred : null;
-      const sharedSaved = complete.every(row=>row.saved===complete[0].saved) ? complete[0].saved : null;
       const sentences = complete.map(row => {
-        const facts=[`${row.name}: ${row.weight ? row.weight.literal : "no weight recorded"}.`];
-        if(!sharedOccurred) facts.push(`Entry dated ${row.occurred}.`);
-        if(!sharedSaved) facts.push(`Saved ${row.saved}.`);
-        if(!sharedDetail&&row.detail) facts.push(row.detail);
+        const facts=[`${row.name}: ${row.weight ? row.weight.literal : "no weight in this entry"}.`];
+        if(!groupedNames.has(row.name)){
+          facts.push(row.occurred==="date not recorded" ? "No entry date is recorded." : `Entry dated ${row.occurred}.`);
+          if(row.saved!=="save time not recorded") facts.push(`Saved ${row.saved}.`);
+          if(row.detail) facts.push(row.detail);
+        }
         if(!sharedNoChanges) facts.push(`Food change: ${row.foodChange ? "recorded" : "not recorded"}. Life-status change: ${row.lifecycleChange ? "recorded" : "not recorded"}.`);
         return { text:facts.join(" "), sourceIds:[row.source.sourceId], calculations:[] };
       });
-      if(sharedOccurred||sharedSaved){
-        const countWord=["zero","one","two","three","four","five","six","seven","eight","nine","ten"][complete.length]||String(complete.length);
-        const text=sharedOccurred&&sharedSaved
-          ? `All ${countWord} entries are dated ${sharedOccurred} and were saved ${sharedSaved}.`
-          : sharedOccurred ? `All ${countWord} entries are dated ${sharedOccurred}.`
-            : `All ${countWord} entries were saved ${sharedSaved}.`;
-        sentences.push({text,sourceIds:complete.map(row=>row.source.sourceId),calculations:[]});
+      for(const group of repeatedGroups){
+        const first=group[0], names=humanList(group.map(row=>row.name));
+        const facts=[`${names} have entries ${first.occurred==="date not recorded" ? "with no date recorded" : `dated ${first.occurred}`}.`];
+        if(first.saved!=="save time not recorded") facts.push(`They were saved ${first.saved}.`);
+        if(first.detail) facts.push(first.detail);
+        sentences.push({text:facts.join(" "),sourceIds:group.map(row=>row.source.sourceId),calculations:[]});
       }
-      if (sharedDetail) sentences.push({ text: sharedDetail, sourceIds: complete.map(row=>row.source.sourceId), calculations:[] });
-      if (sharedNoChanges) sentences.push({ text: "None of these latest entries records a food or life-status change.", sourceIds: complete.map(row=>row.source.sourceId), calculations:[] });
-      if (complete.some(row=>row.weight)) sentences.push({ text: "The weights are recorded in the saved entries. The entries do not say that saving them changed the current profile weight.", sourceIds: complete.filter(row=>row.weight).map(row=>row.source.sourceId), calculations:[] });
-      if (/\b(?:profile defaults?|don['’]?t use profile|do not use profile)\b/i.test(requestText)) {
-        sentences.push({ text: "I only used saved care history here. I did not fill in anything from the profile.", sourceIds: complete.map(row=>row.source.sourceId), calculations:[] });
-      }
-      if (/\b(?:death record|recorded as deceased)\b/i.test(requestText)) {
-        sentences.push({ text: "These latest entries do not record a life-status change. This latest-entry check does not tell us whether an older death record exists.", sourceIds: complete.map(row=>row.source.sourceId), calculations:[] });
-      }
+      const summary: string[]=[];
+      if (sharedNoChanges) summary.push("None of these latest entries shows a food or life-status change.");
+      if (complete.some(row=>row.weight)) summary.push("The weights shown come from the saved entries, but the entries do not say that saving them changed the current weight.");
+      if (/\b(?:profile defaults?|don['’]?t use profile|do not use profile)\b/i.test(requestText)) summary.push("I only used saved care history and did not fill in missing details from the profile.");
+      if (/\b(?:death record|recorded as deceased)\b/i.test(requestText)) summary.push("These latest entries do not tell us whether an older death record exists.");
+      if(summary.length) sentences.push({text:summary.join(" "),sourceIds:complete.map(row=>row.source.sourceId),calculations:[]});
       return parseHistoryNarrative({sentences}) || null;
     }
   }
