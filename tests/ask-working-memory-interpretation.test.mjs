@@ -130,3 +130,18 @@ test("explicit profile weight does not use the saved-history latest-weight short
   }));
   assert.equal(calls,1);
 });
+
+test("completed mixed save last-two-weight companion bypasses provider interpretation",async()=>{
+  let calls=0;
+  const q="tell me Pebble's last two weights and whether this note includes a weight.";
+  const result=await interpretAskQuestion({
+    context:{...context,ownerNoteAlreadySaved:true,completedOwnerNote:{sourceMessageId:"save",petId:"pebble",entryIds:["row"],note:"Pebble ate less at lunch today."},
+      currentMessage:q,currentTurn:{id:"mixed-read",role:"user",text:q,createdAt:"2026-09-18T23:10:00.000Z"}},
+    model:"test-model",client:{responses:{create:async()=>{calls++;throw new Error("provider should not run");}}},
+  });
+  assert.equal(calls,0);
+  assert.equal(result.request.evidenceBasis,"saved_history");
+  assert.equal(result.selection,"latest");
+  assert.equal(result.request.task,null);
+  assert.deepEqual(result.petIds,["pebble"]);
+});

@@ -48,7 +48,7 @@ export type AskInterpretation = {
 // Interpretation shares the route's 50-second orchestration budget; this cap
 // leaves 25 seconds for retrieval/generation. No extra provider call is added.
 export const ASK_INTERPRETATION_LIMITS = { outputTokens: 4096, timeoutMs: 25_000, turns: 8, turnChars: 600, terms: 6, pets: 3 } as const;
-type InterpretationContext = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask" | "ownerNoteAlreadySaved">;
+type InterpretationContext = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask" | "ownerNoteAlreadySaved" | "completedOwnerNote">;
 export class AskInterpretationValidationError extends Error {
   readonly reason: string;
   readonly category: "schema" | "semantic";
@@ -85,6 +85,24 @@ function exactlyNamedOwnedPet(context: InterpretationContext) {
   const owned=context.eligiblePets.filter(candidate=>candidate.user_id===context.owner.userId && candidate.name);
   const named=owned.filter(candidate=>new RegExp("(?<![\\p{L}])"+candidate.name!.replace(/[.*+?^$\{\}()|[\]\\]/g,"\\$&")+"(?![\\p{L}])","iu").test(context.currentMessage));
   return named.length===1 ? named[0] : null;
+}
+
+function fastCompletedNoteWeightReadPlan(context: InterpretationContext): AskInterpretation | null {
+  const message=context.currentMessage.trim();
+  if(!context.ownerNoteAlreadySaved || !context.completedOwnerNote?.entryIds?.length
+    || !/\b(?:last|latest|most recent|newest)\s+two\s+(?:weights?|body masses?)\b/i.test(message)
+    || !/\b(?:this|that)\s+note\b[^.!?]{0,80}\b(?:include|includes|contain|contains|have|has)\b[^.!?]{0,40}\bweight\b|\bwhether\s+(?:this|that)\s+note\b[^.!?]{0,60}\bweight\b/i.test(message)
+    || analyzeOwnerAssertions(message).hasOwnerAssertion) return null;
+  const pet=exactlyNamedOwnedPet(context)
+    || context.eligiblePets.find(candidate=>candidate.user_id===context.owner.userId && candidate.id===context.completedOwnerNote!.petId);
+  if(!pet?.name || pet.id!==context.completedOwnerNote.petId) return null;
+  return validateAskRequest({
+    version:ASK_REQUEST_VERSION,task:null,temporalScope:"historical",mutationIntent:null,recordSelection:null,profileFields:[],
+    projection:null,evidenceNeeds:[],outputFormat:null,evidenceBasis:"saved_history",premiseQuotes:[],excludedPetNames:[],
+    mode:"read",question:message,requirements:[],referenceTurnIds:[],scope:"named",petNames:[pet.name],
+    operation:"recall",selection:"latest",quantity:"measurement",topic:"weight",terms:["weight"],from:null,to:null,
+    episodeTopic:null,ordinal:null,frame:null,
+  },context);
 }
 
 function fastLatestSavedWeightPlan(context: InterpretationContext): AskInterpretation | null {
@@ -175,6 +193,8 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
   client?: { responses: { create: (request: Record<string, unknown>, options?: { signal: AbortSignal }) => Promise<Record<string, unknown>> } };
 }): Promise<AskInterpretation> {
   if (!context.pendingTask) {
+    const completedNoteWeightRead = fastCompletedNoteWeightReadPlan(context);
+    if (completedNoteWeightRead) return completedNoteWeightRead;
     const latestWeight = fastLatestSavedWeightPlan(context);
     if (latestWeight) return latestWeight;
     const anchoredRead = fastSinceAnchorReadPlan(context);
