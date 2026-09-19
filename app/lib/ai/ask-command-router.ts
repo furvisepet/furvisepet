@@ -36,6 +36,20 @@ export function planDeterministicAskCommand(message: string, petName: string): D
     };
   }
 
+  const correction = explicitLatestHistoryCorrection(normalized, petName);
+  if (correction) {
+    return {
+      routeType: "application_action",
+      orchestration: deterministicResult("Care history", `Review the correction to ${petName}'s latest care-history note below.`, "question"),
+      proposals: [{
+        kind: "care_history.edit",
+        input: { field: null, value: null, title: null, detail: correction, category: null, target: "specified" },
+        evidence: normalized.slice(0, 240),
+        explicitIntent: true,
+      }],
+    };
+  }
+
   const observation = explicitCareObservationSaveText(message, petName);
   // Only the literal, complete save command is consumed. Compound tasks,
   // additional subjects, questions and long payloads retain full interpretation.
@@ -75,6 +89,21 @@ export function planDeterministicAskCommand(message: string, petName: string): D
       explicitIntent: true,
     }],
   };
+}
+
+
+function explicitLatestHistoryCorrection(message: string, petName: string) {
+  const escaped=petName.normalize("NFKC").replace(/[.*+?^$\{\}()|[\]\\]/g,"\\$&");
+  const command=new RegExp("\\b(?:change|correct|edit|update)\\s+(?:the\\s+)?(?:last|latest|most recent)\\s+(?:"+escaped+"(?:['’]s)?\\s+)?(?:care[- ]history\\s+)?(?:note|entry|record)\\s+(?:to|as)\\s+([^.!?]+|that|this)","iu").exec(message);
+  if(!command) return null;
+  let detail=command[1].trim();
+  if(/^(?:that|this)$/i.test(detail)){
+    const before=message.slice(0,command.index).trim().replace(/[.!?]+$/,"").trim();
+    const tail=(/[—:-]\s*([^—:]+)$/.exec(before)?.[1] || before.split(/[.!?]\s+/).at(-1) || "").trim();
+    detail=tail.replace(new RegExp("^(?:i\\s+was\\s+wrong\\s+about\\s+"+escaped+"(?:\\s+(?:this morning|today|earlier))?\\s*)","iu"),"").replace(/^[,;:\s-]+/,"").trim();
+  }
+  detail=detail.replace(/\s+/g," ").replace(/[.!?]+$/,"").trim();
+  return detail.length>=8 ? detail+"." : null;
 }
 
 function explicitAnswerLanguage(message: string) {

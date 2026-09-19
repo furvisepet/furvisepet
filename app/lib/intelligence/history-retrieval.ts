@@ -1,5 +1,5 @@
 import { wholeAskTaskQuestion } from "./ask-task-continuation.ts";
-import { calendarPeriodContaining, oldestCalendarUnit } from "./history-periods.ts";
+import { calendarPeriodContaining, oldestCalendarUnit, relativeYearsAgoWindow } from "./history-periods.ts";
 import { calendarWindowToInstants } from "../ask-time-zone.ts";
 import { calendarDateInZone } from "../ask-time-zone.ts";
 import { careOccurrence, calendarCandidateWindow } from "./care-occurrence.ts";
@@ -21,6 +21,7 @@ import type { FurviseLiveContext } from "./types.ts";
 import { askEvidenceScope, careEvidenceId, type Completeness } from "./ask-evidence.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import { resolveEffectiveClaimGraph, type RebuildClaim, type RebuildRelation } from "./v2/projections/rebuild.ts";
+import { parseSinceAnchorRead } from "./history-anchor-read.ts";
 
 export const HISTORY_BUDGET = { pageSize: 25, pagesPerPet: 4, totalPages: 20, candidateRows: 64, pets: ASK_HISTORY_MAX_PETS, graphCalls: 6, graphRows: 128, records: 32, chars: 18000, timeMs: 5000 } as const;
 type Cursor = { petId: string; occurredAt: string; id: string };
@@ -205,6 +206,81 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     coverage.requiredSourceIds = chosen.map(row => careEvidenceId(row.id, coverage));
     return { ...context, askHistory: { coverage, entries: chosen, originals: candidates } };
   }
+  const sinceAnchorRead = sharedRead && ids.length === 1
+    ? parseSinceAnchorRead(context.currentMessage, context.eligiblePets.map(pet => pet.name || ""))
+    : null;
+  if (sinceAnchorRead) {
+    const petId = ids[0];
+    const rowText = (row: CareEntryRow) => [row.title || "", row.note || ""].join(" ").trim();
+    const accessibleFrom = context.historyAccess?.from || "1900-01-01T00:00:00.000Z";
+    const accessibleTo = context.historyAccess?.to
+      ? new Date(Math.min(Date.parse(context.historyAccess.to), asOf + 1)).toISOString()
+      : new Date(asOf + 1).toISOString();
+    coverage.queryCount++;
+    const anchorResult = await withExecutionDeadline(signal => db.rpc("read_ask_history_candidates_latest", {
+      p_pet_id: petId,
+      p_terms: sinceAnchorRead.anchorTerms,
+      p_from: accessibleFrom,
+      p_to: accessibleTo,
+      p_after_time: null,
+      p_after_id: null,
+      p_limit: 8,
+    }).abortSignal(signal), historyReadRemaining(candidateDeadline));
+    if (anchorResult.error) {
+      coverage.retrieval = "unavailable";
+      coverage.reasons.push("event_anchor_unavailable");
+      return { ...context, askHistory: { coverage, entries: [], originals: [] } };
+    }
+    const anchorCandidates = ((anchorResult.data || []) as CareEntryRow[])
+      .filter(row => row.user_id === context.owner.userId && row.pet_profile_id === petId && !row.deleted_at
+        && historyQueryRelevance(rowText(row), sinceAnchorRead.anchorTerms) > 0)
+      .sort((a,b) => compareHistoryTime(b.occurred_at,a.occurred_at) || b.id.localeCompare(a.id));
+    const anchor = anchorCandidates[0];
+    if (!anchor) {
+      coverage.retrieval = "complete";
+      coverage.corrections = "complete";
+      coverage.extraction = "complete";
+      coverage.grouping = "complete";
+      coverage.reasons.push("event_anchor_not_found");
+      coverage.perPet.push({petId,rows:0,pages:1,exhausted:true,status:"complete"});
+      return { ...context, askHistory: { coverage, entries: [], originals: [] } };
+    }
+    coverage.queryCount++;
+    const afterResult = await withExecutionDeadline(signal => db.from("pet_care_entries")
+      .select("id,user_id,pet_profile_id,category,title,note,severity,occurred_at,created_at,updated_at,deleted_at")
+      .eq("user_id", context.owner.userId).eq("pet_profile_id", petId).is("deleted_at", null)
+      .gte("occurred_at", anchor.occurred_at).lt("occurred_at", accessibleTo)
+      .order("occurred_at", {ascending:true}).order("id", {ascending:true}).limit(HISTORY_BUDGET.records)
+      .abortSignal(signal).returns<CareEntryRow[]>(), historyReadRemaining(candidateDeadline));
+    if (afterResult.error) {
+      coverage.retrieval = "unavailable";
+      coverage.reasons.push("event_anchor_context_unavailable");
+      return { ...context, askHistory: { coverage, entries: [], originals: anchorCandidates } };
+    }
+    const afterRows=(afterResult.data || []).filter(row => row.user_id===context.owner.userId && row.pet_profile_id===petId && !row.deleted_at);
+    const originals=[...new Map([...anchorCandidates,...afterRows].map(row=>[row.id,row])).values()];
+    coverage.candidateIds=originals.map(row=>`care:${row.id}`);
+    const effective=await effectiveCandidates(originals, owned, ids, context.owner.userId, db, coverage, deadline);
+    const effectiveAnchor=[...effective]
+      .filter(row=>historyQueryRelevance(rowText(row),sinceAnchorRead.anchorTerms)>0)
+      .sort((a,b)=>compareHistoryTime(b.occurred_at,a.occurred_at)||b.id.localeCompare(a.id))[0];
+    if (!effectiveAnchor) {
+      coverage.retrieval="partial";
+      coverage.reasons.push("event_anchor_changed_or_deleted");
+      return { ...context, askHistory: { coverage, entries: [], originals } };
+    }
+    const topicRows=effective.filter(row=>Date.parse(row.occurred_at)>=Date.parse(effectiveAnchor.occurred_at)
+      && historyQueryRelevance(rowText(row),sinceAnchorRead.topicTerms)>0)
+      .sort((a,b)=>compareHistoryTime(a.occurred_at,b.occurred_at)||a.id.localeCompare(b.id));
+    const chosen=[...new Map([effectiveAnchor,...topicRows].map(row=>[row.id,row])).values()];
+    coverage.requiredSourceIds=chosen.map(row=>careEvidenceId(row.id,coverage));
+    coverage.retrieval=afterRows.length < HISTORY_BUDGET.records ? "complete" : "partial";
+    coverage.extraction="complete";
+    coverage.grouping="complete";
+    coverage.perPet.push({petId,rows:afterRows.length,pages:2,exhausted:afterRows.length < HISTORY_BUDGET.records,status:coverage.retrieval});
+    coverage.reasons.push("event_anchor_read");
+    return { ...context, askHistory: { coverage, entries: chosen, originals } };
+  }
   const oldestUnit = sharedRead && ids.length === 1 ? oldestCalendarUnit(context.currentMessage) : null;
   let boundaryPages = 0;
   let oldestProbe: { id: string; occurredAt: string } | null = null;
@@ -234,11 +310,14 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     }
   }
   const descending = context.askInterpretation?.selection === "latest";
-  const endpointComparison = context.askInterpretation?.request
+  const relativeYears = sharedRead && ids.length === 1 ? relativeYearsAgoWindow(context.currentMessage,new Date(asOf),context.timeZone) : null;
+  const relativeWeightComparison = Boolean(relativeYears) && /\b(?:compare|comparison|versus|vs\.?|change|different|difference|how does that compare)\b/i.test(context.currentMessage)
+    && (/\b(?:weight|weigh(?:ed|s|ing)?|body mass)\b/i.test(context.currentMessage) || /\b(?:weight|weigh(?:ed|s|ing)?|body mass)\b/i.test(context.askInterpretation?.referenceQuestion || ""));
+  const endpointComparison = relativeWeightComparison || (context.askInterpretation?.request
     ? ["summary", "comparison"].includes(context.askInterpretation.selection || "") || ["comparison", "overview"].includes(context.askInterpretation.readOperation || "")
     : context.askInterpretation?.readOnly === true
     && /\bweights?\b/i.test(context.currentMessage)
-    && /\b(?:earliest|first)\b/i.test(context.currentMessage) && /\b(?:latest|last)\b/i.test(context.currentMessage);
+    && /\b(?:earliest|first)\b/i.test(context.currentMessage) && /\b(?:latest|last)\b/i.test(context.currentMessage));
   const candidates: CareEntryRow[] = [];
   const endpointSeeds = new Map<string, { earliestIds: string[]; latestIds: string[]; earliestReady: boolean; latestReady: boolean }>();
   // Reserve coverage/provenance space independently of model evidence. Split
@@ -292,6 +371,17 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     const scopedStrategies: HistoryReadStrategy[] = proposedStrategies.map(strategy => ({ ...strategy, from: vetBriefRead && !strategy.lexical && vetBriefRead.periodFrom
         ? (!plan.from || vetBriefRead.periodFrom > plan.from ? vetBriefRead.periodFrom : plan.from) : plan.from, to: vetBriefRead && !strategy.lexical && vetBriefRead.periodTo
         ? (!plan.to || vetBriefRead.periodTo < plan.to ? vetBriefRead.periodTo : plan.to) : plan.to }));
+    const relativeStrategies: HistoryReadStrategy[] | null = relativeWeightComparison && relativeYears
+      ? (() => {
+          const oldWindow=clipHistoryPlan({from:relativeYears.from,to:relativeYears.to,terms:[],interpretation:"period"},context.historyAccess);
+          const latestWindow=clipHistoryPlan({from:context.historyAccess?.from || null,to:context.historyAccess?.to || null,terms:[],interpretation:"period"},context.historyAccess);
+          const weightTerms=historyQueryTerms(["weight","weighed"],context.eligiblePets.map(pet=>pet.name||""));
+          return [
+            {from:oldWindow.from,to:oldWindow.to,descending:false,lexical:true,terms:weightTerms},
+            {from:latestWindow.from,to:latestWindow.to,descending:true,lexical:true,terms:weightTerms},
+          ];
+        })()
+      : null;
     // Reserve up to five named-date queries in addition to every topic and the
     // selected period. A broad background search cannot displace a middle-date
     // comparison, and date anchors cannot displace a requested clinical topic.
@@ -306,7 +396,9 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     }
     const scopedNeeds = context.askInterpretation?.request?.evidenceNeeds?.filter(need => !need.petIds || need.petIds.includes(petId))
       .map(need => ({ ...need, terms: historyQueryTerms(need.terms, context.eligiblePets.map(pet => pet.name || "")) })) || [];
-    const compiled = appointmentDates
+    const compiled = relativeStrategies
+      ? { strategies: relativeStrategies, outsideNeeds: [] as string[], omittedTargets: [] as string[], omittedNeeds: [] as string[] }
+      : appointmentDates
       ? { ...appointmentDates, strategies: [...appointmentDates.strategies, ...scopedStrategies].filter((strategy, index, all) => all.findIndex(other => JSON.stringify(other) === JSON.stringify(strategy)) === index) }
       : compileHistoryReadStrategies(retrievalQuestion, new Date(asOf).getUTCFullYear(), plan, scopedStrategies, pagesPerPet, scopedNeeds, context.timeZone, distributePeriod);
     const boundedContextNeed = !vetBriefRead && scopedNeeds.length === 1 && scopedNeeds[0].order === "context" && scopedNeeds[0].window

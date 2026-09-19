@@ -2,6 +2,8 @@
 import { calendarDateInZone } from "../ask-time-zone.ts";
 import { unquotedOwnerText, analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
+import { parseSinceAnchorRead } from "./history-anchor-read.ts";
+import { relativeYearsAgoWindow } from "./history-periods.ts";
 import { units } from "./history-calculation.ts";
 import { parseHistoryNarrative, type HistoryNarrative } from "./history-narrative.ts";
 import { eligibleAnswerSources, type AskEvidenceContract } from "./ask-evidence.ts";
@@ -284,6 +286,35 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
     }
   }
 
+  // Relative-year body-mass comparisons use one server-owned historical
+  // endpoint window plus an independent latest-history endpoint. Conversation
+  // state may identify the pet/topic, but never supplies either numeric value.
+  const relativeYears = relativeYearsAgoWindow(requestText,new Date(),evidence.timeZone || "UTC");
+  if (relativeYears && evidence.scope.readOnlyRecall && request?.mode === "read" && request.evidenceBasis === "saved_history"
+    && evidence.scope.authorizedPetIds.length === 1
+    && (/\b(?:weight|weigh(?:ed|s|ing)?|body mass)\b/i.test(requestText)
+      || /\b(?:weight|body mass)\b/i.test(evidence.scope.requestedTopic || ""))
+    && /\b(?:compare|comparison|versus|vs\.?|change|different|difference|how does that compare)\b/i.test(requestText)) {
+    const petId=evidence.scope.authorizedPetIds[0], pair=evidence.history?.endpointPairs?.find(item=>item.petId===petId);
+    const sources=eligibleAnswerSources(evidence);
+    if(pair && !pair.blocked && pair.earliestIds.length && pair.latestIds.length){
+      const endpoint=(ids:string[])=>sources.filter(source=>source.petId===petId&&source.sourceType==="care_update"&&ids.includes(source.sourceId))
+        .flatMap(source=>{const measurement=bodyMeasurement(source.text);return measurement&&source.occurredAt?[{source,measurement}]:[];});
+      const old=endpoint(pair.earliestIds), latest=endpoint(pair.latestIds), name=evidence.petNames?.[petId];
+      if(name&&old.length===1&&latest.length===1&&old[0].measurement.unit.dimension===latest[0].measurement.unit.dimension){
+        const target=old[0].measurement.unit;
+        const oldValue=old[0].measurement.value;
+        const latestValue=latest[0].measurement.value*latest[0].measurement.unit.scale/target.scale;
+        const change=Number((latestValue-oldValue).toFixed(8));
+        const sourceIds=[old[0].source.sourceId,latest[0].source.sourceId];
+        const text=`${name} was ${old[0].measurement.literal} on ${humanDate(old[0].source.occurredAt,evidence.timeZone||"UTC")} and ${latest[0].measurement.literal} on ${humanDate(latest[0].source.occurredAt,evidence.timeZone||"UTC")}. That is ${change>=0?"+":""}${change} ${target.canonical}.`;
+        return parseHistoryNarrative({sentences:[{text,sourceIds,calculations:[{operation:"difference",expression:null,
+          operands:[{sourceId:latest[0].source.sourceId,field:"text",literal:latest[0].measurement.literal},{sourceId:old[0].source.sourceId,field:"text",literal:old[0].measurement.literal}],
+          value:change,unit:target.canonical}]}]})||null;
+      }
+    }
+  }
+
   // Earliest-to-latest body mass across a multi-pet cohort is a database
   // projection, not a prompt-budget problem. Retrieval already reads both ends;
   // require both correction-validated endpoint sets for every pet and compute
@@ -463,6 +494,31 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
           ...questions.map((text,index)=>({text:`${index+1}. ${text}`,sourceIds,calculations:[]})),
         ];
         return parseHistoryNarrative({sentences}) || null;
+      }
+    }
+  }
+
+  const sinceAnchor = evidence.scope.readOnlyRecall && request?.mode === "read" && request.evidenceBasis === "saved_history"
+    && evidence.scope.authorizedPetIds.length === 1
+    ? parseSinceAnchorRead(requestText,Object.values(evidence.petNames||{})) : null;
+  if(sinceAnchor && (!request?.outputFormat || ["prose","bullets"].includes(request.outputFormat))){
+    const petId=evidence.scope.authorizedPetIds[0];
+    const sources=eligibleAnswerSources(evidence).filter(source=>source.petId===petId && source.sourceType==="care_update");
+    const anchors=sources.filter(source=>historyQueryRelevance(source.text,sinceAnchor.anchorTerms)>0)
+      .sort((a,b)=>Date.parse(b.occurredAt||"")-Date.parse(a.occurredAt||""));
+    const anchor=anchors[0];
+    if(anchor?.occurredAt){
+      const topic=sources.filter(source=>source.occurredAt && Date.parse(source.occurredAt)>=Date.parse(anchor.occurredAt!)
+        && historyQueryRelevance(source.text,sinceAnchor.topicTerms)>0)
+        .sort((a,b)=>Date.parse(a.occurredAt||"")-Date.parse(b.occurredAt||""));
+      if(topic.length){
+        const sentences=[{text:`I used the ${sinceAnchor.anchorLabel} note on ${humanDate(anchor.occurredAt,evidence.timeZone||"UTC")} as the starting point.`,
+          sourceIds:[anchor.sourceId],calculations:[] as HistoryCalculation[]}];
+        for(const source of topic){
+          const detail=displayCareNoteBody(source.text)||source.text.trim();
+          sentences.push({text:`${humanDate(source.occurredAt,evidence.timeZone||"UTC")}: ${detail}`,sourceIds:[source.sourceId],calculations:[]});
+        }
+        return parseHistoryNarrative({sentences})||null;
       }
     }
   }

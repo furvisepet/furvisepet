@@ -55,3 +55,21 @@ test("direct persistence refuses a note object with no authorization evidence", 
   }), /FURVISE_MUTATION_NOT_AUTHORIZED/);
   assert.equal(calls, 0, "database organ must not be reached without brain authorization");
 });
+
+test("mixed save plus read separates the stored fact from the companion question",()=>{
+  const cedar={id:"cedar",name:"Cedar"};
+  const note=resolveOwnerNoteRequest({message:"Cedar ate less this morning. Log that, then tell me Cedar's last two weights and whether this note includes a weight.",pet:cedar,pets:[cedar]});
+  assert.ok(note);
+  assert.equal(note.note,"Cedar ate less this morning.");
+  assert.equal(note.companionQuestion,"tell me Cedar's last two weights and whether this note includes a weight.");
+  assert.equal(note.needsAnswer,true);
+});
+
+test("leading save command keeps the care fact and separates a later question",()=>{
+  const aster={id:"aster",name:"Aster"};
+  const note=resolveOwnerNoteRequest({message:"Save this for today on Aster: drank more water than usual after the walk. Is that the first water note I have, or did I log thirst before?",pet:aster,pets:[aster]});
+  assert.ok(note);
+  assert.equal(note.note,"drank more water than usual after the walk.");
+  assert.equal(note.companionQuestion,"Is that the first water note I have, or did I log thirst before?");
+  assert.equal(note.needsAnswer,true);
+});

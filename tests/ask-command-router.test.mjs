@@ -43,3 +43,17 @@ test('one-off output constraints and compound requests never become language set
   }
   assert.equal(planDeterministicAskCommand('Please reply in français.', 'Mani')?.proposals[0].input.value, 'Français');
 });
+
+test("latest-note correction routes deterministically with exact replacement text",()=>{
+  const message="I was wrong about Cedar this morning — appetite was normal. Change the last Cedar note to that. Don't add a second copy.";
+  const command=planDeterministicAskCommand(message,"Cedar");
+  assert.equal(command?.routeType,"application_action");
+  assert.equal(command?.proposals.length,1);
+  assert.equal(command?.proposals[0].kind,"care_history.edit");
+  assert.equal(command?.proposals[0].input.target,"specified");
+  assert.equal(command?.proposals[0].input.detail,"appetite was normal.");
+  const actions=prepareFurviseApplicationActions({proposals:command.proposals,petId:"cedar",petName:"Cedar",requestId:"correction",sourceMessage:message});
+  assert.equal(actions.length,1);
+  assert.equal(actions[0].explicitIntent,true);
+  assert.equal(actions[0].confirmationPolicy,"explicit_intent");
+});

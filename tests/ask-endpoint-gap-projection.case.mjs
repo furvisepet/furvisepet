@@ -93,3 +93,25 @@ test('four-pet long endpoint request completes ranking future-date coverage and 
   assert.match(text,/Oct 15, 2016/);
   assert.match(text,/Sep 15, 2026/);
 });
+
+test('single-pet ten-years-ago comparison uses historical and latest endpoint pair',()=>{
+  const q="How does that compare to hers from ten years ago?";
+  const oldText='Dune weighed 4.81 kg.',newText='Dune weighed 6.61 kg.';
+  const evidence={
+    version:'ask-evidence.v1',timeZone:'UTC',
+    scope:{authorizedPetIds:['dune'],requestedTopic:'weight',requestText:q,requestedPeriod:{kind:'unspecified',surface:null},requestKind:'comparison',status:'resolved',readOnlyRecall:true},
+    sources:[{petId:'dune',source:'care_entries',status:'loaded',loadedIds:['care:dune:old','care:dune:new'],loadedCount:2,cap:null,reasons:[],completeness:{retrieval:'complete',corrections:'complete',extraction:'complete',grouping:'complete'}}],
+    completeness:{retrieval:'complete',corrections:'complete',extraction:'complete',grouping:'complete'},losses:[],representation:'complete',verifiedFacts:[],petNames:{dune:'Dune'},
+    interpretation:{selection:'comparison',request:{mode:'read',evidenceBasis:'saved_history',quantity:'measurement',profileFields:[],temporalScope:'historical',outputFormat:'prose',referenceTurnIds:['prior']}},
+    history:{corrections:'complete',endpointPairs:[{petId:'dune',earliestIds:['care:dune:old'],latestIds:['care:dune:new'],blocked:false}],provenance:[{sourceId:'care:dune:old',status:'effective_linked'},{sourceId:'care:dune:new',status:'effective_linked'}]},
+    represented:[
+      {sourceId:'care:dune:old',petId:'dune',sourceType:'care_update',field:'value',start:0,end:oldText.length,text:oldText,occurredAt:'2016-10-15T12:00:00Z'},
+      {sourceId:'care:dune:new',petId:'dune',sourceType:'care_update',field:'value',start:0,end:newText.length,text:newText,occurredAt:'2026-09-15T12:00:00Z'},
+    ],
+  };
+  const result=deterministicReadProjection(evidence);assert.ok(result);
+  const text=result.sentences.map(s=>s.text).join('\n');
+  assert.match(text,/Dune was 4\.81 kg on Oct 15, 2016/);
+  assert.match(text,/6\.61 kg on Sep 15, 2026/);
+  assert.match(text,/\+1\.8 kg/);
+});

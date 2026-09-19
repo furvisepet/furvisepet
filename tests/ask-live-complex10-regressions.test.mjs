@@ -143,3 +143,21 @@ test('V1 pre-vet deterministic read declines urgent latest history',()=>{
   e.interpretation.request.temporalScope='historical_and_current';e.recordTitles={'care:aster:2026-01-15':'Annual wellness visit'};
   assert.equal(deterministicReadProjection(e),null);
 });
+
+test('since-dental food read keeps the anchor row and later food notes',()=>{
+  const q="Since Bramble's dental, what did I write about eating or food? Don't guess months I didn't log.";
+  const row1=names.map((name,i)=>i===1
+    ? 'Bramble weighed 4.75 kg. Dental cleaning was completed at the routine clinic visit. Eating returned to the normal turkey wet-food routine the following day.'
+    : name+' weighed 1 kg. Routine note.');
+  const row2=names.map((name,i)=>i===1
+    ? 'Bramble weighed 4.80 kg. Monthly nutrition review: the usual measured diet was continued, appetite was normal, and no persistent digestive change was reported.'
+    : name+' weighed 1 kg. Routine note.');
+  const e=evidence(q,['2025-06-15','2026-06-15'],[row1,row2],['bramble']);
+  e.interpretation.operation='recall';e.interpretation.request.operation='recall';e.interpretation.request.selection='summary';
+  const p=deterministicReadProjection(e);assert.ok(p);
+  const text=p.sentences.map(s=>s.text).join('\n');
+  assert.match(text,/dental note on Jun 15, 2025 as the starting point/i);
+  assert.match(text,/turkey wet-food routine/i);
+  assert.match(text,/Jun 15, 2026/);
+  assert.match(text,/usual measured diet was continued/i);
+});

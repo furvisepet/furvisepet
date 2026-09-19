@@ -19,7 +19,7 @@ const policies: Record<FurviseActionKind, ActionPolicy> = {
   "memory.list": readOnly("owned_user"),
   "memory.edit_detail": readOnly("owned_user"),
   "care_history.add": lowRisk("owned_pet"),
-  "care_history.edit": { safetyClass: "CONFIRMATION_REQUIRED", mutationClass: "mutation", confirmationPolicy: "always", authorizationScope: "owned_care_record" },
+  "care_history.edit": lowRisk("owned_care_record"),
   "care_history.remove": { safetyClass: "CONFIRMATION_REQUIRED", mutationClass: "mutation", confirmationPolicy: "always", authorizationScope: "owned_care_record" },
   "care_history.query": readOnly("owned_pet"),
   "care_state.resolve": lowRisk("owned_concern"),

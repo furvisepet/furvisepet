@@ -471,13 +471,14 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
   }
 
   const creditRequestId = attemptId;
+  const reasoningQuestion = ownerNotePersistence && ownerNote?.companionQuestion ? ownerNote.companionQuestion : question;
 
   let liveContext: FurviseLiveContext;
   try {
     liveContext = await buildFurviseContext({
       historyAccess,
       conversationId: preparedRequest.conversationId,
-      currentMessage: question,
+      currentMessage: reasoningQuestion,
       feature: "ask",
       timeZone: resolveAskTimeZone(aiCreditPayload.timeZone),
       locale,
@@ -544,7 +545,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
     : null;
   let turnPetId = petId;
   let turnAuthoritativePetIds = [petId];
-  let turnView = deriveAskTurnView({ currentSourceMessageId: preparedRequest.userMessageId, liveContext, question, requestId });
+  let turnView = deriveAskTurnView({ currentSourceMessageId: preparedRequest.userMessageId, liveContext, question: reasoningQuestion, requestId });
   let contextUsed: typeof turnView.contextUsed & { evidenceNeeds?: EvidenceNeed[]; needCoverage?: NeedCoverage[]; historyCoverage?: Pick<HistoryCoverage, "retrieval" | "corrections" | "continuation" | "reasons" | "consistency" | "perPet"> } = turnView.contextUsed;
 
   let orchestration;
@@ -738,10 +739,10 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         durableLifecycleResolution,
       );
     } else {
-    const deterministicCommand = planDeterministicAskCommand(question, liveContext.pet.name || "your pet");
+    const deterministicCommand = planDeterministicAskCommand(reasoningQuestion, liveContext.pet.name || "your pet");
     const providerIndependent = planProviderIndependentAskTurn({
       concerns: turnView.concerns,
-      message: question,
+      message: reasoningQuestion,
       petName: liveContext.pet.name || "your pet",
     });
     if (deterministicCommand && !liveContext.pendingTask) {
@@ -806,7 +807,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
       }
       const recentConversation = liveContext.conversationTurns.filter((turn) => turn.id !== preparedRequest.userMessageId);
       const ambiguousBackref = ambiguousBackwardMultiPetReference({
-        message: question,
+        message: reasoningQuestion,
         pets: liveContext.eligiblePets,
         recentConversation,
       });
@@ -893,8 +894,8 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
       try {
         subjectDecision = interpretation.readOnly ? readInterpretationSubject(interpretation, petId) : await resolveAskTurnSubject({
           operationPetIds: interpretation.readPetIds ? interpretation.petIds : undefined,
-          extractFrame: async () => interpretation.frame ?? await extractTurnSubjectFrame({ message: question, model, onProviderEvent, recentConversation }),
-          message: question,
+          extractFrame: async () => interpretation.frame ?? await extractTurnSubjectFrame({ message: reasoningQuestion, model, onProviderEvent, recentConversation }),
+          message: reasoningQuestion,
           ownerId: userId,
           pets: liveContext.eligiblePets,
           recentConversation,
@@ -986,7 +987,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
       generationStage = "orchestration";
       return await orchestrateAskTurn({
         concerns: turnView.concerns,
-        message: question,
+        message: reasoningQuestion,
         petName: liveContext.pet.name || "your pet",
         generate: async () => {
           const generated = await generateAskHistoryAnswer({
@@ -1237,6 +1238,18 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
     && !preparedApplicationActions.some((action) => action.kind === pendingLifecycle.action.kind && action.petId === pendingLifecycle.petId)) {
     preparedApplicationActions = [pendingLifecycle.action, ...preparedApplicationActions].slice(0, 4);
   }
+  let latestHistoryEditTarget: { id: string; petId: string; sourceType: "care_update" } | null = null;
+  const latestEditActions=preparedApplicationActions.filter(action=>action.kind==="care_history.edit" && action.input.target==="specified");
+  if(latestEditActions.length===1 && /\b(?:last|latest|most recent)\b[^.!?]{0,50}\b(?:note|entry|record)\b/i.test(question)){
+    const action=latestEditActions[0];
+    const latest=await supabase.from("pet_care_entries").select("id")
+      .eq("user_id",userId).eq("pet_profile_id",action.petId).is("deleted_at",null)
+      .order("created_at",{ascending:false}).order("id",{ascending:false}).limit(1).maybeSingle<{id:string}>();
+    if(!latest.error && latest.data?.id){
+      latestHistoryEditTarget={id:"care:"+latest.data.id,petId:action.petId,sourceType:"care_update"};
+      preparedApplicationActions=preparedApplicationActions.map(item=>item.id===action.id?{...item,targetSourceId:latestHistoryEditTarget!.id}:item);
+    }
+  }
   let governedAnswer = enforceAnswerStateClaims(orchestration.answer);
   if (reasoning?.responseMode === "grief_support"
     && governedAnswer.summary === "I can help with that.") {
@@ -1301,6 +1314,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         id: source.sourceId, petId: source.petId, sourceType: source.sourceType,
       })) : reasoning?.referencedRecords || []),
       ...(reasoning?.referencedRecords.filter(record => record.sourceType === "active_concern") || []),
+      ...(latestHistoryEditTarget ? [latestHistoryEditTarget] : []),
     ],
   });
 

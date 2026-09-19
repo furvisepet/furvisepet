@@ -9,6 +9,7 @@ export type OwnerNoteRequest = {
   occurredAt: string | null;
   explicitTime: string | null;
   needsAnswer: boolean;
+  companionQuestion: string | null;
   authorizationSource: Extract<FurviseAuthorizationSource, "current_turn" | "transport">;
   authorizationEvidence: string;
 };
@@ -51,12 +52,14 @@ export function resolveOwnerNoteRequest(input: {
   }
 
   const time = explicitNoteTime(text, input.timeZone);
-  const noteText = authorizationSource === "current_turn" ? stripStandaloneSaveDirective(text) : text;
+  const split = authorizationSource === "current_turn" ? splitOwnerNoteAndCompanion(text, authorizationEvidence) : { note: text, companionQuestion: null };
+  const noteText = split.note || stripStandaloneSaveDirective(text);
   if (!noteText) return null;
   return {
     note: noteText,
     ...time,
-    needsAnswer: input.mode !== "note" && hasAdditionalNoteTask(text),
+    needsAnswer: input.mode !== "note" && Boolean(split.companionQuestion || hasAdditionalNoteTask(text)),
+    companionQuestion: input.mode === "note" ? null : split.companionQuestion,
     authorizationSource,
     authorizationEvidence,
   };
@@ -64,6 +67,32 @@ export function resolveOwnerNoteRequest(input: {
 
 export function stripStandaloneSaveDirective(text: string) {
   return text.replace(/\s*(?:please\s+)?(?:save|log|record|remember|add)\s+(?:(?:that|this)\s+note|that|this|it)(?:\s+(?:for|as)\s+(?:today|tonight|tomorrow|the\s+note|a\s+note))?[.!?]?\s*$/i, "").trim();
+}
+
+export function splitOwnerNoteAndCompanion(text: string, authorizationEvidence: string) {
+  const sentences=splitSentencesPreservingFacts(unquotedOwnerText(text));
+  const commandIndex=sentences.findIndex(sentence=>sentence.trim()===authorizationEvidence.trim());
+  if(commandIndex<0) return {note:stripStandaloneSaveDirective(text),companionQuestion:null};
+  const noteParts:string[]=[];
+  const companionParts:string[]=[];
+  for(let i=0;i<sentences.length;i++){
+    const sentence=sentences[i].trim();
+    if(!sentence) continue;
+    if(i<commandIndex){ noteParts.push(sentence); continue; }
+    if(i>commandIndex){
+      if(/[?]$|\b(?:tell me|show me|list|find|check|review|compare|calculate|compute|verify|what|why|how|should|is (?:it|this|that|he|she)|are (?:there|they)|did i|do i|can you|could you|would you)\b/i.test(sentence)) companionParts.push(sentence);
+      else noteParts.push(sentence);
+      continue;
+    }
+    const follow=/(?:,?\s*(?:and\s+)?then\s+|[.;]\s+)(?=(?:tell me|show me|list|find|check|review|compare|calculate|compute|verify|what|why|how|should|is|are|did|do|can|could|would)\b)/i.exec(sentence);
+    const commandPart=(follow?sentence.slice(0,follow.index):sentence).trim();
+    if(follow) companionParts.push(sentence.slice(follow.index+follow[0].length).trim());
+    const stripped=commandPart.replace(/^(?:(?:and|but|then)\s+)?(?:please\s+)?(?:save|log|record|remember|add|store)\s+(?:(?:that|this)\s+note|that|this|it)(?:\s+(?:for|as)\s+(?:today|tonight|tomorrow|the\s+note|a\s+note))?(?:\s+(?:on|for)\s+[\p{L}\p{M}'’ -]{1,60})?\s*[:,-]?\s*/iu,"").trim();
+    if(stripped && !/^[\s.,;:!?-]*$/.test(stripped) && !/^(?:for|as)\s+(?:today|tonight|tomorrow)\b/i.test(stripped)) noteParts.push(stripped);
+  }
+  const note=noteParts.join(" ").trim();
+  const companionQuestion=companionParts.join(" ").trim()||null;
+  return {note,companionQuestion};
 }
 
 function escape(text: string) { return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }

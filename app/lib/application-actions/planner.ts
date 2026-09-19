@@ -72,6 +72,8 @@ export function hasDeterministicUserMutationIntent(input: {
     case "care_history.add":
       return exactCareHistoryAddCommand(careCommand(input.sourceMessage), input.action.input.detail)
         || exactObservationSaveCommand(input.sourceMessage, input.action.input.detail, input.petName);
+    case "care_history.edit":
+      return exactLatestHistoryEditCommand(input.sourceMessage, input.action.input.detail, input.petName);
     case "care_state.resolve":
       return /^(?:mark|record|set) (?:it|this concern|that concern|the concern) (?:as )?resolved$/.test(command)
         || /^(?:resolve|close) (?:it|this concern|that concern|the concern)$/.test(command);
@@ -179,6 +181,15 @@ function exactPreferenceForgetCommand(command: string, field: string | null) {
   };
   const label = labels[preference];
   return Boolean(label && new RegExp(`^(?:delete|forget|remove|stop using) (?:my |the )?${label}(?: preference)?$`).test(command));
+}
+
+function exactLatestHistoryEditCommand(source: string, detail: string | null, petName: string) {
+  const normalizedDetail=careLiteral(detail);
+  if(!normalizedDetail || normalizedDetail.length<8) return false;
+  const command=normalizedCommand(source);
+  const pet=normalizeIntentPhrase(petName);
+  const target=new RegExp("\\b(?:change|correct|edit|update) (?:the )?(?:last|latest|most recent) (?:"+escapeRegExp(pet)+"(?: s)? )?(?:care history )?(?:note|entry|record) (?:to|as) (?:that|this|.+?)(?: don t add (?:a )?second copy)?$").test(command);
+  return target && command.includes(normalizedDetail);
 }
 
 function exactCareHistoryAddCommand(command: string, detail: string | null) {
