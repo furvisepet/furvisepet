@@ -28,9 +28,9 @@ test("the common header uses the approved full lockup", () => {
   assert.equal(hash("public/brand/furvise-logo.svg"), "15103e452559f4f29b0492a6731782ecd680992f62798be95ddc7aba544f3b00");
 });
 
-test("approved legal content and metadata remain unchanged after the support inbox update", () => {
+test("approved legal content matches the launch membership disclosures", () => {
   assert.equal(hash("app/privacy/page.tsx"), "3aed01db2169275c80a8b47e6a7dc7d9f1c8d2af68369c00cf0db43e710f95b4");
-  assert.equal(hash("app/terms/page.tsx"), "2de78ebeec43f59d2c8fbec25eda568e6e7d31ff94afc755add1510693f97976");
+  assert.equal(hash("app/terms/page.tsx"), "4ba68f73c10c9434a4b67a30e1aeb12d315d3a97a46435992838707eb97023a5");
 });
 
 test("Privacy contains meaningful V1 data, AI, control, and contact sections", () => {
@@ -86,7 +86,10 @@ test("membership terms use the production V1 entitlement source of truth", () =>
   assert.match(terms, /PLUS_ASK_ALLOWANCE/);
   assert.match(terms, /PLAN_CAPABILITIES\.free\.maxPets/);
   assert.match(terms, /PLAN_CAPABILITIES\.plus\.maxPets/);
-  assert.match(terms, /PLAN_CAPABILITIES\.plus\.vetPrepExports/);
+  assert.match(terms, /FREE_VET_BRIEF_ALLOWANCE/);
+  assert.match(terms, /PLUS_VET_BRIEF_ALLOWANCE/);
+  assert.match(terms, /MEMBERSHIP_CANCELLATION_TERMS/);
+  assert.match(terms, /VET_BRIEF_USAGE_TERMS/);
   assert.doesNotMatch(terms, /CA\$|5\.49/);
 });
 
