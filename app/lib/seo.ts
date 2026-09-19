@@ -3,13 +3,13 @@ import type { Metadata } from "next";
 // Keep canonical domain consistent with Vercel domain redirect settings and Google Search Console property.
 export const CANONICAL_ORIGIN = "https://www.furvise.com";
 
-export const HOME_TITLE = "Furvise | Your Pet's Story, Understood Over Time";
+export const HOME_TITLE = "Furvise | Pet Care Notes, History and Questions";
 export const HOME_DESCRIPTION =
-  "Furvise keeps your pet's questions, changes, routines, and history connected over time, so what happened before can inform what matters now.";
+  "Log your pet's care, find past notes, and ask questions about what you've logged. Furvise organizes care information; it does not diagnose.";
 export const SOCIAL_DESCRIPTION =
-  "An AI that follows your pet's story, not just the latest question. Furvise keeps important context connected over time.";
+  "Keep each pet's care notes together, find past entries, and prepare a summary to review with your vet.";
 export const ORGANIZATION_DESCRIPTION =
-  "Furvise is a pet-care intelligence service that keeps each pet's questions, changes, routines, and history connected over time.";
+  "Furvise helps pet owners log care, find saved notes, and ask questions about their recorded history.";
 export const FURVISE_OG_IMAGE_PATH = "/brand/furvise-social.png";
 export const FURVISE_OG_IMAGE_URL = `${CANONICAL_ORIGIN}${FURVISE_OG_IMAGE_PATH}`;
 export const FURVISE_OG_IMAGE_ALT =

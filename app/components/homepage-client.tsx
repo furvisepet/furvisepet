@@ -19,7 +19,7 @@ export function HomepageClient() {
           <div className="home-visual-copy">
             <p className="app-page-eyebrow home-eyebrow">Furvise for pet owners</p>
             <h1 id="home-title" aria-label="Your pet’s care, in one place." className="app-page-title home-display">Your pet’s care,<br />in one place.</h1>
-            <p className="app-page-subtitle home-lead">Keep care notes, ask questions about past entries, and prepare a summary for your vet.</p>
+            <p className="app-page-subtitle home-lead">Log your pet’s care, find past notes, and ask questions about what you’ve logged.</p>
           </div>
           <div className="home-visual-art home-heron" aria-hidden="true"><Image alt="" src="/images/heron.png" width={1224} height={1285} priority sizes="(min-width: 1024px) 45vw, 90vw" /></div>
         </section>

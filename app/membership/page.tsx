@@ -13,6 +13,8 @@ import {
   type BillingSubscriptionStatus,
 } from "../lib/billing/launch-plans";
 import { PLAN_CAPABILITIES, PLUS_VET_BRIEF_ALLOWANCE, FREE_VET_BRIEF_ALLOWANCE } from "../lib/billing/plan-limits";
+import { MEMBERSHIP_CANCELLATION_TERMS, VET_BRIEF_USAGE_TERMS } from "../lib/billing/membership-copy";
+import Link from "next/link";
 import { idempotentClientFetch } from "../lib/security/idempotency/client";
 import { getBrowserSupabase } from "../lib/supabase";
 
@@ -162,11 +164,12 @@ export default function MembershipPage() {
               price={membership.billingPresentation.priceLabel}
               usage={isPlus ? membership.askUsage : undefined}
               vetBriefUsage={isPlus ? membership.vetBriefUsage : undefined}
-              value="Everyday care and less stressful vet visits, all in one place."
+              value="Keep your pets’ notes together and prepare for vet visits."
             />
           </section>
 
-          <p className="mt-10 max-w-3xl text-sm leading-6 text-[var(--text-secondary)]">The Free Vet Brief allowance is once per account. Plus monthly allowances reset each period and do not roll over. Preparing a new brief or regenerating one uses a generation; failed preparation does not. Reopening saved drafts and downloading them again do not use another generation.</p>
+          <p className="mt-8 max-w-3xl text-sm leading-6 text-[var(--text-secondary)]">{MEMBERSHIP_CANCELLATION_TERMS} <Link className="underline underline-offset-4" href="/terms">Read the Terms of Use.</Link></p>
+          <p className="mt-4 max-w-3xl text-sm leading-6 text-[var(--text-secondary)]">{VET_BRIEF_USAGE_TERMS}</p>
         </div>
       )}
     </AppPage>
@@ -268,9 +271,8 @@ function plusFeatures() {
   return [
     `Up to ${PLAN_CAPABILITIES.plus.maxPets} pet profiles. Keep the whole family’s care history together.`,
     "Unlimited lifetime care history for every pet.",
-    `${PLUS_ASK_ALLOWANCE} Asks each month, including multi-pet comparisons and questions across years of saved history.`,
-    "Long-history pattern detection across saved care records.",
-    `${PLUS_VET_BRIEF_ALLOWANCE} Vet Brief generations each month. Organize vaccine dates, saved notes, and concerns for routine clinic visits.`,
+    `${PLUS_ASK_ALLOWANCE} Asks each month for questions about your saved care history.`,
+    `${PLUS_VET_BRIEF_ALLOWANCE} Vet Brief generations each month. Bring saved care notes together for your vet to review.`,
     "Save and reopen Vet Brief drafts. Pick up where you left off after saving.",
     "Printable reports in English, Spanish, French, German, Arabic, and Japanese. Document headings stay in English.",
   ];
