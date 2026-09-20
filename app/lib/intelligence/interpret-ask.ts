@@ -138,10 +138,11 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     instructions: ASK_REQUEST_INSTRUCTIONS, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: askRequestSchema(proposedSemanticFrameJsonSchema, context) } } };
   const started = Date.now();
   let attempted = false;
+  let ticketArrived = false;
   let providerSignal: AbortSignal | undefined;
   const fail = (reason: string, kind: string, extras: Partial<AskProviderEvent> = {}) => new AskPipelineError("interpretation_failed",
     "I couldn't understand the request reliably this time. Please try again.",
-    { model, elapsedMs: Date.now() - started, providerErrorCode: reason, providerErrorType: kind, ...extras });
+    { model, elapsedMs: Date.now() - started, providerErrorCode: reason, providerErrorType: kind, ticketArrived, ...extras });
   try {
     const activeClient = client || new OpenAI({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 0 }) as unknown as NonNullable<typeof client>;
     const response = await executeAdmittedProviderCall({ model, maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens,
@@ -156,8 +157,12 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
         }, boundedProviderTimeout(ASK_INTERPRETATION_LIMITS.timeoutMs, 24_000, "interpretation"));
       } });
     const result = interpretStructuredProviderResponse(response, raw => JSON.parse(raw) as unknown);
+    // Arrival is not validation or authority. Timed-out/late provider results never reach this point.
+    const proposal = result.status === "completed" ? result.parsed : null;
+    ticketArrived = !!proposal && typeof proposal === "object" && ["readTicket", "appendJob", "writeJob"]
+      .some(key => key in proposal && (proposal as Record<string, unknown>)[key] != null);
     const metadata = { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens,
-      parsingAttempted: result.parsingAttempted, configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens };
+      parsingAttempted: result.parsingAttempted, configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens, ticketArrived };
     if (result.status !== "completed") {
       const kind = result.status === "invalid" ? result.parsingAttempted ? "json" : "empty_output" : result.status;
       throw fail(`ASK_INTERPRETATION_${kind.toUpperCase()}`, kind, metadata);

@@ -16,6 +16,9 @@ const {buildFurvisePlanningContext}=await import('../../app/lib/intelligence/pla
 const {prepareAppendTurn,continueConfirmedAppend}=await import('../../app/lib/intelligence/append-turn.ts');
 const {executeActionCapability}=await import('../../app/lib/application-actions/capabilities.ts');
 const {interpretAskQuestion}=await import('../../app/lib/intelligence/interpret-ask.ts');
+const {AskPipelineError}=await import('../../app/lib/ai/ask-reasoning.ts');
+const {FURVISE_ANSWER_UNAVAILABLE_MESSAGE}=await import('../../app/lib/furvise-output.ts');
+const {createAskCreditSettlement}=await import('../../app/lib/ai/ask-credit-settlement.ts');
 const {exceedsSelectedPetRead}=await import('../../app/lib/intelligence/selected-pet-read.ts');
 const {explicitlyNamedOwnedPets}=await import('../../app/lib/intelligence/entities/resolve-turn-subject.ts');
 const {AskTurnLifecycle,deriveAskAttemptId}=await import('../../app/lib/ai/ask-turn-model.ts');
@@ -30,11 +33,11 @@ export const cedar='log that Cedar refused lunch. what are his last two weights'
 export function proposal(message=cedar){return {version:'ask-request.v2',mode:'mixed',question:message,requirements:[],referenceTurnIds:[],scope:'selected',petNames:[],operation:'recall',selection:'latest',quantity:'records',topic:'weight',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:null,task:null,writeJob:null,evidenceBasis:'saved_history',premiseQuotes:[],
  appendJob:{operation:'append',petName:'Cedar',bodyQuote:'Cedar refused lunch.',companionQuote:'what are his last two weights'},
  readTicket:{operation:'read',subjectScope:'selected',temporal:{from:null,to:null,anchor:null},predicates:[{kind:'text_any',terms:['weight','weighed']}],outputs:{completeness:'exhaustive',ordering:'desc',limit:2}}};}
-function handler(path,names,scope){const source=readFileSync(new URL(path,import.meta.url),'utf8');const ast=ts.createSourceFile(path,source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);
+function handler(path,names,scope,entry='POST'){const source=readFileSync(new URL(path,import.meta.url),'utf8');const ast=ts.createSourceFile(path,source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);
  const code=ast.statements.filter(n=>ts.isFunctionDeclaration(n)&&names.includes(n.name?.text)).map(n=>n.getText(ast).replace(/^export /,'')).join('\n');
- return vm.runInNewContext(ts.transpileModule(code,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText+'\nPOST',scope);}
+ return vm.runInNewContext(ts.transpileModule(code,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText+'\n'+entry,scope);}
 export function fixture(options={}){
- const events=[],errors=[];const state={planner:0,confirmed:false,options,events,errors};
+ const events=[],errors=[];const state={planner:0,confirmed:false,options,events,errors,traces:[],credit:null};
  const pet={id:id(11),user_id:id(1),name:'Cedar',species:'dog',lifecycle_status:'active',sex:'male'};
  const rows={dog_profiles:[pet],ask_conversations:[{id:id(21),user_id:id(1),pet_profile_id:pet.id}],ask_conversation_messages:[],ask_action_capabilities:[],pet_care_entries:[]};
  const care=(n,date,note)=>({id:id(n),user_id:id(1),pet_profile_id:pet.id,category:'general',title:null,note,occurred_at:date,created_at:date,updated_at:date,deleted_at:null});
@@ -59,10 +62,10 @@ export function fixture(options={}){
  globalThis.__routeFixture={db,complete:async x=>{if(options.conversationFailure)return{data:null,error:Error('unavailable')};let row=rows.ask_conversation_messages.find(r=>r.id===id(61));if(!row){row={id:id(61),user_id:id(1),conversation_id:id(21),role:'furvise',sequence_number:2,created_at:'2026-09-20T12:00:00Z'};rows.ask_conversation_messages.push(row);}row.response_data=x.responseData;return{data:[{assistant_message_id:row.id}],error:null};},update:async x=>{const row=rows.ask_conversation_messages.find(r=>r.id===x.messageId&&r.user_id===x.userId);if(!row)return{data:false,error:null};row.response_data=x.responseData;return{data:true,error:null};}};
  const noop=()=>{};class FixtureError extends Error{};
  const sandbox={Response,Request,Headers,AbortSignal,console,ASK_REQUEST_KEYS,AskTurnLifecycle,deriveAskAttemptId,OperationDeadline,resolveAskTimeZone,resolveAskHistoryAccess,buildAskConversationResponse,detectImmediateAskEmergency,buildImmediateEmergencyGuidance,prepareAppendTurn,buildFurvisePlanningContext,exceedsSelectedPetRead,explicitlyNamedOwnedPets,
- ASK_OPERATION_TIMEOUT_MS:150000,ASK_MAX_QUESTION_CHARACTERS:1200,API_BODY_LIMITS:{ask:10000},RequestBoundaryError:FixtureError,RateLimitRejection:FixtureError,FurviseContextError:FixtureError,AiAdmissionError:FixtureError,AiCreditLimitError:FixtureError,AiCreditLedgerError:FixtureError,AskPipelineError:FixtureError,
+ ASK_OPERATION_TIMEOUT_MS:150000,ASK_MAX_QUESTION_CHARACTERS:1200,API_BODY_LIMITS:{ask:10000},RequestBoundaryError:FixtureError,RateLimitRejection:FixtureError,FurviseContextError:FixtureError,AiAdmissionError:FixtureError,AiCreditLimitError:FixtureError,AiCreditLedgerError:FixtureError,AskPipelineError,
  loadAskAuthenticationContext:async()=>options.denied?{response:Response.json({success:false},{status:401})}:{supabase:db,userId:id(1)},readBoundedJson:r=>r.json(),hasOnlyKeys:()=>true,isUuid:v=>/^[a-f0-9-]{36}$/.test(v),isSecurityUuid:v=>/^[a-f0-9-]{36}$/.test(v),resolveAskLocale:()=> 'en',hashAiCreditPayload:()=> 'hash',
- classifyCurrentPetLoss:()=>null,logAskStage:noop,logAskServerError:(stage,error)=>errors.push({stage,error}),emitAskTurnTrace:noop,
- loadAskEntitlementContext:async()=>({usage:{allowed:true,remaining:5,limit:5,ledgerMode:'development_missing_migration'},planId:'free'}),
+ classifyCurrentPetLoss:()=>null,logAskStage:noop,logAskServerError:(stage,error)=>errors.push({stage,error}),emitAskTurnTrace:trace=>state.traces.push(trace),
+ loadAskEntitlementContext:async()=>({usage:{allowed:true,remaining:5,limit:5,ledgerMode:options.creditLedger?'database':'development_missing_migration'},planId:'free'}),
  readAskProfiles:async cb=>({...await cb(undefined),diagnostic:{}}),loadPersistedRequest:async()=>null,
  claimWithRestoredAskOrigin:({claim,payload})=>claim(payload),claimIdempotentOperation:async()=>({operation:{execute:fn=>fn(),ownerToken:'lease',payloadHash:'hash'}}),
  ensureConversationAndUserMessage:async({question})=>{rows.ask_conversation_messages.push({id:id(31),user_id:id(1),conversation_id:id(21),role:'user',user_text:question,sequence_number:1,created_at:'2026-09-20T12:00:00Z'});return{conversationId:id(21),userMessageId:id(31),userSequence:1};},
@@ -70,12 +73,24 @@ export function fixture(options={}){
  derivePendingLifecycleAssertion:()=>null,getPetLifecycleStatus:()=> 'active',resolveDurableLifecycleCorrection:()=>null,deriveAskTurnView:()=>({contextUsed:{usedSources:[]},concerns:[],recentlyResolvedConcerns:[]}),
  getAskModelConfiguration:()=>({primary:'offline-fixture'}),getAskProviderCooldown:()=>({active:false}),askGuardOperationTtlSeconds:180,askRequestTimeoutMs:120000,
  admitAiOperation:async()=>({run:cb=>cb(),complete:async()=>{},fail:async()=>{}}),withTimeout:p=>p,
- interpretAskQuestion:async input=>{events.push('brain');return interpretAskQuestion({...input,client:{responses:{create:async()=>{state.planner++;if(options.modelDown)throw Error('offline provider');return {output_text:JSON.stringify(options.proposal||proposal())};}}}});},logAskProviderEvent:noop,
+ interpretAskQuestion:async input=>{events.push('brain');return interpretAskQuestion({...input,client:{responses:{create:async(request,providerOptions)=>{state.planner++;if(options.providerCreate)return options.providerCreate(request,providerOptions);if(options.modelDown)throw Error('offline provider');return {output_text:JSON.stringify(options.proposal||proposal())};}}}});},logAskProviderEvent:noop,
  buildSubjectClarificationOrchestration:()=>({intent:'clarification',answer:{},safetyLevel:'normal',handledWithoutAi:true}),
  buildFurviseContext:async()=>{throw Error('Cedar may not load factual context before confirm');},failAiAdmission:async()=>{},logAskPreProvider503:noop,
- askFailure:(code,message,status)=>Response.json({success:false,code,message},{status}),handleAskApiError:(error)=>{errors.push({error});return Response.json({success:false,error:String(error)},{status:503});},friendlyAnswerFailure:'unavailable',FURVISE_ASK_UNAVAILABLE_MESSAGE:'unavailable',
+ askFailure:(code,message,status)=>Response.json({success:false,code,message},{status}),handleAskApiError:(error)=>{errors.push({error});return Response.json({success:false,error:String(error)},{status:503});},friendlyAnswerFailure:FURVISE_ANSWER_UNAVAILABLE_MESSAGE,FURVISE_ASK_UNAVAILABLE_MESSAGE:'unavailable',
  standaloneEmergencyResponse:({response})=>Response.json({success:true,response,creditsUsed:0}),
  };
+ Object.assign(sandbox, {
+  reserveAiCredit:async()=>{events.push('credit:reserve');state.credit={status:'reserved',disposition:null};return{status:'reserved'};},
+  safeReleaseAiCredit:createAskCreditSettlement({logAskStage:noop,logAskServerError:noop,ledger:{
+   setDisposition:async input=>{events.push('credit:disposition');state.credit.disposition=input.disposition;},
+   reconcile:async()=>{events.push('credit:reconcile');state.credit.status='released';},
+   isIntegrityError:()=>false,
+  }}).safeReleaseAiCredit,
+  emitOperationalEvent:noop,
+  isProviderRateLimit:()=>false,
+ });
+ if(options.realProviderLog) sandbox.logAskProviderEvent=handler('../../app/api/ask/route.ts',
+  ['logAskProviderEvent','safeAskOperationalCode'],sandbox,'logAskProviderEvent');
  const post=handler('../../app/api/ask/route.ts',['POST','executeAskRequest'],sandbox);
  const confirm=handler('../../app/api/ask/actions/[messageId]/route.ts',['POST','unavailable','revalidateActionViews'],{...sandbox,executeActionCapability,continueConfirmedAppend,getAuthenticatedApiContext:async()=>({supabase:db,userId:options.confirmOwner||id(1)}),emitOperationalEvent:noop,revalidatePath:noop});
  return {state,rows,db,send:(message=cedar)=>post(new Request('https://fixture.invalid/api/ask',{method:'POST',body:JSON.stringify({petId:options.petId||pet.id,logicalTurnId:id(41),message})})),confirm:(actionId=id(71),decision='confirm',messageId=id(61))=>confirm(new Request('https://fixture.invalid/api/ask/actions/'+messageId,{method:'POST',body:JSON.stringify({actionId,decision})}),{params:Promise.resolve({messageId})})};

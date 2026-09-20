@@ -233,6 +233,8 @@ export type AskProviderEvent = {
   providerErrorType?: string;
   providerErrorCode?: string;
   timedOut?: boolean;
+  /** A parsed Brain ticket arrived; does not imply that binding succeeded. */
+  ticketArrived?: boolean;
   validationDetails?: string;
   fallbackFrom?: string;
   fallbackEligible?: boolean;

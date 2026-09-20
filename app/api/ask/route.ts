@@ -2349,6 +2349,7 @@ function logAskProviderEvent(event: AskProviderEvent, context: { conversationId:
     rawOutputLength: event.rawOutputLength ?? null,
     stage: event.stage,
     timedOut: Boolean(event.timedOut),
+    ticketArrived: event.ticketArrived ?? null,
     validationDetails: event.validationDetails || null,
   };
   if (event.outcome === "failed") {
