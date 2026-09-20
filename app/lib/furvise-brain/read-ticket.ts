@@ -1,3 +1,4 @@
+import { bindReadNeeds, readNeedsSchema, type ReadNeed, type ReadNeedBinding } from "./read-needs.ts";
 /** Semantic proposal only. Ownership and access are bound by the server. */
 export type ReadPredicate = Readonly<{ kind: "text_any"; terms: readonly string[] }>;
 export type EpisodeReadObligation = Readonly<{
@@ -17,6 +18,7 @@ export type ReadTicket = Readonly<{
   predicates: readonly ReadPredicate[];
   /** Proposed episode selection, never membership evidence or a certified count. */
   episode?: EpisodeReadObligation | null;
+  needs?: readonly ReadNeed[] | null;
   /** Ranking hints never exclude records or certify semantic completeness. */
   searchHints?: readonly string[] | null;
   outputs: Readonly<{ completeness: "sufficient" | "exhaustive"; ordering: "asc" | "desc"; limit: number | null;
@@ -25,8 +27,9 @@ export type ReadTicket = Readonly<{
 
 export const readTicketSchema = {
   type: ["object", "null"], additionalProperties: false,
-  required: ["operation", "temporal", "predicates", "outputs", "searchHints", "episode"],
+  required: ["operation", "temporal", "predicates", "outputs", "searchHints", "episode", "needs"],
   properties: {
+    needs: readNeedsSchema,
     operation: { type: "string", enum: ["read", "read_since_event", "compare", "rank"] },
     episode: { type: ["object", "null"], additionalProperties: false, required: ["operation", "referent"],
       description: "Null for ordinary records even if legacy fields mention episodes. For actual episode counts or membership, propose the target here. A missing target requires clarification; the server must revalidate membership and stored references.",
@@ -71,10 +74,10 @@ const term = (v: unknown): v is string => typeof v === "string" && v.trim().leng
 const instant = (v: unknown): v is string | null => v === null || typeof v === "string"
   && /^\d{4}-\d{2}-\d{2}T/.test(v) && Number.isFinite(Date.parse(v));
 
-export function bindReadTicket(value: unknown, petIds: readonly string[]): ReadTicket | null {
+export function bindReadTicket(value: unknown, petIds: readonly string[], needBindings: readonly ReadNeedBinding[] = []): ReadTicket | null {
   if (value == null) return null;
   const fail = (): never => { throw new Error("ASK_REQUEST_INVALID:read_ticket"); };
-  if (!object(value) || !optionalKeys(value, ["operation", "temporal", "predicates", "outputs"], ["searchHints", "episode"])) return fail();
+  if (!object(value) || !optionalKeys(value, ["operation", "temporal", "predicates", "outputs"], ["searchHints", "episode", "needs"])) return fail();
   const { operation, temporal, predicates, outputs, searchHints, episode } = value;
   if (!["read", "read_since_event", "compare", "rank"].includes(String(operation))
     || !petIds.length || new Set(petIds).size !== petIds.length
@@ -110,7 +113,10 @@ export function bindReadTicket(value: unknown, petIds: readonly string[]): ReadT
       || !["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "last", "that", null].includes(referent.ordinal as string | null))) return fail();
     if (episode.operation === "count" && referent && (referent.basis !== "scoped_register" || referent.ordinal !== null)) return fail();
   }
-  return Object.freeze({ ...(episode !== undefined ? { episode: episode === null ? null : Object.freeze({ ...episode as EpisodeReadObligation,
+  const needs = bindReadNeeds(value.needs, needBindings, petIds);
+  if (needs?.length && (episode || operation === "read_since_event" || temporal.calendar != null
+    || predicates.length || searchHints?.length || outputs.strategy != null || outputs.limit !== null)) return fail();
+  return Object.freeze({ ...(needs !== undefined ? { needs } : {}), ...(episode !== undefined ? { episode: episode === null ? null : Object.freeze({ ...episode as EpisodeReadObligation,
       referent: (episode as EpisodeReadObligation).referent && Object.freeze({ ...(episode as EpisodeReadObligation).referent }) }) } : {}),
     ...(searchHints !== undefined ? { searchHints: searchHints === null ? null : Object.freeze([...(searchHints as string[])]) } : {}), operation, subjects: Object.freeze({ petIds: Object.freeze([...petIds]) }),
     temporal: Object.freeze({ ...temporal, anchor: anchor && Object.freeze({ ...anchor }) }),

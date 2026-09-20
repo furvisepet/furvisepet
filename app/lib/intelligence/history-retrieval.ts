@@ -927,6 +927,20 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
       if (page.error || !page.data) throw new Error("ticket_history_unavailable");
       return page.data;
     },
+    needPage: async ({ petId, from, to, terms, ordering, limit }) => {
+      coverage.queryCount++;
+      pagesByPet.set(petId, (pagesByPet.get(petId) || 0) + 1);
+      const page = terms.length
+        ? await withExecutionDeadline(signal => db.rpc(ordering === "desc" ? "read_ask_history_candidates_latest" : "read_ask_history_candidates", {
+          p_pet_id: petId, p_terms: [...terms], p_from: from, p_to: to, p_after_time: null, p_after_id: null, p_limit: limit,
+        }).abortSignal(signal), historyReadRemaining(deadline - 2000))
+        : await withExecutionDeadline(signal => db.from("pet_care_entries").select("*")
+          .eq("user_id", context.owner.userId).eq("pet_profile_id", petId).is("deleted_at", null).gte("occurred_at", from).lt("occurred_at", to)
+          .order("occurred_at", { ascending: ordering === "asc" }).order("id", { ascending: ordering === "asc" })
+          .range(0, limit - 1).abortSignal(signal).returns<CareEntryRow[]>(), historyReadRemaining(deadline - 2000));
+      if (page.error || !Array.isArray(page.data)) throw new Error("ticket_need_query_unavailable");
+      return page.data as CareEntryRow[];
+    },
     effective: async rows => {
       originals = rows;
       coverage.candidateIds = rows.map(row => `care:${row.id}`);
@@ -942,8 +956,11 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
     : result.coverage.status === "anchor_missing" ? "unavailable" : result.coverage.status;
   coverage.extraction = "complete"; coverage.grouping = "complete";
   coverage.reasons.push(...result.coverage.reasons, `ticket_coverage:${result.coverage.status}`);
-  coverage.requiredSourceIds = result.records.map(row => careEvidenceId(row.id, coverage));
+  coverage.requiredSourceIds = (result.coverage.reservedIds ?? result.records.map(row => row.id)).map(id => careEvidenceId(id, coverage));
   const sourceIds = (ids: string[]) => ids.map(id => careEvidenceId(id, coverage));
+  if (result.coverage.needs) coverage.needs = result.coverage.needs.map(need => ({ ...need, candidateIds: sourceIds(need.candidateIds) }));
+  if (result.coverage.targets) coverage.targets = result.coverage.targets.map(target => ({ ...target,
+    candidateIds: sourceIds(target.candidateIds), retainedIds: sourceIds(target.retainedIds) }));
   if (result.coverage.periods) coverage.periods = result.coverage.periods.map(period => ({ ...period, candidateIds: sourceIds(period.candidateIds) }));
   if (result.coverage.chronology) coverage.chronology = result.coverage.chronology.map(boundary => ({ ...boundary, boundaryIds: sourceIds(boundary.boundaryIds) }));
   if (result.coverage.endpointPairs) coverage.endpointPairs = result.coverage.endpointPairs.map(pair => ({ ...pair,
@@ -951,19 +968,20 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
   if (result.coverage.eventCandidateIds) coverage.eventCandidateIds = sourceIds(result.coverage.eventCandidateIds);
   coverage.perPet = ticket.subjects.petIds.map(petId => ({ petId,
     rows: originals.filter(row => row.pet_profile_id === petId).length, pages: pagesByPet.get(petId) || 0,
-    exhausted: !result.coverage.continuation.some(cursor => cursor.petId === petId) && result.coverage.status !== "unavailable",
+    exhausted: !result.coverage.continuation.some(cursor => cursor.petId === petId)
+      && !result.coverage.needs?.some(need => need.petId === petId && !need.exhausted) && result.coverage.status !== "unavailable",
     status: coverage.retrieval }));
   if (result.coverage.windows.length === 1) coverage.plan = { ...coverage.plan,
     from: result.coverage.windows[0].from, to: result.coverage.windows[0].to };
   // Scan bookkeeping is not answer evidence. Retaining every scanned root as a
   // loaded source creates false missing-evidence losses and overflows review.
   // Keep counts above, but transport only the selected records and anchor proof.
-  const retainedIds = new Set([...coverage.requiredSourceIds,
+  const retainedIds = new Set([...result.records.map(row => careEvidenceId(row.id, coverage)),
     ...result.coverage.anchors.map(anchor => anchor.eventId.startsWith("claim-")
       ? `claim:${anchor.eventId.slice(6)}` : `care:${anchor.eventId}`)]);
   // Explicit selection strategies carry candidate accounting separately from
   // transported sources. Omitted candidates are not usable answer evidence.
-  coverage.candidateIds = (ticket.outputs.strategy || ticket.searchHints?.length) && result.coverage.selection
+  coverage.candidateIds = (ticket.outputs.strategy || ticket.searchHints?.length || ticket.needs?.length) && result.coverage.selection
     ? sourceIds(result.coverage.selection.matchedIds) : [...retainedIds];
   coverage.provenance = coverage.provenance.filter(item => retainedIds.has(item.sourceId)
     || item.claimIds.some(id => retainedIds.has(`claim:${id}`)));

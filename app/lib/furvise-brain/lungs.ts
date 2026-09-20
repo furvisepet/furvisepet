@@ -1,3 +1,4 @@
+import { retrieveNeedTicket } from "./lungs-needs.ts";
 import type { CareEntryRow } from "../supabase.ts";
 import type { ReadTicket } from "./read-ticket.ts";
 
@@ -16,11 +17,15 @@ export type ReadCoverage = {
   chronology?: Array<{ petId: string; boundaryIds: string[]; blocked: boolean }>;
   endpointPairs?: Array<{ petId: string; earliestIds: string[]; latestIds: string[]; blocked: boolean }>;
   eventCandidateIds?: string[];
+  reservedIds?: string[];
+  needs?: Array<{ petId: string; needId: string; candidateIds: string[]; exhausted: boolean; status: "complete" | "partial" | "unavailable"; reason?: string }>;
+  targets?: Array<{ petId: string; day: string; candidateIds: string[]; retainedIds: string[]; exhausted: boolean; status: "complete" | "partial" | "unavailable" }>;
 };
 export type ReadResult = { records: CareEntryRow[]; coverage: ReadCoverage };
-type ReadScope = { userId: string; ownedPetIds: readonly string[]; from: string; to: string; asOf: string };
-type ReadStore = {
+export type ReadScope = { userId: string; ownedPetIds: readonly string[]; from: string; to: string; asOf: string };
+export type ReadStore = {
   page(input: { petId: string; from: string; to: string; offset: number; limit: number }): Promise<CareEntryRow[]>;
+  needPage?(input: { petId: string; from: string; to: string; terms: readonly string[]; ordering: "asc" | "desc"; limit: number }): Promise<CareEntryRow[]>;
   effective(rows: CareEntryRow[]): Promise<{ records: CareEntryRow[]; reliable: boolean }>;
 };
 export const LUNGS_LIMITS = { pageSize: 64, pages: 4, records: 32, chars: 18000 } as const;
@@ -52,6 +57,7 @@ export async function retrieveReadTicket(ticket: ReadTicket, scope: ReadScope, s
   }
   const accessibleFrom = Date.parse(scope.from), accessibleTo = Math.min(Date.parse(scope.to), Date.parse(scope.asOf) + 1);
   if (![accessibleFrom, accessibleTo].every(Number.isFinite) || accessibleFrom >= accessibleTo) return result("unavailable", "invalid_access_window");
+  if (ticket.needs?.length) return retrieveNeedTicket(ticket, scope, store, LUNGS_LIMITS);
   // Anchor discovery must precede applying the requested interval. A correction
   // may also move an event across that boundary, so resolve lineage first.
   const candidates: CareEntryRow[] = [];

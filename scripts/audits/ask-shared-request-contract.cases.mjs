@@ -28,6 +28,10 @@ const readObligations = ({ operation = 'read', temporal = {}, predicates = [], s
  outputs: { completeness: 'sufficient', ordering: 'asc', limit: null, ...outputs },
 });
 
+const multiRead = (needs, patch = {}) => ({ ...readObligations(patch), needs: needs.map((need, index) => ({
+ needId: 'need:' + index, from: null, to: null, target: null, termGroups: [[]], ordering: 'asc', ...need,
+})) });
+
 const episodeRead = (operation, referent) => ({ ...readObligations(), episode: { operation, referent } });
 const episodeRegister = topic => episodeRead('count', { basis: 'scoped_register', topic, ordinal: null });
 const episodeMember = (ordinal, topic = null) => episodeRead('membership', ordinal ? { basis: 'displayed_list', topic, ordinal } : null);
@@ -1104,7 +1108,9 @@ test('diverse candidates reach a rare middle-history transition within existing 
  const rows=Array.from({length:100},(_,i)=>care('routine-'+i,'milo',new Date(Date.UTC(2020,0,i+1)).toISOString().slice(0,10),'food','Aster ate whitefish.'));
  rows.push(care('transition','milo','2024-03-06','food','Aster began a whitefish to rabbit transition.'));
  const r=await exercise('When did Aster change from whitefish to rabbit?',{fixturePets,messages:[],history:true,expectedReviewCalls:1,rows,
-  interpretationProposal:proposal({terms:['whitefish','rabbit','transition'],selection:'period'}),
+  interpretationProposal:proposal({terms:['whitefish','rabbit','transition'],selection:'period',
+   evidenceNeeds:[{quote:'change from whitefish to rabbit',sourceTurnId:null,terms:['whitefish','rabbit','transition']}],
+   readTicket:multiRead([{termGroups:[['whitefish'],['rabbit','transition']]}])}),
   answer:'The transition was reported on March 6, 2024.'});
  assert.ok(r.context.askHistory.entries.some(e=>e.id==='transition'));
  assert.ok(r.context.askHistory.coverage.perPet.every(p=>p.pages<=4));
@@ -1136,14 +1142,15 @@ test('final presentation preserves negation, uncertainty and exact line breaks',
 
 test('event aliases cannot be starved by newer routine notes or a common alias', async t => {
  clock(t);
- for(const [question,category,eventText,terms] of [
-  ['When did Aster switch food?','food','Aster started a gradual transition from food A to food B.',['food']],
-  ['When did Aster stop the supplement?','medication','The supplement was discontinued on this date.',['supplement']],
+ for(const [question,category,eventText,terms,aliases] of [
+  ['When did Aster switch food?','food','Aster started a gradual transition from food A to food B.',['food'],['transition','switch']],
+  ['When did Aster stop the supplement?','medication','The supplement was discontinued on this date.',['supplement'],['discontinued','stopped']],
  ]) {
   const rows=Array.from({length:120},(_,i)=>care('noise-'+i,'milo',new Date(Date.UTC(2025,0,i+1)).toISOString().slice(0,10),category,'Routine food and supplement check. Reason for any change unknown.'));
   rows.push(care('decisive-event','milo','2022-04-07',category,eventText));
   const r=await exercise(question,{fixturePets,messages:[],history:true,expectedReviewCalls:1,rows,
-   interpretationProposal:proposal({terms,selection:'latest'}),
+   interpretationProposal:proposal({terms,selection:'latest',evidenceNeeds:[{quote:question,sourceTurnId:null,terms:[...terms,...aliases],order:'context'}],
+    readTicket:multiRead([{termGroups:[terms,aliases],ordering:'desc'}])}),
    answer:'The event was reported on April 7, 2022.'});
   assert.ok(r.context.askHistory.entries.some(e=>e.id==='decisive-event'),question);
   assert.ok(r.context.askHistory.coverage.perPet.every(p=>p.pages<=4));
@@ -1239,7 +1246,9 @@ test('event reason retrieval is independent of a summary or comparison planner l
  rows.push(care('decisive','milo','2023-05-03','general','Aster started a transition to a cotton mat. The owner recorded a preference change, not a diagnosis.'));
  for(const selection of ['summary','comparison','latest']) {
   const r=await exercise('Why did we move Aster to a cotton mat?',{fixturePets,messages:[],history:true,expectedReviewCalls:1,rows,
-   interpretationProposal:proposal({operation:selection==='comparison'?'comparison':'recall',selection,terms:['bedding','mat']})});
+   interpretationProposal:proposal({operation:selection==='comparison'?'comparison':'recall',selection,terms:['bedding','mat'],
+    evidenceNeeds:[{quote:'move Aster to a cotton mat',sourceTurnId:null,terms:['bedding','mat','cotton','transition']}],
+    readTicket:multiRead([{termGroups:[['bedding','mat'],['cotton','transition']]}],{operation:selection==='comparison'?'compare':'read'})})});
   assert.ok(r.context.askHistory.entries.some(row=>row.id==='decisive'),selection);
   assert.ok(r.prompt.evidenceContract.represented.some(row=>row.sourceId==='care:decisive'),selection);
  }
@@ -1296,7 +1305,11 @@ test('middle date survives retrieval and representation among five years of rout
  rows.push(care('newest-anchor','milo','2026-09-03','weight','Aster weighed 18.6 kg.'));
  const text='Aster weighed 19.4 kg on April 17, 2023 and 18.6 kg on September 3, 2026.';
  const run=await exercise('Compare Aster’s weight on April 17, 2023 with the latest weight.',{
-  fixturePets,messages:[],history:true,rows,interpretationProposal:proposal({operation:'comparison',selection:'comparison',terms:['weight','weighed']}),
+  fixturePets,messages:[],history:true,rows,interpretationProposal:proposal({operation:'comparison',selection:'comparison',terms:['weight','weighed'],
+   evidenceNeeds:[{quote:'weight on April 17, 2023',sourceTurnId:null,terms:['weight','weighed']},
+    {quote:'latest weight',sourceTurnId:null,terms:['weight','weighed'],order:'latest'}],
+   readTicket:multiRead([{from:'2023-04-17T00:00:00.000Z',to:'2023-04-18T00:00:00.000Z',target:'2023-04-17'},
+    {termGroups:[['weight','weighed']],ordering:'desc'}],{operation:'compare'})}),
   providerOverrides:{answer:text,historyNarrative:{sentences:[{text,sourceIds:['care:middle-anchor','care:newest-anchor']}]}},
   reviewResponse:{approved:true},expectedReviewCalls:1,
  });
@@ -1347,7 +1360,8 @@ test('separate user-grounded needs retrieve rare evidence and reach review and p
  rows.push(care('supplement','milo','2023-04-17','general','The owner stopped the supplement after reporting loose stool. A causal link was not established.'));
  const answer='Aster moved from fleece to cotton bedding. The owner stopped the supplement after reporting loose stool; a causal link was not established.';
  const run=await exercise(question,{fixturePets,messages:[],history:true,rows,
-  interpretationProposal:proposal({evidenceNeeds:rawNeeds,terms:['mat','bedding']}),
+  interpretationProposal:proposal({evidenceNeeds:rawNeeds,terms:['mat','bedding'],
+   readTicket:multiRead([{termGroups:[['mat','bedding'],['bedding']]},{termGroups:[['supplement','stopped']]}])}),
   providerResponse:async()=>({status:'completed',output_text:JSON.stringify({readVersion:'history-answer.v1',layout:'prose',json:null,table:null,limitation:null,
    safetyLevel:'normal',responseMode:'practical_guidance',userIntent:'history',relevantContextIds:['care:bedding','care:supplement'],
    historyNarrative:{sentences:[{text:answer,sourceIds:['care:bedding','care:supplement'],calculations:[]}]}}),usage:{input_tokens:500,output_tokens:100}}),
@@ -1377,7 +1391,8 @@ test('different needs stay attached to their own pets through retrieval and evid
   rows:[care('mat','milo','2024-04-17','general','Aster uses cotton bedding.'),care('rest','luna','2024-04-17','general','Bramble slept normally.')],
   interpretationProposal:proposal({petNames:['Aster','Bramble'],terms:['bedding','sleep'],evidenceNeeds:[
    {quote:'Aster’s bedding',sourceTurnId:null,petNames:['Aster'],terms:['bedding']},
-   {quote:'Bramble’s sleep',sourceTurnId:null,petNames:['Bramble'],terms:['sleep','slept']}]})});
+   {quote:'Bramble’s sleep',sourceTurnId:null,petNames:['Bramble'],terms:['sleep','slept']}],
+    readTicket:multiRead([{termGroups:[['bedding']]},{termGroups:[['sleep','slept']]}])})});
  assert.deepEqual(run.context.askHistory.coverage.needs.map(n=>[n.petId,n.needId]).sort(),[['luna','need:1'],['milo','need:0']]);
  assert.deepEqual(run.prompt.evidenceContract.needCoverage.map(n=>n.pets.map(p=>p.petId)),[['milo'],['luna']]);
 });
@@ -1390,7 +1405,8 @@ test('need candidates survive verbose routine evidence without exceeding the pro
  const run=await exercise(question,{fixturePets,messages:[],history:true,expectedReviewCalls:1,rows,
   interpretationProposal:proposal({terms:['bedding'],evidenceNeeds:[
    {quote:'bedding',sourceTurnId:null,terms:['bedding']},
-   {quote:'supplement reaction',sourceTurnId:null,terms:['supplement','reaction']}]})});
+   {quote:'supplement reaction',sourceTurnId:null,terms:['supplement','reaction']}],
+   readTicket:multiRead([{termGroups:[['bedding']]},{termGroups:[['supplement','reaction']]}])})});
  assert.ok(run.prompt.contextRecords.some(r=>r.id==='care:rare'));
  assert.ok(run.prompt.evidenceContract.needCoverage[1].pets[0].representedSourceIds.includes('care:rare'));
  assert.ok(run.context.askHistory.coverage.reasons.includes('effective_evidence_budget'));
@@ -1402,7 +1418,8 @@ test('need coverage records actual query hits without reinterpreting database ma
  clock(t);
  const row=care('matched','milo','2024-04-17','general','The owner reported a dietary transition.');
  const run=await exercise('Explain Aster’s food change.',{fixturePets,messages:[],history:true,expectedReviewCalls:1,rows:[row],candidateRowsOverride:[row],
-  interpretationProposal:proposal({terms:['food'],evidenceNeeds:[{quote:'food change',sourceTurnId:null,terms:['food']}]})});
+  interpretationProposal:proposal({terms:['food'],evidenceNeeds:[{quote:'food change',sourceTurnId:null,terms:['food']}],
+   readTicket:multiRead([{termGroups:[['food']]}])})});
  assert.ok(run.context.askHistory.coverage.needs[0].candidateIds.includes('care:matched'));
  assert.ok(run.prompt.evidenceContract.needCoverage[0].pets[0].representedSourceIds.includes('care:matched'));
  assert.equal(run.prompt.evidenceContract.needCoverage[0].semanticSupport,'unverified');
@@ -1443,7 +1460,8 @@ test('a middle-history month survives comparison retrieval among dense unrelated
  const p=proposal({operation:'comparison',selection:'comparison',terms:['brushing','loose fur'],evidenceNeeds:[
   {quote:'Aster’s February 2023 brushing',sourceTurnId:null,terms:['brushing','loose fur'],petNames:['Aster'],order:'latest'},
   {quote:'the time before',sourceTurnId:null,terms:['brushing','previous'],petNames:['Aster'],order:'earliest'},
- ]});
+ ],readTicket:multiRead([{from:'2023-02-01T00:00:00.000Z',to:'2023-03-01T00:00:00.000Z',target:'2023-02',ordering:'desc'},
+  {termGroups:[['brushing','previous']]}],{operation:'compare'})});
  const r=await exercise(question,{fixturePets,rows,messages:[],history:true,expectedReviewCalls:1,interpretationProposal:p});
  assert.ok(r.context.askHistory.entries.some(e=>e.id==='anchor'));
  assert.ok(r.context.askHistory.coverage.targets.some(target=>target.day==='2023-02'&&target.retainedIds.includes('care:anchor')));
@@ -1455,7 +1473,9 @@ test('a note-frequency question reaches ordinary evidence rather than an unrelat
  const question='Does Aster’s January 2025 noise note establish how often that happens?';
  const r=await exercise(question,{fixturePets,messages:[],history:true,expectedReviewCalls:1,
   rows:[care('noise-note','milo','2025-01-21','general','Aster rested in a quieter room. Frequency outside this observation was not established.')],
-  interpretationProposal:proposal({operation:'count',quantity:'episodes',episodeTopic:null,terms:['noise']}),
+  interpretationProposal:proposal({operation:'count',quantity:'episodes',episodeTopic:null,terms:['noise'],
+   evidenceNeeds:[{quote:'January 2025 noise note',sourceTurnId:null,terms:['noise']}],
+   readTicket:multiRead([{from:'2025-01-01T00:00:00.000Z',to:'2025-02-01T00:00:00.000Z',target:'2025-01'}])}),
  });
  assert.equal(r.context.askInterpretation.operation,'recall');
  assert.equal(r.context.episodeResult,undefined);
