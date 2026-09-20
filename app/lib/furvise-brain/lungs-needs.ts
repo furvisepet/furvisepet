@@ -61,6 +61,10 @@ export async function retrieveNeedTicket(ticket: ReadTicket, scope: ReadScope, s
   let effective;
   try { effective = await store.effective([...candidates.values()]); } catch { return fail("effective_truth_unavailable"); }
   if (!effective.reliable) return fail("effective_truth_unavailable");
+  if (effective.sourceLineage?.length) {
+    coverage.sourceLineage = effective.sourceLineage;
+    coverage.reasons.push("unresolved_source_lineage");
+  }
   const effectiveById = new Map(effective.records.filter(row => row.user_id === scope.userId && ticket.subjects.petIds.includes(row.pet_profile_id) && !row.deleted_at).map(row => [row.id, row]));
   const selectedGroups = hitGroups.map(group => group.ids.flatMap(id => {
     const row = effectiveById.get(id);

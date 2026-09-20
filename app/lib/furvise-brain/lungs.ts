@@ -2,6 +2,7 @@ import { retrieveNeedTicket } from "./lungs-needs.ts";
 import type { CareEntryRow } from "../supabase.ts";
 import type { ReadTicket } from "./read-ticket.ts";
 
+export type ReadSourceLineage = { eventId: string; status: "unlinked" | "uncertain"; authority: "attributed_report" };
 export type ReadCoverageStatus = "complete" | "complete_empty" | "partial" | "anchor_missing" | "unavailable";
 export type ReadCoverage = {
   status: ReadCoverageStatus;
@@ -17,6 +18,7 @@ export type ReadCoverage = {
   chronology?: Array<{ petId: string; boundaryIds: string[]; blocked: boolean }>;
   endpointPairs?: Array<{ petId: string; earliestIds: string[]; latestIds: string[]; blocked: boolean }>;
   eventCandidateIds?: string[];
+  sourceLineage?: ReadSourceLineage[];
   reservedIds?: string[];
   needs?: Array<{ petId: string; needId: string; candidateIds: string[]; exhausted: boolean; status: "complete" | "partial" | "unavailable"; reason?: string }>;
   targets?: Array<{ petId: string; day: string; candidateIds: string[]; retainedIds: string[]; exhausted: boolean; status: "complete" | "partial" | "unavailable" }>;
@@ -26,7 +28,7 @@ export type ReadScope = { userId: string; ownedPetIds: readonly string[]; from: 
 export type ReadStore = {
   page(input: { petId: string; from: string; to: string; offset: number; limit: number }): Promise<CareEntryRow[]>;
   needPage?(input: { petId: string; from: string; to: string; terms: readonly string[]; ordering: "asc" | "desc"; limit: number }): Promise<CareEntryRow[]>;
-  effective(rows: CareEntryRow[]): Promise<{ records: CareEntryRow[]; reliable: boolean }>;
+  effective(rows: CareEntryRow[]): Promise<{ records: CareEntryRow[]; reliable: boolean; sourceLineage?: ReadSourceLineage[] }>;
 };
 export const LUNGS_LIMITS = { pageSize: 64, pages: 4, records: 32, chars: 18000 } as const;
 const normalized = (text: string) => text.normalize("NFKC").toLocaleLowerCase("en").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
@@ -83,6 +85,13 @@ export async function retrieveReadTicket(ticket: ReadTicket, scope: ReadScope, s
     }
     const effective = await store.effective(candidates);
     if (!effective.reliable) return result("unavailable", "effective_truth_unavailable");
+    // A validated saved report may have an unresolved correction link. Keep
+    // the report, but never upgrade it into a verified effective fact or edge.
+    const uncertainIds = new Set(effective.sourceLineage?.map(source => source.eventId) || []);
+    if (uncertainIds.size) {
+      coverage.sourceLineage = effective.sourceLineage;
+      coverage.reasons.push("unresolved_source_lineage");
+    }
     const rows = effective.records.filter(row => row.user_id === scope.userId && ticket.subjects.petIds.includes(row.pet_profile_id)
       && !row.deleted_at && Date.parse(row.occurred_at) >= accessibleFrom && Date.parse(row.occurred_at) < accessibleTo);
     const selected: CareEntryRow[] = [];
@@ -93,6 +102,7 @@ export async function retrieveReadTicket(ticket: ReadTicket, scope: ReadScope, s
       const anchor = ticket.temporal.anchor;
       if (anchor) {
         const anchors = rows.filter(row => row.pet_profile_id === petId && matchesAnchor(row, anchor.concept));
+        if (anchors.some(row => uncertainIds.has(row.id))) return result("partial", "anchor_lineage_unresolved");
         // A partial scan cannot certify which anchor is intended. Ambiguity
         // also fails closed; no earliest/latest choice is inferred from prose.
         if (coverage.continuation.length) return result("partial", "anchor_search_not_exhausted");
@@ -136,7 +146,8 @@ export async function retrieveReadTicket(ticket: ReadTicket, scope: ReadScope, s
       coverage.endpointPairs = ticket.subjects.petIds.map(petId => {
         const subject = selected.filter(row => row.pet_profile_id === petId).sort(chronological);
         return { petId, earliestIds: subject.slice(0, 1).map(row => row.id), latestIds: subject.slice(-1).map(row => row.id),
-          blocked: coverage.continuation.some(cursor => cursor.petId === petId) || !subject.length };
+          blocked: coverage.continuation.some(cursor => cursor.petId === petId) || !subject.length
+            || subject.some(row => uncertainIds.has(row.id)) };
       });
       const endpoints = new Set(coverage.endpointPairs.flatMap(pair => [...pair.earliestIds, ...pair.latestIds]));
       // Reserve both ends for every subject before allocating interior rows.
@@ -178,13 +189,14 @@ export async function retrieveReadTicket(ticket: ReadTicket, scope: ReadScope, s
     if (strategy === "chronological") coverage.chronology = ticket.subjects.petIds.map(petId => ({ petId,
       boundaryIds: selected.filter(row => row.pet_profile_id === petId).slice(0, 1).map(row => row.id),
       blocked: coverage.continuation.some(cursor => cursor.petId === petId)
+        || selected.some(row => row.pet_profile_id === petId && uncertainIds.has(row.id))
         || !selected.some(row => row.pet_profile_id === petId)
         || selected.filter(row => row.pet_profile_id === petId).slice(0, 1).some(row => !retained.has(row.id)) }));
     if (strategy === "event_candidates") coverage.eventCandidateIds = records.map(row => row.id);
     const limited = requested.length !== selected.length && (ticket.outputs.completeness === "exhaustive" || strategy === "calendar_samples" || strategy === "temporal_endpoints");
     if (coverage.continuation.length || records.length !== requested.length || limited)
       return result("partial", "read_budget_or_limit", records);
-    if (hints.length) return result("partial", undefined, records);
+    if (hints.length || uncertainIds.size) return result("partial", undefined, records);
     return result(records.length ? "complete" : "complete_empty", undefined, records);
   } catch {
     return result("unavailable", "read_failed");

@@ -946,9 +946,14 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
       coverage.candidateIds = rows.map(row => `care:${row.id}`);
       const records = await effectiveCandidates(rows, owned, [...ticket.subjects.petIds], context.owner.userId, db, coverage, deadline);
       const unreliable = coverage.corrections === "unavailable" || coverage.excludedIds.length > 0
-        || coverage.reasons.some(reason => ["unlinked_correction_uncertain", "unsupported_claim_payload", "unknown_effective_event_date"].includes(reason));
-      if (!unreliable) coverage.corrections = "complete";
-      return { records, reliable: !unreliable };
+        || coverage.reasons.some(reason => ["unsupported_claim_payload", "unknown_effective_event_date"].includes(reason));
+      const sourceLineage = records.filter(row => coverage.provenance.some(source => source.sourceId === `care:${row.id}`
+        && source.status === "unlinked_correction_uncertain")).map(row => ({ eventId: row.id,
+          status: "unlinked" as const, authority: "attributed_report" as const }));
+      // Source freshness/ownership was validated above. An unresolved link
+      // limits effective truth; it does not make the stored wording disappear.
+      if (!unreliable) coverage.corrections = sourceLineage.length ? "partial" : "complete";
+      return { records, reliable: !unreliable, ...(sourceLineage.length ? { sourceLineage } : {}) };
     },
   });
   coverage.ticketCoverage = result.coverage;
