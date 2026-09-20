@@ -1,8 +1,9 @@
 import type { FurviseApplicationAction } from "../application-actions/types.ts";
 import type { ObligationCompletion } from "./history-obligations.ts";
 import type { AskReasoningResult } from "../ai/ask-reasoning.ts";
+import { derivePublicationAuthority, publicationClaimFailures, type PublicationAuthorityClaim } from "./publication-authority.ts";
 
-type Receipt = { actions?: FurviseApplicationAction[]; signature: string; text: string; sourceIds: string[]; proseText?: string; sourceReports?: string[]; sourceContent?: string[]; completion?: ObligationCompletion[] };
+type Receipt = { authorityClaims?: PublicationAuthorityClaim[]; actions?: FurviseApplicationAction[]; signature: string; text: string; sourceIds: string[]; proseText?: string; sourceReports?: string[]; sourceContent?: string[]; completion?: ObligationCompletion[] };
 const reviewed = new WeakMap<AskReasoningResult, Receipt>();
 export const historyReviewSignature = (result: AskReasoningResult) => JSON.stringify({ labsList: result.labsList, labsAnswer: result.labsList ? result.answer : undefined, labsSourceIds: result.labsList ? result.relevantContextIds : undefined, actions: result.applicationActions, evidence: result.evidenceContract, draft: result.historyNarrative, result: result.historicalResult, plainAnswer: result.historyNarrativeDeclined ? result.answer.summary : undefined, sourceHints: result.historyNarrativeDeclined ? result.relevantContextIds : undefined });
 export function clearHistoryReview(result: AskReasoningResult) { reviewed.delete(result); }
@@ -12,7 +13,11 @@ export function recordHistoryReview(result: AskReasoningResult, receipt: Receipt
 export function readReviewedHistoryAnswer(result: AskReasoningResult): Omit<Receipt, "signature"> | null {
   const receipt = reviewed.get(result);
   if (!receipt || receipt.signature !== historyReviewSignature(result)) return null;
-  return { ...(receipt.actions ? { actions: structuredClone(receipt.actions) } : {}), ...(receipt.completion ? { completion: structuredClone(receipt.completion) } : {}), text: receipt.text, sourceIds: [...receipt.sourceIds], ...(receipt.proseText !== undefined ? { proseText: receipt.proseText } : {}), ...(receipt.sourceReports ? { sourceReports: [...receipt.sourceReports] } : {}), ...(receipt.sourceContent ? { sourceContent: [...receipt.sourceContent] } : {}) };
+  const authority = result.labsList ? null : derivePublicationAuthority(result.evidenceContract);
+  if (authority && (!receipt.authorityClaims?.length
+    || authority.obligations.some(o => !receipt.authorityClaims!.some(c => c.obligationId === o.obligationId))
+    || publicationClaimFailures(result.evidenceContract!, receipt.authorityClaims).length)) return null;
+  return { ...(receipt.authorityClaims ? { authorityClaims: structuredClone(receipt.authorityClaims) } : {}), ...(receipt.actions ? { actions: structuredClone(receipt.actions) } : {}), ...(receipt.completion ? { completion: structuredClone(receipt.completion) } : {}), text: receipt.text, sourceIds: [...receipt.sourceIds], ...(receipt.proseText !== undefined ? { proseText: receipt.proseText } : {}), ...(receipt.sourceReports ? { sourceReports: [...receipt.sourceReports] } : {}), ...(receipt.sourceContent ? { sourceContent: [...receipt.sourceContent] } : {}) };
 }
 
 export type HistoryReviewDiagnostic = { status: "approved" | "declined"; reason: string };

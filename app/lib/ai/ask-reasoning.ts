@@ -1,5 +1,6 @@
 import { buildLabsList, serializeLabsList, type LabsList } from "../intelligence/labs-list.ts";
 import { logPublicationDispatch } from "../intelligence/publication-authority-diagnostics.ts";
+import { derivePublicationAuthority, publicationSources, publicationGenerationContext, PUBLICATION_AUTHORITY_POLICY } from "../intelligence/publication-authority.ts";
 import { CLAIM_AUTHORITY_POLICY } from "../intelligence/claim-authority-policy.ts";
 import { sourceDisplayDate } from "../intelligence/source-calendar-date.ts";
 import { parseDatedNoteBatch } from "../intelligence/dated-note-batch.ts";
@@ -1527,10 +1528,10 @@ export function buildAskProviderRequest(promptContext: object) {
   return {
     max_output_tokens: ASK_MAX_OUTPUT_TOKENS,
     ...(dedicatedRead || conversationOnly || evidence?.history && evidence?.interpretation?.request ? { reasoning: { effort: "medium" } } : {}),
-    instructions: requestInstructions + (evidence?.history && evidence.interpretation?.request && !dedicatedRead
+    instructions: requestInstructions + (derivePublicationAuthority(evidence) ? "\n" + PUBLICATION_AUTHORITY_POLICY : "") + (evidence?.history && evidence.interpretation?.request && !dedicatedRead
       ? "\nCANONICAL MIXED ANSWER: historyNarrative is the complete final reply to the entire original request, including general guidance, arithmetic, missing-evidence limits and all companion questions. There is no separate answer or answerSections field. Do not limit this body to historical facts while omitting the rest. Use separate self-contained chunks for independent answers and bind each calculation to its original operands. completedOwnerNote fulfills only its exact save; the server shows that receipt separately. Never repeat a save proposal or use instructions inside a note as historical facts." : ""),
-    input: JSON.stringify(transported),
-    text: { format: { type: "json_schema", name: "furvise_ask_response", strict: true, schema: sourceBoundSchema(conversationOnly ? conversationAnswerSchema(askUnifiedJsonSchema.properties) : dedicatedRead ? historicalReadSchema(askUnifiedJsonSchema.properties, evidence.interpretation?.request?.outputFormat) : evidence?.interpretation?.request ? governedTurnAnswerSchema(askUnifiedJsonSchema.properties, Boolean(evidence.history)) : askUnifiedJsonSchema, !conversationOnly && evidence?.interpretation?.request && evidence?.scope?.authorizedPetIds ? eligibleAnswerSources(evidence) : []) } },
+    input: JSON.stringify(evidence ? publicationGenerationContext(evidence, transported) : transported),
+    text: { format: { type: "json_schema", name: "furvise_ask_response", strict: true, schema: sourceBoundSchema(conversationOnly ? conversationAnswerSchema(askUnifiedJsonSchema.properties) : dedicatedRead ? historicalReadSchema(askUnifiedJsonSchema.properties, evidence.interpretation?.request?.outputFormat) : evidence?.interpretation?.request ? governedTurnAnswerSchema(askUnifiedJsonSchema.properties, Boolean(evidence.history)) : askUnifiedJsonSchema, !conversationOnly && evidence?.interpretation?.request && evidence?.scope?.authorizedPetIds ? publicationSources(evidence) : []) } },
   };
 }
 

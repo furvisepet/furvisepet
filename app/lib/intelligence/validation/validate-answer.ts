@@ -1,4 +1,5 @@
 import { labsListReviewFailure, carryLabsListSnapshot, labsTaskComplete } from "../labs-list.ts";
+import { derivePublicationAuthority } from "../publication-authority.ts";
 import { readPartialHistoryReview } from "../history-review-state.ts";
 import { historyCompletionLimits, UNVERIFIED_EVENT_LIMITATION } from "../evidence-need-coverage.ts";
 import { recordHistoryReview, historyReviewSignature } from "../history-review-state.ts";
@@ -73,6 +74,15 @@ export function validateGeneratedAnswer(
         subjectDateCorrectness: errors.length ? "failed" : "passed", calculationCorrectness: "not_applicable",
         taskCompletion: complete && !errors.length ? "passed" : "failed" } });
     return { response, assessment, valid: !errors.length, repairs: [], errors, qualityWarnings: [] };
+  }
+  // A legacy projection, fallback or future presenter cannot bypass the same
+  // certified source boundary by skipping model review or changing its format.
+  if (!currentEmergency && derivePublicationAuthority(result.evidenceContract) && !reviewedHistory) {
+    const errors = ["publication_obligation_authority_required"];
+    const assessment = createAnswerAssessment({ body: response.answer, evidence: response.evidenceContract || null,
+      unsafe: true, reasons: errors, checks: { structuralValidity: "passed", evidenceSupport: "failed",
+        subjectDateCorrectness: "failed", calculationCorrectness: "not_applicable", taskCompletion: "failed" } });
+    return { response, assessment, valid: false, repairs: [], errors, qualityWarnings: [] };
   }
   const conversationOnly = result.evidenceContract?.interpretation?.conversationOnly === true;
   const preserveFormat = Boolean(result.evidenceContract?.interpretation?.request?.outputFormat);
@@ -342,6 +352,8 @@ export function validateGeneratedAnswer(
   });
   const finalReviewMatches = Boolean(reviewedHistory && response.answer.summary === (reviewedHistory.proseText || reviewedHistory.text)
     && response.answer.sections.length === 0 && !response.answer.safetyNote && !reviewedHistory.sourceReports?.length);
+  if (!currentEmergency && derivePublicationAuthority(result.evidenceContract) && !finalReviewMatches)
+    errors.push("publication_obligation_authority_changed");
   const finalGroundingMatches = finalReviewMatches || trustedServerProjection;
   if (finalReviewMatches && reviewedHistory?.actions) rememberReviewedTaskPresentation(response.evidenceContract, response.answer, reviewedHistory.actions);
   if (finalReviewMatches && reviewedHistory) recordHistoryReview(response, { ...reviewedHistory, signature: historyReviewSignature(response) });
