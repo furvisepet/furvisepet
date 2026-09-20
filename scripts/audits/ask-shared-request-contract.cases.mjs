@@ -815,7 +815,8 @@ test('inclusive as-of date is a scope anchor while the event keeps its own date'
   const answer = 'As of August 20, the latest saved rest note was August 17: Aster slept normally.';
   const r = await exercise('As of August 20, what was Aster’s latest rest note?', { fixturePets,
     rows: [care('rest', 'milo', '2026-08-17', 'general', 'Aster slept normally.')], messages: [], history: true,
-    interpretationProposal: proposal({ selection: 'latest', from: '2026-08-20', to: '2026-08-21' }),
+    interpretationProposal: proposal({ selection: 'latest', from: '2026-08-20', to: '2026-08-21',
+      readTicket:readObligations({temporal:{from:null,to:'2026-08-21T00:00:00.000Z'},outputs:{ordering:'desc',limit:1}}) }),
     providerOverrides: { historyNarrative: { sentences: [{ text: answer, sourceIds: ['care:rest'] }] } },
     reviewResponse: { approved: true }, expectedReviewCalls: 1 });
   assert.equal(r.result.reasoning.answer.summary, answer);
@@ -1578,7 +1579,7 @@ for (const mode of ['read','mixed']) test(`plain ${mode}-history answers retain 
  const text='You report having leftover 5mg tablets. The saved note says Aster rested normally.';
  const r=await exercise(question,{fixturePets,messages:[],history:true,
   rows:[care('rest','milo','2026-06-04','general','Aster rested normally.')],
-  interpretationProposal:proposal({mode,evidenceBasis:'saved_history',mutationIntent:null}),
+  interpretationProposal:proposal({mode,evidenceBasis:'saved_history',mutationIntent:null,readTicket:readObligations()}),
   providerOverrides:{answer:text,historyNarrative:null,relevantContextIds:['care:rest']},
   reviewResponse:{approved:true},expectedReviewCalls:1,
  });
@@ -1747,7 +1748,8 @@ test('earliest unfiltered care record does not become a keyword lookup',async t=
 
 test('unnamed standalone reads cannot expand to the account from a planner hint',()=>{
  for(const currentMessage of ['What was the last food change I recorded?','Show the earliest observation.','Has a harness problem ever been recorded?']) {
-  const plan=validateAskRequest(proposal({scope:'account',petNames:[],frame:null}),{...context,currentMessage});
+  const plan=validateAskRequest(proposal({scope:'account',petNames:[],frame:null,
+   readTicket:{...readObligations(),subjectScope:'selected'}}),{...context,currentMessage});
   assert.deepEqual(plan.petIds,[context.pet.id]);assert.equal(plan.readOnly,true);
  }
 });

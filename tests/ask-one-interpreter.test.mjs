@@ -56,8 +56,8 @@ test('read ticket alone controls temporal bounds and order despite conflicting l
   assert.equal(unplanned.readOnlyRecall,false);assert.equal(unplanned.requestedPeriod.kind,'unspecified');
  }
 });
-test('foreign subjects and read tickets carrying writes fail before any organ',()=>{
- for(const patch of [{petNames:['Other owner']},{scope:'selected',petNames:['Other owner']},{mutationIntent:'correct_record'},{frame:{}},{task:{intent:'save'}}])
+test('foreign subjects and conflicting write jobs fail before any organ',()=>{
+ for(const patch of [{petNames:['Other owner']},{scope:'selected',petNames:['Other owner']},{writeJob:{}},{mode:'update'},{mode:'mixed'}])
   assert.throws(()=>validateAskRequest({...proposal,...patch},context()),/ASK_REQUEST_INVALID/);
 });
 test('missing Brain or missing read ticket never invokes text-based memory fallback',async()=>{
@@ -78,7 +78,7 @@ test('invalid planner output fails once without a repair pass or mutation author
 test('ticket binding retains grounded read obligations without deriving windows from their English',()=>{
  const currentMessage='Compare Dune in April 2024 with the current record.';
  const c={...context(),currentMessage};
- const planned={...proposal,operation:'comparison',readTicket:{...ticket,operation:'compare'},quantity:'measurement',
+ const planned={...proposal,question:currentMessage,operation:'comparison',readTicket:{...ticket,operation:'compare'},quantity:'measurement',
   temporalScope:'historical_and_current',profileFields:['weight'],requirements:['Compare both dated records'],
   projection:{nameHeader:'Pet',valueHeader:'Weight',quantity:'body_mass',unit:'kg',order:'scope'},
   evidenceNeeds:[{quote:currentMessage,sourceTurnId:null,terms:['weighed'],petNames:['Dune'],order:'context'}]};

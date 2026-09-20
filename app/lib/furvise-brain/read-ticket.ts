@@ -11,6 +11,7 @@ export type EpisodeReadObligation = Readonly<{
 }>;
 export type ReadTicket = Readonly<{
   operation: "read" | "read_since_event" | "compare" | "rank";
+  subjectScope?: "selected" | "named" | "conversation" | "account";
   subjects: Readonly<{ petIds: readonly string[] }>;
   temporal: Readonly<{ from: string | null; to: string | null;
     anchor: Readonly<{ concept: string; relation: "from" | "after" | "before" }> | null;
@@ -27,8 +28,9 @@ export type ReadTicket = Readonly<{
 
 export const readTicketSchema = {
   type: ["object", "null"], additionalProperties: false,
-  required: ["operation", "temporal", "predicates", "outputs", "searchHints", "episode", "needs"],
+  required: ["operation", "subjectScope", "temporal", "predicates", "outputs", "searchHints", "episode", "needs"],
   properties: {
+    subjectScope: { type: "string", enum: ["selected", "named", "conversation", "account"], description: "Requested subject selection. Selected for an unnamed standalone read; conversation for USER-established referents; named for explicit pets; account only for a requested cohort or identity lookup. Overrides legacy scope. The server binds owned IDs; this never grants writes." },
     needs: readNeedsSchema,
     operation: { type: "string", enum: ["read", "read_since_event", "compare", "rank"] },
     episode: { type: ["object", "null"], additionalProperties: false, required: ["operation", "referent"],
@@ -43,8 +45,8 @@ export const readTicketSchema = {
       } },
     temporal: { type: "object", additionalProperties: false, required: ["from", "to", "anchor", "calendar"], properties: {
       calendar: { type: ["string", "null"], enum: ["oldest_year", null], description: "Resolve the oldest accessible calendar year from effective records, never from a guessed year." },
-      from: { type: ["string", "null"], description: "ISO instant or null; never invent the date of the anchor." },
-      to: { type: ["string", "null"], description: "Exclusive ISO instant or null." },
+      from: { type: ["string", "null"], description: "ISO instant or null; never invent the date of the anchor. For an as-of cutoff, keep this null unless the user also supplied a lower bound." },
+      to: { type: ["string", "null"], description: "Exclusive ISO instant or null. An inclusive as-of calendar day ends at the next local midnight, expressed as an ISO instant." },
       anchor: { type: ["object", "null"], additionalProperties: false, required: ["concept", "relation"], properties: {
         concept: { type: "string", minLength: 1, maxLength: 80, description: "Minimal search concept for the event, without pet name or temporal instructions. Every normalized term must occur in the record; terms need not be adjacent. Code resolves the actual dated event. Never guess its date." },
         relation: { type: "string", enum: ["from", "after", "before"] },
@@ -77,9 +79,10 @@ const instant = (v: unknown): v is string | null => v === null || typeof v === "
 export function bindReadTicket(value: unknown, petIds: readonly string[], needBindings: readonly ReadNeedBinding[] = []): ReadTicket | null {
   if (value == null) return null;
   const fail = (): never => { throw new Error("ASK_REQUEST_INVALID:read_ticket"); };
-  if (!object(value) || !optionalKeys(value, ["operation", "temporal", "predicates", "outputs"], ["searchHints", "episode", "needs"])) return fail();
+  if (!object(value) || !optionalKeys(value, ["operation", "temporal", "predicates", "outputs"], ["subjectScope", "searchHints", "episode", "needs"])) return fail();
   const { operation, temporal, predicates, outputs, searchHints, episode } = value;
   if (!["read", "read_since_event", "compare", "rank"].includes(String(operation))
+    || value.subjectScope !== undefined && !["selected", "named", "conversation", "account"].includes(String(value.subjectScope))
     || !petIds.length || new Set(petIds).size !== petIds.length
     || !object(temporal) || !optionalKeys(temporal, ["from", "to", "anchor"], ["calendar"])
     || temporal.calendar != null && temporal.calendar !== "oldest_year"
@@ -116,7 +119,7 @@ export function bindReadTicket(value: unknown, petIds: readonly string[], needBi
   const needs = bindReadNeeds(value.needs, needBindings, petIds);
   if (needs?.length && (episode || operation === "read_since_event" || temporal.calendar != null
     || predicates.length || searchHints?.length || outputs.strategy != null || outputs.limit !== null)) return fail();
-  return Object.freeze({ ...(needs !== undefined ? { needs } : {}), ...(episode !== undefined ? { episode: episode === null ? null : Object.freeze({ ...episode as EpisodeReadObligation,
+  return Object.freeze({ ...(value.subjectScope !== undefined ? { subjectScope: value.subjectScope } : {}), ...(needs !== undefined ? { needs } : {}), ...(episode !== undefined ? { episode: episode === null ? null : Object.freeze({ ...episode as EpisodeReadObligation,
       referent: (episode as EpisodeReadObligation).referent && Object.freeze({ ...(episode as EpisodeReadObligation).referent }) }) } : {}),
     ...(searchHints !== undefined ? { searchHints: searchHints === null ? null : Object.freeze([...(searchHints as string[])]) } : {}), operation, subjects: Object.freeze({ petIds: Object.freeze([...petIds]) }),
     temporal: Object.freeze({ ...temporal, anchor: anchor && Object.freeze({ ...anchor }) }),

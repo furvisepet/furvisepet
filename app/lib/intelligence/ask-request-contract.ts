@@ -152,8 +152,13 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (!Array.isArray(p.profileFields) || p.profileFields.some(field => !askRequestSchema({}).properties.profileFields.items.enum.includes(String(field))) || p.profileFields.length > 14) return fail("profile_fields");
   if (![null, "historical", "current", "historical_and_current"].includes(p.temporalScope as null | string)) return fail("temporal_scope");
   if (![null, "correct_record"].includes(p.mutationIntent as null | string)) return fail("mutation_intent");
-  if (p.readTicket !== null && (p.mode !== "read" || p.evidenceBasis !== "saved_history" || p.writeJob !== null)) return fail("read_ticket");
-  if (p.readTicket !== null) return bindTicketedRead(p, context);
+  if (p.readTicket !== null) {
+    // A save veto can narrow a mixed proposal to its already-proposed read.
+    // It cannot invent a read ticket, select history, or authorize a write.
+    const declinedMixed = p.mode === "mixed" && ownerDeclinesPersistence(context.currentMessage);
+    if ((p.mode !== "read" && !declinedMixed) || p.evidenceBasis !== "saved_history" || p.writeJob !== null) return fail("read_ticket");
+    return bindTicketedRead({ ...p, mode: "read", frame: null, task: null, mutationIntent: null }, context);
+  }
   if (p.writeJob !== null) {
     // A standalone replace has one mutation job, no observation save or essay.
     // Conflicting read obligations fail closed rather than being silently dropped.
@@ -670,16 +675,40 @@ function bindTicketedRead(p: Record<string, unknown>, context: Context): AskInte
   };
   const names = (p.petNames as string[]).map(name => resolveName(name));
   const excluded = new Set((p.excludedPetNames as string[]).map(name => resolveName(name, "excluded_ownership")));
-  const referenceTurnIds = p.referenceTurnIds as string[];
-  if (referenceTurnIds.some(id => !context.conversationTurns.some(turn => turn.id === id && turn.role === "user"))) return fail("reference");
+  const proposedReferences = p.referenceTurnIds as string[];
+  if (proposedReferences.some(id => !context.conversationTurns.some(turn => turn.id === id))) return fail("reference");
+  // Legacy dialogue references may include assistant IDs. They confer neither
+  // identity nor factual authority; only existing USER references survive.
+  let referenceTurnIds = [...new Set(proposedReferences.filter(id => context.conversationTurns.some(turn => turn.id === id && turn.role === "user")))];
+  const proposedTicket = p.readTicket as Record<string, unknown>;
+  const subjectScope = proposedTicket?.subjectScope === undefined ? p.scope : proposedTicket.subjectScope;
+  if (!["selected", "named", "conversation", "account"].includes(String(subjectScope))) return fail("scope");
   let petIds: string[];
-  if (p.scope === "selected") {
+  if (subjectScope === "selected") {
     if (!owned.some(pet => pet.id === context.pet.id) || names.some(id => id !== context.pet.id)) return fail("selected_subject");
     petIds = [context.pet.id];
-  } else if (p.scope === "account") petIds = (names.length ? [...new Set(names)] : owned.map(pet => pet.id)).filter(id => !excluded.has(id));
-  else if (p.scope === "named" || p.scope === "conversation") {
-    if (p.scope === "conversation" && !referenceTurnIds.length) return fail("reference");
+  } else if (subjectScope === "account") petIds = (names.length ? [...new Set(names)] : owned.map(pet => pet.id)).filter(id => !excluded.has(id));
+  else if (subjectScope === "named" || subjectScope === "conversation") {
     petIds = [...new Set(names)];
+    if (subjectScope === "conversation") {
+      const users = context.conversationTurns.filter(turn => turn.role === "user"
+        && (!proposedReferences.length || referenceTurnIds.includes(turn.id)));
+      const established = new Set(users.flatMap(turn => explicitlyNamedOwnedPets(turn.text, owned).map(pet => pet.id)));
+      if (petIds.some(id => !established.has(id))) return fail("conversation_subject");
+      if (!petIds.length) {
+        const state = buildRecentSubjectState({ pets: owned, selectedPetId: context.pet.id, recentConversation: users });
+        const focus = state.entities.find(entity => entity.key === state.currentFocusKey);
+        if (focus?.kind === "pet" && focus.petId && established.has(focus.petId)) petIds = [focus.petId];
+      }
+      if (!referenceTurnIds.length && petIds.length) referenceTurnIds = users.filter(turn =>
+        explicitlyNamedOwnedPets(turn.text, owned).some(pet => petIds.includes(pet.id))).map(turn => turn.id).slice(-8);
+      if (!petIds.length) return {
+        version: "ask-interpretation.v1", operation: "clarify", readOperation: "clarify", petIds: [], topic: p.topic as string,
+        history: null, episodeTopic: null, ordinal: null, readOnly: true, clarification: "subject", frame: emptyProposedSemanticFrame(),
+        request: { version: ASK_REQUEST_VERSION, mode: "clarify", question: context.currentMessage, requirements: [], referenceTurnIds,
+          quantity: null, evidenceBasis: "saved_history", readTicket: null, writeJob: null, task: null, mutationIntent: null },
+      };
+    }
   } else return fail("scope");
   if (petIds.some(id => excluded.has(id))) return fail("excluded_subject");
   if (!petIds.length || petIds.length > ASK_HISTORY_MAX_PETS) return fail("scope");
@@ -691,7 +720,7 @@ function bindTicketedRead(p: Record<string, unknown>, context: Context): AskInte
     return { id: need.id, petIds: need.petIds?.length ? need.petIds : petIds,
       sourceSpanId: `${need.sourceTurnId ?? context.currentTurn?.id ?? "current"}:${start}:${start + need.quote.length}` };
   });
-  const readTicket = bindReadTicket(p.readTicket, petIds, bindings)!;
+  const readTicket = bindReadTicket({ ...proposedTicket, subjectScope }, petIds, bindings)!;
   for (const need of needPlan.needs) {
     const typed = readTicket.needs?.find(item => item.id === need.id);
     if (typed?.from && typed.to) need.window = { from: typed.from, to: typed.to };
@@ -724,7 +753,8 @@ function bindTicketedRead(p: Record<string, unknown>, context: Context): AskInte
   }
   const request: AskRequestContract = {
     version: ASK_REQUEST_VERSION, mode: unresolvedEpisode ? "clarify" : "read", readTicket, writeJob: null, task: null, mutationIntent: null,
-    question: context.currentMessage, requirements: p.requirements as string[], referenceTurnIds,
+    question: context.currentMessage,
+    requirements: !referenceTurnIds.length && p.question !== context.currentMessage ? [] : p.requirements as string[], referenceTurnIds,
     quantity: episode ? "episodes" : p.quantity === "episodes" ? null : p.quantity as AskRequestContract["quantity"], evidenceBasis: "saved_history",
     outputFormat: p.outputFormat as AskRequestContract["outputFormat"], profileFields: [...new Set(p.profileFields as string[])],
     temporalScope: p.temporalScope as AskRequestContract["temporalScope"] ?? "historical", projection, recordSelection,
