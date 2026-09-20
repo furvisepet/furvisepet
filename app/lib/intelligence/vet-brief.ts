@@ -1,4 +1,3 @@
-import { parseVetBriefDocument } from "../vet-brief/schema";
 import type { VetBriefDocument } from "../vet-brief/types";
 
 const datedItem = {
@@ -40,16 +39,3 @@ export const intelligenceVetBriefJsonSchema = {
 } as const;
 
 export type IntelligenceVetBrief = { document: VetBriefDocument; sourceRecordIds: string[]; confidence: "low" | "medium" | "high" };
-
-export function parseIntelligenceVetBrief(value: unknown, baseline: VetBriefDocument, allowedSourceIds: string[]): IntelligenceVetBrief | null {
-  if (!value || typeof value !== "object") return null;
-  const draft = value as { document?: unknown; sourceRecordIds?: unknown; confidence?: unknown };
-  const document = parseVetBriefDocument(draft.document);
-  if (!document || !["low", "medium", "high"].includes(String(draft.confidence)) || !Array.isArray(draft.sourceRecordIds)) return null;
-  if (document.documentVersion !== baseline.documentVersion || document.dateRange.from !== baseline.dateRange.from || document.dateRange.to !== baseline.dateRange.to) return null;
-  if (JSON.stringify(document.pet) !== JSON.stringify(baseline.pet) || document.disclaimer !== baseline.disclaimer) return null;
-  const allowed = new Set(allowedSourceIds);
-  if (draft.sourceRecordIds.length > 300 || draft.sourceRecordIds.some((id) => typeof id !== "string" || !allowed.has(id))) return null;
-  const sourceRecordIds = [...new Set(draft.sourceRecordIds as string[])];
-  return { document, sourceRecordIds, confidence: draft.confidence as IntelligenceVetBrief["confidence"] };
-}

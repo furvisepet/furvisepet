@@ -1,38 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-
-import { resolveOwnerNoteRequest } from "../app/lib/intelligence/owner-note-request.ts";
 import { fixture } from "./helpers/ask-route-ordering.mjs";
-
-const pet = { id: "pebble", name: "Pebble" };
-
-test("natural-language note carries current-turn authorization provenance", () => {
-  const note = resolveOwnerNoteRequest({
-    message: "Pebble ate normally. Save this note.",
-    pet,
-    pets: [pet],
-  });
-  assert.equal(note.authorizationSource, "current_turn");
-  assert.match(note.authorizationEvidence, /save this note/i);
-  assert.equal(note.note, "Pebble ate normally.");
-});
-
-test("standalone save directive authorizes persistence but is not stored as pet history",()=>{
-  const note=resolveOwnerNoteRequest({message:"Pebble skipped breakfast but ate dinner fine. A bit slower on the evening walk. Save that for today.",pet,pets:[pet]});
-  assert.equal(note.note,"Pebble skipped breakfast but ate dinner fine. A bit slower on the evening walk.");
-  assert.match(note.authorizationEvidence,/save that for today/i);
-});
-
-test("explicit note control carries transport authorization provenance", () => {
-  const note = resolveOwnerNoteRequest({
-    message: "Pebble rolled down the hill yesterday lol",
-    mode: "note",
-    pet,
-    pets: [pet],
-  });
-  assert.equal(note.authorizationSource, "transport");
-  assert.equal(note.authorizationEvidence, "note_mode");
-});
 
 test("source-bound proposal has no persistence authority before confirmation", async () => {
   const f=fixture();assert.equal((await f.send()).status,200);
@@ -40,69 +8,35 @@ test("source-bound proposal has no persistence authority before confirmation", a
   assert.equal(f.state.events.filter(event=>event==='heart:execute').length,0);
 });
 
-test("mixed save plus read separates the stored fact from the companion question",()=>{
-  const cedar={id:"cedar",name:"Cedar"};
-  const note=resolveOwnerNoteRequest({message:"Cedar ate less this morning. Log that, then tell me Cedar's last two weights and whether this note includes a weight.",pet:cedar,pets:[cedar]});
-  assert.ok(note);
-  assert.equal(note.note,"Cedar ate less this morning.");
-  assert.equal(note.companionQuestion,"tell me Cedar's last two weights and whether this note includes a weight.");
-  assert.equal(note.needsAnswer,true);
-});
+import { ownerNoteSourceSpans, explicitNoteTime } from "../app/lib/intelligence/owner-note-request.ts";
 
-test("production mixed prompt does not save a statement about the note itself",()=>{
-  const cedar={id:"cedar",name:"Cedar"};
-  const message="Log that Cedar refused breakfast. Then list Cedar’s last two weights. This new note has no weight.";
-  const note=resolveOwnerNoteRequest({message,pet:cedar,pets:[cedar]});
-  assert.ok(note);
-  assert.equal(note.note,"Cedar refused breakfast.");
-  assert.equal(note.companionQuestion,"Then list Cedar’s last two weights. This new note has no weight.");
-  assert.equal(note.needsAnswer,true);
-});
-
-test("leading save command keeps the care fact and separates a later question",()=>{
-  const aster={id:"aster",name:"Aster"};
-  const note=resolveOwnerNoteRequest({message:"Save this for today on Aster: drank more water than usual after the walk. Is that the first water note I have, or did I log thirst before?",pet:aster,pets:[aster]});
-  assert.ok(note);
-  assert.equal(note.note,"drank more water than usual after the walk.");
-  assert.equal(note.companionQuestion,"Is that the first water note I have, or did I log thirst before?");
-  assert.equal(note.needsAnswer,true);
-});
-
-test("exact live Cedar dinner mixed save is recognized and split",()=>{
-  const cedar={id:"cedar",name:"Cedar"};
-  const message="Cedar ate normally at dinner today. Log that, then tell me Cedar's last two weights and whether this note includes a weight.";
-  const note=resolveOwnerNoteRequest({message,pet:cedar,pets:[cedar]});
-  assert.ok(note);
-  assert.equal(note.note,"Cedar ate normally at dinner today.");
-  assert.equal(note.companionQuestion,"tell me Cedar's last two weights and whether this note includes a weight.");
-  assert.equal(note.needsAnswer,true);
-});
-
-test("undated Ask saves default to the request timestamp like the normal care form",()=>{
-  const cedar={id:"cedar",name:"Cedar"};
-  const note=resolveOwnerNoteRequest({
-    message:"Log that Cedar refused breakfast.",
-    pet:cedar,pets:[cedar],timeZone:"America/Vancouver",sourceRecordedAt:"2026-09-19T07:44:00.000Z"
-  });
-  assert.ok(note);
-  assert.equal(note.occurredAt,"2026-09-19T07:44:00.000Z");
-  assert.equal(note.explicitTime,null);
-});
-
-test("relative owner-note dates become real calendar dates when the request timestamp is known",()=>{
-  const cedar={id:"cedar",name:"Cedar"};
-  for (const phrase of ["today","this morning","this afternoon","this evening","tonight"]) {
-    const note=resolveOwnerNoteRequest({
-      message:`Cedar ate normally ${phrase}. Save this note.`,
-      pet:cedar,pets:[cedar],timeZone:"America/Vancouver",sourceRecordedAt:"2026-09-19T07:04:12.000Z"
-    });
-    assert.ok(note, phrase);
-    assert.equal(note.explicitTime,"2026-09-19",phrase);
-    assert.ok(note.occurredAt, phrase);
+// These helpers still feed the active planner/contract. Spans are suggestions,
+// not write authority; the HTTP confirmation invariant above remains mandatory.
+for (const [message, note, companion] of [
+  ["Pebble skipped breakfast but ate dinner fine. A bit slower on the evening walk. Save that for today.", "Pebble skipped breakfast but ate dinner fine. A bit slower on the evening walk.", null],
+  ["Cedar ate less this morning. Log that, then tell me Cedar's last two weights and whether this note includes a weight.", "Cedar ate less this morning.", "tell me Cedar's last two weights and whether this note includes a weight."],
+  ["Log that Cedar refused breakfast. Then list Cedar\u2019s last two weights. This new note has no weight.", "Cedar refused breakfast.", "Then list Cedar\u2019s last two weights. This new note has no weight."],
+  ["Save this for today on Aster: drank more water than usual after the walk. Is that the first water note I have, or did I log thirst before?", "drank more water than usual after the walk.", "Is that the first water note I have, or did I log thirst before?"],
+  ["Cedar ate normally at dinner today. Log that, then tell me Cedar's last two weights and whether this note includes a weight.", "Cedar ate normally at dinner today.", "tell me Cedar's last two weights and whether this note includes a weight."],
+]) test("active source-span suggestions preserve note and companion: " + message, () => {
+  const spans = ownerNoteSourceSpans(message, "source");
+  assert.equal(spans.find(span => span.role === "note")?.text, note);
+  assert.equal(spans.find(span => span.role === "companion")?.text ?? null, companion);
+  for (const span of spans) {
+    assert.equal(message.slice(span.start, span.end), span.text);
+    assert.equal(span.sourceMessageId, "source");
+    assert.ok(Object.isFrozen(span));
   }
-  const yesterday=resolveOwnerNoteRequest({
-    message:"Cedar ate normally yesterday. Save this note.",
-    pet:cedar,pets:[cedar],timeZone:"America/Vancouver",sourceRecordedAt:"2026-09-19T07:04:12.000Z"
-  });
-  assert.equal(yesterday.explicitTime,"2026-09-18");
+});
+
+test("shared date parser preserves the source-local day without inventing undated time", () => {
+  const zone = "America/Vancouver", recordedAt = "2026-09-19T07:04:12.000Z";
+  for (const phrase of ["today", "this morning", "this afternoon", "this evening", "tonight"]) {
+    const time = explicitNoteTime("Cedar ate normally " + phrase + ".", zone, recordedAt);
+    assert.equal(time.explicitTime, "2026-09-19");
+    assert.ok(time.occurredAt);
+  }
+  assert.equal(explicitNoteTime("Cedar ate normally yesterday.", zone, recordedAt).explicitTime, "2026-09-18");
+  assert.deepEqual(explicitNoteTime("Cedar ate normally.", zone, recordedAt), { occurredAt: null, explicitTime: null });
+  assert.equal(explicitNoteTime("September 14, 2026 around 7:30 PM", zone).occurredAt, "2026-09-15T02:30:00.000Z");
 });

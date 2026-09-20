@@ -12,7 +12,6 @@ export { toAskSafetyLevel, persistedLearningConfirmation } from "./response-rend
 export { getIntelligenceFeatureMode } from "./feature-modes";
 export type { IntelligenceFeatureMode } from "./feature-modes";
 export { runFeatureIntelligence } from "./run-feature-intelligence";
-export { parseIntelligenceVetBrief } from "./vet-brief";
 export type { IntelligenceVetBrief } from "./vet-brief";
 export type { FeatureIntelligenceResult } from "./run-feature-intelligence";
 export type * from "./types";

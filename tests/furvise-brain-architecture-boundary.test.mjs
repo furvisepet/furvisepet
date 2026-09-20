@@ -25,12 +25,14 @@ test("model-derived intelligence cannot promote itself into authoritative care h
   assert.ok(source.indexOf("authorizeIntelligenceCarePersistence({") < source.indexOf("persistCanonicalCareAction({"));
 });
 
-test("pending note continuations re-verify and cross the Brain mutation gate", () => {
+test("pending note parameters re-verify authority without a direct RPC executor", () => {
   const source = read("app/lib/intelligence/ask-task-continuation.ts");
   assert.match(source, /findExplicitCareRecordAuthorization/);
   assert.match(source, /grantFurviseMutationAuthority/);
   assert.match(source, /assertFurviseMutationAllowed/);
-  assert.ok(source.indexOf("assertValidatedAskTaskAuthorization(task)") < source.indexOf("apply_ask_task"));
+  const parameters = source.slice(source.indexOf("export function taskMutationParameters"), source.indexOf("export function attachTaskReceipts"));
+  assert.ok(parameters.indexOf("assertValidatedAskTaskAuthorization(task)") < parameters.indexOf("p_user_id:"));
+  assert.doesNotMatch(source, /executeAskTask|apply_ask_task/);
 });
 
 test("application action capabilities cross the Action Organ before database execution", () => {

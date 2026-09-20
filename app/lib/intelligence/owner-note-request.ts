@@ -1,8 +1,7 @@
-import { ownerDeclinesPersistence, unquotedOwnerText } from "../ai/owner-assertion.ts";
+import { unquotedOwnerText } from "../ai/owner-assertion.ts";
 import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
 import { calendarBoundaryToInstant, resolveAskTimeZone } from "../ask-time-zone.ts";
 import { findExplicitCareRecordAuthorization } from "../furvise-brain/mutation-authorization.ts";
-import type { FurviseAuthorizationSource } from "../furvise-brain/turn-authority.ts";
 import type { UserSourceSpan } from "../furvise-brain/append-job.ts";
 
 /** Source suggestions only. Brain assigns jobs; these spans grant no authority. */
@@ -16,70 +15,6 @@ export function ownerNoteSourceSpans(text: string, sourceMessageId: string): Rea
     return [Object.freeze({ ...candidate, sourceMessageId, id: `${sourceMessageId}:${start}:${start + candidate.text.length}`, start, end: start + candidate.text.length })];
   });
   return Object.freeze(spans.length ? spans : [Object.freeze({ id: `${sourceMessageId}:0:${text.length}`, sourceMessageId, start: 0, end: text.length, text, role: "source" as const })]);
-}
-
-export type OwnerNoteRequest = {
-  note: string;
-  occurredAt: string | null;
-  explicitTime: string | null;
-  needsAnswer: boolean;
-  companionQuestion: string | null;
-  authorizationSource: Extract<FurviseAuthorizationSource, "current_turn" | "transport">;
-  authorizationEvidence: string;
-};
-
-export function resolveOwnerNoteRequest(input: {
-  message: string; mode?: "note"; pet: { id: string; name: string | null };
-  pets: Array<{ id: string; name: string | null }>; timeZone?: string; sourceRecordedAt?: string;
-}): OwnerNoteRequest | null {
-  const text = input.message.trim();
-  if (!text || ownerDeclinesPersistence(text)) return null;
-
-  let authorizationSource: OwnerNoteRequest["authorizationSource"];
-  let authorizationEvidence: string;
-  if (input.mode === "note") {
-    authorizationSource = "transport";
-    authorizationEvidence = "note_mode";
-  } else {
-    const commandText = unquotedOwnerText(text);
-    if (/\b(?:hypothetical|fictional|pretend|suppose|example|translate)\b/i.test(commandText)) return null;
-    const sentences = splitSentencesPreservingFacts(commandText);
-    const authorization = findExplicitCareRecordAuthorization(text);
-    if (!authorization) return null;
-    const commands = sentences.filter(sentence => sentence.includes(authorization));
-    if (!commands.length) return null;
-    const commandIndex = sentences.findIndex(sentence => sentence.includes(authorization));
-    const commandHasCondition = commands.some(sentence => /\b(?:if|unless)\b/i.test(sentence));
-    const priorClauseConditionsReferencedNote = commandIndex > 0
-      && /\b(?:if|unless)\b/i.test(sentences[commandIndex - 1])
-      && /\b(?:this|that)\s+note\b|\bit\b/i.test(sentences[commandIndex]);
-    // A conditional save is not durable authorization. Scope this guard to the
-    // save clause (or the clause it explicitly points back to) so an unrelated
-    // follow-up such as "tell me if..." does not suppress a valid note write.
-    if (commandHasCondition || priorClauseConditionsReferencedNote) return null;
-    if (/\b(?:notes|entries|separate|each|delete|remove|replace|correct|resolve|reopen|mark|profile|subscription|billing)\b/i.test(commands.join(" "))) return null;
-    const named = input.pets.filter(pet => pet.name && new RegExp(`(?<![\\p{L}])${escape(pet.name)}(?![\\p{L}])`, "iu").test(commandText));
-    if (named.some(pet => pet.id !== input.pet.id)) return null;
-    if (!named.length && !/\b(?:my|our)\s+(?:pet|dog|cat)\b/i.test(commandText)) return null;
-    authorizationSource = "current_turn";
-    authorizationEvidence = authorization;
-  }
-
-  const parsedTime = explicitNoteTime(text, input.timeZone, input.sourceRecordedAt);
-  const time = parsedTime.occurredAt || !input.sourceRecordedAt || !Number.isFinite(Date.parse(input.sourceRecordedAt))
-    ? parsedTime
-    : { occurredAt: new Date(input.sourceRecordedAt).toISOString(), explicitTime: null };
-  const split = authorizationSource === "current_turn" ? splitOwnerNoteAndCompanion(text, authorizationEvidence) : { note: text, companionQuestion: null };
-  const noteText = split.note || stripStandaloneSaveDirective(text);
-  if (!noteText) return null;
-  return {
-    note: noteText,
-    ...time,
-    needsAnswer: input.mode !== "note" && Boolean(split.companionQuestion || hasAdditionalNoteTask(text)),
-    companionQuestion: input.mode === "note" ? null : split.companionQuestion,
-    authorizationSource,
-    authorizationEvidence,
-  };
 }
 
 export function stripStandaloneSaveDirective(text: string) {
@@ -113,8 +48,6 @@ export function splitOwnerNoteAndCompanion(text: string, authorizationEvidence: 
   const companionQuestion=companionParts.join(" ").trim()||null;
   return {note,companionQuestion};
 }
-
-function escape(text: string) { return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
 
 export function explicitNoteTime(text: string, timeZone?: string, sourceRecordedAt?: string): { occurredAt: string | null; explicitTime: string | null } {
   const unknown = { occurredAt: null, explicitTime: null };
@@ -152,13 +85,4 @@ export function explicitNoteTime(text: string, timeZone?: string, sourceRecorded
     occurredAt = candidate.toISOString();
   }
   return { occurredAt, explicitTime: clocks.length ? `${literal} ${clocks[0][0]}` : day };
-}
-
-function hasAdditionalNoteTask(text: string): boolean {
-  const unquoted = unquotedOwnerText(text);
-  if (/\?|\b(?:explain|compare|calculate|compute|convert|list|show|find|retrieve|verify|check|review|search|look (?:back|up)|recommend|advise|tell me|what|why|how|should|is (?:it|this|that|he|she)|summari[sz]e)\b/i.test(unquoted)) return true;
-  const sentences = splitSentencesPreservingFacts(unquoted);
-  const lastSave = sentences.findLastIndex(sentence => /\b(?:save|log|record|add)\b/i.test(sentence));
-  return lastSave >= 0 && sentences.slice(lastSave + 1).some(sentence =>
-    !/^(?:(?:please )?keep (?:the |your )?(?:response|answer|reply) (?:brief|short|concise)|thanks|thank you)[.!]?$/i.test(sentence.trim()));
 }

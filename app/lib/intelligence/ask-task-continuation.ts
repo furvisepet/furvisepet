@@ -154,28 +154,6 @@ export function attachTaskReceipts(turns: IntelligenceConversationTurn[], receip
   });
 }
 
-export async function executeAskTask(parameters: ReturnType<typeof taskMutationParameters>, rpc: (
-  name: string, parameters: Record<string, unknown>,
-) => PromiseLike<{ data: unknown; error: { code?: string } | null }>): Promise<{
-  id: string; revision: number; status: 'completed' | 'awaiting_subject' | 'cancelled'; entryId: string | null; petId: string | null;
-}> {
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const result = await rpc('apply_ask_task', parameters);
-      if (result.error && ['42501', '22023', '40001'].includes(result.error.code || '')) break;
-      if (result.error || !result.data || typeof result.data !== 'object') continue;
-      const value = result.data as { id?: unknown; revision?: unknown; status?: unknown; entryId?: unknown; petId?: unknown };
-      if (typeof value.id !== 'string' || !Number.isSafeInteger(value.revision) || Number(value.revision) < 1) continue;
-      const identity = { id: value.id, revision: value.revision as number };
-      if (['completed', 'awaiting_answer'].includes(String(value.status)) && typeof value.entryId === 'string' && typeof value.petId === 'string')
-        return { ...identity, status: 'completed', entryId: value.entryId, petId: value.petId };
-      if (value.status === 'awaiting_subject' || value.status === 'cancelled')
-        return { ...identity, status: value.status, entryId: typeof value.entryId === 'string' ? value.entryId : null, petId: null };
-    } catch { /* The transaction is replayable with exactly these parameters. */ }
-  }
-  throw new Error('ASK_TASK_WRITE_UNCONFIRMED');
-}
-
 export function resolvePendingTaskSubject(context: Parameters<typeof validateAskTask>[1]): ValidatedAskTask | null {
   if (!context.pendingTask || context.pendingTask.status !== 'awaiting_subject' || context.pendingTask.requiresAnswer) return null;
   const request = context.pendingTask.request;

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { validateAskTask, taskMutationParameters, executeAskTask, attachTaskReceipts, resolvePendingTaskSubject, restorePendingTaskTurns, wholeAskTaskQuestion } from '../app/lib/intelligence/ask-task-continuation.ts';
+import { validateAskTask, taskMutationParameters, attachTaskReceipts, resolvePendingTaskSubject, restorePendingTaskTurns, wholeAskTaskQuestion } from '../app/lib/intelligence/ask-task-continuation.ts';
 const source={id:'source',role:'user',text:'so i gave him medicine yesterday',createdAt:'2026-09-15T01:00:00Z'};
 const context={currentMessage:'keep that as a note',conversationTurns:[source],owner:{userId:'owner'},eligiblePets:[{id:'pet',name:'Sable',user_id:'owner'},{id:'alien',name:'Other',user_id:'someone'}]};
 const proposal={intent:'save',sourceTurnId:'source',petName:'Sable'};
@@ -46,20 +46,6 @@ test('source date without a known occurrence is not invented',()=>{
 test('duplicate pet names require clarification instead of selecting the first match',()=>{
  assert.throws(()=>validateAskTask(proposal,{...context,eligiblePets:[...context.eligiblePets,{id:'second',name:'Sable',user_id:'owner'}]}));
  assert.equal(validateAskTask({...proposal,petName:null},context).petId,null);
-});
-
-test('lost task acknowledgment replays unchanged parameters exactly once',async()=>{
- const parameters=taskMutationParameters(validateAskTask(proposal,context),{userId:'owner',conversationId:'conversation',currentMessageId:'authorization'});
- const calls=[];
- const result=await executeAskTask(parameters,async(name,args)=>{
-  calls.push({name,args});if(calls.length===1)throw Error('response lost after commit');
-  return {data:{id:'task',revision:1,status:'completed',entryId:'entry',petId:'pet'},error:null};
- });
- assert.equal(result.entryId,'entry');assert.equal(calls.length,2);assert.deepEqual(calls[0],calls[1]);
-});
-for(const code of ['42501','22023','40001']) test(`task ${code} is never retried with weaker authority`,async()=>{
- let calls=0;
- await assert.rejects(executeAskTask({},async()=>{calls++;return {data:null,error:{code}};}));assert.equal(calls,1);
 });
 test('database task receipts attach to the save request and retain pet scope',()=>{
  const turns=[{...source,id:'authorization',text:'keep that as a note'}];
