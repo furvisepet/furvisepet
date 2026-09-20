@@ -63,6 +63,10 @@ export function recoverAskInterpretation(value: unknown, context: Interpretation
   if (value && typeof value === "object" && "version" in value && value.version === ASK_REQUEST_VERSION) {
     try {
       const parsed = validateAskRequest(value, context);
+      // Legacy callers retain strict binding, but model responses cannot use identity-bearing needs.
+      const rawTicket = (value as Record<string, unknown>).readTicket as Record<string, unknown> | null;
+      if (rawTicket?.needs != null && (!Array.isArray(rawTicket.needs) || rawTicket.needs.length))
+        throw new Error("ASK_REQUEST_INVALID:read_needs", { cause: { field: "needs", rule: "model_need_identity_forbidden" } });
       if (parsed.request?.mode === "read" && parsed.request.evidenceBasis === "saved_history" && !parsed.request.readTicket)
         throw new Error("ASK_REQUEST_INVALID:read_ticket_required", { cause: { field: "readTicket", rule: "saved_history_read_requires_ticket" } });
       return parsed;

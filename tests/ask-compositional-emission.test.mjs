@@ -125,11 +125,11 @@ test('G single-subject legacy selection remains legal with provider selection nu
 });
 test('H distinct grounded probes retain multi-need retrieval with selection null',async()=>{
   const first='Aster food in 2025',second='Bramble medication in 2024',question=first+' and '+second;
-  const needs=[first,second].map((quote,i)=>({needId:'need:'+i,from:null,to:null,target:null,
-    termGroups:[[i?'medication':'food']],ordering:'desc'}));
-  const read={...ticket(),selection:null,predicates:[],needs,outputs:{...ticket().outputs,strategy:null}};
-  const r=await mocked(question,read,{petNames:['Aster','Bramble'],evidenceNeeds:[first,second].map((quote,i)=>({
-    quote,sourceTurnId:null,petNames:[i?'Bramble':'Aster'],terms:[i?'medication':'food'],order:'latest'}))});
+  const probes=[first,second].map((quote,i)=>({quote,sourceTurnId:null,petNames:[i?'Bramble':'Aster'],
+    from:null,to:null,target:null,termGroups:[[i?'medication':'food']],ordering:'desc'}));
+  const {needs:_needs,...base}=ticket();
+  const read={...base,selection:null,predicates:[],probes,outputs:{...ticket().outputs,strategy:null}};
+  const r=await mocked(question,read,{petNames:['Aster','Bramble'],evidenceNeeds:[]});
   assert.equal(r.request.readTicket.needs.length,2);
   assert.equal(r.request.readTicket.selection,undefined);
 });

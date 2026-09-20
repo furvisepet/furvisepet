@@ -154,7 +154,7 @@ test('captured Bramble ticket binds only with needs stripped, through one planne
         onProviderEvent: event => stages.push(event),
         client: { responses: { create: async request => {
           calls++;
-          assert.ok(request.instructions.includes('emit readTicket.needs: [] (or omit needs)'));
+          assert.ok(request.instructions.includes('emit readTicket.probes: []'));
           return { output_text: JSON.stringify(envelope) };
         } } },
       });
@@ -225,7 +225,7 @@ test('captured Dune ticket binds only with needs stripped, through one planner p
         client: { responses: { create: async request => {
           calls++;
           assert.ok(request.instructions.includes('For any single retrieval, including operation read,'));
-          assert.ok(request.instructions.includes('needs must be empty or omitted'));
+          assert.ok(request.instructions.includes('probes must be empty or null'));
           return { output_text: JSON.stringify(envelope) };
         } } },
       });
