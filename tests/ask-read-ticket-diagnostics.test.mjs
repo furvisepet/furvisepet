@@ -188,3 +188,75 @@ test('captured Bramble ticket binds only with needs stripped, through one planne
   }
   assert.deepEqual(capturedBrambleTicket, original);
 });
+
+
+// Exact readTicket from preview 9a128f2, request 57a73f15-a81a-4d0c-84d3-028b403c4651,
+// 2026-09-20T05:24:48Z. The outer proposal/evidenceNeeds are fixture scaffolding.
+const capturedDuneTicket = {"subjectScope":"selected","needs":[{"needId":"need:0","from":null,"to":null,"target":null,"termGroups":[["weight","weigh","body mass"]],"ordering":"asc"}],"operation":"read","episode":null,"temporal":{"calendar":null,"from":null,"to":null,"anchor":null},"searchHints":["earliest saved weight","date of earliest weight record"],"predicates":[{"kind":"text_any","terms":["weight","weigh","body mass"]}],"outputs":{"strategy":"chronological","completeness":"exhaustive","ordering":"asc","limit":1}};
+
+test('captured Dune ticket binds only with needs stripped, through one planner per case', async t => {
+  const question = 'dune whats his earliest weight we got saved and what date was it';
+  const pet = { id: '559beba5-9f03-4e55-b8ad-5d3fac105d0a', name: 'Dune', user_id: 'owner', species: 'cat' };
+  const context = { owner: { userId: 'owner' }, pet, eligiblePets: [pet], currentMessage: question,
+    conversationTurns: [], timeZone: 'UTC',
+    currentTurn: { id: '9f2c85c6-cae9-4d43-a3bb-bd89d9f34fed', role: 'user', text: question } };
+  const original = structuredClone(capturedDuneTicket);
+  const bindings = [{ id: 'need:0', petIds: [pet.id], sourceSpanId: context.currentTurn.id + ':0:' + question.length }];
+  assert.throws(() => bindReadTicket(original, [pet.id], bindings), error => {
+    assert.equal(error.cause.field, 'predicates');
+    assert.equal(error.cause.rule, 'incompatible_with_needs');
+    return true;
+  });
+  for (const variant of ['retained', 'empty', 'omitted']) {
+    await t.test(variant, async t => {
+      const candidate = structuredClone(original);
+      if (variant === 'empty') candidate.needs = [];
+      if (variant === 'omitted') delete candidate.needs;
+      const warn = t.mock.method(console, 'warn', () => {});
+      t.mock.method(console, 'info', () => {});
+      let calls = 0;
+      const stages = [];
+      const envelope = { ...proposal(candidate), question, scope: 'selected', petNames: ['Dune'],
+        topic: 'weight', terms: ['weight'], selection: 'earliest', evidenceNeeds: [{
+          quote: question, sourceTurnId: null, petNames: ['Dune'], terms: ['weight'], order: 'earliest',
+        }] };
+      const run = interpretAskQuestion({ context, model: 'fixture',
+        onProviderEvent: event => stages.push(event),
+        client: { responses: { create: async request => {
+          calls++;
+          assert.ok(request.instructions.includes('For any single retrieval, including operation read,'));
+          assert.ok(request.instructions.includes('needs must be empty or omitted'));
+          return { output_text: JSON.stringify(envelope) };
+        } } },
+      });
+      if (variant === 'retained') {
+        await assert.rejects(run, error => {
+          assert.equal(error.diagnostics.providerErrorCode, 'ASK_REQUEST_CONTRACT_READ_TICKET');
+          return true;
+        });
+        const logs = warn.mock.calls.filter(call => call.arguments[0] === '[Ask Brain] rejected read ticket');
+        assert.equal(logs.length, 1);
+        const logged = JSON.parse(logs[0].arguments[1]);
+        assert.equal(logged.field, 'predicates');
+        assert.equal(logged.rule, 'incompatible_with_needs');
+        assert.deepEqual(logged.readTicket, original);
+      } else {
+        const expected = bindReadTicket(candidate, [pet.id], bindings);
+        const result = await run;
+        assert.deepEqual(result.request.readTicket, expected);
+        assert.deepEqual(expected.temporal, original.temporal);
+        assert.deepEqual(expected.predicates, original.predicates);
+        assert.deepEqual(expected.searchHints, original.searchHints);
+        assert.deepEqual(expected.outputs, original.outputs);
+        assert.equal(expected.operation, 'read');
+        assert.deepEqual(expected.subjects.petIds, [pet.id]);
+        assert.equal(warn.mock.calls.length, 0);
+      }
+      assert.equal(calls, 1);
+      assert.deepEqual(stages.map(event => [event.stage, event.outcome]), [
+        ['interpretation', 'started'], ['interpretation', variant === 'retained' ? 'failed' : 'succeeded'],
+      ]);
+    });
+  }
+  assert.deepEqual(capturedDuneTicket, original);
+});
