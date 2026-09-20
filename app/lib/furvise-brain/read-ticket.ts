@@ -141,6 +141,8 @@ export function bindReadTicket(value: unknown, petIds: readonly string[], needBi
   }
   const needs = bindReadNeeds(value.needs, needBindings, petIds);
   if (needs?.length) {
+    if (operation === "read" && outputs.limit === 1 && (predicates.length || outputs.strategy === "chronological"))
+      return fail("needs", "needs_incompatible_with_single_measurement_read");
     if (episode) return fail("episode", "incompatible_with_needs");
     if (operation === "read_since_event") return fail("operation", "read_since_event_incompatible_with_needs");
     if (temporal.calendar != null) return fail("temporal.calendar", "incompatible_with_needs");

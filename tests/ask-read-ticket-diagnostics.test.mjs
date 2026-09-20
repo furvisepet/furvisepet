@@ -203,8 +203,8 @@ test('captured Dune ticket binds only with needs stripped, through one planner p
   const original = structuredClone(capturedDuneTicket);
   const bindings = [{ id: 'need:0', petIds: [pet.id], sourceSpanId: context.currentTurn.id + ':0:' + question.length }];
   assert.throws(() => bindReadTicket(original, [pet.id], bindings), error => {
-    assert.equal(error.cause.field, 'predicates');
-    assert.equal(error.cause.rule, 'incompatible_with_needs');
+    assert.equal(error.cause.field, 'needs');
+    assert.equal(error.cause.rule, 'needs_incompatible_with_single_measurement_read');
     return true;
   });
   for (const variant of ['retained', 'empty', 'omitted']) {
@@ -237,8 +237,8 @@ test('captured Dune ticket binds only with needs stripped, through one planner p
         const logs = warn.mock.calls.filter(call => call.arguments[0] === '[Ask Brain] rejected read ticket');
         assert.equal(logs.length, 1);
         const logged = JSON.parse(logs[0].arguments[1]);
-        assert.equal(logged.field, 'predicates');
-        assert.equal(logged.rule, 'incompatible_with_needs');
+        assert.equal(logged.field, 'needs');
+        assert.equal(logged.rule, 'needs_incompatible_with_single_measurement_read');
         assert.deepEqual(logged.readTicket, original);
       } else {
         const expected = bindReadTicket(candidate, [pet.id], bindings);
@@ -392,4 +392,56 @@ test('captured #4 is rejected after one mocked planner with full named diagnosti
   assert.equal(diagnostic.field, 'temporal.calendar');
   assert.equal(diagnostic.rule, 'calendar_oldest_year_incompatible_with_measurement_limit');
   assert.deepEqual(diagnostic.readTicket, failedEarliestMeasurementTicket);
+});
+
+test('READ_NEEDS failures retain full needs and parent ticket after one planner', async t => {
+  const valid = structuredClone(capturedDuneTicket.needs[0]);
+  const cases = [
+    ['bad-array', {}, 'needs', 'array_max_4'],
+    ['bad-fields', [{ ...valid, extra: true }], 'needs[0]', 'fields'],
+    ['ungrounded', [{ ...valid, needId: 'need:9' }], 'needs[0].needId', 'grounded_binding_required'],
+    ['duplicate', [valid, valid], 'needs[1].needId', 'unique_need_id'],
+    ['bad-date', [{ ...valid, from: '2023-02-30T00:00:00Z' }], 'needs[0].from', 'instant_or_null'],
+    ['bad-order', [{ ...valid, ordering: 'oldest' }], 'needs[0].ordering', 'enum'],
+    ['bad-terms', [{ ...valid, termGroups: [['kg']] }], 'needs[0].termGroups', 'bounded_lexical_groups'],
+    ['bad-target', [{ ...valid, target: '2024-03' }], 'needs[0].target', 'dated_window_required'],
+  ];
+  for (const [name, needs, field, rule] of cases) await t.test(name, async t => {
+    const candidate = { ...structuredClone(earliestMeasurementTicket), needs };
+    const before = structuredClone(candidate);
+    const warn = t.mock.method(console, 'warn', () => {});
+    t.mock.method(console, 'info', () => {});
+    const stages = []; let calls = 0;
+    const envelope = { ...proposal(candidate), evidenceNeeds: [{
+      quote: question, sourceTurnId: null, petNames: ['Bramble'], terms: ['weight'], order: 'earliest',
+    }] };
+    await assert.rejects(interpretAskQuestion({ context, model: 'fixture',
+      onProviderEvent: event => stages.push(event),
+      client: { responses: { create: async () => {
+        calls++; return { output_text: JSON.stringify(envelope) };
+      } } },
+    }), error => error.diagnostics.providerErrorCode === 'ASK_REQUEST_CONTRACT_READ_NEEDS');
+    assert.equal(calls, 1);
+    assert.deepEqual(stages.map(e => e.outcome), ['started', 'failed']);
+    const logs = warn.mock.calls.filter(c => c.arguments[0] === '[Ask Brain] rejected read ticket');
+    assert.equal(logs.length, 1);
+    const diagnostic = JSON.parse(logs[0].arguments[1]);
+    assert.equal(diagnostic.errorCode, 'ASK_REQUEST_CONTRACT_READ_NEEDS');
+    assert.equal(diagnostic.field, field); assert.equal(diagnostic.rule, rule);
+    assert.deepEqual(diagnostic.needs, needs);
+    assert.deepEqual(diagnostic.readTicket, before);
+    assert.deepEqual(candidate, before);
+  });
+});
+
+test('single endpoint with needs rejects by name for both orderings and chronological-only shape', () => {
+  const bindings = [{ id: 'need:0', petIds: [pet.id], sourceSpanId: 'source:0:10' }];
+  for (const ordering of ['asc', 'desc']) for (const predicates of [[], earliestMeasurementTicket.predicates]) {
+    const candidate = { ...structuredClone(earliestMeasurementTicket), predicates,
+      needs: structuredClone(capturedDuneTicket.needs),
+      outputs: { ...earliestMeasurementTicket.outputs, ordering } };
+    assert.throws(() => bindReadTicket(candidate, [pet.id], bindings), error =>
+      error.cause.field === 'needs' && error.cause.rule === 'needs_incompatible_with_single_measurement_read');
+    assert.ok(bindReadTicket({ ...candidate, needs: [] }, [pet.id], bindings));
+  }
 });

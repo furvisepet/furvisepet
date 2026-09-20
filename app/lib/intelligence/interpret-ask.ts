@@ -69,7 +69,7 @@ export function recoverAskInterpretation(value: unknown, context: Interpretation
     }
     catch (error) {
       const reason = error instanceof Error ? /^ASK_REQUEST_INVALID:([a-z_]+)$/.exec(error.message)?.[1] : null;
-      if (reason === "read_ticket" || reason === "read_ticket_required") {
+      if (reason === "read_ticket" || reason === "read_ticket_required" || reason === "read_needs") {
         const proposal = value as Record<string, unknown>;
         const validation = error instanceof Error ? error.cause as { field?: string; rule?: string } | undefined : undefined;
         // JSON retains every proposed field, including nested arrays and nulls;
@@ -82,6 +82,7 @@ export function recoverAskInterpretation(value: unknown, context: Interpretation
           rule: validation?.rule ?? validation?.field ?? null,
           readTicketPresent: Object.hasOwn(proposal, "readTicket"),
           readTicket: proposal.readTicket ?? null,
+          needs: (proposal.readTicket as Record<string, unknown> | null)?.needs ?? null,
           request: { mode: proposal.mode, operation: proposal.operation, scope: proposal.scope,
             petNames: proposal.petNames, evidenceBasis: proposal.evidenceBasis, writeJob: proposal.writeJob ?? null },
         }));
