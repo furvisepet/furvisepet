@@ -61,7 +61,7 @@ test("hints reorder advisory context before finite truncation without filtering"
  assert.equal(all.records.length,2);assert.equal(all.coverage.status,"partial");
  assert.ok(all.coverage.reasons.includes("bounded_period_context_not_semantic_completeness"));
 });
-test("current grammar rejects result-level take; it cannot silently mean per group",()=>{
+test("subject grouping rejects result-level take; result scope must be explicit",()=>{
  const p=proposal();delete p.outputs.strategy;
  assert.throws(()=>bindCompositionalReadTicket({...p,selection:{groupBy:["subject"],union:[{orderBy:[{field:"event_at",direction:"desc"}],take:{count:5,per:"result"}}]}},["a","b"]),
  e=>e.cause?.rule==="group_count_1_to_100");

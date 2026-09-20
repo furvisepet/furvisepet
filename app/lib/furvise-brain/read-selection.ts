@@ -2,19 +2,20 @@ import { bindReadTicket, type ReadTicket } from "./read-ticket.ts";
 import type { CareEntryRow } from "../supabase.ts";
 import type { ReadScope, ReadStore } from "./lungs.ts";
 
-/** Server-only semantic language. Deliberately absent from Brain's emission schema. */
+/** Typed selection language. Result-level take is server-only; the existing
+ * provider schema continues to expose grouped selections only. */
 export type ReadSelection = Readonly<{
-  groupBy: readonly ["subject"];
+  groupBy: readonly ["subject"] | readonly [];
   /** Set union of independently ordered selections; duplicate event IDs collapse. */
   union: readonly Readonly<{
     orderBy: readonly [Readonly<{ field: "event_at"; direction: "asc" | "desc" }>];
-    take: Readonly<{ count: number; per: "group" }>;
+    take: Readonly<{ count: number; per: "group" | "result" }>;
   }>[];
 }>;
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const keys = (v: Record<string, unknown>, names: string[]) => Object.keys(v).sort().join() === [...names].sort().join();
 
-/** Explicit offline entry point; the existing planner schema/binder stays unchanged. */
+/** Deterministic semantic binding; does not expand provider emission. */
 export function bindCompositionalReadTicket(value: unknown, petIds: readonly string[]): ReadTicket {
   const fail = (field: string, rule: string): never => {
     throw new Error("ASK_REQUEST_INVALID:read_ticket", { cause: { field, rule } });
@@ -24,18 +25,19 @@ export function bindCompositionalReadTicket(value: unknown, petIds: readonly str
   const ticket = bindReadTicket(legacy, petIds);
   if (!ticket) return fail("readTicket", "required");
   if (!object(selection) || !keys(selection, ["groupBy", "union"])) return fail("selection", "fields");
-  if (!Array.isArray(selection.groupBy) || selection.groupBy.length !== 1 || selection.groupBy[0] !== "subject")
+  if (!Array.isArray(selection.groupBy) || selection.groupBy.length > 1 || selection.groupBy.length === 1 && selection.groupBy[0] !== "subject")
     return fail("selection.groupBy", "subject");
   if (!Array.isArray(selection.union) || !selection.union.length || selection.union.length > 8)
     return fail("selection.union", "array_1_to_8");
+  const per = selection.groupBy.length ? "group" : "result";
   const clauses = selection.union.map((clause, i) => {
     if (!object(clause) || !keys(clause, ["orderBy", "take"])) return fail(`selection.union[${i}]`, "fields");
     if (!Array.isArray(clause.orderBy) || clause.orderBy.length !== 1 || !object(clause.orderBy[0])
       || !keys(clause.orderBy[0], ["field", "direction"]) || clause.orderBy[0].field !== "event_at"
       || !["asc", "desc"].includes(String(clause.orderBy[0].direction))) return fail(`selection.union[${i}].orderBy`, "event_at_direction");
-    if (!object(clause.take) || !keys(clause.take, ["count", "per"]) || clause.take.per !== "group"
+    if (!object(clause.take) || !keys(clause.take, ["count", "per"]) || clause.take.per !== per
       || !Number.isInteger(clause.take.count) || Number(clause.take.count) < 1 || Number(clause.take.count) > 100)
-      return fail(`selection.union[${i}].take`, "group_count_1_to_100");
+      return fail(`selection.union[${i}].take`, per === "group" ? "group_count_1_to_100" : "result_count_1_to_100");
     return Object.freeze({ orderBy: Object.freeze([Object.freeze({ ...clause.orderBy[0] })]),
       take: Object.freeze({ ...clause.take }) });
   });
@@ -44,7 +46,7 @@ export function bindCompositionalReadTicket(value: unknown, petIds: readonly str
   // Semantic anchors are resolved by the temporal phase, not by the binder.
   // Calendar selection compatibility remains outside this cut.
   if (ticket.temporal.calendar) return fail("selection", "unresolved_window");
-  return Object.freeze({ ...ticket, selection: Object.freeze({ groupBy: Object.freeze(["subject"]),
+  return Object.freeze({ ...ticket, selection: Object.freeze({ groupBy: Object.freeze([...selection.groupBy]),
     union: Object.freeze(clauses) }) }) as ReadTicket;
 }
 

@@ -1,3 +1,4 @@
+import { isResultSelection, selectReadResult, certifyReadResult, resultGroups, type ResultSelectionCertificate } from "./result-selection.ts";
 import { retrieveEffectiveSelection, type EffectiveWindowInput, type EffectiveWindowResult } from "./effective-selection.ts";
 import { acquireReadCandidates, selectReadGroups } from "./read-selection.ts";
 import { requiresTemporalHistory, resolveReadWindows, withinReadWindow } from "./read-temporal.ts";
@@ -25,6 +26,7 @@ export type ReadCoverage = {
     selectedIds: string[]; retainedIds: string[]; exhausted: boolean; blocked: boolean; status: ReadCoverageStatus; reasons: string[] }>;
   effectiveStream?: Array<{ petId: string; acquiredIds: string[]; effectiveIds: string[]; certifiedSelectedIds: string[];
     lineageClosed: boolean; replacementSeedsExhausted: boolean; graphCalls: number; lineageRows: number }>;
+  resultSelection?: ResultSelectionCertificate[];
   eventCandidateIds?: string[];
   sourceLineage?: ReadSourceLineage[];
   reservedIds?: string[];
@@ -143,7 +145,7 @@ export async function retrieveReadTicket(ticket: ReadTicket, scope: ReadScope, s
       });
       requested = [...groups.values()].map(group => group[0]).sort(order);
     }
-    if (ticket.selection) {
+    if (ticket.selection && !isResultSelection(ticket)) {
       coverage.groups = selectReadGroups(ticket, selected).map(group => ({ ...group,
         retainedIds: [], exhausted: !coverage.continuation.some(cursor => cursor.petId === group.petId),
         blocked: false, status: "partial", reasons: [] }));
@@ -158,8 +160,12 @@ export async function retrieveReadTicket(ticket: ReadTicket, scope: ReadScope, s
       }
       coverage.reservedIds = requested.map(row => row.id);
     }
+    if (isResultSelection(ticket)) {
+      requested = [...new Map(selectReadResult(ticket, selected).flatMap(c => c.rows).map(r => [r.id, r])).values()];
+      coverage.reservedIds = requested.map(r => r.id);
+    }
     // Legacy limit keeps its existing meaning; with selection it is only a
-    // transport cap. It never changes the per-group semantic obligations.
+    // transport cap. It never changes grouped or result-level semantic obligations.
     if (ticket.outputs.limit !== null) requested = requested.slice(0, ticket.outputs.limit);
     const records: CareEntryRow[] = [];
     let chars = 0;
@@ -192,6 +198,20 @@ export async function retrieveReadTicket(ticket: ReadTicket, scope: ReadScope, s
         group.status = failed.length ? "unavailable" : group.blocked || subset || hints.length ? "partial"
           : group.selectedIds.length ? "complete" : "complete_empty";
       }
+    }
+    if (isResultSelection(ticket)) {
+      const frontiers = ticket.selection!.union.flatMap(clause => ticket.subjects.petIds.map(petId => ({
+        petId, direction: clause.orderBy[0].direction, acquired: !acquired.failures.some(f => f.petId === petId),
+        exhausted: !coverage.continuation.some(c => c.petId === petId), frontier: null,
+        lineageClosed: !uncertainIds.size, replacementSeedsExhausted: !coverage.continuation.length,
+        failed: acquired.failures.some(f => f.petId === petId), reasons: acquired.failures.filter(f => f.petId === petId).map(f => f.reason),
+      })));
+      const unique = [...new Map(frontiers.map(f => [f.petId + ":" + f.direction, f])).values()];
+      coverage.resultSelection = certifyReadResult(ticket, selected, unique, retained);
+      coverage.groups = resultGroups(ticket, selected, coverage.resultSelection);
+      coverage.reasons.push(...new Set(coverage.resultSelection.flatMap(r => r.reasons)));
+      if (ticket.selection!.union.length === 1) records.sort((a, b) =>
+        ticket.selection!.union[0].orderBy[0].direction === "asc" ? chronological(a, b) : chronological(b, a));
     }
     if (coverage.endpointPairs) {
       coverage.endpointPairs.forEach(pair => { pair.blocked ||= [...pair.earliestIds, ...pair.latestIds].some(id => !retained.has(id)); });

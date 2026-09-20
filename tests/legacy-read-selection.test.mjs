@@ -116,23 +116,28 @@ test("global record pressure keeps semantic take separate from transport/certifi
  assert.equal(r.ticket.selection.union[0].take.count,40);assert.equal(r.result.records.length,32);
  assert.ok(r.result.coverage.groups[0].reasons.includes("required_selection_not_retained"));
 });
-for(const strategy of ["chronological","temporal_endpoints"])test(strategy+" multi-subject global cardinality is NOT rewritten per group",async()=>{
- const p=input(strategy,"desc",strategy==="chronological"?1:4);
- const rows=[0,1,2,3,4].map(i=>row("a",i));
+test("multi-subject endpoints retain legacy global reservation and interior fill",async()=>{
+ const p=input("temporal_endpoints","desc",4),rows=[0,1,2,3,4].map(i=>row("a",i));
  for(const subjects of [["a","b"],["b","a"]]){
   const ticket=bindReadTicket(p,subjects),t=translateLegacyReadSelection(ticket);
   assert.equal(t.ticket,ticket);assert.equal(t.reason,"global_limit_not_per_subject");
   const old=await retrieveReadTicket(ticket,scope,store(rows)),composed=await retrieveReadTicket(native(p,subjects),scope,store(rows));
-  if(strategy==="temporal_endpoints"){
-   assert.equal(old.records.length,4,"legacy fills spare endpoint capacity with interiors when another pet is missing");
-   assert.equal(composed.records.length,2,"native union selects boundaries only");
-  }else{
-   const both=[row("a",4),row("b",3)];
-   const oldBoth=await retrieveReadTicket(ticket,scope,store(both));
-   const nativeBoth=native(p,subjects);const noCap={...nativeBoth,outputs:{...nativeBoth.outputs,limit:null}};
-   const perGroup=await retrieveReadTicket(noCap,scope,store(both));
-   assert.equal(oldBoth.records.length,1);assert.equal(perGroup.records.length,2);
-  }
+  assert.equal(old.records.length,4);
+  assert.equal(composed.records.length,2);
+ }
+});
+test("multi-subject chronological translates to a global take, never a per-subject quota",async()=>{
+ const p=input(),rows=[row("a",4),row("b",3)];
+ for(const subjects of [["a","b"],["b","a"]]){
+  const ticket=bindReadTicket(p,subjects),t=translateLegacyReadSelection(ticket);
+  assert.equal(t.reason,"equivalent_result_selection");
+  assert.deepEqual(t.ticket.selection.groupBy,[]);
+  assert.equal(t.ticket.selection.union[0].take.per,"result");
+  const result=await retrieveReadTicket(t.ticket,scope,store(rows));
+  assert.deepEqual(result.records.map(r=>r.id),["a-4"]);
+  const perGroup=native(p,subjects);
+  const groups=await retrieveReadTicket({...perGroup,outputs:{...perGroup.outputs,limit:null}},scope,store(rows));
+  assert.equal(groups.records.length,2);
  }
 });
 for(const [name,p,reason]of [

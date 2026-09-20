@@ -1,3 +1,4 @@
+import { isResultSelection, selectReadResult, frontierCovers, certifyReadResult, resultGroups, type ResultFrontier } from "./result-selection.ts";
 import type { CareEntryRow } from "../supabase.ts";
 import type { ReadTicket } from "./read-ticket.ts";
 import type { ReadCoverage, ReadResult, ReadScope, ReadSourceLineage, ReadStore } from "./lungs.ts";
@@ -23,13 +24,14 @@ export async function retrieveEffectiveSelection(ticket: ReadTicket, scope: Read
   const from = scope.from, to = new Date(Math.min(Date.parse(scope.to), Date.parse(scope.asOf) + 1)).toISOString();
   const selectedFrom = Math.max(Date.parse(from), ticket.temporal.from ? Date.parse(ticket.temporal.from) : -Infinity);
   const selectedTo = Math.min(Date.parse(to), ticket.temporal.to ? Date.parse(ticket.temporal.to) : Infinity);
+  const resultLevel = isResultSelection(ticket);
   const pets = [...ticket.subjects.petIds].sort();
   const empty = (): EffectiveWindowResult => ({ records: [], lineageClosed: false, replacementSeedsExhausted: false,
     sourceLineage: [], reasons: [], graphCalls: 0, lineageRows: 0 });
   const subjects = new Map(pets.map(petId => [petId, { raw: new Map<string, CareEntryRow>(), proof: empty(), failed: false }]));
   const directions = [...new Set(ticket.selection!.union.map(c => c.orderBy[0].direction))].sort();
   const tasks = directions.flatMap(direction => pets.map(petId => ({ petId, direction, offset: 0,
-    exhausted: false, done: false, last: null as CareEntryRow | null, seen: new Set<string>(), size: Math.min(limits.pageSize,
+    exhausted: false, done: false, acquired: false, last: null as CareEntryRow | null, seen: new Set<string>(), size: Math.min(limits.pageSize,
       Math.max(2, 1 + Math.max(...ticket.selection!.union.filter(c => c.orderBy[0].direction === direction).map(c => c.take.count)))) })));
   const selected = (petId: string) => selectReadGroups(ticket,
     subjects.get(petId)!.proof.records.filter(row => matching(ticket, row, selectedFrom, selectedTo)))
@@ -46,6 +48,21 @@ export async function retrieveEffectiveSelection(ticket: ReadTicket, scope: Read
     return ids.length === count && !!last && !!task.last
       && (direction === "desc" ? Date.parse(last.occurred_at) > Date.parse(task.last.occurred_at)
         : Date.parse(last.occurred_at) < Date.parse(task.last.occurred_at));
+  };
+  const matchedRows = () => [...subjects.values()].flatMap(subject =>
+    subject.proof.records.filter(row => matching(ticket, row, selectedFrom, selectedTo)));
+  const frontier = (petId: string, direction: "asc" | "desc"): ResultFrontier => {
+    const subject = subjects.get(petId)!, task = tasks.find(t => t.petId === petId && t.direction === direction)!;
+    return { petId, direction, acquired: task.acquired, exhausted: tasks.some(t => t.petId === petId && t.exhausted),
+      frontier: task.last ? { id: task.last.id, eventAt: task.last.occurred_at, createdAt: task.last.created_at } : null,
+      lineageClosed: subject.proof.lineageClosed, replacementSeedsExhausted: subject.proof.replacementSeedsExhausted,
+      failed: subject.failed || !!subject.proof.sourceLineage.length,
+      reasons: [...subject.proof.reasons, ...(subject.proof.sourceLineage.length ? ["unresolved_source_lineage"] : [])] };
+  };
+  const updateResultFrontiers = () => {
+    const selections = selectReadResult(ticket, matchedRows());
+    for (const task of tasks) task.done = selections.filter(c => c.direction === task.direction)
+      .every(c => frontierCovers(frontier(task.petId, task.direction), c.rows.at(-1), c.rows.length === c.count));
   };
   let budget = limits.pages * limits.pageSize;
   while (budget > 0) {
@@ -72,6 +89,7 @@ export async function retrieveEffectiveSelection(ticket: ReadTicket, scope: Read
           if (prior && JSON.stringify(prior) !== JSON.stringify(row)) throw new Error("page_changed_during_read");
           subject.raw.set(row.id, row); task.seen.add(row.id);
         }
+        task.acquired = true;
         task.offset += rows.length; task.last = rows.at(-1) ?? task.last; task.exhausted = rows.length < limit;
         const proof = await store.effectiveWindow!({ petId: task.petId, rows: [...subject.raw.values()], from, to });
         if (proof.records.some(row => row.user_id !== scope.userId || row.pet_profile_id !== task.petId || row.deleted_at
@@ -82,9 +100,12 @@ export async function retrieveEffectiveSelection(ticket: ReadTicket, scope: Read
         if (!proof.lineageClosed || !proof.replacementSeedsExhausted || proof.sourceLineage.length) {
           subject.failed = true; continue;
         }
-        const group = selected(task.petId);
-        for (const same of tasks.filter(t => t.petId === task.petId))
-          same.done = group.clauses.filter(c => c.direction === same.direction).every(c => certified(task.petId, c.direction, c.count, c.ids));
+        if (resultLevel) updateResultFrontiers();
+        else {
+          const group = selected(task.petId);
+          for (const same of tasks.filter(t => t.petId === task.petId))
+            same.done = group.clauses.filter(c => c.direction === same.direction).every(c => certified(task.petId, c.direction, c.count, c.ids));
+        }
         task.size = Math.min(limits.pageSize, task.size * 2);
       } catch (error) {
         subject.failed = true; subject.proof = { ...empty(), reasons: [error instanceof Error ? error.message : "effective_read_failed"] };
@@ -95,11 +116,14 @@ export async function retrieveEffectiveSelection(ticket: ReadTicket, scope: Read
     anchors: [], windows: [], continuation: [], groups: [], effectiveStream: [] };
   const matched: CareEntryRow[] = [], requested: CareEntryRow[] = [];
   for (const petId of pets) {
-    const subject = subjects.get(petId)!, group = selected(petId);
+    const subject = subjects.get(petId)!;
     const exhausted = tasks.some(task => task.petId === petId && task.exhausted);
-    const clauses = group.clauses.map(c => ({ ...c, certified: certified(petId, c.direction, c.count, c.ids) }));
-    coverage.groups!.push({ ...group, clauses, retainedIds: [], exhausted, blocked: clauses.some(c => !c.certified),
-      status: "partial", selectionStatus: "partial", reasons: [...subject.proof.reasons] });
+    if (!resultLevel) {
+      const group = selected(petId);
+      const clauses = group.clauses.map(c => ({ ...c, certified: certified(petId, c.direction, c.count, c.ids) }));
+      coverage.groups!.push({ ...group, clauses, retainedIds: [], exhausted, blocked: clauses.some(c => !c.certified),
+        status: "partial", selectionStatus: "partial", reasons: [...subject.proof.reasons] });
+    }
     coverage.windows.push({ petId, from: new Date(selectedFrom).toISOString(), to: new Date(selectedTo).toISOString(), relation: null });
     if (!exhausted) coverage.continuation.push({ petId, offset: Math.max(...tasks.filter(t => t.petId === petId).map(t => t.offset)) });
     matched.push(...subject.proof.records.filter(row => matching(ticket, row, selectedFrom, selectedTo)));
@@ -109,9 +133,12 @@ export async function retrieveEffectiveSelection(ticket: ReadTicket, scope: Read
     if (subject.proof.sourceLineage.length) coverage.sourceLineage = [...(coverage.sourceLineage || []), ...subject.proof.sourceLineage];
   }
   const byId = new Map(matched.map(row => [row.id, row]));
-  const width = Math.max(0, ...coverage.groups!.map(g => g.selectedIds.length));
-  for (let i = 0; i < width; i++) for (const group of coverage.groups!)
-    if (group.selectedIds[i]) requested.push(byId.get(group.selectedIds[i])!);
+  if (resultLevel) requested.push(...new Map(selectReadResult(ticket, matched).flatMap(c => c.rows).map(r => [r.id, r])).values());
+  else {
+    const width = Math.max(0, ...coverage.groups!.map(g => g.selectedIds.length));
+    for (let i = 0; i < width; i++) for (const group of coverage.groups!)
+      if (group.selectedIds[i]) requested.push(byId.get(group.selectedIds[i])!);
+  }
   coverage.reservedIds = requested.map(row => row.id);
   const records: CareEntryRow[] = [];
   let chars = 0;
@@ -122,6 +149,10 @@ export async function retrieveEffectiveSelection(ticket: ReadTicket, scope: Read
     records.push(row); chars += size;
   }
   const retained = new Set(records.map(row => row.id));
+  if (resultLevel) {
+    coverage.resultSelection = certifyReadResult(ticket, matched, tasks.map(t => frontier(t.petId, t.direction)), retained);
+    coverage.groups = resultGroups(ticket, matched, coverage.resultSelection);
+  }
   for (const group of coverage.groups!) {
     group.retainedIds = group.selectedIds.filter(id => retained.has(id));
     if (group.retainedIds.length !== group.selectedIds.length) {
@@ -142,6 +173,8 @@ export async function retrieveEffectiveSelection(ticket: ReadTicket, scope: Read
   coverage.reasons = [...new Set(coverage.reasons)];
   if (coverage.groups!.every(g => g.status === "complete" || g.status === "complete_empty"))
     coverage.status = records.length ? "complete" : "complete_empty";
-  records.sort((a, b) => ticket.outputs.ordering === "asc" ? eventOrder(a, b) : eventOrder(b, a));
+  const presentationOrder = resultLevel && ticket.selection!.union.length === 1
+    ? ticket.selection!.union[0].orderBy[0].direction : ticket.outputs.ordering;
+  records.sort((a, b) => presentationOrder === "asc" ? eventOrder(a, b) : eventOrder(b, a));
   return { records, coverage };
 }

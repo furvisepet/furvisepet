@@ -1,3 +1,4 @@
+import { isResultSelection } from "../furvise-brain/result-selection.ts";
 import type { ReadTicket } from "../furvise-brain/read-ticket.ts";
 import type { ReadCoverage } from "../furvise-brain/lungs.ts";
 
@@ -8,6 +9,50 @@ export function selectionPublication(ticket: ReadTicket, coverage: ReadCoverage,
   records: readonly { id: string; petId: string }[]) {
   if (!ticket.selection) return null;
   let transportValid = true;
+  const resultLevel = isResultSelection(ticket);
+  // A subject projection may carry facts only after the entire result receipt
+  // proves every competing subject and every required represented selected row.
+  const joint = ticket.selection.union.map((clause, clauseId) => {
+    if (!resultLevel) return null;
+    const receipt = coverage.resultSelection?.[clauseId];
+    const subjects = [...ticket.subjects.petIds].sort();
+    const same = (a: readonly string[], b: readonly string[]) => JSON.stringify(a) === JSON.stringify(b);
+    const shape = !!receipt && coverage.resultSelection?.length === ticket.selection!.union.length
+      && receipt.clauseId === clauseId && receipt.direction === clause.orderBy[0].direction
+      && receipt.count === clause.take.count && same(receipt.subjectIds, subjects)
+      && receipt.selectedIds.length <= clause.take.count && new Set(receipt.selectedIds).size === receipt.selectedIds.length
+      && receipt.cutoff?.id === receipt.selectedIds.at(-1)
+      && same((coverage.groups || []).map(g => g.petId).sort(), subjects)
+      && same((coverage.groups || []).flatMap(g => g.clauses[clauseId]?.ids || []).sort(), [...receipt.selectedIds].sort())
+      && receipt.frontiers.length === subjects.length
+      && same(receipt.frontiers.map(f => f.petId).sort(), subjects);
+    const proven = !!shape && !!receipt?.certified && !receipt.blocked
+      && ["complete", "complete_empty"].includes(receipt.status)
+      && receipt.frontiers.every(f => {
+        const streams = coverage.effectiveStream?.filter(s => s.petId === f.petId);
+        const group = coverage.groups?.find(g => g.petId === f.petId);
+        const closed = streams ? streams.length === 1 && streams[0].lineageClosed && streams[0].replacementSeedsExhausted
+          : !!group?.exhausted;
+        return closed && f.acquired && !f.failed && f.lineageClosed && f.replacementSeedsExhausted
+          && f.cutoffCovered && f.direction === receipt.direction
+          && (f.exhausted || receipt.selectedIds.length === receipt.count && !!receipt.cutoff && !!f.frontier
+            && (f.direction === "desc" ? Date.parse(receipt.cutoff.eventAt) > Date.parse(f.frontier.eventAt)
+              : Date.parse(receipt.cutoff.eventAt) < Date.parse(f.frontier.eventAt)));
+      });
+    const represented = !!receipt && receipt.selectedIds.every(id => {
+      const owners = coverage.groups?.filter(g => g.clauses[clauseId]?.ids.includes(id)) || [];
+      const owner = owners.length === 1 ? owners[0] : undefined;
+      const stream = coverage.effectiveStream?.find(s => s.petId === owner?.petId);
+      return !!owner && owner.selectedIds.includes(id) && owner.retainedIds.includes(id)
+        && receipt.retainedIds.includes(id) && coverage.selection?.retainedIds.includes(id)
+        && (!stream || stream.effectiveIds.includes(id) && stream.certifiedSelectedIds.includes(id))
+        && records.filter(r => r.id === id && r.petId === owner.petId).length === 1;
+    });
+    if (proven && !represented) transportValid = false;
+    return { certified: proven && represented, selectedIds: receipt?.selectedIds || [],
+      reasons: [...(receipt?.reasons || []), ...(!shape ? ["result_receipt_mismatch"] : []),
+        ...(!proven ? ["result_selection_not_certified"] : []), ...(!represented ? ["selected_record_not_represented"] : [])] };
+  });
   const certificates = ticket.subjects.petIds.flatMap(subjectId => {
     const groups = coverage.groups?.filter(g => g.petId === subjectId) || [];
     const group = groups.length === 1 ? groups[0] : undefined;
@@ -21,7 +66,7 @@ export function selectionPublication(ticket: ReadTicket, coverage: ReadCoverage,
         && receipt?.direction === clause.orderBy[0].direction && receipt?.count === clause.take.count
         && selectedEventIds.length <= clause.take.count
         && new Set(selectedEventIds).size === selectedEventIds.length;
-      const organCertified = !!shape && !group?.blocked && lineageClosed
+      const organCertified = (!resultLevel || joint[clauseId]?.certified === true) && !!shape && !group?.blocked && lineageClosed
         && !["anchor_missing", "unavailable"].includes(coverage.status)
         && (stream ? receipt?.certified === true && ["complete", "complete_empty"].includes(group?.selectionStatus || "")
           : !!group?.exhausted && receipt?.certified !== false)
@@ -34,14 +79,18 @@ export function selectionPublication(ticket: ReadTicket, coverage: ReadCoverage,
       const certified = organCertified && represented;
       return { subjectId, clauseId, selectedEventIds: [...selectedEventIds], certified, lineageClosed,
         status: certified ? selectedEventIds.length ? "complete" : "complete_empty" : "partial",
-        blockingReasons: certified ? [] : [...(group?.reasons || []),
+        blockingReasons: certified ? [] : [...(group?.reasons || []), ...(resultLevel ? joint[clauseId]?.reasons || [] : []),
           ...(!shape ? ["selection_receipt_mismatch"] : []),
           ...(!lineageClosed ? ["lineage_not_closed"] : []),
           ...(!represented ? ["selected_record_not_represented"] : []),
           ...(!organCertified ? ["selection_not_certified"] : [])] };
     });
   });
-  return { certificates, transportValid,
-    complete: certificates.length > 0 && certificates.every(c => c.certified),
-    selectedEventIds: [...new Set(certificates.filter(c => c.certified).flatMap(c => c.selectedEventIds))] };
+  // No winning row for a subject is not a claim of no matching history.
+  // Source obligations are only the ownership projections of the joint result.
+  const projected = resultLevel ? certificates.filter(c => !c.certified || c.selectedEventIds.length
+    || joint[c.clauseId]?.selectedIds.length === 0) : certificates;
+  return { certificates: projected, transportValid,
+    complete: projected.length > 0 && projected.every(c => c.certified),
+    selectedEventIds: [...new Set(projected.filter(c => c.certified).flatMap(c => c.selectedEventIds))] };
 }

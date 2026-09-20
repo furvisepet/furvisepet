@@ -8,7 +8,7 @@ export type LegacySelectionTranslation = Readonly<{
 }>;
 
 /** Typed compatibility only: no language, retrieval, facts or authority.
- * Global legacy truncation is equivalent to per-group take only for one subject.
+ * Global legacy truncation uses result-level take for multiple subjects.
  * Preserve the original cap separately as transport; never infer per-pet quotas.
  */
 export function translateLegacyReadSelection(ticket: ReadTicket, legacyObligations: Readonly<{ evidenceNeedCount: number }> = { evidenceNeedCount: 0 }): LegacySelectionTranslation {
@@ -23,20 +23,21 @@ export function translateLegacyReadSelection(ticket: ReadTicket, legacyObligatio
   if (ticket.needs?.length || ticket.episode) return unchanged("independent_obligation");
   if (ticket.temporal.calendar) return unchanged("calendar_semantics");
   if (ticket.searchHints?.length) return unchanged("legacy_hint_ranking");
-  if (ticket.subjects.petIds.length !== 1) return unchanged("global_limit_not_per_subject");
+  if (strategy === "temporal_endpoints" && ticket.subjects.petIds.length !== 1) return unchanged("global_limit_not_per_subject");
   if (ticket.outputs.limit === null) return unchanged("unbounded_or_transport_only_limit");
   // Legacy endpoints also transport interior records after reserving boundaries.
   // Only a single subject capped at exactly two cannot include that extra set.
   if (strategy === "temporal_endpoints" && ticket.outputs.limit !== 2)
     return unchanged("endpoint_interior_or_truncation_semantics");
+  const resultLevel = strategy === "chronological" && ticket.subjects.petIds.length > 1;
   const clause = (direction: "asc" | "desc", count: number): ReadSelection["union"][number] =>
     Object.freeze({ orderBy: Object.freeze([Object.freeze({ field: "event_at" as const, direction })] as const),
-      take: Object.freeze({ count, per: "group" as const }) });
-  const selection: ReadSelection = Object.freeze({ groupBy: Object.freeze(["subject"] as const),
+      take: Object.freeze({ count, per: resultLevel ? "result" as const : "group" as const }) });
+  const selection: ReadSelection = Object.freeze({ groupBy: resultLevel ? Object.freeze([] as const) : Object.freeze(["subject"] as const),
     union: Object.freeze(strategy === "chronological"
       ? [clause(ticket.outputs.ordering, ticket.outputs.limit)]
       : [clause("asc", 1), clause("desc", 1)]) });
   const { strategy: _legacyStrategy, ...outputs } = ticket.outputs;
-  return { translated: true, reason: "equivalent_single_subject_selection",
+  return { translated: true, reason: resultLevel ? "equivalent_result_selection" : "equivalent_single_subject_selection",
     ticket: Object.freeze({ ...ticket, outputs: Object.freeze(outputs), selection }) };
 }
