@@ -111,6 +111,12 @@ export function bindReadTicket(value: unknown, petIds: readonly string[], needBi
   }
   if ((operation === "read_since_event") !== (anchor !== null)) return fail("temporal.anchor", "anchor_iff_read_since_event");
   if (anchor && temporal.calendar) return fail("temporal.calendar", "incompatible_with_anchor");
+  // A single measurement endpoint is not a request for the oldest calendar year.
+  // Inspect only the typed ticket predicates, never the owner sentence or pet.
+  if (operation === "read" && temporal.calendar === "oldest_year" && outputs.limit === 1
+    && predicates.some(p => p.terms.some((value: string) => /\b(?:weights?|weigh(?:ed|s|ing)?|body mass|temperatures?|heart rate|pulse|respiratory rate|breathing rate|blood pressure|blood glucose|glucose|body condition score|height|length)\b/i.test(value)))) {
+    return fail("temporal.calendar", "calendar_oldest_year_incompatible_with_measurement_limit");
+  }
   if (outputs.strategy === "temporal_endpoints" && operation !== "compare") return fail("outputs.strategy", "temporal_endpoints_requires_compare");
   if (outputs.strategy === "event_candidates" && (!predicates.length || operation !== "read")) return fail("outputs.strategy", "event_candidates_requires_read_and_predicates");
   if (outputs.strategy === "calendar_samples" && outputs.completeness !== "sufficient") return fail("outputs.completeness", "calendar_samples_requires_sufficient");

@@ -296,21 +296,27 @@ test('earliest measurement uses one calendar-free planner ticket and retains the
   const retrieve = (ticket, rows = [later, earliest]) =>
     retrieveReadTicket(bindReadTicket(ticket, [pet.id]), scope, store(rows));
 
-  await t.test('captured #4 remains legal but loses weighed even when calendar alone is cleared', async () => {
-    for (const calendar of ['oldest_year', null]) {
-      const result = await retrieve({ ...structuredClone(failedEarliestMeasurementTicket),
-        temporal: { ...failedEarliestMeasurementTicket.temporal, calendar } });
-      assert.ok(result.coverage.selection.scannedIds.includes(earliest.id));
-      assert.deepEqual(result.coverage.selection.matchedIds, []);
-      assert.deepEqual(result.records, []);
-      assert.equal(result.coverage.status, 'partial');
-    }
+  await t.test('captured #4 is rejected with a named calendar rule; clearing calendar alone still loses weighed', async () => {
+    const original = structuredClone(failedEarliestMeasurementTicket);
+    assert.throws(() => bindReadTicket(original, [pet.id]), error => {
+      assert.equal(error.cause.field, 'temporal.calendar');
+      assert.equal(error.cause.rule, 'calendar_oldest_year_incompatible_with_measurement_limit');
+      return true;
+    });
+    assert.deepEqual(original, failedEarliestMeasurementTicket);
+    const result = await retrieve({ ...structuredClone(original),
+      temporal: { ...original.temporal, calendar: null } });
+    assert.ok(result.coverage.selection.scannedIds.includes(earliest.id));
+    assert.deepEqual(result.coverage.selection.matchedIds, []);
+    assert.deepEqual(result.records, []);
+    assert.equal(result.coverage.status, 'partial');
   });
-  await t.test('oldest calendar year is not the earliest matching measurement', async () => {
+  await t.test('C053 oldest calendar year without measurement predicates still binds and selects its year', async () => {
     const rows = [row('older-nonmeasurement', '2015-06-01T12:00:00Z', 'Routine visit.'), earliest, later];
-    const oldestYear = await retrieve({ ...structuredClone(earliestMeasurementTicket),
-      temporal: { ...earliestMeasurementTicket.temporal, calendar: 'oldest_year' } }, rows);
-    assert.deepEqual(oldestYear.records, []);
+    const oldestYear = await retrieve({ ...structuredClone(earliestMeasurementTicket), predicates: [],
+      temporal: { ...earliestMeasurementTicket.temporal, calendar: 'oldest_year' },
+      outputs: { strategy: null, completeness: 'sufficient', ordering: 'asc', limit: null } }, rows);
+    assert.deepEqual(oldestYear.records.map(row => row.id), ['older-nonmeasurement']);
     const canonical = await retrieve(earliestMeasurementTicket, rows);
     assert.deepEqual(canonical.records.map(row => row.id), [earliest.id]);
     assert.equal(canonical.coverage.status, 'partial');
@@ -344,4 +350,46 @@ test('earliest measurement uses one calendar-free planner ticket and retains the
       assert.equal(read.coverage.status, 'partial');
     });
   }
+});
+
+test('measurement limit calendar guard covers earliest/latest and preserves nonmeasurement calendar reads', () => {
+  const petIds = ['measurement-pet'];
+  for (const ordering of ['asc', 'desc']) {
+    for (const measurement of ['weight', 'weighed', 'body mass', 'temperature', 'heart rate', 'blood glucose']) {
+      const candidate = { ...structuredClone(earliestMeasurementTicket),
+        predicates: [{ kind: 'text_any', terms: [measurement] }],
+        temporal: { ...earliestMeasurementTicket.temporal, calendar: 'oldest_year' },
+        outputs: { ...earliestMeasurementTicket.outputs, ordering } };
+      assert.throws(() => bindReadTicket(candidate, petIds), error =>
+        error.cause.field === 'temporal.calendar'
+        && error.cause.rule === 'calendar_oldest_year_incompatible_with_measurement_limit');
+      assert.equal(bindReadTicket({ ...candidate,
+        temporal: { ...candidate.temporal, calendar: null } }, petIds).temporal.calendar, null);
+      assert.equal(bindReadTicket({ ...candidate,
+        outputs: { ...candidate.outputs, limit: null } }, petIds).temporal.calendar, 'oldest_year');
+    }
+  }
+  for (const predicates of [[], [{ kind: 'text_any', terms: ['food'] }]]) {
+    assert.equal(bindReadTicket({ ...structuredClone(failedEarliestMeasurementTicket), predicates },
+      petIds).temporal.calendar, 'oldest_year');
+  }
+});
+
+test('captured #4 is rejected after one mocked planner with full named diagnostics', async t => {
+  const warn = t.mock.method(console, 'warn', () => {});
+  t.mock.method(console, 'info', () => {});
+  let calls = 0;
+  await assert.rejects(interpretAskQuestion({ context, model: 'fixture',
+    client: { responses: { create: async () => {
+      calls++;
+      return { output_text: JSON.stringify(proposal(structuredClone(failedEarliestMeasurementTicket))) };
+    } } },
+  }), error => error.diagnostics.providerErrorCode === 'ASK_REQUEST_CONTRACT_READ_TICKET');
+  assert.equal(calls, 1);
+  const logs = warn.mock.calls.filter(call => call.arguments[0] === '[Ask Brain] rejected read ticket');
+  assert.equal(logs.length, 1);
+  const diagnostic = JSON.parse(logs[0].arguments[1]);
+  assert.equal(diagnostic.field, 'temporal.calendar');
+  assert.equal(diagnostic.rule, 'calendar_oldest_year_incompatible_with_measurement_limit');
+  assert.deepEqual(diagnostic.readTicket, failedEarliestMeasurementTicket);
 });
