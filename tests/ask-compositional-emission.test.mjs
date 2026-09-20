@@ -168,3 +168,22 @@ test('provider exposes the existing closed shape; legacy binder remains authorit
   const direct=bindCompositionalReadTicket(p.readTicket,pets.map(p=>p.id));
   assert.deepEqual(validateAskRequest(p,context(p.question)).request.readTicket,direct);
 });
+
+test('provider selection guidance permits semantic anchors while keeping operator exclusions',()=>{
+  const description=askRequestSchema({}).properties.readTicket.properties.selection.description;
+  assert.match(description,/Compatible with a semantic temporal\.anchor/);
+  assert.match(description,/owned effective event and temporal boundary before selection/);
+  assert.match(description,/Do not invent from\/to dates or choose a ledger event/);
+  assert.match(description,/Incompatible with needs, episode, outputs\.strategy and calendar selectors/);
+  assert.doesNotMatch(description,/unresolved anchors/);
+});
+test('interpreter anchor guidance delegates dates and ledger choice without widening history',async()=>{
+  const {ASK_REQUEST_INSTRUCTIONS}=await import('../app/lib/intelligence/ask-request-contract.ts');
+  assert.match(ASK_REQUEST_INSTRUCTIONS,/semantic temporal\.anchor MAY compose with predicates and selection/);
+  assert.match(ASK_REQUEST_INSTRUCTIONS,/never the ledger event or invented from\/to dates/);
+  assert.match(ASK_REQUEST_INSTRUCTIONS,/owned effective history.*concrete boundary before selection/);
+  assert.match(ASK_REQUEST_INSTRUCTIONS,/Missing, ambiguous or uncertifiable anchors retain existing anchor limitations/);
+  assert.match(ASK_REQUEST_INSTRUCTIONS,/never drop the anchor or fall back to whole history/);
+  assert.match(ASK_REQUEST_INSTRUCTIONS,/Calendar selectors remain incompatible with selection/);
+  assert.doesNotMatch(ASK_REQUEST_INSTRUCTIONS,/rejects selection with unresolved event anchors/);
+});

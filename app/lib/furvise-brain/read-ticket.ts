@@ -37,7 +37,7 @@ export const readTicketSchema = {
     needs: readNeedsSchema,
     selection: {
       type: ["object", "null"], additionalProperties: false, required: ["groupBy", "union"],
-      description: "Independent ordered selection per subject, or null for an ordinary/legacy read. Does not widen subject scope. Incompatible with needs, episode, outputs.strategy, unresolved anchors and calendar selectors.",
+      description: "Independent ordered selection per subject, or null for an ordinary/legacy read. Does not widen subject scope. Compatible with a semantic temporal.anchor: the deterministic resolver resolves the owned effective event and temporal boundary before selection. Do not invent from/to dates or choose a ledger event. Incompatible with needs, episode, outputs.strategy and calendar selectors.",
       properties: {
         groupBy: { type: "array", minItems: 1, maxItems: 1, items: { type: "string", enum: ["subject"] } },
         union: { type: "array", minItems: 1, maxItems: 8, description: "Set union of independently ordered selections; repeated event IDs collapse.",
