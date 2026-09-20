@@ -122,3 +122,69 @@ test('a legal dental ticket still binds without rejection or a second planner', 
   assert.equal(calls, 1);
   assert.equal(warn.mock.calls.length, 0);
 });
+
+
+// Exact readTicket from preview dpl_HkM1MM6teemX1vRZzzWBYUrCvH7V,
+// 2026-09-20T05:09:38Z request d87dece2-6c5f-4a2c-9758-bc08671c7aac.
+// The outer proposal/evidenceNeeds below are fixture scaffolding: the log captured
+// the complete readTicket, but only selected outer request fields.
+const capturedBrambleTicket = {"subjectScope":"named","needs":[{"needId":"need:0","from":null,"to":null,"target":null,"termGroups":[["food","eating","eating notes","food notes"],["dental visit","dental"],["feed","feeding","meal","diet","appetite","chew"]],"ordering":"asc"}],"operation":"read_since_event","episode":null,"temporal":{"calendar":null,"from":null,"to":null,"anchor":{"concept":"dental visit","relation":"from"}},"searchHints":["every note on food or eating from the dental visit onwards","include the dental one too","oldest first"],"predicates":[{"kind":"text_any","terms":["food","eating","feed","feeding","meal","diet","appetite","chew"]}],"outputs":{"strategy":"chronological","completeness":"exhaustive","ordering":"asc","limit":null}};
+
+test('captured Bramble ticket binds only with needs stripped, through one planner per case', async t => {
+  const original = structuredClone(capturedBrambleTicket);
+  const bindings = [{ id: 'need:0', petIds: [pet.id], sourceSpanId: 'source-message:0:' + question.length }];
+  assert.throws(() => bindReadTicket(original, [pet.id], bindings), error => {
+    assert.equal(error.cause.field, 'operation');
+    assert.equal(error.cause.rule, 'read_since_event_incompatible_with_needs');
+    return true;
+  });
+  for (const variant of ['retained', 'empty', 'omitted']) {
+    await t.test(variant, async t => {
+      const candidate = structuredClone(original);
+      if (variant === 'empty') candidate.needs = [];
+      if (variant === 'omitted') delete candidate.needs;
+      const warn = t.mock.method(console, 'warn', () => {});
+      t.mock.method(console, 'info', () => {});
+      let calls = 0;
+      const stages = [];
+      const envelope = { ...proposal(candidate), evidenceNeeds: [{
+        quote: question, sourceTurnId: null, petNames: ['Bramble'], terms: ['food', 'eating'], order: 'context',
+      }] };
+      const run = interpretAskQuestion({ context, model: 'fixture',
+        onProviderEvent: event => stages.push(event),
+        client: { responses: { create: async request => {
+          calls++;
+          assert.ok(request.instructions.includes('emit readTicket.needs: [] (or omit needs)'));
+          return { output_text: JSON.stringify(envelope) };
+        } } },
+      });
+      if (variant === 'retained') {
+        await assert.rejects(run, error => {
+          assert.equal(error.diagnostics.providerErrorCode, 'ASK_REQUEST_CONTRACT_READ_TICKET');
+          return true;
+        });
+        const logs = warn.mock.calls.filter(call => call.arguments[0] === '[Ask Brain] rejected read ticket');
+        assert.equal(logs.length, 1);
+        const logged = JSON.parse(logs[0].arguments[1]);
+        assert.equal(logged.field, 'operation');
+        assert.equal(logged.rule, 'read_since_event_incompatible_with_needs');
+        assert.deepEqual(logged.readTicket, original);
+      } else {
+        const expected = bindReadTicket(candidate, [pet.id], bindings);
+        const result = await run;
+        assert.deepEqual(result.request.readTicket, expected);
+        assert.deepEqual(expected.temporal, original.temporal);
+        assert.deepEqual(expected.predicates, original.predicates);
+        assert.deepEqual(expected.searchHints, original.searchHints);
+        assert.deepEqual(expected.outputs, original.outputs);
+        assert.equal(expected.operation, original.operation);
+        assert.equal(warn.mock.calls.length, 0);
+      }
+      assert.equal(calls, 1);
+      assert.deepEqual(stages.map(event => [event.stage, event.outcome]), [
+        ['interpretation', 'started'], ['interpretation', variant === 'retained' ? 'failed' : 'succeeded'],
+      ]);
+    });
+  }
+  assert.deepEqual(capturedBrambleTicket, original);
+});
