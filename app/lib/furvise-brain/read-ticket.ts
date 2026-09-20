@@ -85,7 +85,7 @@ export const readTicketSchema = {
     } },
     outputs: { type: "object", additionalProperties: false, required: ["completeness", "ordering", "limit", "strategy"], properties: {
       strategy: { type: ["string", "null"], enum: ["chronological", "temporal_endpoints", "calendar_samples", "event_candidates", null], description: "Chronological boundary, both endpoints per subject, one sample per UTC calendar year, or mandatory event-candidate lookup. Null retains ordinary ordered retrieval." },
-      completeness: { type: "string", enum: ["sufficient", "exhaustive"] },
+      completeness: { type: "string", enum: ["sufficient", "exhaustive"], description: "Classify the requested proposition, not the amount of stored history. sufficient: task-certified selection, including ordered take per group and union of boundaries, within any explicit or anchor-defined window. exhaustive: the requested claim requires the entire matching set, historical existence/absence, or an exact count over the requested domain. A bounded window restricts the domain; it does not make an exhaustive claim sufficient. sufficient never certifies evidence: organs must independently certify the selected result. Legacy-only selectors retain their existing coverage requirements." },
       ordering: { type: "string", enum: ["asc", "desc"] },
       limit: { type: ["integer", "null"], minimum: 1, maximum: 100 },
     } },

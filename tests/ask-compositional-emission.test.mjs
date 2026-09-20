@@ -241,3 +241,74 @@ test('legacy chronological and temporal endpoints still bind and execute without
     assert.deepEqual(result.records.map(r=>r.id),strategy==='chronological'?['aster-1']:['aster-1','aster-2']);
   }
 });
+
+test('completeness guidance describes proposition scope without changing enum or defaulting',async()=>{
+ const {ASK_REQUEST_INSTRUCTIONS}=await import('../app/lib/intelligence/ask-request-contract.ts');
+ assert.match(ASK_REQUEST_INSTRUCTIONS,/Classify completeness by the requested proposition/);
+ assert.match(ASK_REQUEST_INSTRUCTIONS,/Setting sufficient does not establish certainty/);
+ assert.match(ASK_REQUEST_INSTRUCTIONS,/Legacy-only selectors retain their existing coverage requirements/);
+ for(const branch of askRequestSchema({}).properties.readTicket.anyOf.filter(b=>b.properties)){
+  const field=branch.properties.outputs.properties.completeness;
+  assert.deepEqual(field.enum,['sufficient','exhaustive']);
+  assert.equal(Object.hasOwn(field,'default'),false);
+  assert.match(field.description,/Classify the requested proposition/);
+  assert.match(field.description,/organs must independently certify/);
+ }
+});
+test('bounded semantic families preserve sufficient through one mocked interpretation each',async()=>{
+ const families=[
+  [['most recent weight for Aster','the one I logged last for Aster','newest weight for Aster'],[clause()]],
+  [['first recorded weight for Aster','oldest matching weight for Aster'],[clause('asc')]],
+  [['newest one for each pet','give each pet their last recorded weight'],[clause()]],
+  [['first and latest for each','show both ends of each pet weight history'],[clause('asc'),clause()]],
+  [['last two recorded weights per pet'],[clause('desc',2)]]
+ ];
+ for(const [questions,union] of families)for(const question of questions){
+  const r=await mocked(question,ticket(union));
+  assert.equal(r.request.readTicket.outputs.completeness,'sufficient');
+  assert.deepEqual(r.request.readTicket.selection.union,union);
+ }
+});
+
+test('exhaustive listing, existence, absence and count-domain proposals retain exhaustive',async()=>{
+ const cases=[
+  ["show every weight I've recorded",'weight'],
+  ['include the entire collection of recorded measurements','weight'],
+  ['has Bramble ever vomited?','vomiting'],
+  ['is there any vomiting anywhere in the saved history?','vomiting'],
+  ['have I never logged a vaccine?','vaccine'],
+  ['can the history establish that no vaccine was recorded?','vaccine']
+ ];
+ for(const [question,topic] of cases){
+  const read={...ticket(undefined,topic),selection:null,
+   outputs:{strategy:'chronological',ordering:'asc',limit:null,completeness:'exhaustive'}};
+  const r=await mocked(question,read);
+  assert.equal(r.request.readTicket.outputs.completeness,'exhaustive');
+ }
+});
+test('window and anchor scope compose with either logical completeness requirement',async()=>{
+ for(const anchor of [false,true])for(const exhaustive of [false,true]){
+  const question=anchor
+   ? exhaustive?'everything about food after the dental':'latest food after the dental'
+   : exhaustive?'every weight in June':'latest weight in June';
+  const read={...ticket(undefined,anchor?'food':'weight'),operation:anchor?'read_since_event':'read',
+   temporal:anchor?{from:null,to:null,calendar:null,anchor:{concept:'dental',relation:'after'}}
+    :{from:'2026-06-01T00:00:00Z',to:'2026-07-01T00:00:00Z',calendar:null,anchor:null}};
+  if(exhaustive){read.selection=null;read.outputs={strategy:'chronological',completeness:'exhaustive',ordering:'asc',limit:null};}
+  const r=await mocked(question,read);
+  assert.equal(r.request.readTicket.outputs.completeness,exhaustive?'exhaustive':'sufficient');
+  assert.deepEqual(r.request.readTicket.temporal,read.temporal);
+ }
+});
+
+test('whole-history episode counts preserve exhaustive and the existing episode contract',async()=>{
+ for(const question of ['how many vomiting episodes have I logged?','give the exact total of recorded vomiting episodes']){
+  const read={...ticket(),selection:null,predicates:[],searchHints:null,
+   episode:{operation:'count',referent:{basis:'scoped_register',topic:'vomiting',ordinal:null}},
+   outputs:{strategy:null,completeness:'exhaustive',ordering:'asc',limit:null}};
+  const r=await mocked(question,read,{quantity:null,petNames:['Aster']});
+  assert.equal(r.request.readTicket.outputs.completeness,'exhaustive');
+  assert.deepEqual(r.request.readTicket.episode,read.episode);
+  assert.equal(r.readOperation,'count');
+ }
+});
