@@ -98,7 +98,7 @@ export function askRequestSchema(frame: object, context?: Context) {
 
 export const ASK_REQUEST_INSTRUCTIONS = [
   ASK_TASK_INSTRUCTIONS,
-  "Every pure saved-history read MUST emit readTicket. Use read for record selection; read_since_event only when temporal.anchor names an event. Anchor relation is from (inclusive), after (exclusive), or before (exclusive). Never guess event dates or an undated request's cutoff. Encode topics as text_any predicates with literal terms and ordinary synonyms. Only ticket.temporal and ticket.outputs select time, order, depth and limit. Boundary selection across accessible history (earliest/latest) requires exhaustive coverage, asc/desc ordering and limit 1. A request for a recorded value and its date is a source-record lookup: quantity records; preserve its dated quotation. Arithmetic/comparison uses compare or rank, not an invented source value. Use mode read, evidenceBasis saved_history, no task/writeJob/frame or episode target. The server binds owned pet IDs. Non-history and write requests keep readTicket null. Legacy from/to/terms/selection fields cannot override a readTicket.",
+  "Every pure saved-history read MUST emit readTicket. Use read for record selection; read_since_event only when temporal.anchor names an event. Anchor relation is from (inclusive), after (exclusive), or before (exclusive). Never guess event dates or an undated request's cutoff. Encode topics as text_any predicates with literal terms and ordinary synonyms. Only ticket.temporal and ticket.outputs select time, order, depth and limit. Boundary selection across accessible history (earliest/latest) requires exhaustive coverage, asc/desc ordering and limit 1. A request for a recorded value and its date is a source-record lookup: quantity records; preserve its dated quotation. Arithmetic/comparison uses compare or rank, not an invented source value. Use mode read, evidenceBasis saved_history, no task/writeJob/frame. Ordinary record reads set readTicket.episode null. Genuine episode count or membership requests put the operation and referent in readTicket.episode; a missing referent stays missing and requires clarification. Count targets use scoped_register and no ordinal; membership targets use a displayed list or a scoped register with explicit ticket dates. Topic null preserves an unspecified count request for clarification. Episode counts require independently verified membership, never a count of returned notes. Legacy episodeTopic/ordinal cannot create this obligation. The server binds owned pet IDs. Non-history and write requests keep readTicket null. Legacy from/to/terms/selection fields cannot override a readTicket.",
   "Classify a combined question and save by the requested action first. Adding a newly reported measurement or observation to history is a new entry, not correct_record, even when the question compares it with an older measurement. For this combined task use mode mixed, mutationIntent null, and evidenceBasis null only when the task needs no saved-record lookup. Supplying comparison operands does not cancel an explicit request to find, look back at, verify or compare saved records: use saved_history whenever any clause requests that lookup, even if arithmetic is independently possible from supplied numbers. Preserve the calculation, uncertainty and save obligations separately. Include only the current genuine observation in frame. Earlier user-supplied milestones are comparison premises, not fresh observations to save. Hypothetical or quoted save instructions do not authorize actions.",
   "A request merely to write, title, translate or format a predetermined claim is a wording task, not a request to retrieve evidence for that claim. If the owner supplies no supporting facts and does not ask to check/read/verify saved records, use mode conversation, scope none, evidenceBasis general, operation general and frame null; the answer can decline an unsupported real-world assertion and offer accurate uncertain wording. A named owned pet does not by itself authorize an unrequested history search. Preserve genuine factual questions and explicit verification/lookups as saved-history reads. Do not convert a quoted desired assertion or desired footnote into an owner observation or save request.",
   "Use evidenceBasis saved_profile for requests consisting ONLY of current stored profile fields (name/species/food/weight/etc). Use mode read, profileFields for every requested field, no dates/quantity/evidenceNeeds/episode/frame, and the owned scope. Profile lookup needs no care-history scan and supports up to twenty owned profiles. If ANY part needs dated records or historical calculations, use saved_history; do not mislabel a historical endpoint as current profile data. Formatting words such as table or JSON are not evidence. General advice still uses general. Never widen subject ownership.",
@@ -689,9 +689,16 @@ function bindTicketedRead(p: Record<string, unknown>, context: Context): AskInte
   for (const instant of [readTicket.temporal.from, readTicket.temporal.to]) {
     if (instant && new Date(`${instant.slice(0, 10)}T00:00:00.000Z`).toISOString().slice(0, 10) !== instant.slice(0, 10)) return fail("dates");
   }
-  const operation = readTicket.operation === "compare" || readTicket.operation === "rank" ? "comparison"
+  const episode = readTicket.episode;
+  const referent = episode?.referent;
+  const unresolvedEpisode = !!episode && (!referent
+    || episode.operation === "count" && !referent.topic
+    || episode.operation === "membership" && (!referent.ordinal
+      || referent.basis === "scoped_register" && (!referent.topic || !readTicket.temporal.from || !readTicket.temporal.to || referent.ordinal === "that")));
+  const operation = episode ? !referent ? "clarify" : episode.operation === "count" ? "count" : unresolvedEpisode ? "clarify" : "episode"
+    : readTicket.operation === "compare" || readTicket.operation === "rank" ? "comparison"
     : p.operation === "status" ? "status" : p.operation === "overview" ? "overview" : "recall";
-  const selection = readTicket.outputs.limit === 1 ? readTicket.outputs.ordering === "asc" ? "earliest" : "latest" : "summary";
+  const selection = episode?.operation === "membership" ? "reference" : readTicket.outputs.limit === 1 ? readTicket.outputs.ordering === "asc" ? "earliest" : "latest" : "summary";
   const needPlan = validateEvidenceNeeds(p.evidenceNeeds, context.currentMessage, context.conversationTurns,
     referenceTurnIds, owned.filter(pet => petIds.includes(pet.id)), { scopeSource: "ticket" });
   const projection = parseReadProjection(p.projection);
@@ -706,18 +713,22 @@ function bindTicketedRead(p: Record<string, unknown>, context: Context): AskInte
     recordSelection = candidate as NonNullable<AskRequestContract["recordSelection"]>;
   }
   const request: AskRequestContract = {
-    version: ASK_REQUEST_VERSION, mode: "read", readTicket, writeJob: null, task: null, mutationIntent: null,
+    version: ASK_REQUEST_VERSION, mode: unresolvedEpisode ? "clarify" : "read", readTicket, writeJob: null, task: null, mutationIntent: null,
     question: context.currentMessage, requirements: p.requirements as string[], referenceTurnIds,
-    quantity: p.quantity as AskRequestContract["quantity"], evidenceBasis: "saved_history",
+    quantity: episode ? "episodes" : p.quantity === "episodes" ? null : p.quantity as AskRequestContract["quantity"], evidenceBasis: "saved_history",
     outputFormat: p.outputFormat as AskRequestContract["outputFormat"], profileFields: [...new Set(p.profileFields as string[])],
     temporalScope: p.temporalScope as AskRequestContract["temporalScope"] ?? "historical", projection, recordSelection,
     ...(needPlan.needs.length ? { evidenceNeeds: needPlan.needs } : {}),
     ...(needPlan.issues.length ? { evidenceNeedIssues: needPlan.issues } : {}),
   };
-  return { version: "ask-interpretation.v1", request, operation, readOperation: operation, selection, petIds,
+  const referenceTarget: AskInterpretation["referenceTarget"] = episode?.operation === "membership" && referent && !unresolvedEpisode
+    ? { kind: "episode", ordinal: referent.ordinal, topic: referent.topic, basis: referent.basis,
+      ...(referent.basis === "scoped_register" ? { period: { from: readTicket.temporal.from!, to: readTicket.temporal.to! } } : {}) } : undefined;
+  return { ...(referenceTarget ? { referenceTarget } : {}), version: "ask-interpretation.v1", request, operation, readOperation: operation, selection, petIds,
     referenceQuestion: referenceTurnIds.length ? p.question as string : context.currentMessage,
-    topic: p.topic as string, history: { from: readTicket.temporal.from, to: readTicket.temporal.to, terms: [], interpretation: "period" },
-    episodeTopic: null, ordinal: null, readOnly: true, clarification: null, frame: emptyProposedSemanticFrame() };
+    topic: p.topic as string, history: unresolvedEpisode ? null : { from: readTicket.temporal.from, to: readTicket.temporal.to, terms: [], interpretation: "period" },
+    episodeTopic: referent?.topic ?? null, ordinal: referenceTarget?.ordinal ?? null, readOnly: true,
+    clarification: unresolvedEpisode ? "reference" : null, frame: emptyProposedSemanticFrame() };
 }
 
 /** Positive read clauses are independent of save clauses and supplied operands.

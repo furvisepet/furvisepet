@@ -1,5 +1,13 @@
 /** Semantic proposal only. Ownership and access are bound by the server. */
 export type ReadPredicate = Readonly<{ kind: "text_any"; terms: readonly string[] }>;
+export type EpisodeReadObligation = Readonly<{
+  operation: "count" | "membership";
+  referent: Readonly<{
+    basis: "displayed_list" | "scoped_register";
+    topic: "vomiting" | "soft stool" | "breathing" | null;
+    ordinal: "first" | "second" | "third" | "fourth" | "fifth" | "sixth" | "seventh" | "eighth" | "last" | "that" | null;
+  }> | null;
+}>;
 export type ReadTicket = Readonly<{
   operation: "read" | "read_since_event" | "compare" | "rank";
   subjects: Readonly<{ petIds: readonly string[] }>;
@@ -7,6 +15,8 @@ export type ReadTicket = Readonly<{
     anchor: Readonly<{ concept: string; relation: "from" | "after" | "before" }> | null;
     calendar?: "oldest_year" | null }>;
   predicates: readonly ReadPredicate[];
+  /** Proposed episode selection, never membership evidence or a certified count. */
+  episode?: EpisodeReadObligation | null;
   /** Ranking hints never exclude records or certify semantic completeness. */
   searchHints?: readonly string[] | null;
   outputs: Readonly<{ completeness: "sufficient" | "exhaustive"; ordering: "asc" | "desc"; limit: number | null;
@@ -15,9 +25,19 @@ export type ReadTicket = Readonly<{
 
 export const readTicketSchema = {
   type: ["object", "null"], additionalProperties: false,
-  required: ["operation", "temporal", "predicates", "outputs", "searchHints"],
+  required: ["operation", "temporal", "predicates", "outputs", "searchHints", "episode"],
   properties: {
     operation: { type: "string", enum: ["read", "read_since_event", "compare", "rank"] },
+    episode: { type: ["object", "null"], additionalProperties: false, required: ["operation", "referent"],
+      description: "Null for ordinary records even if legacy fields mention episodes. For actual episode counts or membership, propose the target here. A missing target requires clarification; the server must revalidate membership and stored references.",
+      properties: {
+        operation: { type: "string", enum: ["count", "membership"] },
+        referent: { type: ["object", "null"], additionalProperties: false, required: ["basis", "topic", "ordinal"], properties: {
+          basis: { type: "string", enum: ["displayed_list", "scoped_register"] },
+          topic: { type: ["string", "null"], enum: ["vomiting", "soft stool", "breathing", null] },
+          ordinal: { type: ["string", "null"], enum: ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "last", "that", null] },
+        } },
+      } },
     temporal: { type: "object", additionalProperties: false, required: ["from", "to", "anchor", "calendar"], properties: {
       calendar: { type: ["string", "null"], enum: ["oldest_year", null], description: "Resolve the oldest accessible calendar year from effective records, never from a guessed year." },
       from: { type: ["string", "null"], description: "ISO instant or null; never invent the date of the anchor." },
@@ -54,8 +74,8 @@ const instant = (v: unknown): v is string | null => v === null || typeof v === "
 export function bindReadTicket(value: unknown, petIds: readonly string[]): ReadTicket | null {
   if (value == null) return null;
   const fail = (): never => { throw new Error("ASK_REQUEST_INVALID:read_ticket"); };
-  if (!object(value) || !optionalKeys(value, ["operation", "temporal", "predicates", "outputs"], ["searchHints"])) return fail();
-  const { operation, temporal, predicates, outputs, searchHints } = value;
+  if (!object(value) || !optionalKeys(value, ["operation", "temporal", "predicates", "outputs"], ["searchHints", "episode"])) return fail();
+  const { operation, temporal, predicates, outputs, searchHints, episode } = value;
   if (!["read", "read_since_event", "compare", "rank"].includes(String(operation))
     || !petIds.length || new Set(petIds).size !== petIds.length
     || !object(temporal) || !optionalKeys(temporal, ["from", "to", "anchor"], ["calendar"])
@@ -78,7 +98,21 @@ export function bindReadTicket(value: unknown, petIds: readonly string[]): ReadT
   if (anchor && temporal.calendar || outputs.strategy === "temporal_endpoints" && operation !== "compare"
     || outputs.strategy === "event_candidates" && (!predicates.length || operation !== "read")
     || outputs.strategy === "calendar_samples" && outputs.completeness !== "sufficient") return fail();
-  return Object.freeze({ ...(searchHints !== undefined ? { searchHints: searchHints === null ? null : Object.freeze([...(searchHints as string[])]) } : {}), operation, subjects: Object.freeze({ petIds: Object.freeze([...petIds]) }),
+  if (episode != null) {
+    if (!object(episode) || !keys(episode, ["operation", "referent"])
+      || !["count", "membership"].includes(String(episode.operation)) || operation !== "read"
+      || temporal.calendar != null || predicates.length || searchHints?.length || outputs.strategy != null
+      || outputs.limit !== null) return fail();
+    const referent = episode.referent;
+    if (referent !== null && (!object(referent) || !keys(referent, ["basis", "topic", "ordinal"])
+      || !["displayed_list", "scoped_register"].includes(String(referent.basis))
+      || !["vomiting", "soft stool", "breathing", null].includes(referent.topic as string | null)
+      || !["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "last", "that", null].includes(referent.ordinal as string | null))) return fail();
+    if (episode.operation === "count" && referent && (referent.basis !== "scoped_register" || referent.ordinal !== null)) return fail();
+  }
+  return Object.freeze({ ...(episode !== undefined ? { episode: episode === null ? null : Object.freeze({ ...episode as EpisodeReadObligation,
+      referent: (episode as EpisodeReadObligation).referent && Object.freeze({ ...(episode as EpisodeReadObligation).referent }) }) } : {}),
+    ...(searchHints !== undefined ? { searchHints: searchHints === null ? null : Object.freeze([...(searchHints as string[])]) } : {}), operation, subjects: Object.freeze({ petIds: Object.freeze([...petIds]) }),
     temporal: Object.freeze({ ...temporal, anchor: anchor && Object.freeze({ ...anchor }) }),
     predicates: Object.freeze(predicates.map(p => Object.freeze({ ...p, terms: Object.freeze([...p.terms]) }))),
     outputs: Object.freeze({ ...outputs }),

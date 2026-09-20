@@ -61,6 +61,8 @@ function boundary(source: Source, petName: string, topic: string) {
 export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: SupabaseClient, petIds: string[]): Promise<FurviseLiveContext> {
   const message = context.currentMessage;
   const interpretation = context.askInterpretation;
+  const ticket = interpretation?.request?.readTicket;
+  if (ticket && (!ticket.episode || interpretation?.clarification)) return context;
   const follow = interpretation ? (interpretation.referenceTarget?.kind === "episode" || (interpretation.readOperation ?? interpretation.operation) === "episode") && interpretation.ordinal
     ? { ordinal: interpretation.ordinal, ambiguous: Boolean(interpretation.clarification) } : null : episodeFollowUp(message);
   if (interpretation ? !follow && !["count", "episode"].includes((interpretation.readOperation ?? interpretation.operation))
@@ -76,7 +78,7 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
   const done = () => ({ ...context, episodeResult: result });
   // A lifetime total across all illnesses is not a displayed-episode reference.
   // The records cannot establish unrecorded lifetime events or a universal census.
-  if (!follow && !analyzeOwnerAssertions(message).hasOwnerAssertion
+  if (!ticket && !follow && !analyzeOwnerAssertions(message).hasOwnerAssertion
     && /\b(?:ever|lifetime)\b/i.test(message) && /\billness(?:es)?\b/i.test(message)
     && /\b(?:how many|number|total|count)\b/i.test(message)) {
     result.reasons.push("all_illness_lifetime_total_unknown");result.coverage="ambiguous";
@@ -100,7 +102,7 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
       refs = parseReferences(stored.data,context);
       if (!refs) {
         const hint = context.episodePresentation;
-        const hintTopic = hint ? topicOf(hint.prompt).topic : null;
+        const hintTopic = ticket ? topic : hint ? topicOf(hint.prompt).topic : null;
         const index = follow.ordinal === "last" ? (hint?.items.length || 0) - 1
           : ["first","second","third","fourth","fifth","sixth","seventh","eighth"].indexOf(follow.ordinal || "");
         if (hint?.petId === context.pet.id && hintTopic && (!topic || topic === hintTopic) && index >= 0 && hint.items[index]) {

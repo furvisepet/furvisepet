@@ -19,6 +19,7 @@ function intentForRequest(request: AskRequestContract): FurviseTurnIntent {
 }
 
 function memoryNeedForRequest(request: AskRequestContract): FurviseMemoryNeed {
+  if (request.readTicket?.episode && request.mode === "clarify") return "none";
   if (request.evidenceBasis === "saved_history") {
     const ticket = request.readTicket;
     return ticket && ticket.temporal.from === null && ticket.temporal.to === null

@@ -38,7 +38,7 @@ export function bindEvidenceReadTicket(value: unknown, petIds: string[], sourceT
   // This caller binds already-loaded evidence. Anchor discovery and bounded
   // result selection belong to Lungs and cannot silently fall back here.
   if (read.temporal.anchor !== null || read.outputs.limit !== null || read.operation === "rank"
-    || read.temporal.calendar != null || read.outputs.strategy != null || read.searchHints?.length) return fail();
+    || read.temporal.calendar != null || read.outputs.strategy != null || read.searchHints?.length || read.episode) return fail();
   for (const at of [read.temporal.from, read.temporal.to]) {
     if (at && new Date(`${at.slice(0,10)}T00:00:00.000Z`).toISOString().slice(0,10) !== at.slice(0,10)) return fail();
   }

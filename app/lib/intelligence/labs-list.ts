@@ -18,7 +18,7 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
   if (ticket) console.info("[Ask Labs] dispatch", { operation: ticket.operation, completeness: ticket.outputs.completeness,
     mode: request?.mode, quantity: request?.quantity, outputFormat: request?.outputFormat,
     readOnly: evidence?.scope.readOnlyRecall, scope: evidence?.scope.status, coverage: coverage?.status, recordCount: rows.length });
-  if (!evidence || !ticket || !coverage || request?.mode !== "read" || request.writeJob || request.mutationIntent
+  if (!evidence || !ticket || ticket.episode || !coverage || request?.mode !== "read" || request.writeJob || request.mutationIntent
     || !evidence.scope.readOnlyRecall || evidence.scope.status !== "resolved"
     || !["read", "read_since_event"].includes(ticket.operation)
     || ticket.outputs.completeness !== "exhaustive" && request.quantity !== "records") return null;

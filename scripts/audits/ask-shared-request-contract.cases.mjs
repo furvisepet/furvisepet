@@ -28,6 +28,10 @@ const readObligations = ({ operation = 'read', temporal = {}, predicates = [], s
  outputs: { completeness: 'sufficient', ordering: 'asc', limit: null, ...outputs },
 });
 
+const episodeRead = (operation, referent) => ({ ...readObligations(), episode: { operation, referent } });
+const episodeRegister = topic => episodeRead('count', { basis: 'scoped_register', topic, ordinal: null });
+const episodeMember = (ordinal, topic = null) => episodeRead('membership', ordinal ? { basis: 'displayed_list', topic, ordinal } : null);
+
 test('missing event candidates return a server limitation without generation or review calls',async t=>{
  clock(t);
  const text='The latest change was that Aster spent eight minutes on the mat.';
@@ -275,7 +279,7 @@ for (const quantity of ['records', 'measurement', 'duration', null]) test(`quant
   assert.equal(result.readOnly, true);
 });
 test('true episode counts retain their independent membership path', () => {
-  const result = validateAskRequest(proposal({ operation: 'count', quantity: 'episodes', episodeTopic: 'breathing' }), context);
+  const result = validateAskRequest(proposal({ operation: 'count', quantity: 'episodes', episodeTopic: 'breathing', readTicket: episodeRegister('breathing') }), context);
   assert.equal(result.readOperation, 'count');
   assert.equal(result.episodeTopic, 'breathing');
 });
@@ -1043,11 +1047,11 @@ test('measurement and duration quantities override a stale episode operation',()
  }
 });
 test('genuine episode requests still require a valid episode referent',()=>{
- const missing=validateAskRequest(proposal({operation:'episode',quantity:'episodes',ordinal:null}),{...context,currentMessage:'Tell me about that episode.'});
+ const missing=validateAskRequest(proposal({operation:'episode',quantity:'episodes',ordinal:null,readTicket:episodeMember(null)}),{...context,currentMessage:'Tell me about that episode.'});
  assert.equal(missing.readOperation,'clarify'); assert.equal(missing.ordinal,null);
- const projected=validateAskRequest(proposal({operation:'recall',ordinal:'second'}),{...context,currentMessage:'Tell me about the second episode.'});
+ const projected=validateAskRequest(proposal({operation:'recall',ordinal:'second',readTicket:episodeMember('second')}),{...context,currentMessage:'Tell me about the second episode.'});
  assert.equal(projected.referenceTarget.kind,'episode'); assert.equal(projected.referenceTarget.ordinal,'second');
- const r=validateAskRequest(proposal({operation:'episode',quantity:'episodes',ordinal:'second'}),{...context,currentMessage:'Tell me about the second episode.'});
+ const r=validateAskRequest(proposal({operation:'episode',quantity:'episodes',ordinal:'second',readTicket:episodeMember('second')}),{...context,currentMessage:'Tell me about the second episode.'});
  assert.equal(r.readOperation,'episode');assert.equal(r.ordinal,'second');
  const invented=validateAskRequest(proposal({operation:'episode',quantity:'episodes',ordinal:'second'}),context);
  assert.equal(invented.readOperation,'recall');assert.equal(invented.ordinal,null);
@@ -1419,13 +1423,13 @@ test('ordinary history reads recover irrelevant episode routing without granting
    assert.deepEqual(parsed.petIds,[fixturePets[0].id]);
   }
  }
- const count=validateAskRequest(proposal({operation:'count',quantity:'episodes',episodeTopic:'vomiting'}),{...context,currentMessage:'How many vomiting episodes has Aster had?'});
+ const count=validateAskRequest(proposal({operation:'count',quantity:'episodes',episodeTopic:'vomiting',readTicket:episodeRegister('vomiting')}),{...context,currentMessage:'How many vomiting episodes has Aster had?'});
  assert.equal(count.operation,'count');
- const unspecified=validateAskRequest(proposal({operation:'count',quantity:'episodes'}),{...context,currentMessage:'How many separate episodes has Aster had?'});
+ const unspecified=validateAskRequest(proposal({operation:'count',quantity:'episodes',readTicket:episodeRegister(null)}),{...context,currentMessage:'How many separate episodes has Aster had?'});
  assert.equal(unspecified.operation,'count'); assert.equal(unspecified.episodeTopic,null);
- const follow=validateAskRequest(proposal({operation:'episode',quantity:'episodes',ordinal:'second',episodeTopic:'vomiting'}),{...context,currentMessage:'What happened in the second episode?'});
+ const follow=validateAskRequest(proposal({operation:'episode',quantity:'episodes',ordinal:'second',episodeTopic:'vomiting',readTicket:episodeMember('second','vomiting')}),{...context,currentMessage:'What happened in the second episode?'});
  assert.equal(follow.operation,'episode'); assert.equal(follow.ordinal,'second');
- const missing=validateAskRequest(proposal({operation:'episode',quantity:'episodes'}),{...context,currentMessage:'What happened in that episode?'});
+ const missing=validateAskRequest(proposal({operation:'episode',quantity:'episodes',readTicket:episodeMember(null)}),{...context,currentMessage:'What happened in that episode?'});
  assert.equal(missing.operation,'clarify');
  assert.throws(()=>validateAskRequest(proposal({operation:'episode',petNames:['Foreign']}),context),/ownership/);
 });
