@@ -12,7 +12,7 @@ const prior={id:'u0',role:'user',text:'Aster, Bramble and Echo are the pets I me
 const clause=(direction='desc',count=1)=>({orderBy:[{field:'event_at',direction}],take:{count,per:'group'}});
 const ticket=(union=[clause()],topic='weight')=>({subjectScope:'named',operation:'read',
   temporal:{from:null,to:null,anchor:null,calendar:null},predicates:[{kind:'text_any',terms:topic==='weight'?['weight','weigh','weighed','weighing']:[topic]}],
-  outputs:{strategy:null,completeness:'sufficient',ordering:'desc',limit:null},
+  outputs:{completeness:'sufficient',ordering:'desc',limit:null},
   selection:{groupBy:['subject'],union},needs:[],episode:null,searchHints:null});
 const context=(question,turns=[prior])=>({owner:{userId:'owner'},eligiblePets:pets,pet:pets[0],
   currentMessage:question,currentTurn:{id:'u1',role:'user',text:question},conversationTurns:turns,timeZone:'UTC'});
@@ -25,14 +25,19 @@ async function mocked(question,readTicket=ticket(),patch={},ctx=context(question
   const pending=interpretAskQuestion({context:ctx,model:'fixture',client:{responses:{create:async request=>{
     calls++;
     const schema=request.text.format.schema.properties.readTicket;
-    assert.ok(schema.required.includes('selection'));
-    assert.equal(schema.properties.selection.additionalProperties,false);
+    const compositional=schema.anyOf.find(s=>s.properties?.selection.type==='object');
+    assert.ok(compositional.required.includes('selection'));
+    assert.equal(compositional.properties.selection.additionalProperties,false);
     return {output_text:JSON.stringify(proposal(question,readTicket,patch))};
   }}}});
   if(reject){await assert.rejects(pending);assert.equal(calls,1);return;}
   const result=await pending;
   assert.equal(calls,1);
   if(result.request?.readTicket)assert.ok(Object.isFrozen(result.request.readTicket));
+  if(result.request?.readTicket?.selection){
+    assert.equal(Object.hasOwn(result.request.readTicket.outputs,'strategy'),false);
+    assert.equal(result.request.readTicket.outputs.limit,null);
+  }
   assert.equal(result.readOnly,true);
   return result;
 }
@@ -122,7 +127,7 @@ test('H distinct grounded probes retain multi-need retrieval with selection null
   const first='Aster food in 2025',second='Bramble medication in 2024',question=first+' and '+second;
   const needs=[first,second].map((quote,i)=>({needId:'need:'+i,from:null,to:null,target:null,
     termGroups:[[i?'medication':'food']],ordering:'desc'}));
-  const read={...ticket(),selection:null,predicates:[],needs};
+  const read={...ticket(),selection:null,predicates:[],needs,outputs:{...ticket().outputs,strategy:null}};
   const r=await mocked(question,read,{petNames:['Aster','Bramble'],evidenceNeeds:[first,second].map((quote,i)=>({
     quote,sourceTurnId:null,petNames:[i?'Bramble':'Aster'],terms:[i?'medication':'food'],order:'latest'}))});
   assert.equal(r.request.readTicket.needs.length,2);
@@ -160,7 +165,7 @@ test('explicit subset and selected scope never widen merely because grouping is 
   assert.deepEqual(single.petIds,['aster']);
 });
 test('provider exposes the existing closed shape; legacy binder remains authoritative',()=>{
-  const schema=askRequestSchema({}).properties.readTicket.properties.selection;
+  const schema=askRequestSchema({}).properties.readTicket.anyOf.find(s=>s.properties?.selection.type==='object').properties.selection;
   assert.deepEqual(Object.keys(schema.properties).sort(),['groupBy','union']);
   assert.deepEqual(schema.properties.union.items.properties.orderBy.items.properties.field.enum,['event_at']);
   assert.deepEqual(schema.properties.union.items.properties.take.properties.per.enum,['group']);
@@ -170,7 +175,7 @@ test('provider exposes the existing closed shape; legacy binder remains authorit
 });
 
 test('provider selection guidance permits semantic anchors while keeping operator exclusions',()=>{
-  const description=askRequestSchema({}).properties.readTicket.properties.selection.description;
+  const description=askRequestSchema({}).properties.readTicket.anyOf.find(s=>s.properties?.selection.type==='object').properties.selection.description;
   assert.match(description,/Compatible with a semantic temporal\.anchor/);
   assert.match(description,/owned effective event and temporal boundary before selection/);
   assert.match(description,/Do not invent from\/to dates or choose a ledger event/);
@@ -186,4 +191,53 @@ test('interpreter anchor guidance delegates dates and ledger choice without wide
   assert.match(ASK_REQUEST_INSTRUCTIONS,/never drop the anchor or fall back to whole history/);
   assert.match(ASK_REQUEST_INSTRUCTIONS,/Calendar selectors remain incompatible with selection/);
   assert.doesNotMatch(ASK_REQUEST_INSTRUCTIONS,/rejects selection with unresolved event anchors/);
+});
+
+test('provider alternatives make mixed representations impossible without removing legacy selectors',()=>{
+  const branches=askRequestSchema({}).properties.readTicket.anyOf;
+  assert.equal(branches.length,3);
+  const legacy=branches.find(s=>s.properties?.selection.type==='null');
+  const composed=branches.find(s=>s.properties?.selection.type==='object');
+  assert.deepEqual(branches[0],{type:'null'});
+  assert.equal(composed.properties.outputs.additionalProperties,false);
+  assert.equal(Object.hasOwn(composed.properties.outputs.properties,'strategy'),false);
+  assert.deepEqual(composed.properties.outputs.required,['completeness','ordering','limit']);
+  assert.ok(legacy.properties.outputs.required.includes('strategy'));
+  assert.deepEqual(legacy.properties.outputs.properties.strategy.enum,
+    ['chronological','temporal_endpoints','calendar_samples','event_candidates',null]);
+  assert.match(composed.properties.outputs.properties.limit.description,/transport.*selection.take/);
+  assert.match(composed.properties.outputs.properties.ordering.description,/Presentation.*selection.orderBy/);
+});
+
+test('captured A1 semantics omit strategy; every conflicting legacy strategy still rejects',async()=>{
+  const base={...ticket(),searchHints:['weight','weigh','weighed','weighing'],
+    outputs:{completeness:'exhaustive',ordering:'desc',limit:null}};
+  const r=await mocked("for Aster Bramble and Echo what's the most recent weight you have for each one",base);
+  assert.deepEqual(r.request.readTicket.selection,base.selection);
+  for(const strategy of ['chronological','temporal_endpoints','calendar_samples','event_candidates']){
+    const mixed={...base,operation:strategy==='temporal_endpoints'?'compare':'read',
+      outputs:{...base.outputs,completeness:'sufficient',strategy}};
+    assert.throws(()=>bindCompositionalReadTicket(mixed,pets.map(p=>p.id)),
+      error=>error.cause?.field==='selection' && error.cause?.rule==='incompatible_with_legacy_selector');
+  }
+});
+
+test('legacy chronological and temporal endpoints still bind and execute without selection',async()=>{
+  const rows=[1,2].map(day=>({id:'aster-'+day,user_id:'owner',pet_profile_id:'aster',
+    note:'weight',title:null,deleted_at:null,occurred_at:'2026-01-0'+day+'T00:00:00Z',
+    created_at:'2026-01-0'+day+'T00:00:00Z'}));
+  const scope={userId:'owner',ownedPetIds:['aster'],from:'2020-01-01T00:00:00Z',
+    to:'2027-01-01T00:00:00Z',asOf:'2026-09-20T00:00:00Z'};
+  const store={effective:async records=>({records,reliable:true}),
+    page:async({offset,limit,ordering})=>[...rows].sort((a,b)=>ordering==='desc'?
+      b.occurred_at.localeCompare(a.occurred_at):a.occurred_at.localeCompare(b.occurred_at)).slice(offset,offset+limit)};
+  for(const strategy of ['chronological','temporal_endpoints']){
+    const read={...ticket(),selection:null,operation:strategy==='temporal_endpoints'?'compare':'read',
+      outputs:{strategy,completeness:'exhaustive',ordering:'asc',limit:strategy==='chronological'?1:null}};
+    const r=await mocked('recorded weights for Aster',read,{petNames:['Aster']});
+    assert.equal(r.request.readTicket.selection,undefined);
+    assert.equal(r.request.readTicket.outputs.strategy,strategy);
+    const result=await retrieveReadTicket(r.request.readTicket,scope,store);
+    assert.deepEqual(result.records.map(r=>r.id),strategy==='chronological'?['aster-1']:['aster-1','aster-2']);
+  }
 });

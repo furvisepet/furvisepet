@@ -53,7 +53,7 @@ test('declined mixed persistence retains only its existing typed read and origin
 });
 
 test('typed subject selection overrides a conflicting legacy hint while retaining ownership and exclusions', () => {
-  assert.ok(askRequestSchema({}).properties.readTicket.required.includes('subjectScope'));
+  assert.ok(askRequestSchema({}).properties.readTicket.anyOf.filter(s=>s.properties).every(s=>s.required.includes('subjectScope')));
   for (const currentMessage of ['Show an old note.', 'ever', 'all history', 'dental']) {
     const result = validateAskRequest({ ...proposal, scope: 'account' }, { ...context, currentMessage });
     assert.deepEqual(result.petIds, ['aster']);
