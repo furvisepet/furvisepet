@@ -1,3 +1,4 @@
+import { translateLegacyReadSelection } from "./legacy-read-selection.ts";
 import { wholeAskTaskQuestion } from "./ask-task-continuation.ts";
 import { calendarPeriodContaining, oldestCalendarUnit, relativeYearsAgoWindow } from "./history-periods.ts";
 import { calendarWindowToInstants } from "../ask-time-zone.ts";
@@ -910,7 +911,21 @@ export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set
 /** Compatibility adapter: the new organ receives only its immutable ticket and
  * server scope. Legacy question-driven reads remain outside this branch. */
 async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseClient, authorizedPetIds: string[]): Promise<FurviseLiveContext> {
-  const ticket = context.askInterpretation!.request!.readTicket!;
+  const originalTicket = context.askInterpretation!.request!.readTicket!;
+  const compatibility = translateLegacyReadSelection(originalTicket, {
+    evidenceNeedCount: context.askInterpretation!.request!.evidenceNeeds?.length || 0,
+  });
+  const ticket = compatibility.ticket;
+  if (compatibility.translated) {
+    // Carry the SAME normalized ticket into evidence, certificates and Labs.
+    // The original proposal remains diagnostic input, never parallel authority.
+    context = { ...context, askInterpretation: { ...context.askInterpretation!,
+      request: { ...context.askInterpretation!.request!, readTicket: ticket } } };
+  }
+  if (originalTicket.outputs.strategy) console.info("[Ask read compatibility]", {
+    inputKind: "legacy_strategy_adapter", strategy: originalTicket.outputs.strategy,
+    translated: compatibility.translated, reason: compatibility.reason,
+  });
   const owned = new Set(context.eligiblePets.filter(pet => pet.user_id === context.owner.userId).map(pet => pet.id));
   if (ticket.subjects.petIds.some(id => !owned.has(id) || !authorizedPetIds.includes(id))) throw new Error("FURVISE_MEMORY_SCOPE_NOT_AUTHORIZED");
   const started = Date.now(), deadline = started + HISTORY_BUDGET.timeMs;
