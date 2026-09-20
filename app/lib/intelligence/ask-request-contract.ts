@@ -180,7 +180,9 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     // A save veto can narrow a mixed proposal to its already-proposed read.
     // It cannot invent a read ticket, select history, or authorize a write.
     const declinedMixed = p.mode === "mixed" && ownerDeclinesPersistence(context.currentMessage);
-    if ((p.mode !== "read" && !declinedMixed) || p.evidenceBasis !== "saved_history" || p.writeJob !== null) return fail("read_ticket");
+    if (p.mode !== "read" && !declinedMixed) return fail("read_ticket", "request.mode");
+    if (p.evidenceBasis !== "saved_history") return fail("read_ticket", "request.evidenceBasis");
+    if (p.writeJob !== null) return fail("read_ticket", "request.writeJob");
     return bindTicketedRead({ ...p, mode: "read", frame: null, task: null, mutationIntent: null }, context);
   }
   if (p.writeJob !== null) {
@@ -644,7 +646,8 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (task?.intent === "resume" && task.requiresAnswer && context.pendingTask?.request
     && !p.referenceTurnIds.includes(context.pendingTask.request.id)) return fail("task");
   const readTicket = bindReadTicket(p.readTicket, petIds);
-  if (readTicket && (!historical || !readOnly)) return fail("read_ticket");
+  if (readTicket && !historical) return fail("read_ticket", "request.historical");
+  if (readTicket && !readOnly) return fail("read_ticket", "request.readOnly");
   const request: AskRequestContract = {
     ...(readTicket ? { readTicket } : {}),
     task,

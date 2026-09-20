@@ -64,11 +64,28 @@ export function recoverAskInterpretation(value: unknown, context: Interpretation
     try {
       const parsed = validateAskRequest(value, context);
       if (parsed.request?.mode === "read" && parsed.request.evidenceBasis === "saved_history" && !parsed.request.readTicket)
-        throw new Error("ASK_REQUEST_INVALID:read_ticket_required");
+        throw new Error("ASK_REQUEST_INVALID:read_ticket_required", { cause: { field: "readTicket", rule: "saved_history_read_requires_ticket" } });
       return parsed;
     }
     catch (error) {
       const reason = error instanceof Error ? /^ASK_REQUEST_INVALID:([a-z_]+)$/.exec(error.message)?.[1] : null;
+      if (reason === "read_ticket" || reason === "read_ticket_required") {
+        const proposal = value as Record<string, unknown>;
+        const validation = error instanceof Error ? error.cause as { field?: string; rule?: string } | undefined : undefined;
+        // JSON retains every proposed field, including nested arrays and nulls;
+        // console object inspection can truncate these and hide the failing shape.
+        // This diagnostic is server-only. It never changes the rejected proposal.
+        console.warn("[Ask Brain] rejected read ticket", JSON.stringify({
+          errorCode: `ASK_REQUEST_CONTRACT_${reason.toUpperCase()}`,
+          sourceMessageId: context.currentTurn?.id ?? null,
+          field: validation?.field ?? null,
+          rule: validation?.rule ?? validation?.field ?? null,
+          readTicketPresent: Object.hasOwn(proposal, "readTicket"),
+          readTicket: proposal.readTicket ?? null,
+          request: { mode: proposal.mode, operation: proposal.operation, scope: proposal.scope,
+            petNames: proposal.petNames, evidenceBasis: proposal.evidenceBasis, writeJob: proposal.writeJob ?? null },
+        }));
+      }
       if (reason === "write_job") {
         console.warn("[Ask Brain] rejected write job", JSON.stringify({
           ...brainProposalDiagnostic(value, context.currentTurn?.id),

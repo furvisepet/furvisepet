@@ -78,47 +78,71 @@ const instant = (v: unknown): v is string | null => v === null || typeof v === "
 
 export function bindReadTicket(value: unknown, petIds: readonly string[], needBindings: readonly ReadNeedBinding[] = []): ReadTicket | null {
   if (value == null) return null;
-  const fail = (): never => { throw new Error("ASK_REQUEST_INVALID:read_ticket"); };
-  if (!object(value) || !optionalKeys(value, ["operation", "temporal", "predicates", "outputs"], ["subjectScope", "searchHints", "episode", "needs"])) return fail();
+  // Diagnostic keys identify the first existing rejection; they confer no authority.
+  const fail = (field: string, rule: string): never => { throw new Error("ASK_REQUEST_INVALID:read_ticket", { cause: { field, rule } }); };
+  if (!object(value)) return fail("readTicket", "object");
+  if (!optionalKeys(value, ["operation", "temporal", "predicates", "outputs"], ["subjectScope", "searchHints", "episode", "needs"])) return fail("readTicket", "fields");
   const { operation, temporal, predicates, outputs, searchHints, episode } = value;
-  if (!["read", "read_since_event", "compare", "rank"].includes(String(operation))
-    || value.subjectScope !== undefined && !["selected", "named", "conversation", "account"].includes(String(value.subjectScope))
-    || !petIds.length || new Set(petIds).size !== petIds.length
-    || !object(temporal) || !optionalKeys(temporal, ["from", "to", "anchor"], ["calendar"])
-    || temporal.calendar != null && temporal.calendar !== "oldest_year"
-    || searchHints != null && (!Array.isArray(searchHints) || searchHints.length > 12 || !searchHints.every(term))
-    || !instant(temporal.from) || !instant(temporal.to)
-    || temporal.from && temporal.to && Date.parse(temporal.from) >= Date.parse(temporal.to)
-    || !Array.isArray(predicates) || predicates.length > 6
-    || predicates.some(p => !object(p) || !keys(p, ["kind", "terms"]) || p.kind !== "text_any"
-      || !Array.isArray(p.terms) || !p.terms.length || p.terms.length > 12 || !p.terms.every(term))
-    || !object(outputs) || !optionalKeys(outputs, ["completeness", "ordering", "limit"], ["strategy"])
-    || outputs.strategy != null && !["chronological", "temporal_endpoints", "calendar_samples", "event_candidates"].includes(String(outputs.strategy))
-    || !["sufficient", "exhaustive"].includes(String(outputs.completeness))
-    || !["asc", "desc"].includes(String(outputs.ordering))
-    || outputs.limit !== null && (!Number.isInteger(outputs.limit) || Number(outputs.limit) < 1 || Number(outputs.limit) > 100)) return fail();
+  if (!["read", "read_since_event", "compare", "rank"].includes(String(operation))) return fail("operation", "enum");
+  if (value.subjectScope !== undefined && !["selected", "named", "conversation", "account"].includes(String(value.subjectScope))) return fail("subjectScope", "enum");
+  if (!petIds.length || new Set(petIds).size !== petIds.length) return fail("subjects.petIds", "nonempty_unique");
+  if (!object(temporal) || !optionalKeys(temporal, ["from", "to", "anchor"], ["calendar"])) return fail("temporal", "fields");
+  if (temporal.calendar != null && temporal.calendar !== "oldest_year") return fail("temporal.calendar", "enum");
+  if (searchHints != null && (!Array.isArray(searchHints) || searchHints.length > 12 || !searchHints.every(term))) return fail("searchHints", "terms");
+  if (!instant(temporal.from)) return fail("temporal.from", "instant_or_null");
+  if (!instant(temporal.to)) return fail("temporal.to", "instant_or_null");
+  if (temporal.from && temporal.to && Date.parse(temporal.from) >= Date.parse(temporal.to)) return fail("temporal", "from_before_to");
+  if (!Array.isArray(predicates) || predicates.length > 6) return fail("predicates", "array_max_6");
+  predicates.forEach((p, index) => {
+    if (!object(p) || !keys(p, ["kind", "terms"])) return fail(`predicates[${index}]`, "fields");
+    if (p.kind !== "text_any") return fail(`predicates[${index}].kind`, "enum");
+    if (!Array.isArray(p.terms) || !p.terms.length || p.terms.length > 12 || !p.terms.every(term)) return fail(`predicates[${index}].terms`, "terms");
+  });
+  if (!object(outputs) || !optionalKeys(outputs, ["completeness", "ordering", "limit"], ["strategy"])) return fail("outputs", "fields");
+  if (outputs.strategy != null && !["chronological", "temporal_endpoints", "calendar_samples", "event_candidates"].includes(String(outputs.strategy))) return fail("outputs.strategy", "enum");
+  if (!["sufficient", "exhaustive"].includes(String(outputs.completeness))) return fail("outputs.completeness", "enum");
+  if (!["asc", "desc"].includes(String(outputs.ordering))) return fail("outputs.ordering", "enum");
+  if (outputs.limit !== null && (!Number.isInteger(outputs.limit) || Number(outputs.limit) < 1 || Number(outputs.limit) > 100)) return fail("outputs.limit", "integer_1_to_100_or_null");
   const anchor = temporal.anchor;
-  if (anchor !== null && (!object(anchor) || !keys(anchor, ["concept", "relation"]) || !term(anchor.concept)
-    || !["from", "after", "before"].includes(String(anchor.relation)))) return fail();
-  if ((operation === "read_since_event") !== (anchor !== null)) return fail();
-  if (anchor && temporal.calendar || outputs.strategy === "temporal_endpoints" && operation !== "compare"
-    || outputs.strategy === "event_candidates" && (!predicates.length || operation !== "read")
-    || outputs.strategy === "calendar_samples" && outputs.completeness !== "sufficient") return fail();
+  if (anchor !== null) {
+    if (!object(anchor) || !keys(anchor, ["concept", "relation"])) return fail("temporal.anchor", "fields");
+    if (!term(anchor.concept)) return fail("temporal.anchor.concept", "term");
+    if (!["from", "after", "before"].includes(String(anchor.relation))) return fail("temporal.anchor.relation", "enum");
+  }
+  if ((operation === "read_since_event") !== (anchor !== null)) return fail("temporal.anchor", "anchor_iff_read_since_event");
+  if (anchor && temporal.calendar) return fail("temporal.calendar", "incompatible_with_anchor");
+  if (outputs.strategy === "temporal_endpoints" && operation !== "compare") return fail("outputs.strategy", "temporal_endpoints_requires_compare");
+  if (outputs.strategy === "event_candidates" && (!predicates.length || operation !== "read")) return fail("outputs.strategy", "event_candidates_requires_read_and_predicates");
+  if (outputs.strategy === "calendar_samples" && outputs.completeness !== "sufficient") return fail("outputs.completeness", "calendar_samples_requires_sufficient");
   if (episode != null) {
-    if (!object(episode) || !keys(episode, ["operation", "referent"])
-      || !["count", "membership"].includes(String(episode.operation)) || operation !== "read"
-      || temporal.calendar != null || predicates.length || searchHints?.length || outputs.strategy != null
-      || outputs.limit !== null) return fail();
+    if (!object(episode) || !keys(episode, ["operation", "referent"])) return fail("episode", "fields");
+    if (!["count", "membership"].includes(String(episode.operation))) return fail("episode.operation", "enum");
+    if (operation !== "read") return fail("operation", "episode_requires_read");
+    if (temporal.calendar != null) return fail("temporal.calendar", "incompatible_with_episode");
+    if (predicates.length) return fail("predicates", "incompatible_with_episode");
+    if (searchHints?.length) return fail("searchHints", "incompatible_with_episode");
+    if (outputs.strategy != null) return fail("outputs.strategy", "incompatible_with_episode");
+    if (outputs.limit !== null) return fail("outputs.limit", "incompatible_with_episode");
     const referent = episode.referent;
-    if (referent !== null && (!object(referent) || !keys(referent, ["basis", "topic", "ordinal"])
-      || !["displayed_list", "scoped_register"].includes(String(referent.basis))
-      || !["vomiting", "soft stool", "breathing", null].includes(referent.topic as string | null)
-      || !["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "last", "that", null].includes(referent.ordinal as string | null))) return fail();
-    if (episode.operation === "count" && referent && (referent.basis !== "scoped_register" || referent.ordinal !== null)) return fail();
+    if (referent !== null) {
+      if (!object(referent) || !keys(referent, ["basis", "topic", "ordinal"])) return fail("episode.referent", "fields");
+      if (!["displayed_list", "scoped_register"].includes(String(referent.basis))) return fail("episode.referent.basis", "enum");
+      if (!["vomiting", "soft stool", "breathing", null].includes(referent.topic as string | null)) return fail("episode.referent.topic", "enum");
+      if (!["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "last", "that", null].includes(referent.ordinal as string | null)) return fail("episode.referent.ordinal", "enum");
+    }
+    if (episode.operation === "count" && referent && referent.basis !== "scoped_register") return fail("episode.referent.basis", "count_requires_scoped_register");
+    if (episode.operation === "count" && referent && referent.ordinal !== null) return fail("episode.referent.ordinal", "count_requires_null_ordinal");
   }
   const needs = bindReadNeeds(value.needs, needBindings, petIds);
-  if (needs?.length && (episode || operation === "read_since_event" || temporal.calendar != null
-    || predicates.length || searchHints?.length || outputs.strategy != null || outputs.limit !== null)) return fail();
+  if (needs?.length) {
+    if (episode) return fail("episode", "incompatible_with_needs");
+    if (operation === "read_since_event") return fail("operation", "read_since_event_incompatible_with_needs");
+    if (temporal.calendar != null) return fail("temporal.calendar", "incompatible_with_needs");
+    if (predicates.length) return fail("predicates", "incompatible_with_needs");
+    if (searchHints?.length) return fail("searchHints", "incompatible_with_needs");
+    if (outputs.strategy != null) return fail("outputs.strategy", "incompatible_with_needs");
+    if (outputs.limit !== null) return fail("outputs.limit", "incompatible_with_needs");
+  }
   return Object.freeze({ ...(value.subjectScope !== undefined ? { subjectScope: value.subjectScope } : {}), ...(needs !== undefined ? { needs } : {}), ...(episode !== undefined ? { episode: episode === null ? null : Object.freeze({ ...episode as EpisodeReadObligation,
       referent: (episode as EpisodeReadObligation).referent && Object.freeze({ ...(episode as EpisodeReadObligation).referent }) }) } : {}),
     ...(searchHints !== undefined ? { searchHints: searchHints === null ? null : Object.freeze([...(searchHints as string[])]) } : {}), operation, subjects: Object.freeze({ petIds: Object.freeze([...petIds]) }),
