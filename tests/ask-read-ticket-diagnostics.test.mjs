@@ -260,3 +260,88 @@ test('captured Dune ticket binds only with needs stripped, through one planner p
   }
   assert.deepEqual(capturedDuneTicket, original);
 });
+
+
+// Captured validated #3/#4 ticket fields on 8afccd7, with server subjects rebound.
+// Conversations f16d2bed-1106-4df3-a6ca-ec700c3e5c3b and f9690791-fd3b-4c8d-9a75-a86c50bb406d.
+const earliestMeasurementTicket = {
+  subjectScope: 'named', needs: [], episode: null, operation: 'read',
+  temporal: { calendar: null, from: null, to: null, anchor: null },
+  searchHints: ['earliest weight', 'weight record', 'body mass', 'weighed', 'scale reading'],
+  predicates: [{ kind: 'text_any', terms: ['weight', 'weigh', 'mass', 'body mass', 'weighed', 'scale'] }],
+  outputs: { strategy: 'chronological', completeness: 'exhaustive', ordering: 'asc', limit: 1 },
+};
+const failedEarliestMeasurementTicket = {
+  ...structuredClone(earliestMeasurementTicket), subjectScope: 'selected',
+  temporal: { calendar: 'oldest_year', from: null, to: null, anchor: null },
+  searchHints: ['earliest weight', 'first recorded weight', 'weight record'],
+  predicates: [{ kind: 'text_any', terms: ['weight', 'weigh', 'mass'] }],
+};
+
+test('earliest measurement uses one calendar-free planner ticket and retains the earliest event in Lungs', async t => {
+  const { retrieveReadTicket } = await import('../app/lib/furvise-brain/lungs.ts');
+  const pet = { id: '559beba5-9f03-4e55-b8ad-5d3fac105d0a', name: 'Dune', user_id: 'owner', species: 'cat' };
+  const question = 'dune whats his earliest weight we got saved and what date was it';
+  const context = { owner: { userId: 'owner' }, pet, eligiblePets: [pet], currentMessage: question,
+    conversationTurns: [], timeZone: 'UTC', currentTurn: { id: 'measurement-question', role: 'user', text: question } };
+  const scope = { userId: 'owner', ownedPetIds: [pet.id], from: '1900-01-01T00:00:00Z',
+    to: '2026-09-20T00:00:00Z', asOf: '2026-09-20T00:00:00Z' };
+  const row = (id, at, note) => ({ id, user_id: 'owner', pet_profile_id: pet.id,
+    occurred_at: at, created_at: at, updated_at: at, title: null, deleted_at: null, note });
+  const earliest = row('9f53b55b-4c32-4d9d-b055-020f29179d94', '2016-10-15T12:00:00Z',
+    'Dune weighed 4.81 kg. Monthly care check recorded stable appetite, usual routine, and no new ongoing concern.');
+  const later = row('later-measurement', '2017-01-15T12:00:00Z', 'Dune weighed 4.90 kg.');
+  const store = rows => ({ page: async ({ offset, limit }) => rows.slice(offset, offset + limit),
+    effective: async records => ({ records, reliable: true }) });
+  const retrieve = (ticket, rows = [later, earliest]) =>
+    retrieveReadTicket(bindReadTicket(ticket, [pet.id]), scope, store(rows));
+
+  await t.test('captured #4 remains legal but loses weighed even when calendar alone is cleared', async () => {
+    for (const calendar of ['oldest_year', null]) {
+      const result = await retrieve({ ...structuredClone(failedEarliestMeasurementTicket),
+        temporal: { ...failedEarliestMeasurementTicket.temporal, calendar } });
+      assert.ok(result.coverage.selection.scannedIds.includes(earliest.id));
+      assert.deepEqual(result.coverage.selection.matchedIds, []);
+      assert.deepEqual(result.records, []);
+      assert.equal(result.coverage.status, 'partial');
+    }
+  });
+  await t.test('oldest calendar year is not the earliest matching measurement', async () => {
+    const rows = [row('older-nonmeasurement', '2015-06-01T12:00:00Z', 'Routine visit.'), earliest, later];
+    const oldestYear = await retrieve({ ...structuredClone(earliestMeasurementTicket),
+      temporal: { ...earliestMeasurementTicket.temporal, calendar: 'oldest_year' } }, rows);
+    assert.deepEqual(oldestYear.records, []);
+    const canonical = await retrieve(earliestMeasurementTicket, rows);
+    assert.deepEqual(canonical.records.map(row => row.id), [earliest.id]);
+    assert.equal(canonical.coverage.status, 'partial');
+  });
+  // Deterministic provider stubs specify the required Brain output. This verifies
+  // prompt delivery and downstream behavior, not live-model compliance.
+  for (const thread of ['first', 'independent-repeat']) {
+    await t.test(thread + ' mocked planner emits the required shape, not captured #4', async t => {
+      t.mock.method(console, 'info', () => {});
+      let calls = 0;
+      const result = await interpretAskQuestion({ context: { ...context,
+        currentTurn: { ...context.currentTurn, id: thread } }, model: 'fixture',
+        client: { responses: { create: async request => {
+          calls++;
+          assert.ok(request.instructions.includes('For earliest/first recorded measurement requests, emit operation read'));
+          assert.ok(request.instructions.includes('and temporal.calendar null'));
+          assert.ok(request.instructions.includes('Reserve oldest_year for an explicit request for the oldest calendar year'));
+          assert.ok(request.instructions.includes('weight, weigh, weighed, weighing'));
+          return { output_text: JSON.stringify({ ...proposal(structuredClone(earliestMeasurementTicket)),
+            question, petNames: ['Dune'], topic: 'weight', terms: ['weight'], selection: 'earliest' }) };
+        } } },
+      });
+      assert.equal(calls, 1);
+      const bound = result.request.readTicket;
+      assert.deepEqual(bound, bindReadTicket(earliestMeasurementTicket, [pet.id]));
+      assert.notDeepEqual(bound.temporal, failedEarliestMeasurementTicket.temporal);
+      const read = await retrieveReadTicket(bound, scope, store([later, earliest]));
+      assert.deepEqual(read.records.map(row => row.id), [earliest.id]);
+      assert.equal(read.records[0].occurred_at, earliest.occurred_at);
+      assert.equal(read.records[0].note, earliest.note);
+      assert.equal(read.coverage.status, 'partial');
+    });
+  }
+});
