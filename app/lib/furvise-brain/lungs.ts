@@ -11,6 +11,11 @@ export type ReadCoverage = {
   anchors: Array<{ petId: string; eventId: string; eventAt: string }>;
   windows: Array<{ petId: string; from: string; to: string; relation: "from" | "after" | "before" | null }>;
   continuation: Array<{ petId: string; offset: number }>;
+  selection?: { scannedIds: string[]; matchedIds: string[]; retainedIds: string[]; omittedIds: string[] };
+  periods?: Array<{ petId: string; from: string; to: string; candidateIds: string[]; exhausted: boolean }>;
+  chronology?: Array<{ petId: string; boundaryIds: string[]; blocked: boolean }>;
+  endpointPairs?: Array<{ petId: string; earliestIds: string[]; latestIds: string[]; blocked: boolean }>;
+  eventCandidateIds?: string[];
 };
 export type ReadResult = { records: CareEntryRow[]; coverage: ReadCoverage };
 type ReadScope = { userId: string; ownedPetIds: readonly string[]; from: string; to: string; asOf: string };
@@ -91,23 +96,89 @@ export async function retrieveReadTicket(ticket: ReadTicket, scope: ReadScope, s
         if (anchor.relation === "before") to = Math.min(to, anchorTime);
         else from = Math.max(from, anchorTime);
       }
+      if (ticket.temporal.calendar === "oldest_year") {
+        // The calendar is resolved from effective, accessible event time, not
+        // from the access start year or from search words.
+        if (coverage.continuation.length) return result("partial", "calendar_search_not_exhausted");
+        const first = rows.filter(row => row.pet_profile_id === petId
+          && Date.parse(row.occurred_at) >= from && Date.parse(row.occurred_at) < to).sort(chronological)[0];
+        if (first) {
+          const year = new Date(first.occurred_at).getUTCFullYear();
+          from = Math.max(from, Date.UTC(year, 0, 1));
+          to = Math.min(to, Date.UTC(year + 1, 0, 1));
+        }
+      }
       coverage.windows.push({ petId, from: new Date(from).toISOString(), to: new Date(to).toISOString(), relation: anchor?.relation || null });
       selected.push(...rows.filter(row => row.pet_profile_id === petId && Date.parse(row.occurred_at) >= from
         && Date.parse(row.occurred_at) < to
         && !(anchor?.relation === "after" && Date.parse(row.occurred_at) === anchorTime)
         && ticket.predicates.every(predicate => predicate.terms.some(term => matches(row, term)))));
     }
-    selected.sort((a, b) => ticket.outputs.ordering === "asc" ? chronological(a, b) : chronological(b, a));
-    const requested = ticket.outputs.limit === null ? selected : selected.slice(0, ticket.outputs.limit);
+    const order = (a: CareEntryRow, b: CareEntryRow) => ticket.outputs.ordering === "asc" ? chronological(a, b) : chronological(b, a);
+    selected.sort(order);
+    const strategy = ticket.outputs.strategy;
+    const hints = ticket.searchHints || [];
+    const score = (row: CareEntryRow) => hints.filter(hint => matches(row, hint)).length;
+    let requested = [...selected];
+    if (hints.length) {
+      // Hint misses preserve bounded context. This cannot certify that the
+      // requested semantic concept never occurred, even after a full scan.
+      requested.sort((a, b) => score(b) - score(a) || order(a, b));
+      coverage.reasons.push("bounded_period_context_not_semantic_completeness");
+    }
+    if (strategy === "temporal_endpoints") {
+      coverage.endpointPairs = ticket.subjects.petIds.map(petId => {
+        const subject = selected.filter(row => row.pet_profile_id === petId).sort(chronological);
+        return { petId, earliestIds: subject.slice(0, 1).map(row => row.id), latestIds: subject.slice(-1).map(row => row.id),
+          blocked: coverage.continuation.some(cursor => cursor.petId === petId) || !subject.length };
+      });
+      const endpoints = new Set(coverage.endpointPairs.flatMap(pair => [...pair.earliestIds, ...pair.latestIds]));
+      // Reserve both ends for every subject before allocating interior rows.
+      requested = [...requested.filter(row => endpoints.has(row.id)), ...requested.filter(row => !endpoints.has(row.id))];
+    }
+    if (strategy === "calendar_samples") {
+      const groups = new Map<string, CareEntryRow[]>();
+      for (const row of selected) {
+        const key = `${row.pet_profile_id}:${new Date(row.occurred_at).getUTCFullYear()}`;
+        groups.set(key, [...(groups.get(key) || []), row]);
+      }
+      coverage.periods = [...groups.values()].map(group => {
+        const petId = group[0].pet_profile_id, year = new Date(group[0].occurred_at).getUTCFullYear();
+        const window = coverage.windows.find(window => window.petId === petId)!;
+        return { petId, from: new Date(Math.max(Date.parse(window.from), Date.UTC(year, 0, 1))).toISOString(),
+          to: new Date(Math.min(Date.parse(window.to), Date.UTC(year + 1, 0, 1))).toISOString(),
+          candidateIds: group.map(row => row.id), exhausted: !coverage.continuation.some(cursor => cursor.petId === petId) };
+      });
+      requested = [...groups.values()].map(group => group[0]).sort(order);
+    }
+    if (ticket.outputs.limit !== null) requested = requested.slice(0, ticket.outputs.limit);
     const records: CareEntryRow[] = [];
     let chars = 0;
     for (const row of requested) {
       const size = (row.note?.length || 0) + (row.title?.length || 0);
-      if (records.length >= LUNGS_LIMITS.records || chars + size > LUNGS_LIMITS.chars) break;
+      if (records.length >= LUNGS_LIMITS.records) break;
+      if (chars + size > LUNGS_LIMITS.chars) { if (strategy) continue; break; }
       chars += size; records.push(row);
     }
-    const limited = requested.length !== selected.length && ticket.outputs.completeness === "exhaustive";
-    if (coverage.continuation.length || records.length !== requested.length || limited) return result("partial", "read_budget_or_limit", records);
+    records.sort(order);
+    const retained = new Set(records.map(row => row.id));
+    coverage.selection = { scannedIds: candidates.map(row => row.id), matchedIds: selected.map(row => row.id),
+      retainedIds: [...retained], omittedIds: selected.filter(row => !retained.has(row.id)).map(row => row.id) };
+    if (coverage.endpointPairs) {
+      coverage.endpointPairs.forEach(pair => { pair.blocked ||= [...pair.earliestIds, ...pair.latestIds].some(id => !retained.has(id)); });
+      if (coverage.selection.omittedIds.length) coverage.reasons.push("bidirectional_endpoint_subset");
+    }
+    if (records.length !== requested.length) coverage.reasons.push("effective_evidence_budget");
+    if (strategy === "chronological") coverage.chronology = ticket.subjects.petIds.map(petId => ({ petId,
+      boundaryIds: selected.filter(row => row.pet_profile_id === petId).slice(0, 1).map(row => row.id),
+      blocked: coverage.continuation.some(cursor => cursor.petId === petId)
+        || !selected.some(row => row.pet_profile_id === petId)
+        || selected.filter(row => row.pet_profile_id === petId).slice(0, 1).some(row => !retained.has(row.id)) }));
+    if (strategy === "event_candidates") coverage.eventCandidateIds = records.map(row => row.id);
+    const limited = requested.length !== selected.length && (ticket.outputs.completeness === "exhaustive" || strategy === "calendar_samples" || strategy === "temporal_endpoints");
+    if (coverage.continuation.length || records.length !== requested.length || limited)
+      return result("partial", "read_budget_or_limit", records);
+    if (hints.length) return result("partial", undefined, records);
     return result(records.length ? "complete" : "complete_empty", undefined, records);
   } catch {
     return result("unavailable", "read_failed");

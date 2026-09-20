@@ -943,6 +943,12 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
   coverage.extraction = "complete"; coverage.grouping = "complete";
   coverage.reasons.push(...result.coverage.reasons, `ticket_coverage:${result.coverage.status}`);
   coverage.requiredSourceIds = result.records.map(row => careEvidenceId(row.id, coverage));
+  const sourceIds = (ids: string[]) => ids.map(id => careEvidenceId(id, coverage));
+  if (result.coverage.periods) coverage.periods = result.coverage.periods.map(period => ({ ...period, candidateIds: sourceIds(period.candidateIds) }));
+  if (result.coverage.chronology) coverage.chronology = result.coverage.chronology.map(boundary => ({ ...boundary, boundaryIds: sourceIds(boundary.boundaryIds) }));
+  if (result.coverage.endpointPairs) coverage.endpointPairs = result.coverage.endpointPairs.map(pair => ({ ...pair,
+    earliestIds: sourceIds(pair.earliestIds), latestIds: sourceIds(pair.latestIds) }));
+  if (result.coverage.eventCandidateIds) coverage.eventCandidateIds = sourceIds(result.coverage.eventCandidateIds);
   coverage.perPet = ticket.subjects.petIds.map(petId => ({ petId,
     rows: originals.filter(row => row.pet_profile_id === petId).length, pages: pagesByPet.get(petId) || 0,
     exhausted: !result.coverage.continuation.some(cursor => cursor.petId === petId) && result.coverage.status !== "unavailable",
@@ -955,7 +961,10 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
   const retainedIds = new Set([...coverage.requiredSourceIds,
     ...result.coverage.anchors.map(anchor => anchor.eventId.startsWith("claim-")
       ? `claim:${anchor.eventId.slice(6)}` : `care:${anchor.eventId}`)]);
-  coverage.candidateIds = [...retainedIds];
+  // Explicit selection strategies carry candidate accounting separately from
+  // transported sources. Omitted candidates are not usable answer evidence.
+  coverage.candidateIds = (ticket.outputs.strategy || ticket.searchHints?.length) && result.coverage.selection
+    ? sourceIds(result.coverage.selection.matchedIds) : [...retainedIds];
   coverage.provenance = coverage.provenance.filter(item => retainedIds.has(item.sourceId)
     || item.claimIds.some(id => retainedIds.has(`claim:${id}`)));
   const retainedCareIds = new Set(coverage.provenance.filter(item => item.sourceId.startsWith("care:")).map(item => item.sourceId.slice(5)));

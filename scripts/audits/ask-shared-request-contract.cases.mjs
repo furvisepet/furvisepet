@@ -21,13 +21,22 @@ const proposal = patch => ticketedProposal({ version: ASK_REQUEST_VERSION, mode:
   from: null, to: null, episodeTopic: null, ordinal: null,
   frame: ['mixed', 'update'].includes(patch?.mode) ? emptyProposedSemanticFrame() : null, ...patch });
 
+// Explicit semantic fixtures for the read-obligation migration. No question
+// parsing: the mocked Brain supplies these dimensions just as the schema asks.
+const readObligations = ({ operation = 'read', temporal = {}, predicates = [], searchHints = null, outputs = {} } = {}) => ({
+ operation, temporal: { from: null, to: null, anchor: null, ...temporal }, predicates, searchHints,
+ outputs: { completeness: 'sufficient', ordering: 'asc', limit: null, ...outputs },
+});
+
 test('missing event candidates return a server limitation without generation or review calls',async t=>{
  clock(t);
  const text='The latest change was that Aster spent eight minutes on the mat.';
  const r=await exercise('What was the latest routine change I recorded?',{
   fixturePets,messages:[],history:true,
   rows:[care('routine-only','milo','2026-06-04','behavior','Aster spent eight minutes on the usual mat.')],
-  interpretationProposal:proposal({selection:'latest',terms:['routine','change']}),
+  interpretationProposal:proposal({selection:'latest',terms:['routine','change'],readTicket:readObligations({
+   predicates:[{kind:'text_any',terms:['routine']},{kind:'text_any',terms:['change']}],
+   outputs:{ordering:'desc',limit:1,strategy:'event_candidates'}})}),
   providerOverrides:{answer:text,historyNarrative:{sentences:[{text,sourceIds:['care:routine-only']}]}},
   reviewResponse:{approved:true},expectedReviewCalls:0,expectedProviderCalls:0,
  });
@@ -43,9 +52,10 @@ test('broad historical reads retain multiple time slices and cannot bill a sampl
   care(`period-${year}-${month}`,'milo',`${year}-${String(month).padStart(2,'0')}-10`,'behavior','Aster explored the room and returned to the mat.')));
  const r=await exercise('Summarize observations recorded more than 2 years ago.',{
   fixturePets,messages:[],history:true,rows,historyAccess:{months:60,from:'2021-01-01T00:00:00.000Z',to:'2026-06-06T00:00:00.000Z'},
-  interpretationProposal:proposal({operation:'overview',selection:'summary',terms:[]}),
+  interpretationProposal:proposal({operation:'overview',selection:'summary',terms:[],readTicket:readObligations({
+   temporal:{to:'2024-09-04T00:00:00.000Z'},outputs:{strategy:'calendar_samples'}})}),
   providerOverrides:{answer:'The sampled notes describe room exploration followed by returning to the mat.',
-   historyNarrative:{sentences:[{text:'The sampled notes describe room exploration followed by returning to the mat.',sourceIds:['care:period-2021-3','care:period-2022-9','care:period-2023-9','care:period-2024-3']}]}},
+   historyNarrative:{sentences:[{text:'The sampled notes describe room exploration followed by returning to the mat.',sourceIds:['care:period-2021-3','care:period-2022-3','care:period-2023-3','care:period-2024-3']}]}},
   reviewResponse:{approved:true},expectedReviewCalls:1,
  });
  assert.equal(r.context.askHistory.coverage.plan.to,'2024-09-04T00:00:00.000Z');
@@ -63,7 +73,7 @@ test('oldest calendar-period retrieval reads its full eligible year rather than 
   care('new-year','milo','2025-01-02','general','Aster rested.')];
  const r=await exercise('List events from the oldest year of history you have.',{
   fixturePets,messages:[],history:true,rows,historyAccess:{months:60,from:'2021-09-16T00:00:00.000Z',to:'2026-06-06T00:00:00.000Z'},
-  interpretationProposal:proposal({operation:'overview',selection:'summary',terms:[]}),
+  interpretationProposal:proposal({operation:'overview',selection:'summary',terms:[],readTicket:readObligations({temporal:{calendar:'oldest_year'}})}),
   providerOverrides:{answer:'Aster had a brushing session and explored a tunnel.',historyNarrative:{sentences:[{text:'Aster had a brushing session and explored a tunnel.',sourceIds:['care:old-september','care:old-december']}]}},
   reviewResponse:{approved:true},expectedReviewCalls:1,
  });
@@ -334,7 +344,8 @@ test('comparison retrieves both temporal ends for arbitrary topics within the ex
   const rows = Array.from({ length: 80 }, (_, index) => care('travel-' + String(index).padStart(3, '0'), 'milo',
     new Date(Date.UTC(2026, 0, index + 1)).toISOString().slice(0, 10), 'general', 'Aster tolerated travel.'));
   const r = await exercise('Compare recorded travel observations.', { fixturePets, rows, messages: [], history:true,expectedReviewCalls:1,
-    interpretationProposal: proposal({ operation: 'comparison', selection: 'comparison', terms: ['travel'] }) });
+    interpretationProposal: proposal({ operation: 'comparison', selection: 'comparison', terms: ['travel'],readTicket:readObligations({
+      operation:'compare',predicates:[{kind:'text_any',terms:['travel']}],outputs:{strategy:'temporal_endpoints'}}) }) });
   const ids = r.context.askHistory.entries.map(row => row.id);
   assert.ok(ids.includes('travel-000'));
   assert.ok(ids.includes('travel-079'));
@@ -424,7 +435,8 @@ test('shared lexical retrieval reserves scoped context for different wording wit
   const r = await exercise('Explain the saved rest history.', { fixturePets, messages: [], history:true,expectedReviewCalls:1,
     rows: [care('contextual', 'milo', '2026-06-04', 'general', 'Aster slept through the night.'),
       care('foreign', 'luna', '2026-06-04', 'general', 'Bramble rested.')],
-    interpretationProposal: proposal({ terms: ['rest'], topic: 'rest', selection: 'latest' }) });
+    interpretationProposal: proposal({ terms: ['rest'], topic: 'rest', selection: 'latest',readTicket:readObligations({
+      searchHints:['rest'],outputs:{ordering:'desc',limit:1}}) }) });
   assert.deepEqual(r.context.askHistory.entries.map(row => row.id), ['contextual']);
   assert.ok(r.context.askHistory.coverage.queryCount <= 4);
   assert.ok(r.context.askHistory.coverage.reasons.includes('bounded_period_context_not_semantic_completeness'));
@@ -867,7 +879,8 @@ test('duplicate search hits do not consume independent candidate slots', async t
   const rows=fixturePets.flatMap(pet=>Array.from({length:16},(_,i)=>care(pet.id+'-overlap-'+i,pet.id,
     '2026-06-'+String(i+1).padStart(2,'0'),'general',pet.name+' had a rest observation.')));
   const r=await exercise('Compare the saved observations across the account.',{fixturePets,rows,messages:[],history:true,expectedReviewCalls:1,
-    interpretationProposal:proposal({scope:'account',petNames:[],operation:'comparison',selection:'comparison',terms:['rest']})});
+    interpretationProposal:proposal({scope:'account',petNames:[],operation:'comparison',selection:'comparison',terms:['rest'],
+      readTicket:readObligations({operation:'compare',predicates:[{kind:'text_any',terms:['rest']}],outputs:{strategy:'temporal_endpoints'}})})});
   assert.equal(new Set(r.context.askHistory.coverage.candidateIds).size,48);
   assert.ok(r.context.askHistory.coverage.perPet.every(pet=>pet.pages<=4));
   assert.ok(r.context.askHistory.entries.length<=32);
@@ -911,7 +924,8 @@ test('empty lexical searches return their unused capacity to bounded period cont
  const rows=fixturePets.flatMap(pet=>Array.from({length:16},(_,i)=>care(pet.id+'-empty-'+i,pet.id,
    '2026-06-'+String(i+1).padStart(2,'0'),'general',pet.name+' slept normally.')));
  const r=await exercise('Compare the saved observations across the account.',{fixturePets,rows,messages:[],history:true,expectedReviewCalls:1,
-   interpretationProposal:proposal({scope:'account',petNames:[],operation:'comparison',selection:'comparison',terms:['nonmatchingphrase']})});
+   interpretationProposal:proposal({scope:'account',petNames:[],operation:'comparison',selection:'comparison',terms:['nonmatchingphrase'],
+     readTicket:readObligations({operation:'compare',searchHints:['nonmatchingphrase'],outputs:{strategy:'temporal_endpoints'}})})});
  assert.equal(new Set(r.context.askHistory.coverage.candidateIds).size,48);
  assert.ok(r.context.askHistory.coverage.perPet.every(pet=>pet.pages<=4));
  assert.ok(r.context.askHistory.entries.length<=32);
@@ -1699,6 +1713,7 @@ test('earliest unfiltered care record does not become a keyword lookup',async t=
  const text='The earliest record is September 9, 2021: Aster weighed 31.49 kg.';
  const run=await exercise('What is the earliest care note you have for Aster?',{
   fixturePets,messages:[],history:true,rows,interpretationProposal:proposal({selection:'earliest',terms:['care','note'],
+   readTicket:readObligations({outputs:{ordering:'asc',limit:1,strategy:'chronological'}}),
    evidenceNeeds:[{quote:'earliest care note',sourceTurnId:null,terms:['care','note'],petNames:['Aster'],order:'earliest'}]}),
   providerOverrides:{answer:text,historyNarrative:{sentences:[{text,sourceIds:['care:first']}]}},reviewResponse:{approved:true},expectedReviewCalls:1});
  assert.ok(run.prompt.contextRecords.some(record=>record.id==='care:first'));

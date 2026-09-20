@@ -87,15 +87,15 @@ function narrowMeasurementsByQuotedSource<T extends { source: { text: string } }
 }
 export function deterministicReadProjection(evidence: AskEvidenceContract, diagnostic?: (detail: Record<string, string | number | boolean | null>) => void): HistoryNarrative | null {
   const request = evidence.interpretation?.request, projection = request?.projection;
-  // Typed retrieval has already selected and ordered its records. Legacy phrase
-  // projections must not reinterpret that scope or substitute another subset.
-  if (request?.readTicket) return null;
   if (evidence.scope.readOnlyRecall && request?.mode === "read"
     && historyCompletionLimits(evidence).includes("requested_transition_not_retrieved")) {
     // This server limitation asserts no care fact and cites no observation as
     // an event. Do not pay to synthesize text publication must later withhold.
     return { sentences: [{ text: UNVERIFIED_EVENT_LIMITATION, sourceIds: [], calculations: [] }] };
   }
+  // Typed retrieval has already selected and ordered its records. Legacy phrase
+  // projections must not reinterpret that scope or substitute another subset.
+  if (request?.readTicket) return null;
   // A request-linked receipt is a separate evidence channel from a history search.
   // A lexical query returning no notes must not erase an existing write receipt.
   const requestText = evidence.scope.requestText;
