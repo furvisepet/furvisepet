@@ -1,4 +1,5 @@
 import { selectionPublication } from "./selection-publication.ts";
+import { labsPresentation, renderCertifiedLabs, type LabsPresentation } from "./labs-presentation.ts";
 import type { AskReasoningResult } from "../ai/ask-reasoning.ts";
 import type { CareEntryRow } from "../supabase.ts";
 import type { ReadTicket, ReadPredicate } from "../furvise-brain/read-ticket.ts";
@@ -11,6 +12,7 @@ export type LabsList = {
   coverage: ReadCoverage;
   calculations: [];
   petNames?: Record<string, string>;
+  presentation?: LabsPresentation;
 };
 // A model field or a reloaded JSON object cannot mint this source snapshot.
 const snapshots = new WeakMap<LabsList, string>();
@@ -25,11 +27,10 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
     || !["read", "read_since_event"].includes(ticket.operation)
     || !ticket.selection && ticket.outputs.completeness !== "exhaustive" && request.quantity !== "records") return null;
   // Selected reports do not fulfill a distinct count, comparison, aggregation,
-  // navigation or formatted-export obligation. Those keep their own review.
+  // navigation obligation. Those keep their own review. Format is not authority.
   if (ticket.selection && (request.task || request.projection || request.evidenceNeeds?.length
     || !["records", "measurement"].includes(request.quantity || "")
-    || !["recall", undefined].includes(evidence.interpretation?.readOperation ?? evidence.interpretation?.operation)
-    || request.outputFormat && !["prose", "bullets"].includes(request.outputFormat))) return null;
+    || !["recall", undefined].includes(evidence.interpretation?.readOperation ?? evidence.interpretation?.operation))) return null;
   if (ticket.subjects.petIds.some(id => !evidence.scope.authorizedPetIds.includes(id))
     || rows.some(row => !ticket.subjects.petIds.includes(row.pet_profile_id) || row.deleted_at
       || !Number.isFinite(Date.parse(row.occurred_at)))
@@ -42,7 +43,7 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
   const selection = selectionPublication(ticket, coverage, rows.map(row => ({ id: row.id, petId: row.pet_profile_id })));
   const publishable = selection ? rows.filter(row => selection.selectedEventIds.includes(row.id)) : rows;
   const petNames = ticket.selection ? Object.fromEntries(ticket.subjects.petIds.map(id => [id, evidence.petNames?.[id] || "this pet"])) : undefined;
-  const labs: LabsList = structuredClone({ ticket, coverage, calculations: [], ...(petNames ? { petNames } : {}), records: publishable.map(row => ({
+  const labs: LabsList = structuredClone({ ticket, coverage, calculations: [], ...(petNames ? { petNames, presentation: labsPresentation(request.outputFormat) } : {}), records: publishable.map(row => ({
     id: row.id, sourceId: careEvidenceId(row.id, evidence.history), petId: row.pet_profile_id, event_at: row.occurred_at,
     body: row.note ?? row.title ?? "", predicates_matched: ticket.predicates,
   })) });
@@ -60,18 +61,17 @@ export function labsTaskComplete(labs: LabsList): boolean {
 export function serializeLabsList(labs: LabsList): string {
   const selected = selectionPublication(labs.ticket, labs.coverage, labs.records);
   if (selected) {
-    const parts = selected.certificates.map(certificate => {
+    const groups = selected.certificates.map(certificate => {
       const subject = labs.petNames?.[certificate.subjectId] || "this pet";
-      if (!certificate.certified) return `The requested selection for ${subject} could not be certified.`;
+      if (!certificate.certified) return { subject, heading: `The requested selection for ${subject} could not be certified.`, rows: [] };
       const clause = labs.ticket.selection!.union[certificate.clauseId];
       const boundary = clause.orderBy[0].direction === "desc" ? "Latest" : "Earliest";
-      const heading = `${boundary} matching records for ${subject} within the requested window:`;
-      const rows = certificate.selectedEventIds.map(id => labs.records.find(row => row.id === id)!);
-      return [heading, ...rows.map(row => `${row.event_at.slice(0, 10)} — ${JSON.stringify(row.body)}`),
-        ...(!rows.length ? ["No matching records were found in this certified selection window."] : [])].join("\n");
+      return { subject, heading: `${boundary} matching records for ${subject} within the requested window:`,
+        rows: certificate.selectedEventIds.map(id => labs.records.find(row => row.id === id)!),
+        notice: "No matching records were found in this certified selection window." };
     });
-    if (labs.coverage.status === "partial") parts.push("The broader history was not exhaustively reviewed.");
-    return parts.join("\n\n");
+    return renderCertifiedLabs(groups, labs.presentation || "prose",
+      labs.coverage.status === "partial" ? ["The broader history was not exhaustively reviewed."] : []);
   }
   const list = labs.records.map(row => `${row.event_at.slice(0, 10)} — ${JSON.stringify(row.body)}`).join("\n\n");
   const notice = {

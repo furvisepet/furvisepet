@@ -155,3 +155,56 @@ test('certificate cannot be used for a changed clause, subject label, or injecte
  const f2=await fixture(),r2=publish(f2);r2.applicationActions=[{kind:'care_history.save'}];
  assert.equal(await reviewHistoricalAnswer({result:r2,client:noProvider}),false);
 });
+
+test('presentation forms preserve identical certified facts and provenance with zero provider calls',async()=>{
+ let canonical;
+ for(const format of ['prose','bullets','table','compact','json','csv','unsupported-visual']){
+  const f=await fixture();f.evidence.interpretation.request.outputFormat=format;
+  const r=await generateContextAwareAskResponse({evidenceContract:f.evidence,profiles:pets,careEntries:f.rows,
+   memories:[],productFeedback:[],conversationTurns:[],recentUpdates:[],question:f.context.currentMessage,
+   requestId:'offline-format',locale:'en-CA',client:noProvider});
+  assert.equal(r.model,'server-labs-list');
+  const facts=r.labsList.records;
+  if(!canonical)canonical=structuredClone(facts);
+  assert.deepEqual(facts,canonical);
+  assert.deepEqual(r.relevantContextIds,facts.map(row=>row.sourceId));
+  for(const row of facts){assert.ok(r.answer.summary.includes(row.body));assert.ok(r.answer.summary.includes(row.event_at.slice(0,10)));}
+  assert.equal((await reviewed(f,r)).assessment.outcome,'complete');
+  assert.match(r.answer.summary,/broader history was not exhaustively reviewed/);
+  if(format==='table')assert.match(r.answer.summary,/\| Pet \| Recorded note \| Date \|/);
+  if(['bullets','json','csv','unsupported-visual'].includes(format))assert.match(r.answer.summary,/^- /m);
+ }
+});
+test('table omits uncertified facts and rejects changed certified ID, value, date or provenance',async()=>{
+ const f=await fixture();f.evidence.interpretation.request.outputFormat='table';
+ f.evidence.history.ticketCoverage.groups[1].blocked=true;
+ const r=publish(f);assert.doesNotMatch(r.answer.summary,/4\.71/);
+ assert.equal((await reviewed(f,r)).assessment.outcome,'limited');
+ for(const field of ['id','body','event_at','sourceId']){
+  const f=await fixture();f.evidence.interpretation.request.outputFormat='table';
+  const r=publish(f);r.labsList.records[0][field]='unsupported';
+  assert.equal(await reviewHistoricalAnswer({result:r,client:noProvider}),false);
+ }
+});
+
+test('format cannot authorize uncertified narrative, calculation or comparison obligations',async()=>{
+ for(const format of ['prose','bullets','table','json','csv']){
+  for(const readOperation of ['comparison','count','episode']){
+   const f=await fixture();f.evidence.interpretation.request.outputFormat=format;
+   f.evidence.interpretation.readOperation=readOperation;
+   assert.equal(buildLabsList(f.evidence,f.rows),null);
+  }
+  const f=await fixture();f.evidence.interpretation.request.outputFormat=format;
+  f.evidence.interpretation.request.task={kind:'calculation'};
+  assert.equal(buildLabsList(f.evidence,f.rows),null);
+ }
+});
+test('table escapes cell syntax without mutating the authoritative record or subject',async()=>{
+ const f=await fixture();f.evidence.interpretation.request.outputFormat='table';
+ f.rows[0].note='food | note <script> *literal*\nsecond line';
+ f.evidence.petNames[f.rows[0].pet_profile_id]='Pet | <name>';
+ const r=publish(f);
+ assert.equal(r.labsList.records[0].body,f.rows[0].note);
+ assert.ok(r.answer.summary.includes('food \\| note &lt;script&gt; \\*literal\\*'));
+ assert.equal((await reviewed(f,r)).assessment.outcome,'complete');
+});
