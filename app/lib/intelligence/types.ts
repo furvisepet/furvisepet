@@ -148,6 +148,8 @@ export type IntelligenceConversationTurn = {
 };
 
 export type FurviseLiveContext = {
+  /** Explicit read-publication obligations for bounded direct callers. */
+  evidenceReadProposal?: import("./evidence-read-ticket.ts").EvidenceReadProposal;
   pendingTask?: import("./ask-task-continuation.ts").PendingAskTask | null;
   currentTurn?: IntelligenceConversationTurn;
   /** Server receipt exists; optional interpretation has no mutation authority. */

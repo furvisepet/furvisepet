@@ -3,10 +3,24 @@ import test from 'node:test';
 import { exercise, clock, ASK_PROMPT_CONTEXT_CHAR_BUDGET, evidenceScopeKey } from './helpers/lifetime-harness.mjs';
 import { care, decisive, irrelevant, ownerId } from './fixtures/ask-lifetime-history.mjs';
 
+// Explicit semantic fixture inputs, never parsed from question wording. These
+// proposals supply no source IDs, totals or coverage; the real caller binds labs.
+const evidenceRead = (kind, { terms = [], topics = [], from = null, to = null,
+  period = { kind: 'unspecified', surface: null }, status = 'resolved', locator = null } = {}) => ({
+  read: { operation: kind === 'comparison' ? 'compare' : 'read', temporal: { from, to, anchor: null },
+    predicates: terms.length ? [{ kind: 'text_any', terms }] : [],
+    outputs: { completeness: ['count', 'absence', 'comparison', 'overview'].includes(kind) ? 'exhaustive' : 'sufficient', ordering: 'asc', limit: null } },
+  kind, topics, period, status, locator,
+});
+const lookup = (terms, { year = null, label = 'September 3', ambiguous = false } = {}) =>
+  evidenceRead('record_lookup', { terms, locator: { intent: 'source', status: ambiguous ? 'ambiguous' : 'resolved',
+    date: { year, month: 9, day: 3, label } } });
+const effectiveLookup = () => evidenceRead('record_lookup', { locator: { intent: 'effective', status: 'resolved', date: null } });
+
 for (const note of ['September 3 urine test: result normal.', 'September 3 vet note: skin diagnosis recorded.']) {
   test(`named blood test cannot cite unrelated note: ${note}`, async t => {
     clock(t);
-    const run = await exercise('What did Luna’s September 3 blood-test result say?', { petId: 'luna', rows: [care('specific', 'luna', '2026-09-03', 'vet_visit', note)] });
+    const run = await exercise('What did Luna’s September 3 blood-test result say?', { evidenceReadProposal: lookup(['blood test', 'blood result']), petId: 'luna', rows: [care('specific', 'luna', '2026-09-03', 'vet_visit', note)] });
     assert.match(run.result.reasoning.answer.summary, /requested note.*not.*represented/i);
     assert.ok(!run.result.reasoning.answer.summary.includes(note));
     assert.deepEqual(run.result.reasoning.relevantContextIds, []);
@@ -20,7 +34,7 @@ for (const [topic, note] of [
   ['urine', 'I recorded the urine test value as 2.7, with uncertainty.'],
 ]) test(`source wording remains identical in visible quotation and citation: ${note}`, async t => {
   clock(t);
-  const run = await exercise(`What did Luna’s September 3 ${topic}-test result say?`, { petId: 'luna', rows: [care('specific', 'luna', '2026-09-03', 'vet_visit', note)], answer: 'I saved the result as normal.' });
+  const run = await exercise(`What did Luna’s September 3 ${topic}-test result say?`, { evidenceReadProposal: lookup([`${topic} test`, `${topic} result`]), petId: 'luna', rows: [care('specific', 'luna', '2026-09-03', 'vet_visit', note)], answer: 'I saved the result as normal.' });
   assert.ok(run.result.reasoning.answer.summary.includes(`“${note}”`));
   assert.deepEqual(run.result.reasoning.relevantContextIds, ['care:specific']);
   assert.equal(run.result.reasoning.referencedRecords[0].value, note);
@@ -37,7 +51,7 @@ test('ordinary assistant persistence claims remain removed, even inside model qu
 
 for (const topic of ['test', 'blood and urine test']) test(`unsupported or ambiguous test locator abstains: ${topic}`, async t => {
   clock(t);
-  const run = await exercise(`What did Luna’s September 3 ${topic} result say?`, { petId: 'luna', rows: [care('specific', 'luna', '2026-09-03', 'vet_visit', 'Urine test: pending.')] });
+  const run = await exercise(`What did Luna’s September 3 ${topic} result say?`, { evidenceReadProposal: lookup([], { ambiguous: true }), petId: 'luna', rows: [care('specific', 'luna', '2026-09-03', 'vet_visit', 'Urine test: pending.')] });
   assert.match(run.result.reasoning.answer.summary, /which named test or topic/);
   assert.deepEqual(run.result.reasoning.relevantContextIds, []);
   assert.deepEqual(run.result.reasoning.referencedRecords, []);
@@ -45,7 +59,7 @@ for (const topic of ['test', 'blood and urine test']) test(`unsupported or ambig
 test('compound test descriptors retain every named component', async t => {
   clock(t);
   for (const [note, supported] of [['Kidney function test: pending.', false], ['Liver function test: pending, interpretation uncertain.', true]]) {
-    const run = await exercise('What did Luna’s September 3 liver function test result say?', { petId: 'luna', rows: [care('specific', 'luna', '2026-09-03', 'vet_visit', note)] });
+    const run = await exercise('What did Luna’s September 3 liver function test result say?', { evidenceReadProposal: lookup(['liver function test', 'liver function result']), petId: 'luna', rows: [care('specific', 'luna', '2026-09-03', 'vet_visit', note)] });
     if (supported) {
       assert.ok(run.result.reasoning.answer.summary.includes(`“${note}”`));
       assert.equal(run.result.reasoning.referencedRecords[0].value, note);
@@ -56,13 +70,13 @@ test('compound test descriptors retain every named component', async t => {
   }
 });
 
-for (const [petId, question, note] of [
-  ['luna', 'What did Luna’s September 3 urine-test result say?', 'September 3 urine test: result pending.'],
-  ['luna', 'What did Luna’s Sept. 3 urine-test result say?', 'September 3 urine test: result normal.'],
-  ['oscar', 'What diagnosis was recorded in Oscar’s September 3 vet note?', 'September 3 vet note: the veterinarian recorded a diagnosis of arthritis, not yet confirmed by imaging.'],
+for (const [petId, question, note, terms, label] of [
+  ['luna', 'What did Luna’s September 3 urine-test result say?', 'September 3 urine test: result pending.', ['urine test', 'urine result'], 'September 3'],
+  ['luna', 'What did Luna’s Sept. 3 urine-test result say?', 'September 3 urine test: result normal.', ['urine test', 'urine result'], 'Sept. 3'],
+  ['oscar', 'What diagnosis was recorded in Oscar’s September 3 vet note?', 'September 3 vet note: the veterinarian recorded a diagnosis of arthritis, not yet confirmed by imaging.', ['diagnosis', 'diagnoses'], 'September 3'],
 ]) test(`specific represented note reaches final answer: ${note}`, async t => {
   clock(t);
-  const run = await exercise(question, { petId, rows: [care('specific', petId, '2026-09-03', 'vet_visit', note)], answer: 'The result was negative and there is no diagnosis.', providerOverrides: { relevantContextIds: ['care:specific'] } });
+  const run = await exercise(question, { evidenceReadProposal: lookup(terms, { label }), petId, rows: [care('specific', petId, '2026-09-03', 'vet_visit', note)], answer: 'The result was negative and there is no diagnosis.', providerOverrides: { relevantContextIds: ['care:specific'] } });
   assert.ok(run.prompt.evidenceContract.represented.some(span => span.sourceId === 'care:specific' && span.text === note));
   assert.ok(run.result.reasoning.answer.summary.includes(note), 'entire qualified note must reach final answer');
   assert.match(run.result.reasoning.answer.summary, /note says/);
@@ -75,7 +89,7 @@ for (const [petId, question, note] of [
 test('source rendering does not depend on the model citing the note', async t => {
   clock(t);
   const note = 'Urine test: result pending, not confirmed normal.';
-  const run = await exercise('What did Luna’s 2026-09-03 urine-test result show?', { petId: 'luna', rows: [care('specific', 'luna', '2026-09-03', 'vet_visit', note)], answer: 'The result was normal.', providerOverrides: { relevantContextIds: [] } });
+  const run = await exercise('What did Luna’s 2026-09-03 urine-test result show?', { evidenceReadProposal: lookup(['urine test', 'urine result'], { year: 2026, label: '2026-09-03' }), petId: 'luna', rows: [care('specific', 'luna', '2026-09-03', 'vet_visit', note)], answer: 'The result was normal.', providerOverrides: { relevantContextIds: [] } });
   assert.equal(run.result.reasoning.answer.summary, `The 2026-09-03 note says: “${note}” This reports that note's contents, not a verified current medical status.`);
   assert.deepEqual(run.result.reasoning.relevantContextIds, ['care:specific']);
   assert.equal(run.result.reasoning.referencedRecords[0].value, note);
@@ -86,17 +100,17 @@ test('unselected competing evidence still blocks a quote; an earlier result does
   clock(t);
   const original = care('specific', 'luna', '2026-09-03', 'vet_visit', 'Urine test: pending.');
   const later = care('later', 'luna', '2026-09-04', 'vet_visit', 'Urine test correction: abnormal.');
-  const blocked = await exercise('What did Luna’s September 3 urine-test result say?', { petId: 'luna', rows: [original, later], prepareContext(context) { context.selectedCareEntries = [original]; } });
+  const blocked = await exercise('What did Luna’s September 3 urine-test result say?', { evidenceReadProposal: lookup(['urine test', 'urine result']), petId: 'luna', rows: [original, later], prepareContext(context) { context.selectedCareEntries = [original]; } });
   assert.ok(!blocked.prompt.evidenceContract.represented.some(span => span.sourceId === 'care:later'));
   assert.match(blocked.result.reasoning.answer.summary, /Other related records/);
   const earlier = care('earlier', 'luna', '2026-09-02', 'vet_visit', 'Urine test: normal.');
-  const supported = await exercise('What did Luna’s September 3, 2026 urine-test result say?', { petId: 'luna', rows: [earlier, original] });
+  const supported = await exercise('What did Luna’s September 3, 2026 urine-test result say?', { evidenceReadProposal: lookup(['urine test', 'urine result'], { year: 2026, label: 'September 3, 2026' }), petId: 'luna', rows: [earlier, original] });
   assert.ok(supported.result.reasoning.answer.summary.includes(original.note));
 });
 
 test('a valid cited ID for another topic cannot authorize a requested result', async t => {
   clock(t);
-  const run = await exercise('What did Luna’s September 3 urine-test result say?', { petId: 'luna', rows: [care('specific', 'luna', '2026-09-03', 'vet_visit', 'Vet note: recorded diagnosis of a skin allergy.')], answer: 'The urine test was normal.', providerOverrides: { relevantContextIds: ['care:specific'] } });
+  const run = await exercise('What did Luna’s September 3 urine-test result say?', { evidenceReadProposal: lookup(['urine test', 'urine result']), petId: 'luna', rows: [care('specific', 'luna', '2026-09-03', 'vet_visit', 'Vet note: recorded diagnosis of a skin allergy.')], answer: 'The urine test was normal.', providerOverrides: { relevantContextIds: ['care:specific'] } });
   assert.match(run.result.reasoning.answer.summary, /requested note.*not.*represented/i);
   assert.deepEqual(run.result.reasoning.relevantContextIds, []);
 });
@@ -104,7 +118,7 @@ test('a valid cited ID for another topic cannot authorize a requested result', a
 test('an explicit year disambiguates historical notes without assuming a year', async t => {
   clock(t);
   const note = 'Urine test: result pending.';
-  const run = await exercise('What did Luna’s September 3, 2026 urine-test result say?', { petId: 'luna', rows: [care('old', 'luna', '2025-09-03', 'vet_visit', 'Urine test: normal.'), care('specific', 'luna', '2026-09-03', 'vet_visit', note)] });
+  const run = await exercise('What did Luna’s September 3, 2026 urine-test result say?', { evidenceReadProposal: lookup(['urine test', 'urine result'], { year: 2026, label: 'September 3, 2026' }), petId: 'luna', rows: [care('old', 'luna', '2025-09-03', 'vet_visit', 'Urine test: normal.'), care('specific', 'luna', '2026-09-03', 'vet_visit', note)] });
   assert.ok(run.result.reasoning.answer.summary.includes(note));
   assert.deepEqual(run.result.reasoning.relevantContextIds, ['care:specific']);
 });
@@ -118,29 +132,29 @@ for (const [label, options, pattern] of [
   ['oversized', { rows: [care('a', 'luna', '2026-09-03', 'vet_visit', `Urine test: ${'background '.repeat(100)}result pending, not normal.`)] }, /requested note.*not.*represented/i],
 ]) test(`specific lookup fails safely: ${label}`, async t => {
   clock(t);
-  const run = await exercise('What did Luna’s September 3 urine-test result say?', { petId: 'luna', answer: 'The urine test was normal.', ...options });
+  const run = await exercise('What did Luna’s September 3 urine-test result say?', { evidenceReadProposal: lookup(['urine test', 'urine result']), petId: 'luna', answer: 'The urine test was normal.', ...options });
   assert.match(run.result.reasoning.answer.summary, pattern);
   assert.doesNotMatch(run.result.reasoning.answer.summary, /test was normal/);
 });
 
 test('a dated source does not establish current medical status or exhaustive absence', async t => {
   clock(t);
-  for (const question of ['What is Luna’s current urine-test result?', 'Has Luna ever had an abnormal urine test?', 'How many urine tests has Luna had?']) {
-    const run = await exercise(question, { petId: 'luna', rows: [care('specific', 'luna', '2026-09-03', 'vet_visit', 'Urine test: normal.')], answer: 'All tests have always been normal.', providerOverrides: { relevantContextIds: ['care:specific'] } });
+  for (const [question, kind] of [['What is Luna’s current urine-test result?', 'record_lookup'], ['Has Luna ever had an abnormal urine test?', 'absence'], ['How many urine tests has Luna had?', 'count']]) {
+    const run = await exercise(question, { evidenceReadProposal: kind === 'record_lookup' ? effectiveLookup() : evidenceRead(kind), petId: 'luna', rows: [care('specific', 'luna', '2026-09-03', 'vet_visit', 'Urine test: normal.')], answer: 'All tests have always been normal.', providerOverrides: { relevantContextIds: ['care:specific'] } });
     assert.match(run.result.reasoning.answer.summary, /can't establish/);
     assert.doesNotMatch(run.result.reasoning.answer.summary, /always been normal/);
   }
 });
 
 // Migrated from the lifetime audit: bounded unsupported-answer policy only.
-for (const [petId, question, answer, forbidden] of [
-  ['milo', 'How many soft-stool episodes are recorded?', 'Exactly seven soft-stool episodes were recorded.', /seven/],
-  ['luna', 'What was Luna urine-test result?', 'The urine test was normal.', /test was normal/],
-  ['oscar', 'What is Oscar diagnosis?', 'Oscar has arthritis.', /arthritis/],
-  ['milo', 'Compare Milo earliest and latest weight.', 'The recorded weight decreased by 0.2 kg.', /0\.2 kg/],
+for (const [petId, question, answer, forbidden, kind] of [
+  ['milo', 'How many soft-stool episodes are recorded?', 'Exactly seven soft-stool episodes were recorded.', /seven/, 'count'],
+  ['luna', 'What was Luna urine-test result?', 'The urine test was normal.', /test was normal/, 'record_lookup'],
+  ['oscar', 'What is Oscar diagnosis?', 'Oscar has arthritis.', /arthritis/, 'record_lookup'],
+  ['milo', 'Compare Milo earliest and latest weight.', 'The recorded weight decreased by 0.2 kg.', /0\.2 kg/, 'comparison'],
 ]) test(`bounded answer policy rejects unsupported assertion: ${answer}`, async t => {
   clock(t);
-  const run = await exercise(question, { petId, answer, providerOverrides: { answerSections: [{ heading: 'Details', items: [answer] }] } });
+  const run = await exercise(question, { evidenceReadProposal: kind === 'record_lookup' ? effectiveLookup() : evidenceRead(kind), petId, answer, providerOverrides: { answerSections: [{ heading: 'Details', items: [answer] }] } });
   assert.doesNotMatch(JSON.stringify(run.result.reasoning.answer), forbidden);
   assert.match(run.result.reasoning.answer.summary, /can't establish/);
   assert.deepEqual(run.result.reasoning.answer.sections, []);
@@ -161,7 +175,7 @@ test('small successful load is not proof of effective-history completeness', asy
 });
 test('capped loading, intermediate and final selection are distinct losses', async t => {
   clock(t);
-  const run = await exercise('Summarize Milo entire recorded history.', { rows: [...decisive, ...irrelevant('milo')], answer: 'This is the complete lifetime history.' });
+  const run = await exercise('Summarize Milo entire recorded history.', { evidenceReadProposal: evidenceRead('overview', { period: { kind: 'lifetime', surface: 'entire recorded history' } }), rows: [...decisive, ...irrelevant('milo')], answer: 'This is the complete lifetime history.' });
   const evidence = run.prompt.evidenceContract;
   assert.ok(evidence);
   assert.equal(evidence.scope.requestedPeriod.kind, 'lifetime');
@@ -173,14 +187,14 @@ test('capped loading, intermediate and final selection are distinct losses', asy
   assert.match(run.result.reasoning.answer.summary, /cannot|can't|incomplete|limited/i);
   assert.doesNotMatch(run.prompt.olderUpdateSummary || '', /older updates/);
 });
-for (const [question, answer] of [
-  ['How many separate soft-stool episodes has Milo ever had?', 'Exactly seven episodes.'],
-  ['Has Milo ever vomited?', 'Milo has never vomited.'],
-  ['Have I reported any vomiting for Milo?', 'No vomiting has been recorded.'],
-  ['Compare all Milo recorded weights.', 'His weight decreased by 0.2 kg.'],
+for (const [question, answer, kind] of [
+  ['How many separate soft-stool episodes has Milo ever had?', 'Exactly seven episodes.', 'count'],
+  ['Has Milo ever vomited?', 'Milo has never vomited.', 'absence'],
+  ['Have I reported any vomiting for Milo?', 'No vomiting has been recorded.', 'absence'],
+  ['Compare all Milo recorded weights.', 'His weight decreased by 0.2 kg.', 'comparison'],
 ]) test(`unknown coverage cannot authorize exhaustive answer: ${question}`, async t => {
   clock(t);
-  const run = await exercise(question, { answer });
+  const run = await exercise(question, { evidenceReadProposal: evidenceRead(kind), answer });
   assert.notEqual(run.result.reasoning.answer.summary, answer);
   assert.match(run.result.reasoning.answer.summary, /cannot|can't|incomplete|limited/i);
   assert.equal(run.result.acceptedCareActions.length, 0);
@@ -189,7 +203,7 @@ for (const [question, answer] of [
 });
 test('failed loading survives to provider and definitive absence is replaced', async t => {
   clock(t);
-  const run = await exercise('What was Luna urine-test result?', { petId: 'luna', failCare: true, answer: 'There is no recorded urine-test result.' });
+  const run = await exercise('What was Luna urine-test result?', { evidenceReadProposal: effectiveLookup(), petId: 'luna', failCare: true, answer: 'There is no recorded urine-test result.' });
   const source = run.prompt.evidenceContract?.sources.find(s => s.source === 'care_entries');
   assert.equal(source?.status, 'unavailable');
   assert.ok(source.reasons.includes('source_unavailable'));
@@ -198,7 +212,7 @@ test('failed loading survives to provider and definitive absence is replaced', a
 });
 test('profile-only second pet does not imply history loading', async t => {
   clock(t);
-  const run = await exercise('Summarize the entire history of Milo and Luna.', { authoritativePetIds: ['milo', 'luna'], answer: 'Both complete histories are shown.' });
+  const run = await exercise('Summarize the entire history of Milo and Luna.', { evidenceReadProposal: evidenceRead('overview', { period: { kind: 'lifetime', surface: 'entire history' } }), authoritativePetIds: ['milo', 'luna'], answer: 'Both complete histories are shown.' });
   const source = run.prompt.evidenceContract?.sources.find(s => s.petId === 'luna' && s.source === 'care_entries');
   assert.equal(source?.status, 'not_loaded');
   assert.match(run.result.reasoning.answer.summary, /cannot|can't|incomplete|limited/i);
@@ -206,7 +220,7 @@ test('profile-only second pet does not imply history loading', async t => {
 test('oversized evidence is omitted whole, never emitted without its correction or qualifier', async t => {
   clock(t);
   const note = `${'Owner described the surroundings. '.repeat(22)}Correction: Bruno vomited, not Milo. Milo may have had nausea; weight was 27.8 kg.`;
-  const run = await exercise('Summarize all Milo vomiting history.', { rows: [care('qualified', 'milo', '2026-08-20', 'symptom', note)] });
+  const run = await exercise('Summarize all Milo vomiting history.', { evidenceReadProposal: evidenceRead('overview', { terms: ['vomiting'] }), rows: [care('qualified', 'milo', '2026-08-20', 'symptom', note)] });
   const record = run.prompt.contextRecords.find(r => r.id === 'care:qualified');
   assert.ok(!record || record.value === note);
   assert.ok(run.prompt.evidenceContract.losses.some(loss => loss.sourceId === 'care:qualified' && loss.reason === 'qualified_span_over_budget'));
@@ -223,7 +237,7 @@ function certify(evidence) {
 const twoReports = [care('one', 'milo', '2026-08-18', 'symptom', 'First soft-stool episode.'), care('two', 'milo', '2026-08-19', 'symptom', 'Second separate soft-stool episode.')];
 test('certified complete server fact is rendered instead of a contradictory model total', async t => {
   clock(t);
-  const run = await exercise('How many soft-stool episodes are recorded?', { rows: twoReports, answer: 'Exactly seven episodes.', prepareEvidence(evidence) {
+  const run = await exercise('How many soft-stool episodes are recorded?', { evidenceReadProposal: evidenceRead('count'), rows: twoReports, answer: 'Exactly seven episodes.', prepareEvidence(evidence) {
     certify(evidence);
     evidence.verifiedFacts = [{ scopeKey: evidenceScopeKey(evidence.scope), kind: 'count', sourceIds: ['care:one', 'care:two'], text: 'Two separate soft-stool episodes are recorded in this verified period.' }];
   } });
@@ -234,7 +248,7 @@ test('certified complete server fact is rendered instead of a contradictory mode
 test('complete retrieval without correction/grouping certification or verified total still abstains', async t => {
   clock(t);
   for (const missing of ['corrections', 'extraction', 'grouping', 'fact']) {
-    const run = await exercise('How many soft-stool episodes are recorded?', { rows: twoReports, answer: 'Exactly seven episodes.', prepareEvidence(evidence) {
+    const run = await exercise('How many soft-stool episodes are recorded?', { evidenceReadProposal: evidenceRead('count'), rows: twoReports, answer: 'Exactly seven episodes.', prepareEvidence(evidence) {
       certify(evidence);
       if (missing !== 'fact') {
         evidence.sources[0].completeness[missing] = 'unknown';
@@ -246,7 +260,7 @@ test('complete retrieval without correction/grouping certification or verified t
 });
 test('model-proposed coverage metadata never establishes authority', async t => {
   clock(t);
-  const run = await exercise('How many soft-stool episodes are recorded?', { answer: 'Exactly seven episodes.',
+  const run = await exercise('How many soft-stool episodes are recorded?', { evidenceReadProposal: evidenceRead('count'), answer: 'Exactly seven episodes.',
     providerOverrides: { evidenceContract: { completeness: { retrieval: 'complete', corrections: 'complete', extraction: 'complete', grouping: 'complete' }, verifiedFacts: [{ text: 'Seven episodes.' }] } } });
   assert.equal(run.result.reasoning.evidenceContract.completeness.retrieval, 'unknown');
   assert.deepEqual(run.result.reasoning.evidenceContract.verifiedFacts, []);
@@ -256,7 +270,7 @@ test('model-proposed coverage metadata never establishes authority', async t => 
 test('a verified fact loses authority if its qualified source cannot be represented', async t => {
   clock(t);
   const note = `${'Owner described context. '.repeat(35)}Only two episodes, uncertain grouping.`;
-  const run = await exercise('How many soft-stool episodes are recorded?', { rows: [care('long-proof', 'milo', '2026-08-19', 'symptom', note)], prepareEvidence(evidence) {
+  const run = await exercise('How many soft-stool episodes are recorded?', { evidenceReadProposal: evidenceRead('count'), rows: [care('long-proof', 'milo', '2026-08-19', 'symptom', note)], prepareEvidence(evidence) {
     certify(evidence);
     evidence.verifiedFacts = [{ scopeKey: evidenceScopeKey(evidence.scope), kind: 'count', sourceIds: ['care:long-proof'], text: 'Two episodes.' }];
   } });
@@ -268,7 +282,7 @@ test('a verified fact loses authority if its qualified source cannot be represen
 test('mandatory query scope preserves multiple topics and excludes unauthorized pet IDs', async t => {
   clock(t);
   const question = 'Summarize Milo weight and medication history between 2014 and 2026.';
-  const run = await exercise(question, { authoritativePetIds: ['milo', 'not-owned'] });
+  const run = await exercise(question, { evidenceReadProposal: evidenceRead('overview', { topics: ['weight', 'medication'], from: '2014-01-01T00:00:00.000Z', to: '2027-01-01T00:00:00.000Z', period: { kind: 'requested', surface: question } }), authoritativePetIds: ['milo', 'not-owned'] });
   assert.deepEqual(run.prompt.evidenceContract.scope.authorizedPetIds, ['milo']);
   assert.equal(run.prompt.evidenceContract.scope.requestText, question);
   assert.equal(run.prompt.evidenceContract.scope.requestedPeriod.surface, question);
@@ -276,21 +290,21 @@ test('mandatory query scope preserves multiple topics and excludes unauthorized 
 });
 test('ambiguous episode reference asks for clarification', async t => {
   clock(t);
-  const run = await exercise('What about the second episode?', { answer: 'The second episode was vomiting in 2014.' });
+  const run = await exercise('What about the second episode?', { evidenceReadProposal: evidenceRead('ordinary', { status: 'ambiguous' }), answer: 'The second episode was vomiting in 2014.' });
   assert.equal(run.prompt.evidenceContract.scope.status, 'ambiguous');
   assert.match(run.result.reasoning.answer.summary, /Which episode/);
 });
 test('qualified short source survives exactly in provenance and actual model record', async t => {
   clock(t);
   const note = 'On Aug. 19 Milo weighed 27.8 kg. He may have had nausea, not vomiting; Bruno vomited.';
-  const run = await exercise('What did the August 19 weight note say?', { rows: [care('qualified-small', 'milo', '2026-08-19', 'weight', note)] });
+  const run = await exercise('What did the August 19 weight note say?', { evidenceReadProposal: evidenceRead('ordinary', { terms: ['weight', 'weighed'] }), rows: [care('qualified-small', 'milo', '2026-08-19', 'weight', note)] });
   const span = run.prompt.evidenceContract.represented.find(span => span.sourceId === 'care:qualified-small');
   assert.equal(span.text, note); assert.equal(span.start, 0); assert.equal(span.end, note.length);
   assert.equal(run.prompt.contextRecords.find(record => record.id === span.sourceId).value, span.text);
 });
 test('date-filtered load does not claim correction completeness for requested historical period', async t => {
   clock(t);
-  const run = await exercise('Summarize all history in 2014.', { dateRange: { from: '2014-01-01', to: '2014-12-31' } });
+  const run = await exercise('Summarize all history in 2014.', { evidenceReadProposal: evidenceRead('overview', { from: '2014-01-01T00:00:00.000Z', to: '2015-01-01T00:00:00.000Z', period: { kind: 'requested', surface: 'in 2014' } }), dateRange: { from: '2014-01-01', to: '2014-12-31' } });
   const evidence = run.prompt.evidenceContract;
   assert.deepEqual(evidence.sources.find(source => source.source === 'care_entries').loadedPeriod, { from: '2014-01-01', to: '2014-12-31' });
   assert.equal(evidence.completeness.corrections, 'unknown');
@@ -313,7 +327,7 @@ test('oversized mandatory scope fails before provider instead of silently deleti
 });
 test('model proposals cannot turn factual recall into new history or memory', async t => {
   clock(t);
-  const run = await exercise('How many soft-stool episodes did I report?', { providerOverrides: {
+  const run = await exercise('How many soft-stool episodes did I report?', { evidenceReadProposal: evidenceRead('count'), providerOverrides: {
     proposedHistoryUpdate: { shouldOffer: true, category: 'symptom', title: 'Vomiting resolved', details: 'Milo stopped vomiting.', severity: 'resolved', resolvesConcernId: 'c1' },
     careActions: [{ action: 'create_entry', category: 'symptom', title: 'Soft stool', details: 'Milo had soft stool.', severity: 'routine', confidence: 1, relatedRecordId: null }],
     learnings: [{ subjectType: 'pet', subjectId: 'milo', category: 'preference', factKey: 'food_preference', factValue: 'Milo prefers salmon.', confidence: 1, importance: 'high', durability: 'durable', action: 'create', sourceExcerpt: 'Milo prefers salmon.' }],

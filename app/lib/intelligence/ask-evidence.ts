@@ -10,6 +10,7 @@ import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
 import type { AskContextRecord } from "../ai/ask-reasoning.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import type { FurviseLiveContext } from "./types.ts";
+import { bindEvidenceReadTicket, bindEvidenceLocator, publicationSourceMatches, type EvidenceReadTicket } from "./evidence-read-ticket.ts";
 import { buildSourceNoteRecall, sourceNoteAnswer, type SourceNoteRecall } from "./source-note-recall.ts";
 
 
@@ -23,6 +24,8 @@ export type EvidenceSource = {
 export type EvidenceLoss = { sourceId: string; reason: string };
 export type EvidenceLoading = { sources: EvidenceSource[]; losses: EvidenceLoss[]; dateRange?: { from: string; to: string } };
 export type AskEvidenceScope = {
+  /** Included in the existing server-fact scope key; no model coverage here. */
+  ticketKey?: string;
   authorizedPetIds: string[]; requestedTopic: string; requestText: string;
   requestedPeriod: { kind: "lifetime" | "requested" | "unspecified"; surface: string | null };
   requestKind: "ordinary" | "count" | "absence" | "comparison" | "overview" | "record_lookup" | "resolution_status";
@@ -30,6 +33,8 @@ export type AskEvidenceScope = {
   status: "resolved" | "ambiguous"; readOnlyRecall: boolean;
 };
 export type AskEvidenceContract = {
+  /** Typed read plus publication obligations; never a source of state. */
+  publicationTicket?: EvidenceReadTicket;
   completedOwnerNote?: FurviseLiveContext["completedOwnerNote"];
   timeZone?: string;
   recordInventory?: import("./record-inventory.ts").RecordInventory[];
@@ -186,7 +191,18 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
     const changedSources = new Set(history.coverage.provenance.filter(source => source.status === "deleted_or_changed").map(source => source.sourceId));
     contract.losses.push(...history.coverage.excludedIds.map(sourceId => ({ sourceId, reason: changedSources.has(sourceId) ? "source_deleted_or_changed" : "historical_evidence_budget" })));
   }
-  const sourceNoteRecall = contract.interpretation?.request ? null : buildSourceNoteRecall(context.askHistory ? { ...context, careEntries: context.askHistory.entries } : context, contract);
+  if (context.evidenceReadProposal) {
+    if (contract.interpretation) throw new Error("ASK_EVIDENCE_DUPLICATE_INTERPRETER");
+    const ticket = bindEvidenceReadTicket(context.evidenceReadProposal, ids, context.currentMessage);
+    contract.publicationTicket = ticket;
+    contract.scope = { authorizedPetIds: [...ticket.read.subjects.petIds], requestText: context.currentMessage,
+      requestedTopic: ticket.topics.join(", "), requestedPeriod: ticket.period, requestKind: ticket.kind,
+      status: ticket.status, readOnlyRecall: true, ticketKey: JSON.stringify(ticket) };
+  }
+  const sourceNoteRecall = contract.publicationTicket
+    ? bindEvidenceLocator(contract.publicationTicket, context.askHistory?.entries || context.careEntries,
+      context.owner.userId, id => careEvidenceId(id, contract.history))
+    : contract.interpretation?.request ? null : buildSourceNoteRecall(context.askHistory ? { ...context, careEntries: context.askHistory.entries } : context, contract);
   if (sourceNoteRecall) contract.sourceNoteRecall = sourceNoteRecall;
   return refreshEvidenceCoverage(contract);
 }
@@ -217,7 +233,7 @@ export function representEvidence(contract: AskEvidenceContract, records: AskCon
   contract.represented = records.map(record => ({ sourceId: record.id, petId: record.petId, sourceType: record.sourceType,
     field: "value", start: 0, end: record.value.length, text: record.value,
     ...(record.sourceType === "care_update" ? { recordedAt: record.createdAt } : {}),
-    ...(contract.interpretation || contract.scope.requestKind === "resolution_status" || record.sourceType === "operation_receipt" ? { occurredAt: record.occurredAt } : {}) }));
+    ...(contract.publicationTicket || contract.interpretation || contract.scope.requestKind === "resolution_status" || record.sourceType === "operation_receipt" ? { occurredAt: record.occurredAt } : {}) }));
   const completed=contract.completedOwnerNote;
   if(completed?.note && completed.entryIds?.length && contract.scope.authorizedPetIds.includes(completed.petId)){
     const ids=completed.entryIds.map(id=>`care:${id}`);
@@ -336,14 +352,19 @@ export function evidenceAnswerPolicy(contract: AskEvidenceContract, synthesis: H
     return "The requested history is incomplete or its correction evidence is unavailable or uncertain. I can't establish an effective historical answer from this subset. Please narrow the period or topic, or retry the lookup; this is not evidence that an event or result is absent.";
   }
   if (completeRequiredComparison) return attributedHistoryAnswer(contract, false, synthesis);
-  if (kind === "ordinary" && contract.scope.status !== "ambiguous") return null;
+  if (kind === "ordinary" && contract.scope.status !== "ambiguous" && !contract.publicationTicket) return null;
   if (contract.scope.status === "ambiguous") return "Which episode do you mean? Please identify the pet and approximate date so I can keep the records separate.";
   if (kind === "record_lookup") return sourceNoteAnswer(contract).text;
   const represented = new Set(contract.represented.map(span => span.sourceId));
   const certified = contract.scope.authorizedPetIds.length > 0 && Object.values(contract.completeness).every(value => value === "complete")
     && contract.representation === "complete" && contract.sources.every(source => source.status === "loaded");
   const fact = certified && contract.verifiedFacts.find(fact => fact.kind === kind && fact.scopeKey === evidenceScopeKey(contract.scope)
-    && fact.sourceIds.every(id => represented.has(id)) && fact.text.length <= 1800);
+    && fact.sourceIds.every(id => represented.has(id)) && fact.text.length <= 1800
+    && (!contract.publicationTicket || fact.sourceIds.length > 0 && fact.sourceIds.every(id => {
+      const spans = contract.represented.filter(span => span.sourceId === id);
+      return spans.length > 0 && spans.every(span => span.sourceType === "care_update" && span.start === 0 && span.end === span.text.length
+        && publicationSourceMatches(contract.publicationTicket!, span));
+    })));
   if (fact) return fact.text;
   const failed = contract.sources.some(source => source.status === "unavailable" || source.status === "not_loaded");
   const lead = failed ? "I couldn't verify all the requested records." : "The available records are limited, and their completeness and corrections are not verified.";

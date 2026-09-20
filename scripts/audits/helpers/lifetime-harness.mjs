@@ -161,11 +161,12 @@ function output(answer = 'The supplied observations are owner reports, not a dia
     intelligenceSafety: { level: 'routine', reason: 'Retrospective question', requiresImmediateAction: false, shoppingSuppressed: false },
     learnings: [], careActions: [], semanticEvents: [], intelligenceMetadata: { confidence: 'high', usedPetContext: true, usedCareHistory: true, usedMemories: false } };
 }
-async function exercise(question, { historyAccess, fixturePets = pets, onProviderEvent, onStage, petId = 'milo', conversationPetId = 'milo', rows = decisive, messages, dateRange, failCare, careEpisodes, answer, authoritativePetIds = [petId], prepareEvidence, providerOverrides = {}, taskReviewResponse, taskReviewProviderResponse, reviewResponse, reviewProviderResponse, expectedReviewCalls = 0, authoritativeSemanticFrame, afterGeneration, providerSequence, expectedProviderCalls = 1, prepareContext, history = false, interpretationProposal, interpretationResponse, providerResponse, interpretationModel = "gpt-5-mini", graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride } = {}) {
+async function exercise(question, { evidenceReadProposal, historyAccess, fixturePets = pets, onProviderEvent, onStage, petId = 'milo', conversationPetId = 'milo', rows = decisive, messages, dateRange, failCare, careEpisodes, answer, authoritativePetIds = [petId], prepareEvidence, providerOverrides = {}, taskReviewResponse, taskReviewProviderResponse, reviewResponse, reviewProviderResponse, expectedReviewCalls = 0, authoritativeSemanticFrame, afterGeneration, providerSequence, expectedProviderCalls = 1, prepareContext, history = false, interpretationProposal, interpretationResponse, providerResponse, interpretationModel = "gpt-5-mini", graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride } = {}) {
   const supabase = database(rows, { fixturePets, conversationPetId, messages, failCare, careEpisodes, graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride });
   let context = await buildFurviseContext({ supabase, userId: ownerId, historyAccess, petId, conversationId: messages ? 'chat' : null,
     conversationPetId: messages ? conversationPetId : null, currentMessage: question, dateRange });
   prepareContext?.(context);
+  if (evidenceReadProposal) context.evidenceReadProposal = evidenceReadProposal;
   const interpretationRequests = [];
   if (interpretationProposal) {
     const { interpretAskQuestion, readInterpretationSubject } = await import('../../../app/lib/intelligence/interpret-ask.ts');
