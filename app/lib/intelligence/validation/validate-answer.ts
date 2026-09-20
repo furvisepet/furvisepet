@@ -1,4 +1,4 @@
-import { labsListReviewFailure, carryLabsListSnapshot } from "../labs-list.ts";
+import { labsListReviewFailure, carryLabsListSnapshot, labsTaskComplete } from "../labs-list.ts";
 import { readPartialHistoryReview } from "../history-review-state.ts";
 import { historyCompletionLimits, UNVERIFIED_EVENT_LIMITATION } from "../evidence-need-coverage.ts";
 import { recordHistoryReview, historyReviewSignature } from "../history-review-state.ts";
@@ -57,7 +57,7 @@ export function validateGeneratedAnswer(
     const failure = !reviewedHistory ? readHistoryReviewDiagnostic(result)?.reason || "labs_list_review_required" : labsListReviewFailure(result);
     const scopeFailure = result.labsList.ticket.subjects.petIds.some(id => !authoritativePetIds.includes(id));
     const errors = [...(failure ? [failure] : []), ...(scopeFailure ? ["labs_list_subject_scope"] : [])];
-    const complete = ["complete", "complete_empty"].includes(result.labsList.coverage.status);
+    const complete = labsTaskComplete(result.labsList);
     if (!errors.length && reviewedHistory) {
       carryLabsListSnapshot(result, response);
       if (response.evidenceContract) {
