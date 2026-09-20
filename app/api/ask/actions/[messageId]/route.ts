@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { getAuthenticatedApiContext } from "../../../../lib/authenticated-api-server";
 import { executeActionCapability } from "../../../../lib/application-actions/capabilities.ts";
+import { continueConfirmedAppend } from "../../../../lib/intelligence/append-turn.ts";
 import { emitOperationalEvent } from "../../../../lib/operations/events";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../../../lib/security/request";
 
@@ -30,7 +31,12 @@ export async function POST(request: Request, routeContext: RouteContext) {
     route: "/api/ask/actions/[messageId]", severity: action.status === "failed" ? "warning" : "info" }); }
   catch { console.warn("[Ask] Action telemetry unavailable"); }
   if (action.status === "succeeded") revalidateActionViews(action.petId);
-  return Response.json({ action, changed: execution.changed });
+  let continuation;
+  if (action.status === "succeeded" && body.decision === "confirm") {
+    try { continuation = await continueConfirmedAppend({ supabase: auth.supabase, userId: auth.userId, assistantMessageId: messageId, action }); }
+    catch { continuation = { status: "unavailable" }; } // A failed read cannot erase Heart's receipt.
+  }
+  return Response.json({ action, changed: execution.changed, ...(continuation ? { continuation } : {}) });
 }
 
 function unavailable() { return Response.json({ error: "That action is no longer available." }, { status: 404 }); }

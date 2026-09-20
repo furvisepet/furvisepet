@@ -695,10 +695,10 @@ function AskPageContent() {
       const payload = await conversationJson(`/api/ask/actions/${encodeURIComponent(messageId)}`, {
         method: "POST",
         body: JSON.stringify({ actionId: action.id, decision }),
-      }) as { action?: FurviseApplicationAction; changed?: boolean };
+      }) as { action?: FurviseApplicationAction; changed?: boolean; continuation?: { response?: StructuredResponse } };
       if (!payload.action) throw new Error("That Furvise action could not be completed.");
       setThread((current) => reconcileThreadApplicationActions(current.map((message) => message.role === "furvise"
-        ? { ...message, response: { ...message.response, applicationActions: (message.response.applicationActions || []).map((candidate) => candidate.id === action.id ? payload.action! : candidate) } }
+        ? { ...message, response: { ...message.response, ...(message.id === messageId ? payload.continuation?.response : {}), applicationActions: (message.response.applicationActions || []).map((candidate) => candidate.id === action.id ? payload.action! : candidate) } }
         : message)));
       if (payload.changed) markAppDataChanged();
       if (payload.changed && action.kind === "pet.delete_permanently") router.push("/pets");

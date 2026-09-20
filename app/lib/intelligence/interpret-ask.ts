@@ -47,7 +47,7 @@ export type AskInterpretation = {
 // Interpretation shares the route's 50-second orchestration budget; this cap
 // leaves 25 seconds for retrieval/generation. No extra provider call is added.
 export const ASK_INTERPRETATION_LIMITS = { outputTokens: 4096, timeoutMs: 25_000, turns: 8, turnChars: 600, terms: 6, pets: 3 } as const;
-type InterpretationContext = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask" | "ownerNoteAlreadySaved" | "completedOwnerNote">;
+type InterpretationContext = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask" | "ownerNoteAlreadySaved" | "completedOwnerNote" | "ownerNoteSpans">;
 export class AskInterpretationValidationError extends Error {
   readonly reason: string;
   readonly category: "schema" | "semantic";
@@ -98,6 +98,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
 }): Promise<AskInterpretation> {
   const state = buildRecentSubjectState({ pets: context.eligiblePets.filter(pet => pet.user_id === context.owner.userId), selectedPetId: context.pet.id, recentConversation: context.conversationTurns });
   const input = { pendingTask: context.pendingTask || null, currentTurn: context.currentTurn || null, timeZone: context.timeZone || "UTC", conversationSubject: state.entities.find(entity => entity.key === state.currentFocusKey)?.label || null, currentMessage: context.currentMessage, today: calendarDateInZone(new Date().toISOString(), context.timeZone),
+    sourceSpans: context.ownerNoteSpans || [],
     ownerNoteSources: [...context.conversationTurns, context.pendingTask?.source, context.currentTurn]
       .filter((turn, index, turns) => turn?.role === "user" && !turn.recoveredReceiptReference && turns.findIndex(other => other?.id === turn.id) === index)
       .slice(-ASK_INTERPRETATION_LIMITS.turns - 1).map(turn => ({ id: turn!.id, text: turn!.text })),

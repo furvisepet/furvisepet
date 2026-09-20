@@ -148,6 +148,7 @@ export type IntelligenceConversationTurn = {
 };
 
 export type FurviseLiveContext = {
+  ownerNoteSpans?: ReturnType<typeof import("./owner-note-request.ts").ownerNoteSourceSpans>;
   /** Explicit read-publication obligations for bounded direct callers. */
   evidenceReadProposal?: import("./evidence-read-ticket.ts").EvidenceReadProposal;
   pendingTask?: import("./ask-task-continuation.ts").PendingAskTask | null;

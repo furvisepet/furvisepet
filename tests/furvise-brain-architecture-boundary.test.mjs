@@ -4,11 +4,14 @@ import test from "node:test";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("all direct owner-note writes cross the Brain mutation gate", () => {
-  const source = read("app/lib/intelligence/persist-owner-note.ts");
-  assert.match(source, /grantFurviseMutationAuthority/);
-  assert.match(source, /assertFurviseMutationAllowed\(turn,\s*["']record_care["']\)/);
-  assert.ok(source.indexOf("assertFurviseMutationAllowed") < source.indexOf("persist_ask_owner_note"));
+test("Ask owner-note writes have no direct RPC path and require Heart capability confirmation", () => {
+  const source = read("app/api/ask/route.ts");
+  const confirmation = read("app/api/ask/actions/[messageId]/route.ts");
+  const capabilities = read("app/lib/application-actions/capabilities.ts");
+  assert.doesNotMatch(source, /persistOwnerNote|persist_ask_owner_note|executeAskTask/);
+  assert.match(source, /prepareAppendTurn/);
+  assert.match(confirmation, /executeActionCapability/);
+  assert.match(capabilities, /confirmFurviseWriteReceipt/);
 });
 
 test("model-derived intelligence cannot promote itself into authoritative care history", () => {

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { resolveOwnerNoteRequest } from "../app/lib/intelligence/owner-note-request.ts";
-import { persistOwnerNote } from "../app/lib/intelligence/persist-owner-note.ts";
+import { fixture } from "./helpers/ask-route-ordering.mjs";
 
 const pet = { id: "pebble", name: "Pebble" };
 
@@ -34,26 +34,10 @@ test("explicit note control carries transport authorization provenance", () => {
   assert.equal(note.authorizationEvidence, "note_mode");
 });
 
-test("direct persistence refuses a note object with no authorization evidence", async () => {
-  let calls = 0;
-  await assert.rejects(persistOwnerNote({
-    userId: "owner",
-    petId: "pebble",
-    sourceMessageId: "message",
-    requestId: "request",
-    note: {
-      note: "Pebble rolled down the hill yesterday lol",
-      occurredAt: null,
-      explicitTime: null,
-      needsAnswer: false,
-      authorizationSource: "current_turn",
-      authorizationEvidence: "",
-    },
-  }, async () => {
-    calls += 1;
-    return { data: null, error: null };
-  }), /FURVISE_MUTATION_NOT_AUTHORIZED/);
-  assert.equal(calls, 0, "database organ must not be reached without brain authorization");
+test("source-bound proposal has no persistence authority before confirmation", async () => {
+  const f=fixture();assert.equal((await f.send()).status,200);
+  assert.equal(f.rows.pet_care_entries.length,2);assert.equal(f.rows.ask_action_capabilities[0].receipt,null);
+  assert.equal(f.state.events.filter(event=>event==='heart:execute').length,0);
 });
 
 test("mixed save plus read separates the stored fact from the companion question",()=>{

@@ -3,6 +3,20 @@ import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
 import { calendarBoundaryToInstant, resolveAskTimeZone } from "../ask-time-zone.ts";
 import { findExplicitCareRecordAuthorization } from "../furvise-brain/mutation-authorization.ts";
 import type { FurviseAuthorizationSource } from "../furvise-brain/turn-authority.ts";
+import type { UserSourceSpan } from "../furvise-brain/append-job.ts";
+
+/** Source suggestions only. Brain assigns jobs; these spans grant no authority. */
+export function ownerNoteSourceSpans(text: string, sourceMessageId: string): ReadonlyArray<UserSourceSpan & { role: "source" | "note" | "companion" }> {
+  const authorization = findExplicitCareRecordAuthorization(text);
+  const split = authorization ? splitOwnerNoteAndCompanion(text, authorization) : null;
+  const candidates = split ? [{ role: "note" as const, text: split.note }, ...(split.companionQuestion ? [{ role: "companion" as const, text: split.companionQuestion }] : [])] : [];
+  const spans = candidates.flatMap(candidate => {
+    const start = text.indexOf(candidate.text);
+    if (!candidate.text || start < 0 || text.indexOf(candidate.text, start + 1) >= 0) return [];
+    return [Object.freeze({ ...candidate, sourceMessageId, id: `${sourceMessageId}:${start}:${start + candidate.text.length}`, start, end: start + candidate.text.length })];
+  });
+  return Object.freeze(spans.length ? spans : [Object.freeze({ id: `${sourceMessageId}:0:${text.length}`, sourceMessageId, start: 0, end: text.length, text, role: "source" as const })]);
+}
 
 export type OwnerNoteRequest = {
   note: string;

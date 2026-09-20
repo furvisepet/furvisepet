@@ -385,13 +385,13 @@ test("provider completion, credits, and idempotent replay are tied to durable as
   assert.match(route, /completeAskConversationTurn\(\{[\s\S]{0,500}requestId,/);
 });
 
-test("pending lifecycle deterministic paths run before provider admission and defer all death persistence", () => {
+test("pending lifecycle stays deterministic after Brain and cannot persist extracted death claims", () => {
   const pendingBranch = route.indexOf("pendingLifecycleResolution.kind !== \"continuation\"");
-  const rateAdmission = route.indexOf("requireRateLimitedRequest", pendingBranch);
-  const providerAdmission = route.indexOf("admitAiOperation", pendingBranch);
-  assert.ok(pendingBranch > 0 && pendingBranch < rateAdmission && pendingBranch < providerAdmission);
-  assert.match(route, /deferHighImpactLifecyclePersistence = classifyCurrentPetLoss\(question\) === "confirmed_current"[\s\S]*pendingLifecycle\?\.kind === "reported_deceased"/);
-  assert.match(route, /if \(!preconfirmedCarePersistence && !deferHighImpactLifecyclePersistence && intelligenceResult/);
+  const interpreter = route.indexOf("await interpretAskQuestion(");
+  const answerGenerator = route.indexOf("await generateAskHistoryAnswer(");
+  assert.ok(interpreter > 0 && pendingBranch > interpreter && pendingBranch < answerGenerator);
+  assert.match(route, /deferHighImpactLifecyclePersistence = currentLoss === "confirmed_current"/);
+  assert.doesNotMatch(route, /await persistIntelligenceLearnings\(/);
   assert.match(route, /deterministicApplicationActions = \[pendingLifecycle\.action\]/);
   assert.match(route, /settlePendingLifecycleCancellation/);
   assert.match(route, /resultMessage: "The unconfirmed lifecycle report was cleared\. The saved profile was not changed\."/);
@@ -427,12 +427,13 @@ test("correction cancellation survives reload and stale confirmation cannot exec
   assert.match(actionRoute, /executeActionCapability/);
 });
 
-test("confirmed loss is persisted through a zero-provider, zero-credit branch before every AI gate", () => {
+test("confirmed loss stays in the deterministic lifecycle branch after one Brain and before answer generation", () => {
   const lossBranch = route.indexOf('else if (currentLoss === "confirmed_current")');
   const durableBranch = route.indexOf("else if (durableLifecycleResolution)", lossBranch);
-  const providerBranch = route.indexOf("requireRateLimitedRequest", durableBranch);
+  const interpreter = route.indexOf("await interpretAskQuestion(");
+  const answerGenerator = route.indexOf("await generateAskHistoryAnswer(");
   const lossSlice = route.slice(lossBranch, durableBranch);
-  assert.ok(lossBranch > 0 && durableBranch > lossBranch && providerBranch > durableBranch);
+  assert.ok(interpreter > 0 && lossBranch > interpreter && durableBranch > lossBranch && answerGenerator > durableBranch);
   for (const forbidden of ["requireRateLimitedRequest", "admitAiOperation", "reserveAiCredit", "extractTurnSubjectFrame", "runFurviseIntelligence"]) {
     assert.doesNotMatch(lossSlice, new RegExp(forbidden), forbidden);
   }
