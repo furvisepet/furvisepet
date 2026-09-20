@@ -1,3 +1,4 @@
+import type { ReadSelection } from "./read-selection.ts";
 import { bindReadNeeds, readNeedsSchema, type ReadNeed, type ReadNeedBinding } from "./read-needs.ts";
 /** Semantic proposal only. Ownership and access are bound by the server. */
 export type ReadPredicate = Readonly<{ kind: "text_any"; terms: readonly string[] }>;
@@ -17,6 +18,8 @@ export type ReadTicket = Readonly<{
     anchor: Readonly<{ concept: string; relation: "from" | "after" | "before" }> | null;
     calendar?: "oldest_year" | null }>;
   predicates: readonly ReadPredicate[];
+  /** Generic semantic selection; authority remains server-bound. */
+  selection?: ReadSelection;
   /** Proposed episode selection, never membership evidence or a certified count. */
   episode?: EpisodeReadObligation | null;
   needs?: readonly ReadNeed[] | null;
@@ -28,10 +31,31 @@ export type ReadTicket = Readonly<{
 
 export const readTicketSchema = {
   type: ["object", "null"], additionalProperties: false,
-  required: ["operation", "subjectScope", "temporal", "predicates", "outputs", "searchHints", "episode", "needs"],
+  required: ["operation", "subjectScope", "temporal", "predicates", "outputs", "searchHints", "episode", "needs", "selection"],
   properties: {
     subjectScope: { type: "string", enum: ["selected", "named", "conversation", "account"], description: "Requested subject selection. Selected for an unnamed standalone read; conversation for USER-established referents; named for explicit pets; account only for a requested cohort or identity lookup. Overrides legacy scope. The server binds owned IDs; this never grants writes." },
     needs: readNeedsSchema,
+    selection: {
+      type: ["object", "null"], additionalProperties: false, required: ["groupBy", "union"],
+      description: "Independent ordered selection per subject, or null for an ordinary/legacy read. Does not widen subject scope. Incompatible with needs, episode, outputs.strategy, unresolved anchors and calendar selectors.",
+      properties: {
+        groupBy: { type: "array", minItems: 1, maxItems: 1, items: { type: "string", enum: ["subject"] } },
+        union: { type: "array", minItems: 1, maxItems: 8, description: "Set union of independently ordered selections; repeated event IDs collapse.",
+          items: { type: "object", additionalProperties: false, required: ["orderBy", "take"], properties: {
+            orderBy: { type: "array", minItems: 1, maxItems: 1, items: {
+              type: "object", additionalProperties: false, required: ["field", "direction"], properties: {
+                field: { type: "string", enum: ["event_at"] },
+                direction: { type: "string", enum: ["asc", "desc"] },
+              },
+            } },
+            take: { type: "object", additionalProperties: false, required: ["count", "per"], properties: {
+              count: { type: "integer", minimum: 1, maximum: 100 },
+              per: { type: "string", enum: ["group"] },
+            } },
+          } },
+        },
+      },
+    },
     operation: { type: "string", enum: ["read", "read_since_event", "compare", "rank"] },
     episode: { type: ["object", "null"], additionalProperties: false, required: ["operation", "referent"],
       description: "Null for ordinary records even if legacy fields mention episodes. For actual episode counts or membership, propose the target here. A missing target requires clarification; the server must revalidate membership and stored references.",
