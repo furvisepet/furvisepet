@@ -1,4 +1,5 @@
 import { labsListReviewFailure } from "./labs-list.ts";
+import { logReviewAuthority } from "./publication-authority-diagnostics.ts";
 import { containsUnverifiedStateClaim } from "../application-actions/state-claims.ts";
 import { recordPartialHistoryReview, readPartialHistoryReview } from "./history-review-state.ts";
 import { wholeTaskHistoryReviewSchema, parseWholeTaskHistoryReview } from "./history-review-selection.ts";
@@ -321,6 +322,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
       perPet: evidence.history.perPet.map(pet => ({ petId: pet.petId, rows: pet.rows, exhausted: pet.exhausted, status: pet.status })) }
     : { retrieval: evidence.history.retrieval, corrections: evidence.history.corrections, reasons: evidence.history.reasons, targets: evidence.history.targets, chronology: evidence.history.chronology }
     : evidence.history;
+  logReviewAuthority(evidence, obligations, reviewSources, undefined, undefined, undefined, repairAttempted);
   const requestInput = JSON.stringify({
     actions: reviewActions.map((action, index) => ({ index, ...action,
       executionDisposition: index >= actions.length ? "automatic_after_persistence"
@@ -438,6 +440,8 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     const anchorsValid = !selection.approved || selection.retainedSentenceIndexes.every(index => !invalidIndexes.includes(index));
     const formatValid = !exactRecordFailures.length && !invalidResultItems.length && matchesHistoryOutputFormat(selectedText, sharedRequest?.outputFormat) && completeSelection && anchorsValid && !completionCheck.failures.length
       && (!sharedRequest || !readPublicationFailure(selectedText));
+    logReviewAuthority(evidence, obligations, reviewSources, completionCheck.completion,
+      selection.approved, selection.approved && formatValid, repairAttempted);
     if (!selection.approved || !formatValid) {
       recordHistoryReviewAudit(result, {...audit, ...(reviewContractFailure ? {reviewContractFailure} : {}),
         rejectionReason: "rejectionReason" in selection && typeof selection.rejectionReason === "string" ? selection.rejectionReason : undefined });

@@ -1,4 +1,5 @@
 import { selectionPublication } from "./selection-publication.ts";
+import { logLabsEligibility } from "./publication-authority-diagnostics.ts";
 import { selectionLimitation, exhaustiveSelectionLimitation } from "./labs-coverage-presentation.ts";
 import { labsPresentation, renderCertifiedLabs, type LabsPresentation } from "./labs-presentation.ts";
 import type { AskReasoningResult } from "../ai/ask-reasoning.ts";
@@ -20,6 +21,7 @@ const snapshots = new WeakMap<LabsList, string>();
 export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: CareEntryRow[]): LabsList | null {
   const request = evidence?.interpretation?.request, ticket = request?.readTicket;
   const coverage = evidence?.history?.ticketCoverage;
+  logLabsEligibility(evidence, rows.map(row => ({ id: row.id, petId: row.pet_profile_id })));
   if (ticket) console.info("[Ask Labs] dispatch", { operation: ticket.operation, completeness: ticket.outputs.completeness,
     mode: request?.mode, quantity: request?.quantity, outputFormat: request?.outputFormat,
     readOnly: evidence?.scope.readOnlyRecall, scope: evidence?.scope.status, coverage: coverage?.status, recordCount: rows.length });

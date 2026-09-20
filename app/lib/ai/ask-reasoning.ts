@@ -1,4 +1,5 @@
 import { buildLabsList, serializeLabsList, type LabsList } from "../intelligence/labs-list.ts";
+import { logPublicationDispatch } from "../intelligence/publication-authority-diagnostics.ts";
 import { CLAIM_AUTHORITY_POLICY } from "../intelligence/claim-authority-policy.ts";
 import { sourceDisplayDate } from "../intelligence/source-calendar-date.ts";
 import { parseDatedNoteBatch } from "../intelligence/dated-note-batch.ts";
@@ -732,6 +733,9 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   const labs = projectionContext.minimumSafetyLevel !== "urgent" ? buildLabsList(projectionContext.promptContext.evidenceContract, input.careEntries) : null;
   const projection = !labs && projectionContext.minimumSafetyLevel === "normal" ? deterministicReadProjection(projectionContext.promptContext.evidenceContract,
     detail => console.info("[Ask read projection] decision", detail)) : null;
+  logPublicationDispatch(projectionContext.promptContext.evidenceContract,
+    input.careEntries.map(row => ({ id: row.id, petId: row.pet_profile_id })),
+    labs ? "labs" : projection ? "legacy_projection" : "model", projectionContext.minimumSafetyLevel);
   if (labs || projection) {
     const context = projectionContext;
     const evidence = context.promptContext.evidenceContract;
