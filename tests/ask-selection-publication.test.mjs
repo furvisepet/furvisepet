@@ -59,7 +59,7 @@ test('A1 certified selections publish despite partial global history, without mu
  assert.equal(v.valid,true);assert.equal(v.assessment.outcome,'complete');
  for(const p of pets)assert.ok(v.response.answer.summary.includes(p.name));
  for(const weight of ['30.31','4.71','7.01'])assert.ok(v.response.answer.summary.includes(weight));
- assert.match(v.response.answer.summary,/broader history was not exhaustively reviewed/);
+ assert.doesNotMatch(v.response.answer.summary,/partial results|history search|broader history/);
  assert.equal(f.evidence.history.ticketCoverage.status,'partial');
  assert.deepEqual(v.response.applicationActions,[]);
 });
@@ -69,7 +69,7 @@ test('one uncertified subject preserves independently certified subjects as a li
  const r=publish(f),v=await reviewed(f,r);
  assert.equal(v.valid,true);assert.equal(v.assessment.outcome,'limited');
  assert.deepEqual(r.labsList.records.map(r=>r.id).sort(),[eventIds[0],eventIds[2]].sort());
- assert.match(r.answer.summary,/Bramble could not be certified/);assert.doesNotMatch(r.answer.summary,/4\.71/);
+ assert.match(r.answer.summary,/couldn.t verify the latest matching record for Bramble/);assert.doesNotMatch(r.answer.summary,/4\.71/);
 });
 test('exhaustive requirement is not discharged by bounded selection certificates',async()=>{
  const f=await fixture();
@@ -170,7 +170,7 @@ test('presentation forms preserve identical certified facts and provenance with 
   assert.deepEqual(r.relevantContextIds,facts.map(row=>row.sourceId));
   for(const row of facts){assert.ok(r.answer.summary.includes(row.body));assert.ok(r.answer.summary.includes(row.event_at.slice(0,10)));}
   assert.equal((await reviewed(f,r)).assessment.outcome,'complete');
-  assert.match(r.answer.summary,/broader history was not exhaustively reviewed/);
+  assert.doesNotMatch(r.answer.summary,/partial results|history search|broader history/);
   if(format==='table')assert.match(r.answer.summary,/\| Pet \| Recorded note \| Date \|/);
   if(['bullets','json','csv','unsupported-visual'].includes(format))assert.match(r.answer.summary,/^- /m);
  }
@@ -207,4 +207,62 @@ test('table escapes cell syntax without mutating the authoritative record or sub
  assert.equal(r.labsList.records[0].body,f.rows[0].note);
  assert.ok(r.answer.summary.includes('food \\| note &lt;script&gt; \\*literal\\*'));
  assert.equal((await reviewed(f,r)).assessment.outcome,'complete');
+});
+
+const {parseAskConversationResponse}=await import('../app/lib/ask.mjs');
+function visible(v){
+ return parseAskConversationResponse({...v.response.answer,turn:{finalStage:'COMPLETED',answerOutcome:v.assessment.outcome}});
+}
+for(const direction of ['desc','asc'])test('certified '+direction+' has no unrelated warning or UI completion alarm',async()=>{
+ const f=await fixture('weight',[clause(direction)]),before=JSON.stringify(f.evidence.history.ticketCoverage);
+ const v=await reviewed(f);
+ assert.equal(v.assessment.outcome,'complete');
+ assert.doesNotMatch(v.response.answer.summary,/partial|incomplete|couldn.t|broader history/i);
+ assert.equal(visible(v).completionNotice,undefined);
+ assert.equal(JSON.stringify(f.evidence.history.ticketCoverage),before);
+});
+test('mixed certification gives only the affected subject a specific history limitation',async()=>{
+ const f=await fixture(),g=f.evidence.history.ticketCoverage.groups[1];
+ g.blocked=true;g.clauses[0].certified=false;g.selectionStatus='partial';
+ const v=await reviewed(f),text=v.response.answer.summary;
+ assert.match(text,/couldn.t verify the latest matching record for Bramble because part of the relevant history/);
+ assert.doesNotMatch(text,/couldn.t verify[^\n]*(Aster|Echo)/);
+ assert.ok(text.includes('30.31'));assert.ok(text.includes('7.01'));
+ assert.equal(visible(v).completionNotice,undefined);
+});
+test('exhaustive obligation retains its own mandatory limitation and limited outcome',async()=>{
+ const f=await fixture();f.evidence.interpretation.request.readTicket=structuredClone(f.evidence.interpretation.request.readTicket);
+ f.evidence.interpretation.request.readTicket.outputs.completeness='exhaustive';
+ const v=await reviewed(f);assert.equal(v.assessment.outcome,'limited');
+ assert.match(v.response.answer.summary,/couldn.t verify the full requested history/);
+ assert.match(v.response.answer.summary,/cannot establish an exhaustive list/);
+ assert.equal(visible(v).completionNotice,undefined);
+});
+
+test('missing anchor and unavailable retrieval keep specific limitations',async()=>{
+ for(const [status,reason,expected] of [
+  ['anchor_missing','anchor_not_found',/couldn.t find the event needed/],
+  ['anchor_missing','anchor_ambiguous',/more than one event/],
+  ['unavailable','read_failed',/records could not be retrieved/]]){
+  const f=await fixture();f.rows=[];
+  const c=f.evidence.history.ticketCoverage;c.status=status;c.reasons=[reason];
+  delete c.groups;delete c.effectiveStream;
+  const v=await reviewed(f);
+  assert.equal(v.assessment.outcome,'limited');assert.match(v.response.answer.summary,expected);
+  assert.equal(visible(v).completionNotice,undefined);
+  assert.doesNotMatch(v.response.answer.summary,/30\.31|4\.71|7\.01/);
+ }
+});
+test('lineage uncertainty names corrections and does not alarm other certified subjects',async()=>{
+ const f=await fixture();f.evidence.history.ticketCoverage.effectiveStream[1].lineageClosed=false;
+ const v=await reviewed(f);
+ assert.match(v.response.answer.summary,/Bramble because corrections or deletions/);
+ assert.doesNotMatch(v.response.answer.summary,/couldn.t verify[^\n]*(Aster|Echo)/);
+ assert.equal(visible(v).completionNotice,undefined);
+});
+test('unresolved anchor search is a window limitation, not a whole-history fallback',async()=>{
+ const f=await fixture();f.rows=[];const c=f.evidence.history.ticketCoverage;
+ delete c.groups;delete c.effectiveStream;c.reasons=['anchor_search_not_exhausted'];
+ const v=await reviewed(f);assert.equal(v.assessment.outcome,'limited');
+ assert.match(v.response.answer.summary,/event defining the requested time window could not be fully checked/);
 });

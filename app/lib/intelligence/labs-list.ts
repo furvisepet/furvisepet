@@ -1,4 +1,5 @@
 import { selectionPublication } from "./selection-publication.ts";
+import { selectionLimitation, exhaustiveSelectionLimitation } from "./labs-coverage-presentation.ts";
 import { labsPresentation, renderCertifiedLabs, type LabsPresentation } from "./labs-presentation.ts";
 import type { AskReasoningResult } from "../ai/ask-reasoning.ts";
 import type { CareEntryRow } from "../supabase.ts";
@@ -63,15 +64,16 @@ export function serializeLabsList(labs: LabsList): string {
   if (selected) {
     const groups = selected.certificates.map(certificate => {
       const subject = labs.petNames?.[certificate.subjectId] || "this pet";
-      if (!certificate.certified) return { subject, heading: `The requested selection for ${subject} could not be certified.`, rows: [] };
       const clause = labs.ticket.selection!.union[certificate.clauseId];
+      if (!certificate.certified) return { subject, heading: selectionLimitation(certificate.subjectId, subject,
+        clause.orderBy[0].direction, clause.take.count, labs.coverage, certificate.blockingReasons), rows: [] };
       const boundary = clause.orderBy[0].direction === "desc" ? "Latest" : "Earliest";
       return { subject, heading: `${boundary} matching records for ${subject} within the requested window:`,
         rows: certificate.selectedEventIds.map(id => labs.records.find(row => row.id === id)!),
         notice: "No matching records were found in this certified selection window." };
     });
     return renderCertifiedLabs(groups, labs.presentation || "prose",
-      labs.coverage.status === "partial" ? ["The broader history was not exhaustively reviewed."] : []);
+      exhaustiveSelectionLimitation(labs.ticket.outputs.completeness === "exhaustive", labs.coverage));
   }
   const list = labs.records.map(row => `${row.event_at.slice(0, 10)} — ${JSON.stringify(row.body)}`).join("\n\n");
   const notice = {
