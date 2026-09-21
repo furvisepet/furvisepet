@@ -1,3 +1,4 @@
+import { commonHistoryPathEntered } from "../intelligence/ordinary-history-boundary.ts";
 import { buildLabsList, serializeLabsList, type LabsList } from "../intelligence/labs-list.ts";
 import { logPublicationDispatch } from "../intelligence/publication-authority-diagnostics.ts";
 import { derivePublicationAuthority, publicationSources, publicationGenerationContext, PUBLICATION_AUTHORITY_POLICY } from "../intelligence/publication-authority.ts";
@@ -445,7 +446,8 @@ export function clearAskProviderCooldownsForTests() {
 export function buildAskContext(input: BuildContextInput, applyPromptBudget = true) {
   const allRecords = buildContextRecords(input);
   const evidence = structuredClone(input.evidenceContract || evidenceForRecords(allRecords, input.question, input.profiles.map(profile => profile.id)));
-  const terms = meaningfulTerms(input.question);
+  const ordinaryHistory = commonHistoryPathEntered(evidence);
+  const terms = ordinaryHistory ? new Set<string>() : meaningfulTerms(input.question);
   for (const profile of input.profiles) {
     for (const identityTerm of meaningfulTerms(profile.name || "")) terms.delete(identityTerm);
   }
@@ -457,7 +459,7 @@ export function buildAskContext(input: BuildContextInput, applyPromptBudget = tr
   });
   const now = (input.now || new Date()).getTime();
   const scored = allRecords
-    .map((record) => ({ record, score: scoreRecord(record, terms, now) }))
+    .map((record) => ({ record, score: ordinaryHistory ? 0 : scoreRecord(record, terms, now) }))
     .sort((left, right) => right.score - left.score || timestamp(right.record) - timestamp(left.record) || left.record.id.localeCompare(right.record.id));
 
   const profile = scored.filter(({ record }) => record.sourceType === "profile");
@@ -491,7 +493,13 @@ export function buildAskContext(input: BuildContextInput, applyPromptBudget = tr
       || (a.record.metadata?.receiptKind === "action" && b.record.metadata?.receiptKind === "action"
         ? Number(b.record.metadata.receiptSequence) - Number(a.record.metadata.receiptSequence) : 0)).slice(0, 8);
   const episodeEvidence = scored.filter(({record}) => record.sourceType === "episode_evidence").slice(0, 8);
-  const chosen = dedupeScored([...operationReceipts, ...episodeEvidence, ...activeConcerns, ...activeEpisodes, ...resolvedConcerns, ...resolvedEpisodes, ...profile, ...relevantUpdates, ...memories, ...conversation, ...product]);
+  // Ordinary historical facts come from the organ's represented care set.
+  // Requested profile fields remain a separate obligation; incidental profile,
+  // memory, concern and dialogue context cannot replace historical evidence.
+  const chosen = ordinaryHistory
+    ? dedupeScored([...relevantUpdates, ...profile.filter(({ record }) =>
+      evidence.interpretation?.request?.profileFields?.includes(record.kind))])
+    : dedupeScored([...operationReceipts, ...episodeEvidence, ...activeConcerns, ...activeEpisodes, ...resolvedConcerns, ...resolvedEpisodes, ...profile, ...relevantUpdates, ...memories, ...conversation, ...product]);
   let detailedUpdateCount = 0;
   const records = chosen.flatMap(({ record }) => {
     const fullDetail = record.sourceType === "care_update" && detailedUpdateCount < 2;
@@ -610,6 +618,8 @@ export function buildAskContext(input: BuildContextInput, applyPromptBudget = tr
 }
 
 export function latestNeedScopedCareIds(evidence: AskEvidenceContract, records: AskContextRecord[]): Set<string> | null {
+  // A bound ticket already owns retrieval/order. Do not interpret its quote a second time.
+  if (commonHistoryPathEntered(evidence)) return null;
   const needs = evidence.interpretation?.request?.evidenceNeeds || [];
   if (evidence.scope.authorizedPetIds.length !== 1 || needs.length !== 1 || needs[0].order !== "latest") return null;
   const petId = needs[0].petIds?.length === 1 ? needs[0].petIds[0] : evidence.scope.authorizedPetIds[0];
