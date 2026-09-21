@@ -1,3 +1,4 @@
+import { resultSetSnapshotMatches } from "./result-set-publication.ts";
 import { selectionPublication } from "./selection-publication.ts";
 import { logLabsEligibility } from "./publication-authority-diagnostics.ts";
 import { selectionLimitation, exhaustiveSelectionLimitation } from "./labs-coverage-presentation.ts";
@@ -41,6 +42,8 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
   if (coverage.status === "complete" && !rows.length
     || ["complete_empty", "anchor_missing", "unavailable"].includes(coverage.status) && rows.length)
     throw new Error("ASK_LABS_LIST_COVERAGE_SHAPE");
+  if (!resultSetSnapshotMatches(ticket, coverage, rows.map(row => ({ id: row.id, petId: row.pet_profile_id }))))
+    throw new Error("ASK_LABS_RESULT_SET_SNAPSHOT");
   // Preserve organ order and exact bodies. With selection, publish only the
   // records its existing receipts certify; never select or match again here.
   const selection = selectionPublication(ticket, coverage, rows.map(row => ({ id: row.id, petId: row.pet_profile_id })));

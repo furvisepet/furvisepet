@@ -141,7 +141,6 @@ test("multi-subject chronological translates to a global take, never a per-subje
  }
 });
 for(const [name,p,reason]of [
- ["unbounded chronological",input("chronological","asc",null),"unbounded_or_transport_only_limit"],
  ["endpoint interiors",input("temporal_endpoints","desc",3),"endpoint_interior_or_truncation_semantics"],
  ["endpoint global truncation",input("temporal_endpoints","desc",1),"endpoint_interior_or_truncation_semantics"],
  ["hints",input("chronological","desc",1,{searchHints:["food"]}),"legacy_hint_ranking"],

@@ -24,7 +24,12 @@ export function translateLegacyReadSelection(ticket: ReadTicket, legacyObligatio
   if (ticket.temporal.calendar) return unchanged("calendar_semantics");
   if (ticket.searchHints?.length) return unchanged("legacy_hint_ranking");
   if (strategy === "temporal_endpoints" && ticket.subjects.petIds.length !== 1) return unchanged("global_limit_not_per_subject");
-  if (ticket.outputs.limit === null) return unchanged("unbounded_or_transport_only_limit");
+  if (ticket.outputs.limit === null) {
+    if (strategy !== "chronological") return unchanged("unbounded_or_transport_only_limit");
+    const { strategy: _legacyStrategy, ...outputs } = ticket.outputs;
+    return { translated: true, reason: "equivalent_ordered_result_set",
+      ticket: Object.freeze({ ...ticket, outputs: Object.freeze(outputs) }) };
+  }
   // Legacy endpoints also transport interior records after reserving boundaries.
   // Only a single subject capped at exactly two cannot include that extra set.
   if (strategy === "temporal_endpoints" && ticket.outputs.limit !== 2)

@@ -11,16 +11,16 @@ const clause=direction=>({orderBy:[{field:"event_at",direction}],take:{count:1,p
 const native=(p,pets,union=[clause("asc"),clause("desc")])=>{const{strategy,...outputs}=p.outputs;return bindCompositionalReadTicket({...p,outputs,selection:{groupBy:["subject"],union}},pets);};
 const store=rows=>({page:async q=>rows.filter(r=>r.pet_profile_id===q.petId&&!r.deleted_at).sort((a,b)=>q.ordering==="desc"?eventOrder(b,a):eventOrder(a,b)).slice(q.offset,q.offset+q.limit),effective:async r=>({records:r,reliable:true})});
 const run=(ticket,rows)=>retrieveReadTicket(ticket,scope,store(rows));
-test("unbounded all-matching records need no selection, but chronology receipts differ",async()=>{
+test("unbounded all-matching records use a generic set proof instead of chronology receipts",async()=>{
  const p=proposal(),legacy=bindReadTicket(p,["a"]),plain=bindReadTicket({...p,outputs:{...p.outputs,strategy:null}},["a"]);
  const a=await run(legacy,[row("a",1),row("a",2)]),b=await run(plain,[row("a",1),row("a",2)]);
  assert.deepEqual(a.records,b.records);assert.equal(a.coverage.status,b.coverage.status);
- assert.ok(a.coverage.chronology);assert.equal(b.coverage.chronology,undefined);
+ assert.ok(a.coverage.chronology);assert.equal(b.coverage.chronology,undefined);assert.equal(b.coverage.resultSet.certified,true);
 });
-test("removing unbounded strategy changes transport skip versus stop",async()=>{
+test("generic unbounded transport preserves oversized skip behavior with explicit loss",async()=>{
  const p=proposal(),rows=[row("a",1),row("a",2,"x".repeat(19001))];
  const a=await run(bindReadTicket(p,["a"]),rows),b=await run(bindReadTicket({...p,outputs:{...p.outputs,strategy:null}},["a"]),rows);
- assert.deepEqual(a.records.map(r=>r.id),["a1"]);assert.deepEqual(b.records,[]);
+ assert.deepEqual(a.records.map(r=>r.id),["a1"]);assert.deepEqual(b.records.map(r=>r.id),["a1"]);assert.deepEqual(b.coverage.resultSet.omittedIds,["a2"]);
  assert.equal(a.coverage.status,"partial");assert.equal(b.coverage.status,"partial");
 });
 test("global limit is not per-group cardinality or round-robin transport",async()=>{

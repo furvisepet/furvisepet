@@ -1005,7 +1005,9 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
     exhausted: !result.coverage.continuation.some(cursor => cursor.petId === petId)
       && !result.coverage.needs?.some(need => need.petId === petId && !need.exhausted) && result.coverage.status !== "unavailable",
     status: (() => {
-      const status = result.coverage.groups?.find(group => group.petId === petId)?.status;
+      const resultSet = result.coverage.resultSet?.subjects.find(subject => subject.petId === petId);
+      const status = resultSet ? resultSet.certified ? resultSet.matchingIds.length ? "complete" : "complete_empty" : "partial"
+        : result.coverage.groups?.find(group => group.petId === petId)?.status;
       return status === "complete_empty" ? "complete" : status === "anchor_missing" ? "unavailable" : status ?? coverage.retrieval;
     })() }));
   if (result.coverage.windows.length === 1) coverage.plan = { ...coverage.plan,

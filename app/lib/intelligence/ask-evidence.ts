@@ -465,8 +465,15 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
     const eventFallback = eventTerms.length > 0;
     const ordered = orderHistoryEvidence(eligible, selection, note => note.occurredAt || "", note => note.sourceId,
       undefined, eventFallback ? note => -eventRelevance(note.text) : undefined);
-    const boundary = contract.history?.chronology?.find(item => item.petId === petId);
-    const boundaryBlocked = unresolvedCorrection || boundary?.blocked || boundary?.boundaryIds.some(id => !candidates.some(note => note.sourceId === id));
+    const resultSet = contract.history?.ticketCoverage?.resultSet;
+    const subjectSet = resultSet?.subjects.find(item => item.petId === petId);
+    // Generic full-set proof replaces the old boundary receipt for migrated reads.
+    // Missing representation cannot regain boundary authority in a fallback.
+    const resultSetBlocked = !!resultSet && (!subjectSet?.certified
+      || subjectSet.retainedIds.some(id => !candidates.some(note => note.sourceId === careEvidenceId(id, contract.history))));
+    const boundary = resultSet ? undefined : contract.history?.chronology?.find(item => item.petId === petId);
+    const boundaryBlocked = resultSetBlocked || unresolvedCorrection || boundary?.blocked
+      || boundary?.boundaryIds.some(id => !candidates.some(note => note.sourceId === id));
     const occurrenceUncertain = selection === "earliest_occurrence" && ordered.filter(note => compareHistoryTime(note.occurredAt || "", ordered[0]?.occurredAt || "") === 0).some(note => occurrence(note) !== "affirmative");
     // Earliest/latest answers retain their decisive report. Include the other
     // dated reports for status so a resolution cannot hide a later recurrence.

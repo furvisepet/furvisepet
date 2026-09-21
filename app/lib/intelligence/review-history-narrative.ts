@@ -323,7 +323,8 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     ? { retrieval: evidence.history.retrieval, corrections: evidence.history.corrections,
       reasons: evidence.history.reasons, exhaustiveBoundedContext: true,
       perPet: evidence.history.perPet.map(pet => ({ petId: pet.petId, rows: pet.rows, exhausted: pet.exhausted, status: pet.status })) }
-    : { retrieval: evidence.history.retrieval, corrections: evidence.history.corrections, reasons: evidence.history.reasons, targets: evidence.history.targets, chronology: evidence.history.chronology }
+    : { retrieval: evidence.history.retrieval, corrections: evidence.history.corrections, reasons: evidence.history.reasons, targets: evidence.history.targets, ...(evidence.history.ticketCoverage?.resultSet
+      ? { resultSet: evidence.history.ticketCoverage.resultSet } : { chronology: evidence.history.chronology }) }
     : evidence.history;
   logReviewAuthority(evidence, obligations, reviewSources, undefined, undefined, undefined, repairAttempted);
   const requestInput = JSON.stringify({

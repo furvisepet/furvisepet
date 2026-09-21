@@ -1,3 +1,4 @@
+import { isOrderedResultSet, resolveResultSetHistory, certifyOrderedResultSet, type OrderedResultSetProof } from "./ordered-result-set.ts";
 import { isResultSelection, selectReadResult, certifyReadResult, resultGroups, type ResultSelectionCertificate } from "./result-selection.ts";
 import { retrieveEffectiveSelection, type EffectiveWindowInput, type EffectiveWindowResult } from "./effective-selection.ts";
 import { acquireReadCandidates, selectReadGroups } from "./read-selection.ts";
@@ -27,6 +28,7 @@ export type ReadCoverage = {
   effectiveStream?: Array<{ petId: string; acquiredIds: string[]; effectiveIds: string[]; certifiedSelectedIds: string[];
     lineageClosed: boolean; replacementSeedsExhausted: boolean; graphCalls: number; lineageRows: number }>;
   resultSelection?: ResultSelectionCertificate[];
+  resultSet?: OrderedResultSetProof;
   eventCandidateIds?: string[];
   sourceLineage?: ReadSourceLineage[];
   reservedIds?: string[];
@@ -76,18 +78,22 @@ export async function retrieveReadTicket(ticket: ReadTicket, scope: ReadScope, s
   // resolution phase below, shared by every downstream selector.
   if (!requiresTemporalHistory(ticket.temporal) && ticket.selection && store.effectiveWindow)
     return retrieveEffectiveSelection(ticket, scope, store, LUNGS_LIMITS);
+  const orderedSet = isOrderedResultSet(ticket);
   // Anchor discovery must precede applying the requested interval. A correction
   // may also move an event across that boundary, so resolve lineage first.
   try {
     const acquired = await acquireReadCandidates(ticket, scope, store, accessibleFrom, accessibleTo, LUNGS_LIMITS);
     const candidates = acquired.candidates;
     coverage.continuation = acquired.continuation;
-    if (acquired.failures.length && !ticket.selection) {
+    if (acquired.failures.length && !ticket.selection
+      && (!orderedSet || ticket.subjects.petIds.every(id => acquired.failures.some(f => f.petId === id)))) {
       const reason = acquired.failures[0].reason;
       return result(reason === "page_changed_during_read" ? "partial" : "unavailable", reason);
     }
     coverage.reasons.push(...new Set(acquired.failures.map(failure => failure.reason)));
-    const effective = await store.effective(candidates);
+    const effective = orderedSet && store.effectiveWindow
+      ? await resolveResultSetHistory(ticket, scope, store, candidates, coverage, accessibleFrom, accessibleTo)
+      : await store.effective(candidates);
     if (!effective.reliable) return result("unavailable", "effective_truth_unavailable");
     // A validated saved report may have an unresolved correction link. Keep
     // the report, but never upgrade it into a verified effective fact or edge.
@@ -172,7 +178,7 @@ export async function retrieveReadTicket(ticket: ReadTicket, scope: ReadScope, s
     for (const row of requested) {
       const size = (row.note?.length || 0) + (row.title?.length || 0);
       if (records.length >= LUNGS_LIMITS.records) break;
-      if (chars + size > LUNGS_LIMITS.chars) { if (strategy || ticket.selection) continue; break; }
+      if (chars + size > LUNGS_LIMITS.chars) { if (strategy || ticket.selection || orderedSet) continue; break; }
       chars += size; records.push(row);
     }
     records.sort(order);
@@ -213,6 +219,10 @@ export async function retrieveReadTicket(ticket: ReadTicket, scope: ReadScope, s
       if (ticket.selection!.union.length === 1) records.sort((a, b) =>
         ticket.selection!.union[0].orderBy[0].direction === "asc" ? chronological(a, b) : chronological(b, a));
     }
+    if (orderedSet) {
+      coverage.resultSet = certifyOrderedResultSet(ticket, coverage, selected, records, acquired.failures);
+      coverage.reasons.push(...coverage.resultSet.reasons);
+    }
     if (coverage.endpointPairs) {
       coverage.endpointPairs.forEach(pair => { pair.blocked ||= [...pair.earliestIds, ...pair.latestIds].some(id => !retained.has(id)); });
       if (coverage.selection.omittedIds.length) coverage.reasons.push("bidirectional_endpoint_subset");
@@ -226,6 +236,8 @@ export async function retrieveReadTicket(ticket: ReadTicket, scope: ReadScope, s
         || selected.filter(row => row.pet_profile_id === petId).slice(0, 1).some(row => !retained.has(row.id)) }));
     if (strategy === "event_candidates") coverage.eventCandidateIds = records.map(row => row.id);
     const limited = requested.length !== selected.length && (ticket.outputs.completeness === "exhaustive" || strategy === "calendar_samples" || strategy === "temporal_endpoints");
+    if (coverage.resultSet && !coverage.resultSet.certified)
+      return result("partial", "read_budget_or_limit", records);
     if (coverage.groups?.some(group => group.status === "partial" || group.status === "unavailable"))
       return result("partial", "read_budget_or_limit", records);
     if (coverage.continuation.length || records.length !== requested.length || limited)
