@@ -143,7 +143,7 @@ test("multi-subject chronological translates to a global take, never a per-subje
 for(const [name,p,reason]of [
  ["endpoint interiors",input("temporal_endpoints","desc",3),"endpoint_interior_or_truncation_semantics"],
  ["endpoint global truncation",input("temporal_endpoints","desc",1),"endpoint_interior_or_truncation_semantics"],
- ["hints",input("chronological","desc",1,{searchHints:["food"]}),"legacy_hint_ranking"],
+ ["endpoint hints",input("temporal_endpoints","desc",2,{searchHints:["food"]}),"legacy_hint_ranking"],
  ["oldest calendar year",input("chronological","asc",null,{temporal:{from:null,to:null,anchor:null,calendar:"oldest_year"}}),"calendar_semantics"],
  ["calendar samples",input("calendar_samples","asc",2),"strategy_outside_compatibility_cut"],
  ["event candidates",input("event_candidates","asc",2),"strategy_outside_compatibility_cut"],

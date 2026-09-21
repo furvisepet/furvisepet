@@ -76,7 +76,7 @@ export const readTicketSchema = {
         relation: { type: "string", enum: ["from", "after", "before"] },
       } },
     } },
-    searchHints: { type: ["array", "null"], maxItems: 12, items: { type: "string", minLength: 1, maxLength: 80 }, description: "Advisory literal search hints. They rank bounded context but never filter it; only predicates are mandatory." },
+    searchHints: { type: ["array", "null"], maxItems: 12, items: { type: "string", minLength: 1, maxLength: 80 }, description: "Advisory literal terms for optional supporting context only. They cannot select factual records or establish completeness. Encode requested factual topics in predicates, temporal semantics, selection, or grounded probes; never in hints alone." },
     predicates: { type: "array", maxItems: 6, description: "AND across predicates, OR across each predicate's literal terms. Include ordinary synonyms needed for the requested concept; never copy the user's sentence.", items: {
       type: "object", additionalProperties: false, required: ["kind", "terms"], properties: {
         kind: { type: "string", enum: ["text_any"] },

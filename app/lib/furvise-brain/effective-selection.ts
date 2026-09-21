@@ -162,7 +162,7 @@ export async function retrieveEffectiveSelection(ticket: ReadTicket, scope: Read
     coverage.effectiveStream!.find(p => p.petId === group.petId)!.certifiedSelectedIds = [...new Set(certifiedIds)];
     group.selectionStatus = group.blocked ? "partial" : group.selectedIds.length ? "complete" : "complete_empty";
     const omitted = matched.some(row => row.pet_profile_id === group.petId && !retained.has(row.id));
-    group.status = group.blocked || !group.exhausted || omitted || ticket.searchHints?.length ? "partial"
+    group.status = group.blocked || !group.exhausted || omitted ? "partial"
       : group.selectedIds.length ? "complete" : "complete_empty";
     if (group.blocked) group.reasons.push("effective_selection_uncertified");
     if (!group.exhausted) group.reasons.push("subject_scan_not_exhausted");

@@ -1,3 +1,4 @@
+import { readWithSupportingContext, type ReadSupportingContext } from "./read-supporting-context.ts";
 import { isOrderedResultSet, resolveResultSetHistory, certifyOrderedResultSet, type OrderedResultSetProof } from "./ordered-result-set.ts";
 import { isResultSelection, selectReadResult, certifyReadResult, resultGroups, type ResultSelectionCertificate } from "./result-selection.ts";
 import { retrieveEffectiveSelection, type EffectiveWindowInput, type EffectiveWindowResult } from "./effective-selection.ts";
@@ -35,7 +36,7 @@ export type ReadCoverage = {
   needs?: Array<{ petId: string; needId: string; candidateIds: string[]; exhausted: boolean; status: "complete" | "partial" | "unavailable"; reason?: string }>;
   targets?: Array<{ petId: string; day: string; candidateIds: string[]; retainedIds: string[]; exhausted: boolean; status: "complete" | "partial" | "unavailable" }>;
 };
-export type ReadResult = { records: CareEntryRow[]; coverage: ReadCoverage };
+export type ReadResult = { records: CareEntryRow[]; coverage: ReadCoverage; supportingContext?: ReadSupportingContext };
 export type ReadScope = { userId: string; ownedPetIds: readonly string[]; from: string; to: string; asOf: string };
 export type ReadStore = {
   effectiveWindow?(input: EffectiveWindowInput): Promise<EffectiveWindowResult>;
@@ -60,6 +61,10 @@ const chronological = (a: CareEntryRow, b: CareEntryRow) => Date.parse(a.occurre
 
 /** No question, dialogue, pet names or model client crosses this boundary. */
 export async function retrieveReadTicket(ticket: ReadTicket, scope: ReadScope, store: ReadStore): Promise<ReadResult> {
+  return readWithSupportingContext(ticket, scope, store, LUNGS_LIMITS, retrieveFactualReadTicket);
+}
+
+async function retrieveFactualReadTicket(ticket: ReadTicket, scope: ReadScope, store: ReadStore): Promise<ReadResult> {
   const coverage: ReadCoverage = { status: "unavailable", reasons: [], matchSemantics: "ticket_text_predicates",
     asOf: scope.asOf, anchors: [], windows: [], continuation: [] };
   const result = (status: ReadCoverageStatus, reason?: string, records: CareEntryRow[] = []): ReadResult => {

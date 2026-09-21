@@ -48,7 +48,8 @@ export type HistoryCoverage = {
   claimSources: Array<{ petId: string; sourceIds: string[] }>;
   excludedIds: string[];
 };
-export type RetrievedAskHistory = { coverage: HistoryCoverage; entries: CareEntryRow[]; originals: CareEntryRow[] };
+export type RetrievedAskHistory = { coverage: HistoryCoverage; entries: CareEntryRow[]; originals: CareEntryRow[];
+  supportingContext?: import("../furvise-brain/lungs.ts").ReadResult["supportingContext"] };
 export type DbClaim = Record<string, unknown> & { id: string; user_id: string; subject_id: string; structured_value: unknown };
 export type EpisodeClaimValidation = { claims: DbClaim[]; verified: Map<string, string | null>; revision?: string; sourceRevisions?: Map<string, string> };
 type DbRelation = { id: string; user_id: string; from_claim_id: string; to_claim_id: string; relation_type: RebuildRelation["relationType"] };
@@ -1020,7 +1021,7 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
       ? `claim:${anchor.eventId.slice(6)}` : `care:${anchor.eventId}`)]);
   // Explicit selection strategies carry candidate accounting separately from
   // transported sources. Omitted candidates are not usable answer evidence.
-  coverage.candidateIds = (ticket.outputs.strategy || ticket.searchHints?.length || ticket.needs?.length) && result.coverage.selection
+  coverage.candidateIds = (ticket.outputs.strategy || ticket.needs?.length) && result.coverage.selection
     ? sourceIds(result.coverage.selection.matchedIds) : [...retainedIds];
   coverage.provenance = coverage.provenance.filter(item => retainedIds.has(item.sourceId)
     || item.claimIds.some(id => retainedIds.has(`claim:${id}`)));
@@ -1030,7 +1031,7 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
   console.info("[Ask Lungs] ticket result", JSON.stringify({ operation: ticket.operation, petIds: ticket.subjects.petIds,
     temporal: ticket.temporal, predicates: ticket.predicates, outputs: ticket.outputs, coverage: result.coverage,
     recordIds: result.records.map(row => row.id), queryCount: coverage.queryCount, durationMs: Date.now() - started }));
-  return { ...context, askHistory: { coverage, entries: result.records, originals } };
+  return { ...context, askHistory: { coverage, entries: result.records, originals, ...(result.supportingContext ? { supportingContext: result.supportingContext } : {}) } };
 }
 
 /** Correction-aware store boundary for compositional reads only. Its proof is

@@ -309,7 +309,9 @@ test('earliest measurement uses one calendar-free planner ticket and retains the
     assert.ok(result.coverage.selection.scannedIds.includes(earliest.id));
     assert.deepEqual(result.coverage.selection.matchedIds, []);
     assert.deepEqual(result.records, []);
-    assert.equal(result.coverage.status, 'partial');
+    // Completeness is relative to the explicit lexical predicate, not a hint or a claim of semantic absence.
+    assert.equal(result.coverage.status, 'complete_empty');
+    assert.equal(result.coverage.matchSemantics, 'ticket_text_predicates');
   });
   await t.test('C053 oldest calendar year without measurement predicates still binds and selects its year', async () => {
     const rows = [row('older-nonmeasurement', '2015-06-01T12:00:00Z', 'Routine visit.'), earliest, later];

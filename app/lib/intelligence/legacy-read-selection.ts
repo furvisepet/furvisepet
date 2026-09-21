@@ -22,7 +22,9 @@ export function translateLegacyReadSelection(ticket: ReadTicket, legacyObligatio
   if (legacyObligations.evidenceNeedCount !== 0) return unchanged("independent_legacy_evidence_obligations");
   if (ticket.needs?.length || ticket.episode) return unchanged("independent_obligation");
   if (ticket.temporal.calendar) return unchanged("calendar_semantics");
-  if (ticket.searchHints?.length) return unchanged("legacy_hint_ranking");
+  if (strategy === "temporal_endpoints" && ticket.searchHints?.length) return unchanged("legacy_hint_ranking");
+  // Chronological hints are advisory only. Keep them for post-selection context;
+  // their former relevance ranking is intentionally not a factual selector.
   if (strategy === "temporal_endpoints" && ticket.subjects.petIds.length !== 1) return unchanged("global_limit_not_per_subject");
   if (ticket.outputs.limit === null) {
     if (strategy !== "chronological") return unchanged("unbounded_or_transport_only_limit");

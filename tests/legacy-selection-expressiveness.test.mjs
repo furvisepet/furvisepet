@@ -53,13 +53,14 @@ test("missing subjects free old capacity for interiors; native union does not fi
  assert.equal(a.coverage.endpointPairs.find(x=>x.petId==="b").blocked,true);
  }
 });
-test("hints reorder advisory context before finite truncation without filtering",async()=>{
+test("hints reserve optional context after factual truncation",async()=>{
  const p=proposal("chronological",1,{searchHints:["food"]}),rows=[row("a",1,"food"),row("a",3,"unrelated")];
  const ranked=await run(bindReadTicket(p,["a"]),rows);
- assert.deepEqual(ranked.records.map(r=>r.id),["a1"]);
+ assert.deepEqual(ranked.records.map(r=>r.id),["a3"]);
+ assert.deepEqual(ranked.supportingContext.records.map(r=>r.id),["a1"]);
  const all=await run(bindReadTicket({...p,outputs:{...p.outputs,limit:null}},["a"]),rows);
- assert.equal(all.records.length,2);assert.equal(all.coverage.status,"partial");
- assert.ok(all.coverage.reasons.includes("bounded_period_context_not_semantic_completeness"));
+ assert.equal(all.records.length,2);assert.equal(all.coverage.status,"complete");
+ assert.ok(!all.coverage.reasons.includes("bounded_period_context_not_semantic_completeness"));
 });
 test("subject grouping rejects result-level take; result scope must be explicit",()=>{
  const p=proposal();delete p.outputs.strategy;

@@ -16,10 +16,10 @@ test('advisory misses retain context, mandatory misses filter it, neither hint n
   const rows = [row('note', 'a', '2026-01-01T00:00:00Z', 'Slept normally.')];
   const advisory = await retrieveReadTicket(bindReadTicket(plan({ searchHints: ['rest'] }), ['a']), scope, store(rows));
   assert.deepEqual(advisory.records.map(row => row.id), ['note']);
-  assert.equal(advisory.coverage.status, 'partial');
+  assert.equal(advisory.coverage.status, 'complete');
   const mandatory = await retrieveReadTicket(bindReadTicket(plan({ predicates: [{ kind: 'text_any', terms: ['rest'] }], searchHints: ['slept'] }), ['a']), scope, store(rows));
   assert.deepEqual(mandatory.records, []);
-  assert.equal(mandatory.coverage.status, 'partial');
+  assert.equal(mandatory.coverage.status, 'complete_empty');
   assert.deepEqual(mandatory.coverage.selection.scannedIds, ['note']);
   assert.deepEqual(mandatory.coverage.selection.matchedIds, []);
 });

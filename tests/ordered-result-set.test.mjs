@@ -207,9 +207,9 @@ test("profile authority is not invented by an all-history result-set proof",asyn
  assert.equal(derivePublicationAuthority(e),null,"existing non-selection evidence policy remains authoritative");
  assert.ok(r.labs.records.every(row=>row.sourceId.startsWith("care:")));
 });
-test("legacy hints/calendar/independent obligations remain outside the adapter",()=>{
+test("calendar/independent obligations remain outside the adapter",()=>{
  for(const [p,obligations]of [
-  [unbounded("asc",{searchHints:["food"]}),undefined],
+
   [unbounded("asc",{temporal:{from:null,to:null,anchor:null,calendar:"oldest_year"}}),undefined],
   [unbounded(),{evidenceNeedCount:1}]
  ]){

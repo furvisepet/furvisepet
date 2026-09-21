@@ -4,7 +4,7 @@ import type { ReadCoverage, ReadScope, ReadStore } from "./lungs.ts";
 
 export const isOrderedResultSet = (ticket: ReadTicket) => !ticket.selection
   && ticket.outputs.strategy == null && ticket.outputs.limit === null
-  && !ticket.searchHints?.length && !ticket.needs?.length && !ticket.episode && !ticket.temporal.calendar;
+  && !ticket.needs?.length && !ticket.episode && !ticket.temporal.calendar;
 
 export type OrderedResultSetProof = {
   subjectIds: string[]; predicates: ReadTicket["predicates"]; temporal: ReadTicket["temporal"];

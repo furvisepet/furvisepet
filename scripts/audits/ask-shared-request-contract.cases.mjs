@@ -444,10 +444,13 @@ test('shared lexical retrieval reserves scoped context for different wording wit
     rows: [care('contextual', 'milo', '2026-06-04', 'general', 'Aster slept through the night.'),
       care('foreign', 'luna', '2026-06-04', 'general', 'Bramble rested.')],
     interpretationProposal: proposal({ terms: ['rest'], topic: 'rest', selection: 'latest',readTicket:readObligations({
-      searchHints:['rest'],outputs:{ordering:'desc',limit:1}}) }) });
+      predicates:[{kind:'text_any',terms:['rest','slept']}],searchHints:['rest'],outputs:{ordering:'desc',limit:1}}) }) });
   assert.deepEqual(r.context.askHistory.entries.map(row => row.id), ['contextual']);
   assert.ok(r.context.askHistory.coverage.queryCount <= 4);
-  assert.ok(r.context.askHistory.coverage.reasons.includes('bounded_period_context_not_semantic_completeness'));
+  // Topic meaning is explicit in the mocked semantic proposal; advisory misses cannot downgrade it.
+  assert.ok(!r.context.askHistory.coverage.reasons.includes('bounded_period_context_not_semantic_completeness'));
+  assert.equal(r.context.askHistory.supportingContext.maySatisfyObligations,false);
+  assert.deepEqual(r.context.askInterpretation.request.readTicket.predicates,[{kind:'text_any',terms:['rest','slept']}]);
   const schema = r.prompt && r.serialized;
   assert.ok(schema);
 });
