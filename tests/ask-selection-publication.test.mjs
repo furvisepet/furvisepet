@@ -209,6 +209,49 @@ test('table escapes cell syntax without mutating the authoritative record or sub
  assert.equal((await reviewed(f,r)).assessment.outcome,'complete');
 });
 
+test('certified sufficient earliest weight retains exact event and partial file without exhaustive disclaimer',async()=>{
+ const f=await fixture('weight',[clause('asc')]);
+ const before=structuredClone(f.evidence.history.ticketCoverage);
+ const r=await generateContextAwareAskResponse({evidenceContract:f.evidence,profiles:pets,careEntries:f.rows,
+  memories:[],productFeedback:[],conversationTurns:[],recentUpdates:[],question:'Earliest recorded weight and date for each pet',
+  requestId:'offline-earliest-disclaimer',locale:'en-CA',client:noProvider});
+ const proof=selectionPublication(r.labsList.ticket,r.labsList.coverage,r.labsList.records);
+ assert.equal(proof.complete,true);assert.equal(proof.transportValid,true);
+ assert.equal(r.labsList.ticket.outputs.completeness,'sufficient');
+ const v=await reviewed(f,r);
+ assert.equal(r.model,'server-labs-list');assert.equal(v.valid,true);
+ for(const row of f.rows){
+  assert.ok(v.response.answer.summary.includes(row.note));
+  assert.ok(v.response.answer.summary.includes(row.occurred_at.slice(0,10)));
+  assert.ok(r.relevantContextIds.includes('care:'+row.id));
+ }
+ assert.doesNotMatch(v.response.answer.summary,/broader history|exhaustiv|partial results|history search is incomplete/i);
+ assert.equal(r.labsList.coverage.status,'partial');
+ assert.deepEqual(f.evidence.history.ticketCoverage,before);
+});
+
+test('exhaustive every weight with transport loss retains incomplete disclosure and partial file',async()=>{
+ const f=await fixture('weight',[clause('asc',2)]);
+ const ticket=structuredClone(f.evidence.interpretation.request.readTicket);
+ delete ticket.selection;ticket.outputs.completeness='exhaustive';
+ f.evidence.interpretation.request.readTicket=ticket;
+ f.evidence.interpretation.request.quantity='records';
+ const lost=f.rows.pop(),coverage=f.evidence.history.ticketCoverage;
+ coverage.reasons.push('transport_limit');
+ coverage.selection.retainedIds=coverage.selection.retainedIds.filter(id=>id!==lost.id);
+ const group=coverage.groups.find(g=>g.petId===lost.pet_profile_id);
+ group.retainedIds=group.retainedIds.filter(id=>id!==lost.id);
+ const before=structuredClone(coverage);
+ const r=publish(f),v=await reviewed(f,r);
+ assert.equal(v.valid,true);assert.equal(v.assessment.outcome,'limited');
+ assert.equal(labsTaskComplete(r.labsList),false);
+ assert.match(v.response.answer.summary,/partial results; the history search is incomplete/i);
+ assert.ok(!r.labsList.records.some(row=>row.id===lost.id));
+ assert.equal(r.labsList.ticket.outputs.completeness,'exhaustive');
+ assert.equal(r.labsList.coverage.status,'partial');
+ assert.deepEqual(f.evidence.history.ticketCoverage,before);
+});
+
 const {parseAskConversationResponse}=await import('../app/lib/ask.mjs');
 function visible(v){
  return parseAskConversationResponse({...v.response.answer,turn:{finalStage:'COMPLETED',answerOutcome:v.assessment.outcome}});
