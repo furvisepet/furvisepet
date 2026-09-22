@@ -18,6 +18,8 @@ import { ASK_REQUEST_INSTRUCTIONS, ASK_REQUEST_VERSION, askRequestSchema, valida
 
 type Operation = "overview" | "recall" | "count" | "comparison" | "status" | "episode" | "general" | "update" | "clarify";
 export type AskInterpretation = {
+  /** Server-created compatibility provenance; no identity or factual authority. */
+  readCompatibility?: { inputStrategy: "event_candidates" };
   request?: AskRequestContract;
   referenceTarget?: { kind: "episode"; ordinal: AskInterpretation["ordinal"]; topic: AskInterpretation["episodeTopic"]; basis?: "displayed_list" | "scoped_register"; period?: { from: string; to: string } };
   version: "ask-interpretation.v1";

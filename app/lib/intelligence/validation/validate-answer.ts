@@ -77,7 +77,22 @@ export function validateGeneratedAnswer(
   }
   // A legacy projection, fallback or future presenter cannot bypass the same
   // certified source boundary by skipping model review or changing its format.
-  if (!currentEmergency && derivePublicationAuthority(result.evidenceContract) && !reviewedHistory) {
+  // This exact server limitation asserts no historical fact. A lexical-empty
+  // selection receipt must not turn a source-free refusal into a factual claim
+  // that requires model approval. Every factual/pending-action variant still
+  // passes through the unchanged authority gate below.
+  const isSourceFreeLimitation = (candidate: AskReasoningResult) => candidate.evidenceContract?.scope.readOnlyRecall
+    && candidate.evidenceContract.interpretation?.request?.mode === "read"
+    && historyCompletionLimits(candidate.evidenceContract).includes("requested_transition_not_retrieved")
+    && candidate.answer.title === "Furvise" && candidate.answer.summary === UNVERIFIED_EVENT_LIMITATION
+    && !candidate.answer.sections.length && !candidate.answer.safetyNote && !candidate.suggestedFollowUps.length
+    && candidate.historyNarrative?.sentences.length === 1
+    && candidate.historyNarrative.sentences[0].text === UNVERIFIED_EVENT_LIMITATION
+    && !candidate.historyNarrative.sentences[0].sourceIds.length && !candidate.historyNarrative.sentences[0].calculations?.length
+    && !candidate.relevantContextIds.length && !candidate.referencedRecords.length
+    && !candidate.applicationActions.length && !candidate.careActions.length && !candidate.semanticEvents.length
+    && !candidate.learnings.length && !candidate.proposedHistoryUpdate.shouldOffer;
+  if (!currentEmergency && derivePublicationAuthority(result.evidenceContract) && !reviewedHistory && !isSourceFreeLimitation(result)) {
     const errors = ["publication_obligation_authority_required"];
     const assessment = createAnswerAssessment({ body: response.answer, evidence: response.evidenceContract || null,
       unsafe: true, reasons: errors, checks: { structuralValidity: "passed", evidenceSupport: "failed",
@@ -352,7 +367,7 @@ export function validateGeneratedAnswer(
   });
   const finalReviewMatches = Boolean(reviewedHistory && response.answer.summary === (reviewedHistory.proseText || reviewedHistory.text)
     && response.answer.sections.length === 0 && !response.answer.safetyNote && !reviewedHistory.sourceReports?.length);
-  if (!currentEmergency && derivePublicationAuthority(result.evidenceContract) && !finalReviewMatches)
+  if (!currentEmergency && derivePublicationAuthority(result.evidenceContract) && !finalReviewMatches && !isSourceFreeLimitation(response))
     errors.push("publication_obligation_authority_changed");
   const finalGroundingMatches = finalReviewMatches || trustedServerProjection;
   if (finalReviewMatches && reviewedHistory?.actions) rememberReviewedTaskPresentation(response.evidenceContract, response.answer, reviewedHistory.actions);

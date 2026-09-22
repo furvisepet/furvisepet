@@ -47,6 +47,20 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
   // Preserve organ order and exact bodies. With selection, publish only the
   // records its existing receipts certify; never select or match again here.
   const selection = selectionPublication(ticket, coverage, rows.map(row => ({ id: row.id, petId: row.pet_profile_id })));
+  // An empty candidate search without common proof is a reference/discovery
+  // limitation, including when the legacy envelope asks to display records.
+  if (!rows.length && evidence.history?.eventCandidateIds?.length === 0
+    && !selection?.complete && !coverage.resultSet?.certified) return null;
+  // Exhausting text matches is not proof that an unrecognized concept is absent.
+  // An empty effective scope is stronger: no surviving row can be a missed match.
+  // Keep lexical-empty searches on the existing no-fact limitation path; do not
+  // alter their organ receipts or manufacture a semantic absence certificate.
+  if (!rows.length && ticket.predicates.length && (selection?.complete || coverage.resultSet?.certified)
+    && !ticket.subjects.petIds.every(petId => {
+      const streams = coverage.effectiveStream?.filter(stream => stream.petId === petId) || [];
+      return streams.length === 1 && streams[0].lineageClosed && streams[0].replacementSeedsExhausted
+        && streams[0].effectiveIds.length === 0;
+    })) return null;
   const publishable = selection ? rows.filter(row => selection.selectedEventIds.includes(row.id)) : rows;
   const petNames = ticket.selection ? Object.fromEntries(ticket.subjects.petIds.map(id => [id, evidence.petNames?.[id] || "this pet"])) : undefined;
   const labs: LabsList = structuredClone({ ticket, coverage, calculations: [], ...(petNames ? { petNames, presentation: labsPresentation(request.outputFormat) } : {}), records: publishable.map(row => ({

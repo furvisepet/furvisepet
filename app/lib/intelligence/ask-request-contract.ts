@@ -1,3 +1,4 @@
+import { translateLegacyReadSelection } from "./legacy-read-selection.ts";
 import { groundReadProbes } from "./read-probes.ts";
 import { bindReadTicket, type ReadTicket } from "../furvise-brain/read-ticket.ts";
 import { readTicketProviderSchema } from "../furvise-brain/read-ticket-provider-schema.ts";
@@ -777,8 +778,19 @@ function bindTicketedRead(p: Record<string, unknown>, context: Context): AskInte
       sourceSpanId: `${need.sourceTurnId ?? context.currentTurn?.id ?? "current"}:${start}:${start + need.quote.length}` };
   });
   const { probes: _probes, ...ticketFields } = proposedTicket;
-  const readTicket = bindProviderReadTicket({ ...ticketFields, subjectScope,
+  let readTicket = bindProviderReadTicket({ ...ticketFields, subjectScope,
     ...(grounded ? { needs: grounded.needs } : {}) }, petIds, bindings)!;
+  // Normalize while the existing typed search/reference intent still exists.
+  // The later compatibility selection label is derived from outputs.limit and
+  // cannot distinguish a reference proposal from an explicit ordered search.
+  const compatibility = readTicket.outputs.strategy === "event_candidates"
+    ? translateLegacyReadSelection(readTicket, { evidenceNeedCount: needPlan.needs.length,
+      readIntent: { selection: p.selection as string, operation: p.operation as string,
+        quantity: p.quantity as string | null, referenceTurnCount: referenceTurnIds.length,
+        requirementCount: (p.requirements as string[]).length,
+        hasProfileFields: (p.profileFields as string[]).length > 0, hasProjection: p.projection !== null,
+        hasRecordSelection: p.recordSelection !== null, temporalScope: p.temporalScope as string | null } }) : null;
+  if (compatibility?.translated) readTicket = compatibility.ticket;
   if (grounded) for (const need of needPlan.needs) {
     const typed = readTicket.needs?.find(item => item.id === need.id);
     if (typed) need.terms = [...new Set(typed.termGroups.flat())];
@@ -826,7 +838,8 @@ function bindTicketedRead(p: Record<string, unknown>, context: Context): AskInte
   const referenceTarget: AskInterpretation["referenceTarget"] = episode?.operation === "membership" && referent && !unresolvedEpisode
     ? { kind: "episode", ordinal: referent.ordinal, topic: referent.topic, basis: referent.basis,
       ...(referent.basis === "scoped_register" ? { period: { from: readTicket.temporal.from!, to: readTicket.temporal.to! } } : {}) } : undefined;
-  return { ...(referenceTarget ? { referenceTarget } : {}), version: "ask-interpretation.v1", request, operation, readOperation: operation, selection, petIds,
+  return { ...(compatibility?.translated ? { readCompatibility: { inputStrategy: "event_candidates" as const } } : {}),
+    ...(referenceTarget ? { referenceTarget } : {}), version: "ask-interpretation.v1", request, operation, readOperation: operation, selection, petIds,
     referenceQuestion: referenceTurnIds.length ? p.question as string : context.currentMessage,
     topic: p.topic as string, history: unresolvedEpisode ? null : { from: readTicket.temporal.from, to: readTicket.temporal.to, terms: [], interpretation: "period" },
     episodeTopic: referent?.topic ?? null, ordinal: referenceTarget?.ordinal ?? null, readOnly: true,

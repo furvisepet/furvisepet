@@ -65,7 +65,7 @@ async function setParity(p,rows,{pets=["a","b","c"],options={},legacy=true}={}){
  assert.equal(a.coverage.chronology,undefined);
  assert.deepEqual(derivePublicationAuthority(evidence(adapted.ticket,a)),derivePublicationAuthority(evidence(ticket,b)));
  const al=buildLabsList(evidence(adapted.ticket,a),a.records),bl=buildLabsList(evidence(ticket,b),b.records);
- assert.deepEqual(al,bl);assert.equal(serializeLabsList(al),serializeLabsList(bl));
+ assert.deepEqual(al,bl);assert.equal(al ? serializeLabsList(al) : null,bl ? serializeLabsList(bl) : null);
  if(legacy){
   const s=store(rows,options);s.effective=async acquired=>({records:[...acquired.filter(r=>!options.deleted?.includes(r.id)&&r.id!==options.correction?.replaces),
    ...(options.correction?[options.correction.record]:[])],reliable:true});
@@ -103,6 +103,8 @@ test("explicit window applies after effective truth and before ordered result",a
 test("no matches is complete_empty only after exhaustion and closure",async()=>{
  const r=await setParity(unbounded(),dataset().map(r=>({...r,note:"observation"})));
  assert.equal(r.result.coverage.status,"complete_empty");assert.equal(r.proof.certified,true);
+ // This proves the literal predicate set, not absence of the broader concept.
+ assert.equal(r.labs,null);
 });
 test("a corrected record replaces the old matching identity",async()=>{
  const r=await setParity(unbounded(),dataset(),{options:{correction:{replaces:"a-3",record:{...row("a",5,"weight corrected"),id:"corrected"}}}});

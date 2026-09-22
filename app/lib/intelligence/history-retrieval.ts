@@ -1001,6 +1001,10 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
   if (result.coverage.endpointPairs) coverage.endpointPairs = result.coverage.endpointPairs.map(pair => ({ ...pair,
     earliestIds: sourceIds(pair.earliestIds), latestIds: sourceIds(pair.latestIds) }));
   if (result.coverage.eventCandidateIds) coverage.eventCandidateIds = sourceIds(result.coverage.eventCandidateIds);
+  // Retain only the existing empty-result limitation trigger for migrated event
+  // searches. Nonempty membership/authority comes exclusively from common proofs.
+  if (context.askInterpretation?.readCompatibility?.inputStrategy === "event_candidates" && !result.records.length)
+    coverage.eventCandidateIds = [];
   coverage.perPet = ticket.subjects.petIds.map(petId => ({ petId,
     rows: originals.filter(row => row.pet_profile_id === petId).length, pages: pagesByPet.get(petId) || 0,
     exhausted: !result.coverage.continuation.some(cursor => cursor.petId === petId)

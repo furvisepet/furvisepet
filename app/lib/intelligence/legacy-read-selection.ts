@@ -1,6 +1,15 @@
 import type { ReadTicket } from "../furvise-brain/read-ticket.ts";
 import type { ReadSelection } from "../furvise-brain/read-selection.ts";
 
+// Existing provider fields, inspected before ticket binding discards legacy intent.
+// This is transient compatibility input, never a new plan or authority receipt.
+export type LegacyReadIntent = Readonly<{
+  selection: string; operation: string; quantity: string | null;
+  referenceTurnCount: number; requirementCount: number;
+  hasProfileFields: boolean; hasProjection: boolean; hasRecordSelection: boolean;
+  temporalScope: string | null;
+}>;
+
 export type LegacySelectionTranslation = Readonly<{
   ticket: ReadTicket;
   translated: boolean;
@@ -11,12 +20,34 @@ export type LegacySelectionTranslation = Readonly<{
  * Global legacy truncation uses result-level take for multiple subjects.
  * Preserve the original cap separately as transport; never infer per-pet quotas.
  */
-export function translateLegacyReadSelection(ticket: ReadTicket, legacyObligations: Readonly<{ evidenceNeedCount: number }> = { evidenceNeedCount: 0 }): LegacySelectionTranslation {
+export function translateLegacyReadSelection(ticket: ReadTicket, legacyObligations: Readonly<{ evidenceNeedCount: number; readIntent?: LegacyReadIntent }> = { evidenceNeedCount: 0 }): LegacySelectionTranslation {
   const unchanged = (reason: string): LegacySelectionTranslation => ({ ticket, translated: false, reason });
   if (ticket.selection) return unchanged("native_selection");
   const strategy = ticket.outputs.strategy;
-  if (strategy !== "chronological" && strategy !== "temporal_endpoints")
+  if (strategy !== "chronological" && strategy !== "temporal_endpoints" && strategy !== "event_candidates")
     return unchanged("strategy_outside_compatibility_cut");
+  if (strategy === "event_candidates") {
+    const intent = legacyObligations.readIntent;
+    if (!intent) return unchanged("strategy_outside_compatibility_cut");
+    if (intent.selection === "reference" || intent.referenceTurnCount || ticket.temporal.anchor)
+      return unchanged("event_reference_requires_resolution");
+    if (intent.operation !== "recall" || intent.quantity !== "records" || intent.requirementCount
+      || intent.hasProfileFields || intent.hasProjection || intent.hasRecordSelection
+      || intent.temporalScope != null && intent.temporalScope !== "historical")
+      return unchanged("event_search_independent_semantics");
+    if (ticket.operation !== "read" || !ticket.predicates.length)
+      return unchanged("event_search_requires_typed_predicates");
+    // No downstream language interpretation: only exact existing typed terms
+    // can prove a hint is redundant with the factual predicate vocabulary.
+    const terms = new Set(ticket.predicates.flatMap(predicate => [...predicate.terms]));
+    if (ticket.searchHints?.some(hint => !terms.has(hint)))
+      return unchanged("event_search_hint_semantics_not_represented");
+    if (ticket.outputs.limit === null) {
+      if (ticket.outputs.completeness !== "exhaustive" || !["period", "summary"].includes(intent.selection))
+        return unchanged("event_search_cardinality_unresolved");
+    } else if (intent.selection !== (ticket.outputs.ordering === "asc" ? "earliest" : "latest"))
+      return unchanged("event_search_cardinality_unresolved");
+  }
   // A separate legacy evidence obligation is not represented by this ticket.
   // Do not infer that it duplicates the selector or silently drop its authority.
   if (legacyObligations.evidenceNeedCount !== 0) return unchanged("independent_legacy_evidence_obligations");
@@ -27,7 +58,7 @@ export function translateLegacyReadSelection(ticket: ReadTicket, legacyObligatio
   // their former relevance ranking is intentionally not a factual selector.
   if (strategy === "temporal_endpoints" && ticket.subjects.petIds.length !== 1) return unchanged("global_limit_not_per_subject");
   if (ticket.outputs.limit === null) {
-    if (strategy !== "chronological") return unchanged("unbounded_or_transport_only_limit");
+    if (strategy === "temporal_endpoints") return unchanged("unbounded_or_transport_only_limit");
     const { strategy: _legacyStrategy, ...outputs } = ticket.outputs;
     return { translated: true, reason: "equivalent_ordered_result_set",
       ticket: Object.freeze({ ...ticket, outputs: Object.freeze(outputs) }) };
@@ -36,12 +67,12 @@ export function translateLegacyReadSelection(ticket: ReadTicket, legacyObligatio
   // Only a single subject capped at exactly two cannot include that extra set.
   if (strategy === "temporal_endpoints" && ticket.outputs.limit !== 2)
     return unchanged("endpoint_interior_or_truncation_semantics");
-  const resultLevel = strategy === "chronological" && ticket.subjects.petIds.length > 1;
+  const resultLevel = strategy !== "temporal_endpoints" && ticket.subjects.petIds.length > 1;
   const clause = (direction: "asc" | "desc", count: number): ReadSelection["union"][number] =>
     Object.freeze({ orderBy: Object.freeze([Object.freeze({ field: "event_at" as const, direction })] as const),
       take: Object.freeze({ count, per: resultLevel ? "result" as const : "group" as const }) });
   const selection: ReadSelection = Object.freeze({ groupBy: resultLevel ? Object.freeze([] as const) : Object.freeze(["subject"] as const),
-    union: Object.freeze(strategy === "chronological"
+    union: Object.freeze(strategy !== "temporal_endpoints"
       ? [clause(ticket.outputs.ordering, ticket.outputs.limit)]
       : [clause("asc", 1), clause("desc", 1)]) });
   const { strategy: _legacyStrategy, ...outputs } = ticket.outputs;
