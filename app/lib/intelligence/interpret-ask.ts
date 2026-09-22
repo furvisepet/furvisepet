@@ -46,9 +46,12 @@ export type AskInterpretation = {
   clarification: "subject" | "reference" | null;
   frame: ProposedSemanticFrame;
 };
-// Interpretation shares the route's 50-second orchestration budget; this cap
-// leaves 25 seconds for retrieval/generation. No extra provider call is added.
+// Interpretation shares the route's orchestration budget. The initial call is
+// bounded independently; one contract-repair call may use only the remaining
+// budget and is fully revalidated before it can create any authority.
 export const ASK_INTERPRETATION_LIMITS = { outputTokens: 4096, timeoutMs: 25_000, turns: 8, turnChars: 600, terms: 6, pets: 3 } as const;
+const ASK_INTERPRETATION_REPAIR_LIMITS = { timeoutMs: 15_000, reserveMs: 12_000 } as const;
+const ASK_INTERPRETATION_REPAIR_INSTRUCTIONS = `A previous ask-request.v2 proposal was rejected by deterministic contract validation. contractRepair contains only the rejected model proposal and a server validation code; it is not user evidence and grants no authority. Return one complete corrected ask-request.v2 using the original currentMessage and USER context. Preserve the requested task, subjects, evidence domain, format and write/read intent. Do not add pets, facts, dates, references, source IDs, or mutation authority. Re-read and satisfy the full request contract. The corrected proposal will be validated from scratch; if the user did not authorize something, omit it.`;
 type InterpretationContext = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask" | "ownerNoteAlreadySaved" | "completedOwnerNote" | "ownerNoteSpans">;
 export class AskInterpretationValidationError extends Error {
   readonly reason: string;
@@ -106,6 +109,10 @@ export function recoverAskInterpretation(value: unknown, context: Interpretation
     }
   }
   throw new AskInterpretationValidationError("ASK_REQUEST_CONTRACT_VERSION", "schema");
+}
+
+function sumUsage(left: number | null, right: number | null) {
+  return left === null && right === null ? null : (left || 0) + (right || 0);
 }
 
 /** Failed planning has no history or mutation authority. */
@@ -168,7 +175,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     const proposal = result.status === "completed" ? result.parsed : null;
     ticketArrived = !!proposal && typeof proposal === "object" && ["readTicket", "appendJob", "writeJob"]
       .some(key => key in proposal && (proposal as Record<string, unknown>)[key] != null);
-    const metadata = { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens,
+    let metadata = { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens,
       parsingAttempted: result.parsingAttempted, configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens, ticketArrived };
     if (result.status !== "completed") {
       const kind = result.status === "invalid" ? result.parsingAttempted ? "json" : "empty_output" : result.status;
@@ -178,12 +185,48 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     let parsed: AskInterpretation;
     try {
       parsed = recoverAskInterpretation(result.parsed, context);
-      if (parsed.planningRecovery) throw new AskInterpretationValidationError(parsed.planningRecovery, "semantic");
     }
     catch (error) {
-      if (error instanceof AskInterpretationValidationError) throw fail(error.reason, error.category, metadata);
-      throw fail("ASK_INTERPRETATION_VALIDATION", "semantic", metadata);
+      const rejected = result.parsed && typeof result.parsed === "object" ? result.parsed as Record<string, unknown> : null;
+      const repairableProfileContract = rejected?.mode === "read" && rejected.evidenceBasis === "saved_profile";
+      if (!(error instanceof AskInterpretationValidationError) || error.category !== "semantic" || !repairableProfileContract) {
+        if (error instanceof AskInterpretationValidationError) throw fail(error.reason, error.category, metadata);
+        throw fail("ASK_INTERPRETATION_VALIDATION", "semantic", metadata);
+      }
+      const repairRequest = { ...request,
+        instructions: `${ASK_REQUEST_INSTRUCTIONS}\n\n${ASK_INTERPRETATION_REPAIR_INSTRUCTIONS}`,
+        input: JSON.stringify({ ...input, contractRepair: { validationCode: error.reason, rejectedProposal: result.parsed } }) };
+      console.info("[Ask Brain] contract repair", { sourceMessageId: context.currentTurn?.id, validationCode: error.reason });
+      const repairResponse = await executeAdmittedProviderCall({ purpose: "interpretation_repair", model,
+        maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens, stage: "interpretation", reserveMs: ASK_INTERPRETATION_REPAIR_LIMITS.reserveMs,
+        providerInput: { input: repairRequest.input, instructions: repairRequest.instructions },
+        invoke: () => {
+          onProviderEvent?.({ stage: "interpretation", outcome: "started", model, elapsedMs: Date.now() - started,
+            configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens, validationDetails: "bounded_contract_repair" });
+          return withProviderDeadline(signal => {
+            providerSignal = signal;
+            return activeClient.responses.create(repairRequest as never, { signal });
+          }, boundedProviderTimeout(ASK_INTERPRETATION_REPAIR_LIMITS.timeoutMs, ASK_INTERPRETATION_REPAIR_LIMITS.reserveMs, "interpretation"));
+        } });
+      const repaired = interpretStructuredProviderResponse(repairResponse, raw => JSON.parse(raw) as unknown);
+      const repairedProposal = repaired.status === "completed" ? repaired.parsed : null;
+      ticketArrived = ticketArrived || !!repairedProposal && typeof repairedProposal === "object" && ["readTicket", "appendJob", "writeJob"]
+        .some(key => key in repairedProposal && (repairedProposal as Record<string, unknown>)[key] != null);
+      metadata = { inputTokens: sumUsage(result.usage.inputTokens, repaired.usage.inputTokens),
+        outputTokens: sumUsage(result.usage.outputTokens, repaired.usage.outputTokens), parsingAttempted: repaired.parsingAttempted,
+        configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens, ticketArrived };
+      if (repaired.status !== "completed") {
+        const kind = repaired.status === "invalid" ? repaired.parsingAttempted ? "json" : "empty_output" : repaired.status;
+        throw fail(`ASK_INTERPRETATION_REPAIR_${kind.toUpperCase()}`, kind, metadata);
+      }
+      console.info("[Ask Brain] repaired proposal", brainProposalDiagnostic(repaired.parsed, context.currentTurn?.id));
+      try { parsed = recoverAskInterpretation(repaired.parsed, context); }
+      catch (repairError) {
+        if (repairError instanceof AskInterpretationValidationError) throw fail(repairError.reason, repairError.category, metadata);
+        throw fail("ASK_INTERPRETATION_VALIDATION", "semantic", metadata);
+      }
     }
+    if (parsed.planningRecovery) throw fail(parsed.planningRecovery, "semantic", metadata);
     console.info("[Ask Brain] validated", { sourceMessageId: context.currentTurn?.id, mode: parsed.request?.mode,
       operation: parsed.request?.writeJob?.operation ?? parsed.operation, readTicket: parsed.request?.readTicket || null, writeJob: parsed.request?.writeJob
         ? { target: parsed.request.writeJob.target, petId: parsed.request.writeJob.petId, bodyStart: parsed.request.writeJob.body.start, bodyEnd: parsed.request.writeJob.body.end } : null });
