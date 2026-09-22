@@ -217,10 +217,13 @@ test('captured Dune ticket binds only with needs stripped, through one planner p
       t.mock.method(console, 'info', () => {});
       let calls = 0;
       const stages = [];
+      // Keep the invalid capture exact; migrate valid cases to the current
+      // provider's null transport cap and one factual obligation representation.
+      if (variant !== 'retained') candidate.outputs.limit = null;
       const envelope = { ...proposal(candidate), question, scope: 'selected', petNames: ['Dune'],
-        topic: 'weight', terms: ['weight'], selection: 'earliest', evidenceNeeds: [{
+        topic: 'weight', terms: ['weight'], selection: 'earliest', evidenceNeeds: variant === 'retained' ? [{
           quote: question, sourceTurnId: null, petNames: ['Dune'], terms: ['weight'], order: 'earliest',
-        }] };
+        }] : [] };
       const run = interpretAskQuestion({ context, model: 'fixture',
         onProviderEvent: event => stages.push(event),
         client: { responses: { create: async request => {
@@ -242,13 +245,18 @@ test('captured Dune ticket binds only with needs stripped, through one planner p
         assert.equal(logged.rule, 'needs_incompatible_with_single_measurement_read');
         assert.deepEqual(logged.readTicket, original);
       } else {
-        const expected = bindReadTicket(candidate, [pet.id], bindings);
+        const { strategy, ...outputs } = candidate.outputs;
+        const expected = bindCompositionalReadTicket({ ...candidate, outputs,
+          selection: { groupBy: ['subject'], union: [{
+            orderBy: [{ field: 'event_at', direction: 'asc' }], take: { count: 1, per: 'group' },
+          }] } }, [pet.id]);
         const result = await run;
         assert.deepEqual(result.request.readTicket, expected);
         assert.deepEqual(expected.temporal, original.temporal);
         assert.deepEqual(expected.predicates, original.predicates);
         assert.deepEqual(expected.searchHints, original.searchHints);
-        assert.deepEqual(expected.outputs, original.outputs);
+        assert.deepEqual(expected.outputs, { completeness: original.outputs.completeness, ordering: 'asc', limit: null });
+        assert.equal(expected.outputs.strategy, undefined);
         assert.equal(expected.operation, 'read');
         assert.deepEqual(expected.subjects.petIds, [pet.id]);
         assert.equal(warn.mock.calls.length, 0);

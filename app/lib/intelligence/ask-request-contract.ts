@@ -820,7 +820,9 @@ function bindTicketedRead(p: Record<string, unknown>, context: Context): AskInte
   // Normalize while the existing typed lookup/reference/derivation intent still exists.
   // The later compatibility selection label is derived from outputs.limit and
   // cannot distinguish a reference proposal from an explicit ordered search.
-  const compatibility = (readTicket.outputs.strategy === "event_candidates" || readTicket.outputs.strategy === "temporal_endpoints" && petIds.length > 1)
+  const finiteChronological = readTicket.outputs.strategy === "chronological" && p.operation === "recall"
+    && ["records", "measurement"].includes(String(p.quantity)) && ["earliest", "latest"].includes(String(p.selection));
+  const compatibility = (finiteChronological || readTicket.outputs.strategy === "event_candidates" || readTicket.outputs.strategy === "temporal_endpoints" && petIds.length > 1)
     ? translateLegacyReadSelection(readTicket, { evidenceNeedCount: needPlan.needs.length,
       readIntent: { selection: p.selection as string, operation: p.operation as string,
         quantity: p.quantity as string | null, referenceTurnCount: referenceTurnIds.length,
@@ -828,6 +830,8 @@ function bindTicketedRead(p: Record<string, unknown>, context: Context): AskInte
         hasProfileFields: (p.profileFields as string[]).length > 0, hasProjection: p.projection !== null,
         hasRecordSelection: p.recordSelection !== null, temporalScope: p.temporalScope as string | null } }) : null;
   if (compatibility?.translated) readTicket = compatibility.ticket;
+  // Conflicting/independent shapes must not silently become unbounded reads.
+  if (finiteChronological && !readTicket.selection) return fail("finite_selection");
   if (grounded) for (const need of needPlan.needs) {
     const typed = readTicket.needs?.find(item => item.id === need.id);
     if (typed) need.terms = [...new Set(typed.termGroups.flat())];

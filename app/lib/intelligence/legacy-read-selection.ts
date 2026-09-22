@@ -53,6 +53,25 @@ export function translateLegacyReadSelection(ticket: ReadTicket, legacyObligatio
   if (legacyObligations.evidenceNeedCount !== 0) return unchanged("independent_legacy_evidence_obligations");
   if (ticket.needs?.length || ticket.episode) return unchanged("independent_obligation");
   if (ticket.temporal.calendar) return unchanged("calendar_semantics");
+  const intent = legacyObligations.readIntent;
+  // The typed envelope still carries a finite endpoint when a legacy ticket
+  // has no transport cap. Consume it before that envelope is discarded.
+  // An explicit cap keeps the existing global top-N compatibility semantics.
+  if (strategy === "chronological" && ticket.outputs.limit === null
+    && intent?.operation === "recall" && ["records", "measurement"].includes(intent.quantity || "")
+    && ["earliest", "latest"].includes(intent.selection)
+    && !intent.hasProfileFields && !intent.hasProjection && !intent.hasRecordSelection
+    && (intent.temporalScope == null || intent.temporalScope === "historical")) {
+    const direction = intent.selection === "earliest" ? "asc" as const : "desc" as const;
+    const selection: ReadSelection = Object.freeze({ groupBy: Object.freeze(["subject"] as const),
+      union: Object.freeze([Object.freeze({
+        orderBy: Object.freeze([Object.freeze({ field: "event_at" as const, direction })] as const),
+        take: Object.freeze({ count: 1, per: "group" as const }),
+      })]) });
+    const { strategy: _legacyStrategy, ...outputs } = ticket.outputs;
+    return { translated: true, reason: "typed_finite_endpoint",
+      ticket: Object.freeze({ ...ticket, outputs: Object.freeze(outputs), selection }) };
+  }
   if (strategy === "temporal_endpoints" && ticket.subjects.petIds.length > 1) {
     const intent = legacyObligations.readIntent;
     // A legacy compare label alone cannot distinguish records from derivation.

@@ -193,3 +193,130 @@ for(const relation of ["from","after","before"])test("semantic anchor "+relation
  assert.deepEqual(r.result.records.map(r=>r.id),[relation==="from"?"a-1":relation==="after"?"a-2":"a-0"]);
  assert.equal(r.result.coverage.anchors[0].eventId,"a-1");
 });
+
+const {validateAskRequest}=await import("../app/lib/intelligence/ask-request-contract.ts");
+const {createAskEvidenceContract}=await import("../app/lib/intelligence/ask-evidence.ts");
+const {generateContextAwareAskResponse}=await import("../app/lib/ai/ask-reasoning.ts");
+const finitePets=["a","b"].map((id,i)=>({id,name:["Alpha","Beta"][i],user_id:"owner",species:"dog"}));
+function finiteProposal(selection="earliest",limit=null,completeness="sufficient",petNames=["Alpha"],topic="observation"){
+ const question="Retrieve the requested saved records.";
+ const context={owner:{userId:"owner"},eligiblePets:finitePets,pet:finitePets[0],currentMessage:question,
+  currentTurn:{id:"u1",role:"user",text:question},conversationTurns:[],timeZone:"UTC"};
+ const proposal={version:"ask-request.v2",mode:"read",question,requirements:[],referenceTurnIds:[],
+  evidenceBasis:"saved_history",scope:"named",petNames,operation:"recall",selection,quantity:"measurement",
+  topic:"history",terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:null,
+  readTicket:{...input("chronological",selection==="latest"?"desc":"asc",limit),
+   selection:null,predicates:[{kind:"text_any",terms:[topic]}],
+   outputs:{strategy:"chronological",ordering:selection==="latest"?"desc":"asc",limit,completeness}}};
+ return {context,proposal};
+}
+for(const [semantic,direction]of [["earliest","asc"],["latest","desc"]])
+ test("typed "+semantic+" with null legacy cap binds finite selection before authority",()=>{
+  for(const topic of ["observation","food","medication"]){
+   const {context,proposal}=finiteProposal(semantic,null,"sufficient",["Alpha"],topic);
+   const before=JSON.stringify(proposal),r=validateAskRequest(proposal,context),ticket=r.request.readTicket;
+   assert.deepEqual(ticket.selection,{groupBy:["subject"],union:[clause(direction)]});
+   assert.equal(ticket.outputs.strategy,undefined);assert.equal(ticket.outputs.limit,null);
+   assert.equal(ticket.outputs.completeness,"sufficient");assert.equal(Object.isFrozen(ticket),true);
+   assert.deepEqual(ticket.predicates,proposal.readTicket.predicates);
+   assert.equal(JSON.stringify(proposal),before);
+   assert.equal(translateLegacyReadSelection(ticket).ticket,ticket);
+  }
+ });
+test("typed finite endpoints group all bound subjects without inventing ownership",()=>{
+ const {context,proposal}=finiteProposal("earliest",null,"sufficient",["Alpha","Beta"]);
+ const ticket=validateAskRequest(proposal,context).request.readTicket;
+ assert.deepEqual(ticket.subjects.petIds,["a","b"]);
+ assert.deepEqual(ticket.selection,{groupBy:["subject"],union:[clause("asc")]});
+ assert.throws(()=>validateAskRequest({...proposal,petNames:["Unknown"]},context));
+});
+test("typed top N preserves its explicit legacy cardinality and global versus single-subject scope",()=>{
+ for(const names of [["Alpha"],["Alpha","Beta"]])for(const count of [2,5]){
+  const {context,proposal}=finiteProposal("latest",count,"sufficient",names);
+  const ticket=validateAskRequest(proposal,context).request.readTicket;
+  assert.equal(ticket.selection.union[0].take.count,count);
+  assert.equal(ticket.selection.union[0].take.per,names.length===1?"group":"result");
+  assert.equal(ticket.outputs.limit,count);
+ }
+});
+test("genuine unbounded chronology stays unbounded",()=>{
+ for(const semantic of ["summary","period"]){
+  const {context,proposal}=finiteProposal(semantic,null,"exhaustive");
+  const ticket=validateAskRequest(proposal,context).request.readTicket;
+  assert.equal(ticket.selection,undefined);assert.equal(ticket.outputs.limit,null);
+  const translated=translateLegacyReadSelection(ticket);
+  assert.equal(translated.ticket.selection,undefined);
+  assert.equal(translated.ticket.outputs.completeness,"exhaustive");
+ }
+});
+test("finite normalization cannot weaken exhaustive propositions or infer endpoints for counts",()=>{
+ for(const semantic of ["earliest","latest","summary","period"]){
+  const {context,proposal}=finiteProposal(semantic,null,"exhaustive");
+  const ticket=validateAskRequest(proposal,context).request.readTicket;
+  assert.equal(ticket.outputs.completeness,"exhaustive");
+ }
+ const ticket=bindReadTicket(input("chronological","asc",null,{outputs:{strategy:"chronological",ordering:"asc",limit:null,completeness:"exhaustive"}}),["a"]);
+ for(const operation of ["count","episode","comparison"]){
+  const translated=translateLegacyReadSelection(ticket,{evidenceNeedCount:0,readIntent:{
+   selection:"earliest",operation,quantity:"records",referenceTurnCount:0,requirementCount:0,
+   hasProfileFields:false,hasProjection:false,hasRecordSelection:false,temporalScope:"historical"}});
+  assert.equal(translated.ticket.selection,undefined);
+  assert.equal(translated.ticket.outputs.completeness,"exhaustive");
+ }
+});
+test("finite conflicting calendar cannot escape binding as an unbounded fallback",()=>{
+ const {context,proposal}=finiteProposal();
+ proposal.readTicket.temporal.calendar="oldest_year";
+ assert.throws(()=>validateAskRequest(proposal,context),/finite_selection/);
+});
+test("normalized finite ticket reaches Lungs evidence certificates and deterministic Labs with partial global history",async()=>{
+ const {context,proposal}=finiteProposal();
+ const interpretation=validateAskRequest(proposal,context),ticket=interpretation.request.readTicket;
+ const rows=Array.from({length:400},(_,i)=>row("a",i,"observation "+i));
+ const db=store(rows);
+ const result=await retrieveReadTicket(ticket,scope,db);
+ assert.ok(db.calls.every(q=>q.ordering==="asc"));
+ assert.equal(result.coverage.status,"partial");
+ assert.deepEqual(result.records.map(r=>r.id),["a-0"]);
+ const legacyEvidence=evidence(ticket,result);
+ const contract=createAskEvidenceContract({...context,askInterpretation:interpretation,
+  careEntries:result.records,selectedCareEntries:result.records,
+  askHistory:{entries:result.records,originals:result.records,coverage:legacyEvidence.history}},["a"]);
+ assert.equal(contract.interpretation.request.readTicket,ticket);
+ contract.represented=legacyEvidence.represented;
+ const before=structuredClone(result.coverage);
+ const proof=selectionPublication(ticket,contract.history.ticketCoverage,result.records.map(r=>({id:r.id,petId:r.pet_profile_id})));
+ assert.equal(proof.complete,true);assert.equal(proof.transportValid,true);
+ assert.ok(proof.certificates.every(c=>c.certified&&c.lineageClosed));
+ const authority=derivePublicationAuthority(contract);
+ assert.deepEqual(authority.authorizedSourceIds,["care:a-0"]);
+ const response=await generateContextAwareAskResponse({evidenceContract:contract,profiles:finitePets,
+  careEntries:result.records,memories:[],productFeedback:[],conversationTurns:[],recentUpdates:[],
+  question:context.currentMessage,requestId:"offline-normalized-endpoint",locale:"en-CA",
+  client:{responses:{create:async()=>{throw Error("NO_PUBLICATION_PROVIDER");}}}});
+ assert.equal(response.model,"server-labs-list");
+ assert.deepEqual(response.labsList.ticket,ticket);
+ assert.match(response.answer.summary,/observation 0/);
+ assert.doesNotMatch(response.answer.summary,/exhaustive|partial results|history search is incomplete/);
+ assert.deepEqual(result.coverage,before);
+});
+
+test("independent envelope obligation cannot be dropped to normalize a finite endpoint",()=>{
+ const {context,proposal}=finiteProposal();
+ const question="Retrieve the requested observation. Also retrieve the medication records.";
+ context.currentMessage=question;context.currentTurn.text=question;proposal.question=question;
+ proposal.evidenceNeeds=[{quote:"Also retrieve the medication records.",sourceTurnId:null,
+  petNames:["Alpha"],terms:["medication"],order:"context"}];
+ const before=JSON.stringify(proposal);
+ const ticket=bindReadTicket(proposal.readTicket.selection===null
+  ? Object.fromEntries(Object.entries(proposal.readTicket).filter(([key])=>key!=="selection"))
+  : proposal.readTicket,["a"]);
+ const translated=translateLegacyReadSelection(ticket,{evidenceNeedCount:1,readIntent:{
+  selection:"earliest",operation:"recall",quantity:"measurement",referenceTurnCount:0,requirementCount:0,
+  hasProfileFields:false,hasProjection:false,hasRecordSelection:false,temporalScope:"historical"}});
+ assert.equal(translated.translated,false);
+ assert.equal(translated.reason,"independent_legacy_evidence_obligations");
+ assert.equal(translated.ticket,ticket);
+ assert.throws(()=>validateAskRequest(proposal,context),/finite_selection/);
+ assert.equal(JSON.stringify(proposal),before);
+});
