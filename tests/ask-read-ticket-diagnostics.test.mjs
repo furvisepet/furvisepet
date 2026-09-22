@@ -6,6 +6,7 @@ registerHooks({ resolve(s, c, next) { return s === 'server-only'
 globalThis.fetch = async () => { throw Error('Read-ticket diagnostics fixtures forbid network access'); };
 const { interpretAskQuestion } = await import('../app/lib/intelligence/interpret-ask.ts');
 const { bindReadTicket } = await import('../app/lib/furvise-brain/read-ticket.ts');
+const { bindCompositionalReadTicket } = await import('../app/lib/furvise-brain/read-selection.ts');
 
 const question = 'bramble — from that dental visit onwards, can u list every note on food or eating? include the dental one too, oldest first pls';
 const pet = { id: 'bramble', name: 'Bramble', user_id: 'owner', species: 'cat', avoid_ingredients: [] };
@@ -271,6 +272,14 @@ const earliestMeasurementTicket = {
   predicates: [{ kind: 'text_any', terms: ['weight', 'weigh', 'mass', 'body mass', 'weighed', 'scale'] }],
   outputs: { strategy: 'chronological', completeness: 'exhaustive', ordering: 'asc', limit: 1 },
 };
+const earliestSelectionTicket = {
+  subjectScope: 'named', needs: [], episode: null, operation: 'read',
+  temporal: { calendar: null, from: null, to: null, anchor: null },
+  searchHints: ['earliest weight', 'weight record', 'body mass', 'weighed', 'scale reading'],
+  predicates: [{ kind: 'text_any', terms: ['weight', 'weigh', 'mass', 'body mass', 'weighed', 'scale'] }],
+  outputs: { completeness: 'sufficient', ordering: 'asc', limit: null },
+  selection: { groupBy: ['subject'], union: [{ orderBy: [{ field: 'event_at', direction: 'asc' }], take: { count: 1, per: 'group' } }] },
+};
 const failedEarliestMeasurementTicket = {
   ...structuredClone(earliestMeasurementTicket), subjectScope: 'selected',
   temporal: { calendar: 'oldest_year', from: null, to: null, anchor: null },
@@ -291,8 +300,12 @@ test('earliest measurement uses one calendar-free planner ticket and retains the
   const earliest = row('9f53b55b-4c32-4d9d-b055-020f29179d94', '2016-10-15T12:00:00Z',
     'Dune weighed 4.81 kg. Monthly care check recorded stable appetite, usual routine, and no new ongoing concern.');
   const later = row('later-measurement', '2017-01-15T12:00:00Z', 'Dune weighed 4.90 kg.');
-  const store = rows => ({ page: async ({ offset, limit }) => rows.slice(offset, offset + limit),
-    effective: async records => ({ records, reliable: true }) });
+  const store = rows => ({ page: async ({ offset, limit, ordering = 'asc' }) => [...rows]
+      .sort((a,b)=>ordering==='asc'?Date.parse(a.occurred_at)-Date.parse(b.occurred_at):Date.parse(b.occurred_at)-Date.parse(a.occurred_at))
+      .slice(offset, offset + limit),
+    effective: async records => ({ records, reliable: true }),
+    effectiveWindow: async ({rows:records}) => ({records,lineageClosed:true,replacementSeedsExhausted:true,
+      sourceLineage:[],reasons:[],graphCalls:1,lineageRows:records.length}) });
   const retrieve = (ticket, rows = [later, earliest]) =>
     retrieveReadTicket(bindReadTicket(ticket, [pet.id]), scope, store(rows));
 
@@ -333,23 +346,25 @@ test('earliest measurement uses one calendar-free planner ticket and retains the
         currentTurn: { ...context.currentTurn, id: thread } }, model: 'fixture',
         client: { responses: { create: async request => {
           calls++;
-          assert.ok(request.instructions.includes('For earliest/first recorded measurement requests, emit operation read'));
-          assert.ok(request.instructions.includes('and temporal.calendar null'));
-          assert.ok(request.instructions.includes('Reserve oldest_year for an explicit request for the oldest calendar year'));
+          assert.ok(request.instructions.includes('Finite ordered takes are compositional selection obligations'));
+          assert.ok(request.instructions.includes('outputs.completeness sufficient'));
+          assert.ok(request.instructions.includes('Legacy chronological provider output is reserved for unbounded ordered retrieval'));
           assert.ok(request.instructions.includes('weight, weigh, weighed, weighing'));
-          return { output_text: JSON.stringify({ ...proposal(structuredClone(earliestMeasurementTicket)),
+          return { output_text: JSON.stringify({ ...proposal(structuredClone(earliestSelectionTicket)),
             question, petNames: ['Dune'], topic: 'weight', terms: ['weight'], selection: 'earliest' }) };
         } } },
       });
       assert.equal(calls, 1);
       const bound = result.request.readTicket;
-      assert.deepEqual(bound, bindReadTicket(earliestMeasurementTicket, [pet.id]));
+      assert.deepEqual(bound, bindCompositionalReadTicket(earliestSelectionTicket, [pet.id]));
       assert.notDeepEqual(bound.temporal, failedEarliestMeasurementTicket.temporal);
+      assert.equal(bound.outputs.completeness, 'sufficient');
+      assert.ok(bound.selection);
       const read = await retrieveReadTicket(bound, scope, store([later, earliest]));
       assert.deepEqual(read.records.map(row => row.id), [earliest.id]);
       assert.equal(read.records[0].occurred_at, earliest.occurred_at);
       assert.equal(read.records[0].note, earliest.note);
-      assert.equal(read.coverage.status, 'partial');
+      assert.equal(read.coverage.groups[0].selectionStatus, 'complete');
     });
   }
 });

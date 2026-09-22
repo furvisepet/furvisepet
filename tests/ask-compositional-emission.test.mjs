@@ -203,11 +203,27 @@ test('provider alternatives make mixed representations impossible without removi
   assert.equal(composed.properties.outputs.additionalProperties,false);
   assert.equal(Object.hasOwn(composed.properties.outputs.properties,'strategy'),false);
   assert.deepEqual(composed.properties.outputs.required,['completeness','ordering','limit']);
-  assert.ok(legacy.properties.outputs.required.includes('strategy'));
-  assert.deepEqual(legacy.properties.outputs.properties.strategy.enum,
-    ['chronological','temporal_endpoints','calendar_samples','event_candidates',null]);
+  assert.equal(legacy.properties.outputs.anyOf.length,2);
+  const chronological=legacy.properties.outputs.anyOf.find(o=>o.properties.strategy.enum?.includes('chronological'));
+  const other=legacy.properties.outputs.anyOf.find(o=>o.properties.strategy.enum?.includes('temporal_endpoints'));
+  assert.deepEqual(chronological.properties.strategy.enum,['chronological']);
+  assert.equal(chronological.properties.limit.type,'null');
+  assert.deepEqual(other.properties.strategy.enum,['temporal_endpoints','calendar_samples','event_candidates',null]);
   assert.match(composed.properties.outputs.properties.limit.description,/transport.*selection.take/);
   assert.match(composed.properties.outputs.properties.ordering.description,/Presentation.*selection.orderBy/);
+});
+
+test('provider grammar requires finite chronological takes to use compositional selection',async()=>{
+  const {default:Ajv}=await import('ajv');
+  const validate=new Ajv({allErrors:true}).compile(askRequestSchema({}).properties.readTicket);
+  const {needs:_finiteNeeds,...providerBase}=ticket();
+  const finite={...providerBase,probes:[],selection:null,outputs:{strategy:'chronological',completeness:'exhaustive',ordering:'asc',limit:1}};
+  assert.equal(validate(finite),false,JSON.stringify(validate.errors));
+  const unbounded={...finite,outputs:{...finite.outputs,limit:null}};
+  assert.equal(validate(unbounded),true,JSON.stringify(validate.errors));
+  const {needs:_composedNeeds,...composedBase}=ticket([clause('asc')]);
+  const composed={...composedBase,probes:[],outputs:{completeness:'sufficient',ordering:'asc',limit:null}};
+  assert.equal(validate(composed),true,JSON.stringify(validate.errors));
 });
 
 test('captured A1 semantics omit strategy; every conflicting legacy strategy still rejects',async()=>{
@@ -247,9 +263,13 @@ test('completeness guidance describes proposition scope without changing enum or
  const {ASK_REQUEST_INSTRUCTIONS}=await import('../app/lib/intelligence/ask-request-contract.ts');
  assert.match(ASK_REQUEST_INSTRUCTIONS,/Classify completeness by the requested proposition/);
  assert.match(ASK_REQUEST_INSTRUCTIONS,/Setting sufficient does not establish certainty/);
- assert.match(ASK_REQUEST_INSTRUCTIONS,/Legacy-only selectors retain their existing coverage requirements/);
- for(const branch of askRequestSchema({}).properties.readTicket.anyOf.filter(b=>b.properties)){
-  const field=branch.properties.outputs.properties.completeness;
+ assert.match(ASK_REQUEST_INSTRUCTIONS,/Finite ordered takes are compositional selection obligations/);
+ assert.match(ASK_REQUEST_INSTRUCTIONS,/Legacy chronological provider output is reserved for unbounded ordered retrieval/);
+ const branches=askRequestSchema({}).properties.readTicket.anyOf.filter(b=>b.properties);
+ const fields=branches.flatMap(branch=>branch.properties.outputs.anyOf
+  ? branch.properties.outputs.anyOf.map(output=>output.properties.completeness)
+  : [branch.properties.outputs.properties.completeness]);
+ for(const field of fields){
   assert.deepEqual(field.enum,['sufficient','exhaustive']);
   assert.equal(Object.hasOwn(field,'default'),false);
   assert.match(field.description,/Classify the requested proposition/);

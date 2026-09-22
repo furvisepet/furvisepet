@@ -10,13 +10,30 @@ const providerTicket = { ...readTicketSchema,
  required: [...readTicketSchema.required.filter(field => field !== "needs"), "probes"],
  properties: { ...semanticProperties, probes: readProbesSchema },
 };
+const legacyOutputs = readTicketSchema.properties.outputs;
+const legacyUnboundedChronologicalOutputs = {
+  ...legacyOutputs,
+  properties: {
+    ...legacyOutputs.properties,
+    strategy: { ...legacyOutputs.properties.strategy, type: "string", enum: ["chronological"] },
+    limit: { type: "null", description: "Unbounded chronological legacy retrieval only. Finite ordered takes belong in selection.take." },
+  },
+};
+const legacyOtherOutputs = {
+  ...legacyOutputs,
+  properties: {
+    ...legacyOutputs.properties,
+    strategy: { ...legacyOutputs.properties.strategy, enum: ["temporal_endpoints", "calendar_samples", "event_candidates", null] },
+  },
+};
 export const readTicketProviderSchema = {
   anyOf: [
     { type: "null" },
     {
       ...providerTicket, type: "object",
-      description: "Legacy-only read: selection is null; existing output selectors retain their meaning.",
-      properties: { ...providerTicket.properties, selection: { type: "null" } },
+      description: "Legacy-only read: selection is null. Finite chronological ordering is no longer provider-expressible; use compositional selection.take instead.",
+      properties: { ...providerTicket.properties, selection: { type: "null" },
+        outputs: { anyOf: [legacyUnboundedChronologicalOutputs, legacyOtherOutputs] } },
     },
     {
       ...providerTicket, type: "object",
