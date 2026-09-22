@@ -4,6 +4,7 @@ import {registerHooks} from 'node:module';
 registerHooks({resolve(s,c,next){return s==='server-only'?{url:'data:text/javascript,export {};',format:'module',shortCircuit:true}:next(s,c);}});
 globalThis.fetch=async()=>{throw Error('OFFLINE_ONLY');};
 const {buildAskContext,generateContextAwareAskResponse}=await import('../app/lib/ai/ask-reasoning.ts');
+const {askRequestProviderSchema}=await import('../app/lib/intelligence/ask-request-contract.ts');
 const {evidenceSource}=await import('../app/lib/intelligence/ask-evidence.ts');
 const {derivePublicationAuthority,publicationClaimFailures,publicationGenerationContext}=await import('../app/lib/intelligence/publication-authority.ts');
 const {profileFieldProjection,profileFieldSentence,isTypedProfileRead}=await import('../app/lib/intelligence/profile-field-authority.ts');
@@ -24,6 +25,19 @@ function fixture({fields=['weight'],profile=pet,question='Saved profile field',f
 }
 function field(f){return f.p.fields[0];}
 function claims(f,text,ids){const o=derivePublicationAuthority(f.e).obligations[0];return publicationClaimFailures(f.e,[{obligationId:o.obligationId,text,sourceIds:ids??o.authorizedSourceIds}]);}
+test('provider grammar makes incompatible saved-profile dimensions unrepresentable',async()=>{
+ const {default:Ajv}=await import('ajv');const validate=new Ajv({allErrors:true}).compile(askRequestProviderSchema({}));
+ const request={appendJob:null,readTicket:null,writeJob:null,task:null,temporalScope:'current',mutationIntent:null,recordSelection:null,
+  profileFields:['weight'],projection:null,version:'ask-request.v2',mode:'read',question:"What is Milo's saved profile weight?",requirements:[],
+  evidenceNeeds:[],outputFormat:null,evidenceBasis:'saved_profile',premiseQuotes:[],excludedPetNames:[],referenceTurnIds:[],scope:'named',petNames:['Milo'],
+  operation:'recall',selection:'summary',quantity:null,topic:'profile',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:null};
+ assert.equal(validate({request}),true,JSON.stringify(validate.errors));
+ assert.equal(validate({request:{...request,outputFormat:'json'}}),true,JSON.stringify(validate.errors));
+ for(const patch of [{quantity:'records'},{from:'2026-01-01'},{terms:['weight']},{mutationIntent:'correct_record'},{scope:'none'},{profileFields:[]},{frame:{}}])
+  assert.equal(validate({request:{...request,...patch}}),false,JSON.stringify(patch));
+ const general={...request,temporalScope:null,profileFields:[],mode:'conversation',scope:'none',petNames:[],operation:'general',evidenceBasis:'general'};
+ assert.equal(validate({request:general}),true,JSON.stringify(validate.errors));
+});
 for(const key of ['name','species','sex','breed'])test('same canonical authority for saved '+key,()=>{
  const f=fixture({fields:[key]});assert.equal(field(f).storedValue,pet[key]);assert.equal(field(f).state,'present');
  assert.deepEqual(derivePublicationAuthority(f.e).authorizedSourceIds,['profile:pet-a:'+key]);

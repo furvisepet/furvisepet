@@ -109,6 +109,43 @@ export function askRequestSchema(frame: object, context?: Context) {
   return schema;
 }
 
+/** Provider grammar separates profile-only reads from every other request shape.
+ * The root remains an object for Structured Outputs; the nested union makes a
+ * saved_profile proposal structurally unable to carry history/write dimensions.
+ * The binder below still performs full ownership and semantic validation. */
+export function askRequestProviderSchema(frame: object, context?: Context) {
+  const profile = structuredClone(askRequestSchema(frame, context));
+  Object.assign(profile.properties, {
+    appendJob: { type: "null" },
+    readTicket: { type: "null" },
+    writeJob: { type: "null" },
+    task: { type: "null" },
+    temporalScope: { type: ["string", "null"], enum: ["current", null] },
+    mutationIntent: { type: "null" },
+    recordSelection: { type: "null" },
+    projection: { type: "null" },
+    mode: { type: "string", enum: ["read"] },
+    evidenceNeeds: { type: "array", maxItems: 0, items: evidenceNeedsSchema.items },
+    evidenceBasis: { type: "string", enum: ["saved_profile"] },
+    premiseQuotes: { ...strings(6, 400), maxItems: 0 },
+    scope: { type: "string", enum: ["selected", "named", "conversation", "account"] },
+    quantity: { type: "null" },
+    terms: { type: "array", maxItems: 0, items: { type: "string", minLength: 3, maxLength: 32, pattern: "^[A-Za-z][A-Za-z -]*[A-Za-z]$" } },
+    from: { type: "null" },
+    to: { type: "null" },
+    episodeTopic: { type: "null" },
+    ordinal: { type: "null" },
+    frame: { type: "null" },
+  });
+  Object.assign(profile.properties.profileFields, { minItems: 1 });
+
+  const nonProfile = structuredClone(askRequestSchema(frame, context));
+  nonProfile.properties.evidenceBasis = { type: ["string", "null"], enum: ["saved_history", "supplied_context", "general", null] };
+
+  return { type: "object", additionalProperties: false, required: ["request"],
+    properties: { request: { anyOf: [profile, nonProfile] } } };
+}
+
 /** Select the existing binder from the typed proposal, never from owner wording.
  * Null is the provider-schema spelling of an absent optional selection.
  */

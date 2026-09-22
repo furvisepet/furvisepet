@@ -339,7 +339,7 @@ for (const [topic, note, answer] of [
   assert.deepEqual(r.result.acceptedCareActions, []);
   assert.deepEqual(r.result.acceptedLearnings, []);
   assert.equal(JSON.parse(r.reviewRequests[0].input).request.version, ASK_REQUEST_VERSION);
-  assert.equal(r.interpretationRequests[0].text.format.schema.properties.version.enum[0], ASK_REQUEST_VERSION);
+  assert.ok(r.interpretationRequests[0].text.format.schema.properties.request.anyOf.every(branch=>branch.properties.version.enum[0]===ASK_REQUEST_VERSION));
 });
 test('as-of retrieval applies upper bound with no lower bound', async t => {
   clock(t);
@@ -1729,7 +1729,7 @@ test('read mode discards contradictory mutation hints without a provider repair'
  let calls=0;
  const result=await interpretAskQuestion({context:{...context,currentMessage:'What is recorded about Aster?'},model:'gpt-5-mini',
   client:{responses:{async create(request){calls++;
-   assert.equal(request.text.format.schema.properties.referenceTurnIds.maxItems,0);
+   assert.ok(request.text.format.schema.properties.request.anyOf.every(branch=>branch.properties.referenceTurnIds.maxItems===0));
    return {status:'completed',output_text:JSON.stringify(proposal({task:{intent:'resume',sourceTurnId:null,petName:'Aster',answerRequest:null}}))};
   }}}});
  assert.equal(calls,1);assert.equal(result.readOnly,true);assert.equal(result.request.task,null);

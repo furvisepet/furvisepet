@@ -22,7 +22,7 @@ const proposal=(read=ticket(),ctx=context())=>({version:'ask-request.v2',mode:'r
  operation:'recall',selection:'summary',quantity:'records',topic:'history',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:null,premiseQuotes:[]});
 async function run(p,ctx=context(),reject=false){
  let calls=0;const promise=interpretAskQuestion({context:ctx,model:'fixture',client:{responses:{create:async request=>{
- calls++;const branches=request.text.format.schema.properties.readTicket.anyOf.filter(b=>b.properties);
+ calls++;const requestSchema=request.text.format.schema.properties.request.anyOf.find(b=>b.properties?.evidenceBasis?.enum?.includes('saved_history'));const branches=requestSchema.properties.readTicket.anyOf.filter(b=>b.properties);
  for(const b of branches){assert.equal(Object.hasOwn(b.properties,'needs'),false);
  assert.equal(b.properties.probes.items.additionalProperties,false);
  for(const id of ['id','needId','sourceSpanId','petIds'])assert.equal(Object.hasOwn(b.properties.probes.items.properties,id),false);}

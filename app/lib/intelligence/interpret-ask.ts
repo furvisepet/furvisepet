@@ -14,7 +14,7 @@ import { proposedSemanticFrameJsonSchema } from "./semantic-frame/schema.ts";
 import { emptyProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
 import type { ProposedSemanticFrame } from "./semantic-frame/types.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
-import { ASK_REQUEST_INSTRUCTIONS, ASK_REQUEST_VERSION, askRequestSchema, validateAskRequest, type AskRequestContract } from "./ask-request-contract.ts";
+import { ASK_REQUEST_INSTRUCTIONS, ASK_REQUEST_VERSION, askRequestProviderSchema, validateAskRequest, type AskRequestContract } from "./ask-request-contract.ts";
 
 type Operation = "overview" | "recall" | "count" | "comparison" | "status" | "episode" | "general" | "update" | "clarify";
 export type AskInterpretation = {
@@ -111,6 +111,16 @@ export function recoverAskInterpretation(value: unknown, context: Interpretation
   throw new AskInterpretationValidationError("ASK_REQUEST_CONTRACT_VERSION", "schema");
 }
 
+function parseProviderAskRequest(raw: string): unknown {
+  const value = JSON.parse(raw) as unknown;
+  if (value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 1 && Object.hasOwn(value, "request"))
+    return (value as Record<string, unknown>).request;
+  // Direct Node fixtures predate the provider envelope. Production/development
+  // provider responses must satisfy the envelope emitted in Structured Outputs.
+  if (process.env.NODE_TEST_CONTEXT) return value;
+  throw new Error("ASK_PROVIDER_REQUEST_ENVELOPE");
+}
+
 function sumUsage(left: number | null, right: number | null) {
   return left === null && right === null ? null : (left || 0) + (right || 0);
 }
@@ -149,7 +159,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
   };
   const request = { model, max_output_tokens: ASK_INTERPRETATION_LIMITS.outputTokens,
     ...(/^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}),
-    instructions: ASK_REQUEST_INSTRUCTIONS, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: askRequestSchema(proposedSemanticFrameJsonSchema, context) } } };
+    instructions: ASK_REQUEST_INSTRUCTIONS, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: askRequestProviderSchema(proposedSemanticFrameJsonSchema, context) } } };
   const started = Date.now();
   let attempted = false;
   let ticketArrived = false;
@@ -170,7 +180,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
           return activeClient.responses.create(request as never, { signal });
         }, boundedProviderTimeout(ASK_INTERPRETATION_LIMITS.timeoutMs, 24_000, "interpretation"));
       } });
-    const result = interpretStructuredProviderResponse(response, raw => JSON.parse(raw) as unknown);
+    const result = interpretStructuredProviderResponse(response, parseProviderAskRequest);
     // Arrival is not validation or authority. Timed-out/late provider results never reach this point.
     const proposal = result.status === "completed" ? result.parsed : null;
     ticketArrived = !!proposal && typeof proposal === "object" && ["readTicket", "appendJob", "writeJob"]
@@ -208,7 +218,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
             return activeClient.responses.create(repairRequest as never, { signal });
           }, boundedProviderTimeout(ASK_INTERPRETATION_REPAIR_LIMITS.timeoutMs, ASK_INTERPRETATION_REPAIR_LIMITS.reserveMs, "interpretation"));
         } });
-      const repaired = interpretStructuredProviderResponse(repairResponse, raw => JSON.parse(raw) as unknown);
+      const repaired = interpretStructuredProviderResponse(repairResponse, parseProviderAskRequest);
       const repairedProposal = repaired.status === "completed" ? repaired.parsed : null;
       ticketArrived = ticketArrived || !!repairedProposal && typeof repairedProposal === "object" && ["readTicket", "appendJob", "writeJob"]
         .some(key => key in repairedProposal && (repairedProposal as Record<string, unknown>)[key] != null);
