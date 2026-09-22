@@ -1,3 +1,5 @@
+import { profileFieldLabsReviewFailure, profileFieldSourceIds } from "./profile-field-labs.ts";
+import { profileFieldValue } from "./profile-field-authority.ts";
 import { labsListReviewFailure } from "./labs-list.ts";
 import { logReviewAuthority } from "./publication-authority-diagnostics.ts";
 import { bindPublicationObligations, checkPublicationAuthority, derivePublicationAuthority, publicationSources, PUBLICATION_AUTHORITY_POLICY } from "./publication-authority.ts";
@@ -92,6 +94,17 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   recordHistoryReviewDiagnostic(result, "declined", "review_not_completed");
   const evidence = result.evidenceContract;
   const sharedRequest = evidence?.interpretation?.request;
+  if (result.profileFieldLabs) {
+    const failure = profileFieldLabsReviewFailure(result);
+    if (failure) return decline(failure);
+    if (executionPlan && (executionPlan.semanticEvents.length || executionPlan.careActions.length || executionPlan.noteBatch?.length))
+      return decline("profile_labs_has_pending_write");
+    recordHistoryReview(result, { signature: signature(result), text: result.answer.summary,
+      sourceIds: profileFieldSourceIds(result.profileFieldLabs),
+      sourceContent: result.profileFieldLabs.projection.fields.filter(f => f.state !== "unavailable").map(profileFieldValue) });
+    recordHistoryReviewDiagnostic(result, "approved", "deterministic_profile_fields_verified");
+    return true;
+  }
   if (result.labsList) {
     const failure = labsListReviewFailure(result);
     if (failure) {

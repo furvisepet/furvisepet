@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { bindEvidenceReadTicket, bindEvidenceLocator } from '../app/lib/intelligence/evidence-read-ticket.ts';
-import { createAskEvidenceContract, evidenceSource, representEvidence, evidenceAnswerPolicy, evidenceScopeKey } from '../app/lib/intelligence/ask-evidence.ts';
+import { registerHooks } from 'node:module';
+// Next enforces the server/client poison boundary; direct Node fixtures use the
+// same resolver shim as the existing certificate-publication and Labs tests.
+registerHooks({resolve(s,c,next){return s==='server-only'?{url:'data:text/javascript,export {};',format:'module',shortCircuit:true}:next(s,c);}});
+const { bindEvidenceReadTicket, bindEvidenceLocator } = await import('../app/lib/intelligence/evidence-read-ticket.ts');
+const { createAskEvidenceContract, evidenceSource, representEvidence, evidenceAnswerPolicy, evidenceScopeKey } = await import('../app/lib/intelligence/ask-evidence.ts');
 
 globalThis.fetch = async () => { throw Error('Direct evidence fixtures forbid network'); };
 const message = 'Quote the 2024-04-07 pressure test.';

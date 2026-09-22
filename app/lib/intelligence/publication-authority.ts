@@ -1,3 +1,4 @@
+import { isTypedProfileRead, profileFieldProjection, profileFieldSentence, type AuthorizedProfileField } from "./profile-field-authority.ts";
 import { careEvidenceId, eligibleAnswerSources, type AskEvidenceContract } from "./ask-evidence.ts";
 import { selectionPublication } from "./selection-publication.ts";
 import { buildEvidenceNeedCoverage } from "./evidence-need-coverage.ts";
@@ -9,6 +10,7 @@ export type PublicationObligationAuthority = {
   obligationId: string; authority: "certified" | "existing_policy" | "composite";
   authorizedSourceIds: string[]; certifiedRecordIds: string[];
   certificateType: "selection" | null; status: string;
+  fieldProjection?: AuthorizedProfileField; sourceDomain?: "saved_profile";
   subjectId?: string; clauseId?: number; profileField?: string; needId?: string;
 };
 export type PublicationAuthorityClaim = { obligationId: string; text: string; sourceIds: string[] };
@@ -17,6 +19,22 @@ const unique = (ids: string[]) => [...new Set(ids)];
 // versions. Never persisted as a new factual or certification store.
 export function derivePublicationAuthority(evidence: AskEvidenceContract | undefined) {
   const ticket = evidence?.interpretation?.request?.readTicket, coverage = evidence?.history?.ticketCoverage;
+  if (evidence && isTypedProfileRead(evidence)) {
+    const projection = profileFieldProjection(evidence);
+    const sources = eligibleAnswerSources(evidence);
+    const obligations: PublicationObligationAuthority[] = evidence.scope.authorizedPetIds.flatMap(subjectId =>
+      [...new Set(evidence.interpretation!.request!.profileFields!)].map(profileField => {
+        const field = projection?.fields.find(f => f.subjectId === subjectId && f.fieldSelector === profileField);
+        return { obligationId: `profile:${subjectId}:${profileField}`, authority: "certified" as const,
+          certificateType: null, sourceDomain: "saved_profile" as const, subjectId, profileField,
+          status: !field || field.state === "unavailable" ? "unavailable" : field.state === "empty" ? "complete_empty" : "complete",
+          authorizedSourceIds: field && field.state !== "unavailable" ? [field.sourceId] : [],
+          certifiedRecordIds: [], ...(field ? { fieldProjection: field } : {}) };
+      }));
+    const authorizedSourceIds = unique(obligations.flatMap(o => o.authorizedSourceIds));
+    return { obligations, authorizedSourceIds, sources: sources.filter(s => authorizedSourceIds.includes(s.sourceId)),
+      ticket: undefined, subjectIds: evidence.scope.authorizedPetIds, transportValid: !!projection && obligations.every(o => o.status !== "unavailable") };
+  }
   if (!evidence || !ticket?.selection || !coverage) return null;
   const sources = eligibleAnswerSources(evidence);
   const records = coverage.groups?.flatMap(group => group.selectedIds.flatMap(id =>
@@ -51,7 +69,7 @@ export function derivePublicationAuthority(evidence: AskEvidenceContract | undef
   }
   const authorizedSourceIds = unique(obligations.flatMap(o => o.authorizedSourceIds));
   return { obligations, authorizedSourceIds, sources: sources.filter(s => authorizedSourceIds.includes(s.sourceId)),
-    ticket, transportValid: selected.transportValid };
+    ticket, subjectIds: ticket.subjects.petIds, transportValid: selected.transportValid };
 }
 export function publicationSources(evidence: AskEvidenceContract) {
   return derivePublicationAuthority(evidence)?.sources || eligibleAnswerSources(evidence);
@@ -65,10 +83,10 @@ export function bindPublicationObligations(evidence: AskEvidenceContract, existi
     status: "requires_components", authorizedSourceIds: authority.authorizedSourceIds,
     certifiedRecordIds: unique(authority.obligations.flatMap(o => o.certifiedRecordIds)) });
   for (const component of authority.obligations) {
-    const clause = component.clauseId === undefined ? null : authority.ticket.selection!.union[component.clauseId];
+    const clause = component.clauseId === undefined ? null : authority.ticket?.selection?.union[component.clauseId];
     const text = component.certificateType === "selection"
       ? JSON.stringify({ requirement: "Report the requested selected source records for this subject and clause",
-        subjectId: component.subjectId, predicates: authority.ticket.predicates, temporal: authority.ticket.temporal,
+        subjectId: component.subjectId, predicates: authority.ticket?.predicates, temporal: authority.ticket?.temporal,
         selection: clause, status: component.status, authorizedSourceIds: component.authorizedSourceIds })
       : component.needId ? JSON.stringify({ requirement: "Answer this independent evidence need under existing coverage policy",
         need: evidence.interpretation?.request?.evidenceNeeds?.find(n => n.id === component.needId), subjectId: component.subjectId,
@@ -89,7 +107,7 @@ export function publicationGenerationContext(evidence: AskEvidenceContract, orig
   // Rebuild the factual payload rather than retaining hidden alternatives in
   // profile snapshots, record inventories, old dialogue or duplicate contexts.
   return { question: evidence.scope.requestText, request: evidence.interpretation?.request,
-    pets: authority.ticket.subjects.petIds.map(id => ({ id, name: evidence.petNames?.[id] })),
+    pets: authority.subjectIds.map(id => ({ id, name: evidence.petNames?.[id] })),
     publicationAuthority: authority.obligations, readTicket: authority.ticket,
     contextRecords: authority.sources.map(s => ({ id: s.sourceId, sourceId: s.sourceId, sourceType: s.sourceType,
       petId: s.petId, value: s.text, text: s.text, occurredAt: s.occurredAt || null })),
@@ -105,6 +123,14 @@ export function publicationClaimFailures(evidence: AskEvidenceContract, claims: 
     if (!binding) { failures.push("publication_obligation_unknown"); continue; }
     if (claim.sourceIds.some(id => !binding.authorizedSourceIds.includes(id))) {
       failures.push("publication_source_outside_obligation:" + binding.obligationId); continue;
+    }
+    if (binding.sourceDomain === "saved_profile") {
+      const field = binding.fieldProjection;
+      const projection = profileFieldProjection(evidence);
+      if (!field || !projection || claim.text !== profileFieldSentence(field, projection.petNames[field.subjectId])
+        || JSON.stringify(claim.sourceIds) !== JSON.stringify(binding.authorizedSourceIds))
+        failures.push("publication_profile_field_drift:" + binding.obligationId);
+      continue;
     }
     if (binding.authority !== "certified") continue;
     const cited = authority.sources.filter(s => claim.sourceIds.includes(s.sourceId));

@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { missingExactRecordText } from '../app/lib/intelligence/exact-record-text.ts';
-import { verifiedCalculationQuantities } from '../app/lib/intelligence/history-calculation.ts';
-import { reviewObligationCompletion, historyTaskCompleted } from '../app/lib/intelligence/history-obligations.ts';
+import { registerHooks } from 'node:module';
+registerHooks({resolve(s,c,next){return s==='server-only'?{url:'data:text/javascript,export {};',format:'module',shortCircuit:true}:next(s,c);}});
+const { missingExactRecordText } = await import('../app/lib/intelligence/exact-record-text.ts');
+const { verifiedCalculationQuantities } = await import('../app/lib/intelligence/history-calculation.ts');
+const { reviewObligationCompletion, historyTaskCompleted } = await import('../app/lib/intelligence/history-obligations.ts');
 const note='May 4, 2025: ate 28 g of "usual" food.';
 test('calculation generation binds each operand to its original source and field',async()=>{
  const {sourceBoundSchema}=await import('../app/lib/intelligence/source-bound-schema.ts');

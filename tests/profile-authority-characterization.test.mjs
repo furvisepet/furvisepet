@@ -14,21 +14,21 @@ test('profile context retains raw stored decimal and row timestamp, not measurem
  const r=context().records.find(r=>r.kind==='weight');
  assert.equal(r.value,'4.71 kg');assert.equal(r.createdAt,pet.updated_at);assert.equal(r.occurredAt,null);
 });
-test('legacy profile context defaults absent weight unit; this is not scalar proof',()=>{
- assert.equal(context({profile:{...pet,weight_unit:null}}).records.find(r=>r.kind==='weight').value,'4.71 lb');
+test('unmigrated mixed-field context retains its legacy unit default',()=>{
+ assert.equal(context({fields:['weight','age'],profile:{...pet,weight_unit:null}}).records.find(r=>r.kind==='weight').value,'4.71 lb');
 });
 test('loaded null produces scoped not-recorded evidence; omitted property produces no value',()=>{
- assert.match(context({profile:{...pet,weight_value:null}}).records.find(r=>r.kind==='weight').value,/Not recorded in the current profile/);
+ assert.match(context({profile:{...pet,weight_value:null}}).records.find(r=>r.kind==='weight').value,/Not recorded in the saved profile/);
  const absent={...pet};delete absent.weight_value;
  assert.equal(context({profile:absent}).records.some(r=>r.kind==='weight'),false);
 });
-test('standalone saved-profile context has no selection-derived obligation authority',()=>{
- const c=context();assert.equal(derivePublicationAuthority(c.promptContext.evidenceContract),null);
- assert.equal(eligibleAnswerSources(c.promptContext.evidenceContract)[0].sourceId,'profile:pet-a:weight');
+test('unmigrated mixed-field context retains existing-policy authority',()=>{
+ const c=context({fields:['weight','age']});assert.equal(derivePublicationAuthority(c.promptContext.evidenceContract),null);
+ assert.ok(eligibleAnswerSources(c.promptContext.evidenceContract).some(s=>s.sourceId==='profile:pet-a:weight'));
 });
-test('raw field wording currently expands profile fields below interpretation',()=>{
- const plain=context({fields:['species'],question:'Saved species'});
- const extra=context({fields:['species'],question:'Saved species and breed'});
+test('unmigrated mixed-field wording still uses existing compatibility expansion',()=>{
+ const plain=context({fields:['species','age'],question:'Saved species'});
+ const extra=context({fields:['species','age'],question:'Saved species and breed'});
  assert.equal(plain.records.some(r=>r.kind==='breed'),false);
  assert.equal(extra.records.some(r=>r.kind==='breed'),true);
 });

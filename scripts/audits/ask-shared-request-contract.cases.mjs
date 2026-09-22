@@ -1,16 +1,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { registerHooks } from 'node:module';
 import { ticketedProposal } from './helpers/ticketed-proposal.mjs';
 import { exercise, clock } from './helpers/lifetime-harness.mjs';
 import { care, pets, ownerId } from './fixtures/ask-lifetime-history.mjs';
-import { validateAskRequest, ASK_REQUEST_VERSION } from '../../app/lib/intelligence/ask-request-contract.ts';
-import { emptyProposedSemanticFrame } from '../../app/lib/intelligence/semantic-frame/extract-frame.ts';
-import { requestReferenceContext } from '../../app/lib/intelligence/request-reference-context.ts';
-import { parseTaskHistoryReview } from '../../app/lib/intelligence/history-review-selection.ts';
-import { verifiedCalculationQuantities, parseHistoryCalculations } from '../../app/lib/intelligence/history-calculation.ts';
-import { matchesHistoryOutputFormat, historicalReadSchema, canonicalHistoricalRead } from '../../app/lib/intelligence/historical-read-response.ts';
-import { stripKnownHistoryCitations } from "../../app/lib/furvise-output.ts";
-import { historyNarrativeAnchorsSupported } from '../../app/lib/intelligence/history-narrative-facts.ts';
+registerHooks({resolve(s,c,next){return s==='server-only'?{url:'data:text/javascript,export {};',format:'module',shortCircuit:true}:next(s,c);}});
+const { validateAskRequest, ASK_REQUEST_VERSION } = await import('../../app/lib/intelligence/ask-request-contract.ts');
+const { emptyProposedSemanticFrame } = await import('../../app/lib/intelligence/semantic-frame/extract-frame.ts');
+const { requestReferenceContext } = await import('../../app/lib/intelligence/request-reference-context.ts');
+const { parseTaskHistoryReview } = await import('../../app/lib/intelligence/history-review-selection.ts');
+const { verifiedCalculationQuantities, parseHistoryCalculations } = await import('../../app/lib/intelligence/history-calculation.ts');
+const { matchesHistoryOutputFormat, historicalReadSchema, canonicalHistoricalRead } = await import('../../app/lib/intelligence/historical-read-response.ts');
+const { stripKnownHistoryCitations } = await import('../../app/lib/furvise-output.ts');
+const { historyNarrativeAnchorsSupported } = await import('../../app/lib/intelligence/history-narrative-facts.ts');
 
 const fixturePets = pets.slice(0, 3).map((pet, index) => ({ ...pet, name: ['Aster', 'Bramble', 'Cedar'][index] }));
 const context = { owner: { userId: ownerId }, eligiblePets: fixturePets, pet: fixturePets[0],

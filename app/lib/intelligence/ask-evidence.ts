@@ -33,6 +33,8 @@ export type AskEvidenceScope = {
   status: "resolved" | "ambiguous"; readOnlyRecall: boolean;
 };
 export type AskEvidenceContract = {
+  /** Ephemeral owned-row projection; model JSON cannot mint its server snapshot. */
+  profileFieldProjection?: import("./profile-field-authority.ts").ProfileFieldProjection;
   /** Typed read plus publication obligations; never a source of state. */
   publicationTicket?: EvidenceReadTicket;
   completedOwnerNote?: FurviseLiveContext["completedOwnerNote"];

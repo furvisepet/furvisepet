@@ -5,7 +5,7 @@ import { derivePublicationAuthority, publicationClaimFailures, type PublicationA
 
 type Receipt = { authorityClaims?: PublicationAuthorityClaim[]; actions?: FurviseApplicationAction[]; signature: string; text: string; sourceIds: string[]; proseText?: string; sourceReports?: string[]; sourceContent?: string[]; completion?: ObligationCompletion[] };
 const reviewed = new WeakMap<AskReasoningResult, Receipt>();
-export const historyReviewSignature = (result: AskReasoningResult) => JSON.stringify({ labsList: result.labsList, labsAnswer: result.labsList ? result.answer : undefined, labsSourceIds: result.labsList ? result.relevantContextIds : undefined, actions: result.applicationActions, evidence: result.evidenceContract, draft: result.historyNarrative, result: result.historicalResult, plainAnswer: result.historyNarrativeDeclined ? result.answer.summary : undefined, sourceHints: result.historyNarrativeDeclined ? result.relevantContextIds : undefined });
+export const historyReviewSignature = (result: AskReasoningResult) => JSON.stringify({ profileFieldLabs: result.profileFieldLabs, labsList: result.labsList, labsAnswer: result.labsList || result.profileFieldLabs ? result.answer : undefined, labsSourceIds: result.labsList || result.profileFieldLabs ? result.relevantContextIds : undefined, actions: result.applicationActions, evidence: result.evidenceContract, draft: result.historyNarrative, result: result.historicalResult, plainAnswer: result.historyNarrativeDeclined ? result.answer.summary : undefined, sourceHints: result.historyNarrativeDeclined ? result.relevantContextIds : undefined });
 export function clearHistoryReview(result: AskReasoningResult) { reviewed.delete(result); }
 /** Internal server capability: called only after successful source-scoped review. */
 export function recordHistoryReview(result: AskReasoningResult, receipt: Receipt) { reviewed.set(result, structuredClone(receipt)); }
@@ -13,7 +13,7 @@ export function recordHistoryReview(result: AskReasoningResult, receipt: Receipt
 export function readReviewedHistoryAnswer(result: AskReasoningResult): Omit<Receipt, "signature"> | null {
   const receipt = reviewed.get(result);
   if (!receipt || receipt.signature !== historyReviewSignature(result)) return null;
-  const authority = result.labsList ? null : derivePublicationAuthority(result.evidenceContract);
+  const authority = result.labsList || result.profileFieldLabs ? null : derivePublicationAuthority(result.evidenceContract);
   if (authority && (!receipt.authorityClaims?.length
     || authority.obligations.some(o => !receipt.authorityClaims!.some(c => c.obligationId === o.obligationId))
     || publicationClaimFailures(result.evidenceContract!, receipt.authorityClaims).length)) return null;

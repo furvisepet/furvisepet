@@ -1,3 +1,4 @@
+import { profileFieldLabsReviewFailure, carryProfileFieldLabs } from "../profile-field-labs.ts";
 import { labsListReviewFailure, carryLabsListSnapshot, labsTaskComplete } from "../labs-list.ts";
 import { derivePublicationAuthority } from "../publication-authority.ts";
 import { readPartialHistoryReview } from "../history-review-state.ts";
@@ -54,6 +55,25 @@ export function validateGeneratedAnswer(
   const partialHistory = currentEmergency || reviewedHistory ? null : readPartialHistoryReview(result);
   const partialText = partialHistory ? partialHistory.text : null;
   const response = structuredClone(result);
+  if (result.profileFieldLabs && !currentEmergency) {
+    const failure = !reviewedHistory ? "profile_labs_review_required" : profileFieldLabsReviewFailure(result);
+    const scopeFailure = result.profileFieldLabs.projection.subjectIds.some(id => !authoritativePetIds.includes(id));
+    const errors = [...(failure ? [failure] : []), ...(scopeFailure ? ["profile_labs_subject_scope"] : [])];
+    const complete = result.profileFieldLabs.projection.fields.every(f => f.state !== "unavailable");
+    if (!errors.length && reviewedHistory) {
+      carryProfileFieldLabs(result, response);
+      response.evidenceContract!.answerSourceIds = [...reviewedHistory.sourceIds];
+      response.evidenceContract!.answerContent = [...(reviewedHistory.sourceContent || [])];
+      recordHistoryReview(response, { ...reviewedHistory, signature: historyReviewSignature(response) });
+      rememberReviewedTaskPresentation(response.evidenceContract, response.answer, []);
+    }
+    const assessment = createAnswerAssessment({ body: response.answer, evidence: response.evidenceContract || null,
+      unsafe: !!errors.length, reasons: [...errors, ...(complete ? [] : ["profile_field_unavailable"])],
+      checks: { structuralValidity: errors.length ? "failed" : "passed", evidenceSupport: errors.length ? "failed" : "passed",
+        subjectDateCorrectness: errors.length ? "failed" : "passed", calculationCorrectness: "not_applicable",
+        taskCompletion: complete && !errors.length ? "passed" : "failed" } });
+    return { response, assessment, valid: !errors.length, repairs: [], errors, qualityWarnings: [] };
+  }
   if (result.labsList && !currentEmergency) {
     const failure = !reviewedHistory ? readHistoryReviewDiagnostic(result)?.reason || "labs_list_review_required" : labsListReviewFailure(result);
     const scopeFailure = result.labsList.ticket.subjects.petIds.some(id => !authoritativePetIds.includes(id));

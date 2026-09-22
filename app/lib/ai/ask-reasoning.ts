@@ -1,3 +1,5 @@
+import { projectProfileFields, profileFieldRecords, bindProfileFieldProjection } from "../intelligence/profile-field-authority.ts";
+import { buildProfileFieldLabs, serializeProfileFieldLabs, profileFieldSourceIds, type ProfileFieldLabs } from "../intelligence/profile-field-labs.ts";
 import { commonHistoryPathEntered } from "../intelligence/ordinary-history-boundary.ts";
 import { buildLabsList, serializeLabsList, type LabsList } from "../intelligence/labs-list.ts";
 import { logPublicationDispatch } from "../intelligence/publication-authority-diagnostics.ts";
@@ -123,6 +125,7 @@ export type AskReasoningResult = {
   /** Server-produced, never parsed from model JSON. */
   evidenceContract?: AskEvidenceContract;
   labsList?: LabsList;
+  profileFieldLabs?: ProfileFieldLabs;
   historySynthesis?: Array<{ sourceId: string; text: string }>;
   historyNarrative?: HistoryNarrative;
   historicalResult?: import("../intelligence/historical-read-response.ts").HistoricalResult;
@@ -444,10 +447,11 @@ export function clearAskProviderCooldownsForTests() {
 }
 
 export function buildAskContext(input: BuildContextInput, applyPromptBudget = true) {
-  const allRecords = buildContextRecords(input);
+  const profileProjection = projectProfileFields(input.evidenceContract, input.profiles);
+  const allRecords = profileProjection ? profileFieldRecords(profileProjection) : buildContextRecords(input);
   const evidence = structuredClone(input.evidenceContract || evidenceForRecords(allRecords, input.question, input.profiles.map(profile => profile.id)));
   const ordinaryHistory = commonHistoryPathEntered(evidence);
-  const terms = ordinaryHistory ? new Set<string>() : meaningfulTerms(input.question);
+  const terms = ordinaryHistory || profileProjection ? new Set<string>() : meaningfulTerms(input.question);
   for (const profile of input.profiles) {
     for (const identityTerm of meaningfulTerms(profile.name || "")) terms.delete(identityTerm);
   }
@@ -459,7 +463,7 @@ export function buildAskContext(input: BuildContextInput, applyPromptBudget = tr
   });
   const now = (input.now || new Date()).getTime();
   const scored = allRecords
-    .map((record) => ({ record, score: ordinaryHistory ? 0 : scoreRecord(record, terms, now) }))
+    .map((record) => ({ record, score: ordinaryHistory || profileProjection ? 0 : scoreRecord(record, terms, now) }))
     .sort((left, right) => right.score - left.score || timestamp(right.record) - timestamp(left.record) || left.record.id.localeCompare(right.record.id));
 
   const profile = scored.filter(({ record }) => record.sourceType === "profile");
@@ -610,6 +614,7 @@ export function buildAskContext(input: BuildContextInput, applyPromptBudget = tr
     let index = 0;
     promptContext.contextRecords = promptContext.contextRecords.map(record => record.sourceType === "care_update" ? history[index++] : record);
   }
+  if (profileProjection) bindProfileFieldProjection(promptContext.evidenceContract, profileProjection);
   return {
     records: promptContext.contextRecords,
     promptContext,
@@ -741,32 +746,33 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   // before provider prompt budgeting. Lifetime-scale reads should not discard
   // facts merely to satisfy a model input limit when no model call is needed.
   const projectionContext = buildAskContext(input, false);
+  const profileLabs = projectionContext.minimumSafetyLevel === "normal" ? buildProfileFieldLabs(projectionContext.promptContext.evidenceContract) : null;
   const labs = projectionContext.minimumSafetyLevel !== "urgent" ? buildLabsList(projectionContext.promptContext.evidenceContract, input.careEntries) : null;
-  const projection = !labs && projectionContext.minimumSafetyLevel === "normal" ? deterministicReadProjection(projectionContext.promptContext.evidenceContract,
+  const projection = !profileLabs && !labs && projectionContext.minimumSafetyLevel === "normal" ? deterministicReadProjection(projectionContext.promptContext.evidenceContract,
     detail => console.info("[Ask read projection] decision", detail)) : null;
   logPublicationDispatch(projectionContext.promptContext.evidenceContract,
     input.careEntries.map(row => ({ id: row.id, petId: row.pet_profile_id })),
-    labs ? "labs" : projection ? "legacy_projection" : "model", projectionContext.minimumSafetyLevel);
-  if (labs || projection) {
+    profileLabs || labs ? "labs" : projection ? "legacy_projection" : "model", projectionContext.minimumSafetyLevel);
+  if (profileLabs || labs || projection) {
     const context = projectionContext;
     const evidence = context.promptContext.evidenceContract;
     const visibleProjection = { sentences: (projection?.sentences || []).map(sentence => ({
       ...sentence,
       text: /[\r\n]/.test(sentence.text) ? sentence.text : normalizeAskVisibleText(sentence.text),
     })) };
-    const ids = labs ? labs.records.map(row => row.sourceId) : [...new Set(visibleProjection.sentences.flatMap(s=>s.sourceIds))];
+    const ids = profileLabs ? profileFieldSourceIds(profileLabs) : labs ? labs.records.map(row => row.sourceId) : [...new Set(visibleProjection.sentences.flatMap(s=>s.sourceIds))];
     return {
-      answer: {title:"Furvise",summary:labs ? serializeLabsList(labs) : visibleProjection.sentences.map(s=>s.text).join("\n"),sections:[],safetyNote:null}, evidenceContract:evidence,
-      ...(labs ? {labsList:labs} : {historyNarrative:visibleProjection}),historyNarrativeDeclined:false,
+      answer: {title:"Furvise",summary:profileLabs ? serializeProfileFieldLabs(profileLabs) : labs ? serializeLabsList(labs) : visibleProjection.sentences.map(s=>s.text).join("\n"),sections:[],safetyNote:null}, evidenceContract:evidence,
+      ...(profileLabs ? {profileFieldLabs:profileLabs} : labs ? {labsList:labs} : {historyNarrative:visibleProjection}),historyNarrativeDeclined:false,
       userIntent:"history recall",relevantContextIds:ids,referencedRecords:context.records.filter(record=>ids.includes(record.id)),
       safetyLevel:"normal",shoppingSuppressed:true,suggestedFollowUps:[],applicationActions:[],proposedHistoryUpdate:emptyHistoryUpdate(),
       answerDepth:planAskAnswerDepth({message:input.question,minimumSafetyLevel:"normal",responseMode:"practical_guidance",recentConversation:input.conversationTurns}),
-      responseMode:"practical_guidance",model:labs ? "server-labs-list" : "server-read-projection",
+      responseMode:"practical_guidance",model:profileLabs ? "server-profile-field-labs" : labs ? "server-labs-list" : "server-read-projection",
       messageUnderstanding:{...defaultMessageUnderstanding(input.question),primaryIntent:"question",userIsAskingQuestion:true},
       intelligenceSafety:{...defaultIntelligenceSafety("normal"),shoppingSuppressed:true},
       learnings:[],careActions:[],semanticEvents:[],semanticFrame:emptyProposedSemanticFrame(),semanticFrameValid:true,
       semanticFrameRecovery:{applied:false,reason:"NOT_ATTEMPTED_FRAME_VALID",validationReason:null},
-      intelligenceMetadata:{confidence:"high",usedPetContext:true,usedCareHistory:true,usedMemories:false},
+      intelligenceMetadata:{confidence:"high",usedPetContext:true,usedCareHistory:!profileLabs,usedMemories:false},
     };
   }
   const context = buildAskContext(input, true);
