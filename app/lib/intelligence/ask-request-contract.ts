@@ -780,10 +780,10 @@ function bindTicketedRead(p: Record<string, unknown>, context: Context): AskInte
   const { probes: _probes, ...ticketFields } = proposedTicket;
   let readTicket = bindProviderReadTicket({ ...ticketFields, subjectScope,
     ...(grounded ? { needs: grounded.needs } : {}) }, petIds, bindings)!;
-  // Normalize while the existing typed search/reference intent still exists.
+  // Normalize while the existing typed lookup/reference/derivation intent still exists.
   // The later compatibility selection label is derived from outputs.limit and
   // cannot distinguish a reference proposal from an explicit ordered search.
-  const compatibility = readTicket.outputs.strategy === "event_candidates"
+  const compatibility = (readTicket.outputs.strategy === "event_candidates" || readTicket.outputs.strategy === "temporal_endpoints" && petIds.length > 1)
     ? translateLegacyReadSelection(readTicket, { evidenceNeedCount: needPlan.needs.length,
       readIntent: { selection: p.selection as string, operation: p.operation as string,
         quantity: p.quantity as string | null, referenceTurnCount: referenceTurnIds.length,
@@ -838,7 +838,7 @@ function bindTicketedRead(p: Record<string, unknown>, context: Context): AskInte
   const referenceTarget: AskInterpretation["referenceTarget"] = episode?.operation === "membership" && referent && !unresolvedEpisode
     ? { kind: "episode", ordinal: referent.ordinal, topic: referent.topic, basis: referent.basis,
       ...(referent.basis === "scoped_register" ? { period: { from: readTicket.temporal.from!, to: readTicket.temporal.to! } } : {}) } : undefined;
-  return { ...(compatibility?.translated ? { readCompatibility: { inputStrategy: "event_candidates" as const } } : {}),
+  return { ...(compatibility?.translated && proposedTicket.outputs && (proposedTicket.outputs as Record<string, unknown>).strategy === "event_candidates" ? { readCompatibility: { inputStrategy: "event_candidates" as const } } : {}),
     ...(referenceTarget ? { referenceTarget } : {}), version: "ask-interpretation.v1", request, operation, readOperation: operation, selection, petIds,
     referenceQuestion: referenceTurnIds.length ? p.question as string : context.currentMessage,
     topic: p.topic as string, history: unresolvedEpisode ? null : { from: readTicket.temporal.from, to: readTicket.temporal.to, terms: [], interpretation: "period" },

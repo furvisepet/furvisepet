@@ -53,6 +53,33 @@ export function translateLegacyReadSelection(ticket: ReadTicket, legacyObligatio
   if (legacyObligations.evidenceNeedCount !== 0) return unchanged("independent_legacy_evidence_obligations");
   if (ticket.needs?.length || ticket.episode) return unchanged("independent_obligation");
   if (ticket.temporal.calendar) return unchanged("calendar_semantics");
+  if (strategy === "temporal_endpoints" && ticket.subjects.petIds.length > 1) {
+    const intent = legacyObligations.readIntent;
+    // A legacy compare label alone cannot distinguish records from derivation.
+    // Consume only the existing typed envelope, before that intent is discarded.
+    if (!intent || intent.operation !== "recall" || intent.quantity !== "records"
+      || intent.requirementCount || intent.referenceTurnCount || intent.hasProfileFields
+      || intent.hasProjection || intent.hasRecordSelection
+      || intent.temporalScope != null && intent.temporalScope !== "historical")
+      return unchanged("boundary_facts_not_established");
+    if (!ticket.predicates.length || ticket.temporal.anchor)
+      return unchanged("boundary_scope_not_explicit");
+    const directions: readonly ("asc" | "desc")[] = intent.selection === "earliest" ? ["asc"]
+      : intent.selection === "latest" ? ["desc"] : intent.selection === "summary" ? ["asc", "desc"] : [];
+    if (!directions.length) return unchanged("boundary_cardinality_unresolved");
+    // No data-dependent guess that singleton histories will make a small cap fit.
+    // Spare capacity is transport only; it never requests factual interior fill.
+    if (ticket.outputs.limit !== null && ticket.outputs.limit < directions.length * ticket.subjects.petIds.length)
+      return unchanged("boundary_transport_capacity_conflict");
+    const selection: ReadSelection = Object.freeze({ groupBy: Object.freeze(["subject"] as const),
+      union: Object.freeze(directions.map(direction => Object.freeze({
+        orderBy: Object.freeze([Object.freeze({ field: "event_at" as const, direction })] as const),
+        take: Object.freeze({ count: 1, per: "group" as const }),
+      }))) });
+    const { strategy: _legacyStrategy, ...outputs } = ticket.outputs;
+    return { translated: true, reason: "pure_grouped_boundary_facts",
+      ticket: Object.freeze({ ...ticket, operation: "read", outputs: Object.freeze(outputs), selection }) };
+  }
   if (strategy === "temporal_endpoints" && ticket.searchHints?.length) return unchanged("legacy_hint_ranking");
   // Chronological hints are advisory only. Keep them for post-selection context;
   // their former relevance ranking is intentionally not a factual selector.

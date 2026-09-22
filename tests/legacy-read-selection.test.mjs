@@ -120,7 +120,7 @@ test("multi-subject endpoints retain legacy global reservation and interior fill
  const p=input("temporal_endpoints","desc",4),rows=[0,1,2,3,4].map(i=>row("a",i));
  for(const subjects of [["a","b"],["b","a"]]){
   const ticket=bindReadTicket(p,subjects),t=translateLegacyReadSelection(ticket);
-  assert.equal(t.ticket,ticket);assert.equal(t.reason,"global_limit_not_per_subject");
+  assert.equal(t.ticket,ticket);assert.equal(t.reason,"boundary_facts_not_established");
   const old=await retrieveReadTicket(ticket,scope,store(rows)),composed=await retrieveReadTicket(native(p,subjects),scope,store(rows));
   assert.equal(old.records.length,4);
   assert.equal(composed.records.length,2);
