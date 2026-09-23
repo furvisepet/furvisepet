@@ -149,6 +149,7 @@ export type IntelligenceConversationTurn = {
 };
 
 export type FurviseLiveContext = {
+  replaceReferences?: import("../furvise-brain/replace-job.ts").ReplaceReference[];
   /** Owner-scoped capabilities loaded from server state, never assistant prose. */
   concernReferences?: import("../furvise-brain/state-transition-job.ts").ConcernReference[];
   lifecycleActionState?: import("../furvise-brain/lifecycle-plan.ts").LifecycleActionState;

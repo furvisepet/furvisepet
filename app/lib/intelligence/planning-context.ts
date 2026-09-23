@@ -1,3 +1,4 @@
+import { loadReplaceReferences } from "./replace-reference-context.ts";
 import { randomUUID } from "node:crypto";
 import type { PetConcern } from "../ai/concern-engine.ts";
 import type { ConcernReference } from "../furvise-brain/state-transition-job.ts";
@@ -9,7 +10,7 @@ import { ownerNoteSourceSpans } from "./owner-note-request.ts";
 import { loadActionCapabilitiesForMessages } from "../ask-conversation-server.ts";
 import { parseStoredApplicationActions } from "../application-actions/contracts.ts";
 
-/** Planning can see identities and dialogue, never a factual-history projection. */
+/** Planning sees owned target metadata and dialogue; neither authorizes factual publication. */
 export async function buildFurvisePlanningContext(input: {
   supabase: SupabaseClient; userId: string; petId: string; conversationId: string; currentMessage: string;
   sourceMessageId: string; locale: string; timeZone?: string;
@@ -47,7 +48,8 @@ export async function buildFurvisePlanningContext(input: {
   }));
   const currentTurn = conversationTurns.find(turn => turn.id === input.sourceMessageId);
   if (!currentTurn || currentTurn.text !== input.currentMessage) throw new FurviseContextError("CONTEXT_UNAVAILABLE", "The request source could not be verified.");
-  return { feature: "ask", locale: input.locale, timeZone: input.timeZone, currentMessage: input.currentMessage, currentTimestamp: new Date().toISOString(),
+  const replaceReferences = await loadReplaceReferences(userId, eligiblePets.map(p => p.id), currentTurn.createdAt);
+  return { replaceReferences, feature: "ask", locale: input.locale, timeZone: input.timeZone, currentMessage: input.currentMessage, currentTimestamp: new Date().toISOString(),
     conversationId, pet, eligiblePets, owner: { userId, profile: null }, currentTurn, conversationTurns, lifecycleActionState, concernReferences,
     ownerNoteSpans: ownerNoteSourceSpans(input.currentMessage, input.sourceMessageId),
     careEntries: [], selectedCareEntries: [], activeConcerns: ownedConcerns.filter(row => row.status !== "resolved"),

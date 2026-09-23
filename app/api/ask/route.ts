@@ -933,18 +933,6 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
       }, 200);
     }
   }
-  let latestHistoryEditTarget: { id: string; petId: string; sourceType: "care_update" } | null = plannedReplaceTarget;
-  const latestEditActions=preparedApplicationActions.filter(action=>action.kind==="care_history.edit" && action.input.target==="specified");
-  if(!plannedReplaceTarget && latestEditActions.length===1 && /\b(?:last|latest|most recent)\b[^.!?]{0,50}\b(?:note|entry|record)\b/i.test(question)){
-    const action=latestEditActions[0];
-    const latest=await supabase.from("pet_care_entries").select("id")
-      .eq("user_id",userId).eq("pet_profile_id",action.petId).is("deleted_at",null)
-      .order("created_at",{ascending:false}).order("id",{ascending:false}).limit(1).maybeSingle<{id:string}>();
-    if(!latest.error && latest.data?.id){
-      latestHistoryEditTarget={id:"care:"+latest.data.id,petId:action.petId,sourceType:"care_update"};
-      preparedApplicationActions=preparedApplicationActions.map(item=>item.id===action.id?{...item,targetSourceId:latestHistoryEditTarget!.id}:item);
-    }
-  }
   let governedAnswer = enforceAnswerStateClaims(orchestration.answer);
   if (reasoning?.responseMode === "grief_support"
     && governedAnswer.summary === "I can help with that.") {
@@ -1006,7 +994,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         id: source.sourceId, petId: source.petId, sourceType: source.sourceType,
       })) : reasoning?.referencedRecords || []),
       ...(reasoning?.referencedRecords.filter(record => record.sourceType === "active_concern") || []),
-      ...(latestHistoryEditTarget ? [latestHistoryEditTarget] : []),
+      ...(plannedReplaceTarget ? [plannedReplaceTarget] : []),
     ],
   });
 

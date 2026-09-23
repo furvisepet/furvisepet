@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import {
-  prepareFurviseApplicationActions,
+  prepareFurviseApplicationActions, prepareBoundReplaceAction,
   resolveFurviseActionTargetBindings,
 } from "../app/lib/application-actions/planner.ts";
 
+import {validateReplaceJob} from "../app/lib/furvise-brain/replace-job.ts";
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const capability = read("app/lib/application-actions/capabilities.ts");
 const reasoning = read("app/lib/ai/ask-reasoning.ts");
@@ -18,6 +19,14 @@ const exactEntryId = "11000000-0000-4000-8000-000000000101";
 const newerEntryId = "11000000-0000-4000-8000-000000000102";
 
 function targetAction(kind = "care_history.remove", target = "specified") {
+  if(kind==='care_history.edit'){
+    const text='Exact replacement.';
+    const job=validateReplaceJob({operation:'replace',target:{kind:'exact_record',ref:'given'},petName:'Subject',
+      instructionQuote:text,bodyQuote:text,constraints:[]},{id:'source',text,createdAt:'2026-09-23T00:00:00Z'},
+      {id:petId,name:'Subject'},{ownerId:'owner',references:[{ref:'given',recordId:exactEntryId,ownerId:'owner',petId,
+        updatedAt:'2026-09-22T00:00:00Z',createdAt:'2026-09-21T00:00:00Z',body:'Before',eventAt:'2026-09-21T00:00:00Z'}]});
+    return prepareBoundReplaceAction(job,{id:'care:'+exactEntryId,petId,sourceType:'care_update'},'Subject','request');
+  }
   return prepareFurviseApplicationActions({
     petId,
     petName: "Maple",

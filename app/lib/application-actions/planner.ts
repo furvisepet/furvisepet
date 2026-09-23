@@ -1,4 +1,4 @@
-import { readBoundReplaceJob, type ReplaceJob } from "../furvise-brain/replace-job.ts";
+import { readBoundReplaceJob, replaceJobActionMatches, type ReplaceJob } from "../furvise-brain/replace-job.ts";
 import { stateTransitionActionKind, readBoundStateTransitionJob, type StateTransitionJob } from "../furvise-brain/state-transition-job.ts";
 import { fieldMutationActionKind, fieldMutationActionValue, readBoundFieldMutationJob, type FieldMutationJob } from "../furvise-brain/field-mutation-job.ts";
 import type { BoundLifecyclePlan } from "../furvise-brain/lifecycle-plan.ts";
@@ -23,7 +23,7 @@ export function prepareFurviseApplicationActions(input: {
   lifecycleStatus?: "active" | "deceased" | "archived";
 }): FurviseApplicationAction[] {
   return input.proposals.flatMap((proposal, index) => {
-    if (["pet.update_profile", "memory.set_preference", "memory.forget_preference", "care_state.resolve", "care_state.reopen"].includes(proposal.kind)) return [];
+    if (["care_history.edit", "pet.update_profile", "memory.set_preference", "memory.forget_preference", "care_state.resolve", "care_state.reopen"].includes(proposal.kind)) return [];
     if (!validProposalInput(proposal, input.lifecycleStatus)) return [];
     const policy = getFurviseActionPolicy(proposal.kind);
     const presentation = actionPresentation(proposal.kind, input.petId, input.petName, proposal.input);
@@ -44,10 +44,11 @@ export function prepareFurviseApplicationActions(input: {
   });
 }
 
-/** The existing narrow selector has already resolved the one owned record. */
+/** The canonical selector has already resolved the one owned record. */
 export function prepareBoundReplaceAction(job: ReplaceJob, target: { id: string; petId: string; sourceType: string },
   petName: string, requestId: string): FurviseApplicationAction {
   if (!readBoundReplaceJob(job) || target.petId !== job.petId || target.sourceType !== "care_update"
+    || (typeof job.target !== "string" && target.id !== "care:" + job.target.recordId)
     || !target.id.startsWith("care:") || !UUID.test(target.id.slice(5))) throw Error("REPLACE_ACTION_INVALID");
   const kind = "care_history.edit", policy = getFurviseActionPolicy(kind);
   const input = { field: null, value: null, title: null, detail: job.body.text, category: null, target: "specified" as const };
@@ -109,6 +110,7 @@ export function resolveFurviseActionTargetBindings(input: {
 }) {
   const bindings: Record<string, string> = {};
   for (const action of input.actions) {
+    if (action.kind === "care_history.edit" && (!action.replaceJob || !replaceJobActionMatches(action.replaceJob, action))) continue;
     const expected = targetReferenceType(action.kind);
     if (!expected) continue;
     const records = action.targetSourceId

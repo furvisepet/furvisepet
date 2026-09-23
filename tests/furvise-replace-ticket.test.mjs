@@ -19,7 +19,7 @@ globalThis.fetch = async () => { throw new Error('Replace fixture forbids networ
 const { interpretAskQuestion } = await import('../app/lib/intelligence/interpret-ask.ts');
 const { validateAskRequest } = await import('../app/lib/intelligence/ask-request-contract.ts');
 const { resolveReplaceJob } = await import('../app/lib/furvise-brain/replace-job.ts');
-const { prepareFurviseApplicationActions, resolveFurviseActionTargetBindings } = await import('../app/lib/application-actions/planner.ts');
+const { prepareBoundReplaceAction, prepareFurviseApplicationActions, resolveFurviseActionTargetBindings } = await import('../app/lib/application-actions/planner.ts');
 const { executeActionCapability } = await import('../app/lib/application-actions/capabilities.ts');
 const pet = { id: 'pet', name: 'Cedar', user_id: 'owner', lifecycle_status: 'active' };
 function fixture(text = 'Replace that last note with: lunch was normal.', body = 'lunch was normal.') {
@@ -70,7 +70,8 @@ test('replacement body excludes source-bound ticket constraints before reaching 
     assert.equal(job.constraints.effectiveCount, 1);
     assert.equal(job.constraints.allowAdditionalCopy, false);
     assert.equal(job.constraints.spans[0].text, clause);
-    const { proposal: action } = await resolveReplaceJob(job, targetDatabase(), 'owner');
+    const { target } = await resolveReplaceJob(job, targetDatabase(), 'owner');
+    const action = prepareBoundReplaceAction(job, target, 'Cedar', 'request');
     assert.equal(action.input.detail, 'lunch was normal.');
     assert.equal(action.explicitIntent, false);
     // The live failure: exact source text is still invalid when it contains a constraint span.
@@ -135,14 +136,13 @@ test('target comes from effective owned rows at the source-turn cutoff, not cita
   const job = validateAskRequest(proposal, context).request.writeJob;
   const db = targetDatabase(); const resolved = await resolveReplaceJob(job, db, 'owner');
   assert.deepEqual(db.seen, [['eq', 'user_id', 'owner'], ['eq', 'pet_profile_id', 'pet'], ['is', 'deleted_at', null], ['lte', 'created_at', job.asOf]]);
-  const actions = prepareFurviseApplicationActions({ proposals: [resolved.proposal], petId: 'pet', petName: 'Cedar',
-    requestId: 'request', sourceMessage: context.currentMessage });
+  const actions = [prepareBoundReplaceAction(job, resolved.target, 'Cedar', 'request')];
   assert.equal(actions.length, 1);
   assert.equal(actions[0].kind, 'care_history.edit');
   // Semantic proposals do not silently override the existing confirmation gate.
   assert.equal(actions[0].explicitIntent, false);
   assert.deepEqual(resolveFurviseActionTargetBindings({ actions, referencedRecords: [], targetRecords: [resolved.target] }),
-    { 'request:1': 'd1824d0f-8bb1-4951-bdde-8632d821ffb9' });
+    { 'request:replace': 'd1824d0f-8bb1-4951-bdde-8632d821ffb9' });
   await assert.rejects(resolveReplaceJob(job, targetDatabase({ absent: true }), 'owner'), /TARGET_MISSING/);
   await assert.rejects(resolveReplaceJob(job, targetDatabase({ error: {} }), 'owner'), /TARGET_UNAVAILABLE/);
 });
@@ -151,7 +151,7 @@ test('confirmed replacement uses the shipped receipt adapter and cannot succeed 
   const { context, proposal } = fixture();
   const job = validateAskRequest(proposal, context).request.writeJob;
   const resolved = await resolveReplaceJob(job, targetDatabase(), 'owner');
-  const [prepared] = prepareFurviseApplicationActions({ proposals: [resolved.proposal], petId: 'pet', petName: 'Cedar', requestId: 'request', sourceMessage: context.currentMessage });
+  const prepared = prepareBoundReplaceAction(job, resolved.target, 'Cedar', 'request');
   const action = { ...prepared, id: 'capability', sourceMessageId: job.sourceMessageId };
   for (const storeReceipt of [false, true]) {
     let executed = false;
@@ -175,5 +175,5 @@ test('Ask dispatches the typed job before narrative generation and keeps its bou
   assert.ok(job > route.indexOf('const interpretation = await interpretAskQuestion'));
   assert.ok(job < route.indexOf('return await orchestrateAskTurn'));
   assert.match(route.slice(job, route.indexOf('const task = interpretation.request?.task', job)), /return \{ \.\.\.careHistoryCorrectionOrchestration/);
-  assert.match(route, /if\(!plannedReplaceTarget && latestEditActions/);
+  assert.doesNotMatch(route, /latestHistoryEditTarget|latestEditActions/);
 });

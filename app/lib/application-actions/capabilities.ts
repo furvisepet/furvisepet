@@ -1,5 +1,5 @@
 import "server-only";
-import { validateReplaceJob, replaceJobProposal, replaceJobActionMatches } from "../furvise-brain/replace-job.ts";
+import { rebindReplaceJob, replaceJobActionMatches } from "../furvise-brain/replace-job.ts";
 import { bindStateTransitionJob, stateTransitionProposal, stateTransitionActionMatches } from "../furvise-brain/state-transition-job.ts";
 import { bindFieldMutationJob, fieldMutationActionMatches, fieldMutationJobProposal } from "../furvise-brain/field-mutation-job.ts";
 import { appendJobProposal, validateAppendJob } from "../furvise-brain/append-job.ts";
@@ -185,11 +185,12 @@ export function rebindCanonicalCapabilityAction(
   if (!isExecutableSourceAction(action)) throw new Error("ACTION_CAPABILITY_SOURCE_NOT_EXECUTABLE");
   const policy = getFurviseActionPolicy(action.kind);
   if (policy.mutationClass !== "mutation") throw new Error("ACTION_CAPABILITY_KIND_NOT_MUTABLE");
+  if (action.kind === "care_history.edit" && !action.replaceJob) throw Error("REPLACE_CAPABILITY_JOB_REQUIRED");
   if (action.replaceJob) {
     if (action.appendJob || action.fieldMutationJob || action.stateTransitionJob
       || !replaceJobActionMatches(action.replaceJob, action)) throw Error("REPLACE_CAPABILITY_SCOPE_MISMATCH");
-    const rebound = validateReplaceJob(replaceJobProposal(action.replaceJob, sourceMessage.text, petName),
-      { id: sourceMessageId, text: sourceMessage.text, createdAt: sourceMessage.createdAt }, { id: action.petId, name: petName });
+    const rebound = rebindReplaceJob(action.replaceJob,
+      { id: sourceMessageId, text: sourceMessage.text, createdAt: sourceMessage.createdAt }, { id: action.petId, name: petName }, userId);
     if (!isDeepStrictEqual(rebound, action.replaceJob)) throw Error("REPLACE_CAPABILITY_SOURCE_MISMATCH");
   }
   if (action.appendJob) {
@@ -226,6 +227,7 @@ export function rebindCanonicalCapabilityAction(
   void targetSourceId;
   return {
     ...capabilityAction,
+    ...(action.replaceJob ? { targetSourceId } : {}),
     ...policy,
     explicitIntent,
     sourceMessageId,

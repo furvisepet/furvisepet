@@ -27,7 +27,7 @@ function fixture(kind='append'){
  const actionKind={append:'care_history.add',replace:'care_history.edit',state_transition:'care_state.resolve',owner_preference:'memory.set_preference'}[kind];
  const key={append:'appendJob',replace:'replaceJob',state_transition:'stateTransitionJob',owner_preference:'fieldMutationJob'}[kind];
  const action={...getFurviseActionPolicy(actionKind),id:id(20)+':action',kind:actionKind,petId:pet,sourceMessageId:sourceId,
- [key]:job,input:{field:kind==='owner_preference'?'preferred_units':null,value:kind==='owner_preference'?'metric':null,title:null,detail:kind==='replace'?job.body.text:null,category:null,target:'specified'},
+ ...(kind==='replace'?{targetSourceId:'care:'+id(11)}:{}),[key]:job,input:{field:kind==='owner_preference'?'preferred_units':null,value:kind==='owner_preference'?'metric':null,title:null,detail:kind==='replace'?job.body.text:null,category:null,target:'specified'},
  evidence:text,explicitIntent:kind==='state_transition',status:'proposed',label:'Prepared action',description:'Exact canonical operation',href:null,resultMessage:null,errorMessage:null};
  const c={id:cap,user_id:owner,pet_profile_id:pet,assistant_message_id:assistant,source_message_id:sourceId,
  target_id:kind==='state_transition'?id(10):kind==='replace'?id(11):null,target_updated_at:['replace','state_transition'].includes(kind)?'2026-09-19T00:00:00+00:00':null,
