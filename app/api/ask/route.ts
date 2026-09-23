@@ -1,3 +1,5 @@
+import {resolveRemovePlan} from "../../lib/furvise-brain/remove-job.ts";
+import {prepareBoundRemoveAction} from "../../lib/application-actions/planner.ts";
 import { prepareBoundReplaceAction } from "../../lib/application-actions/planner.ts";
 import { buildFurvisePlanningContext } from "../../lib/intelligence/planning-context.ts";
 import { isOrdinarySavedHistoryRequest } from "../../lib/intelligence/publication-authority.ts";
@@ -584,6 +586,16 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         deterministicApplicationActions = [prepared.action];
         contextUsed = { petName: null, usedSources: [] };
         return prepared.orchestration;
+      }
+      if (interpretation.request?.removeJob) {
+        const job=await resolveRemovePlan(interpretation.request.removeJob,supabase,userId);
+        turnLifecycle.route("pet_care","deterministic");
+        turnAuthoritativePetIds=[job.petId];turnPetId=job.petId;
+        plannedReplaceTarget={id:"care:"+job.resolvedTarget.recordId,petId:job.petId,sourceType:"care_update"};
+        deterministicApplicationActions=[prepareBoundRemoveAction(job,requestId)];
+        contextUsed={petName:null,usedSources:[]};
+        return {aiResult:null,handledWithoutAi:true,intent:"status_update" as const,safetyLevel:"normal" as const,concern:null,suggestion:null,
+          answer:{title:"Review history removal",summary:"A care-history removal is ready for confirmation. No record has been removed.",sections:[],safetyNote:null}};
       }
       // A validated ticket precedes every factual context read. Invalid plans
       // never enter this loader. Emergency copy is the documented exception above.

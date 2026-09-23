@@ -104,7 +104,7 @@ test("capability target lookup uses exact bound owner, pet, concern and stored s
 test("provider grammar enumerates supplied handles and rejects mixed authority",async()=>{
  const {default:Ajv}=await import("ajv"),c=context();
  const validate=new Ajv({allErrors:true}).compile(askRequestProviderSchema({},c));
- const base={...request(proposal()),fieldMutationJob:null,lifecyclePlan:null,appendJob:null,readTicket:null,writeJob:null,task:null,
+ const base={removeJob:null,...request(proposal()),fieldMutationJob:null,lifecyclePlan:null,appendJob:null,readTicket:null,writeJob:null,task:null,
  temporalScope:null,mutationIntent:null,recordSelection:null,profileFields:[],projection:null,evidenceNeeds:[],
  outputFormat:null,evidenceBasis:null,premiseQuotes:null,excludedPetNames:[]};
  assert.equal(validate({request:base}),true,JSON.stringify(validate.errors));

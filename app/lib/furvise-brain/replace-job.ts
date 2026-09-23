@@ -1,26 +1,15 @@
 import { CARE_ENTRY_BODY_MAX } from "./care-entry-limits.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type ReplaceReference = Readonly<{ ref: string; recordId: string; ownerId: string; petId: string;
-  updatedAt: string; createdAt: string; body: string; eventAt: string }>;
-type ExactReplaceTarget = Readonly<{ kind: "exact_record"; ref: string; recordId: string; updatedAt: string }>;
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const validExactTarget = (v: unknown): v is ExactReplaceTarget => {
-  if (!v || typeof v !== "object" || Array.isArray(v)) return false;
-  const t = v as ExactReplaceTarget;
-  return Object.keys(t).sort().join() === "kind,recordId,ref,updatedAt" && t.kind === "exact_record"
-    && typeof t.ref === "string" && !!t.ref && t.ref.length <= 160 && UUID.test(t.recordId)
-    && typeof t.updatedAt === "string" && Number.isFinite(Date.parse(t.updatedAt));
-};
+import {bindCareRecordSelector, careRecordSelectorProviderSchema, careRecordSelectorSchema, resolveCareRecordSelector, validExactTarget, CARE_RECORD_UUID as UUID, type CareRecordSelector} from "./care-record-target.ts";
+export type {CareRecordReference as ReplaceReference} from "./care-record-target.ts";
+import type {CareRecordReference as ReplaceReference} from "./care-record-target.ts";
 export const replaceJobSchema = {
   anyOf: [{ type: "null" }, { type: "object", additionalProperties: false,
     required: ["operation", "target", "petName", "instructionQuote", "bodyQuote", "constraints"],
     properties: {
       operation: { type: "string", enum: ["replace"] },
-      target: { anyOf: [{ type: "string", enum: ["last_event_for_subject"] },
-        { type: "object", additionalProperties: false, required: ["kind", "ref"], properties: {
-          kind: { type: "string", enum: ["exact_record"] }, ref: { type: "string", minLength: 1, maxLength: 160 },
-        } }] },
+      target: careRecordSelectorSchema,
       petName: { type: "string", minLength: 1, maxLength: 100 },
       instructionQuote: { type: "string", minLength: 1, maxLength: 1600 },
       bodyQuote: { type: "string", minLength: 1, maxLength: CARE_ENTRY_BODY_MAX },
@@ -38,7 +27,7 @@ type ConstraintKind = "effective_count_one" | "no_additional_copy" | "no_write";
 /** A source-bound semantic proposal, not permission to execute a capability. */
 export type ReplaceJob = Readonly<{
   operation: "replace";
-  target: "last_event_for_subject" | ExactReplaceTarget;
+  target: CareRecordSelector;
   petId: string;
   sourceMessageId: string;
   asOf: string;
@@ -57,20 +46,7 @@ export function validateReplaceJob(value: unknown, source: { id: string; text: s
   const p = value as Record<string, unknown>;
   if (Object.keys(p).sort().join() !== "bodyQuote,constraints,instructionQuote,operation,petName,target") return fail("fields");
   if (p.operation !== "replace") return fail("operation");
-  let target: ReplaceJob["target"] = "last_event_for_subject";
-  if (p.target !== "last_event_for_subject") {
-    const t = p.target as { kind?: unknown; ref?: unknown } | null;
-    if (!t || typeof t !== "object" || Array.isArray(t) || Object.keys(t).sort().join() !== "kind,ref"
-      || t.kind !== "exact_record" || typeof t.ref !== "string") return fail("target");
-    const refs = authority?.references.filter(r => r.ref === t.ref) || [];
-    if (refs.length !== 1) return fail("target.reference");
-    const r = refs[0];
-    if (r.ownerId !== authority?.ownerId || r.petId !== subject.id || !UUID.test(r.recordId)
-      || !Number.isFinite(Date.parse(r.createdAt)) || Date.parse(r.createdAt) > Date.parse(source.createdAt))
-      return fail("target.scope");
-    target = Object.freeze({ kind: "exact_record", ref: r.ref, recordId: r.recordId, updatedAt: r.updatedAt });
-    if (!validExactTarget(target)) return fail("target.version");
-  }
+  const target = bindCareRecordSelector(p.target, source, subject, authority, fail);
   if (p.petName !== subject.name) return fail("petName");
   if (p.instructionQuote !== source.text.trim()) return fail("instructionQuote");
   if (typeof p.bodyQuote !== "string" || !p.bodyQuote.trim() || p.bodyQuote.length > CARE_ENTRY_BODY_MAX) return fail("bodyQuote");
@@ -146,16 +122,9 @@ export function replaceJobActionMatches(job: ReplaceJob, action: {
 /** Resolve the typed selector against owned effective state, never answer text.
  * The source-turn cutoff prevents a later concurrent append becoming the target. */
 export async function resolveReplaceJob(job: ReplaceJob, supabase: SupabaseClient, userId: string) {
-  let query = supabase.from("pet_care_entries").select("id,updated_at")
-    .eq("user_id", userId).eq("pet_profile_id", job.petId).is("deleted_at", null);
-  query = typeof job.target === "string"
-    ? query.lte("created_at", job.asOf).order("created_at", { ascending: false }).order("id", { ascending: false }).limit(1)
-    : query.eq("id", job.target.recordId).eq("updated_at", job.target.updatedAt);
-  const { data, error } = await query.maybeSingle<{ id: string; updated_at: string }>();
-  if (error) throw new Error("REPLACE_TARGET_UNAVAILABLE");
-  if (!data) throw new Error("REPLACE_TARGET_MISSING");
-  const target = { id: `care:${data.id}`, petId: job.petId, sourceType: "care_update" as const };
-  return { target };
+  try { const {target}=await resolveCareRecordSelector(job,supabase,userId); return {target}; }
+  catch(error) { if(error instanceof Error && error.message.startsWith("CARE_RECORD_TARGET_"))
+    throw Error(error.message.replace("CARE_RECORD_TARGET_","REPLACE_TARGET_")); throw error; }
 }
 
 /** Diagnostics preserve proposed semantics without copying patient text into logs.
@@ -173,9 +142,7 @@ export function brainProposalDiagnostic(value: unknown, sourceMessageId?: string
 /** References are server-supplied target metadata, never publication evidence. */
 export function replaceJobProviderSchema(references: readonly ReplaceReference[] = []) {
   const schema = structuredClone(replaceJobSchema);
-  const exact = schema.anyOf[1].properties!.target.anyOf[1];
-  Object.assign(exact.properties!.ref, { enum: references.map(r => r.ref) });
-  if (!references.length) schema.anyOf[1].properties!.target.anyOf.splice(1, 1);
+  schema.anyOf[1].properties!.target = careRecordSelectorProviderSchema(references);
   return schema;
 }
 

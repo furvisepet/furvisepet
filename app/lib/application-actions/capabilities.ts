@@ -1,3 +1,4 @@
+import {rebindRemoveJob, removeJobActionMatches} from "../furvise-brain/remove-job.ts";
 import "server-only";
 import { rebindReplaceJob, replaceJobActionMatches } from "../furvise-brain/replace-job.ts";
 import { bindStateTransitionJob, stateTransitionProposal, stateTransitionActionMatches } from "../furvise-brain/state-transition-job.ts";
@@ -54,7 +55,7 @@ export async function createActionCapabilities(input: {
       authoritativePetName,
       input.userId,
     );
-    if (authoritativeAction.replaceJob && action.targetSourceId !== "care:" + input.targetBindings?.[action.id])
+    if ((authoritativeAction.replaceJob || authoritativeAction.removeJob) && action.targetSourceId !== "care:" + input.targetBindings?.[action.id])
       throw Error("REPLACE_CAPABILITY_TARGET_MISMATCH");
     const targetId = await bindTarget(authoritativeAction, authoritativeAction.stateTransitionJob?.concernId || input.targetBindings?.[action.id] || null, input.supabase, input.userId);
     if (requiresBoundTarget(authoritativeAction) && !targetId) {
@@ -186,6 +187,11 @@ export function rebindCanonicalCapabilityAction(
   const policy = getFurviseActionPolicy(action.kind);
   if (policy.mutationClass !== "mutation") throw new Error("ACTION_CAPABILITY_KIND_NOT_MUTABLE");
   if (action.kind === "care_history.edit" && !action.replaceJob) throw Error("REPLACE_CAPABILITY_JOB_REQUIRED");
+  if(action.kind === "care_history.remove" && !action.removeJob)throw Error("REMOVE_CAPABILITY_JOB_REQUIRED");
+  if(action.removeJob) {
+    if(action.appendJob||action.replaceJob||action.fieldMutationJob||action.stateTransitionJob||!removeJobActionMatches(action.removeJob,action))throw Error("REMOVE_CAPABILITY_SCOPE_MISMATCH");
+    rebindRemoveJob(action.removeJob,{id:sourceMessageId,...sourceMessage},{id:action.petId,name:petName},userId);
+  }
   if (action.replaceJob) {
     if (action.appendJob || action.fieldMutationJob || action.stateTransitionJob
       || !replaceJobActionMatches(action.replaceJob, action)) throw Error("REPLACE_CAPABILITY_SCOPE_MISMATCH");
@@ -227,7 +233,7 @@ export function rebindCanonicalCapabilityAction(
   void targetSourceId;
   return {
     ...capabilityAction,
-    ...(action.replaceJob ? { targetSourceId } : {}),
+    ...(action.replaceJob || action.removeJob ? { targetSourceId } : {}),
     ...policy,
     explicitIntent,
     sourceMessageId,

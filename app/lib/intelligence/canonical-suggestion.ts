@@ -27,6 +27,7 @@ export type CanonicalSuggestionRow = {
   concern_id?: string | null; care_entry_id?: string | null; applied_at?: string | null;
 };
 export function canonicalSuggestionJob(action: FurviseApplicationAction) {
+  if(action.removeJob)return null; // REMOVE is not a supported suggestion transport.
   const jobs = [action.appendJob, action.replaceJob, action.stateTransitionJob, action.fieldMutationJob].filter(Boolean);
   if (jobs.length !== 1) return null;
   if (action.kind === "care_history.add" && readBoundAppendJob(action.appendJob))

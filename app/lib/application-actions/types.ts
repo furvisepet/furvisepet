@@ -60,6 +60,7 @@ export type FurviseApplicationAction = Omit<ModelApplicationAction, "explicitInt
   sourceMessageId?: string | null;
   /** Server-bound canonical append obligations persisted with the immutable capability. */
   appendJob?: import("../furvise-brain/append-job.ts").AppendJob;
+  removeJob?: import("../furvise-brain/remove-job.ts").RemoveJob;
   replaceJob?: import("../furvise-brain/replace-job.ts").ReplaceJob;
   stateTransitionJob?: import("../furvise-brain/state-transition-job.ts").StateTransitionJob;
   fieldMutationJob?: import("../furvise-brain/field-mutation-job.ts").FieldMutationJob;

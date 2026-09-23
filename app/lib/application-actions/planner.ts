@@ -1,3 +1,4 @@
+import {readBoundRemoveJob, removeJobActionMatches, type RemoveJob} from "../furvise-brain/remove-job.ts";
 import { readBoundReplaceJob, replaceJobActionMatches, type ReplaceJob } from "../furvise-brain/replace-job.ts";
 import { stateTransitionActionKind, readBoundStateTransitionJob, type StateTransitionJob } from "../furvise-brain/state-transition-job.ts";
 import { fieldMutationActionKind, fieldMutationActionValue, readBoundFieldMutationJob, type FieldMutationJob } from "../furvise-brain/field-mutation-job.ts";
@@ -23,7 +24,7 @@ export function prepareFurviseApplicationActions(input: {
   lifecycleStatus?: "active" | "deceased" | "archived";
 }): FurviseApplicationAction[] {
   return input.proposals.flatMap((proposal, index) => {
-    if (["care_history.edit", "pet.update_profile", "memory.set_preference", "memory.forget_preference", "care_state.resolve", "care_state.reopen"].includes(proposal.kind)) return [];
+    if (["care_history.remove", "care_history.edit", "pet.update_profile", "memory.set_preference", "memory.forget_preference", "care_state.resolve", "care_state.reopen"].includes(proposal.kind)) return [];
     if (!validProposalInput(proposal, input.lifecycleStatus)) return [];
     const policy = getFurviseActionPolicy(proposal.kind);
     const presentation = actionPresentation(proposal.kind, input.petId, input.petName, proposal.input);
@@ -42,6 +43,15 @@ export function prepareFurviseApplicationActions(input: {
       errorMessage: null,
     }];
   });
+}
+
+export function prepareBoundRemoveAction(job:RemoveJob,requestId:string):FurviseApplicationAction {
+ if(!readBoundRemoveJob(job))throw Error("REMOVE_JOB_INVALID");
+ const kind="care_history.remove",policy=getFurviseActionPolicy(kind);
+ return {kind,removeJob:job,...policy,id:requestId+":remove",petId:job.petId,sourceMessageId:job.sourceMessageId,
+  targetSourceId:"care:"+job.resolvedTarget.recordId,explicitIntent:false,status:"confirmation_required",
+  input:{field:null,value:null,title:null,detail:null,category:null,target:"specified"},evidence:job.instruction.text.slice(0,240),
+  label:"Remove the history update",description:"Confirm removal of the bound care-history record.",href:null,resultMessage:null,errorMessage:null};
 }
 
 /** The canonical selector has already resolved the one owned record. */
@@ -111,6 +121,7 @@ export function resolveFurviseActionTargetBindings(input: {
   const bindings: Record<string, string> = {};
   for (const action of input.actions) {
     if (action.kind === "care_history.edit" && (!action.replaceJob || !replaceJobActionMatches(action.replaceJob, action))) continue;
+    if (action.kind === "care_history.remove" && (!action.removeJob || !removeJobActionMatches(action.removeJob, action))) continue;
     const expected = targetReferenceType(action.kind);
     if (!expected) continue;
     const records = action.targetSourceId

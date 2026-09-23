@@ -60,10 +60,10 @@ run('existing origin cannot be promoted or removed after persistence',ordinary({
 run('legacy semantic RPC cannot reinterpret an isolated source',append(['The original exact note.'])+block(
 `begin perform * from public.persist_furvise_server_semantic_event('${owner}','${pet}','${source(1).source}','{}');exception when insufficient_privilege then denied:=sqlerrm='CANONICAL_ASK_LEGACY_SEMANTICS_FORBIDDEN';end;`+check('denied','legacy semantic RPC reopened')+
 check('(select count(*) from public.pet_care_episodes)=0','RPC created episode')));
-run('Ask REMOVE stays unsupported without dismissing dependents',ordinary()+turn('Remove this record',1)+mint({kind:'care_history.remove',target:q(id(61)),explicit:true})+
+run('unbound Ask REMOVE stays unsupported without dismissing dependents',ordinary()+turn('Remove this record',1)+
 `create temp table before_state as select ${snapshot} value;\n`+block(
-`select * into r from ${execute()};`+check("not r.changed and r.action->>'status'='failed'",'Ask removal executed')+
-check(`(select deleted_at from public.pet_care_entries where id='${id(61)}') is null`,'target removed')+check(`${snapshot}=(select value from before_state)`,'dependent dismissed')));
+`begin ${mint({kind:'care_history.remove',target:q(id(61)),explicit:true})} exception when check_violation then denied:=true;end;`+
+check('denied','unbound removal minted')+check(`(select deleted_at from public.pet_care_entries where id='${id(61)}') is null`,'target removed')+check(`${snapshot}=(select value from before_state)`,'dependent dismissed')));
 for(const mode of ['auto','cancel'])run('canonical append '+mode+' cannot write',boundAppend(['Exact note.']).sql+block(
 `select * into r from ${execute(1,mode)};`+check(`not r.changed and r.action->>'status'='${mode==='auto'?'failed':'cancelled'}'`,'confirmation boundary changed')+
 check('(select count(*) from public.pet_care_entries)=0','unconfirmed write')));

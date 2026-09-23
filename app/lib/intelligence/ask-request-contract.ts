@@ -1,3 +1,4 @@
+import {bindRemovePlan, removeJobSchema, type RemovePlan} from "../furvise-brain/remove-job.ts";
 import { bindStateTransitionJob, stateTransitionJobSchema, type StateTransitionJob } from "../furvise-brain/state-transition-job.ts";
 import { bindFieldMutationJob, fieldMutationJobSchema, type FieldMutationJob } from "../furvise-brain/field-mutation-job.ts";
 import { bindLifecyclePlan, lifecyclePlanSchema, type BoundLifecyclePlan } from "../furvise-brain/lifecycle-plan.ts";
@@ -39,6 +40,7 @@ const quantities = ["episodes", "records", "measurement", "duration", null] as c
 const ordinals = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "last", "that", null] as const;
 type Context = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask" | "ownerNoteAlreadySaved" | "lifecycleActionState" | "concernReferences" | "replaceReferences">;
 export type AskRequestContract = {
+  removeJob?: RemovePlan | null;
   stateTransitionJob?: StateTransitionJob | null;
   fieldMutationJob?: FieldMutationJob | null;
   lifecyclePlan?: BoundLifecyclePlan | null;
@@ -66,8 +68,9 @@ export type AskRequestContract = {
 const strings = (maxItems: number, maxLength: number) => ({ type: "array", maxItems, items: { type: "string", minLength: 1, maxLength } });
 export function askRequestSchema(frame: object, context?: Context) {
   const schema = { type: "object", additionalProperties: false,
-    required: ["stateTransitionJob", "fieldMutationJob", "lifecyclePlan", "appendJob", "readTicket", "writeJob", "task", "temporalScope", "mutationIntent", "recordSelection", "profileFields", "projection", "version", "mode", "question", "requirements", "evidenceNeeds", "outputFormat", "evidenceBasis", "premiseQuotes", "excludedPetNames", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
+    required: ["removeJob", "stateTransitionJob", "fieldMutationJob", "lifecyclePlan", "appendJob", "readTicket", "writeJob", "task", "temporalScope", "mutationIntent", "recordSelection", "profileFields", "projection", "version", "mode", "question", "requirements", "evidenceNeeds", "outputFormat", "evidenceBasis", "premiseQuotes", "excludedPetNames", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
     properties: {
+      removeJob: removeJobSchema(context?.replaceReferences),
       stateTransitionJob: stateTransitionJobSchema(context?.concernReferences),
       fieldMutationJob: fieldMutationJobSchema,
       lifecyclePlan: lifecyclePlanSchema,
@@ -184,12 +187,19 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
     stateTransitionJob: transitionSchema.anyOf[1] || { type: "null" } });
   for (const variant of [profile, nonProfile, lifecycle, profileMutation])
     Object.assign(variant.properties, { stateTransitionJob: { type: "null" } });
+  const removal=structuredClone(profileMutation);
+  Object.assign(removal.properties,{fieldMutationJob:{type:"null"},stateTransitionJob:{type:"null"},
+    removeJob:removeJobSchema(context?.replaceReferences).anyOf[1],scope:{type:"string",enum:["selected","named","conversation"]}});
+  Object.assign(removal.properties.petNames,{minItems:1,maxItems:1});
+  Object.assign(removal.properties.excludedPetNames,{maxItems:0});
+  for(const variant of [profile,nonProfile,lifecycle,profileMutation,transition])Object.assign(variant.properties,{removeJob:{type:"null"}});
   return { type: "object", additionalProperties: false, required: ["request"],
-    properties: { request: { anyOf: [profile, nonProfile, lifecycle, profileMutation,
+    properties: { request: { anyOf: [profile, nonProfile, lifecycle, profileMutation, removal,
       ...(transitionSchema.anyOf.length > 1 ? [transition] : [])] } } };
 }
 
 export const ASK_REQUEST_INSTRUCTIONS = [
+  "Standalone care-history removal uses removeJob {operation: remove, domain: care_history, target, petName, instructionQuote}. Use last_event_for_subject for latest at this USER turn, or {kind: exact_record, ref: supplied handle} from replaceTargets for an exact record. Handles are owned mutation metadata, not factual publication evidence. Never invent IDs or derive extra state cleanup. Use mode update, operation general, selection summary, owned scope and one petName; all other jobs/factual dimensions null, all arrays except petNames empty, frame null. instructionQuote is the exact complete current USER instruction. Questions, hypotheticals, negated or ambiguous removal do not propose this job. Missing/ambiguous target requires clarification. No model applicationAction can authorize removal. Confirmation executes only the server-bound record; permanent pet deletion is unsupported. All other requests use removeJob null.",
   "stateTransitionJob is the sole governed concern-state mutation. Choose domain care_concern, operation transition, one exact supplied concernTargets.targetRef and its petName, toState resolved or reopened, and an exact unique contiguous authorizationQuote from the CURRENT USER turn. Natural owner reports can request a transition; imperative wording is not required. Do not invent identifiers, choose a target by recency/severity, or infer an exact target when ambiguous: clarify instead. Resolve active/monitoring/reopened; reopen resolved only. Use mode update, operation general, selection summary, and null fieldMutationJob/lifecyclePlan/appendJob/writeJob/readTicket/task/frame/mutationIntent/evidenceBasis/projection/recordSelection/quantity/from/to/episodeTopic/ordinal/temporalScope/outputFormat/premiseQuotes, with empty requirements/referenceTurnIds/terms/profileFields/evidenceNeeds. Do not combine jobs. Semantic frames, careActions and applicationActions are not alternative transition authority. concernTargets are server target metadata, not user premises or publication evidence.",
   "fieldMutationJob is the sole field mutation proposal. Use domain pet_profile with operation set_field and an exact supplied owned petName, or domain owner_preference with operation set_field or clear_field and petName null. Owner scope is bound by the server, never proposed as an ID. Choose one field and exact unique contiguous instructionQuote from the CURRENT USER turn. For set_field valueQuote must be exact unique current USER text inside the instruction; clear_field requires valueQuote null. A replacement is one set_field, never competing set and clear jobs. Never infer an omitted value, use assistant text, mint identifiers, or emit applicationActions as mutation semantics. Only explicit field mutation intent belongs here; hypothetical discussion does not. Use mode update, operation general, selection summary, and null frame/lifecyclePlan/appendJob/writeJob/readTicket/task/mutationIntent/evidenceBasis/projection/recordSelection/quantity/from/to/episodeTopic/ordinal/temporalScope/outputFormat/premiseQuotes; requirements/referenceTurnIds/terms/profileFields/evidenceNeeds are empty. Do not combine another job. Pet profile fields are name, weight, current_food, routine_note, sex and breed. Owner preference fields are only preferred_language, preferred_units and communication_style; do not expose other memory fields. Values obey storage policy: positive weight with an explicit unit, existing sex enum, or exact text. The server binds the owned subject and source spans; confirmation and capability policy still control execution.",
   "lifecyclePlan is the sole lifecycle semantic proposal. Use null for unrelated turns, including turns while a prior lifecycle action remains pending. For a current owned-pet lifecycle report/correction/request, propose pendingDisposition keep or cancel and a nullable transition with the supplied owned targetPetName and toState active/deceased/archived. Reassignment cancels the old pending action and proposes the new transition. Cancellation requires a current pending action in server metadata; never invent one or return any action/pet/capability ID. authorizationQuote must be an exact contiguous current USER span, never assistant or prior text. Mutation-bearing lifecycle plans use mode update, operation general, evidenceBasis null, frame/readTicket/appendJob/writeJob/task/projection/recordSelection null, quantity null, and empty requirements/evidenceNeeds/profileFields/referenceTurnIds/terms. Do not combine unrelated work with a lifecycle mutation. A plan only proposes intent: the server binds ownership, saved state, existing actions and confirmation policy. Uncertain or hypothetical death is not a deceased transition.",
@@ -233,7 +243,7 @@ export const ASK_REQUEST_INSTRUCTIONS = [
 const fail = (reason: string, field?: string): never => { throw new Error(`ASK_REQUEST_INVALID:${reason}`, { cause: { field } }); };
 export function validateAskRequest(value: unknown, context: Context): AskInterpretation {
   if (!value || typeof value !== "object" || Array.isArray(value)) return fail("shape");
-  const p = { stateTransitionJob: null, fieldMutationJob: null, lifecyclePlan: null, appendJob: null, readTicket: null, writeJob: null, task: null, temporalScope: null, mutationIntent: null, recordSelection: null, profileFields: [], projection: null, evidenceNeeds: [], outputFormat: null, evidenceBasis: null, premiseQuotes: null, excludedPetNames: [], ...value } as Record<string, unknown>; // Older stored v2 contracts predate these optional fields.
+  const p = { removeJob: null, stateTransitionJob: null, fieldMutationJob: null, lifecyclePlan: null, appendJob: null, readTicket: null, writeJob: null, task: null, temporalScope: null, mutationIntent: null, recordSelection: null, profileFields: [], projection: null, evidenceNeeds: [], outputFormat: null, evidenceBasis: null, premiseQuotes: null, excludedPetNames: [], ...value } as Record<string, unknown>; // Older stored v2 contracts predate these optional fields.
   if (Object.keys(p).sort().join() !== askRequestSchema({}).required.sort().join()) return fail("fields");
   const member = (values: readonly unknown[], value: unknown) => values.includes(value);
   const list = (value: unknown, count: number, size: number): value is string[] => Array.isArray(value) && value.length <= count
@@ -252,6 +262,23 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (!Array.isArray(p.profileFields) || p.profileFields.some(field => !askRequestSchema({}).properties.profileFields.items.enum.includes(String(field))) || p.profileFields.length > 14) return fail("profile_fields");
   if (![null, "historical", "current", "historical_and_current"].includes(p.temporalScope as null | string)) return fail("temporal_scope");
   if (![null, "correct_record"].includes(p.mutationIntent as null | string)) return fail("mutation_intent");
+  if (p.removeJob !== null) {
+    if(p.mode!=="update"||p.operation!=="general"||p.selection!=="summary"||p.mutationIntent!==null
+      ||[p.fieldMutationJob,p.stateTransitionJob,p.lifecyclePlan,p.appendJob,p.writeJob,p.readTicket,p.task,p.frame,p.evidenceBasis,p.projection,p.recordSelection,p.quantity,p.from,p.to,p.episodeTopic,p.ordinal,p.temporalScope,p.outputFormat,p.premiseQuotes].some(v=>v!==null)
+      ||[p.profileFields,p.evidenceNeeds,p.referenceTurnIds,p.requirements,p.terms,p.excludedPetNames].some(v=>!Array.isArray(v)||v.length)
+      ||p.petNames.length!==1||!["selected","named","conversation"].includes(String(p.scope))
+      ||context.currentTurn?.text!==context.currentMessage)return fail("remove_job","mixed_or_source");
+    const removeSubjectName=p.petNames[0];
+    const pets=context.eligiblePets.filter(pet=>pet.user_id===context.owner.userId&&pet.name===removeSubjectName);
+    if(pets.length!==1||!pets[0].name)return fail("remove_job","subject");
+    const subject=pets[0];
+    if(subject.id!==context.pet.id&&!explicitlyNamedOwnedPets(context.currentMessage,[subject]).length)return fail("remove_job","explicitSubject");
+    const removeJob=bindRemovePlan(p.removeJob,context.currentTurn!,{id:subject.id,name:subject.name!},
+      {ownerId:context.owner.userId,references:context.replaceReferences||[]});
+    return {version:"ask-interpretation.v1",operation:"update",readOperation:null,petIds:[subject.id],topic:"care history removal",history:null,
+      episodeTopic:null,ordinal:null,readOnly:false,clarification:null,frame:emptyProposedSemanticFrame(),
+      request:{version:ASK_REQUEST_VERSION,mode:"update",removeJob,question:context.currentMessage,requirements:[],referenceTurnIds:[],quantity:null,evidenceBasis:null,outputFormat:null}};
+  }
   if (p.fieldMutationJob !== null || p.stateTransitionJob !== null) {
     if (p.fieldMutationJob !== null && p.stateTransitionJob !== null) return fail("mixed_mutation_jobs");
     if (p.mode !== "update" || p.lifecyclePlan !== null || p.appendJob !== null || p.writeJob !== null

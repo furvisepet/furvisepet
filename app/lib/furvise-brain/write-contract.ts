@@ -6,7 +6,7 @@ import type { FurviseApplicationAction } from "../application-actions/types.ts";
 const operations = {
   "care_history.add": "append",
   "care_history.edit": "replace",
-  "care_history.remove": "delete",
+  "care_history.remove": "remove",
 } as const;
 
 export function careWriteOperation(kind: FurviseApplicationAction["kind"]) {
@@ -14,7 +14,7 @@ export function careWriteOperation(kind: FurviseApplicationAction["kind"]) {
 }
 
 export type FurviseWriteReceipt = Readonly<{
-  operation: "append" | "replace" | "delete";
+  operation: "append" | "replace" | "remove";
   operationId: string;
   petId: string;
   sourceMessageId: string;
@@ -42,6 +42,7 @@ export function confirmFurviseWriteReceipt(input: {
     || !input.authorized.sourceMessageId
     || receipt.sourceMessageId !== input.authorized.sourceMessageId
     || !isDeepStrictEqual(receipt.appendJob, input.authorized.appendJob)
+    || !isDeepStrictEqual(receipt.removeJob, input.authorized.removeJob)
     || !isDeepStrictEqual(receipt.replaceJob, input.authorized.replaceJob)
     || receipt.targetSourceId !== input.authorized.targetSourceId
     || !isDeepStrictEqual(receipt.input, input.authorized.input)
