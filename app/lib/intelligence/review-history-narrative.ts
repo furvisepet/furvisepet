@@ -1,6 +1,9 @@
+import { unsupportedProfilePresentation, profilePresentationLimitationFailure, PROFILE_PRESENTATION_UNAVAILABLE } from "./profile-presentation-limitation.ts";
 import { profileFieldLabsReviewFailure, profileFieldSourceIds } from "./profile-field-labs.ts";
 import { profileFieldValue } from "./profile-field-authority.ts";
 import { labsListReviewFailure } from "./labs-list.ts";
+import { requiresHistoryPublicationAuthority } from "./publication-authority.ts";
+import { historyLabsAuthorityFailure, historyLimitationFailure } from "./ordinary-history-publication.ts";
 import { logReviewAuthority } from "./publication-authority-diagnostics.ts";
 import { bindPublicationObligations, checkPublicationAuthority, derivePublicationAuthority, publicationSources, PUBLICATION_AUTHORITY_POLICY } from "./publication-authority.ts";
 import { containsUnverifiedStateClaim } from "../application-actions/state-claims.ts";
@@ -94,6 +97,25 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   recordHistoryReviewDiagnostic(result, "declined", "review_not_completed");
   const evidence = result.evidenceContract;
   const sharedRequest = evidence?.interpretation?.request;
+  if (unsupportedProfilePresentation(evidence) || result.model === PROFILE_PRESENTATION_UNAVAILABLE) {
+    const failure = profilePresentationLimitationFailure(result);
+    if (failure) return decline(failure);
+    if (executionPlan && (executionPlan.semanticEvents.length || executionPlan.careActions.length || executionPlan.noteBatch?.length))
+      return decline("profile_presentation_has_pending_write");
+    recordHistoryReview(result, { signature: signature(result), text: result.answer.summary, sourceIds: [], sourceContent: [] });
+    recordHistoryReviewDiagnostic(result, "approved", "profile_presentation_unavailable");
+    return true;
+  }
+  if (requiresHistoryPublicationAuthority(evidence)) {
+    const failure = result.labsList ? historyLabsAuthorityFailure(result) : historyLimitationFailure(result);
+    if (failure) return decline(failure);
+    if (executionPlan && (executionPlan.semanticEvents.length || executionPlan.careActions.length || executionPlan.noteBatch?.length))
+      return decline("history_publication_has_pending_write");
+    recordHistoryReview(result, { signature: signature(result), text: result.answer.summary,
+      sourceIds: [...result.relevantContextIds], sourceContent: result.labsList?.records.map(row => row.body) || [] });
+    recordHistoryReviewDiagnostic(result, "approved", result.labsList ? "deterministic_labs_list_verified" : "history_publication_unavailable");
+    return true;
+  }
   if (result.profileFieldLabs) {
     const failure = profileFieldLabsReviewFailure(result);
     if (failure) return decline(failure);

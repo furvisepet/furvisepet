@@ -10,7 +10,11 @@ const {validateGeneratedAnswer}=await import('../app/lib/intelligence/validation
 const {generateContextAwareAskResponse}=await import('../app/lib/ai/ask-reasoning.ts');
 const {retrieveReadTicket}=await import('../app/lib/furvise-brain/lungs.ts');
 const {bindCompositionalReadTicket}=await import('../app/lib/furvise-brain/read-selection.ts');
-const noProvider={responses:{create:async()=>{throw Error('No publication model for certified reports');}}};
+let providerCalls=0;
+const noProvider={responses:{create:async()=>{providerCalls++;throw Error('No publication model for certified reports');}}};
+const {derivePublicationAuthority,publicationSources}=await import('../app/lib/intelligence/publication-authority.ts');
+const {eligibleAnswerSources,evidenceSource}=await import('../app/lib/intelligence/ask-evidence.ts');
+const {labsPresentation,renderCertifiedLabs}=await import('../app/lib/intelligence/labs-presentation.ts');
 const petIds=['4714932a-35b0-46be-b979-3d25f7f68361','5056000c-55b0-4933-a054-0fcb29179447','69f15630-f14e-41af-a5e7-2eac77862f12'];
 const eventIds=['733f2393-3ffa-4e62-a193-c9397cadb53a','ec4cf968-f867-44a1-9da6-94498621adca','f711f92e-ee75-49f1-a51b-e681e527650f'];
 const pets=['Aster','Bramble','Echo'].map((name,i)=>({id:petIds[i],name,user_id:'owner',species:'dog',avoid_ingredients:[]}));
@@ -141,12 +145,33 @@ test('missing certificates cannot turn global partial or empty evidence into tas
  assert.equal(r.labsList.records.length,0);assert.equal(v.assessment.outcome,'limited');
  assert.doesNotMatch(r.answer.summary,/No matching records were found/);
 });
-test('explicit exhaustive record read without selection still remains limited on partial coverage',async()=>{
+// Class C: raw retained rows without selection or result-set proof no longer authorize facts.
+async function unprovenHistory(f){
+ const stale=publish(f);
+ assert.equal(await reviewHistoricalAnswer({result:stale,client:noProvider}),false);
+ assert.equal(validateGeneratedAnswer(stale,f.context,'routine',petIds).valid,false);
+ // Actual loaded model spans do not rescue an unproven factual obligation.
+ f.evidence.sources=petIds.map(id=>evidenceSource(id,'care_entries',f.rows.filter(r=>r.pet_profile_id===id).map(r=>'care:'+r.id)));
+ f.evidence.represented=f.rows.map(r=>({sourceId:'care:'+r.id,petId:r.pet_profile_id,sourceType:'care_update',
+  text:r.note,start:0,end:r.note.length,occurredAt:r.occurred_at}));
+ assert.ok(eligibleAnswerSources(f.evidence).length);
+ assert.deepEqual(derivePublicationAuthority(f.evidence).authorizedSourceIds,[]);
+ assert.deepEqual(publicationSources(f.evidence),[]);
+ const r=await generateContextAwareAskResponse({evidenceContract:f.evidence,profiles:pets,careEntries:f.rows,
+  memories:[],productFeedback:[],conversationTurns:[],recentUpdates:[],question:f.context.currentMessage,
+  requestId:'offline-no-proof',locale:'en-CA',client:noProvider});
+ const v=await reviewed(f,r);
+ assert.equal(r.model,'server-history-unavailable');assert.equal(v.valid,true);assert.equal(v.assessment.outcome,'limited');
+ assert.deepEqual(r.relevantContextIds,[]);assert.equal(r.labsList,undefined);assert.equal(r.historyNarrative,undefined);
+ for(const row of f.rows)assert.ok(!v.response.answer.summary.includes(row.note));
+ assert.deepEqual(v.repairs,[]);assert.deepEqual(r.applicationActions,[]);assert.equal(providerCalls,0);
+ return v;
+}
+test('exhaustive read without selection or result-set proof cannot publish factual rows',async()=>{
  const f=await fixture(),ticket=structuredClone(f.evidence.interpretation.request.readTicket);
  delete ticket.selection;ticket.outputs.completeness='exhaustive';
  f.evidence.interpretation.request.readTicket=ticket;
- const v=await reviewed(f);assert.equal(v.assessment.outcome,'limited');
- assert.match(v.response.answer.summary,/partial results/);
+ await unprovenHistory(f);
 });
 test('certificate cannot be used for a changed clause, subject label, or injected action',async()=>{
  const f=await fixture(),r=publish(f);
@@ -156,24 +181,48 @@ test('certificate cannot be used for a changed clause, subject label, or injecte
  assert.equal(await reviewHistoricalAnswer({result:r2,client:noProvider}),false);
 });
 
-test('presentation forms preserve identical certified facts and provenance with zero provider calls',async()=>{
- let canonical;
- for(const format of ['prose','bullets','table','compact','json','csv','unsupported-visual']){
-  const f=await fixture();f.evidence.interpretation.request.outputFormat=format;
+test('supported presentations fulfill their format with identical certified facts and provenance',async()=>{
+ let canonical;const f=await fixture();
+ for(const format of [undefined,null,'prose','bullets','table']){
+  f.evidence.interpretation.request.outputFormat=format;
   const r=await generateContextAwareAskResponse({evidenceContract:f.evidence,profiles:pets,careEntries:f.rows,
    memories:[],productFeedback:[],conversationTurns:[],recentUpdates:[],question:f.context.currentMessage,
    requestId:'offline-format',locale:'en-CA',client:noProvider});
   assert.equal(r.model,'server-labs-list');
   const facts=r.labsList.records;
-  if(!canonical)canonical=structuredClone(facts);
-  assert.deepEqual(facts,canonical);
+  if(!canonical)canonical=structuredClone({facts,ticket:r.labsList.ticket,coverage:r.labsList.coverage});
+  assert.deepEqual(facts,canonical.facts);
+  assert.deepEqual(r.labsList.ticket,canonical.ticket);
+  assert.deepEqual(r.labsList.coverage,canonical.coverage);
+  assert.deepEqual(r.applicationActions,[]);assert.deepEqual(r.semanticEvents,[]);assert.equal(providerCalls,0);
   assert.deepEqual(r.relevantContextIds,facts.map(row=>row.sourceId));
   for(const row of facts){assert.ok(r.answer.summary.includes(row.body));assert.ok(r.answer.summary.includes(row.event_at.slice(0,10)));}
   assert.equal((await reviewed(f,r)).assessment.outcome,'complete');
   assert.doesNotMatch(r.answer.summary,/partial results|history search|broader history/);
   if(format==='table')assert.match(r.answer.summary,/\| Pet \| Recorded note \| Date \|/);
-  if(['bullets','json','csv','unsupported-visual'].includes(format))assert.match(r.answer.summary,/^- /m);
+  if(format==='bullets')assert.match(r.answer.summary,/^- /m);
+  if(format==null||format==='prose'){assert.doesNotMatch(r.answer.summary,/^[-] |^[|] Pet/m);assert.match(r.answer.summary,/\n\n/);}
  }
+});
+test('unsupported and invalid requested formats remain source-free with no coercion or provider',async()=>{
+ for(const format of ['json','csv','list','compact','',...['wireframe','chart'].map(s=>'unknown-'+s)]){
+  const f=await fixture(),before=structuredClone(f.evidence.history.ticketCoverage);
+  f.evidence.interpretation.request.outputFormat=format;
+  assert.equal(labsPresentation(format),null);
+  assert.equal(buildLabsList(f.evidence,f.rows),null);
+  const proof=selectionPublication(f.evidence.interpretation.request.readTicket,before,f.rows.map(r=>({id:r.id,petId:r.pet_profile_id})));
+  assert.equal(proof.complete,true);
+  assert.deepEqual(publicationSources(f.evidence),[]);
+  const r=await generateContextAwareAskResponse({evidenceContract:f.evidence,profiles:pets,careEntries:f.rows,
+   memories:[],productFeedback:[],conversationTurns:[],recentUpdates:[],question:f.context.currentMessage,
+   requestId:'offline-unsupported-format',locale:'en-CA',client:noProvider});
+  const v=await reviewed(f,r);
+  assert.equal(r.model,'server-history-unavailable');assert.equal(v.valid,true);assert.equal(v.assessment.outcome,'limited');
+  assert.deepEqual(r.relevantContextIds,[]);assert.equal(r.labsList,undefined);assert.equal(r.historyNarrative,undefined);
+  for(const row of f.rows)assert.ok(!v.response.answer.summary.includes(row.note));
+  assert.deepEqual(f.evidence.history.ticketCoverage,before);assert.deepEqual(v.repairs,[]);assert.equal(providerCalls,0);
+ }
+ for(const format of ['json','csv','', 'unknown-renderer'])assert.throws(()=>renderCertifiedLabs([],format,[]),/LABS_PRESENTATION_UNSUPPORTED/);
 });
 test('table omits uncertified facts and rejects changed certified ID, value, date or provenance',async()=>{
  const f=await fixture();f.evidence.interpretation.request.outputFormat='table';
@@ -230,7 +279,7 @@ test('certified sufficient earliest weight retains exact event and partial file 
  assert.deepEqual(f.evidence.history.ticketCoverage,before);
 });
 
-test('exhaustive every weight with transport loss retains incomplete disclosure and partial file',async()=>{
+test('exhaustive transport loss without selection or result-set proof remains source-free and limited',async()=>{
  const f=await fixture('weight',[clause('asc',2)]);
  const ticket=structuredClone(f.evidence.interpretation.request.readTicket);
  delete ticket.selection;ticket.outputs.completeness='exhaustive';
@@ -242,13 +291,9 @@ test('exhaustive every weight with transport loss retains incomplete disclosure 
  const group=coverage.groups.find(g=>g.petId===lost.pet_profile_id);
  group.retainedIds=group.retainedIds.filter(id=>id!==lost.id);
  const before=structuredClone(coverage);
- const r=publish(f),v=await reviewed(f,r);
- assert.equal(v.valid,true);assert.equal(v.assessment.outcome,'limited');
- assert.equal(labsTaskComplete(r.labsList),false);
- assert.match(v.response.answer.summary,/partial results; the history search is incomplete/i);
- assert.ok(!r.labsList.records.some(row=>row.id===lost.id));
- assert.equal(r.labsList.ticket.outputs.completeness,'exhaustive');
- assert.equal(r.labsList.coverage.status,'partial');
+ await unprovenHistory(f);
+ assert.equal(ticket.outputs.completeness,'exhaustive');
+ assert.equal(coverage.status,'partial');
  assert.deepEqual(f.evidence.history.ticketCoverage,before);
 });
 

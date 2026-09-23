@@ -90,7 +90,7 @@ function obligationAuthority(evidence: AskEvidenceContract, obligation: HistoryO
   };
 }
 export function logPublicationDispatch(evidence: AskEvidenceContract | undefined, rows: readonly Row[],
-  path: "labs" | "legacy_projection" | "model", minimumSafetyLevel: string) {
+  path: "labs" | "legacy_projection" | "model" | "unavailable", minimumSafetyLevel: string) {
   if (!evidence?.interpretation?.request?.readTicket) return;
   observe("obligation_dispatch", () => {
     const { ticket, coverage, selection } = authority(evidence, rows);

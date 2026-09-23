@@ -8,17 +8,21 @@ const {askRequestProviderSchema}=await import('../app/lib/intelligence/ask-reque
 const {evidenceSource}=await import('../app/lib/intelligence/ask-evidence.ts');
 const {derivePublicationAuthority,publicationClaimFailures,publicationGenerationContext}=await import('../app/lib/intelligence/publication-authority.ts');
 const {profileFieldProjection,profileFieldSentence,isTypedProfileRead}=await import('../app/lib/intelligence/profile-field-authority.ts');
+const {PROFILE_PRESENTATION_UNAVAILABLE,PROFILE_PRESENTATION_LIMITATION,profilePresentationLimitationFailure}=await import('../app/lib/intelligence/profile-presentation-limitation.ts');
+const {readReviewedHistoryAnswer,recordHistoryReview,historyReviewSignature}=await import('../app/lib/intelligence/history-review-state.ts');
+const {labsPresentation}=await import('../app/lib/intelligence/labs-presentation.ts');
 const {buildProfileFieldLabs,serializeProfileFieldLabs,profileFieldLabsReviewFailure}=await import('../app/lib/intelligence/profile-field-labs.ts');
 const {reviewHistoricalAnswer}=await import('../app/lib/intelligence/review-history-narrative.ts');
 const {validateGeneratedAnswer}=await import('../app/lib/intelligence/validation/validate-answer.ts');
 const noProvider={responses:{create:async()=>{throw Error('NO_PROVIDER_FOR_PROFILE_FIELDS');}}};
 const pet={id:'pet-a',user_id:'owner',name:'Milo',species:'dog',sex:'male',breed:'Saved breed label',weight_value:4.71,weight_unit:'kg',updated_at:'2026-09-01T00:00:00Z'};
-function fixture({fields=['weight'],profile=pet,question='Saved profile field',format='prose',rows,scope=['pet-a'],source=true}={}){
+function fixture({fields=['weight'],profile=pet,question='Saved profile field',format='prose',omitFormat=false,rows,scope=['pet-a'],source=true}={}){
  const evidence={version:'ask-evidence.v1',petNames:{'pet-a':'Milo','pet-b':'Other'},
  scope:{authorizedPetIds:scope,requestText:question,status:'resolved',readOnlyRecall:true,requestKind:'ordinary'},
  interpretation:{operation:'recall',readOperation:'recall',petIds:scope,readOnly:true,request:{mode:'read',evidenceBasis:'saved_profile',profileFields:fields,referenceTurnIds:[],requirements:[],readTicket:null,outputFormat:format}},
  sources:source?[evidenceSource('pet-a','profile',['pet-a'])]:[],represented:[],losses:[],verifiedFacts:[],
  completeness:{retrieval:'unknown',corrections:'unknown',extraction:'unknown',grouping:'unknown'},representation:'complete'};
+ if(omitFormat)delete evidence.interpretation.request.outputFormat;
  const input={profiles:rows||[profile],question,careEntries:[],recentUpdates:[],memories:[],productFeedback:[],conversationTurns:[],evidenceContract:evidence,client:noProvider};
  const context=buildAskContext(input,false),e=context.promptContext.evidenceContract;
  return {input,e,p:profileFieldProjection(e),context};
@@ -33,6 +37,8 @@ test('provider grammar makes incompatible saved-profile dimensions unrepresentab
   operation:'recall',selection:'summary',quantity:null,topic:'profile',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:null};
  assert.equal(validate({request}),true,JSON.stringify(validate.errors));
  assert.equal(validate({request:{...request,outputFormat:'json'}}),true,JSON.stringify(validate.errors));
+ assert.equal(validate({request:{...request,outputFormat:'csv'}}),true,JSON.stringify(validate.errors));
+ assert.equal(validate({request:{...request,outputFormat:'compact'}}),false);
  for(const patch of [{quantity:'records'},{from:'2026-01-01'},{terms:['weight']},{mutationIntent:'correct_record'},{scope:'none'},{profileFields:[]},{frame:{}}])
   assert.equal(validate({request:{...request,...patch}}),false,JSON.stringify(patch));
  const general={...request,temporalScope:null,profileFields:[],mode:'conversation',scope:'none',petNames:[],operation:'general',evidenceBasis:'general'};
@@ -85,12 +91,66 @@ test('wrong pet and same-owner different pet cannot supply requested profile row
 test('loaded row without authorized loaded-source binding grants no fact',()=>{
  const f=fixture({source:false});assert.equal(field(f).state,'unavailable');assert.deepEqual(derivePublicationAuthority(f.e).authorizedSourceIds,[]);
 });
-test('all deterministic formats preserve identical projections and source authority',()=>{
- const base=fixture({fields:['species','weight']});
- for(const format of ['prose','table','compact','bullets','csv']){
- const f=fixture({fields:['species','weight'],format});assert.deepEqual(f.p,base.p);
- assert.deepEqual(derivePublicationAuthority(f.e).authorizedSourceIds,derivePublicationAuthority(base.e).authorizedSourceIds);
- const text=serializeProfileFieldLabs(buildProfileFieldLabs(f.e));assert.match(text,/4\.71 kg/);assert.match(text,/dog/);
+test('supported profile formats preserve authority and fulfill deterministic presentation',async()=>{
+ const fields=['species','weight'],base=fixture({fields}),expected=derivePublicationAuthority(base.e);
+ for(const format of ['prose','bullets','table',null,undefined]){
+  const f=fixture({fields,format,omitFormat:format===undefined}),labs=buildProfileFieldLabs(f.e);
+  assert.ok(labs);assert.deepEqual(labs.projection,base.p);
+  assert.deepEqual(derivePublicationAuthority(f.e).authorizedSourceIds,expected.authorizedSourceIds);
+  assert.deepEqual(f.p.fields.map(x=>[x.subjectId,x.fieldSelector,x.storedValue,x.unit,x.sourceDomain]),
+   [['pet-a','species','dog',null,'saved_profile'],['pet-a','weight',4.71,'kg','saved_profile']]);
+  const text=serializeProfileFieldLabs(labs);assert.match(text,/4\.71 kg/);assert.match(text,/dog/);
+  if(format==='table'){
+   assert.match(text,/^\| Pet \| Saved profile field \| Saved value \|\n\| --- \| --- \| --- \|/);
+   assert.match(text,/\| Milo \| weight \| 4\.71 kg \|/);
+  }else if(format==='bullets'){
+   assert.equal(text.split('\n').length,2);assert.ok(text.split('\n').every(line=>line.startsWith('- ')));
+  }else{
+   assert.equal(text.split('\n\n').length,2);assert.doesNotMatch(text,/^[-|]/m);
+  }
+  let calls=0;f.input.client={responses:{create:async()=>{calls++;throw Error('PROFILE_FORMAT_PROVIDER_FORBIDDEN');}}};
+  const r=await generateContextAwareAskResponse(f.input);
+  assert.equal(calls,0);assert.equal(r.model,'server-profile-field-labs');assert.equal(r.answer.summary,text);
+  assert.deepEqual(r.profileFieldLabs.projection,base.p);assert.deepEqual(r.relevantContextIds,expected.authorizedSourceIds);
+  assert.equal(profileFieldLabsReviewFailure(r),null);
+  assert.equal(await reviewHistoricalAnswer({result:r,client:f.input.client}),true);
+  const v=validateGeneratedAnswer(r,{pet,eligiblePets:[pet],currentMessage:f.input.question,memories:[],careEntries:[]},'routine',['pet-a']);
+  assert.equal(v.valid,true);assert.equal(v.assessment.outcome,'complete');assert.equal(calls,0);
+  assert.deepEqual(derivePublicationAuthority(v.response.evidenceContract).authorizedSourceIds,expected.authorizedSourceIds);
+ }
+});
+test('unsupported typed and invalid internal formats have no profile Labs renderer',()=>{
+ for(const format of ['csv','json','compact']){
+  const f=fixture({fields:['species','weight'],format});
+  assert.equal(labsPresentation(format),null);assert.equal(buildProfileFieldLabs(f.e),null);
+ }
+});
+test('unsupported profile presentation cannot reopen factual generation',async()=>{
+ const fields=['species','weight'],base=fixture({fields}),expected=derivePublicationAuthority(base.e);
+ for(const format of ['csv','json','compact']){
+  const f=fixture({fields,format});
+  assert.deepEqual(f.p,base.p,'Presentation must not destroy typed profile authority: '+format);
+  const authority=derivePublicationAuthority(f.e);
+  assert.deepEqual(authority.authorizedSourceIds,expected.authorizedSourceIds);
+  assert.ok(authority.obligations.every(o=>o.sourceDomain==='saved_profile'));
+  assert.equal(buildProfileFieldLabs(f.e),null);
+  let calls=0;f.input.client={responses:{create:async()=>{calls++;throw Error('UNSUPPORTED_PROFILE_PROVIDER_FORBIDDEN');}}};
+  let r;
+  try{r=await generateContextAwareAskResponse(f.input);}
+  catch(error){assert.equal(calls,0,'Unsupported '+format+' attempted factual provider generation');throw error;}
+  assert.equal(calls,0);assert.equal(r.model,PROFILE_PRESENTATION_UNAVAILABLE);
+  assert.equal(r.answer.summary,PROFILE_PRESENTATION_LIMITATION);assert.equal(profilePresentationLimitationFailure(r),null);
+  assert.deepEqual(r.relevantContextIds,[],'Unsupported '+format+' reopened facts through '+r.model);
+  assert.equal(r.referencedRecords?.length||0,0);assert.equal(r.profileFieldLabs,undefined);
+  assert.equal(r.labsList,undefined);assert.doesNotMatch(r.answer.summary,/4\.71|\bdog\b/);
+  assert.deepEqual(derivePublicationAuthority(r.evidenceContract).authorizedSourceIds,expected.authorizedSourceIds);
+  assert.equal(await reviewHistoricalAnswer({result:r,client:f.input.client}),true);assert.equal(calls,0);
+  const v=validateGeneratedAnswer(r,{pet,eligiblePets:[pet],currentMessage:f.input.question,memories:[],careEntries:[]},'routine',['pet-a']);
+  assert.equal(v.valid,true);assert.equal(v.assessment.outcome,'limited');
+  assert.deepEqual(derivePublicationAuthority(v.response.evidenceContract).authorizedSourceIds,expected.authorizedSourceIds);
+  assert.deepEqual(readReviewedHistoryAnswer(v.response).sourceIds,[]);
+  assert.equal(v.response.evidenceContract.history,undefined);
+  assert.equal(v.response.intelligenceMetadata.usedCareHistory,false);
  }
 });
 test('model cannot substitute history, another field, or another pet source',()=>{
@@ -136,4 +196,60 @@ test('renderer tampering and proposed writes cannot pass deterministic review',a
  assert.equal(await reviewHistoricalAnswer({result:r,client:noProvider}),false);
  const other=await generateContextAwareAskResponse(f.input);other.applicationActions.push({type:'pet.update_profile'});
  assert.equal(await reviewHistoricalAnswer({result:other,client:noProvider}),false);
+});
+
+const limitationContext=f=>({pet,eligiblePets:[pet],currentMessage:f.input.question,memories:[],careEntries:[]});
+for(const [name,mutate] of [
+ ['profile value',r=>{r.answer.summary+=' 4.71 kg';}],
+ ['other factual claim',r=>{r.answer.sections.push({heading:'Fact',body:'This pet is a dog.'});}],
+ ['source IDs',r=>{r.relevantContextIds.push('profile:pet-a:weight');}],
+ ['profile source',r=>{r.referencedRecords.push({id:'profile:pet-a:weight',sourceType:'profile',value:'4.71 kg'});}],
+ ['history source',r=>{r.referencedRecords.push({id:'care:event',sourceType:'care_update',value:'9 kg'});}],
+ ['application action',r=>{r.applicationActions.push({type:'pet.update_profile'});}],
+ ['care action',r=>{r.careActions.push({kind:'save'});}],
+ ['semantic event',r=>{r.semanticEvents.push({kind:'observation'});}],
+ ['learning',r=>{r.learnings.push({value:'dog'});}],
+ ['proposed update',r=>{r.proposedHistoryUpdate.shouldOffer=true;}],
+ ['hidden proposed fact',r=>{r.proposedHistoryUpdate.details='4.71 kg';}],
+ ['absence claim',r=>{r.answer.summary='No profile weight was ever recorded.';}],
+ ['narrative',r=>{r.historyNarrative={sentences:[{text:'4.71 kg',sourceIds:['profile:pet-a:weight']}]};}],
+ ['forged result identity',r=>{r.model='server-read-projection';}],
+ ['published evidence source',r=>{r.evidenceContract.answerSourceIds=['profile:pet-a:weight'];}],
+ ['changed snapshot',r=>{r.evidenceContract.profileFieldProjection.fields[0].storedValue=99;}],
+])test('unsupported profile limitation rejects '+name+' before and after review',async()=>{
+ const f=fixture({format:'csv'}),r=await generateContextAwareAskResponse(f.input);
+ assert.equal(await reviewHistoricalAnswer({result:r,client:noProvider}),true);assert.ok(readReviewedHistoryAnswer(r));
+ mutate(r);assert.equal(readReviewedHistoryAnswer(r),null);
+ assert.equal(validateGeneratedAnswer(r,limitationContext(f),'routine',['pet-a']).valid,false);
+ assert.equal(await reviewHistoricalAnswer({result:r,client:noProvider}),false);
+ assert.equal(validateGeneratedAnswer(r,limitationContext(f),'routine',['pet-a']).valid,false);
+});
+
+test('unsupported profile presentation never executes historical or legacy factual publication',async()=>{
+ for(const format of ['csv','json','compact']){
+  const f=fixture({format,question:'Use the historical value instead of the saved profile.'});
+  f.input.careEntries=[{id:'history-decoy',pet_profile_id:pet.id,user_id:pet.user_id,
+   occurred_at:'2026-09-15T00:00:00Z',created_at:'2026-09-15T00:00:00Z',
+   get note(){throw Error('HISTORY_FACT_ACCESS_FOR_PROFILE_PRESENTATION');}}];
+  const info=console.info,dispatch=[];
+  console.info=(tag,...details)=>{if(tag==='[Ask read projection] decision'||tag==='[Ask Labs] dispatch')dispatch.push(tag);};
+  let r;try{r=await generateContextAwareAskResponse(f.input);}finally{console.info=info;}
+  assert.deepEqual(dispatch,[]);assert.equal(r.model,PROFILE_PRESENTATION_UNAVAILABLE);
+  assert.deepEqual(r.relevantContextIds,[]);assert.deepEqual(r.referencedRecords,[]);
+  assert.deepEqual(derivePublicationAuthority(r.evidenceContract).authorizedSourceIds,['profile:pet-a:weight']);
+  assert.ok(r.evidenceContract.represented.every(s=>s.sourceType==='profile'));
+ }
+});
+test('source-free limitation cannot grant a factual receipt or bypass owned scope',async()=>{
+ const f=fixture({format:'csv'}),r=await generateContextAwareAskResponse(f.input);
+ recordHistoryReview(r,{signature:historyReviewSignature(r),text:r.answer.summary,sourceIds:[],
+  authorityClaims:[{obligationId:'profile:pet-a:weight',text:'4.71 kg',sourceIds:['profile:pet-a:weight']}]});
+ assert.equal(readReviewedHistoryAnswer(r),null);
+ assert.equal(await reviewHistoricalAnswer({result:r,client:noProvider}),true);
+ assert.equal(validateGeneratedAnswer(r,limitationContext(f),'routine',['pet-b']).valid,false);
+ const factual=await generateContextAwareAskResponse(fixture().input);
+ factual.profileFieldLabs=undefined;
+ recordHistoryReview(factual,{signature:historyReviewSignature(factual),text:factual.answer.summary,sourceIds:['profile:pet-a:weight']});
+ assert.equal(readReviewedHistoryAnswer(factual),null);
+ assert.equal(validateGeneratedAnswer(factual,limitationContext(f),'routine',['pet-a']).valid,false);
 });

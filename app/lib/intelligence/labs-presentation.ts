@@ -1,8 +1,11 @@
 /** Presentation only: inputs have already been selected and certified by Labs. */
 export type LabsPresentation = "prose" | "list" | "table" | "compact";
-export function labsPresentation(format?: string | null): LabsPresentation {
-  if (format === "table" || format === "compact" || format === "prose") return format;
-  return format ? "list" : "prose";
+/** Map the validated Ask presentation contract, not arbitrary renderer modes. */
+export function labsPresentation(format?: string | null): LabsPresentation | null {
+  if (format === undefined || format === null || format === "prose") return "prose";
+  if (format === "table") return "table";
+  if (format === "bullets") return "list";
+  return null;
 }
 type Row = { id: string; sourceId: string; petId: string; event_at: string; body: string };
 export type LabsPresentationGroup = { subject: string; heading: string; rows: Row[]; notice?: string };
@@ -10,6 +13,7 @@ export type LabsPresentationGroup = { subject: string; heading: string; rows: Ro
 const inline = (value: string) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
   .replace(/[\\`*_{}\[\]()#+|~]/g, "\\$&").replace(/\r?\n/g, " ");
 export function renderCertifiedLabs(groups: LabsPresentationGroup[], presentation: LabsPresentation, limitations: string[]): string {
+  if (!["prose", "list", "table", "compact"].includes(presentation)) throw new Error("LABS_PRESENTATION_UNSUPPORTED");
   const parts = groups.map(group => {
     const heading = inline(group.heading);
     if (!group.rows.length) return [heading, group.notice && inline(group.notice)].filter(Boolean).join("\n");

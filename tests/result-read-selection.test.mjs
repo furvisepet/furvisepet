@@ -66,8 +66,8 @@ async function globalParity({direction="desc",count=3,rows,options={},patch={},p
  const b=await retrieveReadTicket(nativeTicket,scope,store(rows,options));
  assert.deepEqual(a,b);
  assert.deepEqual(selectionPublication(translated.ticket,a.coverage,represented(a)),selectionPublication(nativeTicket,b.coverage,represented(b)));
- assert.deepEqual(derivePublicationAuthority(evidence(translated.ticket,a)),derivePublicationAuthority(evidence(nativeTicket,b)));
  const al=buildLabsList(evidence(translated.ticket,a),a.records),bl=buildLabsList(evidence(nativeTicket,b),b.records);
+ assert.deepEqual(derivePublicationAuthority(evidence(translated.ticket,a),al.records),derivePublicationAuthority(evidence(nativeTicket,b),bl.records));
  assert.deepEqual(al,bl);assert.equal(serializeLabsList(al),serializeLabsList(bl));
  if(oldParity){
    const oldStore=store(rows,options);
@@ -77,7 +77,7 @@ async function globalParity({direction="desc",count=3,rows,options={},patch={},p
    assert.deepEqual(a.records,legacy.records,"old fully acquired execution preserves the same effective selected facts/order");
  }
  return {ticket:nativeTicket,result:a,publication:selectionPublication(nativeTicket,a.coverage,represented(a)),
-   authority:derivePublicationAuthority(evidence(nativeTicket,a)),labs:al};
+   authority:derivePublicationAuthority(evidence(nativeTicket,a),al.records),labs:al};
 }
 const mixed=()=>[row("a",1),row("a",7),row("b",2),row("b",6),row("c",3),row("c",5)];
 for(const [direction,count]of [["desc",1],["desc",3],["asc",4]])test("result-level "+direction+" "+count+" has adapter/native/full-legacy record parity",async()=>{
@@ -129,7 +129,8 @@ test("tombstoned apparent winner cannot win",async()=>{
 });
 test("one unresolved replacement closure blocks the entire global obligation",async()=>{
  const r=await globalParity({rows:mixed(),options:{partial:true},oldParity:false});
- assert.equal(r.publication.complete,false);assert.equal(r.authority,null);
+ assert.equal(r.publication.complete,false);assert.ok(r.authority);
+ assert.ok(r.authority.obligations.every(o=>o.authority==="unavailable"));assert.deepEqual(r.authority.authorizedSourceIds,[]);
  assert.ok(r.result.coverage.resultSelection[0].reasons.includes("lineage_not_closed"));
 });
 test("one failed competing subject blocks even when N winners exist elsewhere",async()=>{
@@ -235,7 +236,8 @@ test("partial lineage on a losing subject still blocks a seemingly obvious winne
  const r=await retrieveReadTicket(ticket,scope,s);
  assert.ok(r.records.some(r=>r.id==="a-7"));
  assert.equal(r.coverage.resultSelection[0].certified,false);
- assert.equal(derivePublicationAuthority(evidence(ticket,r)),null);
+ const labs=buildLabsList(evidence(ticket,r),r.records),authority=derivePublicationAuthority(evidence(ticket,r),labs.records);
+ assert.ok(authority);assert.ok(authority.obligations.every(o=>o.authority==="unavailable"));assert.deepEqual(authority.authorizedSourceIds,[]);
 });
 test("linked-source uncertainty cannot satisfy a joint frontier",async()=>{
  const ticket=globalPlan(input()),s=store(mixed()),effective=s.effectiveWindow;
@@ -259,8 +261,9 @@ test("selected source projections cannot add an event outside the joint receipt"
 test("profile facts cannot replace jointly certified historical result sources",async()=>{
  const ticket=globalPlan(input("chronological","desc",3)),r=await retrieveReadTicket(ticket,scope,store(mixed())),e=evidence(ticket,r);
  e.represented.push({sourceId:"profile:a:weight",petId:"a",sourceType:"profile",field:"weight",text:"weight 7 kg",start:0,end:11});
- const a=derivePublicationAuthority(e);
- assert.ok(a);assert.ok(a.authorizedSourceIds.every(id=>id.startsWith("care:")));
+ const labs=buildLabsList(e,r.records),a=derivePublicationAuthority(e,labs.records);
+ assert.ok(a);assert.deepEqual(new Set(a.authorizedSourceIds),new Set(labs.records.map(row=>row.sourceId)));
+ assert.ok(a.authorizedSourceIds.length);assert.ok(a.authorizedSourceIds.every(id=>id.startsWith("care:")));
  const {publicationClaimFailures}=await import("../app/lib/intelligence/publication-authority.ts");
  const obligation=a.obligations.find(o=>o.subjectId==="a");
  assert.ok(publicationClaimFailures(e,[{obligationId:obligation.obligationId,text:"weight 7 kg",sourceIds:["profile:a:weight"]}])

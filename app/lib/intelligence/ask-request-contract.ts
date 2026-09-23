@@ -1,8 +1,8 @@
 import { translateLegacyReadSelection } from "./legacy-read-selection.ts";
 import { groundReadProbes } from "./read-probes.ts";
-import { bindReadTicket, type ReadTicket } from "../furvise-brain/read-ticket.ts";
+import type { ReadTicket } from "../furvise-brain/read-ticket.ts";
 import { readTicketProviderSchema } from "../furvise-brain/read-ticket-provider-schema.ts";
-import { bindCompositionalReadTicket } from "../furvise-brain/read-selection.ts";
+import { bindTypedReadTicket } from "../furvise-brain/typed-read-ticket.ts";
 
 import { appendJobSchema, validateAppendJob, type AppendJob } from "../furvise-brain/append-job.ts";
 import { replaceJobSchema, validateReplaceJob, type ReplaceJob } from "../furvise-brain/replace-job.ts";
@@ -144,18 +144,6 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
 
   return { type: "object", additionalProperties: false, required: ["request"],
     properties: { request: { anyOf: [profile, nonProfile] } } };
-}
-
-/** Select the existing binder from the typed proposal, never from owner wording.
- * Null is the provider-schema spelling of an absent optional selection.
- */
-function bindProviderReadTicket(value: unknown, petIds: readonly string[],
-  bindings: Parameters<typeof bindReadTicket>[2] = []): ReadTicket | null {
-  if (value && typeof value === "object" && !Array.isArray(value) && Object.hasOwn(value, "selection")) {
-    const { selection, ...read } = value as Record<string, unknown>;
-    return selection === null ? bindReadTicket(read, petIds, bindings) : bindCompositionalReadTicket(value, petIds);
-  }
-  return bindReadTicket(value, petIds, bindings);
 }
 
 export const ASK_REQUEST_INSTRUCTIONS = [
@@ -704,7 +692,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (task?.requiresAnswer && task.petId && p.mode !== "mixed") return fail("task");
   if (task?.intent === "resume" && task.requiresAnswer && context.pendingTask?.request
     && !p.referenceTurnIds.includes(context.pendingTask.request.id)) return fail("task");
-  const readTicket = bindProviderReadTicket(p.readTicket, petIds);
+  const readTicket = bindTypedReadTicket(p.readTicket, petIds);
   if (readTicket && !historical) return fail("read_ticket", "request.historical");
   if (readTicket && !readOnly) return fail("read_ticket", "request.readOnly");
   const request: AskRequestContract = {
@@ -815,14 +803,14 @@ function bindTicketedRead(p: Record<string, unknown>, context: Context): AskInte
       sourceSpanId: `${need.sourceTurnId ?? context.currentTurn?.id ?? "current"}:${start}:${start + need.quote.length}` };
   });
   const { probes: _probes, ...ticketFields } = proposedTicket;
-  let readTicket = bindProviderReadTicket({ ...ticketFields, subjectScope,
+  let readTicket = bindTypedReadTicket({ ...ticketFields, subjectScope,
     ...(grounded ? { needs: grounded.needs } : {}) }, petIds, bindings)!;
   // Normalize while the existing typed lookup/reference/derivation intent still exists.
   // The later compatibility selection label is derived from outputs.limit and
   // cannot distinguish a reference proposal from an explicit ordered search.
-  const finiteChronological = readTicket.outputs.strategy === "chronological" && p.operation === "recall"
+  const finiteOrdered = (readTicket.outputs.strategy === "chronological" || readTicket.outputs.strategy == null) && p.operation === "recall"
     && ["records", "measurement"].includes(String(p.quantity)) && ["earliest", "latest"].includes(String(p.selection));
-  const compatibility = (finiteChronological || readTicket.outputs.strategy === "event_candidates" || readTicket.outputs.strategy === "temporal_endpoints" && petIds.length > 1)
+  const compatibility = (finiteOrdered || readTicket.outputs.strategy === "event_candidates" || readTicket.outputs.strategy === "temporal_endpoints" && petIds.length > 1)
     ? translateLegacyReadSelection(readTicket, { evidenceNeedCount: needPlan.needs.length,
       readIntent: { selection: p.selection as string, operation: p.operation as string,
         quantity: p.quantity as string | null, referenceTurnCount: referenceTurnIds.length,
@@ -831,7 +819,7 @@ function bindTicketedRead(p: Record<string, unknown>, context: Context): AskInte
         hasRecordSelection: p.recordSelection !== null, temporalScope: p.temporalScope as string | null } }) : null;
   if (compatibility?.translated) readTicket = compatibility.ticket;
   // Conflicting/independent shapes must not silently become unbounded reads.
-  if (finiteChronological && !readTicket.selection) return fail("finite_selection");
+  if (finiteOrdered && !readTicket.selection) return fail("finite_selection");
   if (grounded) for (const need of needPlan.needs) {
     const typed = readTicket.needs?.find(item => item.id === need.id);
     if (typed) need.terms = [...new Set(typed.termGroups.flat())];

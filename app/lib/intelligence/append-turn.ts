@@ -12,7 +12,7 @@ import { retrieveAskHistory } from "./history-retrieval.ts";
 import { createAskEvidenceContract } from "./ask-evidence.ts";
 import { generateContextAwareAskResponse } from "../ai/ask-reasoning.ts";
 import { reviewHistoricalAnswer } from "./review-history-narrative.ts";
-import { bindReadTicket } from "../furvise-brain/read-ticket.ts";
+import { bindTypedReadTicket } from "../furvise-brain/typed-read-ticket.ts";
 import { validateAppendJob } from "../furvise-brain/append-job.ts";
 import { resolveAskHistoryAccess } from "./history-access.ts";
 import { emptyProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
@@ -90,7 +90,7 @@ export async function continueConfirmedAppend(input: {
   // Rebind typed dimensions after JSON transport, preserving need provenance and
   // every original request obligation. These values came from the server ticket.
   const needs = pending.readTicket.needs;
-  const ticket = bindReadTicket({ ...proposal, ...(needs ? { needs: needs.map((need: NonNullable<import("../furvise-brain/read-ticket.ts").ReadTicket["needs"]>[number]) => ({
+  const ticket = bindTypedReadTicket({ ...proposal, ...(needs ? { needs: needs.map((need: NonNullable<import("../furvise-brain/read-ticket.ts").ReadTicket["needs"]>[number]) => ({
     needId: need.id, from: need.from, to: need.to, target: need.target, termGroups: need.termGroups, ordering: need.ordering,
   })) } : {}) }, subjects.petIds, needs || [])!;
   if (!pending.readRequest || JSON.stringify(pending.readRequest.readTicket) !== JSON.stringify(pending.readTicket)) throw Error("APPEND_CONTINUATION_TICKET");

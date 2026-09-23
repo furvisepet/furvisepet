@@ -269,15 +269,20 @@ test("finite conflicting calendar cannot escape binding as an unbounded fallback
  proposal.readTicket.temporal.calendar="oldest_year";
  assert.throws(()=>validateAskRequest(proposal,context),/finite_selection/);
 });
-test("normalized finite ticket reaches Lungs evidence certificates and deterministic Labs with partial global history",async()=>{
- const {context,proposal}=finiteProposal();
+for(const [semantic,strategy,limit,direction,index]of [
+ ["earliest","chronological",null,"asc",0],
+ ["earliest",null,1,"asc",0],
+ ["latest",null,1,"desc",399],
+])test("normalized "+semantic+" strategy "+strategy+" cap "+limit+" reaches Lungs evidence certificates and deterministic Labs with partial global history",async()=>{
+ const {context,proposal}=finiteProposal(semantic,limit);
+ proposal.readTicket.outputs.strategy=strategy;
  const interpretation=validateAskRequest(proposal,context),ticket=interpretation.request.readTicket;
  const rows=Array.from({length:400},(_,i)=>row("a",i,"observation "+i));
  const db=store(rows);
  const result=await retrieveReadTicket(ticket,scope,db);
- assert.ok(db.calls.every(q=>q.ordering==="asc"));
+ assert.ok(db.calls.every(q=>q.ordering===direction));
  assert.equal(result.coverage.status,"partial");
- assert.deepEqual(result.records.map(r=>r.id),["a-0"]);
+ assert.deepEqual(result.records.map(r=>r.id),["a-"+index]);
  const legacyEvidence=evidence(ticket,result);
  const contract=createAskEvidenceContract({...context,askInterpretation:interpretation,
   careEntries:result.records,selectedCareEntries:result.records,
@@ -288,15 +293,18 @@ test("normalized finite ticket reaches Lungs evidence certificates and determini
  const proof=selectionPublication(ticket,contract.history.ticketCoverage,result.records.map(r=>({id:r.id,petId:r.pet_profile_id})));
  assert.equal(proof.complete,true);assert.equal(proof.transportValid,true);
  assert.ok(proof.certificates.every(c=>c.certified&&c.lineageClosed));
- const authority=derivePublicationAuthority(contract);
- assert.deepEqual(authority.authorizedSourceIds,["care:a-0"]);
  const response=await generateContextAwareAskResponse({evidenceContract:contract,profiles:finitePets,
   careEntries:result.records,memories:[],productFeedback:[],conversationTurns:[],recentUpdates:[],
   question:context.currentMessage,requestId:"offline-normalized-endpoint",locale:"en-CA",
   client:{responses:{create:async()=>{throw Error("NO_PUBLICATION_PROVIDER");}}}});
  assert.equal(response.model,"server-labs-list");
  assert.deepEqual(response.labsList.ticket,ticket);
- assert.match(response.answer.summary,/observation 0/);
+ const authority=derivePublicationAuthority(contract,response.labsList.records);
+ assert.equal(authority.transportValid,true);
+ assert.deepEqual(authority.authorizedSourceIds,["care:a-"+index]);
+ assert.deepEqual(response.labsList.records.map(r=>({id:r.id,petId:r.petId,event_at:r.event_at,body:r.body})),
+  result.records.map(r=>({id:r.id,petId:r.pet_profile_id,event_at:r.occurred_at,body:r.note})));
+ assert.ok(response.answer.summary.includes("observation "+index));
  assert.doesNotMatch(response.answer.summary,/exhaustive|partial results|history search is incomplete/);
  assert.deepEqual(result.coverage,before);
 });
@@ -317,6 +325,74 @@ test("independent envelope obligation cannot be dropped to normalize a finite en
  assert.equal(translated.translated,false);
  assert.equal(translated.reason,"independent_legacy_evidence_obligations");
  assert.equal(translated.ticket,ticket);
+ assert.throws(()=>validateAskRequest(proposal,context),/finite_selection/);
+ assert.equal(JSON.stringify(proposal),before);
+});
+
+for(const [semantic,direction]of [["earliest","asc"],["latest","desc"]])
+ test("typed "+semantic+" null strategy singleton binds the same generic finite endpoint",()=>{
+  for(const topic of ["observation","food","medication"])for(const names of [["Alpha"],["Alpha","Beta"]]){
+   const {context,proposal}=finiteProposal(semantic,1,"sufficient",names,topic);
+   proposal.readTicket.outputs.strategy=null;
+   const before=JSON.stringify(proposal),ticket=validateAskRequest(proposal,context).request.readTicket;
+   assert.deepEqual(ticket.selection,{groupBy:["subject"],union:[clause(direction)]});
+   assert.deepEqual(ticket.outputs,{completeness:"sufficient",ordering:direction,limit:null});
+   assert.deepEqual(ticket.subjects.petIds,names.length===1?["a"]:["a","b"]);
+   assert.deepEqual(ticket.predicates,proposal.readTicket.predicates);
+   assert.deepEqual(ticket.temporal,proposal.readTicket.temporal);
+   assert.equal(JSON.stringify(proposal),before);
+   assert.equal(translateLegacyReadSelection(ticket).ticket,ticket);
+   assert.throws(()=>validateAskRequest({...proposal,petNames:["Unknown"]},context));
+  }
+ });
+
+test("null strategy is not endpoint intent and cannot erase independent semantics",()=>{
+ const ticket=bindReadTicket(input(null,"desc",1),["a"]);
+ const intent={selection:"latest",operation:"recall",quantity:"measurement",referenceTurnCount:0,
+  requirementCount:0,hasProfileFields:false,hasProjection:false,hasRecordSelection:false,temporalScope:"historical"};
+ assert.equal(translateLegacyReadSelection(ticket).ticket,ticket);
+ for(const patch of [
+  {selection:"summary"},{selection:"period"},{selection:"reference"},
+  {operation:"count"},{operation:"existence"},{operation:"absence"},
+  {hasProfileFields:true},{hasProjection:true},{hasRecordSelection:true},
+  {temporalScope:"current"},{temporalScope:"historical_and_current"},
+ ]){
+  const result=translateLegacyReadSelection(ticket,{evidenceNeedCount:0,readIntent:{...intent,...patch}});
+  assert.equal(result.translated,false);assert.equal(result.ticket,ticket);
+ }
+ const independent=translateLegacyReadSelection(ticket,{evidenceNeedCount:1,readIntent:intent});
+ assert.equal(independent.reason,"independent_legacy_evidence_obligations");
+ assert.equal(independent.ticket,ticket);
+});
+
+test("null strategy preserves unbounded chronology and exhaustive obligations",()=>{
+ for(const selection of ["summary","period"]){
+  const {context,proposal}=finiteProposal(selection,null,"exhaustive");
+  proposal.readTicket.outputs.strategy=null;
+  const ticket=validateAskRequest(proposal,context).request.readTicket;
+  assert.equal(ticket.selection,undefined);
+  assert.equal(ticket.outputs.limit,null);assert.equal(ticket.outputs.completeness,"exhaustive");
+ }
+ for(const selection of ["earliest","latest"]){
+  const {context,proposal}=finiteProposal(selection,1,"exhaustive");
+  proposal.readTicket.outputs.strategy=null;
+  const ticket=validateAskRequest(proposal,context).request.readTicket;
+  assert.equal(ticket.outputs.completeness,"exhaustive");
+  assert.equal(ticket.selection.union[0].take.count,1);
+ }
+});
+
+test("null strategy endpoint retains calendar and independent-obligation rejection",()=>{
+ const {context,proposal}=finiteProposal("latest",1);
+ proposal.readTicket.outputs.strategy=null;
+ proposal.readTicket.temporal.calendar="oldest_year";
+ assert.throws(()=>validateAskRequest(proposal,context));
+ proposal.readTicket.temporal.calendar=null;
+ const question="Retrieve the requested observation. Also retrieve the medication records.";
+ context.currentMessage=question;context.currentTurn.text=question;proposal.question=question;
+ proposal.evidenceNeeds=[{quote:"Also retrieve the medication records.",sourceTurnId:null,
+  petNames:["Alpha"],terms:["medication"],order:"context"}];
+ const before=JSON.stringify(proposal);
  assert.throws(()=>validateAskRequest(proposal,context),/finite_selection/);
  assert.equal(JSON.stringify(proposal),before);
 });

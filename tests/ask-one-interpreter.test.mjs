@@ -15,6 +15,7 @@ const pet={id:'dune',name:'Dune',user_id:'owner',species:'cat',avoid_ingredients
 const question='What is Dune’s earliest recorded weight and the date?';
 const ticket={operation:'read',temporal:{from:null,to:null,anchor:null},predicates:[{kind:'text_any',terms:['weighed','weight']}],outputs:{completeness:'exhaustive',ordering:'asc',limit:1}};
 const proposal={version:'ask-request.v2',readTicket:ticket,mode:'read',question,requirements:[],referenceTurnIds:[],scope:'named',petNames:['Dune'],operation:'recall',selection:'earliest',quantity:'records',topic:'body mass',terms:['weight'],from:null,to:null,episodeTopic:null,ordinal:null,frame:null,evidenceBasis:'saved_history',premiseQuotes:[]};
+const canonicalEndpointTicket={...ticket,outputs:{...ticket.outputs,limit:null},selection:{groupBy:['subject'],union:[{orderBy:[{field:'event_at',direction:'asc'}],take:{count:1,per:'group'}}]}};
 const context=()=>({owner:{userId:'owner'},pet,eligiblePets:[pet],currentMessage:question,conversationTurns:[],timeZone:'UTC',currentTurn:{id:'user',role:'user',text:question},careEntries:[],selectedCareEntries:[],memories:[]});
 const oldest={id:'9f53b55b-4c32-4d9d-b055-020f29179d94',user_id:'owner',pet_profile_id:'dune',category:'general',title:null,
  note:'Dune weighed 4.81 kg. Monthly care check recorded stable appetite, usual routine, and no new ongoing concern.',
@@ -41,7 +42,8 @@ test('two fresh Dune fixtures use one interpreter call each and return the same 
   assert.equal(await reviewHistoricalAnswer({result,client:neverGenerate}),true);
   const validated=validateGeneratedAnswer(result,read,'routine',[pet.id]);
   assert.equal(validated.valid,true);assert.equal(validated.assessment.outcome,'limited');
-  assert.match(validated.response.answer.summary,/2016-10-15.*4\.81 kg/);
+  assert.match(validated.response.answer.summary,/2016-10-15/);
+  assert.match(validated.response.answer.summary,/4\.81 kg/);
   assert.equal(calls,1);assert.equal(result.applicationActions.length,0);
   results.push({body:validated.response.answer.summary,ids:result.relevantContextIds});
  }
@@ -49,9 +51,11 @@ test('two fresh Dune fixtures use one interpreter call each and return the same 
 });
 test('read ticket alone controls temporal bounds and order despite conflicting legacy hints or words',()=>{
  for(const currentMessage of ['ever','all history in 2025','last two weights','dental','from 2020 to 2024']){
-  const result=validateAskRequest({...proposal,from:'2025-01-01',to:'2025-12-31',selection:'latest'}, {...context(),currentMessage});
+  const result=validateAskRequest({...proposal,readTicket:canonicalEndpointTicket,from:'2025-01-01',to:'2025-12-31',selection:'latest'}, {...context(),currentMessage});
   assert.deepEqual(result.request.readTicket.temporal,ticket.temporal);
-  assert.equal(result.selection,'earliest');assert.deepEqual(result.history,{from:null,to:null,terms:[],interpretation:'period'});
+  assert.deepEqual(result.request.readTicket.selection,canonicalEndpointTicket.selection);
+  assert.equal(result.request.readTicket.outputs.strategy,undefined);
+  assert.equal(result.request.readTicket.outputs.limit,null);assert.deepEqual(result.history,{from:null,to:null,terms:[],interpretation:'period'});
   const unplanned=askEvidenceScope(currentMessage,[pet.id]);
   assert.equal(unplanned.readOnlyRecall,false);assert.equal(unplanned.requestedPeriod.kind,'unspecified');
  }
@@ -113,6 +117,6 @@ test('a redundant account label cannot widen the ticket named subset or include 
 
 test('impossible typed dates and malformed projection metadata cannot be silently normalized or dropped',()=>{
  assert.throws(()=>validateAskRequest({...proposal,readTicket:{...ticket,temporal:{from:'2026-02-30T00:00:00Z',to:null,anchor:null}}},context()),/dates/);
- assert.throws(()=>validateAskRequest({...proposal,projection:{quantity:'invented'}},context()),/projection/);
- assert.throws(()=>validateAskRequest({...proposal,recordSelection:{scope:'all_active',quote:'invented'}},context()),/record_selection/);
+ assert.throws(()=>validateAskRequest({...proposal,readTicket:canonicalEndpointTicket,projection:{quantity:'invented'}},context()),/projection/);
+ assert.throws(()=>validateAskRequest({...proposal,readTicket:canonicalEndpointTicket,recordSelection:{scope:'all_active',quote:'invented'}},context()),/record_selection/);
 });

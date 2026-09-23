@@ -24,7 +24,7 @@ export function translateLegacyReadSelection(ticket: ReadTicket, legacyObligatio
   const unchanged = (reason: string): LegacySelectionTranslation => ({ ticket, translated: false, reason });
   if (ticket.selection) return unchanged("native_selection");
   const strategy = ticket.outputs.strategy;
-  if (strategy !== "chronological" && strategy !== "temporal_endpoints" && strategy !== "event_candidates")
+  if (strategy != null && strategy !== "chronological" && strategy !== "temporal_endpoints" && strategy !== "event_candidates")
     return unchanged("strategy_outside_compatibility_cut");
   if (strategy === "event_candidates") {
     const intent = legacyObligations.readIntent;
@@ -54,10 +54,11 @@ export function translateLegacyReadSelection(ticket: ReadTicket, legacyObligatio
   if (ticket.needs?.length || ticket.episode) return unchanged("independent_obligation");
   if (ticket.temporal.calendar) return unchanged("calendar_semantics");
   const intent = legacyObligations.readIntent;
-  // The typed envelope still carries a finite endpoint when a legacy ticket
-  // has no transport cap. Consume it before that envelope is discarded.
-  // An explicit cap keeps the existing global top-N compatibility semantics.
-  if (strategy === "chronological" && ticket.outputs.limit === null
+  // Typed endpoint intent supplies semantic direction/cardinality even when
+  // ordinary ordered retrieval has no strategy. A singleton legacy cap belongs
+  // in selection, not transport; larger caps retain their global top-N semantics.
+  if ((strategy === "chronological" || strategy == null)
+    && (ticket.outputs.limit === null || ticket.outputs.limit === 1)
     && intent?.operation === "recall" && ["records", "measurement"].includes(intent.quantity || "")
     && ["earliest", "latest"].includes(intent.selection)
     && !intent.hasProfileFields && !intent.hasProjection && !intent.hasRecordSelection
@@ -70,8 +71,10 @@ export function translateLegacyReadSelection(ticket: ReadTicket, legacyObligatio
       })]) });
     const { strategy: _legacyStrategy, ...outputs } = ticket.outputs;
     return { translated: true, reason: "typed_finite_endpoint",
-      ticket: Object.freeze({ ...ticket, outputs: Object.freeze(outputs), selection }) };
+      ticket: Object.freeze({ ...ticket, outputs: Object.freeze({ ...outputs, limit: null }), selection }) };
   }
+  // A null strategy alone never establishes finite historical intent.
+  if (strategy == null) return unchanged("strategy_outside_compatibility_cut");
   if (strategy === "temporal_endpoints" && ticket.subjects.petIds.length > 1) {
     const intent = legacyObligations.readIntent;
     // A legacy compare label alone cannot distinguish records from derivation.

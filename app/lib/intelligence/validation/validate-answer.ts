@@ -1,6 +1,9 @@
+import { unsupportedProfilePresentation, profilePresentationLimitationFailure, PROFILE_PRESENTATION_UNAVAILABLE } from "../profile-presentation-limitation.ts";
+import { carryProfileFieldProjection } from "../profile-field-authority.ts";
 import { profileFieldLabsReviewFailure, carryProfileFieldLabs } from "../profile-field-labs.ts";
 import { labsListReviewFailure, carryLabsListSnapshot, labsTaskComplete } from "../labs-list.ts";
-import { derivePublicationAuthority } from "../publication-authority.ts";
+import { derivePublicationAuthority, requiresHistoryPublicationAuthority } from "../publication-authority.ts";
+import { historyLabsAuthorityFailure, historyLimitationFailure } from "../ordinary-history-publication.ts";
 import { readPartialHistoryReview } from "../history-review-state.ts";
 import { historyCompletionLimits, UNVERIFIED_EVENT_LIMITATION } from "../evidence-need-coverage.ts";
 import { recordHistoryReview, historyReviewSignature } from "../history-review-state.ts";
@@ -55,6 +58,46 @@ export function validateGeneratedAnswer(
   const partialHistory = currentEmergency || reviewedHistory ? null : readPartialHistoryReview(result);
   const partialText = partialHistory ? partialHistory.text : null;
   const response = structuredClone(result);
+  if (unsupportedProfilePresentation(result.evidenceContract) || result.model === PROFILE_PRESENTATION_UNAVAILABLE) {
+    const failure = profilePresentationLimitationFailure(result);
+    const scopeFailure = result.evidenceContract?.scope.authorizedPetIds.some(id => !authoritativePetIds.includes(id));
+    const errors = [...(failure ? [failure] : []), ...(scopeFailure ? ["profile_presentation_subject_scope"] : []),
+      ...(!reviewedHistory ? ["profile_presentation_review_required"] : [])];
+    if (!errors.length && reviewedHistory) {
+      carryProfileFieldProjection(result.evidenceContract!, response.evidenceContract!);
+      response.evidenceContract!.answerSourceIds = [];
+      response.evidenceContract!.answerContent = [];
+      recordHistoryReview(response, { ...reviewedHistory, signature: historyReviewSignature(response) });
+      rememberReviewedTaskPresentation(response.evidenceContract, response.answer, []);
+    }
+    const assessment = createAnswerAssessment({ body: response.answer, evidence: response.evidenceContract,
+      unsafe: !!errors.length, reasons: [...errors, "profile_presentation_unsupported"],
+      checks: { structuralValidity: errors.length ? "failed" : "passed", evidenceSupport: errors.length ? "failed" : "passed",
+        subjectDateCorrectness: errors.length ? "failed" : "passed", calculationCorrectness: "not_applicable",
+        taskCompletion: "failed" } });
+    return { response, assessment, valid: !errors.length, repairs: [], errors, qualityWarnings: [] };
+  }
+  if (requiresHistoryPublicationAuthority(result.evidenceContract)) {
+    // An ordinary history answer never enters the factual fallback/repair code below.
+    const failure = result.labsList ? historyLabsAuthorityFailure(result) : historyLimitationFailure(result);
+    const scopeFailure = result.evidenceContract!.scope.authorizedPetIds.some(id => !authoritativePetIds.includes(id));
+    const errors = [...(failure ? [failure] : []), ...(scopeFailure ? ["history_publication_subject_scope"] : []),
+      ...(!reviewedHistory ? ["history_publication_review_required"] : [])];
+    const complete = !!result.labsList && labsTaskComplete(result.labsList);
+    if (!errors.length && reviewedHistory) {
+      if (result.labsList) carryLabsListSnapshot(result, response);
+      response.evidenceContract!.answerSourceIds = [...reviewedHistory.sourceIds];
+      response.evidenceContract!.answerContent = [...(reviewedHistory.sourceContent || [])];
+      recordHistoryReview(response, { ...reviewedHistory, signature: historyReviewSignature(response) });
+      rememberReviewedTaskPresentation(response.evidenceContract, response.answer, []);
+    }
+    const assessment = createAnswerAssessment({ body: response.answer, evidence: response.evidenceContract,
+      unsafe: !!errors.length, reasons: [...errors, ...(complete ? [] : ["history_publication_limited"])],
+      checks: { structuralValidity: errors.length ? "failed" : "passed", evidenceSupport: errors.length ? "failed" : "passed",
+        subjectDateCorrectness: errors.length ? "failed" : "passed", calculationCorrectness: "not_applicable",
+        taskCompletion: complete && !errors.length ? "passed" : "failed" } });
+    return { response, assessment, valid: !errors.length, repairs: [], errors, qualityWarnings: [] };
+  }
   if (result.profileFieldLabs && !currentEmergency) {
     const failure = !reviewedHistory ? "profile_labs_review_required" : profileFieldLabsReviewFailure(result);
     const scopeFailure = result.profileFieldLabs.projection.subjectIds.some(id => !authoritativePetIds.includes(id));

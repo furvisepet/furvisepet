@@ -44,7 +44,7 @@ function evidence(ticket,result) {
  return {version:"ask-evidence.v1",petNames:{a:"Alpha",b:"Beta",c:"Gamma"},
   scope:{authorizedPetIds:[...ticket.subjects.petIds],requestText:"fixture",status:"resolved",readOnlyRecall:true,requestKind:"record_lookup"},
   interpretation:{operation:"recall",readOperation:"recall",petIds:[...ticket.subjects.petIds],readOnly:true,
-   request:{mode:"read",quantity:"records",evidenceBasis:"saved_history",readTicket:ticket,requirements:[],referenceTurnIds:[],profileFields:[],outputFormat:"table"}},
+   request:{mode:"read",quantity:"records",evidenceBasis:"saved_history",readTicket:ticket,requirements:[],referenceTurnIds:[],profileFields:[],outputFormat:"prose"}},
   history:{ticketCoverage:result.coverage,provenance:[],perPet:[],needs:[],candidateIds:represented.map(r=>r.sourceId),
    claimSources:[],excludedIds:[],continuation:[],reasons:[],retrieval:"partial",corrections:"complete"},
   represented,sources:[],losses:[],representation:"complete",verifiedFacts:[],
@@ -63,8 +63,8 @@ async function setParity(p,rows,{pets=["a","b","c"],options={},legacy=true}={}){
  const a=await retrieveReadTicket(adapted.ticket,scope,store(rows,options)),b=await retrieveReadTicket(ticket,scope,store(rows,options));
  assert.deepEqual(a,b);
  assert.equal(a.coverage.chronology,undefined);
- assert.deepEqual(derivePublicationAuthority(evidence(adapted.ticket,a)),derivePublicationAuthority(evidence(ticket,b)));
  const al=buildLabsList(evidence(adapted.ticket,a),a.records),bl=buildLabsList(evidence(ticket,b),b.records);
+ assert.deepEqual(derivePublicationAuthority(evidence(adapted.ticket,a),al?.records ?? []),derivePublicationAuthority(evidence(ticket,b),bl?.records ?? []));
  assert.deepEqual(al,bl);assert.equal(al ? serializeLabsList(al) : null,bl ? serializeLabsList(bl) : null);
  if(legacy){
   const s=store(rows,options);s.effective=async acquired=>({records:[...acquired.filter(r=>!options.deleted?.includes(r.id)&&r.id!==options.correction?.replaces),
@@ -76,6 +76,24 @@ async function setParity(p,rows,{pets=["a","b","c"],options={},legacy=true}={}){
   assert.equal(a.coverage.status,before.coverage.status);
  }
  return {ticket,result:a,labs:al,proof:a.coverage.resultSet};
+}
+async function assertUnavailable(r) {
+ const {generateContextAwareAskResponse}=await import("../app/lib/ai/ask-reasoning.ts");
+ const {reviewHistoricalAnswer}=await import("../app/lib/intelligence/review-history-narrative.ts");
+ const {validateGeneratedAnswer}=await import("../app/lib/intelligence/validation/validate-answer.ts");
+ let calls=0;const client={responses:{create:async()=>{calls++;throw Error("NO_PROVIDER_CALL");}}};
+ const e=evidence(r.ticket,r.result),profiles=r.ticket.subjects.petIds.map(id=>({id,user_id:"owner",name:e.petNames[id],species:"cat",avoid_ingredients:[]}));
+ const result=await generateContextAwareAskResponse({evidenceContract:e,profiles,careEntries:r.result.records,
+  memories:[],productFeedback:[],conversationTurns:[],recentUpdates:[],question:"List saved records.",requestId:"result-set-test",locale:"en-CA",client});
+ assert.equal(result.model,"server-history-unavailable");assert.equal(result.labsList,undefined);
+ assert.deepEqual(result.relevantContextIds,[]);assert.equal(result.referencedRecords?.length||0,0);
+ assert.equal(await reviewHistoricalAnswer({result,client}),true);
+ const context={pet:profiles[0],eligiblePets:profiles,currentMessage:"List saved records.",memories:[],careEntries:r.result.records,
+  askInterpretation:e.interpretation,askHistory:{entries:r.result.records,coverage:{ticketCoverage:r.result.coverage}}};
+ const validation=validateGeneratedAnswer(result,context,"routine",r.ticket.subjects.petIds);
+ assert.equal(validation.valid,true);assert.equal(validation.assessment.outcome,"limited");
+ assert.deepEqual(result.evidenceContract.history.ticketCoverage,r.result.coverage);
+ assert.match(result.answer.summary,/does not establish that matching records are absent/);assert.equal(calls,0);
 }
 const dataset=()=>[row("a",1),row("b",4),row("a",3),row("c",2)];
 for(const direction of ["asc","desc"])test("complete effective result set "+direction+" preserves legacy and native facts",async()=>{
@@ -124,7 +142,7 @@ test("more than 32 matching records distinguishes complete set from representati
  const r=await setParity(unbounded(),Array.from({length:100},(_,i)=>row("a",i)),{pets:["a"]});
  assert.equal(r.proof.matchingIds.length,100);assert.equal(r.proof.retainedIds.length,32);assert.equal(r.proof.omittedIds.length,68);
  assert.equal(r.proof.matchingSetComplete,true);assert.equal(r.proof.representationComplete,false);assert.equal(r.proof.certified,false);
- assert.match(serializeLabsList(r.labs),/partial results/);
+ await assertUnavailable(r);
 });
 test("oversized source is omitted whole, later fitting records survive, omission stays visible",async()=>{
  const rows=[row("a",1,"weight "+"x".repeat(19000)),row("b",2),row("c",3)];
@@ -154,7 +172,7 @@ test("incomplete scan with no observed matches is partial, never exhaustive abse
  const rows=Array.from({length:300},(_,i)=>row("a",i,i===299?"weight 5 kg":"other"));
  const r=await setParity(unbounded(),rows,{pets:["a"]});
  assert.equal(r.proof.matchingIds.length,0);assert.equal(r.proof.certified,false);assert.equal(r.result.coverage.status,"partial");
- assert.doesNotMatch(serializeLabsList(r.labs),/No matching notes were found/);
+ await assertUnavailable(r);
 });
 test("lineage not closed withholds that subject's rows rather than publishing raw candidates",async()=>{
  const r=await setParity(unbounded(),dataset(),{options:{partial:true},legacy:false});
@@ -206,7 +224,9 @@ test("Labs rejects proof/scope mismatch or dishonest completeness",async()=>{
 });
 test("profile authority is not invented by an all-history result-set proof",async()=>{
  const r=await setParity(unbounded(),dataset()),e=evidence(r.ticket,r.result);
- assert.equal(derivePublicationAuthority(e),null,"existing non-selection evidence policy remains authoritative");
+ const authority=derivePublicationAuthority(e,r.labs.records);
+ assert.ok(authority);assert.deepEqual(new Set(authority.authorizedSourceIds),new Set(r.labs.records.map(row=>row.sourceId)));
+ assert.ok(authority.obligations.every(o=>o.authority!=="unavailable" && !o.obligationId.includes("profile")));
  assert.ok(r.labs.records.every(row=>row.sourceId.startsWith("care:")));
 });
 test("calendar/independent obligations remain outside the adapter",()=>{
@@ -268,6 +288,7 @@ test("complete and represented remain separate in the existing deterministic Lab
    relevantContextIds:r.labs.records.map(r=>r.sourceId),applicationActions:[],careActions:[],semanticEvents:[],learnings:[],
    proposedHistoryUpdate:{shouldOffer:false},safetyLevel:"normal",responseMode:"practical_guidance",suggestedFollowUps:[]};
   assert.equal(labsTaskComplete(r.labs),size<=32);
-  assert.equal(await reviewHistoricalAnswer({result,client:noProvider}),true);
+  assert.equal(await reviewHistoricalAnswer({result,client:noProvider}),size<=32);
+  if(size>32)await assertUnavailable(r);
  }
 });

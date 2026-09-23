@@ -1,5 +1,6 @@
 import { requestProposal } from "./request-proposal.mjs";
 import assert from 'node:assert/strict';
+import { assertPublicationCalls } from './publication-call-expectations.mjs';
 import { registerHooks } from 'node:module';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -217,23 +218,24 @@ async function exercise(question, { evidenceReadProposal, historyAccess, fixture
     requests.push(request); if (providerResponse) return providerResponse(request, options); return { usage: { input_tokens: 1200, output_tokens: 400, total_tokens: 1600 }, output_text: JSON.stringify({ ...output(answer), ...providerOverrides, ...(providerSequence?.[requests.length - 1] || {}) }) };
   } } };
   let result;
+  const historyStages = [];
   if (history) {
     assert.equal(prepareEvidence, undefined, 'historical evidence authority belongs to the actual callback');
     const { generateAskHistoryAnswer } = await import('../../../app/lib/intelligence/generate-ask-history.ts');
-    const generated = await generateAskHistoryAnswer({ supabase, context, onProviderEvent, onStage, requestId: 'synthetic-audit-request', sourceMessageId: 'current-turn', authoritativePetIds, authoritativeSemanticFrame });
+    const generated = await generateAskHistoryAnswer({ supabase, context, onProviderEvent, onStage: stage => { historyStages.push(stage); onStage?.(stage); }, requestId: 'synthetic-audit-request', sourceMessageId: 'current-turn', authoritativePetIds, authoritativeSemanticFrame });
     context = generated.context; result = generated.intelligenceResult;
   } else {
     result = await runFurviseIntelligence({ context, evidenceContract, onProviderEvent, requestId: 'synthetic-audit-request', sourceMessageId: 'current-turn', authoritativePetIds, authoritativeSemanticFrame });
   }
-  if (expectedProviderCalls !== null) assert.equal(requests.length, expectedProviderCalls, expectedProviderCalls === 1 ? 'exactly one mocked answer-provider call' : 'explicit bounded mocked provider call count');
-  if (expectedReviewCalls !== null) assert.equal(reviewRequests.length, expectedReviewCalls, 'bounded history-review call count');
+  const publicationCallPath = await assertPublicationCalls({ result, context, requests, reviewRequests,
+    expectedProviderCalls, expectedReviewCalls, history, historyStages });
   const { buildAskConversationResponse } = await import('../../../app/lib/ask.mjs');
   const { inspectAskPublication } = await import('../../../app/lib/intelligence/inspect-ask-publication.ts');
   const {prepareFurviseApplicationActions} = await import('../../../app/lib/application-actions/planner.ts');
   const actions = prepareFurviseApplicationActions({proposals:result.reasoning.applicationActions,petId:context.pet.id,petName:context.pet.name,requestId:'synthetic-audit-request',sourceMessage:question});
   const publication = inspectAskPublication(result.reasoning.answer, buildAskConversationResponse(result.reasoning.answer,{applicationActions:actions}),
     context.askInterpretation?.readOnly === true, result.reasoning.evidenceContract, context.episodeResult);
-  return { publication, reviewRequests, context, result, prompt: requests[0] ? JSON.parse(requests[0].input) : null, serialized: requests[0]?.input || '', queries: supabase.queries, interpretationRequests };
+  return { publication, publicationCallPath, requests, reviewRequests, historyStages, context, result, prompt: requests[0] ? JSON.parse(requests[0].input) : null, serialized: requests[0]?.input || '', queries: supabase.queries, interpretationRequests };
 }
 const promptHas = (run, id) => run.prompt.contextRecords.some(record => record.id === `care:${id}`);
 const clock = t => {

@@ -1,9 +1,11 @@
-import { projectProfileFields, profileFieldRecords, bindProfileFieldProjection } from "../intelligence/profile-field-authority.ts";
+import { projectProfileFields, profileFieldRecords, bindProfileFieldProjection, isTypedProfileRead } from "../intelligence/profile-field-authority.ts";
+import { unsupportedProfilePresentation, PROFILE_PRESENTATION_UNAVAILABLE, PROFILE_PRESENTATION_LIMITATION } from "../intelligence/profile-presentation-limitation.ts";
 import { buildProfileFieldLabs, serializeProfileFieldLabs, profileFieldSourceIds, type ProfileFieldLabs } from "../intelligence/profile-field-labs.ts";
 import { commonHistoryPathEntered } from "../intelligence/ordinary-history-boundary.ts";
 import { buildLabsList, serializeLabsList, type LabsList } from "../intelligence/labs-list.ts";
 import { logPublicationDispatch } from "../intelligence/publication-authority-diagnostics.ts";
-import { derivePublicationAuthority, publicationSources, publicationGenerationContext, PUBLICATION_AUTHORITY_POLICY } from "../intelligence/publication-authority.ts";
+import { historyPublicationLimitation } from "../intelligence/ordinary-history-publication.ts";
+import { requiresHistoryPublicationAuthority, supportedHistoryPublication, derivePublicationAuthority, publicationSources, publicationGenerationContext, PUBLICATION_AUTHORITY_POLICY } from "../intelligence/publication-authority.ts";
 import { CLAIM_AUTHORITY_POLICY } from "../intelligence/claim-authority-policy.ts";
 import { sourceDisplayDate } from "../intelligence/source-calendar-date.ts";
 import { parseDatedNoteBatch } from "../intelligence/dated-note-batch.ts";
@@ -747,13 +749,26 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   // facts merely to satisfy a model input limit when no model call is needed.
   const projectionContext = buildAskContext(input, false);
   const profileLabs = projectionContext.minimumSafetyLevel === "normal" ? buildProfileFieldLabs(projectionContext.promptContext.evidenceContract) : null;
-  const labs = projectionContext.minimumSafetyLevel !== "urgent" ? buildLabsList(projectionContext.promptContext.evidenceContract, input.careEntries) : null;
-  const projection = !profileLabs && !labs && projectionContext.minimumSafetyLevel === "normal" ? deterministicReadProjection(projectionContext.promptContext.evidenceContract,
+  const publicationEvidence = projectionContext.promptContext.evidenceContract;
+  const typedProfile = isTypedProfileRead(publicationEvidence);
+  const profileUnavailable = unsupportedProfilePresentation(publicationEvidence);
+  // Typed profile reads never reopen another factual carrier, including safety-blocked Labs.
+  if (typedProfile && !profileLabs && !profileUnavailable) throw new Error("ASK_PROFILE_LABS_UNAVAILABLE");
+  const ordinaryHistory = requiresHistoryPublicationAuthority(publicationEvidence);
+  const candidateLabs = !typedProfile && projectionContext.minimumSafetyLevel !== "urgent"
+    && (!ordinaryHistory || supportedHistoryPublication(publicationEvidence))
+    ? buildLabsList(publicationEvidence, input.careEntries) : null;
+  const authority = ordinaryHistory && candidateLabs ? derivePublicationAuthority(publicationEvidence, candidateLabs.records) : null;
+  const labs = candidateLabs && (!ordinaryHistory || authority?.transportValid
+    && candidateLabs.records.every(row => authority.authorizedSourceIds.includes(row.sourceId))
+    && authority.authorizedSourceIds.every(id => candidateLabs.records.some(row => row.sourceId === id))) ? candidateLabs : null;
+  const unavailable = ordinaryHistory && !labs ? historyPublicationLimitation(publicationEvidence) : null;
+  const projection = !typedProfile && !ordinaryHistory && !profileLabs && !labs && projectionContext.minimumSafetyLevel === "normal" ? deterministicReadProjection(projectionContext.promptContext.evidenceContract,
     detail => console.info("[Ask read projection] decision", detail)) : null;
   logPublicationDispatch(projectionContext.promptContext.evidenceContract,
     input.careEntries.map(row => ({ id: row.id, petId: row.pet_profile_id })),
-    profileLabs || labs ? "labs" : projection ? "legacy_projection" : "model", projectionContext.minimumSafetyLevel);
-  if (profileLabs || labs || projection) {
+    profileLabs || labs ? "labs" : profileUnavailable || unavailable ? "unavailable" : projection ? "legacy_projection" : "model", projectionContext.minimumSafetyLevel);
+  if (profileLabs || labs || projection || unavailable || profileUnavailable) {
     const context = projectionContext;
     const evidence = context.promptContext.evidenceContract;
     const visibleProjection = { sentences: (projection?.sentences || []).map(sentence => ({
@@ -762,17 +777,17 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     })) };
     const ids = profileLabs ? profileFieldSourceIds(profileLabs) : labs ? labs.records.map(row => row.sourceId) : [...new Set(visibleProjection.sentences.flatMap(s=>s.sourceIds))];
     return {
-      answer: {title:"Furvise",summary:profileLabs ? serializeProfileFieldLabs(profileLabs) : labs ? serializeLabsList(labs) : visibleProjection.sentences.map(s=>s.text).join("\n"),sections:[],safetyNote:null}, evidenceContract:evidence,
-      ...(profileLabs ? {profileFieldLabs:profileLabs} : labs ? {labsList:labs} : {historyNarrative:visibleProjection}),historyNarrativeDeclined:false,
+      answer: {title:"Furvise",summary:profileLabs ? serializeProfileFieldLabs(profileLabs) : profileUnavailable ? PROFILE_PRESENTATION_LIMITATION : labs ? serializeLabsList(labs) : unavailable || visibleProjection.sentences.map(s=>s.text).join("\n"),sections:[],safetyNote:null}, evidenceContract:evidence,
+      ...(profileLabs ? {profileFieldLabs:profileLabs} : labs ? {labsList:labs} : unavailable || profileUnavailable ? {} : {historyNarrative:visibleProjection}),historyNarrativeDeclined:false,
       userIntent:"history recall",relevantContextIds:ids,referencedRecords:context.records.filter(record=>ids.includes(record.id)),
       safetyLevel:"normal",shoppingSuppressed:true,suggestedFollowUps:[],applicationActions:[],proposedHistoryUpdate:emptyHistoryUpdate(),
       answerDepth:planAskAnswerDepth({message:input.question,minimumSafetyLevel:"normal",responseMode:"practical_guidance",recentConversation:input.conversationTurns}),
-      responseMode:"practical_guidance",model:profileLabs ? "server-profile-field-labs" : labs ? "server-labs-list" : "server-read-projection",
+      responseMode:"practical_guidance",model:profileLabs ? "server-profile-field-labs" : profileUnavailable ? PROFILE_PRESENTATION_UNAVAILABLE : labs ? "server-labs-list" : unavailable ? "server-history-unavailable" : "server-read-projection",
       messageUnderstanding:{...defaultMessageUnderstanding(input.question),primaryIntent:"question",userIsAskingQuestion:true},
       intelligenceSafety:{...defaultIntelligenceSafety("normal"),shoppingSuppressed:true},
       learnings:[],careActions:[],semanticEvents:[],semanticFrame:emptyProposedSemanticFrame(),semanticFrameValid:true,
       semanticFrameRecovery:{applied:false,reason:"NOT_ATTEMPTED_FRAME_VALID",validationReason:null},
-      intelligenceMetadata:{confidence:"high",usedPetContext:true,usedCareHistory:!profileLabs,usedMemories:false},
+      intelligenceMetadata:{confidence:"high",usedPetContext:true,usedCareHistory:!typedProfile,usedMemories:false},
     };
   }
   const context = buildAskContext(input, true);

@@ -8,7 +8,8 @@ const inline = (s: string) => s.replaceAll("&", "&amp;").replaceAll("<", "&lt;")
   .replace(/[\\`*_{}\[\]()#+|~]/g, "\\$&").replace(/\r?\n/g, " ");
 export function buildProfileFieldLabs(e: AskEvidenceContract | undefined): ProfileFieldLabs | null {
   const projection = profileFieldProjection(e);
-  return projection ? { projection, presentation: labsPresentation(e?.interpretation?.request?.outputFormat) } : null;
+  const presentation = labsPresentation(e?.interpretation?.request?.outputFormat);
+  return projection && presentation ? { projection, presentation } : null;
 }
 export function profileFieldSourceIds(labs: ProfileFieldLabs): string[] {
   return labs.projection.fields.filter(f => f.state !== "unavailable").map(f => f.sourceId);

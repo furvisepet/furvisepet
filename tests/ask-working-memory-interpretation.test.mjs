@@ -107,7 +107,10 @@ test("latest named saved-history weight reaches Brain",async()=>{
   });
   assert.equal(calls,1);
   assert.equal(result.request.evidenceBasis,"saved_history");
-  assert.equal(result.selection,"latest");
+  assert.deepEqual(result.request.readTicket.selection,{groupBy:["subject"],union:[{
+    orderBy:[{field:"event_at",direction:"desc"}],take:{count:1,per:"group"}}]});
+  assert.equal(result.request.readTicket.outputs.strategy,undefined);
+  assert.equal(result.request.readTicket.outputs.limit,null);
   assert.equal(result.topic,"weight");
   assert.deepEqual(result.petIds,["pebble"]);
 });
@@ -142,7 +145,10 @@ test("completed mixed-save companion reaches Brain without authorizing another w
   });
   assert.equal(calls,1);
   assert.equal(result.request.evidenceBasis,"saved_history");
-  assert.equal(result.selection,"latest");
+  assert.deepEqual(result.request.readTicket.selection,{groupBy:["subject"],union:[{
+    orderBy:[{field:"event_at",direction:"desc"}],take:{count:1,per:"group"}}]});
+  assert.equal(result.request.readTicket.outputs.strategy,undefined);
+  assert.equal(result.request.readTicket.outputs.limit,null);
   assert.equal(result.request.task,null);
   assert.deepEqual(result.petIds,["pebble"]);
 });

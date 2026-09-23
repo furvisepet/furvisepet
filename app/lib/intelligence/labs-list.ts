@@ -22,6 +22,9 @@ const snapshots = new WeakMap<LabsList, string>();
 export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: CareEntryRow[]): LabsList | null {
   const request = evidence?.interpretation?.request, ticket = request?.readTicket;
   const coverage = evidence?.history?.ticketCoverage;
+  const presentation = labsPresentation(request?.outputFormat);
+  // Result-set serialization currently supports prose only.
+  if (!presentation || !ticket?.selection && presentation !== "prose") return null;
   logLabsEligibility(evidence, rows.map(row => ({ id: row.id, petId: row.pet_profile_id })));
   if (ticket) console.info("[Ask Labs] dispatch", { operation: ticket.operation, completeness: ticket.outputs.completeness,
     mode: request?.mode, quantity: request?.quantity, outputFormat: request?.outputFormat,
@@ -63,7 +66,7 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
     })) return null;
   const publishable = selection ? rows.filter(row => selection.selectedEventIds.includes(row.id)) : rows;
   const petNames = ticket.selection ? Object.fromEntries(ticket.subjects.petIds.map(id => [id, evidence.petNames?.[id] || "this pet"])) : undefined;
-  const labs: LabsList = structuredClone({ ticket, coverage, calculations: [], ...(petNames ? { petNames, presentation: labsPresentation(request.outputFormat) } : {}), records: publishable.map(row => ({
+  const labs: LabsList = structuredClone({ ticket, coverage, calculations: [], ...(petNames ? { petNames, presentation } : {}), records: publishable.map(row => ({
     id: row.id, sourceId: careEvidenceId(row.id, evidence.history), petId: row.pet_profile_id, event_at: row.occurred_at,
     body: row.note ?? row.title ?? "", predicates_matched: ticket.predicates,
   })) });
@@ -91,7 +94,7 @@ export function serializeLabsList(labs: LabsList): string {
         rows: certificate.selectedEventIds.map(id => labs.records.find(row => row.id === id)!),
         notice: "No matching records were found in this certified selection window." };
     });
-    return renderCertifiedLabs(groups, labs.presentation || "prose",
+    return renderCertifiedLabs(groups, labs.presentation === undefined ? "prose" : labs.presentation,
       exhaustiveSelectionLimitation(labs.ticket.outputs.completeness === "exhaustive", labs.coverage));
   }
   const list = labs.records.map(row => `${row.event_at.slice(0, 10)} — ${JSON.stringify(row.body)}`).join("\n\n");

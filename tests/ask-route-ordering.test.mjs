@@ -12,6 +12,8 @@ test('Cedar: one Brain ticket, no write until click, Heart receipt before real L
  const confirmation=await f.confirm();const result=await confirmation.json();assert.equal(confirmation.status,200);assert.equal(result.action.status,'succeeded');assert.equal(result.changed,true);assert.equal(result.continuation.response.turn.mutationOutcome,'applied');
  assert.equal(f.rows.pet_care_entries.length,3);assert.equal(f.rows.pet_care_entries[2].note,'Cedar refused lunch.');assert.ok(f.rows.ask_action_capabilities[0].receipt);
  assert.ok(result.continuation?.labs,JSON.stringify(result));assert.deepEqual(result.continuation.labs.records.map(r=>r.id),[id(52),id(51)]);
+ assert.deepEqual(result.continuation.labs.ticket,pending.readTicket);
+ assert.deepEqual(result.continuation.labs.ticket.selection,{groupBy:['subject'],union:[{orderBy:[{field:'event_at',direction:'desc'}],take:{count:2,per:'group'}}]});
  assert.match(result.continuation.response.directAnswer,/9\.4 kg[\s\S]*9\.2 kg/);assert.equal(f.state.planner,1);
  assert.ok(f.state.events.indexOf('brain')<f.state.events.indexOf('heart:execute'));assert.ok(f.state.events.indexOf('heart:receipt')<f.state.events.indexOf('read:pet_care_entries'));
  const replay=await(await f.confirm()).json();assert.equal(replay.changed,false);assert.equal(f.rows.pet_care_entries.length,3);assert.equal(f.state.planner,1);
@@ -47,10 +49,18 @@ test('invalid first append ticket rejects once, with no factual read or write',a
   assert.ok(!f.state.events.includes('read:pet_care_entries'));assert.ok(!f.state.events.includes('heart:execute'));
  }
 });
-test('unavailable companion history retains the successful receipt and reports unavailable coverage',async()=>{
+test('unavailable companion history retains the successful receipt and uncertified coverage',async()=>{
  const f=fixture({readFailure:true});assert.equal((await f.send()).status,200);
  const result=await(await f.confirm()).json();assert.equal(result.action.status,'succeeded');assert.equal(f.rows.pet_care_entries.length,3);
- assert.ok(f.rows.ask_action_capabilities[0].receipt);assert.equal(result.continuation.labs.coverage.status,'unavailable');
- assert.deepEqual(result.continuation.labs.records,[]);assert.match(result.continuation.response.directAnswer,/couldn’t retrieve/);
+ assert.ok(f.rows.ask_action_capabilities[0].receipt);
+ const labs=result.continuation.labs;
+ assert.equal(labs.coverage.status,'partial');assert.ok(labs.coverage.reasons.includes('ticket_history_unavailable'));
+ assert.ok(labs.coverage.groups.every(group=>group.clauses.every(clause=>!clause.certified)));
+ assert.deepEqual(labs.records,[]);
+ assert.equal(result.continuation.response.turn.answerOutcome,'limited');assert.equal(result.continuation.response.turn.mutationOutcome,'applied');
+ assert.match(result.continuation.response.directAnswer,/couldn't verify/);
+ assert.match(result.continuation.response.directAnswer,/cannot establish an exhaustive list/);
+ assert.doesNotMatch(result.continuation.response.directAnswer,/9\.[24] kg/);
+ assert.ok(f.state.events.indexOf('heart:receipt')<f.state.events.indexOf('read:pet_care_entries'));
  assert.equal(f.state.planner,1);
 });

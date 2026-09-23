@@ -1,23 +1,104 @@
 import { isTypedProfileRead, profileFieldProjection, profileFieldSentence, type AuthorizedProfileField } from "./profile-field-authority.ts";
 import { careEvidenceId, eligibleAnswerSources, type AskEvidenceContract } from "./ask-evidence.ts";
 import { selectionPublication } from "./selection-publication.ts";
+import { resultSetSnapshotMatches } from "./result-set-publication.ts";
+import { labsPresentation } from "./labs-presentation.ts";
 import { buildEvidenceNeedCoverage } from "./evidence-need-coverage.ts";
 import { historyNarrativeAnchorsSupported } from "./history-narrative-facts.ts";
 import type { HistoryObligation, ObligationCompletion } from "./history-obligations.ts";
 import type { HistoryNarrative } from "./history-narrative.ts";
 
 export type PublicationObligationAuthority = {
-  obligationId: string; authority: "certified" | "existing_policy" | "composite";
+  obligationId: string; authority: "certified" | "existing_policy" | "composite" | "unavailable";
   authorizedSourceIds: string[]; certifiedRecordIds: string[];
-  certificateType: "selection" | null; status: string;
+  certificateType: "selection" | "result_set" | null; status: string;
   fieldProjection?: AuthorizedProfileField; sourceDomain?: "saved_profile";
   subjectId?: string; clauseId?: number; profileField?: string; needId?: string;
 };
 export type PublicationAuthorityClaim = { obligationId: string; text: string; sourceIds: string[] };
 const unique = (ids: string[]) => [...new Set(ids)];
+/** The domain boundary is typed; unsupported operations must not escape it. */
+export function requiresHistoryPublicationAuthority(evidence: AskEvidenceContract | undefined): boolean {
+  return isOrdinarySavedHistoryRequest(evidence?.interpretation?.request);
+}
+export function isOrdinarySavedHistoryRequest(request: { mode?: string | null; evidenceBasis?: string | null } | undefined): boolean {
+  return request?.mode === "read" && request.evidenceBasis === "saved_history";
+}
+export function supportedHistoryPublication(evidence: AskEvidenceContract): boolean {
+  const request = evidence.interpretation?.request, ticket = request?.readTicket;
+  const presentation = labsPresentation(request?.outputFormat);
+  return !!ticket && evidence.scope.readOnlyRecall && evidence.scope.status === "resolved"
+    && !request?.writeJob && !request?.appendJob && !request?.mutationIntent && !request?.task
+    && !request?.projection && !request?.profileFields?.length && !request?.evidenceNeeds?.length && !request?.requirements?.length
+    && presentation !== null && (!!ticket.selection || presentation === "prose")
+    && !ticket.needs?.length && !ticket.episode && !ticket.temporal.calendar && ticket.outputs.strategy == null
+    && ["read", "read_since_event"].includes(ticket.operation)
+    && ["records", "measurement"].includes(request?.quantity || "")
+    && [undefined, "recall"].includes(evidence.interpretation?.readOperation ?? evidence.interpretation?.operation)
+    && ticket.subjects.petIds.length > 0
+    && ticket.subjects.petIds.every(id => evidence.scope.authorizedPetIds.includes(id));
+}
+// A publication transport is distinct from prompt representation. Its rows
+// acquire authority only by matching existing organ receipts; Labs callers also
+// verify the existing immutable snapshot before accepting this derived view.
+export type PublicationRecordTransport = { id: string; sourceId: string; petId: string; body: string; event_at: string };
+function deriveOrdinaryHistoryAuthority(evidence: AskEvidenceContract, transport?: readonly PublicationRecordTransport[]) {
+  const ticket = evidence.interpretation?.request?.readTicket, coverage = evidence.history?.ticketCoverage;
+  const sources = transport === undefined
+    ? eligibleAnswerSources(evidence).filter(s => s.sourceType === "care_update")
+    : transport.map(row => ({ sourceId: row.sourceId, petId: row.petId, sourceType: "care_update",
+      field: "value" as const, text: row.body, start: 0, end: row.body.length, occurredAt: row.event_at }));
+  const subjectIds = ticket?.subjects.petIds || evidence.scope.authorizedPetIds;
+  const unavailable = (status: string) => ({
+    obligations: subjectIds.map<PublicationObligationAuthority>(subjectId => ({ obligationId: `history:${subjectId}`,
+      authority: "unavailable" as const, certificateType: null, subjectId, status,
+      authorizedSourceIds: [] as string[], certifiedRecordIds: [] as string[] })),
+    authorizedSourceIds: [] as string[], sources: [] as typeof sources,
+    ticket, subjectIds, transportValid: false,
+  });
+  if (!supportedHistoryPublication(evidence)) return unavailable("unsupported");
+  if (!coverage) return unavailable("unavailable");
+  if (transport && (new Set(transport.map(row => row.id)).size !== transport.length
+    || transport.some(row => !subjectIds.includes(row.petId)
+      || row.sourceId !== careEvidenceId(row.id, evidence.history))))
+    return unavailable("unavailable");
+  const represented = (id: string, petId: string) =>
+    sources.some(s => s.sourceId === careEvidenceId(id, evidence.history) && s.petId === petId);
+  let obligations: PublicationObligationAuthority[], transportValid: boolean;
+  if (ticket!.selection) {
+    const records = transport || coverage.groups?.flatMap(g => g.selectedIds.filter(id => represented(id, g.petId))
+      .map(id => ({ id, petId: g.petId }))) || [];
+    const selected = selectionPublication(ticket!, coverage, records)!;
+    transportValid = selected.transportValid;
+    obligations = selected.certificates.map(c => ({
+      obligationId: `selection:${c.subjectId}:${c.clauseId}`, subjectId: c.subjectId, clauseId: c.clauseId,
+      authority: c.certified ? "certified" : "unavailable", certificateType: "selection", status: c.status,
+      authorizedSourceIds: c.certified ? c.selectedEventIds.map(id => careEvidenceId(id, evidence.history)) : [],
+      certifiedRecordIds: c.certified ? [...c.selectedEventIds] : [],
+    }));
+  } else {
+    const proof = coverage.resultSet;
+    if (!proof) return unavailable("unavailable");
+    const records = transport || proof.retainedIds.flatMap(id => proof.subjects.filter(s => s.retainedIds.includes(id))
+      .filter(s => represented(id, s.petId)).map(s => ({ id, petId: s.petId })));
+    transportValid = resultSetSnapshotMatches(ticket!, coverage, records);
+    if (!transportValid || !proof.certified) return unavailable(coverage.status === "unavailable" ? "unavailable" : "partial");
+    obligations = proof.subjects.map(s => ({
+      obligationId: `result_set:${s.petId}`, subjectId: s.petId, authority: "certified",
+      certificateType: "result_set", status: s.retainedIds.length ? "complete" : "complete_empty",
+      authorizedSourceIds: s.retainedIds.map(id => careEvidenceId(id, evidence.history)),
+      certifiedRecordIds: [...s.retainedIds],
+    }));
+  }
+  if (!obligations.length) return unavailable("unavailable");
+  const authorizedSourceIds = unique(obligations.flatMap(o => o.authorizedSourceIds));
+  return { obligations, authorizedSourceIds, sources: sources.filter(s => authorizedSourceIds.includes(s.sourceId)),
+    ticket, subjectIds, transportValid };
+}
 // Recomputed from the existing ticket/organ receipts and represented source
 // versions. Never persisted as a new factual or certification store.
-export function derivePublicationAuthority(evidence: AskEvidenceContract | undefined) {
+export function derivePublicationAuthority(evidence: AskEvidenceContract | undefined, transport?: readonly PublicationRecordTransport[]) {
+  if (evidence && requiresHistoryPublicationAuthority(evidence)) return deriveOrdinaryHistoryAuthority(evidence, transport);
   const ticket = evidence?.interpretation?.request?.readTicket, coverage = evidence?.history?.ticketCoverage;
   if (evidence && isTypedProfileRead(evidence)) {
     const projection = profileFieldProjection(evidence);
@@ -72,13 +153,16 @@ export function derivePublicationAuthority(evidence: AskEvidenceContract | undef
     ticket, subjectIds: ticket.subjects.petIds, transportValid: selected.transportValid };
 }
 export function publicationSources(evidence: AskEvidenceContract) {
-  return derivePublicationAuthority(evidence)?.sources || eligibleAnswerSources(evidence);
+  const authority = derivePublicationAuthority(evidence);
+  return authority?.sources || (requiresHistoryPublicationAuthority(evidence) ? [] : eligibleAnswerSources(evidence));
 }
 export function bindPublicationObligations(evidence: AskEvidenceContract, existing: readonly HistoryObligation[]) {
   const authority = derivePublicationAuthority(evidence);
   if (!authority) return { obligations: [...existing], bindings: new Map<number, PublicationObligationAuthority>() };
   const bindings = new Map<number, PublicationObligationAuthority>();
-  const obligations = [...existing];
+  const obligations: HistoryObligation[] = requiresHistoryPublicationAuthority(evidence)
+    ? [{ index: 0, text: JSON.stringify({ requirement: "Present only bound historical results", readTicket: authority.ticket }) }]
+    : [...existing];
   bindings.set(0, { obligationId: "obligation_0", authority: "composite", certificateType: null,
     status: "requires_components", authorizedSourceIds: authority.authorizedSourceIds,
     certifiedRecordIds: unique(authority.obligations.flatMap(o => o.certifiedRecordIds)) });
@@ -100,13 +184,13 @@ export function bindPublicationObligations(evidence: AskEvidenceContract, existi
   return { obligations, bindings };
 }
 export const PUBLICATION_AUTHORITY_POLICY =
-  "publicationAuthority binds each factual obligation to its own permitted source IDs. A source available for another obligation cannot satisfy this one. Certified selection claims must use the selected historical sources, never current profile substitutes. Preserve their exact values, dates and subjects. Separate independent obligations into separately cited chunks/rows; do not combine sources from different obligations into one claim. Coverage certificates authorize only their bounded selection, never exhaustive history, absence, counts or new calculations. Uncertified obligations remain under existing evidence/coverage rules.";
+  "publicationAuthority binds each factual obligation to its own permitted source IDs. A source available for another obligation cannot satisfy this one. Certified selection claims must use the selected historical sources, never current profile substitutes. Preserve their exact values, dates and subjects. Separate independent obligations into separately cited chunks/rows; do not combine sources from different obligations into one claim. Coverage certificates authorize only their bounded selection, never exhaustive history, absence, counts or new calculations. Uncertified ordinary saved-history obligations authorize no factual claims. Other domains retain their existing evidence rules.";
 export function publicationGenerationContext(evidence: AskEvidenceContract, original: object): object {
   const authority = derivePublicationAuthority(evidence);
   if (!authority) return original;
   // Rebuild the factual payload rather than retaining hidden alternatives in
   // profile snapshots, record inventories, old dialogue or duplicate contexts.
-  return { question: evidence.scope.requestText, request: evidence.interpretation?.request,
+  return { ...(requiresHistoryPublicationAuthority(evidence) ? {} : { question: evidence.scope.requestText, request: evidence.interpretation?.request }),
     pets: authority.subjectIds.map(id => ({ id, name: evidence.petNames?.[id] })),
     publicationAuthority: authority.obligations, readTicket: authority.ticket,
     contextRecords: authority.sources.map(s => ({ id: s.sourceId, sourceId: s.sourceId, sourceType: s.sourceType,
@@ -132,7 +216,10 @@ export function publicationClaimFailures(evidence: AskEvidenceContract, claims: 
         failures.push("publication_profile_field_drift:" + binding.obligationId);
       continue;
     }
-    if (binding.authority !== "certified") continue;
+    if (binding.authority !== "certified") {
+      if (requiresHistoryPublicationAuthority(evidence)) failures.push("publication_obligation_not_certified:" + binding.obligationId);
+      continue;
+    }
     const cited = authority.sources.filter(s => claim.sourceIds.includes(s.sourceId));
     if (binding.status === "unavailable" || cited.length !== unique(claim.sourceIds).length
       || !claim.sourceIds.length && binding.status !== "complete_empty") {

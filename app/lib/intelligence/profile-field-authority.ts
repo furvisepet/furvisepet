@@ -33,10 +33,6 @@ export function isTypedProfileRead(e: AskEvidenceContract | undefined): boolean 
   return !!e && e.scope.status === "resolved" && e.scope.readOnlyRecall && e.scope.authorizedPetIds.length > 0
     && r?.mode === "read" && r.evidenceBasis === "saved_profile" && !r.readTicket && !r.writeJob && !r.mutationIntent
     && !r.task && !r.projection && !r.quantity && !r.evidenceNeeds?.length
-    // Custom JSON may request keys that the planner omitted from profileFields.
-    // Keep that mixed/unmigrated contract on the existing model path until the
-    // structured-output contract can prove every requested field explicitly.
-    && r.outputFormat !== "json"
     && !!r.profileFields?.length && r.profileFields.every(f => Object.hasOwn(PROFILE_FIELD_DEFINITIONS, f));
 }
 /** Only the owned loader's rows and bound request enter here, never model JSON or proposals. */

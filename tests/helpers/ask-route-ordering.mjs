@@ -32,7 +32,7 @@ export const id=n=>`89100000-0000-4000-8000-${String(n).padStart(12,'0')}`;
 export const cedar='log that Cedar refused lunch. what are his last two weights';
 export function proposal(message=cedar){return {version:'ask-request.v2',mode:'mixed',question:message,requirements:[],referenceTurnIds:[],scope:'selected',petNames:[],operation:'recall',selection:'latest',quantity:'records',topic:'weight',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:null,task:null,writeJob:null,evidenceBasis:'saved_history',premiseQuotes:[],
  appendJob:{operation:'append',petName:'Cedar',bodyQuote:'Cedar refused lunch.',companionQuote:'what are his last two weights'},
- readTicket:{operation:'read',subjectScope:'selected',temporal:{from:null,to:null,anchor:null},predicates:[{kind:'text_any',terms:['weight','weighed']}],outputs:{completeness:'exhaustive',ordering:'desc',limit:2}}};}
+ readTicket:{operation:'read',subjectScope:'selected',temporal:{from:null,to:null,anchor:null},predicates:[{kind:'text_any',terms:['weight','weighed']}],selection:{groupBy:['subject'],union:[{orderBy:[{field:'event_at',direction:'desc'}],take:{count:2,per:'group'}}]},outputs:{completeness:'exhaustive',ordering:'desc',limit:null}}};}
 function handler(path,names,scope,entry='POST'){const source=readFileSync(new URL(path,import.meta.url),'utf8');const ast=ts.createSourceFile(path,source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);
  const code=ast.statements.filter(n=>ts.isFunctionDeclaration(n)&&names.includes(n.name?.text)).map(n=>n.getText(ast).replace(/^export /,'')).join('\n');
  return vm.runInNewContext(ts.transpileModule(code,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText+'\n'+entry,scope);}

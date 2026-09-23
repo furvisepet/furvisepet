@@ -1,4 +1,5 @@
 import { buildFurvisePlanningContext } from "../../lib/intelligence/planning-context.ts";
+import { isOrdinarySavedHistoryRequest } from "../../lib/intelligence/publication-authority.ts";
 import { prepareAppendTurn } from "../../lib/intelligence/append-turn.ts";
 import { resolveReplaceJob } from "../../lib/furvise-brain/replace-job.ts";
 import { careHistoryCorrectionOrchestration } from "../../lib/ai/ask-command-router.ts";
@@ -579,7 +580,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         ? durableLifecycleStatus
         : null;
 
-      if (!interpretation.request?.writeJob && !interpretation.clarification && !interpretation.conversationOnly) {
+      if (!isOrdinarySavedHistoryRequest(interpretation.request) && !interpretation.request?.writeJob && !interpretation.clarification && !interpretation.conversationOnly) {
         let lifecycleOrchestration;
         const conditionalSafety = conditionalEmergencyGuidance(question);
         if (conditionalSafety) {

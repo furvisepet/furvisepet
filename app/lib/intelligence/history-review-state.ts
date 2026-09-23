@@ -1,3 +1,4 @@
+import { unsupportedProfilePresentation, profilePresentationLimitationFailure, PROFILE_PRESENTATION_UNAVAILABLE, PROFILE_PRESENTATION_LIMITATION } from "./profile-presentation-limitation.ts";
 import type { FurviseApplicationAction } from "../application-actions/types.ts";
 import type { ObligationCompletion } from "./history-obligations.ts";
 import type { AskReasoningResult } from "../ai/ask-reasoning.ts";
@@ -13,10 +14,24 @@ export function recordHistoryReview(result: AskReasoningResult, receipt: Receipt
 export function readReviewedHistoryAnswer(result: AskReasoningResult): Omit<Receipt, "signature"> | null {
   const receipt = reviewed.get(result);
   if (!receipt || receipt.signature !== historyReviewSignature(result)) return null;
-  const authority = result.labsList || result.profileFieldLabs ? null : derivePublicationAuthority(result.evidenceContract);
-  if (authority && (!receipt.authorityClaims?.length
-    || authority.obligations.some(o => !receipt.authorityClaims!.some(c => c.obligationId === o.obligationId))
-    || publicationClaimFailures(result.evidenceContract!, receipt.authorityClaims).length)) return null;
+  const profileLimitation = unsupportedProfilePresentation(result.evidenceContract) || result.model === PROFILE_PRESENTATION_UNAVAILABLE;
+  // This exact no-fact result uses the existing receipt; certified factual obligations still require claims below.
+  if (profileLimitation && (profilePresentationLimitationFailure(result)
+    || receipt.text !== PROFILE_PRESENTATION_LIMITATION || receipt.sourceIds.length
+    || receipt.authorityClaims?.length || receipt.actions?.length || receipt.completion?.length
+    || receipt.sourceContent?.length || receipt.sourceReports?.length || receipt.proseText !== undefined)) return null;
+  const authority = profileLimitation || result.labsList || result.profileFieldLabs ? null : derivePublicationAuthority(result.evidenceContract);
+  if (authority) {
+    const claims = receipt.authorityClaims || [];
+    // Unavailable is an explicit no-fact outcome, not a certified empty result.
+    // The same receipt can cover it without inventing a factual authority claim.
+    const claimBearing = authority.obligations.filter(o => o.authority !== "unavailable");
+    const unavailable = authority.obligations.filter(o => o.authority === "unavailable");
+    if (claimBearing.some(o => !claims.some(c => c.obligationId === o.obligationId))
+      || unavailable.some(o => o.authorizedSourceIds.length || claims.some(c => c.obligationId === o.obligationId))
+      || receipt.sourceIds.some(id => !claimBearing.some(o => o.authorizedSourceIds.includes(id)))
+      || publicationClaimFailures(result.evidenceContract!, claims).length) return null;
+  }
   return { ...(receipt.authorityClaims ? { authorityClaims: structuredClone(receipt.authorityClaims) } : {}), ...(receipt.actions ? { actions: structuredClone(receipt.actions) } : {}), ...(receipt.completion ? { completion: structuredClone(receipt.completion) } : {}), text: receipt.text, sourceIds: [...receipt.sourceIds], ...(receipt.proseText !== undefined ? { proseText: receipt.proseText } : {}), ...(receipt.sourceReports ? { sourceReports: [...receipt.sourceReports] } : {}), ...(receipt.sourceContent ? { sourceContent: [...receipt.sourceContent] } : {}) };
 }
 
