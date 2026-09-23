@@ -72,6 +72,8 @@ test("model explicitIntent cannot authorize negated, ambiguous, or generic user 
       sourceMessage: "Could this resolve on its own?",
     }),
   ];
+  assert.equal(cases.shift(), undefined, "model profile proposals cannot become capabilities");
+  assert.deepEqual(cases.splice(1), [undefined, undefined], "model concern proposals cannot mint a transition");
   for (const action of cases) {
     assert.ok(action);
     assert.equal(action.explicitIntent, false);
@@ -88,10 +90,9 @@ test("deterministic authority requires the exact action type, value, and pet sem
     kind: "pet.update_profile",
     sourceMessage: "Please change Mani's weight to 4.2 kg.",
   });
-  assert.equal(exact.explicitIntent, true, "model false cannot veto deterministic user authority");
-  assert.equal(shouldAutoExecuteAction(exact), true);
+  assert.equal(exact, undefined, "raw exact commands do not replace a bound profile job");
 
-  for (const action of [
+  const conflicting = [
     modelAction({
       evidence: "Change Luna's weight to 4.2 kg",
       input: { field: "weight", value: "4.2 kg", target: "selected" },
@@ -110,13 +111,13 @@ test("deterministic authority requires the exact action type, value, and pet sem
       kind: "care_state.reopen",
       sourceMessage: "Mark it resolved.",
     }),
-  ]) {
-    assert.equal(action.explicitIntent, false);
-    assert.equal(shouldAutoExecuteAction(action), false);
-  }
+  ];
+  assert.equal(conflicting[0], undefined);
+  assert.equal(conflicting[1], undefined);
+  assert.equal(conflicting[2], undefined, "raw transition wording cannot bind a concern");
 });
 
-test("clearly scoped low-risk commands retain their intended auto-execution policy", () => {
+test("model-shaped commands cannot grant automatic execution after canonical job binding", () => {
   const exactCommands = [
     modelAction({
       evidence: "answer in English",
@@ -143,9 +144,11 @@ test("clearly scoped low-risk commands retain their intended auto-execution poli
       sourceMessage: "Reopen that concern.",
     }),
   ];
+  assert.equal(exactCommands.shift(), undefined, "preference prose cannot substitute for a canonical field job");
+  assert.deepEqual(exactCommands.splice(1), [undefined, undefined], "transition auto policy requires a canonical job");
   for (const action of exactCommands) {
-    assert.equal(action.explicitIntent, true);
-    assert.equal(shouldAutoExecuteAction(action), true);
+    assert.equal(action.explicitIntent, false);
+    assert.equal(shouldAutoExecuteAction(action), false);
   }
 });
 
@@ -172,8 +175,10 @@ test("model metadata cannot broaden intent or change the server-owned confirmati
 
 test("capability creation independently re-derives authority from persisted user text", () => {
   assert.match(capability, /loadAuthoritativeSourceMessage/);
-  assert.match(capability, /select\("user_text"\)/);
-  assert.match(capability, /hasDeterministicUserMutationIntent\(\{ action, petName, sourceMessage \}\)/);
+  assert.match(capability, /select\("user_text,created_at"\)/);
+  assert.match(capability, /bindFieldMutationJob\(fieldMutationJobProposal\(job, petName\)/);
+  assert.match(capability, /isDeepStrictEqual\(rebound, job\)/);
+  assert.match(capability, /FIELD_CAPABILITY_JOB_REQUIRED/);
   assert.match(capability, /explicit_intent: authoritativeAction\.explicitIntent/);
   assert.doesNotMatch(capability, /explicit_intent: action\.explicitIntent/);
   assert.match(migration, /p_mode = 'auto'[\s\S]*v\.explicit_intent/);

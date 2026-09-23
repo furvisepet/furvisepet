@@ -3,7 +3,9 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { resolveAskPetSelection } from "../app/lib/ask-pet-selection.ts";
 import { activePetsOnly, featureRequiresActivePet, getPetLifecycleStatus } from "../app/lib/pet-lifecycle.ts";
-import { executeFurviseApplicationAction, prepareFurviseApplicationActions } from "../app/lib/application-actions/index.ts";
+import { bindLifecyclePlan } from "../app/lib/furvise-brain/lifecycle-plan.ts";
+import { prepareBoundLifecycleAction } from "../app/lib/application-actions/planner.ts";
+import { authorizeFurviseActionExecution } from "../app/lib/furvise-brain/action-organ.ts";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const migrationPath = "supabase/migrations/20260818084249_add_pet_profile_lifecycle_v1.sql";
@@ -29,53 +31,23 @@ test("server-owned transition timestamps preserve death provenance on correction
   assert.match(migration, /new\.lifecycle_status = 'deceased'[\s\S]*new\.deceased_at := v_changed_at/);
   assert.match(migration, /Reacti(?:vation|vation)[\s\S]*preserve[\s\S]*new\.deceased_at := old\.deceased_at/i);
   assert.match(migration, /deceased_at is null or deceased_at <= lifecycle_changed_at/);
-  assert.doesNotMatch(read("app/lib/application-actions/executor.ts"), /status === "deceased" \? now : null/);
+  assert.doesNotMatch(read("app/lib/application-actions/index.ts"), /executor\.ts/);
 });
 
-test("Ask lifecycle actions verify server results and never clear deceased provenance on reactivation", async () => {
-  const updates = [];
-  const history = [];
-  class Query {
-    constructor(table) { this.table = table; this.value = null; this.filters = {}; }
-    update(value) { this.value = value; updates.push(value); return this; }
-    select() { return this; }
-    eq(field, value) { this.filters[field] = value; return this; }
-    is() { return this; }
-    limit() { return this; }
-    maybeSingle() {
-      if (this.table === "pet_care_entries") return Promise.resolve({ data: history.find((row) => row.source === this.filters.intelligence_source_message_id) || null, error: null });
-      if (!this.value) return Promise.resolve({ data: { id: "pet-mani" }, error: null });
-      const status = this.value.lifecycle_status;
-      return Promise.resolve({ data: {
-        id: "pet-mani", name: "Mani", lifecycle_status: status, lifecycle_changed_at: "2026-08-18T12:00:00Z",
-        deceased_at: status === "deceased" ? "2026-08-18T12:00:00Z" : "2026-08-18T12:00:00Z",
-      }, error: null });
-    }
-  }
-  const supabase = {
-    from(table) { assert.ok(["dog_profiles", "pet_care_entries"].includes(table)); return new Query(table); },
-    async rpc(name, input) {
-      assert.equal(name, "persist_furvise_intelligence");
-      assert.equal(input.p_learnings.length, 0);
-      assert.equal(input.p_care_actions.length, 1);
-      history.push({ id: "death-history", source: input.p_source_message_id });
-      return { data: [{ care_entries_created: 1 }], error: null };
-    },
-  };
-  const makeAction = (kind, evidence) => prepareFurviseApplicationActions({
-    petId: "pet-mani", petName: "Mani", requestId: `request-${kind}`,
-    proposals: [{ kind, explicitIntent: true, evidence, input: { field: null, value: null, title: null, detail: null, category: null, target: "selected" } }],
-  })[0];
-  const deceased = await executeFurviseApplicationAction({ action: makeAction("pet.mark_deceased", "Mani died today"), confirmed: true, sourceMessageId: "message-1", supabase, userId: "user-1" });
-  const repeatedDeceased = await executeFurviseApplicationAction({ action: makeAction("pet.mark_deceased", "Mani died today"), confirmed: true, sourceMessageId: "message-1", supabase, userId: "user-1" });
-  const active = await executeFurviseApplicationAction({ action: makeAction("pet.mark_active", "Mark Mani active again"), confirmed: true, sourceMessageId: "message-2", supabase, userId: "user-1" });
-  assert.equal(deceased.action.status, "succeeded");
-  assert.equal(repeatedDeceased.action.status, "succeeded");
-  assert.equal(active.action.status, "succeeded");
-  assert.equal(history.length, 1);
-  assert.equal(typeof updates[0].deceased_at, "string");
-  assert.equal(Object.hasOwn(updates[2], "deceased_at"), false);
-  assert.equal(Object.hasOwn(updates[2], "lifecycle_changed_at"), false);
+test("Ask lifecycle transitions use capabilities; durable SQL preserves prior death provenance",()=>{
+ const pet={id:"pet-mani",name:"Mani",user_id:"user-1",lifecycle_status:"deceased"};
+ const text="Apply the requested transition.",context={owner:{userId:"user-1"},eligiblePets:[pet],
+  currentMessage:text,currentTurn:{id:"source",role:"user",text},lifecycleActionState:{ownerId:"user-1",complete:true,actions:[]}};
+ const plan=bindLifecyclePlan({pendingDisposition:"keep",transition:{targetPetName:"Mani",toState:"active"},
+  requiredSubjectState:null,authorizationQuote:text},context);
+ const action=prepareBoundLifecycleAction(plan,"r");
+ assert.equal(action.kind,"pet.mark_active");assert.equal(action.confirmationPolicy,"always");
+ assert.throws(()=>authorizeFurviseActionExecution({action,capabilityId:"cap",mode:"auto"}),/CONFIRMATION|AUTO_NOT_AUTHORIZED/);
+ const sql=read("supabase/migrations/20260923072555_preserve_canonical_replace_body_fidelity.sql");
+ const start=sql.indexOf("  elsif v_error is null and v.action_kind in ('pet.mark_deceased'"),end=sql.indexOf("  elsif v_error is null then",start),branch=sql.slice(start,end);
+ assert.match(branch,/when 'pet.mark_active' then 'active'/);
+ assert.doesNotMatch(branch,/deceased_at\s*=/);
+ assert.match(migration,/new\.deceased_at := old\.deceased_at/);
 });
 
 test("reactivation is append-only audited with owner-only RLS", () => {
@@ -106,7 +78,7 @@ test("lifecycle audit functions are private, non-callable, and attribution is ro
 test("deletion and account deletion remain separate cascade operations", () => {
   assert.match(migration, /pet_profile_id uuid not null references public\.dog_profiles\(id\) on delete cascade/);
   assert.match(migration, /user_id uuid not null references auth\.users\(id\) on delete cascade/);
-  assert.match(read("app/lib/application-actions/executor.ts"), /case "pet\.delete_permanently"[\s\S]*deletePet/);
+  assert.doesNotMatch(read("app/lib/application-actions/index.ts"), /executor\.ts/);
   assert.match(read("app/api/pets/[id]/route.ts"), /\.rpc\("delete_pet_profile_for_user"/);
   assert.match(read("supabase/migrations/20260821021825_harden_entitlement_and_pet_data_boundaries.sql"), /delete from public\.dog_profiles[\s\S]*where id = p_pet_id and user_id = p_user_id/);
 });

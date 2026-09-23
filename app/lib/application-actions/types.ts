@@ -58,6 +58,11 @@ export type FurviseApplicationAction = Omit<ModelApplicationAction, "explicitInt
   id: string;
   petId: string;
   sourceMessageId?: string | null;
+  /** Server-bound canonical append obligations persisted with the immutable capability. */
+  appendJob?: import("../furvise-brain/append-job.ts").AppendJob;
+  replaceJob?: import("../furvise-brain/replace-job.ts").ReplaceJob;
+  stateTransitionJob?: import("../furvise-brain/state-transition-job.ts").StateTransitionJob;
+  fieldMutationJob?: import("../furvise-brain/field-mutation-job.ts").FieldMutationJob;
   /** Server-derived authorization from the persisted user message and exact action semantics. */
   explicitIntent: boolean;
   safetyClass: FurviseActionSafetyClass;

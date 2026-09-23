@@ -133,8 +133,9 @@ export type FurviseMemoryRow = {
 };
 
 export type AskOperationReceipt = { sourceMessageId: string; petId: string; requestText: string;
+  requestedItems?: ReadonlyArray<{ sourceSpanId: string; body: string; occurredAt: string | null; petId: string; sourceMessageId: string }>;
   actionReceipts?: Array<{ id: string; kind: string; status: string; resultMessage: string | null }>;
-  answerPersisted: boolean; records: Array<{ id: string; note: string; occurredAt: string }> };
+  answerPersisted: boolean; records: Array<{ id: string; note: string; occurredAt: string; petId?: string; sourceMessageId?: string; sourceSpanId?: string }> };
 export type IntelligenceConversationTurn = {
   /** Recovered for readback only; cannot become a new mutation source. */
   recoveredReceiptReference?: boolean;
@@ -148,6 +149,9 @@ export type IntelligenceConversationTurn = {
 };
 
 export type FurviseLiveContext = {
+  /** Owner-scoped capabilities loaded from server state, never assistant prose. */
+  concernReferences?: import("../furvise-brain/state-transition-job.ts").ConcernReference[];
+  lifecycleActionState?: import("../furvise-brain/lifecycle-plan.ts").LifecycleActionState;
   ownerNoteSpans?: ReturnType<typeof import("./owner-note-request.ts").ownerNoteSourceSpans>;
   /** Explicit read-publication obligations for bounded direct callers. */
   evidenceReadProposal?: import("./evidence-read-ticket.ts").EvidenceReadProposal;

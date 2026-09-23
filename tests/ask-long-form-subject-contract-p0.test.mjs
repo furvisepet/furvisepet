@@ -11,10 +11,10 @@ import { enforceVerifiedStateClaims } from "../app/lib/application-actions/state
 import { prepareFurviseApplicationActions } from "../app/lib/application-actions/planner.ts";
 import { buildFurviseClarification } from "../app/lib/furvise-output.ts";
 import {
-  resolveAskTurnSubject,
   resolveAuthoritativeTurnSubject,
   resolveDeterministicTurnSubject,
 } from "../app/lib/intelligence/entities/resolve-turn-subject.ts";
+import { resolveAskTurnSubject } from "./helpers/precanonical-subject.mjs";
 import { SEMANTIC_FRAME_SCHEMA_VERSION } from "../app/lib/intelligence/semantic-frame/types.ts";
 
 const mani = { id: "pet-mani", name: "Mani", species: "cat", sex: "female", age_value: 4, age_unit: "years" };
@@ -24,7 +24,7 @@ const baseAnswer = { title: "A steadier way to respond", summary: "Pause before 
 
 const productionRegression = "I need real advice. Lately she’s been super affectionate one minute and then bites me hard the next. She follows me around the house crying if I go into another room, but when I try to pet her she gets overstimulated really fast. I’m starting to feel frustrated and then I feel guilty about it. How do I handle this without making things worse?";
 
-test("the production resolver stage deterministically keeps long owner-emotion input on the one compatible selected pet", async () => {
+test("pre-canonical entity grounding keeps long owner-emotion input on the one compatible selected pet", async () => {
   let extractionCalls = 0;
   const decision = await resolveAskTurnSubject({
     extractFrame: async () => {
@@ -161,7 +161,7 @@ test("one-name clarification copy and empty verified-state fallback never imply 
 
 test("the live Ask route uses the canonical resolver before reasoning and never reconstructs a one-name extraction fallback", () => {
   const route = readFileSync(new URL("../app/api/ask/route.ts", import.meta.url), "utf8");
-  const resolver = route.indexOf("await resolveAskTurnSubject");
+  const resolver = route.indexOf("readInterpretationSubject(interpretation");
   const reasoning = route.indexOf("await generateAskHistoryAnswer");
   assert.ok(resolver >= 0 && reasoning > resolver);
   assert.match(route, /liveContext\.eligiblePets\.length >= 2[\s\S]*buildSubjectClarificationOrchestration/);

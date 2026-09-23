@@ -269,7 +269,9 @@ test('publication preserves meaningful spaces in structured cells without option
 test('receipt completion requires every exact requested record and never trusts an assistant answer', () => {
   const requestText='Save two separate notes: January 2, 2026: walked 12 minutes. January 4, 2026: walked 18 minutes.';
   const records=[{id:'one',note:'January 2, 2026: walked 12 minutes.',occurredAt:'2026-01-02T00:00:00Z'}, {id:'two',note:'January 4, 2026: walked 18 minutes.',occurredAt:'2026-01-04T00:00:00Z'}];
-  const receipt={sourceMessageId:'turn',petId:'pet',requestText,answerPersisted:true,records};
+  const requestedItems=records.map((r,i)=>({sourceSpanId:'turn:item:'+i,body:r.note,occurredAt:r.occurredAt,petId:'pet',sourceMessageId:'turn'}));
+  records.forEach((r,i)=>Object.assign(r,{petId:'pet',sourceMessageId:'turn',sourceSpanId:requestedItems[i].sourceSpanId}));
+  const receipt={sourceMessageId:'turn',petId:'pet',requestText,answerPersisted:true,requestedItems,records};
   assert.match(receiptCompletionText(receipt),/^All 2 requested notes/);
   assert.match(receiptCompletionText({...receipt,records:records.slice(1)}),/^1 of 2/);
   assert.match(receiptCompletionText({...receipt,records:[records[0],records[0]]}),/^1 of 2/);

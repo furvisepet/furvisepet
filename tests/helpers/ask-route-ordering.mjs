@@ -39,7 +39,7 @@ function handler(path,names,scope,entry='POST'){const source=readFileSync(new UR
 export function fixture(options={}){
  const events=[],errors=[];const state={planner:0,confirmed:false,options,events,errors,traces:[],credit:null};
  const pet={id:id(11),user_id:id(1),name:'Cedar',species:'dog',lifecycle_status:'active',sex:'male'};
- const rows={dog_profiles:[pet],ask_conversations:[{id:id(21),user_id:id(1),pet_profile_id:pet.id}],ask_conversation_messages:[],ask_action_capabilities:[],pet_care_entries:[]};
+ const rows={dog_profiles:[pet],ask_conversations:[{id:id(21),user_id:id(1),pet_profile_id:pet.id}],ask_conversation_messages:[],ask_action_capabilities:[],pet_care_entries:[],pet_concerns:[]};
  const care=(n,date,note)=>({id:id(n),user_id:id(1),pet_profile_id:pet.id,category:'general',title:null,note,occurred_at:date,created_at:date,updated_at:date,deleted_at:null});
  rows.pet_care_entries.push(care(51,'2025-06-15T12:00:00Z','Cedar weighed 9.2 kg.'),care(52,'2025-07-15T12:00:00Z','Cedar weighed 9.4 kg.'));
  function query(table){let filters=[],sort=[],offset=0,limit=Infinity,insert=null;const q={
@@ -55,7 +55,8 @@ export function fixture(options={}){
  if(options.dbFailure)return {data:null,error:{code:'42501'}};
  const changed=cap.status==='pending'&&args.p_mode==='confirm';const status=args.p_mode==='cancel'?'cancelled':'succeeded';
  const action={...cap.action_payload,id:cap.id,status,resultMessage:status==='succeeded'?'Saved.':null};
- if(changed){rows.pet_care_entries.push(care(53,'2026-09-20T12:00:00Z',action.input.detail));events.push('heart:row');}
+ if(changed){assert.ok(action.appendJob,'Confirmed append carries its canonical obligations');assert.equal(action.appendJob.petId,action.petId);assert.equal(action.appendJob.sourceMessageId,action.sourceMessageId);
+ for(const [index,item]of action.appendJob.items.entries()){rows.pet_care_entries.push({...care(53+index,item.occurredAt||'2026-09-20T12:00:00Z',item.body.text),intelligence_source_message_id:action.sourceMessageId,care_event_metadata:{sourceSpanId:item.body.id,sourceNoteIndex:index+1}});events.push('heart:row');}}
  cap.status=status;cap.receipt=options.noReceipt?null:action;if(cap.receipt&&status==='succeeded'){events.push('heart:receipt');state.confirmed=true;}
  if(options.lostAcknowledgment && !state.ackLost){state.ackLost=true;return{data:null,error:{code:'connection_lost_after_commit'}};}
  return {data:{action,changed},error:null};}};}};

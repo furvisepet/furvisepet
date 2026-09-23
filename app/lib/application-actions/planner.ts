@@ -1,10 +1,11 @@
+import { readBoundReplaceJob, type ReplaceJob } from "../furvise-brain/replace-job.ts";
+import { stateTransitionActionKind, readBoundStateTransitionJob, type StateTransitionJob } from "../furvise-brain/state-transition-job.ts";
+import { fieldMutationActionKind, fieldMutationActionValue, readBoundFieldMutationJob, type FieldMutationJob } from "../furvise-brain/field-mutation-job.ts";
+import type { BoundLifecyclePlan } from "../furvise-brain/lifecycle-plan.ts";
 import { getFurviseActionPolicy } from "./policy.ts";
 import type { FurviseApplicationAction, FurviseActionKind, ModelApplicationAction } from "./types.ts";
-import { normalizeSingletonPreferenceKey } from "./memory-scopes.ts";
 import { classifyCurrentPetLoss } from "../ai/pet-loss.ts";
 
-const supportedProfileFields = new Set(["name", "weight", "current_food", "routine_note", "sex", "breed"]);
-const supportedUserPreferences = new Set(["preferred_language", "preferred_units", "communication_style"]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type ActionTargetContextRecord = {
@@ -21,21 +22,14 @@ export function prepareFurviseApplicationActions(input: {
   sourceMessage: string;
   lifecycleStatus?: "active" | "deceased" | "archived";
 }): FurviseApplicationAction[] {
-  const replacementPreferences = new Set(input.proposals.filter((proposal) => proposal.kind === "memory.set_preference" && proposal.input.field)
-    .map((proposal) => normalizeSingletonPreferenceKey(proposal.input.field!)));
   return input.proposals.flatMap((proposal, index) => {
-    if (proposal.kind === "memory.forget_preference" && proposal.input.field && replacementPreferences.has(normalizeSingletonPreferenceKey(proposal.input.field))) return [];
+    if (["pet.update_profile", "memory.set_preference", "memory.forget_preference", "care_state.resolve", "care_state.reopen"].includes(proposal.kind)) return [];
     if (!validProposalInput(proposal, input.lifecycleStatus)) return [];
     const policy = getFurviseActionPolicy(proposal.kind);
     const presentation = actionPresentation(proposal.kind, input.petId, input.petName, proposal.input);
-    // The model's explicitIntent value is proposal metadata only. This field is
-    // overwritten with server-derived authority before an action can become a
-    // capability or reach the auto-execution policy.
-    const explicitIntent = hasDeterministicUserMutationIntent({
-      action: proposal,
-      petName: input.petName,
-      sourceMessage: input.sourceMessage,
-    });
+    // A model-shaped action never supplies execution consent. Bound jobs use
+    // their dedicated preparation path and the existing confirmation policy.
+    const explicitIntent = false;
     return [{
       ...proposal,
       explicitIntent,
@@ -50,39 +44,56 @@ export function prepareFurviseApplicationActions(input: {
   });
 }
 
-/**
- * Authorizes only a narrow command for the exact proposed mutation and input.
- * Model evidence and model intent classification are deliberately not inputs.
- */
-export function hasDeterministicUserMutationIntent(input: {
-  action: Pick<ModelApplicationAction, "kind" | "input">;
-  petName: string;
-  sourceMessage: string;
-}) {
-  const command = normalizedCommand(input.sourceMessage);
-  if (!command) return false;
-  const value = normalizeIntentPhrase(input.action.input.value);
-  switch (input.action.kind) {
-    case "pet.update_profile":
-      return Boolean(value && exactProfileUpdateCommand(command, input.action.input.field, value, input.petName));
-    case "memory.set_preference":
-      return Boolean(value && exactPreferenceSetCommand(command, input.action.input.field, value));
-    case "memory.forget_preference":
-      return exactPreferenceForgetCommand(command, input.action.input.field);
-    case "care_history.add":
-      return exactCareHistoryAddCommand(careCommand(input.sourceMessage), input.action.input.detail)
-        || exactObservationSaveCommand(input.sourceMessage, input.action.input.detail, input.petName);
-    case "care_history.edit":
-      return exactLatestHistoryEditCommand(input.sourceMessage, input.action.input.detail, input.petName);
-    case "care_state.resolve":
-      return /^(?:mark|record|set) (?:it|this concern|that concern|the concern) (?:as )?resolved$/.test(command)
-        || /^(?:resolve|close) (?:it|this concern|that concern|the concern)$/.test(command);
-    case "care_state.reopen":
-      return /^(?:mark|record|set) (?:it|this concern|that concern|the concern) (?:as )?reopened$/.test(command)
-        || /^reopen (?:it|this concern|that concern|the concern)$/.test(command);
-    default:
-      return false;
-  }
+/** The existing narrow selector has already resolved the one owned record. */
+export function prepareBoundReplaceAction(job: ReplaceJob, target: { id: string; petId: string; sourceType: string },
+  petName: string, requestId: string): FurviseApplicationAction {
+  if (!readBoundReplaceJob(job) || target.petId !== job.petId || target.sourceType !== "care_update"
+    || !target.id.startsWith("care:") || !UUID.test(target.id.slice(5))) throw Error("REPLACE_ACTION_INVALID");
+  const kind = "care_history.edit", policy = getFurviseActionPolicy(kind);
+  const input = { field: null, value: null, title: null, detail: job.body.text, category: null, target: "specified" as const };
+  return { kind, replaceJob: job, targetSourceId: target.id, input, ...policy, id: requestId + ":replace",
+    petId: job.petId, sourceMessageId: job.sourceMessageId, evidence: job.body.text.slice(0, 240), explicitIntent: false,
+    status: "proposed", ...actionPresentation(kind, job.petId, petName, input), resultMessage: null, errorMessage: null };
+}
+
+/** The bound job fixes the exact transition; capability policy still owns execution. */
+export function prepareBoundStateTransitionAction(job: StateTransitionJob, requestId: string): FurviseApplicationAction {
+  if (!readBoundStateTransitionJob(job)) throw Error("STATE_TRANSITION_JOB_INVALID");
+  const kind = stateTransitionActionKind(job), policy = getFurviseActionPolicy(kind);
+  return { kind, stateTransitionJob: job, ...policy, id: requestId + ":transition", petId: job.petId,
+    sourceMessageId: job.sourceMessageId, explicitIntent: true, status: "proposed",
+    input: { field: null, value: null, title: null, detail: null, category: null, target: "specified" },
+    evidence: job.authorization.text, label: job.toState === "resolved" ? "Resolve the concern" : "Reopen the concern",
+    description: "Apply the requested transition to the bound concern.", href: null, resultMessage: null, errorMessage: null };
+}
+
+/** Canonical field semantics prepare the existing capability; a proposal never grants execution. */
+export function prepareBoundFieldMutationAction(job: FieldMutationJob, petName: string, requestId: string, ownerScopePetId?: string): FurviseApplicationAction {
+  if (!readBoundFieldMutationJob(job)) throw Error("PROFILE_MUTATION_JOB_INVALID");
+  const kind = fieldMutationActionKind(job), policy = getFurviseActionPolicy(kind);
+  const petId = job.domain === "pet_profile" ? job.petId : ownerScopePetId;
+  if (!petId) throw Error("FIELD_MUTATION_CAPABILITY_SCOPE_REQUIRED");
+  const input = { field: job.field, value: fieldMutationActionValue(job),
+    title: null, detail: null, category: null, target: "specified" as const };
+  return { kind, input, fieldMutationJob: job, evidence: job.instruction.text.slice(0, 240),
+    explicitIntent: false, ...policy, id: requestId + ":field", petId,
+    sourceMessageId: job.sourceMessageId, status: "proposed",
+    ...actionPresentation(kind, petId, petName, input), resultMessage: null, errorMessage: null };
+}
+
+/** Canonical lifecycle intent prepares a capability candidate; confirmation still owns execution. */
+export function prepareBoundLifecycleAction(plan: BoundLifecyclePlan, requestId: string): FurviseApplicationAction | null {
+  const transition = plan.transition;
+  if (!transition || transition.fromState === transition.toState) return null;
+  const kind = transition.toState === "deceased" ? "pet.mark_deceased"
+    : transition.toState === "active" ? "pet.mark_active" : "pet.archive";
+  const policy = getFurviseActionPolicy(kind);
+  if (policy.confirmationPolicy !== "always" || policy.mutationClass !== "mutation") throw Error("LIFECYCLE_POLICY_DRIFT");
+  const input = { field: null, value: null, title: null, detail: null, category: null, target: "specified" as const };
+  return { kind, input, evidence: plan.authorization.text, explicitIntent: false, ...policy,
+    id: requestId + ":lifecycle", petId: transition.petId, sourceMessageId: plan.authorization.sourceMessageId,
+    status: "confirmation_required", ...actionPresentation(kind, transition.petId, transition.petName, input),
+    resultMessage: null, errorMessage: null };
 }
 
 /**
@@ -120,9 +131,6 @@ function validProposalInput(proposal: ModelApplicationAction, lifecycleStatus?: 
   if (["care_history.edit", "care_history.remove", "care_state.resolve", "care_state.reopen"].includes(proposal.kind) && proposal.input.target !== "specified") return false;
   if (proposal.kind === "pet.mark_deceased" && classifyCurrentPetLoss(proposal.evidence) !== "confirmed_current") return false;
   if (proposal.kind === "pet.mark_active" && lifecycleStatus === "active") return false;
-  if (proposal.kind === "pet.update_profile") return Boolean(proposal.input.field && proposal.input.value && supportedProfileFields.has(normalizeKey(proposal.input.field)));
-  if (proposal.kind === "memory.set_preference") return Boolean(proposal.input.field && proposal.input.value && supportedUserPreferences.has(normalizeSingletonPreferenceKey(proposal.input.field)));
-  if (proposal.kind === "memory.forget_preference") return Boolean(proposal.input.field && supportedUserPreferences.has(normalizeSingletonPreferenceKey(proposal.input.field)));
   if (proposal.kind === "care_history.add" || proposal.kind === "care_history.edit") return standaloneHistoryDetail(proposal.input.detail);
   return true;
 }
@@ -131,131 +139,6 @@ function standaloneHistoryDetail(value: string | null) {
   const detail = String(value || "").trim();
   return detail.length >= 16 && !/^(?:this|that|it|the last (?:one|update|entry))\.?$/i.test(detail);
 }
-
-function exactProfileUpdateCommand(command: string, field: string | null, value: string, petName: string) {
-  const normalizedField = normalizeKey(field);
-  const aliases: Record<string, string[]> = {
-    name: ["name"],
-    weight: ["weight"],
-    current_food: ["current food", "food"],
-    routine_note: ["routine note", "routine"],
-    sex: ["sex"],
-    breed: ["breed"],
-  };
-  const fields = aliases[normalizedField];
-  if (!fields) return false;
-  const pet = normalizeIntentPhrase(petName);
-  const targets = ["my pet s", "the pet s", "my", "his", "her", "their", "its"];
-  if (pet) targets.unshift(`${pet} s`);
-  const target = `(?:(?:${targets.map(escapeRegExp).join("|")}) )?`;
-  const profile = "(?:profile )?";
-  const fieldPattern = `(?:${fields.map((item) => escapeRegExp(normalizeIntentPhrase(item))).join("|")})`;
-  return new RegExp(`^(?:change|correct|edit|set|update) ${target}${profile}${fieldPattern} (?:to|as) ${escapeRegExp(value)}$`).test(command);
-}
-
-function exactPreferenceSetCommand(command: string, field: string | null, value: string) {
-  const preference = normalizeSingletonPreferenceKey(field || "");
-  const escapedValue = escapeRegExp(value);
-  if (preference === "preferred_language") {
-    return new RegExp(`^(?:answer|reply|respond|speak)(?: to me)? in ${escapedValue}$`).test(command)
-      || new RegExp(`^(?:change|set|switch|use) (?:my |the )?(?:answer )?language (?:to|as) ${escapedValue}$`).test(command)
-      || new RegExp(`^switch to ${escapedValue}$`).test(command);
-  }
-  if (preference === "preferred_units") {
-    return new RegExp(`^(?:change|set|switch) (?:my |the )?units (?:to|as) ${escapedValue}$`).test(command)
-      || new RegExp(`^use ${escapedValue} units$`).test(command);
-  }
-  if (preference === "communication_style") {
-    return new RegExp(`^(?:change|set|switch|use) (?:my |the )?(?:answer |communication )?style (?:to|as) ${escapedValue}$`).test(command)
-      || new RegExp(`^(?:answer|reply|respond) in (?:a )?${escapedValue} style$`).test(command);
-  }
-  return false;
-}
-
-function exactPreferenceForgetCommand(command: string, field: string | null) {
-  const preference = normalizeSingletonPreferenceKey(field || "");
-  const labels: Record<string, string> = {
-    preferred_language: "(?:answer )?language",
-    preferred_units: "units",
-    communication_style: "(?:answer |communication )?style",
-  };
-  const label = labels[preference];
-  return Boolean(label && new RegExp(`^(?:delete|forget|remove|stop using) (?:my |the )?${label}(?: preference)?$`).test(command));
-}
-
-function exactLatestHistoryEditCommand(source: string, detail: string | null, petName: string) {
-  const normalizedDetail=careLiteral(detail);
-  if(!normalizedDetail || normalizedDetail.length<8) return false;
-  const command=normalizedCommand(source);
-  const pet=normalizeIntentPhrase(petName);
-  const target=new RegExp("\\b(?:change|correct|edit|update) (?:the )?(?:last|latest|most recent) (?:"+escapeRegExp(pet)+"(?: s)? )?(?:care history )?(?:note|entry|record) (?:to|as) (?:that|this|.+?)(?: don t add (?:a )?second copy)?$").test(command);
-  return target && command.includes(normalizedDetail);
-}
-
-function exactCareHistoryAddCommand(command: string, detail: string | null) {
-  const normalizedDetail = careLiteral(detail);
-  if (!normalizedDetail || normalizedDetail.length < 12) return false;
-  const exactDetail = escapeRegExp(normalizedDetail);
-  const destination = "(?:care history|care log|health history|health log)";
-  return new RegExp(`^(?:add|log|record|save) (?:this |that )?${exactDetail}(?: (?:in|to) (?:my |the )?${destination})?$`).test(command)
-    || new RegExp(`^(?:add|log|record|save) (?:this |that |it )?(?:in|to) (?:my |the )?${destination} ${exactDetail}$`).test(command);
-}
-
-// Keep decimals, signs, negation and qualifiers intact. Authority is for the
-// stated observation, never a model paraphrase that merely shares its keywords.
-function careLiteral(value: string | null) {
-  return String(value || "").normalize("NFC").toLowerCase().trim().replace(/[.!]$/, "").replace(/\s+/g, " ")
-    .replace(/(\d)[-\u2010\u2011](?=(?:second|minute|hour)s?\b)/g, "$1 ");
-}
-function careCommand(value: string) {
-  return careLiteral(value).replace(/^furvise[, ]+/, "").replace(/^please /, "")
-    .replace(/^(?:(?:can|could|would|will) you |i (?:want|need|would like) (?:you|furvise) to )/, "").replace(/ please$/, "");
-}
-/** A literal single-observation save is an application command, not a model
- * inference. Return original owner wording; normalization is for matching only. */
-export function explicitCareObservationSaveText(source: string, petName: string): string | null {
-  const match = /^(.+)[.!]\s+(?:please\s+)?(?:save|add|log|record)\s+(?:this|that)\s+(?:update|observation)\s+(?:to|in)\s+(?:the\s+)?(?:care history|care log|health history|health log)[.!]?$/i.exec(source.trim());
-  if (!match || !petName) return null;
-  const observation = careLiteral(match[1]);
-  if (/["“”‘’?;\n]|[.!](?:\s|$)|['’](?!s\b)/.test(match[1]) || /\b(?:if|suppose|imagine|fictional|hypothetical|pretend|would|could|said|says|save|record|log|delete|archive)\b/i.test(observation)) return null;
-  if (!observation.startsWith(careLiteral(petName) + " ")) return null;
-  return match[1].trim();
-}
-
-function exactObservationSaveCommand(source: string, detail: string | null, petName: string) {
-  const original = explicitCareObservationSaveText(source, petName);
-  if (!original || !detail) return false;
-  const observation = careLiteral(original);
-  const predicate = observation.slice(careLiteral(petName).length + 1);
-  const candidates = [observation, predicate];
-  if (predicate.startsWith("had ")) {
-    const event = predicate.slice(4);
-    candidates.push(event);
-    // An indefinite article before an explicit numeric quantity adds no fact.
-    if (/^an? \d/.test(event)) candidates.push(event.replace(/^an? /, ""));
-  }
-  return candidates.includes(careLiteral(detail));
-}
-
-function normalizedCommand(value: string) {
-  let normalized = normalizeIntentPhrase(value);
-  if (!normalized) return "";
-  normalized = normalized.replace(/^(?:furvise )/, "");
-  normalized = normalized.replace(/^(?:please )/, "");
-  normalized = normalized.replace(/^(?:(?:can|could|would|will) you |i (?:want|need|would like) (?:you|furvise) to )/, "");
-  normalized = normalized.replace(/ please$/, "");
-  return normalized;
-}
-
-function normalizeIntentPhrase(value: string | null) {
-  return String(value || "").normalize("NFKC").toLocaleLowerCase()
-    .replace(/[’']s\b/g, " s ")
-    .replace(/[’']/g, " ")
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .replace(/\s+/g, " ").trim();
-}
-
-function escapeRegExp(value: string) { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
 
 function actionPresentation(kind: FurviseActionKind, petId: string, petName: string, actionInput: ModelApplicationAction["input"]) {
   const encoded = encodeURIComponent(petId);

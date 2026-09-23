@@ -1,7 +1,5 @@
 import { ownerDeclinesPersistence } from '../ai/owner-assertion.ts';
 import { findExplicitCareRecordAuthorization, findExplicitPendingTaskCancellation, type FurviseMutationAuthorizationEvidence } from '../furvise-brain/mutation-authorization.ts';
-import { assertFurviseMutationAllowed, createFurviseTurnAuthority, grantFurviseMutationAuthority } from '../furvise-brain/turn-authority.ts';
-import { explicitNoteTime } from './owner-note-request.ts';
 import type { IntelligenceConversationTurn } from './types.ts';
 import { resolveDeterministicTurnSubject } from './entities/resolve-turn-subject.ts';
 import type { DogProfileRow } from '../supabase.ts';
@@ -105,41 +103,6 @@ export function validateAskTask(value: unknown, context: {
     requiresAnswer: p.intent !== 'cancel' && Boolean(requiresAnswer || p.intent === 'resume' && pending?.requiresAnswer) };
 }
 
-export function assertValidatedAskTaskAuthorization(task: ValidatedAskTask) {
-  if (!task.authorization?.evidence?.trim()) throw new Error('FURVISE_MUTATION_NOT_AUTHORIZED');
-  if (task.intent === 'resume' && (task.authorization.source !== 'durable_capability' || !task.authorizationTurnId)) throw new Error('FURVISE_MUTATION_NOT_AUTHORIZED');
-  if (task.intent !== 'resume' && task.authorization.source !== 'current_turn') throw new Error('FURVISE_MUTATION_NOT_AUTHORIZED');
-  if (task.intent === 'cancel' && task.authorization.kind !== 'cancel_pending') throw new Error('FURVISE_MUTATION_KIND_MISMATCH');
-  if (task.intent !== 'cancel' && task.authorization.kind !== 'record_care') throw new Error('FURVISE_MUTATION_KIND_MISMATCH');
-}
-
-export function taskMutationParameters(task: ValidatedAskTask, input: {
-  userId: string; conversationId: string; currentMessageId: string; timeZone?: string;
-}) {
-  assertValidatedAskTaskAuthorization(task);
-  const mutationKind = task.intent === 'cancel' ? 'cancel_pending' as const : 'record_care' as const;
-  let turn = createFurviseTurnAuthority({
-    logicalTurnId: input.currentMessageId,
-    subject: task.petId ? { petIds: [task.petId], source: task.intent === 'resume' ? 'clarified' : 'explicit', unresolved: false }
-      : { petIds: [], source: 'unresolved', unresolved: true },
-    intent: task.intent === 'cancel' ? 'clarify' : 'record',
-    memoryNeed: 'working',
-  });
-  turn = grantFurviseMutationAuthority(turn, {
-    kind: mutationKind,
-    userAuthorizationVerified: true,
-    authorizationSource: task.authorization.source,
-    authorizationTurnId: task.authorization.source === 'durable_capability'
-      ? task.authorizationTurnId!
-      : input.currentMessageId,
-  });
-  assertFurviseMutationAllowed(turn, mutationKind);
-  const time = explicitNoteTime(task.source.text, input.timeZone, task.source.createdAt);
-  return { p_user_id: input.userId, p_conversation_id: input.conversationId, p_message_id: input.currentMessageId,
-    p_intent: task.intent, p_source_id: task.source.id, p_source_text: task.source.text, p_pet_id: task.petId,
-    p_task_id: task.taskId, p_revision: task.revision, p_requires_answer: task.requiresAnswer, p_occurred_at: time.occurredAt, p_explicit_time: time.explicitTime };
-}
-
 export function attachTaskReceipts(turns: IntelligenceConversationTurn[], receipts: Array<{
   messageId: string; petId: string; record: { id: string; note: string; occurredAt: string };
 }>, petId: string): IntelligenceConversationTurn[] {
@@ -150,19 +113,9 @@ export function attachTaskReceipts(turns: IntelligenceConversationTurn[], receip
     for (const receipt of matches) records.set(receipt.record.id, receipt.record);
     return { ...turn, operationReceipt: { sourceMessageId: turn.id, petId, requestText: turn.text,
       answerPersisted: turn.operationReceipt?.answerPersisted || false,
+      requestedItems: turn.operationReceipt?.requestedItems,
       actionReceipts: turn.operationReceipt?.actionReceipts, records: [...records.values()] } };
   });
-}
-
-export function resolvePendingTaskSubject(context: Parameters<typeof validateAskTask>[1]): ValidatedAskTask | null {
-  if (!context.pendingTask || context.pendingTask.status !== 'awaiting_subject' || context.pendingTask.requiresAnswer) return null;
-  const request = context.pendingTask.request;
-  if (!request || request.role !== 'user' || request.id !== context.pendingTask.authorizationMessageId
-    || !findExplicitCareRecordAuthorization(request.text)) return null;
-  const named = context.eligiblePets.filter(pet => pet.user_id === context.owner.userId && pet.name
-    && pet.name.trim().toLocaleLowerCase() === context.currentMessage.trim().toLocaleLowerCase());
-  if (named.length !== 1) return null;
-  return validateAskTask({ intent: 'resume', sourceTurnId: null, petName: named[0].name }, context);
 }
 
 export function restorePendingTaskTurns(turns: IntelligenceConversationTurn[], pending?: PendingAskTask | null): IntelligenceConversationTurn[] {

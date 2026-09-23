@@ -155,7 +155,7 @@ test("native conflict rejection remains authoritative before compatibility",()=>
  const p=input();assert.throws(()=>bindCompositionalReadTicket({...p,selection:{groupBy:["subject"],union:[clause("desc")]}},["a"]),
  e=>e.cause?.rule==="incompatible_with_legacy_selector");
 });
-test("production retrieval boundary propagates normalized ticket into downstream evidence",async t=>{
+test("Binder normalizes once and retrieval preserves the canonical ticket into downstream evidence",async t=>{
  t.mock.method(Date,"now",()=>Date.parse(scope.asOf));
  const rows=Array.from({length:6},(_,i)=>row("a",i));
  const db={from(name){assert.equal(name,"pet_care_entries");let filtered=[...rows],orders=[],start=0,end=99;
@@ -166,12 +166,18 @@ test("production retrieval boundary propagates normalized ticket into downstream
   return q;},
  rpc(name,args){assert.equal(name,"read_ask_history_correction_page");return{abortSignal:async()=>({error:null,data:{claims:[],relations:[],lineage:[],
   sources:rows.filter(r=>args.p_care_ids.includes(r.id)),withheld_source_ids:[],withheld_claim_ids:[],truncated:false}})};}};
- const original=bindReadTicket(input(),["a"]);
+ const fixture=finiteProposal("summary",1,"sufficient",["Alpha"],"weight");
+ fixture.proposal.readTicket=input();
+ fixture.proposal.quantity="records";
+ const bound=validateAskRequest(fixture.proposal,fixture.context);
+ const original=bound.request.readTicket;
  const context=ticket=>({owner:{userId:"owner"},pet:{id:"a",name:"Alpha",user_id:"owner"},eligiblePets:[{id:"a",name:"Alpha",user_id:"owner"}],
   currentMessage:"not interpreted by adapter",conversationTurns:[],historyAccess:{from:scope.from,to:scope.to},
   askInterpretation:{operation:"recall",readOperation:"recall",readOnly:true,petIds:["a"],request:{mode:"read",readTicket:ticket,quantity:"records"}}});
  const source=context(original),before=JSON.stringify(source);
+ await assert.rejects(retrieveAskHistory(context(bindReadTicket(input(),["a"])),db,["a"]),/ASK_CANONICAL_READ_TICKET_REQUIRED/);
  const a=await retrieveAskHistory(source,db,["a"]),b=await retrieveAskHistory(context(native(input())),db,["a"]);
+ assert.equal(a.askInterpretation.request.readTicket,original,"retrieval must not replace canonical semantics");
  assert.equal(JSON.stringify(source),before);
  assert.deepEqual(a.askInterpretation,b.askInterpretation);
  assert.deepEqual(a.askHistory,b.askHistory);

@@ -1,5 +1,5 @@
 export * from "./contracts.ts";
-export * from "./executor.ts";
+export { shouldAutoExecuteAction } from "./policy.ts";
 export * from "./memory-scopes.ts";
 export * from "./planner.ts";
 export * from "./policy.ts";

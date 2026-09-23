@@ -1,10 +1,9 @@
-import { parseDatedNoteBatch } from "./dated-note-batch.ts";
 import { readHistoryReviewAudit, type HistoryReviewAudit } from "./history-review-state.ts";
 import { enforceAskHistoryAccess } from "./history-access.ts";
 import { safetyTemporalScope } from "../ai/safety-temporal-scope.ts";
 import { scopeConversationContext } from "./conversation-scope.ts";
 import { finalizeAskAnswer } from "./finalize-ask-answer.ts";
-import { buildGovernedAskExecutionPlan, assertGovernedAskExecutionPlan, type GovernedAskExecutionPlan } from "./ask-execution-plan.ts";
+import { withoutLegacyConcernTransitions, buildGovernedAskExecutionPlan, assertGovernedAskExecutionPlan, type GovernedAskExecutionPlan } from "./ask-execution-plan.ts";
 import "server-only";
 
 import type { AskProviderEvent, AskReasoningResult } from "../ai/ask-reasoning";
@@ -28,8 +27,8 @@ import { projectGovernedPreferencesToLegacyMemories } from "./v2/projections/leg
 import { memoryDisplayContent } from "./memory-integrity.ts";
 import { normalizeKnownPreferenceMemory, preferenceSemanticIdentity } from "./preference-semantics.ts";
 import { buildExplicitCareHistoryAction, isExplicitCareHistorySaveRequest, omitGovernedCareSaveDuplicates, prepareGovernedCareHistoryAction } from "./care-history-policy.ts";
-import { buildConfirmedLossCareAction, resolvePetLossContext } from "../ai/pet-loss.ts";
-import { buildSourceGroundedResolutionAction, isRecoveryGroundedForConcern } from "../ai/concern-engine.ts";
+import { resolvePetLossContext } from "../ai/pet-loss.ts";
+import { isRecoveryGroundedForConcern } from "../ai/concern-engine.ts";
 import { createAskEvidenceContract, type AskEvidenceContract } from "./ask-evidence.ts";
 import { emptyProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
 import { explicitOwnerNote } from "./explicit-owner-note.ts";
@@ -73,6 +72,8 @@ export async function runFurviseIntelligence({
   discourseFocus?: import("./entities/resolve-turn-subject.ts").AskDiscourseFocus;
   evidenceContract?: AskEvidenceContract;
 }): Promise<FurviseIntelligenceResult> {
+  if (context.askInterpretation?.request?.stateTransitionJob) throw Error("STATE_TRANSITION_REQUIRES_CAPABILITY");
+  if (context.askInterpretation?.request?.appendJob) throw Error("APPEND_REQUIRES_CONFIRMATION_CAPABILITY");
   let readPetIds = context.askInterpretation?.readPetIds || authoritativePetIds;
   if (context.historyAccess) {
     context = enforceAskHistoryAccess(context);
@@ -228,7 +229,7 @@ export async function runFurviseIntelligence({
     petId: context.pet.id,
     petName: context.pet.name,
   });
-  const modelGroundedResolution = allowsAcceptedRecoverySafetyReconciliation(safety)
+  const modelRecoveryPresentation = allowsAcceptedRecoverySafetyReconciliation(safety)
     && safety.concernMessageState === "resolved"
     && reasoning.intelligenceSafety.level === "recently_resolved"
     && !["worsening", "recurrence", "still_active"].includes(safety.concernMessageState)
@@ -262,7 +263,7 @@ export async function runFurviseIntelligence({
     && !reasoning.intelligenceSafety.requiresImmediateAction) reasoning.intelligenceSafety.level = "routine";
   reasoning.intelligenceSafety.level = lossContext === "confirmed_current" || lossContext === "continuation"
     ? "routine"
-    : modelGroundedResolution || semanticGroundedResolution
+    : modelRecoveryPresentation || semanticGroundedResolution
       ? "recently_resolved"
       : applySafetyFloor(reasoning.intelligenceSafety.level, safety);
   if (lossContext === "confirmed_current" || lossContext === "continuation") {
@@ -284,14 +285,15 @@ export async function runFurviseIntelligence({
   const learningPolicy = memoryExtractionEnabled
     ? evaluateLearningPolicy(reasoning.learnings, context.currentMessage, authoritativePetIds)
     : { accepted: [], rejected: reasoning.learnings.map((learning) => ({ learning, reason: "global_memory_extraction_disabled" })) };
-  const carePolicy = modelGroundedResolution ? proposedResolutionPolicy : evaluateCareActionPolicy({
+  const carePolicy = modelRecoveryPresentation ? proposedResolutionPolicy : evaluateCareActionPolicy({
     actions: reasoning.careActions, currentMessage: context.currentMessage,
     understanding: reasoning.messageUnderstanding, safetyLevel: reasoning.intelligenceSafety.level,
     activeConcernIds: safety.activeConcernIds,
     activeConcerns: context.activeConcerns, petId: context.pet.id, petName: context.pet.name,
   });
-  const deterministicStateAction = readOnlyRecall ? null : buildClearResolutionAction(context, safety) || buildRecurrenceAction(context, safety);
-  const proposedCareActions = !hasOwnedPetSubject || multiPetTurn ? [] : deterministicStateAction ? [deterministicStateAction] : carePolicy.accepted;
+  // Recovery classification is presentation/safety only. Canonical transitions use capabilities.
+  const proposedCareActions = !hasOwnedPetSubject || multiPetTurn ? []
+    : withoutLegacyConcernTransitions({ careActions: carePolicy.accepted, semanticEvents: [] }).careActions;
   const governance = authorizeProposedActions({
     message: context.currentMessage, petId: context.pet.id, authorizedPetIds: authoritativePetIds,
     careActions: proposedCareActions, memories: learningPolicy.accepted,
@@ -337,12 +339,12 @@ export async function runFurviseIntelligence({
     careActions: governedCareActions,
     learnings: dedupeLearnings([...governedLearnings, ...semanticLearnings]),
   });
-  const confirmedLossCareAction = !readOnlyRecall && hasOwnedPetSubject
-    ? buildConfirmedLossCareAction({ message: context.currentMessage, petName: context.pet.name || "the pet" })
-    : null;
-  const acceptedCareActions = readOnlyRecall || !hasOwnedPetSubject ? [] : confirmedLossCareAction ? [confirmedLossCareAction]
+  // Lifecycle plans prepare confirmed capabilities outside factual generation.
+  // Raw loss wording cannot fabricate a history event here.
+  const acceptedCareActions = readOnlyRecall || !hasOwnedPetSubject ? []
     : explicitCareHistoryAction ? [explicitCareHistoryAction] : routedPersistence.careActions;
-  const acceptedSemanticEvents = confirmedLossCareAction ? [] : readOnlyRecall || !hasOwnedPetSubject ? [] : semanticGovernance.accepted;
+  const acceptedSemanticEvents = readOnlyRecall || !hasOwnedPetSubject ? []
+    : withoutLegacyConcernTransitions({ careActions: [], semanticEvents: semanticGovernance.accepted }).semanticEvents;
   const projectedPreferenceIdentities = new Set(projectedPreferences.map(learningPreferenceIdentity).filter(Boolean));
   const acceptedLearnings = readOnlyRecall || !hasOwnedPetSubject ? [] : dedupeLearnings([
     ...routedPersistence.learnings.filter((item) =>
@@ -353,9 +355,7 @@ export async function runFurviseIntelligence({
   if (hasOwnedPetSubject && authoritativePetIds.length === 1) reasoning.applicationActions = omitGovernedCareSaveDuplicates({
     actions: reasoning.applicationActions, events: acceptedSemanticEvents, message: context.currentMessage, petId: authoritativePetIds[0],
   });
-  const noteBatch = !readOnlyRecall && hasOwnedPetSubject && authoritativePetIds.length === 1 ? parseDatedNoteBatch(context.currentMessage) : [];
-  if (noteBatch.length) reasoning.applicationActions = reasoning.applicationActions.filter(action => action.kind !== "care_history.add");
-  let executionPlan = buildGovernedAskExecutionPlan({ sourceMessageId, petId: context.pet.id, noteBatch,
+  let executionPlan = buildGovernedAskExecutionPlan({ sourceMessageId, petId: context.pet.id,
     careActions: acceptedCareActions, semanticEvents: acceptedSemanticEvents, learnings: acceptedLearnings });
   // Presentation-only reconciliation happens after persistence governance and routing.
   if (proposedRecoveryPresentation) reasoning.intelligenceSafety.level = "recently_resolved";
@@ -369,7 +369,7 @@ export async function runFurviseIntelligence({
     acceptedLearnings.length = 0;
     governedV2Turn = null;
     executionPlan = buildGovernedAskExecutionPlan({ sourceMessageId, petId: context.pet.id,
-      noteBatch: [], careActions: [], semanticEvents: [], learnings: [] });
+      careActions: [], semanticEvents: [], learnings: [] });
   }
   assertGovernedAskExecutionPlan(executionPlan);
   if (failedAnswer) suppressPersistence();
@@ -452,37 +452,6 @@ function currentStateMemories(context: FurviseLiveContext) {
     source: "pet_current_state",
     created_at: context.currentState.computed_at,
   }];
-}
-
-function buildRecurrenceAction(
-  context: FurviseLiveContext,
-  safety: ReturnType<typeof resolveSafetyState>,
-): AskReasoningResult["careActions"][number] | null {
-  if (safety.concernMessageState !== "recurrence" || context.activeConcerns.length || !context.recentlyResolvedConcerns.length) return null;
-  const concern = context.recentlyResolvedConcerns[0];
-  const label = concern.normalized_key.replace(/_/g, " ");
-  return {
-    action: "reopen_concern",
-    category: "symptom",
-    title: `${label.charAt(0).toUpperCase()}${label.slice(1)} problem recurred`,
-    details: `Owner reported that ${context.pet.name}'s ${label} problem returned. ${context.currentMessage.trim()}`.slice(0, 800),
-    severity: "urgent",
-    confidence: 0.99,
-    relatedRecordId: concern.id,
-  };
-}
-
-function buildClearResolutionAction(
-  context: FurviseLiveContext,
-  safety: ReturnType<typeof resolveSafetyState>,
-): AskReasoningResult["careActions"][number] | null {
-  if (safety.level !== "recently_resolved" || safety.concernMessageState !== "resolved") return null;
-  return buildSourceGroundedResolutionAction({
-    activeConcerns: context.activeConcerns,
-    message: context.currentMessage,
-    petId: context.pet.id,
-    petName: context.pet.name,
-  });
 }
 
 function memoryText(memory: FurviseLiveContext["memories"][number]) {

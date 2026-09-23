@@ -1,3 +1,5 @@
+import { unsupportedProfilePresentation, profilePresentationLimitationFailure, PROFILE_PRESENTATION_UNAVAILABLE } from "./profile-presentation-limitation.ts";
+import { readReviewedHistoryAnswer } from "./history-review-state.ts";
 import { wholeAskTaskQuestion } from "./ask-task-continuation.ts";
 import { completedExplicitHistoryTargets, historyCompletionLimits } from "./evidence-need-coverage.ts";
 import { CLAIM_AUTHORITY_POLICY, CLAIM_REVIEW_POLICY } from "./claim-authority-policy.ts";
@@ -118,6 +120,13 @@ export async function reviewTaskCompletion(input: {
   validate: (result: AskReasoningResult) => AnswerValidationResult;
   client?: { responses: { create: (request: Record<string, unknown>, options?: { signal: AbortSignal }) => Promise<Record<string, unknown>> } };
 }): Promise<AnswerValidationResult> {
+  // This exact source-free limitation has already passed deterministic review
+  // and validation. Its failed task completion remains unchanged.
+  const response = input.validation.response;
+  if (input.validation.valid
+    && (unsupportedProfilePresentation(response.evidenceContract) || response.model === PROFILE_PRESENTATION_UNAVAILABLE)
+    && profilePresentationLimitationFailure(response) === null
+    && readReviewedHistoryAnswer(response)) return input.validation;
   const request = input.context.askInterpretation?.request;
   // This reviewer is the non-history complement. A saved-history request
   // remains historical even when retrieval produced no history object; the

@@ -32,7 +32,7 @@ export async function readWithSupportingContext(ticket: ReadTicket, scope: ReadS
       reliable: result.lineageClosed && result.replacementSeedsExhausted });
     return result;
   };
-  const result = await execute(Object.freeze({ ...ticket, searchHints: Object.freeze([]) }), scope, observed);
+  const result = await execute(ticket, scope, observed);
   // No resolved scope means no optional context; missing anchors never widen.
   if (result.coverage.windows.length !== ticket.subjects.petIds.length
     || result.coverage.windows.some(w => Date.parse(w.from) >= Date.parse(w.to))) return result;

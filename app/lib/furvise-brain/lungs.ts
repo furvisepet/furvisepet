@@ -121,15 +121,8 @@ async function retrieveFactualReadTicket(ticket: ReadTicket, scope: ReadScope, s
     const order = (a: CareEntryRow, b: CareEntryRow) => ticket.outputs.ordering === "asc" ? chronological(a, b) : chronological(b, a);
     selected.sort(order);
     const strategy = ticket.outputs.strategy;
-    const hints = ticket.searchHints || [];
-    const score = (row: CareEntryRow) => hints.filter(hint => matches(row, hint)).length;
+    // Search hints belong only to optional supporting context, never factual rank.
     let requested = [...selected];
-    if (hints.length) {
-      // Hint misses preserve bounded context. This cannot certify that the
-      // requested semantic concept never occurred, even after a full scan.
-      requested.sort((a, b) => score(b) - score(a) || order(a, b));
-      coverage.reasons.push("bounded_period_context_not_semantic_completeness");
-    }
     if (strategy === "temporal_endpoints") {
       coverage.endpointPairs = ticket.subjects.petIds.map(petId => {
         const subject = selected.filter(row => row.pet_profile_id === petId).sort(chronological);
@@ -205,8 +198,7 @@ async function retrieveFactualReadTicket(ticket: ReadTicket, scope: ReadScope, s
         // merely satisfying take(N). Selecting a subset keeps partial coverage.
         const subset = selected.some(row => row.pet_profile_id === group.petId && !retained.has(row.id));
         if (subset) group.reasons.push("selected_subset");
-        if (hints.length) group.reasons.push("bounded_period_context_not_semantic_completeness");
-        group.status = failed.length ? "unavailable" : group.blocked || subset || hints.length ? "partial"
+        group.status = failed.length ? "unavailable" : group.blocked || subset ? "partial"
           : group.selectedIds.length ? "complete" : "complete_empty";
       }
     }
@@ -247,7 +239,7 @@ async function retrieveFactualReadTicket(ticket: ReadTicket, scope: ReadScope, s
       return result("partial", "read_budget_or_limit", records);
     if (coverage.continuation.length || records.length !== requested.length || limited)
       return result("partial", "read_budget_or_limit", records);
-    if (hints.length || uncertainIds.size) return result("partial", undefined, records);
+    if (uncertainIds.size) return result("partial", undefined, records);
     return result(records.length ? "complete" : "complete_empty", undefined, records);
   } catch {
     return result("unavailable", "read_failed");

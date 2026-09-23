@@ -1,4 +1,3 @@
-import { translateLegacyReadSelection } from "./legacy-read-selection.ts";
 import { wholeAskTaskQuestion } from "./ask-task-continuation.ts";
 import { calendarPeriodContaining, oldestCalendarUnit, relativeYearsAgoWindow } from "./history-periods.ts";
 import { calendarWindowToInstants } from "../ask-time-zone.ts";
@@ -119,7 +118,10 @@ function isHistoricalRecall(message: string) {
  * generation callback. Recent safety context is retained separately. */
 export async function retrieveAskHistory(context: FurviseLiveContext, db: SupabaseClient, petIds: string[], vetBriefRead?: { plan: HistoryPlan; termGroups: string[][]; periodFrom?: string | null; periodTo?: string | null }): Promise<FurviseLiveContext> {
   if (vetBriefRead && context.feature !== "vet_brief") throw new Error("vet_brief_read_scope_required");
-  if (!vetBriefRead && context.askInterpretation?.request?.readTicket) return retrieveTicketHistory(context, db, petIds);
+  if (!vetBriefRead) {
+    if (!context.askInterpretation?.request?.readTicket) throw new Error("ASK_MEMORY_READ_TICKET_REQUIRED");
+    return retrieveTicketHistory(context, db, petIds);
+  }
   context = { ...context, recordInventory: await readRecordInventory(context, db) };
   const authorizedComparisonPets = new Set(petIds.filter(id => context.eligiblePets.some(pet => pet.id === id && pet.user_id === context.owner.userId)));
   const proposedPlan = vetBriefRead?.plan ?? (context.askInterpretation ? context.askInterpretation.history : planHistoricalQuery(context.currentMessage, authorizedComparisonPets.size > 1));
@@ -912,21 +914,8 @@ export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set
 /** Compatibility adapter: the new organ receives only its immutable ticket and
  * server scope. Legacy question-driven reads remain outside this branch. */
 async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseClient, authorizedPetIds: string[]): Promise<FurviseLiveContext> {
-  const originalTicket = context.askInterpretation!.request!.readTicket!;
-  const compatibility = translateLegacyReadSelection(originalTicket, {
-    evidenceNeedCount: context.askInterpretation!.request!.evidenceNeeds?.length || 0,
-  });
-  const ticket = compatibility.ticket;
-  if (compatibility.translated) {
-    // Carry the SAME normalized ticket into evidence, certificates and Labs.
-    // The original proposal remains diagnostic input, never parallel authority.
-    context = { ...context, askInterpretation: { ...context.askInterpretation!,
-      request: { ...context.askInterpretation!.request!, readTicket: ticket } } };
-  }
-  if (originalTicket.outputs.strategy) console.info("[Ask read compatibility]", {
-    inputKind: "legacy_strategy_adapter", strategy: originalTicket.outputs.strategy,
-    translated: compatibility.translated, reason: compatibility.reason,
-  });
+  const ticket = context.askInterpretation!.request!.readTicket!;
+  if (ticket.outputs.strategy != null) throw new Error("ASK_CANONICAL_READ_TICKET_REQUIRED");
   const owned = new Set(context.eligiblePets.filter(pet => pet.user_id === context.owner.userId).map(pet => pet.id));
   if (ticket.subjects.petIds.some(id => !owned.has(id) || !authorizedPetIds.includes(id))) throw new Error("FURVISE_MEMORY_SCOPE_NOT_AUTHORIZED");
   const started = Date.now(), deadline = started + HISTORY_BUDGET.timeMs;

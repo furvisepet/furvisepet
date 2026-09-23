@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { validateAskTask, taskMutationParameters, attachTaskReceipts, resolvePendingTaskSubject, restorePendingTaskTurns, wholeAskTaskQuestion } from '../app/lib/intelligence/ask-task-continuation.ts';
+import { validateAskTask, attachTaskReceipts, restorePendingTaskTurns, wholeAskTaskQuestion } from '../app/lib/intelligence/ask-task-continuation.ts';
 const source={id:'source',role:'user',text:'so i gave him medicine yesterday',createdAt:'2026-09-15T01:00:00Z'};
 const context={currentMessage:'keep that as a note',conversationTurns:[source],owner:{userId:'owner'},eligiblePets:[{id:'pet',name:'Sable',user_id:'owner'},{id:'alien',name:'Other',user_id:'someone'}]};
 const proposal={intent:'save',sourceTurnId:'source',petName:'Sable'};
@@ -18,9 +18,8 @@ for(const message of ['keep that as a note','save it, please','please put that i
  test(`validated semantic note intent has no wording-dependent execution: ${message}`,()=>{
   const task=validateAskTask(proposal,{...context,currentMessage:message});
   assert.equal(task.source.text,source.text);assert.equal(task.petId,'pet');
-  const p=taskMutationParameters(task,{userId:'owner',conversationId:'conversation',currentMessageId:'authorization',timeZone:'America/Los_Angeles'});
-  assert.equal(p.p_source_id,'source');assert.equal(p.p_message_id,'authorization');
-  assert.equal(p.p_occurred_at,'2026-09-13T07:00:00.000Z','yesterday is relative to source-local September 14, not save time');
+  assert.equal(task.authorization.kind,'record_care');
+  assert.equal(task.source.createdAt,source.createdAt,'validation retains source provenance, not execution-time inference');
  });
 }
 test('an assistant draft and another owner pet cannot supply source or target authority',()=>{
@@ -39,9 +38,10 @@ test('durable pending source survives dialogue truncation and retains revision',
  assert.equal(validateAskTask(null,{...context,pendingTask}),null,'unrelated turn does not execute the pending task');
  assert.throws(()=>validateAskTask({intent:'resume',sourceTurnId:'changed',petName:'Sable'},{...context,pendingTask}));
 });
-test('source date without a known occurrence is not invented',()=>{
+test('legacy input validation preserves source without manufacturing execution time',()=>{
  const task=validateAskTask(proposal,{...context,conversationTurns:[{...source,text:'Gave medicine.'}]});
- assert.equal(taskMutationParameters(task,{userId:'owner',conversationId:'conversation',currentMessageId:'authorization'}).p_occurred_at,null);
+ assert.equal(task.source.text,'Gave medicine.');
+ assert.equal(task.occurredAt,undefined);
 });
 test('duplicate pet names require clarification instead of selecting the first match',()=>{
  assert.throws(()=>validateAskTask(proposal,{...context,eligiblePets:[...context.eligiblePets,{id:'second',name:'Sable',user_id:'owner'}]}));
@@ -54,12 +54,13 @@ test('database task receipts attach to the save request and retain pet scope',()
  assert.equal(attachTaskReceipts(turns,receipts,'other')[0].operationReceipt,undefined);
 });
 
-test('pending subject completion is a provider-independent owned-entity lookup',()=>{
+test('pending subject requires an explicit validated proposal; no post-Binder name-only executor exists',async()=>{
+ const module=await import('../app/lib/intelligence/ask-task-continuation.ts');
+ assert.equal(module.resolvePendingTaskSubject,undefined);
+ assert.equal(module.taskMutationParameters,undefined);
  const request={...source,id:'permission',text:'save that as a note'};
  const pendingTask={id:'task',revision:1,kind:'owner_note',status:'awaiting_subject',source,request,authorizationMessageId:'permission'};
- assert.equal(resolvePendingTaskSubject({...context,pendingTask,currentMessage:'sable'}).petId,'pet');
- for(const currentMessage of ['Sable, and compare his history','Other','not Sable'])assert.equal(resolvePendingTaskSubject({...context,pendingTask,currentMessage}),null);
- assert.equal(resolvePendingTaskSubject({...context,currentMessage:'Sable'}),null,'a name alone does not invent a pending save');
+ assert.equal(validateAskTask(null,{...context,pendingTask,currentMessage:'Sable'}),null);
 });
 
 
@@ -68,7 +69,7 @@ test('subject clarification cannot resurrect a model-invented save capability',(
  const request={...source,id:'bad-authorization',text:'Pebble rolled down the hill yesterday lol'};
  const pendingTask={id:'task',revision:1,kind:'owner_note',status:'awaiting_subject',source:observation,request,authorizationMessageId:request.id};
  const input={...context,currentMessage:'Sable',conversationTurns:[observation,request],pendingTask};
- assert.equal(resolvePendingTaskSubject(input),null);
+
  assert.throws(()=>validateAskTask({intent:'resume',sourceTurnId:null,petName:'Sable'},input),/ASK_REQUEST_INVALID:task/);
 });
 
@@ -76,7 +77,7 @@ test('a verified earlier save command survives subject clarification as a durabl
  const observation={...source,text:'He rolled down the hill yesterday.'};
  const request={...source,id:'save-request',text:'save that as a note'};
  const pendingTask={id:'task',revision:3,kind:'owner_note',status:'awaiting_subject',source:observation,request,authorizationMessageId:request.id};
- const task=resolvePendingTaskSubject({...context,currentMessage:'Sable',conversationTurns:[observation,request],pendingTask});
+ const task=validateAskTask({intent:'resume',sourceTurnId:null,petName:'Sable'},{...context,currentMessage:'Sable',conversationTurns:[observation,request],pendingTask});
  assert.equal(task.petId,'pet');
  assert.equal(task.authorization.source,'durable_capability');
  assert.equal(task.authorization.kind,'record_care');
@@ -85,7 +86,6 @@ test('a verified earlier save command survives subject clarification as a durabl
 test('mixed pending task preserves the original request and cannot use note-only shortcut',()=>{
  const request={...source,id:'permission',text:'Save that and compare with the older history.'};
  const pendingTask={id:'task',revision:1,kind:'owner_note',status:'awaiting_subject',source,request,requiresAnswer:true,authorizationMessageId:request.id};
- assert.equal(resolvePendingTaskSubject({...context,pendingTask,currentMessage:'Sable'}),null);
  const task=validateAskTask({intent:'resume',sourceTurnId:null,petName:'Sable',answerRequired:false},{...context,pendingTask});
  assert.equal(task.requiresAnswer,true,'a planner flag cannot erase an existing obligation');
  assert.equal(wholeAskTaskQuestion({currentMessage:'Sable',askInterpretation:{request:{task}}}),request.text+'\nFollow-up: Sable');
@@ -97,7 +97,6 @@ test('resuming the remaining answer retains its already-saved pet',()=>{
  const pendingTask={id:'task',revision:2,kind:'owner_note',status:'awaiting_answer',source,request,requiresAnswer:true,petId:'pet',entryId:'entry',authorizationMessageId:'permission'};
  const task=validateAskTask({intent:'resume',sourceTurnId:null,petName:null},{...context,pendingTask});
  assert.equal(task.petId,'pet');assert.equal(task.requiresAnswer,true);
- assert.equal(resolvePendingTaskSubject({...context,pendingTask,currentMessage:'Sable'}),null);
 });
 
 test('multi-pet current source without a user-named destination remains unresolved',()=>{

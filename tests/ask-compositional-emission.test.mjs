@@ -37,7 +37,7 @@ async function mocked(question,readTicket=ticket(),patch={},ctx=context(question
   if(result.request?.readTicket)assert.ok(Object.isFrozen(result.request.readTicket));
   if(result.request?.readTicket?.selection){
     assert.equal(Object.hasOwn(result.request.readTicket.outputs,'strategy'),false);
-    assert.equal(result.request.readTicket.outputs.limit,null);
+    assert.equal(result.request.readTicket.outputs.limit,readTicket.outputs.limit);
   }
   assert.equal(result.readOnly,true);
   return result;
@@ -114,15 +114,16 @@ test('explicit temporal windows compose with grouped selection without rewriting
   const r=await mocked('latest weight for each during 2025',read);
   assert.deepEqual(r.request.readTicket.temporal,read.temporal);
 });
-test('G single-subject legacy selection remains legal with provider selection null',async()=>{
+test('G single-subject legacy input becomes one canonical compositional selection',async()=>{
   const dune={...pets[0],id:'dune',name:'Dune'};
   const question='when was Dune first weighed and what was it';
   const read={...ticket(),subjectScope:'selected',selection:null,
     outputs:{strategy:'chronological',completeness:'exhaustive',ordering:'asc',limit:1}};
   const r=await mocked(question,read,{scope:'selected',petNames:[]},
     {...context(question,[]),eligiblePets:[dune],pet:dune});
-  assert.equal(r.request.readTicket.selection,undefined);
-  assert.deepEqual(r.petIds,['dune']);assert.equal(r.selection,'earliest');
+  assert.deepEqual(r.request.readTicket.selection,{groupBy:['subject'],union:[clause('asc',1)]});
+  assert.deepEqual(r.petIds,['dune']);
+  assert.equal(r.request.readTicket.outputs.completeness,'exhaustive');
 });
 test('H distinct grounded probes retain multi-need retrieval with selection null',async()=>{
   const first='Aster food in 2025',second='Bramble medication in 2024',question=first+' and '+second;
@@ -239,7 +240,7 @@ test('captured A1 semantics omit strategy; every conflicting legacy strategy sti
   }
 });
 
-test('legacy chronological and temporal endpoints still bind and execute without selection',async()=>{
+test('finite chronological input translates; unbounded legacy endpoint strategy fails closed',async()=>{
   const rows=[1,2].map(day=>({id:'aster-'+day,user_id:'owner',pet_profile_id:'aster',
     note:'weight',title:null,deleted_at:null,occurred_at:'2026-01-0'+day+'T00:00:00Z',
     created_at:'2026-01-0'+day+'T00:00:00Z'}));
@@ -251,9 +252,14 @@ test('legacy chronological and temporal endpoints still bind and execute without
   for(const strategy of ['chronological','temporal_endpoints']){
     const read={...ticket(),selection:null,operation:strategy==='temporal_endpoints'?'compare':'read',
       outputs:{strategy,completeness:'exhaustive',ordering:'asc',limit:strategy==='chronological'?1:null}};
+    if(strategy==='temporal_endpoints'){
+      // Unbounded legacy endpoints also selected interior rows: no lossless endpoint-only translation.
+      await mocked('recorded weights for Aster',read,{petNames:['Aster']},context('recorded weights for Aster'),true);
+      continue;
+    }
     const r=await mocked('recorded weights for Aster',read,{petNames:['Aster']});
-    assert.equal(r.request.readTicket.selection,undefined);
-    assert.equal(r.request.readTicket.outputs.strategy,strategy);
+    assert.deepEqual(r.request.readTicket.selection,{groupBy:['subject'],union:[clause('asc',1)]});
+    assert.equal(r.request.readTicket.outputs.strategy,undefined);
     const result=await retrieveReadTicket(r.request.readTicket,scope,store);
     assert.deepEqual(result.records.map(r=>r.id),strategy==='chronological'?['aster-1']:['aster-1','aster-2']);
   }

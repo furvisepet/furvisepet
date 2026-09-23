@@ -14,7 +14,7 @@ for (const [message,body] of [
   test(`no clinical-merit gate: ${message}`, () => {
     const job=validateAppendJob({operation:'append',petName:'Rowan',bodyQuote:body,companionQuote:null},
       {id:'source',role:'user',text:message},[{...pet,user_id:'owner'}],'owner');
-    assert.equal(job.body.text,body);assert.equal(message.slice(job.body.start,job.body.end),body);
+    assert.equal(job.items[0].body.text,body);assert.equal(message.slice(job.items[0].body.start,job.items[0].body.end),body);
   });
 }
 test('unknown, multiple, invalid and DST-shifted dates cannot reject a note', () => {
@@ -88,8 +88,8 @@ for (const followup of ['tell me if I should use leftover tablets.', 'calculate 
     const text = `Rowan ate normally. Log this note to his care history. Then ${followup}`;
     const job=validateAppendJob({operation:'append',petName:'Rowan',bodyQuote:'Rowan ate normally.',companionQuote:followup},
       {id:'source',role:'user',text},[{...pet,user_id:'owner'}],'owner');
-    assert.equal(job.body.text,'Rowan ate normally.');assert.equal(job.companion.text,followup);
+    assert.equal(job.items[0].body.text,'Rowan ate normally.');assert.equal(job.companion.text,followup);
     assert.equal(text.slice(job.companion.start,job.companion.end),followup);
-    assert.notEqual(job.body.id,job.companion.id);
+    assert.notEqual(job.items[0].body.id,job.companion.id);
   });
 }

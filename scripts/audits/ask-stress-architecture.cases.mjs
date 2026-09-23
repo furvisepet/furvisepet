@@ -488,17 +488,18 @@ for (const inventedDate of [false,true]) test(`CSV quotes are cell delimiters; r
 });
 
 test('explicit dated note batches preserve each date and exact note without clinical inference', async()=>{
- const {parseDatedNoteBatch,noteBatchReviewActions}=await import('../../app/lib/intelligence/dated-note-batch.ts');
- const {isExplicitCareHistorySaveRequest}=await import('../../app/lib/intelligence/care-history-policy.ts');
+ const {validateAppendJob}=await import('../../app/lib/furvise-brain/append-job.ts');
  const text='Save these four separate care notes for Aster: September 1, 2026: started vomiting. September 3, 2026: stopped vomiting completely. September 7, 2026: started a new, separate vomiting episode. September 9, 2026: stopped vomiting completely.';
- assert.equal(isExplicitCareHistorySaveRequest(text),true);
- const notes=parseDatedNoteBatch(text);
- assert.equal(notes.length,4);
- assert.deepEqual(notes.map(n=>n.occurredAt.slice(0,10)),['2026-09-01','2026-09-03','2026-09-07','2026-09-09']);
- assert.equal(notes[0].note,'September 1, 2026: started vomiting.');
- assert.equal(noteBatchReviewActions(notes).length,4);
- assert.deepEqual(parseDatedNoteBatch('Hypothetical only: '+text),[]);
- assert.deepEqual(parseDatedNoteBatch('Do not '+text),[]);
+ const bodies=['September 1, 2026: started vomiting.','September 3, 2026: stopped vomiting completely.','September 7, 2026: started a new, separate vomiting episode.','September 9, 2026: stopped vomiting completely.'];
+ const dates=['September 1, 2026','September 3, 2026','September 7, 2026','September 9, 2026'];
+ const days=['2026-09-01','2026-09-03','2026-09-07','2026-09-09'];
+ const proposed={operation:'append',petName:'Aster',companionQuote:null,items:bodies.map((bodyQuote,i)=>({bodyQuote,dateQuote:dates[i],occurredAt:days[i]}))};
+ const source={id:'source',role:'user',text,createdAt:'2026-09-20T00:00:00Z'};
+ const job=validateAppendJob(proposed,source,[{id:'owned',name:'Aster',user_id:'owner'}],'owner');
+ assert.equal(job.items.length,4);assert.deepEqual(job.items.map(x=>x.body.text),bodies);
+ assert.deepEqual(job.items.map(x=>x.occurredAt.slice(0,10)),days);
+ assert.throws(()=>validateAppendJob(proposed,{...source,text:'Do not '+text},[{id:'owned',name:'Aster',user_id:'owner'}],'owner'));
+ assert.throws(()=>validateAppendJob(proposed,{...source,role:'furvise'},[{id:'owned',name:'Aster',user_id:'owner'}],'owner'));
 });
 test('explicit month-scoped episode target survives stale planner reference hints',()=>{
  const p=validateAskRequest(proposal({operation:'episode',selection:'reference',episodeTopic:'vomiting',ordinal:'second',from:null,to:null}),

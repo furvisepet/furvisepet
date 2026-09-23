@@ -41,6 +41,8 @@ export function confirmFurviseWriteReceipt(input: {
     || receipt.petId !== input.authorized.petId
     || !input.authorized.sourceMessageId
     || receipt.sourceMessageId !== input.authorized.sourceMessageId
+    || !isDeepStrictEqual(receipt.appendJob, input.authorized.appendJob)
+    || !isDeepStrictEqual(receipt.replaceJob, input.authorized.replaceJob)
     || !isDeepStrictEqual(receipt.input, input.authorized.input)
     || !isDeepStrictEqual(receipt, input.returned)) {
     throw new Error("FURVISE_WRITE_RECEIPT_UNCONFIRMED");

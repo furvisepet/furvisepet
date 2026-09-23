@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveAskTurnSubject } from '../app/lib/intelligence/entities/resolve-turn-subject.ts';
+import { resolveAskTurnSubject } from './helpers/precanonical-subject.mjs';
 const pets = [{id:'milo',name:'Milo',species:'dog',sex:'male'}, {id:'luna',name:'Luna',species:'cat',sex:'female'}];
 async function decide(message, recentConversation, eligible=pets) {
   return (await resolveAskTurnSubject({message,recentConversation,pets:eligible,ownerId:'owner',selectedPetId:'milo',

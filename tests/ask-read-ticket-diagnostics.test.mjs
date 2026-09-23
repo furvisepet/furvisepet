@@ -151,6 +151,7 @@ test('captured Bramble ticket binds only with needs stripped, through one planne
       const envelope = { ...proposal(candidate), evidenceNeeds: [{
         quote: question, sourceTurnId: null, petNames: ['Bramble'], terms: ['food', 'eating'], order: 'context',
       }] };
+      if (variant !== 'retained') envelope.evidenceNeeds = []; // Duplicate captured scaffolding, not an independent obligation.
       const run = interpretAskQuestion({ context, model: 'fixture',
         onProviderEvent: event => stages.push(event),
         client: { responses: { create: async request => {
@@ -171,13 +172,15 @@ test('captured Bramble ticket binds only with needs stripped, through one planne
         assert.equal(logged.rule, 'read_since_event_incompatible_with_needs');
         assert.deepEqual(logged.readTicket, original);
       } else {
-        const expected = bindReadTicket(candidate, [pet.id], bindings);
+        const {strategy: _legacyStrategy,...outputs}=candidate.outputs;
+        const expected = bindReadTicket({...candidate,outputs}, [pet.id], bindings);
         const result = await run;
         assert.deepEqual(result.request.readTicket, expected);
         assert.deepEqual(expected.temporal, original.temporal);
         assert.deepEqual(expected.predicates, original.predicates);
         assert.deepEqual(expected.searchHints, original.searchHints);
-        assert.deepEqual(expected.outputs, original.outputs);
+        const {strategy: _originalStrategy,...originalOutputs}=original.outputs;
+        assert.deepEqual(expected.outputs, originalOutputs);
         assert.equal(expected.operation, original.operation);
         assert.equal(warn.mock.calls.length, 0);
       }

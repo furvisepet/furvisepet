@@ -1,9 +1,10 @@
+import { isDeepStrictEqual } from "node:util";
 import { deriveAskTaskOutcome, type AskTurnLifecycle } from "../ai/ask-turn-model.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { FurviseLiveContext } from "./types.ts";
 import type { AskInterpretation } from "./interpret-ask.ts";
 import type { FurviseApplicationAction } from "../application-actions/types.ts";
-import { prepareFurviseApplicationActions } from "../application-actions/planner.ts";
+import { getFurviseActionPolicy } from "../application-actions/policy.ts";
 import { createActionCapabilities } from "../application-actions/capabilities.ts";
 import { completeAskConversationTurn, updateAskAssistantResponse } from "../ask-conversation-authority.ts";
 import { buildAskConversationResponse } from "../ask.mjs";
@@ -13,7 +14,7 @@ import { createAskEvidenceContract } from "./ask-evidence.ts";
 import { generateContextAwareAskResponse } from "../ai/ask-reasoning.ts";
 import { reviewHistoricalAnswer } from "./review-history-narrative.ts";
 import { bindTypedReadTicket } from "../furvise-brain/typed-read-ticket.ts";
-import { validateAppendJob } from "../furvise-brain/append-job.ts";
+import { appendJobProposal, validateAppendJob } from "../furvise-brain/append-job.ts";
 import { resolveAskHistoryAccess } from "./history-access.ts";
 import { emptyProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
 
@@ -26,11 +27,14 @@ export async function prepareAppendTurn(input: {
   if (!job || job.sourceMessageId !== input.userMessageId) throw Error("APPEND_SOURCE_MISMATCH");
   const pet = input.context.eligiblePets.find(pet => pet.id === job.petId && pet.user_id === input.context.owner.userId);
   if (!pet) throw Error("APPEND_SUBJECT_UNAVAILABLE");
-  const [proposal] = prepareFurviseApplicationActions({ proposals: [{ kind: "care_history.add", input: {
-    field: null, value: null, title: "Owner note", detail: job.body.text, category: "general", target: "specified",
-  }, evidence: job.body.text, explicitIntent: false }], petId: pet.id, petName: pet.name || "your pet", requestId: input.requestId,
-    sourceMessage: input.context.currentMessage });
-  if (!proposal) throw Error("APPEND_PROPOSAL_INVALID");
+  const proposal: FurviseApplicationAction = { ...getFurviseActionPolicy("care_history.add"),
+    id: `${input.requestId}:append`, kind: "care_history.add", petId: pet.id, sourceMessageId: job.sourceMessageId,
+    appendJob: job, input: { field: null, value: null, title: "Owner note",
+      detail: null, category: "general", target: "specified" },
+    evidence: job.items[0].body.text.slice(0, 240), explicitIntent: false, status: "proposed",
+    label: job.items.length === 1 ? "Add to care history" : `Add ${job.items.length} records to care history`,
+    description: job.items.map(item => item.body.text).join("\n\n").slice(0, 600),
+    href: null, resultMessage: null, errorMessage: null };
   const response = buildAskConversationResponse({ title: proposal.label, summary: proposal.description, sections: [], safetyNote: null },
     { intent: "new_observation", missingUsefulDetails: [], usedContextSummary: [] });
   if (!response) throw Error("APPEND_PRESENTATION_INVALID");
@@ -72,7 +76,7 @@ export async function continueConfirmedAppend(input: {
   const pending = stored?.pendingAppend;
   if (!pending) return null;
   if (pending.version !== 1 || pending.sourceMessageId !== input.action.sourceMessageId
-    || pending.job.petId !== input.action.petId || pending.job.body.text !== input.action.input.detail
+    || pending.job.petId !== input.action.petId || !isDeepStrictEqual(pending.job, input.action.appendJob)
     || !stored.applicationActions?.some((action: FurviseApplicationAction) => action.id === input.action.id)
     || pending.conversationId !== data.conversation_id) throw Error("APPEND_CONTINUATION_SCOPE");
   const source = await input.supabase.from("ask_conversation_messages").select("id,user_text,role,created_at")
@@ -81,9 +85,9 @@ export async function continueConfirmedAppend(input: {
   const context = await buildFurvisePlanningContext({ ...input, petId: pending.selectedPetId, conversationId: data.conversation_id,
     sourceMessageId: pending.sourceMessageId, currentMessage: source.data.user_text, locale: pending.locale, timeZone: pending.timeZone });
   const pet = context.eligiblePets.find(pet => pet.id === pending.job.petId);
-  const rebound = validateAppendJob({ operation: "append", petName: pet?.name, bodyQuote: pending.job.body.text,
-    companionQuote: pending.job.companion?.text ?? null }, context.currentTurn, context.eligiblePets, input.userId);
-  if (JSON.stringify(rebound) !== JSON.stringify(pending.job)) throw Error("APPEND_CONTINUATION_SOURCE");
+  const rebound = validateAppendJob(appendJobProposal(pending.job, pet?.name || ""),
+    context.currentTurn, context.eligiblePets, input.userId);
+  if (!isDeepStrictEqual(rebound, pending.job)) throw Error("APPEND_CONTINUATION_SOURCE");
   if (!pending.readTicket) return null;
   const { subjects, ...proposal } = pending.readTicket;
   if (!Array.isArray(subjects?.petIds) || subjects.petIds.some((id: string) => !context.eligiblePets.some(pet => pet.id === id && pet.user_id === input.userId))) throw Error("APPEND_CONTINUATION_SCOPE");
@@ -93,7 +97,7 @@ export async function continueConfirmedAppend(input: {
   const ticket = bindTypedReadTicket({ ...proposal, ...(needs ? { needs: needs.map((need: NonNullable<import("../furvise-brain/read-ticket.ts").ReadTicket["needs"]>[number]) => ({
     needId: need.id, from: need.from, to: need.to, target: need.target, termGroups: need.termGroups, ordering: need.ordering,
   })) } : {}) }, subjects.petIds, needs || [])!;
-  if (!pending.readRequest || JSON.stringify(pending.readRequest.readTicket) !== JSON.stringify(pending.readTicket)) throw Error("APPEND_CONTINUATION_TICKET");
+  if (!pending.readRequest || !isDeepStrictEqual(pending.readRequest.readTicket, pending.readTicket)) throw Error("APPEND_CONTINUATION_TICKET");
   const interpretation: AskInterpretation = { version: "ask-interpretation.v1", operation: "recall", readOperation: "recall",
     petIds: [...ticket.subjects.petIds], topic: "care history", history: { from: ticket.temporal.from, to: ticket.temporal.to, terms: [], interpretation: "period" },
     episodeTopic: null, ordinal: null, readOnly: true, clarification: null, frame: emptyProposedSemanticFrame(),

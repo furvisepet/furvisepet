@@ -81,7 +81,7 @@ export function prepareTypedMemoryCandidate(
   authorizedPetIds: readonly string[],
   options: { explicitPreferenceIntent?: boolean } = {},
 ): MemoryCandidateDecision {
-  const preference = prepareSupportedPreference(learning, currentMessage, options.explicitPreferenceIntent === true);
+  const preference = prepareSupportedPreference(learning, options.explicitPreferenceIntent === true);
   if (preference.matched && !preference.accepted) return rejected(preference.reason);
   const governedLearning = preference.matched && preference.accepted ? preference.learning : learning;
   const factKey = normalizeKey(governedLearning.factKey);
@@ -100,10 +100,10 @@ export function prepareTypedMemoryCandidate(
   if (!governedLearning.sourceExcerpt.trim() || !includesEvidence(currentMessage, governedLearning.sourceExcerpt)) return rejected("source_excerpt_not_explicit");
   const kind = memoryKind(category, factKey);
   if (kind !== "preference" && !preservesUncertainty(governedLearning.sourceExcerpt, semantic.content)) return rejected("owner_uncertainty_not_preserved");
-  if (!explicitRemember.test(currentMessage) && ordinaryLowValue.test(`${governedLearning.sourceExcerpt} ${semantic.content}`)) return rejected("low_value_everyday_observation");
+  if (!options.explicitPreferenceIntent && !explicitRemember.test(currentMessage) && ordinaryLowValue.test(`${governedLearning.sourceExcerpt} ${semantic.content}`)) return rejected("low_value_everyday_observation");
 
   const scope = governedLearning.subjectType === "pet" ? "pet" : "user";
-  const provenance: MemoryProvenance = explicitRemember.test(currentMessage)
+  const provenance: MemoryProvenance = options.explicitPreferenceIntent ? "explicit_preference" : explicitRemember.test(currentMessage)
     ? "explicit_remember_request"
     : kind === "preference" ? "explicit_preference" : "owner_reported";
   const content = cleanContent(semantic.content);
@@ -141,6 +141,7 @@ export function supportedPreferenceDecision(input: {
   factValue: unknown;
   sourceExcerpt: string;
   currentMessage: string;
+  explicitPreferenceIntent?: boolean;
   subjectType: "pet" | "owner";
 }) {
   const learning = {
@@ -151,7 +152,7 @@ export function supportedPreferenceDecision(input: {
     durability: "durable" as const,
     action: "create" as const,
   };
-  return prepareSupportedPreference(learning, input.currentMessage);
+  return prepareSupportedPreference(learning, input.explicitPreferenceIntent === true);
 }
 
 export function isEligibleLegacyMemory(memory: { type?: string | null; text?: string | null }) {
@@ -241,7 +242,6 @@ function semanticContent(value: unknown, factKey: string, category: string): { c
 
 function prepareSupportedPreference(
   learning: IntelligenceLearning,
-  currentMessage: string,
   explicitPreferenceIntent = false,
 ): { matched: false } | { matched: true; accepted: false; reason: string } | { matched: true; accepted: true; learning: IntelligenceLearning } {
   const key = supportedPreferenceKey(learning.factKey);
@@ -253,7 +253,7 @@ function prepareSupportedPreference(
   if (typeof learning.factValue !== "string" || !isSupportedPreferenceValue(key, learning.factValue)) {
     return { matched: true, accepted: false, reason: "invalid_preference_value" };
   }
-  if (!explicitPreferenceIntent && !hasExplicitPreferenceIntent(key, currentMessage, learning.factValue)) {
+  if (!explicitPreferenceIntent) {
     return { matched: true, accepted: false, reason: "preference_intent_not_explicit" };
   }
   return {
@@ -296,6 +296,12 @@ function isSupportedPreferenceCategory(key: SupportedPreferenceKey, category: st
     : supportedPreferenceCategories.has(canonical);
 }
 
+/** Pure domain policy shared by canonical field jobs and stored-memory validation. */
+export function isWritableOwnerPreferenceValue(field: string, value: unknown): value is string {
+  return ["preferred_language", "preferred_units", "communication_style"].includes(field)
+    && typeof value === "string" && value === value.trim() && value.length <= 100
+    && isSupportedPreferenceValue(field as SupportedPreferenceKey, value);
+}
 function isSupportedPreferenceValue(key: SupportedPreferenceKey, value: unknown) {
   if (typeof value !== "string" && key !== "preferred_retailer" && key !== "monthly_pet_supply_budget") return false;
   const clean = typedPreferenceScalar(value);
@@ -324,34 +330,6 @@ function isSupportedPreferenceValue(key: SupportedPreferenceKey, value: unknown)
   const words = normalized.split(/\s+/).filter(Boolean);
   return words.some((word) => communicationStyleDescriptors.has(word))
     && words.every((word) => communicationStyleGrammar.has(word));
-}
-
-function hasExplicitPreferenceIntent(key: SupportedPreferenceKey, message: string, value: string) {
-  const normalizedMessage = normalizeEvidence(message);
-  const normalizedValue = normalizeEvidence(value).replace(/ language$/, "");
-  if (!normalizedMessage || !normalizedValue) return false;
-  if (key === "preferred_language") {
-    return normalizedMessage.includes(normalizedValue)
-      && /\b(?:answer|keep|language|prefer|remember|reply|respond|speak|switch|use)\b/.test(normalizedMessage);
-  }
-  if (key === "preferred_units") {
-    const unitFamily = /metric|si|kilogram|kg/.test(normalizedValue) ? /\b(?:metric|si|kilograms?|kg)\b/
-      : /\b(?:imperial|customary|pounds?|lbs?)\b/;
-    return unitFamily.test(normalizedMessage)
-      && /\b(?:metric|imperial|unit|units|kilogram|kilograms|pound|pounds|prefer|remember|switch|use)\b/.test(normalizedMessage);
-  }
-  if (key === "preferred_retailer") {
-    return normalizedMessage.includes(normalizedValue)
-      && /\b(?:buy|prefer|remember|retailer|shop|store)\b/.test(normalizedMessage);
-  }
-  if (key === "monthly_pet_supply_budget") {
-    const amount = normalizedValue.match(/\d+(?:\.\d+)?/)?.[0];
-    return Boolean(amount && normalizedMessage.includes(amount))
-      && /\b(?:budget|cost|limit|maximum|prefer|remember|spend|under|up to)\b/.test(normalizedMessage);
-  }
-  const descriptorStems = normalizedValue.split(/\s+/).filter((word) => communicationStyleDescriptors.has(word)).map((word) => word.slice(0, Math.min(word.length, 6)));
-  return descriptorStems.some((stem) => normalizedMessage.includes(stem))
-    && /\b(?:answer|answers|brief|communication|concise|concisely|detailed|direct|friendly|prefer|remember|response|responses|short|style|tone)\b/.test(normalizedMessage);
 }
 
 function typedPreferenceScalar(value: unknown) {

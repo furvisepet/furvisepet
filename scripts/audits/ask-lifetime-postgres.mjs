@@ -14,6 +14,7 @@ const { persistSemanticEventRpc } = await import('../../app/lib/intelligence/sem
 const { generateAskHistoryAnswer } = await import('../../app/lib/intelligence/generate-ask-history.ts');
 const { attachEpisodeReferences } = await import('../../app/lib/intelligence/episode-contract.ts');
 const { buildAskConversationResponse } = await import('../../app/lib/ask.mjs');
+throw new Error('LEGACY_AUTOMATIC_PERSISTENCE_RETIRED: this historical DB audit requires a canonical episode-writer migration before execution.');
 const embedded = process.env.FURVISE_EMBEDDED_POSTGRES_DIR ? embeddedPostgres({dataDir:process.env.FURVISE_EMBEDDED_POSTGRES_DIR,packageDir:process.env.FURVISE_PGLITE_PACKAGE_DIR}) : null;
 const container='furvise-stage2-db-2788f0b', database=embedded ? embedded.sql('select current_database();') : 'stage2_validation';
 // A second invocation must not overlap this writer. A retained lock after a

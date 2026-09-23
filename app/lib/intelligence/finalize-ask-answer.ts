@@ -6,7 +6,6 @@ import { reviewHistoricalAnswer } from "./review-history-narrative.ts";
 import { reviewTaskCompletion } from "./review-task-completion.ts";
 import { validateGeneratedAnswer } from "./validation/validate-answer.ts";
 import { reviewedTaskReadyForExecution } from "./answer-assessment.ts";
-import { noteBatchReviewActions } from "./dated-note-batch.ts";
 import { readReviewedHistoryAnswer, recordHistoryReview, historyReviewSignature } from "./history-review-state.ts";
 
 /** Owns the ordered review/validation boundary, not persistence or charging.
@@ -35,7 +34,7 @@ export async function finalizeAskAnswer(input: {
   );
   validation = await reviewTaskCompletion({ validation, context, requestId, onProviderEvent, validate,
     pendingCareEvents: executionPlan.semanticEvents,
-    pendingCareActions: [...executionPlan.careActions, ...noteBatchReviewActions(executionPlan.noteBatch || [])],
+    pendingCareActions: executionPlan.careActions,
   });
   assertGovernedAskExecutionPlan(executionPlan);
   // Safe partial prose is not permission to commit a failed mixed request.

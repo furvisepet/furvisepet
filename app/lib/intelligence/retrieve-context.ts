@@ -1,6 +1,7 @@
 import { recoverTransientRead } from "../security/read-recovery.ts";
 import { recoverConversationReceiptReferences, requestsStoredNoteReadback } from "./conversation-receipt-recovery.ts";
 import "server-only";
+import { requestedAppendItems } from "./receipt-completion.ts";
 import { enforceAskHistoryAccess, type AskHistoryAccess } from "./history-access.ts";
 import { episodePresentation } from "./episode-presentation.ts";
 
@@ -138,11 +139,11 @@ export async function buildFurviseContext({
     ...sharedMemories.data.flatMap((memory) => memory.source_type === "ask_message" && memory.source_id ? [memory.source_id] : []),
   ])];
   const deletedCareSources = await recoverOptionalQuery("conversation_source_lineage", candidateSourceMessageIds.length ? supabase.from("pet_care_entries")
-    .select("id,intelligence_source_message_id,deleted_at,note,occurred_at")
+    .select("id,intelligence_source_message_id,deleted_at,note,occurred_at,care_event_metadata")
     .eq("user_id", userId).eq("pet_profile_id", petId)
     .in("intelligence_source_message_id", candidateSourceMessageIds)
-    .returns<Array<{ deleted_at: string | null; id: string; note: string; occurred_at: string; intelligence_source_message_id: string | null }>>()
-    : Promise.resolve({ data: [], error: null }), [] as Array<{ deleted_at: string | null; id: string; note: string; occurred_at: string; intelligence_source_message_id: string | null }>);
+    .returns<Array<{ deleted_at: string | null; id: string; note: string; occurred_at: string; care_event_metadata?: { sourceSpanId?: string }; intelligence_source_message_id: string | null }>>()
+    : Promise.resolve({ data: [], error: null }), [] as Array<{ deleted_at: string | null; id: string; note: string; occurred_at: string; care_event_metadata?: { sourceSpanId?: string }; intelligence_source_message_id: string | null }>);
   // Fail closed on unverified conversation lineage, not on independent owned
   // profile/history retrieval. No receipt or stale conversation fact is issued.
   if (deletedCareSources.unavailable) unavailableSources.push("conversation_source_lineage");
@@ -167,13 +168,17 @@ export async function buildFurviseContext({
         ...(recoveredReferenceIds.has(message.id) ? { recoveredReceiptReference: true } : {}),
         ...(message.role === "user" && message.request_id ? { operationReceipt: {
           sourceMessageId: message.id, petId, requestText: message.user_text || "",
+          requestedItems: capabilityActions.complete ? requestedAppendItems(messages.data
+            .filter(other => other.role === "furvise" && other.request_id === message.request_id)
+            .flatMap(other => parseStoredApplicationActions(capabilityActions.get(other.id) || [])), message.id, petId) : undefined,
           answerPersisted: messages.data.some(other => other.role === "furvise" && other.request_id === message.request_id),
           actionReceipts: capabilityActions.complete ? messages.data.filter(other => other.role === "furvise" && other.request_id === message.request_id)
             .flatMap(other => parseStoredApplicationActions(capabilityActions.get(other.id) || [])).filter(action => action.petId === petId && action.mutationClass === "mutation")
             .map(action => ({ id: action.id, kind: action.kind, status: action.status, resultMessage: action.resultMessage })) : undefined,
           records: (deletedCareSources.data || []).filter(row => !row.deleted_at && row.intelligence_source_message_id === message.id
             && (!historyAccess || Date.parse(row.occurred_at) >= Date.parse(historyAccess.from)))
-            .map(row => ({ id: row.id, note: row.note, occurredAt: row.occurred_at })),
+            .map(row => ({ id: row.id, note: row.note, occurredAt: row.occurred_at, petId,
+              sourceMessageId: row.intelligence_source_message_id!, sourceSpanId: row.care_event_metadata?.sourceSpanId })),
         } } : {}),
         ...(message.role === "furvise" ? { applicationActions: parseStoredApplicationActions(trustedActions) } : {}),
       };

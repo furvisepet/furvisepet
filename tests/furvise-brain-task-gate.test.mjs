@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  taskMutationParameters,
   validateAskTask,
 } from "../app/lib/intelligence/ask-task-continuation.ts";
 
@@ -14,7 +13,7 @@ const source = {
 };
 const pet = { id: "pebble", name: "Pebble", user_id: "owner" };
 
-test("current-turn save crosses the canonical Furvise mutation gate", () => {
+test("legacy task input preserves authorization provenance but owns no execution", () => {
   const currentTurn = {
     ...source,
     id: "save-turn",
@@ -30,14 +29,10 @@ test("current-turn save crosses the canonical Furvise mutation gate", () => {
       eligiblePets: [pet],
     },
   );
-  const params = taskMutationParameters(task, {
-    userId: "owner",
-    conversationId: "conversation",
-    currentMessageId: currentTurn.id,
-    timeZone: "UTC",
-  });
-  assert.equal(params.p_pet_id, "pebble");
-  assert.equal(params.p_message_id, "save-turn");
+  assert.equal(task.petId,"pebble");
+  assert.equal(task.source.id,"source");
+  assert.equal(task.authorization.kind,"record_care");
+  assert.equal(task.authorization.source,"current_turn");
 });
 
 test("a subject-only clarification cannot create a task or reach the mutation gate", () => {
@@ -76,15 +71,10 @@ test("durable continuation needs the exact earlier authorization turn id", () =>
     },
   );
   assert.equal(task.authorizationTurnId, "permission");
-  assert.doesNotThrow(() => taskMutationParameters(task, {
-    userId: "owner",
-    conversationId: "conversation",
-    currentMessageId: "clarify-turn",
-  }));
-
-  assert.throws(() => taskMutationParameters({ ...task, authorizationTurnId: null }, {
-    userId: "owner",
-    conversationId: "conversation",
-    currentMessageId: "clarify-turn",
-  }), /FURVISE_MUTATION_NOT_AUTHORIZED/);
+  assert.equal(task.authorization.source,"durable_capability");
+  assert.throws(()=>validateAskTask({intent:"resume",sourceTurnId:null,petName:"Pebble"},{
+    currentMessage:"Pebble",currentTurn:{...source,id:"clarify-turn",text:"Pebble"},
+    conversationTurns:[source,request],pendingTask:{...pendingTask,authorizationMessageId:null},
+    owner:{userId:"owner"},eligiblePets:[pet],
+  }),/ASK_REQUEST_INVALID/);
 });

@@ -14,7 +14,6 @@ import { proseRepairSchema, applyProseRepair } from "./history-prose-repair.ts";
 import { CLAIM_AUTHORITY_POLICY, CLAIM_REVIEW_POLICY } from "./claim-authority-policy.ts";
 import { actionCanAutoExecute } from "../application-actions/policy.ts";
 import { missingExactRecordText } from "./exact-record-text.ts";
-import { noteBatchReviewActions } from "./dated-note-batch.ts";
 import { furviseProductFacts } from "../ai/ask-internal-product-policy.ts";
 import { isExplicitCareHistorySaveRequest } from "./care-history-policy.ts";
 import type { GovernedAskExecutionPlan } from "./ask-execution-plan.ts";
@@ -100,7 +99,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   if (unsupportedProfilePresentation(evidence) || result.model === PROFILE_PRESENTATION_UNAVAILABLE) {
     const failure = profilePresentationLimitationFailure(result);
     if (failure) return decline(failure);
-    if (executionPlan && (executionPlan.semanticEvents.length || executionPlan.careActions.length || executionPlan.noteBatch?.length))
+    if (executionPlan && (executionPlan.semanticEvents.length || executionPlan.careActions.length))
       return decline("profile_presentation_has_pending_write");
     recordHistoryReview(result, { signature: signature(result), text: result.answer.summary, sourceIds: [], sourceContent: [] });
     recordHistoryReviewDiagnostic(result, "approved", "profile_presentation_unavailable");
@@ -109,7 +108,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   if (requiresHistoryPublicationAuthority(evidence)) {
     const failure = result.labsList ? historyLabsAuthorityFailure(result) : historyLimitationFailure(result);
     if (failure) return decline(failure);
-    if (executionPlan && (executionPlan.semanticEvents.length || executionPlan.careActions.length || executionPlan.noteBatch?.length))
+    if (executionPlan && (executionPlan.semanticEvents.length || executionPlan.careActions.length))
       return decline("history_publication_has_pending_write");
     recordHistoryReview(result, { signature: signature(result), text: result.answer.summary,
       sourceIds: [...result.relevantContextIds], sourceContent: result.labsList?.records.map(row => row.body) || [] });
@@ -119,7 +118,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   if (result.profileFieldLabs) {
     const failure = profileFieldLabsReviewFailure(result);
     if (failure) return decline(failure);
-    if (executionPlan && (executionPlan.semanticEvents.length || executionPlan.careActions.length || executionPlan.noteBatch?.length))
+    if (executionPlan && (executionPlan.semanticEvents.length || executionPlan.careActions.length))
       return decline("profile_labs_has_pending_write");
     recordHistoryReview(result, { signature: signature(result), text: result.answer.summary,
       sourceIds: profileFieldSourceIds(result.profileFieldLabs),
@@ -133,7 +132,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
       console.info("[Ask Labs] list rejected", { reason: failure, safetyLevel: result.safetyLevel });
       return decline(failure);
     }
-    if (executionPlan && (executionPlan.semanticEvents.length || executionPlan.careActions.length || executionPlan.noteBatch?.length))
+    if (executionPlan && (executionPlan.semanticEvents.length || executionPlan.careActions.length))
       return decline("labs_list_has_pending_write");
     recordHistoryReview(result, { signature: signature(result), text: result.answer.summary,
       sourceIds: [...result.relevantContextIds], sourceContent: result.labsList.records.map(row => row.body) });
@@ -174,7 +173,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   }) : [];
   const pending = executionPlan && isExplicitCareHistorySaveRequest(evidence.scope.requestText) && !evidence.scope.readOnlyRecall
     ? [...executionPlan.semanticEvents.map(item => ({ origin: "server_governed_care_event", kind: "care_history.semantic_event", petId: item.event.subject.id, input: item.event })),
-      ...[...executionPlan.careActions, ...noteBatchReviewActions(executionPlan.noteBatch || [])].map(action => ({ origin: "server_governed_care_event", kind: "care_history.governed_action", petId: executionPlan.petId, input: action }))] : [];
+      ...executionPlan.careActions.map(action => ({ origin: "server_governed_care_event", kind: "care_history.governed_action", petId: executionPlan.petId, input: action }))] : [];
   const reviewActions = [...actions, ...pending];
   const ids = new Set(sources.map(source => source.sourceId));
   // A missing optional narrative must not prevent review of useful plain prose.

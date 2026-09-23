@@ -7,6 +7,7 @@ const {allocateSupportingContext,groundContextSignals,contextSignalsFromTicket}=
 const {bindReadTicket}=await import('../app/lib/furvise-brain/read-ticket.ts');
 const {bindCompositionalReadTicket,eventOrder}=await import('../app/lib/furvise-brain/read-selection.ts');
 const {retrieveReadTicket}=await import('../app/lib/furvise-brain/lungs.ts');
+const {buildLabsList}=await import('../app/lib/intelligence/labs-list.ts');
 const {derivePublicationAuthority,publicationClaimFailures,publicationGenerationContext}=await import('../app/lib/intelligence/publication-authority.ts');
 const pets=[{id:'a',name:'Juniper'},{id:'b',name:'Tamarack'}];
 const scope={userId:'owner',windows:pets.map(p=>({petId:p.id,from:'2020-01-01T00:00:00Z',to:'2027-01-01T00:00:00Z'}))};
@@ -116,7 +117,7 @@ test('priority and reservation remain representation policy, not required factua
 });
 function evidence(ticket,result){
  const spans=result.records.map(r=>({sourceId:'care:'+r.id,petId:r.pet_profile_id,sourceType:'care_update',field:'value',text:r.note,occurredAt:r.occurred_at,start:0,end:r.note.length}));
- return {scope:{authorizedPetIds:ticket.subjects.petIds,requestText:'fixture',readOnlyRecall:true},petNames:{a:'Juniper',b:'Tamarack'},
+ return {scope:{status:'resolved',authorizedPetIds:ticket.subjects.petIds,requestText:'fixture',readOnlyRecall:true},petNames:{a:'Juniper',b:'Tamarack'},
  interpretation:{readOperation:'recall',operation:'recall',request:{readTicket:ticket,mode:'read',quantity:'records',evidenceBasis:'saved_history',profileFields:[],requirements:[],referenceTurnIds:[]}},
  history:{ticketCoverage:result.coverage,provenance:[],needs:[],claimSources:[],corrections:'complete'},represented:spans,losses:[],
  sources:ticket.subjects.petIds.map(petId=>({petId,source:'care_entries',status:'loaded',loadedIds:spans.filter(s=>s.petId===petId).map(s=>s.sourceId)}))};
@@ -126,18 +127,19 @@ async function certifiedFixture(){
  const t=bindCompositionalReadTicket(p,['a']);
  const result=await retrieveReadTicket(t,{userId:'owner',ownedPetIds:['a'],from:scope.windows[0].from,to:scope.windows[0].to,asOf:'2026-09-20T00:00:00Z'},
  {page:async()=>[required],effective:async records=>({records,reliable:true})});
- return {ticket:t,result,evidence:evidence(t,result)};
+ const contract=evidence(t,result),labs=buildLabsList(contract,result.records);assert.ok(labs);
+ return {ticket:t,result,evidence:contract,labs};
 }
 test('SUPPORTING CONTEXT CAN HELP THE MOUTH; IT CANNOT ESTABLISH TRUTH',async()=>{
- const f=await certifiedFixture(),snapshot=JSON.stringify(f),before=derivePublicationAuthority(f.evidence);
+ const f=await certifiedFixture(),snapshot=JSON.stringify(f),before=derivePublicationAuthority(f.evidence,f.labs.records);
  assert.ok(before.obligations.every(o=>o.authority==='certified'));
  const r=allocate([row('alternative','a','food and weight 99 kg')]);
- assert.equal(JSON.stringify(f),snapshot);assert.deepEqual(derivePublicationAuthority(f.evidence),before);
+ assert.equal(JSON.stringify(f),snapshot);assert.deepEqual(derivePublicationAuthority(f.evidence,f.labs.records),before);
  // Even if support is separately represented by a caller, it cannot satisfy
  // the independently certified factual obligation under the existing policy.
  const e=structuredClone(f.evidence),s=r.supporting.records[0];
  e.represented.push({sourceId:'care:'+s.id,petId:'a',sourceType:'care_update',field:'value',text:s.note,start:0,end:s.note.length,occurredAt:s.occurred_at});e.sources[0].loadedIds.push('care:'+s.id);
- assert.deepEqual(derivePublicationAuthority(e).authorizedSourceIds,['care:selected']);
+ assert.deepEqual(derivePublicationAuthority(e,f.labs.records).authorizedSourceIds,['care:selected']);
  assert.ok(publicationClaimFailures(e,[{obligationId:before.obligations[0].obligationId,text:'Weight 99 kg',sourceIds:['care:alternative']}]).length);
  const generation=publicationGenerationContext(e,{supporting:r.supporting});assert.deepEqual(generation.contextRecords.map(r=>r.sourceId),['care:selected']);
 });

@@ -1,8 +1,9 @@
+import { historyLimitationFailure, historyPublicationLimitation } from "./ordinary-history-publication.ts";
 import { unsupportedProfilePresentation, profilePresentationLimitationFailure, PROFILE_PRESENTATION_UNAVAILABLE, PROFILE_PRESENTATION_LIMITATION } from "./profile-presentation-limitation.ts";
 import type { FurviseApplicationAction } from "../application-actions/types.ts";
 import type { ObligationCompletion } from "./history-obligations.ts";
 import type { AskReasoningResult } from "../ai/ask-reasoning.ts";
-import { derivePublicationAuthority, publicationClaimFailures, type PublicationAuthorityClaim } from "./publication-authority.ts";
+import { derivePublicationAuthority, requiresHistoryPublicationAuthority, publicationClaimFailures, type PublicationAuthorityClaim } from "./publication-authority.ts";
 
 type Receipt = { authorityClaims?: PublicationAuthorityClaim[]; actions?: FurviseApplicationAction[]; signature: string; text: string; sourceIds: string[]; proseText?: string; sourceReports?: string[]; sourceContent?: string[]; completion?: ObligationCompletion[] };
 const reviewed = new WeakMap<AskReasoningResult, Receipt>();
@@ -15,12 +16,19 @@ export function readReviewedHistoryAnswer(result: AskReasoningResult): Omit<Rece
   const receipt = reviewed.get(result);
   if (!receipt || receipt.signature !== historyReviewSignature(result)) return null;
   const profileLimitation = unsupportedProfilePresentation(result.evidenceContract) || result.model === PROFILE_PRESENTATION_UNAVAILABLE;
-  // This exact no-fact result uses the existing receipt; certified factual obligations still require claims below.
-  if (profileLimitation && (profilePresentationLimitationFailure(result)
-    || receipt.text !== PROFILE_PRESENTATION_LIMITATION || receipt.sourceIds.length
-    || receipt.authorityClaims?.length || receipt.actions?.length || receipt.completion?.length
-    || receipt.sourceContent?.length || receipt.sourceReports?.length || receipt.proseText !== undefined)) return null;
-  const authority = profileLimitation || result.labsList || result.profileFieldLabs ? null : derivePublicationAuthority(result.evidenceContract);
+  const historyLimitation = requiresHistoryPublicationAuthority(result.evidenceContract)
+    && result.model === "server-history-unavailable";
+  // Only these exact server-owned no-fact contracts bypass factual claims.
+  // Certified empty factual results retain the ordinary claim checks below.
+  if (profileLimitation || historyLimitation) {
+    const failure = profileLimitation ? profilePresentationLimitationFailure(result) : historyLimitationFailure(result);
+    const text = profileLimitation ? PROFILE_PRESENTATION_LIMITATION : historyPublicationLimitation(result.evidenceContract!);
+    if (failure || receipt.text !== text || receipt.sourceIds.length
+      || receipt.authorityClaims?.length || receipt.actions?.length || receipt.completion?.length
+      || receipt.sourceContent?.length || receipt.sourceReports?.length || receipt.proseText !== undefined) return null;
+  }
+  const authority = profileLimitation || historyLimitation || result.labsList || result.profileFieldLabs
+    ? null : derivePublicationAuthority(result.evidenceContract);
   if (authority) {
     const claims = receipt.authorityClaims || [];
     // Unavailable is an explicit no-fact outcome, not a certified empty result.

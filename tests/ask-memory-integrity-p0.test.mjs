@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { bindFieldMutationJob } from "../app/lib/furvise-brain/field-mutation-job.ts";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
@@ -154,7 +155,7 @@ test("ORIGINAL_SEMANTIC_DOMAIN_VALIDATED_BEFORE_PREFERENCE_ROUTING", () => {
 
 test("typed preference contract preserves explicit supported preferences", () => {
   const cases = [
-    ["communication_style", "concise", "Please answer more concisely."],
+    ["communication_style", "concise", "Please use concise answers."],
     ["preferred_units", "metric", "Use metric units."],
     ["preferred_language", "French", "Answer me in French."],
     ["communication_style", "short answers", "Remember that I prefer short answers."],
@@ -162,9 +163,15 @@ test("typed preference contract preserves explicit supported preferences", () =>
   for (const [factKey, factValue, message] of cases) {
     const item = learning({ subjectType: "owner", subjectId: null, category: "communication_preference", factKey, factValue, sourceExcerpt: message });
     const result = evaluateLearningPolicy([item], message, [petId]);
-    assert.equal(result.accepted.length, 1, `${factKey}: ${result.rejected[0]?.reason || "rejected"}`);
-    assert.equal(result.accepted[0].subjectType, "owner");
-    assert.equal(result.accepted[0].factKey, factKey);
+    assert.equal(result.accepted.length, 0, "narrative learning cannot authorize the preference");
+    const job = bindFieldMutationJob({domain:"owner_preference",operation:"set_field",petName:null,
+      field:factKey,instructionQuote:message,valueQuote:factValue},
+      {id:"user-source",role:"user",text:message,createdAt:"2026-09-23T00:00:00Z"},[],"owner");
+    const decision = prepareTypedMemoryCandidate({...item,factKey:job.field,factValue:job.value.value,
+      sourceExcerpt:job.instruction.text},message,[],{explicitPreferenceIntent:true});
+    assert.equal(decision.accepted,true);
+    assert.equal(decision.learning.subjectType,"owner");
+    assert.equal(decision.learning.factKey,job.field);
   }
 });
 

@@ -38,6 +38,29 @@ const selectedProposal=({direction='desc',temporal={},predicates=[],...patch}={}
   selection:{groupBy:['subject'],union:[{orderBy:[{field:'event_at',direction}],take:{count:1,per:'group'}}]}}
 });
 
+// Explicit endpoint obligations use the same canonical ticket and organ proof.
+const endpointPairProposal=({predicates=[],searchHints=null,...patch}={})=>proposal({
+ requirements:[],quantity:'records',operation:'recall',selection:'summary',...patch,
+ readTicket:{...readObligations({predicates,searchHints}),
+  selection:{groupBy:['subject'],union:['asc','desc'].map(direction=>({
+   orderBy:[{field:'event_at',direction}],take:{count:1,per:'group'}}))}}
+});
+function assertEndpointPairs(run,expected){
+ const ticket=run.context.askInterpretation.request.readTicket,coverage=run.context.askHistory.coverage.ticketCoverage;
+ assert.equal(ticket.outputs.strategy,undefined);assert.deepEqual(ticket.selection.groupBy,['subject']);
+ assert.deepEqual(ticket.selection.union.map(c=>[c.orderBy[0].direction,c.take.count,c.take.per]),[['asc',1,'group'],['desc',1,'group']]);
+ assert.deepEqual(new Set(run.context.askHistory.entries.map(r=>r.id)),new Set(Object.values(expected).flat()));
+ for(const [petId,ids] of Object.entries(expected)){
+  const group=coverage.groups.find(g=>g.petId===petId);assert.ok(group);
+  assert.equal(group.blocked,false);assert.deepEqual(group.clauses.map(c=>c.ids),ids.map(id=>[id]));
+  assert.ok(group.clauses.every(c=>c.certified));
+ }
+ assert.equal(run.result.reasoning.model,'server-labs-list');
+ assert.deepEqual(run.result.reasoning.labsList.ticket,ticket);
+ assert.deepEqual(run.result.reasoning.relevantContextIds,run.result.reasoning.labsList.records.map(r=>r.sourceId));
+ assert.equal(run.requests.length,0);assert.equal(run.reviewRequests.length,0);
+}
+
 const multiRead = (needs, patch = {}) => ({ ...readObligations(patch), needs: needs.map((need, index) => ({
  needId: 'need:' + index, from: null, to: null, target: null, termGroups: [[]], ordering: 'asc', ...need,
 })) });
@@ -52,9 +75,8 @@ test('missing event candidates return a server limitation without generation or 
  const r=await exercise('What was the latest routine change I recorded?',{
   fixturePets,messages:[],history:true,
   rows:[care('routine-only','milo','2026-06-04','behavior','Aster spent eight minutes on the usual mat.')],
-  interpretationProposal:proposal({selection:'latest',terms:['routine','change'],readTicket:readObligations({
-   predicates:[{kind:'text_any',terms:['routine']},{kind:'text_any',terms:['change']}],
-   outputs:{ordering:'desc',limit:1,strategy:'event_candidates'}})}),
+  interpretationProposal:selectedProposal({direction:'desc',
+   predicates:[{kind:'text_any',terms:['routine']},{kind:'text_any',terms:['change']}]}),
   providerOverrides:{answer:text,historyNarrative:{sentences:[{text,sourceIds:['care:routine-only']}]}},
   reviewResponse:{approved:true},expectedReviewCalls:0,expectedProviderCalls:0,
  });
@@ -71,7 +93,7 @@ test('broad historical reads retain multiple time slices and cannot bill a sampl
  const r=await exercise('Summarize observations recorded more than 2 years ago.',{
   fixturePets,messages:[],history:true,rows,historyAccess:{months:60,from:'2021-01-01T00:00:00.000Z',to:'2026-06-06T00:00:00.000Z'},
   interpretationProposal:proposal({operation:'overview',selection:'summary',terms:[],readTicket:readObligations({
-   temporal:{to:'2024-09-04T00:00:00.000Z'},outputs:{strategy:'calendar_samples'}})}),
+   temporal:{to:'2024-09-04T00:00:00.000Z'},outputs:{completeness:'exhaustive'}})}),
   providerOverrides:{answer:'The sampled notes describe room exploration followed by returning to the mat.',
    historyNarrative:{sentences:[{text:'The sampled notes describe room exploration followed by returning to the mat.',sourceIds:['care:period-2021-3','care:period-2022-3','care:period-2023-3','care:period-2024-3']}]}},
   reviewResponse:{approved:true},expectedReviewCalls:1,
@@ -79,7 +101,10 @@ test('broad historical reads retain multiple time slices and cannot bill a sampl
  assert.equal(r.context.askHistory.coverage.plan.to,'2024-09-04T00:00:00.000Z');
  assert.ok(r.context.askHistory.entries.every(row=>row.occurred_at<'2024-09-04'));
  assert.ok(new Set(r.context.askHistory.entries.map(row=>row.occurred_at.slice(0,4))).size>=3);
- assert.ok(r.context.askHistory.coverage.periods.length>=3);
+ assert.equal(r.context.askInterpretation.request.readTicket.outputs.strategy,undefined);
+ assert.equal(r.context.askHistory.coverage.ticketCoverage.windows[0].to,'2024-09-04T00:00:00.000Z');
+ assert.ok(r.context.askHistory.coverage.ticketCoverage.resultSet);
+ // A certified set is not a typed summary capability; no sampled model summary may publish.
  assert.notEqual(r.result.answerValidation.assessment.outcome,'complete');
  assertSourceFreePublication(r);
 });
@@ -363,24 +388,18 @@ test('as-of retrieval applies upper bound with no lower bound', async t => {
   assert.deepEqual(r.context.askHistory.entries.map(row => row.id), ['before']);
 });
 test('comparison retrieves both temporal ends for arbitrary topics within the existing budget', async t => {
-  clock(t);
-  const rows = Array.from({ length: 80 }, (_, index) => care('travel-' + String(index).padStart(3, '0'), 'milo',
-    new Date(Date.UTC(2026, 0, index + 1)).toISOString().slice(0, 10), 'general', 'Aster tolerated travel.'));
-  const r = await exercise('Compare recorded travel observations.', { fixturePets, rows, messages: [], history:true,expectedReviewCalls:1,
-    interpretationProposal: proposal({ operation: 'comparison', selection: 'comparison', terms: ['travel'],readTicket:readObligations({
-      operation:'compare',predicates:[{kind:'text_any',terms:['travel']}],outputs:{strategy:'temporal_endpoints'}}) }) });
-  const ids = r.context.askHistory.entries.map(row => row.id);
-  assert.ok(ids.includes('travel-000'));
-  assert.ok(ids.includes('travel-079'));
-  assert.ok(ids.length <= 32);
-  assert.ok(r.context.askHistory.coverage.reasons.includes('bidirectional_endpoint_subset'));
-  assert.notEqual(r.context.askHistory.coverage.retrieval, 'complete');
-  const pair=r.context.askHistory.coverage.endpointPairs?.find(item=>item.petId==='milo');
-  assert.ok(pair);
-  assert.deepEqual(pair.earliestIds,['care:travel-000']);
-  assert.deepEqual(pair.latestIds,['care:travel-079']);
-  assert.equal(pair.blocked,false);
+ clock(t);
+ const rows=Array.from({length:80},(_,i)=>care('travel-'+String(i).padStart(3,'0'),'milo',
+  new Date(Date.UTC(2026,0,i+1)).toISOString().slice(0,10),'general','Aster tolerated travel.'));
+ const r=await exercise('Compare recorded travel observations.',{fixturePets,rows,messages:[],history:true,
+  interpretationProposal:endpointPairProposal({predicates:[{kind:'text_any',terms:['travel']}]})});
+ assertEndpointPairs(r,{milo:['travel-000','travel-079']});
+ assert.ok(r.context.askHistory.entries.length<=32);
+ assert.ok(r.context.askHistory.coverage.perPet.every(p=>p.pages<=4));
+ assert.equal(r.context.askHistory.coverage.ticketCoverage.status,'partial');
 });
+
+
 test('five-pet earliest/latest weight retrieval certifies both endpoint pairs even when lexical weight matching misses weighed prose', async t => {
   clock(t);
   const names=['Aster','Bramble','Cedar','Dune','Echo'];
@@ -914,18 +933,32 @@ test('general read scope can answer without guessing a pet or retrieving saved f
   assert.deepEqual(result.petIds,[]);
   assert.equal(result.readOnly,true);
 });
-test('duplicate search hits do not consume independent candidate slots', async t => {
-  clock(t);
-  const rows=fixturePets.flatMap(pet=>Array.from({length:16},(_,i)=>care(pet.id+'-overlap-'+i,pet.id,
-    '2026-06-'+String(i+1).padStart(2,'0'),'general',pet.name+' had a rest observation.')));
-  const r=await exercise('Compare the saved observations across the account.',{fixturePets,rows,messages:[],history:true,expectedReviewCalls:1,
-    interpretationProposal:proposal({scope:'account',petNames:[],operation:'comparison',selection:'comparison',terms:['rest'],
-      readTicket:readObligations({operation:'compare',predicates:[{kind:'text_any',terms:['rest']}],outputs:{strategy:'temporal_endpoints'}})})});
-  assert.equal(new Set(r.context.askHistory.coverage.candidateIds).size,48);
-  assert.ok(r.context.askHistory.coverage.perPet.every(pet=>pet.pages<=4));
-  assert.ok(r.context.askHistory.entries.length<=32);
-  assert.ok(r.context.askHistory.coverage.reasons.includes('effective_evidence_budget'));
+test('duplicate search hits do not consume independent candidate slots',async t=>{
+ clock(t);
+ const rows=fixturePets.flatMap(pet=>Array.from({length:16},(_,i)=>care(pet.id+'-overlap-'+i,pet.id,
+  '2026-06-'+String(i+1).padStart(2,'0'),'general',pet.name+' had a rest observation.')));
+ const r=await exercise('Compare the saved observations across the account.',{fixturePets,rows,messages:[],history:true,
+  interpretationProposal:endpointPairProposal({scope:'account',petNames:[],predicates:[{kind:'text_any',terms:['rest']}]})});
+ assertEndpointPairs(r,Object.fromEntries(fixturePets.map(p=>[p.id,[p.id+'-overlap-0',p.id+'-overlap-15']])));
+ const acquired=r.context.askHistory.coverage.ticketCoverage.effectiveStream.flatMap(s=>s.acquiredIds);
+ // Directional acquisition may stop once each endpoint is certified.
+ assert.ok(acquired.length<=rows.length);
+ for(const pet of fixturePets){
+  const stream=r.context.askHistory.coverage.ticketCoverage.effectiveStream.find(s=>s.petId===pet.id);
+  assert.ok(stream);assert.equal(stream.lineageClosed,true);assert.equal(stream.replacementSeedsExhausted,true);
+  for(const suffix of [0,15])assert.ok(stream.acquiredIds.includes(pet.id+"-overlap-"+suffix));
+ }
+ for(const published of r.result.reasoning.labsList.records){
+  const source=rows.find(row=>row.id===published.id);assert.ok(source);
+  assert.equal(published.petId,source.pet_profile_id);assert.equal(published.event_at,source.occurred_at);
+  assert.equal(published.body,source.note);
+ }
+ assert.equal(r.context.askInterpretation.request.readTicket.outputs.completeness,"sufficient");
+ assert.equal(r.context.askHistory.coverage.ticketCoverage.status,"partial");
+ assert.equal(new Set(r.context.askHistory.entries.map(r=>r.id)).size,6);
+ assert.ok(r.context.askHistory.coverage.perPet.every(p=>p.pages<=4));
 });
+
 
 test('cohort reads ignore the selected conversation container; explicit named reads stay narrow', () => {
   const cohort=validateAskRequest(proposal({scope:'account',petNames:[]}), {...context,currentMessage:'Which pet has the saved travel observation?'});
@@ -959,17 +992,23 @@ test('equivalent spelled units share numeric grounding and dimension checks', ()
  assert.equal(verifiedCalculationQuantities([{operation:'difference',operands,value:1000,unit:'milliliters'}],sources),null);
  assert.deepEqual(verifiedCalculationQuantities([{operation:'percent_change',operands,value:-33.33,unit:'percent'}],sources),['33.33:%','-33.33:%']);
 });
-test('empty lexical searches return their unused capacity to bounded period context',async t=>{
+test('empty lexical searches cannot change canonical endpoint authority or consume factual slots',async t=>{
  clock(t);
  const rows=fixturePets.flatMap(pet=>Array.from({length:16},(_,i)=>care(pet.id+'-empty-'+i,pet.id,
-   '2026-06-'+String(i+1).padStart(2,'0'),'general',pet.name+' slept normally.')));
- const r=await exercise('Compare the saved observations across the account.',{fixturePets,rows,messages:[],history:true,expectedReviewCalls:1,
-   interpretationProposal:proposal({scope:'account',petNames:[],operation:'comparison',selection:'comparison',terms:['nonmatchingphrase'],
-     readTicket:readObligations({operation:'compare',searchHints:['nonmatchingphrase'],outputs:{strategy:'temporal_endpoints'}})})});
- assert.equal(new Set(r.context.askHistory.coverage.candidateIds).size,48);
- assert.ok(r.context.askHistory.coverage.perPet.every(pet=>pet.pages<=4));
- assert.ok(r.context.askHistory.entries.length<=32);
+  '2026-06-'+String(i+1).padStart(2,'0'),'general',pet.name+' slept normally.')));
+ const run=searchHints=>exercise('Compare the saved observations across the account.',{fixturePets,rows,messages:[],history:true,
+  interpretationProposal:endpointPairProposal({scope:'account',petNames:[],searchHints})});
+ const base=await run(null),hinted=await run(['nonmatchingphrase']);
+ const expected=Object.fromEntries(fixturePets.map(p=>[p.id,[p.id+'-empty-0',p.id+'-empty-15']]));
+ assertEndpointPairs(base,expected);assertEndpointPairs(hinted,expected);
+ assert.deepEqual(hinted.context.askHistory.entries,base.context.askHistory.entries);
+ assert.deepEqual(hinted.context.askHistory.coverage.ticketCoverage,base.context.askHistory.coverage.ticketCoverage);
+ const support=hinted.context.askHistory.supportingContext;assert.ok(support);
+ assert.equal(support.maySatisfyObligations,false);
+ assert.ok(support.receipts.every(r=>r.matchingIds.length===0));
+ assert.ok(hinted.context.askHistory.coverage.perPet.every(p=>p.pages<=4));
 });
+
 
 test('latest and comparison ordering never reverse source relevance',async()=>{
  const {orderHistoryEvidence}=await import('../../app/lib/intelligence/history-synthesis.ts');
@@ -1071,11 +1110,17 @@ test('double-escaped source quotes are decoded without relaxing provenance', () 
 });
 
 test('ordering hints do not become episode references on ordinary reads',()=>{
- for(const selection of ['latest','earliest','earliest_occurrence']){
-  const r=validateAskRequest(proposal({operation:'status',selection,ordinal:'last',quantity:null}),context);
-  assert.equal(r.ordinal,null);assert.equal(r.readOperation,'status');assert.ok(r.history);
+ for(const alias of ['latest','earliest','earliest_occurrence']){
+  const proposed=selectedProposal({direction:'desc',operation:'status',selection:alias,ordinal:'last'});
+  const r=validateAskRequest(proposed,context),ticket=r.request.readTicket;
+  assert.equal(r.ordinal,null);assert.equal(r.referenceTarget,undefined);assert.equal(ticket.episode,undefined);
+  assert.equal(r.readOperation,'recall');assert.equal(r.selection,'latest');
+  assert.deepEqual(ticket.selection,proposed.readTicket.selection);
+  assert.equal(ticket.operation,'read');assert.equal(ticket.outputs.limit,null);
  }
 });
+
+
 test('measurement and duration quantities override a stale episode operation',()=>{
  for(const quantity of ['measurement','duration','records']){
   const r=validateAskRequest(proposal({operation:'episode',selection:'reference',ordinal:null,quantity}),context);

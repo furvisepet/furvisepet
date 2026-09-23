@@ -1,3 +1,4 @@
+import { CARE_ENTRY_BODY_MAX } from "./care-entry-limits.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ModelApplicationAction } from "../application-actions/types.ts";
 
@@ -9,7 +10,7 @@ export const replaceJobSchema = {
       target: { type: "string", enum: ["last_event_for_subject"] },
       petName: { type: "string", minLength: 1, maxLength: 100 },
       instructionQuote: { type: "string", minLength: 1, maxLength: 1600 },
-      bodyQuote: { type: "string", minLength: 1, maxLength: 1600 },
+      bodyQuote: { type: "string", minLength: 1, maxLength: CARE_ENTRY_BODY_MAX },
       constraints: { type: "array", maxItems: 8, items: { type: "object", additionalProperties: false,
         required: ["kind", "quote"], properties: {
           kind: { type: "string", enum: ["effective_count_one", "no_additional_copy", "no_write"] },
@@ -46,7 +47,7 @@ export function validateReplaceJob(value: unknown, source: { id: string; text: s
   if (p.target !== "last_event_for_subject") return fail("target");
   if (p.petName !== subject.name) return fail("petName");
   if (p.instructionQuote !== source.text.trim()) return fail("instructionQuote");
-  if (typeof p.bodyQuote !== "string" || !p.bodyQuote.trim() || p.bodyQuote.length > 1600) return fail("bodyQuote");
+  if (typeof p.bodyQuote !== "string" || !p.bodyQuote.trim() || p.bodyQuote.length > CARE_ENTRY_BODY_MAX) return fail("bodyQuote");
   if (!Array.isArray(p.constraints) || p.constraints.length > 8) return fail("constraints");
   if (!source.id) return fail("sourceMessageId");
   if (!subject.id) return fail("petId");
@@ -72,6 +73,45 @@ export function validateReplaceJob(value: unknown, source: { id: string; text: s
   return Object.freeze({ operation: "replace", target: "last_event_for_subject", petId: subject.id,
     sourceMessageId: source.id, asOf: source.createdAt, body,
     constraints: Object.freeze({ effectiveCount: 1, allowAdditionalCopy: false, spans: Object.freeze(spans) }) });
+}
+
+
+/** Validate stored canonical JSON without deriving operation, target or value from prose. */
+export function readBoundReplaceJob(value: unknown): ReplaceJob | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const job = value as ReplaceJob;
+  if (Object.keys(job).sort().join() !== "asOf,body,constraints,operation,petId,sourceMessageId,target"
+    || job.operation !== "replace" || job.target !== "last_event_for_subject"
+    || typeof job.petId !== "string" || !job.petId || typeof job.sourceMessageId !== "string" || !job.sourceMessageId
+    || typeof job.asOf !== "string" || !Number.isFinite(Date.parse(job.asOf))) return null;
+  const validSpan = (span: SourceSpan, max: number) => Boolean(span && typeof span === "object"
+    && Number.isInteger(span.start) && span.start >= 0 && typeof span.text === "string"
+    && span.text.trim() && span.text.length <= max && span.end === span.start + span.text.length);
+  if (!validSpan(job.body, CARE_ENTRY_BODY_MAX)
+    || Object.keys(job.body).sort().join() !== "end,start,text") return null;
+  const c = job.constraints;
+  if (!c || Object.keys(c).sort().join() !== "allowAdditionalCopy,effectiveCount,spans"
+    || c.effectiveCount !== 1 || c.allowAdditionalCopy !== false || !Array.isArray(c.spans) || c.spans.length > 8
+    || c.spans.some(span => !validSpan(span, 1600) || Object.keys(span).sort().join() !== "end,kind,start,text"
+      || !["effective_count_one", "no_additional_copy"].includes(span.kind)
+      || span.start < job.body.end && job.body.start < span.end)) return null;
+  return Object.freeze(structuredClone(job));
+}
+
+/** Rebinding checks the original USER source; its wording does not select a command. */
+export function replaceJobProposal(job: ReplaceJob, sourceText: string, petName: string) {
+  return { operation: job.operation, target: job.target, petName, instructionQuote: sourceText.trim(),
+    bodyQuote: job.body.text, constraints: job.constraints.spans.map(span => ({ kind: span.kind, quote: span.text })) };
+}
+
+export function replaceJobActionMatches(job: ReplaceJob, action: {
+  kind: string; petId: string; sourceMessageId?: string | null; explicitIntent: boolean;
+  input: { field: unknown; value: unknown; title: unknown; detail: unknown; category: unknown; target: unknown };
+}) {
+  return Boolean(readBoundReplaceJob(job)) && action.kind === "care_history.edit"
+    && action.petId === job.petId && action.sourceMessageId === job.sourceMessageId && action.explicitIntent === false
+    && Boolean(action.input) && action.input.detail === job.body.text && action.input.target === "specified"
+    && [action.input.field, action.input.value, action.input.title, action.input.category].every(value => value === null);
 }
 
 /** Resolve the typed selector against owned effective state, never answer text.

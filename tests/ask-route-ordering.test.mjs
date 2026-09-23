@@ -6,7 +6,7 @@ import {ownerNoteSourceSpans} from '../app/lib/intelligence/owner-note-request.t
 test('Cedar: one Brain ticket, no write until click, Heart receipt before real Lungs last-two read',async()=>{
  const f=fixture();const res=await f.send();const body=await res.json();assert.equal(res.status,200,JSON.stringify(f.state.errors));
  assert.equal(f.state.planner,1);assert.equal(f.rows.pet_care_entries.length,2);assert.equal(body.dataChanged,false);assert.equal(body.persistenceMode,'confirmation_required');assert.equal(body.turn.finalStage,'COMPLETED');assert.equal(body.turn.mutationOutcome,'pending');
- const pending=body.response.pendingAppend;assert.equal(pending.job.body.text,'Cedar refused lunch.');assert.deepEqual(pending.readTicket.subjects.petIds,[id(11)]);
+ const pending=body.response.pendingAppend;assert.equal(pending.job.items[0].body.text,'Cedar refused lunch.');assert.deepEqual(pending.readTicket.subjects.petIds,[id(11)]);
  assert.ok(!f.state.events.includes('read:pet_care_entries'));
  f.state.options.modelDown=true;
  const confirmation=await f.confirm();const result=await confirmation.json();assert.equal(confirmation.status,200);assert.equal(result.action.status,'succeeded');assert.equal(result.changed,true);assert.equal(result.continuation.response.turn.mutationOutcome,'applied');
@@ -39,7 +39,10 @@ test('fixed emergency response requires no Brain, factual read, capability, or s
 test('route has one interpretation and no owner-note or task persistence authority',()=>{
  const route=readFileSync(new URL('../app/api/ask/route.ts',import.meta.url),'utf8');assert.doesNotMatch(route,/persist_ask_owner_note|persistOwnerNote|resolveOwnerNoteRequest|splitOwnerNoteAndCompanion|executeAskTask|apply_ask_task|findExistingCareEventForSaveRequest/);
  assert.equal([...route.matchAll(/await interpretAskQuestion\(/g)].length,1);assert.ok(route.indexOf('await interpretAskQuestion(')<route.indexOf('await buildFurviseContext('));
- const planning=readFileSync(new URL('../app/lib/intelligence/planning-context.ts',import.meta.url),'utf8');assert.deepEqual([...planning.matchAll(/\.from\("([^"]+)"\)/g)].map(m=>m[1]),['dog_profiles','ask_conversations','ask_conversation_messages']);
+ const planning=readFileSync(new URL('../app/lib/intelligence/planning-context.ts',import.meta.url),'utf8');assert.deepEqual([...planning.matchAll(/\.from\("([^"]+)"\)/g)].map(m=>m[1]),['dog_profiles','ask_conversations','ask_conversation_messages','pet_concerns']);
+ assert.match(planning,/select\("id,user_id,pet_profile_id,title,status,severity,normalized_key,opened_at,updated_at,resolved_at,resolution_note,source_care_entry_id"\)/);
+ assert.match(planning,/ref: randomUUID\(\)/);
+ assert.doesNotMatch(planning,/pet_care_entries/);
 });
 
 test('invalid first append ticket rejects once, with no factual read or write',async()=>{

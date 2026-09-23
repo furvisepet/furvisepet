@@ -29,8 +29,8 @@ test("the production casual pronoun continuation resolves to Mani without the fa
   });
   assert.equal(result?.petId, "mani");
   assert.equal(result?.requiresClarification, false);
-  assert.match(route, /await resolveAskTurnSubject/);
-  assert.match(route, /extractFrame:[\s\S]*extractTurnSubjectFrame/);
+  assert.match(route, /readInterpretationSubject\(interpretation/);
+  assert.doesNotMatch(route, /resolveAskTurnSubject|extractTurnSubjectFrame/);
 });
 
 test("mixed outside-cat and selected-pet pronouns still require full entity resolution", () => {

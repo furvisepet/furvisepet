@@ -1,3 +1,4 @@
+import { prepareBoundReplaceAction } from "../../lib/application-actions/planner.ts";
 import { buildFurvisePlanningContext } from "../../lib/intelligence/planning-context.ts";
 import { isOrdinarySavedHistoryRequest } from "../../lib/intelligence/publication-authority.ts";
 import { prepareAppendTurn } from "../../lib/intelligence/append-turn.ts";
@@ -84,8 +85,8 @@ import {
   buildImmediateEmergencyGuidance,
   buildRecentAskUpdates,
   concernKeyToAskTags,
-  detectImmediateAskEmergency,
   conditionalEmergencyGuidance,
+  detectImmediateAskEmergency,
   evaluateAskSafetyContext,
   formatConcernTag,
 } from "../../lib/ask-safety-context";
@@ -108,7 +109,6 @@ import { claimWithRestoredAskOrigin } from "../../lib/ask-restored-retry";
 import { validateSensitiveRequestOriginResponse } from "../../lib/security/headers/origin-policy";
 import {
   explicitlyNamedOwnedPets,
-  resolveAskTurnSubject,
 } from "../../lib/intelligence/entities/resolve-turn-subject";
 import {
   enforceVerifiedStateClaims,
@@ -118,24 +118,16 @@ import {
   shouldAutoExecuteAction,
   type FurviseApplicationAction,
 } from "../../lib/application-actions/index.ts";
+import { prepareFieldMutationTurn } from "../../lib/intelligence/field-mutation-turn.ts";
 import { cancelActionCapability, createActionCapabilities, executeActionCapability } from "../../lib/application-actions/capabilities.ts";
 import {
   buildGriefResponseFallback,
-  buildUnavailableConfirmedLossAction,
   classifyCurrentPetLoss,
-  ensureConfirmedLossAction,
-  resolveProviderIndependentLossSubject,
-  type ProviderIndependentLossSubject,
 } from "../../lib/ai/pet-loss.ts";
-import {
-  derivePendingLifecycleAssertion,
-  requiresLivingPet,
-  resolveDurableLifecycleCorrection,
-  resolvePendingLifecycleTurn,
-  type PendingLifecycleAssertion,
-  type PendingLifecycleTurnResolution,
-} from "../../lib/ai/pending-lifecycle.ts";
+
 import { getPetLifecycleStatus } from "../../lib/pet-lifecycle.ts";
+import { prepareStateTransitionTurn } from "../../lib/intelligence/state-transition-turn.ts";
+import { continueLifecyclePlan, lifecyclePlanOrchestration } from "../../lib/intelligence/lifecycle-turn.ts";
 import {
   beginAskConversationTurn,
   completeAskConversationTurn,
@@ -441,11 +433,6 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
   recordContextRecoveryOnTurn(liveContext, turnLifecycle);
   turnLifecycle.transition("CONTEXT_READY");
 
-  let pendingLifecycle = null as ReturnType<typeof derivePendingLifecycleAssertion>;
-  let pendingLifecycleResolution = null as ReturnType<typeof resolvePendingLifecycleTurn> | null;
-  let durableLifecycleStatus = getPetLifecycleStatus(liveContext.pet);
-  let durableLifecycleCorrection: ReturnType<typeof resolveDurableLifecycleCorrection> = null;
-  let durableLifecycleResolution: typeof durableLifecycleStatus | null = null;
   let turnPetId = petId;
   let turnAuthoritativePetIds = [petId];
   let turnView = deriveAskTurnView({ currentSourceMessageId: preparedRequest.userMessageId, liveContext, question: reasoningQuestion, requestId });
@@ -555,6 +542,49 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
       // Legacy save tasks are not an executable Ask authority path. They must
       // be proposed as source-bound append capabilities by the single planner.
       if (interpretation.request?.task) return buildSubjectClarificationOrchestration(question);
+      liveContext = { ...liveContext, askInterpretation: interpretation };
+      // Safety may veto execution, but never choose a lifecycle operation or subject.
+      if (!isOrdinarySavedHistoryRequest(interpretation.request) && !interpretation.request?.writeJob
+        && !interpretation.clarification && !interpretation.conversationOnly) {
+        const conditionalSafety = conditionalEmergencyGuidance(question);
+        if (conditionalSafety) {
+          turnLifecycle.route("clarification", "deterministic");
+          turnAuthoritativePetIds = [];
+          contextUsed = { petName: null, usedSources: [] };
+          return { ...buildSubjectClarificationOrchestration(question), answer: conditionalSafety,
+            clarificationQuestion: null, handledWithoutAi: true };
+        }
+      }
+      const lifecycleOutcome = await continueLifecyclePlan({ plan: interpretation.request?.lifecyclePlan,
+        context: liveContext, requestId, cancel: cancelActionCapability });
+      if (lifecycleOutcome) {
+        turnLifecycle.route("lifecycle", "deterministic");
+        turnAuthoritativePetIds = interpretation.petIds;
+        turnPetId = lifecycleOutcome.plan.transition?.petId || lifecycleOutcome.plan.pendingAction?.petId || turnPetId;
+        deterministicApplicationActions = lifecycleOutcome.actions;
+        deterministicLossInteraction = lifecycleOutcome.plan.transition?.toState === "deceased";
+        deferHighImpactLifecyclePersistence = true;
+        contextUsed = { petName: lifecycleOutcome.plan.transition?.petName || null, usedSources: [] };
+        return lifecyclePlanOrchestration(lifecycleOutcome);
+      }
+      if (interpretation.request?.stateTransitionJob) {
+        const prepared = prepareStateTransitionTurn(interpretation.request.stateTransitionJob, liveContext, requestId);
+        turnLifecycle.route("pet_care", "deterministic");
+        turnAuthoritativePetIds = [prepared.action.petId];
+        turnPetId = prepared.action.petId;
+        deterministicApplicationActions = [prepared.action];
+        contextUsed = { petName: null, usedSources: [] };
+        return prepared.orchestration;
+      }
+      if (interpretation.request?.fieldMutationJob) {
+        const prepared = prepareFieldMutationTurn(interpretation.request.fieldMutationJob, liveContext, requestId);
+        turnLifecycle.route("pet_care", "deterministic");
+        turnAuthoritativePetIds = [prepared.action.petId];
+        turnPetId = prepared.action.petId;
+        deterministicApplicationActions = [prepared.action];
+        contextUsed = { petName: null, usedSources: [] };
+        return prepared.orchestration;
+      }
       // A validated ticket precedes every factual context read. Invalid plans
       // never enter this loader. Emergency copy is the documented exception above.
       const planningSource = liveContext.currentTurn;
@@ -564,175 +594,6 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
       liveContext = { ...liveContext, currentTurn: planningSource, askInterpretation: interpretation };
       turnView = deriveAskTurnView({ currentSourceMessageId: preparedRequest.userMessageId, liveContext, question, requestId });
       contextUsed = turnView.contextUsed;
-      pendingLifecycle = derivePendingLifecycleAssertion({
-        turns: liveContext.conversationTurns,
-        pets: liveContext.eligiblePets,
-      });
-      pendingLifecycleResolution = pendingLifecycle
-        ? resolvePendingLifecycleTurn({ assertion: pendingLifecycle, message: question, pets: liveContext.eligiblePets })
-        : null;
-      durableLifecycleStatus = getPetLifecycleStatus(liveContext.pet);
-      durableLifecycleCorrection = resolveDurableLifecycleCorrection({
-        message: question,
-        status: durableLifecycleStatus,
-      });
-      durableLifecycleResolution = durableLifecycleStatus !== "active" && requiresLivingPet(question)
-        ? durableLifecycleStatus
-        : null;
-
-      if (!isOrdinarySavedHistoryRequest(interpretation.request) && !interpretation.request?.writeJob && !interpretation.clarification && !interpretation.conversationOnly) {
-        let lifecycleOrchestration;
-        const conditionalSafety = conditionalEmergencyGuidance(question);
-        if (conditionalSafety) {
-          turnLifecycle.route("clarification", "deterministic");
-          turnAuthoritativePetIds = [];
-          contextUsed = { petName: null, usedSources: [] };
-          lifecycleOrchestration = { ...buildSubjectClarificationOrchestration(question), answer: conditionalSafety,
-            clarificationQuestion: null, handledWithoutAi: true };
-        } else if (pendingLifecycle && pendingLifecycleResolution && pendingLifecycleResolution.kind !== "continuation") {
-          turnLifecycle.route("lifecycle", "deterministic");
-          lifecycleOrchestration = buildPendingLifecycleOrchestration(pendingLifecycle, pendingLifecycleResolution);
-          if (pendingLifecycleResolution.kind === "contradiction" || pendingLifecycleResolution.kind === "alternate_pet") {
-            deterministicApplicationActions = [pendingLifecycle.action];
-          } else if (pendingLifecycleResolution.kind === "correction") {
-            const terminalAction = await settlePendingLifecycleCancellation({
-              action: pendingLifecycle.action,
-              correctionSourceMessageId: preparedRequest.userMessageId,
-              userId,
-            });
-            deterministicApplicationActions = [terminalAction];
-            lifecycleOrchestration = buildAuthoritativeLifecycleCorrectionOrchestration(
-              pendingLifecycle,
-              pendingLifecycleResolution,
-              terminalAction,
-            );
-          } else if (pendingLifecycleResolution.kind === "reassigned_death") {
-            const terminalAction = await settlePendingLifecycleCancellation({
-              action: pendingLifecycle.action,
-              correctionSourceMessageId: preparedRequest.userMessageId,
-              userId,
-            });
-            turnPetId = pendingLifecycleResolution.petId;
-            const reassignedActions = prepareFurviseApplicationActions({
-              proposals: [{
-                kind: "pet.mark_deceased",
-                input: { field: null, value: null, title: null, detail: null, category: null, target: "specified" },
-                evidence: question.slice(0, 240),
-                explicitIntent: false,
-              }],
-              petId: pendingLifecycleResolution.petId,
-              petName: pendingLifecycleResolution.petName,
-              requestId,
-              sourceMessage: question,
-            }).map((action) => ({ ...action, sourceMessageId: preparedRequest.userMessageId }));
-            deterministicApplicationActions = [terminalAction, ...reassignedActions];
-            lifecycleOrchestration = buildAuthoritativeLifecycleCorrectionOrchestration(
-              pendingLifecycle,
-              pendingLifecycleResolution,
-              terminalAction,
-            );
-            deferHighImpactLifecyclePersistence = true;
-          }
-        } else if (durableLifecycleCorrection) {
-          turnLifecycle.route("lifecycle", "deterministic");
-          deferHighImpactLifecyclePersistence = true;
-          lifecycleOrchestration = buildDurableLifecycleCorrectionOrchestration(
-            liveContext.pet.name || "your pet",
-            durableLifecycleCorrection.fromStatus,
-          );
-          deterministicApplicationActions = prepareFurviseApplicationActions({
-            proposals: [{
-              kind: "pet.mark_active",
-              input: { field: null, value: null, title: null, detail: null, category: null, target: "selected" },
-              evidence: question.slice(0, 240),
-              explicitIntent: true,
-            }],
-            petId: turnPetId,
-            petName: liveContext.pet.name || "your pet",
-            requestId,
-            sourceMessage: question,
-            lifecycleStatus: durableLifecycleStatus,
-          }).map((action) => ({ ...action, sourceMessageId: preparedRequest.userMessageId }));
-        } else if (currentLoss === "confirmed_current") {
-          turnLifecycle.route("lifecycle", "deterministic");
-          const recentConversation = liveContext.conversationTurns.filter((turn) => turn.id !== preparedRequest.userMessageId);
-          const pendingPet = pendingLifecycle && pendingLifecycleResolution?.kind === "continuation"
-            ? liveContext.eligiblePets.find((pet) => pet.id === pendingLifecycle!.petId)
-            : null;
-          const lossSubject: ProviderIndependentLossSubject = pendingPet
-            ? {
-                kind: "resolved",
-                petId: pendingPet.id,
-                petName: pendingLifecycle!.petName,
-                lifecycleStatus: pendingPet.lifecycle_status || "active",
-              }
-            : resolveProviderIndependentLossSubject({
-                message: question,
-                pets: liveContext.eligiblePets,
-                recentConversation,
-                selectedPetId: petId,
-              }) || { kind: "clarification", candidateNames: [] };
-          deterministicLossInteraction = true;
-          deferHighImpactLifecyclePersistence = true;
-
-          if (lossSubject.kind === "resolved") {
-            turnPetId = lossSubject.petId;
-            if (turnPetId !== petId) {
-              liveContext = await buildFurviseContext({
-                historyAccess,
-                conversationId: preparedRequest.conversationId,
-                conversationPetId: petId,
-                currentMessage: question,
-                feature: "ask",
-                timeZone: resolveAskTimeZone(aiCreditPayload.timeZone),
-                locale,
-                petId: turnPetId,
-                supabase,
-                userId,
-              });
-              turnView = deriveAskTurnView({ currentSourceMessageId: preparedRequest.userMessageId, liveContext, question, requestId });
-              contextUsed = turnView.contextUsed;
-            }
-            lifecycleOrchestration = buildConfirmedLossOrchestration(lossSubject.petName, lossSubject.lifecycleStatus !== "active");
-            if (lossSubject.lifecycleStatus === "active") {
-              const existingPendingAction = pendingLifecycle?.petId === turnPetId ? pendingLifecycle.action : null;
-              const preparedLossAction = existingPendingAction ? [existingPendingAction] : prepareFurviseApplicationActions({
-                proposals: ensureConfirmedLossAction([], question, { exclusive: true }).map((proposal) => ({
-                  ...proposal,
-                  input: { ...proposal.input, target: turnPetId === petId ? "selected" as const : "specified" as const },
-                })),
-                petId: turnPetId,
-                petName: lossSubject.petName,
-                requestId,
-                sourceMessage: question,
-                lifecycleStatus: lossSubject.lifecycleStatus,
-              }).map((action) => ({ ...action, sourceMessageId: preparedRequest.userMessageId }));
-              const unavailableAction = buildUnavailableConfirmedLossAction({
-                message: question,
-                petId: turnPetId,
-                petName: lossSubject.petName,
-                requestId,
-              });
-              deterministicApplicationActions = preparedLossAction.length
-                ? preparedLossAction
-                : unavailableAction ? [{ ...unavailableAction, sourceMessageId: preparedRequest.userMessageId }] : [];
-            }
-          } else if (lossSubject.kind === "external_subject") {
-            contextUsed = { petName: null, usedSources: [] };
-            lifecycleOrchestration = buildExternalLossOrchestration();
-          } else {
-            contextUsed = { petName: null, usedSources: [] };
-            lifecycleOrchestration = buildConfirmedLossClarificationOrchestration(lossSubject.candidateNames);
-          }
-        } else if (durableLifecycleResolution) {
-          turnLifecycle.route("lifecycle", "deterministic");
-          lifecycleOrchestration = buildDurableLifecycleContradictionOrchestration(
-            liveContext.pet.name || "your pet",
-            durableLifecycleResolution,
-          );
-        } else { lifecycleOrchestration = null; }
-        if (lifecycleOrchestration) return lifecycleOrchestration;
-      }
       const replaceJob = interpretation.request?.writeJob;
       if (replaceJob) {
         // Typed write jobs stop before history generation/review. Publication
@@ -749,10 +610,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         contextUsed = { petName: subject.name, usedSources: [] };
         turnLifecycle.subject("semantic_replace", 1);
         plannedReplaceTarget = resolved.target;
-        deterministicApplicationActions = prepareFurviseApplicationActions({
-          proposals: [resolved.proposal], petId: turnPetId, petName: subject.name || "your pet",
-          requestId, sourceMessage: question, lifecycleStatus: getPetLifecycleStatus(subject),
-        }).map(action => ({ ...action, sourceMessageId: replaceJob.sourceMessageId }));
+        deterministicApplicationActions = [prepareBoundReplaceAction(replaceJob, resolved.target, subject.name || "your pet", requestId)];
         if (deterministicApplicationActions.length !== 1) throw new Error("REPLACE_ACTION_INVALID");
         console.info("[Ask Heart] ticket prepared", { requestId, sourceMessageId: replaceJob.sourceMessageId,
           operation: replaceJob.operation, petId: turnPetId, targetId: resolved.target.id,
@@ -760,19 +618,10 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         return { ...careHistoryCorrectionOrchestration(subject.name || "your pet"), handledWithoutAi: false };
       }
       generationStage = "subject_resolution";
-      let subjectDecision: Awaited<ReturnType<typeof resolveAskTurnSubject>>;
+      let subjectDecision: ReturnType<typeof readInterpretationSubject>;
       try {
-        subjectDecision = interpretation.readOnly ? readInterpretationSubject(interpretation, petId) : await resolveAskTurnSubject({
-          operationPetIds: interpretation.readPetIds ? interpretation.petIds : undefined,
-          extractFrame: async () => {
-            if (!interpretation.frame) throw new Error("ASK_VALIDATED_FRAME_REQUIRED");
-            return interpretation.frame;
-          },
-          message: reasoningQuestion,
-          ownerId: userId,
-          pets: liveContext.eligiblePets,
-          recentConversation,
-          selectedPetId: petId,
+        subjectDecision = readInterpretationSubject(interpretation, petId, {
+          ownerId: userId, pets: liveContext.eligiblePets,
         });
       } catch (error) {
         turnLifecycle.optionalFailure("subject_extraction").providerFailure(error instanceof AskPipelineError ? error.stage : "subject_extraction_failed");
@@ -1056,7 +905,8 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
   if (reasoning) {
     try {
       preparedApplicationActions = prepareFurviseApplicationActions({
-        proposals: turnAuthoritativePetIds.length ? reasoning.applicationActions : [],
+        proposals: turnAuthoritativePetIds.length ? reasoning.applicationActions.filter(action =>
+          !["pet.update_profile", "memory.set_preference", "memory.forget_preference", "pet.mark_deceased", "pet.mark_active", "pet.archive"].includes(action.kind)) : [],
         petId: turnPetId,
         petName: liveContext.pet.name || "your pet",
         requestId,
@@ -1064,19 +914,11 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         lifecycleStatus: getPetLifecycleStatus(liveContext.pet),
       }).map((action) => ({ ...action, sourceMessageId: preparedRequest.userMessageId }));
     } catch (error) {
-      const lossEvidence = classifyCurrentPetLoss(question) === "confirmed_current" ? question : null;
-      const unavailableLossAction = buildUnavailableConfirmedLossAction({
-        message: lossEvidence || question,
-        petId: turnPetId,
-        petName: liveContext.pet.name || "your pet",
-        requestId,
-      });
-      if (unavailableLossAction) preparedApplicationActions = [{ ...unavailableLossAction, sourceMessageId: preparedRequest.userMessageId }];
       emitOperationalEvent({
         errorCode: "ASK_ACTION_PREPARATION_FAILED",
         eventType: "application_error",
         feature: "ask_application_action",
-        metadata: { actionFailureClass: "optional", lifecycleActionUnavailable: Boolean(unavailableLossAction) },
+        metadata: { actionFailureClass: "optional", lifecycleActionUnavailable: false },
         operationId: requestId,
         requestId,
         resourceId: turnPetId,
@@ -1090,10 +932,6 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         requestId,
       }, 200);
     }
-  }
-  if (pendingLifecycle && pendingLifecycleResolution?.kind === "continuation"
-    && !preparedApplicationActions.some((action) => action.kind === pendingLifecycle!.action.kind && action.petId === pendingLifecycle!.petId)) {
-    preparedApplicationActions = [pendingLifecycle.action, ...preparedApplicationActions].slice(0, 4);
   }
   let latestHistoryEditTarget: { id: string; petId: string; sourceType: "care_update" } | null = plannedReplaceTarget;
   const latestEditActions=preparedApplicationActions.filter(action=>action.kind==="care_history.edit" && action.input.target==="specified");
@@ -1120,11 +958,8 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
     missingUsefulDetails: [],
     suggestedQuestions: reasoning?.suggestedFollowUps || [],
     applicationActions: preparedApplicationActions,
-    interactionMode: deterministicLossInteraction || reasoning?.responseMode === "grief_support" || pendingLifecycleResolution?.kind === "reassigned_death"
-      ? "grief"
-      : durableLifecycleCorrection || pendingLifecycleResolution?.kind === "contradiction" || pendingLifecycleResolution?.kind === "alternate_pet"
-        ? "action_confirmation"
-        : orchestration.intent === "casual" ? "casual" : undefined,
+    interactionMode: deterministicLossInteraction || reasoning?.responseMode === "grief_support"
+      ? "grief" : orchestration.intent === "casual" ? "casual" : undefined,
     recentlyResolved: reasoning?.intelligenceSafety.level === "recently_resolved",
     monitoring: safetyLevel === "monitor",
     urgent: safetyLevel === "urgent",
@@ -1320,170 +1155,6 @@ function buildSubjectClarificationOrchestration(message: string, candidateNames:
     suggestion: null,
   };
 }
-
-function buildPendingLifecycleOrchestration(
-  assertion: PendingLifecycleAssertion,
-  resolution: PendingLifecycleTurnResolution,
-) {
-  const reportedState = assertion.kind === "reported_deceased" ? "died" : "should be archived";
-  const pendingReport = assertion.kind === "reported_deceased"
-    ? `the pending report that ${assertion.petName} died`
-    : `the pending request to archive ${assertion.petName}`;
-  if (resolution.kind === "correction") {
-    return deterministicLifecycleOrchestration(
-      "Correction noted",
-      `Thanks for correcting that. ${capitalize(pendingReport)} was cleared. ${assertion.petName}'s profile, history, and memories were not changed by that report.`,
-      "correction",
-    );
-  }
-  if (resolution.kind === "reassigned_death") {
-    return deterministicLifecycleOrchestration(
-      "I'm sorry for your loss",
-      `I'm so sorry. I cleared ${pendingReport} and prepared a separate confirmation for ${resolution.petName}. Nothing was added to either pet's durable history or memory yet.`,
-      "correction",
-    );
-  }
-  if (resolution.kind === "alternate_pet") {
-    return deterministicLifecycleOrchestration(
-      `Let's clarify which pet you mean`,
-      `I understand that you mean ${resolution.petName}. The report that ${assertion.petName} ${reportedState} is still awaiting confirmation. Please ask the care question again with ${resolution.petName}'s name so I don't mix their histories.`,
-      "unknown",
-    );
-  }
-  return deterministicLifecycleOrchestration(
-    "Let's clarify before continuing",
-    `You just told me ${assertion.petName} ${reportedState}, and that report is still awaiting confirmation. Are you asking about another pet, or correcting what you said about ${assertion.petName}?`,
-    "unknown",
-  );
-}
-
-function buildConfirmedLossOrchestration(petName: string, alreadyConfirmed: boolean) {
-  const pet = cleanLifecyclePetName(petName);
-  return deterministicLifecycleOrchestration(
-    "I'm sorry for your loss",
-    alreadyConfirmed
-      ? `I'm so sorry. ${pet} is already marked as passed away, and ${pet}'s history remains available in Furvise.`
-      : buildGriefResponseFallback(pet),
-    "status_update",
-  );
-}
-
-function buildConfirmedLossClarificationOrchestration(candidateNames: string[]) {
-  const candidates = candidateNames.length ? ` Was this ${formatPetChoiceList(candidateNames)}?` : " Which saved pet do you mean?";
-  return deterministicLifecycleOrchestration(
-    "I'm sorry. Which pet passed away?",
-    `I don't want to attach this loss to the wrong profile.${candidates} Nothing has been changed or added to history yet.`,
-    "unknown",
-  );
-}
-
-function buildExternalLossOrchestration() {
-  return deterministicLifecycleOrchestration(
-    "I'm sorry for your loss",
-    "I'm so sorry. I won't change any saved pet profile because you described an animal outside your Furvise pets. Nothing was added to a profile, history, or memory.",
-    "status_update",
-  );
-}
-
-function formatPetChoiceList(names: string[]) {
-  const clean = [...new Set(names.map(cleanLifecyclePetName))];
-  if (clean.length <= 1) return clean[0] || "one of your saved pets";
-  if (clean.length === 2) return `${clean[0]} or ${clean[1]}`;
-  return `${clean.slice(0, -1).join(", ")}, or ${clean.at(-1)}`;
-}
-
-function cleanLifecyclePetName(value: string) {
-  return value.replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "your pet";
-}
-
-function capitalize(value: string) {
-  return value ? `${value[0].toUpperCase()}${value.slice(1)}` : value;
-}
-
-function deterministicLifecycleOrchestration(title: string, summary: string, intent: "unknown" | "correction" | "status_update") {
-  return {
-    aiResult: null,
-    answer: { title, summary, sections: [], safetyNote: null },
-    concern: null,
-    handledWithoutAi: true,
-    intent,
-    safetyLevel: "normal" as const,
-    suggestion: null,
-  };
-}
-
-function buildDurableLifecycleContradictionOrchestration(petName: string, status: "deceased" | "archived") {
-  const state = status === "deceased" ? "marked as passed away" : "archived";
-  return deterministicLifecycleOrchestration(
-    "Let's clarify which pet you mean",
-    `${petName}'s profile is ${state}, so I won't give active-care advice for ${petName}. Are you asking about another pet, or do you need to correct ${petName}'s lifecycle state?`,
-    "unknown",
-  );
-}
-
-function buildDurableLifecycleCorrectionOrchestration(petName: string, status: "deceased" | "archived") {
-  const state = status === "deceased" ? "marked as passed away" : "archived";
-  return deterministicLifecycleOrchestration(
-    "Review the profile correction",
-    `${petName}'s profile is currently ${state}. You can review marking ${petName} as active below. Nothing has changed yet, and earlier history will remain available.`,
-    "correction",
-  );
-}
-
-function cancelledPendingLifecycleAction(action: FurviseApplicationAction): FurviseApplicationAction {
-  return {
-    ...action,
-    status: "cancelled",
-    resultMessage: "The unconfirmed lifecycle report was cleared. The saved profile was not changed.",
-    errorMessage: null,
-  };
-}
-
-async function settlePendingLifecycleCancellation(input: {
-  action: FurviseApplicationAction;
-  correctionSourceMessageId: string;
-  userId: string;
-}) {
-  if (!isSecurityUuid(input.action.id)) return cancelledPendingLifecycleAction(input.action);
-  const result = await cancelActionCapability({
-    capabilityId: input.action.id,
-    correctionSourceMessageId: input.correctionSourceMessageId,
-    userId: input.userId,
-  });
-  return result?.action || {
-    ...input.action,
-    status: "failed" as const,
-    resultMessage: null,
-    errorMessage: "The earlier lifecycle action is no longer available.",
-  };
-}
-
-function buildAuthoritativeLifecycleCorrectionOrchestration(
-  assertion: PendingLifecycleAssertion,
-  resolution: Extract<PendingLifecycleTurnResolution, { kind: "correction" | "reassigned_death" }>,
-  terminalAction: FurviseApplicationAction,
-) {
-  if (terminalAction.status === "cancelled") return buildPendingLifecycleOrchestration(assertion, resolution);
-  if (terminalAction.status === "succeeded") {
-    const next = resolution.kind === "reassigned_death"
-      ? ` A separate confirmation for ${resolution.petName} is ready below.`
-      : " Use a new profile correction action if the saved lifecycle state now needs to change.";
-    return deterministicLifecycleOrchestration(
-      "Earlier action already completed",
-      `${terminalAction.resultMessage || "The earlier lifecycle action completed before this correction was processed."}${next}`,
-      "correction",
-    );
-  }
-  const next = resolution.kind === "reassigned_death"
-    ? ` A separate confirmation for ${resolution.petName} is ready below.`
-    : " No new profile change was made by this correction.";
-  return deterministicLifecycleOrchestration(
-    "Earlier action did not complete",
-    `${terminalAction.errorMessage || "The earlier lifecycle action was already unavailable."}${next}`,
-    "correction",
-  );
-}
-
 
 function enforceAnswerStateClaims(answer: { title: string; summary: string; sections: { heading: string; items: string[] }[]; safetyNote: string | null }) {
   return {
@@ -1885,7 +1556,7 @@ async function persistAssistantAnswer({
         responseMode: intelligenceResult?.reasoning.responseMode || null,
         actions: actions.applicationActions,
         careWriteRequired: explicitHistoryWrite,
-        minimumCareEntries: intelligenceResult?.executionPlan.noteBatch?.length || 1,
+        minimumCareEntries: 1,
         careReceipt: care.carePersistence,
         careExecutionFailed: Boolean(intelligence.intelligencePersistenceWarning),
       });

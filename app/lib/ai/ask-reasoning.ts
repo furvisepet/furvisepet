@@ -8,7 +8,6 @@ import { historyPublicationLimitation } from "../intelligence/ordinary-history-p
 import { requiresHistoryPublicationAuthority, supportedHistoryPublication, derivePublicationAuthority, publicationSources, publicationGenerationContext, PUBLICATION_AUTHORITY_POLICY } from "../intelligence/publication-authority.ts";
 import { CLAIM_AUTHORITY_POLICY } from "../intelligence/claim-authority-policy.ts";
 import { sourceDisplayDate } from "../intelligence/source-calendar-date.ts";
-import { parseDatedNoteBatch } from "../intelligence/dated-note-batch.ts";
 import { isExplicitCareHistorySaveRequest } from "../intelligence/care-history-policy.ts";
 import { recordInventoryEvidence } from "../intelligence/record-inventory.ts";
 import { sourceBoundSchema } from "../intelligence/source-bound-schema.ts";
@@ -74,7 +73,7 @@ import {
 import { terminalOutcomeSupportedBySurface } from "../intelligence/recovery-governance.ts";
 import { modelApplicationActionJsonSchema, parseModelApplicationActions, type ModelApplicationAction } from "../application-actions/index.ts";
 import { buildObservationAssessmentFallback, isUselessQuestionEcho } from "./conversation-intent.ts";
-import { ensureConfirmedLossAction, resolvePetLossContext } from "./pet-loss.ts";
+import { resolvePetLossContext } from "./pet-loss.ts";
 import { applyAskAnswerEconomy, normalizeAskVisibleProseSanity, normalizeAskVisibleText, normalizeRequestedQuestionList, planAskAnswerDepth, type AskAnswerEconomyPlan } from "./ask-answer-economy.ts";
 import { careEvidenceId, evidenceForRecords, representEvidence, eligibleAnswerSources, operationReceiptEvidence, type AskEvidenceContract } from "../intelligence/ask-evidence.ts";
 
@@ -922,15 +921,6 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
       recoveryEvidence: { outcome: "none", surfaceText: null, targetConcept: null, confidence: 1 } };
   }
 
-  // Explicit dated records already have a server-owned, verbatim batch plan.
-  // Do not make that write depend on a second model extraction of the same notes.
-  // Subject authorization and atomic persistence still run in run-intelligence.
-  if (!context.promptContext.evidenceContract.scope.readOnlyRecall
-    && context.promptContext.evidenceContract.scope.authorizedPetIds.length === 1
-    && parseDatedNoteBatch(input.question).length) {
-    parsed.semanticEvents = [];
-    parsed.careActions = [];
-  }
   // Read-only authority already prevents these proposals from being persisted.
   // A rejected write hint must not spend the answer's repair budget or abort a
   // history read; final governance still clears every forbidden write channel.
@@ -1051,9 +1041,9 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     parsed.intelligenceSafety.shoppingSuppressed = true;
     parsed.suggestedFollowUps = [];
     parsed.answerSections = [];
-    if (lossContext === "confirmed_current") {
-      parsed.applicationActions = ensureConfirmedLossAction(parsed.applicationActions, input.question, { exclusive: true });
-    }
+    // Grief classification affects presentation only. Lifecycle actions come from the bound plan.
+    parsed.applicationActions = parsed.applicationActions.filter(action =>
+      !["pet.mark_deceased", "pet.mark_active", "pet.archive"].includes(action.kind));
     parsed.proposedHistoryUpdate = { shouldOffer: false, category: null, title: null, details: null, severity: null, resolvesConcernId: null };
   } else if (context.minimumSafetyLevel === "urgent") {
     parsed.safetyLevel = "urgent";

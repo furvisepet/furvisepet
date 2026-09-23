@@ -9,6 +9,9 @@ type SemanticRequestEnvelope = AskRequestContract & {
 };
 
 function intentForRequest(request: AskRequestContract): FurviseTurnIntent {
+  if (request.stateTransitionJob) return "record";
+  if (request.fieldMutationJob) return "correct";
+  if (request.lifecyclePlan?.transition || request.lifecyclePlan?.pendingDisposition === "cancel") return "lifecycle";
   const semantic = request as SemanticRequestEnvelope;
   if (request.mode === "clarify" || semantic.operation === "clarify") return "clarify";
   if (semantic.operation === "navigate") return "navigate";

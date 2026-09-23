@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { buildResolutionSuggestion, isPendingUpdateSuggestionGrounded, type PendingUpdateSuggestion, type PetConcern } from "../ai/concern-engine.ts";
+import { isPendingUpdateSuggestionGrounded, type PendingUpdateSuggestion } from "../ai/concern-engine.ts";
 
 export async function persistPendingSuggestion({
   createCanonicalCareAuthorityClient,
@@ -30,41 +30,21 @@ export async function persistPendingSuggestion({
   errorCode: string | null;
   suggestion: (PendingUpdateSuggestion & { id: string }) | null;
 }> {
-  let activeConcerns: PetConcern[] = [];
-  let authoritativeConcern: PetConcern | null = null;
-  if (suggestion.type === "concern_resolution") {
-    const { data, error } = await supabase.from("pet_concerns")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("pet_profile_id", petId)
-      .in("status", ["active", "monitoring", "reopened"])
-      .is("resolved_at", null)
-      .returns<PetConcern[]>();
-    if (error) {
-      logAskServerError("suggestion_concern_authority_lookup", error, { conversationId, petId }, 200);
-      return { careEntryId: null, concernId: null, effectAlreadyPresent: false, errorCode: "HISTORY_SUGGESTION_AUTHORITY_UNAVAILABLE", suggestion: null };
-    }
-    activeConcerns = (data || []).filter((concern) => concern.user_id === userId && concern.pet_profile_id === petId);
-    authoritativeConcern = activeConcerns.find((concern) => concern.id === suggestion.concernId) || null;
-  }
+  // Recovery suggestions remain diagnostic. Only a bound transition capability may persist them.
+  if (suggestion.type === "concern_resolution" || suggestion.concernId
+    || suggestion.payload.semanticTransition === "resolved" || suggestion.payload.semanticState === "resolved")
+    return { careEntryId: null, concernId: null, effectAlreadyPresent: false,
+      errorCode: "CANONICAL_STATE_TRANSITION_REQUIRED", suggestion: null };
   if (!isPendingUpdateSuggestionGrounded({
     suggestion,
     message: sourceMessage,
-    hasActiveConcern: suggestion.type === "concern_resolution",
-    concern: authoritativeConcern,
-    activeConcerns,
+    hasActiveConcern: false,
+    concern: null,
+    activeConcerns: [],
     petId,
     petName,
   })) {
     return { careEntryId: null, concernId: null, effectAlreadyPresent: false, errorCode: null, suggestion: null };
-  }
-  if (suggestion.type === "concern_resolution" && suggestion.concernId) {
-    // Neither model titles nor model notes/keys are authoritative persisted data.
-    suggestion = buildResolutionSuggestion({ concern: authoritativeConcern!, message: sourceMessage, petName });
-    const { data: pendingForConcern } = await supabase.from("ai_update_suggestions").select("id")
-      .eq("user_id", userId).eq("type", suggestion.type).eq("concern_id", suggestion.concernId).eq("status", "pending")
-      .limit(1).maybeSingle<{ id: string }>();
-    if (pendingForConcern) return { effectAlreadyPresent: false, errorCode: null, suggestion: null };
   }
   const semanticTopic = textPayloadValue(suggestion.payload.semanticTopic);
   const semanticDomain = textPayloadValue(suggestion.payload.semanticDomain);

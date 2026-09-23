@@ -42,7 +42,7 @@ const { buildFurviseContext } = await import('../../../app/lib/intelligence/retr
 const { runFurviseIntelligence } = await import('../../../app/lib/intelligence/run-intelligence.ts');
 const { buildAskContext, ASK_PROMPT_CONTEXT_CHAR_BUDGET } = await import('../../../app/lib/ai/ask-reasoning.ts');
 const { selectRelevantCareEntries } = await import('../../../app/lib/intelligence/build-context.ts');
-const { resolveAskTurnSubject } = await import('../../../app/lib/intelligence/entities/resolve-turn-subject.ts');
+const { resolveAskTurnSubject } = await import('../../../tests/helpers/precanonical-subject.mjs');
 const { rebuildSemanticProjectionsV2 } = await import('../../../app/lib/intelligence/v2/projections/rebuild.ts');
 const { classifyFurviseCapabilityQuestion } = await import('../../../app/lib/ai/ask-internal-product-policy.ts');
 const { createAskEvidenceContract, evidenceScopeKey } = await import('../../../app/lib/intelligence/ask-evidence.ts');
@@ -183,9 +183,7 @@ async function exercise(question, { evidenceReadProposal, historyAccess, fixture
         petId: interpretation.petIds[0], conversationId: messages ? 'chat' : null, conversationPetId: messages ? conversationPetId : null, currentMessage: question });
     }
     if (!interpretation.readOnly) {
-      const decision = await resolveAskTurnSubject({ operationPetIds: interpretation.readPetIds ? interpretation.petIds : undefined, message: question, pets: context.eligiblePets, ownerId,
-        selectedPetId: context.pet.id, recentConversation: context.conversationTurns,
-        extractFrame: async () => interpretation.frame });
+      const decision = readInterpretationSubject(interpretation, context.pet.id, {ownerId,pets:context.eligiblePets});
       assert.ok(!decision.resolution.requiresClarification && decision.resolution.petId, 'route subject gate must allow this fixture');
       authoritativePetIds = decision.resolution.petIds;
       authoritativeSemanticFrame = decision.frame;

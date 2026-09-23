@@ -35,6 +35,10 @@ export function getFurviseActionPolicy(kind: FurviseActionKind): ActionPolicy {
   return policies[kind];
 }
 
+export function shouldAutoExecuteAction(action: import("./types.ts").FurviseApplicationAction) {
+  return actionCanAutoExecute(action.kind, action.explicitIntent);
+}
+
 export function actionCanAutoExecute(kind: FurviseActionKind, serverVerifiedUserIntent: boolean) {
   const policy = getFurviseActionPolicy(kind);
   return policy.safetyClass === "LOW_RISK_REVERSIBLE" && policy.confirmationPolicy === "explicit_intent" && serverVerifiedUserIntent;
