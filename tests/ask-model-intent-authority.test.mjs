@@ -159,10 +159,7 @@ test("model metadata cannot broaden intent or change the server-owned confirmati
     kind: "pet.delete_permanently",
     sourceMessage: "Delete Mani.",
   });
-  assert.equal(destructive.explicitIntent, false);
-  assert.equal(destructive.confirmationPolicy, "always");
-  assert.equal(destructive.status, "confirmation_required");
-  assert.equal(shouldAutoExecuteAction(destructive), false);
+  assert.equal(destructive, undefined); // Model metadata cannot create a canonical REMOVE capability.
   assert.deepEqual(getFurviseActionPolicy("pet.delete_permanently"), {
     authorizationScope: "owned_pet",
     confirmationPolicy: "always",

@@ -24,7 +24,7 @@ export function prepareFurviseApplicationActions(input: {
   lifecycleStatus?: "active" | "deceased" | "archived";
 }): FurviseApplicationAction[] {
   return input.proposals.flatMap((proposal, index) => {
-    if (["care_history.remove", "care_history.edit", "pet.update_profile", "memory.set_preference", "memory.forget_preference", "care_state.resolve", "care_state.reopen"].includes(proposal.kind)) return [];
+    if (["pet.delete_permanently", "care_history.remove", "care_history.edit", "pet.update_profile", "memory.set_preference", "memory.forget_preference", "care_state.resolve", "care_state.reopen"].includes(proposal.kind)) return [];
     if (!validProposalInput(proposal, input.lifecycleStatus)) return [];
     const policy = getFurviseActionPolicy(proposal.kind);
     const presentation = actionPresentation(proposal.kind, input.petId, input.petName, proposal.input);
@@ -47,11 +47,11 @@ export function prepareFurviseApplicationActions(input: {
 
 export function prepareBoundRemoveAction(job:RemoveJob,requestId:string):FurviseApplicationAction {
  if(!readBoundRemoveJob(job))throw Error("REMOVE_JOB_INVALID");
- const kind="care_history.remove",policy=getFurviseActionPolicy(kind);
+ const profile=job.domain==="pet_profile",kind=profile?"pet.delete_permanently":"care_history.remove",policy=getFurviseActionPolicy(kind);
  return {kind,removeJob:job,...policy,id:requestId+":remove",petId:job.petId,sourceMessageId:job.sourceMessageId,
-  targetSourceId:"care:"+job.resolvedTarget.recordId,explicitIntent:false,status:"confirmation_required",
-  input:{field:null,value:null,title:null,detail:null,category:null,target:"specified"},evidence:job.instruction.text.slice(0,240),
-  label:"Remove the history update",description:"Confirm removal of the bound care-history record.",href:null,resultMessage:null,errorMessage:null};
+  ...(profile?{}:{targetSourceId:"care:"+job.resolvedTarget.recordId}),explicitIntent:false,status:"confirmation_required",
+  input:{field:null,value:null,title:null,detail:null,category:null,target:profile?"selected":"specified"},evidence:job.instruction.text.slice(0,240),
+  label:profile?"Permanently delete this pet":"Remove the history update",description:profile?"Confirm permanent deletion of this pet profile and its linked data.":"Confirm removal of the bound care-history record.",href:null,resultMessage:null,errorMessage:null};
 }
 
 /** The canonical selector has already resolved the one owned record. */

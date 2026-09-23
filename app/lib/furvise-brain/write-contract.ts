@@ -1,15 +1,16 @@
 import { isDeepStrictEqual } from "node:util";
 import type { FurviseApplicationAction } from "../application-actions/types.ts";
 
-/** This adapter covers care-history capability writes. It does not grant
+/** This adapter covers canonical ledger and profile-removal capability writes. It does not grant
  * authorization or reinterpret language; the existing action gate does that. */
 const operations = {
   "care_history.add": "append",
   "care_history.edit": "replace",
   "care_history.remove": "remove",
+  "pet.delete_permanently": "remove",
 } as const;
 
-export function careWriteOperation(kind: FurviseApplicationAction["kind"]) {
+export function canonicalWriteOperation(kind: FurviseApplicationAction["kind"]) {
   return operations[kind as keyof typeof operations] ?? null;
 }
 
@@ -32,7 +33,7 @@ export function confirmFurviseWriteReceipt(input: {
   persistedStatus: string | null;
   persistedReceipt: FurviseApplicationAction | null;
 }): FurviseWriteReceipt {
-  const operation = careWriteOperation(input.authorized.kind);
+  const operation = canonicalWriteOperation(input.authorized.kind);
   const receipt = input.persistedReceipt;
   if (!operation || !receipt || !["succeeded", "failed", "cancelled"].includes(input.persistedStatus || "")
     || receipt.status !== input.persistedStatus
@@ -46,9 +47,16 @@ export function confirmFurviseWriteReceipt(input: {
     || !isDeepStrictEqual(receipt.replaceJob, input.authorized.replaceJob)
     || receipt.targetSourceId !== input.authorized.targetSourceId
     || !isDeepStrictEqual(receipt.input, input.authorized.input)
+    || (input.authorized.removeJob && !isDeepStrictEqual(immutableAction(receipt), immutableAction(input.authorized)))
     || !isDeepStrictEqual(receipt, input.returned)) {
     throw new Error("FURVISE_WRITE_RECEIPT_UNCONFIRMED");
   }
   return Object.freeze({ operation, operationId: input.operationId, petId: receipt.petId,
     sourceMessageId: receipt.sourceMessageId!, status: receipt.status as FurviseWriteReceipt["status"] });
+}
+
+function immutableAction(action: FurviseApplicationAction) {
+  const {id,status,resultMessage,errorMessage,...authority}=action;
+  void id;void status;void resultMessage;void errorMessage;
+  return authority;
 }

@@ -20,8 +20,11 @@ export async function POST(request: Request, routeContext: RouteContext) {
   const body = rawBody as { actionId?: unknown; decision?: unknown };
   if (typeof body.actionId !== "string" || !isUuid(body.actionId) || (body.decision !== "confirm" && body.decision !== "cancel")) return Response.json({ error: "Choose confirm or cancel for this action." }, { status: 422 });
   let execution;
-  try { execution = await executeActionCapability({ capabilityId: body.actionId, assistantMessageId: messageId, userId: auth.userId, mode: body.decision === "cancel" ? "cancel" : "confirm" }); }
-  catch { return Response.json({ error: "That action could not be verified." }, { status: 503 }); }
+  try { execution = await executeActionCapability({ capabilityId: body.actionId, assistantMessageId: messageId, userId: auth.userId, mode: body.decision === "cancel" ? "cancel" : "confirm", recentAuthContext: auth }); }
+  catch (error) {
+    if(error instanceof Error && error.message === "RECENT_AUTH_REQUIRED")return Response.json({code:"RECENT_AUTH_REQUIRED",error:"For your security, sign in again before permanently deleting this pet."},{status:401,headers:{"Cache-Control":"private, no-store"}});
+    return Response.json({ error: "That action could not be verified." }, { status: 503 });
+  }
   if (!execution) return unavailable(); // same answer for guessed IDs, other users, and wrong messages
   const { action } = execution;
   try { emitOperationalEvent({ actorId: auth.userId, errorCode: action.status === "failed" ? "ASK_ACTION_FAILED" : undefined,

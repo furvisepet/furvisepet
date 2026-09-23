@@ -73,7 +73,7 @@ export function parseStoredApplicationActions(value: unknown): FurviseApplicatio
     const removeJob = draft.removeJob === undefined ? undefined : readBoundRemoveJob(draft.removeJob);
     if(draft.removeJob !== undefined && (!removeJob || appendJob || replaceJob || fieldMutationJob || stateTransitionJob
       || !removeJobActionMatches(removeJob,draft as unknown as FurviseApplicationAction)))return [];
-    if(kind === "care_history.remove" && !removeJob)return [];
+    if(["care_history.remove","pet.delete_permanently"].includes(kind) && !removeJob)return [];
     const input = parseInput(draft.input);
     // Compare RAW input above; generic model cleanup must never redefine a bound value.
     if (replaceJob && input) input.detail = replaceJob.body.text;
@@ -93,7 +93,7 @@ export function parseStoredApplicationActions(value: unknown): FurviseApplicatio
     return [{
       id: draft.id, petId: draft.petId, kind, input, evidence: draft.evidence,
       ...(appendJob ? { appendJob } : {}),
-      ...(removeJob ? {removeJob,targetSourceId:draft.targetSourceId as string} : {}),
+      ...(removeJob ? {removeJob,...(removeJob.domain==="care_history"?{targetSourceId:draft.targetSourceId as string}:{})} : {}),
       ...(replaceJob ? { replaceJob, targetSourceId: draft.targetSourceId as string } : {}),
       ...(fieldMutationJob ? { fieldMutationJob } : {}),
       ...(stateTransitionJob ? { stateTransitionJob } : {}),

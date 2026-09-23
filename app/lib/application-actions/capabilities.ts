@@ -1,5 +1,6 @@
 import {rebindRemoveJob, removeJobActionMatches} from "../furvise-brain/remove-job.ts";
 import "server-only";
+import { requireRecentInteractiveAuthentication } from "../security/recent-auth.ts";
 import { rebindReplaceJob, replaceJobActionMatches } from "../furvise-brain/replace-job.ts";
 import { bindStateTransitionJob, stateTransitionProposal, stateTransitionActionMatches } from "../furvise-brain/state-transition-job.ts";
 import { bindFieldMutationJob, fieldMutationActionMatches, fieldMutationJobProposal } from "../furvise-brain/field-mutation-job.ts";
@@ -9,7 +10,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createIdempotencyAdminClient } from "../security/idempotency/admin-client.ts";
 import { authorizeFurviseActionExecution } from "../furvise-brain/action-organ.ts";
-import { careWriteOperation, confirmFurviseWriteReceipt } from "../furvise-brain/write-contract.ts";
+import { canonicalWriteOperation, confirmFurviseWriteReceipt } from "../furvise-brain/write-contract.ts";
 import { parseStoredApplicationActions } from "./contracts.ts";
 import { getFurviseActionPolicy } from "./policy.ts";
 import type { FurviseApplicationAction } from "./types.ts";
@@ -55,7 +56,7 @@ export async function createActionCapabilities(input: {
       authoritativePetName,
       input.userId,
     );
-    if ((authoritativeAction.replaceJob || authoritativeAction.removeJob) && action.targetSourceId !== "care:" + input.targetBindings?.[action.id])
+    if ((authoritativeAction.replaceJob || authoritativeAction.removeJob?.domain === "care_history") && action.targetSourceId !== "care:" + input.targetBindings?.[action.id])
       throw Error("REPLACE_CAPABILITY_TARGET_MISMATCH");
     const targetId = await bindTarget(authoritativeAction, authoritativeAction.stateTransitionJob?.concernId || input.targetBindings?.[action.id] || null, input.supabase, input.userId);
     if (requiresBoundTarget(authoritativeAction) && !targetId) {
@@ -110,6 +111,7 @@ export async function executeActionCapability(input: {
   mode: "confirm" | "cancel" | "auto";
   correctionSourceMessageId?: string;
   suggestionId?: string;
+  recentAuthContext?: Parameters<typeof requireRecentInteractiveAuthentication>[0];
 }) {
   if (input.suggestionId && (input.mode !== "confirm" || input.correctionSourceMessageId))
     throw Error("CANONICAL_SUGGESTION_CONFIRM_REQUIRED");
@@ -129,6 +131,11 @@ export async function executeActionCapability(input: {
     throw Error("TRANSITION_CAPABILITY_SCOPE_MISMATCH");
   if (authoritativeAction.replaceJob && !replaceJobActionMatches(authoritativeAction.replaceJob, authoritativeAction))
     throw Error("REPLACE_CAPABILITY_SCOPE_MISMATCH");
+  // The immutable server capability determines whether destructive reauthentication is required.
+  if(authoritativeAction.kind==="pet.delete_permanently" && input.mode==="confirm" && capability.status==="pending") {
+    if(!input.recentAuthContext || input.recentAuthContext.userId!==input.userId
+      || !(await requireRecentInteractiveAuthentication(input.recentAuthContext)).allowed)throw Error("RECENT_AUTH_REQUIRED");
+  }
   authorizeFurviseActionExecution({
     action: authoritativeAction,
     capabilityId: capability.id,
@@ -148,7 +155,7 @@ export async function executeActionCapability(input: {
   if (!data) return null;
   const action = parseStoredApplicationActions([data.action])[0];
   if (!action) throw new Error("ACTION_CAPABILITY_CORRUPT");
-  if (careWriteOperation(authoritativeAction.kind)) {
+  if (canonicalWriteOperation(authoritativeAction.kind)) {
     const persisted = await loadExecutionCapability(input);
     const receipt = confirmFurviseWriteReceipt({
       operationId: capability.id,
@@ -187,7 +194,7 @@ export function rebindCanonicalCapabilityAction(
   const policy = getFurviseActionPolicy(action.kind);
   if (policy.mutationClass !== "mutation") throw new Error("ACTION_CAPABILITY_KIND_NOT_MUTABLE");
   if (action.kind === "care_history.edit" && !action.replaceJob) throw Error("REPLACE_CAPABILITY_JOB_REQUIRED");
-  if(action.kind === "care_history.remove" && !action.removeJob)throw Error("REMOVE_CAPABILITY_JOB_REQUIRED");
+  if(["care_history.remove","pet.delete_permanently"].includes(action.kind) && !action.removeJob)throw Error("REMOVE_CAPABILITY_JOB_REQUIRED");
   if(action.removeJob) {
     if(action.appendJob||action.replaceJob||action.fieldMutationJob||action.stateTransitionJob||!removeJobActionMatches(action.removeJob,action))throw Error("REMOVE_CAPABILITY_SCOPE_MISMATCH");
     rebindRemoveJob(action.removeJob,{id:sourceMessageId,...sourceMessage},{id:action.petId,name:petName},userId);
@@ -233,7 +240,7 @@ export function rebindCanonicalCapabilityAction(
   void targetSourceId;
   return {
     ...capabilityAction,
-    ...(action.replaceJob || action.removeJob ? { targetSourceId } : {}),
+    ...(action.replaceJob || action.removeJob?.domain === "care_history" ? { targetSourceId } : {}),
     ...policy,
     explicitIntent,
     sourceMessageId,

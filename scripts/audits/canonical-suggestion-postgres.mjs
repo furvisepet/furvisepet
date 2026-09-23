@@ -96,7 +96,7 @@ run('owner preference cannot bypass unsupported durable executor',turn(preferenc
 check('(select count(*) from public.furvise_memories)=0','preference created memory')));
 run('conversation cleanup can remove canonical suggestion transport',prepared()+
 "delete from public.ask_conversations where id='"+conversation+"';\n"+block(
-check('(select count(*) from public.ai_update_suggestions)=0 and (select count(*) from public.ask_action_capabilities)=0','cleanup blocked')));
+check("(select count(*) from public.ai_update_suggestions)=0 and not exists(select 1 from public.ask_action_capabilities where status='pending') and exists(select 1 from public.ask_action_capabilities where status='cancelled' and receipt is not null)",'suggestion cleanup or terminal cancellation failed')));
 
 run('suggestion created after an exact successful action receipt is already saved',append(['Exact original note.'])+persist()+block(
 check("(select status from public.ai_update_suggestions where id="+sid(1)+")='saved'",'existing exact receipt not reflected')+
