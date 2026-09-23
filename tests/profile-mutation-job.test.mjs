@@ -26,9 +26,9 @@ const read = p => readFileSync(new URL("../" + p, import.meta.url), "utf8");
 const capabilityCode = read("app/lib/application-actions/capabilities.ts");
 const ast = ts.createSourceFile("capabilities.ts", capabilityCode, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
 const functions = ast.statements.filter(n => ts.isFunctionDeclaration(n)
- && ["canonicalCapabilityAction", "isExecutableSourceAction"].includes(n.name?.text)).map(n => n.getText(ast)).join("\n");
-const capabilityBind = vm.runInNewContext(ts.transpileModule(functions, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
- + "\ncanonicalCapabilityAction", { bindFieldMutationJob, fieldMutationJobProposal, fieldMutationActionMatches,
+ && ["rebindCanonicalCapabilityAction", "isExecutableSourceAction"].includes(n.name?.text)).map(n => n.getText(ast)).join("\n");
+const capabilityBind = vm.runInNewContext(ts.transpileModule(functions.replace(/^export /gm,""), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
+ + "\nrebindCanonicalCapabilityAction", { bindFieldMutationJob, fieldMutationJobProposal, fieldMutationActionMatches,
  isDeepStrictEqual, getFurviseActionPolicy });
 for (const [field, quote, expected] of [
  ["weight", "04.20 KGS", { kind: "weight", value: 4.2, unit: "kg" }],

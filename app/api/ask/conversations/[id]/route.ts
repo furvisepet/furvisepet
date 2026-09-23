@@ -37,7 +37,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const assistantIds = messages.filter(message => message.role === "furvise").map(message => message.id);
   const { data: suggestions, error: suggestionsError } = assistantIds.length ? await context.supabase
     .from("ai_update_suggestions")
-    .select("id, source_message_id, concern_id, care_entry_id, applied_at, type, title, details, status")
+    .select("id, user_id, pet_profile_id, conversation_id, source_message_id, concern_id, care_entry_id, applied_at, type, title, details, status, canonical_capability_id, canonical_payload, invalidated_at")
     .eq("conversation_id", id)
     .eq("user_id", context.userId)
     .in("source_message_id", assistantIds)

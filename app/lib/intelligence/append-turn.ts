@@ -1,4 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
+import { persistCanonicalSuggestions } from "./canonical-suggestion-continuation.ts";
+import { createCanonicalCareAuthorityClient } from "./care-authority-client.ts";
 import { deriveAskTaskOutcome, type AskTurnLifecycle } from "../ai/ask-turn-model.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { FurviseLiveContext } from "./types.ts";
@@ -53,6 +55,7 @@ export async function prepareAppendTurn(input: {
   const actions = await createActionCapabilities({ actions: [proposal], assistantMessageId: id, sourceMessageId: job.sourceMessageId,
     supabase: input.supabase, userId: input.context.owner.userId });
   if (actions.length !== 1 || !/^[0-9a-f-]{36}$/i.test(actions[0].id) || actions[0].status === "failed") throw Error("APPEND_CAPABILITY_UNAVAILABLE");
+  await persistCanonicalSuggestions({ authority: createCanonicalCareAuthorityClient(), userId: input.context.owner.userId, actions });
   input.turnLifecycle.transition("ANSWER_PERSISTED").transition("COMPLETED");
   const stored = { ...canonical, applicationActions: actions, turn: input.turnLifecycle.snapshot() };
   const updated = await updateAskAssistantResponse({ messageId: id, userId: input.context.owner.userId, responseData: stored });

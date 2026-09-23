@@ -27,9 +27,9 @@ function request(p){return {version:"ask-request.v2",mode:"update",question:text
 const bind=(p=proposal(),c=context())=>validateAskRequest(request(p),c).request.stateTransitionJob;
 const read=p=>readFileSync(new URL("../"+p,import.meta.url),"utf8");
 const ast=ts.createSourceFile("capabilities.ts",read("app/lib/application-actions/capabilities.ts"),ts.ScriptTarget.Latest,true);
-const functions=ast.statements.filter(n=>ts.isFunctionDeclaration(n)&&["canonicalCapabilityAction","isExecutableSourceAction","bindTarget"].includes(n.name?.text)).map(n=>n.getText(ast)).join("\n");
-const capability=vm.runInNewContext(ts.transpileModule(functions,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText+
- "\n({canonicalCapabilityAction,bindTarget})",{bindStateTransitionJob,stateTransitionProposal,stateTransitionActionMatches,
+const functions=ast.statements.filter(n=>ts.isFunctionDeclaration(n)&&["rebindCanonicalCapabilityAction","isExecutableSourceAction","bindTarget"].includes(n.name?.text)).map(n=>n.getText(ast)).join("\n");
+const capability=vm.runInNewContext(ts.transpileModule(functions.replace(/^export /gm,""),{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText+
+ "\n({rebindCanonicalCapabilityAction,bindTarget})",{bindStateTransitionJob,stateTransitionProposal,stateTransitionActionMatches,
  isDeepStrictEqual,getFurviseActionPolicy,UUID:/^[0-9a-f-]{36}$/});
 for(const [from,to]of [["active","resolved"],["monitoring","resolved"],["reopened","resolved"],["resolved","reopened"]])
  test(from+" to "+to+" binds one exact owned concern through serialization and capability policy",async()=>{
@@ -41,7 +41,7 @@ for(const [from,to]of [["active","resolved"],["monitoring","resolved"],["reopene
  assert.equal(prepared.orchestration.aiResult,null);assert.equal(action.authorizationScope,"owned_concern");
  assert.equal(action.kind,to==="resolved"?"care_state.resolve":"care_state.reopen");
  assert.deepEqual(parseStoredApplicationActions([JSON.parse(JSON.stringify(action))])[0],action);
- const rebound=capability.canonicalCapabilityAction(action,id(4),{text,createdAt:c.currentTurn.createdAt},pet.name,pet.user_id);
+ const rebound=capability.rebindCanonicalCapabilityAction(action,id(4),{text,createdAt:c.currentTurn.createdAt},pet.name,pet.user_id);
  assert.equal(rebound.explicitIntent,true);assert.deepEqual(rebound.stateTransitionJob,job);
  for(const mode of ["auto","confirm"])assert.equal(authorizeFurviseActionExecution({action,mode,capabilityId:id(5)}).mutation.kind,
   to==="resolved"?"resolve_care_state":"reopen_care_state");
@@ -85,10 +85,10 @@ test("canonical action cannot be overridden or minted without its source-bound j
  assert.doesNotMatch(readFileSync(new URL("../app/lib/application-actions/planner.ts",import.meta.url),"utf8"),/hasDeterministicUserMutationIntent/);
  for(const edit of [a=>a.stateTransitionJob=undefined,a=>a.kind="care_state.reopen",a=>a.petId=id(9),a=>a.input.detail="new facts",a=>a.explicitIntent=false]){
   const altered=structuredClone(action);edit(altered);
-  assert.throws(()=>capability.canonicalCapabilityAction(altered,id(4),{text,createdAt:c.currentTurn.createdAt},pet.name,pet.user_id),/TRANSITION/);
+  assert.throws(()=>capability.rebindCanonicalCapabilityAction(altered,id(4),{text,createdAt:c.currentTurn.createdAt},pet.name,pet.user_id),/TRANSITION/);
  }
- assert.throws(()=>capability.canonicalCapabilityAction(action,id(4),{text:"Forged"},pet.name,pet.user_id),/ASK_REQUEST_INVALID/);
- assert.throws(()=>capability.canonicalCapabilityAction(action,id(4),{text},pet.name,id(9)),/TRANSITION/);
+ assert.throws(()=>capability.rebindCanonicalCapabilityAction(action,id(4),{text:"Forged"},pet.name,pet.user_id),/ASK_REQUEST_INVALID/);
+ assert.throws(()=>capability.rebindCanonicalCapabilityAction(action,id(4),{text},pet.name,id(9)),/TRANSITION/);
 });
 test("capability target lookup uses exact bound owner, pet, concern and stored status",async()=>{
  const job=bind(),action=prepareBoundStateTransitionAction(job,"r"),filters=[];
@@ -128,7 +128,7 @@ test("safety, recurrence and semantic recovery remain diagnostic without a canon
  assert.equal(recurrence.concernMessageState,"recurrence");assert.equal(recurrence.level,"urgent");
  const blocked=await persistPendingSuggestion({suggestion:{type:"concern_resolution",concernId:concern.id,payload:{}},
  supabase:{from(){throw Error("NO_LEGACY_MUTATION");}}});
- assert.equal(blocked.suggestion,null);assert.equal(blocked.errorCode,"CANONICAL_STATE_TRANSITION_REQUIRED");
+ assert.equal(blocked.suggestion,null);assert.equal(blocked.errorCode,"CANONICAL_SUGGESTION_REQUIRED");
 });
 test("one mocked Brain call chooses a supplied handle; deterministic preparation adds no provider",async()=>{
  const {interpretAskQuestion}=await import("../app/lib/intelligence/interpret-ask.ts");let calls=0;const c=context();

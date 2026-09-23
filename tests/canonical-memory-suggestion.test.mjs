@@ -1,73 +1,40 @@
-import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import vm from "node:vm";
-import test from "node:test";
-import ts from "typescript";
-import { prepareMemorySuggestion } from "../app/lib/intelligence/memory-suggestion.ts";
-const id = "00000000-0000-4000-8000-000000000001";
-const pet = "00000000-0000-4000-8000-000000000002";
-const suggestion = { id, user_id: "owner", pet_profile_id: pet, type: "memory", status: "pending",
-  details: "Milo gets nervous around the vacuum.", payload: { memoryType: "behavior" } };
-const source = readFileSync(new URL("../app/api/ask/suggestions/[id]/route.ts", import.meta.url), "utf8");
-function harness(result = { data: [{ apply_status: "applied", memory_id: "memory" }], error: null }, row = suggestion) {
-  const calls = [];
-  const db = { auth: { getUser: async () => ({ data: { user: { id: "owner" } } }) }, from(table) {
-    const q = { maybeSingle: async () => ({ data: table === "ai_update_suggestions" ? row : null, error: null }) };
-    for (const method of ["select", "eq", "or", "order", "limit"]) q[method] = () => q;
-    q.insert = () => { throw new Error("Legacy insertion forbidden"); };
-    return q;
-  } };
-  const authority = { rpc: async (name, args) => { calls.push({ name, args }); return result; },
-    from: () => { throw new Error("Non-atomic suggestion write forbidden"); } };
-  const mocks = {
-    "@supabase/supabase-js": { createClient: () => db },
-    "../../../../lib/security/headers/origin-policy": { validateSensitiveRequestOriginResponse: () => null },
-    "../../../../lib/security/logging": { safeErrorForLog: () => ({}) },
-    "../../../../lib/security/request": { API_BODY_LIMITS: { standard: 1000 }, isUuid: value => value === id,
-      hasOnlyKeys: () => true, readBoundedJson: request => request.json() },
-    "../../../../lib/security/idempotency": { beginIdempotentRateLimitedOperation: async () => ({ operation: { execute: fn => fn() } }) },
-    "../../../../lib/intelligence/memory-suggestion.ts": { prepareMemorySuggestion },
-    "../../../../lib/intelligence/care-authority-client.ts": { createCanonicalCareAuthorityClient: () => authority },
-  };
-  const exports = {};
-  vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText,
-    { exports, require(name) { assert.ok(name in mocks, name); return mocks[name]; }, Response,
-      crypto: globalThis.crypto, process: { env: { NEXT_PUBLIC_SUPABASE_URL: "http://unused.invalid", NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "test-only" } },
-      console: { error() {} } });
-  return { calls, run: () => exports.PATCH(new Request("http://local/api/ask/suggestions/" + id,
-    { method: "PATCH", headers: { authorization: "Bearer test-only", "content-type": "application/json" }, body: '{"action":"save"}' }), { params: Promise.resolve({ id }) }) };
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+import test from 'node:test';
+import ts from 'typescript';
+import {fixture,harness as authorityHarness,owner,id,continueCanonicalSuggestion} from './helpers/canonical-suggestion.mjs';
+const source=readFileSync(new URL('../app/api/ask/suggestions/[id]/route.ts',import.meta.url),'utf8');
+function harness({kind='append',legacy=false,missing=false,foreign=false}={}){
+ const f=fixture(kind);if(legacy){f.s.canonical_payload=null;f.s.canonical_capability_id=null;f.s.type=kind;f.s.payload={note:'Legacy detail',semanticTopic:'Unbound topic'};}
+ const h=authorityHarness(f),from=h.db.from.bind(h.db),rpc=h.db.rpc.bind(h.db),workflow=[];
+ h.db.auth={getUser:async()=>({data:{user:{id:foreign?id(99):owner}}})};
+ h.db.from=table=>table==='ai_update_suggestions'?{select(){return this},eq(){return this},maybeSingle:async()=>({data:missing?null:f.s,error:null})}:from(table);
+ h.db.rpc=(name,args)=>{
+  if(name==='edit_ask_canonical_suggestion'||name==='transition_ask_suggestion'){workflow.push({name,args});return Promise.resolve({data:[name.startsWith('edit')?{...f.s,invalidated_at:'2026-09-23T00:00:00Z'}:{suggestion_id:f.s.id,apply_status:'dismissed'}],error:null});}
+  return rpc(name,args);
+ };
+ const mocks={
+ '@supabase/supabase-js':{createClient:()=>h.db},
+ '../../../../lib/security/headers/origin-policy':{validateSensitiveRequestOriginResponse:()=>null},
+ '../../../../lib/security/logging':{safeErrorForLog:()=>({})},
+ '../../../../lib/security/request':{API_BODY_LIMITS:{standard:1000},isUuid:v=>v===f.s.id,hasOnlyKeys:(o,keys)=>o&&Object.keys(o).every(k=>keys.includes(k)),readBoundedJson:r=>r.json(),RequestBoundaryError:class extends Error{}},
+ '../../../../lib/security/idempotency':{beginIdempotentRateLimitedOperation:async()=>({operation:{execute:fn=>fn()}})},
+ '../../../../lib/intelligence/care-authority-client.ts':{createCanonicalCareAuthorityClient:()=>h.db},
+ '../../../../lib/intelligence/canonical-suggestion-continuation.ts':{continueCanonicalSuggestion},
+ '../../../../lib/intelligence/append-turn.ts':{continueConfirmedAppend:async()=>null},
+ };
+ const exports={};vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,
+ {exports,require:n=>{assert.ok(n in mocks,n);return mocks[n]},Response,crypto:globalThis.crypto,console:{error(){}},
+ process:{env:{NEXT_PUBLIC_SUPABASE_URL:'https://unused.invalid',NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:'offline'}}});
+ return {...h,f,workflow,run:body=>exports.PATCH(new Request('https://fixture.invalid/api/ask/suggestions/'+f.s.id,{method:'PATCH',headers:{authorization:'Bearer offline'},body:JSON.stringify(body||{action:'save'})}),{params:Promise.resolve({id:f.s.id})})};
 }
-test("actual PATCH saves through one canonical atomic RPC with reviewed target and note", async () => {
-  const h = harness();
-  assert.equal((await h.run()).status, 200);
-  assert.equal(h.calls.length, 1);
-  assert.equal(h.calls[0].name, "save_ask_memory_suggestion");
-  assert.equal(h.calls[0].args.p_expected_pet_id, pet);
-  assert.equal(h.calls[0].args.p_expected_note, suggestion.details);
-  assert.equal(h.calls[0].args.p_user_id, "owner");
-});
-for (const [code, status] of [["42501",403],["P0002",404],["40001",409],["22023",422],["PGRST202",503],["23505",503]]) {
-  test("actual PATCH does not claim a save after " + code, async () => {
-    assert.equal((await harness({ data: null, error: { code } }).run()).status, status);
-  });
-}
-test("saved retry still uses fresh database authority and does not recreate forgotten memory", async () => {
-  const h = harness({ data: [{ apply_status: "already_applied", memory_id: null }], error: null }, { ...suggestion, status: "saved" });
-  const response = await h.run();
-  assert.equal(response.status, 200);
-  assert.equal((await response.json()).memoryId, null);
-  assert.equal(h.calls.length, 1);
-});
-test("unconfirmed result fails instead of claiming success", async () => {
-  assert.equal((await harness({ data: [], error: null }).run()).status, 503);
-});
-test("invalid durable-memory input never reaches the write RPC", async () => {
-  const h = harness(undefined, { ...suggestion, details: "true" });
-  assert.equal((await h.run()).status, 422);
-  assert.equal(h.calls.length, 0);
-});
-test("memory preparation preserves review text and rejects clinical or oversized input", () => {
-  assert.equal(prepareMemorySuggestion(suggestion).note, suggestion.details);
-  assert.equal(prepareMemorySuggestion({ ...suggestion, payload: { memoryType: "symptom" } }), null);
-  assert.equal(prepareMemorySuggestion({ ...suggestion, details: "x".repeat(1001) }), null);
-});
+for(const kind of ['append','replace','state_transition'])test('actual PATCH executes '+kind+' through its exact stored capability',async()=>{const h=harness({kind});const r=await h.run();assert.equal(r.status,200);const body=await r.json();assert.equal(body.status,'applied');assert.equal(h.calls.length,1);assert.equal(h.calls[0].name,'execute_ask_canonical_suggestion');assert.equal(h.calls[0].args.p_user_id,owner);assert.equal(body.action.status,'succeeded')});
+for(const kind of ['history','concern_opening','concern_resolution','memory'])test('actual PATCH refuses proofless legacy '+kind+' without factual RPC',async()=>{const h=harness({kind,legacy:true});assert.equal((await h.run()).status,409);assert.equal(h.calls.length,0);assert.equal(h.workflow.length,0)});
+test('owner preference still fails at existing unsupported executor',async()=>{const h=harness({kind:'owner_preference'});assert.equal((await h.run()).status,409);assert.equal(h.f.c.status,'failed')});
+test('actual PATCH replay uses same durable receipt',async()=>{const h=harness();assert.equal((await h.run()).status,200);const replay=await h.run();assert.equal(replay.status,200);assert.equal((await replay.json()).status,'already_applied')});
+test('client cannot submit canonical payload, target, subject or job',async()=>{for(const key of ['canonical_payload','appendJob','petId','targetId']){const h=harness();assert.equal((await h.run({action:'save',[key]:{}})).status,400);assert.equal(h.calls.length,0)}});
+test('monitor never reaches a factual RPC',async()=>{const h=harness({kind:'state_transition'});assert.equal((await h.run({action:'monitor'})).status,422);assert.equal(h.calls.length,0);assert.equal(h.workflow.length,0)});
+test('edit uses invalidation workflow and never submits canonical meaning',async()=>{const h=harness();const original=structuredClone(h.f.s.canonical_payload);const r=await h.run({action:'edit',details:'New display text'});assert.equal(r.status,200);assert.deepEqual(h.f.s.canonical_payload,original);assert.equal(h.calls.length,0);assert.equal(h.workflow[0].name,'edit_ask_canonical_suggestion');assert.deepEqual(Object.keys(h.workflow[0].args).sort(),['p_details','p_suggestion_id','p_user_id'])});
+test('legacy dismiss remains non-factual workflow',async()=>{const h=harness({kind:'memory',legacy:true});assert.equal((await h.run({action:'dismiss'})).status,200);assert.equal(h.calls.length,0);assert.equal(h.workflow[0].args.p_action,'dismiss')});
+test('missing and foreign suggestions cannot reach execution',async()=>{const missing=harness({missing:true});assert.equal((await missing.run()).status,404);const foreign=harness({foreign:true});assert.equal((await foreign.run()).status,409);assert.equal(foreign.calls.length,0)});

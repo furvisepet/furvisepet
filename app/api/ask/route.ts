@@ -15,7 +15,7 @@ import { ASK_OPERATION_TIMEOUT_MS, ASK_MAX_QUESTION_CHARACTERS } from "../../lib
 import { createAskAdmissionSettlement } from "../../lib/ai/ask-admission-settlement.ts";
 import { createAskCreditSettlement } from "../../lib/ai/ask-credit-settlement.ts";
 import { resolveAskHistoryAccess } from "../../lib/intelligence/history-access.ts";
-import { persistPendingSuggestion } from "../../lib/intelligence/persist-pending-suggestion.ts";
+import { persistCanonicalSuggestions } from "../../lib/intelligence/canonical-suggestion-continuation.ts";
 import { generateAskHistoryAnswer } from "../../lib/intelligence/generate-ask-history.ts";
 import { interpretAskQuestion, readInterpretationSubject } from "../../lib/intelligence/interpret-ask.ts";
 import type { NeedCoverage } from "../../lib/intelligence/evidence-need-coverage.ts";
@@ -52,7 +52,7 @@ import { classifyFurviseCapabilityQuestion, buildFurviseCapabilityResponse } fro
 import { safeAskDiagnosticStage } from "../../lib/ai/ask-error-diagnostic.ts";
 import { admitAiOperation, type AiOperationAdmission } from "../../lib/ai/usage-guard/admission";
 import { AiAdmissionError } from "../../lib/ai/usage-guard/errors";
-import { buildSemanticEventReviewSuggestion, type PendingUpdateSuggestion, type PetConcern } from "../../lib/ai/concern-engine";
+import { type PendingUpdateSuggestion, type PetConcern } from "../../lib/ai/concern-engine";
 import {
   AiCreditLedgerError,
   buildDevelopmentAiCreditFallback,
@@ -1511,28 +1511,16 @@ async function persistAssistantAnswer({
       }
       return { applicationActions, applicationStateChanged };
     },
-    resolveCarePresentation: async ({ persisted, intelligence }) => {
-      const reviewableSemanticEvent = deferHighImpactLifecyclePersistence ? null
-        : intelligenceResult?.executionPlan.semanticEvents.find((item) => item.destinations.some((destination) => destination === "care_event" || destination === "episode_current_state" || destination === "state_only")) || null;
+    resolveCarePresentation: async ({ intelligence, actions }) => {
       const confirmedCarePersistence = preconfirmedCarePersistence || intelligence.intelligencePersistence?.carePersistence || null;
       const automaticCareAction = confirmedCarePersistence?.status === "persisted"
         && confirmedCarePersistence.careEntryIds.length > 0;
-      const automaticCareFailure = intelligence.intelligencePersistence?.carePersistence.status === "failed";
-      const semanticReviewSuggestion = reviewableSemanticEvent ? buildSemanticEventReviewSuggestion({ event: reviewableSemanticEvent }) : null;
-      const reviewSuggestion = !automaticCareAction
-        ? (historyReviewRequired || automaticCareFailure) && semanticReviewSuggestion
-          ? semanticReviewSuggestion
-          : suggestion || semanticReviewSuggestion
-        : null;
-      const suggestionPersistence = reviewSuggestion
-        ? await runOptionalAskSubsystem({
-          component: "history_proposal",
-          fallback: { careEntryId: null, concernId: null, effectAlreadyPresent: false, errorCode: "HISTORY_SUGGESTION_UNAVAILABLE", suggestion: null },
-          operation: () => persistPendingSuggestion({ createCanonicalCareAuthorityClient, logAskServerError, assistantMessageId: persisted.id, conversationId, petId, petName, sourceMessage, suggestion: reviewSuggestion, supabase, userId }),
-          onFailure: optionalFailure,
-        })
-        : { careEntryId: null, concernId: null, effectAlreadyPresent: false, errorCode: null, suggestion: null };
-      const savedSuggestion = suggestionPersistence.suggestion;
+      const canonicalSuggestions = actions.applicationActions.length ? await persistCanonicalSuggestions({
+        authority: createCanonicalCareAuthorityClient(), userId, actions: actions.applicationActions,
+      }) : [];
+      const row = canonicalSuggestions.find(item => item.status === "pending");
+      const savedSuggestion = row ? { id: row.id, type: row.type, title: row.title,
+        details: row.details || undefined, concernId: row.concern_id || undefined, payload: {} } : null;
       const persistenceMode: "automatic" | "suggested" | "none" = automaticCareAction ? "automatic" : savedSuggestion ? "suggested" : "none";
       const carePersistence = resolveAutomaticCareHistoryPresentation({
         confirmedPersistence: confirmedCarePersistence,

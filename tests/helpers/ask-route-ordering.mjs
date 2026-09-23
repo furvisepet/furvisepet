@@ -6,6 +6,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 registerHooks({ resolve(s,c,next) {
  if(s==='server-only') return {shortCircuit:true,url:'data:text/javascript,export {}'};
+ if(s.endsWith('/care-authority-client.ts')) return {shortCircuit:true,url:'data:text/javascript,export const createCanonicalCareAuthorityClient=()=>globalThis.__routeFixture.db;'};
  if(s.endsWith('/security/idempotency/admin-client.ts')) return {shortCircuit:true,url:'data:text/javascript,export const createIdempotencyAdminClient=()=>globalThis.__routeFixture.db;'};
  if(s.endsWith('/ask-conversation-authority.ts')) return {shortCircuit:true,url:'data:text/javascript,export const completeAskConversationTurn=(x)=>globalThis.__routeFixture.complete(x);export const updateAskAssistantResponse=(x)=>globalThis.__routeFixture.update(x);'};
  if(s.startsWith(".") && c.parentURL?.startsWith("file:")) { for(const ext of [".ts",".tsx",".mjs"]) { const url=new URL(s+ext,c.parentURL); if(existsSync(url)) return next(url.href,c); } }
@@ -39,7 +40,7 @@ function handler(path,names,scope,entry='POST'){const source=readFileSync(new UR
 export function fixture(options={}){
  const events=[],errors=[];const state={planner:0,confirmed:false,options,events,errors,traces:[],credit:null};
  const pet={id:id(11),user_id:id(1),name:'Cedar',species:'dog',lifecycle_status:'active',sex:'male'};
- const rows={dog_profiles:[pet],ask_conversations:[{id:id(21),user_id:id(1),pet_profile_id:pet.id}],ask_conversation_messages:[],ask_action_capabilities:[],pet_care_entries:[],pet_concerns:[]};
+ const rows={dog_profiles:[pet],ask_conversations:[{id:id(21),user_id:id(1),pet_profile_id:pet.id}],ask_conversation_messages:[],ask_action_capabilities:[],ai_update_suggestions:[],pet_care_entries:[],pet_concerns:[]};
  const care=(n,date,note)=>({id:id(n),user_id:id(1),pet_profile_id:pet.id,category:'general',title:null,note,occurred_at:date,created_at:date,updated_at:date,deleted_at:null});
  rows.pet_care_entries.push(care(51,'2025-06-15T12:00:00Z','Cedar weighed 9.2 kg.'),care(52,'2025-07-15T12:00:00Z','Cedar weighed 9.4 kg.'));
  function query(table){let filters=[],sort=[],offset=0,limit=Infinity,insert=null;const q={
@@ -50,6 +51,7 @@ export function fixture(options={}){
  let data=rows[table].filter(r=>filters.every(f=>f(r)));if(sort.length)data=data.toSorted((a,b)=>{for(const [k,asc]of sort){const x=String(a[k]).localeCompare(String(b[k]));if(x)return asc?x:-x;}return 0;});data=data.slice(offset,offset+limit);return {data:single?data[0]||null:data,error:null};},
  maybeSingle(){return q.result(true);},single(){return q.result(true);},returns(){return q.result();},then(a,b){return q.result().then(a,b);}};return q;}
  const db={from(table){assert.ok(rows[table],`Unexpected table ${table}`);return query(table);},rpc(name,args){
+ if(name==='persist_ask_canonical_suggestion')return {single:async()=>{const cap=rows.ask_action_capabilities.find(c=>c.id===args.p_capability_id&&c.user_id===args.p_user_id);assert.ok(cap?.action_payload.appendJob);events.push('suggestion:persist');let row=rows.ai_update_suggestions.find(s=>s.canonical_capability_id===cap.id);if(!row){row={id:id(72),user_id:args.p_user_id,pet_profile_id:cap.pet_profile_id,conversation_id:id(21),source_message_id:cap.assistant_message_id,type:'history',title:'Add to care history',details:cap.action_payload.description,status:'pending',canonical_capability_id:cap.id,canonical_payload:{version:1,kind:'append',job:structuredClone(cap.action_payload.appendJob),capabilityId:cap.id,sourceMessageId:cap.source_message_id,targetId:null,targetUpdatedAt:null},invalidated_at:null};rows.ai_update_suggestions.push(row);}return{data:row,error:null};}};
  if(name==='read_ask_history_correction_page'){assert.ok(state.confirmed);events.push('lungs:lineage');return {abortSignal:async()=>({data:{claims:[],relations:[],lineage:[],sources:rows.pet_care_entries.filter(r=>args.p_care_ids.includes(r.id)),truncated:false},error:null})};}
  assert.equal(name,'execute_ask_action_capability');return {maybeSingle:async()=>{events.push('heart:execute');const cap=rows.ask_action_capabilities.find(r=>r.id===args.p_capability_id&&r.user_id===args.p_user_id&&r.assistant_message_id===args.p_assistant_message_id);if(!cap)return{data:null,error:null};
  if(options.dbFailure)return {data:null,error:{code:'42501'}};

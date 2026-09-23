@@ -47,7 +47,7 @@ export async function createActionCapabilities(input: {
       authoritativePetName = await loadAuthoritativePetName(action.petId, input.supabase, input.userId);
       authoritativePetNames.set(action.petId, authoritativePetName);
     }
-    const authoritativeAction = canonicalCapabilityAction(
+    const authoritativeAction = rebindCanonicalCapabilityAction(
       action,
       input.sourceMessageId,
       authoritativeSourceMessage,
@@ -108,7 +108,10 @@ export async function executeActionCapability(input: {
   userId: string;
   mode: "confirm" | "cancel" | "auto";
   correctionSourceMessageId?: string;
+  suggestionId?: string;
 }) {
+  if (input.suggestionId && (input.mode !== "confirm" || input.correctionSourceMessageId))
+    throw Error("CANONICAL_SUGGESTION_CONFIRM_REQUIRED");
   const admin = createIdempotencyAdminClient();
   const capability = await loadExecutionCapability({
     capabilityId: input.capabilityId,
@@ -131,7 +134,9 @@ export async function executeActionCapability(input: {
     mode: input.mode,
   });
 
-  const { data, error } = await admin.rpc("execute_ask_action_capability", {
+  const { data, error } = await admin.rpc(input.suggestionId ? "execute_ask_canonical_suggestion" : "execute_ask_action_capability", input.suggestionId ? {
+    p_user_id: input.userId, p_suggestion_id: input.suggestionId, p_capability_id: input.capabilityId,
+  } : {
     p_capability_id: input.capabilityId,
     p_assistant_message_id: input.assistantMessageId,
     p_user_id: input.userId,
@@ -170,7 +175,7 @@ export async function cancelActionCapability(input: { capabilityId: string; user
   });
 }
 
-function canonicalCapabilityAction(
+export function rebindCanonicalCapabilityAction(
   action: FurviseApplicationAction,
   sourceMessageId: string,
   sourceMessage: { text: string; createdAt: string },

@@ -16,43 +16,28 @@ begin
 end $$;
 set local role service_role;
 do $$
-declare r record; first_id uuid;
+declare candidate record;
 begin
-  begin
-    perform * from public.save_ask_memory_suggestion('52000000-0000-4000-8000-000000000001',
-      '51000000-0000-4000-8000-000000000021', '51000000-0000-4000-8000-000000000011', 'Maple hides during thunderstorms.', 'behavior');
-    raise exception 'foreign owner accepted';
-  exception when no_data_found then null;
-  end;
-  begin
-    perform * from public.save_ask_memory_suggestion('51000000-0000-4000-8000-000000000001',
-      '51000000-0000-4000-8000-000000000021', '52000000-0000-4000-8000-000000000011', 'Maple hides during thunderstorms.', 'behavior');
-    raise exception 'wrong pet accepted';
-  exception when serialization_failure then null;
-  end;
-  begin
-    perform * from public.save_ask_memory_suggestion('51000000-0000-4000-8000-000000000001',
-      '51000000-0000-4000-8000-000000000021', '51000000-0000-4000-8000-000000000011', 'changed', 'behavior');
-    raise exception 'changed evidence accepted';
-  exception when serialization_failure then null;
-  end;
-  if (select status from public.ai_update_suggestions where id='51000000-0000-4000-8000-000000000021') <> 'pending'
-    or exists(select 1 from public.furvise_memories where user_id='51000000-0000-4000-8000-000000000001') then
-    raise exception 'failed save mutated state';
+  for candidate in select * from (values
+    ('51000000-0000-4000-8000-000000000001'::uuid,'51000000-0000-4000-8000-000000000011'::uuid,'Maple hides during thunderstorms.'),
+    ('52000000-0000-4000-8000-000000000001'::uuid,'51000000-0000-4000-8000-000000000011'::uuid,'Maple hides during thunderstorms.'),
+    ('51000000-0000-4000-8000-000000000001'::uuid,'52000000-0000-4000-8000-000000000011'::uuid,'Maple hides during thunderstorms.'),
+    ('51000000-0000-4000-8000-000000000001'::uuid,'51000000-0000-4000-8000-000000000011'::uuid,'changed'),
+    ('51000000-0000-4000-8000-000000000001'::uuid,'51000000-0000-4000-8000-000000000011'::uuid,'')
+  ) v(owner_id,pet_id,detail) loop
+    begin
+      perform * from public.save_ask_memory_suggestion(candidate.owner_id,
+        '51000000-0000-4000-8000-000000000021',candidate.pet_id,candidate.detail,'behavior');
+      raise exception 'proofless memory continuation accepted';
+    exception when invalid_parameter_value then
+      if sqlerrm <> 'CANONICAL_SUGGESTION_REQUIRED' then raise;end if;
+    end;
+  end loop;
+  if (select status from public.ai_update_suggestions where id='51000000-0000-4000-8000-000000000021') is distinct from 'pending'
+    or exists(select 1 from public.furvise_memories where user_id='51000000-0000-4000-8000-000000000001')
+    or exists(select 1 from public.dog_memories where user_id='51000000-0000-4000-8000-000000000001') then
+    raise exception 'unsupported continuation changed factual state';
   end if;
-  select * into r from public.save_ask_memory_suggestion('51000000-0000-4000-8000-000000000001',
-    '51000000-0000-4000-8000-000000000021', '51000000-0000-4000-8000-000000000011', 'Maple hides during thunderstorms.', 'behavior');
-  if r.apply_status <> 'applied' or r.memory_id is null then raise exception 'save failed'; end if;
-  first_id := r.memory_id;
-  select * into r from public.save_ask_memory_suggestion('51000000-0000-4000-8000-000000000001',
-    '51000000-0000-4000-8000-000000000021', '51000000-0000-4000-8000-000000000011', '', '');
-  if r.apply_status <> 'already_applied' or r.memory_id <> first_id then raise exception 'retry mismatch'; end if;
-  if (select count(*) from public.furvise_memories where user_id='51000000-0000-4000-8000-000000000001') <> 1 then raise exception 'duplicate'; end if;
-  if exists(select 1 from public.dog_memories where user_id='51000000-0000-4000-8000-000000000001') then raise exception 'legacy write'; end if;
-  delete from public.furvise_memories where id=first_id;
-  select * into r from public.save_ask_memory_suggestion('51000000-0000-4000-8000-000000000001',
-    '51000000-0000-4000-8000-000000000021', '51000000-0000-4000-8000-000000000011', '', '');
-  if r.apply_status <> 'already_applied' or r.memory_id is not null then raise exception 'forgotten memory recreated'; end if;
 end $$;
 reset role;
 rollback;
