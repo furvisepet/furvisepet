@@ -197,19 +197,19 @@ test('interpreter anchor guidance delegates dates and ledger choice without wide
 
 test('provider alternatives make mixed representations impossible without removing legacy selectors',()=>{
   const branches=askRequestSchema({}).properties.readTicket.anyOf;
-  assert.equal(branches.length,3);
-  const legacy=branches.find(s=>s.properties?.selection.type==='null');
+  assert.equal(branches.length,7);
+  const legacy=branches.filter(s=>s.properties?.selection.type==='null');
   const composed=branches.find(s=>s.properties?.selection.type==='object');
   assert.deepEqual(branches[0],{type:'null'});
   assert.equal(composed.properties.outputs.additionalProperties,false);
   assert.equal(Object.hasOwn(composed.properties.outputs.properties,'strategy'),false);
   assert.deepEqual(composed.properties.outputs.required,['completeness','ordering','limit']);
-  assert.equal(legacy.properties.outputs.anyOf.length,2);
-  const chronological=legacy.properties.outputs.anyOf.find(o=>o.properties.strategy.enum?.includes('chronological'));
-  const other=legacy.properties.outputs.anyOf.find(o=>o.properties.strategy.enum?.includes('temporal_endpoints'));
+  assert.equal(legacy.length,5);
+  const chronological=legacy.find(b=>b.properties.outputs.properties.strategy.enum.includes('chronological')).properties.outputs;
   assert.deepEqual(chronological.properties.strategy.enum,['chronological']);
   assert.equal(chronological.properties.limit.type,'null');
-  assert.deepEqual(other.properties.strategy.enum,['temporal_endpoints','calendar_samples','event_candidates',null]);
+  assert.deepEqual(legacy.map(b=>b.properties.outputs.properties.strategy.enum[0]),
+    [null,'chronological','temporal_endpoints','event_candidates','calendar_samples']);
   assert.match(composed.properties.outputs.properties.limit.description,/transport.*selection.take/);
   assert.match(composed.properties.outputs.properties.ordering.description,/Presentation.*selection.orderBy/);
 });
@@ -272,11 +272,10 @@ test('completeness guidance describes proposition scope without changing enum or
  assert.match(ASK_REQUEST_INSTRUCTIONS,/Finite ordered takes are compositional selection obligations/);
  assert.match(ASK_REQUEST_INSTRUCTIONS,/Legacy chronological provider output is reserved for unbounded ordered retrieval/);
  const branches=askRequestSchema({}).properties.readTicket.anyOf.filter(b=>b.properties);
- const fields=branches.flatMap(branch=>branch.properties.outputs.anyOf
-  ? branch.properties.outputs.anyOf.map(output=>output.properties.completeness)
-  : [branch.properties.outputs.properties.completeness]);
- for(const field of fields){
-  assert.deepEqual(field.enum,['sufficient','exhaustive']);
+ for(const branch of branches){
+  const field=branch.properties.outputs.properties.completeness;
+  const calendar=branch.properties.outputs.properties.strategy?.enum.includes('calendar_samples');
+  assert.deepEqual(field.enum,calendar?['sufficient']:['sufficient','exhaustive']);
   assert.equal(Object.hasOwn(field,'default'),false);
   assert.match(field.description,/Classify the requested proposition/);
   assert.match(field.description,/organs must independently certify/);
