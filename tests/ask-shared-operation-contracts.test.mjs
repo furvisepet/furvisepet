@@ -316,7 +316,7 @@ test('calculated answers inherit all operand sources without granting unknown op
 });
 
 
-test('receipt evidence follows validated references and persisted request identity only', async()=>{
+test('conversation references cannot turn reconstructed operation data into receipt authority', async()=>{
  const {createAskEvidenceContract}=await import('../app/lib/intelligence/ask-evidence.ts');
  const pet={id:'pet',user_id:'owner',name:'Fern'};
  const receipt=(sourceMessageId,petId='pet')=>({sourceMessageId,petId,requestText:'Save a note',answerPersisted:true,records:[]});
@@ -330,9 +330,9 @@ test('receipt evidence follows validated references and persisted request identi
   askInterpretation:{request:{referenceTurnIds},operation:'recall',readOnly:true,history:null}},['pet']);
  assert.deepEqual(build([]).operationReceipts,[]);
  assert.equal(build([]).sources.some(source=>source.source==='operation_receipts'),false);
- for(const refs of [['save'],['answer'],['save','answer']]) assert.deepEqual(build(refs).operationReceipts.map(r=>r.sourceMessageId),['save']);
+ for(const refs of [['save'],['answer'],['save','answer']]) { assert.deepEqual(build(refs).operationReceipts,[]); assert.equal(build(refs).sources.some(s=>s.source==='operation_receipts'),false); }
  for(const refs of [['missing'],['foreign'],['current']]) assert.deepEqual(build(refs).operationReceipts,[]);
- assert.deepEqual(build(['adjacent']).operationReceipts.map(r=>r.sourceMessageId),['adjacent']);
+ assert.deepEqual(build(['adjacent']).operationReceipts,[]);
  assert.equal(turns[0].operationReceipt.sourceMessageId,'old');
 });
 
@@ -358,18 +358,18 @@ const {requestsSavedRecordLookup}=await import('../app/lib/intelligence/ask-requ
 for(const text of ['Do not check saved records. Use these two numbers only.', 'Suppose you could find a historical record.', 'Rowan ate normally. Save this note to history.', 'Repeat this sentence: "Find his historical entry."'])
  test(`no invented lookup authority: ${text}`,()=>assert.equal(requestsSavedRecordLookup(text),false));
 
-test('mixed linked and unlinked receipts require attributed prose, never an ambiguous flat success/failure list',()=>{
+test('mixed linked and unlinked conversation receipts confer no factual readback authority',()=>{
  const receipts=[{sourceMessageId:'save',petId:'pet',requestText:'Save this observation.',answerPersisted:true,records:[{id:'note',note:'An observation.',occurredAt:'2026-09-15T12:00:00Z'}]},
  {sourceMessageId:'check',petId:'pet',requestText:'Did the note save correctly?',answerPersisted:true,records:[]}];
  const evidence={scope:{requestText:'Did my notes save correctly? Show what was stored.',readOnlyRecall:true,authorizedPetIds:['pet']},
- interpretation:{request:{referenceTurnIds:['save','check']}},operationReceipts:receipts};
+ interpretation:{request:{referenceTurnIds:['save','check']}},operationReceipts:receipts,sources:[],represented:[],losses:[]};
  const before=structuredClone(evidence);
  assert.equal(deterministicReadProjection(evidence),null);
- assert.deepEqual(evidence,before,'unconfirmed requests must remain available for generation and review');
+ assert.deepEqual(evidence,before,'declining proofless readback must not mutate the source fixture');
  assert.match(receiptCompletionText(receipts[0]),/1 current care-history entry linked/);
 });
 
-test('just-saved readback shows the saved note, not operation-ledger diagnostics',async()=>{
+test('linked saved-note text cannot substitute for canonical receipt authority',async()=>{
   const {operationReceiptEvidence}=await import('../app/lib/intelligence/ask-evidence.ts');
   const receipt={sourceMessageId:'save-turn',petId:'pet',requestText:'Fern skipped breakfast. Save that for today.',answerPersisted:true,records:[{id:'note',note:'Fern skipped breakfast.',occurredAt:'2026-09-18T12:00:00Z'}]};
   const receiptSources=operationReceiptEvidence([receipt]);
@@ -377,9 +377,9 @@ test('just-saved readback shows the saved note, not operation-ledger diagnostics
   const evidence={scope:{requestText:'What did I just save for Fern?',readOnlyRecall:true,authorizedPetIds:['pet']},petNames:{pet:'Fern'},
     sources:[{petId:'pet',source:'operation_receipt',status:'loaded',loadedIds:receiptSources.map(s=>s.sourceId),loadedCount:receiptSources.length,cap:null,reasons:[],completeness:{retrieval:'complete',corrections:'complete',extraction:'complete',grouping:'complete'}}],
     represented,losses:[],operationReceipts:[receipt],interpretation:{request:{mode:'read',evidenceBasis:'saved_history',outputFormat:'prose',referenceTurnIds:['save-turn']}},history:null};
-  const projection=deterministicReadProjection(evidence);assert.ok(projection);const text=projection.sentences.map(s=>s.text).join('\n');
-  assert.equal(text,'You saved this for Fern: Fern skipped breakfast.');
-  assert.doesNotMatch(text,/lookup found|linked saved note|prior request|receipt/i);
+  const {publicationSources}=await import('../app/lib/intelligence/publication-authority.ts');
+  assert.equal(deterministicReadProjection(evidence),null);
+  assert.deepEqual(publicationSources(evidence),[]);
 });
 
 test('plain owner readback language cannot be rejected as an invented save task',()=>{

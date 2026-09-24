@@ -1,3 +1,4 @@
+import { bindStoredRead, storedReadSchema, type StoredRead } from "../furvise-brain/stored-read.ts";
 import {bindRemovePlan, removeJobSchema, type RemovePlan} from "../furvise-brain/remove-job.ts";
 import { bindStateTransitionJob, stateTransitionJobSchema, type StateTransitionJob } from "../furvise-brain/state-transition-job.ts";
 import { bindFieldMutationJob, fieldMutationJobSchema, type FieldMutationJob } from "../furvise-brain/field-mutation-job.ts";
@@ -38,8 +39,9 @@ const operations = ["recall", "overview", "comparison", "status", "count", "epis
 const selections = ["summary", "comparison", "latest", "earliest", "earliest_occurrence", "period", "reference"] as const;
 const quantities = ["episodes", "records", "measurement", "duration", null] as const;
 const ordinals = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "last", "that", null] as const;
-type Context = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask" | "ownerNoteAlreadySaved" | "lifecycleActionState" | "concernReferences" | "replaceReferences">;
+type Context = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask" | "ownerNoteAlreadySaved" | "lifecycleActionState" | "concernReferences" | "replaceReferences" | "storedReadReferences">;
 export type AskRequestContract = {
+  storedRead?: StoredRead | null;
   removeJob?: RemovePlan | null;
   stateTransitionJob?: StateTransitionJob | null;
   fieldMutationJob?: FieldMutationJob | null;
@@ -60,7 +62,7 @@ export type AskRequestContract = {
   temporalScope?: "historical" | "current" | "historical_and_current" | null;
   evidenceNeeds?: EvidenceNeed[];
   evidenceNeedIssues?: string[];
-  evidenceBasis?: "saved_history" | "saved_profile" | "supplied_context" | "general" | null;
+  evidenceBasis?: "saved_history" | "saved_profile" | "stored" | "supplied_context" | "general" | null;
   outputFormat?: "prose" | "bullets" | "table" | "json" | "csv" | null;
   referenceTurnIds: string[];
   quantity: typeof quantities[number];
@@ -68,8 +70,9 @@ export type AskRequestContract = {
 const strings = (maxItems: number, maxLength: number) => ({ type: "array", maxItems, items: { type: "string", minLength: 1, maxLength } });
 export function askRequestSchema(frame: object, context?: Context) {
   const schema = { type: "object", additionalProperties: false,
-    required: ["removeJob", "stateTransitionJob", "fieldMutationJob", "lifecyclePlan", "appendJob", "readTicket", "writeJob", "task", "temporalScope", "mutationIntent", "recordSelection", "profileFields", "projection", "version", "mode", "question", "requirements", "evidenceNeeds", "outputFormat", "evidenceBasis", "premiseQuotes", "excludedPetNames", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
+    required: ["storedRead", "removeJob", "stateTransitionJob", "fieldMutationJob", "lifecyclePlan", "appendJob", "readTicket", "writeJob", "task", "temporalScope", "mutationIntent", "recordSelection", "profileFields", "projection", "version", "mode", "question", "requirements", "evidenceNeeds", "outputFormat", "evidenceBasis", "premiseQuotes", "excludedPetNames", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
     properties: {
+      storedRead: storedReadSchema(context?.storedReadReferences),
       removeJob: removeJobSchema(context?.replaceReferences),
       stateTransitionJob: stateTransitionJobSchema(context?.concernReferences),
       fieldMutationJob: fieldMutationJobSchema,
@@ -86,7 +89,7 @@ export function askRequestSchema(frame: object, context?: Context) {
       evidenceNeeds: evidenceNeedsSchema,
       version: { type: "string", enum: [ASK_REQUEST_VERSION] }, mode: { type: "string", enum: modes },
       question: { type: "string", minLength: 1, maxLength: 1600 }, requirements: strings(8, 240), referenceTurnIds: { ...strings(8, 160), description: "Must be [] for a non-null standalone writeJob. Its typed selector is bound to the owned ledger or supplied record handle, never a dialogue turn. Otherwise list the USER turn IDs used to resolve the requested reference." },
-      evidenceBasis: { type: ["string", "null"], enum: ["saved_history", "saved_profile", "supplied_context", "general", null] },
+      evidenceBasis: { type: ["string", "null"], enum: ["saved_history", "saved_profile", "stored", "supplied_context", "general", null] },
       outputFormat: { type: ["string", "null"], enum: ["prose", "bullets", "table", "json", "csv", null] },
       premiseQuotes: strings(6, 400), excludedPetNames: strings(3, 100),
       scope: { type: "string", enum: scopes }, petNames: strings(20, 100), operation: { type: "string", enum: operations },
@@ -193,12 +196,19 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
   Object.assign(removal.properties.petNames,{minItems:1,maxItems:1});
   Object.assign(removal.properties.excludedPetNames,{maxItems:0});
   for(const variant of [profile,nonProfile,lifecycle,profileMutation,transition])Object.assign(variant.properties,{removeJob:{type:"null"}});
+  const stored = structuredClone(profile);
+  Object.assign(stored.properties, { storedRead: storedReadSchema(context?.storedReadReferences).anyOf[1],
+    evidenceBasis: { type: "string", enum: ["stored"] }, scope: { type: "string", enum: scopes } });
+  Object.assign(stored.properties.profileFields, { minItems: 0, maxItems: 0 });
+  for (const variant of [profile, nonProfile, lifecycle, profileMutation, removal, transition])
+    Object.assign(variant.properties, { storedRead: { type: "null" } });
   return { type: "object", additionalProperties: false, required: ["request"],
-    properties: { request: { anyOf: [profile, nonProfile, lifecycle, profileMutation, removal,
+    properties: { request: { anyOf: [stored, profile, nonProfile, lifecycle, profileMutation, removal,
       ...(transitionSchema.anyOf.length > 1 ? [transition] : [])] } } };
 }
 
 export const ASK_REQUEST_INSTRUCTIONS = [
+  "Stored personal facts outside history/profile use storedRead: operation read, domain memory/current_state/operation_receipt, scope owner or subjects, projection records, reference null or one exact supplied storedReadReferences.ref. Reference handles identify operations, never evidence of success. Do not invent handles. Use owner scope and outer scope none with petNames [] for owner memories or receipts whose former pet was deleted; otherwise use canonical owned subject scope. Memory returns the effective stored set, not an inferred medical answer; current_state is unsupported. Exact operation receipts require a supplied handle; absent or ambiguous references cannot establish success. Use mode read, evidenceBasis stored, operation recall, selection summary, quantity null; other jobs, frame, readTicket, projection, recordSelection, temporal/episode fields null, profileFields/evidenceNeeds/terms/requirements empty. Output format is presentation only. All other requests set storedRead null.",
   "Standalone removal uses removeJob {operation: remove, domain, target, petName, instructionQuote}. Domain pet_profile uses target subject_profile for permanent deletion of the bound owned pet and its dependent data; this is distinct from archive or deceased. Domain care_history uses last_event_for_subject for latest at this USER turn, or {kind: exact_record, ref: supplied handle} from replaceTargets for an exact record. Handles are owned mutation metadata, not factual publication evidence. Never invent IDs or derive extra state cleanup. Use mode update, operation general, selection summary, owned scope and one petName; all other jobs/factual dimensions null, all arrays except petNames empty, frame null. instructionQuote is the exact complete current USER instruction. Questions, hypotheticals, negated or ambiguous removal do not propose this job. Missing/ambiguous target requires clarification. No model applicationAction can authorize removal. Confirmation executes only the server-bound target; permanent profile removal additionally requires recent interactive authentication. All other requests use removeJob null.",
   "stateTransitionJob is the sole governed concern-state mutation. Choose domain care_concern, operation transition, one exact supplied concernTargets.targetRef and its petName, toState resolved or reopened, and an exact unique contiguous authorizationQuote from the CURRENT USER turn. Natural owner reports can request a transition; imperative wording is not required. Do not invent identifiers, choose a target by recency/severity, or infer an exact target when ambiguous: clarify instead. Resolve active/monitoring/reopened; reopen resolved only. Use mode update, operation general, selection summary, and null fieldMutationJob/lifecyclePlan/appendJob/writeJob/readTicket/task/frame/mutationIntent/evidenceBasis/projection/recordSelection/quantity/from/to/episodeTopic/ordinal/temporalScope/outputFormat/premiseQuotes, with empty requirements/referenceTurnIds/terms/profileFields/evidenceNeeds. Do not combine jobs. Semantic frames, careActions and applicationActions are not alternative transition authority. concernTargets are server target metadata, not user premises or publication evidence.",
   "fieldMutationJob is the sole field mutation proposal. Use domain pet_profile with operation set_field and an exact supplied owned petName, or domain owner_preference with operation set_field or clear_field and petName null. Owner scope is bound by the server, never proposed as an ID. Choose one field and exact unique contiguous instructionQuote from the CURRENT USER turn. For set_field valueQuote must be exact unique current USER text inside the instruction; clear_field requires valueQuote null. A replacement is one set_field, never competing set and clear jobs. Never infer an omitted value, use assistant text, mint identifiers, or emit applicationActions as mutation semantics. Only explicit field mutation intent belongs here; hypothetical discussion does not. Use mode update, operation general, selection summary, and null frame/lifecyclePlan/appendJob/writeJob/readTicket/task/mutationIntent/evidenceBasis/projection/recordSelection/quantity/from/to/episodeTopic/ordinal/temporalScope/outputFormat/premiseQuotes; requirements/referenceTurnIds/terms/profileFields/evidenceNeeds are empty. Do not combine another job. Pet profile fields are name, weight, current_food, routine_note, sex and breed. Owner preference fields are only preferred_language, preferred_units and communication_style; do not expose other memory fields. Values obey storage policy: positive weight with an explicit unit, existing sex enum, or exact text. The server binds the owned subject and source spans; confirmation and capability policy still control execution.",
@@ -243,7 +253,7 @@ export const ASK_REQUEST_INSTRUCTIONS = [
 const fail = (reason: string, field?: string): never => { throw new Error(`ASK_REQUEST_INVALID:${reason}`, { cause: { field } }); };
 export function validateAskRequest(value: unknown, context: Context): AskInterpretation {
   if (!value || typeof value !== "object" || Array.isArray(value)) return fail("shape");
-  const p = { removeJob: null, stateTransitionJob: null, fieldMutationJob: null, lifecyclePlan: null, appendJob: null, readTicket: null, writeJob: null, task: null, temporalScope: null, mutationIntent: null, recordSelection: null, profileFields: [], projection: null, evidenceNeeds: [], outputFormat: null, evidenceBasis: null, premiseQuotes: null, excludedPetNames: [], ...value } as Record<string, unknown>; // Older stored v2 contracts predate these optional fields.
+  const p = { storedRead: null, removeJob: null, stateTransitionJob: null, fieldMutationJob: null, lifecyclePlan: null, appendJob: null, readTicket: null, writeJob: null, task: null, temporalScope: null, mutationIntent: null, recordSelection: null, profileFields: [], projection: null, evidenceNeeds: [], outputFormat: null, evidenceBasis: null, premiseQuotes: null, excludedPetNames: [], ...value } as Record<string, unknown>; // Older stored v2 contracts predate these optional fields.
   if (Object.keys(p).sort().join() !== askRequestSchema({}).required.sort().join()) return fail("fields");
   const member = (values: readonly unknown[], value: unknown) => values.includes(value);
   const list = (value: unknown, count: number, size: number): value is string[] => Array.isArray(value) && value.length <= count
@@ -251,7 +261,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (p.version !== ASK_REQUEST_VERSION || !member(modes, p.mode) || !member(scopes, p.scope)
     || !member(operations, p.operation) || !member(selections, p.selection) || !member(quantities, p.quantity)
     || !member(["prose", "bullets", "table", "json", "csv", null], p.outputFormat)
-    || !member(["saved_history", "saved_profile", "supplied_context", "general", null], p.evidenceBasis)
+    || !member(["saved_history", "saved_profile", "stored", "supplied_context", "general", null], p.evidenceBasis)
     || !member(ordinals, p.ordinal) || !member(["vomiting", "soft stool", "breathing", null], p.episodeTopic)
     || typeof p.question !== "string" || !p.question.trim() || p.question.length > 1600
     || typeof p.topic !== "string" || p.topic.length > 160
@@ -262,6 +272,8 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (!Array.isArray(p.profileFields) || p.profileFields.some(field => !askRequestSchema({}).properties.profileFields.items.enum.includes(String(field))) || p.profileFields.length > 14) return fail("profile_fields");
   if (![null, "historical", "current", "historical_and_current"].includes(p.temporalScope as null | string)) return fail("temporal_scope");
   if (![null, "correct_record"].includes(p.mutationIntent as null | string)) return fail("mutation_intent");
+  if (p.storedRead !== null) return bindStoredRequest(p, context);
+  if (p.evidenceBasis === "stored") return fail("stored_read_required");
   if (p.removeJob !== null) {
     if(p.mode!=="update"||p.operation!=="general"||p.selection!=="summary"||p.mutationIntent!==null
       ||[p.fieldMutationJob,p.stateTransitionJob,p.lifecyclePlan,p.appendJob,p.writeJob,p.readTicket,p.task,p.frame,p.evidenceBasis,p.projection,p.recordSelection,p.quantity,p.from,p.to,p.episodeTopic,p.ordinal,p.temporalScope,p.outputFormat,p.premiseQuotes].some(v=>v!==null)
@@ -884,51 +896,10 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
  * source-reference identity; it never reparses the sentence for scope or dates. */
 function bindTicketedRead(p: Record<string, unknown>, context: Context): AskInterpretation {
   if (p.frame !== null || p.task !== null || p.mutationIntent !== null || p.writeJob !== null) return fail("read_ticket_write");
-  const owned = context.eligiblePets.filter(pet => pet.user_id === context.owner.userId);
-  const resolveName = (name: string, reason = "ownership") => {
-    const matches = owned.filter(pet => pet.name?.normalize("NFKC").toLocaleLowerCase() === name.normalize("NFKC").toLocaleLowerCase());
-    if (matches.length !== 1) return fail(reason);
-    return matches[0].id;
-  };
-  const names = (p.petNames as string[]).map(name => resolveName(name));
-  const excluded = new Set((p.excludedPetNames as string[]).map(name => resolveName(name, "excluded_ownership")));
-  const proposedReferences = p.referenceTurnIds as string[];
-  if (proposedReferences.some(id => !context.conversationTurns.some(turn => turn.id === id))) return fail("reference");
-  // Legacy dialogue references may include assistant IDs. They confer neither
-  // identity nor factual authority; only existing USER references survive.
-  let referenceTurnIds = [...new Set(proposedReferences.filter(id => context.conversationTurns.some(turn => turn.id === id && turn.role === "user")))];
   const proposedTicket = p.readTicket as Record<string, unknown>;
-  const subjectScope = proposedTicket?.subjectScope === undefined ? p.scope : proposedTicket.subjectScope;
-  if (!["selected", "named", "conversation", "account"].includes(String(subjectScope))) return fail("scope");
-  let petIds: string[];
-  if (subjectScope === "selected") {
-    if (!owned.some(pet => pet.id === context.pet.id) || names.some(id => id !== context.pet.id)) return fail("selected_subject");
-    petIds = [context.pet.id];
-  } else if (subjectScope === "account") petIds = (names.length ? [...new Set(names)] : owned.map(pet => pet.id)).filter(id => !excluded.has(id));
-  else if (subjectScope === "named" || subjectScope === "conversation") {
-    petIds = [...new Set(names)];
-    if (subjectScope === "conversation") {
-      const users = context.conversationTurns.filter(turn => turn.role === "user"
-        && (!proposedReferences.length || referenceTurnIds.includes(turn.id)));
-      const established = new Set(users.flatMap(turn => explicitlyNamedOwnedPets(turn.text, owned).map(pet => pet.id)));
-      if (petIds.some(id => !established.has(id))) return fail("conversation_subject");
-      if (!petIds.length) {
-        const state = buildRecentSubjectState({ pets: owned, selectedPetId: context.pet.id, recentConversation: users });
-        const focus = state.entities.find(entity => entity.key === state.currentFocusKey);
-        if (focus?.kind === "pet" && focus.petId && established.has(focus.petId)) petIds = [focus.petId];
-      }
-      if (!referenceTurnIds.length && petIds.length) referenceTurnIds = users.filter(turn =>
-        explicitlyNamedOwnedPets(turn.text, owned).some(pet => petIds.includes(pet.id))).map(turn => turn.id).slice(-8);
-      if (!petIds.length) return {
-        version: "ask-interpretation.v1", operation: "clarify", readOperation: "clarify", petIds: [], topic: p.topic as string,
-        history: null, episodeTopic: null, ordinal: null, readOnly: true, clarification: "subject", frame: emptyProposedSemanticFrame(),
-        request: { version: ASK_REQUEST_VERSION, mode: "clarify", question: context.currentMessage, requirements: [], referenceTurnIds,
-          quantity: null, evidenceBasis: "saved_history", readTicket: null, writeJob: null, task: null, mutationIntent: null },
-      };
-    }
-  } else return fail("scope");
-  if (petIds.some(id => excluded.has(id))) return fail("excluded_subject");
-  if (!petIds.length || petIds.length > ASK_HISTORY_MAX_PETS) return fail("scope");
+  const scope = bindReadScope(p, context, proposedTicket);
+  if (!("referenceTurnIds" in scope)) return scope;
+  const { owned, petIds, referenceTurnIds, subjectScope } = scope;
   const hasProbes = Object.hasOwn(proposedTicket, "probes");
   if (hasProbes && Object.hasOwn(proposedTicket, "needs"))
     throw new Error("ASK_REQUEST_INVALID:read_needs", { cause: { field: "needs", rule: "one_probe_representation" } });
@@ -1034,4 +1005,69 @@ export function requestsSavedRecordLookup(message: string): boolean {
     if (!read || /\b(?:do not|don’t|don't|never|without|no need to)\b[^.!?]*$/i.test(sentence.slice(0, read.index))) return false;
     return /\b(?:saved|recorded|historical|history|records?|entr(?:y|ies)|results?)\b/i.test(sentence.slice(read.index));
   });
+}
+
+/** Shared owned-subject binding for canonical stored reads; dialogue only grounds identity. */
+function bindReadScope(p: Record<string, unknown>, context: Context, proposedTicket: Record<string, unknown>): AskInterpretation | {owned: Context["eligiblePets"]; petIds: string[]; referenceTurnIds: string[]; subjectScope: unknown} {
+  const owned = context.eligiblePets.filter(pet => pet.user_id === context.owner.userId);
+  const resolveName = (name: string, reason = "ownership") => {
+    const matches = owned.filter(pet => pet.name?.normalize("NFKC").toLocaleLowerCase() === name.normalize("NFKC").toLocaleLowerCase());
+    if (matches.length !== 1) return fail(reason);
+    return matches[0].id;
+  };
+  const names = (p.petNames as string[]).map(name => resolveName(name));
+  const excluded = new Set((p.excludedPetNames as string[]).map(name => resolveName(name, "excluded_ownership")));
+  const proposedReferences = p.referenceTurnIds as string[];
+  if (proposedReferences.some(id => !context.conversationTurns.some(turn => turn.id === id))) return fail("reference");
+  // Legacy dialogue references may include assistant IDs. They confer neither
+  // identity nor factual authority; only existing USER references survive.
+  let referenceTurnIds = [...new Set(proposedReferences.filter(id => context.conversationTurns.some(turn => turn.id === id && turn.role === "user")))];
+  const subjectScope = proposedTicket?.subjectScope === undefined ? p.scope : proposedTicket.subjectScope;
+  if (!["selected", "named", "conversation", "account"].includes(String(subjectScope))) return fail("scope");
+  let petIds: string[];
+  if (subjectScope === "selected") {
+    if (!owned.some(pet => pet.id === context.pet.id) || names.some(id => id !== context.pet.id)) return fail("selected_subject");
+    petIds = [context.pet.id];
+  } else if (subjectScope === "account") petIds = (names.length ? [...new Set(names)] : owned.map(pet => pet.id)).filter(id => !excluded.has(id));
+  else if (subjectScope === "named" || subjectScope === "conversation") {
+    petIds = [...new Set(names)];
+    if (subjectScope === "conversation") {
+      const users = context.conversationTurns.filter(turn => turn.role === "user"
+        && (!proposedReferences.length || referenceTurnIds.includes(turn.id)));
+      const established = new Set(users.flatMap(turn => explicitlyNamedOwnedPets(turn.text, owned).map(pet => pet.id)));
+      if (petIds.some(id => !established.has(id))) return fail("conversation_subject");
+      if (!petIds.length) {
+        const state = buildRecentSubjectState({ pets: owned, selectedPetId: context.pet.id, recentConversation: users });
+        const focus = state.entities.find(entity => entity.key === state.currentFocusKey);
+        if (focus?.kind === "pet" && focus.petId && established.has(focus.petId)) petIds = [focus.petId];
+      }
+      if (!referenceTurnIds.length && petIds.length) referenceTurnIds = users.filter(turn =>
+        explicitlyNamedOwnedPets(turn.text, owned).some(pet => petIds.includes(pet.id))).map(turn => turn.id).slice(-8);
+      if (!petIds.length) return {
+        version: "ask-interpretation.v1", operation: "clarify", readOperation: "clarify", petIds: [], topic: p.topic as string,
+        history: null, episodeTopic: null, ordinal: null, readOnly: true, clarification: "subject", frame: emptyProposedSemanticFrame(),
+        request: { version: ASK_REQUEST_VERSION, mode: "clarify", question: context.currentMessage, requirements: [], referenceTurnIds,
+          quantity: null, evidenceBasis: "saved_history", readTicket: null, writeJob: null, task: null, mutationIntent: null },
+      };
+    }
+  } else return fail("scope");
+  if (petIds.some(id => excluded.has(id))) return fail("excluded_subject");
+  if (!petIds.length || petIds.length > ASK_HISTORY_MAX_PETS) return fail("scope");
+  return { owned, petIds, referenceTurnIds, subjectScope };
+}
+
+function bindStoredRequest(p: Record<string, unknown>, context: Context): AskInterpretation {
+  if (p.mode !== "read" || p.evidenceBasis !== "stored" || p.operation !== "recall" || p.selection !== "summary"
+    || [p.removeJob,p.stateTransitionJob,p.fieldMutationJob,p.lifecyclePlan,p.appendJob,p.writeJob,p.readTicket,p.task,p.frame,p.mutationIntent,p.projection,p.recordSelection,p.quantity,p.from,p.to,p.episodeTopic,p.ordinal,p.temporalScope].some(v=>v!==null)
+    || [p.profileFields,p.evidenceNeeds,p.terms,p.requirements,p.excludedPetNames].some(v=>!Array.isArray(v)||v.length)
+    || p.premiseQuotes !== null && (!Array.isArray(p.premiseQuotes)||p.premiseQuotes.length)) return fail("stored_read_mixed");
+  const ownerScope = (p.storedRead as {scope?:unknown})?.scope === "owner";
+  if(ownerScope && (p.scope !== "none" || (p.petNames as string[]).length || (p.referenceTurnIds as string[]).length)) return fail("stored_read_scope");
+  const scope = ownerScope ? {petIds:[] as string[],referenceTurnIds:[] as string[]} : bindReadScope(p,context,{});
+  if(!("referenceTurnIds" in scope)) return scope;
+  const storedRead=bindStoredRead(p.storedRead,{ownerId:context.owner.userId,subjectIds:scope.petIds,references:context.storedReadReferences||[]});
+  return {version:"ask-interpretation.v1",operation:"recall",readOperation:"recall",selection:"summary",petIds:scope.petIds,
+    topic:"stored records",readOnly:true,clarification:null,history:null,episodeTopic:null,ordinal:null,frame:emptyProposedSemanticFrame(),
+    request:{version:ASK_REQUEST_VERSION,mode:"read",evidenceBasis:"stored",storedRead,quantity:null,question:context.currentMessage,
+      referenceTurnIds:scope.referenceTurnIds,requirements:[],outputFormat:p.outputFormat as AskRequestContract["outputFormat"]}};
 }

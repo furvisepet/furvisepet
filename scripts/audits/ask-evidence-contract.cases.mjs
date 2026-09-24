@@ -310,16 +310,16 @@ test('date-filtered load does not claim correction completeness for requested hi
   assert.equal(evidence.completeness.corrections, 'unknown');
   assert.match(run.result.reasoning.answer.summary, /can't establish a complete summary/);
 });
-test('prompt overflow records losses without dropping mandatory scope/coverage or slicing source text', async t => {
+test('untyped resolved-state preload cannot spend factual prompt budget or alter source scope', async t => {
   clock(t);
   const run = await exercise('Summarize Milo entire recorded history.', { prepareContext(context) {
-    // Large metadata exhausts the prompt without altering established caps.
+    // This legacy state narrative is neither a typed read nor certified evidence.
     context.recentlyResolvedConcerns = [{ id: 'large', pet_profile_id: 'milo', title: 'Old concern', normalized_key: 'old', status: 'resolved', resolved_at: '2026-09-03', resolution_note: 'x'.repeat(38_000) }];
   } });
   assert.ok(run.serialized.length <= ASK_PROMPT_CONTEXT_CHAR_BUDGET);
-  assert.ok(run.prompt.evidenceContract.losses.some(loss => loss.reason === 'prompt_budget'));
+  assert.doesNotMatch(run.serialized, /x{100}/);
   assert.deepEqual(run.prompt.evidenceContract.scope.authorizedPetIds, ['milo']);
-  assert.equal(run.prompt.evidenceContract.representation, 'partial');
+  assert.ok(!run.prompt.evidenceContract.represented.some(span => span.sourceId === 'concern:large'));
 });
 test('oversized mandatory scope fails before provider instead of silently deleting coverage', async t => {
   clock(t);

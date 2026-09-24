@@ -20,9 +20,10 @@ export function buildAskBrainTurn(input: {
 
   const interpretation = input.context.askInterpretation;
   const conversationOnly = interpretation?.conversationOnly === true;
+  const ownerRead = interpretation?.request?.storedRead?.scope === "owner";
   let turn = createFurviseTurnAuthority({
     logicalTurnId: input.logicalTurnId,
-    subject: conversationOnly
+    subject: conversationOnly || ownerRead
       ? { petIds: [], kind: "other", source: "conversation", unresolved: false }
       : subjectPetIds.length
         ? { petIds: subjectPetIds, source: "conversation", unresolved: false }

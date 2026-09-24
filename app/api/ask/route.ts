@@ -1,3 +1,4 @@
+import { executeStoredRead } from "../../lib/furvise-brain/stored-read-organ.ts";
 import {resolveRemovePlan} from "../../lib/furvise-brain/remove-job.ts";
 import {prepareBoundRemoveAction} from "../../lib/application-actions/planner.ts";
 import { prepareBoundReplaceAction } from "../../lib/application-actions/planner.ts";
@@ -600,10 +601,13 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
       // A validated ticket precedes every factual context read. Invalid plans
       // never enter this loader. Emergency copy is the documented exception above.
       const planningSource = liveContext.currentTurn;
-      if (!interpretation.conversationOnly && !interpretation.clarification) liveContext = await buildFurviseContext({ historyAccess, conversationId: preparedRequest.conversationId,
+      const storedRead = interpretation.request?.storedRead;
+      if (!storedRead && !interpretation.conversationOnly && !interpretation.clarification) liveContext = await buildFurviseContext({ historyAccess, conversationId: preparedRequest.conversationId,
         currentMessage: reasoningQuestion, feature: "ask", locale, petId, supabase, userId,
         timeZone: resolveAskTimeZone(aiCreditPayload.timeZone) });
       liveContext = { ...liveContext, currentTurn: planningSource, askInterpretation: interpretation };
+      if (storedRead) liveContext.storedReadResult = await executeStoredRead(storedRead, { ownerId:userId,
+        ownedPetIds:liveContext.eligiblePets.filter(p=>p.user_id===userId).map(p=>p.id),db:supabase });
       turnView = deriveAskTurnView({ currentSourceMessageId: preparedRequest.userMessageId, liveContext, question, requestId });
       contextUsed = turnView.contextUsed;
       const replaceJob = interpretation.request?.writeJob;
@@ -681,7 +685,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
       }
 
       turnPetId = subjectResolution.petId;
-      if (turnPetId !== petId) {
+      if (turnPetId !== petId && !storedRead) {
         generationStage = "context_loading";
         liveContext = await buildFurviseContext({
           historyAccess,

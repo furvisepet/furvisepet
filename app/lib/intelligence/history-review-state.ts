@@ -1,3 +1,4 @@
+import { isStoredRead, storedReadPublicationFailure, storedReadPublishedResult } from "./stored-read-publication.ts";
 import { historyLimitationFailure, historyPublicationLimitation } from "./ordinary-history-publication.ts";
 import { unsupportedProfilePresentation, profilePresentationLimitationFailure, PROFILE_PRESENTATION_UNAVAILABLE, PROFILE_PRESENTATION_LIMITATION } from "./profile-presentation-limitation.ts";
 import type { FurviseApplicationAction } from "../application-actions/types.ts";
@@ -7,7 +8,7 @@ import { derivePublicationAuthority, requiresHistoryPublicationAuthority, public
 
 type Receipt = { authorityClaims?: PublicationAuthorityClaim[]; actions?: FurviseApplicationAction[]; signature: string; text: string; sourceIds: string[]; proseText?: string; sourceReports?: string[]; sourceContent?: string[]; completion?: ObligationCompletion[] };
 const reviewed = new WeakMap<AskReasoningResult, Receipt>();
-export const historyReviewSignature = (result: AskReasoningResult) => JSON.stringify({ profileFieldLabs: result.profileFieldLabs, labsList: result.labsList, labsAnswer: result.labsList || result.profileFieldLabs ? result.answer : undefined, labsSourceIds: result.labsList || result.profileFieldLabs ? result.relevantContextIds : undefined, actions: result.applicationActions, evidence: result.evidenceContract, draft: result.historyNarrative, result: result.historicalResult, plainAnswer: result.historyNarrativeDeclined ? result.answer.summary : undefined, sourceHints: result.historyNarrativeDeclined ? result.relevantContextIds : undefined });
+export const historyReviewSignature = (result: AskReasoningResult) => JSON.stringify({ storedReadAnswer:isStoredRead(result.evidenceContract)?{answer:result.answer,ids:result.relevantContextIds}:undefined, profileFieldLabs: result.profileFieldLabs, labsList: result.labsList, labsAnswer: result.labsList || result.profileFieldLabs ? result.answer : undefined, labsSourceIds: result.labsList || result.profileFieldLabs ? result.relevantContextIds : undefined, actions: result.applicationActions, evidence: result.evidenceContract, draft: result.historyNarrative, result: result.historicalResult, plainAnswer: result.historyNarrativeDeclined ? result.answer.summary : undefined, sourceHints: result.historyNarrativeDeclined ? result.relevantContextIds : undefined });
 export function clearHistoryReview(result: AskReasoningResult) { reviewed.delete(result); }
 /** Internal server capability: called only after successful source-scoped review. */
 export function recordHistoryReview(result: AskReasoningResult, receipt: Receipt) { reviewed.set(result, structuredClone(receipt)); }
@@ -15,6 +16,13 @@ export function recordHistoryReview(result: AskReasoningResult, receipt: Receipt
 export function readReviewedHistoryAnswer(result: AskReasoningResult): Omit<Receipt, "signature"> | null {
   const receipt = reviewed.get(result);
   if (!receipt || receipt.signature !== historyReviewSignature(result)) return null;
+  if (isStoredRead(result.evidenceContract)) {
+    if(storedReadPublicationFailure(result) || receipt.text!==result.answer.summary
+      || JSON.stringify(receipt.sourceIds)!==JSON.stringify(result.relevantContextIds)
+      || JSON.stringify(receipt.sourceContent || [])!==JSON.stringify(storedReadPublishedResult(result.evidenceContract)?.records.map(r=>r.text)||[])
+      || receipt.actions?.length || receipt.authorityClaims?.length || receipt.completion?.length)return null;
+    return {text:receipt.text,sourceIds:[...receipt.sourceIds],sourceContent:receipt.sourceContent?.slice()};
+  }
   const profileLimitation = unsupportedProfilePresentation(result.evidenceContract) || result.model === PROFILE_PRESENTATION_UNAVAILABLE;
   const historyLimitation = requiresHistoryPublicationAuthority(result.evidenceContract)
     && result.model === "server-history-unavailable";

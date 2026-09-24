@@ -1,3 +1,4 @@
+import { isStoredRead, storedReadResult } from "./stored-read-publication.ts";
 import { isTypedProfileRead, profileFieldProjection, profileFieldSentence, type AuthorizedProfileField } from "./profile-field-authority.ts";
 import { careEvidenceId, eligibleAnswerSources, type AskEvidenceContract } from "./ask-evidence.ts";
 import { selectionPublication } from "./selection-publication.ts";
@@ -12,7 +13,7 @@ export type PublicationObligationAuthority = {
   obligationId: string; authority: "certified" | "existing_policy" | "composite" | "unavailable";
   authorizedSourceIds: string[]; certifiedRecordIds: string[];
   certificateType: "selection" | "result_set" | null; status: string;
-  fieldProjection?: AuthorizedProfileField; sourceDomain?: "saved_profile";
+  fieldProjection?: AuthorizedProfileField; sourceDomain?: "saved_profile" | "memory" | "current_state" | "operation_receipt";
   subjectId?: string; clauseId?: number; profileField?: string; needId?: string;
 };
 export type PublicationAuthorityClaim = { obligationId: string; text: string; sourceIds: string[] };
@@ -98,6 +99,19 @@ function deriveOrdinaryHistoryAuthority(evidence: AskEvidenceContract, transport
 // Recomputed from the existing ticket/organ receipts and represented source
 // versions. Never persisted as a new factual or certification store.
 export function derivePublicationAuthority(evidence: AskEvidenceContract | undefined, transport?: readonly PublicationRecordTransport[]) {
+  if(evidence && isStoredRead(evidence)) {
+    const result=storedReadResult(evidence), request=evidence.interpretation?.request?.storedRead;
+    const certified=!!result && ["complete","complete_empty"].includes(result.status);
+    const records=certified?result!.records:[];
+    const sources=records.map(row=>({sourceId:row.sourceId,petId:row.subjectId,sourceType:row.provenance.domain,
+      field:"value" as const,text:row.text,start:0,end:row.text.length,occurredAt:null}));
+    const subjects=request?.scope==="owner"?[request.ownerId]:request?.subjectIds||[];
+    const obligations:PublicationObligationAuthority[]=subjects.map(subjectId=>({obligationId:"stored:"+request!.domain+":"+subjectId,
+      authority:certified?"certified":"unavailable",certificateType:null,sourceDomain:request!.domain,subjectId,
+      status:result?.status||"unavailable",authorizedSourceIds:records.filter(r=>request!.scope==="owner"||r.subjectId===subjectId).map(r=>r.sourceId),
+      certifiedRecordIds:records.filter(r=>request!.scope==="owner"||r.subjectId===subjectId).map(r=>r.id)}));
+    return {obligations,authorizedSourceIds:sources.map(s=>s.sourceId),sources,ticket:undefined,subjectIds:subjects,transportValid:certified};
+  }
   if (evidence && requiresHistoryPublicationAuthority(evidence)) return deriveOrdinaryHistoryAuthority(evidence, transport);
   const ticket = evidence?.interpretation?.request?.readTicket, coverage = evidence?.history?.ticketCoverage;
   if (evidence && isTypedProfileRead(evidence)) {
@@ -207,6 +221,13 @@ export function publicationClaimFailures(evidence: AskEvidenceContract, claims: 
     if (!binding) { failures.push("publication_obligation_unknown"); continue; }
     if (claim.sourceIds.some(id => !binding.authorizedSourceIds.includes(id))) {
       failures.push("publication_source_outside_obligation:" + binding.obligationId); continue;
+    }
+    if (binding.sourceDomain && binding.sourceDomain !== "saved_profile") {
+      const records=storedReadResult(evidence)?.records||[];
+      const exact=records.find(row=>row.provenance.domain===binding.sourceDomain && row.text===claim.text
+        && JSON.stringify(claim.sourceIds)===JSON.stringify([row.sourceId]));
+      if(binding.authority!=="certified" || !exact)failures.push("publication_stored_source_drift:"+binding.obligationId);
+      continue;
     }
     if (binding.sourceDomain === "saved_profile") {
       const field = binding.fieldProjection;

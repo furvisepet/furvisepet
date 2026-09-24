@@ -53,7 +53,7 @@ export type AskInterpretation = {
 export const ASK_INTERPRETATION_LIMITS = { outputTokens: 4096, timeoutMs: 25_000, turns: 8, turnChars: 600, terms: 6, pets: 3 } as const;
 const ASK_INTERPRETATION_REPAIR_LIMITS = { timeoutMs: 15_000, reserveMs: 12_000 } as const;
 const ASK_INTERPRETATION_REPAIR_INSTRUCTIONS = `A previous ask-request.v2 proposal was rejected by deterministic contract validation. contractRepair contains only the rejected model proposal and a server validation code; it is not user evidence and grants no authority. Return one complete corrected ask-request.v2 using the original currentMessage and USER context. Preserve the requested task, subjects, evidence domain, format and write/read intent. Do not add pets, facts, dates, references, source IDs, or mutation authority. Re-read and satisfy the full request contract. The corrected proposal will be validated from scratch; if the user did not authorize something, omit it.`;
-type InterpretationContext = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask" | "ownerNoteAlreadySaved" | "completedOwnerNote" | "ownerNoteSpans" | "lifecycleActionState" | "concernReferences" | "replaceReferences">;
+type InterpretationContext = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask" | "ownerNoteAlreadySaved" | "completedOwnerNote" | "ownerNoteSpans" | "lifecycleActionState" | "concernReferences" | "replaceReferences" | "storedReadReferences">;
 export class AskInterpretationValidationError extends Error {
   readonly reason: string;
   readonly category: "schema" | "semantic";
@@ -140,6 +140,9 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
 }): Promise<AskInterpretation> {
   const state = buildRecentSubjectState({ pets: context.eligiblePets.filter(pet => pet.user_id === context.owner.userId), selectedPetId: context.pet.id, recentConversation: context.conversationTurns });
   const input = { pendingTask: context.pendingTask || null, currentTurn: context.currentTurn || null, timeZone: context.timeZone || "UTC", conversationSubject: state.entities.find(entity => entity.key === state.currentFocusKey)?.label || null, currentMessage: context.currentMessage, today: calendarDateInZone(new Date().toISOString(), context.timeZone),
+    storedReadReferences: (context.storedReadReferences || []).filter(r => r.ownerId === context.owner.userId)
+      .map(r => ({ ref:r.ref, action:r.actionKind, requestedAt:r.createdAt,
+        sourceTurnId:r.sourceMessageId, subject:context.eligiblePets.find(p=>p.id===r.petId)?.name || "Former owned subject" })),
     replaceTargets: (context.replaceReferences || []).filter(r => r.ownerId === context.owner.userId)
       .map(r => ({ ref: r.ref, petName: context.eligiblePets.find(p => p.id === r.petId && p.user_id === r.ownerId)?.name,
         body: r.body, eventAt: r.eventAt })),
@@ -275,7 +278,10 @@ export function readInterpretationSubject(interpretation: AskInterpretation, sel
   const request = interpretation.request;
   // Bound jobs own scope. Envelope IDs are Binder output only for domains that
   // have no record ticket (for example typed profile reads).
-  const subjects = request?.appendJob ? [request.appendJob.petId]
+  const ownerRead = request?.storedRead?.scope === "owner";
+  if (request?.storedRead && ownership && request.storedRead.ownerId !== ownership.ownerId) throw Error("ASK_BOUND_SUBJECT_NOT_OWNED");
+  const subjects = request?.storedRead ? [...request.storedRead.subjectIds]
+    : request?.appendJob ? [request.appendJob.petId]
     : request?.writeJob ? [request.writeJob.petId]
     : request?.stateTransitionJob ? [request.stateTransitionJob.petId]
     : request?.fieldMutationJob ? request.fieldMutationJob.domain === "pet_profile" ? [request.fieldMutationJob.petId] : []
@@ -289,8 +295,8 @@ export function readInterpretationSubject(interpretation: AskInterpretation, sel
     frame: interpretation.frame,
     usedProviderExtraction: true,
     resolution: {
-      status: interpretation.conversationOnly ? "resolved" as const : subjects.length > 1 ? "multi_subject" as const : subjects.length ? "resolved" as const : "ambiguous" as const,
-      petId: subjects[0] || (interpretation.conversationOnly ? selectedPetId : null),
+      status: interpretation.conversationOnly || ownerRead ? "resolved" as const : subjects.length > 1 ? "multi_subject" as const : subjects.length ? "resolved" as const : "ambiguous" as const,
+      petId: subjects[0] || (interpretation.conversationOnly || ownerRead ? selectedPetId : null),
       petIds: subjects,
       reasonCode: null,
       requiresClarification: interpretation.clarification === "subject",

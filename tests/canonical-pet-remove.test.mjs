@@ -20,7 +20,7 @@ function setup(){const f=fixture();f.pet.updated_at='2026-09-22T00:00:00Z';
 test('one closed REMOVE schema supports care history and the bound subject profile',async()=>{
  const f=setup(),s=removeJobSchema();assert.deepEqual(s.anyOf.slice(1).map(x=>x.properties.domain.enum[0]),['care_history','pet_profile']);
  const {default:Ajv}=await import('ajv'),validate=new Ajv().compile(askRequestProviderSchema({},f.context));
- const request={removeJob:null,stateTransitionJob:null,fieldMutationJob:null,lifecyclePlan:null,appendJob:null,readTicket:null,task:null,temporalScope:null,recordSelection:null,profileFields:[],projection:null,evidenceNeeds:[],outputFormat:null,evidenceBasis:null,premiseQuotes:null,excludedPetNames:[],...f.request};
+ const request={storedRead:null,removeJob:null,stateTransitionJob:null,fieldMutationJob:null,lifecyclePlan:null,appendJob:null,readTicket:null,task:null,temporalScope:null,recordSelection:null,profileFields:[],projection:null,evidenceNeeds:[],outputFormat:null,evidenceBasis:null,premiseQuotes:null,excludedPetNames:[],...f.request};
  assert.equal(validate({request}),true,JSON.stringify(validate.errors));
  for(const target of ['last_event_for_subject',{kind:'exact_record',ref:'invented'},id(7)])assert.equal(validate({request:{...request,removeJob:{...f.proposal,target}}}),false);
  assert.equal(validate({request:{...request,removeJob:{...f.proposal,petId:id(7)}}}),false);

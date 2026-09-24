@@ -1,3 +1,4 @@
+import { isStoredRead, storedReadResult, storedReadText, storedReadSourceIds, storedReadPublishedResult, STORED_READ_LABS, STORED_READ_UNAVAILABLE } from "../intelligence/stored-read-publication.ts";
 import { projectProfileFields, profileFieldRecords, bindProfileFieldProjection, isTypedProfileRead } from "../intelligence/profile-field-authority.ts";
 import { unsupportedProfilePresentation, PROFILE_PRESENTATION_UNAVAILABLE, PROFILE_PRESENTATION_LIMITATION } from "../intelligence/profile-presentation-limitation.ts";
 import { buildProfileFieldLabs, serializeProfileFieldLabs, profileFieldSourceIds, type ProfileFieldLabs } from "../intelligence/profile-field-labs.ts";
@@ -75,7 +76,7 @@ import { modelApplicationActionJsonSchema, parseModelApplicationActions, type Mo
 import { buildObservationAssessmentFallback, isUselessQuestionEcho } from "./conversation-intent.ts";
 import { resolvePetLossContext } from "./pet-loss.ts";
 import { applyAskAnswerEconomy, normalizeAskVisibleProseSanity, normalizeAskVisibleText, normalizeRequestedQuestionList, planAskAnswerDepth, type AskAnswerEconomyPlan } from "./ask-answer-economy.ts";
-import { careEvidenceId, evidenceForRecords, representEvidence, eligibleAnswerSources, operationReceiptEvidence, type AskEvidenceContract } from "../intelligence/ask-evidence.ts";
+import { careEvidenceId, evidenceForRecords, representEvidence, eligibleAnswerSources, type AskEvidenceContract } from "../intelligence/ask-evidence.ts";
 
 export type AskContextSourceType =
   | "record_inventory"
@@ -449,8 +450,11 @@ export function clearAskProviderCooldownsForTests() {
 
 export function buildAskContext(input: BuildContextInput, applyPromptBudget = true) {
   const profileProjection = projectProfileFields(input.evidenceContract, input.profiles);
-  const allRecords = profileProjection ? profileFieldRecords(profileProjection) : buildContextRecords(input);
+  const allRecords = (profileProjection ? profileFieldRecords(profileProjection) : buildContextRecords(input))
+    .filter(record => !["remembered_detail","operation_receipt","active_concern","active_episode","resolved_episode","product_context"].includes(record.sourceType));
   const evidence = structuredClone(input.evidenceContract || evidenceForRecords(allRecords, input.question, input.profiles.map(profile => profile.id)));
+  // Legacy reconstructed receipts are not canonical operation evidence.
+  evidence.operationReceipts = [];
   const ordinaryHistory = commonHistoryPathEntered(evidence);
   const terms = ordinaryHistory || profileProjection ? new Set<string>() : meaningfulTerms(input.question);
   for (const profile of input.profiles) {
@@ -586,12 +590,7 @@ export function buildAskContext(input: BuildContextInput, applyPromptBudget = tr
       activeConcernMessageState: input.concernStateHint || "unclear",
       historicalSafetyRelevant,
       activeConcernTags: safety.activeConcernTags,
-      recentlyResolvedConcerns: (input.recentlyResolvedConcerns || []).slice(0, 3).map((concern) => ({
-        id: concern.id,
-        type: concern.normalized_key,
-        resolvedAt: concern.resolved_at,
-        ownerReport: concern.resolution_note,
-      })),
+      recentlyResolvedConcerns: [],
       pets: petReferences,
       ...(input.discourseFocus ? { discourseFocus: input.discourseFocus } : {}),
       dialogueContext: evidence.interpretation?.request
@@ -742,6 +741,20 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   const models = getAskModelConfiguration();
   if (!client) {
     throw new AskPipelineError("configuration_failed", "OPENAI_API_KEY is not configured.", { elapsedMs: 0, model: models.primary });
+  }
+  if (isStoredRead(input.evidenceContract)) {
+    if (!storedReadResult(input.evidenceContract)) throw Error("STORED_READ_AUTHORITY_REQUIRED");
+    const published = storedReadPublishedResult(input.evidenceContract);
+    return { answer:{title:"Furvise",summary:storedReadText(input.evidenceContract),sections:[],safetyNote:null},
+      evidenceContract:input.evidenceContract, model:published?STORED_READ_LABS:STORED_READ_UNAVAILABLE,
+      userIntent:"history recall", relevantContextIds:storedReadSourceIds(input.evidenceContract), referencedRecords:[],
+      safetyLevel:"normal",shoppingSuppressed:true,suggestedFollowUps:[],applicationActions:[],proposedHistoryUpdate:emptyHistoryUpdate(),
+      answerDepth:planAskAnswerDepth({message:input.question,minimumSafetyLevel:"normal",responseMode:"practical_guidance",recentConversation:input.conversationTurns}),
+      responseMode:"practical_guidance",messageUnderstanding:{...defaultMessageUnderstanding(input.question),primaryIntent:"question",userIsAskingQuestion:true},
+      intelligenceSafety:{...defaultIntelligenceSafety("normal"),shoppingSuppressed:true},learnings:[],careActions:[],semanticEvents:[],
+      semanticFrame:emptyProposedSemanticFrame(),semanticFrameValid:true,
+      semanticFrameRecovery:{applied:false,reason:"NOT_ATTEMPTED_FRAME_VALID",validationReason:null},
+      intelligenceMetadata:{confidence:"high",usedPetContext:false,usedCareHistory:false,usedMemories:published?.request.domain==="memory"} };
   }
   // Deterministic server projections operate on the full governed evidence
   // before provider prompt budgeting. Lifetime-scale reads should not discard
@@ -1750,13 +1763,6 @@ function buildContextRecords(input: BuildContextInput): AskContextRecord[] {
     const profile = profiles.get(item.petId);
     if (profile) records.push({ ...baseRecord(item.sourceId, "record_inventory", profile, "record_count", item.text, null),
       status: "unknown", priority: "routine", metadata: { authority: "owned_database_count" } });
-  }
-  for (const [receiptSequence, receipt] of operationReceiptEvidence(input.evidenceContract?.operationReceipts || []).entries()) {
-    const profile = profiles.get(receipt.petId);
-    if (!profile) continue;
-    records.push({ ...baseRecord(receipt.sourceId, "operation_receipt", profile, "operation_status", receipt.text, receipt.occurredAt),
-      occurredAt: receipt.occurredAt, status: "unknown", priority: "routine", metadata: { authority: "owned_source_turn_lookup",
-        receiptSequence, receiptKind: receipt.sourceId.includes(":action:") ? "action" : receipt.sourceId.includes(":record:") ? "record" : "summary" } });
   }
   const episodeEvidence = input.evidenceContract?.episodes;
   const episodeProfile = episodeEvidence && profiles.get(episodeEvidence.petId);

@@ -1,3 +1,4 @@
+import { isStoredRead, storedReadPublicationFailure, storedReadPublishedResult } from "./stored-read-publication.ts";
 import { unsupportedProfilePresentation, profilePresentationLimitationFailure, PROFILE_PRESENTATION_UNAVAILABLE } from "./profile-presentation-limitation.ts";
 import { profileFieldLabsReviewFailure, profileFieldSourceIds } from "./profile-field-labs.ts";
 import { profileFieldValue } from "./profile-field-authority.ts";
@@ -96,6 +97,13 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   recordHistoryReviewDiagnostic(result, "declined", "review_not_completed");
   const evidence = result.evidenceContract;
   const sharedRequest = evidence?.interpretation?.request;
+  if (isStoredRead(evidence)) {
+    const failure=storedReadPublicationFailure(result);
+    if(failure)return decline(failure);
+    if(executionPlan && (executionPlan.semanticEvents.length || executionPlan.careActions.length))return decline("stored_read_has_pending_write");
+    recordHistoryReview(result,{signature:signature(result),text:result.answer.summary,sourceIds:[...result.relevantContextIds],sourceContent:storedReadPublishedResult(evidence)?.records.map(r=>r.text)||[]});
+    recordHistoryReviewDiagnostic(result,"approved","deterministic_stored_read_verified");return true;
+  }
   if (unsupportedProfilePresentation(evidence) || result.model === PROFILE_PRESENTATION_UNAVAILABLE) {
     const failure = profilePresentationLimitationFailure(result);
     if (failure) return decline(failure);

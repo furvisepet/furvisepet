@@ -1843,21 +1843,20 @@ test('unreferenced old questions cannot become new writer obligations',()=>{
  assert.deepEqual(requestReferenceContext(turns,['linked']).turns.map(t=>t.id),['linked']);
 });
 
-test('readback preserves every referenced saved operation, not just the latest',async()=>{
+test('reconstructed conversation receipts cannot authorize any referenced saved operation',async()=>{
  const {deterministicReadProjection}=await import('../../app/lib/intelligence/read-projection.ts');
  const {operationReceiptEvidence}=await import('../../app/lib/intelligence/ask-evidence.ts');
  const receipts=['original','addition'].map((id,i)=>({sourceMessageId:id,petId:'pet',requestText:'Save this.',answerPersisted:true,records:[{id:'entry-'+id,occurredAt:'2026-09-16T08:00:00Z',note:i?'Also drank normally.':'Tired on the morning walk.'}]}));
  const spans=operationReceiptEvidence(receipts).map(s=>({...s,sourceType:'operation_receipt',field:'value',start:0,end:s.text.length}));
  const e={scope:{readOnlyRecall:true,authorizedPetIds:['pet'],requestText:'Did those notes save? Show exactly what was stored.'},
-  interpretation:{request:{referenceTurnIds:['original','addition']}},operationReceipts:receipts,
+  interpretation:{request:{mode:'read',evidenceBasis:'saved_history',outputFormat:'prose',referenceTurnIds:['original','addition']}},operationReceipts:receipts,
   represented:spans,sources:[{petId:'pet',source:'operation_receipts',status:'loaded',loadedIds:spans.map(s=>s.sourceId)}],losses:[]};
- const all=deterministicReadProjection(e);assert.ok(all);
- const text=JSON.stringify(all);assert.match(text,/Tired on the morning walk/);assert.match(text,/Also drank normally/);
- const inventory={sourceId:'record-inventory:pet',petId:'pet',sourceType:'record_inventory',field:'value',text:'Exactly zero notes in an unrelated interval.',start:0,end:44};
- e.represented.push(inventory);e.sources.push({petId:'pet',source:'record_inventory',status:'loaded',loadedIds:[inventory.sourceId]});
- assert.match(JSON.stringify(deterministicReadProjection(e)),/Tired on the morning walk/);
+ const {publicationSources}=await import('../../app/lib/intelligence/publication-authority.ts');
+ assert.equal(deterministicReadProjection(e),null);
+ assert.deepEqual(publicationSources(e),[]);
  e.interpretation.request.referenceTurnIds=['original'];
- assert.doesNotMatch(JSON.stringify(deterministicReadProjection(e)),/Also drank normally/);
+ assert.equal(deterministicReadProjection(e),null);
+ assert.deepEqual(publicationSources(e),[]);
 });
 
 test('interpretation uses the user calendar day across the UTC date boundary',async t=>{

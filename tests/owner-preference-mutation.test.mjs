@@ -98,7 +98,7 @@ test("ordinary Ask learnings cannot restore owner mutation authority from explic
 test("provider field grammar excludes cross-domain fields and incompatible set/clear containers",async()=>{
  const {default:Ajv}=await import("ajv"),schema=askRequestProviderSchema({});
  const validate=new Ajv({allErrors:true}).compile(schema);
- const p=proposal(),base={removeJob:null,...request(p),stateTransitionJob:null,lifecyclePlan:null,appendJob:null,readTicket:null,writeJob:null,task:null,
+ const p=proposal(),base={storedRead:null,removeJob:null,...request(p),stateTransitionJob:null,lifecyclePlan:null,appendJob:null,readTicket:null,writeJob:null,task:null,
  temporalScope:null,mutationIntent:null,recordSelection:null,profileFields:[],projection:null,evidenceNeeds:[],
  outputFormat:null,evidenceBasis:null,premiseQuotes:null,excludedPetNames:[]};
  assert.equal(validate({request:base}),true,JSON.stringify(validate.errors));

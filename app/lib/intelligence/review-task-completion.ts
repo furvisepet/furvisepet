@@ -1,3 +1,4 @@
+import { isStoredRead, storedReadPublicationFailure } from "./stored-read-publication.ts";
 import { unsupportedProfilePresentation, profilePresentationLimitationFailure, PROFILE_PRESENTATION_UNAVAILABLE } from "./profile-presentation-limitation.ts";
 import { readReviewedHistoryAnswer } from "./history-review-state.ts";
 import { wholeAskTaskQuestion } from "./ask-task-continuation.ts";
@@ -123,6 +124,11 @@ export async function reviewTaskCompletion(input: {
   // This exact source-free limitation has already passed deterministic review
   // and validation. Its failed task completion remains unchanged.
   const response = input.validation.response;
+  if(isStoredRead(response.evidenceContract)) {
+    if(!input.validation.valid || storedReadPublicationFailure(response) || !readReviewedHistoryAnswer(response))
+      return {...input.validation,valid:false,errors:[...input.validation.errors,"stored_read_terminal_validation_required"]};
+    return input.validation;
+  }
   if (input.validation.valid
     && (unsupportedProfilePresentation(response.evidenceContract) || response.model === PROFILE_PRESENTATION_UNAVAILABLE)
     && profilePresentationLimitationFailure(response) === null

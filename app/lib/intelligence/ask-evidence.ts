@@ -1,3 +1,4 @@
+import { bindStoredReadEvidence } from "./stored-read-publication.ts";
 import { wholeAskTaskQuestion } from "./ask-task-continuation.ts";
 import { receiptCompletionText } from "./receipt-completion.ts";
 import { episodeResultText } from "./episode-contract.ts";
@@ -33,6 +34,7 @@ export type AskEvidenceScope = {
   status: "resolved" | "ambiguous"; readOnlyRecall: boolean;
 };
 export type AskEvidenceContract = {
+  storedReadResult?: import("../furvise-brain/stored-read-organ.ts").StoredReadResult;
   /** Ephemeral owned-row projection; model JSON cannot mint its server snapshot. */
   profileFieldProjection?: import("./profile-field-authority.ts").ProfileFieldProjection;
   /** Typed read plus publication obligations; never a source of state. */
@@ -130,18 +132,7 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
   for (const item of recordInventoryEvidence(contract.recordInventory)) {
     contract.sources.push(evidenceSource(item.petId, "record_inventory", [item.sourceId]));
   }
-  const referenceIds = context.askInterpretation?.request?.referenceTurnIds;
-  const referencedRequests = new Set(context.conversationTurns
-    .filter(turn => referenceIds?.includes(turn.id) && turn.requestId).map(turn => turn.requestId));
-  contract.operationReceipts = context.conversationTurns
-    .filter(turn => turn.id !== (currentTurn?.role === "user" ? currentTurn.id : null))
-    .filter(turn => !referenceIds || referenceIds.includes(turn.id)
-      || Boolean(turn.requestId && referencedRequests.has(turn.requestId)))
-    .flatMap(turn => turn.operationReceipt && ids.includes(turn.operationReceipt.petId) ? [structuredClone(turn.operationReceipt)] : []);
-  for (const petId of ids) {
-    const receipts = contract.operationReceipts.filter(receipt => receipt.petId === petId);
-    if (receipts.length) contract.sources.push(evidenceSource(petId, "operation_receipts", operationReceiptEvidence(receipts).map(source => source.sourceId)));
-  }
+  contract.operationReceipts = [];
   if (context.askInterpretation) {
     const plan = context.askInterpretation;
     const { frame, ...readPlan } = plan;
@@ -206,6 +197,7 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
       context.owner.userId, id => careEvidenceId(id, contract.history))
     : contract.interpretation?.request ? null : buildSourceNoteRecall(context.askHistory ? { ...context, careEntries: context.askHistory.entries } : context, contract);
   if (sourceNoteRecall) contract.sourceNoteRecall = sourceNoteRecall;
+  if (context.storedReadResult) bindStoredReadEvidence(contract, context.storedReadResult);
   return refreshEvidenceCoverage(contract);
 }
 
@@ -253,17 +245,14 @@ export function representEvidence(contract: AskEvidenceContract, records: AskCon
 /** Shared factual source eligibility. Scope, loading, representation and source
  * versions are authority; a presentation field name is not an evidence policy. */
 export function eligibleAnswerSources(evidence: AskEvidenceContract) {
-  const receiptSources = operationReceiptEvidence(evidence.operationReceipts || []);
   const inventorySources = recordInventoryEvidence(evidence.recordInventory || []);
   const saved = evidence.represented.filter(span =>
     // Correction failure invalidates clinical history, not independent profile,
-    // physical inventory, or request-linked receipt evidence.
+    // or physical inventory evidence.
     (span.sourceType !== "care_update" || evidence.history?.corrections !== "unavailable")
-    && (span.sourceType === "care_update" || span.sourceType === "profile" || span.sourceType === "operation_receipt" || span.sourceType === "episode_result" || span.sourceType === "record_inventory")
+    && (span.sourceType === "care_update" || span.sourceType === "profile" || span.sourceType === "episode_result" || span.sourceType === "record_inventory")
     && (span.sourceType !== "record_inventory" || inventorySources.some(source => source.sourceId === span.sourceId && source.petId === span.petId && source.text === span.text))
     && (span.sourceType !== "episode_result" || !!evidence.episodes && span.text === episodeResultText(evidence.episodes))
-    && (span.sourceType !== "operation_receipt" || receiptSources.some(source => source.sourceId === span.sourceId
-      && source.petId === span.petId && source.text === span.text && source.occurredAt === (span.occurredAt || null)))
     && evidence.scope.authorizedPetIds.includes(span.petId)
     && (!!evidence.interpretation?.request || !span.occurredAt || Date.parse(span.occurredAt) <= Date.now())
     && span.start === 0 && span.end === span.text.length && span.text.trim()

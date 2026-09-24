@@ -92,7 +92,7 @@ test('route dispatches canonical removal before factual context and narrative ge
 test('provider grammar admits only standalone REMOVE and supplied reference handles',async()=>{
  const {default:Ajv}=await import('ajv'),f=setup(true),schema=askRequestProviderSchema({},f.context);
  const validate=new Ajv({allErrors:true}).compile(schema);
- const base={removeJob:null,stateTransitionJob:null,fieldMutationJob:null,lifecyclePlan:null,appendJob:null,readTicket:null,task:null,temporalScope:null,
+ const base={storedRead:null,removeJob:null,stateTransitionJob:null,fieldMutationJob:null,lifecyclePlan:null,appendJob:null,readTicket:null,task:null,temporalScope:null,
  recordSelection:null,profileFields:[],projection:null,evidenceNeeds:[],outputFormat:null,evidenceBasis:null,premiseQuotes:null,excludedPetNames:[],...f.request};
  assert.equal(validate({request:base}),true,JSON.stringify(validate.errors));
  assert.equal(validate({request:{...base,removeJob:{...base.removeJob,target:{kind:'exact_record',ref:'invented'}}}}),false);

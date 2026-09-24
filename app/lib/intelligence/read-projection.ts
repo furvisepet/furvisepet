@@ -740,48 +740,6 @@ export function deterministicReadProjection(evidence: AskEvidenceContract, diagn
       ]}) || null;
     }
   }
-  if (evidence.scope.readOnlyRecall && (!request?.outputFormat || ["prose", "bullets"].includes(request.outputFormat)) && /\b(?:save|saved|receipts?)\b/i.test(requestText)
-    && /\b(?:did|actually|receipts?|confirm|verify)\b/i.test(requestText)) {
-    const receipts = evidence.operationReceipts || [];
-    const referenced = receipts.filter(receipt => request?.referenceTurnIds.includes(receipt.sourceMessageId));
-    const selected = referenced.length ? referenced : receipts.filter(item => /\b(?:save|log|record|add)\b/i.test(item.requestText)).slice(-1);
-    if (selected.length) {
-      // Mixed linked/unlinked requests need their individual referents explained.
-      // A flat receipt list makes earlier readback questions sound like failed
-      // writes. Leave all receipts available to generation and independent review;
-      // never silently discard an unconfirmed save to make the result look complete.
-      if (selected.some(receipt => receipt.records.length) && selected.some(receipt => !receipt.records.length)) return null;
-      // Every explicitly referenced operation remains part of the readback.
-      // Choosing only the last receipt silently erased earlier saved content.
-      if (selected.some(receipt => receipt.actionReceipts?.length)) return null;
-      const sources = eligibleAnswerSources(evidence);
-      const sentences = [];
-      for (const receipt of selected) {
-        const records = receipt.records.map(record => ({ record, source: sources.find(source => source.sourceId === `operation:${receipt.sourceMessageId}:record:${record.id}`) }));
-        const header = sources.find(source => source.sourceId === `operation:${receipt.sourceMessageId}`);
-        if (!header || records.some(item => !item.source)) return null;
-        if (records.length) {
-          const petName=evidence.petNames?.[receipt.petId] || "this pet";
-          sentences.push(...records.map(({record, source}) => {
-            const note=displayCareNoteBody(record.note) || record.note.trim();
-            const date=calendarDateInZone(record.occurredAt, evidence.timeZone || "UTC");
-            const dated=record.occurredAt && Number.isFinite(Date.parse(record.occurredAt));
-            return { text: records.length===1
-              ? `You saved this for ${petName}: ${note}`
-              : `${dated ? humanDate(date+"T12:00:00Z",evidence.timeZone || "UTC")+": " : ""}${note}`,
-              sourceIds: [header.sourceId, source!.sourceId], calculations: [] };
-          }));
-        }
-        else sentences.push({text:
-          "No current care-history entry is linked to that prior request. "
-          + (receipt.answerPersisted ? "The conversation answer was saved; that is separate from a care record. " : "No conversation answer was saved for that turn. ")
-          + (receipt.actionReceipts ? "No mutation action receipt was found for that turn." : "Action receipt availability is unknown."),
-          sourceIds:[header.sourceId],calculations:[]});
-      }
-      return parseHistoryNarrative({sentences}) || null;
-    }
-  }
-
   // Counts can support record selection, but cannot substitute for requested
   // note content or a write receipt. Project them only for an explicit count.
   const inventory = eligibleAnswerSources(evidence).filter(source => source.sourceType === "record_inventory");

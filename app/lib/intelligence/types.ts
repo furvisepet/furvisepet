@@ -149,6 +149,8 @@ export type IntelligenceConversationTurn = {
 };
 
 export type FurviseLiveContext = {
+  storedReadReferences?: import("../furvise-brain/stored-read.ts").StoredReadReference[];
+  storedReadResult?: import("../furvise-brain/stored-read-organ.ts").StoredReadResult;
   replaceReferences?: import("../furvise-brain/replace-job.ts").ReplaceReference[];
   /** Owner-scoped capabilities loaded from server state, never assistant prose. */
   concernReferences?: import("../furvise-brain/state-transition-job.ts").ConcernReference[];

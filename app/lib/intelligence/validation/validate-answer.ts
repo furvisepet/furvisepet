@@ -1,3 +1,4 @@
+import { isStoredRead, storedReadPublicationFailure, storedReadPublishedResult, carryStoredReadEvidence } from "../stored-read-publication.ts";
 import { unsupportedProfilePresentation, profilePresentationLimitationFailure, PROFILE_PRESENTATION_UNAVAILABLE } from "../profile-presentation-limitation.ts";
 import { carryProfileFieldProjection } from "../profile-field-authority.ts";
 import { profileFieldLabsReviewFailure, carryProfileFieldLabs } from "../profile-field-labs.ts";
@@ -58,6 +59,22 @@ export function validateGeneratedAnswer(
   const partialHistory = currentEmergency || reviewedHistory ? null : readPartialHistoryReview(result);
   const partialText = partialHistory ? partialHistory.text : null;
   const response = structuredClone(result);
+  if(isStoredRead(result.evidenceContract)) {
+    const failure=storedReadPublicationFailure(result);
+    const scopeFailure=result.evidenceContract!.interpretation!.request!.storedRead!.ownerId!==context.owner.userId
+      || result.evidenceContract!.scope.authorizedPetIds.some(id=>!authoritativePetIds.includes(id));
+    const errors=[...(failure?[failure]:[]),...(scopeFailure?["stored_read_scope_changed"]:[]),...(!reviewedHistory?["stored_read_review_required"]:[])];
+    const complete=!!storedReadPublishedResult(result.evidenceContract);
+    if(!errors.length && reviewedHistory){carryStoredReadEvidence(result.evidenceContract!,response.evidenceContract!);
+      response.evidenceContract!.answerSourceIds=[...reviewedHistory.sourceIds];
+      recordHistoryReview(response,{...reviewedHistory,signature:historyReviewSignature(response)});
+      rememberReviewedTaskPresentation(response.evidenceContract,response.answer,[]);}
+    const assessment=createAnswerAssessment({body:response.answer,evidence:response.evidenceContract,unsafe:!!errors.length,
+      reasons:[...errors,...(complete?[]:["stored_read_limited"])],checks:{structuralValidity:errors.length?"failed":"passed",
+      evidenceSupport:errors.length?"failed":"passed",subjectDateCorrectness:errors.length?"failed":"passed",calculationCorrectness:"not_applicable",
+      taskCompletion:complete&&!errors.length?"passed":"failed"}});
+    return {response,assessment,valid:!errors.length,repairs:[],errors,qualityWarnings:[]};
+  }
   if (unsupportedProfilePresentation(result.evidenceContract) || result.model === PROFILE_PRESENTATION_UNAVAILABLE) {
     const failure = profilePresentationLimitationFailure(result);
     const scopeFailure = result.evidenceContract?.scope.authorizedPetIds.some(id => !authoritativePetIds.includes(id));
