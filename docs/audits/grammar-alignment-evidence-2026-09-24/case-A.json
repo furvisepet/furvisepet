@@ -1,0 +1,151 @@
+{
+  "case": "A",
+  "prompt": "What was Milo's recorded weight on September 1, 2026?",
+  "expected": "10 kg on 2026-09-01",
+  "petId": "d1768cec-4789-46bc-83e0-edbd2bcc278d",
+  "petName": "Milo",
+  "requestId": "aa4b73a4-1ba1-4f76-ab1f-c60fd5f20b23",
+  "httpStatus": 200,
+  "durationMs": 9548,
+  "providerCallsTotal": 1,
+  "costMicrodollarsTotal": 24357,
+  "careHistoryUnchanged": true,
+  "response": {
+    "answer": "The requested history operation is not supported by certified publication yet. I can’t provide a verified result for it.",
+    "assistantMessageId": "3ff2ac1b-2b1a-4fbc-b9d7-7905675bddb7",
+    "concern": null,
+    "contextUsed": {
+      "petName": "Milo",
+      "usedSources": [],
+      "historyCoverage": {
+        "retrieval": "complete",
+        "corrections": "complete",
+        "continuation": [],
+        "reasons": [
+          "no_cross_query_snapshot",
+          "no_cross_query_snapshot",
+          "ticket_coverage:complete"
+        ],
+        "consistency": "read_committed_no_snapshot",
+        "perPet": [
+          {
+            "petId": "d1768cec-4789-46bc-83e0-edbd2bcc278d",
+            "rows": 9,
+            "pages": 1,
+            "exhausted": true,
+            "status": "complete"
+          }
+        ]
+      }
+    },
+    "conversationId": "6ad027dc-6f77-4dc3-bd8e-3ca2c703eb07",
+    "creditsUsed": 0,
+    "handledWithoutAi": false,
+    "dataChanged": false,
+    "automaticSaveConfirmation": null,
+    "carePersistence": {
+      "status": "skipped",
+      "careEntryIds": [],
+      "concernIds": [],
+      "errorCode": null,
+      "currentSafetyState": null,
+      "alreadyPersisted": false,
+      "memoryIds": []
+    },
+    "intelligencePersistence": {
+      "saved": false
+    },
+    "remainingCredits": 55,
+    "persistence": {
+      "saved": true
+    },
+    "persistenceMode": "none",
+    "persistedCareAction": null,
+    "proposedHistoryUpdate": null,
+    "response": {
+      "title": "Furvise",
+      "summary": "The requested history operation is not supported by certified publication yet. I can’t provide a verified result for it.",
+      "sections": [],
+      "safetyNote": null,
+      "answerType": "direct_answer",
+      "directAnswer": "The requested history operation is not supported by certified publication yet. I can’t provide a verified result for it.",
+      "actions": [
+        "save_key_detail",
+        "copy"
+      ],
+      "urgency": "routine",
+      "interactionMode": "normal",
+      "turn": {
+        "logicalTurnId": "aa4b73a4-1ba1-4f76-ab1f-c60fd5f20b23",
+        "attemptId": "10492a75-0898-4593-bdee-8de7092c74d5",
+        "finalStage": "COMPLETED",
+        "routeType": "pet_care",
+        "executionMode": "ai",
+        "subjectResolutionStrategy": "resolved",
+        "subjectCandidateCount": 1,
+        "providerCallCount": 1,
+        "providerFailureClass": null,
+        "creditState": "released",
+        "creditDisposition": "release",
+        "settlementState": "reconciled",
+        "optionalFailures": [],
+        "actionCount": 0,
+        "finalErrorClass": null,
+        "answerOutcome": "limited",
+        "mutationOutcome": "not_requested",
+        "taskOutcome": "limited"
+      }
+    },
+    "safety": {
+      "level": "normal",
+      "shoppingSuppressed": true
+    },
+    "saveMetadata": {
+      "answerType": "history recall",
+      "cannotAnswerFromSavedData": false,
+      "saveCategory": "general",
+      "saveDetail": "",
+      "saveDetailPreview": "",
+      "saveDisabledReason": "no_saved_summary",
+      "saveTitle": "Furvise log summary",
+      "saveable": false,
+      "usedSavedFactsCount": 0
+    },
+    "suggestion": null,
+    "success": true,
+    "turn": {
+      "logicalTurnId": "aa4b73a4-1ba1-4f76-ab1f-c60fd5f20b23",
+      "attemptId": "10492a75-0898-4593-bdee-8de7092c74d5",
+      "finalStage": "COMPLETED",
+      "routeType": "pet_care",
+      "executionMode": "ai",
+      "subjectResolutionStrategy": "resolved",
+      "subjectCandidateCount": 1,
+      "providerCallCount": 1,
+      "providerFailureClass": null,
+      "creditState": "released",
+      "creditDisposition": "release",
+      "settlementState": "reconciled",
+      "optionalFailures": [],
+      "actionCount": 0,
+      "finalErrorClass": null,
+      "answerOutcome": "limited",
+      "mutationOutcome": "not_requested",
+      "taskOutcome": "limited"
+    },
+    "userMessageId": "d1fec9ee-a1b5-4b4d-9fe8-26f408b0cc3a",
+    "usage": {
+      "allowed": true,
+      "billingPlan": "plus",
+      "cancelAtPeriodEnd": false,
+      "count": 0,
+      "ledgerMode": "database",
+      "limit": 55,
+      "monthKey": "2026-09-23",
+      "planId": "plus",
+      "remaining": 55,
+      "resetAt": "2026-10-23T23:27:58.925802+00:00",
+      "subscriptionStatus": "active"
+    }
+  }
+}

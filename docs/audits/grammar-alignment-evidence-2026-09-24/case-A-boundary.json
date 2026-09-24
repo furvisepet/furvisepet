@@ -1,0 +1,241 @@
+{
+  "record": {
+    "id": "7d60413b-df49-43c9-88f8-1e14db37f462",
+    "note": "Body weight: 10 kg.",
+    "occurred_at": "2026-09-01T12:00:00+00:00"
+  },
+  "messages": [
+    {
+      "id": "d1fec9ee-a1b5-4b4d-9fe8-26f408b0cc3a",
+      "role": "user",
+      "user_text": "What was Milo's recorded weight on September 1, 2026?"
+    },
+    {
+      "id": "3ff2ac1b-2b1a-4fbc-b9d7-7905675bddb7",
+      "role": "furvise",
+      "user_text": null
+    }
+  ],
+  "lungs": {
+    "operation": "read",
+    "petIds": [
+      "d1768cec-4789-46bc-83e0-edbd2bcc278d"
+    ],
+    "temporal": {
+      "calendar": null,
+      "from": "2026-09-01T00:00:00Z",
+      "to": "2026-09-02T00:00:00Z",
+      "anchor": null
+    },
+    "predicates": [
+      {
+        "kind": "text_any",
+        "terms": [
+          "weight",
+          "weigh",
+          "weighed",
+          "weighing"
+        ]
+      }
+    ],
+    "outputs": {
+      "strategy": null,
+      "completeness": "sufficient",
+      "ordering": "desc",
+      "limit": null
+    },
+    "coverage": {
+      "status": "complete",
+      "reasons": [
+        "no_cross_query_snapshot"
+      ],
+      "matchSemantics": "ticket_text_predicates",
+      "asOf": "2026-09-24T23:29:26.944Z",
+      "anchors": [],
+      "windows": [
+        {
+          "petId": "d1768cec-4789-46bc-83e0-edbd2bcc278d",
+          "from": "2026-09-01T00:00:00.000Z",
+          "to": "2026-09-02T00:00:00.000Z",
+          "relation": null
+        }
+      ],
+      "continuation": [],
+      "effectiveStream": [
+        {
+          "petId": "d1768cec-4789-46bc-83e0-edbd2bcc278d",
+          "acquiredIds": [
+            "7d60413b-df49-43c9-88f8-1e14db37f462",
+            "26aa94c2-65f9-47b3-a435-795f2469772a",
+            "e1210d0f-6f54-4ed9-9d6e-a7020603a987",
+            "a27b6f33-65cb-4875-99b5-60090e1cb247",
+            "11bf42ff-7324-47b2-944f-ff46ead5bde8",
+            "e680a4f3-12ef-47d8-b38f-5c43f858add9",
+            "fc5b8084-b1c4-42c3-b8f4-932c46a9c364",
+            "cea96b0d-aec6-4bdd-9c82-b89a24d7260a",
+            "b48ee1ac-bc3e-4b7f-8a5b-3588be59ea58"
+          ],
+          "effectiveIds": [
+            "7d60413b-df49-43c9-88f8-1e14db37f462",
+            "26aa94c2-65f9-47b3-a435-795f2469772a",
+            "e1210d0f-6f54-4ed9-9d6e-a7020603a987",
+            "a27b6f33-65cb-4875-99b5-60090e1cb247",
+            "11bf42ff-7324-47b2-944f-ff46ead5bde8",
+            "e680a4f3-12ef-47d8-b38f-5c43f858add9",
+            "fc5b8084-b1c4-42c3-b8f4-932c46a9c364",
+            "cea96b0d-aec6-4bdd-9c82-b89a24d7260a",
+            "b48ee1ac-bc3e-4b7f-8a5b-3588be59ea58"
+          ],
+          "certifiedSelectedIds": [],
+          "lineageClosed": true,
+          "replacementSeedsExhausted": true,
+          "graphCalls": 1,
+          "lineageRows": 9
+        }
+      ],
+      "selection": {
+        "scannedIds": [
+          "7d60413b-df49-43c9-88f8-1e14db37f462",
+          "26aa94c2-65f9-47b3-a435-795f2469772a",
+          "e1210d0f-6f54-4ed9-9d6e-a7020603a987",
+          "a27b6f33-65cb-4875-99b5-60090e1cb247",
+          "11bf42ff-7324-47b2-944f-ff46ead5bde8",
+          "e680a4f3-12ef-47d8-b38f-5c43f858add9",
+          "fc5b8084-b1c4-42c3-b8f4-932c46a9c364",
+          "cea96b0d-aec6-4bdd-9c82-b89a24d7260a",
+          "b48ee1ac-bc3e-4b7f-8a5b-3588be59ea58"
+        ],
+        "matchedIds": [
+          "7d60413b-df49-43c9-88f8-1e14db37f462"
+        ],
+        "retainedIds": [
+          "7d60413b-df49-43c9-88f8-1e14db37f462"
+        ],
+        "omittedIds": []
+      },
+      "resultSet": {
+        "subjectIds": [
+          "d1768cec-4789-46bc-83e0-edbd2bcc278d"
+        ],
+        "predicates": [
+          {
+            "kind": "text_any",
+            "terms": [
+              "weight",
+              "weigh",
+              "weighed",
+              "weighing"
+            ]
+          }
+        ],
+        "temporal": {
+          "calendar": null,
+          "from": "2026-09-01T00:00:00Z",
+          "to": "2026-09-02T00:00:00Z",
+          "anchor": null
+        },
+        "windows": [
+          {
+            "petId": "d1768cec-4789-46bc-83e0-edbd2bcc278d",
+            "from": "2026-09-01T00:00:00.000Z",
+            "to": "2026-09-02T00:00:00.000Z",
+            "relation": null
+          }
+        ],
+        "ordering": "desc",
+        "subjects": [
+          {
+            "petId": "d1768cec-4789-46bc-83e0-edbd2bcc278d",
+            "exhausted": true,
+            "lineageClosed": true,
+            "matchingIds": [
+              "7d60413b-df49-43c9-88f8-1e14db37f462"
+            ],
+            "retainedIds": [
+              "7d60413b-df49-43c9-88f8-1e14db37f462"
+            ],
+            "omittedIds": [],
+            "matchingSetComplete": true,
+            "representationComplete": true,
+            "certified": true,
+            "reasons": []
+          }
+        ],
+        "matchingIds": [
+          "7d60413b-df49-43c9-88f8-1e14db37f462"
+        ],
+        "retainedIds": [
+          "7d60413b-df49-43c9-88f8-1e14db37f462"
+        ],
+        "omittedIds": [],
+        "matchingSetComplete": true,
+        "representationComplete": true,
+        "certified": true,
+        "reasons": []
+      }
+    },
+    "recordIds": [
+      "7d60413b-df49-43c9-88f8-1e14db37f462"
+    ],
+    "queryCount": 2,
+    "durationMs": 42
+  },
+  "dispatch": {
+    "phase": "obligation_dispatch",
+    "path": "unavailable",
+    "minimumSafetyLevel": "normal",
+    "sentToModelGeneration": false,
+    "labsClaimsTaskSatisfied": null,
+    "obligations": [
+      {
+        "obligationId": "obligation_0",
+        "needIdHash": null,
+        "subjectId": null,
+        "semanticRequirement": {
+          "kind": "additional_obligation",
+          "operation": "read",
+          "completeness": "sufficient",
+          "selection": null,
+          "predicateKinds": [
+            "text_any"
+          ],
+          "anchored": false,
+          "explicitWindow": true
+        },
+        "mapping": "selected_component_only",
+        "resultSetComponentCertified": false,
+        "certificateAuthorizedEventIds": [],
+        "certificateAuthorizedSourceIds": [],
+        "selectionComponentCertified": false,
+        "availableProfileSourceIds": [],
+        "labsClaimsObligationSatisfied": null
+      }
+    ]
+  },
+  "httpStatus": 200,
+  "turn": {
+    "logicalTurnId": "aa4b73a4-1ba1-4f76-ab1f-c60fd5f20b23",
+    "attemptId": "10492a75-0898-4593-bdee-8de7092c74d5",
+    "finalStage": "COMPLETED",
+    "routeType": "pet_care",
+    "executionMode": "ai",
+    "subjectResolutionStrategy": "resolved",
+    "subjectCandidateCount": 1,
+    "providerCallCount": 1,
+    "providerFailureClass": null,
+    "creditState": "released",
+    "creditDisposition": "release",
+    "settlementState": "reconciled",
+    "optionalFailures": [],
+    "actionCount": 0,
+    "finalErrorClass": null,
+    "answerOutcome": "limited",
+    "mutationOutcome": "not_requested",
+    "taskOutcome": "limited"
+  },
+  "limitationPersisted": true,
+  "expectedAnswerPublished": false,
+  "careHistoryUnchanged": true,
+  "providerCalls": 1,
+  "costMicrodollars": 24357
+}

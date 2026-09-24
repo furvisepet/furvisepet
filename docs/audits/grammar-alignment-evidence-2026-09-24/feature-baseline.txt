@@ -1,0 +1,65 @@
+TAP version 13
+# Subtest: structured feature provider wire compatibility
+not ok 1 - structured feature provider wire compatibility
+  ---
+  duration_ms: 670.3541
+  type: 'test'
+  location: 'C:\\Users\\gwara\\AppData\\Local\\Temp\\furvise-sufficient-clean-kot3Aw\\tests\\feature-provider-compatibility.test.mjs:4:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    (node:48308) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    (node:48308) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/AppData/Local/Temp/furvise-sufficient-clean-kot3Aw/app/lib/intelligence/retrieve-context.ts is not specified and it doesn't parse as CommonJS.
+    Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+    To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\AppData\Local\Temp\furvise-sufficient-clean-kot3Aw\package.json.
+    ✔ structured feature wire parameters: gpt-5.4-mini (5.4843ms)
+    ✔ structured feature wire parameters: gpt-5-mini (0.8153ms)
+    ✔ structured feature wire parameters: gpt-4.1-mini (0.2599ms)
+    ✔ Vet Brief rejects foreign or malformed source citations instead of silently dropping them (0.9773ms)
+    ✖ actual Vet Brief feature runner reaches compatible request and document validation (64.5123ms)
+    ✔ fallback rebuilds sampling compatibility for its own model (9.7881ms)
+    ℹ tests 6
+    ℹ suites 0
+    ℹ pass 5
+    ℹ fail 1
+    ℹ cancelled 0
+    ℹ skipped 0
+    ℹ todo 0
+    ℹ duration_ms 627.4262
+    
+    ✖ failing tests:
+    
+    test at scripts\audits\feature-provider-compatibility.cases.mjs:32:1
+    ✖ actual Vet Brief feature runner reaches compatible request and document validation (64.5123ms)
+      Error: ASK_MEMORY_BRAIN_REQUIRED
+          at retrieveFurviseMemory (C:\Users\gwara\AppData\Local\Temp\furvise-sufficient-clean-kot3Aw\app\lib\furvise-brain\memory-organ.ts:37:67)
+          at generateAskHistoryAnswer (C:\Users\gwara\AppData\Local\Temp\furvise-sufficient-clean-kot3Aw\app\lib\intelligence\generate-ask-history.ts:49:23)
+          at exercise (file:///C:/Users/gwara/AppData/Local/Temp/furvise-sufficient-clean-kot3Aw/scripts/audits/helpers/lifetime-harness.mjs:223:29)
+          at async TestContext.<anonymous> (file:///C:/Users/gwara/AppData/Local/Temp/furvise-sufficient-clean-kot3Aw/scripts/audits/feature-provider-compatibility.cases.mjs:39:18)
+          at async Test.run (node:internal/test_runner/test:1389:7)
+          at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+    
+    
+    1 !== 0
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/gwara/AppData/Local/Temp/furvise-sufficient-clean-kot3Aw/tests/feature-provider-compatibility.test.mjs:7:9)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.start (node:internal/test_runner/test:1242:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 722.9359

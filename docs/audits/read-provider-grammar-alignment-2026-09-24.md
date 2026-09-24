@@ -35,3 +35,5 @@ See grammar-alignment-evidence-2026-09-24 for machine-readable gates and build r
 
 ## Live acceptance
 Pending the committed repair. Restored the isolated local stack with its previously applied 135-migration schema; all version IDs and local migration files match, no new migration replay was needed. Empty users verified before creating an equivalent synthetic fixture. Production cutover remains blocked.
+
+Retest outcome: Case A reached legal interpretation and certified Lungs retrieval, then failed at publication eligibility. See read-provider-grammar-case-a-2026-09-24.md. Acceptance stopped and cleanup verified.
