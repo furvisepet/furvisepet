@@ -1,3 +1,4 @@
+import type {CalculateOperand} from "./calculate-plan.ts";
 import { bindUserSourceSpan, type UserSourceSpan } from "./append-job.ts";
 import { units } from "./calculation-units.ts";
 import { decimal, div, mul, factor, finite, exact, type Exact } from "./calculation-rational.ts";
@@ -34,12 +35,13 @@ function threshold(text:string,resultUnit:string):Exact{
  }
  return exact(q);
 }
-type Candidate={operator:string;resultUnit:string;operands:readonly {subjectId:string}[]};
+type Candidate={operator:string;resultUnit:string;operands:readonly CalculateOperand[]};
 export function bindResultSelection(value:unknown,calculations:readonly Candidate[],subjects:readonly string[],source:CalculationSource|undefined,bound:boolean):ResultSelection|null{
  if(value==null)return null;
  if(!shape(value,["filter","orderBy","take"]))return fail();
  const cohort=calculations.map(c=>{
-  const ids=[...new Set(c.operands.map(o=>o.subjectId))];
+  if(c.operands.some(o=>!("subjectId" in o)))return fail();
+  const ids=[...new Set(c.operands.map(o=>"subjectId" in o?o.subjectId:""))];
   if(c.operator==="count_records"||ids.length!==1)return fail();return ids[0];
  });
  if(new Set(cohort).size!==cohort.length||cohort.length!==subjects.length||subjects.some(id=>!cohort.includes(id))

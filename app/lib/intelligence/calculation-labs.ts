@@ -46,14 +46,15 @@ const labels:Record<string,string>={sum:"Sum",mean:"Mean",difference:"Difference
 export function serializeCalculationLabs(labs:CalculationLabs):string{
  const certificate=labs.execution.resultSelection;
  if(certificate&&certificate.status!=="certified")throw Error("CALCULATION_SELECTION_NOT_CERTIFIED");
- const selected=certificate?certificate.selectedCalculationIds.map(id=>labs.execution.results.find(r=>r.id===id)!):labs.execution.results;
+ const visibleIds=certificate?.selectedCalculationIds??labs.execution.terminalCalculationIds;
+ const selected=visibleIds?visibleIds.map(id=>labs.execution.results.find(r=>r.id===id)!):labs.execution.results;
  if(certificate&&!selected.length)return "No calculated subject results met the requested threshold.";
  const rows=selected.map(r=>{
   if(r.status!=="certified")throw Error("CALCULATION_NOT_CERTIFIED");
   const value=r.precision===null?String(r.value):r.value.toFixed(r.precision);
   const result=value+(r.unit==="scalar"?"":" "+r.unit);
   const names=r.subjectIds.map(id=>labs.petNames[id]).join(", ");
-  const operands=r.operands.map((o,i)=>"input "+i+": "+labs.petNames[o.subjectId]+"; "+
+  const operands=r.upstreamResults.length?r.upstreamResults.length+" certified calculation input"+(r.upstreamResults.length===1?"":"s"):r.operands.map((o,i)=>"input "+i+": "+labs.petNames[o.subjectId]+"; "+
    (o.dimension==="instant"?o.eventAt:o.literal+"; event "+o.eventAt)).join("; ");
   const group=certificate?.groups.find(g=>g.calculationIds.includes(r.id));
   const rank=group?.rank;

@@ -15,8 +15,8 @@ export function selectCalculationResults(plan:CalculatePlan,results:readonly Cal
  if(results.length!==plan.calculations.length||results.some(r=>r.status!=="certified"))return limited();
  const candidates=plan.calculations.map(c=>{
   const matches=results.filter(r=>r.id===c.id);if(matches.length!==1||matches[0].status!=="certified")return null;
-  const r=matches[0],subjectId=c.operands[0]?.subjectId;
-  if(r.subjectIds.length!==1||r.subjectIds[0]!==subjectId||r.unit!==c.resultUnit)return null;
+  const r=matches[0],subjectId=c.operands[0]&&"subjectId" in c.operands[0]?c.operands[0].subjectId:null;
+  if(!subjectId||r.subjectIds.length!==1||r.subjectIds[0]!==subjectId||r.unit!==c.resultUnit)return null;
   return {calculationId:r.id,subjectId,exact:r.exact,unit:r.unit,sourceIds:[...r.sourceIds]};
  });
  if(candidates.some(c=>!c))return limited();
