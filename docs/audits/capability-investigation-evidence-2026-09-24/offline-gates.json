@@ -1,0 +1,383 @@
+[
+  {
+    "label": "schemaFocused",
+    "files": [
+      "tests/history-publication-capability.test.mjs",
+      "tests/read-ticket-provider-parity.test.mjs",
+      "tests/typed-read-ticket.test.mjs",
+      "tests/ask-compositional-emission.test.mjs",
+      "tests/ask-id-free-probes.test.mjs",
+      "tests/ask-one-interpreter.test.mjs",
+      "tests/ask-direct-evidence-ticket.test.mjs",
+      "tests/ask-read-ticket-hygiene.test.mjs",
+      "tests/ask-read-ticket-diagnostics.test.mjs"
+    ],
+    "counts": {
+      "tests": 165,
+      "pass": 165,
+      "fail": 0
+    },
+    "failures": [],
+    "changed": [],
+    "missing": [],
+    "exit": 0,
+    "ok": true
+  },
+  {
+    "label": "eligibility",
+    "files": [
+      "tests/certified-sufficient-result-set.test.mjs"
+    ],
+    "counts": {
+      "tests": 45,
+      "pass": 45,
+      "fail": 0
+    },
+    "failures": [],
+    "changed": [],
+    "missing": [],
+    "exit": 0,
+    "ok": true
+  },
+  {
+    "label": "publicationFocused",
+    "files": [
+      "tests/ask-labs-list.test.mjs",
+      "tests/ordered-result-set.test.mjs",
+      "tests/result-read-selection.test.mjs",
+      "tests/ask-certificate-bound-publication.test.mjs",
+      "tests/ask-publication-authority-diagnostics.test.mjs",
+      "tests/ordinary-ask-authority-firewall.test.mjs",
+      "tests/factual-dispatch.test.mjs",
+      "tests/factual-dispatch-safety.test.mjs",
+      "tests/ask-mandatory-history-publication.test.mjs"
+    ],
+    "counts": {
+      "tests": 189,
+      "pass": 189,
+      "fail": 0
+    },
+    "failures": [],
+    "changed": [],
+    "missing": [],
+    "exit": 0,
+    "ok": true
+  },
+  {
+    "label": "focused",
+    "files": [
+      "tests/measurement-disambiguation.test.mjs"
+    ],
+    "counts": {
+      "tests": 74,
+      "pass": 74,
+      "fail": 0
+    },
+    "failures": [],
+    "changed": [],
+    "missing": [],
+    "exit": 0,
+    "ok": true
+  },
+  {
+    "label": "G1",
+    "files": [
+      "tests/canonical-calculation.test.mjs"
+    ],
+    "counts": {
+      "tests": 94,
+      "pass": 94,
+      "fail": 0
+    },
+    "failures": [],
+    "changed": [],
+    "missing": [],
+    "exit": 0,
+    "ok": true
+  },
+  {
+    "label": "G2",
+    "files": [
+      "tests/calculation-result-selection.test.mjs"
+    ],
+    "counts": {
+      "tests": 89,
+      "pass": 89,
+      "fail": 0
+    },
+    "failures": [],
+    "changed": [],
+    "missing": [],
+    "exit": 0,
+    "ok": true
+  },
+  {
+    "label": "G3A",
+    "files": [
+      "tests/calculation-dag.test.mjs"
+    ],
+    "counts": {
+      "tests": 89,
+      "pass": 89,
+      "fail": 0
+    },
+    "failures": [],
+    "changed": [],
+    "missing": [],
+    "exit": 0,
+    "ok": true
+  },
+  {
+    "label": "retirement",
+    "files": [
+      "tests/legacy-calculation-retirement.test.mjs"
+    ],
+    "counts": {
+      "tests": 5,
+      "pass": 5,
+      "fail": 0
+    },
+    "failures": [],
+    "changed": [],
+    "missing": [],
+    "exit": 0,
+    "ok": true
+  },
+  {
+    "label": "retrieval",
+    "files": [
+      "tests/furvise-lungs.test.mjs",
+      "tests/furvise-effective-selection.test.mjs",
+      "tests/furvise-compositional-read.test.mjs",
+      "tests/furvise-temporal-selection.test.mjs",
+      "tests/ordered-result-set.test.mjs",
+      "tests/result-read-selection.test.mjs",
+      "tests/supporting-context.test.mjs",
+      "tests/typed-read-ticket.test.mjs",
+      "tests/legacy-read-selection.test.mjs"
+    ],
+    "counts": {
+      "tests": 239,
+      "pass": 239,
+      "fail": 0
+    },
+    "failures": [],
+    "changed": [],
+    "missing": [],
+    "exit": 0,
+    "ok": true
+  },
+  {
+    "label": "brain",
+    "files": [
+      "tests/ask-compositional-emission.test.mjs",
+      "tests/ask-read-ticket-diagnostics.test.mjs",
+      "tests/ask-one-interpreter.test.mjs",
+      "tests/ask-working-memory-interpretation.test.mjs",
+      "tests/furvise-brain-interpretation-authority.test.mjs",
+      "tests/ask-interpretation-timeout.test.mjs"
+    ],
+    "counts": {
+      "tests": 78,
+      "pass": 78,
+      "fail": 0
+    },
+    "failures": [],
+    "changed": [],
+    "missing": [],
+    "exit": 0,
+    "ok": true
+  },
+  {
+    "label": "body",
+    "files": [
+      "tests/ask-direct-evidence-ticket.test.mjs",
+      "tests/ask-interpretation-timeout.test.mjs",
+      "tests/ask-one-interpreter.test.mjs",
+      "tests/ask-read-ticket-diagnostics.test.mjs",
+      "tests/ask-route-ordering.test.mjs",
+      "tests/ask-selection-publication.test.mjs",
+      "tests/furvise-compositional-read.test.mjs",
+      "tests/furvise-correction-provenance.test.mjs",
+      "tests/furvise-effective-selection.test.mjs",
+      "tests/furvise-heart-receipt.test.mjs",
+      "tests/furvise-lungs.test.mjs",
+      "tests/furvise-multi-need-ticket.test.mjs",
+      "tests/furvise-read-obligations.test.mjs",
+      "tests/furvise-replace-ticket.test.mjs",
+      "tests/furvise-temporal-selection.test.mjs"
+    ],
+    "counts": {
+      "tests": 188,
+      "pass": 188,
+      "fail": 0
+    },
+    "failures": [],
+    "changed": [],
+    "missing": [],
+    "exit": 0,
+    "ok": true
+  },
+  {
+    "label": "core",
+    "files": [
+      "tests/ask-selection-publication.test.mjs",
+      "tests/ask-mandatory-history-publication.test.mjs",
+      "tests/history-review-authority-outcomes.test.mjs",
+      "tests/history-labs-transport-authority.test.mjs"
+    ],
+    "counts": {
+      "tests": 51,
+      "pass": 51,
+      "fail": 0
+    },
+    "failures": [],
+    "changed": [],
+    "missing": [],
+    "exit": 0,
+    "ok": true
+  },
+  {
+    "label": "publication",
+    "files": [
+      "tests/ask-certificate-bound-publication.test.mjs",
+      "tests/ask-selection-publication.test.mjs",
+      "tests/ask-labs-list.test.mjs",
+      "tests/ask-publication-authority-diagnostics.test.mjs",
+      "tests/ask-publication-contract.test.mjs",
+      "tests/ask-direct-evidence-ticket.test.mjs"
+    ],
+    "counts": {
+      "tests": 85,
+      "pass": 85,
+      "fail": 0
+    },
+    "failures": [],
+    "changed": [],
+    "missing": [],
+    "exit": 0,
+    "ok": true
+  },
+  {
+    "label": "profile",
+    "files": [
+      "tests/ask-profile-read.test.mjs",
+      "tests/pet-profile-save-regression.test.mjs",
+      "tests/profile-authority-characterization.test.mjs",
+      "tests/profile-field-authority.test.mjs",
+      "tests/scalar-authority-characterization.test.mjs"
+    ],
+    "counts": {
+      "tests": 78,
+      "pass": 78,
+      "fail": 0
+    },
+    "failures": [],
+    "changed": [],
+    "missing": [],
+    "exit": 0,
+    "ok": true
+  },
+  {
+    "label": "mutations",
+    "files": [
+      "tests/canonical-replace-fidelity.test.mjs",
+      "tests/append-items-authority.test.mjs",
+      "tests/lifecycle-plan.test.mjs",
+      "tests/profile-mutation-job.test.mjs",
+      "tests/owner-preference-mutation.test.mjs",
+      "tests/state-transition-job.test.mjs",
+      "tests/ask-route-ordering.test.mjs"
+    ],
+    "counts": {
+      "tests": 184,
+      "pass": 184,
+      "fail": 0
+    },
+    "failures": [],
+    "changed": [],
+    "missing": [],
+    "exit": 0,
+    "ok": true
+  },
+  {
+    "label": "security",
+    "files": [
+      "tests/ask-action-capability-v1.test.mjs",
+      "tests/ask-action-capability-security-regressions.test.mjs",
+      "tests/ask-action-capability-target-freshness-expiry.test.mjs",
+      "tests/ask-shared-operation-contracts.test.mjs",
+      "tests/ask-model-intent-authority.test.mjs",
+      "tests/furvise-heart-receipt.test.mjs",
+      "tests/furvise-replace-ticket.test.mjs"
+    ],
+    "counts": {
+      "tests": 84,
+      "pass": 84,
+      "fail": 0
+    },
+    "failures": [],
+    "changed": [],
+    "missing": [],
+    "exit": 0,
+    "ok": true
+  },
+  {
+    "label": "safety",
+    "files": [
+      "tests/ask-episode-membership-contract.test.mjs",
+      "tests/ask-evidence-boundaries.test.mjs",
+      "tests/ask-evidence-contract.test.mjs",
+      "tests/ask-evidence-needs.test.mjs",
+      "tests/ask-labs-list.test.mjs",
+      "tests/ask-post-review-finalizer-contract.test.mjs",
+      "tests/ask-private-review-audit.test.mjs",
+      "tests/ask-whole-review-contract.test.mjs",
+      "tests/furvise-episode-ticket.test.mjs"
+    ],
+    "counts": {
+      "tests": 56,
+      "pass": 54,
+      "fail": 2
+    },
+    "failures": [
+      "episode membership production callback regressions",
+      "reviewed Ask effects execute inside the single Brain handoff"
+    ],
+    "changed": [],
+    "missing": [],
+    "exit": 1,
+    "ok": true
+  },
+  {
+    "label": "audit",
+    "files": [
+      "scripts/audits/ask-evidence-contract.cases.mjs",
+      "scripts/audits/ask-shared-request-contract.cases.mjs"
+    ],
+    "counts": {
+      "tests": 222,
+      "pass": 209,
+      "fail": 13
+    },
+    "failures": [
+      "premise repair is bounded and revalidates exact user evidence",
+      "a premise repair cannot authorize invented pets or mutation scope",
+      "read planner can omit extraction while writes still require a valid frame",
+      "five-pet earliest/latest weight retrieval certifies both endpoint pairs even when lexical weight matching misses weighed prose",
+      "real admission lets a repaired planner reach composition without opening extra repair cycles",
+      "supplied premises narrow stale owned-history plans without granting writes",
+      "general knowledge never widens owned authority and saved history still validates ownership",
+      "supplied-context classification requires actual verbatim user premises",
+      "missing premises use bounded repair without inventing evidence",
+      "event evidence survives both budgets among verbose routine observations",
+      "rejected event answers retain relevant source excerpts instead of the latest profile",
+      "new observation plus calculation can repair an invalid correction plan without weakening validation",
+      "a failed mixed answer cannot commit proposed observation side effects"
+    ],
+    "changed": [],
+    "missing": [],
+    "exit": 1,
+    "ok": true
+  }
+]

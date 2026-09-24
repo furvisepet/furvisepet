@@ -26,28 +26,58 @@ export function requiresHistoryPublicationAuthority(evidence: AskEvidenceContrac
 export function isOrdinarySavedHistoryRequest(request: { mode?: string | null; evidenceBasis?: string | null } | undefined): boolean {
   return request?.mode === "read" && request.evidenceBasis === "saved_history";
 }
-export function supportedHistoryPublication(evidence: AskEvidenceContract): boolean {
+/** One inspectable, side-effect-free evaluation of the existing capability gate.
+ * This is capability only: organ receipts and transport snapshots still own facts.
+ * The two modes preserve the existing history and plain-result-set boundaries. */
+export function historyPublicationCapability(evidence: AskEvidenceContract,
+  kind: "history" | "plain_result_set" = "plain_result_set") {
   const request = evidence.interpretation?.request, ticket = request?.readTicket;
   const presentation = labsPresentation(request?.outputFormat);
-  return !!ticket && evidence.scope.readOnlyRecall && evidence.scope.status === "resolved"
-    && !request?.writeJob && !request?.appendJob && !request?.mutationIntent && !request?.task
-    && !request?.projection && !request?.profileFields?.length && !request?.evidenceNeeds?.length && !request?.requirements?.length
-    && presentation !== null && (!!ticket.selection || presentation === "prose")
-    && !ticket.needs?.length && !ticket.episode && !ticket.temporal.calendar && ticket.outputs.strategy == null
-    && ["read", "read_since_event"].includes(ticket.operation)
-    && ["records", "measurement"].includes(request?.quantity || "")
-    && [undefined, "recall"].includes(evidence.interpretation?.readOperation ?? evidence.interpretation?.operation)
-    && ticket.subjects.petIds.length > 0
-    && ticket.subjects.petIds.every(id => evidence.scope.authorizedPetIds.includes(id));
+  const reasons: string[] = [];
+  const reject = (condition: unknown, reason: string) => { if (condition) reasons.push(reason); };
+  reject(!ticket, "ticket_absent");
+  reject(!evidence.scope.readOnlyRecall, "scope_not_read_only");
+  reject(evidence.scope.status !== "resolved", "scope_unresolved");
+  reject(request?.writeJob, "write_job_present");
+  reject(request?.appendJob, "append_job_present");
+  reject(request?.mutationIntent, "mutation_intent_present");
+  reject(request?.task, "task_present");
+  reject(request?.projection, "projection_present");
+  reject(request?.profileFields?.length, "profile_fields_present");
+  reject(request?.evidenceNeeds?.length, "evidence_needs_present");
+  reject(request?.requirements?.length, "requirements_present");
+  reject(presentation === null || !ticket?.selection && presentation !== "prose", "unsupported_presentation");
+  if (ticket) {
+    reject(ticket.needs?.length, "ticket_needs_present");
+    reject(ticket.episode, "episode_present");
+    reject(ticket.temporal.calendar, "calendar_present");
+    reject(ticket.outputs.strategy != null, "strategy_present");
+    reject(!["read", "read_since_event"].includes(ticket.operation), "unsupported_ticket_operation");
+    reject(!ticket.subjects.petIds.length, "subjects_empty");
+    reject(ticket.subjects.petIds.some(id => !evidence.scope.authorizedPetIds.includes(id)), "subject_unauthorized");
+  }
+  reject(!["records", "measurement"].includes(request?.quantity || ""), "unsupported_quantity");
+  reject(![undefined, "recall"].includes(evidence.interpretation?.readOperation ?? evidence.interpretation?.operation),
+    "unsupported_read_operation");
+  if (kind === "plain_result_set") {
+    reject(!requiresHistoryPublicationAuthority(evidence), "not_ordinary_saved_history");
+    reject(!ticket || !isOrderedResultSet(ticket), "not_ordered_result_set");
+    reject(request?.calculatePlan, "calculation_present");
+    reject(request?.storedRead, "stored_read_present");
+    reject(request?.recordSelection, "record_selection_present");
+    reject(request?.removeJob, "remove_job_present");
+    reject(request?.fieldMutationJob, "field_mutation_present");
+    reject(request?.stateTransitionJob, "state_transition_present");
+    reject(request?.lifecyclePlan, "lifecycle_plan_present");
+  }
+  return { supported: reasons.length === 0, reasons };
 }
-/** Plain recall has no independent task or alternate factual domain. The existing
- * typed publication contract owns capability; result-set receipts own facts. */
+export function supportedHistoryPublication(evidence: AskEvidenceContract): boolean {
+  return historyPublicationCapability(evidence, "history").supported;
+}
+/** Plain recall retains the same additional domain and task exclusions. */
 export function supportedPlainResultSetRead(evidence: AskEvidenceContract): boolean {
-  const request = evidence.interpretation?.request;
-  return requiresHistoryPublicationAuthority(evidence) && supportedHistoryPublication(evidence)
-    && !!request?.readTicket && isOrderedResultSet(request.readTicket) && !request.calculatePlan && !request.storedRead
-    && !request?.recordSelection && !request?.removeJob && !request?.fieldMutationJob
-    && !request?.stateTransitionJob && !request?.lifecyclePlan;
+  return historyPublicationCapability(evidence).supported;
 }
 // A publication transport is distinct from prompt representation. Its rows
 // acquire authority only by matching existing organ receipts; Labs callers also

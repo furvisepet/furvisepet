@@ -1,4 +1,4 @@
-import { supportedPlainResultSetRead } from "./publication-authority.ts";
+import { historyPublicationCapability, supportedPlainResultSetRead } from "./publication-authority.ts";
 import { certifiedResultSetMatches } from "./result-set-publication.ts";
 import { createHash } from "node:crypto";
 import { careEvidenceId, eligibleAnswerSources, type AskEvidenceContract } from "./ask-evidence.ts";
@@ -48,6 +48,7 @@ export function logLabsEligibility(evidence: AskEvidenceContract | undefined, ro
         && "selection.interpretation.operation.unsupported",
     ].filter((value): value is string => typeof value === "string");
     return { eligible: rejectedBy.length === 0, rejectedBy,
+      capability: historyPublicationCapability(evidence),
       // These are pre-source-validation eligibility gates, not a publication approval.
       stage: "pre_source_validation", selectionPresent: !!ticket!.selection,
       mode: request.mode, writeJobPresent: !!request.writeJob, mutationIntent: request.mutationIntent ?? null,
@@ -108,6 +109,8 @@ export function logPublicationDispatch(evidence: AskEvidenceContract | undefined
     const labsComplete = path !== "labs" ? null : selection ? selection.transportValid && selection.complete
       && (ticket!.outputs.completeness !== "exhaustive" || historyComplete) : historyComplete;
     return { path, minimumSafetyLevel, sentToModelGeneration: path === "model",
+    capability: historyPublicationCapability(evidence),
+    historyCapability: historyPublicationCapability(evidence, "history"),
     labsClaimsTaskSatisfied: labsComplete,
     obligations: buildHistoryObligations(evidence).map(obligation => ({
       ...obligationAuthority(evidence, obligation, rows), labsClaimsObligationSatisfied:
