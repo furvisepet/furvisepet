@@ -285,6 +285,7 @@ test("complete and represented remain separate in the existing deterministic Lab
  const noProvider={responses:{create:async()=>{throw Error("NO_PROVIDER_CALL");}}};
  for(const size of [4,40]){
   const r=await setParity(unbounded(),Array.from({length:size},(_,i)=>row("a",i)),{pets:["a"]});
+  if(size>32){assert.equal(r.labs,null);await assertUnavailable(r);continue;}
   const result={labsList:r.labs,evidenceContract:evidence(r.ticket,r.result),
    answer:{title:"Furvise",summary:serializeLabsList(r.labs),sections:[],safetyNote:null},
    relevantContextIds:r.labs.records.map(r=>r.sourceId),applicationActions:[],careActions:[],semanticEvents:[],learnings:[],

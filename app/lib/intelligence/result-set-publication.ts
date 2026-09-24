@@ -38,3 +38,10 @@ export function resultSetSnapshotMatches(ticket: ReadTicket, coverage: ReadCover
     && proof.certified === proof.subjects.every(s => s.certified)
     && (!["complete", "complete_empty"].includes(coverage.status) || proof.certified);
 }
+
+/** Reuse the organ receipt and exact transport check; never infer completeness here. */
+export function certifiedResultSetMatches(ticket: ReadTicket, coverage: ReadCoverage,
+  records: readonly { id: string; petId: string }[]): boolean {
+  return !!coverage.resultSet?.certified && ["complete", "complete_empty"].includes(coverage.status)
+    && resultSetSnapshotMatches(ticket, coverage, records);
+}

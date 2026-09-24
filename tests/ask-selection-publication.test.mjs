@@ -147,7 +147,8 @@ test('missing certificates cannot turn global partial or empty evidence into tas
 });
 // Class C: raw retained rows without selection or result-set proof no longer authorize facts.
 async function unprovenHistory(f){
- const stale=publish(f);
+ assert.equal(buildLabsList(f.evidence,f.rows),null);
+ const stale=publish(await fixture());stale.evidenceContract=f.evidence;
  assert.equal(await reviewHistoricalAnswer({result:stale,client:noProvider}),false);
  assert.equal(validateGeneratedAnswer(stale,f.context,'routine',petIds).valid,false);
  // Actual loaded model spans do not rescue an unproven factual obligation.

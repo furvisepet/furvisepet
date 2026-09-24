@@ -1,8 +1,9 @@
+import { isOrderedResultSet } from "../furvise-brain/ordered-result-set.ts";
 import { isStoredRead, storedReadResult } from "./stored-read-publication.ts";
 import { isTypedProfileRead, profileFieldProjection, profileFieldSentence, type AuthorizedProfileField } from "./profile-field-authority.ts";
 import { careEvidenceId, eligibleAnswerSources, type AskEvidenceContract } from "./ask-evidence.ts";
 import { selectionPublication } from "./selection-publication.ts";
-import { resultSetSnapshotMatches } from "./result-set-publication.ts";
+import { certifiedResultSetMatches } from "./result-set-publication.ts";
 import { labsPresentation } from "./labs-presentation.ts";
 import { buildEvidenceNeedCoverage } from "./evidence-need-coverage.ts";
 import { historyNarrativeAnchorsSupported } from "./history-narrative-facts.ts";
@@ -38,6 +39,15 @@ export function supportedHistoryPublication(evidence: AskEvidenceContract): bool
     && [undefined, "recall"].includes(evidence.interpretation?.readOperation ?? evidence.interpretation?.operation)
     && ticket.subjects.petIds.length > 0
     && ticket.subjects.petIds.every(id => evidence.scope.authorizedPetIds.includes(id));
+}
+/** Plain recall has no independent task or alternate factual domain. The existing
+ * typed publication contract owns capability; result-set receipts own facts. */
+export function supportedPlainResultSetRead(evidence: AskEvidenceContract): boolean {
+  const request = evidence.interpretation?.request;
+  return requiresHistoryPublicationAuthority(evidence) && supportedHistoryPublication(evidence)
+    && !!request?.readTicket && isOrderedResultSet(request.readTicket) && !request.calculatePlan && !request.storedRead
+    && !request?.recordSelection && !request?.removeJob && !request?.fieldMutationJob
+    && !request?.stateTransitionJob && !request?.lifecyclePlan;
 }
 // A publication transport is distinct from prompt representation. Its rows
 // acquire authority only by matching existing organ receipts; Labs callers also
@@ -79,11 +89,12 @@ function deriveOrdinaryHistoryAuthority(evidence: AskEvidenceContract, transport
     }));
   } else {
     const proof = coverage.resultSet;
+    if (!supportedPlainResultSetRead(evidence)) return unavailable("unsupported");
     if (!proof) return unavailable("unavailable");
     const records = transport || proof.retainedIds.flatMap(id => proof.subjects.filter(s => s.retainedIds.includes(id))
       .filter(s => represented(id, s.petId)).map(s => ({ id, petId: s.petId })));
-    transportValid = resultSetSnapshotMatches(ticket!, coverage, records);
-    if (!transportValid || !proof.certified) return unavailable(coverage.status === "unavailable" ? "unavailable" : "partial");
+    transportValid = certifiedResultSetMatches(ticket!, coverage, records);
+    if (!transportValid) return unavailable(coverage.status === "unavailable" ? "unavailable" : "partial");
     obligations = proof.subjects.map(s => ({
       obligationId: `result_set:${s.petId}`, subjectId: s.petId, authority: "certified",
       certificateType: "result_set", status: s.retainedIds.length ? "complete" : "complete_empty",

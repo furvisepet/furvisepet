@@ -120,9 +120,9 @@ test('no serializer chunk cap: all 32 organ-bounded records survive',async()=>{
  assert.equal(await reviewHistoricalAnswer({result,client:noProvider}),true);
  assert.equal(result.answer.summary.split('\n\n').length,32);
 });
-test('mixed/write/compare/measurement tickets never enter list serialization; legacy narrative cap stays eight',async()=>{
+test('mixed/write/compare tickets never enter list serialization; legacy narrative cap stays eight',async()=>{
  for(const mutate of [e=>e.interpretation.request.mode='mixed',e=>e.interpretation.request.writeJob={},
-  e=>e.interpretation.request.readTicket.operation='compare',e=>{e.interpretation.request.quantity='measurement';e.interpretation.request.readTicket.outputs.completeness='sufficient';}]){
+  e=>e.interpretation.request.readTicket.operation='compare']){
   const f=await fixture();const evidence=structuredClone(f.evidence),rows=f.rows;mutate(evidence);assert.equal(buildLabsList(evidence,rows),null);
  }
  assert.equal(historyNarrativeSchema.properties.sentences.maxItems,8);

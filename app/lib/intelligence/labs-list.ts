@@ -1,4 +1,5 @@
-import { resultSetSnapshotMatches } from "./result-set-publication.ts";
+import { supportedPlainResultSetRead } from "./publication-authority.ts";
+import { certifiedResultSetMatches, resultSetSnapshotMatches } from "./result-set-publication.ts";
 import { selectionPublication } from "./selection-publication.ts";
 import { logLabsEligibility } from "./publication-authority-diagnostics.ts";
 import { selectionLimitation, exhaustiveSelectionLimitation } from "./labs-coverage-presentation.ts";
@@ -38,8 +39,8 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
     readOnly: evidence?.scope.readOnlyRecall, scope: evidence?.scope.status, coverage: coverage?.status, recordCount: rows.length });
   if (!evidence || !ticket || ticket.episode || !coverage || request?.mode !== "read" || request.writeJob || request.mutationIntent
     || !evidence.scope.readOnlyRecall || evidence.scope.status !== "resolved"
-    || !["read", "read_since_event"].includes(ticket.operation)
-    || !ticket.selection && ticket.outputs.completeness !== "exhaustive" && request.quantity !== "records") return null;
+    || !["read", "read_since_event"].includes(ticket.operation)) return null;
+  if (!ticket.selection && !operandTransport && !supportedPlainResultSetRead(evidence)) return null;
   // Selected reports do not fulfill a distinct count, comparison, aggregation,
   // navigation obligation. Those keep their own review. Format is not authority.
   if (ticket.selection && !operandTransport && (request.task || request.projection || request.evidenceNeeds?.length
@@ -54,6 +55,8 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
     throw new Error("ASK_LABS_LIST_COVERAGE_SHAPE");
   if (!resultSetSnapshotMatches(ticket, coverage, rows.map(row => ({ id: row.id, petId: row.pet_profile_id }))))
     throw new Error("ASK_LABS_RESULT_SET_SNAPSHOT");
+  if (!ticket.selection && !operandTransport
+    && !certifiedResultSetMatches(ticket, coverage, rows.map(row => ({ id: row.id, petId: row.pet_profile_id })))) return null;
   // Preserve organ order and exact bodies. With selection, publish only the
   // records its existing receipts certify; never select or match again here.
   const selection = selectionPublication(ticket, coverage, rows.map(row => ({ id: row.id, petId: row.pet_profile_id })));

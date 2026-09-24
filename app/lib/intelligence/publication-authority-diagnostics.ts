@@ -1,3 +1,5 @@
+import { supportedPlainResultSetRead } from "./publication-authority.ts";
+import { certifiedResultSetMatches } from "./result-set-publication.ts";
 import { createHash } from "node:crypto";
 import { careEvidenceId, eligibleAnswerSources, type AskEvidenceContract } from "./ask-evidence.ts";
 import { selectionPublication } from "./selection-publication.ts";
@@ -35,8 +37,9 @@ export function logLabsEligibility(evidence: AskEvidenceContract | undefined, ro
       !evidence.scope.readOnlyRecall && "scope.readOnlyRecall.false",
       evidence.scope.status !== "resolved" && "scope.status.not_resolved",
       !["read", "read_since_event"].includes(ticket!.operation) && "ticket.operation.unsupported",
-      !ticket!.selection && ticket!.outputs.completeness !== "exhaustive" && request.quantity !== "records"
-        && "legacy.non_exhaustive_non_records",
+      !ticket!.selection && !supportedPlainResultSetRead(evidence) && "result_set.request.unsupported",
+      !ticket!.selection && !!coverage && !certifiedResultSetMatches(ticket!, coverage, rows)
+        && "result_set.not_certified_or_transport_invalid",
       ticket!.selection && request.task && "selection.request.task.present",
       ticket!.selection && request.projection && "selection.request.projection.present",
       ticket!.selection && request.evidenceNeeds?.length && "selection.request.evidenceNeeds.nonempty",
@@ -73,16 +76,23 @@ function obligationAuthority(evidence: AskEvidenceContract, obligation: HistoryO
   const { ticket, selection } = authority(evidence, rows);
   const sources = eligibleAnswerSources(evidence);
   const certificates = selection?.certificates.filter(c => !obligation.petId || c.subjectId === obligation.petId) || [];
-  const eventIds = unique(certificates.filter(c => c.certified).flatMap(c => c.selectedEventIds));
+  const resultSetCertified = !!ticket && !ticket.selection && !!evidence.history?.ticketCoverage
+    && supportedPlainResultSetRead(evidence)
+    && certifiedResultSetMatches(ticket, evidence.history.ticketCoverage, rows || evidence.history.ticketCoverage.resultSet?.subjects
+      .flatMap(s => s.retainedIds.map(id => ({ id, petId: s.petId }))) || []);
+  const eventIds = resultSetCertified ? evidence.history!.ticketCoverage!.resultSet!.retainedIds
+    : unique(certificates.filter(c => c.certified).flatMap(c => c.selectedEventIds));
   // Certificates describe the selected component, never additional prose/need obligations.
   const mapsToSelection = obligation.index === 0 && !obligation.needId;
   return { obligationId: "obligation_" + obligation.index, needIdHash: obligation.needId ? digest(obligation.needId) : null,
     subjectId: obligation.petId || null, semanticRequirement: {
-      kind: mapsToSelection && ticket?.selection ? "selected_records" : obligation.needId ? "retrieval_probe" : "additional_obligation",
+      kind: mapsToSelection && ticket?.selection ? "selected_records" : mapsToSelection && resultSetCertified ? "result_set_records"
+        : obligation.needId ? "retrieval_probe" : "additional_obligation",
       operation: ticket?.operation ?? null, completeness: ticket?.outputs.completeness ?? null,
       selection: ticket?.selection || null, predicateKinds: ticket?.predicates.map(p => p.kind) || [],
       anchored: !!ticket?.temporal.anchor, explicitWindow: !!(ticket?.temporal.from || ticket?.temporal.to) },
-    mapping: mapsToSelection ? "selected_component_only" : "no_certificate_binding",
+    mapping: mapsToSelection ? resultSetCertified ? "result_set_component_only" : "selected_component_only" : "no_certificate_binding",
+    resultSetComponentCertified: mapsToSelection && resultSetCertified,
     certificateAuthorizedEventIds: mapsToSelection ? eventIds : [],
     certificateAuthorizedSourceIds: mapsToSelection ? eventIds.map(id => careEvidenceId(id, evidence.history)) : [],
     selectionComponentCertified: mapsToSelection && !!selection?.transportValid && certificates.length > 0 && certificates.every(c => c.certified),
