@@ -67,13 +67,13 @@ test('terminal bypass requires the existing review receipt and successful valida
   const f=await fixture('csv');await reviewHistoricalAnswer({result:f.reasoning,client:globalThis.__profileFinalizationProvider});
   const validation=validateGeneratedAnswer(f.reasoning,f.context,'routine',[pet.id]);assert.equal(validation.valid,true);
   if(missing==='receipt')clearHistoryReview(validation.response);else validation.valid=false;
-  await assert.rejects(reviewTaskCompletion({validation,context:f.context,requestId:f.requestId,validate:()=>validation,client:globalThis.__profileFinalizationProvider}),/PROFILE_FINALIZATION_PROVIDER_FORBIDDEN/);
-  assert.equal(calls,1);
+  const reviewed=await reviewTaskCompletion({validation,context:f.context,requestId:f.requestId,validate:()=>validation,client:globalThis.__profileFinalizationProvider});
+  assert.equal(reviewed.valid,false);assert.equal(calls,0);
  }
 });
-test('supported profile factual answers retain their separate task-review behavior',async()=>{
+test('supported profile factual answers retain deterministic receipt-bound validation',async()=>{
  const f=await fixture('prose');await reviewHistoricalAnswer({result:f.reasoning,client:globalThis.__profileFinalizationProvider});
  const validation=validateGeneratedAnswer(f.reasoning,f.context,'routine',[pet.id]);assert.equal(validation.valid,true);
- await assert.rejects(reviewTaskCompletion({validation,context:f.context,requestId:f.requestId,validate:()=>validation,client:globalThis.__profileFinalizationProvider}),/PROFILE_FINALIZATION_PROVIDER_FORBIDDEN/);
- assert.equal(calls,1);
+ const reviewed=await reviewTaskCompletion({validation,context:f.context,requestId:f.requestId,validate:()=>validation,client:globalThis.__profileFinalizationProvider});
+ assert.equal(reviewed,validation);assert.ok(readReviewedHistoryAnswer(reviewed.response));assert.equal(calls,0);
 });

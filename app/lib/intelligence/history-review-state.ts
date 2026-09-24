@@ -1,3 +1,4 @@
+import { factualLimitationFailure, FACTUAL_UNAVAILABLE, FACTUAL_LIMITATION } from "./factual-dispatch.ts";
 import { isStoredRead, storedReadPublicationFailure, storedReadPublishedResult } from "./stored-read-publication.ts";
 import { historyLimitationFailure, historyPublicationLimitation } from "./ordinary-history-publication.ts";
 import { unsupportedProfilePresentation, profilePresentationLimitationFailure, PROFILE_PRESENTATION_UNAVAILABLE, PROFILE_PRESENTATION_LIMITATION } from "./profile-presentation-limitation.ts";
@@ -16,6 +17,12 @@ export function recordHistoryReview(result: AskReasoningResult, receipt: Receipt
 export function readReviewedHistoryAnswer(result: AskReasoningResult): Omit<Receipt, "signature"> | null {
   const receipt = reviewed.get(result);
   if (!receipt || receipt.signature !== historyReviewSignature(result)) return null;
+  if(result.model===FACTUAL_UNAVAILABLE){
+    if(factualLimitationFailure(result)||receipt.text!==FACTUAL_LIMITATION||receipt.sourceIds.length
+      ||receipt.sourceContent?.length||receipt.sourceReports?.length||receipt.proseText!==undefined
+      ||receipt.actions?.length||receipt.authorityClaims?.length||receipt.completion?.length)return null;
+    return {text:receipt.text,sourceIds:[],sourceContent:[]};
+  }
   if (isStoredRead(result.evidenceContract)) {
     if(storedReadPublicationFailure(result) || receipt.text!==result.answer.summary
       || JSON.stringify(receipt.sourceIds)!==JSON.stringify(result.relevantContextIds)

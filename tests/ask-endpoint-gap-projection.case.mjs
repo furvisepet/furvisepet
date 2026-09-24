@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { deterministicReadProjection } from '../app/lib/intelligence/read-projection.ts';
+import { assertStoredPublicationUnavailable } from './helpers/unsupported-stored-publication.mjs';
 import { verifiedCalculationQuantities } from '../app/lib/intelligence/history-calculation.ts';
 
 const pets=[
@@ -36,23 +36,12 @@ function evidence(){
   };
 }
 
-test('two-pet lifetime endpoint projection computes the difference between changes from original operands',()=>{
+test("unsupported legacy reconstruction: two-pet lifetime endpoint projection computes the difference between changes from original operands",async()=>{
   const e=evidence();
-  const result=deterministicReadProjection(e);
-  assert.ok(result);
-  assert.equal(result.sentences.length,3);
-  assert.match(result.sentences[0].text,/Aster.*\+6\.6 kg/i);
-  assert.match(result.sentences[1].text,/Cedar.*\+3\.7 kg/i);
-  assert.match(result.sentences[2].text,/Aster's change was 2\.9 kg larger than Cedar's/i);
-  const calc=result.sentences[2].calculations[0];
-  assert.equal(calc.operation,'expression');
-  assert.deepEqual(calc.expression,[0,1,'subtract',2,3,'subtract','subtract']);
-  assert.equal(calc.value,2.9);
-  const sourceSpans=e.represented.map(s=>({sourceId:s.sourceId,text:s.text,occurredAt:s.occurredAt}));
-  assert.ok(verifiedCalculationQuantities([calc],sourceSpans));
+  await assertStoredPublicationUnavailable(e);
 });
 
-test('four-pet long endpoint request completes ranking future-date coverage and correction disclosures',()=>{
+test("unsupported legacy reconstruction: four-pet long endpoint request completes ranking future-date coverage and correction disclosures",async()=>{
   const cohort=[
     ['a','Aster',23.71,30.31],
     ['b','Bramble',3.61,4.71],
@@ -82,19 +71,10 @@ test('four-pet long endpoint request completes ranking future-date coverage and 
     history:{corrections:'complete',endpointPairs,provenance,perPet:cohort.map(([id])=>({petId:id,rows:2,pages:2,exhausted:false,status:'partial'})),plan:{from:null,to:null,terms:[],interpretation:'broad_comparison'}},
     represented,
   };
-  const result=deterministicReadProjection(evidence);assert.ok(result);
-  const text=result.sentences.map(s=>s.text).join('\n');
-  for(const [,name] of cohort) assert.match(text,new RegExp(name+':'));
-  assert.match(text,/Aster gained the most at \+6\.6 kg/);
-  assert.match(text,/No pet lost weight/);
-  assert.match(text,/None of these endpoint dates is after today/);
-  assert.match(text,/endpoint searches across the accessible history window/i);
-  assert.match(text,/No endpoint correction or replacement was needed/);
-  assert.match(text,/Oct 15, 2016/);
-  assert.match(text,/Sep 15, 2026/);
+  await assertStoredPublicationUnavailable(evidence);
 });
 
-test('single-pet ten-years-ago comparison uses historical and latest endpoint pair',()=>{
+test("unsupported legacy reconstruction: single-pet ten-years-ago comparison uses historical and latest endpoint pair",async()=>{
   const q="How does that compare to hers from ten years ago?";
   const oldText='Dune weighed 4.81 kg.',newText='Dune weighed 6.61 kg.';
   const evidence={
@@ -109,9 +89,5 @@ test('single-pet ten-years-ago comparison uses historical and latest endpoint pa
       {sourceId:'care:dune:new',petId:'dune',sourceType:'care_update',field:'value',start:0,end:newText.length,text:newText,occurredAt:'2026-09-15T12:00:00Z'},
     ],
   };
-  const result=deterministicReadProjection(evidence);assert.ok(result);
-  const text=result.sentences.map(s=>s.text).join('\n');
-  assert.match(text,/Dune was 4\.81 kg on Oct 15, 2016/);
-  assert.match(text,/6\.61 kg on Sep 15, 2026/);
-  assert.match(text,/\+1\.8 kg/);
+  await assertStoredPublicationUnavailable(evidence);
 });

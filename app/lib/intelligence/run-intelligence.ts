@@ -360,7 +360,7 @@ export async function runFurviseIntelligence({
   // Presentation-only reconciliation happens after persistence governance and routing.
   if (proposedRecoveryPresentation) reasoning.intelligenceSafety.level = "recently_resolved";
   const { validation: answerValidation, suppressWrites: failedAnswer } = await finalizeAskAnswer({
-    reasoning, context, requestId, onProviderEvent, executionPlan,
+    reasoning, safety, context, requestId, onProviderEvent, executionPlan,
     authoritativePetIds: readPetIds.length ? readPetIds : [context.pet.id],
   });
   if (failedAnswer) {

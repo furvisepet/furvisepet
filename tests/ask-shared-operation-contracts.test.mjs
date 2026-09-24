@@ -9,7 +9,7 @@ import { emptyProposedSemanticFrame } from '../app/lib/intelligence/semantic-fra
 import { historyNarrativeAnchorsSupported } from '../app/lib/intelligence/history-narrative-facts.ts';
 import { isExplicitNoPersistenceRequest } from '../app/lib/intelligence/care-history-policy.ts';
 import { orchestrateAskTurn } from '../app/lib/ai/ask-orchestrator.ts';
-import { deterministicReadProjection } from '../app/lib/intelligence/read-projection.ts';
+import { assertStoredPublicationUnavailable } from './helpers/unsupported-stored-publication.mjs';
 import { enforceVerifiedStateClaims } from '../app/lib/application-actions/state-claims.ts';
 
 test('temporal evidence endpoints are independent of comparison vocabulary',()=>{
@@ -94,7 +94,7 @@ test('past-to-present weight comparisons require the current profile endpoint',(
  assert.equal(result.request.temporalScope,'historical_and_current');
  assert.equal(result.history.from,null); assert.equal(result.history.to,null);
 });
-test('past-to-present weight projection uses profile authority, not a later care observation',()=>{
+test('past-to-present comparison cannot reconstruct arithmetic from profile and history',async()=>{
  const requestText="Compare Fern's April 9, 2024 weight with her current recorded weight and give the absolute and percent change.";
  const profileText='3.8 kg',oldText='Fern body weight was 3.97 kg on 2024-04-09.',newerText='Fern body weight was 3.92 kg on 2026-08-09.';
  const evidence={version:'ask-evidence.v1',scope:{authorizedPetIds:['pet'],requestedTopic:'weight',requestText,requestedPeriod:{kind:'unspecified',surface:null},requestKind:'comparison',status:'resolved',readOnlyRecall:true},
@@ -107,20 +107,13 @@ test('past-to-present weight projection uses profile authority, not a later care
    {sourceId:'profile:pet:weight',petId:'pet',sourceType:'profile',field:'value',start:0,end:profileText.length,text:profileText},
    {sourceId:'care:old',petId:'pet',sourceType:'care_update',field:'value',start:0,end:oldText.length,text:oldText,occurredAt:'2024-04-09T12:00:00Z'},
    {sourceId:'care:newer',petId:'pet',sourceType:'care_update',field:'value',start:0,end:newerText.length,text:newerText,occurredAt:'2026-08-09T12:00:00Z'}]};
- const projection=deterministicReadProjection(evidence);
- assert.match(projection.sentences[0].text,/Fern went from 3\.97 kg on Apr 9, 2024 to 3\.8 kg now, a decrease of 0\.17 kg \(4\.3%\)/);
- assert.deepEqual(projection.sentences[0].sourceIds,['care:old','profile:pet:weight']);
- assert.deepEqual(projection.sentences[0].calculations.map(item=>item.value),[-0.17,-4.3]);
- const grams=deterministicReadProjection({...evidence,scope:{...evidence.scope,requestText:requestText+' Show the change in grams.'}});
- assert.match(grams.sentences[0].text,/decrease of 170 g/);
- assert.equal(grams.sentences[0].calculations[0].value,-170);
- assert.equal(grams.sentences[0].calculations[0].unit,'g');
- const monthEvidence={...evidence,scope:{...evidence.scope,requestText:requestText.replace('April 9,','April')+' Show the change in grams.'}};
- assert.match(deterministicReadProjection(monthEvidence).sentences[0].text,/Apr 9, 2024.*170 g/);
- const ambiguous={...monthEvidence,represented:[...evidence.represented,{...evidence.represented[1],sourceId:'care:newer',occurredAt:'2024-04-20T12:00:00Z'}]};
- assert.equal(deterministicReadProjection(ambiguous),null);
+ await assertStoredPublicationUnavailable(evidence);
+ await assertStoredPublicationUnavailable({...evidence,scope:{...evidence.scope,requestText:requestText+" Show the change in grams."}});
+ const monthEvidence={...evidence,scope:{...evidence.scope,requestText:requestText.replace("April 9,","April")}};
+ await assertStoredPublicationUnavailable(monthEvidence);
+ await assertStoredPublicationUnavailable({...monthEvidence,represented:[...evidence.represented,{...evidence.represented[1],sourceId:"care:newer",occurredAt:"2024-04-20T12:00:00Z"}]});
 });
-test('weight shortcut declines tasks that also request another current profile field',()=> {
+test('weight shortcut declines tasks that also request another current profile field',async()=> {
  const requestText='Compare Ziggy\'s September 13, 2022 weight with the current weight, give the change, and name the currently recorded food.';
  const oldText='Ziggy body weight was 8.7 kg on September 13, 2022 without equipment.';
  const evidence={version:'ask-evidence.v1',scope:{authorizedPetIds:['pet'],requestedTopic:'weight',requestText,requestedPeriod:{kind:'unspecified',surface:null},requestKind:'comparison',status:'resolved',readOnlyRecall:true},
@@ -132,10 +125,10 @@ test('weight shortcut declines tasks that also request another current profile f
    {sourceId:'profile:pet:weight',petId:'pet',sourceType:'profile',field:'value',start:0,end:6,text:'9.4 kg'},
    {sourceId:'profile:pet:current_food',petId:'pet',sourceType:'profile',field:'value',start:0,end:35,text:'whitefish-and-potato adult dry food'},
    {sourceId:'care:old',petId:'pet',sourceType:'care_update',field:'value',start:0,end:oldText.length,text:oldText,occurredAt:'2022-09-13T12:00:00Z'}]};
- assert.equal(deterministicReadProjection(evidence),null);
+ await assertStoredPublicationUnavailable(evidence);
 });
 
-test('quoted source text disambiguates same-day body mass and accepts recorded-weight phrasing',()=> {
+test('quoted source text cannot create an uncertified comparison',async()=> {
  const requestText='Compare Maple\'s September 9, 2022 weight from the note marked "elm compass" with her current recorded weight and give the exact kg change.';
  const profileText='12.7 kg';
  const otherText='Maple weighed 13.02 kg on 2022-09-09. This was body mass on the household scale with no carrier or harness included.';
@@ -150,13 +143,10 @@ test('quoted source text disambiguates same-day body mass and accepts recorded-w
    {sourceId:'profile:pet:weight',petId:'pet',sourceType:'profile',field:'value',start:0,end:profileText.length,text:profileText},
    {sourceId:'care:other',petId:'pet',sourceType:'care_update',field:'value',start:0,end:otherText.length,text:otherText,occurredAt:'2022-09-09T12:00:00Z'},
    {sourceId:'care:marked',petId:'pet',sourceType:'care_update',field:'value',start:0,end:markedText.length,text:markedText,occurredAt:'2022-09-09T13:00:00Z'}]};
- const projection=deterministicReadProjection(evidence);
- assert.ok(projection);
- assert.match(projection.sentences[0].text,/Maple went from 11\.8 kg on Sep 9, 2022 to 12\.7 kg now, an increase of 0\.9 kg/);
- assert.deepEqual(projection.sentences[0].sourceIds,['care:marked','profile:pet:weight']);
+ await assertStoredPublicationUnavailable(evidence);
 });
 
-test('cross-year exact body-mass comparison projects both literal dates server-side',()=> {
+test('cross-year comparison fails closed without canonical calculation authority',async()=> {
  const requestText="Compare Ziggy's body weight recorded on September 13, 2022 with September 9, 2026 and give the exact kg change.";
  const oldText='Ziggy body weight was 8.7 kg on September 13, 2022 without equipment.';
  const newText='Ziggy body weight was 9.4 kg on September 9, 2026 without equipment.';
@@ -168,14 +158,10 @@ test('cross-year exact body-mass comparison projects both literal dates server-s
   represented:[
    {sourceId:'care:old',petId:'pet',sourceType:'care_update',field:'value',start:0,end:oldText.length,text:oldText,occurredAt:'2022-09-13T12:00:00Z'},
    {sourceId:'care:new',petId:'pet',sourceType:'care_update',field:'value',start:0,end:newText.length,text:newText,occurredAt:'2026-09-09T12:00:00Z'}]};
- const projection=deterministicReadProjection(evidence);
- assert.ok(projection);
- assert.match(projection.sentences.map(x=>x.text).join(' '),/8\.7 kg.*9\.4 kg.*0\.7 kg/);
- assert.deepEqual(projection.sentences.at(-1).sourceIds,['care:old','care:new']);
- assert.equal(projection.sentences.at(-1).calculations[0].value,0.7);
+ await assertStoredPublicationUnavailable(evidence);
 });
 
-test('latest multi-pet body mass projection requires one verified unblocked boundary per pet',()=> {
+test('legacy multi-pet chronology metadata cannot replace selection certification',async()=> {
  const ids=Array.from({length:10},(_,i)=>`pet-${i+1}`), names=['Atlas','Clover','Cosmo','Juniper','Maple','Mochi','Nori','Pixel','Ziggy','Rowan'];
  const requestText='Give the latest recorded body weight for each of these 10 pets, keeping them separate. Include the date for each value.';
  const rows=ids.map((petId,i)=>({petId,sourceId:`care:latest-${i+1}`,text:i===0?'This morning his weight on our home scale registered at 5.10 kg.':`${names[i]} body weight was ${(2+i/2).toFixed(1)} kg on September 15, 2026 without equipment.`,occurredAt:'2026-09-15T12:00:00Z'}));
@@ -185,12 +171,9 @@ test('latest multi-pet body mass projection requires one verified unblocked boun
   ),interpretation:{selection:'latest',request:{mode:'read',evidenceBasis:'saved_history',quantity:'measurement',outputFormat:'table',referenceTurnIds:[]}},
   history:{corrections:'complete',chronology:rows.map(row=>({petId:row.petId,boundaryIds:[row.sourceId],blocked:false})),provenance:rows.map(row=>({sourceId:row.sourceId,status:'effective_linked'}))},
   represented:rows.map(row=>({sourceId:row.sourceId,petId:row.petId,sourceType:'care_update',field:'value',start:0,end:row.text.length,text:row.text,occurredAt:row.occurredAt}))};
- const projection=deterministicReadProjection(evidence);
- assert.ok(projection); assert.equal(projection.sentences.length,1);
- for(const name of names) assert.match(projection.sentences[0].text,new RegExp(`\\| ${name} \\| 2026-09-15 \\|`));
- assert.equal(projection.sentences[0].sourceIds.length,10);
+ await assertStoredPublicationUnavailable(evidence);
  const blocked=structuredClone(evidence);blocked.history.chronology[4].blocked=true;
- assert.equal(deterministicReadProjection(blocked),null);
+ await assertStoredPublicationUnavailable(blocked);
 });
 
 test('equivalent displayed units inherit verified measurement and calculation provenance', () => {
@@ -358,13 +341,13 @@ const {requestsSavedRecordLookup}=await import('../app/lib/intelligence/ask-requ
 for(const text of ['Do not check saved records. Use these two numbers only.', 'Suppose you could find a historical record.', 'Rowan ate normally. Save this note to history.', 'Repeat this sentence: "Find his historical entry."'])
  test(`no invented lookup authority: ${text}`,()=>assert.equal(requestsSavedRecordLookup(text),false));
 
-test('mixed linked and unlinked conversation receipts confer no factual readback authority',()=>{
+test('mixed linked and unlinked conversation receipts confer no factual readback authority',async()=>{
  const receipts=[{sourceMessageId:'save',petId:'pet',requestText:'Save this observation.',answerPersisted:true,records:[{id:'note',note:'An observation.',occurredAt:'2026-09-15T12:00:00Z'}]},
  {sourceMessageId:'check',petId:'pet',requestText:'Did the note save correctly?',answerPersisted:true,records:[]}];
  const evidence={scope:{requestText:'Did my notes save correctly? Show what was stored.',readOnlyRecall:true,authorizedPetIds:['pet']},
  interpretation:{request:{referenceTurnIds:['save','check']}},operationReceipts:receipts,sources:[],represented:[],losses:[]};
  const before=structuredClone(evidence);
- assert.equal(deterministicReadProjection(evidence),null);
+ await assertStoredPublicationUnavailable(evidence);
  assert.deepEqual(evidence,before,'declining proofless readback must not mutate the source fixture');
  assert.match(receiptCompletionText(receipts[0]),/1 current care-history entry linked/);
 });
@@ -378,7 +361,7 @@ test('linked saved-note text cannot substitute for canonical receipt authority',
     sources:[{petId:'pet',source:'operation_receipt',status:'loaded',loadedIds:receiptSources.map(s=>s.sourceId),loadedCount:receiptSources.length,cap:null,reasons:[],completeness:{retrieval:'complete',corrections:'complete',extraction:'complete',grouping:'complete'}}],
     represented,losses:[],operationReceipts:[receipt],interpretation:{request:{mode:'read',evidenceBasis:'saved_history',outputFormat:'prose',referenceTurnIds:['save-turn']}},history:null};
   const {publicationSources}=await import('../app/lib/intelligence/publication-authority.ts');
-  assert.equal(deterministicReadProjection(evidence),null);
+  await assertStoredPublicationUnavailable(evidence);
   assert.deepEqual(publicationSources(evidence),[]);
 });
 

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readRecordInventory, recordInventoryEvidence } from '../app/lib/intelligence/record-inventory.ts';
 import { eligibleAnswerSources } from '../app/lib/intelligence/ask-evidence.ts';
-import { deterministicReadProjection } from '../app/lib/intelligence/read-projection.ts';
+import { assertStoredPublicationUnavailable } from './helpers/unsupported-stored-publication.mjs';
 
 const context = () => ({ owner:{userId:'owner'}, eligiblePets:[{id:'pet',user_id:'owner'},{id:'foreign',user_id:'other'}],
   currentMessage:'How many saved care-history entries does Fable have in September 2026? Count database notes, not the events described inside a note.',
@@ -32,14 +32,14 @@ test('failed reads and semantic episode counts never create physical-record evid
   c.askInterpretation.request.quantity='records';c.askInterpretation.history.terms=['vomiting'];
   assert.deepEqual(await readRecordInventory(c,unused),[]);
 });
-test('only exact represented aggregate evidence can draft a count answer',async()=>{
+test('inventory metadata alone cannot authorize an ordinary factual count',async()=>{
   const {db}=database({count:5,error:null}), items=await readRecordInventory(context(),db);
   const source=recordInventoryEvidence(items)[0];
   const evidence={recordInventory:items,scope:{authorizedPetIds:['pet'],readOnlyRecall:true,requestText:context().currentMessage},
     sources:[{petId:'pet',loadedIds:[source.sourceId],status:'loaded'}],losses:[],
     represented:[{...source,sourceType:'record_inventory',field:'value',start:0,end:source.text.length}]};
   assert.equal(eligibleAnswerSources(evidence).length,1);
-  assert.match(deterministicReadProjection(evidence).sentences[0].text,/exactly 5/);
+  await assertStoredPublicationUnavailable(evidence);
   evidence.represented[0].text=source.text.replace('exactly 5','exactly 9');
   assert.equal(eligibleAnswerSources(evidence).length,0);
 });

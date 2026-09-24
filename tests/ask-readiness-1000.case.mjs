@@ -4,7 +4,7 @@ import { compileHistoryReadStrategies } from '../app/lib/intelligence/history-re
 import { recoverGroundedCohortNeeds } from '../app/lib/intelligence/evidence-needs.ts';
 import { buildHistoryObligations } from '../app/lib/intelligence/history-obligations.ts';
 import { canonicalReadPresentation, readPublicationFailure } from '../app/lib/ask-publication.ts';
-import { deterministicReadProjection } from '../app/lib/intelligence/read-projection.ts';
+import { assertStoredPublicationUnavailable } from './helpers/unsupported-stored-publication.mjs';
 
 const petNames=['Aster','Bramble','Cedar','Dune','Echo'];
 const petIds=petNames.map(n=>n.toLowerCase());
@@ -12,7 +12,7 @@ const ymd=(y,m,d=15)=>String(y)+'-'+String(m).padStart(2,'0')+'-'+String(d).padS
 const monthName=['','January','February','March','April','May','June','July','August','September','October','November','December'];
 const summary={total:0,passed:0,failed:0,families:{},failures:[]};
 const record=(family,question,fn)=>{
-  test(question,()=>{summary.total++; try{fn(); summary.passed++; summary.families[family]=(summary.families[family]||0)+1;}
+  test(question,async()=>{summary.total++; try{await fn(); summary.passed++; summary.families[family]=(summary.families[family]||0)+1;}
   catch(error){summary.failed++; summary.failures.push({family,question,error:String(error?.message||error)}); throw error;}});
 };
 function baseEvidence(question,ids=petIds){
@@ -88,7 +88,7 @@ for(let i=0;i<100;i++){
 for(let i=0;i<100;i++){
   const [p1,p2]=[petIds[i%5],petIds[(i+1)%5]], names=[petNames[i%5],petNames[(i+1)%5]];
   const q=`Compare ${names[0]}'s and ${names[1]}'s body-weight change from earliest to latest; how much larger was one change?`;
-  record('second_order_endpoint_arithmetic',q,()=>{
+  record('unsupported_endpoint_arithmetic',q,async()=>{
     const e=baseEvidence(q,[p1,p2]); e.scope.requestKind='comparison'; e.interpretation.operation='comparison'; e.interpretation.request.operation='comparison'; e.interpretation.request.selection='comparison';
     const vals=[[20+i/100,26+i/100],[10+i/200,13+i/200]];
     const dates=['2016-01-15T12:00:00Z','2026-01-15T12:00:00Z'];
@@ -104,9 +104,7 @@ for(let i=0;i<100;i++){
       e.sources.find(s=>s.petId===pid).loadedIds.push(old,neu); e.sources.find(s=>s.petId===pid).loadedCount=2;
     });
     e.represented=spans; e.history.requiredSourceIds=spans.map(s=>s.sourceId);
-    const p=deterministicReadProjection(e);
-    assert.ok(p); const text=p.sentences.map(s=>s.text).join('\n'); assert.match(text,/larger|difference/i);
-    assert.ok(p.sentences.some(s=>s.calculations?.length));
+    await assertStoredPublicationUnavailable(e);
   });
 }
 

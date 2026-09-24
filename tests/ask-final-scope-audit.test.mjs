@@ -50,7 +50,8 @@ test('unresolved episode corrections do not masquerade as a transient outage', (
 });
 
 import { withExecutionDeadline } from '../app/lib/ai/execution-deadline.ts';
-import { deterministicReadProjection } from '../app/lib/intelligence/read-projection.ts';
+import { assertStoredPublicationUnavailable } from './helpers/unsupported-stored-publication.mjs';
+import { certifiedHistoryRead } from './helpers/certified-history-read.mjs';
 test('shared execution timeout settles an abort-ignoring read and observes late rejection', async () => {
   let rejectRead, signal;
   const pending = withExecutionDeadline(s => { signal = s; return new Promise((_, reject) => { rejectRead = reject; }); }, 10);
@@ -66,11 +67,15 @@ function projectionFixture(text, occurredAt = '2024-01-09T00:00:00+00:00') {
     represented: [{ sourceId: 'care:a', petId: 'pet', sourceType: 'care_update', start: 0, end: text.length, text, occurredAt }],
     sources: [{ petId: 'pet', status: 'available', loadedIds: ['care:a'] }] };
 }
-test('dated projection includes PostgreSQL midnight and excludes the upper bound', () => {
-  assert.match(deterministicReadProjection(projectionFixture('Clover body weight was 2.1 kg.')).sentences[0].text, /2100/);
-  assert.equal(deterministicReadProjection(projectionFixture('Clover body weight was 2.1 kg.', '2024-01-10T00:00:00+00:00')), null);
+test("canonical temporal read includes PostgreSQL midnight and excludes upper boundary",async()=>{
+ const e=projectionFixture("Clover body weight was 2.1 kg.");
+ const temporal={...e.interpretation.history,anchor:null};
+ const included=await certifiedHistoryRead(e,{temporal});assert.deepEqual(included.result.records.map(r=>r.id),["a"]);
+ const upper=projectionFixture("Clover body weight was 2.1 kg.","2024-01-10T00:00:00+00:00");
+ const excluded=await certifiedHistoryRead(upper,{temporal});assert.deepEqual(excluded.result.records,[]);
+ await assertStoredPublicationUnavailable(e);
 });
-test('deterministic projection does not turn uncertain or negated weight into a value', () => {
-  for (const text of ['Clover never weighed 2.1 kg.', "Clover hasn't weighed 2.1 kg.", 'If Clover weighed 2.1 kg, this is hypothetical.', 'Clover body weight was 2.1 kg, possibly.'])
-    assert.equal(deterministicReadProjection(projectionFixture(text)), null, text);
+test("uncertain or negated measurements cannot create a scalar projection",async()=>{
+ for(const text of ["Clover never weighed 2.1 kg.","Clover has not weighed 2.1 kg.","If Clover weighed 2.1 kg, this is hypothetical.","Clover body weight was 2.1 kg, possibly."])
+  await assertStoredPublicationUnavailable(projectionFixture(text));
 });

@@ -1,3 +1,6 @@
+import {certifiedHistoryRead} from "./helpers/certified-history-read.mjs";
+import {assertStoredPublicationUnavailable} from "./helpers/unsupported-stored-publication.mjs";
+function recordFixture(rows){return {scope:{authorizedPetIds:["pet-mani"],requestText:"Typed records."},petNames:{"pet-mani":"Mani"},represented:rows.map(r=>({sourceId:"care:"+r.id,sourceType:"care_update",petId:r.pet_profile_id,text:r.note,occurredAt:r.occurred_at,createdAt:r.created_at}))};}
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -21,32 +24,13 @@ import { ensureConfirmedLossAction } from "../app/lib/ai/pet-loss.ts";
 import { prepareFurviseApplicationActions } from "../app/lib/application-actions/index.ts";
 
 const now = new Date("2026-07-27T20:00:00Z");
-test('mixed history generation requires citation-bearing narrative instead of optional plain prose',()=>{
- const base=input();const e=buildAskContext(base).promptContext.evidenceContract;
- e.interpretation={request:{mode:'mixed',referenceTurnIds:[],evidenceNeeds:[]}};
+test("mixed stored history cannot enter the conversational provider carrier",async()=>{
+ const base=input(),e=buildAskContext(base).promptContext.evidenceContract;
+ e.interpretation={request:{mode:"mixed",evidenceBasis:"saved_history",referenceTurnIds:[],evidenceNeeds:[]}};
  e.history={candidateIds:[],provenance:[],reasons:[]};e.scope.readOnlyRecall=false;
- const request=buildAskProviderRequest({evidenceContract:e,contextRecords:[]});
- const narrative=request.text.format.schema.properties.historyNarrative;
- assert.equal(narrative.type,'object');
- assert.ok(narrative.properties.sentences.items.required.includes('calculations'));
- assert.ok(narrative.properties.sentences.items.required.includes('sourceIds'));
- assert.equal(request.text.format.schema.properties.answer,undefined);
- assert.equal(request.text.format.schema.properties.answerSections,undefined);
- assert.equal(request.text.format.schema.properties.answerVersion.enum[0],'mixed-history.v1');
- const body=parseUnifiedResponse(JSON.stringify({answerVersion:'mixed-history.v1',historyNarrative:{sentences:[
-  {text:'The saved note describes rest.',sourceIds:['care:one'],calculations:[]},
-  {text:'Ask the prescribing veterinarian before restarting an old prescription.',sourceIds:['request:current'],calculations:[]},
- ]}}),[]);
- assert.match(body.answer,/saved note/);assert.match(body.answer,/prescribing veterinarian/);
- assert.equal(body.historyNarrative.sentences.length,2);
- const normalized=parseUnifiedResponse(JSON.stringify({answerVersion:'mixed-history.v1',historyNarrative:{sentences:[{
-  text:'The original note recorded 22 kg.\nThe reported change is 1 kg.',sourceIds:['care:one'],calculations:[{
-   operation:'difference',operands:[{sourceId:'care:one',field:'text',literal:'22 kg'},{sourceId:'request:current',field:'text',literal:'21 kg'}],value:1,unit:'kg',expression:[],
-  }],
- }]}}),[]);
- assert.match(normalized.answer,/22 kg\. The reported/);
- assert.equal(normalized.historyNarrative.sentences[0].calculations[0].expression,null);
- assert.equal(normalized.historyNarrative.sentences[0].calculations[0].value,1);
+ assert.throws(()=>buildAskProviderRequest({evidenceContract:e,contextRecords:[]}),/STORED_STATE_CANNOT_ENTER_LANGUAGE_GENERATION/);
+ await assertStoredPublicationUnavailable(e);
+ assert.throws(()=>parseUnifiedResponse(JSON.stringify({answerVersion:"mixed-history.v1",historyNarrative:{sentences:[{text:"A stored claim.",sourceIds:["care:one"],calculations:[]}]}}),[]));
 });
 const maniProductionQuestion = "Mani has been acting restless since the male cat started coming to our door three days ago. She keeps meowing at the door and seems more interested in getting outside. Yesterday I think she drank some water I had left outside, but I’m not completely sure. Today she ate normally and is acting mostly like herself. Based on what you already know about Mani and what I’ve told you recently, what do you think is relevant here, what should I do today, what should I keep an eye on, and is there anything from her history that changes your advice?";
 
@@ -103,21 +87,19 @@ test('latest saved-note scope uses record chronology without turning it into eve
   assert.deepEqual([...latestNeedScopedCareIds(event,records)],['care:old']);
 });
 
-test('records on the same UTC day keep their distinct local display dates', () => {
-  const careEntries = [
-    care({ id: 'early', occurred_at: '2026-07-27T01:00:00Z' }),
-    care({ id: 'late', occurred_at: '2026-07-27T18:00:00Z' }),
-  ];
-  const records = buildAskContext(input({ careEntries, timeZone: 'America/Vancouver' })).promptContext.contextRecords;
-  assert.equal(records.find(record => record.id === 'care:early').metadata.localRecordDate, '2026-07-26');
-  assert.equal(records.find(record => record.id === 'care:late').metadata.localRecordDate, '2026-07-27');
-  assert.equal(records.find(record => record.id === 'care:early').occurredAt, '2026-07-27T01:00:00Z');
+test("canonical transport preserves distinct event instants on the same UTC day",async()=>{
+ const entries=[care({id:"early",occurred_at:"2026-07-27T01:00:00Z"}),care({id:"late",occurred_at:"2026-07-27T18:00:00Z"})];
+ const {response}=await certifiedHistoryRead(recordFixture(entries));
+ assert.deepEqual(response.labsList.records.map(r=>r.event_at),entries.map(r=>r.occurred_at));
+ assert.equal(new Intl.DateTimeFormat("en-CA",{timeZone:"America/Vancouver"}).format(new Date(response.labsList.records[0].event_at)),"2026-07-26");
+ assert.equal(new Intl.DateTimeFormat("en-CA",{timeZone:"America/Vancouver"}).format(new Date(response.labsList.records[1].event_at)),"2026-07-27");
 });
 
-test('explicit leading source date stays authoritative in prompt metadata', () => {
-  const careEntries = [care({ id: 'dated', note: 'September 12, 2026: Mani played for 17 minutes.', occurred_at: '2026-09-12T00:00:00Z' })];
-  const records = buildAskContext(input({ careEntries, timeZone: 'America/Vancouver' })).promptContext.contextRecords;
-  assert.equal(records.find(record => record.id === 'care:dated').metadata.localRecordDate, '2026-09-12');
+test("canonical publication preserves the exact dated body and event without lexical date reconstruction",async()=>{
+ const row=care({id:"dated",note:"September 12, 2026: Mani played for 17 minutes.",occurred_at:"2026-09-12T00:00:00Z"});
+ const {response}=await certifiedHistoryRead(recordFixture([row]));
+ assert.equal(response.labsList.records[0].event_at,row.occurred_at);assert.equal(response.labsList.records[0].body,row.note);
+ assert.ok(response.answer.summary.includes(row.note));
 });
 
 function unified(overrides = {}) {
@@ -127,7 +109,7 @@ function unified(overrides = {}) {
     safetyLevel: "normal", suggestedFollowUps: [],
     proposedHistoryUpdate: { shouldOffer: false, category: null, title: null, details: null, severity: null, resolvesConcernId: null },
     shoppingSuppressed: false, responseMode: "practical_guidance", userIntent: "routine care",
-    relevantContextIds: ["profile:pet-mani:species"],
+    relevantContextIds: [], // Conversational generation has no stored factual carrier.
     messageUnderstanding: {
       primaryIntent: "question", secondaryIntents: [], userIsAskingQuestion: true,
       userIsProvidingUpdate: false, userIsCorrectingPriorInformation: false,
@@ -162,7 +144,9 @@ test("normal questions use one strict structured provider request and no planner
   const client = mockClient([unified()]);
   const result = await generateContextAwareAskResponse({ ...input(), client });
   assert.equal(client.requests.length, 1);
-  assert.equal(client.requests[0].text.format.schema, askUnifiedJsonSchema);
+  assert.equal(client.requests[0].text.format.strict, true);
+  assert.equal(client.requests[0].text.format.schema.properties.historyNarrative.type,"null");
+  assert.equal(client.requests[0].text.format.schema.properties.relevantContextIds.maxItems,0);
   assert.equal(client.requests[0].text.format.name, "furvise_ask_response");
   assert.equal(client.requests[0].max_output_tokens, ASK_MAX_OUTPUT_TOKENS);
   assert.doesNotMatch(client.requests[0].text.format.name, /planner/i);
@@ -244,50 +228,34 @@ test("one primary and optional fallback model replace planner and responder conf
   });
 });
 
-test("compact context keeps no more than five updates, eight memories, and six turns", () => {
-  const careEntries = Array.from({ length: 20 }, (_, index) => care({ id: `care-${index}`, occurred_at: `2026-07-${String(27 - index).padStart(2, "0")}T12:00:00Z` }));
-  const memories = Array.from({ length: 12 }, (_, index) => ({ id: `memory-${index}`, user_id: "user-1", dog_profile_id: "pet-mani", type: "routine", text: `Routine ${index}`, confidence: "high", source: "owner", created_at: "2026-07-20T00:00:00Z" }));
-  const conversationTurns = Array.from({ length: 10 }, (_, index) => ({ id: `turn-${index}`, role: index % 2 ? "furvise" : "user", text: `Turn ${index}`, createdAt: `2026-07-27T${String(index).padStart(2, "0")}:00:00Z` }));
-  const context = buildAskContext(input({ careEntries, memories, conversationTurns }));
-  assert.ok(context.records.filter((item) => item.sourceType === "care_update").length <= 5);
-  assert.ok(context.records.filter((item) => item.sourceType === "remembered_detail").length <= 8);
-  assert.ok(context.records.filter((item) => item.sourceType === "conversation_turn").length <= 6);
-  assert.match(context.promptContext.olderUpdateSummary, /supplied candidate updates/);
-  assert.match(context.promptContext.olderUpdateSummary, /not a count of all omitted history/);
-  for (const record of context.records.filter(item => item.sourceType === "care_update")) {
-    const source = careEntries.find(entry => `care:${entry.id}` === record.id);
-    assert.equal(record.value, source.note);
-    assert.equal(record.metadata.title, source.title);
-    assert.ok(context.promptContext.evidenceContract.represented.some(span => span.sourceId === record.id && span.text === record.value));
-  }
+test("conversational context excludes stored candidates while preserving a bounded USER premise carrier",()=>{
+ const careEntries=Array.from({length:20},(_,i)=>care({id:"care-"+i,note:"STORED_NOTE_SENTINEL"}));
+ const memories=Array.from({length:12},(_,i)=>({id:"memory-"+i,user_id:"user-1",dog_profile_id:"pet-mani",type:"routine",text:"STORED_MEMORY_SENTINEL",confidence:"high",source:"owner",created_at:"2026-07-20T00:00:00Z"}));
+ const context=buildAskContext(input({careEntries,memories}));
+ assert.deepEqual(context.records,[]);assert.equal(context.promptContext.olderUpdateSummary,null);
+ const payload=buildAskProviderRequest(context.promptContext).input;
+ assert.doesNotMatch(payload,/STORED_NOTE_SENTINEL|STORED_MEMORY_SENTINEL/);
+ assert.ok(payload.length<=ASK_PROMPT_CONTEXT_CHAR_BUDGET);
 });
 
-test("irrelevant old history is excluded while latest relevant history remains", () => {
-  const entries = [
-    care({ id: "latest-food", category: "food", title: "Food changed", note: "Started salmon food", occurred_at: "2026-07-27T19:00:00Z" }),
-    ...Array.from({ length: 10 }, (_, index) => care({ id: `old-nails-${index}`, category: "grooming", title: "Nail trim", note: "Nails trimmed", occurred_at: `2026-06-${String(index + 1).padStart(2, "0")}T12:00:00Z` })),
-  ];
-  const records = buildRankedAskContext(input({ careEntries: entries, question: "Should Mani eat the salmon food?" }));
-  assert.ok(records.some((record) => record.id === "care:latest-food"));
-  assert.ok(records.filter((record) => /old-nails/.test(record.id)).length < 10);
+test("typed predicates and selection retain the latest matching note without prompt relevance ranking",async()=>{
+ const entries=[care({id:"latest-food",note:"Started salmon food",occurred_at:"2026-07-27T19:00:00Z"}),...Array.from({length:10},(_,i)=>care({id:"old-nails-"+i,note:"Nails trimmed",occurred_at:"2026-06-"+String(i+1).padStart(2,"0")+"T12:00:00Z"}))];
+ const {response}=await certifiedHistoryRead(recordFixture(entries),{predicates:[{kind:"text_any",terms:["salmon"]}],selection:{groupBy:["subject"],union:[{orderBy:[{field:"event_at",direction:"desc"}],take:{count:1,per:"group"}}]}});
+ assert.deepEqual(response.relevantContextIds,["care:latest-food"]);assert.equal(response.labsList.records[0].body,entries[0].note);
 });
 
-test("occurred_at determines the latest real-world update", () => {
-  const entries = [
-    care({ id: "real-latest", title: "Real latest", occurred_at: "2026-07-27T19:00:00Z", created_at: "2026-07-01T00:00:00Z" }),
-    care({ id: "created-latest", title: "Created latest", occurred_at: "2026-07-20T00:00:00Z", created_at: "2026-07-27T19:30:00Z" }),
-  ];
-  const updates = buildRankedAskContext(input({ careEntries: entries })).filter((record) => record.sourceType === "care_update");
-  assert.equal(updates[0].id, "care:real-latest");
+test("canonical event_at selection uses event time rather than insertion time",async()=>{
+ const entries=[care({id:"real-latest",occurred_at:"2026-07-27T19:00:00Z",created_at:"2026-07-01T00:00:00Z"}),care({id:"created-latest",occurred_at:"2026-07-20T00:00:00Z",created_at:"2026-07-27T19:30:00Z"})];
+ const {response}=await certifiedHistoryRead(recordFixture(entries),{selection:{groupBy:["subject"],union:[{orderBy:[{field:"event_at",direction:"desc"}],take:{count:1,per:"group"}}]}});
+ assert.deepEqual(response.relevantContextIds,["care:real-latest"]);
 });
 
-test("active semantic state outranks old history while unrelated resolved episodes stay out of context", () => {
-  const activeEpisodes = [{ id: "episode-active", pet_profile_id: "pet-mani", normalized_key: "safety_pet_missing", episode_type: "care_tracking", title: "Pet missing", severity: "urgent", status: "active", sequence_number: 1, recurrence_of: null, started_at: "2026-07-27T19:00:00Z", last_event_at: "2026-07-27T19:00:00Z", resolved_at: null }];
-  const resolvedEpisodes = [{ ...activeEpisodes[0], id: "episode-resolved", normalized_key: "health_vomiting", title: "Vomiting", status: "resolved", severity: "routine", started_at: "2026-06-01T00:00:00Z", last_event_at: "2026-06-02T00:00:00Z", resolved_at: "2026-06-02T00:00:00Z" }];
-  const records = buildRankedAskContext(input({ activeEpisodes, recentlyResolvedEpisodes: resolvedEpisodes, question: "Is Mani still missing?", concernStateHint: "still_active" }));
-  assert.equal(records.some((record) => record.id === "episode:episode-active"), true);
-  assert.equal(records.some((record) => record.id === "episode:episode-resolved"), false);
-  assert.equal(records.find((record) => record.id === "episode:episode-active")?.status, "active");
+test("preloaded active or resolved state cannot become a conversational factual winner",async()=>{
+ const active={id:"episode-active",pet_profile_id:"pet-mani",normalized_key:"safety_pet_missing",episode_type:"care_tracking",title:"Pet missing",severity:"urgent",status:"active",sequence_number:1,started_at:"2026-07-27T19:00:00Z"};
+ const base=input({activeEpisodes:[active],recentlyResolvedEpisodes:[{...active,id:"episode-resolved",status:"resolved"}],question:"Is Mani still missing?",concernStateHint:"still_active"});
+ const context=buildAskContext(base);assert.deepEqual(context.records,[]);
+ const e=context.promptContext.evidenceContract;e.episodes={candidates:[active]};
+ await assertStoredPublicationUnavailable(e);
 });
 
 test("a resolved missing-pet episode does not influence a future unrelated question", () => {
@@ -301,19 +269,13 @@ test("a resolved missing-pet episode does not influence a future unrelated quest
   assert.equal(records.some((record) => record.id === "episode:episode-found"), false);
 });
 
-test("current emergency evidence forces urgent safety and shopping suppression", async () => {
-  const entries = [care({ id: "breathing", category: "symptom", title: "Breathing trouble", note: "Open-mouth breathing and weakness", severity: "severe" })];
-  const concerns = [{
-    id: "concern-breathing", user_id: "user-1", pet_profile_id: "pet-mani", title: "Breathing trouble",
-    normalized_key: "breathing", status: "active", severity: "urgent", source_care_entry_id: "breathing",
-    opened_at: "2026-07-27T18:00:00Z", updated_at: "2026-07-27T18:00:00Z", resolved_at: null, resolution_note: null,
-  }];
-  const client = mockClient([unified({ answer: "Contact an emergency veterinarian now. Do not force food while Mani's breathing is abnormal.", relevantContextIds: ["care:breathing"] })]);
-  const result = await generateContextAwareAskResponse({ ...input({ careEntries: entries, concerns, question: "Mani has open-mouth breathing now. What should I do?" }), client });
-  assert.equal(result.safetyLevel, "urgent");
-  assert.equal(result.shoppingSuppressed, true);
-  assert.equal(result.responseMode, "urgent_safety");
-  assert.ok(result.relevantContextIds.includes("care:breathing"));
+test("current USER emergency forces urgent guidance without stored factual citations",async()=>{
+ const entries=[care({id:"breathing",note:"STORED_BREATHING_SENTINEL",severity:"severe"})];
+ const client=mockClient([unified({answer:"Contact an emergency veterinarian now. Do not force food while Mani's breathing is abnormal."})]);
+ const result=await generateContextAwareAskResponse({...input({careEntries:entries,question:"Mani has open-mouth breathing now. What should I do?"}),client});
+ assert.equal(result.safetyLevel,"urgent");assert.equal(result.shoppingSuppressed,true);assert.equal(result.responseMode,"urgent_safety");
+ assert.deepEqual(result.relevantContextIds,[]);assert.match(result.answer.summary,/emergency veterinarian/);
+ assert.doesNotMatch(client.requests[0].input,/STORED_BREATHING_SENTINEL/);
 });
 
 test("an unrelated preference turn is not hijacked by an active urgent concern", async () => {
@@ -353,15 +315,11 @@ test("good morning has zero persistence context and no historical urgent spillov
   assert.equal(context.promptContext.activeConcernTags.length, 0);
 });
 
-test("a resolved urgent update is marked resolved and does not force urgent mode", async () => {
-  const entries = [
-    care({ id: "symptom", category: "symptom", title: "Deep breathing", note: "Taking deep breaths", occurred_at: "2026-07-27T16:00:00Z" }),
-    care({ id: "resolved", category: "symptom", title: "Back to normal", note: "Breathing returned to normal after resting", occurred_at: "2026-07-27T17:00:00Z" }),
-  ];
-  const records = buildRankedAskContext(input({ careEntries: entries, question: "Can Mani eat now?" }));
-  assert.equal(records.find((record) => record.id === "care:symptom")?.status, "resolved");
-  const result = await generateContextAwareAskResponse({ ...input({ careEntries: entries, question: "Can Mani eat now?" }), client: mockClient([unified()]) });
-  assert.equal(result.safetyLevel, "normal");
+test("old resolved urgent context cannot become factual prose or force unrelated emergency advice",async()=>{
+ const entries=[care({id:"symptom",note:"Taking deep breaths",occurred_at:"2026-07-27T16:00:00Z"}),care({id:"resolved",note:"Breathing returned to normal after resting",occurred_at:"2026-07-27T17:00:00Z"})];
+ const base=input({careEntries:entries,question:"Can Mani eat now?"});assert.deepEqual(buildRankedAskContext(base),[]);
+ const client=mockClient([unified()]),result=await generateContextAwareAskResponse({...base,client});
+ assert.equal(result.safetyLevel,"normal");assert.doesNotMatch(client.requests[0].input,/Breathing returned to normal|Taking deep breaths/);
 });
 
 test("reported improvement can offer a history update without auto-saving it", async () => {
@@ -378,30 +336,13 @@ test("casual greetings remain short while retaining the safe structured-output b
   assert.equal(client.requests[0].max_output_tokens, ASK_MAX_OUTPUT_TOKENS);
 });
 
-test("confirmed pet death deterministically enters grief mode and proposes a confirmation action", async () => {
-  const question = "she ran outside and a dog came and bit her neck and she died";
-  const client = mockClient([unified({
-    answer: "I'm so sorry. I can record that Mani passed away.",
-    responseMode: "urgent_safety",
-    safetyLevel: "urgent",
-    shoppingSuppressed: false,
-    suggestedFollowUps: ["What should I watch tonight?"],
-    intelligenceSafety: { level: "urgent", reason: "Dog bite", requiresImmediateAction: true, shoppingSuppressed: false },
-  })]);
-  const result = await generateContextAwareAskResponse({
-    ...input({ profiles: [profile({ lifecycle_status: "active", pronouns: "she/her" })], question }),
-    client,
-  });
-  assert.equal(client.requests.length, 1);
-  assert.equal(result.responseMode, "grief_support");
-  assert.equal(result.safetyLevel, "normal");
-  assert.equal(result.intelligenceSafety.level, "routine");
-  assert.equal(result.intelligenceSafety.requiresImmediateAction, false);
-  assert.equal(result.shoppingSuppressed, true);
-  assert.deepEqual(result.suggestedFollowUps, []);
-  assert.deepEqual(result.answer.sections, []);
-  assert.equal(result.applicationActions.length, 1);
-  assert.equal(result.applicationActions[0].kind, "pet.mark_deceased");
+test("general grief support remains functional without granting a lifecycle mutation",async()=>{
+ const question="she ran outside and a dog came and bit her neck and she died";
+ const client=mockClient([unified({answer:"I'm so sorry for your loss.",responseMode:"grief_support",safetyLevel:"normal",shoppingSuppressed:true})]);
+ const result=await generateContextAwareAskResponse({...input({question}),client});
+ assert.equal(client.requests.length,1);assert.equal(result.responseMode,"grief_support");
+ assert.match(result.answer.summary,/sorry/);assert.deepEqual(result.applicationActions,[]);
+ // Lifecycle persistence requires its canonical transition, not this language carrier.
 });
 
 test("loss-context follow-ups remain grief-aware and do not restart emergency treatment", async () => {
@@ -574,13 +515,12 @@ test("strict pet isolation excludes care rows for pets not supplied by ownership
   assert.equal(records.some((record) => record.value.includes("Private other pet note")), false);
 });
 
-test("represented episode preserves stored identity without authorizing displayed ordinal", () => {
-  const episode = { id: "stool-second", pet_profile_id: "pet-mani", normalized_key: "stool", episode_type: "symptom", title: "Soft stool", severity: "routine", status: "resolved", sequence_number: 2, recurrence_of: "stool-first", started_at: "2026-06-01", last_event_at: "2026-06-03", resolved_at: "2026-06-03" };
-  const records = buildRankedAskContext(input({ recentlyResolvedEpisodes: [episode], question: "Describe Mani's stool history." }));
-  const record = records.find(r => r.id === "episode:stool-second");
-  assert.equal(record?.metadata.sequence_number, 2);
-  assert.equal(record?.metadata.recurrence_of, "stool-first");
-  assert.equal(record?.metadata.sequenceScope, "stored_topic_sequence_not_displayed_ordinal");
+test("untyped episode identity and stored sequence cannot authorize a displayed ordinal",async()=>{
+ const episode={id:"stool-second",pet_profile_id:"pet-mani",normalized_key:"stool",episode_type:"symptom",title:"Soft stool",status:"resolved",sequence_number:2,recurrence_of:"stool-first",started_at:"2026-06-01",last_event_at:"2026-06-03"};
+ const base=input({recentlyResolvedEpisodes:[episode],question:"Describe Mani's stool history."}),e=buildAskContext(base).promptContext.evidenceContract;
+ assert.deepEqual(buildRankedAskContext(base),[]);e.episodes={candidates:[episode]};
+ const r=await assertStoredPublicationUnavailable(e);assert.doesNotMatch(r.answer.summary,/second|stool-first/);
+ assert.equal(episode.sequence_number,2);assert.equal(episode.recurrence_of,"stool-first");
 });
 
 test("event evidence repair preserves an explicit historical date and episode boundary", async () => {
@@ -633,46 +573,32 @@ test('a completed raw note isolates optional event extraction from its additiona
  assert.deepEqual(result.semanticEvents,[]);assert.deepEqual(result.careActions,[]);assert.deepEqual(result.learnings,[]);
 });
 
-test('verified inventory survives ranking and generic span compaction with its as-of scope intact',async()=>{
-  const {recordInventoryEvidence}=await import('../app/lib/intelligence/record-inventory.ts');
-  const {deterministicReadProjection}=await import('../app/lib/intelligence/read-projection.ts');
-  const base=input({careEntries:[],question:'How many saved care-history entries does Mani have in June 2026?'});
-  const evidence=buildAskContext(base).promptContext.evidenceContract;
-  evidence.recordInventory=[{petId:'pet-mani',count:4,from:'2026-06-01',to:'2026-07-01',checkedAt:'2026-07-27T20:00:00.000Z'}];
-  const source=recordInventoryEvidence(evidence.recordInventory)[0];assert.ok(source.text.length>280);
-  evidence.sources.push({...evidence.sources[0],source:'record_inventory',loadedIds:[source.sourceId]});
-  const context=buildAskContext({...base,evidenceContract:evidence});
-  assert.equal(context.records.find(r=>r.id===source.sourceId)?.value,source.text);
-  assert.equal(context.promptContext.evidenceContract.losses.some(l=>l.sourceId===source.sourceId),false);
-  assert.equal(deterministicReadProjection(context.promptContext.evidenceContract)?.sentences[0].text,source.text);
+test("inventory diagnostics retain their scope without granting a count publication carrier",async()=>{
+ const {recordInventoryEvidence}=await import("../app/lib/intelligence/record-inventory.ts");
+ const base=input({careEntries:[],question:"How many saved entries exist in June?"}),e=buildAskContext(base).promptContext.evidenceContract;
+ e.recordInventory=[{petId:"pet-mani",count:4,from:"2026-06-01",to:"2026-07-01",checkedAt:"2026-07-27T20:00:00.000Z"}];
+ const original=structuredClone(e.recordInventory),source=recordInventoryEvidence(e.recordInventory)[0];
+ assert.ok(source.text.includes("2026-06-01"));assert.ok(source.text.includes("2026-07-01"));
+ await assertStoredPublicationUnavailable(e);assert.deepEqual(e.recordInventory,original);
 });
-test('mixed history tasks retain their target note when unrelated receipt metadata fills the prompt budget',async()=>{
-  const base=input({careEntries:[care({note:'Played with a puzzle toy for 13 minutes.'})],question:'Correct the July 27 puzzle-toy record to 15 minutes.'});
-  const e=buildAskContext(base).promptContext.evidenceContract;
-  e.scope.readOnlyRecall=false;
-  e.interpretation={operation:'update',readOnly:false,history:{from:'2026-07-27',to:'2026-07-28'},
-    request:{mode:'mixed',mutationIntent:'correct_record',profileFields:[],evidenceNeeds:[],referenceTurnIds:[]}};
-  e.history={candidateIds:['care:care-1'],provenance:[],claimSources:[],excludedIds:[],reasons:[],perPet:[],targets:[],chronology:[]};
-  e.operationReceipts=Array.from({length:12},(_,i)=>({sourceMessageId:'old-'+i,petId:'pet-mani',
-    requestText:'Earlier unrelated request. '.repeat(20),answerPersisted:true,actionReceipts:[],
-    records:[{id:'old-record-'+i,note:'Earlier unrelated observation. '.repeat(40),occurredAt:'2026-06-01T00:00:00Z'}]}));
-  e.operationReceipts[11].actionReceipts=[{id:'confirmed-edit',kind:'care_history.edit',status:'succeeded',resultMessage:'The history update was edited.'}];
-  const {operationReceiptEvidence,evidenceSource}=await import('../app/lib/intelligence/ask-evidence.ts');
-  e.sources.push(evidenceSource('pet-mani','operation_receipts',operationReceiptEvidence(e.operationReceipts).map(source=>source.sourceId)));
-  const context=buildAskContext({...base,evidenceContract:e});
-  assert.ok(context.records.some(record=>record.id==='care:care-1'));
-  assert.ok(context.records.some(record=>record.id==='operation:old-11:action:confirmed-edit'),'the completed action receipt survives unrelated intent headers');
-  assert.equal(context.promptContext.evidenceContract.losses.some(loss=>loss.sourceId==='care:care-1'),false);
-  assert.equal(context.promptContext.evidenceContract.operationReceipts.length,12,'server receipt authority remains intact');
+test("historical action receipts remain server metadata and cannot reopen mixed factual generation",async()=>{
+ const e=recordFixture([care({note:"Played with a puzzle toy for 13 minutes."})]);
+ e.interpretation={request:{mode:"mixed",evidenceBasis:"saved_history",evidenceNeeds:[],referenceTurnIds:[]}};
+ e.operationReceipts=Array.from({length:12},(_,i)=>({sourceMessageId:"old-"+i,petId:"pet-mani",requestText:"Earlier request. ".repeat(20),answerPersisted:true,actionReceipts:[],records:[{id:"old-record-"+i,note:"Earlier observation. ".repeat(40)}]}));
+ e.operationReceipts[11].actionReceipts=[{id:"confirmed-edit",kind:"care_history.edit",status:"succeeded",resultMessage:"The history update was edited."}];
+ const before=structuredClone(e);await assertStoredPublicationUnavailable(e);
+ assert.deepEqual(e,before);assert.equal(e.operationReceipts.length,12);
 });
-test('a requested saved profile name is represented as owned factual evidence',()=>{
- const base=input({careEntries:[],question:'Return the saved profile name and species as JSON.'});
- const evidence=buildAskContext(base).promptContext.evidenceContract;
- evidence.interpretation={readOnly:true,request:{evidenceBasis:'saved_profile',profileFields:['name','species'],evidenceNeeds:[],referenceTurnIds:[]}};
- const built=buildAskContext({...base,evidenceContract:evidence});
- const name=built.records.find(record=>record.id==='profile:pet-mani:name');
- assert.equal(name.value,'Mani');assert.equal(name.sourceType,'profile');assert.equal(name.petId,'pet-mani');
- assert.ok(built.promptContext.evidenceContract.represented.some(span=>span.sourceId===name.id&&span.text==='Mani'));
+test("typed saved profile name remains authoritative while JSON presentation stays unsupported",async()=>{
+ const base=input({careEntries:[],question:"Return the saved profile name and species as JSON."}),e=buildAskContext(base).promptContext.evidenceContract;
+ const {evidenceSource}=await import("../app/lib/intelligence/ask-evidence.ts");e.sources=[evidenceSource("pet-mani","profile",["pet-mani"])];
+ e.scope.readOnlyRecall=true;e.interpretation={readOnly:true,petIds:["pet-mani"],request:{mode:"read",evidenceBasis:"saved_profile",profileFields:["name","species"],evidenceNeeds:[],referenceTurnIds:[],requirements:[],outputFormat:"json"}};
+ const client={responses:{create:async()=>{throw Error("PROFILE_PROVIDER_FORBIDDEN");}}};
+ const result=await generateContextAwareAskResponse({...base,evidenceContract:e,client});
+ assert.equal(result.model,"server-profile-presentation-unavailable");assert.deepEqual(result.relevantContextIds,[]);
+ const {derivePublicationAuthority}=await import("../app/lib/intelligence/publication-authority.ts");
+ const authority=derivePublicationAuthority(result.evidenceContract);
+ assert.ok(authority.authorizedSourceIds.includes("profile:pet-mani:name"));assert.ok(authority.authorizedSourceIds.includes("profile:pet-mani:species"));
 });
 
 test('unsupported optional extraction cannot abort an ordinary medicine clarification',async()=>{

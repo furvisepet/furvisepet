@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createAnswerAssessment, assessmentMatches } from '../app/lib/intelligence/answer-assessment.ts';
 import { evaluateCalculationExpression } from '../app/lib/intelligence/history-calculation.ts';
 import { parseHistoryCalculations, verifiedCalculationQuantities } from '../app/lib/intelligence/history-calculation.ts';
-import { deterministicReadProjection } from '../app/lib/intelligence/read-projection.ts';
+import { assertStoredPublicationUnavailable } from './helpers/unsupported-stored-publication.mjs';
 import { OperationDeadline, StageDeadlineError } from '../app/lib/ai/execution-deadline.ts';
 import { safeAskDiagnosticStage } from '../app/lib/ai/ask-error-diagnostic.ts';
 const checks=()=>({structuralValidity:'passed',evidenceSupport:'passed',subjectDateCorrectness:'passed',calculationCorrectness:'passed',taskCompletion:'passed'});
@@ -56,16 +56,11 @@ function exportEvidence(){
   represented:ids.map((id,i)=>{const text='Pet'+i+' body weight was '+(i+1)+' kg without equipment.';
    return {sourceId:'care:'+id,petId:id,sourceType:'care_update',occurredAt:'2024-04-07T12:00:00.000Z',start:0,end:text.length,text};})};
 }
-test('ten-pet export calculates, sorts and renders without a narrative model',()=>{
- const e=exportEvidence();e.represented.reverse();
- const p=deterministicReadProjection(e);assert.ok(p);assert.equal(p.sentences[0].calculations.length,10);
- assert.equal(p.sentences[0].text.split('\n').length,11);
- assert.match(p.sentences[0].text,/Pet0,1000/);assert.match(p.sentences[0].text,/Pet9,10000/);
- assert.ok(verifiedCalculationQuantities(p.sentences[0].calculations,e.represented));
- e.interpretation.request.projection.order='value_descending';
- assert.equal(deterministicReadProjection(e).sentences[0].text.split('\n')[1],'Pet9,10000');
+test("unsupported export cannot calculate convert or sort profile/history values",async()=>{
+ const e=exportEvidence();e.represented.reverse();await assertStoredPublicationUnavailable(e);
+ e.interpretation.request.projection.order="value_descending";await assertStoredPublicationUnavailable(e);
 });
-test('deterministic projection declines missing, ambiguous, unavailable, corrected and out-of-date measurements',()=>{
+test('deterministic projection declines missing, ambiguous, unavailable, corrected and out-of-date measurements',async()=>{
  for(const mutate of [
   e=>e.represented.pop(),
   e=>e.represented.push({...e.represented[0],sourceId:'duplicate'}),
@@ -77,7 +72,7 @@ test('deterministic projection declines missing, ambiguous, unavailable, correct
  ]){
   const e=exportEvidence();mutate(e);
   if(e.represented.at(-1)?.sourceId==='duplicate')e.sources[0].loadedIds.push('duplicate');
-  assert.equal(deterministicReadProjection(e),null);
+  await assertStoredPublicationUnavailable(e);
  }
 });
 test('remaining stage budgets shrink and preserve independent-review reserve',()=>{

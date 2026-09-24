@@ -9,7 +9,8 @@ const {bindReadTicket}=await import('../app/lib/furvise-brain/read-ticket.ts');
 const {bindCompositionalReadTicket}=await import('../app/lib/furvise-brain/read-selection.ts');
 const {retrieveReadTicket}=await import('../app/lib/furvise-brain/lungs.ts');
 const {buildAskContext,latestNeedScopedCareIds}=await import('../app/lib/ai/ask-reasoning.ts');
-const {deterministicReadProjection}=await import('../app/lib/intelligence/read-projection.ts');
+const {assertStoredPublicationUnavailable}=await import('./helpers/unsupported-stored-publication.mjs');
+const {generateContextAwareAskResponse,buildAskProviderRequest}=await import('../app/lib/ai/ask-reasoning.ts');
 const {derivePublicationAuthority}=await import('../app/lib/intelligence/publication-authority.ts');
 const {evidenceSource}=await import('../app/lib/intelligence/ask-evidence.ts');
 const {buildLabsList}=await import('../app/lib/intelligence/labs-list.ts');
@@ -42,11 +43,16 @@ for(const options of [{selected:true,single:true},{selected:true},{selected:fals
  const expected=f.result.records.map(r=>'care:'+r.id);const certificate=JSON.stringify(f.result.coverage);let authority,values;
  for(const q of variants){f.evidence.scope.requestText=q;f.evidence.interpretation.request.question=q;const c=context(f,q);const derived=derivePublicationAuthority(c.promptContext.evidenceContract);const ids=derived?.authorizedSourceIds||c.records.map(r=>r.id);const facts=c.records.map(r=>[r.id,r.text,r.occurredAt]);if(authority){assert.deepEqual(ids,authority);assert.deepEqual(facts,values);}authority=ids;values=facts;assert.equal(JSON.stringify(f.result.coverage),certificate);assert.deepEqual(c.records.filter(r=>r.sourceType==='care_update').map(r=>r.id),expected);assert.equal(c.records.some(r=>r.sourceType==='profile'),false);}
 });
-test('prose table and CSV cannot enter factual projection or change Labs IDs',async()=>{
- const f=await fixture();for(const format of ['prose','table','csv']){f.evidence.interpretation.request.outputFormat=format;const before=JSON.stringify(f.evidence);const limitation=deterministicReadProjection(f.evidence);
- assert.deepEqual(limitation,{sentences:[{text:"I couldn\u2019t verify the specific event you asked about from the records retrieved for this answer. That doesn\u2019t establish that it never happened.",sourceIds:[],calculations:[]}]});
- assert.equal(JSON.stringify(f.evidence),before);assert.doesNotMatch(JSON.stringify(limitation),/care:|profile:|4 kg|5 kg|99 kg|certified/);
- const labs=buildLabsList(f.evidence,f.result.records);assert.deepEqual(labs.records.map(r=>r.id),f.result.records.map(r=>r.id));}
+test("presentation cannot reopen a provider or alter internal Labs records",async()=>{
+ const f=await fixture();for(const format of ["prose","table","csv"]){
+ f.evidence.interpretation.request.outputFormat=format;const before=JSON.stringify(f.evidence);
+ assert.throws(()=>buildAskProviderRequest({evidenceContract:f.evidence}),/STORED_STATE_CANNOT_ENTER_LANGUAGE_GENERATION/);
+ const labs=buildLabsList(f.evidence,f.result.records);
+ if(labs)assert.deepEqual(labs.records.map(r=>r.id),f.result.records.map(r=>r.id));
+ const r=await generateContextAwareAskResponse({evidenceContract:f.evidence,profiles:pets,careEntries:f.result.records,memories:[],productFeedback:[],conversationTurns:[],recentUpdates:[],question:"Read typed records.",client:{responses:{create:async()=>{throw Error("PROVIDER_FORBIDDEN");}}}});
+ if(format==="csv"||!labs){assert.equal(r.model,"server-history-unavailable");assert.deepEqual(r.relevantContextIds,[]);}
+ else {assert.equal(r.model,"server-labs-list");assert.deepEqual(r.labsList.records,labs.records);}
+ assert.equal(JSON.stringify(f.evidence),before);}
 });
 test('ordinary hint toward old food or foreign profile cannot change winners',async()=>{
  const a=await fixture(),b=await fixture({hints:['food','another pet profile 99']});assert.deepEqual(a.result.records,b.result.records);assert.deepEqual(a.result.coverage,b.result.coverage);
@@ -65,11 +71,10 @@ test('typed needs never invoke quote-based latest prompt reselection',async()=>{
  assert.equal(latestNeedScopedCareIds(f.evidence,[]),null);
 });
 
-test('a real legacy factual projection is blocked for the same common ticket and candidate sources',async()=>{
- const f=await fixture({single:true});f.evidence.scope.requestText='latest recorded weight';f.evidence.history.eventCandidateIds=f.result.records.map(r=>'care:'+r.id);
- const e=context(f,'latest recorded weight').promptContext.evidenceContract;
- assert.equal(commonHistoryPathEntered(e),true);assert.ok(e.represented.some(r=>r.sourceId==='care:a-new'));
- const legacy=structuredClone(e);delete legacy.interpretation.request.readTicket;
- const selected=deterministicReadProjection(legacy);assert.ok(selected);assert.deepEqual(selected.sentences.flatMap(s=>s.sourceIds),['care:a-new']);assert.match(selected.sentences[0].text,/4 kg/);
- for(const format of ['prose','table','csv']){e.interpretation.request.outputFormat=format;const before=JSON.stringify(e);assert.equal(deterministicReadProjection(e),null);assert.equal(JSON.stringify(e),before);}
+test("removing canonical ticket cannot restore factual reconstruction",async()=>{
+ const f=await fixture({single:true});const e=context(f,"latest recorded weight").promptContext.evidenceContract;
+ assert.equal(commonHistoryPathEntered(e),true);assert.ok(e.represented.some(r=>r.sourceId==="care:a-new"));
+ const legacy=structuredClone(e);delete legacy.interpretation.request.readTicket;await assertStoredPublicationUnavailable(legacy);
+ for(const format of ["prose","table","csv"]){e.interpretation.request.outputFormat=format;
+ assert.throws(()=>buildAskProviderRequest({evidenceContract:e}),/STORED_STATE_CANNOT_ENTER_LANGUAGE_GENERATION/);}
 });

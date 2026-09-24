@@ -1844,7 +1844,7 @@ test('unreferenced old questions cannot become new writer obligations',()=>{
 });
 
 test('reconstructed conversation receipts cannot authorize any referenced saved operation',async()=>{
- const {deterministicReadProjection}=await import('../../app/lib/intelligence/read-projection.ts');
+ const {assertStoredPublicationUnavailable}=await import('../../tests/helpers/unsupported-stored-publication.mjs');
  const {operationReceiptEvidence}=await import('../../app/lib/intelligence/ask-evidence.ts');
  const receipts=['original','addition'].map((id,i)=>({sourceMessageId:id,petId:'pet',requestText:'Save this.',answerPersisted:true,records:[{id:'entry-'+id,occurredAt:'2026-09-16T08:00:00Z',note:i?'Also drank normally.':'Tired on the morning walk.'}]}));
  const spans=operationReceiptEvidence(receipts).map(s=>({...s,sourceType:'operation_receipt',field:'value',start:0,end:s.text.length}));
@@ -1852,10 +1852,10 @@ test('reconstructed conversation receipts cannot authorize any referenced saved 
   interpretation:{request:{mode:'read',evidenceBasis:'saved_history',outputFormat:'prose',referenceTurnIds:['original','addition']}},operationReceipts:receipts,
   represented:spans,sources:[{petId:'pet',source:'operation_receipts',status:'loaded',loadedIds:spans.map(s=>s.sourceId)}],losses:[]};
  const {publicationSources}=await import('../../app/lib/intelligence/publication-authority.ts');
- assert.equal(deterministicReadProjection(e),null);
+ await assertStoredPublicationUnavailable(e);
  assert.deepEqual(publicationSources(e),[]);
  e.interpretation.request.referenceTurnIds=['original'];
- assert.equal(deterministicReadProjection(e),null);
+ await assertStoredPublicationUnavailable(e);
  assert.deepEqual(publicationSources(e),[]);
 });
 

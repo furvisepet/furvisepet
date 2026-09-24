@@ -111,8 +111,8 @@ test('window predicates and alternate topic remain generic',async()=>{
 });
 for(const format of ['prose','table'])test(format+' cannot change source authority or activate factual projection',async()=>{
  const r=await parity(rows,undefined,{format});
- const {deterministicReadProjection}=await import('../app/lib/intelligence/read-projection.ts');
- assert.equal(deterministicReadProjection(r.evidence),null);assert.ok(r.labs);
+ const {buildAskProviderRequest}=await import('../app/lib/ai/ask-reasoning.ts');
+ assert.throws(()=>buildAskProviderRequest({evidenceContract:r.evidence}),/STORED_STATE_CANNOT_ENTER_LANGUAGE_GENERATION/);assert.ok(r.labs);
  assert.deepEqual(factualIds(r),['afirst','alast','bfirst','blast','cfirst','clast']);
 });
 test('profile value cannot substitute for a certified historical boundary',async()=>{
@@ -130,10 +130,8 @@ for(const [name,patch,change] of [
  ['small global cap',{},p=>({...p,outputs:{...p.outputs,limit:4}})],
  ['no explicit predicate',{},p=>({...p,predicates:[]})],
  ['profile obligation',{profileFields:['weight']},p=>p],
-])test(name+' remains legacy rather than guessing boundary semantics',()=>{
- const r=bound(change(input('desc',6)),['a','b','c'],patch);
- assert.equal(r.request.readTicket.outputs.strategy,'temporal_endpoints');
- assert.equal(r.request.readTicket.operation,'compare');assert.equal(r.request.readTicket.selection,undefined);
+])test(name+" rejects semantics that cannot be losslessly translated",()=>{
+ assert.throws(()=>bound(change(input("desc",6)),["a","b","c"],patch),/canonical_read_strategy/);
 });
 test('no envelope intent cannot manufacture pure lookup authority',()=>{
  const {probes,selection,...p}=input('desc',6);const t=bindReadTicket(p,['a','b','c']);
