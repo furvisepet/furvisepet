@@ -1443,7 +1443,7 @@ export function buildAskProviderRequest(promptContext: object) {
   const requestInstructions = taskInstructions + "\n" + companionVoiceInstructions + "\n" + concernVoiceInstructions
     + "\nUse current USER assertions and supplied premises only. No stored facts are available. Never infer a saved fact, write success or prior record from dialogue. historyNarrative must be null and relevantContextIds must be empty.";
   const schema = conversationOnly ? conversationAnswerSchema(askUnifiedJsonSchema.properties) : governedTurnAnswerSchema(askUnifiedJsonSchema.properties);
-  Object.assign(schema.properties, {historyNarrative:{type:"null"},relevantContextIds:{type:"array",maxItems:0,items:{type:"string"}}});
+  if (!conversationOnly) Object.assign(schema.properties, {historyNarrative:{type:"null"},relevantContextIds:{type:"array",maxItems:0,items:{type:"string"}}});
   return {max_output_tokens:ASK_MAX_OUTPUT_TOKENS, ...(conversationOnly ? {reasoning:{effort:"medium"}} : {}), instructions:requestInstructions,
     input:JSON.stringify(languageProviderContext(promptContext)),
     text:{format:{type:"json_schema",name:"furvise_ask_response",strict:true,schema}}};
