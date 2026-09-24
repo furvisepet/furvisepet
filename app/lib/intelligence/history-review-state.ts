@@ -1,3 +1,4 @@
+import { calculationPublicationFailure, CALCULATION_LABS, CALCULATION_UNAVAILABLE } from "./calculation-labs.ts";
 import { factualLimitationFailure, FACTUAL_UNAVAILABLE, FACTUAL_LIMITATION } from "./factual-dispatch.ts";
 import { isStoredRead, storedReadPublicationFailure, storedReadPublishedResult } from "./stored-read-publication.ts";
 import { historyLimitationFailure, historyPublicationLimitation } from "./ordinary-history-publication.ts";
@@ -9,7 +10,7 @@ import { derivePublicationAuthority, requiresHistoryPublicationAuthority, public
 
 type Receipt = { authorityClaims?: PublicationAuthorityClaim[]; actions?: FurviseApplicationAction[]; signature: string; text: string; sourceIds: string[]; proseText?: string; sourceReports?: string[]; sourceContent?: string[]; completion?: ObligationCompletion[] };
 const reviewed = new WeakMap<AskReasoningResult, Receipt>();
-export const historyReviewSignature = (result: AskReasoningResult) => JSON.stringify({ storedReadAnswer:isStoredRead(result.evidenceContract)?{answer:result.answer,ids:result.relevantContextIds}:undefined, profileFieldLabs: result.profileFieldLabs, labsList: result.labsList, labsAnswer: result.labsList || result.profileFieldLabs ? result.answer : undefined, labsSourceIds: result.labsList || result.profileFieldLabs ? result.relevantContextIds : undefined, actions: result.applicationActions, evidence: result.evidenceContract, draft: result.historyNarrative, result: result.historicalResult, plainAnswer: result.historyNarrativeDeclined ? result.answer.summary : undefined, sourceHints: result.historyNarrativeDeclined ? result.relevantContextIds : undefined });
+export const historyReviewSignature = (result: AskReasoningResult) => JSON.stringify({ calculationLabs:result.calculationLabs, calculationAnswer:result.evidenceContract?.interpretation?.request?.calculatePlan ? {answer:result.answer,ids:result.relevantContextIds}:undefined, storedReadAnswer:isStoredRead(result.evidenceContract)?{answer:result.answer,ids:result.relevantContextIds}:undefined, profileFieldLabs: result.profileFieldLabs, labsList: result.labsList, labsAnswer: result.labsList || result.profileFieldLabs ? result.answer : undefined, labsSourceIds: result.labsList || result.profileFieldLabs ? result.relevantContextIds : undefined, actions: result.applicationActions, evidence: result.evidenceContract, draft: result.historyNarrative, result: result.historicalResult, plainAnswer: result.historyNarrativeDeclined ? result.answer.summary : undefined, sourceHints: result.historyNarrativeDeclined ? result.relevantContextIds : undefined });
 export function clearHistoryReview(result: AskReasoningResult) { reviewed.delete(result); }
 /** Internal server capability: called only after successful source-scoped review. */
 export function recordHistoryReview(result: AskReasoningResult, receipt: Receipt) { reviewed.set(result, structuredClone(receipt)); }
@@ -17,6 +18,13 @@ export function recordHistoryReview(result: AskReasoningResult, receipt: Receipt
 export function readReviewedHistoryAnswer(result: AskReasoningResult): Omit<Receipt, "signature"> | null {
   const receipt = reviewed.get(result);
   if (!receipt || receipt.signature !== historyReviewSignature(result)) return null;
+  if(result.evidenceContract?.interpretation?.request?.calculatePlan || [CALCULATION_LABS,CALCULATION_UNAVAILABLE].includes(result.model)){
+    if(calculationPublicationFailure(result)||receipt.text!==result.answer.summary
+      ||JSON.stringify(receipt.sourceIds)!==JSON.stringify(result.relevantContextIds)
+      ||receipt.sourceContent?.length||receipt.sourceReports?.length||receipt.proseText!==undefined
+      ||receipt.actions?.length||receipt.authorityClaims?.length||receipt.completion?.length)return null;
+    return {text:receipt.text,sourceIds:[...receipt.sourceIds],sourceContent:[]};
+  }
   if(result.model===FACTUAL_UNAVAILABLE){
     if(factualLimitationFailure(result)||receipt.text!==FACTUAL_LIMITATION||receipt.sourceIds.length
       ||receipt.sourceContent?.length||receipt.sourceReports?.length||receipt.proseText!==undefined

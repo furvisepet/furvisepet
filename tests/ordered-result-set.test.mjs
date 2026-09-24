@@ -265,7 +265,9 @@ test("production boundary propagates a generic full-set proof without chronology
  const context=ticket=>({owner:{userId:"owner"},pet:{id:"a",name:"Alpha",user_id:"owner"},eligiblePets:["a","b","c"].map(id=>({id,name:id,user_id:"owner"})),
   currentMessage:"not interpreted by adapter",conversationTurns:[],historyAccess:{from:scope.from,to:scope.to},
   askInterpretation:{operation:"recall",readOperation:"recall",readOnly:true,petIds:["a","b","c"],request:{mode:"read",readTicket:ticket,quantity:"records"}}});
- const source=context(original),before=JSON.stringify(source);
+ await assert.rejects(retrieveAskHistory(context(original),db,["a","b","c"]),/ASK_CANONICAL_READ_TICKET_REQUIRED/);
+ const normalized=translateLegacyReadSelection(original);assert.equal(normalized.translated,true);
+ const source=context(normalized.ticket),before=JSON.stringify(source);
  const a=await retrieveAskHistory(source,db,["a","b","c"]),b=await retrieveAskHistory(context(plain(unbounded(),["a","b","c"])),db,["a","b","c"]);
  assert.equal(JSON.stringify(source),before);
  assert.deepEqual(a.askInterpretation,b.askInterpretation);

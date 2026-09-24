@@ -19,10 +19,17 @@ export type LabsList = {
 };
 // A model field or a reloaded JSON object cannot mint this source snapshot.
 const snapshots = new WeakMap<LabsList, string>();
-export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: CareEntryRow[]): LabsList | null {
+export const readLabsSnapshotMatches = (labs: LabsList) => snapshots.get(labs) === JSON.stringify(labs);
+export function carryReadLabsSnapshot(source: LabsList, target: LabsList) {
+ if (!readLabsSnapshotMatches(source) || JSON.stringify(source)!==JSON.stringify(target)) throw Error("ASK_LABS_LIST_CLONE_CHANGED");
+ snapshots.set(target, snapshots.get(source)!);
+}
+export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: CareEntryRow[], calculationOperands = false): LabsList | null {
   const request = evidence?.interpretation?.request, ticket = request?.readTicket;
   const coverage = evidence?.history?.ticketCoverage;
-  const presentation = labsPresentation(request?.outputFormat);
+  const operandTransport = calculationOperands && !!request?.calculatePlan;
+  if (request?.calculatePlan && !operandTransport) return null;
+  const presentation = operandTransport ? "prose" : labsPresentation(request?.outputFormat);
   // Result-set serialization currently supports prose only.
   if (!presentation || !ticket?.selection && presentation !== "prose") return null;
   logLabsEligibility(evidence, rows.map(row => ({ id: row.id, petId: row.pet_profile_id })));
@@ -35,7 +42,7 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
     || !ticket.selection && ticket.outputs.completeness !== "exhaustive" && request.quantity !== "records") return null;
   // Selected reports do not fulfill a distinct count, comparison, aggregation,
   // navigation obligation. Those keep their own review. Format is not authority.
-  if (ticket.selection && (request.task || request.projection || request.evidenceNeeds?.length
+  if (ticket.selection && !operandTransport && (request.task || request.projection || request.evidenceNeeds?.length
     || !["records", "measurement"].includes(request.quantity || "")
     || !["recall", undefined].includes(evidence.interpretation?.readOperation ?? evidence.interpretation?.operation))) return null;
   if (ticket.subjects.petIds.some(id => !evidence.scope.authorizedPetIds.includes(id))

@@ -5,7 +5,7 @@ import type { AskReasoningResult } from "../ai/ask-reasoning.ts";
 export function dependsOnStoredState(e: AskEvidenceContract | undefined): boolean {
   const r = e?.interpretation?.request;
   if (r) return ["saved_history", "saved_profile", "stored"].includes(r.evidenceBasis || "")
-    || !!r.readTicket || !!r.storedRead || !!r.profileFields?.length || !!r.evidenceNeeds?.length;
+    || !!r.calculatePlan || !!r.readTicket || !!r.storedRead || !!r.profileFields?.length || !!r.evidenceNeeds?.length;
   return !!(e?.history || e?.historyFallback || e?.episodes || e?.recordInventory?.length);
 }
 export const FACTUAL_UNAVAILABLE = "server-factual-unavailable";
@@ -15,7 +15,7 @@ export function factualLimitationFailure(result: AskReasoningResult): string | n
   if (!dependsOnStoredState(e) || result.model !== FACTUAL_UNAVAILABLE
     || result.answer.title !== "Furvise" || result.answer.summary !== FACTUAL_LIMITATION
     || result.answer.sections.length || result.answer.safetyNote || result.suggestedFollowUps.length
-    || result.profileFieldLabs || result.labsList || result.historyNarrative || result.historicalResult
+    || result.calculationLabs || result.profileFieldLabs || result.labsList || result.historyNarrative || result.historicalResult
     || result.historySynthesis?.length || result.relevantContextIds.length || result.referencedRecords?.length
     || result.applicationActions.length || result.careActions.length || result.semanticEvents.length || result.learnings.length
     || Object.entries(result.proposedHistoryUpdate).some(([key,value]) => key === "shouldOffer" ? value !== false : value !== null)

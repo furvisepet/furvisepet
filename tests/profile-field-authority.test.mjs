@@ -31,7 +31,7 @@ function field(f){return f.p.fields[0];}
 function claims(f,text,ids){const o=derivePublicationAuthority(f.e).obligations[0];return publicationClaimFailures(f.e,[{obligationId:o.obligationId,text,sourceIds:ids??o.authorizedSourceIds}]);}
 test('provider grammar makes incompatible saved-profile dimensions unrepresentable',async()=>{
  const {default:Ajv}=await import('ajv');const validate=new Ajv({allErrors:true}).compile(askRequestProviderSchema({}));
- const request={storedRead:null,removeJob:null,stateTransitionJob:null,fieldMutationJob:null,lifecyclePlan:null,appendJob:null,readTicket:null,writeJob:null,task:null,temporalScope:'current',mutationIntent:null,recordSelection:null,
+ const request={calculatePlan:null,storedRead:null,removeJob:null,stateTransitionJob:null,fieldMutationJob:null,lifecyclePlan:null,appendJob:null,readTicket:null,writeJob:null,task:null,temporalScope:'current',mutationIntent:null,recordSelection:null,
   profileFields:['weight'],projection:null,version:'ask-request.v2',mode:'read',question:"What is Milo's saved profile weight?",requirements:[],
   evidenceNeeds:[],outputFormat:null,evidenceBasis:'saved_profile',premiseQuotes:[],excludedPetNames:[],referenceTurnIds:[],scope:'named',petNames:['Milo'],
   operation:'recall',selection:'summary',quantity:null,topic:'profile',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:null};

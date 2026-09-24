@@ -1,3 +1,4 @@
+import { buildCalculationLabs, serializeCalculationLabs, calculationSourceIds, CALCULATION_LABS, CALCULATION_UNAVAILABLE, CALCULATION_LIMITATION, type CalculationLabs } from "../intelligence/calculation-labs.ts";
 import { dependsOnStoredState, languageOnlyEvidence, languageProviderContext, FACTUAL_UNAVAILABLE, FACTUAL_LIMITATION } from "../intelligence/factual-dispatch.ts";
 import { isStoredRead, storedReadResult, storedReadText, storedReadSourceIds, storedReadPublishedResult, STORED_READ_LABS, STORED_READ_UNAVAILABLE } from "../intelligence/stored-read-publication.ts";
 import { projectProfileFields, profileFieldRecords, bindProfileFieldProjection, isTypedProfileRead } from "../intelligence/profile-field-authority.ts";
@@ -125,6 +126,7 @@ export type ProposedHistoryUpdate = {
 export type AskReasoningResult = {
   /** Server-produced, never parsed from model JSON. */
   evidenceContract?: AskEvidenceContract;
+  calculationLabs?: CalculationLabs;
   labsList?: LabsList;
   profileFieldLabs?: ProfileFieldLabs;
   historySynthesis?: Array<{ sourceId: string; text: string }>;
@@ -750,11 +752,13 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   const projectionContext = buildAskContext(input, false);
   const profileLabs = projectionContext.minimumSafetyLevel === "normal" ? buildProfileFieldLabs(projectionContext.promptContext.evidenceContract) : null;
   const publicationEvidence = projectionContext.promptContext.evidenceContract;
+  const calculationRequested = !!publicationEvidence.interpretation?.request?.calculatePlan;
+  const calculationLabs = calculationRequested ? buildCalculationLabs(publicationEvidence, input.careEntries) : null;
   const typedProfile = isTypedProfileRead(publicationEvidence);
   const profileUnavailable = unsupportedProfilePresentation(publicationEvidence);
   // Typed profile reads never reopen another factual carrier, including safety-blocked Labs.
 
-  const ordinaryHistory = requiresHistoryPublicationAuthority(publicationEvidence);
+  const ordinaryHistory = !calculationRequested && requiresHistoryPublicationAuthority(publicationEvidence);
   const candidateLabs = ordinaryHistory && !typedProfile && projectionContext.minimumSafetyLevel !== "urgent"
     && (!ordinaryHistory || supportedHistoryPublication(publicationEvidence))
     ? buildLabsList(publicationEvidence, input.careEntries) : null;
@@ -766,18 +770,18 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   const factualUnavailable = dependsOnStoredState(publicationEvidence) && !profileLabs && !labs && !unavailable && !profileUnavailable;
   logPublicationDispatch(projectionContext.promptContext.evidenceContract,
     input.careEntries.map(row => ({ id: row.id, petId: row.pet_profile_id })),
-    profileLabs || labs ? "labs" : profileUnavailable || unavailable || factualUnavailable ? "unavailable" : "model", projectionContext.minimumSafetyLevel);
-  if (profileLabs || labs || unavailable || profileUnavailable || factualUnavailable) {
+    calculationLabs || profileLabs || labs ? "labs" : calculationRequested || profileUnavailable || unavailable || factualUnavailable ? "unavailable" : "model", projectionContext.minimumSafetyLevel);
+  if (calculationRequested || profileLabs || labs || unavailable || profileUnavailable || factualUnavailable) {
     const context = projectionContext;
     const evidence = context.promptContext.evidenceContract;
-    const ids = profileLabs ? profileFieldSourceIds(profileLabs) : labs ? labs.records.map(row => row.sourceId) : [];
+    const ids = calculationRequested ? calculationLabs ? calculationSourceIds(calculationLabs) : [] : profileLabs ? profileFieldSourceIds(profileLabs) : labs ? labs.records.map(row => row.sourceId) : [];
     return {
-      answer: {title:"Furvise",summary:profileLabs ? serializeProfileFieldLabs(profileLabs) : profileUnavailable ? PROFILE_PRESENTATION_LIMITATION : labs ? serializeLabsList(labs) : unavailable || FACTUAL_LIMITATION,sections:[],safetyNote:null}, evidenceContract:evidence,
-      ...(profileLabs ? {profileFieldLabs:profileLabs} : labs ? {labsList:labs} : {}),historyNarrativeDeclined:false,
-      userIntent:"history recall",relevantContextIds:ids,referencedRecords:context.records.filter(record=>ids.includes(record.id)),
+      answer: {title:"Furvise",summary:calculationRequested ? calculationLabs ? serializeCalculationLabs(calculationLabs) : CALCULATION_LIMITATION : profileLabs ? serializeProfileFieldLabs(profileLabs) : profileUnavailable ? PROFILE_PRESENTATION_LIMITATION : labs ? serializeLabsList(labs) : unavailable || FACTUAL_LIMITATION,sections:[],safetyNote:null}, evidenceContract:evidence,
+      ...(calculationLabs ? {calculationLabs} : profileLabs ? {profileFieldLabs:profileLabs} : labs ? {labsList:labs} : {}),historyNarrativeDeclined:false,
+      userIntent:"history recall",relevantContextIds:ids,referencedRecords:calculationRequested ? [] : context.records.filter(record=>ids.includes(record.id)),
       safetyLevel:"normal",shoppingSuppressed:true,suggestedFollowUps:[],applicationActions:[],proposedHistoryUpdate:emptyHistoryUpdate(),
       answerDepth:planAskAnswerDepth({message:input.question,minimumSafetyLevel:"normal",responseMode:"practical_guidance",recentConversation:input.conversationTurns}),
-      responseMode:"practical_guidance",model:profileLabs ? "server-profile-field-labs" : profileUnavailable ? PROFILE_PRESENTATION_UNAVAILABLE : labs ? "server-labs-list" : unavailable ? "server-history-unavailable" : FACTUAL_UNAVAILABLE,
+      responseMode:"practical_guidance",model:calculationRequested ? calculationLabs ? CALCULATION_LABS : CALCULATION_UNAVAILABLE : profileLabs ? "server-profile-field-labs" : profileUnavailable ? PROFILE_PRESENTATION_UNAVAILABLE : labs ? "server-labs-list" : unavailable ? "server-history-unavailable" : FACTUAL_UNAVAILABLE,
       messageUnderstanding:{...defaultMessageUnderstanding(input.question),primaryIntent:"question",userIsAskingQuestion:true},
       intelligenceSafety:{...defaultIntelligenceSafety("normal"),shoppingSuppressed:true},
       learnings:[],careActions:[],semanticEvents:[],semanticFrame:emptyProposedSemanticFrame(),semanticFrameValid:true,

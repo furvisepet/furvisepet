@@ -1,3 +1,4 @@
+import { calculationPublicationFailure, CALCULATION_LABS, CALCULATION_UNAVAILABLE } from "./calculation-labs.ts";
 import { dependsOnStoredState, factualLimitationFailure, FACTUAL_UNAVAILABLE, FACTUAL_LIMITATION } from "./factual-dispatch.ts";
 
 import type { AskReasoningResult, AskProviderEvent } from "../ai/ask-reasoning.ts";
@@ -23,6 +24,13 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   const decline = (reason: string) => { recordHistoryReviewDiagnostic(result, "declined", reason); return false; };
   recordHistoryReviewDiagnostic(result, "declined", "review_not_completed");
   const evidence = result.evidenceContract;
+  if (evidence?.interpretation?.request?.calculatePlan || [CALCULATION_LABS,CALCULATION_UNAVAILABLE].includes(result.model)) {
+    const failure=calculationPublicationFailure(result);
+    if(failure)return decline(failure);
+    if(executionPlan && (executionPlan.semanticEvents.length || executionPlan.careActions.length || executionPlan.learnings.length))return decline("calculation_has_pending_write");
+    recordHistoryReview(result,{signature:signature(result),text:result.answer.summary,sourceIds:[...result.relevantContextIds],sourceContent:[]});
+    return true;
+  }
   if (result.model === FACTUAL_UNAVAILABLE) {
     const failure = factualLimitationFailure(result);
     if (failure) return decline(failure);

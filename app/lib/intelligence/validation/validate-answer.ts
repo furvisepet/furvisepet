@@ -1,3 +1,4 @@
+import { calculationPublicationFailure, carryCalculationLabs, CALCULATION_LABS, CALCULATION_UNAVAILABLE } from "../calculation-labs.ts";
 import type { ResolvedSafetyState } from "../safety-state.ts";
 import { storedEmergencyApplies, storedEmergencySafetyFailure, storedEmergencyInputFailure, replaceStoredPublicationWithEmergency, STORED_EMERGENCY_REASON } from "../stored-emergency-publication.ts";
 import { dependsOnStoredState, factualLimitationFailure, FACTUAL_UNAVAILABLE, languageOnlyEvidence } from "../factual-dispatch.ts";
@@ -60,6 +61,23 @@ export function validateGeneratedAnswer(
       checks: { structuralValidity: failure ? "failed" : "passed", evidenceSupport: failure ? "failed" : "passed",
         subjectDateCorrectness: failure ? "failed" : "passed", calculationCorrectness: "not_applicable", taskCompletion: "failed" } });
     return { response, assessment, valid: !failure, errors, repairs: failure ? [] : ["preserved_current_emergency_priority"], qualityWarnings: [] };
+  }
+  if(result.evidenceContract?.interpretation?.request?.calculatePlan || [CALCULATION_LABS,CALCULATION_UNAVAILABLE].includes(result.model)){
+    const failure=calculationPublicationFailure(result);
+    const scopeFailure=result.evidenceContract?.scope.authorizedPetIds.some(id=>!authoritativePetIds.includes(id));
+    const errors=[...(failure?[failure]:[]),...(scopeFailure?["calculation_scope"]:[]),...(!reviewedHistory?["calculation_review_required"]:[])];
+    if(!errors.length&&reviewedHistory){
+      carryCalculationLabs(result,response);
+      response.evidenceContract!.answerSourceIds=[...reviewedHistory.sourceIds];response.evidenceContract!.answerContent=[];
+      recordHistoryReview(response,{...reviewedHistory,signature:historyReviewSignature(response)});
+      rememberReviewedTaskPresentation(response.evidenceContract,response.answer,[]);
+    }
+    const complete=result.model===CALCULATION_LABS&&!errors.length;
+    const assessment=createAnswerAssessment({body:response.answer,evidence:response.evidenceContract,unsafe:!!errors.length,
+      reasons:[...errors,...(complete?[]:["calculation_unavailable"])],checks:{structuralValidity:errors.length?"failed":"passed",
+      evidenceSupport:errors.length?"failed":"passed",subjectDateCorrectness:errors.length?"failed":"passed",
+      calculationCorrectness:complete?"passed":"not_applicable",taskCompletion:complete?"passed":"failed"}});
+    return {response,assessment,valid:!errors.length,repairs:[],errors,qualityWarnings:[]};
   }
   if(result.model===FACTUAL_UNAVAILABLE){
     const failure=factualLimitationFailure(result);

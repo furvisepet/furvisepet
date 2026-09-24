@@ -51,6 +51,7 @@ export function replaceStoredPublicationWithEmergency(response: AskReasoningResu
   response.answer = guidance(safety);
   response.relevantContextIds = [];
   response.referencedRecords = [];
+  delete response.calculationLabs;
   delete response.labsList;
   delete response.profileFieldLabs;
   delete response.historyNarrative;
@@ -84,7 +85,7 @@ export function storedEmergencyPublicationFailure(result: AskReasoningResult, co
     || !storedEmergencyApplies(result.evidenceContract, safety)
     || JSON.stringify(result.answer) !== JSON.stringify(guidance(safety!))
     || !empty(result.relevantContextIds) || !empty(result.referencedRecords)
-    || result.labsList || result.profileFieldLabs || result.historyNarrative || result.historicalResult || result.historySynthesis
+    || result.calculationLabs || result.labsList || result.profileFieldLabs || result.historyNarrative || result.historicalResult || result.historySynthesis
     || result.evidenceContract?.answerSourceIds || result.evidenceContract?.answerContent
     || !empty(result.suggestedFollowUps) || result.safetyLevel !== "urgent" || !result.shoppingSuppressed
     || result.intelligenceSafety.level !== safety!.level
