@@ -1,0 +1,15 @@
+{
+  "record": {
+    "id": "0f7971a6-8b45-4042-bd79-a9adb951f41a",
+    "note": "Body weight: 10 kg.",
+    "occurred_at": "2026-09-01T12:00:00+00:00"
+  },
+  "messages": [
+    {
+      "id": "72578348-a630-4fda-b24f-9708fb0a8ed9",
+      "role": "user",
+      "user_text": "What was Milo's recorded weight on September 1, 2026?"
+    }
+  ],
+  "noAssistantAnswerPersisted": true
+}

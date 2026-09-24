@@ -1,0 +1,20 @@
+{
+  "target": "C:\\Users\\gwara\\AppData\\Local\\Temp\\furvise-sufficient-clean-kot3Aw",
+  "credentials": "excluded",
+  "envFiles": "excluded",
+  "cache": "fresh",
+  "checks": [
+    {
+      "label": "typecheck",
+      "exit": 0
+    },
+    {
+      "label": "build",
+      "exit": 0
+    },
+    {
+      "label": "clean-typecheck",
+      "exit": 0
+    }
+  ]
+}

@@ -1,0 +1,203 @@
+[
+  {
+    "label": "eligibility",
+    "files": [
+      "tests/certified-sufficient-result-set.test.mjs"
+    ],
+    "counts": {
+      "tests": 45,
+      "pass": 45,
+      "fail": 0
+    },
+    "failures": [],
+    "changed": [],
+    "missing": [],
+    "exit": 0,
+    "ok": true
+  },
+  {
+    "label": "publicationFocused",
+    "files": [
+      "tests/ask-labs-list.test.mjs",
+      "tests/ordered-result-set.test.mjs",
+      "tests/result-read-selection.test.mjs",
+      "tests/ask-certificate-bound-publication.test.mjs",
+      "tests/ask-publication-authority-diagnostics.test.mjs",
+      "tests/ordinary-ask-authority-firewall.test.mjs",
+      "tests/factual-dispatch.test.mjs",
+      "tests/factual-dispatch-safety.test.mjs",
+      "tests/ask-mandatory-history-publication.test.mjs"
+    ],
+    "counts": {
+      "tests": 189,
+      "pass": 189,
+      "fail": 0
+    },
+    "failures": [],
+    "changed": [],
+    "missing": [],
+    "exit": 0,
+    "ok": true
+  },
+  {
+    "label": "focused",
+    "files": [
+      "tests/measurement-disambiguation.test.mjs"
+    ],
+    "counts": {
+      "tests": 74,
+      "pass": 74,
+      "fail": 0
+    },
+    "failures": [],
+    "changed": [],
+    "missing": [],
+    "exit": 0,
+    "ok": true
+  },
+  {
+    "label": "G1",
+    "files": [
+      "tests/canonical-calculation.test.mjs"
+    ],
+    "counts": {
+      "tests": 94,
+      "pass": 94,
+      "fail": 0
+    },
+    "failures": [],
+    "changed": [],
+    "missing": [],
+    "exit": 0,
+    "ok": true
+  },
+  {
+    "label": "G2",
+    "files": [
+      "tests/calculation-result-selection.test.mjs"
+    ],
+    "counts": {
+      "tests": 89,
+      "pass": 89,
+      "fail": 0
+    },
+    "failures": [],
+    "changed": [],
+    "missing": [],
+    "exit": 0,
+    "ok": true
+  },
+  {
+    "label": "G3A",
+    "files": [
+      "tests/calculation-dag.test.mjs"
+    ],
+    "counts": {
+      "tests": 89,
+      "pass": 89,
+      "fail": 0
+    },
+    "failures": [],
+    "changed": [],
+    "missing": [],
+    "exit": 0,
+    "ok": true
+  },
+  {
+    "label": "retirement",
+    "files": [
+      "tests/legacy-calculation-retirement.test.mjs"
+    ],
+    "counts": {
+      "tests": 5,
+      "pass": 5,
+      "fail": 0
+    },
+    "failures": [],
+    "changed": [],
+    "missing": [],
+    "exit": 0,
+    "ok": true
+  },
+  {
+    "label": "retrieval",
+    "files": [
+      "tests/furvise-lungs.test.mjs",
+      "tests/furvise-effective-selection.test.mjs",
+      "tests/furvise-compositional-read.test.mjs",
+      "tests/furvise-temporal-selection.test.mjs",
+      "tests/ordered-result-set.test.mjs",
+      "tests/result-read-selection.test.mjs",
+      "tests/supporting-context.test.mjs",
+      "tests/typed-read-ticket.test.mjs",
+      "tests/legacy-read-selection.test.mjs"
+    ],
+    "counts": {
+      "tests": 239,
+      "pass": 239,
+      "fail": 0
+    },
+    "failures": [],
+    "changed": [],
+    "missing": [],
+    "exit": 0,
+    "ok": true
+  },
+  {
+    "label": "brain",
+    "files": [
+      "tests/ask-compositional-emission.test.mjs",
+      "tests/ask-read-ticket-diagnostics.test.mjs",
+      "tests/ask-one-interpreter.test.mjs",
+      "tests/ask-working-memory-interpretation.test.mjs",
+      "tests/furvise-brain-interpretation-authority.test.mjs",
+      "tests/ask-interpretation-timeout.test.mjs"
+    ],
+    "counts": {
+      "tests": 78,
+      "pass": 78,
+      "fail": 0
+    },
+    "failures": [],
+    "changed": [],
+    "missing": [],
+    "exit": 0,
+    "ok": true
+  },
+  {
+    "label": "body",
+    "files": [
+      "tests/ask-direct-evidence-ticket.test.mjs",
+      "tests/ask-interpretation-timeout.test.mjs",
+      "tests/ask-one-interpreter.test.mjs",
+      "tests/ask-read-ticket-diagnostics.test.mjs",
+      "tests/ask-route-ordering.test.mjs",
+      "tests/ask-selection-publication.test.mjs",
+      "tests/furvise-compositional-read.test.mjs",
+      "tests/furvise-correction-provenance.test.mjs",
+      "tests/furvise-effective-selection.test.mjs",
+      "tests/furvise-heart-receipt.test.mjs",
+      "tests/furvise-lungs.test.mjs",
+      "tests/furvise-multi-need-ticket.test.mjs",
+      "tests/furvise-read-obligations.test.mjs",
+      "tests/furvise-replace-ticket.test.mjs",
+      "tests/furvise-temporal-selection.test.mjs"
+    ],
+    "counts": {
+      "tests": 188,
+      "pass": 186,
+      "fail": 2
+    },
+    "failures": [
+      "exhaustive read without selection or result-set proof cannot publish factual rows",
+      "exhaustive transport loss without selection or result-set proof remains source-free and limited"
+    ],
+    "changed": [
+      "exhaustive read without selection or result-set proof cannot publish factual rows",
+      "exhaustive transport loss without selection or result-set proof remains source-free and limited"
+    ],
+    "missing": [],
+    "exit": 1,
+    "ok": false
+  }
+]

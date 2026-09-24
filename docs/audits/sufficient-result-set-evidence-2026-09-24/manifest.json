@@ -1,0 +1,51 @@
+{
+  "repairHead": "9b8c2b93f913d882707e7da5c580d2f13b7a1a3e",
+  "note": "Original bytes; gate rerun supersedes initial Body result only. No application edits after repair commit.",
+  "files": [
+    {
+      "file": "furvise-sufficient-case-A.json",
+      "sha256": "f10a4fa51d443b8207d48e53cb5b91522e9cfd9012565504952750473389ee69",
+      "bytes": 892
+    },
+    {
+      "file": "furvise-sufficient-case-A.log",
+      "sha256": "81e4f24cd690fbf27a03c1a159d44becd67c57dd7f769abd83cd26d16a275da2",
+      "bytes": 7236
+    },
+    {
+      "file": "furvise-sufficient-case-A-persistence.json",
+      "sha256": "53582f433898fca8d941085e4407848642ed0c8c08051c997627642abf526ee1",
+      "bytes": 373
+    },
+    {
+      "file": "furvise-sufficient-fixture.json",
+      "sha256": "f4e34092b3772596ddd9891890d1a6ec2cf6d358e58f0008b0d49a68fe445095",
+      "bytes": 5348
+    },
+    {
+      "file": "furvise-sufficient-cleanup.json",
+      "sha256": "dd015f537ba4448ab0a419664b9effc7b4f3b2cbb7352c9d1116e79bf5699e53",
+      "bytes": 3603
+    },
+    {
+      "file": "furvise-sufficient-gates.json",
+      "sha256": "1b616132bccbfae19607fbeac5c94e0b2f8dfa6b165d48a0066e88abff278ab4",
+      "bytes": 4798
+    },
+    {
+      "file": "furvise-sufficient-remaining-gates.json",
+      "sha256": "c5defbe9bfbe6a28dc018e598cc76c62b8a8b3c9f88841f90f4639ac0490cac8",
+      "bytes": 5832
+    },
+    {
+      "file": "furvise-sufficient-build.json",
+      "sha256": "70e99bc162ed5774d52aac8d94c77073935f676fc254c3b34ecc7a8b41d2e4b9",
+      "bytes": 355
+    },
+    {
+      "file": "furvise-sufficient-local-reset.json",
+      "sha256": "fb1cdea8cbeaa93162c66deb0ca1debdbb0936ebe7890b609a1aece1e976c981",
+      "bytes": 8224
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "case": "A",
+  "prompt": "What was Milo's recorded weight on September 1, 2026?",
+  "expected": "10 kg on 2026-09-01",
+  "petId": "f33c7c9c-1e66-4d6f-b39c-fd85b7cd8932",
+  "petName": "Milo",
+  "requestId": "64acdf26-158e-4022-83ab-1798eea29954",
+  "httpStatus": 503,
+  "durationMs": 9127,
+  "providerCallsTotal": 1,
+  "costMicrodollarsTotal": 20323,
+  "careHistoryUnchanged": true,
+  "response": {
+    "code": "TEMPORARY_PROVIDER_FAILURE",
+    "diagnosticCode": "ASK_INTERPRETATION_FAILED",
+    "message": "Furvise couldn't answer just now. Your question has not been lost.",
+    "success": false,
+    "requestId": "64acdf26-158e-4022-83ab-1798eea29954",
+    "conversationId": "2f074271-fdb8-4438-bb58-76981f79d507",
+    "userMessageId": "72578348-a630-4fda-b24f-9708fb0a8ed9",
+    "logicalTurnId": "64acdf26-158e-4022-83ab-1798eea29954",
+    "turnDisposition": "answer_unavailable"
+  }
+}
