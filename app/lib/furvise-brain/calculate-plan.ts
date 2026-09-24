@@ -1,10 +1,11 @@
+import {bindResultSelection,resultSelectionSchema,type ResultSelection,type CalculationSource} from "./calculation-result-binding.ts";
 import type { ReadTicket } from "./read-ticket.ts";
 import { units } from "./calculation-units.ts";
 
 export const CALCULATE_OPERATORS = ["sum","mean","difference","absolute_difference","ratio","percent_change","percent_of_sum","convert","elapsed_days","count_records"] as const;
 export type CalculateOperator = typeof CALCULATE_OPERATORS[number];
 export type CalculateSlot = Readonly<{subjectId:string; clause:number; item:number; field:"measurement"|"event_at"; unit:string|null}>;
-export type CalculatePlan = Readonly<{operation:"calculate"; calculations:readonly Readonly<{
+export type CalculatePlan = Readonly<{operation:"calculate"; resultSelection?:ResultSelection|null; calculations:readonly Readonly<{
   id:string; operator:CalculateOperator; operands:readonly CalculateSlot[]; resultUnit:string; precision:number|null;
 }>[]}>;
 const obj=(v:unknown):v is Record<string,unknown>=>!!v&&typeof v==="object"&&!Array.isArray(v);
@@ -12,7 +13,8 @@ const keys=(v:Record<string,unknown>,names:string[])=>Object.keys(v).sort().join
 const fail=(reason:string):never=>{throw Error("ASK_CALCULATE_INVALID:"+reason);};
 const unit=(v:unknown)=>typeof v==="string"&&Object.hasOwn(units,v)?units[v]:null;
 export const calculatePlanSchema={anyOf:[{type:"null"},{
- type:"object",additionalProperties:false,required:["operation","calculations"],properties:{
+ type:"object",additionalProperties:false,required:["operation","calculations","resultSelection"],properties:{
+ resultSelection:resultSelectionSchema,
  operation:{type:"string",enum:["calculate"]},
  calculations:{type:"array",minItems:1,maxItems:20,items:{type:"object",additionalProperties:false,
  required:["id","operator","operands","resultUnit","precision"],properties:{
@@ -30,8 +32,8 @@ export const calculatePlanSchema={anyOf:[{type:"null"},{
  * percent_change = (1 - 0) / 0 * 100; percent_of_sum = 0 / sum * 100.
  * elapsed_days = (timestamp 1 - timestamp 0) / 86,400,000 (instant days).
  * No derived-result references, expressions, IDs or raw wording are accepted. */
-function bind(value:unknown,ticket:ReadTicket,resolve:(v:unknown)=>string,bound:boolean):CalculatePlan {
- if(!obj(value)||!keys(value,["operation","calculations"])||value.operation!=="calculate"
+function bind(value:unknown,ticket:ReadTicket,resolve:(v:unknown)=>string,bound:boolean,source?:CalculationSource):CalculatePlan {
+ if(!obj(value)||!keys(value,Object.hasOwn(value,"resultSelection")?["operation","calculations","resultSelection"]:["operation","calculations"])||value.operation!=="calculate"
   ||!Array.isArray(value.calculations)||!value.calculations.length||value.calculations.length>20) return fail("plan");
  if(!["read","read_since_event"].includes(ticket.operation)||ticket.episode||ticket.needs?.length
   ||ticket.outputs.strategy!=null||ticket.temporal.calendar)return fail("read_domain");
@@ -69,17 +71,31 @@ function bind(value:unknown,ticket:ReadTicket,resolve:(v:unknown)=>string,bound:
   else if(operator!=="count_records"&&(!unit(c.resultUnit)||unit(c.resultUnit)!.dimension!==dimensions[0]))return fail("result_unit");
   return Object.freeze({id:c.id,operator,operands:Object.freeze(operands),resultUnit:c.resultUnit,precision:c.precision as number|null});
  });
- return Object.freeze({operation:"calculate",calculations:Object.freeze(calculations)});
+ const resultSelection=bindResultSelection(value.resultSelection,calculations,ticket.subjects.petIds,source,bound);
+ return Object.freeze({operation:"calculate",calculations:Object.freeze(calculations),...(Object.hasOwn(value,"resultSelection")?{resultSelection}:{})});
 }
-export function bindCalculatePlan(value:unknown,ticket:ReadTicket,subjects:readonly {id:string;name:string|null}[]):CalculatePlan {
- return bind(value,ticket,name=>{
+export function bindCalculatePlan(value:unknown,ticket:ReadTicket,subjects:readonly {id:string;name:string|null}[],source?:CalculationSource):CalculatePlan {
+ const plan=bind(value,ticket,name=>{
   if(typeof name!=="string")return fail("subject");
   const matches=subjects.filter(p=>p.name?.normalize("NFKC").toLowerCase()===name.normalize("NFKC").toLowerCase());
   if(matches.length!==1)return fail("subject");
   return matches[0].id;
- },false);
+ },false,source);
+ remember(plan,ticket);return plan;
 }
-/** Revalidation after trusted JSON transport preserves semantics, never selects. */
-export function rebindCalculatePlan(value:unknown,ticket:ReadTicket):CalculatePlan {
- return bind(value,ticket,id=>typeof id==="string"&&ticket.subjects.petIds.includes(id)?id:fail("subject"),true);
+// Server binding snapshots protect G2 semantics across in-process copies.
+// A JSON clone needs its trusted original; a stale/untrusted JSON object cannot
+// mint a source-bound threshold or change the comparator/cohort during rebind.
+const bindings=new WeakMap<CalculatePlan,{plan:string;ticket:string}>();
+const remember=(plan:CalculatePlan,ticket:ReadTicket)=>bindings.set(plan,{plan:JSON.stringify(plan),ticket:JSON.stringify(ticket)});
+export function rebindCalculatePlan(value:unknown,ticket:ReadTicket,authority?:CalculatePlan):CalculatePlan{
+ if((value as CalculatePlan)?.resultSelection||authority?.resultSelection){
+  const receipt=bindings.get(authority??value as CalculatePlan);
+  if(!receipt||receipt.plan!==JSON.stringify(value)||receipt.ticket!==JSON.stringify(ticket))return fail("binding_snapshot");
+ }
+ const plan=bind(value,ticket,id=>typeof id==="string"&&ticket.subjects.petIds.includes(id)?id:fail("subject"),true);
+ remember(plan,ticket);return plan;
+}
+export function carryCalculatePlan(source:CalculatePlan,target:CalculatePlan,ticket:ReadTicket):void{
+ rebindCalculatePlan(target,ticket,source);remember(target,ticket);
 }

@@ -2,7 +2,7 @@ import type { AskEvidenceContract } from "./ask-evidence.ts";
 import type { AskReasoningResult } from "../ai/ask-reasoning.ts";
 import type { CareEntryRow } from "../supabase.ts";
 import { buildLabsList, readLabsSnapshotMatches, carryReadLabsSnapshot, type LabsList } from "./labs-list.ts";
-import { rebindCalculatePlan, type CalculatePlan } from "../furvise-brain/calculate-plan.ts";
+import { rebindCalculatePlan, carryCalculatePlan, type CalculatePlan } from "../furvise-brain/calculate-plan.ts";
 import { executeCalculatePlan, type CalculateExecution } from "../furvise-brain/muscle.ts";
 import { labsPresentation, type LabsPresentation } from "./labs-presentation.ts";
 
@@ -32,7 +32,7 @@ export function buildCalculationLabs(e:AskEvidenceContract|undefined,rows:CareEn
  const calculatePlan=e!.interpretation!.request!.calculatePlan!;
  const execution=executeCalculatePlan(calculatePlan,readLabs);
  if(!execution.complete)return null;
- const labs={readLabs,calculatePlan:structuredClone(calculatePlan),execution,presentation,
+ const labs={readLabs,calculatePlan:rebindCalculatePlan(calculatePlan,readLabs.ticket),execution,presentation,
   petNames:Object.fromEntries(readLabs.ticket.subjects.petIds.map(id=>[id,e!.petNames?.[id]||"this pet"]))};
  snapshots.set(labs,JSON.stringify(labs));return labs;
 }
@@ -44,14 +44,21 @@ const labels:Record<string,string>={sum:"Sum",mean:"Mean",difference:"Difference
  percent_of_sum:"Input 0 as a percentage of the sum",convert:"Converted measurement",
  elapsed_days:"Elapsed time between selected events",count_records:"Matching effective record count"};
 export function serializeCalculationLabs(labs:CalculationLabs):string{
- const rows=labs.execution.results.map(r=>{
+ const certificate=labs.execution.resultSelection;
+ if(certificate&&certificate.status!=="certified")throw Error("CALCULATION_SELECTION_NOT_CERTIFIED");
+ const selected=certificate?certificate.selectedCalculationIds.map(id=>labs.execution.results.find(r=>r.id===id)!):labs.execution.results;
+ if(certificate&&!selected.length)return "No calculated subject results met the requested threshold.";
+ const rows=selected.map(r=>{
   if(r.status!=="certified")throw Error("CALCULATION_NOT_CERTIFIED");
   const value=r.precision===null?String(r.value):r.value.toFixed(r.precision);
   const result=value+(r.unit==="scalar"?"":" "+r.unit);
   const names=r.subjectIds.map(id=>labs.petNames[id]).join(", ");
   const operands=r.operands.map((o,i)=>"input "+i+": "+labs.petNames[o.subjectId]+"; "+
    (o.dimension==="instant"?o.eventAt:o.literal+"; event "+o.eventAt)).join("; ");
-  return {label:labels[r.operator]+" for "+names,result,operands};
+  const group=certificate?.groups.find(g=>g.calculationIds.includes(r.id));
+  const rank=group?.rank;
+  const prefix=rank!==null&&rank!==undefined?"Rank "+rank+(group!.calculationIds.length>1?" (tied)":"")+": ":"";
+  return {label:prefix+labels[r.operator]+" for "+names,result,operands};
  });
  const cell=(s:string)=>s.replaceAll("|","\\|").replace(/[\r\n]/g," ");
  if(labs.presentation==="table")return ["| Calculation | Result | Certified inputs |","| --- | --- | --- |",
@@ -86,9 +93,13 @@ export function calculationPublicationFailure(r:AskReasoningResult):string|null{
 }
 export function carryCalculationLabs(source:AskReasoningResult,target:AskReasoningResult){
  if(calculationPublicationFailure(source))throw Error("CALCULATION_CLONE_CHANGED");
+ const sourcePlan=source.evidenceContract?.interpretation?.request?.calculatePlan;
+ const targetPlan=target.evidenceContract?.interpretation?.request?.calculatePlan;
+ if(sourcePlan&&targetPlan)carryCalculatePlan(sourcePlan,targetPlan,target.evidenceContract!.interpretation!.request!.readTicket!);
  if(source.calculationLabs&&target.calculationLabs){
   if(!same(source.calculationLabs,target.calculationLabs))throw Error("CALCULATION_CLONE_CHANGED");
   carryReadLabsSnapshot(source.calculationLabs.readLabs,target.calculationLabs.readLabs);
+  carryCalculatePlan(source.calculationLabs.calculatePlan,target.calculationLabs.calculatePlan,target.calculationLabs.readLabs.ticket);
   snapshots.set(target.calculationLabs,JSON.stringify(target.calculationLabs));
  }
 }

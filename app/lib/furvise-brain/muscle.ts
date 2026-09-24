@@ -1,27 +1,11 @@
+import {selectCalculationResults,type ResultSelectionCertificate} from "./calculation-result-selection.ts";
 import { rebindCalculatePlan, type CalculatePlan, type CalculateSlot } from "./calculate-plan.ts";
 import { units } from "./calculation-units.ts";
 import { readLabsSnapshotMatches, type LabsList } from "../intelligence/labs-list.ts";
 import { selectionPublication } from "../intelligence/selection-publication.ts";
 import { resultSetSnapshotMatches } from "../intelligence/result-set-publication.ts";
 
-type Fraction={n:bigint;d:bigint};
-const gcd=(a:bigint,b:bigint):bigint=>b?gcd(b,a%b):a<BigInt(0)?-a:a;
-const fraction=(n:bigint,d=BigInt(1)):Fraction=>{if(!d)throw Error("zero_denominator");const g=gcd(n,d);return {n:n/g*(d<BigInt(0)?-BigInt(1):BigInt(1)),d:d/g*(d<BigInt(0)?-BigInt(1):BigInt(1))};};
-const decimal=(text:string):Fraction=>{
- if(!/^[+-]?\d+(?:\.\d+)?$/.test(text)||text.length>60)throw Error("numeric_literal");
- const decimals=text.split(".")[1]?.length||0;
- return fraction(BigInt(text.replace(".","")),BigInt(10)**BigInt(decimals));
-};
-const add=(a:Fraction,b:Fraction)=>fraction(a.n*b.d+b.n*a.d,a.d*b.d);
-const neg=(a:Fraction)=>fraction(-a.n,a.d);
-const mul=(a:Fraction,b:Fraction)=>fraction(a.n*b.n,a.d*b.d);
-const div=(a:Fraction,b:Fraction)=>fraction(a.n*b.d,a.d*b.n);
-const factor=(name:string):Fraction=>{
- const u=units[name];if(!u)throw Error("unit");
- const seconds:Record<string,number>={second:1,minute:60,hour:3600,day:86400,week:604800};
- return decimal(String(u.dimension==="time"?seconds[u.canonical]:u.scale));
-};
-const finite=(q:Fraction)=>{const n=Number(q.n)/Number(q.d);if(!Number.isFinite(n)||Math.abs(n)>1e12)throw Error("nonfinite_or_overflow");return n;};
+import {fraction,decimal,add,neg,mul,div,factor,finite,type Fraction} from "./calculation-rational.ts";
 export type CalculationOperand={
  slot:CalculateSlot; sourceId:string; recordId:string; subjectId:string; eventAt:string;
  literal:string; value:number; unit:string; dimension:string; body:string;
@@ -29,7 +13,7 @@ export type CalculationOperand={
 export type CalculationResult={id:string;status:"certified";operator:string;operands:CalculationOperand[];
  sourceIds:string[];subjectIds:string[];value:number;exact:{numerator:string;denominator:string};unit:string;precision:number|null}
  |{id:string;status:"limited";reason:string};
-export type CalculateExecution={plan:CalculatePlan;results:CalculationResult[];complete:boolean};
+export type CalculateExecution={plan:CalculatePlan;results:CalculationResult[];resultSelection?:ResultSelectionCertificate|null;complete:boolean};
 
 /** Only an unchanged server Labs transport can enter Muscle. Existing organ
  * receipts establish each semantic slot; neither array order nor text selects it.
@@ -93,5 +77,6 @@ export function executeCalculatePlan(proposed:CalculatePlan,read:LabsList):Calcu
     exact:{numerator:String(result.n),denominator:String(result.d)},unit:c.resultUnit,precision:c.precision});
   }catch(e){results.push({id:c.id,status:"limited",reason:e instanceof Error?e.message:"calculation_unavailable"});}
  }
- return {plan,results,complete:results.every(r=>r.status==="certified")};
+ const resultSelection=selectCalculationResults(plan,results);
+ return {plan,results,...(plan.resultSelection?{resultSelection}:{}),complete:results.every(r=>r.status==="certified")&&(!resultSelection||resultSelection.complete)};
 }

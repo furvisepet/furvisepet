@@ -1,3 +1,4 @@
+import {carryCalculatePlan} from "../furvise-brain/calculate-plan.ts";
 import { buildCalculationLabs, serializeCalculationLabs, calculationSourceIds, CALCULATION_LABS, CALCULATION_UNAVAILABLE, CALCULATION_LIMITATION, type CalculationLabs } from "../intelligence/calculation-labs.ts";
 import { dependsOnStoredState, languageOnlyEvidence, languageProviderContext, FACTUAL_UNAVAILABLE, FACTUAL_LIMITATION } from "../intelligence/factual-dispatch.ts";
 import { isStoredRead, storedReadResult, storedReadText, storedReadSourceIds, storedReadPublishedResult, STORED_READ_LABS, STORED_READ_UNAVAILABLE } from "../intelligence/stored-read-publication.ts";
@@ -444,6 +445,9 @@ export function buildAskContext(input: BuildContextInput, applyPromptBudget = tr
     .filter(record => !["remembered_detail","operation_receipt","active_concern","active_episode","resolved_episode","product_context"].includes(record.sourceType));
   const sourceEvidence = input.evidenceContract || evidenceForRecords([], input.question, input.profiles.map(profile => profile.id));
   const evidence = structuredClone(storedFacts ? sourceEvidence : languageOnlyEvidence(sourceEvidence));
+  const sourceCalculation=sourceEvidence.interpretation?.request?.calculatePlan;
+  if(sourceCalculation?.resultSelection&&evidence.interpretation?.request?.calculatePlan)
+    carryCalculatePlan(sourceCalculation,evidence.interpretation.request.calculatePlan,evidence.interpretation.request.readTicket!);
   // Legacy reconstructed receipts are not canonical operation evidence.
   evidence.operationReceipts = [];
   const ordinaryHistory = commonHistoryPathEntered(evidence);
