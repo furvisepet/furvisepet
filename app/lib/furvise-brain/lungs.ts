@@ -1,3 +1,4 @@
+import { normalizeReadText as normalized, textMatchesReadPredicate } from "./read-text.ts";
 import { readWithSupportingContext, type ReadSupportingContext } from "./read-supporting-context.ts";
 import { isOrderedResultSet, resolveResultSetHistory, certifyOrderedResultSet, type OrderedResultSetProof } from "./ordered-result-set.ts";
 import { isResultSelection, selectReadResult, certifyReadResult, resultGroups, type ResultSelectionCertificate } from "./result-selection.ts";
@@ -45,11 +46,8 @@ export type ReadStore = {
   effective(rows: CareEntryRow[]): Promise<{ records: CareEntryRow[]; reliable: boolean; sourceLineage?: ReadSourceLineage[] }>;
 };
 export const LUNGS_LIMITS = { pageSize: 64, pages: 4, records: 32, chars: 18000 } as const;
-const normalized = (text: string) => text.normalize("NFKC").toLocaleLowerCase("en").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
-const matches = (row: CareEntryRow, concept: string) => {
-  const needle = normalized(concept);
-  return !!needle && (` ${normalized(`${row.title || ""} ${row.note || ""}`)} `).includes(` ${needle} `);
-};
+const matches = (row: CareEntryRow, concept: string) =>
+  !!normalized(concept) && textMatchesReadPredicate((row.title || "") + " " + (row.note || ""), {kind:"text_any",terms:[concept]});
 // An anchor concept is a conjunction of literal normalized terms, not an
 // exact quotation. This accepts intervening words without a domain word list.
 const matchesAnchor = (row: CareEntryRow, concept: string) => {

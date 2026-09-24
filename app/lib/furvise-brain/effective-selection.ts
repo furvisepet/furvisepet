@@ -1,3 +1,4 @@
+import { textMatchesReadPredicate } from "./read-text.ts";
 import { isResultSelection, selectReadResult, frontierCovers, certifyReadResult, resultGroups, type ResultFrontier } from "./result-selection.ts";
 import type { CareEntryRow } from "../supabase.ts";
 import type { ReadTicket } from "./read-ticket.ts";
@@ -13,11 +14,9 @@ export type EffectiveWindowResult = {
   records: CareEntryRow[]; lineageClosed: boolean; replacementSeedsExhausted: boolean;
   sourceLineage: ReadSourceLineage[]; reasons: string[]; graphCalls: number; lineageRows: number;
 };
-const normalized = (s: string) => s.normalize("NFKC").toLocaleLowerCase("en").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 const matching = (ticket: ReadTicket, row: CareEntryRow, from: number, to: number) =>
   Date.parse(row.occurred_at) >= from && Date.parse(row.occurred_at) < to
-  && ticket.predicates.every(p => p.terms.some(term =>
-    (" " + normalized((row.title || "") + " " + (row.note || "")) + " ").includes(" " + normalized(term) + " ")));
+  && ticket.predicates.every(p => textMatchesReadPredicate((row.title || "") + " " + (row.note || ""), p));
 
 export async function retrieveEffectiveSelection(ticket: ReadTicket, scope: ReadScope, store: ReadStore,
   limits: { pageSize: number; pages: number; records: number; chars: number }): Promise<ReadResult> {

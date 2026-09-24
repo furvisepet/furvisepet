@@ -1,3 +1,5 @@
+import { measurementCandidates, type SourceSpan } from "./measurement-candidates.ts";
+import { textMatchesReadPredicate } from "./read-text.ts";
 import {selectCalculationResults,type ResultSelectionCertificate} from "./calculation-result-selection.ts";
 import { rebindCalculatePlan, isResultOperand, type CalculatePlan, type CalculateSlot } from "./calculate-plan.ts";
 import { units } from "./calculation-units.ts";
@@ -5,10 +7,11 @@ import { readLabsSnapshotMatches, type LabsList } from "../intelligence/labs-lis
 import { selectionPublication } from "../intelligence/selection-publication.ts";
 import { resultSetSnapshotMatches } from "../intelligence/result-set-publication.ts";
 
-import {fraction,decimal,add,neg,mul,div,factor,finite,rational,type Exact,type Fraction} from "./calculation-rational.ts";
+import {fraction,add,neg,mul,div,factor,finite,rational,exact,type Exact,type Fraction} from "./calculation-rational.ts";
 export type CalculationOperand={
  slot:CalculateSlot; sourceId:string; recordId:string; subjectId:string; eventAt:string;
  literal:string; value:number; unit:string; dimension:string; body:string;
+ sourceSpan:SourceSpan|null; contextSpan:SourceSpan|null; numericText:string|null; measurementExact:Exact|null; measurementSelector:CalculateSlot["measurementSelector"];
 };
 export type CalculationDependency={calculationId:string;operator:string;unit:string;exact:Exact};
 export type CalculationResult={id:string;status:"certified";operator:string;operands:CalculationOperand[];
@@ -68,18 +71,25 @@ export function executeCalculatePlan(proposed:CalculatePlan,read:LabsList):Calcu
       const rows=read.records.filter(r=>r.id===id&&r.petId===slot.subjectId);
       if(!id||rows.length!==1)throw Error("slot_missing");
       const row=rows[0];let literal:string,value:number,unit:string,dimension:string,q:Fraction;
+      let sourceSpan:SourceSpan|null=null,contextSpan:SourceSpan|null=null,numericText:string|null=null,measurementExact:Exact|null=null;
       if(slot.field==="event_at"){
        literal=row.event_at;value=Date.parse(literal);if(!Number.isFinite(value))throw Error("event_time");
        unit="instant";dimension="instant";q=fraction(BigInt(value));
       }else{
        const required=units[slot.unit!];
-       const tokens=[...row.body.matchAll(/(?<![\p{L}\p{N}_.,/+\u2212-])([+\u2212-]?\d+(?:\.\d+)?)\s*([A-Za-z]+)(?![\p{L}\p{N}_/])/gu)]
-        .filter(m=>Object.hasOwn(units,m[2].toLowerCase())&&units[m[2].toLowerCase()].dimension===required.dimension);
-       if(tokens.length!==1)throw Error(tokens.length?"ambiguous_measurement":"measurement_unavailable");
-       const token=tokens[0];literal=token[0];unit=units[token[2].toLowerCase()].canonical;dimension=required.dimension;
-       const numeric=token[1].replace("\u2212","-");const raw=decimal(numeric);value=finite(raw);q=mul(raw,factor(token[2].toLowerCase()));finite(q);
+       const candidates=measurementCandidates(row.body,required.dimension);
+       const selector=slot.measurementSelector;
+       const tokens=selector?candidates.filter(candidate=>selector.predicateIndexes.every(index=>
+        textMatchesReadPredicate(candidate.context,read.ticket.predicates[index]))):candidates;
+       if(tokens.length!==1)throw Error(selector
+        ?tokens.length?"measurement_selector_ambiguous":"measurement_selector_no_match"
+        :tokens.length?"ambiguous_measurement":"measurement_unavailable");
+       const token=tokens[0];literal=token.literal;unit=token.unit;dimension=token.dimension;
+       sourceSpan=token.sourceSpan;contextSpan=token.contextSpan;numericText=token.numericText;
+       const raw=token.exact;measurementExact=exact(raw);
+       value=finite(raw);q=mul(raw,factor(token.sourceUnit));finite(q);
       }
-      values.push(q);operands.push({slot,sourceId:row.sourceId,recordId:row.id,subjectId:row.petId,eventAt:row.event_at,literal,value,unit,dimension,body:row.body});
+      values.push(q);operands.push({slot,sourceId:row.sourceId,recordId:row.id,subjectId:row.petId,eventAt:row.event_at,literal,value,unit,dimension,body:row.body,sourceSpan,contextSpan,numericText,measurementExact,measurementSelector:slot.measurementSelector??null});
      }
     }
     const sum=values.reduce(add,fraction(BigInt(0)));

@@ -4,12 +4,13 @@ import { units } from "./calculation-units.ts";
 
 export const CALCULATE_OPERATORS = ["sum","mean","difference","absolute_difference","ratio","percent_change","percent_of_sum","convert","elapsed_days","count_records"] as const;
 export type CalculateOperator = typeof CALCULATE_OPERATORS[number];
-export type CalculateSlot = Readonly<{subjectId:string; clause:number; item:number; field:"measurement"|"event_at"; unit:string|null}>;
+export type MeasurementSelector = Readonly<{predicateIndexes:readonly number[]}>;
+export type CalculateSlot = Readonly<{subjectId:string; clause:number; item:number; field:"measurement"|"event_at"; unit:string|null; measurementSelector?:MeasurementSelector|null}>;
 export type CalculateResultOperand=Readonly<{kind:"result";calculationId:string}>;
 export type CalculateOperand=CalculateSlot|CalculateResultOperand;
 export const isResultOperand=(o:CalculateOperand):o is CalculateResultOperand=>"kind" in o&&o.kind==="result";
 export const MAX_CALCULATION_DEPTH=8;
-export const requiresCalculateBinding=(p:CalculatePlan|null|undefined):boolean=>!!p&&(!!p.resultSelection||p.calculations.some(c=>c.operands.some(isResultOperand)));
+export const requiresCalculateBinding=(p:CalculatePlan|null|undefined):boolean=>!!p&&(!!p.resultSelection||p.calculations.some(c=>c.operands.some(o=>isResultOperand(o)||o.measurementSelector!=null)));
 export type CalculatePlan = Readonly<{operation:"calculate"; resultSelection?:ResultSelection|null; calculations:readonly Readonly<{
   id:string; operator:CalculateOperator; operands:readonly CalculateOperand[]; resultUnit:string; precision:number|null;
 }>[]}>;
@@ -25,7 +26,8 @@ export const calculatePlanSchema={anyOf:[{type:"null"},{
  required:["id","operator","operands","resultUnit","precision"],properties:{
  id:{type:"string",minLength:1,maxLength:80},operator:{type:"string",enum:CALCULATE_OPERATORS},
  operands:{type:"array",maxItems:64,items:{anyOf:[{type:"object",additionalProperties:false,
- required:["petName","clause","item","field","unit"],properties:{
+ required:["petName","clause","item","field","unit","measurementSelector"],properties:{
+ measurementSelector:{anyOf:[{type:"null"},{type:"object",additionalProperties:false,required:["predicateIndexes"],properties:{predicateIndexes:{type:"array",minItems:1,maxItems:6,items:{type:"integer",minimum:0,maximum:5}}}}],description:"Indexes into this readTicket.predicates, never new text or source coordinates. All referenced text_any predicates must match the same structural segment of exactly one compatible measurement. Null requires a single compatible measurement in the entire certified record. Null for event_at."},
  petName:{type:"string",minLength:1,maxLength:100},clause:{type:"integer",minimum:0,maximum:7},
  item:{type:"integer",minimum:0,maximum:99},field:{type:"string",enum:["measurement","event_at"]},
  unit:{type:["string","null"],enum:[...Object.keys(units),null]}}},{type:"object",additionalProperties:false,required:["kind","calculationId"],properties:{kind:{type:"string",enum:["result"]},calculationId:{type:"string",minLength:1,maxLength:80}}}]}},
@@ -83,7 +85,7 @@ function bind(value:unknown,ticket:ReadTicket,resolve:(v:unknown)=>string,bound:
    operands=c.operands.map(o=>Object.freeze({kind:"result" as const,calculationId:(o as {calculationId:string}).calculationId}));
   }else{
    const slots=c.operands.map(o=>{
-    if(!obj(o)||!keys(o,[bound?"subjectId":"petName","clause","item","field","unit"]))return fail("slot");
+    if(!obj(o)||!keys(o,[bound?"subjectId":"petName","clause","item","field","unit",...(Object.hasOwn(o,"measurementSelector")?["measurementSelector"]:[])]))return fail("slot");
     const subjectId=resolve(o[bound?"subjectId":"petName"]);
     if(!ticket.subjects.petIds.includes(subjectId))return fail("subject");
     if(!Number.isInteger(o.clause)||Number(o.clause)<0||!Number.isInteger(o.item)||Number(o.item)<0)return fail("position");
@@ -91,7 +93,18 @@ function bind(value:unknown,ticket:ReadTicket,resolve:(v:unknown)=>string,bound:
     if(!clause||Number(o.item)>=clause.take.count)return fail("position");
     if(operator==="elapsed_days" ? o.field!=="event_at"||o.unit!==null
      :o.field!=="measurement"||!unit(o.unit))return fail("field_unit");
-    return Object.freeze({subjectId,clause:Number(o.clause),item:Number(o.item),field:o.field as CalculateSlot["field"],unit:o.unit as string|null});
+    let measurementSelector:MeasurementSelector|null=null;
+    if(o.measurementSelector!=null){
+     const selector=o.measurementSelector;
+     if(o.field!=="measurement"||!obj(selector)||!keys(selector,["predicateIndexes"])
+      ||!Array.isArray(selector.predicateIndexes)||!selector.predicateIndexes.length
+      ||selector.predicateIndexes.length>ticket.predicates.length
+      ||new Set(selector.predicateIndexes).size!==selector.predicateIndexes.length
+      ||selector.predicateIndexes.some(i=>!Number.isInteger(i)||i<0||!ticket.predicates[i]||ticket.predicates[i].kind!=="text_any"))return fail("measurement_selector");
+     measurementSelector=Object.freeze({predicateIndexes:Object.freeze([...selector.predicateIndexes] as number[])});
+    }
+    return Object.freeze({subjectId,clause:Number(o.clause),item:Number(o.item),field:o.field as CalculateSlot["field"],unit:o.unit as string|null,
+     ...(Object.hasOwn(o,"measurementSelector")?{measurementSelector}:{})});
    });
    const dimensions=slots.filter(o=>o.field==="measurement").map(o=>unit(o.unit)!.dimension);
    if(new Set(dimensions).size>1)return fail("dimensions");
@@ -117,7 +130,7 @@ export function bindCalculatePlan(value:unknown,ticket:ReadTicket,subjects:reado
  },false,source);
  remember(plan,ticket);return plan;
 }
-// Server binding snapshots protect result-selection and DAG semantics across in-process copies.
+// Server binding snapshots protect result-selection, DAG and predicate-index semantics across in-process copies.
 // A JSON clone needs its trusted original; a stale/untrusted JSON object cannot
 // mint a source-bound threshold or change the comparator/cohort during rebind.
 const bindings=new WeakMap<CalculatePlan,{plan:string;ticket:string}>();
