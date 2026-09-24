@@ -1,0 +1,17 @@
+{
+  "case": "A",
+  "prompt": "What was Milo's recorded weight on September 1, 2026?",
+  "expected": "10 kg on 2026-09-01",
+  "petId": "dcceaa9c-6837-48d4-ab52-cc50a27f0687",
+  "petName": "Milo",
+  "requestId": "129c869c-b6e1-4a69-8cb2-ee859ed7c62e",
+  "httpStatus": 403,
+  "durationMs": 131,
+  "providerCallsTotal": 0,
+  "costMicrodollarsTotal": 0,
+  "careHistoryUnchanged": true,
+  "response": {
+    "code": "ORIGIN_NOT_ALLOWED",
+    "error": "This request could not be verified. Refresh Furvise and try again."
+  }
+}

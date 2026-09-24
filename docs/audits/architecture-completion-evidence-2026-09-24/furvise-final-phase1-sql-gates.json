@@ -1,0 +1,52 @@
+[
+  {
+    "label": "canonical-ask-sql-isolation",
+    "exit": 0,
+    "counts": {
+      "tests": 29,
+      "pass": 29,
+      "fail": 0
+    },
+    "failures": []
+  },
+  {
+    "label": "canonical-suggestion",
+    "exit": 0,
+    "counts": {
+      "tests": 37,
+      "pass": 37,
+      "fail": 0
+    },
+    "failures": []
+  },
+  {
+    "label": "generalized-replace",
+    "exit": 0,
+    "counts": {
+      "tests": 16,
+      "pass": 16,
+      "fail": 0
+    },
+    "failures": []
+  },
+  {
+    "label": "canonical-remove",
+    "exit": 0,
+    "counts": {
+      "tests": 31,
+      "pass": 31,
+      "fail": 0
+    },
+    "failures": []
+  },
+  {
+    "label": "canonical-pet-remove",
+    "exit": 0,
+    "counts": {
+      "tests": 28,
+      "pass": 28,
+      "fail": 0
+    },
+    "failures": []
+  }
+]

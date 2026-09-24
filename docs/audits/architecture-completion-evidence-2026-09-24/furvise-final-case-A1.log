@@ -1,0 +1,427 @@
+[Furvise idempotency] operation {
+  operationType: 'ask.submit.persisted_answer_v2',
+  outcome: 'new',
+  requestId: 'b425eb49-5d9f-4746-a52c-01b7912f7255',
+  elapsedMs: 9
+}
+[Furvise rate limit] decision {
+  allowed: true,
+  dimension: 'user',
+  elapsedMs: 11,
+  hashedIpPrefix: 'daea32147baf',
+  policy: 'ASK_AI',
+  requestId: 'b425eb49-5d9f-4746-a52c-01b7912f7255',
+  retryAfterSeconds: 0,
+  route: '/api/ask',
+  userPresent: true
+}
+[Furvise rate limit] decision {
+  allowed: true,
+  dimension: 'concurrency',
+  elapsedMs: 0,
+  policy: 'ASK_AI',
+  requestId: 'b425eb49-5d9f-4746-a52c-01b7912f7255',
+  retryAfterSeconds: 195,
+  route: '/api/ask',
+  userPresent: true
+}
+[Furvise AI guard] {
+  event: 'provider call reserved',
+  allowed: true,
+  callNumber: 1,
+  dailyCallCount: 1,
+  dailyCostMicrodollars: 51864,
+  feature: 'ask',
+  model: 'gpt-5.4-mini',
+  operationId: '7447341c59786ea50faabb7514c4d4a379f89e6e84273af1113d3c3426ada181',
+  requestId: '63841373-c816-4edb-ae5d-44b1b83b129b',
+  reservedCostMicrodollars: 51864
+}
+[Furvise AI guard] {
+  event: 'operation admitted',
+  allowed: true,
+  emergencyDisabled: false,
+  feature: 'ask',
+  model: 'gpt-5.4-mini',
+  operationId: '7447341c59786ea50faabb7514c4d4a379f89e6e84273af1113d3c3426ada181',
+  requestId: '63841373-c816-4edb-ae5d-44b1b83b129b'
+}
+[Furvise AI guard] {
+  event: 'user credit state',
+  allowed: true,
+  feature: 'ask',
+  model: 'gpt-5.4-mini',
+  operationId: '7447341c59786ea50faabb7514c4d4a379f89e6e84273af1113d3c3426ada181',
+  requestId: '63841373-c816-4edb-ae5d-44b1b83b129b',
+  userCreditState: 'reserved'
+}
+[Furvise AI guard] {
+  event: 'provider call started',
+  allowed: true,
+  callNumber: 1,
+  estimatedInputTokens: 14172,
+  feature: 'ask',
+  model: 'gpt-5.4-mini',
+  operationId: '7447341c59786ea50faabb7514c4d4a379f89e6e84273af1113d3c3426ada181',
+  requestId: '63841373-c816-4edb-ae5d-44b1b83b129b',
+  reservedCostMicrodollars: 51864
+}
+[Ask provider] stage {
+  configuredOutputLimit: 4096,
+  conversationId: 'b350e0eb-829b-45da-b4b3-7dc4f576e4a9',
+  elapsedMs: 0,
+  fallbackEligible: null,
+  fallbackFrom: null,
+  model: 'gpt-5.4-mini',
+  outcome: 'started',
+  finishReason: null,
+  incompleteReason: null,
+  inputTokens: null,
+  outputLimitReached: false,
+  outputTokens: null,
+  parsingAttempted: null,
+  petId: 'dcceaa9c-6837-48d4-ab52-cc50a27f0687',
+  providerCallCount: 1,
+  providerErrorCode: null,
+  providerErrorType: null,
+  providerStatus: null,
+  requestId: 'b425eb49-5d9f-4746-a52c-01b7912f7255',
+  retryAfterMs: null,
+  rawOutputLength: null,
+  stage: 'interpretation',
+  timedOut: false,
+  ticketArrived: null,
+  validationDetails: null
+}
+[Furvise AI guard] {
+  event: 'provider call reconciled',
+  actualInputTokens: 22476,
+  actualOutputTokens: 611,
+  allowed: true,
+  callNumber: 1,
+  dailyCallCount: 1,
+  dailyCostMicrodollars: 19607,
+  feature: 'ask',
+  model: 'gpt-5.4-mini',
+  operationId: '7447341c59786ea50faabb7514c4d4a379f89e6e84273af1113d3c3426ada181',
+  reconciledCostMicrodollars: 19607,
+  requestId: '63841373-c816-4edb-ae5d-44b1b83b129b',
+  reservedCostMicrodollars: 51864
+}
+[Ask Brain] proposal {
+  sourceMessageId: '3dec7a92-ce4b-4faf-bb8d-1e57adb4e0e2',
+  mode: 'read',
+  operation: 'recall',
+  mutationIntent: null,
+  taskIntent: null,
+  evidenceBasis: 'saved_history',
+  writeJob: null
+}
+[Ask Brain] validated {
+  sourceMessageId: '3dec7a92-ce4b-4faf-bb8d-1e57adb4e0e2',
+  mode: 'read',
+  operation: 'recall',
+  readTicket: {
+    subjectScope: 'named',
+    needs: [],
+    episode: null,
+    searchHints: null,
+    operation: 'read',
+    subjects: { petIds: [Array] },
+    temporal: {
+      calendar: null,
+      from: '2026-09-01T00:00:00Z',
+      to: '2026-09-02T00:00:00Z',
+      anchor: null
+    },
+    predicates: [ [Object] ],
+    outputs: {
+      strategy: null,
+      completeness: 'sufficient',
+      ordering: 'asc',
+      limit: null
+    }
+  },
+  writeJob: null
+}
+[Ask provider] stage {
+  configuredOutputLimit: 4096,
+  conversationId: 'b350e0eb-829b-45da-b4b3-7dc4f576e4a9',
+  elapsedMs: 6696,
+  fallbackEligible: null,
+  fallbackFrom: null,
+  model: 'gpt-5.4-mini',
+  outcome: 'succeeded',
+  finishReason: null,
+  incompleteReason: null,
+  inputTokens: 22476,
+  outputLimitReached: false,
+  outputTokens: 611,
+  parsingAttempted: true,
+  petId: 'dcceaa9c-6837-48d4-ab52-cc50a27f0687',
+  providerCallCount: 1,
+  providerErrorCode: null,
+  providerErrorType: null,
+  providerStatus: null,
+  requestId: 'b425eb49-5d9f-4746-a52c-01b7912f7255',
+  retryAfterMs: null,
+  rawOutputLength: null,
+  stage: 'interpretation',
+  timedOut: false,
+  ticketArrived: true,
+  validationDetails: null
+}
+[Ask Lungs] ticket result {"operation":"read","petIds":["dcceaa9c-6837-48d4-ab52-cc50a27f0687"],"temporal":{"calendar":null,"from":"2026-09-01T00:00:00Z","to":"2026-09-02T00:00:00Z","anchor":null},"predicates":[{"kind":"text_any","terms":["weight","weighed","weighing"]}],"outputs":{"strategy":null,"completeness":"sufficient","ordering":"asc","limit":null},"coverage":{"status":"complete","reasons":["no_cross_query_snapshot"],"matchSemantics":"ticket_text_predicates","asOf":"2026-09-24T21:27:45.280Z","anchors":[],"windows":[{"petId":"dcceaa9c-6837-48d4-ab52-cc50a27f0687","from":"2026-09-01T00:00:00.000Z","to":"2026-09-02T00:00:00.000Z","relation":null}],"continuation":[],"effectiveStream":[{"petId":"dcceaa9c-6837-48d4-ab52-cc50a27f0687","acquiredIds":["30200a69-7166-4f35-8b1e-f9cd8c38438a","7b2c39f6-5f81-429a-bc65-ee7168d2d631","2f6b5090-9d74-4a04-9707-1a4fee680970","d4b33081-5640-4977-9df4-0dc80ac6a5f3","21cbf6d9-1361-4425-a510-bd2196494dd0","e701f6a3-17c4-4068-b59d-8bd153149d1d","9cd7b5ac-276d-4f8d-b6a3-f523bea16929","d5dd5182-192b-4dda-aa42-c21d45df7058","920c01d2-f012-42cc-85c8-f35ec5d134b7","1323256c-1dd2-4da5-ba6c-dbab82441847"],"effectiveIds":["30200a69-7166-4f35-8b1e-f9cd8c38438a","7b2c39f6-5f81-429a-bc65-ee7168d2d631","2f6b5090-9d74-4a04-9707-1a4fee680970","d4b33081-5640-4977-9df4-0dc80ac6a5f3","21cbf6d9-1361-4425-a510-bd2196494dd0","e701f6a3-17c4-4068-b59d-8bd153149d1d","9cd7b5ac-276d-4f8d-b6a3-f523bea16929","d5dd5182-192b-4dda-aa42-c21d45df7058","920c01d2-f012-42cc-85c8-f35ec5d134b7","1323256c-1dd2-4da5-ba6c-dbab82441847"],"certifiedSelectedIds":[],"lineageClosed":true,"replacementSeedsExhausted":true,"graphCalls":1,"lineageRows":10}],"selection":{"scannedIds":["30200a69-7166-4f35-8b1e-f9cd8c38438a","7b2c39f6-5f81-429a-bc65-ee7168d2d631","2f6b5090-9d74-4a04-9707-1a4fee680970","d4b33081-5640-4977-9df4-0dc80ac6a5f3","21cbf6d9-1361-4425-a510-bd2196494dd0","e701f6a3-17c4-4068-b59d-8bd153149d1d","9cd7b5ac-276d-4f8d-b6a3-f523bea16929","d5dd5182-192b-4dda-aa42-c21d45df7058","920c01d2-f012-42cc-85c8-f35ec5d134b7","1323256c-1dd2-4da5-ba6c-dbab82441847"],"matchedIds":["30200a69-7166-4f35-8b1e-f9cd8c38438a"],"retainedIds":["30200a69-7166-4f35-8b1e-f9cd8c38438a"],"omittedIds":[]},"resultSet":{"subjectIds":["dcceaa9c-6837-48d4-ab52-cc50a27f0687"],"predicates":[{"kind":"text_any","terms":["weight","weighed","weighing"]}],"temporal":{"calendar":null,"from":"2026-09-01T00:00:00Z","to":"2026-09-02T00:00:00Z","anchor":null},"windows":[{"petId":"dcceaa9c-6837-48d4-ab52-cc50a27f0687","from":"2026-09-01T00:00:00.000Z","to":"2026-09-02T00:00:00.000Z","relation":null}],"ordering":"asc","subjects":[{"petId":"dcceaa9c-6837-48d4-ab52-cc50a27f0687","exhausted":true,"lineageClosed":true,"matchingIds":["30200a69-7166-4f35-8b1e-f9cd8c38438a"],"retainedIds":["30200a69-7166-4f35-8b1e-f9cd8c38438a"],"omittedIds":[],"matchingSetComplete":true,"representationComplete":true,"certified":true,"reasons":[]}],"matchingIds":["30200a69-7166-4f35-8b1e-f9cd8c38438a"],"retainedIds":["30200a69-7166-4f35-8b1e-f9cd8c38438a"],"omittedIds":[],"matchingSetComplete":true,"representationComplete":true,"certified":true,"reasons":[]}},"recordIds":["30200a69-7166-4f35-8b1e-f9cd8c38438a"],"queryCount":2,"durationMs":23}
+[Ask publication authority] {"phase":"labs_eligibility","eligible":false,"rejectedBy":["legacy.non_exhaustive_non_records"],"stage":"pre_source_validation","selectionPresent":false,"mode":"read","writeJobPresent":false,"mutationIntent":null,"episodePresent":false,"ticketOperation":"read","readOnlyRecall":true,"scopeStatus":"resolved","task":null,"projection":null,"evidenceNeeds":{"count":0,"obligations":[]},"quantity":"measurement","readOperation":"recall","operation":"recall","outputFormat":"prose","completeness":"sufficient","subjectScope":"named","subjectIds":["dcceaa9c-6837-48d4-ab52-cc50a27f0687"],"referenceTurnCount":0,"requirementCount":0,"certificateCount":0,"certificates":[],"selectedEventIds":[],"transportValid":null,"effectiveStream":[{"petId":"dcceaa9c-6837-48d4-ab52-cc50a27f0687","lineageClosed":true,"replacementSeedsExhausted":true,"certifiedSelectedIds":[]}],"coverage":"complete","representation":"partial"}
+[Ask Labs] dispatch {
+  operation: 'read',
+  completeness: 'sufficient',
+  mode: 'read',
+  quantity: 'measurement',
+  outputFormat: 'prose',
+  readOnly: true,
+  scope: 'resolved',
+  coverage: 'complete',
+  recordCount: 1
+}
+[Ask publication authority] {"phase":"obligation_dispatch","path":"unavailable","minimumSafetyLevel":"normal","sentToModelGeneration":false,"labsClaimsTaskSatisfied":null,"obligations":[{"obligationId":"obligation_0","needIdHash":null,"subjectId":null,"semanticRequirement":{"kind":"additional_obligation","operation":"read","completeness":"sufficient","selection":null,"predicateKinds":["text_any"],"anchored":false,"explicitWindow":true},"mapping":"selected_component_only","certificateAuthorizedEventIds":[],"certificateAuthorizedSourceIds":[],"selectionComponentCertified":false,"availableProfileSourceIds":[],"labsClaimsObligationSatisfied":null}]}
+[Furvise semantic trace] decision {
+  traceId: 'b425eb49-5d9f-4746-a52c-01b7912f7255',
+  frameStatus: 'valid',
+  frameRecovery: {
+    applied: false,
+    reason: 'NOT_ATTEMPTED_FRAME_VALID',
+    validationReason: null
+  },
+  subjectIntegrity: {
+    agrees: true,
+    authoritativePetIds: [ 'dcceaa9c-6837-48d4-ab52-cc50a27f0687' ],
+    legacyPetIds: [],
+    responsePetIds: [],
+    v2PetIds: [],
+    reasonCodes: []
+  },
+  schemaVersion: 'furvise.semantic-frame.proposed.v1.5',
+  modelVersion: 'server-history-unavailable',
+  sourceMessageId: '3dec7a92-ce4b-4faf-bb8d-1e57adb4e0e2',
+  selectedPetId: 'dcceaa9c-6837-48d4-ab52-cc50a27f0687',
+  claimKinds: [],
+  normalizedClaimKinds: [],
+  evidenceGrounding: {
+    total: 0,
+    grounded: 0,
+    exact: 0,
+    normalized: 0,
+    failuresByReason: {}
+  },
+  mentionSurfaces: [],
+  entityCandidates: [],
+  entityBindings: [],
+  references: [],
+  concepts: [],
+  governance: [],
+  productionDestinations: [],
+  shadowDestinations: [],
+  clarification: { production: false, shadow: false, reasonCodes: [] },
+  comparison: {
+    subjectBindingAgreement: true,
+    proposedDestinationAgreement: true,
+    claimKindAgreement: null,
+    resolvedConceptAgreement: null,
+    semanticRelationAgreement: null,
+    productionSemanticOutputCount: 0,
+    productionSemanticEventCount: 0,
+    productionCareActionCount: 0,
+    productionLearningCount: 0,
+    shadowProposedClaimCount: 0,
+    shadowAcceptedClaimCount: 0,
+    shadowRejectedClaimCount: 0,
+    shadowDeferredClaimCount: 0,
+    rejectedClaimCountsByReason: {},
+    subjectDisagreement: false,
+    persistenceDisagreement: false,
+    eventCountDisagreement: false,
+    eventCountDelta: 0,
+    conceptDisagreement: false,
+    clarificationDisagreement: false
+  },
+  persistence: {
+    status: 'not_attempted',
+    errorCode: null,
+    careEntryCount: 0,
+    memoryCount: 0
+  },
+  recoveryGovernance: [],
+  v2: {
+    mode: 'shadow_only',
+    status: 'governed',
+    errorCode: null,
+    observation: {
+      proposedClaimCount: 0,
+      governedClaimCount: 0,
+      rejectedClaimCount: 0,
+      claimKinds: [],
+      subjectBindings: [],
+      concepts: [],
+      lifecycle: [],
+      persistence: [],
+      deduplication: [],
+      rejectionReasons: {}
+    },
+    legacyComparison: {
+      legacyClaimCount: 0,
+      v2GovernedClaimCount: 0,
+      claimCountDelta: 0,
+      subjectBindingAgreement: true,
+      conceptIdentityAgreement: true,
+      lifecycleRoleAgreement: true,
+      persistenceEligibilityAgreement: true
+    }
+  },
+  reasonCodes: []
+}
+[Furvise semantic trace] decision {
+  traceId: 'b425eb49-5d9f-4746-a52c-01b7912f7255',
+  frameStatus: 'valid',
+  frameRecovery: {
+    applied: false,
+    reason: 'NOT_ATTEMPTED_FRAME_VALID',
+    validationReason: null
+  },
+  subjectIntegrity: {
+    agrees: true,
+    authoritativePetIds: [ 'dcceaa9c-6837-48d4-ab52-cc50a27f0687' ],
+    legacyPetIds: [],
+    responsePetIds: [],
+    v2PetIds: [],
+    reasonCodes: []
+  },
+  schemaVersion: 'furvise.semantic-frame.proposed.v1.5',
+  modelVersion: 'server-history-unavailable',
+  sourceMessageId: '3dec7a92-ce4b-4faf-bb8d-1e57adb4e0e2',
+  selectedPetId: 'dcceaa9c-6837-48d4-ab52-cc50a27f0687',
+  claimKinds: [],
+  normalizedClaimKinds: [],
+  evidenceGrounding: {
+    total: 0,
+    grounded: 0,
+    exact: 0,
+    normalized: 0,
+    failuresByReason: {}
+  },
+  mentionSurfaces: [],
+  entityCandidates: [],
+  entityBindings: [],
+  references: [],
+  concepts: [],
+  governance: [],
+  productionDestinations: [],
+  shadowDestinations: [],
+  clarification: { production: false, shadow: false, reasonCodes: [] },
+  comparison: {
+    subjectBindingAgreement: true,
+    proposedDestinationAgreement: true,
+    claimKindAgreement: null,
+    resolvedConceptAgreement: null,
+    semanticRelationAgreement: null,
+    productionSemanticOutputCount: 0,
+    productionSemanticEventCount: 0,
+    productionCareActionCount: 0,
+    productionLearningCount: 0,
+    shadowProposedClaimCount: 0,
+    shadowAcceptedClaimCount: 0,
+    shadowRejectedClaimCount: 0,
+    shadowDeferredClaimCount: 0,
+    rejectedClaimCountsByReason: {},
+    subjectDisagreement: false,
+    persistenceDisagreement: false,
+    eventCountDisagreement: false,
+    eventCountDelta: 0,
+    conceptDisagreement: false,
+    clarificationDisagreement: false
+  },
+  persistence: {
+    status: 'skipped',
+    errorCode: null,
+    careEntryCount: 0,
+    memoryCount: 0
+  },
+  recoveryGovernance: [],
+  v2: {
+    mode: 'shadow_only',
+    status: 'governed',
+    errorCode: null,
+    observation: {
+      proposedClaimCount: 0,
+      governedClaimCount: 0,
+      rejectedClaimCount: 0,
+      claimKinds: [],
+      subjectBindings: [],
+      concepts: [],
+      lifecycle: [],
+      persistence: [],
+      deduplication: [],
+      rejectionReasons: {}
+    },
+    legacyComparison: {
+      legacyClaimCount: 0,
+      v2GovernedClaimCount: 0,
+      claimCountDelta: 0,
+      subjectBindingAgreement: true,
+      conceptIdentityAgreement: true,
+      lifecycleRoleAgreement: true,
+      persistenceEligibilityAgreement: true
+    }
+  },
+  reasonCodes: []
+}
+[Furvise operations] {
+  actor: 'd373a0915e6efb9a',
+  durationMs: undefined,
+  environment: 'production',
+  errorCode: undefined,
+  eventType: 'ask_turn',
+  feature: 'ask',
+  metadata: {
+    actionCount: 0,
+    candidateCount: 1,
+    creditDisposition: 'release',
+    creditState: 'released',
+    executionMode: 'ai',
+    finalErrorClass: null,
+    finalOutcome: 'limited',
+    finalStage: 'COMPLETED',
+    optionalFailureCount: 0,
+    optionalFailures: '',
+    providerCallCount: 1,
+    providerFailureClass: null,
+    routeType: 'pet_care',
+    settlementState: 'reconciled',
+    subjectResolutionStrategy: 'resolved'
+  },
+  operationId: '63841373-c816-4edb-ae5d-44b1b83b129b',
+  requestId: 'b425eb49-5d9f-4746-a52c-01b7912f7255',
+  resource: '1d787d081d1101e8',
+  route: '/api/ask',
+  severity: 'info',
+  timestamp: '2026-09-24T21:27:45.425Z'
+}
+[Furvise rate limit] decision {
+  allowed: true,
+  dimension: 'concurrency',
+  elapsedMs: 0,
+  policy: 'ASK_AI',
+  requestId: 'b425eb49-5d9f-4746-a52c-01b7912f7255',
+  retryAfterSeconds: 0,
+  route: '/api/ask',
+  userPresent: true
+}
+[Furvise AI guard] {
+  event: 'operation failed',
+  allowed: false,
+  denialReason: 'operation_failed',
+  feature: 'ask',
+  operationId: '7447341c59786ea50faabb7514c4d4a379f89e6e84273af1113d3c3426ada181',
+  requestId: '63841373-c816-4edb-ae5d-44b1b83b129b',
+  safeErrorClass: 'Error'
+}

@@ -1,0 +1,10 @@
+{
+  "knownRecord": {
+    "id": "30200a69-7166-4f35-8b1e-f9cd8c38438a",
+    "note": "Body weight: 10 kg.",
+    "occurred_at": "2026-09-01T12:00:00+00:00"
+  },
+  "persistedAssistantMessageId": "54dc3b14-ecec-4c1a-9c84-c31beb5e3beb",
+  "persistedAnswer": "I couldn’t certify the requested history result from the available evidence. This does not establish that matching records are absent.",
+  "persistedAnswerMatchesHttp": true
+}

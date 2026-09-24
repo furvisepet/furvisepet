@@ -1,0 +1,1 @@
+[Furvise origin policy] request denied { method: 'POST', reason: 'foreign_origin', route: '/api/ask' }
