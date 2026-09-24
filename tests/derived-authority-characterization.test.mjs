@@ -1,42 +1,33 @@
+import * as C from "./helpers/canonical-calculation-retirement.mjs";
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {verifiedCalculationQuantities as verify} from '../app/lib/intelligence/history-calculation.ts';
-const sources=[{sourceId:'care:first',text:'Body mass 10 kg; equipment mass 3 kg.',occurredAt:'2026-01-01T00:00:00Z'},{sourceId:'care:last',text:'Body mass 12 kg.',occurredAt:'2026-01-03T00:00:00Z'},{sourceId:'profile:a:weight',text:'14 kg'}];
-const operand=(sourceId,literal,field='text')=>({sourceId,literal,field});
-const job=(operation,operands,value,unit)=>({operation,operands,value,unit,expression:null});
-test('arithmetic-only characterization: historical difference and percent are recomputed',()=>{
- assert.deepEqual(verify([job('difference',[operand('care:last','12 kg'),operand('care:first','10 kg')],2,'kg')],sources),['2:kg']);
- assert.deepEqual(verify([job('percent_change',[operand('care:first','10 kg'),operand('care:last','12 kg')],20,'%')],sources),['20:%']);
+test("historical difference and percentage are computed only by canonical Muscle",async()=>{
+ await C.certified("difference",["12 kg","10 kg"],"kg",2);await C.certified("percent_change",["10 kg","12 kg"],"%",20);
 });
-test('arithmetic-only kernel does not establish profile versus history obligation authority',()=>{
- assert.notEqual(verify([job('difference',[operand('profile:a:weight','14 kg'),operand('care:first','10 kg')],4,'kg')],sources),null);
+test("profile operands cannot enter saved-history arithmetic authority",async()=>{
+ C.rejects(c=>c.operands[0]={kind:"profile",subjectId:C.pets[0].id,field:"weight"});C.rejects(c=>c.operands[0].sourceId="profile:a:weight");
 });
-test('matching dimension does not establish measured-object identity',()=>{
- assert.notEqual(verify([job('difference',[operand('care:last','12 kg'),operand('care:first','3 kg')],9,'kg')],sources),null);
+test("multiple same-dimension measurements remain limited without a generic disambiguation primitive",async()=>{
+ const f=await C.measured("convert",["Body 12 kg and carrier 3 kg"],"kg");assert.equal(f.response.model,"server-calculation-unavailable");await C.finish(f);
 });
-test('absent source and unsupported literal fail arithmetic binding',()=>{
- assert.equal(verify([job('difference',[operand('care:unknown','12 kg'),operand('care:first','10 kg')],2,'kg')],sources),null);
- assert.equal(verify([job('difference',[operand('care:last','13 kg'),operand('care:first','10 kg')],3,'kg')],sources),null);
+test("missing certified slot and provider literal cannot create an operand",async()=>{
+ const f=await C.fixture({sourceRows:[]});assert.equal(f.response.model,"server-calculation-unavailable");await C.finish(f);C.rejects(c=>c.operands[0].literal="12 kg");
 });
-test('compatible conversion works but incompatible dimension fails',()=>{
- assert.notEqual(verify([job('convert',[operand('care:first','10 kg')],22.04622622,'lb')],sources),null);
- assert.equal(verify([job('convert',[operand('care:first','10 kg')],10,'ml')],sources),null);
+test("canonical conversion preserves compatible dimensions and rejects incompatible outputs",async()=>{
+ await C.certified("convert",["10 kg"],"lb",10*1000/453.59237);C.rejects(c=>c.resultUnit="ml");
 });
-test('zero-baseline percentage and ratio fail',()=>{
- const zero=[{sourceId:'care:zero',text:'0 kg'},{sourceId:'care:last',text:'12 kg'}];
- for(const op of ['percent_change','ratio'])assert.equal(verify([job(op,[operand('care:zero','0 kg'),operand('care:last','12 kg')],0,op==='ratio'?'':'%')],zero),null);
+test("zero baseline makes percentage and ratio source-free limited",async()=>{
+ for(const op of ["percent_change","ratio"]){const f=await C.measured(op,["0 kg","12 kg"],op==="ratio"?"scalar":"%");assert.equal(f.response.model,"server-calculation-unavailable");await C.finish(f);}
 });
-test('mean of cited subset does not establish exhaustive membership',()=>{
- assert.notEqual(verify([job('mean',[operand('care:first','10 kg'),operand('care:last','12 kg')],11,'kg')],sources),null);
+test("selected mean does not upgrade broader matching history to exhaustive",async()=>{
+ const f=await C.certified("mean",["10 kg","12 kg"],"kg",11);assert.equal(f.plan.calculations[0].operator,"mean");assert.equal(f.evidence.interpretation.request.readTicket.outputs.completeness,"sufficient");
 });
-test('record count verifies distinct supplied records, not exhaustive domain',()=>{
- assert.notEqual(verify([job('count_records',[operand('care:first','care:first'),operand('care:last','care:last')],2,'records')],sources),null);
- assert.equal(verify([job('count_records',[operand('care:first','care:first'),operand('care:first','care:first')],2,'records')],sources),null);
+test("record count needs certified complete result-set membership",async()=>{
+ const f=await C.certified("count_records",["one","two"],"records",2);assert.equal(f.result.coverage.resultSet.certified,true);const g=await C.measured("count_records",["one","two"],"records",{fixture:{closed:false}});assert.equal(g.response.model,"server-calculation-unavailable");await C.finish(g);
 });
-test('elapsed days are timestamp difference, not certified illness duration',()=>{
- assert.notEqual(verify([job('elapsed_days',[operand('care:first',sources[0].occurredAt,'occurredAt'),operand('care:last',sources[1].occurredAt,'occurredAt')],2,'days')],sources),null);
+test("elapsed-day calculation remains mathematical rather than illness-duration authority",async()=>{
+ const f=await C.certified("elapsed_days",["event","event"],"day",2,{days:[1,3]});assert.doesNotMatch(f.response.answer.summary,/illness|symptom|diagnosis/);
 });
-test('proposal precision permits rounding; no separate precision policy is certified',()=>{
- const rs=[{sourceId:'care:a',text:'10 kg'},{sourceId:'care:b',text:'12.4 kg'}];
- assert.notEqual(verify([job('difference',[operand('care:b','12.4 kg'),operand('care:a','10 kg')],2,'kg')],rs),null);
+test("display precision cannot change exact certified arithmetic",async()=>{
+ const f=await C.certified("ratio",["3 kg","1 kg"],"scalar",1/3,{precision:2});assert.deepEqual(f.response.calculationLabs.execution.results[0].exact,{numerator:"1",denominator:"3"});assert.match(f.response.answer.summary,/0\.33/);
 });

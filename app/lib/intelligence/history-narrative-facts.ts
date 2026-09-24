@@ -1,6 +1,6 @@
 import { calendarDateInZone } from "../ask-time-zone.ts";
 import { explicitLeadingSourceDate, sourceDisplayDate } from "./source-calendar-date.ts";
-import {compoundUnit, units} from "./history-calculation.ts";
+import {compoundUnit, units} from "../furvise-brain/calculation-units.ts";
 import { isStructuredHistoryText } from "../furvise-output.ts";
 type Source = { text: string; occurredAt?: string | null; recordedAt?: string | null; petId?: string; sourceId?: string; sourceType?: string };
 const monthPattern = "Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?";
@@ -269,6 +269,6 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
     && !equivalentQuantity(quantity, derivedQuantities)
     && !(requestedUnitConversion && equivalentQuantity(quantity, sourceQuantities)));
   for (const date of unsupportedDates) onUnsupported?.("Unsupported date anchor: " + date);
-  for (const quantity of unsupportedQuantities) onUnsupported?.("Unsupported quantity anchor: " + quantity + ". A derived value requires valid calculations metadata grounded in original source operands; otherwise qualify or remove it.");
+  for (const quantity of unsupportedQuantities) onUnsupported?.("Unsupported quantity anchor: " + quantity + ". Derived arithmetic requires canonical Calculation Labs authority; narrative metadata cannot authorize it.");
   return !unsupportedDates.length && !unsupportedQuantities.length;
 }

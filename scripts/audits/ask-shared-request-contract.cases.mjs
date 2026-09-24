@@ -1,3 +1,4 @@
+import * as C from "../../tests/helpers/canonical-calculation-retirement.mjs";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { registerHooks } from 'node:module';
@@ -10,8 +11,7 @@ const { validateAskRequest, ASK_REQUEST_VERSION } = await import('../../app/lib/
 const { emptyProposedSemanticFrame } = await import('../../app/lib/intelligence/semantic-frame/extract-frame.ts');
 const { requestReferenceContext } = await import('../../app/lib/intelligence/request-reference-context.ts');
 const { parseTaskHistoryReview } = await import('../../app/lib/intelligence/history-review-selection.ts');
-const { verifiedCalculationQuantities, parseHistoryCalculations } = await import('../../app/lib/intelligence/history-calculation.ts');
-const { matchesHistoryOutputFormat, historicalReadSchema, canonicalHistoricalRead } = await import('../../app/lib/intelligence/historical-read-response.ts');
+import {matchesHistoryOutputFormat} from "../../app/lib/intelligence/history-output-format.ts";
 const { stripKnownHistoryCitations } = await import('../../app/lib/furvise-output.ts');
 const { historyNarrativeAnchorsSupported } = await import('../../app/lib/intelligence/history-narrative-facts.ts');
 
@@ -174,19 +174,8 @@ test('a premise repair cannot authorize invented pets or mutation scope', async 
  }
 });
 
-test('explicit currency arithmetic binds each source and keeps currencies separate', () => {
- const sources = [{sourceId:'a',text:'The collar cost 13.25 CAD; shipping cost 4.50 CAD.'},
-  {sourceId:'b',text:'The collar cost 13.25 USD.'}];
- const operands = ['13.25 CAD','4.50 CAD'].map(literal=>({sourceId:'a',field:'text',literal}));
- const calculation = {operation:'sum',operands,value:17.75,unit:'CAD'};
- const derived = verifiedCalculationQuantities([calculation],sources);
- assert.deepEqual(derived,['17.75:cad']);
- assert.equal(historyNarrativeAnchorsSupported('The combined cost was 17.75 CAD.',sources,'',derived,false),true);
- assert.equal(historyNarrativeAnchorsSupported('The combined cost was 17.75 CAD.',sources,'',[],false),false);
- for (const patch of [{value:18.75},{unit:'USD'},{operands:[operands[0],{sourceId:'b',field:'text',literal:'13.25 USD'}]},
-  {operands:[{...operands[0],literal:'3.25 CAD'},operands[1]]}, {operands:[{...operands[0],sourceId:'missing'},operands[1]]}])
-  assert.equal(verifiedCalculationQuantities([{...calculation,...patch}],sources),null);
- assert.equal(verifiedCalculationQuantities([{...calculation,operands:[{sourceId:'a',field:'text',literal:'$13.25'}]}],sources),null);
+test("currency arithmetic uses certified source values and rejects currency exchange",async()=>{
+ await C.certified("sum",["Recorded 13.25 CAD","Recorded 4.50 CAD"],"cad",17.75,{unit:"cad"});C.rejects(c=>{c.operands=[C.slot(0,0,C.pets[0].name,"measurement","cad"),C.slot(1,0,C.pets[0].name,"measurement","usd")];c.resultUnit="cad";});C.rejects(c=>c.value=17.75);
 });
 
 test('an omitted exact report-day window reaches retrieval without changing subject authority', async t => {
@@ -224,25 +213,11 @@ test('persisted conversation presentation retains fictional dialogue and rejects
  assert.match(mixed.directAnswer,/fictional dialogue/);
 });
 
-test('historical read schema excludes mutation and duplicate extraction fields', () => {
-  const schema = historicalReadSchema({ answer: {}, historyNarrative: {}, safetyLevel: {}, responseMode: {}, userIntent: {}, relevantContextIds: {}, careActions: {}, semanticFrame: {} });
-  assert.equal(schema.additionalProperties, false);
-  assert.equal(schema.properties.careActions, undefined);
-  assert.equal(schema.properties.semanticFrame, undefined);
-  assert.equal(schema.properties.answer, undefined);
-  assert.deepEqual(schema.required, ['historyNarrative', 'safetyLevel', 'responseMode', 'userIntent', 'relevantContextIds', 'readVersion', 'layout', 'table', 'json', 'limitation', 'navigationActions']);
-  assert.ok(schema.properties.navigationActions.items.properties.kind.enum.every(kind => kind.startsWith('navigation.')));
+test("canonical calculation schema excludes provider values and narrative arithmetic",async()=>{
+ assert.equal(C.calculatePlanSchema.anyOf[1].additionalProperties,false);assert.doesNotMatch(JSON.stringify(C.calculatePlanSchema),/"(?:value|sourceId|expression)"/);assert.equal(C.historyNarrativeSchema.properties.sentences.items.properties.calculations,undefined);
 });
-test('canonical read table renders once and rejects competing or malformed bodies', () => {
-  const output = { readVersion: 'history-answer.v1', layout: 'table', limitation: null, historyNarrative: null,
-    safetyLevel: 'normal', responseMode: 'practical_guidance', userIntent: 'history', relevantContextIds: ['care:a'],
-    table: { headers: ['Pet', 'Observation'], rows: [{ cells: ['Aster', 'Slept normally.'], sourceIds: ['care:a'], calculations: [] }] } };
-  const parsed = canonicalHistoricalRead(output);
-  assert.equal(parsed.answer, '| Pet | Observation |\n| --- | --- |\n| Aster | Slept normally. |');
-  assert.equal(parsed.answer, parsed.historyNarrative.sentences[0].text);
-  assert.throws(() => canonicalHistoricalRead({ ...output, answer: 'A competing answer' }));
-  assert.throws(() => canonicalHistoricalRead({ ...output, table: { ...output.table, rows: [{ cells: ['Missing column'], sourceIds: ['care:a'], calculations: [] }] } }));
-  assert.throws(() => canonicalHistoricalRead({ ...output, table: null, historyNarrative: { sentences: [{ text: 'Prose instead of the required table.', sourceIds: ['care:a'] }] } }));
+test("canonical calculation table has one deterministic body and rejects competing narrative",async()=>{
+ const f=await C.fixture({format:"table"});assert.match(f.response.answer.summary,/^\| Calculation \|/);assert.ok(C.calculationPublicationFailure({...f.response,historyNarrative:{sentences:[{text:"Another body",sourceIds:["care:first"]}]}}));await C.finish(f);
 });
 test('read planner can omit extraction while writes still require a valid frame', () => {
   assert.equal(validateAskRequest(proposal({ frame: null }), context).readOnly, true);
@@ -287,20 +262,8 @@ test('task review cannot approve omitted requirements or references to discarded
     assert.throws(() => parseTaskHistoryReview({ ...complete, ...patch }, 2, 2));
   }
 });
-test('generic arithmetic verifies literal operands and dimensions independently of wording', () => {
-  const sources = [{ sourceId: 'a', text: 'Recorded amount 12 kg.', occurredAt: '2026-05-01T00:00:00.000Z' },
-    { sourceId: 'b', text: 'Recorded amount 9 kg.', occurredAt: '2026-05-05T00:00:00.000Z' }];
-  const operands = [{ sourceId: 'a', field: 'text', literal: '12 kg' }, { sourceId: 'b', field: 'text', literal: '9 kg' }];
-  for (const [operation, value, unit] of [['difference', 3, 'kg'], ['sum', 21, 'kg'], ['ratio', .75, ''], ['percent_change', -25, '%']]) {
-    assert.ok(verifiedCalculationQuantities([{ operation, operands, value, unit }], sources));
-    assert.equal(verifiedCalculationQuantities([{ operation, operands, value: 500, unit }], sources), null);
-  }
-  assert.deepEqual(verifiedCalculationQuantities([{ operation: 'convert', operands: operands.slice(0, 1), value: 12000, unit: 'g' }], sources), ['12000:g']);
-  assert.equal(verifiedCalculationQuantities([{ operation: 'convert', operands: operands.slice(0, 1), value: 12000, unit: 'ml' }], sources), null);
-  assert.equal(verifiedCalculationQuantities([{ operation: 'convert', operands: [{ ...operands[0], literal: '2 kg' }], value: 2000, unit: 'g' }], sources), null);
-  assert.equal(verifiedCalculationQuantities([{ operation: 'convert', operands: [{ ...operands[0], sourceId: 'foreign' }], value: 12000, unit: 'g' }], sources), null);
-  assert.deepEqual(verifiedCalculationQuantities([{ operation: 'elapsed_days', operands: sources.map(source => ({ sourceId: source.sourceId, field: 'occurredAt', literal: source.occurredAt })), value: 4, unit: 'days' }], sources), ['4:day']);
-  assert.equal(parseHistoryCalculations([{ operation: 'eval', operands, value: 3, unit: 'kg' }]), null);
+test("canonical arithmetic derives values from organ slots and rejects proposed arithmetic values",async()=>{
+ for(const [op,val,unit]of [["sum",21,"kg"],["mean",10.5,"kg"],["difference",3,"kg"],["absolute_difference",3,"kg"],["ratio",.75,"scalar"],["percent_change",-25,"%"]])await C.certified(op,["12 kg","9 kg"],unit,val);await C.certified("convert",["12 kg"],"g",12000);C.rejects(c=>c.value=500);C.rejects(c=>c.operands[0].sourceId="foreign");
 });
 test('derived quantity passes shared generation without question-pattern arithmetic', async t => {
   clock(t);
@@ -658,17 +621,8 @@ test('typed format rejects prose posing as JSON or a table without reinterpretin
 });
 
 
-test('a specified format with sources requires a canonical body in the provider schema', () => {
-  const properties = { historyNarrative: { type: ['object', 'null'], properties: { sentences: {} } } };
-  const json = historicalReadSchema(properties, 'json');
-  assert.equal(json.properties.historyNarrative.type, 'null');
-  assert.equal(json.properties.json.type, 'object');
-  assert.equal(json.properties.table.type, 'null');
-  assert.equal(json.properties.limitation.type, 'null');
-  assert.deepEqual(json.properties.layout.enum, ['json']);
-  const table = historicalReadSchema(properties, 'table');
-  assert.equal(table.properties.historyNarrative.type, 'null');
-  assert.equal(table.properties.table.type, 'object');
+test("requested unsupported containers cannot reopen provider calculation publication",async()=>{
+ for(const format of ["json","csv"])await C.limitedFormat(format);
 });
 
 test('typed JSON renders nested data, arrays, nulls and escaping without model-written JSON', async t => {
@@ -691,17 +645,8 @@ test('typed JSON renders nested data, arrays, nulls and escaping without model-w
   assert.deepEqual(r.result.reasoning.evidenceContract.interpretation.request.outputFormat,'json');
 });
 
-test('typed JSON rejects duplicate keys, competing bodies, excessive depth and nonfinite values', async () => {
-  const { renderHistoricalJson } = await import('../../app/lib/intelligence/structured-history-json.ts');
-  const wrap = value => ({ value, sourceIds: ['care:a'], calculations: [] });
-  assert.throws(() => renderHistoricalJson(wrap({ kind: 'object', entries: [{ key: 'x', value: 1 }, { key: 'x', value: 2 }] })));
-  assert.throws(() => renderHistoricalJson(wrap({ kind: 'array', items: [Infinity] })));
-  let nested = null; for (let i = 0; i < 10; i++) nested = { kind: 'array', items: [nested] };
-  assert.throws(() => renderHistoricalJson(wrap(nested)));
-  assert.throws(() => renderHistoricalJson({ ...wrap({ kind: 'array', items: [] }), careActions: [] }));
-  const value = { kind: 'object', entries: [{ key: '__proto__', value: { kind: 'object', entries: [{ key: 'safe', value: true }] } }] };
-  assert.equal(JSON.parse(renderHistoricalJson(wrap(value)).sentences[0].text).__proto__.safe, true);
-  assert.equal({}.safe, undefined);
+test("pure JSON serialization rejects duplicate keys depth and nonfinite values without factual authority",async()=>{
+ const {serializeHistoricalJson}=await import("../../app/lib/furvise-output.ts");assert.throws(()=>serializeHistoricalJson({kind:"object",entries:[{key:"x",value:1},{key:"x",value:2}]}));assert.throws(()=>serializeHistoricalJson({kind:"array",items:[Infinity]}));let nested=null;for(let i=0;i<10;i++)nested={kind:"array",items:[nested]};assert.throws(()=>serializeHistoricalJson(nested));const value={kind:"object",entries:[{key:"__proto__",value:{kind:"object",entries:[{key:"safe",value:true}]}}]};assert.equal(JSON.parse(serializeHistoricalJson(value)).__proto__.safe,true);assert.equal({}.safe,undefined);
 });
 
 test('history access is lifetime on both plans and rejects unknown plans', async () => {
@@ -807,11 +752,8 @@ test('explicit owned identity survives an empty planner clarification without au
   assert.deepEqual(r.petIds, ['luna']);
   assert.equal(r.readOnly, true);
 });
-test('hyphenated minutes support arithmetic without accepting partial numeric tokens', () => {
-  const source = [{ sourceId: 'duration', text: 'An 18-minute session followed a 7-minute session.' }];
-  const operands = ['18-minute', '7-minute'].map(literal => ({ sourceId: 'duration', field: 'text', literal }));
-  assert.deepEqual(verifiedCalculationQuantities([{ operation: 'difference', operands, value: 11, unit: 'minutes' }], source), ['11:minute']);
-  assert.equal(verifiedCalculationQuantities([{ operation: 'convert', operands: [{ ...operands[0], literal: '8-minute' }], value: 480, unit: 'seconds' }], source), null);
+test("measurement token punctuation cannot create guessed canonical operands",async()=>{
+ const f=await C.measured("difference",["An 18-minute session","A 7-minute session"],"minute",{unit:"minute"});assert.equal(f.response.model,"server-calculation-unavailable");await C.finish(f);await C.certified("difference",["18 minutes","7 minutes"],"minute",11,{unit:"minute"});C.rejects(c=>c.operands[0].literal="8-minute");
 });
 test('reviewed quotes and all clauses survive final conversation rendering', async t => {
   clock(t);
@@ -838,13 +780,8 @@ test('conditional emergencies bypass identity without replacing actual emergency
   assert.equal(conditionalEmergencyGuidance('If my dog sleeps normally, should I record it?'), null);
 });
 
-test('measurement grounding accepts equivalent grammar but rejects invented time quantities', () => {
-  const sources = [{ sourceId: 'time', text: 'An 18-minute session followed a 7-minute session.' }];
-  const operands = ['18 minutes', '7 minutes'].map(literal => ({ sourceId: 'time', field: 'text', literal }));
-  const derived = verifiedCalculationQuantities([{ operation: 'difference', operands, value: 11, unit: 'minutes' }], sources);
-  assert.deepEqual(derived, ['11:minute']);
-  assert.equal(historyNarrativeAnchorsSupported('It was 11 minutes longer.', sources, '', derived, false), true);
-  assert.equal(historyNarrativeAnchorsSupported('It was 13 minutes longer.', sources, '', derived, false), false);
+test("canonical quantity output cannot be changed into invented time quantities",async()=>{
+ const f=await C.certified("difference",["18 minutes","7 minutes"],"minute",11,{unit:"minute"});f.response.answer.summary+=" Nine minutes.";assert.ok(C.calculationPublicationFailure(f.response));
 });
 
 test('reference lookup prioritizes matching evidence over years of period distractors', async t => {
@@ -872,11 +809,8 @@ test('inclusive as-of date is a scope anchor while the event keeps its own date'
   assert.equal(r.context.askInterpretation.request.readTicket.temporal.to,'2026-08-21T00:00:00.000Z');
 });
 
-test('verbatim operand spans retain context and reject multiple measurements', () => {
- const sources = [{ sourceId: 's', text: 'A 22-minute session followed a 6-minute session.' }];
- const operands = ['22-minute session', '6-minute session'].map(literal => ({ sourceId: 's', field: 'text', literal }));
- assert.deepEqual(verifiedCalculationQuantities([{ operation: 'difference', operands, value: 16, unit: 'minutes' }], sources), ['16:minute']);
- assert.equal(verifiedCalculationQuantities([{ operation: 'convert', operands: [{ ...operands[0], literal: sources[0].text }], value: 22, unit: 'minutes' }], sources), null);
+test("multiple measurements remain ambiguous without provider span selection",async()=>{
+ const f=await C.measured("convert",["A 22 minute session followed a 6 minute session"],"minute",{unit:"minute"});assert.equal(f.response.model,"server-calculation-unavailable");await C.finish(f);C.rejects(c=>c.operands[0].literal="22 minutes");
 });
 
 test('measurement comparisons discard irrelevant episode ordinal hints', () => {
@@ -904,24 +838,16 @@ test('empty conversational names recover only a unique user-established focus', 
     assert.deepEqual(ambiguous.petIds,[]);
   }
 });
-test('formatted numeric anchors preserve full values and unit names', () => {
-  const sources=[{sourceId:'a',text:'The crate weighed 3 kg.',occurredAt:'2026-04-01T00:00:00Z'}];
-  const derived=verifiedCalculationQuantities([{operation:'convert',operands:[{sourceId:'a',field:'text',literal:'3 kg'}],value:3000,unit:'g'}],sources);
-  for(const text of ['The crate weighed 3,000 g.','The crate weighed 3,000 grams.'])
-    assert.equal(historyNarrativeAnchorsSupported(text,sources,'',derived,false),true,text);
-  for(const text of ['The crate weighed 4,000 grams.','The crate weighed 3,500 g.'])
-    assert.equal(historyNarrativeAnchorsSupported(text,sources,'',derived,false),false,text);
+test("converted exact quantities retain original measurement and display-unit provenance",async()=>{
+ const f=await C.certified("convert",["The crate measured 3 kg"],"g",3000);const r=f.response.calculationLabs.execution.results[0];assert.equal(r.operands[0].literal,"3 kg");assert.deepEqual(r.exact,{numerator:"3000",denominator:"1"});
 });
 test('user claim quotation is distinguishable from invented source quotation', () => {
   const sources=[{text:'No cause was recorded.',occurredAt:'2026-04-01T00:00:00Z'}];
   assert.equal(historyNarrativeAnchorsSupported('The claim “confirmed cause” is not established.',sources,'Check the claim “confirmed cause”.',[],false),true);
   assert.equal(historyNarrativeAnchorsSupported('The note says “confirmed cause”.',sources,'What did the note say?',[],false),false);
 });
-test('difference converts original operands directly; invented intermediate literals stay invalid', () => {
-  const sources=[{sourceId:'a',text:'Aster weighed 8.1 kg.'},{sourceId:'b',text:'Aster weighed 7.7 kg.'}];
-  const operands=sources.map((s,i)=>({sourceId:s.sourceId,field:'text',literal:i?'7.7 kg':'8.1 kg'}));
-  assert.deepEqual(verifiedCalculationQuantities([{operation:'difference',operands,value:400,unit:'g'}],sources),['400:g']);
-  assert.equal(verifiedCalculationQuantities([{operation:'convert',operands:[{sourceId:'a',field:'text',literal:'0.4 kg'}],value:400,unit:'g'}],sources),null);
+test("difference converts certified original operands without invented intermediate literals",async()=>{
+ await C.certified("difference",["8.1 kg","7.7 kg"],"g",400);C.rejects(c=>c.operands[0].literal="0.4 kg");
 });
 
 test('general read scope can answer without guessing a pet or retrieving saved facts', () => {
@@ -985,12 +911,8 @@ test('a day number next to an event noun is not a quantity anchor', () => {
  assert.equal(historyNarrativeAnchorsSupported('There were 17 accidents on April 17.',source,'',[],false),false);
 });
 
-test('equivalent spelled units share numeric grounding and dimension checks', () => {
- const sources=[{sourceId:'a',text:'Recorded mass 3 kilograms.'},{sourceId:'b',text:'Recorded mass 2 kg.'}];
- const operands=[{sourceId:'a',field:'text',literal:'3 kilograms'},{sourceId:'b',field:'text',literal:'2 kg'}];
- assert.deepEqual(verifiedCalculationQuantities([{operation:'difference',operands,value:1000,unit:'grams'}],sources),['1000:g']);
- assert.equal(verifiedCalculationQuantities([{operation:'difference',operands,value:1000,unit:'milliliters'}],sources),null);
- assert.deepEqual(verifiedCalculationQuantities([{operation:'percent_change',operands,value:-33.33,unit:'percent'}],sources),['33.33:%','-33.33:%']);
+test("spelled unit aliases retain canonical dimensional authority",async()=>{
+ await C.certified("difference",["3 kilograms","2 kg"],"grams",1000);await C.certified("percent_change",["3 kilograms","2 kg"],"%",-100/3);C.rejects(c=>c.resultUnit="milliliters");
 });
 test('empty lexical searches cannot change canonical endpoint authority or consume factual slots',async t=>{
  clock(t);
@@ -1027,10 +949,8 @@ test('bounded phrase hints match morphological variants without treating them as
  assert.ok(historyQueryRelevance('A seven-day medication course was given.',terms)>0);
 });
 
-test('wrong arithmetic remains rejected with a server-computed repair hint',()=>{
- const hints=[];const source=[{sourceId:'a',text:'Mass 2 kg.'},{sourceId:'b',text:'Mass 2.5 kg.'}];
- const result=verifiedCalculationQuantities([{operation:'difference',operands:[{sourceId:'a',field:'text',literal:'2 kg'},{sourceId:'b',field:'text',literal:'2.5 kg'}],value:.5,unit:'kg'}],source,h=>hints.push(h));
- assert.equal(result,null);assert.deepEqual(hints,[{operation:'difference',expectedValue:-.5,unit:'kg'}]);
+test("wrong proposed arithmetic is rejected before execution with no repair authority",async()=>{
+ C.rejects(c=>c.value=.5);const f=await C.certified("difference",["2 kg","2.5 kg"],"kg",-.5);assert.equal(f.calls(),0);
 });
 
 test('supplied premises narrow stale owned-history plans without granting writes', () => {
@@ -1194,16 +1114,8 @@ test('diverse candidates reach a rare middle-history transition within existing 
  assert.ok(r.context.askHistory.coverage.candidateIds.length<=64);
 });
 
-test('compound rates are recomputed dimensionally from source-bound operands',()=>{
- const sources=[{sourceId:'trip',text:'Distance 3 km; duration 30 minutes including stops.'}];
- const calc={operation:'ratio',operands:[{sourceId:'trip',field:'text',literal:'30 minutes'},{sourceId:'trip',field:'text',literal:'3 km'}],value:6,unit:'km/h'};
- assert.deepEqual(verifiedCalculationQuantities([calc],sources),['6:km/hour']);
- assert.deepEqual(verifiedCalculationQuantities([{...calc,value:.1,unit:'km/min'}],sources),['0.1:km/minute']);
- for(const bad of [{value:7},{unit:'g/hour'},{operands:[...calc.operands].reverse()},{unit:''}])
-  assert.equal(verifiedCalculationQuantities([{...calc,...bad}],sources),null);
- assert.equal(historyNarrativeAnchorsSupported('Average speed was 6 km/h.',sources,'',[],false),false);
- assert.equal(historyNarrativeAnchorsSupported('Average speed was 6 km/h.',sources,'',['6:km/hour'],false),true);
- assert.equal(historyNarrativeAnchorsSupported('The trip was 9 km.',sources,'',[],false),false);
+test("compound dimensional rates remain unsupported by the closed canonical operator algebra",async()=>{
+ C.rejects(c=>{c.operator="ratio";c.operands=[C.slot(0,0,C.pets[0].name,"measurement","hour"),C.slot(1,0,C.pets[0].name,"measurement","km")];c.resultUnit="km/hour";});C.rejects(c=>c.operator="expression");
 });
 test('final presentation preserves negation, uncertainty and exact line breaks',async()=>{
  const {presentationOnlyAskResponse}=await import('../../app/lib/ask-conversation-server.ts');
@@ -1239,13 +1151,8 @@ test('final persisted presentation retains relative-clause measurements',async()
  const summary='The earliest weight I have saved for Rowan is 7.21 kg on 2020-03-04. The reason for any change was not established.';
  assert.equal(presentationOnlyAskResponse({summary},[]).directAnswer,summary);
 });
-test('prose transport envelope is decoded before factual review, not after it',()=>{
- const text='{"answer":"The prior food was offered.","note":"Unobserved meals are unknown."}';
- const response=canonicalHistoricalRead({readVersion:'history-answer.v1',layout:'prose',json:null,table:null,limitation:null,
-  historyNarrative:{sentences:[{text,sourceIds:['care:a'],calculations:[]}]},
-  safetyLevel:'monitor',responseMode:'direct_answer',userIntent:'general_pet_question',relevantContextIds:[]});
- assert.equal(response.historyNarrative.sentences[0].text,'The prior food was offered.\nUnobserved meals are unknown.');
- assert.deepEqual(response.historyNarrative.sentences[0].sourceIds,['care:a']);
+test("a provider prose envelope cannot replace deterministic calculation publication",async()=>{
+ const f=await C.fixture();const r={...f.response,answer:{...f.response.answer,summary:JSON.stringify({answer:f.response.answer.summary,note:"Unknown fact"})}};assert.ok(C.calculationPublicationFailure(r));await C.finish(f);
 });
 
 
@@ -1333,10 +1240,8 @@ test('event reason retrieval is independent of a summary or comparison planner l
  }
 });
 
-test('ordinary read layouts reject unsolicited JSON while explicit JSON remains supported', () => {
- assert.deepEqual(historicalReadSchema({}).properties.layout.enum,['prose']);
- for(const format of [null,'prose']) assert.equal(matchesHistoryOutputFormat('{"measurement":{"value":7.25,"unit":"kg"}}',format),false);
- assert.equal(matchesHistoryOutputFormat('{"measurement":{"value":7.25,"unit":"kg"}}','json'),true);
+test("format recognition remains presentation-only and cannot authorize JSON facts",async()=>{
+ for(const format of [null,"prose"])assert.equal(matchesHistoryOutputFormat('{"value":7.25}',format),false);assert.equal(matchesHistoryOutputFormat('{"value":7.25}',"json"),true);await C.limitedFormat("json");
 });
 
 
@@ -1371,11 +1276,8 @@ test('unsolicited JSON is repaired once and independently re-reviewed as prose',
  assertSourceFreePublication(r);
 });
 
-test('canonical read limitation cannot smuggle an unrequested output container', () => {
- const read={readVersion:'history-answer.v1',layout:'prose',historyNarrative:null,table:null,json:null,
-  limitation:'The requested observation is not available.',safetyLevel:'normal',responseMode:'practical_guidance',userIntent:'history recall',relevantContextIds:[]};
- assert.equal(canonicalHistoricalRead(read).answer,read.limitation);
- assert.throws(()=>canonicalHistoricalRead({...read,limitation:'{"answer":"Unavailable","value":null}'}),/INVALID_READ_LAYOUT/);
+test("deterministic limitation cannot smuggle an alternative output container",async()=>{
+ const f=await C.limitedFormat("json");f.response.answer.summary='{"answer":"Unavailable","value":null}';assert.ok(C.calculationPublicationFailure(f.response));
 });
 test('middle date survives retrieval and representation among five years of routine records', async t => {
  clock(t);

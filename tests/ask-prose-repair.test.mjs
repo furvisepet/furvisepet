@@ -5,7 +5,7 @@ const draft = {sentences: [
   {text:'A saved note records 15 kg.',sourceIds:['care:weight']},
   {text:'Redness returned.',sourceIds:['request:current']},
 ]};
-const replacement = {index:1,text:'You report that redness returned.',sourceIds:['request:current'],calculations:[]};
+const replacement = {index:1,text:'You report that redness returned.',sourceIds:['request:current']};
 test('one attribution repair preserves every untouched claim and original draft',()=>{
   const before=structuredClone(draft), result=applyProseRepair(draft,{replacements:[replacement]});
   assert.deepEqual(result.sentences[0],draft.sentences[0]);
@@ -24,9 +24,9 @@ test('invalid patches cannot drop, append, reorder, or introduce action authorit
 
 test('text corrections retain authorized original citation candidates for unchanged facts',()=>{
  const original={sentences:[{text:'A dated note mentions 15 kg and a prescription.',sourceIds:['care:weight','care:medicine','care:unavailable']}]};
- const result=applyProseRepair(original,{replacements:[{index:0,text:'A historical note mentions 15 kg and a prescription.',sourceIds:['care:medicine'],calculations:[]}]},['care:weight','care:medicine']);
+ const result=applyProseRepair(original,{replacements:[{index:0,text:'A historical note mentions 15 kg and a prescription.',sourceIds:['care:medicine']}]},['care:weight','care:medicine']);
  assert.deepEqual(result.sentences[0].sourceIds,['care:medicine','care:weight']);
- const unknown=applyProseRepair(original,{replacements:[{index:0,text:'An invented claim.',sourceIds:['care:invented'],calculations:[]}]},['care:weight','care:medicine']);
+ const unknown=applyProseRepair(original,{replacements:[{index:0,text:'An invented claim.',sourceIds:['care:invented']}]},['care:weight','care:medicine']);
  assert.ok(unknown.sentences[0].sourceIds.includes('care:invented'),'new invalid IDs remain visible for rejection, never silently removed');
 });
 
@@ -47,7 +47,7 @@ test('an incomplete paragraph can expand without losing neighboring claims',()=>
 
 test('incremental repair inherits only available original citations without hiding new invalid IDs',()=>{
  const original={sentences:[{text:'Two observations.',sourceIds:['care:one','care:two','care:gone']}]};
- const patch=ids=>({replacements:[{index:0,sentences:[{text:'Attributed observations.',sourceIds:ids,calculations:[]}]}]});
+ const patch=ids=>({replacements:[{index:0,sentences:[{text:'Attributed observations.',sourceIds:ids}]}]});
  assert.deepEqual(applyProseRepair(original,patch([]),['care:one','care:two']).sentences[0].sourceIds,['care:one','care:two']);
  assert.deepEqual(applyProseRepair(original,patch(['care:new']),['care:one']).sentences[0].sourceIds,['care:new','care:one']);
  assert.throws(()=>applyProseRepair(original,patch([]),[]),'no accessible evidence cannot become a cited answer');

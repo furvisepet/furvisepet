@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { assertStoredPublicationUnavailable } from './helpers/unsupported-stored-publication.mjs';
-import { verifiedCalculationQuantities } from '../app/lib/intelligence/history-calculation.ts';
 
 const pets=[
   ['a','Aster',23.71,30.31],

@@ -1,6 +1,6 @@
+import * as C from "./helpers/canonical-calculation-retirement.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseHistoryCalculations, verifiedCalculationQuantities } from '../app/lib/intelligence/history-calculation.ts';
 import { canonicalReadPresentation, readPublicationFailure } from '../app/lib/ask-publication.ts';
 import { receiptCompletionText } from '../app/lib/intelligence/receipt-completion.ts';
 import { readRecordInventory } from '../app/lib/intelligence/record-inventory.ts';
@@ -61,29 +61,14 @@ test('a record correction retrieves its original interval without becoming a rea
   assert.equal(result.history.from,'2026-01-04T00:00:00.000Z');
 });
 
-test('aggregations operate over original measurements, with unit conversion and no invented divisor', () => {
-  const sources = [10,20,30,40,50,60].map((v,i)=>({sourceId:`care:${i}`,text:`Measured ${v} g.`}));
-  const mean = { operation:'mean', expression:null, operands:sources.map(s=>({sourceId:s.sourceId,field:'text',literal:s.text.slice(9,-1)})),value:0.035,unit:'kg' };
-  assert.ok(parseHistoryCalculations([mean]));
-  assert.deepEqual(verifiedCalculationQuantities([mean],sources),['0.035:kg']);
-  assert.equal(verifiedCalculationQuantities([{...mean,value:0.036}],sources),null);
-  assert.equal(verifiedCalculationQuantities([mean],sources.slice(1)),null);
-  assert.equal(verifiedCalculationQuantities([{...mean,unit:'ml'}],sources),null);
+test("canonical means use all selected originals and an organ-owned divisor",async()=>{
+ await C.certified("mean",[10,20,30,40,50,60].map(v=>"Measured "+v+" g"),"kg",.035);C.rejects(c=>c.divisor=5);
 });
-test('a percentage share of a combined total has a first-class verified operation', () => {
-  const sources=[{sourceId:'care:active',text:'Active play lasted 29 minutes.'},{sourceId:'care:rest',text:'Rest lasted 3 minutes.'}];
-  const calculation={operation:'percent_of_sum',expression:null,operands:[
-    {sourceId:'care:rest',field:'text',literal:'3 minutes'},
-    {sourceId:'care:active',field:'text',literal:'29 minutes'}],value:9.4,unit:'%'};
-  assert.ok(parseHistoryCalculations([calculation]));
-  assert.deepEqual(verifiedCalculationQuantities([calculation],sources),['9.4:%']);
-  assert.equal(verifiedCalculationQuantities([{...calculation,value:90.6}],sources),null);
+test("percentage share has a closed canonical operation",async()=>{
+ await C.certified("percent_of_sum",["29 minutes","279 minutes"],"%",29/308*100,{unit:"minute",precision:1});
 });
-test('magnitude-only differences do not weaken signed difference validation',()=>{
- const sources=[{sourceId:'care:high',text:'Active play lasted 29 minutes.'},{sourceId:'care:low',text:'Active play lasted 15 minutes.'}];
- const operands=[{sourceId:'care:low',field:'text',literal:'15 minutes'},{sourceId:'care:high',field:'text',literal:'29 minutes'}];
- assert.deepEqual(verifiedCalculationQuantities([{operation:'absolute_difference',expression:null,operands,value:14,unit:'minutes'}],sources),['14:minute']);
- assert.equal(verifiedCalculationQuantities([{operation:'difference',expression:null,operands,value:14,unit:'minutes'}],sources),null);
+test("absolute magnitude never changes signed difference semantics",async()=>{
+ await C.certified("absolute_difference",["15 minutes","29 minutes"],"minute",14,{unit:"minute"});await C.certified("difference",["15 minutes","29 minutes"],"minute",-14,{unit:"minute"});
 });
 test('past-to-present weight comparisons require the current profile endpoint',()=>{
  const pet={id:'pet',user_id:'owner',name:'Fern'};
@@ -283,19 +268,8 @@ test('edit receipts establish execution separately from inserted note rows',asyn
     assert.doesNotMatch(source.text,/requested action completed/);assert.match(source.text,/not successful writes/);
   }
 });
-test('calculated answers inherit all operand sources without granting unknown operands authority',async()=>{
-  const {parseHistoryNarrative}=await import('../app/lib/intelligence/history-narrative.ts');
-  const {verifiedCalculationQuantities}=await import('../app/lib/intelligence/history-calculation.ts');
-  const calculation={operation:'elapsed_days',operands:[
-    {sourceId:'care:start',field:'occurredAt',literal:'2024-03-02T00:00:00Z'},
-    {sourceId:'care:stop',field:'occurredAt',literal:'2024-03-05T00:00:00Z'}],value:3,unit:'days'};
-  const draft=parseHistoryNarrative({sentences:[{text:'The calendar-day gap is 3 days.',sourceIds:['episode-result:pet'],calculations:[calculation]}]});
-  assert.deepEqual(draft.sentences[0].sourceIds,['episode-result:pet','care:start','care:stop']);
-  const sources=[{sourceId:'episode-result:pet',text:'One recorded episode.'},
-    {sourceId:'care:start',text:'Started.',occurredAt:'2024-03-02T00:00:00Z'},
-    {sourceId:'care:stop',text:'Stopped.',occurredAt:'2024-03-05T00:00:00Z'}];
-  assert.ok(verifiedCalculationQuantities(draft.sentences[0].calculations,sources));
-  assert.equal(verifiedCalculationQuantities([{...calculation,operands:[calculation.operands[0],{...calculation.operands[1],sourceId:'foreign'}]}],sources),null);
+test("calculation provenance comes only from Muscle operands never narrative source expansion",async()=>{
+ const f=await C.certified("elapsed_days",["start","stop"],"day",3,{days:[2,5]});assert.deepEqual(f.response.relevantContextIds,["care:source-0","care:source-1"]);assert.equal(C.parseHistoryNarrative({sentences:[{text:"3 days",sourceIds:[],calculations:[{operands:[{sourceId:"foreign"}]}]}]}),undefined);
 });
 
 

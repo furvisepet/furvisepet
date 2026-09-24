@@ -14,8 +14,6 @@ import { CLAIM_AUTHORITY_POLICY } from "../intelligence/claim-authority-policy.t
 import { sourceDisplayDate } from "../intelligence/source-calendar-date.ts";
 import { isExplicitCareHistorySaveRequest } from "../intelligence/care-history-policy.ts";
 import { recordInventoryEvidence } from "../intelligence/record-inventory.ts";
-import { sourceBoundSchema } from "../intelligence/source-bound-schema.ts";
-import { parseHistoryCalculations } from "../intelligence/history-calculation.ts";
 import { episodeResultText } from "../intelligence/episode-contract.ts";
 import { furviseProductFacts } from "./ask-internal-product-policy.ts";
 import { isOwnerAssertedEvidence } from "./owner-assertion.ts";
@@ -29,7 +27,7 @@ import { safetyTemporalScope } from "./safety-temporal-scope.ts";
 import { compactHistorySourceCoverage, compactHistoryQueryCoverage } from "./history-source-transport.ts";
 import { getAiFeaturePolicy } from "./usage-guard/features.ts";
 import { estimateInputTokens } from "./usage-guard/cost-estimator.ts";
-import { historyNarrativeSchema, parseHistoryNarrative, type HistoryNarrative } from "../intelligence/history-narrative.ts";
+import { historyNarrativeSchema, type HistoryNarrative } from "../intelligence/history-narrative.ts";
 import OpenAI from "openai";
 import { AiAdmissionError } from "./usage-guard/errors.ts";
 import { boundedProviderTimeout, executeAdmittedProviderCall } from "./usage-guard/provider-call-budget.ts";
@@ -132,7 +130,7 @@ export type AskReasoningResult = {
   profileFieldLabs?: ProfileFieldLabs;
   historySynthesis?: Array<{ sourceId: string; text: string }>;
   historyNarrative?: HistoryNarrative;
-  historicalResult?: import("../intelligence/historical-read-response.ts").HistoricalResult;
+  historicalResult?: import("../intelligence/history-narrative.ts").HistoricalResult;
   /** Derived from an explicit null in the strict provider response. */
   historyNarrativeDeclined?: boolean;
   answer: {

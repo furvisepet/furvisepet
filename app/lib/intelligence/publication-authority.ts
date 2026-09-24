@@ -275,7 +275,7 @@ export function checkPublicationAuthority(evidence: AskEvidenceContract, binding
       && binding.authorizedSourceIds.some(id => !support.some(s => s.sourceIds.includes(id))))
       failures.push("publication_selected_record_omitted:" + binding.obligationId);
     for (const sentence of support) {
-      if (binding.authority === "certified" && sentence.calculations?.length)
+      if (binding.authority === "certified" && "calculations" in sentence)
         failures.push("publication_selection_does_not_certify_calculation:" + binding.obligationId);
       claims.push({ obligationId: binding.obligationId, text: sentence.text, sourceIds: [...sentence.sourceIds] });
     }

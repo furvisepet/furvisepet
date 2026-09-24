@@ -1,3 +1,4 @@
+import * as C from "./helpers/canonical-calculation-retirement.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { recoverTransientRead } from '../app/lib/security/read-recovery.ts';
@@ -32,13 +33,8 @@ test('literal inventory scope survives noisy planner hints, never content qualif
   assert.equal(items[0].count,4);assert.deepEqual(calls.find(c=>c[0]==='gte'),['gte','occurred_at','2026-08-01']);
 });
 
-test('numeric calculation leaves take units only from an unambiguous adjacent source token',async()=>{
-  const { verifiedCalculationQuantities }=await import('../app/lib/intelligence/history-calculation.ts');
-  const p={operation:'difference',operands:[{sourceId:'a',field:'text',literal:'31.32'},{sourceId:'b',field:'text',literal:'31.10'}],value:0.22,unit:'kg'};
-  const sources=[{sourceId:'a',text:'Body mass was 31.32 kg.'},{sourceId:'b',text:'Body mass was 31.10 kg.'}];
-  assert.ok(verifiedCalculationQuantities([p],sources));
-  assert.equal(verifiedCalculationQuantities([p],[{...sources[0],text:'Body mass was 131.32 kg.'},sources[1]]),null);
-  assert.equal(verifiedCalculationQuantities([p],[{...sources[0],text:'31.32 kg and 31.32 ml.'},sources[1]]),null);
+test("canonical leaves take dimension from typed slots and magnitude from complete source tokens",async()=>{
+ await C.certified("convert",["Recorded 31.32 kg"],"kg",31.32);const f=await C.certified("convert",["Recorded 131.32 kg"],"kg",131.32);assert.notEqual(f.response.calculationLabs.execution.results[0].value,31.32);C.rejects(c=>c.operands[0].literal="31.32");
 });
 
 test('each quote binds its own date, not the dates of earlier quoted notes',async()=>{
@@ -51,7 +47,6 @@ test('each quote binds its own date, not the dates of earlier quoted notes',asyn
 
 test('uncertified comparison cannot calculate from ambiguous or foreign measurements',async()=>{
   const { assertStoredPublicationUnavailable }=await import('./helpers/unsupported-stored-publication.mjs');
-  const { verifiedCalculationQuantities }=await import('../app/lib/intelligence/history-calculation.ts');
   const records=[{sourceId:'care:a',petId:'p',occurredAt:'2023-03-09T00:00:00Z',text:'Mira weighed 18.4 kg. No carrier or harness included.'},{sourceId:'care:b',petId:'p',occurredAt:'2023-04-09T00:00:00Z',text:'Mira weighed 18.7 kg. No carrier or harness included.'}];
   const e={scope:{readOnlyRecall:true,authorizedPetIds:['p'],requestText:'Compare Mira’s body weights on March 9 and April 9, 2023. Give the change in kilograms.'},interpretation:{request:{outputFormat:null}},petNames:{p:'Mira'},losses:[],sources:[{petId:'p',status:'loaded',loadedIds:['care:a','care:b']}],represented:records.map(r=>({...r,sourceType:'care_update',field:'value',start:0,end:r.text.length}))};
   await assertStoredPublicationUnavailable(e);

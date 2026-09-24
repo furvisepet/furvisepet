@@ -6,7 +6,7 @@ import { readReviewedHistoryAnswer } from "./history-review-state.ts";
 import { wholeAskTaskQuestion } from "./ask-task-continuation.ts";
 import { completedExplicitHistoryTargets, historyCompletionLimits } from "./evidence-need-coverage.ts";
 import { CLAIM_AUTHORITY_POLICY, CLAIM_REVIEW_POLICY } from "./claim-authority-policy.ts";
-import { matchesHistoryOutputFormat } from "./historical-read-response.ts";
+import { matchesHistoryOutputFormat } from "./history-output-format.ts";
 import { readPublicationFailure, canonicalReadPresentation } from "../ask-publication.ts";
 import { TASK_COMPLETION_STATUSES } from "./history-review-selection.ts";
 import { furviseProductFacts } from "../ai/ask-internal-product-policy.ts";
