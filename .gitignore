@@ -98,3 +98,8 @@ supabase/.temp/
 /tmp/
 __pycache__/
 *.pyc
+
+# Referenced production artwork
+!public/images/heron.png
+!public/images/products_page/products_desktop.png
+!public/images/products_page/products_mobile.png
