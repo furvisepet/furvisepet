@@ -63,3 +63,27 @@ test('selection addresses do not assign arithmetic roles for read or derived ope
   for(const term of ['Selection order is not calculation operand order','clause/item addresses','upstream result operands','do not assume binary operators share'])assert.ok(text.includes(term),term);
  }
 });
+
+for(const [field,value] of [['from','2024-02-01'],['to','2024-03-01'],['terms',['sample']],['selection','comparison']])test('calculation provider neutralizes outer '+field,()=>{
+ const r=request();r[field]=value;assert.equal(check({request:r}),false);
+});
+test('typed calculation window survives Binder with neutral outer retrieval fields',()=>{
+ const r=request();r.readTicket.temporal.from='2024-12-31T00:00:00-08:00';r.readTicket.temporal.to='2025-01-02T00:00:00-08:00';
+ const bound=accepts(r);assert.deepEqual(bound.request.readTicket.temporal,r.readTicket.temporal);
+ assert.equal(r.from,null);assert.equal(r.to,null);assert.deepEqual(r.terms,[]);assert.equal(r.selection,'summary');
+});
+test('legacy outer dates cannot fill an unbounded typed calculation ticket',()=>{
+ const r=request();r.from='2024-02-01';r.to='2024-03-01';r.terms=['sample'];r.selection='comparison';
+ const bound=validateAskRequest(r,context);assert.equal(bound.request.readTicket.temporal.from,null);assert.equal(bound.request.readTicket.temporal.to,null);assert.deepEqual(bound.request.readTicket.predicates,r.readTicket.predicates);
+});
+test('non-calculation provider compatibility retains outer fields',()=>{
+ const r=request();r.calculatePlan=null;r.from='2024-02-01';r.to='2024-03-01';r.terms=['sample'];r.selection='comparison';
+ assert.equal(check({request:r}),true,JSON.stringify(check.errors));assert.equal(validateAskRequest(r,context).request.readTicket.temporal.from,null);
+});
+test('canonical calculation contract owns temporal bounds and distinct endpoint union',()=>{
+ for(const term of ['outer from/to null, terms [], selection summary','next local midnight in the supplied timezone','distinct ascending take 1 and descending take 1','duplicate clauses are invalid'])assert.ok(ASK_REQUEST_INSTRUCTIONS.includes(term),term);
+ for(const v of schema.properties.request.anyOf.filter(v=>v.properties.calculatePlan.type==='object')){
+  assert.match(v.properties.readTicket.properties.temporal.description,/Sole temporal retrieval authority/);
+  if(v.properties.readTicket.properties.selection.type==='object')assert.match(v.properties.readTicket.properties.selection.description,/Never duplicate orderBy\/take/);
+ }
+});

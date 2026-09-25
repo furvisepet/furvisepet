@@ -246,3 +246,25 @@ for(const [name,mutate] of [
  assert.equal(validateGeneratedAnswer(f.response,f.context,"routine",[pets[0].id]).valid,false);
  assert.equal(f.calls(),0);
 });
+
+test('bounded interval certifies opposite endpoints across interior and outside measurements',async()=>{
+ const ticket=rawTicket();ticket.temporal={from:'2024-01-01T00:00:00Z',to:'2024-01-04T00:00:00Z',anchor:null};
+ const f=await fixture({ticket,sourceRows:[row('before','sample 1 kg',0),row('begin','sample 4 kg',1),row('interior','sample 7 kg',2),row('end','sample 9 kg',3),row('outside','sample 20 kg',4)],calculations:[calculation('difference',[slot(1),slot(0)])]});
+ assert.deepEqual(f.result.records.map(r=>r.id).sort(),['begin','end']);
+ assert.deepEqual(f.result.coverage.groups[0].clauses.map(c=>c.ids),[['begin'],['end']]);assert.ok(f.result.coverage.groups[0].clauses.every(c=>c.certified));
+ const execution=f.response.calculationLabs.execution,r=execution.results[0];assert.equal(execution.complete,true);
+ assert.deepEqual(r.operands.map(o=>o.recordId),['end','begin']);assert.deepEqual(r.exact,{numerator:'5',denominator:'1'});
+ assert.equal((await finish(f)).assessment.outcome,'complete');assert.equal(f.calls(),0);
+});
+
+test('duplicate-clause Brain proposal fails once before any completed answer assessment',async()=>{
+ const {interpretAskQuestion}=await import('../app/lib/intelligence/interpret-ask.ts');
+ const {assessTaskExecution}=await import('../app/lib/intelligence/task-execution-contract.ts');
+ const ticket=rawTicket();ticket.selection.union=[clause('asc'),clause('asc')];
+ const p=envelope(proposal([calculation()]),ticket);let calls=0;
+ const context={owner:{userId:'owner'},pet:pets[0],eligiblePets:pets,currentMessage:p.question,conversationTurns:[],timeZone:'UTC',currentTurn:{id:'turn',role:'user',text:p.question}};
+ await assert.rejects(interpretAskQuestion({context,model:'fixture',client:{responses:{create:async()=>{calls++;return {output_text:JSON.stringify(p)};}}}}),e=>e.stage==='interpretation_failed'&&/READ_TICKET|VALIDATION/.test(e.diagnostics.providerErrorCode));
+ assert.equal(calls,1);
+ const disposition=assessTaskExecution({assessment:null,completion:[],responseMode:'answer',actions:[],careWriteRequired:false,careReceipt:{status:'skipped',careEntryIds:[]}});
+ assert.notEqual(disposition.taskOutcome,'complete');assert.notEqual(disposition.answerOutcome,'complete');assert.equal(disposition.creditDisposition,'release');
+});

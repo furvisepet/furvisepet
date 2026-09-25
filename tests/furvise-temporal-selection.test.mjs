@@ -128,3 +128,18 @@ test('found anchor with no matching evidence may honestly be complete_empty',asy
   assert.equal(r.coverage.status,'complete_empty');assert.deepEqual(ids(r),[]);
   assert.equal(r.coverage.anchors.length,1);
 });
+
+test('duplicate semantic clauses reject without silent deduplication or key-order dependence',()=>{
+ const duplicate={take:{per:'group',count:1},orderBy:[{direction:'asc',field:'event_at'}]};
+ const p=proposal('after',[clause('asc'),duplicate]);const original=structuredClone(p);
+ assert.throws(()=>bindCompositionalReadTicket(p,['a']),e=>e.cause?.rule==='duplicate_selection_clause'&&e.cause?.field==='selection.union[1]');
+ assert.deepEqual(p,original);
+});
+for(const [label,union] of [['opposite boundaries',[clause('asc'),clause('desc')]],['distinct cardinalities',[clause('asc'),clause('asc',2)]],['single clause',[clause('asc')]]])test(label+' remains legal after duplicate-clause guard',()=>{
+ assert.equal(bindCompositionalReadTicket(proposal('after',union),['a']).selection.union.length,union.length);
+});
+test('distinct semantic clauses may certify one overlapping source without shape rejection',async()=>{
+ const {fixture,row:measurementRow}=await import('./helpers/calculation-fixture.mjs');
+ const {result:r}=await fixture({sourceRows:[measurementRow('only','sample 4 kg')]});
+ assert.deepEqual(ids(r),['only']);assert.deepEqual(r.coverage.groups[0].clauses.map(c=>c.ids),[['only'],['only']]);assert.ok(r.coverage.groups[0].clauses.every(c=>c.certified));
+});

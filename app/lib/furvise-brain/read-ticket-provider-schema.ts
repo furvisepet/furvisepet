@@ -53,7 +53,8 @@ export function calculationReadTicketProviderSchema(countOnly: boolean) {
   const ticket = structuredClone(providerTicket);
   Object.assign(ticket.properties, {
     operation: { type: "string", enum: ["read", "read_since_event"] },
-    selection: countOnly ? { type: "null" } : { ...semanticProperties.selection, type: "object" },
+    selection: countOnly ? { type: "null" } : { ...semanticProperties.selection, type: "object",
+      description: "Set union of distinct semantic clauses. Never duplicate orderBy/take clauses. Opposite boundaries of one bounded matching set use ascending take 1 and descending take 1; temporal constraints belong in this ticket." },
     episode: { type: "null" }, probes: noProbes,
     temporal: { ...semanticProperties.temporal,
       properties: { ...semanticProperties.temporal.properties, calendar: { type: "null" } } },
@@ -62,5 +63,6 @@ export function calculationReadTicketProviderSchema(countOnly: boolean) {
       : { type: "object", additionalProperties: false, required: ["completeness", "ordering", "limit"],
           properties: { ...publication } },
   });
+  Object.assign(ticket.properties.temporal, { description: "Sole temporal retrieval authority. Encode every requested bounded period here: inclusive from, exclusive to. For an inclusive ending calendar day use next local midnight in the supplied timezone. Outer calculation dates are null and cannot supply missing bounds." });
   return ticket;
 }

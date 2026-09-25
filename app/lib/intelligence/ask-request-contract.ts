@@ -252,7 +252,9 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
     writeJob:{type:"null"}, task:{type:"null"}, frame:{type:"null"}, mutationIntent:{type:"null"},
     projection:{type:"null"}, recordSelection:{type:"null"}, ordinal:{type:"null"}, episodeTopic:{type:"null"}
   });
-  for (const field of ["profileFields","evidenceNeeds"] as const) Object.assign(calculation.properties[field],{maxItems:0});
+  Object.assign(calculation.properties, { from: { type: "null" }, to: { type: "null" },
+    selection: { type: "string", enum: ["summary"] } });
+  for (const field of ["profileFields","evidenceNeeds","terms"] as const) Object.assign(calculation.properties[field],{maxItems:0});
   // A count-only plan has no read slots. Every non-count plan, including a DAG,
   // carries the shared compositional selection that establishes its read authority.
   const calculations = [true, false].map(countOnly => {
@@ -317,6 +319,7 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
 }
 
 export const ASK_REQUEST_INSTRUCTIONS = [
+  "For every non-null readTicket, all temporal constraints needed to select factual operands belong in readTicket.temporal. Encode the actual resolved bounded period there; outer legacy dates are not a second factual plan. from is inclusive and to exclusive. An inclusive ending calendar day ends at the next local midnight in the supplied timezone. Calculation proposals use outer from/to null, terms [], selection summary; typed temporal, predicates and selection alone own retrieval. For both opposite temporal boundaries of one bounded matching set, use distinct ascending take 1 and descending take 1 union clauses inside that window. Each union clause must represent a distinct semantic selection; duplicate clauses are invalid. CalculatePlan maps the selected clause/item addresses to operator roles, independently of clause order.",
   CALCULATION_OPERAND_ORDER,
   ...CALCULATE_OPERATORS.map(operator => CALCULATION_OPERAND_ROLES[operator]),
   `Every requested supported deterministic derivation over retrieved facts must be represented in calculatePlan. This is mandatory whenever the requested answer requires a supported CalculatePlan operator: ${CALCULATE_OPERATORS.join(", ")}. Do not place such a derivation in requirements, even if calculatePlan would otherwise be omitted. A requirement is residual only when no existing typed execution primitive owns that requested work. requirements is non-executable, grants no source authority, and cannot trigger arithmetic. Preserve genuinely residual companion work, including explanation beyond the typed operation or unsupported companion analysis. A factual comparison or measurement read alone does not imply arithmetic.`,

@@ -41,6 +41,16 @@ export function bindCompositionalReadTicket(value: unknown, petIds: readonly str
     return Object.freeze({ orderBy: Object.freeze([Object.freeze({ ...clause.orderBy[0] })]),
       take: Object.freeze({ ...clause.take }) });
   });
+  // Compare the entire validated clause, independent of object key insertion order.
+  // Array order remains semantic; future validated clause-local fields participate too.
+  const canonical = (value: unknown): unknown => Array.isArray(value) ? value.map(canonical)
+    : object(value) ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
+  const seen = new Set<string>();
+  for (const [index, clause] of clauses.entries()) {
+    const key = JSON.stringify(canonical(clause));
+    if (seen.has(key)) return fail(`selection.union[${index}]`, "duplicate_selection_clause");
+    seen.add(key);
+  }
   if (ticket.needs?.length || ticket.episode || ticket.outputs.strategy != null)
     return fail("selection", "incompatible_with_legacy_selector");
   // Semantic anchors are resolved by the temporal phase, not by the binder.

@@ -99,8 +99,8 @@ test('earliest plus latest is a union of the same clauses with explicit opposite
   const complete = await run(fixture(), proposal([clause('asc'), clause('desc')]));
   assert.ok(complete.coverage.groups.every(g => !g.blocked));
 });
-test('union is idempotent and one-row subjects do not fabricate a second record', async () => {
-  const r = await run(fixture(1), proposal([clause('asc'), clause('desc'), clause('desc')]));
+test('distinct clauses deduplicate record IDs and one-row subjects do not fabricate a second record', async () => {
+  const r = await run(fixture(1), proposal([clause('asc'), clause('desc'), clause('desc',2)]));
   assert.deepEqual(ids(r), ['a-0', 'b-0', 'c-0']);
   assert.ok(r.coverage.groups.every(g => !g.blocked));
 });
