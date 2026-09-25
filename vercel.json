@@ -1,3 +1,0 @@
-{
-  "buildCommand": "npm run test:launch-hotfix && npm run build"
-}
