@@ -87,3 +87,26 @@ test('canonical calculation contract owns temporal bounds and distinct endpoint 
   if(v.properties.readTicket.properties.selection.type==='object')assert.match(v.properties.readTicket.properties.selection.description,/Never duplicate orderBy\/take/);
  }
 });
+
+for(const count of [false,true])test((count?'count':'selected')+' calculation requires complete temporal instants before binding',()=>{
+ for(const field of ['from','to']){const r=request(count);r.readTicket.temporal[field]='2024-12-31';
+  assert.equal(check({request:r}),false);assert.throws(()=>validateAskRequest(r,context),e=>e.cause?.field==='temporal.'+field&&e.cause?.rule==='instant_or_null');}
+ const r=request(count);Object.assign(r.readTicket.temporal,{from:'2024-12-31T00:00:00-08:00',to:'2025-01-02T00:00:00-08:00'});
+ assert.deepEqual(accepts(r).request.readTicket.temporal,r.readTicket.temporal);
+});
+test('calendar-day Brain contract distinguishes ticket instants from legacy dates',()=>{
+ for(const term of ['complete ISO instant with time and Z or an explicit numeric offset','never a date-only value','inclusive start is local midnight on the start day','next local midnight in the supplied timezone','offset applicable at each boundary','Legacy outer from/to (not readTicket.temporal.from/to)'])assert.ok(ASK_REQUEST_INSTRUCTIONS.includes(term),term);
+});
+test('Brain-resolved calendar bounds preserve next-local-midnight semantics without conversion',async()=>{
+ const {calendarDateInZone,calendarBoundaryToInstant}=await import('../app/lib/ask-time-zone.ts');
+ for(const [zone,from,to,lastDay,nextDay] of [
+  ['America/Los_Angeles','2024-12-31T00:00:00-08:00','2025-01-02T00:00:00-08:00','2025-01-01','2025-01-02'],
+  ['America/Los_Angeles','2024-03-10T00:00:00-08:00','2024-03-11T00:00:00-07:00','2024-03-10','2024-03-11'],
+ ]){const r=request();Object.assign(r.readTicket.temporal,{from,to});assert.equal(check({request:r}),true);
+  const bound=validateAskRequest(r,{...context,timeZone:zone}).request.readTicket;
+  assert.equal(bound.temporal.from,from);assert.equal(bound.temporal.to,to);
+  assert.equal(Date.parse(to),Date.parse(calendarBoundaryToInstant(nextDay+'T00:00:00.000Z',zone)));
+  assert.equal(calendarDateInZone(new Date(Date.parse(to)-1).toISOString(),zone),lastDay);
+  assert.equal(calendarDateInZone(to,zone),nextDay);
+ }
+});

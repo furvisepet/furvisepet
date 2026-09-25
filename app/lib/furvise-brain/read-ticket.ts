@@ -29,6 +29,13 @@ export type ReadTicket = Readonly<{
     strategy?: "chronological" | "temporal_endpoints" | "calendar_samples" | "event_candidates" | null }>;
 }>;
 
+// Provider representation of the canonical temporal boundary. Binder retains its
+// existing parseability, calendar-validity and interval-order enforcement.
+const temporalInstantSchema = {
+  type: ["string", "null"],
+  pattern: "^\\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\\d|3[01])T(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$",
+};
+
 export const readTicketSchema = {
   type: ["object", "null"], additionalProperties: false,
   required: ["operation", "subjectScope", "temporal", "predicates", "outputs", "searchHints", "episode", "needs", "selection"],
@@ -69,8 +76,8 @@ export const readTicketSchema = {
       } },
     temporal: { type: "object", additionalProperties: false, required: ["from", "to", "anchor", "calendar"], properties: {
       calendar: { type: ["string", "null"], enum: ["oldest_year", null], description: "Resolve the oldest accessible calendar year from effective records, never from a guessed year." },
-      from: { type: ["string", "null"], description: "ISO instant or null; never invent the date of the anchor. For an as-of cutoff, keep this null unless the user also supplied a lower bound." },
-      to: { type: ["string", "null"], description: "Exclusive ISO instant or null. An inclusive as-of calendar day ends at the next local midnight, expressed as an ISO instant." },
+      from: { ...temporalInstantSchema, description: "Inclusive complete ISO instant (YYYY-MM-DDTHH:mm:ss[.fraction]Z or explicit +/-HH:mm offset), or null. Never emit a date-only value. Brain resolves a requested start calendar day to local midnight in the supplied timeZone. Never invent the date of an anchor. For an as-of cutoff, keep this null unless the user supplied a lower bound." },
+      to: { ...temporalInstantSchema, description: "Exclusive complete ISO instant (YYYY-MM-DDTHH:mm:ss[.fraction]Z or explicit +/-HH:mm offset), or null. Never emit a date-only value. Brain resolves an inclusive ending calendar day to the next local midnight in the supplied timeZone, using the offset applicable at that boundary, including calendar and daylight-saving transitions." },
       anchor: { type: ["object", "null"], additionalProperties: false, required: ["concept", "relation"], properties: {
         concept: { type: "string", minLength: 1, maxLength: 80, description: "Minimal search concept for the event, without pet name or temporal instructions. Every normalized term must occur in the record; terms need not be adjacent. Code resolves the actual dated event. Never guess its date." },
         relation: { type: "string", enum: ["from", "after", "before"] },

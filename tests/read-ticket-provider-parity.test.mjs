@@ -96,3 +96,27 @@ test('every provider object remains closed and fully required with no conditiona
   for(const child of Object.values(node))if(Array.isArray(child))child.forEach(visit);else visit(child);
  };visit(readTicketProviderSchema);
 });
+
+for(const field of ['from','to'])test('canonical temporal '+field+' rejects date-only and incomplete provider values',()=>{
+ for(const value of ['2024-12-31','2024-12-31T','2024-12-31T00:00:00','2024-12-31T25:00:00Z','2024-13-31T00:00:00Z']){
+  const r=ticket();r.temporal[field]=value;assert.equal(validate(r),false,value);
+ }
+ const r=ticket();r.temporal[field]='2024-12-31';assert.throws(()=>bind(r),e=>e.cause?.field==='temporal.'+field&&e.cause?.rule==='instant_or_null');
+});
+for(const [name,from,to] of [
+ ['UTC month crossing','2024-01-31T00:00:00Z','2024-02-02T00:00:00Z'],
+ ['offset year crossing','2024-12-31T00:00:00-08:00','2025-01-02T00:00:00-08:00'],
+ ['fractional positive offset','2024-05-01T00:00:00.000+05:30','2024-05-02T00:00:00.000+05:30'],
+ ['DST next local midnight','2024-03-10T00:00:00-08:00','2024-03-11T00:00:00-07:00'],
+ ['open start',null,'2024-02-01T00:00:00Z'],['open end','2024-02-01T00:00:00Z',null],
+])test('canonical instant provider/Binder preservation: '+name,()=>{
+ const r=ticket();Object.assign(r.temporal,{from,to});const before=structuredClone(r);
+ assert.equal(validate(r),true,JSON.stringify(validate.errors));assert.deepEqual(bind(r).temporal,r.temporal);assert.deepEqual(r,before);
+});
+test('all provider branches share the canonical temporal instant schema',async()=>{
+ const {readTicketSchema}=await import('../app/lib/furvise-brain/read-ticket.ts');let count=0;
+ const visit=n=>{if(!n||typeof n!=='object')return;const temporal=n.properties?.temporal;
+  if(temporal?.properties?.anchor){count++;for(const f of ['from','to'])assert.deepEqual(temporal.properties[f],readTicketSchema.properties.temporal.properties[f]);}
+  for(const v of Object.values(n))Array.isArray(v)?v.forEach(visit):visit(v);
+ };visit(askRequestProviderSchema({type:'object',additionalProperties:false,properties:{},required:[]}));assert.ok(count>3);
+});
