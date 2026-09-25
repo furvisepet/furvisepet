@@ -252,6 +252,27 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
       Object.assign(node.resultUnit, { enum: ["records"] });
       Object.assign(plan.properties!, { resultSelection: { type: "null" } });
     }
+    if (!countOnly) {
+      const baseNode = plan.properties!.calculations.items;
+      const [direct, result] = node.operands.items.anyOf;
+      const measurement = structuredClone(direct);
+      Object.assign(measurement.properties!, {
+        field: { type: "string", enum: ["measurement"] },
+        unit: { type: "string", enum: direct.properties!.unit!.enum.filter(value => value !== null) },
+      });
+      const event = structuredClone(direct);
+      Object.assign(event.properties!, { field: { type: "string", enum: ["event_at"] },
+        unit: { type: "null" }, measurementSelector: { type: "null" } });
+      const typedNode = (operand: object, elapsed: boolean) => ({ ...baseNode,
+        properties: { ...node,
+          operator: { ...node.operator, enum: node.operator.enum.filter(operator =>
+            elapsed ? operator === "elapsed_days" : operator !== "elapsed_days") },
+          operands: { ...node.operands, items: operand },
+        } });
+      Object.assign(plan.properties!.calculations, { items: { anyOf: [
+        typedNode(measurement, false), typedNode(event, true), typedNode(result, false),
+      ] } });
+    }
     Object.assign(variant.properties, { calculatePlan: plan,
       readTicket: calculationReadTicketProviderSchema(countOnly) });
     return variant;
