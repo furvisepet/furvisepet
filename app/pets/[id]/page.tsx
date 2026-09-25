@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AppPage } from "../../components/app-page";
-import { LoadingState, PageHeader, SecondaryButton } from "../../components/product-primitives";
+import { LoadingState, PageHeader, PrimaryButton, SecondaryButton } from "../../components/product-primitives";
 import { useRequireConfirmedSupabaseAuth } from "../../lib/auth-session";
 import { useAppDataVersion } from "../../lib/navigation/app-data-freshness";
 import { formatPetDirectoryMetadata } from "../../lib/pets-directory";

@@ -1543,7 +1543,21 @@ async function persistAssistantAnswer({
     },
     resolveCarePresentation: async ({ intelligence, actions }) => {
       if (!PUBLIC_V1_CAPABILITIES.askMutations) {
-        return { automaticCareAction: false, carePersistence: null, persistenceMode: "none" as const, savedSuggestion: null };
+        return {
+          automaticCareAction: false,
+          carePersistence: {
+            status: "skipped" as const,
+            careEntryIds: [],
+            concernIds: [],
+            errorCode: null,
+            currentSafetyState: null,
+            alreadyPersisted: false,
+            memoryIds: [],
+            profileUpdated: false,
+          },
+          persistenceMode: "none" as const,
+          savedSuggestion: null,
+        };
       }
       const confirmedCarePersistence = preconfirmedCarePersistence || intelligence.intelligencePersistence?.carePersistence || null;
       const automaticCareAction = confirmedCarePersistence?.status === "persisted"
