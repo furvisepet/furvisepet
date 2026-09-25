@@ -1,3 +1,4 @@
+import { calculationCapability, CALCULATION_CAPABILITY_LIMITATION, CALCULATION_CAPABILITY_UNSUPPORTED } from "./calculation-capability.ts";
 import type { AskEvidenceContract } from "./ask-evidence.ts";
 import type { AskReasoningResult } from "../ai/ask-reasoning.ts";
 import type { CareEntryRow } from "../supabase.ts";
@@ -22,8 +23,17 @@ export function calculationRequestValid(e:AskEvidenceContract|undefined):boolean
   ||r.readTicket.subjects.petIds.some(id=>!e.scope.authorizedPetIds.includes(id)))return false;
  try{return same(r.calculatePlan,rebindCalculatePlan(r.calculatePlan,r.readTicket));}catch{return false;}
 }
+export function calculationLimitationReason(e:AskEvidenceContract|undefined):string {
+ const r=e?.interpretation?.request;
+ return r?.calculatePlan&&r.readTicket&&!calculationCapability(r.calculatePlan,r.readTicket).supported
+  ? CALCULATION_CAPABILITY_UNSUPPORTED : "calculation_unavailable";
+}
+export function calculationLimitation(e:AskEvidenceContract|undefined):string {
+ return calculationLimitationReason(e)===CALCULATION_CAPABILITY_UNSUPPORTED?CALCULATION_CAPABILITY_LIMITATION:CALCULATION_LIMITATION;
+}
 export function buildCalculationLabs(e:AskEvidenceContract|undefined,rows:CareEntryRow[]):CalculationLabs|null{
  if(!calculationRequestValid(e))return null;
+ if(!calculationCapability(e!.interpretation!.request!.calculatePlan!,e!.interpretation!.request!.readTicket!).supported)return null;
  const presentation=labsPresentation(e!.interpretation!.request!.outputFormat);
  if(!presentation)return null;
  let readLabs:LabsList|null;
@@ -77,9 +87,10 @@ export function calculationPublicationFailure(r:AskReasoningResult):string|null{
  const e=r.evidenceContract;
  if(!calculationRequestValid(e)||!noOtherAuthority(r)||r.answer.title!=="Furvise"||r.answer.sections.length||r.answer.safetyNote)return "calculation_contract";
  if(r.model===CALCULATION_UNAVAILABLE){
-  return !r.calculationLabs&&r.answer.summary===CALCULATION_LIMITATION&&empty(r.relevantContextIds)
+  return !r.calculationLabs&&r.answer.summary===calculationLimitation(e)&&empty(r.relevantContextIds)
    &&!(e!.answerSourceIds?.length||e!.answerContent?.length)?null:"calculation_limitation_changed";
  }
+ if(!calculationCapability(e!.interpretation!.request!.calculatePlan!,e!.interpretation!.request!.readTicket!).supported)return CALCULATION_CAPABILITY_UNSUPPORTED;
  const labs=r.calculationLabs;
  if(r.model!==CALCULATION_LABS||!labs||snapshots.get(labs)!==JSON.stringify(labs)
   ||!readLabsSnapshotMatches(labs.readLabs)||!same(labs.calculatePlan,e!.interpretation!.request!.calculatePlan)

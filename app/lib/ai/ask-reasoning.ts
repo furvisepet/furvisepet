@@ -1,5 +1,5 @@
 import {carryCalculatePlan,requiresCalculateBinding} from "../furvise-brain/calculate-plan.ts";
-import { buildCalculationLabs, serializeCalculationLabs, calculationSourceIds, CALCULATION_LABS, CALCULATION_UNAVAILABLE, CALCULATION_LIMITATION, type CalculationLabs } from "../intelligence/calculation-labs.ts";
+import { buildCalculationLabs, serializeCalculationLabs, calculationSourceIds, CALCULATION_LABS, CALCULATION_UNAVAILABLE, calculationLimitation, type CalculationLabs } from "../intelligence/calculation-labs.ts";
 import { dependsOnStoredState, languageOnlyEvidence, languageProviderContext, FACTUAL_UNAVAILABLE, FACTUAL_LIMITATION } from "../intelligence/factual-dispatch.ts";
 import { isStoredRead, storedReadResult, storedReadText, storedReadSourceIds, storedReadPublishedResult, STORED_READ_LABS, STORED_READ_UNAVAILABLE } from "../intelligence/stored-read-publication.ts";
 import { projectProfileFields, profileFieldRecords, bindProfileFieldProjection, isTypedProfileRead } from "../intelligence/profile-field-authority.ts";
@@ -778,7 +778,7 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     const evidence = context.promptContext.evidenceContract;
     const ids = calculationRequested ? calculationLabs ? calculationSourceIds(calculationLabs) : [] : profileLabs ? profileFieldSourceIds(profileLabs) : labs ? labs.records.map(row => row.sourceId) : [];
     return {
-      answer: {title:"Furvise",summary:calculationRequested ? calculationLabs ? serializeCalculationLabs(calculationLabs) : CALCULATION_LIMITATION : profileLabs ? serializeProfileFieldLabs(profileLabs) : profileUnavailable ? PROFILE_PRESENTATION_LIMITATION : labs ? serializeLabsList(labs) : unavailable || FACTUAL_LIMITATION,sections:[],safetyNote:null}, evidenceContract:evidence,
+      answer: {title:"Furvise",summary:calculationRequested ? calculationLabs ? serializeCalculationLabs(calculationLabs) : calculationLimitation(publicationEvidence) : profileLabs ? serializeProfileFieldLabs(profileLabs) : profileUnavailable ? PROFILE_PRESENTATION_LIMITATION : labs ? serializeLabsList(labs) : unavailable || FACTUAL_LIMITATION,sections:[],safetyNote:null}, evidenceContract:evidence,
       ...(calculationLabs ? {calculationLabs} : profileLabs ? {profileFieldLabs:profileLabs} : labs ? {labsList:labs} : {}),historyNarrativeDeclined:false,
       userIntent:"history recall",relevantContextIds:ids,referencedRecords:calculationRequested ? [] : context.records.filter(record=>ids.includes(record.id)),
       safetyLevel:"normal",shoppingSuppressed:true,suggestedFollowUps:[],applicationActions:[],proposedHistoryUpdate:emptyHistoryUpdate(),

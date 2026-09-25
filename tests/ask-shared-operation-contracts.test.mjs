@@ -1,16 +1,16 @@
 import * as C from "./helpers/canonical-calculation-retirement.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { canonicalReadPresentation, readPublicationFailure } from '../app/lib/ask-publication.ts';
-import { receiptCompletionText } from '../app/lib/intelligence/receipt-completion.ts';
-import { readRecordInventory } from '../app/lib/intelligence/record-inventory.ts';
-import { validateAskRequest } from '../app/lib/intelligence/ask-request-contract.ts';
-import { emptyProposedSemanticFrame } from '../app/lib/intelligence/semantic-frame/extract-frame.ts';
-import { historyNarrativeAnchorsSupported } from '../app/lib/intelligence/history-narrative-facts.ts';
-import { isExplicitNoPersistenceRequest } from '../app/lib/intelligence/care-history-policy.ts';
-import { orchestrateAskTurn } from '../app/lib/ai/ask-orchestrator.ts';
-import { assertStoredPublicationUnavailable } from './helpers/unsupported-stored-publication.mjs';
-import { enforceVerifiedStateClaims } from '../app/lib/application-actions/state-claims.ts';
+const { canonicalReadPresentation, readPublicationFailure } = await import('../app/lib/ask-publication.ts');
+const { receiptCompletionText } = await import('../app/lib/intelligence/receipt-completion.ts');
+const { readRecordInventory } = await import('../app/lib/intelligence/record-inventory.ts');
+const { validateAskRequest } = await import('../app/lib/intelligence/ask-request-contract.ts');
+const { emptyProposedSemanticFrame } = await import('../app/lib/intelligence/semantic-frame/extract-frame.ts');
+const { historyNarrativeAnchorsSupported } = await import('../app/lib/intelligence/history-narrative-facts.ts');
+const { isExplicitNoPersistenceRequest } = await import('../app/lib/intelligence/care-history-policy.ts');
+const { orchestrateAskTurn } = await import('../app/lib/ai/ask-orchestrator.ts');
+const { assertStoredPublicationUnavailable } = await import('./helpers/unsupported-stored-publication.mjs');
+const { enforceVerifiedStateClaims } = await import('../app/lib/application-actions/state-claims.ts');
 
 test('temporal evidence endpoints are independent of comparison vocabulary',()=>{
  const pet={id:'pet',user_id:'owner',name:'Fern'};

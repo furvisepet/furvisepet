@@ -27,11 +27,19 @@ test("Ask recovery is compact and never exposes internal diagnostics", () => {
 });
 
 test("failed provider or persistence paths do not consume usage", () => {
-  const providerFailure = route.slice(route.indexOf("} catch (error) {", route.indexOf("orchestration = await orchestrateAskTurn")), route.indexOf("const reasoning"));
+  // Select the current outer orchestration catch, not a removed call shape.
+  const orchestrated = route.indexOf('logAskStage("turn orchestrated"');
+  const failureStart = route.indexOf("} catch (error) {", orchestrated);
+  const failureEnd = route.indexOf("if (completedContinuation)", failureStart);
+  assert.ok(orchestrated >= 0 && failureStart > orchestrated && failureEnd > failureStart);
+  const providerFailure = route.slice(failureStart, failureEnd);
   assert.match(providerFailure, /safeReleaseAiCredit/);
   assert.doesNotMatch(providerFailure, /completeAiCredit/);
-  const persistence = route.slice(route.indexOf("async function persistAssistantAnswer"), route.indexOf("async function persistPendingSuggestion"));
-  const failedSave = persistence.slice(persistence.indexOf("if (!assistantMessage || messageError)"), persistence.indexOf('logAskStage("assistant message persisted"'));
+  const persistenceStart = route.indexOf("async function persistAssistantAnswer");
+  const failedSaveStart = route.indexOf("if (!assistantMessage || messageError)", persistenceStart);
+  const failedSaveEnd = route.indexOf('logAskStage("assistant message persisted"', failedSaveStart);
+  assert.ok(persistenceStart >= 0 && failedSaveStart > persistenceStart && failedSaveEnd > failedSaveStart);
+  const failedSave = route.slice(failedSaveStart, failedSaveEnd);
   assert.match(failedSave, /safeReleaseAiCredit/);
   assert.doesNotMatch(failedSave, /completeAiCredit/);
   assert.equal(route.match(/await completeAiCredit/g)?.length, 2, "foreground completion is retried once");

@@ -1,7 +1,7 @@
 import Ajv from 'ajv';
 import {assert,test,bindCalculatePlan,rebindCalculatePlan,bindTypedReadTicket,executeCalculatePlan,pets,row,rawTicket,slot,calculation,envelope,fixture,finish,askRequestProviderSchema,validateAskRequest,calculationPublicationFailure} from './helpers/calculation-fixture.mjs';
 import {CALCULATE_ROLES,CALCULATE_OPERATORS,CALCULATION_ROLE_POLICY,requiresCalculateBinding,carryCalculatePlan} from '../app/lib/furvise-brain/calculate-plan.ts';
-import {carryCalculationLabs,serializeCalculationLabs} from '../app/lib/intelligence/calculation-labs.ts';
+const {carryCalculationLabs,serializeCalculationLabs}=await import('../app/lib/intelligence/calculation-labs.ts');
 const direct=(role,clause=0,field='measurement')=>({...slot(clause,0,pets[0].name,field,field==='event_at'?null:'kg'),measurementSelector:null,role});
 const ref=(role,calculationId)=>({kind:'result',role,calculationId});
 const node=(operator,operands,resultUnit='kg',id='out')=>({id,operator,operands,resultUnit,precision:null});

@@ -1,6 +1,6 @@
 import {assert,test,bindCalculatePlan,rebindCalculatePlan,calculatePlanSchema,executeCalculatePlan,bindTypedReadTicket,buildLabsList,calculationPublicationFailure,reviewHistoricalAnswer,validateGeneratedAnswer,pets,row,rows,rawTicket,slot,calculation,fixture,finish} from "./helpers/calculation-fixture.mjs";
 import {requiresCalculateBinding,MAX_CALCULATION_DEPTH} from "../app/lib/furvise-brain/calculate-plan.ts";
-import {serializeCalculationLabs} from "../app/lib/intelligence/calculation-labs.ts";
+const {serializeCalculationLabs}=await import("../app/lib/intelligence/calculation-labs.ts");
 const ref=calculationId=>({kind:"result",calculationId});
 const leaf=(id="a",pet=pets[0])=>calculation("difference",[slot(1,0,pet.name),slot(0,0,pet.name)],"kg",id);
 const derived=(id="b",operator="convert",ids=["a"],unit="g")=>calculation(operator,ids.map(ref),unit,id);

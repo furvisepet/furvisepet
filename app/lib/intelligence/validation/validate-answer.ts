@@ -1,4 +1,4 @@
-import { calculationPublicationFailure, carryCalculationLabs, CALCULATION_LABS, CALCULATION_UNAVAILABLE } from "../calculation-labs.ts";
+import { calculationPublicationFailure, calculationLimitationReason, carryCalculationLabs, CALCULATION_LABS, CALCULATION_UNAVAILABLE } from "../calculation-labs.ts";
 import type { ResolvedSafetyState } from "../safety-state.ts";
 import { storedEmergencyApplies, storedEmergencySafetyFailure, storedEmergencyInputFailure, replaceStoredPublicationWithEmergency, STORED_EMERGENCY_REASON } from "../stored-emergency-publication.ts";
 import { dependsOnStoredState, factualLimitationFailure, FACTUAL_UNAVAILABLE, languageOnlyEvidence } from "../factual-dispatch.ts";
@@ -74,7 +74,7 @@ export function validateGeneratedAnswer(
     }
     const complete=result.model===CALCULATION_LABS&&!errors.length;
     const assessment=createAnswerAssessment({body:response.answer,evidence:response.evidenceContract,unsafe:!!errors.length,
-      reasons:[...errors,...(complete?[]:["calculation_unavailable"])],checks:{structuralValidity:errors.length?"failed":"passed",
+      reasons:[...errors,...(complete?[]:[calculationLimitationReason(result.evidenceContract)])],checks:{structuralValidity:errors.length?"failed":"passed",
       evidenceSupport:errors.length?"failed":"passed",subjectDateCorrectness:errors.length?"failed":"passed",
       calculationCorrectness:complete?"passed":"not_applicable",taskCompletion:complete?"passed":"failed"}});
     return {response,assessment,valid:!errors.length,repairs:[],errors,qualityWarnings:[]};
