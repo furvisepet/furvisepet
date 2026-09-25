@@ -39,9 +39,9 @@ export function buildCalculationLabs(e:AskEvidenceContract|undefined,rows:CareEn
 export function calculationSourceIds(labs:CalculationLabs):string[]{
  return [...new Set(labs.execution.results.flatMap(r=>r.status==="certified"?r.sourceIds:[]))];
 }
-const labels:Record<string,string>={sum:"Sum",mean:"Mean",difference:"Difference (input 0 minus input 1)",
- absolute_difference:"Absolute difference",ratio:"Ratio (input 1 / input 0)",percent_change:"Percent change (baseline 0 to input 1)",
- percent_of_sum:"Input 0 as a percentage of the sum",convert:"Converted measurement",
+const labels:Record<string,string>={sum:"Sum",mean:"Mean",difference:"Difference",
+ absolute_difference:"Absolute difference",ratio:"Ratio",percent_change:"Percent change",
+ percent_of_sum:"Part as a percentage of the sum",convert:"Converted measurement",
  elapsed_days:"Elapsed time between selected events",count_records:"Matching effective record count"};
 export function serializeCalculationLabs(labs:CalculationLabs):string{
  const certificate=labs.execution.resultSelection;
@@ -54,7 +54,8 @@ export function serializeCalculationLabs(labs:CalculationLabs):string{
   const value=r.precision===null?String(r.value):r.value.toFixed(r.precision);
   const result=value+(r.unit==="scalar"?"":" "+r.unit);
   const names=r.subjectIds.map(id=>labs.petNames[id]).join(", ");
-  const operands=r.upstreamResults.length?r.upstreamResults.length+" certified calculation input"+(r.upstreamResults.length===1?"":"s"):r.operands.map((o,i)=>"input "+i+": "+labs.petNames[o.subjectId]+"; "+
+  const roleLabel=(role:string)=>role[0].toUpperCase()+role.slice(1);
+  const operands=r.upstreamResults.length?r.upstreamResults.map(o=>roleLabel(o.role)+": certified calculation input ("+o.unit+")").join("; "):r.operands.map(o=>roleLabel(o.slot.role)+": "+labs.petNames[o.subjectId]+"; "+
    (o.dimension==="instant"?o.eventAt:o.literal+"; event "+o.eventAt)).join("; ");
   const group=certificate?.groups.find(g=>g.calculationIds.includes(r.id));
   const rank=group?.rank;

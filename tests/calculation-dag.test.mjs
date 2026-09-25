@@ -13,20 +13,20 @@ const result=(f,id)=>f.response.calculationLabs.execution.results.find(r=>r.id==
 
 test("DAG binds a closed semantic result union; trusted JSON transport preserves it",()=>{
  const p=bind(chain()),t=ticket();assert.equal(requiresCalculateBinding(p),true);
- assert.deepEqual(p.calculations[1].operands,[ref("a")]);assert.ok(Object.isFrozen(p.calculations[1].operands[0]));
+ assert.deepEqual(p.calculations[1].operands,[{...ref("a"),role:"source"}]);assert.ok(Object.isFrozen(p.calculations[1].operands[0]));
  const copy=JSON.parse(JSON.stringify(p));assert.deepEqual(rebindCalculatePlan(copy,t,p),p);
  assert.throws(()=>rebindCalculatePlan(copy,t),/binding_snapshot/);
 });
 for(const [label,edit] of [
- ["self",c=>c[1].operands=[ref("b")]],
- ["forward",c=>{c[1].operands=[ref("c")];c.push(derived("c"));}],
- ["unknown",c=>c[1].operands=[ref("absent")]],
- ["missing ID",c=>c[1].operands=[{kind:"result"}]],
+ ["self",c=>c[1].operands=[{...ref("b"),role:"source"}]],
+ ["forward",c=>{c[1].operands=[{...ref("c"),role:"source"}];c.push(derived("c"));}],
+ ["unknown",c=>c[1].operands=[{...ref("absent"),role:"source"}]],
+ ["missing ID",c=>c[1].operands=[{kind:"result",role:"source"}]],
  ["duplicate ID",c=>c[1].id="a"],
  ["numeric value",c=>c[1].operands[0].value=3],
  ["source ID",c=>c[1].operands[0].sourceId="care:first"],
  ["overridden unit",c=>c[1].operands[0].unit="kg"],
- ["read/result mixing",c=>{c[1].operator="sum";c[1].operands.push(slot());c[1].resultUnit="kg";}],
+ ["read/result mixing",c=>{c[1].operator="sum";c[1].operands[0].role="member";c[1].operands.push({...slot(),role:"member"});c[1].resultUnit="kg";}],
  ["derived elapsed",c=>{c[1]=derived("b","elapsed_days",["a","a"],"day");}],
  ["unknown operand kind",c=>c[1].operands[0].kind="expression"],
  ["empty derived operands",c=>c[1].operands=[]],
@@ -74,7 +74,7 @@ test("chained conversion uses exact upstream rational, retains sources and publi
  assert.deepEqual(b.exact,{numerator:"30000000",denominator:"45359237"});
  assert.deepEqual(b.dependencyCalculationIds,["a"]);assert.deepEqual(b.transitiveCalculationIds,["a"]);
  assert.deepEqual(b.sourceIds,a.sourceIds);assert.deepEqual(b.subjectIds,a.subjectIds);
- assert.deepEqual(b.upstreamResults,[{calculationId:"a",operator:"difference",unit:"kg",exact:a.exact}]);
+ assert.deepEqual(b.upstreamResults,[{role:"source",calculationId:"a",operator:"difference",unit:"kg",exact:a.exact}]);
  assert.deepEqual(f.response.calculationLabs.execution.terminalCalculationIds,["b"]);
  assert.doesNotMatch(f.response.answer.summary,/Difference/);
  assert.match(f.response.answer.summary,/Converted measurement/);
@@ -201,8 +201,8 @@ test("emergency removes terminal and intermediate output without provider or wri
 });
 test("closed result schema and derived execution have no raw-language or external input",async()=>{
  const resultSchema=calculatePlanSchema.anyOf[1].properties.calculations.items.properties.operands.items.anyOf[1];
- assert.deepEqual(resultSchema.required,["kind","calculationId"]);assert.equal(resultSchema.additionalProperties,false);
- assert.deepEqual(Object.keys(resultSchema.properties),["kind","calculationId"]);
+ assert.deepEqual(resultSchema.required,["kind","role","calculationId"]);assert.equal(resultSchema.additionalProperties,false);
+ assert.deepEqual(Object.keys(resultSchema.properties),["role","kind","calculationId"]);
  const fs=await import("node:fs/promises"),source=await fs.readFile(new URL("../app/lib/furvise-brain/muscle.ts",import.meta.url),"utf8");
  const stage=source.slice(source.indexOf("if(derived){"),source.indexOf("}else{",source.indexOf("if(derived){")));
  assert.match(stage,/rational\(r.exact\)/);assert.doesNotMatch(stage,/r\.value|\.body|read\.records|retrieve|supabase|currentMessage|question|responses/);

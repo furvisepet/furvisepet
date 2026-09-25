@@ -4,10 +4,11 @@ const context={owner:{userId:'owner'},pet:pets[0],eligiblePets:pets,currentMessa
 const schema=askRequestProviderSchema({type:'object',additionalProperties:false,required:[],properties:{}},context),check=new Ajv({allErrors:true}).compile(schema);
 const operand=(...a)=>({...slot(...a),measurementSelector:null});
 const request=(count=false)=>{const ticket={...rawTicket(count),subjectScope:'named',episode:null,searchHints:[],probes:[]};ticket.temporal.calendar=null;if(count)ticket.outputs.strategy=null;return {...envelope({operation:'calculate',resultSelection:null,calculations:[count?calculation('count_records',[],'records'):calculation('difference',[operand(1),operand(0)])]},ticket),outputFormat:null,temporalScope:'historical',profileFields:[],evidenceNeeds:[],excludedPetNames:[],mutationIntent:null,projection:null,recordSelection:null,task:null,storedRead:null,appendJob:null,writeJob:null,removeJob:null,fieldMutationJob:null,stateTransitionJob:null,lifecyclePlan:null};};
+const assignFixtureRoles=c=>{c.operands=calculation(c.operator,c.operands.map(({role,...o})=>o),c.resultUnit,c.id).operands;};
 const accepts=r=>{assert.equal(check({request:r}),true,JSON.stringify(check.errors));return validateAskRequest(structuredClone(r),context);};
 const rejects=r=>{assert.equal(check({request:r}),false);assert.throws(()=>validateAskRequest(structuredClone(r),context));};
 for(const operator of ['sum','mean','difference','absolute_difference','ratio','percent_change','percent_of_sum','convert','elapsed_days'])test(operator+' cannot reference read slots without selection',()=>{const r=request();r.calculatePlan.calculations[0].operator=operator;r.readTicket.selection=null;rejects(r);});
-for(const operator of ['difference','mean','convert','elapsed_days'])test(operator+' with a legal selection passes schema and Binder',()=>{const r=request(),c=r.calculatePlan.calculations[0];c.operator=operator;if(operator==='convert')c.operands=[operand(0)];if(operator==='elapsed_days'){c.operands=[operand(0,0,pets[0].name,'event_at',null),operand(1,0,pets[0].name,'event_at',null)];c.resultUnit='day';}assert.equal(accepts(r).request.calculatePlan.calculations[0].operator,operator);});
+for(const operator of ['difference','mean','convert','elapsed_days'])test(operator+' with a legal selection passes schema and Binder',()=>{const r=request(),c=r.calculatePlan.calculations[0];c.operator=operator;if(operator==='convert')c.operands=[operand(0)];if(operator==='elapsed_days'){c.operands=[operand(0,0,pets[0].name,'event_at',null),operand(1,0,pets[0].name,'event_at',null)];c.resultUnit='day';}assignFixtureRoles(c);assert.equal(accepts(r).request.calculatePlan.calculations[0].operator,operator);});
 test('exhaustive unbounded count-only plan needs no selection',()=>{const r=request(true);assert.equal(accepts(r).request.calculatePlan.calculations[0].operator,'count_records');});
 test('multiple legal count nodes remain allowed',()=>{const r=request(true);r.calculatePlan.calculations.push({...r.calculatePlan.calculations[0],id:'second'});assert.equal(accepts(r).request.calculatePlan.calculations.length,2);});
 for(const [name,edit]of [['selection',r=>r.readTicket.selection=rawTicket().selection],['sufficient',r=>r.readTicket.outputs.completeness='sufficient'],['limit',r=>r.readTicket.outputs.limit=1],['operand',r=>r.calculatePlan.calculations[0].operands=[operand(0)]],['result unit',r=>r.calculatePlan.calculations[0].resultUnit='scalar'],['result selection',r=>r.calculatePlan.resultSelection={filter:null,orderBy:{direction:'desc'},take:null}]])test('count rejects '+name,()=>{const r=request(true);edit(r);rejects(r);});
@@ -24,30 +25,30 @@ test('selected calculations retain exhaustive reads and global transport caps',(
 test('provider schemas remain closed and fully required without conditional keywords',()=>{const visit=n=>{if(!n||typeof n!=='object')return;for(const k of ['if','then','oneOf'])assert.equal(Object.hasOwn(n,k),false);if(n.properties){assert.equal(n.additionalProperties,false);assert.deepEqual([...n.required].sort(),Object.keys(n.properties).sort());}for(const v of Object.values(n))Array.isArray(v)?v.forEach(visit):visit(v);};visit(schema);});
 
 const measurementOperators=['sum','mean','difference','absolute_difference','ratio','percent_change','percent_of_sum','convert'];
-for(const operator of measurementOperators)test(operator+' provider rejects null measurement unit',()=>{const r=request(),c=r.calculatePlan.calculations[0];c.operator=operator;if(operator==='convert')c.operands=[operand(0)];c.operands[0].unit=null;rejects(r);});
-for(const operator of measurementOperators)test(operator+' provider rejects event-time operands',()=>{const r=request(),c=r.calculatePlan.calculations[0];c.operator=operator;c.operands=(operator==='convert'?[0]:[0,1]).map(i=>operand(i,0,pets[0].name,'event_at',null));rejects(r);});
-const elapsedRequest=()=>{const r=request();Object.assign(r.calculatePlan.calculations[0],{operator:'elapsed_days',operands:[0,1].map(i=>operand(i,0,pets[0].name,'event_at',null)),resultUnit:'day'});return r;};
-for(const [name,edit] of [['non-null unit',r=>r.calculatePlan.calculations[0].operands[0].unit='day'],['selector',r=>r.calculatePlan.calculations[0].operands[0].measurementSelector={predicateIndexes:[0]}],['measurement field',r=>r.calculatePlan.calculations[0].operands[0]=operand(0)]])test('elapsed provider rejects '+name,()=>{const r=elapsedRequest();edit(r);rejects(r);});
+for(const operator of measurementOperators)test(operator+' provider rejects null measurement unit',()=>{const r=request(),c=r.calculatePlan.calculations[0];c.operator=operator;if(operator==='convert')c.operands=[operand(0)];assignFixtureRoles(c);c.operands[0].unit=null;rejects(r);});
+for(const operator of measurementOperators)test(operator+' provider rejects event-time operands',()=>{const r=request(),c=r.calculatePlan.calculations[0];c.operator=operator;c.operands=(operator==='convert'?[0]:[0,1]).map(i=>operand(i,0,pets[0].name,'event_at',null));assignFixtureRoles(c);rejects(r);});
+const elapsedRequest=()=>{const r=request();Object.assign(r.calculatePlan.calculations[0],{operator:'elapsed_days',operands:[0,1].map(i=>operand(i,0,pets[0].name,'event_at',null)),resultUnit:'day'});assignFixtureRoles(r.calculatePlan.calculations[0]);return r;};
+for(const [name,edit] of [['non-null unit',r=>r.calculatePlan.calculations[0].operands[0].unit='day'],['selector',r=>r.calculatePlan.calculations[0].operands[0].measurementSelector={predicateIndexes:[0]}],['measurement field',r=>r.calculatePlan.calculations[0].operands[0]={...operand(0),role:'start'}]])test('elapsed provider rejects '+name,()=>{const r=elapsedRequest();edit(r);rejects(r);});
 test('elapsed event-time operands bind with null unit and selector',()=>{accepts(elapsedRequest());});
 test('all registry units remain available for explicit measurement slots',async()=>{const {units}=await import('../app/lib/furvise-brain/calculation-units.ts');for(const unit of Object.keys(units)){const r=request(),c=r.calculatePlan.calculations[0];c.operands.forEach(o=>o.unit=unit);c.resultUnit=unit;accepts(r);}});
-for(const operator of measurementOperators)test('derived '+operator+' retains result-only operand authority',()=>{const r=dag(),c=r.calculatePlan.calculations[1];c.operator=operator;c.operands=Array(operator==='convert'?1:2).fill(null).map(()=>({kind:'result',calculationId:'c1'}));c.resultUnit=operator==='convert'?'g':operator==='ratio'?'scalar':['percent_change','percent_of_sum'].includes(operator)?'%':'kg';accepts(r);});
-test('derived elapsed remains rejected by provider and Binder',()=>{const r=dag(),c=r.calculatePlan.calculations[1];c.operator='elapsed_days';c.operands=[{kind:'result',calculationId:'c1'},{kind:'result',calculationId:'c1'}];c.resultUnit='day';rejects(r);});
-test('provider rejects mixed direct and result operands',()=>{const r=dag(),c=r.calculatePlan.calculations[1];c.operator='sum';c.resultUnit='kg';c.operands.push(operand(0));rejects(r);});
+for(const operator of measurementOperators)test('derived '+operator+' retains result-only operand authority',()=>{const r=dag(),c=r.calculatePlan.calculations[1];c.operator=operator;c.operands=Array(operator==='convert'?1:2).fill(null).map(()=>({kind:'result',calculationId:'c1'}));c.resultUnit=operator==='convert'?'g':operator==='ratio'?'scalar':['percent_change','percent_of_sum'].includes(operator)?'%':'kg';assignFixtureRoles(c);accepts(r);});
+test('derived elapsed remains rejected by provider and Binder',()=>{const r=dag(),c=r.calculatePlan.calculations[1];c.operator='elapsed_days';c.operands=[{kind:'result',calculationId:'c1'},{kind:'result',calculationId:'c1'}];c.resultUnit='day';assignFixtureRoles(c);rejects(r);});
+test('provider rejects mixed direct and result operands',()=>{const r=dag(),c=r.calculatePlan.calculations[1];c.operator='sum';c.resultUnit='kg';c.operands.push(operand(0));assignFixtureRoles(c);rejects(r);});
 test('measurement selector identity remains Binder-owned',()=>{const r=request();r.calculatePlan.calculations[0].operands[0].measurementSelector={predicateIndexes:[5]};assert.equal(check({request:r}),true);assert.throws(()=>validateAskRequest(r,context),/measurement_selector/);});
 test('valid measurement selector structure preserves binding',()=>{const r=request();r.readTicket.predicates=[{kind:'text_any',terms:['sample']}];r.calculatePlan.calculations[0].operands[0].measurementSelector={predicateIndexes:[0]};accepts(r);});
 
 import {ASK_REQUEST_INSTRUCTIONS} from '../app/lib/intelligence/ask-request-contract.ts';
 // Contract descriptions are checked here, not live model compliance.
 const roleChecks=[
- ['difference',['operand 0 is the target/minuend','operand 1 is the reference/subtrahend','operand 0 - operand 1']],
- ['percent_change',['operand 0 is the baseline/reference','operand 1 is the new/target','(operand 1 - operand 0) / operand 0 * 100','differs from difference']],
- ['ratio',['operand 0 is the denominator/reference','operand 1 is the numerator/comparison','operand 1 / operand 0']],
- ['elapsed_days',['operand 0 is the start event','operand 1 is the end event','event 1 - event 0']],
- ['percent_of_sum',['operand 0 is the requested part/numerator','including operand 0','operand 0 / sum(all operands) * 100']],
- ['absolute_difference',['exactly two operands','abs(operand 0 - operand 1)','order-insensitive']],
- ['sum',['one or more operands','order-insensitive','sum(all operands)']],
- ['mean',['one or more operands','order-insensitive','operand count']],
- ['convert',['one source operand only','resultUnit']],
+ ['difference',['exactly one target and one reference','target - reference']],
+ ['percent_change',['reference is the baseline','(target - reference) / reference * 100']],
+ ['ratio',['exactly one target and one reference','target / reference']],
+ ['elapsed_days',['exactly one start and one end','(end - start) / 86400000']],
+ ['percent_of_sum',['exactly one part','one to 63 member','part / (part + sum(members)) * 100']],
+ ['absolute_difference',['exactly two member','absolute difference','independent of member order']],
+ ['sum',['one to 64 member','every occurrence']],
+ ['mean',['one to 64 member','divided by member count']],
+ ['convert',['exactly one source','resultUnit']],
  ['count_records',['no operands','certified effective record count']],
 ];
 const providerNodes=schema.properties.request.anyOf.filter(v=>v.properties.calculatePlan.type==='object').flatMap(v=>{
@@ -60,7 +61,7 @@ for(const [operator,terms] of roleChecks)test(operator+' semantic roles are expl
 });
 test('selection addresses do not assign arithmetic roles for read or derived operands',()=>{
  for(const text of [ASK_REQUEST_INSTRUCTIONS,...providerNodes.flatMap(n=>[n.description,n.properties.operands.description])]){
-  for(const term of ['Selection order is not calculation operand order','clause/item addresses','upstream result operands','do not assume binary operators share'])assert.ok(text.includes(term),term);
+  for(const term of ['Selection order is not calculation operand semantics','clause/item identifies WHICH','operand.role identifies WHAT','direct or result operand'])assert.ok(text.includes(term),term);
  }
 });
 

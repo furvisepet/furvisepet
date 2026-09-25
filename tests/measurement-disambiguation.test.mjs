@@ -48,7 +48,7 @@ test("event_at forbids nonnull selector while null and omission preserve elapsed
  const t=bound(),a={...slot(0,0,pets[0].name,"event_at",null),measurementSelector:{predicateIndexes:[0]}},b=slot(1,0,pets[0].name,"event_at",null);
  const p=proposal([calculation("elapsed_days",[a,b],"day")]);
  assert.throws(()=>bindCalculatePlan(p,t,pets),/measurement_selector/);
- a.measurementSelector=null;assert.doesNotThrow(()=>bindCalculatePlan(p,t,pets));
+ p.calculations[0].operands[0].measurementSelector=null;assert.doesNotThrow(()=>bindCalculatePlan(p,t,pets));
 });
 test("count_records cannot gain a selector or operand",()=>{
  const t=bindTypedReadTicket(rawTicket(true),[pets[0].id]),p=proposal([calculation("count_records",[],"records")]);

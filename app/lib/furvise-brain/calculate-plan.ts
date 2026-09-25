@@ -4,13 +4,29 @@ import { units } from "./calculation-units.ts";
 
 export const CALCULATE_OPERATORS = ["sum","mean","difference","absolute_difference","ratio","percent_change","percent_of_sum","convert","elapsed_days","count_records"] as const;
 export type CalculateOperator = typeof CALCULATE_OPERATORS[number];
+export const CALCULATE_ROLES = ["target","reference","start","end","part","source","member"] as const;
+export type CalculateRole = typeof CALCULATE_ROLES[number];
+export const CALCULATION_ROLE_POLICY: Readonly<Record<CalculateOperator,{
+ roles:Readonly<Partial<Record<CalculateRole,readonly [number,number]>>>;description:string;
+}>> = {
+ difference:{roles:{target:[1,1],reference:[1,1]},description:"difference: exactly one target and one reference; result = target - reference."},
+ absolute_difference:{roles:{member:[2,2]},description:"absolute_difference: exactly two member operands; result = their absolute difference, independent of member order."},
+ ratio:{roles:{target:[1,1],reference:[1,1]},description:"ratio: exactly one target and one reference; result = target / reference."},
+ percent_change:{roles:{target:[1,1],reference:[1,1]},description:"percent_change: exactly one target and one reference; reference is the baseline; result = (target - reference) / reference * 100."},
+ percent_of_sum:{roles:{part:[1,1],member:[1,63]},description:"percent_of_sum: exactly one part and one to 63 member operands; result = part / (part + sum(members)) * 100."},
+ elapsed_days:{roles:{start:[1,1],end:[1,1]},description:"elapsed_days: exactly one start and one end event; result = (end - start) / 86400000 in instant days."},
+ convert:{roles:{source:[1,1]},description:"convert: exactly one source operand; convert its value into resultUnit."},
+ sum:{roles:{member:[1,64]},description:"sum: one to 64 member operands; sum every occurrence, including repeated operands."},
+ mean:{roles:{member:[1,64]},description:"mean: one to 64 member operands; sum every occurrence divided by member count."},
+ count_records:{roles:{},description:"count_records: no operands; result is the certified effective record count."}
+};
 export type MeasurementSelector = Readonly<{predicateIndexes:readonly number[]}>;
-export type CalculateSlot = Readonly<{subjectId:string; clause:number; item:number; field:"measurement"|"event_at"; unit:string|null; measurementSelector?:MeasurementSelector|null}>;
-export type CalculateResultOperand=Readonly<{kind:"result";calculationId:string}>;
+export type CalculateSlot = Readonly<{role:CalculateRole; subjectId:string; clause:number; item:number; field:"measurement"|"event_at"; unit:string|null; measurementSelector?:MeasurementSelector|null}>;
+export type CalculateResultOperand=Readonly<{kind:"result";role:CalculateRole;calculationId:string}>;
 export type CalculateOperand=CalculateSlot|CalculateResultOperand;
 export const isResultOperand=(o:CalculateOperand):o is CalculateResultOperand=>"kind" in o&&o.kind==="result";
 export const MAX_CALCULATION_DEPTH=8;
-export const requiresCalculateBinding=(p:CalculatePlan|null|undefined):boolean=>!!p&&(!!p.resultSelection||p.calculations.some(c=>c.operands.some(o=>isResultOperand(o)||o.measurementSelector!=null)));
+export const requiresCalculateBinding=(p:CalculatePlan|null|undefined):boolean=>!!p;
 export type CalculatePlan = Readonly<{operation:"calculate"; resultSelection?:ResultSelection|null; calculations:readonly Readonly<{
   id:string; operator:CalculateOperator; operands:readonly CalculateOperand[]; resultUnit:string; precision:number|null;
 }>[]}>;
@@ -26,18 +42,17 @@ export const calculatePlanSchema={anyOf:[{type:"null"},{
  required:["id","operator","operands","resultUnit","precision"],properties:{
  id:{type:"string",minLength:1,maxLength:80},operator:{type:"string",enum:CALCULATE_OPERATORS},
  operands:{type:"array",maxItems:64,items:{anyOf:[{type:"object",additionalProperties:false,
- required:["petName","clause","item","field","unit","measurementSelector"],properties:{
+ required:["role","petName","clause","item","field","unit","measurementSelector"],properties:{
+ role:{type:"string",enum:CALCULATE_ROLES},
  measurementSelector:{anyOf:[{type:"null"},{type:"object",additionalProperties:false,required:["predicateIndexes"],properties:{predicateIndexes:{type:"array",minItems:1,maxItems:6,items:{type:"integer",minimum:0,maximum:5}}}}],description:"Indexes into this readTicket.predicates, never new text or source coordinates. All referenced text_any predicates must match the same structural segment of exactly one compatible measurement. Null requires a single compatible measurement in the entire certified record. Null for event_at."},
  petName:{type:"string",minLength:1,maxLength:100},clause:{type:"integer",minimum:0,maximum:7},
  item:{type:"integer",minimum:0,maximum:99},field:{type:"string",enum:["measurement","event_at"]},
- unit:{type:["string","null"],enum:[...Object.keys(units),null]}}},{type:"object",additionalProperties:false,required:["kind","calculationId"],properties:{kind:{type:"string",enum:["result"]},calculationId:{type:"string",minLength:1,maxLength:80}}}]}},
+ unit:{type:["string","null"],enum:[...Object.keys(units),null]}}},{type:"object",additionalProperties:false,required:["kind","role","calculationId"],properties:{role:{type:"string",enum:CALCULATE_ROLES},kind:{type:"string",enum:["result"]},calculationId:{type:"string",minLength:1,maxLength:80}}}]}},
  resultUnit:{type:"string",enum:[...Object.keys(units),"scalar","%","records"]},
  precision:{type:["integer","null"],minimum:0,maximum:10}
  }}}}}]};
 
-/** All order is explicit: difference = 0 - 1; ratio = 1 / 0;
- * percent_change = (1 - 0) / 0 * 100; percent_of_sum = 0 / sum * 100.
- * elapsed_days = (timestamp 1 - timestamp 0) / 86,400,000 (instant days).
+/** Roles own operator meaning. Array order preserves serialization and multiplicity only.
  * Only backward semantic calculation IDs may connect nodes; no expressions, database IDs or raw wording. */
 function bind(value:unknown,ticket:ReadTicket,resolve:(v:unknown)=>string,bound:boolean,source?:CalculationSource):CalculatePlan {
  if(!obj(value)||!keys(value,Object.hasOwn(value,"resultSelection")?["operation","calculations","resultSelection"]:["operation","calculations"])||value.operation!=="calculate"
@@ -54,19 +69,28 @@ function bind(value:unknown,ticket:ReadTicket,resolve:(v:unknown)=>string,bound:
    ||!(c.precision===null||Number.isInteger(c.precision)&&Number(c.precision)>=0&&Number(c.precision)<=10)
    ||typeof c.resultUnit!=="string")return fail("calculation");
   const operator=c.operator as CalculateOperator,n=c.operands.length;
+  const rolePolicy=CALCULATION_ROLE_POLICY[operator].roles;
+  const roleRanges=Object.values(rolePolicy);
   const derived=c.operands.some(o=>obj(o)&&o.kind==="result");
   if(operator==="count_records"){
    if(n||ticket.selection||ticket.outputs.completeness!=="exhaustive"||ticket.outputs.limit!==null||c.resultUnit!=="records")return fail("exhaustive_count");
   }else{
    if(!ticket.selection||ticket.selection.groupBy.length!==1)return fail("selection_required");
-   if(operator==="convert"?n!==1:["sum","mean"].includes(operator)?n<1:operator==="percent_of_sum"?n<2:n!==2)return fail("arity");
+   if(n<roleRanges.reduce((sum,range)=>sum+range[0],0)||n>roleRanges.reduce((sum,range)=>sum+range[1],0))return fail("arity");
+  }
+  for(const operand of c.operands){
+   if(!obj(operand)||typeof operand.role!=="string"||!Object.hasOwn(rolePolicy,operand.role))return fail("operand_role");
+  }
+  for(const [role,[minimum,maximum]] of Object.entries(rolePolicy)){
+   const count=c.operands.filter(o=>o.role===role).length;
+   if(count<minimum||count>maximum)return fail("operand_role_cardinality");
   }
   let operands:CalculateOperand[],depth=1;
   if(derived){
    chained=true;
    if(operator==="elapsed_days"||operator==="count_records")return fail("derived_operator");
    const dependencies=c.operands.map(o=>{
-    if(!obj(o)||!keys(o,["kind","calculationId"])||o.kind!=="result"||typeof o.calculationId!=="string")return fail("result_operand");
+    if(!obj(o)||!keys(o,["kind","role","calculationId"])||o.kind!=="result"||typeof o.calculationId!=="string")return fail("result_operand");
     const upstream=prior.get(o.calculationId);
     if(!upstream)return fail("backward_reference");
     if(upstream.calculation.operator==="count_records")return fail("count_dependency");
@@ -82,10 +106,10 @@ function bind(value:unknown,ticket:ReadTicket,resolve:(v:unknown)=>string,bound:
     const expected=operator==="ratio"?"scalar":["percent_change","percent_of_sum"].includes(operator)?"%":inputUnit;
     if(c.resultUnit!==expected)return fail("result_unit");
    }
-   operands=c.operands.map(o=>Object.freeze({kind:"result" as const,calculationId:(o as {calculationId:string}).calculationId}));
+   operands=c.operands.map(o=>Object.freeze({kind:"result" as const,role:(o as {role:CalculateRole}).role,calculationId:(o as {calculationId:string}).calculationId}));
   }else{
    const slots=c.operands.map(o=>{
-    if(!obj(o)||!keys(o,[bound?"subjectId":"petName","clause","item","field","unit",...(Object.hasOwn(o,"measurementSelector")?["measurementSelector"]:[])]))return fail("slot");
+    if(!obj(o)||!keys(o,["role",bound?"subjectId":"petName","clause","item","field","unit",...(Object.hasOwn(o,"measurementSelector")?["measurementSelector"]:[])]))return fail("slot");
     const subjectId=resolve(o[bound?"subjectId":"petName"]);
     if(!ticket.subjects.petIds.includes(subjectId))return fail("subject");
     if(!Number.isInteger(o.clause)||Number(o.clause)<0||!Number.isInteger(o.item)||Number(o.item)<0)return fail("position");
@@ -103,7 +127,7 @@ function bind(value:unknown,ticket:ReadTicket,resolve:(v:unknown)=>string,bound:
       ||selector.predicateIndexes.some(i=>!Number.isInteger(i)||i<0||!ticket.predicates[i]||ticket.predicates[i].kind!=="text_any"))return fail("measurement_selector");
      measurementSelector=Object.freeze({predicateIndexes:Object.freeze([...selector.predicateIndexes] as number[])});
     }
-    return Object.freeze({subjectId,clause:Number(o.clause),item:Number(o.item),field:o.field as CalculateSlot["field"],unit:o.unit as string|null,
+    return Object.freeze({role:o.role as CalculateRole,subjectId,clause:Number(o.clause),item:Number(o.item),field:o.field as CalculateSlot["field"],unit:o.unit as string|null,
      ...(Object.hasOwn(o,"measurementSelector")?{measurementSelector}:{})});
    });
    const dimensions=slots.filter(o=>o.field==="measurement").map(o=>unit(o.unit)!.dimension);
@@ -130,7 +154,7 @@ export function bindCalculatePlan(value:unknown,ticket:ReadTicket,subjects:reado
  },false,source);
  remember(plan,ticket);return plan;
 }
-// Server binding snapshots protect result-selection, DAG and predicate-index semantics across in-process copies.
+// Every plan snapshot protects roles, multiplicity, source slots and all derived semantics across in-process copies.
 // A JSON clone needs its trusted original; a stale/untrusted JSON object cannot
 // mint a source-bound threshold or change the comparator/cohort during rebind.
 const bindings=new WeakMap<CalculatePlan,{plan:string;ticket:string}>();

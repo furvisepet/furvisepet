@@ -60,7 +60,8 @@ for(const [name,mutate] of [
 });
 test("canonical calculation plan survives JSON with meaning intact",()=>{
  const ticket=bindTypedReadTicket(rawTicket(),[pets[0].id]),p=bindCalculatePlan(proposal([calculation()]),ticket,pets);
- assert.deepEqual(rebindCalculatePlan(JSON.parse(JSON.stringify(p)),ticket),p);
+ assert.deepEqual(rebindCalculatePlan(JSON.parse(JSON.stringify(p)),ticket,p),p);
+ assert.throws(()=>rebindCalculatePlan(JSON.parse(JSON.stringify(p)),ticket),/binding_snapshot/);
  assert.throws(()=>rebindCalculatePlan({...p,calculations:[{...p.calculations[0],value:5}]},ticket));
 });
 for(const patch of [{mode:"mixed"},{evidenceBasis:"saved_profile"},{readTicket:null},{writeJob:{}},{storedRead:{}},{frame:{}},{profileFields:["weight"]},{projection:{}},{evidenceNeeds:[{}]}])

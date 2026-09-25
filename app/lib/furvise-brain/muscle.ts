@@ -1,7 +1,7 @@
 import { measurementCandidates, type SourceSpan } from "./measurement-candidates.ts";
 import { textMatchesReadPredicate } from "./read-text.ts";
 import {selectCalculationResults,type ResultSelectionCertificate} from "./calculation-result-selection.ts";
-import { rebindCalculatePlan, isResultOperand, type CalculatePlan, type CalculateSlot } from "./calculate-plan.ts";
+import { rebindCalculatePlan, isResultOperand, type CalculatePlan, type CalculateSlot, type CalculateRole } from "./calculate-plan.ts";
 import { units } from "./calculation-units.ts";
 import { readLabsSnapshotMatches, type LabsList } from "../intelligence/labs-list.ts";
 import { selectionPublication } from "../intelligence/selection-publication.ts";
@@ -13,7 +13,7 @@ export type CalculationOperand={
  literal:string; value:number; unit:string; dimension:string; body:string;
  sourceSpan:SourceSpan|null; contextSpan:SourceSpan|null; numericText:string|null; measurementExact:Exact|null; measurementSelector:CalculateSlot["measurementSelector"];
 };
-export type CalculationDependency={calculationId:string;operator:string;unit:string;exact:Exact};
+export type CalculationDependency={role:CalculateRole;calculationId:string;operator:string;unit:string;exact:Exact};
 export type CalculationResult={id:string;status:"certified";operator:string;operands:CalculationOperand[];
  dependencyCalculationIds:string[];transitiveCalculationIds:string[];upstreamResults:CalculationDependency[];
  sourceIds:string[];subjectIds:string[];value:number;exact:{numerator:string;denominator:string};unit:string;precision:number|null}
@@ -42,7 +42,7 @@ export function executeCalculatePlan(proposed:CalculatePlan,read:LabsList):Calcu
      ||!resultSetSnapshotMatches(read.ticket,read.coverage,read.records))throw Error("result_set_not_certified");
     result=fraction(BigInt(proof.matchingIds.length));sourceIds=read.records.map(r=>r.sourceId);subjectIds=[...read.ticket.subjects.petIds];
    }else{
-    const values:Fraction[]=[];
+    const values:{role:CalculateRole;value:Fraction}[]=[];
     const derived=c.operands.some(isResultOperand);
     if(derived){
      for(const operand of c.operands){
@@ -53,8 +53,8 @@ export function executeCalculatePlan(proposed:CalculatePlan,read:LabsList):Calcu
       if(!upstream||!r||r.status!=="certified")throw Error("dependency_not_certified");
       if(r.id!==operand.calculationId||r.id!==upstream.plan.id||r.operator!==upstream.plan.operator
        ||r.unit!==upstream.plan.resultUnit||r.operator==="count_records")throw Error("dependency_binding");
-      const q=rational(r.exact);finite(q);values.push(q);
-      upstreamResults.push({calculationId:r.id,operator:r.operator,unit:r.unit,exact:{...r.exact}});
+      const q=rational(r.exact);finite(q);values.push({role:operand.role,value:q});
+      upstreamResults.push({role:operand.role,calculationId:r.id,operator:r.operator,unit:r.unit,exact:{...r.exact}});
       dependencyCalculationIds.push(r.id);transitiveCalculationIds.push(...r.transitiveCalculationIds,r.id);
       sourceIds.push(...r.sourceIds);subjectIds.push(...r.subjectIds);
      }
@@ -89,24 +89,30 @@ export function executeCalculatePlan(proposed:CalculatePlan,read:LabsList):Calcu
        const raw=token.exact;measurementExact=exact(raw);
        value=finite(raw);q=mul(raw,factor(token.sourceUnit));finite(q);
       }
-      values.push(q);operands.push({slot,sourceId:row.sourceId,recordId:row.id,subjectId:row.petId,eventAt:row.event_at,literal,value,unit,dimension,body:row.body,sourceSpan,contextSpan,numericText,measurementExact,measurementSelector:slot.measurementSelector??null});
+      values.push({role:slot.role,value:q});operands.push({slot,sourceId:row.sourceId,recordId:row.id,subjectId:row.petId,eventAt:row.event_at,literal,value,unit,dimension,body:row.body,sourceSpan,contextSpan,numericText,measurementExact,measurementSelector:slot.measurementSelector??null});
      }
     }
-    const sum=values.reduce(add,fraction(BigInt(0)));
+    const valueFor=(role:CalculateRole):Fraction=>{
+     const matches=values.filter(v=>v.role===role);
+     if(matches.length!==1)throw Error("operand_role_cardinality");
+     return matches[0].value;
+    };
+    const members=values.filter(v=>v.role==="member").map(v=>v.value);
+    const sum=members.reduce(add,fraction(BigInt(0)));
     switch(c.operator){
      case "sum":result=sum;break;
-     case "mean":result=div(sum,fraction(BigInt(values.length)));break;
-     case "difference":result=add(values[0],neg(values[1]));break;
-     case "absolute_difference":{const d=add(values[0],neg(values[1]));result=fraction(d.n<BigInt(0)?-d.n:d.n,d.d);break;}
-     case "ratio":result=div(values[1],values[0]);break;
-     case "percent_change":result=mul(div(add(values[1],neg(values[0])),values[0]),fraction(BigInt(100)));break;
-     case "percent_of_sum":result=mul(div(values[0],sum),fraction(BigInt(100)));break;
-     case "elapsed_days":result=div(add(values[1],neg(values[0])),fraction(BigInt(86400000)));break;
-     case "convert":result=values[0];break;
+     case "mean":result=div(sum,fraction(BigInt(members.length)));break;
+     case "difference":result=add(valueFor("target"),neg(valueFor("reference")));break;
+     case "absolute_difference":{const d=add(members[0],neg(members[1]));result=fraction(d.n<BigInt(0)?-d.n:d.n,d.d);break;}
+     case "ratio":result=div(valueFor("target"),valueFor("reference"));break;
+     case "percent_change":result=mul(div(add(valueFor("target"),neg(valueFor("reference"))),valueFor("reference")),fraction(BigInt(100)));break;
+     case "percent_of_sum":result=mul(div(valueFor("part"),add(valueFor("part"),sum)),fraction(BigInt(100)));break;
+     case "elapsed_days":result=div(add(valueFor("end"),neg(valueFor("start"))),fraction(BigInt(86400000)));break;
+     case "convert":result=valueFor("source");break;
      default:throw Error("operator");
     }
     if(derived){
-     if(c.operator==="convert")result=div(mul(result,factor(upstreamResults[0].unit)),factor(c.resultUnit));
+     if(c.operator==="convert")result=div(mul(result,factor(upstreamResults.find(r=>r.role==="source")!.unit)),factor(c.resultUnit));
     }else{
      if(["sum","mean","difference","absolute_difference","convert"].includes(c.operator))result=div(result,factor(c.resultUnit));
      sourceIds=[...new Set(operands.map(o=>o.sourceId))];subjectIds=[...new Set(operands.map(o=>o.subjectId))];

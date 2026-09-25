@@ -24,7 +24,12 @@ const rawTicket=(count=false)=>({operation:"read",temporal:{from:null,to:null,an
  selection:count?null:{groupBy:["subject"],union:[clause("asc"),clause("desc")]},
  outputs:{completeness:count?"exhaustive":"sufficient",ordering:"asc",limit:null}});
 const slot=(clause=0,item=0,petName=pets[0].name,field="measurement",unit="kg")=>({petName,clause,item,field,unit});
-const calculation=(operator="difference",operands=[slot(1),slot(0)],resultUnit="kg",id="c1")=>({id,operator,operands,resultUnit,precision:null});
+// Migrate legacy offline fixture argument conventions centrally. Production never infers roles.
+// Explicit roles are retained; malformed-role tests delete/change them after construction.
+const fixtureRoles={difference:["target","reference"],ratio:["reference","target"],percent_change:["reference","target"],
+ elapsed_days:["start","end"],convert:["source"],percent_of_sum:["part"]};
+const calculation=(operator="difference",operands=[slot(1),slot(0)],resultUnit="kg",id="c1")=>({id,operator,
+ operands:operands.map((o,i)=>({role:fixtureRoles[operator]?.[i]??"member",...o})),resultUnit,precision:null});
 const proposal=calculations=>({operation:"calculate",calculations});
 const envelope=(plan,ticket)=>({version:"ask-request.v2",mode:"read",question:"Calculate from saved observations.",requirements:[],referenceTurnIds:[],
  scope:"named",petNames:[pets[0].name],operation:"recall",selection:"summary",quantity:"measurement",topic:"observations",terms:[],from:null,to:null,
