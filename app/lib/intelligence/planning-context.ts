@@ -29,12 +29,12 @@ export async function buildFurvisePlanningContext(input: {
   if (!pet) throw new FurviseContextError("PET_NOT_FOUND", "That pet is not available.");
   // Opaque handles expose exact owned state targets to Brain, never a factual read result.
   const concerns = await supabase.from("pet_concerns").select("id,user_id,pet_profile_id,title,status,severity,normalized_key,opened_at,updated_at,resolved_at,resolution_note,source_care_entry_id")
-    .eq("user_id", userId).in("pet_profile_id", eligiblePets.map(p => p.id))
+    .eq("user_id", userId).eq("pet_profile_id", petId)
     .in("status", ["active", "monitoring", "reopened", "resolved"]);
-  const ownedConcerns = (concerns.error ? [] : concerns.data || []).filter(row => row.user_id === userId
-    && eligiblePets.some(p => p.id === row.pet_profile_id && p.user_id === userId)) as PetConcern[];
+  const ownedConcerns = (concerns.error ? [] : concerns.data || []).filter(row =>
+    row.user_id === userId && row.pet_profile_id === petId) as PetConcern[];
   const concernReferences: ConcernReference[] = ownedConcerns.flatMap(row =>
-    row.user_id === userId && eligiblePets.some(p => p.id === row.pet_profile_id && p.user_id === userId)
+    row.user_id === userId && row.pet_profile_id === petId
       ? [{ ref: randomUUID(), ownerId: userId, petId: row.pet_profile_id, concernId: row.id,
         status: row.status as ConcernReference["status"], title: row.title }] : []);
   // Lookup failure supplies no mutation handles; unrelated Ask remains available.
@@ -49,7 +49,7 @@ export async function buildFurvisePlanningContext(input: {
   }));
   const currentTurn = conversationTurns.find(turn => turn.id === input.sourceMessageId);
   if (!currentTurn || currentTurn.text !== input.currentMessage) throw new FurviseContextError("CONTEXT_UNAVAILABLE", "The request source could not be verified.");
-  const replaceReferences = await loadReplaceReferences(userId, eligiblePets.map(p => p.id), currentTurn.createdAt);
+  const replaceReferences = await loadReplaceReferences(userId, [petId], currentTurn.createdAt);
   const storedReadReferences = await loadStoredReadReferences(userId);
   return { storedReadReferences, replaceReferences, feature: "ask", locale: input.locale, timeZone: input.timeZone, currentMessage: input.currentMessage, currentTimestamp: new Date().toISOString(),
     conversationId, pet, eligiblePets, owner: { userId, profile: null }, currentTurn, conversationTurns, lifecycleActionState, concernReferences,
