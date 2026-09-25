@@ -4,6 +4,7 @@ import { executeActionCapability } from "../../../../lib/application-actions/cap
 import { continueConfirmedAppend } from "../../../../lib/intelligence/append-turn.ts";
 import { emitOperationalEvent } from "../../../../lib/operations/events";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../../../lib/security/request";
+import { PUBLIC_V1_CAPABILITIES } from "../../../../lib/public-v1-capabilities.ts";
 
 type RouteContext = { params: Promise<{ messageId: string }> };
 
@@ -13,6 +14,7 @@ export async function POST(request: Request, routeContext: RouteContext) {
   if (!isUuid(messageId)) return unavailable();
   const auth = await getAuthenticatedApiContext(request);
   if ("response" in auth) return auth.response;
+  if (!PUBLIC_V1_CAPABILITIES.askMutations) return unavailable();
   let rawBody: unknown;
   try { rawBody = await readBoundedJson(request, API_BODY_LIMITS.standard); }
   catch (error) { return Response.json({ error: error instanceof RequestBoundaryError && error.code === "PAYLOAD_TOO_LARGE" ? "That action request is too large." : "Send a valid action request." }, { status: error instanceof RequestBoundaryError && error.code === "PAYLOAD_TOO_LARGE" ? 413 : 400 }); }

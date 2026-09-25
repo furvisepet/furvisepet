@@ -7,6 +7,7 @@ import { createCanonicalCareAuthorityClient } from "../../../../lib/intelligence
 import { continueCanonicalSuggestion } from "../../../../lib/intelligence/canonical-suggestion-continuation.ts";
 import { continueConfirmedAppend } from "../../../../lib/intelligence/append-turn.ts";
 import type { CanonicalSuggestionRow as SuggestionRow } from "../../../../lib/intelligence/canonical-suggestion.ts";
+import { PUBLIC_V1_CAPABILITIES } from "../../../../lib/public-v1-capabilities.ts";
 
 type SuggestionErrorCode = "SUGGESTION_NOT_FOUND" | "SUGGESTION_FORBIDDEN" | "SUGGESTION_INVALID"
   | "SUGGESTION_CONFLICT" | "SUGGESTION_PERSISTENCE_FAILED";
@@ -15,6 +16,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   const requestId = globalThis.crypto.randomUUID();
   const auth = await loadSuggestionContext(request, requestId);
   if ("response" in auth) return auth.response;
+  if (!PUBLIC_V1_CAPABILITIES.askMutations)
+    return suggestionError("SUGGESTION_CONFLICT", "Ask suggestions cannot change saved information in the public beta.", 409, requestId);
   const { id } = await context.params;
   if (!isUuid(id)) return suggestionError("SUGGESTION_INVALID", "That suggestion identifier is invalid.", 400, requestId);
   let rawBody: unknown;

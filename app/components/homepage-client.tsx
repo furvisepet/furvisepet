@@ -26,11 +26,11 @@ export function HomepageClient() {
 
         <section id="how-it-works" className="home-visual home-explanation homepage-wide-shell" aria-labelledby="how-title">
           <div className="home-visual-copy">
-            <h2 id="how-title" className="app-section-title home-section-title">From a quick note<br />to your next vet visit.</h2>
+            <h2 id="how-title" className="app-section-title home-section-title">From a quick note<br />to finding it later.</h2>
             <div className="home-capabilities">
               <article><h3>Write down what happened</h3><p>A change in appetite, a new food, or how a walk went. Add a dated note in your own words. Each pet has a separate care history.</p></article>
               <article><h3>Ask about earlier notes</h3><p>“When did we change her food?” or “What were his earliest and latest recorded weights?” Ask Furvise to help you find and compare what you’ve recorded.</p></article>
-              <article><h3>Prepare a vet brief</h3><p>Bring relevant notes together in a summary. Check the details, then share it with your vet.</p></article>
+              <article><h3>Correct your history</h3><p>Edit or remove a care note from History when something needs fixing. Furvise reads the saved history you keep.</p></article>
             </div>
             <p id="context-title" className="home-care-note">Furvise helps organize information. It does not diagnose or replace veterinary care.</p>
           </div>

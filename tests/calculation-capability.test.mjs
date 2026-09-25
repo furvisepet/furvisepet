@@ -24,35 +24,26 @@ async function limited(f){
  const settled=assessTaskExecution({assessment:finalized.assessment,completion:[],responseMode:'practical_guidance',actions:[],careWriteRequired:false,careReceipt:{status:'skipped',careEntryIds:[]}});
  assert.equal(settled.creditDisposition,'release');assert.equal(settled.taskOutcome,'limited');assert.equal(settled.mutationOutcome,'not_requested');assert.equal(f.calls(),0);
 }
-test('public sets partition the unchanged closed algebra',()=>{
- assert.deepEqual([...yes,...no].sort(),[...CALCULATE_OPERATORS].sort());assert.equal(new Set([...yes,...no]).size,10);
+test('public v1 keeps the algebra but exposes no calculation execution',()=>{
+ assert.deepEqual(yes,[]);assert.deepEqual([...no].sort(),[...CALCULATE_OPERATORS].sort());assert.equal(new Set(no).size,10);
 });
-for(const op of no)test('legal '+op+' binds but public capability withholds execution and credit',async()=>{
- const before=muscleCalls,f=await fixture({calculations:[node(op)]});
+for(const op of CALCULATE_OPERATORS)test('legal '+op+' binds but public capability withholds execution and credit',async()=>{
+ const before=muscleCalls,f=await fixture({calculations:[node(op)],ticket:rawTicket(op==='count_records')});
  assert.deepEqual(cap(f),{supported:false,reason:'unsupported_public_v1',unsupportedOperators:[op]});
  await limited(f);assert.equal(muscleCalls,before);
  const rows=new Proxy([],{get(){throw Error('OPERAND_TRANSPORT_MUST_NOT_BE_READ');}});
  assert.equal(buildCalculationLabs(f.input.evidenceContract,rows),null);assert.equal(muscleCalls,before);
 });
-for(const op of yes)test('retained '+op+' reaches real deterministic execution',async()=>{
- const before=muscleCalls,f=await fixture({calculations:[node(op)],ticket:rawTicket(op==='count_records')});
- assert.equal(cap(f).supported,true);assert.equal(f.response.model,'server-calculation-labs');
- assert.ok(muscleCalls>before);assert.equal((await finish(f)).assessment.outcome,'complete');
-});
 const ref=(role,id)=>({kind:'result',role,calculationId:id});
 const derived=(op,id,inputs,unit='kg')=>({id,operator:op,operands:inputs,resultUnit:unit,precision:null});
 const plans=[
- ['all supported',[node('sum','a'),derived('convert','b',[ref('source','a')],'g')],true],
- ['supported leaf unsupported terminal',[node('sum','a'),derived('difference','b',[ref('target','a'),ref('reference','a')])],false],
- ['unsupported leaf supported terminal',[node('difference','a'),derived('convert','b',[ref('source','a')],'g')],false],
- ['multiple supported nodes',[node('sum','a'),node('mean','b')],true],
- ['unsupported intermediate',[node('sum','a'),derived('difference','b',[ref('target','a'),ref('reference','a')]),derived('convert','c',[ref('source','b')],'g')],false],
- ['independent unsupported node',[node('sum','a'),node('difference','b'),derived('convert','c',[ref('source','a')],'g')],false]
+ ['formerly supported chain',[node('sum','a'),derived('convert','b',[ref('source','a')],'g')]],
+ ['mixed chain',[node('sum','a'),derived('difference','b',[ref('target','a'),ref('reference','a')])]],
+ ['formerly supported independent nodes',[node('sum','a'),node('mean','b')]],
 ];
-for(const [label,calculations,supported]of plans)test('plan-wide '+label,async()=>{
- const before=muscleCalls,f=await fixture({calculations,resultSelection:null});assert.equal(cap(f).supported,supported);
- if(supported){assert.equal(f.response.model,'server-calculation-labs');await finish(f);}
- else{await limited(f);assert.equal(muscleCalls,before);}
+for(const [label,calculations]of plans)test('plan-wide '+label+' is unavailable',async()=>{
+ const before=muscleCalls,f=await fixture({calculations,resultSelection:null});assert.equal(cap(f).supported,false);
+ await limited(f);assert.equal(muscleCalls,before);
 });
 test('snapshot changes cannot mint an allowed capability',async()=>{
  const f=await fixture({calculations:[node('difference')]});
@@ -72,9 +63,4 @@ test('capability limitation cannot be substituted with evidence limitation, fact
   const changed={...f.response,answer:{...f.response.answer}};mutate(changed);assert.ok(calculationPublicationFailure(changed));
  }
  assert.equal(calculationPublicationFailure(f.response),null);
-});
-test('supported evidence failures retain their distinct existing reason',async()=>{
- const f=await fixture({calculations:[node('convert')],sourceRows:[]});
- assert.equal(f.response.answer.summary,CALCULATION_LIMITATION);
- assert.ok((await finish(f)).assessment.reasons.includes('calculation_unavailable'));
 });

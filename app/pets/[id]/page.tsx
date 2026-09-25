@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AppPage } from "../../components/app-page";
-import { LoadingState, PageHeader, PrimaryButton, SecondaryButton } from "../../components/product-primitives";
+import { LoadingState, PageHeader, SecondaryButton } from "../../components/product-primitives";
 import { useRequireConfirmedSupabaseAuth } from "../../lib/auth-session";
 import { useAppDataVersion } from "../../lib/navigation/app-data-freshness";
 import { formatPetDirectoryMetadata } from "../../lib/pets-directory";
@@ -71,10 +71,7 @@ function PetFacts({ profile }: { profile: DogProfileRow }) {
     <>
       <PageHeader
         actions={(
-          <>
-            <SecondaryButton href={`/pets/${petId}/edit`}>EDIT PET</SecondaryButton>
-            <PrimaryButton href={`/vet-brief?pet=${petId}&source=pet-profile`}>VET BRIEF</PrimaryButton>
-          </>
+          <SecondaryButton href={`/pets/${petId}/edit`}>EDIT PET</SecondaryButton>
         )}
         eyebrow="PETS"
         supportingText={metadata}

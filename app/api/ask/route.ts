@@ -139,6 +139,7 @@ import {
 } from "../../lib/ask-conversation-authority.ts";
 import { isExplicitCareHistorySaveRequest, resolveAutomaticCareHistoryPresentation } from "../../lib/intelligence/care-history-policy.ts";
 import { publicAskFailureCode, type AskInternalFailure } from "../../lib/furvise-output.ts";
+import { PUBLIC_V1_CAPABILITIES, PUBLIC_V1_ASK_MUTATION_LIMITATION, publicV1RequestHasExcludedAskMutation } from "../../lib/public-v1-capabilities.ts";
 import { readAskProfiles, classifyAskDatabaseFailure } from "../../lib/ask-profile-read.ts";
 
 const friendlyAnswerFailure = FURVISE_ANSWER_UNAVAILABLE_MESSAGE;
@@ -528,6 +529,21 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         contextUsed = { petName: null, usedSources: [] };
         const reply = buildSubjectClarificationOrchestration(question);
         reply.answer = { title: "One pet at a time", summary: `I can read only ${liveContext.pet.name || "the selected pet"}'s records in this conversation. Ask about this pet, or switch pets to read another pet's history.`, sections: [], safetyNote: null };
+        reply.clarificationQuestion = "";
+        return reply;
+      }
+      if (publicV1RequestHasExcludedAskMutation(interpretation.request)) {
+        if (creditReserved) {
+          const released = await safeReleaseAiCredit({ logicalRequestId: logicalTurnId, payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
+          creditReserved = false;
+          creditFinalState = released ? "released" : "release_pending";
+          turnLifecycle.credit(released ? "released" : "release_pending").settlement("release", released ? "reconciled" : "pending");
+        }
+        turnLifecycle.route("clarification", "deterministic");
+        turnAuthoritativePetIds = [];
+        contextUsed = { petName: null, usedSources: [] };
+        const reply = buildSubjectClarificationOrchestration(question);
+        reply.answer = { title: "Furvise", summary: PUBLIC_V1_ASK_MUTATION_LIMITATION, sections: [], safetyNote: null };
         reply.clarificationQuestion = "";
         return reply;
       }
@@ -1043,7 +1059,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
       saveMetadata: buildAskSaveMetadata(conversationResponse, { intent: reasoning?.userIntent || orchestration.intent, question }),
       safetyLevel,
       shoppingSuppressed: reasoning ? reasoning.shoppingSuppressed : safetyLevel === "urgent",
-      suggestion: turnAuthoritativePetIds.length ? orchestration.suggestion : null,
+      suggestion: PUBLIC_V1_CAPABILITIES.askMutations && turnAuthoritativePetIds.length ? orchestration.suggestion : null,
       supabase,
       usage,
       userId,
@@ -1346,11 +1362,11 @@ async function persistAssistantAnswer({
   const { conversationId, userMessageId } = preparedRequest;
   const persistenceGovernance = intelligenceResult ? {
     ...intelligenceResult.governance,
-    authorizedLearnings: prepareAskMemoryAuthorityLearnings({
+    authorizedLearnings: PUBLIC_V1_CAPABILITIES.askMutations ? prepareAskMemoryAuthorityLearnings({
       authorizedPetIds,
       currentMessage: sourceMessage,
       learnings: intelligenceResult.executionPlan.learnings,
-    }),
+    }) : [],
     semanticTrace: semanticTraceForStorage(intelligenceResult.semanticTrace),
   } : null;
   response = attachEpisodeReferences(response, intelligenceResult?.reasoning.evidenceContract?.episodes);
@@ -1438,6 +1454,15 @@ async function persistAssistantAnswer({
       // Persist immutable capability authority before exposing display action ids.
       // The presentation row remains non-executable and is updated only by the API.
       const proposedActions = parseStoredApplicationActions(response.applicationActions);
+      if (!PUBLIC_V1_CAPABILITIES.askMutations) {
+        if (proposedActions.length || response.applicationActions?.length) {
+          response = { ...response, applicationActions: [] };
+          responseWithTurn = { ...response, turn: turnLifecycle.snapshot() };
+          const presentationUpdate = await updateAskAssistantResponse({ messageId: persisted.id, responseData: responseWithTurn, userId });
+          if (presentationUpdate.error || presentationUpdate.data !== true) throw new Error("PUBLIC_V1_ACTION_PRESENTATION_UPDATE_FAILED");
+        }
+        return [];
+      }
       if (proposedActions.length) {
         try {
           const capabilityActions = await createActionCapabilities({
@@ -1476,6 +1501,7 @@ async function persistAssistantAnswer({
       return { intelligencePersistence, intelligencePersistenceWarning };
     },
     executeAuthorizedActions: async ({ persisted }) => {
+      if (!PUBLIC_V1_CAPABILITIES.askMutations) return { applicationActions: [], applicationStateChanged: false };
       let applicationActions = parseStoredApplicationActions((response as { applicationActions?: unknown }).applicationActions);
       let applicationStateChanged = false;
       if (applicationActions.length) {
@@ -1516,6 +1542,9 @@ async function persistAssistantAnswer({
       return { applicationActions, applicationStateChanged };
     },
     resolveCarePresentation: async ({ intelligence, actions }) => {
+      if (!PUBLIC_V1_CAPABILITIES.askMutations) {
+        return { automaticCareAction: false, carePersistence: null, persistenceMode: "none" as const, savedSuggestion: null };
+      }
       const confirmedCarePersistence = preconfirmedCarePersistence || intelligence.intelligencePersistence?.carePersistence || null;
       const automaticCareAction = confirmedCarePersistence?.status === "persisted"
         && confirmedCarePersistence.careEntryIds.length > 0;

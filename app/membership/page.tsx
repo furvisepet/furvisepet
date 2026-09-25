@@ -12,8 +12,8 @@ import {
   shouldManageExistingSubscription,
   type BillingSubscriptionStatus,
 } from "../lib/billing/launch-plans";
-import { PLAN_CAPABILITIES, PLUS_VET_BRIEF_ALLOWANCE, FREE_VET_BRIEF_ALLOWANCE } from "../lib/billing/plan-limits";
-import { MEMBERSHIP_CANCELLATION_TERMS, VET_BRIEF_USAGE_TERMS } from "../lib/billing/membership-copy";
+import { PLAN_CAPABILITIES } from "../lib/billing/plan-limits";
+import { MEMBERSHIP_CANCELLATION_TERMS } from "../lib/billing/membership-copy";
 import Link from "next/link";
 import { idempotentClientFetch } from "../lib/security/idempotency/client";
 import { getBrowserSupabase } from "../lib/supabase";
@@ -144,10 +144,9 @@ export default function MembershipPage() {
           <section className="grid gap-6 lg:grid-cols-2" aria-label="Furvise membership plans" data-ui="membership-plan-cards">
             <PlanCard
               current={!isPlus}
-              features={[`${FREE_ASK_ALLOWANCE} Ask each month`, "1 pet profile", "Unlimited lifetime care history", `${FREE_VET_BRIEF_ALLOWANCE} free Vet Brief generation, once per account. Save, reopen, and print it.`]}
+              features={[`${FREE_ASK_ALLOWANCE} Ask each month`, "1 pet profile", "Unlimited lifetime care history"]}
               price="$0"
               usage={!isPlus ? membership.askUsage : undefined}
-              vetBriefUsage={!isPlus ? membership.vetBriefUsage : undefined}
               value="A simple way to start with Furvise."
             />
             <PlanCard
@@ -163,13 +162,11 @@ export default function MembershipPage() {
               premium
               price={membership.billingPresentation.priceLabel}
               usage={isPlus ? membership.askUsage : undefined}
-              vetBriefUsage={isPlus ? membership.vetBriefUsage : undefined}
-              value="Keep your pets’ notes together and prepare for vet visits."
+              value="Keep your pets’ notes together and ask more questions about saved care history."
             />
           </section>
 
           <p className="mt-8 max-w-3xl text-sm leading-6 text-[var(--text-secondary)]">{MEMBERSHIP_CANCELLATION_TERMS} <Link className="underline underline-offset-4" href="/terms">Read the Terms of Use.</Link></p>
-          <p className="mt-4 max-w-3xl text-sm leading-6 text-[var(--text-secondary)]">{VET_BRIEF_USAGE_TERMS}</p>
         </div>
       )}
     </AppPage>
@@ -184,7 +181,6 @@ function PlanCard({
   price,
   usage,
   value,
-  vetBriefUsage,
 }: {
   action?: React.ReactNode;
   current: boolean;
@@ -193,7 +189,6 @@ function PlanCard({
   price: string;
   usage?: AskUsage;
   value: string;
-  vetBriefUsage?: AskUsage;
 }) {
   const title = premium ? "PLUS" : "FREE";
   return (
@@ -207,7 +202,6 @@ function PlanCard({
       <p className={`mt-4 min-h-14 leading-7 ${premium ? "text-[color-mix(in_srgb,var(--warm-cream)_78%,transparent)]" : "text-[var(--text-secondary)]"}`}>{value}</p>
 
       {usage ? <UsageSummary premium={premium} usage={usage} /> : null}
-      {vetBriefUsage ? <p className="mt-3 text-sm">{vetBriefUsage.remaining} of {vetBriefUsage.limit} Vet Brief generations remaining. {vetBriefUsage.planId === "free" ? "One-time allowance. Does not reset." : `Resets ${formatBillingDate(vetBriefUsage.resetAt)}.`}</p> : null}
 
       <ul className={`mt-8 grid gap-3 border-t pt-7 text-sm leading-6 ${premium ? "border-[color-mix(in_srgb,var(--warm-cream)_25%,transparent)]" : "border-[var(--line)] text-[var(--text-secondary)]"}`}>
         {features.map((feature) => <li className="flex gap-3" key={feature}><span aria-hidden="true">✓</span><span>{feature}</span></li>)}
@@ -272,9 +266,6 @@ function plusFeatures() {
     `Up to ${PLAN_CAPABILITIES.plus.maxPets} pet profiles. Keep the whole family’s care history together.`,
     "Unlimited lifetime care history for every pet.",
     `${PLUS_ASK_ALLOWANCE} Asks each month for questions about your saved care history.`,
-    `${PLUS_VET_BRIEF_ALLOWANCE} Vet Brief generations each month. Bring saved care notes together for your vet to review.`,
-    "Save and reopen Vet Brief drafts. Pick up where you left off after saving.",
-    "Printable reports in English, Spanish, French, German, Arabic, and Japanese. Document headings stay in English.",
   ];
 }
 
