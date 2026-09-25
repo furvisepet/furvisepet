@@ -36,18 +36,20 @@ Status: planning only. No production change.
 
 Do not reconstruct the RC by replaying eight commits and do not merge unrelated histories.
 
-After runtime acceptance of the frozen RC:
+The main-descended cutover artifact has already been rehearsed.
+
+After runtime acceptance:
 
 1. Re-read `main` and require it still points to `e2ab3a05690d115bff6c58719570ea1859920655`. If main moved, stop and re-plan.
-2. Create `launch/public-v1-cutover` from current main.
-3. Create one Git commit whose parent is current main and whose Git tree is exactly the frozen RC tree `aac9fd48da5fbfa1168c48656688b3a86be95b34`.
-4. Verify the cutover commit tree SHA equals the RC tree SHA byte-for-byte.
-5. Do not add migrations, feature work, cleanup, or copy changes in the transplant.
-6. Let Vercel build that main-descended cutover branch.
-7. Re-run the focused V1 gate, security gate, typecheck/build, and stranger smoke against the cutover preview.
-8. Only after those gates pass, advance main to the cutover commit by fast-forward. Never force-push main.
-9. Deploy/promote that exact cutover commit to production.
-10. Run the production smoke matrix immediately.
+2. Re-read `launch/public-v1-cutover-rehearsal` and require it still points to `747a9154a3fdb7e3ace2a6396c67eb6d4a2b1b5a`.
+3. Verify that commit's tree is still exactly `aac9fd48da5fbfa1168c48656688b3a86be95b34`, identical to the frozen RC tree.
+4. Run the stranger smoke against the rehearsal preview itself, not a newly rebuilt artifact.
+5. If the smoke passes, move `main` forward to the rehearsal commit using a fast-forward-only Git operation. Never force-update main.
+6. Promote the already-READY rehearsal Vercel deployment `dpl_CwS5wqeYVQgEFLowk5fi5E9N9apn` to production using Vercel's existing-deployment promotion flow. Promotion must reuse the existing artifact and must not rebuild it.
+7. Verify production immediately with health/runtime logs and the production smoke matrix.
+8. If a launch blocker appears, use Vercel's rollback flow to return production traffic to known-good deployment `dpl_8QtkjZQxdhSieGy6amzX5sRKDbCa`.
+
+Do not create a fresh production build unless promotion of the accepted artifact is unavailable. Rebuilding would discard the strongest property of this rehearsal: production can receive the exact artifact that passed acceptance.
 
 This produces normal main ancestry while preserving the exact frozen application snapshot.
 
