@@ -195,21 +195,21 @@ test('interpreter anchor guidance delegates dates and ledger choice without wide
   assert.doesNotMatch(ASK_REQUEST_INSTRUCTIONS,/rejects selection with unresolved event anchors/);
 });
 
-test('provider alternatives make mixed representations impossible without removing legacy selectors',()=>{
+test('provider alternatives exclude retired strategies and keep selection exclusive',()=>{
   const branches=askRequestSchema({}).properties.readTicket.anyOf;
-  assert.equal(branches.length,7);
+  assert.equal(branches.length,4);
   const legacy=branches.filter(s=>s.properties?.selection.type==='null');
   const composed=branches.find(s=>s.properties?.selection.type==='object');
   assert.deepEqual(branches[0],{type:'null'});
   assert.equal(composed.properties.outputs.additionalProperties,false);
   assert.equal(Object.hasOwn(composed.properties.outputs.properties,'strategy'),false);
   assert.deepEqual(composed.properties.outputs.required,['completeness','ordering','limit']);
-  assert.equal(legacy.length,5);
+  assert.equal(legacy.length,2);
   const chronological=legacy.find(b=>b.properties.outputs.properties.strategy.enum.includes('chronological')).properties.outputs;
   assert.deepEqual(chronological.properties.strategy.enum,['chronological']);
   assert.equal(chronological.properties.limit.type,'null');
   assert.deepEqual(legacy.map(b=>b.properties.outputs.properties.strategy.enum[0]),
-    [null,'chronological','temporal_endpoints','event_candidates','calendar_samples']);
+    [null,'chronological']);
   assert.match(composed.properties.outputs.properties.limit.description,/transport.*selection.take/);
   assert.match(composed.properties.outputs.properties.ordering.description,/Presentation.*selection.orderBy/);
 });

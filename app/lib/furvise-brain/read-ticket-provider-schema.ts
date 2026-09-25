@@ -11,8 +11,6 @@ const providerTicket = { ...readTicketSchema, type: "object",
 };
 const legacyOutputs = readTicketSchema.properties.outputs;
 const noProbes = { ...readProbesSchema, maxItems: 0 };
-const unanchored = { ...semanticProperties.temporal,
-  properties: { ...semanticProperties.temporal.properties, anchor: { type: "null" } } };
 const legacy = { ...providerTicket,
   properties: { ...providerTicket.properties, selection: { type: "null" } } };
 const strategyRead = { ...legacy, properties: { ...legacy.properties,
@@ -22,29 +20,19 @@ const outputsFor = (strategy: string | null) => ({ ...legacyOutputs,
     strategy: { ...legacyOutputs.properties.strategy, type: strategy === null ? "null" : "string", enum: [strategy] } } });
 
 // General temporal, episode and grounded-probe relationships remain Binder-owned.
-// These variants encode the existing strategy family without changing its semantics.
+// Legacy endpoint, sample and candidate strategies remain compatibility-input-only.
 export const readTicketProviderSchema = {
   anyOf: [
     { type: "null" },
     { ...legacy, description: "Ordinary read without a legacy strategy.",
       properties: { ...legacy.properties, outputs: outputsFor(null) } },
     { ...strategyRead, description: "Unbounded chronological legacy retrieval; finite takes use compositional selection.",
-      properties: { ...strategyRead.properties, outputs: { ...outputsFor("chronological"),
+      properties: { ...strategyRead.properties,
+        temporal: { ...semanticProperties.temporal,
+          properties: { ...semanticProperties.temporal.properties, calendar: { type: "null" } } },
+        outputs: { ...outputsFor("chronological"),
         properties: { ...outputsFor("chronological").properties,
           limit: { type: "null", description: "Unbounded chronological legacy retrieval only. Finite ordered takes belong in selection.take." } } } } },
-    { ...strategyRead, description: "Legacy comparison of temporal boundaries.",
-      properties: { ...strategyRead.properties,
-        operation: { ...semanticProperties.operation, enum: ["compare"] }, temporal: unanchored,
-        outputs: outputsFor("temporal_endpoints") } },
-    { ...strategyRead, description: "Legacy read of matching event candidates.",
-      properties: { ...strategyRead.properties,
-        operation: { ...semanticProperties.operation, enum: ["read"] }, temporal: unanchored,
-        predicates: { ...semanticProperties.predicates, minItems: 1 },
-        outputs: outputsFor("event_candidates") } },
-    { ...strategyRead, description: "Legacy calendar samples require sufficient completeness.",
-      properties: { ...strategyRead.properties, outputs: { ...outputsFor("calendar_samples"),
-        properties: { ...outputsFor("calendar_samples").properties,
-          completeness: { ...publication.completeness, enum: ["sufficient"] } } } } },
     { ...providerTicket, description: "Compositional read: selection alone defines semantic ordering and cardinality.",
       properties: { ...providerTicket.properties,
         selection: { ...semanticProperties.selection, type: "object" },

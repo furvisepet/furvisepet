@@ -258,8 +258,17 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
   });
   for (const variant of [...stored,profile,nonProfile,lifecycle,profileMutation,removal,transition])
     Object.assign(variant.properties,{calculatePlan:{type:"null"}});
+  // Unbounded chronological compatibility cannot carry independent legacy obligations.
+  const chronological = structuredClone(nonProfile);
+  const chronologicalTicket = readTicketProviderSchema.anyOf.find(variant =>
+    "properties" in variant && "strategy" in variant.properties.outputs.properties &&
+    variant.properties.outputs.properties.strategy.enum.includes("chronological"));
+  Object.assign(chronological.properties, { readTicket: { anyOf: [chronologicalTicket!] } });
+  Object.assign(chronological.properties.evidenceNeeds, { maxItems: 0 });
+  Object.assign(nonProfile.properties, { readTicket: { anyOf: readTicketProviderSchema.anyOf.filter(variant =>
+    variant !== chronologicalTicket) } });
   return { type: "object", additionalProperties: false, required: ["request"],
-    properties: { request: { anyOf: [...calculations, ...stored, profile, nonProfile, lifecycle, profileMutation, removal,
+    properties: { request: { anyOf: [...calculations, ...stored, profile, nonProfile, chronological, lifecycle, profileMutation, removal,
       ...(transitionSchema.anyOf.length > 1 ? [transition] : [])] } } };
 }
 
