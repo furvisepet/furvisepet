@@ -7,7 +7,7 @@ import { bindLifecyclePlan, lifecyclePlanSchema, type BoundLifecyclePlan } from 
 import { translateLegacyReadSelection } from "./legacy-read-selection.ts";
 import { groundReadProbes } from "./read-probes.ts";
 import type { ReadTicket } from "../furvise-brain/read-ticket.ts";
-import { readTicketProviderSchema } from "../furvise-brain/read-ticket-provider-schema.ts";
+import { readTicketProviderSchema, calculationReadTicketProviderSchema } from "../furvise-brain/read-ticket-provider-schema.ts";
 import { bindTypedReadTicket } from "../furvise-brain/typed-read-ticket.ts";
 
 import { appendJobSchema, validateAppendJob, type AppendJob } from "../furvise-brain/append-job.ts";
@@ -239,10 +239,27 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
     projection:{type:"null"}, recordSelection:{type:"null"}, ordinal:{type:"null"}, episodeTopic:{type:"null"}
   });
   for (const field of ["profileFields","evidenceNeeds"] as const) Object.assign(calculation.properties[field],{maxItems:0});
+  // A count-only plan has no read slots. Every non-count plan, including a DAG,
+  // carries the shared compositional selection that establishes its read authority.
+  const calculations = [true, false].map(countOnly => {
+    const variant = structuredClone(calculation);
+    const plan = structuredClone(calculatePlanSchema.anyOf[1]);
+    const node = plan.properties!.calculations.items.properties;
+    Object.assign(node.operator, { enum: node.operator.enum.filter(operator =>
+      countOnly ? operator === "count_records" : operator !== "count_records") });
+    if (countOnly) {
+      Object.assign(node.operands, { maxItems: 0 });
+      Object.assign(node.resultUnit, { enum: ["records"] });
+      Object.assign(plan.properties!, { resultSelection: { type: "null" } });
+    }
+    Object.assign(variant.properties, { calculatePlan: plan,
+      readTicket: calculationReadTicketProviderSchema(countOnly) });
+    return variant;
+  });
   for (const variant of [...stored,profile,nonProfile,lifecycle,profileMutation,removal,transition])
     Object.assign(variant.properties,{calculatePlan:{type:"null"}});
   return { type: "object", additionalProperties: false, required: ["request"],
-    properties: { request: { anyOf: [calculation, ...stored, profile, nonProfile, lifecycle, profileMutation, removal,
+    properties: { request: { anyOf: [...calculations, ...stored, profile, nonProfile, lifecycle, profileMutation, removal,
       ...(transitionSchema.anyOf.length > 1 ? [transition] : [])] } } };
 }
 

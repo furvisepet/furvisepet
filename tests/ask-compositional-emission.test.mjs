@@ -24,7 +24,7 @@ async function mocked(question,readTicket=ticket(),patch={},ctx=context(question
   let calls=0;
   const pending=interpretAskQuestion({context:ctx,model:'fixture',client:{responses:{create:async request=>{
     calls++;
-    const requestSchema=request.text.format.schema.properties.request.anyOf.find(s=>s.properties?.evidenceBasis?.enum?.includes('saved_history'));
+    const requestSchema=request.text.format.schema.properties.request.anyOf.find(s=>s.properties?.evidenceBasis?.enum?.includes('saved_history') && s.properties?.calculatePlan?.type==='null');
     const schema=requestSchema.properties.readTicket;
     const compositional=schema.anyOf.find(s=>s.properties?.selection.type==='object');
     assert.ok(compositional.required.includes('selection'));

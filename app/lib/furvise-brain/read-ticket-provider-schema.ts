@@ -59,3 +59,20 @@ export const readTicketProviderSchema = {
       } },
   ],
 };
+
+/** Calculation read domains mirror Calculate Binder; no selection is synthesized. */
+export function calculationReadTicketProviderSchema(countOnly: boolean) {
+  const ticket = structuredClone(providerTicket);
+  Object.assign(ticket.properties, {
+    operation: { type: "string", enum: ["read", "read_since_event"] },
+    selection: countOnly ? { type: "null" } : { ...semanticProperties.selection, type: "object" },
+    episode: { type: "null" }, probes: noProbes,
+    temporal: { ...semanticProperties.temporal,
+      properties: { ...semanticProperties.temporal.properties, calendar: { type: "null" } } },
+    outputs: countOnly ? { ...outputsFor(null), properties: { ...outputsFor(null).properties,
+      completeness: { type: "string", enum: ["exhaustive"] }, limit: { type: "null" } } }
+      : { type: "object", additionalProperties: false, required: ["completeness", "ordering", "limit"],
+          properties: { ...publication } },
+  });
+  return ticket;
+}
