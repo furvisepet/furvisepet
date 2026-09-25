@@ -35,3 +35,31 @@ test('derived elapsed remains rejected by provider and Binder',()=>{const r=dag(
 test('provider rejects mixed direct and result operands',()=>{const r=dag(),c=r.calculatePlan.calculations[1];c.operator='sum';c.resultUnit='kg';c.operands.push(operand(0));rejects(r);});
 test('measurement selector identity remains Binder-owned',()=>{const r=request();r.calculatePlan.calculations[0].operands[0].measurementSelector={predicateIndexes:[5]};assert.equal(check({request:r}),true);assert.throws(()=>validateAskRequest(r,context),/measurement_selector/);});
 test('valid measurement selector structure preserves binding',()=>{const r=request();r.readTicket.predicates=[{kind:'text_any',terms:['sample']}];r.calculatePlan.calculations[0].operands[0].measurementSelector={predicateIndexes:[0]};accepts(r);});
+
+import {ASK_REQUEST_INSTRUCTIONS} from '../app/lib/intelligence/ask-request-contract.ts';
+// Contract descriptions are checked here, not live model compliance.
+const roleChecks=[
+ ['difference',['operand 0 is the target/minuend','operand 1 is the reference/subtrahend','operand 0 - operand 1']],
+ ['percent_change',['operand 0 is the baseline/reference','operand 1 is the new/target','(operand 1 - operand 0) / operand 0 * 100','differs from difference']],
+ ['ratio',['operand 0 is the denominator/reference','operand 1 is the numerator/comparison','operand 1 / operand 0']],
+ ['elapsed_days',['operand 0 is the start event','operand 1 is the end event','event 1 - event 0']],
+ ['percent_of_sum',['operand 0 is the requested part/numerator','including operand 0','operand 0 / sum(all operands) * 100']],
+ ['absolute_difference',['exactly two operands','abs(operand 0 - operand 1)','order-insensitive']],
+ ['sum',['one or more operands','order-insensitive','sum(all operands)']],
+ ['mean',['one or more operands','order-insensitive','operand count']],
+ ['convert',['one source operand only','resultUnit']],
+ ['count_records',['no operands','certified effective record count']],
+];
+const providerNodes=schema.properties.request.anyOf.filter(v=>v.properties.calculatePlan.type==='object').flatMap(v=>{
+ const items=v.properties.calculatePlan.properties.calculations.items;return items.anyOf||[items];
+});
+for(const [operator,terms] of roleChecks)test(operator+' semantic roles are explicit in instructions and each provider operand branch',()=>{
+ const line=ASK_REQUEST_INSTRUCTIONS.split('\n').find(s=>s.startsWith(operator+':'));assert.ok(line,operator);
+ const nodes=providerNodes.filter(n=>n.properties.operator.enum.includes(operator));assert.ok(nodes.length);
+ for(const term of terms){assert.ok(line.includes(term),term);for(const node of nodes)for(const field of ['operator','operands'])assert.ok(node.properties[field].description.includes(term),operator+' '+field+' '+term);}
+});
+test('selection addresses do not assign arithmetic roles for read or derived operands',()=>{
+ for(const text of [ASK_REQUEST_INSTRUCTIONS,...providerNodes.flatMap(n=>[n.description,n.properties.operands.description])]){
+  for(const term of ['Selection order is not calculation operand order','clause/item addresses','upstream result operands','do not assume binary operators share'])assert.ok(text.includes(term),term);
+ }
+});

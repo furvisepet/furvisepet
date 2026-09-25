@@ -69,6 +69,19 @@ export type AskRequestContract = {
   referenceTurnIds: string[];
   quantity: typeof quantities[number];
 };
+const CALCULATION_OPERAND_ROLES = {
+  "difference": "difference: exactly two operands; operand 0 is the target/minuend (value being compared), operand 1 is the reference/subtrahend (baseline); result = operand 0 - operand 1. For an interpreted baseline-to-target relationship, put target in operand 0 and baseline in operand 1, not necessarily latest first.",
+  "absolute_difference": "absolute_difference: exactly two operands; result = abs(operand 0 - operand 1); numeric result is order-insensitive.",
+  "ratio": "ratio: exactly two operands; operand 0 is the denominator/reference, operand 1 is the numerator/comparison; result = operand 1 / operand 0.",
+  "percent_change": "percent_change: exactly two operands; operand 0 is the baseline/reference, operand 1 is the new/target; result = (operand 1 - operand 0) / operand 0 * 100. This positional convention differs from difference.",
+  "percent_of_sum": "percent_of_sum: two or more operands; operand 0 is the requested part/numerator; every operand, including operand 0, contributes to the denominator sum; result = operand 0 / sum(all operands) * 100.",
+  "elapsed_days": "elapsed_days: exactly two event operands; operand 0 is the start event, operand 1 is the end event; result = event 1 - event 0 in instant days. Brain assigns start/end semantically, not from selection chronology alone.",
+  "convert": "convert: one source operand only; convert its value into resultUnit.",
+  "sum": "sum: one or more operands; numeric result is order-insensitive; result = sum(all operands).",
+  "mean": "mean: one or more operands; numeric result is order-insensitive; result = sum(all operands) / operand count.",
+  "count_records": "count_records: no operands; result is the certified effective record count."
+} as const;
+const CALCULATION_OPERAND_ORDER = "Selection order is not calculation operand order. ReadTicket.selection determines which certified records are available; CalculatePlan maps their clause/item addresses into operator-specific semantic roles. Never copy selection clause order or record chronology as an operand convention. Apply the same role mapping to upstream result operands; do not assume binary operators share a positional convention.";
 const strings = (maxItems: number, maxLength: number) => ({ type: "array", maxItems, items: { type: "string", minLength: 1, maxLength } });
 export function askRequestSchema(frame: object, context?: Context) {
   const schema = { type: "object", additionalProperties: false,
@@ -274,6 +287,14 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
         typedNode(measurement, false), typedNode(event, true), typedNode(result, false),
       ] } });
     }
+    const nodes = ("anyOf" in plan.properties!.calculations.items
+      ? plan.properties!.calculations.items.anyOf : [plan.properties!.calculations.items]) as { properties: Pick<typeof node, "operator" | "operands"> }[];
+    for (const item of nodes) {
+      const roles = item.properties.operator.enum.map(operator => CALCULATION_OPERAND_ROLES[operator]).join(" ");
+      Object.assign(item, { description: CALCULATION_OPERAND_ORDER });
+      Object.assign(item.properties.operator, { description: roles });
+      Object.assign(item.properties.operands, { description: CALCULATION_OPERAND_ORDER + " " + roles });
+    }
     Object.assign(variant.properties, { calculatePlan: plan,
       readTicket: calculationReadTicketProviderSchema(countOnly) });
     return variant;
@@ -296,6 +317,8 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
 }
 
 export const ASK_REQUEST_INSTRUCTIONS = [
+  CALCULATION_OPERAND_ORDER,
+  ...CALCULATE_OPERATORS.map(operator => CALCULATION_OPERAND_ROLES[operator]),
   `Every requested supported deterministic derivation over retrieved facts must be represented in calculatePlan. This is mandatory whenever the requested answer requires a supported CalculatePlan operator: ${CALCULATE_OPERATORS.join(", ")}. Do not place such a derivation in requirements, even if calculatePlan would otherwise be omitted. A requirement is residual only when no existing typed execution primitive owns that requested work. requirements is non-executable, grants no source authority, and cannot trigger arithmetic. Preserve genuinely residual companion work, including explanation beyond the typed operation or unsupported companion analysis. A factual comparison or measurement read alone does not imply arithmetic.`,
   "Legacy temporal_endpoints represents comparison of temporal boundaries and requires a compare ReadTicket. An ordinary bounded historical lookup uses read with a null strategy. Compositional selection owns finite earliest/latest, grouped cardinality and boundary unions; legacy strategies are compatibility-only.",
   "CalculatePlan resultSelection is null or {filter,orderBy,take}. Arithmetic belongs in calculations; derived cohort selection applies to ALL calculations. For resultSelection, provide exactly one single-subject calculation for every readTicket subject, same resultUnit for every candidate, no count_records. Filter is null or {comparator:gt|gte|lt|lte|eq,thresholdQuote:exact unique contiguous CURRENT USER quote with one signed numeric threshold and explicit compatible unit (percent for %, bare number for scalar)}. Never propose a numeric threshold value separately. orderBy is null or {direction:asc|desc}; take is null or {count:positive integer bounded by cohort size} and requires orderBy. Execution filters, orders exact results and takes with cutoff ties included. Full ranking has take null. No candidate ID subset, derived operands, expressions, or record reselection. Non-selection calculations use resultSelection null.",
