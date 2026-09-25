@@ -29,12 +29,12 @@ test('known ticket shape with explicit assumed empty metadata is supported, not 
  assert.deepEqual(historyPublicationCapability(evidence),{supported:true,reasons:[]});
  assert.ok(buildLabsList(evidence,rows));
 });
-test('requirements hypothesis has exactly one veto; this does not establish the original live metadata',async()=>{
+test('residual requirements do not veto certified factual capability',async()=>{
  const {evidence,rows}=await fixture();evidence.interpretation.request.requirements=['Return the requested observation.'];
  const before=JSON.stringify(evidence);
- assert.deepEqual(historyPublicationCapability(evidence),{supported:false,reasons:['requirements_present']});
- assert.equal(supportedHistoryPublication(evidence),false);assert.equal(supportedPlainResultSetRead(evidence),false);
- assert.equal(buildLabsList(evidence,rows),null);assert.equal(JSON.stringify(evidence),before);
+ assert.deepEqual(historyPublicationCapability(evidence),{supported:true,reasons:[]});
+ assert.equal(supportedHistoryPublication(evidence),true);assert.equal(supportedPlainResultSetRead(evidence),true);
+ assert.ok(buildLabsList(evidence,rows));assert.equal(JSON.stringify(evidence),before);
 });
 for(const [name,patch,reason] of [
  ['task',{task:{}},'task_present'],['projection',{projection:{}},'projection_present'],
@@ -56,12 +56,18 @@ test('scope and operation reasons are independent of free text',async()=>{
  evidence.interpretation.readOperation='comparison';
  assert.deepEqual(historyPublicationCapability(evidence).reasons,['scope_unresolved','subject_unauthorized','unsupported_read_operation']);
 });
-test('unavailable dispatch logs the same gate even when Labs is never called',async()=>{
+test('dispatch separates certified factual completion from residual completion',async()=>{
  const {evidence,rows}=await fixture();evidence.interpretation.request.requirements=['Arbitrary companion'];
  const logs=[],original=console.info;console.info=(label,json)=>{if(label==='[Ask publication authority]')logs.push(JSON.parse(json));};
- try{logPublicationDispatch(evidence,rows.map(r=>({id:r.id,petId:r.pet_profile_id})),'unavailable','normal');}finally{console.info=original;}
+ try{logPublicationDispatch(evidence,rows.map(r=>({id:r.id,petId:r.pet_profile_id})),'labs','normal');}finally{console.info=original;}
  assert.deepEqual(logs[0].capability,historyPublicationCapability(evidence));
  assert.deepEqual(logs[0].historyCapability,historyPublicationCapability(evidence,'history'));
- assert.equal(logs[0].obligations[0].semanticRequirement.kind,'additional_obligation');
+ assert.equal(logs[0].obligations[0].semanticRequirement.kind,'result_set_records');
+ assert.equal(logs[0].obligations[0].mapping,'result_set_component_only');
+ assert.equal(logs[0].factualComponentComplete,true);assert.equal(logs[0].labsClaimsTaskSatisfied,false);
+ assert.equal(logs[0].residualRequirementCount,1);assert.equal(logs[0].obligations[1].semanticRequirement.kind,'residual_requirement');
+ assert.deepEqual(logs[0].obligations[1].certificateAuthorizedSourceIds,[]);
+ assert.deepEqual(logs[0].obligations[1].certificateAuthorizedEventIds,[]);
+ assert.equal(logs[0].obligations[1].labsClaimsObligationSatisfied,false);
  assert.equal(logs[0].sentToModelGeneration,false);
 });

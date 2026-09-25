@@ -2,9 +2,9 @@ import type { AskEvidenceContract } from "./ask-evidence.ts";
 import { buildEvidenceNeedCoverage } from "./evidence-need-coverage.ts";
 import type { TaskObligationReview } from "./history-review-selection.ts";
 import { withinEvidenceNeedWindow, type EvidenceNeedWindow } from "./history-dates.ts";
-export type HistoryObligation = { index: number; text: string; needId?: string; petId?: string;
+export type HistoryObligation = { index: number; text: string; kind?: "residual_requirement"; needId?: string; petId?: string;
   window?: EvidenceNeedWindow; availability?: string; representedSourceIds?: string[] };
-export type ObligationCompletion = { index: number; needId?: string; petId?: string; window?: EvidenceNeedWindow;
+export type ObligationCompletion = { index: number; kind?: "residual_requirement"; needId?: string; petId?: string; window?: EvidenceNeedWindow;
   status: TaskObligationReview["status"]; sentenceIndexes: number[]; sourceIds: string[]; actionIndexes?: number[] };
 /** Whole-task review determines fulfillment. An explicitly explained unknown
  * may fulfill a comparison while its clinical evidence remains limited. Never
@@ -12,7 +12,7 @@ export type ObligationCompletion = { index: number; needId?: string; petId?: str
 export function historyTaskCompleted(completion: readonly ObligationCompletion[]): boolean {
   const whole = completion.find(item => item.index === 0);
   return !!whole && ["answered", "refused"].includes(whole.status)
-    && completion.every(item => ["answered", "refused", ...(item.index > 0 ? ["limited"] : [])].includes(item.status));
+    && completion.every(item => ["answered", "refused", ...(item.index > 0 && item.kind !== "residual_requirement" ? ["limited"] : [])].includes(item.status));
 }
 /** One whole-question obligation plus one for each requested fact/owned pet.
  * Decomposition is advisory; retaining the whole question prevents silent loss. */
@@ -41,6 +41,9 @@ export function buildHistoryObligations(evidence: AskEvidenceContract): HistoryO
     obligations.push({ index: obligations.length, text: evidence.scope.requestText, petId,
       representedSourceIds: evidence.represented.filter(span => span.petId === petId && span.sourceType === "care_update")
         .map(span => span.sourceId) });
+  }
+  for (const text of evidence.interpretation?.request?.requirements || []) {
+    obligations.push({ index: obligations.length, text, kind: "residual_requirement", representedSourceIds: [] });
   }
   return obligations;
 }
@@ -71,7 +74,7 @@ export function reviewObligationCompletion(obligations: readonly HistoryObligati
     const review = reviews.find(item => item.index === obligation.index);
     if (!review) { failures.push("obligation_review_missing:" + obligation.index); continue; }
     const cited = new Set(review.sentenceIndexes.flatMap(index => sentences[index]?.sourceIds || []));
-    const matching = sources.filter(source => cited.has(source.sourceId)
+    const matching = sources.filter(source => obligation.kind !== "residual_requirement" && cited.has(source.sourceId)
       && (!obligation.petId || source.petId === obligation.petId)
       && (withinEvidenceNeedWindow(source.occurredAt, obligation.window)
         || sourceTextReferencesWindow(source.text, obligation.window)
@@ -88,7 +91,7 @@ export function reviewObligationCompletion(obligations: readonly HistoryObligati
       && completedEmptyNeedKeys.includes(JSON.stringify([obligation.needId, obligation.petId]));
     if (review.status === "answered" && obligation.petId && !matching.length && !completedEmptyExport)
       failures.push("obligation_evidence_scope:" + obligation.index);
-    completion.push({ index: obligation.index, ...(obligation.needId ? { needId: obligation.needId } : {}),
+    completion.push({ index: obligation.index, ...(obligation.kind ? { kind: obligation.kind } : {}), ...(obligation.needId ? { needId: obligation.needId } : {}),
       ...(obligation.petId ? { petId: obligation.petId } : {}), ...(obligation.window ? { window: obligation.window } : {}),
       status: review.status, ...(review.actionIndexes ? { actionIndexes: [...review.actionIndexes] } : {}), sentenceIndexes: [...review.sentenceIndexes], sourceIds: matching.map(source => source.sourceId) });
   }

@@ -15,6 +15,8 @@ export type LabsList = {
   records: Array<{ id: string; sourceId: string; petId: string; event_at: string; body: string; predicates_matched: readonly ReadPredicate[] }>;
   coverage: ReadCoverage;
   calculations: [];
+  /** Completion metadata only; never consulted for factual source authority. */
+  residualRequirementCount?: number;
   petNames?: Record<string, string>;
   presentation?: LabsPresentation;
 };
@@ -76,7 +78,8 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
     })) return null;
   const publishable = selection ? rows.filter(row => selection.selectedEventIds.includes(row.id)) : rows;
   const petNames = ticket.selection ? Object.fromEntries(ticket.subjects.petIds.map(id => [id, evidence.petNames?.[id] || "this pet"])) : undefined;
-  const labs: LabsList = structuredClone({ ticket, coverage, calculations: [], ...(petNames ? { petNames, presentation } : {}), records: publishable.map(row => ({
+  const labs: LabsList = structuredClone({ ticket, coverage, calculations: [],
+    ...(request.requirements?.length ? { residualRequirementCount: request.requirements.length } : {}), ...(petNames ? { petNames, presentation } : {}), records: publishable.map(row => ({
     id: row.id, sourceId: careEvidenceId(row.id, evidence.history), petId: row.pet_profile_id, event_at: row.occurred_at,
     body: row.note ?? row.title ?? "", predicates_matched: ticket.predicates,
   })) });
@@ -85,6 +88,10 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
 }
 
 export function labsTaskComplete(labs: LabsList): boolean {
+  return labsFactualComponentComplete(labs) && !labs.residualRequirementCount;
+}
+
+export function labsFactualComponentComplete(labs: LabsList): boolean {
   const selected = selectionPublication(labs.ticket, labs.coverage, labs.records);
   const historyComplete = ["complete", "complete_empty"].includes(labs.coverage.status);
   return selected ? selected.transportValid && selected.complete
@@ -124,6 +131,7 @@ export function labsListReviewFailure(result: AskReasoningResult): string | null
   if (!labs || snapshots.get(labs) !== JSON.stringify(labs)) return "labs_source_snapshot_changed";
   if (JSON.stringify(labs.ticket) !== JSON.stringify(evidence?.interpretation?.request?.readTicket)
     || JSON.stringify(labs.coverage) !== JSON.stringify(evidence?.history?.ticketCoverage)
+    || (labs.residualRequirementCount || 0) !== (evidence?.interpretation?.request?.requirements?.length || 0)
     || evidence?.interpretation?.request?.mode !== "read" || !evidence.scope.readOnlyRecall
     || evidence.interpretation.request.writeJob || evidence.interpretation.request.mutationIntent
     || labs.records.some(row => !evidence.scope.authorizedPetIds.includes(row.petId))) return "labs_ticket_or_coverage_changed";

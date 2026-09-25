@@ -77,13 +77,13 @@ for(const [name,patch,interpretation] of [
  ['count',{quantity:'count'},{readOperation:'counting'}],['compare',{}, {readOperation:'comparison'}],
  ['aggregate',{}, {readOperation:'aggregation'}],['navigation',{}, {readOperation:'navigation'}],
  ['task',{task:{intent:'task'}},{}],['projection',{projection:{quantity:'body_mass'}},{}],
- ['evidence needs',{evidenceNeeds:[{id:'independent'}]},{}],['requirements',{requirements:['independent']},{}],
+ ['evidence needs',{evidenceNeeds:[{id:'independent'}]},{}],
  ['calculation',{calculatePlan:{}},{}],['profile',{evidenceBasis:'saved_profile',profileFields:['species']},{}],
  ['stored read',{storedRead:{domain:'memory'}},{}],['record selection',{recordSelection:{}},{}],
  ['write',{writeJob:{}},{}],['append',{appendJob:{}},{}],['remove',{removeJob:{}},{}],
  ['field mutation',{fieldMutationJob:{}},{}],['state mutation',{stateTransitionJob:{}},{}],
  ['lifecycle mutation',{lifecyclePlan:{}},{}],['mixed',{mode:'mixed'},{}],['mutation intent',{mutationIntent:'append'},{}]
-])test(name+' obligation cannot borrow ordinary result-set authority',async()=>{const f=await fixture();Object.assign(f.evidence.interpretation.request,patch);Object.assign(f.evidence.interpretation,interpretation);assert.equal(labs(f),null);});
+])test(name+' obligation cannot borrow ordinary result-set authority',async()=>{const f=await fixture();Object.assign(f.evidence.interpretation.request,{requirements:['Additional user-facing work']},patch);Object.assign(f.evidence.interpretation,interpretation);assert.equal(labs(f),null);});
 test('episode ticket remains outside ordinary result-set serialization',async()=>{const f=await fixture();f.evidence.interpretation.request.readTicket={...f.ticket,episode:{operation:'count'}};assert.equal(labs(f),null);});
 test('explicit unique selection requirement cannot borrow a plain result set',async()=>{const f=await fixture();f.evidence.interpretation.request.readTicket={...f.ticket,outputs:{...f.ticket.outputs,limit:1}};assert.equal(labs(f),null);});
 test('cross-pet row retains source scope exception',async()=>{const f=await fixture();assert.throws(()=>buildLabsList(f.evidence,[{...f.read.records[0],pet_profile_id:'foreign-pet'}]),/ASK_LABS_LIST_SOURCE_SCOPE/);});
@@ -99,3 +99,25 @@ test('diagnostics observe certified result-set admission and its bound source ID
  assert.deepEqual(logs[1].obligations[0].certificateAuthorizedSourceIds,['care:source-0']);assert.equal(JSON.stringify(f),before);
 });
 test('diagnostic failure cannot prevent certified admission',async()=>{const f=await fixture(),original=console.info;console.info=(label)=>{if(label==='[Ask publication authority]')throw Error('observer unavailable');};try{assert.ok(labs(f));}finally{console.info=original;}});
+
+const {labsTaskComplete,labsFactualComponentComplete,labsListReviewFailure}=await import('../app/lib/intelligence/labs-list.ts');
+const {buildHistoryObligations,historyTaskCompleted}=await import('../app/lib/intelligence/history-obligations.ts');
+const {bindPublicationObligations}=await import('../app/lib/intelligence/publication-authority.ts');
+const {reviewTaskCompletion}=await import('../app/lib/intelligence/review-task-completion.ts');
+const {assessTaskExecution}=await import('../app/lib/intelligence/task-execution-contract.ts');
+for(const residual of ['Some residual obligation.','Also include the other pet.','Compare these measurements.','Add the measurements together.','Explain the clinical diagnosis.','Render a table instead.','Repeat the typed lookup.'])test('residual publishes exact certified component but limits task: '+residual,async()=>{
+ const f=await fixture({bodies:['Observed distance: 7 m.'],terms:['distance']});f.evidence.interpretation.request.requirements=[residual];
+ const l=labs(f);assert.ok(l);assert.equal(labsFactualComponentComplete(l),true);assert.equal(labsTaskComplete(l),false);
+ const authority=derivePublicationAuthority(f.evidence,l.records);assert.deepEqual(authority.authorizedSourceIds,['care:source-0']);
+ const obligations=buildHistoryObligations(f.evidence),bound=bindPublicationObligations(f.evidence,obligations);
+ const separate=bound.obligations.filter(o=>o.kind==='residual_requirement');assert.equal(separate.length,1);assert.deepEqual(separate[0].representedSourceIds,[]);assert.equal(bound.bindings.has(separate[0].index),false);
+ const result=await generate(f);assert.equal(result.model,'server-labs-list');assert.equal(result.answer.summary,serializeLabsList(l));assert.deepEqual(result.relevantContextIds,['care:source-0']);
+ assert.equal(await reviewHistoricalAnswer({result,client}),true);const v=validateGeneratedAnswer(result,f.context,'routine',[f.pet.id]);assert.equal(v.valid,true);assert.equal(v.assessment.outcome,'limited');assert.ok(v.assessment.reasons.includes('residual_requirements_unfulfilled'));assert.equal(v.assessment.checks.evidenceSupport,'passed');
+ assert.equal(await reviewTaskCompletion({validation:v,context:f.context,requestId:'offline',validate:()=>{throw Error('unexpected repair');},client}),v);
+ const execution=assessTaskExecution({assessment:v.assessment,completion:[],responseMode:result.responseMode,actions:[],careWriteRequired:false,careReceipt:{status:'not_requested',careEntryIds:[]}});
+ assert.equal(execution.taskOutcome,'limited');assert.equal(execution.creditDisposition,'release');assert.equal(execution.mutationOutcome,'not_requested');
+ result.evidenceContract.interpretation.request.requirements=[];assert.equal(labsListReviewFailure(result),'labs_ticket_or_coverage_changed');
+});
+test('residual limitation is not silently promoted by whole-question history completion',()=>{assert.equal(historyTaskCompleted([{index:0,status:'answered',sourceIds:[],sentenceIndexes:[0]},{index:1,kind:'residual_requirement',status:'limited',sourceIds:[],sentenceIndexes:[]}]),false);});
+for(const domain of ['current_state','operation_receipt'])test('residual cannot authorize stored domain '+domain,async()=>{const f=await fixture();Object.assign(f.evidence.interpretation.request,{requirements:['Do all work'],storedRead:{domain}});assert.equal(labs(f),null);});
+test('residual cannot repair an unresolved scope or absent result certificate',async()=>{for(const mutate of [f=>f.evidence.scope.status='ambiguous',f=>delete f.read.coverage.resultSet]){const f=await fixture();f.evidence.interpretation.request.requirements=['Complete this task'];mutate(f);assert.equal(labs(f),null);}});

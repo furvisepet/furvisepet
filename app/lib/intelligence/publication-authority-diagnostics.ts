@@ -63,7 +63,7 @@ export function logLabsEligibility(evidence: AskEvidenceContract | undefined, ro
       quantity: request.quantity, readOperation: interpretation.readOperation ?? null, operation: interpretation.operation,
       outputFormat: request.outputFormat ?? null, completeness: ticket!.outputs.completeness,
       subjectScope: ticket!.subjectScope, subjectIds: ticket!.subjects.petIds,
-      referenceTurnCount: request.referenceTurnIds?.length || 0, requirementCount: request.requirements?.length || 0,
+      referenceTurnCount: request.referenceTurnIds?.length || 0, residualRequirementCount: request.requirements?.length || 0,
       certificateCount: selection?.certificates.length || 0, certificates: selection?.certificates || [],
       selectedEventIds: selection?.selectedEventIds || [], transportValid: selection?.transportValid ?? null,
       effectiveStream: coverage?.effectiveStream?.map(stream => ({ petId: stream.petId,
@@ -88,7 +88,7 @@ function obligationAuthority(evidence: AskEvidenceContract, obligation: HistoryO
   return { obligationId: "obligation_" + obligation.index, needIdHash: obligation.needId ? digest(obligation.needId) : null,
     subjectId: obligation.petId || null, semanticRequirement: {
       kind: mapsToSelection && ticket?.selection ? "selected_records" : mapsToSelection && resultSetCertified ? "result_set_records"
-        : obligation.needId ? "retrieval_probe" : "additional_obligation",
+        : obligation.kind === "residual_requirement" ? "residual_requirement" : obligation.needId ? "retrieval_probe" : "additional_obligation",
       operation: ticket?.operation ?? null, completeness: ticket?.outputs.completeness ?? null,
       selection: ticket?.selection || null, predicateKinds: ticket?.predicates.map(p => p.kind) || [],
       anchored: !!ticket?.temporal.anchor, explicitWindow: !!(ticket?.temporal.from || ticket?.temporal.to) },
@@ -97,7 +97,7 @@ function obligationAuthority(evidence: AskEvidenceContract, obligation: HistoryO
     certificateAuthorizedEventIds: mapsToSelection ? eventIds : [],
     certificateAuthorizedSourceIds: mapsToSelection ? eventIds.map(id => careEvidenceId(id, evidence.history)) : [],
     selectionComponentCertified: mapsToSelection && !!selection?.transportValid && certificates.length > 0 && certificates.every(c => c.certified),
-    availableProfileSourceIds: sources.filter(s => s.sourceType === "profile" && (!obligation.petId || s.petId === obligation.petId)).map(s => s.sourceId),
+    availableProfileSourceIds: sources.filter(s => obligation.kind !== "residual_requirement" && s.sourceType === "profile" && (!obligation.petId || s.petId === obligation.petId)).map(s => s.sourceId),
   };
 }
 export function logPublicationDispatch(evidence: AskEvidenceContract | undefined, rows: readonly Row[],
@@ -111,10 +111,13 @@ export function logPublicationDispatch(evidence: AskEvidenceContract | undefined
     return { path, minimumSafetyLevel, sentToModelGeneration: path === "model",
     capability: historyPublicationCapability(evidence),
     historyCapability: historyPublicationCapability(evidence, "history"),
-    labsClaimsTaskSatisfied: labsComplete,
+    factualComponentComplete: labsComplete,
+    residualRequirementCount: evidence.interpretation?.request?.requirements?.length || 0,
+    residualRequirementsComplete: !evidence.interpretation?.request?.requirements?.length,
+    labsClaimsTaskSatisfied: labsComplete === null ? null : labsComplete && !evidence.interpretation?.request?.requirements?.length,
     obligations: buildHistoryObligations(evidence).map(obligation => ({
       ...obligationAuthority(evidence, obligation, rows), labsClaimsObligationSatisfied:
-        path === "labs" && obligation.index === 0 ? labsComplete : null })),
+        path === "labs" && obligation.index === 0 ? labsComplete : obligation.kind === "residual_requirement" ? false : null })),
     };
   });
 }

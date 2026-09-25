@@ -143,7 +143,8 @@ export function validateGeneratedAnswer(
       rememberReviewedTaskPresentation(response.evidenceContract, response.answer, []);
     }
     const assessment = createAnswerAssessment({ body: response.answer, evidence: response.evidenceContract,
-      unsafe: !!errors.length, reasons: [...errors, ...(complete ? [] : ["history_publication_limited"])],
+      unsafe: !!errors.length, reasons: [...errors, ...(complete ? [] : ["history_publication_limited"]),
+        ...(result.labsList?.residualRequirementCount ? ["residual_requirements_unfulfilled"] : [])],
       checks: { structuralValidity: errors.length ? "failed" : "passed", evidenceSupport: errors.length ? "failed" : "passed",
         subjectDateCorrectness: errors.length ? "failed" : "passed", calculationCorrectness: "not_applicable",
         taskCompletion: complete && !errors.length ? "passed" : "failed" } });
@@ -183,7 +184,8 @@ export function validateGeneratedAnswer(
       rememberReviewedTaskPresentation(response.evidenceContract, response.answer, []);
     }
     const assessment = createAnswerAssessment({ body: response.answer, evidence: response.evidenceContract || null,
-      unsafe: !!errors.length, reasons: [...errors, ...(complete ? [] : ["labs_coverage_" + result.labsList.coverage.status])],
+      unsafe: !!errors.length, reasons: [...errors, ...(complete ? [] : ["labs_coverage_" + result.labsList.coverage.status]),
+        ...(result.labsList.residualRequirementCount ? ["residual_requirements_unfulfilled"] : [])],
       checks: { structuralValidity: errors.length ? "failed" : "passed", evidenceSupport: errors.length ? "failed" : "passed",
         subjectDateCorrectness: errors.length ? "failed" : "passed", calculationCorrectness: "not_applicable",
         taskCompletion: complete && !errors.length ? "passed" : "failed" } });

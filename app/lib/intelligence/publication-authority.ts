@@ -45,7 +45,6 @@ export function historyPublicationCapability(evidence: AskEvidenceContract,
   reject(request?.projection, "projection_present");
   reject(request?.profileFields?.length, "profile_fields_present");
   reject(request?.evidenceNeeds?.length, "evidence_needs_present");
-  reject(request?.requirements?.length, "requirements_present");
   reject(presentation === null || !ticket?.selection && presentation !== "prose", "unsupported_presentation");
   if (ticket) {
     reject(ticket.needs?.length, "ticket_needs_present");
@@ -235,6 +234,11 @@ export function bindPublicationObligations(evidence: AskEvidenceContract, existi
     const index = obligations.length;
     obligations.push({ index, text, petId: component.subjectId });
     bindings.set(index, component);
+  }
+  // Residual prose obligations never inherit component certificates or sources.
+  for (const residual of existing.filter(item => item.kind === "residual_requirement")) {
+    if (obligations.some(item => item === residual)) continue;
+    obligations.push({ ...residual, index: obligations.length, representedSourceIds: [] });
   }
   return { obligations, bindings };
 }

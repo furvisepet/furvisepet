@@ -94,7 +94,7 @@ test("model prose and forged review cannot substitute another eligible historica
 });
 test("unsupported typed capabilities and independent obligations fail closed",async()=>{
   for(const patch of [{quantity:"episodes"},{operation:"count"},{profileFields:["weight"]},
-    {projection:{quantity:"body_mass"}},{requirements:["an additional obligation"]},{evidenceNeeds:[{id:"independent",petIds:["owned-a"],terms:["different"],quote:"A generic saved observation request.",order:"context",window:null}]},
+    {projection:{quantity:"body_mass"}},{evidenceNeeds:[{id:"independent",petIds:["owned-a"],terms:["different"],quote:"A generic saved observation request.",order:"context",window:null}]},
     {outputFormat:"json"}]){
     const f=await fixture();Object.assign(f.evidence.interpretation.request,patch);
     if(patch.operation)f.evidence.interpretation.readOperation=patch.operation;
