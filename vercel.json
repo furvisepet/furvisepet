@@ -1,0 +1,3 @@
+{
+  "buildCommand": "npm run test:launch-subject-local && npm run test:security && npm run build"
+}
