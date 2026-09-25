@@ -306,3 +306,14 @@ Still requiring browser/UI execution for full R1-R12 completion:
 - emergency terminal response.
 
 The Opera connector established an authenticated Furvise production session but has been intermittently disconnecting between control calls. Do not convert that transport failure into a product failure.
+
+
+## First live-smoke findings
+
+The first live V1 smoke is **not a pass**. It found and triggered rollback for:
+- arithmetic publication from an untyped/conversation path;
+- supported earliest/latest history failing after candidate acquisition because of token-form mismatch.
+
+Ask mutation refusal did pass: the QA request to save `V1ASKWRITE-20260925` returned the public-V1 mutation limitation with zero actions and released credit.
+
+The corrected hotfix has passed the offline focused and security gates, but its two corrected behaviors still require a final live/app-layer recheck before declaring R1-R12 complete.

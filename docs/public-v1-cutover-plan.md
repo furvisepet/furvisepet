@@ -271,3 +271,51 @@ Two copy artifacts still refer to deferred behavior:
 - the dated 2026-09-15 release notes describe the earlier Ask-save and Vet Brief behavior.
 
 These are copy-cleanup items. They did not activate the deferred runtime capabilities and are not a runtime rollback trigger, but they should be reconciled with the frozen V1 promise surface.
+
+
+## First live V1 smoke rollback and hotfix — 2026-09-25
+
+The first promoted V1 artifact `747a9154a3fdb7e3ace2a6396c67eb6d4a2b1b5a` was rolled back after the QA smoke found two launch blockers:
+
+1. A supplied-only arithmetic question published a computed average (`15 kg`) even though public V1 calculations were frozen off. The semantic interpretation was not a CalculatePlan request, so the prior calculation capability gate did not own the path.
+2. A supported earliest/latest walk read acquired the correct records but then discarded them because the effective text predicate required an exact normalized token sequence: `walk` did not match the stored token `walked`.
+
+Production was returned to verified prior live deployment:
+`dpl_4RXtka8GMetUR6emZrZnC7AKuj1t`.
+
+No database migration or schema mutation occurred.
+
+### Final hotfix
+
+`main` is now:
+`1f5254fdc3b41e21b21af74054b1251f0c54e121`
+
+Tree:
+`e68d5fd891215aa0b9cb7a8192fd6a3a57ec845f`
+
+The hotfix is one clean commit on top of the failed V1 release and contains only:
+- a fail-closed public-V1 Ask capability gate: non-clarification turns must be explicit typed reads (history, saved profile, or supported StoredRead); untyped/general generated answers are unavailable;
+- conservative token-inflection equivalence for effective `text_any` matching while preserving token boundaries and contiguous multi-token terms;
+- focused tests for those capability and matcher semantics.
+
+The gate is semantic/capability-based, not sentence- or keyword-specific. Emergency preflight remains before the new Ask gate. Ask mutations retain their specific earlier block.
+
+### Verification
+
+Disposable test artifact:
+`dpl_8BqnzKwBZ9NQS46Es2gSnnVLC6wr`
+
+Results:
+- focused V1/live-smoke gate: **76/76**
+- security gate: **160/160**
+- TypeScript: clean
+- static generation: **43/43**
+- deployment: READY
+
+Clean RC artifact:
+`dpl_LkumK3naawSRapXXGznCknoucp75` — READY.
+
+Staged `main` production-target artifact:
+`dpl_CYjjFA9WKjcKuqcoMKbsVmyc7g7f` — READY.
+
+The staged artifact is **not promoted**. `www.furvise.com` remains on the rollback surface until explicit re-promotion.
