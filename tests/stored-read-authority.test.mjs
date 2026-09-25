@@ -176,7 +176,7 @@ test('provider grammar and Binder carry arbitrary-language stored READ without l
  const request={...f.request,storedRead:{operation:'read',domain:'memory',scope:'subjects',reference:null,projection:'records'},
   mode:'read',mutationIntent:null,writeJob:null,evidenceBasis:'stored',selection:'summary',operation:'recall',frame:null,
   profileFields:[],evidenceNeeds:[],projection:null,recordSelection:null,temporalScope:null,outputFormat:null,premiseQuotes:[],excludedPetNames:[],
-  removeJob:null,stateTransitionJob:null,fieldMutationJob:null,lifecyclePlan:null,appendJob:null,readTicket:null};
+  removeJob:null,stateTransitionJob:null,fieldMutationJob:null,lifecyclePlan:null,appendJob:null,readTicket:null,calculatePlan:null};
  const {default:Ajv}=await import('ajv'),validate=new Ajv().compile(askRequestProviderSchema({},f.context));
  assert.equal(validate({request}),true,JSON.stringify(validate.errors));
  for(const text of ['What remains in your ledger of recollections?','\u00bfQu\u00e9 recuerdas de este sujeto?','Go on\u2014show the retained details.']){

@@ -199,10 +199,33 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
   Object.assign(removal.properties.petNames,{minItems:1,maxItems:1});
   Object.assign(removal.properties.excludedPetNames,{maxItems:0});
   for(const variant of [profile,nonProfile,lifecycle,profileMutation,transition])Object.assign(variant.properties,{removeJob:{type:"null"}});
-  const stored = structuredClone(profile);
-  Object.assign(stored.properties, { storedRead: storedReadSchema(context?.storedReadReferences).anyOf[1],
-    evidenceBasis: { type: "string", enum: ["stored"] }, scope: { type: "string", enum: scopes } });
-  Object.assign(stored.properties.profileFields, { minItems: 0, maxItems: 0 });
+  // Encode bindStoredRequest's envelope invariants without interpreting language.
+  // Actual owned-subject and receipt resolution remains exclusively Binder-owned.
+  const storedBase = structuredClone(askRequestSchema(frame, context));
+  Object.assign(storedBase.properties, {
+    mode: { type: "string", enum: ["read"] }, evidenceBasis: { type: "string", enum: ["stored"] },
+    operation: { type: "string", enum: ["recall"] }, selection: { type: "string", enum: ["summary"] },
+  });
+  for (const field of ["quantity", "temporalScope", "from", "to", "episodeTopic", "ordinal",
+    "readTicket", "calculatePlan", "task", "projection", "recordSelection", "appendJob", "writeJob",
+    "removeJob", "fieldMutationJob", "stateTransitionJob", "lifecyclePlan", "mutationIntent", "frame"] as const)
+    Object.assign(storedBase.properties, { [field]: { type: "null" } });
+  for (const field of ["profileFields", "evidenceNeeds", "terms", "requirements", "excludedPetNames", "premiseQuotes"] as const)
+    Object.assign(storedBase.properties[field], { maxItems: 0 });
+  const storedVariant = (domain: "memory" | "current_state" | "operation_receipt", scope: "owner" | "subjects") => {
+    const variant = structuredClone(storedBase);
+    const inner = structuredClone(storedReadSchema(context?.storedReadReferences).anyOf[1]);
+    Object.assign(inner.properties!, { domain: { type: "string", enum: [domain] }, scope: { type: "string", enum: [scope] } });
+    if (domain !== "operation_receipt") Object.assign(inner.properties!, { reference: { type: "null" } });
+    Object.assign(variant.properties, { storedRead: inner,
+      scope: { type: "string", enum: scope === "owner" ? ["none"] : ["selected", "named", "conversation", "account"] } });
+    if (scope === "owner") for (const field of ["petNames", "referenceTurnIds"] as const)
+      Object.assign(variant.properties[field], { maxItems: 0 });
+    return variant;
+  };
+  const stored = [storedVariant("memory", "owner"), storedVariant("memory", "subjects"),
+    storedVariant("current_state", "subjects"), storedVariant("operation_receipt", "owner"),
+    storedVariant("operation_receipt", "subjects")];
   for (const variant of [profile, nonProfile, lifecycle, profileMutation, removal, transition])
     Object.assign(variant.properties, { storedRead: { type: "null" } });
   const calculation = structuredClone(nonProfile);
@@ -216,10 +239,10 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
     projection:{type:"null"}, recordSelection:{type:"null"}, ordinal:{type:"null"}, episodeTopic:{type:"null"}
   });
   for (const field of ["profileFields","evidenceNeeds"] as const) Object.assign(calculation.properties[field],{maxItems:0});
-  for (const variant of [stored,profile,nonProfile,lifecycle,profileMutation,removal,transition])
+  for (const variant of [...stored,profile,nonProfile,lifecycle,profileMutation,removal,transition])
     Object.assign(variant.properties,{calculatePlan:{type:"null"}});
   return { type: "object", additionalProperties: false, required: ["request"],
-    properties: { request: { anyOf: [calculation, stored, profile, nonProfile, lifecycle, profileMutation, removal,
+    properties: { request: { anyOf: [calculation, ...stored, profile, nonProfile, lifecycle, profileMutation, removal,
       ...(transitionSchema.anyOf.length > 1 ? [transition] : [])] } } };
 }
 
