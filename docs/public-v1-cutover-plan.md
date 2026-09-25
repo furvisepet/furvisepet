@@ -20,7 +20,7 @@ Status: planning only. No production change.
 - Main tree: `58d00911047beacbd8eaaa805653cefe158e1837`
 - The RC and main histories do not share a common ancestor. Do not merge the RC branch into main.
 - Latest READY production deployment observed before cutover planning:
-  - deployment: `dpl_8QtkjZQxdhSieGy6amzX5sRKDbCa`
+  - deployment: `dpl_4RXtka8GMetUR6emZrZnC7AKuj1t`
   - URL: `furvise-iryctmofd-furvise-0e3fe5ef.vercel.app`
   - target: production
   - source: Vercel CLI
@@ -28,7 +28,7 @@ Status: planning only. No production change.
 
 ## Production runtime baseline before cutover
 
-- Current production deployment `dpl_8QtkjZQxdhSieGy6amzX5sRKDbCa` became READY at 2026-09-24T20:46:23Z.
+- Current production deployment `dpl_4RXtka8GMetUR6emZrZnC7AKuj1t` became READY at 2026-09-24T20:46:23Z.
 - Vercel reports no grouped runtime errors from 2026-09-24T20:46:24Z through this planning check.
 - A provider/schema failure group at 2026-09-24T20:17:37Z belongs to an older deployment (`dpl_DoTUosTkbeQ9UbgdgaPJ5nWgWKtM`) and predates the current production rollback anchor. Do not attribute it to the cutover candidate.
 
@@ -47,7 +47,7 @@ After runtime acceptance:
 5. If the smoke passes, move `main` forward to the rehearsal commit using a fast-forward-only Git operation. Never force-update main.
 6. Promote the already-READY rehearsal Vercel deployment `dpl_CwS5wqeYVQgEFLowk5fi5E9N9apn` to production using Vercel's existing-deployment promotion flow. Promotion must reuse the existing artifact and must not rebuild it.
 7. Verify production immediately with health/runtime logs and the production smoke matrix.
-8. If a launch blocker appears, use Vercel's rollback flow to return production traffic to known-good deployment `dpl_8QtkjZQxdhSieGy6amzX5sRKDbCa`.
+8. If a launch blocker appears, use Vercel's rollback flow to return production traffic to known-good deployment `dpl_4RXtka8GMetUR6emZrZnC7AKuj1t`.
 
 Do not create a fresh production build unless promotion of the accepted artifact is unavailable. Rebuilding would discard the strongest property of this rehearsal: production can receive the exact artifact that passed acceptance.
 
@@ -154,7 +154,7 @@ Rollback triggers include:
 
 Rollback procedure:
 1. Stop further promotion or feature work.
-2. Roll the application back to READY production deployment `dpl_8QtkjZQxdhSieGy6amzX5sRKDbCa` or the immediately preceding verified production deployment recorded at deployment time.
+2. Roll the application back to READY production deployment `dpl_4RXtka8GMetUR6emZrZnC7AKuj1t` or the immediately preceding verified production deployment recorded at deployment time.
 3. Do not reverse database state blindly.
 4. If any writes occurred under the new build, prefer a reviewed forward repair for data/schema issues.
 5. Preserve request/deployment IDs and inspect only after user-facing safety is restored.
@@ -208,3 +208,26 @@ After the cutover branch is created, only these may change before first public u
 Everything else is post-launch.
 
 H-M, positive calculation execution, Ask mutations, new Vet Brief generation, episode sophistication, and broad full-suite cleanup remain outside public V1.
+
+
+## Cutover execution status — 2026-09-25
+
+The cutover has entered production staging:
+
+- `main` was fast-forwarded, without force, from `e2ab3a05690d115bff6c58719570ea1859920655` to rehearsal commit `747a9154a3fdb7e3ace2a6396c67eb6d4a2b1b5a`.
+- The resulting Git-triggered Vercel deployment is `dpl_HpWnLCJrdX8wFG2CFJGdKFaF6v3C`.
+- That deployment is READY, target=production, and reports Git SHA `747a9154a3fdb7e3ace2a6396c67eb6d4a2b1b5a`.
+- Build completed successfully through TypeScript and 43/43 static pages.
+- No Supabase migrations were applied.
+- The deployment is staged, not yet live on the custom domain.
+- `www.furvise.com` is still serving the previous public surface and current production traffic is observed on `dpl_4RXtka8GMetUR6emZrZnC7AKuj1t`.
+
+### Correct live rollback anchor
+
+The verified live rollback anchor immediately before promotion is:
+
+`dpl_4RXtka8GMetUR6emZrZnC7AKuj1t`
+
+Do **not** use `dpl_4RXtka8GMetUR6emZrZnC7AKuj1t` as the primary rollback anchor for this cutover. That deployment is READY and production-targeted but was not the deployment receiving current custom-domain traffic at the cutover checkpoint.
+
+Promotion must point live production traffic to `dpl_HpWnLCJrdX8wFG2CFJGdKFaF6v3C`. After promotion, immediately verify that custom-domain traffic moves from `dpl_4RXtka8GMetUR6emZrZnC7AKuj1t` to the new deployment.
