@@ -61,7 +61,7 @@ test("emergency guidance is calm, action-first, and makes no persistence claim",
 test("provider outage cannot intercept a high-confidence emergency", () => {
   const preflight = route.indexOf("const immediateEmergency = currentLoss === \"confirmed_current\" ? null : detectImmediateAskEmergency(question)");
   const providerConfiguration = route.indexOf("const model = getAskModelConfiguration().primary", preflight);
-  const semanticExtraction = route.indexOf("await extractTurnSubjectFrame", preflight);
+  const semanticExtraction = route.indexOf("await interpretAskQuestion", preflight);
   assert.ok(preflight > -1 && preflight < providerConfiguration && preflight < semanticExtraction);
   assert.match(route.slice(preflight, providerConfiguration), /return standaloneEmergencyResponse/);
 });
@@ -88,7 +88,7 @@ test("malformed or unavailable provider output cannot intercept emergency guidan
   const preflight = route.indexOf("const immediateEmergency = currentLoss === \"confirmed_current\" ? null : detectImmediateAskEmergency(question)");
   const reservation = route.indexOf("await reserveAiCredit", preflight);
   const persistence = route.indexOf("await ensureConversationAndUserMessage", preflight);
-  const semanticExtraction = route.indexOf("await extractTurnSubjectFrame", preflight);
+  const semanticExtraction = route.indexOf("await interpretAskQuestion", preflight);
   assert.ok(preflight > -1 && preflight < persistence && preflight < reservation && preflight < semanticExtraction);
   const responseFunction = routeFunctionSource("standaloneEmergencyResponse");
   assert.match(responseFunction, /creditsUsed: 0/);

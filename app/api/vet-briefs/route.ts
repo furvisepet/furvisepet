@@ -6,6 +6,7 @@ import { beginIdempotentRateLimitedOperation } from "../../lib/security/idempote
 import { isEligibleLegacyMemory, isEligibleStoredMemory } from "../../lib/intelligence/memory-integrity.ts";
 import type { DogMemoryRow } from "../../lib/supabase.ts";
 import type { FurviseMemoryRow } from "../../lib/intelligence/types.ts";
+import { PUBLIC_V1_CAPABILITIES, PUBLIC_V1_VET_BRIEF_LIMITATION } from "../../lib/public-v1-capabilities.ts";
 
 export async function GET(request: Request) {
   const context = await getVetBriefRequestContext(request);
@@ -27,6 +28,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const context = await getVetBriefRequestContext(request);
   if ("response" in context) return context.response;
+  if (!PUBLIC_V1_CAPABILITIES.vetBriefGeneration)
+    return Response.json({ code: "VET_BRIEF_UNAVAILABLE_PUBLIC_V1", error: PUBLIC_V1_VET_BRIEF_LIMITATION }, { status: 409 });
   let rawBody: unknown;
   try { rawBody = await readBoundedJson(request, API_BODY_LIMITS.vetBrief); }
   catch (error) {

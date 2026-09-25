@@ -1,0 +1,227 @@
+[Furvise idempotency] operation {
+  operationType: 'ask.submit.persisted_answer_v2',
+  outcome: 'new',
+  requestId: '64acdf26-158e-4022-83ab-1798eea29954',
+  elapsedMs: 8
+}
+[Furvise rate limit] decision {
+  allowed: true,
+  dimension: 'user',
+  elapsedMs: 14,
+  hashedIpPrefix: '7927b5fadc5e',
+  policy: 'ASK_AI',
+  requestId: '64acdf26-158e-4022-83ab-1798eea29954',
+  retryAfterSeconds: 0,
+  route: '/api/ask',
+  userPresent: true
+}
+[Furvise rate limit] decision {
+  allowed: true,
+  dimension: 'concurrency',
+  elapsedMs: 0,
+  policy: 'ASK_AI',
+  requestId: '64acdf26-158e-4022-83ab-1798eea29954',
+  retryAfterSeconds: 195,
+  route: '/api/ask',
+  userPresent: true
+}
+[Furvise AI guard] {
+  event: 'provider call reserved',
+  allowed: true,
+  callNumber: 1,
+  dailyCallCount: 1,
+  dailyCostMicrodollars: 51864,
+  feature: 'ask',
+  model: 'gpt-5.4-mini',
+  operationId: '98362fdf48189f1066ccae0054e61b80a850492502e9e1e8e3b8f2f8bd065b53',
+  requestId: '82737e3e-59d0-4bdf-9370-ead655407d5a',
+  reservedCostMicrodollars: 51864
+}
+[Furvise AI guard] {
+  event: 'operation admitted',
+  allowed: true,
+  emergencyDisabled: false,
+  feature: 'ask',
+  model: 'gpt-5.4-mini',
+  operationId: '98362fdf48189f1066ccae0054e61b80a850492502e9e1e8e3b8f2f8bd065b53',
+  requestId: '82737e3e-59d0-4bdf-9370-ead655407d5a'
+}
+[Furvise AI guard] {
+  event: 'user credit state',
+  allowed: true,
+  feature: 'ask',
+  model: 'gpt-5.4-mini',
+  operationId: '98362fdf48189f1066ccae0054e61b80a850492502e9e1e8e3b8f2f8bd065b53',
+  requestId: '82737e3e-59d0-4bdf-9370-ead655407d5a',
+  userCreditState: 'reserved'
+}
+[Furvise AI guard] {
+  event: 'provider call started',
+  allowed: true,
+  callNumber: 1,
+  estimatedInputTokens: 14037,
+  feature: 'ask',
+  model: 'gpt-5.4-mini',
+  operationId: '98362fdf48189f1066ccae0054e61b80a850492502e9e1e8e3b8f2f8bd065b53',
+  requestId: '82737e3e-59d0-4bdf-9370-ead655407d5a',
+  reservedCostMicrodollars: 51864
+}
+[Ask provider] stage {
+  configuredOutputLimit: 4096,
+  conversationId: '2f074271-fdb8-4438-bb58-76981f79d507',
+  elapsedMs: 0,
+  fallbackEligible: null,
+  fallbackFrom: null,
+  model: 'gpt-5.4-mini',
+  outcome: 'started',
+  finishReason: null,
+  incompleteReason: null,
+  inputTokens: null,
+  outputLimitReached: false,
+  outputTokens: null,
+  parsingAttempted: null,
+  petId: 'f33c7c9c-1e66-4d6f-b39c-fd85b7cd8932',
+  providerCallCount: 1,
+  providerErrorCode: null,
+  providerErrorType: null,
+  providerStatus: null,
+  requestId: '64acdf26-158e-4022-83ab-1798eea29954',
+  retryAfterMs: null,
+  rawOutputLength: null,
+  stage: 'interpretation',
+  timedOut: false,
+  ticketArrived: null,
+  validationDetails: null
+}
+[Furvise AI guard] {
+  event: 'provider call reconciled',
+  actualInputTokens: 22177,
+  actualOutputTokens: 820,
+  allowed: true,
+  callNumber: 1,
+  dailyCallCount: 1,
+  dailyCostMicrodollars: 20323,
+  feature: 'ask',
+  model: 'gpt-5.4-mini',
+  operationId: '98362fdf48189f1066ccae0054e61b80a850492502e9e1e8e3b8f2f8bd065b53',
+  reconciledCostMicrodollars: 20323,
+  requestId: '82737e3e-59d0-4bdf-9370-ead655407d5a',
+  reservedCostMicrodollars: 51864
+}
+[Ask Brain] proposal {
+  sourceMessageId: '72578348-a630-4fda-b24f-9708fb0a8ed9',
+  mode: 'read',
+  operation: 'recall',
+  mutationIntent: null,
+  taskIntent: null,
+  evidenceBasis: 'saved_history',
+  writeJob: null
+}
+[Ask Brain] rejected read ticket {"errorCode":"ASK_REQUEST_CONTRACT_READ_TICKET","sourceMessageId":"72578348-a630-4fda-b24f-9708fb0a8ed9","field":"outputs.strategy","rule":"temporal_endpoints_requires_compare","readTicketPresent":true,"readTicket":{"subjectScope":"named","selection":null,"operation":"read","episode":null,"temporal":{"calendar":null,"from":"2026-09-01T00:00:00Z","to":"2026-09-02T00:00:00Z","anchor":null},"searchHints":null,"predicates":[{"kind":"text_any","terms":["weight","weighed","weighing","recorded weight","body weight"]}],"outputs":{"strategy":"temporal_endpoints","completeness":"sufficient","ordering":"asc","limit":null},"probes":[]},"needs":null,"request":{"mode":"read","operation":"recall","scope":"named","petNames":["Milo"],"evidenceBasis":"saved_history","writeJob":null}}
+[Furvise operations] {
+  actor: undefined,
+  durationMs: undefined,
+  environment: 'production',
+  errorCode: 'ASK_REQUEST_CONTRACT_READ_TICKET',
+  eventType: 'provider_failure',
+  feature: 'ask',
+  metadata: {},
+  operationId: '64acdf26-158e-4022-83ab-1798eea29954',
+  requestId: '64acdf26-158e-4022-83ab-1798eea29954',
+  resource: undefined,
+  route: '/api/ask',
+  severity: 'high',
+  timestamp: '2026-09-24T23:02:11.950Z'
+}
+[Ask provider] stage failed {
+  configuredOutputLimit: 4096,
+  conversationId: '2f074271-fdb8-4438-bb58-76981f79d507',
+  elapsedMs: 8617,
+  fallbackEligible: null,
+  fallbackFrom: null,
+  model: 'gpt-5.4-mini',
+  outcome: 'failed',
+  finishReason: null,
+  incompleteReason: null,
+  inputTokens: 22177,
+  outputLimitReached: false,
+  outputTokens: 820,
+  parsingAttempted: true,
+  petId: 'f33c7c9c-1e66-4d6f-b39c-fd85b7cd8932',
+  providerCallCount: 1,
+  providerErrorCode: 'ASK_REQUEST_CONTRACT_READ_TICKET',
+  providerErrorType: 'semantic',
+  providerStatus: null,
+  requestId: '64acdf26-158e-4022-83ab-1798eea29954',
+  retryAfterMs: null,
+  rawOutputLength: null,
+  stage: 'interpretation',
+  timedOut: false,
+  ticketArrived: true,
+  validationDetails: null
+}
+[Furvise AI guard] {
+  event: 'operation failed',
+  allowed: false,
+  denialReason: 'operation_failed',
+  feature: 'ask',
+  operationId: '98362fdf48189f1066ccae0054e61b80a850492502e9e1e8e3b8f2f8bd065b53',
+  requestId: '82737e3e-59d0-4bdf-9370-ead655407d5a',
+  safeErrorClass: 'AskPipelineError'
+}
+[Furvise rate limit] decision {
+  allowed: true,
+  dimension: 'concurrency',
+  elapsedMs: 0,
+  policy: 'ASK_AI',
+  requestId: '64acdf26-158e-4022-83ab-1798eea29954',
+  retryAfterSeconds: 0,
+  route: '/api/ask',
+  userPresent: true
+}
+[Furvise operations] {
+  actor: undefined,
+  durationMs: undefined,
+  environment: 'production',
+  errorCode: 'ASK_REQUEST_CONTRACT_READ_TICKET',
+  eventType: 'application_error',
+  feature: 'ask',
+  metadata: { component: 'interpretation_failed', finalErrorClass: 'unknown' },
+  operationId: '64acdf26-158e-4022-83ab-1798eea29954',
+  requestId: '64acdf26-158e-4022-83ab-1798eea29954',
+  resource: undefined,
+  route: '/api/ask',
+  severity: 'high',
+  timestamp: '2026-09-24T23:02:12.014Z'
+}
+[Furvise operations] {
+  actor: 'e98c13a54108e21a',
+  durationMs: undefined,
+  environment: 'production',
+  errorCode: undefined,
+  eventType: 'ask_turn',
+  feature: 'ask',
+  metadata: {
+    actionCount: 0,
+    candidateCount: 0,
+    creditDisposition: 'release',
+    creditState: 'released',
+    executionMode: 'ai',
+    finalErrorClass: 'interpretation_failed',
+    finalOutcome: 'FAILED_RETRYABLE',
+    finalStage: 'FAILED_RETRYABLE',
+    optionalFailureCount: 0,
+    optionalFailures: '',
+    providerCallCount: 1,
+    providerFailureClass: 'ASK_REQUEST_CONTRACT_READ_TICKET',
+    routeType: 'pet_care',
+    settlementState: 'reconciled',
+    subjectResolutionStrategy: null
+  },
+  operationId: '82737e3e-59d0-4bdf-9370-ead655407d5a',
+  requestId: '64acdf26-158e-4022-83ab-1798eea29954',
+  resource: 'bf9838d8709b4a87',
+  route: '/api/ask',
+  severity: 'warning',
+  timestamp: '2026-09-24T23:02:12.015Z'
+}

@@ -1,7 +1,7 @@
+import * as C from "./helpers/canonical-calculation-retirement.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { historyNarrativeAnchorsSupported } from '../app/lib/intelligence/history-narrative-facts.ts';
-import { verifiedCalculationQuantities, evaluateCalculationExpression } from '../app/lib/intelligence/history-calculation.ts';
 import { clipHistoryPlan } from '../app/lib/intelligence/history-access.ts';
 import { recordHistoryReview, readReviewedHistoryAnswer, historyReviewSignature } from '../app/lib/intelligence/history-review-state.ts';
 import { recordedInventory, recordedCensus } from '../app/lib/intelligence/recorded-inventory.ts';
@@ -12,13 +12,11 @@ test('signed source quantities cannot silently reverse sign', () => {
     assert.equal(historyNarrativeAnchorsSupported(answer, [{ text: source }], '', [], false), false, source + ' -> ' + answer);
   assert.equal(historyNarrativeAnchorsSupported('Change was -5 kg.', [{ text: 'Change was −5 kg.' }], '', [], false), true);
 });
-test('a unicode minus in a source cannot ground a positive operand', () => {
-  const proposal = { operation: 'convert', operands: [{ sourceId: 'a', field: 'text', literal: '5 kg' }], value: 5000, unit: 'g' };
-  assert.equal(verifiedCalculationQuantities([proposal], [{ sourceId: 'a', text: 'Change was −5 kg.' }]), null);
+test("unicode source minus survives canonical conversion without provider sign override",async()=>{
+ await C.certified("convert",["Change was \u22125 kg"],"g",-5000);C.rejects(c=>c.operands[0].value=5);
 });
-test('a single expression leaf obeys finite value and scale limits', () => {
-  for (const operand of [{ value: NaN, scale: 1 }, { value: Infinity, scale: 1 }, { value: 1, scale: 0 }, { value: 1, scale: -1 }, { value: 1e13, scale: 1 }])
-    assert.equal(evaluateCalculationExpression([0], [{ ...operand, dimension: 'mass' }]), null);
+test("canonical operands cannot supply nonfinite values scales or expression leaves",async()=>{
+ for(const value of [NaN,Infinity,1e99])C.rejects(c=>c.operands[0].value=value);C.rejects(c=>c.operands[0].scale=0);C.rejects(c=>c.expression=[0]);
 });
 test('history clipping compares instants rather than timestamp spellings', () => {
   const access = { months: 3, from: '2026-06-11T00:00:00.000Z', to: '2026-09-12T00:00:00.000Z' };
@@ -50,7 +48,8 @@ test('unresolved episode corrections do not masquerade as a transient outage', (
 });
 
 import { withExecutionDeadline } from '../app/lib/ai/execution-deadline.ts';
-import { deterministicReadProjection } from '../app/lib/intelligence/read-projection.ts';
+import { assertStoredPublicationUnavailable } from './helpers/unsupported-stored-publication.mjs';
+import { certifiedHistoryRead } from './helpers/certified-history-read.mjs';
 test('shared execution timeout settles an abort-ignoring read and observes late rejection', async () => {
   let rejectRead, signal;
   const pending = withExecutionDeadline(s => { signal = s; return new Promise((_, reject) => { rejectRead = reject; }); }, 10);
@@ -66,11 +65,15 @@ function projectionFixture(text, occurredAt = '2024-01-09T00:00:00+00:00') {
     represented: [{ sourceId: 'care:a', petId: 'pet', sourceType: 'care_update', start: 0, end: text.length, text, occurredAt }],
     sources: [{ petId: 'pet', status: 'available', loadedIds: ['care:a'] }] };
 }
-test('dated projection includes PostgreSQL midnight and excludes the upper bound', () => {
-  assert.match(deterministicReadProjection(projectionFixture('Clover body weight was 2.1 kg.')).sentences[0].text, /2100/);
-  assert.equal(deterministicReadProjection(projectionFixture('Clover body weight was 2.1 kg.', '2024-01-10T00:00:00+00:00')), null);
+test("canonical temporal read includes PostgreSQL midnight and excludes upper boundary",async()=>{
+ const e=projectionFixture("Clover body weight was 2.1 kg.");
+ const temporal={...e.interpretation.history,anchor:null};
+ const included=await certifiedHistoryRead(e,{temporal});assert.deepEqual(included.result.records.map(r=>r.id),["a"]);
+ const upper=projectionFixture("Clover body weight was 2.1 kg.","2024-01-10T00:00:00+00:00");
+ const excluded=await certifiedHistoryRead(upper,{temporal});assert.deepEqual(excluded.result.records,[]);
+ await assertStoredPublicationUnavailable(e);
 });
-test('deterministic projection does not turn uncertain or negated weight into a value', () => {
-  for (const text of ['Clover never weighed 2.1 kg.', "Clover hasn't weighed 2.1 kg.", 'If Clover weighed 2.1 kg, this is hypothetical.', 'Clover body weight was 2.1 kg, possibly.'])
-    assert.equal(deterministicReadProjection(projectionFixture(text)), null, text);
+test("uncertain or negated measurements cannot create a scalar projection",async()=>{
+ for(const text of ["Clover never weighed 2.1 kg.","Clover has not weighed 2.1 kg.","If Clover weighed 2.1 kg, this is hypothetical.","Clover body weight was 2.1 kg, possibly."])
+  await assertStoredPublicationUnavailable(projectionFixture(text));
 });

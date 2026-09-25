@@ -1,7 +1,7 @@
 export { buildFurviseContext, FurviseContextError } from "./retrieve-context";
 export { runFurviseIntelligence } from "./run-intelligence";
 export type { FurviseIntelligenceResult } from "./run-intelligence";
-export { persistIntelligenceLearnings, prepareAskMemoryAuthorityLearnings, IntelligencePersistenceError } from "./persist-learnings";
+export { prepareAskMemoryAuthorityLearnings, IntelligencePersistenceError } from "./persist-learnings";
 export { resolveProductSafety, type ProductSafety } from "./product-safety";
 export { applySafetyFloor, resolveSafetyState } from "./safety-state";
 export { logIntelligenceEvent } from "./logging";
@@ -12,7 +12,6 @@ export { toAskSafetyLevel, persistedLearningConfirmation } from "./response-rend
 export { getIntelligenceFeatureMode } from "./feature-modes";
 export type { IntelligenceFeatureMode } from "./feature-modes";
 export { runFeatureIntelligence } from "./run-feature-intelligence";
-export { parseIntelligenceVetBrief } from "./vet-brief";
 export type { IntelligenceVetBrief } from "./vet-brief";
 export type { FeatureIntelligenceResult } from "./run-feature-intelligence";
 export type * from "./types";

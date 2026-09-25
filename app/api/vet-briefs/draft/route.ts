@@ -23,6 +23,7 @@ import { RateLimitRejection, requireRateLimitedRequest } from "../../../lib/secu
 import { claimIdempotentOperation } from "../../../lib/security/idempotency";
 
 import { addVetBriefCoverage } from "../../../lib/vet-brief/review";
+import { PUBLIC_V1_CAPABILITIES, PUBLIC_V1_VET_BRIEF_LIMITATION } from "../../../lib/public-v1-capabilities.ts";
 
 export const maxDuration = 300;
 
@@ -43,6 +44,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const auth = await getVetBriefRequestContext(request);
   if ("response" in auth) return auth.response;
+  if (!PUBLIC_V1_CAPABILITIES.vetBriefGeneration)
+    return Response.json({ code: "VET_BRIEF_UNAVAILABLE_PUBLIC_V1", error: PUBLIC_V1_VET_BRIEF_LIMITATION }, { status: 409 });
   let rawBody: unknown;
   try { rawBody = await readBoundedJson(request, API_BODY_LIMITS.vetBrief); }
   catch (error) {

@@ -1,11 +1,13 @@
+import {removeAction} from './helpers/canonical-remove.mjs';
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import {
-  prepareFurviseApplicationActions,
+  prepareFurviseApplicationActions, prepareBoundReplaceAction,
   resolveFurviseActionTargetBindings,
 } from "../app/lib/application-actions/planner.ts";
 
+import {validateReplaceJob} from "../app/lib/furvise-brain/replace-job.ts";
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const capability = read("app/lib/application-actions/capabilities.ts");
 const reasoning = read("app/lib/ai/ask-reasoning.ts");
@@ -17,7 +19,16 @@ const petId = "11000000-0000-4000-8000-000000000011";
 const exactEntryId = "11000000-0000-4000-8000-000000000101";
 const newerEntryId = "11000000-0000-4000-8000-000000000102";
 
-function targetAction(kind = "care_history.remove", target = "specified") {
+async function targetAction(kind = "care_history.remove", target = "specified") {
+  if(kind==='care_history.remove' && target==='specified')return removeAction({petId,recordId:exactEntryId});
+  if(kind==='care_history.edit'){
+    const text='Exact replacement.';
+    const job=validateReplaceJob({operation:'replace',target:{kind:'exact_record',ref:'given'},petName:'Subject',
+      instructionQuote:text,bodyQuote:text,constraints:[]},{id:'source',text,createdAt:'2026-09-23T00:00:00Z'},
+      {id:petId,name:'Subject'},{ownerId:'owner',references:[{ref:'given',recordId:exactEntryId,ownerId:'owner',petId,
+        updatedAt:'2026-09-22T00:00:00Z',createdAt:'2026-09-21T00:00:00Z',body:'Before',eventAt:'2026-09-21T00:00:00Z'}]});
+    return prepareBoundReplaceAction(job,{id:'care:'+exactEntryId,petId,sourceType:'care_update'},'Subject','request');
+  }
   return prepareFurviseApplicationActions({
     petId,
     petName: "Maple",
@@ -38,8 +49,8 @@ function targetAction(kind = "care_history.remove", target = "specified") {
   })[0];
 }
 
-test("exact discussed record binding never substitutes a different newer record", () => {
-  const action = targetAction();
+test("exact discussed record binding never substitutes a different newer record", async () => {
+  const action = await targetAction();
   const bindings = resolveFurviseActionTargetBindings({
     actions: [action],
     referencedRecords: [{ id: `care:${exactEntryId}`, petId, sourceType: "care_update" }],
@@ -50,20 +61,20 @@ test("exact discussed record binding never substitutes a different newer record"
   assert.doesNotMatch(capability, /order\("occurred_at"|order\("updated_at"/);
 });
 
-test("missing, ambiguous, malformed, and cross-pet references fail closed", () => {
-  const action = targetAction();
+test("missing, unbound, malformed, and cross-pet references fail closed", async () => {
+  const action = await targetAction();
   const resolve = (referencedRecords) => resolveFurviseActionTargetBindings({ actions: [action], referencedRecords });
   assert.deepEqual(resolve([]), {});
-  assert.deepEqual(resolve([
+  assert.deepEqual(resolveFurviseActionTargetBindings({actions:[{...action,targetSourceId:undefined}],referencedRecords:[
     { id: `care:${exactEntryId}`, petId, sourceType: "care_update" },
     { id: `care:${newerEntryId}`, petId, sourceType: "care_update" },
-  ]), {});
+  ]}), {});
   assert.deepEqual(resolve([{ id: "care:not-a-uuid", petId, sourceType: "care_update" }]), {});
   assert.deepEqual(resolve([{ id: `care:${exactEntryId}`, petId: "22000000-0000-4000-8000-000000000022", sourceType: "care_update" }]), {});
   assert.match(capability, /requiresBoundTarget\(authoritativeAction\) && !targetId/);
 });
-test('explicit operation identity survives broad answer citations and never falls back from an invalid target',()=>{
-  const action={...targetAction('care_history.edit'),targetSourceId:`care:${exactEntryId}`};
+test('explicit operation identity survives broad answer citations and never falls back from an invalid target',async()=>{
+  const action={...await targetAction('care_history.edit'),targetSourceId:`care:${exactEntryId}`};
   const records=[{id:`care:${exactEntryId}`,petId,sourceType:'care_update'},
     {id:`care:${newerEntryId}`,petId,sourceType:'care_update'}];
   const resolve=a=>resolveFurviseActionTargetBindings({actions:[a],referencedRecords:records,targetRecords:records});
@@ -73,8 +84,8 @@ test('explicit operation identity survives broad answer citations and never fall
     targetRecords:[{...records[0],petId:'foreign'}]}),{});
 });
 
-test("positional latest/last target proposals are no longer eligible authority", () => {
-  assert.equal(targetAction("care_history.remove", "last"), undefined);
+test("positional latest/last target proposals are no longer eligible authority", async () => {
+  assert.equal(await targetAction("care_history.remove", "last"), undefined);
   assert.match(reasoning, /never target the last, latest, recent, or merely eligible record/);
   assert.match(route, /resolveFurviseActionTargetBindings/);
   assert.match(route, /targetBindings: actionTargetBindings/);

@@ -14,6 +14,10 @@ registerHooks({
 
 const { interpretAskQuestion } = await import("../app/lib/intelligence/interpret-ask.ts");
 
+
+const readProposal = (patch = {}) => ({version:'ask-request.v2',mode:'read',question:'Read the saved record.',requirements:[],referenceTurnIds:[],scope:'named',petNames:['Pebble'],operation:'recall',selection:'latest',quantity:'records',topic:'history',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:null,evidenceBasis:'saved_history',premiseQuotes:[],readTicket:{operation:'read',temporal:{from:null,to:null,anchor:null},predicates:[],outputs:{completeness:'exhaustive',ordering:'desc',limit:1}},...patch});
+const reply = value => ({output_text:JSON.stringify(value)});
+
 const source = {
   id: "user-story",
   role: "user",
@@ -31,14 +35,14 @@ const context = {
   timeZone: "America/Vancouver",
 };
 
-test("casual working-memory follow-up is resolved before provider interpretation", async () => {
+test("casual working-memory follow-up reaches the same Brain interpreter", async () => {
   let calls = 0;
   const result = await interpretAskQuestion({
     context,
     model: "test-model",
-    client: { responses: { create: async () => { calls++; throw new Error("provider should not run"); } } },
+    client: { responses: { create: async () => { calls++; return reply(readProposal({mode:'conversation',scope:'none',petNames:[],operation:'general',quantity:null,evidenceBasis:'general',readTicket:null,question:source.text,referenceTurnIds:[source.id]})); } } },
   });
-  assert.equal(calls, 0);
+  assert.equal(calls, 1);
   assert.equal(result.conversationOnly, true);
   assert.equal(result.referenceQuestion, source.text);
   assert.deepEqual(result.request.referenceTurnIds, [source.id]);
@@ -56,7 +60,7 @@ test("fresh history question still requires semantic interpretation", async () =
   assert.equal(calls, 1);
 });
 
-test("immediate saved-note readback bypasses provider interpretation", async () => {
+test("immediate saved-note readback reaches Brain and retains the receipt reference", async () => {
   let calls = 0;
   const saveTurn = {
     id: "save-turn",
@@ -70,16 +74,16 @@ test("immediate saved-note readback bypasses provider interpretation", async () 
     context: { ...context, currentMessage: "What did I just save for Pebble?", conversationTurns: [saveTurn],
       currentTurn: { id: "current-read", role: "user", text: "What did I just save for Pebble?", createdAt: "2026-09-18T20:00:01.000Z" } },
     model: "test-model",
-    client: { responses: { create: async () => { calls++; throw new Error("provider should not run"); } } },
+    client: { responses: { create: async () => { calls++; return reply(readProposal({referenceTurnIds:['save-turn']})); } } },
   });
-  assert.equal(calls, 0);
+  assert.equal(calls, 1);
   assert.equal(result.readOnly, true);
   assert.equal(result.request.evidenceBasis, "saved_history");
   assert.deepEqual(result.request.referenceTurnIds, ["save-turn"]);
   assert.deepEqual(result.petIds, ["pebble"]);
 });
 
-test("saved-note shortcut refuses a different named pet", async () => {
+test("a different named pet also reaches Brain instead of a readback shortcut", async () => {
   let calls = 0;
   const bramble = { id: "bramble", name: "Bramble", user_id: "owner", species: "cat" };
   const saveTurn = { id: "save-turn", role: "user", text: "Pebble skipped breakfast. Save that for today.", createdAt: "2026-09-18T20:00:00.000Z",
@@ -94,16 +98,19 @@ test("saved-note shortcut refuses a different named pet", async () => {
   assert.equal(calls, 1);
 });
 
-test("latest named saved-history weight bypasses provider interpretation",async()=>{
+test("latest named saved-history weight reaches Brain",async()=>{
   let calls=0;
   const q="Look at Pebble's latest weight.";
   const result=await interpretAskQuestion({
     context:{...context,currentMessage:q,currentTurn:{id:"latest-weight",role:"user",text:q,createdAt:"2026-09-18T23:00:00.000Z"}},
-    model:"test-model",client:{responses:{create:async()=>{calls++;throw new Error("provider should not run");}}},
+    model:"test-model",client:{responses:{create:async()=>{calls++;return reply(readProposal({topic:"weight"}));}}},
   });
-  assert.equal(calls,0);
+  assert.equal(calls,1);
   assert.equal(result.request.evidenceBasis,"saved_history");
-  assert.equal(result.selection,"latest");
+  assert.deepEqual(result.request.readTicket.selection,{groupBy:["subject"],union:[{
+    orderBy:[{field:"event_at",direction:"desc"}],take:{count:1,per:"group"}}]});
+  assert.equal(result.request.readTicket.outputs.strategy,undefined);
+  assert.equal(result.request.readTicket.outputs.limit,null);
   assert.equal(result.topic,"weight");
   assert.deepEqual(result.petIds,["pebble"]);
 });
@@ -118,7 +125,7 @@ test("since-event named history read reaches Brain instead of a phrase shortcut"
   assert.equal(calls,1);
 });
 
-test("explicit profile weight does not use the saved-history latest-weight shortcut",async()=>{
+test("explicit profile weight reaches Brain",async()=>{
   let calls=0;
   const q="What is Pebble's current profile weight?";
   await assert.rejects(interpretAskQuestion({
@@ -128,17 +135,20 @@ test("explicit profile weight does not use the saved-history latest-weight short
   assert.equal(calls,1);
 });
 
-test("completed mixed save last-two-weight companion bypasses provider interpretation",async()=>{
+test("completed mixed-save companion reaches Brain without authorizing another write",async()=>{
   let calls=0;
   const q="tell me Pebble's last two weights and whether this note includes a weight.";
   const result=await interpretAskQuestion({
     context:{...context,ownerNoteAlreadySaved:true,completedOwnerNote:{sourceMessageId:"save",petId:"pebble",entryIds:["row"],note:"Pebble ate less at lunch today."},
       currentMessage:q,currentTurn:{id:"mixed-read",role:"user",text:q,createdAt:"2026-09-18T23:10:00.000Z"}},
-    model:"test-model",client:{responses:{create:async()=>{calls++;throw new Error("provider should not run");}}},
+    model:"test-model",client:{responses:{create:async()=>{calls++;return reply(readProposal());}}},
   });
-  assert.equal(calls,0);
+  assert.equal(calls,1);
   assert.equal(result.request.evidenceBasis,"saved_history");
-  assert.equal(result.selection,"latest");
+  assert.deepEqual(result.request.readTicket.selection,{groupBy:["subject"],union:[{
+    orderBy:[{field:"event_at",direction:"desc"}],take:{count:1,per:"group"}}]});
+  assert.equal(result.request.readTicket.outputs.strategy,undefined);
+  assert.equal(result.request.readTicket.outputs.limit,null);
   assert.equal(result.request.task,null);
   assert.deepEqual(result.petIds,["pebble"]);
 });

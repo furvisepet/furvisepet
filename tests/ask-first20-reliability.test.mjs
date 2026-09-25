@@ -4,7 +4,6 @@ import vm from 'node:vm';
 import test from 'node:test';
 import ts from 'typescript';
 import { ASK_CLIENT_TIMEOUT_MS, ASK_MAX_QUESTION_CHARACTERS } from '../app/lib/ai/ask-execution-limits.ts';
-import { planDeterministicAskCommand } from '../app/lib/ai/ask-command-router.ts';
 import { classifyFurviseCapabilityQuestion, buildFurviseCapabilityResponse } from '../app/lib/ai/ask-internal-product-policy.ts';
 import { finalizeDurableAskAnswer } from '../app/lib/furvise-brain/durable-answer-finalization.ts';
 
@@ -21,16 +20,6 @@ function extract(path, name, globals = {}) {
   return vm.runInNewContext(js + '\n' + name, { Response, Request, URL, Buffer, ...globals });
 }
 const noop = () => {};
-
-test('compound and other-pet navigation retains interpretation; standalone commands still route', () => {
-  for (const input of ["Show Milo's profile and explain his weight trend", "Open Luna's profile", 'Show her care history, then summarize it', 'View the profile because she is limping']) {
-    assert.equal(planDeterministicAskCommand(input, 'Milo'), null, input);
-  }
-  for (const input of ["Open Milo's profile", 'Show her care history', 'Please view the Vet Brief.', 'Go to the pet profile']) {
-    assert.equal(planDeterministicAskCommand(input, 'Milo')?.routeType, 'application_action', input);
-  }
-  assert.equal(planDeterministicAskCommand("Open Mr. Cat's profile", 'Mr. Cat')?.routeType, 'application_action');
-});
 
 test('output instructions do not become feature gates; current capability copy stays truthful', () => {
   for (const input of ["Export Milo's weight records as CSV", 'Download these notes', 'Write a printable report', 'What did the PDF say about his weight?', 'Show all history as JSON']) {

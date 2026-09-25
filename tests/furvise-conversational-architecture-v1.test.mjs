@@ -1,4 +1,8 @@
+import { fieldMutationActionMatches } from "../app/lib/furvise-brain/field-mutation-job.ts";
+import { authorizeFurviseActionExecution } from "../app/lib/furvise-brain/action-organ.ts";
 import assert from "node:assert/strict";
+import { bindFieldMutationJob } from "../app/lib/furvise-brain/field-mutation-job.ts";
+import { prepareBoundFieldMutationAction } from "../app/lib/application-actions/planner.ts";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { buildAskConversationResponse, parseAskConversationResponse } from "../app/lib/ask.mjs";
@@ -6,7 +10,6 @@ import {
   FURVISE_ACTION_KINDS,
   containsUnverifiedStateClaim,
   enforceVerifiedStateClaims,
-  executeFurviseApplicationAction,
   getFurviseActionPolicy,
   getFurviseMemoryDefinition,
   parseModelApplicationActions,
@@ -17,6 +20,19 @@ import { getAskPresentationMode, shouldShowSuggestedQuestions } from "../app/lib
 import { orchestrateAskTurn } from "../app/lib/ai/ask-orchestrator.ts";
 import { buildVetBriefDraft } from "../app/lib/vet-brief/builder.ts";
 
+function boundOwnerAction(valueQuote, instructionQuote) {
+  const job = bindFieldMutationJob({domain:"owner_preference",operation:"set_field",petName:null,
+    field:"preferred_language",valueQuote,instructionQuote},
+    {id:"message-user",role:"user",text:instructionQuote,createdAt:"2026-09-23T00:00:00Z"},[],"user-1");
+  return prepareBoundFieldMutationAction(job,"Mani","request","pet-mani");
+}
+function boundProfileAction(petId, petName, valueQuote) {
+  const text = "Set " + valueQuote + " as requested.";
+  const job = bindFieldMutationJob({domain:"pet_profile",operation:"set_field",petName,field:"weight",instructionQuote:text,valueQuote},
+    {id:"message-user",role:"user",text,createdAt:"2026-09-23T00:00:00Z"},
+    [{id:petId,name:petName,user_id:"user-1"}],"user-1");
+  return prepareBoundFieldMutationAction(job,petName,"request");
+}
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const askRoute = read("app/api/ask/route.ts");
 const actionRoute = read("app/api/ask/actions/[messageId]/route.ts");
@@ -47,10 +63,12 @@ test("model actions require grounded evidence and are rebound to the server-sele
   }], source);
   assert.equal(proposals.length, 1);
   const [action] = prepareFurviseApplicationActions({ proposals, petId: "pet-mani", petName: "Mani", requestId: "request-1", sourceMessage: source });
-  assert.equal(action.petId, "pet-mani");
-  assert.equal(action.authorizationScope, "owned_pet");
-  assert.equal(action.safetyClass, "LOW_RISK_REVERSIBLE");
-  assert.equal(shouldAutoExecuteAction(action), true);
+  assert.equal(action, undefined, "grounded model prose cannot create profile mutation authority");
+  const canonical = boundProfileAction("pet-mani", "Mani", "4.2 kg");
+  assert.equal(canonical.petId, "pet-mani");
+  assert.equal(canonical.authorizationScope, "owned_pet");
+  assert.equal(canonical.safetyClass, "LOW_RISK_REVERSIBLE");
+  assert.equal(shouldAutoExecuteAction(canonical), false);
 });
 
 test("a model cannot manufacture explicit owner intent to auto-execute a mutation", () => {
@@ -62,9 +80,7 @@ test("a model cannot manufacture explicit owner intent to auto-execute a mutatio
       input: { field: "weight", value: "4.2 kg", title: null, detail: null, category: null, target: "selected" },
     }],
   });
-  assert.equal(action.explicitIntent, false);
-  assert.equal(shouldAutoExecuteAction(action), false);
-  assert.equal(action.status, "proposed");
+  assert.equal(action, undefined);
 });
 
 test("uncertain death cannot produce a lifecycle mutation while confirmed death requires confirmation", () => {
@@ -103,43 +119,24 @@ test("USER singleton memory is distinct from PET and ephemeral CONVERSATION stat
   assert.match(reasoning, /A newer singleton value replaces the older value/);
 });
 
-test("language replacement executes against canonical memory and supersedes conflicting canonical and legacy rows", async () => {
-  const db = preferenceSupabaseMock();
-  const planned = prepareFurviseApplicationActions({
-    petId: "pet-mani", petName: "Mani", requestId: "request-language",
-    proposals: [{
-      kind: "memory.set_preference", explicitIntent: true, evidence: "Forget Hindi and keep English",
-      input: { field: "preferred_language", value: "English", title: null, detail: null, category: null, target: "selected" },
-    }, {
-      kind: "memory.forget_preference", explicitIntent: true, evidence: "Forget Hindi",
-      input: { field: "preferred_language", value: null, title: null, detail: null, category: null, target: "selected" },
-    }],
-  });
-  assert.equal(planned.length, 1);
-  const [action] = planned;
-  const result = await executeFurviseApplicationAction({ action, confirmed: false, sourceMessageId: "message-user", supabase: db.client, userId: "user-1" });
-  assert.equal(result.action.status, "succeeded");
-  assert.equal(result.action.resultMessage, "The preferred language was changed to English.");
-  assert.ok(db.updates.some((item) => item.table === "furvise_memories" && item.value.status === "superseded"));
-  assert.ok(db.updates.some((item) => item.table === "dog_memories" && item.value.status === "superseded"));
-  assert.equal(db.rpcCalls[0].name, "persist_furvise_intelligence");
-  assert.equal(db.rpcCalls[0].args.p_learnings[0].subjectType, "owner");
-  assert.equal(db.rpcCalls[0].args.p_learnings[0].factKey, "preferred_language");
+test("language replacement binds one owner field without a legacy memory executor",()=>{
+ const action=boundOwnerAction("English","Forget Hindi and keep English");
+ assert.equal(action.fieldMutationJob.domain,"owner_preference");
+ assert.equal(action.fieldMutationJob.operation,"set_field");
+ assert.equal(action.input.field,"preferred_language");assert.equal(action.input.value,"English");
+ assert.equal(action.status,"proposed");assert.equal(action.resultMessage,null);
+ assert.equal(fieldMutationActionMatches(action.fieldMutationJob,action,"user-1"),true);
+ assert.throws(()=>authorizeFurviseActionExecution({action,capabilityId:"cap",mode:"auto"}),/AUTO_NOT_AUTHORIZED/);
 });
 
-test("language replacement cannot claim success when an old conflicting preference remains active", async () => {
-  const db = preferenceSupabaseMock("dog_memories");
-  const [action] = prepareFurviseApplicationActions({
-    petId: "pet-mani", petName: "Mani", requestId: "request-language-failure",
-    proposals: [{
-      kind: "memory.set_preference", explicitIntent: true, evidence: "Switch to French",
-      input: { field: "preferred_language", value: "French", title: null, detail: null, category: null, target: "selected" },
-    }],
-  });
-  const result = await executeFurviseApplicationAction({ action, confirmed: false, sourceMessageId: "message-user", supabase: db.client, userId: "user-1" });
-  assert.equal(result.action.status, "failed");
-  assert.equal(result.action.resultMessage, null);
-  assert.equal(result.changed, false);
+test("unavailable durable preferences cannot claim success through another executor",()=>{
+ const action=boundOwnerAction("French","Switch to French");
+ assert.equal(action.resultMessage,null);
+ assert.doesNotMatch(read("app/lib/application-actions/index.ts"),/executor\.ts/);
+ const sql=read("supabase/migrations/20260923072555_preserve_canonical_replace_body_fidelity.sql");
+ assert.doesNotMatch(sql,/v\.action_kind\s*(?:=|in)[^\n]*memory\.(?:set|forget)_preference/);
+ assert.match(sql,/Unsupported mutation kinds never fall back/);
+ assert.match(sql,/v_error := 'That action is not available yet\.'/);
 });
 
 test("application actions round-trip in the canonical Ask response", () => {
@@ -166,28 +163,14 @@ test("the confirmation endpoint accepts only a persisted action id and decision"
   assert.doesNotMatch(actionRoute, /OPENAI|runAdmittedAiOperation|reserveAiCredit|completeAiCredit/);
 });
 
-test("executor denies an action for a pet the authenticated user does not own", async () => {
-  const [action] = prepareFurviseApplicationActions({
-    petId: "pet-other", petName: "Other", requestId: "request-owner",
-    proposals: [{
-      kind: "pet.update_profile", explicitIntent: true, evidence: "Change her weight to 4.2 kg",
-      input: { field: "weight", value: "4.2 kg", title: null, detail: null, category: null, target: "selected" },
-    }],
-  });
-  const client = {
-    from(table) {
-      assert.equal(table, "dog_profiles");
-      return {
-        select() { return this; },
-        eq() { return this; },
-        maybeSingle() { return Promise.resolve({ data: null, error: null }); },
-      };
-    },
-  };
-  const execution = await executeFurviseApplicationAction({ action, confirmed: false, sourceMessageId: "message-user", supabase: client, userId: "user-1" });
-  assert.equal(execution.action.status, "failed");
-  assert.equal(execution.changed, false);
-  assert.equal(execution.audit.authorization, "denied");
+test("canonical profile authority rejects a foreign owner and a substituted pet",()=>{
+ const action=boundProfileAction("pet-other","Other","4.2 kg");
+ assert.throws(()=>bindFieldMutationJob({domain:"pet_profile",operation:"set_field",petName:"Other",
+  field:"weight",instructionQuote:"Set 4.2 kg as requested.",valueQuote:"4.2 kg"},
+  {id:"message-user",role:"user",text:"Set 4.2 kg as requested.",createdAt:"2026-09-23T00:00:00Z"},
+  [{id:"pet-other",name:"Other",user_id:"user-1"}],"foreign"),/ASK_REQUEST_INVALID/);
+ assert.equal(fieldMutationActionMatches(action.fieldMutationJob,{...action,petId:"pet-mani"},"user-1"),false);
+ assert.equal(action.resultMessage,null);
 });
 
 test("confirmation-required and destructive actions cannot execute before confirmation", async () => {
@@ -199,15 +182,9 @@ test("confirmation-required and destructive actions cannot execute before confir
         input: { field: null, value: null, title: null, detail: null, category: null, target: "selected" },
       }],
     });
-    const execution = await executeFurviseApplicationAction({
-      action,
-      confirmed: false,
-      sourceMessageId: "message-user",
-      supabase: { from() { throw new Error("storage must not be touched before confirmation"); } },
-      userId: "user-1",
-    });
-    assert.equal(execution.action.status, "confirmation_required", kind);
-    assert.equal(execution.changed, false, kind);
+    assert.throws(()=>authorizeFurviseActionExecution({action,capabilityId:"cap",mode:"auto"}),/CONFIRMATION|AUTO_NOT_AUTHORIZED/);
+    assert.equal(action.status,"confirmation_required",kind);
+    assert.equal(action.resultMessage,null);
   }
 });
 
@@ -246,12 +223,12 @@ test("deceased-pet summaries are retrospective and do not fabricate a future app
   assert.doesNotMatch(JSON.stringify(draft.document), /next vet visit/i);
 });
 
-test("lifecycle schema is approval-gated and Ask defaults safely before it exists", () => {
-  const proposal = read("docs/schema-proposals/furvise-pet-lifecycle-v1.sql");
-  assert.match(proposal, /APPROVAL-GATED SCHEMA PROPOSAL/);
-  assert.match(proposal, /lifecycle_status in \('active', 'deceased', 'archived'\)/);
-  assert.match(proposal, /retain history/i);
-  assert.doesNotMatch(read("supabase/schema.sql"), /lifecycle_status/);
+test("committed lifecycle migration defaults to active and retains profile history", () => {
+  const migration = read("supabase/migrations/20260818084249_add_pet_profile_lifecycle_v1.sql");
+  assert.match(migration, /lifecycle_status in \('active', 'deceased', 'archived'\)/);
+  assert.match(migration, /lifecycle_status text not null default 'active'/);
+  assert.match(migration, /retained profile state, not deletion/);
+  assert.match(migration, /dog_profiles_lifecycle_timestamps_check/);
 });
 
 test("one canonical assistant surface uses restrained semantic accents and action cards", () => {
@@ -286,39 +263,4 @@ function profile(overrides = {}) {
     main_concern: null, wellness_goal: null, avoid_ingredients: [], monthly_budget: null,
     created_at: "2026-01-01T00:00:00Z", updated_at: "2026-08-18T00:00:00Z", ...overrides,
   };
-}
-
-function preferenceSupabaseMock(failedUpdateTable = "") {
-  const updates = [];
-  const rpcCalls = [];
-  class Query {
-    constructor(table) { this.table = table; this.filters = []; this.limitValue = null; this.operation = "select"; this.value = null; }
-    select() { return this; }
-    update(value) { this.operation = "update"; this.value = value; updates.push({ table: this.table, value }); return this; }
-    eq(key, value) { this.filters.push([key, value]); return this; }
-    in(key, value) { this.filters.push([key, value]); return this; }
-    limit(value) { this.limitValue = value; return this; }
-    maybeSingle() {
-      if (this.table === "dog_profiles") return Promise.resolve({ data: { id: "pet-mani" }, error: null });
-      if (this.table === "furvise_memories") return Promise.resolve({ data: { id: "memory-english" }, error: null });
-      return Promise.resolve({ data: null, error: null });
-    }
-    then(resolve, reject) { return Promise.resolve(this.result()).then(resolve, reject); }
-    result() {
-      if (this.operation === "update") return this.table === failedUpdateTable
-        ? { data: null, error: { message: "simulated update failure" } }
-        : { data: [{ id: "updated" }], error: null };
-      if (this.table === "furvise_memories") return { data: [
-        { id: "memory-english", fact_key: "preferred_language", category: "communication_preference" },
-        { id: "memory-hindi", fact_key: "language_preference", category: "communication_preference" },
-      ], error: null };
-      if (this.table === "dog_memories") return { data: [{ id: "legacy-hindi", type: "preference", text: "speak Hindi only" }], error: null };
-      return { data: [], error: null };
-    }
-  }
-  const client = {
-    from(table) { return new Query(table); },
-    rpc(name, args) { rpcCalls.push({ name, args }); return Promise.resolve({ data: [{ memories_created: 1, memories_superseded: 1 }], error: null }); },
-  };
-  return { client, updates, rpcCalls };
 }

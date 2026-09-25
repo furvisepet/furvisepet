@@ -85,10 +85,12 @@ test("CORRECTION_UI_REFLECTS_AUTHORITATIVE_CAPABILITY_TERMINAL_STATE", () => {
   assert.match(migration, /correction_message\.sequence_number > source_message\.sequence_number/);
   assert.match(migration, /where id = p_capability_id[\s\S]*for update/);
   assert.match(migration, /if v\.status <> 'pending'[\s\S]*return query select v\.receipt, false/);
-  assert.match(route, /const terminalAction = await settlePendingLifecycleCancellation/);
-  assert.match(route, /result\?\.action/);
-  assert.match(route, /terminalAction\.status === "succeeded"/);
-  assert.doesNotMatch(route.slice(route.indexOf("async function settlePendingLifecycleCancellation")), /return cancelledPendingLifecycleAction\(input\.action\);[\s\S]*result\?\.action \|\| cancelledPendingLifecycleAction/);
+  const turn = read("app/lib/intelligence/lifecycle-turn.ts");
+  assert.match(route, /continueLifecyclePlan/);
+  assert.match(route, /deterministicApplicationActions = lifecycleOutcome.actions/);
+  assert.match(turn, /result.action.status !== "cancelled"/);
+  assert.match(turn, /actions: result \? \[result.action\] : \[\]/);
+  assert.match(turn, /LIFECYCLE_CANCELLATION_RECEIPT_MISMATCH/);
 
   const race = (first) => {
     let terminal = "pending";

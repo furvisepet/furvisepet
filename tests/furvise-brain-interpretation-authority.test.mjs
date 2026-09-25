@@ -74,13 +74,22 @@ test("interpretation cannot erase an already verified action capability", () => 
   assert.deepEqual(next.mutation, authorized.mutation);
 });
 
-test("unbounded lifetime wording selects lifetime memory without changing permissions", () => {
+test("unbounded exhaustive ticket selects lifetime memory without changing permissions", () => {
   const turn = createFurviseTurnAuthority({ logicalTurnId: "turn" });
   const next = applyAskInterpretation(turn, request({
     question: "Has Pebble ever had this across his entire lifetime?",
     from: null,
     to: null,
+    readTicket: {temporal:{from:null,to:null},outputs:{completeness:'exhaustive'}},
   }));
   assert.equal(next.memoryNeed, "lifetime");
   assert.equal(next.mutation.allowed, false);
+});
+
+test("changing words cannot change memory depth for the same ticket",()=>{
+ const turn=createFurviseTurnAuthority({logicalTurnId:'turn'});
+ for(const question of ['ever','all history','last two weights','dental','']){
+  assert.equal(applyAskInterpretation(turn,request({question,readTicket:{temporal:{from:'2025-01-01',to:null},outputs:{completeness:'exhaustive'}}})).memoryNeed,'targeted');
+  assert.equal(applyAskInterpretation(turn,request({question,readTicket:{temporal:{from:null,to:null},outputs:{completeness:'exhaustive'}}})).memoryNeed,'lifetime');
+ }
 });

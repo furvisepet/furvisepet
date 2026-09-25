@@ -1,7 +1,12 @@
+import type { ResolvedSafetyState } from "./safety-state.ts";
+import { STORED_EMERGENCY, storedEmergencyPublicationFailure } from "./stored-emergency-publication.ts";
+import { assessmentMatches } from "./answer-assessment.ts";
+import { dependsOnStoredState, factualLimitationFailure, FACTUAL_UNAVAILABLE, languageProviderContext } from "./factual-dispatch.ts";
+import { readReviewedHistoryAnswer } from "./history-review-state.ts";
 import { wholeAskTaskQuestion } from "./ask-task-continuation.ts";
 import { completedExplicitHistoryTargets, historyCompletionLimits } from "./evidence-need-coverage.ts";
 import { CLAIM_AUTHORITY_POLICY, CLAIM_REVIEW_POLICY } from "./claim-authority-policy.ts";
-import { matchesHistoryOutputFormat } from "./historical-read-response.ts";
+import { matchesHistoryOutputFormat } from "./history-output-format.ts";
 import { readPublicationFailure, canonicalReadPresentation } from "../ask-publication.ts";
 import { TASK_COMPLETION_STATUSES } from "./history-review-selection.ts";
 import { furviseProductFacts } from "../ai/ask-internal-product-policy.ts";
@@ -111,6 +116,7 @@ Return exactly one item per supplied index, no duplicates. For answered/action_r
 /** Non-history complement to history review. Runs before persistence. One repair
  * and a separate re-review share the existing admitted operation budget. */
 export async function reviewTaskCompletion(input: {
+  resolvedSafety?: ResolvedSafetyState;
   onProviderEvent?: (event: AskProviderEvent) => void;
   pendingCareEvents?: readonly GovernedCanonicalEvent[];
   pendingCareActions?: readonly import("./types.ts").IntelligenceCareAction[];
@@ -118,6 +124,25 @@ export async function reviewTaskCompletion(input: {
   validate: (result: AskReasoningResult) => AnswerValidationResult;
   client?: { responses: { create: (request: Record<string, unknown>, options?: { signal: AbortSignal }) => Promise<Record<string, unknown>> } };
 }): Promise<AnswerValidationResult> {
+  // This exact source-free limitation has already passed deterministic review
+  // and validation. Its failed task completion remains unchanged.
+  const response = input.validation.response;
+  // Current safety publication terminates before stored factual receipt review.
+  if (response.model === STORED_EMERGENCY) {
+    const failure = storedEmergencyPublicationFailure(response, input.context, response.evidenceContract?.scope.authorizedPetIds || [], input.resolvedSafety);
+    const pending = [input.pendingCareActions || [], input.pendingCareEvents || []];
+    if (!input.validation.valid || failure || pending.some(items => !Array.isArray(items) || items.length)
+      || input.validation.assessment.outcome !== "limited" || input.validation.assessment.checks.taskCompletion !== "failed"
+      || !assessmentMatches(input.validation.assessment, response.answer, response.evidenceContract))
+      return { ...input.validation, valid: false, errors: [...input.validation.errors, failure || "emergency_publication_not_terminal"] };
+    return input.validation;
+  }
+  if(response.model===FACTUAL_UNAVAILABLE || dependsOnStoredState(response.evidenceContract)){
+    if(!input.validation.valid || !readReviewedHistoryAnswer(response)
+      || response.model===FACTUAL_UNAVAILABLE && factualLimitationFailure(response))
+      return {...input.validation,valid:false,errors:[...input.validation.errors,"canonical_factual_review_required"]};
+    return input.validation;
+  }
   const request = input.context.askInterpretation?.request;
   // This reviewer is the non-history complement. A saved-history request
   // remains historical even when retrieval produced no history object; the
@@ -190,7 +215,7 @@ export async function reviewTaskCompletion(input: {
       ownedActionTargets: input.context.eligiblePets.filter(p => petIds.includes(p.id) && p.user_id === input.context.owner.userId)
         .map(p => ({ id: p.id, name: p.name })),
       priorUserMessages: input.context.conversationTurns.filter(t => t.role === "user").slice(-8).map(t => t.text.slice(0, 1600)),
-      suppliedEvidence: response.evidenceContract || null,
+      suppliedEvidence: languageProviderContext({evidenceContract:response.evidenceContract,currentMessage:input.context.currentMessage}),
       completedExplicitTargets: completedExplicitHistoryTargets(response.evidenceContract),
       answer: body, answerSegments: [{ index: 0, text: body }], actions: [...actions.map((action, index) => ({ index, ...action, executionDisposition: action.mutationClass === "navigation" ? "navigation_link"
         : actionCanAutoExecute(action.kind, action.explicitIntent) ? "automatic_after_persistence"

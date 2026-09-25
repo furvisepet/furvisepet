@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {recordHistoryReviewAudit,readHistoryReviewAudit,readReviewedHistoryAnswer} from '../app/lib/intelligence/history-review-state.ts';
+import { registerHooks } from 'node:module';
+registerHooks({resolve(s,c,next){return s==='server-only'?{url:'data:text/javascript,export {};',format:'module',shortCircuit:true}:next(s,c);}});
+const {recordHistoryReviewAudit,readHistoryReviewAudit,readReviewedHistoryAnswer} = await import('../app/lib/intelligence/history-review-state.ts');
 test('private review diagnostics cannot create or transfer an answer approval',()=>{
  const result={};const audit={repairAttempted:false,rejectionReason:'x'.repeat(2000),dateBindings:[{index:0,citedSourceIds:['care:a'],candidates:[{anchor:'2026:8-3',sourceIds:[]}]}]};
  recordHistoryReviewAudit(result,audit);

@@ -1,0 +1,1657 @@
+{
+  "date": "2026-09-20",
+  "branch": "codex/one-interpreter",
+  "baseHead": "b855c1d",
+  "production": "e2ab3a0",
+  "status": "local route-proof commit; offline Cedar route proof passed; not pushed; no preview or merge",
+  "counts": {
+    "productionAudit": {
+      "pass": 213,
+      "fail": 9
+    },
+    "preCutAudit": {
+      "pass": 208,
+      "fail": 14
+    },
+    "currentAudit": {
+      "pass": 208,
+      "fail": 14,
+      "introducedVsProduction": 6,
+      "changedInThisCut": 0
+    },
+    "routeAndWriteIsolation": {
+      "pass": 92,
+      "fail": 0
+    },
+    "existingFocusedIntegrity": {
+      "pass": 90,
+      "fail": 0
+    },
+    "changedArchitectureBoundary": {
+      "pass": 1,
+      "fail": 0
+    },
+    "lifecycleRegression": {
+      "pass": 19,
+      "fail": 8,
+      "sameFailuresAgainstPreCutRoute": true
+    }
+  },
+  "actualModelCalls": 0,
+  "liveAskSubmissions": 0,
+  "previews": 0,
+  "pushes": 0,
+  "merges": 0,
+  "deployments": 0,
+  "migrationsApplied": 0,
+  "cedarProof": {
+    "type": "offline HTTP handlers with mocked provider, auth, and database IO",
+    "message": "log that Cedar refused lunch. what are his last two weights",
+    "plannerCalls": 1,
+    "sourceSpans": [
+      {
+        "role": "note",
+        "start": 9,
+        "end": 29,
+        "text": "Cedar refused lunch."
+      },
+      {
+        "role": "companion",
+        "start": 30,
+        "end": 59,
+        "text": "what are his last two weights"
+      }
+    ],
+    "beforeConfirm": {
+      "newHistoryRows": 0,
+      "receipts": 0,
+      "factualReads": 0
+    },
+    "afterConfirm": {
+      "newHistoryRows": 1,
+      "receiptVerified": true,
+      "body": "Cedar refused lunch.",
+      "weightFixtureIds": [
+        "89100000-0000-4000-8000-000000000052",
+        "89100000-0000-4000-8000-000000000051"
+      ],
+      "weightFixtureValuesKg": [
+        9.4,
+        9.2
+      ]
+    },
+    "reconfirm": {
+      "newRows": 0,
+      "plannerCalls": 0
+    },
+    "lostAcknowledgment": "confirmed replay recovers the same receipt with no duplicate",
+    "missingReceipt": "HTTP 503 and no factual read"
+  },
+  "unchangedLifecycleFailures": [
+    "the exact production traumatic-death report is a confirmed loss, not active emergency treatment",
+    "confirmed loss variants are recognized while uncertainty, hypotheticals, missing status, and corrections are preserved",
+    "provider-independent loss subject resolution is strict for names, species, pronouns, and outside animals",
+    "a confirmed death builds one standalone history event for post-confirmation persistence",
+    "the lifecycle proposal is server-bound to the selected pet and always requires confirmation",
+    "a death report cannot manufacture an unrelated or destructive model action",
+    "grief continuity is derived from persisted pending action state, not a follow-up phrase list",
+    "an optional lifecycle-card preparation failure preserves a truthful non-success action state"
+  ],
+  "cases": [
+    {
+      "caseId": "C001",
+      "name": "named blood test cannot cite unrelated note: September 3 urine test: result normal.",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C002",
+      "name": "named blood test cannot cite unrelated note: September 3 vet note: skin diagnosis recorded.",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C003",
+      "name": "source wording remains identical in visible quotation and citation: September 3 blood test: result pending, not confirmed normal.",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C004",
+      "name": "source wording remains identical in visible quotation and citation: I recorded the urine test as pending.",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C005",
+      "name": "source wording remains identical in visible quotation and citation: I added the urine test result: pending, not normal.",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C006",
+      "name": "source wording remains identical in visible quotation and citation: I recorded the urine test value as 2.7, with uncertainty.",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C007",
+      "name": "ordinary assistant persistence claims remain removed, even inside model quotation marks",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C008",
+      "name": "unsupported or ambiguous test locator abstains: test",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C009",
+      "name": "unsupported or ambiguous test locator abstains: blood and urine test",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C010",
+      "name": "compound test descriptors retain every named component",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C011",
+      "name": "specific represented note reaches final answer: September 3 urine test: result pending.",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C012",
+      "name": "specific represented note reaches final answer: September 3 urine test: result normal.",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C013",
+      "name": "specific represented note reaches final answer: September 3 vet note: the veterinarian recorded a diagnosis of arthritis, not yet confirmed by imaging.",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C014",
+      "name": "source rendering does not depend on the model citing the note",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C015",
+      "name": "unselected competing evidence still blocks a quote; an earlier result does not",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C016",
+      "name": "a valid cited ID for another topic cannot authorize a requested result",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C017",
+      "name": "an explicit year disambiguates historical notes without assuming a year",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C018",
+      "name": "specific lookup fails safely: missing",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C019",
+      "name": "specific lookup fails safely: unavailable",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C020",
+      "name": "specific lookup fails safely: ambiguous same day",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C021",
+      "name": "specific lookup fails safely: ambiguous year",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C022",
+      "name": "specific lookup fails safely: later contradiction",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C023",
+      "name": "specific lookup fails safely: oversized",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C024",
+      "name": "a dated source does not establish current medical status or exhaustive absence",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C025",
+      "name": "bounded answer policy rejects unsupported assertion: Exactly seven soft-stool episodes were recorded.",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C026",
+      "name": "bounded answer policy rejects unsupported assertion: The urine test was normal.",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C027",
+      "name": "bounded answer policy rejects unsupported assertion: Oscar has arthritis.",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C028",
+      "name": "bounded answer policy rejects unsupported assertion: The recorded weight decreased by 0.2 kg.",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C029",
+      "name": "small successful load is not proof of effective-history completeness",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C030",
+      "name": "capped loading, intermediate and final selection are distinct losses",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C031",
+      "name": "unknown coverage cannot authorize exhaustive answer: How many separate soft-stool episodes has Milo ever had?",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C032",
+      "name": "unknown coverage cannot authorize exhaustive answer: Has Milo ever vomited?",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C033",
+      "name": "unknown coverage cannot authorize exhaustive answer: Have I reported any vomiting for Milo?",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C034",
+      "name": "unknown coverage cannot authorize exhaustive answer: Compare all Milo recorded weights.",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C035",
+      "name": "failed loading survives to provider and definitive absence is replaced",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C036",
+      "name": "profile-only second pet does not imply history loading",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C037",
+      "name": "oversized evidence is omitted whole, never emitted without its correction or qualifier",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C038",
+      "name": "certified complete server fact is rendered instead of a contradictory model total",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C039",
+      "name": "complete retrieval without correction/grouping certification or verified total still abstains",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C040",
+      "name": "model-proposed coverage metadata never establishes authority",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C041",
+      "name": "a verified fact loses authority if its qualified source cannot be represented",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C042",
+      "name": "mandatory query scope preserves multiple topics and excludes unauthorized pet IDs",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C043",
+      "name": "ambiguous episode reference asks for clarification",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C044",
+      "name": "qualified short source survives exactly in provenance and actual model record",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C045",
+      "name": "date-filtered load does not claim correction completeness for requested historical period",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C046",
+      "name": "prompt overflow records losses without dropping mandatory scope/coverage or slicing source text",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C047",
+      "name": "oversized mandatory scope fails before provider instead of silently deleting coverage",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C048",
+      "name": "model proposals cannot turn factual recall into new history or memory",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C049",
+      "name": "explicit save and mixed owner observations are not turned into question-only recall",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C050",
+      "name": "emergency recognition survives a history request with incomplete evidence",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C051",
+      "name": "missing event candidates return a server limitation without generation or review calls",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C052",
+      "name": "broad historical reads retain multiple time slices and cannot bill a sampled summary",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C053",
+      "name": "oldest calendar-period retrieval reads its full eligible year rather than a guessed year or oldest page",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C054",
+      "name": "reviewed shared-source attribution does not widen the record subject",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C055",
+      "name": "premise repair is bounded and revalidates exact user evidence",
+      "production": "pass",
+      "beforeCut": "fail",
+      "current": "fail"
+    },
+    {
+      "caseId": "C056",
+      "name": "a premise repair cannot authorize invented pets or mutation scope",
+      "production": "pass",
+      "beforeCut": "fail",
+      "current": "fail"
+    },
+    {
+      "caseId": "C057",
+      "name": "explicit currency arithmetic binds each source and keeps currencies separate",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C058",
+      "name": "an omitted exact report-day window reaches retrieval without changing subject authority",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C059",
+      "name": "literal report-day fallback preserves existing server-validated ranges and comparison scope",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C060",
+      "name": "persisted conversation presentation retains fictional dialogue and rejects a separate receipt claim",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C061",
+      "name": "historical read schema excludes mutation and duplicate extraction fields",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C062",
+      "name": "canonical read table renders once and rejects competing or malformed bodies",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C063",
+      "name": "read planner can omit extraction while writes still require a valid frame",
+      "production": "fail",
+      "beforeCut": "fail",
+      "current": "fail"
+    },
+    {
+      "caseId": "C064",
+      "name": "validated query boundaries are scope anchors, unrelated invented dates remain unsupported",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C065",
+      "name": "public citation projection removes only known source annotations",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C066",
+      "name": "visible citation IDs are removed before review without losing format",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C067",
+      "name": "referenced assistant and repeated user turns retain their distinct IDs",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C068",
+      "name": "task review cannot approve omitted requirements or references to discarded prose",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C069",
+      "name": "generic arithmetic verifies literal operands and dimensions independently of wording",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C070",
+      "name": "derived quantity passes shared generation without question-pattern arithmetic",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C071",
+      "name": "quantity axis prevents episode routing: records",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C072",
+      "name": "quantity axis prevents episode routing: measurement",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C073",
+      "name": "quantity axis prevents episode routing: duration",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C074",
+      "name": "quantity axis prevents episode routing: null",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C075",
+      "name": "true episode counts retain their independent membership path",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C076",
+      "name": "open temporal interval null/2026-07-01",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C077",
+      "name": "open temporal interval 2026-07-01/null",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C078",
+      "name": "open temporal interval null/null",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C079",
+      "name": "reject invalid authority or metadata: {\"from\":\"2026-02-30\"}",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C080",
+      "name": "reject invalid authority or metadata: {\"from\":\"2026-07-02\",\"to\":\"2026-07-01\"}",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C081",
+      "name": "reject invalid authority or metadata: {\"petNames\":[\"Foreign animal\"]}",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C082",
+      "name": "reject invalid authority or metadata: {\"terms\":[\"x; DROP TABLE\"]}",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C083",
+      "name": "reject invalid authority or metadata: {\"referenceTurnIds\":[\"invented\"]}",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C084",
+      "name": "reject invalid authority or metadata: {\"extra\":\"untrusted\"}",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C085",
+      "name": "reject invalid authority or metadata: {\"scope\":\"none\",\"petNames\":[\"Aster\"]}",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C086",
+      "name": "reject invalid authority or metadata: {\"scope\":\"selected\",\"petNames\":[\"Bramble\"]}",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C087",
+      "name": "reading one pet does not require selecting every name mentioned",
+      "production": "fail",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C088",
+      "name": "account scope expands authenticated profiles and rejects foreign names",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C089",
+      "name": "reference metadata identifies discourse without supplying source evidence",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C090",
+      "name": "a read contract cannot grant writes even with an assertion-looking premise",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C091",
+      "name": "shared route preserves reviewed answer across unseen topics: grooming",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C092",
+      "name": "shared route preserves reviewed answer across unseen topics: sleep",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C093",
+      "name": "shared route preserves reviewed answer across unseen topics: travel",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C094",
+      "name": "as-of retrieval applies upper bound with no lower bound",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C095",
+      "name": "comparison retrieves both temporal ends for arbitrary topics within the existing budget",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C096",
+      "name": "five-pet earliest/latest weight retrieval certifies both endpoint pairs even when lexical weight matching misses weighed prose",
+      "production": "fail",
+      "beforeCut": "fail",
+      "current": "fail"
+    },
+    {
+      "caseId": "C097",
+      "name": "conversation identity must match a complete owned name",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C098",
+      "name": "shared lexical retrieval reserves scoped context for different wording without growing query budgets",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C099",
+      "name": "shared status reads retain resolved multi-pet scope through evidence creation",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C100",
+      "name": "read premise produces no memory or care proposal through full pipeline",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C101",
+      "name": "reviewed output structure survives shared pipeline: {\n  \"observation\": \"",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C102",
+      "name": "reviewed output structure survives shared pipeline: - Aster slept normal",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C103",
+      "name": "reviewed output structure survives shared pipeline: | Pet | Observation ",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C104",
+      "name": "shared review cannot approve invented quotes even when the model approves",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C105",
+      "name": "unlinked correction may be reported but does not create a verified edge",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C106",
+      "name": "shared read repair is bounded and independently checked: approved",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C107",
+      "name": "shared read repair is bounded and independently checked: empty-body",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C108",
+      "name": "shared read repair is bounded and independently checked: malformed-denial",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C109",
+      "name": "shared read repair is bounded and independently checked: rejected",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C110",
+      "name": "shared read repair is bounded and independently checked: unknown-source",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C111",
+      "name": "shared read repair is bounded and independently checked: mutation-field",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C112",
+      "name": "shared read repair is bounded and independently checked: truncated-rereview",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C113",
+      "name": "real admission lets a repaired planner reach composition without opening extra repair cycles",
+      "production": "pass",
+      "beforeCut": "fail",
+      "current": "fail"
+    },
+    {
+      "caseId": "C114",
+      "name": "real admission allows one ordered repair and re-review, charges all five calls and denies a sixth",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C115",
+      "name": "shared review receives unknown present-state claims intact instead of a legacy keyword filter",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C116",
+      "name": "typed format rejects prose posing as JSON or a table without reinterpreting the question",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C117",
+      "name": "a specified format with sources requires a canonical body in the provider schema",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C118",
+      "name": "typed JSON renders nested data, arrays, nulls and escaping without model-written JSON",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C119",
+      "name": "typed JSON rejects duplicate keys, competing bodies, excessive depth and nonfinite values",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C120",
+      "name": "history access is lifetime on both plans and rejects unknown plans",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C121",
+      "name": "shared retrieval and provider inputs respect free history access",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C122",
+      "name": "shared retrieval and provider inputs respect plus history access",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C123",
+      "name": "Free lifetime access retrieves a formerly paywalled 2022 period",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C124",
+      "name": "out-of-domain projections and prior conversation cannot reintroduce excluded history",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C125",
+      "name": "all provider phases share the Ask deadline and cannot start after it",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C126",
+      "name": "a redundant account label cannot widen an explicitly resolved owned-pet subset",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C127",
+      "name": "as-of retrieval retains preceding history and respects explicit lower bounds",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C128",
+      "name": "explicit owned identity survives an empty planner clarification without authorizing writes",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C129",
+      "name": "hyphenated minutes support arithmetic without accepting partial numeric tokens",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C130",
+      "name": "reviewed quotes and all clauses survive final conversation rendering",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C131",
+      "name": "conditional emergencies bypass identity without replacing actual emergency detection",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C132",
+      "name": "measurement grounding accepts equivalent grammar but rejects invented time quantities",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C133",
+      "name": "reference lookup prioritizes matching evidence over years of period distractors",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C134",
+      "name": "inclusive as-of date is a scope anchor while the event keeps its own date",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C135",
+      "name": "verbatim operand spans retain context and reject multiple measurements",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C136",
+      "name": "measurement comparisons discard irrelevant episode ordinal hints",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C137",
+      "name": "omitted read subject can use one explicitly named owned pet",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C138",
+      "name": "empty conversational names recover only a unique user-established focus",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C139",
+      "name": "formatted numeric anchors preserve full values and unit names",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C140",
+      "name": "user claim quotation is distinguishable from invented source quotation",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C141",
+      "name": "difference converts original operands directly; invented intermediate literals stay invalid",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C142",
+      "name": "general read scope can answer without guessing a pet or retrieving saved facts",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C143",
+      "name": "duplicate search hits do not consume independent candidate slots",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C144",
+      "name": "cohort reads ignore the selected conversation container; explicit named reads stay narrow",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C145",
+      "name": "question dates can be discussed without becoming source evidence",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C146",
+      "name": "a single report-day comparison keeps preceding context without crossing the upper bound",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C147",
+      "name": "a day number next to an event noun is not a quantity anchor",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C148",
+      "name": "equivalent spelled units share numeric grounding and dimension checks",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C149",
+      "name": "empty lexical searches return their unused capacity to bounded period context",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C150",
+      "name": "latest and comparison ordering never reverse source relevance",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C151",
+      "name": "bounded phrase hints match morphological variants without treating them as evidence",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C152",
+      "name": "wrong arithmetic remains rejected with a server-computed repair hint",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C153",
+      "name": "supplied premises narrow stale owned-history plans without granting writes",
+      "production": "fail",
+      "beforeCut": "fail",
+      "current": "fail"
+    },
+    {
+      "caseId": "C154",
+      "name": "general clarification is a conversation task without an owned-pet requirement",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C155",
+      "name": "general knowledge never widens owned authority and saved history still validates ownership",
+      "production": "fail",
+      "beforeCut": "fail",
+      "current": "fail"
+    },
+    {
+      "caseId": "C156",
+      "name": "supplied-context classification requires actual verbatim user premises",
+      "production": "fail",
+      "beforeCut": "fail",
+      "current": "fail"
+    },
+    {
+      "caseId": "C157",
+      "name": "explicit read exclusions remain outside account and selected scope",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C158",
+      "name": "quoted provenance permits delimiters but never changed source wording",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C159",
+      "name": "a resolved subject and ordered lexical query retrieves before asking what the topic means",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C160",
+      "name": "serialized quotation provenance remains bound to exact user text",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C161",
+      "name": "double-escaped source quotes are decoded without relaxing provenance",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C162",
+      "name": "ordering hints do not become episode references on ordinary reads",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C163",
+      "name": "measurement and duration quantities override a stale episode operation",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C164",
+      "name": "genuine episode requests still require a valid episode referent",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C165",
+      "name": "standalone task wording cannot be replaced by a planner paraphrase",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C166",
+      "name": "missing premises use bounded repair without inventing evidence",
+      "production": "pass",
+      "beforeCut": "fail",
+      "current": "fail"
+    },
+    {
+      "caseId": "C167",
+      "name": "generic incidents are source reads; report endpoints remain accessible",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C168",
+      "name": "a retrieval command cannot substitute for missing saved values",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C169",
+      "name": "security explanations survive without allowing internal source identifiers",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C170",
+      "name": "diverse candidates reach a rare middle-history transition within existing bounds",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C171",
+      "name": "compound rates are recomputed dimensionally from source-bound operands",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C172",
+      "name": "final presentation preserves negation, uncertainty and exact line breaks",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C173",
+      "name": "event aliases cannot be starved by newer routine notes or a common alias",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C174",
+      "name": "final persisted presentation retains relative-clause measurements",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C175",
+      "name": "prose transport envelope is decoded before factual review, not after it",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C176",
+      "name": "event evidence survives both budgets among verbose routine observations",
+      "production": "fail",
+      "beforeCut": "fail",
+      "current": "fail"
+    },
+    {
+      "caseId": "C177",
+      "name": "rejected event answers retain relevant source excerpts instead of the latest profile",
+      "production": "fail",
+      "beforeCut": "fail",
+      "current": "fail"
+    },
+    {
+      "caseId": "C178",
+      "name": "review receives correction uncertainty attached to its own source",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C179",
+      "name": "past versus present retrieval preserves both periods despite a narrowed planner range",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C180",
+      "name": "event reason retrieval is independent of a summary or comparison planner label",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C181",
+      "name": "ordinary read layouts reject unsolicited JSON while explicit JSON remains supported",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C182",
+      "name": "past-present recovery never bypasses plan access or explicit as-of bounds",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C183",
+      "name": "unsolicited JSON is repaired once and independently re-reviewed as prose",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C184",
+      "name": "canonical read limitation cannot smuggle an unrequested output container",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C185",
+      "name": "middle date survives retrieval and representation among five years of routine records",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C186",
+      "name": "schema-shaped generation repairs required meaning removed by publication policy before API and reload",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C187",
+      "name": "separate user-grounded needs retrieve rare evidence and reach review and publication",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C188",
+      "name": "unsupported planner need is discarded without replacing the original task",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C189",
+      "name": "different needs stay attached to their own pets through retrieval and evidence",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C190",
+      "name": "need candidates survive verbose routine evidence without exceeding the prompt budget",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C191",
+      "name": "need coverage records actual query hits without reinterpreting database matching",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C192",
+      "name": "ordinary history reads recover irrelevant episode routing without granting references",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C193",
+      "name": "a middle-history month survives comparison retrieval among dense unrelated years",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C194",
+      "name": "a note-frequency question reaches ordinary evidence rather than an unrelated episode clarification",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C195",
+      "name": "generation repair has a single admitted phase followed by independent review",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C196",
+      "name": "new observation plus calculation can repair an invalid correction plan without weakening validation",
+      "production": "pass",
+      "beforeCut": "fail",
+      "current": "fail"
+    },
+    {
+      "caseId": "C197",
+      "name": "explicit do-not-save strips every proposed persistence channel before semantic rejection",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C198",
+      "name": "mixed supplied operands do not trigger an unrelated historical lookup",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C199",
+      "name": "rejected optional observation preserves answer without fallback writes; explicit save=false; invalid transition=false",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C200",
+      "name": "rejected optional observation preserves answer without fallback writes; explicit save=true; invalid transition=false",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C201",
+      "name": "rejected optional observation preserves answer without fallback writes; explicit save=false; invalid transition=true",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C202",
+      "name": "rejected optional observation preserves answer without fallback writes; explicit save=true; invalid transition=true",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C203",
+      "name": "plain read-history answers retain owner-report anchors when legacy context IDs omit the request",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C204",
+      "name": "plain mixed-history answers retain owner-report anchors when legacy context IDs omit the request",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C205",
+      "name": "incidental cited-note count is exact and distinct: 2",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C206",
+      "name": "incidental cited-note count is exact and distinct: 3",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C207",
+      "name": "date-only history stays on its saved calendar day in America/Los_Angeles",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C208",
+      "name": "date-only history stays on its saved calendar day in Asia/Tokyo",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C209",
+      "name": "omitted planner field does not erase loaded age evidence for custom JSON keys",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C210",
+      "name": "plain history review includes the actual brief sections rather than only their summary",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C211",
+      "name": "long plain answer reaches independent review without losing sentences or candidate sources",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C212",
+      "name": "profile contract mistakes get one bounded repair with full ownership revalidation",
+      "production": "pass",
+      "beforeCut": "fail",
+      "current": "fail"
+    },
+    {
+      "caseId": "C213",
+      "name": "save-status questions retain a no-save user turn for authoritative receipts",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C214",
+      "name": "embedded and coordinated opt-outs remove mixed-write authority without erasing saved-history scope",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C215",
+      "name": "a failed mixed answer cannot commit proposed observation side effects",
+      "production": "fail",
+      "beforeCut": "fail",
+      "current": "fail"
+    },
+    {
+      "caseId": "C216",
+      "name": "mixed historical questions retain independently scoped evidence needs",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C217",
+      "name": "read mode discards contradictory mutation hints without a provider repair",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C218",
+      "name": "earliest unfiltered care record does not become a keyword lookup",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C219",
+      "name": "unnamed standalone reads cannot expand to the account from a planner hint",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C220",
+      "name": "unreferenced old questions cannot become new writer obligations",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C221",
+      "name": "readback preserves every referenced saved operation, not just the latest",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    },
+    {
+      "caseId": "C222",
+      "name": "interpretation uses the user calendar day across the UTC date boundary",
+      "production": "pass",
+      "beforeCut": "pass",
+      "current": "pass"
+    }
+  ],
+  "commitSubject": "fix(ask): prove Cedar mixed route through confirmed Heart"
+}

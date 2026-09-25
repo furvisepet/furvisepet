@@ -18,6 +18,12 @@ function dependencies(rows = [concern], error = null) {
   const createCanonicalCareAuthorityClient = () => ({ from(table) { return { insert(payload) { writes.push({ table, payload }); return { select() { return { single: async () => ({ data: { id: 'saved-1' }, error: null }) }; } }; } }; } });
   return { supabase, createCanonicalCareAuthorityClient, logAskServerError() {}, reads, writes };
 }
+function assertDiagnosticOnly(result, deps) {
+  assert.equal(result.suggestion, null);
+  assert.equal(result.errorCode, "CANONICAL_STATE_TRANSITION_REQUIRED");
+  assert.deepEqual(deps.reads, []);
+  assert.deepEqual(deps.writes, []);
+}
 async function persist(message, deps, override = {}) {
   return persistPendingSuggestion({ ...deps, assistantMessageId: 'a1', conversationId: 'chat1', petId: 'p1', petName: 'Milo', userId: 'u1', sourceMessage: message,
     suggestion: { ...buildResolutionSuggestion({ concern, message, petName: 'Milo' }), ...override } });
@@ -34,14 +40,12 @@ for (const message of [
   const deps = dependencies();
   assert.equal((await persist(message, deps)).suggestion, null);
   assert.deepEqual(deps.writes, []);
-  assert.deepEqual(deps.reads[0].filters, [['select','*'], ['eq','user_id','u1'], ['eq','pet_profile_id','p1'], ['in','status',['active','monitoring','reopened']], ['is','resolved_at',null], ['returns']]);
+  assert.deepEqual(deps.reads, [], 'no raw recovery target lookup');
 });
-test('final persistence canonicalizes a model payload against fresh authority', async () => {
+test('model recovery payload cannot create mutation authority', async () => {
   const deps = dependencies(); const message = 'Milo stopped vomiting today. He vomited yesterday.';
   const result = await persist(message, deps, { payload: { title: 'Hiding resolved', note: 'Bruno recovered', concernId: 'c1' } });
-  const expected = buildResolutionSuggestion({ concern, message, petName: 'Milo' });
-  assert.deepEqual(result.suggestion, { ...expected, id: 'saved-1' });
-  assert.deepEqual(deps.writes, [{ table: 'ai_update_suggestions', payload: { concern_id: 'c1', conversation_id: 'chat1', details: expected.details, payload: expected.payload, pet_profile_id: 'p1', source_message_id: 'a1', status: 'pending', title: expected.title, type: 'concern_resolution', user_id: 'u1' } }]);
+  assertDiagnosticOnly(result, deps);
 });
 test('stale authority and lookup errors fail without an insert', async () => {
   for (const deps of [dependencies([]), dependencies([], { code: 'offline' }), dependencies([{ ...concern, status: 'resolved', resolved_at: '2026-09-01' }])]) {
@@ -59,11 +63,10 @@ test('qualified history persists verbatim without a recovery mutation', async ()
 });
 
 for (const message of ['He stopped vomiting.', 'He stopped vomiting today. He was vomiting yesterday.', 'He was vomiting yesterday. He stopped vomiting today.', 'Please save this: Milo stopped vomiting.']) {
-  test(`positive final persistence retains exact canonical payload: ${message}`, async () => {
+  test(`positive recovery remains diagnostic without a typed transition: ${message}`, async () => {
     const deps = dependencies(); const expected = buildResolutionSuggestion({ concern, message, petName: 'Milo' });
     const result = await persist(message, deps);
-    assert.deepEqual(result.suggestion, { ...expected, id: 'saved-1' });
-    assert.deepEqual(deps.writes[0].payload.payload, expected.payload);
+    assertDiagnosticOnly(result, deps);
     assert.deepEqual(expected.payload.resolvedConcernKeys, ['vomiting']);
     assert.equal(expected.payload.resolutionNote, message);
   });
@@ -164,7 +167,7 @@ for (const [message, allowed] of temporalCases) {
   test(`predicate/interval/current-concern authority (${allowed}): ${message}`, async (t) => {
     t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-09-04T18:00:00Z') });
     const input = { activeConcerns: [currentConcern], concern: currentConcern, message, petId: 'p1', petName: 'Milo' };
-    // Exercise persistence first: these regressions must reach the actual write boundary.
+    // All wording must fail closed at persistence; safety diagnostics retain their substantive tests.
     const deps = dependencies([currentConcern]);
     const saved = await persist(message, deps);
     const action = buildSourceGroundedResolutionAction(input);
@@ -180,8 +183,7 @@ for (const [message, allowed] of temporalCases) {
       assert.equal(result.suggestion?.payload.resolvedConcernKeys, undefined);
     } else {
       const canonical = buildResolutionSuggestion({ concern: currentConcern, message, petName: 'Milo' });
-      assert.deepEqual(saved.suggestion, { ...canonical, id: 'saved-1' });
-      assert.deepEqual(deps.writes[0].payload.payload, canonical.payload);
+      assertDiagnosticOnly(saved, deps);
       assert.equal(action?.action, 'resolve_concern');
       assert.equal(state, 'resolved');
       assert.deepEqual(result.suggestion, canonical);
@@ -202,18 +204,23 @@ test('coordinated predicates preserve source ranges and work across concern topi
       const deps = dependencies([target]);
       const proposal = buildResolutionSuggestion({ concern: target, message, petName: 'Milo' });
       const saved = await persistPendingSuggestion({ ...deps, assistantMessageId: 'a1', conversationId: 'chat1', petId: 'p1', petName: 'Milo', userId: 'u1', sourceMessage: message, suggestion: proposal });
-      assert.equal(saved.suggestion?.type === 'concern_resolution', allowed, message);
-      assert.equal(deps.writes.length, allowed ? 1 : 0, message);
+      assertDiagnosticOnly(saved, deps);
+      assert.equal(classifyConcernEvidenceState({ activeConcerns: [target], concern: target, message,
+        petId: 'p1', petName: 'Milo' }) === 'resolved', allowed, message);
     }
   }
 });
 
-test('historical applicability uses the freshly loaded concern opening, not the cached proposal', async (t) => {
+test('historical applicability remains diagnostic and cannot mint a concern mutation', async (t) => {
   t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-09-04T18:00:00Z') });
   const message = 'Milo stopped vomiting on September 2, 2026.';
   const oldAuthority = dependencies([{ ...currentConcern, opened_at: '2026-09-01T00:00:00Z' }]);
   const freshAuthority = dependencies([currentConcern]);
-  assert.equal((await persist(message, oldAuthority)).suggestion?.type, 'concern_resolution');
-  assert.equal((await persist(message, freshAuthority)).suggestion, null);
-  assert.deepEqual(freshAuthority.writes, []);
+  assertDiagnosticOnly(await persist(message, oldAuthority), oldAuthority);
+  assertDiagnosticOnly(await persist(message, freshAuthority), freshAuthority);
+  for (const [opened_at, resolved] of [['2026-09-01T00:00:00Z', true], [currentConcern.opened_at, false]]) {
+    const target = { ...currentConcern, opened_at };
+    assert.equal(classifyConcernEvidenceState({ activeConcerns: [target], concern: target, message,
+      petId: 'p1', petName: 'Milo' }) === 'resolved', resolved);
+  }
 });

@@ -7,18 +7,20 @@ import { interpretStructuredProviderResponse } from "../ai/ask-provider.ts";
 import { AskPipelineError, type AskProviderEvent } from "../ai/ask-reasoning.ts";
 import { AiAdmissionError } from "../ai/usage-guard/errors.ts";
 import { boundedProviderTimeout, executeAdmittedProviderCall } from "../ai/usage-guard/provider-call-budget.ts";
-import { resolveWorkingMemoryFollowup } from "../furvise-brain/working-memory.ts";
 import { buildRecentSubjectState } from "./entities/recent-subject-state.ts";
 import type { FurviseLiveContext } from "./types.ts";
 import type { HistoryPlan } from "./history-retrieval.ts";
 import { proposedSemanticFrameJsonSchema } from "./semantic-frame/schema.ts";
 import { emptyProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
 import type { ProposedSemanticFrame } from "./semantic-frame/types.ts";
+import type { AskTurnSubjectDecision } from "./entities/resolve-turn-subject.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
-import { ASK_REQUEST_INSTRUCTIONS, ASK_REQUEST_VERSION, askRequestSchema, validateAskRequest, type AskRequestContract } from "./ask-request-contract.ts";
+import { ASK_REQUEST_INSTRUCTIONS, ASK_REQUEST_VERSION, askRequestProviderSchema, validateAskRequest, type AskRequestContract } from "./ask-request-contract.ts";
 
 type Operation = "overview" | "recall" | "count" | "comparison" | "status" | "episode" | "general" | "update" | "clarify";
 export type AskInterpretation = {
+  /** Server-created compatibility provenance; no identity or factual authority. */
+  readCompatibility?: { inputStrategy: "event_candidates" };
   request?: AskRequestContract;
   referenceTarget?: { kind: "episode"; ordinal: AskInterpretation["ordinal"]; topic: AskInterpretation["episodeTopic"]; basis?: "displayed_list" | "scoped_register"; period?: { from: string; to: string } };
   version: "ask-interpretation.v1";
@@ -45,10 +47,13 @@ export type AskInterpretation = {
   clarification: "subject" | "reference" | null;
   frame: ProposedSemanticFrame;
 };
-// Interpretation shares the route's 50-second orchestration budget; this cap
-// leaves 25 seconds for retrieval/generation. No extra provider call is added.
+// Interpretation shares the route's orchestration budget. The initial call is
+// bounded independently; one contract-repair call may use only the remaining
+// budget and is fully revalidated before it can create any authority.
 export const ASK_INTERPRETATION_LIMITS = { outputTokens: 4096, timeoutMs: 25_000, turns: 8, turnChars: 600, terms: 6, pets: 3 } as const;
-type InterpretationContext = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask" | "ownerNoteAlreadySaved" | "completedOwnerNote">;
+const ASK_INTERPRETATION_REPAIR_LIMITS = { timeoutMs: 15_000, reserveMs: 12_000 } as const;
+const ASK_INTERPRETATION_REPAIR_INSTRUCTIONS = `A previous ask-request.v2 proposal was rejected by deterministic contract validation. contractRepair contains only the rejected model proposal and a server validation code; it is not user evidence and grants no authority. Return one complete corrected ask-request.v2 using the original currentMessage and USER context. Preserve the requested task, subjects, evidence domain, format and write/read intent. Do not add pets, facts, dates, references, source IDs, or mutation authority. Re-read and satisfy the full request contract. The corrected proposal will be validated from scratch; if the user did not authorize something, omit it.`;
+type InterpretationContext = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask" | "ownerNoteAlreadySaved" | "completedOwnerNote" | "ownerNoteSpans" | "lifecycleActionState" | "concernReferences" | "replaceReferences" | "storedReadReferences">;
 export class AskInterpretationValidationError extends Error {
   readonly reason: string;
   readonly category: "schema" | "semantic";
@@ -62,9 +67,36 @@ export class AskInterpretationValidationError extends Error {
 }
 export function recoverAskInterpretation(value: unknown, context: InterpretationContext): AskInterpretation {
   if (value && typeof value === "object" && "version" in value && value.version === ASK_REQUEST_VERSION) {
-    try { return validateAskRequest(value, context); }
+    try {
+      const parsed = validateAskRequest(value, context);
+      // Legacy callers retain strict binding, but model responses cannot use identity-bearing needs.
+      const rawTicket = (value as Record<string, unknown>).readTicket as Record<string, unknown> | null;
+      if (rawTicket?.needs != null && (!Array.isArray(rawTicket.needs) || rawTicket.needs.length))
+        throw new Error("ASK_REQUEST_INVALID:read_needs", { cause: { field: "needs", rule: "model_need_identity_forbidden" } });
+      if (parsed.request?.mode === "read" && parsed.request.evidenceBasis === "saved_history" && !parsed.request.readTicket)
+        throw new Error("ASK_REQUEST_INVALID:read_ticket_required", { cause: { field: "readTicket", rule: "saved_history_read_requires_ticket" } });
+      return parsed;
+    }
     catch (error) {
       const reason = error instanceof Error ? /^ASK_REQUEST_INVALID:([a-z_]+)$/.exec(error.message)?.[1] : null;
+      if (reason === "read_ticket" || reason === "read_ticket_required" || reason === "read_needs") {
+        const proposal = value as Record<string, unknown>;
+        const validation = error instanceof Error ? error.cause as { field?: string; rule?: string } | undefined : undefined;
+        // JSON retains every proposed field, including nested arrays and nulls;
+        // console object inspection can truncate these and hide the failing shape.
+        // This diagnostic is server-only. It never changes the rejected proposal.
+        console.warn("[Ask Brain] rejected read ticket", JSON.stringify({
+          errorCode: `ASK_REQUEST_CONTRACT_${reason.toUpperCase()}`,
+          sourceMessageId: context.currentTurn?.id ?? null,
+          field: validation?.field ?? null,
+          rule: validation?.rule ?? validation?.field ?? null,
+          readTicketPresent: Object.hasOwn(proposal, "readTicket"),
+          readTicket: proposal.readTicket ?? null,
+          needs: (proposal.readTicket as Record<string, unknown> | null)?.needs ?? null,
+          request: { mode: proposal.mode, operation: proposal.operation, scope: proposal.scope,
+            petNames: proposal.petNames, evidenceBasis: proposal.evidenceBasis, writeJob: proposal.writeJob ?? null },
+        }));
+      }
       if (reason === "write_job") {
         console.warn("[Ask Brain] rejected write job", JSON.stringify({
           ...brainProposalDiagnostic(value, context.currentTurn?.id),
@@ -80,6 +112,20 @@ export function recoverAskInterpretation(value: unknown, context: Interpretation
   throw new AskInterpretationValidationError("ASK_REQUEST_CONTRACT_VERSION", "schema");
 }
 
+function parseProviderAskRequest(raw: string): unknown {
+  const value = JSON.parse(raw) as unknown;
+  if (value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 1 && Object.hasOwn(value, "request"))
+    return (value as Record<string, unknown>).request;
+  // Direct Node fixtures predate the provider envelope. Production/development
+  // provider responses must satisfy the envelope emitted in Structured Outputs.
+  if (process.env.NODE_TEST_CONTEXT) return value;
+  throw new Error("ASK_PROVIDER_REQUEST_ENVELOPE");
+}
+
+function sumUsage(left: number | null, right: number | null) {
+  return left === null && right === null ? null : (left || 0) + (right || 0);
+}
+
 /** Failed planning has no history or mutation authority. */
 function unavailableAskReadPlan(reason: string): AskInterpretation {
   return { version: "ask-interpretation.v1", operation: "general", readOperation: "general", selection: "summary",
@@ -87,119 +133,29 @@ function unavailableAskReadPlan(reason: string): AskInterpretation {
     episodeTopic: null, ordinal: null, readOnly: true, clarification: null, frame: emptyProposedSemanticFrame() };
 }
 
-function exactlyNamedOwnedPet(context: InterpretationContext) {
-  const owned=context.eligiblePets.filter(candidate=>candidate.user_id===context.owner.userId && candidate.name);
-  const named=owned.filter(candidate=>new RegExp("(?<![\\p{L}])"+candidate.name!.replace(/[.*+?^$\{\}()|[\]\\]/g,"\\$&")+"(?![\\p{L}])","iu").test(context.currentMessage));
-  return named.length===1 ? named[0] : null;
-}
-
-function fastCompletedNoteWeightReadPlan(context: InterpretationContext): AskInterpretation | null {
-  const message=context.currentMessage.trim();
-  if(!context.ownerNoteAlreadySaved || !context.completedOwnerNote?.entryIds?.length
-    || !/\b(?:last|latest|most recent|newest)\s+two\s+(?:weights?|body masses?)\b/i.test(message)
-    || !/\b(?:this|that)\s+note\b[^.!?]{0,80}\b(?:include|includes|contain|contains|have|has)\b[^.!?]{0,40}\bweight\b|\bwhether\s+(?:this|that)\s+note\b[^.!?]{0,60}\bweight\b/i.test(message)
-    || analyzeOwnerAssertions(message).hasOwnerAssertion) return null;
-  const pet=exactlyNamedOwnedPet(context)
-    || context.eligiblePets.find(candidate=>candidate.user_id===context.owner.userId && candidate.id===context.completedOwnerNote!.petId);
-  if(!pet?.name || pet.id!==context.completedOwnerNote.petId) return null;
-  return validateAskRequest({
-    version:ASK_REQUEST_VERSION,task:null,temporalScope:"historical",mutationIntent:null,recordSelection:null,profileFields:[],
-    projection:null,evidenceNeeds:[],outputFormat:null,evidenceBasis:"saved_history",premiseQuotes:[],excludedPetNames:[],
-    mode:"read",question:message,requirements:[],referenceTurnIds:[],scope:"named",petNames:[pet.name],
-    operation:"recall",selection:"latest",quantity:"measurement",topic:"weight",terms:["weight"],from:null,to:null,
-    episodeTopic:null,ordinal:null,frame:null,
-  },context);
-}
-
-function fastLatestSavedWeightPlan(context: InterpretationContext): AskInterpretation | null {
-  const message=context.currentMessage.trim();
-  if(!/\b(?:latest|last|most recent|newest)\s+(?:recorded\s+)?(?:weight|body mass)\b/i.test(message)
-    || /\b(?:profile|current profile|compare|comparison|versus|difference|change|two\s+(?:weights?|body masses?))\b/i.test(message)
-    || analyzeOwnerAssertions(message).hasOwnerAssertion) return null;
-  const pet=exactlyNamedOwnedPet(context);
-  if(!pet?.name) return null;
-  return validateAskRequest({
-    version:ASK_REQUEST_VERSION,task:null,temporalScope:"historical",mutationIntent:null,recordSelection:null,profileFields:[],
-    projection:null,evidenceNeeds:[],outputFormat:null,evidenceBasis:"saved_history",premiseQuotes:[],excludedPetNames:[],
-    mode:"read",question:message,requirements:[],referenceTurnIds:[],scope:"named",petNames:[pet.name],
-    operation:"recall",selection:"latest",quantity:"measurement",topic:"weight",terms:["weight"],from:null,to:null,
-    episodeTopic:null,ordinal:null,frame:null,
-  },context);
-}
-
-function fastSavedReadbackPlan(context: InterpretationContext): AskInterpretation | null {
-  if (!/^(?:please\s+)?(?:what did i just (?:save|log|record|add)|show me what i just (?:saved|logged|recorded))(?:\s+for\s+[\p{L}\p{M}'’ -]{1,60})?[?.!]*$/iu.test(context.currentMessage.trim())) return null;
-  const priorUsers = context.conversationTurns.filter(turn => turn.role === "user" && turn.id !== context.currentTurn?.id);
-  const source = priorUsers.at(-1);
-  if (!source?.operationReceipt?.records.length) return null;
-  const pet = context.eligiblePets.find(candidate => candidate.user_id === context.owner.userId && candidate.id === source.operationReceipt!.petId);
-  if (!pet?.name) return null;
-  const named = context.eligiblePets.filter(candidate => candidate.user_id === context.owner.userId && candidate.name
-    && new RegExp("(?<![\\p{L}])" + candidate.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?![\\p{L}])", "iu").test(context.currentMessage));
-  if (named.length > 1 || named.length === 1 && named[0].id !== pet.id) return null;
-  return validateAskRequest({
-    version: ASK_REQUEST_VERSION, task: null, temporalScope: "historical", mutationIntent: null, recordSelection: null, profileFields: [],
-    projection: null, evidenceNeeds: [], outputFormat: null, evidenceBasis: "saved_history", premiseQuotes: [], excludedPetNames: [],
-    mode: "read", question: context.currentMessage, requirements: [], referenceTurnIds: [source.id], scope: "named", petNames: [pet.name],
-    operation: "recall", selection: "reference", quantity: null, topic: "saved care history", terms: [], from: null, to: null,
-    episodeTopic: null, ordinal: null, frame: null,
-  }, context);
-}
-
-
-function workingMemoryAskPlan(context: InterpretationContext, sourceTurnId: string, sourceText: string): AskInterpretation {
-  return {
-    version: "ask-interpretation.v1",
-    operation: "general",
-    readOperation: "general",
-    selection: "summary",
-    conversationOnly: true,
-    referenceQuestion: sourceText,
-    petIds: [],
-    readPetIds: [],
-    topic: "working memory conversation",
-    history: null,
-    episodeTopic: null,
-    ordinal: null,
-    readOnly: true,
-    clarification: null,
-    frame: emptyProposedSemanticFrame(),
-    request: {
-      version: ASK_REQUEST_VERSION,
-      task: null,
-      mode: "conversation",
-      question: context.currentMessage,
-      requirements: [],
-      referenceTurnIds: [sourceTurnId],
-      quantity: null,
-      evidenceBasis: "general",
-      outputFormat: null,
-    },
-  };
-}
-
 export async function interpretAskQuestion({ context, model, client, onProviderEvent }: {
   context: InterpretationContext; model: string;
   onProviderEvent?: (event: AskProviderEvent) => void;
   client?: { responses: { create: (request: Record<string, unknown>, options?: { signal: AbortSignal }) => Promise<Record<string, unknown>> } };
 }): Promise<AskInterpretation> {
-  if (!context.pendingTask) {
-    const completedNoteWeightRead = fastCompletedNoteWeightReadPlan(context);
-    if (completedNoteWeightRead) return completedNoteWeightRead;
-    const latestWeight = fastLatestSavedWeightPlan(context);
-    if (latestWeight) return latestWeight;
-    const savedReadback = fastSavedReadbackPlan(context);
-    if (savedReadback) return savedReadback;
-    const workingMemory = resolveWorkingMemoryFollowup(context.currentMessage, context.conversationTurns.map(turn => ({
-      id: turn.id,
-      role: turn.role,
-      text: turn.text,
-    })));
-    if (workingMemory) return workingMemoryAskPlan(context, workingMemory.sourceTurnId, workingMemory.sourceText);
-  }
-
   const state = buildRecentSubjectState({ pets: context.eligiblePets.filter(pet => pet.user_id === context.owner.userId), selectedPetId: context.pet.id, recentConversation: context.conversationTurns });
   const input = { pendingTask: context.pendingTask || null, currentTurn: context.currentTurn || null, timeZone: context.timeZone || "UTC", conversationSubject: state.entities.find(entity => entity.key === state.currentFocusKey)?.label || null, currentMessage: context.currentMessage, today: calendarDateInZone(new Date().toISOString(), context.timeZone),
+    storedReadReferences: (context.storedReadReferences || []).filter(r => r.ownerId === context.owner.userId)
+      .map(r => ({ ref:r.ref, action:r.actionKind, requestedAt:r.createdAt,
+        sourceTurnId:r.sourceMessageId, subject:context.eligiblePets.find(p=>p.id===r.petId)?.name || "Former owned subject" })),
+    replaceTargets: (context.replaceReferences || []).filter(r => r.ownerId === context.owner.userId)
+      .map(r => ({ ref: r.ref, petName: context.eligiblePets.find(p => p.id === r.petId && p.user_id === r.ownerId)?.name,
+        body: r.body, eventAt: r.eventAt })),
+    concernTargets: (context.concernReferences || []).filter(r => r.ownerId === context.owner.userId)
+      .map(r => ({ targetRef: r.ref, petName: context.eligiblePets.find(p => p.id === r.petId && p.user_id === r.ownerId)?.name,
+        title: r.title, currentState: r.status })),
+    lifecycleState: { pendingKnown: context.lifecycleActionState?.complete === true,
+      pending: context.lifecycleActionState?.complete ? context.lifecycleActionState.actions
+        .filter(action => ["pet.mark_deceased", "pet.archive", "pet.mark_active"].includes(action.kind)
+          && ["proposed", "confirmation_required"].includes(action.status))
+        .map(action => ({ subject: context.eligiblePets.find(pet => pet.user_id === context.owner.userId && pet.id === action.petId)?.name,
+          state: action.kind === "pet.mark_deceased" ? "deceased" : action.kind === "pet.archive" ? "archived" : "active" })) : [] },
+    sourceSpans: context.ownerNoteSpans || [],
     ownerNoteSources: [...context.conversationTurns, context.pendingTask?.source, context.currentTurn]
       .filter((turn, index, turns) => turn?.role === "user" && !turn.recoveredReceiptReference && turns.findIndex(other => other?.id === turn.id) === index)
       .slice(-ASK_INTERPRETATION_LIMITS.turns - 1).map(turn => ({ id: turn!.id, text: turn!.text })),
@@ -208,50 +164,45 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     storedNoteReferences: context.conversationTurns.filter(turn => turn.recoveredReceiptReference && turn.operationReceipt?.records.length)
       .slice(-4).map(turn => ({ id: turn.id, role: turn.role, text: turn.text, recordedAt: turn.createdAt,
         petId: turn.operationReceipt!.petId, purpose: "readback_reference_only_not_write_authority" })),
-    reformulation: /\b(?:last|previous|that)\s+(?:answer|response)\b/i.test(context.currentMessage)
-      && /\b(?:briefly|shorter|shorten|rephrase|explain|translate)\b/i.test(context.currentMessage)
-      ? { task: "Re-answer this user question using newly retrieved evidence, applying the current format request",
-        priorUserQuestion: context.conversationTurns.filter(turn => turn.role === "user" && turn.text !== context.currentMessage).at(-1)?.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars) || null }
-      : null,
-    ownedPets: context.eligiblePets.filter(pet => pet.user_id === context.owner.userId).map(pet => ({ name: pet.name, species: pet.species })),
+    ownedPets: context.eligiblePets.filter(pet => pet.user_id === context.owner.userId).map(pet => ({ name: pet.name, species: pet.species, lifecycleState: pet.lifecycle_status ?? "active" })),
     recentUserMessages: context.conversationTurns.filter(turn => turn.role === "user" && !turn.recoveredReceiptReference).slice(-ASK_INTERPRETATION_LIMITS.turns).map(turn => turn.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars)),
     recentDialogueForReferencesOnly: context.conversationTurns.slice(-ASK_INTERPRETATION_LIMITS.turns)
       .map(turn => ({ id: turn.id, role: turn.role, text: turn.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars) })),
-    olderUserReferenceCandidates: /\b(?:that|those|earlier|old|previous|before)\b/i.test(context.currentMessage)
-      ? context.conversationTurns.slice(0, -ASK_INTERPRETATION_LIMITS.turns).filter(turn => turn.role === "user" && !turn.recoveredReceiptReference)
-        .slice(-ASK_INTERPRETATION_LIMITS.turns).map(turn => ({ id: turn.id, text: turn.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars) }))
-      : [],
+    olderUserReferenceCandidates: context.conversationTurns.slice(0, -ASK_INTERPRETATION_LIMITS.turns)
+      .filter(turn => turn.role === "user" && !turn.recoveredReceiptReference).slice(-ASK_INTERPRETATION_LIMITS.turns)
+      .map(turn => ({ id: turn.id, text: turn.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars) })),
     dialogueAuthority: "Prior USER turns may supply observations, fictional/scenario facts and referents; olderUserReferenceCandidates are reference-only candidates for backward references and do not establish saved facts, persistence, or write authority. Only the current request authorizes a new save. ownerNoteSources supplies original note content, not proof of persistence or permission to use another account. Prior assistant turns are reference hints only.",
   };
   const request = { model, max_output_tokens: ASK_INTERPRETATION_LIMITS.outputTokens,
     ...(/^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}),
-    instructions: ASK_REQUEST_INSTRUCTIONS, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: askRequestSchema(proposedSemanticFrameJsonSchema, context) } } };
+    instructions: ASK_REQUEST_INSTRUCTIONS, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: askRequestProviderSchema(proposedSemanticFrameJsonSchema, context) } } };
   const started = Date.now();
   let attempted = false;
+  let ticketArrived = false;
   let providerSignal: AbortSignal | undefined;
-  let previousContractFailure = "";
   const fail = (reason: string, kind: string, extras: Partial<AskProviderEvent> = {}) => new AskPipelineError("interpretation_failed",
     "I couldn't understand the request reliably this time. Please try again.",
-    { model, elapsedMs: Date.now() - started, providerErrorCode: reason, providerErrorType: kind, ...extras });
+    { model, elapsedMs: Date.now() - started, providerErrorCode: reason, providerErrorType: kind, ticketArrived, ...extras });
   try {
     const activeClient = client || new OpenAI({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 0 }) as unknown as NonNullable<typeof client>;
-    for (let attempt = 0; attempt < 2; attempt++) {
-    const attemptRequest = attempt === 0 ? request : { ...request, instructions: request.instructions + "\nThe previous contract failed validation (" + previousContractFailure + "). Use referenceTurnIds only from recentDialogueForReferencesOnly. If the current question is self-contained, use []. Never invent a turn ID or copy a note ID into a conversation-reference field. Preserve a genuine episode target independently of its requested projection. Reconstruct the contract from the original input. Supplied context requires at least one factual USER premise. Each premiseQuotes item must be one exact contiguous substring of a USER message, preserving capitalization and punctuation. Split noncontiguous facts into separate quotes. Do not paraphrase premises or use assistant/routing metadata as evidence. If this is a follow-up about owned pets and their values appeared only in an assistant answer, choose saved_history, resolve the same subjects/property, and retrieve their records again rather than attempting supplied_context. Adding a new observation to history is not correcting an existing record: use mutationIntent null unless the user explicitly asks to edit an existing saved record. Re-evaluate the original user intent before choosing the evidence basis: a genuine current owner observation or explicit application action uses update/mixed with evidenceBasis null when it needs no saved facts, or saved_history when it also needs stored evidence. Fictional, hypothetical, quoted or negated action premises remain non-writing conversation/read tasks; never relabel them as real updates to satisfy validation. For update/mixed, scope identifies the owned action/observation target, not whether history needs retrieval. Resolve the target from the original user message and owned profiles; use named with that canonical name or selected for the selected pet, never scope none with a named target. Do not invent or widen the target. An action instruction supplies intent, not a factual observation. For update/mixed, return the required semantic-frame object, never null. Pure action requests without observations use the valid empty-frame shape given above; do not invent claims. For operation navigate, opening an owned application page is read-only even when combined with a general question: mode read, evidenceBasis null, and the owned target scope. It is not an update/mixed request. If the user also requires saved facts, choose the appropriate saved_history operation instead. For saved_profile, use mode read with every requested profileFields entry, frame null, ordinal null, episodeTopic null, quantity null, from null, to null and evidenceNeeds []. Missing values are handled by the profile lookup, never by inventing a history query. If the original question really needs dated evidence too, choose saved_history instead. All original scope, frame, subject and mutation restrictions still apply." };
     const response = await executeAdmittedProviderCall({ model, maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens,
-      ...(attempt === 1 ? { purpose: "interpretation_repair" as const } : {}),
       stage: "interpretation", reserveMs: 24_000,
-      providerInput: { input: attemptRequest.input, instructions: attemptRequest.instructions },
+      providerInput: { input: request.input, instructions: request.instructions },
       invoke: () => {
         attempted = true;
         onProviderEvent?.({ stage: "interpretation", outcome: "started", model, elapsedMs: 0, configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens });
         return withProviderDeadline(signal => {
           providerSignal = signal;
-          return activeClient.responses.create(attemptRequest as never, { signal });
+          return activeClient.responses.create(request as never, { signal });
         }, boundedProviderTimeout(ASK_INTERPRETATION_LIMITS.timeoutMs, 24_000, "interpretation"));
       } });
-    const result = interpretStructuredProviderResponse(response, raw => JSON.parse(raw) as unknown);
-    const metadata = { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens,
-      parsingAttempted: result.parsingAttempted, configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens };
+    const result = interpretStructuredProviderResponse(response, parseProviderAskRequest);
+    // Arrival is not validation or authority. Timed-out/late provider results never reach this point.
+    const proposal = result.status === "completed" ? result.parsed : null;
+    ticketArrived = !!proposal && typeof proposal === "object" && ["readTicket", "appendJob", "writeJob"]
+      .some(key => key in proposal && (proposal as Record<string, unknown>)[key] != null);
+    let metadata = { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens,
+      parsingAttempted: result.parsingAttempted, configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens, ticketArrived };
     if (result.status !== "completed") {
       const kind = result.status === "invalid" ? result.parsingAttempted ? "json" : "empty_output" : result.status;
       throw fail(`ASK_INTERPRETATION_${kind.toUpperCase()}`, kind, metadata);
@@ -260,25 +211,53 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     let parsed: AskInterpretation;
     try {
       parsed = recoverAskInterpretation(result.parsed, context);
-      if (attempt === 0 && parsed.planningRecovery) throw new AskInterpretationValidationError(parsed.planningRecovery, "semantic");
     }
     catch (error) {
-      if (attempt === 0 && error instanceof AskInterpretationValidationError && ["ASK_REQUEST_CONTRACT_WRITE_JOB", "ASK_REQUEST_CONTRACT_TASK", "ASK_REQUEST_CONTRACT_PROFILE_SCOPE", "ASK_REQUEST_CONTRACT_REFERENCE", "ASK_REQUEST_CONTRACT_EPISODE_REFERENCE", "ASK_REQUEST_CONTRACT_PREMISE_SOURCE", "ASK_REQUEST_CONTRACT_MISSING_SUPPLIED_PREMISE", "ASK_REQUEST_CONTRACT_BASIS_UPDATE", "ASK_REQUEST_CONTRACT_CORRECTION_WORKFLOW", "ASK_REQUEST_CONTRACT_FRAME", "ASK_REQUEST_CONTRACT_SCOPE", "ASK_REQUEST_CONTRACT_NAVIGATION"].includes(error.reason)) {
-        onProviderEvent?.({ stage: "interpretation", outcome: "failed", model, elapsedMs: Date.now() - started,
-          providerErrorCode: error.reason, providerErrorType: error.category, ...metadata });
-        previousContractFailure = error.reason;
-        continue;
+      const rejected = result.parsed && typeof result.parsed === "object" ? result.parsed as Record<string, unknown> : null;
+      const repairableProfileContract = rejected?.mode === "read" && rejected.evidenceBasis === "saved_profile";
+      if (!(error instanceof AskInterpretationValidationError) || error.category !== "semantic" || !repairableProfileContract) {
+        if (error instanceof AskInterpretationValidationError) throw fail(error.reason, error.category, metadata);
+        throw fail("ASK_INTERPRETATION_VALIDATION", "semantic", metadata);
       }
-      if (error instanceof AskInterpretationValidationError) throw fail(error.reason, error.category, metadata);
-      throw fail("ASK_INTERPRETATION_VALIDATION", "semantic", metadata);
+      const repairRequest = { ...request,
+        instructions: `${ASK_REQUEST_INSTRUCTIONS}\n\n${ASK_INTERPRETATION_REPAIR_INSTRUCTIONS}`,
+        input: JSON.stringify({ ...input, contractRepair: { validationCode: error.reason, rejectedProposal: result.parsed } }) };
+      console.info("[Ask Brain] contract repair", { sourceMessageId: context.currentTurn?.id, validationCode: error.reason });
+      const repairResponse = await executeAdmittedProviderCall({ purpose: "interpretation_repair", model,
+        maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens, stage: "interpretation", reserveMs: ASK_INTERPRETATION_REPAIR_LIMITS.reserveMs,
+        providerInput: { input: repairRequest.input, instructions: repairRequest.instructions },
+        invoke: () => {
+          onProviderEvent?.({ stage: "interpretation", outcome: "started", model, elapsedMs: Date.now() - started,
+            configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens, validationDetails: "bounded_contract_repair" });
+          return withProviderDeadline(signal => {
+            providerSignal = signal;
+            return activeClient.responses.create(repairRequest as never, { signal });
+          }, boundedProviderTimeout(ASK_INTERPRETATION_REPAIR_LIMITS.timeoutMs, ASK_INTERPRETATION_REPAIR_LIMITS.reserveMs, "interpretation"));
+        } });
+      const repaired = interpretStructuredProviderResponse(repairResponse, parseProviderAskRequest);
+      const repairedProposal = repaired.status === "completed" ? repaired.parsed : null;
+      ticketArrived = ticketArrived || !!repairedProposal && typeof repairedProposal === "object" && ["readTicket", "appendJob", "writeJob"]
+        .some(key => key in repairedProposal && (repairedProposal as Record<string, unknown>)[key] != null);
+      metadata = { inputTokens: sumUsage(result.usage.inputTokens, repaired.usage.inputTokens),
+        outputTokens: sumUsage(result.usage.outputTokens, repaired.usage.outputTokens), parsingAttempted: repaired.parsingAttempted,
+        configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens, ticketArrived };
+      if (repaired.status !== "completed") {
+        const kind = repaired.status === "invalid" ? repaired.parsingAttempted ? "json" : "empty_output" : repaired.status;
+        throw fail(`ASK_INTERPRETATION_REPAIR_${kind.toUpperCase()}`, kind, metadata);
+      }
+      console.info("[Ask Brain] repaired proposal", brainProposalDiagnostic(repaired.parsed, context.currentTurn?.id));
+      try { parsed = recoverAskInterpretation(repaired.parsed, context); }
+      catch (repairError) {
+        if (repairError instanceof AskInterpretationValidationError) throw fail(repairError.reason, repairError.category, metadata);
+        throw fail("ASK_INTERPRETATION_VALIDATION", "semantic", metadata);
+      }
     }
+    if (parsed.planningRecovery) throw fail(parsed.planningRecovery, "semantic", metadata);
     console.info("[Ask Brain] validated", { sourceMessageId: context.currentTurn?.id, mode: parsed.request?.mode,
-      operation: parsed.request?.writeJob?.operation ?? parsed.operation, writeJob: parsed.request?.writeJob
+      operation: parsed.request?.writeJob?.operation ?? parsed.operation, readTicket: parsed.request?.readTicket || null, writeJob: parsed.request?.writeJob
         ? { target: parsed.request.writeJob.target, petId: parsed.request.writeJob.petId, bodyStart: parsed.request.writeJob.body.start, bodyEnd: parsed.request.writeJob.body.end } : null });
     onProviderEvent?.({ stage: "interpretation", outcome: "succeeded", model, elapsedMs: Date.now() - started, ...metadata });
     return parsed;
-    }
-    throw fail("ASK_INTERPRETATION_VALIDATION", "semantic");
   } catch (error) {
     if (error instanceof AiAdmissionError) {
       if (attempted) onProviderEvent?.({ stage: "interpretation", outcome: "failed", model, elapsedMs: Date.now() - started, providerErrorCode: "ASK_INTERPRETATION_ADMISSION" });
@@ -294,14 +273,30 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
 }
 
 /** The conversation has a selected-pet container; that is not evidence authority. */
-export function readInterpretationSubject(interpretation: AskInterpretation, selectedPetId: string) {
-  const subjects = interpretation.readOnly && interpretation.readPetIds?.length
-    ? interpretation.readPetIds : interpretation.petIds;
+export function readInterpretationSubject(interpretation: AskInterpretation, selectedPetId: string,
+  ownership?: { ownerId: string; pets: Array<{ id: string; user_id?: string }> }): AskTurnSubjectDecision {
+  const request = interpretation.request;
+  // Bound jobs own scope. Envelope IDs are Binder output only for domains that
+  // have no record ticket (for example typed profile reads).
+  const ownerRead = request?.storedRead?.scope === "owner";
+  if (request?.storedRead && ownership && request.storedRead.ownerId !== ownership.ownerId) throw Error("ASK_BOUND_SUBJECT_NOT_OWNED");
+  const subjects = request?.storedRead ? [...request.storedRead.subjectIds]
+    : request?.appendJob ? [request.appendJob.petId]
+    : request?.writeJob ? [request.writeJob.petId]
+    : request?.stateTransitionJob ? [request.stateTransitionJob.petId]
+    : request?.fieldMutationJob ? request.fieldMutationJob.domain === "pet_profile" ? [request.fieldMutationJob.petId] : []
+    : request?.readTicket ? [...request.readTicket.subjects.petIds]
+    : request?.lifecyclePlan ? request.lifecyclePlan.subjects.map(subject => subject.petId)
+    : interpretation.readOnly && interpretation.readPetIds?.length ? interpretation.readPetIds : interpretation.petIds;
+  if (ownership && subjects.some(id => !ownership.pets.some(pet => pet.id === id && pet.user_id === ownership.ownerId))) {
+    throw Error("ASK_BOUND_SUBJECT_NOT_OWNED");
+  }
   return {
+    frame: interpretation.frame,
     usedProviderExtraction: true,
     resolution: {
-      status: interpretation.conversationOnly ? "resolved" as const : subjects.length > 1 ? "multi_subject" as const : subjects.length ? "resolved" as const : "ambiguous" as const,
-      petId: subjects[0] || (interpretation.conversationOnly ? selectedPetId : null),
+      status: interpretation.conversationOnly || ownerRead ? "resolved" as const : subjects.length > 1 ? "multi_subject" as const : subjects.length ? "resolved" as const : "ambiguous" as const,
+      petId: subjects[0] || (interpretation.conversationOnly || ownerRead ? selectedPetId : null),
       petIds: subjects,
       reasonCode: null,
       requiresClarification: interpretation.clarification === "subject",

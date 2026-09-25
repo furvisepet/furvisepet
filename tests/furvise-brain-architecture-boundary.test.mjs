@@ -4,30 +4,31 @@ import test from "node:test";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("all direct owner-note writes cross the Brain mutation gate", () => {
-  const source = read("app/lib/intelligence/persist-owner-note.ts");
-  assert.match(source, /grantFurviseMutationAuthority/);
-  assert.match(source, /assertFurviseMutationAllowed\(turn,\s*["']record_care["']\)/);
-  assert.ok(source.indexOf("assertFurviseMutationAllowed") < source.indexOf("persist_ask_owner_note"));
+test("Ask owner-note writes have no direct RPC path and require Heart capability confirmation", () => {
+  const source = read("app/api/ask/route.ts");
+  const confirmation = read("app/api/ask/actions/[messageId]/route.ts");
+  const capabilities = read("app/lib/application-actions/capabilities.ts");
+  assert.doesNotMatch(source, /persistOwnerNote|persist_ask_owner_note|executeAskTask/);
+  assert.match(source, /prepareAppendTurn/);
+  assert.match(confirmation, /executeActionCapability/);
+  assert.match(capabilities, /confirmFurviseWriteReceipt/);
 });
 
-test("model-derived intelligence cannot promote itself into authoritative care history", () => {
-  const source = read("app/lib/intelligence/persist-learnings.ts");
-  assert.match(source, /careWriteAuthority\?: FurviseTurnAuthority \| null/);
-  assert.match(source, /if \(!input\.authority\) return false/);
-  assert.match(source, /assertFurviseMutationAllowed\(input\.authority, input\.expectedKind\)/);
-  assert.match(source, /FURVISE_MUTATION_SUBJECT_MISMATCH/);
-  assert.ok(source.indexOf("authorizeIntelligenceCarePersistence({") < source.indexOf("persistDatedNoteBatch({"));
-  assert.ok(source.indexOf("authorizeIntelligenceCarePersistence({") < source.indexOf("persistCanonicalSemanticEvents({"));
-  assert.ok(source.indexOf("authorizeIntelligenceCarePersistence({") < source.indexOf("persistCanonicalCareAction({"));
+test("model-derived intelligence has no automatic persistence executor",()=>{
+ const source=read("app/lib/intelligence/persist-learnings.ts"),route=read("app/api/ask/route.ts");
+ assert.doesNotMatch(source,/persistIntelligenceLearnings|\.rpc\(|persistCanonicalCareAction|persistCanonicalSemanticEvents/);
+ assert.doesNotMatch(route,/persistIntelligenceLearnings\(/);
+ assert.match(route,/prepareAppendTurn/);
+ assert.match(read("app/lib/intelligence/run-intelligence.ts"),/APPEND_REQUIRES_CONFIRMATION_CAPABILITY/);
 });
 
-test("pending note continuations re-verify and cross the Brain mutation gate", () => {
-  const source = read("app/lib/intelligence/ask-task-continuation.ts");
-  assert.match(source, /findExplicitCareRecordAuthorization/);
-  assert.match(source, /grantFurviseMutationAuthority/);
-  assert.match(source, /assertFurviseMutationAllowed/);
-  assert.ok(source.indexOf("assertValidatedAskTaskAuthorization(task)") < source.indexOf("apply_ask_task"));
+test("legacy pending tasks cannot recreate mutation parameters or infer subjects after binding",()=>{
+ const source=read("app/lib/intelligence/ask-task-continuation.ts");
+ assert.doesNotMatch(source,/taskMutationParameters|resolvePendingTaskSubject|grantFurviseMutationAuthority|executeAskTask|apply_ask_task/);
+ assert.match(source,/attachTaskReceipts/);
+ const route=read("app/api/ask/route.ts");
+ assert.match(route,/interpretation\.request\?\.task/);
+ assert.doesNotMatch(route,/taskMutationParameters|resolvePendingTaskSubject/);
 });
 
 test("application action capabilities cross the Action Organ before database execution", () => {
@@ -44,9 +45,9 @@ test("Ask generation uses Brain-owned memory scope rather than direct history au
   assert.doesNotMatch(source, /import\s*\{[^}]*retrieveAskHistory[^}]*\}\s*from/);
 });
 
-test("casual follow-ups resolve through deterministic working memory before provider planning", () => {
-  const source = read("app/lib/intelligence/interpret-ask.ts");
-  const workingMemory = source.indexOf("resolveWorkingMemoryFollowup(context.currentMessage");
-  const provider = source.indexOf("new OpenAI(");
-  assert.ok(workingMemory >= 0 && provider >= 0 && workingMemory < provider);
+test("working memory supplies Brain context but cannot replace the canonical interpreter",()=>{
+ const source=read("app/lib/intelligence/interpret-ask.ts");
+ assert.doesNotMatch(source,/resolveWorkingMemoryFollowup\(context.currentMessage/);
+ assert.match(source,/validateAskRequest/);
+ assert.match(read("app/api/ask/route.ts"),/readInterpretationSubject\(interpretation, petId/);
 });

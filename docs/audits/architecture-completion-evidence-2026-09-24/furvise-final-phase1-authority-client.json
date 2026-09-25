@@ -1,0 +1,19 @@
+{
+  "stage": "authority-client",
+  "owner": "f07d2702-d594-478a-bd9f-b747af3a4aff",
+  "petId": "dcceaa9c-6837-48d4-ab52-cc50a27f0687",
+  "conversationId": "9c08f86e-a7f9-4bc0-9c63-478bf2a99a7f",
+  "sourceId": "6dc879a3-b2a3-48bd-82a9-58d105c51373",
+  "assistantId": "f59f1923-dbc1-4f19-a8b6-ed4e1f2ec517",
+  "capabilityId": "8ede5fec-b111-4044-a6ae-a811d01d4f7f",
+  "suggestionId": "bcbe7344-d7c2-4ff3-82d7-36a6d9957e2f",
+  "recordId": "1323256c-1dd2-4da5-ba6c-dbab82441847",
+  "canonicalAppend": "passed",
+  "suggestionPersistence": "passed",
+  "suggestionExecution": "passed",
+  "foreignExecution": "denied",
+  "receipt": "verified",
+  "replay": "unchanged",
+  "bodyFidelity": "exact",
+  "providerCalls": 0
+}

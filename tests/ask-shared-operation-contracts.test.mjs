@@ -1,16 +1,16 @@
+import * as C from "./helpers/canonical-calculation-retirement.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseHistoryCalculations, verifiedCalculationQuantities } from '../app/lib/intelligence/history-calculation.ts';
-import { canonicalReadPresentation, readPublicationFailure } from '../app/lib/ask-publication.ts';
-import { receiptCompletionText } from '../app/lib/intelligence/receipt-completion.ts';
-import { readRecordInventory } from '../app/lib/intelligence/record-inventory.ts';
-import { validateAskRequest } from '../app/lib/intelligence/ask-request-contract.ts';
-import { emptyProposedSemanticFrame } from '../app/lib/intelligence/semantic-frame/extract-frame.ts';
-import { historyNarrativeAnchorsSupported } from '../app/lib/intelligence/history-narrative-facts.ts';
-import { isExplicitNoPersistenceRequest } from '../app/lib/intelligence/care-history-policy.ts';
-import { orchestrateAskTurn } from '../app/lib/ai/ask-orchestrator.ts';
-import { deterministicReadProjection } from '../app/lib/intelligence/read-projection.ts';
-import { enforceVerifiedStateClaims } from '../app/lib/application-actions/state-claims.ts';
+const { canonicalReadPresentation, readPublicationFailure } = await import('../app/lib/ask-publication.ts');
+const { receiptCompletionText } = await import('../app/lib/intelligence/receipt-completion.ts');
+const { readRecordInventory } = await import('../app/lib/intelligence/record-inventory.ts');
+const { validateAskRequest } = await import('../app/lib/intelligence/ask-request-contract.ts');
+const { emptyProposedSemanticFrame } = await import('../app/lib/intelligence/semantic-frame/extract-frame.ts');
+const { historyNarrativeAnchorsSupported } = await import('../app/lib/intelligence/history-narrative-facts.ts');
+const { isExplicitNoPersistenceRequest } = await import('../app/lib/intelligence/care-history-policy.ts');
+const { orchestrateAskTurn } = await import('../app/lib/ai/ask-orchestrator.ts');
+const { assertStoredPublicationUnavailable } = await import('./helpers/unsupported-stored-publication.mjs');
+const { enforceVerifiedStateClaims } = await import('../app/lib/application-actions/state-claims.ts');
 
 test('temporal evidence endpoints are independent of comparison vocabulary',()=>{
  const pet={id:'pet',user_id:'owner',name:'Fern'};
@@ -61,29 +61,14 @@ test('a record correction retrieves its original interval without becoming a rea
   assert.equal(result.history.from,'2026-01-04T00:00:00.000Z');
 });
 
-test('aggregations operate over original measurements, with unit conversion and no invented divisor', () => {
-  const sources = [10,20,30,40,50,60].map((v,i)=>({sourceId:`care:${i}`,text:`Measured ${v} g.`}));
-  const mean = { operation:'mean', expression:null, operands:sources.map(s=>({sourceId:s.sourceId,field:'text',literal:s.text.slice(9,-1)})),value:0.035,unit:'kg' };
-  assert.ok(parseHistoryCalculations([mean]));
-  assert.deepEqual(verifiedCalculationQuantities([mean],sources),['0.035:kg']);
-  assert.equal(verifiedCalculationQuantities([{...mean,value:0.036}],sources),null);
-  assert.equal(verifiedCalculationQuantities([mean],sources.slice(1)),null);
-  assert.equal(verifiedCalculationQuantities([{...mean,unit:'ml'}],sources),null);
+test("canonical means use all selected originals and an organ-owned divisor",async()=>{
+ await C.certified("mean",[10,20,30,40,50,60].map(v=>"Measured "+v+" g"),"kg",.035);C.rejects(c=>c.divisor=5);
 });
-test('a percentage share of a combined total has a first-class verified operation', () => {
-  const sources=[{sourceId:'care:active',text:'Active play lasted 29 minutes.'},{sourceId:'care:rest',text:'Rest lasted 3 minutes.'}];
-  const calculation={operation:'percent_of_sum',expression:null,operands:[
-    {sourceId:'care:rest',field:'text',literal:'3 minutes'},
-    {sourceId:'care:active',field:'text',literal:'29 minutes'}],value:9.4,unit:'%'};
-  assert.ok(parseHistoryCalculations([calculation]));
-  assert.deepEqual(verifiedCalculationQuantities([calculation],sources),['9.4:%']);
-  assert.equal(verifiedCalculationQuantities([{...calculation,value:90.6}],sources),null);
+test("percentage share has a closed canonical operation",async()=>{
+ await C.certified("percent_of_sum",["29 minutes","279 minutes"],"%",29/308*100,{unit:"minute",precision:1});
 });
-test('magnitude-only differences do not weaken signed difference validation',()=>{
- const sources=[{sourceId:'care:high',text:'Active play lasted 29 minutes.'},{sourceId:'care:low',text:'Active play lasted 15 minutes.'}];
- const operands=[{sourceId:'care:low',field:'text',literal:'15 minutes'},{sourceId:'care:high',field:'text',literal:'29 minutes'}];
- assert.deepEqual(verifiedCalculationQuantities([{operation:'absolute_difference',expression:null,operands,value:14,unit:'minutes'}],sources),['14:minute']);
- assert.equal(verifiedCalculationQuantities([{operation:'difference',expression:null,operands,value:14,unit:'minutes'}],sources),null);
+test("absolute magnitude never changes signed difference semantics",async()=>{
+ await C.certified("absolute_difference",["15 minutes","29 minutes"],"minute",14,{unit:"minute"});await C.certified("difference",["15 minutes","29 minutes"],"minute",-14,{unit:"minute"});
 });
 test('past-to-present weight comparisons require the current profile endpoint',()=>{
  const pet={id:'pet',user_id:'owner',name:'Fern'};
@@ -94,7 +79,7 @@ test('past-to-present weight comparisons require the current profile endpoint',(
  assert.equal(result.request.temporalScope,'historical_and_current');
  assert.equal(result.history.from,null); assert.equal(result.history.to,null);
 });
-test('past-to-present weight projection uses profile authority, not a later care observation',()=>{
+test('past-to-present comparison cannot reconstruct arithmetic from profile and history',async()=>{
  const requestText="Compare Fern's April 9, 2024 weight with her current recorded weight and give the absolute and percent change.";
  const profileText='3.8 kg',oldText='Fern body weight was 3.97 kg on 2024-04-09.',newerText='Fern body weight was 3.92 kg on 2026-08-09.';
  const evidence={version:'ask-evidence.v1',scope:{authorizedPetIds:['pet'],requestedTopic:'weight',requestText,requestedPeriod:{kind:'unspecified',surface:null},requestKind:'comparison',status:'resolved',readOnlyRecall:true},
@@ -107,20 +92,13 @@ test('past-to-present weight projection uses profile authority, not a later care
    {sourceId:'profile:pet:weight',petId:'pet',sourceType:'profile',field:'value',start:0,end:profileText.length,text:profileText},
    {sourceId:'care:old',petId:'pet',sourceType:'care_update',field:'value',start:0,end:oldText.length,text:oldText,occurredAt:'2024-04-09T12:00:00Z'},
    {sourceId:'care:newer',petId:'pet',sourceType:'care_update',field:'value',start:0,end:newerText.length,text:newerText,occurredAt:'2026-08-09T12:00:00Z'}]};
- const projection=deterministicReadProjection(evidence);
- assert.match(projection.sentences[0].text,/Fern went from 3\.97 kg on Apr 9, 2024 to 3\.8 kg now, a decrease of 0\.17 kg \(4\.3%\)/);
- assert.deepEqual(projection.sentences[0].sourceIds,['care:old','profile:pet:weight']);
- assert.deepEqual(projection.sentences[0].calculations.map(item=>item.value),[-0.17,-4.3]);
- const grams=deterministicReadProjection({...evidence,scope:{...evidence.scope,requestText:requestText+' Show the change in grams.'}});
- assert.match(grams.sentences[0].text,/decrease of 170 g/);
- assert.equal(grams.sentences[0].calculations[0].value,-170);
- assert.equal(grams.sentences[0].calculations[0].unit,'g');
- const monthEvidence={...evidence,scope:{...evidence.scope,requestText:requestText.replace('April 9,','April')+' Show the change in grams.'}};
- assert.match(deterministicReadProjection(monthEvidence).sentences[0].text,/Apr 9, 2024.*170 g/);
- const ambiguous={...monthEvidence,represented:[...evidence.represented,{...evidence.represented[1],sourceId:'care:newer',occurredAt:'2024-04-20T12:00:00Z'}]};
- assert.equal(deterministicReadProjection(ambiguous),null);
+ await assertStoredPublicationUnavailable(evidence);
+ await assertStoredPublicationUnavailable({...evidence,scope:{...evidence.scope,requestText:requestText+" Show the change in grams."}});
+ const monthEvidence={...evidence,scope:{...evidence.scope,requestText:requestText.replace("April 9,","April")}};
+ await assertStoredPublicationUnavailable(monthEvidence);
+ await assertStoredPublicationUnavailable({...monthEvidence,represented:[...evidence.represented,{...evidence.represented[1],sourceId:"care:newer",occurredAt:"2024-04-20T12:00:00Z"}]});
 });
-test('weight shortcut declines tasks that also request another current profile field',()=> {
+test('weight shortcut declines tasks that also request another current profile field',async()=> {
  const requestText='Compare Ziggy\'s September 13, 2022 weight with the current weight, give the change, and name the currently recorded food.';
  const oldText='Ziggy body weight was 8.7 kg on September 13, 2022 without equipment.';
  const evidence={version:'ask-evidence.v1',scope:{authorizedPetIds:['pet'],requestedTopic:'weight',requestText,requestedPeriod:{kind:'unspecified',surface:null},requestKind:'comparison',status:'resolved',readOnlyRecall:true},
@@ -132,10 +110,10 @@ test('weight shortcut declines tasks that also request another current profile f
    {sourceId:'profile:pet:weight',petId:'pet',sourceType:'profile',field:'value',start:0,end:6,text:'9.4 kg'},
    {sourceId:'profile:pet:current_food',petId:'pet',sourceType:'profile',field:'value',start:0,end:35,text:'whitefish-and-potato adult dry food'},
    {sourceId:'care:old',petId:'pet',sourceType:'care_update',field:'value',start:0,end:oldText.length,text:oldText,occurredAt:'2022-09-13T12:00:00Z'}]};
- assert.equal(deterministicReadProjection(evidence),null);
+ await assertStoredPublicationUnavailable(evidence);
 });
 
-test('quoted source text disambiguates same-day body mass and accepts recorded-weight phrasing',()=> {
+test('quoted source text cannot create an uncertified comparison',async()=> {
  const requestText='Compare Maple\'s September 9, 2022 weight from the note marked "elm compass" with her current recorded weight and give the exact kg change.';
  const profileText='12.7 kg';
  const otherText='Maple weighed 13.02 kg on 2022-09-09. This was body mass on the household scale with no carrier or harness included.';
@@ -150,13 +128,10 @@ test('quoted source text disambiguates same-day body mass and accepts recorded-w
    {sourceId:'profile:pet:weight',petId:'pet',sourceType:'profile',field:'value',start:0,end:profileText.length,text:profileText},
    {sourceId:'care:other',petId:'pet',sourceType:'care_update',field:'value',start:0,end:otherText.length,text:otherText,occurredAt:'2022-09-09T12:00:00Z'},
    {sourceId:'care:marked',petId:'pet',sourceType:'care_update',field:'value',start:0,end:markedText.length,text:markedText,occurredAt:'2022-09-09T13:00:00Z'}]};
- const projection=deterministicReadProjection(evidence);
- assert.ok(projection);
- assert.match(projection.sentences[0].text,/Maple went from 11\.8 kg on Sep 9, 2022 to 12\.7 kg now, an increase of 0\.9 kg/);
- assert.deepEqual(projection.sentences[0].sourceIds,['care:marked','profile:pet:weight']);
+ await assertStoredPublicationUnavailable(evidence);
 });
 
-test('cross-year exact body-mass comparison projects both literal dates server-side',()=> {
+test('cross-year comparison fails closed without canonical calculation authority',async()=> {
  const requestText="Compare Ziggy's body weight recorded on September 13, 2022 with September 9, 2026 and give the exact kg change.";
  const oldText='Ziggy body weight was 8.7 kg on September 13, 2022 without equipment.';
  const newText='Ziggy body weight was 9.4 kg on September 9, 2026 without equipment.';
@@ -168,14 +143,10 @@ test('cross-year exact body-mass comparison projects both literal dates server-s
   represented:[
    {sourceId:'care:old',petId:'pet',sourceType:'care_update',field:'value',start:0,end:oldText.length,text:oldText,occurredAt:'2022-09-13T12:00:00Z'},
    {sourceId:'care:new',petId:'pet',sourceType:'care_update',field:'value',start:0,end:newText.length,text:newText,occurredAt:'2026-09-09T12:00:00Z'}]};
- const projection=deterministicReadProjection(evidence);
- assert.ok(projection);
- assert.match(projection.sentences.map(x=>x.text).join(' '),/8\.7 kg.*9\.4 kg.*0\.7 kg/);
- assert.deepEqual(projection.sentences.at(-1).sourceIds,['care:old','care:new']);
- assert.equal(projection.sentences.at(-1).calculations[0].value,0.7);
+ await assertStoredPublicationUnavailable(evidence);
 });
 
-test('latest multi-pet body mass projection requires one verified unblocked boundary per pet',()=> {
+test('legacy multi-pet chronology metadata cannot replace selection certification',async()=> {
  const ids=Array.from({length:10},(_,i)=>`pet-${i+1}`), names=['Atlas','Clover','Cosmo','Juniper','Maple','Mochi','Nori','Pixel','Ziggy','Rowan'];
  const requestText='Give the latest recorded body weight for each of these 10 pets, keeping them separate. Include the date for each value.';
  const rows=ids.map((petId,i)=>({petId,sourceId:`care:latest-${i+1}`,text:i===0?'This morning his weight on our home scale registered at 5.10 kg.':`${names[i]} body weight was ${(2+i/2).toFixed(1)} kg on September 15, 2026 without equipment.`,occurredAt:'2026-09-15T12:00:00Z'}));
@@ -185,12 +156,9 @@ test('latest multi-pet body mass projection requires one verified unblocked boun
   ),interpretation:{selection:'latest',request:{mode:'read',evidenceBasis:'saved_history',quantity:'measurement',outputFormat:'table',referenceTurnIds:[]}},
   history:{corrections:'complete',chronology:rows.map(row=>({petId:row.petId,boundaryIds:[row.sourceId],blocked:false})),provenance:rows.map(row=>({sourceId:row.sourceId,status:'effective_linked'}))},
   represented:rows.map(row=>({sourceId:row.sourceId,petId:row.petId,sourceType:'care_update',field:'value',start:0,end:row.text.length,text:row.text,occurredAt:row.occurredAt}))};
- const projection=deterministicReadProjection(evidence);
- assert.ok(projection); assert.equal(projection.sentences.length,1);
- for(const name of names) assert.match(projection.sentences[0].text,new RegExp(`\\| ${name} \\| 2026-09-15 \\|`));
- assert.equal(projection.sentences[0].sourceIds.length,10);
+ await assertStoredPublicationUnavailable(evidence);
  const blocked=structuredClone(evidence);blocked.history.chronology[4].blocked=true;
- assert.equal(deterministicReadProjection(blocked),null);
+ await assertStoredPublicationUnavailable(blocked);
 });
 
 test('equivalent displayed units inherit verified measurement and calculation provenance', () => {
@@ -269,7 +237,9 @@ test('publication preserves meaningful spaces in structured cells without option
 test('receipt completion requires every exact requested record and never trusts an assistant answer', () => {
   const requestText='Save two separate notes: January 2, 2026: walked 12 minutes. January 4, 2026: walked 18 minutes.';
   const records=[{id:'one',note:'January 2, 2026: walked 12 minutes.',occurredAt:'2026-01-02T00:00:00Z'}, {id:'two',note:'January 4, 2026: walked 18 minutes.',occurredAt:'2026-01-04T00:00:00Z'}];
-  const receipt={sourceMessageId:'turn',petId:'pet',requestText,answerPersisted:true,records};
+  const requestedItems=records.map((r,i)=>({sourceSpanId:'turn:item:'+i,body:r.note,occurredAt:r.occurredAt,petId:'pet',sourceMessageId:'turn'}));
+  records.forEach((r,i)=>Object.assign(r,{petId:'pet',sourceMessageId:'turn',sourceSpanId:requestedItems[i].sourceSpanId}));
+  const receipt={sourceMessageId:'turn',petId:'pet',requestText,answerPersisted:true,requestedItems,records};
   assert.match(receiptCompletionText(receipt),/^All 2 requested notes/);
   assert.match(receiptCompletionText({...receipt,records:records.slice(1)}),/^1 of 2/);
   assert.match(receiptCompletionText({...receipt,records:[records[0],records[0]]}),/^1 of 2/);
@@ -298,23 +268,12 @@ test('edit receipts establish execution separately from inserted note rows',asyn
     assert.doesNotMatch(source.text,/requested action completed/);assert.match(source.text,/not successful writes/);
   }
 });
-test('calculated answers inherit all operand sources without granting unknown operands authority',async()=>{
-  const {parseHistoryNarrative}=await import('../app/lib/intelligence/history-narrative.ts');
-  const {verifiedCalculationQuantities}=await import('../app/lib/intelligence/history-calculation.ts');
-  const calculation={operation:'elapsed_days',operands:[
-    {sourceId:'care:start',field:'occurredAt',literal:'2024-03-02T00:00:00Z'},
-    {sourceId:'care:stop',field:'occurredAt',literal:'2024-03-05T00:00:00Z'}],value:3,unit:'days'};
-  const draft=parseHistoryNarrative({sentences:[{text:'The calendar-day gap is 3 days.',sourceIds:['episode-result:pet'],calculations:[calculation]}]});
-  assert.deepEqual(draft.sentences[0].sourceIds,['episode-result:pet','care:start','care:stop']);
-  const sources=[{sourceId:'episode-result:pet',text:'One recorded episode.'},
-    {sourceId:'care:start',text:'Started.',occurredAt:'2024-03-02T00:00:00Z'},
-    {sourceId:'care:stop',text:'Stopped.',occurredAt:'2024-03-05T00:00:00Z'}];
-  assert.ok(verifiedCalculationQuantities(draft.sentences[0].calculations,sources));
-  assert.equal(verifiedCalculationQuantities([{...calculation,operands:[calculation.operands[0],{...calculation.operands[1],sourceId:'foreign'}]}],sources),null);
+test("calculation provenance comes only from Muscle operands never narrative source expansion",async()=>{
+ const f=await C.certified("elapsed_days",["start","stop"],"day",3,{days:[2,5]});assert.deepEqual(f.response.relevantContextIds,["care:source-0","care:source-1"]);assert.equal(C.parseHistoryNarrative({sentences:[{text:"3 days",sourceIds:[],calculations:[{operands:[{sourceId:"foreign"}]}]}]}),undefined);
 });
 
 
-test('receipt evidence follows validated references and persisted request identity only', async()=>{
+test('conversation references cannot turn reconstructed operation data into receipt authority', async()=>{
  const {createAskEvidenceContract}=await import('../app/lib/intelligence/ask-evidence.ts');
  const pet={id:'pet',user_id:'owner',name:'Fern'};
  const receipt=(sourceMessageId,petId='pet')=>({sourceMessageId,petId,requestText:'Save a note',answerPersisted:true,records:[]});
@@ -328,9 +287,9 @@ test('receipt evidence follows validated references and persisted request identi
   askInterpretation:{request:{referenceTurnIds},operation:'recall',readOnly:true,history:null}},['pet']);
  assert.deepEqual(build([]).operationReceipts,[]);
  assert.equal(build([]).sources.some(source=>source.source==='operation_receipts'),false);
- for(const refs of [['save'],['answer'],['save','answer']]) assert.deepEqual(build(refs).operationReceipts.map(r=>r.sourceMessageId),['save']);
+ for(const refs of [['save'],['answer'],['save','answer']]) { assert.deepEqual(build(refs).operationReceipts,[]); assert.equal(build(refs).sources.some(s=>s.source==='operation_receipts'),false); }
  for(const refs of [['missing'],['foreign'],['current']]) assert.deepEqual(build(refs).operationReceipts,[]);
- assert.deepEqual(build(['adjacent']).operationReceipts.map(r=>r.sourceMessageId),['adjacent']);
+ assert.deepEqual(build(['adjacent']).operationReceipts,[]);
  assert.equal(turns[0].operationReceipt.sourceMessageId,'old');
 });
 
@@ -356,18 +315,18 @@ const {requestsSavedRecordLookup}=await import('../app/lib/intelligence/ask-requ
 for(const text of ['Do not check saved records. Use these two numbers only.', 'Suppose you could find a historical record.', 'Rowan ate normally. Save this note to history.', 'Repeat this sentence: "Find his historical entry."'])
  test(`no invented lookup authority: ${text}`,()=>assert.equal(requestsSavedRecordLookup(text),false));
 
-test('mixed linked and unlinked receipts require attributed prose, never an ambiguous flat success/failure list',()=>{
+test('mixed linked and unlinked conversation receipts confer no factual readback authority',async()=>{
  const receipts=[{sourceMessageId:'save',petId:'pet',requestText:'Save this observation.',answerPersisted:true,records:[{id:'note',note:'An observation.',occurredAt:'2026-09-15T12:00:00Z'}]},
  {sourceMessageId:'check',petId:'pet',requestText:'Did the note save correctly?',answerPersisted:true,records:[]}];
  const evidence={scope:{requestText:'Did my notes save correctly? Show what was stored.',readOnlyRecall:true,authorizedPetIds:['pet']},
- interpretation:{request:{referenceTurnIds:['save','check']}},operationReceipts:receipts};
+ interpretation:{request:{referenceTurnIds:['save','check']}},operationReceipts:receipts,sources:[],represented:[],losses:[]};
  const before=structuredClone(evidence);
- assert.equal(deterministicReadProjection(evidence),null);
- assert.deepEqual(evidence,before,'unconfirmed requests must remain available for generation and review');
+ await assertStoredPublicationUnavailable(evidence);
+ assert.deepEqual(evidence,before,'declining proofless readback must not mutate the source fixture');
  assert.match(receiptCompletionText(receipts[0]),/1 current care-history entry linked/);
 });
 
-test('just-saved readback shows the saved note, not operation-ledger diagnostics',async()=>{
+test('linked saved-note text cannot substitute for canonical receipt authority',async()=>{
   const {operationReceiptEvidence}=await import('../app/lib/intelligence/ask-evidence.ts');
   const receipt={sourceMessageId:'save-turn',petId:'pet',requestText:'Fern skipped breakfast. Save that for today.',answerPersisted:true,records:[{id:'note',note:'Fern skipped breakfast.',occurredAt:'2026-09-18T12:00:00Z'}]};
   const receiptSources=operationReceiptEvidence([receipt]);
@@ -375,9 +334,9 @@ test('just-saved readback shows the saved note, not operation-ledger diagnostics
   const evidence={scope:{requestText:'What did I just save for Fern?',readOnlyRecall:true,authorizedPetIds:['pet']},petNames:{pet:'Fern'},
     sources:[{petId:'pet',source:'operation_receipt',status:'loaded',loadedIds:receiptSources.map(s=>s.sourceId),loadedCount:receiptSources.length,cap:null,reasons:[],completeness:{retrieval:'complete',corrections:'complete',extraction:'complete',grouping:'complete'}}],
     represented,losses:[],operationReceipts:[receipt],interpretation:{request:{mode:'read',evidenceBasis:'saved_history',outputFormat:'prose',referenceTurnIds:['save-turn']}},history:null};
-  const projection=deterministicReadProjection(evidence);assert.ok(projection);const text=projection.sentences.map(s=>s.text).join('\n');
-  assert.equal(text,'You saved this for Fern: Fern skipped breakfast.');
-  assert.doesNotMatch(text,/lookup found|linked saved note|prior request|receipt/i);
+  const {publicationSources}=await import('../app/lib/intelligence/publication-authority.ts');
+  await assertStoredPublicationUnavailable(evidence);
+  assert.deepEqual(publicationSources(evidence),[]);
 });
 
 test('plain owner readback language cannot be rejected as an invented save task',()=>{

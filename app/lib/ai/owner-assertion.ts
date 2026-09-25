@@ -13,7 +13,7 @@ const preferenceDirective = /^(?:please\s+)?(?:answer|don't recommend|do not rec
 const ownerPurchaseHabit = /\b(?:i|we)\s+(?:(?:always|normally|often|usually)\s+)?(?:buy|order|shop)\b/i;
 const negativeObservation = /\b(?:he|she|they|it|(?:my|our)\s+(?:animal|cat|dog|pet)|[A-Z][\p{L}'’-]{1,40})\s+(?:did(?:n't| not)|does(?:n't| not)|has(?:n't| not)|have(?:n't| not))\s+[\p{L}\p{N}'’-]+\b/iu;
 const safetyObservation = /\b(?:collapsed?|cannot breathe|can't breathe|unable to breathe|unconscious|gums? (?:are|look) (?:blue|pale))\b/i;
-const hypotheticalClause = /^(?:if|unless|suppose|supposing|assuming|imagine|even if)\b|\b(?:i|we)\s+(?:would|wish)\b/i;
+const hypotheticalClause = /^(?:what\s+if|if|unless|suppose|supposing|assuming|imagine|hypothetical(?:ly)?|even if)\b|\b(?:i|we)\s+(?:would|wish)\b/i;
 const uncertaintyMarker = /\b(?:apparently|appears?|as far as i can tell|could|i (?:believe|guess|suspect|think)|looks? like|may|maybe|might|not sure|perhaps|possibly|probably|seems?|suspect|uncertain|unsure)\b/i;
 const correctionMarker = /\b(?:actually|correction|i meant|instead|not what i said|rather than|that (?:is|was) (?:incorrect|wrong))\b|^\s*no\s*[,;:]/i;
 const explicitAssertionRequest = /\b(?:remember|save|note)\s+that\b/i;
@@ -42,6 +42,15 @@ export type OwnerAssertionSpan = {
   isQuestion: boolean;
   isUncertain: boolean;
 };
+
+
+/** Surface proposition for subject tracking, never an additional write-evidence span.
+ * Keep the original assertion metadata and return only an exact source slice. */
+export function ownerAssertionProposition(clause: OwnerAssertionSpan): Pick<OwnerAssertionSpan, "text" | "start" | "end"> {
+  const wrapper = /^(?:i|we)(?:\s+(?:think|believe|suspect|guess)|(?:\s+(?:am|are)|['\u2019]m|['\u2019]re)\s+not\s+sure)\s+(?:that\s+)?/i.exec(clause.text);
+  const offset = wrapper?.[0].length || 0;
+  return { text: clause.text.slice(offset), start: clause.start + offset, end: clause.end };
+}
 
 /** Quoted content is not an independent owner assertion. Preserve offsets so
  * downstream assertion gates can still attach spans to the original message. */
@@ -195,7 +204,7 @@ function scopeIndependentClauses(sentence: string, sentenceStart: number): Owner
     };
   });
 
-  const firstConditional = clauses.findIndex((clause) => /^(?:if|unless|suppose|supposing|assuming|imagine|even if)\b/i.test(clause.text.trim()));
+  const firstConditional = clauses.findIndex((clause) => /^(?:what\s+if|if|unless|suppose|supposing|assuming|imagine|hypothetical(?:ly)?|even if)\b/i.test(clause.text.trim()));
   if (firstConditional >= 0) {
     const consequent = clauses.findIndex((clause, index) => index > firstConditional
       && /^(?:(?:then|but|and)\s+)?(?:(?:i|we|that|this)\s+)?(?:would|will|could)\b/i.test(clause.text.trim()));

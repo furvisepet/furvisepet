@@ -2,8 +2,8 @@ export const ASK_ONBOARDING_SOURCE = "onboarding";
 
 const onboardingStarterTemplates = [
   "What do you remember about {pet} so far?",
-  "What should I keep an eye on with {pet}?",
-  "What should I tell you when something changes?",
+  "What was the earliest recorded weight for {pet}?",
+  "When did we change {pet}'s food?",
 ] as const;
 
 export function buildOnboardingAskStarters(petName: string) {

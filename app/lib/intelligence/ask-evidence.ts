@@ -1,3 +1,4 @@
+import { bindStoredReadEvidence } from "./stored-read-publication.ts";
 import { wholeAskTaskQuestion } from "./ask-task-continuation.ts";
 import { receiptCompletionText } from "./receipt-completion.ts";
 import { episodeResultText } from "./episode-contract.ts";
@@ -10,6 +11,7 @@ import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
 import type { AskContextRecord } from "../ai/ask-reasoning.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import type { FurviseLiveContext } from "./types.ts";
+import { bindEvidenceReadTicket, bindEvidenceLocator, publicationSourceMatches, type EvidenceReadTicket } from "./evidence-read-ticket.ts";
 import { buildSourceNoteRecall, sourceNoteAnswer, type SourceNoteRecall } from "./source-note-recall.ts";
 
 
@@ -23,6 +25,8 @@ export type EvidenceSource = {
 export type EvidenceLoss = { sourceId: string; reason: string };
 export type EvidenceLoading = { sources: EvidenceSource[]; losses: EvidenceLoss[]; dateRange?: { from: string; to: string } };
 export type AskEvidenceScope = {
+  /** Included in the existing server-fact scope key; no model coverage here. */
+  ticketKey?: string;
   authorizedPetIds: string[]; requestedTopic: string; requestText: string;
   requestedPeriod: { kind: "lifetime" | "requested" | "unspecified"; surface: string | null };
   requestKind: "ordinary" | "count" | "absence" | "comparison" | "overview" | "record_lookup" | "resolution_status";
@@ -30,6 +34,11 @@ export type AskEvidenceScope = {
   status: "resolved" | "ambiguous"; readOnlyRecall: boolean;
 };
 export type AskEvidenceContract = {
+  storedReadResult?: import("../furvise-brain/stored-read-organ.ts").StoredReadResult;
+  /** Ephemeral owned-row projection; model JSON cannot mint its server snapshot. */
+  profileFieldProjection?: import("./profile-field-authority.ts").ProfileFieldProjection;
+  /** Typed read plus publication obligations; never a source of state. */
+  publicationTicket?: EvidenceReadTicket;
   completedOwnerNote?: FurviseLiveContext["completedOwnerNote"];
   timeZone?: string;
   recordInventory?: import("./record-inventory.ts").RecordInventory[];
@@ -89,29 +98,9 @@ export function evidenceSource(petId: string, source: string, loadedIds: string[
 }
 
 export function askEvidenceScope(message: string, authorizedPetIds: string[]): AskEvidenceScope {
-  // A deliberately small question-only grammar. Topic/subject alternatives
-  // abstain; owner updates, saves, ordinals and safety observations stay outside.
-  const resolution = /^(?:is|has)\s+([\p{L}]+(?:\s+(?:and|or)\s+[\p{L}]+)?)(?:['’]s)?(?:\s+((?:hiding|vomiting|stool|litter|stiffness|breathing|condition|issue)(?:\s+(?:and|or)\s+(?:hiding|vomiting|stool|litter|stiffness|breathing|condition|issue))?))?\s+(?:(?:fully|completely)\s+)?(?:resolved|ended|stopped)(?:\s+in\s+((?:19|20)\d{2}))?\s*\?$/iu.exec(message.trim());
-  if (resolution) return { authorizedPetIds: [...new Set(authorizedPetIds)], requestedTopic: resolution[2]?.toLowerCase() || "unspecified",
-    requestText: message, requestedPeriod: { kind: resolution[3] ? "requested" : "unspecified", surface: resolution[3] || null }, requestKind: "resolution_status",
-    resolutionSubject: resolution[1], status: authorizedPetIds.length === 1 && Boolean(resolution[2]) && !/\b(?:and|or)\b/i.test(message) ? "resolved" : "ambiguous", readOnlyRecall: true };
-  const history = /\b(?:history|record\w*|report\w*|episodes?|vomit\w*|stool|weights?|diagnos\w*|tests?|medication|litter|stiffness)\b/i.test(message);
-  const lifetime = /\b(?:lifetime|ever|all (?:of )?(?:the )?(?:recorded )?history|entire (?:recorded )?history|complete history|full history)\b/i.test(message);
-  const period = /\b(?:(?:19|20)\d{2}|(?:this|last|previous) (?:week|month|year)|since\s+[^?!.]+|between\s+[^?!.]+)\b/i.exec(message)?.[0] || null;
-  const kind: AskEvidenceScope["requestKind"] = history && /\b(?:how many|number of|total|count)\b/i.test(message) ? "count"
-    : history && /\b(?:compare|comparison|difference|change in weight|weight change)\b/i.test(message)
-      && (/\b(?:all|every|earliest|first|latest|recorded)\b/i.test(message)
-        || /\bfrom\b[^?!.]{1,100}\b(?:to|through|thru)\b/i.test(message)) ? "comparison"
-    : history && (/\b(?:ever|never|any record|no record)\b/i.test(message)
-      || /^(?:have|has|did|do|does|is|are)\b[\s\S]*\b(?:any|reported|recorded)\b/i.test(message)) ? "absence"
-    : /\b(?:summari[sz]e|summary|overview|review|list)\b/i.test(message) && (lifetime || Boolean(period) || /\b(?:all|entire|complete|full|history|recorded)\b/i.test(message) && history) ? "overview"
-    : /\b(?:tests?|urine|diagnos\w*)\b/i.test(message) && /\b(?:results?|diagnos\w*)\b/i.test(message) ? "record_lookup" : "ordinary";
-  const topics = message.toLowerCase().match(/\b(?:soft[- ]stool|stool|vomit\w*|weights?|food|diet|litter|urine|hiding|medication|stiffness|diagnos\w*)\b/g) || [];
-  return { authorizedPetIds: [...new Set(authorizedPetIds)], requestedTopic: [...new Set(topics)].join(", ") || "unspecified", requestText: message,
-    requestedPeriod: { kind: lifetime ? "lifetime" : period ? "requested" : "unspecified", surface: lifetime ? "lifetime" : period ? message : null },
-    requestKind: kind, status: /\b(?:second|third|that|which) episode\b/i.test(message) ? "ambiguous" : "resolved",
-    readOnlyRecall: (history || kind !== "ordinary") && !analyzeOwnerAssertions(message).hasOwnerAssertion
-      && !/\b(?:save|log|record|remember|note)\s+(?:this|that|it)\b/i.test(message) };
+  // No sentence can select a history scope before Brain supplies its contract.
+  return { authorizedPetIds: [...new Set(authorizedPetIds)], requestedTopic: "unspecified", requestText: message,
+    requestedPeriod: { kind: "unspecified", surface: null }, requestKind: "ordinary", status: "resolved", readOnlyRecall: false };
 }
 
 /** Records what the existing loader/selector did; does not select more history. */
@@ -143,18 +132,7 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
   for (const item of recordInventoryEvidence(contract.recordInventory)) {
     contract.sources.push(evidenceSource(item.petId, "record_inventory", [item.sourceId]));
   }
-  const referenceIds = context.askInterpretation?.request?.referenceTurnIds;
-  const referencedRequests = new Set(context.conversationTurns
-    .filter(turn => referenceIds?.includes(turn.id) && turn.requestId).map(turn => turn.requestId));
-  contract.operationReceipts = context.conversationTurns
-    .filter(turn => turn.id !== (currentTurn?.role === "user" ? currentTurn.id : null))
-    .filter(turn => !referenceIds || referenceIds.includes(turn.id)
-      || Boolean(turn.requestId && referencedRequests.has(turn.requestId)))
-    .flatMap(turn => turn.operationReceipt && ids.includes(turn.operationReceipt.petId) ? [structuredClone(turn.operationReceipt)] : []);
-  for (const petId of ids) {
-    const receipts = contract.operationReceipts.filter(receipt => receipt.petId === petId);
-    if (receipts.length) contract.sources.push(evidenceSource(petId, "operation_receipts", operationReceiptEvidence(receipts).map(source => source.sourceId)));
-  }
+  contract.operationReceipts = [];
   if (context.askInterpretation) {
     const plan = context.askInterpretation;
     const { frame, ...readPlan } = plan;
@@ -206,8 +184,20 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
     const changedSources = new Set(history.coverage.provenance.filter(source => source.status === "deleted_or_changed").map(source => source.sourceId));
     contract.losses.push(...history.coverage.excludedIds.map(sourceId => ({ sourceId, reason: changedSources.has(sourceId) ? "source_deleted_or_changed" : "historical_evidence_budget" })));
   }
-  const sourceNoteRecall = contract.interpretation?.request ? null : buildSourceNoteRecall(context.askHistory ? { ...context, careEntries: context.askHistory.entries } : context, contract);
+  if (context.evidenceReadProposal) {
+    if (contract.interpretation) throw new Error("ASK_EVIDENCE_DUPLICATE_INTERPRETER");
+    const ticket = bindEvidenceReadTicket(context.evidenceReadProposal, ids, context.currentMessage);
+    contract.publicationTicket = ticket;
+    contract.scope = { authorizedPetIds: [...ticket.read.subjects.petIds], requestText: context.currentMessage,
+      requestedTopic: ticket.topics.join(", "), requestedPeriod: ticket.period, requestKind: ticket.kind,
+      status: ticket.status, readOnlyRecall: true, ticketKey: JSON.stringify(ticket) };
+  }
+  const sourceNoteRecall = contract.publicationTicket
+    ? bindEvidenceLocator(contract.publicationTicket, context.askHistory?.entries || context.careEntries,
+      context.owner.userId, id => careEvidenceId(id, contract.history))
+    : contract.interpretation?.request ? null : buildSourceNoteRecall(context.askHistory ? { ...context, careEntries: context.askHistory.entries } : context, contract);
   if (sourceNoteRecall) contract.sourceNoteRecall = sourceNoteRecall;
+  if (context.storedReadResult) bindStoredReadEvidence(contract, context.storedReadResult);
   return refreshEvidenceCoverage(contract);
 }
 
@@ -237,7 +227,7 @@ export function representEvidence(contract: AskEvidenceContract, records: AskCon
   contract.represented = records.map(record => ({ sourceId: record.id, petId: record.petId, sourceType: record.sourceType,
     field: "value", start: 0, end: record.value.length, text: record.value,
     ...(record.sourceType === "care_update" ? { recordedAt: record.createdAt } : {}),
-    ...(contract.interpretation || contract.scope.requestKind === "resolution_status" || record.sourceType === "operation_receipt" ? { occurredAt: record.occurredAt } : {}) }));
+    ...(contract.publicationTicket || contract.interpretation || contract.scope.requestKind === "resolution_status" || record.sourceType === "operation_receipt" ? { occurredAt: record.occurredAt } : {}) }));
   const completed=contract.completedOwnerNote;
   if(completed?.note && completed.entryIds?.length && contract.scope.authorizedPetIds.includes(completed.petId)){
     const ids=completed.entryIds.map(id=>`care:${id}`);
@@ -255,17 +245,14 @@ export function representEvidence(contract: AskEvidenceContract, records: AskCon
 /** Shared factual source eligibility. Scope, loading, representation and source
  * versions are authority; a presentation field name is not an evidence policy. */
 export function eligibleAnswerSources(evidence: AskEvidenceContract) {
-  const receiptSources = operationReceiptEvidence(evidence.operationReceipts || []);
   const inventorySources = recordInventoryEvidence(evidence.recordInventory || []);
   const saved = evidence.represented.filter(span =>
     // Correction failure invalidates clinical history, not independent profile,
-    // physical inventory, or request-linked receipt evidence.
+    // or physical inventory evidence.
     (span.sourceType !== "care_update" || evidence.history?.corrections !== "unavailable")
-    && (span.sourceType === "care_update" || span.sourceType === "profile" || span.sourceType === "operation_receipt" || span.sourceType === "episode_result" || span.sourceType === "record_inventory")
+    && (span.sourceType === "care_update" || span.sourceType === "profile" || span.sourceType === "episode_result" || span.sourceType === "record_inventory")
     && (span.sourceType !== "record_inventory" || inventorySources.some(source => source.sourceId === span.sourceId && source.petId === span.petId && source.text === span.text))
     && (span.sourceType !== "episode_result" || !!evidence.episodes && span.text === episodeResultText(evidence.episodes))
-    && (span.sourceType !== "operation_receipt" || receiptSources.some(source => source.sourceId === span.sourceId
-      && source.petId === span.petId && source.text === span.text && source.occurredAt === (span.occurredAt || null)))
     && evidence.scope.authorizedPetIds.includes(span.petId)
     && (!!evidence.interpretation?.request || !span.occurredAt || Date.parse(span.occurredAt) <= Date.now())
     && span.start === 0 && span.end === span.text.length && span.text.trim()
@@ -356,14 +343,19 @@ export function evidenceAnswerPolicy(contract: AskEvidenceContract, synthesis: H
     return "The requested history is incomplete or its correction evidence is unavailable or uncertain. I can't establish an effective historical answer from this subset. Please narrow the period or topic, or retry the lookup; this is not evidence that an event or result is absent.";
   }
   if (completeRequiredComparison) return attributedHistoryAnswer(contract, false, synthesis);
-  if (kind === "ordinary" && contract.scope.status !== "ambiguous") return null;
+  if (kind === "ordinary" && contract.scope.status !== "ambiguous" && !contract.publicationTicket) return null;
   if (contract.scope.status === "ambiguous") return "Which episode do you mean? Please identify the pet and approximate date so I can keep the records separate.";
   if (kind === "record_lookup") return sourceNoteAnswer(contract).text;
   const represented = new Set(contract.represented.map(span => span.sourceId));
   const certified = contract.scope.authorizedPetIds.length > 0 && Object.values(contract.completeness).every(value => value === "complete")
     && contract.representation === "complete" && contract.sources.every(source => source.status === "loaded");
   const fact = certified && contract.verifiedFacts.find(fact => fact.kind === kind && fact.scopeKey === evidenceScopeKey(contract.scope)
-    && fact.sourceIds.every(id => represented.has(id)) && fact.text.length <= 1800);
+    && fact.sourceIds.every(id => represented.has(id)) && fact.text.length <= 1800
+    && (!contract.publicationTicket || fact.sourceIds.length > 0 && fact.sourceIds.every(id => {
+      const spans = contract.represented.filter(span => span.sourceId === id);
+      return spans.length > 0 && spans.every(span => span.sourceType === "care_update" && span.start === 0 && span.end === span.text.length
+        && publicationSourceMatches(contract.publicationTicket!, span));
+    })));
   if (fact) return fact.text;
   const failed = contract.sources.some(source => source.status === "unavailable" || source.status === "not_loaded");
   const lead = failed ? "I couldn't verify all the requested records." : "The available records are limited, and their completeness and corrections are not verified.";
@@ -464,8 +456,15 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
     const eventFallback = eventTerms.length > 0;
     const ordered = orderHistoryEvidence(eligible, selection, note => note.occurredAt || "", note => note.sourceId,
       undefined, eventFallback ? note => -eventRelevance(note.text) : undefined);
-    const boundary = contract.history?.chronology?.find(item => item.petId === petId);
-    const boundaryBlocked = unresolvedCorrection || boundary?.blocked || boundary?.boundaryIds.some(id => !candidates.some(note => note.sourceId === id));
+    const resultSet = contract.history?.ticketCoverage?.resultSet;
+    const subjectSet = resultSet?.subjects.find(item => item.petId === petId);
+    // Generic full-set proof replaces the old boundary receipt for migrated reads.
+    // Missing representation cannot regain boundary authority in a fallback.
+    const resultSetBlocked = !!resultSet && (!subjectSet?.certified
+      || subjectSet.retainedIds.some(id => !candidates.some(note => note.sourceId === careEvidenceId(id, contract.history))));
+    const boundary = resultSet ? undefined : contract.history?.chronology?.find(item => item.petId === petId);
+    const boundaryBlocked = resultSetBlocked || unresolvedCorrection || boundary?.blocked
+      || boundary?.boundaryIds.some(id => !candidates.some(note => note.sourceId === id));
     const occurrenceUncertain = selection === "earliest_occurrence" && ordered.filter(note => compareHistoryTime(note.occurredAt || "", ordered[0]?.occurredAt || "") === 0).some(note => occurrence(note) !== "affirmative");
     // Earliest/latest answers retain their decisive report. Include the other
     // dated reports for status so a resolution cannot hide a later recurrence.

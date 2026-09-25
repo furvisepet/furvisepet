@@ -52,11 +52,12 @@ import { applySuggestedQuestionDraft, getAskMessageVariant, shouldShowSuggestedQ
 import { ASK_ONBOARDING_SOURCE, buildOnboardingAskStarters, shouldShowOnboardingAskStarters } from "../lib/ask-onboarding-entry";
 import type { FurviseApplicationAction } from "../lib/application-actions/types";
 import { getPetLifecycleStatus, isActivePet } from "../lib/pet-lifecycle";
+import { PUBLIC_V1_CAPABILITIES } from "../lib/public-v1-capabilities";
 
 const emptyStarters = [
-  "What has changed recently?",
-  "What should I keep an eye on?",
-  "How should I prepare for {pet}'s next vet visit?",
+  "What was {pet}'s earliest recorded weight?",
+  "What was {pet}'s latest recorded weight?",
+  "When did we change {pet}'s food?",
 ] as const;
 
 type AnswerType = "direct_answer" | "care_plan" | "tracking_plan" | "vet_prep" | "history_summary" | "product_guidance" | "clarification" | "urgent_guidance";
@@ -695,10 +696,10 @@ function AskPageContent() {
       const payload = await conversationJson(`/api/ask/actions/${encodeURIComponent(messageId)}`, {
         method: "POST",
         body: JSON.stringify({ actionId: action.id, decision }),
-      }) as { action?: FurviseApplicationAction; changed?: boolean };
+      }) as { action?: FurviseApplicationAction; changed?: boolean; continuation?: { response?: StructuredResponse } };
       if (!payload.action) throw new Error("That Furvise action could not be completed.");
       setThread((current) => reconcileThreadApplicationActions(current.map((message) => message.role === "furvise"
-        ? { ...message, response: { ...message.response, applicationActions: (message.response.applicationActions || []).map((candidate) => candidate.id === action.id ? payload.action! : candidate) } }
+        ? { ...message, response: { ...message.response, ...(message.id === messageId ? payload.continuation?.response : {}), applicationActions: (message.response.applicationActions || []).map((candidate) => candidate.id === action.id ? payload.action! : candidate) } }
         : message)));
       if (payload.changed) markAppDataChanged();
       if (payload.changed && action.kind === "pet.delete_permanently") router.push("/pets");
@@ -793,7 +794,9 @@ function FurviseMessage({ lifecycleStatus, message, onAction, onApplicationActio
   const messageVariant = getAskMessageVariant(response, userMessage);
   // Navigation belongs to the reviewed application cards. A mention of a vet
   // or a legacy answer label cannot add an unrequested brief shortcut.
-  const configuredActions: AnswerAction[] = messageVariant === "GRIEF" || lifecycleStatus !== "active" ? ["copy"] : response.actions.filter(action => action !== "prepare_vet_note");
+  const configuredActions: AnswerAction[] = PUBLIC_V1_CAPABILITIES.askMutations
+    ? (messageVariant === "GRIEF" || lifecycleStatus !== "active" ? ["copy"] : response.actions.filter(action => action !== "prepare_vet_note"))
+    : ["copy"];
   const actions = [...new Set(configuredActions)].filter((action) => {
     const saves = action === "save_key_detail" || action === "add_to_care_history" || action === "start_tracking";
     return !saves || Boolean(message.saveMetadata?.saveable);
@@ -812,8 +815,8 @@ function FurviseMessage({ lifecycleStatus, message, onAction, onApplicationActio
     <AdaptiveSections answerType={response.answerType} sections={response.sections} />
     {response.completionNotice ? <aside className="mt-4 rounded-xl border border-[var(--assistant-response-border)] bg-black/[0.018] px-3.5 py-3 text-sm text-[var(--text-secondary)]" data-answer-completion="limited"><p className="font-semibold text-[var(--text-primary)]">What I couldn’t confirm</p><p className="mt-1 leading-6">{response.completionNotice}</p></aside> : null}
     {actions.length ? <div className="mt-4 flex flex-wrap gap-2">{actions.map((action) => <button className={action === "copy" ? quietButton : secondaryButton} key={action} onClick={() => onAction(action, message)} type="button">{formatAction(action)}</button>)}</div> : null}
-    {messageVariant !== "CASUAL" && message.suggestion && message.suggestion.status !== "saved" && !message.suggestion.applyStatus ? <StateUpdateSuggestion onAction={onSuggestionAction} suggestion={message.suggestion} /> : null}
-    {response.applicationActions?.length ? <ApplicationActions actions={response.applicationActions} onAction={onApplicationAction} /> : null}
+    {PUBLIC_V1_CAPABILITIES.askMutations && messageVariant !== "CASUAL" && message.suggestion && message.suggestion.status !== "saved" && !message.suggestion.applyStatus ? <StateUpdateSuggestion onAction={onSuggestionAction} suggestion={message.suggestion} /> : null}
+    {PUBLIC_V1_CAPABILITIES.askMutations && response.applicationActions?.length ? <ApplicationActions actions={response.applicationActions} onAction={onApplicationAction} /> : null}
     {getPersistenceNotices(message).map((notice) => <p className="mt-3 text-xs font-semibold text-[var(--text-secondary)]" data-persistence-notice={notice.type} key={notice.key}>{notice.label}</p>)}
     {careHistoryState === "SAVE_FAILED" ? <p className="mt-3 text-xs font-semibold text-[var(--pw-warning-text)]" role="status">{message.suggestion ? "This update has not been saved. Review it in the care history card and try again when ready." : "This update could not be saved to care history. Your answer is still available."}</p> : null}
   </article>;

@@ -1,11 +1,17 @@
+import {rebindRemoveJob, removeJobActionMatches} from "../furvise-brain/remove-job.ts";
 import "server-only";
+import { requireRecentInteractiveAuthentication } from "../security/recent-auth.ts";
+import { rebindReplaceJob, replaceJobActionMatches } from "../furvise-brain/replace-job.ts";
+import { bindStateTransitionJob, stateTransitionProposal, stateTransitionActionMatches } from "../furvise-brain/state-transition-job.ts";
+import { bindFieldMutationJob, fieldMutationActionMatches, fieldMutationJobProposal } from "../furvise-brain/field-mutation-job.ts";
+import { appendJobProposal, validateAppendJob } from "../furvise-brain/append-job.ts";
+import { isDeepStrictEqual } from "node:util";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createIdempotencyAdminClient } from "../security/idempotency/admin-client.ts";
 import { authorizeFurviseActionExecution } from "../furvise-brain/action-organ.ts";
-import { careWriteOperation, confirmFurviseWriteReceipt } from "../furvise-brain/write-contract.ts";
+import { canonicalWriteOperation, confirmFurviseWriteReceipt } from "../furvise-brain/write-contract.ts";
 import { parseStoredApplicationActions } from "./contracts.ts";
-import { hasDeterministicUserMutationIntent } from "./planner.ts";
 import { getFurviseActionPolicy } from "./policy.ts";
 import type { FurviseApplicationAction } from "./types.ts";
 
@@ -31,7 +37,7 @@ export async function createActionCapabilities(input: {
 }) {
   const admin = createIdempotencyAdminClient();
   const display: FurviseApplicationAction[] = [];
-  let authoritativeSourceMessage: string | undefined;
+  let authoritativeSourceMessage: { text: string; createdAt: string } | undefined;
   const authoritativePetNames = new Map<string, string>();
   for (const action of input.actions) {
     if (UUID.test(action.id)) continue;
@@ -43,13 +49,16 @@ export async function createActionCapabilities(input: {
       authoritativePetName = await loadAuthoritativePetName(action.petId, input.supabase, input.userId);
       authoritativePetNames.set(action.petId, authoritativePetName);
     }
-    const authoritativeAction = canonicalCapabilityAction(
+    const authoritativeAction = rebindCanonicalCapabilityAction(
       action,
       input.sourceMessageId,
       authoritativeSourceMessage,
       authoritativePetName,
+      input.userId,
     );
-    const targetId = await bindTarget(authoritativeAction, input.targetBindings?.[action.id] || null, input.supabase, input.userId);
+    if ((authoritativeAction.replaceJob || authoritativeAction.removeJob?.domain === "care_history") && action.targetSourceId !== "care:" + input.targetBindings?.[action.id])
+      throw Error("REPLACE_CAPABILITY_TARGET_MISMATCH");
+    const targetId = await bindTarget(authoritativeAction, authoritativeAction.stateTransitionJob?.concernId || input.targetBindings?.[action.id] || null, input.supabase, input.userId);
     if (requiresBoundTarget(authoritativeAction) && !targetId) {
       display.push({ ...authoritativeAction, status: "failed", errorMessage: "That original target is no longer available.", resultMessage: null });
       continue;
@@ -101,7 +110,11 @@ export async function executeActionCapability(input: {
   userId: string;
   mode: "confirm" | "cancel" | "auto";
   correctionSourceMessageId?: string;
+  suggestionId?: string;
+  recentAuthContext?: Parameters<typeof requireRecentInteractiveAuthentication>[0];
 }) {
+  if (input.suggestionId && (input.mode !== "confirm" || input.correctionSourceMessageId))
+    throw Error("CANONICAL_SUGGESTION_CONFIRM_REQUIRED");
   const admin = createIdempotencyAdminClient();
   const capability = await loadExecutionCapability({
     capabilityId: input.capabilityId,
@@ -111,13 +124,27 @@ export async function executeActionCapability(input: {
   if (!capability) return null;
   const authoritativeAction = parseStoredApplicationActions([capability.action_payload])[0];
   if (!authoritativeAction) throw new Error("ACTION_CAPABILITY_CORRUPT");
+  if (authoritativeAction.fieldMutationJob && !fieldMutationActionMatches(authoritativeAction.fieldMutationJob, authoritativeAction, input.userId))
+    throw Error("FIELD_CAPABILITY_SCOPE_MISMATCH");
+  if (["care_state.resolve", "care_state.reopen"].includes(authoritativeAction.kind)
+    && (!authoritativeAction.stateTransitionJob || !stateTransitionActionMatches(authoritativeAction.stateTransitionJob, authoritativeAction, input.userId)))
+    throw Error("TRANSITION_CAPABILITY_SCOPE_MISMATCH");
+  if (authoritativeAction.replaceJob && !replaceJobActionMatches(authoritativeAction.replaceJob, authoritativeAction))
+    throw Error("REPLACE_CAPABILITY_SCOPE_MISMATCH");
+  // The immutable server capability determines whether destructive reauthentication is required.
+  if(authoritativeAction.kind==="pet.delete_permanently" && input.mode==="confirm" && capability.status==="pending") {
+    if(!input.recentAuthContext || input.recentAuthContext.userId!==input.userId
+      || !(await requireRecentInteractiveAuthentication(input.recentAuthContext)).allowed)throw Error("RECENT_AUTH_REQUIRED");
+  }
   authorizeFurviseActionExecution({
     action: authoritativeAction,
     capabilityId: capability.id,
     mode: input.mode,
   });
 
-  const { data, error } = await admin.rpc("execute_ask_action_capability", {
+  const { data, error } = await admin.rpc(input.suggestionId ? "execute_ask_canonical_suggestion" : "execute_ask_action_capability", input.suggestionId ? {
+    p_user_id: input.userId, p_suggestion_id: input.suggestionId, p_capability_id: input.capabilityId,
+  } : {
     p_capability_id: input.capabilityId,
     p_assistant_message_id: input.assistantMessageId,
     p_user_id: input.userId,
@@ -128,7 +155,7 @@ export async function executeActionCapability(input: {
   if (!data) return null;
   const action = parseStoredApplicationActions([data.action])[0];
   if (!action) throw new Error("ACTION_CAPABILITY_CORRUPT");
-  if (careWriteOperation(authoritativeAction.kind)) {
+  if (canonicalWriteOperation(authoritativeAction.kind)) {
     const persisted = await loadExecutionCapability(input);
     const receipt = confirmFurviseWriteReceipt({
       operationId: capability.id,
@@ -156,20 +183,64 @@ export async function cancelActionCapability(input: { capabilityId: string; user
   });
 }
 
-function canonicalCapabilityAction(
+export function rebindCanonicalCapabilityAction(
   action: FurviseApplicationAction,
   sourceMessageId: string,
-  sourceMessage: string,
+  sourceMessage: { text: string; createdAt: string },
   petName: string,
+  userId: string,
 ): FurviseApplicationAction {
   if (!isExecutableSourceAction(action)) throw new Error("ACTION_CAPABILITY_SOURCE_NOT_EXECUTABLE");
   const policy = getFurviseActionPolicy(action.kind);
   if (policy.mutationClass !== "mutation") throw new Error("ACTION_CAPABILITY_KIND_NOT_MUTABLE");
-  const explicitIntent = hasDeterministicUserMutationIntent({ action, petName, sourceMessage });
+  if (action.kind === "care_history.edit" && !action.replaceJob) throw Error("REPLACE_CAPABILITY_JOB_REQUIRED");
+  if(["care_history.remove","pet.delete_permanently"].includes(action.kind) && !action.removeJob)throw Error("REMOVE_CAPABILITY_JOB_REQUIRED");
+  if(action.removeJob) {
+    if(action.appendJob||action.replaceJob||action.fieldMutationJob||action.stateTransitionJob||!removeJobActionMatches(action.removeJob,action))throw Error("REMOVE_CAPABILITY_SCOPE_MISMATCH");
+    rebindRemoveJob(action.removeJob,{id:sourceMessageId,...sourceMessage},{id:action.petId,name:petName},userId);
+  }
+  if (action.replaceJob) {
+    if (action.appendJob || action.fieldMutationJob || action.stateTransitionJob
+      || !replaceJobActionMatches(action.replaceJob, action)) throw Error("REPLACE_CAPABILITY_SCOPE_MISMATCH");
+    const rebound = rebindReplaceJob(action.replaceJob,
+      { id: sourceMessageId, text: sourceMessage.text, createdAt: sourceMessage.createdAt }, { id: action.petId, name: petName }, userId);
+    if (!isDeepStrictEqual(rebound, action.replaceJob)) throw Error("REPLACE_CAPABILITY_SOURCE_MISMATCH");
+  }
+  if (action.appendJob) {
+    const rebound = validateAppendJob(appendJobProposal(action.appendJob, petName),
+      { id: sourceMessageId, role: "user", text: sourceMessage.text, createdAt: sourceMessage.createdAt },
+      [{ id: action.petId, name: petName, user_id: userId }], userId);
+    if (action.kind !== "care_history.add" || !isDeepStrictEqual(rebound, action.appendJob)) throw Error("APPEND_CAPABILITY_SOURCE_MISMATCH");
+  }
+  if (["pet.update_profile", "memory.set_preference", "memory.forget_preference"].includes(action.kind) || action.fieldMutationJob) {
+    const job = action.fieldMutationJob;
+    if (!job || action.appendJob) throw Error("FIELD_CAPABILITY_JOB_REQUIRED");
+    const rebound = bindFieldMutationJob(fieldMutationJobProposal(job, petName),
+      { id: sourceMessageId, role: "user", text: sourceMessage.text, createdAt: sourceMessage.createdAt },
+      [{ id: action.petId, name: petName, user_id: userId }], userId);
+    if (!isDeepStrictEqual(rebound, job)
+      || !fieldMutationActionMatches(job, { ...action, sourceMessageId }, userId))
+      throw Error("FIELD_CAPABILITY_SOURCE_MISMATCH");
+  }
+  if (["care_state.resolve", "care_state.reopen"].includes(action.kind) || action.stateTransitionJob) {
+    const job = action.stateTransitionJob;
+    if (!job || action.appendJob || action.fieldMutationJob || !stateTransitionActionMatches(job, action, userId))
+      throw Error("TRANSITION_CAPABILITY_JOB_REQUIRED");
+    const rebound = bindStateTransitionJob(stateTransitionProposal(job, petName), {
+      source: { id: sourceMessageId, role: "user", text: sourceMessage.text, createdAt: sourceMessage.createdAt },
+      ownerId: userId, pets: [{ id: action.petId, name: petName, user_id: userId }],
+      references: [{ ref: job.targetRef, ownerId: userId, petId: action.petId, concernId: job.concernId,
+        status: job.fromState, title: "" }] });
+    if (!isDeepStrictEqual(rebound, job)) throw Error("TRANSITION_CAPABILITY_SOURCE_MISMATCH");
+  }
+  // Exact source-bound transitions retain their existing policy. All other
+  // mutations require confirmation; raw wording never grants auto-execution.
+  const explicitIntent = Boolean(action.stateTransitionJob);
   const { targetSourceId, ...capabilityAction } = action;
   void targetSourceId;
   return {
     ...capabilityAction,
+    ...(action.replaceJob || action.removeJob?.domain === "care_history" ? { targetSourceId } : {}),
     ...policy,
     explicitIntent,
     sourceMessageId,
@@ -180,11 +251,11 @@ function canonicalCapabilityAction(
 }
 
 async function loadAuthoritativeSourceMessage(sourceMessageId: string, supabase: SupabaseClient, userId: string) {
-  const { data, error } = await supabase.from("ask_conversation_messages").select("user_text")
+  const { data, error } = await supabase.from("ask_conversation_messages").select("user_text,created_at")
     .eq("id", sourceMessageId).eq("user_id", userId).eq("role", "user")
-    .maybeSingle<{ user_text: string }>();
+    .maybeSingle<{ user_text: string; created_at: string }>();
   if (error || !data?.user_text) throw new Error("ACTION_CAPABILITY_SOURCE_MESSAGE_LOOKUP_FAILED");
-  return data.user_text;
+  return { text: data.user_text, createdAt: data.created_at };
 }
 
 async function loadAuthoritativePetName(petId: string, supabase: SupabaseClient, userId: string) {
@@ -254,7 +325,9 @@ async function bindTarget(action: FurviseApplicationAction, targetId: string | n
   }
   if (action.kind === "care_state.resolve" || action.kind === "care_state.reopen") {
     if (!targetId || !UUID.test(targetId)) return null;
-    const statuses = action.kind === "care_state.resolve" ? ["active", "monitoring", "reopened"] : ["resolved"];
+    const job = action.stateTransitionJob;
+    if (!job || job.concernId !== targetId || !stateTransitionActionMatches(job, action, userId)) return null;
+    const statuses = [job.fromState];
     const { data, error } = await supabase.from("pet_concerns").select("id").eq("id", targetId)
       .eq("user_id", userId).eq("pet_profile_id", action.petId).in("status", statuses).maybeSingle<{ id: string }>();
     if (error) throw new Error("ACTION_CAPABILITY_TARGET_LOOKUP_FAILED");

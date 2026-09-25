@@ -85,13 +85,18 @@ test("hostile SQL covers cross-tenant insert, reassignment, owner mutation, null
   assert.match(sql, /recompute_pet_current_state/);
 });
 
-test("current application writes remain on owner-validating RPC and trigger paths", () => {
+test("current public writes remain on owner-validating boundaries and generated Ask writes are disabled", () => {
   const persistence = read("app/lib/intelligence/persist-learnings.ts");
+  const capabilities = read("app/lib/application-actions/capabilities.ts");
+  const careRoute = read("app/api/care-entries/[id]/route.ts");
+  const publicV1 = read("app/lib/public-v1-capabilities.ts");
   const episodes = read("supabase/migrations/20260728080000_add_pet_care_episodes.sql");
   const state = read("supabase/migrations/20260728090000_add_pet_current_state.sql");
-  assert.match(persistence, /rpc\("persist_furvise_ask_intelligence"/);
-  assert.match(persistence, /rpc\("persist_furvise_server_care_event"/);
-  assert.match(persistence, /createCanonicalCareAuthorityClient/);
+  assert.doesNotMatch(persistence, /\.rpc\(/, "learning preparation does not independently persist");
+  assert.match(capabilities, /execute_ask_action_capability/);
+  assert.match(capabilities, /confirmFurviseWriteReceipt/);
+  assert.match(careRoute, /rpc\("update_my_care_entry"/);
+  assert.match(publicV1, /askMutations:\s*false/);
   assert.match(episodes, /create trigger pet_care_entries_assign_episode/);
   assert.match(state, /create trigger pet_care_entries_apply_current_state/);
   assert.doesNotMatch(migration, /create or replace function public\.(?:persist_furvise_intelligence|persist_furvise_care_event|assign_pet_care_episode|apply_care_event_to_pet_state)/);

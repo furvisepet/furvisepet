@@ -34,6 +34,12 @@ export async function retrieveFurviseMemory(
   turn: FurviseTurnAuthority,
   vetBriefRead?: { plan: HistoryPlan; termGroups: string[][]; periodFrom?: string | null; periodTo?: string | null },
 ): Promise<FurviseLiveContext> {
+  if (!vetBriefRead && !context.askInterpretation?.request) throw new Error("ASK_MEMORY_BRAIN_REQUIRED");
+  if (!vetBriefRead && context.askInterpretation?.request?.mode === "read"
+    && context.askInterpretation.request.evidenceBasis === "saved_history" && !context.askInterpretation.request.readTicket)
+    throw new Error("ASK_MEMORY_READ_TICKET_REQUIRED");
+  if (!vetBriefRead && context.askInterpretation?.request?.evidenceBasis !== "saved_history") return context;
+  if (!vetBriefRead && !context.askInterpretation?.request?.readTicket) throw new Error("ASK_MEMORY_READ_TICKET_REQUIRED");
   const read = planFurviseMemoryRead(turn);
   if (read.depth === "none" || read.depth === "working" || !read.petIds.length) return context;
 

@@ -6,7 +6,6 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import {validateAskRequest} from '../../app/lib/intelligence/ask-request-contract.ts';
 import {emptyProposedSemanticFrame} from '../../app/lib/intelligence/semantic-frame/extract-frame.ts';
-import {executeAskTask,taskMutationParameters} from '../../app/lib/intelligence/ask-task-continuation.ts';
 import {requestProposal} from './helpers/request-proposal.mjs';
 import {exceedsSelectedPetRead} from '../../app/lib/intelligence/selected-pet-read.ts';
 import {explicitlyNamedOwnedPets} from '../../app/lib/intelligence/entities/resolve-turn-subject.ts';
@@ -36,7 +35,7 @@ test('actual admitted route refuses another pet before history or mutations and 
  assert.equal(sandbox.turnAuthoritativePetIds.length,0);
  assert.equal(sandbox.contextUsed.usedSources.length,0);
 });
-for(const scenario of ['save','resume','cancel','cancel_saved','failure'])test(`actual admitted route continuation ${scenario}`,async()=>{
+for(const scenario of ['save','resume','cancel','cancel_saved','failure'])test(`legacy ${scenario} cannot execute an unconfirmed task or fetch facts`,async()=>{
  const cancelling=scenario.startsWith('cancel');
  const calls=[];const source={id:'source',role:'user',text:'gave medicine yesterday',createdAt:'2026-09-15T12:00:00Z'};
  const priorSave={...source,id:'prior-save',text:'save that as a note'};
@@ -51,17 +50,14 @@ for(const scenario of ['save','resume','cancel','cancel_saved','failure'])test(`
   turnLifecycle:lifecycle,creditReserved:false,creditFinalState:'not_reserved',generationStage:'',ownerNotePersistence:null,ownerNoteSourceMessageId:'current',ownerNotePetId:'pet',completedContinuation:null,execution:{},immediateEmergency:null,
   reserveAiCredit:async()=>{calls.push('reserve');return{status:'reserved'};},logAskStage:()=>{},
   interpretAskQuestion:async({context})=>validateAskRequest(proposal,context),exceedsSelectedPetRead,explicitlyNamedOwnedPets,ambiguousBackwardMultiPetReference:()=>null,
-  requireRateLimitedRequest:async()=>({release:async()=>{}}),taskMutationParameters,executeAskTask,
-  taskAuthority:{rpc:async(name,args)=>{calls.push('execute');assert.equal(name,'apply_ask_task');assert.equal(args.p_source_text,source.text);assert.equal(args.p_message_id,'current');return scenario==='failure'?{data:null,error:{code:'42501'}}:{data:{id:'task',revision:1,status:cancelling?'cancelled':'completed',petId:'pet',entryId:scenario==='cancel'?null:'entry'},error:null};}},
-  completeOwnerNoteResponse:async input=>input,revalidateAskStateViews:()=>{},
   safeReleaseAiCredit:async()=>{calls.push('release');return true;},
   buildSubjectClarificationOrchestration:()=>({answer:{},clarificationQuestion:'Which pet?'}),
  };
  const run=vm.runInNewContext(code,sandbox);
- if(scenario==='failure'){await assert.rejects(run(),/ASK_TASK_WRITE_UNCONFIRMED/);assert.equal(sandbox.execution.savedNoteResponse,undefined);return;}
- const response=await run();assert.deepEqual(calls,['reserve','execute','release']);
- if(cancelling){assert.match(response.answer.summary,scenario==='cancel_saved'?/still saved/:/not saved/);assert.equal(sandbox.completedContinuation,null);}
- else {const result=await sandbox.completedContinuation();assert.equal(result.receipt.careEntryIds[0],'entry');assert.equal(result.needsAnswer,false);assert.equal(sandbox.ownerNoteSourceMessageId,'source');}
+ const response=await run();assert.deepEqual(calls,['reserve']);
+ assert.equal(response.clarificationQuestion,'Which pet?');assert.equal(sandbox.completedContinuation,null);
+ assert.equal(sandbox.execution.savedNoteResponse,undefined);
+
 });
 
 test('whole-request validation rejects a resumed mixed task recast as only saving',()=>{

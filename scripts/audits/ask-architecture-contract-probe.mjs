@@ -13,7 +13,7 @@ registerHooks({ resolve(specifier, context, next) {
 } });
 globalThis.fetch = async () => { throw new Error('No network allowed in architecture probe'); };
 const { validateAskRequest, ASK_REQUEST_VERSION } = await import('../../app/lib/intelligence/ask-request-contract.ts');
-const { historicalReadSchema, canonicalHistoricalRead } = await import('../../app/lib/intelligence/historical-read-response.ts');
+const {labsPresentation}=await import("../../app/lib/intelligence/labs-presentation.ts");
 const { eligibleAnswerSources: usableSources } = await import('../../app/lib/intelligence/ask-evidence.ts');
 const pet = { id: 'pet-a', user_id: 'owner-a', name: 'Aster' };
 const context = { owner: { userId: 'owner-a' }, pet, eligiblePets: [pet], conversationTurns: [] };
@@ -27,15 +27,7 @@ for (const quantity of ['episodes', 'records', 'duration']) {
 }
 const represented = ['species', 'sex', 'pronouns', 'age', 'breed', 'weight'].map(field => ({ sourceId: 'profile:pet-a:' + field, sourceType: 'profile', petId: 'pet-a', text: field, start: 0, end: field.length }));
 results.push({ probe: 'reviewer_profile_field_selection', supplied: represented.map(s => s.sourceId), retained: usableSources({ represented, scope: { authorizedPetIds: ['pet-a'] }, interpretation: { request: {} }, losses: [], sources: [{ source: 'profile', petId: 'pet-a', loadedIds: ['pet-a'], status: 'loaded' }] }).map(s => s.sourceId) });
-const schema = historicalReadSchema({}, 'csv');
-results.push({ probe: 'csv_contract', maxRows: schema.properties.table.properties.rows.maxItems, minRows: schema.properties.table.properties.rows.minItems, limitation: schema.properties.limitation });
-const row = { cells: ['Aster', 'Observed resting.'], sourceIds: ['care:a'], calculations: [] };
-for (const rows of [0, 4, 11]) {
-  try {
-    canonicalHistoricalRead({ readVersion: 'history-answer.v1', layout: 'csv', historyNarrative: null, limitation: null, table: { headers: ['Pet', 'Note'], rows: Array.from({ length: rows }, () => row) }, json: null, navigationActions: [], safetyLevel: 'normal', responseMode: 'practical_guidance', userIntent: 'history', relevantContextIds: ['care:a'] });
-    results.push({ probe: 'csv_row_count', rows, accepted: true });
-  } catch (error) { results.push({ probe: 'csv_row_count', rows, accepted: false, error: error.message }); }
-}
+for(const format of ["csv","json","prose","table"])results.push({probe:"deterministic_presentation_mapper",format,presentation:labsPresentation(format)});
 for (const [from, to] of [[null, '2025-01-01'], ['2024-01-01', null]]) {
   try {
     const result = validateAskRequest({ ...base, operation: 'count', selection: 'summary', ordinal: null, from, to }, { ...context, currentMessage: 'Count Aster’s recorded vomiting episodes.' });

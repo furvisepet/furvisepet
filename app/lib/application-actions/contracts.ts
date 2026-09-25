@@ -1,3 +1,8 @@
+import {readBoundRemoveJob, removeJobActionMatches} from "../furvise-brain/remove-job.ts";
+import { readBoundReplaceJob, replaceJobActionMatches } from "../furvise-brain/replace-job.ts";
+import { readBoundStateTransitionJob, stateTransitionActionMatches } from "../furvise-brain/state-transition-job.ts";
+import { fieldMutationActionMatches, fieldMutationActionValue, readBoundFieldMutationJob } from "../furvise-brain/field-mutation-job.ts";
+import { readBoundAppendJob } from "../furvise-brain/append-job.ts";
 import { FURVISE_ACTION_KINDS, parseStoredFurviseActionKind, type FurviseActionInput, type FurviseApplicationAction, type ModelApplicationAction } from "./types.ts";
 
 export const modelApplicationActionJsonSchema = {
@@ -53,7 +58,32 @@ export function parseStoredApplicationActions(value: unknown): FurviseApplicatio
     const draft = candidate as Record<string, unknown>;
     const kind = parseStoredFurviseActionKind(draft.kind);
     if (typeof draft.id !== "string" || typeof draft.petId !== "string" || !kind) return [];
+    const appendJob = draft.appendJob === undefined ? undefined : readBoundAppendJob(draft.appendJob);
+    if (draft.appendJob !== undefined && (!appendJob || kind !== "care_history.add" || appendJob.petId !== draft.petId || appendJob.sourceMessageId !== draft.sourceMessageId)) return [];
+    const fieldMutationJob = draft.fieldMutationJob === undefined ? undefined : readBoundFieldMutationJob(draft.fieldMutationJob);
+    if (draft.fieldMutationJob !== undefined && (!fieldMutationJob || appendJob
+      || fieldMutationJob.sourceMessageId !== draft.sourceMessageId || draft.explicitIntent !== false)) return [];
+    const stateTransitionJob = draft.stateTransitionJob === undefined ? undefined : readBoundStateTransitionJob(draft.stateTransitionJob);
+    if (draft.stateTransitionJob !== undefined && (!stateTransitionJob || appendJob || fieldMutationJob)) return [];
+    if (stateTransitionJob && !stateTransitionActionMatches(stateTransitionJob, draft as unknown as FurviseApplicationAction)) return [];
+    const replaceJob = draft.replaceJob === undefined ? undefined : readBoundReplaceJob(draft.replaceJob);
+    if (draft.replaceJob !== undefined && (!replaceJob || appendJob || fieldMutationJob || stateTransitionJob
+      || !replaceJobActionMatches(replaceJob, draft as unknown as FurviseApplicationAction))) return [];
+    if (kind === "care_history.edit" && !replaceJob) return [];
+    const removeJob = draft.removeJob === undefined ? undefined : readBoundRemoveJob(draft.removeJob);
+    if(draft.removeJob !== undefined && (!removeJob || appendJob || replaceJob || fieldMutationJob || stateTransitionJob
+      || !removeJobActionMatches(removeJob,draft as unknown as FurviseApplicationAction)))return [];
+    if(["care_history.remove","pet.delete_permanently"].includes(kind) && !removeJob)return [];
     const input = parseInput(draft.input);
+    // Compare RAW input above; generic model cleanup must never redefine a bound value.
+    if (replaceJob && input) input.detail = replaceJob.body.text;
+    if (fieldMutationJob && input) {
+      const raw = draft.input as Record<string, unknown>;
+      if (!fieldMutationActionMatches(fieldMutationJob, { kind, petId: draft.petId,
+        sourceMessageId: draft.sourceMessageId as string, input: raw as typeof input })) return [];
+      input.field = fieldMutationJob.field;
+      input.value = fieldMutationActionValue(fieldMutationJob);
+    }
     if (!input || typeof draft.evidence !== "string" || typeof draft.explicitIntent !== "boolean") return [];
     if (!["READ_ONLY", "LOW_RISK_REVERSIBLE", "CONFIRMATION_REQUIRED", "DESTRUCTIVE"].includes(String(draft.safetyClass))) return [];
     if (!["read", "mutation", "navigation"].includes(String(draft.mutationClass))) return [];
@@ -62,6 +92,11 @@ export function parseStoredApplicationActions(value: unknown): FurviseApplicatio
     if (!["proposed", "confirmation_required", "succeeded", "failed", "cancelled"].includes(String(draft.status))) return [];
     return [{
       id: draft.id, petId: draft.petId, kind, input, evidence: draft.evidence,
+      ...(appendJob ? { appendJob } : {}),
+      ...(removeJob ? {removeJob,...(removeJob.domain==="care_history"?{targetSourceId:draft.targetSourceId as string}:{})} : {}),
+      ...(replaceJob ? { replaceJob, targetSourceId: draft.targetSourceId as string } : {}),
+      ...(fieldMutationJob ? { fieldMutationJob } : {}),
+      ...(stateTransitionJob ? { stateTransitionJob } : {}),
       sourceMessageId: typeof draft.sourceMessageId === "string" ? draft.sourceMessageId : null,
       explicitIntent: draft.explicitIntent, safetyClass: draft.safetyClass, mutationClass: draft.mutationClass,
       confirmationPolicy: draft.confirmationPolicy, authorizationScope: draft.authorizationScope,

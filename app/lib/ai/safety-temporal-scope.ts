@@ -1,9 +1,20 @@
-import { analyzeOwnerAssertions } from "./owner-assertion.ts";
+import { splitSentencesPreservingFacts } from "./text-segmentation.ts";
+import { analyzeOwnerAssertions, unquotedOwnerText } from "./owner-assertion.ts";
 
 /** Scope evidence, not symptom severity. Uncertainty and current questions stay
  * eligible; a hypothetical or explicitly old source is not a current report. */
 function scopedClauses(message: string) {
-  const blocks = message.split(/[,;]?\s+but\s+(?=now\b|today\b|currently\b)/i);
+  // Find boundaries on the original source; masking must not erase separators.
+  const sentences = splitSentencesPreservingFacts(message);
+  const unquoted = unquotedOwnerText(message);
+  let from = 0;
+  const scopedSentences = sentences.map(sentence => {
+    const start = message.indexOf(sentence, from);
+    from = start + sentence.length;
+    // Slice the full quote mask so quotes spanning multiple sentences stay excluded.
+    return unquoted.slice(start, from);
+  });
+  const blocks = scopedSentences.flatMap(sentence => sentence.split(/[,;]?\s+but\s+(?=now\b|today\b|currently\b)/i));
   const clauses = blocks.flatMap(block => /^(?:hypothetically|suppose|supposing|imagine)\b/i.test(block.trim()) ? [] : analyzeOwnerAssertions(block).clauseSpans);
   const historical = /\b(?:(?:years?|months?|weeks?) ago|last (?:year|month)|back in (?:19|20)\d{2}|in (?:19|20)\d{2}|(?:old|previous|past|dated) (?:note|record|report)|when .{1,40} (?:puppy|kitten))\b/i;
   const hypothetical = /\b(?:hypothetically|hypothetical|suppose|supposing|imagine)\b/i;

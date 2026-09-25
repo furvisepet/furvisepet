@@ -36,12 +36,12 @@ test("Vet Brief generation uses live shared context and the unified credit ledge
 
 test("Vet Brief keeps deterministic rendering, Not recorded, and source traceability", () => {
   const route = read("app/api/vet-briefs/draft/route.ts");
-  const schema = read("app/lib/intelligence/vet-brief.ts");
+  const schema = read("app/lib/vet-brief/content.ts");
   const persistence = read("app/api/vet-briefs/route.ts");
   assert.match(route, /buildVetBriefDraft/);
   assert.match(schema, /parseVetBriefDocument/);
-  assert.match(schema, /allowedSourceIds/);
-  assert.match(schema, /document\.pet.*baseline\.pet/);
+  assert.match(schema, /allowedIds/);
+  assert.match(schema, /pet: baseline\.pet/);
   assert.match(persistence, /pet_concerns/);
   assert.match(persistence, /furvise_memories/);
 });

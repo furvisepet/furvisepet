@@ -1,7 +1,7 @@
 import {exercise,clock} from './helpers/lifetime-harness.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-const { hasDeterministicUserMutationIntent } = await import('../../app/lib/application-actions/planner.ts');
+const {prepareFurviseApplicationActions} = await import('../../app/lib/application-actions/planner.ts');
 const { containsUnverifiedStateClaim } = await import('../../app/lib/application-actions/state-claims.ts');
 const { parseTaskCompletion, reviewTaskCompletion, taskReviewSchema } = await import('../../app/lib/intelligence/review-task-completion.ts');
 const { canonicalReviewPurpose } = await import('../../app/lib/ai/usage-guard/provider-call-budget.ts');
@@ -15,9 +15,12 @@ const observation = `${pet.name} had a ${detail}`;
 const source = `${observation}. Save this update to care history.`;
 const action = {kind:'care_history.add', explicitIntent:true, evidence:'Save this update to care history',
   input:{field:null,value:null,title:null,detail:'a '+detail,category:null,target:'selected'}};
-const authorized = (message, savedDetail = action.input.detail) => hasDeterministicUserMutationIntent({
-  action:{...action,input:{...action.input,detail:savedDetail}},petName:pet.name,sourceMessage:message});
-for (const savedDetail of [observation, 'had a '+detail, 'a '+detail, detail]) test('direct observation save binds detail: '+savedDetail, () => assert.equal(authorized(source,savedDetail),true));
+// Model-shaped actions are proposals only. Wording cannot supply canonical consent.
+const authorized = (message, savedDetail = action.input.detail) => prepareFurviseApplicationActions({
+ proposals:[{...action,input:{...action.input,detail:savedDetail}}],petId:pet.id,petName:pet.name,
+ requestId:'fixture',sourceMessage:message}).some(a=>a.explicitIntent);
+for (const savedDetail of [observation, 'had a '+detail, 'a '+detail, detail])
+ test('model save proposal does not auto-authorize detail: '+savedDetail,()=>assert.equal(authorized(source,savedDetail),false));
 for (const [label,message,savedDetail] of [
   ['foreign pet',source.replace(pet.name,'Unowned Pet')],
   ['conditional','If '+source],
@@ -32,8 +35,8 @@ for (const [label,message,savedDetail] of [
   ['second command',source+' Then archive the pet.'],
   ['quoted predicate',`${pet.name} said "${detail}". Save this update to care history.`],
 ]) test('no automatic save for '+label, () => assert.equal(authorized(message,savedDetail),false));
-test('literal save commands do not collapse decimals or signs',()=>{
-  assert.equal(authorized('Save a 7.5 minute play session today','a 7.5 minute play session today'),true);
+test('literal save commands do not grant canonical consent or normalize decimals/signs',()=>{
+  assert.equal(authorized('Save a 7.5 minute play session today','a 7.5 minute play session today'),false);
   assert.equal(authorized('Save a 7.5 minute play session today','a 75 minute play session today'),false);
   assert.equal(authorized('Save a -7 minute play session today','a 7 minute play session today'),false);
 });
@@ -71,6 +74,8 @@ const nav={kind:'navigation.open_pet_profile',explicitIntent:true,evidence:`Show
 const body='Use the profile link below. In the fictional calculation, 2 + 3 = 5.';
 const checks={structuralValidity:'passed',evidenceSupport:'not_evaluated',subjectDateCorrectness:'not_evaluated',calculationCorrectness:'not_evaluated',taskCompletion:'not_evaluated'};
 const response=(text=body,actions=[nav])=>({answer:{title:'Furvise',summary:text,sections:[],safetyNote:null},applicationActions:actions,intelligenceSafety:{level:'routine'},evidenceContract:null});
+// Even isolated review fixtures carry the mandatory owned evidence scope.
+const taskEvidence=()=>({scope:{status:'resolved',authorizedPetIds:[pet.id],readOnlyRecall:false},represented:[]});
 const validation=r=>({response:r,valid:true,errors:[],repairs:[],qualityWarnings:[],assessment:createAnswerAssessment({body:r.answer,evidence:r.evidenceContract,checks})});
 const verification=()=>Object.fromEntries(['evidenceSupport','subjectDateCorrectness','calculationCorrectness'].map(key=>[key,{status:'passed',reason:'Fixture independently checked '+key}]));
 const review=()=>({verification:verification(),obligations:[0,1,2].map(index=>({index,status:'answered',answerIndexes:index===1?[]:[0],actionIndexes:index===1?[0]:[]})),reason:null});
@@ -155,7 +160,7 @@ test('real generation, governance, validation and publication preserve both requ
 });
 
 const {rememberReviewedTaskPresentation,reviewedTaskPresentationFailure} = await import('../../app/lib/intelligence/ask-evidence-presentation.ts');
-const {prepareFurviseApplicationActions} = await import('../../app/lib/application-actions/planner.ts');
+
 test('final publication binding detects removed or changed action and answer',()=>{
  const evidence={};const answer=response().answer;
  const actions=prepareFurviseApplicationActions({proposals:[nav],petId:pet.id,petName:pet.name,requestId:'audit',sourceMessage:question});
@@ -173,17 +178,18 @@ test('stray navigation search and calculation metadata cannot force historical r
  assert.deepEqual(result.petIds,[pet.id]);
 });
 
-test('navigation mode conflict gets one bounded reinterpretation without write authority',async()=>{
+test('navigation mode conflict fails closed without reinterpretation or write authority',async()=>{
  const {interpretAskQuestion}=await import('../../app/lib/intelligence/interpret-ask.ts');
  const {emptyProposedSemanticFrame}=await import('../../app/lib/intelligence/semantic-frame/extract-frame.ts');
- const events=[];const replies=[{...plan,mode:'mixed',frame:emptyProposedSemanticFrame()},plan];
- const result=await interpretAskQuestion({context,model:'gpt-5-mini',onProviderEvent:e=>events.push(e),client:mock(replies)});
- assert.equal(result.readOnly,true);assert.equal(result.history,null);assert.equal(replies.length,0);
+ const events=[],seen=[],replies=[{...plan,mode:'mixed',frame:emptyProposedSemanticFrame()},plan];
+ await assert.rejects(interpretAskQuestion({context,model:'gpt-5-mini',onProviderEvent:e=>events.push(e),client:mock(replies,seen)}),
+  error=>error.name==='AskPipelineError');
+ assert.equal(seen.length,1);assert.equal(replies.length,1,'No second semantic interpretation is allowed');
  assert.ok(events.some(e=>e.providerErrorCode==='ASK_REQUEST_CONTRACT_NAVIGATION'));
 });
 
-for (const hyphen of ['-', '\u2010', '\u2011']) test('duration typography preserves exact save authority: '+hyphen,()=>{
- assert.equal(authorized(source,observation.replace('7 minute','7'+hyphen+'minute')),true);
+for (const hyphen of ['-', '\u2010', '\u2011']) test('duration typography cannot grant model-proposed save authority: '+hyphen,()=>{
+ assert.equal(authorized(source,observation.replace('7 minute','7'+hyphen+'minute')),false);
  assert.equal(authorized(source.replace('7 minute','-7 minute'),observation.replace('7 minute','7'+hyphen+'minute')),false);
  assert.equal(authorized(source.replace('7 minute','7.5 minute'),observation.replace('7 minute','75'+hyphen+'minute')),false);
 });
@@ -201,15 +207,17 @@ test('action readiness requires a server eligible card and whole-answer support'
  verdict.obligations[0].answerIndexes=[];
  assert.equal(parseTaskCompletion(verdict,[source],1,1,undefined,[0]),null);
 });
-test('an exact observation save is reviewed as ready, never falsely completed',async()=>{
+test('model observation proposal is offer-only and cannot claim save completion',async()=>{
  const saveContext={...context,currentMessage:source,askInterpretation:{...context.askInterpretation,request:{...context.askInterpretation.request,requirements:[]}}};
- const seen=[];const verdict={verification:verification(),obligations:[{index:0,status:'action_ready',answerIndexes:[0],actionIndexes:[0]}],reason:null};
- const r=response('The action below shows the status of this update.',[{...action,input:{...action.input,detail:observation.replace('7 minute','7-minute')}}]);
- const result=await reviewTaskCompletion({validation:validation(r),context:saveContext,requestId:'save-ready',validate:validation,client:mock([verdict,{answer:'The dated observation is ready for the requested save.',navigation:null},verdict],seen)});
- assert.equal(JSON.parse(seen[0].input).actions[0].executionDisposition,'automatic_after_persistence');
- assert.equal(JSON.stringify(seen[0].text.format.schema).includes('"action_ready"'),true);
- assert.equal(result.assessment.checks.taskCompletion,'failed');
- assert.equal(result.assessment.outcome,'limited');
+ const seen=[],verdict={verification:verification(),obligations:[{index:0,status:'limited',answerIndexes:[0],actionIndexes:[]}],reason:null};
+ const r=response('This proposed update needs confirmation before it can be saved.',[{...action,input:{...action.input,detail:observation}}]);
+ const result=await reviewTaskCompletion({validation:validation(r),context:saveContext,requestId:'save-offer',validate:validation,client:mock([verdict],seen)});
+ const payload=JSON.parse(seen[0].input);
+ assert.equal(payload.actions[0].executionDisposition,'offer_only');assert.equal(payload.actions[0].explicitIntent,false);
+ assert.equal(payload.actions[0].input.detail,observation);
+ assert.equal(JSON.stringify(seen[0].text.format.schema).includes('"action_ready"'),false);
+ assert.equal(seen.length,1);assert.equal(result.assessment.checks.taskCompletion,'failed');assert.equal(result.assessment.outcome,'limited');
+ assert.deepEqual(result.response.applicationActions,[]);
 });
 
 test('provider schema rejects unsupported references before generation',async()=>{
@@ -225,27 +233,6 @@ test('provider schema rejects unsupported references before generation',async()=
  const ready=new Ajv({strict:false}).compile(taskReviewSchema(1,2,[1]));
  const verdict={verification:verification(),obligations:[{index:0,status:'action_ready',answerIndexes:[0],actionIndexes:[1]}],reason:null};
  assert.equal(ready(verdict),true);verdict.obligations[0].actionIndexes=[0];assert.equal(ready(verdict),false);
-});
-
-const {planDeterministicAskCommand}=await import('../../app/lib/ai/ask-command-router.ts');
-for (const quantity of ['7','12','7.5']) test('literal observation save compiles without model interpretation: '+quantity,()=>{
- const observation=`${pet.name} had a ${quantity} minute play session today`;
- const text=observation+'. Save this update to care history.';
- const command=planDeterministicAskCommand(text,pet.name);
- assert.equal(command.orchestration.handledWithoutAi,true);
- assert.equal(command.proposals[0].input.detail,observation);
- const prepared=prepareFurviseApplicationActions({proposals:command.proposals,petId:pet.id,petName:pet.name,requestId:'literal-save',sourceMessage:text});
- assert.equal(prepared.length,1);assert.equal(prepared[0].explicitIntent,true);
- assert.equal(prepared[0].input.detail,observation);
- assert.equal(containsUnverifiedStateClaim(command.orchestration.answer.summary),false);
-});
-for(const text of [
- 'If '+source,'Fictional: '+source,`"${observation}." Save this update to care history.`,
- source+' Explain whether that is enough exercise.',source.replace('Save','Do not save'),
- source.replace(pet.name,'Unowned Pet'),source.replace('had a','and Pixel had a'),
- source.replace('had a','said he had a'),`${pet.name} ${'a'.repeat(501)}. Save this update to care history.`,
-]) test('literal router does not consume ambiguous or compound save: '+text.slice(0,70),()=>{
- assert.equal(planDeterministicAskCommand(text,pet.name),null);
 });
 
 for (const key of ['evidenceSupport','subjectDateCorrectness','calculationCorrectness']) test('failed '+key+' requires repair despite complete task checklist',async()=>{
@@ -270,7 +257,7 @@ test('verified navigation without arithmetic may explicitly mark calculation ina
  assert.equal(result.assessment.outcome,'complete');assert.equal(result.assessment.checks.calculationCorrectness,'not_applicable');
 });
 test('evidence changed during review invalidates the review capability',async()=>{
- const r=response();r.evidenceContract={represented:[]};
+ const r=response();r.evidenceContract=taskEvidence();
  const client={responses:{async create(){r.evidenceContract.represented.push({text:'Changed while reviewing'});return {status:'completed',output_text:JSON.stringify(review()),usage:{input_tokens:10,output_tokens:10}};}}};
  await assert.rejects(reviewTaskCompletion({validation:validation(r),context,requestId:'evidence-race',validate:validation,client}),/ASK_TASK_REVIEW_BODY_CHANGED/);
 });
@@ -362,7 +349,7 @@ for (const mode of ['answer', 'clarification']) test(`vague medicine observation
  const {buildAskConversationResponse,parseAskConversationResponse}=await import('../../app/lib/ask.mjs');
  const ctx={...context,currentMessage:'I give him medicine  yesterday',askInterpretation:{...context.askInterpretation,readOnly:false,request:{...context.askInterpretation.request,requirements:[]}}};
  const r=response('What medicine did you give him, and how much?',[{...action,input:{...action.input,detail:'Owner reports giving medicine yesterday.'}}]);
- r.responseMode=mode;r.evidenceContract={};
+ r.responseMode=mode;r.evidenceContract=taskEvidence();
  const verdict={verification:verification(),obligations:[{index:0,status:'needs_information',answerIndexes:[0],actionIndexes:[]}],reason:'Medicine and amount are unknown.'};
  const seen=[];
  const result=await reviewTaskCompletion({validation:validation(r),context:ctx,requestId:'medicine',validate:validation,client:mock([verdict],seen)});

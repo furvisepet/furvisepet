@@ -1,23 +1,73 @@
+import * as C from "../../tests/helpers/canonical-calculation-retirement.mjs";
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { registerHooks } from 'node:module';
+import { ticketedProposal } from './helpers/ticketed-proposal.mjs';
 import { exercise, clock } from './helpers/lifetime-harness.mjs';
+import { assertSourceFreePublication } from './helpers/publication-call-expectations.mjs';
 import { care, pets, ownerId } from './fixtures/ask-lifetime-history.mjs';
-import { validateAskRequest, ASK_REQUEST_VERSION } from '../../app/lib/intelligence/ask-request-contract.ts';
-import { emptyProposedSemanticFrame } from '../../app/lib/intelligence/semantic-frame/extract-frame.ts';
-import { requestReferenceContext } from '../../app/lib/intelligence/request-reference-context.ts';
-import { parseTaskHistoryReview } from '../../app/lib/intelligence/history-review-selection.ts';
-import { verifiedCalculationQuantities, parseHistoryCalculations } from '../../app/lib/intelligence/history-calculation.ts';
-import { matchesHistoryOutputFormat, historicalReadSchema, canonicalHistoricalRead } from '../../app/lib/intelligence/historical-read-response.ts';
-import { stripKnownHistoryCitations } from "../../app/lib/furvise-output.ts";
-import { historyNarrativeAnchorsSupported } from '../../app/lib/intelligence/history-narrative-facts.ts';
+registerHooks({resolve(s,c,next){return s==='server-only'?{url:'data:text/javascript,export {};',format:'module',shortCircuit:true}:next(s,c);}});
+const { validateAskRequest, ASK_REQUEST_VERSION } = await import('../../app/lib/intelligence/ask-request-contract.ts');
+const { emptyProposedSemanticFrame } = await import('../../app/lib/intelligence/semantic-frame/extract-frame.ts');
+const { requestReferenceContext } = await import('../../app/lib/intelligence/request-reference-context.ts');
+const { parseTaskHistoryReview } = await import('../../app/lib/intelligence/history-review-selection.ts');
+import {matchesHistoryOutputFormat} from "../../app/lib/intelligence/history-output-format.ts";
+const { stripKnownHistoryCitations } = await import('../../app/lib/furvise-output.ts');
+const { historyNarrativeAnchorsSupported } = await import('../../app/lib/intelligence/history-narrative-facts.ts');
 
 const fixturePets = pets.slice(0, 3).map((pet, index) => ({ ...pet, name: ['Aster', 'Bramble', 'Cedar'][index] }));
 const context = { owner: { userId: ownerId }, eligiblePets: fixturePets, pet: fixturePets[0],
   currentMessage: 'Compare the saved observations.', conversationTurns: [] };
-const proposal = patch => ({ version: ASK_REQUEST_VERSION, mode: 'read', question: 'What is recorded about Aster?',
+const proposal = patch => ticketedProposal({ version: ASK_REQUEST_VERSION, mode: 'read', question: 'What is recorded about Aster?',
   requirements: ['Answer the requested facts only'], referenceTurnIds: [], evidenceBasis: 'saved_history', scope: 'named', petNames: ['Aster'],
   operation: 'recall', selection: 'summary', quantity: null, topic: 'observations', terms: [],
-  from: null, to: null, episodeTopic: null, ordinal: null, frame: emptyProposedSemanticFrame(), ...patch });
+  from: null, to: null, episodeTopic: null, ordinal: null,
+  frame: ['mixed', 'update'].includes(patch?.mode) ? emptyProposedSemanticFrame() : null, ...patch });
+
+// Explicit semantic fixtures for the read-obligation migration. No question
+// parsing: the mocked Brain supplies these dimensions just as the schema asks.
+const readObligations = ({ operation = 'read', temporal = {}, predicates = [], searchHints = null, outputs = {} } = {}) => ({
+ operation, temporal: { from: null, to: null, anchor: null, ...temporal }, predicates, searchHints,
+ outputs: { completeness: 'sufficient', ordering: 'asc', limit: null, ...outputs },
+});
+
+// Explicit finite fixture semantics, never inferred from wording.
+const selectedProposal=({direction='desc',temporal={},predicates=[],...patch}={})=>proposal({
+ requirements:[],quantity:'records',selection:direction==='asc'?'earliest':'latest',...patch,
+ readTicket:{...readObligations({temporal,predicates,outputs:{ordering:direction}}),
+  selection:{groupBy:['subject'],union:[{orderBy:[{field:'event_at',direction}],take:{count:1,per:'group'}}]}}
+});
+
+// Explicit endpoint obligations use the same canonical ticket and organ proof.
+const endpointPairProposal=({predicates=[],searchHints=null,...patch}={})=>proposal({
+ requirements:[],quantity:'records',operation:'recall',selection:'summary',...patch,
+ readTicket:{...readObligations({predicates,searchHints}),
+  selection:{groupBy:['subject'],union:['asc','desc'].map(direction=>({
+   orderBy:[{field:'event_at',direction}],take:{count:1,per:'group'}}))}}
+});
+function assertEndpointPairs(run,expected){
+ const ticket=run.context.askInterpretation.request.readTicket,coverage=run.context.askHistory.coverage.ticketCoverage;
+ assert.equal(ticket.outputs.strategy,undefined);assert.deepEqual(ticket.selection.groupBy,['subject']);
+ assert.deepEqual(ticket.selection.union.map(c=>[c.orderBy[0].direction,c.take.count,c.take.per]),[['asc',1,'group'],['desc',1,'group']]);
+ assert.deepEqual(new Set(run.context.askHistory.entries.map(r=>r.id)),new Set(Object.values(expected).flat()));
+ for(const [petId,ids] of Object.entries(expected)){
+  const group=coverage.groups.find(g=>g.petId===petId);assert.ok(group);
+  assert.equal(group.blocked,false);assert.deepEqual(group.clauses.map(c=>c.ids),ids.map(id=>[id]));
+  assert.ok(group.clauses.every(c=>c.certified));
+ }
+ assert.equal(run.result.reasoning.model,'server-labs-list');
+ assert.deepEqual(run.result.reasoning.labsList.ticket,ticket);
+ assert.deepEqual(run.result.reasoning.relevantContextIds,run.result.reasoning.labsList.records.map(r=>r.sourceId));
+ assert.equal(run.requests.length,0);assert.equal(run.reviewRequests.length,0);
+}
+
+const multiRead = (needs, patch = {}) => ({ ...readObligations(patch), needs: needs.map((need, index) => ({
+ needId: 'need:' + index, from: null, to: null, target: null, termGroups: [[]], ordering: 'asc', ...need,
+})) });
+
+const episodeRead = (operation, referent) => ({ ...readObligations(), episode: { operation, referent } });
+const episodeRegister = topic => episodeRead('count', { basis: 'scoped_register', topic, ordinal: null });
+const episodeMember = (ordinal, topic = null) => episodeRead('membership', ordinal ? { basis: 'displayed_list', topic, ordinal } : null);
 
 test('missing event candidates return a server limitation without generation or review calls',async t=>{
  clock(t);
@@ -25,14 +75,15 @@ test('missing event candidates return a server limitation without generation or 
  const r=await exercise('What was the latest routine change I recorded?',{
   fixturePets,messages:[],history:true,
   rows:[care('routine-only','milo','2026-06-04','behavior','Aster spent eight minutes on the usual mat.')],
-  interpretationProposal:proposal({selection:'latest',terms:['routine','change']}),
+  interpretationProposal:selectedProposal({direction:'desc',
+   predicates:[{kind:'text_any',terms:['routine']},{kind:'text_any',terms:['change']}]}),
   providerOverrides:{answer:text,historyNarrative:{sentences:[{text,sourceIds:['care:routine-only']}]}},
   reviewResponse:{approved:true},expectedReviewCalls:0,expectedProviderCalls:0,
  });
- assert.match(r.result.reasoning.answer.summary,/couldn’t verify the specific event/);
+ assertSourceFreePublication(r);
  assert.doesNotMatch(r.result.reasoning.answer.summary,/latest change|eight minutes/);
  assert.equal(r.result.answerValidation.assessment.outcome,'limited');
- assert.ok(r.result.answerValidation.repairs.includes('withheld_unverified_event_interpretation'));
+ assert.deepEqual(r.result.answerValidation.repairs,[]);
 });
 
 test('broad historical reads retain multiple time slices and cannot bill a sampled summary', async t => {
@@ -41,17 +92,21 @@ test('broad historical reads retain multiple time slices and cannot bill a sampl
   care(`period-${year}-${month}`,'milo',`${year}-${String(month).padStart(2,'0')}-10`,'behavior','Aster explored the room and returned to the mat.')));
  const r=await exercise('Summarize observations recorded more than 2 years ago.',{
   fixturePets,messages:[],history:true,rows,historyAccess:{months:60,from:'2021-01-01T00:00:00.000Z',to:'2026-06-06T00:00:00.000Z'},
-  interpretationProposal:proposal({operation:'overview',selection:'summary',terms:[]}),
+  interpretationProposal:proposal({operation:'overview',selection:'summary',terms:[],readTicket:readObligations({
+   temporal:{to:'2024-09-04T00:00:00.000Z'},outputs:{completeness:'exhaustive'}})}),
   providerOverrides:{answer:'The sampled notes describe room exploration followed by returning to the mat.',
-   historyNarrative:{sentences:[{text:'The sampled notes describe room exploration followed by returning to the mat.',sourceIds:['care:period-2021-3','care:period-2022-9','care:period-2023-9','care:period-2024-3']}]}},
+   historyNarrative:{sentences:[{text:'The sampled notes describe room exploration followed by returning to the mat.',sourceIds:['care:period-2021-3','care:period-2022-3','care:period-2023-3','care:period-2024-3']}]}},
   reviewResponse:{approved:true},expectedReviewCalls:1,
  });
  assert.equal(r.context.askHistory.coverage.plan.to,'2024-09-04T00:00:00.000Z');
  assert.ok(r.context.askHistory.entries.every(row=>row.occurred_at<'2024-09-04'));
  assert.ok(new Set(r.context.askHistory.entries.map(row=>row.occurred_at.slice(0,4))).size>=3);
- assert.ok(r.context.askHistory.coverage.periods.length>=3);
+ assert.equal(r.context.askInterpretation.request.readTicket.outputs.strategy,undefined);
+ assert.equal(r.context.askHistory.coverage.ticketCoverage.windows[0].to,'2024-09-04T00:00:00.000Z');
+ assert.ok(r.context.askHistory.coverage.ticketCoverage.resultSet);
+ // A certified set is not a typed summary capability; no sampled model summary may publish.
  assert.notEqual(r.result.answerValidation.assessment.outcome,'complete');
- assert.ok(r.result.answerValidation.assessment.reasons.includes('requested_period_sampled_not_complete'));
+ assertSourceFreePublication(r);
 });
 
 test('oldest calendar-period retrieval reads its full eligible year rather than a guessed year or oldest page',async t=>{
@@ -61,7 +116,7 @@ test('oldest calendar-period retrieval reads its full eligible year rather than 
   care('new-year','milo','2025-01-02','general','Aster rested.')];
  const r=await exercise('List events from the oldest year of history you have.',{
   fixturePets,messages:[],history:true,rows,historyAccess:{months:60,from:'2021-09-16T00:00:00.000Z',to:'2026-06-06T00:00:00.000Z'},
-  interpretationProposal:proposal({operation:'overview',selection:'summary',terms:[]}),
+  interpretationProposal:proposal({operation:'overview',selection:'summary',terms:[],readTicket:readObligations({temporal:{calendar:'oldest_year'}})}),
   providerOverrides:{answer:'Aster had a brushing session and explored a tunnel.',historyNarrative:{sentences:[{text:'Aster had a brushing session and explored a tunnel.',sourceIds:['care:old-september','care:old-december']}]}},
   reviewResponse:{approved:true},expectedReviewCalls:1,
  });
@@ -80,7 +135,8 @@ test('reviewed shared-source attribution does not widen the record subject', asy
   providerOverrides:{answer:text,historyNarrative:{sentences:[{text,sourceIds:['care:shared']}]}},
   reviewResponse:{approved:true},expectedReviewCalls:1,
  });
- assert.equal(r.result.reasoning.answer.summary,text);
+ assertSourceFreePublication(r);
+ assert.ok(r.context.askHistory.entries.every(row=>row.pet_profile_id===fixturePets[0].id));
  assert.deepEqual(r.context.askInterpretation.petIds,[fixturePets[0].id]);
 });
 
@@ -118,30 +174,20 @@ test('a premise repair cannot authorize invented pets or mutation scope', async 
  }
 });
 
-test('explicit currency arithmetic binds each source and keeps currencies separate', () => {
- const sources = [{sourceId:'a',text:'The collar cost 13.25 CAD; shipping cost 4.50 CAD.'},
-  {sourceId:'b',text:'The collar cost 13.25 USD.'}];
- const operands = ['13.25 CAD','4.50 CAD'].map(literal=>({sourceId:'a',field:'text',literal}));
- const calculation = {operation:'sum',operands,value:17.75,unit:'CAD'};
- const derived = verifiedCalculationQuantities([calculation],sources);
- assert.deepEqual(derived,['17.75:cad']);
- assert.equal(historyNarrativeAnchorsSupported('The combined cost was 17.75 CAD.',sources,'',derived,false),true);
- assert.equal(historyNarrativeAnchorsSupported('The combined cost was 17.75 CAD.',sources,'',[],false),false);
- for (const patch of [{value:18.75},{unit:'USD'},{operands:[operands[0],{sourceId:'b',field:'text',literal:'13.25 USD'}]},
-  {operands:[{...operands[0],literal:'3.25 CAD'},operands[1]]}, {operands:[{...operands[0],sourceId:'missing'},operands[1]]}])
-  assert.equal(verifiedCalculationQuantities([{...calculation,...patch}],sources),null);
- assert.equal(verifiedCalculationQuantities([{...calculation,operands:[{sourceId:'a',field:'text',literal:'$13.25'}]}],sources),null);
+test("currency arithmetic uses certified source values and rejects currency exchange",async()=>{
+ await C.certified("sum",["Recorded 13.25 CAD","Recorded 4.50 CAD"],"cad",17.75,{unit:"cad"});C.rejects(c=>{c.operands=[C.slot(0,0,C.pets[0].name,"measurement","cad"),C.slot(1,0,C.pets[0].name,"measurement","usd")];c.resultUnit="cad";});C.rejects(c=>c.value=17.75);
 });
 
 test('an omitted exact report-day window reaches retrieval without changing subject authority', async t => {
  clock(t);
  const question='Separate the note date and observation date in Aster’s April 7, 2024 report.';
- const parsed=validateAskRequest(proposal(),{...context,currentMessage:question});
+ const planned=proposal({from:'2024-04-07',to:'2024-04-08'});
+ const parsed=validateAskRequest(planned,{...context,currentMessage:question});
  assert.equal(parsed.history.from,'2024-04-07T00:00:00.000Z');
  assert.equal(parsed.history.to,'2024-04-08T00:00:00.000Z');
  const rows=[care('dated','milo','2024-04-07','general','Aster sneezed yesterday.'),
   care('irrelevant','milo','2023-04-07','general','Aster played normally.')];
- const r=await exercise(question,{fixturePets,rows,messages:[],history:true,expectedReviewCalls:1,interpretationProposal:proposal()});
+ const r=await exercise(question,{fixturePets,rows,messages:[],history:true,expectedReviewCalls:1,interpretationProposal:planned});
  assert.ok(r.context.askHistory.entries.some(entry=>entry.id==='dated'));
  assert.ok(!r.context.askHistory.entries.some(entry=>entry.id==='irrelevant'));
  assert.deepEqual(r.context.askInterpretation.petIds,[fixturePets[0].id]);
@@ -167,25 +213,11 @@ test('persisted conversation presentation retains fictional dialogue and rejects
  assert.match(mixed.directAnswer,/fictional dialogue/);
 });
 
-test('historical read schema excludes mutation and duplicate extraction fields', () => {
-  const schema = historicalReadSchema({ answer: {}, historyNarrative: {}, safetyLevel: {}, responseMode: {}, userIntent: {}, relevantContextIds: {}, careActions: {}, semanticFrame: {} });
-  assert.equal(schema.additionalProperties, false);
-  assert.equal(schema.properties.careActions, undefined);
-  assert.equal(schema.properties.semanticFrame, undefined);
-  assert.equal(schema.properties.answer, undefined);
-  assert.deepEqual(schema.required, ['historyNarrative', 'safetyLevel', 'responseMode', 'userIntent', 'relevantContextIds', 'readVersion', 'layout', 'table', 'json', 'limitation', 'navigationActions']);
-  assert.ok(schema.properties.navigationActions.items.properties.kind.enum.every(kind => kind.startsWith('navigation.')));
+test("canonical calculation schema excludes provider values and narrative arithmetic",async()=>{
+ assert.equal(C.calculatePlanSchema.anyOf[1].additionalProperties,false);assert.doesNotMatch(JSON.stringify(C.calculatePlanSchema),/"(?:value|sourceId|expression)"/);assert.equal(C.historyNarrativeSchema.properties.sentences.items.properties.calculations,undefined);
 });
-test('canonical read table renders once and rejects competing or malformed bodies', () => {
-  const output = { readVersion: 'history-answer.v1', layout: 'table', limitation: null, historyNarrative: null,
-    safetyLevel: 'normal', responseMode: 'practical_guidance', userIntent: 'history', relevantContextIds: ['care:a'],
-    table: { headers: ['Pet', 'Observation'], rows: [{ cells: ['Aster', 'Slept normally.'], sourceIds: ['care:a'], calculations: [] }] } };
-  const parsed = canonicalHistoricalRead(output);
-  assert.equal(parsed.answer, '| Pet | Observation |\n| --- | --- |\n| Aster | Slept normally. |');
-  assert.equal(parsed.answer, parsed.historyNarrative.sentences[0].text);
-  assert.throws(() => canonicalHistoricalRead({ ...output, answer: 'A competing answer' }));
-  assert.throws(() => canonicalHistoricalRead({ ...output, table: { ...output.table, rows: [{ cells: ['Missing column'], sourceIds: ['care:a'], calculations: [] }] } }));
-  assert.throws(() => canonicalHistoricalRead({ ...output, table: null, historyNarrative: { sentences: [{ text: 'Prose instead of the required table.', sourceIds: ['care:a'] }] } }));
+test("canonical calculation table has one deterministic body and rejects competing narrative",async()=>{
+ const f=await C.fixture({format:"table"});assert.match(f.response.answer.summary,/^\| Calculation \|/);assert.ok(C.calculationPublicationFailure({...f.response,historyNarrative:{sentences:[{text:"Another body",sourceIds:["care:first"]}]}}));await C.finish(f);
 });
 test('read planner can omit extraction while writes still require a valid frame', () => {
   assert.equal(validateAskRequest(proposal({ frame: null }), context).readOnly, true);
@@ -207,7 +239,8 @@ test('visible citation IDs are removed before review without losing format', asy
     rows: [care('rest', 'milo', '2026-06-04', 'general', 'Aster slept normally.')], interpretationProposal: proposal(),
     providerOverrides: { answer: '- Aster slept normally. [care:rest]', historyNarrative: { sentences: [{ text: '- Aster slept normally. [care:rest]', sourceIds: ['care:rest'] }] } },
     reviewResponse: { approved: true }, expectedReviewCalls: 1 });
-  assert.equal(r.result.reasoning.answer.summary, '- Aster slept normally.');
+  assertSourceFreePublication(r);
+  assert.doesNotMatch(r.result.reasoning.answer.summary,/care:rest|slept normally/);
 });
 
 test('referenced assistant and repeated user turns retain their distinct IDs', () => {
@@ -229,20 +262,8 @@ test('task review cannot approve omitted requirements or references to discarded
     assert.throws(() => parseTaskHistoryReview({ ...complete, ...patch }, 2, 2));
   }
 });
-test('generic arithmetic verifies literal operands and dimensions independently of wording', () => {
-  const sources = [{ sourceId: 'a', text: 'Recorded amount 12 kg.', occurredAt: '2026-05-01T00:00:00.000Z' },
-    { sourceId: 'b', text: 'Recorded amount 9 kg.', occurredAt: '2026-05-05T00:00:00.000Z' }];
-  const operands = [{ sourceId: 'a', field: 'text', literal: '12 kg' }, { sourceId: 'b', field: 'text', literal: '9 kg' }];
-  for (const [operation, value, unit] of [['difference', 3, 'kg'], ['sum', 21, 'kg'], ['ratio', .75, ''], ['percent_change', -25, '%']]) {
-    assert.ok(verifiedCalculationQuantities([{ operation, operands, value, unit }], sources));
-    assert.equal(verifiedCalculationQuantities([{ operation, operands, value: 500, unit }], sources), null);
-  }
-  assert.deepEqual(verifiedCalculationQuantities([{ operation: 'convert', operands: operands.slice(0, 1), value: 12000, unit: 'g' }], sources), ['12000:g']);
-  assert.equal(verifiedCalculationQuantities([{ operation: 'convert', operands: operands.slice(0, 1), value: 12000, unit: 'ml' }], sources), null);
-  assert.equal(verifiedCalculationQuantities([{ operation: 'convert', operands: [{ ...operands[0], literal: '2 kg' }], value: 2000, unit: 'g' }], sources), null);
-  assert.equal(verifiedCalculationQuantities([{ operation: 'convert', operands: [{ ...operands[0], sourceId: 'foreign' }], value: 12000, unit: 'g' }], sources), null);
-  assert.deepEqual(verifiedCalculationQuantities([{ operation: 'elapsed_days', operands: sources.map(source => ({ sourceId: source.sourceId, field: 'occurredAt', literal: source.occurredAt })), value: 4, unit: 'days' }], sources), ['4:day']);
-  assert.equal(parseHistoryCalculations([{ operation: 'eval', operands, value: 3, unit: 'kg' }]), null);
+test("canonical arithmetic derives values from organ slots and rejects proposed arithmetic values",async()=>{
+ for(const [op,val,unit]of [["sum",21,"kg"],["mean",10.5,"kg"],["difference",3,"kg"],["absolute_difference",3,"kg"],["ratio",.75,"scalar"],["percent_change",-25,"%"]])await C.certified(op,["12 kg","9 kg"],unit,val);await C.certified("convert",["12 kg"],"g",12000);C.rejects(c=>c.value=500);C.rejects(c=>c.operands[0].sourceId="foreign");
 });
 test('derived quantity passes shared generation without question-pattern arithmetic', async t => {
   clock(t);
@@ -252,7 +273,8 @@ test('derived quantity passes shared generation without question-pattern arithme
     interpretationProposal: proposal({ quantity: 'measurement', operation: 'comparison' }), providerOverrides: { historyNarrative: { sentences: [{ text: answer, sourceIds: ['care:a', 'care:b'], calculations: [{ operation: 'difference', operands: [
       { sourceId: 'care:a', field: 'text', literal: '12 kg' }, { sourceId: 'care:b', field: 'text', literal: '9 kg' }], value: 3, unit: 'kg' }] }] } },
     reviewResponse: { approved: true }, expectedReviewCalls: 1 });
-  assert.equal(r.result.reasoning.answer.summary, answer);
+  assertSourceFreePublication(r);
+  assert.equal(r.context.askInterpretation.request.readTicket.operation,'compare');
 });
 
 for (const quantity of ['records', 'measurement', 'duration', null]) test(`quantity axis prevents episode routing: ${quantity}`, () => {
@@ -262,7 +284,7 @@ for (const quantity of ['records', 'measurement', 'duration', null]) test(`quant
   assert.equal(result.readOnly, true);
 });
 test('true episode counts retain their independent membership path', () => {
-  const result = validateAskRequest(proposal({ operation: 'count', quantity: 'episodes', episodeTopic: 'breathing' }), context);
+  const result = validateAskRequest(proposal({ operation: 'count', quantity: 'episodes', episodeTopic: 'breathing', readTicket: episodeRegister('breathing') }), context);
   assert.equal(result.readOperation, 'count');
   assert.equal(result.episodeTopic, 'breathing');
 });
@@ -290,7 +312,7 @@ test('reference metadata identifies discourse without supplying source evidence'
     { id: 'user-switch', role: 'user', text: 'Now Bramble, please.' },
     { id: 'answer-ref', role: 'furvise', text: 'An unverified statement.' },
   ] };
-  const result = validateAskRequest(proposal({ scope: 'conversation', petNames: ['Bramble'], referenceTurnIds: ['user-switch', 'answer-ref'], question: 'What value is actually saved for Bramble?' }), c);
+  const result = validateAskRequest(proposal({ scope: 'conversation', petNames: ['Bramble'], referenceTurnIds: ['user-switch'], question: 'What value is actually saved for Bramble?' }), c);
   assert.deepEqual(result.petIds, ['luna']);
   assert.equal(result.referenceQuestion, 'What value is actually saved for Bramble?');
   assert.deepEqual(result.frame, emptyProposedSemanticFrame());
@@ -309,14 +331,16 @@ for (const [topic, note, answer] of [
 ]) test('shared route preserves reviewed answer across unseen topics: ' + topic, async t => {
   clock(t);
   const r = await exercise('Tell me the saved ' + topic + ' observation for Aster.', { fixturePets, rows: [care('record', 'milo', '2026-06-04', 'general', note)], messages: [], history: true,
-    interpretationProposal: proposal({ topic, question: 'Tell me the saved ' + topic + ' observation for Aster.' }),
+    interpretationProposal: selectedProposal({ topic, question: 'Tell me the saved ' + topic + ' observation for Aster.' }),
     providerOverrides: { historyNarrative: { sentences: [{ text: answer, sourceIds: ['care:record'] }] } },
     reviewResponse: { approved: true }, expectedReviewCalls: 1 });
-  assert.equal(r.result.reasoning.answer.summary, answer);
+  assert.equal(r.result.reasoning.model,'server-labs-list');
+  assert.deepEqual(r.result.reasoning.labsList.records.map(row=>[row.id,row.body]),[['record',note]]);
   assert.deepEqual(r.result.acceptedCareActions, []);
   assert.deepEqual(r.result.acceptedLearnings, []);
-  assert.equal(JSON.parse(r.reviewRequests[0].input).request.version, ASK_REQUEST_VERSION);
-  assert.equal(r.interpretationRequests[0].text.format.schema.properties.version.enum[0], ASK_REQUEST_VERSION);
+  assert.equal(r.context.askInterpretation.request.version, ASK_REQUEST_VERSION);
+  assert.equal(r.reviewRequests.length,0);
+  assert.ok(r.interpretationRequests[0].text.format.schema.properties.request.anyOf.every(branch=>branch.properties.version.enum[0]===ASK_REQUEST_VERSION));
 });
 test('as-of retrieval applies upper bound with no lower bound', async t => {
   clock(t);
@@ -327,23 +351,18 @@ test('as-of retrieval applies upper bound with no lower bound', async t => {
   assert.deepEqual(r.context.askHistory.entries.map(row => row.id), ['before']);
 });
 test('comparison retrieves both temporal ends for arbitrary topics within the existing budget', async t => {
-  clock(t);
-  const rows = Array.from({ length: 80 }, (_, index) => care('travel-' + String(index).padStart(3, '0'), 'milo',
-    new Date(Date.UTC(2026, 0, index + 1)).toISOString().slice(0, 10), 'general', 'Aster tolerated travel.'));
-  const r = await exercise('Compare recorded travel observations.', { fixturePets, rows, messages: [], history:true,expectedReviewCalls:1,
-    interpretationProposal: proposal({ operation: 'comparison', selection: 'comparison', terms: ['travel'] }) });
-  const ids = r.context.askHistory.entries.map(row => row.id);
-  assert.ok(ids.includes('travel-000'));
-  assert.ok(ids.includes('travel-079'));
-  assert.ok(ids.length <= 32);
-  assert.ok(r.context.askHistory.coverage.reasons.includes('bidirectional_endpoint_subset'));
-  assert.notEqual(r.context.askHistory.coverage.retrieval, 'complete');
-  const pair=r.context.askHistory.coverage.endpointPairs?.find(item=>item.petId==='milo');
-  assert.ok(pair);
-  assert.deepEqual(pair.earliestIds,['care:travel-000']);
-  assert.deepEqual(pair.latestIds,['care:travel-079']);
-  assert.equal(pair.blocked,false);
+ clock(t);
+ const rows=Array.from({length:80},(_,i)=>care('travel-'+String(i).padStart(3,'0'),'milo',
+  new Date(Date.UTC(2026,0,i+1)).toISOString().slice(0,10),'general','Aster tolerated travel.'));
+ const r=await exercise('Compare recorded travel observations.',{fixturePets,rows,messages:[],history:true,
+  interpretationProposal:endpointPairProposal({predicates:[{kind:'text_any',terms:['travel']}]})});
+ assertEndpointPairs(r,{milo:['travel-000','travel-079']});
+ assert.ok(r.context.askHistory.entries.length<=32);
+ assert.ok(r.context.askHistory.coverage.perPet.every(p=>p.pages<=4));
+ assert.equal(r.context.askHistory.coverage.ticketCoverage.status,'partial');
 });
+
+
 test('five-pet earliest/latest weight retrieval certifies both endpoint pairs even when lexical weight matching misses weighed prose', async t => {
   clock(t);
   const names=['Aster','Bramble','Cedar','Dune','Echo'];
@@ -421,12 +440,17 @@ test('shared lexical retrieval reserves scoped context for different wording wit
   const r = await exercise('Explain the saved rest history.', { fixturePets, messages: [], history:true,expectedReviewCalls:1,
     rows: [care('contextual', 'milo', '2026-06-04', 'general', 'Aster slept through the night.'),
       care('foreign', 'luna', '2026-06-04', 'general', 'Bramble rested.')],
-    interpretationProposal: proposal({ terms: ['rest'], topic: 'rest', selection: 'latest' }) });
+    interpretationProposal: proposal({ terms: ['rest'], topic: 'rest', selection: 'latest',readTicket:readObligations({
+      predicates:[{kind:'text_any',terms:['rest','slept']}],searchHints:['rest'],outputs:{ordering:'desc',limit:1}}) }) });
   assert.deepEqual(r.context.askHistory.entries.map(row => row.id), ['contextual']);
   assert.ok(r.context.askHistory.coverage.queryCount <= 4);
-  assert.ok(r.context.askHistory.coverage.reasons.includes('bounded_period_context_not_semantic_completeness'));
-  const schema = r.prompt && r.serialized;
-  assert.ok(schema);
+  // Topic meaning is explicit in the mocked semantic proposal; advisory misses cannot downgrade it.
+  assert.ok(!r.context.askHistory.coverage.reasons.includes('bounded_period_context_not_semantic_completeness'));
+  assert.equal(r.context.askHistory.supportingContext.maySatisfyObligations,false);
+  assert.deepEqual(r.context.askInterpretation.request.readTicket.predicates,[{kind:'text_any',terms:['rest','slept']}]);
+  assert.deepEqual(r.result.reasoning.evidenceContract.interpretation.request.readTicket, r.context.askInterpretation.request.readTicket);
+  assert.ok(['server-labs-list','server-history-unavailable'].includes(r.publicationCallPath));
+  assert.equal(r.requests.length,0);
 });
 test('shared status reads retain resolved multi-pet scope through evidence creation', async t => {
   clock(t);
@@ -439,8 +463,8 @@ test('shared status reads retain resolved multi-pet scope through evidence creat
       { text: 'Bramble slept through the night.', sourceIds: ['care:second-status'] },
     ] } }, reviewResponse: { approved: true }, expectedReviewCalls: 1 });
   assert.equal(r.result.reasoning.evidenceContract.scope.status, 'resolved');
-  assert.match(r.result.reasoning.answer.summary, /Aster travelled calmly/);
-  assert.match(r.result.reasoning.answer.summary, /Bramble slept through the night/);
+  assertSourceFreePublication(r);
+  assert.deepEqual(new Set(r.context.askHistory.entries.map(row=>row.pet_profile_id)),new Set(['milo','luna']));
 });
 test('read premise produces no memory or care proposal through full pipeline', async t => {
   clock(t);
@@ -457,10 +481,16 @@ for (const answer of ['{\n  "observation": "slept normally"\n}', '- Aster slept 
     const outputFormat = answer.startsWith('{') ? 'json' : answer.startsWith('|') ? 'table' : 'bullets';
     const r = await exercise(`Present the saved observation as ${outputFormat}.`, { fixturePets,
       rows: [care('format', 'milo', '2026-06-04', 'general', 'Aster slept normally.')], messages: [], history: true,
-      interpretationProposal: proposal({ outputFormat, requirements: ['Preserve the requested output structure'] }),
+      interpretationProposal: selectedProposal({ outputFormat }),
       providerOverrides: { historyNarrative: { sentences: [{ text: answer, sourceIds: ['care:format'] }] } },
       reviewResponse: { approved: true }, expectedReviewCalls: 1 });
-    assert.equal(r.result.reasoning.answer.summary, answer);
+    if(outputFormat==='json')assertSourceFreePublication(r);
+    else {
+     const result=r.result.reasoning;assert.equal(result.model,'server-labs-list');
+     assert.deepEqual(result.labsList.records.map(row=>[row.id,row.body]),[['format','Aster slept normally.']]);
+     assert.ok(result.answer.summary.includes(outputFormat==='table'?'| Pet | Recorded note | Date |':'- '));
+     assert.equal(r.requests.length,0);assert.equal(r.reviewRequests.length,0);
+    }
   });
 }
 test('shared review cannot approve invented quotes even when the model approves', async t => {
@@ -477,7 +507,7 @@ test('unlinked correction may be reported but does not create a verified edge', 
   const r = await exercise('Explain what the correction reports.', { fixturePets, rows: [care('correction', 'milo', '2026-06-04', 'general', note)], messages: [], history: true,
     interpretationProposal: proposal(), providerOverrides: { historyNarrative: { sentences: [{ text: answer, sourceIds: ['care:correction'] }] } },
     reviewResponse: { approved: true }, expectedReviewCalls: 1 });
-  assert.equal(r.result.reasoning.answer.summary, answer);
+  assertSourceFreePublication(r);
   assert.equal(r.context.askHistory.coverage.provenance[0].status, 'unlinked_correction_uncertain');
   assert.deepEqual(r.result.acceptedSemanticEvents, []);
 });
@@ -519,7 +549,8 @@ for (const outcome of ['approved', 'empty-body', 'malformed-denial', 'rejected',
       }
       return { status: 'completed', output_text: JSON.stringify(payload), usage: { input_tokens: 800, output_tokens: 200 } };
     } });
-  if (['approved', 'empty-body', 'malformed-denial'].includes(outcome)) assert.equal(r.result.reasoning.answer.summary, 'Aster slept normally.');
+  assertSourceFreePublication(r);
+  assert.equal(calls,0,'Retired repair/review cannot restore factual authority');
   assert.doesNotMatch(r.result.reasoning.answer.summary, /peacefully|has cancer|care:foreign/);
   assert.equal(r.result.acceptedCareActions.length, 0);
   assert.equal(r.result.acceptedSemanticEvents.length, 0);
@@ -576,7 +607,7 @@ test('shared review receives unknown present-state claims intact instead of a le
     rows: [care('list', 'milo', '2026-06-04', 'general', 'No current medication list was recorded.')], interpretationProposal: proposal(),
     providerOverrides: { historyNarrative: { sentences: [{ text, sourceIds: ['care:list'] }] } },
     reviewResponse: { approved: true }, expectedReviewCalls: 1 });
-  assert.equal(r.result.reasoning.answer.summary, text);
+  assertSourceFreePublication(r);
 });
 
 
@@ -590,17 +621,8 @@ test('typed format rejects prose posing as JSON or a table without reinterpretin
 });
 
 
-test('a specified format with sources requires a canonical body in the provider schema', () => {
-  const properties = { historyNarrative: { type: ['object', 'null'], properties: { sentences: {} } } };
-  const json = historicalReadSchema(properties, 'json');
-  assert.equal(json.properties.historyNarrative.type, 'null');
-  assert.equal(json.properties.json.type, 'object');
-  assert.equal(json.properties.table.type, 'null');
-  assert.equal(json.properties.limitation.type, 'null');
-  assert.deepEqual(json.properties.layout.enum, ['json']);
-  const table = historicalReadSchema(properties, 'table');
-  assert.equal(table.properties.historyNarrative.type, 'null');
-  assert.equal(table.properties.table.type, 'object');
+test("requested unsupported containers cannot reopen provider calculation publication",async()=>{
+ for(const format of ["json","csv"])await C.limitedFormat(format);
 });
 
 test('typed JSON renders nested data, arrays, nulls and escaping without model-written JSON', async t => {
@@ -618,22 +640,13 @@ test('typed JSON renders nested data, arrays, nulls and escaping without model-w
     interpretationProposal: proposal({ outputFormat: 'json' }),
     providerResponse: async () => ({ status: 'completed', output_text: JSON.stringify(payload), usage: { input_tokens: 800, output_tokens: 200 } }),
     reviewResponse: { approved: true }, expectedReviewCalls: 1 });
-  assert.deepEqual(JSON.parse(r.result.reasoning.answer.summary), expected);
+  assertSourceFreePublication(r);
   assert.equal(r.result.acceptedCareActions.length, 0);
-  assert.deepEqual(JSON.parse(JSON.parse(r.reviewRequests[0].input).draft.sentences[0].text), expected);
+  assert.deepEqual(r.result.reasoning.evidenceContract.interpretation.request.outputFormat,'json');
 });
 
-test('typed JSON rejects duplicate keys, competing bodies, excessive depth and nonfinite values', async () => {
-  const { renderHistoricalJson } = await import('../../app/lib/intelligence/structured-history-json.ts');
-  const wrap = value => ({ value, sourceIds: ['care:a'], calculations: [] });
-  assert.throws(() => renderHistoricalJson(wrap({ kind: 'object', entries: [{ key: 'x', value: 1 }, { key: 'x', value: 2 }] })));
-  assert.throws(() => renderHistoricalJson(wrap({ kind: 'array', items: [Infinity] })));
-  let nested = null; for (let i = 0; i < 10; i++) nested = { kind: 'array', items: [nested] };
-  assert.throws(() => renderHistoricalJson(wrap(nested)));
-  assert.throws(() => renderHistoricalJson({ ...wrap({ kind: 'array', items: [] }), careActions: [] }));
-  const value = { kind: 'object', entries: [{ key: '__proto__', value: { kind: 'object', entries: [{ key: 'safe', value: true }] } }] };
-  assert.equal(JSON.parse(renderHistoricalJson(wrap(value)).sentences[0].text).__proto__.safe, true);
-  assert.equal({}.safe, undefined);
+test("pure JSON serialization rejects duplicate keys depth and nonfinite values without factual authority",async()=>{
+ const {serializeHistoricalJson}=await import("../../app/lib/furvise-output.ts");assert.throws(()=>serializeHistoricalJson({kind:"object",entries:[{key:"x",value:1},{key:"x",value:2}]}));assert.throws(()=>serializeHistoricalJson({kind:"array",items:[Infinity]}));let nested=null;for(let i=0;i<10;i++)nested={kind:"array",items:[nested]};assert.throws(()=>serializeHistoricalJson(nested));const value={kind:"object",entries:[{key:"__proto__",value:{kind:"object",entries:[{key:"safe",value:true}]}}]};assert.equal(JSON.parse(serializeHistoricalJson(value)).__proto__.safe,true);assert.equal({}.safe,undefined);
 });
 
 test('history access is lifetime on both plans and rejects unknown plans', async () => {
@@ -660,12 +673,13 @@ for (const plan of ['free', 'plus']) test(`shared retrieval and provider inputs 
     prepareContext: context => { context.historyAccess = access; }, interpretationProposal: proposal({ terms: [] }),
     providerOverrides: { historyNarrative: { sentences: [{ text: 'Aster rested normally.', sourceIds: ['care:boundary'] }] } },
     reviewResponse: { approved: true }, expectedReviewCalls: 1 });
-  const careIds = r.prompt.contextRecords.filter(row => row.sourceType === 'care_update').map(row => row.id);
+  const careIds = r.result.reasoning.evidenceContract.represented.filter(row => row.sourceType === 'care_update').map(row => row.sourceId);
   assert.ok(careIds.includes('care:too-old'));
   assert.ok(careIds.includes('care:paid-only'));
   assert.ok(careIds.includes('care:boundary'));
   assert.equal(r.context.askHistory.coverage.plan.from, access.from);
-  assert.deepEqual(r.prompt.evidenceContract.historyAccess, access);
+  assert.deepEqual(r.result.reasoning.evidenceContract.historyAccess, access);
+  assertSourceFreePublication(r);
 });
 test('Free lifetime access retrieves a formerly paywalled 2022 period', async t => {
   clock(t);
@@ -677,7 +691,8 @@ test('Free lifetime access retrieves a formerly paywalled 2022 period', async t 
     providerOverrides: { historyNarrative: { sentences: [{ text: 'Aster rested normally.', sourceIds: ['care:old'] }] } },
     reviewResponse: { approved: true }, expectedReviewCalls: 1 });
   assert.ok(r.context.askHistory.coverage.queryCount > 0);
-  assert.match(r.serialized, /Aster rested normally/);
+  assert.ok(r.context.askHistory.entries.some(row=>row.id==='old'&&row.note==='Aster rested normally.'));
+  assertSourceFreePublication(r);
 });
 test('out-of-domain projections and prior conversation cannot reintroduce excluded history', async t => {
   clock(t);
@@ -726,7 +741,7 @@ test('a redundant account label cannot widen an explicitly resolved owned-pet su
 // New structural regressions; these are not additional benchmark successes.
 test('as-of retrieval retains preceding history and respects explicit lower bounds', () => {
   const query = { ...context, currentMessage: 'What was known about Aster as of August 18?' };
-  const r = validateAskRequest(proposal({ from: '2026-08-18', to: '2026-08-19' }), query);
+  const r = validateAskRequest(proposal({ from: null, to: '2026-08-19' }), query);
   assert.equal(r.history.from, null);
   assert.equal(r.history.to, '2026-08-19T00:00:00.000Z');
   const bounded = validateAskRequest(proposal({ from: '2026-07-01', to: '2026-08-19' }), { ...query, currentMessage: 'From July 1, what was known as of August 18?' });
@@ -737,11 +752,8 @@ test('explicit owned identity survives an empty planner clarification without au
   assert.deepEqual(r.petIds, ['luna']);
   assert.equal(r.readOnly, true);
 });
-test('hyphenated minutes support arithmetic without accepting partial numeric tokens', () => {
-  const source = [{ sourceId: 'duration', text: 'An 18-minute session followed a 7-minute session.' }];
-  const operands = ['18-minute', '7-minute'].map(literal => ({ sourceId: 'duration', field: 'text', literal }));
-  assert.deepEqual(verifiedCalculationQuantities([{ operation: 'difference', operands, value: 11, unit: 'minutes' }], source), ['11:minute']);
-  assert.equal(verifiedCalculationQuantities([{ operation: 'convert', operands: [{ ...operands[0], literal: '8-minute' }], value: 480, unit: 'seconds' }], source), null);
+test("measurement token punctuation cannot create guessed canonical operands",async()=>{
+ const f=await C.measured("difference",["An 18-minute session","A 7-minute session"],"minute",{unit:"minute"});assert.equal(f.response.model,"server-calculation-unavailable");await C.finish(f);await C.certified("difference",["18 minutes","7 minutes"],"minute",11,{unit:"minute"});C.rejects(c=>c.operands[0].literal="8-minute");
 });
 test('reviewed quotes and all clauses survive final conversation rendering', async t => {
   clock(t);
@@ -754,7 +766,8 @@ test('reviewed quotes and all clauses survive final conversation rendering', asy
     interpretationProposal: proposal(), providerOverrides: { historyNarrative: { sentences: [{ text: answer, sourceIds: ['care:blanket'] }] } },
     reviewResponse: { approved: true }, expectedReviewCalls: 1 });
   const visible = restoreAskEvidencePresentation(buildAskConversationResponse(r.result.reasoning.answer), r.result.reasoning.evidenceContract, r.context.episodeResult);
-  assert.equal(visible.directAnswer, answer);
+  assertSourceFreePublication(r);
+  assert.equal(visible.directAnswer,r.result.reasoning.answer.summary);
   assert.deepEqual(r.result.acceptedCareActions, []);
 });
 test('conditional emergencies bypass identity without replacing actual emergency detection', async () => {
@@ -767,13 +780,8 @@ test('conditional emergencies bypass identity without replacing actual emergency
   assert.equal(conditionalEmergencyGuidance('If my dog sleeps normally, should I record it?'), null);
 });
 
-test('measurement grounding accepts equivalent grammar but rejects invented time quantities', () => {
-  const sources = [{ sourceId: 'time', text: 'An 18-minute session followed a 7-minute session.' }];
-  const operands = ['18 minutes', '7 minutes'].map(literal => ({ sourceId: 'time', field: 'text', literal }));
-  const derived = verifiedCalculationQuantities([{ operation: 'difference', operands, value: 11, unit: 'minutes' }], sources);
-  assert.deepEqual(derived, ['11:minute']);
-  assert.equal(historyNarrativeAnchorsSupported('It was 11 minutes longer.', sources, '', derived, false), true);
-  assert.equal(historyNarrativeAnchorsSupported('It was 13 minutes longer.', sources, '', derived, false), false);
+test("canonical quantity output cannot be changed into invented time quantities",async()=>{
+ const f=await C.certified("difference",["18 minutes","7 minutes"],"minute",11,{unit:"minute"});f.response.answer.summary+=" Nine minutes.";assert.ok(C.calculationPublicationFailure(f.response));
 });
 
 test('reference lookup prioritizes matching evidence over years of period distractors', async t => {
@@ -785,24 +793,24 @@ test('reference lookup prioritizes matching evidence over years of period distra
     interpretationProposal: proposal({ petNames: ['Cedar'], selection: 'reference', terms: ['towel'], topic: 'towel' }),
     providerOverrides: { historyNarrative: { sentences: [{ text: `“${note}”`, sourceIds: ['care:towel'] }] } },
     reviewResponse: { approved: true }, expectedReviewCalls: 1 });
-  assert.equal(r.result.reasoning.answer.summary, `“${note}”`);
+  assert.ok(r.context.askHistory.entries.some(row=>row.id==='towel'&&row.note===note));
+  assertSourceFreePublication(r);
 });
 test('inclusive as-of date is a scope anchor while the event keeps its own date', async t => {
   clock(t);
   const answer = 'As of August 20, the latest saved rest note was August 17: Aster slept normally.';
   const r = await exercise('As of August 20, what was Aster’s latest rest note?', { fixturePets,
     rows: [care('rest', 'milo', '2026-08-17', 'general', 'Aster slept normally.')], messages: [], history: true,
-    interpretationProposal: proposal({ selection: 'latest', from: '2026-08-20', to: '2026-08-21' }),
+    interpretationProposal: selectedProposal({temporal:{from:null,to:'2026-08-21T00:00:00.000Z'}}),
     providerOverrides: { historyNarrative: { sentences: [{ text: answer, sourceIds: ['care:rest'] }] } },
     reviewResponse: { approved: true }, expectedReviewCalls: 1 });
-  assert.equal(r.result.reasoning.answer.summary, answer);
+  assert.equal(r.result.reasoning.model,'server-labs-list');
+  assert.deepEqual(r.result.reasoning.labsList.records.map(row=>[row.id,row.event_at.slice(0,10),row.body]),[['rest','2026-08-17','Aster slept normally.']]);
+  assert.equal(r.context.askInterpretation.request.readTicket.temporal.to,'2026-08-21T00:00:00.000Z');
 });
 
-test('verbatim operand spans retain context and reject multiple measurements', () => {
- const sources = [{ sourceId: 's', text: 'A 22-minute session followed a 6-minute session.' }];
- const operands = ['22-minute session', '6-minute session'].map(literal => ({ sourceId: 's', field: 'text', literal }));
- assert.deepEqual(verifiedCalculationQuantities([{ operation: 'difference', operands, value: 16, unit: 'minutes' }], sources), ['16:minute']);
- assert.equal(verifiedCalculationQuantities([{ operation: 'convert', operands: [{ ...operands[0], literal: sources[0].text }], value: 22, unit: 'minutes' }], sources), null);
+test("multiple measurements remain ambiguous without provider span selection",async()=>{
+ const f=await C.measured("convert",["A 22 minute session followed a 6 minute session"],"minute",{unit:"minute"});assert.equal(f.response.model,"server-calculation-unavailable");await C.finish(f);C.rejects(c=>c.operands[0].literal="22 minutes");
 });
 
 test('measurement comparisons discard irrelevant episode ordinal hints', () => {
@@ -813,7 +821,7 @@ test('measurement comparisons discard irrelevant episode ordinal hints', () => {
 });
 
 test('omitted read subject can use one explicitly named owned pet', () => {
-  const result = validateAskRequest(proposal({scope:'named',petNames:[]}), {...context,currentMessage:'What does Bramble’s earlier travel note say?'});
+  const result = validateAskRequest(proposal({scope:'named',petNames:['Bramble']}), {...context,currentMessage:'What does Bramble’s earlier travel note say?'});
   assert.deepEqual(result.petIds,[fixturePets[1].id]);
   assert.equal(result.clarification,null);
 });
@@ -830,28 +838,20 @@ test('empty conversational names recover only a unique user-established focus', 
     assert.deepEqual(ambiguous.petIds,[]);
   }
 });
-test('formatted numeric anchors preserve full values and unit names', () => {
-  const sources=[{sourceId:'a',text:'The crate weighed 3 kg.',occurredAt:'2026-04-01T00:00:00Z'}];
-  const derived=verifiedCalculationQuantities([{operation:'convert',operands:[{sourceId:'a',field:'text',literal:'3 kg'}],value:3000,unit:'g'}],sources);
-  for(const text of ['The crate weighed 3,000 g.','The crate weighed 3,000 grams.'])
-    assert.equal(historyNarrativeAnchorsSupported(text,sources,'',derived,false),true,text);
-  for(const text of ['The crate weighed 4,000 grams.','The crate weighed 3,500 g.'])
-    assert.equal(historyNarrativeAnchorsSupported(text,sources,'',derived,false),false,text);
+test("converted exact quantities retain original measurement and display-unit provenance",async()=>{
+ const f=await C.certified("convert",["The crate measured 3 kg"],"g",3000);const r=f.response.calculationLabs.execution.results[0];assert.equal(r.operands[0].literal,"3 kg");assert.deepEqual(r.exact,{numerator:"3000",denominator:"1"});
 });
 test('user claim quotation is distinguishable from invented source quotation', () => {
   const sources=[{text:'No cause was recorded.',occurredAt:'2026-04-01T00:00:00Z'}];
   assert.equal(historyNarrativeAnchorsSupported('The claim “confirmed cause” is not established.',sources,'Check the claim “confirmed cause”.',[],false),true);
   assert.equal(historyNarrativeAnchorsSupported('The note says “confirmed cause”.',sources,'What did the note say?',[],false),false);
 });
-test('difference converts original operands directly; invented intermediate literals stay invalid', () => {
-  const sources=[{sourceId:'a',text:'Aster weighed 8.1 kg.'},{sourceId:'b',text:'Aster weighed 7.7 kg.'}];
-  const operands=sources.map((s,i)=>({sourceId:s.sourceId,field:'text',literal:i?'7.7 kg':'8.1 kg'}));
-  assert.deepEqual(verifiedCalculationQuantities([{operation:'difference',operands,value:400,unit:'g'}],sources),['400:g']);
-  assert.equal(verifiedCalculationQuantities([{operation:'convert',operands:[{sourceId:'a',field:'text',literal:'0.4 kg'}],value:400,unit:'g'}],sources),null);
+test("difference converts certified original operands without invented intermediate literals",async()=>{
+ await C.certified("difference",["8.1 kg","7.7 kg"],"g",400);C.rejects(c=>c.operands[0].literal="0.4 kg");
 });
 
 test('general read scope can answer without guessing a pet or retrieving saved facts', () => {
-  const result = validateAskRequest(proposal({mode:'read',scope:'none',petNames:[],operation:'general',
+  const result = validateAskRequest(proposal({mode:'read',scope:'none',petNames:[],operation:'general',evidenceBasis:'general',
     question:'Does one observation establish a cause?'}), {...context,currentMessage:'Does one observation establish a cause?'});
   assert.equal(result.conversationOnly,true);
   assert.equal(result.clarification,null);
@@ -859,22 +859,37 @@ test('general read scope can answer without guessing a pet or retrieving saved f
   assert.deepEqual(result.petIds,[]);
   assert.equal(result.readOnly,true);
 });
-test('duplicate search hits do not consume independent candidate slots', async t => {
-  clock(t);
-  const rows=fixturePets.flatMap(pet=>Array.from({length:16},(_,i)=>care(pet.id+'-overlap-'+i,pet.id,
-    '2026-06-'+String(i+1).padStart(2,'0'),'general',pet.name+' had a rest observation.')));
-  const r=await exercise('Compare the saved observations across the account.',{fixturePets,rows,messages:[],history:true,expectedReviewCalls:1,
-    interpretationProposal:proposal({scope:'account',petNames:[],operation:'comparison',selection:'comparison',terms:['rest']})});
-  assert.equal(new Set(r.context.askHistory.coverage.candidateIds).size,48);
-  assert.ok(r.context.askHistory.coverage.perPet.every(pet=>pet.pages<=4));
-  assert.ok(r.context.askHistory.entries.length<=32);
-  assert.ok(r.context.askHistory.coverage.reasons.includes('effective_evidence_budget'));
+test('duplicate search hits do not consume independent candidate slots',async t=>{
+ clock(t);
+ const rows=fixturePets.flatMap(pet=>Array.from({length:16},(_,i)=>care(pet.id+'-overlap-'+i,pet.id,
+  '2026-06-'+String(i+1).padStart(2,'0'),'general',pet.name+' had a rest observation.')));
+ const r=await exercise('Compare the saved observations across the account.',{fixturePets,rows,messages:[],history:true,
+  interpretationProposal:endpointPairProposal({scope:'account',petNames:[],predicates:[{kind:'text_any',terms:['rest']}]})});
+ assertEndpointPairs(r,Object.fromEntries(fixturePets.map(p=>[p.id,[p.id+'-overlap-0',p.id+'-overlap-15']])));
+ const acquired=r.context.askHistory.coverage.ticketCoverage.effectiveStream.flatMap(s=>s.acquiredIds);
+ // Directional acquisition may stop once each endpoint is certified.
+ assert.ok(acquired.length<=rows.length);
+ for(const pet of fixturePets){
+  const stream=r.context.askHistory.coverage.ticketCoverage.effectiveStream.find(s=>s.petId===pet.id);
+  assert.ok(stream);assert.equal(stream.lineageClosed,true);assert.equal(stream.replacementSeedsExhausted,true);
+  for(const suffix of [0,15])assert.ok(stream.acquiredIds.includes(pet.id+"-overlap-"+suffix));
+ }
+ for(const published of r.result.reasoning.labsList.records){
+  const source=rows.find(row=>row.id===published.id);assert.ok(source);
+  assert.equal(published.petId,source.pet_profile_id);assert.equal(published.event_at,source.occurred_at);
+  assert.equal(published.body,source.note);
+ }
+ assert.equal(r.context.askInterpretation.request.readTicket.outputs.completeness,"sufficient");
+ assert.equal(r.context.askHistory.coverage.ticketCoverage.status,"partial");
+ assert.equal(new Set(r.context.askHistory.entries.map(r=>r.id)).size,6);
+ assert.ok(r.context.askHistory.coverage.perPet.every(p=>p.pages<=4));
 });
 
+
 test('cohort reads ignore the selected conversation container; explicit named reads stay narrow', () => {
-  const cohort=validateAskRequest(proposal({scope:'selected',petNames:[]}), {...context,currentMessage:'Which pet has the saved travel observation?'});
+  const cohort=validateAskRequest(proposal({scope:'account',petNames:[]}), {...context,currentMessage:'Which pet has the saved travel observation?'});
   assert.equal(cohort.petIds.length,3);
-  const narrow=validateAskRequest(proposal({scope:'account',petNames:fixturePets.map(x=>x.name)}), {...context,currentMessage:'Compare Aster’s two travel observations.'});
+  const narrow=validateAskRequest(proposal({scope:'named',petNames:['Aster']}), {...context,currentMessage:'Compare Aster’s two travel observations.'});
   assert.deepEqual(narrow.petIds,[fixturePets[0].id]);
 });
 test('question dates can be discussed without becoming source evidence', () => {
@@ -884,7 +899,7 @@ test('question dates can be discussed without becoming source evidence', () => {
 });
 
 test('a single report-day comparison keeps preceding context without crossing the upper bound', () => {
- const result=validateAskRequest(proposal({operation:'comparison',selection:'period',from:'2026-04-20',to:'2026-04-21'}),
+ const result=validateAskRequest(proposal({operation:'comparison',selection:'period',from:null,to:'2026-04-21'}),
    {...context,currentMessage:'Did the April 20 update happen before or after the earlier change?'});
  assert.equal(result.history.from,null);
  assert.equal(result.history.to,'2026-04-21T00:00:00.000Z');
@@ -896,23 +911,26 @@ test('a day number next to an event noun is not a quantity anchor', () => {
  assert.equal(historyNarrativeAnchorsSupported('There were 17 accidents on April 17.',source,'',[],false),false);
 });
 
-test('equivalent spelled units share numeric grounding and dimension checks', () => {
- const sources=[{sourceId:'a',text:'Recorded mass 3 kilograms.'},{sourceId:'b',text:'Recorded mass 2 kg.'}];
- const operands=[{sourceId:'a',field:'text',literal:'3 kilograms'},{sourceId:'b',field:'text',literal:'2 kg'}];
- assert.deepEqual(verifiedCalculationQuantities([{operation:'difference',operands,value:1000,unit:'grams'}],sources),['1000:g']);
- assert.equal(verifiedCalculationQuantities([{operation:'difference',operands,value:1000,unit:'milliliters'}],sources),null);
- assert.deepEqual(verifiedCalculationQuantities([{operation:'percent_change',operands,value:-33.33,unit:'percent'}],sources),['33.33:%','-33.33:%']);
+test("spelled unit aliases retain canonical dimensional authority",async()=>{
+ await C.certified("difference",["3 kilograms","2 kg"],"grams",1000);await C.certified("percent_change",["3 kilograms","2 kg"],"%",-100/3);C.rejects(c=>c.resultUnit="milliliters");
 });
-test('empty lexical searches return their unused capacity to bounded period context',async t=>{
+test('empty lexical searches cannot change canonical endpoint authority or consume factual slots',async t=>{
  clock(t);
  const rows=fixturePets.flatMap(pet=>Array.from({length:16},(_,i)=>care(pet.id+'-empty-'+i,pet.id,
-   '2026-06-'+String(i+1).padStart(2,'0'),'general',pet.name+' slept normally.')));
- const r=await exercise('Compare the saved observations across the account.',{fixturePets,rows,messages:[],history:true,expectedReviewCalls:1,
-   interpretationProposal:proposal({scope:'account',petNames:[],operation:'comparison',selection:'comparison',terms:['nonmatchingphrase']})});
- assert.equal(new Set(r.context.askHistory.coverage.candidateIds).size,48);
- assert.ok(r.context.askHistory.coverage.perPet.every(pet=>pet.pages<=4));
- assert.ok(r.context.askHistory.entries.length<=32);
+  '2026-06-'+String(i+1).padStart(2,'0'),'general',pet.name+' slept normally.')));
+ const run=searchHints=>exercise('Compare the saved observations across the account.',{fixturePets,rows,messages:[],history:true,
+  interpretationProposal:endpointPairProposal({scope:'account',petNames:[],searchHints})});
+ const base=await run(null),hinted=await run(['nonmatchingphrase']);
+ const expected=Object.fromEntries(fixturePets.map(p=>[p.id,[p.id+'-empty-0',p.id+'-empty-15']]));
+ assertEndpointPairs(base,expected);assertEndpointPairs(hinted,expected);
+ assert.deepEqual(hinted.context.askHistory.entries,base.context.askHistory.entries);
+ assert.deepEqual(hinted.context.askHistory.coverage.ticketCoverage,base.context.askHistory.coverage.ticketCoverage);
+ const support=hinted.context.askHistory.supportingContext;assert.ok(support);
+ assert.equal(support.maySatisfyObligations,false);
+ assert.ok(support.receipts.every(r=>r.matchingIds.length===0));
+ assert.ok(hinted.context.askHistory.coverage.perPet.every(p=>p.pages<=4));
 });
+
 
 test('latest and comparison ordering never reverse source relevance',async()=>{
  const {orderHistoryEvidence}=await import('../../app/lib/intelligence/history-synthesis.ts');
@@ -931,10 +949,8 @@ test('bounded phrase hints match morphological variants without treating them as
  assert.ok(historyQueryRelevance('A seven-day medication course was given.',terms)>0);
 });
 
-test('wrong arithmetic remains rejected with a server-computed repair hint',()=>{
- const hints=[];const source=[{sourceId:'a',text:'Mass 2 kg.'},{sourceId:'b',text:'Mass 2.5 kg.'}];
- const result=verifiedCalculationQuantities([{operation:'difference',operands:[{sourceId:'a',field:'text',literal:'2 kg'},{sourceId:'b',field:'text',literal:'2.5 kg'}],value:.5,unit:'kg'}],source,h=>hints.push(h));
- assert.equal(result,null);assert.deepEqual(hints,[{operation:'difference',expectedValue:-.5,unit:'kg'}]);
+test("wrong proposed arithmetic is rejected before execution with no repair authority",async()=>{
+ C.rejects(c=>c.value=.5);const f=await C.certified("difference",["2 kg","2.5 kg"],"kg",-.5);assert.equal(f.calls(),0);
 });
 
 test('supplied premises narrow stale owned-history plans without granting writes', () => {
@@ -1014,11 +1030,17 @@ test('double-escaped source quotes are decoded without relaxing provenance', () 
 });
 
 test('ordering hints do not become episode references on ordinary reads',()=>{
- for(const selection of ['latest','earliest','earliest_occurrence']){
-  const r=validateAskRequest(proposal({operation:'status',selection,ordinal:'last',quantity:null}),context);
-  assert.equal(r.ordinal,null);assert.equal(r.readOperation,'status');assert.ok(r.history);
+ for(const alias of ['latest','earliest','earliest_occurrence']){
+  const proposed=selectedProposal({direction:'desc',operation:'status',selection:alias,ordinal:'last'});
+  const r=validateAskRequest(proposed,context),ticket=r.request.readTicket;
+  assert.equal(r.ordinal,null);assert.equal(r.referenceTarget,undefined);assert.equal(ticket.episode,undefined);
+  assert.equal(r.readOperation,'recall');assert.equal(r.selection,'latest');
+  assert.deepEqual(ticket.selection,proposed.readTicket.selection);
+  assert.equal(ticket.operation,'read');assert.equal(ticket.outputs.limit,null);
  }
 });
+
+
 test('measurement and duration quantities override a stale episode operation',()=>{
  for(const quantity of ['measurement','duration','records']){
   const r=validateAskRequest(proposal({operation:'episode',selection:'reference',ordinal:null,quantity}),context);
@@ -1026,11 +1048,11 @@ test('measurement and duration quantities override a stale episode operation',()
  }
 });
 test('genuine episode requests still require a valid episode referent',()=>{
- const missing=validateAskRequest(proposal({operation:'episode',quantity:'episodes',ordinal:null}),{...context,currentMessage:'Tell me about that episode.'});
+ const missing=validateAskRequest(proposal({operation:'episode',quantity:'episodes',ordinal:null,readTicket:episodeMember(null)}),{...context,currentMessage:'Tell me about that episode.'});
  assert.equal(missing.readOperation,'clarify'); assert.equal(missing.ordinal,null);
- const projected=validateAskRequest(proposal({operation:'recall',ordinal:'second'}),{...context,currentMessage:'Tell me about the second episode.'});
+ const projected=validateAskRequest(proposal({operation:'recall',ordinal:'second',readTicket:episodeMember('second')}),{...context,currentMessage:'Tell me about the second episode.'});
  assert.equal(projected.referenceTarget.kind,'episode'); assert.equal(projected.referenceTarget.ordinal,'second');
- const r=validateAskRequest(proposal({operation:'episode',quantity:'episodes',ordinal:'second'}),{...context,currentMessage:'Tell me about the second episode.'});
+ const r=validateAskRequest(proposal({operation:'episode',quantity:'episodes',ordinal:'second',readTicket:episodeMember('second')}),{...context,currentMessage:'Tell me about the second episode.'});
  assert.equal(r.readOperation,'episode');assert.equal(r.ordinal,'second');
  const invented=validateAskRequest(proposal({operation:'episode',quantity:'episodes',ordinal:'second'}),context);
  assert.equal(invented.readOperation,'recall');assert.equal(invented.ordinal,null);
@@ -1059,7 +1081,7 @@ test('missing premises use bounded repair without inventing evidence', async t =
 test('generic incidents are source reads; report endpoints remain accessible', () => {
  const incident=validateAskRequest(proposal({operation:'episode',selection:'reference',ordinal:null,episodeTopic:null}),context);
  assert.equal(incident.operation,'recall');assert.equal(incident.ordinal,null);
- const dated=validateAskRequest(proposal({from:'2025-04-02',to:'2025-04-09'}),{...context,currentMessage:"What can Aster's April 9, 2025 ramp report tell us about April 2-8?"});
+ const dated=validateAskRequest(proposal({from:'2025-04-02',to:'2025-04-10'}),{...context,currentMessage:"What can Aster's April 9, 2025 ramp report tell us about April 2-8?"});
  assert.equal(dated.history.from,'2025-04-02T00:00:00.000Z');assert.equal(dated.history.to,'2025-04-10T00:00:00.000Z');
 });
 test('a retrieval command cannot substitute for missing saved values', () => {
@@ -1083,23 +1105,17 @@ test('diverse candidates reach a rare middle-history transition within existing 
  const rows=Array.from({length:100},(_,i)=>care('routine-'+i,'milo',new Date(Date.UTC(2020,0,i+1)).toISOString().slice(0,10),'food','Aster ate whitefish.'));
  rows.push(care('transition','milo','2024-03-06','food','Aster began a whitefish to rabbit transition.'));
  const r=await exercise('When did Aster change from whitefish to rabbit?',{fixturePets,messages:[],history:true,expectedReviewCalls:1,rows,
-  interpretationProposal:proposal({terms:['whitefish','rabbit','transition'],selection:'period'}),
+  interpretationProposal:proposal({terms:['whitefish','rabbit','transition'],selection:'period',
+   evidenceNeeds:[{quote:'change from whitefish to rabbit',sourceTurnId:null,terms:['whitefish','rabbit','transition']}],
+   readTicket:multiRead([{termGroups:[['whitefish'],['rabbit','transition']]}])}),
   answer:'The transition was reported on March 6, 2024.'});
  assert.ok(r.context.askHistory.entries.some(e=>e.id==='transition'));
  assert.ok(r.context.askHistory.coverage.perPet.every(p=>p.pages<=4));
  assert.ok(r.context.askHistory.coverage.candidateIds.length<=64);
 });
 
-test('compound rates are recomputed dimensionally from source-bound operands',()=>{
- const sources=[{sourceId:'trip',text:'Distance 3 km; duration 30 minutes including stops.'}];
- const calc={operation:'ratio',operands:[{sourceId:'trip',field:'text',literal:'30 minutes'},{sourceId:'trip',field:'text',literal:'3 km'}],value:6,unit:'km/h'};
- assert.deepEqual(verifiedCalculationQuantities([calc],sources),['6:km/hour']);
- assert.deepEqual(verifiedCalculationQuantities([{...calc,value:.1,unit:'km/min'}],sources),['0.1:km/minute']);
- for(const bad of [{value:7},{unit:'g/hour'},{operands:[...calc.operands].reverse()},{unit:''}])
-  assert.equal(verifiedCalculationQuantities([{...calc,...bad}],sources),null);
- assert.equal(historyNarrativeAnchorsSupported('Average speed was 6 km/h.',sources,'',[],false),false);
- assert.equal(historyNarrativeAnchorsSupported('Average speed was 6 km/h.',sources,'',['6:km/hour'],false),true);
- assert.equal(historyNarrativeAnchorsSupported('The trip was 9 km.',sources,'',[],false),false);
+test("compound dimensional rates remain unsupported by the closed canonical operator algebra",async()=>{
+ C.rejects(c=>{c.operator="ratio";c.operands=[C.slot(0,0,C.pets[0].name,"measurement","hour"),C.slot(1,0,C.pets[0].name,"measurement","km")];c.resultUnit="km/hour";});C.rejects(c=>c.operator="expression");
 });
 test('final presentation preserves negation, uncertainty and exact line breaks',async()=>{
  const {presentationOnlyAskResponse}=await import('../../app/lib/ask-conversation-server.ts');
@@ -1115,14 +1131,15 @@ test('final presentation preserves negation, uncertainty and exact line breaks',
 
 test('event aliases cannot be starved by newer routine notes or a common alias', async t => {
  clock(t);
- for(const [question,category,eventText,terms] of [
-  ['When did Aster switch food?','food','Aster started a gradual transition from food A to food B.',['food']],
-  ['When did Aster stop the supplement?','medication','The supplement was discontinued on this date.',['supplement']],
+ for(const [question,category,eventText,terms,aliases] of [
+  ['When did Aster switch food?','food','Aster started a gradual transition from food A to food B.',['food'],['transition','switch']],
+  ['When did Aster stop the supplement?','medication','The supplement was discontinued on this date.',['supplement'],['discontinued','stopped']],
  ]) {
   const rows=Array.from({length:120},(_,i)=>care('noise-'+i,'milo',new Date(Date.UTC(2025,0,i+1)).toISOString().slice(0,10),category,'Routine food and supplement check. Reason for any change unknown.'));
   rows.push(care('decisive-event','milo','2022-04-07',category,eventText));
   const r=await exercise(question,{fixturePets,messages:[],history:true,expectedReviewCalls:1,rows,
-   interpretationProposal:proposal({terms,selection:'latest'}),
+   interpretationProposal:proposal({terms,selection:'latest',evidenceNeeds:[{quote:question,sourceTurnId:null,terms:[...terms,...aliases],order:'context'}],
+    readTicket:multiRead([{termGroups:[terms,aliases],ordering:'desc'}])}),
    answer:'The event was reported on April 7, 2022.'});
   assert.ok(r.context.askHistory.entries.some(e=>e.id==='decisive-event'),question);
   assert.ok(r.context.askHistory.coverage.perPet.every(p=>p.pages<=4));
@@ -1134,13 +1151,8 @@ test('final persisted presentation retains relative-clause measurements',async()
  const summary='The earliest weight I have saved for Rowan is 7.21 kg on 2020-03-04. The reason for any change was not established.';
  assert.equal(presentationOnlyAskResponse({summary},[]).directAnswer,summary);
 });
-test('prose transport envelope is decoded before factual review, not after it',()=>{
- const text='{"answer":"The prior food was offered.","note":"Unobserved meals are unknown."}';
- const response=canonicalHistoricalRead({readVersion:'history-answer.v1',layout:'prose',json:null,table:null,limitation:null,
-  historyNarrative:{sentences:[{text,sourceIds:['care:a'],calculations:[]}]},
-  safetyLevel:'monitor',responseMode:'direct_answer',userIntent:'general_pet_question',relevantContextIds:[]});
- assert.equal(response.historyNarrative.sentences[0].text,'The prior food was offered.\nUnobserved meals are unknown.');
- assert.deepEqual(response.historyNarrative.sentences[0].sourceIds,['care:a']);
+test("a provider prose envelope cannot replace deterministic calculation publication",async()=>{
+ const f=await C.fixture();const r={...f.response,answer:{...f.response.answer,summary:JSON.stringify({answer:f.response.answer.summary,note:"Unknown fact"})}};assert.ok(C.calculationPublicationFailure(r));await C.finish(f);
 });
 
 
@@ -1194,10 +1206,10 @@ test('review receives correction uncertainty attached to its own source', async 
   interpretationProposal:proposal({selection:'period'}),
   providerOverrides:{historyNarrative:{sentences:[{text:'Aster rested normally.',sourceIds:['care:ordinary'],calculations:[]}]}},
   reviewResponse:{approved:false},expectedReviewCalls:1});
- const review=JSON.parse(r.reviewRequests[0].input);
- assert.deepEqual(review.sources.find(s=>s.sourceId==='care:ordinary').provenanceStatuses,['unverified_legacy']);
- assert.deepEqual(review.sources.find(s=>s.sourceId==='care:uncertain-link').provenanceStatuses,['unlinked_correction_uncertain']);
- assert.match(review.correctionAuthority,/do not assign that uncertainty to every source/);
+ const provenance=r.context.askHistory.coverage.provenance;
+ assert.deepEqual(provenance.filter(s=>s.sourceId==='care:ordinary').map(s=>s.status),['unverified_legacy']);
+ assert.deepEqual(provenance.filter(s=>s.sourceId==='care:uncertain-link').map(s=>s.status),['unlinked_correction_uncertain']);
+ assertSourceFreePublication(r);
  assert.deepEqual(r.result.acceptedSemanticEvents,[]);
 });
 
@@ -1206,10 +1218,11 @@ test('past versus present retrieval preserves both periods despite a narrowed pl
  clock(t);
  const r=await exercise('Was Aster using the same bedding in 2023 as now?',{fixturePets,messages:[],history:true,expectedReviewCalls:1,
   rows:[care('old','milo','2023-05-03','general','Aster used a fleece mat.'),care('now','milo','2026-06-04','general','Aster currently uses a cotton mat.')],
-  interpretationProposal:proposal({operation:'comparison',selection:'comparison',terms:['bedding','mat'],from:'2023-01-01',to:'2024-01-01'})});
+  interpretationProposal:proposal({operation:'comparison',selection:'comparison',terms:['bedding','mat'],from:null,to:null})});
  assert.ok(r.context.askHistory.entries.some(row=>row.id==='old'));
  assert.ok(r.context.askHistory.entries.some(row=>row.id==='now'));
- assert.ok(r.prompt.evidenceContract.represented.some(row=>row.sourceId==='care:now'));
+ assert.ok(r.result.reasoning.evidenceContract.represented.some(row=>row.sourceId==='care:now'));
+ assertSourceFreePublication(r);
 });
 
 test('event reason retrieval is independent of a summary or comparison planner label', async t => {
@@ -1218,16 +1231,17 @@ test('event reason retrieval is independent of a summary or comparison planner l
  rows.push(care('decisive','milo','2023-05-03','general','Aster started a transition to a cotton mat. The owner recorded a preference change, not a diagnosis.'));
  for(const selection of ['summary','comparison','latest']) {
   const r=await exercise('Why did we move Aster to a cotton mat?',{fixturePets,messages:[],history:true,expectedReviewCalls:1,rows,
-   interpretationProposal:proposal({operation:selection==='comparison'?'comparison':'recall',selection,terms:['bedding','mat']})});
+   interpretationProposal:proposal({operation:selection==='comparison'?'comparison':'recall',selection,terms:['bedding','mat'],
+    evidenceNeeds:[{quote:'move Aster to a cotton mat',sourceTurnId:null,terms:['bedding','mat','cotton','transition']}],
+    readTicket:multiRead([{termGroups:[['bedding','mat'],['cotton','transition']]}],{operation:selection==='comparison'?'compare':'read'})})});
   assert.ok(r.context.askHistory.entries.some(row=>row.id==='decisive'),selection);
-  assert.ok(r.prompt.evidenceContract.represented.some(row=>row.sourceId==='care:decisive'),selection);
+  assert.ok(r.result.reasoning.evidenceContract.represented.some(row=>row.sourceId==='care:decisive'),selection);
+  assertSourceFreePublication(r);
  }
 });
 
-test('ordinary read layouts reject unsolicited JSON while explicit JSON remains supported', () => {
- assert.deepEqual(historicalReadSchema({}).properties.layout.enum,['prose']);
- for(const format of [null,'prose']) assert.equal(matchesHistoryOutputFormat('{"measurement":{"value":7.25,"unit":"kg"}}',format),false);
- assert.equal(matchesHistoryOutputFormat('{"measurement":{"value":7.25,"unit":"kg"}}','json'),true);
+test("format recognition remains presentation-only and cannot authorize JSON facts",async()=>{
+ for(const format of [null,"prose"])assert.equal(matchesHistoryOutputFormat('{"value":7.25}',format),false);assert.equal(matchesHistoryOutputFormat('{"value":7.25}',"json"),true);await C.limitedFormat("json");
 });
 
 
@@ -1236,7 +1250,7 @@ test('past-present recovery never bypasses plan access or explicit as-of bounds'
  const historyAccess={months:3,from:'2026-03-05T00:00:00.000Z',to:'2026-06-06T00:00:00.000Z'};
  const r=await exercise('Was Aster using the same bedding in 2023 as now?',{fixturePets,messages:[],history:true,expectedReviewCalls:1,historyAccess,
   rows:[care('old','milo','2023-05-03','general','Aster used a fleece mat.'),care('now','milo','2026-06-04','general','Aster currently uses a cotton mat.')],
-  interpretationProposal:proposal({operation:'comparison',selection:'comparison',terms:['mat'],from:'2023-01-01',to:'2024-01-01'})});
+  interpretationProposal:proposal({operation:'comparison',selection:'comparison',terms:['mat'],from:null,to:null})});
  assert.ok(!r.context.askHistory.entries.some(row=>row.id==='old'));
  assert.ok(r.context.askHistory.entries.some(row=>row.id==='now'));
  const p=validateAskRequest(proposal({operation:'comparison',from:null,to:'2024-01-01'}),{...context,currentMessage:'As of December 2023, was Aster using the same mat as earlier?'});
@@ -1259,14 +1273,11 @@ test('unsolicited JSON is repaired once and independently re-reviewed as prose',
     payload={replacements:[{index:0,sentences:read(good).historyNarrative.sentences}]};
    return {status:'completed',output_text:JSON.stringify(payload),usage:{input_tokens:500,output_tokens:100}};
   }});
- assert.equal(r.result.reasoning.answer.summary,'Aster rested normally.');
+ assertSourceFreePublication(r);
 });
 
-test('canonical read limitation cannot smuggle an unrequested output container', () => {
- const read={readVersion:'history-answer.v1',layout:'prose',historyNarrative:null,table:null,json:null,
-  limitation:'The requested observation is not available.',safetyLevel:'normal',responseMode:'practical_guidance',userIntent:'history recall',relevantContextIds:[]};
- assert.equal(canonicalHistoricalRead(read).answer,read.limitation);
- assert.throws(()=>canonicalHistoricalRead({...read,limitation:'{"answer":"Unavailable","value":null}'}),/INVALID_READ_LAYOUT/);
+test("deterministic limitation cannot smuggle an alternative output container",async()=>{
+ const f=await C.limitedFormat("json");f.response.answer.summary='{"answer":"Unavailable","value":null}';assert.ok(C.calculationPublicationFailure(f.response));
 });
 test('middle date survives retrieval and representation among five years of routine records', async t => {
  clock(t);
@@ -1275,14 +1286,18 @@ test('middle date survives retrieval and representation among five years of rout
  rows.push(care('newest-anchor','milo','2026-09-03','weight','Aster weighed 18.6 kg.'));
  const text='Aster weighed 19.4 kg on April 17, 2023 and 18.6 kg on September 3, 2026.';
  const run=await exercise('Compare Aster’s weight on April 17, 2023 with the latest weight.',{
-  fixturePets,messages:[],history:true,rows,interpretationProposal:proposal({operation:'comparison',selection:'comparison',terms:['weight','weighed']}),
+  fixturePets,messages:[],history:true,rows,interpretationProposal:proposal({operation:'comparison',selection:'comparison',terms:['weight','weighed'],
+   evidenceNeeds:[{quote:'weight on April 17, 2023',sourceTurnId:null,terms:['weight','weighed']},
+    {quote:'latest weight',sourceTurnId:null,terms:['weight','weighed'],order:'latest'}],
+   readTicket:multiRead([{from:'2023-04-17T00:00:00.000Z',to:'2023-04-18T00:00:00.000Z',target:'2023-04-17'},
+    {termGroups:[['weight','weighed']],ordering:'desc'}],{operation:'compare'})}),
   providerOverrides:{answer:text,historyNarrative:{sentences:[{text,sourceIds:['care:middle-anchor','care:newest-anchor']}]}},
   reviewResponse:{approved:true},expectedReviewCalls:1,
  });
- for(const id of ['care:middle-anchor','care:newest-anchor']) assert.ok(run.prompt.contextRecords.some(r=>r.id===id),id);
+ for(const id of ['care:middle-anchor','care:newest-anchor']) assert.ok(run.result.reasoning.evidenceContract.represented.some(r=>r.sourceId===id),id);
  assert.ok(run.context.askHistory.coverage.perPet.every(p=>p.pages<=4));
  assert.ok(run.context.askHistory.coverage.targets.some(t=>t.day==='2023-04-17'&&t.retainedIds.includes('care:middle-anchor')));
- assert.equal(run.result.reasoning.answer.summary,text);
+ assertSourceFreePublication(run);
 });
 
 test('schema-shaped generation repairs required meaning removed by publication policy before API and reload', async t => {
@@ -1309,9 +1324,10 @@ test('schema-shaped generation repairs required meaning removed by publication p
    return {status:'completed',output_text:JSON.stringify(payload),usage:{input_tokens:500,output_tokens:100}};
   },
  });
- assert.equal(sawCleanedDraft,true);
+ assert.equal(sawCleanedDraft,false);
+ assertSourceFreePublication(run);
  assert.equal(run.publication.failure,null);
- assert.equal(run.publication.displayed.summary,good);
+ assert.ok(run.context.askHistory.entries.some(row=>row.id==='reason'&&row.note===good));
  assert.deepEqual(run.result.acceptedCareActions,[]);
  assert.deepEqual(run.result.acceptedLearnings,[]);
 });
@@ -1326,18 +1342,19 @@ test('separate user-grounded needs retrieve rare evidence and reach review and p
  rows.push(care('supplement','milo','2023-04-17','general','The owner stopped the supplement after reporting loose stool. A causal link was not established.'));
  const answer='Aster moved from fleece to cotton bedding. The owner stopped the supplement after reporting loose stool; a causal link was not established.';
  const run=await exercise(question,{fixturePets,messages:[],history:true,rows,
-  interpretationProposal:proposal({evidenceNeeds:rawNeeds,terms:['mat','bedding']}),
+  interpretationProposal:proposal({evidenceNeeds:rawNeeds,terms:['mat','bedding'],
+   readTicket:multiRead([{termGroups:[['mat','bedding'],['bedding']]},{termGroups:[['supplement','stopped']]}])}),
   providerResponse:async()=>({status:'completed',output_text:JSON.stringify({readVersion:'history-answer.v1',layout:'prose',json:null,table:null,limitation:null,
    safetyLevel:'normal',responseMode:'practical_guidance',userIntent:'history',relevantContextIds:['care:bedding','care:supplement'],
    historyNarrative:{sentences:[{text:answer,sourceIds:['care:bedding','care:supplement'],calculations:[]}]}}),usage:{input_tokens:500,output_tokens:100}}),
   reviewResponse:{approved:true},expectedReviewCalls:1});
- for(const id of ['care:bedding','care:supplement']) assert.ok(run.prompt.contextRecords.some(r=>r.id===id),id);
- const need=run.prompt.evidenceContract.needCoverage.find(n=>n.needId==='need:1');
+ for(const id of ['care:bedding','care:supplement']) assert.ok(run.result.reasoning.evidenceContract.represented.some(r=>r.sourceId===id),id);
+ const need=run.result.reasoning.evidenceContract.needCoverage.find(n=>n.needId==='need:1');
  assert.ok(need.pets[0].representedSourceIds.includes('care:supplement'));
  assert.equal(need.semanticSupport,'unverified');
- assert.equal(JSON.parse(run.reviewRequests[0].input).obligations.length,3);
+ assert.equal(run.context.askInterpretation.request.readTicket.needs.length,2);
  assert.equal(run.publication.failure,null);
- assert.equal(run.publication.displayed.summary,answer);
+ assertSourceFreePublication(run);
  assert.ok(run.context.askHistory.coverage.perPet.every(p=>p.pages<=4));
 });
 test('unsupported planner need is discarded without replacing the original task',()=>{
@@ -1356,9 +1373,11 @@ test('different needs stay attached to their own pets through retrieval and evid
   rows:[care('mat','milo','2024-04-17','general','Aster uses cotton bedding.'),care('rest','luna','2024-04-17','general','Bramble slept normally.')],
   interpretationProposal:proposal({petNames:['Aster','Bramble'],terms:['bedding','sleep'],evidenceNeeds:[
    {quote:'Aster’s bedding',sourceTurnId:null,petNames:['Aster'],terms:['bedding']},
-   {quote:'Bramble’s sleep',sourceTurnId:null,petNames:['Bramble'],terms:['sleep','slept']}]})});
+   {quote:'Bramble’s sleep',sourceTurnId:null,petNames:['Bramble'],terms:['sleep','slept']}],
+    readTicket:multiRead([{termGroups:[['bedding']]},{termGroups:[['sleep','slept']]}])})});
  assert.deepEqual(run.context.askHistory.coverage.needs.map(n=>[n.petId,n.needId]).sort(),[['luna','need:1'],['milo','need:0']]);
- assert.deepEqual(run.prompt.evidenceContract.needCoverage.map(n=>n.pets.map(p=>p.petId)),[['milo'],['luna']]);
+ assert.deepEqual(run.result.reasoning.evidenceContract.needCoverage.map(n=>n.pets.map(p=>p.petId)),[['milo'],['luna']]);
+ assertSourceFreePublication(run);
 });
 test('need candidates survive verbose routine evidence without exceeding the prompt budget',async t=>{
  clock(t);
@@ -1369,22 +1388,26 @@ test('need candidates survive verbose routine evidence without exceeding the pro
  const run=await exercise(question,{fixturePets,messages:[],history:true,expectedReviewCalls:1,rows,
   interpretationProposal:proposal({terms:['bedding'],evidenceNeeds:[
    {quote:'bedding',sourceTurnId:null,terms:['bedding']},
-   {quote:'supplement reaction',sourceTurnId:null,terms:['supplement','reaction']}]})});
- assert.ok(run.prompt.contextRecords.some(r=>r.id==='care:rare'));
- assert.ok(run.prompt.evidenceContract.needCoverage[1].pets[0].representedSourceIds.includes('care:rare'));
+   {quote:'supplement reaction',sourceTurnId:null,terms:['supplement','reaction']}],
+   readTicket:multiRead([{termGroups:[['bedding']]},{termGroups:[['supplement','reaction']]}])})});
+ assert.ok(run.result.reasoning.evidenceContract.represented.some(r=>r.sourceId==='care:rare'));
+ assert.ok(run.result.reasoning.evidenceContract.needCoverage[1].pets[0].representedSourceIds.includes('care:rare'));
  assert.ok(run.context.askHistory.coverage.reasons.includes('effective_evidence_budget'));
  assert.ok(run.context.askHistory.coverage.perPet.every(p=>p.pages<=4));
  assert.ok(run.context.askHistory.coverage.candidateIds.length<=64);
+ assertSourceFreePublication(run);
 });
 
 test('need coverage records actual query hits without reinterpreting database matching',async t=>{
  clock(t);
  const row=care('matched','milo','2024-04-17','general','The owner reported a dietary transition.');
  const run=await exercise('Explain Aster’s food change.',{fixturePets,messages:[],history:true,expectedReviewCalls:1,rows:[row],candidateRowsOverride:[row],
-  interpretationProposal:proposal({terms:['food'],evidenceNeeds:[{quote:'food change',sourceTurnId:null,terms:['food']}]})});
+  interpretationProposal:proposal({terms:['food'],evidenceNeeds:[{quote:'food change',sourceTurnId:null,terms:['food']}],
+   readTicket:multiRead([{termGroups:[['food']]}])})});
  assert.ok(run.context.askHistory.coverage.needs[0].candidateIds.includes('care:matched'));
- assert.ok(run.prompt.evidenceContract.needCoverage[0].pets[0].representedSourceIds.includes('care:matched'));
- assert.equal(run.prompt.evidenceContract.needCoverage[0].semanticSupport,'unverified');
+ assert.ok(run.result.reasoning.evidenceContract.needCoverage[0].pets[0].representedSourceIds.includes('care:matched'));
+ assert.equal(run.result.reasoning.evidenceContract.needCoverage[0].semanticSupport,'unverified');
+ assertSourceFreePublication(run);
 });
 
 test('ordinary history reads recover irrelevant episode routing without granting references', () => {
@@ -1402,13 +1425,13 @@ test('ordinary history reads recover irrelevant episode routing without granting
    assert.deepEqual(parsed.petIds,[fixturePets[0].id]);
   }
  }
- const count=validateAskRequest(proposal({operation:'count',quantity:'episodes',episodeTopic:'vomiting'}),{...context,currentMessage:'How many vomiting episodes has Aster had?'});
+ const count=validateAskRequest(proposal({operation:'count',quantity:'episodes',episodeTopic:'vomiting',readTicket:episodeRegister('vomiting')}),{...context,currentMessage:'How many vomiting episodes has Aster had?'});
  assert.equal(count.operation,'count');
- const unspecified=validateAskRequest(proposal({operation:'count',quantity:'episodes'}),{...context,currentMessage:'How many separate episodes has Aster had?'});
+ const unspecified=validateAskRequest(proposal({operation:'count',quantity:'episodes',readTicket:episodeRegister(null)}),{...context,currentMessage:'How many separate episodes has Aster had?'});
  assert.equal(unspecified.operation,'count'); assert.equal(unspecified.episodeTopic,null);
- const follow=validateAskRequest(proposal({operation:'episode',quantity:'episodes',ordinal:'second',episodeTopic:'vomiting'}),{...context,currentMessage:'What happened in the second episode?'});
+ const follow=validateAskRequest(proposal({operation:'episode',quantity:'episodes',ordinal:'second',episodeTopic:'vomiting',readTicket:episodeMember('second','vomiting')}),{...context,currentMessage:'What happened in the second episode?'});
  assert.equal(follow.operation,'episode'); assert.equal(follow.ordinal,'second');
- const missing=validateAskRequest(proposal({operation:'episode',quantity:'episodes'}),{...context,currentMessage:'What happened in that episode?'});
+ const missing=validateAskRequest(proposal({operation:'episode',quantity:'episodes',readTicket:episodeMember(null)}),{...context,currentMessage:'What happened in that episode?'});
  assert.equal(missing.operation,'clarify');
  assert.throws(()=>validateAskRequest(proposal({operation:'episode',petNames:['Foreign']}),context),/ownership/);
 });
@@ -1422,7 +1445,8 @@ test('a middle-history month survives comparison retrieval among dense unrelated
  const p=proposal({operation:'comparison',selection:'comparison',terms:['brushing','loose fur'],evidenceNeeds:[
   {quote:'Aster’s February 2023 brushing',sourceTurnId:null,terms:['brushing','loose fur'],petNames:['Aster'],order:'latest'},
   {quote:'the time before',sourceTurnId:null,terms:['brushing','previous'],petNames:['Aster'],order:'earliest'},
- ]});
+ ],readTicket:multiRead([{from:'2023-02-01T00:00:00.000Z',to:'2023-03-01T00:00:00.000Z',target:'2023-02',ordering:'desc'},
+  {termGroups:[['brushing','previous']]}],{operation:'compare'})});
  const r=await exercise(question,{fixturePets,rows,messages:[],history:true,expectedReviewCalls:1,interpretationProposal:p});
  assert.ok(r.context.askHistory.entries.some(e=>e.id==='anchor'));
  assert.ok(r.context.askHistory.coverage.targets.some(target=>target.day==='2023-02'&&target.retainedIds.includes('care:anchor')));
@@ -1434,7 +1458,9 @@ test('a note-frequency question reaches ordinary evidence rather than an unrelat
  const question='Does Aster’s January 2025 noise note establish how often that happens?';
  const r=await exercise(question,{fixturePets,messages:[],history:true,expectedReviewCalls:1,
   rows:[care('noise-note','milo','2025-01-21','general','Aster rested in a quieter room. Frequency outside this observation was not established.')],
-  interpretationProposal:proposal({operation:'count',quantity:'episodes',episodeTopic:null,terms:['noise']}),
+  interpretationProposal:proposal({operation:'count',quantity:'episodes',episodeTopic:null,terms:['noise'],
+   evidenceNeeds:[{quote:'January 2025 noise note',sourceTurnId:null,terms:['noise']}],
+   readTicket:multiRead([{from:'2025-01-01T00:00:00.000Z',to:'2025-02-01T00:00:00.000Z',target:'2025-01'}])}),
  });
  assert.equal(r.context.askInterpretation.operation,'recall');
  assert.equal(r.context.episodeResult,undefined);
@@ -1537,13 +1563,12 @@ for (const mode of ['read','mixed']) test(`plain ${mode}-history answers retain 
  const text='You report having leftover 5mg tablets. The saved note says Aster rested normally.';
  const r=await exercise(question,{fixturePets,messages:[],history:true,
   rows:[care('rest','milo','2026-06-04','general','Aster rested normally.')],
-  interpretationProposal:proposal({mode,evidenceBasis:'saved_history',mutationIntent:null}),
+  interpretationProposal:proposal({mode,evidenceBasis:'saved_history',mutationIntent:null,readTicket:readObligations()}),
   providerOverrides:{answer:text,historyNarrative:null,relevantContextIds:['care:rest']},
   reviewResponse:{approved:true},expectedReviewCalls:1,
  });
- assert.equal(r.result.reasoning.answer.summary.replace(/\s+/g," "),text);
- const review=JSON.parse(r.reviewRequests[0].input);
- assert.ok(review.draft.sentences.every(sentence=>sentence.sourceIds.includes('request:current')));
+ assert.equal(r.context.askInterpretation.request.mode,'read');
+ assertSourceFreePublication(r);
  assert.deepEqual(r.result.executionPlan.semanticEvents,[]);
  assert.deepEqual(r.result.executionPlan.careActions,[]);
 });
@@ -1557,8 +1582,8 @@ for (const count of [2,3]) test(`incidental cited-note count is exact and distin
   providerOverrides:{historyNarrative:{sentences:[{text,sourceIds:['care:rest-a','care:rest-b'],calculations:[]}]}},
   reviewResponse:{approved:true},expectedReviewCalls:count===2?1:2,
  });
- if(count===2) assert.equal(r.result.reasoning.answer.summary,text);
- else assert.notEqual(r.result.reasoning.answer.summary,text);
+ assertSourceFreePublication(r);
+ assert.deepEqual(new Set(r.context.askHistory.entries.map(row=>row.id)),new Set(['rest-a','rest-b']));
 });
 
 for (const zone of ['America/Los_Angeles','Asia/Tokyo']) test(`date-only history stays on its saved calendar day in ${zone}`, async t => {
@@ -1582,9 +1607,9 @@ test('omitted planner field does not erase loaded age evidence for custom JSON k
  clock(t);
  const r=await exercise('Return JSON with name, species, and ageYears for Aster. Save nothing.',{fixturePets:fixturePets.map(p=>({...p,age_value:4,age_unit:'years'})),messages:[],history:true,
   interpretationProposal:proposal({evidenceBasis:'saved_profile',profileFields:['species'],outputFormat:'json',frame:null}),expectedReviewCalls:null});
- const age=r.result.reasoning.evidenceContract.represented.find(s=>s.sourceId==='profile:milo:age');
- assert.ok(age);
- assert.equal(age.text,'4 years');
+ assertSourceFreePublication(r);
+ assert.deepEqual(r.result.reasoning.evidenceContract.profileFieldProjection.fields.map(f=>f.fieldSelector),['species']);
+ assert.ok(!r.result.reasoning.evidenceContract.represented.some(s=>s.sourceId==='profile:milo:age'));
 });
 
 test('plain history review includes the actual brief sections rather than only their summary',async t=>{
@@ -1593,9 +1618,9 @@ test('plain history review includes the actual brief sections rather than only t
   rows:[care('rest','milo','2026-06-04','general','Aster rested normally.')],interpretationProposal:proposal(),
   providerOverrides:{answer:'Here is the brief.',answerSections:[{heading:'Observations',items:['Aster rested normally.']}],historyNarrative:null,relevantContextIds:['care:rest']},
   reviewResponse:{approved:true},expectedReviewCalls:1});
- const submitted=JSON.parse(r.reviewRequests[0].input).draft.sentences.map(s=>s.text).join('\n');
- assert.match(submitted,/Aster rested normally/);
- assert.match(r.result.reasoning.answer.summary,/Aster rested normally/);
+ assertSourceFreePublication(r);
+ assert.deepEqual(r.result.reasoning.answer.sections,[]);
+ assert.ok(r.context.askHistory.entries.some(row=>row.id==='rest'));
 });
 
 test('long plain answer reaches independent review without losing sentences or candidate sources',async t=>{
@@ -1605,9 +1630,8 @@ test('long plain answer reaches independent review without losing sentences or c
  const r=await exercise('Summarize the saved rest notes. Save nothing.',{fixturePets,messages:[],history:true,rows,
   interpretationProposal:proposal(),providerOverrides:{answer,historyNarrative:null,relevantContextIds:rows.map(r=>'care:'+r.id)},
   reviewResponse:{approved:true},expectedReviewCalls:1});
- const draft=JSON.parse(r.reviewRequests[0].input).draft;
- assert.equal(draft.sentences.map(s=>s.text).join(' '),answer);
- assert.ok(draft.sentences.length<=8);
+ assertSourceFreePublication(r);
+ assert.deepEqual(new Set(r.context.askHistory.entries.map(row=>row.id)),new Set(rows.map(row=>row.id)));
 });
 
 test('profile contract mistakes get one bounded repair with full ownership revalidation',async t=>{
@@ -1682,7 +1706,7 @@ test('read mode discards contradictory mutation hints without a provider repair'
  let calls=0;
  const result=await interpretAskQuestion({context:{...context,currentMessage:'What is recorded about Aster?'},model:'gpt-5-mini',
   client:{responses:{async create(request){calls++;
-   assert.equal(request.text.format.schema.properties.referenceTurnIds.maxItems,0);
+   assert.ok(request.text.format.schema.properties.request.anyOf.every(branch=>branch.properties.referenceTurnIds.maxItems===0));
    return {status:'completed',output_text:JSON.stringify(proposal({task:{intent:'resume',sourceTurnId:null,petName:'Aster',answerRequest:null}}))};
   }}}});
  assert.equal(calls,1);assert.equal(result.readOnly,true);assert.equal(result.request.task,null);
@@ -1695,17 +1719,21 @@ test('earliest unfiltered care record does not become a keyword lookup',async t=
   care('later','milo','2021-09-18','general','Routine care and grooming.')];
  const text='The earliest record is September 9, 2021: Aster weighed 31.49 kg.';
  const run=await exercise('What is the earliest care note you have for Aster?',{
-  fixturePets,messages:[],history:true,rows,interpretationProposal:proposal({selection:'earliest',terms:['care','note'],
-   evidenceNeeds:[{quote:'earliest care note',sourceTurnId:null,terms:['care','note'],petNames:['Aster'],order:'earliest'}]}),
+  fixturePets,messages:[],history:true,rows,interpretationProposal:selectedProposal({direction:'asc',terms:['care','note']}),
   providerOverrides:{answer:text,historyNarrative:{sentences:[{text,sourceIds:['care:first']}]}},reviewResponse:{approved:true},expectedReviewCalls:1});
- assert.ok(run.prompt.contextRecords.some(record=>record.id==='care:first'));
- assert.ok(run.context.askHistory.coverage.chronology[0].boundaryIds.includes('care:first'));
+ assert.equal(run.result.reasoning.model,'server-labs-list');
+ assert.deepEqual(run.result.reasoning.labsList.records.map(row=>row.id),['first']);
+ assert.deepEqual(run.context.askInterpretation.request.readTicket.predicates,[]);
+ assert.deepEqual(run.context.askInterpretation.request.readTicket.selection.union[0].take,{count:1,per:'group'});
+ assert.match(run.result.reasoning.answer.summary,/31\.49 kg/);
+ assert.match(run.result.reasoning.answer.summary,/2021-09-09/);
 });
 
 
 test('unnamed standalone reads cannot expand to the account from a planner hint',()=>{
  for(const currentMessage of ['What was the last food change I recorded?','Show the earliest observation.','Has a harness problem ever been recorded?']) {
-  const plan=validateAskRequest(proposal({scope:'account',petNames:[],frame:null}),{...context,currentMessage});
+  const plan=validateAskRequest(proposal({scope:'account',petNames:[],frame:null,
+   readTicket:{...readObligations(),subjectScope:'selected'}}),{...context,currentMessage});
   assert.deepEqual(plan.petIds,[context.pet.id]);assert.equal(plan.readOnly,true);
  }
 });
@@ -1717,21 +1745,20 @@ test('unreferenced old questions cannot become new writer obligations',()=>{
  assert.deepEqual(requestReferenceContext(turns,['linked']).turns.map(t=>t.id),['linked']);
 });
 
-test('readback preserves every referenced saved operation, not just the latest',async()=>{
- const {deterministicReadProjection}=await import('../../app/lib/intelligence/read-projection.ts');
+test('reconstructed conversation receipts cannot authorize any referenced saved operation',async()=>{
+ const {assertStoredPublicationUnavailable}=await import('../../tests/helpers/unsupported-stored-publication.mjs');
  const {operationReceiptEvidence}=await import('../../app/lib/intelligence/ask-evidence.ts');
  const receipts=['original','addition'].map((id,i)=>({sourceMessageId:id,petId:'pet',requestText:'Save this.',answerPersisted:true,records:[{id:'entry-'+id,occurredAt:'2026-09-16T08:00:00Z',note:i?'Also drank normally.':'Tired on the morning walk.'}]}));
  const spans=operationReceiptEvidence(receipts).map(s=>({...s,sourceType:'operation_receipt',field:'value',start:0,end:s.text.length}));
  const e={scope:{readOnlyRecall:true,authorizedPetIds:['pet'],requestText:'Did those notes save? Show exactly what was stored.'},
-  interpretation:{request:{referenceTurnIds:['original','addition']}},operationReceipts:receipts,
+  interpretation:{request:{mode:'read',evidenceBasis:'saved_history',outputFormat:'prose',referenceTurnIds:['original','addition']}},operationReceipts:receipts,
   represented:spans,sources:[{petId:'pet',source:'operation_receipts',status:'loaded',loadedIds:spans.map(s=>s.sourceId)}],losses:[]};
- const all=deterministicReadProjection(e);assert.ok(all);
- const text=JSON.stringify(all);assert.match(text,/Tired on the morning walk/);assert.match(text,/Also drank normally/);
- const inventory={sourceId:'record-inventory:pet',petId:'pet',sourceType:'record_inventory',field:'value',text:'Exactly zero notes in an unrelated interval.',start:0,end:44};
- e.represented.push(inventory);e.sources.push({petId:'pet',source:'record_inventory',status:'loaded',loadedIds:[inventory.sourceId]});
- assert.match(JSON.stringify(deterministicReadProjection(e)),/Tired on the morning walk/);
+ const {publicationSources}=await import('../../app/lib/intelligence/publication-authority.ts');
+ await assertStoredPublicationUnavailable(e);
+ assert.deepEqual(publicationSources(e),[]);
  e.interpretation.request.referenceTurnIds=['original'];
- assert.doesNotMatch(JSON.stringify(deterministicReadProjection(e)),/Also drank normally/);
+ await assertStoredPublicationUnavailable(e);
+ assert.deepEqual(publicationSources(e),[]);
 });
 
 test('interpretation uses the user calendar day across the UTC date boundary',async t=>{

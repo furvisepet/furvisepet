@@ -1,5 +1,6 @@
 import { requestProposal } from "./request-proposal.mjs";
 import assert from 'node:assert/strict';
+import { assertPublicationCalls } from './publication-call-expectations.mjs';
 import { registerHooks } from 'node:module';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -41,7 +42,7 @@ const { buildFurviseContext } = await import('../../../app/lib/intelligence/retr
 const { runFurviseIntelligence } = await import('../../../app/lib/intelligence/run-intelligence.ts');
 const { buildAskContext, ASK_PROMPT_CONTEXT_CHAR_BUDGET } = await import('../../../app/lib/ai/ask-reasoning.ts');
 const { selectRelevantCareEntries } = await import('../../../app/lib/intelligence/build-context.ts');
-const { resolveAskTurnSubject } = await import('../../../app/lib/intelligence/entities/resolve-turn-subject.ts');
+const { resolveAskTurnSubject } = await import('../../../tests/helpers/precanonical-subject.mjs');
 const { rebuildSemanticProjectionsV2 } = await import('../../../app/lib/intelligence/v2/projections/rebuild.ts');
 const { classifyFurviseCapabilityQuestion } = await import('../../../app/lib/ai/ask-internal-product-policy.ts');
 const { createAskEvidenceContract, evidenceScopeKey } = await import('../../../app/lib/intelligence/ask-evidence.ts');
@@ -103,7 +104,7 @@ function database(rows, { fixturePets = pets, conversationPetId, messages = [], 
     };
     return { select() { return this; }, abortSignal(value) { signal = value; return this; }, returns() { return this; }, then(resolve, reject) { return execute().then(resolve, reject); } };
   }, from(table) {
-    const query = { table, filters: [], orders: [], cap: null, single: false }; queries.push(query);
+    const query = { table, filters: [], orders: [], cap: null, offset: 0, single: false }; queries.push(query);
     const chain = {
       select() { return this; }, returns() { return this; },
       abortSignal() { return this; },
@@ -120,6 +121,7 @@ function database(rows, { fixturePets = pets, conversationPetId, messages = [], 
       },
       order(key, options) { query.orders.push([key, options.ascending]); return this; },
       limit(value) { query.cap = value; return this; },
+      range(from, to) { query.offset = from; query.cap = to - from + 1; return this; },
       maybeSingle() { query.single = true; return this; },
       then(resolve, reject) {
         const historical = table === 'pet_care_entries' && query.orders.some(([key]) => key === 'id');
@@ -128,7 +130,7 @@ function database(rows, { fixturePets = pets, conversationPetId, messages = [], 
         data = [...data].sort((a, b) => { for (const [key, ascending] of query.orders) {
           const cmp = typeof a[key] === 'number' && typeof b[key] === 'number' ? a[key]-b[key] : String(a[key] ?? '').localeCompare(String(b[key] ?? '')); if (cmp) return ascending ? cmp : -cmp;
         } return 0; });
-        if (query.cap !== null) data = data.slice(0, historical ? Math.min(query.cap, historyPageCap) : query.cap);
+        if (query.cap !== null) data = data.slice(query.offset, query.offset + (historical ? Math.min(query.cap, historyPageCap) : query.cap));
         return Promise.resolve({ data: query.single ? data[0] || null : data, error: failCare && table === 'pet_care_entries' ? { code: 'AUDIT_OFFLINE' } : null }).then(resolve, reject);
       },
     };
@@ -160,11 +162,12 @@ function output(answer = 'The supplied observations are owner reports, not a dia
     intelligenceSafety: { level: 'routine', reason: 'Retrospective question', requiresImmediateAction: false, shoppingSuppressed: false },
     learnings: [], careActions: [], semanticEvents: [], intelligenceMetadata: { confidence: 'high', usedPetContext: true, usedCareHistory: true, usedMemories: false } };
 }
-async function exercise(question, { historyAccess, fixturePets = pets, onProviderEvent, onStage, petId = 'milo', conversationPetId = 'milo', rows = decisive, messages, dateRange, failCare, careEpisodes, answer, authoritativePetIds = [petId], prepareEvidence, providerOverrides = {}, taskReviewResponse, taskReviewProviderResponse, reviewResponse, reviewProviderResponse, expectedReviewCalls = 0, authoritativeSemanticFrame, afterGeneration, providerSequence, expectedProviderCalls = 1, prepareContext, history = false, interpretationProposal, interpretationResponse, providerResponse, interpretationModel = "gpt-5-mini", graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride } = {}) {
+async function exercise(question, { evidenceReadProposal, historyAccess, fixturePets = pets, onProviderEvent, onStage, petId = 'milo', conversationPetId = 'milo', rows = decisive, messages, dateRange, failCare, careEpisodes, answer, authoritativePetIds = [petId], prepareEvidence, providerOverrides = {}, taskReviewResponse, taskReviewProviderResponse, reviewResponse, reviewProviderResponse, expectedReviewCalls = 0, authoritativeSemanticFrame, afterGeneration, providerSequence, expectedProviderCalls = 1, prepareContext, history = false, interpretationProposal, interpretationResponse, providerResponse, interpretationModel = "gpt-5-mini", graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride } = {}) {
   const supabase = database(rows, { fixturePets, conversationPetId, messages, failCare, careEpisodes, graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride });
   let context = await buildFurviseContext({ supabase, userId: ownerId, historyAccess, petId, conversationId: messages ? 'chat' : null,
     conversationPetId: messages ? conversationPetId : null, currentMessage: question, dateRange });
   prepareContext?.(context);
+  if (evidenceReadProposal) context.evidenceReadProposal = evidenceReadProposal;
   const interpretationRequests = [];
   if (interpretationProposal) {
     const { interpretAskQuestion, readInterpretationSubject } = await import('../../../app/lib/intelligence/interpret-ask.ts');
@@ -180,9 +183,7 @@ async function exercise(question, { historyAccess, fixturePets = pets, onProvide
         petId: interpretation.petIds[0], conversationId: messages ? 'chat' : null, conversationPetId: messages ? conversationPetId : null, currentMessage: question });
     }
     if (!interpretation.readOnly) {
-      const decision = await resolveAskTurnSubject({ operationPetIds: interpretation.readPetIds ? interpretation.petIds : undefined, message: question, pets: context.eligiblePets, ownerId,
-        selectedPetId: context.pet.id, recentConversation: context.conversationTurns,
-        extractFrame: async () => interpretation.frame });
+      const decision = readInterpretationSubject(interpretation, context.pet.id, {ownerId,pets:context.eligiblePets});
       assert.ok(!decision.resolution.requiresClarification && decision.resolution.petId, 'route subject gate must allow this fixture');
       authoritativePetIds = decision.resolution.petIds;
       authoritativeSemanticFrame = decision.frame;
@@ -215,23 +216,24 @@ async function exercise(question, { historyAccess, fixturePets = pets, onProvide
     requests.push(request); if (providerResponse) return providerResponse(request, options); return { usage: { input_tokens: 1200, output_tokens: 400, total_tokens: 1600 }, output_text: JSON.stringify({ ...output(answer), ...providerOverrides, ...(providerSequence?.[requests.length - 1] || {}) }) };
   } } };
   let result;
+  const historyStages = [];
   if (history) {
     assert.equal(prepareEvidence, undefined, 'historical evidence authority belongs to the actual callback');
     const { generateAskHistoryAnswer } = await import('../../../app/lib/intelligence/generate-ask-history.ts');
-    const generated = await generateAskHistoryAnswer({ supabase, context, onProviderEvent, onStage, requestId: 'synthetic-audit-request', sourceMessageId: 'current-turn', authoritativePetIds, authoritativeSemanticFrame });
+    const generated = await generateAskHistoryAnswer({ supabase, context, onProviderEvent, onStage: stage => { historyStages.push(stage); onStage?.(stage); }, requestId: 'synthetic-audit-request', sourceMessageId: 'current-turn', authoritativePetIds, authoritativeSemanticFrame });
     context = generated.context; result = generated.intelligenceResult;
   } else {
     result = await runFurviseIntelligence({ context, evidenceContract, onProviderEvent, requestId: 'synthetic-audit-request', sourceMessageId: 'current-turn', authoritativePetIds, authoritativeSemanticFrame });
   }
-  if (expectedProviderCalls !== null) assert.equal(requests.length, expectedProviderCalls, expectedProviderCalls === 1 ? 'exactly one mocked answer-provider call' : 'explicit bounded mocked provider call count');
-  if (expectedReviewCalls !== null) assert.equal(reviewRequests.length, expectedReviewCalls, 'bounded history-review call count');
+  const publicationCallPath = await assertPublicationCalls({ result, context, requests, reviewRequests,
+    expectedProviderCalls, expectedReviewCalls, history, historyStages });
   const { buildAskConversationResponse } = await import('../../../app/lib/ask.mjs');
   const { inspectAskPublication } = await import('../../../app/lib/intelligence/inspect-ask-publication.ts');
   const {prepareFurviseApplicationActions} = await import('../../../app/lib/application-actions/planner.ts');
   const actions = prepareFurviseApplicationActions({proposals:result.reasoning.applicationActions,petId:context.pet.id,petName:context.pet.name,requestId:'synthetic-audit-request',sourceMessage:question});
   const publication = inspectAskPublication(result.reasoning.answer, buildAskConversationResponse(result.reasoning.answer,{applicationActions:actions}),
     context.askInterpretation?.readOnly === true, result.reasoning.evidenceContract, context.episodeResult);
-  return { publication, reviewRequests, context, result, prompt: requests[0] ? JSON.parse(requests[0].input) : null, serialized: requests[0]?.input || '', queries: supabase.queries, interpretationRequests };
+  return { publication, publicationCallPath, requests, reviewRequests, historyStages, context, result, prompt: requests[0] ? JSON.parse(requests[0].input) : null, serialized: requests[0]?.input || '', queries: supabase.queries, interpretationRequests };
 }
 const promptHas = (run, id) => run.prompt.contextRecords.some(record => record.id === `care:${id}`);
 const clock = t => {

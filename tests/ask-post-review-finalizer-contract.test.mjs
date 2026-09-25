@@ -20,7 +20,7 @@ test("reviewed Ask effects execute inside the single Brain handoff", () => {
   for (const stage of [
     "completeAskConversationTurn({",
     "createActionCapabilities({",
-    "persistIntelligenceLearnings({",
+    "persistCanonicalSuggestions({",
     "executeActionCapability({",
     "resolveAutomaticCareHistoryPresentation({",
     "assessTaskExecution({",
@@ -29,7 +29,7 @@ test("reviewed Ask effects execute inside the single Brain handoff", () => {
   for (const stage of [
     "completeAskConversationTurn({",
     "createActionCapabilities({",
-    "persistIntelligenceLearnings({",
+    "persistCanonicalSuggestions({",
     "executeActionCapability({",
     "resolveAutomaticCareHistoryPresentation({",
     "assessTaskExecution({",

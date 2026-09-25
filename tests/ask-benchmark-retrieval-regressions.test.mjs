@@ -1,3 +1,4 @@
+import * as C from "./helpers/canonical-calculation-retirement.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { explicitHistoryDays, explicitHistoryMonths } from '../app/lib/intelligence/history-dates.ts';
@@ -28,16 +29,8 @@ test('read-only subject resolution uses the validated multi-pet read scope',()=>
  assert.match(source,/subjects\.length > 1 \? "multi_subject"/);
  assert.match(source,/petIds: subjects/);
 });
-test('missing simple comparison metadata is reconstructed only from two cited compatible source measurements',async()=>{
- const {attachDeterministicCalculationBindings}=await import('../app/lib/intelligence/repair-calculation-bindings.ts');
- const narrative={sentences:[{text:'Sable played 3 minutes longer.',sourceIds:['care:a','care:b']}]};
- const sources=[{sourceId:'care:a',text:'Sable played for 14 minutes.'},{sourceId:'care:b',text:'Sable played for 17 minutes.'}];
- const repaired=attachDeterministicCalculationBindings(narrative,sources,'How much longer did Sable play?');
- assert.equal(repaired.sentences[0].calculations?.[0]?.operation,'absolute_difference');
- assert.equal(repaired.sentences[0].calculations?.[0]?.value,3);
- assert.equal(repaired.sentences[0].calculations?.[0]?.unit,'minute');
- const unsafe=attachDeterministicCalculationBindings({sentences:[{...narrative.sentences[0],sourceIds:['care:a','care:b','care:c']}]},[...sources,{sourceId:'care:c',text:'Sable rested for 2 minutes.'}],'How much longer did Sable play?');
- assert.equal(unsafe.sentences[0].calculations,undefined);
+test("canonical comparison never reconstructs arithmetic from generated prose",async()=>{
+ const f=await C.certified("difference",["29 minutes","15 minutes"],"minute",14,{unit:"minute"});const r={...f.response,historyNarrative:{sentences:[{text:"A different result",sourceIds:[]}]}};assert.ok(C.calculationPublicationFailure(r));assert.equal(f.calls(),0);
 });test('route proves alternate read widening from current user explicit owned names only',()=>{
  const route=readFileSync('app/api/ask/route.ts','utf8');
  assert.match(route,/explicitlyNamedOwnedPets\(question, liveContext\.eligiblePets \|\| \[\]\)\.map\(pet => pet\.id\)/);

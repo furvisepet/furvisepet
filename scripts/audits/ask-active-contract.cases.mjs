@@ -1,3 +1,4 @@
+import * as C from "../../tests/helpers/canonical-calculation-retirement.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { exercise, clock, ASK_PROMPT_CONTEXT_CHAR_BUDGET } from './helpers/lifetime-harness.mjs';
@@ -150,7 +151,6 @@ test('repeated update scope conflict still fails after one repair',async()=>{
 });
 
 
-const {canonicalHistoricalRead,historicalReadSchema}=await import('../../app/lib/intelligence/historical-read-response.ts');
 const {parseTaskHistoryReview}=await import('../../app/lib/intelligence/history-review-selection.ts');
 const {inspectAskPublication}=await import('../../app/lib/intelligence/inspect-ask-publication.ts');
 const readNavigation={kind:'navigation.open_pet_profile',evidence:"Open Milo's profile"};
@@ -161,12 +161,8 @@ const providerJson=value=>({status:'completed',output_text:JSON.stringify(value)
 const navReview=(payload,status='answered')=>({approved:true,retainedSentenceIndexes:[0],rejectionReason:null,
  obligations:payload.obligations.map(({index})=>({index,status,sentenceIndexes:[0],actionIndexes:index===0?[0]:[]}))});
 
-test('historical read navigation cannot carry a write, target identifier, or fabricated URL',()=>{
- const raw=historicalRead('Milo rested.',[readNavigation]);
- assert.deepEqual(canonicalHistoricalRead(raw).applicationActions.map(a=>a.kind),['navigation.open_pet_profile']);
- assert.ok(historicalReadSchema({}).required.includes('navigationActions'));
- for(const action of [{...readNavigation,kind:'care_history.add'},{...readNavigation,petId:'foreign'},{...readNavigation,href:'/evil'}])
-  assert.throws(()=>canonicalHistoricalRead({...raw,navigationActions:[action]}),/INVALID_READ_NAVIGATION/);
+test("canonical calculation publication cannot carry navigation writes or fabricated targets",async()=>{
+ const f=await C.fixture();for(const action of [{kind:"care_history.add"},{kind:"navigation.open_pet_profile",petId:"foreign"},{kind:"navigation.open_pet_profile",href:"/evil"}]){const r={...f.response,applicationActions:[action]};assert.ok(C.calculationPublicationFailure(r));}assert.equal(f.calls(),0);
 });
 test('history action review rejects nonexistent, duplicate, or unreviewed action indexes',()=>{
  const valid={approved:true,retainedSentenceIndexes:[0],obligations:[{index:0,status:'answered',sentenceIndexes:[0],actionIndexes:[0]}]};

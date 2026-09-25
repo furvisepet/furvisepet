@@ -1,7 +1,7 @@
+import * as C from "./helpers/canonical-calculation-retirement.mjs";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {completedExplicitHistoryTargets} from '../app/lib/intelligence/evidence-need-coverage.ts';
-import {stripCompletedTargetCoverageCaution} from '../app/lib/intelligence/historical-read-response.ts';
 
 const base=()=>({
   interpretation:{request:{}},
@@ -28,13 +28,6 @@ test('sampled, lost, or unrepresented explicit targets are never certified compl
     assert.deepEqual(completedExplicitHistoryTargets(evidence),[]);
   }
 });
-test('completed-target presentation removes generic partial-summary caveats without changing facts',()=>{
-  assert.equal(
-    stripCompletedTargetCoverageCaution('Partial summary: In April 2019, Echo started a food trial. The transition took seven days.'),
-    'In April 2019, Echo started a food trial. The transition took seven days.'
-  );
-  assert.equal(
-    stripCompletedTargetCoverageCaution('Dune had firmer stool for two days, then returned to the usual pattern. I only see one October note here, so this is a partial summary of that month.'),
-    'Dune had firmer stool for two days, then returned to the usual pattern.'
-  );
+test("certified sufficient calculation publishes without a broad partial-history caveat",async()=>{
+ const f=await C.fixture();assert.equal(f.result.coverage.status,"partial");assert.doesNotMatch(f.response.answer.summary,/partial|not exhaustively reviewed|full history/i);await C.finish(f);
 });

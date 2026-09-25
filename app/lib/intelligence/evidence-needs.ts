@@ -46,7 +46,7 @@ export function recoverGroundedCohortNeeds(question: string, needs: readonly Evi
   return output;
 }
 
-export function validateEvidenceNeeds(raw: unknown, question: string, turns: readonly { id: string; role: string; text: string }[], referenceIds: readonly string[], scopedPets: readonly { id: string; name: string | null }[] = []) {
+export function validateEvidenceNeeds(raw: unknown, question: string, turns: readonly { id: string; role: string; text: string }[], referenceIds: readonly string[], scopedPets: readonly { id: string; name: string | null }[] = [], options?: { scopeSource: "ticket" }) {
   const needs: EvidenceNeed[] = [], issues: string[] = [];
   if (!Array.isArray(raw) || raw.length > 4) return { needs, issues: ["invalid_evidence_needs"] };
   const seen = new Set<string>();
@@ -71,12 +71,15 @@ export function validateEvidenceNeeds(raw: unknown, question: string, turns: rea
     const key = JSON.stringify([value.sourceTurnId, value.quote, petIds, value.order]);
     if (seen.has(key)) continue;
     seen.add(key);
-    const window = evidenceNeedWindow(value.quote);
+    // Ticketed reads retain the source-bound obligation for review/coverage.
+    // Quotes prove provenance; only ticket.temporal may choose a read window.
+    const window = options?.scopeSource === "ticket" ? null : evidenceNeedWindow(value.quote);
     needs.push({ ...(window ? { window } : {}), order: value.order, ...(petIds.length ? { petIds } : {}), id: "need:" + needs.length, quote: value.quote, sourceTurnId: value.sourceTurnId,
-      terms: meaningfulHistoryTerms([...new Set<string>(value.terms.map((term: string) => term.toLowerCase()))]) });
+      terms: options?.scopeSource === "ticket" ? [...new Set<string>(value.terms)]
+        : meaningfulHistoryTerms([...new Set<string>(value.terms.map((term: string) => term.toLowerCase()))]) });
   }
   const sharedYears = [...new Set(needs.flatMap(need => need.quote.match(/\b(?:19|20)\d{2}\b/g) || []))];
-  if (needs.length > 1 && sharedYears.length === 1) {
+  if (options?.scopeSource !== "ticket" && needs.length > 1 && sharedYears.length === 1) {
     const year = sharedYears[0];
     for (const need of needs) if (!need.window && !/\b(?:19|20)\d{2}\b/.test(need.quote)
       && /\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}\b/i.test(need.quote)) {

@@ -71,10 +71,7 @@ function PetFacts({ profile }: { profile: DogProfileRow }) {
     <>
       <PageHeader
         actions={(
-          <>
-            <SecondaryButton href={`/pets/${petId}/edit`}>EDIT PET</SecondaryButton>
-            <PrimaryButton href={`/vet-brief?pet=${petId}&source=pet-profile`}>VET BRIEF</PrimaryButton>
-          </>
+          <SecondaryButton href={`/pets/${petId}/edit`}>EDIT PET</SecondaryButton>
         )}
         eyebrow="PETS"
         supportingText={metadata}

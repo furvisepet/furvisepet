@@ -1,0 +1,155 @@
+{
+  "owner": "84613084-12c9-41c3-854a-b92638bb6dea",
+  "other": "78e2dc27-6000-47b7-bd6f-503c0e667591",
+  "pets": [
+    {
+      "id": "f33c7c9c-1e66-4d6f-b39c-fd85b7cd8932",
+      "name": "Milo",
+      "user_id": "84613084-12c9-41c3-854a-b92638bb6dea",
+      "species": "dog",
+      "weight_value": 12,
+      "weight_unit": "kg"
+    },
+    {
+      "id": "3d45135f-dc63-4339-9619-75b899ef5538",
+      "name": "Luna",
+      "user_id": "84613084-12c9-41c3-854a-b92638bb6dea",
+      "species": "dog",
+      "weight_value": 6,
+      "weight_unit": "kg"
+    },
+    {
+      "id": "efb8022b-7a12-4943-9934-6327d8a0da35",
+      "name": "Pepper",
+      "user_id": "84613084-12c9-41c3-854a-b92638bb6dea",
+      "species": "dog",
+      "weight_value": 8.5,
+      "weight_unit": "kg"
+    }
+  ],
+  "foreign": {
+    "id": "194cbe82-48bc-4de4-bd55-147a8690061d",
+    "name": "ForeignPet",
+    "user_id": "78e2dc27-6000-47b7-bd6f-503c0e667591",
+    "species": "cat"
+  },
+  "rows": [
+    {
+      "id": "0f7971a6-8b45-4042-bd79-a9adb951f41a",
+      "user_id": "84613084-12c9-41c3-854a-b92638bb6dea",
+      "pet_profile_id": "f33c7c9c-1e66-4d6f-b39c-fd85b7cd8932",
+      "category": "general",
+      "title": "Weight check",
+      "note": "Body weight: 10 kg.",
+      "occurred_at": "2026-09-01T12:00:00Z"
+    },
+    {
+      "id": "62aa5b79-fe78-42f6-8994-0f754109d8e7",
+      "user_id": "84613084-12c9-41c3-854a-b92638bb6dea",
+      "pet_profile_id": "f33c7c9c-1e66-4d6f-b39c-fd85b7cd8932",
+      "category": "general",
+      "title": "Weight check",
+      "note": "Body weight: 12 kg.",
+      "occurred_at": "2026-09-15T12:00:00Z"
+    },
+    {
+      "id": "8d2d40c0-5f64-4270-be87-a82cf0d785f4",
+      "user_id": "84613084-12c9-41c3-854a-b92638bb6dea",
+      "pet_profile_id": "3d45135f-dc63-4339-9619-75b899ef5538",
+      "category": "general",
+      "title": "Weight check",
+      "note": "Body weight: 5 kg.",
+      "occurred_at": "2026-09-01T12:00:00Z"
+    },
+    {
+      "id": "00df20dd-6037-44d8-91da-49084c916d52",
+      "user_id": "84613084-12c9-41c3-854a-b92638bb6dea",
+      "pet_profile_id": "3d45135f-dc63-4339-9619-75b899ef5538",
+      "category": "general",
+      "title": "Weight check",
+      "note": "Body weight: 6 kg.",
+      "occurred_at": "2026-09-15T12:00:00Z"
+    },
+    {
+      "id": "87912e66-446c-42f3-acd6-2ef1dc89a902",
+      "user_id": "84613084-12c9-41c3-854a-b92638bb6dea",
+      "pet_profile_id": "efb8022b-7a12-4943-9934-6327d8a0da35",
+      "category": "general",
+      "title": "Weight check",
+      "note": "Body weight: 8 kg.",
+      "occurred_at": "2026-09-01T12:00:00Z"
+    },
+    {
+      "id": "40bd9415-9cf6-464e-a04f-78c9af74085c",
+      "user_id": "84613084-12c9-41c3-854a-b92638bb6dea",
+      "pet_profile_id": "efb8022b-7a12-4943-9934-6327d8a0da35",
+      "category": "general",
+      "title": "Weight check",
+      "note": "Body weight: 8.5 kg.",
+      "occurred_at": "2026-09-15T12:00:00Z"
+    },
+    {
+      "id": "62d97ff7-97bf-4736-b883-df0c5ceab062",
+      "user_id": "84613084-12c9-41c3-854a-b92638bb6dea",
+      "pet_profile_id": "f33c7c9c-1e66-4d6f-b39c-fd85b7cd8932",
+      "category": "general",
+      "title": "Food record",
+      "note": "Ate the usual kibble before the dental procedure.",
+      "occurred_at": "2026-09-09T12:00:00Z"
+    },
+    {
+      "id": "21a30d87-16d1-47b7-805f-e90533680038",
+      "user_id": "84613084-12c9-41c3-854a-b92638bb6dea",
+      "pet_profile_id": "f33c7c9c-1e66-4d6f-b39c-fd85b7cd8932",
+      "category": "general",
+      "title": "Dental procedure",
+      "note": "Dental procedure completed.",
+      "occurred_at": "2026-09-10T12:00:00Z"
+    },
+    {
+      "id": "a260b8a5-275d-429d-9c74-719df14fdb9c",
+      "user_id": "84613084-12c9-41c3-854a-b92638bb6dea",
+      "pet_profile_id": "f33c7c9c-1e66-4d6f-b39c-fd85b7cd8932",
+      "category": "general",
+      "title": "Food record",
+      "note": "Ate softened kibble after the dental procedure.",
+      "occurred_at": "2026-09-11T12:00:00Z"
+    },
+    {
+      "id": "10b6458c-5178-40eb-a936-66b66106ab92",
+      "user_id": "84613084-12c9-41c3-854a-b92638bb6dea",
+      "pet_profile_id": "f33c7c9c-1e66-4d6f-b39c-fd85b7cd8932",
+      "category": "general",
+      "title": "Travel check",
+      "note": "Body mass: 12 kg; carrier mass: 2 kg.",
+      "occurred_at": "2026-09-18T12:00:00Z"
+    },
+    {
+      "id": "7eb57071-c410-4c5d-8361-8025cacb7fc0",
+      "user_id": "84613084-12c9-41c3-854a-b92638bb6dea",
+      "pet_profile_id": "f33c7c9c-1e66-4d6f-b39c-fd85b7cd8932",
+      "category": "general",
+      "title": "Travel check",
+      "note": "Body mass: 13 kg; carrier mass: 2.5 kg.",
+      "occurred_at": "2026-09-20T12:00:00Z"
+    },
+    {
+      "id": "44f27280-bc30-4217-b9d7-3536b425cbee",
+      "user_id": "84613084-12c9-41c3-854a-b92638bb6dea",
+      "pet_profile_id": "f33c7c9c-1e66-4d6f-b39c-fd85b7cd8932",
+      "category": "general",
+      "title": "Inspection",
+      "note": "Inspection mass: 9 kg and 10 kg.",
+      "occurred_at": "2026-09-17T12:00:00Z"
+    },
+    {
+      "id": "78c4aab4-1983-49a0-a1b3-f8d2ac48219d",
+      "user_id": "84613084-12c9-41c3-854a-b92638bb6dea",
+      "pet_profile_id": "f33c7c9c-1e66-4d6f-b39c-fd85b7cd8932",
+      "category": "general",
+      "title": "Inspection",
+      "note": "Inspection mass: 10 kg and 11 kg.",
+      "occurred_at": "2026-09-21T12:00:00Z"
+    }
+  ]
+}

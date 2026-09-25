@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { exercise, clock } from './helpers/lifetime-harness.mjs';
 import { pets,ownerId,care } from './fixtures/ask-lifetime-history.mjs';
 import { validateAskRequest,ASK_REQUEST_VERSION } from '../../app/lib/intelligence/ask-request-contract.ts';
+const {assertStoredPublicationUnavailable}=await import('../../tests/helpers/unsupported-stored-publication.mjs');
+const {certifiedHistoryRead}=await import('../../tests/helpers/certified-history-read.mjs');
+const storedFixture=(rows,subjects=owned)=>({scope:{authorizedPetIds:subjects.map(p=>p.id)},petNames:Object.fromEntries(subjects.map(p=>[p.id,p.name])),represented:rows.map(r=>({sourceId:'care:'+r.id,sourceType:'care_update',petId:r.pet_profile_id,text:r.note,occurredAt:r.occurred_at,createdAt:r.created_at}))});
 const owned=pets.slice(0,3).map((p,i)=>({...p,name:['Aster','Birch','Cedar'][i]}));
 const proposal=patch=>({version:ASK_REQUEST_VERSION,mode:'read',question:'Read the requested facts.',requirements:[],referenceTurnIds:[],scope:'named',petNames:['Aster'],
  operation:'recall',selection:'summary',quantity:'duration',topic:'activity',terms:['activity'],from:null,to:null,episodeTopic:null,ordinal:null,frame:null,
@@ -23,31 +26,20 @@ test('explicit narrowing and a topic reset do not preserve irrelevant pets',()=>
  const p=validateAskRequest(proposal({mode:'conversation',scope:'none',petNames:[],operation:'general',evidenceBasis:'general'}),context);
  assert.equal(p.conversationOnly,true);
 });
-test('unreviewed excerpt fallback remains safe but reports unmet final completion',async t=>{
- clock(t);
- const r=await exercise('Give Aster March 2024 active minutes, rest and total.',{fixturePets:owned,history:true,expectedReviewCalls:1,
- rows:[care('calc',owned[0].id,'2024-03-15','exercise','Aster had 31 minutes activity and 4 minutes separate rest.')],
- interpretationProposal:proposal({from:'2024-03-01',to:'2024-04-01'}),
- providerOverrides:{answer:'Activity was recorded.',historyNarrative:null}});
- assert.equal(r.result.answerValidation.valid,true);
- assert.equal(r.result.answerValidation.assessment.outcome,'limited');
- assert.equal(r.result.answerValidation.assessment.checks.taskCompletion,'failed');
- assert.ok(r.result.answerValidation.completion.every(c=>c.status==='missing'));
+test('uncertified calculation history remains source-free and limited',async()=>{
+ const e=storedFixture([care('calc',owned[0].id,'2024-03-15','exercise','Aster had 31 minutes activity and 4 minutes separate rest.')],[owned[0]]);
+ e.interpretation={request:{mode:'read',evidenceBasis:'saved_history',quantity:'duration'}};
+ const r=await assertStoredPublicationUnavailable(e);
+ assert.doesNotMatch(JSON.stringify(r.answer),/31 minutes|4 minutes/);
 });
 
-test('ten-pet CSV bypasses narrative generation but requires independent review and survives reload',async t=>{
- clock(t);
+test('ten-pet CSV projection cannot publish uncertified converted values',async()=>{
  const cohort=Array.from({length:10},(_,i)=>({...pets[0],id:'export'+i,name:'Pet'+i}));
  const rows=cohort.map((p,i)=>care('export'+i,p.id,'2024-04-07','weight',p.name+' body weight was '+(i+1)+' kg without equipment.'));
- const r=await exercise('Give all ten pets body weights on April 7 2024 as CSV in grams, alphabetically.',{
-  fixturePets:cohort,petId:cohort[0].id,rows,history:true,expectedProviderCalls:0,expectedReviewCalls:1,reviewResponse:{approved:true},
-  interpretationProposal:proposal({scope:'account',petNames:[],quantity:'measurement',topic:'weight',terms:['weight'],from:'2024-04-07',to:'2024-04-08',outputFormat:'csv',
-   projection:{nameHeader:'pet',valueHeader:'grams',quantity:'body_mass',unit:'g',order:'name_ascending'}})});
- assert.equal(r.publication.failure,null);
- assert.equal(r.result.answerValidation.assessment.outcome,'complete');
- assert.equal(r.result.reasoning.answer.summary.split('\n').length,11);
- assert.match(r.result.reasoning.answer.summary,/Pet9,10000/);
+ const e=storedFixture(rows,cohort);e.interpretation={request:{mode:'read',evidenceBasis:'saved_history',outputFormat:'csv',projection:{nameHeader:'pet',valueHeader:'grams',quantity:'body_mass',unit:'g',order:'name_ascending'}}};
+ const r=await assertStoredPublicationUnavailable(e);assert.doesNotMatch(JSON.stringify(r.answer),/10000|Pet9,/);
 });
+
 test('deterministic generation can still enter one repair and independent re-review within existing call cap',async t=>{
  clock(t);
  const {runAdmittedAiOperation}=await import('../../app/lib/ai/usage-guard/admission.ts');
@@ -71,15 +63,12 @@ for (const mode of ['read','conversation','clarify']) test('trusted dated USER s
  for(const patch of [{mode:'update'},{mode:'mixed'},{evidenceBasis:'supplied_context'}]) assert.throws(()=>validateAskRequest(proposal({...patch,referenceTurnIds:['invented']}),c));
  assert.throws(()=>validateAskRequest(proposal({referenceTurnIds:['invented']}),{...c,conversationTurns:[]}));
 });
-for(const format of ['csv','table']) test('exact-day typed projection survives redundant comparison operation: '+format,async t=>{
- clock(t);
+for(const format of ['csv','table']) test('projection metadata cannot authorize converted comparison facts: '+format,async()=>{
  const cohort=owned.slice(0,2),rows=cohort.map((p,i)=>care('projection-day'+i,p.id,'2024-04-07','general',p.name+' body weight was '+(i+1)+' kg without equipment.'));
- const r=await exercise('Compare all pets body weights on April 7 2024 as '+format+' in grams, alphabetically.',{
- fixturePets:cohort,petId:cohort[0].id,rows,history:true,expectedProviderCalls:0,expectedReviewCalls:1,reviewResponse:{approved:true},
- interpretationProposal:proposal({operation:'comparison',scope:'account',petNames:[],quantity:'measurement',topic:'weight',terms:['weight'],from:'2024-04-07',to:'2024-04-08',outputFormat:format,
- projection:{nameHeader:'pet',valueHeader:'grams',quantity:'body_mass',unit:'g',order:'name_ascending'}})});
- assert.equal(r.publication.failure,null);assert.equal(r.result.answerValidation.assessment.outcome,'complete');
+ const e=storedFixture(rows,cohort);e.interpretation={request:{mode:'read',evidenceBasis:'saved_history',outputFormat:format,projection:{nameHeader:'pet',valueHeader:'grams',quantity:'body_mass',unit:'g',order:'name_ascending'}}};
+ await assertStoredPublicationUnavailable(e);
 });
+
 for(const question of ['Compare weights on April 7 2024 versus April 8 2024.','Compare weights as of April 7 2024.','Compare weights on April 7 2024 with previous weights.']) test('projection metadata cannot erase another temporal obligation: '+question,()=>{
  const result=validateAskRequest(proposal({operation:'comparison',quantity:'measurement',from:'2024-04-07',to:'2024-04-08',outputFormat:'csv',
  projection:{nameHeader:'pet',valueHeader:'grams',quantity:'body_mass',unit:'g',order:'name_ascending'}}),
@@ -91,37 +80,21 @@ test('companion punctuation preserves quotations and code before factual review'
  assert.equal(normalizeCompanionProse('Aster ate normally — the notes do not say why.'),'Aster ate normally, the notes do not say why.');
  for(const text of ['The note says "ate — then rested".', 'The note says “ate — then rested”.', '```json\n{"note":"ate — then rested"}\n```']) assert.equal(normalizeCompanionProse(text),text);
 });
-test('history voice is normalized before review and retained through publication',async t=>{
- clock(t);
- const r=await exercise('Summarize Aster history.',{fixturePets:owned,history:true,rows:[care('voice',owned[0].id,'2024-04-07','general','Aster ate normally. The cause of the earlier appetite change was not recorded.')],
- interpretationProposal:proposal({quantity:'records',topic:'history',terms:[]}),expectedReviewCalls:1,reviewResponse:{approved:true},
- providerOverrides:{historyNarrative:{sentences:[{text:'Aster ate normally on April 7, 2024 — the notes do not say why the earlier appetite change happened.',sourceIds:['care:voice'],calculations:[]}]}}});
- assert.equal(r.publication.failure,null);assert.equal(r.result.answerValidation.assessment.outcome,'complete');
- assert.doesNotMatch(r.result.reasoning.answer.summary,/—/);assert.match(r.result.reasoning.answer.summary,/do not say why/);
+test('certified historical notes retain exact owner wording without narrative review',async()=>{
+ const note='Aster ate normally. The cause of the earlier appetite change was not recorded.';
+ const r=await certifiedHistoryRead(storedFixture([care('voice',owned[0].id,'2024-04-07','general',note)],[owned[0]]));
+ assert.equal(r.response.labsList.records[0].body,note);
+ assert.equal(r.validation.assessment.outcome,'complete');
 });
-test('declined summary has one plain limitation and preserves exact notes separately',async t=>{
- clock(t);
- const note='Aster did not eat breakfast — the reason was not recorded.';
- const r=await exercise('Summarize Aster history.',{fixturePets:owned,history:true,rows:[care('limited-voice',owned[0].id,'2024-04-07','general',note)],
- interpretationProposal:proposal({quantity:'records',topic:'history',terms:[]}),expectedReviewCalls:1,reviewResponse:{approved:false},
- providerOverrides:{historyNarrative:{sentences:[{text:'Aster ate normally.',sourceIds:['care:limited-voice'],calculations:[]}]}}});
- const answer=r.result.reasoning.answer;
- assert.equal(r.publication.failure,null);assert.equal(r.result.answerValidation.assessment.outcome,'limited');
- assert.doesNotMatch(answer.summary,/calculat|verif|excerpt|clinical|—/i);
- assert.equal(answer.sections[0].heading,'Saved notes');assert.ok(answer.sections[0].items[0].includes(note));
- assert.doesNotMatch(JSON.stringify(answer),/Aster ate normally/);
+
+test('uncertified summary cannot publish notes or invented replacement prose',async()=>{
+ const note='Aster did not eat breakfast ? the reason was not recorded.';
+ const r=await assertStoredPublicationUnavailable(storedFixture([care('limited-voice',owned[0].id,'2024-04-07','general',note)],[owned[0]]));
+ assert.doesNotMatch(JSON.stringify(r.answer),/Aster ate normally|did not eat breakfast/);
 });
-test('a timed-out repair is not mislabeled as a review timeout',async t=>{
- clock(t);const events=[];
- const r=await exercise('Summarize Aster history.',{fixturePets:owned,history:true,rows:[care('timeout-voice',owned[0].id,'2024-04-07','general','Aster rested normally.')],
- interpretationProposal:proposal({quantity:'records',terms:[]}),onProviderEvent:event=>events.push(event),expectedReviewCalls:2,
- providerOverrides:{historyNarrative:{sentences:[{text:'Aster rested normally.',sourceIds:['care:timeout-voice'],calculations:[]}]}},
- reviewProviderResponse:async request=>{
-  if(request.text.format.name==='furvise_history_repair') throw Object.assign(new Error('Repair timed out'),{name:'TimeoutError'});
-  const input=JSON.parse(request.input);
-  return {status:'completed',output_text:JSON.stringify({approved:false,retainedSentenceIndexes:[],rejectionReason:'The requested summary is incomplete.',obligations:input.obligations.map(({index})=>({index,status:'missing',sentenceIndexes:[]}))}),usage:{input_tokens:500,output_tokens:100}};
- }});
- assert.ok(r.result.answerValidation.assessment.reasons.includes('repair_timeout'));
- assert.ok(events.some(event=>event.stage==='repair'&&event.outcome==='failed'));
- assert.equal(r.publication.failure,null);
+
+test('uncertified history has no factual repair or review timeout path',async()=>{
+ const r=await assertStoredPublicationUnavailable(storedFixture([care('timeout-voice',owned[0].id,'2024-04-07','general','Aster rested normally.')],[owned[0]]));
+ assert.equal(r.relevantContextIds.length,0);
+ assert.doesNotMatch(JSON.stringify(r.answer),/rested normally|repair_timeout|review_timeout/);
 });

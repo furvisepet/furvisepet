@@ -1,5 +1,5 @@
 import { safetyTemporalScope, currentSafetyClauses } from "./ai/safety-temporal-scope.ts";
-import { analyzeOwnerAssertions } from "./ai/owner-assertion.ts";
+import { analyzeOwnerAssertions, unquotedOwnerText, ownerAssertionProposition } from "./ai/owner-assertion.ts";
 import type { CareEntryRow } from "./supabase";
 import type { ProposedSemanticFrame } from "./intelligence/semantic-frame/types.ts";
 
@@ -186,9 +186,9 @@ export function detectImmediateAskEmergency(value: string): ImmediateAskEmergenc
   let subject = "unspecified";
   let human = false;
   const clauses = current.flatMap(clause =>
-    clause.text.split(/\s+(?:and|but)\s+/i));
+    ownerAssertionProposition(clause).text.split(/\s+(?:and|but)\s+/i).map(text => ({ text, isCertain: clause.isCertain })));
   for (const [index, clause] of clauses.entries()) {
-    const text = clause.replace(/^(?:(?:now|today|currently|then)\s*,?\s*)+/i, "");
+    const text = clause.text.replace(/^(?:(?:now|today|currently|then)\s*,?\s*)+/i, "");
     const named = /^([\p{L}\p{M}'’ -]{1,80}?)\s+(?:is|are|was|were|has|had|can|cannot|can't|won't|will|stopped|collapsed?|became|started)\b/iu.exec(text)?.[1].toLowerCase();
     if (named && !/^(?:he|she|they|it)$/.test(named)) {
       subject = named;
@@ -208,7 +208,7 @@ export function detectImmediateAskEmergency(value: string): ImmediateAskEmergenc
       const analysis = analyzeOwnerAssertions(recovery ? text.replace(recovery[0], "recovered") : text).clauseSpans;
       // A negated/uncertain recovery cannot clear a current report. When both
       // occur, their order matters; a later recurrence must win.
-      const resolved = recovery && analysis.length > 0 && analysis.every(span => span.isCertain && !span.isNegated)
+      const resolved = recovery && clause.isCertain && analysis.length > 0 && analysis.every(span => span.isCertain && !span.isNegated)
         && (!emergency || recovery.index > emergency.index || recovery[0].includes(emergency[0]));
       if (resolved) tags.delete(tag);
       else if (emergency) tags.add(tag);
@@ -223,13 +223,17 @@ export function detectImmediateAskEmergency(value: string): ImmediateAskEmergenc
  * Reuse the emergency taxonomy without turning a hypothetical into a current
  * observation. Current emergencies keep their earlier, separate route. */
 export function conditionalEmergencyGuidance(value: string) {
-  if (detectImmediateAskEmergency(value) || !/\b(?:if|hypothetical(?:ly)?|suppos(?:e|ing)|imagine)\b/i.test(value)
-    || !explicitPetSubjectPattern.test(value)) return null;
-  const text = value.replace(/"[^"]*"|“[^”]*”/g, "");
+  const text = unquotedOwnerText(value);
+  const conditional = analyzeOwnerAssertions(text).clauseSpans.some(clause => clause.isConditional);
+  if (detectImmediateAskEmergency(value) || !conditional || !explicitPetSubjectPattern.test(text)) return null;
   if (!immediateEmergencyPatterns.some(({ pattern }) => pattern.test(text))) return null;
   return { title: "If a pet is in immediate distress",
     summary: "If a pet cannot breathe, is unresponsive, is actively seizing, or has uncontrolled bleeding, contact an emergency veterinarian immediately. Do not wait for a history review or for Furvise to identify the pet. Follow the emergency clinic’s instructions; do not give medicine or home remedies unless a veterinarian directs you to.",
     sections: [], safetyNote: null };
+}
+
+export function isImmediateAskEmergencyTag(value: unknown): value is ImmediateAskEmergency["tags"][number] {
+  return immediateEmergencyPatterns.some(({ tag }) => tag === value);
 }
 
 export function buildImmediateEmergencyGuidance(emergency: ImmediateAskEmergency) {

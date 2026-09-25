@@ -1,10 +1,11 @@
+import * as C from "../../tests/helpers/canonical-calculation-retirement.mjs";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { exercise, clock } from './helpers/lifetime-harness.mjs';
 import { pets, ownerId } from './fixtures/ask-lifetime-history.mjs';
 import { validateAskRequest, ASK_REQUEST_VERSION } from '../../app/lib/intelligence/ask-request-contract.ts';
 const { recoverAskInterpretation } = await import('../../app/lib/intelligence/interpret-ask.ts');
-import { historicalReadSchema, canonicalHistoricalRead, matchesHistoryOutputFormat } from '../../app/lib/intelligence/historical-read-response.ts';
+import {matchesHistoryOutputFormat} from "../../app/lib/intelligence/history-output-format.ts";
 const owned = pets.slice(0,3).map((p,i)=>({...p,name:['Aster','Birch','Cedar'][i]}));
 const context = {owner:{userId:ownerId},eligiblePets:owned,pet:owned[0],currentMessage:'Read Aster history.',conversationTurns:[]};
 const proposal = patch => ({version:ASK_REQUEST_VERSION,mode:'read',question:'Read the requested facts.',requirements:[],
@@ -106,15 +107,8 @@ test('invalid planner references get one repair while repeated invalid reference
   assert.match(calls[1].instructions,/ASK_REQUEST_CONTRACT_REFERENCE/);
  }
 });
-test('CSV contract has a typed body and canonical escaping',()=>{
- const schema=historicalReadSchema({historyNarrative:{}},'csv');
- assert.deepEqual(schema.properties.layout.enum,['csv']);
- assert.equal(schema.properties.table.type,'object');
- const output={readVersion:'history-answer.v1',layout:'csv',historyNarrative:null,json:null,limitation:null,
-  safetyLevel:'normal',responseMode:'practical_guidance',userIntent:'history',relevantContextIds:['care:a'],
-  table:{headers:['pet','food'],rows:[{cells:['Aster','wet, "complete"'],sourceIds:['care:a'],calculations:[]}]}};
- assert.equal(canonicalHistoricalRead(output).answer,'pet,food\nAster,"wet, ""complete"""');
- assert.equal(matchesHistoryOutputFormat('Here are the requested records.','csv'),false);
+test("CSV presentation remains unsupported without a factual model fallback",async()=>{
+ await C.limitedFormat("csv");assert.equal(matchesHistoryOutputFormat("Here are records.","csv"),false);
 });
 for(const question of ['Was Aster heavier in April 2023 or at the latest measurement?',
  'Is the currently recorded amount lower than in May 2022?'])test('comparison retains both temporal endpoints: '+question,()=>{
@@ -345,7 +339,6 @@ test('ten-pet correction closure retains traversal reserve after ownership seed 
 
 const { eligibleAnswerSources, evidenceSource } = await import('../../app/lib/intelligence/ask-evidence.ts');
 const { boundedEpisodePlan } = await import('../../app/lib/intelligence/history-access.ts');
-const { verifiedCalculationQuantities } = await import('../../app/lib/intelligence/history-calculation.ts');
 const { buildGovernedAskExecutionPlan, assertGovernedAskExecutionPlan } = await import('../../app/lib/intelligence/ask-execution-plan.ts');
 const { AskTurnLifecycle } = await import('../../app/lib/ai/ask-turn-model.ts');
 const { safeStructuredValidationReason } = await import('../../app/lib/ai/ask-provider.ts');
@@ -391,23 +384,15 @@ test('scoped episode selectors require user-grounded bounds and keep conversatio
  const invented=validateAskRequest(input,{...context,currentMessage:'Show Aster’s documented vomiting history in 2014.'});
  assert.equal(invented.referenceTarget,undefined);
 });
-for(const layout of ['csv','table']) for(const size of [0,11,32])test(layout+' uses record bounds for '+size+' rows and keeps row provenance',()=>{
- const rows=Array.from({length:size},(_,i)=>({cells:['Aster','Rested.'],sourceIds:['care:'+i],calculations:[]}));
- const result=canonicalHistoricalRead({readVersion:'history-answer.v1',layout,historyNarrative:null,json:null,
- limitation:size?null:'No matching records were available.',safetyLevel:'normal',responseMode:'practical_guidance',userIntent:'history',relevantContextIds:[],table:{headers:['Pet','Note'],rows}});
- assert.equal(result.historicalResult.items.length,size);
- rows.forEach((row,i)=>assert.deepEqual(result.historicalResult.items[i].sourceIds,row.sourceIds));
- if(!size) {
-  assert.equal(result.historicalResult.limitation,'No matching records were available.');
-  assert.equal(result.answer,layout==='csv'?'Pet,Note':'| Pet | Note |\n| --- | --- |');
- }
+for(const format of ['csv','prose'])for(const size of [0,11,32])test(format+' preserves result-set transport authority for '+size+' records',async()=>{
+ const f=await C.measured("count_records",Array.from({length:size},(_,i)=>"Recorded observation "+i),"records",{fixture:{format}});
+ assert.equal(f.result.coverage.resultSet.certified,true);assert.equal(f.result.records.length,size);
+ if(format==="csv"){assert.equal(f.response.model,"server-calculation-unavailable");assert.deepEqual(f.response.relevantContextIds,[]);}
+ else{assert.equal(f.response.model,"server-calculation-labs");assert.equal(f.response.calculationLabs.readLabs.records.length,size);assert.equal(f.response.calculationLabs.execution.results[0].value,size);}
+ await C.finish(f);
 });
-test('record counts reject duplicate operands, missing records, wrong counts and episode units',()=>{
- const sources=[{sourceId:'care:a',text:'Observed rest.'},{sourceId:'care:b',text:'Observed rest.'}];
- const count={operation:'count_records',operands:sources.map(s=>({sourceId:s.sourceId,field:'text',literal:s.sourceId})),value:2,unit:'notes',rounding:0,expression:null};
- assert.ok(verifiedCalculationQuantities([count],sources));
- for(const patch of [{value:3},{unit:'episodes'},{operands:[count.operands[0],count.operands[0]]}]) assert.equal(verifiedCalculationQuantities([{...count,...patch}],sources),null);
- assert.equal(verifiedCalculationQuantities([count],sources.slice(0,1)),null);
+test("record counting requires complete effective result-set proof rather than provider operands",async()=>{
+ await C.certified("count_records",["first","second"],"records",2);C.rejects(c=>{c.operator="count_records";c.operands=[];c.resultUnit="episodes";});const f=await C.measured("count_records",["first","second"],"records",{fixture:{closed:false}});assert.equal(f.response.model,"server-calculation-unavailable");await C.finish(f);
 });
 test('empty export completion requires an exhausted owned need query, never an unavailable or missing lookup',async()=>{
  const {completedEmptyEvidenceNeeds}=await import('../../app/lib/intelligence/evidence-need-coverage.ts');
@@ -488,17 +473,18 @@ for (const inventedDate of [false,true]) test(`CSV quotes are cell delimiters; r
 });
 
 test('explicit dated note batches preserve each date and exact note without clinical inference', async()=>{
- const {parseDatedNoteBatch,noteBatchReviewActions}=await import('../../app/lib/intelligence/dated-note-batch.ts');
- const {isExplicitCareHistorySaveRequest}=await import('../../app/lib/intelligence/care-history-policy.ts');
+ const {validateAppendJob}=await import('../../app/lib/furvise-brain/append-job.ts');
  const text='Save these four separate care notes for Aster: September 1, 2026: started vomiting. September 3, 2026: stopped vomiting completely. September 7, 2026: started a new, separate vomiting episode. September 9, 2026: stopped vomiting completely.';
- assert.equal(isExplicitCareHistorySaveRequest(text),true);
- const notes=parseDatedNoteBatch(text);
- assert.equal(notes.length,4);
- assert.deepEqual(notes.map(n=>n.occurredAt.slice(0,10)),['2026-09-01','2026-09-03','2026-09-07','2026-09-09']);
- assert.equal(notes[0].note,'September 1, 2026: started vomiting.');
- assert.equal(noteBatchReviewActions(notes).length,4);
- assert.deepEqual(parseDatedNoteBatch('Hypothetical only: '+text),[]);
- assert.deepEqual(parseDatedNoteBatch('Do not '+text),[]);
+ const bodies=['September 1, 2026: started vomiting.','September 3, 2026: stopped vomiting completely.','September 7, 2026: started a new, separate vomiting episode.','September 9, 2026: stopped vomiting completely.'];
+ const dates=['September 1, 2026','September 3, 2026','September 7, 2026','September 9, 2026'];
+ const days=['2026-09-01','2026-09-03','2026-09-07','2026-09-09'];
+ const proposed={operation:'append',petName:'Aster',companionQuote:null,items:bodies.map((bodyQuote,i)=>({bodyQuote,dateQuote:dates[i],occurredAt:days[i]}))};
+ const source={id:'source',role:'user',text,createdAt:'2026-09-20T00:00:00Z'};
+ const job=validateAppendJob(proposed,source,[{id:'owned',name:'Aster',user_id:'owner'}],'owner');
+ assert.equal(job.items.length,4);assert.deepEqual(job.items.map(x=>x.body.text),bodies);
+ assert.deepEqual(job.items.map(x=>x.occurredAt.slice(0,10)),days);
+ assert.throws(()=>validateAppendJob(proposed,{...source,text:'Do not '+text},[{id:'owned',name:'Aster',user_id:'owner'}],'owner'));
+ assert.throws(()=>validateAppendJob(proposed,{...source,role:'furvise'},[{id:'owned',name:'Aster',user_id:'owner'}],'owner'));
 });
 test('explicit month-scoped episode target survives stale planner reference hints',()=>{
  const p=validateAskRequest(proposal({operation:'episode',selection:'reference',episodeTopic:'vomiting',ordinal:'second',from:null,to:null}),

@@ -1,0 +1,66 @@
+{
+  "sourceHead": "addfa7cb2bab3196cd4fb27b1c1be960a0744a1f",
+  "stopReason": "Class B, Phase 2 Case A",
+  "files": [
+    {
+      "file": "furvise-final-case-A.json",
+      "bytes": 518,
+      "sha256": "5b67781d287e8a429a2e3ddf62699a9d6a33b419dff09479701edee316f30a1a"
+    },
+    {
+      "file": "furvise-final-case-A.log",
+      "bytes": 103,
+      "sha256": "f0608870c70616d8f2bc7ef757a65622ad577b2d1f56c0cdd6dd465feb5ef865"
+    },
+    {
+      "file": "furvise-final-case-A1.json",
+      "bytes": 4792,
+      "sha256": "80218a9c8606a4539ec690665306fbd0a8d98386b6842578fc0dc838d11403da"
+    },
+    {
+      "file": "furvise-final-case-A1.log",
+      "bytes": 16113,
+      "sha256": "9cd39229579ea6117f88e9477253d4e646501926cbfcf20a3e4eb89bb311dd8a"
+    },
+    {
+      "file": "furvise-final-case-A1-persistence.json",
+      "bytes": 430,
+      "sha256": "1bde9e32d234156b64bb36ade03bedfe74a847d8277aea82b772c082c611d7ad"
+    },
+    {
+      "file": "furvise-final-local-fixture.json",
+      "bytes": 5348,
+      "sha256": "7c3aa594327226d8595a37a7a9234c95d146eabbd107fe99319e96fc2401939e"
+    },
+    {
+      "file": "furvise-final-cleanup.json",
+      "bytes": 3566,
+      "sha256": "f38ec0583bcf6f22e78923c23a26c4f51dce1a33a32e6c1c772a13d02527a84e"
+    },
+    {
+      "file": "furvise-final-phase0-gates.json",
+      "bytes": 8322,
+      "sha256": "4b43200672b7b6bfa3b4b344e9175151a9d019014a6b651beff46fea07377e64"
+    },
+    {
+      "file": "furvise-final-phase0-build.json",
+      "bytes": 357,
+      "sha256": "ad358c7456660f905546d6d1fb632e0df4bc7a914e46ba0e0a2af6bb63caf9ba"
+    },
+    {
+      "file": "furvise-final-phase1-migrations.json",
+      "bytes": 8470,
+      "sha256": "623dec7882ea7d45e2c613d5fd1db3ede92dded198a0c46b82ec2d8b1ce56c4e"
+    },
+    {
+      "file": "furvise-final-phase1-sql-gates.json",
+      "bytes": 784,
+      "sha256": "b5e6550f6d7f73e69b4e64a4bb7647021180f0f73133c8aa3e575ca193465bd0"
+    },
+    {
+      "file": "furvise-final-phase1-authority-client.json",
+      "bytes": 710,
+      "sha256": "557ec4686376dc90ee8de3f0cbb1854783d798d226b3290a1b1e9008e52156b6"
+    }
+  ]
+}

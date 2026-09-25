@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { deterministicReadProjection } from '../app/lib/intelligence/read-projection.ts';
+import { assertStoredPublicationUnavailable } from './helpers/unsupported-stored-publication.mjs';
+import { certifiedHistoryRead } from './helpers/certified-history-read.mjs';
 
 const pets=[
   ['a','Aster',23.71,30.31,6.6],
@@ -36,20 +37,15 @@ function evidence(blockedPet=null) {
     represented,
   };
 }
-test('multi-pet lifetime endpoint projection preserves both boundaries and exact changes',()=>{
-  const result=deterministicReadProjection(evidence());
-  assert.ok(result);
-  assert.equal(result.sentences.length,5);
-  for(let i=0;i<pets.length;i++) {
-    const [,name,first,last,change]=pets[i], sentence=result.sentences[i];
-    assert.match(sentence.text,new RegExp(name+'.*'+first+' kg.*2016-10-15.*'+last+' kg.*2026-09-15.*\\+'+change+' kg'));
-    assert.equal(sentence.calculations.length,1);
-    assert.equal(sentence.calculations[0].operation,'difference');
-    assert.equal(sentence.calculations[0].value,change);
-    assert.equal(sentence.calculations[0].unit,'kg');
-  }
+test("canonical endpoint operands retain exact subjects values and dates; calculation remains unavailable",async()=>{
+ const e=evidence();
+ const selection={groupBy:["subject"],union:["asc","desc"].map(direction=>({orderBy:[{field:"event_at",direction}],take:{count:1,per:"group"}}))};
+ const f=await certifiedHistoryRead(e,{selection});
+ assert.deepEqual(new Set(f.response.labsList.records.map(r=>r.sourceId)),new Set(e.represented.map(r=>r.sourceId)));
+ assert.equal(f.response.labsList.records.length,10);
+ for(const r of f.response.labsList.records){const source=e.represented.find(s=>s.sourceId===r.sourceId);assert.equal(r.body,source.text);assert.equal(r.event_at,source.occurredAt);assert.equal(r.petId,source.petId);}
+ await assertStoredPublicationUnavailable(e);
 });
-
-test('multi-pet lifetime endpoint projection fails closed when any pair is blocked',()=>{
-  assert.equal(deterministicReadProjection(evidence('c')),null);
+test("legacy endpoint metadata cannot authorize a blocked comparison",async()=>{
+ await assertStoredPublicationUnavailable(evidence("c"));
 });

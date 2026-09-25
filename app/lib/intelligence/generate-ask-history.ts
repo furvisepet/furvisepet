@@ -1,4 +1,6 @@
+import { calculationCapability } from "./calculation-capability.ts";
 import { enforceAskHistoryAccess } from "./history-access.ts";
+import { isOrdinarySavedHistoryRequest } from "./publication-authority.ts";
 import { scopeConversationContext } from "./conversation-scope.ts";
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -43,16 +45,22 @@ export async function generateAskHistoryAnswer({ supabase, onStage, ...input }: 
   assertAskBrainScope({ turn: brainTurn, authoritativePetIds: petIds, readPetIds });
   input.authoritativePetIds = petIds;
 
-  onStage?.("history_retrieval");
-  let context = await retrieveFurviseMemory(input.context, supabase, brainTurn);
+  const ordinaryHistory = isOrdinarySavedHistoryRequest(input.context.askInterpretation?.request);
+  const request = input.context.askInterpretation?.request;
+  const capability = request?.calculatePlan && request.readTicket
+    ? calculationCapability(request.calculatePlan, request.readTicket) : null;
+  const calculationUnsupported = capability?.supported === false;
+  if (capability) console.info("[Ask Calculation] capability", capability);
+  if (!calculationUnsupported) onStage?.("history_retrieval");
+  let context = calculationUnsupported ? input.context : await retrieveFurviseMemory(input.context, supabase, brainTurn);
   onStage?.("episode_retrieval");
-  if ((memoryRead.depth === "targeted" || memoryRead.depth === "lifetime") && readPetIds.length) {
+  if (!calculationUnsupported && !ordinaryHistory && (memoryRead.depth === "targeted" || memoryRead.depth === "lifetime") && readPetIds.length) {
     context = await retrieveEpisodeHistory(context, supabase, readPetIds);
   }
   onStage?.("answer_generation");
   const intelligenceResult = await runFurviseIntelligence({ ...input, context,
     evidenceContract: createAskEvidenceContract(context, readPetIds) });
-  if (context.episodeResult) {
+  if (!calculationUnsupported && !ordinaryHistory && context.episodeResult) {
     // Generation can take seconds. Revalidate after it, before returning a list
     // or references for display/persistence. Never silently substitute a new list.
     onStage?.("episode_revalidation");

@@ -4,7 +4,7 @@ import { scrubUntrustedMutationClaim } from "./ask-publication.ts";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createIdempotencyAdminClient } from "./security/idempotency/admin-client.ts";
-import { createCanonicalCareAuthorityClient } from "./intelligence/care-authority-client.ts";
+import { canonicalSuggestionSucceeded, type CanonicalSuggestionRow, type SuggestionCapability } from "./intelligence/canonical-suggestion.ts";
 import { parseStoredFurviseActionKind } from "./application-actions/types.ts";
 import { getFurviseActionPolicy } from "./application-actions/policy.ts";
 import { validateSensitiveRequestOriginResponse } from "./security/headers/origin-policy";
@@ -53,34 +53,29 @@ export type AskMessageRow = {
   created_at: string;
 };
 
-export type AskSuggestionRow = StoredAskSuggestion & {
+export type AskSuggestionRow = StoredAskSuggestion & Partial<CanonicalSuggestionRow> & {
   source_message_id: string | null;
   concern_id?: string | null;
   care_entry_id?: string | null;
   applied_at?: string | null;
 };
 
-export async function reconcileAskSuggestions(supabase: SupabaseClient, userId: string, suggestions: AskSuggestionRow[]) {
-  const suggestionIds = suggestions.map((item) => item.id);
-  const { data: entries, error: entriesError } = suggestionIds.length
-      ? await supabase.from("pet_care_entries").select("id, state_suggestion_id").eq("user_id", userId).is("deleted_at", null).in("state_suggestion_id", suggestionIds)
-      : { data: [], error: null };
-  if (entriesError) throw new Error("ASK_SUGGESTION_RECONCILIATION_UNAVAILABLE");
-  const entryBySuggestion = new Map((entries || []).filter((item) => item.state_suggestion_id).map((item) => [item.state_suggestion_id, item.id]));
-  const reconciled = suggestions.map((suggestion) => {
-    const careEntryId = suggestion.care_entry_id || entryBySuggestion.get(suggestion.id) || null;
-    const effectAlreadyPresent = Boolean(careEntryId);
-    if (suggestion.status === "saved" || effectAlreadyPresent) {
-      return { ...suggestion, applyStatus: effectAlreadyPresent && !suggestion.applied_at ? "already_applied" as const : "applied" as const, careEntryId, concernId: suggestion.concern_id || null, status: "saved" as const };
-    }
-    return { ...suggestion, careEntryId, concernId: suggestion.concern_id || null };
+export async function reconcileAskSuggestions(_supabase: SupabaseClient, userId: string, suggestions: AskSuggestionRow[]) {
+  const ids = suggestions.flatMap(s => s.canonical_capability_id ? [s.canonical_capability_id] : []);
+  const { data, error } = ids.length ? await createIdempotencyAdminClient().from("ask_action_capabilities")
+    .select("*").eq("user_id", userId).in("id", ids).returns<SuggestionCapability[]>()
+    : { data: [], error: null };
+  if (error) throw Error("ASK_SUGGESTION_RECONCILIATION_UNAVAILABLE");
+  const capabilities = new Map((data || []).map(c => [c.id, c]));
+  return suggestions.map(s => {
+    if (!s.canonical_payload) return { ...s, careEntryId: s.status === "saved" ? s.care_entry_id || null : null,
+      concernId: s.concern_id || null };
+    const c = s.canonical_capability_id ? capabilities.get(s.canonical_capability_id) : null;
+    const succeeded = c && canonicalSuggestionSucceeded(s as CanonicalSuggestionRow, c, userId);
+    return { ...s, status: succeeded ? "saved" as const : s.status === "dismissed" ? "dismissed" as const : "pending" as const,
+      ...(succeeded ? { applyStatus: "applied" as const, applied_at: c.terminal_at } : {}),
+      careEntryId: null, concernId: s.concern_id || null };
   });
-  const stale = reconciled.filter((item, index) => suggestions[index].status === "pending" && item.status === "saved");
-  const authority = stale.length ? createCanonicalCareAuthorityClient() : null;
-  await Promise.all(stale.map((item) => authority!.from("ai_update_suggestions").update({
-    actioned_at: new Date().toISOString(), applied_at: new Date().toISOString(), care_entry_id: item.careEntryId || null, status: "saved",
-  }).eq("id", item.id).eq("user_id", userId).eq("status", "pending")));
-  return reconciled;
 }
 
 export function toConversationSummary(row: AskConversationRow): AskConversationSummary {

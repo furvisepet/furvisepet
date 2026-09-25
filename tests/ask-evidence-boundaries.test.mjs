@@ -1,21 +1,17 @@
+import * as C from "./helpers/canonical-calculation-retirement.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { missingExactRecordText } from '../app/lib/intelligence/exact-record-text.ts';
-import { verifiedCalculationQuantities } from '../app/lib/intelligence/history-calculation.ts';
-import { reviewObligationCompletion, historyTaskCompleted } from '../app/lib/intelligence/history-obligations.ts';
+import { registerHooks } from 'node:module';
+registerHooks({resolve(s,c,next){return s==='server-only'?{url:'data:text/javascript,export {};',format:'module',shortCircuit:true}:next(s,c);}});
+const { missingExactRecordText } = await import('../app/lib/intelligence/exact-record-text.ts');
+const { reviewObligationCompletion, historyTaskCompleted } = await import('../app/lib/intelligence/history-obligations.ts');
 const note='May 4, 2025: ate 28 g of "usual" food.';
-test('calculation generation binds each operand to its original source and field',async()=>{
- const {sourceBoundSchema}=await import('../app/lib/intelligence/source-bound-schema.ts');
- const base={properties:{operands:{type:'array',items:{type:'object'}}}};
- const sources=[{sourceId:'care:a',sourceType:'care_update',text:'Walked 23 minutes; rested 6 minutes.',occurredAt:'2025-04-03T00:00:00Z'},
-  {sourceId:'care:b',sourceType:'care_update',text:'Played 14 minutes.'}];
- const choices=sourceBoundSchema(base,sources).properties.operands.items.anyOf;
- assert.deepEqual(choices[0].properties.sourceId.enum,['care:a']);
- assert.deepEqual(choices[0].properties.literal.enum,['23 minutes','6 minutes','care:a']);
- assert.deepEqual(choices[1].properties.field.enum,['occurredAt']);
- assert.deepEqual(choices[2].properties.sourceId.enum,['care:b']);
- assert.deepEqual(choices[2].properties.literal.enum,['14 minutes','care:b']);
- assert.equal(base.properties.operands.items.anyOf,undefined);
+test('canonical slots bind sources through Lungs instead of provider literals',async()=>{
+ const f=await C.certified("difference",["23 minutes","14 minutes"],"minute",9,{unit:"minute"});
+ const result=f.response.calculationLabs.execution.results[0];
+ assert.deepEqual(result.operands.map(o=>o.recordId),["source-0","source-1"]);
+ assert.deepEqual(result.operands.map(o=>o.slot.field),["measurement","measurement"]);
+ C.rejects(c=>c.operands[0].sourceId="foreign");
 });
 test('review schema only permits indexes in the submitted draft and cards',async()=>{
  const {boundedTaskHistoryReviewSchema,parseRepairableTaskHistoryReview}=await import('../app/lib/intelligence/history-review-selection.ts');
@@ -77,11 +73,8 @@ test('exact record text cannot silently become an exact substring',()=>{
 });
 const sources=[{sourceId:'a',text:'Started on 2022-05-06.',occurredAt:'2022-05-06T00:00:00+00:00'},{sourceId:'b',text:'Stopped on 2022-05-10.',occurredAt:'2022-05-10T00:00:00+00:00'}];
 function calculation(field,literals) {return [{operation:'elapsed_days',operands:literals.map((literal,i)=>({sourceId:i?'b':'a',field,literal})),value:4,unit:'days'}];}
-test('equal instants and explicit source calendar dates support elapsed-day calculations',()=>{
- assert.ok(verifiedCalculationQuantities(calculation('occurredAt',['2022-05-06T00:00:00.000Z','2022-05-10T00:00:00Z']),sources));
- assert.ok(verifiedCalculationQuantities(calculation('text',['2022-05-06','2022-05-10']),sources));
- assert.equal(verifiedCalculationQuantities(calculation('occurredAt',['2022-05-07T00:00:00Z','2022-05-10T00:00:00Z']),sources),null);
- assert.equal(verifiedCalculationQuantities(calculation('text',['2022-05-05','2022-05-09']),sources),null);
+test("elapsed days use certified event instants rather than provider literal dates",async()=>{
+ await C.certified("elapsed_days",["event","event"],"day",4,{days:[6,10]});C.rejects(c=>c.operands[0].literal="2022-05-05");
 });
 test('an inventory covers only its owned counted interval, independently of observation timestamps',()=>{
  const obligation={index:0,petId:'p',window:{from:'2025-05-01',to:'2025-06-01'}};
@@ -109,12 +102,8 @@ test('a correction outage withholds clinical sources without erasing independent
  const e={...evidence,history:{corrections:'unavailable',provenance:[]},represented:[...evidence.represented,profile],sources:[...evidence.sources,{petId:'p',source:'profile',status:'loaded',loadedIds:['p']}]};
  assert.deepEqual(eligibleAnswerSources(e).map(s=>s.sourceId),['profile:p:species']);
 });
-test('calendar-day units are validated rather than ignored as unrecognized modifiers',async()=>{
- const {historyNarrativeAnchorsSupported}=await import('../app/lib/intelligence/history-narrative-facts.ts');
- const c=calculation('text',['2022-05-06','2022-05-10']); c[0].unit='calendar days';
- const derived=verifiedCalculationQuantities(c,sources); assert.ok(derived);
- assert.equal(historyNarrativeAnchorsSupported('The gap is 4 calendar days.',sources,'',derived,false),true);
- assert.equal(historyNarrativeAnchorsSupported('The gap is 9 calendar days.',sources,'',derived,false),false);
+test("elapsed-day authority rejects changed rendered duration",async()=>{
+ const f=await C.certified("elapsed_days",["event","event"],"day",4,{days:[6,10]});f.response.answer.summary="The gap is 9 calendar days.";assert.ok(C.calculationPublicationFailure(f.response));
 });
 
 

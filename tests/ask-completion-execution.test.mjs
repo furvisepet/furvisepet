@@ -1,9 +1,8 @@
+import * as C from "./helpers/canonical-calculation-retirement.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createAnswerAssessment, assessmentMatches } from '../app/lib/intelligence/answer-assessment.ts';
-import { evaluateCalculationExpression } from '../app/lib/intelligence/history-calculation.ts';
-import { parseHistoryCalculations, verifiedCalculationQuantities } from '../app/lib/intelligence/history-calculation.ts';
-import { deterministicReadProjection } from '../app/lib/intelligence/read-projection.ts';
+import { assertStoredPublicationUnavailable } from './helpers/unsupported-stored-publication.mjs';
 import { OperationDeadline, StageDeadlineError } from '../app/lib/ai/execution-deadline.ts';
 import { safeAskDiagnosticStage } from '../app/lib/ai/ask-error-diagnostic.ts';
 const checks=()=>({structuralValidity:'passed',evidenceSupport:'passed',subjectDateCorrectness:'passed',calculationCorrectness:'passed',taskCompletion:'passed'});
@@ -25,25 +24,11 @@ test('an explicit safe limitation does not become unsafe or falsely complete',()
  assert.equal(r.outcome,'limited');
  assert.equal(createAnswerAssessment({checks:checks(),body:'x',evidence:[],unsafe:true}).outcome,'failed');
 });
-test('compound percent uses original source operands with no invented intermediate literal',()=>{
- for(let active=1;active<=20;active++)for(let rest=1;rest<=5;rest++){
-  const source={sourceId:'s',text:active+' minutes activity, '+rest+' minutes separate rest.'};
-  const value=Number((100*active/(active+rest)).toFixed(1));
-  const proposal={operation:'expression',expression:[0,0,1,'add','divide'],operands:[
-   {sourceId:'s',field:'text',literal:active+' minutes'},{sourceId:'s',field:'text',literal:rest+' minutes'}],value,unit:'%'};
-  assert.ok(parseHistoryCalculations([proposal]));
-  assert.deepEqual(verifiedCalculationQuantities([proposal],[source]),[value+':%']);
-  assert.equal(verifiedCalculationQuantities([{...proposal,value:value+1}],[source]),null);
- }
+test("percentage share consumes original certified records without invented intermediate values",async()=>{
+ for(const [active,rest] of [[1,5],[20,1],[31,4]])await C.certified("percent_of_sum",[active+" minutes",rest+" minutes"],"%",active/(active+rest)*100,{unit:"minute",precision:1});C.rejects(c=>c.value=88.6);
 });
-test('expression rejects zero division, fabricated literals, illegal indexes and incompatible dimensions',()=>{
- const operands=[{value:31,dimension:'time',scale:1},{value:4,dimension:'mass',scale:1}];
- for(const p of [[0,1,'add'],[0,1,'divide'],[4],[0,'add']]){
-  assert.equal(evaluateCalculationExpression(p,operands),null);
- }
- assert.equal(evaluateCalculationExpression([0,1,'divide'],[{value:1,dimension:'time',scale:1},{value:0,dimension:'time',scale:1}]),null);
- const p={operation:'expression',expression:[0],operands:[{sourceId:'s',field:'text',literal:'35 minutes'}],value:35,unit:'minutes'};
- assert.equal(verifiedCalculationQuantities([p],[{sourceId:'s',text:'31 minutes activity and 4 minutes rest'}]),null);
+test("arbitrary programs are rejected and canonical zero denominators fail closed",async()=>{
+ for(const expression of [[0,1,"add"],[0,1,"divide"],[4],[0,"add"]])C.rejects(c=>{c.operator="expression";c.expression=expression;});const f=await C.measured("ratio",["0 kg","4 kg"],"scalar");assert.equal(f.response.model,"server-calculation-unavailable");await C.finish(f);
 });
 function exportEvidence(){
  const ids=Array.from({length:10},(_,i)=>'p'+i);
@@ -56,16 +41,11 @@ function exportEvidence(){
   represented:ids.map((id,i)=>{const text='Pet'+i+' body weight was '+(i+1)+' kg without equipment.';
    return {sourceId:'care:'+id,petId:id,sourceType:'care_update',occurredAt:'2024-04-07T12:00:00.000Z',start:0,end:text.length,text};})};
 }
-test('ten-pet export calculates, sorts and renders without a narrative model',()=>{
- const e=exportEvidence();e.represented.reverse();
- const p=deterministicReadProjection(e);assert.ok(p);assert.equal(p.sentences[0].calculations.length,10);
- assert.equal(p.sentences[0].text.split('\n').length,11);
- assert.match(p.sentences[0].text,/Pet0,1000/);assert.match(p.sentences[0].text,/Pet9,10000/);
- assert.ok(verifiedCalculationQuantities(p.sentences[0].calculations,e.represented));
- e.interpretation.request.projection.order='value_descending';
- assert.equal(deterministicReadProjection(e).sentences[0].text.split('\n')[1],'Pet9,10000');
+test("unsupported export cannot calculate convert or sort profile/history values",async()=>{
+ const e=exportEvidence();e.represented.reverse();await assertStoredPublicationUnavailable(e);
+ e.interpretation.request.projection.order="value_descending";await assertStoredPublicationUnavailable(e);
 });
-test('deterministic projection declines missing, ambiguous, unavailable, corrected and out-of-date measurements',()=>{
+test('deterministic projection declines missing, ambiguous, unavailable, corrected and out-of-date measurements',async()=>{
  for(const mutate of [
   e=>e.represented.pop(),
   e=>e.represented.push({...e.represented[0],sourceId:'duplicate'}),
@@ -77,7 +57,7 @@ test('deterministic projection declines missing, ambiguous, unavailable, correct
  ]){
   const e=exportEvidence();mutate(e);
   if(e.represented.at(-1)?.sourceId==='duplicate')e.sources[0].loadedIds.push('duplicate');
-  assert.equal(deterministicReadProjection(e),null);
+  await assertStoredPublicationUnavailable(e);
  }
 });
 test('remaining stage budgets shrink and preserve independent-review reserve',()=>{

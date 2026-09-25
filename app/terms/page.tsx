@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { LegalPageHeader, LegalPageShell, LegalSection } from "../components/legal-page-shell";
-import { FREE_ASK_ALLOWANCE, FREE_VET_BRIEF_ALLOWANCE, PLAN_CAPABILITIES, PLUS_ASK_ALLOWANCE, PLUS_VET_BRIEF_ALLOWANCE } from "../lib/billing/plan-limits";
-import { MEMBERSHIP_CANCELLATION_TERMS, VET_BRIEF_USAGE_TERMS } from "../lib/billing/membership-copy";
+import { FREE_ASK_ALLOWANCE, PLAN_CAPABILITIES, PLUS_ASK_ALLOWANCE } from "../lib/billing/plan-limits";
+import { MEMBERSHIP_CANCELLATION_TERMS } from "../lib/billing/membership-copy";
 import { createPublicPageMetadata } from "../lib/seo";
 
 const description =
@@ -63,13 +63,10 @@ export default function TermsPage() {
 
       <LegalSection title="6. FREE AND PLUS MEMBERSHIP">
         <p>
-          The Free membership includes up to {PLAN_CAPABILITIES.free.maxPets} pet, {FREE_ASK_ALLOWANCE} Ask uses
-          each month, and {FREE_VET_BRIEF_ALLOWANCE} Vet Brief generation once per account. Furvise Plus includes
-          up to {PLAN_CAPABILITIES.plus.maxPets} pets, {PLUS_ASK_ALLOWANCE} Ask uses each month, and{" "}
-          {PLUS_VET_BRIEF_ALLOWANCE} Vet Brief generations each monthly billing period. Both plans include unlimited
-          care-history logging. Plus is a monthly paid subscription.
+          The Free membership includes up to {PLAN_CAPABILITIES.free.maxPets} pet and {FREE_ASK_ALLOWANCE} Ask uses
+          each month. Furvise Plus includes up to {PLAN_CAPABILITIES.plus.maxPets} pets and {PLUS_ASK_ALLOWANCE} Ask
+          uses each month. Both plans include unlimited care-history logging. Plus is a monthly paid subscription.
         </p>
-        <p>{VET_BRIEF_USAGE_TERMS}</p>
         <p>
           Current prices and the features included with each plan are shown before purchase. Your remaining
           allowances and reset dates are shown in Membership.

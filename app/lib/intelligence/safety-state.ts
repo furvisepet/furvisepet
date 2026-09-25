@@ -1,6 +1,6 @@
 import { safetyTemporalScope } from "../ai/safety-temporal-scope.ts";
 import { classifyActiveConcernMessage } from "../ai/turn-classifier.ts";
-import { detectAskConcernTags } from "../ask-safety-context.ts";
+import { detectAskConcernTags, detectImmediateAskEmergency, type ImmediateAskEmergency } from "../ask-safety-context.ts";
 import type { FurviseLiveContext, IntelligenceSafetyLevel } from "./types";
 import { deriveConcernChronology } from "./concern-chronology.ts";
 import { classifyConcernEvidenceState } from "../ai/concern-engine.ts";
@@ -12,6 +12,7 @@ export type ResolvedSafetyState = {
   concernMessageState: ReturnType<typeof classifyActiveConcernMessage>;
   currentMessageConcernTags: ReturnType<typeof detectAskConcernTags>;
   currentMessageEmergency: boolean;
+  currentMessageEmergencyTags: Readonly<ImmediateAskEmergency["tags"]>;
   shoppingSuppressed: boolean;
 };
 
@@ -38,7 +39,7 @@ export function resolveSafetyState(context: FurviseLiveContext): ResolvedSafetyS
             : concernStates.includes("unclear") ? "unclear"
               : ["improved", "recurrence", "resolved", "still_active"].includes(classifiedMessageState) ? "unrelated"
                 : classifiedMessageState;
-  const immediateEmergency = /\b(collapse[ds]?|unconscious|open[- ]mouth breathing|cannot breathe|can't breathe|blue gums?|severe bleeding)\b/i.test(currentMessage);
+  const immediateEmergency = detectImmediateAskEmergency(context.currentMessage);
   const chronology = deriveConcernChronology(context.careEntries, [...context.activeConcerns, ...context.recentlyResolvedConcerns]);
   const stateBreathing = context.currentState?.state.breathing?.status;
   let level: IntelligenceSafetyLevel = "routine";
@@ -63,7 +64,8 @@ export function resolveSafetyState(context: FurviseLiveContext): ResolvedSafetyS
     recentlyResolvedConcernIds: context.recentlyResolvedConcerns.map((concern) => concern.id),
     concernMessageState: messageState,
     currentMessageConcernTags: immediateTags,
-    currentMessageEmergency: immediateEmergency,
+    currentMessageEmergency: Boolean(immediateEmergency),
+    currentMessageEmergencyTags: Object.freeze([...(immediateEmergency?.tags || [])]),
     shoppingSuppressed: level === "urgent" || level === "emergency",
   };
 }
