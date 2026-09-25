@@ -59,7 +59,10 @@ test("email sign-in defers CAPTCHA to the password step while server-side challe
   assert.doesNotMatch(request, /fetch|idempotentClientFetch|\/api\/auth/);
   assert.match(handler, /if \(!token\) \{[\s\S]*setAuthSubmitPending\(false\)/);
   assert.match(handler, /if \(!authSubmitPendingRef\.current\) return/);
-  assert.match(submit, /if \(!token\) return/);
+  assert.match(submit, /if \(isAuthCaptchaEnabled\(\) && !token\) return/);
+  const captchaPolicy = source("app/lib/auth-captcha-policy.ts");
+  assert.match(captchaPolicy, /NEXT_PUBLIC_AUTH_CAPTCHA_ENABLED !== "false"/);
+  assert.match(source(".env.example"), /NEXT_PUBLIC_AUTH_CAPTCHA_ENABLED=true/);
   assert.match(submit, /captchaToken: token/);
   assert.doesNotMatch(login, /loginCaptchaRequired/);
   assert.match(route, /failures\.challengeRequired/); assert.match(route, /getLoginCaptchaMode\(\) === "always"/);
