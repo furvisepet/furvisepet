@@ -281,3 +281,28 @@ No credentials were entered and no application data was mutated.
 Therefore R1-R12 remain explicitly unpassed. Do not infer runtime success from build/source/database evidence.
 
 To execute R1-R12, use a persistent browser context already authenticated through the Vercel protection layer, then sign into Furvise with the dedicated acceptance account.
+
+
+## Production acceptance evidence completed without persistent fixture changes
+
+The following production checks are complete:
+
+- deployment/domain cutover verified;
+- no post-cutover runtime error group;
+- authenticated QA history reader boundaries exercised;
+- rollback-only UI database create/update/remove authority exercised;
+- cross-account read denial exercised;
+- QA entitlement and Ask allowance state verified.
+
+All temporary write probes were rolled back and a follow-up query verified no probe row remained.
+
+Still requiring browser/UI execution for full R1-R12 completion:
+- visible UI add/edit/remove round-trip;
+- Ask factual publication against the live HTTP application;
+- calculation refusal through Ask;
+- Ask mutation refusal through Ask;
+- authenticated new-Vet-Brief refusal;
+- browser-level retry/idempotency behavior;
+- emergency terminal response.
+
+The Opera connector established an authenticated Furvise production session but has been intermittently disconnecting between control calls. Do not convert that transport failure into a product failure.

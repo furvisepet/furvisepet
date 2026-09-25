@@ -231,3 +231,43 @@ The verified live rollback anchor immediately before promotion is:
 Do **not** use `dpl_4RXtka8GMetUR6emZrZnC7AKuj1t` as the primary rollback anchor for this cutover. That deployment is READY and production-targeted but was not the deployment receiving current custom-domain traffic at the cutover checkpoint.
 
 Promotion must point live production traffic to `dpl_HpWnLCJrdX8wFG2CFJGdKFaF6v3C`. After promotion, immediately verify that custom-domain traffic moves from `dpl_4RXtka8GMetUR6emZrZnC7AKuj1t` to the new deployment.
+
+
+## Production cutover evidence — live
+
+Production is now serving the frozen V1 release artifact.
+
+- `main`: `747a9154a3fdb7e3ace2a6396c67eb6d4a2b1b5a`
+- tree: `aac9fd48da5fbfa1168c48656688b3a86be95b34`
+- live Vercel deployment: `dpl_HpWnLCJrdX8wFG2CFJGdKFaF6v3C`
+- source branch: `main`
+- deployment state: READY
+- custom-domain traffic in the final verification window: only `dpl_HpWnLCJrdX8wFG2CFJGdKFaF6v3C`
+- no runtime error groups observed after cutover
+- no Supabase migration was applied
+
+Verified production public surface:
+- homepage body uses the frozen V1 copy;
+- `/login` returns normally;
+- `/terms` returns normally;
+- `/membership` redirects to login when unauthenticated;
+- unauthenticated `/vet-brief` is not publicly usable.
+
+Verified live QA database semantics under an authenticated QA identity:
+- history candidate RPC earliest/latest reads remained confined to the requested pet;
+- cross-account history read failed with SQLSTATE `42501` / `Pet unavailable`;
+- `update_my_care_entry` succeeded inside a rollback-only transaction and the original row was unchanged afterward;
+- `remove_my_care_entry` succeeded inside a rollback-only transaction and the original row was unchanged afterward;
+- authenticated care-row insertion succeeded inside a rollback-only transaction and persisted zero rows;
+- QA entitlement/allowance reads are coherent.
+
+Primary rollback deployment immediately before cutover:
+`dpl_4RXtka8GMetUR6emZrZnC7AKuj1t`
+
+### Public-copy follow-up
+
+Two copy artifacts still refer to deferred behavior:
+- homepage/SEO metadata description still mentions preparing a summary to review with a vet;
+- the dated 2026-09-15 release notes describe the earlier Ask-save and Vet Brief behavior.
+
+These are copy-cleanup items. They did not activate the deferred runtime capabilities and are not a runtime rollback trigger, but they should be reconciled with the frozen V1 promise surface.
