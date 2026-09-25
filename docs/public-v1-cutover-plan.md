@@ -5,13 +5,14 @@ Status: planning only. No production change.
 ## Frozen candidate
 
 - Review branch: `launch/public-v1-rc`
-- RC SHA: `f38a981bbeb218478e4d5c9bb8c530c8a42f30fe`
-- RC tree: `8928697d6ca1538d6cda79c930fde4b6195d51a9`
-- RC Vercel deployment: `dpl_4znJfwVwxY4r2ps1qbFwiEMHdt8w`
-- RC preview: `furvise-ock472705-furvise-0e3fe5ef.vercel.app`
+- RC SHA: `8c4577f38b98b593e53f25840f6b8ca2ffc04010`
+- RC tree: `aac9fd48da5fbfa1168c48656688b3a86be95b34`
+- RC Vercel deployment: `dpl_C6V8f4ShgCCUQtAcaDRV3WQ9tX4R`
+- RC preview: `furvise-lihix80lp-furvise-0e3fe5ef.vercel.app`
 - Vercel state at freeze: READY
 - Focused V1 gate: 145/145
 - Security gate: 160/160
+- Lifecycle/read-boundary regression gate after freeze refinement: 77/77
 
 ## Current main and production rollback anchor
 
@@ -25,6 +26,12 @@ Status: planning only. No production change.
   - source: Vercel CLI
 - That production deployment has no Git SHA in its Vercel metadata. Treat the deployment ID, not a guessed Git commit, as the application rollback anchor.
 
+## Production runtime baseline before cutover
+
+- Current production deployment `dpl_8QtkjZQxdhSieGy6amzX5sRKDbCa` became READY at 2026-09-24T20:46:23Z.
+- Vercel reports no grouped runtime errors from 2026-09-24T20:46:24Z through this planning check.
+- A provider/schema failure group at 2026-09-24T20:17:37Z belongs to an older deployment (`dpl_DoTUosTkbeQ9UbgdgaPJ5nWgWKtM`) and predates the current production rollback anchor. Do not attribute it to the cutover candidate.
+
 ## Preferred integration strategy: snapshot transplant
 
 Do not reconstruct the RC by replaying eight commits and do not merge unrelated histories.
@@ -33,7 +40,7 @@ After runtime acceptance of the frozen RC:
 
 1. Re-read `main` and require it still points to `e2ab3a05690d115bff6c58719570ea1859920655`. If main moved, stop and re-plan.
 2. Create `launch/public-v1-cutover` from current main.
-3. Create one Git commit whose parent is current main and whose Git tree is exactly the frozen RC tree `8928697d6ca1538d6cda79c930fde4b6195d51a9`.
+3. Create one Git commit whose parent is current main and whose Git tree is exactly the frozen RC tree `aac9fd48da5fbfa1168c48656688b3a86be95b34`.
 4. Verify the cutover commit tree SHA equals the RC tree SHA byte-for-byte.
 5. Do not add migrations, feature work, cleanup, or copy changes in the transplant.
 6. Let Vercel build that main-descended cutover branch.
@@ -46,7 +53,7 @@ This produces normal main ancestry while preserving the exact frozen application
 
 ## Database rule
 
-The public V1 freeze from `2e4e8745...` to `f38a981...` contains no Supabase migration changes.
+The public V1 freeze from `2e4e8745...` to `8c4577f...` contains no Supabase migration changes.
 
 Cutover must not introduce a database migration merely to solve Git ancestry.
 
