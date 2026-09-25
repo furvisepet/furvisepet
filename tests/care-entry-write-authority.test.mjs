@@ -7,7 +7,9 @@ const boundary = read("supabase/migrations/20260823120001_add_controlled_care_en
 const privileges = read("supabase/migrations/20260823120002_restrict_authenticated_care_entry_writes.sql");
 const route = read("app/api/care-entries/[id]/route.ts");
 const browser = read("app/lib/supabase.ts");
-const executor = read("app/lib/application-actions/executor.ts");
+const capabilities = read("app/lib/application-actions/capabilities.ts");
+const actionRoute = read("app/api/ask/actions/[messageId]/route.ts");
+const publicV1 = read("app/lib/public-v1-capabilities.ts");
 
 test("care-entry edit authority is user, pet, record, and freshness bound", () => {
   assert.match(boundary, /v_user_id uuid := auth\.uid\(\)/);
@@ -26,14 +28,16 @@ test("authenticated Data API UPDATE is removed and INSERT is an explicit allowli
   assert.doesNotMatch(privileges, /grant (?:all|update)\b[^;]*pet_care_entries[^;]*authenticated/i);
 });
 
-test("all application care-entry edit paths call the controlled RPC", () => {
-  for (const source of [route, browser, executor]) {
+test("retained care-entry edit paths call the controlled RPC and Ask writes are unavailable", () => {
+  for (const source of [route, browser]) {
     assert.match(source, /rpc\("update_my_care_entry"/);
     assert.doesNotMatch(source, /from\("pet_care_entries"\)[\s\S]{0,160}\.update\(/);
   }
   assert.match(route, /const expectedUpdatedAt = entryResult\.data\.updated_at/);
   assert.match(route, /p_expected_updated_at: expectedUpdatedAt/);
   assert.match(route, /\.eq\("pet_profile_id", input\.petProfileId\)/);
-  assert.match(executor, /care_history\.add[\s\S]*persist_furvise_intelligence/);
-  assert.doesNotMatch(executor, /from\("pet_care_entries"\)[\s\S]{0,160}\.insert\(/);
+  assert.match(capabilities, /execute_ask_action_capability/);
+  assert.match(capabilities, /confirmFurviseWriteReceipt/);
+  assert.match(publicV1, /askMutations:\s*false/);
+  assert.match(actionRoute, /if \(!PUBLIC_V1_CAPABILITIES\.askMutations\) return unavailable\(\);/);
 });
