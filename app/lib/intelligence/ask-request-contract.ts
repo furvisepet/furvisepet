@@ -1,4 +1,4 @@
-import { bindCalculatePlan, calculatePlanSchema, CALCULATE_OPERATORS, CALCULATION_ROLE_POLICY, type CalculatePlan } from "../furvise-brain/calculate-plan.ts";
+import { bindCalculatePlan, calculatePlanSchema, CALCULATE_OPERATORS, CALCULATION_ROLE_POLICY, CALCULATION_INPUT_OWNERSHIP, type CalculatePlan } from "../furvise-brain/calculate-plan.ts";
 import { bindStoredRead, storedReadSchema, type StoredRead } from "../furvise-brain/stored-read.ts";
 import {bindRemovePlan, removeJobSchema, type RemovePlan} from "../furvise-brain/remove-job.ts";
 import { bindStateTransitionJob, stateTransitionJobSchema, type StateTransitionJob } from "../furvise-brain/state-transition-job.ts";
@@ -303,6 +303,16 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
       Object.assign(item.properties.operator, { description: roles });
       Object.assign(item.properties.operands, { description: CALCULATION_OPERAND_ORDER + " " + roles });
     }
+    if (!countOnly) {
+      const array = plan.properties!.calculations;
+      // Length can exclude a lone result node; sibling ID/order validity stays with Binder.
+      Object.assign(plan.properties!, { calculations: { anyOf: [
+        { ...array, description: "Direct calculations over certified ReadTicket slots. " + CALCULATION_INPUT_OWNERSHIP,
+          items: { anyOf: roleNodes.filter(item =>
+            "petName" in (item.properties.operands.items as unknown as {properties:object}).properties) } },
+        { ...array, minItems: 2, description: "Multiple calculation nodes; result operands require actual prior producers. " + CALCULATION_INPUT_OWNERSHIP },
+      ] } });
+    }
     Object.assign(variant.properties, { calculatePlan: plan,
       readTicket: calculationReadTicketProviderSchema(countOnly) });
     return variant;
@@ -327,6 +337,7 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
 export const ASK_REQUEST_INSTRUCTIONS = [
   "For every non-null readTicket, all temporal constraints needed to select factual operands belong in readTicket.temporal. Encode the actual resolved bounded period there; outer legacy dates are not a second factual plan. Every non-null readTicket.temporal.from/to must already be a complete ISO instant with time and Z or an explicit numeric offset, never a date-only value. Brain resolves calendar-day bounds using the supplied timeZone: the inclusive start is local midnight on the start day; from is inclusive and to exclusive. Use the offset applicable at each boundary, including calendar and daylight-saving transitions. An inclusive ending calendar day ends at the next local midnight in the supplied timezone. Calculation proposals use outer from/to null, terms [], selection summary; typed temporal, predicates and selection alone own retrieval. For both opposite temporal boundaries of one bounded matching set, use distinct ascending take 1 and descending take 1 union clauses inside that window. Each union clause must represent a distinct semantic selection; duplicate clauses are invalid. CalculatePlan maps the selected clause/item addresses to operator roles, independently of clause order.",
   CALCULATION_OPERAND_ORDER,
+  CALCULATION_INPUT_OWNERSHIP,
   ...CALCULATE_OPERATORS.map(operator => CALCULATION_OPERAND_ROLES[operator]),
   `Every requested supported deterministic derivation over retrieved facts must be represented in calculatePlan. This is mandatory whenever the requested answer requires a supported CalculatePlan operator: ${CALCULATE_OPERATORS.join(", ")}. Do not place such a derivation in requirements, even if calculatePlan would otherwise be omitted. A requirement is residual only when no existing typed execution primitive owns that requested work. requirements is non-executable, grants no source authority, and cannot trigger arithmetic. Preserve genuinely residual companion work, including explanation beyond the typed operation or unsupported companion analysis. A factual comparison or measurement read alone does not imply arithmetic.`,
   "Legacy temporal_endpoints represents comparison of temporal boundaries and requires a compare ReadTicket. An ordinary bounded historical lookup uses read with a null strategy. Compositional selection owns finite earliest/latest, grouped cardinality and boundary unions; legacy strategies are compatibility-only.",

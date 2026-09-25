@@ -52,7 +52,8 @@ const roleChecks=[
  ['count_records',['no operands','certified effective record count']],
 ];
 const providerNodes=schema.properties.request.anyOf.filter(v=>v.properties.calculatePlan.type==='object').flatMap(v=>{
- const items=v.properties.calculatePlan.properties.calculations.items;return items.anyOf||[items];
+ const arrays=v.properties.calculatePlan.properties.calculations;
+ return (arrays.anyOf||[arrays]).flatMap(array=>array.items.anyOf||[array.items]);
 });
 for(const [operator,terms] of roleChecks)test(operator+' semantic roles are explicit in instructions and each provider operand branch',()=>{
  const line=ASK_REQUEST_INSTRUCTIONS.split('\n').find(s=>s.startsWith(operator+':'));assert.ok(line,operator);
@@ -110,4 +111,72 @@ test('Brain-resolved calendar bounds preserve next-local-midnight semantics with
   assert.equal(calendarDateInZone(new Date(Date.parse(to)-1).toISOString(),zone),lastDay);
   assert.equal(calendarDateInZone(to,zone),nextDay);
  }
+});
+
+import {CALCULATION_INPUT_OWNERSHIP,DIRECT_CALCULATION_OPERAND_DESCRIPTION,RESULT_CALCULATION_OPERAND_DESCRIPTION,requiresCalculateBinding,rebindCalculatePlan} from '../app/lib/furvise-brain/calculate-plan.ts';
+// Contract structure tests, not model compliance. Binder alone verifies dynamic sibling identity.
+test('direct/result ownership is explicit in the Brain contract and operand schema descriptions',()=>{
+ for(const term of ['Use direct operands','ReadTicket slots directly','EARLIER arithmetic node','actual prior producer id','ReadTicket slots are not calculation IDs','No implicit producer exists','Do not add same-unit conversions'])assert.ok(CALCULATION_INPUT_OWNERSHIP.includes(term),term);
+ assert.ok(ASK_REQUEST_INSTRUCTIONS.includes(CALCULATION_INPUT_OWNERSHIP));
+ for(const node of providerNodes.filter(n=>n.properties.operator.enum[0]!=='count_records')){
+  const operand=node.properties.operands.items;
+  if(operand.properties.kind){
+   assert.equal(operand.description,RESULT_CALCULATION_OPERAND_DESCRIPTION);
+   for(const term of ['EARLIER','already emitted','read-slot alias','undeclared variable','No implicit producer exists'])assert.ok(operand.description.includes(term),term);
+   for(const term of ['actual EARLIER','Emit that producer before referencing it','ReadTicket slots are not calculation IDs'])assert.ok(operand.properties.calculationId.description.includes(term),term);
+  }else assert.equal(operand.description,DIRECT_CALCULATION_OPERAND_DESCRIPTION);
+ }
+});
+test('provider array branches use existing keywords without new plan fields or tuple/conditional tricks',()=>{
+ for(const branch of schema.properties.request.anyOf.filter(v=>v.properties.calculatePlan.type==='object')){
+  const p=branch.properties.calculatePlan;
+  assert.deepEqual(Object.keys(p.properties).sort(),['calculations','operation','resultSelection']);
+  const arrays=p.properties.calculations.anyOf;
+  if(!arrays)continue;
+  assert.equal(arrays.length,2);assert.equal(arrays[0].minItems,1);assert.equal(arrays[1].minItems,2);
+  assert.equal(arrays[0].maxItems,20);assert.equal(arrays[1].maxItems,20);
+  assert.ok(arrays[0].items.anyOf.every(n=>'petName' in n.properties.operands.items.properties));
+  assert.ok(arrays[1].items.anyOf.some(n=>'kind' in n.properties.operands.items.properties));
+ }
+ const visit=n=>{if(!n||typeof n!=='object')return;for(const key of ['prefixItems','additionalItems','contains','if','then','else','allOf','not','$data'])assert.equal(Object.hasOwn(n,key),false,key);Object.values(n).forEach(v=>Array.isArray(v)?v.forEach(visit):visit(v));};visit(schema);
+});
+for(const operator of measurementOperators)test('single direct '+operator+' remains canonical and binds without result aliases',()=>{
+ const r=request(),c=r.calculatePlan.calculations[0];c.operator=operator;c.operands=(operator==='convert'?[0]:[0,1]).map(i=>operand(i));
+ c.resultUnit=operator==='ratio'?'scalar':['percent_change','percent_of_sum'].includes(operator)?'%':'kg';assignFixtureRoles(c);
+ const bound=accepts(r).request.calculatePlan;assert.equal(bound.calculations.length,1);
+ assert.ok(bound.calculations[0].operands.every(o=>!('kind' in o)&&o.subjectId===pets[0].id));
+});
+test('single direct event calculation remains provider-valid',()=>{assert.equal(accepts(elapsedRequest()).request.calculatePlan.calculations[0].operator,'elapsed_days');});
+for(const operator of measurementOperators)test('provider excludes single-node result-only '+operator+' plans',()=>{
+ const r=request(),c=r.calculatePlan.calculations[0];Object.assign(c,calculation(operator,Array.from({length:operator==='convert'?1:2},()=>({kind:'result',calculationId:'undeclared'})),operator==='convert'?'g':operator==='ratio'?'scalar':['percent_change','percent_of_sum'].includes(operator)?'%':'kg'));
+ assert.equal(check({request:r}),false);
+ assert.throws(()=>validateAskRequest(r,context),/ASK_CALCULATE_INVALID:backward_reference/);
+});
+test('multiple independent direct nodes remain accepted without a ceremonial DAG',()=>{
+ const r=request();r.calculatePlan.calculations.push({...structuredClone(r.calculatePlan.calculations[0]),id:'second'});
+ assert.equal(accepts(r).request.calculatePlan.calculations.length,2);
+});
+test('actual multi-node derived computation and repeated backward references remain legal',()=>{
+ const r=request();r.calculatePlan.calculations.push({...structuredClone(r.calculatePlan.calculations[0]),id:'second'});
+ r.calculatePlan.calculations.push(calculation('mean',[{kind:'result',calculationId:'c1'},{kind:'result',calculationId:'second'},{kind:'result',calculationId:'c1'}],'kg','terminal'));
+ const p=accepts(r).request.calculatePlan;
+ assert.deepEqual(p.calculations[2].operands.map(o=>[o.role,o.calculationId]),[['member','c1'],['member','second'],['member','c1']]);
+});
+for(const [label,id] of [['unknown','undeclared'],['self','derived'],['forward','future']])test('schema cannot prove '+label+' sibling identity; Binder rejects it',()=>{
+ const r=dag();r.calculatePlan.calculations[1].operands[0].calculationId=id;
+ if(label==='forward')r.calculatePlan.calculations.push({...structuredClone(r.calculatePlan.calculations[0]),id:'future'});
+ assert.equal(check({request:r}),true,JSON.stringify(check.errors));
+ assert.throws(()=>validateAskRequest(r,context),/ASK_CALCULATE_INVALID:backward_reference/);
+});
+test('multi-node minimum cannot guarantee a preceding producer; first derived node still fails Binder',()=>{
+ const r=dag();r.calculatePlan.calculations.reverse();
+ assert.equal(check({request:r}),true);assert.throws(()=>validateAskRequest(r,context),/backward_reference/);
+});
+for(const make of [request,dag])test('ownership shape, roles and every-plan trusted snapshots remain authoritative '+make.name,()=>{
+ const r=make(),bound=accepts(r).request,p=bound.calculatePlan,t=bound.readTicket,copy=structuredClone(p);
+ assert.equal(requiresCalculateBinding(p),true);assert.deepEqual(rebindCalculatePlan(copy,t,p),p);
+ assert.throws(()=>rebindCalculatePlan(copy,t),/binding_snapshot/);
+ copy.calculations[0].operands[0].role='reference';assert.throws(()=>rebindCalculatePlan(copy,t,p),/binding_snapshot/);
+ const changed=structuredClone(p);changed.calculations[0].operands=[{kind:'result',role:'target',calculationId:'undeclared'},{kind:'result',role:'reference',calculationId:'undeclared'}];
+ assert.throws(()=>rebindCalculatePlan(changed,t,p),/binding_snapshot/);
 });

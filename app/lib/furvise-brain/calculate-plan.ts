@@ -34,6 +34,9 @@ const obj=(v:unknown):v is Record<string,unknown>=>!!v&&typeof v==="object"&&!Ar
 const keys=(v:Record<string,unknown>,names:string[])=>Object.keys(v).sort().join()===names.sort().join();
 const fail=(reason:string):never=>{throw Error("ASK_CALCULATE_INVALID:"+reason);};
 const unit=(v:unknown)=>typeof v==="string"&&Object.hasOwn(units,v)?units[v]:null;
+export const DIRECT_CALCULATION_OPERAND_DESCRIPTION = "Consumes a factual measurement or event instant selected by ReadTicket. Use the direct clause/item slot whenever the required factual value is available there; the semantic role identifies its function in this operation.";
+export const RESULT_CALCULATION_OPERAND_DESCRIPTION = "Consumes only the certified arithmetic output of an EARLIER calculation node already emitted in this same calculations array. It is not a selected-record name, read-slot alias, clause/item placeholder or undeclared variable. No implicit producer exists.";
+export const CALCULATION_INPUT_OWNERSHIP = "Use direct operands when a calculation can consume the required certified ReadTicket slots directly. Use kind:result only when the requested derivation depends on an EARLIER arithmetic node already present in calculations. Every calculationId must equal an actual prior producer id. ReadTicket slots are not calculation IDs. No implicit producer exists. Do not add same-unit conversions or other intermediate nodes merely to assign an ID to a selected source. Represent the requested computation, without invented intermediates.";
 export const calculatePlanSchema={anyOf:[{type:"null"},{
  type:"object",additionalProperties:false,required:["operation","calculations","resultSelection"],properties:{
  resultSelection:resultSelectionSchema,
@@ -41,13 +44,13 @@ export const calculatePlanSchema={anyOf:[{type:"null"},{
  calculations:{type:"array",minItems:1,maxItems:20,items:{type:"object",additionalProperties:false,
  required:["id","operator","operands","resultUnit","precision"],properties:{
  id:{type:"string",minLength:1,maxLength:80},operator:{type:"string",enum:CALCULATE_OPERATORS},
- operands:{type:"array",maxItems:64,items:{anyOf:[{type:"object",additionalProperties:false,
+ operands:{type:"array",maxItems:64,items:{anyOf:[{type:"object",description:DIRECT_CALCULATION_OPERAND_DESCRIPTION,additionalProperties:false,
  required:["role","petName","clause","item","field","unit","measurementSelector"],properties:{
  role:{type:"string",enum:CALCULATE_ROLES},
  measurementSelector:{anyOf:[{type:"null"},{type:"object",additionalProperties:false,required:["predicateIndexes"],properties:{predicateIndexes:{type:"array",minItems:1,maxItems:6,items:{type:"integer",minimum:0,maximum:5}}}}],description:"Indexes into this readTicket.predicates, never new text or source coordinates. All referenced text_any predicates must match the same structural segment of exactly one compatible measurement. Null requires a single compatible measurement in the entire certified record. Null for event_at."},
  petName:{type:"string",minLength:1,maxLength:100},clause:{type:"integer",minimum:0,maximum:7},
  item:{type:"integer",minimum:0,maximum:99},field:{type:"string",enum:["measurement","event_at"]},
- unit:{type:["string","null"],enum:[...Object.keys(units),null]}}},{type:"object",additionalProperties:false,required:["kind","role","calculationId"],properties:{role:{type:"string",enum:CALCULATE_ROLES},kind:{type:"string",enum:["result"]},calculationId:{type:"string",minLength:1,maxLength:80}}}]}},
+ unit:{type:["string","null"],enum:[...Object.keys(units),null]}}},{type:"object",description:RESULT_CALCULATION_OPERAND_DESCRIPTION,additionalProperties:false,required:["kind","role","calculationId"],properties:{role:{type:"string",enum:CALCULATE_ROLES},kind:{type:"string",enum:["result"]},calculationId:{type:"string",minLength:1,maxLength:80,description:"Exact id of an actual EARLIER calculation in this same calculations array. Emit that producer before referencing it. No implicit producer exists; ReadTicket slots are not calculation IDs."}}}]}},
  resultUnit:{type:"string",enum:[...Object.keys(units),"scalar","%","records"]},
  precision:{type:["integer","null"],minimum:0,maximum:10}
  }}}}}]};
