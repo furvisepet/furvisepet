@@ -16,12 +16,18 @@ const ASK_MUTATION_KEYS = Object.freeze([
   "removeJob",
   "fieldMutationJob",
   "stateTransitionJob",
-  "lifecyclePlan",
   "task",
 ] as const);
+
+function lifecyclePlanRequestsMutation(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const plan = value as Record<string, unknown>;
+  return plan.pendingDisposition === "cancel" || plan.transition !== null && plan.transition !== undefined;
+}
 
 export function publicV1RequestHasExcludedAskMutation(request: unknown) {
   if (PUBLIC_V1_CAPABILITIES.askMutations || !request || typeof request !== "object") return false;
   const record = request as Record<string, unknown>;
-  return ASK_MUTATION_KEYS.some((key) => record[key] !== null && record[key] !== undefined);
+  return ASK_MUTATION_KEYS.some((key) => record[key] !== null && record[key] !== undefined)
+    || lifecyclePlanRequestsMutation(record.lifecyclePlan);
 }

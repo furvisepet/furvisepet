@@ -8,8 +8,17 @@ test("public v1 capability policy is deliberately narrow", () => {
   assert.equal(policy.PUBLIC_V1_CAPABILITIES.calculationExecution, false);
   assert.equal(policy.PUBLIC_V1_CAPABILITIES.askMutations, false);
   assert.equal(policy.PUBLIC_V1_CAPABILITIES.vetBriefGeneration, false);
-  for (const key of ["appendJob","writeJob","removeJob","fieldMutationJob","stateTransitionJob","lifecyclePlan","task"])
+  for (const key of ["appendJob","writeJob","removeJob","fieldMutationJob","stateTransitionJob","task"])
     assert.equal(policy.publicV1RequestHasExcludedAskMutation({ [key]: {} }), true, key);
+  assert.equal(policy.publicV1RequestHasExcludedAskMutation({
+    lifecyclePlan: { pendingDisposition: "keep", transition: null, requiredSubjectState: "active", authorizationQuote: "Milo" },
+  }), false, "read-only lifecycle requirement");
+  assert.equal(policy.publicV1RequestHasExcludedAskMutation({
+    lifecyclePlan: { pendingDisposition: "keep", transition: { targetPetName: "Milo", toState: "archived" }, requiredSubjectState: null, authorizationQuote: "archive Milo" },
+  }), true, "lifecycle transition");
+  assert.equal(policy.publicV1RequestHasExcludedAskMutation({
+    lifecyclePlan: { pendingDisposition: "cancel", transition: null, requiredSubjectState: null, authorizationQuote: "cancel" },
+  }), true, "lifecycle cancellation");
   assert.equal(policy.publicV1RequestHasExcludedAskMutation({ storedRead: { domain: "memory" } }), false);
 });
 test("Ask blocks typed mutation plans before mutation planner branches", () => {
