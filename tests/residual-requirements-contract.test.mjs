@@ -11,3 +11,35 @@ const cases=[['ordinary measurement','Read the recorded temperature for Aster.',
 for(const[name,q,patch]of cases)test('fully represented '+name+' binds empty residual requirements',()=>{const result=validateAskRequest({...base(q),...structuredClone(patch)},context(q));assert.deepEqual(result.request.requirements,[]);});
 test('genuinely additional user-facing work stays residual without changing the ticket',()=>{const q='Read the observation for Aster and explain its clinical implications.';const p=base(q);p.requirements=['Explain the clinical implications.'];const bound=validateAskRequest(p,context(q));assert.deepEqual(bound.request.requirements,p.requirements);assert.deepEqual(bound.request.readTicket.predicates,[]);});
 test('provider instructions define residual-only obligations across typed domains',()=>{for(const term of ['residual user-facing obligations','Use [] when typed fields fully represent the task','ReadTicket lookup','CalculatePlan arithmetic','selection/group/order/take','projection, outputFormat, task, mutation job, profile read, StoredRead'])assert.ok(ASK_REQUEST_INSTRUCTIONS.includes(term),term);assert.doesNotMatch(ASK_REQUEST_INSTRUCTIONS,/requirements lists the requested answer obligations, including format/);assert.match(askRequestSchema({}).properties.requirements.description,/Residual user-facing obligations only/);});
+
+import {askRequestProviderSchema} from '../app/lib/intelligence/ask-request-contract.ts';
+import {CALCULATE_OPERATORS} from '../app/lib/furvise-brain/calculate-plan.ts';
+import {historyTaskCompleted,reviewObligationCompletion} from '../app/lib/intelligence/history-obligations.ts';
+// These checks prove semantic contract structure and fail-closed binding, not model compliance.
+test('supported derivation ownership is mandatory for the complete operator registry',()=>{
+ const ownership=ASK_REQUEST_INSTRUCTIONS.split('\n').find(line=>line.startsWith('Every requested supported deterministic derivation'));
+ assert.ok(ownership);for(const operator of CALCULATE_OPERATORS)assert.ok(ownership.includes(operator),operator);
+ assert.match(ownership,/must be represented in calculatePlan/);assert.match(ownership,/Do not place such a derivation in requirements/);
+ assert.match(ownership,/no existing typed execution primitive owns/);
+});
+test('provider branches distinguish calculation ownership without classifying language',()=>{
+ const variants=askRequestProviderSchema({}).properties.request.anyOf;
+ const calculations=variants.filter(v=>v.properties.calculatePlan.type==='object');
+ assert.equal(calculations.length,2);for(const v of calculations)assert.match(v.description,/Mandatory saved_history branch.*supported deterministic CalculatePlan operations/);
+ const reads=variants.filter(v=>v.properties.calculatePlan.type==='null'&&v.properties.evidenceBasis.enum?.includes('saved_history'));
+ assert.equal(reads.length,2);for(const v of reads){assert.match(v.description,/requires no supported deterministic arithmetic or derivation/);assert.equal(v.properties.requirements.maxItems,8);}
+});
+test('requirements describe non-executable residual work with no factual authority',()=>{
+ const d=askRequestSchema({}).properties.requirements.description;
+ for(const term of ['NON-EXECUTABLE','unsupported companion analysis','CalculatePlan work','selection','profile lookup','StoredRead','mutation','no source authority','cannot trigger arithmetic'])assert.ok(d.includes(term),term);
+ assert.match(ASK_REQUEST_INSTRUCTIONS,/A factual comparison or measurement read alone does not imply arithmetic/);
+});
+for(const operator of CALCULATE_OPERATORS)test('residual '+operator+' text cannot cause Binder to invent arithmetic',()=>{
+ const q='Read the saved observations for Aster.';const p={...base(q),calculatePlan:null,requirements:['Apply '+operator+' to the retrieved facts.']};
+ const bound=validateAskRequest(p,context(q));assert.equal(bound.request.calculatePlan??null,null);assert.deepEqual(bound.request.requirements,p.requirements);
+});
+test('residual completion cannot borrow factual sources or count limited work as complete',()=>{
+ const obligations=[{index:1,kind:'residual_requirement',text:'Unsupported companion analysis.',representedSourceIds:[]}];
+ const review=reviewObligationCompletion(obligations,[{index:1,status:'limited',sentenceIndexes:[0]}],[{sourceIds:['fact']}],[{sourceId:'fact',petId:'owned'}]);
+ assert.deepEqual(review.completion[0].sourceIds,[]);assert.equal(historyTaskCompleted([{index:0,status:'answered'},...review.completion]),false);
+});
