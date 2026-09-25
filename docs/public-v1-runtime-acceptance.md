@@ -268,3 +268,16 @@ After pass:
 6. watch production errors immediately after promotion.
 
 No H-M work is authorized by this gate.
+
+
+## Browser access status
+
+The exact rehearsal preview remains behind Vercel Deployment Protection.
+
+Two independent browser attempts against the rehearsal host were redirected to Vercel login/SSO before Furvise loaded. A TinyFish default saved profile was also tested; no authenticated saved profile exists yet.
+
+No credentials were entered and no application data was mutated.
+
+Therefore R1-R12 remain explicitly unpassed. Do not infer runtime success from build/source/database evidence.
+
+To execute R1-R12, use a persistent browser context already authenticated through the Vercel protection layer, then sign into Furvise with the dedicated acceptance account.

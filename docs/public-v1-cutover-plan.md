@@ -123,6 +123,21 @@ For this cutover:
 If a future V2 release needs those migrations, handle them as a separately reviewed database change.
 
 
+
+## Live idempotency, credit, and billing authority evidence
+
+Read-only production inspection confirmed:
+
+- idempotency mutation functions (`claim_idempotency_operation`, `complete_idempotency_operation`, `fail_idempotency_operation`, `abandon_idempotency_operation`) are executable by `service_role` only;
+- AI credit settlement functions (`reserve_ai_credit`, `complete_ai_credit`, `release_ai_credit`, `set_ai_credit_disposition`, `reconcile_ai_credit`) are executable by `service_role` only;
+- user-facing `get_my_ask_allowance_status()` and `get_my_entitlements()` are not callable by `anon`, are callable by `authenticated`, and bind identity through `auth.uid()`;
+- billing checkout single-flight functions (`claim_billing_checkout_single_flight_v2`, `complete_billing_checkout_single_flight`, `abandon_billing_checkout_single_flight`, `reset_billing_checkout_single_flight`) are service-role-only;
+- Stripe customer/subscription projection functions used by the server are also service-role-only.
+
+The frozen RC source additionally binds idempotency operations to both authenticated `userId` and payload hash, and Stripe checkout uses its own single-flight attempt plus Stripe idempotency key.
+
+These checks do not replace runtime retry acceptance, but they establish that normal clients cannot directly bypass the server-owned idempotency, credit-settlement, or checkout state machines.
+
 ## Rollback
 
 Application rollback is the first response to a bad cutover.
