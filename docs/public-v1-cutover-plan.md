@@ -59,6 +59,68 @@ Cutover must not introduce a database migration merely to solve Git ancestry.
 
 Before production promotion, verify the live database already satisfies the schema required by the frozen RC. If schema parity is uncertain, stop before writes and perform compatibility checks only.
 
+
+## Cutover rehearsal evidence
+
+A real main-descended rehearsal has already been created without touching main:
+
+- rehearsal branch: `launch/public-v1-cutover-rehearsal`
+- rehearsal commit: `747a9154a3fdb7e3ace2a6396c67eb6d4a2b1b5a`
+- parent: `e2ab3a05690d115bff6c58719570ea1859920655` (current main)
+- tree: `aac9fd48da5fbfa1168c48656688b3a86be95b34` (exact RC tree)
+- Git comparison: one commit ahead of main
+- Vercel deployment: `dpl_CwS5wqeYVQgEFLowk5fi5E9N9apn`
+- Vercel state: READY
+
+This proves the ancestry repair can be done as a one-commit snapshot transplant without merging unrelated histories.
+
+## Live Supabase compatibility evidence
+
+Read-only production inspection on 2026-09-25 established:
+
+- the live migration history contains 129 recorded migrations;
+- thirteen RC migration filenames differ only by timestamp from already-applied migrations with the same names;
+- seven RC migrations dated 2026-09-23 are not present in live migration history:
+  - `canonical_append_items`
+  - `preserve_canonical_replace_body_fidelity`
+  - `isolate_canonical_ask_sql_inference`
+  - `bind_ask_suggestions_to_canonical_jobs`
+  - `generalize_canonical_replace_targets`
+  - `canonical_care_history_remove`
+  - `canonical_pet_remove_receipt_survival`
+- those seven migrations implement the deferred Ask-write/canonical mutation surface;
+- frozen V1 Ask mutations are disabled at the server capability boundary;
+- retained V1 history reads use the existing live functions:
+  - `read_ask_history_candidates`
+  - `read_ask_history_candidates_latest`
+  - `read_ask_history_correction_page`
+- retained explicit UI writes use the existing live boundaries:
+  - owned insert into `pet_care_entries`
+  - `update_my_care_entry`
+  - `remove_my_care_entry`
+  - `delete_pet_profile_for_user`
+- the history candidate RPCs resolve caller identity through `ask_history_request_owner()`, which returns `auth.uid()`, and then independently re-check pet and row ownership;
+- the live entitlement resolver matches launch limits: Free 1 pet, Plus 5 pets.
+
+Therefore the seven unapplied September 23 migrations are not required to operate the frozen public-V1 surface.
+
+### V1 database deployment rule
+
+**Do not run `supabase db push` as part of the public-V1 application cutover.**
+
+The repository intentionally contains post-V1/V2 schema work that is not live. A generic migration push would apply those migrations and would turn an application-only V1 release into a database release.
+
+For this cutover:
+- application artifact only;
+- zero new database migrations;
+- no migration repair;
+- no migration-history edits;
+- no schema cleanup;
+- no V2 canonical-write activation.
+
+If a future V2 release needs those migrations, handle them as a separately reviewed database change.
+
+
 ## Rollback
 
 Application rollback is the first response to a bad cutover.
