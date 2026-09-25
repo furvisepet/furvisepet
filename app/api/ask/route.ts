@@ -574,7 +574,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
             clarificationQuestion: null, handledWithoutAi: true };
         }
       }
-      if (interpretation.request && !interpretation.clarification
+      if (!interpretation.clarification
         && !publicV1RequestIsSupportedAskRead(interpretation.request)) {
         if (creditReserved) {
           const released = await safeReleaseAiCredit({ logicalRequestId: logicalTurnId, payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });

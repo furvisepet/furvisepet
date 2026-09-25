@@ -23,6 +23,7 @@ test("public v1 capability policy is deliberately narrow", () => {
   assert.equal(policy.publicV1RequestIsSupportedAskRead({ mode: "read", readTicket: {} }), true);
   assert.equal(policy.publicV1RequestIsSupportedAskRead({ mode: "read", storedRead: { domain: "memory" } }), true);
   assert.equal(policy.publicV1RequestIsSupportedAskRead({ mode: "read", profileFields: ["weight"] }), true);
+  assert.equal(policy.publicV1RequestIsSupportedAskRead(undefined), false);
   assert.equal(policy.publicV1RequestIsSupportedAskRead({ mode: "conversation", calculatePlan: null }), false);
   assert.equal(policy.publicV1RequestIsSupportedAskRead({ mode: "read", readTicket: {}, calculatePlan: {} }), false);
 });
