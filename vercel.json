@@ -1,0 +1,3 @@
+{
+  "buildCommand": "node --test tests/v1-diag-append-error-cap.test.mjs && npm run build"
+}
