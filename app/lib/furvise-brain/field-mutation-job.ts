@@ -58,6 +58,7 @@ export function profileMutationValue(field: ProfileMutationField, quote: string)
     return Object.freeze({ kind: "sex", value });
   }
   if (!writableProfileFields.includes(field)) return fail("field");
+  if (["name", "breed", "current_food"].includes(field) && quote.length > 300) return fail("value");
   return Object.freeze({ kind: "text", value: quote });
 }
 export function fieldMutationActionValue(job: FieldMutationJob): string | null {
