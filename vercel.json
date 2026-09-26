@@ -1,0 +1,3 @@
+{
+  "buildCommand": "node --experimental-transform-types --test --test-name-pattern=\"confirmed batch\" tests/append-items-authority.test.mjs && npm run build"
+}
