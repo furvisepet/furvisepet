@@ -8,8 +8,8 @@ test("owner preference capability execution stays USER-scoped and source-bound",
   assert.match(migration, /fieldMutationJob,domain}'' is distinct from ''owner_preference''/);
   assert.match(migration, /fieldMutationJob,ownerId}'' is distinct from v\.user_id::text/);
   assert.match(migration, /fieldMutationJob,sourceMessageId}'' is distinct from v\.source_message_id::text/);
-  assert.match(migration, /subject_type,''owner''/);
-  assert.match(migration, /pet_id/);
+  assert.match(migration, /user_id,pet_id,subject_type,category,fact_key/);
+  assert.match(migration, /v\.user_id,null,''owner'',''communication_preference''/);
   assert.match(migration, /''ask_message'',v\.source_message_id/);
   assert.match(migration, /fieldMutationJob,instruction,text/);
 });

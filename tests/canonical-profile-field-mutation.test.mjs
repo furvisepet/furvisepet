@@ -29,7 +29,7 @@ test("canonical profile mutation snapshots freshness and executes only typed fie
   assert.match(migration, /fieldMutationJob,domain/);
   assert.match(migration, /fieldMutationJob,sourceMessageId/);
   for (const field of ["weight","sex","name","breed","current_food","routine_note"]) assert.match(migration, new RegExp(field));
-  assert.doesNotMatch(migration, /currentMessage|question|includes\(|like '%|regexp_matches/);
+  assert.doesNotMatch(migration, /currentMessage|user_text|includes\(|like '%|regexp_matches/);
 });
 
 test("profile capability version binding requires exactly one freshness snapshot", () => {
