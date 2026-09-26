@@ -1,0 +1,3 @@
+{
+  "buildCommand": "node --test --test-name-pattern='reject' tests/gate-append-rejections.mjs && npm run build"
+}
