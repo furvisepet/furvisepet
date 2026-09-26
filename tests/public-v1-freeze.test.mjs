@@ -6,19 +6,24 @@ const read = path => readFileSync(new URL(path, root), "utf8");
 const policy = await import("../app/lib/public-v1-capabilities.ts");
 test("public v1 capability policy is deliberately narrow", () => {
   assert.equal(policy.PUBLIC_V1_CAPABILITIES.calculationExecution, false);
-  assert.equal(policy.PUBLIC_V1_CAPABILITIES.askMutations, false);
+  assert.equal(policy.PUBLIC_V1_CAPABILITIES.askMutations, true);
   assert.equal(policy.PUBLIC_V1_CAPABILITIES.vetBriefGeneration, false);
-  for (const key of ["appendJob","writeJob","removeJob","fieldMutationJob","stateTransitionJob","task"])
-    assert.equal(policy.publicV1RequestHasExcludedAskMutation({ [key]: {} }), true, key);
+  for (const key of ["appendJob","writeJob","removeJob","fieldMutationJob","stateTransitionJob","task"]) {
+    assert.equal(policy.publicV1RequestHasExcludedAskMutation({ [key]: {} }), false, key);
+    assert.equal(policy.publicV1AskCapability({ mode: "update", [key]: {} }).available, true, key);
+  }
   assert.equal(policy.publicV1RequestHasExcludedAskMutation({
     lifecyclePlan: { pendingDisposition: "keep", transition: null, requiredSubjectState: "active", authorizationQuote: "Milo" },
   }), false, "read-only lifecycle requirement");
   assert.equal(policy.publicV1RequestHasExcludedAskMutation({
     lifecyclePlan: { pendingDisposition: "keep", transition: { targetPetName: "Milo", toState: "archived" }, requiredSubjectState: null, authorizationQuote: "archive Milo" },
-  }), true, "lifecycle transition");
+  }), false, "lifecycle transition");
+  assert.equal(policy.publicV1AskCapability({
+    mode: "update", lifecyclePlan: { pendingDisposition: "keep", transition: { targetPetName: "Milo", toState: "archived" } },
+  }).available, true, "lifecycle transition capability");
   assert.equal(policy.publicV1RequestHasExcludedAskMutation({
     lifecyclePlan: { pendingDisposition: "cancel", transition: null, requiredSubjectState: null, authorizationQuote: "cancel" },
-  }), true, "lifecycle cancellation");
+  }), false, "lifecycle cancellation");
   assert.equal(policy.publicV1RequestHasExcludedAskMutation({ storedRead: { domain: "memory" } }), false);
   assert.equal(policy.publicV1AskCapability({ mode: "read", readTicket: {} }).available, true);
   assert.equal(policy.publicV1AskCapability({ mode: "read", storedRead: { domain: "memory" } }).available, true);
@@ -38,13 +43,13 @@ test("Ask uses one typed capability boundary before mutation executors", () => {
   assert.doesNotMatch(route, /publicV1RequestIsSupportedAskRead/);
   assert.match(route, /if \(!PUBLIC_V1_CAPABILITIES\.askMutations\) return \{ applicationActions: \[\], applicationStateChanged: false \};/);
 });
-test("stored Ask effects and new Vet Brief generation are server-blocked", () => {
+test("Ask write execution is enabled while new Vet Brief generation stays blocked", () => {
   assert.match(read("app/api/ask/actions/[messageId]/route.ts"), /if \(!PUBLIC_V1_CAPABILITIES\.askMutations\) return unavailable\(\);/);
-  assert.match(read("app/api/ask/suggestions/[id]/route.ts"), /Ask suggestions cannot change saved information in the public beta/);
+  assert.match(read("app/api/ask/suggestions/[id]/route.ts"), /if \(!PUBLIC_V1_CAPABILITIES\.askMutations\)/);
   assert.match(read("app/api/vet-briefs/draft/route.ts"), /VET_BRIEF_UNAVAILABLE_PUBLIC_V1/);
   assert.match(read("app/api/vet-briefs/route.ts"), /VET_BRIEF_UNAVAILABLE_PUBLIC_V1/);
 });
-test("public surfaces do not advertise Ask effects or new Vet Brief generation", () => {
+test("public Ask surfaces expose governed actions while Vet Brief generation stays hidden", () => {
   const ask = read("app/ask/page.tsx");
   assert.match(ask, /PUBLIC_V1_CAPABILITIES\.askMutations[\s\S]*: \["copy"\]/);
   assert.match(ask, /PUBLIC_V1_CAPABILITIES\.askMutations && messageVariant/);
