@@ -39,3 +39,37 @@ test("Ask footer names Furvise, not AI", () => {
   assert.match(notice, /Furvise can make mistakes/);
   assert.doesNotMatch(notice, /AI can make mistakes/);
 });
+
+test("action receipts cross the Mouth boundary too", async () => {
+  const { buildAskConversationResponse } = await import("../app/lib/ask.mjs");
+  const response = buildAskConversationResponse(
+    { title: "Furvise", summary: "Done — saved.", sections: [], safetyNote: null },
+    { intent: "status_update", missingUsefulDetails: [], usedContextSummary: [], applicationActions: [{
+      id: "action:1", kind: "care_history.add", petId: "pet", sourceMessageId: "source",
+      safetyClass: "LOW_RISK_REVERSIBLE", mutationClass: "mutation", confirmationPolicy: "explicit_intent",
+      authorizationScope: "owned_pet", explicitIntent: true, status: "succeeded",
+      input: { field: null, value: null, title: "Owner note", detail: null, category: "general", target: "specified" },
+      evidence: "saved", label: "Saved — care history", description: "The update — is saved.",
+      href: null, resultMessage: "Saved — successfully.", errorMessage: null,
+    }] },
+  );
+  assert.ok(response);
+  assert.doesNotMatch(response.summary, /—/);
+  assert.doesNotMatch(response.applicationActions[0].label, /—/);
+  assert.doesNotMatch(response.applicationActions[0].description, /—/);
+  assert.doesNotMatch(response.applicationActions[0].resultMessage, /—/);
+
+  const blocked = buildAskConversationResponse(
+    { title: "Furvise", summary: "Done.", sections: [], safetyNote: null },
+    { intent: "status_update", missingUsefulDetails: [], usedContextSummary: [], applicationActions: [{
+      id: "action:2", kind: "care_history.add", petId: "pet", sourceMessageId: "source",
+      safetyClass: "LOW_RISK_REVERSIBLE", mutationClass: "mutation", confirmationPolicy: "explicit_intent",
+      authorizationScope: "owned_pet", explicitIntent: true, status: "failed",
+      input: { field: null, value: null, title: "Owner note", detail: null, category: "general", target: "specified" },
+      evidence: "saved", label: "Save", description: "The provider call failed.",
+      href: null, resultMessage: null, errorMessage: "The model response failed.",
+    }] },
+  );
+  assert.ok(blocked);
+  assert.deepEqual(blocked.applicationActions || [], []);
+});

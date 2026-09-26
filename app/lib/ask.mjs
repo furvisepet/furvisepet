@@ -170,6 +170,9 @@ function cleanApplicationActions(value) {
     const petId = cleanActionIdentifier(candidate.petId, 80);
     if (!id || !kind || !petId) return [];
     if (typeof candidate.label !== "string" || typeof candidate.description !== "string" || !candidate.input || typeof candidate.input !== "object") return [];
+    const authoredActionText = [candidate.label, candidate.description, candidate.resultMessage, candidate.errorMessage]
+      .filter((item) => typeof item === "string");
+    if (authoredActionText.some((text) => containsFurviseImplementationTrace(text))) return [];
     if (!["READ_ONLY", "LOW_RISK_REVERSIBLE", "CONFIRMATION_REQUIRED", "DESTRUCTIVE"].includes(candidate.safetyClass)) return [];
     if (!["proposed", "confirmation_required", "succeeded", "failed", "cancelled"].includes(candidate.status)) return [];
     return [{
@@ -747,13 +750,14 @@ function cleanText(value) {
   // This is presentation only. A source quotation may contain markdown-like
   // punctuation, units or identifiers. Do not rewrite its literal contents.
   // Quotation marks never exempt model output from server safety governance.
-  return String(value || "").split(/("(?:[^"\\]|\\.)*")/g).map((part, index) => index % 2 ? part : part
+  const cleaned = String(value || "").split(/("(?:[^"\\]|\\.)*")/g).map((part, index) => index % 2 ? part : part
     .replace(/```[\s\S]*?```/g, " ")
     .replace(/(\*\*|__|`)([^\n]+?)\1/g, "$2")
     .replace(/(?<!\w)[*_]([^\n]+?)[*_](?!\w)/g, "$1")
     .replace(/^\s*(?:#{1,6}\s+|>\s+)/gm, "")
     .replace(/^\s*[-+]\s+/gm, "")
     .replace(/\s+/g, " ")).join("").trim();
+  return normalizeFurviseAuthoredText(cleaned);
 }
 
 function cleanAnswerProse(value) {
