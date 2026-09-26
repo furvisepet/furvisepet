@@ -1,21 +1,32 @@
 import { isDeepStrictEqual } from "node:util";
 import type { FurviseApplicationAction } from "../application-actions/types.ts";
 
-/** This adapter covers canonical ledger and profile-removal capability writes. It does not grant
- * authorization or reinterpret language; the existing action gate does that. */
+/** Every mutation kind that may cross the canonical Ask capability executor.
+ * This adapter never grants authority. It only confirms the immutable terminal
+ * receipt persisted by Heart after the existing action gate authorizes it. */
 const operations = {
   "care_history.add": "append",
   "care_history.edit": "replace",
   "care_history.remove": "remove",
+  "care_state.resolve": "state_transition",
+  "care_state.reopen": "state_transition",
+  "pet.update_profile": "profile",
+  "memory.set_preference": "preference",
+  "memory.forget_preference": "preference",
+  "pet.mark_deceased": "lifecycle",
+  "pet.mark_active": "lifecycle",
+  "pet.archive": "lifecycle",
   "pet.delete_permanently": "remove",
 } as const;
 
-export function canonicalWriteOperation(kind: FurviseApplicationAction["kind"]) {
+export type FurviseWriteOperation = typeof operations[keyof typeof operations];
+
+export function canonicalWriteOperation(kind: FurviseApplicationAction["kind"]): FurviseWriteOperation | null {
   return operations[kind as keyof typeof operations] ?? null;
 }
 
 export type FurviseWriteReceipt = Readonly<{
-  operation: "append" | "replace" | "remove";
+  operation: FurviseWriteOperation;
   operationId: string;
   petId: string;
   sourceMessageId: string;
@@ -25,7 +36,11 @@ export type FurviseWriteReceipt = Readonly<{
 /** A transport response is not durable proof. The caller must reload the
  * capability with the same authenticated owner, assistant message and id.
  * Missing/read-failed receipts leave the result unconfirmed; retry uses the
- * original capability so the database can replay without another mutation. */
+ * original capability so the database can replay without another mutation.
+ *
+ * Receipt authority is operation-agnostic: every immutable field of the
+ * persisted receipt must equal the server-rebound action that was authorized.
+ * Only transport identity and terminal presentation fields may differ. */
 export function confirmFurviseWriteReceipt(input: {
   operationId: string;
   authorized: FurviseApplicationAction;
@@ -42,12 +57,7 @@ export function confirmFurviseWriteReceipt(input: {
     || receipt.petId !== input.authorized.petId
     || !input.authorized.sourceMessageId
     || receipt.sourceMessageId !== input.authorized.sourceMessageId
-    || !isDeepStrictEqual(receipt.appendJob, input.authorized.appendJob)
-    || !isDeepStrictEqual(receipt.removeJob, input.authorized.removeJob)
-    || !isDeepStrictEqual(receipt.replaceJob, input.authorized.replaceJob)
-    || receipt.targetSourceId !== input.authorized.targetSourceId
-    || !isDeepStrictEqual(receipt.input, input.authorized.input)
-    || (input.authorized.removeJob && !isDeepStrictEqual(immutableAction(receipt), immutableAction(input.authorized)))
+    || !isDeepStrictEqual(immutableAction(receipt), immutableAction(input.authorized))
     || !isDeepStrictEqual(receipt, input.returned)) {
     throw new Error("FURVISE_WRITE_RECEIPT_UNCONFIRMED");
   }
@@ -56,7 +66,7 @@ export function confirmFurviseWriteReceipt(input: {
 }
 
 function immutableAction(action: FurviseApplicationAction) {
-  const {id,status,resultMessage,errorMessage,...authority}=action;
-  void id;void status;void resultMessage;void errorMessage;
+  const { id, status, resultMessage, errorMessage, ...authority } = action;
+  void id; void status; void resultMessage; void errorMessage;
   return authority;
 }
