@@ -1,0 +1,3 @@
+{
+  "buildCommand": "node --experimental-transform-types --test tests/diag-real-import.test.mjs && npm run build"
+}
