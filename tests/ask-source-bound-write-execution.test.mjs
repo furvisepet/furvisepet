@@ -9,7 +9,7 @@ test("source-bound reversible Ask jobs carry server-verified explicit intent", (
   const capability = read("app/lib/application-actions/capabilities.ts");
   assert.match(planner, /prepareBoundReplaceAction[\s\S]*explicitIntent: true/);
   assert.match(planner, /prepareBoundFieldMutationAction[\s\S]*explicitIntent: false/);
-  assert.match(capability, /Boolean\(action\.appendJob \|\| action\.replaceJob \|\| action\.stateTransitionJob\)/);
+  assert.match(capability, /Boolean\(action\.appendJob \|\| action\.replaceJob \|\| action\.fieldMutationJob \|\| action\.stateTransitionJob\)/);
 });
 
 test("destructive and lifecycle confirmation policy remains authoritative", () => {
@@ -23,4 +23,12 @@ test("append auto-execution crosses the capability executor and no route special
   const route = read("app/api/ask/route.ts");
   assert.match(append, /shouldAutoExecuteAction\(executable\)[\s\S]*executeActionCapability\([\s\S]*mode: "auto"/);
   assert.doesNotMatch(route, /action\.kind === "care_history\.add" \|\| !shouldAutoExecuteAction/);
+});
+
+test("planner proposals cannot self-authorize field writes before canonical rebinding", () => {
+  const planner = read("app/lib/application-actions/planner.ts");
+  const capability = read("app/lib/application-actions/capabilities.ts");
+  assert.match(planner, /prepareBoundFieldMutationAction[\s\S]*explicitIntent: false/);
+  assert.match(capability, /rebindCanonicalCapabilityAction[\s\S]*fieldMutationActionMatches/);
+  assert.match(capability, /explicitIntent = Boolean\(action\.appendJob \|\| action\.replaceJob \|\| action\.fieldMutationJob \|\| action\.stateTransitionJob\)/);
 });
