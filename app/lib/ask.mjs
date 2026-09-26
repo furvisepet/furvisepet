@@ -341,6 +341,10 @@ export function parseAskResponse(value) {
   ) {
     return null;
   }
+  const authoredText = [draft.title, draft.summary, draft.safetyNote || "",
+    ...draft.sections.flatMap((section) => section && typeof section === "object"
+      ? [section.heading, ...(Array.isArray(section.items) ? section.items : [])] : [])];
+  if (authoredText.some((text) => typeof text === "string" && containsFurviseImplementationTrace(text))) return null;
 
   const title = cleanText(draft.title);
   const summary = cleanAnswerProse(draft.summary);
@@ -736,6 +740,21 @@ function capCareNote(value, maxLength = 500) {
   const normalized = cleanText(value);
   if (normalized.length <= maxLength) return normalized;
   return `${normalized.slice(0, maxLength - 1).trimEnd()}...`;
+}
+
+const furviseImplementationTracePattern = /\b(?:openai|chatgpt|gpt(?:[-.][a-z0-9.]+)?|language model|model (?:output|response|reasoning|call)|provider (?:call|response|request|error)|system prompt|developer message|hidden instructions?|token (?:budget|limit|count)|semantic contract|structured output schema|generation pipeline|internal prompt)\b/i;
+
+function proseSegments(value) {
+  return String(value || "").split(/("(?:[^"\\]|\\.)*"|“[^”]*”)/g)
+    .filter((_, index) => index % 2 === 0);
+}
+
+export function containsFurviseImplementationTrace(value) {
+  return proseSegments(value).some((part) => furviseImplementationTracePattern.test(part));
+}
+
+function normalizeFurvisePunctuation(value) {
+  return String(value || "").replace(/\s*—\s*/g, ", ");
 }
 
 function cleanText(value) {
