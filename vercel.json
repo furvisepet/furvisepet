@@ -1,0 +1,3 @@
+{
+  "buildCommand": "node --test tests/ask-mouth-invariants.test.mjs && npm run build"
+}
