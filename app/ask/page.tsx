@@ -473,6 +473,7 @@ function AskPageContent() {
       petId: selectedPet,
     });
     const userMessageId = retry?.userMessageId || createMessageId("user");
+    let durableUserMessageId = userMessageId;
     const pendingFirstTurn = !retry && !conversationIdAtSubmit;
     const recoveryRequestId = logicalTurnId;
     if (pendingFirstTurn) persistPendingAskRecovery(window.sessionStorage, { requestId: recoveryRequestId, petId: requestPayload.petId, startedAt: Date.now() });
@@ -506,8 +507,11 @@ function AskPageContent() {
         setActiveConversationId(payload.conversationId);
         replaceAskLocation({ conversationId: payload.conversationId });
       }
-      if (payload?.userMessageId && payload.userMessageId !== userMessageId) {
-        setThread((current) => reconcileLogicalUserTurn(current, userMessageId, payload.userMessageId, prompt));
+      if (payload?.userMessageId) {
+        durableUserMessageId = payload.userMessageId;
+        if (durableUserMessageId !== userMessageId) {
+          setThread((current) => reconcileLogicalUserTurn(current, userMessageId, durableUserMessageId, prompt));
+        }
       }
       const parsed = parseAskConversationResponse(payload?.response) as StructuredResponse | null;
       if (payload?.usage) setUsage(payload.usage);
@@ -542,7 +546,6 @@ function AskPageContent() {
         setQuestion(requestPayload.message);
         persistAskDraft(window.localStorage, conversationIdAtSubmit, selectedPet, requestPayload.message);
       }
-      const durableUserMessageId = payload?.userMessageId || userMessageId;
       setFailedRequest({ code: failure.code, payload: requestPayload, logicalTurnId, retryAfterSeconds: failure.retryAfterSeconds, scope, userMessageId: durableUserMessageId });
       setRequestPhase("failed");
       trackAskEvent("answer_failed", { source });
