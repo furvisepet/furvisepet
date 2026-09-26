@@ -27,16 +27,14 @@ test("public v1 capability policy is deliberately narrow", () => {
   assert.equal(policy.publicV1AskCapability({ mode: "conversation", calculatePlan: null }).reason, "unplanned");
   assert.equal(policy.publicV1AskCapability({ mode: "read", readTicket: null, calculatePlan: {} }).reason, "calculation");
 });
-test("Ask blocks typed mutation plans before mutation planner branches", () => {
+test("Ask uses one typed capability boundary before mutation executors", () => {
   const route = read("app/api/ask/route.ts");
-  const gate = route.indexOf("publicV1RequestHasExcludedAskMutation(interpretation.request)");
+  const gate = route.indexOf("publicV1AskCapability(interpretation.request)");
   assert.ok(gate > 0);
   for (const marker of ["if (interpretation.request?.appendJob)","continueLifecyclePlan({","if (interpretation.request?.stateTransitionJob)","if (interpretation.request?.fieldMutationJob)","if (interpretation.request?.removeJob)","const replaceJob = interpretation.request?.writeJob"])
     assert.ok(route.indexOf(marker) > gate, marker);
   assert.match(route, /authorizedLearnings: PUBLIC_V1_CAPABILITIES\.askMutations/);
-  const capabilityGate = route.indexOf("publicV1AskCapability(interpretation.request)");
-  assert.ok(capabilityGate > gate);
-  assert.ok(capabilityGate < route.indexOf("continueLifecyclePlan({"));
+  assert.doesNotMatch(route, /publicV1RequestHasExcludedAskMutation\(interpretation\.request\)/);
   assert.doesNotMatch(route, /publicV1RequestIsSupportedAskRead/);
   assert.match(route, /if \(!PUBLIC_V1_CAPABILITIES\.askMutations\) return \{ applicationActions: \[\], applicationStateChanged: false \};/);
 });
