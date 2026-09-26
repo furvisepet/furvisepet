@@ -1,0 +1,3 @@
+{
+  "buildCommand": "node --test tests/profile-mutation-job.test.mjs tests/ask-action-capability-security-regressions.test.mjs && npm run build"
+}
