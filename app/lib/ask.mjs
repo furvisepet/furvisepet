@@ -742,7 +742,7 @@ function capCareNote(value, maxLength = 500) {
   return `${normalized.slice(0, maxLength - 1).trimEnd()}...`;
 }
 
-const furviseImplementationTracePattern = /\b(?:openai|chatgpt|gpt(?:[-.][a-z0-9.]+)?|language model|model (?:output|response|reasoning|call)|provider (?:call|response|request|error)|system prompt|developer message|hidden instructions?|token (?:budget|limit|count)|semantic contract|structured output schema|generation pipeline|internal prompt)\b/i;
+const furviseImplementationTracePattern = /\b(?:ai|openai|chatgpt|gpt(?:[-.][a-z0-9.]+)?|language model|model (?:output|response|reasoning|call)|provider (?:call|response|request|error)|system prompt|developer message|hidden instructions?|token (?:budget|limit|count)|semantic contract|structured output schema|generation pipeline|internal prompt)\b/i;
 
 function proseSegments(value) {
   return String(value || "").split(/("(?:[^"\\]|\\.)*"|“[^”]*”)/g)

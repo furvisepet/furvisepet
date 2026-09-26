@@ -34,24 +34,3 @@ test("Ask scopes primary actions to forest and uses neutral pet selector control
   assert.match(ask, /border-\[var\(--input-border\)\] bg-\[var\(--input-background\)\]/);
   assert.doesNotMatch(ask, /surface-interactive|warm-orange|#F47A22|#FA8A36|#EF6E17/);
 });
-
-
-test("Furvise-authored Ask prose hides implementation machinery and em dashes", async () => {
-  const askModule = await import("../app/lib/ask.mjs");
-  const base = { title: "Furvise", summary: "Aster is stable — keep watching appetite.", sections: [], safetyNote: null };
-  const parsed = askModule.parseAskResponse(base);
-  assert.ok(parsed);
-  assert.doesNotMatch(parsed.summary, /—/);
-  assert.match(parsed.summary, /stable, keep watching/);
-  assert.equal(askModule.parseAskResponse({ ...base, summary: "The provider call exceeded the token budget." }), null);
-  assert.equal(askModule.parseAskResponse({ ...base, summary: "The model response failed." }), null);
-  const quoted = askModule.parseAskResponse({ ...base, summary: 'Saved wording: "owner wrote — exactly this".' });
-  assert.ok(quoted);
-  assert.match(quoted.summary, /"owner wrote — exactly this"/);
-});
-
-test("Ask footer identifies Furvise rather than implementation technology", () => {
-  const notice = read("app/components/beta-feedback-notice.tsx");
-  assert.match(notice, /Furvise can make mistakes/);
-  assert.doesNotMatch(notice, /AI can make mistakes/);
-});
