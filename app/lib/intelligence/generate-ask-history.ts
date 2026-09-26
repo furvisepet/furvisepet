@@ -47,20 +47,24 @@ export async function generateAskHistoryAnswer({ supabase, onStage, ...input }: 
 
   const ordinaryHistory = isOrdinarySavedHistoryRequest(input.context.askInterpretation?.request);
   const request = input.context.askInterpretation?.request;
-  const capability = request?.calculatePlan && request.readTicket
-    ? calculationCapability(request.calculatePlan, request.readTicket) : null;
+  const capability = request?.calculatePlan
+    ? calculationCapability(request.calculatePlan, request.readTicket ?? null) : null;
   const calculationUnsupported = capability?.supported === false;
+  const suppliedPremiseCalculation = capability?.supported === true
+    && request?.evidenceBasis === "supplied_context" && !request.readTicket;
   if (capability) console.info("[Ask Calculation] capability", capability);
-  if (!calculationUnsupported) onStage?.("history_retrieval");
-  let context = calculationUnsupported ? input.context : await retrieveFurviseMemory(input.context, supabase, brainTurn);
+  if (!calculationUnsupported && !suppliedPremiseCalculation) onStage?.("history_retrieval");
+  let context = calculationUnsupported || suppliedPremiseCalculation
+    ? input.context : await retrieveFurviseMemory(input.context, supabase, brainTurn);
   onStage?.("episode_retrieval");
-  if (!calculationUnsupported && !ordinaryHistory && (memoryRead.depth === "targeted" || memoryRead.depth === "lifetime") && readPetIds.length) {
+  if (!calculationUnsupported && !suppliedPremiseCalculation && !ordinaryHistory
+    && (memoryRead.depth === "targeted" || memoryRead.depth === "lifetime") && readPetIds.length) {
     context = await retrieveEpisodeHistory(context, supabase, readPetIds);
   }
   onStage?.("answer_generation");
   const intelligenceResult = await runFurviseIntelligence({ ...input, context,
     evidenceContract: createAskEvidenceContract(context, readPetIds) });
-  if (!calculationUnsupported && !ordinaryHistory && context.episodeResult) {
+  if (!calculationUnsupported && !suppliedPremiseCalculation && !ordinaryHistory && context.episodeResult) {
     // Generation can take seconds. Revalidate after it, before returning a list
     // or references for display/persistence. Never silently substitute a new list.
     onStage?.("episode_revalidation");
