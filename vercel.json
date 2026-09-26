@@ -1,0 +1,3 @@
+{
+  "buildCommand": "npm run test:v1-calc-mouth && npm run build"
+}
