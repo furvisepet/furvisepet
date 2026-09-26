@@ -35,5 +35,6 @@ test("canonical profile mutation snapshots freshness and executes only typed fie
 test("profile capability version binding requires exactly one freshness snapshot", () => {
   assert.match(migration, /drop constraint if exists ask_action_capabilities_version_binding_check/);
   assert.match(migration, /pet\.update_profile'[\s\S]*target_updated_at is not null/);
-  assert.match(migration, /action_kind not in \('care_history\.edit','care_history\.remove','care_state\.resolve','care_state\.reopen','pet\.update_profile'\)[\s\S]*target_updated_at is null/);
+  assert.match(migration, /pet\.delete_permanently'[\s\S]*status <> 'pending' or target_updated_at is not null/);
+  assert.match(migration, /action_kind not in \('care_history\.edit','care_history\.remove','care_state\.resolve','care_state\.reopen','pet\.update_profile','pet\.delete_permanently'\)[\s\S]*target_updated_at is null/);
 });

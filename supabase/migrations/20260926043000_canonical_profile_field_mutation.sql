@@ -9,7 +9,9 @@ alter table public.ask_action_capabilities
     (action_kind in ('care_history.edit','care_history.remove','care_state.resolve','care_state.reopen','pet.update_profile')
       and target_updated_at is not null)
     or
-    (action_kind not in ('care_history.edit','care_history.remove','care_state.resolve','care_state.reopen','pet.update_profile')
+    (action_kind = 'pet.delete_permanently' and (status <> 'pending' or target_updated_at is not null))
+    or
+    (action_kind not in ('care_history.edit','care_history.remove','care_state.resolve','care_state.reopen','pet.update_profile','pet.delete_permanently')
       and target_updated_at is null)
   );
 
