@@ -1,0 +1,3 @@
+{
+  "buildCommand": "node --test tests/v1-write-remove-runner.mjs && npm run build"
+}
