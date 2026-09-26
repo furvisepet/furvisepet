@@ -1,0 +1,3 @@
+{
+  "buildCommand": "node --test tests/canonical-profile-field-mutation.test.mjs tests/canonical-owner-preference-mutation.test.mjs && npm run build"
+}
