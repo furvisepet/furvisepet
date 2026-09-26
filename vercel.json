@@ -1,0 +1,3 @@
+{
+  "buildCommand": "node --test tests/ask-source-bound-write-execution.test.mjs tests/canonical-append-auto-authority.test.mjs && npm run build"
+}
