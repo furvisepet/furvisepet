@@ -20,12 +20,12 @@ test("public v1 capability policy is deliberately narrow", () => {
     lifecyclePlan: { pendingDisposition: "cancel", transition: null, requiredSubjectState: null, authorizationQuote: "cancel" },
   }), true, "lifecycle cancellation");
   assert.equal(policy.publicV1RequestHasExcludedAskMutation({ storedRead: { domain: "memory" } }), false);
-  assert.equal(policy.publicV1RequestIsSupportedAskRead({ mode: "read", readTicket: {} }), true);
-  assert.equal(policy.publicV1RequestIsSupportedAskRead({ mode: "read", storedRead: { domain: "memory" } }), true);
-  assert.equal(policy.publicV1RequestIsSupportedAskRead({ mode: "read", profileFields: ["weight"] }), true);
-  assert.equal(policy.publicV1RequestIsSupportedAskRead(undefined), false);
-  assert.equal(policy.publicV1RequestIsSupportedAskRead({ mode: "conversation", calculatePlan: null }), false);
-  assert.equal(policy.publicV1RequestIsSupportedAskRead({ mode: "read", readTicket: {}, calculatePlan: {} }), false);
+  assert.equal(policy.publicV1AskCapability({ mode: "read", readTicket: {} }).available, true);
+  assert.equal(policy.publicV1AskCapability({ mode: "read", storedRead: { domain: "memory" } }).available, true);
+  assert.equal(policy.publicV1AskCapability({ mode: "read", profileFields: ["weight"] }).available, true);
+  assert.equal(policy.publicV1AskCapability(undefined).reason, "unplanned");
+  assert.equal(policy.publicV1AskCapability({ mode: "conversation", calculatePlan: null }).reason, "unplanned");
+  assert.equal(policy.publicV1AskCapability({ mode: "read", readTicket: null, calculatePlan: {} }).reason, "calculation");
 });
 test("Ask blocks typed mutation plans before mutation planner branches", () => {
   const route = read("app/api/ask/route.ts");
@@ -34,9 +34,10 @@ test("Ask blocks typed mutation plans before mutation planner branches", () => {
   for (const marker of ["if (interpretation.request?.appendJob)","continueLifecyclePlan({","if (interpretation.request?.stateTransitionJob)","if (interpretation.request?.fieldMutationJob)","if (interpretation.request?.removeJob)","const replaceJob = interpretation.request?.writeJob"])
     assert.ok(route.indexOf(marker) > gate, marker);
   assert.match(route, /authorizedLearnings: PUBLIC_V1_CAPABILITIES\.askMutations/);
-  const readOnlyGate = route.indexOf("publicV1RequestIsSupportedAskRead(interpretation.request)");
-  assert.ok(readOnlyGate > gate);
-  assert.ok(readOnlyGate < route.indexOf("continueLifecyclePlan({"));
+  const capabilityGate = route.indexOf("publicV1AskCapability(interpretation.request)");
+  assert.ok(capabilityGate > gate);
+  assert.ok(capabilityGate < route.indexOf("continueLifecyclePlan({"));
+  assert.doesNotMatch(route, /publicV1RequestIsSupportedAskRead/);
   assert.match(route, /if \(!PUBLIC_V1_CAPABILITIES\.askMutations\) return \{ applicationActions: \[\], applicationStateChanged: false \};/);
 });
 test("stored Ask effects and new Vet Brief generation are server-blocked", () => {
