@@ -14,7 +14,8 @@ export type CalculationOperand={
  sourceSpan:SourceSpan|null; contextSpan:SourceSpan|null; numericText:string|null; measurementExact:Exact|null; measurementSelector:CalculateSlot["measurementSelector"];
 };
 export type CalculationDependency={role:CalculateRole;calculationId:string;operator:string;unit:string;exact:Exact};
-export type CalculationResult={id:string;status:"certified";operator:string;operands:CalculationOperand[];
+export type CalculationPremiseInput={role:CalculateRole;sourceId:string;sourceMessageId:string;literal:string;unit:string;exact:Exact};
+export type CalculationResult={id:string;status:"certified";operator:string;operands:CalculationOperand[];premiseInputs?:CalculationPremiseInput[];
  dependencyCalculationIds:string[];transitiveCalculationIds:string[];upstreamResults:CalculationDependency[];
  sourceIds:string[];subjectIds:string[];value:number;exact:{numerator:string;denominator:string};unit:string;precision:number|null}
  |{id:string;status:"limited";reason:string};
@@ -23,19 +24,19 @@ export type CalculateExecution={plan:CalculatePlan;results:CalculationResult[];r
 /** Only an unchanged server Labs transport can enter Muscle. Existing organ
  * receipts establish each semantic slot; neither array order nor text selects it.
  * All arithmetic is rational; precision affects presentation only. */
-export function executeCalculatePlan(proposed:CalculatePlan,read:LabsList):CalculateExecution {
+export function executeCalculatePlan(proposed:CalculatePlan,read:LabsList|null):CalculateExecution {
  const results:CalculationResult[]=[];
  const completed=new Map<string,{plan:CalculatePlan["calculations"][number];result:CalculationResult}>();
- const plan=rebindCalculatePlan(proposed,read.ticket);
- const snapshot=readLabsSnapshotMatches(read);
- const selected=selectionPublication(read.ticket,read.coverage,read.records);
+ const plan=rebindCalculatePlan(proposed,read?.ticket??null);
+ const snapshot=read ? readLabsSnapshotMatches(read) : false;
+ const selected=read ? selectionPublication(read.ticket,read.coverage,read.records) : null;
  for(const c of plan.calculations){
   try {
-   if(!snapshot)throw Error("read_snapshot_changed");
-   let result:Fraction;const operands:CalculationOperand[]=[];
+   let result:Fraction;const operands:CalculationOperand[]=[];const premiseInputs:CalculationPremiseInput[]=[];
    let sourceIds:string[]=[],subjectIds:string[]=[],dependencyCalculationIds:string[]=[],transitiveCalculationIds:string[]=[];
    const upstreamResults:CalculationDependency[]=[];
    if(c.operator==="count_records"){
+    if(!read||!snapshot)throw Error("read_snapshot_changed");
     const proof=read.coverage.resultSet;
     if(!proof?.certified||!proof.matchingSetComplete||!proof.representationComplete
      ||!["complete","complete_empty"].includes(read.coverage.status)
@@ -62,35 +63,50 @@ export function executeCalculatePlan(proposed:CalculatePlan,read:LabsList):Calcu
      transitiveCalculationIds=[...new Set(transitiveCalculationIds)];
      sourceIds=[...new Set(sourceIds)];subjectIds=[...new Set(subjectIds)];
     }else{
-     if(!selected?.transportValid)throw Error("selection_transport");
-     for(const slot of c.operands){
-      if(isResultOperand(slot))throw Error("mixed_operands");
-      if(isPremiseOperand(slot))throw Error("premise_execution_unavailable");
-      const certificate=selected.certificates.find(p=>p.subjectId===slot.subjectId&&p.clauseId===slot.clause);
-      if(!certificate?.certified||!certificate.lineageClosed)throw Error("slot_not_certified");
-      const id=certificate.selectedEventIds[slot.item];
-      const rows=read.records.filter(r=>r.id===id&&r.petId===slot.subjectId);
-      if(!id||rows.length!==1)throw Error("slot_missing");
-      const row=rows[0];let literal:string,value:number,unit:string,dimension:string,q:Fraction;
-      let sourceSpan:SourceSpan|null=null,contextSpan:SourceSpan|null=null,numericText:string|null=null,measurementExact:Exact|null=null;
-      if(slot.field==="event_at"){
-       literal=row.event_at;value=Date.parse(literal);if(!Number.isFinite(value))throw Error("event_time");
-       unit="instant";dimension="instant";q=fraction(BigInt(value));
-      }else{
-       const required=units[slot.unit!];
-       const candidates=measurementCandidates(row.body,required.dimension);
-       const selector=slot.measurementSelector;
-       const tokens=selector?candidates.filter(candidate=>selector.predicateIndexes.every(index=>
-        textMatchesReadPredicate(candidate.context,read.ticket.predicates[index]))):candidates;
-       if(tokens.length!==1)throw Error(selector
-        ?tokens.length?"measurement_selector_ambiguous":"measurement_selector_no_match"
-        :tokens.length?"ambiguous_measurement":"measurement_unavailable");
-       const token=tokens[0];literal=token.literal;unit=token.unit;dimension=token.dimension;
-       sourceSpan=token.sourceSpan;contextSpan=token.contextSpan;numericText=token.numericText;
-       const raw=token.exact;measurementExact=exact(raw);
-       value=finite(raw);q=mul(raw,factor(token.sourceUnit));finite(q);
+     const premiseRoot=c.operands.length>0&&c.operands.every(isPremiseOperand);
+     if(premiseRoot){
+      for(const premise of c.operands){
+       if(!isPremiseOperand(premise))throw Error("mixed_operands");
+       let q=rational(premise.exact);finite(q);
+       if(premise.unit!=="scalar")q=mul(q,factor(premise.unit));
+       finite(q);values.push({role:premise.role,value:q});
+       const sourceId="premise:"+premise.source.id;
+       premiseInputs.push({role:premise.role,sourceId,sourceMessageId:premise.source.sourceMessageId,
+        literal:premise.source.text,unit:premise.unit,exact:{...premise.exact}});
+       sourceIds.push(sourceId);
       }
-      values.push({role:slot.role,value:q});operands.push({slot,sourceId:row.sourceId,recordId:row.id,subjectId:row.petId,eventAt:row.event_at,literal,value,unit,dimension,body:row.body,sourceSpan,contextSpan,numericText,measurementExact,measurementSelector:slot.measurementSelector??null});
+      sourceIds=[...new Set(sourceIds)];
+     }else{
+      if(!read||!snapshot)throw Error("read_snapshot_changed");
+      if(!selected?.transportValid)throw Error("selection_transport");
+      for(const slot of c.operands){
+       if(isResultOperand(slot)||isPremiseOperand(slot))throw Error("mixed_operands");
+       const certificate=selected.certificates.find(p=>p.subjectId===slot.subjectId&&p.clauseId===slot.clause);
+       if(!certificate?.certified||!certificate.lineageClosed)throw Error("slot_not_certified");
+       const id=certificate.selectedEventIds[slot.item];
+       const rows=read.records.filter(r=>r.id===id&&r.petId===slot.subjectId);
+       if(!id||rows.length!==1)throw Error("slot_missing");
+       const row=rows[0];let literal:string,value:number,unit:string,dimension:string,q:Fraction;
+       let sourceSpan:SourceSpan|null=null,contextSpan:SourceSpan|null=null,numericText:string|null=null,measurementExact:Exact|null=null;
+       if(slot.field==="event_at"){
+        literal=row.event_at;value=Date.parse(literal);if(!Number.isFinite(value))throw Error("event_time");
+        unit="instant";dimension="instant";q=fraction(BigInt(value));
+       }else{
+        const required=units[slot.unit!];
+        const candidates=measurementCandidates(row.body,required.dimension);
+        const selector=slot.measurementSelector;
+        const tokens=selector?candidates.filter(candidate=>selector.predicateIndexes.every(index=>
+         textMatchesReadPredicate(candidate.context,read.ticket.predicates[index]))):candidates;
+        if(tokens.length!==1)throw Error(selector
+         ?tokens.length?"measurement_selector_ambiguous":"measurement_selector_no_match"
+         :tokens.length?"ambiguous_measurement":"measurement_unavailable");
+        const token=tokens[0];literal=token.literal;unit=token.unit;dimension=token.dimension;
+        sourceSpan=token.sourceSpan;contextSpan=token.contextSpan;numericText=token.numericText;
+        const raw=token.exact;measurementExact=exact(raw);
+        value=finite(raw);q=mul(raw,factor(token.sourceUnit));finite(q);
+       }
+       values.push({role:slot.role,value:q});operands.push({slot,sourceId:row.sourceId,recordId:row.id,subjectId:row.petId,eventAt:row.event_at,literal,value,unit,dimension,body:row.body,sourceSpan,contextSpan,numericText,measurementExact,measurementSelector:slot.measurementSelector??null});
+      }
      }
     }
     const valueFor=(role:CalculateRole):Fraction=>{
@@ -116,10 +132,12 @@ export function executeCalculatePlan(proposed:CalculatePlan,read:LabsList):Calcu
      if(c.operator==="convert")result=div(mul(result,factor(upstreamResults.find(r=>r.role==="source")!.unit)),factor(c.resultUnit));
     }else{
      if(["sum","mean","difference","absolute_difference","convert"].includes(c.operator))result=div(result,factor(c.resultUnit));
-     sourceIds=[...new Set(operands.map(o=>o.sourceId))];subjectIds=[...new Set(operands.map(o=>o.subjectId))];
+     if(!premiseInputs.length){
+      sourceIds=[...new Set(operands.map(o=>o.sourceId))];subjectIds=[...new Set(operands.map(o=>o.subjectId))];
+     }
     }
    }
-   results.push({id:c.id,status:"certified",operator:c.operator,operands,dependencyCalculationIds,transitiveCalculationIds,upstreamResults,sourceIds,subjectIds,value:finite(result),
+   results.push({id:c.id,status:"certified",operator:c.operator,operands,...(premiseInputs.length?{premiseInputs}:{}),dependencyCalculationIds,transitiveCalculationIds,upstreamResults,sourceIds,subjectIds,value:finite(result),
     exact:{numerator:String(result.n),denominator:String(result.d)},unit:c.resultUnit,precision:c.precision});
   }catch(e){results.push({id:c.id,status:"limited",reason:e instanceof Error?e.message:"calculation_unavailable"});}
   completed.set(c.id,{plan:c,result:results[results.length-1]});
