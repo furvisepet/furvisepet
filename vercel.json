@@ -1,0 +1,3 @@
+{
+  "buildCommand": "node --test tests/calculation-capability-orchestration.test.mjs tests/ask-planning-context-scope.test.mjs tests/ask-read-ticket-hygiene.test.mjs tests/ask-emergency-preflight.test.mjs && npm run build"
+}
