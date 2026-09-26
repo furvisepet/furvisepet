@@ -1,0 +1,3 @@
+{
+  "buildCommand": "npm run test:execution-slice && npm run build"
+}
