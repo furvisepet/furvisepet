@@ -1,4 +1,5 @@
 import { mapAskProse, FURVISE_URGENT_SAFETY_MESSAGE, buildFurviseSafetyLine } from "./furvise-output.ts";
+import { containsFurviseImplementationTrace, normalizeFurviseAuthoredText } from "./ask-mouth.ts";
 import { parseStoredFurviseActionKind } from "./application-actions/types.ts";
 
 const URGENT_CONTEXT_PATTERN =
@@ -740,21 +741,6 @@ function capCareNote(value, maxLength = 500) {
   const normalized = cleanText(value);
   if (normalized.length <= maxLength) return normalized;
   return `${normalized.slice(0, maxLength - 1).trimEnd()}...`;
-}
-
-const furviseImplementationTracePattern = /\b(?:ai|openai|chatgpt|gpt(?:[-.][a-z0-9.]+)?|language model|model (?:output|response|reasoning|call)|provider (?:call|response|request|error)|system prompt|developer message|hidden instructions?|token (?:budget|limit|count)|semantic contract|structured output schema|generation pipeline|internal prompt)\b/i;
-
-function proseSegments(value) {
-  return String(value || "").split(/("(?:[^"\\]|\\.)*"|“[^”]*”)/g)
-    .filter((_, index) => index % 2 === 0);
-}
-
-export function containsFurviseImplementationTrace(value) {
-  return proseSegments(value).some((part) => furviseImplementationTracePattern.test(part));
-}
-
-function normalizeFurvisePunctuation(value) {
-  return String(value || "").replace(/\s*—\s*/g, ", ");
 }
 
 function cleanText(value) {
