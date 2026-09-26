@@ -1,0 +1,3 @@
+{
+  "buildCommand": "node --test tests/calculation-capability.test.mjs && npm run build"
+}
