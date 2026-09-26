@@ -1,0 +1,3 @@
+{
+  "buildCommand": "node --test tests/append-items-authority.test.mjs > public/append-diag.txt 2>&1 || true; npm run build"
+}
