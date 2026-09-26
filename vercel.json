@@ -1,0 +1,3 @@
+{
+  "buildCommand": "node --test tests/canonical-append-auto-authority.test.mjs && npm run build"
+}
