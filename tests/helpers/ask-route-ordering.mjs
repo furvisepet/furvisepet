@@ -52,6 +52,7 @@ export function fixture(options={}){
  maybeSingle(){return q.result(true);},single(){return q.result(true);},returns(){return q.result();},then(a,b){return q.result().then(a,b);}};return q;}
  const db={from(table){assert.ok(rows[table],`Unexpected table ${table}`);return query(table);},rpc(name,args){
  if(name==='persist_ask_canonical_suggestion')return {single:async()=>{const cap=rows.ask_action_capabilities.find(c=>c.id===args.p_capability_id&&c.user_id===args.p_user_id);assert.ok(cap?.action_payload.appendJob);events.push('suggestion:persist');let row=rows.ai_update_suggestions.find(s=>s.canonical_capability_id===cap.id);if(!row){row={id:id(72),user_id:args.p_user_id,pet_profile_id:cap.pet_profile_id,conversation_id:id(21),source_message_id:cap.assistant_message_id,type:'history',title:'Add to care history',details:cap.action_payload.description,status:'pending',canonical_capability_id:cap.id,canonical_payload:{version:1,kind:'append',job:structuredClone(cap.action_payload.appendJob),capabilityId:cap.id,sourceMessageId:cap.source_message_id,targetId:null,targetUpdatedAt:null},invalidated_at:null};rows.ai_update_suggestions.push(row);}return{data:row,error:null};}};
+ if(name==='list_ask_replace_targets') return {then:(resolve,reject)=>Promise.resolve({data:[],error:null}).then(resolve,reject)};
  if(name==='read_ask_history_candidates'||name==='read_ask_history_candidates_latest'){
   assert.ok(state.confirmed);events.push('lungs:candidates');
   const latest=name.endsWith('_latest');
