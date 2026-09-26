@@ -264,9 +264,10 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
       const direct = operandVariants.find(item => item.properties && "petName" in item.properties)!;
       const result = operandVariants.find(item => item.properties && "calculationId" in item.properties)!;
       const measurement = structuredClone(direct);
+      const directUnit = direct.properties!.unit as { enum: unknown[] };
       Object.assign(measurement.properties!, {
         field: { type: "string", enum: ["measurement"] },
-        unit: { type: "string", enum: direct.properties!.unit!.enum.filter(value => value !== null) },
+        unit: { type: "string", enum: directUnit.enum.filter((value: unknown) => value !== null) },
       });
       const event = structuredClone(direct);
       Object.assign(event.properties!, { field: { type: "string", enum: ["event_at"] },
