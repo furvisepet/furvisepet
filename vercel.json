@@ -1,0 +1,3 @@
+{
+  "buildCommand": "node --test tests/furvise-heart-receipt.test.mjs && npm run build"
+}
