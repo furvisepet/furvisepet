@@ -25,3 +25,9 @@ test("preference forget uses canonical rejected terminal state", () => {
   assert.match(migration, /public\.normalize_furvise_preference_key/);
   assert.doesNotMatch(migration, /currentMessage|question|includes\(|like '%|regexp_matches/);
 });
+
+test("preference clear accepts typed JSON null value fields", () => {
+  assert.match(migration, /jsonb_typeof\(v\.action_payload#>''\{fieldMutationJob,value\}''\) is distinct from ''null''/);
+  assert.match(migration, /jsonb_typeof\(v\.action_payload#>''\{fieldMutationJob,valueSource\}''\) is distinct from ''null''/);
+  assert.doesNotMatch(migration, /fieldMutationJob,value\}'' is not null/);
+});
