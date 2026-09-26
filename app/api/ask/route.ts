@@ -51,7 +51,6 @@ import {
 } from "../../lib/ai/ask-reasoning";
 import { AskTurnLifecycle, deriveAskAttemptId, runOptionalAskSubsystem, type AskSubsystem, type AskTurnTrace } from "../../lib/ai/ask-turn-model";
 import { orchestrateAskTurn } from "../../lib/ai/ask-orchestrator";
-import { classifyFurviseCapabilityQuestion, buildFurviseCapabilityResponse } from "../../lib/ai/ask-internal-product-policy";
 import { safeAskDiagnosticStage } from "../../lib/ai/ask-error-diagnostic.ts";
 import { admitAiOperation, type AiOperationAdmission } from "../../lib/ai/usage-guard/admission";
 import { AiAdmissionError } from "../../lib/ai/usage-guard/errors";
@@ -139,7 +138,7 @@ import {
 } from "../../lib/ask-conversation-authority.ts";
 import { isExplicitCareHistorySaveRequest, resolveAutomaticCareHistoryPresentation } from "../../lib/intelligence/care-history-policy.ts";
 import { publicAskFailureCode, type AskInternalFailure } from "../../lib/furvise-output.ts";
-import { PUBLIC_V1_CAPABILITIES, PUBLIC_V1_ASK_MUTATION_LIMITATION, PUBLIC_V1_ASK_READ_LIMITATION, publicV1RequestHasExcludedAskMutation, publicV1RequestIsSupportedAskRead } from "../../lib/public-v1-capabilities.ts";
+import { PUBLIC_V1_CAPABILITIES, publicV1AskCapability } from "../../lib/public-v1-capabilities.ts";
 import { readAskProfiles, classifyAskDatabaseFailure } from "../../lib/ask-profile-read.ts";
 
 const friendlyAnswerFailure = FURVISE_ANSWER_UNAVAILABLE_MESSAGE;
@@ -532,7 +531,8 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         reply.clarificationQuestion = "";
         return reply;
       }
-      if (publicV1RequestHasExcludedAskMutation(interpretation.request)) {
+      const publicV1Capability = publicV1AskCapability(interpretation.request);
+      if (!publicV1Capability.available && publicV1Capability.reason === "mutation") {
         if (creditReserved) {
           const released = await safeReleaseAiCredit({ logicalRequestId: logicalTurnId, payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
           creditReserved = false;
@@ -543,7 +543,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         turnAuthoritativePetIds = [];
         contextUsed = { petName: null, usedSources: [] };
         const reply = buildSubjectClarificationOrchestration(question);
-        reply.answer = { title: "Furvise", summary: PUBLIC_V1_ASK_MUTATION_LIMITATION, sections: [], safetyNote: null };
+        reply.answer = { title: "Furvise", summary: publicV1Capability.message, sections: [], safetyNote: null };
         reply.clarificationQuestion = "";
         return reply;
       }
@@ -574,8 +574,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
             clarificationQuestion: null, handledWithoutAi: true };
         }
       }
-      if (!interpretation.clarification
-        && !publicV1RequestIsSupportedAskRead(interpretation.request)) {
+      if (!interpretation.clarification && !publicV1Capability.available) {
         if (creditReserved) {
           const released = await safeReleaseAiCredit({ logicalRequestId: logicalTurnId, payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
           creditReserved = false;
@@ -586,7 +585,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         turnAuthoritativePetIds = [];
         contextUsed = { petName: null, usedSources: [] };
         const reply = buildSubjectClarificationOrchestration(question);
-        reply.answer = { title: "Furvise", summary: PUBLIC_V1_ASK_READ_LIMITATION, sections: [], safetyNote: null };
+        reply.answer = { title: "Furvise", summary: publicV1Capability.message, sections: [], safetyNote: null };
         reply.clarificationQuestion = "";
         return reply;
       }
@@ -882,72 +881,6 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
   }
   if (reasoning) contextUsed.usedSources = [...new Set(reasoning.referencedRecords.map(formatContextSourceLabel))].slice(0, 4);
   const safetyLevel = orchestration.safetyLevel;
-  const plannedCapabilityIntent = classifyFurviseCapabilityQuestion(question);
-  const plannedGate = reasoning && !reasoning.evidenceContract?.interpretation?.request && plannedCapabilityIntent && safetyLevel === "normal" && !reasoning.shoppingSuppressed
-    ? buildFurviseCapabilityResponse(plannedCapabilityIntent)
-    : null;
-  if (plannedGate) {
-    const plannedResponse = buildAskConversationResponse(plannedGate, {
-      intent: "general_pet_question",
-      missingUsefulDetails: [],
-      urgent: false,
-      usedContextSummary: contextUsed.usedSources,
-    });
-    if (!plannedResponse) {
-      await failAiAdmission(aiAdmission, new Error("ASK_RESPONSE_SERIALIZATION_FAILED"), aiAdmissionFinalized, requestId);
-      aiAdmissionFinalized = Boolean(aiAdmission);
-      logAskServerError("response_serialization", new Error("ASK_RESPONSE_SERIALIZATION_FAILED"), {
-        conversationId: preparedRequest.conversationId,
-        petId: turnPetId,
-        requestId,
-      }, 503);
-      if (creditReserved) {
-        try {
-          await safeReleaseAiCredit({ logicalRequestId: logicalTurnId, payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
-        } catch (settlementError) {
-          if (rateGateRef.current) await rateGateRef.current.release();
-          return handleAskApiError(settlementError, requestId);
-        }
-      }
-      if (rateGateRef.current) await rateGateRef.current.release();
-      return askFailure("AI_UNAVAILABLE", friendlyAnswerFailure, 503, {}, "response_serialization");
-    }
-    turnLifecycle.transition("ANSWER_VALIDATED");
-    try {
-      const persistedResponse = await persistAssistantAnswer({
-        authorizedPetIds: turnAuthoritativePetIds,
-        creditRequestId,
-        creditReserved,
-        contextUsed,
-        handledWithoutAi: false,
-        intelligenceResult,
-
-        payloadHash: aiCreditPayloadHash,
-        operationPayloadHash: idempotency.operation.payloadHash,
-        operationOwnerToken: idempotency.operation.ownerToken,
-        petId: turnPetId,
-        petName: liveContext.pet.name,
-        preparedRequest,
-        requestId,
-        recentCareEntries: liveContext.careEntries,
-        response: plannedResponse,
-        sourceMessage: question,
-        saveMetadata: buildAskSaveMetadata(plannedGate, { cannotAnswerFromSavedData: true, intent: "general_pet_question", question, usedSavedFactsCount: 0 }),
-        safetyLevel: "normal",
-        shoppingSuppressed: false,
-        supabase,
-        usage,
-        userId,
-        turnLifecycle,
-      }).finally(async () => { if (rateGateRef.current) await rateGateRef.current.release(); });
-      // This capability response replaces the generated body, so its assessment cannot transfer.
-      await finalizeAiAdmissionAfterPersistence({ admission: aiAdmission, alreadyFinalized: aiAdmissionFinalized, assessment: null, requestId, response: persistedResponse });
-      return persistedResponse;
-    } catch (error) {
-      await failAiAdmission(aiAdmission, error, aiAdmissionFinalized, requestId);
-      return handleAskApiError(error, requestId);
-    }
-  }
   let preparedApplicationActions: FurviseApplicationAction[] = [];
   if (deterministicApplicationActions.length) preparedApplicationActions = deterministicApplicationActions;
   if (reasoning) {
