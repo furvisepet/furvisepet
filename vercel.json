@@ -1,0 +1,3 @@
+{
+  "buildCommand": "node --test tests/typed-premise-calculation.test.mjs && npm run build"
+}
