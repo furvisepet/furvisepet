@@ -81,7 +81,7 @@ test('confirmed batch uses one capability, all bound items, and the separate can
  const f=fixture({proposal:p});const response=await f.send(question);assert.equal(response.status,200,JSON.stringify(f.state.errors));
  assert.equal(f.rows.pet_care_entries.length,2);assert.equal(f.rows.ask_action_capabilities.length,1);
  const stored=JSON.parse(JSON.stringify(f.rows.ask_action_capabilities[0].action_payload));
- assert.equal(stored.appendJob.items.length,2);assert.equal(stored.explicitIntent,false);
+ assert.equal(stored.appendJob.items.length,2);assert.equal(stored.explicitIntent,true);
  const confirmed=await(await f.confirm()).json();assert.equal(confirmed.action.status,'succeeded');assert.ok(confirmed.continuation?.labs,JSON.stringify(confirmed));
  assert.deepEqual(f.rows.pet_care_entries.slice(2).map(r=>[r.note,r.occurred_at]),stored.appendJob.items.map(x=>[x.body.text,x.occurredAt]));
  assert.deepEqual(confirmed.continuation.labs.records.map(r=>r.id),[id(52),id(51)]);

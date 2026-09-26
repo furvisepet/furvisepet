@@ -1456,7 +1456,7 @@ async function persistAssistantAnswer({
       if (applicationActions.length) {
         const executed: FurviseApplicationAction[] = [];
         for (const action of applicationActions) {
-          if (action.kind === "care_history.add" || !shouldAutoExecuteAction(action)) {
+          if (!shouldAutoExecuteAction(action)) {
             executed.push(action);
             continue;
           }

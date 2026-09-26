@@ -63,7 +63,7 @@ export function prepareBoundReplaceAction(job: ReplaceJob, target: { id: string;
   const kind = "care_history.edit", policy = getFurviseActionPolicy(kind);
   const input = { field: null, value: null, title: null, detail: job.body.text, category: null, target: "specified" as const };
   return { kind, replaceJob: job, targetSourceId: target.id, input, ...policy, id: requestId + ":replace",
-    petId: job.petId, sourceMessageId: job.sourceMessageId, evidence: job.body.text.slice(0, 240), explicitIntent: false,
+    petId: job.petId, sourceMessageId: job.sourceMessageId, evidence: job.body.text.slice(0, 240), explicitIntent: true,
     status: "proposed", ...actionPresentation(kind, job.petId, petName, input), resultMessage: null, errorMessage: null };
 }
 
@@ -87,7 +87,7 @@ export function prepareBoundFieldMutationAction(job: FieldMutationJob, petName: 
   const input = { field: job.field, value: fieldMutationActionValue(job),
     title: null, detail: null, category: null, target: "specified" as const };
   return { kind, input, fieldMutationJob: job, evidence: job.instruction.text.slice(0, 240),
-    explicitIntent: false, ...policy, id: requestId + ":field", petId,
+    explicitIntent: true, ...policy, id: requestId + ":field", petId,
     sourceMessageId: job.sourceMessageId, status: "proposed",
     ...actionPresentation(kind, petId, petName, input), resultMessage: null, errorMessage: null };
 }

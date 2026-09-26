@@ -46,7 +46,7 @@ for (const [field, quote, expected] of [
  const prepared = prepareFieldMutationTurn(JSON.parse(JSON.stringify(job)), context(p.instructionQuote), "request");
  const action = prepared.action;
  assert.equal(action.input.field, field); assert.equal(action.input.value, fieldMutationActionValue(job));
- assert.equal(action.petId, pet.id); assert.equal(action.explicitIntent, false);
+ assert.equal(action.petId, pet.id); assert.equal(action.explicitIntent, true);
  assert.deepEqual(parseStoredApplicationActions([JSON.parse(JSON.stringify(action))])[0], action);
  const persisted = capabilityBind(action, "user-turn", { text: p.instructionQuote, createdAt: source("").createdAt }, pet.name, "owner");
  assert.deepEqual(persisted.fieldMutationJob, job); assert.equal(persisted.input.value, action.input.value);
@@ -99,7 +99,7 @@ test("reasoning cannot add or override a canonical profile action; proposal gran
  assert.deepEqual(prepareFurviseApplicationActions({proposals:[conflicting],petId:pet.id,petName:pet.name,
  requestId:"r",sourceMessage:p.instructionQuote}),[]);
  assert.doesNotMatch(readFileSync(new URL("../app/lib/application-actions/planner.ts",import.meta.url),"utf8"),/hasDeterministicUserMutationIntent/);
- assert.throws(()=>authorizeFurviseActionExecution({action,capabilityId:"cap",mode:"auto"}),/AUTO_NOT_AUTHORIZED/);
+ assert.equal(authorizeFurviseActionExecution({action,capabilityId:"cap",mode:"auto"}).mutation.kind,"update_profile");
  assert.equal(authorizeFurviseActionExecution({action,capabilityId:"cap",mode:"confirm"}).mutation.kind,"update_profile");
  assert.equal(authorizeFurviseActionExecution({action,capabilityId:"cap",mode:"cancel"}).mutation.kind,"cancel_pending");
  assert.deepEqual(job,bound(p));

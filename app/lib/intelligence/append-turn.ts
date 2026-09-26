@@ -6,8 +6,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { FurviseLiveContext } from "./types.ts";
 import type { AskInterpretation } from "./interpret-ask.ts";
 import type { FurviseApplicationAction } from "../application-actions/types.ts";
-import { getFurviseActionPolicy } from "../application-actions/policy.ts";
-import { createActionCapabilities } from "../application-actions/capabilities.ts";
+import { getFurviseActionPolicy, shouldAutoExecuteAction } from "../application-actions/policy.ts";
+import { createActionCapabilities, executeActionCapability } from "../application-actions/capabilities.ts";
 import { completeAskConversationTurn, updateAskAssistantResponse } from "../ask-conversation-authority.ts";
 import { buildAskConversationResponse } from "../ask.mjs";
 import { buildFurvisePlanningContext } from "./planning-context.ts";
@@ -33,7 +33,7 @@ export async function prepareAppendTurn(input: {
     id: `${input.requestId}:append`, kind: "care_history.add", petId: pet.id, sourceMessageId: job.sourceMessageId,
     appendJob: job, input: { field: null, value: null, title: "Owner note",
       detail: null, category: "general", target: "specified" },
-    evidence: job.items[0].body.text.slice(0, 240), explicitIntent: false, status: "proposed",
+    evidence: job.items[0].body.text.slice(0, 240), explicitIntent: true, status: "proposed",
     label: job.items.length === 1 ? "Add to care history" : `Add ${job.items.length} records to care history`,
     description: job.items.map(item => item.body.text).join("\n\n").slice(0, 600),
     href: null, resultMessage: null, errorMessage: null };
@@ -56,14 +56,70 @@ export async function prepareAppendTurn(input: {
     supabase: input.supabase, userId: input.context.owner.userId });
   if (actions.length !== 1 || !/^[0-9a-f-]{36}$/i.test(actions[0].id) || actions[0].status === "failed") throw Error("APPEND_CAPABILITY_UNAVAILABLE");
   await persistCanonicalSuggestions({ authority: createCanonicalCareAuthorityClient(), userId: input.context.owner.userId, actions });
-  input.turnLifecycle.transition("ANSWER_PERSISTED").transition("COMPLETED");
-  const stored = { ...canonical, applicationActions: actions, turn: input.turnLifecycle.snapshot() };
-  const updated = await updateAskAssistantResponse({ messageId: id, userId: input.context.owner.userId, responseData: stored });
+  input.turnLifecycle.transition("ANSWER_PERSISTED");
+  let stored = { ...canonical, applicationActions: actions, turn: input.turnLifecycle.snapshot() };
+  let updated = await updateAskAssistantResponse({ messageId: id, userId: input.context.owner.userId, responseData: stored });
   if (updated.error || updated.data !== true) throw Error("APPEND_CAPABILITY_PRESENTATION_FAILED");
+
+  let dataChanged = false;
+  let persistenceMode = "confirmation_required";
+  const executable = actions[0];
+  if (shouldAutoExecuteAction(executable)) {
+    const execution = await executeActionCapability({
+      capabilityId: executable.id,
+      assistantMessageId: id,
+      userId: input.context.owner.userId,
+      mode: "auto",
+    });
+    if (!execution) throw Error("APPEND_AUTO_EXECUTION_UNAVAILABLE");
+    dataChanged = execution.changed;
+    persistenceMode = "auto_executed";
+    if (execution.action.status === "succeeded") {
+      const continuation = await continueConfirmedAppend({
+        supabase: input.supabase,
+        userId: input.context.owner.userId,
+        assistantMessageId: id,
+        action: execution.action,
+      });
+      if (continuation?.response) {
+        stored = continuation.response;
+      } else {
+        const result = buildAskConversationResponse({
+          title: "Furvise",
+          summary: execution.action.resultMessage || "The update was added to care history.",
+          sections: [],
+          safetyNote: null,
+        }, { intent: "new_observation", missingUsefulDetails: [], usedContextSummary: [] });
+        if (!result) throw Error("APPEND_RESULT_PRESENTATION_INVALID");
+        input.turnLifecycle.outcomes("complete", "applied", false).transition("COMPLETED");
+        stored = { ...canonical, ...result, applicationActions: [execution.action], turn: input.turnLifecycle.snapshot() };
+        updated = await updateAskAssistantResponse({ messageId: id, userId: input.context.owner.userId, responseData: stored });
+        if (updated.error || updated.data !== true) throw Error("APPEND_RESULT_PRESENTATION_FAILED");
+      }
+    } else {
+      const result = buildAskConversationResponse({
+        title: "Furvise",
+        summary: execution.action.errorMessage || "That update could not be added to care history.",
+        sections: [],
+        safetyNote: null,
+      }, { intent: "new_observation", missingUsefulDetails: [], usedContextSummary: [] });
+      if (!result) throw Error("APPEND_RESULT_PRESENTATION_INVALID");
+      input.turnLifecycle.outcomes("limited", "failed", false).transition("COMPLETED");
+      stored = { ...canonical, ...result, applicationActions: [execution.action], turn: input.turnLifecycle.snapshot() };
+      updated = await updateAskAssistantResponse({ messageId: id, userId: input.context.owner.userId, responseData: stored });
+      if (updated.error || updated.data !== true) throw Error("APPEND_RESULT_PRESENTATION_FAILED");
+    }
+  } else {
+    input.turnLifecycle.transition("COMPLETED");
+    stored = { ...stored, turn: input.turnLifecycle.snapshot() };
+    updated = await updateAskAssistantResponse({ messageId: id, userId: input.context.owner.userId, responseData: stored });
+    if (updated.error || updated.data !== true) throw Error("APPEND_CAPABILITY_PRESENTATION_FAILED");
+  }
+
   return Response.json({ success: true, requestId: input.requestId, conversationId: input.conversationId,
-    userMessageId: input.userMessageId, assistantMessageId: id, answer: response.directAnswer, response: stored,
-    usage: input.usage, creditsUsed: 0, handledWithoutAi: false, dataChanged: false, persistence: { saved: true },
-    turn: stored.turn, persistenceMode: "confirmation_required", contextUsed: { petName: pet.name, usedSources: [] } });
+    userMessageId: input.userMessageId, assistantMessageId: id, answer: stored.directAnswer, response: stored,
+    usage: input.usage, creditsUsed: 0, handledWithoutAi: false, dataChanged, persistence: { saved: true },
+    turn: stored.turn, persistenceMode, contextUsed: { petName: pet.name, usedSources: [] } });
 }
 
 /** Called only after executeActionCapability has certified the durable receipt.
