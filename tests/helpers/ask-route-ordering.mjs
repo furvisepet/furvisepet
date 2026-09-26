@@ -52,6 +52,21 @@ export function fixture(options={}){
  maybeSingle(){return q.result(true);},single(){return q.result(true);},returns(){return q.result();},then(a,b){return q.result().then(a,b);}};return q;}
  const db={from(table){assert.ok(rows[table],`Unexpected table ${table}`);return query(table);},rpc(name,args){
  if(name==='persist_ask_canonical_suggestion')return {single:async()=>{const cap=rows.ask_action_capabilities.find(c=>c.id===args.p_capability_id&&c.user_id===args.p_user_id);assert.ok(cap?.action_payload.appendJob);events.push('suggestion:persist');let row=rows.ai_update_suggestions.find(s=>s.canonical_capability_id===cap.id);if(!row){row={id:id(72),user_id:args.p_user_id,pet_profile_id:cap.pet_profile_id,conversation_id:id(21),source_message_id:cap.assistant_message_id,type:'history',title:'Add to care history',details:cap.action_payload.description,status:'pending',canonical_capability_id:cap.id,canonical_payload:{version:1,kind:'append',job:structuredClone(cap.action_payload.appendJob),capabilityId:cap.id,sourceMessageId:cap.source_message_id,targetId:null,targetUpdatedAt:null},invalidated_at:null};rows.ai_update_suggestions.push(row);}return{data:row,error:null};}};
+ if(name==='read_ask_history_candidates'||name==='read_ask_history_candidates_latest'){
+  assert.ok(state.confirmed);events.push('lungs:candidates');
+  const latest=name.endsWith('_latest');
+  const terms=(args.p_terms||[]).map(x=>String(x).toLowerCase());
+  const from=args.p_from?Date.parse(args.p_from):-Infinity,to=args.p_to?Date.parse(args.p_to):Infinity;
+  let candidates=rows.pet_care_entries.filter(r=>r.pet_profile_id===args.p_pet_id&&!r.deleted_at
+   &&Date.parse(r.occurred_at)>=from&&Date.parse(r.occurred_at)<to
+   &&(!terms.length||terms.some(term=>(r.category+' '+(r.title||'')+' '+(r.note||'')).toLowerCase().includes(term))));
+  candidates=candidates.toSorted((a,b)=>{const time=Date.parse(a.occurred_at)-Date.parse(b.occurred_at);
+   if(time)return latest?-time:time;return latest?b.id.localeCompare(a.id):a.id.localeCompare(b.id);});
+  if(args.p_after_time){candidates=candidates.filter(r=>latest
+   ?r.occurred_at<args.p_after_time||r.occurred_at===args.p_after_time&&r.id<args.p_after_id
+   :r.occurred_at>args.p_after_time||r.occurred_at===args.p_after_time&&r.id>args.p_after_id);}
+  return {abortSignal:async()=>({data:candidates.slice(0,args.p_limit),error:null})};
+ }
  if(name==='read_ask_history_correction_page'){assert.ok(state.confirmed);events.push('lungs:lineage');return {abortSignal:async()=>({data:{claims:[],relations:[],lineage:[],sources:rows.pet_care_entries.filter(r=>args.p_care_ids.includes(r.id)),truncated:false},error:null})};}
  assert.equal(name,'execute_ask_action_capability');return {maybeSingle:async()=>{events.push('heart:execute');const cap=rows.ask_action_capabilities.find(r=>r.id===args.p_capability_id&&r.user_id===args.p_user_id&&r.assistant_message_id===args.p_assistant_message_id);if(!cap)return{data:null,error:null};
  if(options.dbFailure)return {data:null,error:{code:'42501'}};
