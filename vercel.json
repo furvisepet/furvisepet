@@ -1,0 +1,3 @@
+{
+  "buildCommand": "node --experimental-transform-types --test tests/v1-diag-append-transform-error-action.test.mjs && npm run build"
+}
