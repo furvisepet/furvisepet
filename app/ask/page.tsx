@@ -506,6 +506,9 @@ function AskPageContent() {
         setActiveConversationId(payload.conversationId);
         replaceAskLocation({ conversationId: payload.conversationId });
       }
+      if (payload?.userMessageId && payload.userMessageId !== userMessageId) {
+        setThread((current) => reconcileLogicalUserTurn(current, userMessageId, payload.userMessageId, prompt));
+      }
       const parsed = parseAskConversationResponse(payload?.response) as StructuredResponse | null;
       if (payload?.usage) setUsage(payload.usage);
       const standaloneEmergency = Boolean(payload?.handledWithoutAi && payload.persistence?.saved === false && parsed?.urgency === "urgent");
@@ -539,7 +542,8 @@ function AskPageContent() {
         setQuestion(requestPayload.message);
         persistAskDraft(window.localStorage, conversationIdAtSubmit, selectedPet, requestPayload.message);
       }
-      setFailedRequest({ code: failure.code, payload: requestPayload, logicalTurnId, retryAfterSeconds: failure.retryAfterSeconds, scope, userMessageId });
+      const durableUserMessageId = payload?.userMessageId || userMessageId;
+      setFailedRequest({ code: failure.code, payload: requestPayload, logicalTurnId, retryAfterSeconds: failure.retryAfterSeconds, scope, userMessageId: durableUserMessageId });
       setRequestPhase("failed");
       trackAskEvent("answer_failed", { source });
       // The server may have created a conversation before the answer failed.
@@ -783,6 +787,23 @@ function EmptyConversation({ lifecycleStatus, petName, onSelect }: { lifecycleSt
 function OnboardingAskStarters({ onSelect, petName }: { onSelect: (prompt: string) => void; petName: string }) {
   const starters = buildOnboardingAskStarters(petName);
   return <section className="pb-2 pt-5 sm:pt-7" data-ui="onboarding-ask-starters"><h2 className="text-2xl font-semibold text-[var(--text-primary)]">Try one with {petName}</h2><div className="mt-4 flex max-w-4xl flex-col gap-2 sm:flex-row sm:flex-wrap">{starters.map((starter) => <button aria-controls="ask-composer" className="group flex min-h-11 min-w-0 cursor-pointer items-center justify-between gap-3 rounded-lg border border-[var(--assistant-response-border)] bg-[var(--suggested-question-surface)] px-3.5 py-2.5 text-left text-sm font-semibold leading-5 text-[var(--suggested-question-foreground)] transition-colors hover:bg-[var(--suggested-question-hover)] active:bg-[var(--suggested-question-selected)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] sm:w-auto sm:flex-1" data-ui="onboarding-starter-question" key={starter} onClick={() => onSelect(starter)} type="button"><span className="min-w-0 [overflow-wrap:anywhere]">{starter}</span><span aria-hidden="true" className="shrink-0 transition-transform group-hover:translate-x-0.5">↘</span></button>)}</div></section>;
+}
+
+function reconcileLogicalUserTurn(thread: ConversationMessage[], optimisticId: string, durableId: string, text: string) {
+  const next: ConversationMessage[] = [];
+  let inserted = false;
+  for (const message of thread) {
+    if (message.role === "user" && (message.id === optimisticId || message.id === durableId)) {
+      if (!inserted) {
+        next.push({ ...message, id: durableId, text });
+        inserted = true;
+      }
+      continue;
+    }
+    next.push(message);
+  }
+  if (!inserted) next.push({ id: durableId, role: "user", text });
+  return next;
 }
 
 function UserMessage({ text }: { text: string }) {

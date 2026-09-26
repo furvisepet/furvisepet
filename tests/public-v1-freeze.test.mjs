@@ -55,3 +55,10 @@ test("public surfaces do not advertise Ask effects or new Vet Brief generation",
   assert.doesNotMatch(read("app/pets/[id]/page.tsx"), />VET BRIEF</);
   assert.doesNotMatch(read("app/membership/page.tsx"), /Vet Brief generation/);
 });
+
+test("failed/retried Ask adopts durable user identity before canonical reload", () => {
+  const page = read("app/ask/page.tsx");
+  assert.match(page, /payload\?\.userMessageId[\s\S]*reconcileLogicalUserTurn\(current, userMessageId, payload\.userMessageId, prompt\)/);
+  assert.match(page, /const durableUserMessageId = payload\?\.userMessageId \|\| userMessageId/);
+  assert.match(page, /message\.id === optimisticId \|\| message\.id === durableId/);
+});
