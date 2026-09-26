@@ -1,0 +1,3 @@
+{
+  "buildCommand": "node --test tests/public-v1-freeze.test.mjs && npm run build"
+}
