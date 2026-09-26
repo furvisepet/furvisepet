@@ -1,0 +1,3 @@
+{
+  "buildCommand": "node --test tests/lifecycle-plan.test.mjs tests/furvise-brain-action-organ.test.mjs && npm run build"
+}
