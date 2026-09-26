@@ -1,0 +1,3 @@
+{
+  "buildCommand": "node --test tests/diag-append-status.test.mjs && npm run build"
+}
