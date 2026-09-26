@@ -5,7 +5,7 @@ const root = new URL("../", import.meta.url);
 const read = path => readFileSync(new URL(path, root), "utf8");
 const policy = await import("../app/lib/public-v1-capabilities.ts");
 test("public v1 capability policy is deliberately narrow", () => {
-  assert.equal(policy.PUBLIC_V1_CAPABILITIES.calculationExecution, false);
+  assert.equal(policy.PUBLIC_V1_CAPABILITIES.calculationExecution, true);
   assert.equal(policy.PUBLIC_V1_CAPABILITIES.askMutations, true);
   assert.equal(policy.PUBLIC_V1_CAPABILITIES.vetBriefGeneration, false);
   for (const key of ["appendJob","writeJob","removeJob","fieldMutationJob","stateTransitionJob","task"]) {
@@ -30,7 +30,7 @@ test("public v1 capability policy is deliberately narrow", () => {
   assert.equal(policy.publicV1AskCapability({ mode: "read", profileFields: ["weight"] }).available, true);
   assert.equal(policy.publicV1AskCapability(undefined).reason, "unplanned");
   assert.equal(policy.publicV1AskCapability({ mode: "conversation", calculatePlan: null }).reason, "unplanned");
-  assert.equal(policy.publicV1AskCapability({ mode: "read", readTicket: null, calculatePlan: {} }).reason, "calculation");
+  assert.equal(policy.publicV1AskCapability({ mode: "read", readTicket: null, calculatePlan: {} }).available, true);
 });
 test("Ask uses one typed capability boundary before mutation executors", () => {
   const route = read("app/api/ask/route.ts");
