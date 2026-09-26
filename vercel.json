@@ -1,0 +1,3 @@
+{
+  "buildCommand": "node --test tests/ask-v1-copy-polish.test.mjs && npm run build"
+}
