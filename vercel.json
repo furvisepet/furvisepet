@@ -1,0 +1,3 @@
+{
+  "buildCommand": "node --test --test-name-pattern='single|explicit|eight|named|durable|confirmed|ordinary' tests/gate-append-functional.mjs && npm run build"
+}
