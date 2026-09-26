@@ -1,0 +1,3 @@
+{
+  "buildCommand": "node --test --test-name-pattern='reject|changed exact|stored action fails|legacy stored' tests/gate-remove-rejections.mjs && npm run build"
+}
