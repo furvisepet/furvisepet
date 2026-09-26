@@ -39,14 +39,21 @@ test("CalculatePlan binds exact USER premises without model-supplied values", ()
   assert.doesNotThrow(() => rebindCalculatePlan(plan, null));
 });
 
-test("premise binding is source-exact, unit-safe, and cannot mix factual domains", () => {
+test("premise binding is source-exact, dimension-safe, and cannot mix factual domains", () => {
   assert.throws(() => bindCalculatePlan({
     ...rawPlan,
     calculations: [{ ...rawPlan.calculations[0], operands: [
-      { kind: "premise", role: "member", sourceTurnId: null, quote: "10 kg", unit: "lb" },
-      rawPlan.calculations[0].operands[1],
+      { kind: "premise", role: "member", sourceTurnId: null, quote: "10 kg", unit: "hour" },
+      { kind: "premise", role: "member", sourceTurnId: null, quote: "20 kg", unit: "hour" },
+    ], resultUnit: "hour" }],
+  }, null, [], source), /ASK_CALCULATE_INVALID:premise_unit/);
+  assert.throws(() => bindCalculatePlan({
+    ...rawPlan,
+    calculations: [{ ...rawPlan.calculations[0], operands: [
+      rawPlan.calculations[0].operands[0],
+      { role: "member", petName: "Aster", clause: 0, item: 0, field: "measurement", unit: "kg", measurementSelector: null },
     ] }],
-  }, null, [], source), /ASK_CALCULATE_INVALID/);
+  }, null, [{ id: "aster", name: "Aster" }], source), /ASK_CALCULATE_INVALID:mixed_operands/);
   assert.throws(() => bindCalculatePlan(rawPlan, null, [], { ...source, text: "10 kg and another 10 kg" }), /ASK_REQUEST_INVALID:append_span/);
 });
 
