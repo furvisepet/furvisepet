@@ -1,16 +1,12 @@
-import { rebindCalculatePlan, type CalculateOperator, type CalculatePlan } from "../furvise-brain/calculate-plan.ts";
+import { CALCULATE_OPERATORS, rebindCalculatePlan, type CalculateOperator, type CalculatePlan } from "../furvise-brain/calculate-plan.ts";
 import type { ReadTicket } from "../furvise-brain/read-ticket.ts";
 import { PUBLIC_V1_CAPABILITIES, PUBLIC_V1_CALCULATION_LIMITATION } from "../public-v1-capabilities.ts";
 
 export const PUBLIC_V1_SUPPORTED_CALCULATION_OPERATORS: readonly CalculateOperator[] = Object.freeze(
- PUBLIC_V1_CAPABILITIES.calculationExecution
-  ? ["sum", "mean", "absolute_difference", "convert", "count_records"]
-  : [],
+ PUBLIC_V1_CAPABILITIES.calculationExecution ? [...CALCULATE_OPERATORS] : [],
 );
 export const PUBLIC_V1_UNSUPPORTED_CALCULATION_OPERATORS: readonly CalculateOperator[] = Object.freeze(
- PUBLIC_V1_CAPABILITIES.calculationExecution
-  ? ["difference", "ratio", "percent_change", "elapsed_days", "percent_of_sum"]
-  : ["difference", "absolute_difference", "ratio", "percent_change", "percent_of_sum", "sum", "mean", "count_records", "elapsed_days", "convert"],
+ PUBLIC_V1_CAPABILITIES.calculationExecution ? [] : [...CALCULATE_OPERATORS],
 );
 export const CALCULATION_CAPABILITY_UNSUPPORTED = "unsupported_public_v1";
 export const CALCULATION_CAPABILITY_LIMITATION = PUBLIC_V1_CALCULATION_LIMITATION;

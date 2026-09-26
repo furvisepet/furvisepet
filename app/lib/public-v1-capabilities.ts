@@ -1,6 +1,6 @@
 export const PUBLIC_V1_CAPABILITIES = Object.freeze({
   askMutations: true,
-  calculationExecution: false,
+  calculationExecution: true,
   vetBriefGeneration: false,
 });
 
