@@ -4,8 +4,13 @@ import type { AskReasoningResult } from "../ai/ask-reasoning.ts";
 /** Typed dependency, never an interpretation of the user's words. */
 export function dependsOnStoredState(e: AskEvidenceContract | undefined): boolean {
   const r = e?.interpretation?.request;
-  if (r) return ["saved_history", "saved_profile", "stored"].includes(r.evidenceBasis || "")
-    || !!r.calculatePlan || !!r.readTicket || !!r.storedRead || !!r.profileFields?.length || !!r.evidenceNeeds?.length;
+  if (r) {
+    const suppliedPremiseCalculation = r.evidenceBasis === "supplied_context" && !!r.calculatePlan
+      && !r.readTicket && !r.storedRead && !r.profileFields?.length && !r.evidenceNeeds?.length;
+    if (suppliedPremiseCalculation) return false;
+    return ["saved_history", "saved_profile", "stored"].includes(r.evidenceBasis || "")
+      || !!r.calculatePlan || !!r.readTicket || !!r.storedRead || !!r.profileFields?.length || !!r.evidenceNeeds?.length;
+  }
   return !!(e?.history || e?.historyFallback || e?.episodes || e?.recordInventory?.length);
 }
 export const FACTUAL_UNAVAILABLE = "server-factual-unavailable";
