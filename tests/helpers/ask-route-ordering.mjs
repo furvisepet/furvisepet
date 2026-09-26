@@ -55,7 +55,13 @@ export function fixture(options={}){
  if(name==='read_ask_history_correction_page'){assert.ok(state.confirmed);events.push('lungs:lineage');return {abortSignal:async()=>({data:{claims:[],relations:[],lineage:[],sources:rows.pet_care_entries.filter(r=>args.p_care_ids.includes(r.id)),truncated:false},error:null})};}
  assert.equal(name,'execute_ask_action_capability');return {maybeSingle:async()=>{events.push('heart:execute');const cap=rows.ask_action_capabilities.find(r=>r.id===args.p_capability_id&&r.user_id===args.p_user_id&&r.assistant_message_id===args.p_assistant_message_id);if(!cap)return{data:null,error:null};
  if(options.dbFailure)return {data:null,error:{code:'42501'}};
- const changed=cap.status==='pending'&&args.p_mode==='confirm';const status=args.p_mode==='cancel'?'cancelled':'succeeded';
+ const autoAllowed=args.p_mode==='auto'
+  &&cap.action_payload.safetyClass==='LOW_RISK_REVERSIBLE'
+  &&cap.action_payload.confirmationPolicy==='explicit_intent'
+  &&cap.action_payload.explicitIntent===true;
+ const changed=cap.status==='pending'&&(args.p_mode==='confirm'||autoAllowed);
+ const status=args.p_mode==='cancel'?'cancelled'
+  :args.p_mode==='auto'&&!autoAllowed?'failed':'succeeded';
  const action={...cap.action_payload,id:cap.id,status,resultMessage:status==='succeeded'?'Saved.':null};
  if(changed){assert.ok(action.appendJob,'Confirmed append carries its canonical obligations');assert.equal(action.appendJob.petId,action.petId);assert.equal(action.appendJob.sourceMessageId,action.sourceMessageId);
  for(const [index,item]of action.appendJob.items.entries()){rows.pet_care_entries.push({...care(53+index,item.occurredAt||'2026-09-20T12:00:00Z',item.body.text),intelligence_source_message_id:action.sourceMessageId,care_event_metadata:{sourceSpanId:item.body.id,sourceNoteIndex:index+1}});events.push('heart:row');}}

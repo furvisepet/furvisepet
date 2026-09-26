@@ -79,22 +79,24 @@ test('confirmed batch uses one capability, all bound items, and the separate can
  const question='Save these for Cedar:\n'+bodies.join('\n')+'\nwhat are his last two weights';
  p.question=question;p.appendJob={operation:'append',petName:'Cedar',items:dated.map((x,i)=>({...x,bodyQuote:bodies[i]})),companionQuote:'what are his last two weights'};
  const f=fixture({proposal:p});const response=await f.send(question);assert.equal(response.status,200,JSON.stringify(f.state.errors));
- assert.equal(f.rows.pet_care_entries.length,2);assert.equal(f.rows.ask_action_capabilities.length,1);
- const stored=JSON.parse(JSON.stringify(f.rows.ask_action_capabilities[0].action_payload));
+ const body=await response.json();assert.equal(body.persistenceMode,'auto_executed');assert.equal(body.dataChanged,true);
+ assert.equal(f.rows.pet_care_entries.length,4);assert.equal(f.rows.ask_action_capabilities.length,1);
+ const capability=f.rows.ask_action_capabilities[0];
+ const stored=JSON.parse(JSON.stringify(capability.action_payload));
  assert.equal(stored.appendJob.items.length,2);assert.equal(stored.explicitIntent,true);
- const confirmed=await(await f.confirm()).json();assert.equal(confirmed.action.status,'succeeded');assert.ok(confirmed.continuation?.labs,JSON.stringify(confirmed));
+ assert.equal(capability.status,'succeeded');assert.equal(capability.receipt.status,'succeeded');
  assert.deepEqual(f.rows.pet_care_entries.slice(2).map(r=>[r.note,r.occurred_at]),stored.appendJob.items.map(x=>[x.body.text,x.occurredAt]));
- assert.deepEqual(confirmed.continuation.labs.records.map(r=>r.id),[id(52),id(51)]);
+ assert.deepEqual(body.response.appendLabs.records.map(r=>r.id),[id(52),id(51)]);
  assert.ok(f.state.events.indexOf('heart:receipt')<f.state.events.indexOf('lungs:lineage'));
- const actions=parseStoredApplicationActions([JSON.parse(JSON.stringify(confirmed.action))]);
+ const actions=parseStoredApplicationActions([JSON.parse(JSON.stringify(capability.receipt))]);
  const requestedItems=requestedAppendItems(actions,stored.sourceMessageId,stored.petId);
  assert.equal(requestedItems.length,2);
  const records=f.rows.pet_care_entries.slice(2).map(r=>({id:r.id,note:r.note,occurredAt:r.occurred_at,petId:r.pet_profile_id,sourceMessageId:r.intelligence_source_message_id,sourceSpanId:r.care_event_metadata.sourceSpanId}));
  assert.match(receiptCompletionText({sourceMessageId:stored.sourceMessageId,petId:stored.petId,requestText:'nonsemantic',answerPersisted:true,requestedItems,records}),/^All 2/);
  const altered=structuredClone(actions[0]);altered.appendJob.items[0].body.text+=' changed';
  assert.throws(()=>confirmFurviseWriteReceipt({operationId:actions[0].id,authorized:stored,returned:altered,persistedStatus:'succeeded',persistedReceipt:altered}),/UNCONFIRMED/);
- assert.equal((await(await f.confirm()).json()).changed,false);assert.equal(f.rows.pet_care_entries.length,4);
- assert.equal(f.state.planner,1);
+ const replay=await(await f.confirm()).json();assert.equal(replay.changed,false);assert.equal(replay.action.status,'succeeded');
+ assert.equal(f.rows.pet_care_entries.length,4);assert.equal(f.state.planner,1);
 });
 test('ordinary append cannot regain raw text batch parsing or an unconfirmed persistence path',()=>{
  for(const file of ['run-intelligence','receipt-completion','persist-learnings','ask-execution-plan'])

@@ -8,8 +8,8 @@ test("source-bound reversible Ask jobs carry server-verified explicit intent", (
   const planner = read("app/lib/application-actions/planner.ts");
   const capability = read("app/lib/application-actions/capabilities.ts");
   assert.match(planner, /prepareBoundReplaceAction[\s\S]*explicitIntent: true/);
-  assert.match(planner, /prepareBoundFieldMutationAction[\s\S]*explicitIntent: true/);
-  assert.match(capability, /Boolean\(action\.appendJob \|\| action\.replaceJob \|\| action\.fieldMutationJob \|\| action\.stateTransitionJob\)/);
+  assert.match(planner, /prepareBoundFieldMutationAction[\s\S]*explicitIntent: false/);
+  assert.match(capability, /Boolean\(action\.appendJob \|\| action\.replaceJob \|\| action\.stateTransitionJob\)/);
 });
 
 test("destructive and lifecycle confirmation policy remains authoritative", () => {

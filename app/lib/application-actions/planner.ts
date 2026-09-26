@@ -87,7 +87,7 @@ export function prepareBoundFieldMutationAction(job: FieldMutationJob, petName: 
   const input = { field: job.field, value: fieldMutationActionValue(job),
     title: null, detail: null, category: null, target: "specified" as const };
   return { kind, input, fieldMutationJob: job, evidence: job.instruction.text.slice(0, 240),
-    explicitIntent: true, ...policy, id: requestId + ":field", petId,
+    explicitIntent: false, ...policy, id: requestId + ":field", petId,
     sourceMessageId: job.sourceMessageId, status: "proposed",
     ...actionPresentation(kind, petId, petName, input), resultMessage: null, errorMessage: null };
 }

@@ -235,7 +235,7 @@ export function rebindCanonicalCapabilityAction(
   }
   // Exact source-bound transitions retain their existing policy. All other
   // mutations require confirmation; raw wording never grants auto-execution.
-  const explicitIntent = Boolean(action.appendJob || action.replaceJob || action.fieldMutationJob || action.stateTransitionJob);
+  const explicitIntent = Boolean(action.appendJob || action.replaceJob || action.stateTransitionJob);
   const { targetSourceId, ...capabilityAction } = action;
   void targetSourceId;
   return {
