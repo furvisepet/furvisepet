@@ -1,0 +1,3 @@
+{
+  "buildCommand": "node --test --test-name-pattern='REMOVE schema|selector survives|exact older|Heart requires|arbitrary USER|route dispatches|provider grammar' tests/gate-remove-functional.mjs && npm run build"
+}
