@@ -55,7 +55,7 @@ export const calculatePlanSchema={anyOf:[{type:"null"},{
  measurementSelector:{anyOf:[{type:"null"},{type:"object",additionalProperties:false,required:["predicateIndexes"],properties:{predicateIndexes:{type:"array",minItems:1,maxItems:6,items:{type:"integer",minimum:0,maximum:5}}}}],description:"Indexes into this readTicket.predicates, never new text or source coordinates. All referenced text_any predicates must match the same structural segment of exactly one compatible measurement. Null requires a single compatible measurement in the entire certified record. Null for event_at."},
  petName:{type:"string",minLength:1,maxLength:100},clause:{type:"integer",minimum:0,maximum:7},
  item:{type:"integer",minimum:0,maximum:99},field:{type:"string",enum:["measurement","event_at"]},
- unit:{type:["string","null"],enum:[...Object.keys(units),null]}},
+ unit:{type:["string","null"],enum:[...Object.keys(units),null]}}},
  {type:"object",description:PREMISE_CALCULATION_OPERAND_DESCRIPTION,additionalProperties:false,required:["kind","role","sourceTurnId","quote","unit"],properties:{
  role:{type:"string",enum:CALCULATE_ROLES},kind:{type:"string",enum:["premise"]},
  sourceTurnId:{type:["string","null"],maxLength:160},quote:{type:"string",minLength:1,maxLength:1200},
