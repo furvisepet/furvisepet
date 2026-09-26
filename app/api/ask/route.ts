@@ -139,7 +139,8 @@ import {
 } from "../../lib/ask-conversation-authority.ts";
 import { isExplicitCareHistorySaveRequest, resolveAutomaticCareHistoryPresentation } from "../../lib/intelligence/care-history-policy.ts";
 import { publicAskFailureCode, type AskInternalFailure } from "../../lib/furvise-output.ts";
-import { PUBLIC_V1_CAPABILITIES, PUBLIC_V1_ASK_MUTATION_LIMITATION, PUBLIC_V1_ASK_READ_LIMITATION, publicV1RequestHasExcludedAskMutation, publicV1RequestIsSupportedAskRead } from "../../lib/public-v1-capabilities.ts";
+import { PUBLIC_V1_CAPABILITIES } from "../../lib/public-v1-capabilities.ts";
+import { assessAskExecutionCapability, ASK_EXECUTION_LIMITATIONS } from "../../lib/intelligence/ask-execution-capability.ts";
 import { readAskProfiles, classifyAskDatabaseFailure } from "../../lib/ask-profile-read.ts";
 
 const friendlyAnswerFailure = FURVISE_ANSWER_UNAVAILABLE_MESSAGE;
@@ -532,7 +533,8 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         reply.clarificationQuestion = "";
         return reply;
       }
-      if (publicV1RequestHasExcludedAskMutation(interpretation.request)) {
+      const executionCapability = assessAskExecutionCapability(interpretation);
+      if (!executionCapability.supported) {
         if (creditReserved) {
           const released = await safeReleaseAiCredit({ logicalRequestId: logicalTurnId, payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
           creditReserved = false;
@@ -543,7 +545,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         turnAuthoritativePetIds = [];
         contextUsed = { petName: null, usedSources: [] };
         const reply = buildSubjectClarificationOrchestration(question);
-        reply.answer = { title: "Furvise", summary: PUBLIC_V1_ASK_MUTATION_LIMITATION, sections: [], safetyNote: null };
+        reply.answer = { title: "Furvise", summary: ASK_EXECUTION_LIMITATIONS[executionCapability.kind], sections: [], safetyNote: null };
         reply.clarificationQuestion = "";
         return reply;
       }
@@ -573,22 +575,6 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
           return { ...buildSubjectClarificationOrchestration(question), answer: conditionalSafety,
             clarificationQuestion: null, handledWithoutAi: true };
         }
-      }
-      if (!interpretation.clarification
-        && !publicV1RequestIsSupportedAskRead(interpretation.request)) {
-        if (creditReserved) {
-          const released = await safeReleaseAiCredit({ logicalRequestId: logicalTurnId, payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
-          creditReserved = false;
-          creditFinalState = released ? "released" : "release_pending";
-          turnLifecycle.credit(released ? "released" : "release_pending").settlement("release", released ? "reconciled" : "pending");
-        }
-        turnLifecycle.route("clarification", "deterministic");
-        turnAuthoritativePetIds = [];
-        contextUsed = { petName: null, usedSources: [] };
-        const reply = buildSubjectClarificationOrchestration(question);
-        reply.answer = { title: "Furvise", summary: PUBLIC_V1_ASK_READ_LIMITATION, sections: [], safetyNote: null };
-        reply.clarificationQuestion = "";
-        return reply;
       }
       const lifecycleOutcome = await continueLifecyclePlan({ plan: interpretation.request?.lifecyclePlan,
         context: liveContext, requestId, cancel: cancelActionCapability });
