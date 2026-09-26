@@ -1,0 +1,3 @@
+{
+  "buildCommand": "npm run test:typed-architecture && npm run test:security && npm run build"
+}
