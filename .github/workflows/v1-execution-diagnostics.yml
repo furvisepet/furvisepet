@@ -1,0 +1,26 @@
+name: V1 execution diagnostics
+on:
+  push:
+    branches:
+      - v1/diag-actions-execution
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: calculation orchestration
+        run: node --test tests/calculation-capability-orchestration.test.mjs
+        continue-on-error: true
+      - name: append integration
+        run: node --test tests/append-items-authority.test.mjs
+        continue-on-error: true
+      - name: focused summary gate
+        run: node --test tests/calculation-capability-orchestration.test.mjs tests/append-items-authority.test.mjs
