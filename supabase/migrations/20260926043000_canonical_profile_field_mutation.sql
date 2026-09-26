@@ -1,3 +1,18 @@
+-- Profile writes use the existing immutable version slot. Extend the
+-- capability generation rule so pet.update_profile must carry a profile
+-- updated_at snapshot, while unrelated actions remain unable to carry one.
+alter table public.ask_action_capabilities
+  drop constraint if exists ask_action_capabilities_version_binding_check;
+
+alter table public.ask_action_capabilities
+  add constraint ask_action_capabilities_version_binding_check check (
+    (action_kind in ('care_history.edit','care_history.remove','care_state.resolve','care_state.reopen','pet.update_profile')
+      and target_updated_at is not null)
+    or
+    (action_kind not in ('care_history.edit','care_history.remove','care_state.resolve','care_state.reopen','pet.update_profile')
+      and target_updated_at is null)
+  );
+
 -- Public V1: typed pet-profile mutations execute through the same immutable
 -- Ask capability authority as care-history writes. No question text is parsed
 -- here. The capability payload must already contain a server-rebound

@@ -31,3 +31,9 @@ test("canonical profile mutation snapshots freshness and executes only typed fie
   for (const field of ["weight","sex","name","breed","current_food","routine_note"]) assert.match(migration, new RegExp(field));
   assert.doesNotMatch(migration, /currentMessage|question|includes\(|like '%|regexp_matches/);
 });
+
+test("profile capability version binding requires exactly one freshness snapshot", () => {
+  assert.match(migration, /drop constraint if exists ask_action_capabilities_version_binding_check/);
+  assert.match(migration, /pet\.update_profile'[\s\S]*target_updated_at is not null/);
+  assert.match(migration, /action_kind not in \('care_history\.edit','care_history\.remove','care_state\.resolve','care_state\.reopen','pet\.update_profile'\)[\s\S]*target_updated_at is null/);
+});
