@@ -78,7 +78,8 @@ function premiseExact(text:string,targetUnit:string):Exact {
  q=div(mul(q,factor(supplied)),factor(targetUnit));finite(q);return Object.freeze(exact(q));
 }
 function calculationSources(source?:CalculationSource|readonly CalculationSource[]):readonly CalculationSource[]{
- return !source?[]:Array.isArray(source)?source:[source];
+ if(!source)return [];
+ return Array.isArray(source)?source as readonly CalculationSource[]:[source as CalculationSource];
 }
 function validBoundPremiseSpan(value:unknown):value is UserSourceSpan {
  return obj(value)&&keys(value,["id","sourceMessageId","start","end","text"])
@@ -219,7 +220,7 @@ function bind(value:unknown,ticket:ReadTicket|null,resolve:(v:unknown)=>string,b
  }
  if(chained&&value.resultSelection!==null)return fail("dag_result_selection");
  if(rootDomain==="premise"&&value.resultSelection!==null&&value.resultSelection!==undefined)return fail("premise_result_selection");
- const resultSelection=bindResultSelection(value.resultSelection,calculations,ticket?.subjects.petIds??[],Array.isArray(source)?source[0]:source,bound);
+ const resultSelection=bindResultSelection(value.resultSelection,calculations,ticket?.subjects.petIds??[],sources[0],bound);
  return Object.freeze({operation:"calculate",calculations:Object.freeze(calculations),...(Object.hasOwn(value,"resultSelection")?{resultSelection}:{})});
 }
 export function bindCalculatePlan(value:unknown,ticket:ReadTicket|null,subjects:readonly {id:string;name:string|null}[],source?:CalculationSource|readonly CalculationSource[]):CalculatePlan {

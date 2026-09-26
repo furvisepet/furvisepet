@@ -1,7 +1,7 @@
 import { measurementCandidates, type SourceSpan } from "./measurement-candidates.ts";
 import { textMatchesReadPredicate } from "./read-text.ts";
 import {selectCalculationResults,type ResultSelectionCertificate} from "./calculation-result-selection.ts";
-import { rebindCalculatePlan, isResultOperand, type CalculatePlan, type CalculateSlot, type CalculateRole } from "./calculate-plan.ts";
+import { rebindCalculatePlan, isResultOperand, isPremiseOperand, type CalculatePlan, type CalculateSlot, type CalculateRole } from "./calculate-plan.ts";
 import { units } from "./calculation-units.ts";
 import { readLabsSnapshotMatches, type LabsList } from "../intelligence/labs-list.ts";
 import { selectionPublication } from "../intelligence/selection-publication.ts";
@@ -65,6 +65,7 @@ export function executeCalculatePlan(proposed:CalculatePlan,read:LabsList):Calcu
      if(!selected?.transportValid)throw Error("selection_transport");
      for(const slot of c.operands){
       if(isResultOperand(slot))throw Error("mixed_operands");
+      if(isPremiseOperand(slot))throw Error("premise_execution_unavailable");
       const certificate=selected.certificates.find(p=>p.subjectId===slot.subjectId&&p.clauseId===slot.clause);
       if(!certificate?.certified||!certificate.lineageClosed)throw Error("slot_not_certified");
       const id=certificate.selectedEventIds[slot.item];

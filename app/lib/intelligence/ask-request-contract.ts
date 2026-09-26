@@ -260,8 +260,9 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
     }
     if (!countOnly) {
       const baseNode = plan.properties!.calculations.items;
-      const direct = node.operands.items.anyOf.find((item: {properties?:Record<string,unknown>}) => item.properties && "petName" in item.properties)!;
-      const result = node.operands.items.anyOf.find((item: {properties?:Record<string,unknown>}) => item.properties && "calculationId" in item.properties)!;
+      const operandVariants = node.operands.items.anyOf as unknown as Array<{properties?:Record<string,unknown>}>;
+      const direct = operandVariants.find(item => item.properties && "petName" in item.properties)!;
+      const result = operandVariants.find(item => item.properties && "calculationId" in item.properties)!;
       const measurement = structuredClone(direct);
       Object.assign(measurement.properties!, {
         field: { type: "string", enum: ["measurement"] },
