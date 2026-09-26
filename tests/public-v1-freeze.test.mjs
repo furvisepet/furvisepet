@@ -62,3 +62,9 @@ test("failed/retried Ask adopts durable user identity before canonical reload", 
   assert.match(page, /const durableUserMessageId = payload\?\.userMessageId \|\| userMessageId/);
   assert.match(page, /message\.id === optimisticId \|\| message\.id === durableId/);
 });
+
+test("Ask has no post-Brain raw-English product capability classifier", () => {
+  const route = read("app/api/ask/route.ts");
+  assert.doesNotMatch(route, /classifyFurviseCapabilityQuestion/);
+  assert.doesNotMatch(route, /buildFurviseCapabilityResponse/);
+});
