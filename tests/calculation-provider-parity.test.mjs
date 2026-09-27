@@ -19,7 +19,7 @@ test('derived result node preserves upstream read selection authority',()=>{asse
 test('DAG cannot omit overall read selection',()=>{const r=dag();r.readTicket.selection=null;rejects(r);});
 test('DAG resultSelection restriction remains Binder-owned',()=>{const r=dag();r.calculatePlan.resultSelection={filter:null,orderBy:{direction:'desc'},take:null};assert.equal(check({request:r}),true);assert.throws(()=>validateAskRequest(r,context),/dag_result_selection/);});
 test('DAG backward-only reference binding is unchanged',()=>{const r=dag();r.calculatePlan.calculations[1].operands[0].calculationId='future';assert.equal(check({request:r}),true);assert.throws(()=>validateAskRequest(r,context),/backward_reference/);});
-for(const count of [false,true])for(const [name,edit]of [['episode',r=>r.readTicket.episode={operation:'count',referent:{}}],['needs',r=>r.readTicket.needs=[{}]],['probes',r=>r.readTicket.probes=[{}]],['strategy',r=>r.readTicket.outputs.strategy='chronological'],['calendar',r=>r.readTicket.temporal.calendar='oldest_year'],['compare',r=>r.readTicket.operation='compare'],['rank',r=>r.readTicket.operation='rank']])test((count?'count':'selected')+' calculation rejects '+name,()=>{const r=request(count);edit(r);if(count&&name==='strategy'){assert.equal(check({request:r}),false);assert.throws(()=>bindCalculatePlan(r.calculatePlan,{...r.readTicket,subjects:{petIds:[pets[0].id]}},pets),/read_domain/);}else rejects(r);});
+for(const count of [false,true])for(const [name,edit]of [['episode',r=>r.readTicket.episode={operation:'count',referent:{}}],['needs',r=>r.readTicket.needs=[{}]],['probes',r=>r.readTicket.probes=[{}]],['strategy',r=>r.readTicket.outputs.strategy='chronological'],['calendar',r=>r.readTicket.temporal.calendar='oldest_year'],['compare',r=>r.readTicket.operation='compare'],['rank',r=>r.readTicket.operation='rank']])test((count?'count':'selected')+' calculation rejects '+name,()=>{const r=request(count);edit(r);if(count&&name==='strategy'){assert.equal(check({request:r}),false);assert.throws(()=>bindCalculatePlan(r.calculatePlan,{...r.readTicket,subjects:{petIds:[pets[0].id]}},pets),/exhaustive_count/);}else rejects(r);});
 for(const count of [false,true])test((count?'count':'selected')+' calculation preserves semantic anchors',()=>{const r=request(count);r.readTicket.operation='read_since_event';r.readTicket.temporal.anchor={concept:'procedure',relation:'after'};assert.equal(accepts(r).request.readTicket.operation,'read_since_event');});
 test('selected calculations retain exhaustive reads and global transport caps',()=>{const r=request();r.readTicket.outputs.completeness='exhaustive';r.readTicket.outputs.limit=3;accepts(r);});
 test('provider schemas remain closed and fully required without conditional keywords',()=>{const visit=n=>{if(!n||typeof n!=='object')return;for(const k of ['if','then','oneOf'])assert.equal(Object.hasOwn(n,k),false);if(n.properties){assert.equal(n.additionalProperties,false);assert.deepEqual([...n.required].sort(),Object.keys(n.properties).sort());}for(const v of Object.values(n))Array.isArray(v)?v.forEach(visit):visit(v);};visit(schema);});
@@ -58,11 +58,14 @@ const providerNodes=schema.properties.request.anyOf.filter(v=>v.properties.calcu
 for(const [operator,terms] of roleChecks)test(operator+' semantic roles are explicit in instructions and each provider operand branch',()=>{
  const line=ASK_REQUEST_INSTRUCTIONS.split('\n').find(s=>s.startsWith(operator+':'));assert.ok(line,operator);
  const nodes=providerNodes.filter(n=>n.properties.operator.enum.includes(operator));assert.ok(nodes.length);
- for(const term of terms){assert.ok(line.includes(term),term);for(const node of nodes)for(const field of ['operator','operands'])assert.ok(node.properties[field].description.includes(term),operator+' '+field+' '+term);}
+ for(const term of terms){assert.ok(line.includes(term),term);for(const node of nodes)for(const field of ['operator'])assert.ok(node.properties[field].description.includes(term),operator+' '+field+' '+term);}
 });
-test('selection addresses do not assign arithmetic roles for read or derived operands',()=>{
- for(const text of [ASK_REQUEST_INSTRUCTIONS,...providerNodes.flatMap(n=>[n.description,n.properties.operands.description])]){
-  for(const term of ['Selection order is not calculation operand semantics','clause/item identifies WHICH','operand.role identifies WHAT','direct or result operand'])assert.ok(text.includes(term),term);
+test('selection addresses do not assign arithmetic roles for read, premise or derived operands',()=>{
+ assert.ok(ASK_REQUEST_INSTRUCTIONS.includes('Array position is never operand meaning.'));
+ for(const node of providerNodes.filter(n=>n.properties.operator.enum[0]!=='count_records')){
+  const operand=node.properties.operands.items;
+  assert.ok(operand.required.includes('role'));
+  assert.ok(operand.properties.role.enum.length);
  }
 });
 
@@ -85,6 +88,7 @@ test('non-calculation provider compatibility retains outer fields',()=>{
 test('canonical calculation contract owns temporal bounds and distinct endpoint union',()=>{
  for(const term of ['outer from/to null, terms [], selection summary','next local midnight in the supplied timezone','distinct ascending take 1 and descending take 1','duplicate clauses are invalid'])assert.ok(ASK_REQUEST_INSTRUCTIONS.includes(term),term);
  for(const v of schema.properties.request.anyOf.filter(v=>v.properties.calculatePlan.type==='object')){
+  if(v.properties.evidenceBasis.enum[0]==='supplied_context'){assert.equal(v.properties.readTicket.type,'null');continue;}
   assert.match(v.properties.readTicket.properties.temporal.description,/Sole temporal retrieval authority/);
   if(v.properties.readTicket.properties.selection.type==='object')assert.match(v.properties.readTicket.properties.selection.description,/Never duplicate orderBy\/take/);
  }
@@ -115,16 +119,17 @@ test('Brain-resolved calendar bounds preserve next-local-midnight semantics with
 
 import {CALCULATION_INPUT_OWNERSHIP,DIRECT_CALCULATION_OPERAND_DESCRIPTION,RESULT_CALCULATION_OPERAND_DESCRIPTION,requiresCalculateBinding,rebindCalculatePlan} from '../app/lib/furvise-brain/calculate-plan.ts';
 // Contract structure tests, not model compliance. Binder alone verifies dynamic sibling identity.
-test('direct/result ownership is explicit in the Brain contract and operand schema descriptions',()=>{
- for(const term of ['Use direct operands','ReadTicket slots directly','EARLIER arithmetic node','actual prior producer id','ReadTicket slots are not calculation IDs','No implicit producer exists','Do not add same-unit conversions'])assert.ok(CALCULATION_INPUT_OWNERSHIP.includes(term),term);
+test('source-domain meaning is stated once; provider operands retain their closed authority fields',()=>{
+ for(const term of ['certified ReadTicket slots or exact USER premise spans','EARLIER arithmetic node','actual prior producer id','ReadTicket slots and USER spans are not calculation IDs'])assert.ok(CALCULATION_INPUT_OWNERSHIP.includes(term),term);
  assert.ok(ASK_REQUEST_INSTRUCTIONS.includes(CALCULATION_INPUT_OWNERSHIP));
+ assert.ok(DIRECT_CALCULATION_OPERAND_DESCRIPTION.includes('selected by ReadTicket'));
+ assert.ok(RESULT_CALCULATION_OPERAND_DESCRIPTION.includes('No implicit producer exists'));
  for(const node of providerNodes.filter(n=>n.properties.operator.enum[0]!=='count_records')){
   const operand=node.properties.operands.items;
-  if(operand.properties.kind){
-   assert.equal(operand.description,RESULT_CALCULATION_OPERAND_DESCRIPTION);
-   for(const term of ['EARLIER','already emitted','read-slot alias','undeclared variable','No implicit producer exists'])assert.ok(operand.description.includes(term),term);
-   for(const term of ['actual EARLIER','Emit that producer before referencing it','ReadTicket slots are not calculation IDs'])assert.ok(operand.properties.calculationId.description.includes(term),term);
-  }else assert.equal(operand.description,DIRECT_CALCULATION_OPERAND_DESCRIPTION);
+  const expected='petName' in operand.properties ? ['role','petName','clause','item','field','unit','measurementSelector']
+   : 'quote' in operand.properties ? ['kind','role','sourceTurnId','quote','unit'] : ['kind','role','calculationId'];
+  assert.equal(operand.additionalProperties,false);
+  assert.deepEqual(Object.keys(operand.properties).sort(),expected.sort());
  }
 });
 test('provider array branches use existing keywords without new plan fields or tuple/conditional tricks',()=>{
@@ -135,8 +140,9 @@ test('provider array branches use existing keywords without new plan fields or t
   if(!arrays)continue;
   assert.equal(arrays.length,2);assert.equal(arrays[0].minItems,1);assert.equal(arrays[1].minItems,2);
   assert.equal(arrays[0].maxItems,20);assert.equal(arrays[1].maxItems,20);
-  assert.ok(arrays[0].items.anyOf.every(n=>'petName' in n.properties.operands.items.properties));
-  assert.ok(arrays[1].items.anyOf.some(n=>'kind' in n.properties.operands.items.properties));
+  const rootField=branch.properties.evidenceBasis.enum[0]==='saved_history'?'petName':'quote';
+  assert.ok(arrays[0].items.anyOf.every(n=>rootField in n.properties.operands.items.properties));
+  assert.ok(arrays[1].items.anyOf.some(n=>'calculationId' in n.properties.operands.items.properties));
  }
  const visit=n=>{if(!n||typeof n!=='object')return;for(const key of ['prefixItems','additionalItems','contains','if','then','else','allOf','not','$data'])assert.equal(Object.hasOwn(n,key),false,key);Object.values(n).forEach(v=>Array.isArray(v)?v.forEach(visit):visit(v));};visit(schema);
 });

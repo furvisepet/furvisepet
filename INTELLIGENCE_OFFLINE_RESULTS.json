@@ -1,0 +1,247 @@
+{
+  "base": "a6679a3e4e1019de98afbd4035874bd075c6ca80",
+  "node": "v24.19.0",
+  "gates": {
+    "calculation": {
+      "before": {
+        "tests": 348,
+        "pass": 346,
+        "fail": 2,
+        "failures": [
+          "closed result schema and derived execution have no raw-language or external input\r",
+          "shared matcher preserves normalized literal semantics, including old punctuation edge behavior\r"
+        ]
+      },
+      "after": {
+        "tests": 348,
+        "pass": 346,
+        "fail": 2,
+        "failures": [
+          "closed result schema and derived execution have no raw-language or external input\r",
+          "shared matcher preserves normalized literal semantics, including old punctuation edge behavior\r"
+        ]
+      },
+      "newFailures": []
+    },
+    "brain": {
+      "before": {
+        "tests": 78,
+        "pass": 76,
+        "fail": 2,
+        "failures": [
+          "captured \\#4 is rejected with a named calendar rule; clearing calendar alone still loses weighed\r",
+          "earliest measurement uses one calendar-free planner ticket and retains the earliest event in Lungs\r"
+        ]
+      },
+      "after": {
+        "tests": 78,
+        "pass": 76,
+        "fail": 2,
+        "failures": [
+          "captured \\#4 is rejected with a named calendar rule; clearing calendar alone still loses weighed\r",
+          "earliest measurement uses one calendar-free planner ticket and retains the earliest event in Lungs\r"
+        ]
+      },
+      "newFailures": []
+    },
+    "retrieval": {
+      "before": {
+        "tests": 244,
+        "pass": 243,
+        "fail": 1,
+        "failures": [
+          "foreign persisted subjects fail in continuation before factual retrieval\r"
+        ]
+      },
+      "after": {
+        "tests": 244,
+        "pass": 243,
+        "fail": 1,
+        "failures": [
+          "foreign persisted subjects fail in continuation before factual retrieval\r"
+        ]
+      },
+      "newFailures": []
+    },
+    "audit222": {
+      "before": {
+        "tests": 222,
+        "pass": 209,
+        "fail": 13,
+        "failures": [
+          "premise repair is bounded and revalidates exact user evidence\r",
+          "a premise repair cannot authorize invented pets or mutation scope\r",
+          "read planner can omit extraction while writes still require a valid frame\r",
+          "five-pet earliest/latest weight retrieval certifies both endpoint pairs even when lexical weight matching misses weighed prose\r",
+          "real admission lets a repaired planner reach composition without opening extra repair cycles\r",
+          "supplied premises narrow stale owned-history plans without granting writes\r",
+          "general knowledge never widens owned authority and saved history still validates ownership\r",
+          "supplied-context classification requires actual verbatim user premises\r",
+          "missing premises use bounded repair without inventing evidence\r",
+          "event evidence survives both budgets among verbose routine observations\r",
+          "rejected event answers retain relevant source excerpts instead of the latest profile\r",
+          "new observation plus calculation can repair an invalid correction plan without weakening validation\r",
+          "a failed mixed answer cannot commit proposed observation side effects\r"
+        ]
+      },
+      "after": {
+        "tests": 222,
+        "pass": 209,
+        "fail": 13,
+        "failures": [
+          "premise repair is bounded and revalidates exact user evidence\r",
+          "a premise repair cannot authorize invented pets or mutation scope\r",
+          "read planner can omit extraction while writes still require a valid frame\r",
+          "five-pet earliest/latest weight retrieval certifies both endpoint pairs even when lexical weight matching misses weighed prose\r",
+          "real admission lets a repaired planner reach composition without opening extra repair cycles\r",
+          "supplied premises narrow stale owned-history plans without granting writes\r",
+          "general knowledge never widens owned authority and saved history still validates ownership\r",
+          "supplied-context classification requires actual verbatim user premises\r",
+          "missing premises use bounded repair without inventing evidence\r",
+          "event evidence survives both budgets among verbose routine observations\r",
+          "rejected event answers retain relevant source excerpts instead of the latest profile\r",
+          "new observation plus calculation can repair an invalid correction plan without weakening validation\r",
+          "a failed mixed answer cannot commit proposed observation side effects\r"
+        ]
+      },
+      "newFailures": []
+    },
+    "stress": {
+      "before": {
+        "tests": 2,
+        "pass": 0,
+        "fail": 2,
+        "failures": [
+          "Milo, Luna, and Pepper semantic stress acceptance runs through the production history pipeline\r",
+          "10-pet five-year Ask stress acceptance\r"
+        ]
+      },
+      "after": {
+        "tests": 2,
+        "pass": 0,
+        "fail": 2,
+        "failures": [
+          "Milo, Luna, and Pepper semantic stress acceptance runs through the production history pipeline\r",
+          "10-pet five-year Ask stress acceptance\r"
+        ]
+      },
+      "newFailures": []
+    },
+    "expanded": {
+      "before": {
+        "tests": 797,
+        "pass": 777,
+        "fail": 20,
+        "failures": [
+          "unsupported history replaces factual call expectations with a source-free limitation\r",
+          "closed result schema and derived execution have no raw-language or external input\r",
+          "count calculation rejects strategy\r",
+          "difference semantic roles are explicit in instructions and each provider operand branch\r",
+          "percent_change semantic roles are explicit in instructions and each provider operand branch\r",
+          "ratio semantic roles are explicit in instructions and each provider operand branch\r",
+          "elapsed_days semantic roles are explicit in instructions and each provider operand branch\r",
+          "percent_of_sum semantic roles are explicit in instructions and each provider operand branch\r",
+          "absolute_difference semantic roles are explicit in instructions and each provider operand branch\r",
+          "sum semantic roles are explicit in instructions and each provider operand branch\r",
+          "mean semantic roles are explicit in instructions and each provider operand branch\r",
+          "convert semantic roles are explicit in instructions and each provider operand branch\r",
+          "count_records semantic roles are explicit in instructions and each provider operand branch\r",
+          "selection addresses do not assign arithmetic roles for read or derived operands\r",
+          "canonical calculation contract owns temporal bounds and distinct endpoint union\r",
+          "direct/result ownership is explicit in the Brain contract and operand schema descriptions\r",
+          "application action capabilities cross the Action Organ before database execution\r",
+          "source-bound proposal has no persistence authority before confirmation\r",
+          "tests\\\\history-publication-capability.test.mjs\r",
+          "rich publication avoids a coverage-only trailing page with readable unchanged body font\r"
+        ]
+      },
+      "after": {
+        "tests": 797,
+        "pass": 791,
+        "fail": 6,
+        "failures": [
+          "unsupported history replaces factual call expectations with a source-free limitation\r",
+          "closed result schema and derived execution have no raw-language or external input\r",
+          "application action capabilities cross the Action Organ before database execution\r",
+          "source-bound proposal has no persistence authority before confirmation\r",
+          "tests\\\\history-publication-capability.test.mjs\r",
+          "rich publication avoids a coverage-only trailing page with readable unchanged body font\r"
+        ]
+      },
+      "newFailures": []
+    }
+  },
+  "regressionBefore": {
+    "tests": 61,
+    "pass": 21,
+    "fail": 40,
+    "failures": [
+      "history domain Nori/kg/false\r",
+      "history domain Nori/kg/true\r",
+      "history domain Éclair/ml/false\r",
+      "history domain Éclair/ml/true\r",
+      "history domain Juniper/mg/false\r",
+      "history domain Juniper/mg/true\r",
+      "history domain Orbit/min/false\r",
+      "history domain Orbit/min/true\r",
+      "history domain Pip/cm/false\r",
+      "history domain Pip/cm/true\r",
+      "history domain Saffron/g/false\r",
+      "history domain Saffron/g/true\r",
+      "history domain Taro/hour/false\r",
+      "history domain Taro/hour/true\r",
+      "history domain Uma/day/false\r",
+      "history domain Uma/day/true\r",
+      "history domain Vega/lb/false\r",
+      "history domain Vega/lb/true\r",
+      "history domain Wren/l/false\r",
+      "history domain Wren/l/true\r",
+      "shared role grammar sum\r",
+      "shared role grammar mean\r",
+      "shared role grammar difference\r",
+      "shared role grammar absolute_difference\r",
+      "shared role grammar ratio\r",
+      "shared role grammar percent_change\r",
+      "shared role grammar percent_of_sum\r",
+      "invalid proposed numeric literal \"What changed for Zuri?\"\r",
+      "invalid proposed numeric literal \"2041-08-03\"\r",
+      "invalid proposed numeric literal \"March 5, 2044\"\r",
+      "invalid proposed numeric literal \"Body length\"\r",
+      "invalid proposed numeric literal \"temperature\"\r",
+      "invalid proposed numeric literal \"difference\"\r",
+      "invalid proposed numeric literal \"Zuri\"\r",
+      "invalid proposed numeric literal \"9 kg and 3 kg\"\r",
+      "premise root cannot masquerade as saved-history authority\r",
+      "a lone result has no implicit producer in either evidence domain\r",
+      "premise domain excludes count_records\r",
+      "premise domain excludes elapsed_days\r",
+      "mixed premise/result nodes fail without silently converting inputs\r"
+    ]
+  },
+  "regressionAfter": {
+    "tests": 61,
+    "pass": 61,
+    "fail": 0,
+    "failures": []
+  },
+  "focused": {
+    "tests": 379,
+    "pass": 379,
+    "fail": 0,
+    "failures": []
+  },
+  "complexity": {
+    "before": {
+      "schemaBytes": 196759,
+      "instructionBytes": 45346
+    },
+    "after": {
+      "schemaBytes": 192566,
+      "instructionBytes": 45692
+    }
+  },
+  "recordedNetworkBlocks": [],
+  "buildFontSha256": "3787a5a419171630e6890cfa47c4da067474d005cd0ff8dc11ec090fdc3ee2b8",
+  "providerCalls": 0,
+  "costUSD": 0
+}

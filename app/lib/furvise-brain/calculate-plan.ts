@@ -39,6 +39,7 @@ const keys=(v:Record<string,unknown>,names:string[])=>Object.keys(v).sort().join
 const fail=(reason:string):never=>{throw Error("ASK_CALCULATE_INVALID:"+reason);};
 const unit=(v:unknown)=>typeof v==="string"&&Object.hasOwn(units,v)?units[v]:null;
 export const DIRECT_CALCULATION_OPERAND_DESCRIPTION = "Consumes a factual measurement or event instant selected by ReadTicket. Use the direct clause/item slot whenever the required factual value is available there; the semantic role identifies its function in this operation.";
+export const CALCULATION_PREMISE_LITERAL_PATTERN = String.raw`^\s*([+\u2212-]?\d+(?:\.\d+)?)\s*([A-Za-z]+)?\s*$`;
 export const PREMISE_CALCULATION_OPERAND_DESCRIPTION = "Consumes one exact numeric premise from USER text. quote is an exact contiguous USER span and sourceTurnId is null for the current USER turn or an explicitly referenced prior USER turn. The server binds the source span and exact rational value; never provide a numeric value separately.";
 export const RESULT_CALCULATION_OPERAND_DESCRIPTION = "Consumes only the certified arithmetic output of an EARLIER calculation node already emitted in this same calculations array. It is not a selected-record name, read-slot alias, premise alias or undeclared variable. No implicit producer exists.";
 export const CALCULATION_INPUT_OWNERSHIP = "A root calculation uses exactly one factual source domain: certified ReadTicket slots or exact USER premise spans. Use kind:result only when the requested derivation depends on an EARLIER arithmetic node already present in calculations. Every calculationId must equal an actual prior producer id. ReadTicket slots and USER spans are not calculation IDs. Never provide computed values or source IDs; the server binds factual inputs.";
@@ -58,7 +59,7 @@ export const calculatePlanSchema={anyOf:[{type:"null"},{
  unit:{type:["string","null"],enum:[...Object.keys(units),null]}}},
  {type:"object",description:PREMISE_CALCULATION_OPERAND_DESCRIPTION,additionalProperties:false,required:["kind","role","sourceTurnId","quote","unit"],properties:{
  role:{type:"string",enum:CALCULATE_ROLES},kind:{type:"string",enum:["premise"]},
- sourceTurnId:{type:["string","null"],maxLength:160},quote:{type:"string",minLength:1,maxLength:1200},
+ sourceTurnId:{type:["string","null"],maxLength:160},quote:{type:"string",minLength:1,maxLength:1200,pattern:CALCULATION_PREMISE_LITERAL_PATTERN},
  unit:{type:"string",enum:[...Object.keys(units),"scalar"]}}},
  {type:"object",description:RESULT_CALCULATION_OPERAND_DESCRIPTION,additionalProperties:false,required:["kind","role","calculationId"],properties:{role:{type:"string",enum:CALCULATE_ROLES},kind:{type:"string",enum:["result"]},calculationId:{type:"string",minLength:1,maxLength:80,description:"Exact id of an actual EARLIER calculation in this same calculations array. Emit that producer before referencing it. No implicit producer exists; ReadTicket slots and USER spans are not calculation IDs."}}}]}},
  resultUnit:{type:"string",enum:[...Object.keys(units),"scalar","%","records"]},
@@ -66,8 +67,7 @@ export const calculatePlanSchema={anyOf:[{type:"null"},{
  }}}}}]};
 
 function premiseExact(text:string,targetUnit:string):Exact {
- const trimmed=text.trim();
- const match=/^([+\u2212-]?\d+(?:\.\d+)?)\s*([A-Za-z]+)?$/u.exec(trimmed);
+ const match=new RegExp(CALCULATION_PREMISE_LITERAL_PATTERN,"u").exec(text);
  if(!match)return fail("premise_literal");
  let q=decimal(match[1].replace("\u2212","-"));finite(q);
  const supplied=(match[2]||"").toLowerCase();
