@@ -1,0 +1,60 @@
+{
+  "baseline": "a58645fc3eff006b71836bc9cf0375d4899f86b9",
+  "fullOfflineGreen": false,
+  "disposition": "STOPPED_AT_UNRESOLVED_AUTHORITY_BOUNDARY",
+  "providerCalls": 0,
+  "costUSD": 0,
+  "contextLineage": {
+    "before": {
+      "tests": 6,
+      "pass": 4,
+      "fail": 2
+    },
+    "after": "unchanged; reproduced through correction-lineage wrapper",
+    "classification": "Retired context receipt representation; equivalent coverage not yet established for legacy source-linked rows.",
+    "evidence": [
+      "747a9154 removed operationReceipt construction and receipt-reference recovery from retrieve-context.ts.",
+      "Current planning-context.ts loads owned capability references independently of conversation messages; stored-read-organ.ts verifies canonical terminal operation receipts.",
+      "A typed operation receipt expressly does not prove continued linked-record existence. It cannot simply replace the old records/body projection.",
+      "Existing context tests have source-linked care rows but no canonical capability/receipt fixtures. Their operationReceipt assertions cannot be changed without separately preserving active-row freshness and body proof.",
+      "Receipt investigation and required adversarial migration remain unfinished because the late-correction authority boundary was reached."
+    ]
+  },
+  "lateCorrections": {
+    "before": {
+      "tests": 9,
+      "pass": 0,
+      "fail": 9
+    },
+    "firstBoundary": "ASK_MEMORY_BRAIN_REQUIRED",
+    "classification": "Retired raw-language harness plus unresolved typed relevance contract for unlinked correction prose.",
+    "typedReproduction": {
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "isAcceptanceRepair": false,
+      "findings": [
+        "Valid effective_fact July proposal passes one mocked Brain interpretation and executes real retrieval/publication.",
+        "Ordinary acquisition encounters the later unlinked note in the broader effective scan; result is server-history-unavailable/limited.",
+        "Adding searchHints does not invoke the legacy supplemental lexical RPC or supply a target relationship.",
+        "Replacing that note with an unrelated-year unlinked correction still blocks the July effective result.",
+        "No correction edge, certificate, provider call or raw-language fallback was added."
+      ]
+    },
+    "missingDecision": "How may a legacy unlinked correction report be identified as relevant or unrelated to the requested historical target without interpreting its prose below Brain or inventing a stored relation?",
+    "whyExistingContractsDoNotResolve": [
+      "searchHints only observe already-acquired effective snapshots and grant no extra query or certification.",
+      "Grounded needs/probes express bounded acquisition; they do not certify a correction-target relationship.",
+      "stored_report intentionally cannot satisfy a definitive effective_fact question.",
+      "The legacy helper uses correction-word and year/yesterday tests over source prose; reconnecting it would restore the prohibited deterministic linguistic selection.",
+      "Graph closure can follow persisted correction relationships, but these fixtures intentionally contain none."
+    ]
+  },
+  "productionChanges": {
+    "files": 0,
+    "added": 0,
+    "removed": 0
+  },
+  "livePacketPrepared": false,
+  "livePacketReason": "Phase 4 permits preparation only after full offline acceptance is green."
+}

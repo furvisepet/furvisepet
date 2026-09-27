@@ -1,0 +1,529 @@
+{
+  "baseline": "a58645fc3eff006b71836bc9cf0375d4899f86b9",
+  "reproductionSource": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport {clock,exercise} from 'file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/helpers/lifetime-harness.mjs';\nimport {decisive,care} from 'file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/fixtures/ask-lifetime-history.mjs';\nimport {stressProposal} from 'file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/helpers/current-stress-harness.mjs';\nfor (const hints of [[],['correct','retract','supersed']]) test('typed July domain does not discover later unlinked prose; hints='+hints.length,async t=>{\n clock(t);\n const proposal=stressProposal({authority:'effective_fact',petNames:['Milo'],terms:['vomit','threw up'],from:'2014-07-01',to:'2014-08-01'});\n proposal.readTicket.searchHints=hints;\n const run=await exercise('Did Milo vomit in July 2014?',{history:true,interpretationProposal:proposal,expectedProviderCalls:0,expectedReviewCalls:0});\n assert.equal(run.interpretationRequests.length,1);\n assert.equal(run.requests.length,0);\n assert.equal(run.reviewRequests.length,0);\n const discoveries=run.queries.filter(q=>q.table==='read_ask_history_candidates'&&q.args?.p_terms?.includes('correct'));\n assert.equal(discoveries.length,0);\n assert.ok(!run.context.askHistory.originals.some(r=>r.id==='milo-correction'));\n console.log('BOUNDARY_EVIDENCE',JSON.stringify({hints,request:run.context.askInterpretation.request.readTicket,discoveryQueries:discoveries.length,originalIds:run.context.askHistory.originals.map(r=>r.id),coverage:run.context.askHistory.coverage,model:run.result.reasoning.model,outcome:run.result.answerValidation.assessment.outcome,providerCalls:0}));\n});\n\ntest('unrelated-year unlinked prose also blocks the July effective result',async t=>{\n clock(t);\n const rows=decisive.filter(r=>!r.id.includes('correction'));\n rows.push(care('other-year','milo','2026-08-20','general','Correction to the 2015 vomiting report.'));\n const proposal=stressProposal({authority:'effective_fact',petNames:['Milo'],terms:['vomit','threw up'],from:'2014-07-01',to:'2014-08-01'});\n const run=await exercise('Did Milo vomit in July 2014?',{rows,history:true,interpretationProposal:proposal,expectedProviderCalls:0,expectedReviewCalls:0});\n assert.equal(run.result.reasoning.model,'server-history-unavailable');\n assert.ok(run.context.askHistory.coverage.ticketCoverage.sourceLineage.some(r=>r.eventId==='other-year'));\n console.log('UNRELATED_YEAR_EVIDENCE',JSON.stringify({sourceLineage:run.context.askHistory.coverage.ticketCoverage.sourceLineage,model:run.result.reasoning.model,outcome:run.result.answerValidation.assessment.outcome}));\n});\n",
+  "observations": [
+    {
+      "hints": [],
+      "request": {
+        "authority": "effective_fact",
+        "subjectScope": "named",
+        "needs": [],
+        "episode": null,
+        "searchHints": [],
+        "operation": "read",
+        "subjects": {
+          "petIds": [
+            "milo"
+          ]
+        },
+        "temporal": {
+          "from": "2014-07-01T00:00:00Z",
+          "to": "2014-08-01T00:00:00Z",
+          "anchor": null,
+          "calendar": null
+        },
+        "predicates": [
+          {
+            "kind": "text_any",
+            "terms": [
+              "vomit",
+              "threw up"
+            ]
+          }
+        ],
+        "outputs": {
+          "strategy": null,
+          "completeness": "exhaustive",
+          "ordering": "asc",
+          "limit": null
+        }
+      },
+      "discoveryQueries": 0,
+      "originalIds": [
+        "milo-vomit-wrong"
+      ],
+      "coverage": {
+        "plan": {
+          "from": "2014-07-01T00:00:00.000Z",
+          "to": "2014-08-01T00:00:00.000Z",
+          "terms": [],
+          "interpretation": "period"
+        },
+        "candidateIds": [
+          "care:milo-vomit-wrong"
+        ],
+        "queryCount": 2,
+        "retrieval": "partial",
+        "corrections": "partial",
+        "extraction": "complete",
+        "grouping": "complete",
+        "continuation": [],
+        "reasons": [
+          "no_cross_query_snapshot",
+          "no_cross_query_snapshot",
+          "unlinked_correction_uncertain",
+          "result_set_lineage_not_closed",
+          "unresolved_source_lineage",
+          "result_set_lineage_not_closed",
+          "read_budget_or_limit",
+          "ticket_coverage:partial"
+        ],
+        "consistency": "read_committed_no_snapshot",
+        "perPet": [
+          {
+            "petId": "milo",
+            "rows": 11,
+            "pages": 1,
+            "exhausted": true,
+            "status": "partial"
+          }
+        ],
+        "provenance": [
+          {
+            "sourceId": "care:milo-vomit-wrong",
+            "claimIds": [],
+            "status": "unverified_legacy"
+          }
+        ],
+        "claimSources": [
+          {
+            "petId": "milo",
+            "sourceIds": []
+          }
+        ],
+        "excludedIds": [],
+        "ticketCoverage": {
+          "authority": "effective_fact",
+          "status": "partial",
+          "reasons": [
+            "no_cross_query_snapshot",
+            "unlinked_correction_uncertain",
+            "result_set_lineage_not_closed",
+            "unresolved_source_lineage",
+            "result_set_lineage_not_closed",
+            "read_budget_or_limit"
+          ],
+          "matchSemantics": "ticket_text_predicates",
+          "asOf": "2026-09-04T18:00:00.000Z",
+          "anchors": [],
+          "windows": [
+            {
+              "petId": "milo",
+              "from": "2014-07-01T00:00:00.000Z",
+              "to": "2014-08-01T00:00:00.000Z",
+              "relation": null
+            }
+          ],
+          "continuation": [],
+          "effectiveStream": [
+            {
+              "petId": "milo",
+              "acquiredIds": [
+                "milo-food-1",
+                "milo-stool-1",
+                "milo-weight-1",
+                "milo-stool-1-end",
+                "milo-food-2",
+                "milo-stool-2",
+                "milo-vomit-wrong",
+                "milo-weight-2",
+                "milo-stool-2-end",
+                "milo-weight-3",
+                "milo-correction"
+              ],
+              "effectiveIds": [
+                "milo-food-1",
+                "milo-stool-1",
+                "milo-weight-1",
+                "milo-stool-1-end",
+                "milo-food-2",
+                "milo-stool-2",
+                "milo-vomit-wrong",
+                "milo-weight-2",
+                "milo-stool-2-end",
+                "milo-weight-3",
+                "milo-correction"
+              ],
+              "certifiedSelectedIds": [],
+              "lineageClosed": false,
+              "replacementSeedsExhausted": true,
+              "graphCalls": 1,
+              "lineageRows": 11
+            }
+          ],
+          "sourceLineage": [
+            {
+              "eventId": "milo-correction",
+              "status": "unlinked",
+              "authority": "attributed_report"
+            }
+          ],
+          "selection": {
+            "scannedIds": [
+              "milo-food-1",
+              "milo-stool-1",
+              "milo-weight-1",
+              "milo-stool-1-end",
+              "milo-food-2",
+              "milo-stool-2",
+              "milo-vomit-wrong",
+              "milo-weight-2",
+              "milo-stool-2-end",
+              "milo-weight-3",
+              "milo-correction"
+            ],
+            "matchedIds": [
+              "milo-vomit-wrong"
+            ],
+            "retainedIds": [
+              "milo-vomit-wrong"
+            ],
+            "omittedIds": []
+          },
+          "resultSet": {
+            "authority": "effective_fact",
+            "subjectIds": [
+              "milo"
+            ],
+            "predicates": [
+              {
+                "kind": "text_any",
+                "terms": [
+                  "vomit",
+                  "threw up"
+                ]
+              }
+            ],
+            "temporal": {
+              "from": "2014-07-01T00:00:00Z",
+              "to": "2014-08-01T00:00:00Z",
+              "anchor": null,
+              "calendar": null
+            },
+            "windows": [
+              {
+                "petId": "milo",
+                "from": "2014-07-01T00:00:00.000Z",
+                "to": "2014-08-01T00:00:00.000Z",
+                "relation": null
+              }
+            ],
+            "ordering": "asc",
+            "subjects": [
+              {
+                "petId": "milo",
+                "exhausted": true,
+                "lineageClosed": false,
+                "matchingIds": [
+                  "milo-vomit-wrong"
+                ],
+                "retainedIds": [
+                  "milo-vomit-wrong"
+                ],
+                "omittedIds": [],
+                "matchingSetComplete": false,
+                "representationComplete": true,
+                "certified": false,
+                "reasons": [
+                  "result_set_lineage_not_closed"
+                ]
+              }
+            ],
+            "matchingIds": [
+              "milo-vomit-wrong"
+            ],
+            "retainedIds": [
+              "milo-vomit-wrong"
+            ],
+            "omittedIds": [],
+            "matchingSetComplete": false,
+            "representationComplete": true,
+            "certified": false,
+            "reasons": [
+              "result_set_lineage_not_closed"
+            ]
+          }
+        },
+        "requiredSourceIds": [
+          "care:milo-vomit-wrong"
+        ]
+      },
+      "model": "server-history-unavailable",
+      "outcome": "limited",
+      "providerCalls": 0
+    },
+    {
+      "hints": [
+        "correct",
+        "retract",
+        "supersed"
+      ],
+      "request": {
+        "authority": "effective_fact",
+        "subjectScope": "named",
+        "needs": [],
+        "episode": null,
+        "searchHints": [
+          "correct",
+          "retract",
+          "supersed"
+        ],
+        "operation": "read",
+        "subjects": {
+          "petIds": [
+            "milo"
+          ]
+        },
+        "temporal": {
+          "from": "2014-07-01T00:00:00Z",
+          "to": "2014-08-01T00:00:00Z",
+          "anchor": null,
+          "calendar": null
+        },
+        "predicates": [
+          {
+            "kind": "text_any",
+            "terms": [
+              "vomit",
+              "threw up"
+            ]
+          }
+        ],
+        "outputs": {
+          "strategy": null,
+          "completeness": "exhaustive",
+          "ordering": "asc",
+          "limit": null
+        }
+      },
+      "discoveryQueries": 0,
+      "originalIds": [
+        "milo-vomit-wrong"
+      ],
+      "coverage": {
+        "plan": {
+          "from": "2014-07-01T00:00:00.000Z",
+          "to": "2014-08-01T00:00:00.000Z",
+          "terms": [],
+          "interpretation": "period"
+        },
+        "candidateIds": [
+          "care:milo-vomit-wrong"
+        ],
+        "queryCount": 2,
+        "retrieval": "partial",
+        "corrections": "partial",
+        "extraction": "complete",
+        "grouping": "complete",
+        "continuation": [],
+        "reasons": [
+          "no_cross_query_snapshot",
+          "no_cross_query_snapshot",
+          "unlinked_correction_uncertain",
+          "result_set_lineage_not_closed",
+          "unresolved_source_lineage",
+          "result_set_lineage_not_closed",
+          "read_budget_or_limit",
+          "ticket_coverage:partial"
+        ],
+        "consistency": "read_committed_no_snapshot",
+        "perPet": [
+          {
+            "petId": "milo",
+            "rows": 11,
+            "pages": 1,
+            "exhausted": true,
+            "status": "partial"
+          }
+        ],
+        "provenance": [
+          {
+            "sourceId": "care:milo-vomit-wrong",
+            "claimIds": [],
+            "status": "unverified_legacy"
+          }
+        ],
+        "claimSources": [
+          {
+            "petId": "milo",
+            "sourceIds": []
+          }
+        ],
+        "excludedIds": [],
+        "ticketCoverage": {
+          "authority": "effective_fact",
+          "status": "partial",
+          "reasons": [
+            "no_cross_query_snapshot",
+            "unlinked_correction_uncertain",
+            "result_set_lineage_not_closed",
+            "unresolved_source_lineage",
+            "result_set_lineage_not_closed",
+            "read_budget_or_limit"
+          ],
+          "matchSemantics": "ticket_text_predicates",
+          "asOf": "2026-09-04T18:00:00.000Z",
+          "anchors": [],
+          "windows": [
+            {
+              "petId": "milo",
+              "from": "2014-07-01T00:00:00.000Z",
+              "to": "2014-08-01T00:00:00.000Z",
+              "relation": null
+            }
+          ],
+          "continuation": [],
+          "effectiveStream": [
+            {
+              "petId": "milo",
+              "acquiredIds": [
+                "milo-food-1",
+                "milo-stool-1",
+                "milo-weight-1",
+                "milo-stool-1-end",
+                "milo-food-2",
+                "milo-stool-2",
+                "milo-vomit-wrong",
+                "milo-weight-2",
+                "milo-stool-2-end",
+                "milo-weight-3",
+                "milo-correction"
+              ],
+              "effectiveIds": [
+                "milo-food-1",
+                "milo-stool-1",
+                "milo-weight-1",
+                "milo-stool-1-end",
+                "milo-food-2",
+                "milo-stool-2",
+                "milo-vomit-wrong",
+                "milo-weight-2",
+                "milo-stool-2-end",
+                "milo-weight-3",
+                "milo-correction"
+              ],
+              "certifiedSelectedIds": [],
+              "lineageClosed": false,
+              "replacementSeedsExhausted": true,
+              "graphCalls": 1,
+              "lineageRows": 11
+            }
+          ],
+          "sourceLineage": [
+            {
+              "eventId": "milo-correction",
+              "status": "unlinked",
+              "authority": "attributed_report"
+            }
+          ],
+          "selection": {
+            "scannedIds": [
+              "milo-food-1",
+              "milo-stool-1",
+              "milo-weight-1",
+              "milo-stool-1-end",
+              "milo-food-2",
+              "milo-stool-2",
+              "milo-vomit-wrong",
+              "milo-weight-2",
+              "milo-stool-2-end",
+              "milo-weight-3",
+              "milo-correction"
+            ],
+            "matchedIds": [
+              "milo-vomit-wrong"
+            ],
+            "retainedIds": [
+              "milo-vomit-wrong"
+            ],
+            "omittedIds": []
+          },
+          "resultSet": {
+            "authority": "effective_fact",
+            "subjectIds": [
+              "milo"
+            ],
+            "predicates": [
+              {
+                "kind": "text_any",
+                "terms": [
+                  "vomit",
+                  "threw up"
+                ]
+              }
+            ],
+            "temporal": {
+              "from": "2014-07-01T00:00:00Z",
+              "to": "2014-08-01T00:00:00Z",
+              "anchor": null,
+              "calendar": null
+            },
+            "windows": [
+              {
+                "petId": "milo",
+                "from": "2014-07-01T00:00:00.000Z",
+                "to": "2014-08-01T00:00:00.000Z",
+                "relation": null
+              }
+            ],
+            "ordering": "asc",
+            "subjects": [
+              {
+                "petId": "milo",
+                "exhausted": true,
+                "lineageClosed": false,
+                "matchingIds": [
+                  "milo-vomit-wrong"
+                ],
+                "retainedIds": [
+                  "milo-vomit-wrong"
+                ],
+                "omittedIds": [],
+                "matchingSetComplete": false,
+                "representationComplete": true,
+                "certified": false,
+                "reasons": [
+                  "result_set_lineage_not_closed"
+                ]
+              }
+            ],
+            "matchingIds": [
+              "milo-vomit-wrong"
+            ],
+            "retainedIds": [
+              "milo-vomit-wrong"
+            ],
+            "omittedIds": [],
+            "matchingSetComplete": false,
+            "representationComplete": true,
+            "certified": false,
+            "reasons": [
+              "result_set_lineage_not_closed"
+            ]
+          }
+        },
+        "requiredSourceIds": [
+          "care:milo-vomit-wrong"
+        ]
+      },
+      "model": "server-history-unavailable",
+      "outcome": "limited",
+      "providerCalls": 0
+    },
+    {
+      "sourceLineage": [
+        {
+          "eventId": "other-year",
+          "status": "unlinked",
+          "authority": "attributed_report"
+        }
+      ],
+      "model": "server-history-unavailable",
+      "outcome": "limited"
+    }
+  ],
+  "contextBeforeLog": "TAP version 13\n# Subtest: old receipt is freshly revalidated beyond the dialogue window, deleted=false\nnot ok 1 - old receipt is freshly revalidated beyond the dialogue window, deleted=false\n  ---\n  duration_ms: 3.3344\n  type: 'test'\n  location: 'C:\\\\Users\\\\gwara\\\\furvise-intelligence-v1\\\\scripts\\\\audits\\\\ask-context-lineage.cases.mjs:8:35'\n  failureType: 'testCodeFailure'\n  error: |-\n    Expected values to be strictly equal:\n    + actual - expected\n    \n    + undefined\n    - true\n    \n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: true\n  operator: 'strictEqual'\n  stack: |-\n    TestContext.<anonymous> (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/ask-context-lineage.cases.mjs:21:9)\n    async Test.run (node:internal/test_runner/test:1389:7)\n    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n  ...\n# Subtest: old receipt is freshly revalidated beyond the dialogue window, deleted=true\nok 2 - old receipt is freshly revalidated beyond the dialogue window, deleted=true\n  ---\n  duration_ms: 0.7656\n  type: 'test'\n  ...\n# Subtest: named pet has independent context from selected conversation: milo\nok 3 - named pet has independent context from selected conversation: milo\n  ---\n  duration_ms: 0.9192\n  type: 'test'\n  ...\n# Subtest: named pet has independent context from selected conversation: luna\nok 4 - named pet has independent context from selected conversation: luna\n  ---\n  duration_ms: 0.3734\n  type: 'test'\n  ...\n# Subtest: unavailable conversation lineage suppresses uncertain claims, keeps independently loaded owned history\nok 5 - unavailable conversation lineage suppresses uncertain claims, keeps independently loaded owned history\n  ---\n  duration_ms: 0.4726\n  type: 'test'\n  ...\n# Subtest: future-dated saved record remains receipt-readable without entering elapsed history\nnot ok 6 - future-dated saved record remains receipt-readable without entering elapsed history\n  ---\n  duration_ms: 0.6278\n  type: 'test'\n  location: 'C:\\\\Users\\\\gwara\\\\furvise-intelligence-v1\\\\scripts\\\\audits\\\\ask-context-lineage.cases.mjs:45:1'\n  failureType: 'testCodeFailure'\n  error: 'durable save lineage must survive future event time'\n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: true\n  operator: '=='\n  stack: |-\n    TestContext.<anonymous> (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/ask-context-lineage.cases.mjs:53:9)\n    async Test.run (node:internal/test_runner/test:1389:7)\n    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)\n  ...\n1..6\n# tests 6\n# suites 0\n# pass 4\n# fail 2\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 621.5222\n",
+  "lateBeforeLog": "TAP version 13\n# Subtest: actual callback discovers and qualifies a later unlinked correction\nnot ok 1 - actual callback discovers and qualifies a later unlinked correction\n  ---\n  duration_ms: 58.4922\n  type: 'test'\n  location: 'C:\\\\Users\\\\gwara\\\\furvise-intelligence-v1\\\\scripts\\\\audits\\\\ask-late-corrections.cases.mjs:6:1'\n  failureType: 'testCodeFailure'\n  error: 'ASK_MEMORY_BRAIN_REQUIRED'\n  code: 'ERR_TEST_FAILURE'\n  stack: |-\n    retrieveFurviseMemory (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\furvise-brain\\memory-organ.ts:37:67)\n    generateAskHistoryAnswer (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\intelligence\\generate-ask-history.ts:55:64)\n    exercise (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/helpers/lifetime-harness.mjs:223:29)\n    async TestContext.<anonymous> (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/ask-late-corrections.cases.mjs:8:15)\n    async Test.run (node:internal/test_runner/test:1389:7)\n    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n  ...\n# Subtest: later correction never broadens pet authority or becomes a write\nnot ok 2 - later correction never broadens pet authority or becomes a write\n  ---\n  duration_ms: 0.784\n  type: 'test'\n  location: 'C:\\\\Users\\\\gwara\\\\furvise-intelligence-v1\\\\scripts\\\\audits\\\\ask-late-corrections.cases.mjs:15:1'\n  failureType: 'testCodeFailure'\n  error: 'ASK_MEMORY_BRAIN_REQUIRED'\n  code: 'ERR_TEST_FAILURE'\n  stack: |-\n    retrieveFurviseMemory (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\furvise-brain\\memory-organ.ts:37:67)\n    generateAskHistoryAnswer (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\intelligence\\generate-ask-history.ts:55:64)\n    exercise (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/helpers/lifetime-harness.mjs:223:29)\n    async TestContext.<anonymous> (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/ask-late-corrections.cases.mjs:18:15)\n    async Test.run (node:internal/test_runner/test:1389:7)\n    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)\n  ...\n# Subtest: changed or deleted supplemental correction is withheld after fresh lookup\nnot ok 3 - changed or deleted supplemental correction is withheld after fresh lookup\n  ---\n  duration_ms: 0.6504\n  type: 'test'\n  location: 'C:\\\\Users\\\\gwara\\\\furvise-intelligence-v1\\\\scripts\\\\audits\\\\ask-late-corrections.cases.mjs:27:1'\n  failureType: 'testCodeFailure'\n  error: 'ASK_MEMORY_BRAIN_REQUIRED'\n  code: 'ERR_TEST_FAILURE'\n  stack: |-\n    retrieveFurviseMemory (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\furvise-brain\\memory-organ.ts:37:67)\n    generateAskHistoryAnswer (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\intelligence\\generate-ask-history.ts:55:64)\n    exercise (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/helpers/lifetime-harness.mjs:223:29)\n    async TestContext.<anonymous> (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/ask-late-corrections.cases.mjs:33:17)\n    async Test.run (node:internal/test_runner/test:1389:7)\n    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)\n  ...\n# Subtest: supplemental RPC failure discloses uncertainty instead of confirming the old note\nnot ok 4 - supplemental RPC failure discloses uncertainty instead of confirming the old note\n  ---\n  duration_ms: 0.5961\n  type: 'test'\n  location: 'C:\\\\Users\\\\gwara\\\\furvise-intelligence-v1\\\\scripts\\\\audits\\\\ask-late-corrections.cases.mjs:40:1'\n  failureType: 'testCodeFailure'\n  error: 'ASK_MEMORY_BRAIN_REQUIRED'\n  code: 'ERR_TEST_FAILURE'\n  stack: |-\n    retrieveFurviseMemory (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\furvise-brain\\memory-organ.ts:37:67)\n    generateAskHistoryAnswer (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\intelligence\\generate-ask-history.ts:55:64)\n    exercise (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/helpers/lifetime-harness.mjs:223:29)\n    async TestContext.<anonymous> (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/ask-late-corrections.cases.mjs:42:15)\n    async Test.run (node:internal/test_runner/test:1389:7)\n    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)\n  ...\n# Subtest: unrelated year is not attached and bounded discovery never certifies completeness\nnot ok 5 - unrelated year is not attached and bounded discovery never certifies completeness\n  ---\n  duration_ms: 0.6545\n  type: 'test'\n  location: 'C:\\\\Users\\\\gwara\\\\furvise-intelligence-v1\\\\scripts\\\\audits\\\\ask-late-corrections.cases.mjs:47:1'\n  failureType: 'testCodeFailure'\n  error: 'ASK_MEMORY_BRAIN_REQUIRED'\n  code: 'ERR_TEST_FAILURE'\n  stack: |-\n    retrieveFurviseMemory (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\furvise-brain\\memory-organ.ts:37:67)\n    generateAskHistoryAnswer (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\intelligence\\generate-ask-history.ts:55:64)\n    exercise (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/helpers/lifetime-harness.mjs:223:29)\n    async TestContext.<anonymous> (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/ask-late-corrections.cases.mjs:51:15)\n    async Test.run (node:internal/test_runner/test:1389:7)\n    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)\n  ...\n# Subtest: discovery is bounded even when unrelated correction notes exhaust the page\nnot ok 6 - discovery is bounded even when unrelated correction notes exhaust the page\n  ---\n  duration_ms: 0.7507\n  type: 'test'\n  location: 'C:\\\\Users\\\\gwara\\\\furvise-intelligence-v1\\\\scripts\\\\audits\\\\ask-late-corrections.cases.mjs:56:1'\n  failureType: 'testCodeFailure'\n  error: 'ASK_MEMORY_BRAIN_REQUIRED'\n  code: 'ERR_TEST_FAILURE'\n  stack: |-\n    retrieveFurviseMemory (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\furvise-brain\\memory-organ.ts:37:67)\n    generateAskHistoryAnswer (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\intelligence\\generate-ask-history.ts:55:64)\n    exercise (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/helpers/lifetime-harness.mjs:223:29)\n    async TestContext.<anonymous> (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/ask-late-corrections.cases.mjs:59:15)\n    async Test.run (node:internal/test_runner/test:1389:7)\n    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)\n  ...\n# Subtest: malformed supplemental boundary is rejected: {\"user_id\":\"foreign-owner\"}\nnot ok 7 - malformed supplemental boundary is rejected: {\"user_id\":\"foreign-owner\"}\n  ---\n  duration_ms: 1.7657\n  type: 'test'\n  location: 'C:\\\\Users\\\\gwara\\\\furvise-intelligence-v1\\\\scripts\\\\audits\\\\ask-late-corrections.cases.mjs:72:3'\n  failureType: 'testCodeFailure'\n  error: 'ASK_MEMORY_BRAIN_REQUIRED'\n  code: 'ERR_TEST_FAILURE'\n  stack: |-\n    retrieveFurviseMemory (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\furvise-brain\\memory-organ.ts:37:67)\n    generateAskHistoryAnswer (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\intelligence\\generate-ask-history.ts:55:64)\n    exercise (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/helpers/lifetime-harness.mjs:223:29)\n    async TestContext.<anonymous> (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/ask-late-corrections.cases.mjs:75:17)\n    async Test.run (node:internal/test_runner/test:1389:7)\n    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)\n  ...\n# Subtest: malformed supplemental boundary is rejected: {\"pet_profile_id\":\"bruno\"}\nnot ok 8 - malformed supplemental boundary is rejected: {\"pet_profile_id\":\"bruno\"}\n  ---\n  duration_ms: 0.541\n  type: 'test'\n  location: 'C:\\\\Users\\\\gwara\\\\furvise-intelligence-v1\\\\scripts\\\\audits\\\\ask-late-corrections.cases.mjs:72:3'\n  failureType: 'testCodeFailure'\n  error: 'ASK_MEMORY_BRAIN_REQUIRED'\n  code: 'ERR_TEST_FAILURE'\n  stack: |-\n    retrieveFurviseMemory (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\furvise-brain\\memory-organ.ts:37:67)\n    generateAskHistoryAnswer (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\intelligence\\generate-ask-history.ts:55:64)\n    exercise (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/helpers/lifetime-harness.mjs:223:29)\n    async TestContext.<anonymous> (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/ask-late-corrections.cases.mjs:75:17)\n    async Test.run (node:internal/test_runner/test:1389:7)\n    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)\n  ...\n# Subtest: malformed supplemental boundary is rejected: {\"deleted_at\":\"2026-08-21T00:00:00Z\"}\nnot ok 9 - malformed supplemental boundary is rejected: {\"deleted_at\":\"2026-08-21T00:00:00Z\"}\n  ---\n  duration_ms: 0.5913\n  type: 'test'\n  location: 'C:\\\\Users\\\\gwara\\\\furvise-intelligence-v1\\\\scripts\\\\audits\\\\ask-late-corrections.cases.mjs:72:3'\n  failureType: 'testCodeFailure'\n  error: 'ASK_MEMORY_BRAIN_REQUIRED'\n  code: 'ERR_TEST_FAILURE'\n  stack: |-\n    retrieveFurviseMemory (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\furvise-brain\\memory-organ.ts:37:67)\n    generateAskHistoryAnswer (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\intelligence\\generate-ask-history.ts:55:64)\n    exercise (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/helpers/lifetime-harness.mjs:223:29)\n    async TestContext.<anonymous> (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/ask-late-corrections.cases.mjs:75:17)\n    async Test.run (node:internal/test_runner/test:1389:7)\n    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)\n  ...\n1..9\n# tests 9\n# suites 0\n# pass 0\n# fail 9\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 674.1561\n",
+  "afterWrapperLog": "TAP version 13\n# Subtest: context recovery uses fresh owned lineage and enforces receipt access\nnot ok 1 - context recovery uses fresh owned lineage and enforces receipt access\n  ---\n  duration_ms: 1229.7961\n  type: 'test'\n  location: 'C:\\\\Users\\\\gwara\\\\furvise-intelligence-v1\\\\tests\\\\ask-context-lineage.test.mjs:4:1'\n  failureType: 'testCodeFailure'\n  error: |-\n    ✖ old receipt is freshly revalidated beyond the dialogue window, deleted=false (4.6797ms)\n    ✔ old receipt is freshly revalidated beyond the dialogue window, deleted=true (0.7672ms)\n    ✔ named pet has independent context from selected conversation: milo (1.3235ms)\n    ✔ named pet has independent context from selected conversation: luna (0.4724ms)\n    ✔ unavailable conversation lineage suppresses uncertain claims, keeps independently loaded owned history (0.6077ms)\n    ✖ future-dated saved record remains receipt-readable without entering elapsed history (0.8558ms)\n    ℹ tests 6\n    ℹ suites 0\n    ℹ pass 4\n    ℹ fail 2\n    ℹ cancelled 0\n    ℹ skipped 0\n    ℹ todo 0\n    ℹ duration_ms 1165.5049\n    \n    ✖ failing tests:\n    \n    test at scripts\\audits\\ask-context-lineage.cases.mjs:8:35\n    ✖ old receipt is freshly revalidated beyond the dialogue window, deleted=false (4.6797ms)\n      AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n      + actual - expected\n      \n      + undefined\n      - true\n      \n          at TestContext.<anonymous> (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/ask-context-lineage.cases.mjs:21:9)\n          at async Test.run (node:internal/test_runner/test:1389:7)\n          at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {\n        generatedMessage: true,\n        code: 'ERR_ASSERTION',\n        actual: undefined,\n        expected: true,\n        operator: 'strictEqual',\n        diff: 'simple'\n      }\n    \n    test at scripts\\audits\\ask-context-lineage.cases.mjs:45:1\n    ✖ future-dated saved record remains receipt-readable without entering elapsed history (0.8558ms)\n      AssertionError [ERR_ASSERTION]: durable save lineage must survive future event time\n          at TestContext.<anonymous> (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/ask-context-lineage.cases.mjs:53:9)\n          at async Test.run (node:internal/test_runner/test:1389:7)\n          at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\n        generatedMessage: false,\n        code: 'ERR_ASSERTION',\n        actual: undefined,\n        expected: true,\n        operator: '==',\n        diff: 'simple'\n      }\n    \n    \n    1 !== 0\n    \n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: 0\n  actual: 1\n  operator: 'strictEqual'\n  stack: |-\n    TestContext.<anonymous> (file:///C:/Users/gwara/furvise-intelligence-v1/tests/ask-context-lineage.test.mjs:7:9)\n    Test.runInAsyncScope (node:async_hooks:227:14)\n    Test.run (node:internal/test_runner/test:1382:25)\n    Test.start (node:internal/test_runner/test:1242:17)\n    startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)\n  ...\n# Subtest: heterogeneous legacy food preferences normalize to one deterministic target\nok 2 - heterogeneous legacy food preferences normalize to one deterministic target\n  ---\n  duration_ms: 2.1596\n  type: 'test'\n  ...\n# Subtest: food and treat representations for the same object share one exact semantic target\nok 3 - food and treat representations for the same object share one exact semantic target\n  ---\n  duration_ms: 0.2697\n  type: 'test'\n  ...\n# Subtest: live and historical compact avoidance aliases share one negative semantic identity\nok 4 - live and historical compact avoidance aliases share one negative semantic identity\n  ---\n  duration_ms: 1.0523\n  type: 'test'\n  ...\n# Subtest: correction supersedes only Milo's positive chicken representations\nok 5 - correction supersedes only Milo's positive chicken representations\n  ---\n  duration_ms: 0.7988\n  type: 'test'\n  ...\n# Subtest: previous preferred food is a historical replacement marker for persistence\nok 6 - previous preferred food is a historical replacement marker for persistence\n  ---\n  duration_ms: 0.1888\n  type: 'test'\n  ...\n# Subtest: Remembered Details hides an active stale prose row behind the effective correction\nok 7 - Remembered Details hides an active stale prose row behind the effective correction\n  ---\n  duration_ms: 4.6656\n  type: 'test'\n  ...\n# Subtest: exact production sequence projects one negative chicken and one positive salmon detail\nok 8 - exact production sequence projects one negative chicken and one positive salmon detail\n  ---\n  duration_ms: 0.8724\n  type: 'test'\n  ...\n# Subtest: beef treat correction projects negative beef and human-readable turkey only\nok 9 - beef treat correction projects negative beef and human-readable turkey only\n  ---\n  duration_ms: 0.4967\n  type: 'test'\n  ...\n# Subtest: used-to replacement keeps salmon historical and projects tuna as current\nok 10 - used-to replacement keeps salmon historical and projects tuna as current\n  ---\n  duration_ms: 0.842\n  type: 'test'\n  ...\n# Subtest: one governed correction turn projects both independently grounded preference facts\nok 11 - one governed correction turn projects both independently grounded preference facts\n  ---\n  duration_ms: 25.3492\n  type: 'test'\n  ...\n# Subtest: assertion-shaped correction facts require registry authority and still project both outputs\nok 12 - assertion-shaped correction facts require registry authority and still project both outputs\n  ---\n  duration_ms: 2.209\n  type: 'test'\n  ...\n# Subtest: dated correction production callback regressions\nnot ok 13 - dated correction production callback regressions\n  ---\n  duration_ms: 1252.6319\n  type: 'test'\n  location: 'C:\\\\Users\\\\gwara\\\\furvise-intelligence-v1\\\\tests\\\\ask-late-corrections.test.mjs:4:1'\n  failureType: 'testCodeFailure'\n  error: |-\n    ✖ actual callback discovers and qualifies a later unlinked correction (85.9403ms)\n    ✖ later correction never broadens pet authority or becomes a write (4.4016ms)\n    ✖ changed or deleted supplemental correction is withheld after fresh lookup (0.8611ms)\n    ✖ supplemental RPC failure discloses uncertainty instead of confirming the old note (0.7336ms)\n    ✖ unrelated year is not attached and bounded discovery never certifies completeness (0.7879ms)\n    ✖ discovery is bounded even when unrelated correction notes exhaust the page (0.9993ms)\n    ✖ malformed supplemental boundary is rejected: {\"user_id\":\"foreign-owner\"} (0.7796ms)\n    ✖ malformed supplemental boundary is rejected: {\"pet_profile_id\":\"bruno\"} (0.7459ms)\n    ✖ malformed supplemental boundary is rejected: {\"deleted_at\":\"2026-08-21T00:00:00Z\"} (0.8116ms)\n    ℹ tests 9\n    ℹ suites 0\n    ℹ pass 0\n    ℹ fail 9\n    ℹ cancelled 0\n    ℹ skipped 0\n    ℹ todo 0\n    ℹ duration_ms 1181.0549\n    \n    ✖ failing tests:\n    \n    test at scripts\\audits\\ask-late-corrections.cases.mjs:6:1\n    ✖ actual callback discovers and qualifies a later unlinked correction (85.9403ms)\n      Error: ASK_MEMORY_BRAIN_REQUIRED\n          at retrieveFurviseMemory (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\furvise-brain\\memory-organ.ts:37:67)\n          at generateAskHistoryAnswer (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\intelligence\\generate-ask-history.ts:55:64)\n          at exercise (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/helpers/lifetime-harness.mjs:223:29)\n          at async TestContext.<anonymous> (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/ask-late-corrections.cases.mjs:8:15)\n          at async Test.run (node:internal/test_runner/test:1389:7)\n          at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n    \n    test at scripts\\audits\\ask-late-corrections.cases.mjs:15:1\n    ✖ later correction never broadens pet authority or becomes a write (4.4016ms)\n      Error: ASK_MEMORY_BRAIN_REQUIRED\n          at retrieveFurviseMemory (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\furvise-brain\\memory-organ.ts:37:67)\n          at generateAskHistoryAnswer (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\intelligence\\generate-ask-history.ts:55:64)\n          at exercise (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/helpers/lifetime-harness.mjs:223:29)\n          at async TestContext.<anonymous> (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/ask-late-corrections.cases.mjs:18:15)\n          at async Test.run (node:internal/test_runner/test:1389:7)\n          at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)\n    \n    test at scripts\\audits\\ask-late-corrections.cases.mjs:27:1\n    ✖ changed or deleted supplemental correction is withheld after fresh lookup (0.8611ms)\n      Error: ASK_MEMORY_BRAIN_REQUIRED\n          at retrieveFurviseMemory (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\furvise-brain\\memory-organ.ts:37:67)\n          at generateAskHistoryAnswer (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\intelligence\\generate-ask-history.ts:55:64)\n          at exercise (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/helpers/lifetime-harness.mjs:223:29)\n          at async TestContext.<anonymous> (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/ask-late-corrections.cases.mjs:33:17)\n          at async Test.run (node:internal/test_runner/test:1389:7)\n          at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)\n    \n    test at scripts\\audits\\ask-late-corrections.cases.mjs:40:1\n    ✖ supplemental RPC failure discloses uncertainty instead of confirming the old note (0.7336ms)\n      Error: ASK_MEMORY_BRAIN_REQUIRED\n          at retrieveFurviseMemory (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\furvise-brain\\memory-organ.ts:37:67)\n          at generateAskHistoryAnswer (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\intelligence\\generate-ask-history.ts:55:64)\n          at exercise (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/helpers/lifetime-harness.mjs:223:29)\n          at async TestContext.<anonymous> (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/ask-late-corrections.cases.mjs:42:15)\n          at async Test.run (node:internal/test_runner/test:1389:7)\n          at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)\n    \n    test at scripts\\audits\\ask-late-corrections.cases.mjs:47:1\n    ✖ unrelated year is not attached and bounded discovery never certifies completeness (0.7879ms)\n      Error: ASK_MEMORY_BRAIN_REQUIRED\n          at retrieveFurviseMemory (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\furvise-brain\\memory-organ.ts:37:67)\n          at generateAskHistoryAnswer (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\intelligence\\generate-ask-history.ts:55:64)\n          at exercise (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/helpers/lifetime-harness.mjs:223:29)\n          at async TestContext.<anonymous> (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/ask-late-corrections.cases.mjs:51:15)\n          at async Test.run (node:internal/test_runner/test:1389:7)\n          at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)\n    \n    test at scripts\\audits\\ask-late-corrections.cases.mjs:56:1\n    ✖ discovery is bounded even when unrelated correction notes exhaust the page (0.9993ms)\n      Error: ASK_MEMORY_BRAIN_REQUIRED\n          at retrieveFurviseMemory (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\furvise-brain\\memory-organ.ts:37:67)\n          at generateAskHistoryAnswer (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\intelligence\\generate-ask-history.ts:55:64)\n          at exercise (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/helpers/lifetime-harness.mjs:223:29)\n          at async TestContext.<anonymous> (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/ask-late-corrections.cases.mjs:59:15)\n          at async Test.run (node:internal/test_runner/test:1389:7)\n          at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)\n    \n    test at scripts\\audits\\ask-late-corrections.cases.mjs:72:3\n    ✖ malformed supplemental boundary is rejected: {\"user_id\":\"foreign-owner\"} (0.7796ms)\n      Error: ASK_MEMORY_BRAIN_REQUIRED\n          at retrieveFurviseMemory (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\furvise-brain\\memory-organ.ts:37:67)\n          at generateAskHistoryAnswer (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\intelligence\\generate-ask-history.ts:55:64)\n          at exercise (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/helpers/lifetime-harness.mjs:223:29)\n          at async TestContext.<anonymous> (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/ask-late-corrections.cases.mjs:75:17)\n          at async Test.run (node:internal/test_runner/test:1389:7)\n          at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)\n    \n    test at scripts\\audits\\ask-late-corrections.cases.mjs:72:3\n    ✖ malformed supplemental boundary is rejected: {\"pet_profile_id\":\"bruno\"} (0.7459ms)\n      Error: ASK_MEMORY_BRAIN_REQUIRED\n          at retrieveFurviseMemory (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\furvise-brain\\memory-organ.ts:37:67)\n          at generateAskHistoryAnswer (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\intelligence\\generate-ask-history.ts:55:64)\n          at exercise (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/helpers/lifetime-harness.mjs:223:29)\n          at async TestContext.<anonymous> (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/ask-late-corrections.cases.mjs:75:17)\n          at async Test.run (node:internal/test_runner/test:1389:7)\n          at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)\n    \n    test at scripts\\audits\\ask-late-corrections.cases.mjs:72:3\n    ✖ malformed supplemental boundary is rejected: {\"deleted_at\":\"2026-08-21T00:00:00Z\"} (0.8116ms)\n      Error: ASK_MEMORY_BRAIN_REQUIRED\n          at retrieveFurviseMemory (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\furvise-brain\\memory-organ.ts:37:67)\n          at generateAskHistoryAnswer (C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\intelligence\\generate-ask-history.ts:55:64)\n          at exercise (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/helpers/lifetime-harness.mjs:223:29)\n          at async TestContext.<anonymous> (file:///C:/Users/gwara/furvise-intelligence-v1/scripts/audits/ask-late-corrections.cases.mjs:75:17)\n          at async Test.run (node:internal/test_runner/test:1389:7)\n          at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)\n    \n    \n    1 !== 0\n    \n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: 0\n  actual: 1\n  operator: 'strictEqual'\n  stack: |-\n    TestContext.<anonymous> (file:///C:/Users/gwara/furvise-intelligence-v1/tests/ask-late-corrections.test.mjs:7:9)\n    Test.runInAsyncScope (node:async_hooks:227:14)\n    Test.run (node:internal/test_runner/test:1382:25)\n    Test.start (node:internal/test_runner/test:1242:17)\n    startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)\n  ...\n# Subtest: validated unlinked wording survives as an attributed report with partial coverage\nok 14 - validated unlinked wording survives as an attributed report with partial coverage\n  ---\n  duration_ms: 3.1692\n  type: 'test'\n  ...\n# Subtest: an uncertain report cannot certify chronological or comparison endpoints\nok 15 - an uncertain report cannot certify chronological or comparison endpoints\n  ---\n  duration_ms: 0.8482\n  type: 'test'\n  ...\n# Subtest: unresolved anchor lineage and unavailable lineage are not treated as verified history\nok 16 - unresolved anchor lineage and unavailable lineage are not treated as verified history\n  ---\n  duration_ms: 1.9915\n  type: 'test'\n  ...\n# Subtest: need-query candidates carry per-source uncertainty without losing the source or certifying semantics\nok 17 - need-query candidates carry per-source uncertainty without losing the source or certifying semantics\n  ---\n  duration_ms: 1.7865\n  type: 'test'\n  ...\n1..17\n# tests 17\n# suites 0\n# pass 15\n# fail 2\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 1340.9714\n",
+  "note": "No source or test repair was applied. The reproduction title refers to missing legacy lexical discovery, not absence from the broader lineage scan. Acquired IDs in coverage show the later note was encountered."
+}

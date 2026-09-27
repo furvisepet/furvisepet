@@ -1,0 +1,19 @@
+{
+  "baseline": "a58645fc3eff006b71836bc9cf0375d4899f86b9",
+  "unchangedTrackedCorpus": true,
+  "sha256": {
+    "scripts/audits/fixtures/ask-benchmark-200.mjs": "c59d7d5c2aecf16cdc3fe803710300689464badfe27dc366f484fdbef249092b",
+    "scripts/audits/fixtures/ask-lifetime-history.mjs": "a94407c46408925a3026c37ee0b8c16547e45c8c9e43fdea2721e2430d77bd46",
+    "scripts/audits/fixtures/ask-multi-year-multi-pet.mjs": "d060cbc2d99f64ad27a017e89a35ad86448cada3b7e7d289d3c4cde6d14f8930",
+    "scripts/audits/fixtures/ask-semantic-stress-multi-pet.mjs": "40a18bca834d0fbab136d56261275a0f99eec5f2c6e2b9620b92173f2c4243a2",
+    "scripts/audits/fixtures/ask-ten-pet-five-year-stress.mjs": "36a4357fe6b143448e4daae36b9ed94cd346019cf0dd2342c406b5f131c0daa0",
+    "scripts/audits/fixtures/ask-ten-year-history.mjs": "d36585d021c2ea8847f639d3dddc8bf6dc3f707ef7877efd868601eb3d00c7f3",
+    "scripts/audits/fixtures/ask-three-month-multi-pet.mjs": "8d1503b4141df656b7665255959e29c3a7f94ff70d49d9bc3c3ee784f081a186"
+  },
+  "taskSha256": {
+    "ASTRA_INTELLIGENCE_TASK.md": "351468966168b233605ec32ac7bb4ca5215b4c6cf89642141007a8669a0fcee8",
+    "ASTRA_PHASE2_TASK.md": "79bbae173e3ed5f142dbd48f723d8a8cc831ad52fea912c19419030c7a1fe24d",
+    "ASTRA_PHASE3_TASK.md": "937db06db49ac63325f57fb02d90c027c59aadd5714db450fa948b87d25de77f",
+    "ASTRA_PHASE4_TASK.md": "096abac9fe70e780611382678b3577fdd7ca37ee72320d44af349f3bffa31648"
+  }
+}
