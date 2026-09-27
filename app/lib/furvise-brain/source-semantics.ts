@@ -34,18 +34,26 @@ export function readWriteSourceSemantics(value: unknown): SourceSemantics | null
   return result && (!result.target || result.target.kind === "target_unknown"
     || result.target.kind === "scope" && result.target.conceptKey === null) ? result : null;
 }
+const attributionTargetSchema = {
+  anyOf: [
+    { type: "object", additionalProperties: false, required: ["kind"],
+      properties: { kind: { type: "string", enum: ["target_unknown"] } } },
+    { type: "object", additionalProperties: false, required: ["kind", "from", "to", "conceptKey"], properties: {
+      kind: { type: "string", enum: ["scope"] }, from: { type: ["string", "null"] }, to: { type: ["string", "null"] },
+      conceptKey: { type: "null", description: "No canonical concept identity is supplied at this write boundary." },
+    } },
+  ],
+};
 export const sourceSemanticsSchema = {
-  type: "object", additionalProperties: false, required: ["classification", "target"],
   description: "Typed meaning of this exact USER record body, interpreted once here. observation for a factual report; attributed_correction if the body reports that earlier history is wrong; unknown when unclear. Attribution is not permission to supersede. Describe the referenced historical interval, never the time this correction was recorded. No invented target.",
-  properties: {
-    classification: { type: "string", enum: ["observation", "attributed_correction", "unknown"] },
-    target: { anyOf: [
-      { type: "null" },
-      { type: "object", additionalProperties: false, required: ["kind"], properties: { kind: { type: "string", enum: ["target_unknown"] } } },
-      { type: "object", additionalProperties: false, required: ["kind", "from", "to", "conceptKey"], properties: {
-        kind: { type: "string", enum: ["scope"] }, from: { type: ["string", "null"] }, to: { type: ["string", "null"] },
-        conceptKey: { type: "null", description: "No canonical concept identity is supplied at this write boundary." },
-      } },
-    ] },
-  },
+  anyOf: [
+    { type: "object", additionalProperties: false, required: ["classification", "target"], properties: {
+      classification: { type: "string", enum: ["observation", "unknown"] },
+      target: { type: "null", description: "Observations and unknown classifications carry no correction target." },
+    } },
+    { type: "object", additionalProperties: false, required: ["classification", "target"], properties: {
+      classification: { type: "string", enum: ["attributed_correction"] },
+      target: attributionTargetSchema,
+    } },
+  ],
 };

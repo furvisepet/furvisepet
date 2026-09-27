@@ -1,3 +1,4 @@
+import { currentUserNumericQuotes } from "./calculation-premise-schema.ts";
 import { bindCalculatePlan, calculatePlanSchema, CALCULATE_OPERATORS, CALCULATION_ROLE_POLICY, CALCULATION_INPUT_OWNERSHIP, isPremiseOperand, type CalculatePlan } from "../furvise-brain/calculate-plan.ts";
 import { bindStoredRead, storedReadSchema, type StoredRead } from "../furvise-brain/stored-read.ts";
 import {bindRemovePlan, removeJobSchema, type RemovePlan} from "../furvise-brain/remove-job.ts";
@@ -245,12 +246,16 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
   Object.assign(calculation.properties, { from: { type: "null" }, to: { type: "null" },
     selection: { type: "string", enum: ["summary"] } });
   for (const field of ["profileFields","evidenceNeeds","terms"] as const) Object.assign(calculation.properties[field],{maxItems:0});
+  const premiseQuotes = context?.currentTurn?.role === "user" && context.currentTurn.text === context.currentMessage
+    ? currentUserNumericQuotes(context.currentMessage) : [];
   // One operator/role grammar; evidence domain selects the allowed root operands.
   const calculationPlanFor = (domain: "read" | "premise" | "count") => {
     const plan = structuredClone(calculatePlanSchema.anyOf[1]);
     const base = plan.properties!.calculations.items;
     const node = base.properties;
     const [direct, premise, result] = node.operands.items.anyOf;
+    Object.assign(premise.properties!.sourceTurnId!, { type: "null" });
+    if (context && premiseQuotes.length) Object.assign(premise.properties!.quote!, { enum: premiseQuotes });
     const measurement = structuredClone(direct);
     Object.assign(measurement.properties!, {
       field: { type: "string", enum: ["measurement"] },
@@ -287,7 +292,7 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
       : { anyOf: [
         { ...array, description: "Root calculations in the selected evidence domain.",
           items: { anyOf: nodes.filter(item => !("calculationId" in item.properties.operands.items.properties!)) } },
-        { ...array, minItems: 2, description: CALCULATION_INPUT_OWNERSHIP, items: { anyOf: nodes } },
+        { ...array, minItems: 2, description: CALCULATION_INPUT_OWNERSHIP + " Emit in topological order: every producer must already appear before its consumers. The first node must be a root. Never use an undeclared, self or future producer.", items: { anyOf: nodes } },
       ] }, ...(domain !== "read" ? { resultSelection: { type: "null" } } : {}) });
     return plan;
   };
@@ -311,7 +316,9 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
     from:{type:"null"}, to:{type:"null"}, temporalScope:{type:"null"}, ordinal:{type:"null"}, episodeTopic:{type:"null"},
     selection:{type:"string",enum:["summary"]}
   });
-  Object.assign(premiseCalculation.properties.premiseQuotes,{minItems:1});
+  Object.assign(premiseCalculation.properties.premiseQuotes,{minItems:1,
+    ...(context && premiseQuotes.length ? { items: { type: "string", enum: premiseQuotes } } : {})});
+  Object.assign(premiseCalculation.properties.referenceTurnIds, { maxItems: 0 });
   for (const field of ["profileFields","evidenceNeeds","terms","petNames","excludedPetNames"] as const)
     Object.assign(premiseCalculation.properties[field],{maxItems:0});
   for (const variant of [...stored,profile,nonProfile,lifecycle,profileMutation,removal,transition])
@@ -327,11 +334,14 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
   Object.assign(nonProfile.properties, { readTicket: { anyOf: readTicketProviderSchema.anyOf.filter(variant =>
     variant !== chronologicalTicket) } });
   return { type: "object", additionalProperties: false, required: ["request"],
-    properties: { request: { anyOf: [premiseCalculation, ...calculations, ...stored, profile, nonProfile, chronological, lifecycle, profileMutation, removal,
+    properties: { request: { anyOf: [...(!context || premiseQuotes.length ? [premiseCalculation] : []), ...calculations, ...stored, profile, nonProfile, chronological, lifecycle, profileMutation, removal,
       ...(transitionSchema.anyOf.length > 1 ? [transition] : [])] } } };
 }
 
 export const ASK_REQUEST_INSTRUCTIONS = [
+  "Resolve factual input ownership before choosing arithmetic: a historical value that the USER asks you to find is an unknown saved fact, not a supplied number. Use saved_history with the owned subject scope and ReadTicket whenever answering requires stored historical measurements, including cross-subject totals and endpoint changes. Dates, identifiers, labels, requested units and operation wording are not quantity assertions. Never invent zero, ordinal placeholders, units or quoted literals to fill missing inputs. Exact numeric quote options are lexical source candidates only, not certified quantities: Brain must determine their semantic role from the whole request. A numeric substring inside a date or identifier must not become an arithmetic premise. A hypothetical that actually supplies quantities remains supplied_context; a supplied quantity does not erase a separately requested history lookup.",
+  "For a result DAG, emit all root producers before their consumers and declare each id exactly once. Every result calculationId must already name an earlier node in the same array, never itself, an eventual node, an implicit value or a read-slot label. Inspect the complete dependency order before submitting the single proposal. Do not introduce result aliases for direct factual slots. If the intended derivation cannot be expressed in the supported algebra, preserve that limitation; never invent producers or factual roots.",
+
   "First identify evidenceBasis independently of topic and formatting: saved_profile reads current profile fields only; saved_history requires dated/history records; supplied_context uses facts or fictional premises supplied in this message or prior USER messages; general needs no personal records. Dates, animal names and words like record inside a supplied example do not turn it into a database lookup. A supplied-context task that requires a deterministic CalculatePlan operator uses the typed supplied calculation branch: scope none, mode read, operation recall, readTicket null and a non-null calculatePlan. Other tasks consisting only of supplied-context or general questions use scope none, mode conversation, operation general, petNames [], frame null. When the same task also requests application navigation, retain operation navigate, mode read, evidenceBasis null and the owned destination scope as specified above; the general companion question must not erase that destination. Their referents may be fictional or non-pet and must not be forced into an owned profile. For a genuine current owner observation or explicit application action (such as saving an update or archiving a pet), use mode update, or mixed when it also includes a question. Use evidenceBasis null when no saved facts are needed; use saved_history only when the request also needs stored evidence. New owner observations are not supplied_context examples and do not need to exist in history first. Neither mode nor evidenceBasis grants write permission; the server separately validates the source, subject and action intent. Never use supplied_context or general for update/mixed.",
   "For every non-null readTicket, all temporal constraints needed to select factual operands belong in readTicket.temporal. Encode the actual resolved bounded period there; outer legacy dates are not a second factual plan. Every non-null readTicket.temporal.from/to must already be a complete ISO instant with time and Z or an explicit numeric offset, never a date-only value. Brain resolves calendar-day bounds using the supplied timeZone: the inclusive start is local midnight on the start day; from is inclusive and to exclusive. Use the offset applicable at each boundary, including calendar and daylight-saving transitions. An inclusive ending calendar day ends at the next local midnight in the supplied timezone. Calculation proposals use outer from/to null, terms [], selection summary; typed temporal, predicates and selection alone own retrieval. For both opposite temporal boundaries of one bounded matching set, use distinct ascending take 1 and descending take 1 union clauses inside that window. Each union clause must represent a distinct semantic selection; duplicate clauses are invalid. CalculatePlan maps the selected clause/item addresses to operator roles, independently of clause order.",
   CALCULATION_OPERAND_ORDER,
@@ -340,7 +350,7 @@ export const ASK_REQUEST_INSTRUCTIONS = [
   `Every requested deterministic derivation over retrieved facts or exact USER-supplied numeric premises must be represented in calculatePlan. This is mandatory whenever the requested answer requires a CalculatePlan operator: ${CALCULATE_OPERATORS.join(", ")}. Do not place such a derivation in requirements, even if calculatePlan would otherwise be omitted. A requirement is residual only when no existing typed execution primitive owns that requested work. requirements is non-executable, grants no source authority, and cannot trigger arithmetic. Preserve genuinely residual companion work, including explanation beyond the typed operation or unsupported companion analysis. A factual comparison or measurement read alone does not imply arithmetic.`,
   "Legacy temporal_endpoints represents comparison of temporal boundaries and requires a compare ReadTicket. An ordinary bounded historical lookup uses read with a null strategy. Compositional selection owns finite earliest/latest, grouped cardinality and boundary unions; legacy strategies are compatibility-only.",
   "CalculatePlan resultSelection is null or {filter,orderBy,take}. Arithmetic belongs in calculations; derived cohort selection applies to ALL calculations. For resultSelection, provide exactly one single-subject calculation for every readTicket subject, same resultUnit for every candidate, no count_records. Filter is null or {comparator:gt|gte|lt|lte|eq,thresholdQuote:exact unique contiguous CURRENT USER quote with one signed numeric threshold and explicit compatible unit (percent for %, bare number for scalar)}. Never propose a numeric threshold value separately. orderBy is null or {direction:asc|desc}; take is null or {count:positive integer bounded by cohort size} and requires orderBy. Execution filters, orders exact results and takes with cutoff ties included. Full ranking has take null. No candidate ID subset, derived operands, expressions, or record reselection. Non-selection calculations use resultSelection null.",
-  "For supplied-context arithmetic use mode read, scope none, evidenceBasis supplied_context, readTicket null and calculatePlan. Each root premise operand is {kind:premise,role,sourceTurnId,quote,unit}. quote is one exact contiguous numeric USER span: a signed decimal with its explicit unit, or a unitless scalar. Interpret its semantic role from the whole USER request: subject names, dates, requested measurements, labels and operation wording do not supply arithmetic quantities. Never turn a request for missing facts into supplied operands; sourceTurnId is null for currentMessage or an explicitly referenced prior USER turn. The server binds the exact source span and rational value. Never emit numeric values, source IDs, inferred units or computed results. A supplied-premise calculation uses only premise operands at its roots and may use kind:result for later DAG nodes. premiseQuotes contains the exact factual USER spans used by the premise operands.",
+  "For supplied-context arithmetic use mode read, scope none, evidenceBasis supplied_context, readTicket null and calculatePlan. Each root premise operand is {kind:premise,role,sourceTurnId,quote,unit}. quote is one exact contiguous numeric USER span: a signed decimal with its explicit unit, or a unitless scalar. Interpret its semantic role from the whole USER request: subject names, dates, requested measurements, labels and operation wording do not supply arithmetic quantities. Never turn a request for missing facts into supplied operands; sourceTurnId is null and the numeric span must occur uniquely in currentMessage. Prior USER turns may resolve other references but cannot supply calculation premises. The server binds the exact source span and rational value. Never emit numeric values, source IDs, inferred units or computed results. A supplied-premise calculation uses only premise operands at its roots and may use kind:result for later DAG nodes. premiseQuotes contains the exact factual USER spans used by the premise operands.",
   "For saved-history arithmetic use calculatePlan {operation: calculate, calculations:[{id,operator,operands,resultUnit,precision}]}, mode read, evidenceBasis saved_history and a companion typed readTicket. Each measurement/event operand is {role,petName,clause,item,field,unit,measurementSelector}: exact owned name, zero-based selection union clause and item within its take; field measurement requires an explicit supported unit defining the requested dimension, event_at requires unit null and measurementSelector null. measurementSelector is null for a single compatible measurement, or {predicateIndexes:[...]} referencing existing readTicket text_any predicates only. All referenced predicates must match the same punctuation-delimited source context of exactly one compatible measurement. Never add selector text, quotes, numeric values, offsets or occurrence indexes; unresolved ambiguity fails closed. Never propose source IDs, numeric operand values or a result value. ReadTicket alone selects records. Calculation operators and required semantic roles follow the closed role policy above. Array position has no semantic authority. Ratio resultUnit scalar; percentages %; elapsed_days day; count_records records. Count uses operands [] and an exhaustive unbounded read with selection null; it counts certified effective records, never episodes. Other calculations require grouped compositional selection and exact slots. Result precision is null or 0-10 decimals for display only. A calculation uses only read slots or only result operands {kind:result,role,calculationId}, referencing earlier calculations in the same array. Result operands carry no value, unit or source ID. No self/forward/unknown references, count_records dependencies or derived elapsed_days. Maximum 8 levels, 20 calculations and 64 operands per calculation. Derived arithmetic requires identical exact upstream units and preserves that unit; ratio/percent operators require identical upstream units and retain scalar/% outputs. Explicit derived convert accepts one registry unit and a same-dimension target, never scalar/%. No implicit conversion. Any result operand requires resultSelection null. Only unreferenced terminal nodes publish. No expressions, mixed operand classes, mixed profile/memory operands, or currency exchange. Derived filtering/ranking is expressed only through resultSelection. All mutation jobs, storedRead, frame, task, projection, recordSelection are null; profileFields/evidenceNeeds empty. Other requests use calculatePlan null. Unsupported saved calculations remain unsupported, never model factual answers.",
 
   "Stored personal facts outside history/profile use storedRead: operation read, domain memory/current_state/operation_receipt, scope owner or subjects, projection records, reference null or one exact supplied storedReadReferences.ref. Reference handles identify operations, never evidence of success. Do not invent handles. Use owner scope and outer scope none with petNames [] for owner memories or receipts whose former pet was deleted; otherwise use canonical owned subject scope. Memory returns the effective stored set, not an inferred medical answer; current_state is unsupported. Exact operation receipts require a supplied handle; absent or ambiguous references cannot establish success. Use mode read, evidenceBasis stored, operation recall, selection summary, quantity null; other jobs, frame, readTicket, projection, recordSelection, temporal/episode fields null, profileFields/evidenceNeeds/terms/requirements empty. Output format is presentation only. All other requests set storedRead null.",
@@ -413,19 +423,15 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
         || (p.profileFields as unknown[]).length||!Array.isArray(p.evidenceNeeds)||p.evidenceNeeds.length
         || !(p.premiseQuotes as unknown[]).length||(p.petNames as unknown[]).length||(p.terms as unknown[]).length||(p.excludedPetNames as unknown[]).length
         || context.currentTurn?.role!=="user"||context.currentTurn.text!==context.currentMessage)return fail("calculate_scope");
-      const referenceIds=[...new Set(p.referenceTurnIds as string[])];
-      const referenced=referenceIds.map(id=>context.conversationTurns.find(turn=>turn.id===id&&turn.role==="user")).filter(Boolean) as NonNullable<Context["currentTurn"]>[];
-      if(referenced.length!==referenceIds.length)return fail("reference");
-      const sources=[context.currentTurn,...referenced].filter((turn,index,all)=>all.findIndex(other=>other.id===turn.id)===index)
-        .map(turn=>({id:turn.id,role:"user" as const,text:turn.text}));
-      const calculatePlan=bindCalculatePlan(p.calculatePlan,null,[],sources);
+      if ((p.referenceTurnIds as string[]).length) return fail("reference");
+      const calculatePlan=bindCalculatePlan(p.calculatePlan,null,[],context.currentTurn);
       const operands=calculatePlan.calculations.flatMap(node=>node.operands.filter(isPremiseOperand));
       if(!operands.length)return fail("calculate_scope");
       const usedQuotes=[...new Set(operands.map(operand=>operand.source.text))].sort();
       const proposedQuotes=[...new Set(p.premiseQuotes as string[])].sort();
       if(JSON.stringify(usedQuotes)!==JSON.stringify(proposedQuotes))return fail("calculate_premises");
       const usedPrior=[...new Set(operands.map(operand=>operand.source.sourceMessageId).filter(id=>id!==context.currentTurn!.id))].sort();
-      if(JSON.stringify(usedPrior)!==JSON.stringify(referenceIds.sort()))return fail("reference");
+      if(usedPrior.length)return fail("reference");
       const request:AskRequestContract={version:ASK_REQUEST_VERSION,mode:"read",calculatePlan,readTicket:null,
         question:context.currentMessage,requirements:p.requirements as string[],referenceTurnIds:usedPrior,
         quantity:p.quantity as AskRequestContract["quantity"],evidenceBasis:"supplied_context",
@@ -1087,7 +1093,8 @@ function bindTicketedRead(p: Record<string, unknown>, context: Context): AskInte
     return { id: need.id, petIds: need.petIds?.length ? need.petIds : petIds,
       sourceSpanId: `${need.sourceTurnId ?? context.currentTurn?.id ?? "current"}:${start}:${start + need.quote.length}` };
   });
-  const { probes: _probes, ...ticketFields } = proposedTicket;
+  const ticketFields = { ...proposedTicket };
+  Reflect.deleteProperty(ticketFields, "probes");
   let readTicket = bindTypedReadTicket({ ...ticketFields, subjectScope,
     ...(grounded ? { needs: grounded.needs } : {}) }, petIds, bindings)!;
   // Normalize while the existing typed lookup/reference/derivation intent still exists.

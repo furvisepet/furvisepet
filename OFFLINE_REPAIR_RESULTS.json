@@ -1,0 +1,685 @@
+{
+  "baseCommit": "0a00fc14e40d827e47ab6c6f51870ceadab3af5b",
+  "FULL_OFFLINE_GREEN": true,
+  "groupsOverlap": true,
+  "gates": {
+    "phase5": {
+      "exit_code": 0,
+      "tests": 74,
+      "pass": 74,
+      "fail": 0,
+      "skipped": 0,
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "--test",
+        "--test-reporter=tap",
+        "tests/source-semantics-roundtrip.test.mjs",
+        "tests/correction-relevance-pipeline.test.mjs",
+        "tests/correction-relevance.test.mjs",
+        "tests/canonical-receipt-equivalence.test.mjs",
+        "scripts/audits/ask-late-corrections.cases.mjs",
+        "scripts/audits/ask-context-lineage.cases.mjs"
+      ],
+      "elapsed_seconds": 1.129,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\phase5.log",
+      "logSha256": "47f7b6474cc097f95105db45b484f4e4d216f3f6e55723772d2df8653710a518"
+    },
+    "phase3": {
+      "exit_code": 0,
+      "tests": 32,
+      "pass": 32,
+      "fail": 0,
+      "skipped": 0,
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "--test",
+        "--test-reporter=tap",
+        "tests/stored-report-authority.test.mjs"
+      ],
+      "elapsed_seconds": 1.151,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\phase3.log",
+      "logSha256": "1efff48c9712e069f58ee98c10eb23faf41edcc816dc1b406ab19a1d18858832"
+    },
+    "correction-lineage": {
+      "exit_code": 0,
+      "tests": 17,
+      "pass": 17,
+      "fail": 0,
+      "skipped": 0,
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "--test",
+        "--test-reporter=tap",
+        "tests/ask-context-lineage.test.mjs",
+        "tests/ask-correction-projection.test.mjs",
+        "tests/ask-late-corrections.test.mjs",
+        "tests/furvise-correction-provenance.test.mjs"
+      ],
+      "elapsed_seconds": 1.126,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\correction-lineage.log",
+      "logSha256": "9513b5398c7f2ce1a97e305e36b13e8ccd02f9b13de79a4be0b53a40ab15f76d"
+    },
+    "retrieval": {
+      "exit_code": 0,
+      "tests": 244,
+      "pass": 244,
+      "fail": 0,
+      "skipped": 0,
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "--test",
+        "--test-reporter=tap",
+        "tests/furvise-lungs.test.mjs",
+        "tests/furvise-effective-selection.test.mjs",
+        "tests/furvise-compositional-read.test.mjs",
+        "tests/furvise-temporal-selection.test.mjs",
+        "tests/ordered-result-set.test.mjs",
+        "tests/result-read-selection.test.mjs",
+        "tests/supporting-context.test.mjs",
+        "tests/typed-read-ticket.test.mjs",
+        "tests/legacy-read-selection.test.mjs"
+      ],
+      "elapsed_seconds": 1.504,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\retrieval.log",
+      "logSha256": "7d6f0a4571a81e229e3e990b24046a151614328bfddca20f096a5032cbbfbc0e"
+    },
+    "audit222": {
+      "exit_code": 0,
+      "tests": 222,
+      "pass": 222,
+      "fail": 0,
+      "skipped": 0,
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "--test",
+        "--test-reporter=tap",
+        "scripts/audits/ask-evidence-contract.cases.mjs",
+        "scripts/audits/ask-shared-request-contract.cases.mjs"
+      ],
+      "elapsed_seconds": 2.242,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\audit222.log",
+      "logSha256": "a73a4072e773b9f85c1b43c2e5d45c1d9e731933d54b3d16e14055b4b6e9c351"
+    },
+    "brain": {
+      "exit_code": 0,
+      "tests": 78,
+      "pass": 78,
+      "fail": 0,
+      "skipped": 0,
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "--test",
+        "--test-reporter=tap",
+        "tests/ask-compositional-emission.test.mjs",
+        "tests/ask-read-ticket-diagnostics.test.mjs",
+        "tests/ask-one-interpreter.test.mjs",
+        "tests/ask-working-memory-interpretation.test.mjs",
+        "tests/furvise-brain-interpretation-authority.test.mjs",
+        "tests/ask-interpretation-timeout.test.mjs"
+      ],
+      "elapsed_seconds": 1.22,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\brain.log",
+      "logSha256": "4d88d2a304656dfbf43797730619cc5beacf748606cd4028a1b1a0352b0d0c01"
+    },
+    "calculation": {
+      "exit_code": 0,
+      "tests": 360,
+      "pass": 360,
+      "fail": 0,
+      "skipped": 0,
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "--test",
+        "--test-reporter=tap",
+        "tests/canonical-calculation.test.mjs",
+        "tests/calculation-result-selection.test.mjs",
+        "tests/calculation-dag.test.mjs",
+        "tests/measurement-disambiguation.test.mjs"
+      ],
+      "elapsed_seconds": 1.107,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\calculation.log",
+      "logSha256": "bd183316ed0b6b0dfbdaab720e2f2906906c5f0ef689e0a3ae94b68c30f40d7f"
+    },
+    "stress": {
+      "exit_code": 0,
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "skipped": 0,
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "--test",
+        "--test-reporter=tap",
+        "tests/ask-ten-pet-five-year-stress-acceptance.test.mjs",
+        "tests/ask-semantic-stress-multi-pet-acceptance.test.mjs"
+      ],
+      "elapsed_seconds": 1.233,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\stress.log",
+      "logSha256": "36c2d55c56f2b851c08eb4c167f231de42ed90b6ceaf173d68afc1a9583cef3f"
+    },
+    "expanded": {
+      "exit_code": 0,
+      "tests": 816,
+      "pass": 816,
+      "fail": 0,
+      "skipped": 0,
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "--test",
+        "--test-reporter=tap",
+        "tests/ask-certificate-bound-publication.test.mjs",
+        "tests/ask-deterministic-calculation-bindings.test.mjs",
+        "tests/ask-mandatory-history-publication.test.mjs",
+        "tests/ask-publication-authority-diagnostics.test.mjs",
+        "tests/ask-publication-contract.test.mjs",
+        "tests/ask-publication-receipt.test.mjs",
+        "tests/ask-repair-calculation-bindings.test.mjs",
+        "tests/ask-selection-publication.test.mjs",
+        "tests/audit-publication-call-expectations.test.mjs",
+        "tests/calculation-capability-orchestration.test.mjs",
+        "tests/calculation-capability.test.mjs",
+        "tests/calculation-dag.test.mjs",
+        "tests/calculation-operand-roles.test.mjs",
+        "tests/calculation-provider-parity.test.mjs",
+        "tests/calculation-result-selection.test.mjs",
+        "tests/canonical-calculation.test.mjs",
+        "tests/furvise-brain-action-organ.test.mjs",
+        "tests/furvise-brain-architecture-boundary.test.mjs",
+        "tests/furvise-brain-ask-runtime.test.mjs",
+        "tests/furvise-brain-durable-answer-finalization.test.mjs",
+        "tests/furvise-brain-interpretation-authority.test.mjs",
+        "tests/furvise-brain-memory-organ.test.mjs",
+        "tests/furvise-brain-mutation-authorization.test.mjs",
+        "tests/furvise-brain-owner-note-gate.test.mjs",
+        "tests/furvise-brain-post-review-finalizer.test.mjs",
+        "tests/furvise-brain-selected-pet-anchor.test.mjs",
+        "tests/furvise-brain-subject-authority.test.mjs",
+        "tests/furvise-brain-task-gate.test.mjs",
+        "tests/furvise-brain-turn-authority.test.mjs",
+        "tests/furvise-brain-working-memory.test.mjs",
+        "tests/history-publication-capability.test.mjs",
+        "tests/legacy-calculation-retirement.test.mjs",
+        "tests/typed-premise-calculation.test.mjs",
+        "tests/vet-brief-lifetime-publication.test.mjs"
+      ],
+      "elapsed_seconds": 6.773,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\expanded.log",
+      "logSha256": "8dc0d5a8a45b03867b63e8d0b3f3ec39edde710247b3d1dd28d89a4be0700e95"
+    },
+    "phase2": {
+      "exit_code": 0,
+      "tests": 29,
+      "pass": 29,
+      "fail": 0,
+      "skipped": 0,
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "--test",
+        "--test-reporter=tap",
+        "tests/history-subject-budget.test.mjs",
+        "tests/history-window-acquisition.test.mjs",
+        "tests/audit-publication-call-expectations.test.mjs",
+        "tests/public-v1-freeze.test.mjs"
+      ],
+      "elapsed_seconds": 1.166,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\phase2.log",
+      "logSha256": "050f85384094d297ebccaa0129332f1347e62c2bebb4be2fa961bfdb20d373bc"
+    },
+    "route-and-read": {
+      "exit_code": 0,
+      "tests": 217,
+      "pass": 217,
+      "fail": 0,
+      "skipped": 0,
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "--test",
+        "--test-reporter=tap",
+        "tests/ask-route-ordering.test.mjs",
+        "tests/typed-read-ticket.test.mjs",
+        "tests/furvise-brain-owner-note-gate.test.mjs",
+        "tests/owner-note-write-isolation.test.mjs",
+        "tests/append-items-authority.test.mjs",
+        "tests/ask-interpretation-timeout.test.mjs",
+        "tests/public-v1-freeze.test.mjs",
+        "tests/ask-read-ticket-diagnostics.test.mjs",
+        "tests/measurement-disambiguation.test.mjs"
+      ],
+      "elapsed_seconds": 2.087,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\route-and-read.log",
+      "logSha256": "852246bb7f95859cbaca03ecf91dbc551a01b0d2bed8b40ef97aebf8c4bab2a4"
+    },
+    "stress-cases": {
+      "exit_code": 0,
+      "tests": 17,
+      "pass": 17,
+      "fail": 0,
+      "skipped": 0,
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "--test",
+        "--test-reporter=tap",
+        "scripts/audits/ask-semantic-stress-multi-pet.cases.mjs",
+        "scripts/audits/ask-ten-pet-five-year-stress.cases.mjs"
+      ],
+      "elapsed_seconds": 1.134,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\stress-cases.log",
+      "logSha256": "157c9c7c70b9586d0ae4993f16d6bdd117fdecbc35878feef8c7a95d9858c205"
+    },
+    "extended-domain": {
+      "exit_code": 0,
+      "tests": 678,
+      "pass": 678,
+      "fail": 0,
+      "skipped": 0,
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "--test",
+        "--test-reporter=tap",
+        "tests/ask-deterministic-calculation-bindings.test.mjs",
+        "tests/ask-repair-calculation-bindings.test.mjs",
+        "tests/brain-evidence-domain-composition.test.mjs",
+        "tests/calculation-capability-orchestration.test.mjs",
+        "tests/calculation-capability.test.mjs",
+        "tests/calculation-dag.test.mjs",
+        "tests/calculation-operand-roles.test.mjs",
+        "tests/calculation-provider-parity.test.mjs",
+        "tests/calculation-result-selection.test.mjs",
+        "tests/canonical-calculation.test.mjs",
+        "tests/legacy-calculation-retirement.test.mjs",
+        "tests/typed-premise-calculation.test.mjs"
+      ],
+      "elapsed_seconds": 1.804,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\extended-domain.log",
+      "logSha256": "988909df375c2ae9080dfc91dc37b7bb763513b70b2c00f4505e99643e889510"
+    },
+    "domain": {
+      "exit_code": 0,
+      "tests": 379,
+      "pass": 379,
+      "fail": 0,
+      "skipped": 0,
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "--test",
+        "--test-reporter=tap",
+        "tests/brain-evidence-domain-composition.test.mjs",
+        "tests/calculation-provider-parity.test.mjs",
+        "tests/typed-premise-calculation.test.mjs",
+        "tests/calculation-operand-roles.test.mjs",
+        "tests/ask-deterministic-calculation-bindings.test.mjs"
+      ],
+      "elapsed_seconds": 1.226,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\domain.log",
+      "logSha256": "5dffed230e08589c1c36c975a7e9d9ff4c4e44c4368b3e445b44da03ee918714"
+    },
+    "correction-boundary": {
+      "exit_code": 0,
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "skipped": 0,
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "--test",
+        "--test-reporter=tap",
+        "tests/stress-correction-boundary.test.mjs"
+      ],
+      "elapsed_seconds": 0.892,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\correction-boundary.log",
+      "logSha256": "c7807504c123ac7891023c39d22ea8347a2e5afbe3ee1ecff914abe0ceadb0e2"
+    },
+    "publication": {
+      "exit_code": 0,
+      "tests": 149,
+      "pass": 149,
+      "fail": 0,
+      "skipped": 0,
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "--test",
+        "--test-reporter=tap",
+        "tests/ask-certificate-bound-publication.test.mjs",
+        "tests/ask-mandatory-history-publication.test.mjs",
+        "tests/ask-publication-authority-diagnostics.test.mjs",
+        "tests/ask-publication-contract.test.mjs",
+        "tests/ask-publication-receipt.test.mjs",
+        "tests/ask-selection-publication.test.mjs",
+        "tests/certified-sufficient-result-set.test.mjs",
+        "tests/history-publication-capability.test.mjs"
+      ],
+      "elapsed_seconds": 0.895,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\publication.log",
+      "logSha256": "33059d4ab299cc7b79c3ec0fd9025976d6aa93556ca38f67ebcdaef47413a88f"
+    },
+    "receipt-security": {
+      "exit_code": 0,
+      "tests": 99,
+      "pass": 99,
+      "fail": 0,
+      "skipped": 0,
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "--test",
+        "--test-reporter=tap",
+        "tests/stored-read-authority.test.mjs",
+        "tests/stored-read-provider-parity.test.mjs",
+        "tests/conversation-receipt-recovery.test.mjs",
+        "tests/ask-action-capability-security-regressions.test.mjs",
+        "tests/furvise-heart-receipt.test.mjs",
+        "tests/ask-publication-receipt.test.mjs"
+      ],
+      "elapsed_seconds": 1.04,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\receipt-security.log",
+      "logSha256": "8f2d020dc687a0dc0a181aed4bb49a81e2410e1a8289c479cfd0cf4623751466"
+    },
+    "official-security": {
+      "exit_code": 0,
+      "command": [
+        "cmd",
+        "/d",
+        "/c",
+        "npm.cmd",
+        "run",
+        "test:security"
+      ],
+      "elapsed_seconds": 0.611,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\official-security.log",
+      "logSha256": "734ad3edb2cae90af916189dffc1309dad570e1a349f9f827b1018e8ba1c64ab"
+    },
+    "new-adversaries": {
+      "exit_code": 0,
+      "tests": 114,
+      "pass": 114,
+      "fail": 0,
+      "skipped": 0,
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "--test",
+        "--test-reporter=tap",
+        "tests/live-matrix-offline-repair.test.mjs",
+        "tests/profile-field-authority.test.mjs"
+      ],
+      "elapsed_seconds": 2.711,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\new-adversaries.log",
+      "logSha256": "6395cbd8ffa51379013a2adb2cd74447c25365a4a84bb701dd0053b00c269e18"
+    },
+    "lint": {
+      "exit_code": 0,
+      "command": [
+        "node",
+        "node_modules/eslint/bin/eslint.js",
+        "--max-warnings",
+        "0",
+        "app/lib/furvise-brain/source-semantics.ts",
+        "app/lib/intelligence/ask-request-contract.ts",
+        "app/lib/intelligence/calculation-premise-schema.ts",
+        "app/lib/intelligence/profile-field-authority.ts",
+        "tests/brain-evidence-domain-composition.test.mjs",
+        "tests/live-matrix-offline-repair.test.mjs",
+        "tests/profile-field-authority.test.mjs"
+      ],
+      "elapsed_seconds": 2.176,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\lint.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "typecheck": {
+      "exit_code": 0,
+      "command": [
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "--noEmit"
+      ],
+      "elapsed_seconds": 1.857,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\typecheck.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "diff-check": {
+      "exit_code": 0,
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "elapsed_seconds": 0.035,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\diff-check.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "official-security-count": {
+      "exit_code": 0,
+      "tests": 160,
+      "pass": 160,
+      "fail": 0,
+      "skipped": 0,
+      "command": [
+        "node",
+        "--test",
+        "--test-reporter=tap",
+        "tests/security-phase-s2a.test.mjs",
+        "tests/security-phase-s2b.test.mjs",
+        "tests/security-phase-s2c.test.mjs",
+        "tests/security-phase-s2d.test.mjs",
+        "tests/security-phase-s2e.test.mjs",
+        "tests/security-phase-s2f.test.mjs",
+        "tests/security-phase-s2g.test.mjs",
+        "tests/security-phase-s2h.test.mjs",
+        "tests/password-capability-state.test.mjs",
+        "tests/ask-conversation-authority-foundation.test.mjs",
+        "tests/ask-conversation-authority-lock.test.mjs"
+      ],
+      "elapsed_seconds": 0.277,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\official-security-count.log",
+      "logSha256": "98ff48a4588cc916866be3d943fd44ef1c4eb28c30f50901dc4d2452929dd544"
+    },
+    "changed-test-validation": {
+      "exit_code": 0,
+      "tests": 192,
+      "pass": 192,
+      "fail": 0,
+      "skipped": 0,
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "--test",
+        "--test-reporter=tap",
+        "tests/canonical-calculation.test.mjs",
+        "tests/ordered-result-set.test.mjs",
+        "tests/result-read-selection.test.mjs",
+        "tests/source-semantics-roundtrip.test.mjs",
+        "tests/correction-relevance.test.mjs"
+      ],
+      "elapsed_seconds": 1.01,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\changed-test-validation.log",
+      "logSha256": "62ba4f07549be2c8f2d5cde090e9757a3cfec227719fe1b1e8cca1941b6abe07"
+    },
+    "build": {
+      "exit_code": 0,
+      "command": [
+        "node",
+        "node_modules/next/dist/bin/next",
+        "build",
+        "--webpack"
+      ],
+      "elapsed_seconds": 30.856,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\build.log",
+      "logSha256": "eb8249d86ca1f81e16dbf5f81bb6e9df2d7e9b79c77410710a3fe81aa33643dd"
+    },
+    "captured-evidence-replay": {
+      "exit_code": 0,
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\captured-evidence-replay.mjs"
+      ],
+      "elapsed_seconds": 1.109,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\captured-evidence-replay.log",
+      "logSha256": "c93dba3d488b2aaa4f9446807bf1442aa91246219c04813ae1e35cf0ca7e129e"
+    }
+  },
+  "databaseGates": {
+    "schema-final": {
+      "exit_code": 0,
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\initialize-schema.mjs"
+      ],
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\schema-final.log",
+      "logSha256": "79d0c6756a0cda80286a4661e0b246454feef6af96c87c182470507189f155d9"
+    },
+    "sql-final": {
+      "exit_code": 0,
+      "tests": 43,
+      "pass": 43,
+      "fail": 0,
+      "skipped": 0,
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "scripts/audits/canonical-ask-sql-isolation-postgres.mjs",
+        "scripts/audits/source-semantics-postgres.mjs"
+      ],
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\sql-final.log",
+      "logSha256": "bf3bf9f4545b25a9f6077b13610e8c0ce38386c80168c37e1be9001036c2fd05"
+    },
+    "upgrade": {
+      "exit_code": 0,
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "skipped": 0,
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "--test",
+        "--test-reporter=tap",
+        "scripts/audits/source-semantics-upgrade-postgres.mjs"
+      ],
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-offline-repair-approved\\upgrade.log",
+      "logSha256": "fb9a516c8e2bae30f9f1fa785ad16f5f96784f504411346b4c3bc9823f2d4218"
+    }
+  },
+  "cleanup": {
+    "ownedContainerAbsent": true,
+    "existingServicesUnchanged": true
+  },
+  "capturedEvidenceReplay": {
+    "providerCalls": 0,
+    "capturedProposalReplays": [
+      {
+        "case": 2,
+        "schemaAccepted": false,
+        "binderError": "ASK_REQUEST_INVALID:append_span",
+        "canonicalSourceSpellingDiagnostic": null
+      },
+      {
+        "case": 4,
+        "schemaAccepted": false,
+        "binderError": "ASK_CALCULATE_INVALID:backward_reference",
+        "canonicalSourceSpellingDiagnostic": {
+          "schemaAccepted": true,
+          "binderError": "ASK_CALCULATE_INVALID:backward_reference",
+          "meaning": "Offline diagnostic only: current source ID changed to canonical null. Original captured proposal untouched. Forward-reference restriction remains Binder-owned."
+        }
+      },
+      {
+        "case": 5,
+        "schemaAccepted": false,
+        "binderError": "ASK_REQUEST_INVALID:append_span",
+        "canonicalSourceSpellingDiagnostic": null
+      },
+      {
+        "case": 6,
+        "schemaAccepted": false,
+        "binderError": "ASK_REQUEST_INVALID:append_span",
+        "canonicalSourceSpellingDiagnostic": null
+      },
+      {
+        "case": 7,
+        "schemaAccepted": false,
+        "binderError": "ASK_REQUEST_INVALID:write_job",
+        "canonicalSourceSpellingDiagnostic": null
+      },
+      {
+        "case": 9,
+        "schemaAccepted": false,
+        "binderError": "ASK_REQUEST_INVALID:append_job",
+        "canonicalSourceSpellingDiagnostic": null
+      }
+    ],
+    "capturedProfileReplay": {
+      "case": 3,
+      "model": "server-profile-field-labs",
+      "outcome": "complete",
+      "answer": "| Pet | Saved profile field | Saved value |\n| --- | --- | --- |\n| Tansy | species | cat |\n| Tansy | current food | rice and turkey |",
+      "sourceIds": [
+        "profile:bc52f46a-29e5-4c66-99a5-6d94d5590a8a:species",
+        "profile:bc52f46a-29e5-4c66-99a5-6d94d5590a8a:current_food"
+      ],
+      "providerCalls": 0
+    }
+  },
+  "liveEvidencePreservation": {
+    "frozenFilesVerified": 637,
+    "liveRunStopped": true,
+    "consumedCaseSlots": 11,
+    "evidenceHashes": {
+      "aggregate.json": "224b7b30c89504c817ce463a9a0a2d07734ae42995136b714881b0f4ea20cd5e",
+      "journals\\furvise-phase5-matrix-case-11\\one-call-marker.json": "2ae4ecec12b606c47a544592233380a7f9d759bfda3ce3ab09f078f45c7601b0",
+      "journals\\furvise-phase5-matrix-case-11\\result.json": "dda1fcd8a25b67a1e4cbafa8df55b00e296c68b4b9bf671012e4e979263538e8"
+    }
+  },
+  "preservedFileHashes": {
+    "C:\\Users\\gwara\\furvise-intelligence-v1\\app\\lib\\furvise-brain\\source-semantics.ts": "cb82ed6bf3d501098e4d580ab65627eb7122a78ea97a0e00bb478f5d8981211e",
+    "C:\\Users\\gwara\\furvise-intelligence-v1\\ASTRA_INTELLIGENCE_TASK.md": "351468966168b233605ec32ac7bb4ca5215b4c6cf89642141007a8669a0fcee8",
+    "C:\\Users\\gwara\\furvise-intelligence-v1\\ASTRA_PHASE2_TASK.md": "79bbae173e3ed5f142dbd48f723d8a8cc831ad52fea912c19419030c7a1fe24d",
+    "C:\\Users\\gwara\\furvise-intelligence-v1\\ASTRA_PHASE3_TASK.md": "937db06db49ac63325f57fb02d90c027c59aadd5714db450fa948b87d25de77f",
+    "C:\\Users\\gwara\\furvise-intelligence-v1\\ASTRA_PHASE4_TASK.md": "096abac9fe70e780611382678b3577fdd7ca37ee72320d44af349f3bffa31648",
+    "C:\\Users\\gwara\\furvise-intelligence-v1\\ASTRA_PHASE5_TASK.md": "20dadd2501015a5c939bddc073b13693c0dbc89efd0c0169082b97dd7c017d5b"
+  },
+  "sourceHashes": {
+    "app/lib/furvise-brain/source-semantics.ts": "cb82ed6bf3d501098e4d580ab65627eb7122a78ea97a0e00bb478f5d8981211e",
+    "app/lib/intelligence/ask-request-contract.ts": "f7d54ed8792c2b6079e5a52f3b3b59b02c13fada06011bc881b063b3d827e03e",
+    "app/lib/intelligence/calculation-premise-schema.ts": "e91dd172f367d785e14b7bc4c612e4f39c7dd7305af3d0ece33be089e15f9167",
+    "app/lib/intelligence/profile-field-authority.ts": "58ebd8a323f382ac99e8aeaffae97fbe3f92c60ae5fc6837b6dedb12c210cc54",
+    "tests/brain-evidence-domain-composition.test.mjs": "d9b4d31178d7531b7a39f9ebb40f08f7da66215be108053370282c8878ba469f",
+    "tests/live-matrix-offline-repair.test.mjs": "9851f7902a25a5a04698c86b8f92424d9a3c5bdfe28d380e3b3c88c64fd52f78",
+    "tests/profile-field-authority.test.mjs": "73808df6823d076dc5c00134e4bf821143bc10593b531865013b80a8d57cbc65"
+  },
+  "productionComplexity": {
+    "added": 79,
+    "removed": 34,
+    "net": 45,
+    "includesPreexistingDiscriminator": true,
+    "thisTurnNet": 37
+  },
+  "providerCalls": 0,
+  "costUsd": 0,
+  "limitations": [
+    "Brain owns numeric-span semantics; no absolute structural semantic guarantee.",
+    "DAG sibling ordering remains strict Binder enforcement, not a wire-schema guarantee.",
+    "Pronouns and budget without explicit currency remain per-field unavailable.",
+    "No live model accuracy measured. Case 11 remains uncertain and stopped."
+  ]
+}

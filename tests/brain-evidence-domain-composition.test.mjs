@@ -95,10 +95,10 @@ test('a lone result has no implicit producer in either evidence domain',()=>{
  r.calculatePlan.calculations=[node('only','convert',[result('implicit','source')],'g')];reject(r);
  }
 });
-test('prior USER quantity remains source-exact; assistant or absent turns cannot supply it',()=>{
+test('current USER premise scope rejects prior, assistant and absent turns',()=>{
  const text='Use the previous quantity and 3.',r=supplied(text,[premise('9','member','scalar','prior'),premise('3')]);
  const c=context(text);c.conversationTurns=[{id:'prior',role:'user',text:'Assume 9.'}];r.referenceTurnIds=['prior'];
- const bound=accept(r,c).request;assert.deepEqual(bound.calculatePlan.calculations[0].operands.map(o=>[o.source.sourceMessageId,o.exact]),[['prior',{numerator:'9',denominator:'1'}],['current',{numerator:'3',denominator:'1'}]]);
+ assert.throws(()=>validateAskRequest(r,c),/reference/);
  c.conversationTurns[0].role='furvise';assert.throws(()=>validateAskRequest(r,c),/reference/);
  c.conversationTurns=[];assert.throws(()=>validateAskRequest(r,c),/reference/);
 });

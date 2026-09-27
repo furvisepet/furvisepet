@@ -4,13 +4,24 @@ import type { DogProfileRow } from "../supabase.ts";
 import type { AskContextRecord } from "../ai/ask-reasoning.ts";
 import type { AskEvidenceContract } from "./ask-evidence.ts";
 
-type FieldDefinition = { storage: keyof DogProfileRow; label: string; semanticKind: string;
-  type: "string" | "enum" | "quantity"; values?: readonly string[]; unitStorage?: keyof DogProfileRow; units?: readonly string[] };
+type FieldDefinition = { storage?: keyof DogProfileRow; label: string; semanticKind: string;
+  type: "string" | "enum" | "quantity" | "string_list" | "unsupported"; allowZero?: boolean; values?: readonly string[]; unitStorage?: keyof DogProfileRow; units?: readonly string[] };
 export const PROFILE_FIELD_DEFINITIONS = {
   name: { storage: "name", label: "name", semanticKind: "reported_name", type: "string" },
   species: { storage: "species", label: "species", semanticKind: "reported_species", type: "enum", values: ["dog", "cat"] },
   sex: { storage: "sex", label: "sex", semanticKind: "reported_sex", type: "enum", values: ["female", "male", "not_sure"] },
   breed: { storage: "breed", label: "reported breed", semanticKind: "reported_breed", type: "string" },
+  current_food: { storage: "current_food", label: "current food", semanticKind: "reported_current_food", type: "string" },
+  main_concern: { storage: "main_concern", label: "reported concern", semanticKind: "reported_main_concern", type: "string" },
+  care_goal: { storage: "wellness_goal", label: "care goal", semanticKind: "reported_care_goal", type: "string" },
+  avoid: { storage: "avoid_ingredients", label: "ingredients to avoid", semanticKind: "reported_avoid_ingredients", type: "string_list" },
+  age: { storage: "age_value", unitStorage: "age_unit", label: "recorded age", semanticKind: "saved_profile_age",
+    type: "quantity", units: ["months", "years"], allowZero: true },
+  lifecycle_status: { storage: "lifecycle_status", label: "lifecycle status", semanticKind: "saved_profile_lifecycle_status",
+    type: "enum", values: ["active", "deceased", "archived"] },
+  // No stored pronoun field or explicit budget currency exists in this row contract.
+  pronouns: { label: "pronouns", semanticKind: "saved_profile_pronouns", type: "unsupported" },
+  monthly_budget: { label: "monthly budget", semanticKind: "saved_profile_monthly_budget", type: "unsupported" },
   weight: { storage: "weight_value", unitStorage: "weight_unit", label: "weight", semanticKind: "saved_profile_body_weight",
     type: "quantity", units: ["kg", "lb"] },
 } as const satisfies Record<string, FieldDefinition>;
@@ -18,7 +29,7 @@ export type ProfileFieldSelector = keyof typeof PROFILE_FIELD_DEFINITIONS;
 export type AuthorizedProfileField = {
   obligationId: string; sourceId: string; sourceDomain: "saved_profile"; subjectId: string;
   fieldSelector: ProfileFieldSelector; semanticKind: string; state: "present" | "empty" | "unavailable";
-  storedValue: string | number | null; unit: string | null; reason: string | null;
+  storedValue: string | number | readonly string[] | null; unit: string | null; reason: string | null;
   snapshot: { profileId: string; contentId: string; updatedAt: string | null };
 };
 export type ProfileFieldProjection = { subjectIds: string[]; petNames: Record<string, string>; fields: AuthorizedProfileField[] };
@@ -49,17 +60,19 @@ export function projectProfileFields(e: AskEvidenceContract | undefined, rows: r
     petNames[subjectId] = e.petNames?.[subjectId] || row?.name || "This pet";
     for (const fieldSelector of [...new Set(e.interpretation!.request!.profileFields!)] as ProfileFieldSelector[]) {
       const d: FieldDefinition = PROFILE_FIELD_DEFINITIONS[fieldSelector];
-      const hasValue = !!row && Object.hasOwn(row, d.storage) && row[d.storage] !== undefined;
-      const value = hasValue ? row![d.storage] : undefined;
+      const hasValue = !!row && !!d.storage && Object.hasOwn(row, d.storage) && row[d.storage] !== undefined;
+      const value = hasValue ? row![d.storage!] : undefined;
       const rawUnit = row && d.unitStorage ? row[d.unitStorage] : undefined;
       let state: AuthorizedProfileField["state"] = !hasValue ? "unavailable" : value === null || value === "" ? "empty" : "present";
-      let reason: string | null = !hasValue ? "field_unavailable" : null;
+      let reason: string | null = d.type === "unsupported" ? "field_unsupported" : !hasValue ? "field_unavailable" : null;
       if (state === "present") {
-        if (d.type === "quantity" && (typeof value !== "number" || !Number.isFinite(value) || value <= 0)) {
+        if (d.type === "quantity" && (typeof value !== "number" || !Number.isFinite(value) || (value < 0 || value === 0 && !d.allowZero))) {
           state = "unavailable"; reason = "invalid_value";
         } else if (d.type === "quantity" && (typeof rawUnit !== "string" || !d.units!.includes(rawUnit))) {
           state = "unavailable"; reason = "explicit_unit_required";
-        } else if (d.type !== "quantity" && (typeof value !== "string" || !value.trim()
+        } else if (d.type === "string_list" && (!Array.isArray(value) || value.some(v => typeof v !== "string" || !v.trim()))) {
+          state = "unavailable"; reason = "invalid_value";
+        } else if (d.type !== "quantity" && d.type !== "string_list" && (typeof value !== "string" || !value.trim()
           || d.type === "enum" && !d.values!.includes(value))) {
           state = "unavailable"; reason = "invalid_value";
         }
@@ -70,7 +83,7 @@ export function projectProfileFields(e: AskEvidenceContract | undefined, rows: r
         unit: rawUnit === undefined ? { unavailable: true } : rawUnit, updatedAt: row?.updated_at ?? null })).digest("hex");
       fields.push({ obligationId: `profile:${subjectId}:${fieldSelector}`, sourceId: `profile:${subjectId}:${fieldSelector}`,
         sourceDomain: "saved_profile", subjectId, fieldSelector, semanticKind: d.semanticKind,
-        state, storedValue: state === "present" ? value as string | number : null,
+        state, storedValue: state === "present" ? Array.isArray(value) ? Object.freeze([...value]) : value as string | number : null,
         unit: state === "present" && d.type === "quantity" ? rawUnit as string : null, reason,
         snapshot: { profileId: subjectId, contentId, updatedAt: row?.updated_at ?? null } });
     }
@@ -83,7 +96,7 @@ export function profileFieldValue(field: AuthorizedProfileField): string {
   if (field.state === "empty") return "Not recorded in the saved profile.";
   if (field.state === "unavailable") return field.reason === "explicit_unit_required"
     ? "Unavailable: the saved value has no supported explicit unit." : "Unavailable from the saved profile.";
-  return String(field.storedValue) + (field.unit ? " " + field.unit : "");
+  return (Array.isArray(field.storedValue) ? JSON.stringify(field.storedValue) : String(field.storedValue)) + (field.unit ? " " + field.unit : "");
 }
 export function profileFieldSentence(field: AuthorizedProfileField, name: string): string {
   return `${name} ? saved profile ${PROFILE_FIELD_DEFINITIONS[field.fieldSelector].label}: ${profileFieldValue(field)}`;

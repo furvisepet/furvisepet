@@ -178,9 +178,11 @@ test('changed projection or represented value and serialized copy cannot mint au
  const b=fixture();b.e.represented[0].text='9 kg';assert.throws(()=>derivePublicationAuthority(b.e),/SNAPSHOT_CHANGED/);
  assert.throws(()=>derivePublicationAuthority(structuredClone(fixture().e)),/SNAPSHOT_CHANGED/);
 });
-test('unmigrated fields and mixed selectors stay outside this projection',()=>{
+test('missing or unsupported fields limit individually without suppressing supported selectors',()=>{
  for(const key of ['age','lifecycle_status','current_food','monthly_budget','avoid']){
- const f=fixture({fields:['species',key]});assert.equal(f.p,null);assert.equal(isTypedProfileRead(f.e),false);
+ const f=fixture({fields:['species',key]});assert.ok(f.p);assert.equal(isTypedProfileRead(f.e),true);
+ assert.equal(f.p.fields[0].state,'present');assert.equal(f.p.fields[1].state,'unavailable');
+ assert.deepEqual(derivePublicationAuthority(f.e).authorizedSourceIds,['profile:pet-a:species']);
  }
 });
 test('deterministic Labs generation/review/final validation uses no provider',async()=>{
@@ -232,7 +234,7 @@ test('unsupported profile presentation never executes historical or legacy factu
    occurred_at:'2026-09-15T00:00:00Z',created_at:'2026-09-15T00:00:00Z',
    get note(){throw Error('HISTORY_FACT_ACCESS_FOR_PROFILE_PRESENTATION');}}];
   const info=console.info,dispatch=[];
-  console.info=(tag,...details)=>{if(tag==='[Ask read projection] decision'||tag==='[Ask Labs] dispatch')dispatch.push(tag);};
+  console.info=(tag)=>{if(tag==='[Ask read projection] decision'||tag==='[Ask Labs] dispatch')dispatch.push(tag);};
   let r;try{r=await generateContextAwareAskResponse(f.input);}finally{console.info=info;}
   assert.deepEqual(dispatch,[]);assert.equal(r.model,PROFILE_PRESENTATION_UNAVAILABLE);
   assert.deepEqual(r.relevantContextIds,[]);assert.deepEqual(r.referencedRecords,[]);
@@ -252,4 +254,53 @@ test('source-free limitation cannot grant a factual receipt or bypass owned scop
  recordHistoryReview(factual,{signature:historyReviewSignature(factual),text:factual.answer.summary,sourceIds:['profile:pet-a:weight']});
  assert.equal(readReviewedHistoryAnswer(factual),null);
  assert.equal(validateGeneratedAnswer(factual,limitationContext(f),'routine',['pet-a']).valid,false);
+});
+
+for(const [selector,storage,value] of [
+ ['current_food','current_food','米 and turkey — exact α'],
+ ['main_concern','main_concern','Owner reports an intermittent concern'],
+ ['care_goal','wellness_goal','Maintain the current routine'],
+ ['avoid','avoid_ingredients',['soy','pea, protein','日本語']],
+ ['lifecycle_status','lifecycle_status','archived'],
+])test('certified stored mapping '+selector+' reaches Labs and final validation',async()=>{
+ const profile={...pet,[storage]:value},f=fixture({fields:['species',selector],profile,format:'table'});
+ assert.deepEqual(f.p.fields[1].storedValue,value);
+ const response=await generateContextAwareAskResponse(f.input);
+ assert.equal(response.model,'server-profile-field-labs');
+ assert.equal(await reviewHistoricalAnswer({result:response,client:noProvider}),true);
+ const validated=validateGeneratedAnswer(response,{pet:profile,eligiblePets:[profile],currentMessage:f.input.question,memories:[],careEntries:[]},'routine',['pet-a']);
+ assert.equal(validated.valid,true);assert.equal(validated.assessment.outcome,'complete');
+ assert.deepEqual(response.relevantContextIds,['profile:pet-a:species','profile:pet-a:'+selector]);
+ assert.equal(profileFieldLabsReviewFailure(validated.response),null);
+});
+for(const [value,unit,state] of [[0,'months','present'],[2.5,'years','present'],[4,null,'unavailable'],[4,'fortnights','unavailable'],[-1,'years','unavailable'],[null,'years','empty']])
+ test('age requires its exact stored unit '+JSON.stringify([value,unit]),()=>{
+  const f=fixture({fields:['age'],profile:{...pet,age_value:value,age_unit:unit}});
+  assert.equal(field(f).state,state);if(state==='present'){assert.equal(field(f).storedValue,value);assert.equal(field(f).unit,unit);}
+ });
+test('all request-contract profile selectors have an explicit per-field disposition',async()=>{
+ const {PROFILE_FIELD_DEFINITIONS}=await import('../app/lib/intelligence/profile-field-authority.ts');
+ const fields=askRequestProviderSchema({}).properties.request.anyOf.find(v=>v.properties.evidenceBasis.enum?.[0]==='saved_profile').properties.profileFields.items.enum;
+ assert.deepEqual([...fields].sort(),Object.keys(PROFILE_FIELD_DEFINITIONS).sort());
+ const f=fixture({fields});assert.ok(f.p);assert.deepEqual(f.p.fields.map(x=>x.fieldSelector),fields);
+});
+for(const selector of ['pronouns','monthly_budget'])test('unsupported '+selector+' limits only that field without inferred values',async()=>{
+ const f=fixture({fields:['species','current_food',selector],profile:{...pet,current_food:'rice and turkey',monthly_budget:100,pronouns:'she/her'},format:'table'});
+ assert.equal(f.p.fields[2].state,'unavailable');assert.equal(f.p.fields[2].reason,'field_unsupported');
+ const r=await generateContextAwareAskResponse(f.input);
+ assert.match(r.answer.summary,/dog/);assert.match(r.answer.summary,/rice and turkey/);
+ assert.doesNotMatch(r.answer.summary,/she\/her|100|USD|CAD/);
+ assert.deepEqual(r.relevantContextIds,['profile:pet-a:species','profile:pet-a:current_food']);
+ assert.equal(await reviewHistoricalAnswer({result:r,client:noProvider}),true);
+ const v=validateGeneratedAnswer(r,{pet,eligiblePets:[pet],currentMessage:f.input.question,memories:[],careEntries:[]},'routine',['pet-a']);
+ assert.equal(v.valid,true);assert.equal(v.assessment.outcome,'limited');
+});
+test('list storage is cloned and preserves exact items without parsing prose',()=>{
+ const values=[' soy ','pea, protein'];const f=fixture({fields:['avoid'],profile:{...pet,avoid_ingredients:values}});
+ values.push('later mutation');assert.deepEqual(field(f).storedValue,[' soy ','pea, protein']);
+ assert.equal(field(fixture({fields:['avoid'],profile:{...pet,avoid_ingredients:[]}})).state,'present');
+ for(const invalid of ['soy,pea',[1],['']])assert.equal(field(fixture({fields:['avoid'],profile:{...pet,avoid_ingredients:invalid}})).state,'unavailable');
+});
+test('unsupported unknown internal selector cannot enter certified projection',()=>{
+ assert.equal(fixture({fields:['species','invented_selector']}).p,null);
 });
