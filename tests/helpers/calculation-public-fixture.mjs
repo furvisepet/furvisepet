@@ -43,7 +43,7 @@ async function fixture({calculations=[calculation()],sourceRows=rows(),ticket=ra
  const p=envelope(plan,ticket);p.question=question;p.petNames=subjects.map(p=>p.name);p.outputFormat=format;
  const interpretation=validateAskRequest(p,context),bound=interpretation.request.readTicket;
  const reads=[];
- const store={page:async q=>{reads.push(q);return sourceRows.filter(r=>r.pet_profile_id===q.petId&&!r.deleted_at)
+ const store={page:async q=>{reads.push(q);return sourceRows.filter(r=>r.pet_profile_id===q.petId&&!r.deleted_at&&r.occurred_at>=q.from&&r.occurred_at<q.to)
   .sort((a,b)=>(q.ordering==="desc"?-1:1)*(Date.parse(a.occurred_at)-Date.parse(b.occurred_at))).slice(q.offset,q.offset+q.limit);},
  effective:async records=>({records,reliable:closed}),
  effectiveWindow:async({rows})=>({records:rows,lineageClosed:closed,replacementSeedsExhausted:closed,sourceLineage:[],graphCalls:1,lineageRows:rows.length,reasons:closed?[]:["incomplete_lineage"]})};

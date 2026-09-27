@@ -1,4 +1,5 @@
 import * as C from "../../tests/helpers/canonical-calculation-retirement.mjs";
+import {stressProposal,certifiedRows} from './helpers/current-stress-harness.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { registerHooks } from 'node:module';
@@ -140,29 +141,19 @@ test('reviewed shared-source attribution does not widen the record subject', asy
  assert.deepEqual(r.context.askInterpretation.petIds,[fixturePets[0].id]);
 });
 
-test('premise repair is bounded and revalidates exact user evidence', async t => {
- clock(t);
- const {interpretAskQuestion}=await import('../../app/lib/intelligence/interpret-ask.ts');
+test('premise source validation accepts the first exact proposal and rejects invented wording without a retry', async t=>{
+ clock(t);const {interpretAskQuestion}=await import('../../app/lib/intelligence/interpret-ask.ts');
  const currentMessage='Fictional comparison: the crate is 7 kg; the box is 3 kg.';
- const good=proposal({mode:'conversation',scope:'none',petNames:[],operation:'general',frame:null,
-  evidenceBasis:'supplied_context',premiseQuotes:['the crate is 7 kg','the box is 3 kg']});
- for(const permanent of [false,true]) {
-  let calls=0;
-  const events=[];
-  const pending=interpretAskQuestion({context:{...context,currentMessage},model:'gpt-5-mini',onProviderEvent:e=>events.push(e),
-   client:{responses:{async create(request){
-    calls++;
-    if(calls===2)assert.match(request.instructions,/exact contiguous substring/);
-    return {status:'completed',output_text:JSON.stringify(calls===1||permanent ? {...good,premiseQuotes:['the crate weighs 7 kg']} : good),usage:{input_tokens:500,output_tokens:200}};
-   }}}});
-  if(permanent)await assert.rejects(pending,/understand the request reliably/);
-  else {const result=await pending;assert.equal(result.conversationOnly,true);assert.deepEqual(result.petIds,[]);}
-  assert.equal(calls,2);
-  assert.ok(events.some(e=>e.providerErrorCode==='ASK_REQUEST_CONTRACT_PREMISE_SOURCE'));
+ for(const quote of ['the crate is 7 kg','the crate weighs 7 kg']){
+  let calls=0;const p=proposal({mode:'conversation',scope:'none',petNames:[],operation:'general',frame:null,evidenceBasis:'supplied_context',premiseQuotes:[quote]});
+  const pending=interpretAskQuestion({context:{...context,currentMessage},model:'gpt-5-mini',client:{responses:{async create(){calls++;return{status:'completed',output_text:JSON.stringify(p)};}}}});
+  if(quote==='the crate is 7 kg'){const r=await pending;assert.equal(r.conversationOnly,true);assert.deepEqual(r.petIds,[]);}
+  else await assert.rejects(pending,/understand the request reliably/);
+  assert.equal(calls,1);
  }
 });
 
-test('a premise repair cannot authorize invented pets or mutation scope', async t => {
+test('a rejected premise cannot trigger another interpretation granting foreign or mutation scope', async t => {
  clock(t);
  const {interpretAskQuestion}=await import('../../app/lib/intelligence/interpret-ask.ts');
  for(const patch of [{mode:'update'}, {evidenceBasis:'saved_history',scope:'named',petNames:['Foreign']}]) {
@@ -170,7 +161,7 @@ test('a premise repair cannot authorize invented pets or mutation scope', async 
   const p=proposal({evidenceBasis:'supplied_context',premiseQuotes:['the box is 3 kg'],frame:null});
   await assert.rejects(interpretAskQuestion({context:{...context,currentMessage:'the box is 3 kg'},model:'gpt-5-mini',
    client:{responses:{async create(){calls++;return {status:'completed',output_text:JSON.stringify(calls===1?{...p,premiseQuotes:['invented']}:{...p,...patch})};}}}}));
-  assert.equal(calls,2);
+  assert.equal(calls,1);
  }
 });
 
@@ -221,7 +212,7 @@ test("canonical calculation table has one deterministic body and rejects competi
 });
 test('read planner can omit extraction while writes still require a valid frame', () => {
   assert.equal(validateAskRequest(proposal({ frame: null }), context).readOnly, true);
-  assert.throws(() => validateAskRequest(proposal({ mode: 'update', frame: null }), context));
+  assert.throws(() => validateAskRequest(proposal({ mode: 'update', frame: null }), {...context,currentMessage:'Save a new observation for Aster.'}));
 });
 test('validated query boundaries are scope anchors, unrelated invented dates remain unsupported', () => {
   const source = [{ text: 'Aster travelled calmly.', occurredAt: '2026-06-15T12:00:00Z' }];
@@ -391,43 +382,22 @@ test('five-pet earliest/latest weight retrieval certifies both endpoint pairs ev
     rows,
     messages:[],
     history:true,
-    interpretationProposal:proposal({
-      scope:'account',
-      petNames:names,
-      operation:'comparison',
-      selection:'comparison',
-      quantity:'measurement',
-      topic:'weight',
-      terms:['weight'],
-      temporalScope:'historical_and_current',
-      outputFormat:'table',
-      profileFields:['weight'],
-      evidenceNeeds:[
-        {quote:'earliest recorded body weight',sourceTurnId:null,terms:['body weight','weight','kgquery'],petNames:['Aster'],order:'earliest'},
-        {quote:'latest recorded body weight',sourceTurnId:null,terms:['body weight','weight','kgquery'],petNames:['Aster'],order:'latest'},
-        {quote:'earliest recorded body weight',sourceTurnId:null,terms:['body weight','weight'],petNames:['Bramble'],order:'earliest'},
-        {quote:'latest recorded body weight',sourceTurnId:null,terms:['body weight','weight'],petNames:['Bramble'],order:'latest'},
-      ],
-    }),
+    interpretationProposal:{...endpointPairProposal({scope:'account',petNames:names,question,outputFormat:'table',predicates:[{kind:'text_any',terms:['weight','weigh']}]}),
+      calculatePlan:{operation:'calculate',resultSelection:null,calculations:fivePets.map((pet,index)=>({id:'change-'+index,operator:'difference',
+       operands:[{...C.slot(1,0,pet.name),role:'target'},{...C.slot(0,0,pet.name),role:'reference'}],resultUnit:'kg',precision:null}))}},
     expectedProviderCalls:0,
     expectedReviewCalls:null,
   });
-  assert.equal(r.context.askHistory.coverage.endpointPairs?.length,5);
-  assert.equal(r.result.reasoning.model,'server-read-projection');
+  assert.equal(r.result.reasoning.model,'server-calculation-labs');
   assert.equal(r.result.answerValidation.valid,true);
-  assert.equal(r.result.answerValidation.assessment.outcome,'complete');
-  assert.match(r.result.reasoning.answer.summary,/\| Pet \| Earliest \| Earliest date \| Latest \| Latest date \| Change \|/);
-  assert.doesNotMatch(r.result.reasoning.answer.summary,/couldn't finish answering|Saved notes/i);
-  const projectedSources=new Set(r.result.reasoning.historyNarrative?.sentences.flatMap(sentence=>sentence.sourceIds)||[]);
-  for(const pet of fivePets){
-    assert.ok(projectedSources.has('care:'+pet.id+'-old'),pet.name+' projected earliest endpoint');
-    assert.ok(projectedSources.has('care:'+pet.id+'-new'),pet.name+' projected latest endpoint');
-    const pair=r.context.askHistory.coverage.endpointPairs.find(item=>item.petId===pet.id);
-    assert.ok(pair);
-    assert.equal(pair.blocked,false,pet.name+' endpoint pair should be usable');
-    assert.deepEqual(pair.earliestIds,['care:'+pet.id+'-old']);
-    assert.deepEqual(pair.latestIds,['care:'+pet.id+'-new']);
+  const results=r.result.reasoning.calculationLabs.execution.results;
+  assert.equal(results.length,5);
+  for(const [index,pet] of fivePets.entries()){
+   const result=results.find(item=>item.id==='change-'+index);
+   assert.equal(result.value,1.25);assert.equal(result.unit,'kg');
+   assert.deepEqual(new Set(result.sourceIds),new Set(['care:'+pet.id+'-old','care:'+pet.id+'-new']));
   }
+  assert.equal(r.requests.length,0);assert.equal(r.reviewRequests.length,0);
 });
 
 test('conversation identity must match a complete owned name', () => {
@@ -556,7 +526,7 @@ for (const outcome of ['approved', 'empty-body', 'malformed-denial', 'rejected',
   assert.equal(r.result.acceptedSemanticEvents.length, 0);
 });
 
-test('real admission lets a repaired planner reach composition without opening extra repair cycles', async t => {
+test('real admission lets a valid first proposal reach composition without an interpretation retry', async t => {
  clock(t);
  const {runAdmittedAiOperation}=await import('../../app/lib/ai/usage-guard/admission.ts');
  const {MemoryAiGuardTestStore}=await import('../../app/lib/ai/usage-guard/memory-test-store.ts');
@@ -565,13 +535,13 @@ test('real admission lets a repaired planner reach composition without opening e
  const store=new MemoryAiGuardTestStore();let calls=0;
  await runAdmittedAiOperation({store,feature:'ask',intendedModel:OPENAI_ANALYSIS_MODEL,env:{NODE_ENV:'test'},payload:{},userId:ownerId,requestId:'planner-repair'},async()=>{
   const r=await exercise('Fictional only: the box is 3 kg. Give the mass.',{taskReviewResponse:true,fixturePets,rows:[],messages:[],history:true,
-   interpretationModel:OPENAI_ANALYSIS_MODEL,interpretationProposal:{},interpretationResponse:async()=>({status:'completed',output_text:JSON.stringify(proposal({mode:'conversation',scope:'none',petNames:[],operation:'general',frame:null,evidenceBasis:'supplied_context',premiseQuotes:[++calls===1?'the box weighs 3 kg':'the box is 3 kg']})),usage:{input_tokens:500,output_tokens:200}}),
+   interpretationModel:OPENAI_ANALYSIS_MODEL,interpretationProposal:{},interpretationResponse:async()=>({status:'completed',output_text:JSON.stringify(proposal({mode:'conversation',scope:'none',petNames:[],operation:'general',frame:null,evidenceBasis:'supplied_context',premiseQuotes:[(++calls,'the box is 3 kg')]})),usage:{input_tokens:500,output_tokens:200}}),
    providerOverrides:{answer:'3 kg'}});
-  assert.equal(r.result.reasoning.answer.summary,'3 kg');assert.equal(calls,2);
+  assert.equal(r.result.reasoning.answer.summary,'3 kg');assert.equal(calls,1);
   const forbidden=purpose=>executeAdmittedProviderCall({purpose,model:OPENAI_ANALYSIS_MODEL,maxOutputTokens:100,providerInput:'test',invoke:async()=>{throw Error('must not invoke');}});
   for(const purpose of [undefined,'interpretation_repair','history_rereview'])await assert.rejects(forbidden(purpose));
  });
- assert.equal(store.getSnapshot('2026-09-04').calls,4); // planner + repair + writer + independent task review
+ assert.equal(store.getSnapshot('2026-09-04').calls,3); // one planner + writer + independent task review
 });
 
 test('real admission allows one ordered repair and re-review, charges all five calls and denies a sixth', async t => {
@@ -954,14 +924,14 @@ test("wrong proposed arithmetic is rejected before execution with no repair auth
 });
 
 test('supplied premises narrow stale owned-history plans without granting writes', () => {
-  const plan = validateAskRequest(proposal({ evidenceBasis: 'supplied_context', outputFormat: 'csv',
-    petNames: ['An invented animal'], scope: 'selected', from: '2022-01-01', to: '2022-02-01' }), context);
+  const plan = validateAskRequest(proposal({ evidenceBasis: 'supplied_context', outputFormat: 'prose',premiseQuotes:['the box is 3 kg'],
+    petNames: ['An invented animal'], scope: 'selected', from: '2022-01-01', to: '2022-02-01' }), {...context,currentMessage:'Fictional exercise: the box is 3 kg.'});
   assert.equal(plan.conversationOnly, true);
   assert.deepEqual(plan.petIds, []);
   assert.equal(plan.history, null);
   assert.equal(plan.readOnly, true);
-  assert.equal(plan.request.outputFormat, 'csv');
-  for (const mode of ['update', 'mixed']) assert.throws(() => validateAskRequest(proposal({ evidenceBasis: 'supplied_context', mode }), context));
+  assert.equal(plan.request.outputFormat, null); // Conversational premises grant no formatted factual projection.
+  for (const mode of ['update', 'mixed']) assert.throws(() => validateAskRequest(proposal({ evidenceBasis: 'supplied_context', mode,premiseQuotes:['the box is 3 kg'] }), {...context,currentMessage:'Fictional exercise: the box is 3 kg.'}));
 });
 test('general clarification is a conversation task without an owned-pet requirement', () => {
   const plan = validateAskRequest(proposal({ mode: 'clarify', scope: 'none', petNames: [], operation: 'clarify' }),
@@ -971,13 +941,14 @@ test('general clarification is a conversation task without an owned-pet requirem
   assert.equal(plan.history, null);
 });
 test('general knowledge never widens owned authority and saved history still validates ownership', () => {
-  const plan = validateAskRequest(proposal({ evidenceBasis: 'general', scope: 'account' }), context);
+  const plan = validateAskRequest(proposal({ evidenceBasis: 'general', scope: 'account' }), {...context,currentMessage:'Explain why animals need rest.'});
   assert.deepEqual(plan.petIds, []);
   assert.equal(plan.history, null);
   assert.throws(() => validateAskRequest(proposal({ evidenceBasis: 'saved_history', petNames: ['Not owned'] }), context));
 });
 
 test('supplied-context classification requires actual verbatim user premises', () => {
+  const context={owner:{userId:ownerId},eligiblePets:fixturePets,pet:fixturePets[0],currentMessage:'Consider this hypothetical situation.',conversationTurns:[]};
   const base=proposal({evidenceBasis:'supplied_context',mode:'conversation',scope:'none',petNames:[],operation:'general',premiseQuotes:[]});
   assert.throws(()=>validateAskRequest(base,context),/missing_supplied_premise/);
   assert.throws(()=>validateAskRequest({...base,premiseQuotes:['Invented quantity']},context),/premise_source/);
@@ -1066,18 +1037,17 @@ test('standalone task wording cannot be replaced by a planner paraphrase', () =>
  assert.deepEqual(result.request.requirements,[]);
 });
 
-test('missing premises use bounded repair without inventing evidence', async t => {
- clock(t);
- const {interpretAskQuestion}=await import('../../app/lib/intelligence/interpret-ask.ts');
+test('missing supplied premises reject once while an exact nonnumeric hypothetical remains legal',async t=>{
+ clock(t);const {interpretAskQuestion}=await import('../../app/lib/intelligence/interpret-ask.ts');
  const currentMessage='Hypothetical: a dog cannot breathe. Which task takes priority?';
- const good=proposal({mode:'conversation',scope:'none',petNames:[],operation:'general',frame:null,
-  evidenceBasis:'supplied_context',premiseQuotes:['a dog cannot breathe']});
- let calls=0;
- const result=await interpretAskQuestion({context:{...context,currentMessage},model:'gpt-5-mini',client:{responses:{async create(){
-  calls++;return {status:'completed',output_text:JSON.stringify(calls===1?{...good,premiseQuotes:[]}:good),usage:{input_tokens:500,output_tokens:200}};
- }}}});
- assert.equal(calls,2);assert.equal(result.conversationOnly,true);assert.equal(result.readOnly,true);
+ for(const premiseQuotes of [[],['a dog cannot breathe']]){
+  let calls=0;const p=proposal({mode:'conversation',scope:'none',petNames:[],operation:'general',frame:null,evidenceBasis:'supplied_context',premiseQuotes});
+  const pending=interpretAskQuestion({context:{...context,currentMessage},model:'gpt-5-mini',client:{responses:{async create(){calls++;return{status:'completed',output_text:JSON.stringify(p)};}}}});
+  if(premiseQuotes.length){const r=await pending;assert.equal(r.conversationOnly,true);assert.equal(r.readOnly,true);}
+  else await assert.rejects(pending,/understand the request reliably/);assert.equal(calls,1);
+ }
 });
+
 test('generic incidents are source reads; report endpoints remain accessible', () => {
  const incident=validateAskRequest(proposal({operation:'episode',selection:'reference',ordinal:null,episodeTopic:null}),context);
  assert.equal(incident.operation,'recall');assert.equal(incident.ordinal,null);
@@ -1158,42 +1128,44 @@ test("a provider prose envelope cannot replace deterministic calculation publica
 
 test('event evidence survives both budgets among verbose routine observations', async t => {
  clock(t);
- for (const selection of ['period','earliest','latest']) {
+ for (const terms of [['transition'],['started','completed'],['transition','completed']]) {
   const rows=Array.from({length:120},(_,i)=>care('verbose-'+i,'milo',new Date(Date.UTC(2020,0,i+1)).toISOString().slice(0,10),'food',
    'Aster was offered food A at the routine check. Reason for any change was not established. '+ 'Only this observed meal was recorded; other meals and causes remain unknown. '.repeat(7)));
   rows.push(care('event-start','milo','2024-03-06','food','Aster started a gradual transition from food A to food B. The owner recorded a preference change, not a diagnosed allergy.'));
   rows.push(care('event-end','milo','2024-03-13','food','Aster completed the transition to food B. No other reason was recorded.'));
   const r=await exercise('When did Aster switch to the current food?',{fixturePets,messages:[],history:true,expectedReviewCalls:1,rows,
-   interpretationProposal:proposal({terms:['food'],selection}),answer:'The gradual transition started on March 6, 2024 and completed on March 13, 2024.'});
+   interpretationProposal:stressProposal({petNames:['Aster'],terms}),answer:'The gradual transition started on March 6, 2024 and completed on March 13, 2024.'});
   for(const id of ['event-start','event-end']) {
-   assert.ok(r.context.askHistory.coverage.candidateIds.includes('care:'+id),'candidate '+selection+' '+id);
-   assert.ok(r.context.askHistory.entries.some(e=>e.id===id),'retained '+selection+' '+id);
-   assert.ok(r.prompt.evidenceContract.represented.some(e=>e.sourceId==='care:'+id),'prompt '+selection+' '+id);
+   assert.ok(r.context.askHistory.coverage.candidateIds.includes('care:'+id),'candidate '+terms.join(',')+' '+id);
+   assert.ok(r.context.askHistory.entries.some(e=>e.id===id),'retained '+terms.join(',')+' '+id);
+   assert.ok(certifiedRows(r).some(e=>e.sourceId==='care:'+id),'certified '+terms.join(',')+' '+id);
   }
-  assert.ok(r.context.askHistory.coverage.reasons.includes('effective_evidence_budget'));
+  assert.ok(rows.reduce((n,row)=>n+row.note.length,0)>18000);
+   assert.equal(certifiedRows(r).length,2);assert.equal(r.requests.length,0);assert.equal(r.reviewRequests.length,0);
   assert.ok(r.context.askHistory.coverage.perPet.every(p=>p.pages<=4));
   assert.ok(r.context.askHistory.coverage.candidateIds.length<=64);
  }
 });
 
 
-test('rejected event answers retain relevant source excerpts instead of the latest profile', async t => {
+test('untrusted event prose cannot replace certified transition records with the latest profile', async t => {
  clock(t);
  const rows=[care('start','milo','2023-03-06','food','Aster started a transition from food A to food B. The reason was preference, not an allergy diagnosis.'),
   care('end','milo','2023-03-13','food','Aster completed the transition to food B.'),
   care('profile','milo','2026-06-04','food','Aster currently eats food B and weighs 18 kg.')];
  const r=await exercise('When did Aster switch to the current food?',{fixturePets,messages:[],history:true,rows,
-  interpretationProposal:proposal({terms:['food'],selection:'latest'}),
+  interpretationProposal:stressProposal({petNames:['Aster'],terms:['transition']}),
   providerOverrides:{answer:'The switch happened yesterday.',historyNarrative:{sentences:[{text:'The switch happened yesterday.',sourceIds:['care:start'],calculations:[]}]}},
   reviewResponse:{approved:false},expectedReviewCalls:1});
- assert.ok(r.prompt.evidenceContract.represented.some(e=>e.sourceId==='care:start'));
- const answer=r.result.reasoning.answer, notes=answer.sections.flatMap(section=>section.items).join('\n');
+ assert.ok(certifiedRows(r).some(e=>e.sourceId==='care:start'));
+  assert.equal(r.requests.length,0);assert.equal(r.reviewRequests.length,0);
+ const answer=r.result.reasoning.answer, notes=JSON.stringify(answer);
  assert.match(notes,/2023-03-06/);
  assert.match(notes,/2023-03-13/);
  assert.match(notes,/not an allergy diagnosis/);
  assert.doesNotMatch(JSON.stringify(answer),/happened yesterday/);
- assert.match(answer.summary,/couldn't finish answering/);
- assert.equal(answer.sections[0].heading,'Saved notes');
+ assert.equal(r.result.reasoning.model,'server-labs-list');
+ assert.ok(!certifiedRows(r).some(row=>row.id==='profile'));
  assert.equal(r.publication.failure,null);
 });
 
@@ -1489,27 +1461,15 @@ test('generation repair has a single admitted phase followed by independent revi
 });
 
 
-test('new observation plus calculation can repair an invalid correction plan without weakening validation', async t => {
- clock(t);
- const {interpretAskQuestion}=await import('../../app/lib/intelligence/interpret-ask.ts');
- const currentMessage="Aster weighed 5.45 kg last July. This morning Aster weighed 5.10 kg. Calculate the percentage change and log this morning's weight.";
- const good=proposal({mode:'mixed',evidenceBasis:null,mutationIntent:null,operation:'comparison',
-  question:currentMessage,requirements:['Calculate percentage change','Log only the current observation'],frame:emptyProposedSemanticFrame()});
- for(const permanent of [false,true]) {
-  let calls=0;
-  const pending=interpretAskQuestion({context:{...context,currentMessage},model:'gpt-5-mini',
-   client:{responses:{async create(request){
-    calls++;
-    if(calls===2)assert.match(request.instructions,/Adding a new observation to history is not correcting/);
-    return {status:'completed',output_text:JSON.stringify(calls===1||permanent
-     ? {...good,mutationIntent:'correct_record',evidenceBasis:'supplied_context'} : good)};
-   }}}});
-  if(permanent)await assert.rejects(pending,/understand the request reliably/);
-  else {const result=await pending;assert.equal(result.request.mutationIntent,null);assert.deepEqual(result.petIds,[fixturePets[0].id]);}
-  assert.equal(calls,2);
+test('mixed observation arithmetic cannot turn an invalid correction into a second interpretation or write',async t=>{
+ clock(t);const {interpretAskQuestion}=await import('../../app/lib/intelligence/interpret-ask.ts');
+ for(const [name,unit] of [['Aster','kg'],['Bramble','ml'],['Cedar','min']]){
+  const currentMessage=`${name} previously had 7 ${unit}. Today ${name} had 3 ${unit}. Calculate the change and log today's observation.`;
+  let calls=0;const p=proposal({mode:'mixed',petNames:[name],evidenceBasis:'supplied_context',mutationIntent:'correct_record',operation:'comparison',question:currentMessage,frame:emptyProposedSemanticFrame()});
+  await assert.rejects(interpretAskQuestion({context:{...context,currentMessage},model:'gpt-5-mini',client:{responses:{async create(){calls++;return{status:'completed',output_text:JSON.stringify(p)};}}}}));
+  assert.equal(calls,1);
  }
 });
-
 
 test('explicit do-not-save strips every proposed persistence channel before semantic rejection', async t => {
  clock(t);
@@ -1669,25 +1629,18 @@ test('embedded and coordinated opt-outs remove mixed-write authority without era
  }
 });
 
-test('a failed mixed answer cannot commit proposed observation side effects',async t=>{
- clock(t);
- for (const approved of [true,false]) {
- const r=await exercise('Aster vomited this morning. Compare that with the saved notes.',{fixturePets,messages:[],history:true,
-  rows:[care('old','milo','2024-02-01','symptom','Aster vomited.')],
-  interpretationProposal:proposal({mode:'mixed',evidenceBasis:'saved_history'}),
-  providerOverrides:{answer:'Aster vomited.',historyNarrative:{sentences:[{text:'Aster vomited.',sourceIds:['care:old']}]},
-   semanticEvents:[{subject:{type:'pet',name:'Aster'},domain:'health',topic:'vomiting',eventTitle:'Aster vomited',
-    state:'active',transition:'observed',temporal:{occurredAt:null,explicitTime:'this morning'},sourceExcerpt:'Aster vomited this morning.',importance:'important',confidence:.99}]},
-  reviewResponse:{approved},expectedReviewCalls:1});
- if (approved) { assert.ok(r.result.executionPlan.semanticEvents.length>0); continue; }
- assert.equal(r.result.answerValidation.assessment.checks.taskCompletion,'failed');
- assert.deepEqual(r.result.executionPlan.careActions,[]);
- assert.deepEqual(r.result.executionPlan.semanticEvents,[]);
- assert.deepEqual(r.result.executionPlan.learnings,[]);
- assert.deepEqual(r.result.acceptedSemanticEvents,[]);
+test('a failed mixed answer cannot commit proposed observation side effects',async()=>{
+ const {engineFixture,proposal:appendProposal}=await import('../../tests/helpers/ask-route-ordering.mjs');
+ for(const conversationFailure of [true,false]){
+  const f=engineFixture({proposal:appendProposal(),conversationFailure});
+  const response=await f.send();
+  assert.equal(f.state.planner,1);
+  assert.equal(f.rows.pet_care_entries.length,2,'no source row before confirmation');
+  assert.ok(!f.state.events.includes('heart:execute'));
+  if(conversationFailure){assert.notEqual(response.status,200);assert.equal(f.rows.ask_action_capabilities.length,0);}
+  else {assert.equal(response.status,200);assert.equal(f.rows.ask_action_capabilities.length,1);assert.equal(f.rows.ask_action_capabilities[0].status,'pending');}
  }
 });
-
 
 test('mixed historical questions retain independently scoped evidence needs',()=>{
  const currentMessage='His belly is red today. Compare the saved prednisone plan and July 2024 skin notes.';

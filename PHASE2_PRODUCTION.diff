@@ -1,0 +1,26 @@
+diff --git a/app/lib/furvise-brain/effective-selection.ts b/app/lib/furvise-brain/effective-selection.ts
+index 3bf5633b..1cbc50d5 100644
+--- a/app/lib/furvise-brain/effective-selection.ts
++++ b/app/lib/furvise-brain/effective-selection.ts
+@@ -77 +77,3 @@ export async function retrieveEffectiveSelection(ticket: ReadTicket, scope: Read
+-        const rows = await store.page({ petId: task.petId, from, to, offset: task.offset, limit, ordering: task.direction });
++        // Acquire the concrete requested window; correction seeds still cover the full owned scope below.
++        const rows = await store.page({ petId: task.petId, from: new Date(selectedFrom).toISOString(),
++          to: new Date(selectedTo).toISOString(), offset: task.offset, limit, ordering: task.direction });
+@@ -81 +83 @@ export async function retrieveEffectiveSelection(ticket: ReadTicket, scope: Read
+-          || Date.parse(row.occurred_at) < Date.parse(from) || Date.parse(row.occurred_at) >= Date.parse(to)
++          || Date.parse(row.occurred_at) < selectedFrom || Date.parse(row.occurred_at) >= selectedTo
+diff --git a/app/lib/intelligence/history-retrieval.ts b/app/lib/intelligence/history-retrieval.ts
+index 70a7863d..2c1e2259 100644
+--- a/app/lib/intelligence/history-retrieval.ts
++++ b/app/lib/intelligence/history-retrieval.ts
+@@ -1032 +1032,3 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
+- * Subject quotas preserve the existing aggregate graph-call envelope.
++ * Each authorized subject gets the existing bounded traversal allowance.
++ * Cohort size must not consume another subject's closure authority. The shared
++ * read deadline and row limits still bound the operation.
+@@ -1039 +1040,0 @@ export function createEffectiveWindowResolver(options: {
+-  const total = Math.min(12, HISTORY_BUDGET.graphCalls + Math.max(0, Math.ceil(pets.length / 3) - 1));
+@@ -1045 +1046 @@ export function createEffectiveWindowResolver(options: {
+-    const quota = Math.floor(total / pets.length) + (pets.indexOf(petId) < total % pets.length ? 1 : 0);
++    const quota = HISTORY_BUDGET.graphCalls;

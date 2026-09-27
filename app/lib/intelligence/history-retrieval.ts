@@ -1029,20 +1029,21 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
 
 /** Correction-aware store boundary for compositional reads only. Its proof is
  * server-owned and based on the existing bounded RPC, never on a planner claim.
- * Subject quotas preserve the existing aggregate graph-call envelope.
+ * Each authorized subject gets the existing bounded traversal allowance.
+ * Cohort size must not consume another subject's closure authority. The shared
+ * read deadline and row limits still bound the operation.
  */
 export function createEffectiveWindowResolver(options: {
   owned: Set<string>; petIds: readonly string[]; userId: string; db: SupabaseClient;
   coverage: HistoryCoverage; deadline: number; onRows?: (rows: CareEntryRow[]) => void;
 }): NonNullable<import("../furvise-brain/lungs.ts").ReadStore["effectiveWindow"]> {
   const pets = [...options.petIds].sort();
-  const total = Math.min(12, HISTORY_BUDGET.graphCalls + Math.max(0, Math.ceil(pets.length / 3) - 1));
   const used = new Map<string, number>();
   const latest = new Map<string, HistoryCoverage>();
   return async ({ petId, rows, from, to }) => {
     if (!pets.includes(petId) || !options.owned.has(petId)) throw new Error("subject_not_authorized");
     options.onRows?.(rows);
-    const quota = Math.floor(total / pets.length) + (pets.indexOf(petId) < total % pets.length ? 1 : 0);
+    const quota = HISTORY_BUDGET.graphCalls;
     const local: HistoryCoverage = { plan: { from, to, terms: [], interpretation: "period" }, candidateIds: [],
       queryCount: 0, retrieval: "unknown", corrections: "unknown", extraction: "unknown", grouping: "unknown",
       continuation: [], reasons: ["no_cross_query_snapshot"], consistency: "read_committed_no_snapshot",

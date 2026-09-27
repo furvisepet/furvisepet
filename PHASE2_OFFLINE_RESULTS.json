@@ -1,0 +1,378 @@
+{
+  "baseline": "6fef96ea11207f221ac7f5b67f8fa8aee6d08c33",
+  "before": {
+    "calculation": {
+      "tests": 360,
+      "pass": 360,
+      "fail": 0,
+      "skipped": 0,
+      "failures": []
+    },
+    "brain": {
+      "tests": 78,
+      "pass": 78,
+      "fail": 0,
+      "skipped": 0,
+      "failures": []
+    },
+    "retrieval": {
+      "tests": 244,
+      "pass": 244,
+      "fail": 0,
+      "skipped": 0,
+      "failures": []
+    },
+    "domain": {
+      "tests": 379,
+      "pass": 379,
+      "fail": 0,
+      "skipped": 0,
+      "failures": []
+    },
+    "route-and-read": {
+      "tests": 217,
+      "pass": 217,
+      "fail": 0,
+      "skipped": 0,
+      "failures": []
+    },
+    "expanded": {
+      "tests": 816,
+      "pass": 815,
+      "fail": 1,
+      "skipped": 0,
+      "failures": [
+        "rich publication avoids a coverage-only trailing page with readable unchanged body font"
+      ]
+    },
+    "audit222": {
+      "tests": 222,
+      "pass": 209,
+      "fail": 13,
+      "skipped": 0,
+      "failures": [
+        "premise repair is bounded and revalidates exact user evidence",
+        "a premise repair cannot authorize invented pets or mutation scope",
+        "read planner can omit extraction while writes still require a valid frame",
+        "five-pet earliest/latest weight retrieval certifies both endpoint pairs even when lexical weight matching misses weighed prose",
+        "real admission lets a repaired planner reach composition without opening extra repair cycles",
+        "supplied premises narrow stale owned-history plans without granting writes",
+        "general knowledge never widens owned authority and saved history still validates ownership",
+        "supplied-context classification requires actual verbatim user premises",
+        "missing premises use bounded repair without inventing evidence",
+        "event evidence survives both budgets among verbose routine observations",
+        "rejected event answers retain relevant source excerpts instead of the latest profile",
+        "new observation plus calculation can repair an invalid correction plan without weakening validation",
+        "a failed mixed answer cannot commit proposed observation side effects"
+      ]
+    },
+    "stress": {
+      "tests": 2,
+      "pass": 0,
+      "fail": 2,
+      "skipped": 0,
+      "failures": [
+        "Milo, Luna, and Pepper semantic stress acceptance runs through the production history pipeline",
+        "10-pet five-year Ask stress acceptance"
+      ]
+    }
+  },
+  "after": {
+    "retrieval": {
+      "exit": 0,
+      "tests": 244,
+      "pass": 244,
+      "fail": 0,
+      "skipped": 0,
+      "seconds": 1.35,
+      "failures": []
+    },
+    "audit222": {
+      "exit": 0,
+      "tests": 222,
+      "pass": 222,
+      "fail": 0,
+      "skipped": 0,
+      "seconds": 2.12,
+      "failures": []
+    },
+    "brain": {
+      "exit": 0,
+      "tests": 78,
+      "pass": 78,
+      "fail": 0,
+      "skipped": 0,
+      "seconds": 1.24,
+      "failures": []
+    },
+    "calculation": {
+      "exit": 0,
+      "tests": 360,
+      "pass": 360,
+      "fail": 0,
+      "skipped": 0,
+      "seconds": 1.08,
+      "failures": []
+    },
+    "stress": {
+      "exit": 1,
+      "tests": 2,
+      "pass": 1,
+      "fail": 1,
+      "skipped": 0,
+      "failures": [
+        "10-pet five-year Ask stress acceptance"
+      ]
+    },
+    "expanded": {
+      "exit": 0,
+      "tests": 816,
+      "pass": 816,
+      "fail": 0,
+      "skipped": 0,
+      "seconds": 6.99,
+      "failures": []
+    },
+    "phase2": {
+      "exit": 0,
+      "tests": 29,
+      "pass": 29,
+      "fail": 0,
+      "skipped": 0,
+      "seconds": 1.2,
+      "failures": []
+    },
+    "route-and-read": {
+      "exit": 0,
+      "tests": 217,
+      "pass": 217,
+      "fail": 0,
+      "skipped": 0,
+      "seconds": 2.23,
+      "failures": []
+    },
+    "stress-cases": {
+      "exit": 1,
+      "tests": 17,
+      "pass": 15,
+      "fail": 2,
+      "skipped": 0,
+      "failures": [
+        "2 late Birch correction stays visible and old food is not silently treated as settled truth",
+        "10 maximum 10-pet cohort preserves at least one owned history row per pet under dense noise"
+      ]
+    },
+    "extended-domain": {
+      "exit": 0,
+      "tests": 678,
+      "pass": 678,
+      "fail": 0,
+      "skipped": 0,
+      "seconds": 1.78,
+      "failures": []
+    },
+    "domain": {
+      "exit": 0,
+      "tests": 379,
+      "pass": 379,
+      "fail": 0,
+      "skipped": 0,
+      "seconds": 1.27,
+      "failures": []
+    },
+    "typecheck": {
+      "exit": 0
+    },
+    "lint": {
+      "exit": 0
+    },
+    "diff-check": {
+      "exit": 0
+    },
+    "correction-boundary": {
+      "exit": 0,
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "skipped": 0,
+      "failures": []
+    },
+    "offline-build": {
+      "exit": 0,
+      "log": "build.log",
+      "fontFixture": "existing cached genuine font; Next font-response fixture; external network denied"
+    }
+  },
+  "gateFiles": {
+    "retrieval": [
+      "tests/furvise-lungs.test.mjs",
+      "tests/furvise-effective-selection.test.mjs",
+      "tests/furvise-compositional-read.test.mjs",
+      "tests/furvise-temporal-selection.test.mjs",
+      "tests/ordered-result-set.test.mjs",
+      "tests/result-read-selection.test.mjs",
+      "tests/supporting-context.test.mjs",
+      "tests/typed-read-ticket.test.mjs",
+      "tests/legacy-read-selection.test.mjs"
+    ],
+    "audit222": [
+      "scripts/audits/ask-evidence-contract.cases.mjs",
+      "scripts/audits/ask-shared-request-contract.cases.mjs"
+    ],
+    "brain": [
+      "tests/ask-compositional-emission.test.mjs",
+      "tests/ask-read-ticket-diagnostics.test.mjs",
+      "tests/ask-one-interpreter.test.mjs",
+      "tests/ask-working-memory-interpretation.test.mjs",
+      "tests/furvise-brain-interpretation-authority.test.mjs",
+      "tests/ask-interpretation-timeout.test.mjs"
+    ],
+    "calculation": [
+      "tests/canonical-calculation.test.mjs",
+      "tests/calculation-result-selection.test.mjs",
+      "tests/calculation-dag.test.mjs",
+      "tests/measurement-disambiguation.test.mjs"
+    ],
+    "stress": [
+      "tests/ask-ten-pet-five-year-stress-acceptance.test.mjs",
+      "tests/ask-semantic-stress-multi-pet-acceptance.test.mjs"
+    ],
+    "expanded": [
+      "tests/ask-certificate-bound-publication.test.mjs",
+      "tests/ask-deterministic-calculation-bindings.test.mjs",
+      "tests/ask-mandatory-history-publication.test.mjs",
+      "tests/ask-publication-authority-diagnostics.test.mjs",
+      "tests/ask-publication-contract.test.mjs",
+      "tests/ask-publication-receipt.test.mjs",
+      "tests/ask-repair-calculation-bindings.test.mjs",
+      "tests/ask-selection-publication.test.mjs",
+      "tests/audit-publication-call-expectations.test.mjs",
+      "tests/calculation-capability-orchestration.test.mjs",
+      "tests/calculation-capability.test.mjs",
+      "tests/calculation-dag.test.mjs",
+      "tests/calculation-operand-roles.test.mjs",
+      "tests/calculation-provider-parity.test.mjs",
+      "tests/calculation-result-selection.test.mjs",
+      "tests/canonical-calculation.test.mjs",
+      "tests/furvise-brain-action-organ.test.mjs",
+      "tests/furvise-brain-architecture-boundary.test.mjs",
+      "tests/furvise-brain-ask-runtime.test.mjs",
+      "tests/furvise-brain-durable-answer-finalization.test.mjs",
+      "tests/furvise-brain-interpretation-authority.test.mjs",
+      "tests/furvise-brain-memory-organ.test.mjs",
+      "tests/furvise-brain-mutation-authorization.test.mjs",
+      "tests/furvise-brain-owner-note-gate.test.mjs",
+      "tests/furvise-brain-post-review-finalizer.test.mjs",
+      "tests/furvise-brain-selected-pet-anchor.test.mjs",
+      "tests/furvise-brain-subject-authority.test.mjs",
+      "tests/furvise-brain-task-gate.test.mjs",
+      "tests/furvise-brain-turn-authority.test.mjs",
+      "tests/furvise-brain-working-memory.test.mjs",
+      "tests/history-publication-capability.test.mjs",
+      "tests/legacy-calculation-retirement.test.mjs",
+      "tests/typed-premise-calculation.test.mjs",
+      "tests/vet-brief-lifetime-publication.test.mjs"
+    ],
+    "phase2": [
+      "tests/history-subject-budget.test.mjs",
+      "tests/history-window-acquisition.test.mjs",
+      "tests/audit-publication-call-expectations.test.mjs",
+      "tests/public-v1-freeze.test.mjs"
+    ],
+    "route-and-read": [
+      "tests/ask-route-ordering.test.mjs",
+      "tests/typed-read-ticket.test.mjs",
+      "tests/furvise-brain-owner-note-gate.test.mjs",
+      "tests/owner-note-write-isolation.test.mjs",
+      "tests/append-items-authority.test.mjs",
+      "tests/ask-interpretation-timeout.test.mjs",
+      "tests/public-v1-freeze.test.mjs",
+      "tests/ask-read-ticket-diagnostics.test.mjs",
+      "tests/measurement-disambiguation.test.mjs"
+    ],
+    "stress-cases": [
+      "scripts/audits/ask-semantic-stress-multi-pet.cases.mjs",
+      "scripts/audits/ask-ten-pet-five-year-stress.cases.mjs"
+    ],
+    "extended-domain": [
+      "tests/ask-deterministic-calculation-bindings.test.mjs",
+      "tests/ask-repair-calculation-bindings.test.mjs",
+      "tests/brain-evidence-domain-composition.test.mjs",
+      "tests/calculation-capability-orchestration.test.mjs",
+      "tests/calculation-capability.test.mjs",
+      "tests/calculation-dag.test.mjs",
+      "tests/calculation-operand-roles.test.mjs",
+      "tests/calculation-provider-parity.test.mjs",
+      "tests/calculation-result-selection.test.mjs",
+      "tests/canonical-calculation.test.mjs",
+      "tests/legacy-calculation-retirement.test.mjs",
+      "tests/typed-premise-calculation.test.mjs"
+    ],
+    "domain": [
+      "tests/brain-evidence-domain-composition.test.mjs",
+      "tests/calculation-provider-parity.test.mjs",
+      "tests/typed-premise-calculation.test.mjs",
+      "tests/calculation-operand-roles.test.mjs",
+      "tests/ask-deterministic-calculation-bindings.test.mjs"
+    ],
+    "correction-boundary": [
+      "tests/stress-correction-boundary.test.mjs"
+    ]
+  },
+  "corpusSha256Unchanged": {
+    "scripts/audits/fixtures/ask-benchmark-200.mjs": "c59d7d5c2aecf16cdc3fe803710300689464badfe27dc366f484fdbef249092b",
+    "scripts/audits/fixtures/ask-lifetime-history.mjs": "a94407c46408925a3026c37ee0b8c16547e45c8c9e43fdea2721e2430d77bd46",
+    "scripts/audits/fixtures/ask-multi-year-multi-pet.mjs": "d060cbc2d99f64ad27a017e89a35ad86448cada3b7e7d289d3c4cde6d14f8930",
+    "scripts/audits/fixtures/ask-semantic-stress-multi-pet.mjs": "40a18bca834d0fbab136d56261275a0f99eec5f2c6e2b9620b92173f2c4243a2",
+    "scripts/audits/fixtures/ask-ten-pet-five-year-stress.mjs": "36a4357fe6b143448e4daae36b9ed94cd346019cf0dd2342c406b5f131c0daa0",
+    "scripts/audits/fixtures/ask-ten-year-history.mjs": "d36585d021c2ea8847f639d3dddc8bf6dc3f707ef7877efd868601eb3d00c7f3",
+    "scripts/audits/fixtures/ask-three-month-multi-pet.mjs": "8d1503b4141df656b7665255959e29c3a7f94ff70d49d9bc3c3ee784f081a186"
+  },
+  "productionComplexity": {
+    "sourceFilesChanged": 2,
+    "sourceFilesAdded": 0,
+    "linesAdded": 8,
+    "linesRemoved": 5,
+    "netLines": 3,
+    "schemaFieldsAdded": 0,
+    "providerContractChanged": false,
+    "restoredBinaryAssetBytes": 46335
+  },
+  "asset": {
+    "path": "app/lib/vet-brief/fonts/brand-print.png",
+    "gitBlob": "1980c556e9e2f47afa76e7fb9d1d0bed57e0749c",
+    "provenance": "deeb788e; removed in 747a9154"
+  },
+  "providerCalls": 0,
+  "costUSD": 0,
+  "liveAcceptanceRun": false,
+  "fullOfflineAcceptance": false,
+  "unresolvedAcceptanceTests": [
+    "2 late Birch correction stays visible and old food is not silently treated as settled truth",
+    "10 maximum 10-pet cohort preserves at least one owned history row per pet under dense noise"
+  ],
+  "notes": [
+    "Test groups overlap. Do not sum as unique tests.",
+    "Frozen plans and offline fixture migrations do not measure live first-attempt model correctness.",
+    "No skips or deleted test cases; both blocked ten-pet assertions remain executable failures."
+  ],
+  "changedFiles": [
+    "FAILURE_CLASSIFICATION.json",
+    "PHASE2_FINDINGS.md",
+    "PHASE2_OFFLINE_RESULTS.json",
+    "PHASE2_PRODUCTION.diff",
+    "PHASE2_UNSEEN_MATRIX.json",
+    "app/lib/furvise-brain/effective-selection.ts",
+    "app/lib/intelligence/history-retrieval.ts",
+    "app/lib/vet-brief/fonts/brand-print.png",
+    "scripts/audits/ask-semantic-stress-multi-pet.cases.mjs",
+    "scripts/audits/ask-shared-request-contract.cases.mjs",
+    "scripts/audits/ask-ten-pet-five-year-stress.cases.mjs",
+    "scripts/audits/helpers/current-stress-harness.mjs",
+    "scripts/audits/helpers/publication-call-expectations.mjs",
+    "tests/helpers/calculation-public-fixture.mjs",
+    "tests/history-subject-budget.test.mjs",
+    "tests/history-window-acquisition.test.mjs",
+    "tests/stress-correction-boundary.test.mjs"
+  ]
+}

@@ -74,11 +74,13 @@ export async function retrieveEffectiveSelection(ticket: ReadTicket, scope: Read
       const limit = Math.min(share, task.size);
       budget -= limit;
       try {
-        const rows = await store.page({ petId: task.petId, from, to, offset: task.offset, limit, ordering: task.direction });
+        // Acquire the concrete requested window; correction seeds still cover the full owned scope below.
+        const rows = await store.page({ petId: task.petId, from: new Date(selectedFrom).toISOString(),
+          to: new Date(selectedTo).toISOString(), offset: task.offset, limit, ordering: task.direction });
         if (rows.length > limit || new Set(rows.map(row => row.id)).size !== rows.length || rows.some((row, i) =>
           row.user_id !== scope.userId || row.pet_profile_id !== task.petId || row.deleted_at
           || !Number.isFinite(Date.parse(row.occurred_at)) || !Number.isFinite(Date.parse(row.created_at))
-          || Date.parse(row.occurred_at) < Date.parse(from) || Date.parse(row.occurred_at) >= Date.parse(to)
+          || Date.parse(row.occurred_at) < selectedFrom || Date.parse(row.occurred_at) >= selectedTo
           || task.seen.has(row.id) || i > 0 && (task.direction === "asc" ? eventOrder(rows[i - 1], row) : eventOrder(row, rows[i - 1])) >= 0))
           throw new Error("invalid_directional_page");
         if (task.last && rows.length && (task.direction === "asc" ? eventOrder(task.last, rows[0]) : eventOrder(rows[0], task.last)) >= 0)

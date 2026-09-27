@@ -1,0 +1,297 @@
+{
+  "baseline": "6fef96ea11207f221ac7f5b67f8fa8aee6d08c33",
+  "classificationBeforeApplicationEdits": true,
+  "categories": {
+    "1": "true production semantic defect",
+    "2": "stale/obsolete harness contract",
+    "3": "fixture unable to model current certification/lineage semantics",
+    "4": "missing repository asset/infrastructure",
+    "5": "expectation conflict with current public capability policy"
+  },
+  "failures": [
+    {
+      "test": "premise repair is bounded and revalidates exact user evidence",
+      "category": 2,
+      "classification": "stale/obsolete harness contract",
+      "evidence": [
+        "app/lib/intelligence/interpret-ask.ts:215-226 permits a bounded repair only for saved_profile; these fixtures expect a second supplied-context or mixed interpretation.",
+        "Replace obsolete second-call assertions with first-attempt typed success and one-call rejection, preserving source/ownership/side-effect checks."
+      ],
+      "status": "current-contract audit replacement/assertions pass; original scenario retained; obsolete retry or publication authority not reinstated"
+    },
+    {
+      "test": "a premise repair cannot authorize invented pets or mutation scope",
+      "category": 2,
+      "classification": "stale/obsolete harness contract",
+      "evidence": [
+        "app/lib/intelligence/interpret-ask.ts:215-226 permits a bounded repair only for saved_profile; these fixtures expect a second supplied-context or mixed interpretation.",
+        "Replace obsolete second-call assertions with first-attempt typed success and one-call rejection, preserving source/ownership/side-effect checks."
+      ],
+      "status": "current-contract audit replacement/assertions pass; original scenario retained; obsolete retry or publication authority not reinstated"
+    },
+    {
+      "test": "read planner can omit extraction while writes still require a valid frame",
+      "category": 2,
+      "classification": "stale/obsolete harness contract",
+      "evidence": [
+        "ask-request-contract.ts:599-613 narrows the shared fixture currentMessage (Compare the saved observations.) to read; mode update alone cannot prove write authority.",
+        "appendJob/writeJob branches require exact current USER source and ownership; test actual source-bound write jobs and no-save reads."
+      ],
+      "status": "current-contract audit replacement/assertions pass; original scenario retained; obsolete retry or publication authority not reinstated"
+    },
+    {
+      "test": "five-pet earliest/latest weight retrieval certifies both endpoint pairs even when lexical weight matching misses weighed prose",
+      "category": 2,
+      "classification": "stale/obsolete harness contract",
+      "evidence": [
+        "Fixture asserts retired endpointPairs/server-read-projection fields and requests arithmetic without CalculatePlan.",
+        "Current endpoint authority is readTicket.selection + coverage.groups; arithmetic requires typed slots and CalculatePlan."
+      ],
+      "status": "current-contract audit replacement/assertions pass; original scenario retained; obsolete retry or publication authority not reinstated"
+    },
+    {
+      "test": "real admission lets a repaired planner reach composition without opening extra repair cycles",
+      "category": 2,
+      "classification": "stale/obsolete harness contract",
+      "evidence": [
+        "app/lib/intelligence/interpret-ask.ts:215-226 permits a bounded repair only for saved_profile; these fixtures expect a second supplied-context or mixed interpretation.",
+        "Replace obsolete second-call assertions with first-attempt typed success and one-call rejection, preserving source/ownership/side-effect checks."
+      ],
+      "status": "current-contract audit replacement/assertions pass; original scenario retained; obsolete retry or publication authority not reinstated"
+    },
+    {
+      "test": "supplied premises narrow stale owned-history plans without granting writes",
+      "category": 2,
+      "classification": "stale/obsolete harness contract",
+      "evidence": [
+        "Shared context asks Compare the saved observations. while proposal claims general/supplied_context; explicitSavedLookup overrides legacy hints at ask-request-contract.ts:599-610.",
+        "Use coherent frozen context/plan fixtures. Numeric arithmetic requires calculatePlan, exact USER literals and calculate_premises equality at lines409-435."
+      ],
+      "status": "current-contract audit replacement/assertions pass; original scenario retained; obsolete retry or publication authority not reinstated"
+    },
+    {
+      "test": "general knowledge never widens owned authority and saved history still validates ownership",
+      "category": 2,
+      "classification": "stale/obsolete harness contract",
+      "evidence": [
+        "Shared context asks Compare the saved observations. while proposal claims general/supplied_context; explicitSavedLookup overrides legacy hints at ask-request-contract.ts:599-610.",
+        "Use coherent frozen context/plan fixtures. Numeric arithmetic requires calculatePlan, exact USER literals and calculate_premises equality at lines409-435."
+      ],
+      "status": "current-contract audit replacement/assertions pass; original scenario retained; obsolete retry or publication authority not reinstated"
+    },
+    {
+      "test": "supplied-context classification requires actual verbatim user premises",
+      "category": 2,
+      "classification": "stale/obsolete harness contract",
+      "evidence": [
+        "Shared context asks Compare the saved observations. while proposal claims general/supplied_context; explicitSavedLookup overrides legacy hints at ask-request-contract.ts:599-610.",
+        "Use coherent frozen context/plan fixtures. Numeric arithmetic requires calculatePlan, exact USER literals and calculate_premises equality at lines409-435."
+      ],
+      "status": "current-contract audit replacement/assertions pass; original scenario retained; obsolete retry or publication authority not reinstated"
+    },
+    {
+      "test": "missing premises use bounded repair without inventing evidence",
+      "category": 2,
+      "classification": "stale/obsolete harness contract",
+      "evidence": [
+        "app/lib/intelligence/interpret-ask.ts:215-226 permits a bounded repair only for saved_profile; these fixtures expect a second supplied-context or mixed interpretation.",
+        "Replace obsolete second-call assertions with first-attempt typed success and one-call rejection, preserving source/ownership/side-effect checks."
+      ],
+      "status": "current-contract audit replacement/assertions pass; original scenario retained; obsolete retry or publication authority not reinstated"
+    },
+    {
+      "test": "event evidence survives both budgets among verbose routine observations",
+      "category": 2,
+      "classification": "stale/obsolete harness contract",
+      "evidence": [
+        "Current result has no answer-provider prompt on deterministic publication; fixture dereferences r.prompt.evidenceContract.",
+        "Assert current certified sources, exact content, evidence budgets and rejection of invented text; do not reinstate retired answer-model authority."
+      ],
+      "status": "current-contract audit replacement/assertions pass; original scenario retained; obsolete retry or publication authority not reinstated"
+    },
+    {
+      "test": "rejected event answers retain relevant source excerpts instead of the latest profile",
+      "category": 2,
+      "classification": "stale/obsolete harness contract",
+      "evidence": [
+        "Current result has no answer-provider prompt on deterministic publication; fixture dereferences r.prompt.evidenceContract.",
+        "Assert current certified sources, exact content, evidence budgets and rejection of invented text; do not reinstate retired answer-model authority."
+      ],
+      "status": "current-contract audit replacement/assertions pass; original scenario retained; obsolete retry or publication authority not reinstated"
+    },
+    {
+      "test": "new observation plus calculation can repair an invalid correction plan without weakening validation",
+      "category": 2,
+      "classification": "stale/obsolete harness contract",
+      "evidence": [
+        "app/lib/intelligence/interpret-ask.ts:215-226 permits a bounded repair only for saved_profile; these fixtures expect a second supplied-context or mixed interpretation.",
+        "Replace obsolete second-call assertions with first-attempt typed success and one-call rejection, preserving source/ownership/side-effect checks."
+      ],
+      "status": "current-contract audit replacement/assertions pass; original scenario retained; obsolete retry or publication authority not reinstated",
+      "remainingProductGap": "This migration proves rejection without a second interpretation, not successful combined arithmetic-plus-append. That composition remains unsupported."
+    },
+    {
+      "test": "a failed mixed answer cannot commit proposed observation side effects",
+      "category": 2,
+      "classification": "stale/obsolete harness contract",
+      "evidence": [
+        "Fixture emits mixed without appendJob/readTicket and expects model semanticEvents to create effects. Current append companion requires exact source-bound appendJob plus readTicket (lines532-550).",
+        "Use source-bound mixed job and engine confirmation boundary; failed answer or advisory semanticEvents cannot authorize persistence."
+      ],
+      "status": "current-contract audit replacement/assertions pass; original scenario retained; obsolete retry or publication authority not reinstated"
+    },
+    {
+      "test": "Milo, Luna, and Pepper semantic stress acceptance runs through the production history pipeline",
+      "category": 3,
+      "classification": "fixture unable to model current certification/lineage semantics",
+      "evidence": [
+        "3-pet cases omit Brain proposals; ten-pet cases omit required readTicket.",
+        "Both inspect retired provider prompt evidence. Replacement must use one shared current-contract harness, unchanged corpus, real correction traversal and publication.",
+        "Prior draft exposed genuine bounded-acquisition questions too; migration alone is not assumed to produce green."
+      ],
+      "status": "shared current-contract migration complete; 3-pet 7/7, ten-pet 8/10; two acceptance assertions remain red on unlinked correction authority"
+    },
+    {
+      "test": "10-pet five-year Ask stress acceptance",
+      "category": 3,
+      "classification": "fixture unable to model current certification/lineage semantics",
+      "evidence": [
+        "3-pet cases omit Brain proposals; ten-pet cases omit required readTicket.",
+        "Both inspect retired provider prompt evidence. Replacement must use one shared current-contract harness, unchanged corpus, real correction traversal and publication.",
+        "Prior draft exposed genuine bounded-acquisition questions too; migration alone is not assumed to produce green."
+      ],
+      "status": "shared current-contract migration complete; 3-pet 7/7, ten-pet 8/10; two acceptance assertions remain red on unlinked correction authority"
+    },
+    {
+      "test": "rich publication avoids a coverage-only trailing page with readable unchanged body font",
+      "category": 4,
+      "classification": "missing repository asset/infrastructure",
+      "evidence": [
+        "git log --all identifies brand-print.png in deeb788e and 3f4d82fc; 747a9154 removed it (46335 bytes).",
+        "Restore exact prior blob only; verify Git object hash and rerun actual Brief test."
+      ],
+      "status": "restored exact repository blob; expanded suite passes",
+      "assetBlob": "1980c556e9e2f47afa76e7fb9d1d0bed57e0749c",
+      "assetBytes": 46335,
+      "sourceCommit": "deeb788e"
+    },
+    {
+      "test": "new investigation: correction-call allocation starves a ten-subject cohort",
+      "category": 1,
+      "classification": "true production semantic defect",
+      "evidence": [
+        "history-retrieval.ts:createEffectiveWindowResolver divides total=9 calls among 10 pets, giving the last pet quota=0.",
+        "Repeated effective-window evaluation also spends a subject quota on previously seen roots. Must reproduce with arbitrary subjects before any production fix."
+      ],
+      "status": "reproduced and repaired; new generic regressions pass"
+    },
+    {
+      "test": "concrete temporal selection scans unrelated history",
+      "category": 1,
+      "classification": "true production semantic defect",
+      "evidence": [
+        "effective-selection.ts computes selectedFrom/selectedTo but store.page receives the full accessible scope instead.",
+        "history-window-acquisition.test.mjs reproduces across volume, duration and length with 3 subjects and 120 unrelated historical rows each; window-before.log."
+      ],
+      "status": "reproduced and repaired; new generic regressions pass"
+    }
+  ],
+  "publicPolicy": "Engine tests remain explicit; public mutations/calculations are disabled and are tested separately. No public policy change authorized.",
+  "remainingBoundary": {
+    "classification": 1,
+    "description": "Current certified effective-history publication cannot satisfy a request to show an unlinked correction as attributed stored wording. The same subject blocks the all-subject cohort obligation.",
+    "evidence": [
+      "stress-cases.log: exactly two original acceptance assertions remain red",
+      "correction-boundary.log: 2/2 safety tests prove limited/source-free or partial publication",
+      "sourceLineage=unlinked / authority=attributed_report remains distinct from effective lineage; no fabricated correction relation"
+    ],
+    "disposition": "unresolved product/authority boundary; not waived; no further publication or source-authority redesign in this cut"
+  },
+  "stressCaseMigration": [
+    {
+      "test": "cross-year Milo weight comparison retains both distant endpoints without newer-history substitution",
+      "fixture": "shared current-stress-harness + production retrieval/correction/Labs path",
+      "status": "pass"
+    },
+    {
+      "test": "late pet reassignment removes the old Milo event and exposes it only under Pepper",
+      "fixture": "shared current-stress-harness + production retrieval/correction/Labs path",
+      "status": "pass"
+    },
+    {
+      "test": "event-date correction removes the 2017 fact and makes the corrected 2018 event reachable",
+      "fixture": "shared current-stress-harness + production retrieval/correction/Labs path",
+      "status": "pass"
+    },
+    {
+      "test": "years-later Pepper recurrence keeps the old resolved episode and the new recurrence distinct",
+      "fixture": "shared current-stress-harness + production retrieval/correction/Labs path",
+      "status": "pass"
+    },
+    {
+      "test": "contradictory Luna weights remain separate source facts instead of silently collapsing to one truth",
+      "fixture": "shared current-stress-harness + production retrieval/correction/Labs path",
+      "status": "pass"
+    },
+    {
+      "test": "deleted Pepper history stays absent while the restored active record remains independently readable",
+      "fixture": "shared current-stress-harness + production retrieval/correction/Labs path",
+      "status": "pass"
+    },
+    {
+      "test": "a long follow-up can compare an old referenced Milo weight with the new 2026 weight",
+      "fixture": "shared current-stress-harness + production retrieval/correction/Labs path",
+      "status": "pass"
+    },
+    {
+      "test": "1 five-year Aster endpoint comparison retains 2022 and 2026 weights",
+      "fixture": "shared current-stress-harness + production retrieval/correction/Labs path",
+      "status": "pass"
+    },
+    {
+      "test": "2 late Birch correction stays visible and old food is not silently treated as settled truth",
+      "fixture": "shared current-stress-harness + production retrieval/correction/Labs path",
+      "status": "blocked"
+    },
+    {
+      "test": "3 Cedar multi-stage medication schedule survives four years of newer noise",
+      "fixture": "shared current-stress-harness + production retrieval/correction/Labs path",
+      "status": "pass"
+    },
+    {
+      "test": "4 Dune resolution and later recurrence remain separate episodes across five-year history",
+      "fixture": "shared current-stress-harness + production retrieval/correction/Labs path",
+      "status": "pass"
+    },
+    {
+      "test": "5 Echo latest saved-note recall keeps recorded chronology without inventing clinical event time",
+      "fixture": "shared current-stress-harness + production retrieval/correction/Labs path",
+      "status": "pass"
+    },
+    {
+      "test": "6 three-pet weight comparison keeps each pet isolated",
+      "fixture": "shared current-stress-harness + production retrieval/correction/Labs path",
+      "status": "pass"
+    },
+    {
+      "test": "7 Indigo five-year activity trend retains every yearly endpoint",
+      "fixture": "shared current-stress-harness + production retrieval/correction/Labs path",
+      "status": "pass"
+    },
+    {
+      "test": "8 deleted Juniper draft never re-enters evidence",
+      "fixture": "shared current-stress-harness + production retrieval/correction/Labs path",
+      "status": "pass"
+    },
+    {
+      "test": "9 four-pet latest-weight cohort does not leak selected-pet context",
+      "fixture": "shared current-stress-harness + production retrieval/correction/Labs path",
+      "status": "pass"
+    },
+    {
+      "test": "10 maximum 10-pet cohort preserves at least one owned history row per pet under dense noise",
+      "fixture": "shared current-stress-harness + production retrieval/correction/Labs path",
+      "status": "blocked"
+    }
+  ]
+}

@@ -17,6 +17,16 @@ export async function assertPublicationCalls({ result, context, requests, review
     assert.equal(result.answerValidation.assessment.outcome, 'limited');
     return reasoning.model;
   }
+  if (request?.calculatePlan) {
+    const {calculationPublicationFailure}=await import('../../../app/lib/intelligence/calculation-labs.ts');
+    assert.equal(requests.length,0);assert.equal(reviewRequests.length,0);
+    assert.equal(reasoning.model,'server-calculation-labs');
+    assert.equal(calculationPublicationFailure(reasoning),null);
+    assert.equal(result.answerValidation.valid,true);
+    assert.deepEqual(reasoning.calculationLabs.calculatePlan,request.calculatePlan);
+    assert.deepEqual(result.acceptedCareActions,[]);assert.deepEqual(result.acceptedLearnings,[]);assert.deepEqual(result.acceptedSemanticEvents,[]);
+    return reasoning.model;
+  }
   if (!ordinary) {
     if (expectedProviderCalls !== null) assert.equal(requests.length, expectedProviderCalls,
       expectedProviderCalls === 1 ? 'exactly one mocked answer-provider call' : 'explicit bounded mocked provider call count');
