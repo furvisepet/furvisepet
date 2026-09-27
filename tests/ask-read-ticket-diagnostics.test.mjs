@@ -320,7 +320,7 @@ test('earliest measurement uses one calendar-free planner ticket and retains the
   const retrieve = (ticket, rows = [later, earliest]) =>
     retrieveReadTicket(bindReadTicket(ticket, [pet.id]), scope, store(rows));
 
-  await t.test('captured #4 is rejected with a named calendar rule; clearing calendar alone still loses weighed', async () => {
+  await t.test('captured #4 is rejected with a named calendar rule; clearing calendar preserves regular inflection matches', async () => {
     const original = structuredClone(failedEarliestMeasurementTicket);
     assert.throws(() => bindReadTicket(original, [pet.id]), error => {
       assert.equal(error.cause.field, 'temporal.calendar');
@@ -331,10 +331,10 @@ test('earliest measurement uses one calendar-free planner ticket and retains the
     const result = await retrieve({ ...structuredClone(original),
       temporal: { ...original.temporal, calendar: null } });
     assert.ok(result.coverage.selection.scannedIds.includes(earliest.id));
-    assert.deepEqual(result.coverage.selection.matchedIds, []);
-    assert.deepEqual(result.records, []);
+    assert.deepEqual(result.coverage.selection.matchedIds, [earliest.id,later.id]);
+    assert.deepEqual(result.records.map(record=>record.id), [earliest.id]);
     // Completeness is relative to the explicit lexical predicate, not a hint or a claim of semantic absence.
-    assert.equal(result.coverage.status, 'complete_empty');
+    assert.equal(result.coverage.status, 'partial');
     assert.equal(result.coverage.matchSemantics, 'ticket_text_predicates');
   });
   await t.test('C053 oldest calendar year without measurement predicates still binds and selects its year', async () => {
@@ -360,7 +360,7 @@ test('earliest measurement uses one calendar-free planner ticket and retains the
           assert.ok(request.instructions.includes('Finite ordered takes are compositional selection obligations'));
           assert.ok(request.instructions.includes('outputs.completeness sufficient'));
           assert.ok(request.instructions.includes('Legacy chronological provider output is reserved for unbounded ordered retrieval'));
-          assert.ok(request.instructions.includes('weight, weigh, weighed, weighing'));
+          assert.ok(request.instructions.includes('conservative regular inflection equivalence'));
           return { output_text: JSON.stringify({ ...proposal(structuredClone(earliestSelectionTicket)),
             question, petNames: ['Dune'], topic: 'weight', terms: ['weight'], selection: 'earliest' }) };
         } } },

@@ -65,7 +65,7 @@ for(const [name,provenance] of [
  assert.throws(()=>bindTypedReadTicket(withNeed(),petIds,provenance),/ASK_REQUEST_INVALID:read_needs/);
 });
 test('foreign persisted subjects fail in continuation before factual retrieval',async()=>{
- const {fixture,id}=await import('./helpers/ask-route-ordering.mjs');
+ const {engineFixture:fixture,id}=await import('./helpers/ask-route-ordering.mjs');
  const {continueConfirmedAppend}=await import('../app/lib/intelligence/append-turn.ts');
  const f=fixture();assert.equal((await f.send()).status,200);
  const confirmed=await(await f.confirm()).json();assert.equal(confirmed.action.status,'succeeded');

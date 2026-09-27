@@ -200,7 +200,7 @@ test("emergency removes terminal and intermediate output without provider or wri
  assert.deepEqual(v.response.relevantContextIds,[]);assert.equal(v.assessment.outcome,"limited");
 });
 test("closed result schema and derived execution have no raw-language or external input",async()=>{
- const resultSchema=calculatePlanSchema.anyOf[1].properties.calculations.items.properties.operands.items.anyOf[1];
+ const resultSchema=calculatePlanSchema.anyOf[1].properties.calculations.items.properties.operands.items.anyOf.find(variant => variant.properties?.calculationId);
  assert.deepEqual(resultSchema.required,["kind","role","calculationId"]);assert.equal(resultSchema.additionalProperties,false);
  assert.deepEqual(Object.keys(resultSchema.properties),["role","kind","calculationId"]);
  const fs=await import("node:fs/promises"),source=await fs.readFile(new URL("../app/lib/furvise-brain/muscle.ts",import.meta.url),"utf8");

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fixture } from "./helpers/ask-route-ordering.mjs";
+import { engineFixture as fixture } from "./helpers/ask-route-ordering.mjs";
 
 test("source-bound proposal has no persistence authority before confirmation", async () => {
   const f=fixture();assert.equal((await f.send()).status,200);

@@ -192,11 +192,11 @@ test("current emergency removes disambiguated calculation with zero provider cal
  const v=await finish(f);assert.equal(v.response.model,"server-current-emergency");assert.equal(v.response.calculationLabs,undefined);
  assert.deepEqual(v.response.relevantContextIds,[]);
 });
-test("shared matcher preserves normalized literal semantics, including old punctuation edge behavior",()=>{
+test("shared matcher preserves normalization and rejects empty punctuation predicates",()=>{
  const previous=s=>s.normalize("NFKC").toLocaleLowerCase("en").replace(/[^\p{L}\p{N}]+/gu," ").trim();
  for(const text of ["ＡＬＰＨＡ: 2 kg","alpha-beta","alphabet","café sample","\n","\u03b1 Beta","first; second"])
  for(const terms of [["alpha"],["absent","beta"],["café"],["---"],["first second"],["α beta"]]){
-  assert.equal(textMatchesReadPredicate(text,predicate(...terms)),terms.some(t=>(" "+previous(text)+" ").includes(" "+previous(t)+" ")));
+  assert.equal(textMatchesReadPredicate(text,predicate(...terms)),terms.some(t=>previous(t).length>0&&(" "+previous(text)+" ").includes(" "+previous(t)+" ")));
   assert.equal(normalizeReadText(text),previous(text));
  }
 });
@@ -215,4 +215,14 @@ test("implementation has one shared lexical matcher and no new domain or raw-lan
  assert.doesNotMatch(muscle+candidates,/\b(?:question|rawQuestion|currentMessage|requestText|sourceMessage|dialogue|conversation|client|model|semanticFrame)\b|responses\.create|supabase|fetch\(/);
  assert.doesNotMatch(muscle+candidates+matcher,/\b(?:weight|food|water|dose|temperature|carrier|height)\b/i);
  assert.doesNotMatch(candidates,/\b(?:bestMatch|firstMatch|lastMatch)\b/);
+});
+
+for(const [term,text,expected] of [
+ ['walk','walked beside the fence',true],['feed','feeding finished',true],
+ ['play','played outside',true],['rash','rashes reported',true],
+ ['weigh','weighed yesterday',true],['alpha beta','\uff21\uff2c\uff30\uff28\uff21\u2014beta',true],
+ ['walk','sidewalk',false],['feed','feedback',false],['play','display',false],
+ ['rash','crash',false],['---',' ',false],['','measured quantity',false],
+])test('predicate boundary: '+JSON.stringify([term,text]),()=>{
+ assert.equal(textMatchesReadPredicate(text,predicate(term)),expected);
 });

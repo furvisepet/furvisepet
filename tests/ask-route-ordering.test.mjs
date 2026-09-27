@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {fixture,cedar,id,proposal} from './helpers/ask-route-ordering.mjs';
+import {engineFixture as fixture,cedar,id,proposal} from './helpers/ask-route-ordering.mjs';
 import {ownerNoteSourceSpans} from '../app/lib/intelligence/owner-note-request.ts';
 test('Cedar: one Brain ticket, no write until click, Heart receipt before real Lungs last-two read',async()=>{
  const f=fixture();const res=await f.send();const body=await res.json();assert.equal(res.status,200,JSON.stringify(f.state.errors));

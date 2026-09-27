@@ -1,0 +1,115 @@
+{
+  "calculation": {
+    "tests": 360,
+    "pass": 360,
+    "fail": 0,
+    "skipped": 0,
+    "failures": []
+  },
+  "brain": {
+    "tests": 78,
+    "pass": 78,
+    "fail": 0,
+    "skipped": 0,
+    "failures": []
+  },
+  "retrieval": {
+    "tests": 244,
+    "pass": 244,
+    "fail": 0,
+    "skipped": 0,
+    "failures": []
+  },
+  "audit222": {
+    "tests": 222,
+    "pass": 209,
+    "fail": 13,
+    "skipped": 0,
+    "failures": [
+      "premise repair is bounded and revalidates exact user evidence",
+      "a premise repair cannot authorize invented pets or mutation scope",
+      "read planner can omit extraction while writes still require a valid frame",
+      "five-pet earliest/latest weight retrieval certifies both endpoint pairs even when lexical weight matching misses weighed prose",
+      "real admission lets a repaired planner reach composition without opening extra repair cycles",
+      "supplied premises narrow stale owned-history plans without granting writes",
+      "general knowledge never widens owned authority and saved history still validates ownership",
+      "supplied-context classification requires actual verbatim user premises",
+      "missing premises use bounded repair without inventing evidence",
+      "event evidence survives both budgets among verbose routine observations",
+      "rejected event answers retain relevant source excerpts instead of the latest profile",
+      "new observation plus calculation can repair an invalid correction plan without weakening validation",
+      "a failed mixed answer cannot commit proposed observation side effects"
+    ]
+  },
+  "stress": {
+    "tests": 2,
+    "pass": 0,
+    "fail": 2,
+    "skipped": 0,
+    "failures": [
+      "Milo, Luna, and Pepper semantic stress acceptance runs through the production history pipeline",
+      "10-pet five-year Ask stress acceptance"
+    ]
+  },
+  "expanded": {
+    "tests": 816,
+    "pass": 815,
+    "fail": 1,
+    "skipped": 0,
+    "failures": [
+      "rich publication avoids a coverage-only trailing page with readable unchanged body font"
+    ]
+  },
+  "domain": {
+    "tests": 379,
+    "pass": 379,
+    "fail": 0,
+    "skipped": 0,
+    "failures": []
+  },
+  "route-and-read": {
+    "tests": 217,
+    "pass": 217,
+    "fail": 0,
+    "skipped": 0,
+    "failures": []
+  },
+  "providerCalls": 0,
+  "costUSD": 0,
+  "baseline": "e143fce8aa19a95808bb0d5965410ae72920f81e",
+  "changedFiles": [
+    "app/lib/intelligence/ask-request-contract.ts",
+    "tests/append-items-authority.test.mjs",
+    "tests/ask-interpretation-timeout.test.mjs",
+    "tests/ask-read-ticket-diagnostics.test.mjs",
+    "tests/ask-route-ordering.test.mjs",
+    "tests/audit-publication-call-expectations.test.mjs",
+    "tests/calculation-dag.test.mjs",
+    "tests/furvise-brain-architecture-boundary.test.mjs",
+    "tests/furvise-brain-owner-note-gate.test.mjs",
+    "tests/helpers/ask-route-ordering.mjs",
+    "tests/history-publication-capability.test.mjs",
+    "tests/measurement-disambiguation.test.mjs",
+    "tests/owner-note-write-isolation.test.mjs",
+    "tests/public-v1-freeze.test.mjs",
+    "tests/typed-read-ticket.test.mjs",
+    "INTELLIGENCE_CONTINUATION.md",
+    "INTELLIGENCE_CONTINUATION_RESULTS.json"
+  ],
+  "verification": {
+    "typecheck": 0,
+    "changedFileLint": 0,
+    "lintWarnings": 4,
+    "offlineBuild": 0,
+    "diffCheck": 0,
+    "buildFontFixture": "existing cached font via NEXT_FONT_GOOGLE_MOCKED_RESPONSES"
+  },
+  "stressDiagnostic": {
+    "draftPass": 0,
+    "draftTotal": 10,
+    "draftReverted": true,
+    "corpusUnchanged": true,
+    "firstBoundary": "uncertified history and unsupported publication operation; legacy fixture requires a separate faithful migration",
+    "task": "intelligence-continuation-stress-boundary-20260927-0341"
+  }
+}

@@ -1,10 +1,12 @@
 import test from 'node:test';
+import {registerHooks} from 'node:module';
+registerHooks({resolve(s,c,next){return s==='server-only'?{url:'data:text/javascript,export {};',format:'module',shortCircuit:true}:next(s,c);}});
 import assert from 'node:assert/strict';
-import {historyPublicationCapability,supportedHistoryPublication,supportedPlainResultSetRead} from '../app/lib/intelligence/publication-authority.ts';
-import {bindTypedReadTicket} from '../app/lib/furvise-brain/typed-read-ticket.ts';
-import {retrieveReadTicket} from '../app/lib/furvise-brain/lungs.ts';
-import {buildLabsList} from '../app/lib/intelligence/labs-list.ts';
-import {logPublicationDispatch} from '../app/lib/intelligence/publication-authority-diagnostics.ts';
+const {historyPublicationCapability,supportedHistoryPublication,supportedPlainResultSetRead}=await import('../app/lib/intelligence/publication-authority.ts');
+const {bindTypedReadTicket}=await import('../app/lib/furvise-brain/typed-read-ticket.ts');
+const {retrieveReadTicket}=await import('../app/lib/furvise-brain/lungs.ts');
+const {buildLabsList}=await import('../app/lib/intelligence/labs-list.ts');
+const {logPublicationDispatch}=await import('../app/lib/intelligence/publication-authority-diagnostics.ts');
 
 async function fixture(){
  const ticket=bindTypedReadTicket({operation:'read',subjectScope:'named',selection:null,needs:[],episode:null,

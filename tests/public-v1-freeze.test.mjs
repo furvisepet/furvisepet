@@ -66,3 +66,16 @@ test("Ask has no post-Brain raw-English product capability classifier", () => {
   assert.doesNotMatch(route, /classifyFurviseCapabilityQuestion/);
   assert.doesNotMatch(route, /buildFurviseCapabilityResponse/);
 });
+
+// Real public confirmation policy is independent of the engine-only fixture.
+test("public confirmation rejects even an owned pending capability before execution",async()=>{
+ const {fixture,id}=await import('./helpers/ask-route-ordering.mjs');
+ const f=fixture();
+ f.rows.ask_action_capabilities.push({id:id(71),user_id:id(1),assistant_message_id:id(61),status:'pending'});
+ assert.equal((await f.confirm()).status,404);
+ assert.equal(f.state.planner,0);
+ assert.equal(f.rows.ask_action_capabilities[0].status,'pending');
+ assert.equal(f.rows.pet_care_entries.length,2);
+ assert.ok(!f.state.events.includes('heart:execute'));
+ assert.ok(!f.state.events.includes('read:ask_action_capabilities'));
+});

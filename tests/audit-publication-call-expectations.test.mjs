@@ -12,17 +12,25 @@ const proposal=()=>({version:'ask-request.v2',mode:'read',question,requirements:
  predicates:[{kind:'text_any',terms:['observation']}],
  selection:{groupBy:['subject'],union:[{orderBy:[{field:'event_at',direction:'desc'}],take:{count:1,per:'group'}}]},
  outputs:{completeness:'sufficient',ordering:'desc',limit:null}}});
-for(const supported of [true,false])test(supported?'certified Labs replaces factual call expectations with organ and transport checks':'unsupported history replaces factual call expectations with a source-free limitation',async t=>{
+for(const supported of [true,false])test(supported?'certified Labs replaces factual call expectations with organ and transport checks':'residual companion work preserves certified facts but cannot claim task completion',async t=>{
  clock(t);const planned=proposal();if(!supported)planned.requirements=['An independent additional explanation'];
  const r=await exercise(question,{history:true,messages:[],rows:[care('saved-observation',pets[0].id,'2026-06-04','general','An observation was recorded.')],
  interpretationProposal:planned,expectedProviderCalls:1,expectedReviewCalls:1});
- assert.equal(r.publicationCallPath,supported?'server-labs-list':'server-history-unavailable');
+ assert.equal(r.publicationCallPath,'server-labs-list');
  assert.equal(r.requests.length,0);assert.equal(r.reviewRequests.length,0);
  assert.ok(r.queries.some(query=>query.table==='pet_care_entries'));
  assert.deepEqual(r.context.askInterpretation.request.readTicket.selection,planned.readTicket.selection);
  if(supported){assert.deepEqual(r.result.reasoning.labsList.records.map(row=>row.id),['saved-observation']);
   assert.match(r.result.reasoning.answer.summary,/An observation was recorded/);}
- else {assert.deepEqual(r.result.reasoning.relevantContextIds,[]);assert.doesNotMatch(r.result.reasoning.answer.summary,/An observation was recorded/);}
+ else {
+  assert.deepEqual(r.result.reasoning.labsList.records.map(row=>row.id),['saved-observation']);
+  assert.match(r.result.reasoning.answer.summary,/An observation was recorded/);
+  const assessment=r.result.answerValidation.assessment;
+  assert.equal(assessment.outcome,'limited');
+  assert.equal(assessment.checks.evidenceSupport,'passed');
+  assert.equal(assessment.checks.taskCompletion,'failed');
+  assert.ok(assessment.reasons.includes('residual_requirements_unfulfilled'));
+ }
 });
 
 const input=(request,extra={})=>({result:{reasoning:{model:'remaining-domain-model',evidenceContract:{interpretation:{request}},...extra}},

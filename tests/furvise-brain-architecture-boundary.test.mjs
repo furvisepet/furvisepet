@@ -34,7 +34,10 @@ test("legacy pending tasks cannot recreate mutation parameters or infer subjects
 test("application action capabilities cross the Action Organ before database execution", () => {
   const source = read("app/lib/application-actions/capabilities.ts");
   assert.match(source, /authorizeFurviseActionExecution/);
-  assert.ok(source.indexOf("authorizeFurviseActionExecution({") < source.indexOf('admin.rpc("execute_ask_action_capability"'));
+  const authorization=source.indexOf("authorizeFurviseActionExecution({");
+  const execution=source.indexOf('const { data, error } = await admin.rpc(');
+  assert.ok(authorization>=0&&execution>authorization);
+  assert.match(source.slice(execution), /execute_ask_canonical_suggestion.*execute_ask_action_capability/);
 });
 
 test("Ask generation uses Brain-owned memory scope rather than direct history authority", () => {

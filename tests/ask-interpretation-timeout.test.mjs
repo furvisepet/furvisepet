@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {fixture, proposal} from './helpers/ask-route-ordering.mjs';
+import {engineFixture as fixture, proposal} from './helpers/ask-route-ordering.mjs';
 const {ASK_INTERPRETATION_LIMITS} = await import('../app/lib/intelligence/interpret-ask.ts');
 const {FURVISE_ANSWER_UNAVAILABLE_MESSAGE} = await import('../app/lib/furvise-output.ts');
 

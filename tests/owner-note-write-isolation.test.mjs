@@ -54,7 +54,7 @@ test('low confidence completes as uninterpreted; no clinical state write is avai
 test('fabricated extraction is rejected',()=>assert.throws(()=>validateOwnerNoteEnrichment({version:'owner-note.v1',observations:[{quote:'Rowan has kidney disease',kind:'symptom',certainty:'reported',confidence:1}]},job.source_note)));
 // Ask migrated from a raw-note fast path to typed proposals and confirmed Heart
 // capabilities. Keep the shared date/enrichment tests above for their remaining callers.
-import { fixture as httpHarness } from './helpers/ask-route-ordering.mjs';
+import { engineFixture as httpHarness } from './helpers/ask-route-ordering.mjs';
 test('route interprets before facts and never persists an owner note outside Heart',()=>{
   const source=readFileSync(new URL('../app/api/ask/route.ts',import.meta.url),'utf8');
   assert.doesNotMatch(source,/persistOwnerNote|persist_ask_owner_note|savedNoteResponse/);
