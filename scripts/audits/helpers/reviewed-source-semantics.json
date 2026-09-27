@@ -1,0 +1,37 @@
+{
+  "version": "reviewed-fixture-source-semantics.v1",
+  "defaultClassification": "observation",
+  "authority": "Explicit offline fixture interpretation, separate from raw corpus; never a production fallback.",
+  "targets": {
+    "milo-correction": {
+      "kind": "scope",
+      "from": "2014-07-09T00:00:00Z",
+      "to": "2014-07-10T00:00:00Z",
+      "conceptKey": null
+    },
+    "bruno-correction": {
+      "kind": "scope",
+      "from": "2014-07-09T00:00:00Z",
+      "to": "2014-07-10T00:00:00Z",
+      "conceptKey": null
+    },
+    "nori-correction": {
+      "kind": "scope",
+      "from": "2026-08-19T00:00:00Z",
+      "to": "2026-08-20T00:00:00Z",
+      "conceptKey": null
+    },
+    "decade-correction": {
+      "kind": "scope",
+      "from": "2017-02-03T00:00:00Z",
+      "to": "2017-02-04T00:00:00Z",
+      "conceptKey": null
+    },
+    "birch-food-corrected": {
+      "kind": "scope",
+      "from": "2022-03-01T00:00:00Z",
+      "to": "2022-04-01T00:00:00Z",
+      "conceptKey": null
+    }
+  }
+}

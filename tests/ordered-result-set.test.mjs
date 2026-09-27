@@ -1,3 +1,4 @@
+import {fixtureSemanticsPage} from '../scripts/audits/helpers/source-semantics-fixture.mjs';
 import assert from "node:assert/strict";
 import test from "node:test";
 import { registerHooks } from "node:module";
@@ -6,25 +7,18 @@ registerHooks({ resolve(s,c,next) { return s === "server-only"
 globalThis.fetch = async () => { throw Error("OFFLINE_ONLY"); };
 const { translateLegacyReadSelection } = await import("../app/lib/intelligence/legacy-read-selection.ts");
 const { bindReadTicket } = await import("../app/lib/furvise-brain/read-ticket.ts");
-const { bindCompositionalReadTicket,eventOrder } = await import("../app/lib/furvise-brain/read-selection.ts");
+const { eventOrder } = await import("../app/lib/furvise-brain/read-selection.ts");
 const { retrieveReadTicket } = await import("../app/lib/furvise-brain/lungs.ts");
 const { retrieveAskHistory } = await import("../app/lib/intelligence/history-retrieval.ts");
-const { selectionPublication } = await import("../app/lib/intelligence/selection-publication.ts");
 const { derivePublicationAuthority } = await import("../app/lib/intelligence/publication-authority.ts");
 const { buildLabsList,serializeLabsList } = await import("../app/lib/intelligence/labs-list.ts");
 const scope={userId:"owner",ownedPetIds:["a","b","c"],from:"2010-01-01T00:00:00.000Z",to:"2027-01-01T00:00:00.000Z",asOf:"2026-09-20T00:00:00.000Z"};
 const at=i=>new Date(Date.UTC(2016,0,i+1)).toISOString();
 const row=(pet,i,note="weight "+i+" kg")=>({id:pet+"-"+i,user_id:"owner",pet_profile_id:pet,occurred_at:at(i),created_at:at(i),updated_at:at(i),deleted_at:null,title:null,note,category:"general",severity:null});
-const clause=(direction,count=1)=>({orderBy:[{field:"event_at",direction}],take:{count,per:"group"}});
 function input(strategy="chronological",ordering="desc",limit=1,patch={}) {
  return {operation:strategy==="temporal_endpoints"?"compare":"read",subjectScope:"named",needs:[],episode:null,
   temporal:{from:null,to:null,anchor:null,calendar:null},predicates:[{kind:"text_any",terms:["weight"]}],
   outputs:{strategy,ordering,limit,completeness:"sufficient"},...patch};
-}
-function native(proposal,pets=["a"]) {
- const {strategy,...outputs}=proposal.outputs;
- return bindCompositionalReadTicket({...proposal,outputs,
-  selection:{groupBy:["subject"],union:strategy==="chronological"?[clause(outputs.ordering,outputs.limit)]:[clause("asc"),clause("desc")]}},pets);
 }
 function store(rows,{deleted=[],correction=null,partial=false,unavailable=false}={}) {
  const calls=[];
@@ -51,7 +45,7 @@ function evidence(ticket,result) {
   completeness:{retrieval:"partial",corrections:"complete",extraction:"complete",grouping:"complete"}};
 }
 
-const plain=(p,pets)=>{const{strategy,...outputs}=p.outputs;return bindReadTicket({...p,outputs},pets);};
+const plain=(p,pets)=>{const{strategy,...outputs}=p.outputs;void strategy;return bindReadTicket({...p,outputs},pets);};
 function unbounded(direction="asc",patch={}) {
  return input("chronological",direction,null,{outputs:{strategy:"chronological",ordering:direction,limit:null,completeness:"exhaustive"},...patch});
 }
@@ -259,7 +253,7 @@ test("production boundary propagates a generic full-set proof without chronology
    order(k,{ascending}){orders.push([k,ascending]);return q;},range(a,b){start=a;end=b;return q;},abortSignal(){return q;},
    returns(){return Promise.resolve({error:null,data:filtered.sort((a,b)=>{for(const[k,asc]of orders){if(a[k]!==b[k])return(a[k]<b[k]?-1:1)*(asc?1:-1);}return 0;}).slice(start,end+1)});}};
   return q;},
- rpc(name,args){assert.equal(name,"read_ask_history_correction_page");return{abortSignal:async()=>({error:null,data:{claims:[],relations:[],lineage:[],
+ rpc(name,args){if(name==='read_ask_source_semantics')return{abortSignal:async()=>fixtureSemanticsPage(rows,args)};assert.equal(name,"read_ask_history_correction_page");return{abortSignal:async()=>({error:null,data:{claims:[],relations:[],lineage:[],
   sources:rows.filter(r=>args.p_care_ids.includes(r.id)),withheld_source_ids:[],withheld_claim_ids:[],truncated:false}})};}};
  const original=bindReadTicket(unbounded(),["a","b","c"]);
  const context=ticket=>({owner:{userId:"owner"},pet:{id:"a",name:"Alpha",user_id:"owner"},eligiblePets:["a","b","c"].map(id=>({id,name:id,user_id:"owner"})),

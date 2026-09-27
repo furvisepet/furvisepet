@@ -1,0 +1,64 @@
+{
+  "baseline": "44011e65489fccef53070d265d97ae97e9a85905",
+  "rawCorpora": {
+    "scripts/audits/fixtures/ask-benchmark-200.mjs": {
+      "before": "c59d7d5c2aecf16cdc3fe803710300689464badfe27dc366f484fdbef249092b",
+      "after": "c59d7d5c2aecf16cdc3fe803710300689464badfe27dc366f484fdbef249092b",
+      "unchanged": true
+    },
+    "scripts/audits/fixtures/ask-lifetime-history.mjs": {
+      "before": "a94407c46408925a3026c37ee0b8c16547e45c8c9e43fdea2721e2430d77bd46",
+      "after": "a94407c46408925a3026c37ee0b8c16547e45c8c9e43fdea2721e2430d77bd46",
+      "unchanged": true
+    },
+    "scripts/audits/fixtures/ask-multi-year-multi-pet.mjs": {
+      "before": "d060cbc2d99f64ad27a017e89a35ad86448cada3b7e7d289d3c4cde6d14f8930",
+      "after": "d060cbc2d99f64ad27a017e89a35ad86448cada3b7e7d289d3c4cde6d14f8930",
+      "unchanged": true
+    },
+    "scripts/audits/fixtures/ask-semantic-stress-multi-pet.mjs": {
+      "before": "40a18bca834d0fbab136d56261275a0f99eec5f2c6e2b9620b92173f2c4243a2",
+      "after": "40a18bca834d0fbab136d56261275a0f99eec5f2c6e2b9620b92173f2c4243a2",
+      "unchanged": true
+    },
+    "scripts/audits/fixtures/ask-ten-pet-five-year-stress.mjs": {
+      "before": "36a4357fe6b143448e4daae36b9ed94cd346019cf0dd2342c406b5f131c0daa0",
+      "after": "36a4357fe6b143448e4daae36b9ed94cd346019cf0dd2342c406b5f131c0daa0",
+      "unchanged": true
+    },
+    "scripts/audits/fixtures/ask-ten-year-history.mjs": {
+      "before": "d36585d021c2ea8847f639d3dddc8bf6dc3f707ef7877efd868601eb3d00c7f3",
+      "after": "d36585d021c2ea8847f639d3dddc8bf6dc3f707ef7877efd868601eb3d00c7f3",
+      "unchanged": true
+    },
+    "scripts/audits/fixtures/ask-three-month-multi-pet.mjs": {
+      "before": "8d1503b4141df656b7665255959e29c3a7f94ff70d49d9bc3c3ee784f081a186",
+      "after": "8d1503b4141df656b7665255959e29c3a7f94ff70d49d9bc3c3ee784f081a186",
+      "unchanged": true
+    }
+  },
+  "typedFixtureArtifacts": {
+    "scripts/audits/helpers/reviewed-source-semantics.json": "62e4185709ff721156ea11a1b1960b2cf77f363cedf616d7ac1818984a961a47",
+    "scripts/audits/helpers/source-semantics-fixture.mjs": "65fabaecd3bd6bfd5572709d5edbc3e691af81f5b211917ddce5baf9bdc1150a",
+    "scripts/audits/helpers/lifetime-harness.mjs": "23130699ab942d7285081edf8089a70dc90b94fef1ead43edd8796c848ac9bfa",
+    "scripts/audits/ask-late-corrections.cases.mjs": "7c99d7df9c712b4f58f2eeddcb6bc573333dd1b7cdb14b7724f288333b259c6c",
+    "tests/stored-report-authority.test.mjs": "6d9caa110d7b58009bf6f71adf4e7632272ad206826b54bf2e5bc4973ba5d18e",
+    "tests/correction-relevance-pipeline.test.mjs": "e44068b5b988c9a7c7ba195b66057cfcb8296e9f5380ede5c0c1110e17ed3492"
+  },
+  "taskFilesUnchanged": {
+    "ASTRA_INTELLIGENCE_TASK.md": "351468966168b233605ec32ac7bb4ca5215b4c6cf89642141007a8669a0fcee8",
+    "ASTRA_PHASE2_TASK.md": "79bbae173e3ed5f142dbd48f723d8a8cc831ad52fea912c19419030c7a1fe24d",
+    "ASTRA_PHASE3_TASK.md": "937db06db49ac63325f57fb02d90c027c59aadd5714db450fa948b87d25de77f",
+    "ASTRA_PHASE4_TASK.md": "096abac9fe70e780611382678b3577fdd7ca37ee72320d44af349f3bffa31648",
+    "ASTRA_PHASE5_TASK.md": "20dadd2501015a5c939bddc073b13693c0dbc89efd0c0169082b97dd7c017d5b"
+  },
+  "originalMatrix": {
+    "file": "PHASE2_UNSEEN_MATRIX.json",
+    "sha256": "5be73128281f40e6a83abf2469662d0982fafca6ec94322f3a33adc39ebc45a0",
+    "firstTwelveCasesUnchanged": true
+  },
+  "establishedRunnerSources": {
+    "C:\\Users\\gwara\\AppData\\Local\\Temp\\Furvise-G-Once-v2\\g-once.mjs": "f8ed8a61bdba377d30590f0cc743015675a42e329cc8445c27bba97623a41fc1",
+    "C:\\Users\\gwara\\AppData\\Local\\Temp\\Furvise-G-Once-v2\\g-observer.mjs": "e68da7c3a1440f98db14c1f7e969e18d6877de9a4ef34337bd7f45d07521658f"
+  }
+}

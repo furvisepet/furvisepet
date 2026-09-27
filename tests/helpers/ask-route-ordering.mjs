@@ -1,3 +1,4 @@
+import {fixtureSemanticsPage} from '../../scripts/audits/helpers/source-semantics-fixture.mjs';
 // Offline execution of the actual POST handlers. Only provider/DB/auth IO is replaced.
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -51,7 +52,7 @@ export function fixture(options={}){
  if(insert){assert.equal(table,'ask_action_capabilities');rows[table].push({...insert,id:id(71),status:'pending',receipt:null,expires_at:'2099-01-01T00:00:00Z'});insert=null;}
  let data=rows[table].filter(r=>filters.every(f=>f(r)));if(sort.length)data=data.toSorted((a,b)=>{for(const [k,asc]of sort){const x=String(a[k]).localeCompare(String(b[k]));if(x)return asc?x:-x;}return 0;});data=data.slice(offset,offset+limit);return {data:single?data[0]||null:data,error:null};},
  maybeSingle(){return q.result(true);},single(){return q.result(true);},returns(){return q.result();},then(a,b){return q.result().then(a,b);}};return q;}
- const db={from(table){assert.ok(rows[table],`Unexpected table ${table}`);return query(table);},rpc(name,args){
+ const db={from(table){assert.ok(rows[table],`Unexpected table ${table}`);return query(table);},rpc(name,args){if(name==='read_ask_source_semantics')return {abortSignal:async()=>fixtureSemanticsPage(rows.pet_care_entries,args,{})};
  if(name==='persist_ask_canonical_suggestion')return {single:async()=>{const cap=rows.ask_action_capabilities.find(c=>c.id===args.p_capability_id&&c.user_id===args.p_user_id);assert.ok(cap?.action_payload.appendJob);events.push('suggestion:persist');let row=rows.ai_update_suggestions.find(s=>s.canonical_capability_id===cap.id);if(!row){row={id:id(72),user_id:args.p_user_id,pet_profile_id:cap.pet_profile_id,conversation_id:id(21),source_message_id:cap.assistant_message_id,type:'history',title:'Add to care history',details:cap.action_payload.description,status:'pending',canonical_capability_id:cap.id,canonical_payload:{version:1,kind:'append',job:structuredClone(cap.action_payload.appendJob),capabilityId:cap.id,sourceMessageId:cap.source_message_id,targetId:null,targetUpdatedAt:null},invalidated_at:null};rows.ai_update_suggestions.push(row);}return{data:row,error:null};}};
  if(name==='read_ask_history_correction_page'){assert.ok(state.confirmed);events.push('lungs:lineage');return {abortSignal:async()=>({data:{claims:[],relations:[],lineage:[],sources:rows.pet_care_entries.filter(r=>args.p_care_ids.includes(r.id)),truncated:false},error:null})};}
  assert.equal(name,'execute_ask_action_capability');return {maybeSingle:async()=>{events.push('heart:execute');const cap=rows.ask_action_capabilities.find(r=>r.id===args.p_capability_id&&r.user_id===args.p_user_id&&r.assistant_message_id===args.p_assistant_message_id);if(!cap)return{data:null,error:null};

@@ -475,6 +475,7 @@ test('unlinked correction may be reported but does not create a verified edge', 
   const note = 'Correction: the earlier observation described another animal.';
   const answer = 'The correction says "Correction: the earlier observation described another animal." Its link to the original report is unverified.';
   const r = await exercise('Explain what the correction reports.', { fixturePets, rows: [care('correction', 'milo', '2026-06-04', 'general', note)], messages: [], history: true,
+    graph:{sourceSemantics:{correction:{classification:'attributed_correction',target:{kind:'target_unknown'}}}},
     interpretationProposal: proposal(), providerOverrides: { historyNarrative: { sentences: [{ text: answer, sourceIds: ['care:correction'] }] } },
     reviewResponse: { approved: true }, expectedReviewCalls: 1 });
   assertSourceFreePublication(r);
@@ -1175,6 +1176,7 @@ test('review receives correction uncertainty attached to its own source', async 
  const r=await exercise('Summarize the saved observations.',{fixturePets,messages:[],history:true,
   rows:[care('ordinary','milo','2025-03-06','general','Aster rested normally.'),
    care('uncertain-link','milo','2025-03-07','general','Correction: the earlier observation described another animal.')],
+  graph:{sourceSemantics:{'uncertain-link':{classification:'attributed_correction',target:{kind:'target_unknown'}}}},
   interpretationProposal:proposal({selection:'period'}),
   providerOverrides:{historyNarrative:{sentences:[{text:'Aster rested normally.',sourceIds:['care:ordinary'],calculations:[]}]}},
   reviewResponse:{approved:false},expectedReviewCalls:1});

@@ -14,7 +14,8 @@ registerHooks({resolve(specifier,context,next){
 }});
 globalThis.fetch=async()=>{throw new Error('Network forbidden');};
 const {analyzeOwnerAssertions}=await import('../../app/lib/ai/owner-assertion.ts');
-const {discoverDatedCorrectionNotes}=await import('../../app/lib/intelligence/dated-correction-notes.ts');
+const {readCorrectionRelevance}=await import('../../app/lib/intelligence/correction-relevance-read.ts');
+const {fixtureSourceSemantics}=await import('./helpers/source-semantics-fixture.mjs');
 const {interpretAskQuestion}=await import('../../app/lib/intelligence/interpret-ask.ts');
 for(const q of [
   'Milo had June and August stool notes. Put those two periods in order without calling June later.',
@@ -29,17 +30,20 @@ for(const q of [
 ]) test('independent observation remains an assertion: '+q,()=>assert.equal(analyzeOwnerAssertions(q).hasOwnerAssertion,true));
 const plan={from:'2026-08-19T00:00:00.000Z',to:'2026-08-20T00:00:00.000Z',terms:['vomit'],interpretation:'lexical'};
 const row={id:'correction',pet_profile_id:'a',user_id:'owner',occurred_at:'2026-08-20T16:00:00.000Z',note:"Correction to yesterday's vomiting note: that was Bruno, not Aster.",deleted_at:null};
+const currentRow={...row,created_at:row.occurred_at,updated_at:row.occurred_at};
+const meaning={classification:'attributed_correction',target:{kind:'scope',from:plan.from,to:plan.to,conceptKey:null}};
+const typedRead=(source,semantics=meaning)=>{
+ const db={rpc(){return{abortSignal:async()=>({data:{complete:true,limit:76,sources:[source],claims:[fixtureSourceSemantics(source,semantics)]},error:null})}}};
+ return readCorrectionRelevance({db,ownerId:'owner',petIds:['a'],candidates:[],domain:{from:plan.from,to:plan.to},deadline:Date.now()+5000});
+};
 test('discover yesterday correction even without original candidate',async()=>{
- const coverage={plan,queryCount:0,reasons:[],corrections:'unknown'};
- const db={rpc(){return {abortSignal:async()=>({data:[row],error:null})}}};
- assert.deepEqual(await discoverDatedCorrectionNotes([],['a'],'owner',db,coverage,Date.now()+5000),[row]);
+ assert.deepEqual((await typedRead(currentRow)).unresolved.map(x=>x.source.id),[row.id]);
 });
 test('wrong day and foreign correction remain excluded',async()=>{
- for(const patch of [{occurred_at:'2026-08-22T00:00:00Z'},{user_id:'other'},{pet_profile_id:'b'},{deleted_at:'2026-08-21'}]){
- const coverage={plan,queryCount:0,reasons:[],corrections:'unknown'};
- const db={rpc(){return {abortSignal:async()=>({data:[{...row,...patch}],error:null})}}};
- assert.deepEqual(await discoverDatedCorrectionNotes([],['a'],'owner',db,coverage,Date.now()+5000),[]);
- }
+ const different={...meaning,target:{...meaning.target,from:'2026-08-21T00:00:00Z',to:'2026-08-22T00:00:00Z'}};
+ assert.deepEqual((await typedRead(currentRow,different)).unresolved,[]);
+ for(const patch of [{user_id:'other'},{pet_profile_id:'b'},{deleted_at:'2026-08-21'}])
+  await assert.rejects(typedRead({...currentRow,...patch}),/source_semantics_scope/);
 });
 const context={owner:{userId:'owner'},pet:{id:'a',name:'Aster',user_id:'owner'},eligiblePets:[{id:'a',name:'Aster',user_id:'owner'}],currentMessage:'What are Aster recorded weights?',conversationTurns:[]};
 test('SDK user-abort caused by our deadline is classified as timeout',async t=>{

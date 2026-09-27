@@ -1,3 +1,4 @@
+import {fixtureSemanticsPage} from '../../scripts/audits/helpers/source-semantics-fixture.mjs';
 import assert from "node:assert/strict";
 import {createEffectiveWindowResolver} from "../../app/lib/intelligence/history-retrieval.ts";
 import {eventOrder} from "../../app/lib/furvise-brain/read-selection.ts";
@@ -6,7 +7,7 @@ export function calculationEffectiveStore(rows, graph={}, subjects) {
   const pages=[], calls=[];
   // SQL-faithful bounded RPC mock. In particular tombstone markers for care
   // roots are returned ONLY for p_care_ids, not for merely linked sources.
-  const db={rpc(name,args){assert.equal(name,'read_ask_history_correction_page'); calls.push(args);
+  const db={rpc(name,args){if(name==='read_ask_source_semantics')return {abortSignal:async()=>fixtureSemanticsPage([...rows,...(graph.sources||[])],args,graph.sourceSemantics)};assert.equal(name,'read_ask_history_correction_page'); calls.push(args);
     return {abortSignal:async()=>{
       const claims=graph.claims||[], edges=graph.edges||[], links=graph.links||[];
       const seeds=claims.filter(c=>args.p_seed_pet_ids.includes(c.subject_id)

@@ -1,3 +1,4 @@
+import {fixtureSemanticsPage} from '../scripts/audits/helpers/source-semantics-fixture.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { registerHooks } from 'node:module';
@@ -23,7 +24,7 @@ const oldest={id:'9f53b55b-4c32-4d9d-b055-020f29179d94',user_id:'owner',pet_prof
 const rows=[oldest,...Array.from({length:119},(_,i)=>({...oldest,id:'later-'+i,occurred_at:'2025-01-15T12:00:00Z',note:'Dune weighed 5.11 kg.'}))];
 function db() {return {from(table){assert.equal(table,'pet_care_entries');let offset=0,limit=64;
  const q={select(){return q;},eq(){return q;},is(){return q;},gte(){return q;},lt(){return q;},order(){return q;},range(a,b){offset=a;limit=b-a+1;return q;},abortSignal(){return q;},returns(){return Promise.resolve({data:rows.slice(offset,offset+limit),error:null});}};return q;},
- rpc(name,args){assert.equal(name,'read_ask_history_correction_page');return {abortSignal:async()=>({data:{claims:[],relations:[],lineage:[],sources:rows.filter(r=>args.p_care_ids.includes(r.id)),truncated:false},error:null})};}};}
+ rpc(name,args){if(name==='read_ask_source_semantics')return {abortSignal:async()=>fixtureSemanticsPage(rows,args,{})};assert.equal(name,'read_ask_history_correction_page');return {abortSignal:async()=>({data:{claims:[],relations:[],lineage:[],sources:rows.filter(r=>args.p_care_ids.includes(r.id)),truncated:false},error:null})};}};}
 
 test('two fresh Dune fixtures use one interpreter call each and return the same dated source',async()=>{
  const results=[];

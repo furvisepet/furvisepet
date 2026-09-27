@@ -1,3 +1,4 @@
+import {fixtureSemanticsPage} from '../scripts/audits/helpers/source-semantics-fixture.mjs';
 import {registerHooks} from 'node:module';
 registerHooks({resolve(s,c,next){return s==='server-only'?{url:'data:text/javascript,export {};',format:'module',shortCircuit:true}:next(s,c);}});
 import assert from 'node:assert/strict';
@@ -6,7 +7,7 @@ const {createEffectiveWindowResolver,HISTORY_BUDGET}=await import('../app/lib/in
 for(const count of [1,3,5,10])test('independent correction closure is available for each of '+count+' authorized subjects',async()=>{
  const pets=Array.from({length:count},(_,i)=>'subject-'+i),calls=[];
  const coverage={queryCount:0};
- const db={rpc(name,args){assert.equal(name,'read_ask_history_correction_page');calls.push(args);return {abortSignal:async()=>({error:null,data:{claims:[],relations:[],lineage:[],sources:[],withheld_claim_ids:[],withheld_source_ids:[],truncated:false}})};}};
+ const db={rpc(name,args){if(name==='read_ask_source_semantics')return {abortSignal:async()=>fixtureSemanticsPage([],args,{})};assert.equal(name,'read_ask_history_correction_page');calls.push(args);return {abortSignal:async()=>({error:null,data:{claims:[],relations:[],lineage:[],sources:[],withheld_claim_ids:[],withheld_source_ids:[],truncated:false}})};}};
  const resolve=createEffectiveWindowResolver({owned:new Set(pets),petIds:pets,userId:'owner',db,coverage,deadline:Date.now()+60000});
  for(let pass=0;pass<2;pass++)for(const petId of pets){
   const result=await resolve({petId,rows:[],from:'2001-01-01T00:00:00Z',to:'2040-01-01T00:00:00Z'});
@@ -18,7 +19,7 @@ for(const count of [1,3,5,10])test('independent correction closure is available 
 
 test('subject allowance remains finite and partial closure never becomes authority',async()=>{
  const pets=['alpha','beta'];let calls=0;
- const db={rpc(_name,args){calls++;return{abortSignal:async()=>({error:null,data:{claims:[],relations:[],lineage:[],sources:[],truncated:args.p_seed_pet_ids.includes('beta')}})};}};
+ const db={rpc(name,args){if(name==='read_ask_source_semantics')return {abortSignal:async()=>fixtureSemanticsPage([],args,{})};calls++;return{abortSignal:async()=>({error:null,data:{claims:[],relations:[],lineage:[],sources:[],truncated:args.p_seed_pet_ids.includes('beta')}})};}};
  const resolve=createEffectiveWindowResolver({owned:new Set(pets),petIds:pets,userId:'owner',db,coverage:{queryCount:0},deadline:Date.now()+60000});
  const read=petId=>resolve({petId,rows:[],from:'2001-01-01T00:00:00Z',to:'2040-01-01T00:00:00Z'});
  for(let i=0;i<HISTORY_BUDGET.graphCalls;i++)assert.equal((await read('alpha')).lineageClosed,true);

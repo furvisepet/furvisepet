@@ -1,3 +1,4 @@
+import {fixtureSemanticsPage} from '../scripts/audits/helpers/source-semantics-fixture.mjs';
 import {assert,test,pets,row,rows,rawTicket,slot,calculation,proposal,envelope,fixture,finish,bindCalculatePlan,rebindCalculatePlan,bindTypedReadTicket,
  generateContextAwareAskResponse,calculationPublicationFailure,reviewHistoricalAnswer,validateGeneratedAnswer} from "./helpers/calculation-fixture.mjs";
 const cohort=[...pets,{...pets[0],id:"owned-c",name:"Subject Three"},{...pets[0],id:"owned-d",name:"Subject Four"}];
@@ -248,7 +249,7 @@ test("source-bound result selection survives the real Brain and memory path",asy
  const q={select(){return q;},eq(){return q;},is(){return q;},gte(){return q;},lt(){return q;},
  order(field,o){if(field==="occurred_at")ascending=o.ascending;return q;},range(a,b){offset=a;limit=b-a+1;return q;},
  abortSignal(){return q;},returns(){return Promise.resolve({data:[...sourceRows].sort((a,b)=>(ascending?1:-1)*(Date.parse(a.occurred_at)-Date.parse(b.occurred_at))).slice(offset,offset+limit),error:null});}};return q;},
- rpc(name,args){assert.equal(name,"read_ask_history_correction_page");return {abortSignal:async()=>({data:{
+ rpc(name,args){if(name==='read_ask_source_semantics')return{abortSignal:async()=>fixtureSemanticsPage(sourceRows,args)};assert.equal(name,"read_ask_history_correction_page");return {abortSignal:async()=>({data:{
  claims:[],relations:[],lineage:[],sources:sourceRows.filter(r=>args.p_care_ids.includes(r.id)),truncated:false},error:null})};}};
  const read=await retrieveFurviseMemory(planned,db,brain);
  assert.deepEqual(read.askInterpretation.request.calculatePlan,interpretation.request.calculatePlan);

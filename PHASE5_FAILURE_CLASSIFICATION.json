@@ -1,0 +1,51 @@
+{
+  "FULL_OFFLINE_GREEN": true,
+  "items": [
+    {
+      "id": "late-correction-relevance",
+      "class": "A",
+      "before": "Runtime correction-word/year inference could not prove historical relevance.",
+      "repair": "Persisted exact source-bound classification and typed target; no raw-language relevance path.",
+      "status": "fixed",
+      "evidence": "late 9/9, Phase 5 74/74, stress 17/17"
+    },
+    {
+      "id": "canonical-receipt-equivalence",
+      "class": "B",
+      "before": "Old context tests expected retired dialogue-derived receipt fields.",
+      "repair": "Actual planning storedReadReferences plus fresh canonical StoredRead and independently certified current rows.",
+      "status": "fixed",
+      "evidence": "context 6/6, canonical receipt 23/23, receipt/security 99/99"
+    },
+    {
+      "id": "test-transport-migration",
+      "class": "B",
+      "before": "Existing DB stubs lacked the new persisted source-semantics RPC.",
+      "repair": "Explicit reviewed fixture semantics in separate sidecars/adapters; original factual/security assertions retained.",
+      "status": "fixed",
+      "evidence": "retrieval 244/244, calculation 360/360, audit 222/222, expanded 816/816"
+    },
+    {
+      "id": "migration-rehearsal-infrastructure",
+      "class": "B",
+      "before": "Reusing a cluster retained global roles; upgrade fixture used an untyped record and omitted its server actor context.",
+      "repair": "Fresh network-disabled cluster; typed source snapshot selection; established service actor context restored in test only.",
+      "status": "fixed",
+      "evidence": "135 clean migrations, 43/43 SQL, 134-to-135 upgrade 1/1; no production authority relaxed"
+    },
+    {
+      "id": "compile-and-lint",
+      "class": "B",
+      "before": "Grouped discriminant did not narrow and touched older tests had unused imports/helpers.",
+      "repair": "Separate source/claim union members and remove unused helpers; no tests/assertions removed.",
+      "status": "fixed",
+      "evidence": "build/typecheck/lint zero warnings; affected tests 192/192"
+    },
+    {
+      "id": "live-production",
+      "class": "authorization boundary",
+      "status": "blocked intentionally",
+      "reason": "No live matrix/provider authorization; public policy unchanged; reviewed legacy rollout and exact operator adaptation required."
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import {fixtureSourceSemantics} from './source-semantics-fixture.mjs';
 import { requestProposal } from "./request-proposal.mjs";
 import assert from 'node:assert/strict';
 import { assertPublicationCalls } from './publication-call-expectations.mjs';
@@ -48,6 +49,7 @@ const { classifyFurviseCapabilityQuestion } = await import('../../../app/lib/ai/
 const { createAskEvidenceContract, evidenceScopeKey } = await import('../../../app/lib/intelligence/ask-evidence.ts');
 
 function database(rows, { fixturePets = pets, conversationPetId, messages = [], failCare = false, careEpisodes = [], graph = {}, failGraph = false, failHistoryPage = 0, historyPageCap = Infinity, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride } = {}) {
+  const importedSemantics = rows.filter(row=>!row.deleted_at).map(row=>fixtureSourceSemantics(row,graph.sourceSemantics?.[row.id]));
   const queries = [];
   const tables = { dog_profiles: fixturePets, pet_care_entries: rows, ask_conversations: conversationPetId ? conversations.map(c=>({...c,pet_profile_id:conversationPetId})) : conversations, ask_conversation_messages: messages, pet_care_episodes: careEpisodes };
   let historyPages = 0;
@@ -55,6 +57,20 @@ function database(rows, { fixturePets = pets, conversationPetId, messages = [], 
   return { queries, rpc(name, args) {
     let signal;
     const execute = async () => {
+    if (name === 'read_ask_source_semantics') {
+      queries.push({table:name,args});
+      if(graph.sourceSemanticsError)return {data:null,error:{code:graph.sourceSemanticsError}};
+      if(graph.sourceSemanticsPage)return {data:structuredClone(graph.sourceSemanticsPage),error:null};
+      const fresh=new Map([...rows,...(graph.sources||[])].map(row=>[row.id,row]));
+      for(const id of graph.missingSourceIds||[])fresh.delete(id);
+      const scoped=importedSemantics.filter(c=>c.user_id===ownerId&&args.p_pet_ids.includes(c.subject_id));
+      const corrections=scoped.filter(c=>JSON.parse(c.governance_metadata.sourceSemanticsPayload).classification!=='observation');
+      const chosen=scoped.filter(c=>args.p_source_ids.includes(c.source_message_lineage_id)||corrections.slice(0,13).includes(c)).slice(0,77);
+      const current=chosen.map(c=>fresh.get(c.source_message_lineage_id)).filter(Boolean);
+      const changed=scoped.some(c=>{const source=fresh.get(c.source_message_lineage_id),original=rows.find(r=>r.id===c.source_message_lineage_id);
+        return !source||source.deleted_at||JSON.stringify(source)!==JSON.stringify(original)});
+      return {data:{claims:structuredClone(chosen),sources:structuredClone(current),targets:structuredClone(graph.sourceSemanticsTargets||[]),complete:!changed&&corrections.length<=12&&chosen.length<=76,limit:76},error:null};
+    }
     if (name === 'read_ask_episode_references') {
       queries.push({table:name,args});
       return {data:[...messages].filter(m=>m.user_id===ownerId && m.conversation_id===args.p_conversation_id && m.role==='furvise' && m.response_data?.episodeReferences)

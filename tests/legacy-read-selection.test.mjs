@@ -1,3 +1,4 @@
+import {fixtureSemanticsPage} from '../scripts/audits/helpers/source-semantics-fixture.mjs';
 import assert from "node:assert/strict";
 import test from "node:test";
 import { registerHooks } from "node:module";
@@ -164,7 +165,7 @@ test("Binder normalizes once and retrieval preserves the canonical ticket into d
    order(k,{ascending}){orders.push([k,ascending]);return q;},range(a,b){start=a;end=b;return q;},abortSignal(){return q;},
    returns(){return Promise.resolve({error:null,data:filtered.sort((a,b)=>{for(const[k,asc]of orders){if(a[k]!==b[k])return(a[k]<b[k]?-1:1)*(asc?1:-1);}return 0;}).slice(start,end+1)});}};
   return q;},
- rpc(name,args){assert.equal(name,"read_ask_history_correction_page");return{abortSignal:async()=>({error:null,data:{claims:[],relations:[],lineage:[],
+ rpc(name,args){if(name==='read_ask_source_semantics')return{abortSignal:async()=>fixtureSemanticsPage(rows,args)};assert.equal(name,"read_ask_history_correction_page");return{abortSignal:async()=>({error:null,data:{claims:[],relations:[],lineage:[],
   sources:rows.filter(r=>args.p_care_ids.includes(r.id)),withheld_source_ids:[],withheld_claim_ids:[],truncated:false}})};}};
  const fixture=finiteProposal("summary",1,"sufficient",["Alpha"],"weight");
  fixture.proposal.readTicket=input();

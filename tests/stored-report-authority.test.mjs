@@ -16,8 +16,11 @@ const proposition=(authority='stored_report',selection='summary',names=[pets[0].
  authority,selection,petNames:names,from:'2024-01-01',to:'2025-01-01'});
 async function run(t,rows,p=proposition(),extra={}){
  clock(t);const q='Show the requested stored observations.';
+ const {correctionSources=[],...options}=extra;
+ const graph={...options.graph,sourceSemantics:{...options.graph?.sourceSemantics,
+  ...Object.fromEntries(correctionSources.map(id=>[id,{classification:'attributed_correction',target:{kind:'target_unknown'}}]))}};
  const r=await exercise(q,{fixturePets:pets,petId:pets[0].id,conversationPetId:pets[0].id,rows,messages:[],
-  history:true,interpretationProposal:{...p,question:q},expectedProviderCalls:0,expectedReviewCalls:0,...extra});
+  history:true,interpretationProposal:{...p,question:q},expectedProviderCalls:0,expectedReviewCalls:0,...options,graph});
  assert.equal(r.interpretationRequests.length,1);
  assert.equal(r.requests.length,0);assert.equal(r.reviewRequests.length,0);
  assert.deepEqual(r.result.acceptedCareActions,[]);assert.deepEqual(r.result.acceptedSemanticEvents,[]);
@@ -30,7 +33,7 @@ for(const [label,a,b] of [
  ['unicode','Observation: \u03b1\u0301 \ud83d\udc3e\nfirst | note','Correction: \u03b2\u2014second\nline.'],
 ])for(const selection of ['summary','comparison'])test('stored report '+label+'/'+selection+' preserves both quotations without settling truth',async t=>{
  const rows=[row(label+'-a',a),row(label+'-b',b,3)];
- const r=await run(t,rows,proposition('stored_report',selection)),labs=r.result.reasoning.labsList;
+ const r=await run(t,rows,proposition('stored_report',selection),{correctionSources:[label+'-b']}),labs=r.result.reasoning.labsList;
  assert.equal(r.result.reasoning.model,'server-labs-list');assert.equal(labs.ticket.authority,'stored_report');
  assert.deepEqual(labs.records.map(x=>x.body),rows.map(x=>x.note));
  assert.deepEqual(labs.records.map(x=>x.recorded_at),rows.map(x=>x.created_at));
@@ -47,7 +50,7 @@ for(const [label,a,b] of [
  assert.equal(r.result.answerValidation.assessment.outcome,'complete');
 });
 for(const selection of ['summary','latest'])test('effective/current proposition remains limited with unresolved lineage/'+selection,async t=>{
- const r=await run(t,[row('a','Body mass: 7 lb'),row('b','Correction: body mass was 8 lb.',3)],proposition('effective_fact',selection));
+ const r=await run(t,[row('a','Body mass: 7 lb'),row('b','Correction: body mass was 8 lb.',3)],proposition('effective_fact',selection),{correctionSources:['b']});
  assert.equal(r.result.answerValidation.assessment.outcome,'limited');
  assert.deepEqual(r.result.reasoning.relevantContextIds,[]);
  assert.ok(!r.result.reasoning.labsList?.records.length);
@@ -57,7 +60,7 @@ test('effective arithmetic with unresolved measurement lineage never executes',a
  p.quantity='measurement';p.calculatePlan={operation:'calculate',calculations:[C.calculation('difference',[
   {...C.slot(1,0,pets[0].name,'measurement','kg'),role:'target'},
   {...C.slot(0,0,pets[0].name,'measurement','kg'),role:'reference'}],'kg')],resultSelection:null};
- const r=await run(t,[row('a','Body mass: 7 kg'),row('b','Correction: body mass was 8 kg.',3)],p,{expectedCalculationModel:'server-calculation-unavailable'});
+ const r=await run(t,[row('a','Body mass: 7 kg'),row('b','Correction: body mass was 8 kg.',3)],p,{expectedCalculationModel:'server-calculation-unavailable',correctionSources:['b']});
  assert.equal(r.result.reasoning.calculationLabs,undefined);
  assert.equal(r.result.answerValidation.assessment.outcome,'limited');
  assert.deepEqual(r.result.reasoning.relevantContextIds,[]);
@@ -75,14 +78,14 @@ test('report ticket rejects direct, count and result-chain arithmetic before exe
 test('different subjects retain their own conflicting wording; foreign and deleted sources never certify',async t=>{
  const rows=pets.flatMap((p,i)=>[row('s'+i+'a','Recorded amount '+(2+i)+' ml',1,p.id),row('s'+i+'b','Correction: amount '+(5+i)+' ml',3,p.id)]);
  rows.push({...row('foreign','Foreign correction: 999 ml'),user_id:'another-owner'}, {...row('deleted','Deleted correction: 888 ml'),deleted_at:'2024-02-01T00:00:00Z'});
- const r=await run(t,rows,proposition('stored_report','comparison',pets.map(p=>p.name)));
+ const r=await run(t,rows,proposition('stored_report','comparison',pets.map(p=>p.name)),{correctionSources:['s0b','s1b']});
  const labs=r.result.reasoning.labsList;assert.equal(labs.records.length,4);
  for(const x of labs.records)assert.equal(rows.find(y=>y.id===x.id).pet_profile_id,x.petId);
  assert.doesNotMatch(r.result.reasoning.answer.summary,/999|888/);
  assert.equal(new Set(labs.records.map(x=>x.petId)).size,2);
 });
 for(const selection of ['summary','comparison'])test('receipt authority and exact publication resist tampering/'+selection,async t=>{
- const r=await run(t,[row('a','Length 7 cm'),row('b','Correction: length 8 cm',3)],proposition('stored_report',selection));
+ const r=await run(t,[row('a','Length 7 cm'),row('b','Correction: length 8 cm',3)],proposition('stored_report',selection),{correctionSources:['b']});
  const labs=r.result.reasoning.labsList, changed=structuredClone(labs.ticket);changed.authority='effective_fact';
  if(labs.ticket.selection){
   const selected=selectionPublication(changed,labs.coverage,labs.records);assert.equal(selected.complete,false);assert.equal(selected.transportValid,false);
@@ -104,7 +107,7 @@ for(const selection of ['summary','comparison'])test('receipt authority and exac
 test('missing/changed source versions and graph failure cannot become report authority',async t=>{
  const rows=[row('a','Recorded 7 cm'),row('b','Correction: 8 cm',3)];
  for(const extra of [{failGraph:true},{graph:{missingSourceIds:['a']}},{graph:{sources:[{...rows[0],note:'Changed after acquisition'}]}}]){
-  await t.test(JSON.stringify(extra),async sub=>{const r=await run(sub,rows,proposition(),extra);assert.deepEqual(r.result.reasoning.relevantContextIds,[]);});
+  await t.test(JSON.stringify(extra),async sub=>{const r=await run(sub,rows,proposition(),{...extra,correctionSources:['b']});assert.deepEqual(r.result.reasoning.relevantContextIds,[]);});
  }
 });
 test('provider authority survives bind and JSON; omission remains effective-only compatibility',()=>{
@@ -132,7 +135,7 @@ test('plain conflicting observations need no correction phrase to remain reports
 });
 for(const format of ['list','table'])test('stored quotation publication preserves requested '+format+' format',async t=>{
  const p=proposition('stored_report','comparison');p.outputFormat=format==='list'?'bullets':format;
- const r=await run(t,[row('a','Length 4 cm | \u03b1'),row('b','Correction: 5 cm | \u03b2',3)],p);
+ const r=await run(t,[row('a','Length 4 cm | \u03b1'),row('b','Correction: 5 cm | \u03b2',3)],p,{correctionSources:['b']});
  assert.equal(r.result.reasoning.labsList.presentation,format);
  assert.equal(labsListReviewFailure(r.result.reasoning),null);
  assert.match(r.result.reasoning.answer.summary,/Recorded at|recorded at/);
@@ -143,7 +146,7 @@ test('joint result selection carries report authority and rejects fact relabelin
  const p=proposition('stored_report','comparison',pets.map(p=>p.name));
  p.readTicket.selection.groupBy=[];for(const c of p.readTicket.selection.union)c.take.per='result';
  const rows=[row('a','First wording',1),row('b','Correction: second wording',3,pets[1].id)];
- const r=await run(t,rows,p),labs=r.result.reasoning.labsList;
+ const r=await run(t,rows,p,{correctionSources:['b']}),labs=r.result.reasoning.labsList;
  assert.equal(labs.records.length,2);assert.equal(labs.coverage.resultSelection.length,2);
  assert.ok(labs.coverage.resultSelection.every(c=>c.authority==='stored_report'&&c.certified));
  const changed=structuredClone(labs.coverage);changed.resultSelection[0].authority='effective_fact';
@@ -173,7 +176,7 @@ for(const authority of ['stored_report','effective_fact'])test('linked supersede
   provenance_classification:'imported_legacy',structured_value:{title:null,note:r.note,severity:null}}));
  const graph={claims,relations:[{id:'linked-edge',user_id:ownerId,from_claim_id:claims[1].id,to_claim_id:claims[0].id,relation_type:'corrects'}],
   lineage:claims.map((c,i)=>({user_id:ownerId,claim_id:c.id,legacy_row_id:rows[i].id,legacy_table:'pet_care_entries',claim_role:'primary'}))};
- const r=await run(t,rows,proposition(authority),{graph});
+ const r=await run(t,rows,proposition(authority),{graph:{...graph,sourceSemantics:{'linked-new':{classification:'attributed_correction',target:{kind:'source',id:'linked-old'}}}}});
  assert.equal(r.result.reasoning.model,'server-labs-list');
  assert.deepEqual(r.result.reasoning.labsList.records.map(x=>x.id),authority==='stored_report'?['linked-old','linked-new']:['linked-new']);
  if(authority==='stored_report')assert.match(r.result.reasoning.answer.summary,/do not establish current or corrected facts/);

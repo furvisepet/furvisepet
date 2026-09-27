@@ -14,7 +14,8 @@ import { compileHistoryReadStrategies, type HistoryReadStrategy } from "./histor
 import { explicitHistoryDays } from "./history-dates.ts";
 import { compareHistoryTime, classifyOccurrenceReport, occurrenceCandidates, orderHistoryEvidence } from "./history-synthesis.ts";
 import { createHash } from "node:crypto";
-import { discoverDatedCorrectionNotes } from "./dated-correction-notes.ts";
+import { readCorrectionRelevance } from "./correction-relevance-read.ts";
+import type { CorrectionReadDomain } from "./correction-relevance.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CareEntryRow } from "../supabase.ts";
 import type { FurviseLiveContext } from "./types.ts";
@@ -147,7 +148,6 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   // candidates. Reserve both correction discovery and linked-source closure
   // within the same overall Ask budget; Vet Brief retains its own allocation.
   const candidateDeadline = vetBriefRead ? deadline : deadline - 2_500;
-  const correctionDiscoveryDeadline = vetBriefRead ? deadline : deadline - 1_250;
   const owned = new Set(context.eligiblePets.filter(pet => pet.user_id === context.owner.userId).map(pet => pet.id));
   const ids = [...new Set(petIds)].filter(id => owned.has(id)).sort();
   const coverage: HistoryCoverage = { plan, candidateIds: [], queryCount: 0, retrieval: "unknown", corrections: "unknown", extraction: "unknown", grouping: "unknown",
@@ -521,18 +521,6 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   if (context.askInterpretation?.request && plan.terms.length) coverage.reasons.push("bounded_period_context_not_semantic_completeness");
   if (endpointComparison) coverage.reasons.push("bidirectional_endpoint_subset");
   coverage.retrieval = coverage.perPet.some(p => p.status === "unavailable") ? "unavailable" : coverage.continuation.length || ids.length > HISTORY_BUDGET.pets ? "partial" : "unknown";
-  const supplementalCorrectionIds = new Set<string>();
-  if (correctionReserve && coverage.retrieval !== "unavailable") {
-    const supplemental = await discoverDatedCorrectionNotes(candidates, ids.slice(0, HISTORY_BUDGET.pets), context.owner.userId, db, coverage, correctionDiscoveryDeadline);
-    const remaining = Math.max(0, HISTORY_BUDGET.candidateRows - candidates.length);
-    const retainedSupplemental = supplemental.slice(0, remaining);
-    for (const row of retainedSupplemental) supplementalCorrectionIds.add(row.id);
-    candidates.push(...retainedSupplemental);
-    if (supplemental.length > retainedSupplemental.length) {
-      coverage.corrections = "partial";
-      coverage.reasons.push("correction_candidate_budget");
-    }
-  }
   coverage.candidateIds = candidates.map(row => `care:${row.id}`);
   const entries = await effectiveCandidates(candidates, owned, ids, context.owner.userId, db, coverage, deadline);
   if (endpointComparison) {
@@ -573,12 +561,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     && (!plan.to || Date.parse(careOccurrence(entry, context.timeZone)) < Date.parse(plan.to))
     && (!!vetBriefRead || !!context.askInterpretation?.request || !plan.terms.length || plan.terms.some(term =>
     `${entry.title || ""} ${entry.note}`.toLocaleLowerCase().includes(term.toLocaleLowerCase()))));
-  // A later correction qualifies the requested period without becoming an
-  // observation within it. Only independently discovered and freshly validated
-  // sources may cross the query window; subscription access still applies.
-  const matchingEntries = [...periodEntries, ...entries.filter(entry => supplementalCorrectionIds.has(entry.id)
-    && !periodEntries.some(row => row.id === entry.id) && historyDateAccessible(entry.occurred_at, context.historyAccess)
-    && Date.parse(entry.occurred_at) <= asOf)];
+  const matchingEntries = periodEntries;
   const relevant = selection === "earliest_occurrence" ? ids.flatMap(petId => occurrenceCandidates(periodEntries.filter(entry => entry.pet_profile_id === petId), occurrence, entry => entry.occurred_at)) : periodEntries;
   const relevantIds = new Set(relevant.map(entry => entry.id));
   const eventRelevance = historyEventRelevance(matchingEntries.map(entry => `${entry.title || ""} ${entry.note}`),
@@ -714,7 +697,7 @@ function sameCandidateVersion(candidate: CareEntryRow, fresh: CareEntryRow | und
     && (!("episode_id" in candidate) || candidate.episode_id === fresh.episode_id));
 }
 
-export type EffectiveClosureProof = { storedReports?: boolean; complete: boolean; maxCalls: number; calls: number; rows: number };
+export type EffectiveClosureProof = { relevanceDomain?: Omit<CorrectionReadDomain, "ownerId" | "petId">; storedReports?: boolean; complete: boolean; maxCalls: number; calls: number; rows: number };
 export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set<string>, requestedPets: string[], userId: string, db: SupabaseClient, coverage: HistoryCoverage, deadline: number, episodeClaims?: EpisodeClaimValidation, proof?: EffectiveClosureProof): Promise<CareEntryRow[]> {
   if (proof) { proof.complete = false; proof.calls = 0; proof.rows = 0; }
   const claims = new Map<string, DbClaim>(); const relations = new Map<string, DbRelation>(); const links = new Map<string, Lineage>(); const sources = new Map<string, CareEntryRow>();
@@ -790,8 +773,28 @@ export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set
       lifecycleCapable: false, lifecycleRole: null, lifecycleTransition: null, persistenceDestination: String(claim.persistence_destination),
       knowledgeStatus: claim.knowledge_status as RebuildClaim["knowledgeStatus"], occurredAt: typeof claim.occurred_at === "string" ? claim.occurred_at : null,
       recordedAt: String(claim.recorded_at), provenanceClassification: String(claim.provenance_classification), structuredValue: claim.structured_value }));
+    const relevance = await readCorrectionRelevance({ db, ownerId: userId, petIds: requestedPets, candidates,
+      domain: proof?.relevanceDomain || { from: coverage.plan.from, to: coverage.plan.to }, deadline });
+    coverage.queryCount += relevance.queries;
     const graph = resolveEffectiveClaimGraph(mapped, graphRelations.map(edge => ({ fromClaimId: edge.from_claim_id, toClaimId: edge.to_claim_id, relationType: edge.relation_type })));
     if (graph.ambiguousOperationClaimIds.length || graph.invalidRelationClaimIds.length) throw new Error("ambiguous_correction_graph");
+    const unresolved = relevance.unresolved.filter(value => ![...links.values()].some(link =>
+      link.legacy_row_id === value.source.id && graphRelations.some(edge => {
+        if (edge.from_claim_id !== link.claim_id || !["corrects", "supersedes"].includes(edge.relation_type)
+          || claims.get(link.claim_id)?.knowledge_status !== "effective") return false;
+        const target = value.target, prior = claims.get(edge.to_claim_id);
+        if (!target || target.kind === "target_unknown") return true;
+        if (target.kind === "claim") return target.id === edge.to_claim_id;
+        if (target.kind === "source") return [...links.values()].some(l => l.claim_id === edge.to_claim_id && l.legacy_row_id === target.id);
+        if (!prior || typeof prior.occurred_at !== "string") return false;
+        const at = Date.parse(prior.occurred_at);
+        return Number.isFinite(at) && (!target.from || at >= Date.parse(target.from)) && (!target.to || at < Date.parse(target.to))
+          && (!target.conceptKey || prior.canonical_concept_key === target.conceptKey);
+      })));
+    const unresolvedSources = new Set(unresolved.map(value => value.source.id));
+    for (const value of unresolved) coverage.provenance.push({ sourceId: "care:" + value.source.id,
+      claimIds: [], status: "unlinked_correction_uncertain", subjectId: value.source.petId });
+    if (unresolvedSources.size) coverage.reasons.push("unlinked_correction_uncertain");
     if (episodeClaims) episodeClaims.revision = createHash("sha256").update(JSON.stringify([
       [...claims.values()].sort((a,b)=>a.id.localeCompare(b.id)), [...relations.values()].sort((a,b)=>a.id.localeCompare(b.id)),
       [...links.values()].sort((a,b)=>a.claim_id.localeCompare(b.claim_id)), [...sources.values()].sort((a,b)=>a.id.localeCompare(b.id)),
@@ -854,8 +857,8 @@ export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set
         coverage.excludedIds.push(`care:${original.id}`); coverage.reasons.push("source_deleted_or_changed"); continue;
       }
       if (!related.length) {
-        const unlinkedCorrection = /\b(?:correct\w*|retract\w*|supersed\w*)\b/i.test(`${original.title || ""} ${original.note}`);
-        coverage.provenance.push({ sourceId: `care:${original.id}`, claimIds: [], status: unlinkedCorrection ? "unlinked_correction_uncertain" : "unverified_legacy" });
+        const unlinkedCorrection = unresolvedSources.has(original.id);
+        if (!coverage.provenance.some(p => p.sourceId === `care:${original.id}`)) coverage.provenance.push({ sourceId: `care:${original.id}`, claimIds: [], status: unlinkedCorrection ? "unlinked_correction_uncertain" : "unverified_legacy" });
         if (unlinkedCorrection) coverage.reasons.push("unlinked_correction_uncertain");
         output.push({ ...original, care_event_metadata: sources.get(original.id)?.care_event_metadata }); continue;
       }
@@ -906,6 +909,7 @@ export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set
       queryCount: coverage.queryCount,
     });
     coverage.corrections = "unavailable"; coverage.reasons.push("correction_closure_unavailable_or_ambiguous");
+    if (error instanceof Error && error.message.startsWith("source_semantics_")) coverage.reasons.push(error.message);
     coverage.provenance = candidates.map(row => ({ sourceId: `care:${row.id}`, claimIds: [], status: "withheld_correction_authority" }));
     return [];
   }
@@ -927,7 +931,8 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
     continuation: [], reasons: ["no_cross_query_snapshot"], consistency: "read_committed_no_snapshot", perPet: [], provenance: [], claimSources: [], excludedIds: [] };
   let originals: CareEntryRow[] = [];
   const pagesByPet = new Map<string, number>();
-  const effectiveWindow = createEffectiveWindowResolver({ authority: ticket.authority, owned, petIds: ticket.subjects.petIds,
+  const effectiveWindow = createEffectiveWindowResolver({ authority: ticket.authority,
+    relevanceDomain: { from: ticket.temporal.anchor ? null : ticket.temporal.from, to: ticket.temporal.anchor ? null : ticket.temporal.to }, owned, petIds: ticket.subjects.petIds,
     userId: context.owner.userId, db, coverage, deadline, onRows: rows => {
       const merged = new Map(originals.map(row => [row.id, row]));
       rows.forEach(row => merged.set(row.id, row)); originals = [...merged.values()];
@@ -966,9 +971,8 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
       const records = await effectiveCandidates(rows, owned, [...ticket.subjects.petIds], context.owner.userId, db, coverage, deadline);
       const unreliable = coverage.corrections === "unavailable" || coverage.excludedIds.length > 0
         || coverage.reasons.some(reason => ["unsupported_claim_payload", "unknown_effective_event_date"].includes(reason));
-      const sourceLineage = records.filter(row => coverage.provenance.some(source => source.sourceId === `care:${row.id}`
-        && source.status === "unlinked_correction_uncertain")).map(row => ({ eventId: row.id,
-          status: "unlinked" as const, authority: "attributed_report" as const }));
+      const sourceLineage = coverage.provenance.filter(source => source.status === "unlinked_correction_uncertain")
+        .map(source => ({ eventId: source.sourceId.slice(5), status: "unlinked" as const, authority: "attributed_report" as const }));
       // Source freshness/ownership was validated above. An unresolved link
       // limits effective truth; it does not make the stored wording disappear.
       if (!unreliable) coverage.corrections = sourceLineage.length ? "partial" : "complete";
@@ -1035,6 +1039,7 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
  */
 export function createEffectiveWindowResolver(options: {
   authority?: import("../furvise-brain/read-ticket.ts").ReadAuthority;
+  relevanceDomain?: Omit<CorrectionReadDomain, "ownerId" | "petId">;
   owned: Set<string>; petIds: readonly string[]; userId: string; db: SupabaseClient;
   coverage: HistoryCoverage; deadline: number; onRows?: (rows: CareEntryRow[]) => void;
 }): NonNullable<import("../furvise-brain/lungs.ts").ReadStore["effectiveWindow"]> {
@@ -1049,16 +1054,14 @@ export function createEffectiveWindowResolver(options: {
       queryCount: 0, retrieval: "unknown", corrections: "unknown", extraction: "unknown", grouping: "unknown",
       continuation: [], reasons: ["no_cross_query_snapshot"], consistency: "read_committed_no_snapshot",
       perPet: [], provenance: [], claimSources: [], excludedIds: [] };
-    const proof: EffectiveClosureProof = { storedReports: options.authority === "stored_report", complete: false, calls: 0, rows: 0, maxCalls: Math.max(0, quota - (used.get(petId) || 0)) };
+    const proof: EffectiveClosureProof = { relevanceDomain: options.relevanceDomain, storedReports: options.authority === "stored_report", complete: false, calls: 0, rows: 0, maxCalls: Math.max(0, quota - (used.get(petId) || 0)) };
     const records = await effectiveCandidates(rows, options.owned, [petId], options.userId, options.db, local,
       options.deadline, undefined, proof);
     used.set(petId, (used.get(petId) || 0) + proof.calls);
     const closed = proof.complete && local.corrections !== "unavailable" && !local.excludedIds.length
       && !local.reasons.some(reason => ["unsupported_claim_payload", "unknown_effective_event_date"].includes(reason));
-    const sourceLineage = records.filter(row => local.provenance.some(p => p.sourceId === "care:" + row.id
-      && p.status === "unlinked_correction_uncertain")).map(row => ({
-        eventId: row.id, status: "unlinked" as const, authority: "attributed_report" as const,
-      }));
+    const sourceLineage = local.provenance.filter(p => p.status === "unlinked_correction_uncertain")
+      .map(p => ({ eventId: p.sourceId.slice(5), status: "unlinked" as const, authority: "attributed_report" as const }));
     local.corrections = closed ? sourceLineage.length ? "partial" : "complete" : "unavailable";
     latest.set(petId, local);
     options.coverage.queryCount += local.queryCount;

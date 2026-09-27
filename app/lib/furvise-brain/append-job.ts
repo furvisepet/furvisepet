@@ -1,15 +1,17 @@
+import { readWriteSourceSemantics, sourceSemanticsSchema, type SourceSemantics } from "./source-semantics.ts";
 import { CARE_ENTRY_BODY_MAX } from "./care-entry-limits.ts";
 import type { IntelligenceConversationTurn } from "../intelligence/types.ts";
 import { ownerDeclinesPersistence } from "../ai/owner-assertion.ts";
 
 export type UserSourceSpan = Readonly<{ id: string; sourceMessageId: string; start: number; end: number; text: string }>;
-export type AppendItem = Readonly<{ body: UserSourceSpan; date: UserSourceSpan | null; occurredAt: string | null }>;
+export type AppendItem = Readonly<{ body: UserSourceSpan; date: UserSourceSpan | null; occurredAt: string | null; semantics?: SourceSemantics }>;
 export type AppendJob = Readonly<{ operation: "append"; petId: string; sourceMessageId: string; items: readonly AppendItem[]; companion: UserSourceSpan | null }>;
 export const appendJobSchema = { anyOf: [{ type: "null" }, { type: "object", additionalProperties: false,
   required: ["operation", "petName", "items", "companionQuote"], properties: {
     operation: { type: "string", enum: ["append"] }, petName: { type: "string", minLength: 1, maxLength: 100 },
     items: { type: "array", minItems: 1, maxItems: 8, items: { type: "object", additionalProperties: false,
-      required: ["bodyQuote", "dateQuote", "occurredAt"], properties: {
+      required: ["bodyQuote", "dateQuote", "occurredAt", "semantics"], properties: {
+        semantics: sourceSemanticsSchema,
         bodyQuote: { type: "string", minLength: 1, maxLength: CARE_ENTRY_BODY_MAX, description: "Exact independent record span from the current USER turn. Include an explicit date in this span when one applies." },
         dateQuote: { type: ["string", "null"], description: "Exact explicit calendar date within this item's body, or null." },
         occurredAt: { type: ["string", "null"], description: "UTC midnight ISO timestamp matching dateQuote, or null. No inferred or relative dates." },
@@ -36,14 +38,16 @@ export function validateAppendJob(value: unknown, source: IntelligenceConversati
   if (!Array.isArray(proposed) || proposed.length < 1 || proposed.length > 8) return fail();
   const items = proposed.map(value => {
     if (!value || typeof value !== "object" || Array.isArray(value)
-      || Object.keys(value).sort().join() !== "bodyQuote,dateQuote,occurredAt") return fail();
+      || !["bodyQuote,dateQuote,occurredAt", "bodyQuote,dateQuote,occurredAt,semantics"].includes(Object.keys(value).sort().join())) return fail();
     const body = bindUserSourceSpan(source, value.bodyQuote);
     if (body.text.length > CARE_ENTRY_BODY_MAX) return fail();
     const date = value.dateQuote === null ? null : bindUserSourceSpan(source, value.dateQuote);
     if (date && (date.start < body.start || date.end > body.end)) return fail();
     const occurredAt = bindAppendSourceDate(date?.text ?? null, value.occurredAt);
     if (occurredAt && Date.parse(occurredAt) > Date.parse(source.createdAt)) return fail();
-    return Object.freeze({ body, date, occurredAt });
+    const semantics = value.semantics === undefined ? undefined : readWriteSourceSemantics(value.semantics);
+    if (semantics === null) return fail();
+    return Object.freeze({ body, date, occurredAt, ...(semantics ? { semantics: Object.freeze(structuredClone(semantics)) } : {}) });
   });
   const companion = p.companionQuote === null ? null : bindUserSourceSpan(source, p.companionQuote);
   const spans = [...items.map(item => item.body), ...(companion ? [companion] : [])].sort((a, b) => a.start - b.start);
@@ -72,7 +76,7 @@ export function bindAppendSourceDate(quote: string | null, proposed: unknown): s
 }
 export function appendJobProposal(job: AppendJob, petName: string) {
   return { operation: "append", petName, companionQuote: job.companion?.text ?? null,
-    items: job.items.map(item => ({ bodyQuote: item.body.text, dateQuote: item.date?.text ?? null, occurredAt: item.occurredAt })) };
+    items: job.items.map(item => ({ bodyQuote: item.body.text, dateQuote: item.date?.text ?? null, occurredAt: item.occurredAt, ...(item.semantics ? { semantics: item.semantics } : {}) })) };
 }
 
 /** Structural validation for server-stored JSON. Execution also rebinds the owned USER source. */
@@ -91,7 +95,8 @@ export function readBoundAppendJob(value: unknown): AppendJob | null {
     && span.id === `${job.sourceMessageId}:${span.start}:${span.end}`);
   try {
     for (const item of job.items) {
-      if (!item || Object.keys(item).sort().join() !== "body,date,occurredAt"
+      if (!item || !["body,date,occurredAt", "body,date,occurredAt,semantics"].includes(Object.keys(item).sort().join())
+        || item.semantics !== undefined && !readWriteSourceSemantics(item.semantics)
         || !validSpan(item.body) || item.body.text.length > CARE_ENTRY_BODY_MAX
         || (item.date !== null && (!validSpan(item.date) || item.date.start < item.body.start
           || item.date.end > item.body.end || item.body.text.slice(item.date.start-item.body.start,item.date.end-item.body.start) !== item.date.text))

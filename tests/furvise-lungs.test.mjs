@@ -1,3 +1,4 @@
+import {fixtureSemanticsPage} from '../scripts/audits/helpers/source-semantics-fixture.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { registerHooks } from 'node:module';
@@ -88,7 +89,7 @@ test('real Brain -> memory adapter -> lineage path uses the ticket despite unrel
  const brain=buildAskBrainTurn({context:live,logicalTurnId:'turn',authoritativePetIds:['bramble']});
  const inputRows=[...Array.from({length:118},(_,i)=>({...old,id:'old-'+i})),dental,later];
  const calls=[];
- const db={from(table){assert.equal(table,'pet_care_entries');let offset=0,limit=64;const q={select(){return q;},eq(){return q;},is(){return q;},gte(){return q;},lt(){return q;},order(){return q;},range(a,b){offset=a;limit=b-a+1;return q;},abortSignal(){return q;},returns(){calls.push('page');return Promise.resolve({data:inputRows.slice(offset,offset+limit),error:null});}};return q;},rpc(name,args){assert.equal(name,'read_ask_history_correction_page');calls.push(name);return{abortSignal:async()=>({data:{claims:[],relations:[],lineage:[],sources:inputRows.filter(r=>args.p_care_ids.includes(r.id)),truncated:false},error:null})};}};
+ const db={from(table){assert.equal(table,'pet_care_entries');let offset=0,limit=64;const q={select(){return q;},eq(){return q;},is(){return q;},gte(){return q;},lt(){return q;},order(){return q;},range(a,b){offset=a;limit=b-a+1;return q;},abortSignal(){return q;},returns(){calls.push('page');return Promise.resolve({data:inputRows.slice(offset,offset+limit),error:null});}};return q;},rpc(name,args){if(name==='read_ask_source_semantics')return{abortSignal:async()=>fixtureSemanticsPage(inputRows,args)};assert.equal(name,'read_ask_history_correction_page');calls.push(name);return{abortSignal:async()=>({data:{claims:[],relations:[],lineage:[],sources:inputRows.filter(r=>args.p_care_ids.includes(r.id)),truncated:false},error:null})};}};
  const result=await retrieveFurviseMemory(live,db,brain);
  assert.equal(result.askHistory.coverage.ticketCoverage.status,'complete');
  assert.deepEqual(result.askHistory.entries.map(r=>r.id),['dental','later']);

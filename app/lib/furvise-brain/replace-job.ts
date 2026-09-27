@@ -1,3 +1,4 @@
+import { readWriteSourceSemantics, sourceSemanticsSchema, type SourceSemantics } from "./source-semantics.ts";
 import { CARE_ENTRY_BODY_MAX } from "./care-entry-limits.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -6,8 +7,9 @@ export type {CareRecordReference as ReplaceReference} from "./care-record-target
 import type {CareRecordReference as ReplaceReference} from "./care-record-target.ts";
 export const replaceJobSchema = {
   anyOf: [{ type: "null" }, { type: "object", additionalProperties: false,
-    required: ["operation", "target", "petName", "instructionQuote", "bodyQuote", "constraints"],
+    required: ["operation", "target", "petName", "instructionQuote", "bodyQuote", "constraints", "semantics"],
     properties: {
+      semantics: sourceSemanticsSchema,
       operation: { type: "string", enum: ["replace"] },
       target: careRecordSelectorSchema,
       petName: { type: "string", minLength: 1, maxLength: 100 },
@@ -32,6 +34,7 @@ export type ReplaceJob = Readonly<{
   sourceMessageId: string;
   asOf: string;
   body: SourceSpan;
+  semantics?: SourceSemantics;
   constraints: Readonly<{
     effectiveCount: 1;
     allowAdditionalCopy: false;
@@ -44,7 +47,7 @@ export function validateReplaceJob(value: unknown, source: { id: string; text: s
   const fail = (field: string): never => { throw new Error("ASK_REQUEST_INVALID:write_job", { cause: { field: `writeJob.${field}` } }); };
   if (!value || typeof value !== "object" || Array.isArray(value)) return fail("shape");
   const p = value as Record<string, unknown>;
-  if (Object.keys(p).sort().join() !== "bodyQuote,constraints,instructionQuote,operation,petName,target") return fail("fields");
+  if (!["bodyQuote,constraints,instructionQuote,operation,petName,target", "bodyQuote,constraints,instructionQuote,operation,petName,semantics,target"].includes(Object.keys(p).sort().join())) return fail("fields");
   if (p.operation !== "replace") return fail("operation");
   const target = bindCareRecordSelector(p.target, source, subject, authority, fail);
   if (p.petName !== subject.name) return fail("petName");
@@ -72,7 +75,10 @@ export function validateReplaceJob(value: unknown, source: { id: string; text: s
     if (constraint.start < body.end && body.start < constraint.end || c.kind === "no_write") return fail(field);
     return Object.freeze({ ...constraint, kind: c.kind as ConstraintKind });
   });
+  const semantics = p.semantics === undefined ? undefined : readWriteSourceSemantics(p.semantics);
+  if (semantics === null) return fail("semantics");
   return Object.freeze({ operation: "replace", target, petId: subject.id,
+    ...(semantics ? { semantics: Object.freeze(structuredClone(semantics)) } : {}),
     sourceMessageId: source.id, asOf: source.createdAt, body,
     constraints: Object.freeze({ effectiveCount: 1, allowAdditionalCopy: false, spans: Object.freeze(spans) }) });
 }
@@ -82,7 +88,8 @@ export function validateReplaceJob(value: unknown, source: { id: string; text: s
 export function readBoundReplaceJob(value: unknown): ReplaceJob | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const job = value as ReplaceJob;
-  if (Object.keys(job).sort().join() !== "asOf,body,constraints,operation,petId,sourceMessageId,target"
+  if (!["asOf,body,constraints,operation,petId,sourceMessageId,target", "asOf,body,constraints,operation,petId,semantics,sourceMessageId,target"].includes(Object.keys(job).sort().join())
+    || job.semantics !== undefined && !readWriteSourceSemantics(job.semantics)
     || job.operation !== "replace" || (job.target !== "last_event_for_subject" && !validExactTarget(job.target))
     || typeof job.petId !== "string" || !job.petId || typeof job.sourceMessageId !== "string" || !job.sourceMessageId
     || typeof job.asOf !== "string" || !Number.isFinite(Date.parse(job.asOf))) return null;
@@ -103,7 +110,7 @@ export function readBoundReplaceJob(value: unknown): ReplaceJob | null {
 /** Rebinding checks the original USER source; its wording does not select a command. */
 export function replaceJobProposal(job: ReplaceJob, sourceText: string, petName: string) {
   return { operation: job.operation, target: typeof job.target === "string" ? job.target : { kind: job.target.kind, ref: job.target.ref }, petName, instructionQuote: sourceText.trim(),
-    bodyQuote: job.body.text, constraints: job.constraints.spans.map(span => ({ kind: span.kind, quote: span.text })) };
+    bodyQuote: job.body.text, ...(job.semantics ? { semantics: job.semantics } : {}), constraints: job.constraints.spans.map(span => ({ kind: span.kind, quote: span.text })) };
 }
 
 export function replaceJobActionMatches(job: ReplaceJob, action: {

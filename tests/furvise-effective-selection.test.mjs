@@ -1,3 +1,4 @@
+import {fixtureSemanticsPage} from '../scripts/audits/helpers/source-semantics-fixture.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { registerHooks } from 'node:module';
@@ -27,7 +28,7 @@ function fixture(rows, graph={}, pets=['a']) {
   const pages=[], calls=[];
   // SQL-faithful bounded RPC mock. In particular tombstone markers for care
   // roots are returned ONLY for p_care_ids, not for merely linked sources.
-  const db={rpc(name,args){assert.equal(name,'read_ask_history_correction_page'); calls.push(args);
+  const db={rpc(name,args){if(name==='read_ask_source_semantics')return {abortSignal:async()=>fixtureSemanticsPage([...rows,...(graph.sources||[])],args,graph.sourceSemantics)};assert.equal(name,'read_ask_history_correction_page'); calls.push(args);
     return {abortSignal:async()=>{
       const claims=graph.claims||[], edges=graph.edges||[], links=graph.links||[];
       const seeds=claims.filter(c=>args.p_seed_pet_ids.includes(c.subject_id)
@@ -163,7 +164,7 @@ test('absence needs exhaustion and output caps cannot certify omitted required r
 });
 test('unlinked uncertainty and unknown replacement event time cannot certify selection',async()=>{
   const rows=[row('a',0),row('a',119,'weight correction pending')];
-  const r=await run(rows);
+  const r=await run(rows,{sourceSemantics:{'a-119':{classification:'attributed_correction',target:{kind:'target_unknown'}}}});
   assert.deepEqual(selected(r.result),[]);
   const C={...claim('C','a',120,'correct'),occurred_at:null};
   const unknown=await run([row('a',0),row('a',119)],{claims:[claim('B','a',119),C],

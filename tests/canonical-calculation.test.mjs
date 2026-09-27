@@ -1,4 +1,5 @@
-import {assert,test,bindCalculatePlan,rebindCalculatePlan,calculatePlanSchema,CALCULATE_OPERATORS,executeCalculatePlan,bindTypedReadTicket,retrieveReadTicket,validateAskRequest,askRequestProviderSchema,generateContextAwareAskResponse,buildLabsList,buildCalculationLabs,calculationPublicationFailure,reviewHistoricalAnswer,validateGeneratedAnswer,finalizeAskAnswer,buildGovernedAskExecutionPlan,resolveSafetyState,pets,row,rows,clause,rawTicket,slot,calculation,proposal,envelope,fixture,finish} from "./helpers/calculation-fixture.mjs";
+import {fixtureSemanticsPage} from '../scripts/audits/helpers/source-semantics-fixture.mjs';
+import {assert,test,bindCalculatePlan,rebindCalculatePlan,calculatePlanSchema,CALCULATE_OPERATORS,bindTypedReadTicket,validateAskRequest,askRequestProviderSchema,generateContextAwareAskResponse,calculationPublicationFailure,reviewHistoricalAnswer,validateGeneratedAnswer,pets,row,rows,clause,rawTicket,slot,calculation,proposal,envelope,fixture,finish} from "./helpers/calculation-fixture.mjs";
 test("difference uses certified semantic slots, exact decimal arithmetic and full deterministic finalization",async()=>{
  const f=await fixture();assert.equal(f.response.model,"server-calculation-labs");
  const r=f.response.calculationLabs.execution.results[0];assert.equal(r.value,.3);assert.deepEqual(r.exact,{numerator:"3",denominator:"10"});
@@ -204,7 +205,7 @@ test("one Brain proposal reaches real memory retrieval and deterministic calcula
  const q={select(){return q;},eq(){return q;},is(){return q;},gte(){return q;},lt(){return q;},
  order(field,o){if(field==="occurred_at")ascending=o.ascending;return q;},range(a,b){offset=a;limit=b-a+1;return q;},
  abortSignal(){return q;},returns(){return Promise.resolve({data:[...sourceRows].sort((a,b)=>(ascending?1:-1)*(Date.parse(a.occurred_at)-Date.parse(b.occurred_at))).slice(offset,offset+limit),error:null});}};return q;},
- rpc(name,args){assert.equal(name,"read_ask_history_correction_page");return {abortSignal:async()=>({data:{
+ rpc(name,args){if(name==='read_ask_source_semantics')return{abortSignal:async()=>fixtureSemanticsPage(sourceRows,args)};assert.equal(name,"read_ask_history_correction_page");return {abortSignal:async()=>({data:{
  claims:[],relations:[],lineage:[],sources:sourceRows.filter(r=>args.p_care_ids.includes(r.id)),truncated:false},error:null})};}};
  const read=await retrieveFurviseMemory(planned,db,brain);
  assert.deepEqual(read.askInterpretation.request.calculatePlan,interpretation.request.calculatePlan);

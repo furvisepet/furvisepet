@@ -1,0 +1,213 @@
+{
+  "status": "PREPARED_ONLY_NOT_AUTHORIZED",
+  "candidate": "the commit containing PHASE5_FINDINGS.md; pin exact SHA before authorization",
+  "providerCallsMade": 0,
+  "proposedMaxAskRequests": 14,
+  "proposedMaxInterpretationCallsPerCase": 1,
+  "retryPolicy": "No retry/resend/automatic repair; uncertain outcome stops the run. A saved-profile internal repair would exceed this first-attempt protocol.",
+  "executionPath": "Existing authenticated real-app acceptance path only. No direct Brain runner, injected provider response, alternate harness or silent public-policy enablement.",
+  "fixturePolicy": "Proposed synthetic records only; nothing created. Resolve existing local acceptance environment and authorize fixture setup separately. Use the established UTC acceptance clock; all proposed record dates precede September 2026.",
+  "blockedBy": [
+    "No authorization for the fourteen-case live matrix.",
+    "Public calculation/mutation policy remains unchanged and disabled; agree explicit acceptance scope before any such case.",
+    "Recovered G launcher is pinned to an old candidate and G fixture: never execute it for this packet. Pin and offline-verify its candidate/matrix adaptation and capture locations before execution."
+  ],
+  "cases": [
+    {
+      "id": 1,
+      "class": "historical_recall",
+      "prompt": "What do the notes say about Kestrel scratching during February 2023?",
+      "proposedFixture": [
+        "Kestrel: 2023-02-04 scratching; 2023-02-09 scratching stopped; outside-window distractors"
+      ],
+      "expectedTypedSemantics": [
+        "saved_history",
+        "named scope",
+        "February half-open window",
+        "certified source quotations"
+      ]
+    },
+    {
+      "id": 2,
+      "class": "temporal_endpoints",
+      "prompt": "For Mica, show the first and most recent recorded exercise duration, with their dates.",
+      "proposedFixture": [
+        "Mica: 8 min on 2022-01-05; 11 min on 2023-04-08; 14 min on 2024-06-02"
+      ],
+      "expectedTypedSemantics": [
+        "compositional asc/desc selection",
+        "sufficient endpoint obligation",
+        "no profile substitution"
+      ]
+    },
+    {
+      "id": 3,
+      "class": "profile_facts",
+      "prompt": "Put Tansy's current species and food from her profile in a small table.",
+      "proposedFixture": [
+        "Tansy profile: cat; food=rice and turkey; contradictory old history note"
+      ],
+      "expectedTypedSemantics": [
+        "saved_profile only",
+        "exact requested profile fields",
+        "no care-history scan"
+      ]
+    },
+    {
+      "id": 4,
+      "class": "supplied_numeric",
+      "prompt": "For this hypothetical, 1.25 l minus 300 ml: what is the difference in ml?",
+      "proposedFixture": [
+        "current USER exact numeric literals only"
+      ],
+      "expectedTypedSemantics": [
+        "supplied_context",
+        "no owned scope/readTicket",
+        "target=1.25 l; reference=300 ml",
+        "950 ml"
+      ]
+    },
+    {
+      "id": 5,
+      "class": "saved_arithmetic",
+      "prompt": "Across the two saved session-length records for Kestrel in March 2025, how many minutes longer was the later session?",
+      "proposedFixture": [
+        "2025-03-06: 18 min; 2025-03-22: 25 min; unrelated earlier/later rows"
+      ],
+      "expectedTypedSemantics": [
+        "saved_history + readTicket",
+        "target=later slot; reference=earlier slot",
+        "7 min",
+        "no invented USER premises"
+      ]
+    },
+    {
+      "id": 6,
+      "class": "cross_pet",
+      "prompt": "Show the latest recorded water amount separately for Mica and Tansy.",
+      "proposedFixture": [
+        "Mica: 140 ml; Tansy: 90 ml; foreign-owner same-name distractor"
+      ],
+      "expectedTypedSemantics": [
+        "named owned cohort",
+        "per-subject certified latest selection",
+        "no cross-subject values"
+      ]
+    },
+    {
+      "id": 7,
+      "class": "replacement",
+      "prompt": "Replace Kestrel's selected note with: Kestrel rested calmly after the walk.",
+      "proposedFixture": [
+        "one current owned source-bound target reference and captured freshness snapshot"
+      ],
+      "expectedTypedSemantics": [
+        "typed REPLACE job",
+        "pending capability only",
+        "exact replacement body",
+        "confirmation required"
+      ]
+    },
+    {
+      "id": 8,
+      "class": "ambiguous_anchor",
+      "prompt": "What changed after Mica's procedure?",
+      "proposedFixture": [
+        "two distinct procedure events without a unique referent"
+      ],
+      "expectedTypedSemantics": [
+        "clarification or certified anchor ambiguity",
+        "no guessed event or timestamp"
+      ]
+    },
+    {
+      "id": 9,
+      "class": "mixed_observation_question",
+      "prompt": "Save that Tansy ate half her breakfast. What are her last two saved meal notes?",
+      "proposedFixture": [
+        "current USER observation plus two existing meal notes"
+      ],
+      "expectedTypedSemantics": [
+        "source-bound appendJob + separate readTicket",
+        "one interpretation",
+        "no write before confirmation",
+        "reuse bound companion plan"
+      ]
+    },
+    {
+      "id": 10,
+      "class": "general_knowledge",
+      "prompt": "Why might an animal drink more after exercise?",
+      "proposedFixture": [
+        "no owned history requested"
+      ],
+      "expectedTypedSemantics": [
+        "general conversation",
+        "no owned scope expansion",
+        "no persistence"
+      ]
+    },
+    {
+      "id": 11,
+      "class": "stored_read",
+      "prompt": "What response preferences have I saved?",
+      "proposedFixture": [
+        "owner preference: concise responses; foreign-owner preference distractor"
+      ],
+      "expectedTypedSemantics": [
+        "typed stored read for owner preferences",
+        "ownership isolation",
+        "exact stored source authority"
+      ]
+    },
+    {
+      "id": 12,
+      "class": "mutation_request",
+      "prompt": "Change Mica's profile food to barley and salmon.",
+      "proposedFixture": [
+        "owned Mica profile with fresh target snapshot"
+      ],
+      "expectedTypedSemantics": [
+        "source-bound fieldMutationJob",
+        "pending capability",
+        "no execution before confirmation"
+      ]
+    },
+    {
+      "id": 13,
+      "class": "attributed_correction_relevance",
+      "prompt": "What do the saved notes establish about Kestrel during July 2014?",
+      "proposedFixture": [
+        "Kestrel 2014-07-09: Recorded amount: 3 ml.",
+        "Kestrel 2026-08-01: Correction: the July 2014 amount report described another subject.",
+        "Explicit reviewed sidecar: first source observation; second attributed_correction targeting [2014-07-01,2014-08-01), concept unknown; no effective edge.",
+        "Owned 2015 distractor and foreign-owner same-name distractor retained."
+      ],
+      "expectedTypedSemantics": [
+        "saved_history, named owned scope, effective_fact July window",
+        "matching unresolved attributed relevance limits the effective read",
+        "no original suppression, no invented replacement, no arithmetic certificate"
+      ]
+    },
+    {
+      "id": 14,
+      "class": "durable_operation_receipt",
+      "prompt": "Was my earlier save completed? Show the recorded operation outcome.",
+      "proposedFixture": [
+        "One canonical succeeded two-record APPEND capability and exact terminal receipt for Tansy, created through the existing canonical fixture writer.",
+        "Its original USER source is outside forty recent dialogue turns; one resulting row is future-dated and the other is deleted.",
+        "Planning uses owner-scoped storedReadReferences. No assistant statement is evidence of success."
+      ],
+      "expectedTypedSemantics": [
+        "operation_receipt StoredRead from a current opaque reference",
+        "succeeded receipt remains verifiable",
+        "no claim that deleted/future rows are present elapsed-history facts"
+      ]
+    }
+  ],
+  "proposedMaxProviderCalls": 14,
+  "proposedMaxProviderCallsPerCase": 1,
+  "proposedMaxCostUsd": 0.84,
+  "proposedMaxCostUsdPerCase": 0.06,
+  "executionPacket": "PHASE5_LOCAL_EXECUTION_PACKET.md"
+}

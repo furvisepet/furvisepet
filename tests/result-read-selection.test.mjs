@@ -1,3 +1,4 @@
+import {fixtureSemanticsPage} from '../scripts/audits/helpers/source-semantics-fixture.mjs';
 import assert from "node:assert/strict";
 import test from "node:test";
 import { registerHooks } from "node:module";
@@ -20,11 +21,6 @@ function input(strategy="chronological",ordering="desc",limit=1,patch={}) {
  return {operation:strategy==="temporal_endpoints"?"compare":"read",subjectScope:"named",needs:[],episode:null,
   temporal:{from:null,to:null,anchor:null,calendar:null},predicates:[{kind:"text_any",terms:["weight"]}],
   outputs:{strategy,ordering,limit,completeness:"sufficient"},...patch};
-}
-function native(proposal,pets=["a"]) {
- const {strategy,...outputs}=proposal.outputs;
- return bindCompositionalReadTicket({...proposal,outputs,
-  selection:{groupBy:["subject"],union:strategy==="chronological"?[clause(outputs.ordering,outputs.limit)]:[clause("asc"),clause("desc")]}},pets);
 }
 function store(rows,{deleted=[],correction=null,partial=false,unavailable=false}={}) {
  const calls=[];
@@ -52,7 +48,7 @@ function evidence(ticket,result) {
 }
 
 const globalPlan=(proposal,pets=scope.ownedPetIds)=>{
- const {strategy,...outputs}=proposal.outputs;
+ const {strategy,...outputs}=proposal.outputs;void strategy;
  return bindCompositionalReadTicket({...proposal,outputs,selection:{groupBy:[],union:[
   {orderBy:[{field:"event_at",direction:outputs.ordering}],take:{count:outputs.limit,per:"result"}}
  ]}},pets);
@@ -298,7 +294,7 @@ test("multi-subject production boundary propagates one result-level ticket and j
    order(k,{ascending}){orders.push([k,ascending]);return q;},range(a,b){start=a;end=b;return q;},abortSignal(){return q;},
    returns(){return Promise.resolve({error:null,data:filtered.sort((a,b)=>{for(const[k,asc]of orders){if(a[k]!==b[k])return(a[k]<b[k]?-1:1)*(asc?1:-1);}return 0;}).slice(start,end+1)});}};
   return q;},
- rpc(name,args){assert.equal(name,"read_ask_history_correction_page");return{abortSignal:async()=>({error:null,data:{claims:[],relations:[],lineage:[],
+ rpc(name,args){if(name==='read_ask_source_semantics')return{abortSignal:async()=>fixtureSemanticsPage(rows,args)};assert.equal(name,"read_ask_history_correction_page");return{abortSignal:async()=>({error:null,data:{claims:[],relations:[],lineage:[],
   sources:rows.filter(r=>args.p_care_ids.includes(r.id)),withheld_source_ids:[],withheld_claim_ids:[],truncated:false}})};}};
  const original=bindReadTicket(input("chronological","desc",3),["a","b","c"]);
  const context=ticket=>({owner:{userId:"owner"},pet:{id:"a",name:"Alpha",user_id:"owner"},eligiblePets:["a","b","c"].map(id=>({id,name:id,user_id:"owner"})),
