@@ -4,8 +4,8 @@ import {clock,exercise} from '../scripts/audits/helpers/lifetime-harness.mjs';
 import {stressProposal} from '../scripts/audits/helpers/current-stress-harness.mjs';
 import {stressPets,rows} from '../scripts/audits/fixtures/ask-ten-pet-five-year-stress.mjs';
 for(const cohort of [false,true])test('unlinked correction remains an explicit '+(cohort?'cohort':'single-subject')+' acceptance boundary',async t=>{
- clock(t);const p=stressProposal(cohort?{scope:'account',petNames:[],selection:'latest',from:'2022-01-01',to:'2026-09-01'}:{petNames:['Birch'],terms:['food','switch','correct'],from:'2022-03-01',to:'2026-09-01'});
- const question=cohort?'Give one saved history fact for each of my ten pets.':'Show the saved food switch reports for Birch, including the later correction.';
+ clock(t);const p=stressProposal(cohort?{authority:'effective_fact',scope:'account',petNames:[],selection:'latest',from:'2022-01-01',to:'2026-09-01'}:{authority:'effective_fact',petNames:['Birch'],terms:['food','switch','correct'],from:'2022-03-01',to:'2026-09-01'});
+ const question=cohort?'Give the current effective fact for each of my ten pets.':'What is the corrected effective food switch for Birch?';
  const run=await exercise(question,{fixturePets:stressPets,rows,petId:stressPets[0].id,messages:[],history:true,interpretationProposal:p,expectedProviderCalls:0,expectedReviewCalls:0});
  const coverage=run.context.askHistory.coverage.ticketCoverage;
  assert.ok(coverage.reasons.includes('unlinked_correction_uncertain'));

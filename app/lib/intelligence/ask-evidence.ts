@@ -88,7 +88,7 @@ export function operationReceiptEvidence(receipts: NonNullable<AskEvidenceContra
 }
 export function careEvidenceId(id: string, history?: AskEvidenceContract["history"]): string {
   const claimId = id.startsWith("claim-") ? id.slice(6) : null;
-  return claimId && history?.provenance.some(source => source.sourceId === `claim:${claimId}` && source.status === "effective_replacement") ? `claim:${claimId}` : `care:${id}`;
+  return claimId && history?.provenance.some(source => source.sourceId === `claim:${claimId}` && (source.status === "effective_replacement" || source.status === "attributed_report" && history.ticketCoverage?.authority === "stored_report")) ? `claim:${claimId}` : `care:${id}`;
 }
 export function evidenceSource(petId: string, source: string, loadedIds: string[], cap: number | null = null, unavailable = false, loadedCount = loadedIds.length): EvidenceSource {
   const capped = cap !== null && loadedCount >= cap;
@@ -128,6 +128,7 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
     represented: [], representation: "complete", verifiedFacts: [] };
   if (context.completedOwnerNote) contract.completedOwnerNote = structuredClone(context.completedOwnerNote);
   const currentTurn = context.conversationTurns.at(-1);
+  void currentTurn;
   contract.recordInventory = (context.recordInventory || []).filter(item => ids.includes(item.petId));
   for (const item of recordInventoryEvidence(contract.recordInventory)) {
     contract.sources.push(evidenceSource(item.petId, "record_inventory", [item.sourceId]));

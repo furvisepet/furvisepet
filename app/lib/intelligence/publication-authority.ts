@@ -11,6 +11,7 @@ import type { HistoryObligation, ObligationCompletion } from "./history-obligati
 import type { HistoryNarrative } from "./history-narrative.ts";
 
 export type PublicationObligationAuthority = {
+  sourceAuthority?: import("../furvise-brain/read-ticket.ts").ReadAuthority;
   obligationId: string; authority: "certified" | "existing_policy" | "composite" | "unavailable";
   authorizedSourceIds: string[]; certifiedRecordIds: string[];
   certificateType: "selection" | "result_set" | null; status: string;
@@ -111,6 +112,7 @@ function deriveOrdinaryHistoryAuthority(evidence: AskEvidenceContract, transport
     const selected = selectionPublication(ticket!, coverage, records)!;
     transportValid = selected.transportValid;
     obligations = selected.certificates.map(c => ({
+      ...(ticket!.authority ? { sourceAuthority: ticket!.authority } : {}),
       obligationId: `selection:${c.subjectId}:${c.clauseId}`, subjectId: c.subjectId, clauseId: c.clauseId,
       authority: c.certified ? "certified" : "unavailable", certificateType: "selection", status: c.status,
       authorizedSourceIds: c.certified ? c.selectedEventIds.map(id => careEvidenceId(id, evidence.history)) : [],
@@ -125,6 +127,7 @@ function deriveOrdinaryHistoryAuthority(evidence: AskEvidenceContract, transport
     transportValid = certifiedResultSetMatches(ticket!, coverage, records);
     if (!transportValid) return unavailable(coverage.status === "unavailable" ? "unavailable" : "partial");
     obligations = proof.subjects.map(s => ({
+      ...(ticket!.authority ? { sourceAuthority: ticket!.authority } : {}),
       obligationId: `result_set:${s.petId}`, subjectId: s.petId, authority: "certified",
       certificateType: "result_set", status: s.retainedIds.length ? "complete" : "complete_empty",
       authorizedSourceIds: s.retainedIds.map(id => careEvidenceId(id, evidence.history)),
@@ -262,6 +265,9 @@ export function publicationClaimFailures(evidence: AskEvidenceContract, claims: 
   if (!authority) return [];
   const failures: string[] = [];
   for (const claim of claims) {
+    // Stored wording is published only through the exact attributed Labs serializer.
+    // Source existence cannot license a free-form effective-fact paraphrase.
+    if (authority.ticket?.authority === "stored_report") { failures.push("publication_stored_report_requires_labs"); continue; }
     const binding = authority.obligations.find(o => o.obligationId === claim.obligationId);
     if (!binding) { failures.push("publication_obligation_unknown"); continue; }
     if (claim.sourceIds.some(id => !binding.authorizedSourceIds.includes(id))) {

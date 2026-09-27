@@ -5,6 +5,7 @@ import { readProbesSchema } from "../intelligence/read-probes.ts";
 // The binder independently validates all callers; no conflicting field is stripped.
 const { strategy: _legacyStrategy, ...publication } = readTicketSchema.properties.outputs.properties;
 const { needs: _boundNeeds, ...semanticProperties } = readTicketSchema.properties;
+void _legacyStrategy; void _boundNeeds;
 const providerTicket = { ...readTicketSchema, type: "object",
   required: [...readTicketSchema.required.filter(field => field !== "needs"), "probes"],
   properties: { ...semanticProperties, probes: readProbesSchema },
@@ -52,6 +53,7 @@ export const readTicketProviderSchema = {
 export function calculationReadTicketProviderSchema(countOnly: boolean) {
   const ticket = structuredClone(providerTicket);
   Object.assign(ticket.properties, {
+    authority: { type: "string", enum: ["effective_fact"] },
     operation: { type: "string", enum: ["read", "read_since_event"] },
     selection: countOnly ? { type: "null" } : { ...semanticProperties.selection, type: "object",
       description: "Set union of distinct semantic clauses. Never duplicate orderBy/take clauses. Opposite boundaries of one bounded matching set use ascending take 1 and descending take 1; temporal constraints belong in this ticket." },

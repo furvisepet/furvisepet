@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 // Unsupported ordinary-history dimensions are still inside the mandatory boundary.
 // Other domains retain their existing call budgets, including explicit null opt-outs.
 export async function assertPublicationCalls({ result, context, requests, reviewRequests,
-  expectedProviderCalls, expectedReviewCalls, history = false, historyStages = [] }) {
+  expectedProviderCalls, expectedReviewCalls, expectedCalculationModel = "server-calculation-labs", history = false, historyStages = [] }) {
   const reasoning = result.reasoning, evidence = reasoning.evidenceContract;
   const interpretation = evidence?.interpretation, request = interpretation?.request;
   const ordinary = request?.mode === 'read' && request.evidenceBasis === 'saved_history'
@@ -20,10 +20,13 @@ export async function assertPublicationCalls({ result, context, requests, review
   if (request?.calculatePlan) {
     const {calculationPublicationFailure}=await import('../../../app/lib/intelligence/calculation-labs.ts');
     assert.equal(requests.length,0);assert.equal(reviewRequests.length,0);
-    assert.equal(reasoning.model,'server-calculation-labs');
+    assert.equal(reasoning.model,expectedCalculationModel);
     assert.equal(calculationPublicationFailure(reasoning),null);
     assert.equal(result.answerValidation.valid,true);
-    assert.deepEqual(reasoning.calculationLabs.calculatePlan,request.calculatePlan);
+    if (expectedCalculationModel === "server-calculation-unavailable") {
+      assert.equal(reasoning.calculationLabs,undefined);assert.deepEqual(reasoning.relevantContextIds,[]);
+      assert.equal(result.answerValidation.assessment.outcome,"limited");
+    } else assert.deepEqual(reasoning.calculationLabs.calculatePlan,request.calculatePlan);
     assert.deepEqual(result.acceptedCareActions,[]);assert.deepEqual(result.acceptedLearnings,[]);assert.deepEqual(result.acceptedSemanticEvents,[]);
     return reasoning.model;
   }

@@ -5,9 +5,10 @@ import {requestProposal} from './request-proposal.mjs';
 // Frozen semantic dimensions only: no classifier over user wording, no fabricated certificates.
 export function stressProposal(p={}) {
  const directions=p.selection==='latest'?['desc']:p.selection==='comparison'?['asc','desc']:[];
- const base=requestProposal({operation:'recall',subject:'explicit',petNames:[],topic:'history',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,evidenceBasis:'saved_history',...p},p.question||'Read the requested saved records.');
+ const {authority,...semantics}=p;
+ const base=requestProposal({operation:'recall',subject:'explicit',petNames:[],topic:'history',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,evidenceBasis:'saved_history',...semantics},p.question||'Read the requested saved records.');
  return {...base,requirements:[],quantity:'records',operation:'recall',frame:null,evidenceNeeds:[],projection:null,
-  readTicket:{operation:'read',subjectScope:p.scope||'named',
+  readTicket:{...(authority?{authority}:{}),operation:'read',subjectScope:p.scope||'named',
    temporal:{from:p.from?p.from+'T00:00:00Z':null,to:p.to?p.to+'T00:00:00Z':null,anchor:null,calendar:null},
    predicates:p.terms?.length?[{kind:'text_any',terms:p.terms}]:[],searchHints:[],probes:[],episode:null,
    selection:directions.length?{groupBy:['subject'],union:directions.map(direction=>({orderBy:[{field:'event_at',direction}],take:{count:1,per:'group'}}))}:null,

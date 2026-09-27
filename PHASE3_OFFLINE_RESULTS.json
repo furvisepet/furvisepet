@@ -1,0 +1,575 @@
+{
+  "phase": 3,
+  "base_sha": "8df9937704751789fa96ef55b283dc0b1ec54850",
+  "branch": "v1/intelligence-consolidation",
+  "generated_at": "2026-09-27T05:21:22.024179+00:00",
+  "result_commit_locator": "git log -1 --format=%H -- PHASE3_OFFLINE_RESULTS.json",
+  "all_offline_acceptance_green": false,
+  "phase3_focused_green": true,
+  "stress_cases_green": true,
+  "no_skips_or_waivers": true,
+  "provider_calls": 0,
+  "cost_usd": 0,
+  "live_acceptance_run": false,
+  "production_access": false,
+  "deployment": false,
+  "gates": {
+    "retrieval": {
+      "exit_code": 0,
+      "tests": 244,
+      "pass": 244,
+      "fail": 0,
+      "skipped": 0,
+      "elapsed_seconds": 4.31,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-intelligence-phase3\\retrieval.log",
+      "files": [
+        "tests/furvise-lungs.test.mjs",
+        "tests/furvise-effective-selection.test.mjs",
+        "tests/furvise-compositional-read.test.mjs",
+        "tests/furvise-temporal-selection.test.mjs",
+        "tests/ordered-result-set.test.mjs",
+        "tests/result-read-selection.test.mjs",
+        "tests/supporting-context.test.mjs",
+        "tests/typed-read-ticket.test.mjs",
+        "tests/legacy-read-selection.test.mjs"
+      ]
+    },
+    "audit222": {
+      "exit_code": 0,
+      "tests": 222,
+      "pass": 222,
+      "fail": 0,
+      "skipped": 0,
+      "elapsed_seconds": 6.731,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-intelligence-phase3\\audit222.log",
+      "files": [
+        "scripts/audits/ask-evidence-contract.cases.mjs",
+        "scripts/audits/ask-shared-request-contract.cases.mjs"
+      ]
+    },
+    "brain": {
+      "exit_code": 0,
+      "tests": 78,
+      "pass": 78,
+      "fail": 0,
+      "skipped": 0,
+      "elapsed_seconds": 4.239,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-intelligence-phase3\\brain.log",
+      "files": [
+        "tests/ask-compositional-emission.test.mjs",
+        "tests/ask-read-ticket-diagnostics.test.mjs",
+        "tests/ask-one-interpreter.test.mjs",
+        "tests/ask-working-memory-interpretation.test.mjs",
+        "tests/furvise-brain-interpretation-authority.test.mjs",
+        "tests/ask-interpretation-timeout.test.mjs"
+      ]
+    },
+    "calculation": {
+      "exit_code": 0,
+      "tests": 360,
+      "pass": 360,
+      "fail": 0,
+      "skipped": 0,
+      "elapsed_seconds": 1.363,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-intelligence-phase3\\calculation.log",
+      "files": [
+        "tests/canonical-calculation.test.mjs",
+        "tests/calculation-result-selection.test.mjs",
+        "tests/calculation-dag.test.mjs",
+        "tests/measurement-disambiguation.test.mjs"
+      ]
+    },
+    "stress": {
+      "exit_code": 0,
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "skipped": 0,
+      "elapsed_seconds": 1.776,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-intelligence-phase3\\stress.log",
+      "files": [
+        "tests/ask-ten-pet-five-year-stress-acceptance.test.mjs",
+        "tests/ask-semantic-stress-multi-pet-acceptance.test.mjs"
+      ]
+    },
+    "expanded": {
+      "exit_code": 0,
+      "tests": 816,
+      "pass": 816,
+      "fail": 0,
+      "skipped": 0,
+      "elapsed_seconds": 11.069,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-intelligence-phase3\\expanded.log",
+      "files": [
+        "tests/ask-certificate-bound-publication.test.mjs",
+        "tests/ask-deterministic-calculation-bindings.test.mjs",
+        "tests/ask-mandatory-history-publication.test.mjs",
+        "tests/ask-publication-authority-diagnostics.test.mjs",
+        "tests/ask-publication-contract.test.mjs",
+        "tests/ask-publication-receipt.test.mjs",
+        "tests/ask-repair-calculation-bindings.test.mjs",
+        "tests/ask-selection-publication.test.mjs",
+        "tests/audit-publication-call-expectations.test.mjs",
+        "tests/calculation-capability-orchestration.test.mjs",
+        "tests/calculation-capability.test.mjs",
+        "tests/calculation-dag.test.mjs",
+        "tests/calculation-operand-roles.test.mjs",
+        "tests/calculation-provider-parity.test.mjs",
+        "tests/calculation-result-selection.test.mjs",
+        "tests/canonical-calculation.test.mjs",
+        "tests/furvise-brain-action-organ.test.mjs",
+        "tests/furvise-brain-architecture-boundary.test.mjs",
+        "tests/furvise-brain-ask-runtime.test.mjs",
+        "tests/furvise-brain-durable-answer-finalization.test.mjs",
+        "tests/furvise-brain-interpretation-authority.test.mjs",
+        "tests/furvise-brain-memory-organ.test.mjs",
+        "tests/furvise-brain-mutation-authorization.test.mjs",
+        "tests/furvise-brain-owner-note-gate.test.mjs",
+        "tests/furvise-brain-post-review-finalizer.test.mjs",
+        "tests/furvise-brain-selected-pet-anchor.test.mjs",
+        "tests/furvise-brain-subject-authority.test.mjs",
+        "tests/furvise-brain-task-gate.test.mjs",
+        "tests/furvise-brain-turn-authority.test.mjs",
+        "tests/furvise-brain-working-memory.test.mjs",
+        "tests/history-publication-capability.test.mjs",
+        "tests/legacy-calculation-retirement.test.mjs",
+        "tests/typed-premise-calculation.test.mjs",
+        "tests/vet-brief-lifetime-publication.test.mjs"
+      ]
+    },
+    "phase2": {
+      "exit_code": 0,
+      "tests": 29,
+      "pass": 29,
+      "fail": 0,
+      "skipped": 0,
+      "elapsed_seconds": 3.278,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-intelligence-phase3\\phase2.log",
+      "files": [
+        "tests/history-subject-budget.test.mjs",
+        "tests/history-window-acquisition.test.mjs",
+        "tests/audit-publication-call-expectations.test.mjs",
+        "tests/public-v1-freeze.test.mjs"
+      ]
+    },
+    "route-and-read": {
+      "exit_code": 0,
+      "tests": 217,
+      "pass": 217,
+      "fail": 0,
+      "skipped": 0,
+      "elapsed_seconds": 3.672,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-intelligence-phase3\\route-and-read.log",
+      "files": [
+        "tests/ask-route-ordering.test.mjs",
+        "tests/typed-read-ticket.test.mjs",
+        "tests/furvise-brain-owner-note-gate.test.mjs",
+        "tests/owner-note-write-isolation.test.mjs",
+        "tests/append-items-authority.test.mjs",
+        "tests/ask-interpretation-timeout.test.mjs",
+        "tests/public-v1-freeze.test.mjs",
+        "tests/ask-read-ticket-diagnostics.test.mjs",
+        "tests/measurement-disambiguation.test.mjs"
+      ]
+    },
+    "stress-cases": {
+      "exit_code": 0,
+      "tests": 17,
+      "pass": 17,
+      "fail": 0,
+      "skipped": 0,
+      "elapsed_seconds": 1.564,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-intelligence-phase3\\stress-cases.log",
+      "files": [
+        "scripts/audits/ask-semantic-stress-multi-pet.cases.mjs",
+        "scripts/audits/ask-ten-pet-five-year-stress.cases.mjs"
+      ]
+    },
+    "extended-domain": {
+      "exit_code": 0,
+      "tests": 678,
+      "pass": 678,
+      "fail": 0,
+      "skipped": 0,
+      "elapsed_seconds": 2.213,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-intelligence-phase3\\extended-domain.log",
+      "files": [
+        "tests/ask-deterministic-calculation-bindings.test.mjs",
+        "tests/ask-repair-calculation-bindings.test.mjs",
+        "tests/brain-evidence-domain-composition.test.mjs",
+        "tests/calculation-capability-orchestration.test.mjs",
+        "tests/calculation-capability.test.mjs",
+        "tests/calculation-dag.test.mjs",
+        "tests/calculation-operand-roles.test.mjs",
+        "tests/calculation-provider-parity.test.mjs",
+        "tests/calculation-result-selection.test.mjs",
+        "tests/canonical-calculation.test.mjs",
+        "tests/legacy-calculation-retirement.test.mjs",
+        "tests/typed-premise-calculation.test.mjs"
+      ]
+    },
+    "domain": {
+      "exit_code": 0,
+      "tests": 379,
+      "pass": 379,
+      "fail": 0,
+      "skipped": 0,
+      "elapsed_seconds": 1.942,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-intelligence-phase3\\domain.log",
+      "files": [
+        "tests/brain-evidence-domain-composition.test.mjs",
+        "tests/calculation-provider-parity.test.mjs",
+        "tests/typed-premise-calculation.test.mjs",
+        "tests/calculation-operand-roles.test.mjs",
+        "tests/ask-deterministic-calculation-bindings.test.mjs"
+      ]
+    },
+    "correction-boundary": {
+      "exit_code": 0,
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "skipped": 0,
+      "elapsed_seconds": 0.954,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-intelligence-phase3\\correction-boundary.log",
+      "files": [
+        "tests/stress-correction-boundary.test.mjs"
+      ]
+    },
+    "phase3": {
+      "exit_code": 0,
+      "tests": 32,
+      "pass": 32,
+      "fail": 0,
+      "skipped": 0,
+      "elapsed_seconds": 1.268,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-intelligence-phase3\\phase3.log",
+      "files": [
+        "tests/stored-report-authority.test.mjs"
+      ]
+    },
+    "correction-lineage": {
+      "exit_code": 1,
+      "tests": 17,
+      "pass": 15,
+      "fail": 2,
+      "skipped": 0,
+      "elapsed_seconds": 1.272,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-intelligence-phase3\\correction-lineage.log",
+      "files": [
+        "tests/ask-context-lineage.test.mjs",
+        "tests/ask-correction-projection.test.mjs",
+        "tests/ask-late-corrections.test.mjs",
+        "tests/furvise-correction-provenance.test.mjs"
+      ]
+    },
+    "publication": {
+      "exit_code": 0,
+      "tests": 149,
+      "pass": 149,
+      "fail": 0,
+      "skipped": 0,
+      "elapsed_seconds": 1.074,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-intelligence-phase3\\publication.log",
+      "files": [
+        "tests/ask-certificate-bound-publication.test.mjs",
+        "tests/ask-mandatory-history-publication.test.mjs",
+        "tests/ask-publication-authority-diagnostics.test.mjs",
+        "tests/ask-publication-contract.test.mjs",
+        "tests/ask-publication-receipt.test.mjs",
+        "tests/ask-selection-publication.test.mjs",
+        "tests/certified-sufficient-result-set.test.mjs",
+        "tests/history-publication-capability.test.mjs"
+      ]
+    }
+  },
+  "static_gates": {
+    "typecheck": {
+      "exit_code": 0,
+      "elapsed_seconds": 2.138,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-intelligence-phase3\\typecheck.log",
+      "command": [
+        "cmd",
+        "/d",
+        "/c",
+        "npm.cmd",
+        "run",
+        "typecheck"
+      ]
+    },
+    "lint": {
+      "exit_code": 0,
+      "elapsed_seconds": 1.74,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-intelligence-phase3\\lint.log",
+      "command": [
+        "cmd",
+        "/d",
+        "/c",
+        "node_modules\\.bin\\eslint.cmd",
+        "--max-warnings=0",
+        "app/lib/furvise-brain/calculate-plan.ts",
+        "app/lib/furvise-brain/effective-selection.ts",
+        "app/lib/furvise-brain/lungs.ts",
+        "app/lib/furvise-brain/ordered-result-set.ts",
+        "app/lib/furvise-brain/read-ticket-provider-schema.ts",
+        "app/lib/furvise-brain/read-ticket.ts",
+        "app/lib/furvise-brain/result-selection.ts",
+        "app/lib/intelligence/ask-evidence.ts",
+        "app/lib/intelligence/history-retrieval.ts",
+        "app/lib/intelligence/labs-list.ts",
+        "app/lib/intelligence/labs-presentation.ts",
+        "app/lib/intelligence/publication-authority.ts",
+        "app/lib/intelligence/result-set-publication.ts",
+        "app/lib/intelligence/selection-publication.ts",
+        "scripts/audits/ask-ten-pet-five-year-stress.cases.mjs",
+        "scripts/audits/helpers/current-stress-harness.mjs",
+        "scripts/audits/helpers/lifetime-harness.mjs",
+        "scripts/audits/helpers/publication-call-expectations.mjs",
+        "tests/ask-compositional-emission.test.mjs",
+        "tests/helpers/calculation-public-fixture.mjs",
+        "tests/stress-correction-boundary.test.mjs",
+        "tests/stored-report-authority.test.mjs"
+      ]
+    },
+    "build": {
+      "exit_code": 0,
+      "elapsed_seconds": 19.239,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-intelligence-phase3\\build.log",
+      "command": [
+        "cmd",
+        "/d",
+        "/c",
+        "npm.cmd",
+        "run",
+        "build"
+      ]
+    },
+    "diff-check": {
+      "exit_code": 0,
+      "elapsed_seconds": 0.04,
+      "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-intelligence-phase3\\diff-check.log",
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ]
+    }
+  },
+  "inherited_blockers": [
+    {
+      "suite": "tests/ask-context-lineage.test.mjs",
+      "classification": "inherited_audit_failure_unwaived",
+      "underlying_pass": 4,
+      "underlying_fail": 2,
+      "first_boundaries": [
+        "scripts/audits/ask-context-lineage.cases.mjs: active old receipt lacks expected recoveredReceiptReference=true",
+        "scripts/audits/ask-context-lineage.cases.mjs: future-dated saved record lacks expected operationReceipt"
+      ],
+      "disposition": "No receipt authority or fixture assertion was relaxed. Requires a separate investigation/migration of these baseline receipt expectations."
+    },
+    {
+      "suite": "tests/ask-late-corrections.test.mjs",
+      "classification": "inherited_precanonical_audit_failure_unwaived",
+      "underlying_pass": 0,
+      "underlying_fail": 9,
+      "first_boundaries": [
+        "ASK_MEMORY_BRAIN_REQUIRED: legacy audit invokes history:true without interpretationProposal/readTicket"
+      ],
+      "disposition": "Do not restore raw-question execution or a second interpretation. Migrate this legacy audit to supported typed authority in a separate bounded task; its supplemental raw-language discovery expectations cannot be silently treated as the current contract."
+    }
+  ],
+  "baseline_reproduction": {
+    "head": "8df9937704751789fa96ef55b283dc0b1ec54850",
+    "exit_code": 1,
+    "production_sources_loaded_from_head": [
+      "file:///C:/Users/gwara/furvise-intelligence-v1/app/lib/furvise-brain/calculate-plan.ts",
+      "file:///C:/Users/gwara/furvise-intelligence-v1/app/lib/furvise-brain/effective-selection.ts",
+      "file:///C:/Users/gwara/furvise-intelligence-v1/app/lib/furvise-brain/lungs.ts",
+      "file:///C:/Users/gwara/furvise-intelligence-v1/app/lib/furvise-brain/ordered-result-set.ts",
+      "file:///C:/Users/gwara/furvise-intelligence-v1/app/lib/furvise-brain/read-ticket-provider-schema.ts",
+      "file:///C:/Users/gwara/furvise-intelligence-v1/app/lib/furvise-brain/read-ticket.ts",
+      "file:///C:/Users/gwara/furvise-intelligence-v1/app/lib/furvise-brain/result-selection.ts",
+      "file:///C:/Users/gwara/furvise-intelligence-v1/app/lib/intelligence/ask-evidence.ts",
+      "file:///C:/Users/gwara/furvise-intelligence-v1/app/lib/intelligence/history-retrieval.ts",
+      "file:///C:/Users/gwara/furvise-intelligence-v1/app/lib/intelligence/labs-list.ts",
+      "file:///C:/Users/gwara/furvise-intelligence-v1/app/lib/intelligence/labs-presentation.ts",
+      "file:///C:/Users/gwara/furvise-intelligence-v1/app/lib/intelligence/publication-authority.ts",
+      "file:///C:/Users/gwara/furvise-intelligence-v1/app/lib/intelligence/result-set-publication.ts",
+      "file:///C:/Users/gwara/furvise-intelligence-v1/app/lib/intelligence/selection-publication.ts"
+    ],
+    "log": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-intelligence-phase3\\inherited-correction-baseline.log",
+    "method": "Read-only Node loader substitutes exact git HEAD production bytes; working tree never reset or switched."
+  },
+  "corpus_hashes": {
+    "algorithm": "SHA256",
+    "unchanged": true,
+    "before": {
+      "scripts/audits/fixtures/ask-benchmark-200.mjs": "c59d7d5c2aecf16cdc3fe803710300689464badfe27dc366f484fdbef249092b",
+      "scripts/audits/fixtures/ask-lifetime-history.mjs": "a94407c46408925a3026c37ee0b8c16547e45c8c9e43fdea2721e2430d77bd46",
+      "scripts/audits/fixtures/ask-multi-year-multi-pet.mjs": "d060cbc2d99f64ad27a017e89a35ad86448cada3b7e7d289d3c4cde6d14f8930",
+      "scripts/audits/fixtures/ask-semantic-stress-multi-pet.mjs": "40a18bca834d0fbab136d56261275a0f99eec5f2c6e2b9620b92173f2c4243a2",
+      "scripts/audits/fixtures/ask-ten-pet-five-year-stress.mjs": "36a4357fe6b143448e4daae36b9ed94cd346019cf0dd2342c406b5f131c0daa0",
+      "scripts/audits/fixtures/ask-ten-year-history.mjs": "d36585d021c2ea8847f639d3dddc8bf6dc3f707ef7877efd868601eb3d00c7f3",
+      "scripts/audits/fixtures/ask-three-month-multi-pet.mjs": "8d1503b4141df656b7665255959e29c3a7f94ff70d49d9bc3c3ee784f081a186"
+    },
+    "after": {
+      "scripts/audits/fixtures/ask-benchmark-200.mjs": "c59d7d5c2aecf16cdc3fe803710300689464badfe27dc366f484fdbef249092b",
+      "scripts/audits/fixtures/ask-lifetime-history.mjs": "a94407c46408925a3026c37ee0b8c16547e45c8c9e43fdea2721e2430d77bd46",
+      "scripts/audits/fixtures/ask-multi-year-multi-pet.mjs": "d060cbc2d99f64ad27a017e89a35ad86448cada3b7e7d289d3c4cde6d14f8930",
+      "scripts/audits/fixtures/ask-semantic-stress-multi-pet.mjs": "40a18bca834d0fbab136d56261275a0f99eec5f2c6e2b9620b92173f2c4243a2",
+      "scripts/audits/fixtures/ask-ten-pet-five-year-stress.mjs": "36a4357fe6b143448e4daae36b9ed94cd346019cf0dd2342c406b5f131c0daa0",
+      "scripts/audits/fixtures/ask-ten-year-history.mjs": "d36585d021c2ea8847f639d3dddc8bf6dc3f707ef7877efd868601eb3d00c7f3",
+      "scripts/audits/fixtures/ask-three-month-multi-pet.mjs": "8d1503b4141df656b7665255959e29c3a7f94ff70d49d9bc3c3ee784f081a186"
+    },
+    "task_files_unchanged": {
+      "ASTRA_INTELLIGENCE_TASK.md": "351468966168b233605ec32ac7bb4ca5215b4c6cf89642141007a8669a0fcee8",
+      "ASTRA_PHASE2_TASK.md": "79bbae173e3ed5f142dbd48f723d8a8cc831ad52fea912c19419030c7a1fe24d",
+      "ASTRA_PHASE3_TASK.md": "937db06db49ac63325f57fb02d90c027c59aadd5714db450fa948b87d25de77f"
+    },
+    "unseen_matrix_unchanged_sha256": "5be73128281f40e6a83abf2469662d0982fafca6ec94322f3a33adc39ebc45a0"
+  },
+  "complexity": {
+    "production_files_modified": 14,
+    "production_files_added": 0,
+    "production_files_removed": 0,
+    "added_lines": 125,
+    "removed_lines": 51,
+    "files": [
+      {
+        "file": "app/lib/furvise-brain/calculate-plan.ts",
+        "added_lines": 1,
+        "removed_lines": 1
+      },
+      {
+        "file": "app/lib/furvise-brain/effective-selection.ts",
+        "added_lines": 14,
+        "removed_lines": 6
+      },
+      {
+        "file": "app/lib/furvise-brain/lungs.ts",
+        "added_lines": 5,
+        "removed_lines": 4
+      },
+      {
+        "file": "app/lib/furvise-brain/ordered-result-set.ts",
+        "added_lines": 8,
+        "removed_lines": 4
+      },
+      {
+        "file": "app/lib/furvise-brain/read-ticket-provider-schema.ts",
+        "added_lines": 2,
+        "removed_lines": 0
+      },
+      {
+        "file": "app/lib/furvise-brain/read-ticket.ts",
+        "added_lines": 11,
+        "removed_lines": 3
+      },
+      {
+        "file": "app/lib/furvise-brain/result-selection.ts",
+        "added_lines": 7,
+        "removed_lines": 5
+      },
+      {
+        "file": "app/lib/intelligence/ask-evidence.ts",
+        "added_lines": 2,
+        "removed_lines": 1
+      },
+      {
+        "file": "app/lib/intelligence/history-retrieval.ts",
+        "added_lines": 10,
+        "removed_lines": 8
+      },
+      {
+        "file": "app/lib/intelligence/labs-list.ts",
+        "added_lines": 33,
+        "removed_lines": 4
+      },
+      {
+        "file": "app/lib/intelligence/labs-presentation.ts",
+        "added_lines": 6,
+        "removed_lines": 6
+      },
+      {
+        "file": "app/lib/intelligence/publication-authority.ts",
+        "added_lines": 6,
+        "removed_lines": 0
+      },
+      {
+        "file": "app/lib/intelligence/result-set-publication.ts",
+        "added_lines": 8,
+        "removed_lines": 2
+      },
+      {
+        "file": "app/lib/intelligence/selection-publication.ts",
+        "added_lines": 12,
+        "removed_lines": 7
+      }
+    ],
+    "net_lines": 74
+  },
+  "files_changed": [
+    "PHASE3_AUTHORITY_MODEL.md",
+    "PHASE3_CORPUS_HASHES.json",
+    "PHASE3_FINDINGS.md",
+    "PHASE3_OFFLINE_RESULTS.json",
+    "PHASE3_PRODUCTION.diff",
+    "app/lib/furvise-brain/calculate-plan.ts",
+    "app/lib/furvise-brain/effective-selection.ts",
+    "app/lib/furvise-brain/lungs.ts",
+    "app/lib/furvise-brain/ordered-result-set.ts",
+    "app/lib/furvise-brain/read-ticket-provider-schema.ts",
+    "app/lib/furvise-brain/read-ticket.ts",
+    "app/lib/furvise-brain/result-selection.ts",
+    "app/lib/intelligence/ask-evidence.ts",
+    "app/lib/intelligence/history-retrieval.ts",
+    "app/lib/intelligence/labs-list.ts",
+    "app/lib/intelligence/labs-presentation.ts",
+    "app/lib/intelligence/publication-authority.ts",
+    "app/lib/intelligence/result-set-publication.ts",
+    "app/lib/intelligence/selection-publication.ts",
+    "scripts/audits/ask-ten-pet-five-year-stress.cases.mjs",
+    "scripts/audits/helpers/current-stress-harness.mjs",
+    "scripts/audits/helpers/lifetime-harness.mjs",
+    "scripts/audits/helpers/publication-call-expectations.mjs",
+    "tests/ask-compositional-emission.test.mjs",
+    "tests/helpers/calculation-public-fixture.mjs",
+    "tests/stored-report-authority.test.mjs",
+    "tests/stress-correction-boundary.test.mjs"
+  ],
+  "production_diff_sha256": "6f97df695ada22747d2039d878b494bf3214e440b469c0bf6fd620ee4c6204bf",
+  "evidence_directory": "C:\\Users\\gwara\\waraich-operator\\state\\furvise-intelligence-phase3",
+  "evidence_log_sha256": {
+    "gate-files.json": "ea053524313fdf88d6de01a28e473e972c84436338ce736413a03ac0024c3caf",
+    "gate-results.json": "fc79830d5d2353fea686a3a13b46d776ca964b68a2f789d79559a368351e5e14",
+    "static-gates.json": "88be449aa28d51a614efd5d24f33bd88d8a2356657c244e192cea91c1f61f896",
+    "inherited-correction-baseline.json": "6a71fe5f4c70c2a928bc1052e6791f2f3864524cf3a0c20c26cf0fdbabce839b",
+    "inherited-correction-baseline.log": "1a5e284064b299994abcbd0903c05a6f376d7903500fe048f19ba3fcf025752a",
+    "native-report-before.log": "2593cf709ebf3ae0b42c812f346bb2aeddff356ca2bef19ecb22bcc217670327",
+    "retrieval.log": "80d23c70674d896f294d6bb5fc1cab589985a98ecd52d65321fa08ccbcf3a1f2",
+    "audit222.log": "1520b819edf839312d69efbdf0c6427e2ff4231c7bc8ec56b0a2d541278b3f1b",
+    "brain.log": "292fec30a8279ccbcf7a6406ce7d652b13a6d105c79992b5f97adc7b97a83c32",
+    "calculation.log": "d5c0d909aca28dc8403edf6f4def471a1e05118df460a1165e486f31c0b65397",
+    "stress.log": "bddc86dd96d7da2426272a76da5f0cd62e659edc7a35877cd03e91edc1ae9f13",
+    "expanded.log": "535c362b3c509b1674b9cacb8d961ce327e83152bb59038ad7fad89a1b22ee5d",
+    "phase2.log": "769b0c98af55197699292931da8cc936b02edd613a7590e9c5223c54a4c4b870",
+    "route-and-read.log": "649f814096705fa75882169632db3de7cd35b6f774e7dc1a2b0845311b6dd1ff",
+    "stress-cases.log": "2b773ec99d60cd8dfc5567097409e1908fc57dbf4877eaf56bb06064315e8856",
+    "extended-domain.log": "b2fbb835bdcbb1b98589e91ce19d9fe5637349d0a3897347c2ee90ee66fe7ce4",
+    "domain.log": "b800c8180c6ea6b374bcbd2eb1c38efd711c497d834346c37e8b96746d257bdc",
+    "correction-boundary.log": "481af74761bf7cc33c284d851dcb7b1ce0a96b29a1a879bc6a8c8e4b87aa3412",
+    "phase3.log": "661cc6cab38f7978b96fed09c7248d1ed7eb3c1bc6ca35591142274e19e1d8d7",
+    "correction-lineage.log": "059bd2cb541cd9239f3f6e3fcc0b6f0399a739ef8f6ae1e1e4270b05877719b5",
+    "publication.log": "ddf6d5f09b94fe65d6ab800d8b14cea05c376b7446aa14650395445018c42415",
+    "typecheck.log": "0b8b577c04fcd7c7dd407f823698ac5d24821eda7897651ae32fab50f21d5b4f",
+    "lint.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build.log": "5f722b586f23ba0ea1d25385c5e297d81733a0218717279ffe1a833dc7a5d1c9",
+    "diff-check.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "unseen_matrix": {
+    "run": false,
+    "modified": false,
+    "reason": "Full offline gate remains red; all twelve existing classes and G/G2 exclusions preserved."
+  },
+  "next_step": "Resolve the two inherited audit/receipt boundaries under existing typed authority, rerun the full offline gate, then review the unseen first-attempt matrix. No provider execution authorized by this task."
+}

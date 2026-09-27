@@ -20,7 +20,7 @@ const row=(id,value,day=1,petId=pets[0].id)=>({id,user_id:"owner",pet_profile_id
  occurred_at:new Date(Date.UTC(2024,0,day)).toISOString(),created_at:new Date(Date.UTC(2024,0,day)).toISOString(),updated_at:new Date(Date.UTC(2024,0,day)).toISOString()});
 const rows=()=>[row("first","sample 4.8 kg"),row("last","sample 5.1 kg",3)];
 const clause=(direction,count=1)=>({orderBy:[{field:"event_at",direction}],take:{count,per:"group"}});
-const rawTicket=(count=false)=>({operation:"read",temporal:{from:null,to:null,anchor:null},predicates:[],
+const rawTicket=(count=false)=>({authority:"effective_fact",operation:"read",temporal:{from:null,to:null,anchor:null},predicates:[],
  selection:count?null:{groupBy:["subject"],union:[clause("asc"),clause("desc")]},
  outputs:{completeness:count?"exhaustive":"sufficient",ordering:"asc",limit:null}});
 const slot=(clause=0,item=0,petName=pets[0].name,field="measurement",unit="kg")=>({petName,clause,item,field,unit});

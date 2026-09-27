@@ -6,9 +6,10 @@ import { eventOrder } from "./read-selection.ts";
 export type ResultFrontier = {
   petId: string; direction: "asc" | "desc"; acquired: boolean; exhausted: boolean;
   frontier: { id: string; eventAt: string; createdAt: string } | null;
-  lineageClosed: boolean; replacementSeedsExhausted: boolean; failed: boolean; reasons: string[];
+  lineageClosed: boolean; replacementSeedsExhausted: boolean; storedReportsCertified?: boolean; failed: boolean; reasons: string[];
 };
 export type ResultSelectionCertificate = {
+  authority?: ReadTicket["authority"];
   clauseId: number; subjectIds: string[]; direction: "asc" | "desc"; count: number;
   selectedIds: string[]; retainedIds: string[];
   cutoff: { id: string; eventAt: string; createdAt: string } | null;
@@ -33,8 +34,9 @@ export function selectReadResult(ticket: ReadTicket, rows: readonly CareEntryRow
  * IDs and raw IDs occupy different spaces. Exhaustion also proves the boundary.
  * Finding N rows, or certifying just the subjects that won, is never sufficient.
  */
-export function frontierCovers(frontier: ResultFrontier, cutoff: CareEntryRow | undefined, full: boolean) {
-  if (!frontier.acquired || frontier.failed || !frontier.lineageClosed || !frontier.replacementSeedsExhausted) return false;
+export function frontierCovers(frontier: ResultFrontier, cutoff: CareEntryRow | undefined, full: boolean, authority?: ReadTicket["authority"]) {
+  const certified = authority === "stored_report" ? frontier.storedReportsCertified === true : frontier.lineageClosed && frontier.replacementSeedsExhausted;
+  if (!frontier.acquired || frontier.failed || !certified) return false;
   if (frontier.exhausted) return true;
   return full && !!cutoff && !!frontier.frontier
     && (frontier.direction === "desc"
@@ -53,7 +55,7 @@ export function certifyReadResult(ticket: ReadTicket, rows: readonly CareEntryRo
         petId, direction: clause.direction, acquired: false, exhausted: false, frontier: null,
         lineageClosed: false, replacementSeedsExhausted: false, failed: true, reasons: ["result_subject_proof_missing"],
       };
-      return { ...frontier, cutoffCovered: frontierCovers(frontier, cutoff, selectedIds.length === clause.count) };
+      return { ...frontier, cutoffCovered: frontierCovers(frontier, cutoff, selectedIds.length === clause.count, ticket.authority) };
     });
     const reasons = [...new Set(proofs.flatMap(proof => [
       ...proof.reasons,
@@ -64,7 +66,7 @@ export function certifyReadResult(ticket: ReadTicket, rows: readonly CareEntryRo
     const retained = selectedIds.filter(id => retainedIds.has(id));
     if (retained.length !== selectedIds.length) reasons.push("required_selection_not_retained");
     const certified = proofs.every(f => f.cutoffCovered) && retained.length === selectedIds.length;
-    return { clauseId: clause.clauseId, subjectIds, direction: clause.direction, count: clause.count,
+    return { ...(ticket.authority ? { authority: ticket.authority } : {}), clauseId: clause.clauseId, subjectIds, direction: clause.direction, count: clause.count,
       selectedIds, retainedIds: retained, cutoff: cutoff ? { id: cutoff.id, eventAt: cutoff.occurred_at, createdAt: cutoff.created_at } : null,
       frontiers: proofs, certified, blocked: !certified,
       status: certified ? selectedIds.length ? "complete" as const : "complete_empty" as const : "partial" as const,

@@ -1,0 +1,307 @@
+diff --git a/app/lib/furvise-brain/calculate-plan.ts b/app/lib/furvise-brain/calculate-plan.ts
+index 4d8e7813..4cfff049 100644
+--- a/app/lib/furvise-brain/calculate-plan.ts
++++ b/app/lib/furvise-brain/calculate-plan.ts
+@@ -95 +95 @@ function bind(value:unknown,ticket:ReadTicket|null,resolve:(v:unknown)=>string,b
+- const validTicket=!!ticket&&["read","read_since_event"].includes(ticket.operation)&&!ticket.episode&&!ticket.needs?.length
++ const validTicket=!!ticket&&ticket.authority!=="stored_report"&&["read","read_since_event"].includes(ticket.operation)&&!ticket.episode&&!ticket.needs?.length
+diff --git a/app/lib/furvise-brain/effective-selection.ts b/app/lib/furvise-brain/effective-selection.ts
+index 1cbc50d5..ac57c000 100644
+--- a/app/lib/furvise-brain/effective-selection.ts
++++ b/app/lib/furvise-brain/effective-selection.ts
+@@ -14,0 +15,2 @@ export type EffectiveWindowResult = {
++  /** Exact owned active source versions, independently of effective truth. */
++  storedReportsCertified?: boolean;
+@@ -25,0 +28,3 @@ export async function retrieveEffectiveSelection(ticket: ReadTicket, scope: Read
++  const report = ticket.authority === "stored_report";
++  const usable = (proof: EffectiveWindowResult) => report ? proof.storedReportsCertified === true
++    : proof.storedReportsCertified === undefined && proof.lineageClosed && proof.replacementSeedsExhausted && !proof.sourceLineage.length;
+@@ -40 +45 @@ export async function retrieveEffectiveSelection(ticket: ReadTicket, scope: Read
+-    if (subject.failed || !subject.proof.lineageClosed || !subject.proof.replacementSeedsExhausted || subject.proof.sourceLineage.length) return false;
++    if (subject.failed || !usable(subject.proof)) return false;
+@@ -58 +63,2 @@ export async function retrieveEffectiveSelection(ticket: ReadTicket, scope: Read
+-      failed: subject.failed || !!subject.proof.sourceLineage.length,
++      ...(report ? { storedReportsCertified: subject.proof.storedReportsCertified === true } : {}),
++      failed: subject.failed || !usable(subject.proof),
+@@ -64 +70 @@ export async function retrieveEffectiveSelection(ticket: ReadTicket, scope: Read
+-      .every(c => frontierCovers(frontier(task.petId, task.direction), c.rows.at(-1), c.rows.length === c.count));
++      .every(c => frontierCovers(frontier(task.petId, task.direction), c.rows.at(-1), c.rows.length === c.count, ticket.authority));
+@@ -100,2 +106,3 @@ export async function retrieveEffectiveSelection(ticket: ReadTicket, scope: Read
+-        subject.proof = !proof.lineageClosed || !proof.replacementSeedsExhausted ? { ...proof, records: [] } : proof;
+-        if (!proof.lineageClosed || !proof.replacementSeedsExhausted || proof.sourceLineage.length) {
++        subject.proof = report ? usable(proof) ? proof : { ...proof, records: [] }
++          : !proof.lineageClosed || !proof.replacementSeedsExhausted ? { ...proof, records: [] } : proof;
++        if (!usable(proof)) {
+@@ -116 +123 @@ export async function retrieveEffectiveSelection(ticket: ReadTicket, scope: Read
+-  const coverage: ReadCoverage = { status: "partial", reasons: [], matchSemantics: "ticket_text_predicates", asOf: scope.asOf,
++  const coverage: ReadCoverage = { ...(ticket.authority ? { authority: ticket.authority } : {}), status: "partial", reasons: [], matchSemantics: "ticket_text_predicates", asOf: scope.asOf,
+@@ -132,0 +140 @@ export async function retrieveEffectiveSelection(ticket: ReadTicket, scope: Read
++      ...(report ? { storedReportsCertified: subject.proof.storedReportsCertified === true } : {}),
+diff --git a/app/lib/furvise-brain/lungs.ts b/app/lib/furvise-brain/lungs.ts
+index a42142db..8a6e1ff5 100644
+--- a/app/lib/furvise-brain/lungs.ts
++++ b/app/lib/furvise-brain/lungs.ts
+@@ -14,0 +15 @@ export type ReadCoverage = {
++  authority?: ReadTicket["authority"];
+@@ -31 +32 @@ export type ReadCoverage = {
+-    lineageClosed: boolean; replacementSeedsExhausted: boolean; graphCalls: number; lineageRows: number }>;
++    lineageClosed: boolean; replacementSeedsExhausted: boolean; storedReportsCertified?: boolean; graphCalls: number; lineageRows: number }>;
+@@ -66 +67 @@ async function retrieveFactualReadTicket(ticket: ReadTicket, scope: ReadScope, s
+-  const coverage: ReadCoverage = { status: "unavailable", reasons: [], matchSemantics: "ticket_text_predicates",
++  const coverage: ReadCoverage = { ...(ticket.authority ? { authority: ticket.authority } : {}), status: "unavailable", reasons: [], matchSemantics: "ticket_text_predicates",
+@@ -114 +115 @@ async function retrieveFactualReadTicket(ticket: ReadTicket, scope: ReadScope, s
+-    coverage.windows = temporal.windows.map(({ excludedTime: _excludedTime, ...window }) => window);
++    coverage.windows = temporal.windows.map(({ excludedTime, ...window }) => { void excludedTime; return window; });
+@@ -240 +241 @@ async function retrieveFactualReadTicket(ticket: ReadTicket, scope: ReadScope, s
+-    if (uncertainIds.size) return result("partial", undefined, records);
++    if (uncertainIds.size && ticket.authority !== "stored_report") return result("partial", undefined, records);
+diff --git a/app/lib/furvise-brain/ordered-result-set.ts b/app/lib/furvise-brain/ordered-result-set.ts
+index 9b0f8ab5..a468a560 100644
+--- a/app/lib/furvise-brain/ordered-result-set.ts
++++ b/app/lib/furvise-brain/ordered-result-set.ts
+@@ -9,0 +10 @@ export type OrderedResultSetProof = {
++  authority?: ReadTicket["authority"];
+@@ -29,0 +31 @@ export async function resolveResultSetHistory(ticket: ReadTicket, scope: ReadSco
++    let storedReportsCertified = false;
+@@ -36,0 +39 @@ export async function resolveResultSetHistory(ticket: ReadTicket, scope: ReadSco
++      storedReportsCertified = ticket.authority === "stored_report" && proof.storedReportsCertified === true;
+@@ -45 +48 @@ export async function resolveResultSetHistory(ticket: ReadTicket, scope: ReadSco
+-      if (proof.lineageClosed && proof.replacementSeedsExhausted) effective = proof.records;
++      if (ticket.authority === "stored_report" ? storedReportsCertified : proof.lineageClosed && proof.replacementSeedsExhausted) effective = proof.records;
+@@ -52 +55,2 @@ export async function resolveResultSetHistory(ticket: ReadTicket, scope: ReadSco
+-      certifiedSelectedIds: [], lineageClosed, replacementSeedsExhausted, graphCalls, lineageRows });
++      certifiedSelectedIds: [], lineageClosed, replacementSeedsExhausted, graphCalls, lineageRows,
++      ...(ticket.authority === "stored_report" ? { storedReportsCertified } : {}) });
+@@ -71 +75 @@ export function certifyOrderedResultSet(ticket: ReadTicket, coverage: ReadCovera
+-    const matchingSetComplete = exhausted && lineageClosed;
++    const matchingSetComplete = exhausted && (ticket.authority === "stored_report" ? stream?.storedReportsCertified === true : lineageClosed);
+@@ -82 +86 @@ export function certifyOrderedResultSet(ticket: ReadTicket, coverage: ReadCovera
+-  return { subjectIds: subjects.map(s => s.petId), predicates: ticket.predicates, temporal: ticket.temporal,
++  return { ...(ticket.authority ? { authority: ticket.authority } : {}), subjectIds: subjects.map(s => s.petId), predicates: ticket.predicates, temporal: ticket.temporal,
+diff --git a/app/lib/furvise-brain/read-ticket-provider-schema.ts b/app/lib/furvise-brain/read-ticket-provider-schema.ts
+index 8012d600..f9c1e038 100644
+--- a/app/lib/furvise-brain/read-ticket-provider-schema.ts
++++ b/app/lib/furvise-brain/read-ticket-provider-schema.ts
+@@ -7,0 +8 @@ const { needs: _boundNeeds, ...semanticProperties } = readTicketSchema.propertie
++void _legacyStrategy; void _boundNeeds;
+@@ -54,0 +56 @@ export function calculationReadTicketProviderSchema(countOnly: boolean) {
++    authority: { type: "string", enum: ["effective_fact"] },
+diff --git a/app/lib/furvise-brain/read-ticket.ts b/app/lib/furvise-brain/read-ticket.ts
+index 2631bc9d..478a4adf 100644
+--- a/app/lib/furvise-brain/read-ticket.ts
++++ b/app/lib/furvise-brain/read-ticket.ts
+@@ -12,0 +13,2 @@ export type EpisodeReadObligation = Readonly<{
++export type ReadAuthority = "effective_fact" | "stored_report";
++export const readAuthority = (value: { authority?: ReadAuthority }) => value.authority ?? "effective_fact";
+@@ -13,0 +16,2 @@ export type ReadTicket = Readonly<{
++  /** Requested proposition, not a certificate. Legacy omission requires effective facts. */
++  authority?: ReadAuthority;
+@@ -41 +45 @@ export const readTicketSchema = {
+-  required: ["operation", "subjectScope", "temporal", "predicates", "outputs", "searchHints", "episode", "needs", "selection"],
++  required: ["authority", "operation", "subjectScope", "temporal", "predicates", "outputs", "searchHints", "episode", "needs", "selection"],
+@@ -42,0 +47 @@ export const readTicketSchema = {
++    authority: { type: "string", enum: ["effective_fact", "stored_report"], description: "Requested proposition: stored_report only for exact stored wording, attributed reports or a timeline of statements; it never establishes current/corrected truth or supersession. effective_fact for current, settled, corrected, definitive latest values and every historical calculation. Do not downgrade an effective-fact request because history might conflict. Stored reports support ordinary read with concrete/null temporal bounds and optional selection; no anchor, calendar, episode, probes or legacy strategy." },
+@@ -115 +120 @@ export function bindReadTicket(value: unknown, petIds: readonly string[], needBi
+-  if (!optionalKeys(value, ["operation", "temporal", "predicates", "outputs"], ["subjectScope", "searchHints", "episode", "needs"])) return fail("readTicket", "fields");
++  if (!optionalKeys(value, ["operation", "temporal", "predicates", "outputs"], ["authority", "subjectScope", "searchHints", "episode", "needs"])) return fail("readTicket", "fields");
+@@ -116,0 +122 @@ export function bindReadTicket(value: unknown, petIds: readonly string[], needBi
++  if (value.authority !== undefined && !["effective_fact", "stored_report"].includes(String(value.authority))) return fail("authority", "enum");
+@@ -185 +191,3 @@ export function bindReadTicket(value: unknown, petIds: readonly string[], needBi
+-  return Object.freeze({ ...(value.subjectScope !== undefined ? { subjectScope: value.subjectScope } : {}), ...(needs !== undefined ? { needs } : {}), ...(episode !== undefined ? { episode: episode === null ? null : Object.freeze({ ...episode as EpisodeReadObligation,
++  if (value.authority === "stored_report" && (operation !== "read" || anchor || temporal.calendar || episode || needs?.length || outputs.strategy != null))
++    return fail("authority", "stored_report_requires_ordinary_read");
++  return Object.freeze({ ...(value.authority !== undefined ? { authority: value.authority } : {}), ...(value.subjectScope !== undefined ? { subjectScope: value.subjectScope } : {}), ...(needs !== undefined ? { needs } : {}), ...(episode !== undefined ? { episode: episode === null ? null : Object.freeze({ ...episode as EpisodeReadObligation,
+diff --git a/app/lib/furvise-brain/result-selection.ts b/app/lib/furvise-brain/result-selection.ts
+index 6b6c41b3..ff404f0e 100644
+--- a/app/lib/furvise-brain/result-selection.ts
++++ b/app/lib/furvise-brain/result-selection.ts
+@@ -9 +9 @@ export type ResultFrontier = {
+-  lineageClosed: boolean; replacementSeedsExhausted: boolean; failed: boolean; reasons: string[];
++  lineageClosed: boolean; replacementSeedsExhausted: boolean; storedReportsCertified?: boolean; failed: boolean; reasons: string[];
+@@ -11,0 +12 @@ export type ResultSelectionCertificate = {
++  authority?: ReadTicket["authority"];
+@@ -36,2 +37,3 @@ export function selectReadResult(ticket: ReadTicket, rows: readonly CareEntryRow
+-export function frontierCovers(frontier: ResultFrontier, cutoff: CareEntryRow | undefined, full: boolean) {
+-  if (!frontier.acquired || frontier.failed || !frontier.lineageClosed || !frontier.replacementSeedsExhausted) return false;
++export function frontierCovers(frontier: ResultFrontier, cutoff: CareEntryRow | undefined, full: boolean, authority?: ReadTicket["authority"]) {
++  const certified = authority === "stored_report" ? frontier.storedReportsCertified === true : frontier.lineageClosed && frontier.replacementSeedsExhausted;
++  if (!frontier.acquired || frontier.failed || !certified) return false;
+@@ -56 +58 @@ export function certifyReadResult(ticket: ReadTicket, rows: readonly CareEntryRo
+-      return { ...frontier, cutoffCovered: frontierCovers(frontier, cutoff, selectedIds.length === clause.count) };
++      return { ...frontier, cutoffCovered: frontierCovers(frontier, cutoff, selectedIds.length === clause.count, ticket.authority) };
+@@ -67 +69 @@ export function certifyReadResult(ticket: ReadTicket, rows: readonly CareEntryRo
+-    return { clauseId: clause.clauseId, subjectIds, direction: clause.direction, count: clause.count,
++    return { ...(ticket.authority ? { authority: ticket.authority } : {}), clauseId: clause.clauseId, subjectIds, direction: clause.direction, count: clause.count,
+diff --git a/app/lib/intelligence/ask-evidence.ts b/app/lib/intelligence/ask-evidence.ts
+index 95de670c..c17d30ac 100644
+--- a/app/lib/intelligence/ask-evidence.ts
++++ b/app/lib/intelligence/ask-evidence.ts
+@@ -91 +91 @@ export function careEvidenceId(id: string, history?: AskEvidenceContract["histor
+-  return claimId && history?.provenance.some(source => source.sourceId === `claim:${claimId}` && source.status === "effective_replacement") ? `claim:${claimId}` : `care:${id}`;
++  return claimId && history?.provenance.some(source => source.sourceId === `claim:${claimId}` && (source.status === "effective_replacement" || source.status === "attributed_report" && history.ticketCoverage?.authority === "stored_report")) ? `claim:${claimId}` : `care:${id}`;
+@@ -130,0 +131 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
++  void currentTurn;
+diff --git a/app/lib/intelligence/history-retrieval.ts b/app/lib/intelligence/history-retrieval.ts
+index 2c1e2259..69755bd4 100644
+--- a/app/lib/intelligence/history-retrieval.ts
++++ b/app/lib/intelligence/history-retrieval.ts
+@@ -717 +717 @@ function sameCandidateVersion(candidate: CareEntryRow, fresh: CareEntryRow | und
+-export type EffectiveClosureProof = { complete: boolean; maxCalls: number; calls: number; rows: number };
++export type EffectiveClosureProof = { storedReports?: boolean; complete: boolean; maxCalls: number; calls: number; rows: number };
+@@ -865 +865 @@ export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set
+-      if (effective) output.push({ ...original, care_event_metadata: sources.get(original.id)?.care_event_metadata });
++      if (effective || proof?.storedReports && !inactive) output.push({ ...original, care_event_metadata: sources.get(original.id)?.care_event_metadata });
+@@ -868 +868 @@ export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set
+-    if (proof && mapped.some(claim => graph.effectiveClaimIds.has(claim.id) && replacementAuthors.has(claim.id)
++    if (proof && mapped.some(claim => (proof.storedReports ? claim.knowledgeStatus === "effective" : graph.effectiveClaimIds.has(claim.id)) && replacementAuthors.has(claim.id)
+@@ -870 +870 @@ export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set
+-    for (const claim of mapped.filter(claim => graph.effectiveClaimIds.has(claim.id) && !linkedCandidates.has(claim.id) && replacementAuthors.has(claim.id))) {
++    for (const claim of mapped.filter(claim => (proof?.storedReports ? claim.knowledgeStatus === "effective" : graph.effectiveClaimIds.has(claim.id)) && !linkedCandidates.has(claim.id) && replacementAuthors.has(claim.id))) {
+@@ -875 +875 @@ export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set
+-      coverage.provenance.push({ sourceId: `claim:${claim.id}`, claimIds: [claim.id], status: !requestedPets.includes(claim.subjectId!) ? "reassigned_outside_requested_pet" : outsidePeriod ? "outside_requested_period" : "effective_replacement", subjectId: claim.subjectId });
++      coverage.provenance.push({ sourceId: `claim:${claim.id}`, claimIds: [claim.id], status: !requestedPets.includes(claim.subjectId!) ? "reassigned_outside_requested_pet" : outsidePeriod ? "outside_requested_period" : proof?.storedReports ? "attributed_report" : "effective_replacement", subjectId: claim.subjectId });
+@@ -930 +930 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
+-  const effectiveWindow = createEffectiveWindowResolver({ owned, petIds: ticket.subjects.petIds,
++  const effectiveWindow = createEffectiveWindowResolver({ authority: ticket.authority, owned, petIds: ticket.subjects.petIds,
+@@ -1036,0 +1037 @@ export function createEffectiveWindowResolver(options: {
++  authority?: import("../furvise-brain/read-ticket.ts").ReadAuthority;
+@@ -1051 +1052 @@ export function createEffectiveWindowResolver(options: {
+-    const proof: EffectiveClosureProof = { complete: false, calls: 0, rows: 0, maxCalls: Math.max(0, quota - (used.get(petId) || 0)) };
++    const proof: EffectiveClosureProof = { storedReports: options.authority === "stored_report", complete: false, calls: 0, rows: 0, maxCalls: Math.max(0, quota - (used.get(petId) || 0)) };
+@@ -1068 +1069,2 @@ export function createEffectiveWindowResolver(options: {
+-    return { records: closed ? records : [], lineageClosed: closed, replacementSeedsExhausted: closed,
++    return { ...(options.authority === "stored_report" ? { storedReportsCertified: closed } : {}),
++      records: closed ? records : [], lineageClosed: closed, replacementSeedsExhausted: closed,
+diff --git a/app/lib/intelligence/labs-list.ts b/app/lib/intelligence/labs-list.ts
+index 3d06641a..e0bf3ccd 100644
+--- a/app/lib/intelligence/labs-list.ts
++++ b/app/lib/intelligence/labs-list.ts
+@@ -6 +6 @@ import { selectionLimitation, exhaustiveSelectionLimitation } from "./labs-cover
+-import { labsPresentation, renderCertifiedLabs, type LabsPresentation } from "./labs-presentation.ts";
++import { escapeLabsText, labsPresentation, renderCertifiedLabs, type LabsPresentation } from "./labs-presentation.ts";
+@@ -15 +15 @@ export type LabsList = {
+-  records: Array<{ id: string; sourceId: string; petId: string; event_at: string; body: string; predicates_matched: readonly ReadPredicate[] }>;
++  records: Array<{ id: string; sourceId: string; petId: string; event_at: string; recorded_at?: string; body: string; predicates_matched: readonly ReadPredicate[] }>;
+@@ -33,0 +34 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
++  if (operandTransport && ticket?.authority === "stored_report") return null;
+@@ -53 +54,2 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
+-      || !Number.isFinite(Date.parse(row.occurred_at)))
++      || !Number.isFinite(Date.parse(row.occurred_at))
++      || ticket.authority === "stored_report" && !Number.isFinite(Date.parse(row.created_at)))
+@@ -80 +82 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
+-  const petNames = ticket.selection ? Object.fromEntries(ticket.subjects.petIds.map(id => [id, evidence.petNames?.[id] || "this pet"])) : undefined;
++  const petNames = ticket.selection || ticket.authority === "stored_report" ? Object.fromEntries(ticket.subjects.petIds.map(id => [id, evidence.petNames?.[id] || "this pet"])) : undefined;
+@@ -83,0 +86 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
++    ...(ticket.authority === "stored_report" ? { recorded_at: row.created_at } : {}),
+@@ -101,0 +105 @@ export function serializeLabsList(labs: LabsList): string {
++  if (labs.ticket.authority === "stored_report") return serializeStoredReports(labs);
+@@ -126,0 +131,25 @@ export function serializeLabsList(labs: LabsList): string {
++/** Exact quotations with attribution, never an effective-fact sentence. */
++function serializeStoredReports(labs: LabsList): string {
++  const selected = selectionPublication(labs.ticket, labs.coverage, labs.records);
++  const rows = labs.records.map(row => ({
++    subject: escapeLabsText(labs.petNames?.[row.petId] || row.petId), source: escapeLabsText(row.sourceId),
++    recorded: escapeLabsText(row.recorded_at!), event: escapeLabsText(row.event_at), wording: escapeLabsText(JSON.stringify(row.body)),
++  }));
++  const notice = [
++    "Stored reports only: these quotations do not establish current or corrected facts, or which report supersedes another.",
++    ...(labs.coverage.sourceLineage?.length ? ["Some reports have unresolved correction lineage; no supersession is certified."] : []),
++    ...(labs.coverage.reasons.includes("no_cross_query_snapshot") ? ["These records were checked across separate reads, not one database snapshot."] : []),
++    ...(!labsFactualComponentComplete(labs) ? ["The requested record selection is incomplete."] : []),
++    ...(!rows.length ? ["No report wording is certified for this selection."] : []),
++    ...(selected?.certificates.filter(c => !c.certified).map(c => "No report selection is certified for " + (labs.petNames?.[c.subjectId] || c.subjectId) + ".") || []),
++  ].join(" ");
++  if (labs.presentation === "table") return [
++    "| Subject | Source | Recorded at | Stored event time | Exact stored wording |",
++    "| --- | --- | --- | --- | --- |",
++    ...rows.map(r => "| " + [r.subject, r.source, r.recorded, r.event, r.wording].join(" | ") + " |"),
++    "", notice,
++  ].join("\n");
++  return [...rows.map(r => (labs.presentation === "list" ? "- " : "") + r.subject + " [" + r.source
++    + "] recorded at " + r.recorded + "; stored event time " + r.event + ": " + r.wording), notice].join("\n\n");
++}
++
+diff --git a/app/lib/intelligence/labs-presentation.ts b/app/lib/intelligence/labs-presentation.ts
+index 7df4d7f3..409284b6 100644
+--- a/app/lib/intelligence/labs-presentation.ts
++++ b/app/lib/intelligence/labs-presentation.ts
+@@ -13 +13 @@ export type LabsPresentationGroup = { subject: string; heading: string; rows: Ro
+-const inline = (value: string) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
++export const escapeLabsText = (value: string) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+@@ -18,2 +18,2 @@ export function renderCertifiedLabs(groups: LabsPresentationGroup[], presentatio
+-    const heading = inline(group.heading);
+-    if (!group.rows.length) return [heading, group.notice && inline(group.notice)].filter(Boolean).join("\n");
++    const heading = escapeLabsText(group.heading);
++    if (!group.rows.length) return [heading, group.notice && escapeLabsText(group.notice)].filter(Boolean).join("\n");
+@@ -21 +21 @@ export function renderCertifiedLabs(groups: LabsPresentationGroup[], presentatio
+-      ...group.rows.map(row => `| ${inline(group.subject)} | ${inline(JSON.stringify(row.body))} | ${inline(row.event_at.slice(0, 10))} |`)].join("\n");
++      ...group.rows.map(row => `| ${escapeLabsText(group.subject)} | ${escapeLabsText(JSON.stringify(row.body))} | ${escapeLabsText(row.event_at.slice(0, 10))} |`)].join("\n");
+@@ -23 +23 @@ export function renderCertifiedLabs(groups: LabsPresentationGroup[], presentatio
+-      const fact = `${inline(group.subject)}: ${inline(JSON.stringify(row.body))} — ${inline(row.event_at.slice(0, 10))}`;
++      const fact = `${escapeLabsText(group.subject)}: ${escapeLabsText(JSON.stringify(row.body))} — ${escapeLabsText(row.event_at.slice(0, 10))}`;
+@@ -27 +27 @@ export function renderCertifiedLabs(groups: LabsPresentationGroup[], presentatio
+-  return [...parts, ...limitations.map(inline)].filter(Boolean).join("\n\n");
++  return [...parts, ...limitations.map(escapeLabsText)].filter(Boolean).join("\n\n");
+diff --git a/app/lib/intelligence/publication-authority.ts b/app/lib/intelligence/publication-authority.ts
+index ee8545b1..a5d8afd9 100644
+--- a/app/lib/intelligence/publication-authority.ts
++++ b/app/lib/intelligence/publication-authority.ts
+@@ -13,0 +14 @@ export type PublicationObligationAuthority = {
++  sourceAuthority?: import("../furvise-brain/read-ticket.ts").ReadAuthority;
+@@ -113,0 +115 @@ function deriveOrdinaryHistoryAuthority(evidence: AskEvidenceContract, transport
++      ...(ticket!.authority ? { sourceAuthority: ticket!.authority } : {}),
+@@ -127,0 +130 @@ function deriveOrdinaryHistoryAuthority(evidence: AskEvidenceContract, transport
++      ...(ticket!.authority ? { sourceAuthority: ticket!.authority } : {}),
+@@ -264,0 +268,3 @@ export function publicationClaimFailures(evidence: AskEvidenceContract, claims:
++    // Stored wording is published only through the exact attributed Labs serializer.
++    // Source existence cannot license a free-form effective-fact paraphrase.
++    if (authority.ticket?.authority === "stored_report") { failures.push("publication_stored_report_requires_labs"); continue; }
+diff --git a/app/lib/intelligence/result-set-publication.ts b/app/lib/intelligence/result-set-publication.ts
+index 939c0f2b..90d45fa5 100644
+--- a/app/lib/intelligence/result-set-publication.ts
++++ b/app/lib/intelligence/result-set-publication.ts
+@@ -0,0 +1 @@
++import { readAuthority } from "../furvise-brain/read-ticket.ts";
+@@ -8,0 +10,2 @@ export function resultSetSnapshotMatches(ticket: ReadTicket, coverage: ReadCover
++  if (readAuthority(ticket) !== readAuthority(coverage)) return false;
++  const report = ticket.authority === "stored_report";
+@@ -10,0 +14 @@ export function resultSetSnapshotMatches(ticket: ReadTicket, coverage: ReadCover
++  if (readAuthority(ticket) !== readAuthority(proof)) return false;
+@@ -25,0 +30 @@ export function resultSetSnapshotMatches(ticket: ReadTicket, coverage: ReadCover
++    const stream = coverage.effectiveStream?.find(s => s.petId === subject.petId);
+@@ -28 +33 @@ export function resultSetSnapshotMatches(ticket: ReadTicket, coverage: ReadCover
+-      || subject.matchingSetComplete !== (subject.exhausted && subject.lineageClosed)
++      || subject.matchingSetComplete !== (subject.exhausted && (report ? stream?.storedReportsCertified === true : subject.lineageClosed))
+@@ -32 +37,2 @@ export function resultSetSnapshotMatches(ticket: ReadTicket, coverage: ReadCover
+-    const stream = coverage.effectiveStream?.find(s => s.petId === subject.petId);
++    if (report && (!stream || new Set(coverage.effectiveStream?.map(s => s.petId)).size !== coverage.effectiveStream?.length)) return false;
++    if (!report && stream?.storedReportsCertified !== undefined) return false;
+diff --git a/app/lib/intelligence/selection-publication.ts b/app/lib/intelligence/selection-publication.ts
+index 8ab10e6d..238c7ce3 100644
+--- a/app/lib/intelligence/selection-publication.ts
++++ b/app/lib/intelligence/selection-publication.ts
+@@ -0,0 +1 @@
++import { readAuthority } from "../furvise-brain/read-ticket.ts";
+@@ -11 +12,3 @@ export function selectionPublication(ticket: ReadTicket, coverage: ReadCoverage,
+-  let transportValid = true;
++  const report = ticket.authority === "stored_report";
++  const authorityMatches = readAuthority(ticket) === readAuthority(coverage);
++  let transportValid = authorityMatches;
+@@ -20 +23 @@ export function selectionPublication(ticket: ReadTicket, coverage: ReadCoverage,
+-    const shape = !!receipt && coverage.resultSelection?.length === ticket.selection!.union.length
++    const shape = authorityMatches && !!receipt && readAuthority(receipt) === readAuthority(ticket) && coverage.resultSelection?.length === ticket.selection!.union.length
+@@ -34,3 +37,4 @@ export function selectionPublication(ticket: ReadTicket, coverage: ReadCoverage,
+-        const closed = streams ? streams.length === 1 && streams[0].lineageClosed && streams[0].replacementSeedsExhausted
+-          : !!group?.exhausted;
+-        return closed && f.acquired && !f.failed && f.lineageClosed && f.replacementSeedsExhausted
++        const closed = report ? streams?.length === 1 && streams[0].storedReportsCertified === true
++          : streams ? streams.length === 1 && streams[0].lineageClosed && streams[0].replacementSeedsExhausted : !!group?.exhausted;
++        const frontierCertified = report ? f.storedReportsCertified === true : f.lineageClosed && f.replacementSeedsExhausted;
++        return closed && f.acquired && !f.failed && frontierCertified
+@@ -69 +73,2 @@ export function selectionPublication(ticket: ReadTicket, coverage: ReadCoverage,
+-      const organCertified = (!resultLevel || joint[clauseId]?.certified === true) && !!shape && !group?.blocked && lineageClosed
++      const sourceCertified = report ? stream?.storedReportsCertified === true : stream?.storedReportsCertified === undefined && lineageClosed;
++      const organCertified = authorityMatches && (!resultLevel || joint[clauseId]?.certified === true) && !!shape && !group?.blocked && sourceCertified
+@@ -73 +78 @@ export function selectionPublication(ticket: ReadTicket, coverage: ReadCoverage,
+-        && !coverage.sourceLineage?.some(s => selectedEventIds.includes(s.eventId));
++        && (report || !coverage.sourceLineage?.some(s => selectedEventIds.includes(s.eventId)));

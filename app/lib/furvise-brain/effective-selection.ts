@@ -12,6 +12,8 @@ export type EffectiveWindowInput = { petId: string; rows: CareEntryRow[]; from: 
  */
 export type EffectiveWindowResult = {
   records: CareEntryRow[]; lineageClosed: boolean; replacementSeedsExhausted: boolean;
+  /** Exact owned active source versions, independently of effective truth. */
+  storedReportsCertified?: boolean;
   sourceLineage: ReadSourceLineage[]; reasons: string[]; graphCalls: number; lineageRows: number;
 };
 const matching = (ticket: ReadTicket, row: CareEntryRow, from: number, to: number) =>
@@ -23,6 +25,9 @@ export async function retrieveEffectiveSelection(ticket: ReadTicket, scope: Read
   const from = scope.from, to = new Date(Math.min(Date.parse(scope.to), Date.parse(scope.asOf) + 1)).toISOString();
   const selectedFrom = Math.max(Date.parse(from), ticket.temporal.from ? Date.parse(ticket.temporal.from) : -Infinity);
   const selectedTo = Math.min(Date.parse(to), ticket.temporal.to ? Date.parse(ticket.temporal.to) : Infinity);
+  const report = ticket.authority === "stored_report";
+  const usable = (proof: EffectiveWindowResult) => report ? proof.storedReportsCertified === true
+    : proof.storedReportsCertified === undefined && proof.lineageClosed && proof.replacementSeedsExhausted && !proof.sourceLineage.length;
   const resultLevel = isResultSelection(ticket);
   const pets = [...ticket.subjects.petIds].sort();
   const empty = (): EffectiveWindowResult => ({ records: [], lineageClosed: false, replacementSeedsExhausted: false,
@@ -37,7 +42,7 @@ export async function retrieveEffectiveSelection(ticket: ReadTicket, scope: Read
     .find(group => group.petId === petId)!;
   const certified = (petId: string, direction: "asc" | "desc", count: number, ids: string[]) => {
     const subject = subjects.get(petId)!;
-    if (subject.failed || !subject.proof.lineageClosed || !subject.proof.replacementSeedsExhausted || subject.proof.sourceLineage.length) return false;
+    if (subject.failed || !usable(subject.proof)) return false;
     if (tasks.some(task => task.petId === petId && task.exhausted)) return true;
     const task = tasks.find(task => task.petId === petId && task.direction === direction)!;
     const last = subject.proof.records.find(row => row.id === ids.at(-1));
@@ -55,13 +60,14 @@ export async function retrieveEffectiveSelection(ticket: ReadTicket, scope: Read
     return { petId, direction, acquired: task.acquired, exhausted: tasks.some(t => t.petId === petId && t.exhausted),
       frontier: task.last ? { id: task.last.id, eventAt: task.last.occurred_at, createdAt: task.last.created_at } : null,
       lineageClosed: subject.proof.lineageClosed, replacementSeedsExhausted: subject.proof.replacementSeedsExhausted,
-      failed: subject.failed || !!subject.proof.sourceLineage.length,
+      ...(report ? { storedReportsCertified: subject.proof.storedReportsCertified === true } : {}),
+      failed: subject.failed || !usable(subject.proof),
       reasons: [...subject.proof.reasons, ...(subject.proof.sourceLineage.length ? ["unresolved_source_lineage"] : [])] };
   };
   const updateResultFrontiers = () => {
     const selections = selectReadResult(ticket, matchedRows());
     for (const task of tasks) task.done = selections.filter(c => c.direction === task.direction)
-      .every(c => frontierCovers(frontier(task.petId, task.direction), c.rows.at(-1), c.rows.length === c.count));
+      .every(c => frontierCovers(frontier(task.petId, task.direction), c.rows.at(-1), c.rows.length === c.count, ticket.authority));
   };
   let budget = limits.pages * limits.pageSize;
   while (budget > 0) {
@@ -97,8 +103,9 @@ export async function retrieveEffectiveSelection(ticket: ReadTicket, scope: Read
           || !Number.isFinite(Date.parse(row.occurred_at)) || !Number.isFinite(Date.parse(row.created_at))
           || Date.parse(row.occurred_at) < Date.parse(from) || Date.parse(row.occurred_at) >= Date.parse(to)))
           throw new Error("invalid_effective_scope");
-        subject.proof = !proof.lineageClosed || !proof.replacementSeedsExhausted ? { ...proof, records: [] } : proof;
-        if (!proof.lineageClosed || !proof.replacementSeedsExhausted || proof.sourceLineage.length) {
+        subject.proof = report ? usable(proof) ? proof : { ...proof, records: [] }
+          : !proof.lineageClosed || !proof.replacementSeedsExhausted ? { ...proof, records: [] } : proof;
+        if (!usable(proof)) {
           subject.failed = true; continue;
         }
         if (resultLevel) updateResultFrontiers();
@@ -113,7 +120,7 @@ export async function retrieveEffectiveSelection(ticket: ReadTicket, scope: Read
       }
     }
   }
-  const coverage: ReadCoverage = { status: "partial", reasons: [], matchSemantics: "ticket_text_predicates", asOf: scope.asOf,
+  const coverage: ReadCoverage = { ...(ticket.authority ? { authority: ticket.authority } : {}), status: "partial", reasons: [], matchSemantics: "ticket_text_predicates", asOf: scope.asOf,
     anchors: [], windows: [], continuation: [], groups: [], effectiveStream: [] };
   const matched: CareEntryRow[] = [], requested: CareEntryRow[] = [];
   for (const petId of pets) {
@@ -130,6 +137,7 @@ export async function retrieveEffectiveSelection(ticket: ReadTicket, scope: Read
     matched.push(...subject.proof.records.filter(row => matching(ticket, row, selectedFrom, selectedTo)));
     coverage.effectiveStream!.push({ petId, acquiredIds: [...subject.raw.keys()], effectiveIds: subject.proof.records.map(row => row.id),
       certifiedSelectedIds: [], lineageClosed: subject.proof.lineageClosed, replacementSeedsExhausted: subject.proof.replacementSeedsExhausted,
+      ...(report ? { storedReportsCertified: subject.proof.storedReportsCertified === true } : {}),
       graphCalls: subject.proof.graphCalls, lineageRows: subject.proof.lineageRows });
     if (subject.proof.sourceLineage.length) coverage.sourceLineage = [...(coverage.sourceLineage || []), ...subject.proof.sourceLineage];
   }

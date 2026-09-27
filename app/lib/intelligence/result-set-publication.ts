@@ -1,3 +1,4 @@
+import { readAuthority } from "../furvise-brain/read-ticket.ts";
 import type { ReadTicket } from "../furvise-brain/read-ticket.ts";
 import type { ReadCoverage } from "../furvise-brain/lungs.ts";
 
@@ -6,8 +7,11 @@ import type { ReadCoverage } from "../furvise-brain/lungs.ts";
  */
 export function resultSetSnapshotMatches(ticket: ReadTicket, coverage: ReadCoverage,
   records: readonly { id: string; petId: string }[]): boolean {
+  if (readAuthority(ticket) !== readAuthority(coverage)) return false;
+  const report = ticket.authority === "stored_report";
   const proof = coverage.resultSet;
   if (!proof) return true;
+  if (readAuthority(ticket) !== readAuthority(proof)) return false;
   const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
   const ids = records.map(r => r.id), subjects = [...ticket.subjects.petIds].sort();
   if (ticket.selection || ticket.outputs.strategy != null
@@ -23,13 +27,15 @@ export function resultSetSnapshotMatches(ticket: ReadTicket, coverage: ReadCover
     || ids.some(id => !proof.matchingIds.includes(id))) return false;
   if (!same(proof.subjects.flatMap(s => s.matchingIds).sort(), [...proof.matchingIds].sort())) return false;
   for (const subject of proof.subjects) {
+    const stream = coverage.effectiveStream?.find(s => s.petId === subject.petId);
     if (!same(subject.retainedIds, records.filter(r => r.petId === subject.petId).map(r => r.id))
       || !same(subject.omittedIds, subject.matchingIds.filter(id => !subject.retainedIds.includes(id)))
-      || subject.matchingSetComplete !== (subject.exhausted && subject.lineageClosed)
+      || subject.matchingSetComplete !== (subject.exhausted && (report ? stream?.storedReportsCertified === true : subject.lineageClosed))
       || subject.representationComplete !== (subject.omittedIds.length === 0)
       || subject.certified !== (subject.matchingSetComplete && subject.representationComplete)
       || subject.exhausted && coverage.continuation.some(c => c.petId === subject.petId)) return false;
-    const stream = coverage.effectiveStream?.find(s => s.petId === subject.petId);
+    if (report && (!stream || new Set(coverage.effectiveStream?.map(s => s.petId)).size !== coverage.effectiveStream?.length)) return false;
+    if (!report && stream?.storedReportsCertified !== undefined) return false;
     if (stream && (subject.lineageClosed !== (stream.lineageClosed && stream.replacementSeedsExhausted)
       || subject.matchingIds.some(id => !stream.effectiveIds.includes(id)))) return false;
   }

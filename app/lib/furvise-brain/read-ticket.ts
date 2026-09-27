@@ -10,7 +10,11 @@ export type EpisodeReadObligation = Readonly<{
     ordinal: "first" | "second" | "third" | "fourth" | "fifth" | "sixth" | "seventh" | "eighth" | "last" | "that" | null;
   }> | null;
 }>;
+export type ReadAuthority = "effective_fact" | "stored_report";
+export const readAuthority = (value: { authority?: ReadAuthority }) => value.authority ?? "effective_fact";
 export type ReadTicket = Readonly<{
+  /** Requested proposition, not a certificate. Legacy omission requires effective facts. */
+  authority?: ReadAuthority;
   operation: "read" | "read_since_event" | "compare" | "rank";
   subjectScope?: "selected" | "named" | "conversation" | "account";
   subjects: Readonly<{ petIds: readonly string[] }>;
@@ -38,8 +42,9 @@ const temporalInstantSchema = {
 
 export const readTicketSchema = {
   type: ["object", "null"], additionalProperties: false,
-  required: ["operation", "subjectScope", "temporal", "predicates", "outputs", "searchHints", "episode", "needs", "selection"],
+  required: ["authority", "operation", "subjectScope", "temporal", "predicates", "outputs", "searchHints", "episode", "needs", "selection"],
   properties: {
+    authority: { type: "string", enum: ["effective_fact", "stored_report"], description: "Requested proposition: stored_report only for exact stored wording, attributed reports or a timeline of statements; it never establishes current/corrected truth or supersession. effective_fact for current, settled, corrected, definitive latest values and every historical calculation. Do not downgrade an effective-fact request because history might conflict. Stored reports support ordinary read with concrete/null temporal bounds and optional selection; no anchor, calendar, episode, probes or legacy strategy." },
     subjectScope: { type: "string", enum: ["selected", "named", "conversation", "account"], description: "Requested subject selection. Selected for an unnamed standalone read; conversation for USER-established referents; named for explicit pets; account only for a requested cohort or identity lookup. Overrides legacy scope. The server binds owned IDs; this never grants writes." },
     needs: readNeedsSchema,
     selection: {
@@ -112,8 +117,9 @@ export function bindReadTicket(value: unknown, petIds: readonly string[], needBi
   // Diagnostic keys identify the first existing rejection; they confer no authority.
   const fail = (field: string, rule: string): never => { throw new Error("ASK_REQUEST_INVALID:read_ticket", { cause: { field, rule } }); };
   if (!object(value)) return fail("readTicket", "object");
-  if (!optionalKeys(value, ["operation", "temporal", "predicates", "outputs"], ["subjectScope", "searchHints", "episode", "needs"])) return fail("readTicket", "fields");
+  if (!optionalKeys(value, ["operation", "temporal", "predicates", "outputs"], ["authority", "subjectScope", "searchHints", "episode", "needs"])) return fail("readTicket", "fields");
   const { operation, temporal, predicates, outputs, searchHints, episode } = value;
+  if (value.authority !== undefined && !["effective_fact", "stored_report"].includes(String(value.authority))) return fail("authority", "enum");
   if (!["read", "read_since_event", "compare", "rank"].includes(String(operation))) return fail("operation", "enum");
   if (value.subjectScope !== undefined && !["selected", "named", "conversation", "account"].includes(String(value.subjectScope))) return fail("subjectScope", "enum");
   if (!petIds.length || new Set(petIds).size !== petIds.length) return fail("subjects.petIds", "nonempty_unique");
@@ -182,7 +188,9 @@ export function bindReadTicket(value: unknown, petIds: readonly string[], needBi
     if (outputs.strategy != null) return fail("outputs.strategy", "incompatible_with_needs");
     if (outputs.limit !== null) return fail("outputs.limit", "incompatible_with_needs");
   }
-  return Object.freeze({ ...(value.subjectScope !== undefined ? { subjectScope: value.subjectScope } : {}), ...(needs !== undefined ? { needs } : {}), ...(episode !== undefined ? { episode: episode === null ? null : Object.freeze({ ...episode as EpisodeReadObligation,
+  if (value.authority === "stored_report" && (operation !== "read" || anchor || temporal.calendar || episode || needs?.length || outputs.strategy != null))
+    return fail("authority", "stored_report_requires_ordinary_read");
+  return Object.freeze({ ...(value.authority !== undefined ? { authority: value.authority } : {}), ...(value.subjectScope !== undefined ? { subjectScope: value.subjectScope } : {}), ...(needs !== undefined ? { needs } : {}), ...(episode !== undefined ? { episode: episode === null ? null : Object.freeze({ ...episode as EpisodeReadObligation,
       referent: (episode as EpisodeReadObligation).referent && Object.freeze({ ...(episode as EpisodeReadObligation).referent }) }) } : {}),
     ...(searchHints !== undefined ? { searchHints: searchHints === null ? null : Object.freeze([...(searchHints as string[])]) } : {}), operation, subjects: Object.freeze({ petIds: Object.freeze([...petIds]) }),
     temporal: Object.freeze({ ...temporal, anchor: anchor && Object.freeze({ ...anchor }) }),

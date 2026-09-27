@@ -10,7 +10,7 @@ const {retrieveReadTicket}=await import('../app/lib/furvise-brain/lungs.ts');
 const pets=['Aster','Bramble','Echo'].map(name=>({id:name.toLowerCase(),name,user_id:'owner',species:'dog'}));
 const prior={id:'u0',role:'user',text:'Aster, Bramble and Echo are the pets I mean.'};
 const clause=(direction='desc',count=1)=>({orderBy:[{field:'event_at',direction}],take:{count,per:'group'}});
-const ticket=(union=[clause()],topic='weight')=>({subjectScope:'named',operation:'read',
+const ticket=(union=[clause()],topic='weight')=>({authority:'effective_fact',subjectScope:'named',operation:'read',
   temporal:{from:null,to:null,anchor:null,calendar:null},predicates:[{kind:'text_any',terms:topic==='weight'?['weight','weigh','weighed','weighing']:[topic]}],
   outputs:{completeness:'sufficient',ordering:'desc',limit:null},
   selection:{groupBy:['subject'],union},needs:[],episode:null,searchHints:null});
@@ -129,7 +129,7 @@ test('H distinct grounded probes retain multi-need retrieval with selection null
   const first='Aster food in 2025',second='Bramble medication in 2024',question=first+' and '+second;
   const probes=[first,second].map((quote,i)=>({quote,sourceTurnId:null,petNames:[i?'Bramble':'Aster'],
     from:null,to:null,target:null,termGroups:[[i?'medication':'food']],ordering:'desc'}));
-  const {needs:_needs,...base}=ticket();
+  const {needs:_needs,...base}=ticket(); void _needs;
   const read={...base,selection:null,predicates:[],probes,outputs:{...ticket().outputs,strategy:null}};
   const r=await mocked(question,read,{petNames:['Aster','Bramble'],evidenceNeeds:[]});
   assert.equal(r.request.readTicket.needs.length,2);
@@ -217,12 +217,12 @@ test('provider alternatives exclude retired strategies and keep selection exclus
 test('provider grammar requires finite chronological takes to use compositional selection',async()=>{
   const {default:Ajv}=await import('ajv');
   const validate=new Ajv({allErrors:true}).compile(askRequestSchema({}).properties.readTicket);
-  const {needs:_finiteNeeds,...providerBase}=ticket();
+  const {needs:_finiteNeeds,...providerBase}=ticket(); void _finiteNeeds;
   const finite={...providerBase,probes:[],selection:null,outputs:{strategy:'chronological',completeness:'exhaustive',ordering:'asc',limit:1}};
   assert.equal(validate(finite),false,JSON.stringify(validate.errors));
   const unbounded={...finite,outputs:{...finite.outputs,limit:null}};
   assert.equal(validate(unbounded),true,JSON.stringify(validate.errors));
-  const {needs:_composedNeeds,...composedBase}=ticket([clause('asc')]);
+  const {needs:_composedNeeds,...composedBase}=ticket([clause('asc')]); void _composedNeeds;
   const composed={...composedBase,probes:[],outputs:{completeness:'sufficient',ordering:'asc',limit:null}};
   assert.equal(validate(composed),true,JSON.stringify(validate.errors));
 });

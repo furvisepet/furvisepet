@@ -714,7 +714,7 @@ function sameCandidateVersion(candidate: CareEntryRow, fresh: CareEntryRow | und
     && (!("episode_id" in candidate) || candidate.episode_id === fresh.episode_id));
 }
 
-export type EffectiveClosureProof = { complete: boolean; maxCalls: number; calls: number; rows: number };
+export type EffectiveClosureProof = { storedReports?: boolean; complete: boolean; maxCalls: number; calls: number; rows: number };
 export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set<string>, requestedPets: string[], userId: string, db: SupabaseClient, coverage: HistoryCoverage, deadline: number, episodeClaims?: EpisodeClaimValidation, proof?: EffectiveClosureProof): Promise<CareEntryRow[]> {
   if (proof) { proof.complete = false; proof.calls = 0; proof.rows = 0; }
   const claims = new Map<string, DbClaim>(); const relations = new Map<string, DbRelation>(); const links = new Map<string, Lineage>(); const sources = new Map<string, CareEntryRow>();
@@ -862,17 +862,17 @@ export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set
       const effective = related.some(link => graph.effectiveClaimIds.has(link.claim_id));
       const inactive = related.some(link => claims.get(link.claim_id)?.knowledge_status !== "effective");
       coverage.provenance.push({ sourceId: `care:${original.id}`, claimIds: related.map(link => link.claim_id), status: effective ? "effective_linked" : inactive ? "tombstoned_or_inactive" : "superseded" });
-      if (effective) output.push({ ...original, care_event_metadata: sources.get(original.id)?.care_event_metadata });
+      if (effective || proof?.storedReports && !inactive) output.push({ ...original, care_event_metadata: sources.get(original.id)?.care_event_metadata });
     }
     const replacementAuthors = new Set(graphRelations.filter(edge => ["corrects", "supersedes"].includes(edge.relation_type)).map(edge => edge.from_claim_id));
-    if (proof && mapped.some(claim => graph.effectiveClaimIds.has(claim.id) && replacementAuthors.has(claim.id)
+    if (proof && mapped.some(claim => (proof.storedReports ? claim.knowledgeStatus === "effective" : graph.effectiveClaimIds.has(claim.id)) && replacementAuthors.has(claim.id)
       && (!claim.occurredAt || !Number.isFinite(Date.parse(claim.occurredAt))))) throw new Error("unknown_effective_event_date");
-    for (const claim of mapped.filter(claim => graph.effectiveClaimIds.has(claim.id) && !linkedCandidates.has(claim.id) && replacementAuthors.has(claim.id))) {
+    for (const claim of mapped.filter(claim => (proof?.storedReports ? claim.knowledgeStatus === "effective" : graph.effectiveClaimIds.has(claim.id)) && !linkedCandidates.has(claim.id) && replacementAuthors.has(claim.id))) {
       const eventTime = claim.occurredAt ? Date.parse(claim.occurredAt) : NaN;
       const outsidePeriod = Boolean((coverage.plan.from || coverage.plan.to) && (!Number.isFinite(eventTime)
         || coverage.plan.from && eventTime < Date.parse(coverage.plan.from)
         || coverage.plan.to && eventTime >= Date.parse(coverage.plan.to)));
-      coverage.provenance.push({ sourceId: `claim:${claim.id}`, claimIds: [claim.id], status: !requestedPets.includes(claim.subjectId!) ? "reassigned_outside_requested_pet" : outsidePeriod ? "outside_requested_period" : "effective_replacement", subjectId: claim.subjectId });
+      coverage.provenance.push({ sourceId: `claim:${claim.id}`, claimIds: [claim.id], status: !requestedPets.includes(claim.subjectId!) ? "reassigned_outside_requested_pet" : outsidePeriod ? "outside_requested_period" : proof?.storedReports ? "attributed_report" : "effective_replacement", subjectId: claim.subjectId });
       if (outsidePeriod) continue;
       if (!requestedPets.includes(claim.subjectId!) || claim.persistenceDestination !== "history") continue;
       const value = claim.structuredValue as { note?: unknown } | null;
@@ -927,7 +927,7 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
     continuation: [], reasons: ["no_cross_query_snapshot"], consistency: "read_committed_no_snapshot", perPet: [], provenance: [], claimSources: [], excludedIds: [] };
   let originals: CareEntryRow[] = [];
   const pagesByPet = new Map<string, number>();
-  const effectiveWindow = createEffectiveWindowResolver({ owned, petIds: ticket.subjects.petIds,
+  const effectiveWindow = createEffectiveWindowResolver({ authority: ticket.authority, owned, petIds: ticket.subjects.petIds,
     userId: context.owner.userId, db, coverage, deadline, onRows: rows => {
       const merged = new Map(originals.map(row => [row.id, row]));
       rows.forEach(row => merged.set(row.id, row)); originals = [...merged.values()];
@@ -1034,6 +1034,7 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
  * read deadline and row limits still bound the operation.
  */
 export function createEffectiveWindowResolver(options: {
+  authority?: import("../furvise-brain/read-ticket.ts").ReadAuthority;
   owned: Set<string>; petIds: readonly string[]; userId: string; db: SupabaseClient;
   coverage: HistoryCoverage; deadline: number; onRows?: (rows: CareEntryRow[]) => void;
 }): NonNullable<import("../furvise-brain/lungs.ts").ReadStore["effectiveWindow"]> {
@@ -1048,7 +1049,7 @@ export function createEffectiveWindowResolver(options: {
       queryCount: 0, retrieval: "unknown", corrections: "unknown", extraction: "unknown", grouping: "unknown",
       continuation: [], reasons: ["no_cross_query_snapshot"], consistency: "read_committed_no_snapshot",
       perPet: [], provenance: [], claimSources: [], excludedIds: [] };
-    const proof: EffectiveClosureProof = { complete: false, calls: 0, rows: 0, maxCalls: Math.max(0, quota - (used.get(petId) || 0)) };
+    const proof: EffectiveClosureProof = { storedReports: options.authority === "stored_report", complete: false, calls: 0, rows: 0, maxCalls: Math.max(0, quota - (used.get(petId) || 0)) };
     const records = await effectiveCandidates(rows, options.owned, [petId], options.userId, options.db, local,
       options.deadline, undefined, proof);
     used.set(petId, (used.get(petId) || 0) + proof.calls);
@@ -1065,7 +1066,8 @@ export function createEffectiveWindowResolver(options: {
     options.coverage.claimSources = [...latest.values()].flatMap(c => c.claimSources);
     options.coverage.excludedIds = [...latest.values()].flatMap(c => c.excludedIds);
     options.coverage.corrections = [...latest.values()].every(c => c.corrections === "complete") ? "complete" : "partial";
-    return { records: closed ? records : [], lineageClosed: closed, replacementSeedsExhausted: closed,
+    return { ...(options.authority === "stored_report" ? { storedReportsCertified: closed } : {}),
+      records: closed ? records : [], lineageClosed: closed, replacementSeedsExhausted: closed,
       sourceLineage, reasons: closed ? local.reasons : [...local.reasons, "effective_lineage_not_closed"],
       graphCalls: used.get(petId)!, lineageRows: proof.rows };
   };

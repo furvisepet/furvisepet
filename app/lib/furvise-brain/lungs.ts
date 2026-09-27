@@ -12,6 +12,7 @@ import type { ReadTicket } from "./read-ticket.ts";
 export type ReadSourceLineage = { eventId: string; status: "unlinked" | "uncertain"; authority: "attributed_report" };
 export type ReadCoverageStatus = "complete" | "complete_empty" | "partial" | "anchor_missing" | "unavailable";
 export type ReadCoverage = {
+  authority?: ReadTicket["authority"];
   status: ReadCoverageStatus;
   reasons: string[];
   /** Complete means exhausted accessible records under the ticket's predicates. */
@@ -28,7 +29,7 @@ export type ReadCoverage = {
     selectionStatus?: "complete" | "complete_empty" | "partial";
     selectedIds: string[]; retainedIds: string[]; exhausted: boolean; blocked: boolean; status: ReadCoverageStatus; reasons: string[] }>;
   effectiveStream?: Array<{ petId: string; acquiredIds: string[]; effectiveIds: string[]; certifiedSelectedIds: string[];
-    lineageClosed: boolean; replacementSeedsExhausted: boolean; graphCalls: number; lineageRows: number }>;
+    lineageClosed: boolean; replacementSeedsExhausted: boolean; storedReportsCertified?: boolean; graphCalls: number; lineageRows: number }>;
   resultSelection?: ResultSelectionCertificate[];
   resultSet?: OrderedResultSetProof;
   eventCandidateIds?: string[];
@@ -63,7 +64,7 @@ export async function retrieveReadTicket(ticket: ReadTicket, scope: ReadScope, s
 }
 
 async function retrieveFactualReadTicket(ticket: ReadTicket, scope: ReadScope, store: ReadStore): Promise<ReadResult> {
-  const coverage: ReadCoverage = { status: "unavailable", reasons: [], matchSemantics: "ticket_text_predicates",
+  const coverage: ReadCoverage = { ...(ticket.authority ? { authority: ticket.authority } : {}), status: "unavailable", reasons: [], matchSemantics: "ticket_text_predicates",
     asOf: scope.asOf, anchors: [], windows: [], continuation: [] };
   const result = (status: ReadCoverageStatus, reason?: string, records: CareEntryRow[] = []): ReadResult => {
     coverage.status = status;
@@ -111,7 +112,7 @@ async function retrieveFactualReadTicket(ticket: ReadTicket, scope: ReadScope, s
       coverage.continuation, uncertainIds, matchesAnchor);
     if (!temporal.ok) return result(temporal.status, temporal.reason);
     coverage.anchors = temporal.anchors;
-    coverage.windows = temporal.windows.map(({ excludedTime: _excludedTime, ...window }) => window);
+    coverage.windows = temporal.windows.map(({ excludedTime, ...window }) => { void excludedTime; return window; });
     // Every selector consumes the same resolved effective interval. In particular,
     // take(N) never runs globally and then loses rows to an anchor filter.
     const selected = temporal.windows.flatMap(window => rows.filter(row => withinReadWindow(row, window)
@@ -237,7 +238,7 @@ async function retrieveFactualReadTicket(ticket: ReadTicket, scope: ReadScope, s
       return result("partial", "read_budget_or_limit", records);
     if (coverage.continuation.length || records.length !== requested.length || limited)
       return result("partial", "read_budget_or_limit", records);
-    if (uncertainIds.size) return result("partial", undefined, records);
+    if (uncertainIds.size && ticket.authority !== "stored_report") return result("partial", undefined, records);
     return result(records.length ? "complete" : "complete_empty", undefined, records);
   } catch {
     return result("unavailable", "read_failed");

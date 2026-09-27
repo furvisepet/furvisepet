@@ -3,7 +3,7 @@ import { certifiedResultSetMatches, resultSetSnapshotMatches } from "./result-se
 import { selectionPublication } from "./selection-publication.ts";
 import { logLabsEligibility } from "./publication-authority-diagnostics.ts";
 import { selectionLimitation, exhaustiveSelectionLimitation } from "./labs-coverage-presentation.ts";
-import { labsPresentation, renderCertifiedLabs, type LabsPresentation } from "./labs-presentation.ts";
+import { escapeLabsText, labsPresentation, renderCertifiedLabs, type LabsPresentation } from "./labs-presentation.ts";
 import type { AskReasoningResult } from "../ai/ask-reasoning.ts";
 import type { CareEntryRow } from "../supabase.ts";
 import type { ReadTicket, ReadPredicate } from "../furvise-brain/read-ticket.ts";
@@ -12,7 +12,7 @@ import { careEvidenceId, type AskEvidenceContract } from "./ask-evidence.ts";
 
 export type LabsList = {
   ticket: ReadTicket;
-  records: Array<{ id: string; sourceId: string; petId: string; event_at: string; body: string; predicates_matched: readonly ReadPredicate[] }>;
+  records: Array<{ id: string; sourceId: string; petId: string; event_at: string; recorded_at?: string; body: string; predicates_matched: readonly ReadPredicate[] }>;
   coverage: ReadCoverage;
   calculations: [];
   /** Completion metadata only; never consulted for factual source authority. */
@@ -31,6 +31,7 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
   const request = evidence?.interpretation?.request, ticket = request?.readTicket;
   const coverage = evidence?.history?.ticketCoverage;
   const operandTransport = calculationOperands && !!request?.calculatePlan;
+  if (operandTransport && ticket?.authority === "stored_report") return null;
   if (request?.calculatePlan && !operandTransport) return null;
   const presentation = operandTransport ? "prose" : labsPresentation(request?.outputFormat);
   // Result-set serialization currently supports prose only.
@@ -50,7 +51,8 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
     || !["recall", undefined].includes(evidence.interpretation?.readOperation ?? evidence.interpretation?.operation))) return null;
   if (ticket.subjects.petIds.some(id => !evidence.scope.authorizedPetIds.includes(id))
     || rows.some(row => !ticket.subjects.petIds.includes(row.pet_profile_id) || row.deleted_at
-      || !Number.isFinite(Date.parse(row.occurred_at)))
+      || !Number.isFinite(Date.parse(row.occurred_at))
+      || ticket.authority === "stored_report" && !Number.isFinite(Date.parse(row.created_at)))
     || new Set(rows.map(row => row.id)).size !== rows.length) throw new Error("ASK_LABS_LIST_SOURCE_SCOPE");
   if (coverage.status === "complete" && !rows.length
     || ["complete_empty", "anchor_missing", "unavailable"].includes(coverage.status) && rows.length)
@@ -77,10 +79,11 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
         && streams[0].effectiveIds.length === 0;
     })) return null;
   const publishable = selection ? rows.filter(row => selection.selectedEventIds.includes(row.id)) : rows;
-  const petNames = ticket.selection ? Object.fromEntries(ticket.subjects.petIds.map(id => [id, evidence.petNames?.[id] || "this pet"])) : undefined;
+  const petNames = ticket.selection || ticket.authority === "stored_report" ? Object.fromEntries(ticket.subjects.petIds.map(id => [id, evidence.petNames?.[id] || "this pet"])) : undefined;
   const labs: LabsList = structuredClone({ ticket, coverage, calculations: [],
     ...(request.requirements?.length ? { residualRequirementCount: request.requirements.length } : {}), ...(petNames ? { petNames, presentation } : {}), records: publishable.map(row => ({
     id: row.id, sourceId: careEvidenceId(row.id, evidence.history), petId: row.pet_profile_id, event_at: row.occurred_at,
+    ...(ticket.authority === "stored_report" ? { recorded_at: row.created_at } : {}),
     body: row.note ?? row.title ?? "", predicates_matched: ticket.predicates,
   })) });
   snapshots.set(labs, JSON.stringify(labs));
@@ -99,6 +102,7 @@ export function labsFactualComponentComplete(labs: LabsList): boolean {
 }
 
 export function serializeLabsList(labs: LabsList): string {
+  if (labs.ticket.authority === "stored_report") return serializeStoredReports(labs);
   const selected = selectionPublication(labs.ticket, labs.coverage, labs.records);
   if (selected) {
     const groups = selected.certificates.map(certificate => {
@@ -122,6 +126,31 @@ export function serializeLabsList(labs: LabsList): string {
     unavailable: "I couldn’t retrieve this history window.",
   }[labs.coverage.status];
   return [list, notice].filter(Boolean).join("\n\n");
+}
+
+/** Exact quotations with attribution, never an effective-fact sentence. */
+function serializeStoredReports(labs: LabsList): string {
+  const selected = selectionPublication(labs.ticket, labs.coverage, labs.records);
+  const rows = labs.records.map(row => ({
+    subject: escapeLabsText(labs.petNames?.[row.petId] || row.petId), source: escapeLabsText(row.sourceId),
+    recorded: escapeLabsText(row.recorded_at!), event: escapeLabsText(row.event_at), wording: escapeLabsText(JSON.stringify(row.body)),
+  }));
+  const notice = [
+    "Stored reports only: these quotations do not establish current or corrected facts, or which report supersedes another.",
+    ...(labs.coverage.sourceLineage?.length ? ["Some reports have unresolved correction lineage; no supersession is certified."] : []),
+    ...(labs.coverage.reasons.includes("no_cross_query_snapshot") ? ["These records were checked across separate reads, not one database snapshot."] : []),
+    ...(!labsFactualComponentComplete(labs) ? ["The requested record selection is incomplete."] : []),
+    ...(!rows.length ? ["No report wording is certified for this selection."] : []),
+    ...(selected?.certificates.filter(c => !c.certified).map(c => "No report selection is certified for " + (labs.petNames?.[c.subjectId] || c.subjectId) + ".") || []),
+  ].join(" ");
+  if (labs.presentation === "table") return [
+    "| Subject | Source | Recorded at | Stored event time | Exact stored wording |",
+    "| --- | --- | --- | --- | --- |",
+    ...rows.map(r => "| " + [r.subject, r.source, r.recorded, r.event, r.wording].join(" | ") + " |"),
+    "", notice,
+  ].join("\n");
+  return [...rows.map(r => (labs.presentation === "list" ? "- " : "") + r.subject + " [" + r.source
+    + "] recorded at " + r.recorded + "; stored event time " + r.event + ": " + r.wording), notice].join("\n\n");
 }
 
 /** Compare the entire transport against the original returned labs, not just

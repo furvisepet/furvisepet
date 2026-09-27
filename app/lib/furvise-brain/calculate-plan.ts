@@ -92,7 +92,7 @@ function validBoundPremiseSpan(value:unknown):value is UserSourceSpan {
 function bind(value:unknown,ticket:ReadTicket|null,resolve:(v:unknown)=>string,bound:boolean,source?:CalculationSource|readonly CalculationSource[]):CalculatePlan {
  if(!obj(value)||!keys(value,Object.hasOwn(value,"resultSelection")?["operation","calculations","resultSelection"]:["operation","calculations"])||value.operation!=="calculate"
   ||!Array.isArray(value.calculations)||!value.calculations.length||value.calculations.length>20) return fail("plan");
- const validTicket=!!ticket&&["read","read_since_event"].includes(ticket.operation)&&!ticket.episode&&!ticket.needs?.length
+ const validTicket=!!ticket&&ticket.authority!=="stored_report"&&["read","read_since_event"].includes(ticket.operation)&&!ticket.episode&&!ticket.needs?.length
   &&ticket.outputs.strategy==null&&!ticket.temporal.calendar;
  const sources=calculationSources(source);
  let rootDomain:"read"|"premise"|null=null;

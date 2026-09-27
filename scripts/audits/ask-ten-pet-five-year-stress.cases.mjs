@@ -20,7 +20,7 @@ test('1 five-year Aster endpoint comparison retains 2022 and 2026 weights',async
 
 test('2 late Birch correction stays visible and old food is not silently treated as settled truth',async t=>{
   const r=await run(t,{q:'What do Birch records say about the March 2022 food switch, including any later correction?',pet:'Birch',
-    p:proposal({petNames:['Birch'],selection:'summary',terms:['food','switch','correct'],from:'2022-03-01',to:'2026-09-01'}),
+    p:proposal({authority:'stored_report',petNames:['Birch'],selection:'summary',terms:['food','switch','correct'],from:'2022-03-01',to:'2026-09-01'}),
     answer:'Birch has an older March 2022 note naming beef and oat, plus a later correction saying turkey and oat, not beef and oat. The correction is preserved explicitly.',sources:['birch-food-old','birch-food-corrected']});
   assert.ok(hasEvidence(r,'birch-food-old'));assert.ok(hasEvidence(r,'birch-food-corrected'));
   assert.match(r.result.reasoning.answer.summary,/turkey/i);
@@ -87,7 +87,7 @@ test('9 four-pet latest-weight cohort does not leak selected-pet context',async 
 test('10 maximum 10-pet cohort preserves at least one owned history row per pet under dense noise',async t=>{
   const answer='Aster, Birch, Cedar, Dune, Echo, Fennel, Grove, Hazel, Indigo, and Juniper each have an owned historical record represented.';
   const r=await run(t,{q:'From 2022 through 2026, give one saved-history fact for each of my ten pets: Aster, Birch, Cedar, Dune, Echo, Fennel, Grove, Hazel, Indigo, and Juniper.',
-    p:proposal({scope:'account',petNames:[],selection:'latest',terms:[],from:'2022-01-01',to:'2026-09-01'}),
+    p:proposal({authority:'stored_report',scope:'account',petNames:[],selection:'latest',terms:[],from:'2022-01-01',to:'2026-09-01'}),
     answer,sources:['aster-weight-2022','birch-food-old','cedar-med','dune-itch-2022','echo-owner-note','fennel-weight','grove-weight','hazel-weight','indigo-act-2022','juniper-good'],expectReview:2});
   const representedPets=new Set(certifiedRows(r).map(x=>x.petId));
   assert.equal(representedPets.size,10);

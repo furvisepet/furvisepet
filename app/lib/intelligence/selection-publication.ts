@@ -1,3 +1,4 @@
+import { readAuthority } from "../furvise-brain/read-ticket.ts";
 import { isResultSelection } from "../furvise-brain/result-selection.ts";
 import type { ReadTicket } from "../furvise-brain/read-ticket.ts";
 import type { ReadCoverage } from "../furvise-brain/lungs.ts";
@@ -8,7 +9,9 @@ import type { ReadCoverage } from "../furvise-brain/lungs.ts";
 export function selectionPublication(ticket: ReadTicket, coverage: ReadCoverage,
   records: readonly { id: string; petId: string }[]) {
   if (!ticket.selection) return null;
-  let transportValid = true;
+  const report = ticket.authority === "stored_report";
+  const authorityMatches = readAuthority(ticket) === readAuthority(coverage);
+  let transportValid = authorityMatches;
   const resultLevel = isResultSelection(ticket);
   // A subject projection may carry facts only after the entire result receipt
   // proves every competing subject and every required represented selected row.
@@ -17,7 +20,7 @@ export function selectionPublication(ticket: ReadTicket, coverage: ReadCoverage,
     const receipt = coverage.resultSelection?.[clauseId];
     const subjects = [...ticket.subjects.petIds].sort();
     const same = (a: readonly string[], b: readonly string[]) => JSON.stringify(a) === JSON.stringify(b);
-    const shape = !!receipt && coverage.resultSelection?.length === ticket.selection!.union.length
+    const shape = authorityMatches && !!receipt && readAuthority(receipt) === readAuthority(ticket) && coverage.resultSelection?.length === ticket.selection!.union.length
       && receipt.clauseId === clauseId && receipt.direction === clause.orderBy[0].direction
       && receipt.count === clause.take.count && same(receipt.subjectIds, subjects)
       && receipt.selectedIds.length <= clause.take.count && new Set(receipt.selectedIds).size === receipt.selectedIds.length
@@ -31,9 +34,10 @@ export function selectionPublication(ticket: ReadTicket, coverage: ReadCoverage,
       && receipt.frontiers.every(f => {
         const streams = coverage.effectiveStream?.filter(s => s.petId === f.petId);
         const group = coverage.groups?.find(g => g.petId === f.petId);
-        const closed = streams ? streams.length === 1 && streams[0].lineageClosed && streams[0].replacementSeedsExhausted
-          : !!group?.exhausted;
-        return closed && f.acquired && !f.failed && f.lineageClosed && f.replacementSeedsExhausted
+        const closed = report ? streams?.length === 1 && streams[0].storedReportsCertified === true
+          : streams ? streams.length === 1 && streams[0].lineageClosed && streams[0].replacementSeedsExhausted : !!group?.exhausted;
+        const frontierCertified = report ? f.storedReportsCertified === true : f.lineageClosed && f.replacementSeedsExhausted;
+        return closed && f.acquired && !f.failed && frontierCertified
           && f.cutoffCovered && f.direction === receipt.direction
           && (f.exhausted || receipt.selectedIds.length === receipt.count && !!receipt.cutoff && !!f.frontier
             && (f.direction === "desc" ? Date.parse(receipt.cutoff.eventAt) > Date.parse(f.frontier.eventAt)
@@ -66,11 +70,12 @@ export function selectionPublication(ticket: ReadTicket, coverage: ReadCoverage,
         && receipt?.direction === clause.orderBy[0].direction && receipt?.count === clause.take.count
         && selectedEventIds.length <= clause.take.count
         && new Set(selectedEventIds).size === selectedEventIds.length;
-      const organCertified = (!resultLevel || joint[clauseId]?.certified === true) && !!shape && !group?.blocked && lineageClosed
+      const sourceCertified = report ? stream?.storedReportsCertified === true : stream?.storedReportsCertified === undefined && lineageClosed;
+      const organCertified = authorityMatches && (!resultLevel || joint[clauseId]?.certified === true) && !!shape && !group?.blocked && sourceCertified
         && !["anchor_missing", "unavailable"].includes(coverage.status)
         && (stream ? receipt?.certified === true && ["complete", "complete_empty"].includes(group?.selectionStatus || "")
           : !!group?.exhausted && receipt?.certified !== false)
-        && !coverage.sourceLineage?.some(s => selectedEventIds.includes(s.eventId));
+        && (report || !coverage.sourceLineage?.some(s => selectedEventIds.includes(s.eventId)));
       const represented = selectedEventIds.every(id => group?.selectedIds.includes(id)
         && group.retainedIds.includes(id) && coverage.selection?.retainedIds.includes(id)
         && (!stream || stream.effectiveIds.includes(id) && stream.certifiedSelectedIds.includes(id))
