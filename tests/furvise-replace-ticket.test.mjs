@@ -38,6 +38,7 @@ test('Brain emits one source-bound replace job without a history narrative phase
   let calls = 0;
   const result = await interpretAskQuestion({ context, model: 'gpt-5.4-mini', client: { responses: { create: async request => {
     calls++;
+    assert.deepEqual(request.reasoning, { effort: 'none' });
     const requestSchema=request.text.format.schema.properties.request.anyOf.find(branch=>branch.properties?.evidenceBasis?.enum?.includes(null));
     assert.ok(requestSchema.properties.writeJob);
     return { status: 'completed', output_text: JSON.stringify(proposal), usage: { input_tokens: 10, output_tokens: 10 } };
