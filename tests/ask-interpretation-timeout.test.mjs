@@ -2,16 +2,22 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {engineFixture as fixture, proposal} from './helpers/ask-route-ordering.mjs';
 const {ASK_INTERPRETATION_LIMITS} = await import('../app/lib/intelligence/interpret-ask.ts');
+const {ASK_MAX_OUTPUT_TOKENS} = await import('../app/lib/ai/ask-provider.ts');
 const {FURVISE_ANSWER_UNAVAILABLE_MESSAGE} = await import('../app/lib/furvise-output.ts');
+
+test('interpretation shares the canonical Ask output budget', () => {
+  assert.equal(ASK_INTERPRETATION_LIMITS.outputTokens, ASK_MAX_OUTPUT_TOKENS);
+});
 
 test('interpretation deadline fails closed through POST: one planner, no retrieve/write, released credit', async t => {
   const warn = t.mock.method(console, 'warn', () => {});
   t.mock.method(console, 'info', () => {});
   t.mock.timers.enable({apis:['setTimeout','Date'],now:Date.parse('2026-09-20T12:00:00Z')});
-  let signal, finish, started;
+  let signal, finish, started, providerRequest;
   const began = new Promise(resolve => { started = resolve; });
   const f = fixture({creditLedger:true,realProviderLog:true,
-    providerCreate:(_request,options) => {
+    providerCreate:(request,options) => {
+      providerRequest = request;
       signal = options.signal;
       started();
       return new Promise(resolve => { finish = resolve; });
@@ -19,6 +25,7 @@ test('interpretation deadline fails closed through POST: one planner, no retriev
   });
   const pending = f.send();
   await began;
+  assert.equal(providerRequest.max_output_tokens, ASK_MAX_OUTPUT_TOKENS);
   assert.equal(ASK_INTERPRETATION_LIMITS.timeoutMs,25000);
   assert.equal(f.state.planner,1);
   assert.equal(f.state.credit.status,'reserved');
