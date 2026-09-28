@@ -2,6 +2,7 @@ import { brainProposalDiagnostic } from "../furvise-brain/replace-job.ts";
 import "server-only";
 import { calendarDateInZone } from "../ask-time-zone.ts";
 import OpenAI from "openai";
+import { factorProviderEnumSchemas } from "../ai/provider-enum-schema.ts";
 import { withProviderDeadline } from "../ai/execution-deadline.ts";
 import { ASK_MAX_OUTPUT_TOKENS, interpretStructuredProviderResponse } from "../ai/ask-provider.ts";
 import { AskPipelineError, type AskProviderEvent } from "../ai/ask-reasoning.ts";
@@ -175,7 +176,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
   };
   const request = { model, max_output_tokens: ASK_INTERPRETATION_LIMITS.outputTokens,
     ...(/^gpt-5\.4(?:-|$)/i.test(model) ? { reasoning: { effort: "none" } } : /^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}),
-    instructions: ASK_REQUEST_INSTRUCTIONS, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: askRequestProviderSchema(proposedSemanticFrameJsonSchema, context) } } };
+    instructions: ASK_REQUEST_INSTRUCTIONS, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: factorProviderEnumSchemas(askRequestProviderSchema(proposedSemanticFrameJsonSchema, context)) } } };
   const started = Date.now();
   let attempted = false;
   let ticketArrived = false;

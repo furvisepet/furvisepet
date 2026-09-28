@@ -39,7 +39,10 @@ test('Brain emits one source-bound replace job without a history narrative phase
   const result = await interpretAskQuestion({ context, model: 'gpt-5.4-mini', client: { responses: { create: async request => {
     calls++;
     assert.deepEqual(request.reasoning, { effort: 'none' });
-    const requestSchema=request.text.format.schema.properties.request.anyOf.find(branch=>branch.properties?.evidenceBasis?.enum?.includes(null));
+    const wire = request.text.format.schema;
+    assert.ok(Object.keys(wire.$defs).length > 0);
+    const resolve = node => node?.$ref ? wire.$defs[node.$ref.split('/').at(-1)] : node;
+    const requestSchema=wire.properties.request.anyOf.find(branch=>resolve(branch.properties?.evidenceBasis)?.enum?.includes(null));
     assert.ok(requestSchema.properties.writeJob);
     return { status: 'completed', output_text: JSON.stringify(proposal), usage: { input_tokens: 10, output_tokens: 10 } };
   } } } });
