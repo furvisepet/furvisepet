@@ -4,7 +4,7 @@ import { readProbesSchema } from "../intelligence/read-probes.ts";
 // Provider alternatives describe the same ReadTicket, not a second planner.
 // The binder independently validates all callers; no conflicting field is stripped.
 const { strategy: _legacyStrategy, ...publication } = readTicketSchema.properties.outputs.properties;
-const { needs: _boundNeeds, ...semanticProperties } = readTicketSchema.properties;
+const { needs: _boundNeeds, attributedContexts, ...semanticProperties } = readTicketSchema.properties;
 void _legacyStrategy; void _boundNeeds;
 const providerTicket = { ...readTicketSchema, type: "object",
   required: [...readTicketSchema.required.filter(field => field !== "needs"), "probes"],
@@ -48,6 +48,19 @@ export const readTicketProviderSchema = {
       } },
   ],
 };
+
+// Separate opt-in wire branches retain existing ordinary and selection shapes.
+// No compatibility branch can carry an unvalidated context field.
+for (const index of [1, 3]) {
+  const base = readTicketProviderSchema.anyOf[index];
+  if (!("required" in base) || !("properties" in base) || !Array.isArray(base.required))
+    throw new Error("ASK_PROVIDER_SCHEMA_INVALID:attributed_context_base");
+  readTicketProviderSchema.anyOf.push({
+    ...base, required: [...base.required, "attributedContexts"],
+    properties: { ...base.properties, authority: { ...base.properties.authority, type: "string", enum: ["stored_report"] },
+      attributedContexts: { ...attributedContexts, type: "array", minItems: 1 } },
+  } as unknown as typeof base);
+}
 
 /** Calculation read domains mirror Calculate Binder; no selection is synthesized. */
 export function calculationReadTicketProviderSchema(countOnly: boolean) {

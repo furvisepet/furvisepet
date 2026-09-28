@@ -9,7 +9,7 @@ import { resolveReplaceJob } from "../../lib/furvise-brain/replace-job.ts";
 import { careHistoryCorrectionOrchestration } from "../../lib/ai/ask-command-router.ts";
 import { isDeepStrictEqual } from "node:util";
 import { exceedsSelectedPetRead } from "../../lib/intelligence/selected-pet-read.ts";
-import { assessTaskExecution } from "../../lib/intelligence/task-execution-contract.ts";
+import { assessTaskExecution, typedTaskRequirements } from "../../lib/intelligence/task-execution-contract.ts";
 import { resolveAskTimeZone } from "../../lib/ask-time-zone.ts";
 import { eligibleAnswerSources } from "../../lib/intelligence/ask-evidence.ts";
 import { recoverTransientRead } from "../../lib/security/read-recovery.ts";
@@ -531,6 +531,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         reply.clarificationQuestion = "";
         return reply;
       }
+      liveContext = { ...liveContext, askInterpretation: interpretation };
       const publicV1Capability = publicV1AskCapability(interpretation.request);
       if (!publicV1Capability.available && publicV1Capability.reason === "mutation") {
         if (creditReserved) {
@@ -561,7 +562,6 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
       // Legacy save tasks are not an executable Ask authority path. They must
       // be proposed as source-bound append capabilities by the single planner.
       if (interpretation.request?.task) return buildSubjectClarificationOrchestration(question);
-      liveContext = { ...liveContext, askInterpretation: interpretation };
       // Safety may veto execution, but never choose a lifecycle operation or subject.
       if (!isOrdinarySavedHistoryRequest(interpretation.request) && !interpretation.request?.writeJob
         && !interpretation.clarification && !interpretation.conversationOnly) {
@@ -992,6 +992,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         && classifyCurrentPetLoss(question) !== "confirmed_current"
         && !isExplicitCareHistorySaveRequest(question),
       intelligenceResult,
+      typedRequirements: typedTaskRequirements(liveContext.askInterpretation?.request),
 
       payloadHash: aiCreditPayloadHash,
       operationPayloadHash: idempotency.operation.payloadHash,
@@ -1257,6 +1258,7 @@ async function persistAssistantAnswer({
   handledWithoutAi,
   historyReviewRequired = false,
   intelligenceResult = null,
+  typedRequirements = typedTaskRequirements(null),
 
   payloadHash,
   preconfirmedCarePersistence = null,
@@ -1286,6 +1288,7 @@ async function persistAssistantAnswer({
   deferHighImpactLifecyclePersistence?: boolean;
   historyReviewRequired?: boolean;
   intelligenceResult?: FurviseIntelligenceResult | null;
+  typedRequirements?: ReturnType<typeof typedTaskRequirements>;
   operationPayloadHash: string;
   operationOwnerToken: string;
 
@@ -1532,15 +1535,15 @@ async function persistAssistantAnswer({
       const reviewedCompletion = intelligenceResult?.answerValidation.completion || [];
       const reviewedCareWrite = reviewedCompletion.some(item => item.status === "action_ready"
         && (item.actionIndexes || []).some(index => index >= actions.applicationActions.length));
-      const explicitHistoryWrite = (reviewedCareWrite || isExplicitCareHistorySaveRequest(sourceMessage))
-        && reviewedCompletion.find(item => item.index === 0)?.status !== "refused";
+      const explicitHistoryWrite = typedRequirements.careWriteRequired || reviewedCareWrite;
       const taskExecution = assessTaskExecution({
         assessment: intelligenceResult?.answerValidation.assessment || null,
         completion: reviewedCompletion,
         responseMode: intelligenceResult?.reasoning.responseMode || null,
         actions: actions.applicationActions,
+        mutationRequested: typedRequirements.mutationRequested,
         careWriteRequired: explicitHistoryWrite,
-        minimumCareEntries: 1,
+        minimumCareEntries: typedRequirements.minimumCareEntries || 1,
         careReceipt: care.carePersistence,
         careExecutionFailed: Boolean(intelligence.intelligencePersistenceWarning),
       });

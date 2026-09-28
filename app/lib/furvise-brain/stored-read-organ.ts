@@ -13,6 +13,7 @@ import { storedReadDigest, type StoredRead, type StoredReadReference } from "./s
 
 export type StoredReadRecord = {
   id: string; sourceId: string; subjectId: string; version: string; text: string;
+  persistedBodies?: readonly string[];
   operation?: { kind: string; status: string; targetId: string | null; sourceMessageId: string };
   provenance: { domain: StoredRead["domain"]; sourceType: string; sourceId: string };
 };
@@ -92,11 +93,16 @@ export async function executeStoredRead(request: StoredRead, input: {
         persistedStatus: row.status, persistedReceipt: receipt });
       // A write receipt proves operation status, not the medical truth of its content
       // or the continued existence of a once-written record.
+      const persistedBodies = proof.status !== "succeeded" ? []
+        : receipt.appendJob ? receipt.appendJob.items.map(item => item.body.text)
+        : receipt.replaceJob ? [receipt.replaceJob.body.text] : [];
       const text = "The referenced " + (action.kind === "pet.delete_permanently" ? "pet profile removal" : proof.operation + " operation")
-        + " " + proof.status + ". This receipt does not establish whether linked records still exist.";
+        + " " + proof.status + ". This receipt does not establish whether linked records still exist or whether their contents are current facts."
+        + (persistedBodies.length ? "\nPersisted entry bodies, as recorded by this operation:\n"
+          + persistedBodies.map((body, index) => `Entry ${index + 1}: ${JSON.stringify(body)}`).join("\n") : "");
       return issue({ ...base, status:"complete", reason:null, records:[{
         id:row.id, sourceId:"operation_receipt:"+row.id, subjectId:ref.petId,
-        version:storedReadDigest({payload:row.action_payload,status:row.status,receipt:row.receipt}), text,
+        version:storedReadDigest({payload:row.action_payload,status:row.status,receipt:row.receipt}), text, persistedBodies,
         operation:{kind:action.kind,status:proof.status,targetId:action.removeJob?.resolvedTarget.recordId || action.targetSourceId || null,sourceMessageId:row.source_message_id},
         provenance:{domain:"operation_receipt",sourceType:action.kind,sourceId:row.source_message_id},
       }] });

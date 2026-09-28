@@ -1,3 +1,5 @@
+import { completeInstantSchema, isCompleteInstant } from "./complete-instant.ts";
+import { bindAttributedReportContexts, attributedReportContextsSchema, type AttributedReportContext } from "./attributed-report-context.ts";
 import type { ReadSelection } from "./read-selection.ts";
 import { bindReadNeeds, readNeedsSchema, type ReadNeed, type ReadNeedBinding } from "./read-needs.ts";
 /** Semantic proposal only. Ownership and access are bound by the server. */
@@ -15,6 +17,7 @@ export const readAuthority = (value: { authority?: ReadAuthority }) => value.aut
 export type ReadTicket = Readonly<{
   /** Requested proposition, not a certificate. Legacy omission requires effective facts. */
   authority?: ReadAuthority;
+  attributedContexts?: readonly AttributedReportContext[] | null;
   operation: "read" | "read_since_event" | "compare" | "rank";
   subjectScope?: "selected" | "named" | "conversation" | "account";
   subjects: Readonly<{ petIds: readonly string[] }>;
@@ -33,17 +36,13 @@ export type ReadTicket = Readonly<{
     strategy?: "chronological" | "temporal_endpoints" | "calendar_samples" | "event_candidates" | null }>;
 }>;
 
-// Provider representation of the canonical temporal boundary. Binder retains its
-// existing parseability, calendar-validity and interval-order enforcement.
-const temporalInstantSchema = {
-  type: ["string", "null"],
-  pattern: "^\\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\\d|3[01])T(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$",
-};
+const temporalInstantSchema = { ...completeInstantSchema, type: ["string", "null"] };
 
 export const readTicketSchema = {
   type: ["object", "null"], additionalProperties: false,
   required: ["authority", "operation", "subjectScope", "temporal", "predicates", "outputs", "searchHints", "episode", "needs", "selection"],
   properties: {
+    attributedContexts: attributedReportContextsSchema,
     authority: { type: "string", enum: ["effective_fact", "stored_report"], description: "Requested proposition: stored_report only for exact stored wording, attributed reports or a timeline of statements; it never establishes current/corrected truth or supersession. effective_fact for current, settled, corrected, definitive latest values and every historical calculation. Do not downgrade an effective-fact request because history might conflict. Stored reports support ordinary read with concrete/null temporal bounds and optional selection; no anchor, calendar, episode, probes or legacy strategy." },
     subjectScope: { type: "string", enum: ["selected", "named", "conversation", "account"], description: "Requested subject selection. Selected for an unnamed standalone read; conversation for USER-established referents; named for explicit pets; account only for a requested cohort or identity lookup. Overrides legacy scope. The server binds owned IDs; this never grants writes." },
     needs: readNeedsSchema,
@@ -109,15 +108,14 @@ const keys = (v: Record<string, unknown>, expected: string[]) => Object.keys(v).
 const optionalKeys = (v: Record<string, unknown>, required: string[], optional: string[]) =>
   required.every(key => Object.hasOwn(v, key)) && Object.keys(v).every(key => [...required, ...optional].includes(key));
 const term = (v: unknown): v is string => typeof v === "string" && v.trim().length > 0 && v.length <= 80 && !/[\r\n]/.test(v);
-const instant = (v: unknown): v is string | null => v === null || typeof v === "string"
-  && /^\d{4}-\d{2}-\d{2}T/.test(v) && Number.isFinite(Date.parse(v));
+const instant = (v: unknown): v is string | null => v === null || isCompleteInstant(v);
 
 export function bindReadTicket(value: unknown, petIds: readonly string[], needBindings: readonly ReadNeedBinding[] = []): ReadTicket | null {
   if (value == null) return null;
   // Diagnostic keys identify the first existing rejection; they confer no authority.
   const fail = (field: string, rule: string): never => { throw new Error("ASK_REQUEST_INVALID:read_ticket", { cause: { field, rule } }); };
   if (!object(value)) return fail("readTicket", "object");
-  if (!optionalKeys(value, ["operation", "temporal", "predicates", "outputs"], ["authority", "subjectScope", "searchHints", "episode", "needs"])) return fail("readTicket", "fields");
+  if (!optionalKeys(value, ["operation", "temporal", "predicates", "outputs"], ["authority", "subjectScope", "searchHints", "episode", "needs", "attributedContexts"])) return fail("readTicket", "fields");
   const { operation, temporal, predicates, outputs, searchHints, episode } = value;
   if (value.authority !== undefined && !["effective_fact", "stored_report"].includes(String(value.authority))) return fail("authority", "enum");
   if (!["read", "read_since_event", "compare", "rank"].includes(String(operation))) return fail("operation", "enum");
@@ -190,7 +188,11 @@ export function bindReadTicket(value: unknown, petIds: readonly string[], needBi
   }
   if (value.authority === "stored_report" && (operation !== "read" || anchor || temporal.calendar || episode || needs?.length || outputs.strategy != null))
     return fail("authority", "stored_report_requires_ordinary_read");
-  return Object.freeze({ ...(value.authority !== undefined ? { authority: value.authority } : {}), ...(value.subjectScope !== undefined ? { subjectScope: value.subjectScope } : {}), ...(needs !== undefined ? { needs } : {}), ...(episode !== undefined ? { episode: episode === null ? null : Object.freeze({ ...episode as EpisodeReadObligation,
+  const attributedContexts = bindAttributedReportContexts(value.attributedContexts, {
+    authority: value.authority as ReadAuthority | undefined, operation: operation as ReadTicket["operation"],
+    temporal: temporal as ReadTicket["temporal"],
+  });
+  return Object.freeze({ ...(value.attributedContexts !== undefined ? { attributedContexts } : {}), ...(value.authority !== undefined ? { authority: value.authority } : {}), ...(value.subjectScope !== undefined ? { subjectScope: value.subjectScope } : {}), ...(needs !== undefined ? { needs } : {}), ...(episode !== undefined ? { episode: episode === null ? null : Object.freeze({ ...episode as EpisodeReadObligation,
       referent: (episode as EpisodeReadObligation).referent && Object.freeze({ ...(episode as EpisodeReadObligation).referent }) }) } : {}),
     ...(searchHints !== undefined ? { searchHints: searchHints === null ? null : Object.freeze([...(searchHints as string[])]) } : {}), operation, subjects: Object.freeze({ petIds: Object.freeze([...petIds]) }),
     temporal: Object.freeze({ ...temporal, anchor: anchor && Object.freeze({ ...anchor }) }),

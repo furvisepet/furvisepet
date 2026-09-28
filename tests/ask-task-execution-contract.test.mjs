@@ -14,7 +14,7 @@ function load(relative) {
   }).outputText, { exports, require: name => name.startsWith('.') ? load(new URL(name, url).href) : require(name) });
   return exports;
 }
-const { assessTaskExecution } = load('../app/lib/intelligence/task-execution-contract.ts');
+const { assessTaskExecution, typedTaskRequirements } = load('../app/lib/intelligence/task-execution-contract.ts');
 const { createAnswerAssessment } = load('../app/lib/intelligence/answer-assessment.ts');
 const { finalizeAskPostReview } = load('../app/lib/furvise-brain/post-review-finalizer.ts');
 const checks = { structuralValidity: 'passed', evidenceSupport: 'passed', subjectDateCorrectness: 'passed', calculationCorrectness: 'not_applicable', taskCompletion: 'passed' };
@@ -93,7 +93,7 @@ for (const status of ['succeeded', 'failed']) test(`route settles only after cap
   const receipt = { status: 'skipped', careEntryIds: [] };
   const fn = routeFunction('persistAssistantAnswer', {
     finalizeAskPostReview,
-    assessTaskExecution,
+    assessTaskExecution, typedTaskRequirements, PUBLIC_V1_CAPABILITIES: { askMutations: true },
     prepareAskMemoryAuthorityLearnings: () => [], semanticTraceForStorage: () => null,
     attachEpisodeReferences: response => response,
     completeAskConversationTurn: async () => { calls.push('answer'); return { data: [{ assistant_message_id: 'answer' }] }; },
@@ -106,6 +106,7 @@ for (const status of ['succeeded', 'failed']) test(`route settles only after cap
     isSecurityUuid: () => true,
     executeActionCapability: async () => { calls.push('execute'); return { action: { ...proposed, status }, changed: status === 'succeeded' }; },
     emitOperationalEvent: () => {}, resolveAutomaticCareHistoryPresentation: () => receipt,
+    persistCanonicalSuggestions: async () => [], createCanonicalCareAuthorityClient: () => ({}),
     isExplicitCareHistorySaveRequest: () => false,
     safeReleaseAiCredit: async () => { calls.push('release'); return true; },
     setAiCreditDisposition: async ({ disposition }) => calls.push(disposition),

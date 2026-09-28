@@ -1,3 +1,4 @@
+import { retrieveAttributedReports, type AttributedReportResult } from "./attributed-report-context.ts";
 import { wholeAskTaskQuestion } from "./ask-task-continuation.ts";
 import { calendarPeriodContaining, oldestCalendarUnit, relativeYearsAgoWindow } from "./history-periods.ts";
 import { calendarWindowToInstants } from "../ask-time-zone.ts";
@@ -28,6 +29,7 @@ export const HISTORY_BUDGET = { pageSize: 25, pagesPerPet: 4, totalPages: 20, ca
 type Cursor = { petId: string; occurredAt: string; id: string };
 export type HistoryPlan = { from: string | null; to: string | null; terms: string[]; interpretation: "period" | "lexical" | "broad_comparison" };
 export type HistoryCoverage = {
+  attributedReports?: AttributedReportResult;
   ticketCoverage?: ReadCoverage;
   periods?: Array<{ petId: string; from: string; to: string; candidateIds: string[]; exhausted: boolean }>;
   /** True only when every server-owned bounded context need exhausted its full
@@ -979,6 +981,8 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
       return { records, reliable: !unreliable, ...(sourceLineage.length ? { sourceLineage } : {}) };
     },
   });
+  coverage.attributedReports = await retrieveAttributedReports(ticket, { db, ownerId: context.owner.userId,
+    ownedPetIds: [...owned], from, to, deadline });
   coverage.ticketCoverage = result.coverage;
   coverage.retrieval = result.coverage.status === "complete_empty" ? "complete"
     : result.coverage.status === "anchor_missing" ? "unavailable" : result.coverage.status;

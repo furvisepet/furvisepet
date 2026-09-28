@@ -197,9 +197,30 @@ test('interpreter anchor guidance delegates dates and ledger choice without wide
 
 test('provider alternatives exclude retired strategies and keep selection exclusive',()=>{
   const branches=askRequestSchema({}).properties.readTicket.anyOf;
-  assert.equal(branches.length,4);
-  const legacy=branches.filter(s=>s.properties?.selection.type==='null');
-  const composed=branches.find(s=>s.properties?.selection.type==='object');
+  const identity=b=>b.type==='null'?'null':[
+    b.properties.attributedContexts?'attributed':'primary',
+    b.properties.selection.type==='object'?'selection':String(b.properties.outputs.properties.strategy.enum[0]),
+  ].join(':');
+  assert.deepEqual(branches.map(identity).sort(),[
+    'null','primary:null','primary:chronological','primary:selection',
+    'attributed:null','attributed:selection',
+  ].sort());
+  const primary=branches.filter(b=>!b.properties?.attributedContexts);
+  const legacy=primary.filter(s=>s.properties?.selection.type==='null');
+  const composed=primary.find(s=>s.properties?.selection.type==='object');
+  for(const branch of branches.filter(b=>b.properties?.attributedContexts)){
+    assert.deepEqual(branch.properties.authority.enum,['stored_report']);
+    assert.ok(branch.required.includes('attributedContexts'));
+    assert.equal(branch.properties.attributedContexts.type,'array');
+    assert.equal(branch.properties.attributedContexts.minItems,1);
+    assert.equal(branch.additionalProperties,false);
+    const original=primary.find(b=>identity(b)===identity(branch).replace('attributed:','primary:'));
+    const {authority,attributedContexts,...properties}=branch.properties;
+    void authority;void attributedContexts;
+    const {authority:originalAuthority,...originalProperties}=original.properties;void originalAuthority;
+    assert.deepEqual(properties,originalProperties);
+    assert.deepEqual(branch.required.filter(k=>k!=='attributedContexts'),original.required);
+  }
   assert.deepEqual(branches[0],{type:'null'});
   assert.equal(composed.properties.outputs.additionalProperties,false);
   assert.equal(Object.hasOwn(composed.properties.outputs.properties,'strategy'),false);

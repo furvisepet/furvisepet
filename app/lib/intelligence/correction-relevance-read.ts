@@ -57,5 +57,5 @@ export async function readCorrectionRelevance(input: {
   }
   const unresolved = [...bySource.values()].filter(value =>
     attributedCorrectionRelevance(value, { ...input.domain, exactTargets, ownerId: input.ownerId, petId: value.source.petId }) !== "disjoint");
-  return { bySource, unresolved, queries };
+  return { bySource, unresolved, queries, exactTargets };
 }

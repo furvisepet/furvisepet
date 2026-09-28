@@ -1,3 +1,4 @@
+import { verifiedAttributedReports, attributedReportSources } from "./attributed-report-context.ts";
 import { isOrderedResultSet } from "../furvise-brain/ordered-result-set.ts";
 import { isStoredRead, storedReadResult } from "./stored-read-publication.ts";
 import { isTypedProfileRead, profileFieldProjection, profileFieldSentence, type AuthorizedProfileField } from "./profile-field-authority.ts";
@@ -135,8 +136,17 @@ function deriveOrdinaryHistoryAuthority(evidence: AskEvidenceContract, transport
     }));
   }
   if (!obligations.length) return unavailable("unavailable");
+  const context = verifiedAttributedReports(evidence.history?.attributedReports, ticket);
+  if (ticket?.attributedContexts?.length && !context) return unavailable("attributed_context_unavailable");
+  const contextSources = attributedReportSources(context);
+  for (const group of context?.groups || []) obligations.push({
+    sourceAuthority: "stored_report", obligationId: `attributed_context:${group.subjectId}:${group.obligation}`,
+    subjectId: group.subjectId, clauseId: group.obligation, authority: group.status === "unavailable" ? "unavailable" : "certified",
+    certificateType: null, status: group.status, authorizedSourceIds: group.records.map(v => "care:" + v.source.id),
+    certifiedRecordIds: group.records.map(v => v.source.id),
+  });
   const authorizedSourceIds = unique(obligations.flatMap(o => o.authorizedSourceIds));
-  return { obligations, authorizedSourceIds, sources: sources.filter(s => authorizedSourceIds.includes(s.sourceId)),
+  return { obligations, authorizedSourceIds, sources: [...sources, ...contextSources].filter(s => authorizedSourceIds.includes(s.sourceId)),
     ticket, subjectIds, transportValid };
 }
 // Recomputed from the existing ticket/organ receipts and represented source

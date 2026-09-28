@@ -333,12 +333,27 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
   Object.assign(chronological.properties.evidenceNeeds, { maxItems: 0 });
   Object.assign(nonProfile.properties, { readTicket: { anyOf: readTicketProviderSchema.anyOf.filter(variant =>
     variant !== chronologicalTicket) } });
+  // A premise list has authority only in the supplied-context branch.
+  const suppliedConversation = structuredClone(nonProfile);
+  Object.assign(suppliedConversation.properties.evidenceBasis, { type: "string", enum: ["supplied_context"] });
+  Object.assign(suppliedConversation.properties, { mode: { type: "string", enum: ["conversation"] },
+    scope: { type: "string", enum: ["none"] }, readTicket: { type: "null" } });
+  for (const variant of [nonProfile, chronological, lifecycle]) {
+    Object.assign(variant.properties.evidenceBasis, { ...(Array.isArray(variant.properties.evidenceBasis.enum) ? { enum: variant.properties.evidenceBasis.enum.filter(value => value !== "supplied_context") } : {}) });
+    if (variant.properties.premiseQuotes.type !== "null") Object.assign(variant.properties.premiseQuotes, { maxItems: 0 });
+  }
   return { type: "object", additionalProperties: false, required: ["request"],
-    properties: { request: { anyOf: [...(!context || premiseQuotes.length ? [premiseCalculation] : []), ...calculations, ...stored, profile, nonProfile, chronological, lifecycle, profileMutation, removal,
+    properties: { request: { anyOf: [...(!context || premiseQuotes.length ? [premiseCalculation] : []), ...calculations, ...stored, profile, suppliedConversation, nonProfile, chronological, lifecycle, profileMutation, removal,
       ...(transitionSchema.anyOf.length > 1 ? [transition] : [])] } } };
 }
 
 export const ASK_REQUEST_INSTRUCTIONS = [
+  "For a primary stored-report window plus separately requested later attributed reports, choose readTicket.authority stored_report and explicitly populate attributedContexts with each report recorded-time window and its target event-time window. Keep the primary temporal bounds unchanged. This authorizes quotations as context only; neither overlapping target scope nor later wording proves a correction/replacement edge or settled effective truth. Do not encode this obligation as a search hint, predicate, or prose-only requirement.",
+
+  "Before emitting a plan, identify the source of every required operand, not just every numeral in the message. A requested historical measurement remains missing until the owned saved-history read returns it. A date locates a record; an identifier or filename names an object; a quoted label names text. None asserts a quantity to calculate with. Exact numeric quote choices certify spelling only. If there are no asserted current-USER quantities for the requested arithmetic, do not select supplied_context. Do not substitute repeated labels or calendar components for missing measurements. General wording tasks carry no premiseQuotes.",
+  "Construct a dependency DAG from all required inputs before emitting its topological sequence. Roots come first. For a consumer combining a prior result and a new literal, first emit a convert root for that exact literal in the same unit (identity conversion is allowed), then reference that root and the actual result with their distinct semantic roles. Do not reuse one producer merely to fill both operand positions, omit an asserted operand, or place a consumer before its producers. premiseQuotes must equal the set of all actual root quotes. This is one proposal, never a repair pass.",
+  "Read predicates describe the content of the requested stored records. Save/show/list/request wording, persistence status, output labels and instructions are not content filters unless the USER actually requests those literal contents. Never require a stored note to contain the command used to retrieve it. A companion read and an append are separate typed obligations; the appended body is not already a saved read result.",
+
   "Resolve factual input ownership before choosing arithmetic: a historical value that the USER asks you to find is an unknown saved fact, not a supplied number. Use saved_history with the owned subject scope and ReadTicket whenever answering requires stored historical measurements, including cross-subject totals and endpoint changes. Dates, identifiers, labels, requested units and operation wording are not quantity assertions. Never invent zero, ordinal placeholders, units or quoted literals to fill missing inputs. Exact numeric quote options are lexical source candidates only, not certified quantities: Brain must determine their semantic role from the whole request. A numeric substring inside a date or identifier must not become an arithmetic premise. A hypothetical that actually supplies quantities remains supplied_context; a supplied quantity does not erase a separately requested history lookup.",
   "For a result DAG, emit all root producers before their consumers and declare each id exactly once. Every result calculationId must already name an earlier node in the same array, never itself, an eventual node, an implicit value or a read-slot label. Inspect the complete dependency order before submitting the single proposal. Do not introduce result aliases for direct factual slots. If the intended derivation cannot be expressed in the supported algebra, preserve that limitation; never invent producers or factual roots.",
 
@@ -413,6 +428,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     || !list(p.requirements, 8, 240) || !list(p.referenceTurnIds, 8, 160) || !list(p.petNames, 20, 100)
     || !Array.isArray(p.terms) || p.terms.length > 6
     || p.terms.some(x => typeof x !== "string" || x.length < 3 || x.length > 32 || !/^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(x))) return fail("schema");
+  if (p.evidenceBasis !== "supplied_context" && Array.isArray(p.premiseQuotes) && p.premiseQuotes.length) return fail("premise_domain");
   if (!Array.isArray(p.profileFields) || p.profileFields.some(field => !askRequestSchema({}).properties.profileFields.items.enum.includes(String(field))) || p.profileFields.length > 14) return fail("profile_fields");
   if (![null, "historical", "current", "historical_and_current"].includes(p.temporalScope as null | string)) return fail("temporal_scope");
   if (![null, "correct_record"].includes(p.mutationIntent as null | string)) return fail("mutation_intent");
@@ -1121,11 +1137,7 @@ function bindTicketedRead(p: Record<string, unknown>, context: Context): AskInte
     const typed = readTicket.needs?.find(item => item.id === need.id);
     if (typed?.from && typed.to) need.window = { from: typed.from, to: typed.to };
   }
-  // Date.parse normalizes impossible dates such as February 30. Reject them
-  // rather than silently changing the planner's typed calendar boundary.
-  for (const instant of [readTicket.temporal.from, readTicket.temporal.to]) {
-    if (instant && new Date(`${instant.slice(0, 10)}T00:00:00.000Z`).toISOString().slice(0, 10) !== instant.slice(0, 10)) return fail("dates");
-  }
+  // Complete instant and calendar validity are enforced by the shared ReadTicket Binder.
   const episode = readTicket.episode;
   const referent = episode?.referent;
   const unresolvedEpisode = !!episode && (!referent

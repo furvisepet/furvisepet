@@ -1,9 +1,20 @@
+import type { AskRequestContract } from "./ask-request-contract.ts";
 import { reviewedTaskReadyForExecution, type AnswerAssessment } from "./answer-assessment.ts";
 import { deriveAskTaskOutcome } from "../ai/ask-turn-model.ts";
 
 type Completion = { index: number; status: string };
 type ActionReceipt = { mutationClass: string; explicitIntent: boolean; status: string };
 type CareReceipt = { status: string; careEntryIds: readonly string[] };
+
+/** Only the already bound Brain request establishes a requested effect.
+ * Text, receipt inquiries and presentation examples have no input here. */
+export function typedTaskRequirements(request: AskRequestContract | null | undefined) {
+  const minimumCareEntries = request?.appendJob?.items.length || 0;
+  const mutationRequested = Boolean(request && (request.appendJob || request.writeJob
+    || request.removeJob || request.fieldMutationJob || request.stateTransitionJob
+    || request.lifecyclePlan?.transition || request.lifecyclePlan?.pendingDisposition === "cancel"));
+  return { mutationRequested, careWriteRequired: minimumCareEntries > 0, minimumCareEntries };
+}
 
 /** Inputs are live server review and execution results, never model-authored
  * success flags or persisted presentation JSON. This contract has no vocabulary
@@ -14,6 +25,7 @@ export function assessTaskExecution(input: {
   responseMode: string | null;
   actions: readonly ActionReceipt[];
   careWriteRequired: boolean;
+  mutationRequested?: boolean;
   minimumCareEntries?: number;
   careReceipt: CareReceipt;
   careExecutionFailed?: boolean;
@@ -25,7 +37,8 @@ export function assessTaskExecution(input: {
     && new Set(input.careReceipt.careEntryIds.filter(id => id.trim())).size >= minimum;
   const careFailed = input.careWriteRequired && (input.careExecutionFailed || input.careReceipt.status === "failed");
   const mutationOutcome = requested.some(action => action.status === "failed") || careFailed ? "failed"
-    : requested.some(action => action.status !== "succeeded") || input.careWriteRequired && !careComplete ? "pending"
+    : requested.some(action => action.status !== "succeeded") || input.careWriteRequired && !careComplete
+      || input.mutationRequested && !requested.length && !careComplete ? "pending"
     : requested.length || input.careWriteRequired ? "applied" : "not_requested";
   const answerOutcome = input.assessment?.outcome || "not_assessed";
   const readyForExecution = reviewedTaskReadyForExecution(input.completion, input.assessment?.checks);

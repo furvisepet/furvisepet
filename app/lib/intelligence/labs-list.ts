@@ -1,3 +1,4 @@
+import { verifiedAttributedReports, carryAttributedReports, attributedReportSources, type AttributedReportResult } from "./attributed-report-context.ts";
 import { supportedPlainResultSetRead } from "./publication-authority.ts";
 import { certifiedResultSetMatches, resultSetSnapshotMatches } from "./result-set-publication.ts";
 import { selectionPublication } from "./selection-publication.ts";
@@ -11,6 +12,7 @@ import type { ReadCoverage } from "../furvise-brain/lungs.ts";
 import { careEvidenceId, type AskEvidenceContract } from "./ask-evidence.ts";
 
 export type LabsList = {
+  attributedReports?: AttributedReportResult;
   ticket: ReadTicket;
   records: Array<{ id: string; sourceId: string; petId: string; event_at: string; recorded_at?: string; body: string; predicates_matched: readonly ReadPredicate[] }>;
   coverage: ReadCoverage;
@@ -80,7 +82,10 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
     })) return null;
   const publishable = selection ? rows.filter(row => selection.selectedEventIds.includes(row.id)) : rows;
   const petNames = ticket.selection || ticket.authority === "stored_report" ? Object.fromEntries(ticket.subjects.petIds.map(id => [id, evidence.petNames?.[id] || "this pet"])) : undefined;
+  const attributedReports = verifiedAttributedReports(evidence.history?.attributedReports, ticket);
+  if (ticket.attributedContexts?.length && !attributedReports) return null;
   const labs: LabsList = structuredClone({ ticket, coverage, calculations: [],
+    ...(attributedReports ? { attributedReports } : {}),
     ...(request.requirements?.length ? { residualRequirementCount: request.requirements.length } : {}), ...(petNames ? { petNames, presentation } : {}), records: publishable.map(row => ({
     id: row.id, sourceId: careEvidenceId(row.id, evidence.history), petId: row.pet_profile_id, event_at: row.occurred_at,
     ...(ticket.authority === "stored_report" ? { recorded_at: row.created_at } : {}),
@@ -91,7 +96,9 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
 }
 
 export function labsTaskComplete(labs: LabsList): boolean {
-  return labsFactualComponentComplete(labs) && !labs.residualRequirementCount;
+  return labsFactualComponentComplete(labs) && !labs.residualRequirementCount
+    && (!labs.ticket.attributedContexts?.length || !!labs.attributedReports?.groups.length
+      && labs.attributedReports.groups.every(group => group.status === "complete"));
 }
 
 export function labsFactualComponentComplete(labs: LabsList): boolean {
@@ -129,6 +136,27 @@ export function serializeLabsList(labs: LabsList): string {
 }
 
 /** Exact quotations with attribution, never an effective-fact sentence. */
+function serializeAttributedContext(labs: LabsList): string {
+  return (labs.attributedReports?.groups || []).map(group => {
+    const obligation = labs.attributedReports!.obligations[group.obligation];
+    const heading = "Separately requested attributed-report context for "
+      + escapeLabsText(labs.petNames?.[group.subjectId] || group.subjectId)
+      + "; report recorded-time window [" + obligation.recorded.from + ", " + obligation.recorded.to
+      + "); target event-time window [" + obligation.target.from + ", " + obligation.target.to + ").";
+    const rows = group.records.map(value => "[" + escapeLabsText("care:" + value.source.id)
+      + "] recorded at " + value.source.createdAt + "; stored event time " + value.source.occurredAt
+      + ": " + escapeLabsText(JSON.stringify(value.source.note)));
+    return [heading, ...rows,
+      "The stored attribution overlaps the requested target scope. The link to any particular primary report remains unresolved; no correction, replacement, or effective truth is certified.",
+      ...(group.status !== "complete" ? ["This separate context obligation is incomplete; the primary read window is unchanged."]
+        : !rows.length ? ["No eligible attributed report was returned for this separate context scope."] : []),
+    ].join("\n\n");
+  }).join("\n\n");
+}
+export function labsListSourceIds(labs: LabsList): string[] {
+  return [...new Set([...labs.records.map(row => row.sourceId),
+    ...attributedReportSources(labs.attributedReports).map(row => row.sourceId)])];
+}
 function serializeStoredReports(labs: LabsList): string {
   const selected = selectionPublication(labs.ticket, labs.coverage, labs.records);
   const rows = labs.records.map(row => ({
@@ -147,10 +175,10 @@ function serializeStoredReports(labs: LabsList): string {
     "| Subject | Source | Recorded at | Stored event time | Exact stored wording |",
     "| --- | --- | --- | --- | --- |",
     ...rows.map(r => "| " + [r.subject, r.source, r.recorded, r.event, r.wording].join(" | ") + " |"),
-    "", notice,
+    "", notice, serializeAttributedContext(labs),
   ].join("\n");
   return [...rows.map(r => (labs.presentation === "list" ? "- " : "") + r.subject + " [" + r.source
-    + "] recorded at " + r.recorded + "; stored event time " + r.event + ": " + r.wording), notice].join("\n\n");
+    + "] recorded at " + r.recorded + "; stored event time " + r.event + ": " + r.wording), notice, serializeAttributedContext(labs)].filter(Boolean).join("\n\n");
 }
 
 /** Compare the entire transport against the original returned labs, not just
@@ -164,6 +192,9 @@ export function labsListReviewFailure(result: AskReasoningResult): string | null
     || evidence?.interpretation?.request?.mode !== "read" || !evidence.scope.readOnlyRecall
     || evidence.interpretation.request.writeJob || evidence.interpretation.request.mutationIntent
     || labs.records.some(row => !evidence.scope.authorizedPetIds.includes(row.petId))) return "labs_ticket_or_coverage_changed";
+  if (JSON.stringify(labs.attributedReports) !== JSON.stringify(evidence?.history?.attributedReports)
+    || labs.ticket.attributedContexts?.length && !verifiedAttributedReports(evidence?.history?.attributedReports, labs.ticket))
+    return "labs_attributed_context_changed";
   if (labs.ticket.selection) {
     const selection = selectionPublication(labs.ticket, labs.coverage, labs.records)!;
     if (!selection.transportValid || labs.records.some(row => !selection.selectedEventIds.includes(row.id)))
@@ -175,7 +206,7 @@ export function labsListReviewFailure(result: AskReasoningResult): string | null
     || result.proposedHistoryUpdate.shouldOffer) return "labs_list_has_write";
   if (result.safetyLevel === "urgent" || result.responseMode === "grief_support") return "labs_list_safety_path";
   if (result.answer.summary !== serializeLabsList(labs) || result.answer.sections.length || result.answer.safetyNote || result.answer.title !== "Furvise" || result.suggestedFollowUps.length
-    || JSON.stringify(result.relevantContextIds) !== JSON.stringify(labs.records.map(row => row.sourceId))) return "labs_list_omitted_or_changed";
+    || JSON.stringify(result.relevantContextIds) !== JSON.stringify(labsListSourceIds(labs))) return "labs_list_omitted_or_changed";
   return null;
 }
 
@@ -183,5 +214,7 @@ export function labsListReviewFailure(result: AskReasoningResult): string | null
 export function carryLabsListSnapshot(source: AskReasoningResult, target: AskReasoningResult) {
   if (labsListReviewFailure(source) || !source.labsList || !target.labsList
     || JSON.stringify(source.labsList) !== JSON.stringify(target.labsList)) throw new Error("ASK_LABS_LIST_CLONE_CHANGED");
+  carryAttributedReports(source.evidenceContract?.history?.attributedReports,
+    target.evidenceContract?.history?.attributedReports, target.labsList.ticket);
   snapshots.set(target.labsList, snapshots.get(source.labsList)!);
 }

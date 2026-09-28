@@ -117,7 +117,8 @@ test('a redundant account label cannot widen the ticket named subset or include 
 });
 
 test('impossible typed dates and malformed projection metadata cannot be silently normalized or dropped',()=>{
- assert.throws(()=>validateAskRequest({...proposal,readTicket:{...ticket,temporal:{from:'2026-02-30T00:00:00Z',to:null,anchor:null}}},context()),/dates/);
+ assert.throws(()=>validateAskRequest({...proposal,readTicket:{...ticket,temporal:{from:'2026-02-30T00:00:00Z',to:null,anchor:null}}},context()),
+  {message:'ASK_REQUEST_INVALID:read_ticket',cause:{field:'temporal.from',rule:'instant_or_null'}});
  assert.throws(()=>validateAskRequest({...proposal,readTicket:canonicalEndpointTicket,projection:{quantity:'invented'}},context()),/projection/);
  assert.throws(()=>validateAskRequest({...proposal,readTicket:canonicalEndpointTicket,recordSelection:{scope:'all_active',quote:'invented'}},context()),/record_selection/);
 });

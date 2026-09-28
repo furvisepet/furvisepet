@@ -1,3 +1,4 @@
+import { carryAttributedReports } from "../intelligence/attributed-report-context.ts";
 import {carryCalculatePlan,requiresCalculateBinding} from "../furvise-brain/calculate-plan.ts";
 import { buildCalculationLabs, serializeCalculationLabs, calculationSourceIds, CALCULATION_LABS, CALCULATION_UNAVAILABLE, calculationLimitation, type CalculationLabs } from "../intelligence/calculation-labs.ts";
 import { dependsOnStoredState, languageOnlyEvidence, languageProviderContext, FACTUAL_UNAVAILABLE, FACTUAL_LIMITATION } from "../intelligence/factual-dispatch.ts";
@@ -6,7 +7,7 @@ import { projectProfileFields, profileFieldRecords, bindProfileFieldProjection, 
 import { unsupportedProfilePresentation, PROFILE_PRESENTATION_UNAVAILABLE, PROFILE_PRESENTATION_LIMITATION } from "../intelligence/profile-presentation-limitation.ts";
 import { buildProfileFieldLabs, serializeProfileFieldLabs, profileFieldSourceIds, type ProfileFieldLabs } from "../intelligence/profile-field-labs.ts";
 import { commonHistoryPathEntered } from "../intelligence/ordinary-history-boundary.ts";
-import { buildLabsList, serializeLabsList, type LabsList } from "../intelligence/labs-list.ts";
+import { buildLabsList, serializeLabsList, labsListSourceIds, type LabsList } from "../intelligence/labs-list.ts";
 import { logPublicationDispatch } from "../intelligence/publication-authority-diagnostics.ts";
 import { historyPublicationLimitation } from "../intelligence/ordinary-history-publication.ts";
 import { requiresHistoryPublicationAuthority, supportedHistoryPublication, derivePublicationAuthority, publicationSources, PUBLICATION_AUTHORITY_POLICY } from "../intelligence/publication-authority.ts";
@@ -446,6 +447,8 @@ export function buildAskContext(input: BuildContextInput, applyPromptBudget = tr
   const sourceCalculation=sourceEvidence.interpretation?.request?.calculatePlan;
   if(sourceCalculation&&requiresCalculateBinding(sourceCalculation)&&evidence.interpretation?.request?.calculatePlan)
     carryCalculatePlan(sourceCalculation,evidence.interpretation.request.calculatePlan,evidence.interpretation.request.readTicket!);
+  carryAttributedReports(sourceEvidence.history?.attributedReports, evidence.history?.attributedReports,
+    evidence.interpretation?.request?.readTicket);
   // Legacy reconstructed receipts are not canonical operation evidence.
   evidence.operationReceipts = [];
   const ordinaryHistory = commonHistoryPathEntered(evidence);
@@ -765,9 +768,10 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     && (!ordinaryHistory || supportedHistoryPublication(publicationEvidence))
     ? buildLabsList(publicationEvidence, input.careEntries) : null;
   const authority = ordinaryHistory && candidateLabs ? derivePublicationAuthority(publicationEvidence, candidateLabs.records) : null;
+  const candidateSourceIds = candidateLabs ? labsListSourceIds(candidateLabs) : [];
   const labs = candidateLabs && (!ordinaryHistory || authority?.transportValid
-    && candidateLabs.records.every(row => authority.authorizedSourceIds.includes(row.sourceId))
-    && authority.authorizedSourceIds.every(id => candidateLabs.records.some(row => row.sourceId === id))) ? candidateLabs : null;
+    && candidateSourceIds.every(id => authority.authorizedSourceIds.includes(id))
+    && authority.authorizedSourceIds.every(id => candidateSourceIds.includes(id))) ? candidateLabs : null;
   const unavailable = ordinaryHistory && !labs ? historyPublicationLimitation(publicationEvidence) : null;
   const factualUnavailable = dependsOnStoredState(publicationEvidence) && !profileLabs && !labs && !unavailable && !profileUnavailable;
   logPublicationDispatch(projectionContext.promptContext.evidenceContract,
@@ -776,7 +780,7 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   if (calculationRequested || profileLabs || labs || unavailable || profileUnavailable || factualUnavailable) {
     const context = projectionContext;
     const evidence = context.promptContext.evidenceContract;
-    const ids = calculationRequested ? calculationLabs ? calculationSourceIds(calculationLabs) : [] : profileLabs ? profileFieldSourceIds(profileLabs) : labs ? labs.records.map(row => row.sourceId) : [];
+    const ids = calculationRequested ? calculationLabs ? calculationSourceIds(calculationLabs) : [] : profileLabs ? profileFieldSourceIds(profileLabs) : labs ? labsListSourceIds(labs) : [];
     return {
       answer: {title:"Furvise",summary:calculationRequested ? calculationLabs ? serializeCalculationLabs(calculationLabs) : calculationLimitation(publicationEvidence) : profileLabs ? serializeProfileFieldLabs(profileLabs) : profileUnavailable ? PROFILE_PRESENTATION_LIMITATION : labs ? serializeLabsList(labs) : unavailable || FACTUAL_LIMITATION,sections:[],safetyNote:null}, evidenceContract:evidence,
       ...(calculationLabs ? {calculationLabs} : profileLabs ? {profileFieldLabs:profileLabs} : labs ? {labsList:labs} : {}),historyNarrativeDeclined:false,

@@ -1,7 +1,7 @@
 import type { AskReasoningResult } from "../ai/ask-reasoning.ts";
 import type { AskEvidenceContract } from "./ask-evidence.ts";
 import { derivePublicationAuthority, supportedHistoryPublication } from "./publication-authority.ts";
-import { labsListReviewFailure } from "./labs-list.ts";
+import { labsListReviewFailure, labsListSourceIds } from "./labs-list.ts";
 
 /** No new receipt: publication verifies the existing Labs snapshot and organ authority. */
 export function historyLabsAuthorityFailure(result: AskReasoningResult): string | null {
@@ -11,8 +11,9 @@ export function historyLabsAuthorityFailure(result: AskReasoningResult): string 
   if (!authority || !result.labsList || !supportedHistoryPublication(result.evidenceContract!))
     return "history_publication_unsupported";
   if (!authority.transportValid) return "history_publication_transport_invalid";
-  if (result.labsList.records.some(row => !authority.authorizedSourceIds.includes(row.sourceId))
-    || authority.authorizedSourceIds.some(id => !result.labsList!.records.some(row => row.sourceId === id)))
+  const ids = labsListSourceIds(result.labsList);
+  if (ids.some(id => !authority.authorizedSourceIds.includes(id))
+    || authority.authorizedSourceIds.some(id => !ids.includes(id)))
     return "history_publication_source_outside_authority";
   return null;
 }

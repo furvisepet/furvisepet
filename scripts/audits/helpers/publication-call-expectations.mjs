@@ -62,7 +62,8 @@ export async function assertPublicationCalls({ result, context, requests, review
     assert.equal(historyLabsAuthorityFailure(reasoning), null, 'Labs transport must match existing organ authority and snapshot');
     assert.deepEqual(reasoning.labsList.ticket, request.readTicket);
     assert.deepEqual(reasoning.labsList.coverage, evidence.history.ticketCoverage);
-    assert.deepEqual(reasoning.relevantContextIds, reasoning.labsList.records.map(row => row.sourceId));
+    const {labsListSourceIds}=await import('../../../app/lib/intelligence/labs-list.ts');
+    assert.deepEqual(reasoning.relevantContextIds, labsListSourceIds(reasoning.labsList));
     if (history) for (const row of reasoning.labsList.records) {
       const transported = context.askHistory.entries.find(entry => entry.id === row.id);
       assert.ok(transported, 'every published row must survive the actual retrieval');

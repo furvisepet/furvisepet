@@ -211,3 +211,22 @@ test('native report IDs require report-qualified provenance, not a claim-shaped 
  assert.equal(careEvidenceId('claim-native',{...history,ticketCoverage:{authority:'effective_fact'}}),'care:claim-native');
  assert.equal(careEvidenceId('claim-native',{...history,provenance:[]}), 'care:claim-native');
 });
+
+
+test('separate later attributed report context stays outside the primary window and remains unresolved attribution',async t=>{
+ const primary={...row('case12-primary','Primary report: body mass was 7 lb.'),occurred_at:'2014-07-10T00:00:00Z',created_at:'2014-07-10T00:00:00Z',updated_at:'2014-07-10T00:00:00Z'};
+ const later={...row('case12-later','Later report says body mass was 8 lb.'),occurred_at:'2026-08-15T00:00:00Z',created_at:'2026-08-15T00:00:00Z',updated_at:'2026-08-15T00:00:00Z'};
+ const p=stressProposal({authority:'stored_report',selection:'summary',petNames:[pets[0].name],from:'2014-07-01',to:'2014-08-01'});
+ p.readTicket.attributedContexts=[{recorded:{from:'2026-08-01T00:00:00Z',to:'2026-09-01T00:00:00Z'},target:{from:'2014-07-01T00:00:00Z',to:'2014-08-01T00:00:00Z'}}];
+ const r=await run(t,[primary,later],p,{graph:{sourceSemantics:{'case12-later':{classification:'attributed_correction',target:{kind:'scope',from:'2014-07-01T00:00:00Z',to:'2014-08-01T00:00:00Z',conceptKey:null}}}}});
+ const labs=r.result.reasoning.labsList;
+ assert.ok(labs);assert.equal(labs.ticket.temporal.from,'2014-07-01T00:00:00Z');assert.equal(labs.ticket.temporal.to,'2014-08-01T00:00:00Z');
+ assert.deepEqual(labs.records.map(x=>x.id),['case12-primary']);
+ assert.equal(labs.attributedReports.groups.length,1);assert.equal(labs.attributedReports.groups[0].status,'complete');
+ assert.deepEqual(labs.attributedReports.groups[0].records.map(x=>x.source.id),['case12-later']);
+ assert.deepEqual([...r.result.reasoning.relevantContextIds].sort(),['care:case12-later','care:case12-primary']);
+ assert.match(r.result.reasoning.answer.summary,/Later report says body mass was 8 lb/);
+ assert.match(r.result.reasoning.answer.summary,/link to any particular primary report remains unresolved/i);
+ assert.match(r.result.reasoning.answer.summary,/no correction, replacement, or effective truth is certified/i);
+ assert.equal(labsListReviewFailure(r.result.reasoning),null);
+});
