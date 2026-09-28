@@ -2,6 +2,11 @@
 // effort history reads exhausted 4096 before completing their response object.
 export const ASK_MAX_OUTPUT_TOKENS = 8192;
 
+// Brain's typed-plan generation has an independent total generated-token budget.
+// This includes non-visible structure/reasoning, even with effort none. Raising
+// it never authorizes a retry or widens final-answer / Vet Brief generation.
+export const ASK_INTERPRETATION_MAX_OUTPUT_TOKENS = 100_000;
+
 export type StructuredProviderStatus = "completed" | "incomplete" | "refused" | "invalid" | "failed";
 
 export type OpenAiStructuredResponseLike = {
