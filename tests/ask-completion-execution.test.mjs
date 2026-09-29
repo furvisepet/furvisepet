@@ -2,7 +2,9 @@ import * as C from "./helpers/canonical-calculation-retirement.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createAnswerAssessment, assessmentMatches } from '../app/lib/intelligence/answer-assessment.ts';
-import { assertStoredPublicationUnavailable } from './helpers/unsupported-stored-publication.mjs';
+// Wait for the full-algebra fixture to install its test-only policy hook before
+// this helper loads the public response graph. Production policy is unchanged.
+const { assertStoredPublicationUnavailable } = await import('./helpers/unsupported-stored-publication.mjs');
 import { OperationDeadline, StageDeadlineError } from '../app/lib/ai/execution-deadline.ts';
 import { safeAskDiagnosticStage } from '../app/lib/ai/ask-error-diagnostic.ts';
 const checks=()=>({structuralValidity:'passed',evidenceSupport:'passed',subjectDateCorrectness:'passed',calculationCorrectness:'passed',taskCompletion:'passed'});
@@ -120,4 +122,20 @@ test('failure bookkeeping errors preserve limited answers and finalized admissio
  await settlement.finalizeAiAdmissionAfterPersistence({...input,alreadyFinalized:true});
  await settlement.finalizeAiAdmissionAfterPersistence({...input,admission:null});
  assert.deepEqual(calls,['fail']);
+});
+
+test("percentage publication retains source lineage and rejects fabricated provenance",async()=>{
+ const closed=await C.measured("percent_of_sum",["2 minutes","7 minutes"],"%",{unit:"minute",precision:1});
+ assert.equal(closed.response.model,"server-calculation-labs");
+ assert.equal(C.calculationPublicationFailure(closed.response),null);
+ assert.deepEqual(closed.response.calculationLabs.execution.results[0].sourceIds,["care:source-0","care:source-1"]);
+ closed.response.calculationLabs.execution.results[0].sourceIds=["care:invented-intermediate"];
+ assert.equal(C.calculationPublicationFailure(closed.response),"calculation_snapshot_changed");
+ assert.equal(closed.calls(),0);
+ const open=await C.measured("percent_of_sum",["2 minutes","7 minutes"],"%",{unit:"minute",precision:1,fixture:{closed:false}});
+ assert.equal(open.response.model,"server-calculation-unavailable");
+ assert.equal(open.response.calculationLabs,undefined);
+ assert.deepEqual(open.response.relevantContextIds,[]);
+ assert.equal((await C.finish(open)).assessment.outcome,"limited");
+ assert.equal(open.calls(),0);
 });
