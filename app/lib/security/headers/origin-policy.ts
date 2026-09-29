@@ -92,6 +92,10 @@ export function getAllowedApplicationOrigins(request: Request, env: Record<strin
     const previewOrigin = parseOrigin(`https://${env.VERCEL_URL}`);
     if (previewOrigin) allowed.add(previewOrigin);
   }
+  if (env.VERCEL === "1" && env.VERCEL_ENV === "preview") {
+    const previewTargetOrigin = resolveTargetOrigin(request, env);
+    if (previewTargetOrigin && isTrustedVercelPreviewOrigin(previewTargetOrigin)) allowed.add(previewTargetOrigin);
+  }
   if (env.NODE_ENV !== "production") {
     const requestOrigin = parseOrigin(new URL(request.url).origin);
     if (requestOrigin && isDevelopmentLocalOrigin(requestOrigin)) allowed.add(requestOrigin);
@@ -159,6 +163,15 @@ function normalizeHost(value: string) {
   const candidate = value.trim().toLowerCase();
   if (!candidate || candidate.includes(",") || candidate.includes("/") || candidate.includes("\\") || candidate.includes("@")) return null;
   try { return new URL(`https://${candidate}`).host === candidate ? candidate : null; } catch { return null; }
+}
+
+function isTrustedVercelPreviewOrigin(origin: string) {
+  try {
+    const parsed = new URL(origin);
+    return parsed.protocol === "https:" && !parsed.port && parsed.hostname.endsWith(".vercel.app");
+  } catch {
+    return false;
+  }
 }
 
 function hasAmbientAuthCookie(request: Request) {
