@@ -12,7 +12,7 @@ function run(args) {
 
 test('Ask mixed read/write pressure preserves one mutation authority and truthful persistence', () => {
   const runs = [
-    run(['--experimental-transform-types','--test','--test-name-pattern=mixed screenshot routes owned reads separately','scripts/audits/ask-launch-repairs.cases.mjs']),
+    run(['--experimental-transform-types','--test','--test-name-pattern=Cedar: one Brain ticket, no write until click, Heart receipt before real Lungs last-two read','tests/ask-route-ordering.test.mjs']),
     run(['--test','--test-name-pattern=exact discussed record binding|care edits, removals|terminal receipts retain','tests/ask-action-capability-target-freshness-expiry.test.mjs']),
     run(['--test','--test-name-pattern=double clicks create|request retries reuse|verified automatic persistence|apply failure leaves','tests/ask-state-suggestion-persistence.test.mjs']),
     run(['--test','--test-name-pattern=admission settlement cannot erase','tests/ask-completion-execution.test.mjs']),
