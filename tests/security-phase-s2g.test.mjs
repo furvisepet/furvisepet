@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
+import { isAuthCaptchaEnabled } from "../app/lib/auth-captcha-policy.ts";
+import { requireCaptchaToken, resolveLoginCaptcha } from "../app/lib/security/auth-abuse/captcha.ts";
 import test from "node:test";
 import { getRateLimitPolicy } from "../app/lib/security/rate-limit/config.ts";
 import { MemoryAuthAbuseTestStore } from "../app/lib/security/auth-abuse/memory-test-store.ts";
@@ -62,7 +65,9 @@ test("email sign-in defers CAPTCHA to the password step while server-side challe
   assert.match(submit, /if \(isAuthCaptchaEnabled\(\) && !token\) return/);
   const captchaPolicy = source("app/lib/auth-captcha-policy.ts");
   assert.match(captchaPolicy, /NEXT_PUBLIC_AUTH_CAPTCHA_ENABLED !== "false"/);
-  assert.match(source(".env.example"), /NEXT_PUBLIC_AUTH_CAPTCHA_ENABLED=true/);
+  const template = parseEnv(source(".env.example"));
+  assert.equal(Object.hasOwn(template, "NEXT_PUBLIC_AUTH_CAPTCHA_ENABLED"), true);
+  assert.equal(isAuthCaptchaEnabled(template), true, "The example configuration must keep CAPTCHA enabled");
   assert.match(submit, /captchaToken: token/);
   assert.doesNotMatch(login, /loginCaptchaRequired/);
   assert.match(route, /failures\.challengeRequired/); assert.match(route, /getLoginCaptchaMode\(\) === "always"/);
@@ -194,4 +199,33 @@ test("Auth APIs expose no permissive CORS and CAPTCHA is not added to product fe
 test("Turnstile browser origins are exact and conditional in report-only CSP", () => {
   const csp = source("app/lib/security/headers/content-security-policy.ts");
   assert.match(csp, /https:\/\/challenges\.cloudflare\.com/); assert.match(csp, /NEXT_PUBLIC_TURNSTILE_SITE_KEY/); assert.doesNotMatch(csp, /cloudflare\.com\/\*|https:\s|\*\.cloudflare/);
+});
+
+test("example configuration rejects missing or malformed challenges without leaking template values", () => {
+  const template = parseEnv(source(".env.example"));
+  const env = { ...template, NODE_ENV: "production", FURVISE_CAPTCHA_DEV_BYPASS: "true" };
+  for (const value of [undefined, null, "", "short", 42, {}, "x".repeat(4097), "valid-length\u0000invalid"]) {
+    assert.equal(requireCaptchaToken(value, env).allowed, false);
+    assert.equal(resolveLoginCaptcha({ captchaToken: value }, true, env).allowed, false);
+  }
+  const challenge = "synthetic-local-challenge";
+  const required = requireCaptchaToken(challenge, env);
+  assert.equal(required.allowed, true);
+  assert.equal(required.bypassed, false);
+  assert.equal(required.token === challenge, true);
+});
+
+test("progressive login still challenges on server demand and validates every supplied challenge", () => {
+  const env = { ...parseEnv(source(".env.example")), NODE_ENV: "production" };
+  assert.equal(resolveLoginCaptcha({}, false, env).allowed, true);
+  assert.equal(resolveLoginCaptcha({}, true, env).allowed, false);
+  assert.equal(resolveLoginCaptcha({ captchaToken: "short" }, false, env).allowed, false);
+  assert.equal(resolveLoginCaptcha({ captchaToken: "short" }, true, env).allowed, false);
+  for (const configured of [undefined, "", "true", "configuration-placeholder"]) {
+    const safe = { NODE_ENV: "production", NEXT_PUBLIC_AUTH_CAPTCHA_ENABLED: configured, FURVISE_CAPTCHA_DEV_BYPASS: "true" };
+    assert.equal(isAuthCaptchaEnabled(safe), true);
+    assert.equal(requireCaptchaToken(undefined, safe).allowed, false);
+  }
+  // This pins the existing deployment opt-out semantics, without activating it.
+  assert.equal(isAuthCaptchaEnabled({ NEXT_PUBLIC_AUTH_CAPTCHA_ENABLED: "false" }), false);
 });

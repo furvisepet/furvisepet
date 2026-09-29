@@ -31,7 +31,7 @@ import { estimateInputTokens } from "./usage-guard/cost-estimator.ts";
 import { historyNarrativeSchema, type HistoryNarrative } from "../intelligence/history-narrative.ts";
 import OpenAI from "openai";
 import { AiAdmissionError } from "./usage-guard/errors.ts";
-import { boundedProviderTimeout, executeAdmittedProviderCall } from "./usage-guard/provider-call-budget.ts";
+import { boundedProviderTimeout, executeAdmittedResponsesRequest } from "./usage-guard/provider-call-budget.ts";
 import type { CareEntryRow, DogMemoryRow, DogProductFeedbackRow, DogProfileRow } from "../supabase.ts";
 import {
   evaluateAskSafetyContext,
@@ -1530,12 +1530,12 @@ function isRepairableStructuredOutput(error: AskPipelineError) {
 
 async function createWithTimeout(client: AskReasoningOpenAiClient, request: Record<string, unknown>, timeoutMs: number, onAttempt?: () => void, purpose?: "generation_repair") {
   const reserveMs = 12_000; // independent review and durable publication on every answer route
-  return executeAdmittedProviderCall({
+  return executeAdmittedResponsesRequest({
     purpose, reserveMs,
-    invoke: () => withProviderDeadline(signal => { onAttempt?.(); return client.responses.create(request, { signal }); }, boundedProviderTimeout(timeoutMs, reserveMs)),
+    invoke: (request) => withProviderDeadline(signal => { onAttempt?.(); return client.responses.create(request, { signal }); }, boundedProviderTimeout(timeoutMs, reserveMs)),
     maxOutputTokens: typeof request.max_output_tokens === "number" ? request.max_output_tokens : 0,
     model: typeof request.model === "string" ? request.model : "",
-    providerInput: { input: request.input, instructions: request.instructions },
+    request,
   });
 }
 

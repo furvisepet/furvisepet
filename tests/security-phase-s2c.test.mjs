@@ -187,10 +187,10 @@ test("safe error responses and logs do not expose prompts, Redis keys, user IDs,
 test("no paid Responses invocation bypasses the approved provider executor", () => {
   for (const path of ["app/lib/ai/ask-reasoning.ts"]) {
     const source = read(path);
-    assert.match(source, /executeAdmittedProviderCall/);
+    assert.match(source, /executeAdmittedResponsesRequest/);
     for (const match of source.matchAll(/responses\.create/g)) {
       const nearby = source.slice(Math.max(0, match.index - 250), match.index + 100);
-      assert.match(nearby, /invoke:\s*\(\)\s*=>/, `${path}:${match.index}`);
+      assert.match(nearby, /invoke:\s*\(request\)\s*=>/, `${path}:${match.index}`);
     }
   }
 });

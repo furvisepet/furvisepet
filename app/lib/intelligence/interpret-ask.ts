@@ -8,7 +8,7 @@ import { withProviderDeadline } from "../ai/execution-deadline.ts";
 import { ASK_INTERPRETATION_MAX_OUTPUT_TOKENS, interpretStructuredProviderResponse, structuredProviderEnvelopeDiagnostic } from "../ai/ask-provider.ts";
 import { AskPipelineError, type AskProviderEvent } from "../ai/ask-reasoning.ts";
 import { AiAdmissionError } from "../ai/usage-guard/errors.ts";
-import { boundedProviderTimeout, executeAdmittedProviderCall } from "../ai/usage-guard/provider-call-budget.ts";
+import { boundedProviderTimeout, executeAdmittedResponsesRequest } from "../ai/usage-guard/provider-call-budget.ts";
 import { buildRecentSubjectState } from "./entities/recent-subject-state.ts";
 import type { FurviseLiveContext } from "./types.ts";
 import type { HistoryPlan } from "./history-retrieval.ts";
@@ -187,10 +187,10 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     { model, elapsedMs: Date.now() - started, providerErrorCode: reason, providerErrorType: kind, ticketArrived, ...extras });
   try {
     const activeClient = client || new OpenAI({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 0 }) as unknown as NonNullable<typeof client>;
-    const response = await executeAdmittedProviderCall({ model, maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens,
+    const response = await executeAdmittedResponsesRequest({ model, maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens,
       stage: "interpretation", reserveMs: 24_000,
-      providerInput: { input: request.input, instructions: request.instructions },
-      invoke: () => {
+      request,
+      invoke: (request) => {
         attempted = true;
         onProviderEvent?.({ stage: "interpretation", outcome: "started", model, elapsedMs: 0, configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens });
         return withProviderDeadline(signal => {
@@ -225,10 +225,10 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
         instructions: `${ASK_REQUEST_INSTRUCTIONS}\n\n${ASK_INTERPRETATION_REPAIR_INSTRUCTIONS}`,
         input: JSON.stringify({ ...input, contractRepair: { validationCode: error.reason, rejectedProposal: result.parsed } }) };
       console.info("[Ask Brain] contract repair", { sourceMessageId: context.currentTurn?.id, validationCode: error.reason });
-      const repairResponse = await executeAdmittedProviderCall({ purpose: "interpretation_repair", model,
+      const repairResponse = await executeAdmittedResponsesRequest({ purpose: "interpretation_repair", model,
         maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens, stage: "interpretation", reserveMs: ASK_INTERPRETATION_REPAIR_LIMITS.reserveMs,
-        providerInput: { input: repairRequest.input, instructions: repairRequest.instructions },
-        invoke: () => {
+        request: repairRequest,
+        invoke: (repairRequest) => {
           onProviderEvent?.({ stage: "interpretation", outcome: "started", model, elapsedMs: Date.now() - started,
             configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens, validationDetails: "bounded_contract_repair" });
           return withProviderDeadline(signal => {

@@ -14,7 +14,7 @@ import "server-only";
 import OpenAI from "openai";
 import { getAskModelConfiguration, type AskReasoningResult, type AskProviderEvent } from "../ai/ask-reasoning.ts";
 import { withProviderDeadline } from "../ai/execution-deadline.ts";
-import { boundedProviderTimeout, executeAdmittedProviderCall } from "../ai/usage-guard/provider-call-budget.ts";
+import { boundedProviderTimeout, executeAdmittedResponsesRequest } from "../ai/usage-guard/provider-call-budget.ts";
 import { interpretStructuredProviderResponse } from "../ai/ask-provider.ts";
 import { parseModelApplicationActions } from "../application-actions/contracts.ts";
 import { prepareFurviseApplicationActions } from "../application-actions/planner.ts";
@@ -174,11 +174,12 @@ export async function reviewTaskCompletion(input: {
     const reserveMs = purpose === "task_repair" ? 12_000 : 4_000;
     const started = Date.now();
     input.onProviderEvent?.({ stage, outcome: "started", model, elapsedMs: 0 });
-    const output = await executeAdmittedProviderCall({ purpose, model, stage, reserveMs, maxOutputTokens: 3200,
-      providerInput: { input: serialized, instructions: prompt }, invoke: () => withProviderDeadline(signal =>
-        provider.responses.create({ model, instructions: prompt, input: serialized, max_output_tokens: 3200,
-          ...(/^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}),
-          text: { format: { type: "json_schema", name: "furvise_task_completion", strict: true, schema } } }, { signal }),
+    const providerRequest = { model, instructions: prompt, input: serialized, max_output_tokens: 3200,
+          ...(/^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" as const } } : {}),
+          text: { format: { type: "json_schema", name: "furvise_task_completion", strict: true, schema } } } as const;
+    const output = await executeAdmittedResponsesRequest({ purpose, model, stage, reserveMs, maxOutputTokens: 3200,
+      request: providerRequest, invoke: (providerRequest) => withProviderDeadline(signal =>
+        provider.responses.create(providerRequest, { signal }),
         boundedProviderTimeout(20_000, reserveMs, stage)) });
     input.onProviderEvent?.({ stage, outcome: "succeeded", model, elapsedMs: Date.now() - started });
     const parsed = interpretStructuredProviderResponse(output, raw => JSON.parse(raw) as unknown);

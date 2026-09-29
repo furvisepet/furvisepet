@@ -3,7 +3,7 @@ import "server-only";
 import OpenAI from "openai";
 import { interpretStructuredProviderResponse } from "../../ai/ask-provider.ts";
 import { AskPipelineError, type AskProviderEvent } from "../../ai/ask-reasoning.ts";
-import { executeAdmittedProviderCall } from "../../ai/usage-guard/provider-call-budget.ts";
+import { executeAdmittedResponsesRequest } from "../../ai/usage-guard/provider-call-budget.ts";
 import { validateProposedSemanticFrame } from "./extract-frame.ts";
 import { proposedSemanticFrameJsonSchema } from "./schema.ts";
 import type { ProposedSemanticFrame } from "./types.ts";
@@ -64,11 +64,11 @@ export async function extractTurnSubjectFrame({
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TURN_SUBJECT_TIMEOUT_MS);
   try {
-    const response = await executeAdmittedProviderCall({
-      invoke: () => activeClient.responses.create(request, { signal: controller.signal }),
+    const response = await executeAdmittedResponsesRequest({
+      invoke: (request) => activeClient.responses.create(request, { signal: controller.signal }),
       maxOutputTokens: TURN_SUBJECT_MAX_OUTPUT_TOKENS,
       model,
-      providerInput: input,
+      request,
     });
     let validationReason: string | null = null;
     const interpreted = interpretStructuredProviderResponse(response, (raw) => {

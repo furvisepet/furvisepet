@@ -62,3 +62,40 @@ export function boundedProviderTimeout(maximumMs: number, reserveMs = 0, stage: 
   if (remaining <= 0) throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "provider_deadline_exhausted");
   return Math.min(maximumMs, remaining);
 }
+
+/**
+ * Admit and dispatch the same JSON request. This accounts for instructions,
+ * schemas, tools and future request fields, not just the user input.
+ * The existing chars/3 estimator and feature ceilings remain unchanged:
+ * this is an accounting policy estimate, not measured provider token usage.
+ */
+export async function executeAdmittedResponsesRequest<R extends Record<string, unknown>, T>(input: {
+  purpose?: ProviderCallPurpose;
+  invoke: (request: R) => Promise<T>;
+  reserveMs?: number;
+  stage?: PipelineStage;
+  maxOutputTokens: number;
+  model: string;
+  request: R;
+}) {
+  // Snapshot before any asynchronous admission. The SDK receives this exact
+  // JSON value even if a caller later changes its original request.
+  const request = JSON.parse(JSON.stringify(input.request)) as R;
+  if (!request || Array.isArray(request) || typeof request !== "object"
+    || request.model !== input.model || request.max_output_tokens !== input.maxOutputTokens
+    || !Number.isSafeInteger(input.maxOutputTokens) || input.maxOutputTokens <= 0) {
+    throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "provider_request_contract_mismatch");
+  }
+  freezeProviderRequest(request);
+  return executeAdmittedProviderCall({
+    purpose: input.purpose, reserveMs: input.reserveMs, stage: input.stage,
+    model: input.model, maxOutputTokens: input.maxOutputTokens,
+    providerInput: request, invoke: () => input.invoke(request),
+  });
+}
+
+function freezeProviderRequest(value: unknown): void {
+  if (!value || typeof value !== "object") return;
+  for (const child of Object.values(value)) freezeProviderRequest(child);
+  Object.freeze(value);
+}
