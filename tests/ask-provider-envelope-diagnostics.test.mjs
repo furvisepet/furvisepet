@@ -7,8 +7,8 @@ const message = (status="completed", content=[{type:"output_text",text:"{}"}]) =
 const cases = [
  ["completed message",{status:"completed",output:[message()]},"completed",true],
  ...["max_output_tokens","content_filter",null,undefined].map(reason=>["incomplete "+reason,{status:"incomplete",incomplete_details:reason===undefined?undefined:{reason},output:[message()]},"incomplete",false]),
- ...["completed","in_progress","incomplete"].map(status=>["reasoning "+status,{status:"completed",output:[{type:"reasoning",status,summary:[]},message() ]},status==="incomplete"?"incomplete":"completed",status!=="incomplete"]),
- ["incomplete message",{status:"completed",output:[message("incomplete")]},"incomplete",false],
+ ...["completed","in_progress","incomplete"].map(status=>["reasoning "+status,{status:"completed",output:[{type:"reasoning",status,summary:[]},message() ]},"completed",true]),
+ ["top completed overrides message item status",{status:"completed",output:[message("incomplete")]},"completed",true],
  ["refusal",{status:"completed",output:[message("completed",[{type:"refusal",refusal:"Synthetic refusal"}])]},"refused",false],
  ["empty refusal",{status:"completed",output:[message("completed",[{type:"refusal",refusal:""}])]},"invalid",false],
  ["failed",{status:"failed",error:{code:"server_error",message:"Never log this body"},output:[]},"failed",false],
@@ -51,7 +51,7 @@ test("bounded item diagnostics and message-only content flags",()=>{
 });
 for(const envelope of [
  {status:"incomplete",incomplete_details:{reason:"content_filter"},output:[],usage:{input_tokens:0,output_tokens:0}},
- {status:"completed",output:[{type:"reasoning",status:"incomplete",summary:[]},message()],usage:{input_tokens:7,output_tokens:9}}
+ {status:"incomplete",output:[{type:"reasoning",status:"incomplete",summary:[]},message()],usage:{input_tokens:7,output_tokens:9}}
 ]) test("interpretation failure preserves safe envelope and makes exactly one stub call: "+envelope.status,async t=>{
  t.mock.method(console,"info",()=>{});t.mock.method(console,"warn",()=>{});
  const pet={id:"synthetic-subject",user_id:"synthetic-owner",name:"Offline Subject",species:"dog"};

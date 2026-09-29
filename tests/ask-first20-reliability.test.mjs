@@ -186,10 +186,10 @@ test('urgent presentation never drops a safety section or a late avoidance instr
   assert.equal(result.sections.length,8);assert.equal(result.sections.flatMap(s=>s.items).length,24);assert.match(JSON.stringify(result),/Avoid hazard 7-2/);
 });
 
-test('explicit incomplete or failed provider items cannot be accepted under a completed envelope',async()=>{
+test('legacy message incomplete or failed status remains fail closed without a response status',async()=>{
   const {interpretStructuredProviderResponse}=await import('../app/lib/ai/ask-provider.ts');
   for(const status of ['incomplete','failed']){
-    let parsed=false;const result=interpretStructuredProviderResponse({status:'completed',output_text:'{}',output:[{status}]},()=>{parsed=true;return{};});
+    let parsed=false;const result=interpretStructuredProviderResponse({output_text:'{}',output:[{type:'message',status}]},()=>{parsed=true;return{};});
     assert.equal(result.status,status);assert.equal(parsed,false);
   }
   const result=interpretStructuredProviderResponse({status:'completed',output_text:'{}',usage:{input_tokens:-1,output_tokens:0.5}},JSON.parse);

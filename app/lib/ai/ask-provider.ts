@@ -87,16 +87,16 @@ export function interpretStructuredProviderResponse<T>(
 ): StructuredProviderResult<T> {
   const rawText = typeof response.output_text === "string" ? response.output_text : collectOutputText(response.output);
   const refusal = collectRefusal(response.output);
-  const status = response.status || "completed";
+  const status = response.status === undefined ? legacyMessageStatus(response) : response.status;
   const usage = {
     inputTokens: numberOrNull(response.usage?.input_tokens),
     outputTokens: numberOrNull(response.usage?.output_tokens),
   };
-  const finishReason = response.output?.find((item) => item.status)?.status || status || null;
+  const finishReason = status || null;
   const incompleteReason = response.incomplete_details?.reason || null;
   const common = { rawText, incompleteReason, finishReason, refusal, usage };
 
-  if (status === "incomplete" || response.output?.some(item => item.status === "incomplete")) {
+  if (status === "incomplete") {
     return {
       ...common,
       status: "incomplete",
@@ -106,7 +106,7 @@ export function interpretStructuredProviderResponse<T>(
       parsingAttempted: false,
     };
   }
-  if (status === "failed" || response.error || response.output?.some(item => item.status === "failed")) {
+  if (status === "failed" || response.error) {
     return {
       ...common,
       status: "failed",
@@ -159,8 +159,23 @@ export function interpretStructuredProviderResponse<T>(
   }
 }
 
+// Compatibility for envelopes without a Responses status. Only message status
+// can supply item-level completion authority; absent/mixed statuses fail closed.
+function legacyMessageStatus(response: OpenAiStructuredResponseLike): string {
+  const messages = (response.output || []).filter(item => item.type === "message");
+  if (messages.length) {
+    if (messages.some(item => item.status === "failed")) return "failed";
+    if (messages.some(item => item.status === "incomplete")) return "incomplete";
+    const unfinished = messages.find(item => item.status !== "completed");
+    return unfinished ? unfinished.status || "invalid" : "completed";
+  }
+  // Existing text-only adapters have no output items or item status to consult.
+  return !response.output?.length && typeof response.output_text === "string" && response.output_text.length > 0
+    ? "completed" : "invalid";
+}
+
 function collectOutputText(output: OpenAiStructuredResponseLike["output"]) {
-  const text = (output || []).flatMap((item) => item.content || [])
+  const text = (output || []).filter(item => item.type === "message").flatMap((item) => item.content || [])
     .filter((part) => part.type === "output_text" && typeof part.text === "string")
     .map((part) => part.text)
     .join("");
@@ -168,7 +183,7 @@ function collectOutputText(output: OpenAiStructuredResponseLike["output"]) {
 }
 
 function collectRefusal(output: OpenAiStructuredResponseLike["output"]) {
-  const refusal = (output || []).flatMap((item) => item.content || [])
+  const refusal = (output || []).filter(item => item.type === "message").flatMap((item) => item.content || [])
     .find((part) => part.type === "refusal" && typeof part.refusal === "string")?.refusal;
   return refusal || null;
 }
