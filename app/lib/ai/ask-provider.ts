@@ -39,6 +39,48 @@ export type StructuredProviderResult<T> = {
   };
 };
 
+// Safe envelope shape only: never provider text, identifiers, or arbitrary strings.
+const responseStatuses = ["completed", "failed", "in_progress", "cancelled", "queued", "incomplete"] as const;
+const outputTypes = ["message", "reasoning", "function_call", "file_search_call", "web_search_call",
+  "computer_call", "code_interpreter_call", "image_generation_call", "local_shell_call",
+  "shell_call", "shell_call_output", "apply_patch_call", "apply_patch_call_output",
+  "mcp_call", "mcp_list_tools", "mcp_approval_request", "custom_tool_call",
+  "compaction", "tool_search_call", "tool_search_output", "namespace"] as const;
+const responseErrorCodes = ["server_error", "rate_limit_exceeded", "invalid_prompt", "vector_store_timeout",
+  "invalid_image", "invalid_image_format", "invalid_base64_image", "invalid_image_url",
+  "image_too_large", "image_too_small", "image_parse_error", "image_content_policy_violation",
+  "invalid_image_mode", "image_file_too_large", "unsupported_image_media_type",
+  "empty_image_file", "failed_to_download_image", "image_file_not_found"] as const;
+function envelopeEnum<T extends string>(value: unknown, allowed: readonly T[]): T | "other" | null {
+  return value == null ? null : typeof value === "string" && allowed.includes(value as T) ? value as T : "other";
+}
+
+/** Bounded diagnostic projection; it never participates in classification or authority. */
+export function structuredProviderEnvelopeDiagnostic(response: OpenAiStructuredResponseLike) {
+  const output = response.output || [];
+  const messages = output.filter(item => item.type === "message");
+  return {
+    responseStatus: envelopeEnum(response.status, responseStatuses),
+    incompleteReason: envelopeEnum(response.incomplete_details?.reason, ["max_output_tokens", "content_filter"] as const),
+    errorCode: envelopeEnum(response.error?.code, responseErrorCodes),
+    hasError: response.error != null,
+    outputItemCount: output.length,
+    outputItems: output.slice(0, 32).map(item => ({
+      type: envelopeEnum(item.type, outputTypes),
+      status: envelopeEnum(item.status, responseStatuses),
+    })),
+    outputItemsTruncated: output.length > 32,
+    hasMessage: messages.length > 0,
+    hasMessageOutputText: messages.some(item => item.content?.some(part => part.type === "output_text")),
+    hasMessageRefusal: messages.some(item => item.content?.some(part => part.type === "refusal")),
+    hasOutputText: typeof response.output_text === "string" && response.output_text.length > 0,
+    hasUsage: response.usage != null,
+    inputTokens: numberOrNull(response.usage?.input_tokens),
+    outputTokens: numberOrNull(response.usage?.output_tokens),
+  };
+}
+export type StructuredProviderEnvelopeDiagnostic = ReturnType<typeof structuredProviderEnvelopeDiagnostic>;
+
 export function interpretStructuredProviderResponse<T>(
   response: OpenAiStructuredResponseLike,
   parse: (rawText: string) => T,

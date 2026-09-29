@@ -50,6 +50,7 @@ import {
   ASK_MAX_OUTPUT_TOKENS,
   interpretStructuredProviderResponse,
   type OpenAiStructuredResponseLike,
+  type StructuredProviderEnvelopeDiagnostic,
 } from "./ask-provider.ts";
 export { ASK_MAX_OUTPUT_TOKENS } from "./ask-provider.ts";
 import {
@@ -250,6 +251,7 @@ export type AskProviderEvent = {
   retryAfterMs?: number;
   configuredOutputLimit?: number;
   finishReason?: string | null;
+  providerEnvelope?: StructuredProviderEnvelopeDiagnostic;
   incompleteReason?: string | null;
   inputTokens?: number | null;
   outputTokens?: number | null;

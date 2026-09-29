@@ -5,7 +5,7 @@ import OpenAI from "openai";
 import { factorProviderEnumSchemas } from "../ai/provider-enum-schema.ts";
 import { factorProviderCompoundSchemas } from "../ai/provider-compound-schema.ts";
 import { withProviderDeadline } from "../ai/execution-deadline.ts";
-import { ASK_INTERPRETATION_MAX_OUTPUT_TOKENS, interpretStructuredProviderResponse } from "../ai/ask-provider.ts";
+import { ASK_INTERPRETATION_MAX_OUTPUT_TOKENS, interpretStructuredProviderResponse, structuredProviderEnvelopeDiagnostic } from "../ai/ask-provider.ts";
 import { AskPipelineError, type AskProviderEvent } from "../ai/ask-reasoning.ts";
 import { AiAdmissionError } from "../ai/usage-guard/errors.ts";
 import { boundedProviderTimeout, executeAdmittedProviderCall } from "../ai/usage-guard/provider-call-budget.ts";
@@ -203,7 +203,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     const proposal = result.status === "completed" ? result.parsed : null;
     ticketArrived = !!proposal && typeof proposal === "object" && ["readTicket", "appendJob", "writeJob"]
       .some(key => key in proposal && (proposal as Record<string, unknown>)[key] != null);
-    let metadata = { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens,
+    let metadata = { providerEnvelope: structuredProviderEnvelopeDiagnostic(response), inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens,
       parsingAttempted: result.parsingAttempted, configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens, ticketArrived };
     if (result.status !== "completed") {
       const kind = result.status === "invalid" ? result.parsingAttempted ? "json" : "empty_output" : result.status;
@@ -240,7 +240,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
       const repairedProposal = repaired.status === "completed" ? repaired.parsed : null;
       ticketArrived = ticketArrived || !!repairedProposal && typeof repairedProposal === "object" && ["readTicket", "appendJob", "writeJob"]
         .some(key => key in repairedProposal && (repairedProposal as Record<string, unknown>)[key] != null);
-      metadata = { inputTokens: sumUsage(result.usage.inputTokens, repaired.usage.inputTokens),
+      metadata = { providerEnvelope: structuredProviderEnvelopeDiagnostic(repairResponse), inputTokens: sumUsage(result.usage.inputTokens, repaired.usage.inputTokens),
         outputTokens: sumUsage(result.usage.outputTokens, repaired.usage.outputTokens), parsingAttempted: repaired.parsingAttempted,
         configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens, ticketArrived };
       if (repaired.status !== "completed") {

@@ -2003,6 +2003,7 @@ function logAskProviderEvent(event: AskProviderEvent, context: { conversationId:
     providerErrorCode: event.providerErrorCode || null,
     providerErrorType: event.providerErrorType || null,
     providerStatus: event.providerStatus ?? null,
+    providerEnvelope: event.providerEnvelope ?? null,
     requestId: context.requestId,
     retryAfterMs: event.retryAfterMs ?? null,
     rawOutputLength: event.rawOutputLength ?? null,
