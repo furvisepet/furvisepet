@@ -1,3 +1,4 @@
+import { inspectAskWireContract } from "./helpers/ask-wire-contract.mjs";
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -15,14 +16,14 @@ const context=(question=q,turns=[])=>({owner:{userId:'owner'},eligiblePets:pets,
  currentTurn:{id:'current-user',role:'user',text:question},conversationTurns:turns,timeZone:'UTC'});
 const probe=(quote,pet,term)=>({quote,sourceTurnId:null,petNames:[pet],from:null,to:null,target:null,termGroups:[[term]],ordering:'desc'});
 const probes=()=>[probe('Juniper medication change','Juniper','medication'),probe('Tamarack food reaction','Tamarack','food')];
-const ticket=(ps=probes())=>({subjectScope:'named',operation:'read',temporal:{from:null,to:null,anchor:null,calendar:null},
+const ticket=(ps=probes())=>({authority:'effective_fact',subjectScope:'named',operation:'read',temporal:{from:null,to:null,anchor:null,calendar:null},
  predicates:[],outputs:{strategy:null,completeness:'sufficient',ordering:'desc',limit:null},searchHints:null,episode:null,selection:null,probes:ps});
 const proposal=(read=ticket(),ctx=context())=>({version:'ask-request.v2',mode:'read',readTicket:read,question:ctx.currentMessage,
  requirements:[],referenceTurnIds:[],evidenceNeeds:[],evidenceBasis:'saved_history',scope:'named',petNames:pets.slice(0,2).map(p=>p.name),
  operation:'recall',selection:'summary',quantity:'records',topic:'history',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:null,premiseQuotes:[]});
 async function run(p,ctx=context(),reject=false){
  let calls=0;const promise=interpretAskQuestion({context:ctx,model:'fixture',client:{responses:{create:async request=>{
- calls++;const requestSchema=request.text.format.schema.properties.request.anyOf.find(b=>b.properties?.evidenceBasis?.enum?.includes('saved_history') && b.properties?.calculatePlan?.type==='null');const branches=requestSchema.properties.readTicket.anyOf.filter(b=>b.properties);
+ calls++;const requestSchema=(await inspectAskWireContract(request,ctx)).canonicalSchema.properties.request.anyOf.find(b=>b.properties?.evidenceBasis?.enum?.includes('saved_history') && b.properties?.calculatePlan?.type==='null');const branches=requestSchema.properties.readTicket.anyOf.filter(b=>b.properties);
  for(const b of branches){assert.equal(Object.hasOwn(b.properties,'needs'),false);
  assert.equal(b.properties.probes.items.additionalProperties,false);
  for(const id of ['id','needId','sourceSpanId','petIds'])assert.equal(Object.hasOwn(b.properties.probes.items.properties,id),false);}

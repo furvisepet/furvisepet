@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import Ajv from "ajv";
+import { evidenceSource } from "../app/lib/intelligence/ask-evidence.ts";
 
 import {
   ASK_MAX_OUTPUT_TOKENS,
@@ -25,11 +27,11 @@ function providerOutput(overrides = {}) {
     answer: "Contact an emergency veterinarian now because Maple's extreme tiredness with abnormal breathing after activity can be serious.",
     answerSections: [],
     safetyLevel: "urgent",
-    suggestedFollowUps: ["Is Maple breathing with an open mouth or using the belly to breathe?"],
-    proposedHistoryUpdate: { shouldOffer: true, category: "symptom", title: "Deep breathing after activity", details: "Maple was extremely tired and taking deep breaths after running.", severity: "urgent", resolvesConcernId: null },
     responseMode: "urgent_safety",
     userIntent: "report urgent breathing change",
-    relevantContextIds: ["profile:pet-maple:species"],
+    relevantContextIds: [],
+    historyNarrative: null,
+    applicationActions: [],
     messageUnderstanding: {
       primaryIntent: "new_symptom", secondaryIntents: [], userIsAskingQuestion: false,
       userIsProvidingUpdate: true, userIsCorrectingPriorInformation: false,
@@ -38,10 +40,7 @@ function providerOutput(overrides = {}) {
       userIsMakingSmallTalk: false, requestedTopic: "breathing", referencedPet: "Maple",
       safetyRelevance: "direct", needsClarification: false, canAnswerDirectly: true,
     },
-    intelligenceSafety: { level: "urgent", reason: "Explicit abnormal breathing and extreme fatigue.", requiresImmediateAction: true },
-    learnings: [],
-    careActions: [{ action: "create_entry", category: "symptom", title: "Deep breathing after activity", details: "Maple was extremely tired and taking deep breaths after running.", severity: "urgent", confidence: 0.99, relatedRecordId: null }],
-    semanticEvents: [{ subject: { type: "pet", name: "Maple" }, domain: "health", topic: "respiratory_distress", eventTitle: "Maple had trouble breathing", transition: "started", state: "active", temporal: { occurredAt: null, explicitTime: null }, importance: "urgent", confidence: 0.99, sourceExcerpt: "extremely tired and taking deep breaths" }],
+    semanticEvents: [],
     ...overrides,
   };
 }
@@ -71,7 +70,19 @@ test("Ask uses one canonical 8192-token native strict structured-output request"
   const request = buildAskProviderRequest({ currentMessage: "hello" });
   assert.equal(ASK_MAX_OUTPUT_TOKENS, 8192);
   assert.equal(request.max_output_tokens, ASK_MAX_OUTPUT_TOKENS);
-  assert.deepEqual(request.text.format, { type: "json_schema", name: "furvise_ask_response", strict: true, schema: askUnifiedJsonSchema });
+  assert.equal(request.text.format.type, "json_schema");
+  assert.equal(request.text.format.name, "furvise_ask_response");
+  assert.equal(request.text.format.strict, true);
+  const schema = request.text.format.schema;
+  assert.deepEqual(Object.keys(schema.properties).sort(), ["answer","answerSections","safetyLevel","responseMode","userIntent","applicationActions","relevantContextIds","historyNarrative","messageUnderstanding","semanticEvents"].sort());
+  assert.deepEqual([...schema.required].sort(), Object.keys(schema.properties).sort());
+  assert.equal(schema.additionalProperties, false);
+  const validate = new Ajv({allErrors:true}).compile(schema);
+  assert.equal(validate(providerOutput()),true,JSON.stringify(validate.errors));
+  assert.equal(schema.properties.historyNarrative.type, "null");
+  assert.equal(schema.properties.relevantContextIds.maxItems, 0);
+  for (const field of ["answer","safetyLevel","responseMode","userIntent"])
+    assert.deepEqual(schema.properties[field], askUnifiedJsonSchema.properties[field]);
   assert.equal("temperature" in request, false);
 });
 
@@ -209,11 +220,16 @@ test("canonical mutations remain after provider, schema, answer validation, and 
   assert.ok(callback.indexOf("await retrieveAskHistory(") < callback.indexOf("await runFurviseIntelligence({"));
   assert.match(callback, /evidenceContract: createAskEvidenceContract\(context, readPetIds\)/);
   assert.match(callback, /input\.authoritativePetIds = petIds/);
-  const validatedIndex = route.indexOf('logAskStage("intelligence validated"');
-  const assistantIndex = route.indexOf("async function persistAssistantAnswer");
-  const canonicalWriteIndex = route.indexOf("persistIntelligenceLearnings({", assistantIndex);
-  assert.ok(runIndex > -1 && validatedIndex > runIndex && canonicalWriteIndex > validatedIndex);
-  assert.match(route.slice(route.indexOf("} catch (error) {", route.indexOf("orchestration =")), route.indexOf("const reasoning")), /safeReleaseAiCredit/);
+  const validatedIndex = route.indexOf("logValidatedIntelligence(intelligenceResult, requestId)", runIndex);
+  const finalizationIndex = route.indexOf("return finalizeAskPostReview({");
+  const canonicalWriteIndex = route.indexOf("await completeAskConversationTurn({", finalizationIndex);
+  assert.ok(runIndex > -1 && validatedIndex > runIndex && finalizationIndex > validatedIndex && canonicalWriteIndex > finalizationIndex);
+  assert.match(route.slice(canonicalWriteIndex, canonicalWriteIndex + 600), /intelligenceValidation: intelligenceResult\?\.answerValidation \|\| null/);
+  assert.match(route.slice(canonicalWriteIndex, canonicalWriteIndex + 600), /persistenceGovernance/);
+  assert.doesNotMatch(route, /persistIntelligenceLearnings\(/);
+  const catchIndex = route.indexOf("} catch (error) {", runIndex);
+  assert.ok(catchIndex > runIndex);
+  assert.match(route.slice(catchIndex, catchIndex + 2500), /safeReleaseAiCredit/);
 });
 
 test("retry UI reuses one logical turn with a new server attempt", () => {
@@ -235,31 +251,38 @@ test("Ask logs provider calls, output completion details, retry reuse, and credi
 test('conversation composer receives original user premises without planner-invented facts or mutation fields', () => {
   const request = buildAskProviderRequest({currentMessage:'What can be known?',
     evidenceContract:{interpretation:{conversationOnly:true,request:{question:'Invented certainty',requirements:['Invent a duration']}}},
-    pets:[{name:'Selected private pet'}], contextRecords:[{value:'Private saved fact'}],
+    pets:[{id:'selected-pet',name:'Selected pet',weight:73.19}], contextRecords:[{value:'Private saved fact'}],
     dialogueContext:{turns:[{role:'user',text:'Original scenario'},{role:'furvise',text:'Unsupported inference'}]}});
   const payload=JSON.parse(request.input);
   assert.equal(payload.currentMessage,'What can be known?');
-  assert.deepEqual(payload.priorUserPremises,[{role:'user',text:'Original scenario'}]);
-  assert.doesNotMatch(request.input,/Invented|Invent a duration|Private saved|Selected private|Unsupported inference/);
-  assert.equal(payload.turnPermissions.mutationPlan,"none_prepared");
-  assert.equal(payload.turnPermissions.historyLookup,"not_requested");
-  assert.equal(payload.productFacts.savedHistory.supported,true);
-  assert.equal(payload.productFacts.writes.supported,true);
-  assert.equal(payload.productFacts.liveRetailerResearch,false);
+  assert.deepEqual(payload.userPremises,[{text:'Original scenario'}]);
+  assert.doesNotMatch(request.input,/Invented|Invent a duration|Private saved|73\.19|Unsupported inference/);
+  assert.deepEqual(payload.pets,[{id:'selected-pet',name:'Selected pet'}]);
+  assert.equal(payload.request.requirements,undefined);
+  assert.match(payload.authority,/No saved-state evidence or write-success authority/);
   assert.deepEqual(Object.keys(request.text.format.schema.properties).sort(),['answer','responseMode','safetyLevel','userIntent']);
 });
-test('requested JSON layout is preserved for profile-only historical reads',()=>{
-  const request=buildAskProviderRequest({evidenceContract:{scope:{readOnlyRecall:true,requestKind:'ordinary'},history:{},
-    interpretation:{request:{outputFormat:'json'}},represented:[{sourceType:'profile'}]}});
-  assert.deepEqual(request.text.format.schema.properties.layout.enum,['json']);
-  assert.equal(request.text.format.schema.properties.historyNarrative.type,'null');
+test('requested profile JSON retains its format and receives an honest certified limitation',async()=>{
+  const {PROFILE_PRESENTATION_LIMITATION}=await import('../app/lib/intelligence/profile-presentation-limitation.ts');
+  const {evidence,input:args,client}=storedInput('saved_profile','ordinary','json');
+  assert.throws(()=>buildAskProviderRequest({evidenceContract:evidence}),/STORED_STATE_CANNOT_ENTER_LANGUAGE_GENERATION/);
+  const result=await generateContextAwareAskResponse(args);
+  assert.equal(result.evidenceContract.interpretation.request.outputFormat,'json');
+  assert.equal(result.model,'server-profile-presentation-unavailable');
+  assert.equal(result.answer.summary,PROFILE_PRESENTATION_LIMITATION);
+  assert.deepEqual(result.relevantContextIds,[]);assert.equal(client.requests.length,0);
 });
-test('count composition uses the same typed container as other historical tasks',()=>{
+test('count requests retain typed format and cannot reopen factual generation without certified evidence',async()=>{
+  const {historyPublicationLimitation,historyLimitationFailure}=await import('../app/lib/intelligence/ordinary-history-publication.ts');
   for(const outputFormat of ['json','csv','prose']){
-    const request=buildAskProviderRequest({evidenceContract:{scope:{readOnlyRecall:true,requestKind:'count'},history:{},
-      interpretation:{request:{outputFormat}},represented:[]}});
-    assert.deepEqual(request.text.format.schema.properties.layout.enum,[outputFormat]);
-    assert.ok(request.text.format.schema.properties.readVersion);
+    const {evidence,input:args,client}=storedInput('saved_history','count',outputFormat);
+    assert.throws(()=>buildAskProviderRequest({evidenceContract:evidence}),/STORED_STATE_CANNOT_ENTER_LANGUAGE_GENERATION/);
+    const result=await generateContextAwareAskResponse(args);
+    assert.equal(result.evidenceContract.interpretation.request.outputFormat,outputFormat);
+    assert.equal(result.answer.summary,historyPublicationLimitation(result.evidenceContract));
+    assert.equal(historyLimitationFailure(result),null);
+    assert.equal(result.model,'server-history-unavailable');
+    assert.deepEqual(result.relevantContextIds,[]);assert.equal(client.requests.length,0);
   }
 });
 
@@ -271,8 +294,26 @@ for (const readOnly of [false,true]) test(`current-source provenance survives re
   history:{provenance:[],candidateIds:[]},sources:[],losses:[],represented:[],
   interpretation:{request:{mode:readOnly?'read':'mixed',outputFormat:'prose',requirements:[]}}
  }});
- assert.deepEqual(request.reasoning,{effort:'medium'});
  const payload=JSON.parse(request.input);
- assert.equal(payload.currentRequestEvidence[0].sourceType,'current_request');
- assert.equal(payload.currentRequestEvidence[0].text,question);
+ assert.equal(payload.currentMessage,question);
+ assert.match(payload.authority,/Current USER assertions and supplied premises only/);
+ assert.equal(payload.evidenceContract,undefined);
+ assert.equal(payload.history,undefined);
+});
+
+function storedInput(evidenceBasis,requestKind,outputFormat){
+ const pet=profile(),client=clientWith([]);
+ const request={mode:'read',evidenceBasis,profileFields:evidenceBasis==='saved_profile'?['species']:[],readTicket:null,
+  referenceTurnIds:[],requirements:[],evidenceNeeds:[],outputFormat};
+ const evidence={version:'ask-evidence.v1',petNames:{[pet.id]:pet.name},
+  scope:{authorizedPetIds:[pet.id],requestText:'Requested saved information',status:'resolved',readOnlyRecall:true,requestKind},
+  interpretation:{operation:'recall',readOperation:'recall',readOnly:true,petIds:[pet.id],request},
+  sources:[evidenceSource(pet.id,'profile',[pet.id])],represented:[],losses:[],verifiedFacts:[],representation:'complete',
+  completeness:{retrieval:'unknown',corrections:'unknown',extraction:'unknown',grouping:'unknown'}};
+ return {evidence,client,input:{...input(client),question:evidence.scope.requestText,evidenceContract:evidence}};
+}
+test('language output cannot publish a supplied saved-state citation',async()=>{
+ const {parseUnifiedResponse}=await import('../app/lib/ai/ask-reasoning.ts');
+ assert.throws(()=>parseUnifiedResponse(JSON.stringify(providerOutput({relevantContextIds:['profile:pet-maple:species']})),[]),
+  /LANGUAGE_PROVIDER_CANNOT_PUBLISH_STORED_FACTS/);
 });

@@ -1,3 +1,4 @@
+import { inspectAskWireContract } from "./helpers/ask-wire-contract.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -132,7 +133,7 @@ test("the single interpreter emits and binds profile semantics without a second 
  const p=proposal("current_food","Recipe A"),c=context(p.instructionQuote);let calls=0;
  const interpreted=await interpretAskQuestion({context:c,model:"offline-fixture",client:{responses:{create:async r=>{
   calls++;assert.equal(calls,1);
-  const schema=r.text.format.schema;
+  const schema=(await inspectAskWireContract(r,c)).canonicalSchema;
   assert.ok(JSON.stringify(schema).includes("fieldMutationJob"));
   return {output_text:JSON.stringify({request:request(p)})};
  }}}});

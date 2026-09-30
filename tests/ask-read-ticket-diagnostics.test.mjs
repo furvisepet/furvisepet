@@ -1,3 +1,4 @@
+import { inspectAskWireContract } from "./helpers/ask-wire-contract.mjs";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { registerHooks } from 'node:module';
@@ -156,7 +157,8 @@ test('captured Bramble ticket binds only with needs stripped, through one planne
         onProviderEvent: event => stages.push(event),
         client: { responses: { create: async request => {
           calls++;
-          assert.ok(request.instructions.includes('emit readTicket.probes: []'));
+          const contract = await inspectAskWireContract(request,context);
+          assert.ok(contract.sourceInstructions.includes('emit readTicket.probes: []'));
           return { output_text: JSON.stringify(envelope) };
         } } },
       });
@@ -231,8 +233,9 @@ test('captured Dune ticket binds only with needs stripped, through one planner p
         onProviderEvent: event => stages.push(event),
         client: { responses: { create: async request => {
           calls++;
-          assert.ok(request.instructions.includes('For any single retrieval, including operation read,'));
-          assert.ok(request.instructions.includes('probes must be empty or null'));
+          const contract = await inspectAskWireContract(request,context);
+          assert.ok(contract.sourceInstructions.includes('For any single retrieval, including operation read,'));
+          assert.ok(contract.sourceInstructions.includes('probes must be empty or null'));
           return { output_text: JSON.stringify(envelope) };
         } } },
       });
@@ -353,14 +356,15 @@ test('earliest measurement uses one calendar-free planner ticket and retains the
     await t.test(thread + ' mocked planner emits the required shape, not captured #4', async t => {
       t.mock.method(console, 'info', () => {});
       let calls = 0;
-      const result = await interpretAskQuestion({ context: { ...context,
-        currentTurn: { ...context.currentTurn, id: thread } }, model: 'fixture',
+      const plannerContext = { ...context, currentTurn: { ...context.currentTurn, id: thread } };
+      const result = await interpretAskQuestion({ context: plannerContext, model: 'fixture',
         client: { responses: { create: async request => {
           calls++;
-          assert.ok(request.instructions.includes('Finite ordered takes are compositional selection obligations'));
-          assert.ok(request.instructions.includes('outputs.completeness sufficient'));
-          assert.ok(request.instructions.includes('Legacy chronological provider output is reserved for unbounded ordered retrieval'));
-          assert.ok(request.instructions.includes('conservative regular inflection equivalence'));
+          const contract = await inspectAskWireContract(request,plannerContext);
+          assert.ok(contract.sourceInstructions.includes('Finite ordered takes are compositional selection obligations'));
+          assert.ok(contract.sourceInstructions.includes('outputs.completeness sufficient'));
+          assert.ok(contract.sourceInstructions.includes('Legacy chronological provider output is reserved for unbounded ordered retrieval'));
+          assert.ok(contract.sourceInstructions.includes('conservative regular inflection equivalence'));
           return { output_text: JSON.stringify({ ...proposal(structuredClone(earliestSelectionTicket)),
             question, petNames: ['Dune'], topic: 'weight', terms: ['weight'], selection: 'earliest' }) };
         } } },

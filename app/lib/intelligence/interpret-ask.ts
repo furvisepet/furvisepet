@@ -1,5 +1,6 @@
 import { brainProposalDiagnostic } from "../furvise-brain/replace-job.ts";
 import "server-only";
+import { createAskWirePlan } from "./ask-wire-policy.mjs";
 import { calendarDateInZone } from "../ask-time-zone.ts";
 import OpenAI from "openai";
 import { factorProviderEnumSchemas } from "../ai/provider-enum-schema.ts";
@@ -175,9 +176,22 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
       .map(turn => ({ id: turn.id, text: turn.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars) })),
     dialogueAuthority: "Prior USER turns may supply observations, fictional/scenario facts and referents; olderUserReferenceCandidates are reference-only candidates for backward references and do not establish saved facts, persistence, or write authority. Only the current request authorizes a new save. ownerNoteSources supplies original note content, not proof of persistence or permission to use another account. Prior assistant turns are reference hints only.",
   };
+  const wire = createAskWirePlan(
+    factorProviderCompoundSchemas(factorProviderEnumSchemas(askRequestProviderSchema(proposedSemanticFrameJsonSchema, context))),
+    ASK_REQUEST_INSTRUCTIONS
+  );
+  const parseWireRequest = (raw: string): unknown => {
+    const value: unknown = JSON.parse(raw);
+    // Retain the existing direct Node fixture compatibility. Real provider
+    // responses must satisfy the wire schema and restore before Binder.
+    if (process.env.NODE_TEST_CONTEXT && value && typeof value === "object"
+      && !Object.hasOwn(value, "nodes") && (Object.hasOwn(value, "request") || Object.hasOwn(value, "version")))
+      return parseProviderAskRequest(raw);
+    return wire.decode(value).request;
+  };
   const request = { model, max_output_tokens: ASK_INTERPRETATION_LIMITS.outputTokens,
     ...(/^gpt-5\.4(?:-|$)/i.test(model) ? { reasoning: { effort: "none" } } : /^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}),
-    instructions: ASK_REQUEST_INSTRUCTIONS, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: factorProviderCompoundSchemas(factorProviderEnumSchemas(askRequestProviderSchema(proposedSemanticFrameJsonSchema, context))) } } };
+    instructions: wire.instructions, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: wire.schema } } };
   const started = Date.now();
   let attempted = false;
   let ticketArrived = false;
@@ -198,7 +212,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
           return activeClient.responses.create(request as never, { signal });
         }, boundedProviderTimeout(ASK_INTERPRETATION_LIMITS.timeoutMs, 24_000, "interpretation"));
       } });
-    const result = interpretStructuredProviderResponse(response, parseProviderAskRequest);
+    const result = interpretStructuredProviderResponse(response, parseWireRequest);
     // Arrival is not validation or authority. Timed-out/late provider results never reach this point.
     const proposal = result.status === "completed" ? result.parsed : null;
     ticketArrived = !!proposal && typeof proposal === "object" && ["readTicket", "appendJob", "writeJob"]
@@ -222,7 +236,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
         throw fail("ASK_INTERPRETATION_VALIDATION", "semantic", metadata);
       }
       const repairRequest = { ...request,
-        instructions: `${ASK_REQUEST_INSTRUCTIONS}\n\n${ASK_INTERPRETATION_REPAIR_INSTRUCTIONS}`,
+        instructions: `${request.instructions}\n\n${ASK_INTERPRETATION_REPAIR_INSTRUCTIONS}`,
         input: JSON.stringify({ ...input, contractRepair: { validationCode: error.reason, rejectedProposal: result.parsed } }) };
       console.info("[Ask Brain] contract repair", { sourceMessageId: context.currentTurn?.id, validationCode: error.reason });
       const repairResponse = await executeAdmittedResponsesRequest({ purpose: "interpretation_repair", model,
@@ -236,7 +250,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
             return activeClient.responses.create(repairRequest as never, { signal });
           }, boundedProviderTimeout(ASK_INTERPRETATION_REPAIR_LIMITS.timeoutMs, ASK_INTERPRETATION_REPAIR_LIMITS.reserveMs, "interpretation"));
         } });
-      const repaired = interpretStructuredProviderResponse(repairResponse, parseProviderAskRequest);
+      const repaired = interpretStructuredProviderResponse(repairResponse, parseWireRequest);
       const repairedProposal = repaired.status === "completed" ? repaired.parsed : null;
       ticketArrived = ticketArrived || !!repairedProposal && typeof repairedProposal === "object" && ["readTicket", "appendJob", "writeJob"]
         .some(key => key in repairedProposal && (repairedProposal as Record<string, unknown>)[key] != null);

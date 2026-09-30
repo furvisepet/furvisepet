@@ -7,7 +7,7 @@ import { askRequestProviderSchema, validateAskRequest } from '../app/lib/intelli
 
 const validate = new Ajv({allErrors:true}).compile(readTicketProviderSchema);
 const ticket = (strategy=null, operation='read') => ({
- operation,subjectScope:'named',temporal:{from:'2026-01-01T00:00:00Z',to:'2026-01-02T00:00:00Z',anchor:null,calendar:null},
+ authority:'effective_fact',operation,subjectScope:'named',temporal:{from:'2026-01-01T00:00:00Z',to:'2026-01-02T00:00:00Z',anchor:null,calendar:null},
  predicates:[],outputs:{strategy,completeness:'sufficient',ordering:'asc',limit:null},
  searchHints:null,episode:null,selection:null,probes:[],
 });

@@ -47,7 +47,8 @@ export function languageProviderContext(original: object) {
     minimumSafetyLevel:p.minimumSafetyLevel,answerEconomy:p.answerEconomy,productFacts:p.productFacts,
     pets:p.pets?.map(({id,name})=>({id,name})),discourseFocus:p.discourseFocus,
     userPremises:p.dialogueContext?.turns?.filter(t=>t.role==="user").map(t=>({text:t.text})) || [],
-    request:r ? {mode:r.mode,evidenceBasis:r.evidenceBasis,outputFormat:r.outputFormat,requirements:r.requirements}:undefined,
+    request:r ? {mode:r.mode,evidenceBasis:r.evidenceBasis,outputFormat:r.outputFormat,// Conversation prose must use original USER premises, not planner-authored requirements.
+      requirements:p.evidenceContract?.interpretation?.conversationOnly ? undefined : r.requirements}:undefined,
     repairInstruction:p.repairInstruction,eventEvidenceRepairInstruction:p.eventEvidenceRepairInstruction,
     recoveryRepairInstruction:p.recoveryRepairInstruction,rejectedEventEvidence:p.rejectedEventEvidence,
     rejectedRecoveryEvidence:p.rejectedRecoveryEvidence,
