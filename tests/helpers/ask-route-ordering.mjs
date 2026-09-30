@@ -14,6 +14,11 @@ registerHooks({ resolve(s,c,next) {
  return next(s,c);
 }});
 globalThis.fetch=async()=>{throw Error('Offline route proof forbids network');};
+const {enforceVerifiedStateClaims,resolveFurviseActionTargetBindings}=await import('../../app/lib/application-actions/index.ts');
+const {inspectAskPublication}=await import('../../app/lib/intelligence/inspect-ask-publication.ts');
+const {typedTaskRequirements}=await import('../../app/lib/intelligence/task-execution-contract.ts');
+const {buildAskSaveMetadata}=await import('../../app/lib/ask.mjs');
+const {createAskAdmissionSettlement}=await import('../../app/lib/ai/ask-admission-settlement.ts');
 const publicPolicy=await import('../../app/lib/public-v1-capabilities.ts');
 const {buildFurvisePlanningContext}=await import('../../app/lib/intelligence/planning-context.ts');
 const {prepareAppendTurn,continueConfirmedAppend}=await import('../../app/lib/intelligence/append-turn.ts');
@@ -97,7 +102,16 @@ export function fixture(options={}){
  });
  if(options.realProviderLog) sandbox.logAskProviderEvent=handler('../../app/api/ask/route.ts',
   ['logAskProviderEvent','safeAskOperationalCode'],sandbox,'logAskProviderEvent');
- const post=handler('../../app/api/ask/route.ts',['POST','executeAskRequest'],sandbox);
+ // Exercise the real limitation publication boundary; only the persistence IO
+ // is captured. This fixture does not certify a database write or durable replay.
+ Object.assign(sandbox,{enforceVerifiedStateClaims,resolveFurviseActionTargetBindings,inspectAskPublication,
+  typedTaskRequirements,buildAskSaveMetadata,
+  ...createAskAdmissionSettlement(noop),
+  persistAssistantAnswer:async input=>{
+   state.publications??=[];state.publications.push(input);
+   return Response.json({success:true,response:input.response});
+  }});
+ const post=handler('../../app/api/ask/route.ts',['POST','executeAskRequest','enforceAnswerStateClaims'],sandbox);
  const confirm=handler('../../app/api/ask/actions/[messageId]/route.ts',['POST','unavailable','revalidateActionViews'],{...sandbox,executeActionCapability,continueConfirmedAppend,getAuthenticatedApiContext:async()=>({supabase:db,userId:options.confirmOwner||id(1)}),emitOperationalEvent:noop,revalidatePath:noop});
  return {state,rows,db,send:(message=cedar)=>post(new Request('https://fixture.invalid/api/ask',{method:'POST',body:JSON.stringify({petId:options.petId||pet.id,logicalTurnId:id(41),message})})),confirm:(actionId=id(71),decision='confirm',messageId=id(61))=>confirm(new Request('https://fixture.invalid/api/ask/actions/'+messageId,{method:'POST',body:JSON.stringify({actionId,decision})}),{params:Promise.resolve({messageId})})};
 }
