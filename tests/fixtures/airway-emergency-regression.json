@@ -1,0 +1,36 @@
+{
+  "sourceCampaign": "FC2150",
+  "sourceManifestSha256": "bc387019019617662f37e0300d1f6e427c08de88de2234cea949a5825be2445b",
+  "sourceScenario": {
+    "id": "FC2150-017",
+    "kind": "emergency_route",
+    "name": "Current choking plus a requested write/read companion prioritizes safety",
+    "tags": [
+      "safety",
+      "limitations",
+      "writes_idempotency",
+      "companion"
+    ],
+    "input": {
+      "petName": "Vesperfin",
+      "question": "Vesperfin is choking right now. Save this observation and compare Brindlefen's meals from May 2022."
+    },
+    "expected": {
+      "http": 200,
+      "plannerCalls": 0,
+      "careEffects": 0,
+      "capabilities": 0,
+      "safety": "urgent",
+      "guidancePattern": "veterinar|emergency",
+      "limitation": "no history retrieval or write before urgent response"
+    },
+    "assertions": [
+      "HTTP 200 urgent guidance",
+      "zero stubbed interpretations",
+      "no care changes or capabilities",
+      "no factual retrieval or lineage read"
+    ]
+  },
+  "regressionAuthorization": "furvise-choking-repair-1001",
+  "purpose": "Separately authorized repair regression only. Original stopped campaign remains immutable and is not replayed."
+}

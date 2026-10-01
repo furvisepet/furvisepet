@@ -1,3 +1,4 @@
+import { acuteAirwayPattern, currentAcuteAirwayMatch, acuteAirwayResolution } from "./ai/acute-airway.ts";
 import { safetyTemporalScope, currentSafetyClauses } from "./ai/safety-temporal-scope.ts";
 import { analyzeOwnerAssertions, unquotedOwnerText, ownerAssertionProposition } from "./ai/owner-assertion.ts";
 import type { CareEntryRow } from "./supabase";
@@ -35,6 +36,7 @@ type ActiveConcernMessageState = "worsening" | "still_active" | "improved" | "re
 type ConcernConcept = { normalized_key: string };
 
 const concernPatterns: Array<{ tag: AskConcernTag; pattern: RegExp }> = [
+  { tag: "breathing_difficulty", pattern: acuteAirwayPattern },
   { tag: "breathing_difficulty", pattern: /\b(short(?:ness|age) of breath|trouble breathing|difficulty breathing|difficult breathing|labou?red breathing|open[- ]mouth breathing|breathing (?:hard|heavily|fast)|deep breaths?|gasping|cannot breathe|can't breathe)\b/i },
   { tag: "collapse", pattern: /\b(collapse[ds]?|unconscious|fainted|(?:non|un)responsive)\b/i },
   { tag: "seizure", pattern: /\b(seizure|seizing|convulsion)\b/i },
@@ -49,7 +51,9 @@ const concernPatterns: Array<{ tag: AskConcernTag; pattern: RegExp }> = [
 const immediateEmergencyPatterns: Array<{
   tag: ImmediateAskEmergency["tags"][number];
   pattern: RegExp;
+  airway?: boolean;
 }> = [
+  { tag: "breathing_difficulty", pattern: acuteAirwayPattern, airway: true },
   { tag: "breathing_difficulty", pattern: /\b((?:cannot|can't|unable to) breathe|gasping|open[- ]mouth breathing|severe (?:trouble|difficulty) breathing|struggling to breathe)\b/i },
   { tag: "collapse", pattern: /\b(collapsed?|unconscious|(?:non|un)responsive|won't wake up|will not wake up)\b/i },
   { tag: "seizure", pattern: /\b(active seizure|actively seizing|seizing (?:right )?now|having (?:a |an )?seizure|in (?:a |an )?seizure|seizure (?:right )?now|won't stop seizing|will not stop seizing|convulsing)\b/i },
@@ -172,7 +176,7 @@ export function concernKeyToAskTags(key: string, title = ""): AskConcernTag[] {
 }
 
 export function detectAskConcernTags(value: string): AskConcernTag[] {
-  return concernPatterns.filter(({ pattern }) => pattern.test(value)).map(({ tag }) => tag);
+  return uniqueConcernTags(concernPatterns.filter(({ pattern }) => pattern.test(value)).map(({ tag }) => tag));
 }
 
 export function detectImmediateAskEmergency(value: string): ImmediateAskEmergency | null {
@@ -182,40 +186,41 @@ export function detectImmediateAskEmergency(value: string): ImmediateAskEmergenc
   // Safety triage has no selected-pet identity. Track surface subjects only to
   // prevent one animal's recovery (or a human clause) suppressing another's
   // emergency. These labels grant neither ownership nor write authority.
-  const active = new Map<string, Set<ImmediateAskEmergency["tags"][number]>>();
+  const active = new Map<string, Set<(typeof immediateEmergencyPatterns)[number]>>();
   let subject = "unspecified";
   let human = false;
   const clauses = current.flatMap(clause =>
     ownerAssertionProposition(clause).text.split(/\s+(?:and|but)\s+/i).map(text => ({ text, isCertain: clause.isCertain })));
   for (const [index, clause] of clauses.entries()) {
     const text = clause.text.replace(/^(?:(?:now|today|currently|then)\s*,?\s*)+/i, "");
-    const named = /^([\p{L}\p{M}'’ -]{1,80}?)\s+(?:is|are|was|were|has|had|can|cannot|can't|won't|will|stopped|collapsed?|became|started)\b/iu.exec(text)?.[1].toLowerCase();
-    if (named && !/^(?:he|she|they|it)$/.test(named)) {
+    const named = /^([\p{L}\p{M}'’ -]{1,80}?)\s+(?:is|are|was|were|has|had|can|cannot|can't|won't|will|stopped|collapsed?|became|started)\b/iu.exec(text)?.[1].toLowerCase().replace(/[\u0027\u2019]s\s+(?:airway|windpipe)$/, "");
+    if (named && !/^(?:he|she|they|it|is|are|was|were|has|had|can|cannot|can't|choking|(?:the )?(?:airway|windpipe))$/.test(named)) {
       subject = named;
       human = explicitNonPetSubjectPattern.test(named) && !explicitPetSubjectPattern.test(named);
     } else if (explicitNonPetSubjectPattern.test(text) && !explicitPetSubjectPattern.test(text)) {
       subject = "human"; human = true;
-    } else if (!named && !/^(?:he|she|they|it|is|are|was|were|has|had|can|cannot|can't|stopped|no longer|not seizing|not bleeding|breathing|seizure|bleeding|gasping)\b/i.test(text)) {
+    } else if (!named && !/^(?:he|she|they|it|is|are|was|were|has|had|can|cannot|can't|stopped|no longer|not seizing|not bleeding|not choking|choking|breathing|seizure|bleeding|gasping)\b/i.test(text)) {
       // An unrecognized intervening noun/statement breaks pronoun continuity.
       // Keep prior emergencies rather than guessing that its recovery is theirs.
       subject = `unresolved:${index}`; human = false;
     }
     if (human) continue;
-    const tags = active.get(subject) || new Set<ImmediateAskEmergency["tags"][number]>();
-    for (const { tag, pattern } of immediateEmergencyPatterns) {
-      const emergency = pattern.exec(text);
-      const recovery = immediateEmergencyResolution(text, tag);
+    const tags = active.get(subject) || new Set<(typeof immediateEmergencyPatterns)[number]>();
+    for (const condition of immediateEmergencyPatterns) {
+      const { tag, pattern } = condition;
+      const emergency = condition.airway ? currentAcuteAirwayMatch(text) : pattern.exec(text);
+      const recovery = condition.airway ? acuteAirwayResolution(text) : immediateEmergencyResolution(text, tag);
       const analysis = analyzeOwnerAssertions(recovery ? text.replace(recovery[0], "recovered") : text).clauseSpans;
       // A negated/uncertain recovery cannot clear a current report. When both
       // occur, their order matters; a later recurrence must win.
       const resolved = recovery && clause.isCertain && analysis.length > 0 && analysis.every(span => span.isCertain && !span.isNegated)
         && (!emergency || recovery.index > emergency.index || recovery[0].includes(emergency[0]));
-      if (resolved) tags.delete(tag);
-      else if (emergency) tags.add(tag);
+      if (resolved) tags.delete(condition);
+      else if (emergency) tags.add(condition);
     }
     active.set(subject, tags);
   }
-  const tags = [...new Set([...active.values()].flatMap(tags => [...tags]))];
+  const tags = [...new Set([...active.values()].flatMap(conditions => [...conditions].map(condition => condition.tag)))];
   return tags.length ? { tags: [...new Set(tags)] } : null;
 }
 
