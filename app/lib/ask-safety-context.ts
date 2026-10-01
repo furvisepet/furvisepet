@@ -189,8 +189,10 @@ export function detectImmediateAskEmergency(value: string): ImmediateAskEmergenc
   const active = new Map<string, Set<(typeof immediateEmergencyPatterns)[number]>>();
   let subject = "unspecified";
   let human = false;
+  // Contrast conjunctions separate patient propositions just like coordination.
+  // Retain the already-filtered temporal/quotation scope and certainty metadata.
   const clauses = current.flatMap(clause =>
-    ownerAssertionProposition(clause).text.split(/\s+(?:and|but)\s+/i).map(text => ({ text, isCertain: clause.isCertain })));
+    ownerAssertionProposition(clause).text.split(/\s+(?:and|but|while|whereas)\s+/i).map(text => ({ text, isCertain: clause.isCertain })));
   for (const [index, clause] of clauses.entries()) {
     const text = clause.text.replace(/^(?:(?:now|today|currently|then)\s*,?\s*)+/i, "");
     const named = /^([\p{L}\p{M}'’ -]{1,80}?)\s+(?:is|are|was|were|has|had|can|cannot|can't|won't|will|stopped|collapsed?|became|started)\b/iu.exec(text)?.[1].toLowerCase().replace(/[\u0027\u2019]s\s+(?:airway|windpipe)$/, "");
