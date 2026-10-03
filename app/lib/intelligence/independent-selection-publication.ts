@@ -21,6 +21,22 @@ export function independentNeedsMatch(evidence: AskEvidenceContract): boolean {
     });
 }
 
+/** Independent selectors always use the effective store; scan exhaustion cannot
+ * replace its subject-specific lineage and source-membership proof. */
+function completeEffectiveStreams(coverage: ReadCoverage, petIds: readonly string[]): boolean {
+  const streams = coverage.effectiveStream;
+  const ids = (value: unknown): value is string[] => Array.isArray(value)
+    && value.every(id => typeof id === "string" && id.length > 0) && new Set(value).size === value.length;
+  return Array.isArray(streams) && streams.length === petIds.length
+    && petIds.every(petId => streams.filter(stream => stream?.petId === petId).length === 1)
+    && streams.every(stream => !!stream && stream.lineageClosed === true
+      && stream.replacementSeedsExhausted === true && stream.storedReportsCertified === undefined
+      && ids(stream.acquiredIds) && ids(stream.effectiveIds) && ids(stream.certifiedSelectedIds)
+      && stream.certifiedSelectedIds.every(id => stream.effectiveIds.includes(id))
+      && Number.isSafeInteger(stream.graphCalls) && stream.graphCalls >= 0
+      && Number.isSafeInteger(stream.lineageRows) && stream.lineageRows >= 0);
+}
+
 /** Project existing child certificates; never mint endpoint authority from probes. */
 export function independentSelectionPublication(ticket: ReadTicket, coverage: ReadCoverage,
   records: readonly { id: string; petId: string }[]): SelectionPublication | null {
@@ -32,7 +48,8 @@ export function independentSelectionPublication(ticket: ReadTicket, coverage: Re
   for (const need of ticket.needs!) {
     const child = independentSelectionTicket(ticket, need);
     const part = parts.find(p => p.needId === need.id);
-    const shape = !!access && !!part && part.sourceSpanId === need.sourceSpanId && same(part.ticket, child)
+    const streamsValid = !!part && completeEffectiveStreams(part.coverage, need.petIds);
+    const shape = streamsValid && !!access && !!part && part.sourceSpanId === need.sourceSpanId && same(part.ticket, child)
       && part.coverage.asOf === coverage.asOf && part.coverage.windows.length === need.petIds.length
       && need.petIds.every(petId => {
         const windows = part.coverage.windows.filter(w => w.petId === petId);
@@ -45,7 +62,7 @@ export function independentSelectionPublication(ticket: ReadTicket, coverage: Re
     for (const petId of need.petIds) for (const [clauseId, clause] of need.selection!.union.entries()) {
       const c = selected?.certificates.find(c => c.subjectId === petId && c.clauseId === clauseId);
       // A lexical miss still cannot certify semantic absence.
-      const stream = part?.coverage.effectiveStream?.find(s => s.petId === petId);
+      const stream = streamsValid ? part!.coverage.effectiveStream!.find(s => s.petId === petId) : undefined;
       const emptyAllowed = !need.predicates!.length || !!stream && stream.lineageClosed
         && stream.replacementSeedsExhausted && stream.effectiveIds.length === 0;
       const certified = !!c?.certified && (!!c.selectedEventIds.length || emptyAllowed);

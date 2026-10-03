@@ -1,4 +1,5 @@
 import { isDeepStrictEqual } from "node:util";
+import { labsTaskComplete } from "./labs-list.ts";
 import { persistCanonicalSuggestions } from "./canonical-suggestion-continuation.ts";
 import { createCanonicalCareAuthorityClient } from "./care-authority-client.ts";
 import { deriveAskTaskOutcome, type AskTurnLifecycle } from "../ai/ask-turn-model.ts";
@@ -120,7 +121,8 @@ export async function continueConfirmedAppend(input: {
   const labs = result.labsList;
   const rendered = buildAskConversationResponse(result.answer, { intent: "history_recall", missingUsefulDetails: [], usedContextSummary: [] });
   if (!rendered) throw Error("APPEND_CONTINUATION_NOT_A_LIST");
-  const answerOutcome = ["complete", "complete_empty"].includes(labs.coverage.status) ? "complete" : "limited";
+  // Successful mutation application does not complete an uncertified companion obligation.
+  const answerOutcome = labsTaskComplete(labs) ? "complete" : "limited";
   const response = { ...stored, ...rendered,
     turn: { ...stored.turn, answerOutcome, mutationOutcome: "applied", taskOutcome: deriveAskTaskOutcome(answerOutcome, "applied") }, applicationActions: stored.applicationActions.map((action: FurviseApplicationAction) => action.id === input.action.id ? input.action : action),
     pendingAppend: pending, appendLabs: labs };
