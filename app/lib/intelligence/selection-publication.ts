@@ -1,3 +1,4 @@
+import { independentSelectionPublication } from "./independent-selection-publication.ts";
 import { readAuthority } from "../furvise-brain/read-ticket.ts";
 import { isResultSelection } from "../furvise-brain/result-selection.ts";
 import type { ReadTicket } from "../furvise-brain/read-ticket.ts";
@@ -6,9 +7,16 @@ import type { ReadCoverage } from "../furvise-brain/lungs.ts";
 // A derived view of organ receipts, never another certificate store.
 // This authorizes selected source reports only, not counts, absence,
 // comparisons, aggregates, clinical facts or whole-history completeness.
+export type SelectionPublication = {
+  certificates: Array<{ subjectId: string; clauseId: number; selectedEventIds: string[];
+    certified: boolean; lineageClosed: boolean; status: string; blockingReasons: string[];
+    needId?: string; sourceSpanId?: string; clause?: NonNullable<ReadTicket["selection"]>["union"][number];
+    temporal?: ReadTicket["temporal"] }>;
+  transportValid: boolean; complete: boolean; selectedEventIds: string[];
+};
 export function selectionPublication(ticket: ReadTicket, coverage: ReadCoverage,
-  records: readonly { id: string; petId: string }[]) {
-  if (!ticket.selection) return null;
+  records: readonly { id: string; petId: string }[]): SelectionPublication | null {
+  if (!ticket.selection) return independentSelectionPublication(ticket, coverage, records);
   const report = ticket.authority === "stored_report";
   const authorityMatches = readAuthority(ticket) === readAuthority(coverage);
   let transportValid = authorityMatches;

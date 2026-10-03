@@ -10,6 +10,7 @@ const {askRequestSchema,validateAskRequest}=await import('../app/lib/intelligenc
 const {groundReadProbes}=await import('../app/lib/intelligence/read-probes.ts');
 const {retrieveReadTicket}=await import('../app/lib/furvise-brain/lungs.ts');
 const {bindReadNeeds}=await import('../app/lib/furvise-brain/read-needs.ts');
+const probeVariants=item=>item.anyOf?item.anyOf.flatMap(probeVariants):[item];
 const pets=['Juniper','Tamarack','Willow'].map((name,i)=>({id:'pet-'+i,name,user_id:'owner',species:'dog'}));
 const q='Juniper medication change; Tamarack food reaction';
 const context=(question=q,turns=[])=>({owner:{userId:'owner'},eligiblePets:pets,pet:pets[0],currentMessage:question,
@@ -25,8 +26,10 @@ async function run(p,ctx=context(),reject=false){
  let calls=0;const promise=interpretAskQuestion({context:ctx,model:'fixture',client:{responses:{create:async request=>{
  calls++;const requestSchema=(await inspectAskWireContract(request,ctx)).canonicalSchema.properties.request.anyOf.find(b=>b.properties?.evidenceBasis?.enum?.includes('saved_history') && b.properties?.calculatePlan?.type==='null');const branches=requestSchema.properties.readTicket.anyOf.filter(b=>b.properties);
  for(const b of branches){assert.equal(Object.hasOwn(b.properties,'needs'),false);
- assert.equal(b.properties.probes.items.additionalProperties,false);
- for(const id of ['id','needId','sourceSpanId','petIds'])assert.equal(Object.hasOwn(b.properties.probes.items.properties,id),false);}
+ for(const item of probeVariants(b.properties.probes.items)){
+ assert.equal(item.additionalProperties,false);
+ assert.deepEqual([...item.required].sort(),Object.keys(item.properties).sort());
+ for(const id of ['id','needId','sourceSpanId','petIds'])assert.equal(Object.hasOwn(item.properties,id),false);}}
  return {output_text:JSON.stringify(p)};}}}});
  if(reject){await assert.rejects(promise);assert.equal(calls,1);return;}
  const r=await promise;assert.equal(calls,1);return r;
@@ -52,8 +55,10 @@ test('two ID-free probes become grounded needs and use existing Lungs',async()=>
 test('provider schema closes identity fields and dynamically restricts source turn references',()=>{
  const ctx=context(q,[{id:'u-old',role:'user',text:q},{id:'assistant',role:'furvise',text:q}]);
  for(const b of askRequestSchema({},ctx).properties.readTicket.anyOf.filter(b=>b.properties)){
- assert.equal(b.properties.probes.items.additionalProperties,false);
- assert.deepEqual(b.properties.probes.items.properties.sourceTurnId.enum,[null,'u-old']);
+ for(const item of probeVariants(b.properties.probes.items)){
+ assert.equal(item.additionalProperties,false);
+ assert.deepEqual([...item.required].sort(),Object.keys(item.properties).sort());
+ assert.deepEqual(item.properties.sourceTurnId.enum,[null,'u-old']);}
  assert.equal(b.required.includes('needs'),false);assert.ok(b.required.includes('probes'));
  }
 });

@@ -17,7 +17,9 @@ export function createAskWirePlan(canonicalSchema,sourceInstructions){
  const codec=createGraphCodec(canonicalSchema),entries=Object.entries(codec.names);
  const fields="FIELDS "+entries.map(([k,a])=>a+"="+k).join(" ");
  const tags=Object.entries(codec.constantMaps).map(([tag,constants])=>tag+" "+Object.entries(constants).map(([k,v])=>codec.names[k]+(v===null?"":"="+JSON.stringify(v))).join(" ")).join("\n");
- const aliases=new Map(entries.filter(([k])=>/^[a-z][a-zA-Z]*[A-Z][a-zA-Z]*$/.test(k)));
+ // Long field identifiers use the same reversible dictionary as camel-case identifiers.
+ // The exact inverse below checks every policy byte; no behavioral rule is removed.
+ const aliases=new Map(entries.filter(([k])=>/^[a-z][a-zA-Z]*$/.test(k)&&(/[A-Z]/.test(k)||k.length>=8)));
  const body=POLICY_BUNDLE.rules.join("\n");
  ensure(!body.includes("$"),"IDENTIFIER_MARKER");
  const keys=[...aliases.keys()].sort((a,b)=>b.length-a.length);

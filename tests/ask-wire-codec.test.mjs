@@ -49,7 +49,7 @@ test("wire policy retains every source section, reviewed clause and annotation d
   const p=plan(name),[header,body]=p.instructions.split("\nPOLICY\n");
   const fields=new Map(header.split("\nFIELDS ")[1].split("\n")[0].split(" ").map(s=>s.split("=")));
   assert.equal(body.replace(/\$([A-Za-z]+)/g,(_,a)=>fields.get(a)),POLICY_BUNDLE.rules.join("\n"));
-  for(const r of audit.sourcePolicy.slice(29))assert.ok(body.includes(r.rule));
+  for(const r of audit.sourcePolicy.slice(29))assert.ok(body.replace(/\$([A-Za-z]+)/g,(_,a)=>fields.get(a)).includes(r.rule));
  }
  assert.throws(()=>createAskWirePlan(plan("no_context").schema,ASK_REQUEST_INSTRUCTIONS+"\nchanged"),/SOURCE_DRIFT/);
  const schema=askRequestProviderSchema(proposedSemanticFrameJsonSchema);

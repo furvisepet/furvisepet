@@ -99,6 +99,7 @@ export async function continueConfirmedAppend(input: {
   const needs = pending.readTicket.needs;
   const ticket = bindTypedReadTicket({ ...proposal, ...(needs ? { needs: needs.map((need: NonNullable<import("../furvise-brain/read-ticket.ts").ReadTicket["needs"]>[number]) => ({
     needId: need.id, from: need.from, to: need.to, target: need.target, termGroups: need.termGroups, ordering: need.ordering,
+    ...(need.selection ? { selection: need.selection, predicates: need.predicates } : {}),
   })) } : {}) }, subjects.petIds, needs || [])!;
   if (!pending.readRequest || !isDeepStrictEqual(pending.readRequest.readTicket, pending.readTicket)) throw Error("APPEND_CONTINUATION_TICKET");
   const interpretation: AskInterpretation = { version: "ask-interpretation.v1", operation: "recall", readOperation: "recall",

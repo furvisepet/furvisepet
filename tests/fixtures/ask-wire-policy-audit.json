@@ -378,7 +378,7 @@
       ],
       "rule": "Legacy evidenceNeeds without ticket: max four distinct facts; exact contiguous current USER quote/sourceTurnId null or prior USER in referenceTurnIds, never assistant. Keep each local period/all endpoints/causal uncertainty/facts, never collapse differing dates. Mixed outer scope is write destination; needs independently name read pets, never transfer another pet's facts. Within authorized read scope, [] pets whole scoped group. order earliest/latest else context; shared predicate opposite boundaries use selection union, heterogeneous probes keep direction. Max six topic terms/synonyms, no format terms/paraphrase-invented needs. Facets advisory/no evidence/access; whole question authoritative; non-history [].",
       "sourceHashes": [
-        "9f5541f04f64a91ad81ec4a647095cee99f764e034d6685feef8b8ab6de75df6"
+        "d40e1ed30d777355d626405340c8b769ac871b99d9a78b46ea560ffa499a4ac7"
       ],
       "legacySourceHashes": [
         "0e54cac24dd5fbc57f067bb306934698d75fa1e1a5a74e79f5bc8c4c5ba5c7b1"
@@ -999,9 +999,9 @@
       "ids": [
         46
       ],
-      "rule": "No-ticket evidenceNeeds: max4 distinct facts; exact contiguous current USER quote/sourceTurnId null or prior USER in referenceTurnIds; no assistant. Keep each local period/all endpoints/causal uncertainty/facts; no collapsing different dates. Mixed outer scope=write destination; needs independently name read pets; no cross-pet fact transfer. Authorized read scope: pets []=whole scoped group. order earliest/latest else context; shared-predicate opposite boundaries=selection union; heterogeneous probes retain direction. Max6 topic terms/synonyms; no format terms/paraphrase-invented needs. Facets advisory, no evidence/access; whole question authoritative; non-history [].",
+      "rule": "No-ticket evidenceNeeds: max4 distinct facts; exact contiguous current USER quote/sourceTurnId null or prior USER in referenceTurnIds; no assistant. Keep each local period/all endpoints/causal uncertainty/facts; no collapsing different dates. Mixed outer scope=write destination; needs independently name read pets; no cross-pet fact transfer. Authorized read scope: pets []=whole scoped group. order earliest/latest else context; shared-predicate opposite boundaries=selection union; heterogeneous probes retain direction. Max6 topic terms/synonyms; no format terms/paraphrase-invented needs. Facets advisory, no evidence/access; whole question authoritative; non-history []. Independent endpoints: probes carry predicates+selection (grouped order/take), own subjects/from/to; outer bounds null. termGroups advisory; legacy probes discovery only. Each selection requires its own valid organ certificate; missing/invalid remains limited.",
       "sourceHashes": [
-        "9f5541f04f64a91ad81ec4a647095cee99f764e034d6685feef8b8ab6de75df6"
+        "d40e1ed30d777355d626405340c8b769ac871b99d9a78b46ea560ffa499a4ac7"
       ],
       "legacySourceHashes": [
         "0e54cac24dd5fbc57f067bb306934698d75fa1e1a5a74e79f5bc8c4c5ba5c7b1"
@@ -4134,5 +4134,20 @@
     ],
     "providerCalls": 0,
     "runtimeApplied": false
+  },
+  "independentSelectionReview": {
+    "sourceSection": 46,
+    "sourceAddition": " Independent endpoint requests MUST use probes with predicates and selection (the existing grouped order/take grammar). Each owns its subjects and from/to window; outer temporal bounds stay null. termGroups remain advisory. Legacy probes support discovery only, never endpoint claims. Every independent selection needs its own valid organ certificate; missing or invalid certificates remain limitations.",
+    "sourceSha256": "3c3ebb1be47f7be8946b775b8fe9732f0eea4120ecdde60a78d5c7b5779d61f3",
+    "targetRule": 24,
+    "emittedAddition": " Independent endpoints: probes carry predicates+selection (grouped order/take), own subjects/from/to; outer bounds null. termGroups advisory; legacy probes discovery only. Each selection requires its own valid organ certificate; missing/invalid remains limited.",
+    "emittedSha256": "c8a31d7ba0373fe13dbfd2b76520c58cfb40d20c2b4a034862cebfe0be5d876f",
+    "invariants": [
+      "explicit predicates and ordered cardinality",
+      "independent subject and window ownership",
+      "advisory discovery unchanged",
+      "per-obligation certificate required",
+      "fail closed on absent or invalid certificate"
+    ]
   }
 }

@@ -1,6 +1,7 @@
 import { verifiedAttributedReports, carryAttributedReports, attributedReportSources, type AttributedReportResult } from "./attributed-report-context.ts";
 import { supportedPlainResultSetRead } from "./publication-authority.ts";
 import { certifiedResultSetMatches, resultSetSnapshotMatches } from "./result-set-publication.ts";
+import { independentNeedsMatch, isSelectedRead } from "./independent-selection-publication.ts";
 import { selectionPublication } from "./selection-publication.ts";
 import { logLabsEligibility } from "./publication-authority-diagnostics.ts";
 import { selectionLimitation, exhaustiveSelectionLimitation } from "./labs-coverage-presentation.ts";
@@ -37,7 +38,7 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
   if (request?.calculatePlan && !operandTransport) return null;
   const presentation = operandTransport ? "prose" : labsPresentation(request?.outputFormat);
   // Result-set serialization currently supports prose only.
-  if (!presentation || !ticket?.selection && presentation !== "prose") return null;
+  if (!presentation || !(ticket && isSelectedRead(ticket)) && presentation !== "prose") return null;
   logLabsEligibility(evidence, rows.map(row => ({ id: row.id, petId: row.pet_profile_id })));
   if (ticket) console.info("[Ask Labs] dispatch", { operation: ticket.operation, completeness: ticket.outputs.completeness,
     mode: request?.mode, quantity: request?.quantity, outputFormat: request?.outputFormat,
@@ -45,10 +46,10 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
   if (!evidence || !ticket || ticket.episode || !coverage || request?.mode !== "read" || request.writeJob || request.mutationIntent
     || !evidence.scope.readOnlyRecall || evidence.scope.status !== "resolved"
     || !["read", "read_since_event"].includes(ticket.operation)) return null;
-  if (!ticket.selection && !operandTransport && !supportedPlainResultSetRead(evidence)) return null;
+  if (!isSelectedRead(ticket) && !operandTransport && !supportedPlainResultSetRead(evidence)) return null;
   // Selected reports do not fulfill a distinct count, comparison, aggregation,
   // navigation obligation. Those keep their own review. Format is not authority.
-  if (ticket.selection && !operandTransport && (request.task || request.projection || request.evidenceNeeds?.length
+  if (isSelectedRead(ticket) && !operandTransport && (request.task || request.projection || request.evidenceNeeds?.length && !independentNeedsMatch(evidence)
     || !["records", "measurement"].includes(request.quantity || "")
     || !["recall", undefined].includes(evidence.interpretation?.readOperation ?? evidence.interpretation?.operation))) return null;
   if (ticket.subjects.petIds.some(id => !evidence.scope.authorizedPetIds.includes(id))
@@ -61,7 +62,7 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
     throw new Error("ASK_LABS_LIST_COVERAGE_SHAPE");
   if (!resultSetSnapshotMatches(ticket, coverage, rows.map(row => ({ id: row.id, petId: row.pet_profile_id }))))
     throw new Error("ASK_LABS_RESULT_SET_SNAPSHOT");
-  if (!ticket.selection && !operandTransport
+  if (!isSelectedRead(ticket) && !operandTransport
     && !certifiedResultSetMatches(ticket, coverage, rows.map(row => ({ id: row.id, petId: row.pet_profile_id })))) return null;
   // Preserve organ order and exact bodies. With selection, publish only the
   // records its existing receipts certify; never select or match again here.
@@ -81,7 +82,7 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
         && streams[0].effectiveIds.length === 0;
     })) return null;
   const publishable = selection ? rows.filter(row => selection.selectedEventIds.includes(row.id)) : rows;
-  const petNames = ticket.selection || ticket.authority === "stored_report" ? Object.fromEntries(ticket.subjects.petIds.map(id => [id, evidence.petNames?.[id] || "this pet"])) : undefined;
+  const petNames = isSelectedRead(ticket) || ticket.authority === "stored_report" ? Object.fromEntries(ticket.subjects.petIds.map(id => [id, evidence.petNames?.[id] || "this pet"])) : undefined;
   const attributedReports = verifiedAttributedReports(evidence.history?.attributedReports, ticket);
   if (ticket.attributedContexts?.length && !attributedReports) return null;
   const labs: LabsList = structuredClone({ ticket, coverage, calculations: [],
@@ -116,7 +117,7 @@ export function serializeLabsList(labs: LabsList): string {
   if (selected) {
     const groups = selected.certificates.map(certificate => {
       const subject = labs.petNames?.[certificate.subjectId] || "this pet";
-      const clause = labs.ticket.selection!.union[certificate.clauseId];
+      const clause = certificate.clause ?? labs.ticket.selection!.union[certificate.clauseId];
       if (!certificate.certified) return { subject, heading: selectionLimitation(certificate.subjectId, subject,
         clause.orderBy[0].direction, clause.take.count, labs.coverage, certificate.blockingReasons), rows: [] };
       const boundary = clause.orderBy[0].direction === "desc" ? "Latest" : "Earliest";
@@ -198,7 +199,7 @@ export function labsListReviewFailure(result: AskReasoningResult): string | null
   if (JSON.stringify(labs.attributedReports) !== JSON.stringify(evidence?.history?.attributedReports)
     || labs.ticket.attributedContexts?.length && !verifiedAttributedReports(evidence?.history?.attributedReports, labs.ticket))
     return "labs_attributed_context_changed";
-  if (labs.ticket.selection) {
+  if (isSelectedRead(labs.ticket)) {
     const selection = selectionPublication(labs.ticket, labs.coverage, labs.records)!;
     if (!selection.transportValid || labs.records.some(row => !selection.selectedEventIds.includes(row.id)))
       return "labs_selected_evidence_missing";

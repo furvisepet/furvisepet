@@ -5,6 +5,7 @@ import { isResultSelection, selectReadResult, certifyReadResult, resultGroups, t
 import { retrieveEffectiveSelection, type EffectiveWindowInput, type EffectiveWindowResult } from "./effective-selection.ts";
 import { acquireReadCandidates, selectReadGroups } from "./read-selection.ts";
 import { requiresTemporalHistory, resolveReadWindows, withinReadWindow } from "./read-temporal.ts";
+import { retrieveIndependentSelections, hasIndependentSelections } from "./independent-selections.ts";
 import { retrieveNeedTicket } from "./lungs-needs.ts";
 import type { CareEntryRow } from "../supabase.ts";
 import type { ReadTicket } from "./read-ticket.ts";
@@ -30,6 +31,8 @@ export type ReadCoverage = {
     selectedIds: string[]; retainedIds: string[]; exhausted: boolean; blocked: boolean; status: ReadCoverageStatus; reasons: string[] }>;
   effectiveStream?: Array<{ petId: string; acquiredIds: string[]; effectiveIds: string[]; certifiedSelectedIds: string[];
     lineageClosed: boolean; replacementSeedsExhausted: boolean; storedReportsCertified?: boolean; graphCalls: number; lineageRows: number }>;
+  independentAccessWindow?: { from: string; to: string };
+  independentSelections?: Array<{ needId: string; sourceSpanId: string; ticket: ReadTicket; coverage: ReadCoverage }>;
   resultSelection?: ResultSelectionCertificate[];
   resultSet?: OrderedResultSetProof;
   eventCandidateIds?: string[];
@@ -76,6 +79,7 @@ async function retrieveFactualReadTicket(ticket: ReadTicket, scope: ReadScope, s
   }
   const accessibleFrom = Date.parse(scope.from), accessibleTo = Math.min(Date.parse(scope.to), Date.parse(scope.asOf) + 1);
   if (![accessibleFrom, accessibleTo].every(Number.isFinite) || accessibleFrom >= accessibleTo) return result("unavailable", "invalid_access_window");
+  if (hasIndependentSelections(ticket)) return retrieveIndependentSelections(ticket, scope, store, LUNGS_LIMITS);
   if (ticket.needs?.length) return retrieveNeedTicket(ticket, scope, store, LUNGS_LIMITS);
   // Directional acquisition may run immediately only for concrete windows.
   // Ledger-dependent temporal expressions first use the bounded effective-history

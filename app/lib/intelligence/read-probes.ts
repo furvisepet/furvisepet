@@ -1,4 +1,5 @@
 import { readNeedsSchema, type ReadNeedBinding } from "../furvise-brain/read-needs.ts";
+import { readTicketSchema } from "../furvise-brain/read-ticket.ts";
 import { evidenceNeedsSchema, validateEvidenceNeeds } from "./evidence-needs.ts";
 
 // Provider-only semantics. Identity is assigned after source grounding.
@@ -11,6 +12,15 @@ export const readProbesSchema = {
     required: ["quote", "sourceTurnId", "petNames", ...Object.keys(dimensions)],
     properties: { quote, sourceTurnId, petNames, ...dimensions } },
 };
+// Opt-in semantics: legacy probes remain advisory and keep their exact shape.
+export const selectedReadProbesSchema = {
+  ...readProbesSchema, type: "array", minItems: 1,
+  items: { ...readProbesSchema.items,
+    required: [...readProbesSchema.items.required, "predicates", "selection"],
+    properties: { ...readProbesSchema.items.properties,
+      predicates: readTicketSchema.properties.predicates,
+      selection: { ...readTicketSchema.properties.selection, type: "object" } } },
+};
 const fail = (field: string, rule: string): never => {
   throw new Error("ASK_REQUEST_INVALID:read_needs", { cause: { field, rule } });
 };
@@ -22,7 +32,8 @@ export function groundReadProbes(raw: unknown, context: {
   const probes = (raw ?? []) as Array<Record<string, unknown>>;
   for (const [index, probe] of probes.entries()) {
     if (!probe || typeof probe !== "object" || Array.isArray(probe)
-      || Object.keys(probe).sort().join() !== [...readProbesSchema.items.required].sort().join())
+      || ![readProbesSchema.items.required, selectedReadProbesSchema.items.required]
+        .some(fields => Object.keys(probe).sort().join() === [...fields].sort().join()))
       return fail("probes[" + index + "]", "id_free_probe_fields");
   }
   // Ground the whole batch before constructing internal retrieval needs.
@@ -42,6 +53,15 @@ export function groundReadProbes(raw: unknown, context: {
   });
   const needs = probes.map((probe, index) => ({ needId: bindings[index].id,
     from: probe.from, to: probe.to, target: probe.target,
-    termGroups: probe.termGroups, ordering: probe.ordering }));
+    termGroups: probe.termGroups, ordering: probe.ordering,
+    ...(Object.hasOwn(probe, "selection") ? { selection: probe.selection, predicates: probe.predicates } : {}) }));
   return { needs, bindings, evidenceNeeds: plan.needs };
+}
+
+/** Apply the same authorized USER-turn domain to every strict probe variant. */
+export function constrainReadProbeSources(item: unknown, users: readonly string[]) {
+  const schema = item as { anyOf?: unknown[]; properties?: { sourceTurnId: object } };
+  if (schema.anyOf) schema.anyOf.forEach(variant => constrainReadProbeSources(variant, users));
+  else if (schema.properties?.sourceTurnId) Object.assign(schema.properties.sourceTurnId, { enum: [null, ...users] });
+  else throw Error("ASK_PROVIDER_SCHEMA_INVALID:probe_source");
 }

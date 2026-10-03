@@ -3,6 +3,8 @@ import { isOrderedResultSet } from "../furvise-brain/ordered-result-set.ts";
 import { isStoredRead, storedReadResult } from "./stored-read-publication.ts";
 import { isTypedProfileRead, profileFieldProjection, profileFieldSentence, type AuthorizedProfileField } from "./profile-field-authority.ts";
 import { careEvidenceId, eligibleAnswerSources, type AskEvidenceContract } from "./ask-evidence.ts";
+import { hasIndependentSelections } from "../furvise-brain/independent-selections.ts";
+import { isSelectedRead, independentNeedsMatch } from "./independent-selection-publication.ts";
 import { selectionPublication } from "./selection-publication.ts";
 import { certifiedResultSetMatches } from "./result-set-publication.ts";
 import { labsPresentation } from "./labs-presentation.ts";
@@ -46,10 +48,10 @@ export function historyPublicationCapability(evidence: AskEvidenceContract,
   reject(request?.task, "task_present");
   reject(request?.projection, "projection_present");
   reject(request?.profileFields?.length, "profile_fields_present");
-  reject(request?.evidenceNeeds?.length, "evidence_needs_present");
-  reject(presentation === null || !ticket?.selection && presentation !== "prose", "unsupported_presentation");
+  reject(request?.evidenceNeeds?.length && !independentNeedsMatch(evidence), "evidence_needs_present");
+  reject(presentation === null || !(ticket && isSelectedRead(ticket)) && presentation !== "prose", "unsupported_presentation");
   if (ticket) {
-    reject(ticket.needs?.length, "ticket_needs_present");
+    reject(ticket.needs?.length && !hasIndependentSelections(ticket), "ticket_needs_present");
     reject(ticket.episode, "episode_present");
     reject(ticket.temporal.calendar, "calendar_present");
     reject(ticket.outputs.strategy != null, "strategy_present");
@@ -107,14 +109,14 @@ function deriveOrdinaryHistoryAuthority(evidence: AskEvidenceContract, transport
   const represented = (id: string, petId: string) =>
     sources.some(s => s.sourceId === careEvidenceId(id, evidence.history) && s.petId === petId);
   let obligations: PublicationObligationAuthority[], transportValid: boolean;
-  if (ticket!.selection) {
-    const records = transport || coverage.groups?.flatMap(g => g.selectedIds.filter(id => represented(id, g.petId))
+  if (isSelectedRead(ticket!)) {
+    const records = transport || (coverage.independentSelections?.flatMap(p => p.coverage.groups || []) || coverage.groups)?.flatMap(g => g.selectedIds.filter(id => represented(id, g.petId))
       .map(id => ({ id, petId: g.petId }))) || [];
     const selected = selectionPublication(ticket!, coverage, records)!;
     transportValid = selected.transportValid;
     obligations = selected.certificates.map(c => ({
       ...(ticket!.authority ? { sourceAuthority: ticket!.authority } : {}),
-      obligationId: `selection:${c.subjectId}:${c.clauseId}`, subjectId: c.subjectId, clauseId: c.clauseId,
+      obligationId: "selection:" + (c.needId ? c.needId + ":" : "") + c.subjectId + ":" + c.clauseId, subjectId: c.subjectId, clauseId: c.clauseId, ...(c.needId ? { needId: c.needId } : {}),
       authority: c.certified ? "certified" : "unavailable", certificateType: "selection", status: c.status,
       authorizedSourceIds: c.certified ? c.selectedEventIds.map(id => careEvidenceId(id, evidence.history)) : [],
       certifiedRecordIds: c.certified ? [...c.selectedEventIds] : [],
@@ -234,10 +236,13 @@ export function bindPublicationObligations(evidence: AskEvidenceContract, existi
     status: "requires_components", authorizedSourceIds: authority.authorizedSourceIds,
     certifiedRecordIds: unique(authority.obligations.flatMap(o => o.certifiedRecordIds)) });
   for (const component of authority.obligations) {
-    const clause = component.clauseId === undefined ? null : authority.ticket?.selection?.union[component.clauseId];
+    const need = component.needId ? authority.ticket?.needs?.find(n => n.id === component.needId) : undefined;
+    const clause = component.clauseId === undefined ? null : (need?.selection ?? authority.ticket?.selection)?.union[component.clauseId];
     const text = component.certificateType === "selection"
       ? JSON.stringify({ requirement: "Report the requested selected source records for this subject and clause",
-        subjectId: component.subjectId, predicates: authority.ticket?.predicates, temporal: authority.ticket?.temporal,
+        subjectId: component.subjectId, needId: component.needId, sourceSpanId: need?.sourceSpanId,
+        predicates: need?.predicates ?? authority.ticket?.predicates,
+        temporal: need ? { from: need.from, to: need.to, anchor: null } : authority.ticket?.temporal,
         selection: clause, status: component.status, authorizedSourceIds: component.authorizedSourceIds })
       : component.needId ? JSON.stringify({ requirement: "Answer this independent evidence need under existing coverage policy",
         need: evidence.interpretation?.request?.evidenceNeeds?.find(n => n.id === component.needId), subjectId: component.subjectId,

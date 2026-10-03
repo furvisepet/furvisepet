@@ -1,5 +1,5 @@
 import { readTicketSchema } from "./read-ticket.ts";
-import { readProbesSchema } from "../intelligence/read-probes.ts";
+import { readProbesSchema, selectedReadProbesSchema } from "../intelligence/read-probes.ts";
 
 // Provider alternatives describe the same ReadTicket, not a second planner.
 // The binder independently validates all callers; no conflicting field is stripped.
@@ -26,7 +26,8 @@ export const readTicketProviderSchema = {
   anyOf: [
     { type: "null" },
     { ...legacy, description: "Ordinary read without a legacy strategy.",
-      properties: { ...legacy.properties, outputs: outputsFor(null) } },
+      properties: { ...legacy.properties, outputs: outputsFor(null),
+        probes: { ...readProbesSchema, items: { anyOf: [readProbesSchema.items, selectedReadProbesSchema.items] } } } },
     { ...strategyRead, description: "Unbounded chronological legacy retrieval; finite takes use compositional selection.",
       properties: { ...strategyRead.properties,
         temporal: { ...semanticProperties.temporal,

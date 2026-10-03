@@ -1,19 +1,13 @@
+import { bindCompositionalReadTicket, type ReadSelection } from "./read-selection.ts";
+import type { ReadPredicate } from "./read-ticket.ts";
 /** Source identity is bound by the request boundary; organs only receive typed dimensions. */
 export type ReadNeedBinding = { id: string; petIds: readonly string[]; sourceSpanId: string };
 export type ReadNeed = Readonly<ReadNeedBinding & {
   from: string | null; to: string | null; target: string | null;
   termGroups: readonly (readonly string[])[]; ordering: "asc" | "desc";
+  selection?: ReadSelection; predicates?: readonly ReadPredicate[];
 }>;
-export const readNeedsSchema = { type: ["array", "null"], maxItems: 4, items: {
-  type: "object", additionalProperties: false, required: ["needId", "from", "to", "target", "termGroups", "ordering"], properties: {
-    needId: { type: "string", description: "ID of the grounded evidenceNeeds entry, e.g. need:0. Never invent a source or subject." },
-    from: { type: ["string", "null"] }, to: { type: ["string", "null"] },
-    target: { type: ["string", "null"], description: "Explicit requested ISO day or month matching this window; null otherwise." },
-    termGroups: { type: "array", minItems: 1, maxItems: 4, description: "Separate advisory database searches. OR within each group. Separate rare event aliases from common topic terms so they receive an independent bounded probe. An empty group requests dated context without lexical filtering.",
-      items: { type: "array", maxItems: 6, items: { type: "string", minLength: 3, maxLength: 32, pattern: "^[A-Za-z][A-Za-z -]*[A-Za-z]$" } } },
-    ordering: { type: "string", enum: ["asc", "desc"] },
-  },
-} };
+export { readNeedsSchema } from "./read-needs-schema.ts";
 export function bindReadNeeds(value: unknown, bindings: readonly ReadNeedBinding[], petIds: readonly string[]): readonly ReadNeed[] | null | undefined {
   if (value == null) return value as null | undefined;
   const fail = (field: string, rule: string): never => { throw new Error("ASK_REQUEST_INVALID:read_needs", { cause: { field, rule } }); };
@@ -22,7 +16,8 @@ export function bindReadNeeds(value: unknown, bindings: readonly ReadNeedBinding
   return Object.freeze(value.map((item, index) => {
     const field = `needs[${index}]`;
     if (!item || typeof item !== "object" || Array.isArray(item)
-      || Object.keys(item).sort().join() !== "from,needId,ordering,target,termGroups,to") return fail(field, "fields");
+      || !["from,needId,ordering,target,termGroups,to", "from,needId,ordering,predicates,selection,target,termGroups,to"]
+        .includes(Object.keys(item).sort().join())) return fail(field, "fields");
     const bound = bindings.find(bound => bound.id === item.needId);
     if (!bound) return fail(`${field}.needId`, "grounded_binding_required");
     if (seen.has(bound.id)) return fail(`${field}.needId`, "unique_need_id");
@@ -43,7 +38,14 @@ export function bindReadNeeds(value: unknown, bindings: readonly ReadNeedBinding
       const end = new Date(start); if (item.target.length === 7) end.setUTCMonth(end.getUTCMonth() + 1); else end.setUTCDate(end.getUTCDate() + 1);
       if (Date.parse(item.from) !== start.getTime() || Date.parse(item.to) !== end.getTime()) return fail(`${field}.target`, "matches_window");
     }
-    return Object.freeze({ ...bound, petIds: Object.freeze([...bound.petIds]), from: item.from, to: item.to, target: item.target,
+    const selected = Object.hasOwn(item, "selection") ? bindCompositionalReadTicket({
+      authority: "effective_fact", operation: "read",
+      temporal: { from: item.from, to: item.to, anchor: null },
+      predicates: item.predicates, selection: item.selection,
+      outputs: { completeness: "sufficient", ordering: item.ordering, limit: null },
+    }, bound.petIds) : null;
+    if (selected && selected.selection!.groupBy.length !== 1) return fail(field, "independent_group_selection_required");
+    return Object.freeze({ ...(selected ? { selection: selected.selection, predicates: selected.predicates } : {}), ...bound, petIds: Object.freeze([...bound.petIds]), from: item.from, to: item.to, target: item.target,
       termGroups: Object.freeze(item.termGroups.map((group: string[]) => Object.freeze([...group]))), ordering: item.ordering }) as ReadNeed;
   }));
 }

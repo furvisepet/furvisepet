@@ -1,7 +1,8 @@
+import { readNeedsSchema } from "./read-needs-schema.ts";
 import { completeInstantSchema, isCompleteInstant } from "./complete-instant.ts";
 import { bindAttributedReportContexts, attributedReportContextsSchema, type AttributedReportContext } from "./attributed-report-context.ts";
 import type { ReadSelection } from "./read-selection.ts";
-import { bindReadNeeds, readNeedsSchema, type ReadNeed, type ReadNeedBinding } from "./read-needs.ts";
+import { bindReadNeeds, type ReadNeed, type ReadNeedBinding } from "./read-needs.ts";
 /** Semantic proposal only. Ownership and access are bound by the server. */
 export type ReadPredicate = Readonly<{ kind: "text_any"; terms: readonly string[] }>;
 export type EpisodeReadObligation = Readonly<{
@@ -175,6 +176,11 @@ export function bindReadTicket(value: unknown, petIds: readonly string[], needBi
     if (episode.operation === "count" && referent && referent.ordinal !== null) return fail("episode.referent.ordinal", "count_requires_null_ordinal");
   }
   const needs = bindReadNeeds(value.needs, needBindings, petIds);
+  if (needs?.some(need => need.selection)) {
+    if (!needs.every(need => need.selection && need.predicates)) return fail("needs", "mixed_selection_and_advisory_probes");
+    if (operation !== "read" || temporal.from !== null || temporal.to !== null || anchor)
+      return fail("needs", "independent_selection_owns_window");
+  }
   if (needs?.length) {
     if (operation === "read" && outputs.limit === 1 && (predicates.length || outputs.strategy === "chronological"))
       return fail("needs", "needs_incompatible_with_single_measurement_read");
