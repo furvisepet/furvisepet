@@ -22,15 +22,17 @@ export function independentNeedsMatch(evidence: AskEvidenceContract): boolean {
 }
 
 /** Independent selectors always use the effective store; scan exhaustion cannot
- * replace its subject-specific lineage and source-membership proof. */
-function completeEffectiveStreams(coverage: ReadCoverage, petIds: readonly string[]): boolean {
+ * replace its subject-specific lineage and source-membership proof. Explicit
+ * false closure flags are valid incomplete evidence; selectionPublication
+ * denies their certificates without invalidating independent companions. */
+function wellFormedEffectiveStreams(coverage: ReadCoverage, petIds: readonly string[]): boolean {
   const streams = coverage.effectiveStream;
   const ids = (value: unknown): value is string[] => Array.isArray(value)
     && value.every(id => typeof id === "string" && id.length > 0) && new Set(value).size === value.length;
   return Array.isArray(streams) && streams.length === petIds.length
     && petIds.every(petId => streams.filter(stream => stream?.petId === petId).length === 1)
-    && streams.every(stream => !!stream && stream.lineageClosed === true
-      && stream.replacementSeedsExhausted === true && stream.storedReportsCertified === undefined
+    && streams.every(stream => !!stream && typeof stream.lineageClosed === "boolean"
+      && typeof stream.replacementSeedsExhausted === "boolean" && stream.storedReportsCertified === undefined
       && ids(stream.acquiredIds) && ids(stream.effectiveIds) && ids(stream.certifiedSelectedIds)
       && stream.certifiedSelectedIds.every(id => stream.effectiveIds.includes(id))
       && Number.isSafeInteger(stream.graphCalls) && stream.graphCalls >= 0
@@ -48,7 +50,7 @@ export function independentSelectionPublication(ticket: ReadTicket, coverage: Re
   for (const need of ticket.needs!) {
     const child = independentSelectionTicket(ticket, need);
     const part = parts.find(p => p.needId === need.id);
-    const streamsValid = !!part && completeEffectiveStreams(part.coverage, need.petIds);
+    const streamsValid = !!part && wellFormedEffectiveStreams(part.coverage, need.petIds);
     const shape = streamsValid && !!access && !!part && part.sourceSpanId === need.sourceSpanId && same(part.ticket, child)
       && part.coverage.asOf === coverage.asOf && part.coverage.windows.length === need.petIds.length
       && need.petIds.every(petId => {
