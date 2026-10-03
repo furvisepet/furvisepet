@@ -200,7 +200,8 @@ test('supported presentations fulfill their format with identical certified fact
   for(const row of facts){assert.ok(r.answer.summary.includes(row.body));assert.ok(r.answer.summary.includes(row.event_at.slice(0,10)));}
   assert.equal((await reviewed(f,r)).assessment.outcome,'complete');
   assert.doesNotMatch(r.answer.summary,/partial results|history search|broader history/);
-  if(format==='table')assert.match(r.answer.summary,/\| Pet \| Recorded note \| Date \|/);
+  if(format==='table')assert.match(r.answer.summary,/\| Pet \| Recorded note \| Event date \| Saved at \|/);
+  for(const row of facts)assert.ok(r.answer.summary.includes(row.recorded_at));
   if(format==='bullets')assert.match(r.answer.summary,/^- /m);
   if(format==null||format==='prose'){assert.doesNotMatch(r.answer.summary,/^[-] |^[|] Pet/m);assert.match(r.answer.summary,/\n\n/);}
  }

@@ -88,7 +88,9 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
     ...(attributedReports ? { attributedReports } : {}),
     ...(request.requirements?.length ? { residualRequirementCount: request.requirements.length } : {}), ...(petNames ? { petNames, presentation } : {}), records: publishable.map(row => ({
     id: row.id, sourceId: careEvidenceId(row.id, evidence.history), petId: row.pet_profile_id, event_at: row.occurred_at,
-    ...(ticket.authority === "stored_report" ? { recorded_at: row.created_at } : {}),
+    // Saving time is source metadata, independent of the event-time selection.
+    ...(typeof row.created_at === "string" && Number.isFinite(Date.parse(row.created_at))
+      ? { recorded_at: row.created_at } : {}),
     body: row.note ?? row.title ?? "", predicates_matched: ticket.predicates,
   })) });
   snapshots.set(labs, JSON.stringify(labs));
@@ -125,7 +127,8 @@ export function serializeLabsList(labs: LabsList): string {
     return renderCertifiedLabs(groups, labs.presentation === undefined ? "prose" : labs.presentation,
       exhaustiveSelectionLimitation(labs.ticket.outputs.completeness === "exhaustive", labs.coverage));
   }
-  const list = labs.records.map(row => `${row.event_at.slice(0, 10)} — ${JSON.stringify(row.body)}`).join("\n\n");
+  const list = labs.records.map(row => `${row.event_at.slice(0, 10)} — ${JSON.stringify(row.body)}`
+    + (row.recorded_at ? ` (saved at ${row.recorded_at})` : "")).join("\n\n");
   const notice = {
     complete: "", complete_empty: "No matching notes were found in the checked history window.",
     partial: "These are partial results; the history search is incomplete.",
