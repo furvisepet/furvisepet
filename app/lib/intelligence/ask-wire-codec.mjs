@@ -1,3 +1,4 @@
+import { POLICY_BUNDLE } from "./ask-wire-policy.generated.mjs";
 // Lossless transport: schema constraints and structural restoration only.
 import { optimizeSchema } from "./ask-wire-schema.mjs";
 const own=(o,k)=>Object.hasOwn(o,k);
@@ -161,7 +162,7 @@ function ungroupSchema(n){
  }
  return y;
 }
-export function createGraphCodec(schema){
+export function compileGraphCodec(schema, fieldOrder = null){
  const canonicalSchema=expand(schema);
  const canonicalValid=makeValidator(canonicalSchema);
  const {root:grouped,folded}=groupSchema(canonicalSchema);
@@ -175,7 +176,9 @@ export function createGraphCodec(schema){
   for(const a of n.anyOf??[])fieldsAudit(a);if(n.items)fieldsAudit(n.items);
  }
  fieldsAudit(original);
- const names=Object.fromEntries([...fields].sort().map((k,i)=>[k,symbol(i)])),reverseNames=Object.fromEntries(Object.entries(names).map(([k,v])=>[v,k])),missing=Symbol("missing");
+ const order=fieldOrder ?? [...fields].sort();
+ ensure(order.length===fields.size&&new Set(order).size===fields.size&&order.every(k=>fields.has(k)),"FIELD_ORDER");
+ const names=Object.fromEntries(order.map((k,i)=>[k,symbol(i)])),reverseNames=Object.fromEntries(Object.entries(names).map(([k,v])=>[v,k])),missing=Symbol("missing");
  function constant(n){return n.type==="null"?null:n.enum?.length===1?n.enum[0]:n.type==="array"&&n.maxItems===0?[]:missing;}
  function compactSchema(n){
   const y=clone(without(n,["description","properties","required","anyOf","items"]));
@@ -308,3 +311,21 @@ export function createGraphCodec(schema){
  return {schema:wireSchema,encode,decode,names,constantMaps,packedRuleCount:rules.size,rawGraphSchema:rawGraph};
 }
 export { canonical, expand, makeValidator };
+
+function costWeights(c,rules){
+ const weights={},rev=Object.fromEntries(Object.entries(c.names).map(([k,a])=>[a,k]));
+ const add=k=>{const alias=k.split('~')[0];if(Object.hasOwn(rev,alias)){const n=rev[alias];weights[n]=(weights[n]||0)+1;}};
+ function walk(n){if(Array.isArray(n)){n.forEach(walk);return;}if(!n||typeof n!=='object')return;if(n.properties)Object.keys(n.properties).forEach(add);if(n.required)n.required.forEach(add);Object.values(n).forEach(walk);}
+ walk(c.schema);for(const value of Object.values(c.constantMaps))for(const k of Object.keys(value))weights[k]=(weights[k]||0)+1;
+ const keys=Object.keys(c.names).filter(k=>/^[a-z][a-zA-Z]*$/.test(k)&&k.length>=4).sort((a,b)=>b.length-a.length);
+ rules.join('\n').replace(new RegExp('\\b(?:'+keys.join('|')+')\\b','g'),k=>{weights[k]=(weights[k]||0)+1;return k;});return weights;
+}
+
+// Both passes use one implementation; only trusted schema and policy determine symbols.
+export function createGraphCodec(schema){
+ const started=performance.now(),baseline=compileGraphCodec(schema),baselineFinished=performance.now();
+ const weights=costWeights(baseline,POLICY_BUNDLE.rules);
+ const order=Object.keys(baseline.names).sort((a,b)=>(weights[b]||0)-(weights[a]||0)||(a<b?-1:a>b?1:0));
+ const ranked=compileGraphCodec(schema,order);
+ return {...ranked,compilation:{baselineMs:baselineFinished-started,rankedMs:performance.now()-baselineFinished,totalMs:performance.now()-started}};
+}

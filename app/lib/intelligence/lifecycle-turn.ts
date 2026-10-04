@@ -3,7 +3,7 @@ import { prepareBoundLifecycleAction } from "../application-actions/planner.ts";
 import type { FurviseApplicationAction } from "../application-actions/types.ts";
 import type { FurviseLiveContext } from "./types.ts";
 
-type Context = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "currentMessage" | "currentTurn" | "lifecycleActionState">;
+type Context = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "currentMessage" | "currentTurn" | "lifecycleActionState" | "conversationId">;
 export type LifecyclePlanOutcome = {
   kind: "transition" | "already_current" | "cancelled" | "cancellation_unavailable" | "state_conflict";
   plan: BoundLifecyclePlan;
@@ -11,7 +11,8 @@ export type LifecyclePlanOutcome = {
 };
 /** Rebind a serialized server plan without interpreting wording or changing its meaning. */
 export function rebindLifecyclePlan(plan: BoundLifecyclePlan, context: Context): BoundLifecyclePlan {
-  const rebound = bindLifecyclePlan({ pendingDisposition: plan.pendingDisposition,
+  if (!Object.hasOwn(plan, "pendingSubjectIds")) throw Error("LIFECYCLE_PLAN_SUBJECT_SCOPE_MISSING");
+  const rebound = bindLifecyclePlan({ pendingDisposition: plan.pendingDisposition === "cancel" ? plan.cancellation : "keep",
     transition: plan.transition ? { targetPetName: plan.transition.petName, toState: plan.transition.toState } : null,
     requiredSubjectState: plan.requiredSubjectState, authorizationQuote: plan.authorization.text },
     context, plan.subjects.map(subject => subject.petId));

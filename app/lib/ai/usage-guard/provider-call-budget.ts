@@ -1,8 +1,9 @@
+import { consumeCatalogContinuationToken, type CatalogContinuationToken } from "../../intelligence/catalog-intent.ts";
 import type { PipelineStage } from "../execution-deadline.ts";
 import { getActiveAiAdmission } from "./context.ts";
 import { AiAdmissionError } from "./errors.ts";
 
-export type ProviderCallPurpose = "interpretation_repair" | "generation_repair" | "history_review" | "history_repair" | "history_rereview"
+export type ProviderCallPurpose = "catalog_continuation" | "interpretation_repair" | "generation_repair" | "history_review" | "history_repair" | "history_rereview"
   | "task_review" | "task_repair" | "task_rereview";
 /** Both answer routes share one review/repair allowance, never two budgets. */
 export function canonicalReviewPurpose(purpose?: ProviderCallPurpose) {
@@ -14,6 +15,7 @@ export function canonicalReviewPurpose(purpose?: ProviderCallPurpose) {
 
 export async function executeAdmittedProviderCall<T>(input: {
   purpose?: ProviderCallPurpose;
+  catalogAuthorization?: CatalogContinuationToken;
   invoke: () => Promise<T>;
   reserveMs?: number;
   stage?: PipelineStage;
@@ -22,6 +24,11 @@ export async function executeAdmittedProviderCall<T>(input: {
   providerInput: unknown;
 }) {
   input = { ...input, purpose: canonicalReviewPurpose(input.purpose) };
+  if (input.purpose === "catalog_continuation") {
+    if (input.stage !== "catalog_continuation") throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "catalog_authority_wrong_phase");
+    consumeCatalogContinuationToken(input.catalogAuthorization);
+  }
+  else if (input.catalogAuthorization) throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "catalog_authority_wrong_phase");
   const admission = getActiveAiAdmission();
   if (!admission) {
     const testRuntime = Boolean(process.env.NODE_TEST_CONTEXT);
@@ -30,7 +37,7 @@ export async function executeAdmittedProviderCall<T>(input: {
     throw new AiAdmissionError("AI_TEMPORARILY_UNAVAILABLE", "provider_call_without_admission");
   }
   if (admission.deadline) admission.deadline.allocate(input.stage || (input.purpose === "history_repair" ? "repair" : input.purpose === "history_review" || input.purpose === "history_rereview" ? "verification" : "answer_generation"), 1_000, input.reserveMs ?? (input.purpose === "history_repair" ? 8_000 : 0), 250);
-  const call = await admission.beginProviderCall({ purpose: canonicalReviewPurpose(input.purpose), input: input.providerInput, maxOutputTokens: input.maxOutputTokens, model: input.model });
+  const call = await admission.beginProviderCall({ purpose: canonicalReviewPurpose(input.purpose), stage: input.stage || "answer_generation", input: input.providerInput, maxOutputTokens: input.maxOutputTokens, model: input.model });
   try {
     const response = await input.invoke();
     const usage = readProviderUsage((response as { usage?: unknown }).usage);
@@ -71,6 +78,7 @@ export function boundedProviderTimeout(maximumMs: number, reserveMs = 0, stage: 
  */
 export async function executeAdmittedResponsesRequest<R extends Record<string, unknown>, T>(input: {
   purpose?: ProviderCallPurpose;
+  catalogAuthorization?: CatalogContinuationToken;
   invoke: (request: R) => Promise<T>;
   reserveMs?: number;
   stage?: PipelineStage;
@@ -88,7 +96,7 @@ export async function executeAdmittedResponsesRequest<R extends Record<string, u
   }
   freezeProviderRequest(request);
   return executeAdmittedProviderCall({
-    purpose: input.purpose, reserveMs: input.reserveMs, stage: input.stage,
+    purpose: input.purpose, catalogAuthorization: input.catalogAuthorization, reserveMs: input.reserveMs, stage: input.stage,
     model: input.model, maxOutputTokens: input.maxOutputTokens,
     providerInput: request, invoke: () => input.invoke(request),
   });

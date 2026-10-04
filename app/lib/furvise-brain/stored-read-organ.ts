@@ -1,3 +1,4 @@
+import { assertCatalogPermit, type CatalogPermit } from "../intelligence/catalog-intent.ts";
 import "server-only";
 import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -27,20 +28,25 @@ type Capability = { id: string; user_id: string; pet_profile_id: string; source_
   assistant_message_id: string; action_payload: unknown; status: string; receipt: unknown; expires_at: string; created_at: string };
 export const STORED_READ_LIMIT = 100;
 /** Bounded owned reference metadata, independent of the current wording and of surviving conversations. */
-export async function loadStoredReadReferences(ownerId: string, db?: SupabaseClient): Promise<StoredReadReference[]> {
+export async function loadStoredReadReferences(permit: CatalogPermit, db?: SupabaseClient): Promise<StoredReadReference[]> {
+  assertCatalogPermit(permit, "receipt", "hydrating");
+  const { ownerId } = permit;
   try {
-    const { data, error } = await (db || createIdempotencyAdminClient()).from("ask_action_capabilities")
-      .select(referenceColumns).eq("user_id", ownerId).order("created_at", { ascending: false }).order("id", { ascending: false }).limit(12);
-    if (error || !Array.isArray(data)) return [];
+    let query = (db || createIdempotencyAdminClient()).from("ask_action_capabilities")
+      .select(referenceColumns).eq("user_id", ownerId).lte("created_at", permit.cutoff);
+    if (permit.scope === "subjects") query = query.in("pet_profile_id", [...permit.subjectIds]);
+    const { data, error } = await query.order("created_at", { ascending: false }).order("id", { ascending: false }).limit(permit.maxRows);
+    if (error || !Array.isArray(data) || data.length > permit.maxRows || Buffer.byteLength(JSON.stringify(data), "utf8") > permit.maxBytes) throw Error("ASK_CATALOG_UNAVAILABLE");
     return (data as Capability[]).flatMap(row => {
       const action = parseStoredApplicationActions([row.action_payload])[0];
-      if (row.user_id !== ownerId || !action || action.petId !== row.pet_profile_id
+      if (row.user_id !== ownerId || Date.parse(row.created_at) > Date.parse(permit.cutoff)
+        || permit.scope === "subjects" && !permit.subjectIds.includes(row.pet_profile_id) || !action || action.petId !== row.pet_profile_id
         || action.sourceMessageId !== row.source_message_id) return [];
       return [{ ref: randomUUID(), ownerId, capabilityId: row.id, sourceMessageId: row.source_message_id,
         assistantMessageId: row.assistant_message_id, petId: row.pet_profile_id, actionKind: action.kind,
         createdAt: row.created_at, payloadDigest: storedReadDigest(row.action_payload) }];
     });
-  } catch { return []; }
+  } catch { throw Error("ASK_CATALOG_UNAVAILABLE"); }
 }
 function issue(result: StoredReadResult) {
   issued.set(result, JSON.stringify(result));

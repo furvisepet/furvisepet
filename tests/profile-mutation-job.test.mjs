@@ -111,7 +111,7 @@ test("profile mutation cannot compete with another job or factual request", () =
  {evidenceBasis:"saved_profile"},{profileFields:["breed"]},{outputFormat:"json"},{mode:"mixed"},{selection:"latest"}])
  assert.throws(()=>validateAskRequest({...request(p),...extra},context(p.instructionQuote)),/profile_mutation_mixed/);
  const variants=askRequestProviderSchema({}).properties.request.anyOf;
- const mutation=variants.filter(v=>v.properties.fieldMutationJob.type!=="null");
+ const mutation=variants.filter(v=>v.properties.version?.enum?.[0]==="ask-request.v2" && v.properties.fieldMutationJob?.anyOf?.some(branch=>branch.type==="object"));
  assert.equal(mutation.length,1);assert.equal(mutation[0].properties.readTicket.type,"null");
  assert.equal(mutation[0].properties.frame.type,"null");
 });
@@ -142,3 +142,5 @@ test("the single interpreter emits and binds profile semantics without a second 
  assert.equal(prepared.action.input.field,"current_food");assert.equal(prepared.action.input.value,"Recipe A");
  assert.equal(prepared.orchestration.aiResult,null);
 });
+
+test("catalog intent remains a separate source-free provider branch",()=>{const branches=askRequestProviderSchema({}).properties.request.anyOf;const catalog=branches.filter(v=>v.properties.version?.enum?.[0]==="ask-catalog-intent.v1");assert.equal(catalog.length,1);assert.ok(catalog[0].properties.request);assert.equal(catalog[0].properties.calculatePlan,undefined);});

@@ -2,7 +2,7 @@
 
 /** One monotonic budget shared by stages. Never publish an unreviewed draft
  * because a later stage cannot fit. A budget cannot be reset by a repair. */
-export type PipelineStage = "interpretation" | "subject_resolution" | "context_loading" | "evidence_retrieval" | "answer_generation" | "verification" | "repair" | "persistence";
+export type PipelineStage = "catalog_continuation" | "interpretation" | "subject_resolution" | "context_loading" | "evidence_retrieval" | "answer_generation" | "verification" | "repair" | "persistence";
 export class StageDeadlineError extends Error {
   readonly code = "ASK_STAGE_DEADLINE";
   readonly stage: PipelineStage;

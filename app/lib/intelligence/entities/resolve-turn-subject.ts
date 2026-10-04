@@ -358,7 +358,9 @@ function hasContradictoryNamedClaims(frame: ProposedSemanticFrame) {
   return [...polarities.values()].some((values) => values.size > 1);
 }
 
-function normalize(value: string) {
+const normalize = (value: string) => ownedPetIdentityKey(value);
+
+export function ownedPetIdentityKey(value: string) {
   return value.normalize("NFKC").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 

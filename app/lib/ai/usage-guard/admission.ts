@@ -72,6 +72,8 @@ export class AiOperationAdmission {
   private interpretationRepaired = false;
   private generationRepaired = false;
   private lastPurpose: string | undefined;
+  private lastStage: string | undefined;
+  private catalogTerminal = false;
   private historyRepairStarted = false;
   private queued: AiCallReservation | null = null;
   private readonly config: ReturnType<typeof getAiGuardConfig>;
@@ -98,9 +100,16 @@ export class AiOperationAdmission {
 
   async run<T>(action: () => Promise<T>) { return runWithAiAdmission(this, action); }
 
-  async beginProviderCall(input: { purpose?: "interpretation_repair" | "generation_repair" | "history_review" | "history_repair" | "history_rereview"; input: unknown; maxOutputTokens: number; model: string }) {
+  assertCatalogPlanningPhase() {
+    if (this.catalogTerminal || this.feature !== "ask" || this.callNumber !== 1 || this.queued || this.lastPurpose !== undefined || this.lastStage !== "interpretation"
+      || this.interpretationRepaired || this.generationRepaired || this.historyRepairStarted)
+      throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "catalog_phase_out_of_order");
+  }
+
+  async beginProviderCall(input: { purpose?: "catalog_continuation" | "interpretation_repair" | "generation_repair" | "history_review" | "history_repair" | "history_rereview"; input: unknown; maxOutputTokens: number; model: string; stage?: string }) {
+    if (this.catalogTerminal) throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "catalog_terminal");
     if (this.deadline ? this.deadline.remainingMs() <= 0 : Date.now() >= this.providerDeadlineAt) throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "provider_deadline_exhausted");
-    if (this.queued && (input.purpose === "interpretation_repair" || input.purpose === "generation_repair" || input.purpose === "history_repair" || input.purpose === "history_rereview"))
+    if (this.queued && (input.purpose === "catalog_continuation" || input.purpose === "interpretation_repair" || input.purpose === "generation_repair" || input.purpose === "history_repair" || input.purpose === "history_rereview"))
       throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "provider_phase_out_of_order");
     const estimatedInputTokens = estimateInputTokens(input.input);
     if (estimatedInputTokens > this.policy.maxInputTokens || JSON.stringify(input.input).length > this.policy.maxInputCharacters || input.maxOutputTokens > this.policy.maxOutputTokens) {
@@ -113,12 +122,15 @@ export class AiOperationAdmission {
     }
     const reservation = this.queued!;
     this.queued = null;
+    // Latch before dispatch bookkeeping: an uncertain start cannot reopen another phase.
+    if (input.purpose === "catalog_continuation") this.catalogTerminal = true;
     try { await this.store.markCallStarted({ callId: reservation.callId }); }
     catch { throw new AiAdmissionError("AI_TEMPORARILY_UNAVAILABLE", "call_start_accounting_uncertain"); }
     logAiGuardEvent("provider call started", { allowed: true, callNumber: reservation.callNumber, estimatedInputTokens, feature: this.feature, model: input.model, operationId: this.operationId, requestId: this.requestId, reservedCostMicrodollars: reservation.reservedCostMicrodollars });
     if (input.purpose === "interpretation_repair") this.interpretationRepaired = true;
     if (input.purpose === "generation_repair") this.generationRepaired = true;
     this.lastPurpose = input.purpose;
+    this.lastStage = input.stage;
     if (input.purpose === "history_repair") this.historyRepairStarted = true;
     return { estimatedInputTokens, reservation };
   }
@@ -147,7 +159,9 @@ export class AiOperationAdmission {
   async fail(error?: unknown) { await this.releaseQueued(); await this.store.failOperation({ key: this.operationKey, ttlSeconds: this.operationTtlSeconds }).catch(() => {}); if (error) logAiGuardEvent("operation failed", { allowed: false, denialReason: error instanceof AiAdmissionError ? error.reason : "operation_failed", feature: this.feature, operationId: this.operationId, requestId: this.requestId, safeErrorClass: error instanceof Error ? error.name : "UnknownError" }); }
   async release() { await this.releaseQueued(); }
 
-  async reserveNextCall(model: string, purpose?: "interpretation_repair" | "generation_repair" | "history_review" | "history_repair" | "history_rereview") {
+  async reserveNextCall(model: string, purpose?: "catalog_continuation" | "interpretation_repair" | "generation_repair" | "history_review" | "history_repair" | "history_rereview") {
+    if (this.catalogTerminal) throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "catalog_terminal");
+    if (purpose === "catalog_continuation") this.assertCatalogPlanningPhase();
     if (this.feature === "ask" && purpose === "interpretation_repair" && (this.callNumber !== 1 || this.interpretationRepaired)) {
       throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "provider_phase_out_of_order");
     }

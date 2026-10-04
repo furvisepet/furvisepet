@@ -735,6 +735,8 @@ export function buildRankedAskContext(input: BuildContextInput) {
 }
 
 export async function generateContextAwareAskResponse(input: GenerateAskReasoningInput): Promise<AskReasoningResult> {
+  if (isStoredRead(input.evidenceContract) && !storedReadResult(input.evidenceContract))
+    throw new Error("STORED_READ_RESULT_UNAVAILABLE_OR_CHANGED");
   const client = input.client || createClient(input.apiKey || process.env.OPENAI_API_KEY);
   const models = getAskModelConfiguration();
   if (!client) {

@@ -28,7 +28,10 @@ const ASK_MUTATION_KEYS = Object.freeze([
 function lifecyclePlanRequestsMutation(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const plan = value as Record<string, unknown>;
-  return plan.pendingDisposition === "cancel" || plan.transition !== null && plan.transition !== undefined;
+  const cancellation = plan.pendingDisposition;
+  return cancellation === "cancel"
+    || cancellation !== null && typeof cancellation === "object" && !Array.isArray(cancellation)
+    || plan.transition !== null && plan.transition !== undefined;
 }
 
 export function publicV1RequestHasExcludedAskMutation(request: unknown) {

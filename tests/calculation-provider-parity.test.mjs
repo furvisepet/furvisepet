@@ -51,7 +51,7 @@ const roleChecks=[
  ['convert',['exactly one source','resultUnit']],
  ['count_records',['no operands','certified effective record count']],
 ];
-const providerNodes=schema.properties.request.anyOf.filter(v=>v.properties.calculatePlan.type==='object').flatMap(v=>{
+const providerNodes=schema.properties.request.anyOf.filter(v=>v.properties.version?.enum?.[0]==='ask-request.v2' && v.properties.calculatePlan?.type==='object').flatMap(v=>{
  const arrays=v.properties.calculatePlan.properties.calculations;
  return (arrays.anyOf||[arrays]).flatMap(array=>array.items.anyOf||[array.items]);
 });
@@ -87,7 +87,7 @@ test('non-calculation provider compatibility retains outer fields',()=>{
 });
 test('canonical calculation contract owns temporal bounds and distinct endpoint union',()=>{
  for(const term of ['outer from/to null, terms [], selection summary','next local midnight in the supplied timezone','distinct ascending take 1 and descending take 1','duplicate clauses are invalid'])assert.ok(ASK_REQUEST_INSTRUCTIONS.includes(term),term);
- for(const v of schema.properties.request.anyOf.filter(v=>v.properties.calculatePlan.type==='object')){
+ for(const v of schema.properties.request.anyOf.filter(v=>v.properties.version?.enum?.[0]==='ask-request.v2' && v.properties.calculatePlan?.type==='object')){
   if(v.properties.evidenceBasis.enum[0]==='supplied_context'){assert.equal(v.properties.readTicket.type,'null');continue;}
   assert.match(v.properties.readTicket.properties.temporal.description,/Sole temporal retrieval authority/);
   if(v.properties.readTicket.properties.selection.type==='object')assert.match(v.properties.readTicket.properties.selection.description,/Never duplicate orderBy\/take/);
@@ -133,7 +133,7 @@ test('source-domain meaning is stated once; provider operands retain their close
  }
 });
 test('provider array branches use existing keywords without new plan fields or tuple/conditional tricks',()=>{
- for(const branch of schema.properties.request.anyOf.filter(v=>v.properties.calculatePlan.type==='object')){
+ for(const branch of schema.properties.request.anyOf.filter(v=>v.properties.version?.enum?.[0]==='ask-request.v2' && v.properties.calculatePlan?.type==='object')){
   const p=branch.properties.calculatePlan;
   assert.deepEqual(Object.keys(p.properties).sort(),['calculations','operation','resultSelection']);
   const arrays=p.properties.calculations.anyOf;
@@ -186,3 +186,5 @@ for(const make of [request,dag])test('ownership shape, roles and every-plan trus
  const changed=structuredClone(p);changed.calculations[0].operands=[{kind:'result',role:'target',calculationId:'undeclared'},{kind:'result',role:'reference',calculationId:'undeclared'}];
  assert.throws(()=>rebindCalculatePlan(changed,t,p),/binding_snapshot/);
 });
+
+test("catalog intent remains a separate source-free provider branch",()=>{const branches=askRequestProviderSchema({}).properties.request.anyOf;const catalog=branches.filter(v=>v.properties.version?.enum?.[0]==="ask-catalog-intent.v1");assert.equal(catalog.length,1);assert.ok(catalog[0].properties.request);assert.equal(catalog[0].properties.calculatePlan,undefined);});

@@ -129,7 +129,7 @@ test("calculate schema has no source/result/expression fields and Muscle has no 
  assert.equal(CALCULATE_OPERATORS.length,10);
  assert.doesNotMatch(source,/currentMessage|requestText|question|responses[.]create|supabase|[.]from[(]|eval[(]/);
  const branches=askRequestProviderSchema({}).properties.request.anyOf;
- const c=branches.find(v=>v.properties.calculatePlan.type==="object");assert.ok(c);
+ const c=branches.find(v=>v.properties.version?.enum?.[0]==="ask-request.v2" && v.properties.calculatePlan?.type==="object");assert.ok(c);
  for(const key of ["frame","writeJob","storedRead","appendJob","projection"])assert.equal(c.properties[key].type,"null");
 });
 
@@ -270,3 +270,5 @@ test('duplicate-clause Brain proposal fails once before any completed answer ass
  const disposition=assessTaskExecution({assessment:null,completion:[],responseMode:'answer',actions:[],careWriteRequired:false,careReceipt:{status:'skipped',careEntryIds:[]}});
  assert.notEqual(disposition.taskOutcome,'complete');assert.notEqual(disposition.answerOutcome,'complete');assert.equal(disposition.creditDisposition,'release');
 });
+
+test("catalog intent remains a separate source-free provider branch",()=>{const branches=askRequestProviderSchema({}).properties.request.anyOf;const catalog=branches.filter(v=>v.properties.version?.enum?.[0]==="ask-catalog-intent.v1");assert.equal(catalog.length,1);assert.ok(catalog[0].properties.request);assert.equal(catalog[0].properties.calculatePlan,undefined);});

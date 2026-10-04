@@ -1,3 +1,4 @@
+import { hydratePlanningCatalog, verifyPlanningCatalogSource } from "../../lib/intelligence/hydrate-planning-catalog.ts";
 import { executeStoredRead } from "../../lib/furvise-brain/stored-read-organ.ts";
 import {resolveRemovePlan} from "../../lib/furvise-brain/remove-job.ts";
 import {prepareBoundRemoveAction} from "../../lib/application-actions/planner.ts";
@@ -304,7 +305,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
   }
 
   const { data: profiles, error: profileError, diagnostic: profileDiagnostic } = await readAskProfiles<DogProfileRow[]>((signal) => {
-    const profileQuery = supabase.from("dog_profiles").select("id,user_id,name,species,lifecycle_status,sex").eq("user_id", userId).neq("lifecycle_status", "archived").retry(false).abortSignal(signal);
+    const profileQuery = supabase.from("dog_profiles").select("id,user_id,name,species,sex").eq("user_id", userId).neq("lifecycle_status", "archived").retry(false).abortSignal(signal);
     return petId === "all" ? profileQuery.returns<DogProfileRow[]>() : profileQuery.eq("id", petId).returns<DogProfileRow[]>();
   }, { signal: request.signal });
   // Fixed enums/numbers only: never log profile data, SQL text, tokens, or raw SDK errors.
@@ -514,7 +515,29 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
       }
       const recentConversation = liveContext.conversationTurns.filter((turn) => turn.id !== preparedRequest.userMessageId);
       generationStage = "interpretation";
-      const interpretation = await interpretAskQuestion({ context: { ...liveContext, conversationTurns: recentConversation }, model, onProviderEvent });
+      const interpretation = await interpretAskQuestion({ context: { ...liveContext, conversationTurns: recentConversation }, model, onProviderEvent,
+        catalogService: { requestId: logicalTurnId, capability: publicV1AskCapability,
+          verify: permit => verifyPlanningCatalogSource(permit, supabase),
+          hydrate: async permit => {
+            const hydrated = await hydratePlanningCatalog(permit, liveContext, supabase);
+            liveContext = hydrated.context;
+            return hydrated;
+          } },
+      });
+      if (interpretation.catalogLimitation) {
+        if (creditReserved) {
+          const released = await safeReleaseAiCredit({ logicalRequestId: logicalTurnId, payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
+          creditReserved = false; creditFinalState = released ? "released" : "release_pending";
+          turnLifecycle.credit(released ? "released" : "release_pending").settlement("release", released ? "reconciled" : "pending");
+        }
+        liveContext = { ...liveContext, askInterpretation: interpretation };
+        turnLifecycle.route("clarification", "deterministic");
+        turnAuthoritativePetIds = []; contextUsed = { petName: null, usedSources: [] };
+        const reply = buildSubjectClarificationOrchestration(question);
+        reply.answer = { title: "Furvise", summary: interpretation.catalogLimitation.message, sections: [], safetyNote: null };
+        reply.clarificationQuestion = "";
+        return reply;
+      }
       if (exceedsSelectedPetRead(interpretation, petId, liveContext.eligiblePets?.map(pet => pet.id) || [petId],
         explicitlyNamedOwnedPets(question, liveContext.eligiblePets || []).map(pet => pet.id))) {
         if (creditReserved) {
@@ -633,8 +656,8 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
       // never enter this loader. Emergency copy is the documented exception above.
       const planningSource = liveContext.currentTurn;
       const storedRead = interpretation.request?.storedRead;
-      if (!storedRead && !interpretation.conversationOnly && !interpretation.clarification) liveContext = await buildFurviseContext({ historyAccess, conversationId: preparedRequest.conversationId,
-        currentMessage: reasoningQuestion, feature: "ask", locale, petId, supabase, userId,
+      if (!storedRead && !interpretation.request?.writeJob && !interpretation.conversationOnly && !interpretation.clarification) liveContext = await buildFurviseContext({ historyAccess, conversationId: preparedRequest.conversationId,
+        currentMessage: reasoningQuestion, feature: "ask", locale, petId: interpretation.petIds[0] || petId, conversationPetId: petId, supabase, userId,
         timeZone: resolveAskTimeZone(aiCreditPayload.timeZone) });
       liveContext = { ...liveContext, currentTurn: planningSource, askInterpretation: interpretation };
       if (storedRead) liveContext.storedReadResult = await executeStoredRead(storedRead, { ownerId:userId,
@@ -649,11 +672,6 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         turnPetId = replaceJob.petId;
         turnAuthoritativePetIds = [turnPetId];
         const subject = liveContext.eligiblePets.find(pet => pet.id === turnPetId)!;
-        if (liveContext.pet.id !== turnPetId) {
-          liveContext = await buildFurviseContext({ historyAccess, conversationId: preparedRequest.conversationId,
-            conversationPetId: petId, currentMessage: question, feature: "ask", timeZone: liveContext.timeZone,
-            locale, petId: turnPetId, supabase, userId });
-        }
         contextUsed = { petName: subject.name, usedSources: [] };
         turnLifecycle.subject("semantic_replace", 1);
         plannedReplaceTarget = resolved.target;

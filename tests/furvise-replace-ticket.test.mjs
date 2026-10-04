@@ -95,9 +95,25 @@ test('fe77e95 Cedar: clean 17-character body rejects a dialogue target reference
     createdAt: '2026-09-19T10:41:59Z' }];
   assert.equal(proposal.writeJob.bodyQuote, 'lunch was normal.');
   assert.equal(proposal.writeJob.bodyQuote.length, 17);
+  // Preserve the frozen input's first rejection: these legacy requirements duplicate
+  // the typed target, body and effective-count constraint; they are not residual work.
+  assert.deepEqual(proposal.requirements, [
+    'Replace the most recent care note for Cedar.',
+    'Keep the new note text exactly as: lunch was normal.',
+    'Use one effective row only.',
+  ]);
+  assert.equal(proposal.writeJob.target, 'last_event_for_subject');
+  assert.equal(proposal.writeJob.petName, 'Cedar');
+  assert.deepEqual(proposal.writeJob.constraints, [{kind:'effective_count_one',quote:'One row only.'}]);
+  const requirementFailure = error => error.message === 'ASK_REQUEST_INVALID:write_job' && error.cause.field === 'requirements';
+  assert.throws(() => validateAskRequest(proposal, context), requirementFailure);
+  assert.throws(() => validateAskRequest({...proposal,referenceTurnIds:[]}, context), requirementFailure);
+  // Derive the current canonical representation without altering the frozen fixture,
+  // its exact source/body/target/constraint, or any requested obligation.
+  proposal.requirements = [];
   assert.throws(() => validateAskRequest(proposal, context), error =>
     error.message === 'ASK_REQUEST_INVALID:write_job' && error.cause.field === 'referenceTurnIds');
-  // This is the sole field difference needed to pass; the validator does not repair it.
+  // With duplicate typed requirements migrated, this sole remaining field change passes.
   proposal.referenceTurnIds = [];
   const job = validateAskRequest(proposal, context).request.writeJob;
   assert.equal(job.body.text, 'lunch was normal.');

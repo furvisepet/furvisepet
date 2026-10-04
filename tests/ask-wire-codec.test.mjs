@@ -23,7 +23,7 @@ function plan(name){
 }
 test("wire policy retains every source section, reviewed clause and annotation disposition",()=>{
  const sections=ASK_REQUEST_INSTRUCTIONS.split("\n");
- assert.equal(sections.length,63);
+ assert.equal(sections.length,64);
  assert.deepEqual(POLICY_BUNDLE.sourceHashes,sections.map(sha));
  assert.deepEqual(audit.compactedPolicy.flatMap(r=>r.ids).sort((a,b)=>a-b),sections.map((_,i)=>i));
  for(const r of audit.compactedPolicy)assert.deepEqual(r.sourceHashes,r.ids.map(i=>sha(sections[i])));
@@ -33,23 +33,41 @@ test("wire policy retains every source section, reviewed clause and annotation d
   assert.ok(audit.sourcePolicy[c.rule].rule.includes(c.before));
   assert.equal(sha(c.before),c.beforeSha256);assert.equal(sha(c.after),c.afterSha256);
   if(c.emissionDisposition){
-   assert.ok(audit.compactedPolicy[c.targetRule].rule.includes(c.targetExcerpt));
+   assert.ok(audit.priorCompactedPolicy[c.targetRule].rule.includes(c.targetExcerpt));
    assert.equal(sha(c.targetExcerpt),c.targetSha256);
-  }else assert.ok(audit.compactedPolicy[c.rule].rule.includes(c.after));
+  }else assert.ok(audit.priorCompactedPolicy[c.rule].rule.includes(c.after));
  }
  const counts={};
  for(const r of audit.annotationDispositions.dispositions){
   assert.equal(sha(r.sourceText),r.sourceSha256);
-  assert.ok(audit.compactedPolicy[r.targetRule].rule.includes(r.evidenceExcerpt));
+  assert.ok(audit.priorCompactedPolicy[r.targetRule].rule.includes(r.evidenceExcerpt));
   counts[r.disposition]=(counts[r.disposition]??0)+1;
   if(r.targetRule>=29)assert.equal(POLICY_BUNDLE.rules[r.targetRule],r.sourceText);
  }
  assert.deepEqual(counts,{truly_missing_rule:17,structurally_covered_duplicate:38,schema_only_description:2});
+ const review=audit.readablePolicyReview;
+ assert.deepEqual(POLICY_BUNDLE.rules,review.compiledPolicy.rules);
+ assert.equal(POLICY_BUNDLE.header,review.compiledPolicy.header);
+ assert.equal(POLICY_BUNDLE.packedHeader,review.compiledPolicy.packedHeader);
+ assert.deepEqual(audit.priorCompactedPolicy.map(r=>sha(r.rule)),review.priorCompiledRuleHashes);
+ assert.equal(review.clauseMapping.clauses.length,447);
+ for(const c of review.clauseMapping.clauses){
+  assert.equal(sha(c.sourceText),c.sourceSha256);
+  assert.ok(audit.priorCompactedPolicy[c.sourceRule].rule.includes(c.sourceText));
+  assert.ok(c.candidateRules.length&&c.candidateRules.every(i=>typeof POLICY_BUNDLE.rules[i]==="string"));
+ }
+ for(let i=29;i<=47;i++)assert.equal(POLICY_BUNDLE.rules[i],audit.priorCompactedPolicy[i].rule);
+ for(const c of review.authorityRelocation.wrapper_clauses){
+  assert.ok(review.authoritySources[c.source_key].includes(c.source_sentence));
+  assert.ok(POLICY_BUNDLE.rules[c.target_rule].includes(c.target_excerpt));
+ }
+ assert.throws(()=>createAskWirePlan(plan("no_context").schema,ASK_REQUEST_INSTRUCTIONS,{...review.authoritySources,inputAuthority:"changed"}),/AUTHORITY_SOURCE_DRIFT/);
+
  for(const name of Object.keys(corpus.contexts).concat("no_context")){
   const p=plan(name),[header,body]=p.instructions.split("\nPOLICY\n");
   const fields=new Map(header.split("\nFIELDS ")[1].split("\n")[0].split(" ").map(s=>s.split("=")));
   assert.equal(body.replace(/\$([A-Za-z]+)/g,(_,a)=>fields.get(a)),POLICY_BUNDLE.rules.join("\n"));
-  for(const r of audit.sourcePolicy.slice(29))assert.ok(body.replace(/\$([A-Za-z]+)/g,(_,a)=>fields.get(a)).includes(r.rule));
+  for(const r of audit.sourcePolicy.slice(29,48))assert.ok(body.replace(/\$([A-Za-z]+)/g,(_,a)=>fields.get(a)).includes(r.rule));
  }
  assert.throws(()=>createAskWirePlan(plan("no_context").schema,ASK_REQUEST_INSTRUCTIONS+"\nchanged"),/SOURCE_DRIFT/);
  const schema=askRequestProviderSchema(proposedSemanticFrameJsonSchema);

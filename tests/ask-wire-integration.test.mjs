@@ -7,10 +7,13 @@ registerHooks({resolve(s,c,next){return s==="server-only"?{url:"data:text/javasc
 globalThis.fetch=async()=>{throw Error("OFFLINE_WIRE_INTEGRATION");};
 const {ASK_REQUEST_INSTRUCTIONS,askRequestProviderSchema}=await import("../app/lib/intelligence/ask-request-contract.ts");
 const {proposedSemanticFrameJsonSchema}=await import("../app/lib/intelligence/semantic-frame/schema.ts");
-const {interpretAskQuestion,recoverAskInterpretation}=await import("../app/lib/intelligence/interpret-ask.ts");
+const {interpretAskQuestion,recoverAskInterpretation,projectAskInterpretationContext}=await import("../app/lib/intelligence/interpret-ask.ts");
 const {admitAiOperation}=await import("../app/lib/ai/usage-guard/admission.ts");
 const {MemoryAiGuardTestStore}=await import("../app/lib/ai/usage-guard/memory-test-store.ts");
 const {AI_FEATURE_POLICIES}=await import("../app/lib/ai/usage-guard/features.ts");
+const {factorProviderEnumSchemas}=await import("../app/lib/ai/provider-enum-schema.ts");
+const {factorProviderCompoundSchemas}=await import("../app/lib/ai/provider-compound-schema.ts");
+const projectedSchema=context=>factorProviderCompoundSchemas(factorProviderEnumSchemas(askRequestProviderSchema(proposedSemanticFrameJsonSchema,projectAskInterpretationContext(context))));
 const corpus=JSON.parse(readFileSync(new URL("./fixtures/ask-wire-codec.json",import.meta.url),"utf8"));
 const env={NODE_ENV:"test",FURVISE_AI_DAILY_CALL_LIMIT:"20",FURVISE_AI_DAILY_COST_LIMIT_USD:"1",FURVISE_RATE_LIMIT_HASH_SECRET:"offline-wire-identity-fixture-only-0000000000"};
 async function admitted(name,context,wire,observe){
@@ -35,16 +38,19 @@ test("actual interpretation admits complete wire snapshots and gives Binder the 
   assert.equal(AI_FEATURE_POLICIES.ask.maxInputCharacters,80000);
   assert.equal(AI_FEATURE_POLICIES.ask.maxOutputTokens,100000);
   for(const [name,context] of Object.entries(corpus.contexts)){
-   const plan=createAskWirePlan(askRequestProviderSchema(proposedSemanticFrameJsonSchema,context),ASK_REQUEST_INSTRUCTIONS);
+   const plan=createAskWirePlan(projectedSchema(context),ASK_REQUEST_INSTRUCTIONS);
    let chosen,expected;
    for(const f of corpus.fixtures.filter(f=>f.context===name)){
-    try{const r=recoverAskInterpretation(f.canonical.request,context);if(r.planningRecovery)continue;chosen=f;expected=r;break;}catch{ /* Try the next schema-valid Binder witness. */ }
+    try{const r=recoverAskInterpretation(f.canonical.request,projectAskInterpretationContext(context));if(r.planningRecovery)continue;chosen=f;expected=r;break;}catch{ /* Try the next schema-valid Binder witness. */ }
    }
    assert.ok(chosen,"positive Binder fixture missing: "+name);
    const actual=await admitted(name,context,plan.encode(chosen.canonical),request=>{
     const total=JSON.stringify(request).length;
-    assert.ok(total<=58000,name+": "+total);assert.deepEqual(request.text.format.schema,plan.schema);
-    rows.push({name,schema:JSON.stringify(request.text.format.schema).length,instructions:request.instructions.length,input:request.input.length,total,margin:60000-total});
+    assert.deepEqual(request.text.format.schema,plan.schema);
+    rows.push({name,schema:JSON.stringify(request.text.format.schema).length,instructions:request.instructions.length,input:request.input.length,total,margin:58000-total});
+    console.log(JSON.stringify({kind:"request_size",...rows.at(-1)}));
+    if(process.env.FURVISE_WIRE_REPORT)writeFileSync(process.env.FURVISE_WIRE_REPORT,JSON.stringify({status:"in_progress",rows},null,2));
+    assert.ok(total<=58000,name+": "+total);
    });
    assert.deepEqual(actual,expected);
    await assert.rejects(admitted("unknown-"+name,context,{nodes:[{_:"UNKNOWN_TAG"}]}),e=>e.diagnostics?.providerErrorCode==="ASK_INTERPRETATION_JSON");
@@ -65,7 +71,7 @@ test("bounded saved_profile repair passes real admission and production wire dec
   const canonical=structuredClone(corpus.fixtures.find(f=>f.context==="no_numeric"&&f.canonical.request.evidenceBasis==="saved_profile").canonical);
   canonical.request.question=context.currentMessage;canonical.request.topic="profile";
   const invalid=structuredClone(canonical);invalid.request.scope="named";invalid.request.petNames=["Unowned subject"];
-  const plan=createAskWirePlan(askRequestProviderSchema(proposedSemanticFrameJsonSchema,context),ASK_REQUEST_INSTRUCTIONS);
+  const plan=createAskWirePlan(projectedSchema(context),ASK_REQUEST_INSTRUCTIONS);
   const goodWire=plan.encode(canonical),badWire=plan.encode(invalid);
   assert.deepEqual(plan.decode(goodWire),canonical);
   assert.deepEqual(plan.decode(badWire),invalid);

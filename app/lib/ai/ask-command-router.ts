@@ -15,5 +15,5 @@ function deterministicResult(title: string, summary: string, intent: "preference
 
 /** Existing action presentation shared by semantic and legacy callers. */
 export function careHistoryCorrectionOrchestration(petName: string) {
-  return deterministicResult("Care history", `Review the correction to ${petName}'s latest care-history note below.`, "question");
+  return deterministicResult("Care history", `Review the care-history correction for ${petName} below.`, "question");
 }
