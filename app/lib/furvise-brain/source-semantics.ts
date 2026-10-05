@@ -10,19 +10,40 @@ export type SourceSemantics = Readonly<{
 }>;
 const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
 const keys = (value: Record<string, unknown>, names: string[]) => Object.keys(value).sort().join() === [...names].sort().join();
-const instant = (value: unknown): value is string => typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value) && Number.isFinite(Date.parse(value));
+/** source-semantics-instant.v1: Gregorian years 0001..9999, explicit known
+ * zone, seconds 00..59, optional 1..3 decimal digits, offsets up to 14:00.
+ * No rollover, leap-second, 24:00, unknown -00:00 offset, or zone inference. */
+export const SOURCE_SEMANTICS_INSTANT_PATTERN = "^([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2})([.][0-9]{1,3})?(Z|[+-][0-9]{2}:[0-9]{2})$";
+const instantPattern = new RegExp(SOURCE_SEMANTICS_INSTANT_PATTERN);
+export function isSourceSemanticsInstant(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const m = instantPattern.exec(value);
+  // JS $ can precede a final newline. Require the entire original byte string.
+  if (!m || m[0] !== value) return false;
+  const [year, month, day, hour, minute, second] = m.slice(1, 7).map(Number);
+  if (year < 1 || month < 1 || month > 12 || day < 1 || hour > 23 || minute > 59 || second > 59) return false;
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (day > days[month - 1]) return false;
+  const zone = m[8];
+  if (zone !== "Z") {
+    const zh = Number(zone.slice(1, 3)), zm = Number(zone.slice(4, 6));
+    if (zone === "-00:00" || zh > 14 || zm > 59 || zh === 14 && zm !== 0) return false;
+  }
+  return Number.isFinite(Date.parse(value));
+}
 const identity = (value: unknown): value is string => typeof value === "string" && value.length > 0 && value.length <= 160;
 /** Shape validation only. The writer/importer separately binds source and exact target ownership. */
 export function readSourceSemantics(value: unknown): SourceSemantics | null {
   if (!object(value) || !keys(value, ["classification", "target"])
-    || !["observation", "attributed_correction", "unknown"].includes(String(value.classification))) return null;
+    || typeof value.classification !== "string" || !["observation", "attributed_correction", "unknown"].includes(value.classification)) return null;
   const t = value.target;
   if (value.classification !== "attributed_correction") return t === null ? value as SourceSemantics : null;
   if (!object(t)) return null;
   if (t.kind === "target_unknown") return keys(t, ["kind"]) ? value as SourceSemantics : null;
   if (t.kind === "source" || t.kind === "claim") return keys(t, ["kind", "id"]) && identity(t.id) ? value as SourceSemantics : null;
   if (t.kind !== "scope" || !keys(t, ["kind", "from", "to", "conceptKey"])
-    || t.from !== null && !instant(t.from) || t.to !== null && !instant(t.to)
+    || t.from !== null && !isSourceSemanticsInstant(t.from) || t.to !== null && !isSourceSemanticsInstant(t.to)
     || t.from && t.to && Date.parse(String(t.from)) >= Date.parse(String(t.to))
     || t.conceptKey !== null && (!identity(t.conceptKey) || !/^[a-z0-9]+(?:_[a-z0-9]+)*$/.test(t.conceptKey))) return null;
   return value as SourceSemantics;

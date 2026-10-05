@@ -136,6 +136,8 @@ export type CareEntryRow = {
   updated_at: string;
   concern_id?: string | null;
   intelligence_source_message_id?: string | null;
+  /** Permanent canonical provenance; not a live dialogue FK or mutation authority. */
+  canonical_ask_origin_message_id?: string | null;
   intelligence_source_type?: string | null;
   intelligence_confidence?: number | null;
   state_action_type?: string | null;

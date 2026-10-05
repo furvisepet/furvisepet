@@ -16,7 +16,7 @@ const instant = (value: unknown): value is string => typeof value === "string" &
 export function sourceSemanticsSnapshot(row: CareEntryRow): SourceSemanticsSnapshot {
   return { id: row.id, ownerId: row.user_id, petId: row.pet_profile_id, note: row.note, title: row.title ?? null,
     occurredAt: row.occurred_at, createdAt: row.created_at, updatedAt: row.updated_at,
-    sourceMessageId: row.intelligence_source_message_id ?? null,
+    sourceMessageId: row.canonical_ask_origin_message_id ?? row.intelligence_source_message_id ?? null,
     sourceSpanId: (row.care_event_metadata as { sourceSpanId?: string } | null)?.sourceSpanId ?? null };
 }
 export const sourceSemanticsDigest = (payload: string) => createHash("sha256").update(payload, "utf8").digest("hex");

@@ -1793,7 +1793,7 @@ export function assertNoInternalReasoningLeak(answer: string, records: readonly 
 
 function createClient(apiKey?: string): AskReasoningOpenAiClient | null {
   const key = apiKey?.trim();
-  return key ? new OpenAI({ apiKey: key }) as AskReasoningOpenAiClient : null;
+  return key ? new OpenAI({ apiKey: key, maxRetries: 0 }) as AskReasoningOpenAiClient : null;
 }
 
 function readOptionalString(value: object, key: string) {

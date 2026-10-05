@@ -1,0 +1,31 @@
+{
+  "archiveSHA256": "a5331052c7766450c947ac4d1746de018c81da1dbf33055e1ddfb7d903d797a1",
+  "changes": [
+    {
+      "from": "where id=p_source_id and conversation_id=p_conversation_id and user_id=p_user_id and role='user' for share;",
+      "to": "where id=p_source_id and conversation_id=p_conversation_id and user_id=p_user_id and role='user' for update;"
+    },
+    {
+      "from": "  else\n    if p_pet_id is not null then",
+      "to": "  else\n    if private.is_canonical_ask_source(p_source_id) then\n      raise exception using errcode='42501',message='CANONICAL_ASK_LEGACY_SEMANTICS_FORBIDDEN';\n    end if;\n    if p_pet_id is not null then"
+    }
+  ],
+  "functions": [
+    {
+      "name": "apply_ask_task",
+      "signature": "public.apply_ask_task(uuid,uuid,uuid,text,uuid,text,uuid,uuid,integer,timestamptz,text,boolean)",
+      "beforeSHA256": "386c3a6813aae7677ac7219883b13261cbcd076d8c54e7232728b2baaf90bfec",
+      "beforeBodySHA256": "9023f4851b79f9f5cb8c1a98eae661a19608f652d5acaa3b055c38d755e008ed",
+      "afterSHA256": "cc2cd071b363139c38624e08e4d731deae2f38ba1bd7e04465d575354f5e11d4",
+      "afterBodySHA256": "06badbad96eb839ae171e17206606637b809a5cbbb6486b9cd6cb3693fbe0092"
+    },
+    {
+      "name": "apply_ask_task_v2",
+      "signature": "public.apply_ask_task_v2(uuid,uuid,uuid,text,uuid,text,text,uuid,uuid,integer,timestamptz,text,boolean)",
+      "beforeSHA256": "d8708ff8f15a62b19dabf3b96463fb4afa314f9f10bab9079dde2ff721753a10",
+      "beforeBodySHA256": "9f2c87b6662c434ba4e9b168090bb32375ddc17be13e2eee76aaab9306ac53ca",
+      "afterSHA256": "c11e687c88b11c68158e66c671a7b39c01e80dcf558af5d85e107e0f0ae2fdf2",
+      "afterBodySHA256": "82d9c2841051260b3945c0a16f1c79b71b78dd7c96b23e062805a7eb294d28f3"
+    }
+  ]
+}

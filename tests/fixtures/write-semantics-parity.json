@@ -1,0 +1,572 @@
+{
+  "schema": "WriteSemanticsParityVectors.v1",
+  "grammar": "source-semantics-instant.v1",
+  "nativeSql": "UNEXECUTED",
+  "vectors": [
+    {
+      "name": "instant-valid-0",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2024-02-29T00:00:00Z",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": true
+    },
+    {
+      "name": "instant-valid-1",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2000-02-29T23:59:59.123+14:00",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": true
+    },
+    {
+      "name": "instant-valid-2",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2025-12-01T03:04:05.1-04:30",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": true
+    },
+    {
+      "name": "instant-valid-3",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2025-12-01T03:04:05.12+05:45",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": true
+    },
+    {
+      "name": "instant-valid-4",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2025-12-01T03:04:05.123-14:00",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": true
+    },
+    {
+      "name": "instant-valid-5",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "0001-01-01T00:00:00+00:00",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": true
+    },
+    {
+      "name": "instant-valid-6",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "9999-12-31T23:59:59Z",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": true
+    },
+    {
+      "name": "instant-invalid-0",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2025-02-30T00:00:00Z",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "instant-invalid-1",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2025-02-29T00:00:00Z",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "instant-invalid-2",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "1900-02-29T00:00:00Z",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "instant-invalid-3",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2100-02-29T00:00:00Z",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "instant-invalid-4",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2024-04-31T00:00:00Z",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "instant-invalid-5",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2025-00-01T00:00:00Z",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "instant-invalid-6",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2025-13-01T00:00:00Z",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "instant-invalid-7",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2025-01-00T00:00:00Z",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "instant-invalid-8",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2025-12-01T24:00:00Z",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "instant-invalid-9",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2025-12-01T23:60:00Z",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "instant-invalid-10",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2025-12-01T23:59:60Z",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "instant-invalid-11",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2025-12-01T00:00:00",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "instant-invalid-12",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2025-12-01T00:00:00-00:00",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "instant-invalid-13",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2025-12-01T00:00:00+14:01",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "instant-invalid-14",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2025-12-01T00:00:00-14:01",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "instant-invalid-15",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2025-12-01T00:00:00+15:00",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "instant-invalid-16",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2025-12-01T00:00:00+05:60",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "instant-invalid-17",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2025-12-01T00:00:00+0530",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "instant-invalid-18",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2025-12-01T00:00:00z",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "instant-invalid-19",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2025-12-01T00:00:00.Z",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "instant-invalid-20",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2025-12-01T00:00:00.1234Z",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "instant-invalid-21",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "0000-01-01T00:00:00Z",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "instant-invalid-22",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2025-12-01T00:00:00Z\n",
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "instant-invalid-23",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": 42,
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "instant-invalid-24",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": false,
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "instant-invalid-25",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": {},
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "instant-invalid-26",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": [
+            "2025-12-01T00:00:00Z"
+          ],
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "classification-array-observation",
+      "semantics": {
+        "classification": [
+          "observation"
+        ],
+        "target": null
+      },
+      "expected": false
+    },
+    {
+      "name": "classification-array-unknown",
+      "semantics": {
+        "classification": [
+          "unknown"
+        ],
+        "target": null
+      },
+      "expected": false
+    },
+    {
+      "name": "classification-array-attributed_correction",
+      "semantics": {
+        "classification": [
+          "attributed_correction"
+        ],
+        "target": null
+      },
+      "expected": false
+    },
+    {
+      "name": "classification-observation",
+      "semantics": {
+        "classification": "observation",
+        "target": null
+      },
+      "expected": true
+    },
+    {
+      "name": "classification-unknown",
+      "semantics": {
+        "classification": "unknown",
+        "target": null
+      },
+      "expected": true
+    },
+    {
+      "name": "null-bounds",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": null,
+          "to": null,
+          "conceptKey": null
+        }
+      },
+      "expected": true
+    },
+    {
+      "name": "null-from",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": null,
+          "to": "2025-12-01T00:00:00Z",
+          "conceptKey": null
+        }
+      },
+      "expected": true
+    },
+    {
+      "name": "equal-instants-offsets",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2025-12-01T01:00:00+01:00",
+          "to": "2025-12-01T00:00:00Z",
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "reversed",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2025-12-01T00:00:00Z",
+          "to": "2025-11-01T00:00:00Z",
+          "conceptKey": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "valid-millisecond-range",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "scope",
+          "from": "2025-12-01T00:00:00.001Z",
+          "to": "2025-12-01T00:00:00.002Z",
+          "conceptKey": null
+        }
+      },
+      "expected": true
+    },
+    {
+      "name": "typed-unknown-target",
+      "semantics": {
+        "classification": "attributed_correction",
+        "target": {
+          "kind": "target_unknown"
+        }
+      },
+      "expected": true
+    }
+  ]
+}

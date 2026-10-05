@@ -1,3 +1,4 @@
+import * as publicPolicy from '../app/lib/public-v1-capabilities.ts';
 import * as readRecovery from '../app/lib/vet-brief/read.ts';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -5,12 +6,14 @@ import vm from 'node:vm';
 import test from 'node:test';
 import ts from 'typescript';
 
-for (const status of [409, 429]) test(`actual Vet Brief route abandons ${status} admission so the same request can retry`, async () => {
+for (const engine of [false,true]) for (const status of [409, 429]) test(`${engine?'isolated engine-admission seam':'actual disabled public policy'}: Vet Brief ${status}`, async () => {
   let capturedReason;
   let blocked = true, abandoned = 0, completed = 0, generated = 0, charged = 0, released = 0;
   class RateLimitRejection extends Error { constructor() { super('Denied'); this.response = Response.json({code: status === 409 ? 'AI_REQUEST_ALREADY_ACTIVE' : 'RATE_LIMITED'}, {status}); } }
   const document = {pet:{name:'Synthetic'},excludedSections:[],missingInformation:[]};
   const mocks = {
+    // Fixture-only dependency seam for the unreachable engine branch. No source flag changes.
+    '../../../lib/public-v1-capabilities.ts': engine ? {...publicPolicy,PUBLIC_V1_CAPABILITIES:{...publicPolicy.PUBLIC_V1_CAPABILITIES,vetBriefGeneration:true}} : publicPolicy,
     '../../../lib/operations/events': {emitOperationalEvent: () => {}},
     '../../../lib/vet-brief/read': readRecovery,
     '../../../lib/vet-brief/prepare': {prepareVetBrief: async () => { generated++; return {document,sourceRecordIds:[]}; }},
@@ -34,6 +37,13 @@ for (const status of [409, 429]) test(`actual Vet Brief route abandons ${status}
   const source = readFileSync(new URL('../app/api/vet-briefs/draft/route.ts',import.meta.url),'utf8');
   vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,require:name => {assert.ok(name in mocks,name);return mocks[name];},Response,Request,URL,console});
   const request = (reasonForVisit = "Synthetic appointment") => new Request('https://test/api/vet-briefs/draft',{method:'POST',body:JSON.stringify({petId:'11111111-1111-4111-8111-111111111111',requestId:'22222222-2222-4222-8222-222222222222',from:'2026-09-01',to:'2026-09-12',reasonForVisit})});
+  if(!engine){
+    assert.equal(publicPolicy.PUBLIC_V1_CAPABILITIES.vetBriefGeneration,false);
+    const result=await exports.POST(request());assert.equal(result.status,409);
+    assert.equal((await result.json()).code,'VET_BRIEF_UNAVAILABLE_PUBLIC_V1');
+    assert.equal(abandoned,0);assert.equal(completed,0);assert.equal(generated,0);assert.equal(charged,0);assert.equal(released,0);assert.equal(capturedReason,undefined);
+    return;
+  }
   assert.equal((await exports.POST(request())).status,status);
   assert.equal(abandoned,1); assert.equal(completed,0); assert.equal(generated,0); assert.equal(charged,0);
   blocked=false;
