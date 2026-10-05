@@ -1,9 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync,writeFileSync } from "node:fs";
+import { readFileSync,writeFileSync,existsSync } from "node:fs";
 import { registerHooks } from "node:module";
 import { createAskWirePlan } from "../app/lib/intelligence/ask-wire-policy.mjs";
-registerHooks({resolve(s,c,next){return s==="server-only"?{url:"data:text/javascript,export {}",shortCircuit:true}:next(s,c);}});
+registerHooks({resolve(s,c,next){
+ if(s==="server-only")return {url:"data:text/javascript,export {}",shortCircuit:true};
+ if(s.startsWith(".") && c.parentURL?.startsWith("file:")) {
+  for(const suffix of [".ts", "/index.ts"]) {
+   const url=new URL(s+suffix,c.parentURL);
+   if(existsSync(url))return next(url.href,c);
+  }
+ }
+ return next(s,c);
+}});
 globalThis.fetch=async()=>{throw Error("OFFLINE_WIRE_INTEGRATION");};
 const {ASK_REQUEST_INSTRUCTIONS,askRequestProviderSchema}=await import("../app/lib/intelligence/ask-request-contract.ts");
 const {proposedSemanticFrameJsonSchema}=await import("../app/lib/intelligence/semantic-frame/schema.ts");
