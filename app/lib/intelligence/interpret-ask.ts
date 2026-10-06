@@ -1,3 +1,4 @@
+import { runAskStrictContractProbe } from "./ask-strict-contract-probe.ts";
 import { CATALOG_INTENT_VERSION, bindCatalogIntent, beginCatalogContinuation, bindCatalogSelection, finishDeterministicCatalog } from "./catalog-intent.ts";
 import type { CatalogPermit } from "./catalog-intent.ts";
 import { getActiveAiAdmission } from "../ai/usage-guard/context.ts";
@@ -23,6 +24,8 @@ import type { ProposedSemanticFrame } from "./semantic-frame/types.ts";
 import type { AskTurnSubjectDecision } from "./entities/resolve-turn-subject.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import { ASK_REQUEST_INSTRUCTIONS, ASK_REQUEST_VERSION, askRequestProviderSchema, validateAskRequest, type AskRequestContract } from "./ask-request-contract.ts";
+
+const ASK_PREVIEW_STRICT_CONTRACT_DIAGNOSTIC_BUILD = true;
 
 type Operation = "overview" | "recall" | "count" | "comparison" | "status" | "episode" | "general" | "update" | "clarify";
 export type AskInterpretation = {
@@ -196,6 +199,10 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
   const request = { model, max_output_tokens: ASK_INTERPRETATION_LIMITS.outputTokens,
     ...(/^gpt-5\.4(?:-|$)/i.test(model) ? { reasoning: { effort: "none" } } : /^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}),
     instructions: wire.instructions, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: wire.schema } } };
+  // Compile-time Preview diagnostic; no endpoint, request toggle or runtime feature flag.
+  if (ASK_PREVIEW_STRICT_CONTRACT_DIAGNOSTIC_BUILD) return runAskStrictContractProbe({
+    model, preparedSchema: request.text.format.schema, onProviderEvent,
+    createClient: () => client || new OpenAI({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 0 }) as unknown as NonNullable<typeof client> });
   const started = Date.now();
   let attempted = false;
   let ticketArrived = false;
