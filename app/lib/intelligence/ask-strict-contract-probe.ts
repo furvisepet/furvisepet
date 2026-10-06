@@ -1,13 +1,17 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { AskPipelineError, type AskProviderEvent } from "../ai/ask-reasoning.ts";
-import { interpretStructuredProviderResponse, structuredProviderEnvelopeDiagnostic } from "../ai/ask-provider.ts";
+import { structuredProviderEnvelopeDiagnostic } from "../ai/ask-provider.ts";
 import { withProviderDeadline } from "../ai/execution-deadline.ts";
 import { getActiveAiAdmission } from "../ai/usage-guard/context.ts";
 import { AiAdmissionError } from "../ai/usage-guard/errors.ts";
 import { boundedProviderTimeout, executeAdmittedResponsesRequest } from "../ai/usage-guard/provider-call-budget.ts";
 
+import { expand } from "./ask-wire-codec.mjs";
+import { completeInstantSchema } from "../furvise-brain/complete-instant.ts";
+
 const CAP = 8192;
+const EXPECTED_SCHEMA_SHAPE = "11e00fbf6f86fe25184702045ad9c2631d9e0736bcdc0de668ab3b9ac1737d0b";
 const hash = (value: string) => createHash("sha256").update(value, "utf8").digest("hex");
 type ProbeClient = { responses: { create: (request: Record<string, unknown>, options: { signal: AbortSignal }) => Promise<Record<string, unknown>> } };
 function stop(code: string, model: string, extras: Partial<AskProviderEvent> = {}): never {
@@ -32,6 +36,37 @@ function safeProviderError(error: unknown) {
   };
 }
 
+// Fingerprinting only: UUID enum values remain unchanged in both transmitted schemas.
+function schemaShapeFingerprint(schema: Record<string, unknown>) {
+  const ids = new Map<string, string>();
+  function walk(value: unknown, key = ""): unknown {
+    if (key === "enum" && Array.isArray(value)) return value.map(item => {
+      if (typeof item === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item)) {
+        if (!ids.has(item)) ids.set(item, "UUID_LITERAL_" + ids.size);
+        return ids.get(item);
+      }
+      return walk(item);
+    });
+    if (Array.isArray(value)) return value.map(item => walk(item));
+    if (!value || typeof value !== "object") return value;
+    return Object.fromEntries(Object.entries(value).map(([name, item]) => [name, walk(item, name)]));
+  }
+  return hash(JSON.stringify(walk(schema)));
+}
+
+function withoutTimestampPattern(schema: Record<string, unknown>) {
+  const removed: string[] = [];
+  function walk(value: unknown, path = "#"): unknown {
+    if (Array.isArray(value)) return value.map((item, index) => walk(item, path + "/" + index));
+    if (!value || typeof value !== "object") return value;
+    return Object.fromEntries(Object.entries(value).flatMap(([key, item]) => {
+      if (key === "pattern" && item === completeInstantSchema.pattern) { removed.push(path + "/pattern"); return []; }
+      return [[key, walk(item, path + "/" + key)]];
+    }));
+  }
+  return { schema: walk(schema) as Record<string, unknown>, removed };
+}
+
 /** Temporary diagnostic build only. Always throws; never returns a plan. */
 export async function runAskStrictContractProbe(input: {
   model: string;
@@ -43,18 +78,22 @@ export async function runAskStrictContractProbe(input: {
   if (process.env.VERCEL_ENV !== "preview") stop("ASK_DIAGNOSTIC_PREVIEW_REQUIRED", model);
   if (model !== "gpt-5.4-mini") stop("ASK_DIAGNOSTIC_MODEL_REQUIRED", model);
   if (getActiveAiAdmission()?.feature !== "ask") stop("ASK_DIAGNOSTIC_ADMISSION_REQUIRED", model);
-  const minimalSchema = { type: "object", properties: { ok: { type: "boolean", enum: [true] } }, required: ["ok"], additionalProperties: false };
-  const fullSchema = input.preparedSchema;
+  const preparedSchemaSha256 = hash(JSON.stringify(input.preparedSchema));
+  const preparedShapeFingerprint = schemaShapeFingerprint(input.preparedSchema);
+  if (preparedShapeFingerprint !== EXPECTED_SCHEMA_SHAPE) stop("ASK_DIAGNOSTIC_SCHEMA_SHAPE", model);
+  const inlinedSchema = expand(input.preparedSchema) as Record<string, unknown>;
+  const relaxed = withoutTimestampPattern(input.preparedSchema);
+  if (relaxed.removed.length !== 2) stop("ASK_DIAGNOSTIC_PATTERN_SCOPE", model);
   const client = input.createClient();
   // Only the prepared schema is retained. Normal instructions/input and runtime context are not sent.
   // Use a fresh conversation and neutral non-care text: schemas can contain request-derived enum values.
   const common = { model, service_tier: "default", max_output_tokens: CAP, reasoning: { effort: "none" },
     instructions: "Return one minimal JSON object matching the supplied schema. Do not explain it or call tools.",
     input: "Generate a schema test object." };
-  const controls = [{ label: "minimal", schema: minimalSchema }, { label: "full_wire", schema: fullSchema }] as const;
+  const controls = [{ label: "refs_inlined", schema: inlinedSchema }, { label: "timestamp_pattern_removed", schema: relaxed.schema }] as const;
   for (const control of controls) {
     const request = { ...common, text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: control.schema } } };
-    const requestIdentity = { label: control.label, model,
+    const requestIdentity = { label: control.label, model, preparedSchemaSha256, preparedShapeFingerprint,
       requestSha256: hash(JSON.stringify(request)), schemaSha256: hash(JSON.stringify(control.schema)) };
     const started = Date.now();
     let response: Record<string, unknown>;
@@ -89,23 +128,17 @@ export async function runAskStrictContractProbe(input: {
     console.info("[Ask strict contract probe]", { ...requestIdentity,
       providerResponseId: providerId(response.id, "response"), providerRequestId: providerId(response._request_id, "request"),
       elapsedMs: Date.now() - started, envelope });
-    let validControl = false;
-    let parsingAttempted = false;
-    if (control.label === "minimal") {
-      const result = interpretStructuredProviderResponse(response, raw => {
-        const value = JSON.parse(raw) as Record<string, unknown>;
-        if (!value || Array.isArray(value) || Object.keys(value).length !== 1 || value.ok !== true) throw new Error("INVALID_DIAGNOSTIC_CONTROL");
-        return true;
-      });
-      validControl = result.status === "completed" && result.parsed === true;
-      parsingAttempted = result.parsingAttempted;
-    }
-    onProviderEvent?.({ stage: "interpretation", outcome: (control.label === "minimal" ? validControl : envelope.responseStatus === "completed") ? "succeeded" : "failed", model,
+    onProviderEvent?.({ stage: "interpretation", outcome: envelope.responseStatus === "completed" ? "succeeded" : "failed", model,
       elapsedMs: Date.now() - started, configuredOutputLimit: CAP, providerEnvelope: envelope,
       inputTokens: envelope.inputTokens, outputTokens: envelope.outputTokens, ticketArrived: false,
-      parsingAttempted, validationDetails: `strict_contract_probe:${control.label}` });
-    if (control.label === "minimal" && !validControl) stop("ASK_DIAGNOSTIC_MINIMAL_FAILED", model, { providerEnvelope: envelope });
-    if (control.label === "full_wire") stop("ASK_DIAGNOSTIC_TERMINAL", model, { providerEnvelope: envelope, parsingAttempted: false, ticketArrived: false });
+      parsingAttempted: false, validationDetails: `strict_contract_probe:${control.label}` });
+    if (envelope.hasError || envelope.hasMessageRefusal || envelope.incompleteReason === "content_filter"
+      || !["completed", "incomplete"].includes(envelope.responseStatus || ""))
+      stop("ASK_DIAGNOSTIC_VARIANT_STOP", model, { providerEnvelope: envelope, parsingAttempted: false, ticketArrived: false });
+    // Each is an independently authorized schema experiment, not a retry of the first request.
+    // A well-formed incomplete response with reconciled usage can proceed to the second variant.
+    if (control.label === "timestamp_pattern_removed") stop("ASK_DIAGNOSTIC_TERMINAL", model,
+      { providerEnvelope: envelope, parsingAttempted: false, ticketArrived: false });
   }
   return stop("ASK_DIAGNOSTIC_TERMINAL", model);
 }
