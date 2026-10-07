@@ -15,15 +15,15 @@ const sitemap = read("app/sitemap.ts");
 const robots = read("app/robots.ts");
 const manifest = read("public/manifest.webmanifest");
 
-test("homepage metadata defines the category through continuity over time", () => {
-  assert.match(seo, /HOME_TITLE = "Furvise \| Your Pet's Story, Understood Over Time"/);
+test("homepage metadata states supported notes, history and question capabilities", () => {
+  assert.match(seo, /HOME_TITLE = "Furvise \| Pet Care Notes, History and Questions"/);
   assert.match(
     seo,
-    /Furvise keeps your pet's questions, changes, routines, and history connected over time, so what happened before can inform what matters now\./,
+    /Log your pet's care, find past notes, and ask questions about what you've logged\. Furvise organizes care information; it does not diagnose\./,
   );
   assert.match(
     seo,
-    /An AI that follows your pet's story, not just the latest question\. Furvise keeps important context connected over time\./,
+    /Keep each pet's care notes together, find past entries, and prepare a summary to review with your vet\./,
   );
   assert.match(home, /description: HOME_DESCRIPTION[\s\S]*path: "\/"[\s\S]*socialDescription: SOCIAL_DESCRIPTION/);
   assert.match(seo, /CANONICAL_ORIGIN = "https:\/\/www\.furvise\.com"/);
@@ -33,7 +33,7 @@ test("homepage metadata defines the category through continuity over time", () =
 test("homepage JSON-LD keeps supported WebSite and Organization entity claims only", () => {
   assert.match(home, /"@type": "WebSite"[\s\S]*name: "Furvise"[\s\S]*url: canonicalUrl\(\)[\s\S]*description: HOME_DESCRIPTION/);
   assert.match(home, /"@type": "Organization"[\s\S]*name: "Furvise"[\s\S]*url: canonicalUrl\(\)[\s\S]*logo: `\$\{CANONICAL_ORIGIN\}\/brand\/furvise-logo\.svg`[\s\S]*description: ORGANIZATION_DESCRIPTION/);
-  assert.match(seo, /ORGANIZATION_DESCRIPTION[\s\S]*pet-care intelligence service[\s\S]*connected over time/);
+  assert.match(seo, /ORGANIZATION_DESCRIPTION[\s\S]*Furvise helps pet owners log care, find saved notes, and ask questions about their recorded history\./);
   assert.doesNotMatch(home, /SoftwareApplication|AggregateRating|Review|founder|employee|address|telephone|sameAs|MedicalOrganization|VeterinaryCare/);
 });
 
@@ -135,8 +135,8 @@ test("indexable content contains no obsolete category positioning or hidden SEO 
 });
 
 test("manual SEO follow-up and restrained future strategy are documented", () => {
-  const checklist = read("docs/seo-v1-search-console-checklist.md");
-  const strategy = read("docs/seo-content-strategy-v1.md");
+  const checklist = read("tests/fixtures/legacy-documents/seo-v1-search-console-checklist.md");
+  const strategy = read("tests/fixtures/legacy-documents/seo-content-strategy-v1.md");
   for (const url of ["https://www.furvise.com/", "https://www.furvise.com/privacy", "https://www.furvise.com/terms", "https://www.furvise.com/sitemap.xml"]) {
     assert.match(checklist, new RegExp(url.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }

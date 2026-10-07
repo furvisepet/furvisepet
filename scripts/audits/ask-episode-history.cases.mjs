@@ -1,7 +1,8 @@
+import {episodeOrganFixture} from './helpers/episode-organ-fixture.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {readFileSync} from 'node:fs';
-import {exercise,clock,ASK_PROMPT_CONTEXT_CHAR_BUDGET} from './helpers/lifetime-harness.mjs';
+import {clock} from './helpers/lifetime-harness.mjs';
 import {care,irrelevant,ownerId} from './fixtures/ask-lifetime-history.mjs';
 const {attachEpisodeReferences}=await import('../../app/lib/intelligence/episode-history.ts');
 const {buildAskConversationResponse}=await import('../../app/lib/ask.mjs');
@@ -10,9 +11,9 @@ const second=care('onset2','milo','2014-07-09','symptom','Milo had a separate vo
 const update=care('update','milo','2011-02-02','symptom','Milo was improving during the same episode.',{episode_id:'ep1'});
 const episodes=[first,second].map((s,index)=>({id:s.episode_id,user_id:ownerId,pet_profile_id:'milo',normalized_key:'vomiting',
   started_at:s.occurred_at,last_event_at:s.occurred_at,updated_at:s.updated_at,status:'resolved',sequence_number:index+1,recurrence_of:index?'ep1':null}));
-const run=(q='List all vomiting episodes over Milo lifetime.',o={})=>exercise(q,{history:true,rows:[first,update,second],careEpisodes:episodes,messages:[],...o});
+const run=(q='List all vomiting episodes over Milo lifetime.',o={})=>episodeOrganFixture(q,{rows:[first,update,second],careEpisodes:episodes,messages:[],...o});
 function persisted(result,sequence=2) {
-  const response=buildAskConversationResponse(result.result.reasoning.answer);
+  const response=buildAskConversationResponse(result.answer);
   assert.ok(response);
   const stored=attachEpisodeReferences(response,result.context.episodeResult);
   assert.ok(stored.episodeReferences,JSON.stringify({message:'actual response presentation retained the authoritative list',response,result:result.context.episodeResult}));
@@ -24,17 +25,17 @@ test('two occurrences in one incident and several updates count as one episode',
   assert.equal(r.context.episodeResult.supportedCount,1);
   assert.equal(r.context.episodeResult.items[0].reportedOccurrences,2);
   assert.equal(r.context.episodeResult.entryCount,3);
-  assert.match(r.result.reasoning.answer.sections[0].items[0],/2 reported occurrences within this one episode/);
-  assert.equal(r.result.acceptedCareActions.length,0);
+  assert.match(r.answer.sections[0].items[0],/2 reported occurrences within this one episode/);
+  assert.equal(r.effects.length,0);
 });
-test('supported recurrence, count/list/provenance agree in actual prompt and final validator',async t=>{
+test('episode organ recurrence, count/list/provenance agree through the real serializer',async t=>{
   clock(t);const r=await run(undefined,{answer:'Exactly seven episodes. Complete lifetime list.',providerOverrides:{relevantContextIds:['episode:invented']}});
-  const e=r.prompt.evidenceContract.episodes;
+  const e=r.context.episodeResult;
   assert.equal(e.supportedCount,2);assert.equal(e.items[1].recurrenceOf,'ep1');assert.equal(e.items[1].sequenceNumber,2);
-  assert.equal(r.result.reasoning.answer.sections[0].items.length,e.supportedCount);
-  assert.match(r.result.reasoning.answer.summary,/2 explicitly supported/);
-  assert.doesNotMatch(r.result.reasoning.answer.summary,/seven|Exactly/);
-  assert.equal(e.exactTotal,null);assert.match(r.result.reasoning.answer.summary,/not an exact lifetime total/);
+  assert.equal(r.answer.sections[0].items.length,e.supportedCount);
+  assert.match(r.answer.summary,/2 explicitly supported/);
+  assert.doesNotMatch(r.answer.summary,/seven|Exactly/);
+  assert.equal(e.exactTotal,null);assert.match(r.answer.summary,/not an exact lifetime total/);
   assert.ok(e.provenance.some(p=>p.sourceId==='care:onset1'));
   persisted(r);
 });
@@ -46,13 +47,13 @@ test('ambiguous grouping is not promoted from canonical IDs or time distance',as
   const unlinked=await run(undefined,{rows:[{...first,episode_id:null},{...second,episode_id:null}],careEpisodes:[]});
   assert.equal(unlinked.context.episodeResult.supportedCount,0,'unlinked note IDs are not episode groups');
 });
-test('old decisive episode bypasses recent context window with bounded model input',async t=>{
+test('episode organ retrieves old decisive membership beyond the recent context window',async t=>{
   clock(t);const noise=Array.from({length:25},(_,i)=>({...episodes[0],id:`noise${i}`,normalized_key:'routine',started_at:'2026-09-03T00:00:00Z',last_event_at:'2026-09-03T00:00:00Z'}));
   const r=await run(undefined,{rows:[first,second,...irrelevant('milo',10000)],careEpisodes:[...episodes,...noise]});
   assert.equal(r.context.episodeResult.supportedCount,2);
   assert.equal(r.queries.find(q=>q.table==='pet_care_episodes').cap,20);
-  assert.ok(r.serialized.length<=ASK_PROMPT_CONTEXT_CHAR_BUDGET);
-  assert.equal(r.queries.filter(q=>q.table==='read_ask_episode_sources').length,4,'bounded reads before and after generation');
+  assert.equal(r.context.episodeResult.items.length,2);assert.ok(r.context.episodeResult.entryCount<=64);
+  assert.equal(r.queries.filter(q=>q.table==='read_ask_episode_sources').length,2,'bounded member snapshot reads bracket episode validation');
 });
 test('second one survives intervening turns, reload and new earlier history; that one retains selection',async t=>{
   clock(t);const original=await run();const saved=persisted(original);
@@ -68,13 +69,15 @@ test('second one survives intervening turns, reload and new earlier history; tha
 for (const [label,patch] of [['deletion',{deleted_at:'2026-09-05T00:00:00Z'}],['update',{note:'Milo had a separate vomiting episode. Updated report.'}],['reassignment',{pet_profile_id:'bruno'}]]) {
   test(`stored reference ${label} is explained without substitution`,async t=>{
     clock(t);const saved=persisted(await run());const r=await run('What about the second episode?',{messages:[saved],rows:[first,update,{...second,...patch}]});
-    assert.equal(r.context.episodeResult.referenceStatus,'stale');assert.equal(r.context.episodeResult.items.length,0);
-    assert.match(r.result.reasoning.answer.summary,/changed, been corrected, or been removed/);
+    if(label==='deletion'){assert.equal(r.context.episodeResult.coverage,'unavailable');assert.equal(r.context.episodeResult.referenceStatus,'clarify');assert.ok(r.context.episodeResult.reasons.includes('episode_correction_unavailable'));assert.match(r.answer.summary,/unavailable|revalidated/);}
+    else{assert.equal(r.context.episodeResult.referenceStatus,'stale');assert.match(r.answer.summary,/changed, been corrected, or been removed/);}
+    assert.deepEqual(r.context.episodeResult.items,[]);assert.equal(r.context.episodeResult.references,undefined);
   });
 }
 test('changing an update within the same group also invalidates the displayed reference',async t=>{
   clock(t);const saved=persisted(await run());const r=await run('What about the first episode?',{messages:[saved],rows:[first,{...update,deleted_at:'2026-09-05T00:00:00Z'},second]});
-  assert.equal(r.context.episodeResult.referenceStatus,'stale');
+  assert.equal(r.context.episodeResult.coverage,'unavailable');assert.equal(r.context.episodeResult.referenceStatus,'clarify');
+  assert.ok(r.context.episodeResult.reasons.includes('episode_correction_unavailable'));assert.deepEqual(r.context.episodeResult.items,[]);assert.equal(r.context.episodeResult.references,undefined);
 });
 function correctionGraph() {
   const claim=(id,pet,s)=>({id,user_id:ownerId,subject_id:pet,subject_type:'pet',claim_kind:'event',operation_type:'assert',concept_key:'vomiting',canonical_concept_key:'vomiting',concept_resolution_status:'canonical',persistence_destination:'history',knowledge_status:'effective',occurred_at:s.occurred_at,recorded_at:s.created_at,provenance_classification:'owner_reported',structured_value:{note:s.note,title:s.title,severity:s.severity}});

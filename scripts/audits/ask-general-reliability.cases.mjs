@@ -1,3 +1,4 @@
+import {stressProposal} from './helpers/current-stress-harness.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { exercise, clock } from './helpers/lifetime-harness.mjs';
@@ -12,9 +13,12 @@ for(const topic of ['hammock','whistle','ramp']) {
   const b=care(`${topic}-new`,'milo','2026-06-12','general',`Milo used the ${topic} for 8 minutes.`);
   const question=`Compare Milo's ${topic} records on June 12, 1926 and June 12, 2026. Save nothing.`;
   const result=await exercise(question,{history:true,rows:[a,b,...noise],messages:[],expectedReviewCalls:null,
-   interpretationProposal:{operation:'comparison',subject:'explicit',petNames:['Milo'],topic,terms:[topic],from:null,to:null,episodeTopic:null,ordinal:null}});
+   interpretationProposal:stressProposal({petNames:['Milo'],selection:'comparison',topic,terms:[topic]})});
   const retrieved=result.context.askHistory.entries.map(row=>row.id);
-  assert.ok(retrieved.includes(a.id));assert.ok(retrieved.includes(b.id));
+  assert.deepEqual(new Set(retrieved),new Set([a.id,b.id]));
+  assert.equal(result.result.reasoning.model,'server-labs-list');
+  assert.deepEqual(new Set(result.result.reasoning.relevantContextIds),new Set(['care:'+a.id,'care:'+b.id]));
+  assert.equal(result.requests.length,0);assert.equal(result.reviewRequests.length,0);
   assert.ok(result.context.askHistory.coverage.queryCount<=20);
   assert.ok(result.context.askHistory.entries.length<=32);
   assert.equal(result.result.acceptedCareActions.length,0);

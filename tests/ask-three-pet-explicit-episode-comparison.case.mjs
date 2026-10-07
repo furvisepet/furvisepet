@@ -1,3 +1,4 @@
+import {datedSelectionProposal} from '../scripts/audits/helpers/dated-selection-fixture.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { exercise, clock } from '../scripts/audits/helpers/lifetime-harness.mjs';
@@ -26,7 +27,8 @@ test('three-pet explicit-month episode comparison completes without unrelated-mo
   const answer="Bramble's urinary-frequency change lasted one day and returned to normal, with no ongoing urinary change recorded afterward. Dune's firmer stool lasted two days and then returned to the usual pattern. Echo's soft stool resolved by the next day and the treat was not repeated.";
   const run=await exercise(q,{
     fixturePets:cohort,petId:'bramble',conversationPetId:'bramble',rows,messages:[],history:true,
-    interpretationProposal:{scope:'named',petNames:['Bramble','Dune','Echo'],operation:'comparison',selection:'comparison',from:null,to:null,temporalScope:'historical',topic:'temporary episodes',terms:[],evidenceNeeds:needs,episodeTopic:null,ordinal:null},
+    interpretationProposal:datedSelectionProposal({question:q,petNames:['Bramble','Dune','Echo'],requests:needs.map((need,i)=>({...need,
+      from:['2022-04-01','2021-10-01','2026-02-01'][i]+'T00:00:00Z',to:['2022-05-01','2021-11-01','2026-03-01'][i]+'T00:00:00Z'}))}),
     providerOverrides:{answer,historyNarrative:{sentences:[
       {text:"Bramble's urinary-frequency change lasted one day and returned to normal, with no ongoing urinary change recorded afterward.",sourceIds:['care:bramble-apr'],calculations:[]},
       {text:"Dune's firmer stool lasted two days and then returned to the usual pattern.",sourceIds:['care:dune-oct'],calculations:[]},
@@ -35,6 +37,11 @@ test('three-pet explicit-month episode comparison completes without unrelated-mo
     reviewResponse:{approved:true},expectedReviewCalls:1,
   });
 
+  assert.equal(run.requests.length,0);assert.equal(run.reviewRequests.length,0);
+  assert.equal(run.result.reasoning.model,'server-labs-list');
+  assert.deepEqual(new Set(run.result.reasoning.relevantContextIds),new Set(['care:bramble-apr','care:dune-oct','care:echo-feb']));
+  for(const record of run.result.reasoning.labsList.records)assert.equal(record.body,rows.find(row=>row.id===record.id).note);
+  assert.equal(run.context.askInterpretation.request.readTicket.needs.length,3);
   assert.equal(run.result.answerValidation.assessment.outcome,'complete');
   assert.doesNotMatch(run.result.reasoning.answer.summary,/couldn't finish|partial answer/i);
   assert.match(run.result.reasoning.answer.summary,/Bramble/);

@@ -1,3 +1,5 @@
+import {stressProposal} from './helpers/current-stress-harness.mjs';
+import {episodeOrganFixture} from './helpers/episode-organ-fixture.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {exercise,clock} from './helpers/lifetime-harness.mjs';
@@ -8,20 +10,20 @@ const first=care('onset1','milo','2011-02-01','symptom','Milo had a vomiting epi
 const second=care('onset2','milo','2014-07-09','symptom','Milo had a separate vomiting episode.',{episode_id:'ep2'});
 const update=care('update','milo','2014-07-10','symptom','Milo was eating normally again during the same episode.',{episode_id:'ep2'});
 const episode=(s,i)=>({id:s.episode_id,user_id:ownerId,pet_profile_id:'milo',normalized_key:'vomiting',started_at:s.occurred_at,last_event_at:s.occurred_at,updated_at:s.updated_at,status:'resolved',sequence_number:i+1,recurrence_of:i?'ep1':null});
-const run=(q,opts={})=>exercise(q,{history:true,rows:[first,second,update],careEpisodes:[first,second].map(episode),messages:[],...opts});
+const run=(q,opts={})=>episodeOrganFixture(q,{rows:[first,second,update],careEpisodes:[first,second].map(episode),messages:[],...opts});
 test('relationship question retains its intent instead of being replaced by an episode list',async t=>{
- clock(t);const r=await run('Was the food change related to his vomiting episodes?',{answer:'The records do not establish a cause.'});
+ clock(t);const question='Was the food change related to his vomiting episodes?';const r=await exercise(question,{history:true,rows:[first,second,update],interpretationProposal:{...stressProposal({question,petNames:['Milo'],terms:['food','vomit']}),requirements:['Was the food change related to his vomiting episodes?']}});
  assert.equal(r.context.episodeResult,undefined);
  assert.doesNotMatch(r.result.reasoning.answer.summary,/explicitly supported.*episode groups/);
 });
 test('resolved follow-up shows verified updates, not only identity',async t=>{
  clock(t);const original=await run('List all vomiting episodes over Milo lifetime.');
- const response=attachEpisodeReferences(buildAskConversationResponse(original.result.reasoning.answer),original.context.episodeResult);
+ const response=attachEpisodeReferences(buildAskConversationResponse(original.answer),original.context.episodeResult);
  const saved={id:'answer1',user_id:ownerId,conversation_id:'chat',role:'furvise',sequence_number:2,created_at:'2026-09-04T00:00:00Z',response_data:response};
  const follow=await run('What changed during the second one?',{messages:[saved],answer:'Invented cure.'});
  assert.equal(follow.context.episodeResult.referenceStatus,'resolved');
- assert.match(JSON.stringify(follow.result.reasoning.answer),/eating normally again/);
- assert.doesNotMatch(JSON.stringify(follow.result.reasoning.answer),/Invented cure/);
+ assert.match(JSON.stringify(follow.answer),/eating normally again/);
+ assert.doesNotMatch(JSON.stringify(follow.answer),/Invented cure/);
 });
 test('explicit period reaches matching episodes after older discovery prefix',async t=>{
  clock(t);const older=Array.from({length:9},(_,i)=>care('old'+i,'milo',String(2000+i)+'-02-01','symptom','Milo had a separate vomiting episode.',{episode_id:'oldEp'+i}));
@@ -36,19 +38,21 @@ test('explicit period reaches matching episodes after older discovery prefix',as
 test('dated episode count cannot override a discovered unlinked correction',async t=>{
  clock(t);
  const correction=care('late-correction','milo','2026-08-20','general','Correction to the July 9, 2014 vomiting report: that was Bruno, not Milo.');
- const r=await run('List vomiting episodes in 2014.',{rows:[first,second,update,correction],answer:'One confirmed episode.'});
+ const question='List vomiting episodes in 2014.';
+ const historical=await exercise(question,{history:true,rows:[first,second,update,correction],interpretationProposal:stressProposal({question,petNames:['Milo'],terms:['vomit'],from:'2014-01-01',to:'2015-01-01'}),graph:{sourceSemantics:{'late-correction':{classification:'attributed_correction',target:{kind:'scope',from:'2014-07-09T00:00:00Z',to:'2014-07-10T00:00:00Z',conceptKey:null}}}}});
+ const r=await run(question,{rows:[first,second,update,correction],priorHistory:historical.context.askHistory});
  assert.ok(r.context.askHistory.coverage.reasons.includes('unlinked_correction_uncertain'));
  assert.equal(r.context.episodeResult.coverage,'unavailable');
  assert.ok(r.context.episodeResult.reasons.includes('episode_correction_unresolved'));
- assert.match(r.result.reasoning.answer.summary,/correction/i);
- assert.doesNotMatch(r.result.reasoning.answer.summary,/retry|try again|just now/i);
+ assert.match(r.answer.summary,/correction/i);
+ assert.doesNotMatch(r.answer.summary,/retry|try again|just now/i);
  assert.deepEqual(r.context.episodeResult.items,[]);
  assert.equal(r.context.episodeResult.references,undefined);
- const response=attachEpisodeReferences(buildAskConversationResponse(r.result.reasoning.answer),r.context.episodeResult);
+ const response=attachEpisodeReferences(buildAskConversationResponse(r.answer),r.context.episodeResult);
  assert.equal(response.episodeReferences,undefined);
- assert.deepEqual(r.result.acceptedCareActions,[]);
- assert.deepEqual(r.result.acceptedLearnings,[]);
- assert.doesNotMatch(r.result.reasoning.answer.summary,/One confirmed episode|1 explicitly supported/);
+ assert.deepEqual(r.effects,[]);
+ assert.deepEqual(r.effects,[]);
+ assert.doesNotMatch(r.answer.summary,/One confirmed episode|1 explicitly supported/);
 });
 
 test('mixed-topic ordinal requests do not inherit one saved topic',async t=>{
@@ -58,8 +62,8 @@ test('mixed-topic ordinal requests do not inherit one saved topic',async t=>{
   assert.equal(r.context.episodeResult?.referenceStatus,'clarify');
   assert.deepEqual(r.context.episodeResult.items,[]);
   assert.equal(r.context.episodeResult.references,undefined);
-  assert.deepEqual(r.result.acceptedCareActions,[]);
-  assert.deepEqual(r.result.acceptedLearnings,[]);
+  assert.deepEqual(r.effects,[]);
+  assert.deepEqual(r.effects,[]);
  }
 });
 
@@ -71,13 +75,13 @@ test('older prose list supplies navigation context without source authority',asy
  ].map(m=>({...m,user_id:ownerId,conversation_id:'chat',created_at:'2026-09-04T00:00:00Z'}));
  const r=await run('What changed during the second episode?',{messages,rows:[],careEpisodes:[]});
  assert.equal(r.context.episodeResult.presentationHint?.source,'unverified_assistant_presentation');
- assert.match(r.serialized,/July 2014/);
+ assert.match(JSON.stringify(r.context.episodeResult.presentationHint),/July 2014/);
  assert.equal(r.context.episodeResult.referenceStatus,'clarify');
  assert.equal(r.context.episodeResult.references,undefined);
  assert.deepEqual(r.context.episodeResult.items,[]);
- assert.match(r.result.reasoning.answer.summary,/earlier answer/);
- assert.deepEqual(r.result.acceptedCareActions,[]);
- assert.deepEqual(r.result.acceptedLearnings,[]);
+ assert.match(r.answer.summary,/earlier answer/);
+ assert.deepEqual(r.effects,[]);
+ assert.deepEqual(r.effects,[]);
  const wrongPet=await run('What changed during the second episode?',{messages:messages.map(m=>m.role==='user'?{...m,user_text:'Tell me about Luna soft-stool episodes.'}:m),rows:[],careEpisodes:[]});
  assert.equal(wrongPet.context.episodeResult.presentationHint,undefined);
 });
@@ -85,15 +89,15 @@ test('older prose list supplies navigation context without source authority',asy
 async function savedList() {
  const original=await run('List all vomiting episodes over Milo lifetime.');
  return {id:'wording-answer',user_id:ownerId,conversation_id:'chat',role:'furvise',sequence_number:2,created_at:'2026-09-04T00:00:00Z',
-  response_data:attachEpisodeReferences(buildAskConversationResponse(original.result.reasoning.answer),original.context.episodeResult)};
+  response_data:attachEpisodeReferences(buildAskConversationResponse(original.answer),original.context.episodeResult)};
 }
 test('topic-qualified ordinal uses the revalidated displayed episode',async t=>{
  clock(t);const saved=await savedList();
  const follow=await run('What changed during the second vomiting episode?',{messages:[saved],answer:'Invented cure.'});
  assert.equal(follow.context.episodeResult?.referenceStatus,'resolved');
  assert.equal(follow.context.episodeResult.items[0].id,'episode:ep2');
- assert.match(JSON.stringify(follow.result.reasoning.answer),/eating normally again/);
- assert.doesNotMatch(JSON.stringify(follow.result.reasoning.answer),/Invented cure/);
+ assert.match(JSON.stringify(follow.answer),/eating normally again/);
+ assert.doesNotMatch(JSON.stringify(follow.answer),/Invented cure/);
 });
 test('multiple ordinals never silently select one displayed episode',async t=>{
  clock(t);const saved=await savedList();
@@ -116,35 +120,34 @@ test('qualified follow-ups retain topic, missing-envelope and changed-source che
  const determiner=await run('Tell me about that second vomiting episode.',{messages:[saved]});
  assert.equal(determiner.context.episodeResult?.referenceStatus,'resolved');
  assert.equal(determiner.context.episodeResult.items[0].id,'episode:ep2');
- assert.deepEqual(determiner.result.acceptedCareActions,[]);
- assert.deepEqual(determiner.result.acceptedLearnings,[]);
+ assert.deepEqual(determiner.effects,[]);
+ assert.deepEqual(determiner.effects,[]);
 });
 
 test('old linked episode evidence reaches generation beyond recent episode window',async t=>{
  clock(t); const noise=Array.from({length:25},(_,i)=>({...episode(first,0),id:'noise'+i,normalized_key:'unrelated_'+i,last_event_at:'2026-08-01T00:00:00Z'}));
- const r=await run('List all vomiting episodes for Milo.',{careEpisodes:[...noise,episode(first,0),episode(second,1)]});
+ const r=await run('List all vomiting episodes over Milo lifetime.',{careEpisodes:[...noise,episode(first,0),episode(second,1)]});
  assert.equal(r.context.episodeResult.supportedCount,2);
- const record=r.prompt.contextRecords.find(x=>x.id==='episode:ep1');
- assert.ok(record,'validated old episode must reach actual provider records');
- assert.equal(record.metadata.sequence_number,1);
- assert.equal(record.metadata.sourceLinksValidated,true);
- assert.equal(record.status,'unknown','historical membership cannot certify current resolution');
+ const record=r.context.episodeResult.items.find(x=>x.id==='episode:ep1');
+ assert.ok(record,'validated old episode survives organ validation');
+ assert.equal(record.sequenceNumber,1);assert.equal(record.sourceId,'care:onset1');
+ assert.match(r.answer.summary,/not an exact lifetime total/);assert.doesNotMatch(r.answer.summary,/resolved|cured/);
 });
 test('unlinked episode indexes disclose missing source evidence instead of an apparent empty history',async t=>{
- clock(t);const r=await run('List all vomiting episodes for Milo.',{rows:[]});
+ clock(t);const r=await run('List all vomiting episodes over Milo lifetime.',{rows:[]});
  assert.deepEqual(r.context.episodeResult.items,[]);
  assert.ok(r.context.episodeResult.reasons.includes('episode_source_links_missing'));
- assert.match(r.result.reasoning.answer.summary,/source notes.*missing|missing.*source notes/i);
+ assert.match(r.answer.summary,/source notes.*missing|missing.*source notes/i);
  assert.equal(r.context.episodeResult.references,undefined);
- assert.deepEqual(r.result.acceptedCareActions,[]);
- assert.deepEqual(r.result.acceptedLearnings,[]);
+ assert.deepEqual(r.effects,[]);
+ assert.deepEqual(r.effects,[]);
 });
 
 test('unlinked or stale episode metadata never enters provider records as verified evidence',async t=>{
  clock(t);const missing=await run('List vomiting episodes for Milo.',{rows:[]});
- assert.equal(missing.prompt.contextRecords.some(x=>x.sourceType==='episode_evidence'),false);
+ assert.equal(missing.context.episodeResult.items.length,0);
  const saved=await savedList();
  const stale=await run('What about the second vomiting episode?',{messages:[saved],rows:[first,{...second,note:second.note+' Changed.'},update]});
  assert.equal(stale.context.episodeResult.referenceStatus,'stale');
- assert.equal(stale.prompt.contextRecords.some(x=>x.sourceType==='episode_evidence'),false);
+ assert.equal(stale.context.episodeResult.items.length,0);
 });

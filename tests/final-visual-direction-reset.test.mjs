@@ -84,6 +84,7 @@ test("login and warm empty states keep the requested actions", () => {
 test("primary visible source avoids formal mechanics and em dashes", () => {
   const source = [homepage, login, header, signedHeader, ask, history, pets].join("\n");
   for (const phrase of ["current curated collection", "care context", "your care space", "everything stays connected here", "practical guidance using profile and notes"]) assert.doesNotMatch(source, new RegExp(phrase, "i"));
-  assert.match(source, /AI credit/);
+  assert.doesNotMatch(source, /AI credit/);
+  assert.match(read("app/membership/page.tsx"), /Ask remaining/);
   assert.doesNotMatch(source, /—/);
 });

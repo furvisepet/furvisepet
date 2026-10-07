@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
-import { Barlow_Condensed } from "next/font/google";
 import { ActionVisualAudit } from "./components/action-visual-audit";
 import { AuthenticatedAppChrome } from "./components/authenticated-app-chrome";
 import { AskComposerFocusProvider } from "./lib/navigation/ask-composer-focus";
@@ -20,10 +19,11 @@ const appSans = localFont({
   display: 'swap', variable: '--font-app-sans',
 });
 
-const marketingDisplay = Barlow_Condensed({
+const marketingDisplay = localFont({
+  src: "../public/fonts/BarlowCondensed-Bold.ttf",
+  style: "normal",
   display: "swap",
   fallback: ["Arial Narrow", "Arial", "sans-serif"],
-  subsets: ["latin"],
   variable: "--font-marketing-display",
   weight: "700",
 });

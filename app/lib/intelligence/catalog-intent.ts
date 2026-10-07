@@ -1,3 +1,4 @@
+import { assertAskSourceWindowProposal } from "./ask-interpretation-sources.ts";
 import { bindCancellationSelector } from "../furvise-brain/lifecycle-plan.ts";
 import { ownerDeclinesPersistence } from "../ai/owner-assertion.ts";
 import { readWriteSourceSemantics } from "../furvise-brain/source-semantics.ts";
@@ -9,7 +10,7 @@ import type { FurviseLiveContext } from "./types.ts";
 export const CATALOG_INTENT_VERSION = "ask-catalog-intent.v1";
 export const CATALOG_PURPOSES = ["replace", "remove", "concern", "lifecycle", "receipt"] as const;
 export type CatalogPurpose = typeof CATALOG_PURPOSES[number];
-export type CatalogContext = Pick<FurviseLiveContext, "owner" | "pet" | "eligiblePets" | "currentMessage" | "currentTurn" | "conversationTurns" | "conversationId">;
+export type CatalogContext = Pick<FurviseLiveContext, "owner" | "pet" | "eligiblePets" | "currentMessage" | "currentTurn" | "conversationTurns" | "conversationId" | "planningSourceWindow" | "pinnedUserSourceIds">;
 type JsonObject = Record<string, unknown>;
 const object = (value: unknown): value is JsonObject => !!value && typeof value === "object" && !Array.isArray(value);
 const fail = (field: string): never => { throw new Error("ASK_CATALOG_INVALID:" + field); };
@@ -87,6 +88,7 @@ export function bindCatalogIntent(value: unknown, context: CatalogContext, reque
     || value.version !== CATALOG_INTENT_VERSION || !CATALOG_PURPOSES.includes(value.purpose as CatalogPurpose)
     || !["subjects", "owner_receipt"].includes(String(value.scope)) || !Array.isArray(value.subjects)
     || value.subjects.length > 20 || !object(value.request) || !requestId || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) return fail("shape");
+  assertAskSourceWindowProposal(value, context);
   const admission = getActiveAiAdmission();
   if (!admission) return fail("admission_required");
   admission.assertCatalogPlanningPhase();

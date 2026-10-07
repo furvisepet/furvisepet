@@ -13,7 +13,7 @@ const appPage = read("app/components/app-page.tsx");
 const css = read("app/globals.css");
 const config = read("next.config.ts");
 const brand = read("app/components/brand-mark.tsx");
-const visualQa = read("docs/visual-qa-checklist.md");
+const visualQa = read("tests/fixtures/legacy-documents/visual-qa-checklist.md");
 
 test("all four shared button variants keep visible labels and explicit foregrounds", () => {
   const expectedForegrounds = {

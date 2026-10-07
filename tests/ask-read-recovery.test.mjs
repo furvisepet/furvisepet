@@ -1,9 +1,9 @@
 import * as C from "./helpers/canonical-calculation-retirement.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { recoverTransientRead } from '../app/lib/security/read-recovery.ts';
-import { literalInventoryWindow, readRecordInventory } from '../app/lib/intelligence/record-inventory.ts';
-import { eligibleAnswerSources } from '../app/lib/intelligence/ask-evidence.ts';
+const { recoverTransientRead }=await import("../app/lib/security/read-recovery.ts");
+const { literalInventoryWindow, readRecordInventory }=await import("../app/lib/intelligence/record-inventory.ts");
+const { eligibleAnswerSources }=await import("../app/lib/intelligence/ask-evidence.ts");
 
 test('current report provenance survives read-only execution without assigning a multi-pet report to one pet',()=>{
   const e={scope:{readOnlyRecall:false,authorizedPetIds:['owned'],requestText:'Correct the duration to 19 minutes.'},

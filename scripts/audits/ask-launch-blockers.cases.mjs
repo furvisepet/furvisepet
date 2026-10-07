@@ -11,7 +11,8 @@ for (const count of [8, 9, 10, 12, 20]) test(`profile read preserves ${count} ow
     age_value:4,age_unit:'years',monthly_budget:40}));
   const question=`List the name and species in the saved profiles of ${fixturePets.map(p=>p.name).join(', ')}. Save nothing.`;
   const r=await exercise(question,{fixturePets,petId:fixturePets[0].id,conversationPetId:fixturePets[0].id,rows:fixturePets.flatMap(p=>Array.from({length:8},()=>care(randomUUID(),p.id,'2026-08-15','general','Synthetic routine note. '.repeat(25)))),messages:[],history:true,
-    interpretationProposal:{subject:'explicit',petNames:fixturePets.map(p=>p.name),profileFields:['species'],evidenceBasis:'saved_profile',operation:'recall',selection:'summary',topic:'profiles',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:null},expectedReviewCalls:null});
+    interpretationProposal:{subject:'explicit',petNames:fixturePets.map(p=>p.name),profileFields:['species'],evidenceBasis:'saved_profile',operation:'recall',selection:'summary',topic:'profiles',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:null},expectedProviderCalls:0,expectedReviewCalls:0});
+  assert.equal(r.requests.length,0);assert.equal(r.reviewRequests.length,0);
   for(const pet of fixturePets) assert.ok(r.result.reasoning.evidenceContract.represented.some(s=>s.sourceId===`profile:${pet.id}:species`),`missing ${pet.name}`);
 });
 
@@ -28,7 +29,7 @@ test('dated arithmetic retains both saved observations including the last day',a
   clock(t);
   const rows=[care('older','milo','2021-11-09','weight','Weight recorded: 3.98 kg.'),care('newer','milo','2026-08-09','weight','Weight recorded: 3.8 kg.')];
   const r=await exercise('From Milo’s saved weights on November 9, 2021 and August 9, 2026, calculate percentage change to two decimal places. Show the original values and formula. Save nothing.',{
-    history:true,rows,messages:[],interpretationProposal:{operation:'comparison',selection:'comparison',subject:'explicit',petNames:['Milo'],topic:'weight',terms:['weight'],from:'2021-11-09',to:'2026-08-09',episodeTopic:null,ordinal:null,frame:null},expectedReviewCalls:null});
+    history:true,rows,messages:[],interpretationProposal:{operation:'comparison',selection:'comparison',subject:'explicit',petNames:['Milo'],topic:'weight',terms:['weight'],from:'2021-11-09',to:'2026-08-10',episodeTopic:null,ordinal:null,frame:null},expectedReviewCalls:null});
   for(const row of rows) assert.ok(r.result.reasoning.evidenceContract.represented.some(s=>s.sourceId===`care:${row.id}`),`missing ${row.id}`);
 });
 
@@ -37,7 +38,7 @@ test('UI calendar date retrieves the prior-local-day medication without adjacent
   const rows=[{...care('local-medication','milo','2026-08-11','medication','Prescribed medication: 2.5 mg twice daily for five days.'),occurred_at:'2026-08-11T06:54:00.000Z'},
     {...care('outside-local-day','milo','2026-08-11','medication','Unrelated medication note.'),occurred_at:'2026-08-11T07:01:00.000Z'}];
   const r=await exercise('Read Milo’s saved medication instructions from August 10, 2026. Restate the recorded schedule; do not prescribe or save anything.',{
-    history:true,rows,messages:[],prepareContext:context=>{context.timeZone='America/Los_Angeles';},interpretationProposal:{operation:'recall',selection:'summary',subject:'explicit',petNames:['Milo'],topic:'medication',terms:['medication'],from:'2026-08-10',to:'2026-08-11',episodeTopic:null,ordinal:null,frame:null},expectedReviewCalls:null});
+    history:true,rows,messages:[],prepareContext:context=>{context.timeZone='America/Los_Angeles';},interpretationProposal:{operation:'recall',selection:'summary',subject:'explicit',petNames:['Milo'],topic:'medication',terms:['medication'],readTicket:{operation:'read',subjectScope:'named',temporal:{from:'2026-08-10T00:00:00-07:00',to:'2026-08-11T00:00:00-07:00',anchor:null,calendar:null},predicates:[{kind:'text_any',terms:['medication']}],searchHints:[],probes:[],episode:null,selection:null,outputs:{completeness:'exhaustive',ordering:'asc',limit:null}},from:'2026-08-10',to:'2026-08-11',episodeTopic:null,ordinal:null,frame:null},expectedReviewCalls:null});
   const ids=r.result.reasoning.evidenceContract.represented.map(s=>s.sourceId);
   assert.ok(ids.includes('care:local-medication'));
   assert.ok(!ids.includes('care:outside-local-day'));
@@ -62,8 +63,8 @@ test('twelve multi-field JSON profiles preserve all 24 citations including recor
  providerResponse:async request=>{
  assert.ok(request.text.format.schema.properties.json.properties.sourceIds.maxItems>=ids.length);
  return {status:'completed',output_text:JSON.stringify({readVersion:'history-answer.v1',layout:'json',json:{value:{kind:'array',items:fixturePets.map(p=>({kind:'object',entries:[{key:'name',value:p.name},{key:'species',value:p.species},{key:'current_food',value:p.current_food}]}))},sourceIds:ids,calculations:[]},historyNarrative:null,table:null,limitation:null,navigationActions:[],safetyLevel:'normal',responseMode:'practical_guidance',userIntent:'profiles',relevantContextIds:ids}),usage:{input_tokens:1000,output_tokens:1000}};
- },reviewResponse:{approved:true},expectedReviewCalls:null});
- assert.equal(r.reviewRequests.length,1);
+ },reviewResponse:{approved:true},expectedProviderCalls:0,expectedReviewCalls:0});
+ assert.equal(r.requests.length,0);assert.equal(r.reviewRequests.length,0);
  assert.equal(r.publication.failure,null);
  for(const id of ids)assert.ok(r.result.reasoning.evidenceContract.represented.some(s=>s.sourceId===id),id);
  const empty=r.result.reasoning.evidenceContract.represented.find(s=>s.sourceId===`profile:${fixturePets[11].id}:current_food`);

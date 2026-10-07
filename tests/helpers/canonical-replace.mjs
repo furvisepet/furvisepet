@@ -46,6 +46,7 @@ function fixture(body='  Exact  observation.\n\tSecond line.  '){
  },rpc(name,args){rpcCalls.push([name,args]);return {maybeSingle:async()=>{
   const cap=caps.find(c=>c.id===args.p_capability_id&&c.assistant_message_id===args.p_assistant_message_id&&c.user_id===args.p_user_id);
   if(!cap)return {data:null,error:null};
+  if(cap.status!=='pending')return {data:{action:cap.receipt,changed:false},error:null};
   const status=state.stale?'failed':'succeeded';
   const action={...cap.action_payload,id:cap.id,status,resultMessage:status==='succeeded'?'Edited.':null,errorMessage:state.stale?'Target changed.':null};
   cap.status=status;cap.receipt=action;return {data:{action,changed:!state.stale},error:null};

@@ -7,5 +7,7 @@ export type AskWirePlan = {
 /** Restores a proposal's JSON structure; Binder remains the semantic authority. */
 export function createAskWirePlan(
   canonicalSchema: Record<string, unknown>,
-  sourceInstructions: string
+  sourceInstructions: string,
+  sourceAuthority?: { inputAuthority: string; dialogueAuthority: string },
+  checkBudget?: () => void
 ): AskWirePlan;

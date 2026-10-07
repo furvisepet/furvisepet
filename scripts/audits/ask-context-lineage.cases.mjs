@@ -7,7 +7,7 @@ const { buildFurviseContext }=await import('../../app/lib/intelligence/retrieve-
 const rows=[care('old-weight','luna','2017-04-03','weight','Luna weighed 4.2 kg.')];
 const messages=[{id:'prior',conversation_id:'chat',user_id:ownerId,request_id:'request',role:'user',user_text:'Luna weighed 99 kg.',sequence_number:1,created_at:'2026-09-01T00:00:00Z'}];
 for(const deleted of [false,true])test('old canonical receipt survives dialogue truncation without resurrecting deleted rows, deleted='+deleted,async()=>{
- const f=receiptFixture({deleted}),ctx=await f.context();
+ const f=receiptFixture({deleted}),ctx=await f.context({catalog:true});
  assert.ok(!ctx.conversationTurns.some(turn=>turn.id===f.source.id));
  assert.equal(ctx.storedReadReferences.length,1);
  const result=await f.execute(f.request(ctx));
@@ -38,7 +38,7 @@ test('unavailable conversation lineage suppresses uncertain claims, keeps indepe
 });
 
 test('future-dated current row stays outside elapsed history while canonical operation remains verifiable',async()=>{
- const f=receiptFixture({future:true}),ctx=await f.context();
+ const f=receiptFixture({future:true}),ctx=await f.context({catalog:true});
  const receipt=await f.execute(f.request(ctx));
  assert.equal(receipt.status,'complete');assert.equal(receipt.records[0].operation.status,'succeeded');
  const live=await buildFurviseContext({supabase:f.db,userId:f.owner,petId:f.pet.id,conversationId:id(7),currentMessage:'What did I save?',

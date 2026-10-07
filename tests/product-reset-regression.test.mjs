@@ -34,7 +34,7 @@ test("signup and recovery keep their existing CAPTCHA submission behavior", () =
   assert.match(recovery, /challengeVisible \? <TurnstileChallenge onToken=\{handleChallengeToken\}/);
   assert.match(recovery, /if \(!token\) \{[\s\S]*setSubmitPending\(false\)/);
   assert.match(recovery, /if \(!submitPendingRef\.current\) return/);
-  assert.match(recovery, /if \(!token\) return/);
+  assert.match(recovery, /if \(isAuthCaptchaEnabled\(\) && !token\) return/);
   assert.match(recovery, /captchaToken: token/);
   assert.doesNotMatch(recovery.slice(recovery.indexOf("function requestReset"), recovery.indexOf("function handleChallengeToken")), /idempotentClientFetch|\/api\/auth\/recovery/);
 });

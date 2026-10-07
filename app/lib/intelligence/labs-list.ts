@@ -128,7 +128,7 @@ export function serializeLabsList(labs: LabsList): string {
     return renderCertifiedLabs(groups, labs.presentation === undefined ? "prose" : labs.presentation,
       exhaustiveSelectionLimitation(labs.ticket.outputs.completeness === "exhaustive", labs.coverage));
   }
-  const list = labs.records.map(row => `${row.event_at.slice(0, 10)} — ${JSON.stringify(row.body)}`
+  const list = labs.records.map(row => `${row.event_at.slice(0, 10)} report: ${JSON.stringify(row.body)}`
     + (row.recorded_at ? ` (saved at ${row.recorded_at})` : "")).join("\n\n");
   const notice = {
     complete: "", complete_empty: "No matching notes were found in the checked history window.",

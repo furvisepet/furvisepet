@@ -80,15 +80,19 @@ test('deleted Pepper history stays absent while the restored active record remai
   assert.ok(ids(run).has('care:pepper-restored-active'));
 });
 
-test('a long follow-up can compare an old referenced Milo weight with the new 2026 weight', async t => {
+test('a pinned long follow-up compares the exact old antecedent; an omitted reference fails closed', async t => {
   clock(t);
   const messages = [
     { id: 'q-old', role: 'user', user_text: 'What did Milo weigh in April 2012?', sequence_number: 1 },
     { id: 'a-old', role: 'furvise', response_data: { directAnswer: 'Milo weighed 31.2 kg in April 2012.' }, sequence_number: 2 },
     ...Array.from({ length: 12 }, (_, i) => ({ id: `noise-${i}`, role: 'user', user_text: `Routine Milo question ${i}.`, sequence_number: i + 3 })),
   ].map(row => ({ ...row, user_id: 'synthetic-owner', conversation_id: 'chat', created_at: '2026-09-04T10:00:00Z' }));
+  await assert.rejects(exercise('Compare that old weight with his August 2026 weight.',{
+    history:true,fixturePets:pets,rows,petId:'milo',conversationPetId:'milo',messages,authoritativePetIds:['milo'],
+    interpretationProposal:{...stressProposal({petNames:['Milo'],selection:'comparison',terms:['weigh','weight'],from:'2012-04-01',to:'2026-09-01'}),referenceTurnIds:['q-old']},
+  }),e=>e.stage==='interpretation_failed'&&/earlier messages were omitted/.test(e.message));
   const run = await exercise('Compare that old weight with his August 2026 weight.', {
-    history: true, fixturePets: pets, rows, petId: 'milo', conversationPetId: 'milo', messages, authoritativePetIds: ['milo'],
+    prepareContext:c=>{c.pinnedUserSourceIds=['q-old'];}, history: true, fixturePets: pets, rows, petId: 'milo', conversationPetId: 'milo', messages, authoritativePetIds: ['milo'],
     interpretationProposal:{...stressProposal({petNames:['Milo'],selection:'comparison',terms:['weigh','weight'],from:'2012-04-01',to:'2026-09-01'}),referenceTurnIds:['q-old']},
   });
   assert.ok(ids(run).has('care:milo-weight-2012'));

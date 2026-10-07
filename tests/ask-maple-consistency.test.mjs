@@ -40,12 +40,11 @@ test("terminal recovery classification is conservative for weak or recurring sym
   }
 });
 
-test("resolved care action takes precedence over a non-terminal semantic event during persistence", () => {
-  const source = readFileSync(new URL("../app/lib/intelligence/persist-learnings.ts", import.meta.url), "utf8");
-  const resolutionIndex = source.indexOf("const resolutionAction");
-  const persistenceIndex = source.indexOf("const carePersistence", resolutionIndex);
-  assert.ok(resolutionIndex >= 0 && persistenceIndex > resolutionIndex);
-  assert.match(source.slice(persistenceIndex, source.indexOf("const persistenceRows", persistenceIndex)), /resolutionAction[\s\S]*persistCanonicalCareAction[\s\S]*semanticEvent/);
+test("resolved care and semantic prose cannot bypass canonical transition authority",async()=>{
+ const {assertLegacyProseRejected}=await import('./helpers/legacy-prose-boundary.mjs');
+ for(const type of ['concern_resolution','history'])await assertLegacyProseRejected({type,payload:{transition:'resolved',concernId:'tracked'}});
+ const source=readFileSync(new URL('../app/lib/intelligence/persist-learnings.ts',import.meta.url),'utf8');
+ assert.doesNotMatch(source,/persistCanonicalCareAction|persistSemanticEventRpc|\.rpc\(/);
 });
 
 test("history classifies urgent, recovery, and recurrence proportionally", () => {

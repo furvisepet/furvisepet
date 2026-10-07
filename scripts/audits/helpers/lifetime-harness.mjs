@@ -62,12 +62,14 @@ function database(rows, { fixturePets = pets, conversationPetId, messages = [], 
       if(graph.sourceSemanticsError)return {data:null,error:{code:graph.sourceSemanticsError}};
       if(graph.sourceSemanticsPage)return {data:structuredClone(graph.sourceSemanticsPage),error:null};
       const fresh=new Map([...rows,...(graph.sources||[])].map(row=>[row.id,row]));
+      // Preserve Array.find's first matching source while avoiding a quadratic audit scan.
+      const originalById=new Map();for(const row of rows)if(!originalById.has(row.id))originalById.set(row.id,row);
       for(const id of graph.missingSourceIds||[])fresh.delete(id);
       const scoped=importedSemantics.filter(c=>c.user_id===ownerId&&args.p_pet_ids.includes(c.subject_id));
       const corrections=scoped.filter(c=>JSON.parse(c.governance_metadata.sourceSemanticsPayload).classification!=='observation');
       const chosen=scoped.filter(c=>args.p_source_ids.includes(c.source_message_lineage_id)||corrections.slice(0,13).includes(c)).slice(0,77);
       const current=chosen.map(c=>fresh.get(c.source_message_lineage_id)).filter(Boolean);
-      const changed=scoped.some(c=>{const source=fresh.get(c.source_message_lineage_id),original=rows.find(r=>r.id===c.source_message_lineage_id);
+      const changed=scoped.some(c=>{const source=fresh.get(c.source_message_lineage_id),original=originalById.get(c.source_message_lineage_id);
         return !source||source.deleted_at||JSON.stringify(source)!==JSON.stringify(original)});
       return {data:{claims:structuredClone(chosen),sources:structuredClone(current),targets:structuredClone(graph.sourceSemanticsTargets||[]),complete:!changed&&corrections.length<=12&&chosen.length<=76,limit:76},error:null};
     }

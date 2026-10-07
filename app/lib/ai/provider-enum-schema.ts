@@ -8,7 +8,8 @@ const schemaChildren = new Set(["items", "additionalProperties", "contains", "no
  * Does not interpret inputs, relax constraints, or change the canonical plan.
  * Only schema positions are visited; enum/default/example data is never rewritten.
  */
-export function factorProviderEnumSchemas(schema: Schema): Schema {
+export function factorProviderEnumSchemas(schema: Schema, checkBudget: () => void = () => {}): Schema {
+  checkBudget();
   const counts = new Map<string, number>();
   const definitions: Schema = { ...(schema.$defs as Schema | undefined) };
   const names = new Map<string, string>();
@@ -17,6 +18,7 @@ export function factorProviderEnumSchemas(schema: Schema): Schema {
     && Object.keys(node).every(key => enumKeywords.has(key)) ? JSON.stringify(node) : null;
 
   function visit(value: unknown, transform: (node: Schema) => Schema): unknown {
+    checkBudget();
     if (!value || typeof value !== "object" || Array.isArray(value)) return value;
     const node = value as Schema;
     const copy: Schema = {};

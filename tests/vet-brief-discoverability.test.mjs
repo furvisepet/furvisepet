@@ -1,3 +1,4 @@
+import {PUBLIC_V1_CAPABILITIES} from '../app/lib/public-v1-capabilities.ts';
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -10,8 +11,8 @@ test("the Pets directory leaves Vet brief discovery to deeper product surfaces",
   assert.doesNotMatch(petsPage, /vet-brief|Vet brief/);
 });
 
-test("the pet profile exposes Vet Brief as a pet-scoped primary action", () => {
-  assert.match(petProfilePage, /<PrimaryButton href=\{`\/vet-brief\?pet=\$\{petId\}&source=pet-profile`\}>VET BRIEF<\/PrimaryButton>/);
+test("the pet profile does not expose disabled public Vet Brief generation", () => {
+  assert.equal(PUBLIC_V1_CAPABILITIES.vetBriefGeneration,false);assert.doesNotMatch(petProfilePage, /VET BRIEF/);assert.equal(petProfilePage.includes("/vet-brief"),false);
   assert.match(petProfilePage, /<SecondaryButton href=\{`\/pets\/\$\{petId\}\/edit`\}>EDIT PET<\/SecondaryButton>/);
 });
 

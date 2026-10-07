@@ -97,7 +97,7 @@ test("theme switching stays removed and protected brand assets remain byte-ident
     "public/brand/furvise-logo.svg": "15103E452559F4F29B0492A6731782ECD680992F62798BE95DDC7ABA544F3B00",
     "public/brand/furvise-wordmark.svg": "5CE60B7D3134B5AAF00F4A4A799F46443A9EB0FD23B04724A545AD15F7C248B8",
     "public/brand/furvise-heron.svg": "5BC3424AFD22BBA0391D302494C506455DF9EF3A2221525C32A033E8DDA0DD0B",
-    "app/favicon.ico": "7645741D1A690C78A6A235C21FB57B93533AB2C86BE3437F8AB28180497220E3",
+    "public/favicon.ico": "7645741D1A690C78A6A235C21FB57B93533AB2C86BE3437F8AB28180497220E3",
   };
   for (const [path, digest] of Object.entries(expected)) assert.equal(hash(path), digest, `${path} must not change`);
   const combined = [css, header, read("app/layout.tsx")].join("\n");

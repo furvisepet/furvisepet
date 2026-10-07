@@ -1,3 +1,5 @@
+import {stagedOperation,sourceFixtureDb} from './helpers/staged-operation-fixture.mjs';
+import {lifecycleUnitAuthority} from './helpers/lifecycle-unit-authority.mjs';
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -21,12 +23,13 @@ function pending(kind="pet.mark_deceased",petId=pets[0].id,id=actionId){
 }
 function context({actions=[],status="active",message="Apply the requested change."}={}){
  const owned=structuredClone(pets);owned[0].lifecycle_status=status;
- return {owner:{userId:"owner"},pet:owned[0],eligiblePets:owned,currentMessage:message,
+ const ctx={owner:{userId:"owner"},pet:owned[0],eligiblePets:owned,currentMessage:message,
   currentTurn:{id:"current-user",role:"user",text:message},conversationTurns:[],timeZone:"UTC",
   lifecycleActionState:{ownerId:"owner",complete:true,actions}};
+ lifecycleUnitAuthority(ctx);return ctx;
 }
 const proposal=(ctx,{cancel=false,to=null,target="Alpha",required=null}={})=>({
- pendingDisposition:cancel?"cancel":"keep",transition:to?{targetPetName:target,toState:to}:null,
+ pendingDisposition:cancel?{petNames:null,quote:ctx.currentMessage}:"keep",transition:to?{targetPetName:target,toState:to}:null,
  requiredSubjectState:required,authorizationQuote:ctx.currentMessage});
 const request=(ctx,lifecyclePlan)=>({version:"ask-request.v2",mode:"update",question:ctx.currentMessage,
  requirements:[],referenceTurnIds:[],scope:"named",petNames:["Alpha"],operation:"general",selection:"summary",
@@ -125,7 +128,7 @@ test("canonical lifecycle meaning survives serialization and refuses changed aut
  const tampered=structuredClone(stored);tampered.transition.petId="pet-0";
  assert.throws(()=>rebindLifecyclePlan(tampered,ctx),/SNAPSHOT_CHANGED/);
  const changed=structuredClone(ctx);changed.eligiblePets[1].lifecycle_status="archived";
- assert.throws(()=>rebindLifecyclePlan(stored,changed),/SNAPSHOT_CHANGED/);
+ assert.throws(()=>rebindLifecyclePlan(stored,changed),error=>error.message==="ASK_REQUEST_INVALID:lifecycle_plan"&&error.cause?.field==="originating_authority");
 });
 test("Binder preserves typed intent with arbitrary wording and no semantic regex",()=>{
  for(const message of ["Apply the requested change.","Veuillez appliquer la correction.","按已说明的方式更正。"]){
@@ -141,19 +144,21 @@ test("lifecycle mutation cannot share authority with an unrelated job or read",(
  for(const change of [{readTicket:{}},{appendJob:{}},{writeJob:{}},{task:{}},{frame:{}},{requirements:["another fact"]},{mode:"mixed"}])
   assert.throws(()=>validateAskRequest({...p,...change},ctx),/lifecycle_mixed/);
 });
-test("provider sees state metadata without pending capability identifiers and makes one proposal",async()=>{
- const ctx=context({actions:[pending()]}),p=request(ctx,proposal(ctx,{cancel:true}));let calls=0;
- const result=await interpretAskQuestion({context:ctx,model:"fixture",client:{responses:{create:async r=>{
-  calls++;const input=JSON.parse(r.input);
-  assert.deepEqual(input.lifecycleState.pending,[{subject:"Alpha",state:"deceased"}]);
-  assert.equal(r.input.includes(actionId),false);
-  return {output_text:JSON.stringify({request:p})};
- }}}});
- assert.equal(calls,1);assert.equal(result.request.lifecyclePlan.pendingAction.id,actionId);
+test("provider sees no preloaded pending capability and lifecycle state is hydrated under its permit",async()=>{
+ const ctx=context({actions:[pending()]}),p=request(ctx,proposal(ctx,{to:"deceased"}));
+ const db=sourceFixtureDb(ctx,{from(table){assert.equal(table,"dog_profiles");const filters=[];const q={
+  select(){return q},eq(k,v){filters.push(r=>r[k]===v);return q},in(k,v){filters.push(r=>v.includes(r[k]));return q},
+  then(resolve,reject){return Promise.resolve({data:ctx.eligiblePets.filter(r=>filters.every(f=>f(r))),error:null}).then(resolve,reject)}
+ };return q;}});
+ const run=await stagedOperation({context:ctx,purpose:"lifecycle",request:p,db,initial:(input,wire)=>{
+  assert.equal(input.lifecycleState?.pending,undefined);assert.equal(wire.input.includes(actionId),false);
+ }});
+ assert.equal(run.calls,1);assert.equal(run.result.request.lifecyclePlan.pendingAction,null);
+ assert.equal(run.result.request.lifecyclePlan.transition.petId,pets[0].id);assert.equal(run.result.request.lifecyclePlan.transition.toState,"deceased");
 });
 test("provider lifecycle variant excludes unrelated mutation and read jobs",()=>{
  const schema=askRequestProviderSchema({}),variants=schema.properties.request.anyOf;
- const lifecycle=variants.find(s=>s.properties.lifecyclePlan.type==="object");
+ const lifecycle=variants.find(s=>s.properties.lifecyclePlan?.type==="object");
  assert.ok(lifecycle);for(const field of ["appendJob","writeJob","readTicket","frame","task"])assert.deepEqual(lifecycle.properties[field],{type:"null"});
  const encoded=JSON.stringify(lifecycle.properties.lifecyclePlan);
  for(const key of ['"petId"','"actionId"','"capabilityId"'])assert.equal(encoded.includes(key),false);

@@ -58,7 +58,9 @@ export function validateAskTask(value: unknown, context: {
     citedAnswer = true;
   }
   const requiresAnswer = p.answerRequest !== undefined ? citedAnswer : Boolean(p.answerRequired || context.requiresAnswer);
-  if (p.intent !== 'save' && !pending) return fail();
+  // A stale or terminal receipt cannot revive a pending operation at this boundary.
+  if (p.intent !== 'save' && (!pending
+    || !['awaiting_subject', 'awaiting_answer'].includes(pending.status))) return fail();
   if (p.intent !== 'cancel' && ownerDeclinesPersistence(context.currentMessage)) return fail();
   const source = p.intent === 'cancel' || p.intent === 'resume' ? pending?.source
     : [context.currentTurn, ...context.conversationTurns, pending?.source].find(turn => turn?.id === p.sourceTurnId);

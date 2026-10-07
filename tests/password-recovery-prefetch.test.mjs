@@ -75,7 +75,7 @@ test("scanner GETs and client rendering retain the token only in memory until an
   assert.match(page, /window\.history\.replaceState/);
   assert.match(page, /setTokenHash\(recovery\.tokenHash\)/);
   assert.doesNotMatch(page, /localStorage|sessionStorage|document\.cookie|automatically|onSubmit|requestSubmit/);
-  const documentation = read("docs/supabase-auth-production-checklist.md");
+  const documentation = read("tests/fixtures/legacy-documents/supabase-auth-production-checklist.md");
   assert.match(documentation, /#token_hash={{ \.TokenHash }}&amp;type=recovery/);
   assert.doesNotMatch(documentation, /confirmation_url={{ \.ConfirmationURL }}/);
   assert.doesNotMatch(documentation, /href="{{ \.ConfirmationURL }}"/);

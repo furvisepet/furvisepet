@@ -20,7 +20,7 @@ function setup(){const f=fixture();f.pet.updated_at='2026-09-22T00:00:00Z';
 test('one closed REMOVE schema supports care history and the bound subject profile',async()=>{
  const f=setup(),s=removeJobSchema();assert.deepEqual(s.anyOf.slice(1).map(x=>x.properties.domain.enum[0]),['care_history','pet_profile']);
  const {default:Ajv}=await import('ajv'),validate=new Ajv().compile(askRequestProviderSchema({},f.context));
- const request={storedRead:null,removeJob:null,stateTransitionJob:null,fieldMutationJob:null,lifecyclePlan:null,appendJob:null,readTicket:null,task:null,temporalScope:null,recordSelection:null,profileFields:[],projection:null,evidenceNeeds:[],outputFormat:null,evidenceBasis:null,premiseQuotes:null,excludedPetNames:[],...f.request};
+ const request={calculatePlan:null,storedRead:null,removeJob:null,stateTransitionJob:null,fieldMutationJob:null,lifecyclePlan:null,appendJob:null,readTicket:null,task:null,temporalScope:null,recordSelection:null,profileFields:[],projection:null,evidenceNeeds:[],outputFormat:null,evidenceBasis:null,premiseQuotes:null,excludedPetNames:[],...f.request};
  assert.equal(validate({request}),true,JSON.stringify(validate.errors));
  for(const target of ['last_event_for_subject',{kind:'exact_record',ref:'invented'},id(7)])assert.equal(validate({request:{...request,removeJob:{...f.proposal,target}}}),false);
  assert.equal(validate({request:{...request,removeJob:{...f.proposal,petId:id(7)}}}),false);
@@ -87,16 +87,60 @@ registerHooks({resolve(specifier,context,next){
  return next(specifier,context);
 }});
 const {POST}=await import('../app/api/ask/actions/[messageId]/route.ts');
-for(const decision of ['confirm','cancel'])test('opaque route applies destructive auth only to confirmed server capability: '+decision,async()=>{
+const {PUBLIC_V1_CAPABILITIES}=await import('../app/lib/public-v1-capabilities.ts');
+for(const decision of ['confirm','cancel','tampered'])test('public mutation gate returns 404 with zero effects: '+decision,async()=>{
+ assert.equal(PUBLIC_V1_CAPABILITIES.askMutations,false);
+ const f=setup(),[cap]=await f.mint(await f.action());globalThis.__petRemoveAuth=f.auth;
+ const before=structuredClone(f.rows),queries=f.queries.length;
+ const body=decision==='tampered'?{actionId:cap.id,decision:'confirm',kind:'care_history.add',petId:id(99)}:{actionId:cap.id,decision};
+ const result=await POST(new Request('https://offline.invalid/api/ask/actions/'+id(6),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}),{params:Promise.resolve({messageId:id(6)})});
+ assert.equal(result.status,404);assert.deepEqual(await result.json(),{error:'That action is no longer available.'});
+ assert.equal(f.rpcCalls.length,0);assert.equal(f.authCalls(),0);assert.equal(f.queries.length,queries);assert.deepEqual(f.rows,before);
+});
+// Only this distinct route module sees the enabled policy. The real module and
+// public default remain frozen and disabled; all authority/SQL code stays real.
+const {default:vm}=await import('node:vm');
+const {default:ts}=await import('typescript');
+const requestBoundary=await import('../app/lib/security/request.ts');
+const enabledExports={};
+vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../app/api/ask/actions/[messageId]/route.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{
+ exports:enabledExports,Response,Error,console,require:name=>{
+  const modules={
+   'next/cache':{revalidatePath(){}},
+   '../../../../lib/authenticated-api-server':{getAuthenticatedApiContext:async()=>globalThis.__petRemoveAuth},
+   '../../../../lib/application-actions/capabilities.ts':{executeActionCapability},
+   '../../../../lib/intelligence/append-turn.ts':{continueConfirmedAppend:async()=>null},
+   '../../../../lib/operations/events':{emitOperationalEvent(){}},
+   '../../../../lib/security/request':requestBoundary,
+   '../../../../lib/public-v1-capabilities.ts':{PUBLIC_V1_CAPABILITIES:Object.freeze({...PUBLIC_V1_CAPABILITIES,askMutations:true})}
+  };
+  assert.ok(Object.hasOwn(modules,name),name);return modules[name];
+ }
+});
+const enabledPOST=enabledExports.POST;
+assert.equal(PUBLIC_V1_CAPABILITIES.askMutations,false);
+for(const decision of ['confirm','cancel'])test('isolated enabled route applies destructive auth only to confirmed server capability: '+decision,async()=>{
  const f=setup(),[cap]=await f.mint(await f.action());
  globalThis.__petRemoveAuth={...f.auth,supabase:{auth:{getClaims:async()=>({data:{claims:null}})}}};
  const request=new Request('https://offline.invalid/api/ask/actions/'+id(6),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({actionId:cap.id,decision})});
- const result=await POST(request,{params:Promise.resolve({messageId:id(6)})});
+ const result=await enabledPOST(request,{params:Promise.resolve({messageId:id(6)})});
  assert.equal(result.status,decision==='confirm'?401:200);assert.equal(f.rpcCalls.length,decision==='confirm'?0:1);
  if(decision==='confirm')assert.equal((await result.json()).code,'RECENT_AUTH_REQUIRED');
 });
-test('opaque route rejects client kind and target rather than using them to evade recent auth',async()=>{
+test('isolated enabled route rejects client kind and target rather than using them to evade recent auth',async()=>{
  const f=setup(),[cap]=await f.mint(await f.action());globalThis.__petRemoveAuth=f.auth;
  const request=new Request('https://offline.invalid/api/ask/actions/'+id(6),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({actionId:cap.id,decision:'confirm',kind:'care_history.add',petId:id(99)})});
- const result=await POST(request,{params:Promise.resolve({messageId:id(6)})});assert.equal(result.status,400);assert.equal(f.rpcCalls.length,0);
+ const result=await enabledPOST(request,{params:Promise.resolve({messageId:id(6)})});assert.equal(result.status,400);assert.equal(f.rpcCalls.length,0);
+});
+
+test('isolated enabled route accepts fresh auth and replays only the durable receipt',async()=>{
+ const f=setup(),[cap]=await f.mint(await f.action());globalThis.__petRemoveAuth=f.auth;
+ const request=()=>new Request('https://offline.invalid/api/ask/actions/'+id(6),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({actionId:cap.id,decision:'confirm'})});
+ const route={params:Promise.resolve({messageId:id(6)})};
+ const first=await enabledPOST(request(),route);assert.equal(first.status,200);
+ const body=await first.json();assert.equal(body.action.status,'succeeded');assert.equal(f.authCalls(),1);assert.equal(f.rpcCalls.length,1);
+ const replay=await enabledPOST(request(),route);assert.equal(replay.status,200);assert.deepEqual((await replay.json()).action,body.action);
+ assert.equal(f.authCalls(),1);assert.equal(f.rpcCalls.length,2);
+ assert.deepEqual(f.rpcCalls[1],f.rpcCalls[0]);assert.equal(f.caps[0].receipt.status,'succeeded');
+ assert.equal(PUBLIC_V1_CAPABILITIES.askMutations,false);
 });

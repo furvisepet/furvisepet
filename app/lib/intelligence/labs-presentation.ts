@@ -24,7 +24,7 @@ export function renderCertifiedLabs(groups: LabsPresentationGroup[], presentatio
       ...group.rows.map(row => `| ${escapeLabsText(group.subject)} | ${escapeLabsText(JSON.stringify(row.body))} | ${escapeLabsText(row.event_at.slice(0, 10))} |`
         + (showSavedAt ? ` ${escapeLabsText(row.recorded_at ?? "Not available")} |` : ""))].join("\n");
     return [heading, ...(presentation === "list" ? [""] : []), ...group.rows.map(row => {
-      const fact = `${escapeLabsText(group.subject)}: ${escapeLabsText(JSON.stringify(row.body))} — ${escapeLabsText(row.event_at.slice(0, 10))}`
+      const fact = `${escapeLabsText(group.subject)}: ${escapeLabsText(row.event_at.slice(0, 10))} report: ${escapeLabsText(JSON.stringify(row.body))}`
         + (row.recorded_at ? ` (saved at ${escapeLabsText(row.recorded_at)})` : "");
       return presentation === "list" ? "- " + fact : fact;
     })].join(presentation === "prose" ? "\n\n" : "\n");

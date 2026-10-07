@@ -46,7 +46,7 @@ test("manifest and metadata declare the approved browser and installed-app icons
   const manifest = read("public/manifest.webmanifest");
   const layout = read("app/layout.tsx");
   assert.match(manifest, /"src": "\/favicon\.ico"/);
-  assert.match(layout, /url: "\/favicon\.ico"/);
+  assert.match(layout, /url: "\/favicon\.ico\?v=20260924"/);
   for (const asset of ["favicon-16.png", "favicon-32.png", "apple-touch-icon.png", "android-192.png", "android-512.png", "maskable-icon-512.png"]) {
     assert.match(`${manifest}\n${layout}`, new RegExp(asset.replace(".", "\\.")));
   }
@@ -134,7 +134,7 @@ test("public and application footers share public destinations", () => {
   assert.doesNotMatch(footer, /href="\/login"/);
 });
 
-test("primary UI source contains no banned mechanics copy or em dash and uses the unified AI-credit label", () => {
+test("primary UI source contains no banned mechanics copy or em dash and uses the public Ask allowance label", () => {
   const files = appFiles().filter((file) => file.endsWith(".tsx"));
   const source = files.map(read).join("\n");
   for (const phrase of [
@@ -147,4 +147,5 @@ test("primary UI source contains no banned mechanics copy or em dash and uses th
   ]) assert.doesNotMatch(source, new RegExp(phrase, "i"));
   assert.doesNotMatch(source, /—/);
   assert.match(source, /AI credit/);
+  assert.match(read("app/membership/page.tsx"), /Ask remaining/);
 });

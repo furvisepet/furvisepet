@@ -200,7 +200,7 @@ test("desktop navigation remains hidden below 1024px and brand assets remain unc
     "15103E452559F4F29B0492A6731782ECD680992F62798BE95DDC7ABA544F3B00"
   );
   assert.equal(
-    hash("app/favicon.ico"),
+    hash("public/favicon.ico"),
     "7645741D1A690C78A6A235C21FB57B93533AB2C86BE3437F8AB28180497220E3"
   );
 });

@@ -149,6 +149,10 @@ export type IntelligenceConversationTurn = {
 };
 
 export type FurviseLiveContext = {
+  /** Server-pinned USER antecedents; never model-selected. */
+  pinnedUserSourceIds?: string[];
+  /** Exact source snapshot chosen by the interpretation request budget. */
+  planningSourceWindow?: import("./ask-interpretation-sources.ts").AskSourceWindow;
   storedReadReferences?: import("../furvise-brain/stored-read.ts").StoredReadReference[];
   storedReadResult?: import("../furvise-brain/stored-read-organ.ts").StoredReadResult;
   replaceReferences?: import("../furvise-brain/replace-job.ts").ReplaceReference[];

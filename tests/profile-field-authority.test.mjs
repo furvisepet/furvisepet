@@ -280,7 +280,7 @@ for(const [value,unit,state] of [[0,'months','present'],[2.5,'years','present'],
  });
 test('all request-contract profile selectors have an explicit per-field disposition',async()=>{
  const {PROFILE_FIELD_DEFINITIONS}=await import('../app/lib/intelligence/profile-field-authority.ts');
- const fields=askRequestProviderSchema({}).properties.request.anyOf.find(v=>v.properties.evidenceBasis.enum?.[0]==='saved_profile').properties.profileFields.items.enum;
+ const fields=askRequestProviderSchema({}).properties.request.anyOf.find(v=>v.properties.evidenceBasis?.enum?.[0]==='saved_profile').properties.profileFields.items.enum;
  assert.deepEqual([...fields].sort(),Object.keys(PROFILE_FIELD_DEFINITIONS).sort());
  const f=fixture({fields});assert.ok(f.p);assert.deepEqual(f.p.fields.map(x=>x.fieldSelector),fields);
 });

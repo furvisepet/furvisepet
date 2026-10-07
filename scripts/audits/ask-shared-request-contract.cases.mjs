@@ -1,3 +1,4 @@
+import {inspectAskWireContract} from '../../tests/helpers/ask-wire-contract.mjs';
 import * as C from "../../tests/helpers/canonical-calculation-retirement.mjs";
 import {stressProposal,certifiedRows} from './helpers/current-stress-harness.mjs';
 import assert from 'node:assert/strict';
@@ -331,7 +332,8 @@ for (const [topic, note, answer] of [
   assert.deepEqual(r.result.acceptedLearnings, []);
   assert.equal(r.context.askInterpretation.request.version, ASK_REQUEST_VERSION);
   assert.equal(r.reviewRequests.length,0);
-  assert.ok(r.interpretationRequests[0].text.format.schema.properties.request.anyOf.every(branch=>branch.properties.version.enum[0]===ASK_REQUEST_VERSION));
+  const checked=await inspectAskWireContract(r.interpretationRequests[0],r.context);
+  assert.ok(checked.canonicalSchema.properties.request.anyOf.filter(branch=>branch.properties.version.enum.includes(ASK_REQUEST_VERSION)).length>0);
 });
 test('as-of retrieval applies upper bound with no lower bound', async t => {
   clock(t);
@@ -458,7 +460,7 @@ for (const answer of ['{\n  "observation": "slept normally"\n}', '- Aster slept 
     else {
      const result=r.result.reasoning;assert.equal(result.model,'server-labs-list');
      assert.deepEqual(result.labsList.records.map(row=>[row.id,row.body]),[['format','Aster slept normally.']]);
-     assert.ok(result.answer.summary.includes(outputFormat==='table'?'| Pet | Recorded note | Date |':'- '));
+     assert.ok(result.answer.summary.includes(outputFormat==='table'?'| Pet | Recorded note | Event date | Saved at |':'- '));
      assert.equal(r.requests.length,0);assert.equal(r.reviewRequests.length,0);
     }
   });
@@ -1661,7 +1663,9 @@ test('read mode discards contradictory mutation hints without a provider repair'
  let calls=0;
  const result=await interpretAskQuestion({context:{...context,currentMessage:'What is recorded about Aster?'},model:'gpt-5-mini',
   client:{responses:{async create(request){calls++;
-   assert.ok(request.text.format.schema.properties.request.anyOf.every(branch=>branch.properties.referenceTurnIds.maxItems===0));
+   const checked=await inspectAskWireContract(request,{...context,currentMessage:'What is recorded about Aster?'});
+   const branches=checked.canonicalSchema.properties.request.anyOf.filter(branch=>branch.properties.referenceTurnIds);
+   assert.ok(branches.length);assert.ok(branches.every(branch=>branch.properties.referenceTurnIds.maxItems===0));
    return {status:'completed',output_text:JSON.stringify(proposal({task:{intent:'resume',sourceTurnId:null,petName:'Aster',answerRequest:null}}))};
   }}}});
  assert.equal(calls,1);assert.equal(result.readOnly,true);assert.equal(result.request.task,null);

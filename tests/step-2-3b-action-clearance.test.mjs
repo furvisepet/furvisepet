@@ -78,5 +78,5 @@ test("navigation order, desktop active treatment, and brand assets stay protecte
   assert.match(header, /data-active-indicator=\{isActive\(item\.href\) \? "underline"/);
   assert.doesNotMatch(header, /isActive\(item\.href\) \? "[^"]*bg-\[var\(--selected-background\)\]/);
   assert.equal(hash("public/brand/furvise-logo.svg"), "15103E452559F4F29B0492A6731782ECD680992F62798BE95DDC7ABA544F3B00");
-  assert.equal(hash("app/favicon.ico"), "7645741D1A690C78A6A235C21FB57B93533AB2C86BE3437F8AB28180497220E3");
+  assert.equal(hash("public/favicon.ico"), "7645741D1A690C78A6A235C21FB57B93533AB2C86BE3437F8AB28180497220E3");
 });

@@ -99,15 +99,12 @@ test("deterministic recovery safety is grounded to one authoritative concern top
   assert.equal(mixedTopics.level, "urgent");
 });
 
-test("final suggestion persistence reloads the owned active concern before grounding", () => {
-  const source = read("app/lib/intelligence/persist-pending-suggestion.ts");
-  const persistence = source.slice(source.indexOf("async function persistPendingSuggestion"));
-  const authorityLookup = persistence.indexOf('from("pet_concerns")');
-  const grounding = persistence.indexOf("isPendingUpdateSuggestionGrounded");
-  const suggestionWrite = persistence.indexOf('from("ai_update_suggestions")');
-  assert.ok(authorityLookup >= 0 && authorityLookup < grounding && grounding < suggestionWrite);
-  assert.match(persistence, /eq\("user_id", userId\)[\s\S]*eq\("pet_profile_id", petId\)[\s\S]*in\("status", \["active", "monitoring", "reopened"\]\)/);
-  assert.match(persistence, /authoritativeConcern = activeConcerns\.find\(\(concern\) => concern\.id === suggestion\.concernId\)/);
+test("legacy suggestion prose cannot read or mutate an active concern before canonical authority",async()=>{
+ const {assertLegacyProseRejected}=await import('./helpers/legacy-prose-boundary.mjs');
+ await assertLegacyProseRejected({type:'concern_resolution',concernId:'foreign',payload:{resolution:'resolved'}});
+ const continuation=read('app/lib/intelligence/canonical-suggestion-continuation.ts');
+ assert.match(continuation,/suggestionMatchesCapability/);assert.match(continuation,/rebindCanonicalCapabilityAction/);
+ assert.ok(continuation.indexOf('rebindCanonicalCapabilityAction(c.action_payload')<continuation.indexOf('return executeActionCapability'));
 });
 
 test("accepted recovery may reconcile stale prior urgency but never current-turn danger evidence", () => {
@@ -148,12 +145,12 @@ test("active semantic urgency is current state, while a resolved episode does no
   assert.equal(resolveSafetyState(context("What food portions should I use?", { activeEpisodes: [], monitoringEpisodes: [], recentlyResolvedEpisodes: [{ ...active, status: "resolved", resolved_at: "2026-07-28T09:00:00Z" }] })).level, "routine");
 });
 
-test("explicit pet and owner preferences are learned but conversational filler is rejected", () => {
+test("pet preferences remain diagnostic; owner singleton prose and filler are rejected", () => {
   const petPreference = { subjectType: "pet", subjectId: "pet-1", category: "food_preference", factKey: "preferred_flavor", factValue: "salmon", confidence: 0.96, importance: "medium", durability: "durable", action: "create", sourceExcerpt: "Mani prefers salmon" };
   const ownerPreference = { subjectType: "owner", subjectId: null, category: "retailer_preference", factKey: "preferred_retailer", factValue: "Costco", confidence: 0.93, importance: "medium", durability: "durable", action: "create", sourceExcerpt: "I usually shop at Costco" };
   const filler = { ...ownerPreference, factKey: "reply", factValue: "thanks", sourceExcerpt: "Thanks" };
   assert.equal(evaluateLearningPolicy([petPreference], "Mani prefers salmon", "pet-1").accepted.length, 1);
-  assert.equal(evaluateLearningPolicy([ownerPreference], "I usually shop at Costco", "pet-1").accepted.length, 1);
+  assert.equal(evaluateLearningPolicy([ownerPreference], "I usually shop at Costco", "pet-1").accepted.length, 0);
   assert.equal(evaluateLearningPolicy([filler], "Thanks", "pet-1").accepted.length, 0);
 });
 
@@ -194,8 +191,8 @@ test("the persistence RPC is transactional, ownership-scoped, and preserves the 
 });
 
 test("valid answers survive nonfatal learning failures and normal credit counters are hidden", () => {
-  assert.match(route, /learning_persistence_failed/);
-  assert.match(route, /intelligencePersistenceWarning/);
+  assert.doesNotMatch(route, /learning_persistence_failed|persistFurviseIntelligence/);
+  assert.match(route, /finalizeAskPostReview/);
   assert.match(route, /completeAiCredit/);
   assert.match(usageNotice, /if \(usage\.remaining === 0\)/);
   assert.doesNotMatch(usageNotice, /credits? left this month/i);

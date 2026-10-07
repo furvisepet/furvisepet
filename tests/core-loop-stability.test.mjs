@@ -1,3 +1,4 @@
+import {PUBLIC_V1_CAPABILITIES} from '../app/lib/public-v1-capabilities.ts';
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -6,14 +7,14 @@ function read(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }
 
-test("pet profile is a single authorized facts surface with a Vet Brief handoff", () => {
+test("pet profile is a single authorized facts surface with public generation disabled", () => {
   const source = read("app/pets/[id]/page.tsx");
 
   assert.match(source, /loadDogProfileForUser\(params\.id, user\)/);
   assert.match(source, /buildPetProfileFactRows\(profile\)/);
   assert.match(source, /const petId = encodeURIComponent\(profile\.id\)/);
   assert.match(source, /href=\{`\/pets\/\$\{petId\}\/edit`\}/);
-  assert.match(source, /href=\{`\/vet-brief\?pet=\$\{petId\}&source=pet-profile`\}/);
+  assert.equal(PUBLIC_V1_CAPABILITIES.vetBriefGeneration,false);assert.doesNotMatch(source, /VET BRIEF/);assert.equal(source.includes("/vet-brief"),false);
   assert.doesNotMatch(source, /loadCanonicalRememberedDetailsForUser|listRecentCareEntriesForPet|\/today\?pet=|\/ask\?pet=|\/results\?|\/shop\?petId=|Products for/);
 });
 

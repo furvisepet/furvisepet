@@ -1,3 +1,4 @@
+import {PUBLIC_V1_CAPABILITIES} from '../app/lib/public-v1-capabilities.ts';
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -65,12 +66,12 @@ test("unknown and missing facts are omitted without filler", () => {
   assert.doesNotMatch(page, /Unknown|Not recorded|N\/A|Not much saved yet|Add the basics/);
 });
 
-test("the profile keeps Edit plus one pet-scoped Vet Brief workflow", () => {
+test("the profile keeps Edit while public Vet Brief generation is disabled", () => {
   assert.equal((page.match(/EDIT PET/g) || []).length, 1);
-  assert.equal((page.match(/VET BRIEF/g) || []).length, 1);
+  assert.equal((page.match(/VET BRIEF/g) || []).length, 0);
   assert.match(page, /const petId = encodeURIComponent\(profile\.id\)/);
   assert.match(page, /href=\{`\/pets\/\$\{petId\}\/edit`\}/);
-  assert.match(page, /href=\{`\/vet-brief\?pet=\$\{petId\}&source=pet-profile`\}/);
+  assert.equal(PUBLIC_V1_CAPABILITIES.vetBriefGeneration,false);assert.doesNotMatch(page, /VET BRIEF/);assert.equal(page.includes("/vet-brief"),false);
   for (const removedSurface of [
     "Ask Furvise",
     "Add update",

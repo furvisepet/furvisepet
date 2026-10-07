@@ -96,8 +96,9 @@ test("BrandMark keeps the canonical source without generated theme variants", ()
   assert.match(brand, /size = 30/);
 });
 
-test("primary visible sources use the approved AI-credit label and contain no em dash", () => {
+test("primary visible sources use the public Ask allowance label and contain no em dash", () => {
   const source = [login, forgot, update, header, homepage, history, pets, ask, products, today].join("\n");
   assert.doesNotMatch(source, /—/);
-  assert.match(source, /AI credit/);
+  assert.doesNotMatch(source, /AI credit/);
+  assert.match(read("app/membership/page.tsx"), /Ask remaining/);
 });

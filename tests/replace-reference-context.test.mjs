@@ -5,16 +5,11 @@ import {readFileSync} from 'node:fs';
 import {fixture,id} from './helpers/canonical-replace.mjs';
 registerHooks({resolve(s,c,next){if(s.endsWith('/care-authority-client.ts'))return{shortCircuit:true,url:'data:text/javascript,export const createCanonicalCareAuthorityClient=()=>globalThis.__replaceCatalog;'};return next(s,c);}});
 const {loadReplaceReferences}=await import('../app/lib/intelligence/replace-reference-context.ts');
-const {interpretAskQuestion,projectAskInterpretationContext}=await import('../app/lib/intelligence/interpret-ask.ts');
+const {interpretAskQuestion,prepareAskInterpretationRequest}=await import('../app/lib/intelligence/interpret-ask.ts');
 const {bindCatalogIntent,beginCatalogHydration}=await import('../app/lib/intelligence/catalog-intent.ts');
 const {hydratePlanningCatalog,verifyPlanningCatalogSource}=await import('../app/lib/intelligence/hydrate-planning-catalog.ts');
 const {admitAiOperation}=await import('../app/lib/ai/usage-guard/admission.ts');
 const {MemoryAiGuardTestStore}=await import('../app/lib/ai/usage-guard/memory-test-store.ts');
-const {createAskWirePlan}=await import('../app/lib/intelligence/ask-wire-policy.mjs');
-const {ASK_REQUEST_INSTRUCTIONS,askRequestProviderSchema}=await import('../app/lib/intelligence/ask-request-contract.ts');
-const {proposedSemanticFrameJsonSchema}=await import('../app/lib/intelligence/semantic-frame/schema.ts');
-const {factorProviderEnumSchemas}=await import('../app/lib/ai/provider-enum-schema.ts');
-const {factorProviderCompoundSchemas}=await import('../app/lib/ai/provider-compound-schema.ts');
 const seed=JSON.parse(readFileSync(new URL('./fixtures/ask-catalog-proof-seed.json',import.meta.url),'utf8'));
 function setup(){
  const f=fixture('Coat looked clean.');f.context.conversationId=id(8);f.rows.ask_conversation_messages[0].conversation_id=id(8);
@@ -43,10 +38,10 @@ test('unavailable catalog fails closed without guessed exact handles',()=>admitt
 test('same Brain source-free intent then permitted exact selection; Binder owns record/version',()=>admitted(async()=>{
  const{f,intent}=setup();const row={id:id(4),user_id:id(1),pet_profile_id:f.pet.id,note:'Supplied original.',occurred_at:'2026-09-22T00:00:00Z',created_at:'2026-09-22T00:00:00Z',updated_at:'2026-09-22T00:00:00Z'};
  const order=[];let calls=0;globalThis.__replaceCatalog={rpc:async(name)=>{order.push(name);return{data:[row],error:null};}};
- const wire=createAskWirePlan(factorProviderCompoundSchemas(factorProviderEnumSchemas(askRequestProviderSchema(proposedSemanticFrameJsonSchema,projectAskInterpretationContext(f.context)))),ASK_REQUEST_INSTRUCTIONS);
- const result=await interpretAskQuestion({context:f.context,model:'gpt-5.4-mini',catalogService:{requestId:'staged-exact',capability:()=>({available:true}),hydrate:permit=>hydratePlanningCatalog(permit,f.context,f.db),verify:permit=>verifyPlanningCatalogSource(permit,f.db)},client:{responses:{create:async request=>{
+ const prepared=prepareAskInterpretationRequest(f.context,'gpt-5.4-mini'),wire=prepared.wire;
+ const result=await interpretAskQuestion({context:f.context,model:'gpt-5.4-mini',catalogService:{requestId:'staged-exact',capability:()=>({available:true}),hydrate:permit=>hydratePlanningCatalog(permit,prepared.context,f.db),verify:permit=>verifyPlanningCatalogSource(permit,f.db)},client:{responses:{create:async request=>{
  calls++;order.push('brain-'+calls);const text=JSON.stringify(request);assert.ok(!text.includes(row.id),'opaque provider catalog');
- if(calls===1){assert.ok(!text.includes(row.note));assert.deepEqual(request.text.format.schema,wire.schema);return{output_text:JSON.stringify(wire.encode({request:intent})),usage:{input_tokens:0,output_tokens:0}};}
+ if(calls===1){assert.ok(!text.includes(row.note));assert.deepEqual(request.text.format.schema,prepared.request.text.format.schema);assert.equal(request.instructions,prepared.request.instructions);assert.equal(request.input,prepared.request.input);return{output_text:JSON.stringify(wire.encode({request:intent})),usage:{input_tokens:0,output_tokens:0}};}
  assert.equal(calls,2);const input=JSON.parse(request.input);assert.equal(input.catalog.evidence[0].body,row.note);assert.notEqual(input.catalog.evidence[0].reference,row.id);
  return{output_text:JSON.stringify({version:'ask-catalog-selection.v1',disposition:'selected',reference:input.catalog.evidence[0].reference}),usage:{input_tokens:0,output_tokens:0}};
  }}}});

@@ -443,6 +443,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
   let contextUsed: typeof turnView.contextUsed & { evidenceNeeds?: EvidenceNeed[]; needCoverage?: NeedCoverage[]; historyCoverage?: Pick<HistoryCoverage, "retrieval" | "corrections" | "continuation" | "reasons" | "consistency" | "perPet"> } = turnView.contextUsed;
 
   let orchestration;
+  let sourceWindowDisclosure: string | null = null;
   let creditReserved = false;
   let creditFinalState = "not_reserved";
   let providerCallCount = 0;
@@ -524,6 +525,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
             return hydrated;
           } },
       });
+      sourceWindowDisclosure = interpretation.sourceWindow?.disclosure ?? null;
       if (interpretation.catalogLimitation) {
         if (creditReserved) {
           const released = await safeReleaseAiCredit({ logicalRequestId: logicalTurnId, payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
@@ -942,7 +944,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
     clarificationQuestion: reasoning?.responseMode === "clarification"
       ? reasoning.suggestedFollowUps[0] || null
       : "clarificationQuestion" in orchestration ? orchestration.clarificationQuestion : null,
-    missingUsefulDetails: [],
+    missingUsefulDetails: sourceWindowDisclosure ? [sourceWindowDisclosure] : [],
     suggestedQuestions: reasoning?.suggestedFollowUps || [],
     applicationActions: preparedApplicationActions,
     interactionMode: deterministicLossInteraction || reasoning?.responseMode === "grief_support"

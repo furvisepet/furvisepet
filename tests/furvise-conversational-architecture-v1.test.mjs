@@ -174,7 +174,7 @@ test("canonical profile authority rejects a foreign owner and a substituted pet"
 });
 
 test("confirmation-required and destructive actions cannot execute before confirmation", async () => {
-  for (const kind of ["pet.mark_deceased", "pet.archive", "pet.delete_permanently"]) {
+  for (const kind of ["pet.mark_deceased", "pet.archive"]) {
     const [action] = prepareFurviseApplicationActions({
       petId: "pet-mani", petName: "Mani", requestId: `request-${kind}`,
       proposals: [{
@@ -186,6 +186,21 @@ test("confirmation-required and destructive actions cannot execute before confir
     assert.equal(action.status,"confirmation_required",kind);
     assert.equal(action.resultMessage,null);
   }
+});
+
+test("permanent deletion needs a canonical REMOVE job and still cannot auto-execute",async()=>{
+ const {fixture,id}=await import('./helpers/canonical-replace.mjs');
+ const {validateAskRequest}=await import('../app/lib/intelligence/ask-request-contract.ts');
+ const {resolveRemovePlan}=await import('../app/lib/furvise-brain/remove-job.ts');
+ const {prepareBoundRemoveAction}=await import('../app/lib/application-actions/planner.ts');
+ const f=fixture();f.pet.updated_at='2026-09-22T00:00:00Z';
+ Object.assign(f.request,{writeJob:null,removeJob:{operation:'remove',domain:'pet_profile',target:'subject_profile',petName:f.pet.name,instructionQuote:f.source.text.trim()},selection:'summary',mutationIntent:null,requirements:[],frame:null});
+ const job=validateAskRequest(f.request,f.context).request.removeJob;
+ const action=prepareBoundRemoveAction(await resolveRemovePlan(job,f.db,id(1)),'request');
+ assert.deepEqual(prepareFurviseApplicationActions({petId:f.pet.id,petName:f.pet.name,requestId:'r',sourceMessage:f.source.text,proposals:[{kind:'pet.delete_permanently',explicitIntent:true,evidence:f.source.text,input:{target:'selected'}}]}),[]);
+ assert.equal(action.kind,'pet.delete_permanently');assert.equal(action.status,'confirmation_required');
+ assert.equal(action.confirmationPolicy,'always');assert.equal(action.safetyClass,'DESTRUCTIVE');assert.equal(action.resultMessage,null);
+ assert.throws(()=>authorizeFurviseActionExecution({action,capabilityId:'cap',mode:'auto'}),/CONFIRMATION|AUTO_NOT_AUTHORIZED/);
 });
 
 test("stale acknowledgement titles do not inherit legacy urgent presentation", async () => {

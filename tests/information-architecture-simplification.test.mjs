@@ -1,3 +1,4 @@
+import {PUBLIC_V1_CAPABILITIES} from '../app/lib/public-v1-capabilities.ts';
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
@@ -24,12 +25,12 @@ test("duplicate summary redirects and remembered details preserve pet identity",
   assert.match(read("app/pets/[id]/memories/page.tsx"), /dogs\/\[id\]\/memories\/page/);
 });
 
-test("pet profile stays a compact fact file with one Vet Brief handoff", () => {
+test("pet profile stays a compact fact file with public generation disabled", () => {
   const page = read("app/pets/[id]/page.tsx");
   assert.match(page, /buildPetProfileFactRows\(profile\)/);
   assert.match(page, /pet-details-heading/);
   assert.match(page, /<dl className="mt-5 divide-y/);
-  assert.match(page, /href=\{`\/vet-brief\?pet=\$\{petId\}&source=pet-profile`\}/);
+  assert.equal(PUBLIC_V1_CAPABILITIES.vetBriefGeneration,false);assert.doesNotMatch(page, /VET BRIEF/);assert.equal(page.includes("/vet-brief"),false);
   assert.doesNotMatch(page, /What Furvise remembers|Recent updates|Today.?s snapshot|Furvise guidance|listCareEntriesForPet|\/results\?|\/ask\?/);
 });
 
@@ -78,5 +79,5 @@ test("shared mobile-navigation clearance remains on pet and History pages", () =
 test("protected brand assets retain their approved hashes", () => {
   const hash = (path) => createHash("sha256").update(readFileSync(new URL(`../${path}`, import.meta.url))).digest("hex");
   assert.equal(hash("public/brand/furvise-logo.svg"), "15103e452559f4f29b0492a6731782ecd680992f62798be95ddc7aba544f3b00");
-  assert.equal(hash("app/favicon.ico"), "7645741d1a690c78a6a235c21fb57b93533ab2c86be3437f8ab28180497220e3");
+  assert.equal(hash("public/favicon.ico"), "7645741d1a690c78a6a235c21fb57b93533ab2c86be3437f8ab28180497220e3");
 });

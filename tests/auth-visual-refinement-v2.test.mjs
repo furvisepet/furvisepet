@@ -134,7 +134,7 @@ test("Auth challenge mounts on submit and one valid token resumes exactly one gu
   assert.ok(handleAuthToken.indexOf("setAuthSubmitPending(false)") < handleAuthToken.indexOf("submitAuth(token)"));
   assert.match(requestAuth, /if \(authCaptchaTokenRef\.current\) \{[\s\S]*authCaptchaTokenRef\.current = null;[\s\S]*submitAuth\(token\)/);
   assert.equal((requestAuth.match(/submitAuth\(token\)/g) || []).length, 1);
-  assert.match(submitAuth, /if \(!token\) return/);
+  assert.match(submitAuth, /if \(isAuthCaptchaEnabled\(\) && !token\) return/);
   assert.match(submitAuth, /captchaToken: token/);
   assert.match(submitAuth, /await fetch\(endpoint, init\)/);
   assert.match(submitAuth, /idempotentClientFetch\(endpoint, init, `auth-signup:\$\{normalizedEmail\}`\)/);
@@ -149,14 +149,14 @@ test("recovery and resend defer their APIs until a pending action receives a tok
   assert.match(handleResetToken, /if \(!token\) \{[\s\S]*submitPendingRef\.current = false;[\s\S]*setSubmitPending\(false\)/);
   assert.match(handleResetToken, /if \(!submitPendingRef\.current\) return/);
   assert.equal((handleResetToken.match(/submitReset\(token\)/g) || []).length, 1);
-  assert.match(submitReset, /if \(!token\) return/);
+  assert.match(submitReset, /if \(isAuthCaptchaEnabled\(\) && !token\) return/);
   assert.match(submitReset, /captchaToken: token/);
   assert.match(requestResend, /setResendChallengeVisible\(true\)/);
   assert.doesNotMatch(requestResend, /idempotentClientFetch|\/api\/auth\/resend/);
   assert.match(handleResendToken, /if \(!token\) \{[\s\S]*resendSubmitPendingRef\.current = false;[\s\S]*setResendSubmitPending\(false\)/);
   assert.match(handleResendToken, /if \(!resendSubmitPendingRef\.current\) return/);
   assert.equal((handleResendToken.match(/resendConfirmation\(token\)/g) || []).length, 1);
-  assert.match(resend, /if \(!normalizedEmail \|\| !token/);
+  assert.match(resend, /if \(!normalizedEmail \|\| \(isAuthCaptchaEnabled\(\) && !token\)/);
   assert.match(resend, /emailOtpMode === "signin_otp" \? "\/api\/auth\/login-otp\/start" : "\/api\/auth\/resend"/);
   assert.match(resend, /idempotentClientFetch\(endpoint,[\s\S]*captchaToken: token/);
   assert.match(login, /const SIGNUP_RESEND_COOLDOWN_SECONDS = 60/);

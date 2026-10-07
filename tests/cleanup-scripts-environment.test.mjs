@@ -58,7 +58,10 @@ async function runCleanupScript({ response, rpc, script }) {
   const address = server.address();
   assert.ok(address && typeof address === "object");
 
-  const childEnv = { ...process.env };
+  const childEnv = { ...process.env,
+    NODE_OPTIONS: '--import='+new URL('./helpers/loopback-only-loader.mjs',import.meta.url).href,
+    FURVISE_OFFLINE_ORIGIN: 'http://127.0.0.1:'+address.port,
+  };
   for (const name of ["SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SECRET_KEY", "SUPABASE_SERVICE_ROLE_KEY", "NODE_ENV", "__NEXT_PROCESSED_ENV"]) {
     delete childEnv[name];
   }

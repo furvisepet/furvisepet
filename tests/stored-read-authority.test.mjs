@@ -1,3 +1,5 @@
+import {stagedOperation,sourceFixtureDb} from './helpers/staged-operation-fixture.mjs';
+import {admittedReceiptCatalog} from './helpers/receipt-catalog-permit.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {readFileSync} from 'node:fs';
@@ -22,6 +24,7 @@ function database(tables){
  return {queries,from(table){const filters=[];let cap=Infinity;const q={
   select(){return q},eq(k,v){filters.push(r=>r[k]===v);queries.push([table,k,v]);return q},
   is(k,v){return q.eq(k,v)},in(k,v){filters.push(r=>v.includes(r[k]));return q},
+  lte(k,v){filters.push(r=>r[k]<=v);queries.push([table,k,v]);return q},
   order(){return q},limit(n){cap=n;return q},
   then(resolve,reject){const found=(tables[table]||[]).filter(r=>filters.every(f=>f(r)));return Promise.resolve({data:found.slice(0,cap),error:null,count:found.length}).then(resolve,reject)},
   async maybeSingle(){const r=await q;return {...r,data:r.data.length===1?r.data[0]:null}},
@@ -127,7 +130,7 @@ async function capability(kind,status='succeeded'){
   action_payload:action,status,receipt:status==='pending'?null:{...action,id:id(5),status,resultMessage:status==='succeeded'?'Done.':null,errorMessage:null},
   created_at:'2026-09-23T00:00:00Z',expires_at:'2099-01-01T00:00:00Z'};
  const db=database({ask_action_capabilities:[row]});
- const references=await loadStoredReadReferences(owner,db);
+ const references=await admittedReceiptCatalog({db,owner,pet:{id:pet,user_id:owner,name:'Subject'},now});
  assert.equal(references.length,1);
  return {row,db,references,p:plan('operation_receipt','owner',references[0].ref,references)};
 }
@@ -194,7 +197,7 @@ test('owner READ is explicit and cannot acquire pet or mutation scope',()=>{
 });
 test('receipt reference catalog is bounded and does not require current wording',async()=>{
  const c=await capability('replace'),rows=Array.from({length:20},(_,i)=>({...c.row,id:id(50+i)}));
- const db=database({ask_action_capabilities:rows}),refs=await loadStoredReadReferences(owner,db);
+ const db=database({ask_action_capabilities:rows}),refs=await admittedReceiptCatalog({db,owner,pet:{id:pet,user_id:owner,name:'Subject'},now});
  assert.equal(refs.length,12);assert.equal(new Set(refs.map(r=>r.ref)).size,12);
  assert.ok(refs.every(r=>r.ownerId===owner && r.payloadDigest===storedReadDigest(c.row.action_payload)));
 });
@@ -260,21 +263,18 @@ test('owner-scoped stored READ survives the real callback without selected-pet s
   assert.deepEqual(response.relevantContextIds,['memory:'+id(20)]);
  }finally{if(oldKey===undefined)delete process.env.OPENAI_API_KEY;else process.env.OPENAI_API_KEY=oldKey;}
 });
-test('Brain transport binds opaque receipt READ for arbitrary wording with one injected proposal',async()=>{
- const {interpretAskQuestion}=await import('../app/lib/intelligence/interpret-ask.ts');
+test('Brain transport binds opaque receipt READ only after source-bound catalog hydration',async()=>{
  const c=await capability('replace'),f=fixture();
  for(const question of ['And the outcome of that operation?','Has the ledger acknowledged my change?']){
-  let calls=0;
+  const context={...f.context,currentMessage:question,currentTurn:{...f.context.currentTurn,text:question},conversationId:'receipt-transport',storedReadReferences:c.references};
   const request={...f.request,mode:'read',mutationIntent:null,writeJob:null,frame:null,evidenceBasis:'stored',selection:'summary',
-   operation:'recall',question,scope:'none',petNames:[],storedRead:{operation:'read',domain:'operation_receipt',scope:'owner',reference:c.references[0].ref,projection:'records'}};
-  const context={...f.context,currentMessage:question,storedReadReferences:c.references};
-  const interpretation=await interpretAskQuestion({context,model:'gpt-5.4-mini',client:{responses:{async create(input){
-   calls++;const prompt=JSON.parse(input.input);
-   assert.ok(JSON.stringify(prompt).includes(c.references[0].ref));
-   return {status:'completed',output_text:JSON.stringify({request}),usage:{input_tokens:1,output_tokens:1}};
-  }}}});
-  assert.equal(calls,1);assert.equal(interpretation.request.storedRead.reference.capabilityId,c.row.id);
-  const result=await executeStoredRead(interpretation.request.storedRead,{ownerId:owner,ownedPetIds:[],db:c.db,capabilityDb:c.db,now});
+   operation:'recall',question,scope:'none',petNames:[],storedRead:{operation:'read',domain:'operation_receipt',scope:'owner',reference:null,projection:'records'}};
+  const run=await stagedOperation({context,purpose:'receipt',request,db:sourceFixtureDb(context,c.db),
+   initial:(input,wire)=>{assert.equal(input.storedReadReferences,undefined);assert.equal(wire.input.includes(c.references[0].ref),false);assert.equal(wire.input.includes(c.row.id),false);},
+   catalog:input=>{assert.equal(input.catalog.evidence.length,1);assert.notEqual(input.catalog.evidence[0].reference,c.row.id);}
+  });
+  assert.equal(run.calls,2);assert.equal(run.result.request.storedRead.reference.capabilityId,c.row.id);
+  const result=await executeStoredRead(run.result.request.storedRead,{ownerId:owner,ownedPetIds:[],db:c.db,capabilityDb:c.db,now});
   assert.equal(result.status,'complete');assert.equal(result.records[0].operation.status,'succeeded');
  }
 });

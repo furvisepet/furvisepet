@@ -1,0 +1,58 @@
+[
+  {
+    "sourceCommit": "e2ab3a05690d115bff6c58719570ea1859920655",
+    "sourcePath": "docs/signup-email-otp-rollout.md",
+    "fixturePath": "tests/fixtures/legacy-documents/signup-email-otp-rollout.md",
+    "sha256": "1a216dfbf5fa52d93f08e75b5dd87c1f3fef12a85f3c5e4e8006acaabcab8dfc",
+    "purpose": "Historical regression input only; not current operational guidance or production state."
+  },
+  {
+    "sourceCommit": "e2ab3a05690d115bff6c58719570ea1859920655",
+    "sourcePath": "docs/billing-sandbox-e2e.md",
+    "fixturePath": "tests/fixtures/legacy-documents/billing-sandbox-e2e.md",
+    "sha256": "14ed5baaa94f2007937f0466f572d274215ace4659b9d98ce110459795a6dc8f",
+    "purpose": "Historical regression input only; not current operational guidance or production state."
+  },
+  {
+    "sourceCommit": "e2ab3a05690d115bff6c58719570ea1859920655",
+    "sourcePath": "docs/information-removal-semantics.md",
+    "fixturePath": "tests/fixtures/legacy-documents/information-removal-semantics.md",
+    "sha256": "8636c152064f01ee8fe7158210a096e38234dbccdff619029c51e4d7f52cff89",
+    "purpose": "Historical regression input only; not current operational guidance or production state."
+  },
+  {
+    "sourceCommit": "e2ab3a05690d115bff6c58719570ea1859920655",
+    "sourcePath": "docs/supabase-auth-production-checklist.md",
+    "fixturePath": "tests/fixtures/legacy-documents/supabase-auth-production-checklist.md",
+    "sha256": "e1531d13cf9edcc60153a7f8951ead263f2ceea1ba97be30cf9919172a9a7978",
+    "purpose": "Historical regression input only; not current operational guidance or production state."
+  },
+  {
+    "sourceCommit": "e2ab3a05690d115bff6c58719570ea1859920655",
+    "sourcePath": "docs/seo-v1-search-console-checklist.md",
+    "fixturePath": "tests/fixtures/legacy-documents/seo-v1-search-console-checklist.md",
+    "sha256": "483400d65ed51a843aa00defb27b71af203d994d78f993902951189e90bcad61",
+    "purpose": "Historical regression input only; not current operational guidance or production state."
+  },
+  {
+    "sourceCommit": "e2ab3a05690d115bff6c58719570ea1859920655",
+    "sourcePath": "docs/seo-content-strategy-v1.md",
+    "fixturePath": "tests/fixtures/legacy-documents/seo-content-strategy-v1.md",
+    "sha256": "a671a4b151b75882f07d49029bf65119f73d944db0c808949dc723d9ed3cfc75",
+    "purpose": "Historical regression input only; not current operational guidance or production state."
+  },
+  {
+    "sourceCommit": "e2ab3a05690d115bff6c58719570ea1859920655",
+    "sourcePath": "docs/visual-qa-checklist.md",
+    "fixturePath": "tests/fixtures/legacy-documents/visual-qa-checklist.md",
+    "sha256": "af064eafd84d40c295fa4ce51c9fa7456870b5fa42ca43c324d10140a7465001",
+    "purpose": "Historical regression input only; not current operational guidance or production state."
+  },
+  {
+    "sourceCommit": "e2ab3a05690d115bff6c58719570ea1859920655",
+    "sourcePath": "docs/v1-cleanup/artifacts/vet-brief-complex/sable-final-confirmed.json",
+    "fixturePath": "tests/fixtures/legacy-documents/v1-cleanup/artifacts/vet-brief-complex/sable-final-confirmed.json",
+    "sha256": "66d1a65ba50649c2223684ed7ea2059bca15c5cd7dacc812e09b89dcfde3061c",
+    "purpose": "Historical regression input only; not current operational guidance or production state."
+  }
+]

@@ -99,7 +99,7 @@ export function profileFieldValue(field: AuthorizedProfileField): string {
   return (Array.isArray(field.storedValue) ? JSON.stringify(field.storedValue) : String(field.storedValue)) + (field.unit ? " " + field.unit : "");
 }
 export function profileFieldSentence(field: AuthorizedProfileField, name: string): string {
-  return `${name} — saved profile: ${PROFILE_FIELD_DEFINITIONS[field.fieldSelector].label}: ${profileFieldValue(field)}`;
+  return `${name}: saved profile: ${PROFILE_FIELD_DEFINITIONS[field.fieldSelector].label}: ${profileFieldValue(field)}`;
 }
 export function profileFieldRecords(p: ProfileFieldProjection): AskContextRecord[] {
   return p.fields.filter(f => f.state !== "unavailable").map(f => ({

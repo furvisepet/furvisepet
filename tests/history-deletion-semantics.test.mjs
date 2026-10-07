@@ -9,7 +9,7 @@ const route = read("app/api/care-entries/[id]/route.ts");
 const workspace = read("app/components/care-log-workspace.tsx");
 const retrieval = read("app/lib/intelligence/retrieve-context.ts");
 const concernLoader = read("app/lib/ai/context-builder.ts");
-const documentation = read("docs/information-removal-semantics.md");
+const documentation = read("tests/fixtures/legacy-documents/information-removal-semantics.md");
 
 test("History Delete always uses the governed lifecycle dismissal contract", () => {
   assert.match(migration, /status in \('active', 'monitoring', 'resolved', 'dismissed'/);

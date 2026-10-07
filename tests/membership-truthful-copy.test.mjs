@@ -1,3 +1,4 @@
+import {PUBLIC_V1_CAPABILITIES} from '../app/lib/public-v1-capabilities.ts';
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -10,7 +11,8 @@ test("Membership promises only current plan limits and one shared-quality clarif
   assert.match(membership, /PLUS_ASK_ALLOWANCE/);
   assert.match(membership, /"1 pet profile"/);
   assert.match(membership, /PLAN_CAPABILITIES\.plus\.maxPets/);
-  assert.match(membership, /VET_BRIEF_USAGE_TERMS/);
+  assert.equal(PUBLIC_V1_CAPABILITIES.vetBriefGeneration,false);
+  assert.doesNotMatch(membership, /VET_BRIEF_USAGE_TERMS|Vet Brief|vet brief/);
   assert.match(disclosures, /failed preparation does not/);
   assert.match(membership, /MEMBERSHIP_CANCELLATION_TERMS/);
   assert.match(disclosures, /Cancel in Membership → Manage billing/);
@@ -20,7 +22,8 @@ test("Membership promises only current plan limits and one shared-quality clarif
 test("plan features appear once in consumer pricing cards", () => {
   assert.match(membership, /aria-label="Furvise membership plans"/);
   assert.match(membership, /"Unlimited lifetime care history"/);
-  assert.match(membership, /PLUS_VET_BRIEF_ALLOWANCE/);
+  assert.doesNotMatch(membership, /PLUS_VET_BRIEF_ALLOWANCE/);
+  assert.match(membership, /PLUS_ASK_ALLOWANCE/);
   assert.doesNotMatch(membership, /Compare plans|Care history and tracking|same reasoning and safety standards/i);
 });
 

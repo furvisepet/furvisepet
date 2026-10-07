@@ -1,3 +1,5 @@
+import {requestProposal} from './helpers/request-proposal.mjs';
+import {datedSelectionProposal} from './helpers/dated-selection-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {exercise,clock} from './helpers/lifetime-harness.mjs';
@@ -89,47 +91,30 @@ test('readiness never rescues missing obligations or failed evidence checks',()=
  assert.equal(reviewedTaskReadyForExecution([{index:0,status:'refused'},{index:1,status:'action_ready'}],checks),false);
 });
 
-test('reviewed application saves retain their action through the publication gate',async t=>{
- clock(t);
- const detail='Rowan ate dinner normally.';
- const q=detail+' Save this update to care history.';
- const r=await exercise(q,{fixturePets:owned,petId:owned[0].id,messages:[],rows:[],
-  interpretationProposal:proposal({mode:'update',operation:'general',evidenceBasis:null,evidenceNeeds:[],terms:[]}),
-  providerOverrides:{answer:detail,historyNarrative:null,applicationActions:[{kind:'care_history.add',explicitIntent:true,evidence:q,
-   input:{field:null,value:null,title:'Dinner note',detail,category:'general',target:'selected'}}]},
-  taskReviewProviderResponse:async request=>({status:'completed',output_text:JSON.stringify(readyVerdict(JSON.parse(request.input))),usage:{input_tokens:100,output_tokens:50}}),
- });
- assert.equal(r.publication.failure,null);
- assert.equal(r.publication.displayed.applicationActions.length,1);
- assert.equal(r.publication.displayed.applicationActions[0].input.detail,detail);
- assert.equal(r.publication.displayed.applicationActions[0].explicitIntent,true);
- assert.equal(r.result.answerValidation.assessment.outcome,'limited');
+test('canonical application save is unavailable under public policy before any effects',async()=>{
+ const {recoverAskInterpretation}=await import('../../app/lib/intelligence/interpret-ask.ts');
+ const {publicV1AskCapability,PUBLIC_V1_CAPABILITIES}=await import('../../app/lib/public-v1-capabilities.ts');
+ const detail='Rowan ate dinner normally.',q=detail+' Save this update to care history.';
+ const ctx={owner:{userId:owned[0].user_id},pet:owned[0],eligiblePets:owned,currentMessage:q,currentTurn:{id:'current',role:'user',text:q},conversationTurns:[]};
+ const canonical=requestProposal(proposal({question:q,mode:'update',operation:'general',evidenceBasis:null,evidenceNeeds:[],terms:[],frame:null,
+ appendJob:{operation:'append',petName:'Rowan',companionQuote:null,items:[{bodyQuote:detail,dateQuote:null,occurredAt:null,semantics:{classification:'observation',target:null}}]}}),q);
+ const bound=recoverAskInterpretation(canonical,ctx);
+ assert.equal(bound.request.appendJob.items[0].body.text,detail);assert.deepEqual(bound.petIds,[owned[0].id]);
+ assert.equal(PUBLIC_V1_CAPABILITIES.askMutations,false);assert.equal(publicV1AskCapability(bound.request).available,false);
 });
 
-test('mixed screenshot routes owned reads separately from the explicit write destination',async t=>{
+test('mixed screenshot binds distinct read and write subjects but public policy denies execution',async t=>{
  clock(t);
- const r=await exercise(question,{fixturePets:owned,petId:owned[0].id,messages:[],history:true,
- rows:[care('allergy',owned[1].id,'2026-06-01','general','Mochi has a chicken fat allergy.')],
- interpretationProposal:proposal(),expectedReviewCalls:1,reviewProviderResponse:async request=>{
-  const input=JSON.parse(request.input);
-  assert.equal(input.actions.length,1);
-  assert.equal(input.actions[0].petId,owned[0].id);
-  assert.equal(input.actions[0].input.sourceExcerpt,'Today, I am switching food to a new lamb formula.');
-  return {status:'completed',output_text:JSON.stringify({approved:true,retainedSentenceIndexes:input.draft.sentences.map((_,i)=>i),
-   obligations:input.obligations.map(({index})=>({index,status:'answered',sentenceIndexes:index?[0]:[0,1,2],actionIndexes:index?[]:[0]}))}),usage:{input_tokens:100,output_tokens:50}};
- },
- providerOverrides:{semanticEvents:[{subject:{type:'pet',name:'Rowan'},domain:'nutrition',topic:'food_transition',eventTitle:'Food changed',transition:'changed',state:'monitoring',temporal:{occurredAt:null,explicitTime:'Today'},importance:'routine',confidence:.99,sourceExcerpt:'Today, I am switching food to a new lamb formula.'}],answer:"Mochi's saved history reports a chicken fat allergy. A lamb label alone does not establish the ingredients; please provide the full ingredient list. The food update is for Rowan only.",historyNarrative:null,relevantContextIds:['care:allergy']},
- });
- assert.equal(r.context.pet.id,owned[0].id);
- assert.deepEqual(r.context.askInterpretation.petIds,[owned[0].id]);
- assert.deepEqual(r.context.askInterpretation.readPetIds,[owned[0].id,owned[1].id]);
- assert.ok(r.context.askHistory.entries.some(row=>row.id==='allergy'&&row.pet_profile_id===owned[1].id));
- assert.ok(r.prompt.contextRecords.some(row=>row.id==='care:allergy'&&row.petId===owned[1].id));
- assert.match(r.result.reasoning.answer.summary,/ingredient/i);
- assert.equal(r.result.executionPlan.semanticEvents.length,1);
- assert.equal(r.result.executionPlan.semanticEvents[0].event.subject.id,owned[0].id);
- assert.ok(r.result.executionPlan.semanticEvents.every(event=>event.event.subject.id!==owned[1].id));
- assert.doesNotMatch(JSON.stringify(r.result.executionPlan.careActions),/Mochi|chicken fat allergy/i);
+ const {recoverAskInterpretation}=await import('../../app/lib/intelligence/interpret-ask.ts');
+ const {publicV1AskCapability}=await import('../../app/lib/public-v1-capabilities.ts');
+ const body='Today, I am switching food to a new lamb formula.';
+ const p=datedSelectionProposal({question,petNames:['Mochi'],requests:[{quote:"based strictly on Mochi's history",petNames:['Mochi'],from:null,to:null,terms:['allergy','chicken'],count:1}]});
+ Object.assign(p,{mode:'mixed',appendJob:{operation:'append',petName:'Rowan',companionQuote:"Tell me if this new formula is safe based strictly on Mochi's history",items:[{bodyQuote:body,dateQuote:null,occurredAt:null,semantics:{classification:'observation',target:null}}]}});
+ const ctx={owner:{userId:owned[0].user_id},pet:owned[0],eligiblePets:owned,currentMessage:question,currentTurn:{id:'current',role:'user',text:question,createdAt:'2026-09-04T18:00:00Z'},conversationTurns:[]};
+ const r=recoverAskInterpretation(requestProposal(p,question),ctx);
+ assert.equal(r.request.appendJob.items[0].date,null);assert.equal(r.request.appendJob.items[0].occurredAt,null);assert.equal(r.request.appendJob.petId,owned[0].id);assert.equal(r.request.appendJob.items[0].body.text,body);
+ assert.deepEqual(r.request.readTicket.subjects.petIds,[owned[1].id]);assert.deepEqual(r.readPetIds,[owned[1].id]);assert.deepEqual(r.petIds,[owned[0].id]);assert.equal(r.request.appendJob.companion.text,"Tell me if this new formula is safe based strictly on Mochi's history");
+ assert.equal(publicV1AskCapability(r.request).available,false);assert.equal(r.readOnly,false);
 });
 
 test('read subjects and planner hints cannot grant mutation authority',()=>{
@@ -153,8 +138,9 @@ test('a genuine eleven-thousand-character record retains its middle measurement'
  });
  const span=r.result.reasoning.evidenceContract.represented.find(span=>span.sourceId==='care:long-weight');
  assert.equal(span.text,longNote);
- assert.equal(r.result.reasoning.answer.summary.split(/\n\s*\n/).length,2);
- assert.match(r.result.reasoning.answer.summary,/0\.4 kg/);
+ assert.equal(r.result.answerValidation.assessment.outcome,'limited');
+ assert.equal(r.requests.length,0);assert.equal(r.reviewRequests.length,0);
+ assert.doesNotMatch(r.result.reasoning.answer.summary,/difference of 0\.4 kg|weight trend/);
  assert.deepEqual(r.result.executionPlan.semanticEvents,[]);
 });
 

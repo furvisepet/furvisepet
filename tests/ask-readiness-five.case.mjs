@@ -1,3 +1,6 @@
+import {stressProposal} from '../scripts/audits/helpers/current-stress-harness.mjs';
+import {assertSourceFreePublication} from '../scripts/audits/helpers/publication-call-expectations.mjs';
+import {publicV1AskCapability,PUBLIC_V1_CAPABILITIES} from '../app/lib/public-v1-capabilities.ts';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { exercise, clock } from '../scripts/audits/helpers/lifetime-harness.mjs';
@@ -21,7 +24,7 @@ test('Q1 pet switch does not import prior pet history into Luna', async t=>{
   assert.ok(!/Milo had|Milo's soft-stool/i.test(run.result.reasoning.answer.summary));
 });
 
-test('Q2 first-across-pets chronology identifies Oscar without inventing other pets', async t=>{
+test('Q2 unsupported cross-pet ranking cannot invent a certified first event', async t=>{
   clock(t);
   const q='Across Milo, Luna, Oscar, and Bruno, which pet had morning stiffness first, and when was it recorded?';
   const run=await exercise(q,{rows:decisive,history:true,petId:'milo',
@@ -31,9 +34,9 @@ test('Q2 first-across-pets chronology identifies Oscar without inventing other p
     providerOverrides:{answer:'Oscar had the earliest supplied morning-stiffness record, on June 10, 2013.',
       historyNarrative:{sentences:[{text:'Oscar had the earliest supplied morning-stiffness record, on June 10, 2013.',sourceIds:['care:oscar-stiffness-1'],calculations:[]}]}},
     reviewResponse:reviewApproved,expectedReviewCalls:1});
-  assert.equal(run.result.answerValidation.assessment.outcome,'complete');
-  assert.match(run.result.reasoning.answer.summary,/Oscar/i);
-  assert.match(run.result.reasoning.answer.summary,/2013|June 10/i);
+  assertSourceFreePublication(run);
+  assert.deepEqual(new Set(run.context.askInterpretation.request.readTicket.subjects.petIds),new Set(['milo','luna','oscar','bruno']));
+  assert.doesNotMatch(run.result.reasoning.answer.summary,/Oscar.*first|earliest.*Oscar/);
 });
 
 test('Q3 unknown versus absence: Luna urine test remains not established, not never', async t=>{
@@ -48,19 +51,15 @@ test('Q3 unknown versus absence: Luna urine test remains not established, not ne
     reviewResponse:reviewApproved,expectedReviewCalls:null});
   const text=run.result.reasoning.answer.summary;
   assert.doesNotMatch(text,/Luna never had|no urine test ever existed|definitely did not/i);
-  assert.match(text,/do not establish|could not find|not established|not documented/i);
+  assertSourceFreePublication(run);
+  assert.match(text,/not supported by certified publication.*can’t provide a verified result/);
 });
 
 test('Q4 correction wording attributes 2014 vomiting to Bruno, not Milo, without claiming a verified graph edge', async t=>{
   clock(t);
   const q='What do the saved correction notes say about the July 9, 2014 vomiting report—was that Milo or Bruno?';
   const run=await exercise(q,{rows:decisive,history:true,petId:'milo',
-    interpretationProposal:{scope:'named',petNames:['Milo','Bruno'],operation:'comparison',selection:'comparison',from:'2014-07-09',to:'2026-09-05',
-      temporalScope:'historical',topic:'vomiting correction',terms:['vomit','correction'],
-      evidenceNeeds:[
-        {quote:'saved correction notes',sourceTurnId:null,terms:['correction','vomit'],petNames:['Milo','Bruno'],order:'latest'},
-        {quote:'July 9, 2014 vomiting report',sourceTurnId:null,terms:['vomit'],petNames:['Milo','Bruno'],order:'context'}
-      ],episodeTopic:null,ordinal:null},
+    interpretationProposal:stressProposal({authority:'stored_report',petNames:['Milo','Bruno'],terms:['correction'],from:'2014-07-09',to:'2026-09-05'}),
     providerOverrides:{answer:'The saved correction notes report that the July 9, 2014 vomiting belonged to Bruno, not Milo.',
       historyNarrative:{sentences:[{text:'The saved correction notes report that the July 9, 2014 vomiting belonged to Bruno, not Milo.',
         sourceIds:['care:bruno-correction','care:milo-correction'],calculations:[]}]}},
@@ -68,10 +67,13 @@ test('Q4 correction wording attributes 2014 vomiting to Bruno, not Milo, without
   assert.equal(run.result.answerValidation.assessment.outcome,'complete');
   assert.match(run.result.reasoning.answer.summary,/Bruno/i);
   assert.match(run.result.reasoning.answer.summary,/not Milo/i);
-  assert.match(run.result.reasoning.answer.summary,/correction notes report|saved correction/i);
+  assert.equal(run.result.reasoning.model,'server-labs-list');assert.equal(run.requests.length,0);assert.equal(run.reviewRequests.length,0);
+  assert.deepEqual(new Set(run.result.reasoning.relevantContextIds),new Set(['care:bruno-correction','care:milo-correction']));
+  for(const record of run.result.reasoning.labsList.records)assert.equal(record.body,decisive.find(row=>row.id===record.id).note);
+  assert.equal(run.result.reasoning.labsList.ticket.authority,'stored_report');
 });
 
-test('Q5 mixed profile + history arithmetic keeps missing profile weight separate from historical change', async t=>{
+test('Q5 unsupported mixed profile and arithmetic cannot reuse prose as factual authority', async t=>{
   clock(t);
   const q="For Milo, compare the February 1, 2011 saved weight with the latest saved weight, give the exact change in kg, and also tell me whether his current profile has a weight recorded.";
   const run=await exercise(q,{rows:decisive,history:true,petId:'milo',
@@ -90,7 +92,9 @@ test('Q5 mixed profile + history arithmetic keeps missing profile weight separat
       ]}},
     reviewResponse:reviewApproved,expectedReviewCalls:1});
   const text=run.result.reasoning.answer.summary;
-  assert.match(text,/28\.4 kg/i); assert.match(text,/27\.8 kg/i); assert.match(text,/-0\.6 kg/i);
-  assert.match(text,/profile weight.*not recorded|current profile.*not recorded/i);
-  assert.doesNotMatch(text,/current profile weight.*27\.8/i);
+  assertSourceFreePublication(run);
+  assert.equal(PUBLIC_V1_CAPABILITIES.calculationExecution,false);
+  assert.equal(publicV1AskCapability({mode:'read',calculatePlan:{operation:'calculate'}}).reason,'calculation');
+  assert.doesNotMatch(text,/28\.4 kg|27\.8 kg|-0\.6 kg|profile weight.*not recorded/i);
+  assert.notEqual(run.context.pet.weight_value,27.8);
 });

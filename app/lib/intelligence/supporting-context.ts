@@ -106,11 +106,11 @@ export function allocateSupportingContext(input: {
   const authoritative: CareEntryRow[] = [], authoritativeOmittedIds: string[] = [];
   let chars = 0, count = 0;
   const fits = (row: CareEntryRow) => count < budget.records && chars + size(row) <= budget.chars;
-  const use = (row: CareEntryRow) => { chars += size(row); count++; return Object.freeze({ ...row }); };
+  const retain = (row: CareEntryRow) => { chars += size(row); count++; return Object.freeze({ ...row }); };
   // Preserve semantic order. If mandatory facts cannot fit, do not fill their
   // missing slots with context or pretend their representation is complete.
   for (const row of input.authoritativeRecords) {
-    if (fits(row)) authoritative.push(use(row)); else authoritativeOmittedIds.push(row.id);
+    if (fits(row)) authoritative.push(retain(row)); else authoritativeOmittedIds.push(row.id);
   }
   const omitted = new Map<string, string>();
   const pool = new Map<string, CareEntryRow>();
@@ -139,7 +139,7 @@ export function allocateSupportingContext(input: {
   function keep(row: CareEntryRow) {
     if (retained.has(row.id)) return true;
     if (!fits(row)) { omitted.set(row.id, "representation_budget"); return false; }
-    supporting.push(use(row)); retained.add(row.id); omitted.delete(row.id); return true;
+    supporting.push(retain(row)); retained.add(row.id); omitted.delete(row.id); return true;
   }
   if (!authoritativeOmittedIds.length) {
     // One fitting reservation per signal/subject each round, before optional fill.

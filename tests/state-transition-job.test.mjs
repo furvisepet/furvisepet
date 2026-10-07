@@ -1,3 +1,4 @@
+import {stagedOperation,sourceFixtureDb} from './helpers/staged-operation-fixture.mjs';
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -130,15 +131,15 @@ test("safety, recurrence and semantic recovery remain diagnostic without a canon
  supabase:{from(){throw Error("NO_LEGACY_MUTATION");}}});
  assert.equal(blocked.suggestion,null);assert.equal(blocked.errorCode,"CANONICAL_SUGGESTION_REQUIRED");
 });
-test("one mocked Brain call chooses a supplied handle; deterministic preparation adds no provider",async()=>{
- const {interpretAskQuestion}=await import("../app/lib/intelligence/interpret-ask.ts");let calls=0;const c=context();
- const result=await interpretAskQuestion({context:c,model:"offline-fixture",client:{responses:{create:async r=>{
-  calls++;const input=JSON.parse(r.input);assert.equal(input.concernTargets[0].targetRef,"opaque-reference");
-  assert.equal(input.concernTargets[0].concernId,undefined);return {output_text:JSON.stringify({request:request(proposal())})};
- }}}});
- const prepared=prepareStateTransitionTurn(result.request.stateTransitionJob,c,"r");
- assert.equal(calls,1);assert.equal(prepared.orchestration.aiResult,null);
- assert.equal(prepared.action.stateTransitionJob.concernId,id(3));
+test("admitted intent and catalog selection chooses a supplied handle; deterministic preparation adds no provider",async()=>{
+const c=context();c.conversationId=id(7);delete c.concernReferences;
+const rows={pet_concerns:[{id:id(3),user_id:pet.user_id,pet_profile_id:pet.id,title:'Tracked condition',status:'active',updated_at:'2026-09-22T00:00:00Z'}]};
+const f=concernDb(rows),p={...proposal(),targetRef:null};
+const r=await stagedOperation({context:c,purpose:'concern',request:request(p),db:sourceFixtureDb(c,f.db),
+ initial:input=>{assert.equal(input.concernTargets,undefined);assert.ok(!JSON.stringify(input).includes(id(3)));},
+ catalog:input=>{assert.equal(input.catalog.evidence.length,1);assert.notEqual(input.catalog.evidence[0].reference,id(3));assert.ok(!JSON.stringify(input.catalog).includes(id(3)));}});
+const prepared=prepareStateTransitionTurn(r.result.request.stateTransitionJob,r.context,'r');
+assert.equal(r.calls,2);assert.equal(prepared.orchestration.aiResult,null);assert.equal(prepared.action.stateTransitionJob.concernId,id(3));assert.equal(prepared.action.stateTransitionJob.petId,pet.id);
 });
 test("legacy concern classifiers cannot construct execution targets after Brain",()=>{
  const run=read("app/lib/intelligence/run-intelligence.ts"),planner=read("app/lib/application-actions/planner.ts");
@@ -171,22 +172,24 @@ test("durable transition source checks the exact owned target and legal current 
  assert.doesNotMatch(branch,/order by|limit 1/i);
  // This is a source contract check, not database execution.
 });
-test("planning supplies only owned concern handles and lookup failure supplies none",async()=>{
- const {buildFurvisePlanningContext}=await import("../app/lib/intelligence/planning-context.ts");
- const rows={dog_profiles:[pet],ask_conversations:[{id:id(7),user_id:pet.user_id,pet_profile_id:pet.id}],
- ask_conversation_messages:[{id:id(4),user_id:pet.user_id,conversation_id:id(7),role:"user",user_text:text,created_at:"2026-09-23T00:00:00Z"}],
- pet_concerns:[{id:id(3),user_id:pet.user_id,pet_profile_id:pet.id,title:"Tracked condition",status:"active"},
- {id:id(9),user_id:"foreign",pet_profile_id:pet.id,title:"Foreign",status:"active"}]};
- let fail=false;
- const db={from(table){let filters=[],single=false;const q={select(){return q;},eq(k,v){filters.push(r=>r[k]===v);return q;},
- in(k,v){filters.push(r=>v.includes(r[k]));return q;},order(){return q;},limit(){return q;},
- maybeSingle(){single=true;return q;},then(resolve,reject){const data=rows[table].filter(r=>filters.every(f=>f(r)));
- return Promise.resolve({data:single?data[0]:data,error:fail&&table==="pet_concerns"?{code:"offline"}:null}).then(resolve,reject);}};return q;}};
- const args={supabase:db,userId:pet.user_id,petId:pet.id,conversationId:id(7),currentMessage:text,sourceMessageId:id(4),locale:"en"};
- const planned=await buildFurvisePlanningContext(args);
- assert.equal(planned.concernReferences.length,1);assert.equal(planned.concernReferences[0].concernId,id(3));
- assert.notEqual(planned.concernReferences[0].ref,id(3));assert.equal(planned.activeConcerns.length,1);
- assert.deepEqual(planned.careEntries,[]);
- fail=true;const unavailable=await buildFurvisePlanningContext(args);assert.deepEqual(unavailable.concernReferences,[]);
- assert.throws(()=>bindStateTransitionJob(proposal(),{source:unavailable.currentTurn,ownerId:pet.user_id,pets:[pet],references:[]}),/exact_target|state_transition/);
+test("initial planning is metadata-only; admitted hydration scopes owned concerns and fails closed",async()=>{
+const {buildFurvisePlanningContext}=await import('../app/lib/intelligence/planning-context.ts');
+const rows={dog_profiles:[pet],ask_conversations:[{id:id(7),user_id:pet.user_id,pet_profile_id:pet.id}],
+ask_conversation_messages:[{id:id(4),user_id:pet.user_id,conversation_id:id(7),role:'user',user_text:text,created_at:'2026-09-23T00:00:00Z'}],
+pet_concerns:[{id:id(3),user_id:pet.user_id,pet_profile_id:pet.id,title:'Tracked condition',status:'active',updated_at:'2026-09-22T00:00:00Z'},
+{id:id(9),user_id:'foreign',pet_profile_id:pet.id,title:'Foreign',status:'active',updated_at:'2026-09-22T00:00:00Z'}]};
+const f=concernDb(rows),args={supabase:f.db,userId:pet.user_id,petId:pet.id,conversationId:id(7),currentMessage:text,sourceMessageId:id(4),locale:'en'};
+const planned=await buildFurvisePlanningContext(args);
+assert.equal(planned.concernReferences,undefined);assert.deepEqual(planned.activeConcerns,[]);assert.deepEqual(planned.careEntries,[]);assert.deepEqual(f.queries,['dog_profiles','ask_conversations','ask_conversation_messages']);
+const run=()=>stagedOperation({context:planned,purpose:'concern',request:request({...proposal(),targetRef:null}),db:f.db});
+const r=await run();assert.equal(r.context.concernReferences.length,1);assert.equal(r.context.concernReferences[0].concernId,id(3));assert.notEqual(r.context.concernReferences[0].ref,id(3));
+f.fail=true;await assert.rejects(run);assert.equal(planned.concernReferences,undefined);
+assert.throws(()=>bindStateTransitionJob(proposal(),{source:planned.currentTurn,ownerId:pet.user_id,pets:[pet],references:[]}),/exact_target|state_transition/);
 });
+
+function concernDb(rows){
+const f={fail:false,queries:[]};f.db={from(table){f.queries.push(table);const filters=[];let single=false;const q={
+select(){return q},eq(k,v){filters.push(r=>r[k]===v);return q},in(k,v){filters.push(r=>v.includes(r[k]));return q},
+lte(k,v){filters.push(r=>Date.parse(r[k])<=Date.parse(v));return q},order(){return q},limit(){return q},maybeSingle(){single=true;return q},
+then(resolve,reject){const data=(rows[table]||[]).filter(r=>filters.every(f=>f(r)));return Promise.resolve({data:single?data[0]:data,error:f.fail&&table==='pet_concerns'?{code:'offline'}:null}).then(resolve,reject)}};return q}};return f;
+}

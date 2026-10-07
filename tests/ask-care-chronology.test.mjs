@@ -37,13 +37,14 @@ test("UI confirmation requires a persisted status and a concrete entry id", () =
 test("persistence failure cannot show Added to care history", () => {
   assert.match(askPage, /getAskCareHistoryState\(message\)/);
   assert.match(askPage, /careHistoryState === "SAVE_FAILED"/);
-  assert.match(persistence, /status: "failed", careEntryIds: \[\]/);
+  assert.doesNotMatch(persistence, /persistCanonicalCareAction|\.rpc\(/);
+  assert.match(publication, /carePersistence\.status === "persisted" && carePersistence\.careEntryIds\.length > 0/);
 });
 
-test("a repeated save request reuses the previous source entry", () => {
-  assert.match(askRoute, /findExistingCareEventForSaveRequest/);
-  assert.match(askRoute, /alreadyPersisted: true/);
-  assert.match(askRoute, /update is already in/);
+test("a repeated prose save request cannot invent an already-persisted receipt",async()=>{
+ assert.doesNotMatch(askRoute,/findExistingCareEventForSaveRequest/);
+ const {assertLegacyProseRejected}=await import('./helpers/legacy-prose-boundary.mjs');
+ await assertLegacyProseRejected({type:'history',payload:{alreadyPersisted:true,careEntryIds:['old']}},'Save that again.');
 });
 
 test("recurrence is a distinct chronological event", () => {
@@ -55,7 +56,8 @@ test("recurrence is a distinct chronological event", () => {
 test("recurrence reopens the stateful concern episode", () => {
   assert.match(migration, /status = 'reopened'/);
   assert.match(migration, /episode_sequence = greatest/);
-  assert.match(intelligence, /action: "reopen_concern"/);
+  assert.match(intelligence, /withoutLegacyConcernTransitions/);
+  assert.doesNotMatch(intelligence, /buildRecurrenceAction|buildSourceGroundedResolutionAction/);
 });
 
 test("later recovery resolves the active recurrence", () => {
@@ -120,11 +122,12 @@ test("the same source message cannot create duplicate care events", () => {
   assert.match(migration, /already_persisted/);
 });
 
-test("deterministic already-saved confirmation spends no AI credit", () => {
-  const confirmation = askRoute.indexOf("confirmedExistingCarePersistence && !ownerNotePersistence ?");
-  const orchestrator = askRoute.indexOf("await orchestrateAskTurn", confirmation);
-  assert.ok(confirmation > -1 && orchestrator > confirmation);
-  assert.match(askRoute, /handledWithoutAi: true/);
+test("canonical receipt replay crosses the capability boundary without an AI credit",()=>{
+ const capabilities=read('app/lib/application-actions/capabilities.ts');
+ assert.match(capabilities,/execute_ask_action_capability/);assert.match(capabilities,/confirmFurviseWriteReceipt/);
+ assert.doesNotMatch(capabilities,/admitAiOperation|reserveAiCredit|completeAiCredit|responses.create/);
+ assert.doesNotMatch(askRoute,/findExistingCareEventForSaveRequest/);
+ assert.match(askRoute,/const confirmedExistingCarePersistence: CarePersistenceResult \| null = null/);
 });
 
 test("resolved chronology permits unrelated grooming answers", () => {

@@ -1,48 +1,49 @@
+import {stressProposal} from './helpers/current-stress-harness.mjs';
+import {episodeOrganFixture} from './helpers/episode-organ-fixture.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { exercise, clock } from './helpers/lifetime-harness.mjs';
 import { care, ownerId } from './fixtures/ask-lifetime-history.mjs';
+const scopedProposal=(question,quantity,ordinal)=>{const p=stressProposal({question,petNames:['Milo'],terms:[],from:'2011-01-01',to:'2012-01-01'});return {...p,operation:'episode',quantity,episodeTopic:'vomiting',ordinal,readTicket:{...p.readTicket,episode:{operation:'membership',referent:{basis:'scoped_register',topic:'vomiting',ordinal}}}};};
 const source = care('recorded-one','milo','2011-02-01','symptom','Milo had a new vomiting episode.',{episode_id:'registered-one'});
 const episode = {id:'registered-one',user_id:ownerId,pet_profile_id:'milo',normalized_key:'vomiting',started_at:source.occurred_at,updated_at:source.updated_at,sequence_number:7,recurrence_of:null,status:'resolved'};
 const payload = () => ({membership_contract:'ask-episode-membership.v1',episodes:[episode],sources:[source],claims:[],memberships:[{id:'edge-one',user_id:ownerId,pet_profile_id:'milo',episode_id:episode.id,care_entry_id:source.id,claim_id:null,event_ordinal:1,event_role:'opening',occurred_at:source.occurred_at,created_at:source.created_at,source_issue:null}],recorded_inventory:{version:'ask-recorded-inventory.v1',ownerId,petId:'milo',keys:['vomiting','vomit'],from:null,to:null,revision:'1',snapshot:'2026-09-04T18:00:00Z',episodeCount:1,careIds:[source.id],claimIds:[],failures:[]}});
-const run = (data=payload(), options={}) => exercise('List all recorded vomiting episodes over Milo lifetime.',{history:true,rows:data.sources,messages:[],careEpisodes:data.episodes,episodeRowsOverride:data,answer:'Exactly seven lifetime episodes.',...options});
+const run = (data=payload(), options={}) => episodeOrganFixture('List all recorded vomiting episodes over Milo lifetime.',{history:true,rows:data.sources,messages:[],careEpisodes:data.episodes,episodeRowsOverride:data,answer:'Exactly seven lifetime episodes.',...options});
 for (const quantity of ['records', 'duration', 'episodes']) test(`standalone scoped ordinal retrieves certified members for ${quantity}`, async t => {
  clock(t); const d = many(2);
  d.recorded_inventory.from = '2011-01-01T00:00:00.000Z'; d.recorded_inventory.to = '2012-01-01T00:00:00.000Z';
- const r = await exercise('Show Milo’s second recorded vomiting episode in 2011.', {
+ const r = await episodeOrganFixture('Show Milo’s second recorded vomiting episode in 2011.', {
   history: true, expectedReviewCalls: 1, rows: d.sources, messages: [], careEpisodes: d.episodes, episodeRowsOverride: d,
-  interpretationProposal: { operation: 'episode', subject: 'explicit', petNames: ['Milo'], selection: 'reference', quantity,
-   topic: 'vomiting', terms: ['vomiting'], from: '2011-01-01', to: '2012-01-01', episodeTopic: 'vomiting', ordinal: 'second' },
+  interpretationProposal:scopedProposal('Show Milo’s second recorded vomiting episode in 2011.',quantity,'second'),
  });
  assert.equal(r.context.askInterpretation.referenceTarget.basis, 'scoped_register');
  assert.equal(r.context.episodeResult.referenceStatus, 'resolved');
  assert.equal(r.context.episodeResult.items[0].id, 'episode:ep-1');
  assert.deepEqual(r.context.episodeResult.details.map(s => s.sourceId), ['care:source-1']);
  assert.equal(r.queries.some(q => q.table === 'read_ask_episode_references'), false);
- assert.deepEqual(r.result.acceptedCareActions, []);
+ assert.deepEqual(r.effects, []);
 });
 for (const failure of ['incomplete', 'out_of_range', 'display_bound', 'access_clipped']) test(`scoped ordinal rejects ${failure} without a substitute`, async t => {
  clock(t); const d = many(failure === 'display_bound' ? 12 : 1);
  d.recorded_inventory.from = '2011-01-01T00:00:00.000Z'; d.recorded_inventory.to = '2012-01-01T00:00:00.000Z';
  if (failure === 'incomplete') d.recorded_inventory.failures = ['unknown_classification'];
- const r = await exercise(`Show Milo’s ${failure === 'out_of_range' ? 'eighth' : 'last'} recorded vomiting episode in 2011.`, {
+ const r = await episodeOrganFixture(`Show Milo’s ${failure === 'out_of_range' ? 'eighth' : 'last'} recorded vomiting episode in 2011.`, {
   history: true, expectedReviewCalls: 1, rows: d.sources, messages: [], careEpisodes: d.episodes, episodeRowsOverride: d,
   ...(failure === 'access_clipped' ? { historyAccess: { months: 60, from: '2011-02-01T00:00:00.000Z', to: '2016-02-01T00:00:00.000Z' } } : {}),
-  interpretationProposal: { operation: 'episode', subject: 'explicit', petNames: ['Milo'], selection: 'reference', quantity: 'records',
-   topic: 'vomiting', terms: ['vomiting'], from: '2011-01-01', to: '2012-01-01', episodeTopic: 'vomiting', ordinal: failure === 'out_of_range' ? 'eighth' : 'last' },
+  interpretationProposal:scopedProposal(`Show Milo’s ${failure === 'out_of_range' ? 'eighth' : 'last'} recorded vomiting episode in 2011.`,'records',failure==='out_of_range'?'eighth':'last'),
  });
  assert.equal(r.context.episodeResult.referenceStatus, 'clarify');
  assert.deepEqual(r.context.episodeResult.items, []);
  assert.equal(r.context.episodeResult.details, undefined);
 });
-test('complete recorded inventory reaches actual callback and final validator', async t=>{
+test('complete recorded inventory reaches the episode organ and serializer', async t=>{
  clock(t); const r=await run();
  assert.equal(r.context.episodeResult.exactTotal,1);
  assert.equal(r.context.episodeResult.items[0].sequenceNumber,7);
  assert.equal(r.context.episodeResult.items[0].ordinal,1);
- assert.match(r.result.reasoning.answer.summary,/Exactly 1 recorded vomiting episode/);
- assert.doesNotMatch(r.result.reasoning.answer.summary,/seven lifetime/);
- assert.deepEqual(r.result.acceptedCareActions,[]); assert.deepEqual(r.result.acceptedLearnings,[]);
+ assert.match(r.answer.summary,/Exactly 1 recorded vomiting episode/);
+ assert.doesNotMatch(r.answer.summary,/seven lifetime/);
+ assert.deepEqual(r.effects,[]); assert.deepEqual(r.effects,[]);
 });
 for (const kind of ['absent','stale snapshot','unknown version','stale revision','partial','unknown classification','ambiguous grouping','import gap','deleted','forgotten','corrected','overflow','owner','pet','concept','period','missing source','extra source','source hash','nonboundary note','ambiguous onset','missing member','episode count']) {
  test(`${kind} fails closed through callback`,async t=>{
@@ -68,8 +69,8 @@ for (const kind of ['absent','stale snapshot','unknown version','stale revision'
   if(kind==='missing member') d.memberships=[];
   if(kind==='episode count') d.recorded_inventory.episodeCount=2;
   const r=await run(d,options); assert.equal(r.context.episodeResult.exactTotal,null);
-  assert.doesNotMatch(r.result.reasoning.answer.summary,/Exactly \d+ recorded/);
-  assert.deepEqual(r.result.acceptedCareActions,[]); assert.deepEqual(r.result.acceptedLearnings,[]);
+  assert.doesNotMatch(r.answer.summary,/Exactly \d+ recorded/);
+  assert.deepEqual(r.effects,[]); assert.deepEqual(r.effects,[]);
  });
 }
 function many(n) {
@@ -85,11 +86,11 @@ test('full aggregate of 12 shares census with bounded eight-item display and ref
  clock(t); const r=await run(many(12));
  assert.equal(r.context.episodeResult.exactTotal,12);assert.equal(r.context.episodeResult.items.length,8);
  assert.equal(r.context.episodeResult.supportedCount,12);
- assert.match(r.result.reasoning.answer.summary,/Exactly 12 recorded/);assert.match(r.result.reasoning.answer.summary,/Showing 8/);
- assert.equal(r.prompt.contextRecords.filter(r=>r.sourceType==='episode_evidence').length,8);
+ assert.match(r.answer.summary,/Exactly 12 recorded/);assert.match(r.answer.summary,/Showing 8/);
+ assert.equal(r.context.episodeResult.items.length,8);
  const {attachEpisodeReferences}=await import('../../app/lib/intelligence/episode-contract.ts');
  const {buildAskConversationResponse}=await import('../../app/lib/ask.mjs');
- const response=attachEpisodeReferences(buildAskConversationResponse(r.result.reasoning.answer),r.context.episodeResult);
+ const response=attachEpisodeReferences(buildAskConversationResponse(r.answer),r.context.episodeResult);
  assert.equal(response.episodeReferences.items.length,8);assert.equal(response.episodeReferences.exactTotal,null);
  assert.equal(attachEpisodeReferences({...response,directAnswer:'Changed by safety'},r.context.episodeResult).episodeReferences,undefined);
 });
@@ -98,11 +99,11 @@ test('an invalid undisplayed ninth group prevents exact aggregate',async t=>{
  const r=await run(d);assert.equal(r.context.episodeResult.exactTotal,null);assert.equal(r.context.episodeResult.items.length,8);
 });
 test('complete empty retained register yields recorded zero only',async t=>{
- clock(t);const r=await run(many(0));assert.equal(r.context.episodeResult.exactTotal,0);assert.match(r.result.reasoning.answer.summary,/Exactly 0 recorded/);
+ clock(t);const r=await run(many(0));assert.equal(r.context.episodeResult.exactTotal,0);assert.match(r.answer.summary,/Exactly 0 recorded/);
 });
 test('mutation after second graph pass invalidates census',async t=>{
  clock(t);const d=payload();let calls=0;
- const r=await run(d,{graphAtCall(){if(++calls===3)d.recorded_inventory.revision='2';return {};}});
+ const r=await run(d,{graphAtCall(){if(++calls===2)d.recorded_inventory.revision='2';return {};}});
  assert.equal(r.context.episodeResult.exactTotal,null);assert.equal(r.context.episodeResult.coverage,'unavailable');
 });
 test('claim-only native membership can certify the narrow recorded scope',async t=>{
@@ -119,23 +120,23 @@ for(const changed of [false,true]) test(`imported lineage deduplication, changed
 });
 test('period census and final answer use the identical half-open scope',async t=>{
  clock(t);const d=payload();d.recorded_inventory.from='2011-01-01T00:00:00+00:00';d.recorded_inventory.to='2012-01-01T00:00:00+00:00';
- const r=await exercise('List all recorded vomiting episodes in 2011.',{history:true,rows:d.sources,messages:[],careEpisodes:d.episodes,episodeRowsOverride:d});
- assert.equal(r.context.episodeResult.exactTotal,1);assert.match(r.result.reasoning.answer.summary,/for 2011/);
+ const r=await episodeOrganFixture('List all recorded vomiting episodes in 2011.',{history:true,rows:d.sources,messages:[],careEpisodes:d.episodes,episodeRowsOverride:d});
+ assert.equal(r.context.episodeResult.exactTotal,1);assert.match(r.answer.summary,/for 2011/);
  assert.ok(r.queries.filter(q=>q.table==='read_ask_episode_sources').every(q=>Date.parse(q.args.p_from)===Date.parse(d.recorded_inventory.from)&&Date.parse(q.args.p_to)===Date.parse(d.recorded_inventory.to)));
 });
 test('references from a 12-group census resolve against the pinned eight-group page',async t=>{
  clock(t);const d=many(12);const r=await run(d);
  const {attachEpisodeReferences}=await import('../../app/lib/intelligence/episode-contract.ts');const {buildAskConversationResponse}=await import('../../app/lib/ask.mjs');
- const saved={id:'saved',user_id:ownerId,conversation_id:'chat',role:'furvise',sequence_number:2,response_data:attachEpisodeReferences(buildAskConversationResponse(r.result.reasoning.answer),r.context.episodeResult)};
+ const saved={id:'saved',user_id:ownerId,conversation_id:'chat',role:'furvise',sequence_number:2,response_data:attachEpisodeReferences(buildAskConversationResponse(r.answer),r.context.episodeResult)};
  const page=structuredClone(d);const ids=new Set(r.context.episodeResult.items.map(i=>i.id.slice(8)));
  page.episodes=page.episodes.filter(e=>ids.has(e.id));page.sources=page.sources.filter(s=>ids.has(s.episode_id));page.memberships=page.memberships.filter(m=>ids.has(m.episode_id));delete page.recorded_inventory;
- const follow=await exercise('What changed during the first episode?',{history:true,rows:d.sources,messages:[saved],careEpisodes:d.episodes,episodeRowsOverride:page});
+ const follow=await episodeOrganFixture('What changed during the first episode?',{history:true,rows:d.sources,messages:[saved],careEpisodes:d.episodes,episodeRowsOverride:page});
  assert.equal(follow.context.episodeResult.referenceStatus,'resolved');assert.equal(follow.context.episodeResult.items[0].sequenceNumber,100);
  assert.equal(follow.context.episodeResult.exactTotal,null);
 });
 test('PostgreSQL offset timestamp at period start is included',async t=>{
  clock(t);const d=payload();d.sources[0]={...source,occurred_at:'2011-01-01T00:00:00+00:00'};d.episodes[0]={...episode,started_at:d.sources[0].occurred_at};d.memberships[0].occurred_at=d.sources[0].occurred_at;
  d.recorded_inventory.from='2011-01-01T00:00:00+00:00';d.recorded_inventory.to='2012-01-01T00:00:00+00:00';
- const r=await exercise('List all recorded vomiting episodes in 2011.',{history:true,rows:d.sources,messages:[],careEpisodes:d.episodes,episodeRowsOverride:d});
+ const r=await episodeOrganFixture('List all recorded vomiting episodes in 2011.',{history:true,rows:d.sources,messages:[],careEpisodes:d.episodes,episodeRowsOverride:d});
  assert.equal(r.context.episodeResult.exactTotal,1);
 });

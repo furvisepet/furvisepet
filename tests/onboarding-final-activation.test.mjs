@@ -68,8 +68,8 @@ test("onboarding Ask starters are exact, compact, and name-aware", () => {
   assert.equal(ASK_ONBOARDING_SOURCE, "onboarding");
   assert.deepEqual(buildOnboardingAskStarters("Mani"), [
     "What do you remember about Mani so far?",
-    "What should I keep an eye on with Mani?",
-    "What should I tell you when something changes?",
+    "What was the earliest recorded weight for Mani?",
+    "When did we change Mani's food?",
   ]);
   const source = read("app/ask/page.tsx");
   const component = source.slice(source.indexOf("function OnboardingAskStarters"), source.indexOf("function UserMessage"));
@@ -119,7 +119,7 @@ test("onboarding presentation is dismissed without reload and does not resurrect
 
 test("normal Ask keeps its generic empty state and explicit-pet authority", () => {
   const source = read("app/ask/page.tsx");
-  assert.match(source, /const emptyStarters = \[[\s\S]*What has changed recently\?[\s\S]*What should I keep an eye on\?[\s\S]*next vet visit/);
+  assert.match(source, /const emptyStarters = \[[\s\S]*earliest recorded weight\?[\s\S]*latest recorded weight\?[\s\S]*When did we change/);
   assert.match(source, /const requestedPet = searchParams\.get\("pet"\)/);
   assert.match(source, /resolveAskPetSelection\(\{ explicitPetId: requestedPet, pets: rows, storedPetId: storedPet \}\)/);
   assert.match(source, /showOnboardingStarters[\s\S]*<OnboardingAskStarters[\s\S]*<EmptyConversation/);

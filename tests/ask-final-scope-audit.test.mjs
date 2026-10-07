@@ -1,11 +1,11 @@
 import * as C from "./helpers/canonical-calculation-retirement.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { historyNarrativeAnchorsSupported } from '../app/lib/intelligence/history-narrative-facts.ts';
-import { clipHistoryPlan } from '../app/lib/intelligence/history-access.ts';
-import { recordHistoryReview, readReviewedHistoryAnswer, historyReviewSignature } from '../app/lib/intelligence/history-review-state.ts';
-import { recordedInventory, recordedCensus } from '../app/lib/intelligence/recorded-inventory.ts';
-import { episodeAnswer } from '../app/lib/intelligence/episode-contract.ts';
+const { historyNarrativeAnchorsSupported }=await import("../app/lib/intelligence/history-narrative-facts.ts");
+const { clipHistoryPlan }=await import("../app/lib/intelligence/history-access.ts");
+const { recordHistoryReview, readReviewedHistoryAnswer, historyReviewSignature }=await import("../app/lib/intelligence/history-review-state.ts");
+const { recordedInventory, recordedCensus }=await import("../app/lib/intelligence/recorded-inventory.ts");
+const { episodeAnswer }=await import("../app/lib/intelligence/episode-contract.ts");
 
 test('signed source quantities cannot silently reverse sign', () => {
   for (const [source, answer] of [['Change was -5 kg.', 'Change was 5 kg.'], ['Change was 5 kg.', 'Change was -5 kg.'], ['Change was −5 kg.', 'Change was 5 kg.']])
@@ -47,9 +47,9 @@ test('unresolved episode corrections do not masquerade as a transient outage', (
   assert.match(episodeAnswer({ ...result, reasons: ['episode_read_unavailable'] }).summary, /try again|retry/i);
 });
 
-import { withExecutionDeadline } from '../app/lib/ai/execution-deadline.ts';
-import { assertStoredPublicationUnavailable } from './helpers/unsupported-stored-publication.mjs';
-import { certifiedHistoryRead } from './helpers/certified-history-read.mjs';
+const { withExecutionDeadline }=await import("../app/lib/ai/execution-deadline.ts");
+const { assertStoredPublicationUnavailable }=await import('./helpers/unsupported-stored-publication.mjs');
+const { certifiedHistoryRead }=await import('./helpers/certified-history-read.mjs');
 test('shared execution timeout settles an abort-ignoring read and observes late rejection', async () => {
   let rejectRead, signal;
   const pending = withExecutionDeadline(s => { signal = s; return new Promise((_, reject) => { rejectRead = reject; }); }, 10);

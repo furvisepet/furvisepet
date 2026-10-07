@@ -30,7 +30,7 @@ test("the common header uses the approved full lockup", () => {
 
 test("approved legal content matches the launch membership disclosures", () => {
   assert.equal(hash("app/privacy/page.tsx"), "3aed01db2169275c80a8b47e6a7dc7d9f1c8d2af68369c00cf0db43e710f95b4");
-  assert.equal(hash("app/terms/page.tsx"), "4ba68f73c10c9434a4b67a30e1aeb12d315d3a97a46435992838707eb97023a5");
+  assert.equal(hash("app/terms/page.tsx"), "11fadb9181b1af62b47a1b8d5755463b3392cb6585a416b0cf5c7b4ff720334a");
 });
 
 test("Privacy contains meaningful V1 data, AI, control, and contact sections", () => {
@@ -86,10 +86,11 @@ test("membership terms use the production V1 entitlement source of truth", () =>
   assert.match(terms, /PLUS_ASK_ALLOWANCE/);
   assert.match(terms, /PLAN_CAPABILITIES\.free\.maxPets/);
   assert.match(terms, /PLAN_CAPABILITIES\.plus\.maxPets/);
-  assert.match(terms, /FREE_VET_BRIEF_ALLOWANCE/);
-  assert.match(terms, /PLUS_VET_BRIEF_ALLOWANCE/);
+  assert.doesNotMatch(terms, /FREE_VET_BRIEF_ALLOWANCE/);
+  assert.doesNotMatch(terms, /PLUS_VET_BRIEF_ALLOWANCE/);
   assert.match(terms, /MEMBERSHIP_CANCELLATION_TERMS/);
-  assert.match(terms, /VET_BRIEF_USAGE_TERMS/);
+  assert.match(terms, /Both plans include unlimited care-history logging/);
+  assert.doesNotMatch(terms, /VET_BRIEF_USAGE_TERMS/);
   assert.doesNotMatch(terms, /CA\$|5\.49/);
 });
 

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { prepareReviewedVetBrief, vetBriefReviewChecks } from '../app/lib/vet-brief/review.ts';
 import { parseVetBriefPublicationReview } from '../app/lib/vet-brief/publication-review.ts';
 import { readFileSync } from 'node:fs';
-const fixture = JSON.parse(readFileSync(new URL('../docs/v1-cleanup/artifacts/vet-brief-complex/sable-final-confirmed.json', import.meta.url)));
+const fixture = JSON.parse(readFileSync(new URL('../tests/fixtures/legacy-documents/v1-cleanup/artifacts/vet-brief-complex/sable-final-confirmed.json', import.meta.url)));
 const original = fixture.confirmed_data;
 const pass = { ...Object.fromEntries(vetBriefReviewChecks.map(k => [k, true])), repairInstructions: '', repairSections: [] };
 

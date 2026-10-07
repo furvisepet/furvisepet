@@ -14,23 +14,26 @@ test('profile context retains raw stored decimal and row timestamp, not measurem
  const r=context().records.find(r=>r.kind==='weight');
  assert.equal(r.value,'4.71 kg');assert.equal(r.createdAt,pet.updated_at);assert.equal(r.occurredAt,null);
 });
-test('unmigrated mixed-field context retains its legacy unit default',()=>{
- assert.equal(context({fields:['weight','age'],profile:{...pet,weight_unit:null}}).records.find(r=>r.kind==='weight').value,'4.71 lb');
+test('mixed-field context cannot invent a unit for stored weight',()=>{
+ const rows=context({fields:['weight','age'],profile:{...pet,weight_unit:null}}).records;
+ assert.equal(rows.some(r=>r.kind==='weight'),false);assert.ok(rows.some(r=>r.kind==='age'));assert.doesNotMatch(JSON.stringify(rows),/4\.71 lb/);
 });
 test('loaded null produces scoped not-recorded evidence; omitted property produces no value',()=>{
  assert.match(context({profile:{...pet,weight_value:null}}).records.find(r=>r.kind==='weight').value,/Not recorded in the saved profile/);
  const absent={...pet};delete absent.weight_value;
  assert.equal(context({profile:absent}).records.some(r=>r.kind==='weight'),false);
 });
-test('unmigrated mixed-field context retains existing-policy authority',()=>{
- const c=context({fields:['weight','age']});assert.equal(derivePublicationAuthority(c.promptContext.evidenceContract),null);
+test('mixed-field authority certifies only the explicit stored fields',()=>{
+ const c=context({fields:['weight','age']}),authority=derivePublicationAuthority(c.promptContext.evidenceContract);
+ assert.deepEqual(authority.authorizedSourceIds,['profile:pet-a:weight','profile:pet-a:age']);
+ assert.ok(authority.obligations.every(o=>o.authority==='certified'));
  assert.ok(eligibleAnswerSources(c.promptContext.evidenceContract).some(s=>s.sourceId==='profile:pet-a:weight'));
 });
-test('unmigrated mixed-field wording still uses existing compatibility expansion',()=>{
+test('question wording cannot expand explicit profile field authority',()=>{
  const plain=context({fields:['species','age'],question:'Saved species'});
  const extra=context({fields:['species','age'],question:'Saved species and breed'});
  assert.equal(plain.records.some(r=>r.kind==='breed'),false);
- assert.equal(extra.records.some(r=>r.kind==='breed'),true);
+ assert.equal(extra.records.some(r=>r.kind==='breed'),false);assert.deepEqual(extra.records,plain.records);
 });
 test('typed nonnumeric profile sources retain explicit field identities',()=>{
  const rows=context({fields:['species','sex','breed'],question:'Saved details'}).records;

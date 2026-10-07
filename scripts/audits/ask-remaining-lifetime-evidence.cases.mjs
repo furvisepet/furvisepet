@@ -1,3 +1,4 @@
+import {episodeOrganFixture} from './helpers/episode-organ-fixture.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { exercise, clock } from './helpers/lifetime-harness.mjs';
@@ -8,16 +9,16 @@ const first = care('lifetime-first', 'milo', '2011-02-01', 'symptom', 'Milo had 
 const second = care('lifetime-second', 'milo', '2014-07-09', 'symptom', 'Milo had a separate vomiting episode.', { episode_id: 'lifetime-ep2' });
 const episodes = [first, second].map((s, i) => ({ id: s.episode_id, user_id: ownerId, pet_profile_id: 'milo', normalized_key: 'vomiting',
   started_at: s.occurred_at, last_event_at: s.occurred_at, updated_at: s.updated_at, status: 'resolved', sequence_number: i ? 12 : 7, recurrence_of: i ? first.episode_id : null }));
-const run = (options = {}, question = 'List all vomiting episodes over Milo lifetime.') => exercise(question, {
+const run = (options = {}, question = 'List all vomiting episodes over Milo lifetime.') => episodeOrganFixture(question, {
   history: true, rows: [first, second], careEpisodes: episodes, messages: [], ...options,
 });
 function absent(r, id) {
   assert.equal(r.context.episodeResult.items.some(item => item.id === `episode:${id}`), false);
-  assert.equal(r.prompt.contextRecords.some(item => item.id === `episode:${id}`), false);
+  assert.doesNotMatch(JSON.stringify(r.answer),new RegExp(id));
   assert.equal(r.context.episodeResult.references?.items.some(item => item.id === `episode:${id}`) ?? false, false);
   assert.equal(r.context.episodeResult.exactTotal, null);
-  assert.deepEqual(r.result.acceptedCareActions, []);
-  assert.deepEqual(r.result.acceptedLearnings, []);
+  assert.deepEqual(r.effects, []);
+  assert.deepEqual(r.effects, []);
 }
 for (const kind of ['oversized note', 'omitted title', 'missing note']) {
   test(`${kind} withholds its whole episode while preserving independently supported old evidence`, async t => {
@@ -39,20 +40,20 @@ test('stored sequence and recurrence survive old retrieval without becoming disp
   clock(t);
   const noise = Array.from({ length: 25 }, (_, i) => ({ ...episodes[0], id: `routine-${i}`, normalized_key: 'routine', last_event_at: '2026-09-03T00:00:00Z' }));
   const r = await run({ careEpisodes: [...noise, ...episodes], answer: 'Exactly twelve lifetime episodes.' });
-  const records = episodes.map(e => r.prompt.contextRecords.find(item => item.id === `episode:${e.id}`));
-  assert.deepEqual(records.map(r => r.metadata.sequence_number), [7, 12]);
-  assert.deepEqual(records.map(r => r.metadata.displayedOrdinal), [1, 2]);
-  assert.equal(records[1].metadata.recurrence_of, first.episode_id);
+  const records = episodes.map(e => r.context.episodeResult.items.find(item => item.id === `episode:${e.id}`));
+  assert.deepEqual(records.map(r => r.sequenceNumber), [7, 12]);
+  assert.deepEqual(records.map(r => r.ordinal), [1, 2]);
+  assert.equal(records[1].recurrenceOf, first.episode_id);
   assert.equal(r.context.episodeResult.exactTotal, null);
   assert.equal(r.context.episodeResult.supportedCount, 2);
-  assert.doesNotMatch(r.result.reasoning.answer.summary, /Exactly twelve/);
-  assert.match(r.result.reasoning.answer.summary, /not an exact lifetime total/);
+  assert.doesNotMatch(r.answer.summary, /Exactly twelve/);
+  assert.match(r.answer.summary, /not an exact lifetime total/);
 });
 test('newly omitted member invalidates a persisted displayed reference', async t => {
   clock(t);
   const original = await run();
   const saved = { id: 'saved', user_id: ownerId, conversation_id: 'chat', role: 'furvise', sequence_number: 2, created_at: '2026-09-04T00:00:00Z',
-    response_data: attachEpisodeReferences(buildAskConversationResponse(original.result.reasoning.answer), original.context.episodeResult) };
+    response_data: attachEpisodeReferences(buildAskConversationResponse(original.answer), original.context.episodeResult) };
   const member = care('later-member', 'milo', '2011-02-02', 'general', 'x'.repeat(2100), { episode_id: first.episode_id });
   const r = await run({ rows: [first, member, second], messages: [saved] }, 'What changed during the first episode?');
   absent(r, first.episode_id);

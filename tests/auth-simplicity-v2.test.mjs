@@ -58,7 +58,7 @@ test("login authority, generic errors, and fail-closed CAPTCHA serialization rem
   assert.match(authTokenHandler, /if \(!authSubmitPendingRef\.current\) return/);
   assert.match(authTokenHandler, /authSubmitPendingRef\.current = false/);
   assert.equal((authTokenHandler.match(/submitAuth\(token\)/g) || []).length, 1);
-  assert.match(submitAuth, /if \(!token\) return/);
+  assert.match(submitAuth, /if \(isAuthCaptchaEnabled\(\) && !token\) return/);
   assert.match(submitAuth, /endpoint = mode === "signin" \? "\/api\/auth\/login" : "\/api\/auth\/signup"/);
   assert.match(submitAuth, /captchaToken: token/);
   assert.match(submitAuth, /await fetch\(endpoint, init\)/);

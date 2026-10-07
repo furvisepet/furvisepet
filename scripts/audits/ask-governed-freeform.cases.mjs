@@ -1,3 +1,4 @@
+import {episodeOrganFixture} from './helpers/episode-organ-fixture.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { exercise, clock } from './helpers/lifetime-harness.mjs';
@@ -35,18 +36,18 @@ async function written() {
  data.recorded_inventory={version:'ask-recorded-inventory.v1',ownerId,petId:pet.id,keys:['vomiting','vomit'],from:null,to:null,revision:'4.1',snapshot:'2026-09-04T18:00:00Z',episodeCount:1,careIds:data.sources.map(s=>s.id),claimIds:[],failures:[]};
  return data;
 }
-const run=(d,options={})=>exercise('List all recorded vomiting episodes over Milo lifetime.',{history:true,rows:d.sources,messages:[],careEpisodes:d.episodes,episodeRowsOverride:d,...options});
-test('current governed writer -> inventory reader -> callback counts persisted identity across natural onset and continuation',async t=>{
+const run=(d,options={})=>episodeOrganFixture('List all recorded vomiting episodes over Milo lifetime.',{history:true,rows:d.sources,messages:[],careEpisodes:d.episodes,episodeRowsOverride:d,...options});
+test('governed writer unit -> episode organ counts persisted identity across natural onset and continuation',async t=>{
  clock(t);const d=await written();const r=await run(d);
  assert.equal(r.context.episodeResult.exactTotal,1);assert.equal(r.context.episodeResult.entryCount,2);
  assert.equal(r.context.episodeResult.items[0].sequenceNumber,7);
- assert.match(r.result.reasoning.answer.summary,/Exactly 1 recorded vomiting episode/);
- assert.deepEqual(r.result.acceptedCareActions,[]);assert.deepEqual(r.result.acceptedLearnings,[]);
+ assert.match(r.answer.summary,/Exactly 1 recorded vomiting episode/);
+ assert.deepEqual(r.effects,[]);assert.deepEqual(r.effects,[]);
  const {attachEpisodeReferences}=await import('../../app/lib/intelligence/episode-contract.ts');
  const {buildAskConversationResponse}=await import('../../app/lib/ask.mjs');
- const saved={id:'saved',user_id:ownerId,conversation_id:'chat',role:'furvise',sequence_number:2,response_data:attachEpisodeReferences(buildAskConversationResponse(r.result.reasoning.answer),r.context.episodeResult)};
+ const saved={id:'saved',user_id:ownerId,conversation_id:'chat',role:'furvise',sequence_number:2,response_data:attachEpisodeReferences(buildAskConversationResponse(r.answer),r.context.episodeResult)};
  const page=structuredClone(d);delete page.recorded_inventory;
- const follow=await exercise('What changed during the first episode?',{history:true,rows:d.sources,messages:[saved],careEpisodes:d.episodes,episodeRowsOverride:page});
+ const follow=await episodeOrganFixture('What changed during the first episode?',{history:true,rows:d.sources,messages:[saved],careEpisodes:d.episodes,episodeRowsOverride:page});
  assert.equal(follow.context.episodeResult.referenceStatus,'resolved');
  assert.deepEqual(follow.context.episodeResult.details.map(s=>s.note),[opening,continuation]);
 });
@@ -60,7 +61,7 @@ for(const kind of ['missing','changed','foreign owner','foreign pet','foreign to
  if(kind==='inferred role')p.transition='observed';
  if(kind==='corrected')d.memberships[0].recorded_provenance=null;
  if(kind==='forgotten')options.graph={withheld_source_ids:[d.sources[0].id]};
- if(kind==='revision'){let calls=0;options.graphAtCall=()=>{if(++calls===3)d.recorded_inventory.revision='5.1';return {};};}
+ if(kind==='revision'){let calls=0;options.graphAtCall=()=>{if(++calls===2)d.recorded_inventory.revision='5.1';return {};};}
  const r=await run(d,options);assert.equal(r.context.episodeResult.exactTotal,null);
 });
 for(const note of ['Milo did not start vomiting after breakfast.','If Milo started vomiting after breakfast, I would call the vet.','You said Milo started vomiting after breakfast.','Milo might have started vomiting after breakfast.','Bruno started vomiting after breakfast.','Correction: Milo never vomited after breakfast.'])test(`writer withholds provenance: ${note}`,()=>{

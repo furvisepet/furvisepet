@@ -40,7 +40,7 @@ test('full-wire regression: real interpretation admits its entire dispatched con
  assert.equal(calls,1);
  assert.ok(admitted?.text?.format?.schema,'FULL_WIRE_CONTRACT_OMITTED');
  assert.equal(JSON.stringify(admitted),JSON.stringify(sent));
- assert.equal(sent.max_output_tokens,100000);
+  assert.equal(sent.max_output_tokens,8192);
 });
 
 test('complete snapshot equals installed SDK serialized HTTP body, including all extra fields',async t=>{

@@ -44,6 +44,8 @@ const {readReviewedHistoryAnswer}=await import("../app/lib/intelligence/history-
 const {storedEmergencyApplies,storedEmergencyPublicationFailure,STORED_EMERGENCY}=await import("../app/lib/intelligence/stored-emergency-publication.ts");
 const {bindTypedReadTicket}=await import("../app/lib/furvise-brain/typed-read-ticket.ts");
 const {bindStoredRead}=await import("../app/lib/furvise-brain/stored-read.ts");
+const {executeStoredRead}=await import("../app/lib/furvise-brain/stored-read-organ.ts");
+const {bindStoredReadEvidence}=await import("../app/lib/intelligence/stored-read-publication.ts");
 const pet={id:"00000000-0000-4000-8000-000000000002",user_id:"00000000-0000-4000-8000-000000000001",name:"River",species:"dog",weight_value:87.41,weight_unit:"kg"};
 const emergency="River collapsed and cannot breathe. Show the requested saved information.";
 let boundaryCalls=0;
@@ -55,6 +57,12 @@ async function setup(basis="saved_profile",question=emergency){
  const evidence={version:"ask-evidence.v1",scope:{authorizedPetIds:[pet.id],requestText:question,status:"resolved",readOnlyRecall:true,requestKind:"ordinary"},
  petNames:{[pet.id]:pet.name},interpretation:{operation:"recall",readOnly:true,petIds:[pet.id],request},sources:[],represented:[],losses:[],verifiedFacts:[],representation:"complete",completeness:{retrieval:"unknown",corrections:"unknown",extraction:"unknown",grouping:"unknown"}};
  const context={activeConcerns:[],recentlyResolvedConcerns:[],activeEpisodes:[],monitoringEpisodes:[],currentState:null,pet,owner:{userId:pet.user_id},eligiblePets:[pet],askInterpretation:evidence.interpretation,currentMessage:question,memories:[],careEntries:[]};
+ if(basis==="stored"){
+  const db={from(table){assert.equal(table,"furvise_memories");const chain={then:resolve=>Promise.resolve({data:[],error:null,count:0}).then(resolve)};
+   for(const method of ["select","eq","is","in","order","limit"])chain[method]=()=>chain;return chain;}};
+  const receipt=await executeStoredRead(request.storedRead,{ownerId:pet.user_id,ownedPetIds:[pet.id],db});
+  assert.equal(receipt.status,"complete_empty");bindStoredReadEvidence(evidence,receipt);
+ }
  const response=await generateContextAwareAskResponse({profiles:[pet],question,careEntries:[],memories:[],recentUpdates:[],productFeedback:[],conversationTurns:[],evidenceContract:evidence,client:forbiddenClient});
  response.intelligenceSafety={level:"emergency",reason:"current emergency",requiresImmediateAction:true,shoppingSuppressed:true};
  const plan=()=>buildGovernedAskExecutionPlan({sourceMessageId:"source",petId:pet.id,careActions:[],semanticEvents:[],learnings:[]});

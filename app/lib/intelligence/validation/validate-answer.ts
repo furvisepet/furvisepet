@@ -321,7 +321,7 @@ export function validateGeneratedAnswer(
     if (response.answer.safetyNote) response.answer.safetyNote = stripOptionalAssistantOffers(response.answer.safetyNote) || null;
   }
   const assistantProse = askProseOnly([response.answer.title, response.answer.summary, ...response.answer.sections.flatMap(s => [s.heading, ...s.items]), response.answer.safetyNote || ""].join("\n"));
-  let answerText = JSON.stringify(response.answer);
+  const answerText = JSON.stringify(response.answer);
   const unauthorizedPetNamed = !conversationOnly && (context.eligiblePets || []).some(pet => {
     if (!pet.name || authoritativePetIds.includes(pet.id)) return false;
     return new RegExp("\\b" + escapeRegex(pet.name) + "\\b", "i").test(answerText);

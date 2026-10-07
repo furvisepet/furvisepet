@@ -67,5 +67,5 @@ test("mobile clearance and protected brand assets remain unchanged", () => {
   assert.match(read("app/globals.css"), /--mobile-nav-clearance: calc\([\s\S]*24px/);
   const hash = (path) => createHash("sha256").update(readFileSync(new URL(`../${path}`, import.meta.url))).digest("hex");
   assert.equal(hash("public/brand/furvise-logo.svg"), "15103e452559f4f29b0492a6731782ecd680992f62798be95ddc7aba544f3b00");
-  assert.equal(hash("app/favicon.ico"), "7645741d1a690c78a6a235c21fb57b93533ab2c86be3437f8ab28180497220e3");
+  assert.equal(hash("public/favicon.ico"), "7645741d1a690c78a6a235c21fb57b93533ab2c86be3437f8ab28180497220e3");
 });

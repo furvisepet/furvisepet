@@ -20,7 +20,10 @@ function dependencies(rows = [concern], error = null) {
 }
 function assertDiagnosticOnly(result, deps) {
   assert.equal(result.suggestion, null);
-  assert.equal(result.errorCode, "CANONICAL_STATE_TRANSITION_REQUIRED");
+  assert.equal(result.errorCode, "CANONICAL_SUGGESTION_REQUIRED");
+  assert.equal(result.careEntryId, null);
+  assert.equal(result.concernId, null);
+  assert.equal(result.effectAlreadyPresent, false);
   assert.deepEqual(deps.reads, []);
   assert.deepEqual(deps.writes, []);
 }
@@ -53,13 +56,13 @@ test('stale authority and lookup errors fail without an insert', async () => {
     assert.deepEqual(deps.writes, []);
   }
 });
-test('qualified history persists verbatim without a recovery mutation', async () => {
+test('qualified legacy history requires canonical authority and preserves its source', async () => {
   const deps = dependencies(); const message = 'I think he stopped vomiting.';
   const suggestion = { type: 'history', title: 'Save this update?', details: message, payload: { category: 'symptom', title: 'Care update', note: message } };
   const result = await persist(message, deps, { ...suggestion, concernId: undefined });
-  assert.equal(result.suggestion?.payload.note, message);
-  assert.equal(deps.writes[0]?.payload.concern_id, null);
-  assert.deepEqual(result.suggestion?.payload, suggestion.payload);
+  assertDiagnosticOnly(result, deps);
+  assert.equal(suggestion.payload.note, message);
+  assert.equal(suggestion.details, message);
 });
 
 for (const message of ['He stopped vomiting.', 'He stopped vomiting today. He was vomiting yesterday.', 'He was vomiting yesterday. He stopped vomiting today.', 'Please save this: Milo stopped vomiting.']) {
@@ -151,17 +154,13 @@ test('symptom polarity and certainty survive extraction', () => {
     assert.ok(events.every((event) => !event.isCertain), message);
   }
 });
-test('uncertain vomiting remains qualified history at final persistence', async () => {
+test('uncertain legacy history retains qualification but cannot persist without authority', async () => {
   const message = 'I think Milo has thrown up today.';
   const deps = dependencies([currentConcern]);
   const payload = { category: 'symptom', title: 'Care update', note: message };
   const result = await persist(message, deps, { type: 'history', concernId: undefined, title: 'Save this update?', details: message, payload });
-  assert.deepEqual(result.suggestion?.payload, payload);
-  assert.deepEqual(deps.writes, [{ table: 'ai_update_suggestions', payload: {
-    concern_id: null, conversation_id: 'chat1', details: message, payload,
-    pet_profile_id: 'p1', source_message_id: 'a1', status: 'pending',
-    title: 'Save this update?', type: 'history', user_id: 'u1',
-  } }]);
+  assertDiagnosticOnly(result, deps);
+  assert.equal(payload.note, message);
 });
 for (const [message, allowed] of temporalCases) {
   test(`predicate/interval/current-concern authority (${allowed}): ${message}`, async (t) => {

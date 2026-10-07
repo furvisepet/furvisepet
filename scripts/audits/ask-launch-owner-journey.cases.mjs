@@ -1,3 +1,4 @@
+import {stressProposal} from './helpers/current-stress-harness.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { exercise, clock, resolveAskTurnSubject } from './helpers/lifetime-harness.mjs';
@@ -16,11 +17,11 @@ test('owner journey recalls Milo weights as one coherent visible answer', async 
   const text = 'Milo was recorded at 28.4 kg in June and 27.8 kg in August 2026.';
   const run = await exercise('How did Milo weight change from June to August 2026?', {
     history:true, fixturePets:pets, rows, petId:'milo', authoritativePetIds:['milo'],
-    dateRange:{from:'2026-06-01T00:00:00Z',to:'2026-09-01T00:00:00Z'},
+    dateRange:{from:'2026-06-01T00:00:00Z',to:'2026-09-01T00:00:00Z'},interpretationProposal:stressProposal({petNames:['Milo'],terms:['weigh','weight'],from:'2026-06-01',to:'2026-09-01'}),
     providerOverrides: historyAnswer(text,['care:milo-weight-jun','care:milo-weight-aug']),
     reviewResponse:approvedReview, expectedReviewCalls:0,
   });
-  assert.equal(run.publication.failure,null);
+  assert.equal(run.publication.failure,null);assert.equal(run.result.reasoning.model,'server-labs-list');assert.equal(run.requests.length,0);assert.equal(run.reviewRequests.length,0);
   assert.match(run.publication.displayed.summary,/28\.4 kg/);
   assert.match(run.publication.displayed.summary,/27\.8 kg/);
 });
@@ -29,13 +30,15 @@ test('late food correction is what the owner sees after years of old history', a
   const text = 'Milo switched to salmon and rice in July 2026.';
   const run = await exercise('What food did Milo switch to in July 2026?', {
     history:true, fixturePets:pets, rows, petId:'milo', authoritativePetIds:['milo'],
-    dateRange:{from:'2026-07-01T00:00:00Z',to:'2026-08-01T00:00:00Z'}, graph:foodCorrectionGraph,
+    dateRange:{from:'2026-07-01T00:00:00Z',to:'2026-08-01T00:00:00Z'}, graph:foodCorrectionGraph,interpretationProposal:stressProposal({petNames:['Milo'],terms:['food','rice'],from:'2026-07-01',to:'2026-08-01'}),
     providerOverrides: historyAnswer(text,['claim:milo-food-corrected']),
     reviewResponse:approvedReview, expectedReviewCalls:0,
   });
-  assert.equal(run.publication.failure,null);
+  assert.equal(run.publication.failure,null);assert.equal(run.result.reasoning.model,'server-labs-list');assert.equal(run.requests.length,0);assert.equal(run.reviewRequests.length,0);
   assert.match(run.publication.displayed.summary,/salmon and rice/i);
-  assert.doesNotMatch(run.publication.displayed.summary,/chicken and rice/i);
+  assert.doesNotMatch(run.publication.displayed.summary,/Milo switched to chicken and rice\./i);
+  assert.deepEqual(run.result.reasoning.relevantContextIds,['claim:milo-food-corrected']);
+  assert.equal(run.result.reasoning.labsList.records[0].body,'Milo switched to salmon and rice, not chicken and rice.');
 });
 
 test('pet switch then pronoun follow-up stays coherent to the owner', async t => {

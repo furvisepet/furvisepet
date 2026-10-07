@@ -16,23 +16,10 @@ test("legacy Ask intelligence persistence is no longer a client authority", () =
   assert.match(sqlVerification, /anon executed legacy Ask memory persistence/);
 });
 
-test("Ask uses a service-only lease and provenance-bound RPC", () => {
-  assert.match(persistence, /createOperationsAdminClient\(\)\.rpc\("persist_furvise_ask_intelligence"/);
-  for (const binding of [
-    "p_user_id: userId",
-    "p_pet_id: targetPetId",
-    "p_authorized_pet_ids: authorizedPetIds",
-    "p_source_message_id: sourceMessageId",
-    "p_assistant_message_id: assistantMessageId",
-    "p_request_id: requestId",
-    "p_payload_hash: payloadHash",
-    "p_operation_owner_token: operationOwnerToken",
-  ]) assert.match(persistence, new RegExp(binding.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  assert.match(route, /operationOwnerToken: idempotency\.operation\.ownerToken/);
-  assert.match(route, /operationPayloadHash: idempotency\.operation\.payloadHash/);
-  assert.match(route, /payloadHash: operationPayloadHash/);
-  assert.match(route, /authorizedPetIds: turnAuthoritativePetIds/);
-  assert.match(route, /authorizedLearnings: prepareAskMemoryAuthorityLearnings/);
+test("retired prose writer has no RPC authority; historical lease contract remains explicit",()=>{
+ assert.doesNotMatch(persistence,/\.rpc\(|createOperationsAdminClient|persist_furvise_ask_intelligence/);
+ assert.doesNotMatch(route,/authorizedLearnings: prepareAskMemoryAuthorityLearnings|persistFurviseIntelligence/);
+ assert.match(route,/persistCanonicalSuggestions/);
   assert.match(migration, /Opaque sb_secret keys are authorized by PostgREST as the service_role/);
   assert.doesNotMatch(migration, /request\.jwt\.claim\.role/);
   assert.match(migration, /operation_row\.operation_type = 'ask\.submit\.persisted_answer_v2'/);

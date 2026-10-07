@@ -55,9 +55,9 @@ test('database task receipts attach to the save request and retain pet scope',()
 });
 
 test('pending subject requires an explicit validated proposal; no post-Binder name-only executor exists',async()=>{
- const module=await import('../app/lib/intelligence/ask-task-continuation.ts');
- assert.equal(module.resolvePendingTaskSubject,undefined);
- assert.equal(module.taskMutationParameters,undefined);
+ const taskModule=await import('../app/lib/intelligence/ask-task-continuation.ts');
+ assert.equal(taskModule.resolvePendingTaskSubject,undefined);
+ assert.equal(taskModule.taskMutationParameters,undefined);
  const request={...source,id:'permission',text:'save that as a note'};
  const pendingTask={id:'task',revision:1,kind:'owner_note',status:'awaiting_subject',source,request,authorizationMessageId:'permission'};
  assert.equal(validateAskTask(null,{...context,pendingTask,currentMessage:'Sable'}),null);

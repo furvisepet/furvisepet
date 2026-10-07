@@ -301,14 +301,16 @@ test("all application memory writers cross the shared semantic boundary", () => 
   for (const path of [
     "app/lib/intelligence/memory-policy.ts",
     "app/lib/intelligence/persist-learnings.ts",
-    "app/lib/application-actions/executor.ts",
     "app/api/memories/[id]/route.ts",
   ]) assert.match(read(path), /prepareTypedMemoryCandidate/, path);
   for (const path of [
     "app/api/legacy-memories/route.ts",
     "app/lib/intelligence/memory-suggestion.ts",
   ]) assert.match(read(path), /isEligibleLegacyMemory/, path);
-  assert.match(read("app/api/ask/suggestions/[id]/route.ts"), /prepareMemorySuggestion\(suggestion\)/);
+  assert.match(read("app/api/ask/suggestions/[id]/route.ts"), /continueCanonicalSuggestion/);
+  const continuation=read("app/lib/intelligence/canonical-suggestion-continuation.ts");
+  assert.match(continuation,/suggestionMatchesCapability/);assert.match(continuation,/rebindCanonicalCapabilityAction/);
+  assert.doesNotMatch(read("app/lib/intelligence/persist-learnings.ts"),/\.rpc\(|\.from\(/);
   assert.match(read("app/lib/intelligence/memory-suggestion.ts"), /prepareTypedMemoryCandidate/);
   assert.match(read("app/api/ask/route.ts"), /currentMessage: sourceMessage/);
 

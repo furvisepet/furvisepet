@@ -1,3 +1,6 @@
+import {episodeOrganFixture} from './helpers/episode-organ-fixture.mjs';
+import {stressProposal} from './helpers/current-stress-harness.mjs';
+import {assertSourceFreePublication} from './helpers/publication-call-expectations.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { exercise, clock } from './helpers/lifetime-harness.mjs';
@@ -16,27 +19,27 @@ const claim = { id: 'claim-one', user_id: ownerId, subject_type: 'pet', subject_
 const member = { id: 'member-one', user_id: ownerId, pet_profile_id: 'milo', episode_id: episode.id, care_entry_id: null,
   claim_id: claim.id, event_ordinal: 1, event_role: 'opening', occurred_at: claim.occurred_at, created_at: claim.recorded_at, source_issue: null };
 const payload = () => structuredClone({ membership_contract: 'ask-episode-membership.v1', episodes: [episode], sources: [], memberships: [member], claims: [claim] });
-const run = (options = {}, question = 'List all vomiting episodes over Milo lifetime.') => exercise(question, {
+const run = (options = {}, question = 'List all vomiting episodes over Milo lifetime.') => episodeOrganFixture(question, {
   history: true, rows: [], messages: [], careEpisodes: [episode], episodeRowsOverride: payload(), graph: { claims: [claim] }, ...options,
 });
 function excluded(r) {
   assert.equal(r.context.episodeResult.supportedCount, 0);
-  assert.equal(r.prompt.contextRecords.some(r => r.sourceType === 'episode_evidence'), false);
+  assert.deepEqual(r.context.episodeResult.items,[]);
   assert.equal(r.context.episodeResult.exactTotal, null);
-  assert.deepEqual(r.result.acceptedCareActions, []);
-  assert.deepEqual(r.result.acceptedLearnings, []);
+  assert.deepEqual(r.effects, []);
+  assert.deepEqual(r.effects, []);
 }
-test('claim-only authoritative membership reaches production generation and validation', async t => {
+test('claim-only authoritative membership survives the real episode organ and serializer', async t => {
   clock(t); const r = await run({ answer: 'Exactly seven lifetime episodes.' });
   assert.equal(r.context.episodeResult.supportedCount, 1);
   assert.equal(r.context.episodeResult.items[0].sourceId, 'claim:claim-one');
-  const record = r.prompt.contextRecords.find(r => r.sourceType === 'episode_evidence');
-  assert.equal(record.metadata.sequence_number, 7); assert.equal(record.metadata.displayedOrdinal, 1);
+  const record=r.context.episodeResult.items[0];
+  assert.equal(record.sequenceNumber,7);assert.equal(record.ordinal,1);
   assert.equal(r.context.episodeResult.exactTotal, null);
-  assert.doesNotMatch(r.result.reasoning.answer.summary, /Exactly seven/);
-  assert.deepEqual(r.result.acceptedCareActions, []); assert.deepEqual(r.result.acceptedLearnings, []);
-  assert.equal(r.queries.filter(q=>q.table==='read_ask_episode_sources').length, 4,'membership revalidated after generation');
-  assert.equal(r.queries.filter(q=>q.table==='read_ask_history_correction_page').length, 5,'correction closure also revalidated after generation');
+  assert.doesNotMatch(r.answer.summary, /Exactly seven/);
+  assert.deepEqual(r.effects, []); assert.deepEqual(r.effects, []);
+  assert.equal(r.queries.filter(q=>q.table==='read_ask_episode_sources').length, 2,'membership snapshot brackets the real organ read');
+  assert.equal(r.queries.filter(q=>q.table==='read_ask_history_correction_page').length, 2,'correction closure is independently revalidated inside the organ');
 });
 test('imported claim and care membership deduplicate by authoritative lineage', async t => {
   clock(t); const imported = { ...claim, source_type: 'legacy_import', provenance_classification: 'imported_legacy' };
@@ -69,7 +72,7 @@ test('membership version changes invalidate a saved displayed reference', async 
   clock(t); const original = await run();
   assert.equal(original.context.episodeResult.supportedCount, 1);
   const saved = { id: 'saved', user_id: ownerId, conversation_id: 'chat', role: 'furvise', sequence_number: 2,
-    response_data: attachEpisodeReferences(buildAskConversationResponse(original.result.reasoning.answer), original.context.episodeResult) };
+    response_data: attachEpisodeReferences(buildAskConversationResponse(original.answer), original.context.episodeResult) };
   const data = structuredClone(payload()); data.memberships[0].event_ordinal = 2;
   const r = await run({ messages: [saved], episodeRowsOverride: data }, 'What changed during the first episode?');
   excluded(r); assert.equal(r.context.episodeResult.referenceStatus, 'stale');
@@ -101,7 +104,7 @@ test('missing RPC fails with unavailable coverage', async t => {
 test('saved claim references resolve with original sequence and full source details', async t => {
   clock(t); const original = await run();
   const saved = { id: 'saved', user_id: ownerId, conversation_id: 'chat', role: 'furvise', sequence_number: 2,
-    response_data: attachEpisodeReferences(buildAskConversationResponse(original.result.reasoning.answer), original.context.episodeResult) };
+    response_data: attachEpisodeReferences(buildAskConversationResponse(original.answer), original.context.episodeResult) };
   const r = await run({ messages: [saved] }, 'What changed during the first episode?');
   assert.equal(r.context.episodeResult.referenceStatus, 'resolved');
   assert.equal(r.context.episodeResult.items[0].sequenceNumber, 7);
@@ -114,10 +117,21 @@ test('a correction arriving during revalidation fails closed', async t => {
   clock(t); let reads = 0;
   const r = await run({ graphAtCall() {
     reads++;
-    return { claims: [{ ...claim, knowledge_status: reads > 2 ? 'forgotten' : 'effective' }] };
+    return { claims: [{ ...claim, knowledge_status: reads > 1 ? 'forgotten' : 'effective' }] };
   } });
   excluded(r); assert.equal(r.context.episodeResult.coverage, 'unavailable');
 });
 test('incomplete correction closure excludes member evidence', async t => {
   clock(t); excluded(await run({ graph: { claims: [claim], truncated: true } }));
+});
+
+test('current Ask cannot publish an episode-organ result as certified ordinary history',async t=>{
+ clock(t);const question='List all vomiting episodes over Milo lifetime.';
+ const p=stressProposal({petNames:['Milo']});
+ const r=await exercise(question,{history:true,rows:[source],careEpisodes:[episode],messages:[],
+  interpretationProposal:{...p,quantity:'episodes',operation:'count',episodeTopic:'vomiting',
+   readTicket:{...p.readTicket,episode:{operation:'count',referent:{basis:'scoped_register',topic:'vomiting',ordinal:null}}}}});
+ assertSourceFreePublication(r);assert.equal(r.context.episodeResult,undefined);
+ assert.equal(r.queries.filter(q=>q.table==='read_ask_episode_sources').length,0);
+ assert.deepEqual(r.result.acceptedCareActions,[]);assert.deepEqual(r.result.acceptedLearnings,[]);
 });

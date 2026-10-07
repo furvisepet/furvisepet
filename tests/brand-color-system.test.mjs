@@ -209,8 +209,8 @@ test("approved SVG artwork is pinned, vector, transparent, and separate from UI 
   }
 
   const otherPinnedAssets = new Map([
-    ["app/favicon.ico", "7645741d1a690c78a6a235c21fb57b93533ab2c86be3437f8ab28180497220e3"],
-    ["public/images/dog.png", "2365277fbeadafe581fb4cb29d68226aac1b0f092903a134e06bd39f3649bab0"],
+    ["public/favicon.ico", "7645741d1a690c78a6a235c21fb57b93533ab2c86be3437f8ab28180497220e3"],
+    ["tests/fixtures/legacy-assets/dog.png", "2365277fbeadafe581fb4cb29d68226aac1b0f092903a134e06bd39f3649bab0"],
     ["public/images/cat.png", "be7498352c359a0da98b723f8852d5177cd34e8160046bbf4f85a38db9b80d77"],
   ]);
   for (const [file, expectedHash] of otherPinnedAssets) {
@@ -240,7 +240,7 @@ test("BrandMark composes responsive wordmark and heron assets without distortion
   assert.match(namedMark, /width: `calc\(\$\{responsiveSize\} \* 4\)`/);
   assert.match(iconOnlyMark, /height: responsiveSize[\s\S]*src=\{FURVISE_MASCOT_ASSET\}[\s\S]*width: responsiveSize/);
   const layout = read("app/layout.tsx");
-  assert.match(layout, /url: "\/favicon\.ico"/);
+  assert.match(layout, /url: "\/favicon\.ico\?v=20260924"/);
   assert.match(layout, /manifest: "\/manifest\.webmanifest"/);
   assert.match(read("public/manifest.webmanifest"), /"src": "\/favicon\.ico"/);
 });
@@ -249,4 +249,5 @@ test("visible application copy contains no encoding artifact or em dash", () => 
   const source = walk("app").filter((file) => file.endsWith(".tsx")).map((file) => read(file)).join("\n");
   assert.doesNotMatch(source, /—/);
   assert.match(source, /AI credit/);
+  assert.match(read("app/membership/page.tsx"), /Ask remaining/);
 });

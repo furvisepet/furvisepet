@@ -1,3 +1,4 @@
+import {admittedReceiptCatalog} from './receipt-catalog-permit.mjs';
 import {fixtureSourceSemantics} from '../../scripts/audits/helpers/source-semantics-fixture.mjs';
 import {id} from './canonical-replace.mjs';
 const {validateAppendJob}=await import('../../app/lib/furvise-brain/append-job.ts');
@@ -49,10 +50,13 @@ export function receiptFixture({status='succeeded',deleted=false,future=false}={
   sources:care.filter(r=>args.p_source_ids.includes(r.id)&&!r.deleted_at)}})};
  if(name==='read_ask_history_correction_page')return {abortSignal(){return this},then(resolve,reject){return Promise.resolve({data:{claims:[],relations:[],lineage:[],sources:care.filter(r=>r.user_id===owner&&args.p_care_ids.includes(r.id)),truncated:false},error:null}).then(resolve,reject)}};
  return Promise.resolve({data:[],error:null});}};
- async function context(){
+ async function context({catalog=false}={}){
   globalThis.__fidelityDB=db;
-  return buildFurvisePlanningContext({supabase:db,userId:owner,petId:pet.id,conversationId:id(7),currentMessage:current.user_text,
+  const planned=await buildFurvisePlanningContext({supabase:db,userId:owner,petId:pet.id,conversationId:id(7),currentMessage:current.user_text,
    sourceMessageId:current.id,locale:'en',timeZone:'UTC'});
+  if(!catalog)return planned;
+  const loaded=await admittedReceiptCatalog({db,owner,pet,now:new Date(current.created_at)});
+  return {...planned,storedReadReferences:loaded};
  }
  function request(ctx,scope='owner'){
   return bindStoredRead({operation:'read',domain:'operation_receipt',scope,reference:ctx.storedReadReferences[0]?.ref??null,projection:'records'},

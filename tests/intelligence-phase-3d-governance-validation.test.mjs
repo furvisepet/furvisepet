@@ -10,7 +10,7 @@ const memory = (overrides = {}) => ({ subjectType: "pet", subjectId: "pet", cate
 const reasoning = (summary, overrides = {}) => ({ answer: { title: "Answer", summary, sections: [], safetyNote: null }, userIntent: "question", relevantContextIds: [], referencedRecords: [], safetyLevel: "normal", shoppingSuppressed: false, suggestedFollowUps: [], proposedHistoryUpdate: { shouldOffer: false, category: null, title: null, details: null, severity: null, resolvesConcernId: null }, responseMode: "conversational", model: "test", messageUnderstanding: {}, intelligenceSafety: { level: "routine", reason: "", requiresImmediateAction: false, shoppingSuppressed: false }, learnings: [], careActions: [], semanticEvents: [], intelligenceMetadata: { confidence: "high", usedPetContext: true, usedCareHistory: true, usedMemories: false }, ...overrides });
 const context = (message, memories = []) => ({ currentMessage: message, pet: { id: "pet", name: "Mani" }, memories, careEntries: [], currentState: { state: { breathing: { status: "normal" } } } });
 
-test('reviewed incidental names require unchanged authorized cited evidence', () => {
+test('plain prose review stamps cannot authorize incidental names', () => {
  const live={...context('Explain the shared observation.'),eligiblePets:[{id:'pet',name:'Mani'},{id:'other',name:'Bramble'}]};
  const text='Mani and Bramble shared the food; individual portions are unknown.';
  for(const variation of ['valid','foreign-source','uncited-name','changed-evidence','forged-receipt']) {
@@ -20,9 +20,23 @@ test('reviewed incidental names require unchanged authorized cited evidence', ()
   if(variation!=='forged-receipt')recordHistoryReview(result,{signature:historyReviewSignature(result),text,proseText:text,sourceIds:['source']});
   if(variation==='changed-evidence')result.evidenceContract.represented[0].text='Changed';
   const checked=validateGeneratedAnswer(result,live,'routine',['pet']);
-  assert.equal(checked.valid,variation==='valid',variation);
-  if(variation!=='valid')assert.ok(checked.errors.includes('response_subject_disagreement'),variation);
+  assert.equal(checked.valid,false,variation);
+  assert.deepEqual(checked.errors,variation==='forged-receipt'||variation==='changed-evidence'?['response_subject_disagreement']:['language_answer_contains_stored_authority'],variation);
  }
+});
+
+test('a certified owned report preserves incidental names as an exact quotation',async()=>{
+ const {certifiedHistoryRead}=await import('./helpers/certified-history-read.mjs');
+ const body='Mani and Bramble shared the food; individual portions are unknown.';
+ const c=await certifiedHistoryRead({scope:{authorizedPetIds:['pet']},petNames:{pet:'Mani'},
+ represented:[{sourceId:'care:source',sourceType:'care_update',petId:'pet',text:body,occurredAt:'2026-09-01T00:00:00Z'}]});
+ assert.deepEqual(c.validation.response.evidenceContract.answerSourceIds,['care:source']);
+ assert.deepEqual(c.response.evidenceContract.scope.authorizedPetIds,['pet']);
+ assert.equal(c.response.labsList.records[0].body,body);
+ assert.ok(c.validation.response.answer.summary.includes(JSON.stringify(body)));
+ const live={...context('Explain the shared observation.'),eligiblePets:[{id:'pet',name:'Mani'},{id:'other',name:'Bramble'}]};
+ const checked=validateGeneratedAnswer(c.response,live,'routine',['pet']);
+ assert.equal(checked.valid,true,checked.errors.join());
 });
 
 test("model proposal alone cannot write and explicit care evidence is accepted only by governance", () => {

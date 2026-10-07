@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import test from 'node:test';
-test('actual Ask historical callback candidate RPC integration',()=>{
+test('legacy candidate reader and current Ask certified read integration',()=>{
   const env={...process.env};delete env.NODE_TEST_CONTEXT;
   const result=spawnSync(process.execPath,['--experimental-transform-types','--test','scripts/audits/ask-candidate-integration.cases.mjs'],{
     cwd:new URL('..',import.meta.url),env,encoding:'utf8',maxBuffer:10_000_000,

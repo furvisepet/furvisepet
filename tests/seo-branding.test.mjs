@@ -12,9 +12,9 @@ test("global metadata uses the canonical Furvise title and clean description", (
   const metadataSource = `${layout}\n${seo}`;
 
   assert.match(seo, /https:\/\/www\.furvise\.com/);
-  assert.match(seo, /Furvise \| Your Pet's Story, Understood Over Time/);
+  assert.match(seo, /Furvise \| Pet Care Notes, History and Questions/);
   assert.match(layout, /template: "%s \| Furvise"/);
-  assert.match(seo, /questions, changes, routines, and history connected over time/);
+  assert.match(seo, /Log your pet's care, find past notes, and ask questions about what you've logged/);
   assert.doesNotMatch(seo, /focused AI guidance/);
   assert.doesNotMatch(metadataSource, /launching soon|technology website/i);
   assert.doesNotMatch(metadataSource, /—/);
@@ -106,7 +106,7 @@ test("manifest and metadata use only existing approved Furvise brand assets", ()
   assert.match(seo, /\/brand\/furvise-social\.png/);
 
   for (const asset of [
-    "app/favicon.ico",
+    "public/favicon.ico",
     "public/brand/furvise-logo.svg",
     "public/brand/furvise-social.png",
     "public/brand/furvise-wordmark.svg",

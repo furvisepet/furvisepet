@@ -7,7 +7,7 @@ const {getFurviseActionPolicy}=await import(R+'app/lib/application-actions/polic
 const {admitAiOperation}=await import(R+'app/lib/ai/usage-guard/admission.ts');
 const {MemoryAiGuardTestStore}=await import(R+'app/lib/ai/usage-guard/memory-test-store.ts');
 const old=JSON.parse(fs.readFileSync(new URL(R+'tests/fixtures/ask-catalog-proof-seed.json')));
-const template=JSON.parse(old.sent[1].input).intent;
+const template=JSON.parse(old.sent[1].input).intent;template.ownerScope ??= null;
 const log={scope:'actual helpers/admission/IO adapter, distinct from full route proof',cases:[],liveProviders:0,network:0,costUSD:0};const record=(name,data={})=>log.cases.push({name,...data});
 async function admitted(fn,initial=true){
  const a=await admitAiOperation({feature:'ask',userId:id(1),payload:{proof:'staged-six'},requestId:crypto.randomUUID(),intendedModel:'gpt-5.4-mini',env:{NODE_ENV:'test',FURVISE_AI_DAILY_CALL_LIMIT:'20',FURVISE_AI_DAILY_COST_LIMIT_USD:'1',FURVISE_RATE_LIMIT_HASH_SECRET:'offline-f-identity-not-credential'},store:new MemoryAiGuardTestStore()});
@@ -23,12 +23,10 @@ function seed(f,count,foreignConversation=false){f.rows.dog_profiles.push({...f.
 const {finishDeterministicCatalog}=await import(R+'app/lib/intelligence/catalog-intent.ts');
 const {validateAskRequest}=await import(R+'app/lib/intelligence/ask-request-contract.ts');
 const {continueLifecyclePlan,rebindLifecyclePlan}=await import(R+'app/lib/intelligence/lifecycle-turn.ts');
-const {interpretAskQuestion,projectAskInterpretationContext}=await import(R+'app/lib/intelligence/interpret-ask.ts');
+const {interpretAskQuestion,prepareAskInterpretationRequest}=await import(R+'app/lib/intelligence/interpret-ask.ts');
 const {createAskWirePlan}=await import(R+'app/lib/intelligence/ask-wire-policy.mjs');
 const {askRequestProviderSchema,ASK_REQUEST_INSTRUCTIONS}=await import(R+'app/lib/intelligence/ask-request-contract.ts');
 const {proposedSemanticFrameJsonSchema}=await import(R+'app/lib/intelligence/semantic-frame/schema.ts');
-const {factorProviderCompoundSchemas}=await import(R+'app/lib/ai/provider-compound-schema.ts');
-const {factorProviderEnumSchemas}=await import(R+'app/lib/ai/provider-enum-schema.ts');
 async function runCase({cancelName='Rowan',selected=11,reverse=false,clauseReverse=false,variant='match',unqualified=false,throughInterpreter=false,selectorCase='exact',groundingReverse=false}){
  return admitted(async admission=>{
  const f=fixture();f.rows.dog_profiles[0].name='Rowan';seed(f,variant==='zero'?0:variant==='two'?2:variant==='overflow'?13:1,variant==='other-conversation');
@@ -49,14 +47,14 @@ async function runCase({cancelName='Rowan',selected=11,reverse=false,clauseRever
  let calls=0,effects=0,stubCalls=0,receipt=null,h,plan,error,permit;
  try{
   if(throughInterpreter){
-   const schema=factorProviderCompoundSchemas(factorProviderEnumSchemas(askRequestProviderSchema(proposedSemanticFrameJsonSchema,projectAskInterpretationContext(ctx))));
-   const wire=createAskWirePlan(schema,ASK_REQUEST_INSTRUCTIONS),begin=admission.beginProviderCall.bind(admission);let admittedSnapshot,dispatches=0;
+   const prepared=prepareAskInterpretationRequest(ctx,'gpt-5.4-mini');
+   const wire=prepared.wire,begin=admission.beginProviderCall.bind(admission);let admittedSnapshot,dispatches=0;
    admission.beginProviderCall=async x=>{admittedSnapshot=JSON.stringify(x.input);return begin(x);};
    const result=await interpretAskQuestion({context:ctx,model:'gpt-5.4-mini',client:{responses:{create:async request=>{
-    dispatches++;stubCalls++;assert.equal(dispatches,1);assert.equal(JSON.stringify(request),admittedSnapshot);assert.deepEqual(request.text.format.schema,wire.schema);
+    dispatches++;stubCalls++;assert.equal(dispatches,1);assert.equal(JSON.stringify(request),admittedSnapshot);assert.deepEqual(request.text.format.schema,prepared.request.text.format.schema);assert.equal(request.instructions,prepared.request.instructions);assert.equal(request.input,prepared.request.input);assert.equal(request.max_output_tokens,8192);
     assert.ok(JSON.stringify(request).length<=58000);f.state.brainCalls++;
     return{status:'completed',output_text:JSON.stringify(wire.encode({request:t})),usage:{input_tokens:0,output_tokens:0}};
-   }}},catalogService:{requestId:crypto.randomUUID(),capability:()=>({available:true,reason:'supported'}),verify:p=>verifyPlanningCatalogSource(p,f.db),hydrate:async p=>{h=await hydratePlanningCatalog(p,projectAskInterpretationContext(ctx),f.db);return h;}}});
+   }}},catalogService:{requestId:crypto.randomUUID(),capability:()=>({available:true,reason:'supported'}),verify:p=>verifyPlanningCatalogSource(p,f.db),hydrate:async p=>{h=await hydratePlanningCatalog(p,prepared.context,f.db);return h;}}});
    assert.equal(dispatches,1);plan=result.request?.lifecyclePlan;if(!plan)error={boundary:'typed_rejection',result};
   }else{({permit}=bindCatalogIntent(t,ctx,crypto.randomUUID(),Date.now()+25000));h=await hydratePlanningCatalog(permit,ctx,f.db);plan=validateAskRequest(finishDeterministicCatalog(permit,h.catalog),h.context).request.lifecyclePlan;}
  }

@@ -1,3 +1,4 @@
+import { assertAskSourceWindowProposal } from "./ask-interpretation-sources.ts";
 import { assertUnambiguousOwnedIdentity, catalogIntentSchema } from "./catalog-intent.ts";
 import { currentUserNumericQuotes } from "./calculation-premise-schema.ts";
 import { bindCalculatePlan, calculatePlanSchema, CALCULATE_OPERATORS, CALCULATION_ROLE_POLICY, CALCULATION_INPUT_OWNERSHIP, isPremiseOperand, type CalculatePlan } from "../furvise-brain/calculate-plan.ts";
@@ -42,7 +43,7 @@ const operations = ["recall", "overview", "comparison", "status", "count", "epis
 const selections = ["summary", "comparison", "latest", "earliest", "earliest_occurrence", "period", "reference"] as const;
 const quantities = ["episodes", "records", "measurement", "duration", null] as const;
 const ordinals = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "last", "that", null] as const;
-type Context = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "conversationId" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask" | "ownerNoteAlreadySaved" | "lifecycleActionState" | "concernReferences" | "replaceReferences" | "storedReadReferences">;
+type Context = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "planningSourceWindow" | "pinnedUserSourceIds" | "conversationId" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask" | "ownerNoteAlreadySaved" | "lifecycleActionState" | "concernReferences" | "replaceReferences" | "storedReadReferences">;
 export type AskRequestContract = {
   calculatePlan?: CalculatePlan | null;
   storedRead?: StoredRead | null;
@@ -427,6 +428,7 @@ export const ASK_REQUEST_INSTRUCTIONS = [
 const fail = (reason: string, field?: string): never => { throw new Error(`ASK_REQUEST_INVALID:${reason}`, { cause: { field } }); };
 export function validateAskRequest(value: unknown, context: Context): AskInterpretation {
   if (!value || typeof value !== "object" || Array.isArray(value)) return fail("shape");
+  assertAskSourceWindowProposal(value, context);
   const p = { calculatePlan: null, storedRead: null, removeJob: null, stateTransitionJob: null, fieldMutationJob: null, lifecyclePlan: null, appendJob: null, readTicket: null, writeJob: null, task: null, temporalScope: null, mutationIntent: null, recordSelection: null, profileFields: [], projection: null, evidenceNeeds: [], outputFormat: null, evidenceBasis: null, premiseQuotes: null, excludedPetNames: [], ...value } as Record<string, unknown>; // Older stored v2 contracts predate these optional fields.
   if (Object.keys(p).sort().join() !== askRequestSchema({}).required.sort().join()) return fail("fields");
   const member = (values: readonly unknown[], value: unknown) => values.includes(value);
@@ -883,6 +885,8 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   }
   const profileRead = p.evidenceBasis === "saved_profile";
   if (profileRead && (p.mode !== "read" || !(p.profileFields as string[]).length || p.ordinal !== null || p.episodeTopic !== null || p.quantity !== null || p.from !== null || p.to !== null || (p.evidenceNeeds as unknown[]).length || p.frame !== null)) return fail("profile_scope");
+  // Legacy normalization may also narrow account scope to selected.
+  assertAskSourceWindowProposal(p, context);
   const petLimit = profileRead ? 20 : p.mode === "read" && p.ordinal === null && p.episodeTopic === null && p.frame === null ? ASK_HISTORY_MAX_PETS : 3;
   if (p.scope === "none" && petIds.length || petIds.length > petLimit) return fail("scope");
   // Conversational referents may choose only identities established by a user,
@@ -1232,6 +1236,9 @@ function bindReadScope(p: Record<string, unknown>, context: Context, proposedTic
   // identity nor factual authority; only existing USER references survive.
   let referenceTurnIds = [...new Set(proposedReferences.filter(id => context.conversationTurns.some(turn => turn.id === id && turn.role === "user")))];
   const subjectScope = proposedTicket?.subjectScope === undefined ? p.scope : proposedTicket.subjectScope;
+  // The ticket owns effective scope. Recheck omissions after normalization,
+  // before selected-pet identity can become retrieval authority.
+  assertAskSourceWindowProposal({ ...p, scope: subjectScope, referenceTurnIds }, context);
   if (!["selected", "named", "conversation", "account"].includes(String(subjectScope))) return fail("scope");
   let petIds: string[];
   if (subjectScope === "selected") {

@@ -1,3 +1,4 @@
+import {publicV1AskCapability,PUBLIC_V1_ASK_MUTATION_LIMITATION,PUBLIC_V1_CAPABILITIES} from '../../app/lib/public-v1-capabilities.ts';
 import './helpers/lifetime-harness.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -18,7 +19,7 @@ const code=ts.transpileModule('const run = '+callback.getText(ast),{compilerOpti
 test('actual admitted route refuses another pet before history or mutations and releases its credit',async()=>{
  const calls=[];
  const lifecycle={transition(){return this;},credit(){return this;},settlement(){return this;},route(){return this;}};
- const sandbox={liveContext:{pet:{id:'selected',name:'Sable'},conversationTurns:[]},preparedRequest:{userMessageId:'current'},
+ const sandbox={sourceWindowDisclosure:null,publicV1AskCapability,liveContext:{pet:{id:'selected',name:'Sable'},conversationTurns:[]},preparedRequest:{userMessageId:'current'},
   requestId:'request',logicalTurnId:'request',userId:'owner',petId:'selected',question:'Compare both pets.',
   model:'test',onProviderEvent:()=>{},usage:{allowed:true},creditRequestId:'attempt',aiCreditPayloadHash:'hash',retryReuse:false,
   turnLifecycle:lifecycle,creditReserved:false,creditFinalState:'not_reserved',generationStage:'',
@@ -45,17 +46,19 @@ for(const scenario of ['save','resume','cancel','cancel_saved','failure'])test(`
  const liveContext={owner:{userId:'owner'},pet,eligiblePets:[pet],currentMessage:message,currentTurn:{...source,id:'current',text:message},conversationTurns:pending?[source,priorSave]:[source],pendingTask:pending,timeZone:'UTC'};
  const proposal=requestProposal({operation:cancelling?'general':'update',subject:cancelling?'non_pet':'selected',petNames:[],topic:'owner note',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:emptyProposedSemanticFrame(),evidenceBasis:cancelling?'general':null,task:{intent:scenario==='failure'?'save':cancelling?'cancel':scenario,sourceTurnId:'source',petName:cancelling?null:'Sable'}},message);
  const lifecycle={transition(){return this;},credit(){return this;},settlement(){return this;},route(){return this;},snapshot(){return {};}};
- const sandbox={liveContext,preparedRequest:{conversationId:'conversation',userMessageId:'current'},requestId:'request',logicalTurnId:'request',userId:'owner',petId:'pet',question:message,
+ const sandbox={sourceWindowDisclosure:null,publicV1AskCapability,liveContext,preparedRequest:{conversationId:'conversation',userMessageId:'current'},requestId:'request',logicalTurnId:'request',userId:'owner',petId:'pet',question:message,
   request:{},model:'test',onProviderEvent:()=>{},usage:{allowed:true},creditRequestId:'attempt',aiCreditPayloadHash:'hash',retryReuse:false,
-  turnLifecycle:lifecycle,creditReserved:false,creditFinalState:'not_reserved',generationStage:'',ownerNotePersistence:null,ownerNoteSourceMessageId:'current',ownerNotePetId:'pet',completedContinuation:null,execution:{},immediateEmergency:null,
+  turnAuthoritativePetIds:['pet'],contextUsed:{},turnLifecycle:lifecycle,creditReserved:false,creditFinalState:'not_reserved',generationStage:'',ownerNotePersistence:null,ownerNoteSourceMessageId:'current',ownerNotePetId:'pet',completedContinuation:null,execution:{},immediateEmergency:null,
   reserveAiCredit:async()=>{calls.push('reserve');return{status:'reserved'};},logAskStage:()=>{},
   interpretAskQuestion:async({context})=>validateAskRequest(proposal,context),exceedsSelectedPetRead,explicitlyNamedOwnedPets,ambiguousBackwardMultiPetReference:()=>null,
   safeReleaseAiCredit:async()=>{calls.push('release');return true;},
   buildSubjectClarificationOrchestration:()=>({answer:{},clarificationQuestion:'Which pet?'}),
  };
  const run=vm.runInNewContext(code,sandbox);
- const response=await run();assert.deepEqual(calls,['reserve']);
- assert.equal(response.clarificationQuestion,'Which pet?');assert.equal(sandbox.completedContinuation,null);
+ const response=await run();assert.deepEqual(calls,['reserve','release']);
+ assert.equal(PUBLIC_V1_CAPABILITIES.askMutations,false);assert.equal(response.clarificationQuestion,'');
+ assert.equal(response.answer.summary,PUBLIC_V1_ASK_MUTATION_LIMITATION);
+ assert.equal(sandbox.creditFinalState,'released');assert.deepEqual(Array.from(sandbox.turnAuthoritativePetIds),[]);assert.deepEqual(Array.from(sandbox.contextUsed.usedSources),[]);assert.equal(sandbox.completedContinuation,null);
  assert.equal(sandbox.execution.savedNoteResponse,undefined);
 
 });

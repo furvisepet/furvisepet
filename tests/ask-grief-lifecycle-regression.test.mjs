@@ -1,3 +1,4 @@
+import {lifecycleUnitAuthority} from './helpers/lifecycle-unit-authority.mjs';
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -33,7 +34,8 @@ function typedLifecycle(message, { toState = "deceased", status = "active", targ
   const context = { owner: { userId: "owner" }, eligiblePets: [pet], currentMessage: message,
     currentTurn: { id: "source-current", role: "user", text: message },
     lifecycleActionState: { ownerId: "owner", complete: true, actions } };
-  const plan = bindLifecyclePlan({ pendingDisposition: cancel ? "cancel" : "keep",
+  const selector=lifecycleUnitAuthority(context);
+  const plan = bindLifecyclePlan({ pendingDisposition: cancel ? selector : "keep",
     transition: toState ? { targetPetName: target, toState } : null, requiredSubjectState: null,
     authorizationQuote: message }, context);
   return { context, plan, action: prepareBoundLifecycleAction(plan, "request") };

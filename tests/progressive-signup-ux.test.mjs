@@ -82,7 +82,7 @@ test("production signup stays captcha-gated and uses the existing idempotent sig
   assert.match(authTokenHandler, /if \(!token\) \{[\s\S]*setAuthSubmitPending\(false\)/);
   assert.match(authTokenHandler, /if \(!authSubmitPendingRef\.current\) return/);
   assert.match(authTokenHandler, /submitAuth\(token\)/);
-  assert.match(submitAuth, /if \(!token\) return/);
+  assert.match(submitAuth, /if \(isAuthCaptchaEnabled\(\) && !token\) return/);
   assert.match(submitAuth, /"\/api\/auth\/signup"/);
   assert.match(submitAuth, /await idempotentClientFetch\(endpoint, init, `auth-signup:\$\{normalizedEmail\}`\)/);
   assert.match(submitAuth, /captchaToken: token/);
@@ -111,7 +111,7 @@ test("verification recovery reveals a captcha-gated resend with a sixty-second c
   assert.match(resendTokenHandler, /if \(!token\) \{[\s\S]*setResendSubmitPending\(false\)/);
   assert.match(resendTokenHandler, /if \(!resendSubmitPendingRef\.current\) return/);
   assert.equal((resendTokenHandler.match(/resendConfirmation\(token\)/g) || []).length, 1);
-  assert.match(resendConfirmation, /if \(!normalizedEmail \|\| !token \|\| resendCooldown > 0 \|\| loading\) return/);
+  assert.match(resendConfirmation, /if \(!normalizedEmail \|\| \(isAuthCaptchaEnabled\(\) && !token\) \|\| resendCooldown > 0 \|\| loading\) return/);
   assert.match(resendConfirmation, /emailOtpMode === "signin_otp" \? "\/api\/auth\/login-otp\/start" : "\/api\/auth\/resend"/);
   assert.match(resendConfirmation, /idempotentClientFetch\(endpoint/);
   assert.match(resendConfirmation, /Math\.max\(SIGNUP_RESEND_COOLDOWN_SECONDS/);

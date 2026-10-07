@@ -201,7 +201,7 @@ test("password signup, legacy links, recovery, and Google callback authority rem
 });
 
 test("hosted Confirm signup template rollout is explicit and remains external", () => {
-  const rollout = read("docs/signup-email-otp-rollout.md");
+  const rollout = read("tests/fixtures/legacy-documents/signup-email-otp-rollout.md");
   assert.match(rollout, /Phase A:[\s\S]*Phase B:[\s\S]*Phase C:[\s\S]*Phase D:/);
   assert.match(rollout, /Your Furvise verification code/);
   assert.match(rollout, /\{\{ \.Token \}\}/);

@@ -1,6 +1,7 @@
 import {assert,fixture,finish,row,slot,clause,rawTicket,calculation,bindCalculatePlan,bindTypedReadTicket,pets} from "./calculation-fixture.mjs";
 export * from "./calculation-fixture.mjs";
-export {parseHistoryNarrative,historyNarrativeSchema} from "../../app/lib/intelligence/history-narrative.ts";
+const {parseHistoryNarrative,historyNarrativeSchema}=await import("../../app/lib/intelligence/history-narrative.ts");
+export {parseHistoryNarrative,historyNarrativeSchema};
 export {units} from "../../app/lib/furvise-brain/calculation-units.ts";
 export async function measured(operator,texts,resultUnit,options={}){
  const unit=options.unit??"kg",ticket=rawTicket(operator==="count_records");

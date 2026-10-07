@@ -54,9 +54,9 @@ test("pet avatars support photos and a warm initial fallback", () => {
 
 test("brand sources stay pinned to the existing logo and favicon paths", () => {
   assert.match(read("app/components/brand-mark.tsx"), /FURVISE_BRAND_ASSET = "\/brand\/furvise-logo\.svg"/);
-  assert.match(read("app/layout.tsx"), /url: "\/favicon\.ico"/);
+  assert.match(read("app/layout.tsx"), /url: "\/favicon\.ico\?v=20260924"/);
   for (const asset of [
-    "app/favicon.ico", "public/brand/furvise-logo.svg", "public/brand/furvise-wordmark.svg", "public/brand/furvise-heron.svg",
+    "public/favicon.ico", "public/brand/furvise-logo.svg", "public/brand/furvise-wordmark.svg", "public/brand/furvise-heron.svg",
   ]) {
     assert.equal(existsSync(path.join(root, asset)), true, `${asset} must exist`);
   }

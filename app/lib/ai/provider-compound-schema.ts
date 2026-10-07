@@ -10,9 +10,11 @@ const scalar = new Set(["type", "enum", "const", "required", "minItems", "maxIte
 /** Exact wire-only sharing. Unsupported reference scopes are left unchanged.
  * Canonical plans, annotations, field/branch order and Binder authority are untouched.
  */
-export function factorProviderCompoundSchemas(schema: Schema): Schema {
+export function factorProviderCompoundSchemas(schema: Schema, checkBudget: () => void = () => {}): Schema {
+  checkBudget();
   const original = structuredClone(schema);
   function visit(value: unknown, fn: (node: Schema, root: boolean) => Schema, root = false): unknown {
+    checkBudget();
     if (!value || typeof value !== "object" || Array.isArray(value)) return value;
     const node = value as Schema;
     const copy = Object.fromEntries(Object.entries(node).map(([key, child]) => [
@@ -71,6 +73,7 @@ export function factorProviderCompoundSchemas(schema: Schema): Schema {
   let sequence = 0;
   // Child-first sharing reaches a fixed point in one pass, including nested duplicates.
   function transform(value: unknown, root = false): unknown {
+    checkBudget();
     if (!value || typeof value !== "object" || Array.isArray(value)) return value;
     const node = value as Schema, key = JSON.stringify(node);
     const copy = Object.fromEntries(Object.entries(node).map(([field, child]) => [

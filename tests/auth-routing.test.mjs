@@ -75,7 +75,7 @@ test("signed-out login with onboarding next keeps the form tree stable", () => {
   assert.match(source, /disabled=\{!authChecked \|\| loading \|\| authSubmitPending \|\| Boolean\(configError\)\}/);
   assert.match(source, /if \(!token\) \{[\s\S]*authSubmitPendingRef\.current = false;[\s\S]*setAuthSubmitPending\(false\)/);
   assert.match(source, /if \(!authSubmitPendingRef\.current\) return/);
-  assert.match(source, /if \(!token\) return;[\s\S]*captchaToken: token/);
+  assert.match(source, /if \(isAuthCaptchaEnabled\(\) && !token\) return;[\s\S]*captchaToken: token/);
   assert.doesNotMatch(source, /!authChecked \? \(\s*<div className="space-y-5">/);
   assert.doesNotMatch(source, /Checking your account\.\.\./);
   assert.doesNotMatch(source, /h-3 w-28 rounded-full bg-\[var\(--pw-card-muted\)\]/);

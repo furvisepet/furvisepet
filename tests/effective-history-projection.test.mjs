@@ -35,9 +35,9 @@ test("medical event and recovery remain visible even when current state is resol
   assert.deepEqual(projectEffectiveCareHistory([symptom, recovery], linked).map((item) => item.note), [symptom.note, recovery.note]);
 });
 
-test("Ask corrections supersede and relation-link provenance instead of invoking Forget", async () => {
-  const source = await readFile(new URL("../app/lib/intelligence/persist-learnings.ts", import.meta.url), "utf8");
-  const correctionBlock = source.slice(source.indexOf("async function suppressExplicitlyReplacedPreferences"));
-  assert.match(correctionBlock, /status: "superseded", superseded_by: successor\.id/);
-  assert.doesNotMatch(correctionBlock, /p_action:\s*"forget"/);
+test("Ask preference prose cannot supersede or forget durable records without a canonical job",async()=>{
+ const source=await readFile(new URL('../app/lib/intelligence/persist-learnings.ts',import.meta.url),'utf8');
+ assert.doesNotMatch(source,/suppressExplicitlyReplacedPreferences|\.update\(|\.rpc\(|p_action:\s*"forget"/);
+ const {assertLegacyProseRejected}=await import('./helpers/legacy-prose-boundary.mjs');
+ await assertLegacyProseRejected({type:'memory',payload:{action:'supersede',target:'old',value:'turkey'}},"Milo doesn't like beef anymore.");
 });

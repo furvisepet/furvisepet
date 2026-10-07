@@ -1,3 +1,4 @@
+import {PUBLIC_V1_CAPABILITIES} from '../app/lib/public-v1-capabilities.ts';
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -15,7 +16,7 @@ test("pet profile uses the canonical Pets page orientation and shared accessible
   const primitives = read("app/components/product-primitives.tsx");
   assert.match(page, /<PageHeader[\s\S]*eyebrow="PETS"/);
   assert.match(page, /<SecondaryButton[\s\S]*EDIT PET<\/SecondaryButton>/);
-  assert.match(page, /<PrimaryButton[\s\S]*VET BRIEF<\/PrimaryButton>/);
+  assert.equal(PUBLIC_V1_CAPABILITIES.vetBriefGeneration,false);assert.doesNotMatch(page, /VET BRIEF/);assert.equal(page.includes("/vet-brief"),false);
   assert.match(primitives, /buttonBaseClasses[\s\S]*min-h-12[\s\S]*focus-visible:outline-none/);
   assert.doesNotMatch(page, /Back to pets|Breed unknown|Weight unknown|Not provided|Limited context/);
 });

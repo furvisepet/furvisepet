@@ -1,31 +1,36 @@
+import {assertSourceFreePublication} from './helpers/publication-call-expectations.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { requestProposal } from './helpers/request-proposal.mjs';
-import { exercise, clock } from './helpers/lifetime-harness.mjs';
+import { exercise as baseExercise, clock } from './helpers/lifetime-harness.mjs';
 import { care, ownerId, pets } from './fixtures/ask-lifetime-history.mjs';
 import { emptyProposedSemanticFrame } from '../../app/lib/intelligence/semantic-frame/extract-frame.ts';
 import { buildAskConversationResponse, parseAskConversationResponse } from '../../app/lib/ask.mjs';
 import { restoreAskEvidencePresentation } from '../../app/lib/intelligence/ask-evidence-presentation.ts';
-const plan = (overrides = {}) => ({operation: 'overview', readOperation: 'overview', selection: 'summary', subject: 'explicit', petNames: ['Milo'], topic: 'digestive history', terms: ['stomach', 'vomit', 'stool'], from: null, to: null, episodeTopic: null, ordinal: null, frame: emptyProposedSemanticFrame(), ...overrides});
+const plan = (overrides = {}) => ({quantity:'records',operation: 'recall', readOperation: 'recall', selection: 'summary', subject: 'explicit', petNames: ['Milo'], topic: 'digestive history', terms: ['stomach', 'vomit', 'stool'], from: null, to: null, episodeTopic: null, ordinal: null, frame: emptyProposedSemanticFrame(), ...overrides,...(['conversation','clarify'].includes(overrides.mode)?{quantity:null}:{})});
+async function exercise(question,options={}){
+ const graph={...options.graph,sourceSemantics:{'unlinked-source':{classification:'attributed_correction',target:{kind:'scope',from:'2010-01-01T00:00:00Z',to:'2011-01-01T00:00:00Z',conceptKey:null}},...options.graph?.sourceSemantics}};
+ return baseExercise(question,{...options,graph});
+}
 const message = (text, n = 1) => ({id: `user-${n}`, user_id: ownerId, conversation_id: 'chat', role: 'user', user_text: text, sequence_number: n, created_at: '2026-09-06T11:30:00Z'});
 const final = r => parseAskConversationResponse(restoreAskEvidencePresentation(buildAskConversationResponse(r.result.reasoning.answer), r.result.reasoning.evidenceContract, r.context.episodeResult)).sections.map(section=>JSON.stringify(section)).join("\n") + "\n" + r.result.reasoning.answer.summary;
 const stool = care('stool-source', 'milo', '2011-01-01', 'symptom', 'Milo had soft stool for two days.');
 const correction = care('unlinked-source', 'milo', '2026-09-06', 'general', 'Correction: the vomiting report was about Bruno, not Milo.');
 
-test('production reproduction: correction-limited digestive summary still presents saved reports', async t => {
+test('uncertain digestive correction prevents an exhaustive summary from publishing facts', async t => {
   clock(t); t.mock.timers.setTime(new Date('2026-09-08T12:00:00Z').getTime());
   const r = await exercise('Summarize Milo\u2019s stomach history.', {history: true, expectedReviewCalls: 1, rows: [stool, correction], messages: [message('Milo had stomach trouble years ago.')], interpretationProposal: plan(),
     providerOverrides: {historySynthesis: [{sourceId: 'care:stool-source', text: stool.note}]}});
   console.log('CORRECTION SUMMARY FINAL:', final(r));
-  assert.ok(r.serialized.includes(stool.note));
-  assert.match(final(r), /soft stool for two days/);
-  assert.match(final(r), /correction/);
+  assert.ok(r.context.askHistory.entries.some(row=>row.id===stool.id&&row.note===stool.note));
+  assertSourceFreePublication(r);assert.ok(r.context.askHistory.coverage.ticketCoverage.reasons.includes('unlinked_correction_uncertain'));
+  assert.doesNotMatch(final(r),/soft stool for two days/);
 });
 
 test('production reproduction: completed interpretation usage must emit a provider attempt and safe failure reason', async t => {
   clock(t);
   const {interpretAskQuestion} = await import('../../app/lib/intelligence/interpret-ask.ts');
-  const base = await exercise('Summarize Milo stomach history.', {history: true, expectedReviewCalls: 0, rows: [stool], messages: [message('Tell me about Milo.')]});
+  const base = await exercise('Summarize Milo stomach history.', {history: true, expectedReviewCalls: 0, rows: [stool], messages: [message('Tell me about Milo.')],interpretationProposal:plan()});
   const events = [];
   // One deliberately invalid date reproduces the opaque post-usage failure.
   // It is NOT evidence that this field caused the reported live 503.
@@ -35,7 +40,7 @@ test('production reproduction: completed interpretation usage must emit a provid
     }}}}), error => {
       console.log('INTERPRETATION FAILURE:', error.stage, error.diagnostics.providerErrorCode, 'EVENTS:', events.length);
       assert.equal(events.filter(event => event.outcome === 'started').length, 1);
-      assert.equal(error.diagnostics.providerErrorCode, 'ASK_REQUEST_CONTRACT_DATES'); return true;
+      assert.equal(error.diagnostics.providerErrorCode, 'ASK_REQUEST_CONTRACT_READ_TICKET'); return true;
     });
 });
 
@@ -59,13 +64,13 @@ test('summary, correction-limited follow-up and authoritative Bruno reassignment
   const messages = [message('Tell me about Milo.')];
   const opts = {history: true, expectedReviewCalls: 1, fixturePets, rows, messages, graph: reassignmentGraph()};
   const summary = await exercise('Summarize Milo stomach history.', {...opts, interpretationProposal: plan(), providerOverrides: {historySynthesis: [{sourceId: 'care:stool-source', text: stool.note}]}});
-  assert.match(final(summary), /soft stool for two days/); assert.doesNotMatch(final(summary), /Milo vomited after breakfast/);
+  assertSourceFreePublication(summary);assert.ok(summary.context.askHistory.entries.some(row=>row.id===stool.id));assert.doesNotMatch(final(summary), /Milo vomited after breakfast|soft stool for two days/);
   const saved = {id: 'summary', user_id: ownerId, conversation_id: 'chat', role: 'furvise', response_data: restoreAskEvidencePresentation(buildAskConversationResponse(summary.result.reasoning.answer), summary.result.reasoning.evidenceContract, summary.context.episodeResult), sequence_number: 2};
   const follow = await exercise('When was the earliest vomiting report?', {...opts, messages: [...messages, saved], interpretationProposal: plan({operation: 'recall', readOperation: 'recall', subject: 'explicit', petNames: ['Milo'], selection: 'earliest', topic: 'vomiting', terms: ['vomit']})});
   console.log('FOLLOW-UP FINAL:', final(follow));
-  assert.equal(follow.context.pet.id, 'milo'); assert.ok(follow.context.askHistory.entries.some(row => row.id === 'milo-later')); assert.equal(follow.result.answerValidation.assessment.outcome, 'limited');
+  assert.equal(follow.context.pet.id, 'milo'); assert.deepEqual(follow.context.askInterpretation.request.readTicket.subjects.petIds,['milo']); assert.equal(follow.result.answerValidation.assessment.outcome, 'limited');
   assert.doesNotMatch(final(follow), /2010-01-01|earliest matching report I could check/);
-  assert.match(final(follow), /aren't a full answer/);
+  assert.equal(follow.result.reasoning.model,'server-labs-list');assert.deepEqual(follow.result.reasoning.labsList.records,[]);assert.deepEqual(follow.result.reasoning.relevantContextIds,[]);assert.equal(follow.requests.length,0);assert.equal(follow.reviewRequests.length,0);assert.ok(follow.context.askHistory.coverage.ticketCoverage.reasons.includes('unlinked_correction_uncertain'));assert.equal(follow.context.askHistory.coverage.ticketCoverage.groups[0].clauses[0].certified,false);
   const other = await exercise('What is saved about Bruno vomiting?', {...opts, interpretationProposal: plan({operation: 'recall', readOperation: 'recall', petNames: ['Bruno'], terms: ['vomit']})});
   assert.equal(other.context.pet.id, 'bruno'); assert.ok(other.context.askHistory.entries.some(row => row.pet_profile_id === 'bruno' && row.note.includes('Bruno vomited')));
   assert.ok(!other.context.askHistory.entries.some(row => row.pet_profile_id === 'milo'));
@@ -84,9 +89,9 @@ test('earliest matching report differs from first occurrence without discarding 
   clock(t);
   const rows = [care('neg', 'milo', '2009-01-01', 'symptom', 'Milo had no vomiting on this day.'), care('prevention', 'milo', '2010-01-01', 'general', 'The vet discussed vomiting prevention.'), vomit, stool];
   for (const selection of ['earliest', 'earliest_occurrence']) {
-    const r = await exercise('When was the earliest vomiting report?', {history: true, expectedReviewCalls: 1, rows, messages: [message('Tell me about Milo.')], interpretationProposal: plan({operation: 'recall', readOperation: 'recall', subject: 'conversation', petNames: [], selection, topic: 'vomiting', terms: ['vomit']})});
-    assert.match(final(r), selection === 'earliest' ? /2009-01-01/ : /not proof of when it first happened/);
-    if (selection === 'earliest_occurrence') assert.match(final(r), /vomiting prevention/);
+    const r = await exercise('When was the earliest vomiting report?', {history: true, expectedReviewCalls: 1, rows, messages: [message('Tell me about Milo.')], interpretationProposal: plan({operation: 'recall', readOperation: 'recall', subject:'explicit',petNames:['Milo'],referenceTurnIds:['user-1'],selection,quantity:selection==='earliest'?'records':'episodes',topic:'vomiting', terms: ['vomit']})});
+    if(selection==='earliest'){assert.equal(r.result.reasoning.model,'server-labs-list');assert.equal(r.result.reasoning.labsList.records[0].body,rows[0].note);assert.deepEqual(r.result.reasoning.relevantContextIds,['care:neg']);}
+    else {assertSourceFreePublication(r);assert.doesNotMatch(final(r),/first happened|2009-01-01/);}
     noWrites(r);
   }
 });
@@ -94,15 +99,17 @@ test('earliest matching report differs from first occurrence without discarding 
 test('explicit names, contextual labels and ambiguous pronouns remain server scoped', async t => {
   clock(t);
   const rows = [stool, care('luna-stool', 'luna', '2013-01-01', 'symptom', 'Luna had soft stool for one day.')];
-  const luna = await exercise('Summarize Luna stool history.', {history: true, expectedReviewCalls: 1, rows, messages: [message('Tell me about Milo.')], interpretationProposal: plan({subject: 'selected', petNames: [], terms: ['stool']})});
+  const luna = await exercise('Summarize Luna stool history.', {history: true, expectedReviewCalls: 1, rows, messages: [message('Tell me about Milo.')], interpretationProposal: plan({subject: 'explicit', petNames: ['Luna'], terms: ['stool']})});
   assert.equal(luna.context.pet.id, 'luna'); assert.match(final(luna), /one day/); assert.doesNotMatch(final(luna), /two days/);
-  const follow = await exercise('What is her earliest stool report?', {history: true, expectedReviewCalls: 1, rows, messages: [message('Tell me about Milo.'), message('Now tell me about Luna.', 2)], interpretationProposal: plan({operation: 'recall', readOperation: 'recall', selection: 'earliest', subject: 'explicit', petNames: ['Luna'], terms: ['stool']})});
+  const follow = await exercise('What is her earliest stool report?', {history: true, expectedReviewCalls: 1, rows, messages: [message('Tell me about Milo.'), message('Now tell me about Luna.', 2)], interpretationProposal: plan({operation: 'recall', readOperation: 'recall', selection: 'earliest', subject: 'explicit', petNames: ['Luna'],referenceTurnIds:['user-2'], terms: ['stool']})});
   assert.equal(follow.context.pet.id, 'luna'); assert.match(final(follow), /2013-01-01/);
-  const back = await exercise('Return to Milo stomach history.', {history: true, expectedReviewCalls: 1, rows, messages: [message('Tell me about Luna.')], interpretationProposal: plan({subject: 'conversation'})});
+  const back = await exercise('Return to Milo stomach history.', {history: true, expectedReviewCalls: 1, rows, messages: [message('Tell me about Luna.')], interpretationProposal: plan({subject: 'explicit',petNames:['Milo']})});
   assert.equal(back.context.pet.id, 'milo'); assert.doesNotMatch(final(back), /one day/);
-  const ambiguous = await exercise('What happened to them?', {taskReviewResponse: true, history: true, expectedReviewCalls: 0, fixturePets, rows, messages: [message('Compare Milo and Bruno.')], interpretationProposal: plan({subject: 'conversation', petNames: []})});
-  assert.equal(ambiguous.context.askInterpretation.clarification, 'subject'); assert.deepEqual(ambiguous.context.askInterpretation.petIds, []);
-  for (const r of [luna, follow, back, ambiguous]) noWrites(r);
+  const {recoverAskInterpretation}=await import('../../app/lib/intelligence/interpret-ask.ts');
+  const q='What happened to them?',ctx={...back.context,currentMessage:q,currentTurn:{id:'current',role:'user',text:q},conversationTurns:[]};
+  const ambiguous=recoverAskInterpretation(requestProposal(plan({mode:'clarify',operation:'clarify',subject:'explicit',petNames:[],scope:'named',evidenceBasis:null}),q),ctx);
+  assert.equal(ambiguous.clarification,'subject');assert.deepEqual(ambiguous.petIds,[]);assert.equal(ambiguous.request.readTicket,undefined);
+  for(const r of [luna,follow,back])noWrites(r);
 });
 
 test('safe interpretation diagnostics distinguish external failure and invalid server plans', async t => {
@@ -112,10 +119,10 @@ test('safe interpretation diagnostics distinguish external failure and invalid s
   const marker = 'PRIVATE_RESPONSE_SENTINEL';
   for (const [response, code, kind] of [
     [{status: 'incomplete', incomplete_details: {reason: marker}, usage}, 'INCOMPLETE', 'incomplete'],
-    [{status: 'completed', output: [{content: [{type: 'refusal', refusal: marker}]}], usage}, 'REFUSED', 'refused'],
+    [{status: 'completed', output: [{type:'message',role:'assistant',content: [{type: 'refusal', refusal: marker}]}], usage}, 'REFUSED', 'refused'],
     [{status: 'failed', error: {code: marker, message: marker}, usage}, 'FAILED', 'failed'],
     [{status: 'completed', output_text: '{' + marker, usage}, 'JSON', 'json'],
-    [{status: 'completed', output_text: '{}', usage}, 'CONTRACT_VERSION', 'schema'],
+    [{status: 'completed', output_text: '{}', usage}, 'JSON', 'json'],
     [{status: 'completed', output_text: JSON.stringify(requestProposal(plan({terms: ['vomit;SQL']}), 'Summarize Milo stomach history.')), usage}, 'CONTRACT_SCHEMA', 'semantic'],
     [{status: 'completed', output_text: JSON.stringify(requestProposal(plan({ordinal: 'invalid-ordinal'}), 'Summarize Milo stomach history.')), usage}, 'CONTRACT_SCHEMA', 'semantic'],
     [{status: 'completed', output_text: JSON.stringify(requestProposal(plan({subject: 'explicit', petNames: ['foreign']}), 'Summarize Milo stomach history.')), usage}, 'CONTRACT_OWNERSHIP', 'semantic'],
@@ -156,6 +163,9 @@ test('actual callback provider events, admission and ledger settlement survive f
     ['answer_timeout', {providerResponse: async () => {throw Object.assign(new Error('private timeout'), {name:'TimeoutError'});}}, 2],
   ];
   for (const [label, failure, expectedCalls] of cases) {
+    const answerDomain=label.startsWith('answer');
+    const taskQuestion=answerDomain?'Explain what a saved history note is.':'Summarize Milo stomach history.';
+    const taskProposal=answerDomain?plan({mode:'conversation',scope:'none',subject:'none',petNames:[],operation:'general',readOperation:'general',evidenceBasis:'general',terms:[]}):plan();
     const logicalRequestId = 'logical-' + label;
     const payloadHash = 'hash-' + label;
     const execute = async overrides => {
@@ -174,7 +184,7 @@ test('actual callback provider events, admission and ledger settlement survive f
         result = await runAdmittedAiOperation({store, feature: 'ask', intendedModel: OPENAI_ANALYSIS_MODEL, env: {NODE_ENV: 'test'}, payload: {question: 'History'}, userId: ownerId, requestId}, async () => {
           await reserveAiCredit(credit); turn.credit('reserved');
           try {
-            const r = await exercise('Summarize Milo stomach history.', {history: true, expectedReviewCalls: 1, rows: [stool, correction], messages: [], interpretationModel: OPENAI_ANALYSIS_MODEL, interpretationProposal: plan(), onProviderEvent: event => turn.providerEvent(event), onStage: stage => stages.push(stage), ...overrides});
+            const r = await exercise(taskQuestion, {history:!answerDomain,taskReviewResponse:answerDomain,expectedReviewCalls:0,rows:[stool,correction],messages:[],interpretationModel:OPENAI_ANALYSIS_MODEL,interpretationProposal:taskProposal, onProviderEvent: event => turn.providerEvent(event), onStage: stage => stages.push(stage), ...overrides});
             noWrites(r); saved.set(logicalRequestId, r);
             await completeAiCredit(credit); turn.credit('completed').settlement('complete', 'reconciled');
             return r;
@@ -193,9 +203,9 @@ test('actual callback provider events, admission and ledger settlement survive f
     assert.equal(failed.trace.creditState, 'released'); assert.equal(failed.trace.creditDisposition, 'release');
     assert.equal(saved.has(logicalRequestId), false);
     if (label.startsWith('interpretation')) { assert.match(failed.trace.providerFailureClass, /ASK_(?:INTERPRETATION|REQUEST_CONTRACT)_/); assert.deepEqual(failed.stages, []); }
-    else assert.equal(failed.stages.at(-1), 'answer_generation');
+    else assert.deepEqual(failed.stages,[]);
     if (label === 'answer_timeout') assert.equal(failed.thrown.stage, 'primary_timeout');
-    const completed = await execute({}); assert.deepEqual(completed.stages, ['history_retrieval', 'episode_retrieval', 'answer_generation', 'final_presentation']); assert.equal(completed.trace.providerCallCount, 3); assert.equal(completed.trace.creditState, 'completed');
+    const completed = await execute({});assert.deepEqual(completed.stages,answerDomain?[]:['history_retrieval','episode_retrieval','answer_generation','final_presentation']);assert.equal(completed.trace.providerCallCount,answerDomain?3:1); assert.equal(completed.trace.creditState, 'completed');
     const after = store.getSnapshot('2026-09-04').calls;
     await execute({}); assert.equal(store.getSnapshot('2026-09-04').calls, after);
     await reconcileAiCreditLogicalRequest({feature: 'ask', supabase: ledger, logicalRequestId, payloadHash, userId: ownerId});
@@ -210,15 +220,18 @@ test('actual callback provider events, admission and ledger settlement survive f
 });
 
 
-test('partial retrieval and an unresolved correction retain both limitations and usable facts', async t => {
-  clock(t);
-  const earlyCorrection = {...correction, occurred_at: '2010-01-01T00:00:00Z'};
-  const r = await exercise('Summarize Milo stomach history.', {history: true, expectedReviewCalls: 1, rows: [earlyCorrection, stool], messages: [], interpretationProposal: plan(), historyPageCap: 2, failHistoryPage: 2});
-  assert.match(final(r), /soft stool for two days/); assert.match(final(r), /couldn't be loaded/); assert.match(final(r), /has not been verified/); noWrites(r);
+test('partial retrieval plus correction uncertainty publishes neither facts nor an absence claim',async t=>{
+ clock(t);const earlyCorrection={...correction,occurred_at:'2010-01-01T00:00:00Z'};
+ const noise=Array.from({length:100},(_,i)=>care('page-noise-'+String(i).padStart(3,'0'),'milo','2010-01-02','symptom','Unrelated saved observation.'));
+ const r=await exercise('Summarize Milo stomach history.',{history:true,rows:[earlyCorrection,stool,...noise],messages:[],interpretationProposal:plan(),failHistoryPage:2});
+ assertSourceFreePublication(r);assert.notEqual(r.context.askHistory.coverage.ticketCoverage.status,'complete');
+ assert.ok(r.context.askHistory.coverage.ticketCoverage.reasons.length>0);
+ assert.doesNotMatch(final(r),/soft stool for two days|no stomach trouble/);noWrites(r);
 });
 
-test('missing named subject remains a clarification', async t => {
-  clock(t);
-  const r = await exercise('What happened to them?', {taskReviewResponse: true, history: true, expectedReviewCalls: 0, rows: [stool], messages: [], interpretationProposal: requestProposal(plan({operation:'clarify',subject: 'explicit', petNames: []}), 'What happened to them?')});
-  assert.equal(r.context.askInterpretation.clarification, 'subject'); assert.deepEqual(r.context.askInterpretation.petIds, []); noWrites(r);
+test('missing named subject is clarified before the historical callback',async()=>{
+ const {recoverAskInterpretation}=await import('../../app/lib/intelligence/interpret-ask.ts');
+ const q='What happened to them?',ctx={owner:{userId:ownerId},eligiblePets:pets,pet:pets[0],currentMessage:q,currentTurn:{id:'current',role:'user',text:q},conversationTurns:[]};
+ const r=recoverAskInterpretation(requestProposal(plan({mode:'clarify',operation:'clarify',subject:'explicit',scope:'named',petNames:[],evidenceBasis:null}),q),ctx);
+ assert.equal(r.clarification,'subject');assert.deepEqual(r.petIds,[]);assert.equal(r.request.readTicket,undefined);
 });

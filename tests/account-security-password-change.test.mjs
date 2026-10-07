@@ -101,7 +101,7 @@ test("the signed-in endpoint is strict, same-origin, authenticated, bounded, and
   assert.match(route, /finally \{[\s\S]*releasePublicAuthOperation\(activeClaim\)/);
   const page = read("app/settings/security/page.tsx");
   assert.match(page, /idempotencyKey\.current \|\|= crypto\.randomUUID\(\)/);
-  assert.match(page, /disabled=\{saving \|\| \(process\.env\.NODE_ENV === "production" && !captchaToken\)\}/);
+  assert.match(page, /disabled=\{saving \|\| \(isAuthCaptchaEnabled\(\) && process\.env\.NODE_ENV === "production" && !captchaToken\)\}/);
 });
 
 test("password-change rate limiting is dedicated and fail closed", () => {

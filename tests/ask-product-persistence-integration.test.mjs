@@ -49,8 +49,8 @@ test("two owned pet preferences partition into pet-local persistence inputs", ()
     { subjectId: lunaId, factValue: "chicken" },
   ]);
   const persistence = readFileSync(new URL("../app/lib/intelligence/persist-learnings.ts", import.meta.url), "utf8");
-  assert.match(persistence, /groupLearningsByPersistencePet\(normalizedLearnings, petId\)/);
-  assert.match(persistence, /p_pet_id: targetPetId/);
+  assert.deepEqual(groupLearningsByPersistencePet(result.learnings, petId).map(([id, group])=>[id,group[0].factValue]),[[miloId,"salmon"],[lunaId,"chicken"]]);
+  assert.doesNotMatch(persistence, /\.rpc\(|groupLearningsByPersistencePet/);
 });
 
 test("three owned pet preferences remain complete and pet-scoped without a combined History action", () => {

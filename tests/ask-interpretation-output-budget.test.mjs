@@ -26,7 +26,7 @@ const admit=(store,env=environment)=>admitAiOperation({env,store,feature:'ask',i
 test('Brain has an independent canonical 100000 budget below the documented model maximum',()=>{
  assert.equal(cap,100000);
  assert.ok(cap<=128000);
- assert.equal(ASK_INTERPRETATION_LIMITS.outputTokens,cap);
+  assert.equal(ASK_INTERPRETATION_LIMITS.outputTokens,Math.min(cap,8192));
  assert.equal(answerCap,8192);
  assert.equal(buildAskProviderRequest({currentMessage:'hello'}).max_output_tokens,8192);
  assert.equal(policies.ask.maxOutputTokens,cap);
@@ -77,7 +77,7 @@ for(const output of [[],[{type:'message',status:'incomplete',content:[{type:'out
   const response=await f.send();
   assert.equal(response.status,503);
   assert.equal(calls,1);assert.equal(f.state.planner,1);
-  assert.equal(sent.max_output_tokens,cap);
+   assert.equal(sent.max_output_tokens,ASK_INTERPRETATION_LIMITS.outputTokens);
   assert.equal(sent.model,'offline-fixture');
   assert.equal(sent.text.format.strict,true);
   assert.deepEqual(f.state.credit,{status:'released',disposition:'release'});
@@ -99,7 +99,9 @@ test('the configured GPT-5.4 Mini request retains effort none and never retries 
   currentTurn:{id:'source',role:'user',text:'Explain this scenario.'},conversationTurns:[],timeZone:'UTC'};
  let calls=0;
  await assert.rejects(interpretAskQuestion({context,model,client:{responses:{create:async request=>{
-  calls++;assert.equal(request.max_output_tokens,cap);assert.deepEqual(request.reasoning,{effort:'none'});
+  calls++;
+  assert.deepEqual(request.reasoning,{effort:'none'});
+  assert.equal(request.max_output_tokens,ASK_INTERPRETATION_LIMITS.outputTokens);
   return {status:'incomplete',incomplete_details:{reason:'max_output_tokens'},output:[]};
  }}}}),e=>e.diagnostics?.providerErrorCode==='ASK_INTERPRETATION_INCOMPLETE');
  assert.equal(calls,1);

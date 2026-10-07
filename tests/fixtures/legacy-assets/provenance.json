@@ -1,0 +1,51 @@
+[
+  {
+    "sourceCommit": "747a9154^",
+    "source": "public/images/dog.png",
+    "destination": "tests/fixtures/legacy-assets/dog.png",
+    "sha256": "2365277fbeadafe581fb4cb29d68226aac1b0f092903a134e06bd39f3649bab0",
+    "historicalFixtureOnly": true
+  },
+  {
+    "sourceCommit": "747a9154^",
+    "source": "public/images/flamingo.png",
+    "destination": "tests/fixtures/legacy-assets/flamingo.png",
+    "sha256": "03cd340a13e7cecacfa7631433d817766eb941287eb48c4cfa2ef8093e271a27",
+    "historicalFixtureOnly": true
+  },
+  {
+    "sourceCommit": "747a9154^",
+    "source": "public/images/goat.png",
+    "destination": "tests/fixtures/legacy-assets/goat.png",
+    "sha256": "54eb8be2f0c1878e3bd1058510f5d976c7fede2b850d443c091c5dc0d7c76a97",
+    "historicalFixtureOnly": true
+  },
+  {
+    "sourceCommit": "747a9154^",
+    "source": "public/images/ostrich.png",
+    "destination": "tests/fixtures/legacy-assets/ostrich.png",
+    "sha256": "942b88b30f76d8d24e8661d01ecc064a2dd2c35beea126144fd54004b4335f3d",
+    "historicalFixtureOnly": true
+  },
+  {
+    "sourceCommit": "747a9154^",
+    "source": "public/images/deer.png",
+    "destination": "tests/fixtures/legacy-assets/deer.png",
+    "sha256": "e3d738ddd62940868c6a249a8a41d91169868a71a6fc531f33819e431cca06d5",
+    "historicalFixtureOnly": true
+  },
+  {
+    "sourceCommit": "747a9154^",
+    "source": "public/images/hummingbird.png",
+    "destination": "tests/fixtures/legacy-assets/hummingbird.png",
+    "sha256": "6fa625213608a17eb91fd8b20176d4d9497b78c870e959c977fdfe4fa5710276",
+    "historicalFixtureOnly": true
+  },
+  {
+    "sourceCommit": "747a9154^",
+    "source": "public/images/birds.png",
+    "destination": "tests/fixtures/legacy-assets/birds.png",
+    "sha256": "0974af9c75fa907081ae03db4cf0f10f7ae31eb805df946a88a47792ba8b594d",
+    "historicalFixtureOnly": true
+  }
+]

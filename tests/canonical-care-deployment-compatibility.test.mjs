@@ -45,17 +45,12 @@ test("Phase 2 performs only the final authority contraction", () => {
   ]) assert.match(phase2, new RegExp(`revoke all on function public\\.${rpc}\\(`));
 });
 
-test("every changed production caller uses the Phase 1 server boundary", () => {
-  const callers = {
-    "app/api/ask/route.ts": ["createCanonicalCareAuthorityClient", "persistPendingSuggestion"],
-    "app/lib/intelligence/persist-pending-suggestion.ts": ["createCanonicalCareAuthorityClient", 'from("ai_update_suggestions")'],
-    "app/api/ask/suggestions/[id]/route.ts": ["auth.authority", 'rpc("apply_furvise_server_state_suggestion"'],
-    "app/lib/ask-conversation-server.ts": ["createCanonicalCareAuthorityClient", 'from("ai_update_suggestions")'],
-    "app/lib/intelligence/persist-learnings.ts": ["createCanonicalCareAuthorityClient", 'rpc("persist_furvise_server_care_event"'],
-    "app/lib/intelligence/semantic-event-persistence.ts": ['rpc("persist_furvise_server_semantic_event"'],
-  };
-  for (const [path, markers] of Object.entries(callers)) {
-    const source = read(path);
-    for (const marker of markers) assert.ok(source.includes(marker), `${path} is missing ${marker}`);
-  }
+test("current Ask mutations use canonical capability identities; retired prose paths have no RPC authority",()=>{
+ const route=read('app/api/ask/route.ts'),suggestion=read('app/api/ask/suggestions/[id]/route.ts');
+ assert.match(route,/persistCanonicalSuggestions/);assert.match(suggestion,/continueCanonicalSuggestion/);
+ const continuation=read('app/lib/intelligence/canonical-suggestion-continuation.ts');
+ assert.match(continuation,/rpc\("persist_ask_canonical_suggestion"/);assert.match(continuation,/p_user_id: input.userId, p_capability_id: action.id/);
+ assert.match(continuation,/suggestionMatchesCapability/);assert.match(continuation,/rebindCanonicalCapabilityAction/);assert.match(continuation,/return executeActionCapability/);
+ for(const f of ['app/lib/intelligence/persist-learnings.ts','app/lib/intelligence/persist-pending-suggestion.ts'])assert.doesNotMatch(read(f),/\.rpc\(|\.from\(/);
+ assert.match(read('app/lib/intelligence/semantic-event-persistence.ts'),/rpc\("persist_furvise_server_semantic_event"/);
 });

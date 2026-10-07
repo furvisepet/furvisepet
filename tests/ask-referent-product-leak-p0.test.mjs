@@ -120,10 +120,10 @@ test("internal product metadata is a degradable answer repair, not a failed Ask 
 
 test("the live route gates capability copy by explicit product intent and passes discourse focus to reasoning", () => {
   const route = readFileSync(new URL("../app/api/ask/route.ts", import.meta.url), "utf8");
-  assert.match(route, /classifyFurviseCapabilityQuestion\(question\)/);
+  assert.match(route, /const publicV1Capability = publicV1AskCapability\(interpretation\.request\)/);
   assert.match(route, /discourseFocus: subjectResolution\.discourseFocus/);
-  assert.match(route, /proposals: turnAuthoritativePetIds\.length \? reasoning\.applicationActions : \[\]/);
-  assert.match(route, /suggestion: turnAuthoritativePetIds\.length \? orchestration\.suggestion : null/);
+  assert.match(route, /proposals: turnAuthoritativePetIds\.length \? reasoning\.applicationActions\.filter/);
+  assert.match(route, /suggestion: PUBLIC_V1_CAPABILITIES\.askMutations && turnAuthoritativePetIds\.length \? orchestration\.suggestion : null/);
   assert.doesNotMatch(route, /function buildPlannedCapabilityResponse\(question/);
 });
 

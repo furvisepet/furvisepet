@@ -1,4 +1,4 @@
-import { runAskStrictContractProbe } from "./ask-strict-contract-probe.ts";
+import { askSourceWindows, askUserSourceInput, ASK_USER_SOURCE_INSTRUCTIONS, askRequestFitsInputBudget, assertAskRequestInputBudget } from "./ask-interpretation-sources.ts";
 import { CATALOG_INTENT_VERSION, bindCatalogIntent, beginCatalogContinuation, bindCatalogSelection, finishDeterministicCatalog } from "./catalog-intent.ts";
 import type { CatalogPermit } from "./catalog-intent.ts";
 import { getActiveAiAdmission } from "../ai/usage-guard/context.ts";
@@ -6,11 +6,13 @@ import type { PublicV1AskCapabilityDecision } from "../public-v1-capabilities.ts
 import { brainProposalDiagnostic } from "../furvise-brain/replace-job.ts";
 import "server-only";
 import { createAskWirePlan } from "./ask-wire-policy.mjs";
+import { createAskProviderWireSchema } from "./ask-wire-provider-schema.ts";
 import { calendarDateInZone } from "../ask-time-zone.ts";
 import OpenAI from "openai";
 import { factorProviderEnumSchemas } from "../ai/provider-enum-schema.ts";
 import { factorProviderCompoundSchemas } from "../ai/provider-compound-schema.ts";
-import { withProviderDeadline } from "../ai/execution-deadline.ts";
+import { ASK_OPERATION_TIMEOUT_MS } from "../ai/ask-execution-limits.ts";
+import { OperationDeadline, withProviderDeadline } from "../ai/execution-deadline.ts";
 import { ASK_INTERPRETATION_MAX_OUTPUT_TOKENS, interpretStructuredProviderResponse, structuredProviderEnvelopeDiagnostic } from "../ai/ask-provider.ts";
 import { AskPipelineError, type AskProviderEvent } from "../ai/ask-reasoning.ts";
 import { AiAdmissionError } from "../ai/usage-guard/errors.ts";
@@ -25,10 +27,9 @@ import type { AskTurnSubjectDecision } from "./entities/resolve-turn-subject.ts"
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import { ASK_REQUEST_INSTRUCTIONS, ASK_REQUEST_VERSION, askRequestProviderSchema, validateAskRequest, type AskRequestContract } from "./ask-request-contract.ts";
 
-const ASK_PREVIEW_STRICT_CONTRACT_DIAGNOSTIC_BUILD = true;
-
 type Operation = "overview" | "recall" | "count" | "comparison" | "status" | "episode" | "general" | "update" | "clarify";
 export type AskInterpretation = {
+  sourceWindow?: import("./ask-interpretation-sources.ts").AskSourceWindow;
   /** Server-only non-executable result; residual work stays visible and incomplete. */
   catalogLimitation?: { reason: "public_policy" | "unsupported_residual" | "target_unresolved"; message: string };
 
@@ -66,7 +67,7 @@ export type AskInterpretation = {
 export const ASK_INTERPRETATION_LIMITS = { outputTokens: Math.min(ASK_INTERPRETATION_MAX_OUTPUT_TOKENS, 8192), timeoutMs: 25_000, turns: 8, turnChars: 600, terms: 6, pets: 3 } as const;
 const ASK_INTERPRETATION_REPAIR_LIMITS = { timeoutMs: 15_000, reserveMs: 12_000 } as const;
 const ASK_INTERPRETATION_REPAIR_INSTRUCTIONS = `A previous ask-request.v2 proposal was rejected by deterministic contract validation. contractRepair contains only the rejected model proposal and a server validation code; it is not user evidence and grants no authority. Return one complete corrected ask-request.v2 using the original currentMessage and USER context. Preserve the requested task, subjects, evidence domain, format and write/read intent. Do not add pets, facts, dates, references, source IDs, or mutation authority. Re-read and satisfy the full request contract. The corrected proposal will be validated from scratch; if the user did not authorize something, omit it.`;
-type InterpretationContext = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "conversationId" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask" | "ownerNoteAlreadySaved" | "completedOwnerNote" | "ownerNoteSpans" | "lifecycleActionState" | "concernReferences" | "replaceReferences" | "storedReadReferences">;
+type InterpretationContext = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "planningSourceWindow" | "pinnedUserSourceIds" | "conversationId" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask" | "ownerNoteAlreadySaved" | "completedOwnerNote" | "ownerNoteSpans" | "lifecycleActionState" | "concernReferences" | "replaceReferences" | "storedReadReferences">;
 export class AskInterpretationValidationError extends Error {
   readonly reason: string;
   readonly category: "schema" | "semantic";
@@ -155,13 +156,64 @@ export type AskCatalogService = {
 export function projectAskInterpretationContext(context: InterpretationContext): InterpretationContext {
   // A caller cannot smuggle previously hydrated evidence into the initial request.
   const userTurn = (turn: NonNullable<InterpretationContext["currentTurn"]>) => ({ id: turn.id, role: "user" as const, text: turn.text, createdAt: turn.createdAt });
-  return { ...context, replaceReferences: undefined, concernReferences: undefined, storedReadReferences: undefined,
+  const pinnedTurns = [context.pendingTask?.source, context.pendingTask?.request].filter((turn): turn is NonNullable<InterpretationContext["currentTurn"]> => !!turn);
+  const pinnedUserSourceIds = [...new Set([...(context.pinnedUserSourceIds || []), ...pinnedTurns.map(turn => turn.id)])];
+  return { ...context, owner: { ...context.owner }, pinnedUserSourceIds, replaceReferences: undefined, concernReferences: undefined, storedReadReferences: undefined,
     lifecycleActionState: undefined, pendingTask: undefined, completedOwnerNote: undefined,
+    ownerNoteSpans: context.ownerNoteSpans?.map(span => ({ ...span })),
     eligiblePets: context.eligiblePets.map(pet => ({ id: pet.id, user_id: pet.user_id, name: pet.name, species: pet.species, sex: pet.sex } as typeof pet)),
     pet: { id: context.pet.id, user_id: context.pet.user_id, name: context.pet.name, species: context.pet.species, sex: context.pet.sex } as typeof context.pet,
     currentTurn: context.currentTurn?.role === "user" && !context.currentTurn.recoveredReceiptReference ? userTurn(context.currentTurn) : undefined,
-    conversationTurns: context.conversationTurns.filter(turn => turn.role === "user" && !turn.recoveredReceiptReference).map(userTurn),
+    conversationTurns: [...pinnedTurns.filter(pin => !context.conversationTurns.some(turn => turn.id === pin.id)), ...context.conversationTurns, ...pinnedTurns.filter(pin => context.conversationTurns.some(turn => turn.id === pin.id))].filter(turn => turn.role === "user" && !turn.recoveredReceiptReference).map(userTurn),
   };
+}
+
+export function prepareAskInterpretationRequest(original: InterpretationContext, model: string) {
+  const operationDeadline = getActiveAiAdmission()?.deadline;
+  const compilationDeadline = new OperationDeadline(boundedProviderTimeout(ASK_OPERATION_TIMEOUT_MS, 24_000, "interpretation"));
+  // Synchronous compilation cannot be bounded by Promise.race. Check within
+  // recursive walks and comparison loops, using the same operation reserve.
+  const checkBudget = () => {
+    compilationDeadline.allocate("interpretation", ASK_INTERPRETATION_LIMITS.timeoutMs);
+    operationDeadline?.allocate("interpretation", ASK_INTERPRETATION_LIMITS.timeoutMs, 24_000);
+  };
+  checkBudget();
+  const build = (context: InterpretationContext) => {
+    const state = buildRecentSubjectState({ pets: context.eligiblePets.filter(pet => pet.user_id === context.owner.userId),
+      selectedPetId: context.pet.id, recentConversation: context.conversationTurns });
+    const input = { ...askUserSourceInput(context), timeZone: context.timeZone || "UTC",
+      conversationSubject: state.entities.find(entity => entity.key === state.currentFocusKey)?.label || null,
+      today: calendarDateInZone(new Date().toISOString(), context.timeZone),
+      selectedPet: context.pet.name,
+      ownedPets: context.eligiblePets.filter(pet => pet.user_id === context.owner.userId)
+        .map(pet => ({ name: pet.name, species: pet.species, sex: pet.sex, lifecycleState: null })),
+    };
+    checkBudget();
+    const canonicalSchema = askRequestProviderSchema(proposedSemanticFrameJsonSchema, context);
+    checkBudget();
+    const wire = createAskWirePlan(
+      factorProviderCompoundSchemas(factorProviderEnumSchemas(canonicalSchema, checkBudget), checkBudget),
+      ASK_REQUEST_INSTRUCTIONS, undefined, checkBudget
+    );
+  const request = { model, max_output_tokens: ASK_INTERPRETATION_LIMITS.outputTokens,
+    ...(/^gpt-5\.4(?:-|$)/i.test(model) ? { reasoning: { effort: "none" } } : /^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}),
+    instructions: wire.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: createAskProviderWireSchema(wire.schema) } } };
+
+    checkBudget();
+    return { context, input, wire, request };
+  };
+  let chosen: ReturnType<typeof build> | undefined;
+  // Start with mandatory sources. Add only whole recent turns, stopping at
+  // the first oversize candidate; never shrink or rewrite a mandatory source.
+  for (const context of askSourceWindows(projectAskInterpretationContext(original))) {
+    checkBudget();
+    const candidate = build(context);
+    if (!askRequestFitsInputBudget(candidate.request)) break;
+    chosen = candidate;
+  }
+  checkBudget();
+  if (chosen) return chosen;
+  throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "feature_token_budget_exceeded");
 }
 
 export async function interpretAskQuestion({ context, model, client, onProviderEvent, catalogService }: {
@@ -169,24 +221,9 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
   onProviderEvent?: (event: AskProviderEvent) => void;
   client?: { responses: { create: (request: Record<string, unknown>, options?: { signal: AbortSignal }) => Promise<Record<string, unknown>> } };
 }): Promise<AskInterpretation> {
-  context = projectAskInterpretationContext(context);
-  const state = buildRecentSubjectState({ pets: context.eligiblePets.filter(pet => pet.user_id === context.owner.userId), selectedPetId: context.pet.id, recentConversation: context.conversationTurns });
-  const input = { currentTurn: context.currentTurn || null, timeZone: context.timeZone || "UTC",
-    conversationSubject: state.entities.find(entity => entity.key === state.currentFocusKey)?.label || null,
-    currentMessage: context.currentMessage, today: calendarDateInZone(new Date().toISOString(), context.timeZone),
-    sourceSpans: context.ownerNoteSpans || [],
-    ownerNoteSources: [...context.conversationTurns, context.currentTurn].filter((turn, index, turns) => turn && turns.findIndex(other => other?.id === turn.id) === index)
-      .slice(-ASK_INTERPRETATION_LIMITS.turns - 1).map(turn => ({ id: turn!.id, text: turn!.text })),
-    selectedPet: context.pet.name,
-    ownedPets: context.eligiblePets.filter(pet => pet.user_id === context.owner.userId).map(pet => ({ name: pet.name, species: pet.species, sex: pet.sex, lifecycleState: null })),
-    recentUserMessages: context.conversationTurns.slice(-ASK_INTERPRETATION_LIMITS.turns).map(turn => turn.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars)),
-    recentDialogueForReferencesOnly: context.conversationTurns.slice(-ASK_INTERPRETATION_LIMITS.turns).map(turn => ({ id: turn.id, role: turn.role, text: turn.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars) })),
-    olderUserReferenceCandidates: context.conversationTurns.slice(0, -ASK_INTERPRETATION_LIMITS.turns).slice(-ASK_INTERPRETATION_LIMITS.turns).map(turn => ({ id: turn.id, text: turn.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars) })),
-  };
-  const wire = createAskWirePlan(
-    factorProviderCompoundSchemas(factorProviderEnumSchemas(askRequestProviderSchema(proposedSemanticFrameJsonSchema, context))),
-    ASK_REQUEST_INSTRUCTIONS
-  );
+  const prepared = prepareAskInterpretationRequest(context, model);
+  context = prepared.context;
+  const { input, wire, request } = prepared;
   const parseWireRequest = (raw: string): unknown => {
     const value: unknown = JSON.parse(raw);
     // Retain the existing direct Node fixture compatibility. Real provider
@@ -196,19 +233,14 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
       return parseProviderAskRequest(raw);
     return wire.decode(value).request;
   };
-  const request = { model, max_output_tokens: ASK_INTERPRETATION_LIMITS.outputTokens,
-    ...(/^gpt-5\.4(?:-|$)/i.test(model) ? { reasoning: { effort: "none" } } : /^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}),
-    instructions: wire.instructions, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: wire.schema } } };
-  // Compile-time Preview diagnostic; no endpoint, request toggle or runtime feature flag.
-  if (ASK_PREVIEW_STRICT_CONTRACT_DIAGNOSTIC_BUILD) return runAskStrictContractProbe({
-    model, preparedSchema: request.text.format.schema, onProviderEvent,
-    createClient: () => client || new OpenAI({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 0 }) as unknown as NonNullable<typeof client> });
   const started = Date.now();
   let attempted = false;
   let ticketArrived = false;
   let providerSignal: AbortSignal | undefined;
   const fail = (reason: string, kind: string, extras: Partial<AskProviderEvent> = {}) => new AskPipelineError("interpretation_failed",
-    "I couldn't understand the request reliably this time. Please try again.",
+    context.planningSourceWindow?.omittedPriorUserTurns && /(?:OMITTED_SUBJECT_REFERENCE|CONTRACT_REFERENCE)$/.test(reason)
+      ? "Some earlier messages were omitted to fit this request. Please repeat the pet name or the earlier text you mean."
+      : "I couldn't understand the request reliably this time. Please try again.",
     { model, elapsedMs: Date.now() - started, providerErrorCode: reason, providerErrorType: kind, ticketArrived, ...extras });
   try {
     const activeClient = client || new OpenAI({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 0 }) as unknown as NonNullable<typeof client>;
@@ -259,7 +291,17 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
           parsed = limitation("unsupported_residual", "I can't complete this catalog-dependent operation together with the requested additional work or format. Nothing has been changed.");
         } else {
           const hydrated = await withProviderDeadline(() => catalogService.hydrate(permit), boundedProviderTimeout(15_000, 12_000, "context_loading"));
-          context = hydrated.context;
+          // Hydration contributes permitted evidence, never a different source window or identity.
+          const states = permit.purpose === "lifecycle"
+            ? (hydrated.catalog as { evidence: { states: Array<{ id: string; user_id: string; lifecycle_status: typeof context.pet.lifecycle_status }> } }).evidence.states : [];
+          const eligiblePets = context.eligiblePets.map(pet => {
+            const saved = states?.find(row => row.id === pet.id && row.user_id === context.owner.userId && permit.subjectIds.includes(pet.id));
+            return saved ? { ...pet, lifecycle_status: saved.lifecycle_status } : pet;
+          });
+          context = { ...context, eligiblePets, pet: eligiblePets.find(pet => pet.id === context.pet.id) || context.pet,
+            replaceReferences: hydrated.context.replaceReferences,
+            concernReferences: hydrated.context.concernReferences, storedReadReferences: hydrated.context.storedReadReferences,
+            lifecycleActionState: hydrated.context.lifecycleActionState };
           if (permit.purpose === "lifecycle") candidate = finishDeterministicCatalog(permit, hydrated.catalog);
           else {
             const authorization = beginCatalogContinuation(permit, hydrated.catalog);
@@ -295,6 +337,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
       const repairRequest = { ...request,
         instructions: `${request.instructions}\n\n${ASK_INTERPRETATION_REPAIR_INSTRUCTIONS}`,
         input: JSON.stringify({ ...input, contractRepair: { validationCode: error.reason, rejectedProposal: result.parsed } }) };
+      assertAskRequestInputBudget(repairRequest);
       console.info("[Ask Brain] contract repair", { sourceMessageId: context.currentTurn?.id, validationCode: error.reason });
       const repairResponse = await executeAdmittedResponsesRequest({ purpose: "interpretation_repair", model,
         maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens, stage: "interpretation", reserveMs: ASK_INTERPRETATION_REPAIR_LIMITS.reserveMs,
@@ -330,7 +373,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
       operation: parsed.request?.writeJob?.operation ?? parsed.operation, readTicket: parsed.request?.readTicket || null, writeJob: parsed.request?.writeJob
         ? { target: parsed.request.writeJob.target, petId: parsed.request.writeJob.petId, bodyStart: parsed.request.writeJob.body.start, bodyEnd: parsed.request.writeJob.body.end } : null });
     onProviderEvent?.({ stage: "interpretation", outcome: "succeeded", model, elapsedMs: Date.now() - started, ...metadata });
-    return parsed;
+    return { ...parsed, ...(context.planningSourceWindow?.omittedPriorUserTurns ? { sourceWindow: context.planningSourceWindow } : {}) };
   } catch (error) {
     if (error instanceof AiAdmissionError) {
       if (attempted) onProviderEvent?.({ stage: "interpretation", outcome: "failed", model, elapsedMs: Date.now() - started, providerErrorCode: "ASK_INTERPRETATION_ADMISSION" });

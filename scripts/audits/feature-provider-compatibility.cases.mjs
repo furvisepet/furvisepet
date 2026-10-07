@@ -36,7 +36,10 @@ test('actual Vet Brief feature runner reaches compatible request and document va
  const previous=process.env.OPENAI_API_KEY;
  process.env.OPENAI_API_KEY='synthetic-test-only';
  t.after(()=>{if(previous===undefined)delete process.env.OPENAI_API_KEY;else process.env.OPENAI_API_KEY=previous;});
- const {context}=await exercise('Summarize Milo history.',{history:true});
+ const {database}=await import('./helpers/lifetime-harness.mjs');
+ const {buildFurviseContext}=await import('../../app/lib/intelligence/retrieve-context.ts');
+ const {ownerId}=await import('./fixtures/ask-lifetime-history.mjs');
+ const context=await buildFurviseContext({supabase:database([],{fixturePets:pets}),userId:ownerId,petId:'milo',currentMessage:'Prepare the requested brief.'});
  const {document}=buildVetBriefDraft({profile:context.pet,careEntries:[],memories:[],from:'2026-08-01',to:'2026-08-31'});
  globalThis.__featureProvider=async request=>{
   assert.equal(Object.hasOwn(request,'temperature'),false);

@@ -36,7 +36,14 @@ for(const [name,patch] of [
  ["missing residual receipt",{mode:"read",evidenceBasis:"stored"}],
  ["legacy arithmetic",{mode:"read",evidenceBasis:"saved_profile",projection:{quantity:"body_mass",order:"value_descending"}}],
 ])test(name+" cannot enter broad factual generation",async()=>{
- const f=fixture(patch),r=await generateContextAwareAskResponse(f.input);
+ const f=fixture(patch);
+ if(name==="missing residual receipt"){
+  await assert.rejects(generateContextAwareAskResponse(f.input),/STORED_READ_RESULT_UNAVAILABLE_OR_CHANGED/);
+  assert.equal(calls,0);
+  assert.throws(()=>buildAskProviderRequest({evidenceContract:f.evidence}),/STORED_STATE_CANNOT_ENTER_LANGUAGE_GENERATION/);
+  return;
+ }
+ const r=await generateContextAwareAskResponse(f.input);
  assert.equal(r.model,FACTUAL_UNAVAILABLE);assert.equal(factualLimitationFailure(r),null);
  const v=await finalized(f,r);assert.equal(v.assessment.outcome,"limited");
  assert.equal(v.response.answer.summary,FACTUAL_LIMITATION);assert.deepEqual(r.relevantContextIds,[]);

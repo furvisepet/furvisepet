@@ -5,7 +5,7 @@ import test from "node:test";
 const source = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const verifier = source("scripts/verify-billing-sandbox-config.mjs");
 const devLauncher = source("scripts/start-billing-sandbox-dev.mjs");
-const runbook = source("docs/billing-sandbox-e2e.md");
+const runbook = source("tests/fixtures/legacy-documents/billing-sandbox-e2e.md");
 const packageJson = JSON.parse(source("package.json"));
 const gitignore = source(".gitignore");
 

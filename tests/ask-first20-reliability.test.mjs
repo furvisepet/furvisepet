@@ -32,32 +32,20 @@ test('output instructions do not become feature gates; current capability copy s
   }
 });
 
-function saveLookup(turns, entries) {
-  const queries = [];
-  const supabase = { from(table) {
-    const filters = []; let limit = Infinity;
-    const chain = { select() { return chain; }, eq(k,v) { filters.push(row=>row[k]===v); return chain; }, is(k,v) { filters.push(row=>row[k]===v); return chain; }, order() { return chain; }, limit(n) { limit=n; return chain; }, returns() { queries.push(table); return Promise.resolve({data:entries.filter(row=>filters.every(f=>f(row))).slice(0,limit),error:null}); } };
-    return chain;
-  } };
-  const run = extract('app/api/ask/route.ts','findExistingCareEventForSaveRequest');
-  return { queries, run:message=>run({context:{conversationTurns:turns}, currentSourceMessageId:'now', message, petId:'milo',userId:'owner',supabase}) };
-}
-const recovery = {id:'old',role:'user',text:'Milo is eating better'};
-const entry = {id:'entry',user_id:'owner',pet_profile_id:'milo',intelligence_source_message_id:'old',deleted_at:null,concern_id:null};
-test('new observations never reuse an older recovery receipt',async()=>{
-  const h=saveLookup([recovery],[entry]);
-  for(const q of ['Please save that Luna missed breakfast to her history','Save that Milo missed breakfast to history','Save this and add his new weight']) assert.equal(await h.run(q),null);
-  assert.equal(h.queries.length,0);
-});
-test('repeat-save requires exactly one live owned event on the immediately preceding turn',async()=>{
-  assert.equal((await saveLookup([recovery],[entry]).run('Can you save that?')).alreadyPersisted,true);
-  assert.equal((await saveLookup([recovery],[entry]).run('Save that to care history')).currentSafetyState,null);
-  for(const entries of [[],[{...entry,deleted_at:'2026-01-01'}],[{...entry,pet_profile_id:'luna'}],[{...entry,user_id:'other'}],[entry,{...entry,id:'two',pet_profile_id:'luna'}]]) {
-    assert.equal(await saveLookup([recovery],entries).run('Save that'),null);
-  }
-  assert.equal(await saveLookup([recovery,{id:'newer',role:'user',text:'Milo missed breakfast'}],[entry]).run('Save that'),null);
-});
 
+test('new observations never reuse an older recovery receipt',async()=>{
+ const {assertLegacyProseRejected}=await import('./helpers/legacy-prose-boundary.mjs');
+ for(const q of ['Please save that Luna missed breakfast to her history','Save that Milo missed breakfast to history','Save this and add his new weight'])
+  await assertLegacyProseRejected({type:'history',payload:{careEntryId:'old',sourceMessageId:'previous'}},q);
+});
+test('repeat-save prose requires canonical authority and cannot select a prior event',async()=>{
+ const {assertLegacyProseRejected}=await import('./helpers/legacy-prose-boundary.mjs');
+ for(const entry of [null,{id:'old',pet_profile_id:'milo',user_id:'owner'}, {id:'old',deleted_at:'2026-01-01'}, {id:'old',pet_profile_id:'luna'},{id:'old',user_id:'other'}])
+  for(const q of ['Can you save that?','Save that to care history'])
+   await assertLegacyProseRejected({type:'history',payload:{priorEntry:entry,alreadyPersisted:true}},q);
+ const route=readFileSync(new URL('app/api/ask/route.ts',root),'utf8');
+ assert.doesNotMatch(route,/findExistingCareEventForSaveRequest/);
+});
 test('Cancel sends a durable cancellation and never confirms the action',async()=>{
   let slots=[], cursor=0;const calls=[];
   const card=extract('app/ask/page.tsx','ApplicationActionCard',{

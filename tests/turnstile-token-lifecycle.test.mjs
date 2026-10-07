@@ -21,7 +21,8 @@ test("the first login request waits for and serializes the exact successful CAPT
   assert.match(handleAuthToken, /if \(!authSubmitPendingRef\.current\) return/);
   assert.match(handleAuthToken, /authSubmitPendingRef\.current = false/);
   assert.equal((handleAuthToken.match(/submitAuth\(token\)/g) || []).length, 1);
-  assert.match(submitAuth, /async function submitAuth\(token: string\) \{\s*if \(!token\) return/);
+  assert.match(submitAuth, /async function submitAuth\(token\?: string\) \{\s*if \(isAuthCaptchaEnabled\(\) && !token\) return/);
+  assert.match(submitAuth, /isAuthCaptchaEnabled\(\) && !token/);
   assert.ok(request >= 0);
   assert.ok(reset > request);
   assert.match(submitAuth, /body: JSON\.stringify\(\{[^}]*captchaToken: token[^}]*\}\)/);

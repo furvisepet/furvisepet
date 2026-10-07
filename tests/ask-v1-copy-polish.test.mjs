@@ -22,7 +22,7 @@ test("Ask visible actions and conversation empty state use natural language", ()
 });
 
 test("the three starter cards retain their exact prompts and geometry contract", () => {
-  for (const prompt of ["What has changed recently?", "What should I keep an eye on?", "How should I prepare for {pet}'s next vet visit?"]) assert.match(ask, new RegExp(prompt.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  for (const prompt of ["What was {pet}'s earliest recorded weight?", "What was {pet}'s latest recorded weight?", "When did we change {pet}'s food?"]) assert.match(ask, new RegExp(prompt.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.equal((ask.match(/data-ui="starter-question"/g) || []).length, 1);
   assert.match(ask, /className="group flex min-h-11 min-w-0 cursor-pointer items-center justify-between gap-3 rounded-lg border border-\[var\(--assistant-response-border\)\] bg-\[var\(--suggested-question-surface\)\] px-3\.5 py-2\.5 text-left text-sm font-semibold leading-5 text-\[var\(--suggested-question-foreground\)\] transition-colors hover:bg-\[var\(--suggested-question-hover\)\] active:bg-\[var\(--suggested-question-selected\)\] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-\[var\(--pw-focus-ring\)\] sm:w-auto sm:flex-1"/);
   assert.match(ask, /onClick=\{\(\) => onSelect\(label\)\}/);

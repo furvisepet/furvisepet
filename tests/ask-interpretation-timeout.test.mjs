@@ -6,7 +6,7 @@ const {ASK_INTERPRETATION_MAX_OUTPUT_TOKENS} = await import('../app/lib/ai/ask-p
 const {FURVISE_ANSWER_UNAVAILABLE_MESSAGE} = await import('../app/lib/furvise-output.ts');
 
 test('interpretation uses its canonical stage-specific output budget', () => {
-  assert.equal(ASK_INTERPRETATION_LIMITS.outputTokens, ASK_INTERPRETATION_MAX_OUTPUT_TOKENS);
+   assert.equal(ASK_INTERPRETATION_LIMITS.outputTokens, Math.min(ASK_INTERPRETATION_MAX_OUTPUT_TOKENS,8192));
 });
 
 test('interpretation deadline fails closed through POST: one planner, no retrieve/write, released credit', async t => {
@@ -25,7 +25,7 @@ test('interpretation deadline fails closed through POST: one planner, no retriev
   });
   const pending = f.send();
   await began;
-  assert.equal(providerRequest.max_output_tokens, ASK_INTERPRETATION_MAX_OUTPUT_TOKENS);
+   assert.equal(providerRequest.max_output_tokens, ASK_INTERPRETATION_LIMITS.outputTokens);
   assert.equal(ASK_INTERPRETATION_LIMITS.timeoutMs,25000);
   assert.equal(f.state.planner,1);
   assert.equal(f.state.credit.status,'reserved');

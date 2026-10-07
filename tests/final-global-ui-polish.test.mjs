@@ -10,7 +10,7 @@ const primitives = read("app/components/product-primitives.tsx");
 const appPage = read("app/components/app-page.tsx");
 
 test("normal app pages use one Barlow Condensed display system and one product rail", () => {
-  assert.match(read("app/layout.tsx"), /Barlow_Condensed[\s\S]*variable: "--font-marketing-display"[\s\S]*weight: "700"/);
+  assert.match(read("app/layout.tsx"), /const marketingDisplay = localFont\(\{[\s\S]*src: "\.\.\/public\/fonts\/BarlowCondensed-Bold\.ttf"[\s\S]*variable: "--font-marketing-display"[\s\S]*weight: "700"/);
   assert.match(primitives, /appPageEyebrowClass = "app-page-eyebrow"/);
   assert.match(primitives, /appPageTitleClass = "app-page-title"/);
   assert.match(primitives, /appPageSubtitleClass = "app-page-subtitle"/);

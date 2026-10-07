@@ -9,9 +9,11 @@ const canonical=x=>JSON.stringify(sorted(x));
 const without=(o,keys)=>Object.fromEntries(Object.entries(o).filter(([k])=>!keys.includes(k)));
 function ensure(condition,code){if(!condition)throw new Error("ASK_WIRE_"+code);}
 function symbol(i){const a="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";return i<52?a[i]:symbol(Math.floor(i/52)-1)+a[i%52];}
-function expand(schema){
+function expand(schema,checkBudget=()=>{}){
+ checkBudget();
  const defs=schema.$defs??{};
  function visit(n,seen=[]){
+  checkBudget();
   if(Array.isArray(n))return n.map(v=>visit(v,seen));
   if(!obj(n))return n;
   if(own(n,"$ref")){
@@ -23,10 +25,11 @@ function expand(schema){
  }
  return visit(schema);
 }
-function makeValidator(root){
+function makeValidator(root,checkBudget=()=>{}){
  const regexes=new Map();
  const allowed=new Set(["type","properties","required","additionalProperties","anyOf","items","enum","minItems","maxItems","minLength","maxLength","minimum","maximum","pattern","description"]);
  function audit(s){
+  checkBudget();
   ensure(obj(s)&&Object.keys(s).every(k=>allowed.has(k)),"UNSUPPORTED_SCHEMA");
   if(s.pattern!==undefined){ensure(typeof s.pattern==="string","SCHEMA_PATTERN");regexes.set(s.pattern,new RegExp(s.pattern));}
   for(const n of Object.values(s.properties??{}))audit(n);
@@ -53,9 +56,11 @@ function makeValidator(root){
  }
  return (s,v)=>valid(s,v);
 }
-function factor(root){
+function factor(root,checkBudget=()=>{}){
+ checkBudget();
  const names=new Map(),defs={};
  function visit(n,isRoot=false){
+  checkBudget();
   if(!obj(n))return n;
   const y=Object.fromEntries(Object.entries(n).map(([k,v])=>[k,k==="properties"?Object.fromEntries(Object.entries(v).map(([a,b])=>[a,visit(b)])):k==="anyOf"?v.map(b=>visit(b)):k==="items"?visit(v):v]));
   const key=canonical(y);if(isRoot||key.length<30)return y;
@@ -65,11 +70,12 @@ function factor(root){
  let out=visit(root,true);out.$defs=defs;
  while(true){
   const counts=new Map();
-  function count(n){if(Array.isArray(n)){n.forEach(count);return;}if(!obj(n))return;if(n.$ref){const k=n.$ref.slice(8);counts.set(k,(counts.get(k)??0)+1);}Object.values(n).forEach(count);}
+  function count(n){checkBudget();if(Array.isArray(n)){n.forEach(count);return;}if(!obj(n))return;if(n.$ref){const k=n.$ref.slice(8);counts.set(k,(counts.get(k)??0)+1);}Object.values(n).forEach(count);}
   count(out);const singles=new Set(Object.keys(out.$defs).filter(k=>(counts.get(k)??0)<2));
   if(!singles.size)return out;
   const old=out.$defs;
   function inline(n){
+  checkBudget();
    if(Array.isArray(n))return n.map(inline);if(!obj(n))return n;
    if(Object.keys(n).length===1&&n.$ref&&singles.has(n.$ref.slice(8)))return inline(old[n.$ref.slice(8)]);
    return Object.fromEntries(Object.entries(n).map(([k,v])=>[k,inline(v)]));
@@ -78,8 +84,10 @@ function factor(root){
   out.$defs=Object.fromEntries(Object.entries(old).filter(([k])=>!singles.has(k)).map(([k,v])=>[k,inline(v)]));
  }
 }
-function foldUnions(root){
+function foldUnions(root,checkBudget=()=>{}){
+ checkBudget();
  function visit(n){
+  checkBudget();
   if(Array.isArray(n))return n.map(visit);if(!obj(n))return n;
   const y=Object.fromEntries(Object.entries(n).map(([k,v])=>[k,visit(v)]));
   if(y.required)y.required.sort();
@@ -88,6 +96,7 @@ function foldUnions(root){
   while(true){
    let changed=false;
    outer:for(let i=0;i<arms.length;i++)for(let j=i+1;j<arms.length;j++){
+    checkBudget();
     const a=arms[i],b=arms[j];let merged=null;
     if(a.enum&&b.enum&&canonical(without(a,["enum"]))===canonical(without(b,["enum"])))
      merged={...a,enum:[...new Map([...a.enum,...b.enum].map(v=>[canonical(v),v])).values()]};
@@ -106,13 +115,15 @@ function foldUnions(root){
  }
  return visit(root);
 }
-function groupSchema(original){
- const folded=foldUnions(original),root=factor(folded),moves=[];
+function groupSchema(original,checkBudget=()=>{}){
+ checkBudget();
+ const folded=foldUnions(original,checkBudget),root=factor(folded,checkBudget),moves=[];
  for(let iteration=0;iteration<64;iteration++){
   const objects=[];
-  function collect(n){if(Array.isArray(n)){n.forEach(collect);return;}if(!obj(n))return;if(n.properties)objects.push(n);Object.values(n).forEach(collect);}
+  function collect(n){checkBudget();if(Array.isArray(n)){n.forEach(collect);return;}if(!obj(n))return;if(n.properties)objects.push(n);Object.values(n).forEach(collect);}
   collect(root);const candidates=new Map();
   for(let i=0;i<objects.length;i++)for(let j=i+1;j<objects.length;j++){
+   checkBudget();
    const a=objects[i],b=objects[j];
    const names=Object.keys(a.properties).filter(k=>!k.startsWith("_g")&&own(b.properties,k)&&canonical(a.properties[k])===canonical(b.properties[k]));
    if(names.length<2)continue;
@@ -120,6 +131,7 @@ function groupSchema(original){
   }
   let best=null;
   for(const [names,a] of candidates.values()){
+   checkBudget();
    const matching=objects.filter(n=>names.every(k=>own(n.properties,k)&&canonical(n.properties[k])===canonical(a.properties[k])));
    const group={type:"object",additionalProperties:false,required:names,properties:Object.fromEntries(names.map(k=>[k,a.properties[k]]))};
    const savings=(names.reduce((s,k)=>s+canonical(a.properties[k]).length+2*canonical(k).length+3,0)-60)*matching.length-canonical(group).length;
@@ -162,13 +174,15 @@ function ungroupSchema(n){
  }
  return y;
 }
-export function compileGraphCodec(schema, fieldOrder = null){
- const canonicalSchema=expand(schema);
- const canonicalValid=makeValidator(canonicalSchema);
- const {root:grouped,folded}=groupSchema(canonicalSchema);
- ensure(canonical(ungroupSchema(expand(grouped)))===canonical(normalizeRequired(folded)),"SCHEMA_RESTORATION");
- const original=expand(grouped),valid=makeValidator(original),fields=new Set(),constantMaps={},info=new WeakMap(),signatures=new Map();
+export function compileGraphCodec(schema, fieldOrder = null, checkBudget=()=>{}){
+ checkBudget();
+ const canonicalSchema=expand(schema,checkBudget);
+ const canonicalValid=makeValidator(canonicalSchema,checkBudget);
+ const {root:grouped,folded}=groupSchema(canonicalSchema,checkBudget);
+ ensure(canonical(ungroupSchema(expand(grouped,checkBudget)))===canonical(normalizeRequired(folded)),"SCHEMA_RESTORATION");
+ const original=expand(grouped,checkBudget),valid=makeValidator(original,checkBudget),fields=new Set(),constantMaps={},info=new WeakMap(),signatures=new Map();
  function fieldsAudit(n){
+  checkBudget();
   if(n.properties){
    ensure(n.additionalProperties===false&&canonical([...n.required].sort())===canonical(Object.keys(n.properties).sort()),"STRICT_OBJECT_SCHEMA");
    for(const [k,v] of Object.entries(n.properties)){ensure(k!=="_"&&!k.includes("~"),"RESERVED_FIELD");fields.add(k);fieldsAudit(v);}
@@ -181,6 +195,7 @@ export function compileGraphCodec(schema, fieldOrder = null){
  const names=Object.fromEntries(order.map((k,i)=>[k,symbol(i)])),reverseNames=Object.fromEntries(Object.entries(names).map(([k,v])=>[v,k])),missing=Symbol("missing");
  function constant(n){return n.type==="null"?null:n.enum?.length===1?n.enum[0]:n.type==="array"&&n.maxItems===0?[]:missing;}
  function compactSchema(n){
+  checkBudget();
   const y=clone(without(n,["description","properties","required","anyOf","items"]));
   if(n.anyOf)y.anyOf=n.anyOf.map(compactSchema);if(n.items)y.items=compactSchema(n.items);
   if(n.properties){
@@ -195,7 +210,7 @@ export function compileGraphCodec(schema, fieldOrder = null){
   }
   return y;
  }
- const compact=compactSchema(original),compactValid=makeValidator(compact);
+ const compact=compactSchema(original),compactValid=makeValidator(compact,checkBudget);
  function groupValue(n,v){
   if(n.anyOf){for(const a of n.anyOf){try{const y=groupValue(a,v);if(valid(a,y))return y;}catch{ /* next structural branch */ }}throw Error("ASK_WIRE_GROUP_BRANCH");}
   let y;
@@ -230,6 +245,7 @@ export function compileGraphCodec(schema, fieldOrder = null){
  const nodes=new Map();
  const ref={type:"object",additionalProperties:false,required:["@"],properties:{"@":{type:"integer",minimum:0}}};
  function graph(n){
+  checkBudget();
   if(n.properties){
    const key=canonical(n);
    if(!nodes.has(key)){nodes.set(key,null);nodes.set(key,{...without(n,["properties","required"]),type:"object",properties:Object.fromEntries(Object.entries(n.properties).map(([k,v])=>[k,graph(v)])),required:n.required});}
@@ -238,9 +254,9 @@ export function compileGraphCodec(schema, fieldOrder = null){
   return Object.fromEntries(Object.entries(n).map(([k,v])=>[k,k==="anyOf"?v.map(graph):k==="items"?graph(v):v]));
  }
  graph(compact);
- const rawGraph=factor(foldUnions({type:"object",additionalProperties:false,required:["nodes"],properties:{nodes:{type:"array",minItems:1,items:{anyOf:[...nodes.values()]}}}}));
- const rawExpanded=expand(rawGraph),rawValid=makeValidator(rawExpanded),objects=[];
- function collect(n){if(Array.isArray(n)){n.forEach(collect);return;}if(!obj(n))return;if(n.properties&&own(n.properties,"_"))objects.push(n);Object.values(n).forEach(collect);}
+ const rawGraph=factor(foldUnions({type:"object",additionalProperties:false,required:["nodes"],properties:{nodes:{type:"array",minItems:1,items:{anyOf:[...nodes.values()]}}}},checkBudget),checkBudget);
+ const rawExpanded=expand(rawGraph,checkBudget),rawValid=makeValidator(rawExpanded,checkBudget),objects=[];
+ function collect(n){checkBudget();if(Array.isArray(n)){n.forEach(collect);return;}if(!obj(n))return;if(n.properties&&own(n.properties,"_"))objects.push(n);Object.values(n).forEach(collect);}
  collect(rawExpanded);
  const candidates=new Map(),forbidden=new Set();
  const ruleKey=(keys,tag)=>canonical([keys,tag]);
@@ -251,6 +267,7 @@ export function compileGraphCodec(schema, fieldOrder = null){
  }
  const rules=new Map([...candidates].filter(([k])=>!forbidden.has(k)));
  function packSchema(n){
+  checkBudget();
   if(Array.isArray(n))return n.map(packSchema);if(!obj(n))return n;
   const y=Object.fromEntries(Object.entries(n).map(([k,v])=>[k,packSchema(v)]));
   if(n.properties&&own(n.properties,"_")){
@@ -263,7 +280,7 @@ export function compileGraphCodec(schema, fieldOrder = null){
   }
   return y;
  }
- const packedRaw=factor(packSchema(rawExpanded)),wireSchema=optimizeSchema(packedRaw).schema,wireExpanded=expand(wireSchema),wireValid=makeValidator(wireExpanded);
+ const packedRaw=factor(packSchema(rawExpanded),checkBudget),wireSchema=optimizeSchema(packedRaw,checkBudget).schema,wireExpanded=expand(wireSchema,checkBudget),wireValid=makeValidator(wireExpanded,checkBudget);
  function pack(wire){
   return {nodes:wire.nodes.map(n=>{
    const f=rules.get(ruleKey(Object.keys(n).sort(),n._));if(f===undefined)return clone(n);
@@ -322,10 +339,12 @@ function costWeights(c,rules){
 }
 
 // Both passes use one implementation; only trusted schema and policy determine symbols.
-export function createGraphCodec(schema){
- const started=performance.now(),baseline=compileGraphCodec(schema),baselineFinished=performance.now();
+export function createGraphCodec(schema,checkBudget=()=>{}){
+ checkBudget();
+ const started=performance.now(),baseline=compileGraphCodec(schema,null,checkBudget),baselineFinished=performance.now();
  const weights=costWeights(baseline,POLICY_BUNDLE.rules);
  const order=Object.keys(baseline.names).sort((a,b)=>(weights[b]||0)-(weights[a]||0)||(a<b?-1:a>b?1:0));
- const ranked=compileGraphCodec(schema,order);
+ const ranked=compileGraphCodec(schema,order,checkBudget);
+ checkBudget();
  return {...ranked,compilation:{baselineMs:baselineFinished-started,rankedMs:performance.now()-baselineFinished,totalMs:performance.now()-started}};
 }

@@ -1,6 +1,7 @@
+import * as continuation from '../../app/lib/intelligence/ask-task-continuation.ts';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { validateAskTask, resolvePendingTaskSubject } from '../../app/lib/intelligence/ask-task-continuation.ts';
+import { validateAskTask } from '../../app/lib/intelligence/ask-task-continuation.ts';
 import { resolveDeterministicTurnSubject, explicitMutationTarget } from '../../app/lib/intelligence/entities/resolve-turn-subject.ts';
 import { resolveWorkingMemoryFollowup } from '../../app/lib/furvise-brain/working-memory.ts';
 
@@ -20,8 +21,12 @@ test('save-that without established subject remains pending instead of guessing 
 
 test('verified save then explicit cancellation cannot be resurrected by a later pet name',()=>{
   const pending={id:'task',revision:1,kind:'owner_note',status:'awaiting_subject',source,request:saveRequest,authorizationMessageId:'u2'};
-  const cancelled={...pending,status:'cancelled'};
-  assert.equal(resolvePendingTaskSubject({...base,pendingTask:cancelled,currentMessage:'Milo'}),null);
+  assert.equal(typeof continuation.resolvePendingTaskSubject,'undefined','no post-Binder name-only executor');
+  for(const status of ['cancelled','completed','failed','unknown'])for(const intent of ['resume','cancel']){
+    const terminal={...pending,status};
+    assert.throws(()=>validateAskTask({intent,sourceTurnId:'u1',petName:'Milo',answerRequest:null},{...base,pendingTask:terminal,currentMessage:intent==='cancel'?'cancel the note':'Milo'}),/ASK_REQUEST_INVALID:task/);
+    assert.equal(terminal.status,status);assert.equal(terminal.revision,1);
+  }
 });
 
 test('subject correction switches later pronouns but does not create save authority',()=>{

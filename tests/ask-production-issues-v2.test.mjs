@@ -153,7 +153,7 @@ test("assistant-offer follow-ups normalize to draftable owner-perspective questi
 test("empty Ask and mobile conversation presentation stay compact and clear of navigation", () => {
   assert.match(page, /<summary>Example questions<\/summary>/);
   assert.match(page, /<details className="ask-example-questions">/);
-  assert.equal((read("app/ask/page.tsx").match(/^\s+".*",$/gm) || []).filter((line) => /changed recently|keep an eye|prepare for/.test(line)).length, 3);
+  assert.equal((read("app/ask/page.tsx").match(/^\s+".*",$/gm) || []).filter((line) => /earliest recorded weight|latest recorded weight|When did we change/.test(line)).length, 3);
   assert.doesNotMatch(page, /Ask about something funny|Nothing is sent until you press Ask/);
   assert.match(page, /data-mobile-conversation-clearance="nav-and-composer"/);
   assert.match(page, /sm:min-h-\[66vh\]/);

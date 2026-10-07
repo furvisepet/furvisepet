@@ -79,9 +79,10 @@ test('Heart requires exact job, target and durable terminal receipt',async()=>{
  assert.throws(()=>confirmFurviseWriteReceipt({...input,persistedReceipt:null}),/UNCONFIRMED/);
 });
 test('arbitrary USER wording enters REMOVE through one Brain proposal, never a command parser',async()=>{
- const f=setup(true);let calls=0;
+ const f=setup(false);let calls=0;
  const result=await interpretAskQuestion({context:f.context,model:'test',client:{responses:{create:async()=>{calls++;return {output_text:JSON.stringify(f.request)};}}}});
- assert.equal(calls,1);assert.equal(result.request.removeJob.operation,'remove');assert.equal(result.request.removeJob.target.recordId,f.row.id);
+ assert.equal(calls,1);assert.equal(result.request.removeJob.operation,'remove');assert.equal(result.request.removeJob.target,'last_event_for_subject');
+ const resolved=await resolveRemovePlan(result.request.removeJob,f.db,id(1));assert.equal(resolved.resolvedTarget.recordId,f.row.id);
 });
 test('route dispatches canonical removal before factual context and narrative generation',()=>{
  const s=readFileSync(new URL('../app/api/ask/route.ts',import.meta.url),'utf8'),start=s.indexOf('if (interpretation.request?.removeJob)');
@@ -92,7 +93,7 @@ test('route dispatches canonical removal before factual context and narrative ge
 test('provider grammar admits only standalone REMOVE and supplied reference handles',async()=>{
  const {default:Ajv}=await import('ajv'),f=setup(true),schema=askRequestProviderSchema({},f.context);
  const validate=new Ajv({allErrors:true}).compile(schema);
- const base={storedRead:null,removeJob:null,stateTransitionJob:null,fieldMutationJob:null,lifecyclePlan:null,appendJob:null,readTicket:null,task:null,temporalScope:null,
+ const base={calculatePlan:null,storedRead:null,removeJob:null,stateTransitionJob:null,fieldMutationJob:null,lifecyclePlan:null,appendJob:null,readTicket:null,task:null,temporalScope:null,
  recordSelection:null,profileFields:[],projection:null,evidenceNeeds:[],outputFormat:null,evidenceBasis:null,premiseQuotes:null,excludedPetNames:[],...f.request};
  assert.equal(validate({request:base}),true,JSON.stringify(validate.errors));
  assert.equal(validate({request:{...base,removeJob:{...base.removeJob,target:{kind:'exact_record',ref:'invented'}}}}),false);

@@ -7,13 +7,14 @@ export function ticketedProposal(proposal) {
   if (Object.hasOwn(proposal, 'readTicket') || proposal.mode !== 'read'
       || proposal.evidenceBasis !== 'saved_history') return proposal;
   const boundary = ['earliest', 'latest'].includes(proposal.selection);
-  const instant = day => day == null ? null : `${day}T00:00:00.000Z`;
+  const instant = day => day == null ? null : /^\d{4}-\d{2}-\d{2}$/.test(day) ? `${day}T00:00:00.000Z` : day;
   return { ...proposal, readTicket: {
     operation: proposal.operation === 'comparison' ? 'compare' : 'read',
     temporal: { from: instant(proposal.from), to: instant(proposal.to), anchor: null },
     predicates: proposal.terms?.length ? [{ kind: 'text_any', terms: [...proposal.terms] }] : [],
-    outputs: { completeness: boundary ? 'exhaustive' : 'sufficient',
-      ordering: proposal.selection === 'latest' ? 'desc' : 'asc', limit: boundary ? 1 : null },
+    ...(boundary ? {selection:{groupBy:['subject'],union:[{orderBy:[{field:'event_at',direction:proposal.selection==='latest'?'desc':'asc'}],take:{count:1,per:'group'}}]}} : {}),
+    outputs: { completeness: 'sufficient',
+      ordering: proposal.selection === 'latest' ? 'desc' : 'asc', limit: null },
   } };
 }
 

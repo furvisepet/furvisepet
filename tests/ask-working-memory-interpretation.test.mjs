@@ -53,7 +53,7 @@ test("casual working-memory follow-up reaches the same Brain interpreter", async
 test("fresh history question still requires semantic interpretation", async () => {
   let calls = 0;
   await assert.rejects(interpretAskQuestion({
-    context: { ...context, currentMessage: "what do you think about his weight history?" },
+    context: { ...context, currentMessage: "what do you think about his weight history?", currentTurn: {...context.currentTurn,text:"what do you think about his weight history?"} },
     model: "test-model",
     client: { responses: { create: async () => { calls++; throw new Error("expected provider path"); } } },
   }));

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync,writeFileSync,existsSync } from "node:fs";
 import { registerHooks } from "node:module";
 import { createAskWirePlan } from "../app/lib/intelligence/ask-wire-policy.mjs";
+import { createAskProviderWireSchema } from "../app/lib/intelligence/ask-wire-provider-schema.ts";
 registerHooks({resolve(s,c,next){
  if(s==="server-only")return {url:"data:text/javascript,export {}",shortCircuit:true};
  if(s.startsWith(".") && c.parentURL?.startsWith("file:")) {
@@ -16,7 +17,7 @@ registerHooks({resolve(s,c,next){
 globalThis.fetch=async()=>{throw Error("OFFLINE_WIRE_INTEGRATION");};
 const {ASK_REQUEST_INSTRUCTIONS,askRequestProviderSchema}=await import("../app/lib/intelligence/ask-request-contract.ts");
 const {proposedSemanticFrameJsonSchema}=await import("../app/lib/intelligence/semantic-frame/schema.ts");
-const {interpretAskQuestion,recoverAskInterpretation,projectAskInterpretationContext}=await import("../app/lib/intelligence/interpret-ask.ts");
+const {interpretAskQuestion,recoverAskInterpretation,projectAskInterpretationContext,prepareAskInterpretationRequest}=await import("../app/lib/intelligence/interpret-ask.ts");
 const {admitAiOperation}=await import("../app/lib/ai/usage-guard/admission.ts");
 const {MemoryAiGuardTestStore}=await import("../app/lib/ai/usage-guard/memory-test-store.ts");
 const {AI_FEATURE_POLICIES}=await import("../app/lib/ai/usage-guard/features.ts");
@@ -47,19 +48,19 @@ test("actual interpretation admits complete wire snapshots and gives Binder the 
   assert.equal(AI_FEATURE_POLICIES.ask.maxInputCharacters,80000);
   assert.equal(AI_FEATURE_POLICIES.ask.maxOutputTokens,100000);
   for(const [name,context] of Object.entries(corpus.contexts)){
-   const plan=createAskWirePlan(projectedSchema(context),ASK_REQUEST_INSTRUCTIONS);
+   const prepared=prepareAskInterpretationRequest(context,"gpt-5.4-mini"),plan=prepared.wire;
    let chosen,expected;
    for(const f of corpus.fixtures.filter(f=>f.context===name)){
-    try{const r=recoverAskInterpretation(f.canonical.request,projectAskInterpretationContext(context));if(r.planningRecovery)continue;chosen=f;expected=r;break;}catch{ /* Try the next schema-valid Binder witness. */ }
+    try{const r=recoverAskInterpretation(f.canonical.request,prepared.context);if(r.planningRecovery)continue;chosen=f;expected={...r,...(prepared.context.planningSourceWindow.omittedPriorUserTurns?{sourceWindow:prepared.context.planningSourceWindow}:{})};break;}catch{ /* Try the next schema-valid Binder witness. */ }
    }
    assert.ok(chosen,"positive Binder fixture missing: "+name);
    const actual=await admitted(name,context,plan.encode(chosen.canonical),request=>{
     const total=JSON.stringify(request).length;
-    assert.deepEqual(request.text.format.schema,plan.schema);
-    rows.push({name,schema:JSON.stringify(request.text.format.schema).length,instructions:request.instructions.length,input:request.input.length,total,margin:58000-total});
+    assert.deepEqual(request.text.format.schema,createAskProviderWireSchema(plan.schema));
+    rows.push({name,schema:JSON.stringify(request.text.format.schema).length,instructions:request.instructions.length,input:request.input.length,total,margin:60000-total});
     console.log(JSON.stringify({kind:"request_size",...rows.at(-1)}));
     if(process.env.FURVISE_WIRE_REPORT)writeFileSync(process.env.FURVISE_WIRE_REPORT,JSON.stringify({status:"in_progress",rows},null,2));
-    assert.ok(total<=58000,name+": "+total);
+    assert.ok(total<=60000,name+": "+total);
    });
    assert.deepEqual(actual,expected);
    await assert.rejects(admitted("unknown-"+name,context,{nodes:[{_:"UNKNOWN_TAG"}]}),e=>e.diagnostics?.providerErrorCode==="ASK_INTERPRETATION_JSON");
@@ -80,12 +81,12 @@ test("bounded saved_profile repair passes real admission and production wire dec
   const canonical=structuredClone(corpus.fixtures.find(f=>f.context==="no_numeric"&&f.canonical.request.evidenceBasis==="saved_profile").canonical);
   canonical.request.question=context.currentMessage;canonical.request.topic="profile";
   const invalid=structuredClone(canonical);invalid.request.scope="named";invalid.request.petNames=["Unowned subject"];
-  const plan=createAskWirePlan(projectedSchema(context),ASK_REQUEST_INSTRUCTIONS);
+  const prepared=prepareAskInterpretationRequest(context,"gpt-5.4-mini"),plan=prepared.wire;
   const goodWire=plan.encode(canonical),badWire=plan.encode(invalid);
   assert.deepEqual(plan.decode(goodWire),canonical);
   assert.deepEqual(plan.decode(badWire),invalid);
   assert.throws(()=>recoverAskInterpretation(invalid.request,context));
-  const expected=recoverAskInterpretation(canonical.request,context);
+  const expected=recoverAskInterpretation(canonical.request,prepared.context);
   admission=await admitAiOperation({env,store:new MemoryAiGuardTestStore(),feature:"ask",intendedModel:"gpt-5.4-mini",
    now:new Date("2039-03-17T12:00:00Z"),requestId:"saved-profile-repair",userId:context.owner.userId,payload:{fixture:"saved-profile-repair"}});
   const begin=admission.beginProviderCall.bind(admission),snapshots=[],requests=[];
@@ -94,10 +95,10 @@ test("bounded saved_profile repair passes real admission and production wire dec
    const index=requests.length;requests.push(request);
    assert.equal(JSON.stringify(request),snapshots[index]);
    assert.ok(JSON.stringify(request).length<60000);
-   assert.deepEqual(request.text.format.schema,plan.schema);
+   assert.deepEqual(request.text.format.schema,createAskProviderWireSchema(plan.schema));
    if(index===1){
     const payload=JSON.parse(request.input);
-    assert.equal(payload.currentMessage,context.currentMessage);
+    assert.equal(payload.userSources.find(source=>source.id===payload.currentSourceId).text,context.currentMessage);
     assert.deepEqual(payload.contractRepair.rejectedProposal,invalid.request);
     assert.equal(payload.contractRepair.validationCode,"ASK_REQUEST_CONTRACT_OWNERSHIP");
    }

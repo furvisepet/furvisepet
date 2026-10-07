@@ -59,15 +59,14 @@ test("Ask uses four truthful care-history states and never turns an auxiliary fa
   assert.equal(getAskCareHistoryState({ suggestion: { status: "pending" } }), "SUGGESTION_AVAILABLE");
   assert.equal(getAskCareHistoryState({ carePersistence: { status: "persisted", careEntryIds: ["entry"] } }), "SAVED");
   assert.equal(getAskCareHistoryState({ carePersistence: { status: "failed", careEntryIds: [] }, suggestion: { status: "pending" } }), "SAVE_FAILED");
-  assert.match(askRoute, /historyReviewRequired \? \[\] : intelligenceResult\.executionPlan\.semanticEvents/);
-  assert.match(askRoute, /automaticCareFailure[\s\S]*persistPendingSuggestion/);
-  assert.match(pendingPersistence, /HISTORY_SUGGESTION_PERSISTENCE_FAILED/);
-  assert.match(askRoute, /return buildSuccessfulAskResponse\(/);
-  assert.match(publication, /export function buildSuccessfulAskResponse/);
-  assert.doesNotMatch(askRoute.slice(askRoute.indexOf("const automaticCareFailure"), askRoute.indexOf("function standaloneEmergencyResponse")), /return askFailure\(/);
+  assert.match(askRoute,/finalizeAskPostReview/);
+  assert.match(pendingPersistence,/CANONICAL_SUGGESTION_REQUIRED/);
+  assert.doesNotMatch(pendingPersistence,/\.from\(|\.rpc\(/);
+  assert.match(askRoute,/return buildSuccessfulAskResponse\(/);
+  assert.match(publication,/export function buildSuccessfulAskResponse/);
 });
 
-test("a resolved semantic update reconciles the pending event instead of inserting a noisy duplicate", () => {
+test("started and resolved semantic prose cannot persist or reconcile without canonical authority", async () => {
   const started = buildSemanticEventReviewSuggestion({ event: semanticEvent() });
   const resolved = buildSemanticEventReviewSuggestion({ event: semanticEvent({
     eventTitle: "Mani's limp resolved",
@@ -77,17 +76,16 @@ test("a resolved semantic update reconciles the pending event instead of inserti
   }) });
   assert.equal(started.payload.semanticTopic, resolved.payload.semanticTopic);
   assert.equal(resolved.title, "Save this improvement");
-  assert.match(pendingPersistence, /\["improved", "resolved", "corrected"\]\.includes/);
-  assert.match(pendingPersistence, /\.contains\("payload", \{ semanticDomain, semanticTopic \}\)/);
-  assert.match(pendingPersistence, /\.update\(\{[\s\S]*source_message_id: assistantMessageId/);
-  assert.match(pendingPersistence, /return \{ effectAlreadyPresent: false, errorCode: null, suggestion: \{ \.\.\.suggestion, id: prior\.id \} \}/);
+  const {assertLegacyProseRejected}=await import('./helpers/legacy-prose-boundary.mjs');
+  await assertLegacyProseRejected(started,'mani is limping rn');
+  await assertLegacyProseRejected(resolved,'mani is normal now');
 });
 
 test("history suggestion save and retry are idempotent and never spend another Ask credit", () => {
   assert.match(suggestionRoute, /beginIdempotentRateLimitedOperation/);
-  assert.match(suggestionRoute, /apply_furvise_server_state_suggestion/);
-  assert.match(suggestionRoute, /createCanonicalCareAuthorityClient/);
-  assert.match(suggestionRoute, /apply_status === "already_applied"/);
+  assert.match(suggestionRoute, /continueCanonicalSuggestion/);
+  assert.match(read("app/lib/intelligence/canonical-suggestion-continuation.ts"), /rebindCanonicalCapabilityAction/);
+  assert.match(read("app/lib/application-actions/capabilities.ts"), /execute_ask_action_capability/);
   assert.doesNotMatch(suggestionRoute, /reserveAiCredit|completeAiCredit|releaseAiCredit|admitAiOperation|generateAsk/);
   assert.match(askPage, /uiStatus === "failed" \? "Try again"/);
   assert.match(askPage, /This update has not been saved/);

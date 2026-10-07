@@ -39,9 +39,9 @@ test('fixed emergency response requires no Brain, factual read, capability, or s
 test('route has one interpretation and no owner-note or task persistence authority',()=>{
  const route=readFileSync(new URL('../app/api/ask/route.ts',import.meta.url),'utf8');assert.doesNotMatch(route,/persist_ask_owner_note|persistOwnerNote|resolveOwnerNoteRequest|splitOwnerNoteAndCompanion|executeAskTask|apply_ask_task|findExistingCareEventForSaveRequest/);
  assert.equal([...route.matchAll(/await interpretAskQuestion\(/g)].length,1);assert.ok(route.indexOf('await interpretAskQuestion(')<route.indexOf('await buildFurviseContext('));
- const planning=readFileSync(new URL('../app/lib/intelligence/planning-context.ts',import.meta.url),'utf8');assert.deepEqual([...planning.matchAll(/\.from\("([^"]+)"\)/g)].map(m=>m[1]),['dog_profiles','ask_conversations','ask_conversation_messages','pet_concerns']);
- assert.match(planning,/select\("id,user_id,pet_profile_id,title,status,severity,normalized_key,opened_at,updated_at,resolved_at,resolution_note,source_care_entry_id"\)/);
- assert.match(planning,/ref: randomUUID\(\)/);
+ const planning=readFileSync(new URL('../app/lib/intelligence/planning-context.ts',import.meta.url),'utf8');assert.deepEqual([...planning.matchAll(/\.from\("([^"]+)"\)/g)].map(m=>m[1]),['dog_profiles','ask_conversations','ask_conversation_messages']);
+ assert.match(planning,/select\("id,user_id,name,species,sex"\)/);
+ assert.doesNotMatch(planning,/pet_concerns|ref: randomUUID|replaceReferences|concernReferences/);
  assert.doesNotMatch(planning,/pet_care_entries/);
 });
 

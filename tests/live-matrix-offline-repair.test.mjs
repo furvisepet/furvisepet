@@ -37,7 +37,7 @@ for(const [text,a,b,unit] of [
 
 for(const text of ['Read Juniper’s latest dose.','Find Quartz’s saved exercise duration.','Compare the logged meal amount for Fern and Sol.'])test('no numeric USER span means no supplied calculation branch: '+text,()=>{
  const c=context(text),schema=askRequestProviderSchema({},c);
- assert.equal(schema.properties.request.anyOf.some(v=>v.properties.evidenceBasis.enum?.[0]==='supplied_context'&&v.properties.calculatePlan.type==='object'),false);
+ assert.equal(schema.properties.request.anyOf.some(v=>v.properties.evidenceBasis?.enum?.[0]==='supplied_context'&&v.properties.calculatePlan.type==='object'),false);
  const r=supplied(text,'0','1');
  assert.equal(checkFor(c)({request:r}),false);
  assert.throws(()=>validateAskRequest(r,c),/append_span/);

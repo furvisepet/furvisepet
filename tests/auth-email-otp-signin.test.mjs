@@ -114,7 +114,7 @@ test("password fallback and use-another-email recovery preserve their safe reset
 });
 
 test("hosted six-digit and Magic Link template steps remain manual and exact", () => {
-  const rollout = read("docs/signup-email-otp-rollout.md");
+  const rollout = read("tests/fixtures/legacy-documents/signup-email-otp-rollout.md");
   assert.match(rollout, /Email OTP Length\*\* to `6`/);
   assert.match(rollout, /Select \*\*Magic Link\*\*/);
   assert.match(rollout, /Your Furvise sign-in code/);

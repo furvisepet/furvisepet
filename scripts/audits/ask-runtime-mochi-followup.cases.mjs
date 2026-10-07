@@ -1,3 +1,4 @@
+import {datedSelectionProposal} from './helpers/dated-selection-fixture.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { exercise, clock } from './helpers/lifetime-harness.mjs';
@@ -18,24 +19,25 @@ const messages = [
 ].map(row=>({...row,user_id:ownerId,conversation_id:'chat',created_at:'2026-09-17T12:32:00Z'}));
 
 test('runtime Mochi two-date follow-up keeps only the requested weight evidence', async t => {
-  clock(t);
+  clock(t);t.mock.timers.setTime(Date.parse('2026-09-17T12:32:00Z'));
   const q='How does that compare with her September 9 weight?';
   const text='Mochi weighed 3.87 kg on June 9, 2026 and 3.8 kg on September 9, 2026.';
   const run=await exercise(q,{
-    history:true, fixturePets:[mochi], rows, petId:'mochi', conversationPetId:'mochi', messages, authoritativePetIds:['mochi'],
+    prepareContext:c=>{c.pinnedUserSourceIds=['q-old'];},history:true, fixturePets:[mochi], rows, petId:'mochi', conversationPetId:'mochi', messages, authoritativePetIds:['mochi'],
     expectedReviewCalls:1, reviewResponse:{approved:true},
     providerOverrides:{ answer:text, historyNarrative:{sentences:[{text,sourceIds:['care:mochi-weight-jun','care:mochi-weight-sep'],calculations:[]}]}, relevantContextIds:['care:mochi-weight-jun','care:mochi-weight-sep'] },
-    interpretationProposal:{version:'ask-request.v2',task:null,temporalScope:'historical',mutationIntent:null,recordSelection:null,profileFields:[],projection:null,
-      mode:'read',question:q,requirements:[],evidenceNeeds:[
-        {sourceTurnId:'q-old',quote:"What was Mochi's weight on June 9, 2026?",terms:['weight'],petNames:['Mochi'],order:'context'},
-        {sourceTurnId:null,quote:'September 9 weight',terms:['weight'],petNames:['Mochi'],order:'context'}],
-      outputFormat:'prose',evidenceBasis:'saved_history',premiseQuotes:[],excludedPetNames:[],referenceTurnIds:['q-old'],scope:'named',petNames:['Mochi'],
-      operation:'comparison',selection:'comparison',quantity:'measurement',topic:'weight',terms:['weight','weigh'],from:null,to:null,episodeTopic:null,ordinal:null,frame:null}
+    interpretationProposal:datedSelectionProposal({question:q,petNames:['Mochi'],referenceTurnIds:['q-old'],requests:[
+      {quote:"What was Mochi's weight on June 9, 2026?",sourceTurnId:'q-old',from:'2026-06-09T00:00:00Z',to:'2026-06-10T00:00:00Z',terms:['weight','weigh']},
+      {quote:'September 9 weight',from:'2026-09-09T00:00:00Z',to:'2026-09-10T00:00:00Z',terms:['weight','weigh']},
+    ]})
   });
-  const careIds=run.prompt.contextRecords.filter(r=>r.sourceType==='care_update').map(r=>r.id);
+  assert.equal(run.result.reasoning.model,'server-labs-list');assert.equal(run.requests.length,0);assert.equal(run.reviewRequests.length,0);
+  const careIds=run.result.reasoning.relevantContextIds;
   assert.ok(careIds.includes('care:mochi-weight-jun'));
   assert.ok(careIds.includes('care:mochi-weight-sep'));
   assert.equal(careIds.includes('care:mochi-parcel-jul'),false);
   assert.equal(careIds.includes('care:mochi-food-aug'),false);
   assert.equal(run.publication.failure,null);
+  assert.deepEqual(new Set(careIds),new Set(['care:mochi-weight-jun','care:mochi-weight-sep']));
+  for(const record of run.result.reasoning.labsList.records)assert.equal(record.body,rows.find(r=>r.id===record.id).note);
 });
