@@ -6,9 +6,11 @@ import { completeInstantSchema } from "../furvise-brain/complete-instant.ts";
  * This deliberately relaxes only the duplicated complete-instant pattern sent
  * to the provider. It does not validate, normalize or repair returned values.
  */
-export function createAskProviderWireSchema(authoritativeSchema: Record<string, unknown>): Record<string, unknown> {
+export function createAskProviderWireSchema(authoritativeSchema: Record<string, unknown>, checkBudget: () => void = () => {}): Record<string, unknown> {
+  checkBudget();
   const schema = structuredClone(authoritativeSchema);
   const visit = (value: unknown): void => {
+    checkBudget();
     if (!value || typeof value !== "object" || Array.isArray(value)) return;
     const node = value as Record<string, unknown>;
     if (node.pattern === completeInstantSchema.pattern) delete node.pattern;
@@ -23,5 +25,6 @@ export function createAskProviderWireSchema(authoritativeSchema: Record<string, 
     if (node.items) visit(node.items);
   };
   visit(schema);
+  checkBudget();
   return schema;
 }

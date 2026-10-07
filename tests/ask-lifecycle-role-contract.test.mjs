@@ -82,7 +82,7 @@ try{
  const vectors=JSON.parse(fs.readFileSync(new URL(R+'tests/fixtures/ask-lifecycle-role-wire.json')));
  const broad=createAskWirePlan(askRequestProviderSchema(proposedSemanticFrameJsonSchema),ASK_REQUEST_INSTRUCTIONS);
  assert.equal(vectors.fixtures.length,3);
- for(const f of vectors.fixtures){assert.deepEqual(broad.encode(f.canonical),f.wire);assert.deepEqual(broad.decode(f.wire),f.canonical);record('independent-python-staged-wire',{name:f.name});}
+ for(const f of vectors.fixtures){const envelope={root:f.wire.nodes.at(-1),nodes:f.wire.nodes.slice(0,-1)};assert.deepEqual(broad.encode(f.canonical),envelope);assert.deepEqual(broad.decode(envelope),f.canonical);record('independent-python-staged-wire',{name:f.name});}
  const audit=JSON.parse(fs.readFileSync(new URL(R+'tests/fixtures/ask-wire-policy-audit.json'))),r=audit.lifecycleRoleReview;
  assert.ok(r.sourceAfter.startsWith(r.sourceBefore.replace(...r.sourceLiteralReplacement)));const {createHash}=await import('node:crypto');const digest=t=>createHash('sha256').update(t).digest('hex');
  for(const item of Object.values(r.consolidation.rules)){assert.equal(digest(item.before),item.beforeSha256);assert.equal(digest(item.after),item.afterSha256);}

@@ -197,7 +197,7 @@ export function prepareAskInterpretationRequest(original: InterpretationContext,
     );
   const request = { model, max_output_tokens: ASK_INTERPRETATION_LIMITS.outputTokens,
     ...(/^gpt-5\.4(?:-|$)/i.test(model) ? { reasoning: { effort: "none" } } : /^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}),
-    instructions: wire.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: createAskProviderWireSchema(wire.schema) } } };
+    instructions: wire.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: createAskProviderWireSchema(wire.schema, checkBudget) } } };
 
     checkBudget();
     return { context, input, wire, request };
@@ -229,7 +229,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     // Retain the existing direct Node fixture compatibility. Real provider
     // responses must satisfy the wire schema and restore before Binder.
     if (process.env.NODE_TEST_CONTEXT && value && typeof value === "object"
-      && !Object.hasOwn(value, "nodes") && (Object.hasOwn(value, "request") || Object.hasOwn(value, "version")))
+      && !Object.hasOwn(value, "nodes") && !Object.hasOwn(value, "root") && (Object.hasOwn(value, "request") || Object.hasOwn(value, "version")))
       return parseProviderAskRequest(raw);
     return wire.decode(value).request;
   };

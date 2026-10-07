@@ -1,5 +1,6 @@
 export type AskWirePlan = {
   schema: Record<string, unknown>;
+  rootSchema: Record<string, unknown>;
   instructions: string;
   encode(value: unknown): unknown;
   decode(value: unknown): { request: unknown };

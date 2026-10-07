@@ -2,7 +2,7 @@ import { ASK_INITIAL_INPUT_AUTHORITY } from "./ask-wire-authority.mjs";
 const safeTagValue=v=>typeof v==="string"&&/^[A-Za-z][A-Za-z0-9_.-]*$/.test(v)&&!["null","true","false"].includes(v);
 const renderTagValue=v=>safeTagValue(v)?v:JSON.stringify(v);
 import { createHash } from "node:crypto";
-import { createGraphCodec } from "./ask-wire-codec.mjs";
+import { createGraphCodec, makeValidator } from "./ask-wire-codec.mjs";
 import { POLICY_BUNDLE } from "./ask-wire-policy.generated.mjs";
 const digest=s=>createHash("sha256").update(s,"utf8").digest("hex");
 const ensure=(ok,code)=>{if(!ok)throw new Error("ASK_WIRE_POLICY_"+code);};
@@ -33,7 +33,35 @@ export function createAskWirePlan(canonicalSchema,sourceInstructions,sourceAutho
  const emitted=body.replace(new RegExp("\\b(?:"+keys.join("|")+")\\b","g"),k=>"$"+aliases.get(k));
  const reverse=new Map([...aliases].map(([k,a])=>[a,k]));
  ensure(emitted.replace(/\$([A-Za-z]+)/g,(_,a)=>reverse.get(a))===body,"IDENTIFIER_INVERSE");
- const instructions=POLICY_BUNDLE.header+"\n"+fields+"\nTAGS\n"+tags+"\n"+POLICY_BUNDLE.packedHeader+"\nPOLICY\n"+emitted;
+ // Only the transport header changes; every reviewed semantic policy clause
+ // and source-authority hash above remains byte-for-byte checked.
+ const oldLayout="nodes: postorder tree, root last;";
+ ensure(POLICY_BUNDLE.header.includes(oldLayout),"TRANSPORT_HEADER_DRIFT");
+ const header=POLICY_BUNDLE.header.replace(oldLayout,"nodes: supporting postorder tree; root: required request wrapper after nodes;");
+ ensure(typeof codec.names.request==="string","REQUEST_ROOT_ALIAS");
+ const rootInstruction="ROOT root."+codec.names.request+" references the complete request node in nodes. Omit the wrapper from nodes; root has implicit index nodes.length.";
+ const instructions=header+"\n"+rootInstruction+"\n"+fields+"\nTAGS\n"+tags+"\n"+POLICY_BUNDLE.packedHeader+"\nPOLICY\n"+emitted;
+ const rootSchema=structuredClone(codec.rootSchema),rootValid=makeValidator(rootSchema,checkBudget);
+ const schema=structuredClone(codec.schema);
+ ensure(schema.properties.nodes.type==="array","NODES_SCHEMA");
+ schema.required=["nodes","root"];
+ schema.properties={nodes:{...schema.properties.nodes,minItems:0},root:rootSchema};
+ function encode(value){
+  const graph=codec.encode(value),root=graph.nodes.at(-1);
+  ensure(rootValid(rootSchema,root),"ROOT_SCHEMA");
+  return {nodes:graph.nodes.slice(0,-1),root};
+ }
+ function decode(value){
+  ensure(value!==null&&typeof value==="object"&&!Array.isArray(value)
+   &&[Object.prototype,null].includes(Object.getPrototypeOf(value))
+   &&Object.keys(value).length===2&&Object.hasOwn(value,"root")
+   &&Object.hasOwn(value,"nodes")&&Array.isArray(value.nodes),"ENVELOPE");
+  ensure(rootValid(rootSchema,value.root),"ROOT_SCHEMA");
+  // Appending the unchanged root restores the original graph exactly. Its
+  // decoder still rejects wrong child types, invalid/reused/unused edges,
+  // noncanonical order, timestamp violations and canonical schema violations.
+  return codec.decode({nodes:[...value.nodes,value.root]});
+ }
  checkBudget();
- return {schema:codec.schema,instructions,encode:codec.encode,decode:codec.decode,compilation:codec.compilation};
+ return {schema,rootSchema,instructions,encode,decode,compilation:codec.compilation};
 }

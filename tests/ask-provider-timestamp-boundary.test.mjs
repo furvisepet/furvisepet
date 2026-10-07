@@ -58,7 +58,7 @@ test('all 262 canonical codec vectors retain exact original encoding and decodin
   const p=createAskWirePlan(askRequestProviderSchema(proposedSemanticFrameJsonSchema,corpus.contexts[name]),ASK_REQUEST_INSTRUCTIONS);
   const before=JSON.stringify(p.schema),s=expand(createAskProviderWireSchema(p.schema)),v=makeValidator(s);
   assert.equal(changed(p.schema,createAskProviderWireSchema(p.schema)).length,2);
-  for(const f of corpus.fixtures.filter(f=>f.context===name)){const wire=p.encode(f.canonical);assert.deepEqual(wire,f.wire);assert.ok(v(s,wire));assert.deepEqual(p.decode(wire),f.canonical);count++;}
+  for(const f of corpus.fixtures.filter(f=>f.context===name)){const wire=p.encode(f.canonical);assert.deepEqual(wire,{root:f.wire.nodes.at(-1),nodes:f.wire.nodes.slice(0,-1)});assert.ok(v(s,wire));assert.deepEqual(p.decode(wire),f.canonical);count++;}
   assert.equal(JSON.stringify(p.schema),before);
  }
  assert.equal(count,262);

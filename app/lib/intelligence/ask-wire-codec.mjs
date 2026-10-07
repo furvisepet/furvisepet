@@ -280,6 +280,17 @@ export function compileGraphCodec(schema, fieldOrder = null, checkBudget=()=>{})
   }
   return y;
  }
+ // Expose the exact compiled root shape, using the same aliases and packing
+ // rules as the graph. This is deliberately not the union of supporting nodes.
+ function rootNodeSchema(n){
+  checkBudget();
+  if(n.properties)return nodes.get(canonical(n));
+  ensure(n.anyOf,"ROOT_SCHEMA");
+  return {anyOf:n.anyOf.map(rootNodeSchema)};
+ }
+ // Request alternatives all become the same edge shape. Fold those exact
+ // duplicates before exposing the root, without changing graph field aliases.
+ const rootSchema=packSchema(foldUnions(rootNodeSchema(compact),checkBudget));
  const packedRaw=factor(packSchema(rawExpanded),checkBudget),wireSchema=optimizeSchema(packedRaw,checkBudget).schema,wireExpanded=expand(wireSchema,checkBudget),wireValid=makeValidator(wireExpanded,checkBudget);
  function pack(wire){
   return {nodes:wire.nodes.map(n=>{
@@ -325,7 +336,7 @@ export function compileGraphCodec(schema, fieldOrder = null, checkBudget=()=>{})
   ensure(canonical(encode(restored))===canonical(wire),"NONCANONICAL_WIRE");
   return restored;
  }
- return {schema:wireSchema,encode,decode,names,constantMaps,packedRuleCount:rules.size,rawGraphSchema:rawGraph};
+ return {schema:wireSchema,rootSchema,encode,decode,names,constantMaps,packedRuleCount:rules.size,rawGraphSchema:rawGraph};
 }
 export { canonical, expand, makeValidator };
 
