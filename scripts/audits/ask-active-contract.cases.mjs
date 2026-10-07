@@ -102,7 +102,7 @@ async function wireCall(ctx,p,{raw=false,catalogService,expectedCalls=1}={}){
  const prior=process.env.NODE_TEST_CONTEXT;delete process.env.NODE_TEST_CONTEXT;let calls=0;
  try{return await a.run(async()=>{
   const prepared=prepareAskInterpretationRequest(ctx,'gpt-5.4-mini');
-  try{const response=raw?p:prepared.wire.encode({request:p});
+  try{const response=raw?p:prepared.transport.encode({request:p},()=>{});
   return await interpretAskQuestion({context:ctx,model:'gpt-5.4-mini',catalogService,client:{responses:{create:async request=>{
    calls++;assert.equal(calls,1,'non-profile repair cannot grant another attempt');
    assert.equal(request.max_output_tokens,8192);assert.deepEqual(request.reasoning,{effort:'none'});

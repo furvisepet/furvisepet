@@ -1,3 +1,4 @@
+import { recursiveFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync,writeFileSync,existsSync } from "node:fs";
@@ -48,7 +49,7 @@ test("actual interpretation admits complete wire snapshots and gives Binder the 
   assert.equal(AI_FEATURE_POLICIES.ask.maxInputCharacters,80000);
   assert.equal(AI_FEATURE_POLICIES.ask.maxOutputTokens,100000);
   for(const [name,context] of Object.entries(corpus.contexts)){
-   const prepared=prepareAskInterpretationRequest(context,"gpt-5.4-mini"),plan=prepared.wire;
+   const prepared=prepareAskInterpretationRequest(context,"gpt-5.4-mini"),plan=recursiveFixturePlan(prepared.wire);
    let chosen,expected;
    for(const f of corpus.fixtures.filter(f=>f.context===name)){
     try{const r=recoverAskInterpretation(f.canonical.request,prepared.context);if(r.planningRecovery)continue;chosen=f;expected={...r,...(prepared.context.planningSourceWindow.omittedPriorUserTurns?{sourceWindow:prepared.context.planningSourceWindow}:{})};break;}catch{ /* Try the next schema-valid Binder witness. */ }
@@ -81,7 +82,7 @@ test("bounded saved_profile repair passes real admission and production wire dec
   const canonical=structuredClone(corpus.fixtures.find(f=>f.context==="no_numeric"&&f.canonical.request.evidenceBasis==="saved_profile").canonical);
   canonical.request.question=context.currentMessage;canonical.request.topic="profile";
   const invalid=structuredClone(canonical);invalid.request.scope="named";invalid.request.petNames=["Unowned subject"];
-  const prepared=prepareAskInterpretationRequest(context,"gpt-5.4-mini"),plan=prepared.wire;
+  const prepared=prepareAskInterpretationRequest(context,"gpt-5.4-mini"),plan=recursiveFixturePlan(prepared.wire);
   const goodWire=plan.encode(canonical),badWire=plan.encode(invalid);
   assert.deepEqual(plan.decode(goodWire),canonical);
   assert.deepEqual(plan.decode(badWire),invalid);

@@ -23,7 +23,7 @@ const prepared=prepareAskInterpretationRequest(corpus.contexts.no_numeric,"gpt-5
 const plan=prepared.wire;
 const canonical=corpus.fixtures.find(f=>f.context==="no_numeric"&&f.canonical.request.evidenceBasis==="saved_profile").canonical;
 const wire=plan.encode(canonical);
-const providerSchema=expand(prepared.request.text.format.schema),providerValid=makeValidator(providerSchema);
+const providerSchema=expand(createAskProviderWireSchema(plan.schema)),providerValid=makeValidator(providerSchema);
 const legacy=createGraphCodec(factorProviderCompoundSchemas(factorProviderEnumSchemas(askRequestProviderSchema(proposedSemanticFrameJsonSchema,prepared.context))));
 const oldSchema=expand(createAskProviderWireSchema(legacy.schema)),oldValid=makeValidator(oldSchema);
 
@@ -41,10 +41,10 @@ test("compiled root schema follows the compiler aliases, including reordered fie
   assert.deepEqual(codec.decode(graph),{request:{value:"exact 🐾 cafe\u0301"}});
  }
 });
-test("actual provider schema requires the compiled request root separately from supporting nodes",()=>{
- assert.deepEqual([...prepared.request.text.format.schema.required].sort(),["nodes","root"]);
- assert.equal(prepared.request.text.format.schema.additionalProperties,false);
- assert.deepEqual(Object.keys(prepared.request.text.format.schema.properties),["nodes","root"]);
+test("original canonical plan requires the compiled request root separately from supporting nodes",()=>{
+ assert.deepEqual([...plan.schema.required].sort(),["nodes","root"]);
+ assert.equal(plan.schema.additionalProperties,false);
+ assert.deepEqual(Object.keys(plan.schema.properties),["nodes","root"]);
  assert.deepEqual(Object.keys(wire),["nodes","root"]);
  assert.deepEqual(plan.schema.properties.root,legacy.rootSchema);
  assert.equal(plan.rootSchema.properties[legacy.names.request].type,"object");

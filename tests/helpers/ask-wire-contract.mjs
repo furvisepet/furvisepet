@@ -1,3 +1,4 @@
+import { recursiveFixturePlan } from "./recursive-wire-fixture.mjs";
 import assert from "node:assert/strict";
 import { createAskWirePlan } from "../../app/lib/intelligence/ask-wire-policy.mjs";
 
@@ -25,7 +26,7 @@ export async function inspectAskWireContract(request, context) {
    if (plans.size >= 16) plans.delete(plans.keys().next().value);
    plans.set(key, createAskWirePlan(providerSchema, ASK_REQUEST_INSTRUCTIONS));
  }
- const plan = plans.get(key);
+ const plan = recursiveFixturePlan(plans.get(key));
  assert.deepEqual(request.text.format.schema, createAskProviderWireSchema(plan.schema), "actual wire schema differs from the source-window compiler");
  assert.equal(request.instructions, plan.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS, "actual policy differs from pinned policy and source adapter");
  return { canonicalSchema, providerSchema, sourceInstructions: ASK_REQUEST_INSTRUCTIONS };

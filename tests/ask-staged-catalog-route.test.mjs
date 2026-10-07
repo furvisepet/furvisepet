@@ -1,3 +1,4 @@
+import { recursiveFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {fixture,id} from './helpers/ask-staged-route-fixture.mjs';
@@ -19,7 +20,7 @@ const check=(name,fn)=>{fn();trace.assertions.push(name);};let wire,admission;
 const store=new MemoryAiGuardTestStore(),env={NODE_ENV:'test',FURVISE_AI_DAILY_CALL_LIMIT:'20',FURVISE_AI_DAILY_COST_LIMIT_USD:'1',FURVISE_RATE_LIMIT_HASH_SECRET:'offline-f-identity-not-credential'};
 const f=fixture({creditLedger:true,fullCatalogPipeline:true,engineCapabilities:mode==='engine-replace',
  admitAiOperation:async input=>{admission=await admitAiOperation({...input,env,store});const begin=admission.beginProviderCall.bind(admission);admission.beginProviderCall=async x=>{trace.admissions.push({purpose:x.purpose??'ordinary',stage:x.stage,totalChars:JSON.stringify(x.input).length,estimatedTokens:estimateInputTokens(x.input),snapshot:structuredClone(x.input)});return begin(x);};return admission;},
- onContext:ctx=>{wire=createAskWirePlan(factorProviderCompoundSchemas(factorProviderEnumSchemas(askRequestProviderSchema(proposedSemanticFrameJsonSchema,ctx))),ASK_REQUEST_INSTRUCTIONS);},onInterpretation:x=>trace.interpretations.push(structuredClone(x)),
+ onContext:ctx=>{wire=recursiveFixturePlan(createAskWirePlan(factorProviderCompoundSchemas(factorProviderEnumSchemas(askRequestProviderSchema(proposedSemanticFrameJsonSchema,ctx))),ASK_REQUEST_INSTRUCTIONS));},onInterpretation:x=>trace.interpretations.push(structuredClone(x)),
  providerCreate:async request=>{trace.sent.push(structuredClone(request));if(trace.sent.length===1)return{status:'completed',output_text:JSON.stringify(wire.encode({request:intent})),usage:{input_tokens:0,output_tokens:0}};
  assert.equal(trace.sent.length,2);const input=JSON.parse(request.input);assert.deepEqual(input.intent,intent);const candidates=input.catalog.evidence.filter(x=>x.body==='Cedar declined dinner.');assert.equal(candidates.length,1);return{status:'completed',output_text:JSON.stringify({version:'ask-catalog-selection.v1',disposition:'selected',reference:candidates[0].reference}),usage:{input_tokens:0,output_tokens:0}};
  }});

@@ -1,3 +1,4 @@
+import { recursiveFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -52,7 +53,7 @@ for(const numeric of [false,true])for(const count of [0,2,8,39])
    const result=await interpretAskQuestion({context:ctx,model,client:{responses:{create:async request=>{
     calls++;assert.equal(JSON.stringify(request),snapshots.at(-1));assert.ok(Object.isFrozen(request));
     assert.equal(JSON.stringify(request).length,JSON.stringify(p.request).length);
-    return {status:"completed",output_text:JSON.stringify(p.wire.encode({request:proposal(ctx)})),usage};
+    return {status:"completed",output_text:JSON.stringify(recursiveFixturePlan(p.wire).encode({request:proposal(ctx)})),usage};
    }}}});
    assert.deepEqual(result.petIds,["pet-0"]);
   });assert.equal(calls,1);
@@ -87,7 +88,7 @@ test("omitted IDs and selected-pet guesses are rejected by the actual Binder, in
  const ctx=context(39);ctx.currentMessage="What was his last recorded weight?";ctx.currentTurn.text=ctx.currentMessage;ctx.ownerNoteSpans=[];
  const p=prepareAskInterpretationRequest(ctx,model),omitted=ctx.conversationTurns.find(t=>!p.context.conversationTurns.some(x=>x.id===t.id)&&t.id!=="current");
  assert.ok(omitted);const bad=proposal(ctx);bad.referenceTurnIds=[omitted.id];
- assert.throws(()=>p.wire.encode({request:bad}),/ASK_WIRE_/);
+ assert.throws(()=>recursiveFixturePlan(p.wire).encode({request:bad}),/ASK_WIRE_/);
  const unavailable=recoverAskInterpretation(bad,p.context);assert.match(unavailable.planningRecovery,/REFERENCE/);assert.deepEqual(unavailable.petIds,[]);assert.equal(unavailable.request,undefined);
  const guessed={...proposal(ctx),scope:"selected",petNames:[]};
  assert.throws(()=>recoverAskInterpretation(guessed,p.context),/OMITTED_SUBJECT_REFERENCE/);
@@ -116,7 +117,7 @@ test("repair uses identical retained sources and real final-request admission",a
    assert.equal(JSON.stringify(request),snapshots[calls]);const input=JSON.parse(request.input);
    assert.deepEqual(input.userSources,p.input.userSources);assert.deepEqual(input.sourceWindow,p.input.sourceWindow);
    assert.deepEqual(request.text.format.schema,p.request.text.format.schema);
-   const candidate=calls++?good:bad;return {status:"completed",output_text:JSON.stringify(p.wire.encode({request:candidate})),usage};
+   const candidate=calls++?good:bad;return {status:"completed",output_text:JSON.stringify(recursiveFixturePlan(p.wire).encode({request:candidate})),usage};
   }}}});assert.deepEqual(result.petIds,["pet-0"]);assert.equal(snapshots.length,2);
  });assert.equal(calls,2);
 });
@@ -126,7 +127,7 @@ test("oversize repair is rejected before a second SDK call; source window is not
   requirements:Array.from({length:8},(_,i)=>(i+" extra obligation ").padEnd(240,"x"))};
  let calls=0;await admitted(ctx,async()=>{
   await assert.rejects(interpretAskQuestion({context:ctx,model,client:{responses:{create:async()=>{
-   calls++;return {status:"completed",output_text:JSON.stringify(p.wire.encode({request:bad})),usage};
+   calls++;return {status:"completed",output_text:JSON.stringify(recursiveFixturePlan(p.wire).encode({request:bad})),usage};
   }}}}),e=>e.reason==="feature_token_budget_exceeded");
  });assert.equal(calls,1);
 });
@@ -137,7 +138,7 @@ test("catalog hydration cannot replace the chosen current text, prior sources, o
   lifecyclePlan:{pendingDisposition:"keep",transition:{targetPetName:"Aster",toState:"deceased"},requiredSubjectState:null,authorizationQuote:ctx.currentMessage}};
  const intent={version:"ask-catalog-intent.v1",purpose:"lifecycle",scope:"subjects",ownerScope:null,sourceTurnId:"current",instructionQuote:ctx.currentMessage,authorizationQuote:ctx.currentMessage,
   subjects:[{basis:"named",petName:"Aster",sourceTurnId:"current",quote:"Aster"}],request};
- const encodedIntent=p.wire.encode({request:intent});
+ const encodedIntent=recursiveFixturePlan(p.wire).encode({request:intent});
  let calls=0,hydrates=0;
  await admitted(ctx,async()=>{
   const result=await interpretAskQuestion({context:ctx,model,client:{responses:{create:async()=>{calls++;return {status:"completed",output_text:JSON.stringify(encodedIntent),usage};}}},

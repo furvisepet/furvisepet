@@ -6,13 +6,14 @@ import type { PublicV1AskCapabilityDecision } from "../public-v1-capabilities.ts
 import { brainProposalDiagnostic } from "../furvise-brain/replace-job.ts";
 import "server-only";
 import { createAskWirePlan } from "./ask-wire-policy.mjs";
+import { createRecursiveAskWirePlan, RECURSIVE_TRANSPORT_LIMITS } from "./ask-wire-recursive.mjs";
 import { createAskProviderWireSchema } from "./ask-wire-provider-schema.ts";
 import { calendarDateInZone } from "../ask-time-zone.ts";
 import OpenAI from "openai";
 import { factorProviderEnumSchemas } from "../ai/provider-enum-schema.ts";
 import { factorProviderCompoundSchemas } from "../ai/provider-compound-schema.ts";
 import { ASK_OPERATION_TIMEOUT_MS } from "../ai/ask-execution-limits.ts";
-import { OperationDeadline, withProviderDeadline } from "../ai/execution-deadline.ts";
+import { OperationDeadline, StageDeadlineError, withProviderDeadline } from "../ai/execution-deadline.ts";
 import { ASK_INTERPRETATION_MAX_OUTPUT_TOKENS, interpretStructuredProviderResponse, structuredProviderEnvelopeDiagnostic } from "../ai/ask-provider.ts";
 import { AskPipelineError, type AskProviderEvent } from "../ai/ask-reasoning.ts";
 import { AiAdmissionError } from "../ai/usage-guard/errors.ts";
@@ -195,12 +196,13 @@ export function prepareAskInterpretationRequest(original: InterpretationContext,
       factorProviderCompoundSchemas(factorProviderEnumSchemas(canonicalSchema, checkBudget), checkBudget),
       ASK_REQUEST_INSTRUCTIONS, undefined, checkBudget
     );
+  const transport = createRecursiveAskWirePlan(wire, checkBudget);
   const request = { model, max_output_tokens: ASK_INTERPRETATION_LIMITS.outputTokens,
     ...(/^gpt-5\.4(?:-|$)/i.test(model) ? { reasoning: { effort: "none" } } : /^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}),
-    instructions: wire.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: createAskProviderWireSchema(wire.schema, checkBudget) } } };
+    instructions: transport.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: createAskProviderWireSchema(transport.schema, checkBudget) } } };
 
     checkBudget();
-    return { context, input, wire, request };
+    return { context, input, wire, transport, request };
   };
   let chosen: ReturnType<typeof build> | undefined;
   // Start with mandatory sources. Add only whole recent turns, stopping at
@@ -223,15 +225,51 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
 }): Promise<AskInterpretation> {
   const prepared = prepareAskInterpretationRequest(context, model);
   context = prepared.context;
-  const { input, wire, request } = prepared;
-  const parseWireRequest = (raw: string): unknown => {
+  const { input, wire, transport, request } = prepared;
+  const parseWireRequest = (raw: string, checkRuntime: () => void): unknown => {
+    checkRuntime();
     const value: unknown = JSON.parse(raw);
+    checkRuntime();
     // Retain the existing direct Node fixture compatibility. Real provider
     // responses must satisfy the wire schema and restore before Binder.
     if (process.env.NODE_TEST_CONTEXT && value && typeof value === "object"
       && !Object.hasOwn(value, "nodes") && !Object.hasOwn(value, "root") && (Object.hasOwn(value, "request") || Object.hasOwn(value, "version")))
       return parseProviderAskRequest(raw);
-    return wire.decode(value).request;
+    return transport.decode(value, checkRuntime).request;
+  };
+
+  // Compilation callbacks expire independently. Each response phase gets a
+  // fresh local bound while preserving the SAME operation deadline/reserve.
+  const runtimeCheck = (maximumMs: number, reserveMs: number) => {
+    const operation = getActiveAiAdmission()?.deadline;
+    const phase = new OperationDeadline(boundedProviderTimeout(maximumMs, reserveMs, "interpretation"));
+    const check = () => {
+      phase.allocate("interpretation", maximumMs);
+      operation?.allocate("interpretation", maximumMs, reserveMs);
+    };
+    check();
+    return check;
+  };
+  const parseResponse = (response: Parameters<typeof interpretStructuredProviderResponse>[0], maximumMs: number, reserveMs: number) => {
+    const check = runtimeCheck(maximumMs, reserveMs);
+    let deadlineError: StageDeadlineError | AiAdmissionError | undefined;
+    const result = interpretStructuredProviderResponse(response, raw => {
+      try {
+        check();
+        if (raw.length > RECURSIVE_TRANSPORT_LIMITS.maxSerializedCharacters) throw Error("ASK_RECURSIVE_SERIALIZED_LIMIT");
+        const value = parseWireRequest(raw, check);
+        check();
+        return value;
+      } catch (error) {
+        // The generic parser classifies decoding failures as JSON. A depleted
+        // runtime deadline is a timeout/admission failure, never malformed JSON.
+        if (error instanceof StageDeadlineError || error instanceof AiAdmissionError) deadlineError = error;
+        throw error;
+      }
+    });
+    if (deadlineError) throw deadlineError;
+    check();
+    return result;
   };
   const started = Date.now();
   let attempted = false;
@@ -255,7 +293,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
           return activeClient.responses.create(request as never, { signal });
         }, boundedProviderTimeout(ASK_INTERPRETATION_LIMITS.timeoutMs, 24_000, "interpretation"));
       } });
-    const result = interpretStructuredProviderResponse(response, parseWireRequest);
+    const result = parseResponse(response, ASK_INTERPRETATION_LIMITS.timeoutMs, 24_000);
     // Arrival is not validation or authority. Timed-out/late provider results never reach this point.
     const proposal = result.status === "completed" ? result.parsed : null;
     ticketArrived = !!proposal && typeof proposal === "object" && ["readTicket", "appendJob", "writeJob"]
@@ -276,7 +314,10 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
         if (!admission) throw new AiAdmissionError("AI_TEMPORARILY_UNAVAILABLE", "catalog_without_admission");
         admission.assertCatalogPlanningPhase();
         const remaining = admission.deadline?.remainingMs() ?? 0;
-        wire.encode({ request: candidate }); // Full canonical shape even for direct Node fixture callers.
+        const checkCanonical = runtimeCheck(ASK_INTERPRETATION_LIMITS.timeoutMs, 24_000);
+        checkCanonical();
+        wire.encode({ request: candidate }); // Original canonical/catalog validator, not the provider adapter.
+        checkCanonical();
         const { intent, permit } = bindCatalogIntent(candidate, context, catalogService.requestId, Date.now() + Math.min(25_000, remaining));
         const limitation = (reason: NonNullable<AskInterpretation["catalogLimitation"]>["reason"], message: string): AskInterpretation => ({
           ...unavailableAskReadPlan(""), planningRecovery: undefined, clarification: "reference",
@@ -328,6 +369,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
       } else parsed = recoverAskInterpretation(candidate, context);
     }
     catch (error) {
+      if (error instanceof StageDeadlineError || error instanceof AiAdmissionError) throw error;
       const rejected = result.parsed && typeof result.parsed === "object" ? result.parsed as Record<string, unknown> : null;
       const repairableProfileContract = rejected?.mode === "read" && rejected.evidenceBasis === "saved_profile";
       if (!(error instanceof AskInterpretationValidationError) || error.category !== "semantic" || !repairableProfileContract) {
@@ -350,7 +392,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
             return activeClient.responses.create(repairRequest as never, { signal });
           }, boundedProviderTimeout(ASK_INTERPRETATION_REPAIR_LIMITS.timeoutMs, ASK_INTERPRETATION_REPAIR_LIMITS.reserveMs, "interpretation"));
         } });
-      const repaired = interpretStructuredProviderResponse(repairResponse, parseWireRequest);
+      const repaired = parseResponse(repairResponse, ASK_INTERPRETATION_REPAIR_LIMITS.timeoutMs, ASK_INTERPRETATION_REPAIR_LIMITS.reserveMs);
       const repairedProposal = repaired.status === "completed" ? repaired.parsed : null;
       ticketArrived = ticketArrived || !!repairedProposal && typeof repairedProposal === "object" && ["readTicket", "appendJob", "writeJob"]
         .some(key => key in repairedProposal && (repairedProposal as Record<string, unknown>)[key] != null);
@@ -380,7 +422,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
       throw error;
     }
     const status = error && typeof error === "object" && "status" in error && typeof error.status === "number" ? error.status : null;
-    const timedOut = providerSignal?.aborted === true
+    const timedOut = error instanceof StageDeadlineError || providerSignal?.aborted === true
       || error instanceof Error && ["TimeoutError", "APIConnectionTimeoutError"].includes(error.name);
     const failure = error instanceof AskPipelineError ? error : fail(timedOut ? "ASK_INTERPRETATION_TIMEOUT" : "ASK_INTERPRETATION_TRANSPORT", "transport", { providerStatus: status, timedOut });
     onProviderEvent?.({ stage: "interpretation", outcome: "failed", ...failure.diagnostics });
