@@ -10,6 +10,7 @@ import { createRecursiveAskWirePlan, RECURSIVE_TRANSPORT_LIMITS } from "./ask-wi
 import { createAskProviderWireSchema } from "./ask-wire-provider-schema.ts";
 import { calendarDateInZone } from "../ask-time-zone.ts";
 import OpenAI from "openai";
+import { safeAskProviderErrorDiagnostic } from "../ai/ask-provider-error-diagnostic.ts";
 import { factorProviderEnumSchemas } from "../ai/provider-enum-schema.ts";
 import { factorProviderCompoundSchemas } from "../ai/provider-compound-schema.ts";
 import { ASK_OPERATION_TIMEOUT_MS } from "../ai/ask-execution-limits.ts";
@@ -421,10 +422,10 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
       if (attempted) onProviderEvent?.({ stage: "interpretation", outcome: "failed", model, elapsedMs: Date.now() - started, providerErrorCode: "ASK_INTERPRETATION_ADMISSION" });
       throw error;
     }
-    const status = error && typeof error === "object" && "status" in error && typeof error.status === "number" ? error.status : null;
+    const providerError = safeAskProviderErrorDiagnostic(error);
     const timedOut = error instanceof StageDeadlineError || providerSignal?.aborted === true
       || error instanceof Error && ["TimeoutError", "APIConnectionTimeoutError"].includes(error.name);
-    const failure = error instanceof AskPipelineError ? error : fail(timedOut ? "ASK_INTERPRETATION_TIMEOUT" : "ASK_INTERPRETATION_TRANSPORT", "transport", { providerStatus: status, timedOut });
+    const failure = error instanceof AskPipelineError ? error : fail(timedOut ? "ASK_INTERPRETATION_TIMEOUT" : "ASK_INTERPRETATION_TRANSPORT", "transport", { providerStatus: providerError.status, providerError, timedOut });
     onProviderEvent?.({ stage: "interpretation", outcome: "failed", ...failure.diagnostics });
     throw failure;
   }

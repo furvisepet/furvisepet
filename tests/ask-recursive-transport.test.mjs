@@ -158,3 +158,34 @@ test("recursive catalog intent is canonically validated before public policy and
     });
   });
 });
+
+test("provider errors in initial and repair phases keep safe diagnostics and settle each attempted call once", async t => {
+  const id = "req_0123456789abcdef0123456789abcdef";
+  for (const repair of [false, true]) await t.test(repair ? "repair rejection" : "initial rejection", async t => admitted(t, "recursive-safe-error-" + repair, async a => {
+    let calls = 0, failures = 0, usage = 0; const events = [];
+    const fail = a.recordProviderFailure.bind(a), record = a.recordProviderUsage.bind(a);
+    a.recordProviderFailure = (...args) => { failures++; return fail(...args); };
+    a.recordProviderUsage = (...args) => { usage++; return record(...args); };
+    const marker = "PRIVATE owner@example.invalid Cedar 9.4kg";
+    const thrown = Object.assign(new Error(marker), { status: 400, code: "invalid_json_schema",
+      type: "invalid_request_error", param: "text.format.schema", requestID: id,
+      headers: { authorization: "sk-proj-OFFLINE_PRIVATE" }, body: { input: marker } });
+    await assert.rejects(invoke(ctx, async (request, options) => {
+      calls++; assert.equal(request.max_output_tokens, 8192); assert.deepEqual(request.reasoning, { effort: "none" });
+      assert.equal(options.signal.aborted, false);
+      if (repair && calls === 1) return completed(envelope({ ...good, petNames: ["Unowned subject"] }));
+      throw thrown;
+    }, { onProviderEvent: e => events.push(e) }), e => {
+      assert.equal(e.diagnostics.providerErrorCode, "ASK_INTERPRETATION_TRANSPORT");
+      assert.equal(e.diagnostics.providerStatus, 400); assert.equal(e.diagnostics.timedOut, false);
+      assert.deepEqual(e.diagnostics.providerError, { status: 400, code: "invalid_json_schema",
+        type: "invalid_request_error", param: "text.format.schema", requestId: id });
+      assert.ok(!JSON.stringify(e).includes(marker)); assert.ok(!e.message.includes(marker)); return true;
+    });
+    assert.equal(calls, repair ? 2 : 1); assert.equal(failures, 1); assert.equal(usage, repair ? 1 : 0);
+    assert.equal(events.filter(e => e.outcome === "failed").length, 1);
+    assert.equal(events.filter(e => e.outcome === "succeeded").length, 0);
+    assert.equal(events.at(-1).providerError.requestId, id);
+    assert.ok(!JSON.stringify(events).includes(marker)); assert.ok(!JSON.stringify(events).includes("sk-proj-OFFLINE_PRIVATE"));
+  }));
+});

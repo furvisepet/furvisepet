@@ -30,6 +30,7 @@ import { getAiFeaturePolicy } from "./usage-guard/features.ts";
 import { estimateInputTokens } from "./usage-guard/cost-estimator.ts";
 import { historyNarrativeSchema, type HistoryNarrative } from "../intelligence/history-narrative.ts";
 import OpenAI from "openai";
+import { safeAskProviderErrorDiagnostic, type AskProviderErrorDiagnostic } from "./ask-provider-error-diagnostic.ts";
 import { AiAdmissionError } from "./usage-guard/errors.ts";
 import { boundedProviderTimeout, executeAdmittedResponsesRequest } from "./usage-guard/provider-call-budget.ts";
 import type { CareEntryRow, DogMemoryRow, DogProductFeedbackRow, DogProfileRow } from "../supabase.ts";
@@ -240,6 +241,7 @@ export type AskProviderEvent = {
   model: string;
   elapsedMs: number;
   providerStatus?: number | null;
+  providerError?: AskProviderErrorDiagnostic;
   providerErrorType?: string;
   providerErrorCode?: string;
   timedOut?: boolean;
@@ -862,6 +864,7 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
         providerErrorCode: error.diagnostics.providerErrorCode,
         providerErrorType: error.diagnostics.providerErrorType,
         providerStatus: error.diagnostics.providerStatus,
+        providerError: error.diagnostics.providerError,
         retryAfterMs: error.diagnostics.retryAfterMs,
         validationDetails: "Fallback skipped for a requests-based provider rate limit.",
       });
@@ -1484,8 +1487,8 @@ async function runProviderRequest<T>({ client, fallbackFrom, model, onEvent, par
       configuredOutputLimit,
       elapsedMs: Date.now() - started,
       fallbackFrom,
-      finishReason: result.finishReason,
-      incompleteReason: result.incompleteReason,
+      finishReason: result.finishReason == null ? null : ["completed", "failed", "in_progress", "cancelled", "queued", "incomplete"].includes(result.finishReason) ? result.finishReason : "other",
+      incompleteReason: result.incompleteReason == null ? null : ["max_output_tokens", "content_filter"].includes(result.incompleteReason) ? result.incompleteReason : "other",
       inputTokens: result.usage.inputTokens,
       outputLimitReached: result.status === "incomplete" && result.incompleteReason === "max_output_tokens",
       outputTokens: result.usage.outputTokens,
@@ -1497,12 +1500,15 @@ async function runProviderRequest<T>({ client, fallbackFrom, model, onEvent, par
       return result.parsed;
     }
     const failureStage = stage === "primary" ? "primary_invalid_output" : "fallback_invalid_output";
-    const failure = new AskPipelineError(failureStage, result.errorMessage || "Ask provider returned invalid structured output.", {
+    const providerError = result.status === "failed" ? safeAskProviderErrorDiagnostic(response) : undefined;
+    const errorCode = providerError ? providerError.code || "ASK_PROVIDER_FAILED" : result.errorCode || "ASK_OUTPUT_INVALID";
+    const failure = new AskPipelineError(failureStage, "Ask provider returned invalid structured output.", {
       model,
       ...diagnostics,
-      providerErrorCode: result.errorCode || "ASK_OUTPUT_INVALID",
+      providerErrorCode: errorCode,
       providerErrorType: result.status,
-      validationDetails: result.validationReason || result.errorCode || "ASK_OUTPUT_INVALID",
+      ...(providerError ? { providerError } : {}),
+      validationDetails: result.validationReason || errorCode,
     });
     onEvent?.({ stage, outcome: "failed", ...failure.diagnostics });
     throw failure;
@@ -1542,15 +1548,18 @@ async function createWithTimeout(client: AskReasoningOpenAiClient, request: Reco
 }
 
 function providerDiagnostics(error: unknown) {
+  const providerError = safeAskProviderErrorDiagnostic(error);
   const value = error as { code?: unknown; name?: unknown; status?: unknown; type?: unknown; headers?: Headers | Record<string, string> } | null;
   const errorName = typeof value?.name === "string" ? value.name : error instanceof Error ? error.name : "UnknownError";
   const headers = value?.headers;
   const retryAfterValue = headers instanceof Headers ? headers.get("retry-after") : headers?.["retry-after"];
   const parsedRetryAfterMs = retryAfterValue ? Math.max(0, Number(retryAfterValue) * 1000) : Number.NaN;
   return {
-    providerStatus: typeof value?.status === "number" ? value.status : null,
-    providerErrorType: typeof value?.type === "string" ? value.type : errorName,
-    providerErrorCode: typeof value?.code === "string" ? value.code : "",
+    providerStatus: providerError.status,
+    // Preserve the existing requests-based cooldown decision using a fixed label.
+    providerErrorType: /requests/i.test(typeof value?.type === "string" ? value.type : errorName) ? "requests" : providerError.type || "UnknownError",
+    providerErrorCode: providerError.code || "",
+    providerError,
     timedOut: /Abort|Timeout|StageDeadline/i.test(errorName) || value?.code === "ABORT_ERR",
     ...(Number.isFinite(parsedRetryAfterMs) ? { retryAfterMs: parsedRetryAfterMs } : {}),
   };

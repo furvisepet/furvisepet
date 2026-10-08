@@ -25,6 +25,7 @@ const {prepareAppendTurn,continueConfirmedAppend}=await import('../../app/lib/in
 const {executeActionCapability}=await import('../../app/lib/application-actions/capabilities.ts');
 const {interpretAskQuestion}=await import('../../app/lib/intelligence/interpret-ask.ts');
 const {AskPipelineError}=await import('../../app/lib/ai/ask-reasoning.ts');
+const {safeAskProviderErrorDiagnostic}=await import('../../app/lib/ai/ask-provider-error-diagnostic.ts');
 const {FURVISE_ANSWER_UNAVAILABLE_MESSAGE}=await import('../../app/lib/furvise-output.ts');
 const {createAskCreditSettlement}=await import('../../app/lib/ai/ask-credit-settlement.ts');
 const {exceedsSelectedPetRead}=await import('../../app/lib/intelligence/selected-pet-read.ts');
@@ -100,6 +101,7 @@ export function fixture(options={}){
   emitOperationalEvent:noop,
   isProviderRateLimit:()=>false,
  });
+ sandbox.safeAskProviderErrorDiagnostic=safeAskProviderErrorDiagnostic;
  if(options.realProviderLog) sandbox.logAskProviderEvent=handler('../../app/api/ask/route.ts',
   ['logAskProviderEvent','safeAskOperationalCode'],sandbox,'logAskProviderEvent');
  // Exercise the real limitation publication boundary; only the persistence IO

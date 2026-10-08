@@ -53,6 +53,7 @@ import {
 import { AskTurnLifecycle, deriveAskAttemptId, runOptionalAskSubsystem, type AskSubsystem, type AskTurnTrace } from "../../lib/ai/ask-turn-model";
 import { orchestrateAskTurn } from "../../lib/ai/ask-orchestrator";
 import { safeAskDiagnosticStage } from "../../lib/ai/ask-error-diagnostic.ts";
+import { safeAskProviderErrorDiagnostic } from "../../lib/ai/ask-provider-error-diagnostic.ts";
 import { admitAiOperation, type AiOperationAdmission } from "../../lib/ai/usage-guard/admission";
 import { AiAdmissionError } from "../../lib/ai/usage-guard/errors";
 import { type PendingUpdateSuggestion, type PetConcern } from "../../lib/ai/concern-engine";
@@ -2024,6 +2025,7 @@ function logAskProviderEvent(event: AskProviderEvent, context: { conversationId:
     providerErrorType: event.providerErrorType || null,
     providerStatus: event.providerStatus ?? null,
     providerEnvelope: event.providerEnvelope ?? null,
+    providerError: event.providerError ? safeAskProviderErrorDiagnostic(event.providerError) : null,
     requestId: context.requestId,
     retryAfterMs: event.retryAfterMs ?? null,
     rawOutputLength: event.rawOutputLength ?? null,
