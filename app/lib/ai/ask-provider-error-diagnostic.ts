@@ -1,3 +1,5 @@
+import { attachAskProviderSchemaDiagnostic } from "./ask-provider-schema-diagnostic.ts";
+
 /** Server-only diagnostic data, never a provider body or a public error message. */
 const codes = new Set(["invalid_json_schema", "invalid_request_error", "invalid_value", "unsupported_value",
   "unsupported_parameter", "missing_required_parameter", "invalid_api_key", "insufficient_quota",
@@ -26,7 +28,7 @@ function ownData(value: unknown, key: string): unknown {
   if (value === null || typeof value !== "object") return undefined;
   try {
     const descriptor = Object.getOwnPropertyDescriptor(value, key);
-    return descriptor && "value" in descriptor ? descriptor.value : undefined;
+    return descriptor && Object.hasOwn(descriptor, "value") ? descriptor.value : undefined;
   } catch { return undefined; }
 }
 function enumValue(value: unknown, allowed: ReadonlySet<string>): string | null {
@@ -41,12 +43,12 @@ function requestId(value: unknown): string | null {
 export function safeAskProviderErrorDiagnostic(error: unknown) {
   const detail = ownData(error, "error");
   const status = ownData(error, "status");
-  return {
+  return attachAskProviderSchemaDiagnostic(error, {
     status: typeof status === "number" && Number.isInteger(status) && status >= 400 && status <= 599 ? status : null,
     code: enumValue(ownData(error, "code") ?? ownData(detail, "code"), codes),
     type: enumValue(ownData(error, "type") ?? ownData(detail, "type") ?? ownData(error, "name"), types),
     param: enumValue(ownData(error, "param") ?? ownData(detail, "param"), parameters),
     requestId: requestId(ownData(error, "requestID") ?? ownData(error, "request_id") ?? ownData(error, "requestId") ?? ownData(error, "_request_id")),
-  };
+  });
 }
 export type AskProviderErrorDiagnostic = ReturnType<typeof safeAskProviderErrorDiagnostic>;

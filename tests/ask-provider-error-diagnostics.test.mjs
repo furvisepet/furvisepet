@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import test from "node:test";
 import assert from "node:assert/strict";
 import OpenAI from "openai";
@@ -52,16 +53,17 @@ test("projection does not execute getters, coercion, serialization or walk cycli
 });
 test("actual Ask route logs the safe diagnostic, releases credit, and keeps provider details out of its response", async t => {
   const { fixture } = await import("./helpers/ask-route-ordering.mjs");
-  const logs = []; let calls = 0;
+  const logs = []; let calls = 0, schemaHash;
   t.mock.method(console, "info", (...args) => logs.push(args));
   t.mock.method(console, "warn", (...args) => logs.push(args));
   t.mock.method(console, "error", (...args) => logs.push(args));
-  const f = fixture({ creditLedger: true, realProviderLog: true, providerCreate: async () => { calls++; throw error(); } });
+  const f = fixture({ creditLedger: true, realProviderLog: true, providerCreate: async request => { schemaHash = createHash("sha256").update(JSON.stringify(request.text.format.schema)).digest("hex"); calls++; throw error(); } });
   const response = await f.send();
   const body = await response.json();
   assert.equal(response.status, 503); assert.equal(calls, 1);
   const event = logs.find(x => x[0] === "[Ask provider] stage failed")?.[1];
-  assert.deepEqual(event.providerError, safe);
+  assert.deepEqual(event.providerError, { ...safe, schema: { sha256: schemaHash, rule: "unrecognized", path: null } });
+  assert.ok(!JSON.stringify(body).includes(schemaHash));
   assert.equal(event.providerErrorCode, "ASK_INTERPRETATION_TRANSPORT");
   assert.equal(event.providerStatus, 400);
   for (const value of [marker, credential]) assert.ok(!JSON.stringify({ logs, body, errors: f.state.errors }).includes(value));

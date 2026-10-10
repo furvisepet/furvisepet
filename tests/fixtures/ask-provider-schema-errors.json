@@ -1,0 +1,65 @@
+[
+  {
+    "label": "collision",
+    "context": "'$defs', 'recursiveNode'",
+    "detail": "Objects provided via 'anyOf' must not share identical first keys. Consider adding a discriminator key or rearranging the properties to ensure the first key is unique.",
+    "rule": "any_of_first_key_collision",
+    "path": "#/$defs/[0]"
+  },
+  {
+    "label": "closed object",
+    "context": "'$defs', 'recursiveNode', 'anyOf', 0",
+    "detail": "'additionalProperties' is required to be supplied and to be false.",
+    "rule": "additional_properties_false_required",
+    "path": "#/$defs/[0]/anyOf/0"
+  },
+  {
+    "label": "required array",
+    "context": "",
+    "detail": "'required' is required to be supplied and to be an array including every key in properties.",
+    "rule": "required_properties_mismatch",
+    "path": "#"
+  },
+  {
+    "label": "unsupported composition",
+    "context": "'$defs', 'recursiveNode', 'anyOf', '1'",
+    "detail": "'allOf' is not permitted.",
+    "rule": "unsupported_schema_keyword",
+    "path": "#/$defs/[0]/anyOf/1"
+  },
+  {
+    "label": "nonexistent index",
+    "context": "'$defs', 'recursiveNode', 'anyOf', '99'",
+    "detail": "'allOf' is not permitted.",
+    "rule": "unrecognized",
+    "path": null
+  },
+  {
+    "label": "private literal path",
+    "context": "'properties', 'private_customer_field', 'enum', '0'",
+    "detail": "'allOf' is not permitted.",
+    "rule": "unrecognized",
+    "path": null
+  },
+  {
+    "label": "unknown rule",
+    "context": "",
+    "detail": "The value private_customer_field was rejected.",
+    "rule": "unrecognized",
+    "path": null
+  },
+  {
+    "label": "malformed index",
+    "context": "'$defs', 'recursiveNode', 'anyOf', '01'",
+    "detail": "'allOf' is not permitted.",
+    "rule": "unrecognized",
+    "path": null
+  },
+  {
+    "label": "prototype path",
+    "context": "'__proto__', 'properties'",
+    "detail": "'allOf' is not permitted.",
+    "rule": "unrecognized",
+    "path": null
+  }
+]

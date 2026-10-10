@@ -1,3 +1,4 @@
+import { withAskProviderSchemaDiagnostic } from "./ask-provider-schema-diagnostic.ts";
 import { carryAttributedReports } from "../intelligence/attributed-report-context.ts";
 import {carryCalculatePlan,requiresCalculateBinding} from "../furvise-brain/calculate-plan.ts";
 import { buildCalculationLabs, serializeCalculationLabs, calculationSourceIds, CALCULATION_LABS, CALCULATION_UNAVAILABLE, calculationLimitation, type CalculationLabs } from "../intelligence/calculation-labs.ts";
@@ -1540,7 +1541,7 @@ async function createWithTimeout(client: AskReasoningOpenAiClient, request: Reco
   const reserveMs = 12_000; // independent review and durable publication on every answer route
   return executeAdmittedResponsesRequest({
     purpose, reserveMs,
-    invoke: (request) => withProviderDeadline(signal => { onAttempt?.(); return client.responses.create(request, { signal }); }, boundedProviderTimeout(timeoutMs, reserveMs)),
+    invoke: (request) => withProviderDeadline(signal => { onAttempt?.(); return withAskProviderSchemaDiagnostic(request, () => client.responses.create(request, { signal })); }, boundedProviderTimeout(timeoutMs, reserveMs)),
     maxOutputTokens: typeof request.max_output_tokens === "number" ? request.max_output_tokens : 0,
     model: typeof request.model === "string" ? request.model : "",
     request,

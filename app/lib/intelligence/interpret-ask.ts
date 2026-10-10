@@ -1,3 +1,4 @@
+import { withAskProviderSchemaDiagnostic } from "../ai/ask-provider-schema-diagnostic.ts";
 import { askSourceWindows, askUserSourceInput, ASK_USER_SOURCE_INSTRUCTIONS, askRequestFitsInputBudget, assertAskRequestInputBudget } from "./ask-interpretation-sources.ts";
 import { CATALOG_INTENT_VERSION, bindCatalogIntent, beginCatalogContinuation, bindCatalogSelection, finishDeterministicCatalog } from "./catalog-intent.ts";
 import type { CatalogPermit } from "./catalog-intent.ts";
@@ -291,7 +292,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
         onProviderEvent?.({ stage: "interpretation", outcome: "started", model, elapsedMs: 0, configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens });
         return withProviderDeadline(signal => {
           providerSignal = signal;
-          return activeClient.responses.create(request as never, { signal });
+          return withAskProviderSchemaDiagnostic(request, () => activeClient.responses.create(request as never, { signal }));
         }, boundedProviderTimeout(ASK_INTERPRETATION_LIMITS.timeoutMs, 24_000, "interpretation"));
       } });
     const result = parseResponse(response, ASK_INTERPRETATION_LIMITS.timeoutMs, 24_000);
@@ -357,7 +358,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
               model, maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens, stage: "catalog_continuation", reserveMs: 12_000, request: continuationRequest,
               invoke: sent => {
                 onProviderEvent?.({ stage: "interpretation", outcome: "started", model, elapsedMs: Date.now() - started, validationDetails: "catalog_continuation" });
-                return withProviderDeadline(signal => activeClient.responses.create(sent, { signal }), boundedProviderTimeout(15_000, 12_000, "catalog_continuation"));
+                return withProviderDeadline(signal => withAskProviderSchemaDiagnostic(sent, () => activeClient.responses.create(sent, { signal })), boundedProviderTimeout(15_000, 12_000, "catalog_continuation"));
               } });
             const selection = interpretStructuredProviderResponse(continued, JSON.parse);
             if (selection.status !== "completed") throw new AskInterpretationValidationError("ASK_CATALOG_CONTINUATION_INVALID");
@@ -390,7 +391,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
             configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens, validationDetails: "bounded_contract_repair" });
           return withProviderDeadline(signal => {
             providerSignal = signal;
-            return activeClient.responses.create(repairRequest as never, { signal });
+            return withAskProviderSchemaDiagnostic(repairRequest, () => activeClient.responses.create(repairRequest as never, { signal }));
           }, boundedProviderTimeout(ASK_INTERPRETATION_REPAIR_LIMITS.timeoutMs, ASK_INTERPRETATION_REPAIR_LIMITS.reserveMs, "interpretation"));
         } });
       const repaired = parseResponse(repairResponse, ASK_INTERPRETATION_REPAIR_LIMITS.timeoutMs, ASK_INTERPRETATION_REPAIR_LIMITS.reserveMs);
