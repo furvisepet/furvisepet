@@ -7,7 +7,7 @@ import type { PublicV1AskCapabilityDecision } from "../public-v1-capabilities.ts
 import { brainProposalDiagnostic } from "../furvise-brain/replace-job.ts";
 import "server-only";
 import { createAskWirePlan } from "./ask-wire-policy.mjs";
-import { createRecursiveAskWirePlan, RECURSIVE_TRANSPORT_LIMITS } from "./ask-wire-recursive.mjs";
+import { createIndexedAskWirePlan, RECURSIVE_TRANSPORT_LIMITS } from "./ask-wire-recursive.mjs";
 import { createAskProviderWireSchema } from "./ask-wire-provider-schema.ts";
 import { calendarDateInZone } from "../ask-time-zone.ts";
 import OpenAI from "openai";
@@ -198,7 +198,7 @@ export function prepareAskInterpretationRequest(original: InterpretationContext,
       factorProviderCompoundSchemas(factorProviderEnumSchemas(canonicalSchema, checkBudget), checkBudget),
       ASK_REQUEST_INSTRUCTIONS, undefined, checkBudget
     );
-  const transport = createRecursiveAskWirePlan(wire, checkBudget);
+  const transport = createIndexedAskWirePlan(wire, checkBudget);
   const request = { model, max_output_tokens: ASK_INTERPRETATION_LIMITS.outputTokens,
     ...(/^gpt-5\.4(?:-|$)/i.test(model) ? { reasoning: { effort: "none" } } : /^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}),
     instructions: transport.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: createAskProviderWireSchema(transport.schema, checkBudget) } } };
@@ -301,7 +301,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     ticketArrived = !!proposal && typeof proposal === "object" && ["readTicket", "appendJob", "writeJob"]
       .some(key => key in proposal && (proposal as Record<string, unknown>)[key] != null);
     let metadata = { providerEnvelope: structuredProviderEnvelopeDiagnostic(response), inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens,
-      parsingAttempted: result.parsingAttempted, configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens, ticketArrived };
+      parsingAttempted: result.parsingAttempted, configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens, validationDetails: result.validationReason || undefined, ticketArrived };
     if (result.status !== "completed") {
       const kind = result.status === "invalid" ? result.parsingAttempted ? "json" : "empty_output" : result.status;
       throw fail(`ASK_INTERPRETATION_${kind.toUpperCase()}`, kind, metadata);
@@ -400,7 +400,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
         .some(key => key in repairedProposal && (repairedProposal as Record<string, unknown>)[key] != null);
       metadata = { providerEnvelope: structuredProviderEnvelopeDiagnostic(repairResponse), inputTokens: sumUsage(result.usage.inputTokens, repaired.usage.inputTokens),
         outputTokens: sumUsage(result.usage.outputTokens, repaired.usage.outputTokens), parsingAttempted: repaired.parsingAttempted,
-        configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens, ticketArrived };
+        configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens, validationDetails: repaired.validationReason || undefined, ticketArrived };
       if (repaired.status !== "completed") {
         const kind = repaired.status === "invalid" ? repaired.parsingAttempted ? "json" : "empty_output" : repaired.status;
         throw fail(`ASK_INTERPRETATION_REPAIR_${kind.toUpperCase()}`, kind, metadata);

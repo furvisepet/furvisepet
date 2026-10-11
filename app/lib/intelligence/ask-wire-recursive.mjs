@@ -206,3 +206,32 @@ export function createRecursiveAskWirePlan(plan, checkCompilation) {
     },
   });
 }
+
+
+/** Lossless indexed transport with bounded traversal and strict graph decoder. */
+export function createIndexedAskWirePlan(plan, checkCompilation) {
+  ensure(typeof checkCompilation === "function", "COMPILATION_DEADLINE");
+  checkCompilation();
+  ensure(plan && typeof plan.decode === "function" && typeof plan.encode === "function"
+    && plain(plan.schema) && plan.schema.properties?.nodes?.type === "array"
+    && plain(plan.schema.properties?.root) && typeof plan.instructions === "string", "INDEXED_CODEC");
+  const schema = structuredClone(plan.schema);
+  const limits = RECURSIVE_TRANSPORT_LIMITS;
+  return Object.freeze({
+    schema, instructions: plan.instructions,
+    decode(value, checkRuntime) {
+      const clean = boundedCopy(value, checkRuntime, limits);
+      ensure(plain(clean) && Object.hasOwn(clean,"nodes")
+        && Object.hasOwn(clean,"root") && Object.keys(clean).length === 2, "INDEXED_ENVELOPE");
+      checkRuntime();
+      const decoded = plan.decode(clean);
+      checkRuntime();
+      return decoded;
+    },
+    encode(value, checkRuntime) {
+      ensure(typeof checkRuntime === "function", "RUNTIME_DEADLINE_REQUIRED");
+      checkRuntime();
+      return boundedCopy(plan.encode(value), checkRuntime, limits);
+    },
+  });
+}

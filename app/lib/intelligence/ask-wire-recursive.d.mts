@@ -21,3 +21,7 @@ export function createRecursiveProviderTransport(codec: {
   toGraph(value: unknown, checkRuntime: Check): unknown;
   decode(value: unknown, checkRuntime: Check): unknown;
 };
+
+/** Indexed provider transport with identical bounded decode contract. */
+export type IndexedAskWirePlan = RecursiveAskWirePlan;
+export function createIndexedAskWirePlan(plan: AskWirePlan, checkCompilation: Check): IndexedAskWirePlan;
