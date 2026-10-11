@@ -7,7 +7,8 @@ import type { PublicV1AskCapabilityDecision } from "../public-v1-capabilities.ts
 import { brainProposalDiagnostic } from "../furvise-brain/replace-job.ts";
 import "server-only";
 import { createAskWirePlan } from "./ask-wire-policy.mjs";
-import { createIndexedAskWirePlan, RECURSIVE_TRANSPORT_LIMITS } from "./ask-wire-recursive.mjs";
+import { RECURSIVE_TRANSPORT_LIMITS } from "./ask-wire-recursive.mjs";
+import { createDirectSemanticAskWirePlan } from "./ask-wire-direct.mjs";
 import { createAskProviderWireSchema } from "./ask-wire-provider-schema.ts";
 import { calendarDateInZone } from "../ask-time-zone.ts";
 import OpenAI from "openai";
@@ -28,7 +29,7 @@ import { emptyProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
 import type { ProposedSemanticFrame } from "./semantic-frame/types.ts";
 import type { AskTurnSubjectDecision } from "./entities/resolve-turn-subject.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
-import { ASK_REQUEST_INSTRUCTIONS, ASK_REQUEST_VERSION, askRequestProviderSchema, validateAskRequest, type AskRequestContract } from "./ask-request-contract.ts";
+import { ASK_REQUEST_INSTRUCTIONS, ASK_REQUEST_VERSION, askRequestSchema, askRequestProviderSchema, validateAskRequest, type AskRequestContract } from "./ask-request-contract.ts";
 
 type Operation = "overview" | "recall" | "count" | "comparison" | "status" | "episode" | "general" | "update" | "clarify";
 export type AskInterpretation = {
@@ -198,7 +199,8 @@ export function prepareAskInterpretationRequest(original: InterpretationContext,
       factorProviderCompoundSchemas(factorProviderEnumSchemas(canonicalSchema, checkBudget), checkBudget),
       ASK_REQUEST_INSTRUCTIONS, undefined, checkBudget
     );
-  const transport = createIndexedAskWirePlan(wire, checkBudget);
+  const semanticRequired = askRequestSchema(proposedSemanticFrameJsonSchema, context).required;
+  const transport = createDirectSemanticAskWirePlan(wire, wire.instructions, semanticRequired, checkBudget);
   const request = { model, max_output_tokens: ASK_INTERPRETATION_LIMITS.outputTokens,
     ...(/^gpt-5\.4(?:-|$)/i.test(model) ? { reasoning: { effort: "none" } } : /^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}),
     instructions: transport.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: createAskProviderWireSchema(transport.schema, checkBudget) } } };

@@ -126,41 +126,44 @@ const quiet = t => { t.mock.method(console, "info", () => {}); t.mock.method(con
 const deadlineCheck = a => () => a.deadline.allocate("interpretation", ASK_INTERPRETATION_LIMITS.timeoutMs, 24000);
 
 for (const numeric of [false, true]) for (const count of [0, 2, 8, 39])
-  test("final recursive request and real admission: five pets, 1200 chars, turns=" + count + ", numeric=" + numeric, async t => {
+  test("final direct semantic request and real admission: five pets, 1200 chars, turns=" + count + ", numeric=" + numeric, async t => {
     quiet(t);
-    await admitted("recursive-" + numeric + "-" + count, async a => {
-      const ctx = context(count, numeric), prepared = indexedPrepared(ctx), check = deadlineCheck(a);
-      const before = JSON.stringify(prepared.request), h = prepareRecursiveAskRequestHarness(prepared, check), request = h.request;
-      assert.equal(JSON.stringify(prepared.request), before);
-      assert.equal(h.context, prepared.context); assert.equal(h.input, prepared.input);
-      assert.equal(request.input, prepared.request.input);
-      const payload = JSON.parse(request.input);
-      assert.equal(payload.userSources.filter(s => s.id === "current").length, 1);
-      assert.equal(payload.userSources.find(s => s.id === "current").text, ctx.currentMessage);
-      assert.equal(payload.ownedPets.length, 5); assert.ok(payload.userSources.length <= 9);
-      assert.equal(payload.sourceWindow.omittedPriorUserTurns, count - h.context.conversationTurns.length);
-      assert.ok(askRequestFitsInputBudget(request)); assert.equal(request.max_output_tokens, 8192);
+    await admitted("direct-" + numeric + "-" + count, async admission => {
+      const ctx = context(count, numeric), prepared = prepareAskInterpretationRequest(ctx, model);
+      const check = deadlineCheck(admission), request = prepared.request;
+      const input = JSON.parse(request.input);
+      assert.equal(input.userSources.filter(s => s.id === "current").length, 1);
+      assert.equal(input.userSources.find(s => s.id === "current").text, ctx.currentMessage);
+      assert.equal(input.ownedPets.length, 5);
+      assert.ok(input.userSources.length <= 9);
+      assert.equal(input.sourceWindow.omittedPriorUserTurns, count - prepared.context.conversationTurns.length);
+      assert.ok(askRequestFitsInputBudget(request));
+      assert.equal(request.max_output_tokens, 8192);
       assert.deepEqual(request.reasoning, { effort: "none" });
-      assert.equal(request.instructions, h.wire.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS);
-      const canonical = proposal(ctx), recursive = h.wire.encode(canonical, check);
-      assert.deepEqual(h.wire.toPlanEnvelope(recursive, check), prepared.wire.encode(canonical));
-      let dispatches = 0, snapshot;
-      const begin = a.beginProviderCall.bind(a);
-      a.beginProviderCall = async input => { snapshot = JSON.stringify(input.input); return begin(input); };
-      const response = await executeAdmittedResponsesRequest({ model, maxOutputTokens: 8192, stage: "interpretation", reserveMs: 24000, request,
-        invoke: sent => withProviderDeadline(async () => {
-          dispatches++; assert.equal(JSON.stringify(sent), snapshot); assert.equal(snapshot, JSON.stringify(request));
-          assert.ok(Object.isFrozen(sent)); assert.ok(Object.isFrozen(sent.text.format.schema));
-          return { status: "completed", output_text: JSON.stringify(recursive), usage: { input_tokens: 10, output_tokens: 10 } };
-        }, boundedProviderTimeout(25000, 24000, "interpretation")) });
+      assert.equal(request.instructions, prepared.transport.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS);
+      assert.equal(request.text.format.schema.properties.requestJson.type, "string");
+      assert.equal(request.text.format.schema.properties.format.enum[0], "ask-semantic-json.v1");
+      const canonical = proposal(ctx), proposed = prepared.transport.encode(canonical, check);
+      assert.ok(!Object.hasOwn(proposed, "nodes"));
+      assert.deepEqual(prepared.transport.decode(JSON.parse(JSON.stringify(proposed)), check), canonical);
+      let dispatches = 0;
+      const response = await executeAdmittedResponsesRequest({
+        model, maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens, stage: "interpretation",
+        reserveMs: 24000, request,
+        invoke: async sent => {
+          dispatches++;
+          assert.equal(JSON.stringify(sent), JSON.stringify(request));
+          return { status: "completed", output_text: JSON.stringify(proposed),
+            usage: { input_tokens: estimateInputTokens(sent), output_tokens: 120 } };
+        },
+      });
       assert.equal(dispatches, 1);
-      const decoded = h.wire.decode(JSON.parse(response.output_text), check);
-      assert.deepEqual(decoded, canonical);
-      assert.deepEqual(recoverAskInterpretation(decoded.request, h.context), recoverAskInterpretation(canonical.request, prepared.context));
-      console.log(JSON.stringify({ kind: "recursive_plan_request", numeric, priorTurns: count,
-        retained: h.context.conversationTurns.length, productionCharacters: before.length,
-        recursiveCharacters: JSON.stringify(request).length, estimatedInput: estimateInputTokens(request),
-        policySuffixCharacters: h.wire.instructions.slice(h.wire.instructions.indexOf("\nFIELDS ")).length }));
+      assert.deepEqual(prepared.transport.decode(JSON.parse(response.output_text), check), canonical);
+      assert.deepEqual(recoverAskInterpretation(canonical.request, prepared.context),
+        recoverAskInterpretation(prepared.transport.decode(proposed, check).request, prepared.context));
+      console.log(JSON.stringify({kind:"direct_semantic_request",numeric,priorTurns:count,
+        retained:prepared.context.conversationTurns.length,characters:JSON.stringify(request).length,
+        estimatedInput:estimateInputTokens(request)}));
     });
   });
 
