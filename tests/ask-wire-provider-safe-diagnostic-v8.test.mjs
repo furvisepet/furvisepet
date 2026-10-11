@@ -12,3 +12,9 @@ test('unknown error messages are never copied into diagnostic logs',()=>{
 test('unsupported wire codes are not treated as safe',()=>{
  assert.equal(safeStructuredValidationReason(Error('ASK_WIRE_PRIVATE_RECORD_123')),'STRUCTURED_CONTRACT_INVALID');
 });
+test('V10 semantic codec failures emit only fixed safe categories',()=>{
+ for (const code of ['ASK_DIRECT_ENVELOPE','ASK_DIRECT_FIELD_JSON','ASK_DIRECT_FIELD_TYPE','ASK_DIRECT_REQUIRED_FIELDS'])
+  assert.equal(safeStructuredValidationReason(Error(code)),code);
+ for (const unsafe of ['ASK_DIRECT_PRIVATE_NOTE','ASK_DIRECT_FIELD_JSON_PRIVATE_RECORD','ASK_DIRECT_SAVED_OWNER_SECRET'])
+  assert.equal(safeStructuredValidationReason(Error(unsafe)),'STRUCTURED_CONTRACT_INVALID');
+});
