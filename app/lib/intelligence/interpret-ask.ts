@@ -199,8 +199,7 @@ export function prepareAskInterpretationRequest(original: InterpretationContext,
       factorProviderCompoundSchemas(factorProviderEnumSchemas(canonicalSchema, checkBudget), checkBudget),
       ASK_REQUEST_INSTRUCTIONS, undefined, checkBudget
     );
-  const semanticRequired = askRequestSchema(proposedSemanticFrameJsonSchema, context).required;
-  const transport = createDirectSemanticAskWirePlan(wire, wire.instructions, semanticRequired, checkBudget);
+  const transport = createDirectSemanticAskWirePlan(wire, wire.instructions, askRequestSchema(proposedSemanticFrameJsonSchema, context), checkBudget);
   const request = { model, max_output_tokens: ASK_INTERPRETATION_LIMITS.outputTokens,
     ...(/^gpt-5\.4(?:-|$)/i.test(model) ? { reasoning: { effort: "none" } } : /^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}),
     instructions: transport.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: createAskProviderWireSchema(transport.schema, checkBudget) } } };

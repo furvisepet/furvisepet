@@ -1,110 +1,195 @@
-// Provider-facing typed JSON envelope. The model never chooses graph indices.
-// Server reconstruction is the only path into the unchanged canonical codec.
+// Furvise Ask: provider-constrained semantic slots, with canonical server reconstruction.
+// Never grant authority from the provider's JSON Schema: the pinned codec and Binder decide.
 import { RECURSIVE_TRANSPORT_LIMITS } from "./ask-wire-recursive.mjs";
 
-const fail = code => { throw Error("ASK_DIRECT_" + code); };
+const error = (code, field = null) => {
+  throw new Error("ASK_DIRECT_" + code, field ? { cause: { field } } : undefined);
+};
 const plain = v => v !== null && typeof v === "object" && !Array.isArray(v)
   && [Object.prototype, null].includes(Object.getPrototypeOf(v));
-export const DIRECT_ASK_FORMAT_VERSION = "ask-semantic-json.v1";
+const equal = (x,y) => JSON.stringify(x) === JSON.stringify(y);
+export const DIRECT_ASK_FORMAT_VERSION = "ask-semantic-slots.v1";
+const MAX = RECURSIVE_TRANSPORT_LIMITS.maxSerializedCharacters;
 
-function boundedJsonTree(value, check, limits) {
-  let total = 0, containers = 0, characters = 0;
-  const visited = new WeakSet();
-  function walk(node, depth) {
+function boundedJsonTree(value, check) {
+  let total = 0, containers = 0, chars = 0;
+  const seen = new WeakSet(), lim = RECURSIVE_TRANSPORT_LIMITS;
+  const walk = (node, depth) => {
     check();
-    if (depth > limits.maxDepth || ++total > limits.maxValues) fail("RESOURCE_LIMIT");
-    if (node === null || typeof node === "boolean") { characters += JSON.stringify(node).length; return; }
-    if (typeof node === "number" && Number.isFinite(node)) { characters += JSON.stringify(node).length; return; }
+    if (depth > lim.maxDepth || ++total > lim.maxValues) error("RESOURCE_LIMIT");
+    if (node === null || typeof node === "boolean") { chars += JSON.stringify(node).length; return; }
+    if (typeof node === "number" && Number.isFinite(node)) { chars += JSON.stringify(node).length; return; }
     if (typeof node === "string") {
-      if (node.length > limits.maxStringUnits) fail("STRING_LIMIT");
-      characters += JSON.stringify(node).length; return;
+      if (node.length > lim.maxStringUnits) error("STRING_LIMIT");
+      chars += JSON.stringify(node).length; return;
     }
-    if (typeof node !== "object" || visited.has(node)) fail("NON_JSON_TREE");
-    visited.add(node);
-    if (++containers > limits.maxContainers) fail("RESOURCE_LIMIT");
+    if (typeof node !== "object" || seen.has(node)) error("NON_JSON_TREE");
+    seen.add(node);
+    if (++containers > lim.maxContainers) error("RESOURCE_LIMIT");
     const keys = Reflect.ownKeys(node);
-    if (keys.length > limits.maxContainerEntries + 1) fail("RESOURCE_LIMIT");
+    if (keys.length > lim.maxContainerEntries + 1) error("RESOURCE_LIMIT");
     if (Array.isArray(node)) {
-      if (Object.getPrototypeOf(node) !== Array.prototype
-        || keys.length !== node.length + 1
+      if (Object.getPrototypeOf(node) !== Array.prototype || keys.length !== node.length + 1
         || !keys.every(k => k === "length" || typeof k === "string"
-          && /^(0|[1-9]\d*)$/.test(k) && Number(k) < node.length)) fail("NON_JSON_TREE");
-      for (const item of node) walk(item, depth + 1);
+          && /^(0|[1-9]\d*)$/.test(k) && Number(k) < node.length)) error("NON_JSON_TREE");
+      for (const v of node) walk(v, depth + 1);
     } else {
-      if (!plain(node)) fail("NON_JSON_TREE");
-      for (const key of keys) {
-        if (typeof key !== "string") fail("NON_JSON_TREE");
-        const desc = Object.getOwnPropertyDescriptor(node, key);
-        if (!desc || !desc.enumerable || !Object.hasOwn(desc, "value")) fail("NON_JSON_TREE");
-        characters += JSON.stringify(key).length;
-        walk(desc.value, depth + 1);
+      if (!plain(node)) error("NON_JSON_TREE");
+      for (const k of keys) {
+        if (typeof k !== "string") error("NON_JSON_TREE");
+        const d = Object.getOwnPropertyDescriptor(node, k);
+        if (!d?.enumerable || !Object.hasOwn(d,"value")) error("NON_JSON_TREE");
+        chars += JSON.stringify(k).length;
+        walk(d.value, depth + 1);
       }
     }
-    if (characters > limits.maxSerializedCharacters) fail("RESOURCE_LIMIT");
-  }
-  walk(value, 0);
+    if (chars > lim.maxSerializedCharacters) error("RESOURCE_LIMIT");
+  };
+  walk(value,0);
   check();
 }
 
-export function createDirectSemanticAskWirePlan(wire, originalSemanticInstructions, requiredNames, checkCompilation = () => {}) {
+const schemaKeys = obj => plain(obj) && plain(obj.properties)
+  && Array.isArray(obj.required) && equal(Object.keys(obj.properties).slice().sort(), obj.required.slice().sort());
+
+function nativeScalar(s) {
+  if (!plain(s) || Object.hasOwn(s,"anyOf") || Object.hasOwn(s,"$ref")) return false;
+  const types = Array.isArray(s.type) ? s.type : [s.type];
+  if (types.every(x => x === "string" || x === "null")) return true;
+  if (types.length===1 && types[0]==="array"
+    && plain(s.items) && s.items.type==="string" && !Object.hasOwn(s.items,"anyOf")) return true;
+  return false;
+}
+function nullable(s) {
+  if (s?.type === "null" || Array.isArray(s?.type) && s.type.includes("null")) return true;
+  if (Array.isArray(s?.anyOf)) return s.anyOf.some(x => x?.type === "null");
+  return false;
+}
+function buildSlotsSchema(requestSchema) {
+  if (!schemaKeys(requestSchema) || requestSchema.type!=="object" || requestSchema.additionalProperties!==false
+    || requestSchema.required.length < 30) error("CANONICAL_SCHEMA_DRIFT");
+  const props={};const complex=[];
+  for(const [key,s] of Object.entries(requestSchema.properties)) {
+    if(nativeScalar(s)) {
+      props[key] = structuredClone(s);
+      // Certain authoritative provider branches permit null for quoted-premise arrays.
+      if(key==="premiseQuotes") props[key]={anyOf:[props[key],{type:"null"}]};
+    } else {
+      complex.push(key);
+      props[key] = {
+        type: nullable(s) ? ["string","null"] : "string",
+        description: key === "readTicket"
+          ? "If needed, JSON-serialize the complete typed ReadTicket object (all required subfields); otherwise null."
+          : "If non-null, a JSON-serialized canonical value for " + key + ". Do not omit.",
+      };
+    }
+  }
+  return { schema:{type:"object",additionalProperties:false,required:requestSchema.required.slice(),properties:props}, complex };
+}
+
+export function createDirectSemanticAskWirePlan(wire, originalInstructions, canonicalRequestSchema, checkCompilation = () => {}) {
   checkCompilation();
   if (typeof wire?.encode !== "function" || typeof wire?.decode !== "function"
-    || typeof originalSemanticInstructions !== "string" || originalSemanticInstructions.length < 1000
-    || !Array.isArray(requiredNames) || requiredNames.length < 10
-    || !requiredNames.every(n => typeof n === "string" && /^[A-Za-z][A-Za-z]+$/.test(n))) fail("COMPILE_CONTRACT");
-  const limits = RECURSIVE_TRANSPORT_LIMITS;
-  const schema = {
-    type: "object", additionalProperties: false, required: ["format", "requestJson"],
-    properties: {
-      format: { type: "string", enum: [DIRECT_ASK_FORMAT_VERSION] },
-      requestJson: { type: "string", minLength: 2, maxLength: limits.maxSerializedCharacters },
-    },
-  };
-  const lines = originalSemanticInstructions.split("\n");
-  if (lines.length < 5 || !lines[0].includes("nodes: supporting postorder tree;")
-    || !lines[1].startsWith("ROOT root.") || !lines[2].startsWith("FIELDS ")) fail("POLICY_LAYOUT");
-  const instructions = [
-    "Return format ask-semantic-json.v1 and requestJson string with the complete semantic contract as escaped JSON.",
-    "Do not create graph nodes or indices; the server constructs and validates its own canonical graph.",
-    "Use real field names from FIELDS (right of =), not the short POLICY aliases or packed tags.",
-    "Required top-level fields for ask-request.v2:",
-    requiredNames.join(", ") + ". Use null or [] where inactive, according to the policy.",
-    "For catalog intents, follow the dedicated catalog contract in POLICY.",
-    ...lines.slice(2),
+    || typeof originalInstructions !== "string" || originalInstructions.length < 1000) error("COMPILE_CONTRACT");
+  const slots=buildSlotsSchema(canonicalRequestSchema);
+  const catalog={type:"object",additionalProperties:false,required:["catalogIntentJson"],
+    properties:{catalogIntentJson:{type:"string",description:"Only for a source-grounded catalog intent, serialize the complete ask-catalog-intent.v1 contract."}}};
+  const schema={type:"object",additionalProperties:false,required:["format","request"],
+    properties:{format:{type:"string",enum:[DIRECT_ASK_FORMAT_VERSION]},
+      request:{anyOf:[slots.schema,catalog]}}};
+  const lines=originalInstructions.split("\n"),i=lines.indexOf("POLICY");
+  if(lines.length<5 || !lines[0].includes("nodes: supporting postorder tree;")
+    || !lines[1].startsWith("ROOT root.") || !lines[2].startsWith("FIELDS ")
+    || i<5 || i>=lines.length-3) error("POLICY_LAYOUT");
+  const instructions=[
+    "Return format ask-semantic-slots.v1 and a request OBJECT following the required typed schema.",
+    "Do not use graph nodes, field aliases, packed tags or speculative evidence.",
+    "All request keys are mandatory. Use null/[] for inactive fields, never omit or invent.",
+    "Simple strings and string arrays are native JSON values. Complex objects/arrays are complete JSON strings (or null when allowed).",
+    "readTicket, when non-null, must be a JSON string containing the complete typed ReadTicket object.",
+    "The catalogIntentJson variant is exclusively for source-grounded catalog intent. Ordinary requests use the typed " + slots.schema.required.length + "-field request.",
+    "Use full canonical field names shown to the right of = in FIELDS. The POLICY $ aliases are only reading shorthand.",
+    lines[2],"POLICY",...lines.slice(i+1),
   ].join("\n");
 
   function decode(value, checkRuntime) {
-    if (typeof checkRuntime !== "function") fail("RUNTIME_CHECK_REQUIRED");
+    if(typeof checkRuntime!=="function") error("RUNTIME_CHECK_REQUIRED");
     checkRuntime();
-    if (!plain(value) || Object.keys(value).length !== 2
-      || value.format !== DIRECT_ASK_FORMAT_VERSION
-      || typeof value.requestJson !== "string"
-      || value.requestJson.length < 2
-      || value.requestJson.length > limits.maxSerializedCharacters) fail("ENVELOPE");
-    checkRuntime();
+    if(!plain(value) || Object.keys(value).length!==2 || value.format!==DIRECT_ASK_FORMAT_VERSION
+      || !plain(value.request)) error("ENVELOPE");
+    boundedJsonTree(value,checkRuntime);
     let request;
-    try { request = JSON.parse(value.requestJson); }
-    catch { fail("JSON_SYNTAX"); }
-    if (!plain(request)) fail("REQUEST_OBJECT");
-    boundedJsonTree(request, checkRuntime, limits);
+    if(Object.keys(value.request).length===1 && Object.hasOwn(value.request,"catalogIntentJson")) {
+      if(typeof value.request.catalogIntentJson!=="string") error("CATALOG_STRING");
+      try { request=JSON.parse(value.request.catalogIntentJson); }
+      catch { error("CATALOG_JSON"); }
+      if(!plain(request) || request.version!=="ask-catalog-intent.v1") error("CATALOG_CONTRACT");
+    } else {
+      const fields=Object.keys(value.request),required=slots.schema.required;
+      if(fields.length!==required.length || fields.some(k=>!Object.hasOwn(slots.schema.properties,k))
+        || required.some(k=>!Object.hasOwn(value.request,k))) error("REQUIRED_FIELDS");
+      request={};
+      for(const k of required){
+        checkRuntime();
+        const v=value.request[k];
+        if(slots.complex.includes(k) && v!==null){
+          if(typeof v!=="string" || v.length<2 || v.length>MAX) error("FIELD_FORMAT",k);
+          try { request[k]=JSON.parse(v); } catch { error("FIELD_JSON",k); }
+        } else if(!slots.complex.includes(k) && !simpleMatches(slots.schema.properties[k],v)) error("FIELD_TYPE",k);
+        else request[k]=v;
+      }
+    }
+    boundedJsonTree(request,checkRuntime);
     checkRuntime();
-    const encoded = wire.encode({ request });
+    // Original canonical codec is authoritative. No repairs, defaults, or field coercion.
+    let graph;
+    try { graph=wire.encode({request}); }
+    catch(e) {
+      if(process.env.NODE_ENV==="production" && e instanceof Error && e.message==="ASK_WIRE_CANONICAL_SCHEMA")
+        console.warn("[Ask semantic slots] canonical shape rejected",
+          {branch:request.version==="ask-request.v2"?"semantic":"catalog",
+            complexFieldCount:slots.complex.length,
+            readTicketPresent:request.readTicket!==null && request.readTicket!==undefined});
+      throw e;
+    }
     checkRuntime();
-    const restored = wire.decode(encoded);
+    const restored=wire.decode(graph);
     checkRuntime();
     return restored;
   }
-  function encode(value, checkRuntime) {
-    if (typeof checkRuntime !== "function") fail("RUNTIME_CHECK_REQUIRED");
+
+  function simpleMatches(s,v) {
+    if(Array.isArray(s?.anyOf)) return s.anyOf.some(item=>simpleMatches(item,v));
+    const allowed=Array.isArray(s?.type)?s.type:[s?.type];
+    if(v===null) return allowed.includes("null") && (!s.enum || s.enum.includes(null));
+    if(typeof v==="string") return allowed.includes("string") && (!s.enum || s.enum.includes(v));
+    if(Array.isArray(v)) return allowed.includes("array") && v.every(item=>simpleMatches(s.items,item))
+      && (!Number.isInteger(s.maxItems) || v.length<=s.maxItems);
+    return false;
+  }
+
+  function encode(value,checkRuntime) {
+    if(typeof checkRuntime!=="function") error("RUNTIME_CHECK_REQUIRED");
     checkRuntime();
-    if (!plain(value) || Object.keys(value).length !== 1 || !plain(value.request)) fail("CANONICAL_ENVELOPE");
-    boundedJsonTree(value.request, checkRuntime, limits);
-    const raw = JSON.stringify(value.request);
-    if (raw.length > limits.maxSerializedCharacters) fail("RESOURCE_LIMIT");
-    const envelope = { format: DIRECT_ASK_FORMAT_VERSION, requestJson: raw };
-    decode(envelope, checkRuntime);
-    return envelope;
+    if(!plain(value) || Object.keys(value).length!==1 || !plain(value.request)) error("CANONICAL_ENVELOPE");
+    boundedJsonTree(value.request,checkRuntime);
+    let request;
+    if(value.request.version==="ask-catalog-intent.v1") request={catalogIntentJson:JSON.stringify(value.request)};
+    else {
+      const required=slots.schema.required;
+      if(Object.keys(value.request).length!==required.length
+        || required.some(k=>!Object.hasOwn(value.request,k))) error("CANONICAL_KEYS");
+      request={};
+      for(const k of required) {
+        const v=value.request[k];
+        request[k]=slots.complex.includes(k) && v!==null ? JSON.stringify(v) : v;
+      }
+    }
+    const result={format:DIRECT_ASK_FORMAT_VERSION,request};
+    if(JSON.stringify(result).length>MAX) error("RESOURCE_LIMIT");
+    decode(result,checkRuntime);
+    return result;
   }
   checkCompilation();
-  return Object.freeze({ schema, instructions, decode, encode });
+  return Object.freeze({schema,instructions,decode,encode});
 }
