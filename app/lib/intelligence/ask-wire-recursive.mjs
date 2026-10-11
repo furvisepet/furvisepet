@@ -208,6 +208,68 @@ export function createRecursiveAskWirePlan(plan, checkCompilation) {
 }
 
 
+/** Classification only. Never repairs an edge, reads pet values or grants authority. */
+export function classifyIndexedInvalidEdge(graph) {
+  if (!plain(graph) || !Array.isArray(graph.nodes) || !plain(graph.root)
+    || graph.nodes.length > RECURSIVE_TRANSPORT_LIMITS.maxContainers) return "EDGE_UNCLASSIFIED";
+  const nodes = [...graph.nodes, graph.root];
+  const seen = new Set(); let steps = 0;
+  function visitValue(value, parent, depth) {
+    if (++steps > RECURSIVE_TRANSPORT_LIMITS.maxValues || depth > RECURSIVE_TRANSPORT_LIMITS.maxDepth) return "EDGE_UNCLASSIFIED";
+    if (Array.isArray(value)) {
+      for (const item of value) { const issue = visitValue(item, parent, depth + 1); if (issue) return issue; }
+      return null;
+    }
+    if (!plain(value)) return null;
+    if (Object.keys(value).length !== 1 || !Object.hasOwn(value, "@")) return "EDGE_NOT_REFERENCE";
+    const refIndex = value["@"];
+    if (!Number.isInteger(refIndex)) return "EDGE_NONINTEGER_REFERENCE";
+    if (refIndex < 0) return "EDGE_NEGATIVE_REFERENCE";
+    if (refIndex >= nodes.length) return "EDGE_OUT_OF_RANGE";
+    if (refIndex >= parent) return "EDGE_FORWARD_OR_SELF";
+    return visitNode(refIndex, depth + 1);
+  }
+  function visitNode(index, depth) {
+    if (seen.has(index)) return null;
+    seen.add(index);
+    if (!plain(nodes[index])) return "EDGE_UNCLASSIFIED";
+    for (const child of Object.values(nodes[index])) {
+      const issue = visitValue(child, index, depth + 1);
+      if (issue) return issue;
+    }
+    return null;
+  }
+  return visitNode(nodes.length - 1, 0) || "EDGE_UNCLASSIFIED";
+}
+
+/** Transport-only text: replace, never append, preserving the semantic tail and budget. */
+function indexedGraphConstructionGuide(schema, original) {
+  const root = schema.properties?.root;
+  const rootKeys = plain(root?.properties) ? Object.keys(root.properties) : [];
+  ensure(rootKeys.length === 1 && Array.isArray(root.required)
+    && root.required.length === 1 && root.required[0] === rootKeys[0], "INDEXED_ROOT_SCHEMA");
+  const alias = rootKeys[0], lines = original.split("\n");
+  ensure(lines.length > 4, "INDEXED_INSTRUCTION_SHAPE");
+  const oldHeader = "Return canonical semantic proposal in lossless wire format. nodes: supporting postorder tree; root: required request wrapper after nodes; child objects {\"@\":index} refer to earlier nodes. No shared/unused/forward/cyclic nodes. Fields: lexical unpacked-key order (K~T becomes K); arrays: order. _ restores listed constants only: bare key=null, key=value means that JSON value; unquoted nonreserved identifier values are literal strings. _g flattens into parent. Infer no data. POLICY $K=field alias K below; other words unchanged. All canonical schema fields/branches required; inactive fields use tagged constants. Server restores/validates before Binder; no factual/arithmetic/mutation authority.";
+  const oldRoot = "ROOT root." + alias + " references the complete request node in nodes. Omit the wrapper from nodes; root has implicit index nodes.length.";
+  ensure(lines[0] === oldHeader && lines[1] === oldRoot, "INDEXED_INSTRUCTION_SOURCE_DRIFT");
+  const header = [
+    "Return canonical semantic proposal in lossless wire format.",
+    "nodes[] zero-based postorder; nodes[0] is leaf.",
+    "Every object child in nodes[i], arrays too: only {\"@\":j}, integer 0<=j<i.",
+    "No inline children, reused/unused/forward/cyclic refs; parents after children.",
+    "root separate: N=nodes.length; root." + alias + "={\"@\":N-1} with literal index; never N.",
+    "Fields: sorted unpacked aliases (K~T by K); array order.",
+    "_ restores constants: bare=null, key=value JSON, unquoted identifiers=str. _g flattens.",
+    "No inferred data. POLICY $K maps aliases, other words unchanged.",
+    "All schema fields/branches required; inactive tagged constants.",
+    "Server checks before Binder; no factual/math/write authority.",
+  ].join(" ");
+  const rootLine = "ROOT root." + alias + " points to last request node nodes[N-1]; omit root wrapper from nodes.";
+  ensure(header.length + rootLine.length <= oldHeader.length + oldRoot.length, "INDEXED_INSTRUCTION_BUDGET");
+  return [header, rootLine, ...lines.slice(2)].join("\n");
+}
+
 /** Lossless indexed transport with bounded traversal and strict graph decoder. */
 export function createIndexedAskWirePlan(plan, checkCompilation) {
   ensure(typeof checkCompilation === "function", "COMPILATION_DEADLINE");
@@ -217,14 +279,21 @@ export function createIndexedAskWirePlan(plan, checkCompilation) {
     && plain(plan.schema.properties?.root) && typeof plan.instructions === "string", "INDEXED_CODEC");
   const schema = structuredClone(plan.schema);
   const limits = RECURSIVE_TRANSPORT_LIMITS;
+  const instructions = indexedGraphConstructionGuide(schema, plan.instructions);
   return Object.freeze({
-    schema, instructions: plan.instructions,
+    schema, instructions,
     decode(value, checkRuntime) {
       const clean = boundedCopy(value, checkRuntime, limits);
       ensure(plain(clean) && Object.hasOwn(clean,"nodes")
         && Object.hasOwn(clean,"root") && Object.keys(clean).length === 2, "INDEXED_ENVELOPE");
       checkRuntime();
-      const decoded = plan.decode(clean);
+      let decoded;
+      try { decoded = plan.decode(clean); }
+      catch (error) {
+        if (process.env.NODE_ENV === "production" && error instanceof Error && error.message === "ASK_WIRE_INVALID_EDGE")
+          console.warn("[Ask indexed graph] rejected edge class", { class: classifyIndexedInvalidEdge(clean) });
+        throw error;
+      }
       checkRuntime();
       return decoded;
     },
