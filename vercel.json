@@ -1,0 +1,7 @@
+{
+  "git": {
+    "deploymentEnabled": {
+      "backup/v24-stack-transport-1012": false
+    }
+  }
+}

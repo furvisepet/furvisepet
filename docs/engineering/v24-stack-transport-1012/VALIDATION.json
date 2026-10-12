@@ -1,0 +1,497 @@
+{
+  "kind": "FurviseOfflineRecoveryBackup.v1",
+  "status": "offline qualified prototype; not integrated or hosted-qualified",
+  "sourceManifest": "cdf2f28f6269a1ccd537cb5ae1f8970a77f4dae743a1a90a0ccbe8ac967ce2a6",
+  "baseCommit": "898c4aa7825a02f6bddfa2432fa07493193e3f6a",
+  "patchSha256": "52d9b85663f4a76c0fcdecdbadc71a850b304f844303c0679ea1c5691b5dba03",
+  "selected": [
+    {
+      "path": "app/lib/intelligence/ask-wire-codec.mjs",
+      "bytes": 20991,
+      "sha256": "1222b0cc53013671c636cccd8a5ceee1bfef21192fdcd43d1e61d084f78badf4",
+      "lfSha256": "1222b0cc53013671c636cccd8a5ceee1bfef21192fdcd43d1e61d084f78badf4",
+      "blob": "51403be15679e21afee876ba9188ab1b1d4e9282"
+    },
+    {
+      "path": "app/lib/intelligence/ask-wire-direct.mjs",
+      "bytes": 11198,
+      "sha256": "3b66b3b49c384bcdba18a7f4ccb3502d9d86e6d0ae7cc5fad6592a0eec439910",
+      "lfSha256": "3b66b3b49c384bcdba18a7f4ccb3502d9d86e6d0ae7cc5fad6592a0eec439910",
+      "blob": "f0db58d421d60c2d6ac8a68dc10e5da5ab9d29e2"
+    },
+    {
+      "path": "app/lib/intelligence/ask-wire-policy.d.mts",
+      "bytes": 563,
+      "sha256": "fd2c916794d0ecbb06a3130dff0694b61b0ce81a2f82e12a7d8609a3465d7f72",
+      "lfSha256": "fd2c916794d0ecbb06a3130dff0694b61b0ce81a2f82e12a7d8609a3465d7f72",
+      "blob": "d0db9241dd4138b3b0b1b5895e47b404fb01d620"
+    },
+    {
+      "path": "app/lib/intelligence/ask-wire-policy.mjs",
+      "bytes": 4837,
+      "sha256": "266d67120959e13a4906681ebb3ab76a866ba1fbde249f7a24fbef242955e47f",
+      "lfSha256": "266d67120959e13a4906681ebb3ab76a866ba1fbde249f7a24fbef242955e47f",
+      "blob": "c555305506c6b7ecb34f889340a63ee6fbd13110"
+    },
+    {
+      "path": "app/lib/intelligence/ask-wire-stack.d.mts",
+      "bytes": 396,
+      "sha256": "8f05f6056c2728ff78a078b84c8a1fac37b3eb1814ad9c5b344e401d98c87618",
+      "lfSha256": "8f05f6056c2728ff78a078b84c8a1fac37b3eb1814ad9c5b344e401d98c87618",
+      "blob": "27aa7fbf37ba40b4171bab4330827263234b8a5e"
+    },
+    {
+      "path": "app/lib/intelligence/ask-wire-stack.mjs",
+      "bytes": 11176,
+      "sha256": "0703eea80f62e95ffb387b0a27e21e7f5cd4d5b55ad04914e4c3d52639a537be",
+      "lfSha256": "0703eea80f62e95ffb387b0a27e21e7f5cd4d5b55ad04914e4c3d52639a537be",
+      "blob": "167a389120d32a210ac864b3abafe2da73fe17c6"
+    },
+    {
+      "path": "app/lib/intelligence/ask-wire-typed-grammar.d.mts",
+      "bytes": 569,
+      "sha256": "c904074a1054ded6930f691b4ce2034af3123fed6dbaddbb9cd17b67113d7657",
+      "lfSha256": "c904074a1054ded6930f691b4ce2034af3123fed6dbaddbb9cd17b67113d7657",
+      "blob": "96379a93a328d2209ca259ee8282a2a07954007d"
+    },
+    {
+      "path": "app/lib/intelligence/ask-wire-typed-grammar.mjs",
+      "bytes": 11287,
+      "sha256": "ec6aff5a964fc9647376b5606694858d776cf26c4f9b45fc4722422f8640ef11",
+      "lfSha256": "2de8915620ca3eb7b3e5c3647538754e11f194bcf4bf6a5c6adde4478310478f",
+      "blob": "4034c4a11b0b4ddc1d86ada4707684b9c50581b1"
+    },
+    {
+      "path": "app/lib/intelligence/interpret-ask.ts",
+      "bytes": 35665,
+      "sha256": "ae02474cc61db504d85b7ef09e338fc89610a658d5047632265786e08984fed2",
+      "lfSha256": "ae02474cc61db504d85b7ef09e338fc89610a658d5047632265786e08984fed2",
+      "blob": "f838f0a342bb2f487bb7f2762b148d713ca74ed2"
+    },
+    {
+      "path": "scripts/audits/ask-active-contract.cases.mjs",
+      "bytes": 20991,
+      "sha256": "e41b615b1e3cf329d3bf8358a3bc8cbda42a30f5911cc31c4f5a79a45063c205",
+      "lfSha256": "e41b615b1e3cf329d3bf8358a3bc8cbda42a30f5911cc31c4f5a79a45063c205",
+      "blob": "e0d817f7143fbec82eddcf6fb5dc664fafa9cac9"
+    },
+    {
+      "path": "tests/ask-input-budget-route.test.mjs",
+      "bytes": 3063,
+      "sha256": "5c41cf5d729f80835fce5d6d687e1a6e44ffebf8fa3a5b0bc5f551fd14df96ed",
+      "lfSha256": "5c41cf5d729f80835fce5d6d687e1a6e44ffebf8fa3a5b0bc5f551fd14df96ed",
+      "blob": "d5bdef56a9b57c9f347402aa8071e7db9c99d465"
+    },
+    {
+      "path": "tests/ask-interpretation-input-budget.test.mjs",
+      "bytes": 16860,
+      "sha256": "28bb5936ad60d02fc9b64c75105323a43a5bd6cd29ba81d4dd3bb0c22ec7823d",
+      "lfSha256": "28bb5936ad60d02fc9b64c75105323a43a5bd6cd29ba81d4dd3bb0c22ec7823d",
+      "blob": "a47f013471a11923608e12a76aa9a013aa8ded98"
+    },
+    {
+      "path": "tests/ask-lifecycle-role-contract.test.mjs",
+      "bytes": 14447,
+      "sha256": "0e81d334022723bd5eec4b25c6b96054d8464912e984fde6af3e87fee2fc54ce",
+      "lfSha256": "0e81d334022723bd5eec4b25c6b96054d8464912e984fde6af3e87fee2fc54ce",
+      "blob": "75745769950832e7282734aaef1b71c4fa4ae1dc"
+    },
+    {
+      "path": "tests/ask-provider-timestamp-boundary.test.mjs",
+      "bytes": 14528,
+      "sha256": "d5daf99c253d68c9220663b5befaf0801e80c228fe5615b80d2cea72eadd6a1b",
+      "lfSha256": "d5daf99c253d68c9220663b5befaf0801e80c228fe5615b80d2cea72eadd6a1b",
+      "blob": "725b32c8110bc9e102a84f49cf25ec9ef9f17647"
+    },
+    {
+      "path": "tests/ask-public-cancellation-route.test.mjs",
+      "bytes": 5894,
+      "sha256": "2f3b933cc3a4380785416aeaf49b66f50051aed6a82f7c56831bffc6df4d22b9",
+      "lfSha256": "2f3b933cc3a4380785416aeaf49b66f50051aed6a82f7c56831bffc6df4d22b9",
+      "blob": "b6ae172e4603e78121cbe53ebde3cad8fe489eeb"
+    },
+    {
+      "path": "tests/ask-recursive-transport.test.mjs",
+      "bytes": 16769,
+      "sha256": "244d8fdee60de9a78ab74b287c5858bba8489b276fc1bd01fea015c267ca3982",
+      "lfSha256": "244d8fdee60de9a78ab74b287c5858bba8489b276fc1bd01fea015c267ca3982",
+      "blob": "9d3d2cdc2867ed8085bd315dc55d04f214dc5b26"
+    },
+    {
+      "path": "tests/ask-semantic-graph-regression.test.mjs",
+      "bytes": 7821,
+      "sha256": "64eaae4dc7d67541b3870618c43e39d7b175de0fbaeabd69d49f7865449e89a7",
+      "lfSha256": "64eaae4dc7d67541b3870618c43e39d7b175de0fbaeabd69d49f7865449e89a7",
+      "blob": "b2770302ef261195c0ce42e65efab9bb112343d9"
+    },
+    {
+      "path": "tests/ask-staged-catalog-route.test.mjs",
+      "bytes": 8223,
+      "sha256": "5645384a1513eb80e592bff79c8c86c572d1f6b0c29018373cabeb667114b445",
+      "lfSha256": "0a7ec616242e78273c602b182d2550e400b96fbae9a333682f3f2831041fa0b9",
+      "blob": "c2fe19cef23f4a3f41f7c7c613b6330f2e738093"
+    },
+    {
+      "path": "tests/ask-wire-direct.test.mjs",
+      "bytes": 5271,
+      "sha256": "a77d0dc79fb6b2ac18051eb6423bcf7eb2271eb956da53fa5a5e2dc43b1ed400",
+      "lfSha256": "a77d0dc79fb6b2ac18051eb6423bcf7eb2271eb956da53fa5a5e2dc43b1ed400",
+      "blob": "fc2673cf9a6d9cdc2bf6ea784d769d3f25eaebcf"
+    },
+    {
+      "path": "tests/ask-wire-recursive-plan.test.mjs",
+      "bytes": 14624,
+      "sha256": "2723444dfc23084fa4169dac97fafce12d3c053a0e821238b71c2b515fba0b47",
+      "lfSha256": "2723444dfc23084fa4169dac97fafce12d3c053a0e821238b71c2b515fba0b47",
+      "blob": "98eafacf81c51809b65aa42213a8770ad9968237"
+    },
+    {
+      "path": "tests/ask-wire-stack.test.mjs",
+      "bytes": 11944,
+      "sha256": "8c49e89f71c245841699e5abde14f836590a78723405b8058f541a0ceb61f4c2",
+      "lfSha256": "8c49e89f71c245841699e5abde14f836590a78723405b8058f541a0ceb61f4c2",
+      "blob": "7bc1c16dadd3f1efef1cab2718fccebc4d1ef4a6"
+    },
+    {
+      "path": "tests/ask-wire-typed-grammar.test.mjs",
+      "bytes": 6682,
+      "sha256": "8047fa463333a7d12f9cff9bf798813fff41df4ef1a84406643a0e3f3a52c647",
+      "lfSha256": "8047fa463333a7d12f9cff9bf798813fff41df4ef1a84406643a0e3f3a52c647",
+      "blob": "68ff1c2a90c71c25bd7cc22c68422337ac003ec0"
+    },
+    {
+      "path": "tests/helpers/ask-semantic-fixture.mjs",
+      "bytes": 309,
+      "sha256": "1e592b3893cb5532bca47e3ee1076a80ba5b9abef3e7328cca80512f3681082c",
+      "lfSha256": "1e592b3893cb5532bca47e3ee1076a80ba5b9abef3e7328cca80512f3681082c",
+      "blob": "6e607ae4f9de219bdf95090c9d6a4a4224014a36"
+    },
+    {
+      "path": "tests/helpers/ask-staged-route-fixture.mjs",
+      "bytes": 24038,
+      "sha256": "6ad12cf137ef4a0dfb4495f3abf5d575e622db3d0232696d8c11790800a54959",
+      "lfSha256": "3debfd4ebec6b75182d9a31ffde9dbef43e5a03f5a2add2d63288f4360565585",
+      "blob": "b38d6176597e8fc1521037aabbc8e43b396cda00"
+    },
+    {
+      "path": "tests/helpers/ask-wire-contract.mjs",
+      "bytes": 2770,
+      "sha256": "0e7dad2ec241a541566f1d9f16863f05c4bc1bc241e2736b636971314bec19b9",
+      "lfSha256": "0e7dad2ec241a541566f1d9f16863f05c4bc1bc241e2736b636971314bec19b9",
+      "blob": "098b3c3d7e9dec89c14ec97cc73c8bcc069dc06a"
+    },
+    {
+      "path": "tests/helpers/staged-operation-fixture.mjs",
+      "bytes": 4201,
+      "sha256": "8848f53e703975186be737343d821bd502d014e5791372f7c98b25ca59267828",
+      "lfSha256": "8848f53e703975186be737343d821bd502d014e5791372f7c98b25ca59267828",
+      "blob": "e76c42db6f49b137e824261b7dc406a123f8cdca"
+    },
+    {
+      "path": "tests/replace-reference-context.test.mjs",
+      "bytes": 6311,
+      "sha256": "43a736decf163e1f221500d90e00ba9232852b48dc7511e76d7afd63ca3b6383",
+      "lfSha256": "43a736decf163e1f221500d90e00ba9232852b48dc7511e76d7afd63ca3b6383",
+      "blob": "2bda9246f249a3719208639e77f90b7b2abff9d4"
+    }
+  ],
+  "changesThisTask": [
+    {
+      "path": "app/lib/intelligence/ask-wire-stack.d.mts",
+      "bytes": 396,
+      "sha256": "8f05f6056c2728ff78a078b84c8a1fac37b3eb1814ad9c5b344e401d98c87618",
+      "lfSha256": "8f05f6056c2728ff78a078b84c8a1fac37b3eb1814ad9c5b344e401d98c87618",
+      "blob": "27aa7fbf37ba40b4171bab4330827263234b8a5e"
+    },
+    {
+      "path": "app/lib/intelligence/ask-wire-stack.mjs",
+      "bytes": 11176,
+      "sha256": "0703eea80f62e95ffb387b0a27e21e7f5cd4d5b55ad04914e4c3d52639a537be",
+      "lfSha256": "0703eea80f62e95ffb387b0a27e21e7f5cd4d5b55ad04914e4c3d52639a537be",
+      "blob": "167a389120d32a210ac864b3abafe2da73fe17c6"
+    },
+    {
+      "path": "tests/ask-wire-stack.test.mjs",
+      "bytes": 11944,
+      "sha256": "8c49e89f71c245841699e5abde14f836590a78723405b8058f541a0ceb61f4c2",
+      "lfSha256": "8c49e89f71c245841699e5abde14f836590a78723405b8058f541a0ceb61f4c2",
+      "blob": "7bc1c16dadd3f1efef1cab2718fccebc4d1ef4a6"
+    }
+  ],
+  "fullTests": {
+    "tests": 5828,
+    "pass": 5827,
+    "fail": 0,
+    "skip": 1,
+    "skipReason": "external deterministic evidence supplied by bounded gate"
+  },
+  "security": {
+    "pass": 162,
+    "fail": 0
+  },
+  "lint": {
+    "errors": 0,
+    "existingWarnings": 117
+  },
+  "typescript": "pass",
+  "build": "pass",
+  "focused": {
+    "pass": 13,
+    "canonicalRoundtrips": 262
+  },
+  "requestSizing": {
+    "cases": 8,
+    "pets": 5,
+    "currentTurnCharacters": 1200,
+    "histories": [
+      0,
+      2,
+      8,
+      39
+    ],
+    "maxFinalCharacters": 57258,
+    "minMargin": 2742,
+    "cap": 60000
+  },
+  "complexity": [
+    {
+      "name": "stack-no_numeric-39-request.json",
+      "properties": 398,
+      "enums": 391,
+      "stringUnits": 3278,
+      "objects": 123,
+      "maxObjectDepth": 3,
+      "refs": 326,
+      "maxUnionAlternatives": 119,
+      "schemaKeywordSet": [
+        "$ref",
+        "additionalProperties",
+        "anyOf",
+        "enum",
+        "items",
+        "maxItems",
+        "maxLength",
+        "maximum",
+        "minItems",
+        "minLength",
+        "minimum",
+        "pattern",
+        "required",
+        "type"
+      ],
+      "serializedCharacters": 55682,
+      "referenceCycles": false,
+      "expandedObjectDepth": 3
+    },
+    {
+      "name": "stack-numeric-39-request.json",
+      "properties": 408,
+      "enums": 455,
+      "stringUnits": 3612,
+      "objects": 129,
+      "maxObjectDepth": 3,
+      "refs": 333,
+      "maxUnionAlternatives": 125,
+      "schemaKeywordSet": [
+        "$ref",
+        "additionalProperties",
+        "anyOf",
+        "enum",
+        "items",
+        "maxItems",
+        "maxLength",
+        "maximum",
+        "minItems",
+        "minLength",
+        "minimum",
+        "pattern",
+        "required",
+        "type"
+      ],
+      "serializedCharacters": 57258,
+      "referenceCycles": false,
+      "expandedObjectDepth": 3
+    }
+  ],
+  "accounting": {
+    "kind": "OfflineStackUsageAndDepthProof.v1",
+    "rows": [
+      {
+        "name": "success",
+        "invoked": 1,
+        "reserved": 1,
+        "started": 1,
+        "reconciled": 1,
+        "failure": null,
+        "canonical": true,
+        "binderParity": true,
+        "snapshot": {
+          "calls": 1,
+          "costMicrodollars": 435
+        }
+      },
+      {
+        "name": "invalid-graph",
+        "invoked": 1,
+        "reserved": 1,
+        "started": 1,
+        "reconciled": 1,
+        "failure": "ASK_STACK_UNDERFLOW",
+        "canonical": false,
+        "binderParity": false,
+        "snapshot": {
+          "calls": 1,
+          "costMicrodollars": 435
+        }
+      },
+      {
+        "name": "transport-error",
+        "invoked": 1,
+        "reserved": 1,
+        "started": 1,
+        "reconciled": 0,
+        "failure": "SYNTHETIC_TRANSPORT_TIMEOUT",
+        "canonical": false,
+        "binderParity": false,
+        "snapshot": {
+          "calls": 1,
+          "costMicrodollars": 465000
+        }
+      },
+      {
+        "name": "oversize",
+        "invoked": 0,
+        "reserved": 1,
+        "started": 0,
+        "reconciled": 0,
+        "failure": "AI_PROVIDER_BUDGET_EXHAUSTED",
+        "canonical": false,
+        "binderParity": false,
+        "snapshot": {
+          "calls": 0,
+          "costMicrodollars": 0
+        }
+      }
+    ],
+    "deepGraphRejected": true,
+    "paidCalls": 0,
+    "liveCreditsTouched": false,
+    "appCreditSettlementProven": false,
+    "note": "Actual provider-call admission with fake provider and in-memory usage store; Binder parity is fixture-based, not model fidelity or live credit proof."
+  },
+  "receipts": [
+    {
+      "label": "typescript",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--incremental",
+        "false"
+      ],
+      "exit": 0,
+      "signal": null,
+      "elapsedMs": 8073,
+      "stdoutHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceManifest": "cdf2f28f6269a1ccd537cb5ae1f8970a77f4dae743a1a90a0ccbe8ac967ce2a6"
+    },
+    {
+      "label": "security",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "--test",
+        "--test-reporter=tap",
+        "tests/security-phase-s2a.test.mjs",
+        "tests/security-phase-s2b.test.mjs",
+        "tests/security-phase-s2c.test.mjs",
+        "tests/security-phase-s2d.test.mjs",
+        "tests/security-phase-s2e.test.mjs",
+        "tests/security-phase-s2f.test.mjs",
+        "tests/security-phase-s2g.test.mjs",
+        "tests/security-phase-s2h.test.mjs",
+        "tests/password-capability-state.test.mjs",
+        "tests/ask-conversation-authority-foundation.test.mjs",
+        "tests/ask-conversation-authority-lock.test.mjs"
+      ],
+      "exit": 0,
+      "signal": null,
+      "elapsedMs": 453,
+      "stdoutHash": "fc66617f8c66bdc4e58d9e92bcc81a0c19c424f606e38d2d8486193d36aa5b27",
+      "stderrHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceManifest": "cdf2f28f6269a1ccd537cb5ae1f8970a77f4dae743a1a90a0ccbe8ac967ce2a6"
+    },
+    {
+      "label": "lint",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "node_modules/eslint/bin/eslint.js",
+        "."
+      ],
+      "exit": 0,
+      "signal": null,
+      "elapsedMs": 55926,
+      "stdoutHash": "955d5d24fb54e0b9f6ae394454dcc692cded650644aec2c494717f197fc32ed3",
+      "stderrHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceManifest": "cdf2f28f6269a1ccd537cb5ae1f8970a77f4dae743a1a90a0ccbe8ac967ce2a6"
+    },
+    {
+      "label": "build",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "node_modules/next/dist/bin/next",
+        "build",
+        "--webpack"
+      ],
+      "exit": 0,
+      "signal": null,
+      "elapsedMs": 49199,
+      "stdoutHash": "ed41e7c9f784b68dabe076e4aabb6fd0ac79f6acfc09957b47fae0e5f2a386bc",
+      "stderrHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceManifest": "cdf2f28f6269a1ccd537cb5ae1f8970a77f4dae743a1a90a0ccbe8ac967ce2a6"
+    },
+    {
+      "label": "full-tests",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "--test",
+        "--test-reporter=tap",
+        "--test-concurrency=4"
+      ],
+      "exit": 0,
+      "signal": null,
+      "elapsedMs": 709951,
+      "stdoutHash": "70e6fa6325c45616d0fe57bffcfb4bb92f246c945affdc606102aeac77d464c0",
+      "stderrHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceManifest": "cdf2f28f6269a1ccd537cb5ae1f8970a77f4dae743a1a90a0ccbe8ac967ce2a6"
+    },
+    {
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "--experimental-transform-types",
+        "--import",
+        "file:///$EVIDENCE/offline-bootstrap.mjs",
+        "$EVIDENCE/accounting-depth-proof.mjs"
+      ],
+      "exit": 0,
+      "stdoutHash": "3b1b6f92dc6436724381351f0fc2609c0249f16254f80d5d3fc2c99fa14fef44",
+      "stderrHash": "1508f081b85f731d6408c23dbe8f3ee6392437e38d4712afb5f2dbc6f2d4d579"
+    }
+  ],
+  "sourceNormalization": "Patch preserves selected source bytes. Unselected files equal the published base after CRLF-to-LF normalization. SOURCE_MANIFEST records exact tested native bytes.",
+  "review": {
+    "patternScanUnresolved": 0,
+    "classifiedFindings": 25,
+    "independentReviewOutstanding": true
+  },
+  "paidCalls": 0,
+  "productionChanges": 0,
+  "remaining": [
+    "Independent review",
+    "Separately authorized hosted compatibility and generation",
+    "Generated canonical decoder and Binder proof",
+    "Unseen whole-task semantic fidelity",
+    "Exactly-once live app credits",
+    "Isolated read-only preview evidence acceptance"
+  ]
+}

@@ -1,0 +1,1790 @@
+diff --git a/app/lib/intelligence/ask-wire-codec.mjs b/app/lib/intelligence/ask-wire-codec.mjs
+index 65ae2370..51403be1 100644
+--- a/app/lib/intelligence/ask-wire-codec.mjs
++++ b/app/lib/intelligence/ask-wire-codec.mjs
+@@ -336,7 +336,7 @@ export function compileGraphCodec(schema, fieldOrder = null, checkBudget=()=>{})
+   ensure(canonical(encode(restored))===canonical(wire),"NONCANONICAL_WIRE");
+   return restored;
+  }
+- return {schema:wireSchema,rootSchema,encode,decode,names,constantMaps,packedRuleCount:rules.size,rawGraphSchema:rawGraph};
++ return {schema:wireSchema,rootSchema,typedSchema:optimizeSchema(factor(packSchema(compact),checkBudget),checkBudget).schema,encode,decode,names,constantMaps,packedRuleCount:rules.size,rawGraphSchema:rawGraph};
+ }
+ export { canonical, expand, makeValidator };
+ 
+diff --git a/app/lib/intelligence/ask-wire-direct.mjs b/app/lib/intelligence/ask-wire-direct.mjs
+index 4e22564c..f0db58d4 100644
+--- a/app/lib/intelligence/ask-wire-direct.mjs
++++ b/app/lib/intelligence/ask-wire-direct.mjs
+@@ -1,110 +1,209 @@
+-// Provider-facing typed JSON envelope. The model never chooses graph indices.
+-// Server reconstruction is the only path into the unchanged canonical codec.
++// Furvise Ask: provider-constrained semantic slots, with canonical server reconstruction.
++// Never grant authority from the provider's JSON Schema: the pinned codec and Binder decide.
+ import { RECURSIVE_TRANSPORT_LIMITS } from "./ask-wire-recursive.mjs";
+ 
+-const fail = code => { throw Error("ASK_DIRECT_" + code); };
++const error = (code, field = null) => {
++  throw new Error("ASK_DIRECT_" + code, field ? { cause: { field } } : undefined);
++};
+ const plain = v => v !== null && typeof v === "object" && !Array.isArray(v)
+   && [Object.prototype, null].includes(Object.getPrototypeOf(v));
+-export const DIRECT_ASK_FORMAT_VERSION = "ask-semantic-json.v1";
++const equal = (x,y) => JSON.stringify(x) === JSON.stringify(y);
++export const DIRECT_ASK_FORMAT_VERSION = "ask-semantic-slots.v1";
++const MAX = RECURSIVE_TRANSPORT_LIMITS.maxSerializedCharacters;
+ 
+-function boundedJsonTree(value, check, limits) {
+-  let total = 0, containers = 0, characters = 0;
+-  const visited = new WeakSet();
+-  function walk(node, depth) {
++function boundedJsonTree(value, check) {
++  let total = 0, containers = 0, chars = 0;
++  const seen = new WeakSet(), lim = RECURSIVE_TRANSPORT_LIMITS;
++  const walk = (node, depth) => {
+     check();
+-    if (depth > limits.maxDepth || ++total > limits.maxValues) fail("RESOURCE_LIMIT");
+-    if (node === null || typeof node === "boolean") { characters += JSON.stringify(node).length; return; }
+-    if (typeof node === "number" && Number.isFinite(node)) { characters += JSON.stringify(node).length; return; }
++    if (depth > lim.maxDepth || ++total > lim.maxValues) error("RESOURCE_LIMIT");
++    if (node === null || typeof node === "boolean") { chars += JSON.stringify(node).length; return; }
++    if (typeof node === "number" && Number.isFinite(node)) { chars += JSON.stringify(node).length; return; }
+     if (typeof node === "string") {
+-      if (node.length > limits.maxStringUnits) fail("STRING_LIMIT");
+-      characters += JSON.stringify(node).length; return;
++      if (node.length > lim.maxStringUnits) error("STRING_LIMIT");
++      chars += JSON.stringify(node).length; return;
+     }
+-    if (typeof node !== "object" || visited.has(node)) fail("NON_JSON_TREE");
+-    visited.add(node);
+-    if (++containers > limits.maxContainers) fail("RESOURCE_LIMIT");
++    if (typeof node !== "object" || seen.has(node)) error("NON_JSON_TREE");
++    seen.add(node);
++    if (++containers > lim.maxContainers) error("RESOURCE_LIMIT");
++    // Inspect descriptors before any serialization or indexed read. JSON input
++    // cannot carry accessors; programmatic callers must not execute them either.
++    if (Object.getOwnPropertyDescriptor(node, "toJSON")
++      || Object.getOwnPropertyDescriptor(Object.prototype, "toJSON")
++      || Array.isArray(node) && Object.getOwnPropertyDescriptor(Array.prototype, "toJSON"))
++      error("NON_JSON_TREE");
++    if (Array.isArray(node) && node.length > Math.min(lim.maxContainerEntries, lim.maxValues - total))
++      error("RESOURCE_LIMIT");
+     const keys = Reflect.ownKeys(node);
+-    if (keys.length > limits.maxContainerEntries + 1) fail("RESOURCE_LIMIT");
++    if (keys.length > lim.maxContainerEntries + 1) error("RESOURCE_LIMIT");
+     if (Array.isArray(node)) {
+-      if (Object.getPrototypeOf(node) !== Array.prototype
+-        || keys.length !== node.length + 1
++      if (Object.getPrototypeOf(node) !== Array.prototype || keys.length !== node.length + 1
+         || !keys.every(k => k === "length" || typeof k === "string"
+-          && /^(0|[1-9]\d*)$/.test(k) && Number(k) < node.length)) fail("NON_JSON_TREE");
+-      for (const item of node) walk(item, depth + 1);
++          && /^(0|[1-9]\d*)$/.test(k) && Number(k) < node.length)) error("NON_JSON_TREE");
++      for (let i = 0; i < node.length; i++) {
++        const d = Object.getOwnPropertyDescriptor(node, String(i));
++        if (!d?.enumerable || !Object.hasOwn(d, "value")) error("NON_JSON_TREE");
++        walk(d.value, depth + 1);
++      }
+     } else {
+-      if (!plain(node)) fail("NON_JSON_TREE");
+-      for (const key of keys) {
+-        if (typeof key !== "string") fail("NON_JSON_TREE");
+-        const desc = Object.getOwnPropertyDescriptor(node, key);
+-        if (!desc || !desc.enumerable || !Object.hasOwn(desc, "value")) fail("NON_JSON_TREE");
+-        characters += JSON.stringify(key).length;
+-        walk(desc.value, depth + 1);
++      if (!plain(node)) error("NON_JSON_TREE");
++      for (const k of keys) {
++        if (typeof k !== "string") error("NON_JSON_TREE");
++        const d = Object.getOwnPropertyDescriptor(node, k);
++        if (!d?.enumerable || !Object.hasOwn(d,"value")) error("NON_JSON_TREE");
++        chars += JSON.stringify(k).length;
++        walk(d.value, depth + 1);
+       }
+     }
+-    if (characters > limits.maxSerializedCharacters) fail("RESOURCE_LIMIT");
+-  }
+-  walk(value, 0);
++    if (chars > lim.maxSerializedCharacters) error("RESOURCE_LIMIT");
++  };
++  walk(value,0);
+   check();
+ }
+ 
+-export function createDirectSemanticAskWirePlan(wire, originalSemanticInstructions, requiredNames, checkCompilation = () => {}) {
++const schemaKeys = obj => plain(obj) && plain(obj.properties)
++  && Array.isArray(obj.required) && equal(Object.keys(obj.properties).slice().sort(), obj.required.slice().sort());
++
++function nativeScalar(s) {
++  if (!plain(s) || Object.hasOwn(s,"anyOf") || Object.hasOwn(s,"$ref")) return false;
++  const types = Array.isArray(s.type) ? s.type : [s.type];
++  if (types.every(x => x === "string" || x === "null")) return true;
++  if (types.length===1 && types[0]==="array"
++    && plain(s.items) && s.items.type==="string" && !Object.hasOwn(s.items,"anyOf")) return true;
++  return false;
++}
++function nullable(s) {
++  if (s?.type === "null" || Array.isArray(s?.type) && s.type.includes("null")) return true;
++  if (Array.isArray(s?.anyOf)) return s.anyOf.some(x => x?.type === "null");
++  return false;
++}
++function buildSlotsSchema(requestSchema) {
++  if (!schemaKeys(requestSchema) || requestSchema.type!=="object" || requestSchema.additionalProperties!==false
++    || requestSchema.required.length < 30) error("CANONICAL_SCHEMA_DRIFT");
++  const props={};const complex=[];
++  for(const [key,s] of Object.entries(requestSchema.properties)) {
++    if(nativeScalar(s)) {
++      props[key] = structuredClone(s);
++      // Certain authoritative provider branches permit null for quoted-premise arrays.
++      if(key==="premiseQuotes") props[key]={anyOf:[props[key],{type:"null"}]};
++    } else {
++      complex.push(key);
++      props[key] = {
++        type: nullable(s) ? ["string","null"] : "string",
++        description: key === "readTicket"
++          ? "If needed, JSON-serialize the complete typed ReadTicket object (all required subfields); otherwise null."
++          : "If non-null, a JSON-serialized canonical value for " + key + ". Do not omit.",
++      };
++    }
++  }
++  return { schema:{type:"object",additionalProperties:false,required:requestSchema.required.slice(),properties:props}, complex };
++}
++
++export function createDirectSemanticAskWirePlan(wire, originalInstructions, canonicalRequestSchema, checkCompilation = () => {}) {
+   checkCompilation();
+   if (typeof wire?.encode !== "function" || typeof wire?.decode !== "function"
+-    || typeof originalSemanticInstructions !== "string" || originalSemanticInstructions.length < 1000
+-    || !Array.isArray(requiredNames) || requiredNames.length < 10
+-    || !requiredNames.every(n => typeof n === "string" && /^[A-Za-z][A-Za-z]+$/.test(n))) fail("COMPILE_CONTRACT");
+-  const limits = RECURSIVE_TRANSPORT_LIMITS;
+-  const schema = {
+-    type: "object", additionalProperties: false, required: ["format", "requestJson"],
+-    properties: {
+-      format: { type: "string", enum: [DIRECT_ASK_FORMAT_VERSION] },
+-      requestJson: { type: "string", minLength: 2, maxLength: limits.maxSerializedCharacters },
+-    },
+-  };
+-  const lines = originalSemanticInstructions.split("\n");
+-  if (lines.length < 5 || !lines[0].includes("nodes: supporting postorder tree;")
+-    || !lines[1].startsWith("ROOT root.") || !lines[2].startsWith("FIELDS ")) fail("POLICY_LAYOUT");
+-  const instructions = [
+-    "Return format ask-semantic-json.v1 and requestJson string with the complete semantic contract as escaped JSON.",
+-    "Do not create graph nodes or indices; the server constructs and validates its own canonical graph.",
+-    "Use real field names from FIELDS (right of =), not the short POLICY aliases or packed tags.",
+-    "Required top-level fields for ask-request.v2:",
+-    requiredNames.join(", ") + ". Use null or [] where inactive, according to the policy.",
+-    "For catalog intents, follow the dedicated catalog contract in POLICY.",
+-    ...lines.slice(2),
++    || typeof originalInstructions !== "string" || originalInstructions.length < 1000) error("COMPILE_CONTRACT");
++  const slots=buildSlotsSchema(canonicalRequestSchema);
++  const catalog={type:"object",additionalProperties:false,required:["catalogIntentJson"],
++    properties:{catalogIntentJson:{type:"string",description:"Only for a source-grounded catalog intent, serialize the complete ask-catalog-intent.v1 contract."}}};
++  const schema={type:"object",additionalProperties:false,required:["format","request"],
++    properties:{format:{type:"string",enum:[DIRECT_ASK_FORMAT_VERSION]},
++      request:{anyOf:[slots.schema,catalog]}}};
++  const lines=originalInstructions.split("\n"),i=lines.indexOf("POLICY");
++  if(lines.length<5 || !lines[0].includes("nodes: supporting postorder tree;")
++    || !lines[1].startsWith("ROOT root.") || !lines[2].startsWith("FIELDS ")
++    || i<5 || i>=lines.length-3) error("POLICY_LAYOUT");
++  const instructions=[
++    "Return format ask-semantic-slots.v1 and a request OBJECT following the required typed schema.",
++    "Do not use graph nodes, field aliases, packed tags or speculative evidence.",
++    "All request keys are mandatory. Use null/[] for inactive fields, never omit or invent.",
++    "Simple strings and string arrays are native JSON values. Complex objects/arrays are complete JSON strings (or null when allowed).",
++    "readTicket, when non-null, must be a JSON string containing the complete typed ReadTicket object.",
++    "The catalogIntentJson variant is exclusively for source-grounded catalog intent. Ordinary requests use the typed " + slots.schema.required.length + "-field request.",
++    "Use full canonical field names shown to the right of = in FIELDS. The POLICY $ aliases are only reading shorthand.",
++    lines[2],"POLICY",...lines.slice(i+1),
+   ].join("\n");
+ 
+   function decode(value, checkRuntime) {
+-    if (typeof checkRuntime !== "function") fail("RUNTIME_CHECK_REQUIRED");
+-    checkRuntime();
+-    if (!plain(value) || Object.keys(value).length !== 2
+-      || value.format !== DIRECT_ASK_FORMAT_VERSION
+-      || typeof value.requestJson !== "string"
+-      || value.requestJson.length < 2
+-      || value.requestJson.length > limits.maxSerializedCharacters) fail("ENVELOPE");
++    if(typeof checkRuntime!=="function") error("RUNTIME_CHECK_REQUIRED");
+     checkRuntime();
++    boundedJsonTree(value,checkRuntime);
++    if(!plain(value) || Object.keys(value).length!==2 || !Object.hasOwn(value,"format")
++      || !Object.hasOwn(value,"request") || value.format!==DIRECT_ASK_FORMAT_VERSION
++      || !plain(value.request)) error("ENVELOPE");
+     let request;
+-    try { request = JSON.parse(value.requestJson); }
+-    catch { fail("JSON_SYNTAX"); }
+-    if (!plain(request)) fail("REQUEST_OBJECT");
+-    boundedJsonTree(request, checkRuntime, limits);
++    if(Object.keys(value.request).length===1 && Object.hasOwn(value.request,"catalogIntentJson")) {
++      if(typeof value.request.catalogIntentJson!=="string") error("CATALOG_STRING");
++      try { request=JSON.parse(value.request.catalogIntentJson); }
++      catch { error("CATALOG_JSON"); }
++      if(!plain(request) || Object.getOwnPropertyDescriptor(request,"version")?.value!=="ask-catalog-intent.v1") error("CATALOG_CONTRACT");
++    } else {
++      const fields=Object.keys(value.request),required=slots.schema.required;
++      if(fields.length!==required.length || fields.some(k=>!Object.hasOwn(slots.schema.properties,k))
++        || required.some(k=>!Object.hasOwn(value.request,k))) error("REQUIRED_FIELDS");
++      request={};
++      for(const k of required){
++        checkRuntime();
++        const v=value.request[k];
++        if(slots.complex.includes(k) && v!==null){
++          if(typeof v!=="string" || v.length<2 || v.length>MAX) error("FIELD_FORMAT",k);
++          try { request[k]=JSON.parse(v); } catch { error("FIELD_JSON",k); }
++        } else if(!slots.complex.includes(k) && !simpleMatches(slots.schema.properties[k],v)) error("FIELD_TYPE",k);
++        else request[k]=v;
++      }
++    }
++    boundedJsonTree(request,checkRuntime);
+     checkRuntime();
+-    const encoded = wire.encode({ request });
++    // Original canonical codec is authoritative. No repairs, defaults, or field coercion.
++    let graph;
++    try { graph=wire.encode({request}); }
++    catch(e) {
++      if(process.env.NODE_ENV==="production" && e instanceof Error && e.message==="ASK_WIRE_CANONICAL_SCHEMA")
++        console.warn("[Ask semantic slots] canonical shape rejected",
++          {branch:request.version==="ask-request.v2"?"semantic":"catalog",
++            complexFieldCount:slots.complex.length,
++            readTicketPresent:request.readTicket!==null && request.readTicket!==undefined});
++      throw e;
++    }
+     checkRuntime();
+-    const restored = wire.decode(encoded);
++    const restored=wire.decode(graph);
+     checkRuntime();
+     return restored;
+   }
+-  function encode(value, checkRuntime) {
+-    if (typeof checkRuntime !== "function") fail("RUNTIME_CHECK_REQUIRED");
++
++  function simpleMatches(s,v) {
++    if(Array.isArray(s?.anyOf)) return s.anyOf.some(item=>simpleMatches(item,v));
++    const allowed=Array.isArray(s?.type)?s.type:[s?.type];
++    if(v===null) return allowed.includes("null") && (!s.enum || s.enum.includes(null));
++    if(typeof v==="string") return allowed.includes("string") && (!s.enum || s.enum.includes(v));
++    if(Array.isArray(v)) return allowed.includes("array") && v.every(item=>simpleMatches(s.items,item))
++      && (!Number.isInteger(s.maxItems) || v.length<=s.maxItems);
++    return false;
++  }
++
++  function encode(value,checkRuntime) {
++    if(typeof checkRuntime!=="function") error("RUNTIME_CHECK_REQUIRED");
+     checkRuntime();
+-    if (!plain(value) || Object.keys(value).length !== 1 || !plain(value.request)) fail("CANONICAL_ENVELOPE");
+-    boundedJsonTree(value.request, checkRuntime, limits);
+-    const raw = JSON.stringify(value.request);
+-    if (raw.length > limits.maxSerializedCharacters) fail("RESOURCE_LIMIT");
+-    const envelope = { format: DIRECT_ASK_FORMAT_VERSION, requestJson: raw };
+-    decode(envelope, checkRuntime);
+-    return envelope;
++    boundedJsonTree(value,checkRuntime);
++    if(!plain(value) || Object.keys(value).length!==1 || !Object.hasOwn(value,"request")
++      || !plain(value.request)) error("CANONICAL_ENVELOPE");
++    let request;
++    if(Object.getOwnPropertyDescriptor(value.request,"version")?.value==="ask-catalog-intent.v1") request={catalogIntentJson:JSON.stringify(value.request)};
++    else {
++      const required=slots.schema.required;
++      if(Object.keys(value.request).length!==required.length
++        || required.some(k=>!Object.hasOwn(value.request,k))) error("CANONICAL_KEYS");
++      request={};
++      for(const k of required) {
++        const v=value.request[k];
++        request[k]=slots.complex.includes(k) && v!==null ? JSON.stringify(v) : v;
++      }
++    }
++    const result={format:DIRECT_ASK_FORMAT_VERSION,request};
++    if(JSON.stringify(result).length>MAX) error("RESOURCE_LIMIT");
++    decode(result,checkRuntime);
++    return result;
+   }
+   checkCompilation();
+-  return Object.freeze({ schema, instructions, decode, encode });
++  return Object.freeze({schema,instructions,decode,encode});
+ }
+diff --git a/app/lib/intelligence/ask-wire-policy.d.mts b/app/lib/intelligence/ask-wire-policy.d.mts
+index 737edd20..d0db9241 100644
+--- a/app/lib/intelligence/ask-wire-policy.d.mts
++++ b/app/lib/intelligence/ask-wire-policy.d.mts
+@@ -1,6 +1,7 @@
+ export type AskWirePlan = {
+   schema: Record<string, unknown>;
+   rootSchema: Record<string, unknown>;
++  typedSchema: Record<string, unknown>;
+   instructions: string;
+   encode(value: unknown): unknown;
+   decode(value: unknown): { request: unknown };
+diff --git a/app/lib/intelligence/ask-wire-policy.mjs b/app/lib/intelligence/ask-wire-policy.mjs
+index c8e90a76..c5553055 100644
+--- a/app/lib/intelligence/ask-wire-policy.mjs
++++ b/app/lib/intelligence/ask-wire-policy.mjs
+@@ -63,5 +63,5 @@ export function createAskWirePlan(canonicalSchema,sourceInstructions,sourceAutho
+   return codec.decode({nodes:[...value.nodes,value.root]});
+  }
+  checkBudget();
+- return {schema,rootSchema,instructions,encode,decode,compilation:codec.compilation};
++ return {schema,rootSchema,typedSchema:codec.typedSchema,instructions,encode,decode,compilation:codec.compilation};
+ }
+diff --git a/app/lib/intelligence/ask-wire-stack.d.mts b/app/lib/intelligence/ask-wire-stack.d.mts
+new file mode 100644
+index 00000000..27aa7fbf
+--- /dev/null
++++ b/app/lib/intelligence/ask-wire-stack.d.mts
+@@ -0,0 +1,7 @@
++import type { AskWirePlan } from "./ask-wire-policy.mjs";
++type Check = () => void;
++export function createStackAskWirePlan(plan: AskWirePlan, checkCompilation: Check): {
++ schema: Record<string, unknown>; instructions: string; uncompressedInstructions: string; edgeSchemaCount: number;
++ encode(value: unknown, check: Check): unknown;
++ decode(value: unknown, check: Check): { request: unknown };
++};
+diff --git a/app/lib/intelligence/ask-wire-stack.mjs b/app/lib/intelligence/ask-wire-stack.mjs
+new file mode 100644
+index 00000000..167a3891
+--- /dev/null
++++ b/app/lib/intelligence/ask-wire-stack.mjs
+@@ -0,0 +1,208 @@
++import { types as nodeTypes } from "node:util";
++import { canonical, expand, makeValidator } from "./ask-wire-codec.mjs";
++import { RECURSIVE_TRANSPORT_LIMITS } from "./ask-wire-recursive.mjs";
++
++const reject = code => { throw Error("ASK_STACK_" + code); };
++const ensure = (value, code) => { if (!value) reject(code); };
++const objectPrototypeNames = new Set(["constructor", "__defineGetter__", "__defineSetter__", "hasOwnProperty",
++ "__lookupGetter__", "__lookupSetter__", "isPrototypeOf", "propertyIsEnumerable", "toString", "valueOf", "__proto__", "toLocaleString"]);
++function safeEnvironment() {
++ if (Reflect.ownKeys(Object.prototype).some(k => !objectPrototypeNames.has(k))
++  || Object.getOwnPropertyDescriptor(Array.prototype, "toJSON")
++  || Reflect.ownKeys(Array.prototype).some(k => typeof k === "string" && /^(0|[1-9]\d*)$/.test(k))) reject("ENVIRONMENT");
++}
++function plainCopy(value, check) {
++ ensure(typeof check === "function", "DEADLINE_REQUIRED");
++ check(); safeEnvironment();
++ const lim = RECURSIVE_TRANSPORT_LIMITS, seen = new WeakSet();
++ let values = 0, containers = 0, chars = 0;
++ const charge = n => { chars += n; ensure(chars <= lim.maxSerializedCharacters, "SERIALIZED_LIMIT"); };
++ function walk(v, depth) {
++  if (v !== null && typeof v === "object" && nodeTypes.isProxy(v)) reject("NON_JSON_TREE");
++  check(); ensure(depth <= lim.maxDepth && ++values <= lim.maxValues, "RESOURCE_LIMIT");
++  if (v === null || typeof v === "boolean" || typeof v === "number" && Number.isFinite(v)) {
++   charge(JSON.stringify(v).length); return v;
++  }
++  if (typeof v === "string") {
++   ensure(v.length <= lim.maxStringUnits, "STRING_LIMIT");
++   charge(JSON.stringify(v).length); return v;
++  }
++  ensure(v !== null && typeof v === "object" && !seen.has(v), "NON_JSON_TREE"); seen.add(v);
++  ensure(++containers <= lim.maxContainers, "RESOURCE_LIMIT");
++  const array = Array.isArray(v), proto = Object.getPrototypeOf(v);
++  ensure(array ? proto === Array.prototype : proto === Object.prototype || proto === null, "PLAIN_CONTAINER");
++  ensure(!Object.getOwnPropertyDescriptor(v, "toJSON"), "OWN_DATA_PROPERTY");
++  let length = 0;
++  if (array) {
++   const d = Object.getOwnPropertyDescriptor(v, "length");
++   ensure(d && Object.hasOwn(d, "value") && Number.isSafeInteger(d.value) && d.value >= 0, "ARRAY_SHAPE");
++   length = d.value;
++   ensure(length <= Math.min(lim.maxContainerEntries, lim.maxValues - values), "RESOURCE_LIMIT");
++  }
++  const keys = Reflect.ownKeys(v);
++  ensure(keys.length <= lim.maxContainerEntries + (array ? 1 : 0), "RESOURCE_LIMIT");
++  ensure(!array || keys.length === length + 1 && keys.every(k => k === "length" ||
++   typeof k === "string" && /^(0|[1-9]\d*)$/.test(k) && Number(k) < length), "ARRAY_SHAPE");
++  const result = array ? [] : Object.create(null);
++  charge(2); let entries = 0;
++  for (const k of keys) {
++   check();
++   if (array && k === "length") continue;
++   ensure(typeof k === "string" && k.length <= lim.maxStringUnits, "OWN_DATA_PROPERTY");
++   const d = Object.getOwnPropertyDescriptor(v, k);
++   ensure(d && Object.hasOwn(d, "value") && d.enumerable, "OWN_DATA_PROPERTY");
++   if (entries++) charge(1);
++   if (!array) charge(JSON.stringify(k).length + 1);
++   Object.defineProperty(result, k, { value: walk(d.value, depth + 1), enumerable: true, writable: true, configurable: true });
++  }
++  return result;
++ }
++ const result = walk(value, 0); check(); return result;
++}
++const object = value => value !== null && typeof value === "object" && !Array.isArray(value);
++const compare = (a, b) => a < b ? -1 : a > b ? 1 : 0;
++const keysInGraphOrder = value => Object.keys(value).sort((a,b) => compare(a.split("~")[0], b.split("~")[0]) || compare(a,b));
++const marker = () => ({ take: true });
++const markerSchema = { type: "object", additionalProperties: false, required: ["take"],
++ properties: { take: { type: "boolean", enum: [true] } } };
++const edgeSchema = { type: "object", additionalProperties: false, required: ["@"],
++ properties: { "@": { type: "integer", minimum: 0 } } };
++
++
++function compactPolicy(instructions, check) {
++ check();
++ const boundary = "\nPOLICY\n", parts = instructions.split(boundary);
++ ensure(parts.length === 2 && !parts[1].includes("~"), "POLICY_DICTIONARY");
++ const body = parts[1], counts = new Map();
++ for (const m of body.matchAll(/\b[A-Za-z_][A-Za-z_0-9]*\b/g)) {
++  check();
++  if (m.index > 0 && body[m.index - 1] === "$") continue;
++  counts.set(m[0], (counts.get(m[0]) || 0) + 1);
++ }
++ const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
++ const symbol = i => i < 62 ? alphabet[i] : symbol(Math.floor(i / 62) - 1) + alphabet[i % 62];
++ const score = (w,n) => (w.length - 2) * n - w.length - 4;
++ const words = [...counts].filter(([w,n]) => w.length >= 4 && n >= 2)
++  .sort(([a,ac],[b,bc]) => score(b,bc) - score(a,ac) || compare(a,b));
++ const dictionary = [], aliases = new Map();
++ for (const [word,count] of words) {
++  check(); const alias = "~" + symbol(dictionary.length);
++  if ((word.length - alias.length) * count > word.length + alias.length + 2) {
++   aliases.set(word,alias); dictionary.push([alias,word]);
++  }
++ }
++ const encoded = body.replace(/\b[A-Za-z_][A-Za-z_0-9]*\b/g,
++  (word,index) => index > 0 && body[index - 1] === "$" ? word : aliases.get(word) || word);
++ const reverse = new Map(dictionary);
++ // Every semantic/authority policy byte must be reconstructible. No prose is
++ // dropped or reinterpreted, and these aliases never enter executable plans.
++ ensure(encoded.replace(/~[A-Za-z0-9]+/g, alias => reverse.get(alias)) === body, "POLICY_INVERSE");
++ const legend = "POLICY WORDS are exact aliases; expand them without changing meaning. "
++  + dictionary.map(([a,w]) => a + "=" + w).join(" ");
++ const result = parts[0] + "\n" + legend + boundary + encoded;
++ ensure(result.length < instructions.length, "POLICY_NO_SAVING"); check();
++ return result;
++}
++
++/**
++ * Experimental, non-recursive Structured Outputs transport. A marker explicitly
++ * consumes one completed child tree. It never names a node, chooses an operation,
++ * supplies a default or derives meaning from source prose.
++ *
++ * The exact compiled node union supplies every scalar/array/tag schema. A
++ * deterministic postorder stack rebuilds indices. The original plan decoder
++ * checks parent/child types, root, depth, canonical order and all semantics.
++ * Application dispatch deliberately remains unchanged until hosted qualification.
++ */
++export function createStackAskWirePlan(plan, checkCompilation) {
++ ensure(typeof checkCompilation === "function", "DEADLINE_REQUIRED");
++ checkCompilation(); safeEnvironment();
++ const compiled = plainCopy(plan.schema, checkCompilation);
++ let edges = 0;
++ function transform(n) {
++  checkCompilation();
++  if (!object(n)) reject("SCHEMA_NODE");
++  if (n.properties && Object.hasOwn(n.properties, "@")) {
++   ensure(canonical(n) === canonical(edgeSchema), "EDGE_SCHEMA");
++   edges++; return structuredClone(markerSchema);
++  }
++  const out = Object.assign(Object.create(null), n);
++  for (const key of ["properties", "$defs"]) if (Object.hasOwn(n, key))
++   out[key] = Object.fromEntries(Object.entries(n[key]).map(([k,s]) => [k,transform(s)]));
++  if (Object.hasOwn(n, "anyOf")) out.anyOf = n.anyOf.map(transform);
++  if (Object.hasOwn(n, "items")) out.items = transform(n.items);
++  return out;
++ }
++ const schema = transform(compiled);
++ ensure(edges > 0 && schema.type === "object" &&
++  canonical(schema.required.slice().sort()) === canonical(["nodes", "root"]), "ENVELOPE_SCHEMA");
++ const expanded = expand(schema, checkCompilation), valid = makeValidator(expanded, checkCompilation);
++ const [header, rootLine, ...unchanged] = plan.instructions.split("\n");
++ const layout = 'nodes: supporting postorder tree; root: required request wrapper after nodes; child objects {"@":index} refer to earlier nodes. No shared/unused/forward/cyclic nodes.';
++ ensure(header.split(layout).length === 2 &&
++  /^ROOT root\.[A-Za-z]+ references the complete request node in nodes\. Omit the wrapper from nodes; root has implicit index nodes\.length\.$/.test(rootLine), "POLICY_LAYOUT");
++ const rootAlias = rootLine.split(" ")[1];
++ const instructions = [
++  header.replace(layout, 'nodes: typed supporting nodes in postorder; root: required request wrapper after nodes. Each {"take":true} consumes one completed child tree; no indices.'),
++  "ROOT " + rootAlias + ' consumes the complete request tree using {"take":true}. Omit this wrapper from nodes.',
++  "STACK For each node, consume its completed children from the end of the stack in original field-alias alphabetical order (ignore ~tag suffix), then array order; push the completed parent. Emit children before their parent in that same order. Every child is used once. Exactly one complete tree must remain after root. A marker is structural only; never infer absent fields or semantics.",
++  ...unchanged,
++ ].join("\n");
++ function toGraph(value, check) {
++  const clean = plainCopy(value, check);
++  ensure(valid(expanded, clean), "PROVIDER_SCHEMA"); check();
++  const nodes = [], stack = [];
++  for (const input of [...clean.nodes, clean.root]) {
++   check(); let arity = 0;
++   function count(v) {
++    check();
++    if (Array.isArray(v)) { v.forEach(count); return; }
++    if (object(v)) {
++     ensure(Object.keys(v).length === 1 && Object.hasOwn(v,"take") && v.take === true, "MARKER");
++     arity++;
++    }
++   }
++   for (const k of keysInGraphOrder(input)) count(input[k]);
++   ensure(arity <= stack.length, "UNDERFLOW");
++   const children = arity ? stack.splice(stack.length - arity, arity) : [];
++   let cursor = 0;
++   function link(v) {
++    check();
++    if (Array.isArray(v)) return v.map(link);
++    return object(v) ? { "@": children[cursor++] } : v;
++   }
++   const node = Object.fromEntries(keysInGraphOrder(input).map(k => [k, link(input[k])]));
++   ensure(cursor === children.length && nodes.length < RECURSIVE_TRANSPORT_LIMITS.maxContainers, "RESOURCE_LIMIT");
++   stack.push(nodes.length); nodes.push(node);
++  }
++  ensure(stack.length === 1 && stack[0] === nodes.length - 1, "UNUSED_TREES");
++  check();
++  return { nodes: nodes.slice(0,-1), root: nodes.at(-1) };
++ }
++ function decode(value, check) {
++  const graph = toGraph(value, check);
++  check(); const result = plan.decode(graph); check(); return result;
++ }
++ return Object.freeze({
++  schema, instructions: compactPolicy(instructions, checkCompilation), uncompressedInstructions: instructions, edgeSchemaCount: edges,
++  decode,
++  encode(value, check) {
++   const clean = plainCopy(value, check);
++   const graph = plan.encode(clean); check();
++   function replace(v) {
++    check();
++    if (Array.isArray(v)) return v.map(replace);
++    if (object(v)) {
++     ensure(Object.keys(v).length === 1 && Object.hasOwn(v,"@") && Number.isSafeInteger(v["@"]), "INDEXED_EDGE");
++     return marker();
++    }
++    return v;
++   }
++   const convert = n => Object.fromEntries(keysInGraphOrder(n).map(k => [k,replace(n[k])]));
++   const encoded = { nodes: graph.nodes.map(convert), root: convert(graph.root) };
++   // Prove that structural stack reconstruction preserved every original edge.
++   ensure(canonical(toGraph(encoded, check)) === canonical(graph), "NONCANONICAL_STACK");
++   plan.decode(graph); check(); return encoded;
++  },
++ });
++}
+diff --git a/app/lib/intelligence/ask-wire-typed-grammar.d.mts b/app/lib/intelligence/ask-wire-typed-grammar.d.mts
+new file mode 100644
+index 00000000..96379a93
+--- /dev/null
++++ b/app/lib/intelligence/ask-wire-typed-grammar.d.mts
+@@ -0,0 +1,8 @@
++import type { AskWirePlan } from "./ask-wire-policy.mjs";
++type Check = () => void;
++export function compileTypedJsonGrammar(schema: Record<string, unknown>, check?: Check): { grammar: string; ruleCount: number; visits: number };
++export function createTypedGrammarAskWirePlan(plan: AskWirePlan, providerTypedSchema: Record<string, unknown>, checkCompilation: Check): {
++ grammar: string; ruleCount: number; instructions: string; tool: Record<string, unknown>;
++ encode(value: unknown, check: Check): unknown;
++ decode(value: unknown, check: Check): { request: unknown };
++};
+diff --git a/app/lib/intelligence/ask-wire-typed-grammar.mjs b/app/lib/intelligence/ask-wire-typed-grammar.mjs
+new file mode 100644
+index 00000000..4034c4a1
+--- /dev/null
++++ b/app/lib/intelligence/ask-wire-typed-grammar.mjs
+@@ -0,0 +1,187 @@
++import { types as nodeTypes } from "node:util";
++
++import { expand, makeValidator } from "./ask-wire-codec.mjs";
++import { createRecursiveAskWirePlan, RECURSIVE_TRANSPORT_LIMITS } from "./ask-wire-recursive.mjs";
++
++const reject = code => { throw Error("ASK_TYPED_GRAMMAR_" + code); };
++const objectPrototypeNames = new Set(["constructor", "__defineGetter__", "__defineSetter__", "hasOwnProperty",
++ "__lookupGetter__", "__lookupSetter__", "isPrototypeOf", "propertyIsEnumerable", "toString", "valueOf", "__proto__", "toLocaleString"]);
++function safeEnvironment() {
++ // Refuse ambient prototype hooks before invoking legacy schema utilities.
++ if (Reflect.ownKeys(Object.prototype).some(k => !objectPrototypeNames.has(k))
++   || Object.getOwnPropertyDescriptor(Array.prototype, "toJSON")
++   || Reflect.ownKeys(Array.prototype).some(k => typeof k === "string" && /^(0|[1-9]\d*)$/.test(k)))
++   reject("ENVIRONMENT");
++}
++function plainCopy(value, check) {
++ if (typeof check !== "function") reject("DEADLINE_REQUIRED");
++ check(); safeEnvironment();
++ const lim = RECURSIVE_TRANSPORT_LIMITS, seen = new WeakSet();
++ let values = 0, containers = 0, chars = 0;
++ const charge = n => { chars += n; if (chars > lim.maxSerializedCharacters) reject("SERIALIZED_LIMIT"); };
++ function walk(v, depth) {
++  if (v !== null && typeof v === "object" && nodeTypes.isProxy(v)) reject("NON_JSON_TREE");
++  check();
++  if (depth > lim.maxDepth || ++values > lim.maxValues) reject("RESOURCE_LIMIT");
++  if (v === null || typeof v === "boolean" || typeof v === "number" && Number.isFinite(v)) {
++   charge(JSON.stringify(v).length); return v;
++  }
++  if (typeof v === "string") {
++   if (v.length > lim.maxStringUnits) reject("STRING_LIMIT");
++   charge(JSON.stringify(v).length); return v;
++  }
++  if (v === null || typeof v !== "object" || seen.has(v)) reject("NON_JSON_TREE");
++  seen.add(v);
++  if (++containers > lim.maxContainers) reject("RESOURCE_LIMIT");
++  const array = Array.isArray(v), proto = Object.getPrototypeOf(v);
++  if (array ? proto !== Array.prototype : proto !== Object.prototype && proto !== null) reject("PLAIN_CONTAINER");
++  if (Object.getOwnPropertyDescriptor(v, "toJSON")) reject("OWN_DATA_PROPERTY");
++  let length = 0;
++  if (array) {
++   const d = Object.getOwnPropertyDescriptor(v, "length");
++   if (!d || !Object.hasOwn(d, "value") || !Number.isSafeInteger(d.value) || d.value < 0) reject("ARRAY_SHAPE");
++   length = d.value;
++   if (length > Math.min(lim.maxContainerEntries, lim.maxValues - values)) reject("RESOURCE_LIMIT");
++  }
++  const keys = Reflect.ownKeys(v);
++  if (keys.length > lim.maxContainerEntries + (array ? 1 : 0)) reject("RESOURCE_LIMIT");
++  if (array && (keys.length !== length + 1 || keys.some(k => k !== "length"
++    && (typeof k !== "string" || !/^(0|[1-9]\d*)$/.test(k) || Number(k) >= length)))) reject("ARRAY_SHAPE");
++  const result = array ? [] : Object.create(null);
++  charge(2);
++  let entries = 0;
++  for (const k of keys) {
++   if (array && k === "length") continue;
++   if (typeof k !== "string") reject("OWN_DATA_PROPERTY");
++   const d = Object.getOwnPropertyDescriptor(v, k);
++   if (!d || !Object.hasOwn(d, "value") || !d.enumerable) reject("OWN_DATA_PROPERTY");
++   if (entries++) charge(1);
++   if (!array) charge(JSON.stringify(k).length + 1);
++   Object.defineProperty(result, k, { value: walk(d.value, depth + 1), enumerable: true, writable: true, configurable: true });
++  }
++  return result;
++ }
++ const result = walk(value, 0); check(); return result;
++}
++
++// Experimental provider grammar compiler. Not connected to application transport.
++// Object/array/union structure comes only from the compiled canonical schema.
++// Primitive constraints remain typed primitive grammars; no JSON-in-string fields.
++export function compileTypedJsonGrammar(schema, check = () => {}) {
++ const fail = c => { throw Error("ASK_TYPED_GRAMMAR_"+c); };
++ check();
++ schema=plainCopy(schema,check);
++ const defs=schema.$defs??{}, memo=new Map(), rules=new Map(), active=new Set();
++ const allowed=new Set(["type","properties","required","additionalProperties","anyOf","items","enum","minItems","maxItems","minLength","maxLength","minimum","maximum","pattern","$ref","$defs"]);
++ const literal=JSON.stringify;
++ const regexMeta=new Set(".*+?^$"+"{}()|[]\\/");
++ const keyLiteral=k=>"/"+[...(JSON.stringify(k)+":")].map(c=>regexMeta.has(c)?"\\"+c:c).join("")+"/";
++ let visits=0;
++ function build(n){
++  check();if(++visits>100000)fail("COMPILE_LIMIT");
++  if(!n||typeof n!=="object"||Array.isArray(n))fail("SCHEMA");
++  if(Object.keys(n).some(k=>!allowed.has(k)))fail("KEYWORD");
++  if(n.$ref){if(Object.keys(n).length!==1||!n.$ref.startsWith("#/$defs/"))fail("REF");
++   const k=n.$ref.slice(8);if(!Object.hasOwn(defs,k)||active.has(k))fail("REF_TARGET");
++   active.add(k);const result=build(defs[k]);active.delete(k);return result;}
++  const clean=Object.fromEntries(Object.entries(n).filter(([k])=>k!=="$defs")),key=JSON.stringify(clean);
++  if(memo.has(key))return memo.get(key);
++  const id="r"+memo.size.toString(36);memo.set(key,id);
++  const types=Array.isArray(n.type)?n.type:[n.type];
++  let expression;
++  if(n.anyOf){if(Object.keys(clean).length!==1||!n.anyOf.length)fail("UNION");expression=n.anyOf.map(v=>build(v)).join(" | ");}
++  else if(types.includes("object")){
++   if(types.some(t=>t!=="object"&&t!=="null")||n.additionalProperties!==false||!n.properties||!Array.isArray(n.required))fail("OBJECT");
++   const keys=Object.keys(n.properties);
++   if(JSON.stringify([...keys].sort())!==JSON.stringify([...n.required].sort()))fail("REQUIRED");
++   if(Object.keys(clean).some(k=>!["type","additionalProperties","properties","required"].includes(k)))fail("OBJECT_CONSTRAINT");
++   expression=literal("{")+" "+keys.map(k=>keyLiteral(k)+" "+build(n.properties[k])).join(' "," ')+" "+literal("}");
++   if(types.includes("null"))expression="("+expression+") | "+literal("null");
++  }else if(types.includes("array")){
++   if(types.some(t=>t!=="array"&&t!=="null")||Object.keys(clean).some(k=>!["type","items","minItems","maxItems"].includes(k)))fail("ARRAY_CONSTRAINT");
++   const lo=n.minItems??0,hi=n.maxItems;
++   if(!Number.isInteger(lo)||lo<0||(hi!==undefined&&(!Number.isInteger(hi)||hi<lo||hi>4096)))fail("ARRAY_LIMIT");
++   if(hi===0)expression=literal("[]");
++   else {const item=build(n.items),tail=hi===1?"":' ("," '+item+')~'+Math.max(0,lo-1)+".."+(hi===undefined?"":hi-1);
++    const contents=item+tail;expression=literal("[")+" "+(lo===0?"("+contents+")?":contents)+" "+literal("]");}
++  if(types.includes("null"))expression="("+expression+") | "+literal("null");
++  }else {
++   if(types.some(t=>!["string","integer","number","boolean","null"].includes(t)))fail("PRIMITIVE_TYPE");
++   if(Object.keys(clean).some(k=>["properties","required","additionalProperties","items","minItems","maxItems"].includes(k)))fail("PRIMITIVE_CONSTRAINT");
++   if(types.includes("string") && !n.enum && !n.pattern) {
++    if(types.some(t=>t!=="string"&&t!=="null")||Object.keys(clean).some(k=>!["type","minLength","maxLength"].includes(k)))fail("STRING_CONSTRAINT");
++    const lo=n.minLength??0,hi=n.maxLength;
++    if(!Number.isSafeInteger(lo)||lo<0||hi!==undefined&&(!Number.isSafeInteger(hi)||hi<lo||hi>65536))fail("STRING_LIMIT");
++   }
++   // Preserve lone UTF-16 surrogate escapes without grammar intersections.
++   // Strict decoder still enforces all string length and value constraints.
++   if(types.includes("string")&&!n.enum&&!n.pattern){
++    const unit=String.raw`(?:[^"\\\x00-\x1F]|\\(?:["\\\/bfnrt]|u[0-9a-fA-F]{4}))`;
++    const surrogate=String.raw`\\u[dD][89aAbB][0-9a-fA-F]{2}|\\u[dD][cCdDeEfF][0-9a-fA-F]{2}`;
++    rules.set("JSON_SURROGATE_STRING",'/'+String.raw`"`+unit+"*(?:"+surrogate+")"+unit+"*"+String.raw`"`+'/');
++    if((n.minLength??0)>=2){
++     // A sole escaped surrogate is one UTF-16 unit and cannot satisfy minLength >=2.
++     // Two lexical units suffice as a safe lower bound; strict decoding checks length.
++     const fragment="(?:"+unit+"+(?:"+surrogate+")"+unit+"*|"+unit+"*(?:"+surrogate+")"+unit+"+)";
++     rules.set("JSON_SURROGATE_STRING_MIN2",'/'+String.fromCharCode(34)+fragment+String.fromCharCode(34)+'/');
++     expression="%json "+JSON.stringify(clean)+" | JSON_SURROGATE_STRING_MIN2";
++    }else expression="%json "+JSON.stringify(clean)+" | JSON_SURROGATE_STRING";
++   } else expression="%json "+JSON.stringify(clean);
++  }
++  rules.set(id,expression);return id;
++ }
++ if(schema.type!=="object")fail("ROOT");
++ const root=build(schema);
++ const grammar="start: "+root+"\n"+[...rules].map(([n,e])=>n+": "+e).join("\n");
++ check();if(grammar.length>60000||rules.size>10000)fail("COMPILE_LIMIT");
++ return Object.freeze({grammar,ruleCount:rules.size,visits});
++}
++
++
++/** Experimental transport only. No application dispatch path uses this module. */
++export function createTypedGrammarAskWirePlan(plan, providerTypedSchema, checkCompilation) {
++ if (typeof checkCompilation !== "function") reject("DEADLINE_REQUIRED");
++ checkCompilation(); safeEnvironment();
++ const schema = plainCopy(providerTypedSchema, checkCompilation);
++ const expanded = expand(schema, checkCompilation), valid = makeValidator(expanded, checkCompilation);
++ const { grammar, ruleCount } = compileTypedJsonGrammar(schema, checkCompilation);
++ const recursive = createRecursiveAskWirePlan(plan, checkCompilation);
++ const lines = recursive.instructions.split("\n");
++ if (!lines[0].includes("root: required request wrapper;") || !/^ROOT root\.[A-Za-z]+ embeds the complete request node\. No nodes array\.$/.test(lines[1]))
++  reject("POLICY_LAYOUT");
++ const instructions = [
++  lines[0].replace("root: required request wrapper;", "JSON object: required request wrapper;"),
++  lines[1].replace("ROOT root.", "ROOT ").replace(" No nodes array.", " No outer root or nodes property."),
++  "Submit exactly one furvise_ask_plan custom tool call containing the complete typed JSON object. This supplies a proposal only; it executes no action.",
++  ...lines.slice(2),
++ ].join("\n");
++ function ordered(s, value, check) {
++  check();
++  if (s.anyOf) {
++   const arm = s.anyOf.find(a => valid(a, value));
++   if (!arm) reject("TYPED_SCHEMA");
++   return ordered(arm, value, check);
++  }
++  if (value === null || typeof value !== "object") return value;
++  if (Array.isArray(value)) return value.map(v => ordered(s.items, v, check));
++  return Object.fromEntries(Object.keys(s.properties).map(k => [k, ordered(s.properties[k], value[k], check)]));
++ }
++ return Object.freeze({
++  grammar, ruleCount, instructions,
++  tool: Object.freeze({type:"custom", name:"furvise_ask_plan",
++   description:"Propose the whole governed request as typed JSON. This supplies data only and does not execute actions.",
++   format:Object.freeze({type:"grammar",syntax:"lark",definition:grammar})}),
++  encode(value, check) {
++   const clean = plainCopy(value, check);
++   const root = recursive.encode(clean, check).root;
++   if (!valid(expanded, root)) reject("TYPED_SCHEMA");
++   return ordered(expanded, root, check);
++  },
++  decode(value, check) {
++   const clean = plainCopy(value, check);
++   if (!valid(expanded, clean)) reject("TYPED_SCHEMA");
++   check();
++   return recursive.decode({root:clean}, check);
++  },
++ });
++}
+diff --git a/app/lib/intelligence/interpret-ask.ts b/app/lib/intelligence/interpret-ask.ts
+index 78585d15..f838f0a3 100644
+--- a/app/lib/intelligence/interpret-ask.ts
++++ b/app/lib/intelligence/interpret-ask.ts
+@@ -199,8 +199,7 @@ export function prepareAskInterpretationRequest(original: InterpretationContext,
+       factorProviderCompoundSchemas(factorProviderEnumSchemas(canonicalSchema, checkBudget), checkBudget),
+       ASK_REQUEST_INSTRUCTIONS, undefined, checkBudget
+     );
+-  const semanticRequired = askRequestSchema(proposedSemanticFrameJsonSchema, context).required;
+-  const transport = createDirectSemanticAskWirePlan(wire, wire.instructions, semanticRequired, checkBudget);
++  const transport = createDirectSemanticAskWirePlan(wire, wire.instructions, askRequestSchema(proposedSemanticFrameJsonSchema, context), checkBudget);
+   const request = { model, max_output_tokens: ASK_INTERPRETATION_LIMITS.outputTokens,
+     ...(/^gpt-5\.4(?:-|$)/i.test(model) ? { reasoning: { effort: "none" } } : /^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}),
+     instructions: transport.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: createAskProviderWireSchema(transport.schema, checkBudget) } } };
+diff --git a/scripts/audits/ask-active-contract.cases.mjs b/scripts/audits/ask-active-contract.cases.mjs
+index d12fcf59..e0d817f7 100644
+--- a/scripts/audits/ask-active-contract.cases.mjs
++++ b/scripts/audits/ask-active-contract.cases.mjs
+@@ -144,7 +144,11 @@ for(const [name,change]of [
+ ])test('strict non-profile proposal cannot repair '+name,async()=>{
+  const p=appendProposal();change(p);const ctx=prepareAskInterpretationRequest(sourceContext(appendQuestion),'gpt-5.4-mini').context;
+  assert.throws(()=>recoverAskInterpretation(p,ctx),/ASK_REQUEST/);
+- if(name==='unknown source reference')await assert.rejects(wireCall(ctx,p,{expectedCalls:0}),/ASK_WIRE_CANONICAL_SCHEMA/);
++ if(name==='unknown source reference'){
++  const prepared=prepareAskInterpretationRequest(ctx,'gpt-5.4-mini');
++  assert.throws(()=>prepared.wire.encode({request:p}),/ASK_WIRE_CANONICAL_SCHEMA/);
++  await assert.rejects(wireCall(ctx,p,{expectedCalls:0}),e=>e.message==='ASK_DIRECT_FIELD_TYPE'&&e.cause?.field==='referenceTurnIds');
++ }
+  else await assert.rejects(wireCall(ctx,p),e=>e.stage==='interpretation_failed');
+ });
+ for(const value of [{nodes:[{_:'UNKNOWN_TAG'}]},{request:{version:'ask-request.v99'}},{}])test('malformed wire cannot manufacture an update or authorize repair: '+JSON.stringify(value),async()=>{
+diff --git a/tests/ask-input-budget-route.test.mjs b/tests/ask-input-budget-route.test.mjs
+index 4b96e237..d5bdef56 100644
+--- a/tests/ask-input-budget-route.test.mjs
++++ b/tests/ask-input-budget-route.test.mjs
+@@ -1,4 +1,4 @@
+-import { recursiveFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
++import { semanticFixturePlan } from "./helpers/ask-semantic-fixture.mjs";
+ import test from "node:test";
+ import assert from "node:assert/strict";
+ import {readFileSync} from "node:fs";
+@@ -18,7 +18,7 @@ test("actual offline route publishes and persists the source-window omission not
+    calls++;assert.ok(calls<=1);const input=JSON.parse(request.input);
+    assert.equal(input.userSources.find(s=>s.id===input.currentSourceId).text,question);
+    assert.ok(input.sourceWindow.omittedPriorUserTurns>0);
+-   return {status:"completed",output_text:JSON.stringify(recursiveFixturePlan(prepared.wire).encode({request:intent})),usage:{input_tokens:100,output_tokens:20,total_tokens:120}};
++   return {status:"completed",output_text:JSON.stringify(semanticFixturePlan(prepared).encode({request:intent})),usage:{input_tokens:100,output_tokens:20,total_tokens:120}};
+   }catch(error){providerFailure=error;throw error;}}});
+  for(let i=0;i<4;i++)f.rows.dog_profiles.push({...f.rows.dog_profiles[0],id:id(12+i),name:["Aster","Birch","Dahlia","Elm"][i]});
+  for(let i=0;i<39;i++)f.rows.ask_conversation_messages.push({id:id(100+i),user_id:id(1),conversation_id:id(21),role:"user",user_text:("Prior message "+i+". "+"Whole prior user text. ".repeat(80)).slice(0,1200),created_at:"2026-09-19T12:"+String(i).padStart(2,"0")+":00Z"});
+diff --git a/tests/ask-interpretation-input-budget.test.mjs b/tests/ask-interpretation-input-budget.test.mjs
+index 6e33f465..a47f0134 100644
+--- a/tests/ask-interpretation-input-budget.test.mjs
++++ b/tests/ask-interpretation-input-budget.test.mjs
+@@ -1,4 +1,4 @@
+-import { recursiveFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
++import { semanticFixturePlan } from "./helpers/ask-semantic-fixture.mjs";
+ import test from "node:test";
+ import assert from "node:assert/strict";
+ import { readFileSync } from "node:fs";
+@@ -29,7 +29,8 @@ const quiet=t=>{t.mock.method(console,"info",()=>{});t.mock.method(console,"warn
+ async function admitted(ctx,fn){
+  const store=new MemoryAiGuardTestStore(),a=await admitAiOperation({env,store,feature:"ask",intendedModel:model,
+   userId:"owner",requestId:crypto.randomUUID(),payload:{fixture:"source-window"},now:new Date("2039-01-01T00:00:00Z")});
+- try{return await a.run(()=>fn(a,store));}finally{await a.release();}
++ const prior=process.env.NODE_TEST_CONTEXT;delete process.env.NODE_TEST_CONTEXT;
++ try{return await a.run(()=>fn(a,store));}finally{await a.release();if(prior===undefined)delete process.env.NODE_TEST_CONTEXT;else process.env.NODE_TEST_CONTEXT=prior;}
+ }
+ 
+ for(const numeric of [false,true])for(const count of [0,2,8,39])
+@@ -53,7 +54,7 @@ for(const numeric of [false,true])for(const count of [0,2,8,39])
+    const result=await interpretAskQuestion({context:ctx,model,client:{responses:{create:async request=>{
+     calls++;assert.equal(JSON.stringify(request),snapshots.at(-1));assert.ok(Object.isFrozen(request));
+     assert.equal(JSON.stringify(request).length,JSON.stringify(p.request).length);
+-    return {status:"completed",output_text:JSON.stringify(recursiveFixturePlan(p.wire).encode({request:proposal(ctx)})),usage};
++    return {status:"completed",output_text:JSON.stringify(semanticFixturePlan(p).encode({request:proposal(ctx)})),usage};
+    }}}});
+    assert.deepEqual(result.petIds,["pet-0"]);
+   });assert.equal(calls,1);
+@@ -88,7 +89,8 @@ test("omitted IDs and selected-pet guesses are rejected by the actual Binder, in
+  const ctx=context(39);ctx.currentMessage="What was his last recorded weight?";ctx.currentTurn.text=ctx.currentMessage;ctx.ownerNoteSpans=[];
+  const p=prepareAskInterpretationRequest(ctx,model),omitted=ctx.conversationTurns.find(t=>!p.context.conversationTurns.some(x=>x.id===t.id)&&t.id!=="current");
+  assert.ok(omitted);const bad=proposal(ctx);bad.referenceTurnIds=[omitted.id];
+- assert.throws(()=>recursiveFixturePlan(p.wire).encode({request:bad}),/ASK_WIRE_/);
++ assert.throws(()=>p.wire.encode({request:bad}),/ASK_WIRE_CANONICAL_SCHEMA/);
++ assert.throws(()=>semanticFixturePlan(p).encode({request:bad}),e=>e.message==="ASK_DIRECT_FIELD_TYPE"&&e.cause?.field==="referenceTurnIds");
+  const unavailable=recoverAskInterpretation(bad,p.context);assert.match(unavailable.planningRecovery,/REFERENCE/);assert.deepEqual(unavailable.petIds,[]);assert.equal(unavailable.request,undefined);
+  const guessed={...proposal(ctx),scope:"selected",petNames:[]};
+  assert.throws(()=>recoverAskInterpretation(guessed,p.context),/OMITTED_SUBJECT_REFERENCE/);
+@@ -99,8 +101,10 @@ test("omitted IDs and selected-pet guesses are rejected by the actual Binder, in
+ 
+ test("no safe fit causes no SDK invocation and releases unstarted accounting",async t=>{
+  quiet(t);
+- for(const text of ["x".repeat(60001),Array.from({length:200},(_,i)=>i+" kg").join(" ").slice(0,1200).padEnd(1200,"x")]){
+-  const ctx=context(0);ctx.currentMessage=text;ctx.currentTurn.text=text;ctx.ownerNoteSpans=[];
++ for(const numeric of [false,true]){
++  const text=numeric?Array.from({length:200},(_,i)=>i+" kg").join(" ").slice(0,1200).padEnd(1200,"x"):"x".repeat(60001);
++  const ctx=context(numeric?1:0);ctx.currentMessage=text;ctx.currentTurn.text=text;ctx.ownerNoteSpans=[];
++  if(numeric){ctx.pinnedUserSourceIds=["prior-0"];ctx.conversationTurns[0].text="Mandatory prior source "+"x".repeat(60001);}
+   let calls=0;const store=new MemoryAiGuardTestStore(),a=await admitAiOperation({env,store,feature:"ask",intendedModel:model,userId:"owner",requestId:crypto.randomUUID(),payload:{},now:new Date("2039-01-01T00:00:00Z")});
+   try{await assert.rejects(a.run(()=>interpretAskQuestion({context:ctx,model,client:{responses:{create:async()=>{calls++;throw Error("UNEXPECTED_SDK");}}}})),e=>e.reason==="feature_token_budget_exceeded");}finally{await a.release();}
+   assert.equal(calls,0);assert.deepEqual(store.getSnapshot("2039-01-01"),{calls:0,costMicrodollars:0});
+@@ -117,17 +121,25 @@ test("repair uses identical retained sources and real final-request admission",a
+    assert.equal(JSON.stringify(request),snapshots[calls]);const input=JSON.parse(request.input);
+    assert.deepEqual(input.userSources,p.input.userSources);assert.deepEqual(input.sourceWindow,p.input.sourceWindow);
+    assert.deepEqual(request.text.format.schema,p.request.text.format.schema);
+-   const candidate=calls++?good:bad;return {status:"completed",output_text:JSON.stringify(recursiveFixturePlan(p.wire).encode({request:candidate})),usage};
++   const candidate=calls++?good:bad;return {status:"completed",output_text:JSON.stringify(semanticFixturePlan(p).encode({request:candidate})),usage};
+   }}}});assert.deepEqual(result.petIds,["pet-0"]);assert.equal(snapshots.length,2);
+  });assert.equal(calls,2);
+ });
+ 
+ test("oversize repair is rejected before a second SDK call; source window is not changed to make it fit",async t=>{
+- quiet(t);const ctx=context(39),p=prepareAskInterpretationRequest(ctx,model),bad={...proposal(ctx),petNames:["Unowned subject"],
+-  requirements:Array.from({length:8},(_,i)=>(i+" extra obligation ").padEnd(240,"x"))};
++ quiet(t);const ctx=context(1);ctx.currentMessage="What name is saved for Aster?";ctx.currentTurn.text=ctx.currentMessage;ctx.ownerNoteSpans=[];ctx.pinnedUserSourceIds=["prior-0"];
++ let p=prepareAskInterpretationRequest(ctx,model);
++ // Fill the exact final request near its unchanged boundary with one pinned
++ // whole prior source. The semantic transport is smaller than the old graph.
++ ctx.conversationTurns[0].text+="x".repeat(59000-JSON.stringify(p.request).length);
++ p=prepareAskInterpretationRequest(ctx,model);assert.equal(JSON.stringify(p.request).length,59000);
++ assert.ok(askRequestFitsInputBudget(p.request));
++ const bad={...proposal(ctx),petNames:["Unowned subject"],requirements:Array.from({length:8},(_,i)=>(i+" extra obligation ").padEnd(240,"x"))};
++ const minimumRepair={...p.request,input:JSON.stringify({...p.input,contractRepair:{validationCode:"ASK_REQUEST_CONTRACT_OWNERSHIP",rejectedProposal:bad}})};
++ assert.ok(JSON.stringify(minimumRepair).length>60000);assert.equal(askRequestFitsInputBudget(minimumRepair),false);
+  let calls=0;await admitted(ctx,async()=>{
+   await assert.rejects(interpretAskQuestion({context:ctx,model,client:{responses:{create:async()=>{
+-   calls++;return {status:"completed",output_text:JSON.stringify(recursiveFixturePlan(p.wire).encode({request:bad})),usage};
++   calls++;return {status:"completed",output_text:JSON.stringify(semanticFixturePlan(p).encode({request:bad})),usage};
+   }}}}),e=>e.reason==="feature_token_budget_exceeded");
+  });assert.equal(calls,1);
+ });
+@@ -138,7 +150,7 @@ test("catalog hydration cannot replace the chosen current text, prior sources, o
+   lifecyclePlan:{pendingDisposition:"keep",transition:{targetPetName:"Aster",toState:"deceased"},requiredSubjectState:null,authorizationQuote:ctx.currentMessage}};
+  const intent={version:"ask-catalog-intent.v1",purpose:"lifecycle",scope:"subjects",ownerScope:null,sourceTurnId:"current",instructionQuote:ctx.currentMessage,authorizationQuote:ctx.currentMessage,
+   subjects:[{basis:"named",petName:"Aster",sourceTurnId:"current",quote:"Aster"}],request};
+- const encodedIntent=recursiveFixturePlan(p.wire).encode({request:intent});
++ const encodedIntent=semanticFixturePlan(p).encode({request:intent});
+  let calls=0,hydrates=0;
+  await admitted(ctx,async()=>{
+   const result=await interpretAskQuestion({context:ctx,model,client:{responses:{create:async()=>{calls++;return {status:"completed",output_text:JSON.stringify(encodedIntent),usage};}}},
+diff --git a/tests/ask-lifecycle-role-contract.test.mjs b/tests/ask-lifecycle-role-contract.test.mjs
+index 596856f0..75745769 100644
+--- a/tests/ask-lifecycle-role-contract.test.mjs
++++ b/tests/ask-lifecycle-role-contract.test.mjs
+@@ -1,4 +1,4 @@
+-import { recursiveFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
++import { semanticFixturePlan } from "./helpers/ask-semantic-fixture.mjs";
+ import assert from 'node:assert/strict';import fs from 'node:fs';
+ import {fixture,id} from './helpers/ask-staged-route-fixture.mjs';
+ const R=new URL('../',import.meta.url).href;
+@@ -12,7 +12,8 @@ const template=JSON.parse(old.sent[1].input).intent;template.ownerScope ??= null
+ const log={scope:'actual helpers/admission/IO adapter, distinct from full route proof',cases:[],liveProviders:0,network:0,costUSD:0};const record=(name,data={})=>log.cases.push({name,...data});
+ async function admitted(fn,initial=true){
+  const a=await admitAiOperation({feature:'ask',userId:id(1),payload:{proof:'staged-six'},requestId:crypto.randomUUID(),intendedModel:'gpt-5.4-mini',env:{NODE_ENV:'test',FURVISE_AI_DAILY_CALL_LIMIT:'20',FURVISE_AI_DAILY_COST_LIMIT_USD:'1',FURVISE_RATE_LIMIT_HASH_SECRET:'offline-f-identity-not-credential'},store:new MemoryAiGuardTestStore()});
+- try{return await a.run(async()=>{if(initial)await call(a,undefined,'interpretation');return fn(a);});}finally{await a.release();}
++ const prior=process.env.NODE_TEST_CONTEXT;delete process.env.NODE_TEST_CONTEXT;
++ try{return await a.run(async()=>{if(initial)await call(a,undefined,'interpretation');return fn(a);});}finally{await a.release();if(prior===undefined)delete process.env.NODE_TEST_CONTEXT;else process.env.NODE_TEST_CONTEXT=prior;}
+ }
+ async function call(a,purpose,stage=purpose){const c=await a.beginProviderCall({model:'gpt-5.4-mini',maxOutputTokens:100,input:{x:1},stage,purpose});await a.recordProviderUsage(c.reservation,'gpt-5.4-mini',{inputTokens:0,outputTokens:0});return c;}
+ function context(f,text){const turn={id:id(31),role:'user',text,createdAt:'2026-09-20T12:00:00Z'};f.rows.ask_conversation_messages.push({id:turn.id,user_id:id(1),role:'user',user_text:text,created_at:turn.createdAt,conversation_id:id(21)});return{owner:{userId:id(1)},pet:f.rows.dog_profiles[0],eligiblePets:f.rows.dog_profiles,currentMessage:text,currentTurn:turn,conversationTurns:[turn],conversationId:id(21)};}
+@@ -49,7 +50,7 @@ async function runCase({cancelName='Rowan',selected=11,reverse=false,clauseRever
+  try{
+   if(throughInterpreter){
+    const prepared=prepareAskInterpretationRequest(ctx,'gpt-5.4-mini');
+-   const wire=recursiveFixturePlan(prepared.wire),begin=admission.beginProviderCall.bind(admission);let admittedSnapshot,dispatches=0;
++   const wire=semanticFixturePlan(prepared),begin=admission.beginProviderCall.bind(admission);let admittedSnapshot,dispatches=0;
+    admission.beginProviderCall=async x=>{admittedSnapshot=JSON.stringify(x.input);return begin(x);};
+    const result=await interpretAskQuestion({context:ctx,model:'gpt-5.4-mini',client:{responses:{create:async request=>{
+     dispatches++;stubCalls++;assert.equal(dispatches,1);assert.equal(JSON.stringify(request),admittedSnapshot);assert.deepEqual(request.text.format.schema,prepared.request.text.format.schema);assert.equal(request.instructions,prepared.request.instructions);assert.equal(request.input,prepared.request.input);assert.equal(request.max_output_tokens,8192);
+diff --git a/tests/ask-provider-timestamp-boundary.test.mjs b/tests/ask-provider-timestamp-boundary.test.mjs
+index ebbabcea..725b32c8 100644
+--- a/tests/ask-provider-timestamp-boundary.test.mjs
++++ b/tests/ask-provider-timestamp-boundary.test.mjs
+@@ -1,4 +1,3 @@
+-import { recursiveFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
+ import test from 'node:test';
+ import assert from 'node:assert/strict';
+ import {readFileSync,existsSync} from 'node:fs';
+@@ -39,8 +38,8 @@ const dated=structuredClone(corpus.fixtures.find(f=>f.context==='no_numeric'&&f.
+ dated.request.readTicket.authority='stored_report';dated.request.readTicket.temporal.calendar=null;
+ dated.request.readTicket.attributedContexts=[{recorded:{from:dates[2],to:dates[3]},target:{from:dates[4],to:dates[5]}}];
+ datePaths.forEach((p,i)=>set(dated.request.readTicket,p,dates[i]));
+-const actualTransport=recursiveFixturePlan(prepareAskInterpretationRequest(context,"gpt-5.4-mini").wire);
+-const actualDated=actualTransport.encode(dated),recursivePaths=dates.map(d=>{const paths=stringPaths(actualDated,d);assert.equal(paths.length,1);return paths[0];});
++const actualTransport=prepareAskInterpretationRequest(context,"gpt-5.4-mini").transport;
++const actualDated=actualTransport.encode(dated,()=>{});
+ const datedWire=plan.encode(dated),wirePaths=dates.map(d=>{const paths=stringPaths(datedWire,d);assert.equal(paths.length,1);return paths[0];});
+ const valid=['2000-02-29T12:34:56Z','2024-02-29T00:00:00+05:30','2024-02-29T23:59:59.123456789-08:00','2400-02-29T12:34:56+23:59','1900-02-28T00:00:00-00:00','0000-02-29T00:00:00Z','2024-01-01T00:00:00.'+'7'.repeat(512)+'Z'];
+ const invalid=['2023-02-29T00:00:00Z','1900-02-29T00:00:00Z','2100-02-29T00:00:00Z','2024-04-31T00:00:00Z','2024-00-01T00:00:00Z','2024-13-01T00:00:00Z','2024-01-00T00:00:00Z','2024-01-32T00:00:00Z','2024-01-01','2024-01-01T00:00:00','2024-01-01T00:00Z','2024-01-01 00:00:00Z','2024-01-01T24:00:00Z','2024-01-01T00:60:00Z','2024-01-01T00:00:60Z','2024-01-01T00:00:00+24:00','2024-01-01T00:00:00+00:60','2024-01-01T00:00:00+0530','2024-01-01T00:00:00.Z','2024-01-01T00:00:00z',' 2024-01-01T00:00:00Z','2024-01-01T00:00:00Z ','2024-01-01T00:00:00Z\n','2024-01-01T00:00:00Z\r\n','2024-01-01T00:00:00Z\u2028','2024-01-01T00:00:00Zjunk','}]}]'];
+@@ -85,8 +84,8 @@ test('Binder keeps temporal ordering and attributed report ordering independent
+ });
+ test('actual admitted production parser rejects six malformed dates before catalog hydration or successful authority',async t=>{
+  quiet(t);const old=process.env.NODE_TEST_CONTEXT;delete process.env.NODE_TEST_CONTEXT;
+- try{for(const [i,path]of recursivePaths.entries()){
+-  const wire=structuredClone(actualDated);set(wire,path,dates[i]+'\n');const a=await admit('bad-date-'+i);let calls=0,hydrates=0,capabilities=0;const events=[],snapshots=[];const begin=a.beginProviderCall.bind(a);a.beginProviderCall=async x=>{snapshots.push(JSON.stringify(x.input));return begin(x);};
++ try{for(const [i,path]of datePaths.entries()){
++  const wire=structuredClone(actualDated),ticket=JSON.parse(wire.request.readTicket);set(ticket,path,dates[i]+'\n');wire.request.readTicket=JSON.stringify(ticket);const a=await admit('bad-date-'+i);let calls=0,hydrates=0,capabilities=0;const events=[],snapshots=[];const begin=a.beginProviderCall.bind(a);a.beginProviderCall=async x=>{snapshots.push(JSON.stringify(x.input));return begin(x);};
+   try{await assert.rejects(a.run(()=>interpretAskQuestion({context,model:'gpt-5.4-mini',onProviderEvent:e=>events.push(e),catalogService:{requestId:'test',capability:()=>{capabilities++;throw Error('UNEXPECTED_CATALOG_CAPABILITY')},verify:async()=>{},hydrate:async()=>{hydrates++;throw Error('UNEXPECTED_HYDRATE')}},client:{responses:{create:async request=>{calls++;assert.equal(JSON.stringify(request),snapshots.at(-1));assert.ok(Object.isFrozen(request));assert.deepEqual(request.text.format.schema,createAskProviderWireSchema(actualTransport.schema));assert.equal(request.instructions,prepareAskInterpretationRequest(context,'gpt-5.4-mini').request.instructions);assert.equal(request.max_output_tokens,8192);return{status:'completed',output_text:JSON.stringify(wire),usage:{input_tokens:100,output_tokens:50}};}}}})),e=>e.diagnostics?.providerErrorCode==='ASK_INTERPRETATION_JSON');assert.equal(calls,1);assert.equal(hydrates,0);assert.equal(capabilities,0);assert.ok(!events.some(e=>e.outcome==='succeeded'));}finally{await a.release();}
+  }}finally{if(old===undefined)delete process.env.NODE_TEST_CONTEXT;else process.env.NODE_TEST_CONTEXT=old;}
+ });
+diff --git a/tests/ask-public-cancellation-route.test.mjs b/tests/ask-public-cancellation-route.test.mjs
+index 4a001a3d..b6ae172e 100644
+--- a/tests/ask-public-cancellation-route.test.mjs
++++ b/tests/ask-public-cancellation-route.test.mjs
+@@ -1,13 +1,13 @@
+-import { recursiveFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
++import { semanticFixturePlan } from "./helpers/ask-semantic-fixture.mjs";
+ import assert from 'node:assert/strict';
+ import fs from 'node:fs';
+ import {fixture,id} from './helpers/ask-staged-route-fixture.mjs';
+ const R=new URL('../',import.meta.url).href;
+-const {ASK_REQUEST_INSTRUCTIONS,askRequestProviderSchema}=await import(R+'app/lib/intelligence/ask-request-contract.ts');
+-const {proposedSemanticFrameJsonSchema}=await import(R+'app/lib/intelligence/semantic-frame/schema.ts');
+-const {createAskWirePlan}=await import(R+'app/lib/intelligence/ask-wire-policy.mjs');
+-const {factorProviderEnumSchemas}=await import(R+'app/lib/ai/provider-enum-schema.ts');
+-const {factorProviderCompoundSchemas}=await import(R+'app/lib/ai/provider-compound-schema.ts');
++
++
++const {prepareAskInterpretationRequest}=await import(R+'app/lib/intelligence/interpret-ask.ts');
++
++
+ const {admitAiOperation}=await import(R+'app/lib/ai/usage-guard/admission.ts');
+ const {MemoryAiGuardTestStore}=await import(R+'app/lib/ai/usage-guard/memory-test-store.ts');
+ const {estimateInputTokens}=await import(R+'app/lib/ai/usage-guard/cost-estimator.ts');
+@@ -21,7 +21,7 @@ const check=(name,fn)=>{fn();trace.assertions.push(name);};let wire,admission;
+ const store=new MemoryAiGuardTestStore(),env={NODE_ENV:'test',FURVISE_AI_DAILY_CALL_LIMIT:'20',FURVISE_AI_DAILY_COST_LIMIT_USD:'1',FURVISE_RATE_LIMIT_HASH_SECRET:'offline-f-identity-not-credential'};
+ const f=fixture({creditLedger:true,fullCatalogPipeline:true,engineCapabilities:false,
+  admitAiOperation:async input=>{admission=await admitAiOperation({...input,env,store});const begin=admission.beginProviderCall.bind(admission);admission.beginProviderCall=async x=>{trace.admissions.push({purpose:x.purpose??'ordinary',stage:x.stage,totalChars:JSON.stringify(x.input).length,estimatedTokens:estimateInputTokens(x.input),snapshot:structuredClone(x.input)});return begin(x);};return admission;},
+- onContext:ctx=>{wire=recursiveFixturePlan(createAskWirePlan(factorProviderCompoundSchemas(factorProviderEnumSchemas(askRequestProviderSchema(proposedSemanticFrameJsonSchema,ctx))),ASK_REQUEST_INSTRUCTIONS));},onInterpretation:x=>trace.interpretations.push(structuredClone(x)),
++ onContext:ctx=>{wire=semanticFixturePlan(prepareAskInterpretationRequest(ctx,'gpt-5.4-mini'));},onInterpretation:x=>trace.interpretations.push(structuredClone(x)),
+  providerCreate:async request=>{trace.sent.push(structuredClone(request));if(trace.sent.length===1)return{status:'completed',output_text:JSON.stringify(wire.encode({request:intent})),usage:{input_tokens:0,output_tokens:0}};
+  throw Error('Public cancellation dispatched an unauthorized second provider call');
+  }});
+diff --git a/tests/ask-recursive-transport.test.mjs b/tests/ask-recursive-transport.test.mjs
+index 04bc2375..9d3d2cdc 100644
+--- a/tests/ask-recursive-transport.test.mjs
++++ b/tests/ask-recursive-transport.test.mjs
+@@ -1,9 +1,12 @@
+ import test from "node:test";
+ import assert from "node:assert/strict";
++import { createHash } from "node:crypto";
+ import { readFileSync } from "node:fs";
+ import { prepareAskInterpretationRequest, interpretAskQuestion, recoverAskInterpretation } from "../app/lib/intelligence/interpret-ask.ts";
+ import { createAskProviderWireSchema } from "../app/lib/intelligence/ask-wire-provider-schema.ts";
+-import { createRecursiveAskPlanHarness } from "./helpers/ask-wire-recursive-plan.mjs";
++import { createDirectSemanticAskWirePlan } from "../app/lib/intelligence/ask-wire-direct.mjs";
++import { askRequestSchema } from "../app/lib/intelligence/ask-request-contract.ts";
++import { proposedSemanticFrameJsonSchema } from "../app/lib/intelligence/semantic-frame/schema.ts";
+ import { admitAiOperation } from "../app/lib/ai/usage-guard/admission.ts";
+ import { MemoryAiGuardTestStore } from "../app/lib/ai/usage-guard/memory-test-store.ts";
+ import { OperationDeadline } from "../app/lib/ai/execution-deadline.ts";
+@@ -38,11 +41,11 @@ function invoke(context, create, extras = {}) {
+   return interpretAskQuestion({ context, model: "gpt-5.4-mini", client: { responses: { create } }, ...extras });
+ }
+ 
+-test("actual prepare/parse uses the reviewed recursive transport and retains the original canonical plan", async t => admitted(t, "recursive-success", async a => {
+-  const reference = createRecursiveAskPlanHarness(prepared.wire, () => {});
++test("actual prepare/parse uses semantic slots and retains the original strict canonical plan", async t => admitted(t, "recursive-success", async a => {
++  const reference = createDirectSemanticAskWirePlan(prepared.wire, prepared.wire.instructions, askRequestSchema(proposedSemanticFrameJsonSchema, prepared.context), () => {});
+   assert.deepEqual(prepared.transport.schema, reference.schema); assert.equal(prepared.transport.instructions, reference.instructions);
+   assert.deepEqual(prepared.request.text.format.schema, createAskProviderWireSchema(reference.schema));
+-  assert.deepEqual(prepared.request.text.format.schema.required, ["root"]);
++  assert.deepEqual(prepared.request.text.format.schema.required, ["format", "request"]);
+   assert.deepEqual(prepared.wire.schema.required, ["nodes", "root"]);
+   const expected = recoverAskInterpretation(good, prepared.context), response = envelope(good);
+   assert.deepEqual(prepared.transport.decode(response, () => {}), prepared.wire.decode(prepared.wire.encode({ request: good })));
+@@ -179,7 +182,8 @@ test("provider errors in initial and repair phases keep safe diagnostics and set
+       assert.equal(e.diagnostics.providerErrorCode, "ASK_INTERPRETATION_TRANSPORT");
+       assert.equal(e.diagnostics.providerStatus, 400); assert.equal(e.diagnostics.timedOut, false);
+       assert.deepEqual(e.diagnostics.providerError, { status: 400, code: "invalid_json_schema",
+-        type: "invalid_request_error", param: "text.format.schema", requestId: id });
++        type: "invalid_request_error", param: "text.format.schema", requestId: id,
++        schema: { sha256: createHash("sha256").update(JSON.stringify(prepared.request.text.format.schema)).digest("hex"), rule: "unrecognized", path: null } });
+       assert.ok(!JSON.stringify(e).includes(marker)); assert.ok(!e.message.includes(marker)); return true;
+     });
+     assert.equal(calls, repair ? 2 : 1); assert.equal(failures, 1); assert.equal(usage, repair ? 1 : 0);
+@@ -189,3 +193,39 @@ test("provider errors in initial and repair phases keep safe diagnostics and set
+     assert.ok(!JSON.stringify(events).includes(marker)); assert.ok(!JSON.stringify(events).includes("sk-proj-OFFLINE_PRIVATE"));
+   }));
+ });
++
++
++test("native response envelopes exercise strict semantic parsing and settle usage once", async t => {
++  for (const scenario of ["success", "malformed", "missing", "canonical-invalid", "incomplete"])
++    await t.test(scenario, async t => admitted(t, "semantic-native-" + scenario, async a => {
++      let calls = 0, usage = 0, failures = 0;
++      const record = a.recordProviderUsage.bind(a), fail = a.recordProviderFailure.bind(a);
++      a.recordProviderUsage = (...args) => { usage++; return record(...args); };
++      a.recordProviderFailure = (...args) => { failures++; return fail(...args); };
++      const response = envelope(good);
++      if (scenario === "malformed") response.request.readTicket = "{";
++      if (scenario === "missing") delete response.request.scope;
++      if (scenario === "canonical-invalid") response.request.readTicket = JSON.stringify({ kind: "invalid", subjectScope: "selected" });
++      const invokeNative = () => invoke(ctx, async request => {
++        calls++;
++        assert.equal(process.env.NODE_TEST_CONTEXT, undefined);
++        assert.equal(request.max_output_tokens, 8192);
++        assert.deepEqual(request.reasoning, { effort: "none" });
++        assert.equal(request.text.format.schema.properties.format.enum[0], "ask-semantic-slots.v1");
++        const native = completed(response);
++        delete native.output_text;
++        native.output = [{ type: "message", status: "completed", content: [{ type: "output_text", text: JSON.stringify(response) }] }];
++        if (scenario === "incomplete") {
++          native.status = "incomplete";
++          native.incomplete_details = { reason: "max_output_tokens" };
++        }
++        return native;
++      });
++      if (scenario === "success") assert.deepEqual(await invokeNative(), recoverAskInterpretation(good, prepared.context));
++      else await assert.rejects(invokeNative(), e => {
++        assert.ok(["ASK_INTERPRETATION_JSON", "ASK_INTERPRETATION_INCOMPLETE"].includes(e.diagnostics?.providerErrorCode));
++        return true;
++      });
++      assert.equal(calls, 1); assert.equal(usage, 1); assert.equal(failures, 0);
++    }));
++});
+diff --git a/tests/ask-semantic-graph-regression.test.mjs b/tests/ask-semantic-graph-regression.test.mjs
+new file mode 100644
+index 00000000..b2770302
+--- /dev/null
++++ b/tests/ask-semantic-graph-regression.test.mjs
+@@ -0,0 +1,116 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import fs from "node:fs";
++import { createRequire } from "node:module";
++import { createGraphCodec, canonical } from "../app/lib/intelligence/ask-wire-codec.mjs";
++import { createAskWirePlan } from "../app/lib/intelligence/ask-wire-policy.mjs";
++import { createDirectSemanticAskWirePlan } from "../app/lib/intelligence/ask-wire-direct.mjs";
++import { createAskProviderWireSchema } from "../app/lib/intelligence/ask-wire-provider-schema.ts";
++import { ASK_REQUEST_INSTRUCTIONS, askRequestSchema, askRequestProviderSchema } from "../app/lib/intelligence/ask-request-contract.ts";
++import { proposedSemanticFrameJsonSchema } from "../app/lib/intelligence/semantic-frame/schema.ts";
++import { factorProviderEnumSchemas } from "../app/lib/ai/provider-enum-schema.ts";
++import { factorProviderCompoundSchemas } from "../app/lib/ai/provider-compound-schema.ts";
++import { interpretStructuredProviderResponse } from "../app/lib/ai/ask-provider.ts";
++
++const Ajv=createRequire(import.meta.url)("ajv");
++const corpus=JSON.parse(fs.readFileSync(new URL("./fixtures/ask-wire-codec.json",import.meta.url),"utf8"));
++const cache=new Map(), start=performance.now();
++const check=()=>{if(performance.now()-start>120000)throw Error("OFFLINE_TEST_DEADLINE");};
++function plan(context){
++ if(!cache.has(context)){
++  const ctx=corpus.contexts[context];
++  const wire=createAskWirePlan(factorProviderCompoundSchemas(factorProviderEnumSchemas(askRequestProviderSchema(proposedSemanticFrameJsonSchema,ctx))),ASK_REQUEST_INSTRUCTIONS,undefined,check);
++  const direct=createDirectSemanticAskWirePlan(wire,wire.instructions,askRequestSchema(proposedSemanticFrameJsonSchema,ctx),check);
++  cache.set(context,{wire,direct,indexedValid:new Ajv().compile(createAskProviderWireSchema(wire.schema)),directValid:new Ajv().compile(createAskProviderWireSchema(direct.schema))});
++ }
++ return cache.get(context);
++}
++const refs=value=>{
++ const found=[];
++ function walk(v){if(!v||typeof v!=="object")return;if(Object.hasOwn(v,"@"))found.push(v);else Object.values(v).forEach(walk);}
++ walk(value);return found;
++};
++test("actual indexed provider schema accepts edges and reuse that the unchanged strict decoder rejects",()=>{
++ const {wire,indexedValid}=plan("no_numeric"),f=corpus.fixtures.find(x=>x.context==="no_numeric");
++ const good=wire.encode(f.canonical);assert.ok(indexedValid(good));
++ for(const [name,change,reason] of [
++  ["self",v=>{refs(v.root)[0]["@"]=v.nodes.length;},"ASK_WIRE_INVALID_EDGE"],
++  ["out_of_range",v=>{refs(v.root)[0]["@"]=v.nodes.length+2;},"ASK_WIRE_INVALID_EDGE"],
++  ["shared",v=>{const all=refs(v);assert.ok(all.length>=2);all[1]["@"]=all[0]["@"];},"ASK_WIRE_REUSED_OR_DEEP_NODE"]
++ ]){
++  const bad=structuredClone(good);change(bad);
++  assert.ok(indexedValid(bad),name+JSON.stringify(indexedValid.errors));
++  assert.throws(()=>wire.decode(bad),e=>e.message===reason);
++  console.log(JSON.stringify({case:name,providerSchemaValid:true,strictReason:reason}));
++ }
++ const missing={nodes:good.nodes};assert.equal(indexedValid(missing),false);
++ assert.deepEqual(wire.decode(good),f.canonical);
++});
++test("unique deep chain and shallow reused node independently produce the combined strict reason",()=>{
++ const leaf={type:"object",additionalProperties:false,required:["label"],properties:{label:{type:"string"}}};
++ const codec=createGraphCodec({type:"object",additionalProperties:false,required:["child"],properties:{child:leaf}});
++ const validate=new Ajv().compile(codec.schema),good=codec.encode({child:{label:"synthetic"}});
++ const chain={nodes:[good.nodes[0]]};
++ for(let i=1;i<=65;i++)chain.nodes.push({[codec.names.child]:{"@":i-1}});
++ assert.ok(validate(chain),JSON.stringify(validate.errors));
++ assert.equal(new Set(chain.nodes.slice(1).map(n=>n[codec.names.child]["@"])).size,65);
++ assert.throws(()=>codec.decode(chain),e=>e.message==="ASK_WIRE_REUSED_OR_DEEP_NODE");
++ // At the traversal boundary, a wrong child type remains a compact-schema error.
++ const shallow={nodes:chain.nodes.slice(0,65)};
++ assert.ok(validate(shallow));
++ assert.throws(()=>codec.decode(shallow),e=>e.message==="ASK_WIRE_COMPACT_SCHEMA");
++ assert.deepEqual(codec.decode(good),{child:{label:"synthetic"}});
++});
++test("all 262 real canonical alternatives preserve provider schema, strict graphs and policy",()=>{
++ let count=0;
++ for(const f of corpus.fixtures){
++  const {wire,direct,directValid}=plan(f.context),before=JSON.stringify(wire.schema),policy=wire.instructions;
++  const envelope=direct.encode(f.canonical,check);
++  assert.ok(directValid(envelope),JSON.stringify(directValid.errors));
++  const restored=direct.decode(JSON.parse(JSON.stringify(envelope)),check);
++  assert.equal(canonical(restored),canonical(f.canonical));
++  assert.equal(canonical(wire.encode(restored)),canonical(wire.encode(f.canonical)));
++  assert.equal(JSON.stringify(wire.schema),before);assert.equal(wire.instructions,policy);
++  count++;
++ }
++ assert.equal(count,262);
++});
++test("completion status, malformed JSON and strict graph failure remain distinct parser outcomes",()=>{
++ const {wire}=plan("no_numeric"),good=wire.encode(corpus.fixtures.find(f=>f.context==="no_numeric").canonical);
++ const body=text=>[{type:"message",content:[{type:"output_text",text}]}];
++ let parses=0;
++ const parse=text=>{parses++;return wire.decode(JSON.parse(text));};
++ const incomplete=interpretStructuredProviderResponse({status:"incomplete",incomplete_details:{reason:"max_output_tokens"},output:body(JSON.stringify(good))},parse);
++ assert.equal(incomplete.parsingAttempted,false);assert.equal(parses,0);
++ const malformed=interpretStructuredProviderResponse({status:"completed",output:body("{")},parse);
++ assert.equal(malformed.status,"invalid");assert.equal(malformed.parsingAttempted,true);
++ const invalid=structuredClone(good);refs(invalid.root)[0]["@"]=invalid.nodes.length;
++ const graph=interpretStructuredProviderResponse({status:"completed",output:body(JSON.stringify(invalid))},parse);
++ assert.equal(graph.status,"invalid");assert.equal(graph.parsingAttempted,true);
++ const valid=interpretStructuredProviderResponse({status:"completed",output:body(JSON.stringify(good))},parse);
++ assert.equal(valid.status,"completed");assert.equal(parses,3);
++});
++test("semantic envelope rejects own root accessors without invoking them",()=>{
++ const {direct}=plan("no_numeric"),good=direct.encode(corpus.fixtures.find(f=>f.context==="no_numeric").canonical,check);
++ let calls=0;
++ Object.defineProperty(good,"request",{enumerable:true,get(){calls++;return {};}});
++ assert.throws(()=>direct.decode(good,check));assert.equal(calls,0);
++});
++test("semantic envelope rejects indexed accessors without invoking them",()=>{
++ const {direct}=plan("no_numeric"),good=direct.encode(corpus.fixtures.find(f=>f.context==="no_numeric").canonical,check);
++ let calls=0;const names=["synthetic"];
++ Object.defineProperty(names,"0",{enumerable:true,get(){calls++;return "synthetic";}});
++ good.request.petNames=names;
++ assert.throws(()=>direct.decode(good,check));assert.equal(calls,0);
++});
++test("sparse arrays and inherited serialization hooks fail closed without executing hooks",()=>{
++ const {direct}=plan("no_numeric"),canonicalValue=structuredClone(corpus.fixtures.find(f=>f.context==="no_numeric").canonical);
++ const sparse=direct.encode(canonicalValue,check);sparse.request.petNames=new Array(32769);
++ assert.throws(()=>direct.decode(sparse,check));
++ let calls=0,thrown;
++ const previous=Object.getOwnPropertyDescriptor(Object.prototype,"toJSON");
++ Object.defineProperty(Object.prototype,"toJSON",{configurable:true,get(){calls++;return ()=>"hook";}});
++ try{direct.encode(canonicalValue,check);}catch(e){thrown=e;}
++ finally{if(previous)Object.defineProperty(Object.prototype,"toJSON",previous);else delete Object.prototype.toJSON;}
++ assert.ok(thrown);assert.equal(calls,0);
++});
+diff --git a/tests/ask-staged-catalog-route.test.mjs b/tests/ask-staged-catalog-route.test.mjs
+index d225b1c8..c2fe19ce 100644
+--- a/tests/ask-staged-catalog-route.test.mjs
++++ b/tests/ask-staged-catalog-route.test.mjs
+@@ -1,13 +1,13 @@
+-import { recursiveFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
++import { semanticFixturePlan } from "./helpers/ask-semantic-fixture.mjs";
+ import assert from 'node:assert/strict';
+ import fs from 'node:fs';
+ import {fixture,id} from './helpers/ask-staged-route-fixture.mjs';
+ const R=new URL('../',import.meta.url).href;
+-const {ASK_REQUEST_INSTRUCTIONS,askRequestProviderSchema}=await import(R+'app/lib/intelligence/ask-request-contract.ts');
+-const {proposedSemanticFrameJsonSchema}=await import(R+'app/lib/intelligence/semantic-frame/schema.ts');
+-const {createAskWirePlan}=await import(R+'app/lib/intelligence/ask-wire-policy.mjs');
+-const {factorProviderEnumSchemas}=await import(R+'app/lib/ai/provider-enum-schema.ts');
+-const {factorProviderCompoundSchemas}=await import(R+'app/lib/ai/provider-compound-schema.ts');
++
++
++const {prepareAskInterpretationRequest}=await import(R+'app/lib/intelligence/interpret-ask.ts');
++
++
+ const {admitAiOperation}=await import(R+'app/lib/ai/usage-guard/admission.ts');
+ const {MemoryAiGuardTestStore}=await import(R+'app/lib/ai/usage-guard/memory-test-store.ts');
+ const {estimateInputTokens}=await import(R+'app/lib/ai/usage-guard/cost-estimator.ts');
+@@ -20,7 +20,7 @@ const check=(name,fn)=>{fn();trace.assertions.push(name);};let wire,admission;
+ const store=new MemoryAiGuardTestStore(),env={NODE_ENV:'test',FURVISE_AI_DAILY_CALL_LIMIT:'20',FURVISE_AI_DAILY_COST_LIMIT_USD:'1',FURVISE_RATE_LIMIT_HASH_SECRET:'offline-f-identity-not-credential'};
+ const f=fixture({creditLedger:true,fullCatalogPipeline:true,engineCapabilities:mode==='engine-replace',
+  admitAiOperation:async input=>{admission=await admitAiOperation({...input,env,store});const begin=admission.beginProviderCall.bind(admission);admission.beginProviderCall=async x=>{trace.admissions.push({purpose:x.purpose??'ordinary',stage:x.stage,totalChars:JSON.stringify(x.input).length,estimatedTokens:estimateInputTokens(x.input),snapshot:structuredClone(x.input)});return begin(x);};return admission;},
+- onContext:ctx=>{wire=recursiveFixturePlan(createAskWirePlan(factorProviderCompoundSchemas(factorProviderEnumSchemas(askRequestProviderSchema(proposedSemanticFrameJsonSchema,ctx))),ASK_REQUEST_INSTRUCTIONS));},onInterpretation:x=>trace.interpretations.push(structuredClone(x)),
++ onContext:ctx=>{wire=semanticFixturePlan(prepareAskInterpretationRequest(ctx,'gpt-5.4-mini'));},onInterpretation:x=>trace.interpretations.push(structuredClone(x)),
+  providerCreate:async request=>{trace.sent.push(structuredClone(request));if(trace.sent.length===1)return{status:'completed',output_text:JSON.stringify(wire.encode({request:intent})),usage:{input_tokens:0,output_tokens:0}};
+  assert.equal(trace.sent.length,2);const input=JSON.parse(request.input);assert.deepEqual(input.intent,intent);const candidates=input.catalog.evidence.filter(x=>x.body==='Cedar declined dinner.');assert.equal(candidates.length,1);return{status:'completed',output_text:JSON.stringify({version:'ask-catalog-selection.v1',disposition:'selected',reference:candidates[0].reference}),usage:{input_tokens:0,output_tokens:0}};
+  }});
+diff --git a/tests/ask-wire-direct.test.mjs b/tests/ask-wire-direct.test.mjs
+index d503a8a5..fc2673cf 100644
+--- a/tests/ask-wire-direct.test.mjs
++++ b/tests/ask-wire-direct.test.mjs
+@@ -1,33 +1,91 @@
+ import test from "node:test";
+ import assert from "node:assert/strict";
++import { readFileSync } from "node:fs";
+ import {createDirectSemanticAskWirePlan, DIRECT_ASK_FORMAT_VERSION} from "../app/lib/intelligence/ask-wire-direct.mjs";
++const {askRequestSchema} = await import("../app/lib/intelligence/ask-request-contract.ts");
++const {proposedSemanticFrameJsonSchema} = await import("../app/lib/intelligence/semantic-frame/schema.ts");
++const schema=askRequestSchema(proposedSemanticFrameJsonSchema);
++const fixtures=JSON.parse(readFileSync(new URL("./fixtures/ask-wire-codec.json",import.meta.url),"utf8")).fixtures;
++let encodeCalls=0,decodeCalls=0;
+ const mockWire={
+- encode(value) { if (value.request?.version!=="ask-request.v2" || typeof value.request?.question!=="string" || !Object.keys(value.request).every(k=>["version","question","mode"].includes(k)))throw Error("ASK_WIRE_CANONICAL_SCHEMA");return{graph:"server-owned",value}; },
+- decode(encoded){if(encoded.graph!=="server-owned")throw Error("ASK_WIRE_INVALID_EDGE");return encoded.value;}
++ encode(value) {
++   encodeCalls++;
++   if (!value || !value.request || !["ask-request.v2","ask-catalog-intent.v1"].includes(value.request.version))
++     throw Error("ASK_WIRE_CANONICAL_SCHEMA");
++   if(value.request.version==="ask-request.v2" &&
++      (Object.keys(value.request).length!==schema.required.length ||
++       schema.required.some(k=>!Object.hasOwn(value.request,k)) ||
++       value.request.readTicket!==null && (typeof value.request.readTicket!=="object" || Array.isArray(value.request.readTicket))))
++     throw Error("ASK_WIRE_CANONICAL_SCHEMA");
++   return {verifiedServerGraph:true,canonical:structuredClone(value)};
++ },
++ decode(graph) {
++   decodeCalls++;
++   if(graph.verifiedServerGraph!==true)throw Error("ASK_WIRE_INVALID_EDGE");
++   return graph.canonical;
++ }
+ };
+-const required=["mode","version","question","requirements","readTicket","appendJob","writeJob","scope","petNames","selection","evidenceBasis"];
+-const policy=["Return canonical semantic proposal in lossless wire format. nodes: supporting postorder tree;", "ROOT root.F references the request node.", "FIELDS a=operation F=request", "TAGS", "POLICY", "Semantic contract policy. ".repeat(100)].join("\n");
+-const plan=()=>createDirectSemanticAskWirePlan(mockWire,policy,required,()=>{});
+-test("model never creates graph indices, while the server builds and decodes its canonical graph",()=>{
+- const p=plan(),canonical={request:{version:"ask-request.v2",question:"Which saved measurement is earliest?",mode:"read"}};
+- const generated=p.encode(canonical,()=>{});
+- assert.equal(generated.format,DIRECT_ASK_FORMAT_VERSION);
+- assert.deepEqual(Object.keys(generated).sort(),["format","requestJson"]);
+- assert.ok(!p.instructions.includes("nodes[]"));
+- assert.deepEqual(p.decode(JSON.parse(JSON.stringify(generated)),()=>{}),canonical);
+- assert.ok(p.instructions.includes("readTicket"));
++const policy=["Return canonical semantic proposal in lossless wire format. nodes: supporting postorder tree;",
++ "ROOT root.F references the request node.", "FIELDS a=operation F=request", "TAGS", "PACKED", "POLICY",
++ "Semantic context and ownership remain mandatory.", "Read-only plans cannot write.", "The original semantic source contract and all ownership rules remain mandatory. ".repeat(50)].join("\n");
++const plan=()=>createDirectSemanticAskWirePlan(mockWire,policy,schema,()=>{});
++test("schema forces every required semantic field; scalars are typed and complex values are JSON",()=>{
++ const p=plan(),branch=p.schema.properties.request.anyOf[0];
++ assert.equal(p.schema.type,"object");
++ assert.deepEqual(p.schema.required,["format","request"]);
++ assert.equal(branch.required.length,schema.required.length);
++ assert.deepEqual([...branch.required].sort(),[...Object.keys(branch.properties)].sort());
++ assert.equal(branch.additionalProperties,false);
++ assert.equal(branch.properties.question.type,"string");
++ assert.equal(branch.properties.mode.enum.includes("read"),true);
++ assert.equal(branch.properties.petNames.type,"array");
++ assert.ok(branch.properties.readTicket.type.includes("null"));
++ assert.equal(p.schema.properties.request.anyOf[1].required[0],"catalogIntentJson");
++ assert.ok(!p.instructions.includes("TAGS\n"));
+ });
+-test("unknown envelope and invalid semantic bodies never receive authority",()=>{
+- const p=plan();
+- for(const bad of [
+- {format:"unknown",requestJson:'{"version":"ask-request.v2"}'},
+- {format:DIRECT_ASK_FORMAT_VERSION,requestJson:'{"version":"ask-request.v2","question":"x","unknown":true}'},
+- {format:DIRECT_ASK_FORMAT_VERSION,requestJson:'[]'},
+- {format:DIRECT_ASK_FORMAT_VERSION,requestJson:'{"question":"x"'},
+- {format:DIRECT_ASK_FORMAT_VERSION,requestJson:'{"version":"ask-request.v2","question":"x"}',other:"attack"}
+- ])assert.throws(()=>p.decode(bad,()=>{}));
++test("each existing semantic fixture roundtrips through server-owned graph, never model refs",()=>{
++ const p=plan();let passes=0;
++ for(const f of fixtures){
++   if(!f.canonical?.request || f.canonical.request.version!=="ask-request.v2")continue;
++   const canonical=structuredClone(f.canonical);
++   const result=p.encode(canonical,()=>{});
++   assert.deepEqual(Object.keys(result),["format","request"]);
++   assert.equal(result.format,DIRECT_ASK_FORMAT_VERSION);
++   assert.equal(result.request.version,"ask-request.v2");
++   assert.equal(typeof result.request.question,"string");
++   if(canonical.request.readTicket!==null) assert.equal(typeof result.request.readTicket,"string");
++   assert.deepEqual(p.decode(JSON.parse(JSON.stringify(result)),()=>{}),canonical);
++   assert.ok(!Object.hasOwn(result.request,"nodes"));
++   passes++;
++ }
++ assert.ok(passes>200,"fixture coverage");
++ assert.ok(encodeCalls>200 && decodeCalls>200);
+ });
+-test("provider string containing reference-shaped text remains untrusted data",()=>{
+- const p=plan(); const request={request:{version:"ask-request.v2",question:'Literal {"@":500} quoted by owner'}};
+- assert.deepEqual(p.decode(p.encode(request,()=>{}),()=>{}),request);
++test("malformed, truncated, unexpected or bypass variants are rejected before authority",()=>{
++ const p=plan(),good=p.encode(structuredClone(fixtures[0].canonical),()=>{});
++ const bads=[
++ {format:"wrong",request:good.request},
++ {...good,other:"x"},
++ {...good,request:{...good.request,readTicket:"{broken"}},
++ {...good,request:{...good.request,question:42}},
++ {...good,request:{...good.request,extra:"unreviewed"}},
++ {...good,request:{...good.request,readTicket:"[]"}},
++ {...good,request:{catalogIntentJson:JSON.stringify(good.request)}},
++ {...good,request:{"requestJson":JSON.stringify(good.request)}},
++ ];
++ const missing=structuredClone(good);delete missing.request.scope;bads.push(missing);
++ for(const value of bads)assert.throws(()=>p.decode(value,()=>{}));
++});
++test("catalog envelope stays isolated and subject to original codec",()=>{
++ const p=plan(),catalog={request:{version:"ask-catalog-intent.v1",purpose:"receipt",sourceTurnId:"u1"}};
++ const wire=p.encode(catalog,()=>{});
++ assert.deepEqual(Object.keys(wire.request),["catalogIntentJson"]);
++ assert.deepEqual(p.decode(wire,()=>{}),catalog);
++ assert.throws(()=>p.decode({format:DIRECT_ASK_FORMAT_VERSION,
++   request:{catalogIntentJson:JSON.stringify({version:"ask-request.v2",mode:"read"})}},()=>{}));
++});
++test("literal malicious reference text remains data and cannot become a graph edge",()=>{
++ const p=plan(),canonical=structuredClone(fixtures[0].canonical);
++ canonical.request.question='Literal {"@":999} from user, do not follow';
++ assert.deepEqual(p.decode(p.encode(canonical,()=>{}),()=>{}),canonical);
+ });
+diff --git a/tests/ask-wire-recursive-plan.test.mjs b/tests/ask-wire-recursive-plan.test.mjs
+index 186e0efb..98eafacf 100644
+--- a/tests/ask-wire-recursive-plan.test.mjs
++++ b/tests/ask-wire-recursive-plan.test.mjs
+@@ -141,8 +141,8 @@ for (const numeric of [false, true]) for (const count of [0, 2, 8, 39])
+       assert.equal(request.max_output_tokens, 8192);
+       assert.deepEqual(request.reasoning, { effort: "none" });
+       assert.equal(request.instructions, prepared.transport.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS);
+-      assert.equal(request.text.format.schema.properties.requestJson.type, "string");
+-      assert.equal(request.text.format.schema.properties.format.enum[0], "ask-semantic-json.v1");
++      assert.equal(request.text.format.schema.properties.request.anyOf[0].required.length, 37);
++      assert.equal(request.text.format.schema.properties.format.enum[0], "ask-semantic-slots.v1");
+       const canonical = proposal(ctx), proposed = prepared.transport.encode(canonical, check);
+       assert.ok(!Object.hasOwn(proposed, "nodes"));
+       assert.deepEqual(prepared.transport.decode(JSON.parse(JSON.stringify(proposed)), check), canonical);
+diff --git a/tests/ask-wire-stack.test.mjs b/tests/ask-wire-stack.test.mjs
+new file mode 100644
+index 00000000..7bc1c16d
+--- /dev/null
++++ b/tests/ask-wire-stack.test.mjs
+@@ -0,0 +1,177 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import { readFileSync } from "node:fs";
++import { createAskWirePlan } from "../app/lib/intelligence/ask-wire-policy.mjs";
++import { createStackAskWirePlan } from "../app/lib/intelligence/ask-wire-stack.mjs";
++import { canonical, expand, makeValidator } from "../app/lib/intelligence/ask-wire-codec.mjs";
++import { askRequestProviderSchema, ASK_REQUEST_INSTRUCTIONS } from "../app/lib/intelligence/ask-request-contract.ts";
++import { proposedSemanticFrameJsonSchema } from "../app/lib/intelligence/semantic-frame/schema.ts";
++const corpus = JSON.parse(readFileSync(new URL("./fixtures/ask-wire-codec.json", import.meta.url), "utf8"));
++const tick=()=>{}, cache=new Map();
++function plan(context) {
++ if(!cache.has(context)){
++  const wire=createAskWirePlan(askRequestProviderSchema(proposedSemanticFrameJsonSchema,corpus.contexts[context]),ASK_REQUEST_INSTRUCTIONS);
++  cache.set(context,{wire,stack:createStackAskWirePlan(wire,tick)});
++ }
++ return cache.get(context);
++}
++const first=()=>{const f=corpus.fixtures[0];return{...plan(f.context),f}};
++test("stack transport preserves all 262 canonical alternatives and every exact graph edge",()=>{
++ assert.equal(corpus.fixtures.length,262);
++ for(const f of corpus.fixtures){
++  const {wire,stack}=plan(f.context),v=stack.encode(f.canonical,tick);
++  const decoded=stack.decode(JSON.parse(JSON.stringify(v)),tick);
++  assert.deepEqual(decoded,f.canonical);
++  const graph=wire.encode(decoded);
++  assert.deepEqual({nodes:[...graph.nodes,graph.root]},f.wire);
++  assert.equal(stack.uncompressedInstructions.slice(stack.uncompressedInstructions.indexOf("\nFIELDS ")),wire.instructions.slice(wire.instructions.indexOf("\nFIELDS ")));
++  assert.ok(!JSON.stringify(v).includes('"@":'));
++ }
++});
++test("provider schema has no recursion or numeric references, retaining the complete compiled typed union",()=>{
++ for(const context of Object.keys(corpus.contexts)){
++  const {wire,stack}=plan(context),expanded=expand(stack.schema),valid=makeValidator(expanded);
++  let markers=0;
++  function visit(n){
++   if(!n||typeof n!=="object")return;
++   assert.ok(!Object.hasOwn(n,"$ref"));
++   if(n.properties){assert.equal(n.additionalProperties,false);assert.deepEqual([...n.required].sort(),Object.keys(n.properties).sort());
++    assert.ok(!Object.hasOwn(n.properties,"@"));if(n.properties.take){markers++;assert.deepEqual(n.properties.take,{type:"boolean",enum:[true]});}}
++   Object.values(n).forEach(v=>Array.isArray(v)?v.forEach(visit):visit(v));
++  }
++  visit(expanded);assert.ok(markers>0);
++  for(const f of corpus.fixtures.filter(f=>f.context===context))assert.ok(valid(expanded,stack.encode(f.canonical,tick)));
++  assert.ok(wire.schema.properties.nodes.items);
++ }
++});
++test("stack rejects missing/wrong roots, opaque JSON and legacy numeric references",()=>{
++ const {stack,f}=first(),v=stack.encode(f.canonical,tick);
++ for(const x of [null,[],{},JSON.stringify(v),{nodes:v.nodes},{...v,root:v.nodes[0]},{nodes:v.nodes,root:{"@":0}}])
++  assert.throws(()=>stack.decode(x,tick));
++ const legacy=plan(f.context).wire.encode(f.canonical);
++ assert.throws(()=>stack.decode(legacy,tick),/PROVIDER_SCHEMA/);
++});
++test("stack underflow and unused trees fail closed before canonical decoding",()=>{
++ const {stack,f}=first(),v=stack.encode(f.canonical,tick);
++ assert.throws(()=>stack.decode({...v,nodes:[]},tick),/UNDERFLOW/);
++ assert.throws(()=>stack.decode({...v,nodes:[v.nodes[0],...structuredClone(v.nodes)]},tick),/UNUSED_TREES/);
++});
++test("schema-valid wrong child types reach and fail unchanged strict decoder",()=>{
++ const {stack}=first();let rejected=0;
++ for(const f of corpus.fixtures){
++  const p=plan(f.context),v=p.stack.encode(f.canonical,tick);
++  const leaves=v.nodes.map((n,i)=>({n,i})).filter(({n})=>!JSON.stringify(n).includes('"take":true'));
++  for(let j=1;j<leaves.length;j++){
++   const a=leaves[0],b=leaves[j];if(canonical(a.n)===canonical(b.n))continue;
++   const changed=structuredClone(v);[changed.nodes[a.i],changed.nodes[b.i]]=[changed.nodes[b.i],changed.nodes[a.i]];
++   try{p.stack.decode(changed,tick);}catch(e){assert.match(e.message,/^ASK_WIRE_/);rejected++;break;}
++  }
++  if(rejected>=5)break;
++ }
++ assert.ok(rejected>=5);
++ assert.ok(stack);
++});
++test("cycles, shared containers, sparse arrays and non-JSON values are refused",()=>{
++ const {stack}=first(),shared={},cycle={};cycle.x=cycle;
++ for(const v of [cycle,{a:shared,b:shared},{a:new Array(2)},{a:[undefined]},{a:NaN},{a:Infinity},{a:1n}]){
++  assert.throws(()=>stack.decode(v,tick));
++ }
++ const huge=[];huge.length=0xffffffff;assert.throws(()=>stack.decode({a:huge},tick),/RESOURCE_LIMIT/);
++});
++test("own accessors, toJSON and proxy traps never execute",()=>{
++ const {stack}=first();let calls=0;
++ const a={};Object.defineProperty(a,"nodes",{enumerable:true,get(){calls++;return []}});
++ const b={toJSON(){calls++;return {}}};
++ const p=new Proxy({}, {get(){calls++},ownKeys(){calls++;return []},getPrototypeOf(){calls++;return Object.prototype}});
++ const revoked=Proxy.revocable({},{});revoked.revoke();
++ for(const x of [a,b,p,revoked.proxy,{a:p}])assert.throws(()=>stack.decode(x,tick));
++ assert.equal(calls,0);
++});
++test("ambient anyOf/leave/toJSON and inherited indexed hooks fail closed without executing",()=>{
++ const {stack}=first();let calls=0;
++ for(const k of ["anyOf","leave","toJSON"]){
++  Object.defineProperty(Object.prototype,k,{configurable:true,get(){calls++;return true}});
++  let err;try{stack.decode({},tick)}catch(e){err=e}finally{delete Object.prototype[k]}
++  assert.match(err?.message||"",/ENVIRONMENT/);
++ }
++ Object.defineProperty(Object.prototype,"leave",{value:true,configurable:true});
++ let err;try{stack.decode({toJSON(){calls++;return {}}},tick)}catch(e){err=e}finally{delete Object.prototype.leave}
++ assert.match(err?.message||"",/ENVIRONMENT/);
++ Object.defineProperty(Array.prototype,"0",{configurable:true,get(){calls++;return 1}});
++ try{stack.decode({nodes:new Array(1)},tick)}catch(e){err=e}finally{delete Array.prototype[0]}
++ assert.match(err?.message||"",/ENVIRONMENT/);assert.equal(calls,0);
++});
++test("fresh runtime deadlines, depth and length bounds remain mandatory",()=>{
++ const {stack,f}=first(),v=stack.encode(f.canonical,tick),expired=Error("DEADLINE");
++ const check=()=>{throw expired};
++ assert.throws(()=>stack.decode(v,check),e=>e===expired);
++ assert.throws(()=>stack.encode(f.canonical,check),e=>e===expired);
++ assert.throws(()=>createStackAskWirePlan(plan(f.context).wire,check),e=>e===expired);
++ assert.throws(()=>stack.decode(v),/DEADLINE_REQUIRED/);
++ let deep={};for(let i=0;i<66;i++)deep={a:deep};
++ assert.throws(()=>stack.decode(deep,tick),/RESOURCE_LIMIT/);
++ assert.throws(()=>stack.decode({a:"x".repeat(65537)},tick),/STRING_LIMIT/);
++});
++test("exact UTF16 source text survives without normalization or coercion",()=>{
++ const {stack,f}=first(),v=stack.encode(f.canonical,tick);let checked=0;
++ for(let i=0;i<v.nodes.length;i++)for(const k of Object.keys(v.nodes[i])){
++  if(typeof v.nodes[i][k]!=="string")continue;
++  const x=structuredClone(v);x.nodes[i][k]="Q\uD800\uDFFF\uD800 e\u0301 😀";
++  try{const decoded=stack.decode(x,tick);assert.deepEqual(stack.encode(decoded,tick),x);checked++}catch(e){assert.match(e.message,/^ASK_(STACK_PROVIDER_SCHEMA|WIRE_)/)}
++ }
++ assert.ok(checked>0);
++});
++test("compiler rejects altered edge meaning and unsupported schema constraints",()=>{
++ const {wire}=first(),bad={...wire,schema:structuredClone(wire.schema)};
++ function change(n){if(!n||typeof n!=="object")return;if(n.properties?.["@"]){n.properties["@"].minimum=-1;return}Object.values(n).forEach(v=>Array.isArray(v)?v.forEach(change):change(v))}
++ change(bad.schema);assert.throws(()=>createStackAskWirePlan(bad,tick),/EDGE_SCHEMA/);
++ assert.throws(()=>createStackAskWirePlan({...wire,schema:{...wire.schema,allOf:[]}},tick),/UNSUPPORTED_SCHEMA/);
++});
++
++test("policy word dictionary has an exact inverse and leaves authority rules intact",()=>{
++ for(const context of Object.keys(corpus.contexts)){
++  const {stack}=plan(context);
++  const marker="\nPOLICY WORDS are exact aliases; expand them without changing meaning. ";
++  const [prefix,tail]=stack.instructions.split(marker),[legend,body]=tail.split("\nPOLICY\n");
++  const dictionary=new Map(legend.split(" ").map(x=>x.split("=")));
++  const restored=prefix+"\nPOLICY\n"+body.replace(/~[A-Za-z0-9]+/g,k=>dictionary.get(k));
++  assert.equal(restored,stack.uncompressedInstructions);
++  assert.ok(stack.uncompressedInstructions.length-stack.instructions.length>2000);
++ }
++});
++
++import crypto from "node:crypto";
++import {prepareAskInterpretationRequest,projectAskInterpretationContext} from "../app/lib/intelligence/interpret-ask.ts";
++import {createAskProviderWireSchema} from "../app/lib/intelligence/ask-wire-provider-schema.ts";
++import {askSourceWindows,askUserSourceInput,ASK_USER_SOURCE_INSTRUCTIONS,assertAskRequestInputBudget} from "../app/lib/intelligence/ask-interpretation-sources.ts";
++import {factorProviderEnumSchemas} from "../app/lib/ai/provider-enum-schema.ts";
++import {factorProviderCompoundSchemas} from "../app/lib/ai/provider-compound-schema.ts";
++test("final stack requests retain five pets and full 1200-unit turns with margin, omissions and no-SDK oversize rejection",()=>{
++ const rows=[];
++const sha=x=>crypto.createHash("sha256").update(x).digest("hex");
++for(const family of ["no_numeric","numeric"])for(const history of [0,2,8,39]){
++ const ctx=structuredClone(corpus.contexts[family]);
++ ctx.eligiblePets=[...ctx.eligiblePets,...["Juniper","Larch","Rowan"].map((name,i)=>({...ctx.eligiblePets[0],id:"synthetic-extra-"+i,name}))];
++ const seed=(family==="numeric"?ctx.currentMessage+" ":"")+"For Sable, Mica, Juniper, Larch and Rowan, summarize their saved records separately. Preserve recorded dates and identify missing evidence. ";
++ ctx.currentMessage=(seed+"Use only saved evidence. ".repeat(60)).slice(0,1200);
++ ctx.currentTurn={...ctx.currentTurn,text:ctx.currentMessage};ctx.ownerNoteSpans=[];
++ ctx.conversationTurns=Array.from({length:history},(_,i)=>({id:"synthetic-prior-"+i,role:"user",text:"Sable and Mica have separate saved records "+i,createdAt:"2026-09-29T00:00:00Z"}));
++ const mandatory=askSourceWindows(projectAskInterpretationContext(ctx)).next().value;
++ const prepared=prepareAskInterpretationRequest({...ctx,conversationTurns:[]},"gpt-5.4-mini");
++ const source=factorProviderCompoundSchemas(factorProviderEnumSchemas(askRequestProviderSchema(proposedSemanticFrameJsonSchema,mandatory)));
++ const wire=createAskWirePlan(source,ASK_REQUEST_INSTRUCTIONS),stack=createStackAskWirePlan(wire,()=>{});
++ const input={...JSON.parse(prepared.request.input),...askUserSourceInput(mandatory)};
++ const schema=createAskProviderWireSchema(stack.schema);
++ const final={...prepared.request,instructions:stack.instructions+"\n"+ASK_USER_SOURCE_INSTRUCTIONS,input:JSON.stringify(input),text:{format:{type:"json_schema",name:"furvise_ask_stack",strict:true,schema}}};
++ assert.equal(input.userSources.find(x=>x.id===ctx.currentTurn.id).text,ctx.currentMessage);
++ assert.equal(input.ownedPets.length,5);assert.equal(input.sourceWindow.omittedPriorUserTurns,history);
++ let admitted=false;try{assertAskRequestInputBudget(final);admitted=true}catch(e){assert.equal(e.code,"AI_PROVIDER_BUDGET_EXHAUSTED")}
++ const chars=JSON.stringify(final).length;
++ rows.push({family,history,chars,margin:60000-chars,schemaChars:JSON.stringify(schema).length,instructionChars:final.instructions.length,inputChars:final.input.length,admitted,omissionsDisclosed:history===0||typeof input.sourceWindow.disclosure==="string",requestHash:sha(JSON.stringify(final)),schemaHash:sha(JSON.stringify(schema))});
++ assert.equal(final.max_output_tokens,8192);
++}
++assert.equal(rows.length,8);assert.ok(rows.every(r=>r.admitted&&r.margin>=2500&&r.omissionsDisclosed));
++let calls=0;
++assert.throws(()=>{assertAskRequestInputBudget({input:"x".repeat(60001)});calls++},e=>e.code==="AI_PROVIDER_BUDGET_EXHAUSTED");
++assert.equal(calls,0);
++});
+diff --git a/tests/ask-wire-typed-grammar.test.mjs b/tests/ask-wire-typed-grammar.test.mjs
+new file mode 100644
+index 00000000..68ff1c2a
+--- /dev/null
++++ b/tests/ask-wire-typed-grammar.test.mjs
+@@ -0,0 +1,119 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import { readFileSync } from "node:fs";
++import { createAskWirePlan } from "../app/lib/intelligence/ask-wire-policy.mjs";
++import { compileTypedJsonGrammar, createTypedGrammarAskWirePlan } from "../app/lib/intelligence/ask-wire-typed-grammar.mjs";
++import { askRequestProviderSchema, ASK_REQUEST_INSTRUCTIONS } from "../app/lib/intelligence/ask-request-contract.ts";
++import { proposedSemanticFrameJsonSchema } from "../app/lib/intelligence/semantic-frame/schema.ts";
++import { createAskProviderWireSchema } from "../app/lib/intelligence/ask-wire-provider-schema.ts";
++const corpus = JSON.parse(readFileSync(new URL("./fixtures/ask-wire-codec.json", import.meta.url), "utf8"));
++const tick = () => {}, cache = new Map();
++function plan(context) {
++ if (!cache.has(context)) {
++  const wire = createAskWirePlan(askRequestProviderSchema(proposedSemanticFrameJsonSchema, corpus.contexts[context]), ASK_REQUEST_INSTRUCTIONS);
++  cache.set(context, {wire, grammar:createTypedGrammarAskWirePlan(wire,createAskProviderWireSchema(wire.typedSchema),tick)});
++ }
++ return cache.get(context);
++}
++const first = () => {const f=corpus.fixtures[0];return {...plan(f.context),f};};
++test("typed grammar preserves every canonical fixture and exact original graph", () => {
++ assert.equal(corpus.fixtures.length,262);
++ for (const f of corpus.fixtures) {
++  const {wire,grammar}=plan(f.context), value=grammar.encode(f.canonical,tick);
++  assert.deepEqual(grammar.decode(JSON.parse(JSON.stringify(value)),tick),f.canonical);
++  const graph=wire.encode(grammar.decode(value,tick));
++  assert.deepEqual({nodes:[...graph.nodes,graph.root]},f.wire);
++  assert.ok(grammar.grammar.length<30000);
++  assert.equal(grammar.instructions.slice(grammar.instructions.indexOf("\nFIELDS ")),
++   wire.instructions.slice(wire.instructions.indexOf("\nFIELDS ")));
++ }
++});
++test("typed grammar rejects missing/wrong root, opaque JSON, indexes and wrong primitive type", () => {
++ const {grammar,f}=first();
++ for (const v of [null,[],{},'{"request":{}}',{"@":0},{root:grammar.encode(f.canonical,tick)}])
++  assert.throws(()=>grammar.decode(v,tick));
++ const root=grammar.encode(f.canonical,tick), key=Object.keys(root)[0];
++ for (const child of ['{}',{"@":0},null,[],false])
++  assert.throws(()=>grammar.decode({...root,[key]:child},tick));
++});
++test("typed grammar rejects cycles, shared containers, sparse/undefined/nonfinite values", () => {
++ const {grammar}=first(), shared={};
++ const cycle={};cycle.x=cycle;
++ for(const v of [cycle,{a:shared,b:shared},{a:new Array(2)},{a:[undefined]},{a:NaN},{a:Infinity},{a:1n}])
++  assert.throws(()=>grammar.decode(v,tick));
++ const huge=[];huge.length=0xffffffff;
++ assert.throws(()=>grammar.decode({a:huge},tick),/RESOURCE_LIMIT/);
++});
++test("typed grammar does not invoke own hooks or accessors", () => {
++ const {grammar}=first();let calls=0;
++ const accessor={};Object.defineProperty(accessor,"a",{enumerable:true,get(){calls++;return 1;}});
++ const hooks={toJSON(){calls++;return {};}};
++ for(const v of [accessor,hooks,{a:accessor},{a:hooks}])
++  assert.throws(()=>grammar.decode(v,tick),/OWN_DATA_PROPERTY/);
++ assert.equal(calls,0);
++});
++test("typed grammar rejects inherited hooks without invoking them", () => {
++ const {grammar}=first();let calls=0;
++ for(const key of ["anyOf","leave","toJSON"]) {
++  Object.defineProperty(Object.prototype,key,{configurable:true,get(){calls++;return true;}});
++  let failure;
++  try {grammar.decode({},tick);}catch(e){failure=e;}
++  finally{delete Object.prototype[key];}
++  assert.match(failure?.message||"",/ENVIRONMENT/);
++ }
++ Object.defineProperty(Array.prototype,"0",{configurable:true,get(){calls++;return 1;}});
++ let failure;
++ try{grammar.decode({a:new Array(1)},tick);}catch(e){failure=e;}
++ finally{delete Array.prototype[0];}
++ assert.match(failure?.message||"",/ENVIRONMENT/);
++ assert.equal(calls,0);
++});
++test("typed grammar enforces depth and fresh runtime deadline on encode and decode", () => {
++ const {grammar,f}=first(), value=grammar.encode(f.canonical,tick);
++ const expired=Error("TEST_RUNTIME_DEADLINE"),check=()=>{throw expired;};
++ assert.throws(()=>grammar.decode(value,check),e=>e===expired);
++ assert.throws(()=>grammar.encode(f.canonical,check),e=>e===expired);
++ let deep={};for(let i=0;i<66;i++)deep={a:deep};
++ assert.throws(()=>grammar.decode(deep,tick),/RESOURCE_LIMIT/);
++ assert.throws(()=>compileTypedJsonGrammar({type:"object",properties:{},required:[],additionalProperties:false},check),e=>e===expired);
++});
++test("typed grammar compiler rejects unsupported schemas and no-hook inputs", () => {
++ const schema={type:"object",properties:{},required:[],additionalProperties:false};
++ for(const s of [{...schema,allOf:[]},{...schema,required:["missing"]},
++  {...schema,properties:{a:{$ref:"#/$defs/missing"}},required:["a"]},
++  {...schema,properties:{a:{type:"array",items:{type:"string"},maxItems:5000}},required:["a"]}])
++  assert.throws(()=>compileTypedJsonGrammar(s));
++ let calls=0;const hostile={...schema};Object.defineProperty(hostile,"anyOf",{enumerable:true,get(){calls++;return [];}});
++ assert.throws(()=>compileTypedJsonGrammar(hostile),/OWN_DATA_PROPERTY/);assert.equal(calls,0);
++});
++test("typed grammar adapter preserves exact UTF16 quotes without normalization", () => {
++ const {grammar,f}=first();
++ const baseline=grammar.encode(f.canonical,tick);
++ let checked=0;
++ function locations(v,path=[]) {
++  if(typeof v==="string")return [path];
++  if(v===null||typeof v!=="object")return [];
++  return Object.entries(v).flatMap(([k,x])=>locations(x,[...path,k]));
++ }
++ for(const path of locations(baseline)) {
++  const v=structuredClone(baseline);let parent=v;for(const k of path.slice(0,-1))parent=parent[k];
++  parent[path.at(-1)]="Q\uD800\uDFFF\uD800 e\u0301 😀";
++  try {
++   const decoded=grammar.decode(v,tick);
++   assert.deepEqual(grammar.encode(decoded,tick),v);checked++;
++  }catch(e){if(!/^ASK_(TYPED_GRAMMAR_TYPED_SCHEMA|WIRE_)/.test(e.message))throw e;}
++ }
++ assert.ok(checked>0,"fixture must contain an unconstrained text source");
++});
++
++test("typed grammar rejects proxies before invoking any input trap", () => {
++ const {grammar}=first();let calls=0;
++ const traps={getPrototypeOf(){calls++;return Object.prototype;},ownKeys(){calls++;return [];},
++  getOwnPropertyDescriptor(){calls++;return undefined;},get(){calls++;return undefined;}};
++ const proxy=new Proxy({},traps), arrayProxy=new Proxy([],traps);
++ const revoked=Proxy.revocable({},{});revoked.revoke();
++ for(const v of [proxy,arrayProxy,revoked.proxy,{a:proxy}])
++  assert.throws(()=>grammar.decode(v,tick),/NON_JSON_TREE/);
++ assert.throws(()=>compileTypedJsonGrammar(proxy),/NON_JSON_TREE/);
++ assert.equal(calls,0);
++});
+diff --git a/tests/helpers/ask-semantic-fixture.mjs b/tests/helpers/ask-semantic-fixture.mjs
+new file mode 100644
+index 00000000..6e607ae4
+--- /dev/null
++++ b/tests/helpers/ask-semantic-fixture.mjs
+@@ -0,0 +1,6 @@
++// Fake-provider encoding only; actual parsing retains operation runtime deadlines.
++export function semanticFixturePlan(prepared) {
++  const transport = prepared.transport;
++  return { ...transport, encode: value => transport.encode(value, () => {}),
++    decode: value => transport.decode(value, () => {}) };
++}
+diff --git a/tests/helpers/ask-staged-route-fixture.mjs b/tests/helpers/ask-staged-route-fixture.mjs
+index fab67dc5..b38d6176 100644
+--- a/tests/helpers/ask-staged-route-fixture.mjs
++++ b/tests/helpers/ask-staged-route-fixture.mjs
+@@ -115,7 +115,7 @@ export function fixture(options={}){
+  derivePendingLifecycleAssertion:()=>null,getPetLifecycleStatus:()=> 'active',resolveDurableLifecycleCorrection:()=>null,deriveAskTurnView:()=>({contextUsed:{usedSources:[]},concerns:[],recentlyResolvedConcerns:[]}),
+  getAskModelConfiguration:()=>({primary:'gpt-5.4-mini'}),getAskProviderCooldown:()=>({active:false}),askGuardOperationTtlSeconds:180,askRequestTimeoutMs:120000,
+  admitAiOperation:options.admitAiOperation,withTimeout:p=>p,
+- interpretAskQuestion:async input=>{events.push('brain');options.onContext?.(input.context);const interpreted = await interpretAskQuestion({...input,client:{responses:{create:async(request,providerOptions)=>{state.planner++;if(options.providerCreate)return options.providerCreate(request,providerOptions);if(options.modelDown)throw Error('offline provider');return {output_text:JSON.stringify(options.proposal||proposal())};}}}});options.onInterpretation?.(interpreted);return interpreted;},logAskProviderEvent:event=>{state.providerEvents??=[];state.providerEvents.push(structuredClone(event));},
++ interpretAskQuestion:async input=>{const prior=process.env.NODE_TEST_CONTEXT;if(options.fullCatalogPipeline)delete process.env.NODE_TEST_CONTEXT;try{events.push('brain');options.onContext?.(input.context);const interpreted = await interpretAskQuestion({...input,client:{responses:{create:async(request,providerOptions)=>{state.planner++;if(options.providerCreate)return options.providerCreate(request,providerOptions);if(options.modelDown)throw Error('offline provider');return {output_text:JSON.stringify(options.proposal||proposal())};}}}});options.onInterpretation?.(interpreted);return interpreted;}finally{if(options.fullCatalogPipeline){if(prior===undefined)delete process.env.NODE_TEST_CONTEXT;else process.env.NODE_TEST_CONTEXT=prior;}}},logAskProviderEvent:event=>{state.providerEvents??=[];state.providerEvents.push(structuredClone(event));},
+  buildSubjectClarificationOrchestration:()=>{events.push('clarification:unexpected');throw Error('F_EXPECTS_TYPED_BINDER_REJECTION');},
+  buildFurviseContext:async()=>{events.push('factual-context:attempt');throw Error('F_UNRESOLVED_FACTUAL_CONTEXT_ATTEMPT');},failAiAdmission:async()=>{},logAskPreProvider503:noop,
+  askFailure:(code,message,status)=>Response.json({success:false,code,message},{status}),handleAskApiError:(error)=>{errors.push({error});return Response.json({success:false,error:String(error)},{status:503});},friendlyAnswerFailure:FURVISE_ANSWER_UNAVAILABLE_MESSAGE,FURVISE_ASK_UNAVAILABLE_MESSAGE:'unavailable',
+diff --git a/tests/helpers/ask-wire-contract.mjs b/tests/helpers/ask-wire-contract.mjs
+index 3b12b4db..098b3c3d 100644
+--- a/tests/helpers/ask-wire-contract.mjs
++++ b/tests/helpers/ask-wire-contract.mjs
+@@ -1,4 +1,4 @@
+-import { recursiveFixturePlan } from "./recursive-wire-fixture.mjs";
++import { createDirectSemanticAskWirePlan } from "../../app/lib/intelligence/ask-wire-direct.mjs";
+ import assert from "node:assert/strict";
+ import { createAskWirePlan } from "../../app/lib/intelligence/ask-wire-policy.mjs";
+ 
+@@ -9,7 +9,7 @@ export async function inspectAskWireContract(request, context) {
+  const { projectAskInterpretationContext } = await import("../../app/lib/intelligence/interpret-ask.ts");
+  const { askSourceWindows, askUserSourceInput, ASK_USER_SOURCE_INSTRUCTIONS } = await import("../../app/lib/intelligence/ask-interpretation-sources.ts");
+  const { createAskProviderWireSchema } = await import("../../app/lib/intelligence/ask-wire-provider-schema.ts");
+- const { ASK_REQUEST_INSTRUCTIONS, askRequestProviderSchema } = await import("../../app/lib/intelligence/ask-request-contract.ts");
++ const { ASK_REQUEST_INSTRUCTIONS, askRequestSchema, askRequestProviderSchema } = await import("../../app/lib/intelligence/ask-request-contract.ts");
+  const { proposedSemanticFrameJsonSchema } = await import("../../app/lib/intelligence/semantic-frame/schema.ts");
+  const { factorProviderEnumSchemas } = await import("../../app/lib/ai/provider-enum-schema.ts");
+  const { factorProviderCompoundSchemas } = await import("../../app/lib/ai/provider-compound-schema.ts");
+@@ -26,7 +26,8 @@ export async function inspectAskWireContract(request, context) {
+    if (plans.size >= 16) plans.delete(plans.keys().next().value);
+    plans.set(key, createAskWirePlan(providerSchema, ASK_REQUEST_INSTRUCTIONS));
+  }
+- const plan = recursiveFixturePlan(plans.get(key));
++ const wire = plans.get(key);
++ const plan = createDirectSemanticAskWirePlan(wire, wire.instructions, askRequestSchema(proposedSemanticFrameJsonSchema, selected), () => {});
+  assert.deepEqual(request.text.format.schema, createAskProviderWireSchema(plan.schema), "actual wire schema differs from the source-window compiler");
+  assert.equal(request.instructions, plan.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS, "actual policy differs from pinned policy and source adapter");
+  return { canonicalSchema, providerSchema, sourceInstructions: ASK_REQUEST_INSTRUCTIONS };
+diff --git a/tests/helpers/staged-operation-fixture.mjs b/tests/helpers/staged-operation-fixture.mjs
+index 48ef9d66..e76c42db 100644
+--- a/tests/helpers/staged-operation-fixture.mjs
++++ b/tests/helpers/staged-operation-fixture.mjs
+@@ -1,4 +1,4 @@
+-import { recursiveFixturePlan } from "./recursive-wire-fixture.mjs";
++import { semanticFixturePlan } from "./ask-semantic-fixture.mjs";
+ import assert from 'node:assert/strict';
+ import {readFileSync} from 'node:fs';
+ import {admitAiOperation} from '../../app/lib/ai/usage-guard/admission.ts';
+@@ -26,10 +26,11 @@ export async function stagedOperation({context,purpose,request,db,initial=()=>{}
+   ownerScope:ownerScope?{basis:'explicit_owner_receipts',sourceTurnId:context.currentTurn.id,quote:context.currentMessage}:null,
+   subjects:ownerScope?[]:p.petNames.map(petName=>({petName,sourceTurnId:context.currentTurn.id,quote:context.currentMessage,basis:petName===context.pet.name?'selected':'named'})),request:p};
+  const admission=await admitAiOperation({feature:'ask',userId:context.owner.userId,requestId:crypto.randomUUID(),payload:{fixture:purpose},intendedModel:'gpt-5.4-mini',env:{NODE_ENV:'test',FURVISE_AI_DAILY_CALL_LIMIT:'20',FURVISE_AI_DAILY_COST_LIMIT_USD:'1'},store:new MemoryAiGuardTestStore()});
++ const prior=process.env.NODE_TEST_CONTEXT;delete process.env.NODE_TEST_CONTEXT;
+  let calls=0,hydrated;
+  try{return await admission.run(async()=>{
+   const prepared=prepareAskInterpretationRequest(context,'gpt-5.4-mini');
+-  const encoded=recursiveFixturePlan(prepared.wire).encode({request:intent});
++  const encoded=semanticFixturePlan(prepared).encode({request:intent});
+   const result=await interpretAskQuestion({context,model:'gpt-5.4-mini',catalogService:{requestId:'fixture-'+purpose,capability:()=>({available:true}),
+    hydrate:async permit=>{hydrated=await hydratePlanningCatalog(permit,prepared.context,db);return hydrated;},verify:permit=>verifyPlanningCatalogSource(permit,db)},
+    client:{responses:{create:async wire=>{
+@@ -41,5 +42,5 @@ export async function stagedOperation({context,purpose,request,db,initial=()=>{}
+   });
+   assert.equal(calls,purpose==='lifecycle'?1:2);
+   return{result,context:hydrated.context,calls,catalog:hydrated.catalog};
+- });}catch(error){throw new Error(JSON.stringify(error.diagnostics||error.message),{cause:error});}finally{await admission.release();}
++ });}catch(error){throw new Error(JSON.stringify(error.diagnostics||error.message),{cause:error});}finally{await admission.release();if(prior===undefined)delete process.env.NODE_TEST_CONTEXT;else process.env.NODE_TEST_CONTEXT=prior;}
+ }
+diff --git a/tests/replace-reference-context.test.mjs b/tests/replace-reference-context.test.mjs
+index 1eb175eb..2bda9246 100644
+--- a/tests/replace-reference-context.test.mjs
++++ b/tests/replace-reference-context.test.mjs
+@@ -1,4 +1,4 @@
+-import { recursiveFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
++import { semanticFixturePlan } from "./helpers/ask-semantic-fixture.mjs";
+ import test from 'node:test';
+ import assert from 'node:assert/strict';
+ import {registerHooks} from 'node:module';
+@@ -21,7 +21,8 @@ function setup(){
+ }
+ async function admitted(fn,seedInterpretation=true){
+  const a=await admitAiOperation({feature:'ask',userId:id(1),requestId:crypto.randomUUID(),payload:{fixture:'replacement-catalog'},intendedModel:'gpt-5.4-mini',env:{NODE_ENV:'test',FURVISE_AI_DAILY_CALL_LIMIT:'20',FURVISE_AI_DAILY_COST_LIMIT_USD:'1',FURVISE_RATE_LIMIT_HASH_SECRET:'offline-replace-fixture-identity'},store:new MemoryAiGuardTestStore()});
+- try{return await a.run(async()=>{if(seedInterpretation){const c=await a.beginProviderCall({model:'gpt-5.4-mini',input:{fixture:'prior interpretation accounting only'},maxOutputTokens:1,stage:'interpretation'});await a.recordProviderUsage(c.reservation,'gpt-5.4-mini',{inputTokens:0,outputTokens:0});}return fn(a);});}finally{await a.release();}
++ const prior=process.env.NODE_TEST_CONTEXT;delete process.env.NODE_TEST_CONTEXT;
++ try{return await a.run(async()=>{if(seedInterpretation){const c=await a.beginProviderCall({model:'gpt-5.4-mini',input:{fixture:'prior interpretation accounting only'},maxOutputTokens:1,stage:'interpretation'});await a.recordProviderUsage(c.reservation,'gpt-5.4-mini',{inputTokens:0,outputTokens:0});}return fn(a);});}finally{await a.release();if(prior===undefined)delete process.env.NODE_TEST_CONTEXT;else process.env.NODE_TEST_CONTEXT=prior;}
+ }
+ test('catalog converts only owned supplied rows to opaque handles after real staged permit',()=>admitted(async()=>{
+  const{f,intent}=setup();const calls=[],row={id:id(4),user_id:id(1),pet_profile_id:id(2),note:'Original record.',created_at:'2026-09-20T00:00:00Z',updated_at:'2026-09-20T00:00:00Z',occurred_at:'2026-09-20T00:00:00Z'};
+@@ -39,7 +40,7 @@ test('unavailable catalog fails closed without guessed exact handles',()=>admitt
+ test('same Brain source-free intent then permitted exact selection; Binder owns record/version',()=>admitted(async()=>{
+  const{f,intent}=setup();const row={id:id(4),user_id:id(1),pet_profile_id:f.pet.id,note:'Supplied original.',occurred_at:'2026-09-22T00:00:00Z',created_at:'2026-09-22T00:00:00Z',updated_at:'2026-09-22T00:00:00Z'};
+  const order=[];let calls=0;globalThis.__replaceCatalog={rpc:async(name)=>{order.push(name);return{data:[row],error:null};}};
+- const prepared=prepareAskInterpretationRequest(f.context,'gpt-5.4-mini'),wire=recursiveFixturePlan(prepared.wire);
++ const prepared=prepareAskInterpretationRequest(f.context,'gpt-5.4-mini'),wire=semanticFixturePlan(prepared);
+  const result=await interpretAskQuestion({context:f.context,model:'gpt-5.4-mini',catalogService:{requestId:'staged-exact',capability:()=>({available:true}),hydrate:permit=>hydratePlanningCatalog(permit,prepared.context,f.db),verify:permit=>verifyPlanningCatalogSource(permit,f.db)},client:{responses:{create:async request=>{
+  calls++;order.push('brain-'+calls);const text=JSON.stringify(request);assert.ok(!text.includes(row.id),'opaque provider catalog');
+  if(calls===1){assert.ok(!text.includes(row.note));assert.deepEqual(request.text.format.schema,prepared.request.text.format.schema);assert.equal(request.instructions,prepared.request.instructions);assert.equal(request.input,prepared.request.input);return{output_text:JSON.stringify(wire.encode({request:intent})),usage:{input_tokens:0,output_tokens:0}};}
