@@ -1,0 +1,100 @@
+--- a/app/lib/intelligence/ask-wire-nested-path.mjs
++++ b/app/lib/intelligence/ask-wire-nested-path.mjs
+@@ -89,6 +89,80 @@
+ return{schema:out,stats};}
+ 
+ 
++function depthBoundedProviderSchema(original,maxContainers=9,maxGrowth=300){
++ const baseline=JSON.stringify(original).length,maxBytes=baseline+maxGrowth;
++ const isObj=x=>x!==null&&typeof x==="object"&&!Array.isArray(x);
++ function metrics(root){
++  const defs=root.$defs||{};let max=0,excess=0;
++  function walk(n,depth=0,refs=[]){
++   check();if(!isObj(n))return;
++   if(n.$ref){ensure(n.$ref.startsWith("#/$defs/"),"DEPTH_REF");const key=n.$ref.slice(8);
++    ensure(Object.hasOwn(defs,key)&&!refs.includes(key),"DEPTH_CYCLE");walk(defs[key],depth,[...refs,key]);return;}
++   if(n.type==="object"||n.type==="array"){depth++;max=Math.max(max,depth);if(depth>maxContainers)excess++;}
++   for(const v of Object.values(n.properties||{}))walk(v,depth,refs);
++   if(n.items)walk(n.items,depth,refs);
++   for(const v of n.anyOf||[])walk(v,depth,refs);
++  }
++  walk(root);return {max,excess};
++ }
++ function resolved(root,v){
++  if(!isObj(v))return null;
++  return v.$ref?.startsWith("#/$defs/")?root.$defs?.[v.$ref.slice(8)]:v;
++ }
++ function candidates(root){
++  const out=[];
++  function find(n,path=[]){
++   check();if(!isObj(n))return;
++   if(n.type==="object"&&n.properties){
++    for(const [key,child]of Object.entries(n.properties)){
++     const target=resolved(root,child);
++     if(!key.includes("/")&&isObj(target)&&target.type==="object"&&target.additionalProperties===false
++       &&isObj(target.properties)&&Array.isArray(target.required)
++       &&canonical([...target.required].sort())===canonical(Object.keys(target.properties).sort())
++       &&Object.keys(child).every(k=>k==="$ref"||k==="type"||k==="properties"||k==="additionalProperties"||k==="required")
++       &&Object.keys(target.properties).every(k=>!k.includes("/"))
++       &&Object.keys(target.properties).every(k=>!Object.hasOwn(n.properties,key+"/"+k))){
++      out.push([path,key]);
++     }
++    }
++   }
++   for(const typ of ["properties","$defs"])for(const [k,v]of Object.entries(n[typ]||{}))find(v,[...path,[typ,k]]);
++   for(let i=0;i<(n.anyOf?.length||0);i++)find(n.anyOf[i],[...path,["anyOf",i]]);
++   if(n.items)find(n.items,[...path,["items",null]]);
++  }
++  find(root);return out;
++ }
++ function flattened(root,entry){
++  const candidate=structuredClone(root);let parent=candidate;const [path,key]=entry;
++  for(const [kind,index]of path)parent=index===null?parent[kind]:parent[kind][index];
++  const target=resolved(candidate,parent.properties[key]);
++  ensure(isObj(target)&&target.type==="object","DEPTH_TARGET");
++  const replacements=Object.fromEntries(Object.entries(target.properties).map(([k,v])=>[key+"/"+k,structuredClone(v)]));
++  parent.properties={...Object.fromEntries(Object.entries(parent.properties).filter(([k])=>k!==key)),...replacements};
++  parent.required=[...parent.required.filter(k=>k!==key),...Object.keys(replacements)];
++  return candidate;
++ }
++ let cur=structuredClone(original),before=metrics(cur);
++ for(let step=0;step<16&&before.excess>0;step++){
++  let best=null;
++  for(const path of candidates(cur)){
++   check();
++   const test=flattened(cur,path),len=JSON.stringify(test).length;
++   if(len>maxBytes)continue;
++   const next=metrics(test);
++   if(next.excess>=before.excess)continue;
++   if(best===null||next.excess<best.depth.excess||next.excess===best.depth.excess&&len<best.len)
++    best={schema:test,len,depth:next};
++  }
++  ensure(best!==null,"NESTING_UNRESOLVED");
++  cur=best.schema;before=best.depth;
++ }
++ ensure(before.max<=maxContainers,"NESTING_DEPTH");
++ ensure(canonical(norm(restore(expand(original,check))))===
++        canonical(norm(restore(expand(cur,check)))),"NESTING_INVERSE");
++ return cur;
++}
++
+  const stack=createStackAskWirePlan(wire,check);
+  const source=plainCopy(wire.typedSchema,check);
+  function audit(n){check();if(!obj(n))return;
+@@ -98,13 +172,13 @@
+  audit(source);
+  const transformed=selective(single(source)).schema;
+  ensure(canonical(norm(expand(source,check)))===canonical(norm(unsingle(restore(expand(transformed,check))))),"SCHEMA_INVERSE");
+- const schema=pure(transformed).schema;
++ const schema=depthBoundedProviderSchema(pure(transformed).schema);
+  const expanded=expand(schema,check),valid=makeValidator(expanded,check);
+  const boundary=stack.instructions.indexOf("\nFIELDS ");
+  ensure(boundary>=0,"POLICY_LAYOUT");
+- const instructions="Return canonical semantic proposal as ONE rooted nested typed JSON object. Each object-valued child is embedded directly in its parent. Do not emit nodes arrays, indexes, stack markers or omitted branches. Every field and inactive tagged constant required. Server validates against original canonical schema and Binder; never infer data or permissions."
++ const instructions="Canonical nested JSON root: embed child objects, not node lists/indexes/stack markers. All branches/fields/inactive tags/values explicit; infer no facts or authority. Codec/Binder validate."
+   +stack.instructions.slice(boundary)
+-  +"\nPATHS: A/B keys preserve nested field A then B. Segment 0 denotes the sole item of a schema-fixed one-item array. Server restores only this declared structure; all values and semantic choices must be explicit.";
++  +"\nPATHS: A/B=B in A; 0=single fixed-array item. Choices explicit; restore declared form only.";
+  const miss=Symbol("missing");
+  function read(v,path,c){for(const k of path.split("/")){c();if(v===null||typeof v!=="object"||!Object.hasOwn(v,k))return miss;v=v[k];}return v;}
+  function encodeNode(v,s,c){c();
