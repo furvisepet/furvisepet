@@ -1,0 +1,53 @@
+{
+  "kind": "V24ProviderSchemaDepth9AfterFixOffline.v2",
+  "date": "2026-10-12T22:43:28.321364+00:00",
+  "decision": "OFFLINE-CANDIDATE VALIDATED; HOSTED AND PRODUCTION NO-GO",
+  "why": "Previous live structured-output 400 invalid_json_schema; provider no detailed pointer. Maximum expanded nesting depth was 10; candidate reduces to 9. Root cause remains unconfirmed until hosted acceptance.",
+  "previousHostedRequestId": "req_4060c760b3184f458f3dbb06f0b2d751",
+  "previousStatus400": true,
+  "sourceBaselineSha256": "11c0df77362be018a958bc05ba4ce109b52906d5ae3682c0b106f4509865f62d",
+  "sourceCandidateSha256": "5d15d6dfb202e692073ef07f50601bebd5c6247a76e8e23cf663411573469255",
+  "patchSha256": "6d0aae429521c3509e19107f81430272e416479861ba4f9a584bd7571745f52a",
+  "baselineDirtyPathCountPreserved": 216,
+  "nestedDepthFrom": 10,
+  "nestedDepthTo": 9,
+  "schemaSizeGrowthChars": 219,
+  "instructionHeaderFooterSavingChars": 281,
+  "projectedWorstApplicationRequestChars": 59497,
+  "maxApplicationRequestChars": 60000,
+  "projectedWorstMarginChars": 503,
+  "factual": {
+    "canonicalFixtureRoundTrips": 262,
+    "securityTestsPassed": 162,
+    "affectedTestsPassed": 138,
+    "typecheckExit": 0,
+    "marginAdmissionTestsPassed": 1,
+    "productionWebpackBuildPass": true
+  },
+  "limitations": [
+    "Full 5840-suite rerun not performed on this post-patch candidate.",
+    "Hosted provider schema acceptance not tested. Earlier error did not identify exact JSON Schema rule.",
+    "Model-generated semantic fidelity and Binder on a real response not proven.",
+    "No production deployment performed."
+  ],
+  "sideEffects": {
+    "newPaidOpenAiCalls": 0,
+    "productionDeployments": 0,
+    "realPetDataAccess": false,
+    "userOriginalWorktreeChanged": false,
+    "githubPush": false
+  },
+  "costConservativePriorUSD": 2.935071,
+  "residualProviderBillingUnknown": true,
+  "files": {
+    "PATCHED_SOURCE.mjs": "5d15d6dfb202e692073ef07f50601bebd5c6247a76e8e23cf663411573469255",
+    "DEPTH9_ALL_FIXTURES.json": "45296a5ceda665dac3323d61fd61ba905ff7dded7095ce74c3a49692737ef1ac",
+    "SHORT_HEADER_REPORT.json": "463ef17790ed6685f771b4545b88f2e647c8d45a1fecea9e1f3a5a5204036548",
+    "MARGIN_TEST.stdout.log": "96f745d8069ba47fc2226d4493bbca34f516b1395007dc25fbed2bda967798d6",
+    "SECURITY_TS_REPORT.json": "fffd97da464e4bedfb3dfbdf5a48c8f6b22a6ba48ac3da35a2da668b17b4ee53",
+    "AFFECTED.stdout.log": "0fff1f292bd6f081dbcec7bb091c989921a59b06741bd5f3754b75871412e23b",
+    "WEBPACK_BUILD.stdout.log": "8d7778728b0a44286e54e747f805a96065bc87019f03410dd6e70d4d1b437ae9",
+    "FOCUSED.stdout.log": "278cf9366940813b94c5b01c95ec8221b5942f4570c0afa41a126ac846c3412b",
+    "DEPTH9_AND_MARGIN.patch": "6d0aae429521c3509e19107f81430272e416479861ba4f9a584bd7571745f52a"
+  }
+}
