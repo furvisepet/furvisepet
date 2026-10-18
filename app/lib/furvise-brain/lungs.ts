@@ -87,6 +87,8 @@ async function retrieveFactualReadTicket(ticket: ReadTicket, scope: ReadScope, s
   if (!requiresTemporalHistory(ticket.temporal) && ticket.selection && store.effectiveWindow)
     return retrieveEffectiveSelection(ticket, scope, store, LUNGS_LIMITS);
   const orderedSet = isOrderedResultSet(ticket);
+  const reportedAnchor = ticket.authority === "stored_report" && ticket.temporal.anchor !== null;
+  if (reportedAnchor && !store.effectiveWindow) return result("unavailable", "reported_anchor_source_proof_unavailable");
   // Anchor discovery must precede applying the requested interval. A correction
   // may also move an event across that boundary, so resolve lineage first.
   try {
@@ -99,10 +101,16 @@ async function retrieveFactualReadTicket(ticket: ReadTicket, scope: ReadScope, s
       return result(reason === "page_changed_during_read" ? "partial" : "unavailable", reason);
     }
     coverage.reasons.push(...new Set(acquired.failures.map(failure => failure.reason)));
-    const effective = orderedSet && store.effectiveWindow
+    const effective = (orderedSet || reportedAnchor) && store.effectiveWindow
       ? await resolveResultSetHistory(ticket, scope, store, candidates, coverage, accessibleFrom, accessibleTo)
       : await store.effective(candidates);
     if (!effective.reliable) return result("unavailable", "effective_truth_unavailable");
+    // A report anchor never inherits the legacy effective-fact reliable flag.
+    // Every subject needs the existing store-owned report/closure certificate.
+    if (reportedAnchor && ticket.subjects.petIds.some(petId => {
+      const streams = coverage.effectiveStream?.filter(stream => stream.petId === petId) || [];
+      return streams.length !== 1 || streams[0].storedReportsCertified !== true || !streams[0].replacementSeedsExhausted;
+    })) return result("unavailable", "reported_anchor_source_proof_unavailable");
     // A validated saved report may have an unresolved correction link. Keep
     // the report, but never upgrade it into a verified effective fact or edge.
     const uncertainIds = new Set(effective.sourceLineage?.map(source => source.eventId) || []);
@@ -197,6 +205,15 @@ async function retrieveFactualReadTicket(ticket: ReadTicket, scope: ReadScope, s
         if (omitted) group.reasons.push("required_selection_not_retained");
         group.reasons.push(...failed.map(failure => failure.reason));
         group.blocked = !group.exhausted || uncertain || omitted || !!failed.length;
+        if (reportedAnchor) {
+          const stream = coverage.effectiveStream?.find(value => value.petId === group.petId);
+          const certified = !group.blocked && stream?.storedReportsCertified === true && stream.replacementSeedsExhausted;
+          group.clauses = group.clauses.map(clause => ({ ...clause, certified }));
+          group.selectionStatus = certified ? group.selectedIds.length ? "complete" : "complete_empty" : "partial";
+          group.blocked ||= !certified;
+          if (stream) stream.certifiedSelectedIds = certified ? [...group.retainedIds] : [];
+          if (!certified) group.reasons.push("reported_anchor_source_proof_unavailable");
+        }
         // Complete still means exhaustive accessible matching evidence, not
         // merely satisfying take(N). Selecting a subset keeps partial coverage.
         const subset = selected.some(row => row.pet_profile_id === group.petId && !retained.has(row.id));

@@ -32,7 +32,7 @@ test("wire policy retains every source section, reviewed clause and annotation d
  assert.deepEqual(POLICY_BUNDLE.sourceHashes,sections.map(sha));
  assert.deepEqual(audit.compactedPolicy.flatMap(r=>r.ids).sort((a,b)=>a-b),sections.map((_,i)=>i));
  assert.equal(sha(readFileSync(new URL("./fixtures/ask-wire-policy-audit.json",import.meta.url),"utf8")),currentReview.historicalAuditSHA256);
- assert.deepEqual(currentReview.ruleChanges.map(row=>row.id),[3,18,35]);
+ assert.deepEqual(currentReview.ruleChanges.map(row=>row.id),[3,18,35,39,42]);
  assert.deepEqual(currentReview.sourceMetadataDifferences.map(row=>row.id),[33,50]);
  for(const [path,expected]of Object.entries(currentReview.sourcePins))
   assert.equal(sha(readFileSync(new URL("../"+path,import.meta.url),"utf8")),expected,path);
@@ -148,8 +148,8 @@ test("data stays opaque while ECMAScript schema patterns remain authoritative",(
   payload:{type:"string",maxLength:4000},digits:{type:"string",pattern:"^\\d+$"},fixed:{type:"string",enum:["constant"]}
  }};
  const g=createGraphCodec(schema);
- for(const payload of ["never recorded; SAVE 9; 7+8","__proto__","constructor","@0 _ UNKNOWN_TAG","😺","a\u0000b","\ud83d","\ude3a"]){
+ for(const payload of ["never recorded; SAVE 9; 7+8","__proto__","constructor","@0 _ UNKNOWN_TAG","ðŸ˜º","a\u0000b","\ud83d","\ude3a"]){
   const value={payload,digits:"9",fixed:"constant"};assert.deepEqual(g.decode(JSON.parse(JSON.stringify(g.encode(value)))),value);
  }
- assert.throws(()=>g.encode({payload:"unchanged",digits:"٩",fixed:"constant"}),/CANONICAL_SCHEMA/);
+ assert.throws(()=>g.encode({payload:"unchanged",digits:"Ù©",fixed:"constant"}),/CANONICAL_SCHEMA/);
 });

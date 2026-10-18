@@ -77,7 +77,7 @@ type CorrelatedReadSchema = {
 function correlatedReadAlternatives(base: CorrelatedReadSchema): CorrelatedReadSchema[] {
   if (base.type === "null") return [base];
   const results: CorrelatedReadSchema[] = [];
-  for (const family of ["ordinary", "anchored", "probes", "stored_report"]) {
+  for (const family of ["ordinary", "anchored", "probes", "stored_report", "stored_report_anchor"]) {
     const s = structuredClone(base);
     const p = s.properties!;
     let possible = true;
@@ -89,10 +89,13 @@ function correlatedReadAlternatives(base: CorrelatedReadSchema): CorrelatedReadS
       container[key] = { ...old, type: [...new Set(allowed.map(v => v === null ? "null" : typeof v))], enum: allowed };
     };
     const empty = (key: string) => { p[key] = { ...p[key], maxItems: 0 }; };
-    restrict(p, "authority", [family === "stored_report" ? "stored_report" : "effective_fact"]);
-    restrict(p, "operation", family === "anchored" ? ["read_since_event"] : family === "stored_report" ? ["read"] : ["read", "compare", "rank"]);
+    const report = family === "stored_report" || family === "stored_report_anchor";
+    const anchored = family === "anchored" || family === "stored_report_anchor";
+    if (family === "stored_report_anchor" && p.attributedContexts) possible = false;
+    restrict(p, "authority", [report ? "stored_report" : "effective_fact"]);
+    restrict(p, "operation", anchored ? ["read_since_event"] : report ? ["read"] : ["read", "compare", "rank"]);
     const temporal = p.temporal.properties!;
-    if (family === "anchored") {
+    if (anchored) {
       if (!(Array.isArray(temporal.anchor.type) ? temporal.anchor.type : [temporal.anchor.type]).includes("object")) possible = false;
       temporal.anchor = { ...temporal.anchor, type: "object" };
       restrict(temporal, "calendar", [null]);
@@ -108,7 +111,7 @@ function correlatedReadAlternatives(base: CorrelatedReadSchema): CorrelatedReadS
       if (p.outputs.properties!.strategy) restrict(p.outputs.properties!, "strategy", [null]);
     } else {
       empty("probes");
-      if (family === "stored_report") {
+      if (report) {
         restrict(p, "episode", [null]); restrict(temporal, "calendar", [null]);
         if (p.outputs.properties!.strategy) restrict(p.outputs.properties!, "strategy", [null]);
       }

@@ -28,7 +28,7 @@ export function deriveReadTicketFamilies(source){
   const p=s.properties,t=p.temporal.properties,o=p.outputs.properties;
   const selected=p.selection&&types(p.selection).includes('object')&&!valid(p.selection,null);
   const anchor=types(t.anchor).includes('object')&&!valid(t.anchor,null);
-  if(p.authority.enum?.join()==='stored_report')return(p.attributedContexts?'primary_with_separately_requested_later_reports':'primary_saved_reports')+(selected?'_ordered_selection':'');
+  if(p.authority.enum?.join()==='stored_report')return(anchor?'event_relative_saved_reports':p.attributedContexts?'primary_with_separately_requested_later_reports':'primary_saved_reports')+(selected?'_ordered_selection':'');
   if(o.strategy?.enum?.length===1&&o.strategy.enum[0]==='chronological')return(anchor?'event_relative_':'')+'legacy_chronological_records';
   if(selected)return(anchor?'event_relative_':'')+'ordered_records';
   if(anchor)return'event_relative_records';
