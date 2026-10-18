@@ -148,8 +148,8 @@ test("data stays opaque while ECMAScript schema patterns remain authoritative",(
   payload:{type:"string",maxLength:4000},digits:{type:"string",pattern:"^\\d+$"},fixed:{type:"string",enum:["constant"]}
  }};
  const g=createGraphCodec(schema);
- for(const payload of ["never recorded; SAVE 9; 7+8","__proto__","constructor","@0 _ UNKNOWN_TAG","ðŸ˜º","a\u0000b","\ud83d","\ude3a"]){
+ for(const payload of ["never recorded; SAVE 9; 7+8","__proto__","constructor","@0 _ UNKNOWN_TAG","😺","a\u0000b","\ud83d","\ude3a"]){
   const value={payload,digits:"9",fixed:"constant"};assert.deepEqual(g.decode(JSON.parse(JSON.stringify(g.encode(value)))),value);
  }
- assert.throws(()=>g.encode({payload:"unchanged",digits:"Ù©",fixed:"constant"}),/CANONICAL_SCHEMA/);
+ assert.throws(()=>g.encode({payload:"unchanged",digits:"٩",fixed:"constant"}),/CANONICAL_SCHEMA/);
 });
