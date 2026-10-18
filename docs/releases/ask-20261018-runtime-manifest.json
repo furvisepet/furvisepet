@@ -665,5 +665,14 @@
     "public/maskable-icon-512.png": "c65d36cf0d5a88870983f9e8cdb5c7ed8babae525cf3e17f268781b4ace45fb0",
     "tsconfig.json": "e1f2b4ec806c55ba0cc71369588733fe427a277990cccfd44ef62c9b6e9fe49d",
     "types/react-meta-value.d.ts": "7d2a8c9770647eee47bc34b29783c5e61c3e44ac726e37e66db011fb32abfbdb"
+  },
+  "productionGitCommit": "4e1bb4a3a54b137cf2737094a67987f88130b541",
+  "typeOnlyReviewVariants": {
+    "app/lib/furvise-brain/read-ticket-provider-schema.ts": {
+      "productionSHA256": "b7947ae44535be603772128de68a449924318631d225c5a0504ea96db33af858",
+      "reviewSHA256": "7c9ffa360a1174bb43b8ff49ccb4514492fb9c74cbe2328db7ed96d7e67fc5ec",
+      "emittedJSIdenticalSHA256": "033540ef5e14b132027643bdc5fa9eab7551b2bdecc7b495c2c683f6153d4b3b",
+      "qualification": "TypeScript6.0.3 emittedbytes equal; actualnative provider/Binder unchanged. Runtime export uses pinnedproductionblob; no deployment from reviewbranch."
+    }
   }
 }

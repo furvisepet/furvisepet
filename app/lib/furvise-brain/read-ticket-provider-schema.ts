@@ -66,15 +66,22 @@ for (const index of [1, 3]) {
 
 // Encode static Binder relationships without translating or repairing any value.
 // Each existing branch is partitioned; legal temporal/episode/selection payloads remain.
-type CorrelatedReadSchema = Record<string, any>;
+type CorrelatedReadSchema = {
+  [keyword: string]: unknown;
+  type?: string | string[];
+  enum?: unknown[];
+  properties?: Record<string, CorrelatedReadSchema>;
+  minItems?: number;
+  maxItems?: number;
+};
 function correlatedReadAlternatives(base: CorrelatedReadSchema): CorrelatedReadSchema[] {
   if (base.type === "null") return [base];
   const results: CorrelatedReadSchema[] = [];
   for (const family of ["ordinary", "anchored", "probes", "stored_report"]) {
     const s = structuredClone(base);
-    const p = s.properties;
+    const p = s.properties!;
     let possible = true;
-    const restrict = (container: CorrelatedReadSchema, key: string, values: unknown[]) => {
+    const restrict = (container: Record<string, CorrelatedReadSchema>, key: string, values: unknown[]) => {
       const old = container[key];
       const allowed = values.filter(value => (!old.enum || old.enum.includes(value))
         && (Array.isArray(old.type) ? old.type : [old.type]).includes(value === null ? "null" : typeof value));
@@ -84,7 +91,7 @@ function correlatedReadAlternatives(base: CorrelatedReadSchema): CorrelatedReadS
     const empty = (key: string) => { p[key] = { ...p[key], maxItems: 0 }; };
     restrict(p, "authority", [family === "stored_report" ? "stored_report" : "effective_fact"]);
     restrict(p, "operation", family === "anchored" ? ["read_since_event"] : family === "stored_report" ? ["read"] : ["read", "compare", "rank"]);
-    const temporal = p.temporal.properties;
+    const temporal = p.temporal.properties!;
     if (family === "anchored") {
       if (!(Array.isArray(temporal.anchor.type) ? temporal.anchor.type : [temporal.anchor.type]).includes("object")) possible = false;
       temporal.anchor = { ...temporal.anchor, type: "object" };
@@ -97,13 +104,13 @@ function correlatedReadAlternatives(base: CorrelatedReadSchema): CorrelatedReadS
       p.probes = { ...p.probes, minItems: Math.max(1, p.probes.minItems ?? 0) };
       restrict(p, "episode", [null]); restrict(temporal, "calendar", [null]);
       empty("predicates"); empty("searchHints");
-      restrict(p.outputs.properties, "limit", [null]);
-      if (p.outputs.properties.strategy) restrict(p.outputs.properties, "strategy", [null]);
+      restrict(p.outputs.properties!, "limit", [null]);
+      if (p.outputs.properties!.strategy) restrict(p.outputs.properties!, "strategy", [null]);
     } else {
       empty("probes");
       if (family === "stored_report") {
         restrict(p, "episode", [null]); restrict(temporal, "calendar", [null]);
-        if (p.outputs.properties.strategy) restrict(p.outputs.properties, "strategy", [null]);
+        if (p.outputs.properties!.strategy) restrict(p.outputs.properties!, "strategy", [null]);
       }
     }
     if (possible) results.push(s);
