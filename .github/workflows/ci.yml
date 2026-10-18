@@ -52,8 +52,12 @@ jobs:
       - name: TypeScript
         run: npm run typecheck
       - name: Focused security tests
+        env:
+          NODE_OPTIONS: --experimental-transform-types --import=${{ github.workspace }}/tests/helpers/ask-release-loader.mjs
         run: npm run test:security
       - name: Full tests
+        env:
+          NODE_OPTIONS: --experimental-transform-types --import=${{ github.workspace }}/tests/helpers/ask-release-loader.mjs
         run: npm test
       - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
