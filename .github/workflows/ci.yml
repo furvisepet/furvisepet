@@ -66,5 +66,23 @@ jobs:
         run: npm test
       - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
+
+  production-build:
+    needs: [verify, ask-database-contract]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: test-publishable-key
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Use repository Node version
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
       - name: Production build
         run: npm run build
