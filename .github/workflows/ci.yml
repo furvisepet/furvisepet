@@ -1,14 +1,11 @@
 name: Security CI
-
-on:
+'on':
   push:
     branches:
       - main
-  pull_request:
-
+  pull_request: null
 permissions:
   contents: read
-
 jobs:
   ask-database-contract:
     runs-on: ubuntu-latest
@@ -30,8 +27,7 @@ jobs:
         env:
           FURVISE_PGLITE_MODULE: ${{ runner.temp }}/ask-postgres/node_modules/@electric-sql/pglite/dist/index.js
         run: node scripts/audits/ask-task-continuation.sql.mjs --full-schema
-
-  verify:
+  preflight:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -51,24 +47,52 @@ jobs:
         run: |
           git fetch --no-tags --depth=1 origin 4e1bb4a3a54b137cf2737094a67987f88130b541
           node scripts/export-ask-runtime-20261018.mjs --check
-
       - name: Lint
         run: npm run lint
       - name: TypeScript
         run: npm run typecheck
       - name: Focused security tests
         env:
-          NODE_OPTIONS: --experimental-transform-types --import=${{ github.workspace }}/tests/helpers/ask-release-loader.mjs
+          NODE_OPTIONS: '--experimental-transform-types --import=${{ github.workspace }}/tests/helpers/ask-release-loader.mjs'
         run: npm run test:security
-      - name: Full tests
-        env:
-          NODE_OPTIONS: --experimental-transform-types --import=${{ github.workspace }}/tests/helpers/ask-release-loader.mjs
-        run: npm test
       - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
-
+  full-tests:
+    needs:
+      - preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        shard:
+          - 1
+          - 2
+          - 3
+          - 4
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: test-publishable-key
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Use repository Node version
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Full tests
+        env:
+          NODE_OPTIONS: '--experimental-transform-types --import=${{ github.workspace }}/tests/helpers/ask-release-loader.mjs'
+        run: npm test -- --test-shard=${{ matrix.shard }}/4
   production-build:
-    needs: [verify, ask-database-contract]
+    needs:
+      - preflight
+      - ask-database-contract
+      - full-tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -86,3 +110,26 @@ jobs:
         run: npm ci
       - name: Production build
         run: npm run build
+  verify:
+    needs:
+      - preflight
+      - ask-database-contract
+      - full-tests
+      - production-build
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every original gate
+        shell: python
+        env:
+          PREFLIGHT: ${{ needs.preflight.result }}
+          DATABASE: ${{ needs.ask-database-contract.result }}
+          FULL_TESTS: ${{ needs.full-tests.result }}
+          BUILD: ${{ needs.production-build.result }}
+        run: |
+          import os
+          results = {name: os.environ.get(name) for name in ('PREFLIGHT', 'DATABASE', 'FULL_TESTS', 'BUILD')}
+          print(results)
+          if any(result != 'success' for result in results.values()):
+              raise SystemExit(1)
