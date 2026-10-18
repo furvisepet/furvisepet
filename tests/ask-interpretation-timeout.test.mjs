@@ -5,6 +5,22 @@ const {ASK_INTERPRETATION_LIMITS} = await import('../app/lib/intelligence/interp
 const {ASK_INTERPRETATION_MAX_OUTPUT_TOKENS} = await import('../app/lib/ai/ask-provider.ts');
 const {FURVISE_ANSWER_UNAVAILABLE_MESSAGE} = await import('../app/lib/furvise-output.ts');
 
+// Fail on the actual early route outcome instead of waiting forever for a
+// provider callback which cannot occur. This does not advance the fake clock
+// or alter the provider deadline/abort/credit/write assertions.
+async function awaitProviderEntry(began,pending){
+ return Promise.race([began,pending.then(response=>{
+  throw Error('ASK_TEST_PROVIDER_NOT_REACHED:'+response.status);
+ })]);
+}
+
+test('provider-entry wait refuses an actual early authorization denial',async()=>{
+ const f=fixture({denied:true,providerCreate:()=>{throw Error('UNAUTHORIZED_PROVIDER_CALL');}});
+ await assert.rejects(awaitProviderEntry(new Promise(()=>{}),f.send()),/ASK_TEST_PROVIDER_NOT_REACHED:401/);
+ assert.equal(f.state.planner,0);
+ assert.equal(f.state.credit,null);
+});
+
 test('interpretation uses its canonical stage-specific output budget', () => {
    assert.equal(ASK_INTERPRETATION_LIMITS.outputTokens, Math.min(ASK_INTERPRETATION_MAX_OUTPUT_TOKENS,8192));
 });
@@ -24,7 +40,7 @@ test('interpretation deadline fails closed through POST: one planner, no retriev
     },
   });
   const pending = f.send();
-  await began;
+  await awaitProviderEntry(began,pending);
    assert.equal(providerRequest.max_output_tokens, ASK_INTERPRETATION_LIMITS.outputTokens);
   assert.equal(ASK_INTERPRETATION_LIMITS.timeoutMs,25000);
   assert.equal(f.state.planner,1);
