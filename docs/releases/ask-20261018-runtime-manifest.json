@@ -674,5 +674,12 @@
       "emittedJSIdenticalSHA256": "033540ef5e14b132027643bdc5fa9eab7551b2bdecc7b495c2c683f6153d4b3b",
       "qualification": "TypeScript6.0.3 emittedbytes equal; actualnative provider/Binder unchanged. Runtime export uses pinnedproductionblob; no deployment from reviewbranch."
     }
+  },
+  "reviewOnlyLegendVariant": {
+    "path": "app/lib/intelligence/ask-wire-subject-state.mjs",
+    "productionSHA256": "485331571c203ddf8937066b308e6e36deb6edb63603f9725258f33a9e696984",
+    "reviewSHA256": "bcec9e0931856c777e99c0798bca1aa5205a18aeca59c1e00883923d8075d4b6",
+    "notDeployed": true,
+    "scope": "Exactly two legend separators changed from spaced em dash to colon-space for the existing voice gate. Operation labels/descriptions/codec/validation unchanged. Model instruction bytes differ; no model-compliance/equivalence or production-deployment claim. The exporter reconstructs the separately pinned unchanged production blob."
   }
 }

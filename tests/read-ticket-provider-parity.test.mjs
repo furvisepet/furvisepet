@@ -60,9 +60,9 @@ test('non-provider callers still face authoritative strategy checks',()=>{
   {...ticket('calendar_samples'),outputs:{...ticket('calendar_samples').outputs,completeness:'exhaustive'}}])
   assert.throws(()=>bind(value));
 });
-test('general anchor/operation coupling deliberately remains Binder-only',()=>{
+test('provider and original Binder both enforce anchor iff read_since_event',()=>{
  for(const value of [{...ticket(),temporal:{...ticket().temporal,anchor}},ticket(null,'read_since_event')]){
-  assert.equal(validate(value),true);assert.throws(()=>bind(value),e=>e.cause?.rule==='anchor_iff_read_since_event');
+  assert.equal(validate(value),false);assert.throws(()=>bind(value),e=>e.cause?.rule==='anchor_iff_read_since_event');
  }
 });
 test('whole Ask provider contract permits ordinary bounded measurement recall',()=>{

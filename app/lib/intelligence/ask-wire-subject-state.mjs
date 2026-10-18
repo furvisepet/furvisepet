@@ -3,7 +3,7 @@ import {expand,makeValidator} from './ask-wire-codec.mjs';
 import {exactShare} from './ask-wire-exact-sharing.mjs';
 
 const clone=x=>structuredClone(x),stable=x=>JSON.stringify(x,(k,v)=>v&&typeof v==='object'&&!Array.isArray(v)?Object.fromEntries(Object.entries(v).sort(([a],[b])=>a.localeCompare(b))):v);
-export const SUBJECT_STATE_WIRE_LEGEND="subjectStateRequirement choices: none — No requested active-state precondition. Historical saved-record lookup alone does not request current active status. active_subjects — An explicitly requested active-subject restriction or necessary living-care precondition, never inferred merely from saved profile state. No transition or cancellation is requested.";
+export const SUBJECT_STATE_WIRE_LEGEND="subjectStateRequirement choices: none: No requested active-state precondition. Historical saved-record lookup alone does not request current active status. active_subjects: An explicitly requested active-subject restriction or necessary living-care precondition, never inferred merely from saved profile state. No transition or cancellation is requested.";
 export function compileSubjectStateTransport(original){
  const source=expand(original),valid=makeValidator(source),entries=[];
  const only=(s,x)=>{if(x===null)return s.type==='null'||s.enum?.length===1&&s.enum[0]===null;return s.enum?.length===1&&s.enum[0]===x;};

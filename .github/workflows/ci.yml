@@ -47,6 +47,11 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci
+      - name: Verify pinned production runtime closure
+        run: |
+          git fetch --no-tags --depth=1 origin 4e1bb4a3a54b137cf2737094a67987f88130b541
+          node scripts/export-ask-runtime-20261018.mjs --check
+
       - name: Lint
         run: npm run lint
       - name: TypeScript

@@ -1,4 +1,4 @@
-import { recursiveFixturePlan } from "./recursive-wire-fixture.mjs";
+import { actualTransportFixturePlan } from "./recursive-wire-fixture.mjs";
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {admitAiOperation} from '../../app/lib/ai/usage-guard/admission.ts';
@@ -27,9 +27,10 @@ export async function stagedOperation({context,purpose,request,db,initial=()=>{}
   subjects:ownerScope?[]:p.petNames.map(petName=>({petName,sourceTurnId:context.currentTurn.id,quote:context.currentMessage,basis:petName===context.pet.name?'selected':'named'})),request:p};
  const admission=await admitAiOperation({feature:'ask',userId:context.owner.userId,requestId:crypto.randomUUID(),payload:{fixture:purpose},intendedModel:'gpt-5.4-mini',env:{NODE_ENV:'test',FURVISE_AI_DAILY_CALL_LIMIT:'20',FURVISE_AI_DAILY_COST_LIMIT_USD:'1'},store:new MemoryAiGuardTestStore()});
  let calls=0,hydrated;
+ const priorTestContext=process.env.NODE_TEST_CONTEXT;delete process.env.NODE_TEST_CONTEXT;
  try{return await admission.run(async()=>{
   const prepared=prepareAskInterpretationRequest(context,'gpt-5.4-mini');
-  const encoded=recursiveFixturePlan(prepared.wire).encode({request:intent});
+  const encoded=actualTransportFixturePlan(prepared).encode({request:intent});
   const result=await interpretAskQuestion({context,model:'gpt-5.4-mini',catalogService:{requestId:'fixture-'+purpose,capability:()=>({available:true}),
    hydrate:async permit=>{hydrated=await hydratePlanningCatalog(permit,prepared.context,db);return hydrated;},verify:permit=>verifyPlanningCatalogSource(permit,db)},
    client:{responses:{create:async wire=>{
@@ -41,5 +42,5 @@ export async function stagedOperation({context,purpose,request,db,initial=()=>{}
   });
   assert.equal(calls,purpose==='lifecycle'?1:2);
   return{result,context:hydrated.context,calls,catalog:hydrated.catalog};
- });}catch(error){throw new Error(JSON.stringify(error.diagnostics||error.message),{cause:error});}finally{await admission.release();}
+ });}catch(error){throw new Error(JSON.stringify(error.diagnostics||error.message),{cause:error});}finally{if(priorTestContext===undefined)delete process.env.NODE_TEST_CONTEXT;else process.env.NODE_TEST_CONTEXT=priorTestContext;await admission.release();}
 }
