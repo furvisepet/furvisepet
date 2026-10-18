@@ -1,5 +1,17 @@
+import{compileSingletonTransport,SINGLETON_TRANSPORT_LEGEND}from './ask-wire-singletons.mjs';
+import {compileReadCompositionTransport,READ_COMPOSITION_LEGEND} from './ask-wire-read-composition.mjs';
+import {compileSubjectStateTransport,SUBJECT_STATE_WIRE_LEGEND} from './ask-wire-subject-state.mjs';
+import {compileOrderingTransport} from './ask-wire-ordering.mjs';
+import {compileReadTicketTransport,inlineTaggedTicketUnionReferences,inlineSingleSchemaReferences} from './ask-wire-read-ticket.mjs';
+import {capturePreviewEvidence} from './ask-preview-capture.mjs';
+import {compileOperationWire} from "./ask-wire-operation-choice.mjs";
+import {makeValidator as catalogValidator} from "./ask-wire-codec.mjs";
+import {correlateCatalog} from "./ask-wire-catalog-correlations.mjs";
+import {exactShare} from "./ask-wire-exact-sharing.mjs";
+import {createAskProviderWireSchema} from "./ask-wire-provider-schema.ts";
 // Furvise Ask: provider-constrained semantic slots, with canonical server reconstruction.
 // Never grant authority from the provider's JSON Schema: the pinned codec and Binder decide.
+import { expand, makeValidator } from "./ask-wire-codec.mjs";
 import { RECURSIVE_TRANSPORT_LIMITS } from "./ask-wire-recursive.mjs";
 
 const error = (code, field = null) => {
@@ -65,12 +77,30 @@ function nullable(s) {
   if (Array.isArray(s?.anyOf)) return s.anyOf.some(x => x?.type === "null");
   return false;
 }
-function buildSlotsSchema(requestSchema) {
+function canonicalFieldSchema(root, field) {
+  const alternatives = root?.properties?.request?.anyOf;
+  if (!Array.isArray(alternatives)) error("CANONICAL_SCHEMA_DRIFT");
+  const variants = [];
+  for (const alternative of alternatives) {
+    const s = alternative?.properties?.[field];
+    if (!s) {
+      if (alternative?.properties?.version?.enum?.includes("ask-catalog-intent.v1")) continue;
+      error("CANONICAL_SCHEMA_DRIFT");
+    }
+    if (field === "evidenceNeeds" && (s.type !== "array" || !plain(s.items))) error("CANONICAL_SCHEMA_DRIFT");
+    if (!variants.some(v => equal(v,s))) variants.push(structuredClone(s));
+  }
+  if (!variants.length) error("CANONICAL_SCHEMA_DRIFT");
+  return variants.length === 1 ? variants[0] : { anyOf: variants };
+}
+
+function buildSlotsSchema(requestSchema, typedSchemas) {
   if (!schemaKeys(requestSchema) || requestSchema.type!=="object" || requestSchema.additionalProperties!==false
     || requestSchema.required.length < 30) error("CANONICAL_SCHEMA_DRIFT");
   const props={};const complex=[];
   for(const [key,s] of Object.entries(requestSchema.properties)) {
-    if(nativeScalar(s)) {
+    if(Object.hasOwn(typedSchemas,key)) { props[key]=structuredClone(typedSchemas[key]); }
+    else if(nativeScalar(s)) {
       props[key] = structuredClone(s);
       // Certain authoritative provider branches permit null for quoted-premise arrays.
       if(key==="premiseQuotes") props[key]={anyOf:[props[key],{type:"null"}]};
@@ -87,109 +117,38 @@ function buildSlotsSchema(requestSchema) {
   return { schema:{type:"object",additionalProperties:false,required:requestSchema.required.slice(),properties:props}, complex };
 }
 
-export function createDirectSemanticAskWirePlan(wire, originalInstructions, canonicalRequestSchema, checkCompilation = () => {}) {
-  checkCompilation();
-  if (typeof wire?.encode !== "function" || typeof wire?.decode !== "function"
-    || typeof originalInstructions !== "string" || originalInstructions.length < 1000) error("COMPILE_CONTRACT");
-  const slots=buildSlotsSchema(canonicalRequestSchema);
-  const catalog={type:"object",additionalProperties:false,required:["catalogIntentJson"],
-    properties:{catalogIntentJson:{type:"string",description:"Only for a source-grounded catalog intent, serialize the complete ask-catalog-intent.v1 contract."}}};
-  const schema={type:"object",additionalProperties:false,required:["format","request"],
-    properties:{format:{type:"string",enum:[DIRECT_ASK_FORMAT_VERSION]},
-      request:{anyOf:[slots.schema,catalog]}}};
-  const lines=originalInstructions.split("\n"),i=lines.indexOf("POLICY");
-  if(lines.length<5 || !lines[0].includes("nodes: supporting postorder tree;")
-    || !lines[1].startsWith("ROOT root.") || !lines[2].startsWith("FIELDS ")
-    || i<5 || i>=lines.length-3) error("POLICY_LAYOUT");
-  const instructions=[
-    "Return format ask-semantic-slots.v1 and a request OBJECT following the required typed schema.",
-    "Do not use graph nodes, field aliases, packed tags or speculative evidence.",
-    "All request keys are mandatory. Use null/[] for inactive fields, never omit or invent.",
-    "Simple strings and string arrays are native JSON values. Complex objects/arrays are complete JSON strings (or null when allowed).",
-    "readTicket, when non-null, must be a JSON string containing the complete typed ReadTicket object.",
-    "The catalogIntentJson variant is exclusively for source-grounded catalog intent. Ordinary requests use the typed " + slots.schema.required.length + "-field request.",
-    "Use full canonical field names shown to the right of = in FIELDS. The POLICY $ aliases are only reading shorthand.",
-    lines[2],"POLICY",...lines.slice(i+1),
-  ].join("\n");
 
-  function decode(value, checkRuntime) {
-    if(typeof checkRuntime!=="function") error("RUNTIME_CHECK_REQUIRED");
-    checkRuntime();
-    if(!plain(value) || Object.keys(value).length!==2 || value.format!==DIRECT_ASK_FORMAT_VERSION
-      || !plain(value.request)) error("ENVELOPE");
-    boundedJsonTree(value,checkRuntime);
-    let request;
-    if(Object.keys(value.request).length===1 && Object.hasOwn(value.request,"catalogIntentJson")) {
-      if(typeof value.request.catalogIntentJson!=="string") error("CATALOG_STRING");
-      try { request=JSON.parse(value.request.catalogIntentJson); }
-      catch { error("CATALOG_JSON"); }
-      if(!plain(request) || request.version!=="ask-catalog-intent.v1") error("CATALOG_CONTRACT");
-    } else {
-      const fields=Object.keys(value.request),required=slots.schema.required;
-      if(fields.length!==required.length || fields.some(k=>!Object.hasOwn(slots.schema.properties,k))
-        || required.some(k=>!Object.hasOwn(value.request,k))) error("REQUIRED_FIELDS");
-      request={};
-      for(const k of required){
-        checkRuntime();
-        const v=value.request[k];
-        if(slots.complex.includes(k) && v!==null){
-          if(typeof v!=="string" || v.length<2 || v.length>MAX) error("FIELD_FORMAT",k);
-          try { request[k]=JSON.parse(v); } catch { error("FIELD_JSON",k); }
-        } else if(!slots.complex.includes(k) && !simpleMatches(slots.schema.properties[k],v)) error("FIELD_TYPE",k);
-        else request[k]=v;
-      }
-    }
-    boundedJsonTree(request,checkRuntime);
-    checkRuntime();
-    // Original canonical codec is authoritative. No repairs, defaults, or field coercion.
-    let graph;
-    try { graph=wire.encode({request}); }
-    catch(e) {
-      if(process.env.NODE_ENV==="production" && e instanceof Error && e.message==="ASK_WIRE_CANONICAL_SCHEMA")
-        console.warn("[Ask semantic slots] canonical shape rejected",
-          {branch:request.version==="ask-request.v2"?"semantic":"catalog",
-            complexFieldCount:slots.complex.length,
-            readTicketPresent:request.readTicket!==null && request.readTicket!==undefined});
-      throw e;
-    }
-    checkRuntime();
-    const restored=wire.decode(graph);
-    checkRuntime();
-    return restored;
-  }
+function hoistSavedHistoryGuidance(schema) {
+ const out=structuredClone(schema),groups=new Map(),prefixes=['For saved_history,','A root calculation uses'];
+ function visit(n){if(!n||typeof n!=='object')return;if(Array.isArray(n)){n.forEach(visit);return;}if(typeof n.description==='string'){const p=prefixes.find(x=>n.description.startsWith(x));if(p){if(groups.has(p)&&groups.get(p)!==n.description)error('GUIDANCE_DRIFT');groups.set(p,n.description);delete n.description;}}for(const v of Object.values(n))visit(v);}
+ visit(out);out.description=[out.description,...groups.values()].filter(Boolean).join(' ');return out;
+}
 
-  function simpleMatches(s,v) {
-    if(Array.isArray(s?.anyOf)) return s.anyOf.some(item=>simpleMatches(item,v));
-    const allowed=Array.isArray(s?.type)?s.type:[s?.type];
-    if(v===null) return allowed.includes("null") && (!s.enum || s.enum.includes(null));
-    if(typeof v==="string") return allowed.includes("string") && (!s.enum || s.enum.includes(v));
-    if(Array.isArray(v)) return allowed.includes("array") && v.every(item=>simpleMatches(s.items,item))
-      && (!Number.isInteger(s.maxItems) || v.length<=s.maxItems);
-    return false;
-  }
-
-  function encode(value,checkRuntime) {
-    if(typeof checkRuntime!=="function") error("RUNTIME_CHECK_REQUIRED");
-    checkRuntime();
-    if(!plain(value) || Object.keys(value).length!==1 || !plain(value.request)) error("CANONICAL_ENVELOPE");
-    boundedJsonTree(value.request,checkRuntime);
-    let request;
-    if(value.request.version==="ask-catalog-intent.v1") request={catalogIntentJson:JSON.stringify(value.request)};
-    else {
-      const required=slots.schema.required;
-      if(Object.keys(value.request).length!==required.length
-        || required.some(k=>!Object.hasOwn(value.request,k))) error("CANONICAL_KEYS");
-      request={};
-      for(const k of required) {
-        const v=value.request[k];
-        request[k]=slots.complex.includes(k) && v!==null ? JSON.stringify(v) : v;
-      }
-    }
-    const result={format:DIRECT_ASK_FORMAT_VERSION,request};
-    if(JSON.stringify(result).length>MAX) error("RESOURCE_LIMIT");
-    decode(result,checkRuntime);
-    return result;
-  }
-  checkCompilation();
-  return Object.freeze({schema,instructions,decode,encode});
+export function createDirectSemanticAskWirePlan(wire, originalInstructions, canonicalRequestSchema, checkCompilation = () => {}, canonicalEnvelopeSchema, timeZone = '') {
+ checkCompilation();
+ if(typeof wire?.encode!=="function"||typeof wire?.decode!=="function")error("COMPILE_CONTRACT");
+ const root=correlateCatalog(expand(canonicalEnvelopeSchema));
+ const operationWire=compileOperationWire(root);
+ const ticketWire=compileReadTicketTransport(exactShare(createAskProviderWireSchema(operationWire.schema,checkCompilation)),timeZone);
+ const orderingWire=compileOrderingTransport(ticketWire.schema);
+ const subjectStateWire=compileSubjectStateTransport(orderingWire.schema);
+ const ticketMeanings=new Map([...ticketWire.entries.values()].flatMap(e=>e.variants.map(v=>{const a=v.source.properties.authority.enum;if(a.length!==1)error('TICKET_MEANING_NOT_FIXED');return[v.tag,a[0]];})));const compositionWire=compileReadCompositionTransport(subjectStateWire.schema,ticketMeanings);
+ const sourceSchema=hoistSavedHistoryGuidance(inlineSingleSchemaReferences(inlineTaggedTicketUnionReferences(compositionWire.schema)));const singletonWire=compileSingletonTransport(sourceSchema,checkCompilation);const schema=singletonWire.schema;
+ const lines=originalInstructions.split(/\n|\\n/),fieldLine=lines.find(x=>x.startsWith("FIELDS ")),i=lines.indexOf("POLICY");
+ if(!fieldLine||i<0)error("POLICY_LAYOUT");
+ const names=new Map([...fieldLine.matchAll(/([A-Za-z]+)=([A-Za-z0-9_]+)/g)].map(m=>[m[1],m[2]]));
+ const policy=lines.slice(i+1).join("\n").replace(/\$([A-Za-z]+)\b/g,(all,key)=>{if(!names.has(key))error("POLICY_ALIAS");return names.get(key)});
+ const instructions=SINGLETON_TRANSPORT_LEGEND+"\n"+ticketWire.legend+"\n"+READ_COMPOSITION_LEGEND+"\n"+SUBJECT_STATE_WIRE_LEGEND+"\n"+"Choose the explicit operation family in request.kind and supply exactly its typed semantic arguments. Fixed canonical values are reconstructed from that choice, never inferred from the question. Complex values are native objects and arrays. Do not mix read and write intentions, invent missing intent or evidence, or supply authenticated identity. Server validation and confirmation remain authoritative. Use clarification when meaning is unresolved. ReadTicket probe temporal contract: probes[].from and probes[].to are null or valid full ISO timestamps containing a date and time, never date-only or month-only strings. Preserve the requested calendar meaning and the supplied user timezone when expressing grounded interval boundaries; do not invent an unsupported time or timezone, and clarify unresolved temporal meaning. A non-null from must precede a non-null to. The separate probes[].target may be an explicit ISO day or month only when its from/to match that complete UTC calendar window under the existing target contract; otherwise target is null and the intended grounded interval remains in from/to. Do not shift a local-time window merely to populate target. Server temporal validation remains authoritative. ReadTicket operation is read_since_event if and only if temporal.anchor is non-null; ordinary read, compare and rank require a null anchor. Catalog receipts are evidence about prior write/action outcomes (whether a save, correction, deletion or other recorded operation succeeded), not the contents of a saved care note. Choose catalog_receipt_subjects or catalog_receipt_owner_receipt only when that operational receipt is requested and its reference must be selected from the catalog. Reading what records report uses stored_report: attributed recorded statements, whether quotation or reported contents is requested. effective_fact instead asks what is currently settled/corrected or a historical calculation; a stored statement never certifies that truth. Both remain legal explicit choices. A request to read something saved does not itself ask for an operation receipt. Keep actual requested formatting and companions; unsupported catalog combinations remain limited, never drop them or change the chosen operation to pass validation. Each orderBy item is one explicit field:direction enum choice; reconstruct its exact canonical field/direction record from that choice. For read branches, subjectStateRequirement is the requested active-state precondition, not a report of the profile's current state: choose none for a historical lookup alone; active_subjects only for a requested active-subject restriction or necessary living-care precondition. This reconstructs mechanical keep/null-transition fields, never a lifecycle action. Full transition/cancellation operations retain their explicit canonical semantics. A primary_report ticket requests only its primary saved records; primary_with_separately_requested_later_attributed_reports adds a distinct explicitly requested later report about an earlier event window, with recorded.from at or after target.to. Never add a second reporting obligation merely because a note has a creation date and discusses an event. ReadTicket family is one explicit semantic choice with only its applicable arguments. ordinary_records uses calendar from/to bounds for dated records; oldest_calendar_year_records is a requested oldest accessible year. event_relative families request a relation to an actual event, not a synonym for a calendar date. episode_count and episode_membership mean actual episodes, never ordinary care-note contents. grounded_clause_probes are advisory clauses; independent_probe_selections carry every clause's own window and typed selection, with no global window. An operation field appears only where the family supports multiple meaningful read/compare/rank operations. No other episode/calendar/probe knobs are supplied. A temporal.window choice local_calendar_days supplies explicit fromDay/toDayExclusive in the server-supplied user timezone; code lowers those typed day boundaries once. exact_instants preserves supplied timestamps unchanged, including offsets. Never convert a day to UTC and then attach its local offset. Each readTicket ticketBranch selects one explicit typed ticket alternative. Where the schema offers ticketBranch no_ticket, that explicit choice means exactly canonical null (absence of an optional ticket). Do not use it to omit a required read; literal null is allowed only where the emitted schema explicitly allows it. Supply only its variable fields; omitted branch-fixed values are reconstructed exactly from that tag. Unknown tags and extra fields are rejected. Never choose a branch to change the requested meaning. \nPOLICY\n"+policy;
+ function decode(value,checkRuntime){
+  if(typeof checkRuntime!=="function")error("RUNTIME_CHECK_REQUIRED");
+  checkRuntime();boundedJsonTree(value,checkRuntime);
+  const canonical=operationWire.decode(ticketWire.decode(orderingWire.decode(subjectStateWire.decode(compositionWire.decode(singletonWire.decode(value,checkRuntime))))));checkRuntime();capturePreviewEvidence("operation_decoded",canonical);
+  const graph=wire.encode(canonical);checkRuntime();
+  const restored=wire.decode(graph);checkRuntime();capturePreviewEvidence("canonical_decoded",restored);return restored;
+ }
+ function encode(value,checkRuntime){
+  if(typeof checkRuntime!=="function")error("RUNTIME_CHECK_REQUIRED");
+  checkRuntime();const emitted=singletonWire.encode(compositionWire.encode(subjectStateWire.encode(orderingWire.encode(ticketWire.encode(operationWire.encode(value))))),checkRuntime);decode(emitted,checkRuntime);return emitted;
+ }
+ checkCompilation();return Object.freeze({schema,instructions,decode,encode});
 }

@@ -14,7 +14,7 @@ export const PUBLIC_V1_CALCULATION_LIMITATION =
   "Furvise cannot perform this type of calculation yet.";
 
 export const PUBLIC_V1_UNPLANNED_LIMITATION =
-  "I couldn't map that request to a supported operation reliably.";
+  "That request isn't available in Ask during the public beta. Ask can read supported saved information in your account, but it cannot access records outside your account.";
 
 const ASK_MUTATION_KEYS = Object.freeze([
   "appendJob",

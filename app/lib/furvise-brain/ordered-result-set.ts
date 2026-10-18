@@ -3,11 +3,17 @@ import type { ReadTicket } from "./read-ticket.ts";
 import type { ReadCoverage, ReadScope, ReadStore } from "./lungs.ts";
 
 export const isOrderedResultSet = (ticket: ReadTicket) => !ticket.selection
-  && ticket.outputs.strategy == null && ticket.outputs.limit === null
+  && ticket.outputs.strategy == null
+  // A cap never substitutes for complete representation. Stored reports use
+  // the same owned report-provenance path; omitted matches still fail proof.
+  && (ticket.outputs.limit === null || ticket.authority === "stored_report"
+    && Number.isInteger(ticket.outputs.limit) && ticket.outputs.limit >= 1 && ticket.outputs.limit <= 100)
   && !ticket.needs?.length && !ticket.episode && !ticket.temporal.calendar;
 
 export type OrderedResultSetProof = {
   authority?: ReadTicket["authority"];
+  /** Exact transport cap; absent only on legacy uncapped receipts. */
+  transportLimit?: ReadTicket["outputs"]["limit"];
   subjectIds: string[]; predicates: ReadTicket["predicates"]; temporal: ReadTicket["temporal"];
   windows: ReadCoverage["windows"]; ordering: "asc" | "desc";
   subjects: Array<{ petId: string; exhausted: boolean; lineageClosed: boolean;
@@ -84,7 +90,7 @@ export function certifyOrderedResultSet(ticket: ReadTicket, coverage: ReadCovera
   });
   const matchingIds = matching.map(r => r.id), retainedIds = represented.map(r => r.id);
   return { ...(ticket.authority ? { authority: ticket.authority } : {}), subjectIds: subjects.map(s => s.petId), predicates: ticket.predicates, temporal: ticket.temporal,
-    windows: coverage.windows, ordering: ticket.outputs.ordering, subjects, matchingIds, retainedIds,
+    windows: coverage.windows, ordering: ticket.outputs.ordering, transportLimit: ticket.outputs.limit, subjects, matchingIds, retainedIds,
     omittedIds: matchingIds.filter(id => !retained.has(id)),
     matchingSetComplete: subjects.every(s => s.matchingSetComplete),
     representationComplete: subjects.every(s => s.representationComplete),
