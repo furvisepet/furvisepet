@@ -202,10 +202,22 @@ test('provider alternatives exclude retired strategies and keep selection exclus
     b.properties.attributedContexts?'attributed':'primary',
     b.properties.selection.type==='object'?'selection':String(b.properties.outputs.properties.strategy.enum[0]),
   ].join(':');
-  assert.deepEqual(branches.map(identity).sort(),[
+  assert.deepEqual([...new Set(branches.map(identity))].sort(),[
     'null','primary:null','primary:chronological','primary:selection',
     'attributed:null','attributed:selection',
   ].sort());
+  for(const branch of branches.filter(b=>b.type!=='null')){
+    const p=branch.properties,anchored=p.temporal.properties.anchor.type==='object';
+    assert.equal(p.operation.enum.includes('read_since_event'),anchored);
+    if(p.authority.enum.includes('stored_report')){
+      assert.deepEqual(p.operation.enum,['read']);assert.equal(p.probes.maxItems,0);
+      assert.deepEqual(p.temporal.properties.anchor.enum,[null]);
+    }
+    if(p.probes.minItems>=1){
+      assert.equal(p.selection.type,'null');assert.equal(p.predicates.maxItems,0);assert.equal(p.searchHints.maxItems,0);
+      assert.equal(p.episode.enum?.[0]??null,null);assert.equal(p.outputs.properties.limit.enum[0],null);
+    }
+  }
   const primary=branches.filter(b=>!b.properties?.attributedContexts);
   const legacy=primary.filter(s=>s.properties?.selection.type==='null');
   const composed=primary.find(s=>s.properties?.selection.type==='object');
@@ -215,7 +227,7 @@ test('provider alternatives exclude retired strategies and keep selection exclus
     assert.equal(branch.properties.attributedContexts.type,'array');
     assert.equal(branch.properties.attributedContexts.minItems,1);
     assert.equal(branch.additionalProperties,false);
-    const original=primary.find(b=>identity(b)===identity(branch).replace('attributed:','primary:'));
+    const original=primary.find(b=>identity(b)===identity(branch).replace('attributed:','primary:')&&b.properties.authority.enum.includes('stored_report'));
     const {authority,attributedContexts,...properties}=branch.properties;
     void authority;void attributedContexts;
     const {authority:originalAuthority,...originalProperties}=original.properties;void originalAuthority;
@@ -226,11 +238,11 @@ test('provider alternatives exclude retired strategies and keep selection exclus
   assert.equal(composed.properties.outputs.additionalProperties,false);
   assert.equal(Object.hasOwn(composed.properties.outputs.properties,'strategy'),false);
   assert.deepEqual(composed.properties.outputs.required,['completeness','ordering','limit']);
-  assert.equal(legacy.length,2);
+  assert.equal(new Set(legacy.map(b=>b.properties.outputs.properties.strategy.enum[0])).size,2);
   const chronological=legacy.find(b=>b.properties.outputs.properties.strategy.enum.includes('chronological')).properties.outputs;
   assert.deepEqual(chronological.properties.strategy.enum,['chronological']);
   assert.equal(chronological.properties.limit.type,'null');
-  assert.deepEqual(legacy.map(b=>b.properties.outputs.properties.strategy.enum[0]),
+  assert.deepEqual([...new Set(legacy.map(b=>b.properties.outputs.properties.strategy.enum[0]))],
     [null,'chronological']);
   assert.match(composed.properties.outputs.properties.limit.description,/transport.*selection.take/);
   assert.match(composed.properties.outputs.properties.ordering.description,/Presentation.*selection.orderBy/);

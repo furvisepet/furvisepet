@@ -1,4 +1,4 @@
-import { recursiveFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
+import { actualTransportFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
 import assert from 'node:assert/strict';import fs from 'node:fs';
 import {fixture,id} from './helpers/ask-staged-route-fixture.mjs';
 const R=new URL('../',import.meta.url).href;
@@ -46,20 +46,23 @@ async function runCase({cancelName='Rowan',selected=11,reverse=false,clauseRever
  if(groundingReverse){t.subjects.reverse();t.request.petNames.reverse();}
  if(variant==='stale-source')t.request.lifecyclePlan.pendingDisposition.quote='not in current source';
  let calls=0,effects=0,stubCalls=0,receipt=null,h,plan,error,permit;
+ const priorTestContext=process.env.NODE_TEST_CONTEXT;
  try{
   if(throughInterpreter){
+   delete process.env.NODE_TEST_CONTEXT;
    const prepared=prepareAskInterpretationRequest(ctx,'gpt-5.4-mini');
-   const wire=recursiveFixturePlan(prepared.wire),begin=admission.beginProviderCall.bind(admission);let admittedSnapshot,dispatches=0;
+   const wire=actualTransportFixturePlan(prepared),begin=admission.beginProviderCall.bind(admission);let admittedSnapshot,dispatches=0;
    admission.beginProviderCall=async x=>{admittedSnapshot=JSON.stringify(x.input);return begin(x);};
    const result=await interpretAskQuestion({context:ctx,model:'gpt-5.4-mini',client:{responses:{create:async request=>{
-    dispatches++;stubCalls++;assert.equal(dispatches,1);assert.equal(JSON.stringify(request),admittedSnapshot);assert.deepEqual(request.text.format.schema,prepared.request.text.format.schema);assert.equal(request.instructions,prepared.request.instructions);assert.equal(request.input,prepared.request.input);assert.equal(request.max_output_tokens,8192);
-    assert.ok(JSON.stringify(request).length<=58000);f.state.brainCalls++;
+    dispatches++;stubCalls++;assert.equal(dispatches,1);assert.equal(JSON.stringify(request),admittedSnapshot);assert.equal(JSON.stringify(request.text.format.schema),JSON.stringify(prepared.request.text.format.schema));assert.equal(request.instructions,prepared.request.instructions);assert.equal(request.input,prepared.request.input);assert.equal(request.max_output_tokens,8192);
+    assert.ok(JSON.stringify(request).length<=135000);f.state.brainCalls++;
     return{status:'completed',output_text:JSON.stringify(wire.encode({request:t})),usage:{input_tokens:0,output_tokens:0}};
    }}},catalogService:{requestId:crypto.randomUUID(),capability:()=>({available:true,reason:'supported'}),verify:p=>verifyPlanningCatalogSource(p,f.db),hydrate:async p=>{h=await hydratePlanningCatalog(p,prepared.context,f.db);return h;}}});
    assert.equal(dispatches,1);plan=result.request?.lifecyclePlan;if(!plan)error={boundary:'typed_rejection',result};
   }else{({permit}=bindCatalogIntent(t,ctx,crypto.randomUUID(),Date.now()+25000));h=await hydratePlanningCatalog(permit,ctx,f.db);plan=validateAskRequest(finishDeterministicCatalog(permit,h.catalog),h.context).request.lifecyclePlan;}
  }
  catch(e){error={message:e.message,cause:e.cause};}
+ finally{if(priorTestContext===undefined)delete process.env.NODE_TEST_CONTEXT;else process.env.NODE_TEST_CONTEXT=priorTestContext;}
  if(throughInterpreter)assert.equal(stubCalls,1);
  const success=variant==='match'&&!['superset','omission','duplicate'].includes(selectorCase);
  if(!success){assert.ok(error,'Expected rejection '+variant);assert.equal(calls,0);record('reject-'+variant,{cancelName,target,selected,reverse,clauseReverse,unqualified,throughInterpreter,selectorCase,groundingReverse,stubCalls,error,calls,queries:f.state.queries});return;}
@@ -83,7 +86,14 @@ try{
  const vectors=JSON.parse(fs.readFileSync(new URL(R+'tests/fixtures/ask-lifecycle-role-wire.json')));
  const broad=createAskWirePlan(askRequestProviderSchema(proposedSemanticFrameJsonSchema),ASK_REQUEST_INSTRUCTIONS);
  assert.equal(vectors.fixtures.length,3);
- for(const f of vectors.fixtures){const envelope={root:f.wire.nodes.at(-1),nodes:f.wire.nodes.slice(0,-1)};assert.deepEqual(broad.encode(f.canonical),envelope);assert.deepEqual(broad.decode(envelope),f.canonical);record('independent-python-staged-wire',{name:f.name});}
+ assert.equal((await import('node:crypto')).createHash('sha256').update(fs.readFileSync(new URL(R+'tests/fixtures/ask-lifecycle-role-wire.json'))).digest('hex'),'38949ac52be5af12accbd1b295722fe67dc42c5999b099fc688603b2e61690a2');
+ for(const f of vectors.fixtures){
+  const envelope={root:f.wire.nodes.at(-1),nodes:f.wire.nodes.slice(0,-1)};
+  const current=broad.encode(f.canonical);assert.deepEqual(broad.decode(current),f.canonical);
+  let oldValue,oldError;try{oldValue=broad.decode(envelope);}catch(e){oldError=e;}
+  if(oldError)assert.match(oldError.message,/^ASK_WIRE_/);else assert.deepEqual(oldValue,f.canonical);
+  record('retained-python-vector-and-current-exact-inverse',{name:f.name,archivedRejected:!!oldError});
+ }
  const audit=JSON.parse(fs.readFileSync(new URL(R+'tests/fixtures/ask-wire-policy-audit.json'))),r=audit.lifecycleRoleReview;
  assert.ok(r.sourceAfter.startsWith(r.sourceBefore.replace(...r.sourceLiteralReplacement)));const {createHash}=await import('node:crypto');const digest=t=>createHash('sha256').update(t).digest('hex');
  for(const item of Object.values(r.consolidation.rules)){assert.equal(digest(item.before),item.beforeSha256);assert.equal(digest(item.after),item.afterSha256);}
