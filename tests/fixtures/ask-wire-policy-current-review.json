@@ -58,17 +58,112 @@
   ],
   "sourcePins": {
     "app/lib/intelligence/ask-wire-read-ticket.mjs": "6cc3361515eefd0e9be9046e6f7340a7b3c5df8e7cfe0424bd83c1a162ba23a3",
-    "app/lib/intelligence/ask-wire-read-composition.mjs": "8c2f5ba2403dabd5d045fcbedb3fb232c8bdb9d7cd36e2d1e2d69c0ac5169534",
+    "app/lib/intelligence/ask-wire-read-composition.mjs": "654b2e92616e9dd06670b951914a9db0539cc7d193296117555ed62932d1670a",
     "app/lib/furvise-brain/read-ticket.ts": "9f85c86a979b84697b1fd3234c47df270a69c4b8e21fed92470afe706f262951",
     "app/lib/intelligence/ask-request-contract.ts": "bc8e857afc0fd965439e3022e38d8ab43bc2056e9ea00c868a7ffffe8f647966",
     "app/lib/intelligence/ask-wire-policy.mjs": "d87b40ceafe0a6a8bd02356fd9e4932913b12a75dfef868c4470c396c1b8a140",
-    "app/lib/intelligence/ask-wire-policy.generated.mjs": "6be06c12bc79f576d77dd989a4e1c34236742924a5a785e35b108df4d4e8e9ee"
+    "app/lib/intelligence/ask-wire-policy.generated.mjs": "6be06c12bc79f576d77dd989a4e1c34236742924a5a785e35b108df4d4e8e9ee",
+    "app/lib/intelligence/ask-wire-direct.mjs": "23cc7067f63168d134f6e6a54e2ab19a9f63989dbd5a6168e351b95ad719e5f5"
   },
   "review": {
-    "scope": "Document existing runtime policy, not a new prompt/semantic change. Historical205/447 clause reviews retained separately. No claim historical raw metadata hashes or49rule audit equal all64 current raw sections.",
+    "scope": "Document existing runtime policy, not a new prompt/semantic change. Historical205/447 clause reviews retained separately. No claim historical raw metadata hashes or49rule audit equal all64 current raw sections. Current direct-emitter instruction overlay is explicitly audited under currentInstructionOverlay; raw historical policy equality remains enforced.",
     "rule3": "Record kind, source, date and subject locators alone do not imply a USER-requested literal record-body condition. Existing task intent and requested explicit restrictions retained.",
     "rule18": "Empty predicate array is explicit unrestricted_record_content; nonempty is match_record_body_text with original conditions. ask-wire-read-ticket compileTicket proves disjoint empty/nonempty coverage; encode/decode preserve original predicates exactly. Organs still certify selected records and fail closed on uncertainty.",
     "rule35": "Same AND-across/OR-within original text_any predicates; restrict content conditions to those USER requested, not record storage/type labels. Original Binder enum/term checks unchanged.",
-    "authority": "No new source/access/write/completeness authority, classifier, question route or output repair. Original decoder/Binder and transport source pins are byte-identical to deployed runtime commit."
+    "authority": "No new source/access/write/completeness authority, classifier, question route or output repair. Existing historical runtimeCommit/sourceClosure identify the earlier review basis; currentInstructionOverlay identifies the separately pinned DT instruction-only runtime. Decoder/Binder/grounding/accounting unchanged."
+  },
+  "currentInstructionOverlay": {
+    "schema": "ReviewedDirectAuthorityGuidance.v1",
+    "runtimeCommit": "fdacd2354022fa26de4adb64585908c099f6716a",
+    "baseRuntimeCommit": "192fb0fedc875a4fde07aa767fc4aaf6982e969a",
+    "patchSHA256": "0086bcf32f861bc94ca22f8234594710a0a491a3f420d3bc931d8ecb45e3308d",
+    "sourceManifestSHA256": "8648071acf631ed5aec5d1f09ebd6c06759770a1a8ec96637807304f52279e52",
+    "runtimeInclusionSHA256": "3286dffe1e2daf5fee218735913c282f90998f2b0c69bbfd6c1df9987b1db107",
+    "historicalCurrentReview": {
+      "fixtureSHA256": "83365c418ba02b48ee59487edbf515e84a647e99f75044ae3685e98b03367493",
+      "runtimeCommit": "4e1bb4a3a54b137cf2737094a67987f88130b541",
+      "sourceClosure": "57e00354663eca37c10063b31c9013a331bb7a0e320d48a74cffc6ddc2c14afd",
+      "compositionSHA256": "8c2f5ba2403dabd5d045fcbedb3fb232c8bdb9d7cd36e2d1e2d69c0ac5169534"
+    },
+    "contract": "READ PROPOSITION CONTRACT. Choose the proposition the USER requests the saved sources to support, not an authority inferred from the subject, measurement type, ordering or event-relative date. read_recorded_statements requests attributed source contents: what the saved observations, measurements or event reports say. It may return a recorded value or ordered recorded event without quoting verbatim; it does not certify that value as settled or corrected truth. read_settled_facts requests a conclusion warranted as true under the effective-fact correction and certification contract, including certified historical facts, current/corrected facts and historical calculations. A number, earliest/latest ordering, or relation to another recorded event does not by itself require settled-fact authority. Preserve an explicitly requested truth claim; never downgrade it because certification is unavailable. Preserve an attributed-content request; never upgrade it merely because a report contains a factual-looking value. Read the whole proposition and applicable context, not a word trigger. If meaning is genuinely unresolved use the existing clarification contract. The server alone verifies owned sources, versions, correction closure and publication evidence. Never change the generated operation or companions to make validation pass.",
+    "contractSHA256": "8d335431fda075f68353e86cc7e0e78aaad7bef41a3899f916469f50ec0696f7",
+    "transforms": [
+      {
+        "id": "result_contract_legend",
+        "before": "resultContract chooses the requested read operation: read_recorded_statements reads what sources report, without certifying settled truth; read_settled_facts requests current/corrected factual authority. Each carries only its applicable typed readTicket. composed_read retains explicitly requested profileFields/projection/legacy recordSelection companions and their typed ticket. Recorded-statement contents do not require a request for verbatim quotation. Ticket predicates filter factual content, not storage labels or dates already in temporal bounds. Never change a requested operation to pass validation.",
+        "beforeSHA256": "9fca8795d0d9349757d435182638838de721821793d6464ea73a9e0503354950",
+        "after": "READ PROPOSITION CONTRACT. Choose the proposition the USER requests the saved sources to support, not an authority inferred from the subject, measurement type, ordering or event-relative date. read_recorded_statements requests attributed source contents: what the saved observations, measurements or event reports say. It may return a recorded value or ordered recorded event without quoting verbatim; it does not certify that value as settled or corrected truth. read_settled_facts requests a conclusion warranted as true under the effective-fact correction and certification contract, including certified historical facts, current/corrected facts and historical calculations. A number, earliest/latest ordering, or relation to another recorded event does not by itself require settled-fact authority. Preserve an explicitly requested truth claim; never downgrade it because certification is unavailable. Preserve an attributed-content request; never upgrade it merely because a report contains a factual-looking value. Read the whole proposition and applicable context, not a word trigger. If meaning is genuinely unresolved use the existing clarification contract. The server alone verifies owned sources, versions, correction closure and publication evidence. Never change the generated operation or companions to make validation pass. resultContract carries only the applicable typed readTicket for the requested operation. composed_read retains explicitly requested profileFields/projection/legacy recordSelection companions and their typed ticket. Ticket predicates filter factual content, not storage labels or dates already in temporal bounds. Never change a requested operation to pass validation.",
+        "afterSHA256": "79c71c1f8fa49502de714d5ca0b1f59369a8170aca7150123dc2e7b33b055cb4",
+        "occurrences": 1,
+        "disposition": "Move the proposition distinction to one explicit shared contract; retain typed-ticket/companions and predicate restrictions verbatim."
+      },
+      {
+        "id": "inline_authority_duplicate",
+        "before": "Reading what records report uses stored_report: attributed recorded statements, whether quotation or reported contents is requested. effective_fact instead asks what is currently settled/corrected or a historical calculation; a stored statement never certifies that truth. Both remain legal explicit choices. ",
+        "beforeSHA256": "633ceb5567f421593e7d0e63ae66d7bd8f94b470d2693f25960c94f2b34d49e9",
+        "after": "",
+        "afterSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "occurrences": 1,
+        "disposition": "Remove only this duplicate authority paragraph; the shared proposition contract preserves reported contents versus certified truth."
+      },
+      {
+        "id": "ticket_and_policy_authority_duplicate",
+        "before": "Requested proposition: stored_report only for exact stored wording, attributed reports or a timeline of statements; it never establishes current/corrected truth or supersession. effective_fact for current, settled, corrected, definitive latest values and every historical calculation. Do not downgrade an effective-fact request because history might conflict. Stored reports support ordinary reads and read_since_event relative to a uniquely resolved saved report, with optional ordered selection. A recorded/reported value relative to a recorded event is still stored_report, not certified effective truth. Its anchor and selected records require independent owned source-version, correction-closure and exhaustive-boundary proofs. Never change an effective-fact request to get a report answer. No calendar, episode, probes, calculations or legacy strategy.",
+        "beforeSHA256": "3e4431e7f4d85588f591d5d315e0b6c01baeb8b453eed761934a3a68b62f9f55",
+        "after": "Stored reports support ordinary reads and read_since_event relative to a uniquely resolved saved report, with optional ordered selection. Its anchor and selected records require independent owned source-version, correction-closure and exhaustive-boundary proofs. No calendar, episode, probes, calculations or legacy strategy.",
+        "afterSHA256": "f818f42370f7b068552666b58994a8f5fe7888c5980b58918090b50fb9133192",
+        "occurrences": 2,
+        "disposition": "Relocate duplicate authority statements to shared contract, retaining legal ordinary/anchored report operations and all source-version/correction/exhaustive proof and capability restrictions verbatim."
+      }
+    ],
+    "semanticEvidence": [
+      {
+        "id": "attributed_not_certified",
+        "field": "contract",
+        "excerpt": "It may return a recorded value or ordered recorded event without quoting verbatim; it does not certify that value as settled or corrected truth."
+      },
+      {
+        "id": "effective_historical_certification",
+        "field": "contract",
+        "excerpt": "including certified historical facts, current/corrected facts and historical calculations"
+      },
+      {
+        "id": "no_downgrade_when_unavailable",
+        "field": "contract",
+        "excerpt": "Preserve an explicitly requested truth claim; never downgrade it because certification is unavailable."
+      },
+      {
+        "id": "no_content_upgrade",
+        "field": "contract",
+        "excerpt": "Preserve an attributed-content request; never upgrade it merely because a report contains a factual-looking value."
+      },
+      {
+        "id": "clarification_no_word_route",
+        "field": "contract",
+        "excerpt": "Read the whole proposition and applicable context, not a word trigger. If meaning is genuinely unresolved use the existing clarification contract."
+      },
+      {
+        "id": "server_owned_proof",
+        "field": "contract",
+        "excerpt": "The server alone verifies owned sources, versions, correction closure and publication evidence."
+      },
+      {
+        "id": "companions_preserved",
+        "field": "transform0",
+        "excerpt": "composed_read retains explicitly requested profileFields/projection/legacy recordSelection companions and their typed ticket."
+      },
+      {
+        "id": "anchor_proof_preserved",
+        "field": "transform2",
+        "excerpt": "Its anchor and selected records require independent owned source-version, correction-closure and exhaustive-boundary proofs."
+      },
+      {
+        "id": "report_capability_boundaries_preserved",
+        "field": "transform2",
+        "excerpt": "No calendar, episode, probes, calculations or legacy strategy."
+      }
+    ],
+    "scope": "Only model-facing direct-emitter guidance changes. Raw ASK_REQUEST_INSTRUCTIONS/POLICY_BUNDLE and all historical clause/annotation audits remain unchanged. No decoder/Binder/schema/canonical values or runtime files are edited by this review.",
+    "modelCompliance": "DW recorded-content positive and DX expected certification denial are n1 each supporting evidence, not universal reliability or positive certified-read proof."
   }
 }

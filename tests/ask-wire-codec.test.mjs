@@ -153,3 +153,43 @@ test("data stays opaque while ECMAScript schema patterns remain authoritative",(
  }
  assert.throws(()=>g.encode({payload:"unchanged",digits:"٩",fixed:"constant"}),/CANONICAL_SCHEMA/);
 });
+
+test("current direct authority overlay preserves the independently reviewed guidance mapping and drift refusal",async()=>{
+ const {consolidateReadPropositionGuidance,READ_PROPOSITION_CONTRACT}=await import("../app/lib/intelligence/ask-wire-read-composition.mjs");
+ const overlay=currentReview.currentInstructionOverlay;
+ assert.equal(overlay.schema,"ReviewedDirectAuthorityGuidance.v1");
+ assert.equal(overlay.runtimeCommit,"fdacd2354022fa26de4adb64585908c099f6716a");
+ assert.equal(sha(overlay.contract),overlay.contractSHA256);
+ assert.equal(READ_PROPOSITION_CONTRACT,overlay.contract);
+ assert.deepEqual(overlay.transforms.map(r=>r.id),["result_contract_legend","inline_authority_duplicate","ticket_and_policy_authority_duplicate"]);
+ assert.deepEqual(overlay.transforms.map(r=>r.occurrences),[1,1,2]);
+ for(const row of overlay.transforms){
+  assert.equal(sha(row.before),row.beforeSHA256);
+  assert.equal(sha(row.after),row.afterSHA256);
+  assert.ok(row.disposition.length>20);
+ }
+ const [legend,inline,policy]=overlay.transforms;
+ assert.equal(policy.before,currentRuleDeltas.get(42).after);
+ assert.ok(legend.after.startsWith(overlay.contract+" "));
+ assert.equal(inline.after,"");
+ // Independent golden before/after strings; never compute expected output by
+ // invoking the production transform or replace generated model intentions.
+ const prefix="UNRELATED TYPED GUIDANCE\n",suffix="\nUNRELATED AUTHORITY GUARDS";
+ const initial=prefix+[legend.before,inline.before,policy.before,policy.before].join("\n")+suffix;
+ const expected=prefix+[legend.after,inline.after,policy.after,policy.after].join("\n")+suffix;
+ const actual=consolidateReadPropositionGuidance(initial);
+ assert.equal(actual,expected);
+ assert.equal(actual.split(overlay.contract).length-1,1);
+ assert.deepEqual(overlay.semanticEvidence.map(r=>r.id),[
+  "attributed_not_certified","effective_historical_certification","no_downgrade_when_unavailable",
+  "no_content_upgrade","clarification_no_word_route","server_owned_proof","companions_preserved",
+  "anchor_proof_preserved","report_capability_boundaries_preserved"]);
+ for(const row of overlay.semanticEvidence){
+  const field=row.field==="contract"?overlay.contract:row.field==="transform0"?legend.after:policy.after;
+  assert.ok(field.includes(row.excerpt),row.id);
+  assert.ok(actual.includes(row.excerpt),row.id);
+ }
+ assert.throws(()=>consolidateReadPropositionGuidance(initial.replace(inline.before,"UNREVIEWED AUTHORITY DESCRIPTION")),/READ_PROPOSITION_GUIDANCE_DRIFT/);
+ assert.throws(()=>consolidateReadPropositionGuidance(initial+"\n"+policy.before),/READ_PROPOSITION_GUIDANCE_DRIFT/);
+ assert.throws(()=>consolidateReadPropositionGuidance(initial.replace(policy.before,policy.before+" unreviewed").replace(policy.before,"changed")),/READ_PROPOSITION_GUIDANCE_DRIFT/);
+});
