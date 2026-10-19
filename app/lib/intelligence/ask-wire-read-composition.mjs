@@ -74,3 +74,31 @@ export function compileReadCompositionTransport(original,ticketMeanings=new Map(
  const n=compile(source,'root'),schema=exactShare(n.schema),wv=makeValidator(n.schema);
  return{schema,entries,encode(x){assert(valid(source,x),'READ_COMPOSITION_SOURCE');const y=n.encode(x);assert(wv(n.schema,y),'READ_COMPOSITION_WIRE');return y;},decode(x){assert(wv(n.schema,x),'READ_COMPOSITION_WIRE');const y=n.decode(x);assert(valid(source,y),'READ_COMPOSITION_SOURCE');return y;}};
 }
+
+// One model-facing proposition contract; exact legacy descriptions are consolidated,
+// never provider output or canonical values. Unknown guidance drift fails preparation.
+export const READ_PROPOSITION_CONTRACT="READ PROPOSITION CONTRACT. Choose the proposition the USER requests the saved sources to support, not an authority inferred from the subject, measurement type, ordering or event-relative date. read_recorded_statements requests attributed source contents: what the saved observations, measurements or event reports say. It may return a recorded value or ordered recorded event without quoting verbatim; it does not certify that value as settled or corrected truth. read_settled_facts requests a conclusion warranted as true under the effective-fact correction and certification contract, including certified historical facts, current/corrected facts and historical calculations. A number, earliest/latest ordering, or relation to another recorded event does not by itself require settled-fact authority. Preserve an explicitly requested truth claim; never downgrade it because certification is unavailable. Preserve an attributed-content request; never upgrade it merely because a report contains a factual-looking value. Read the whole proposition and applicable context, not a word trigger. If meaning is genuinely unresolved use the existing clarification contract. The server alone verifies owned sources, versions, correction closure and publication evidence. Never change the generated operation or companions to make validation pass.";
+const READ_PROPOSITION_GUIDANCE_REPLACEMENTS=[
+  [
+    "resultContract chooses the requested read operation: read_recorded_statements reads what sources report, without certifying settled truth; read_settled_facts requests current/corrected factual authority. Each carries only its applicable typed readTicket. composed_read retains explicitly requested profileFields/projection/legacy recordSelection companions and their typed ticket. Recorded-statement contents do not require a request for verbatim quotation. Ticket predicates filter factual content, not storage labels or dates already in temporal bounds. Never change a requested operation to pass validation.",
+    READ_PROPOSITION_CONTRACT + " resultContract carries only the applicable typed readTicket for the requested operation. composed_read retains explicitly requested profileFields/projection/legacy recordSelection companions and their typed ticket. Ticket predicates filter factual content, not storage labels or dates already in temporal bounds. Never change a requested operation to pass validation."
+  ],
+  [
+    "Reading what records report uses stored_report: attributed recorded statements, whether quotation or reported contents is requested. effective_fact instead asks what is currently settled/corrected or a historical calculation; a stored statement never certifies that truth. Both remain legal explicit choices. ",
+    ""
+  ],
+  [
+    "Requested proposition: stored_report only for exact stored wording, attributed reports or a timeline of statements; it never establishes current/corrected truth or supersession. effective_fact for current, settled, corrected, definitive latest values and every historical calculation. Do not downgrade an effective-fact request because history might conflict. Stored reports support ordinary reads and read_since_event relative to a uniquely resolved saved report, with optional ordered selection. A recorded/reported value relative to a recorded event is still stored_report, not certified effective truth. Its anchor and selected records require independent owned source-version, correction-closure and exhaustive-boundary proofs. Never change an effective-fact request to get a report answer. No calendar, episode, probes, calculations or legacy strategy.",
+    "Stored reports support ordinary reads and read_since_event relative to a uniquely resolved saved report, with optional ordered selection. Its anchor and selected records require independent owned source-version, correction-closure and exhaustive-boundary proofs. No calendar, episode, probes, calculations or legacy strategy."
+  ]
+];
+export function consolidateReadPropositionGuidance(instructions){
+ if(typeof instructions!=='string')throw Error('READ_PROPOSITION_GUIDANCE_DRIFT');
+ let result=instructions;
+ for(const [index,[before,after]]of READ_PROPOSITION_GUIDANCE_REPLACEMENTS.entries()){
+  const expectedOccurrences=[1,1,2][index];
+  if(result.split(before).length!==expectedOccurrences+1)throw Error('READ_PROPOSITION_GUIDANCE_DRIFT');
+  result=result.split(before).join(after);
+ }
+ return result;
+}
