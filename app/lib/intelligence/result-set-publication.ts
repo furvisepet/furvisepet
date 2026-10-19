@@ -14,7 +14,10 @@ export function resultSetSnapshotMatches(ticket: ReadTicket, coverage: ReadCover
   if (readAuthority(ticket) !== readAuthority(proof)) return false;
   const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
   const ids = records.map(r => r.id), subjects = [...ticket.subjects.petIds].sort();
-  if (ticket.selection || ticket.outputs.strategy != null
+  if ((proof.transportLimit ?? null) !== ticket.outputs.limit
+    || ticket.outputs.limit !== null && (!Number.isInteger(ticket.outputs.limit)
+      || ticket.outputs.limit < 1 || ticket.outputs.limit > 100 || records.length > ticket.outputs.limit)
+    || ticket.selection || ticket.outputs.strategy != null
     || !same(proof.subjectIds, subjects) || !same(proof.subjects.map(s => s.petId), subjects)
     || !same(proof.predicates, ticket.predicates) || !same(proof.temporal, ticket.temporal)
     || !same(proof.windows, coverage.windows) || proof.ordering !== ticket.outputs.ordering

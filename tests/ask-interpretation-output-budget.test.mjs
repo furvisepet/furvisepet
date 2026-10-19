@@ -18,7 +18,7 @@ const {admitAiOperation} = await import('../app/lib/ai/usage-guard/admission.ts'
 const {MemoryAiGuardTestStore} = await import('../app/lib/ai/usage-guard/memory-test-store.ts');
 const {estimateProviderCostMicrodollars: cost} = await import('../app/lib/ai/usage-guard/cost-estimator.ts');
 const model='gpt-5.4-mini', day='2032-02-06';
-const environment={NODE_ENV:'test',FURVISE_AI_DAILY_CALL_LIMIT:'1',FURVISE_AI_DAILY_COST_LIMIT_USD:'0.465',
+const environment={NODE_ENV:'test',FURVISE_AI_DAILY_CALL_LIMIT:'1',FURVISE_AI_DAILY_COST_LIMIT_USD:'0.48375',
  FURVISE_RATE_LIMIT_HASH_SECRET:'offline-budget-fixture-only-not-a-credential'};
 const admit=(store,env=environment)=>admitAiOperation({env,store,feature:'ask',intendedModel:model,
  userId:'budget-owner',requestId:'budget-attempt',payload:{question:'offline'},now:new Date(day+'T00:00:00Z')});
@@ -30,8 +30,8 @@ test('Brain has an independent canonical 100000 budget below the documented mode
  assert.equal(answerCap,8192);
  assert.equal(buildAskProviderRequest({currentMessage:'hello'}).max_output_tokens,8192);
  assert.equal(policies.ask.maxOutputTokens,cap);
- assert.equal(policies.ask.maxInputTokens,20000);
- assert.equal(policies.ask.maxInputCharacters,80000);
+ assert.equal(policies.ask.maxInputTokens,45000);
+ assert.equal(policies.ask.maxInputCharacters,135000);
  assert.equal(policies.vet_brief.maxOutputTokens,12288);
  for(const [feature,expected] of Object.entries({product_explanation:360,product_query:520,product_question:650,safety_followup:650}))
   assert.equal(policies[feature].maxOutputTokens,expected);
@@ -41,7 +41,7 @@ test('real admission reserves the entire new output envelope before permitting d
  t.mock.method(console,'info',()=>{});
  const store=new MemoryAiGuardTestStore(),a=await admit(store);
  const expected=cost(model,{inputTokens:policies.ask.maxInputTokens,outputTokens:cap});
- assert.equal(expected,465000);
+ assert.equal(expected,483750);
  assert.deepEqual(store.getSnapshot(day),{calls:1,costMicrodollars:expected});
  const call=await a.beginProviderCall({model,input:{question:'offline'},maxOutputTokens:cap});
  assert.equal(call.reservation.reservedCostMicrodollars,expected);
@@ -52,7 +52,7 @@ test('real admission reserves the entire new output envelope before permitting d
 test('daily dollar ceiling rejects the larger reservation before any provider call',async t=>{
  t.mock.method(console,'info',()=>{});
  const store=new MemoryAiGuardTestStore();
- await assert.rejects(admit(store,{...environment,FURVISE_AI_DAILY_COST_LIMIT_USD:'0.464999'}),
+ await assert.rejects(admit(store,{...environment,FURVISE_AI_DAILY_COST_LIMIT_USD:'0.483749'}),
   e=>e.reason==='daily_cost_limit');
  assert.deepEqual(store.getSnapshot(day),{calls:0,costMicrodollars:0});
 });
@@ -92,15 +92,16 @@ test('interpretation SDK retries and deadline remain independently bounded',()=>
  assert.equal(ASK_INTERPRETATION_LIMITS.timeoutMs,25000);
 });
 
-test('the configured GPT-5.4 Mini request retains effort none and never retries incomplete output',async t=>{
+for(const [configuredModel,effort] of [['gpt-5.4-mini','medium'],['gpt-5.4','none']])
+test('the configured '+configuredModel+' request retains its explicit effort and never retries incomplete output',async t=>{
  t.mock.method(console,'info',()=>{});t.mock.method(console,'warn',()=>{});
  const pet={id:'subject',user_id:'owner',name:'Test Subject',species:'dog'};
  const context={owner:{userId:'owner'},pet,eligiblePets:[pet],currentMessage:'Explain this scenario.',
   currentTurn:{id:'source',role:'user',text:'Explain this scenario.'},conversationTurns:[],timeZone:'UTC'};
  let calls=0;
- await assert.rejects(interpretAskQuestion({context,model,client:{responses:{create:async request=>{
+ await assert.rejects(interpretAskQuestion({context,model:configuredModel,client:{responses:{create:async request=>{
   calls++;
-  assert.deepEqual(request.reasoning,{effort:'none'});
+  assert.deepEqual(request.reasoning,{effort});
   assert.equal(request.max_output_tokens,ASK_INTERPRETATION_LIMITS.outputTokens);
   return {status:'incomplete',incomplete_details:{reason:'max_output_tokens'},output:[]};
  }}}}),e=>e.diagnostics?.providerErrorCode==='ASK_INTERPRETATION_INCOMPLETE');

@@ -1,3 +1,4 @@
+import { captureHistoryPublication } from "./ask-preview-capture.mjs";
 import { verifiedAttributedReports, carryAttributedReports, attributedReportSources, type AttributedReportResult } from "./attributed-report-context.ts";
 import { supportedPlainResultSetRead } from "./publication-authority.ts";
 import { certifiedResultSetMatches, resultSetSnapshotMatches } from "./result-set-publication.ts";
@@ -31,27 +32,29 @@ export function carryReadLabsSnapshot(source: LabsList, target: LabsList) {
  snapshots.set(target, snapshots.get(source)!);
 }
 export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: CareEntryRow[], calculationOperands = false): LabsList | null {
+  captureHistoryPublication({phase:"labs_input", evidence, rows});
+  const decline = (reason: string): null => { captureHistoryPublication({phase:"labs_declined", reason}); return null; };
   const request = evidence?.interpretation?.request, ticket = request?.readTicket;
   const coverage = evidence?.history?.ticketCoverage;
   const operandTransport = calculationOperands && !!request?.calculatePlan;
-  if (operandTransport && ticket?.authority === "stored_report") return null;
-  if (request?.calculatePlan && !operandTransport) return null;
+  if (operandTransport && ticket?.authority === "stored_report") return decline("calculation_operand_stored_report");
+  if (request?.calculatePlan && !operandTransport) return decline("calculation_requires_operand_transport");
   const presentation = operandTransport ? "prose" : labsPresentation(request?.outputFormat);
   // Result-set serialization currently supports prose only.
-  if (!presentation || !(ticket && isSelectedRead(ticket)) && presentation !== "prose") return null;
+  if (!presentation || !(ticket && isSelectedRead(ticket)) && presentation !== "prose") return decline("unsupported_presentation");
   logLabsEligibility(evidence, rows.map(row => ({ id: row.id, petId: row.pet_profile_id })));
   if (ticket) console.info("[Ask Labs] dispatch", { operation: ticket.operation, completeness: ticket.outputs.completeness,
     mode: request?.mode, quantity: request?.quantity, outputFormat: request?.outputFormat,
     readOnly: evidence?.scope.readOnlyRecall, scope: evidence?.scope.status, coverage: coverage?.status, recordCount: rows.length });
   if (!evidence || !ticket || ticket.episode || !coverage || request?.mode !== "read" || request.writeJob || request.mutationIntent
     || !evidence.scope.readOnlyRecall || evidence.scope.status !== "resolved"
-    || !["read", "read_since_event"].includes(ticket.operation)) return null;
-  if (!isSelectedRead(ticket) && !operandTransport && !supportedPlainResultSetRead(evidence)) return null;
+    || !["read", "read_since_event"].includes(ticket.operation)) return decline("missing_coverage_or_invalid_read_scope");
+  if (!isSelectedRead(ticket) && !operandTransport && !supportedPlainResultSetRead(evidence)) return decline("plain_result_set_unsupported");
   // Selected reports do not fulfill a distinct count, comparison, aggregation,
   // navigation obligation. Those keep their own review. Format is not authority.
   if (isSelectedRead(ticket) && !operandTransport && (request.task || request.projection || request.evidenceNeeds?.length && !independentNeedsMatch(evidence)
     || !["records", "measurement"].includes(request.quantity || "")
-    || !["recall", undefined].includes(evidence.interpretation?.readOperation ?? evidence.interpretation?.operation))) return null;
+    || !["recall", undefined].includes(evidence.interpretation?.readOperation ?? evidence.interpretation?.operation))) return decline("selected_request_unsupported");
   if (ticket.subjects.petIds.some(id => !evidence.scope.authorizedPetIds.includes(id))
     || rows.some(row => !ticket.subjects.petIds.includes(row.pet_profile_id) || row.deleted_at
       || !Number.isFinite(Date.parse(row.occurred_at))
@@ -63,14 +66,14 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
   if (!resultSetSnapshotMatches(ticket, coverage, rows.map(row => ({ id: row.id, petId: row.pet_profile_id }))))
     throw new Error("ASK_LABS_RESULT_SET_SNAPSHOT");
   if (!isSelectedRead(ticket) && !operandTransport
-    && !certifiedResultSetMatches(ticket, coverage, rows.map(row => ({ id: row.id, petId: row.pet_profile_id })))) return null;
+    && !certifiedResultSetMatches(ticket, coverage, rows.map(row => ({ id: row.id, petId: row.pet_profile_id })))) return decline("result_set_not_certified_or_transport_invalid");
   // Preserve organ order and exact bodies. With selection, publish only the
   // records its existing receipts certify; never select or match again here.
   const selection = selectionPublication(ticket, coverage, rows.map(row => ({ id: row.id, petId: row.pet_profile_id })));
   // An empty candidate search without common proof is a reference/discovery
   // limitation, including when the legacy envelope asks to display records.
   if (!rows.length && evidence.history?.eventCandidateIds?.length === 0
-    && !selection?.complete && !coverage.resultSet?.certified) return null;
+    && !selection?.complete && !coverage.resultSet?.certified) return decline("empty_candidate_without_certificate");
   // Exhausting text matches is not proof that an unrecognized concept is absent.
   // An empty effective scope is stronger: no surviving row can be a missed match.
   // Keep lexical-empty searches on the existing no-fact limitation path; do not
@@ -80,11 +83,11 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
       const streams = coverage.effectiveStream?.filter(stream => stream.petId === petId) || [];
       return streams.length === 1 && streams[0].lineageClosed && streams[0].replacementSeedsExhausted
         && streams[0].effectiveIds.length === 0;
-    })) return null;
+    })) return decline("lexical_empty_without_empty_effective_scope");
   const publishable = selection ? rows.filter(row => selection.selectedEventIds.includes(row.id)) : rows;
   const petNames = isSelectedRead(ticket) || ticket.authority === "stored_report" ? Object.fromEntries(ticket.subjects.petIds.map(id => [id, evidence.petNames?.[id] || "this pet"])) : undefined;
   const attributedReports = verifiedAttributedReports(evidence.history?.attributedReports, ticket);
-  if (ticket.attributedContexts?.length && !attributedReports) return null;
+  if (ticket.attributedContexts?.length && !attributedReports) return decline("attributed_context_unavailable");
   const labs: LabsList = structuredClone({ ticket, coverage, calculations: [],
     ...(attributedReports ? { attributedReports } : {}),
     ...(request.requirements?.length ? { residualRequirementCount: request.requirements.length } : {}), ...(petNames ? { petNames, presentation } : {}), records: publishable.map(row => ({
@@ -172,7 +175,9 @@ function serializeStoredReports(labs: LabsList): string {
     ...(labs.coverage.sourceLineage?.length ? ["Some reports have unresolved correction lineage; no supersession is certified."] : []),
     ...(labs.coverage.reasons.includes("no_cross_query_snapshot") ? ["These records were checked across separate reads, not one database snapshot."] : []),
     ...(!labsFactualComponentComplete(labs) ? ["The requested record selection is incomplete."] : []),
-    ...(!rows.length ? ["No report wording is certified for this selection."] : []),
+    ...(!rows.length ? [labs.coverage.status === "complete_empty" && labsFactualComponentComplete(labs)
+      ? "No matching saved reports were found in the checked history window."
+      : "No report wording is certified for this selection."] : []),
     ...(selected?.certificates.filter(c => !c.certified).map(c => "No report selection is certified for " + (labs.petNames?.[c.subjectId] || c.subjectId) + ".") || []),
   ].join(" ");
   if (labs.presentation === "table") return [

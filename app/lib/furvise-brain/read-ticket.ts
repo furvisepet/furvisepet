@@ -44,12 +44,12 @@ export const readTicketSchema = {
   required: ["authority", "operation", "subjectScope", "temporal", "predicates", "outputs", "searchHints", "episode", "needs", "selection"],
   properties: {
     attributedContexts: attributedReportContextsSchema,
-    authority: { type: "string", enum: ["effective_fact", "stored_report"], description: "Requested proposition: stored_report only for exact stored wording, attributed reports or a timeline of statements; it never establishes current/corrected truth or supersession. effective_fact for current, settled, corrected, definitive latest values and every historical calculation. Do not downgrade an effective-fact request because history might conflict. Stored reports support ordinary read with concrete/null temporal bounds and optional selection; no anchor, calendar, episode, probes or legacy strategy." },
+    authority: { type: "string", enum: ["effective_fact", "stored_report"], description: "Requested proposition: stored_report only for exact stored wording, attributed reports or a timeline of statements; it never establishes current/corrected truth or supersession. effective_fact for current, settled, corrected, definitive latest values and every historical calculation. Do not downgrade an effective-fact request because history might conflict. Stored reports support ordinary reads and read_since_event relative to a uniquely resolved saved report, with optional ordered selection. A recorded/reported value relative to a recorded event is still stored_report, not certified effective truth. Its anchor and selected records require independent owned source-version, correction-closure and exhaustive-boundary proofs. Never change an effective-fact request to get a report answer. No calendar, episode, probes, calculations or legacy strategy." },
     subjectScope: { type: "string", enum: ["selected", "named", "conversation", "account"], description: "Requested subject selection. Selected for an unnamed standalone read; conversation for USER-established referents; named for explicit pets; account only for a requested cohort or identity lookup. Overrides legacy scope. The server binds owned IDs; this never grants writes." },
     needs: readNeedsSchema,
     selection: {
       type: ["object", "null"], additionalProperties: false, required: ["groupBy", "union"],
-      description: "Independent ordered selection per subject, or null for an ordinary/legacy read. Does not widen subject scope. Compatible with a semantic temporal.anchor: the deterministic resolver resolves the owned effective event and temporal boundary before selection. Do not invent from/to dates or choose a ledger event. Incompatible with needs, episode, outputs.strategy and calendar selectors.",
+      description: "Independent ordered selection per subject, or null for an ordinary/legacy read. Does not widen subject scope. Compatible with temporal.anchor under the explicit requested authority: effective_fact requires the owned effective event; stored_report requires a uniquely resolved owned saved report and closed source/correction proof. Resolve its temporal boundary before selection. Do not invent dates or choose an ambiguous event. Incompatible with needs, episode, outputs.strategy and calendar selectors.",
       properties: {
         groupBy: { type: "array", minItems: 1, maxItems: 1, items: { type: "string", enum: ["subject"] } },
         union: { type: "array", minItems: 1, maxItems: 8, description: "Set union of independently ordered selections; repeated event IDs collapse.",
@@ -84,7 +84,7 @@ export const readTicketSchema = {
       from: { ...temporalInstantSchema, description: "Inclusive complete ISO instant (YYYY-MM-DDTHH:mm:ss[.fraction]Z or explicit +/-HH:mm offset), or null. Never emit a date-only value. Brain resolves a requested start calendar day to local midnight in the supplied timeZone. Never invent the date of an anchor. For an as-of cutoff, keep this null unless the user supplied a lower bound." },
       to: { ...temporalInstantSchema, description: "Exclusive complete ISO instant (YYYY-MM-DDTHH:mm:ss[.fraction]Z or explicit +/-HH:mm offset), or null. Never emit a date-only value. Brain resolves an inclusive ending calendar day to the next local midnight in the supplied timeZone, using the offset applicable at that boundary, including calendar and daylight-saving transitions." },
       anchor: { type: ["object", "null"], additionalProperties: false, required: ["concept", "relation"], properties: {
-        concept: { type: "string", minLength: 1, maxLength: 80, description: "Minimal search concept for the event, without pet name or temporal instructions. Every normalized term must occur in the record; terms need not be adjacent. Code resolves the actual dated event. Never guess its date." },
+        concept: { type: "string", minLength: 1, maxLength: 80, description: "Literal identifying concept for the referenced saved event. Preserve explicit identifying qualifiers from the USER reference, including a year or quoted title; do not discard them as temporal instructions. Every normalized term must occur in stored title/note; terms need not be adjacent. Code resolves the actual event and date. Never guess an anchor date or resolve multiple matching events by preference." },
         relation: { type: "string", enum: ["from", "after", "before"] },
       } },
     } },
@@ -192,7 +192,7 @@ export function bindReadTicket(value: unknown, petIds: readonly string[], needBi
     if (outputs.strategy != null) return fail("outputs.strategy", "incompatible_with_needs");
     if (outputs.limit !== null) return fail("outputs.limit", "incompatible_with_needs");
   }
-  if (value.authority === "stored_report" && (operation !== "read" || anchor || temporal.calendar || episode || needs?.length || outputs.strategy != null))
+  if (value.authority === "stored_report" && (!["read", "read_since_event"].includes(String(operation)) || temporal.calendar || episode || needs?.length || outputs.strategy != null))
     return fail("authority", "stored_report_requires_ordinary_read");
   const attributedContexts = bindAttributedReportContexts(value.attributedContexts, {
     authority: value.authority as ReadAuthority | undefined, operation: operation as ReadTicket["operation"],
