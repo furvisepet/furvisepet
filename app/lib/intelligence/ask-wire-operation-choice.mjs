@@ -42,7 +42,18 @@ const labels = s => {
  if(p.calculatePlan?.type==='object'){
   if(f('evidenceBasis')==='supplied_context')return 'calculate_supplied_context';
   const cs=p.calculatePlan.properties.calculations;
-  return cs.type==='array'&&cs.items?.anyOf?.every(x=>x.properties?.operator?.enum?.every(v=>v==='count_records'))?'count_saved_records':'calculate_saved_history';
+  // Additive explicit recorded operand domain; schema-only discriminator, never user text.
+  if(fixed(p.readTicket?.properties?.authority||{}).value==='stored_report'
+   &&cs.type==='array'&&cs.items?.anyOf?.length
+   &&cs.items.anyOf.every(x=>fixed(x.properties?.operator||{}).value==='difference'
+    &&((s)=>s.anyOf?s.anyOf.every(a=>fixed(a.properties?.kind||{}).value==='recorded'):fixed(s.properties?.kind||{}).value==='recorded')(x.properties?.operands?.items||{})))
+   return 'calculate_recorded_history';
+  const countOnly=cs.type==='array'&&cs.items?.anyOf?.every(x=>x.properties?.operator?.enum?.every(v=>v==='count_records'));
+  if(countOnly)return 'count_saved_records';
+  // The explicit producer tag names the fixed authority, not merely its storage origin.
+  // This is a schema-only label; returned values and canonical authority are never repaired.
+  if(fixed(p.readTicket?.properties?.authority||{}).value!=='effective_fact')fail('CALCULATION_AUTHORITY_UNPROVED');
+  return 'calculate_certified_facts';
  }
  if(p.storedRead?.type==='object'){const sp=p.storedRead.properties;return 'read_'+fixed(sp.domain).value+'_'+fixed(sp.scope).value}
  if(f('evidenceBasis')==='saved_profile')return 'read_saved_profile';
@@ -65,7 +76,34 @@ const labels = s => {
   if(family==='ordinary_request'||family==='chronological_history_request')for(const key of ['mode','evidenceBasis']){
    branches=branches.flatMap(b=>{const values=b.properties[key].enum;if(!values?.length)fail('ENUM_CONTRACT');return values.map(value=>({...clone(b),properties:{...clone(b.properties),[key]:{...clone(b.properties[key]),enum:[value]}}}))});
   }
+  // Catalog lifecycle declarations wrap existing ordinary/profile/action requests.
+  // Expose those typed choices before compaction, retaining the original Binder.
+  if(family==='catalog'&&fixed(source.properties.purpose).value==='lifecycle'){
+   branches=[];
+   for(const request of leaves(source.properties.request)){
+    const requestFamily=labels(request);
+    const prerequisite=requestFamily!=='change_lifecycle';
+    const modes=request.properties.mode.enum,basis=request.properties.evidenceBasis.enum??[fixed(request.properties.evidenceBasis).value];
+    for(const mode of modes)for(const evidenceBasis of basis){
+     if(prerequisite&&!['read','conversation'].includes(mode))continue;
+     if(evidenceBasis==='general'&&mode!=='conversation')continue;
+     const fields={mode:{values:[mode]},evidenceBasis:{values:[evidenceBasis]}};
+     if(prerequisite){
+      fields.readTicket={type:mode==='read'&&evidenceBasis==='saved_history'?'object':'null'};
+      if(mode==='read'&&evidenceBasis==='saved_history')fields.evidenceNeeds={type:'array',maxItems:0};
+     }
+     const r=restrict(request,{fields});if(!r)continue;
+     branches.push({...clone(source),properties:{...clone(source.properties),request:r}});
+    }
+   }
+  }
   for(let b of branches){
+    // General evidence belongs to the existing conversational producer family.
+    // Remove contradictory producer branches only; keep its complete payload
+    // grammar and shared representation. Canonical validation stays unchanged.
+    if((family==='ordinary_request'||family==='chronological_history_request')
+      &&fixed(b.properties.evidenceBasis).value==='general'
+      &&(family!=='ordinary_request'||fixed(b.properties.mode).value!=='conversation'))continue;
    // Read declarations cannot smuggle discarded write intent. Binder lines 572-618 and 652-654;
    // saved-history typed ticket and probe authority: lines 592-599 and 1112-1121.
    if((family==='ordinary_request'||family==='chronological_history_request')&&fixed(b.properties.mode).value==='read'){
@@ -75,7 +113,7 @@ const labels = s => {
     b=restrict(b,{fields});if(!b)continue;
    }
    let kind=family;
-   if(family==='catalog'){const p=fixed(b.properties.purpose),sc=fixed(b.properties.scope);if(!p.yes||!sc.yes)fail('CATALOG_CONTRACT');kind='catalog_'+p.value+'_'+sc.value;if(p.value==='lifecycle')kind+=b.properties.subjects.maxItems===0?'_unqualified_cancellation':'_subjects'}
+   if(family==='catalog'){const p=fixed(b.properties.purpose),sc=fixed(b.properties.scope);if(!p.yes||!sc.yes)fail('CATALOG_CONTRACT');kind='catalog_'+p.value+'_'+sc.value;if(p.value==='lifecycle'){const r=b.properties.request.properties,mode=fixed(r.mode).value,basis=fixed(r.evidenceBasis).value;kind='catalog_lifecycle_'+(mode==='update'?'update_state':mode+'_'+(basis??'unspecified_evidence'))+(b.properties.subjects.maxItems===0?'_unqualified_cancellation':'')}}
    if(family==='ordinary_request'||family==='chronological_history_request')kind=[fixed(b.properties.mode).value,fixed(b.properties.evidenceBasis).value??'unspecified_evidence',family==='chronological_history_request'?'chronological':'ordinary'].join('_');
    const n=node(b);if(Object.hasOwn(n.schema.properties,'kind'))fail('RESERVED_FIELD');
    const schema={...n.schema,properties:{kind:{type:'string',enum:[kind]},...n.schema.properties},required:['kind',...n.schema.required]};

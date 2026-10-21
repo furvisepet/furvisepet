@@ -143,6 +143,7 @@ import {
 import { isExplicitCareHistorySaveRequest, resolveAutomaticCareHistoryPresentation } from "../../lib/intelligence/care-history-policy.ts";
 import { publicAskFailureCode, type AskInternalFailure } from "../../lib/furvise-output.ts";
 import { PUBLIC_V1_CAPABILITIES, publicV1AskCapability } from "../../lib/public-v1-capabilities.ts";
+import { previewRecordedAskCapability } from "../../lib/intelligence/calculation-capability.ts";
 import { readAskProfiles, classifyAskDatabaseFailure } from "../../lib/ask-profile-read.ts";
 
 const friendlyAnswerFailure = FURVISE_ANSWER_UNAVAILABLE_MESSAGE;
@@ -567,7 +568,7 @@ async function executeAuthenticatedAskRequest(request: Request, execution: AskRe
         return reply;
       }
       liveContext = { ...liveContext, askInterpretation: interpretation };
-      const publicV1Capability = publicV1AskCapability(interpretation.request);
+      const publicV1Capability = previewRecordedAskCapability(interpretation.request, userId);
       capturePreviewEvidence("capability", { request: interpretation.request, decision: publicV1Capability });
       await flushPreviewEvidence();
       if (!publicV1Capability.available && publicV1Capability.reason === "mutation") {
@@ -777,7 +778,7 @@ async function executeAuthenticatedAskRequest(request: Request, execution: AskRe
         message: reasoningQuestion,
         petName: liveContext.pet.name || "your pet",
         generate: async () => {
-          const generated = await generateAskHistoryAnswer({
+          const generated = await generateAskHistoryAnswer({ signal: request.signal,
             onStage: stage => { generationStage = stage; },
             supabase,
             context: liveContext,

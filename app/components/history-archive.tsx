@@ -3,6 +3,7 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppPage } from "./app-page";
+import { HistorySourceDetails } from "./history-source-details";
 import { LoadingState, Notice, PageHeader } from "./product-primitives";
 import { useRequireConfirmedSupabaseAuth } from "../lib/auth-session";
 import {
@@ -24,6 +25,7 @@ import {
   listHistoryArchivePets,
   queryHistoryArchive,
   removeCareEntryFromHistory,
+  updateCareEntry,
   type CareEntryWithPetName,
   type HistoryArchivePet,
 } from "../lib/supabase";
@@ -50,6 +52,13 @@ export function HistoryArchive() {
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [error, setError] = useState("");
   const [activeEntry, setActiveEntry] = useState<CareEntryWithPetName | null>(null);
+  const [editingNote, setEditingNote] = useState(false);
+  const [editNote, setEditNote] = useState("");
+  const [confirmingEdit, setConfirmingEdit] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [editStatus, setEditStatus] = useState("");
+  const savingEditRef = useRef(false);
   const [confirmingRemoval, setConfirmingRemoval] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [removeError, setRemoveError] = useState("");
@@ -152,7 +161,8 @@ export function HistoryArchive() {
         }
         return;
       }
-      if (event.key !== "Escape" || removing) return;
+      if (event.key !== "Escape" || removing || savingEdit) return;
+      if (editingNote) { cancelEdit(); return; }
       if (confirmingRemoval) {
         setConfirmingRemoval(false);
         setRemoveError("");
@@ -169,7 +179,7 @@ export function HistoryArchive() {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [confirmingRemoval, displayedEntry, removing]);
+  }, [confirmingRemoval, displayedEntry, removing, editingNote, savingEdit]);
 
   async function loadOlder() {
     if (loadingOlder || !hasMore) return;
@@ -200,18 +210,50 @@ export function HistoryArchive() {
     setConfirmingRemoval(false);
     setRemoveError("");
     setRemovalStatus("");
+    setEditingNote(false); setConfirmingEdit(false); setEditError(""); setEditStatus("");
     const params = new URLSearchParams(window.location.search);
     params.set("entry", entry.id);
     window.history.replaceState(null, "", `/history?${params.toString()}`);
   }
 
   function closeEntry() {
-    if (removing) return;
+    if (removing || savingEdit) return;
+    setEditingNote(false); setConfirmingEdit(false); setEditError("");
     setActiveEntry(null);
     setConfirmingRemoval(false);
     setRemoveError("");
     removeHistoryEntrySearchParameter();
     window.setTimeout(() => openerRef.current?.focus(), 0);
+  }
+
+  function startEdit() {
+    if (!displayedEntry || !user || displayedEntry.user_id !== user.id || savingEdit) return;
+    setEditNote(displayedEntry.note); setEditingNote(true); setConfirmingEdit(false); setEditError(""); setEditStatus("");
+  }
+  function cancelEdit() {
+    if (savingEditRef.current) return;
+    setEditingNote(false); setConfirmingEdit(false); setEditNote(""); setEditError("");
+  }
+  function reviewEdit() {
+    if (!editNote.trim() || editNote.length > 4000) { setEditError("Enter a note of 1 to 4,000 characters."); return; }
+    if (editNote.trim() === displayedEntry?.note) { setEditError("Make a change before saving."); return; }
+    setEditError(""); setConfirmingEdit(true);
+  }
+  async function confirmEdit() {
+    if (!displayedEntry || !user || displayedEntry.user_id !== user.id || !editingNote || !confirmingEdit || savingEditRef.current) return;
+    const original = displayedEntry;
+    savingEditRef.current = true; setSavingEdit(true); setEditError("");
+    try {
+      const saved = await updateCareEntry(original.id, { petProfileId: original.pet_profile_id,
+        category: original.category, title: original.title ?? "", note: editNote,
+        severity: original.severity, occurredAt: original.occurred_at }, {}, original.updated_at);
+      if (saved.id !== original.id || saved.pet_profile_id !== original.pet_profile_id || saved.user_id !== user.id
+        || saved.note !== editNote.trim() || saved.updated_at === original.updated_at) throw new Error("The saved result needs checking. Reopen this note before making another change.");
+      const entry = { ...saved, pet_name: original.pet_name };
+      setActiveEntry(entry); setEntries(current => current.map(item => item.id === entry.id ? entry : item));
+      setEditingNote(false); setConfirmingEdit(false); setEditStatus("Changes saved."); markAppDataChanged();
+    } catch (error) { setEditError(error instanceof Error ? error.message : "The note could not be saved."); }
+    finally { savingEditRef.current = false; setSavingEdit(false); }
   }
 
   function prepareRemoval() {
@@ -306,14 +348,29 @@ export function HistoryArchive() {
                 <p className="text-sm text-[var(--text-secondary)]">{formatHistoryTimestamp(displayedEntry.occurred_at, undefined, displayedEntry.care_event_metadata)} · {formatPetDisplayName(displayedEntry.pet_name)} · {formatCareEntryCategory(displayedEntry.category)}</p>
                 <h2 className="sr-only" id="history-entry-title">History entry details</h2>
               </div>
-              <button ref={closeButtonRef} aria-label="Close history entry" className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border-default)] text-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" disabled={removing} onClick={closeEntry} type="button">×</button>
+              <button ref={closeButtonRef} aria-label="Close history entry" className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border-default)] text-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" disabled={removing || savingEdit} onClick={closeEntry} type="button">×</button>
             </div>
             {!confirmingRemoval ? (
               <>
-                <p className="mt-5 whitespace-pre-wrap text-lg leading-8 text-[var(--text-primary)]">{displayedEntry.note}</p>
-                <div className="mt-8 border-t border-[var(--line)] pt-6">
+                {editingNote ? <div className="mt-5 space-y-4" data-ui="history-note-edit">
+                  <h2 className="text-xl font-semibold">Edit saved note</h2>
+                  {!confirmingEdit ? <><label className="block" htmlFor="history-edit-note">Note</label>
+                    <textarea id="history-edit-note" className={controlClass + " min-h-32 w-full"} value={editNote} maxLength={4000} disabled={savingEdit} onChange={event => setEditNote(event.target.value)} />
+                    <button className={controlClass} type="button" onClick={reviewEdit}>Review changes</button></> : <>
+                    <p>Review the change to this saved note for {formatPetDisplayName(displayedEntry.pet_name)}.</p>
+                    <p className="font-semibold">Original note</p><p className="whitespace-pre-wrap">{displayedEntry.note}</p>
+                    <p className="font-semibold">Updated note</p><p className="whitespace-pre-wrap">{editNote}</p>
+                    <p>The entry will stay in History. Its other details will stay the same.</p>
+                    <button className={controlClass} type="button" disabled={savingEdit} onClick={() => void confirmEdit()}>{savingEdit ? "Saving changes..." : "Confirm save changes"}</button></>}
+                  <button className={controlClass} type="button" disabled={savingEdit} onClick={cancelEdit}>Cancel edit</button>
+                  {editError ? <p role="alert">{editError}</p> : null}
+                </div> : <p className="mt-5 whitespace-pre-wrap text-lg leading-8 text-[var(--text-primary)]">{displayedEntry.note}</p>}
+                {editStatus ? <p role="status">{editStatus}</p> : null}
+                {authStatus === "signedIn" && user ? <HistorySourceDetails key={`${user.id}:${displayedEntry.id}`} recordId={displayedEntry.id} subjectId={displayedEntry.pet_profile_id} revision={displayedEntry.updated_at} /> : null}
+                {!editingNote ? <div className="mt-8 flex flex-wrap gap-3 border-t border-[var(--line)] pt-6">
+                  {authStatus === "signedIn" && user?.id === displayedEntry.user_id ? <button className={controlClass} type="button" onClick={startEdit}>Edit note</button> : null}
                   <button ref={removeButtonRef} className="inline-flex min-h-12 items-center rounded-[var(--radius-sm)] border border-[var(--danger-text)] px-5 text-sm font-semibold text-[var(--danger-text)] hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" onClick={prepareRemoval} type="button">Remove from history</button>
-                </div>
+                </div> : null}
               </>
             ) : (
               <div className="mt-7 border-y border-[var(--line)] py-7" data-ui="history-remove-confirmation">

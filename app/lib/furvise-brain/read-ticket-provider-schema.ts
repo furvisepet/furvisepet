@@ -116,6 +116,8 @@ function correlatedReadAlternatives(base: CorrelatedReadSchema): CorrelatedReadS
         if (p.outputs.properties!.strategy) restrict(p.outputs.properties!, "strategy", [null]);
       }
     }
+    if(!report)Object.assign(p.predicates,{items:structuredClone(readTicketSchema.properties.predicates.items.anyOf[0])});
+    else if(anchored)Object.assign(p.predicates,{items:{anyOf:structuredClone(readTicketSchema.properties.predicates.items.anyOf.filter(arm=>!arm.properties.kind.enum.includes("source_ref")))}});
     if (possible) results.push(s);
   }
   return results;
@@ -124,10 +126,11 @@ readTicketProviderSchema.anyOf = readTicketProviderSchema.anyOf.flatMap(base =>
   correlatedReadAlternatives(base)) as typeof readTicketProviderSchema.anyOf;
 
 /** Calculation read domains mirror Calculate Binder; no selection is synthesized. */
-export function calculationReadTicketProviderSchema(countOnly: boolean) {
+export function calculationReadTicketProviderSchema(countOnly: boolean, authority: "effective_fact" | "stored_report" = "effective_fact") {
+  if(countOnly && authority === "stored_report")throw Error("RECORDED_CALCULATION_DOMAIN");
   const ticket = structuredClone(providerTicket);
   Object.assign(ticket.properties, {
-    authority: { type: "string", enum: ["effective_fact"] },
+    authority: { type: "string", enum: [authority] },
     operation: { type: "string", enum: ["read", "read_since_event"] },
     selection: countOnly ? { type: "null" } : { ...semanticProperties.selection, type: "object",
       description: "Set union of distinct semantic clauses. Never duplicate orderBy/take clauses. Opposite boundaries of one bounded matching set use ascending take 1 and descending take 1; temporal constraints belong in this ticket." },
@@ -139,6 +142,7 @@ export function calculationReadTicketProviderSchema(countOnly: boolean) {
       : { type: "object", additionalProperties: false, required: ["completeness", "ordering", "limit"],
           properties: { ...publication } },
   });
+  Object.assign(ticket.properties.predicates,{items:authority==="effective_fact"?structuredClone(readTicketSchema.properties.predicates.items.anyOf[0]):{anyOf:structuredClone(readTicketSchema.properties.predicates.items.anyOf.filter(arm=>!arm.properties.kind.enum.includes("source_ref")))}});
   Object.assign(ticket.properties.temporal, { description: "Sole temporal retrieval authority. Encode every requested bounded period here: inclusive from, exclusive to. For an inclusive ending calendar day use next local midnight in the supplied timezone. Outer calculation dates are null and cannot supply missing bounds." });
   return ticket;
 }

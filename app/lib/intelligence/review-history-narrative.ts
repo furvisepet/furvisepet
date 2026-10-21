@@ -1,3 +1,4 @@
+import type { RecordedCalculationContext } from "../furvise-brain/muscle.ts";
 import { calculationPublicationFailure, CALCULATION_LABS, CALCULATION_UNAVAILABLE } from "./calculation-labs.ts";
 import { dependsOnStoredState, factualLimitationFailure, FACTUAL_UNAVAILABLE, FACTUAL_LIMITATION } from "./factual-dispatch.ts";
 
@@ -13,7 +14,8 @@ import { historyLabsAuthorityFailure, historyLimitationFailure } from "./ordinar
 import { clearHistoryReview, recordHistoryReview, historyReviewSignature as signature, recordHistoryReviewDiagnostic } from "./history-review-state.ts";
 export { readReviewedHistoryAnswer } from "./history-review-state.ts";
 /** Historical review verifies server authority only. It never invokes a provider. */
-export async function reviewHistoricalAnswer({ result, client, onProviderEvent, repairAttempted = false, executionPlan }: {
+export async function reviewHistoricalAnswer({ result, client, onProviderEvent, repairAttempted = false, executionPlan, recordedCalculation }: {
+  recordedCalculation?: RecordedCalculationContext;
   executionPlan?: GovernedAskExecutionPlan;
   result: AskReasoningResult;
   repairAttempted?: boolean;
@@ -25,7 +27,8 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   recordHistoryReviewDiagnostic(result, "declined", "review_not_completed");
   const evidence = result.evidenceContract;
   if (evidence?.interpretation?.request?.calculatePlan || [CALCULATION_LABS,CALCULATION_UNAVAILABLE].includes(result.model)) {
-    const failure=calculationPublicationFailure(result);
+    const failure=await (recordedCalculation && result.calculationLabs?.execution.authority==="recorded_contents"
+      ? calculationPublicationFailure(result,recordedCalculation) : calculationPublicationFailure(result));
     if(failure)return decline(failure);
     if(executionPlan && (executionPlan.semanticEvents.length || executionPlan.careActions.length || executionPlan.learnings.length))return decline("calculation_has_pending_write");
     recordHistoryReview(result,{signature:signature(result),text:result.answer.summary,sourceIds:[...result.relevantContextIds],sourceContent:[]});

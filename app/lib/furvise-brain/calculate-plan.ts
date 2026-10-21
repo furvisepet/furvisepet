@@ -26,7 +26,12 @@ export type MeasurementSelector = Readonly<{predicateIndexes:readonly number[]}>
 export type CalculateSlot = Readonly<{role:CalculateRole; subjectId:string; clause:number; item:number; field:"measurement"|"event_at"; unit:string|null; measurementSelector?:MeasurementSelector|null}>;
 export type CalculateResultOperand=Readonly<{kind:"result";role:CalculateRole;calculationId:string}>;
 export type CalculatePremiseOperand=Readonly<{kind:"premise";role:CalculateRole;source:UserSourceSpan;exact:Exact;unit:string}>;
-export type CalculateOperand=CalculateSlot|CalculatePremiseOperand|CalculateResultOperand;
+export type CalculateRecordedSelectedOperand=CalculateSlot & Readonly<{kind:"recorded";field:"measurement";unit:string;measurementSelector:null}>;
+export type CalculateRecordedAnchorOperand=Omit<CalculateRecordedSelectedOperand,"clause"|"item"> & Readonly<{source:"anchor"}>;
+export type CalculateRecordedOperand=CalculateRecordedSelectedOperand|CalculateRecordedAnchorOperand;
+export const isRecordedAnchorOperand=(o:CalculateRecordedOperand):o is CalculateRecordedAnchorOperand=>"source" in o&&o.source==="anchor";
+export type CalculateOperand=CalculateSlot|CalculatePremiseOperand|CalculateResultOperand|CalculateRecordedOperand;
+export const isRecordedOperand=(o:CalculateOperand):o is CalculateRecordedOperand=>"kind" in o&&o.kind==="recorded";
 export const isResultOperand=(o:CalculateOperand):o is CalculateResultOperand=>"kind" in o&&o.kind==="result";
 export const isPremiseOperand=(o:CalculateOperand):o is CalculatePremiseOperand=>"kind" in o&&o.kind==="premise";
 export const MAX_CALCULATION_DEPTH=8;
@@ -42,7 +47,9 @@ export const DIRECT_CALCULATION_OPERAND_DESCRIPTION = "Consumes a factual measur
 export const CALCULATION_PREMISE_LITERAL_PATTERN = String.raw`^\s*([+\u2212-]?\d+(?:\.\d+)?)\s*([A-Za-z]+)?\s*$`;
 export const PREMISE_CALCULATION_OPERAND_DESCRIPTION = "Consumes one exact numeric premise from USER text. quote is an exact contiguous USER span and sourceTurnId is null for the current USER turn or an explicitly referenced prior USER turn. The server binds the source span and exact rational value; never provide a numeric value separately.";
 export const RESULT_CALCULATION_OPERAND_DESCRIPTION = "Consumes only the certified arithmetic output of an EARLIER calculation node already emitted in this same calculations array. It is not a selected-record name, read-slot alias, premise alias or undeclared variable. No implicit producer exists.";
-export const CALCULATION_INPUT_OWNERSHIP = "A root calculation uses exactly one factual source domain: certified ReadTicket slots or exact USER premise spans. Use kind:result only when the requested derivation depends on an EARLIER arithmetic node already present in calculations. Every calculationId must equal an actual prior producer id. ReadTicket slots and USER spans are not calculation IDs. Never provide computed values or source IDs; the server binds factual inputs.";
+export const CALCULATION_INPUT_OWNERSHIP = "A root calculation uses exactly one source domain: certified factual ReadTicket slots, exact USER premise spans, or explicit kind:recorded attributed report measurements. Recorded operands are only target/reference signed difference over stored_report, never certified facts. Use kind:result only when the requested derivation depends on an EARLIER arithmetic node already present in calculations. Every calculationId must equal an actual prior producer id. ReadTicket slots and USER spans are not calculation IDs. Never provide computed values or source IDs; the server binds factual inputs.";
+export const recordedCalculationOperandSchema={type:"object",description:"One attributed recorded measurement selected by the companion stored_report ReadTicket. Only signed difference; no effective or clinical truth. Server extracts and revalidates the source value. Never supply numeric values or source certificates.",additionalProperties:false,required:["kind","role","petName","clause","item","unit"],properties:{kind:{type:"string",enum:["recorded"]},role:{type:"string",enum:["target","reference"]},petName:{type:"string",minLength:1,maxLength:100},clause:{type:"integer",minimum:0,maximum:7},item:{type:"integer",minimum:0,maximum:99},unit:{type:"string",enum:Object.keys(units)}}};
+export const recordedAnchorCalculationOperandSchema={type:"object",description:"Measurement in this subject's uniquely resolved companion stored_report event anchor, not a post-window selected record. The server revalidates source identity/version/hash and extracts the value. No clause/item, model numeric value or factual certificate.",additionalProperties:false,required:["kind","source","role","petName","unit"],properties:{kind:{type:"string",enum:["recorded"]},source:{type:"string",enum:["anchor"]},role:{type:"string",enum:["target","reference"]},petName:{type:"string",minLength:1,maxLength:100},unit:{type:"string",enum:Object.keys(units)}}};
 export const calculatePlanSchema={anyOf:[{type:"null"},{
  type:"object",additionalProperties:false,required:["operation","calculations","resultSelection"],properties:{
  resultSelection:resultSelectionSchema,
@@ -61,7 +68,7 @@ export const calculatePlanSchema={anyOf:[{type:"null"},{
  role:{type:"string",enum:CALCULATE_ROLES},kind:{type:"string",enum:["premise"]},
  sourceTurnId:{type:["string","null"],maxLength:160},quote:{type:"string",minLength:1,maxLength:1200,pattern:CALCULATION_PREMISE_LITERAL_PATTERN},
  unit:{type:"string",enum:[...Object.keys(units),"scalar"]}}},
- {type:"object",description:RESULT_CALCULATION_OPERAND_DESCRIPTION,additionalProperties:false,required:["kind","role","calculationId"],properties:{role:{type:"string",enum:CALCULATE_ROLES},kind:{type:"string",enum:["result"]},calculationId:{type:"string",minLength:1,maxLength:80,description:"Exact id of an actual EARLIER calculation in this same calculations array. Emit that producer before referencing it. No implicit producer exists; ReadTicket slots and USER spans are not calculation IDs."}}}]}},
+ {type:"object",description:RESULT_CALCULATION_OPERAND_DESCRIPTION,additionalProperties:false,required:["kind","role","calculationId"],properties:{role:{type:"string",enum:CALCULATE_ROLES},kind:{type:"string",enum:["result"]},calculationId:{type:"string",minLength:1,maxLength:80,description:"Exact id of an actual EARLIER calculation in this same calculations array. Emit that producer before referencing it. No implicit producer exists; ReadTicket slots and USER spans are not calculation IDs."}}},recordedCalculationOperandSchema,recordedAnchorCalculationOperandSchema] as const}},
  resultUnit:{type:"string",enum:[...Object.keys(units),"scalar","%","records"]},
  precision:{type:["integer","null"],minimum:0,maximum:10}
  }}}}}]};
@@ -92,10 +99,12 @@ function validBoundPremiseSpan(value:unknown):value is UserSourceSpan {
 function bind(value:unknown,ticket:ReadTicket|null,resolve:(v:unknown)=>string,bound:boolean,source?:CalculationSource|readonly CalculationSource[]):CalculatePlan {
  if(!obj(value)||!keys(value,Object.hasOwn(value,"resultSelection")?["operation","calculations","resultSelection"]:["operation","calculations"])||value.operation!=="calculate"
   ||!Array.isArray(value.calculations)||!value.calculations.length||value.calculations.length>20) return fail("plan");
- const validTicket=!!ticket&&ticket.authority!=="stored_report"&&["read","read_since_event"].includes(ticket.operation)&&!ticket.episode&&!ticket.needs?.length
+ const legalTicket=!!ticket&&["read","read_since_event"].includes(ticket.operation)&&!ticket.episode&&!ticket.needs?.length
   &&ticket.outputs.strategy==null&&!ticket.temporal.calendar;
+ const validTicket=legalTicket&&ticket!.authority!=="stored_report";
+ const validRecordedTicket=legalTicket&&ticket!.authority==="stored_report";
  const sources=calculationSources(source);
- let rootDomain:"read"|"premise"|null=null;
+ let rootDomain:"read"|"premise"|"recorded"|null=null;
  const prior=new Map<string,{calculation:CalculatePlan["calculations"][number];depth:number}>();
  const calculations:CalculatePlan["calculations"][number][]=[];
  let chained=false;
@@ -110,13 +119,18 @@ function bind(value:unknown,ticket:ReadTicket|null,resolve:(v:unknown)=>string,b
   const roleRanges=Object.values(rolePolicy);
   const resultCount=c.operands.filter(o=>obj(o)&&o.kind==="result").length;
   const premiseCount=c.operands.filter(o=>obj(o)&&o.kind==="premise").length;
-  const derived=resultCount>0,premise=premiseCount>0;
-  if(derived&&resultCount!==n||premise&&premiseCount!==n)return fail("mixed_operands");
+  const recordedCount=c.operands.filter(o=>obj(o)&&o.kind==="recorded").length;
+  const derived=resultCount>0,premise=premiseCount>0,recorded=recordedCount>0;
+  if(derived&&resultCount!==n||premise&&premiseCount!==n||recorded&&recordedCount!==n)return fail("mixed_operands");
   if(operator==="count_records"){
    if(!validTicket||!ticket||n||ticket.selection||ticket.outputs.completeness!=="exhaustive"||ticket.outputs.limit!==null||c.resultUnit!=="records")return fail("exhaustive_count");
    if(rootDomain&&rootDomain!=="read")return fail("mixed_source_domains");rootDomain="read";
   }else{
-   if(premise){
+   if(recorded){
+    if(!validRecordedTicket||!ticket?.selection||ticket.selection.groupBy.length!==1
+     ||operator!=="difference"||value.calculations.length!==1||value.resultSelection!==null)return fail("recorded_contract");
+    if(rootDomain&&rootDomain!=="recorded")return fail("mixed_source_domains");rootDomain="recorded";
+   }else if(premise){
     if(operator==="elapsed_days")return fail("premise_operator");
     if(rootDomain&&rootDomain!=="premise")return fail("mixed_source_domains");rootDomain="premise";
    }else if(!derived){
@@ -186,6 +200,23 @@ function bind(value:unknown,ticket:ReadTicket|null,resolve:(v:unknown)=>string,b
   }else{
    if(!ticket)return fail("read_domain");
    const slots=c.operands.map(o=>{
+    if(recorded){
+     if(obj(o)&&Object.hasOwn(o,"source")){
+      if(!keys(o,bound?["kind","source","role","subjectId","field","unit","measurementSelector"]:["kind","source","role","petName","unit"])
+       ||o.kind!=="recorded"||o.source!=="anchor"||bound&&(o.field!=="measurement"||o.measurementSelector!==null))return fail("recorded_anchor_operand");
+      const subjectId=resolve(o[bound?"subjectId":"petName"]);
+      if(!ticket.subjects.petIds.includes(subjectId)||ticket.operation!=="read_since_event"||!ticket.temporal.anchor||!unit(o.unit))return fail("recorded_anchor_source");
+      return Object.freeze({kind:"recorded" as const,source:"anchor" as const,role:o.role as CalculateRole,subjectId,field:"measurement" as const,unit:o.unit as string,measurementSelector:null});
+     }
+     if(!obj(o)||!keys(o,bound?["kind","role","subjectId","clause","item","field","unit","measurementSelector"]:["kind","role","petName","clause","item","unit"])
+      ||o.kind!=="recorded"||bound&&(o.field!=="measurement"||o.measurementSelector!==null))return fail("recorded_operand");
+     const subjectId=resolve(o[bound?"subjectId":"petName"]);
+     if(!ticket.subjects.petIds.includes(subjectId)||!Number.isInteger(o.clause)||Number(o.clause)<0
+      ||!Number.isInteger(o.item)||Number(o.item)<0||!ticket.selection?.union[Number(o.clause)]
+      ||Number(o.item)>=ticket.selection.union[Number(o.clause)].take.count||!unit(o.unit))return fail("recorded_position_unit");
+     return Object.freeze({kind:"recorded" as const,role:o.role as CalculateRole,subjectId,clause:Number(o.clause),item:Number(o.item),
+      field:"measurement" as const,unit:o.unit as string,measurementSelector:null});
+    }
     if(!obj(o)||!keys(o,["role",bound?"subjectId":"petName","clause","item","field","unit",...(Object.hasOwn(o,"measurementSelector")?["measurementSelector"]:[])]))return fail("slot");
     const subjectId=resolve(o[bound?"subjectId":"petName"]);
     if(!ticket.subjects.petIds.includes(subjectId))return fail("subject");

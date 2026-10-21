@@ -39,7 +39,7 @@ export function translateLegacyReadSelection(ticket: ReadTicket, legacyObligatio
       return unchanged("event_search_requires_typed_predicates");
     // No downstream language interpretation: only exact existing typed terms
     // can prove a hint is redundant with the factual predicate vocabulary.
-    const terms = new Set(ticket.predicates.flatMap(predicate => [...predicate.terms]));
+    const terms = new Set(ticket.predicates.flatMap(predicate => predicate.kind==="text_any"?[...predicate.terms]:[]));
     if (ticket.searchHints?.some(hint => !terms.has(hint)))
       return unchanged("event_search_hint_semantics_not_represented");
     if (ticket.outputs.limit === null) {

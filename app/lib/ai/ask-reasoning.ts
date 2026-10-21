@@ -47,6 +47,7 @@ import {
 } from "../ask-safety-context.ts";
 import type { PetConcern } from "./concern-engine.ts";
 import type { CareEpisode } from "../intelligence/episodes/types.ts";
+import type { RecordedCalculationContext } from "../furvise-brain/muscle.ts";
 import type { ActiveConcernMessageState } from "./turn-classifier.ts";
 import {
   ASK_MAX_OUTPUT_TOKENS,
@@ -213,6 +214,7 @@ type BuildContextInput = {
 };
 
 export type GenerateAskReasoningInput = BuildContextInput & {
+  recordedCalculation?: RecordedCalculationContext;
   apiKey?: string;
   client?: AskReasoningOpenAiClient;
   locale: string;
@@ -765,7 +767,9 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   const profileLabs = projectionContext.minimumSafetyLevel === "normal" ? buildProfileFieldLabs(projectionContext.promptContext.evidenceContract) : null;
   const publicationEvidence = projectionContext.promptContext.evidenceContract;
   const calculationRequested = !!publicationEvidence.interpretation?.request?.calculatePlan;
-  const calculationLabs = calculationRequested ? buildCalculationLabs(publicationEvidence, input.careEntries) : null;
+  const calculationLabs = calculationRequested ? await (input.recordedCalculation
+    ? buildCalculationLabs(publicationEvidence, input.careEntries, input.recordedCalculation)
+    : buildCalculationLabs(publicationEvidence, input.careEntries)) : null;
   const typedProfile = isTypedProfileRead(publicationEvidence);
   const profileUnavailable = unsupportedProfilePresentation(publicationEvidence);
   // Typed profile reads never reopen another factual carrier, including safety-blocked Labs.

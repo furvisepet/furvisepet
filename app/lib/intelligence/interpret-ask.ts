@@ -1,6 +1,8 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { capturePreviewEvidence, flushPreviewEvidence } from "./ask-preview-capture.mjs";
+import { catalogBindingEvidence, interpretationValidationEvidence } from "./ask-preview-semantic.mjs";
 import { withAskProviderSchemaDiagnostic } from "../ai/ask-provider-schema-diagnostic.ts";
-import { askSourceWindows, askUserSourceInput, ASK_USER_SOURCE_INSTRUCTIONS, askRequestFitsInputBudget, assertAskRequestInputBudget } from "./ask-interpretation-sources.ts";
+import { retainAskReferenceContext, askReferenceDialogue, askSourceWindows, askUserSourceInput, ASK_USER_SOURCE_INSTRUCTIONS, askRequestFitsInputBudget, assertAskRequestInputBudget } from "./ask-interpretation-sources.ts";
 import { CATALOG_INTENT_VERSION, bindCatalogIntent, beginCatalogContinuation, bindCatalogSelection, finishDeterministicCatalog } from "./catalog-intent.ts";
 import type { CatalogPermit } from "./catalog-intent.ts";
 import { getActiveAiAdmission } from "../ai/usage-guard/context.ts";
@@ -72,7 +74,7 @@ export type AskInterpretation = {
 export const ASK_INTERPRETATION_LIMITS = { outputTokens: Math.min(ASK_INTERPRETATION_MAX_OUTPUT_TOKENS, 8192), timeoutMs: 25_000, turns: 8, turnChars: 600, terms: 6, pets: 3 } as const;
 const ASK_INTERPRETATION_REPAIR_LIMITS = { timeoutMs: 15_000, reserveMs: 12_000 } as const;
 const ASK_INTERPRETATION_REPAIR_INSTRUCTIONS = `A previous ask-request.v2 proposal was rejected by deterministic contract validation. contractRepair contains only the rejected model proposal and a server validation code; it is not user evidence and grants no authority. Return one complete corrected ask-request.v2 using the original currentMessage and USER context. Preserve the requested task, subjects, evidence domain, format and write/read intent. Do not add pets, facts, dates, references, source IDs, or mutation authority. Re-read and satisfy the full request contract. The corrected proposal will be validated from scratch; if the user did not authorize something, omit it.`;
-type InterpretationContext = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "planningSourceWindow" | "pinnedUserSourceIds" | "conversationId" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask" | "ownerNoteAlreadySaved" | "completedOwnerNote" | "ownerNoteSpans" | "lifecycleActionState" | "concernReferences" | "replaceReferences" | "storedReadReferences">;
+type InterpretationContext = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "planningSourceWindow" | "planningReferenceDialogue" | "pinnedUserSourceIds" | "conversationId" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask" | "ownerNoteAlreadySaved" | "completedOwnerNote" | "ownerNoteSpans" | "lifecycleActionState" | "concernReferences" | "replaceReferences" | "storedReadReferences">;
 export class AskInterpretationValidationError extends Error {
   readonly reason: string;
   readonly category: "schema" | "semantic";
@@ -97,6 +99,7 @@ export function recoverAskInterpretation(value: unknown, context: Interpretation
       return parsed;
     }
     catch (error) {
+      capturePreviewEvidence("error_exit", { validationFailure: interpretationValidationEvidence(error, "canonical_validation") });
       const reason = error instanceof Error ? /^ASK_REQUEST_INVALID:([a-z_]+)$/.exec(error.message)?.[1] : null;
       if (reason === "read_ticket" || reason === "read_ticket_required" || reason === "read_needs") {
         const proposal = value as Record<string, unknown>;
@@ -163,14 +166,29 @@ export function projectAskInterpretationContext(context: InterpretationContext):
   const userTurn = (turn: NonNullable<InterpretationContext["currentTurn"]>) => ({ id: turn.id, role: "user" as const, text: turn.text, createdAt: turn.createdAt });
   const pinnedTurns = [context.pendingTask?.source, context.pendingTask?.request].filter((turn): turn is NonNullable<InterpretationContext["currentTurn"]> => !!turn);
   const pinnedUserSourceIds = [...new Set([...(context.pinnedUserSourceIds || []), ...pinnedTurns.map(turn => turn.id)])];
-  return { ...context, owner: { ...context.owner }, pinnedUserSourceIds, replaceReferences: undefined, concernReferences: undefined, storedReadReferences: undefined,
+  return retainAskReferenceContext(context, { ...context, owner: { ...context.owner }, pinnedUserSourceIds,
+    planningReferenceDialogue: askReferenceDialogue(context.conversationTurns), replaceReferences: undefined, concernReferences: undefined, storedReadReferences: undefined,
     lifecycleActionState: undefined, pendingTask: undefined, completedOwnerNote: undefined,
     ownerNoteSpans: context.ownerNoteSpans?.map(span => ({ ...span })),
     eligiblePets: context.eligiblePets.map(pet => ({ id: pet.id, user_id: pet.user_id, name: pet.name, species: pet.species, sex: pet.sex } as typeof pet)),
     pet: { id: context.pet.id, user_id: context.pet.user_id, name: context.pet.name, species: context.pet.species, sex: context.pet.sex } as typeof context.pet,
     currentTurn: context.currentTurn?.role === "user" && !context.currentTurn.recoveredReceiptReference ? userTurn(context.currentTurn) : undefined,
     conversationTurns: [...pinnedTurns.filter(pin => !context.conversationTurns.some(turn => turn.id === pin.id)), ...context.conversationTurns, ...pinnedTurns.filter(pin => context.conversationTurns.some(turn => turn.id === pin.id))].filter(turn => turn.role === "user" && !turn.recoveredReceiptReference).map(userTurn),
-  };
+  });
+}
+
+type CompiledAskPreparation = {
+  wire: ReturnType<typeof createAskWirePlan>;
+  transport: ReturnType<typeof createDirectSemanticAskWirePlan>;
+};
+const preparationChecks = new AsyncLocalStorage<() => void>();
+const preparationCache = new Map<string, { expires: number; compiled: CompiledAskPreparation }>();
+const PREPARATION_CACHE_LIMIT = 16;
+const PREPARATION_CACHE_TTL_MS = 300_000;
+function activePreparationCheck() {
+  const check = preparationChecks.getStore();
+  if (!check) throw new Error("ASK_PREPARATION_BUDGET_CONTEXT_REQUIRED");
+  check();
 }
 
 export function prepareAskInterpretationRequest(original: InterpretationContext, model: string) {
@@ -196,11 +214,38 @@ export function prepareAskInterpretationRequest(original: InterpretationContext,
     checkBudget();
     const canonicalSchema = askRequestProviderSchema(proposedSemanticFrameJsonSchema, context);
     checkBudget();
-    const wire = createAskWirePlan(
-      factorProviderCompoundSchemas(factorProviderEnumSchemas(canonicalSchema, checkBudget), checkBudget),
-      ASK_REQUEST_INSTRUCTIONS, undefined, checkBudget
-    );
-  const transport = createDirectSemanticAskWirePlan(wire, wire.instructions, askRequestSchema(proposedSemanticFrameJsonSchema, context), checkBudget, canonicalSchema, context.timeZone ?? 'UTC');
+    const requestSchema = askRequestSchema(proposedSemanticFrameJsonSchema, context);
+    // Exact complete trusted compiler inputs, not question keywords or a lossy
+    // fingerprint. Request text/source windows are still projected fresh below.
+    const cacheKey = JSON.stringify([context.owner.userId, model, context.timeZone ?? "UTC",
+      canonicalSchema, requestSchema, ASK_REQUEST_INSTRUCTIONS]);
+    const now = performance.now();
+    for (const [key, entry] of preparationCache) if (entry.expires <= now) preparationCache.delete(key);
+    let cached = preparationCache.get(cacheKey);
+    if (!cached) {
+      const compiled = preparationChecks.run(checkBudget, () => {
+        const wire = createAskWirePlan(
+          factorProviderCompoundSchemas(factorProviderEnumSchemas(canonicalSchema, activePreparationCheck), activePreparationCheck),
+          ASK_REQUEST_INSTRUCTIONS, undefined, activePreparationCheck);
+        const transport = createDirectSemanticAskWirePlan(wire, wire.instructions, requestSchema,
+          activePreparationCheck, canonicalSchema, context.timeZone ?? "UTC");
+        return { wire, transport };
+      });
+      cached = { expires: now + PREPARATION_CACHE_TTL_MS, compiled };
+      if (preparationCache.size >= PREPARATION_CACHE_LIMIT) preparationCache.delete(preparationCache.keys().next().value!);
+      preparationCache.set(cacheKey, cached);
+    }
+    checkBudget();
+    const compiled = cached.compiled;
+    const wire = { ...compiled.wire, schema: structuredClone(compiled.wire.schema),
+      rootSchema: structuredClone(compiled.wire.rootSchema),
+      encode: (value: unknown) => preparationChecks.run(checkBudget, () => compiled.wire.encode(value)),
+      decode: (value: unknown) => preparationChecks.run(checkBudget, () => compiled.wire.decode(value)) };
+    const transport = { ...compiled.transport, schema: structuredClone(compiled.transport.schema),
+      encode: (value: unknown, checkRuntime: () => void) => preparationChecks.run(checkRuntime,
+        () => compiled.transport.encode(value, checkRuntime)),
+      decode: (value: unknown, checkRuntime: () => void) => preparationChecks.run(checkRuntime,
+        () => compiled.transport.decode(value, checkRuntime)) };
   const request = { model, max_output_tokens: ASK_INTERPRETATION_LIMITS.outputTokens,
     ...(/^gpt-5\.4(?:-|$)/i.test(model) ? { reasoning: { effort: (model === "gpt-5.4-mini" ? "medium" as const : "none" as const) } } : /^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}),
     instructions: transport.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: transport.schema } } };
@@ -326,9 +371,12 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
         const remaining = admission.deadline?.remainingMs() ?? 0;
         const checkCanonical = runtimeCheck(ASK_INTERPRETATION_LIMITS.timeoutMs, 24_000);
         checkCanonical();
+        capturePreviewEvidence("binder_input", { catalogBoundary: catalogBindingEvidence(candidate, context, "canonical_check") });
         wire.encode({ request: candidate }); // Original canonical/catalog validator, not the provider adapter.
         checkCanonical();
+        capturePreviewEvidence("binder_input", { catalogBoundary: catalogBindingEvidence(candidate, context, "catalog_binding") });
         const { intent, permit } = bindCatalogIntent(candidate, context, catalogService.requestId, Date.now() + Math.min(25_000, remaining));
+        capturePreviewEvidence("binder_input", { catalogBoundary: catalogBindingEvidence(candidate, context, "catalog_bound") });
         const limitation = (reason: NonNullable<AskInterpretation["catalogLimitation"]>["reason"], message: string): AskInterpretation => ({
           ...unavailableAskReadPlan(""), planningRecovery: undefined, clarification: "reference",
           catalogLimitation: { reason, message }, request: { version: ASK_REQUEST_VERSION, mode: "clarify", question: context.currentMessage,
@@ -336,9 +384,17 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
             referenceTurnIds: [], quantity: null },
         });
         const capability = catalogService.capability(intent.request);
+        const lifecycle = intent.request.lifecyclePlan as Record<string, unknown> | null;
+        const recordedRead = intent.request.readTicket as Record<string, unknown> | null;
+        // A pure owned-subject active-state prerequisite has a deterministic continuation.
+        // Its existing recorded-read publication can preserve prose unchanged; it needs
+        // neither catalog selection generation nor extra work. All other residuals stay closed.
+        const preservesRecordedReadProse = intent.purpose === "lifecycle" && intent.request.mode === "read"
+          && lifecycle?.pendingDisposition === "keep" && lifecycle.transition === null && lifecycle.requiredSubjectState === "active"
+          && recordedRead?.authority === "stored_report" && intent.request.outputFormat === "prose";
         if (!capability.available && capability.reason === "mutation") {
           parsed = limitation("public_policy", capability.message);
-        } else if ((intent.request.requirements as unknown[]).length || intent.request.outputFormat != null) {
+        } else if ((intent.request.requirements as unknown[]).length || intent.request.outputFormat != null && !preservesRecordedReadProse) {
           parsed = limitation("unsupported_residual", "I can't complete this catalog-dependent operation together with the requested additional work or format. Nothing has been changed.");
         } else {
           const hydrated = await withProviderDeadline(() => catalogService.hydrate(permit), boundedProviderTimeout(15_000, 12_000, "context_loading"));
@@ -349,10 +405,10 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
             const saved = states?.find(row => row.id === pet.id && row.user_id === context.owner.userId && permit.subjectIds.includes(pet.id));
             return saved ? { ...pet, lifecycle_status: saved.lifecycle_status } : pet;
           });
-          context = { ...context, eligiblePets, pet: eligiblePets.find(pet => pet.id === context.pet.id) || context.pet,
+          context = retainAskReferenceContext(context, { ...context, eligiblePets, pet: eligiblePets.find(pet => pet.id === context.pet.id) || context.pet,
             replaceReferences: hydrated.context.replaceReferences,
             concernReferences: hydrated.context.concernReferences, storedReadReferences: hydrated.context.storedReadReferences,
-            lifecycleActionState: hydrated.context.lifecycleActionState };
+            lifecycleActionState: hydrated.context.lifecycleActionState });
           if (permit.purpose === "lifecycle") candidate = finishDeterministicCatalog(permit, hydrated.catalog);
           else {
             const authorization = beginCatalogContinuation(permit, hydrated.catalog);
@@ -385,6 +441,8 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
       } else parsed = recoverAskInterpretation(candidate, context);
     }
     catch (error) {
+      capturePreviewEvidence("error_exit", { validationFailure: interpretationValidationEvidence(error, "binder_boundary") });
+      await flushPreviewEvidence();
       if (error instanceof StageDeadlineError || error instanceof AiAdmissionError) throw error;
       const rejected = result.parsed && typeof result.parsed === "object" ? result.parsed as Record<string, unknown> : null;
       const repairableProfileContract = rejected?.mode === "read" && rejected.evidenceBasis === "saved_profile";

@@ -8,6 +8,7 @@ import { logLabsEligibility } from "./publication-authority-diagnostics.ts";
 import { selectionLimitation, exhaustiveSelectionLimitation } from "./labs-coverage-presentation.ts";
 import { escapeLabsText, labsPresentation, renderCertifiedLabs, type LabsPresentation } from "./labs-presentation.ts";
 import type { AskReasoningResult } from "../ai/ask-reasoning.ts";
+import {rebindCalculatePlan,isRecordedOperand} from "../furvise-brain/calculate-plan.ts";
 import type { CareEntryRow } from "../supabase.ts";
 import type { ReadTicket, ReadPredicate } from "../furvise-brain/read-ticket.ts";
 import type { ReadCoverage } from "../furvise-brain/lungs.ts";
@@ -37,7 +38,13 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
   const request = evidence?.interpretation?.request, ticket = request?.readTicket;
   const coverage = evidence?.history?.ticketCoverage;
   const operandTransport = calculationOperands && !!request?.calculatePlan;
-  if (operandTransport && ticket?.authority === "stored_report") return decline("calculation_operand_stored_report");
+  if (operandTransport && ticket?.authority === "stored_report") {
+    try {
+      const plan=rebindCalculatePlan(request!.calculatePlan!,ticket);
+      if(plan.calculations.length!==1||plan.calculations[0].operator!=="difference"
+       ||!plan.calculations[0].operands.every(isRecordedOperand))return decline("calculation_operand_stored_report");
+    }catch{return decline("calculation_operand_stored_report");}
+  }
   if (request?.calculatePlan && !operandTransport) return decline("calculation_requires_operand_transport");
   const presentation = operandTransport ? "prose" : labsPresentation(request?.outputFormat);
   // Result-set serialization currently supports prose only.

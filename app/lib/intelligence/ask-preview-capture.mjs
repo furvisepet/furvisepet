@@ -1,22 +1,23 @@
 import 'server-only';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {createHash} from 'node:crypto';
+import {semanticEvidence} from './ask-preview-semantic.mjs';
 const active=new AsyncLocalStorage();
 const stages=new Set(['request','raw_provider','operation_decoded','canonical_decoded','binder_input','binder_output','capability','route_request','error_exit','request_exit','history_publication']);
 const hash=s=>createHash('sha256').update(s).digest('hex');
 // Server-injected sink only. No header, cookie, query, client input or environment path activates capture.
 export function withPreviewCapture(binding,sink,action){
  if(process.env.VERCEL_ENV!=='preview')return action();
- if(!binding||!/^[a-f0-9]{64}$/.test(binding.sourceSha256)||typeof binding.requestId!=='string'||!binding.requestId
+ if(!binding||!['raw','semantic'].includes(binding.mode??'raw')||!/^[a-f0-9]{64}$/.test(binding.sourceSha256)||typeof binding.requestId!=='string'||!binding.requestId
    ||typeof binding.deploymentId!=='string'||!binding.deploymentId||typeof sink!=='function')throw Error('ASK_CAPTURE_BINDING');
  return active.run({binding:{requestId:binding.requestId,deploymentId:binding.deploymentId,sourceSha256:binding.sourceSha256},
-  sink,sequence:0,bytes:0,requestSha256:null,pending:[],failure:null,observations:[],observationBytes:0,observationIncomplete:false,observationReasons:[],observationReceiptPersisted:false},action);
+  mode:binding.mode??'raw',sink,sequence:0,bytes:0,requestSha256:null,pending:[],failure:null,observations:[],observationBytes:0,observationIncomplete:false,observationReasons:[],observationReceiptPersisted:false},action);
 }
 export function capturePreviewEvidence(stage,value){
  const s=active.getStore();if(!s||process.env.VERCEL_ENV!=='preview')return;
  if(!stages.has(stage))throw Error('ASK_CAPTURE_STAGE');
  // JSON bytes are retained, not just a hash. Detach before sink code can inspect them.
- const payload=JSON.stringify(value);
+ const payload=JSON.stringify(s.mode==='semantic'?semanticEvidence(stage,value):value);
  if(typeof payload!=='string'||Buffer.byteLength(payload)>4194304||s.bytes+Buffer.byteLength(payload)>33554432)throw Error('ASK_CAPTURE_BOUND');
  if(stage==='request')s.requestSha256=hash(JSON.stringify(value.request));
  if(!s.requestSha256&&!['route_request','error_exit','request_exit'].includes(stage))throw Error('ASK_CAPTURE_REQUEST_REQUIRED');
@@ -47,7 +48,7 @@ export function previewObservationStatus(){
 export function captureHistoryPublication(value){
  const s=active.getStore();if(!s||process.env.VERCEL_ENV!=='preview')return;
  let payload;
- try{payload=JSON.stringify(value);}catch{observationFailure(s,'serialization');return;}
+ try{payload=JSON.stringify(s.mode==='semantic'?semanticEvidence('history_publication',value):value);}catch{observationFailure(s,'serialization');return;}
  if(typeof payload!=='string'||Buffer.byteLength(payload)>4194304){observationFailure(s,'payload_bound');return;}
  const bytes=Buffer.byteLength(payload);
  if(s.observationBytes+bytes>33554432){observationFailure(s,'cumulative_bound');return;}

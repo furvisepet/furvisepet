@@ -1,3 +1,4 @@
+import type { RecordedCalculationContext } from "../furvise-brain/muscle.ts";
 import { readHistoryReviewAudit, type HistoryReviewAudit } from "./history-review-state.ts";
 import { enforceAskHistoryAccess } from "./history-access.ts";
 import { safetyTemporalScope } from "../ai/safety-temporal-scope.ts";
@@ -60,6 +61,7 @@ export async function runFurviseIntelligence({
   authoritativeSemanticFrame,
   discourseFocus,
   evidenceContract,
+  recordedCalculation,
 }: {
   context: FurviseLiveContext;
   requestId: string;
@@ -71,6 +73,7 @@ export async function runFurviseIntelligence({
   authoritativeSemanticFrame?: ProposedSemanticFrame;
   discourseFocus?: import("./entities/resolve-turn-subject.ts").AskDiscourseFocus;
   evidenceContract?: AskEvidenceContract;
+  recordedCalculation?: RecordedCalculationContext;
 }): Promise<FurviseIntelligenceResult> {
   if (context.askInterpretation?.request?.stateTransitionJob) throw Error("STATE_TRANSITION_REQUIRES_CAPABILITY");
   if (context.askInterpretation?.request?.appendJob) throw Error("APPEND_REQUIRES_CONFIRMATION_CAPABILITY");
@@ -90,6 +93,7 @@ export async function runFurviseIntelligence({
   const safety = resolveSafetyState(context);
   const deterministicUnderstanding = classifyMessageDeterministically(context.currentMessage, context.activeConcerns.length > 0);
   const reasoning = await generateContextAwareAskResponse({
+    recordedCalculation,
     evidenceContract: evidenceContract || createAskEvidenceContract(context, readPetIds),
     careEntries: context.askHistory?.entries || context.selectedCareEntries,
     concerns: context.activeConcerns,
@@ -360,6 +364,7 @@ export async function runFurviseIntelligence({
   // Presentation-only reconciliation happens after persistence governance and routing.
   if (proposedRecoveryPresentation) reasoning.intelligenceSafety.level = "recently_resolved";
   const { validation: answerValidation, suppressWrites: failedAnswer } = await finalizeAskAnswer({
+    recordedCalculation,
     reasoning, safety, context, requestId, onProviderEvent, executionPlan,
     authoritativePetIds: readPetIds.length ? readPetIds : [context.pet.id],
   });

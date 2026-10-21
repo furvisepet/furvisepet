@@ -34,7 +34,7 @@ export function bindEvidenceReadTicket(value: unknown, petIds: string[], sourceT
     || !["lifetime", "requested", "unspecified"].includes(String(value.period.kind))
     || value.period.surface !== null && (typeof value.period.surface !== "string" || !sourceText.includes(value.period.surface))) return fail();
   const read = bindReadTicket(value.read, petIds);
-  if (!read) return fail();
+  if (!read || read.predicates.some(p=>p.kind!=="text_any")) return fail();
   // This caller binds already-loaded evidence. Anchor discovery and bounded
   // result selection belong to Lungs and cannot silently fall back here.
   if (read.temporal.anchor !== null || read.outputs.limit !== null || read.operation === "rank"
@@ -74,7 +74,7 @@ export function publicationSourceMatches(ticket: EvidenceReadTicket, source: { p
   return ticket.read.subjects.petIds.includes(source.petId)
     && (!ticket.read.temporal.from || Number.isFinite(at) && at >= Date.parse(ticket.read.temporal.from))
     && (!ticket.read.temporal.to || Number.isFinite(at) && at < Date.parse(ticket.read.temporal.to))
-    && ticket.read.predicates.every(predicate => predicate.terms.some(term =>
+    && ticket.read.predicates.every(predicate => predicate.kind==="text_any" && predicate.terms.some(term =>
       (` ${normalized(source.text)} `).includes(` ${normalized(term)} `)));
 }
 
@@ -92,7 +92,7 @@ export function bindEvidenceLocator(ticket: EvidenceReadTicket, rows: readonly C
   if (locator.intent !== "source" || !petId || !locator.date || locator.status !== "resolved") return result;
   if (!ticket.read.predicates.length) { result.topicStatus = "unsupported_or_ambiguous"; return result; }
   const related = rows.filter(row => row.user_id === userId && row.pet_profile_id === petId && !row.deleted_at
-    && ticket.read.predicates.every(predicate => predicate.terms.some(term =>
+    && ticket.read.predicates.every(predicate => predicate.kind==="text_any" && predicate.terms.some(term =>
       (` ${normalized(`${row.title || ""} ${row.note}`)} `).includes(` ${normalized(term)} `))));
   const { year, month, day } = locator.date;
   const candidates = related.filter(row => {

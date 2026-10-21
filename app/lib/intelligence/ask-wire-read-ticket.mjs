@@ -31,10 +31,10 @@ export function compileTicket(source,tag,timeZone=''){
    const tag=value=>({type:'string',enum:[value]});
    const schema={anyOf:[
     object({kind:tag('unrestricted_record_content')}),
-    object({kind:tag('match_record_body_text'),conditions:{...clone(s),minItems:1}})
+    object({kind:tag('match_record_content'),conditions:{...clone(s),minItems:1}})
    ]};
    contentChoices++;
-   return{schema,encode:x=>x.length?{kind:'match_record_body_text',conditions:clone(x)}:{kind:'unrestricted_record_content'},
+   return{schema,encode:x=>x.length?{kind:'match_record_content',conditions:clone(x)}:{kind:'unrestricted_record_content'},
     decode:x=>x.kind==='unrestricted_record_content'?[]:clone(x.conditions)};
   }
 
@@ -141,9 +141,21 @@ export function compileReadTicketTransport(original,timeZone=''){
  for(const[k,v]of Object.entries(original.$defs??{}))if(!entries.has(k))nullable(v,changed.$defs[k],'schema/$defs/'+k);
  const schema=inlineSingleSchemaReferences(exactShare(expand(simplifyNullSchemas(exactShare(flattenPureSchemaUnions(expand(changed)))).schema))),sourceExpanded=expand(original),wireExpanded=expand(changed);
  const sourceValid=makeValidator(sourceExpanded),wireValid=makeValidator(wireExpanded);
+ // Decode validates the transformed branch, including inline nullable tickets.
+ // Referenced-only expansion is insufficient when sharing decisions change.
+ const wireNodes=new WeakMap();
+ function pairSchema(s,w){
+  if(!s||!w||typeof s!=='object'||typeof w!=='object')return;
+  wireNodes.set(s,w);
+  if(s.properties&&w.properties)for(const k of Object.keys(s.properties))pairSchema(s.properties[k],w.properties[k]);
+  if(s.anyOf&&w.anyOf)s.anyOf.forEach((v,i)=>pairSchema(v,w.anyOf[i]));
+  if(s.items&&w.items)pairSchema(s.items,w.items);
+ }
+ pairSchema(original,changed);
+ for(const[k,s]of Object.entries(original.$defs??{}))pairSchema(s,changed.$defs[k]);
  const caches={encode:new Map(),decode:new Map()};
  function expanded(s,direction){
-  const cache=caches[direction];if(!cache.has(s))cache.set(s,expand({type:'object',additionalProperties:false,required:['value'],properties:{value:s},$defs:(direction==='encode'?original:changed).$defs}).properties.value);return cache.get(s);
+  const cache=caches[direction];if(!cache.has(s)){const value=direction==='encode'?s:wireNodes.get(s);assert(value,'wire schema correspondence');cache.set(s,expand({type:'object',additionalProperties:false,required:['value'],properties:{value},$defs:(direction==='encode'?original:changed).$defs}).properties.value);}return cache.get(s);
  }
  function walk(s,x,direction){
   if(s.$ref){const key=s.$ref.slice(8),entry=entries.get(key);if(entry)return entry[direction](x);return walk(original.$defs[key],x,direction);}
@@ -175,7 +187,7 @@ export function compileReadTicketTransport(original,timeZone=''){
  }
  const decode=w=>{assert(wireValid(wireExpanded,w),'read-ticket wire schema');const c=walk(original,w,'decode');assert(sourceValid(sourceExpanded,c),'read-ticket source schema');return c;};
  const encode=c=>{assert(sourceValid(sourceExpanded,c),'read-ticket source schema');const w=walk(original,c,'encode');assert.deepEqual(decode(w),c);return w;};
- const meanings=[...new Set([...entries.values()].map(e=>e.source.properties.authority.description).filter(Boolean))];assert(meanings.length>0,'canonical proposition descriptions required');const legend='ReadTicket requested proposition (canonical contract): '+meanings.join(' ')+(wireEntries.some(e=>e.contentChoices>0)?" Record-content choice: unrestricted_record_content means no body-text restriction, not an exhaustive listing. match_record_body_text carries only USER-requested content conditions in conditions; it preserves literal text_any terms and ordinary synonyms. A record type, source/persistence label, subject name or calendar locator is not itself a body-text condition. Search hints remain advisory and never constrain selection. Neither choice grants ownership, factual evidence, write permission or completion.":'');return {schema,entries,nullableEntries,encode,decode,legend};
+ const meanings=[...new Set([...entries.values()].map(e=>e.source.properties.authority.description).filter(Boolean))];assert(meanings.length>0,'canonical proposition descriptions required');const legend='ReadTicket requested proposition (canonical contract): '+meanings.join(' ')+(wireEntries.some(e=>e.contentChoices>0)?" Record selection: match_record_content carries explicit conditions; source_ref selects supplied cited identities, while text_any independently filters title/body. unrestricted_record_content has none. text_any is OR across whole contiguous normalized title/note token sequences, with existing conservative inflection, not semantic or all-words search. Conditions AND. Preserve literal identifying spans without surrounding reference words. Typed measurement remains independent; units do not identify an attribute. Hints never constrain selection. No choice grants ownership, factual truth, writes or completion.":'');return {schema,entries,nullableEntries,encode,decode,legend};
 }
 
 export function simplifyNullSchemas(root){

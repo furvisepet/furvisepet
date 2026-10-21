@@ -1,4 +1,4 @@
-import { textMatchesReadPredicate } from "./read-text.ts";
+import {matchesReadPredicates} from "./read-measurement.ts";
 import { isResultSelection, selectReadResult, frontierCovers, certifyReadResult, resultGroups, type ResultFrontier } from "./result-selection.ts";
 import type { CareEntryRow } from "../supabase.ts";
 import type { ReadTicket } from "./read-ticket.ts";
@@ -18,7 +18,7 @@ export type EffectiveWindowResult = {
 };
 const matching = (ticket: ReadTicket, row: CareEntryRow, from: number, to: number) =>
   Date.parse(row.occurred_at) >= from && Date.parse(row.occurred_at) < to
-  && ticket.predicates.every(p => textMatchesReadPredicate((row.title || "") + " " + (row.note || ""), p));
+  && matchesReadPredicates(row,ticket.predicates);
 
 export async function retrieveEffectiveSelection(ticket: ReadTicket, scope: ReadScope, store: ReadStore,
   limits: { pageSize: number; pages: number; records: number; chars: number }): Promise<ReadResult> {

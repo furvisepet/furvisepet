@@ -18,7 +18,7 @@ export const selectedReadProbesSchema = {
   items: { ...readProbesSchema.items,
     required: [...readProbesSchema.items.required, "predicates", "selection"],
     properties: { ...readProbesSchema.items.properties,
-      predicates: readTicketSchema.properties.predicates,
+      predicates: { ...readTicketSchema.properties.predicates, items: { anyOf: readTicketSchema.properties.predicates.items.anyOf.filter(arm => !arm.properties.kind.enum.includes("source_ref")) } },
       selection: { ...readTicketSchema.properties.selection, type: "object" } } },
 };
 const fail = (field: string, rule: string): never => {

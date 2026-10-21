@@ -1,7 +1,8 @@
 import {createHash} from 'node:crypto';
 const digest=x=>createHash('sha256').update(x).digest('hex');
-export function captureStore({env=process.env, principal, requestId, expiresAt, fetcher=fetch}={}){
- if(env.VERCEL_ENV!=='preview'||env.FURVISE_PREVIEW_CAPTURE_ENABLED!=='true')return null;
+export function captureStore({env=process.env, principal, requestId, expiresAt, fetcher=fetch, mode='raw'}={}){
+ if(!['raw','semantic'].includes(mode))throw Error('CAPTURE_MODE');
+ if(env.VERCEL_ENV!=='preview'||(mode==='raw'?env.FURVISE_PREVIEW_CAPTURE_ENABLED:env.FURVISE_PREVIEW_SEMANTIC_ENABLED)!=='true')return null;
  if(!principal?.authenticated||!principal?.captureOperator||!principal.tenantId||!requestId||!Number.isInteger(expiresAt)||expiresAt<=Date.now()/1000||expiresAt>Date.now()/1000+3600)throw Error('CAPTURE_BINDING_DENIED');
  const tenant=principal.tenantId, key='furvise:preview-capture:v1:'+digest(JSON.stringify([tenant,requestId]));
  const url=env.FURVISE_PREVIEW_CAPTURE_KV_REST_API_URL, token=env.FURVISE_PREVIEW_CAPTURE_KV_REST_API_TOKEN;

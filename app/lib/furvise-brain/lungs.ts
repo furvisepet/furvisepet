@@ -1,3 +1,4 @@
+import {matchesReadPredicates} from "./read-measurement.ts";
 import { normalizeReadText as normalized, textMatchesReadPredicate } from "./read-text.ts";
 import { readWithSupportingContext, type ReadSupportingContext } from "./read-supporting-context.ts";
 import { isOrderedResultSet, resolveResultSetHistory, certifyOrderedResultSet, type OrderedResultSetProof } from "./ordered-result-set.ts";
@@ -7,6 +8,7 @@ import { acquireReadCandidates, selectReadGroups } from "./read-selection.ts";
 import { requiresTemporalHistory, resolveReadWindows, withinReadWindow } from "./read-temporal.ts";
 import { retrieveIndependentSelections, hasIndependentSelections } from "./independent-selections.ts";
 import { retrieveNeedTicket } from "./lungs-needs.ts";
+import { sourceSemanticsSnapshot, sourceSemanticsDigest } from "../intelligence/correction-relevance.ts";
 import type { CareEntryRow } from "../supabase.ts";
 import type { ReadTicket } from "./read-ticket.ts";
 
@@ -20,6 +22,8 @@ export type ReadCoverage = {
   matchSemantics: "ticket_text_predicates";
   asOf: string;
   anchors: Array<{ petId: string; eventId: string; eventAt: string }>;
+  /** Source provenance for an original uniquely resolved report anchor; no raw body/value. */
+  anchorSources?: Array<{petId:string;eventId:string;sourceId:string;eventAt:string;recordedAt:string;version:string;bodySHA256:string;snapshotSHA256:string}>;
   windows: Array<{ petId: string; from: string; to: string; relation: "from" | "after" | "before" | null }>;
   continuation: Array<{ petId: string; offset: number }>;
   selection?: { scannedIds: string[]; matchedIds: string[]; retainedIds: string[]; omittedIds: string[] };
@@ -124,11 +128,18 @@ async function retrieveFactualReadTicket(ticket: ReadTicket, scope: ReadScope, s
       coverage.continuation, uncertainIds, matchesAnchor);
     if (!temporal.ok) return result(temporal.status, temporal.reason);
     coverage.anchors = temporal.anchors;
+    if(reportedAnchor){
+      const sourceRows=temporal.anchors.map(a=>rows.filter(r=>r.id===a.eventId&&r.pet_profile_id===a.petId));
+      if(sourceRows.some(matches=>matches.length!==1))return result("unavailable","reported_anchor_source_proof_unavailable");
+      coverage.anchorSources=sourceRows.map(([row])=>({petId:row.pet_profile_id,eventId:row.id,sourceId:"care:"+row.id,eventAt:row.occurred_at,
+        recordedAt:row.created_at,version:row.updated_at,bodySHA256:sourceSemanticsDigest(row.note??row.title??""),
+        snapshotSHA256:sourceSemanticsDigest(JSON.stringify({...sourceSemanticsSnapshot(row),category:row.category??null,deletedAt:row.deleted_at??null}))}));
+    }
     coverage.windows = temporal.windows.map(({ excludedTime, ...window }) => { void excludedTime; return window; });
     // Every selector consumes the same resolved effective interval. In particular,
     // take(N) never runs globally and then loses rows to an anchor filter.
     const selected = temporal.windows.flatMap(window => rows.filter(row => withinReadWindow(row, window)
-      && ticket.predicates.every(predicate => predicate.terms.some(term => matches(row, term)))));
+      && matchesReadPredicates(row,ticket.predicates)));
     const order = (a: CareEntryRow, b: CareEntryRow) => ticket.outputs.ordering === "asc" ? chronological(a, b) : chronological(b, a);
     selected.sort(order);
     const strategy = ticket.outputs.strategy;
