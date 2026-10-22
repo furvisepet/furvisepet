@@ -206,3 +206,30 @@ test("unowned native names are preserved but ORIGINAL Binder rejects ownership",
  assert.throws(()=>recoverAskInterpretation(bad,p.context),e=>e.category==="semantic"&&e.reason==="ASK_REQUEST_CONTRACT_OWNERSHIP");
  assert.deepEqual(bad,before);
 });
+test("repair allowance selects optional history before dispatch without changing mandatory evidence",()=>{
+ const ctx=context(39),p=prepareAskInterpretationRequest(ctx,model),again=prepareAskInterpretationRequest(structuredClone(ctx),model);
+ assert.deepEqual(p.input,again.input);
+ assert.equal(p.input.userSources.find(s=>s.id==="current").text,ctx.currentMessage);
+ assert.deepEqual(p.input.ownedPets.map(p=>p.name),pets.map(p=>p.name));
+ // Mandatory-only fallback is explicit, not a guarantee of repair capacity.
+ assert.equal(p.context.conversationTurns.length,0);
+ assert.equal(askRequestFitsInputBudget({...p.request,instructions:p.request.instructions+" ".repeat(6144)}),true);
+ for(const source of p.input.userSources)assert.deepEqual(source,(({id,text,createdAt})=>({id,text,createdAt}))(ctx.conversationTurns.find(t=>t.id===source.id)));
+ assert.equal(p.input.sourceWindow.omittedPriorUserTurns,39-p.context.conversationTurns.length);
+ assert.ok(p.input.sourceWindow.omittedPriorUserTurns>0);
+ const pinned=structuredClone(ctx);pinned.pinnedUserSourceIds=["prior-0","prior-1"];
+ const mandatory=prepareAskInterpretationRequest(pinned,model);
+ for(const id of pinned.pinnedUserSourceIds)assert.deepEqual(mandatory.input.userSources.find(s=>s.id===id),(({id,text,createdAt})=>({id,text,createdAt}))(ctx.conversationTurns.find(t=>t.id===id)));
+ // Mandatory evidence is admitted even if no planning allowance remains.
+ assert.ok(askRequestFitsInputBudget(mandatory.request));
+ assert.equal(askRequestFitsInputBudget({...mandatory.request,instructions:mandatory.request.instructions+" ".repeat(6144)}),false);
+});
+test("repair planning keeps eight whole optional turns when the complete allowance fits",()=>{
+ const ctx=context(8);ctx.eligiblePets=[ctx.pet];ctx.currentMessage="How are you?";ctx.currentTurn.text=ctx.currentMessage;ctx.ownerNoteSpans=[];
+ ctx.conversationTurns.forEach((t,i)=>{if(t.id!=="current"){t.text="Aster was discussed.";t.id=String.fromCharCode(97+i);}});
+ ctx.currentTurn.id="z";
+ const p=prepareAskInterpretationRequest(ctx,model);
+ assert.equal(p.context.conversationTurns.length,8);
+ assert.equal(p.input.sourceWindow.omittedPriorUserTurns,0);
+ assert.ok(askRequestFitsInputBudget({...p.request,instructions:p.request.instructions+" ".repeat(6144)}));
+});

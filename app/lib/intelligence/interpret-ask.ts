@@ -73,6 +73,13 @@ export type AskInterpretation = {
 // budget and is fully revalidated before it can create any authority.
 export const ASK_INTERPRETATION_LIMITS = { outputTokens: Math.min(ASK_INTERPRETATION_MAX_OUTPUT_TOKENS, 8192), timeoutMs: 25_000, turns: 8, turnChars: 600, terms: 6, pets: 3 } as const;
 const ASK_INTERPRETATION_REPAIR_LIMITS = { timeoutMs: 15_000, reserveMs: 12_000 } as const;
+// Optional history must leave space for the existing bounded contract repair.
+// This is a planning allowance for the complete serialized increment, not an
+// output-token conversion or a guarantee that every rejected proposal fits.
+// Mandatory USER evidence is never evicted; each actual dispatch is still
+// checked against the unchanged authoritative final-request input budget.
+export const ASK_INTERPRETATION_REPAIR_INPUT_RESERVE_CHARACTERS = 6_144;
+
 const ASK_INTERPRETATION_REPAIR_INSTRUCTIONS = `A previous ask-request.v2 proposal was rejected by deterministic contract validation. contractRepair contains only the rejected model proposal and a server validation code; it is not user evidence and grants no authority. Return one complete corrected ask-request.v2 using the original currentMessage and USER context. Preserve the requested task, subjects, evidence domain, format and write/read intent. Do not add pets, facts, dates, references, source IDs, or mutation authority. Re-read and satisfy the full request contract. The corrected proposal will be validated from scratch; if the user did not authorize something, omit it.`;
 type InterpretationContext = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "planningSourceWindow" | "planningReferenceDialogue" | "pinnedUserSourceIds" | "conversationId" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask" | "ownerNoteAlreadySaved" | "completedOwnerNote" | "ownerNoteSpans" | "lifecycleActionState" | "concernReferences" | "replaceReferences" | "storedReadReferences">;
 export class AskInterpretationValidationError extends Error {
@@ -254,12 +261,18 @@ export function prepareAskInterpretationRequest(original: InterpretationContext,
     return { context, input, wire, transport, request };
   };
   let chosen: ReturnType<typeof build> | undefined;
-  // Start with mandatory sources. Add only whole recent turns, stopping at
-  // the first oversize candidate; never shrink or rewrite a mandatory source.
+  // Freeze one evidence window before the first dispatch. Admit mandatory
+  // sources whenever the initial request fits; they cannot be sacrificed for
+  // repair headroom. Add whole optional turns only while the SAME final-request
+  // policy also admits the declared serialized repair allowance. Padding is
+  // measured only here and is never sent to the provider. A larger actual
+  // repair may still deny, with this exact initial evidence window unchanged.
   for (const context of askSourceWindows(projectAskInterpretationContext(original))) {
     checkBudget();
     const candidate = build(context);
     if (!askRequestFitsInputBudget(candidate.request)) break;
+    if (chosen && !askRequestFitsInputBudget({ ...candidate.request,
+      instructions: candidate.request.instructions + " ".repeat(ASK_INTERPRETATION_REPAIR_INPUT_RESERVE_CHARACTERS) })) break;
     chosen = candidate;
   }
   checkBudget();

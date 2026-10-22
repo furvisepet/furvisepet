@@ -7,7 +7,7 @@ import {capturePreviewEvidence} from './ask-preview-capture.mjs';
 import {compileOperationWire} from "./ask-wire-operation-choice.mjs";
 import {makeValidator as catalogValidator} from "./ask-wire-codec.mjs";
 import {correlateCatalog} from "./ask-wire-catalog-correlations.mjs";
-import {exactShare} from "./ask-wire-exact-sharing.mjs";
+import {exactShare,shareFinalSchema} from "./ask-wire-exact-sharing.mjs";
 import {createAskProviderWireSchema} from "./ask-wire-provider-schema.ts";
 // Furvise Ask: provider-constrained semantic slots, with canonical server reconstruction.
 // Never grant authority from the provider's JSON Schema: the pinned codec and Binder decide.
@@ -153,7 +153,7 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
  const orderingWire=compileOrderingTransport(ticketWire.schema);
  const subjectStateWire=compileSubjectStateTransport(orderingWire.schema);
  const ticketMeanings=new Map([...ticketWire.entries.values()].flatMap(e=>e.variants.map(v=>{const a=v.source.properties.authority.enum;if(a.length!==1)error('TICKET_MEANING_NOT_FIXED');return[v.tag,a[0]];})));const compositionWire=compileReadCompositionTransport(subjectStateWire.schema,ticketMeanings);
- const sourceSchema=hoistSavedHistoryGuidance(inlineSingleSchemaReferences(inlineTaggedTicketUnionReferences(compositionWire.schema)));const singletonWire=compileSingletonTransport(sourceSchema,checkCompilation);const descriptions=compileDescriptionAliases(singletonWire.schema),schema=descriptions.schema;
+ const sourceSchema=hoistSavedHistoryGuidance(inlineSingleSchemaReferences(inlineTaggedTicketUnionReferences(compositionWire.schema)));const singletonWire=compileSingletonTransport(sourceSchema,checkCompilation);const descriptions=compileDescriptionAliases(singletonWire.schema),schema=shareFinalSchema(descriptions.schema,checkCompilation);
  const lines=originalInstructions.split(/\n|\\n/),fieldLine=lines.find(x=>x.startsWith("FIELDS ")),i=lines.indexOf("POLICY");
  if(!fieldLine||i<0)error("POLICY_LAYOUT");
  const names=new Map([...fieldLine.matchAll(/([A-Za-z]+)=([A-Za-z0-9_]+)/g)].map(m=>[m[1],m[2]]));
