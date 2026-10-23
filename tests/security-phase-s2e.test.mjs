@@ -10,12 +10,12 @@ const packageJson = rootJson("package.json");
 const lock = rootJson("package-lock.json");
 
 test("framework, CSS, and image dependency remediations stay pinned to reviewed versions", () => {
-  assert.equal(packageJson.dependencies.next, "16.3.8");
+  assert.equal(packageJson.dependencies.next, "16.4.1");
   assert.equal(packageJson.devDependencies["eslint-config-next"], "16.3.8");
   assert.equal(packageJson.devDependencies["@tailwindcss/postcss"], "^4.3.3");
   assert.equal(packageJson.devDependencies.tailwindcss, "^4.3.3");
   assert.deepEqual(packageJson.overrides.next, { postcss: "8.5.25", sharp: "0.35.5" });
-  assert.equal(lock.packages["node_modules/next"].version, "16.3.8");
+  assert.equal(lock.packages["node_modules/next"].version, "16.4.1");
   assert.equal(lock.packages["node_modules/next/node_modules/postcss"].version, "8.5.25");
   assert.equal(lock.packages["node_modules/sharp"].version, "0.35.5");
   assert.equal(lock.packages["node_modules/source-map-js"].version, "1.2.2");
