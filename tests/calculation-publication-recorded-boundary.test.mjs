@@ -15,8 +15,8 @@ const {OperationDeadline}=await import("../app/lib/ai/execution-deadline.ts");
 const id=n=>"30000000-0000-4000-8000-"+String(n).padStart(12,"0");
 const pets=["Iris","Onyx"].map((name,i)=>({...templates[i],id:id(i+1),name,user_id:ownerId}));
 const verified=[],measurements=[],failures=[],traces=[];
-const check=(name,kind,fn)=>name.startsWith('FG ')?test(name,async t=>{const began=performance.now();const report=event=>appendFileSync(process.env.FB_REPORT_PATH+".progress.jsonl",JSON.stringify({name,kind,event,at:new Date().toISOString(),elapsedMs:performance.now()-began})+"\n");report("begin");try{t.mock.method(console,"info",()=>{});await fn(t);verified.push({name,kind});report("pass");}catch(e){failures.push({name,stage:e.stage??null,error:e.message,code:e.code??null,diagnostics:e.diagnostics??null});report("failed");throw e;}}):undefined;
-after(()=>writeFileSync(process.env.FB_REPORT_PATH,JSON.stringify({verified,failures,measurements,traces,synthetic:true,networkCalls:0,paidCalls:0,publicGate:PUBLIC_V1_CAPABILITIES.calculationExecution},null,2)));
+const check=(name,kind,fn)=>name.startsWith('FG ')?test(name,async t=>{const began=performance.now();const report=event=>process.env.FB_REPORT_PATH&&appendFileSync(process.env.FB_REPORT_PATH+".progress.jsonl",JSON.stringify({name,kind,event,at:new Date().toISOString(),elapsedMs:performance.now()-began})+"\n");report("begin");try{t.mock.method(console,"info",()=>{});await fn(t);verified.push({name,kind});report("pass");}catch(e){failures.push({name,stage:e.stage??null,error:e.message,code:e.code??null,diagnostics:e.diagnostics??null});report("failed");throw e;}}):undefined;
+after(()=>process.env.FB_REPORT_PATH&&writeFileSync(process.env.FB_REPORT_PATH,JSON.stringify({verified,failures,measurements,traces,synthetic:true,networkCalls:0,paidCalls:0,publicGate:PUBLIC_V1_CAPABILITIES.calculationExecution},null,2)));
 function policy(on=true,owner=ownerId,deploy="preview"){
  process.env.VERCEL_ENV=deploy;process.env.FURVISE_PREVIEW_RECORDED_DIFFERENCE=on?"1":"0";
  process.env.FURVISE_PREVIEW_RECORDED_DIFFERENCE_OWNER_ID=owner;
