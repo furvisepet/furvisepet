@@ -1,3 +1,4 @@
+import { ownedPlanningFixture } from "./helpers/owned-planning-context.mjs";
 import { inspectAskWireContract } from "./helpers/ask-wire-contract.mjs";
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -22,6 +23,7 @@ const proposal=(question,readTicket=ticket(),patch={})=>({version:'ask-request.v
   operation:'recall',selection:'summary',quantity:'records',topic:'history',terms:[],from:null,to:null,
   episodeTopic:null,ordinal:null,frame:null,premiseQuotes:[],...patch});
 async function mocked(question,readTicket=ticket(),patch={},ctx=context(question),reject=false){
+  ctx=(await ownedPlanningFixture(ctx)).context;
   let calls=0;
   const pending=interpretAskQuestion({context:ctx,model:'fixture',client:{responses:{create:async request=>{
     calls++;
