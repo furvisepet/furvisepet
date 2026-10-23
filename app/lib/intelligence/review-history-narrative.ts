@@ -27,7 +27,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   recordHistoryReviewDiagnostic(result, "declined", "review_not_completed");
   const evidence = result.evidenceContract;
   if (evidence?.interpretation?.request?.calculatePlan || [CALCULATION_LABS,CALCULATION_UNAVAILABLE].includes(result.model)) {
-    const failure=await (recordedCalculation && result.calculationLabs?.execution.authority==="recorded_contents"
+    const failure=await (recordedCalculation && result.calculationLabs?.execution?.authority==="recorded_contents"
       ? calculationPublicationFailure(result,recordedCalculation) : calculationPublicationFailure(result));
     if(failure)return decline(failure);
     if(executionPlan && (executionPlan.semanticEvents.length || executionPlan.careActions.length || executionPlan.learnings.length))return decline("calculation_has_pending_write");

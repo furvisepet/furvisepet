@@ -125,7 +125,7 @@ export function calculationPublicationFailure(r:AskReasoningResult):string|null;
 export function calculationPublicationFailure(r:AskReasoningResult,context:RecordedCalculationContext):Promise<string|null>;
 export function calculationPublicationFailure(r:AskReasoningResult,context?:RecordedCalculationContext):string|null|Promise<string|null>{
  if(context)return recordedPublicationFailure(r,context);
- if(r.calculationLabs?.execution.authority==="recorded_contents"){
+ if(r.calculationLabs?.execution?.authority==="recorded_contents"){
   const receipt=publicationReceipts.get(r.calculationLabs);
   if(!receipt||receipt.bytes!==JSON.stringify(r.calculationLabs))return "recorded_revalidation_required";
   try{receipt.context.assertCurrent?.();return publicationFailure(r,r.calculationLabs.execution,receipt.context.scope.userId);}catch{return "recorded_request_expired";}
