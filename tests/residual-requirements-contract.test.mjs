@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {assertCalculationDomains} from './helpers/producer-contract-inventory.mjs';
 import assert from 'node:assert/strict';
 import {ASK_REQUEST_INSTRUCTIONS,validateAskRequest,askRequestSchema} from '../app/lib/intelligence/ask-request-contract.ts';
 const pet={id:'owned',name:'Aster',user_id:'owner',species:'dog'};
@@ -23,8 +24,9 @@ test('supported derivation ownership is mandatory for the complete operator regi
  assert.match(ownership,/no existing typed execution primitive owns/);
 });
 test('provider branches distinguish calculation ownership without classifying language',()=>{
- const variants=askRequestProviderSchema({}).properties.request.anyOf;
- const calculations=variants.filter(v=>v.properties.calculatePlan?.type==='object'&&v.properties.evidenceBasis?.enum?.includes('saved_history'));
+ const provider=askRequestProviderSchema({});assertCalculationDomains(provider);
+ const variants=provider.properties.request.anyOf;
+ const calculations=variants.filter(v=>v.properties.calculatePlan?.type==='object'&&v.properties.evidenceBasis?.enum?.includes('saved_history')&&v.properties.readTicket.properties.authority.enum.includes('effective_fact'));
  assert.equal(calculations.length,2);for(const v of calculations)assert.match(v.description,/Saved-history calculation: factual root operands come from the companion ReadTicket/);
  const supplied=variants.filter(v=>v.properties.calculatePlan?.type==='object'&&v.properties.evidenceBasis?.enum?.includes('supplied_context'));
  assert.equal(supplied.length,1);assert.match(supplied[0].description,/exact USER-supplied numeric premises/);

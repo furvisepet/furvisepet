@@ -2,6 +2,7 @@ import { ownedPlanningFixture } from "./helpers/owned-planning-context.mjs";
 import { inspectAskWireContract } from "./helpers/ask-wire-contract.mjs";
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import {assertAnchorGuidance,assertAnchorInstructions} from './helpers/producer-contract-inventory.mjs';
 import { registerHooks } from 'node:module';
 registerHooks({resolve(s,c,next){return s==='server-only'?{url:'data:text/javascript,export {};',format:'module',shortCircuit:true}:next(s,c);}});
 globalThis.fetch=async()=>{throw Error('OFFLINE_BRAIN_FIXTURES');};
@@ -181,9 +182,7 @@ test('provider exposes the existing closed shape; legacy binder remains authorit
 
 test('provider selection guidance permits semantic anchors while keeping operator exclusions',()=>{
   const description=askRequestSchema({}).properties.readTicket.anyOf.find(s=>s.properties?.selection.type==='object').properties.selection.description;
-  assert.match(description,/Compatible with a semantic temporal\.anchor/);
-  assert.match(description,/owned effective event and temporal boundary before selection/);
-  assert.match(description,/Do not invent from\/to dates or choose a ledger event/);
+  assertAnchorGuidance(description);
   assert.match(description,/Incompatible with needs, episode, outputs\.strategy and calendar selectors/);
   assert.doesNotMatch(description,/unresolved anchors/);
 });
@@ -191,7 +190,7 @@ test('interpreter anchor guidance delegates dates and ledger choice without wide
   const {ASK_REQUEST_INSTRUCTIONS}=await import('../app/lib/intelligence/ask-request-contract.ts');
   assert.match(ASK_REQUEST_INSTRUCTIONS,/semantic temporal\.anchor MAY compose with predicates and selection/);
   assert.match(ASK_REQUEST_INSTRUCTIONS,/never the ledger event or invented from\/to dates/);
-  assert.match(ASK_REQUEST_INSTRUCTIONS,/owned effective history.*concrete boundary before selection/);
+  assertAnchorInstructions(ASK_REQUEST_INSTRUCTIONS);
   assert.match(ASK_REQUEST_INSTRUCTIONS,/Missing, ambiguous or uncertifiable anchors retain existing anchor limitations/);
   assert.match(ASK_REQUEST_INSTRUCTIONS,/never drop the anchor or fall back to whole history/);
   assert.match(ASK_REQUEST_INSTRUCTIONS,/Calendar selectors remain incompatible with selection/);
@@ -212,8 +211,9 @@ test('provider alternatives exclude retired strategies and keep selection exclus
     const p=branch.properties,anchored=p.temporal.properties.anchor.type==='object';
     assert.equal(p.operation.enum.includes('read_since_event'),anchored);
     if(p.authority.enum.includes('stored_report')){
-      assert.deepEqual(p.operation.enum,['read']);assert.equal(p.probes.maxItems,0);
-      assert.deepEqual(p.temporal.properties.anchor.enum,[null]);
+      assert.deepEqual(p.operation.enum,[anchored?'read_since_event':'read']);assert.equal(p.probes.maxItems,0);
+      if(anchored){assert.equal(p.temporal.properties.anchor.type,'object');assert.equal(p.temporal.properties.calendar.enum[0],null);assert.equal(p.attributedContexts,undefined);}
+      else assert.deepEqual(p.temporal.properties.anchor.enum,[null]);
     }
     if(p.probes.minItems>=1){
       assert.equal(p.selection.type,'null');assert.equal(p.predicates.maxItems,0);assert.equal(p.searchHints.maxItems,0);

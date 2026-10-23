@@ -1,4 +1,5 @@
 import test from "node:test";
+import {assertFinalReadGuidance} from "./helpers/producer-policy-review.mjs";
 import assert from "node:assert/strict";
 import { readFileSync,writeFileSync,existsSync } from "node:fs";
 import { registerHooks } from "node:module";
@@ -55,6 +56,7 @@ test("actual interpretation admits complete wire snapshots and gives Binder the 
    }
    assert.ok(chosen,"positive Binder fixture missing: "+name);
    const actual=await admitted(name,context,plan.encode(chosen.canonical,()=>{}),request=>{
+    assertFinalReadGuidance(request.instructions);
     const total=JSON.stringify(request).length;
     assert.equal(JSON.stringify(request.text.format.schema),JSON.stringify(plan.schema));
     rows.push({name,schema:JSON.stringify(request.text.format.schema).length,instructions:request.instructions.length,input:request.input.length,total,margin:135000-total});

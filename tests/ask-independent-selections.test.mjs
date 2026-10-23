@@ -149,7 +149,7 @@ test("policy audit explicitly preserves independent selection authority alongsid
  const a=JSON.parse(readFileSync(new URL("./fixtures/ask-wire-policy-audit.json",import.meta.url),"utf8")).independentSelectionReview;
  const sha=s=>createHash("sha256").update(s).digest("hex");
  assert.equal(sha(a.sourceAddition),a.sourceSha256);assert.equal(sha(a.emittedAddition),a.emittedSha256);
- assert.ok(ASK_REQUEST_INSTRUCTIONS.split("\n")[a.sourceSection].includes(a.sourceAddition));
+ assert.equal(ASK_REQUEST_INSTRUCTIONS.split("\n").filter(section=>section.includes(a.sourceAddition)).length,1);
  assert.ok(POLICY_BUNDLE.rules[a.targetRule].includes(a.emittedAddition));assert.equal(a.invariants.length,5);
 });
 
