@@ -4,8 +4,9 @@ import test from "node:test";
 
 const source = readFileSync(new URL("../app/lib/intelligence/planning-context.ts", import.meta.url), "utf8");
 
-test("initial planning reads identity and USER dialogue; factual catalogs require a bound permit", () => {
-  assert.deepEqual([...source.matchAll(/\.from\("([^"]+)"\)/g)].map(m=>m[1]),["dog_profiles","ask_conversations","ask_conversation_messages"]);
+test("initial planning reads identity and USER dialogue; factual catalogs require a bound permit", async () => {
+  const {assertOwnedPlanningBoundary}=await import("./helpers/owned-context-capability-boundary.mjs");
+  await assertOwnedPlanningBoundary();
   assert.match(source,/select\("id,user_id,name,species,sex"\)/);
   assert.doesNotMatch(source,/pet_concerns|pet_care_entries|loadReplaceReferences|concernReferences/);
   const hydration=readFileSync(new URL("../app/lib/intelligence/hydrate-planning-catalog.ts",import.meta.url),"utf8");

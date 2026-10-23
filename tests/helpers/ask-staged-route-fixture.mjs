@@ -166,7 +166,7 @@ export function fixture(options={}){
  sandbox.getRemainingAiCredits=async()=>({allowed:true,remaining:5,limit:5,ledgerMode:'database'});
  sandbox.revalidateAskStateViews=()=>{};
  }
- const post=handler('../../app/api/ask/route.ts',['POST','executeAskRequest','executeAuthenticatedAskRequest','enforceAnswerStateClaims'],sandbox);
+ const post=handler('../../app/api/ask/route.ts',['POST','executeAskRequest','executeAuthenticatedAskRequest','enforceAnswerStateClaims',...(options.realCapabilityDenial?['buildSubjectClarificationOrchestration']:[])],sandbox);
  const confirm=handler('../../app/api/ask/actions/[messageId]/route.ts',['POST','unavailable','revalidateActionViews'],{...sandbox,executeActionCapability,continueConfirmedAppend,getAuthenticatedApiContext:async()=>({supabase:db,userId:options.confirmOwner||id(1)}),emitOperationalEvent:noop,revalidatePath:noop});
  return {state,rows,db,send:(message=cedar)=>post(new Request('https://fixture.invalid/api/ask',{method:'POST',body:JSON.stringify({petId:options.petId||pet.id,logicalTurnId:id(41),message})})),confirm:(actionId=id(71),decision='confirm',messageId=id(61))=>confirm(new Request('https://fixture.invalid/api/ask/actions/'+messageId,{method:'POST',body:JSON.stringify({actionId,decision})}),{params:Promise.resolve({messageId})})};
 }

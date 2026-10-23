@@ -36,10 +36,11 @@ test('ownership, assistant binding, and cancellation remain deterministic',async
 test('fixed emergency response requires no Brain, factual read, capability, or save',async()=>{
  const f=fixture({modelDown:true});const result=await(await f.send('Cedar cannot breathe. Save this note.')).json();assert.equal(result.success,true);assert.match(result.response.directAnswer,/emergency veterinarian/);assert.equal(f.state.planner,0);assert.equal(f.rows.pet_care_entries.length,2);assert.equal(f.rows.ask_action_capabilities.length,0);assert.deepEqual(f.state.events,[]);
 });
-test('route has one interpretation and no owner-note or task persistence authority',()=>{
+test('route has one interpretation and no owner-note or task persistence authority',async()=>{
  const route=readFileSync(new URL('../app/api/ask/route.ts',import.meta.url),'utf8');assert.doesNotMatch(route,/persist_ask_owner_note|persistOwnerNote|resolveOwnerNoteRequest|splitOwnerNoteAndCompanion|executeAskTask|apply_ask_task|findExistingCareEventForSaveRequest/);
  assert.equal([...route.matchAll(/await interpretAskQuestion\(/g)].length,1);assert.ok(route.indexOf('await interpretAskQuestion(')<route.indexOf('await buildFurviseContext('));
- const planning=readFileSync(new URL('../app/lib/intelligence/planning-context.ts',import.meta.url),'utf8');assert.deepEqual([...planning.matchAll(/\.from\("([^"]+)"\)/g)].map(m=>m[1]),['dog_profiles','ask_conversations','ask_conversation_messages']);
+ const planning=readFileSync(new URL('../app/lib/intelligence/planning-context.ts',import.meta.url),'utf8');
+ const {assertOwnedPlanningBoundary}=await import('./helpers/owned-context-capability-boundary.mjs');await assertOwnedPlanningBoundary();
  assert.match(planning,/select\("id,user_id,name,species,sex"\)/);
  assert.doesNotMatch(planning,/pet_concerns|ref: randomUUID|replaceReferences|concernReferences/);
  assert.doesNotMatch(planning,/pet_care_entries/);

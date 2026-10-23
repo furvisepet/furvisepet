@@ -118,9 +118,10 @@ test("internal product metadata is a degradable answer repair, not a failed Ask 
   assert.doesNotMatch(result.response.answer.summary, /pattern detection|not built/i);
 });
 
-test("the live route gates capability copy by explicit product intent and passes discourse focus to reasoning", () => {
+test("the live route gates capability copy by explicit product intent and passes discourse focus to reasoning", async () => {
   const route = readFileSync(new URL("../app/api/ask/route.ts", import.meta.url), "utf8");
-  assert.match(route, /const publicV1Capability = publicV1AskCapability\(interpretation\.request\)/);
+  const {assertRouteCapabilityOrdering,assertPublicWrapperParity,assertPublicRouteDenial}=await import("./helpers/owned-context-capability-boundary.mjs");
+  assertRouteCapabilityOrdering(route);assertPublicWrapperParity();await assertPublicRouteDenial();
   assert.match(route, /discourseFocus: subjectResolution\.discourseFocus/);
   assert.match(route, /proposals: turnAuthoritativePetIds\.length \? reasoning\.applicationActions\.filter/);
   assert.match(route, /suggestion: PUBLIC_V1_CAPABILITIES\.askMutations && turnAuthoritativePetIds\.length \? orchestration\.suggestion : null/);
