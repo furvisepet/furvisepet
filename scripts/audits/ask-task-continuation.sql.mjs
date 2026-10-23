@@ -129,5 +129,6 @@ if(native) {
   assert.equal((await db.query('select count(*)::int as n from owner_note_jobs where entry_id=$1',[results[0].rows[0].result.entryId])).rows[0].n,1);checks++;
  } finally {await other.close();}
 }
+if(fullSchema) await (await import("./care-entry-edit-contract.sql.mjs")).verifyCareEntryEditContract(db);
 await db.close();
 console.log(`${checks} PostgreSQL continuation assertions passed`);
