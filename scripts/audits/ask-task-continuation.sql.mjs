@@ -130,5 +130,6 @@ if(native) {
  } finally {await other.close();}
 }
 if(fullSchema) await (await import("./care-entry-edit-contract.sql.mjs")).verifyCareEntryEditContract(db);
+if(fullSchema) await (await import("./source-semantics-readiness.sql.mjs")).verifySourceSemanticsReadiness(db);
 await db.close();
 console.log(`${checks} PostgreSQL continuation assertions passed`);

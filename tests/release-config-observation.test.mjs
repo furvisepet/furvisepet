@@ -129,3 +129,18 @@ test('read-only surface imports no persistence/provider/event sink and exposes o
   assert.doesNotMatch(route, /export (?:async )?function (?:POST|PUT|PATCH|DELETE)/);
   assert.equal(networkCalls, 0);
 });
+
+test('backend attestation uses only the verified principal and fixed intended destination', async () => {
+  auth = owner();
+  const env = { ...safe(), NEXT_PUBLIC_SUPABASE_URL: 'https://sxavgqzwfahljdvmisyq.supabase.co' };
+  const res = await withEnv(env, () => GET(request()));
+  const data = await res.json();
+  assert.equal(data.backendBinding.status, 'matched');
+  assert.equal(data.backendBinding.principalVerifiedByAuthService, true);
+  assert.equal(data.backendBinding.deployedRlsAndGrants, 'unknown');
+  assert.equal(data.ready, false);
+  assert.doesNotMatch(JSON.stringify(data), /supabase.co|bd23dda6|PRIVATE_SYNTHETIC/);
+  const wrong = await withEnv({ ...env, NEXT_PUBLIC_SUPABASE_URL: 'https://foreign.supabase.co' }, () => GET(request()));
+  assert.equal((await wrong.json()).backendBinding.status, 'unverified');
+  assert.equal(networkCalls, 0);
+});
