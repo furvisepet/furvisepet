@@ -109,21 +109,10 @@ export function recoverAskInterpretation(value: unknown, context: Interpretation
       capturePreviewEvidence("error_exit", { validationFailure: interpretationValidationEvidence(error, "canonical_validation") });
       const reason = error instanceof Error ? /^ASK_REQUEST_INVALID:([a-z_]+)$/.exec(error.message)?.[1] : null;
       if (reason === "read_ticket" || reason === "read_ticket_required" || reason === "read_needs") {
-        const proposal = value as Record<string, unknown>;
-        const validation = error instanceof Error ? error.cause as { field?: string; rule?: string } | undefined : undefined;
-        // JSON retains every proposed field, including nested arrays and nulls;
-        // console object inspection can truncate these and hide the failing shape.
-        // This diagnostic is server-only. It never changes the rejected proposal.
+        // Proposals and validator causes may contain private owner data.
+        // Only this closed failure-code enum may reach the console.
         console.warn("[Ask Brain] rejected read ticket", JSON.stringify({
-          errorCode: `ASK_REQUEST_CONTRACT_${reason.toUpperCase()}`,
-          sourceMessageId: context.currentTurn?.id ?? null,
-          field: validation?.field ?? null,
-          rule: validation?.rule ?? validation?.field ?? null,
-          readTicketPresent: Object.hasOwn(proposal, "readTicket"),
-          readTicket: proposal.readTicket ?? null,
-          needs: (proposal.readTicket as Record<string, unknown> | null)?.needs ?? null,
-          request: { mode: proposal.mode, operation: proposal.operation, scope: proposal.scope,
-            petNames: proposal.petNames, evidenceBasis: proposal.evidenceBasis, writeJob: proposal.writeJob ?? null },
+          errorCode: "ASK_REQUEST_CONTRACT_" + reason.toUpperCase(),
         }));
       }
       if (reason === "write_job") {
