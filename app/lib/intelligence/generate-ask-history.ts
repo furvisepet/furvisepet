@@ -1,3 +1,4 @@
+import { createRecordedCalculationContext } from "./recorded-calculation-source.ts";
 import { calculationCapability } from "./calculation-capability.ts";
 import { enforceAskHistoryAccess } from "./history-access.ts";
 import { isOrdinarySavedHistoryRequest } from "./publication-authority.ts";
@@ -16,7 +17,7 @@ import { setFurviseMemoryAuthority } from "../furvise-brain/turn-authority.ts";
 /** The route's actual generation callback boundary, also exercised with mocked
  * provider/database dependencies. generationInput is not a second authority. */
 export type AskHistoryStage = "history_retrieval" | "episode_retrieval" | "answer_generation" | "episode_revalidation" | "final_presentation";
-export async function generateAskHistoryAnswer({ supabase, onStage, ...input }: Omit<Parameters<typeof runFurviseIntelligence>[0], "evidenceContract"> & { supabase: SupabaseClient; onStage?: (stage: AskHistoryStage) => void }) {
+export async function generateAskHistoryAnswer({ supabase, onStage, signal, ...input }: Omit<Parameters<typeof runFurviseIntelligence>[0], "evidenceContract"> & { supabase: SupabaseClient; signal?: AbortSignal; onStage?: (stage: AskHistoryStage) => void }) {
   input.context = enforceAskHistoryAccess(scopeConversationContext(input.context));
 
   // Legacy route/harness scope is untrusted at this boundary. Intersect it
@@ -48,7 +49,7 @@ export async function generateAskHistoryAnswer({ supabase, onStage, ...input }: 
   const ordinaryHistory = isOrdinarySavedHistoryRequest(input.context.askInterpretation?.request);
   const request = input.context.askInterpretation?.request;
   const capability = request?.calculatePlan && request.readTicket
-    ? calculationCapability(request.calculatePlan, request.readTicket) : null;
+    ? calculationCapability(request.calculatePlan, request.readTicket, input.context.owner.userId) : null;
   const calculationUnsupported = capability?.supported === false;
   if (capability) console.info("[Ask Calculation] capability", capability);
   if (!calculationUnsupported) onStage?.("history_retrieval");
@@ -58,7 +59,9 @@ export async function generateAskHistoryAnswer({ supabase, onStage, ...input }: 
     context = await retrieveEpisodeHistory(context, supabase, readPetIds);
   }
   onStage?.("answer_generation");
-  const intelligenceResult = await runFurviseIntelligence({ ...input, context,
+  const recordedCalculation = request?.calculatePlan && request.readTicket?.authority === "stored_report" && capability?.supported
+    ? createRecordedCalculationContext({supabase,requestId:input.requestId,ownerId:context.owner.userId,petIds:readPetIds,signal}) : undefined;
+  const intelligenceResult = await runFurviseIntelligence({ ...input, context, recordedCalculation,
     evidenceContract: createAskEvidenceContract(context, readPetIds) });
   if (!calculationUnsupported && !ordinaryHistory && context.episodeResult) {
     // Generation can take seconds. Revalidate after it, before returning a list

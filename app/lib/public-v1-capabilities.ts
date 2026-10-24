@@ -14,7 +14,7 @@ export const PUBLIC_V1_CALCULATION_LIMITATION =
   "Furvise cannot perform this type of calculation yet.";
 
 export const PUBLIC_V1_UNPLANNED_LIMITATION =
-  "I couldn't map that request to a supported operation reliably.";
+  "That request isn't available in Ask during the public beta. Ask can read supported saved information in your account, but it cannot access records outside your account.";
 
 const ASK_MUTATION_KEYS = Object.freeze([
   "appendJob",
@@ -56,6 +56,14 @@ export function publicV1AskCapability(request: unknown): PublicV1AskCapabilityDe
       return Object.freeze({ available: false, reason: "calculation", message: PUBLIC_V1_CALCULATION_LIMITATION });
     return Object.freeze({ available: true, reason: "supported" });
   }
+  // The original Binder owns mode/scope/source validation. Conversation has no
+  // stored evidence or write authority and must reach the existing Mouth path.
+  if (record.version === "ask-request.v2" && record.mode === "conversation"
+    && [undefined, null, "general", "supplied_context"].includes(record.evidenceBasis as string | null | undefined)
+    && record.readTicket == null && record.storedRead == null
+    && (record.profileFields == null || Array.isArray(record.profileFields) && record.profileFields.length === 0)
+    && (record.evidenceNeeds == null || Array.isArray(record.evidenceNeeds) && record.evidenceNeeds.length === 0))
+    return Object.freeze({ available: true, reason: "supported" });
   if (record.mode === "read" && (record.readTicket !== null && record.readTicket !== undefined
     || record.storedRead !== null && record.storedRead !== undefined
     || Array.isArray(record.profileFields) && record.profileFields.length > 0))

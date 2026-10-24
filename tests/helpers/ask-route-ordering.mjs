@@ -1,3 +1,5 @@
+const {withAuthenticatedPreviewCapture}=await import('../../app/lib/intelligence/ask-preview-route-capture.mjs');
+const {capturePreviewEvidence,flushPreviewEvidence}=await import('../../app/lib/intelligence/ask-preview-capture.mjs');
 import {fixtureSemanticsPage} from '../../scripts/audits/helpers/source-semantics-fixture.mjs';
 // Offline execution of the actual POST handlers. Only provider/DB/auth IO is replaced.
 import assert from 'node:assert/strict';
@@ -20,6 +22,7 @@ const {typedTaskRequirements}=await import('../../app/lib/intelligence/task-exec
 const {buildAskSaveMetadata}=await import('../../app/lib/ask.mjs');
 const {createAskAdmissionSettlement}=await import('../../app/lib/ai/ask-admission-settlement.ts');
 const publicPolicy=await import('../../app/lib/public-v1-capabilities.ts');
+const {previewRecordedAskCapability}=await import('../../app/lib/intelligence/calculation-capability.ts');
 const {buildFurvisePlanningContext}=await import('../../app/lib/intelligence/planning-context.ts');
 const {prepareAppendTurn,continueConfirmedAppend}=await import('../../app/lib/intelligence/append-turn.ts');
 const {executeActionCapability}=await import('../../app/lib/application-actions/capabilities.ts');
@@ -73,7 +76,14 @@ export function fixture(options={}){
  globalThis.__routeFixture={db,complete:async x=>{if(options.conversationFailure)return{data:null,error:Error('unavailable')};let row=rows.ask_conversation_messages.find(r=>r.id===id(61));if(!row){row={id:id(61),user_id:id(1),conversation_id:id(21),role:'furvise',sequence_number:2,created_at:'2026-09-20T12:00:00Z'};rows.ask_conversation_messages.push(row);}row.response_data=x.responseData;return{data:[{assistant_message_id:row.id}],error:null};},update:async x=>{const row=rows.ask_conversation_messages.find(r=>r.id===x.messageId&&r.user_id===x.userId);if(!row)return{data:false,error:null};row.response_data=x.responseData;return{data:true,error:null};}};
  const noop=()=>{};class FixtureError extends Error{};
  // Engine-only injection exercises confirmation mechanics; default fixture retains real public policy.
- const sandbox={...publicPolicy,...(options.engineCapabilities?{PUBLIC_V1_CAPABILITIES:{...publicPolicy.PUBLIC_V1_CAPABILITIES,askMutations:true},publicV1AskCapability:request=>{const decision=publicPolicy.publicV1AskCapability(request);return decision.reason==='mutation'?{available:true,reason:'supported'}:decision;}}:{}),Response,Request,Headers,AbortSignal,console,ASK_REQUEST_KEYS,AskTurnLifecycle,deriveAskAttemptId,OperationDeadline,resolveAskTimeZone,resolveAskHistoryAccess,buildAskConversationResponse,detectImmediateAskEmergency,buildImmediateEmergencyGuidance,prepareAppendTurn,buildFurvisePlanningContext,exceedsSelectedPetRead,explicitlyNamedOwnedPets,
+ // The extracted route must receive its real imported policy dependency. The
+ // engine fixture's existing mutation opt-in is explicit and test-only; the
+ // default fixture still evaluates the unchanged public/preview policy.
+ const routeCapability=(request,ownerId)=>{
+  const decision=previewRecordedAskCapability(request,ownerId);
+  return options.engineCapabilities&&decision.reason==='mutation'?{available:true,reason:'supported'}:decision;
+ };
+ const sandbox={withAuthenticatedPreviewCapture,capturePreviewEvidence,flushPreviewEvidence,previewRecordedAskCapability:routeCapability,...publicPolicy,...(options.engineCapabilities?{PUBLIC_V1_CAPABILITIES:{...publicPolicy.PUBLIC_V1_CAPABILITIES,askMutations:true},publicV1AskCapability:request=>{const decision=publicPolicy.publicV1AskCapability(request);return decision.reason==='mutation'?{available:true,reason:'supported'}:decision;}}:{}),Response,Request,Headers,AbortSignal,console,ASK_REQUEST_KEYS,AskTurnLifecycle,deriveAskAttemptId,OperationDeadline,resolveAskTimeZone,resolveAskHistoryAccess,buildAskConversationResponse,detectImmediateAskEmergency,buildImmediateEmergencyGuidance,prepareAppendTurn,buildFurvisePlanningContext,exceedsSelectedPetRead,explicitlyNamedOwnedPets,
  ASK_OPERATION_TIMEOUT_MS:150000,ASK_MAX_QUESTION_CHARACTERS:1200,API_BODY_LIMITS:{ask:10000},RequestBoundaryError:FixtureError,RateLimitRejection:FixtureError,FurviseContextError:FixtureError,AiAdmissionError:FixtureError,AiCreditLimitError:FixtureError,AiCreditLedgerError:FixtureError,AskPipelineError,
  loadAskAuthenticationContext:async()=>options.denied?{response:Response.json({success:false},{status:401})}:{supabase:db,userId:id(1)},readBoundedJson:r=>r.json(),hasOnlyKeys:()=>true,isUuid:v=>/^[a-f0-9-]{36}$/.test(v),isSecurityUuid:v=>/^[a-f0-9-]{36}$/.test(v),resolveAskLocale:()=> 'en',hashAiCreditPayload:()=> 'hash',
  classifyCurrentPetLoss:()=>null,logAskStage:noop,logAskServerError:(stage,error)=>errors.push({stage,error}),emitAskTurnTrace:trace=>state.traces.push(trace),
@@ -115,7 +125,7 @@ export function fixture(options={}){
   }});
  if(options.realEmergencyResponse) sandbox.standaloneEmergencyResponse=handler('../../app/api/ask/route.ts',
   ['standaloneEmergencyResponse'],sandbox,'standaloneEmergencyResponse');
- const post=handler('../../app/api/ask/route.ts',['POST','executeAskRequest','enforceAnswerStateClaims'],sandbox);
+ const post=handler('../../app/api/ask/route.ts',['POST','executeAskRequest','executeAuthenticatedAskRequest','enforceAnswerStateClaims'],sandbox);
  const confirm=handler('../../app/api/ask/actions/[messageId]/route.ts',['POST','unavailable','revalidateActionViews'],{...sandbox,executeActionCapability,continueConfirmedAppend,getAuthenticatedApiContext:async()=>({supabase:db,userId:options.confirmOwner||id(1)}),emitOperationalEvent:noop,revalidatePath:noop});
  return {state,rows,db,send:(message=cedar)=>post(new Request('https://fixture.invalid/api/ask',{method:'POST',body:JSON.stringify({petId:options.petId||pet.id,logicalTurnId:id(41),message})})),confirm:(actionId=id(71),decision='confirm',messageId=id(61))=>confirm(new Request('https://fixture.invalid/api/ask/actions/'+messageId,{method:'POST',body:JSON.stringify({actionId,decision})}),{params:Promise.resolve({messageId})})};
 }

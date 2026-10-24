@@ -153,6 +153,8 @@ export type FurviseLiveContext = {
   pinnedUserSourceIds?: string[];
   /** Exact source snapshot chosen by the interpretation request budget. */
   planningSourceWindow?: import("./ask-interpretation-sources.ts").AskSourceWindow;
+  /** Server-derived prior assistant dialogue; referents only, never USER evidence or authority. */
+  planningReferenceDialogue?: import("./ask-interpretation-sources.ts").AskReferenceDialogue;
   storedReadReferences?: import("../furvise-brain/stored-read.ts").StoredReadReference[];
   storedReadResult?: import("../furvise-brain/stored-read-organ.ts").StoredReadResult;
   replaceReferences?: import("../furvise-brain/replace-job.ts").ReplaceReference[];

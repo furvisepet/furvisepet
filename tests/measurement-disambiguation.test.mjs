@@ -3,6 +3,8 @@ import {requiresCalculateBinding} from "../app/lib/furvise-brain/calculate-plan.
 import {measurementCandidates} from "../app/lib/furvise-brain/measurement-candidates.ts";
 import {normalizeReadText,textMatchesReadPredicate} from "../app/lib/furvise-brain/read-text.ts";
 import {readFile} from "node:fs/promises";
+import ts from "typescript";
+import vm from "node:vm";
 
 const predicate=(...terms)=>({kind:"text_any",terms});
 const ticket=(predicates=[predicate("alpha","beta")])=>({...rawTicket(),predicates});
@@ -210,7 +212,10 @@ test("retrieval still uses whole-record predicates independently of local select
 test("implementation has one shared lexical matcher and no new domain or raw-language authority",async()=>{
  const read=p=>readFile(new URL("../app/lib/furvise-brain/"+p,import.meta.url),"utf8");
  const [muscle,candidates,matcher,lungs,effective]=await Promise.all(["muscle.ts","measurement-candidates.ts","read-text.ts","lungs.ts","effective-selection.ts"].map(read));
- assert.match(muscle,/textMatchesReadPredicate/);assert.match(lungs,/textMatchesReadPredicate/);assert.match(effective,/textMatchesReadPredicate/);
+ assert.match(muscle,/textMatchesReadPredicate/);
+ const composite=await read("read-measurement.ts");
+ assertSharedMatcherPipeline(composite,"./read-text.ts","textMatchesReadPredicate");
+ for(const source of [lungs,effective])assertSharedMatcherPipeline(source,"./read-measurement.ts","matchesReadPredicates");
  assert.doesNotMatch(lungs+effective,/\.normalize\("NFKC"\)/);
  assert.doesNotMatch(muscle+candidates,/\b(?:question|rawQuestion|currentMessage|requestText|sourceMessage|dialogue|conversation|client|model|semanticFrame)\b|responses\.create|supabase|fetch\(/);
  assert.doesNotMatch(muscle+candidates+matcher,/\b(?:weight|food|water|dose|temperature|carrier|height)\b/i);
@@ -225,4 +230,121 @@ for(const [term,text,expected] of [
  ['rash','crash',false],['---',' ',false],['','measured quantity',false],
 ])test('predicate boundary: '+JSON.stringify([term,text]),()=>{
  assert.equal(textMatchesReadPredicate(text,predicate(term)),expected);
+});
+
+const {matchesReadPredicates}=await import("../app/lib/furvise-brain/read-measurement.ts");
+const {retrieveReadTicket}=await import("../app/lib/furvise-brain/lungs.ts");
+const measurementModule=await import("../app/lib/furvise-brain/measurement-candidates.ts");
+const unitModule=await import("../app/lib/furvise-brain/calculation-units.ts");
+const textModule=await import("../app/lib/furvise-brain/read-text.ts");
+const sourcePath=p=>new URL("../app/lib/furvise-brain/"+p,import.meta.url);
+const readSource=p=>readFile(sourcePath(p),"utf8");
+const referenceId=n=>"76000000-0000-4000-8000-"+String(n).padStart(12,"0");
+const sourceIdentity=(...ids)=>({kind:"source_ref",sources:ids.map(id=>({sourceTurnId:referenceId(90),sourceId:"care:"+id}))});
+const measurement={kind:"measurement",unit:"kg",predicateIndexes:[0]};
+function assertSharedMatcherPipeline(source,dependency,callee){
+ const tree=ts.createSourceFile("pipeline.ts",source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);
+ const nodes=[];const visit=n=>{nodes.push(n);ts.forEachChild(n,visit);};visit(tree);
+ assert.equal(tree.parseDiagnostics.length,0);
+ assert.ok(nodes.some(n=>ts.isImportDeclaration(n)&&n.moduleSpecifier.text===dependency
+  &&n.importClause?.namedBindings?.elements?.some(e=>e.name.text===callee)),"import the existing shared matcher");
+ assert.ok(nodes.some(n=>ts.isCallExpression(n)&&ts.isIdentifier(n.expression)&&n.expression.text===callee),"invoke the shared matcher");
+}
+function compositeContract(match){
+ const id=referenceId(3),predicates=[predicate("alpha","beta"),predicate("sample"),sourceIdentity(id),measurement];
+ const record={id,title:"ＳＡＭＰＬＥ",note:"ALPHA: 2 kg"};
+ assert.equal(match(record,predicates),true,"explicit predicates and identity permit eligible source");
+ assert.equal(match({...record,note:"beta: 2 lb"},predicates),true,"compatible units and OR terms stay legal");
+ assert.equal(match({...record,title:null},predicates),false,"each text predicate is required");
+ assert.equal(match({...record,id:referenceId(4)},predicates),false,"text and measurement cannot override identity");
+ assert.equal(match({...record,note:"alphabet: 2 kg"},predicates),false,"token boundary remains literal");
+ assert.equal(match({...record,note:"alpha: 2 ml"},predicates),false,"incompatible dimension is excluded");
+ assert.equal(match({...record,title:"sample alpha",note:"unrelated: 2 kg"},predicates),false,"unit alone cannot supply local purpose");
+ assert.equal(match({...record,note:"alpha: nothing measured"},predicates),false,"missing measurement is excluded");
+ assert.throws(()=>match({...record,note:"sample alpha: 2 kg; alpha: 3 kg"},predicates),/measurement_eligibility_ambiguous/);
+}
+function isolatedComposite(source,lexical=textMatchesReadPredicate){
+ const compiledModule={exports:{}};
+ const dependencies={"./measurement-candidates.ts":measurementModule,"./calculation-units.ts":unitModule,
+  "./read-text.ts":{...textModule,textMatchesReadPredicate:lexical}};
+ const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+ vm.runInNewContext(compiled,{module:compiledModule,exports:compiledModule.exports,require:key=>{
+  assert.ok(Object.hasOwn(dependencies,key),"only actual pure matcher dependencies");return dependencies[key];
+ }},{timeout:1000});
+ return compiledModule.exports.matchesReadPredicates;
+}
+test("shared predicate pipeline preserves literal AND identity and measurement eligibility",()=>{
+ compositeContract(matchesReadPredicates);
+});
+test("isolated actual composite delegates every explicit literal to original matcher",async()=>{
+ const calls=[];
+ const match=isolatedComposite(await readSource("read-measurement.ts"),(text,p)=>{calls.push(p);return textMatchesReadPredicate(text,p);});
+ compositeContract(match);
+ const first=referenceId(3),p=[predicate("alpha"),predicate("sample"),sourceIdentity(first),measurement];
+ calls.length=0;assert.equal(match({id:first,title:"sample",note:"alpha: 2 kg"},p),true);
+ assert.equal(calls[0],p[0]);assert.equal(calls[1],p[1]);assert.equal(calls[2],p[0]);
+});
+for(const [name,from,to]of [
+ ["OR across explicit literals",'predicates.filter(p=>p.kind==="text_any").every','predicates.filter(p=>p.kind==="text_any").some'],
+ ["source identity bypass",'p.sources.some(r=>r.sourceId==="care:"+row.id)','true'],
+ ["local measurement purpose bypass",'eligibleMeasurements(body,p.unit,predicates,p.predicateIndexes)','eligibleMeasurements(body,p.unit,predicates,[])'],
+])test("literal identity measurement contract detects "+name,async()=>{
+ const source=await readSource("read-measurement.ts"),mutated=source.replace(from,to);
+ assert.notEqual(mutated,source);assert.throws(()=>compositeContract(isolatedComposite(mutated)),assert.AssertionError);
+});
+test("literal identity measurement contract detects lexical bypass",async()=>{
+ const source=await readSource("read-measurement.ts");
+ assert.throws(()=>compositeContract(isolatedComposite(source,()=>true)),assert.AssertionError);
+});
+for(const name of ["lungs.ts","effective-selection.ts"])test(name+" shared-matcher bypass is detected",async()=>{
+ const source=await readSource(name);
+ assertSharedMatcherPipeline(source,"./read-measurement.ts","matchesReadPredicates");
+ const mutated=source.replaceAll("matchesReadPredicates(row,ticket.predicates)","true");
+ assert.notEqual(mutated,source);
+ assert.throws(()=>assertSharedMatcherPipeline(mutated,"./read-measurement.ts","matchesReadPredicates"),assert.AssertionError);
+});
+async function retrieveMatcherCase(effective,{foreign=false,unauthorized=false}={}){
+ const ids=[1,2,3,4,5].map(referenceId);
+ const records=[
+  row(ids[0],"sample alpha: 7 ml",1),row(ids[1],"sample alpha: none",2),
+  row(ids[2],"sample alpha: 2 kg",3),row(ids[3],"sample alphabet: 3 kg",4),
+  row(ids[4],"sample alpha: 4 kg",5),
+ ];
+ if(foreign)records.forEach(r=>{r.user_id="foreign-owner";});
+ const raw={...rawTicket(),authority:"stored_report",predicates:[predicate("alpha"),predicate("sample"),sourceIdentity(...ids.slice(0,4)),measurement],
+  selection:{groupBy:["subject"],union:[{orderBy:[{field:"event_at",direction:"asc"}],take:{count:1,per:"group"}}]}};
+ const ticket=bindTypedReadTicket(raw,[pets[0].id]);assert.ok(ticket);
+ const store={
+  page:async q=>records.filter(r=>r.pet_profile_id===q.petId&&r.occurred_at>=q.from&&r.occurred_at<q.to)
+   .toSorted((a,b)=>(q.ordering==="desc"?-1:1)*a.occurred_at.localeCompare(b.occurred_at)).slice(q.offset,q.offset+q.limit),
+  effective:async records=>({records,reliable:true}),
+ };
+ if(effective)store.effectiveWindow=async({rows})=>({records:rows,storedReportsCertified:true,lineageClosed:true,replacementSeedsExhausted:true,
+  sourceLineage:[],reasons:[],graphCalls:1,lineageRows:rows.length});
+ return retrieveReadTicket(ticket,{userId:"owner",ownedPetIds:unauthorized?[]:[pets[0].id],
+  from:"2020-01-01T00:00:00Z",to:"2027-01-01T00:00:00Z",asOf:"2026-09-24T00:00:00Z"},store);
+}
+for(const effective of [false,true]){
+ const path=effective?"effective selection":"paged retrieval";
+ test(path+" applies literal identity and measurement before first selection",async()=>{
+  const r=await retrieveMatcherCase(effective);
+  assert.deepEqual(r.records.map(r=>r.id),[referenceId(3)]);
+  assert.deepEqual(r.coverage.selection.matchedIds,[referenceId(3)]);
+  assert.equal(r.coverage.status,"complete");
+ });
+ test(path+" never lets literal or identity matches authorize foreign ownership",async()=>{
+  const r=await retrieveMatcherCase(effective,{foreign:true});
+  assert.deepEqual(r.records,[]);assert.notEqual(r.coverage.status,"complete");
+ });
+ test(path+" rejects an unauthorized subject before matching",async()=>{
+  const r=await retrieveMatcherCase(effective,{unauthorized:true});
+  assert.deepEqual(r.records,[]);assert.equal(r.coverage.status,"unavailable");
+  assert.ok(r.coverage.reasons.includes("subject_not_authorized"));
+ });
+}
+
+test("typed predicates cannot upgrade effective facts into recorded identity or measurement authority",()=>{
+ for(const predicates of [[sourceIdentity(referenceId(3))],[predicate("alpha"),{kind:"measurement",unit:"kg",predicateIndexes:[0]}]]){
+  assert.throws(()=>bindTypedReadTicket({...rawTicket(),authority:"effective_fact",predicates},[pets[0].id]),/ASK_REQUEST_INVALID:read_ticket/);
+ }
 });

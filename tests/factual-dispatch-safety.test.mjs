@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import ts from "typescript";
 import {exercise,clock} from "../scripts/audits/helpers/lifetime-harness.mjs";
 import {pets} from "../scripts/audits/fixtures/ask-lifetime-history.mjs";
 
@@ -192,5 +193,77 @@ test("stored emergency helper cannot parse language or infer eligibility from sa
  assert.doesNotMatch(helper,/detectImmediateAskEmergency|detectAskConcernTags|safetyTemporalScope|context.currentMessage/);
  const runner=await fs.readFile(new URL("../app/lib/intelligence/run-intelligence.ts",import.meta.url),"utf8");
  assert.equal((runner.match(/resolveSafetyState\(context\)/g)||[]).length,1);
- assert.match(runner,/finalizeAskAnswer\(\{\s*reasoning, safety,/);
+ assertCanonicalSafetyForwarding(runner);
+});
+
+function assertCanonicalSafetyForwarding(source) {
+ const file=ts.createSourceFile("run-intelligence.ts",source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);
+ assert.equal(file.parseDiagnostics.length,0,"runner must parse");
+ const nodes=[];
+ const visit=node=>{nodes.push(node);ts.forEachChild(node,visit);};
+ visit(file);
+ const calls=name=>nodes.filter(node=>ts.isCallExpression(node)&&ts.isIdentifier(node.expression)&&node.expression.text===name);
+ const resolved=calls("resolveSafetyState"),finalized=calls("finalizeAskAnswer");
+ assert.equal(resolved.length,1,"safety must be resolved exactly once");
+ assert.equal(finalized.length,1,"one finalization boundary");
+ const resolution=resolved[0],finalization=finalized[0],declaration=resolution.parent;
+ assert.equal(resolution.arguments.length,1);
+ assert.equal(resolution.arguments[0].getText(file),"context","resolve the current scoped context");
+ assert.ok(ts.isVariableDeclaration(declaration)&&ts.isIdentifier(declaration.name)&&declaration.name.text==="safety","bind resolved safety");
+ assert.ok(declaration.parent.flags&ts.NodeFlags.Const,"resolved safety binding is const");
+ const enclosingFunction=node=>{
+  for(let parent=node.parent;parent;parent=parent.parent)if(ts.isFunctionLike(parent))return parent;
+ };
+ const scope=enclosingFunction(resolution);
+ assert.equal(enclosingFunction(finalization),scope,"same runner scope must forward safety");
+ assert.ok(declaration.end<finalization.pos,"resolve safety before finalization");
+ assert.equal(finalization.arguments.length,1);
+ const input=finalization.arguments[0];
+ assert.ok(ts.isObjectLiteralExpression(input),"explicit finalization input");
+ assert.ok(!input.properties.some(ts.isSpreadAssignment),"no spread can replace safety");
+ for(const name of ["reasoning","safety"]){
+  const fields=input.properties.filter(field=>field.name?.getText(file)===name);
+  assert.equal(fields.length,1,"one explicit "+name+" binding");
+  const field=fields[0];
+  assert.ok(ts.isShorthandPropertyAssignment(field)
+   ||ts.isPropertyAssignment(field)&&ts.isIdentifier(field.initializer)&&field.initializer.text===name,"forward original "+name+" binding");
+ }
+ const root=node=>{
+  while(ts.isPropertyAccessExpression(node)||ts.isElementAccessExpression(node))node=node.expression;
+  return ts.isIdentifier(node)?node.text:null;
+ };
+ // A later mutation or shadow binding must not replace the resolved authority.
+ for(const node of nodes.filter(node=>node.pos>=scope.pos&&node.end<=scope.end)){
+  if(ts.isVariableDeclaration(node)&&node!==declaration&&ts.isIdentifier(node.name))
+   assert.notEqual(node.name.text,"safety","no shadow safety binding");
+  if(ts.isBinaryExpression(node)&&node.operatorToken.kind>=ts.SyntaxKind.FirstAssignment&&node.operatorToken.kind<=ts.SyntaxKind.LastAssignment)
+   assert.notEqual(root(node.left),"safety","resolved safety cannot be reassigned or mutated");
+  if((ts.isPrefixUnaryExpression(node)||ts.isPostfixUnaryExpression(node))
+    &&[ts.SyntaxKind.PlusPlusToken,ts.SyntaxKind.MinusMinusToken].includes(node.operator))
+   assert.notEqual(root(node.operand),"safety","resolved safety cannot be mutated");
+ }
+}
+
+test("canonical safety forwarding is independent of unrelated finalizer property order",async()=>{
+ const fs=await import("node:fs/promises");
+ const runner=await fs.readFile(new URL("../app/lib/intelligence/run-intelligence.ts",import.meta.url),"utf8");
+ const reordered=runner.replace("recordedCalculation,\n    reasoning, safety, context, requestId, onProviderEvent, executionPlan,","reasoning, safety, context, requestId, onProviderEvent, executionPlan,\n    recordedCalculation,");
+ assert.notEqual(reordered,runner);
+ assertCanonicalSafetyForwarding(reordered);
+});
+for(const [name,from,to]of [
+ ["missing safety","reasoning, safety, context, requestId","reasoning, context, requestId"],
+ ["generic safety flag","reasoning, safety, context, requestId",'reasoning, safety: {level:"emergency"}, context, requestId'],
+ ["different safety binding","reasoning, safety, context, requestId","reasoning, safety: otherSafety, context, requestId"],
+ ["duplicate safety field","reasoning, safety, context, requestId","reasoning, safety, safety: otherSafety, context, requestId"],
+ ["spread override","reasoning, safety, context, requestId","reasoning, safety, ...otherState, context, requestId"],
+ ["foreign resolution context","const safety = resolveSafetyState(context);","const safety = resolveSafetyState(otherContext);"],
+ ["second resolution","const safety = resolveSafetyState(context);","const safety = resolveSafetyState(context); resolveSafetyState(context);"],
+ ["resolved-state mutation","const safety = resolveSafetyState(context);","const safety = resolveSafetyState(context); safety.currentMessageEmergency = false;"],
+])test("canonical safety forwarding detects "+name,async()=>{
+ const fs=await import("node:fs/promises");
+ const runner=await fs.readFile(new URL("../app/lib/intelligence/run-intelligence.ts",import.meta.url),"utf8");
+ const mutated=runner.replace(from,to);
+ assert.notEqual(mutated,runner);
+ assert.throws(()=>assertCanonicalSafetyForwarding(mutated),assert.AssertionError);
 });

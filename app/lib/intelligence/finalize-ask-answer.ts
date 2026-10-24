@@ -1,3 +1,5 @@
+import { calculationPublicationFailure } from "./calculation-labs.ts";
+import type { RecordedCalculationContext } from "../furvise-brain/muscle.ts";
 import type { ResolvedSafetyState } from "./safety-state.ts";
 import { storedEmergencyApplies, replaceStoredPublicationWithEmergency } from "./stored-emergency-publication.ts";
 import { clearHistoryReview } from "./history-review-state.ts";
@@ -16,6 +18,7 @@ import { readReviewedHistoryAnswer, recordHistoryReview, historyReviewSignature 
  * Only the unchanged governed plan may proceed to the execution stage.
  */
 export async function finalizeAskAnswer(input: {
+  recordedCalculation?: RecordedCalculationContext;
   reasoning: AskReasoningResult;
   safety: ResolvedSafetyState;
   context: FurviseLiveContext;
@@ -24,14 +27,14 @@ export async function finalizeAskAnswer(input: {
   executionPlan: GovernedAskExecutionPlan;
   onProviderEvent?: (event: AskProviderEvent) => void;
 }) {
-  const { reasoning, safety, context, requestId, executionPlan, onProviderEvent, authoritativePetIds } = input;
+  const { reasoning, safety, context, requestId, executionPlan, onProviderEvent, authoritativePetIds, recordedCalculation } = input;
   assertGovernedAskExecutionPlan(executionPlan);
   const emergency = storedEmergencyApplies(reasoning.evidenceContract, safety);
   if (emergency) {
     clearHistoryReview(reasoning);
     if (executionPlan.careActions.length || executionPlan.semanticEvents.length || executionPlan.learnings.length
       || !authoritativePetIds.includes(executionPlan.petId)) throw new Error("ASK_EMERGENCY_EXECUTION_PLAN_REJECTED");
-  } else await reviewHistoricalAnswer({ result: reasoning, onProviderEvent, executionPlan });
+  } else await reviewHistoricalAnswer({ result: reasoning, onProviderEvent, executionPlan, recordedCalculation });
   assertGovernedAskExecutionPlan(executionPlan);
   const validate = (candidate: AskReasoningResult) => validateGeneratedAnswer(
     candidate, context, reasoning.intelligenceSafety.level, authoritativePetIds, safety,
@@ -48,6 +51,11 @@ export async function finalizeAskAnswer(input: {
   assertGovernedAskExecutionPlan(executionPlan);
   // Safe partial prose is not permission to commit a failed mixed request.
   // A reviewed ready-to-execute task still needs actual persistence receipts.
+  if(validation.response.calculationLabs?.execution.authority==="recorded_contents"){
+    if(!recordedCalculation)throw Error("RECORDED_READER_REQUIRED");
+    const failure=await calculationPublicationFailure(validation.response,recordedCalculation);
+    if(failure)throw Error("RECORDED_PUBLICATION_REJECTED:"+failure);
+  }
   const historyReceipt = readReviewedHistoryAnswer(validation.response);
   const suppressWrites = validation.assessment?.checks.taskCompletion === "failed"
     && !historyReceipt

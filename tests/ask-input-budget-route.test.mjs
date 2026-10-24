@@ -1,4 +1,10 @@
-import { recursiveFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
+// Register tests with Node's worker context intact. Disable only the legacy
+// canonical-fixture seam during each native-transport case, then restore it.
+import {beforeEach,afterEach} from 'node:test';
+const originalTestContext=process.env.NODE_TEST_CONTEXT;
+beforeEach(()=>{delete process.env.NODE_TEST_CONTEXT;});
+afterEach(()=>{if(originalTestContext===undefined)delete process.env.NODE_TEST_CONTEXT;else process.env.NODE_TEST_CONTEXT=originalTestContext;});
+import { actualTransportFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
@@ -18,7 +24,7 @@ test("actual offline route publishes and persists the source-window omission not
    calls++;assert.ok(calls<=1);const input=JSON.parse(request.input);
    assert.equal(input.userSources.find(s=>s.id===input.currentSourceId).text,question);
    assert.ok(input.sourceWindow.omittedPriorUserTurns>0);
-   return {status:"completed",output_text:JSON.stringify(recursiveFixturePlan(prepared.wire).encode({request:intent})),usage:{input_tokens:100,output_tokens:20,total_tokens:120}};
+   return {status:"completed",output_text:JSON.stringify(actualTransportFixturePlan(prepared).encode({request:intent})),usage:{input_tokens:100,output_tokens:20,total_tokens:120}};
   }catch(error){providerFailure=error;throw error;}}});
  for(let i=0;i<4;i++)f.rows.dog_profiles.push({...f.rows.dog_profiles[0],id:id(12+i),name:["Aster","Birch","Dahlia","Elm"][i]});
  for(let i=0;i<39;i++)f.rows.ask_conversation_messages.push({id:id(100+i),user_id:id(1),conversation_id:id(21),role:"user",user_text:("Prior message "+i+". "+"Whole prior user text. ".repeat(80)).slice(0,1200),created_at:"2026-09-19T12:"+String(i).padStart(2,"0")+":00Z"});

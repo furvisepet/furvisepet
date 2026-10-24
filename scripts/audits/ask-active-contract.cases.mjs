@@ -105,8 +105,8 @@ async function wireCall(ctx,p,{raw=false,catalogService,expectedCalls=1}={}){
   try{const response=raw?p:prepared.transport.encode({request:p},()=>{});
   return await interpretAskQuestion({context:ctx,model:'gpt-5.4-mini',catalogService,client:{responses:{create:async request=>{
    calls++;assert.equal(calls,1,'non-profile repair cannot grant another attempt');
-   assert.equal(request.max_output_tokens,8192);assert.deepEqual(request.reasoning,{effort:'none'});
-   assert.deepEqual(request.text.format.schema,prepared.request.text.format.schema);
+   assert.equal(request.max_output_tokens,8192);assert.deepEqual(request.reasoning,{effort:'medium'});
+   assert.equal(JSON.stringify(request.text.format.schema),JSON.stringify(prepared.request.text.format.schema));
    return {status:'completed',output_text:JSON.stringify(response),usage:{input_tokens:12,output_tokens:10}};
   }}}});}finally{assert.equal(calls,expectedCalls);}
  });}finally{await a.release();if(prior===undefined)delete process.env.NODE_TEST_CONTEXT;else process.env.NODE_TEST_CONTEXT=prior;}
@@ -144,7 +144,7 @@ for(const [name,change]of [
 ])test('strict non-profile proposal cannot repair '+name,async()=>{
  const p=appendProposal();change(p);const ctx=prepareAskInterpretationRequest(sourceContext(appendQuestion),'gpt-5.4-mini').context;
  assert.throws(()=>recoverAskInterpretation(p,ctx),/ASK_REQUEST/);
- if(name==='unknown source reference')await assert.rejects(wireCall(ctx,p,{expectedCalls:0}),/ASK_WIRE_CANONICAL_SCHEMA/);
+ if(name==='unknown source reference')await assert.rejects(wireCall(ctx,p,{expectedCalls:0}),/ASK_OPERATION_CANONICAL_SCHEMA/);
  else await assert.rejects(wireCall(ctx,p),e=>e.stage==='interpretation_failed');
 });
 for(const value of [{nodes:[{_:'UNKNOWN_TAG'}]},{request:{version:'ask-request.v99'}},{}])test('malformed wire cannot manufacture an update or authorize repair: '+JSON.stringify(value),async()=>{

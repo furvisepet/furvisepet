@@ -1,3 +1,4 @@
+import {previewRecordedAskCapability} from '../../app/lib/intelligence/calculation-capability.ts';
 import {publicV1AskCapability,PUBLIC_V1_ASK_MUTATION_LIMITATION,PUBLIC_V1_CAPABILITIES} from '../../app/lib/public-v1-capabilities.ts';
 import './helpers/lifetime-harness.mjs';
 import assert from 'node:assert/strict';
@@ -5,6 +6,7 @@ import {readFileSync} from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 import ts from 'typescript';
+import {capturePreviewEvidence,flushPreviewEvidence} from '../../app/lib/intelligence/ask-preview-capture.mjs';
 import {validateAskRequest} from '../../app/lib/intelligence/ask-request-contract.ts';
 import {emptyProposedSemanticFrame} from '../../app/lib/intelligence/semantic-frame/extract-frame.ts';
 import {requestProposal} from './helpers/request-proposal.mjs';
@@ -19,7 +21,7 @@ const code=ts.transpileModule('const run = '+callback.getText(ast),{compilerOpti
 test('actual admitted route refuses another pet before history or mutations and releases its credit',async()=>{
  const calls=[];
  const lifecycle={transition(){return this;},credit(){return this;},settlement(){return this;},route(){return this;}};
- const sandbox={sourceWindowDisclosure:null,publicV1AskCapability,liveContext:{pet:{id:'selected',name:'Sable'},conversationTurns:[]},preparedRequest:{userMessageId:'current'},
+ const sandbox={sourceWindowDisclosure:null,capturePreviewEvidence,flushPreviewEvidence,publicV1AskCapability,previewRecordedAskCapability,liveContext:{pet:{id:'selected',name:'Sable'},conversationTurns:[]},preparedRequest:{userMessageId:'current'},
   requestId:'request',logicalTurnId:'request',userId:'owner',petId:'selected',question:'Compare both pets.',
   model:'test',onProviderEvent:()=>{},usage:{allowed:true},creditRequestId:'attempt',aiCreditPayloadHash:'hash',retryReuse:false,
   turnLifecycle:lifecycle,creditReserved:false,creditFinalState:'not_reserved',generationStage:'',
@@ -46,7 +48,7 @@ for(const scenario of ['save','resume','cancel','cancel_saved','failure'])test(`
  const liveContext={owner:{userId:'owner'},pet,eligiblePets:[pet],currentMessage:message,currentTurn:{...source,id:'current',text:message},conversationTurns:pending?[source,priorSave]:[source],pendingTask:pending,timeZone:'UTC'};
  const proposal=requestProposal({operation:cancelling?'general':'update',subject:cancelling?'non_pet':'selected',petNames:[],topic:'owner note',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:emptyProposedSemanticFrame(),evidenceBasis:cancelling?'general':null,task:{intent:scenario==='failure'?'save':cancelling?'cancel':scenario,sourceTurnId:'source',petName:cancelling?null:'Sable'}},message);
  const lifecycle={transition(){return this;},credit(){return this;},settlement(){return this;},route(){return this;},snapshot(){return {};}};
- const sandbox={sourceWindowDisclosure:null,publicV1AskCapability,liveContext,preparedRequest:{conversationId:'conversation',userMessageId:'current'},requestId:'request',logicalTurnId:'request',userId:'owner',petId:'pet',question:message,
+ const sandbox={sourceWindowDisclosure:null,capturePreviewEvidence,flushPreviewEvidence,publicV1AskCapability,previewRecordedAskCapability,liveContext,preparedRequest:{conversationId:'conversation',userMessageId:'current'},requestId:'request',logicalTurnId:'request',userId:'owner',petId:'pet',question:message,
   request:{},model:'test',onProviderEvent:()=>{},usage:{allowed:true},creditRequestId:'attempt',aiCreditPayloadHash:'hash',retryReuse:false,
   turnAuthoritativePetIds:['pet'],contextUsed:{},turnLifecycle:lifecycle,creditReserved:false,creditFinalState:'not_reserved',generationStage:'',ownerNotePersistence:null,ownerNoteSourceMessageId:'current',ownerNotePetId:'pet',completedContinuation:null,execution:{},immediateEmergency:null,
   reserveAiCredit:async()=>{calls.push('reserve');return{status:'reserved'};},logAskStage:()=>{},

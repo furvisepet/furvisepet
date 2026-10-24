@@ -39,6 +39,7 @@ function termMatchesTokens(tokens: string[], term: string) {
  return false;
 }
 export function textMatchesReadPredicate(text: string, predicate: ReadPredicate): boolean {
+ if(predicate.kind!=="text_any")throw Error("READ_TEXT_PREDICATE_KIND");
  const haystack = normalizeReadText(text);
  const tokens = haystack ? haystack.split(" ") : [];
  return predicate.terms.some(term => termMatchesTokens(tokens, term));

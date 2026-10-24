@@ -1,10 +1,13 @@
+import { units } from "./calculation-units.ts";
 import { readNeedsSchema } from "./read-needs-schema.ts";
 import { completeInstantSchema, isCompleteInstant } from "./complete-instant.ts";
 import { bindAttributedReportContexts, attributedReportContextsSchema, type AttributedReportContext } from "./attributed-report-context.ts";
 import type { ReadSelection } from "./read-selection.ts";
 import { bindReadNeeds, type ReadNeed, type ReadNeedBinding } from "./read-needs.ts";
 /** Semantic proposal only. Ownership and access are bound by the server. */
-export type ReadPredicate = Readonly<{ kind: "text_any"; terms: readonly string[] }>;
+export type TextReadPredicate=Readonly<{kind:"text_any";terms:readonly string[]}>;
+export type ReadSourceReference=Readonly<{sourceTurnId:string;sourceId:string}>;
+export type ReadPredicate=TextReadPredicate|Readonly<{kind:"measurement";unit:string;predicateIndexes:readonly number[]}>|Readonly<{kind:"source_ref";sources:readonly ReadSourceReference[]}>;
 export type EpisodeReadObligation = Readonly<{
   operation: "count" | "membership";
   referent: Readonly<{
@@ -44,12 +47,12 @@ export const readTicketSchema = {
   required: ["authority", "operation", "subjectScope", "temporal", "predicates", "outputs", "searchHints", "episode", "needs", "selection"],
   properties: {
     attributedContexts: attributedReportContextsSchema,
-    authority: { type: "string", enum: ["effective_fact", "stored_report"], description: "Requested proposition: stored_report only for exact stored wording, attributed reports or a timeline of statements; it never establishes current/corrected truth or supersession. effective_fact for current, settled, corrected, definitive latest values and every historical calculation. Do not downgrade an effective-fact request because history might conflict. Stored reports support ordinary read with concrete/null temporal bounds and optional selection; no anchor, calendar, episode, probes or legacy strategy." },
+    authority: { type: "string", enum: ["effective_fact", "stored_report"], description: "Requested proposition: stored_report only for exact stored wording, attributed reports or a timeline of statements; it never establishes current/corrected truth or supersession. effective_fact for current, settled, corrected, definitive latest values and every historical calculation. Do not downgrade an effective-fact request because history might conflict. Stored reports support ordinary reads and read_since_event relative to a uniquely resolved saved report, with optional ordered selection. A recorded/reported value relative to a recorded event is still stored_report, not certified effective truth. Its anchor and selected records require independent owned source-version, correction-closure and exhaustive-boundary proofs. Never change an effective-fact request to get a report answer. No calendar, episode, probes, calculations or legacy strategy." },
     subjectScope: { type: "string", enum: ["selected", "named", "conversation", "account"], description: "Requested subject selection. Selected for an unnamed standalone read; conversation for USER-established referents; named for explicit pets; account only for a requested cohort or identity lookup. Overrides legacy scope. The server binds owned IDs; this never grants writes." },
     needs: readNeedsSchema,
     selection: {
       type: ["object", "null"], additionalProperties: false, required: ["groupBy", "union"],
-      description: "Independent ordered selection per subject, or null for an ordinary/legacy read. Does not widen subject scope. Compatible with a semantic temporal.anchor: the deterministic resolver resolves the owned effective event and temporal boundary before selection. Do not invent from/to dates or choose a ledger event. Incompatible with needs, episode, outputs.strategy and calendar selectors.",
+      description: "Independent ordered selection per subject, or null for an ordinary/legacy read. Does not widen subject scope. Compatible with temporal.anchor under the explicit requested authority: effective_fact requires the owned effective event; stored_report requires a uniquely resolved owned saved report and closed source/correction proof. Resolve its temporal boundary before selection. Do not invent dates or choose an ambiguous event. Incompatible with needs, episode, outputs.strategy and calendar selectors.",
       properties: {
         groupBy: { type: "array", minItems: 1, maxItems: 1, items: { type: "string", enum: ["subject"] } },
         union: { type: "array", minItems: 1, maxItems: 8, description: "Set union of independently ordered selections; repeated event IDs collapse.",
@@ -84,17 +87,16 @@ export const readTicketSchema = {
       from: { ...temporalInstantSchema, description: "Inclusive complete ISO instant (YYYY-MM-DDTHH:mm:ss[.fraction]Z or explicit +/-HH:mm offset), or null. Never emit a date-only value. Brain resolves a requested start calendar day to local midnight in the supplied timeZone. Never invent the date of an anchor. For an as-of cutoff, keep this null unless the user supplied a lower bound." },
       to: { ...temporalInstantSchema, description: "Exclusive complete ISO instant (YYYY-MM-DDTHH:mm:ss[.fraction]Z or explicit +/-HH:mm offset), or null. Never emit a date-only value. Brain resolves an inclusive ending calendar day to the next local midnight in the supplied timeZone, using the offset applicable at that boundary, including calendar and daylight-saving transitions." },
       anchor: { type: ["object", "null"], additionalProperties: false, required: ["concept", "relation"], properties: {
-        concept: { type: "string", minLength: 1, maxLength: 80, description: "Minimal search concept for the event, without pet name or temporal instructions. Every normalized term must occur in the record; terms need not be adjacent. Code resolves the actual dated event. Never guess its date." },
+        concept: { type: "string", minLength: 1, maxLength: 80, description: "Literal identifying concept for the referenced saved event. Preserve explicit identifying qualifiers from the USER reference, including a year or quoted title; do not discard them as temporal instructions. Every normalized term must occur in stored title/note; terms need not be adjacent. Code resolves the actual event and date. Never guess an anchor date or resolve multiple matching events by preference." },
         relation: { type: "string", enum: ["from", "after", "before"] },
       } },
     } },
     searchHints: { type: ["array", "null"], maxItems: 12, items: { type: "string", minLength: 1, maxLength: 80 }, description: "Advisory literal terms for optional supporting context only. They cannot select factual records or establish completeness. Encode requested factual topics in predicates, temporal semantics, selection, or grounded probes; never in hints alone." },
-    predicates: { type: "array", maxItems: 6, description: "AND across predicates, OR across each predicate's literal terms. Include ordinary synonyms needed for the requested concept; never copy the user's sentence.", items: {
-      type: "object", additionalProperties: false, required: ["kind", "terms"], properties: {
-        kind: { type: "string", enum: ["text_any"] },
-        terms: { type: "array", minItems: 1, maxItems: 12, items: { type: "string", minLength: 1, maxLength: 80 } },
-      },
-    } },
+    predicates: {type:"array",maxItems:6,description:"AND across explicit conditions. source_ref selects supplied cited identities; text_any retains literal content OR terms. measurement requires one compatible numeric span before ordering; units never certify an entity, attribute or clinical truth. Preserve requested literal restrictions.",items:{anyOf:[
+      {type:"object",additionalProperties:false,required:["kind","terms"],properties:{kind:{type:"string",enum:["text_any"]},terms:{type:"array",minItems:1,maxItems:12,items:{type:"string",minLength:1,maxLength:80}}}},
+      {type:"object",additionalProperties:false,required:["kind","unit","predicateIndexes"],properties:{kind:{type:"string",enum:["measurement"]},unit:{type:"string",enum:Object.keys(units)},predicateIndexes:{type:"array",maxItems:6,description:"Zero-based absolute positions in this ticket's COMPLETE predicates array, counting BOTH measurement and text_any entries. Reference only positions occupied by text_any predicates; never this measurement or another measurement. These are NOT ordinal indexes within a filtered text_any list. [] means no literal-purpose restriction. Preserve the USER's explicit literal restrictions; do not invent or remove conditions.",items:{type:"integer",minimum:0,maximum:5}}}},
+      {type:"object",additionalProperties:false,required:["kind","sources"],description:"Cited source identity only, independent from title/body conditions. Select exact supplied citedSourceReferences pairs. Re-read current owned sources; dialogue is not evidence. sources is OR; separate predicates are AND.",properties:{kind:{type:"string",enum:["source_ref"]},sources:{type:"array",minItems:1,maxItems:6,items:{type:"object",additionalProperties:false,required:["sourceTurnId","sourceId"],properties:{sourceTurnId:{type:"string",minLength:1,maxLength:160},sourceId:{type:"string",pattern:"^care:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}}}}}}
+    ]}},
     outputs: { type: "object", additionalProperties: false, required: ["completeness", "ordering", "limit", "strategy"], properties: {
       strategy: { type: ["string", "null"], enum: ["chronological", "temporal_endpoints", "calendar_samples", "event_candidates", null], description: "Chronological boundary, both endpoints per subject, one sample per UTC calendar year, or mandatory event-candidate lookup. Null retains ordinary ordered retrieval." },
       completeness: { type: "string", enum: ["sufficient", "exhaustive"], description: "Classify the requested proposition, not the amount of stored history. sufficient: task-certified selection, including ordered take per group and union of boundaries, within any explicit or anchor-defined window. exhaustive: the requested claim requires the entire matching set, historical existence/absence, or an exact count over the requested domain. A bounded window restricts the domain; it does not make an exhaustive claim sufficient. sufficient never certifies evidence: organs must independently certify the selected result. Legacy-only selectors retain their existing coverage requirements." },
@@ -130,6 +132,22 @@ export function bindReadTicket(value: unknown, petIds: readonly string[], needBi
   if (temporal.from && temporal.to && Date.parse(temporal.from) >= Date.parse(temporal.to)) return fail("temporal", "from_before_to");
   if (!Array.isArray(predicates) || predicates.length > 6) return fail("predicates", "array_max_6");
   predicates.forEach((p, index) => {
+    if(object(p)&&p.kind==="source_ref"){
+      if(!keys(p,["kind","sources"])||value.authority!=="stored_report"||operation!=="read"
+        ||!Array.isArray(p.sources)||!p.sources.length||p.sources.length>6
+        ||p.sources.some(r=>!object(r)||!keys(r,["sourceTurnId","sourceId"])||!term(r.sourceTurnId)
+          ||typeof r.sourceId!=="string"||!/^care:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(r.sourceId))
+        ||new Set(p.sources.map(r=>r.sourceTurnId+"\0"+r.sourceId)).size!==p.sources.length)return fail("predicates["+index+"]","source_reference");
+      return;
+    }
+    if(object(p)&&p.kind==="measurement"){
+      if(!keys(p,["kind","unit","predicateIndexes"])||typeof p.unit!=="string"||!Object.hasOwn(units,p.unit)
+        ||!Array.isArray(p.predicateIndexes)||p.predicateIndexes.length>6||new Set(p.predicateIndexes).size!==p.predicateIndexes.length
+        ||p.predicateIndexes.some(i=>!Number.isInteger(i)||i<0||!object(predicates[i])||predicates[i].kind!=="text_any"))
+        return fail(`predicates[${index}]`,"measurement");
+      if(value.authority!=="stored_report"||!["read","read_since_event"].includes(String(operation)))return fail(`predicates[${index}]`,"measurement_report_authority");
+      return;
+    }
     if (!object(p) || !keys(p, ["kind", "terms"])) return fail(`predicates[${index}]`, "fields");
     if (p.kind !== "text_any") return fail(`predicates[${index}].kind`, "enum");
     if (!Array.isArray(p.terms) || !p.terms.length || p.terms.length > 12 || !p.terms.every(term)) return fail(`predicates[${index}].terms`, "terms");
@@ -150,7 +168,7 @@ export function bindReadTicket(value: unknown, petIds: readonly string[], needBi
   // A single measurement endpoint is not a request for the oldest calendar year.
   // Inspect only the typed ticket predicates, never the owner sentence or pet.
   if (operation === "read" && temporal.calendar === "oldest_year" && outputs.limit === 1
-    && predicates.some(p => p.terms.some((value: string) => /\b(?:weights?|weigh(?:ed|s|ing)?|body mass|temperatures?|heart rate|pulse|respiratory rate|breathing rate|blood pressure|blood glucose|glucose|body condition score|height|length)\b/i.test(value)))) {
+    && predicates.some(p => p.kind==="text_any" && p.terms.some((value: string) => /\b(?:weights?|weigh(?:ed|s|ing)?|body mass|temperatures?|heart rate|pulse|respiratory rate|breathing rate|blood pressure|blood glucose|glucose|body condition score|height|length)\b/i.test(value)))) {
     return fail("temporal.calendar", "calendar_oldest_year_incompatible_with_measurement_limit");
   }
   if (outputs.strategy === "temporal_endpoints" && operation !== "compare") return fail("outputs.strategy", "temporal_endpoints_requires_compare");
@@ -192,7 +210,7 @@ export function bindReadTicket(value: unknown, petIds: readonly string[], needBi
     if (outputs.strategy != null) return fail("outputs.strategy", "incompatible_with_needs");
     if (outputs.limit !== null) return fail("outputs.limit", "incompatible_with_needs");
   }
-  if (value.authority === "stored_report" && (operation !== "read" || anchor || temporal.calendar || episode || needs?.length || outputs.strategy != null))
+  if (value.authority === "stored_report" && (!["read", "read_since_event"].includes(String(operation)) || temporal.calendar || episode || needs?.length || outputs.strategy != null))
     return fail("authority", "stored_report_requires_ordinary_read");
   const attributedContexts = bindAttributedReportContexts(value.attributedContexts, {
     authority: value.authority as ReadAuthority | undefined, operation: operation as ReadTicket["operation"],
@@ -202,7 +220,7 @@ export function bindReadTicket(value: unknown, petIds: readonly string[], needBi
       referent: (episode as EpisodeReadObligation).referent && Object.freeze({ ...(episode as EpisodeReadObligation).referent }) }) } : {}),
     ...(searchHints !== undefined ? { searchHints: searchHints === null ? null : Object.freeze([...(searchHints as string[])]) } : {}), operation, subjects: Object.freeze({ petIds: Object.freeze([...petIds]) }),
     temporal: Object.freeze({ ...temporal, anchor: anchor && Object.freeze({ ...anchor }) }),
-    predicates: Object.freeze(predicates.map(p => Object.freeze({ ...p, terms: Object.freeze([...p.terms]) }))),
+    predicates: Object.freeze(predicates.map(p=>Object.freeze(p.kind==="measurement"?{...p,predicateIndexes:Object.freeze([...p.predicateIndexes])}:p.kind==="source_ref"?{...p,sources:Object.freeze(p.sources.map((r: ReadSourceReference)=>Object.freeze({...r})))}:{...p,terms:Object.freeze([...p.terms])}))),
     outputs: Object.freeze({ ...outputs }),
   }) as ReadTicket;
 }

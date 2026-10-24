@@ -3,6 +3,7 @@ import "server-only";
 import { Redis } from "@upstash/redis";
 import { getRateLimitBackendConfig } from "../../security/rate-limit/config";
 import type { AiGuardStore } from "./types";
+import { RESERVATION_INDEX_LUA, READ_OWNER_RESERVATIONS_LUA, OWNER_READ_LIMIT, validOwnerScope, validObservationRequest, normalizeOwnerReservations, type OwnerCallObservation } from "./owner-reservation-observation";
 
 const PREFIX = "furvise:ai:v1";
 
@@ -23,6 +24,7 @@ redis.call('INCR', KEYS[5])
 redis.call('HSET', KEYS[4], 'day', ARGV[4], 'cost', ARGV[3], 'state', 'reserved', 'feature', ARGV[6])
 for i=1,4 do redis.call('EXPIRE', KEYS[i], ARGV[5]) end
 redis.call('EXPIRE', KEYS[5], ARGV[8])
+${RESERVATION_INDEX_LUA}
 return {1, 0, calls, cost, 0}
 `;
 
@@ -70,9 +72,11 @@ export class RedisAiGuardStore implements AiGuardStore {
   }
   async completeOperation(input: { key: string; ttlSeconds: number }) { await this.updateOperation(input.key, "completed", input.ttlSeconds); }
   async failOperation(input: { key: string; ttlSeconds: number }) { await this.updateOperation(input.key, "failed", input.ttlSeconds); }
-  async reserveCall(input: { callId: string; callLimit: number; costLimitMicrodollars: number; day: string; feature: string; maximumOperationCalls: number; operationCallTtlSeconds: number; operationId: string; reservedCostMicrodollars: number; ttlSeconds: number }) {
+  async reserveCall(input: { callId: string; callLimit: number; costLimitMicrodollars: number; day: string; feature: string; maximumOperationCalls: number; operationCallTtlSeconds: number; operationId: string; reservedCostMicrodollars: number; ttlSeconds: number; observation?: OwnerCallObservation }) {
     const keys = dailyKeys(input.day, input.feature, input.callId, input.operationId);
-    const result = await this.redis.eval<string[], number[]>(RESERVE_SCRIPT, keys, [String(input.callLimit), String(input.costLimitMicrodollars), String(input.reservedCostMicrodollars), input.day, String(input.ttlSeconds), input.feature, String(input.maximumOperationCalls), String(input.operationCallTtlSeconds)]);
+    const observation = validOwnerScope(input.observation?.ownerScope) && validObservationRequest(input.observation?.requestId) ? input.observation : undefined;
+    if (observation) keys.push(ownerIndexKey(observation.ownerScope));
+    const result = await this.redis.eval<string[], number[]>(RESERVE_SCRIPT, keys, [String(input.callLimit), String(input.costLimitMicrodollars), String(input.reservedCostMicrodollars), input.day, String(input.ttlSeconds), input.feature, String(input.maximumOperationCalls), String(input.operationCallTtlSeconds), observation?.ownerScope || "", observation?.requestId || "", input.callId]);
     const snapshot = { calls: Number(result[2]), costMicrodollars: Number(result[3]) };
     if (result[0] === 1) return { allowed: true as const, reused: result[1] === 1, snapshot };
     const reason = result[4] === 1 ? "daily_call_limit" as const
@@ -98,6 +102,13 @@ export class RedisAiGuardStore implements AiGuardStore {
     const operationId = input.callId.split(":", 1)[0];
     await this.redis.eval<string[], number>(RELEASE_SCRIPT, dailyKeys(day, feature, input.callId, operationId), []);
   }
+  async readOwnerReservations(input: { ownerScope: string; limit?: number }) {
+    if (!validOwnerScope(input.ownerScope)) throw new Error("AI_OWNER_OBSERVATION_SCOPE_INVALID");
+    const limit = Math.max(1, Math.min(OWNER_READ_LIMIT, Math.floor(input.limit || OWNER_READ_LIMIT)));
+    const raw = await this.redis.eval<string[], unknown[]>(READ_OWNER_RESERVATIONS_LUA,
+      [ownerIndexKey(input.ownerScope)], [input.ownerScope, String(limit), PREFIX + ":call:"]);
+    return normalizeOwnerReservations(raw, limit);
+  }
   private async updateOperation(key: string, state: string, ttlSeconds: number) {
     const existing = await this.redis.get<string>(key); if (!existing) return;
     const fingerprint = existing.split(":", 1)[0]; await this.redis.set(key, `${fingerprint}:${state}`, { ex: ttlSeconds });
@@ -119,6 +130,8 @@ export function secondsUntilUtcBucketExpiry(now = new Date()) {
   const tomorrow = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
   return Math.max(60, Math.ceil((tomorrow - now.getTime()) / 1_000) + 7_200);
 }
+
+function ownerIndexKey(ownerScope: string) { return PREFIX + ":owner-calls:" + ownerScope; }
 
 function dailyKeys(day: string, feature: string, callId: string, operationId: string) {
   return [`${PREFIX}:day:${day}:calls`, `${PREFIX}:day:${day}:cost`, `${PREFIX}:day:${day}:feature:${feature}:calls`, `${PREFIX}:call:${callId}`, `${PREFIX}:operation:${operationId}:calls`];

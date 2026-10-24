@@ -703,11 +703,13 @@ export async function updateCareEntry(
   entryId: string,
   input: CareEntryInput,
   deps: CareLogHelperDeps = {},
+  expectedUpdatedAt?: string,
 ) {
   if (!deps.getClient && !deps.getCurrentUser) {
     const transportInput = prepareCareEntryInputForTransport(input) as CareEntryInput;
+    if (!expectedUpdatedAt || !Number.isFinite(Date.parse(expectedUpdatedAt))) throw new Error("Reopen the latest saved note before editing.");
     const response = await authenticatedApiFetch(`/api/care-entries/${entryId}`, {
-      body: JSON.stringify({ input: transportInput }),
+      body: JSON.stringify({ input: transportInput, expectedUpdatedAt }),
       headers: { "content-type": "application/json" },
       method: "PATCH",
     });
@@ -735,7 +737,7 @@ export async function updateCareEntry(
   const { data: rows, error } = await supabase.rpc("update_my_care_entry", {
     p_entry_id: entryId,
     p_pet_profile_id: input.petProfileId,
-    p_expected_updated_at: existing.updated_at,
+    p_expected_updated_at: expectedUpdatedAt ?? existing.updated_at,
     p_category: payload.category,
     p_title: payload.title,
     p_note: payload.note,

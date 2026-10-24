@@ -1,4 +1,5 @@
 import Ajv from 'ajv';
+import {alternatives,assertOperandContracts} from './helpers/producer-contract-inventory.mjs';
 import {assert,test,bindCalculatePlan,pets,rawTicket,slot,calculation,envelope,askRequestProviderSchema,validateAskRequest} from './helpers/calculation-fixture.mjs';
 const context={owner:{userId:'owner'},pet:pets[0],eligiblePets:pets,currentMessage:'Calculate from saved observations.',conversationTurns:[],currentTurn:{id:'source',role:'user',text:'Calculate from saved observations.'},timeZone:'UTC'};
 const schema=askRequestProviderSchema({type:'object',additionalProperties:false,required:[],properties:{}},context),check=new Ajv({allErrors:true}).compile(schema);
@@ -63,9 +64,10 @@ for(const [operator,terms] of roleChecks)test(operator+' semantic roles are expl
 test('selection addresses do not assign arithmetic roles for read, premise or derived operands',()=>{
  assert.ok(ASK_REQUEST_INSTRUCTIONS.includes('Array position is never operand meaning.'));
  for(const node of providerNodes.filter(n=>n.properties.operator.enum[0]!=='count_records')){
-  const operand=node.properties.operands.items;
-  assert.ok(operand.required.includes('role'));
-  assert.ok(operand.properties.role.enum.length);
+  for(const operand of alternatives(node.properties.operands.items)){
+   assert.ok(operand.required.includes('role'));
+   assert.ok(operand.properties.role.enum.length);
+  }
  }
 });
 
@@ -120,17 +122,13 @@ test('Brain-resolved calendar bounds preserve next-local-midnight semantics with
 import {CALCULATION_INPUT_OWNERSHIP,DIRECT_CALCULATION_OPERAND_DESCRIPTION,RESULT_CALCULATION_OPERAND_DESCRIPTION,requiresCalculateBinding,rebindCalculatePlan} from '../app/lib/furvise-brain/calculate-plan.ts';
 // Contract structure tests, not model compliance. Binder alone verifies dynamic sibling identity.
 test('source-domain meaning is stated once; provider operands retain their closed authority fields',()=>{
- for(const term of ['certified ReadTicket slots or exact USER premise spans','EARLIER arithmetic node','actual prior producer id','ReadTicket slots and USER spans are not calculation IDs'])assert.ok(CALCULATION_INPUT_OWNERSHIP.includes(term),term);
+ for(const term of ['certified factual ReadTicket slots', 'exact USER premise spans', 'Recorded operands are only target/reference signed difference over stored_report, never certified facts','EARLIER arithmetic node','actual prior producer id','ReadTicket slots and USER spans are not calculation IDs'])assert.ok(CALCULATION_INPUT_OWNERSHIP.includes(term),term);
  assert.ok(ASK_REQUEST_INSTRUCTIONS.includes(CALCULATION_INPUT_OWNERSHIP));
  assert.ok(DIRECT_CALCULATION_OPERAND_DESCRIPTION.includes('selected by ReadTicket'));
  assert.ok(RESULT_CALCULATION_OPERAND_DESCRIPTION.includes('No implicit producer exists'));
- for(const node of providerNodes.filter(n=>n.properties.operator.enum[0]!=='count_records')){
-  const operand=node.properties.operands.items;
-  const expected='petName' in operand.properties ? ['role','petName','clause','item','field','unit','measurementSelector']
-   : 'quote' in operand.properties ? ['kind','role','sourceTurnId','quote','unit'] : ['kind','role','calculationId'];
-  assert.equal(operand.additionalProperties,false);
-  assert.deepEqual(Object.keys(operand.properties).sort(),expected.sort());
- }
+ // This actual context has no current USER numeric premise: that branch is unavailable.
+ assert.equal(schema.properties.request.anyOf.filter(v=>v.properties.calculatePlan?.type==='object'&&v.properties.evidenceBasis?.enum?.includes('supplied_context')).length,0);
+ assertOperandContracts(schema,['anchor','read','recorded','result']);
 });
 test('provider array branches use existing keywords without new plan fields or tuple/conditional tricks',()=>{
  for(const branch of schema.properties.request.anyOf.filter(v=>v.properties.version?.enum?.[0]==='ask-request.v2' && v.properties.calculatePlan?.type==='object')){

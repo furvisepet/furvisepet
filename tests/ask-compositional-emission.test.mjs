@@ -1,6 +1,8 @@
+import { ownedPlanningFixture } from "./helpers/owned-planning-context.mjs";
 import { inspectAskWireContract } from "./helpers/ask-wire-contract.mjs";
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import {assertAnchorGuidance,assertAnchorInstructions} from './helpers/producer-contract-inventory.mjs';
 import { registerHooks } from 'node:module';
 registerHooks({resolve(s,c,next){return s==='server-only'?{url:'data:text/javascript,export {};',format:'module',shortCircuit:true}:next(s,c);}});
 globalThis.fetch=async()=>{throw Error('OFFLINE_BRAIN_FIXTURES');};
@@ -22,6 +24,7 @@ const proposal=(question,readTicket=ticket(),patch={})=>({version:'ask-request.v
   operation:'recall',selection:'summary',quantity:'records',topic:'history',terms:[],from:null,to:null,
   episodeTopic:null,ordinal:null,frame:null,premiseQuotes:[],...patch});
 async function mocked(question,readTicket=ticket(),patch={},ctx=context(question),reject=false){
+  ctx=(await ownedPlanningFixture(ctx)).context;
   let calls=0;
   const pending=interpretAskQuestion({context:ctx,model:'fixture',client:{responses:{create:async request=>{
     calls++;
@@ -179,9 +182,7 @@ test('provider exposes the existing closed shape; legacy binder remains authorit
 
 test('provider selection guidance permits semantic anchors while keeping operator exclusions',()=>{
   const description=askRequestSchema({}).properties.readTicket.anyOf.find(s=>s.properties?.selection.type==='object').properties.selection.description;
-  assert.match(description,/Compatible with a semantic temporal\.anchor/);
-  assert.match(description,/owned effective event and temporal boundary before selection/);
-  assert.match(description,/Do not invent from\/to dates or choose a ledger event/);
+  assertAnchorGuidance(description);
   assert.match(description,/Incompatible with needs, episode, outputs\.strategy and calendar selectors/);
   assert.doesNotMatch(description,/unresolved anchors/);
 });
@@ -189,7 +190,7 @@ test('interpreter anchor guidance delegates dates and ledger choice without wide
   const {ASK_REQUEST_INSTRUCTIONS}=await import('../app/lib/intelligence/ask-request-contract.ts');
   assert.match(ASK_REQUEST_INSTRUCTIONS,/semantic temporal\.anchor MAY compose with predicates and selection/);
   assert.match(ASK_REQUEST_INSTRUCTIONS,/never the ledger event or invented from\/to dates/);
-  assert.match(ASK_REQUEST_INSTRUCTIONS,/owned effective history.*concrete boundary before selection/);
+  assertAnchorInstructions(ASK_REQUEST_INSTRUCTIONS);
   assert.match(ASK_REQUEST_INSTRUCTIONS,/Missing, ambiguous or uncertifiable anchors retain existing anchor limitations/);
   assert.match(ASK_REQUEST_INSTRUCTIONS,/never drop the anchor or fall back to whole history/);
   assert.match(ASK_REQUEST_INSTRUCTIONS,/Calendar selectors remain incompatible with selection/);
@@ -202,10 +203,23 @@ test('provider alternatives exclude retired strategies and keep selection exclus
     b.properties.attributedContexts?'attributed':'primary',
     b.properties.selection.type==='object'?'selection':String(b.properties.outputs.properties.strategy.enum[0]),
   ].join(':');
-  assert.deepEqual(branches.map(identity).sort(),[
+  assert.deepEqual([...new Set(branches.map(identity))].sort(),[
     'null','primary:null','primary:chronological','primary:selection',
     'attributed:null','attributed:selection',
   ].sort());
+  for(const branch of branches.filter(b=>b.type!=='null')){
+    const p=branch.properties,anchored=p.temporal.properties.anchor.type==='object';
+    assert.equal(p.operation.enum.includes('read_since_event'),anchored);
+    if(p.authority.enum.includes('stored_report')){
+      assert.deepEqual(p.operation.enum,[anchored?'read_since_event':'read']);assert.equal(p.probes.maxItems,0);
+      if(anchored){assert.equal(p.temporal.properties.anchor.type,'object');assert.equal(p.temporal.properties.calendar.enum[0],null);assert.equal(p.attributedContexts,undefined);}
+      else assert.deepEqual(p.temporal.properties.anchor.enum,[null]);
+    }
+    if(p.probes.minItems>=1){
+      assert.equal(p.selection.type,'null');assert.equal(p.predicates.maxItems,0);assert.equal(p.searchHints.maxItems,0);
+      assert.equal(p.episode.enum?.[0]??null,null);assert.equal(p.outputs.properties.limit.enum[0],null);
+    }
+  }
   const primary=branches.filter(b=>!b.properties?.attributedContexts);
   const legacy=primary.filter(s=>s.properties?.selection.type==='null');
   const composed=primary.find(s=>s.properties?.selection.type==='object');
@@ -215,7 +229,7 @@ test('provider alternatives exclude retired strategies and keep selection exclus
     assert.equal(branch.properties.attributedContexts.type,'array');
     assert.equal(branch.properties.attributedContexts.minItems,1);
     assert.equal(branch.additionalProperties,false);
-    const original=primary.find(b=>identity(b)===identity(branch).replace('attributed:','primary:'));
+    const original=primary.find(b=>identity(b)===identity(branch).replace('attributed:','primary:')&&b.properties.authority.enum.includes('stored_report'));
     const {authority,attributedContexts,...properties}=branch.properties;
     void authority;void attributedContexts;
     const {authority:originalAuthority,...originalProperties}=original.properties;void originalAuthority;
@@ -226,11 +240,11 @@ test('provider alternatives exclude retired strategies and keep selection exclus
   assert.equal(composed.properties.outputs.additionalProperties,false);
   assert.equal(Object.hasOwn(composed.properties.outputs.properties,'strategy'),false);
   assert.deepEqual(composed.properties.outputs.required,['completeness','ordering','limit']);
-  assert.equal(legacy.length,2);
+  assert.equal(new Set(legacy.map(b=>b.properties.outputs.properties.strategy.enum[0])).size,2);
   const chronological=legacy.find(b=>b.properties.outputs.properties.strategy.enum.includes('chronological')).properties.outputs;
   assert.deepEqual(chronological.properties.strategy.enum,['chronological']);
   assert.equal(chronological.properties.limit.type,'null');
-  assert.deepEqual(legacy.map(b=>b.properties.outputs.properties.strategy.enum[0]),
+  assert.deepEqual([...new Set(legacy.map(b=>b.properties.outputs.properties.strategy.enum[0]))],
     [null,'chronological']);
   assert.match(composed.properties.outputs.properties.limit.description,/transport.*selection.take/);
   assert.match(composed.properties.outputs.properties.ordering.description,/Presentation.*selection.orderBy/);

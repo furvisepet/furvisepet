@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import {assertBrowserTransportContract} from "./helpers/care-entry-contract.mjs";
 
 import {
   formatCareEntryTime,
@@ -98,12 +99,12 @@ test("browser transport preserves Los Angeles wall-clock time through PDT and PS
   }
 });
 
-test("all browser care-entry create and edit gateways serialize local time before transport", () => {
+test("all browser care-entry create and edit gateways serialize local time before transport", async () => {
   const clientSource = read("app/lib/supabase.ts");
   assert.equal((clientSource.match(/const transportInput = prepareCareEntryInputForTransport\(input\)/g) || []).length, 3);
   assert.match(clientSource, /createCareEntry[\s\S]*JSON\.stringify\(\{ input: transportInput \}\)/);
   assert.match(clientSource, /createCareEntryUnlessDuplicate[\s\S]*JSON\.stringify\(\{ dedupe: true, input: transportInput \}\)/);
-  assert.match(clientSource, /updateCareEntry[\s\S]*JSON\.stringify\(\{ input: transportInput \}\)/);
+  await assertBrowserTransportContract();
 });
 
 test("Today introduces no fixed timezone offset and remains horizontally bounded", () => {

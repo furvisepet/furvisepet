@@ -1,0 +1,9 @@
+export type InterpretationValidationEvidence={origin:string;reason:string;family:string;field:string;errorType:string};
+export function interpretationValidationEvidence(error:unknown,origin:string):InterpretationValidationEvidence;
+export function validationFailureEvidence(value:unknown):InterpretationValidationEvidence;
+export function semanticEvidence(stage:string,value:unknown):Record<string,unknown>;
+export function calculationStatusEvidence(value:unknown):Record<string,unknown>;
+export function catalogShapeEvidence(value:unknown):Record<string,unknown>|null;
+export function catalogBindingEvidence(value:unknown,context:unknown,step:string):Record<string,unknown>;
+export function catalogBoundaryEvidence(value:unknown):Record<string,unknown>;
+export function sourceReferenceMembershipEvidence(value:unknown):Record<string,unknown>;

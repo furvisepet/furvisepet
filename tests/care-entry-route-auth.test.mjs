@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import {assertOwnedDetailsContract} from "./helpers/care-entry-contract.mjs";
 import { resolveAuthenticatedApiContext } from "../app/lib/authenticated-api-core.ts";
 
 const routeSource = readFileSync(new URL("../app/api/care-entries/[id]/route.ts", import.meta.url), "utf8");
@@ -75,10 +76,10 @@ test("unauthenticated care-entry requests are rejected", async () => {
   assert.deepEqual(await result.response.json(), { error: "Authentication required." });
 });
 
-test("care-entry DELETE is the sole deletion contract and keeps server-owned authorization", () => {
+test("care-entry DELETE is the sole deletion contract and keeps server-owned authorization", async () => {
   const deleteRoute = routeSource.slice(routeSource.indexOf("export async function DELETE"));
 
-  assert.doesNotMatch(routeSource, /export async function GET/);
+  await assertOwnedDetailsContract();
   assert.match(deleteRoute, /getAuthenticatedApiContext\(request\)/);
   assert.match(deleteRoute, /\.eq\("user_id", context\.userId\)/);
   assert.doesNotMatch(deleteRoute, /body\.(?:userId|user_id)|searchParams\.get\(["'](?:userId|user_id)/);

@@ -27,12 +27,10 @@ test("public v1 capability policy is deliberately narrow", () => {
   assert.equal(policy.publicV1AskCapability({ mode: "conversation", calculatePlan: null }).reason, "unplanned");
   assert.equal(policy.publicV1AskCapability({ mode: "read", readTicket: null, calculatePlan: {} }).reason, "calculation");
 });
-test("Ask uses one typed capability boundary before mutation executors", () => {
+test("Ask uses one typed capability boundary before mutation executors", async () => {
   const route = read("app/api/ask/route.ts");
-  const gate = route.indexOf("publicV1AskCapability(interpretation.request)");
-  assert.ok(gate > 0);
-  for (const marker of ["if (interpretation.request?.appendJob)","continueLifecyclePlan({","if (interpretation.request?.stateTransitionJob)","if (interpretation.request?.fieldMutationJob)","if (interpretation.request?.removeJob)","const replaceJob = interpretation.request?.writeJob"])
-    assert.ok(route.indexOf(marker) > gate, marker);
+  const {assertRouteCapabilityOrdering,assertPublicWrapperParity,assertPublicRouteDenial}=await import("./helpers/owned-context-capability-boundary.mjs");
+  assertRouteCapabilityOrdering(route);assertPublicWrapperParity();await assertPublicRouteDenial();
   assert.match(route, /authorizedLearnings: PUBLIC_V1_CAPABILITIES\.askMutations/);
   assert.doesNotMatch(route, /publicV1RequestHasExcludedAskMutation\(interpretation\.request\)/);
   assert.doesNotMatch(route, /publicV1RequestIsSupportedAskRead/);

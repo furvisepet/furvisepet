@@ -1,0 +1,40 @@
+{
+  "schema": "ReviewedSourceTransition.v1",
+  "path": "app/lib/supabase.ts",
+  "oldSHA256": "c2ae1efccc5880b7f976568e9c3b5864d3bb338f4ea8fe25086676d64d151a06",
+  "currentSHA256": "47ab8726020bfc93fd30a4ef1ea539f772681ba08fe93fea34d635f0217eab5b",
+  "history": {
+    "classification": "Authorized FM reviewed-version edit transition; stale frozen scope assertion, no runtime defect demonstrated",
+    "path": "app/lib/supabase.ts",
+    "oldSHA256": "c2ae1efccc5880b7f976568e9c3b5864d3bb338f4ea8fe25086676d64d151a06",
+    "newSHA256": "47ab8726020bfc93fd30a4ef1ea539f772681ba08fe93fea34d635f0217eab5b",
+    "oldCommit": "201c8a3748f42504c7160f4ada582f858912fff3",
+    "firstCandidateCommit": "c855fc92d749670966dea8277b9b7e28ae182019",
+    "FM": {
+      "owner": "v25-fm-20261020",
+      "authoritySHA256": "cb67d1295fea1c8895686ed7cab6038c5415d5fe5676a45a590e8279f9a03f67",
+      "reviewSHA256": "a657d352e069e87a68b37016242a453226587b0df5d4d67980165d0a8cea1ddd",
+      "baselineManifestSHA256": "283dd312f5472cab38fdcd06e2da4b5187a4d59a0b9dfc2dc54815bb645e4b01",
+      "candidateManifestSHA256": "fe9bb53fb8c35e6f731fd1fef47d181a65b7c3728156f1144978c394f17bf77f",
+      "patchSHA256": "1de54c6981752efbc4132e316ce7ed06f8b475d4e5021ae5e2b7d706be888438",
+      "checkpointSHA256": "a4400cb92434c0f81dcb319caae55f3c8721863cc036c05831535031baa77acb",
+      "publicationReceiptSHA256": "1cdb758ad6bf966f2d73c754a30dc4deb621e452f204afe99bef8915ff882bec"
+    },
+    "GQ": {
+      "checkpointSHA256": "7a2c64104b2ec77aef6b9b3276acac8fc7eed77bb4a281f112198a9e02ed1382",
+      "contractReviewSHA256": "ff693489172c7081fb3e9de0e9bdb14519ee16d75bc519152b069978487cf89f",
+      "runtimeChanged": false
+    },
+    "plan": "Keep original historical digest, pin exact current digest plus reversible exact three-hunk transformation; all other four historical pins untouched; add explicit tampered and foreign-path negatives; test-only."
+  },
+  "edits": [
+    {
+      "before": "export async function updateCareEntry(\n  entryId: string,\n  input: CareEntryInput,\n  deps: CareLogHelperDeps = {},\n) {\n  if (!deps.getClient && !deps.getCurrentUser) {\n    const transportInput = prepareCareEntryInputForTransport(input) as CareEntryInput;\n    const response = await authenticatedApiFetch(`/api/care-entries/${entryId}`, {\n      body: JSON.stringify({ input: transportInput }),\n",
+      "after": "export async function updateCareEntry(\n  entryId: string,\n  input: CareEntryInput,\n  deps: CareLogHelperDeps = {},\n  expectedUpdatedAt?: string,\n) {\n  if (!deps.getClient && !deps.getCurrentUser) {\n    const transportInput = prepareCareEntryInputForTransport(input) as CareEntryInput;\n    if (!expectedUpdatedAt || !Number.isFinite(Date.parse(expectedUpdatedAt))) throw new Error(\"Reopen the latest saved note before editing.\");\n    const response = await authenticatedApiFetch(`/api/care-entries/${entryId}`, {\n      body: JSON.stringify({ input: transportInput, expectedUpdatedAt }),\n"
+    },
+    {
+      "before": "    p_expected_updated_at: existing.updated_at,",
+      "after": "    p_expected_updated_at: expectedUpdatedAt ?? existing.updated_at,"
+    }
+  ]
+}

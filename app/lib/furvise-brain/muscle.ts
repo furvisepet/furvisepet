@@ -1,15 +1,18 @@
+import {observeCalculation,calculationErrorReason} from "../intelligence/calculation-observation.mjs";
+import {recordedOperandCandidates} from "./read-measurement.ts";
 import { measurementCandidates, type SourceSpan } from "./measurement-candidates.ts";
 import { textMatchesReadPredicate } from "./read-text.ts";
 import {selectCalculationResults,type ResultSelectionCertificate} from "./calculation-result-selection.ts";
-import { rebindCalculatePlan, isResultOperand, isPremiseOperand, type CalculatePlan, type CalculateSlot, type CalculateRole } from "./calculate-plan.ts";
+import { rebindCalculatePlan, isResultOperand, isPremiseOperand, isRecordedOperand, isRecordedAnchorOperand, type CalculateRecordedAnchorOperand, type CalculatePlan, type CalculateSlot, type CalculateRole } from "./calculate-plan.ts";
 import { units } from "./calculation-units.ts";
 import { readLabsSnapshotMatches, type LabsList } from "../intelligence/labs-list.ts";
 import { selectionPublication } from "../intelligence/selection-publication.ts";
+import { issueRecordedNumericPremise, revalidateRecordedNumericPremise, type RecordedNumericPremise, type RecordedNumericContext, recordedOperandPosition, readRecordedOperandBody, recordedNumericProofBody } from "../intelligence/recorded-numeric-premise.ts";
 import { resultSetSnapshotMatches } from "../intelligence/result-set-publication.ts";
 
 import {fraction,add,neg,mul,div,factor,finite,rational,exact,type Exact,type Fraction} from "./calculation-rational.ts";
 export type CalculationOperand={
- slot:CalculateSlot; sourceId:string; recordId:string; subjectId:string; eventAt:string;
+ recordedPremise?:RecordedNumericPremise; slot:CalculateSlot|CalculateRecordedAnchorOperand; sourceId:string; recordId:string; subjectId:string; eventAt:string;
  literal:string; value:number; unit:string; dimension:string; body:string;
  sourceSpan:SourceSpan|null; contextSpan:SourceSpan|null; numericText:string|null; measurementExact:Exact|null; measurementSelector:CalculateSlot["measurementSelector"];
 };
@@ -18,12 +21,49 @@ export type CalculationResult={id:string;status:"certified";operator:string;oper
  dependencyCalculationIds:string[];transitiveCalculationIds:string[];upstreamResults:CalculationDependency[];
  sourceIds:string[];subjectIds:string[];value:number;exact:{numerator:string;denominator:string};unit:string;precision:number|null}
  |{id:string;status:"limited";reason:string};
-export type CalculateExecution={plan:CalculatePlan;results:CalculationResult[];resultSelection?:ResultSelectionCertificate|null;terminalCalculationIds?:string[];complete:boolean};
+export type CalculateExecution={authority?:"recorded_contents";plan:CalculatePlan;results:CalculationResult[];resultSelection?:ResultSelectionCertificate|null;terminalCalculationIds?:string[];complete:boolean};
 
 /** Only an unchanged server Labs transport can enter Muscle. Existing organ
  * receipts establish each semantic slot; neither array order nor text selects it.
  * All arithmetic is rational; precision affects presentation only. */
-export function executeCalculatePlan(proposed:CalculatePlan,read:LabsList):CalculateExecution {
+export type RecordedCalculationContext=Omit<RecordedNumericContext,"labs"> & {assertCurrent?:()=>void};
+export function executeCalculatePlan(proposed:CalculatePlan,read:LabsList):CalculateExecution;
+export function executeCalculatePlan(proposed:CalculatePlan,read:LabsList,context:RecordedCalculationContext):Promise<CalculateExecution>;
+export function executeCalculatePlan(proposed:CalculatePlan,read:LabsList,context?:RecordedCalculationContext):CalculateExecution|Promise<CalculateExecution>{
+ if(!context)return execute(proposed,read);
+ return (async()=>{
+  const plan=rebindCalculatePlan(proposed,read.ticket),proofs=new Map<string,RecordedNumericPremise>();
+  const ctx={...context,labs:read};
+  observeCalculation("execution","started",plan);
+  try{
+  for(const node of plan.calculations)for(const slot of node.operands){
+   if(!isRecordedOperand(slot))throw Error("recorded_context_domain");
+   let body:string;
+   if(isRecordedAnchorOperand(slot))body=await readRecordedOperandBody(ctx,slot);
+   else{
+    const certificate=selectionPublication(read.ticket,read.coverage,read.records)?.certificates.find(c=>c.subjectId===slot.subjectId&&c.clauseId===slot.clause);
+    const row=read.records.find(r=>r.id===certificate?.selectedEventIds[slot.item]&&r.petId===slot.subjectId);
+    if(!row)throw Error("recorded_source_missing");body=row.body;
+   }
+   const matches=isRecordedAnchorOperand(slot)?measurementCandidates(body,units[slot.unit].dimension):recordedOperandCandidates(body,slot.unit,read.ticket);
+   if(matches.length!==1)throw Error("recorded_measurement_ambiguous");
+   const m=matches[0],request={subjectId:slot.subjectId,...recordedOperandPosition(slot),start:m.sourceSpan.start,end:m.sourceSpan.end,quote:m.literal,unit:slot.unit,operator:"difference",role:slot.role};
+   const proof=await issueRecordedNumericPremise(ctx,request);
+   await revalidateRecordedNumericPremise(proof,ctx,request);proofs.set(JSON.stringify(slot),proof);
+  }
+  observeCalculation("execution","proof_verified",plan);
+  const result=execute(plan,read,proofs);
+  for(const node of plan.calculations)for(const slot of node.operands){
+   if(!isRecordedOperand(slot))throw Error("recorded_context_domain");
+   const proof=proofs.get(JSON.stringify(slot))!;
+   await revalidateRecordedNumericPremise(proof,ctx,{subjectId:slot.subjectId,...recordedOperandPosition(slot),start:proof.measurement.start,end:proof.measurement.end,quote:proof.measurement.quote,unit:slot.unit,operator:"difference",role:slot.role});
+  }
+  observeCalculation("execution",result.complete?"completed":"result_limited",plan);
+  return result;
+  }catch(error){observeCalculation("execution",calculationErrorReason(error),plan);throw error;}
+ })();
+}
+function execute(proposed:CalculatePlan,read:LabsList,recordedProofs?:ReadonlyMap<string,RecordedNumericPremise>):CalculateExecution {
  const results:CalculationResult[]=[];
  const completed=new Map<string,{plan:CalculatePlan["calculations"][number];result:CalculationResult}>();
  const plan=rebindCalculatePlan(proposed,read.ticket);
@@ -66,6 +106,17 @@ export function executeCalculatePlan(proposed:CalculatePlan,read:LabsList):Calcu
      for(const slot of c.operands){
       if(isResultOperand(slot))throw Error("mixed_operands");
       if(isPremiseOperand(slot))throw Error("premise_execution_unavailable");
+      if(isRecordedOperand(slot)){
+       const p=recordedProofs?.get(JSON.stringify(slot));
+       if(!p||p.authority!=="stored_report"||p.subjectId!==slot.subjectId||p.purpose.role!==slot.role)throw Error("recorded_proof_required");
+       const body=recordedNumericProofBody(p,read);
+       const raw=rational(p.measurement.exact),q=mul(raw,factor(p.measurement.sourceUnit));
+       values.push({role:slot.role,value:q});
+       operands.push({slot,recordedPremise:p,sourceId:p.source.sourceId,recordId:p.source.recordId,subjectId:p.subjectId,eventAt:p.source.eventAt,
+        literal:p.measurement.quote,value:finite(raw),unit:p.measurement.unit,dimension:p.measurement.dimension,body,
+        sourceSpan:{start:p.measurement.start,end:p.measurement.end},contextSpan:null,numericText:p.measurement.numericText,measurementExact:p.measurement.exact,measurementSelector:null});
+       continue;
+      }
       const certificate=selected.certificates.find(p=>p.subjectId===slot.subjectId&&p.clauseId===slot.clause);
       if(!certificate?.certified||!certificate.lineageClosed)throw Error("slot_not_certified");
       const id=certificate.selectedEventIds[slot.item];
@@ -127,5 +178,5 @@ export function executeCalculatePlan(proposed:CalculatePlan,read:LabsList):Calcu
  const referenced=new Set(plan.calculations.flatMap(c=>c.operands.filter(isResultOperand).map(o=>o.calculationId)));
  const terminalCalculationIds=referenced.size?plan.calculations.filter(c=>!referenced.has(c.id)).map(c=>c.id):undefined;
  const resultSelection=selectCalculationResults(plan,results);
- return {plan,results,...(terminalCalculationIds?{terminalCalculationIds}:{}),...(plan.resultSelection?{resultSelection}:{}),complete:results.every(r=>r.status==="certified")&&(!resultSelection||resultSelection.complete)};
+ return {...(recordedProofs?{authority:"recorded_contents" as const}:{}),plan,results,...(terminalCalculationIds?{terminalCalculationIds}:{}),...(plan.resultSelection?{resultSelection}:{}),complete:results.every(r=>r.status==="certified")&&(!resultSelection||resultSelection.complete)};
 }

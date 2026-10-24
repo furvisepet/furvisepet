@@ -13,7 +13,7 @@ import { getAiFeaturePolicy } from "./features";
 import { logAiGuardEvent } from "./logging";
 import { noopAiGuardMetrics } from "./types";
 import { OperationDeadline } from "../execution-deadline.ts";
-import { deriveAiGuardOperationId } from "./operation-identity";
+import { deriveAiGuardOperationId, deriveAiGuardOwnerScope } from "./operation-identity";
 import type { AiCallReservation, AiGuardFeature, AiGuardMetrics, AiGuardStore, ProviderUsage } from "./types";
 import { runWithAiAdmission } from "./context";
 
@@ -56,7 +56,7 @@ export async function admitAiOperation(input: {
   if (operationState === "conflict") return deny("AI_OPERATION_CONFLICT", "operation_payload_conflict", 409);
   if (operationState === "completed") return deny("AI_PROVIDER_BUDGET_EXHAUSTED", "completed_operation_replay_required", 409);
 
-  const admission = new AiOperationAdmission({ deadline: input.deadline, config, env, feature: input.feature, intendedModel, metrics: input.metrics || noopAiGuardMetrics, now: input.now || new Date(), operationId, operationKey, operationTtlSeconds, policy, requestId: input.requestId, store });
+  const admission = new AiOperationAdmission({ ownerScope: deriveAiGuardOwnerScope({ userId: input.userId, secret }), deadline: input.deadline, config, env, feature: input.feature, intendedModel, metrics: input.metrics || noopAiGuardMetrics, now: input.now || new Date(), operationId, operationKey, operationTtlSeconds, policy, requestId: input.requestId, store });
   try { await admission.reserveNextCall(intendedModel); }
   catch (error) { await store.failOperation({ key: operationKey, ttlSeconds: operationTtlSeconds }).catch(() => {}); throw error; }
   logAiGuardEvent("operation admitted", { allowed: true, emergencyDisabled: false, feature: input.feature, model: intendedModel, operationId, requestId: input.requestId });
@@ -88,14 +88,15 @@ export class AiOperationAdmission {
   private readonly policy: ReturnType<typeof getAiFeaturePolicy>;
   readonly requestId: string;
   private readonly store: AiGuardStore;
+  private readonly ownerScope?: string;
 
-  constructor(input: { deadline?: OperationDeadline; config: ReturnType<typeof getAiGuardConfig>; env: Record<string, string | undefined>; feature: AiGuardFeature; intendedModel: string; metrics: AiGuardMetrics; now: Date; operationId: string; operationKey: string; operationTtlSeconds: number; policy: ReturnType<typeof getAiFeaturePolicy>; requestId: string; store: AiGuardStore }) {
+  constructor(input: { ownerScope?: string; deadline?: OperationDeadline; config: ReturnType<typeof getAiGuardConfig>; env: Record<string, string | undefined>; feature: AiGuardFeature; intendedModel: string; metrics: AiGuardMetrics; now: Date; operationId: string; operationKey: string; operationTtlSeconds: number; policy: ReturnType<typeof getAiFeaturePolicy>; requestId: string; store: AiGuardStore }) {
     Object.assign(this, input);
     this.deadline = input.feature === "ask" ? input.deadline || new OperationDeadline(ASK_OPERATION_TIMEOUT_MS) : null;
     this.providerDeadlineAt = input.feature === "ask" ? Date.now() + ASK_OPERATION_TIMEOUT_MS : Number.POSITIVE_INFINITY;
     this.config = input.config; this.env = input.env; this.feature = input.feature; this.intendedModel = input.intendedModel;
     this.metrics = input.metrics; this.now = input.now; this.operationId = input.operationId; this.operationKey = input.operationKey; this.operationTtlSeconds = input.operationTtlSeconds;
-    this.policy = input.policy; this.requestId = input.requestId; this.store = input.store;
+    this.policy = input.policy; this.requestId = input.requestId; this.store = input.store; this.ownerScope = input.ownerScope;
   }
 
   async run<T>(action: () => Promise<T>) { return runWithAiAdmission(this, action); }
@@ -192,7 +193,7 @@ export class AiOperationAdmission {
     const callId = `${this.operationId}:${randomUUID()}`;
     let result;
     try {
-      result = await this.store.reserveCall({ callId, callLimit: this.config.callLimit, costLimitMicrodollars: this.config.costLimitMicrodollars, day: utcDay(this.now), feature: this.feature, maximumOperationCalls: maximumCalls, operationCallTtlSeconds: this.operationTtlSeconds, operationId: this.operationId, reservedCostMicrodollars: reservedCost, ttlSeconds: secondsUntilUtcBucketExpiry(this.now) });
+      result = await this.store.reserveCall({ observation: this.ownerScope ? { ownerScope: this.ownerScope, requestId: this.requestId } : undefined, callId, callLimit: this.config.callLimit, costLimitMicrodollars: this.config.costLimitMicrodollars, day: utcDay(this.now), feature: this.feature, maximumOperationCalls: maximumCalls, operationCallTtlSeconds: this.operationTtlSeconds, operationId: this.operationId, reservedCostMicrodollars: reservedCost, ttlSeconds: secondsUntilUtcBucketExpiry(this.now) });
     } catch {
       logAiGuardEvent("provider call denied", {
         allowed: false,

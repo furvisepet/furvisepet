@@ -699,9 +699,9 @@ function sameCandidateVersion(candidate: CareEntryRow, fresh: CareEntryRow | und
     && (!("episode_id" in candidate) || candidate.episode_id === fresh.episode_id));
 }
 
-export type EffectiveClosureProof = { relevanceDomain?: Omit<CorrectionReadDomain, "ownerId" | "petId">; storedReports?: boolean; complete: boolean; maxCalls: number; calls: number; rows: number };
+export type EffectiveClosureProof = { relevanceDomain?: Omit<CorrectionReadDomain, "ownerId" | "petId">; storedReports?: boolean; sourceSemanticsComplete?: boolean; complete: boolean; maxCalls: number; calls: number; rows: number };
 export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set<string>, requestedPets: string[], userId: string, db: SupabaseClient, coverage: HistoryCoverage, deadline: number, episodeClaims?: EpisodeClaimValidation, proof?: EffectiveClosureProof): Promise<CareEntryRow[]> {
-  if (proof) { proof.complete = false; proof.calls = 0; proof.rows = 0; }
+  if (proof) { proof.complete = false; proof.sourceSemanticsComplete = false; proof.calls = 0; proof.rows = 0; }
   const claims = new Map<string, DbClaim>(); const relations = new Map<string, DbRelation>(); const links = new Map<string, Lineage>(); const sources = new Map<string, CareEntryRow>();
   const removedTargets = new Set<string>();
   const removedSources = new Set<string>();
@@ -776,7 +776,12 @@ export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set
       knowledgeStatus: claim.knowledge_status as RebuildClaim["knowledgeStatus"], occurredAt: typeof claim.occurred_at === "string" ? claim.occurred_at : null,
       recordedAt: String(claim.recorded_at), provenanceClassification: String(claim.provenance_classification), structuredValue: claim.structured_value }));
     const relevance = await readCorrectionRelevance({ db, ownerId: userId, petIds: requestedPets, candidates,
-      domain: proof?.relevanceDomain || { from: coverage.plan.from, to: coverage.plan.to }, deadline });
+      domain: proof?.relevanceDomain || { from: coverage.plan.from, to: coverage.plan.to }, deadline,
+      // Exact quotations do not assert which unlinked prose settles effective truth.
+      // Keep every returned attribution validated; never invent missing classifications.
+      requireClassifiedSources: !proof?.storedReports });
+    if (proof) proof.sourceSemanticsComplete = relevance.complete;
+    if (!relevance.complete) coverage.reasons.push("source_semantics_not_certified_for_effective_truth");
     coverage.queryCount += relevance.queries;
     const graph = resolveEffectiveClaimGraph(mapped, graphRelations.map(edge => ({ fromClaimId: edge.from_claim_id, toClaimId: edge.to_claim_id, relationType: edge.relation_type })));
     if (graph.ambiguousOperationClaimIds.length || graph.invalidRelationClaimIds.length) throw new Error("ambiguous_correction_graph");
@@ -1066,7 +1071,8 @@ export function createEffectiveWindowResolver(options: {
       && !local.reasons.some(reason => ["unsupported_claim_payload", "unknown_effective_event_date"].includes(reason));
     const sourceLineage = local.provenance.filter(p => p.status === "unlinked_correction_uncertain")
       .map(p => ({ eventId: p.sourceId.slice(5), status: "unlinked" as const, authority: "attributed_report" as const }));
-    local.corrections = closed ? sourceLineage.length ? "partial" : "complete" : "unavailable";
+    const semanticClosed = closed && proof.sourceSemanticsComplete === true;
+    local.corrections = !closed ? "unavailable" : !semanticClosed ? "unknown" : sourceLineage.length ? "partial" : "complete";
     latest.set(petId, local);
     options.coverage.queryCount += local.queryCount;
     options.coverage.provenance = [...latest.values()].flatMap(c => c.provenance);
@@ -1074,7 +1080,7 @@ export function createEffectiveWindowResolver(options: {
     options.coverage.excludedIds = [...latest.values()].flatMap(c => c.excludedIds);
     options.coverage.corrections = [...latest.values()].every(c => c.corrections === "complete") ? "complete" : "partial";
     return { ...(options.authority === "stored_report" ? { storedReportsCertified: closed } : {}),
-      records: closed ? records : [], lineageClosed: closed, replacementSeedsExhausted: closed,
+      records: closed ? records : [], lineageClosed: semanticClosed, replacementSeedsExhausted: closed,
       sourceLineage, reasons: closed ? local.reasons : [...local.reasons, "effective_lineage_not_closed"],
       graphCalls: used.get(petId)!, lineageRows: proof.rows };
   };

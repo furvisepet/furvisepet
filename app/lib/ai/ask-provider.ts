@@ -1,3 +1,4 @@
+import { readCanonicalSchemaDiagnostic } from "../intelligence/ask-wire-diagnostic.mjs";
 // Reasoning tokens share this budget with the structured answer. Live medium-
 // effort history reads exhausted 4096 before completing their response object.
 export const ASK_MAX_OUTPUT_TOKENS = 8192;
@@ -192,6 +193,9 @@ function numberOrNull(value: unknown) {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
 }
 
+// Deliberately static; expanding the diagnostic vocabulary requires code review.
+const directJsonDiagnosticFields = new Set<string>(["calculatePlan", "storedRead", "removeJob", "stateTransitionJob", "fieldMutationJob", "lifecyclePlan", "appendJob", "readTicket", "task", "writeJob", "temporalScope", "profileFields", "mutationIntent", "recordSelection", "projection", "evidenceNeeds", "version", "mode", "question", "requirements", "referenceTurnIds", "evidenceBasis", "outputFormat", "premiseQuotes", "excludedPetNames", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"]);
+
 /** Diagnostics contain only contract-owned enums; never parser excerpts. */
 export function safeStructuredValidationReason(error: unknown): string {
   if (error instanceof SyntaxError) return "JSON_SYNTAX";
@@ -199,9 +203,21 @@ export function safeStructuredValidationReason(error: unknown): string {
   const known = new Set(["INVALID_READ_RESPONSE", "INVALID_READ_NAVIGATION", "DUPLICATE_READ_BODY", "INVALID_READ_TABLE", "INVALID_READ_LIMITATION", "EMPTY_READ_REQUIRES_EXPLANATION", "MISSING_READ_BODY", "INVALID_READ_LAYOUT", "INVALID_HISTORY_CALCULATION", "INVALID_TASK_REVIEW"]);
   if (known.has(message)) return message;
   const safeWireCodes = new Set(["ASK_WIRE_WIRE_SCHEMA", "ASK_WIRE_RAW_GRAPH_SCHEMA", "ASK_WIRE_ROOT_SCHEMA", "ASK_WIRE_NONCANONICAL_WIRE", "ASK_WIRE_INVALID_EDGE", "ASK_WIRE_UNREACHABLE_NODES", "ASK_WIRE_REUSED_OR_DEEP_NODE", "ASK_WIRE_COMPACT_SCHEMA", "ASK_WIRE_CANONICAL_RESTORATION", "ASK_WIRE_CANONICAL_SCHEMA", "ASK_WIRE_UNKNOWN_PACKED_TAG", "ASK_WIRE_PACKED_TAG_SYNTAX", "ASK_WIRE_MULTIPLE_PACKED_TAGS", "ASK_WIRE_PACKED_COLLISION", "ASK_WIRE_GROUP_BRANCH", "ASK_WIRE_FIELD_ORDER", "ASK_WIRE_SCHEMA_REF", "ASK_WIRE_SCHEMA_RESTORATION", "ASK_WIRE_ENCODED_SCHEMA", "ASK_WIRE_POLICY_ENVELOPE", "ASK_WIRE_POLICY_ROOT_SCHEMA", "ASK_RECURSIVE_INDEXED_ENVELOPE", "ASK_RECURSIVE_SERIALIZED_LIMIT", "ASK_RECURSIVE_DEPTH", "ASK_RECURSIVE_STRING_LIMIT", "ASK_RECURSIVE_VALUE_LIMIT", "ASK_RECURSIVE_CONTAINER_LIMIT", "ASK_RECURSIVE_CYCLE_OR_REUSED_CONTAINER", "ASK_RECURSIVE_ENTRY_LIMIT", "ASK_RECURSIVE_OWN_DATA_PROPERTY", "ASK_RECURSIVE_ARRAY_SHAPE", "ASK_RECURSIVE_PLAIN_CONTAINER", "ASK_RECURSIVE_JSON_VALUE"]);
+  if (message === "ASK_WIRE_CANONICAL_SCHEMA" || message === "ASK_OPERATION_WIRE_SCHEMA") {
+    const diagnostic = readCanonicalSchemaDiagnostic(error);
+    if (diagnostic) return message + ":" + diagnostic.keyword + ":" + diagnostic.path;
+  }
+  if (new Set(["ASK_OPERATION_WIRE_SCHEMA", "ASK_OPERATION_AMBIGUOUS_MEANING", "ASK_OPERATION_INVERSE", "ASK_OPERATION_CANONICAL_SCHEMA", "ASK_OPERATION_ROUNDTRIP", "ASK_OPERATION_NO_BRANCH"]).has(message)) return message;
   if (safeWireCodes.has(message)) return message;
   // Only diagnostics defined by our direct semantic codec; never copy model values.
   const safeDirectCodes = new Set(["ASK_DIRECT_ENVELOPE", "ASK_DIRECT_REQUIRED_FIELDS", "ASK_DIRECT_FIELD_FORMAT", "ASK_DIRECT_FIELD_JSON", "ASK_DIRECT_FIELD_TYPE", "ASK_DIRECT_CATALOG_STRING", "ASK_DIRECT_CATALOG_JSON", "ASK_DIRECT_CATALOG_CONTRACT", "ASK_DIRECT_RESOURCE_LIMIT", "ASK_DIRECT_STRING_LIMIT", "ASK_DIRECT_NON_JSON_TREE", "ASK_DIRECT_CANONICAL_ENVELOPE", "ASK_DIRECT_CANONICAL_KEYS", "ASK_DIRECT_RUNTIME_CHECK_REQUIRED"]);
+  if (message === "ASK_DIRECT_FIELD_JSON") {
+    // Static contract names only. Never serialize cause, parser text or field values.
+    const cause = Object.getOwnPropertyDescriptor(error, "cause")?.value;
+    const field = cause && typeof cause === "object"
+      ? Object.getOwnPropertyDescriptor(cause, "field")?.value : undefined;
+    if (typeof field === "string" && directJsonDiagnosticFields.has(field)) return message + ":" + field;
+  }
   if (safeDirectCodes.has(message)) return message;
   if (["INVALID_MIXED_HISTORY_NARRATIVE", "INVALID_MIXED_HISTORY_CALCULATIONS"].includes(message)) return message;
   if (message === "Ask provider returned an empty answer.") return "EMPTY_ANSWER";

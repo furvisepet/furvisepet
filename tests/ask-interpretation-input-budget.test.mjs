@@ -1,4 +1,10 @@
-import { recursiveFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
+// Register tests with Node's worker context intact. Disable only the legacy
+// canonical-fixture seam during each native-transport case, then restore it.
+import {beforeEach,afterEach} from 'node:test';
+const originalTestContext=process.env.NODE_TEST_CONTEXT;
+beforeEach(()=>{delete process.env.NODE_TEST_CONTEXT;});
+afterEach(()=>{if(originalTestContext===undefined)delete process.env.NODE_TEST_CONTEXT;else process.env.NODE_TEST_CONTEXT=originalTestContext;});
+import { actualTransportFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -43,8 +49,8 @@ for(const numeric of [false,true])for(const count of [0,2,8,39])
   assert.equal(input.sourceWindow.omittedPriorUserTurns,count-p.context.conversationTurns.length);
   assert.equal(input.sourceSpans.some(s=>Object.hasOwn(s,"text")),false);
   for(const source of input.userSources)assert.deepEqual(source,(({id,text,createdAt})=>({id,text,createdAt}))(ctx.conversationTurns.find(t=>t.id===source.id)));
-  assert.ok(askRequestFitsInputBudget(p.request));assert.ok(estimateInputTokens(p.request)<=20000);
-  assert.ok(JSON.stringify(p.request).length<=60000);assert.equal(p.request.max_output_tokens,8192);
+  assert.ok(askRequestFitsInputBudget(p.request));assert.ok(estimateInputTokens(p.request)<=45000);
+  assert.ok(JSON.stringify(p.request).length<=135000);assert.equal(p.request.max_output_tokens,8192);
   const omitted=ctx.conversationTurns.filter(t=>t.id!=="current"&&!p.context.conversationTurns.some(x=>x.id===t.id));
   for(const source of omitted)assert.equal(JSON.stringify(p.request.text.format.schema).includes('"'+source.id+'"'),false);
   if(omitted.length)assert.match(input.sourceWindow.disclosure,/omitted/);
@@ -53,7 +59,7 @@ for(const numeric of [false,true])for(const count of [0,2,8,39])
    const result=await interpretAskQuestion({context:ctx,model,client:{responses:{create:async request=>{
     calls++;assert.equal(JSON.stringify(request),snapshots.at(-1));assert.ok(Object.isFrozen(request));
     assert.equal(JSON.stringify(request).length,JSON.stringify(p.request).length);
-    return {status:"completed",output_text:JSON.stringify(recursiveFixturePlan(p.wire).encode({request:proposal(ctx)})),usage};
+    return {status:"completed",output_text:JSON.stringify(actualTransportFixturePlan(p).encode({request:proposal(ctx)})),usage};
    }}}});
    assert.deepEqual(result.petIds,["pet-0"]);
   });assert.equal(calls,1);
@@ -88,7 +94,7 @@ test("omitted IDs and selected-pet guesses are rejected by the actual Binder, in
  const ctx=context(39);ctx.currentMessage="What was his last recorded weight?";ctx.currentTurn.text=ctx.currentMessage;ctx.ownerNoteSpans=[];
  const p=prepareAskInterpretationRequest(ctx,model),omitted=ctx.conversationTurns.find(t=>!p.context.conversationTurns.some(x=>x.id===t.id)&&t.id!=="current");
  assert.ok(omitted);const bad=proposal(ctx);bad.referenceTurnIds=[omitted.id];
- assert.throws(()=>recursiveFixturePlan(p.wire).encode({request:bad}),/ASK_WIRE_/);
+ assert.throws(()=>actualTransportFixturePlan(p).encode({request:bad}),e=>e.message==="ASK_OPERATION_CANONICAL_SCHEMA");
  const unavailable=recoverAskInterpretation(bad,p.context);assert.match(unavailable.planningRecovery,/REFERENCE/);assert.deepEqual(unavailable.petIds,[]);assert.equal(unavailable.request,undefined);
  const guessed={...proposal(ctx),scope:"selected",petNames:[]};
  assert.throws(()=>recoverAskInterpretation(guessed,p.context),/OMITTED_SUBJECT_REFERENCE/);
@@ -99,8 +105,10 @@ test("omitted IDs and selected-pet guesses are rejected by the actual Binder, in
 
 test("no safe fit causes no SDK invocation and releases unstarted accounting",async t=>{
  quiet(t);
- for(const text of ["x".repeat(60001),Array.from({length:200},(_,i)=>i+" kg").join(" ").slice(0,1200).padEnd(1200,"x")]){
-  const ctx=context(0);ctx.currentMessage=text;ctx.currentTurn.text=text;ctx.ownerNoteSpans=[];
+ for(const fixtureKind of ["oversized_current","too_many_mandatory_sources"]){
+   const ctx=context(fixtureKind==="too_many_mandatory_sources"?39:0);
+   if(fixtureKind==="oversized_current"){ctx.currentMessage="x".repeat(AI_FEATURE_POLICIES.ask.maxInputCharacters+1);ctx.currentTurn.text=ctx.currentMessage;ctx.ownerNoteSpans=[];}
+   else ctx.pinnedUserSourceIds=ctx.conversationTurns.slice(0,9).map(source=>source.id);
   let calls=0;const store=new MemoryAiGuardTestStore(),a=await admitAiOperation({env,store,feature:"ask",intendedModel:model,userId:"owner",requestId:crypto.randomUUID(),payload:{},now:new Date("2039-01-01T00:00:00Z")});
   try{await assert.rejects(a.run(()=>interpretAskQuestion({context:ctx,model,client:{responses:{create:async()=>{calls++;throw Error("UNEXPECTED_SDK");}}}})),e=>e.reason==="feature_token_budget_exceeded");}finally{await a.release();}
   assert.equal(calls,0);assert.deepEqual(store.getSnapshot("2039-01-01"),{calls:0,costMicrodollars:0});
@@ -116,20 +124,32 @@ test("repair uses identical retained sources and real final-request admission",a
   const result=await interpretAskQuestion({context:ctx,model,client:{responses:{create:async request=>{
    assert.equal(JSON.stringify(request),snapshots[calls]);const input=JSON.parse(request.input);
    assert.deepEqual(input.userSources,p.input.userSources);assert.deepEqual(input.sourceWindow,p.input.sourceWindow);
-   assert.deepEqual(request.text.format.schema,p.request.text.format.schema);
-   const candidate=calls++?good:bad;return {status:"completed",output_text:JSON.stringify(recursiveFixturePlan(p.wire).encode({request:candidate})),usage};
+   assert.deepEqual(request.text.format.schema,JSON.parse(JSON.stringify(p.request.text.format.schema)));
+   const candidate=calls++?good:bad;return {status:"completed",output_text:JSON.stringify(actualTransportFixturePlan(p).encode({request:candidate})),usage};
   }}}});assert.deepEqual(result.petIds,["pet-0"]);assert.equal(snapshots.length,2);
  });assert.equal(calls,2);
 });
 
-test("oversize repair is rejected before a second SDK call; source window is not changed to make it fit",async t=>{
- quiet(t);const ctx=context(39),p=prepareAskInterpretationRequest(ctx,model),bad={...proposal(ctx),petNames:["Unowned subject"],
-  requirements:Array.from({length:8},(_,i)=>(i+" extra obligation ").padEnd(240,"x"))};
- let calls=0;await admitted(ctx,async()=>{
-  await assert.rejects(interpretAskQuestion({context:ctx,model,client:{responses:{create:async()=>{
-   calls++;return {status:"completed",output_text:JSON.stringify(recursiveFixturePlan(p.wire).encode({request:bad})),usage};
-  }}}}),e=>e.reason==="feature_token_budget_exceeded");
- });assert.equal(calls,1);
+for(const numeric of [false,true])
+test("native semantic repair preserves exact sources; numeric="+numeric+" has the actual admission outcome",async t=>{
+ quiet(t);const ctx=context(39,numeric),p=prepareAskInterpretationRequest(ctx,model);
+ const requirements=Array.from({length:8},(_,i)=>(i+" extra obligation ").padEnd(240,"x"));
+ const bad={...proposal(ctx),excludedPetNames:["Aster"],requirements},good={...proposal(ctx),requirements},before=structuredClone(bad);
+ assert.throws(()=>recoverAskInterpretation(bad,p.context),e=>e.category==="semantic"&&e.reason==="ASK_REQUEST_CONTRACT_CONFLICTING_SUBJECTS");
+ let calls=0;await admitted(ctx,async a=>{
+  const snapshots=[],begin=a.beginProviderCall.bind(a);a.beginProviderCall=async x=>{snapshots.push(JSON.stringify(x.input));return begin(x);};
+  const execute=()=>interpretAskQuestion({context:ctx,model,client:{responses:{create:async request=>{
+   assert.equal(JSON.stringify(request),snapshots[calls]);
+   const input=JSON.parse(request.input);
+   assert.deepEqual(input.userSources,p.input.userSources);assert.deepEqual(input.sourceWindow,p.input.sourceWindow);
+   assert.deepEqual(request.text.format.schema,JSON.parse(JSON.stringify(p.request.text.format.schema)));
+   const candidate=calls++?good:bad;
+   return {status:"completed",output_text:JSON.stringify(actualTransportFixturePlan(p).encode({request:candidate})),usage};
+  }}}});
+  if(numeric)await assert.rejects(execute(),e=>e.reason==="feature_token_budget_exceeded");
+  else assert.deepEqual((await execute()).petIds,["pet-0"]);
+  assert.equal(snapshots.length,numeric?1:2);
+ });assert.equal(calls,numeric?1:2);assert.deepEqual(bad,before);
 });
 
 test("catalog hydration cannot replace the chosen current text, prior sources, or owned identities",async t=>{
@@ -138,7 +158,7 @@ test("catalog hydration cannot replace the chosen current text, prior sources, o
   lifecyclePlan:{pendingDisposition:"keep",transition:{targetPetName:"Aster",toState:"deceased"},requiredSubjectState:null,authorizationQuote:ctx.currentMessage}};
  const intent={version:"ask-catalog-intent.v1",purpose:"lifecycle",scope:"subjects",ownerScope:null,sourceTurnId:"current",instructionQuote:ctx.currentMessage,authorizationQuote:ctx.currentMessage,
   subjects:[{basis:"named",petName:"Aster",sourceTurnId:"current",quote:"Aster"}],request};
- const encodedIntent=recursiveFixturePlan(p.wire).encode({request:intent});
+ const encodedIntent=actualTransportFixturePlan(p).encode({request:intent});
  let calls=0,hydrates=0;
  await admitted(ctx,async()=>{
   const result=await interpretAskQuestion({context:ctx,model,client:{responses:{create:async()=>{calls++;return {status:"completed",output_text:JSON.stringify(encodedIntent),usage};}}},
@@ -152,8 +172,8 @@ test("catalog hydration cannot replace the chosen current text, prior sources, o
  });assert.equal(calls,1);assert.equal(hydrates,1);
 });
 
-test("existing input, output, call and accounting policy ceilings stay unchanged",()=>{
- assert.equal(AI_FEATURE_POLICIES.ask.maxInputTokens,20000);assert.equal(AI_FEATURE_POLICIES.ask.maxInputCharacters,80000);
+test("reviewed release input allowance and unchanged output/call ceilings remain enforced",()=>{
+ assert.equal(AI_FEATURE_POLICIES.ask.maxInputTokens,45000);assert.equal(AI_FEATURE_POLICIES.ask.maxInputCharacters,135000);
  assert.equal(AI_FEATURE_POLICIES.ask.maxOutputTokens,100000);assert.equal(AI_FEATURE_POLICIES.ask.maximumProviderCalls,6);
  assert.equal(ASK_INTERPRETATION_LIMITS.outputTokens,8192);
 });
@@ -169,4 +189,47 @@ test("pending antecedents absent from recent rows stay pinned in their earlier p
  assert.notEqual(projected.ownerNoteSpans,ctx.ownerNoteSpans);
  ctx.ownerNoteSpans[0].text="changed after snapshot";
  assert.equal(projected.ownerNoteSpans[0].text,chosen.currentTurn.text);
+});
+
+test("formerly over-budget numeric-density context now fits without rewriting its 1200 characters",()=>{
+ const ctx=context(0),text=Array.from({length:200},(_,i)=>i+" kg").join(" ").slice(0,1200).padEnd(1200,"x");
+ ctx.currentMessage=text;ctx.currentTurn.text=text;ctx.ownerNoteSpans=[];
+ const p=prepareAskInterpretationRequest(ctx,model);
+ assert.ok(askRequestFitsInputBudget(p.request));
+ assert.equal(p.input.userSources.find(source=>source.id==="current").text,text);
+});
+
+test("unowned native names are preserved but ORIGINAL Binder rejects ownership",()=>{
+ const ctx=context(0),p=prepareAskInterpretationRequest(ctx,model),bad={...proposal(ctx),petNames:["Unowned subject"]},before=structuredClone(bad);
+ const transport=actualTransportFixturePlan(p);
+ assert.deepEqual(transport.decode(transport.encode({request:bad})),{request:bad});
+ assert.throws(()=>recoverAskInterpretation(bad,p.context),e=>e.category==="semantic"&&e.reason==="ASK_REQUEST_CONTRACT_OWNERSHIP");
+ assert.deepEqual(bad,before);
+});
+test("repair allowance selects optional history before dispatch without changing mandatory evidence",()=>{
+ const ctx=context(39),p=prepareAskInterpretationRequest(ctx,model),again=prepareAskInterpretationRequest(structuredClone(ctx),model);
+ assert.deepEqual(p.input,again.input);
+ assert.equal(p.input.userSources.find(s=>s.id==="current").text,ctx.currentMessage);
+ assert.deepEqual(p.input.ownedPets.map(p=>p.name),pets.map(p=>p.name));
+ // Mandatory-only fallback is explicit, not a guarantee of repair capacity.
+ assert.equal(p.context.conversationTurns.length,0);
+ assert.equal(askRequestFitsInputBudget({...p.request,instructions:p.request.instructions+" ".repeat(6144)}),true);
+ for(const source of p.input.userSources)assert.deepEqual(source,(({id,text,createdAt})=>({id,text,createdAt}))(ctx.conversationTurns.find(t=>t.id===source.id)));
+ assert.equal(p.input.sourceWindow.omittedPriorUserTurns,39-p.context.conversationTurns.length);
+ assert.ok(p.input.sourceWindow.omittedPriorUserTurns>0);
+ const pinned=structuredClone(ctx);pinned.pinnedUserSourceIds=["prior-0","prior-1"];
+ const mandatory=prepareAskInterpretationRequest(pinned,model);
+ for(const id of pinned.pinnedUserSourceIds)assert.deepEqual(mandatory.input.userSources.find(s=>s.id===id),(({id,text,createdAt})=>({id,text,createdAt}))(ctx.conversationTurns.find(t=>t.id===id)));
+ // Mandatory evidence is admitted even if no planning allowance remains.
+ assert.ok(askRequestFitsInputBudget(mandatory.request));
+ assert.equal(askRequestFitsInputBudget({...mandatory.request,instructions:mandatory.request.instructions+" ".repeat(6144)}),false);
+});
+test("repair planning keeps eight whole optional turns when the complete allowance fits",()=>{
+ const ctx=context(8);ctx.eligiblePets=[ctx.pet];ctx.currentMessage="How are you?";ctx.currentTurn.text=ctx.currentMessage;ctx.ownerNoteSpans=[];
+ ctx.conversationTurns.forEach((t,i)=>{if(t.id!=="current"){t.text="Aster was discussed.";t.id=String.fromCharCode(97+i);}});
+ ctx.currentTurn.id="z";
+ const p=prepareAskInterpretationRequest(ctx,model);
+ assert.equal(p.context.conversationTurns.length,8);
+ assert.equal(p.input.sourceWindow.omittedPriorUserTurns,0);
+ assert.ok(askRequestFitsInputBudget({...p.request,instructions:p.request.instructions+" ".repeat(6144)}));
 });

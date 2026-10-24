@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "deploymentEnabled": {
+      "waraich/di-r2-ask-20261018": false,
+      "waraich/gf-gc-eof-20261021": false
+    }
+  }
+}

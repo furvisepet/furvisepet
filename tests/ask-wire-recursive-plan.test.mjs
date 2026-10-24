@@ -49,12 +49,19 @@ function reverse(value) {
     ? Object.fromEntries(Object.entries(value).reverse().map(([k, v]) => [k, reverse(v)])) : value;
 }
 
-test("createAskWirePlan bridge has exact raw-codec and canonical parity for all 262 vectors", () => {
-  let checked = 0;
+test("all 262 archived values are classified; current 219 graph-codec inverses and 43 refusals remain exact", () => {
+  let checked = 0, rejected = 0;
   for (const fixture of corpus.fixtures) {
     const { plan, raw, harness, validate } = compiled(fixture.context);
     const originalSchema = JSON.stringify(plan.schema), originalInstructions = plan.instructions;
-    const expected = plan.encode(fixture.canonical), graph = raw.encode(fixture.canonical);
+    let expected, graph;
+    try { expected = plan.encode(fixture.canonical); graph = raw.encode(fixture.canonical); }
+    catch(error){
+      assert.match(error.message,/^ASK_WIRE_CANONICAL_SCHEMA$/);
+      assert.throws(()=>raw.encode(fixture.canonical),/^Error: ASK_WIRE_CANONICAL_SCHEMA$/);
+      assert.throws(()=>harness.encode(fixture.canonical,tick),/^Error: ASK_WIRE_CANONICAL_SCHEMA$/);
+      rejected++;checked++;continue;
+    }
     assert.deepEqual({ nodes: [...expected.nodes, expected.root] }, graph);
     assert.deepEqual(harness.rawBridge.decode(graph), raw.decode(graph));
     const recursive = harness.encode(fixture.canonical, tick);
@@ -67,6 +74,7 @@ test("createAskWirePlan bridge has exact raw-codec and canonical parity for all 
     checked++;
   }
   assert.equal(checked, 262);
+  assert.equal(rejected,43);assert.equal(checked-rejected,219);
 });
 
 test("bridge rejects malformed roots, noncanonical graphs and forward/reused/unused references", () => {
@@ -139,12 +147,19 @@ for (const numeric of [false, true]) for (const count of [0, 2, 8, 39])
       assert.equal(input.sourceWindow.omittedPriorUserTurns, count - prepared.context.conversationTurns.length);
       assert.ok(askRequestFitsInputBudget(request));
       assert.equal(request.max_output_tokens, 8192);
-      assert.deepEqual(request.reasoning, { effort: "none" });
+      assert.deepEqual(request.reasoning, { effort: "medium" });
       assert.equal(request.instructions, prepared.transport.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS);
-      assert.equal(request.text.format.schema.properties.request.anyOf[0].required.length, 37);
-      assert.equal(request.text.format.schema.properties.format.enum[0], "ask-semantic-slots.v1");
+      const nativeSchema = request.text.format.schema;
+      assert.equal(nativeSchema.additionalProperties, false);
+      assert.deepEqual(nativeSchema.required, Object.keys(nativeSchema.properties));
       const canonical = proposal(ctx), proposed = prepared.transport.encode(canonical, check);
       assert.ok(!Object.hasOwn(proposed, "nodes"));
+      assert.equal(typeof proposed.request.kind, "string");
+      // Ajv v6 requires ordinary own-property objects. Validate the exact JSON
+      // representation actually dispatched, not the compiler's null-prototype maps.
+      const serializedSchema = JSON.parse(JSON.stringify(request)).text.format.schema;
+      assert.equal(JSON.stringify(serializedSchema), JSON.stringify(nativeSchema));
+      assert.ok(new Ajv().compile(serializedSchema)(proposed), "actual native proposal must satisfy the dispatched schema");
       assert.deepEqual(prepared.transport.decode(JSON.parse(JSON.stringify(proposed)), check), canonical);
       let dispatches = 0;
       const response = await executeAdmittedResponsesRequest({
@@ -169,26 +184,33 @@ for (const numeric of [false, true]) for (const count of [0, 2, 8, 39])
 
 test("final serialized request boundaries reject before dispatch; output/accounting ceilings stay unchanged", async t => {
   quiet(t);
-  const prepared = indexedPrepared(context(0, false));
-  const h = prepareRecursiveAskRequestHarness(prepared, tick);
+  const prepared = prepareAskInterpretationRequest(context(0, false), model);
+  const h = {request:prepared.request};
   function padded(size) {
     const request = structuredClone(h.request);
     request.instructions += " ".repeat(size - JSON.stringify(request).length);
     assert.equal(JSON.stringify(request).length, size); return request;
   }
-  assert.ok(askRequestFitsInputBudget(padded(60000))); assert.equal(estimateInputTokens(padded(60000)), 20000);
-  assert.equal(askRequestFitsInputBudget(padded(60001)), false);
-  assert.throws(() => assertAskRequestInputBudget(padded(60001)), e => e.reason === "feature_token_budget_exceeded");
+  assert.ok(askRequestFitsInputBudget(padded(135000))); assert.equal(estimateInputTokens(padded(135000)), 45000);
+  assert.equal(askRequestFitsInputBudget(padded(135001)), false);
+  assert.throws(() => assertAskRequestInputBudget(padded(135001)), e => e.reason === "feature_token_budget_exceeded");
   let calls = 0;
   await admitted("recursive-oversize", async () => {
     await assert.rejects(executeAdmittedResponsesRequest({ model, maxOutputTokens: 8192, stage: "interpretation", reserveMs: 24000,
-      request: padded(60001), invoke: async () => { calls++; throw Error("SDK_MUST_NOT_RUN"); } }), e => e.reason === "feature_token_budget_exceeded");
+      request: padded(135001), invoke: async () => { calls++; throw Error("SDK_MUST_NOT_RUN"); } }), e => e.reason === "feature_token_budget_exceeded");
   });
   assert.equal(calls, 0);
-  const tooLarge = { ...prepared, request: { ...prepared.request, input: JSON.stringify({ userSources: [{ text: "x".repeat(80001) }] }) } };
-  assert.throws(() => prepareRecursiveAskRequestHarness(tooLarge, tick), e => e.reason === "feature_token_budget_exceeded");
-  assert.equal(AI_FEATURE_POLICIES.ask.maxInputTokens, 20000);
-  assert.equal(AI_FEATURE_POLICIES.ask.maxInputCharacters, 80000);
+  const tooLarge = { ...prepared, request: { ...prepared.request, input: JSON.stringify({ userSources: [{ text: "x".repeat(135001) }] }) } };
+  await admitted("direct-input-oversize", async () => {
+    await assert.rejects(executeAdmittedResponsesRequest({
+      model, maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens, timeoutMs: ASK_INTERPRETATION_LIMITS.timeoutMs,
+      reserveMs: 24000, request: tooLarge.request,
+      invoke: async () => { calls++; throw Error("SDK_MUST_NOT_RUN"); },
+    }), e => e.reason === "feature_token_budget_exceeded");
+  });
+  assert.equal(calls, 0);
+  assert.equal(AI_FEATURE_POLICIES.ask.maxInputTokens, 45000);
+  assert.equal(AI_FEATURE_POLICIES.ask.maxInputCharacters, 135000);
   assert.equal(AI_FEATURE_POLICIES.ask.maxOutputTokens, 100000);
   assert.equal(AI_FEATURE_POLICIES.ask.maximumProviderCalls, 6);
   assert.equal(ASK_INTERPRETATION_LIMITS.outputTokens, 8192);

@@ -1,4 +1,5 @@
 import test from "node:test";
+import {assertFinalReadGuidance} from "./helpers/producer-policy-review.mjs";
 import assert from "node:assert/strict";
 import { readFileSync,writeFileSync,existsSync } from "node:fs";
 import { registerHooks } from "node:module";
@@ -44,8 +45,8 @@ test("actual interpretation admits complete wire snapshots and gives Binder the 
  const legacy=process.env.NODE_TEST_CONTEXT;delete process.env.NODE_TEST_CONTEXT;
  const rows=[];
  try{
-  assert.equal(AI_FEATURE_POLICIES.ask.maxInputTokens,20000);
-  assert.equal(AI_FEATURE_POLICIES.ask.maxInputCharacters,80000);
+  assert.equal(AI_FEATURE_POLICIES.ask.maxInputTokens,45000);
+  assert.equal(AI_FEATURE_POLICIES.ask.maxInputCharacters,135000);
   assert.equal(AI_FEATURE_POLICIES.ask.maxOutputTokens,100000);
   for(const [name,context] of Object.entries(corpus.contexts)){
    const prepared=prepareAskInterpretationRequest(context,"gpt-5.4-mini"),plan=prepared.transport;
@@ -55,12 +56,13 @@ test("actual interpretation admits complete wire snapshots and gives Binder the 
    }
    assert.ok(chosen,"positive Binder fixture missing: "+name);
    const actual=await admitted(name,context,plan.encode(chosen.canonical,()=>{}),request=>{
+    assertFinalReadGuidance(request.instructions);
     const total=JSON.stringify(request).length;
-    assert.deepEqual(request.text.format.schema,createAskProviderWireSchema(plan.schema));
-    rows.push({name,schema:JSON.stringify(request.text.format.schema).length,instructions:request.instructions.length,input:request.input.length,total,margin:60000-total});
+    assert.equal(JSON.stringify(request.text.format.schema),JSON.stringify(plan.schema));
+    rows.push({name,schema:JSON.stringify(request.text.format.schema).length,instructions:request.instructions.length,input:request.input.length,total,margin:135000-total});
     console.log(JSON.stringify({kind:"request_size",...rows.at(-1)}));
     if(process.env.FURVISE_WIRE_REPORT)writeFileSync(process.env.FURVISE_WIRE_REPORT,JSON.stringify({status:"in_progress",rows},null,2));
-    assert.ok(total<=60000,name+": "+total);
+    assert.ok(total<=135000,name+": "+total);
    });
    assert.deepEqual(actual,expected);
    await assert.rejects(admitted("unknown-"+name,context,{nodes:[{_:"UNKNOWN_TAG"}]}),e=>e.diagnostics?.providerErrorCode==="ASK_INTERPRETATION_JSON");
@@ -94,8 +96,8 @@ test("bounded saved_profile repair passes real admission and production wire dec
   const actual=await admission.run(()=>interpretAskQuestion({context,model:"gpt-5.4-mini",client:{responses:{create:async request=>{
    const index=requests.length;requests.push(request);
    assert.equal(JSON.stringify(request),snapshots[index]);
-   assert.ok(JSON.stringify(request).length<60000);
-   assert.deepEqual(request.text.format.schema,createAskProviderWireSchema(plan.schema));
+   assert.ok(JSON.stringify(request).length<=135000);
+   assert.equal(JSON.stringify(request.text.format.schema),JSON.stringify(plan.schema));
    if(index===1){
     const payload=JSON.parse(request.input);
     assert.equal(payload.userSources.find(source=>source.id===payload.currentSourceId).text,context.currentMessage);

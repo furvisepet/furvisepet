@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import {assertOwnedDetailsContract} from "./helpers/care-entry-contract.mjs";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const migration = read("supabase/migrations/20260811120000_add_history_lifecycle_dismissal.sql");
@@ -34,8 +35,8 @@ test("dismissal is non-clinical, preserves provenance, and cleans current projec
   assert.doesNotMatch(removal, /state_action_type[^\n]*resolve_concern/);
 });
 
-test("API has one direct Delete contract with no lifecycle-impact choices", () => {
-  assert.doesNotMatch(route, /export async function GET/);
+test("API has one direct Delete contract with no lifecycle-impact choices", async () => {
+  await assertOwnedDetailsContract();
   assert.doesNotMatch(route, /get_my_care_entry_removal_impact|activeConcernExists|lifecycleStillActive|activeEpisodeId|stopTrackingIssue/);
   assert.match(route, /remove_my_care_entry/);
   assert.match(route, /p_stop_tracking: true/);

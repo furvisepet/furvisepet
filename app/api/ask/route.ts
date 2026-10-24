@@ -1,3 +1,5 @@
+import { withAuthenticatedPreviewCapture } from "../../lib/intelligence/ask-preview-route-capture.mjs";
+import { capturePreviewEvidence, flushPreviewEvidence } from "../../lib/intelligence/ask-preview-capture.mjs";
 import { hydratePlanningCatalog, verifyPlanningCatalogSource } from "../../lib/intelligence/hydrate-planning-catalog.ts";
 import { executeStoredRead } from "../../lib/furvise-brain/stored-read-organ.ts";
 import {resolveRemovePlan} from "../../lib/furvise-brain/remove-job.ts";
@@ -141,6 +143,7 @@ import {
 import { isExplicitCareHistorySaveRequest, resolveAutomaticCareHistoryPresentation } from "../../lib/intelligence/care-history-policy.ts";
 import { publicAskFailureCode, type AskInternalFailure } from "../../lib/furvise-output.ts";
 import { PUBLIC_V1_CAPABILITIES, publicV1AskCapability } from "../../lib/public-v1-capabilities.ts";
+import { previewRecordedAskCapability } from "../../lib/intelligence/calculation-capability.ts";
 import { readAskProfiles, classifyAskDatabaseFailure } from "../../lib/ask-profile-read.ts";
 
 const friendlyAnswerFailure = FURVISE_ANSWER_UNAVAILABLE_MESSAGE;
@@ -226,6 +229,11 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
     return askFailure("UNKNOWN_ERROR", "Furvise could not start that answer. Please try again.", 500, {}, "authentication");
   }
   if ("response" in authentication) return authentication.response;
+  const authenticated = authentication;
+  return withAuthenticatedPreviewCapture(authenticated, () => executeAuthenticatedAskRequest(request, execution, authenticated));
+}
+async function executeAuthenticatedAskRequest(request: Request, execution: AskRequestExecution,
+ authentication: Exclude<Awaited<ReturnType<typeof loadAskAuthenticationContext>>, {response: Response}>) {
   const { supabase, userId } = authentication;
 
   let rawBody: unknown;
@@ -254,6 +262,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
   const conversationId = typeof body?.conversationId === "string" ? body.conversationId : "";
   const logicalTurnId = typeof body?.logicalTurnId === "string" && isUuid(body.logicalTurnId) ? body.logicalTurnId : "";
   const requestId = logicalTurnId;
+  capturePreviewEvidence("route_request", { applicationRequestId: requestId });
   const locale = resolveAskLocale(body?.locale, request.headers.get("accept-language"));
   let aiCreditPayload = { conversationId, locale, petId, question, ...(noteMode ? { mode: noteMode } : {}), ...(body?.timeZone ? { timeZone: resolveAskTimeZone(body.timeZone) } : {}) };
   let aiCreditPayloadHash = hashAiCreditPayload("ask", aiCreditPayload);
@@ -542,7 +551,8 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         return reply;
       }
       if (exceedsSelectedPetRead(interpretation, petId, liveContext.eligiblePets?.map(pet => pet.id) || [petId],
-        explicitlyNamedOwnedPets(question, liveContext.eligiblePets || []).map(pet => pet.id))) {
+        explicitlyNamedOwnedPets(question, liveContext.eligiblePets || []).map(pet => pet.id),
+        { ownerId: userId, pets: liveContext.eligiblePets, turns: recentConversation, currentTurnId: preparedRequest.userMessageId })) {
         if (creditReserved) {
           const released = await safeReleaseAiCredit({ logicalRequestId: logicalTurnId, payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
           creditReserved = false;
@@ -558,7 +568,9 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         return reply;
       }
       liveContext = { ...liveContext, askInterpretation: interpretation };
-      const publicV1Capability = publicV1AskCapability(interpretation.request);
+      const publicV1Capability = previewRecordedAskCapability(interpretation.request, userId);
+      capturePreviewEvidence("capability", { request: interpretation.request, decision: publicV1Capability });
+      await flushPreviewEvidence();
       if (!publicV1Capability.available && publicV1Capability.reason === "mutation") {
         if (creditReserved) {
           const released = await safeReleaseAiCredit({ logicalRequestId: logicalTurnId, payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
@@ -766,7 +778,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         message: reasoningQuestion,
         petName: liveContext.pet.name || "your pet",
         generate: async () => {
-          const generated = await generateAskHistoryAnswer({
+          const generated = await generateAskHistoryAnswer({ signal: request.signal,
             onStage: stage => { generationStage = stage; },
             supabase,
             context: liveContext,
@@ -796,6 +808,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
     });
     if (orchestration.handledWithoutAi) turnLifecycle.credit("not_required");
   } catch (error) {
+    capturePreviewEvidence("error_exit", { kind: "generation_rejected" });
     await failAiAdmission(aiAdmission, error, aiAdmissionFinalized, requestId);
     aiAdmissionFinalized = Boolean(aiAdmission);
     if (creditReserved) {

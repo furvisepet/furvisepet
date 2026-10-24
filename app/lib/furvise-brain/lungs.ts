@@ -1,3 +1,4 @@
+import {matchesReadPredicates} from "./read-measurement.ts";
 import { normalizeReadText as normalized, textMatchesReadPredicate } from "./read-text.ts";
 import { readWithSupportingContext, type ReadSupportingContext } from "./read-supporting-context.ts";
 import { isOrderedResultSet, resolveResultSetHistory, certifyOrderedResultSet, type OrderedResultSetProof } from "./ordered-result-set.ts";
@@ -7,6 +8,7 @@ import { acquireReadCandidates, selectReadGroups } from "./read-selection.ts";
 import { requiresTemporalHistory, resolveReadWindows, withinReadWindow } from "./read-temporal.ts";
 import { retrieveIndependentSelections, hasIndependentSelections } from "./independent-selections.ts";
 import { retrieveNeedTicket } from "./lungs-needs.ts";
+import { sourceSemanticsSnapshot, sourceSemanticsDigest } from "../intelligence/correction-relevance.ts";
 import type { CareEntryRow } from "../supabase.ts";
 import type { ReadTicket } from "./read-ticket.ts";
 
@@ -20,6 +22,8 @@ export type ReadCoverage = {
   matchSemantics: "ticket_text_predicates";
   asOf: string;
   anchors: Array<{ petId: string; eventId: string; eventAt: string }>;
+  /** Source provenance for an original uniquely resolved report anchor; no raw body/value. */
+  anchorSources?: Array<{petId:string;eventId:string;sourceId:string;eventAt:string;recordedAt:string;version:string;bodySHA256:string;snapshotSHA256:string}>;
   windows: Array<{ petId: string; from: string; to: string; relation: "from" | "after" | "before" | null }>;
   continuation: Array<{ petId: string; offset: number }>;
   selection?: { scannedIds: string[]; matchedIds: string[]; retainedIds: string[]; omittedIds: string[] };
@@ -87,6 +91,8 @@ async function retrieveFactualReadTicket(ticket: ReadTicket, scope: ReadScope, s
   if (!requiresTemporalHistory(ticket.temporal) && ticket.selection && store.effectiveWindow)
     return retrieveEffectiveSelection(ticket, scope, store, LUNGS_LIMITS);
   const orderedSet = isOrderedResultSet(ticket);
+  const reportedAnchor = ticket.authority === "stored_report" && ticket.temporal.anchor !== null;
+  if (reportedAnchor && !store.effectiveWindow) return result("unavailable", "reported_anchor_source_proof_unavailable");
   // Anchor discovery must precede applying the requested interval. A correction
   // may also move an event across that boundary, so resolve lineage first.
   try {
@@ -99,10 +105,16 @@ async function retrieveFactualReadTicket(ticket: ReadTicket, scope: ReadScope, s
       return result(reason === "page_changed_during_read" ? "partial" : "unavailable", reason);
     }
     coverage.reasons.push(...new Set(acquired.failures.map(failure => failure.reason)));
-    const effective = orderedSet && store.effectiveWindow
+    const effective = (orderedSet || reportedAnchor) && store.effectiveWindow
       ? await resolveResultSetHistory(ticket, scope, store, candidates, coverage, accessibleFrom, accessibleTo)
       : await store.effective(candidates);
     if (!effective.reliable) return result("unavailable", "effective_truth_unavailable");
+    // A report anchor never inherits the legacy effective-fact reliable flag.
+    // Every subject needs the existing store-owned report/closure certificate.
+    if (reportedAnchor && ticket.subjects.petIds.some(petId => {
+      const streams = coverage.effectiveStream?.filter(stream => stream.petId === petId) || [];
+      return streams.length !== 1 || streams[0].storedReportsCertified !== true || !streams[0].replacementSeedsExhausted;
+    })) return result("unavailable", "reported_anchor_source_proof_unavailable");
     // A validated saved report may have an unresolved correction link. Keep
     // the report, but never upgrade it into a verified effective fact or edge.
     const uncertainIds = new Set(effective.sourceLineage?.map(source => source.eventId) || []);
@@ -116,11 +128,18 @@ async function retrieveFactualReadTicket(ticket: ReadTicket, scope: ReadScope, s
       coverage.continuation, uncertainIds, matchesAnchor);
     if (!temporal.ok) return result(temporal.status, temporal.reason);
     coverage.anchors = temporal.anchors;
+    if(reportedAnchor){
+      const sourceRows=temporal.anchors.map(a=>rows.filter(r=>r.id===a.eventId&&r.pet_profile_id===a.petId));
+      if(sourceRows.some(matches=>matches.length!==1))return result("unavailable","reported_anchor_source_proof_unavailable");
+      coverage.anchorSources=sourceRows.map(([row])=>({petId:row.pet_profile_id,eventId:row.id,sourceId:"care:"+row.id,eventAt:row.occurred_at,
+        recordedAt:row.created_at,version:row.updated_at,bodySHA256:sourceSemanticsDigest(row.note??row.title??""),
+        snapshotSHA256:sourceSemanticsDigest(JSON.stringify({...sourceSemanticsSnapshot(row),category:row.category??null,deletedAt:row.deleted_at??null}))}));
+    }
     coverage.windows = temporal.windows.map(({ excludedTime, ...window }) => { void excludedTime; return window; });
     // Every selector consumes the same resolved effective interval. In particular,
     // take(N) never runs globally and then loses rows to an anchor filter.
     const selected = temporal.windows.flatMap(window => rows.filter(row => withinReadWindow(row, window)
-      && ticket.predicates.every(predicate => predicate.terms.some(term => matches(row, term)))));
+      && matchesReadPredicates(row,ticket.predicates)));
     const order = (a: CareEntryRow, b: CareEntryRow) => ticket.outputs.ordering === "asc" ? chronological(a, b) : chronological(b, a);
     selected.sort(order);
     const strategy = ticket.outputs.strategy;
@@ -197,6 +216,15 @@ async function retrieveFactualReadTicket(ticket: ReadTicket, scope: ReadScope, s
         if (omitted) group.reasons.push("required_selection_not_retained");
         group.reasons.push(...failed.map(failure => failure.reason));
         group.blocked = !group.exhausted || uncertain || omitted || !!failed.length;
+        if (reportedAnchor) {
+          const stream = coverage.effectiveStream?.find(value => value.petId === group.petId);
+          const certified = !group.blocked && stream?.storedReportsCertified === true && stream.replacementSeedsExhausted;
+          group.clauses = group.clauses.map(clause => ({ ...clause, certified }));
+          group.selectionStatus = certified ? group.selectedIds.length ? "complete" : "complete_empty" : "partial";
+          group.blocked ||= !certified;
+          if (stream) stream.certifiedSelectedIds = certified ? [...group.retainedIds] : [];
+          if (!certified) group.reasons.push("reported_anchor_source_proof_unavailable");
+        }
         // Complete still means exhaustive accessible matching evidence, not
         // merely satisfying take(N). Selecting a subset keeps partial coverage.
         const subset = selected.some(row => row.pet_profile_id === group.petId && !retained.has(row.id));
