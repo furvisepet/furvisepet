@@ -1,3 +1,4 @@
+import { observeAuthenticatedBackendBinding } from "../../../lib/operations/authenticated-backend-binding";
 import { getAuthenticatedApiContext } from "../../../lib/authenticated-api-server";
 import { isFurviseOwner } from "../../../lib/operations/owner-access";
 import { observeReleaseConfiguration } from "../../../lib/operations/release-config-observation";
@@ -16,8 +17,9 @@ export async function GET(request: Request) {
     // No caller-selected environment, deployment, keys or probe targets.
     if (new URL(request.url).search) return Response.json({ error: "Unsupported request." }, { status: 400, headers });
     const observation = observeReleaseConfiguration();
+    const backendBinding = observeAuthenticatedBackendBinding(auth.user, auth.userId);
     if (!observation) return Response.json({ error: "Release configuration observation unavailable." }, { status: 503, headers });
-    return Response.json(observation, { status: observation.status === "blocked" ? 503 : 200, headers });
+    return Response.json({ ...observation, backendBinding }, { status: observation.status === "blocked" ? 503 : 200, headers });
   } catch {
     // No error serialization or logging: auth/provider exceptions may be sensitive.
     return Response.json({ error: "Release configuration observation unavailable." }, { status: 503, headers });
