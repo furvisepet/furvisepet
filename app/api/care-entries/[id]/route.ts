@@ -1,3 +1,4 @@
+import { PRIVATE_CACHE_HEADERS, applyPrivateCacheHeaders } from "../../../lib/security/private-routes";
 import { getAuthenticatedApiContext } from "../../../lib/authenticated-api-server";
 import { parseCareRequest } from "../../../lib/care-entry-api-server";
 import { prepareCareEntryForUpdate } from "../../../lib/care-log.mjs";
@@ -14,24 +15,29 @@ type RemovalResultRow = {
   tombstoned_at: string;
 };
 
+function privateCarePatch(response: Response) {
+  applyPrivateCacheHeaders(response.headers);
+  return response;
+}
+
 export async function PATCH(request: Request, routeContext: RouteContext) {
   const { id } = await routeContext.params;
-  if (!isUuid(id)) return Response.json({ error: "That care entry ID is invalid." }, { status: 400 });
+  if (!isUuid(id)) return Response.json({ error: "That care entry ID is invalid." }, { status: 400, headers: PRIVATE_CACHE_HEADERS });
   const context = await getAuthenticatedApiContext(request);
-  if ("response" in context) return context.response;
-  const parsed = await parseCareRequest(request);
-  if ("response" in parsed) return parsed.response;
+  if ("response" in context) return privateCarePatch(context.response);
+  const parsed = await parseCareRequest(request, false, true);
+  if ("response" in parsed) return privateCarePatch(parsed.response);
   const { input } = parsed;
   const [entryResult, petResult] = await Promise.all([
     context.supabase.from("pet_care_entries").select("id,updated_at").eq("id", id).eq("user_id", context.userId)
       .eq("pet_profile_id", input.petProfileId).is("deleted_at", null).maybeSingle<{ id: string; updated_at: string }>(),
     context.supabase.from("dog_profiles").select("id").eq("id", input.petProfileId).eq("user_id", context.userId).maybeSingle<{ id: string }>(),
   ]);
-  if (!entryResult.data || !petResult.data) return Response.json({ error: "That care entry is not available." }, { status: 404 });
-  const expectedUpdatedAt = entryResult.data.updated_at;
-  const gate = await beginIdempotentRateLimitedOperation({ operationType: "care.update", payload: { id, input }, policy: "CARE_WRITE", request, route: "/api/care-entries/[id]", supabase: context.supabase, userId: context.userId });
-  if ("response" in gate) return gate.response;
-  return gate.operation.execute(async () => {
+  if (!entryResult.data || !petResult.data) return Response.json({ error: "That care entry is not available." }, { status: 404, headers: PRIVATE_CACHE_HEADERS });
+  const expectedUpdatedAt = parsed.expectedUpdatedAt!;
+  const gate = await beginIdempotentRateLimitedOperation({ operationType: "care.update", payload: { id, input, expectedUpdatedAt }, policy: "CARE_WRITE", request, route: "/api/care-entries/[id]", supabase: context.supabase, userId: context.userId });
+  if ("response" in gate) return privateCarePatch(gate.response);
+  return privateCarePatch(await gate.operation.execute(async () => {
     const update = prepareCareEntryForUpdate(input);
     const { data: rows, error } = await context.supabase.rpc("update_my_care_entry", {
       p_entry_id: id,
@@ -44,9 +50,10 @@ export async function PATCH(request: Request, routeContext: RouteContext) {
       p_occurred_at: update.occurred_at,
     });
     const data = (rows as CareEntryRow[] | null)?.[0] || null;
-    if (error || !data) return Response.json({ error: "The care entry could not be saved." }, { status: 503 });
-    return Response.json({ entry: data });
-  });
+    if (error?.code === "40001") return Response.json({ code: "CARE_ENTRY_STALE", error: "This note changed after you opened it. Reopen it before editing." }, { status: 409, headers: PRIVATE_CACHE_HEADERS });
+    if (error || !data) return Response.json({ error: "The care entry could not be saved." }, { status: 503, headers: PRIVATE_CACHE_HEADERS });
+    return Response.json({ entry: data, receipt: { operation: "care.update", entryId: data.id, subjectId: data.pet_profile_id, previousRevision: expectedUpdatedAt, revision: data.updated_at } }, { headers: PRIVATE_CACHE_HEADERS });
+  }));
 }
 
 export async function DELETE(request: Request, routeContext: RouteContext) {

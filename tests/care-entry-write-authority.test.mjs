@@ -1,3 +1,4 @@
+import {assertClientRevisionContract} from "./helpers/history-note-edit-contract.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -28,12 +29,13 @@ test("authenticated Data API UPDATE is removed and INSERT is an explicit allowli
   assert.doesNotMatch(privileges, /grant (?:all|update)\b[^;]*pet_care_entries[^;]*authenticated/i);
 });
 
-test("retained care-entry edit paths call the controlled RPC and Ask writes are unavailable", () => {
+test("retained care-entry edit paths call the controlled RPC and Ask writes are unavailable", async () => {
   for (const source of [route, browser]) {
     assert.match(source, /rpc\("update_my_care_entry"/);
     assert.doesNotMatch(source, /from\("pet_care_entries"\)[\s\S]{0,160}\.update\(/);
   }
-  assert.match(route, /const expectedUpdatedAt = entryResult\.data\.updated_at/);
+  assert.doesNotMatch(route, /const expectedUpdatedAt = entryResult\.data\.updated_at/);
+  await assertClientRevisionContract();
   assert.match(route, /p_expected_updated_at: expectedUpdatedAt/);
   assert.match(route, /\.eq\("pet_profile_id", input\.petProfileId\)/);
   assert.match(capabilities, /execute_ask_action_capability/);
