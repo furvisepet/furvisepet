@@ -98,12 +98,41 @@ test("browser transport preserves Los Angeles wall-clock time through PDT and PS
   }
 });
 
-test("all browser care-entry create and edit gateways serialize local time before transport", () => {
-  const clientSource = read("app/lib/supabase.ts");
-  assert.equal((clientSource.match(/const transportInput = prepareCareEntryInputForTransport\(input\)/g) || []).length, 3);
-  assert.match(clientSource, /createCareEntry[\s\S]*JSON\.stringify\(\{ input: transportInput \}\)/);
-  assert.match(clientSource, /createCareEntryUnlessDuplicate[\s\S]*JSON\.stringify\(\{ dedupe: true, input: transportInput \}\)/);
-  assert.match(clientSource, /updateCareEntry[\s\S]*JSON\.stringify\(\{ input: transportInput \}\)/);
+test("all browser care-entry create and edit gateways serialize local time before transport", async () => {
+  const {withBrowserTransport,entry,pet}=await import("./helpers/history-note-edit-contract.mjs");
+  const priorTimezone=process.env.TZ;
+  try{
+    process.env.TZ="America/Los_Angeles";
+    for(const {local,iso}of [
+      {local:"2026-09-01T00:15",iso:"2026-09-01T07:15:00.000Z"},
+      {local:"2026-12-01T00:15",iso:"2026-12-01T08:15:00.000Z"},
+    ])await withBrowserTransport(async(api,calls)=>{
+      const input={petProfileId:pet,category:"general",title:"Synthetic",note:"Literal <tag> & source\nunchanged",severity:null,occurredAt:local};
+      const original=structuredClone(input),revision="2026-01-02T12:00:00.000123Z";
+      const capture=globalThis.fetch;
+      globalThis.fetch=async(url,options)=>{
+        const response=await capture(url,options);
+        return Response.json({...await response.json(),action:"created"});
+      };
+      await api.createCareEntry(input);
+      await api.createCareEntryUnlessDuplicate(input);
+      await api.updateCareEntry(entry,input,{},revision);
+      assert.equal(calls.length,3);
+      const expectedInput={...input,occurredAt:iso};
+      assert.deepEqual(calls.map(c=>c.options.method),["POST","POST","PATCH"]);
+      assert.deepEqual(JSON.parse(calls[0].options.body),{input:expectedInput});
+      assert.deepEqual(JSON.parse(calls[1].options.body),{dedupe:true,input:expectedInput});
+      assert.deepEqual(JSON.parse(calls[2].options.body),{input:expectedInput,expectedUpdatedAt:revision});
+      assert.match(calls[2].url,new RegExp("/api/care-entries/"+entry+"$"));
+      for(const call of calls)assert.ok(new Headers(call.options.headers).get("Idempotency-Key"));
+      assert.deepEqual(input,original,"normalization never mutates the opened draft");
+      for(const invalid of [undefined,null,"not-a-revision"])
+        await assert.rejects(api.updateCareEntry(entry,input,{},invalid),/Reopen the latest saved note/);
+      assert.equal(calls.length,3,"missing or invalid opened revision cannot reach transport");
+    });
+  }finally{
+    if(priorTimezone===undefined)delete process.env.TZ;else process.env.TZ=priorTimezone;
+  }
 });
 
 test("Today introduces no fixed timezone offset and remains horizontally bounded", () => {
