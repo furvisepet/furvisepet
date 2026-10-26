@@ -28,7 +28,7 @@ import type { PetConcern } from "./ai/concern-engine";
 import type { FurviseMemoryRow } from "./intelligence/types";
 import { projectEffectiveCareHistory, type HistoryProjectionMemory } from "./effective-history.ts";
 import { normalizeHistorySearch } from "./history-archive.ts";
-import { idempotentClientFetch } from "./security/idempotency/client.ts";
+import { idempotentClientFetch, idempotentRevisionClientFetch } from "./security/idempotency/client.ts";
 
 export const PROFILE_ID_STORAGE_KEY = "petwise:dog-profile-id";
 export const PROFILE_MEMORIES_STORAGE_KEY = "petwise:dog-profile-memories";
@@ -712,7 +712,7 @@ export async function updateCareEntry(
       body: JSON.stringify({ input: transportInput, expectedUpdatedAt }),
       headers: { "content-type": "application/json" },
       method: "PATCH",
-    });
+    }, true);
     const payload = await response.json().catch(() => null) as { entry?: CareEntryRow; error?: string } | null;
     if (!response.ok || !payload?.entry) throw new Error(payload?.error || "The care entry could not be saved.");
     return payload.entry;
@@ -1079,14 +1079,14 @@ async function requireCurrentUser(getter: (() => Promise<User | null>) | undefin
   return user;
 }
 
-async function authenticatedApiFetch(path: string, init: RequestInit) {
+async function authenticatedApiFetch(path: string, init: RequestInit, revisionBoundEdit = false) {
   const token = await getCurrentAccessToken();
   const headers = new Headers(init.headers);
   if (token) headers.set("authorization", `Bearer ${token}`);
   const authenticatedInit = { ...init, credentials: "same-origin" as const, headers };
   const method = (init.method || "GET").toUpperCase();
   return method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE"
-    ? idempotentClientFetch(path, authenticatedInit, `${method}:${path}`)
+    ? (revisionBoundEdit ? idempotentRevisionClientFetch : idempotentClientFetch)(path, authenticatedInit, `${method}:${path}`)
     : fetch(path, authenticatedInit);
 }
 
