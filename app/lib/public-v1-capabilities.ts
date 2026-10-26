@@ -56,6 +56,14 @@ export function publicV1AskCapability(request: unknown): PublicV1AskCapabilityDe
       return Object.freeze({ available: false, reason: "calculation", message: PUBLIC_V1_CALCULATION_LIMITATION });
     return Object.freeze({ available: true, reason: "supported" });
   }
+  // The original Binder owns mode/scope/source validation. Conversation has no
+  // stored evidence or write authority and must reach the existing Mouth path.
+  if (record.version === "ask-request.v2" && record.mode === "conversation"
+    && [undefined, null, "general", "supplied_context"].includes(record.evidenceBasis as string | null | undefined)
+    && record.readTicket == null && record.storedRead == null
+    && (record.profileFields == null || Array.isArray(record.profileFields) && record.profileFields.length === 0)
+    && (record.evidenceNeeds == null || Array.isArray(record.evidenceNeeds) && record.evidenceNeeds.length === 0))
+    return Object.freeze({ available: true, reason: "supported" });
   if (record.mode === "read" && (record.readTicket !== null && record.readTicket !== undefined
     || record.storedRead !== null && record.storedRead !== undefined
     || Array.isArray(record.profileFields) && record.profileFields.length > 0))
