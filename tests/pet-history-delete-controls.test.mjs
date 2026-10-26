@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { withBrowserTransport, entry } from "./helpers/history-note-edit-contract.mjs";
+import { getOrCreateClientMutationKey } from "../app/lib/security/idempotency/client.ts";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const petPage = read("app/dogs/[id]/edit/page.tsx");
@@ -86,11 +88,42 @@ test("History rows open details and removal requires a deliberate confirmation",
   assert.match(history, /onClick=\{\(\) => void removeFromHistory\(\)\}/);
 });
 
-test("History removal uses the existing authenticated idempotent DELETE integration", () => {
+test("History removal uses the existing authenticated idempotent DELETE integration", async () => {
   assert.match(history, /await removeCareEntryFromHistory\(entryId\)/);
   assert.match(supabaseClient, /removeCareEntryFromHistory[\s\S]*`\/api\/care-entries\/\$\{entryId\}`[\s\S]*method: "DELETE"/);
   assert.match(supabaseClient, /authenticatedApiFetch[\s\S]*headers\.set\("authorization", `Bearer \$\{token\}`\)/);
-  assert.match(supabaseClient, /idempotentClientFetch\(path, authenticatedInit, `\$\{method\}:\$\{path\}`\)/);
+  await withBrowserTransport(async (api) => {
+    const values = new Map();
+    window.sessionStorage = {
+      getItem: key => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: key => values.delete(key),
+    };
+    const path = `/api/care-entries/${entry}`;
+    const expectedKey = getOrCreateClientMutationKey(`DELETE:${path}`);
+    const requests = [];
+    globalThis.fetch = async (url, init) => {
+      const headers = new Headers(init.headers);
+      requests.push({ url, method: init.method, key: headers.get("Idempotency-Key") });
+      assert.equal(url, path);
+      assert.equal(init.method, "DELETE");
+      assert.equal(init.body, undefined);
+      assert.equal(init.credentials, "same-origin");
+      assert.ok(/^Bearer \S+$/.test(headers.get("authorization") ?? ""), "authenticated request required");
+      assert.equal(headers.get("Idempotency-Key"), expectedKey, "DELETE must retain the existing legacy intent");
+      return requests.length === 1
+        ? Response.json({ error: "Synthetic temporary removal failure" }, { status: 503 })
+        : Response.json({ removedFromHistory: true });
+    };
+    await assert.rejects(api.removeCareEntryFromHistory(entry), /Synthetic temporary removal failure/);
+    assert.equal(requests.length, 1, "a failed removal must not retry automatically");
+    assert.equal(getOrCreateClientMutationKey(`DELETE:${path}`), expectedKey);
+    assert.equal(values.size, 1, "ambiguous removal intent must remain pending");
+    assert.deepEqual(await api.removeCareEntryFromHistory(entry), { removedFromHistory: true });
+    assert.equal(requests.length, 2);
+    assert.equal(requests[0].key, requests[1].key);
+    assert.equal(values.size, 0, "canonical completion clears only the completed pending intent");
+  });
   assert.match(history, /if \(!displayedEntry \|\| removing\) return/);
   assert.match(history, /disabled=\{removing\}/);
 });
