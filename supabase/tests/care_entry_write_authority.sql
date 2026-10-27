@@ -129,7 +129,8 @@ begin
       'general', null, 'Stale overwrite', null, now()
     );
     raise exception 'L/N: stale controlled edit succeeded';
-  exception when serialization_failure then null; end;
+  exception when sqlstate 'PT409' then
+    if sqlerrm <> 'CARE_ENTRY_STALE' then raise exception 'L/N: wrong business conflict'; end if; end;
 
   begin
     perform public.update_my_care_entry(

@@ -50,7 +50,7 @@ export async function PATCH(request: Request, routeContext: RouteContext) {
       p_occurred_at: update.occurred_at,
     });
     const data = (rows as CareEntryRow[] | null)?.[0] || null;
-    if (error?.code === "40001") return Response.json({ code: "CARE_ENTRY_STALE", error: "This note changed after you opened it. Reopen it before editing." }, { status: 409, headers: PRIVATE_CACHE_HEADERS });
+    if (error?.code === "40001" || (error?.code === "PT409" && error.message === "CARE_ENTRY_STALE")) return Response.json({ code: "CARE_ENTRY_STALE", error: "This note changed after you opened it. Reopen it before editing." }, { status: 409, headers: PRIVATE_CACHE_HEADERS });
     if (error || !data) return Response.json({ error: "The care entry could not be saved." }, { status: 503, headers: PRIVATE_CACHE_HEADERS });
     return Response.json({ entry: data, receipt: { operation: "care.update", entryId: data.id, subjectId: data.pet_profile_id, previousRevision: expectedUpdatedAt, revision: data.updated_at } }, { headers: PRIVATE_CACHE_HEADERS });
   }));
