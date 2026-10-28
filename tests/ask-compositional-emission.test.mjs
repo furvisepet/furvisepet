@@ -177,26 +177,68 @@ test('provider exposes the existing closed shape; legacy binder remains authorit
   assert.deepEqual(validateAskRequest(p,context(p.question)).request.readTicket,direct);
 });
 
-test('provider selection guidance permits semantic anchors while keeping operator exclusions',()=>{
-  const description=askRequestSchema({}).properties.readTicket.anyOf.find(s=>s.properties?.selection.type==='object').properties.selection.description;
-  assert.match(description,/Compatible with a semantic temporal\.anchor/);
-  assert.match(description,/owned effective event and temporal boundary before selection/);
-  assert.match(description,/Do not invent from\/to dates or choose a ledger event/);
-  assert.match(description,/Incompatible with needs, episode, outputs\.strategy and calendar selectors/);
-  assert.doesNotMatch(description,/unresolved anchors/);
+test('provider selection guidance permits semantic anchors while keeping operator exclusions',async()=>{
+  const schema=askRequestSchema({}).properties.readTicket;
+  const description=schema.anyOf.find(s=>s.properties?.selection.type==='object').properties.selection.description;
+  for(const contract of [
+    /Does not widen subject scope/,
+    /temporal\.anchor under the explicit requested authority/,
+    /effective_fact requires the owned effective event/,
+    /stored_report requires a uniquely resolved owned saved report and closed source\/correction proof/,
+    /Resolve its temporal boundary before selection/,
+    /Do not invent dates or choose an ambiguous event/,
+    /Incompatible with needs, episode, outputs\.strategy and calendar selectors/,
+  ])assert.match(description,contract);
+  const {default:Ajv}=await import('ajv');
+  const validate=new Ajv({allErrors:true}).compile(schema);
+  for(const authority of ['effective_fact','stored_report'])for(const relation of ['from','after','before']){
+    const {needs,...semantic}=ticket();void needs;
+    const input={...semantic,authority,probes:[],operation:'read_since_event',
+      temporal:{from:null,to:null,calendar:null,anchor:{concept:'2024 dental',relation}}};
+    assert.equal(validate(input),true,JSON.stringify(validate.errors));
+    const {probes,...boundInput}=input;void probes;
+    const bound=bindCompositionalReadTicket(boundInput,['aster']);
+    assert.equal(bound.authority,authority);assert.deepEqual(bound.subjects.petIds,['aster']);
+    assert.deepEqual(bound.temporal,input.temporal);assert.deepEqual(bound.selection,input.selection);
+    for(const patch of [
+      {operation:'read'}, {operation:'compare'},
+      {temporal:{...input.temporal,anchor:{concept:'2024 dental',relation:'during'}}},
+      {temporal:{...input.temporal,anchor:{concept:'2024 dental',relation,eventId:'invented'}}},
+      {temporal:{...input.temporal,calendar:'oldest_year'}},
+      {episode:{operation:'membership',referent:null}},
+      {outputs:{...input.outputs,strategy:'chronological'}},
+    ]){
+      assert.equal(validate({...input,...patch}),false,JSON.stringify(patch));
+      assert.throws(()=>bindCompositionalReadTicket({...boundInput,...patch},['aster']),/read_ticket/);
+    }
+  }
 });
 test('interpreter anchor guidance delegates dates and ledger choice without widening history',async()=>{
   const {ASK_REQUEST_INSTRUCTIONS}=await import('../app/lib/intelligence/ask-request-contract.ts');
   assert.match(ASK_REQUEST_INSTRUCTIONS,/semantic temporal\.anchor MAY compose with predicates and selection/);
   assert.match(ASK_REQUEST_INSTRUCTIONS,/never the ledger event or invented from\/to dates/);
-  assert.match(ASK_REQUEST_INSTRUCTIONS,/owned effective history.*concrete boundary before selection/);
+  assert.match(ASK_REQUEST_INSTRUCTIONS,/deterministic temporal resolver.*USER-qualified concept against owned history under the explicit requested authority.*concrete boundary before selection/);
+  assert.match(ASK_REQUEST_INSTRUCTIONS,/stored_report retains report-only authority and closed source\/correction proof; effective_fact still requires certified effective truth/);
   assert.match(ASK_REQUEST_INSTRUCTIONS,/Missing, ambiguous or uncertifiable anchors retain existing anchor limitations/);
   assert.match(ASK_REQUEST_INSTRUCTIONS,/never drop the anchor or fall back to whole history/);
   assert.match(ASK_REQUEST_INSTRUCTIONS,/Calendar selectors remain incompatible with selection/);
   assert.doesNotMatch(ASK_REQUEST_INSTRUCTIONS,/rejects selection with unresolved event anchors/);
+  for(const authority of ['effective_fact','stored_report']){
+    const question='first recorded weight for Aster after the 2024 dental';
+    const read={...ticket([clause('asc')]),authority,operation:'read_since_event',
+      temporal:{from:null,to:null,anchor:{concept:'2024 dental',relation:'after'},calendar:null}};
+    const original=structuredClone(read);
+    const r=await mocked(question,read,{petNames:['Aster']});
+    assert.deepEqual(r.petIds,['aster']);assert.equal(r.request.readTicket.authority,authority);
+    assert.deepEqual(r.request.readTicket.temporal,original.temporal);
+    assert.deepEqual(r.request.readTicket.selection,original.selection);assert.deepEqual(read,original);
+    // Foreign eligible profiles confer no ownership, even with a legal anchor/selection.
+    const foreign={...pets[0],user_id:'other-owner'};
+    await mocked(question,read,{petNames:['Aster']},{...context(question),eligiblePets:[foreign],pet:foreign},true);
+  }
 });
 
-test('provider alternatives exclude retired strategies and keep selection exclusive',()=>{
+test('provider alternatives exclude retired strategies and keep selection exclusive',async()=>{
   const branches=askRequestSchema({}).properties.readTicket.anyOf;
   const identity=b=>b.type==='null'?'null':[
     b.properties.attributedContexts?'attributed':'primary',
@@ -210,14 +252,49 @@ test('provider alternatives exclude retired strategies and keep selection exclus
     const p=branch.properties,anchored=p.temporal.properties.anchor.type==='object';
     assert.equal(p.operation.enum.includes('read_since_event'),anchored);
     if(p.authority.enum.includes('stored_report')){
-      assert.deepEqual(p.operation.enum,['read']);assert.equal(p.probes.maxItems,0);
-      assert.deepEqual(p.temporal.properties.anchor.enum,[null]);
+      assert.deepEqual(p.operation.enum,anchored?['read_since_event']:['read']);
+      assert.equal(p.probes.maxItems,0);assert.equal(p.episode.enum?.[0]??null,null);
+      assert.equal(p.temporal.properties.calendar.enum?.[0]??null,null);
+      if(anchored){assert.equal(p.temporal.properties.anchor.type,'object');assert.equal(Object.hasOwn(p,'attributedContexts'),false);}
+      else assert.deepEqual(p.temporal.properties.anchor.enum,[null]);
     }
     if(p.probes.minItems>=1){
       assert.equal(p.selection.type,'null');assert.equal(p.predicates.maxItems,0);assert.equal(p.searchHints.maxItems,0);
       assert.equal(p.episode.enum?.[0]??null,null);assert.equal(p.outputs.properties.limit.enum[0],null);
     }
   }
+
+  // Exercise each authority/temporal family as a closed, uniquely matched alternative.
+  const {default:Ajv}=await import('ajv');
+  const ajv=new Ajv({allErrors:true});
+  const validate=ajv.compile(askRequestSchema({}).properties.readTicket);
+  const alternatives=branches.map(b=>ajv.compile(b));
+  for(const authority of ['effective_fact','stored_report'])for(const anchored of [false,true])for(const selected of [false,true]){
+    const {needs,...semantic}=ticket();void needs;
+    const input={...semantic,authority,probes:[],operation:anchored?'read_since_event':'read',
+      temporal:{from:null,to:null,calendar:null,anchor:anchored?{concept:'2024 dental',relation:'after'}:null},
+      selection:selected?semantic.selection:null,
+      outputs:selected?semantic.outputs:{...semantic.outputs,strategy:null}};
+    const unchanged=structuredClone(input);
+    assert.equal(validate(input),true,JSON.stringify(validate.errors));
+    assert.equal(alternatives.filter(v=>v(input)).length,1,'exactly one authority/window/selector alternative');
+    assert.deepEqual(input,unchanged);
+    for(const patch of [
+      {operation:anchored?'read':'read_since_event'},
+      {authority:'invented_authority'}, {inventedSelector:true},
+      ...(selected?[{probes:[{quote:'Aster weight',sourceTurnId:null,petNames:['Aster'],from:null,to:null,target:null,termGroups:[['weight']],ordering:'desc'}]},
+        {outputs:{...input.outputs,strategy:null}},
+        {outputs:{...input.outputs,strategy:'chronological'}},
+        {episode:{operation:'membership',referent:null}},
+        {selection:{groupBy:['species'],union:[clause()]}},
+        {selection:{groupBy:['subject'],union:[{...clause(),take:{count:1,per:'account'}}]}}]:[]),
+      ...(authority==='stored_report'?[{operation:'compare'},{operation:'rank'},
+        {attributedContexts:[]}, {temporal:{...input.temporal,calendar:'oldest_year'}}]:[]),
+    ])assert.equal(validate({...input,...patch}),false,JSON.stringify({authority,anchored,selected,patch}));
+    for(const strategy of ['temporal_endpoints','calendar_samples','event_candidates'])
+      assert.equal(validate({...input,outputs:{...input.outputs,strategy}}),false,strategy);
+  }
+
   const primary=branches.filter(b=>!b.properties?.attributedContexts);
   const legacy=primary.filter(s=>s.properties?.selection.type==='null');
   const composed=primary.find(s=>s.properties?.selection.type==='object');

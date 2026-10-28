@@ -58,7 +58,7 @@
   ],
   "sourcePins": {
     "app/lib/intelligence/ask-wire-read-ticket.mjs": "6cc3361515eefd0e9be9046e6f7340a7b3c5df8e7cfe0424bd83c1a162ba23a3",
-    "app/lib/intelligence/ask-wire-read-composition.mjs": "8c2f5ba2403dabd5d045fcbedb3fb232c8bdb9d7cd36e2d1e2d69c0ac5169534",
+    "app/lib/intelligence/ask-wire-read-composition.mjs": "654b2e92616e9dd06670b951914a9db0539cc7d193296117555ed62932d1670a",
     "app/lib/furvise-brain/read-ticket.ts": "9f85c86a979b84697b1fd3234c47df270a69c4b8e21fed92470afe706f262951",
     "app/lib/intelligence/ask-request-contract.ts": "bc8e857afc0fd965439e3022e38d8ab43bc2056e9ea00c868a7ffffe8f647966",
     "app/lib/intelligence/ask-wire-policy.mjs": "d87b40ceafe0a6a8bd02356fd9e4932913b12a75dfef868c4470c396c1b8a140",
@@ -70,5 +70,25 @@
     "rule18": "Empty predicate array is explicit unrestricted_record_content; nonempty is match_record_body_text with original conditions. ask-wire-read-ticket compileTicket proves disjoint empty/nonempty coverage; encode/decode preserve original predicates exactly. Organs still certify selected records and fail closed on uncertainty.",
     "rule35": "Same AND-across/OR-within original text_any predicates; restrict content conditions to those USER requested, not record storage/type labels. Original Binder enum/term checks unchanged.",
     "authority": "No new source/access/write/completeness authority, classifier, question route or output repair. Original decoder/Binder and transport source pins are byte-identical to deployed runtime commit."
+  },
+  "readPropositionGuidanceReview": {
+    "priorRuntimeCommit": "4e1bb4a3a54b137cf2737094a67987f88130b541",
+    "reviewedEHCommit": "fdacd2354022fa26de4adb64585908c099f6716a",
+    "sourcePath": "app/lib/intelligence/ask-wire-read-composition.mjs",
+    "priorCodecSHA256": "8c2f5ba2403dabd5d045fcbedb3fb232c8bdb9d7cd36e2d1e2d69c0ac5169534",
+    "unchangedCodecPrefixBytes": 7575,
+    "reviewedAppendSHA256": "46cdd8803debaeb98ed1304cfea8127848cee7dfd9bc262b05d9c9fba5109d7d",
+    "reviewedSourceSHA256": "654b2e92616e9dd06670b951914a9db0539cc7d193296117555ed62932d1670a",
+    "scope": "28-line fixed guidance addition only; original codec and historical policy/clause audit retained",
+    "legacyDescriptions": [
+      "resultContract chooses the requested read operation: read_recorded_statements reads what sources report, without certifying settled truth; read_settled_facts requests current/corrected factual authority. Each carries only its applicable typed readTicket. composed_read retains explicitly requested profileFields/projection/legacy recordSelection companions and their typed ticket. Recorded-statement contents do not require a request for verbatim quotation. Ticket predicates filter factual content, not storage labels or dates already in temporal bounds. Never change a requested operation to pass validation.",
+      "Reading what records report uses stored_report: attributed recorded statements, whether quotation or reported contents is requested. effective_fact instead asks what is currently settled/corrected or a historical calculation; a stored statement never certifies that truth. Both remain legal explicit choices. ",
+      "Requested proposition: stored_report only for exact stored wording, attributed reports or a timeline of statements; it never establishes current/corrected truth or supersession. effective_fact for current, settled, corrected, definitive latest values and every historical calculation. Do not downgrade an effective-fact request because history might conflict. Stored reports support ordinary reads and read_since_event relative to a uniquely resolved saved report, with optional ordered selection. A recorded/reported value relative to a recorded event is still stored_report, not certified effective truth. Its anchor and selected records require independent owned source-version, correction-closure and exhaustive-boundary proofs. Never change an effective-fact request to get a report answer. No calendar, episode, probes, calculations or legacy strategy."
+    ],
+    "expectedOccurrences": [
+      1,
+      1,
+      2
+    ]
   }
 }

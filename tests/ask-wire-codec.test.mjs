@@ -7,6 +7,7 @@ import { registerHooks } from "node:module";
 import { createGraphCodec } from "../app/lib/intelligence/ask-wire-codec.mjs";
 import { createAskWirePlan } from "../app/lib/intelligence/ask-wire-policy.mjs";
 import { POLICY_BUNDLE } from "../app/lib/intelligence/ask-wire-policy.generated.mjs";
+import {consolidateReadPropositionGuidance,READ_PROPOSITION_CONTRACT} from "../app/lib/intelligence/ask-wire-read-composition.mjs";
 registerHooks({resolve(s,c,next){return s==="server-only"?{url:"data:text/javascript,export {}",shortCircuit:true}:next(s,c);}});
 globalThis.fetch=async()=>{throw Error("OFFLINE_WIRE_CONTRACT");};
 const {ASK_REQUEST_INSTRUCTIONS,askRequestProviderSchema}=await import("../app/lib/intelligence/ask-request-contract.ts");
@@ -148,8 +149,49 @@ test("data stays opaque while ECMAScript schema patterns remain authoritative",(
   payload:{type:"string",maxLength:4000},digits:{type:"string",pattern:"^\\d+$"},fixed:{type:"string",enum:["constant"]}
  }};
  const g=createGraphCodec(schema);
- for(const payload of ["never recorded; SAVE 9; 7+8","__proto__","constructor","@0 _ UNKNOWN_TAG","ðŸ˜º","a\u0000b","\ud83d","\ude3a"]){
+ for(const payload of ["never recorded; SAVE 9; 7+8","__proto__","constructor","@0 _ UNKNOWN_TAG","😺","a\u0000b","\ud83d","\ude3a"]){
   const value={payload,digits:"9",fixed:"constant"};assert.deepEqual(g.decode(JSON.parse(JSON.stringify(g.encode(value)))),value);
  }
- assert.throws(()=>g.encode({payload:"unchanged",digits:"Ù©",fixed:"constant"}),/CANONICAL_SCHEMA/);
+ assert.throws(()=>g.encode({payload:"unchanged",digits:"٩",fixed:"constant"}),/CANONICAL_SCHEMA/);
+});
+
+test("reviewed read-proposition guidance preserves authority and exact codec provenance",()=>{
+ const review=currentReview.readPropositionGuidanceReview;
+ assert.equal(review.priorRuntimeCommit,"4e1bb4a3a54b137cf2737094a67987f88130b541");
+ assert.equal(review.reviewedEHCommit,"fdacd2354022fa26de4adb64585908c099f6716a");
+ const source=readFileSync(new URL("../"+review.sourcePath,import.meta.url));
+ assert.equal(sha(source.subarray(0,review.unchangedCodecPrefixBytes)),review.priorCodecSHA256);
+ assert.equal(sha(source.subarray(review.unchangedCodecPrefixBytes)),review.reviewedAppendSHA256);
+ assert.equal(sha(source),review.reviewedSourceSHA256);
+ assert.equal(currentReview.sourcePins[review.sourcePath],review.reviewedSourceSHA256);
+ const original=review.legacyDescriptions.flatMap((value,index)=>Array(review.expectedOccurrences[index]).fill(value)).join("\n");
+ const output=consolidateReadPropositionGuidance(original);
+ assert.equal(original,review.legacyDescriptions.flatMap((value,index)=>Array(review.expectedOccurrences[index]).fill(value)).join("\n"));
+ assert.equal(output.split(READ_PROPOSITION_CONTRACT).length-1,1);
+ for(const contract of [
+  /Choose the proposition the USER requests.*not an authority inferred from the subject/,
+  /read_recorded_statements requests attributed source contents/,
+  /does not certify that value as settled or corrected truth/,
+  /read_settled_facts requests a conclusion warranted as true under the effective-fact correction and certification contract/,
+  /never downgrade it because certification is unavailable/,
+  /never upgrade it merely because a report contains a factual-looking value/,
+  /If meaning is genuinely unresolved use the existing clarification contract/,
+  /The server alone verifies owned sources, versions, correction closure and publication evidence/,
+  /Never change the generated operation or companions to make validation pass/,
+ ])assert.match(output,contract);
+ assert.match(output,/Stored reports support ordinary reads and read_since_event relative to a uniquely resolved saved report/);
+ assert.match(output,/anchor and selected records require independent owned source-version, correction-closure and exhaustive-boundary proofs/);
+ assert.match(output,/No calendar, episode, probes, calculations or legacy strategy/);
+ assert.match(output,/composed_read retains explicitly requested profileFields\/projection\/legacy recordSelection companions and their typed ticket/);
+});
+test("read-proposition consolidation rejects missing duplicated or unreviewed guidance",()=>{
+ const review=currentReview.readPropositionGuidanceReview;
+ const original=review.legacyDescriptions.flatMap((value,index)=>Array(review.expectedOccurrences[index]).fill(value)).join("\n");
+ assert.deepEqual(review.expectedOccurrences,[1,1,2]);
+ for(const [index,legacy]of review.legacyDescriptions.entries()){
+  assert.equal(original.split(legacy).length-1,review.expectedOccurrences[index]);
+  assert.throws(()=>consolidateReadPropositionGuidance(original.replace(legacy,"UNREVIEWED_GUIDANCE_DRIFT")),/READ_PROPOSITION_GUIDANCE_DRIFT/);
+  assert.throws(()=>consolidateReadPropositionGuidance(original+"\n"+legacy),/READ_PROPOSITION_GUIDANCE_DRIFT/);
+ }
+ for(const value of [null,undefined,{},[]])assert.throws(()=>consolidateReadPropositionGuidance(value),/READ_PROPOSITION_GUIDANCE_DRIFT/);
 });
