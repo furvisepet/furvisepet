@@ -170,3 +170,16 @@ test('config branch never constructs a privileged database client or invokes das
  assert.equal((await GET(req('scope=config',null))).status,400);
  assert.equal(databaseClients,0);assert.equal(databaseCalls,0);assert.equal(networkCalls,0);
 });
+
+test('explicit compiled public bindings take precedence over contradictory runtime environment',()=>{
+ const runtime={...base,NEXT_PUBLIC_SUPABASE_URL:'https://'+expected+'.supabase.co',NEXT_PUBLIC_AUTH_CAPTCHA_ENABLED:'true',NEXT_PUBLIC_GOOGLE_AUTH_ENABLED:'false',FURVISE_AI_ASK_ENABLED:'false'};
+ const compiled='bbbbbbbbbbbbbbbbbbbb';
+ const bindings={backendUrl:'https://'+compiled+'.supabase.co',captchaEnabled:'false',googleEnabled:'true'};
+ const mismatch=ownerConfigurationSemantics(runtime,expected,bindings);
+ assert.equal(mismatch.backend.expectedProjectMatches,false);
+ assert.equal(mismatch.auth.captchaEnabled,false);assert.equal(mismatch.auth.googleEnabled,true);
+ assert.equal(mismatch.ai.ask,false,'server-only feature control remains a runtime predicate');
+ const match=ownerConfigurationSemantics(runtime,compiled,bindings);
+ assert.equal(match.backend.expectedProjectMatches,true);
+ assert.ok(!JSON.stringify(match).includes(compiled));assert.ok(!JSON.stringify(match).includes(expected));
+});

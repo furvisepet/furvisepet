@@ -11,7 +11,12 @@ export async function GET(request: Request) {
     if (expected === null || !/^[a-z0-9]{20}$/.test(expected)) {
       return Response.json({ error: "Invalid configuration observation context." }, { status: 400, headers: PRIVATE_CACHE_HEADERS });
     }
-    return Response.json(ownerConfigurationSemantics(process.env, expected), { headers: PRIVATE_CACHE_HEADERS });
+    // Direct public bindings match Next's build-time substitutions used by auth/UI.
+    return Response.json(ownerConfigurationSemantics(process.env, expected, {
+      backendUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      captchaEnabled: process.env.NEXT_PUBLIC_AUTH_CAPTCHA_ENABLED,
+      googleEnabled: process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED,
+    }), { headers: PRIVATE_CACHE_HEADERS });
   }
   const days = Number(params.get("days") || 7);
   if (![1,7,30,90].includes(days)) return Response.json({error:"Invalid date range."},{status:400,headers:PRIVATE_CACHE_HEADERS});

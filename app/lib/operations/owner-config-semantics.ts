@@ -8,11 +8,20 @@ import { isGoogleAuthEnabled } from "../auth-identity";
 export function ownerConfigurationSemantics(
   env: Record<string, string | undefined> = process.env,
   expectedBackendProject?: string,
+  publicBindings: {
+    backendUrl?: string;
+    captchaEnabled?: string;
+    googleEnabled?: string;
+  } = {
+    backendUrl: env.NEXT_PUBLIC_SUPABASE_URL,
+    captchaEnabled: env.NEXT_PUBLIC_AUTH_CAPTCHA_ENABLED,
+    googleEnabled: env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED,
+  },
 ) {
   const guard = getAiGuardConfig(env);
   let backend: URL | null = null;
   try {
-    const parsed = new URL(env.NEXT_PUBLIC_SUPABASE_URL || "");
+    const parsed = new URL(publicBindings.backendUrl || "");
     if (parsed.protocol === "https:" && !parsed.username && !parsed.password
       && !parsed.port && parsed.pathname === "/" && !parsed.search && !parsed.hash) backend = parsed;
   } catch { /* Report a predicate; never echo malformed configuration. */ }
@@ -34,8 +43,8 @@ export function ownerConfigurationSemantics(
       memoryExtraction: isAiMemoryExtractionEnabled(env),
     },
     auth: {
-      captchaEnabled: isAuthCaptchaEnabled(env),
-      googleEnabled: isGoogleAuthEnabled(env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED ?? ""),
+      captchaEnabled: isAuthCaptchaEnabled({ NEXT_PUBLIC_AUTH_CAPTCHA_ENABLED: publicBindings.captchaEnabled }),
+      googleEnabled: isGoogleAuthEnabled(publicBindings.googleEnabled ?? ""),
     },
     backend: {
       publicUrlWellFormed: backend !== null,
