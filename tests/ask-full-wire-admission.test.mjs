@@ -77,7 +77,7 @@ test('every request component contributes to input admission before dispatch',as
  quiet(t);
  for(const field of ['input','instructions','schema','tools','metadata']){
   const store=new MemoryAiGuardTestStore(),a=await admit(store,'oversize-'+field),request=small();
-  const large='x'.repeat(60001);
+  const large='x'.repeat(135001);
   if(field==='schema')request.text.format.schema.description=large;
   else if(field==='tools')request.tools=[{type:'function',name:'synthetic',description:large}];
   else if(field==='metadata')request.metadata={fixture:large};
@@ -94,13 +94,13 @@ test('exact estimator boundary admits once, one extra character fails closed',as
  quiet(t);
  for(const over of [0,1]){
   const request=small();request.input='';
-  request.input='x'.repeat(60000-JSON.stringify(request).length+over);
-  assert.equal(JSON.stringify(request).length,60000+over);
+  request.input='x'.repeat(135000-JSON.stringify(request).length+over);
+  assert.equal(JSON.stringify(request).length,135000+over);
   const store=new MemoryAiGuardTestStore(),a=await admit(store,'boundary-'+over);let calls=0;
   const invoke=()=>a.run(()=>call(request,async()=>{calls++;throw Error('synthetic dispatch failure');}));
   await assert.rejects(invoke(),over?e=>e.reason==='feature_token_budget_exceeded':/synthetic dispatch failure/);
   assert.equal(calls,over?0:1);await a.release();
-  assert.deepEqual(store.getSnapshot(day),{calls:over?0:1,costMicrodollars:over?0:465000});
+  assert.deepEqual(store.getSnapshot(day),{calls:over?0:1,costMicrodollars:over?0:483750});
  }
 });
 
@@ -114,9 +114,9 @@ test('one-dollar cumulative ceiling retains historical and unknown started expos
  await assert.rejects(a.run(()=>call(small(),async()=>{calls++;throw Error('synthetic transport failure');})),
  /synthetic transport failure/);
  await a.fail();assert.equal(calls,1);
- assert.deepEqual(store.getSnapshot(day),{calls:2,costMicrodollars:802232});
+ assert.deepEqual(store.getSnapshot(day),{calls:2,costMicrodollars:820982});
  await assert.rejects(admit(store,'second-new'),e=>e.reason==='daily_cost_limit');
- assert.deepEqual(store.getSnapshot(day),{calls:2,costMicrodollars:802232});
+ assert.deepEqual(store.getSnapshot(day),{calls:2,costMicrodollars:820982});
 });
 
 test('model/output mismatches and non-JSON requests cannot reach admission or invocation',async()=>{
@@ -137,10 +137,10 @@ test('measured complete-wire evidence reconciles with unchanged estimator and po
  assert.equal(Buffer.byteLength(wire),164334);assert.equal(wire.length,164324);
  assert.equal(JSON.stringify(request),wire);
  assert.equal(estimateInputTokens(request),54775);
- assert.equal(AI_FEATURE_POLICIES.ask.maxInputTokens,20000);
- assert.equal(AI_FEATURE_POLICIES.ask.maxInputCharacters,80000);
+ assert.equal(AI_FEATURE_POLICIES.ask.maxInputTokens,45000);
+ assert.equal(AI_FEATURE_POLICIES.ask.maxInputCharacters,135000);
  assert.equal(AI_FEATURE_POLICIES.ask.maxOutputTokens,100000);
- assert.equal(estimateProviderCostMicrodollars(model,{inputTokens:20000,outputTokens:100000}),465000);
+ assert.equal(estimateProviderCostMicrodollars(model,{inputTokens:20000,outputTokens:100000}),483750);
  const store=new MemoryAiGuardTestStore(),a=await admit(store,'measured');let calls=0;
  await assert.rejects(a.run(()=>call(request,async()=>{calls++;return {usage};})),e=>e.reason==='feature_token_budget_exceeded');
  assert.equal(calls,0);await a.release();

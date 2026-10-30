@@ -1,3 +1,4 @@
+import {retainedStressCodec,assertRetainedRoundTrip} from './helpers/retained-codec-domain.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
@@ -108,16 +109,19 @@ test("invalid root references, unreachable nodes, reused nodes and noncanonical 
  assert.ok(providerValid(providerSchema,reordered));
  assert.throws(()=>plan.decode(reordered),/ASK_WIRE_(?:INVALID_EDGE|NONCANONICAL_WIRE)/);
 });
-test("transport envelope round-trips all matching canonical families without changing the legacy graph",()=>{
- let count=0;
+test("transport root round-trips every current-producer family and preserves all retained stress inputs",()=>{
+ let count=0,rejected=0,total=0;
+ const original=retainedStressCodec(proposedSemanticFrameJsonSchema,prepared.context);
  for(const fixture of corpus.fixtures.filter(f=>f.context==="no_numeric")){
-  const graph=legacy.encode(fixture.canonical),encoded=plan.encode(fixture.canonical);
+  assertRetainedRoundTrip(original,fixture.canonical);total++;
+  let graph;try{graph=legacy.encode(fixture.canonical);}catch(e){assert.match(e.message,/ASK_WIRE_CANONICAL_SCHEMA/);assert.throws(()=>plan.encode(fixture.canonical),/ASK_WIRE_CANONICAL_SCHEMA/);rejected++;continue;}
+  const encoded=plan.encode(fixture.canonical);
   assert.deepEqual(encoded,{root:graph.nodes.at(-1),nodes:graph.nodes.slice(0,-1)});
   assert.ok(providerValid(providerSchema,encoded));
   assert.deepEqual(plan.decode(encoded),fixture.canonical);
   assert.deepEqual(plan.encode(plan.decode(encoded)),encoded);count++;
  }
- assert.ok(count>20);
+ assert.equal(count,33);assert.equal(rejected,10);assert.equal(total,43);
 });
 test("provider projection checkpoints remain bounded and detached from decoder lifetime",()=>{
  let checks=0;const expired=Error("TEST_COMPILATION_EXPIRED");
@@ -152,8 +156,8 @@ test("production interpreter rejects bad roots before Binder, repair or catalog 
       verify:async()=>{authority++;throw Error("UNEXPECTED_VERIFY");},hydrate:async()=>{authority++;throw Error("UNEXPECTED_HYDRATE");}},
      client:{responses:{create:async request=>{
       calls++;assert.equal(JSON.stringify(request),snapshot);assert.ok(Object.isFrozen(request));
-      assert.deepEqual(request.text.format.schema,prepared.request.text.format.schema);
-      assert.equal(request.max_output_tokens,8192);assert.deepEqual(request.reasoning,{effort:"none"});
+      assert.equal(JSON.stringify(request.text.format.schema),JSON.stringify(prepared.request.text.format.schema));
+      assert.equal(request.max_output_tokens,8192);assert.deepEqual(request.reasoning,{effort:"medium"});
       return {status:"completed",output_text:JSON.stringify(bad),usage:{input_tokens:10,output_tokens:10}};
      }}}
     })),e=>e.diagnostics?.providerErrorCode==="ASK_INTERPRETATION_JSON");

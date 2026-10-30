@@ -1,3 +1,4 @@
+import { captureHistoryPublication } from "../intelligence/ask-preview-capture.mjs";
 import { withAskProviderSchemaDiagnostic } from "./ask-provider-schema-diagnostic.ts";
 import { carryAttributedReports } from "../intelligence/attributed-report-context.ts";
 import {carryCalculatePlan,requiresCalculateBinding} from "../furvise-brain/calculate-plan.ts";
@@ -47,7 +48,6 @@ import {
 import type { PetConcern } from "./concern-engine.ts";
 import type { CareEpisode } from "../intelligence/episodes/types.ts";
 import type { ActiveConcernMessageState } from "./turn-classifier.ts";
-import { OPENAI_ANALYSIS_MODEL } from "./config.ts";
 import {
   ASK_MAX_OUTPUT_TOKENS,
   interpretStructuredProviderResponse,
@@ -416,7 +416,7 @@ const unifiedInstructions = [
 ].join("\n");
 
 export function getAskModelConfiguration(env: Record<string, string | undefined> = process.env) {
-  const primary = env.OPENAI_ASK_PRIMARY_MODEL?.trim() || env.OPENAI_ASK_MODEL?.trim() || env.OPENAI_ASK_RESPONSE_MODEL?.trim() || OPENAI_ANALYSIS_MODEL;
+  const primary = env.OPENAI_ASK_PRIMARY_MODEL?.trim() || env.OPENAI_ASK_MODEL?.trim() || env.OPENAI_ASK_RESPONSE_MODEL?.trim() || "gpt-5.4";
   const fallback = env.OPENAI_ASK_FALLBACK_MODEL?.trim() || null;
   return { primary, fallback, primaryUsedDefault: !env.OPENAI_ASK_PRIMARY_MODEL?.trim() && !env.OPENAI_ASK_MODEL?.trim() };
 }
@@ -779,6 +779,7 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   const labs = candidateLabs && (!ordinaryHistory || authority?.transportValid
     && candidateSourceIds.every(id => authority.authorizedSourceIds.includes(id))
     && authority.authorizedSourceIds.every(id => candidateSourceIds.includes(id))) ? candidateLabs : null;
+  captureHistoryPublication({phase:"publication_decision", publicationEvidence, rows:input.careEntries, minimumSafetyLevel:projectionContext.minimumSafetyLevel, calculationRequested, typedProfile, ordinaryHistory, candidateLabs, authority, candidateSourceIds, labsAccepted:!!labs});
   const unavailable = ordinaryHistory && !labs ? historyPublicationLimitation(publicationEvidence) : null;
   const factualUnavailable = dependsOnStoredState(publicationEvidence) && !profileLabs && !labs && !unavailable && !profileUnavailable;
   logPublicationDispatch(projectionContext.promptContext.evidenceContract,
