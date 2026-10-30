@@ -33,7 +33,10 @@ test("retained care-entry edit paths call the controlled RPC and Ask writes are 
     assert.match(source, /rpc\("update_my_care_entry"/);
     assert.doesNotMatch(source, /from\("pet_care_entries"\)[\s\S]{0,160}\.update\(/);
   }
-  assert.match(route, /const expectedUpdatedAt = entryResult\.data\.updated_at/);
+  // The confirmed opened revision is authoritative; re-reading latest here would permit a stale overwrite.
+  assert.match(route, /parseCareRequest\(request, false, true\)/);
+  assert.match(route, /const expectedUpdatedAt = parsed\.expectedUpdatedAt!/);
+  assert.doesNotMatch(route, /const expectedUpdatedAt = entryResult\.data\.updated_at/);
   assert.match(route, /p_expected_updated_at: expectedUpdatedAt/);
   assert.match(route, /\.eq\("pet_profile_id", input\.petProfileId\)/);
   assert.match(capabilities, /execute_ask_action_capability/);
