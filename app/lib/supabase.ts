@@ -1,5 +1,7 @@
 "use client";
 
+import { CARE_ENTRY_STALE_MESSAGE, isCareEntryStaleError } from "./care-entry-conflict.ts";
+
 import { createBrowserClient } from "@supabase/ssr";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import {
@@ -746,6 +748,7 @@ export async function updateCareEntry(
   });
   const data = (rows as CareEntryRow[] | null)?.[0] || null;
 
+  if (isCareEntryStaleError(error)) throw new Error(CARE_ENTRY_STALE_MESSAGE);
   if (error || !data) throw normalizeCareDatabaseError(error, "care entry");
   return data;
 }
