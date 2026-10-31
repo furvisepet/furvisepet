@@ -1,9 +1,9 @@
+import {createHash} from 'node:crypto';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { prepareAskInterpretationRequest, interpretAskQuestion, recoverAskInterpretation } from "../app/lib/intelligence/interpret-ask.ts";
-import { createAskProviderWireSchema } from "../app/lib/intelligence/ask-wire-provider-schema.ts";
-import { createRecursiveAskPlanHarness } from "./helpers/ask-wire-recursive-plan.mjs";
+import { inspectAskWireContract } from "./helpers/ask-wire-contract.mjs";
 import { admitAiOperation } from "../app/lib/ai/usage-guard/admission.ts";
 import { MemoryAiGuardTestStore } from "../app/lib/ai/usage-guard/memory-test-store.ts";
 import { OperationDeadline } from "../app/lib/ai/execution-deadline.ts";
@@ -38,11 +38,11 @@ function invoke(context, create, extras = {}) {
   return interpretAskQuestion({ context, model: "gpt-5.4-mini", client: { responses: { create } }, ...extras });
 }
 
-test("actual prepare/parse uses the reviewed recursive transport and retains the original canonical plan", async t => admitted(t, "recursive-success", async a => {
-  const reference = createRecursiveAskPlanHarness(prepared.wire, () => {});
+test("actual prepare/parse uses the reviewed native transport and retains the original canonical plan", async t => admitted(t, "recursive-success", async a => {
+  const {transport: reference} = await inspectAskWireContract(prepared.request, ctx);
   assert.deepEqual(prepared.transport.schema, reference.schema); assert.equal(prepared.transport.instructions, reference.instructions);
-  assert.deepEqual(prepared.request.text.format.schema, createAskProviderWireSchema(reference.schema));
-  assert.deepEqual(prepared.request.text.format.schema.required, ["root"]);
+  assert.equal(JSON.stringify(prepared.request.text.format.schema), JSON.stringify(reference.schema));
+  assert.deepEqual(prepared.request.text.format.schema.required, ["request"]);
   assert.deepEqual(prepared.wire.schema.required, ["nodes", "root"]);
   const expected = recoverAskInterpretation(good, prepared.context), response = envelope(good);
   assert.deepEqual(prepared.transport.decode(response, () => {}), prepared.wire.decode(prepared.wire.encode({ request: good })));
@@ -50,9 +50,9 @@ test("actual prepare/parse uses the reviewed recursive transport and retains the
   a.beginProviderCall = async value => { snapshot = JSON.stringify(value.input); return begin(value); };
   const result = await invoke(ctx, async (request, options) => {
     calls++; assert.equal(JSON.stringify(request), snapshot); assert.ok(Object.isFrozen(request));
-    assert.deepEqual(request.text.format.schema, prepared.request.text.format.schema);
+    assert.equal(JSON.stringify(request.text.format.schema), JSON.stringify(prepared.request.text.format.schema));
     assert.equal(request.instructions, prepared.request.instructions); assert.equal(request.input, prepared.request.input);
-    assert.equal(request.max_output_tokens, 8192); assert.deepEqual(request.reasoning, { effort: "none" });
+    assert.equal(request.max_output_tokens, 8192); assert.deepEqual(request.reasoning, { effort: "medium" });
     assert.equal(options.signal.aborted, false); return completed(response);
   });
   assert.equal(calls, 1); assert.deepEqual(result, expected);
@@ -69,7 +69,7 @@ test("repair uses a fresh 12-second reserve after the compilation and initial pa
     const result = await invoke(ctx, async request => {
       const index = sent.length; sent.push(request); assert.ok(index < 2);
       assert.equal(JSON.stringify(request), admitted[index]);
-      assert.deepEqual(request.text.format.schema, prepared.request.text.format.schema);
+      assert.equal(JSON.stringify(request.text.format.schema), JSON.stringify(prepared.request.text.format.schema));
       const input = JSON.parse(request.input);
       if (index) {
         const original = JSON.parse(sent[0].input);
@@ -171,7 +171,7 @@ test("provider errors in initial and repair phases keep safe diagnostics and set
       type: "invalid_request_error", param: "text.format.schema", requestID: id,
       headers: { authorization: "sk-proj-OFFLINE_PRIVATE" }, body: { input: marker } });
     await assert.rejects(invoke(ctx, async (request, options) => {
-      calls++; assert.equal(request.max_output_tokens, 8192); assert.deepEqual(request.reasoning, { effort: "none" });
+      calls++; assert.equal(request.max_output_tokens, 8192); assert.deepEqual(request.reasoning, { effort: "medium" });
       assert.equal(options.signal.aborted, false);
       if (repair && calls === 1) return completed(envelope({ ...good, petNames: ["Unowned subject"] }));
       throw thrown;
@@ -179,7 +179,8 @@ test("provider errors in initial and repair phases keep safe diagnostics and set
       assert.equal(e.diagnostics.providerErrorCode, "ASK_INTERPRETATION_TRANSPORT");
       assert.equal(e.diagnostics.providerStatus, 400); assert.equal(e.diagnostics.timedOut, false);
       assert.deepEqual(e.diagnostics.providerError, { status: 400, code: "invalid_json_schema",
-        type: "invalid_request_error", param: "text.format.schema", requestId: id });
+        type: "invalid_request_error", param: "text.format.schema", requestId: id,
+        schema: {sha256:createHash("sha256").update(JSON.stringify(prepared.request.text.format.schema)).digest("hex"),rule:"unrecognized",path:null} });
       assert.ok(!JSON.stringify(e).includes(marker)); assert.ok(!e.message.includes(marker)); return true;
     });
     assert.equal(calls, repair ? 2 : 1); assert.equal(failures, 1); assert.equal(usage, repair ? 1 : 0);

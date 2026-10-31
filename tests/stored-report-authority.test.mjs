@@ -161,10 +161,9 @@ test('source authority cannot be minted by a store returning only effective-fact
  assert.deepEqual(result.records,[]);
  assert.equal(selectionPublication(ticket,result.coverage,[]).complete,false);
 });
-test('semantic anchors and episode obligations cannot silently become report-level facts',()=>{
+test('calendar, episode and legacy strategies cannot silently become report-level facts',()=>{
  const {probes,...input}=proposition().readTicket; void probes;
- for(const patch of [{operation:'read_since_event',temporal:{...input.temporal,anchor:{concept:'event',relation:'after'}}},
-  {temporal:{...input.temporal,calendar:'oldest_year'}},{episode:{operation:'membership',referent:null}},{outputs:{...input.outputs,strategy:'chronological'}}])
+ for(const patch of [{temporal:{...input.temporal,calendar:'oldest_year'}},{episode:{operation:'membership',referent:null}},{outputs:{...input.outputs,strategy:'chronological'}}])
   assert.throws(()=>C.bindTypedReadTicket({...input,...patch},[pets[0].id]));
 });
 

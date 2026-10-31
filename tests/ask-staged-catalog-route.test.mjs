@@ -1,11 +1,11 @@
-import { recursiveFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
+import { actualTransportFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {fixture,id} from './helpers/ask-staged-route-fixture.mjs';
 const R=new URL('../',import.meta.url).href;
 const {ASK_REQUEST_INSTRUCTIONS,askRequestProviderSchema}=await import(R+'app/lib/intelligence/ask-request-contract.ts');
 const {proposedSemanticFrameJsonSchema}=await import(R+'app/lib/intelligence/semantic-frame/schema.ts');
-const {createAskWirePlan}=await import(R+'app/lib/intelligence/ask-wire-policy.mjs');
+const {prepareAskInterpretationRequest}=await import(R+'app/lib/intelligence/interpret-ask.ts');
 const {factorProviderEnumSchemas}=await import(R+'app/lib/ai/provider-enum-schema.ts');
 const {factorProviderCompoundSchemas}=await import(R+'app/lib/ai/provider-compound-schema.ts');
 const {admitAiOperation}=await import(R+'app/lib/ai/usage-guard/admission.ts');
@@ -20,12 +20,14 @@ const check=(name,fn)=>{fn();trace.assertions.push(name);};let wire,admission;
 const store=new MemoryAiGuardTestStore(),env={NODE_ENV:'test',FURVISE_AI_DAILY_CALL_LIMIT:'20',FURVISE_AI_DAILY_COST_LIMIT_USD:'1',FURVISE_RATE_LIMIT_HASH_SECRET:'offline-f-identity-not-credential'};
 const f=fixture({creditLedger:true,fullCatalogPipeline:true,engineCapabilities:mode==='engine-replace',
  admitAiOperation:async input=>{admission=await admitAiOperation({...input,env,store});const begin=admission.beginProviderCall.bind(admission);admission.beginProviderCall=async x=>{trace.admissions.push({purpose:x.purpose??'ordinary',stage:x.stage,totalChars:JSON.stringify(x.input).length,estimatedTokens:estimateInputTokens(x.input),snapshot:structuredClone(x.input)});return begin(x);};return admission;},
- onContext:ctx=>{wire=recursiveFixturePlan(createAskWirePlan(factorProviderCompoundSchemas(factorProviderEnumSchemas(askRequestProviderSchema(proposedSemanticFrameJsonSchema,ctx))),ASK_REQUEST_INSTRUCTIONS));},onInterpretation:x=>trace.interpretations.push(structuredClone(x)),
+ onContext:ctx=>{wire=actualTransportFixturePlan(prepareAskInterpretationRequest(ctx,'gpt-5.4-mini'));},onInterpretation:x=>trace.interpretations.push(structuredClone(x)),
  providerCreate:async request=>{trace.sent.push(structuredClone(request));if(trace.sent.length===1)return{status:'completed',output_text:JSON.stringify(wire.encode({request:intent})),usage:{input_tokens:0,output_tokens:0}};
  assert.equal(trace.sent.length,2);const input=JSON.parse(request.input);assert.deepEqual(input.intent,intent);const candidates=input.catalog.evidence.filter(x=>x.body==='Cedar declined dinner.');assert.equal(candidates.length,1);return{status:'completed',output_text:JSON.stringify({version:'ask-catalog-selection.v1',disposition:'selected',reference:candidates[0].reference}),usage:{input_tokens:0,output_tokens:0}};
  }});
 f.rows.pet_care_entries[0].note='Cedar declined dinner.';const initial=structuredClone(f.rows.pet_care_entries);
+const priorTestContext=process.env.NODE_TEST_CONTEXT;
 try {
+ delete process.env.NODE_TEST_CONTEXT;
  const response=await f.send(question);trace.response={status:response.status,body:await response.json()};trace.errors=f.state.errors.map(x=>({stage:x.stage,message:x.error?.message,stack:x.error?.stack,diagnostics:x.error?.diagnostics}));
  check('actual-admitted-snapshots-equal-sent',()=>assert.deepEqual(trace.sent,trace.admissions.map(x=>x.snapshot)));
  check('no-domain-effects-before-confirmation',()=>assert.deepEqual(f.rows.pet_care_entries,initial));
@@ -43,4 +45,4 @@ try {
  if(mode==='engine-replace')check('neutral-exact-target-publication',()=>{assert.equal(trace.response.body.answer,'Review the care-history correction for Cedar below.');assert.ok(!JSON.stringify(trace.response.body.response).includes('latest care-history'));});
  trace.result='PASS';
 }catch(error){trace.result='FAIL';trace.failure={name:error.name,message:error.message,stack:error.stack};process.exitCode=1;}
-finally{trace.events=f.state.events;trace.queries=f.state.queries;trace.permits=f.state.permits;trace.credit=f.state.credit;trace.lifecycle=f.state.traces;trace.capabilities=f.rows.ask_action_capabilities;trace.publications=f.state.publications;trace.rowsAfter=f.rows.pet_care_entries;if(admission)await admission.release();if(process.env.FURVISE_CATALOG_PROOF_PATH)fs.writeFileSync(process.env.FURVISE_CATALOG_PROOF_PATH,JSON.stringify(trace,null,2),{flag:'wx'});console.log(JSON.stringify({mode,result:trace.result,assertions:trace.assertions,failure:trace.failure,errors:trace.errors,response:trace.response,events:trace.events}));}
+finally{if(priorTestContext===undefined)delete process.env.NODE_TEST_CONTEXT;else process.env.NODE_TEST_CONTEXT=priorTestContext;trace.events=f.state.events;trace.queries=f.state.queries;trace.permits=f.state.permits;trace.credit=f.state.credit;trace.lifecycle=f.state.traces;trace.capabilities=f.rows.ask_action_capabilities;trace.publications=f.state.publications;trace.rowsAfter=f.rows.pet_care_entries;if(admission)await admission.release();if(process.env.FURVISE_CATALOG_PROOF_PATH)fs.writeFileSync(process.env.FURVISE_CATALOG_PROOF_PATH,JSON.stringify(trace,null,2),{flag:'wx'});console.log(JSON.stringify({mode,result:trace.result,assertions:trace.assertions,failure:trace.failure,errors:trace.errors,response:trace.response,events:trace.events}));}

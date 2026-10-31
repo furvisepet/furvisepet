@@ -1,3 +1,4 @@
+import { capturePreviewEvidence, flushPreviewEvidence } from "./ask-preview-capture.mjs";
 import { withAskProviderSchemaDiagnostic } from "../ai/ask-provider-schema-diagnostic.ts";
 import { askSourceWindows, askUserSourceInput, ASK_USER_SOURCE_INSTRUCTIONS, askRequestFitsInputBudget, assertAskRequestInputBudget } from "./ask-interpretation-sources.ts";
 import { CATALOG_INTENT_VERSION, bindCatalogIntent, beginCatalogContinuation, bindCatalogSelection, finishDeterministicCatalog } from "./catalog-intent.ts";
@@ -98,21 +99,10 @@ export function recoverAskInterpretation(value: unknown, context: Interpretation
     catch (error) {
       const reason = error instanceof Error ? /^ASK_REQUEST_INVALID:([a-z_]+)$/.exec(error.message)?.[1] : null;
       if (reason === "read_ticket" || reason === "read_ticket_required" || reason === "read_needs") {
-        const proposal = value as Record<string, unknown>;
-        const validation = error instanceof Error ? error.cause as { field?: string; rule?: string } | undefined : undefined;
-        // JSON retains every proposed field, including nested arrays and nulls;
-        // console object inspection can truncate these and hide the failing shape.
-        // This diagnostic is server-only. It never changes the rejected proposal.
+        // Proposals and validator causes may contain private owner data.
+        // Only this closed failure-code enum may reach the console.
         console.warn("[Ask Brain] rejected read ticket", JSON.stringify({
-          errorCode: `ASK_REQUEST_CONTRACT_${reason.toUpperCase()}`,
-          sourceMessageId: context.currentTurn?.id ?? null,
-          field: validation?.field ?? null,
-          rule: validation?.rule ?? validation?.field ?? null,
-          readTicketPresent: Object.hasOwn(proposal, "readTicket"),
-          readTicket: proposal.readTicket ?? null,
-          needs: (proposal.readTicket as Record<string, unknown> | null)?.needs ?? null,
-          request: { mode: proposal.mode, operation: proposal.operation, scope: proposal.scope,
-            petNames: proposal.petNames, evidenceBasis: proposal.evidenceBasis, writeJob: proposal.writeJob ?? null },
+          errorCode: "ASK_REQUEST_CONTRACT_" + reason.toUpperCase(),
         }));
       }
       if (reason === "write_job") {
@@ -199,10 +189,10 @@ export function prepareAskInterpretationRequest(original: InterpretationContext,
       factorProviderCompoundSchemas(factorProviderEnumSchemas(canonicalSchema, checkBudget), checkBudget),
       ASK_REQUEST_INSTRUCTIONS, undefined, checkBudget
     );
-  const transport = createDirectSemanticAskWirePlan(wire, wire.instructions, askRequestSchema(proposedSemanticFrameJsonSchema, context), checkBudget);
+  const transport = createDirectSemanticAskWirePlan(wire, wire.instructions, askRequestSchema(proposedSemanticFrameJsonSchema, context), checkBudget, canonicalSchema, context.timeZone ?? 'UTC');
   const request = { model, max_output_tokens: ASK_INTERPRETATION_LIMITS.outputTokens,
-    ...(/^gpt-5\.4(?:-|$)/i.test(model) ? { reasoning: { effort: "none" } } : /^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}),
-    instructions: transport.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: createAskProviderWireSchema(transport.schema, checkBudget) } } };
+    ...(/^gpt-5\.4(?:-|$)/i.test(model) ? { reasoning: { effort: (model === "gpt-5.4-mini" ? "medium" as const : "none" as const) } } : /^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}),
+    instructions: transport.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: transport.schema } } };
 
     checkBudget();
     return { context, input, wire, transport, request };
@@ -285,6 +275,8 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     { model, elapsedMs: Date.now() - started, providerErrorCode: reason, providerErrorType: kind, ticketArrived, ...extras });
   try {
     const activeClient = client || new OpenAI({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 0 }) as unknown as NonNullable<typeof client>;
+    capturePreviewEvidence("request", { request, context });
+    await flushPreviewEvidence();
     const response = await executeAdmittedResponsesRequest({ model, maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens,
       stage: "interpretation", reserveMs: 24_000,
       request,
@@ -296,6 +288,8 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
           return withAskProviderSchemaDiagnostic(request, () => activeClient.responses.create(request as never, { signal }));
         }, boundedProviderTimeout(ASK_INTERPRETATION_LIMITS.timeoutMs, 24_000, "interpretation"));
       } });
+    capturePreviewEvidence("raw_provider", response);
+    await flushPreviewEvidence();
     const result = parseResponse(response, ASK_INTERPRETATION_LIMITS.timeoutMs, 24_000);
     // Arrival is not validation or authority. Timed-out/late provider results never reach this point.
     const proposal = result.status === "completed" ? result.parsed : null;
@@ -311,6 +305,8 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     let parsed: AskInterpretation;
     try {
       let candidate = result.parsed;
+      capturePreviewEvidence("binder_input", candidate);
+    await flushPreviewEvidence();
       if (candidate && typeof candidate === "object" && "version" in candidate && candidate.version === CATALOG_INTENT_VERSION) {
         if (!catalogService) throw new AskInterpretationValidationError("ASK_CATALOG_SERVICE_REQUIRED");
         const admission = getActiveAiAdmission();
@@ -355,18 +351,24 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
                 schema: { type: "object", additionalProperties: false, required: ["version", "disposition", "reference"], properties: {
                   version: { type: "string", enum: ["ask-catalog-selection.v1"] }, disposition: { type: "string", enum: ["selected", "clarify", "unavailable"] },
                   reference: { type: ["string", "null"], enum: [null, ...hydrated.refs] } } } } } };
+            capturePreviewEvidence("request", { request: continuationRequest, context, phase: "catalog_continuation" });
+            await flushPreviewEvidence();
             const continued = await executeAdmittedResponsesRequest({ purpose: "catalog_continuation", catalogAuthorization: authorization,
               model, maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens, stage: "catalog_continuation", reserveMs: 12_000, request: continuationRequest,
               invoke: sent => {
                 onProviderEvent?.({ stage: "interpretation", outcome: "started", model, elapsedMs: Date.now() - started, validationDetails: "catalog_continuation" });
                 return withProviderDeadline(signal => withAskProviderSchemaDiagnostic(sent, () => activeClient.responses.create(sent, { signal })), boundedProviderTimeout(15_000, 12_000, "catalog_continuation"));
               } });
+            capturePreviewEvidence("raw_provider", continued);
+            await flushPreviewEvidence();
             const selection = interpretStructuredProviderResponse(continued, JSON.parse);
             if (selection.status !== "completed") throw new AskInterpretationValidationError("ASK_CATALOG_CONTINUATION_INVALID");
             await catalogService.verify(permit);
             candidate = bindCatalogSelection(permit, hydrated.catalog, selection.parsed, hydrated.refs);
             metadata = { ...metadata, inputTokens: sumUsage(result.usage.inputTokens, selection.usage.inputTokens), outputTokens: sumUsage(result.usage.outputTokens, selection.usage.outputTokens) };
           }
+          capturePreviewEvidence("binder_input", candidate);
+          await flushPreviewEvidence();
           parsed = candidate ? recoverAskInterpretation(candidate, context) : limitation("target_unresolved", "I couldn't identify one supported target reliably. Nothing has been changed; please clarify the requested target.");
         }
       } else parsed = recoverAskInterpretation(candidate, context);
@@ -384,6 +386,8 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
         input: JSON.stringify({ ...input, contractRepair: { validationCode: error.reason, rejectedProposal: result.parsed } }) };
       assertAskRequestInputBudget(repairRequest);
       console.info("[Ask Brain] contract repair", { sourceMessageId: context.currentTurn?.id, validationCode: error.reason });
+      capturePreviewEvidence("request", { request: repairRequest, context, phase: "interpretation_repair" });
+      await flushPreviewEvidence();
       const repairResponse = await executeAdmittedResponsesRequest({ purpose: "interpretation_repair", model,
         maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens, stage: "interpretation", reserveMs: ASK_INTERPRETATION_REPAIR_LIMITS.reserveMs,
         request: repairRequest,
@@ -395,6 +399,8 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
             return withAskProviderSchemaDiagnostic(repairRequest, () => activeClient.responses.create(repairRequest as never, { signal }));
           }, boundedProviderTimeout(ASK_INTERPRETATION_REPAIR_LIMITS.timeoutMs, ASK_INTERPRETATION_REPAIR_LIMITS.reserveMs, "interpretation"));
         } });
+      capturePreviewEvidence("raw_provider", repairResponse);
+      await flushPreviewEvidence();
       const repaired = parseResponse(repairResponse, ASK_INTERPRETATION_REPAIR_LIMITS.timeoutMs, ASK_INTERPRETATION_REPAIR_LIMITS.reserveMs);
       const repairedProposal = repaired.status === "completed" ? repaired.parsed : null;
       ticketArrived = ticketArrived || !!repairedProposal && typeof repairedProposal === "object" && ["readTicket", "appendJob", "writeJob"]
@@ -407,12 +413,16 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
         throw fail(`ASK_INTERPRETATION_REPAIR_${kind.toUpperCase()}`, kind, metadata);
       }
       console.info("[Ask Brain] repaired proposal", brainProposalDiagnostic(repaired.parsed, context.currentTurn?.id));
+      capturePreviewEvidence("binder_input", repaired.parsed);
+      await flushPreviewEvidence();
       try { parsed = recoverAskInterpretation(repaired.parsed, context); }
       catch (repairError) {
         if (repairError instanceof AskInterpretationValidationError) throw fail(repairError.reason, repairError.category, metadata);
         throw fail("ASK_INTERPRETATION_VALIDATION", "semantic", metadata);
       }
     }
+    capturePreviewEvidence("binder_output", parsed);
+    await flushPreviewEvidence();
     if (parsed.planningRecovery) throw fail(parsed.planningRecovery, "semantic", metadata);
     console.info("[Ask Brain] validated", { sourceMessageId: context.currentTurn?.id, mode: parsed.request?.mode,
       operation: parsed.request?.writeJob?.operation ?? parsed.operation, readTicket: parsed.request?.readTicket || null, writeJob: parsed.request?.writeJob
@@ -420,6 +430,8 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     onProviderEvent?.({ stage: "interpretation", outcome: "succeeded", model, elapsedMs: Date.now() - started, ...metadata });
     return { ...parsed, ...(context.planningSourceWindow?.omittedPriorUserTurns ? { sourceWindow: context.planningSourceWindow } : {}) };
   } catch (error) {
+    capturePreviewEvidence("error_exit", { kind: "interpretation_rejected" });
+    await flushPreviewEvidence();
     if (error instanceof AiAdmissionError) {
       if (attempted) onProviderEvent?.({ stage: "interpretation", outcome: "failed", model, elapsedMs: Date.now() - started, providerErrorCode: "ASK_INTERPRETATION_ADMISSION" });
       throw error;

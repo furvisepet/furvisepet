@@ -1,4 +1,4 @@
-import { recursiveFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
+import { actualTransportFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {registerHooks} from 'node:module';
@@ -21,7 +21,8 @@ function setup(){
 }
 async function admitted(fn,seedInterpretation=true){
  const a=await admitAiOperation({feature:'ask',userId:id(1),requestId:crypto.randomUUID(),payload:{fixture:'replacement-catalog'},intendedModel:'gpt-5.4-mini',env:{NODE_ENV:'test',FURVISE_AI_DAILY_CALL_LIMIT:'20',FURVISE_AI_DAILY_COST_LIMIT_USD:'1',FURVISE_RATE_LIMIT_HASH_SECRET:'offline-replace-fixture-identity'},store:new MemoryAiGuardTestStore()});
- try{return await a.run(async()=>{if(seedInterpretation){const c=await a.beginProviderCall({model:'gpt-5.4-mini',input:{fixture:'prior interpretation accounting only'},maxOutputTokens:1,stage:'interpretation'});await a.recordProviderUsage(c.reservation,'gpt-5.4-mini',{inputTokens:0,outputTokens:0});}return fn(a);});}finally{await a.release();}
+ const priorTestContext=process.env.NODE_TEST_CONTEXT;delete process.env.NODE_TEST_CONTEXT;
+ try{return await a.run(async()=>{if(seedInterpretation){const c=await a.beginProviderCall({model:'gpt-5.4-mini',input:{fixture:'prior interpretation accounting only'},maxOutputTokens:1,stage:'interpretation'});await a.recordProviderUsage(c.reservation,'gpt-5.4-mini',{inputTokens:0,outputTokens:0});}return fn(a);});}finally{if(priorTestContext===undefined)delete process.env.NODE_TEST_CONTEXT;else process.env.NODE_TEST_CONTEXT=priorTestContext;await a.release();}
 }
 test('catalog converts only owned supplied rows to opaque handles after real staged permit',()=>admitted(async()=>{
  const{f,intent}=setup();const calls=[],row={id:id(4),user_id:id(1),pet_profile_id:id(2),note:'Original record.',created_at:'2026-09-20T00:00:00Z',updated_at:'2026-09-20T00:00:00Z',occurred_at:'2026-09-20T00:00:00Z'};
@@ -39,10 +40,10 @@ test('unavailable catalog fails closed without guessed exact handles',()=>admitt
 test('same Brain source-free intent then permitted exact selection; Binder owns record/version',()=>admitted(async()=>{
  const{f,intent}=setup();const row={id:id(4),user_id:id(1),pet_profile_id:f.pet.id,note:'Supplied original.',occurred_at:'2026-09-22T00:00:00Z',created_at:'2026-09-22T00:00:00Z',updated_at:'2026-09-22T00:00:00Z'};
  const order=[];let calls=0;globalThis.__replaceCatalog={rpc:async(name)=>{order.push(name);return{data:[row],error:null};}};
- const prepared=prepareAskInterpretationRequest(f.context,'gpt-5.4-mini'),wire=recursiveFixturePlan(prepared.wire);
+ const prepared=prepareAskInterpretationRequest(f.context,'gpt-5.4-mini'),wire=actualTransportFixturePlan(prepared);
  const result=await interpretAskQuestion({context:f.context,model:'gpt-5.4-mini',catalogService:{requestId:'staged-exact',capability:()=>({available:true}),hydrate:permit=>hydratePlanningCatalog(permit,prepared.context,f.db),verify:permit=>verifyPlanningCatalogSource(permit,f.db)},client:{responses:{create:async request=>{
  calls++;order.push('brain-'+calls);const text=JSON.stringify(request);assert.ok(!text.includes(row.id),'opaque provider catalog');
- if(calls===1){assert.ok(!text.includes(row.note));assert.deepEqual(request.text.format.schema,prepared.request.text.format.schema);assert.equal(request.instructions,prepared.request.instructions);assert.equal(request.input,prepared.request.input);return{output_text:JSON.stringify(wire.encode({request:intent})),usage:{input_tokens:0,output_tokens:0}};}
+ if(calls===1){assert.ok(!text.includes(row.note));assert.equal(JSON.stringify(request.text.format.schema),JSON.stringify(prepared.request.text.format.schema));assert.equal(request.instructions,prepared.request.instructions);assert.equal(request.input,prepared.request.input);return{output_text:JSON.stringify(wire.encode({request:intent})),usage:{input_tokens:0,output_tokens:0}};}
  assert.equal(calls,2);const input=JSON.parse(request.input);assert.equal(input.catalog.evidence[0].body,row.note);assert.notEqual(input.catalog.evidence[0].reference,row.id);
  return{output_text:JSON.stringify({version:'ask-catalog-selection.v1',disposition:'selected',reference:input.catalog.evidence[0].reference}),usage:{input_tokens:0,output_tokens:0}};
  }}}});

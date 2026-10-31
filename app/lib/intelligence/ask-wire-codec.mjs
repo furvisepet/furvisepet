@@ -1,3 +1,4 @@
+import { canonicalSchemaError } from "./ask-wire-diagnostic.mjs";
 import { POLICY_BUNDLE } from "./ask-wire-policy.generated.mjs";
 // Lossless transport: schema constraints and structural restoration only.
 import { optimizeSchema } from "./ask-wire-schema.mjs";
@@ -86,6 +87,14 @@ function factor(root,checkBudget=()=>{}){
 }
 function foldUnions(root,checkBudget=()=>{}){
  checkBudget();
+ // These arms are fresh immutable visit results. Merges create a new arm;
+ // no entry survives this fold or crosses a request/context boundary.
+ const metadata=new WeakMap();
+ const info=arm=>{if(!metadata.has(arm))metadata.set(arm,{properties:new Map()});return metadata.get(arm);};
+ const enumBase=arm=>{const m=info(arm);return m.enumBase??=canonical(without(arm,["enum"]));};
+ const objectBase=arm=>{const m=info(arm);return m.objectBase??=canonical(without(arm,["properties"]));};
+ const propertyNames=arm=>{const m=info(arm);return m.propertyNames??=canonical(Object.keys(arm.properties).sort());};
+ const propertyKey=(arm,key)=>{const m=info(arm);if(!m.properties.has(key))m.properties.set(key,canonical(arm.properties[key]));return m.properties.get(key);};
  function visit(n){
   checkBudget();
   if(Array.isArray(n))return n.map(visit);if(!obj(n))return n;
@@ -98,10 +107,10 @@ function foldUnions(root,checkBudget=()=>{}){
    outer:for(let i=0;i<arms.length;i++)for(let j=i+1;j<arms.length;j++){
     checkBudget();
     const a=arms[i],b=arms[j];let merged=null;
-    if(a.enum&&b.enum&&canonical(without(a,["enum"]))===canonical(without(b,["enum"])))
+    if(a.enum&&b.enum&&enumBase(a)===enumBase(b))
      merged={...a,enum:[...new Map([...a.enum,...b.enum].map(v=>[canonical(v),v])).values()]};
-    else if(a.properties&&b.properties&&canonical(without(a,["properties"]))===canonical(without(b,["properties"]))&&canonical(Object.keys(a.properties).sort())===canonical(Object.keys(b.properties).sort())){
-     const changedKeys=Object.keys(a.properties).filter(k=>canonical(a.properties[k])!==canonical(b.properties[k]));
+    else if(a.properties&&b.properties&&objectBase(a)===objectBase(b)&&propertyNames(a)===propertyNames(b)){
+     const changedKeys=Object.keys(a.properties).filter(k=>propertyKey(a,k)!==propertyKey(b,k));
      if(changedKeys.length===1){
       const k=changedKeys[0],l=a.properties[k],r=b.properties[k];
       const opts=x=>Object.keys(x).length===1&&x.anyOf?x.anyOf:[x];
@@ -115,26 +124,36 @@ function foldUnions(root,checkBudget=()=>{}){
  }
  return visit(root);
 }
+
 function groupSchema(original,checkBudget=()=>{}){
  checkBudget();
  const folded=foldUnions(original,checkBudget),root=factor(folded,checkBudget),moves=[];
  for(let iteration=0;iteration<64;iteration++){
+  // This iteration only compares property schemas. Mutation happens after the
+  // winning group is chosen; discard these keys before the next iteration.
+  // Request-local identity memoization never retains tenant/context data.
+  const propertyKeys=new WeakMap();
+  const propertyKey=value=>{
+   if(!obj(value))return canonical(value);
+   if(!propertyKeys.has(value))propertyKeys.set(value,canonical(value));
+   return propertyKeys.get(value);
+  };
   const objects=[];
   function collect(n){checkBudget();if(Array.isArray(n)){n.forEach(collect);return;}if(!obj(n))return;if(n.properties)objects.push(n);Object.values(n).forEach(collect);}
   collect(root);const candidates=new Map();
   for(let i=0;i<objects.length;i++)for(let j=i+1;j<objects.length;j++){
    checkBudget();
    const a=objects[i],b=objects[j];
-   const names=Object.keys(a.properties).filter(k=>!k.startsWith("_g")&&own(b.properties,k)&&canonical(a.properties[k])===canonical(b.properties[k]));
+   const names=Object.keys(a.properties).filter(k=>!k.startsWith("_g")&&own(b.properties,k)&&propertyKey(a.properties[k])===propertyKey(b.properties[k]));
    if(names.length<2)continue;
    candidates.set(canonical(Object.fromEntries(names.map(k=>[k,a.properties[k]]))),[names,a]);
   }
   let best=null;
   for(const [names,a] of candidates.values()){
    checkBudget();
-   const matching=objects.filter(n=>names.every(k=>own(n.properties,k)&&canonical(n.properties[k])===canonical(a.properties[k])));
+   const matching=objects.filter(n=>names.every(k=>own(n.properties,k)&&propertyKey(n.properties[k])===propertyKey(a.properties[k])));
    const group={type:"object",additionalProperties:false,required:names,properties:Object.fromEntries(names.map(k=>[k,a.properties[k]]))};
-   const savings=(names.reduce((s,k)=>s+canonical(a.properties[k]).length+2*canonical(k).length+3,0)-60)*matching.length-canonical(group).length;
+   const savings=(names.reduce((s,k)=>s+propertyKey(a.properties[k]).length+2*canonical(k).length+3,0)-60)*matching.length-canonical(group).length;
    if(savings>0&&(!best||savings>best.savings))best={savings,names,group,matching};
   }
   if(!best)break;
@@ -174,13 +193,16 @@ function ungroupSchema(n){
  }
  return y;
 }
-export function compileGraphCodec(schema, fieldOrder = null, checkBudget=()=>{}){
+export function compileGraphCodec(schema,fieldOrder=null,checkBudget=()=>{}){
+ return compilePreparedGraphCodec(prepareGraphSchema(schema,checkBudget),fieldOrder,checkBudget);
+}
+function prepareGraphSchema(schema,checkBudget){
  checkBudget();
  const canonicalSchema=expand(schema,checkBudget);
  const canonicalValid=makeValidator(canonicalSchema,checkBudget);
  const {root:grouped,folded}=groupSchema(canonicalSchema,checkBudget);
  ensure(canonical(ungroupSchema(expand(grouped,checkBudget)))===canonical(normalizeRequired(folded)),"SCHEMA_RESTORATION");
- const original=expand(grouped,checkBudget),valid=makeValidator(original,checkBudget),fields=new Set(),constantMaps={},info=new WeakMap(),signatures=new Map();
+ const original=expand(grouped,checkBudget),valid=makeValidator(original,checkBudget),fields=new Set();
  function fieldsAudit(n){
   checkBudget();
   if(n.properties){
@@ -190,6 +212,13 @@ export function compileGraphCodec(schema, fieldOrder = null, checkBudget=()=>{})
   for(const a of n.anyOf??[])fieldsAudit(a);if(n.items)fieldsAudit(n.items);
  }
  fieldsAudit(original);
+ return {canonicalSchema,canonicalValid,original,valid,fields};
+}
+/** Shared preparation is private to this compile. Alias passes never mutate it. */
+function compilePreparedGraphCodec(prepared,fieldOrder=null,checkBudget=()=>{}){
+ checkBudget();
+ const {canonicalSchema,canonicalValid,original,valid,fields}=prepared;
+ const constantMaps={},info=new WeakMap(),signatures=new Map();
  const order=fieldOrder ?? [...fields].sort();
  ensure(order.length===fields.size&&new Set(order).size===fields.size&&order.every(k=>fields.has(k)),"FIELD_ORDER");
  const names=Object.fromEntries(order.map((k,i)=>[k,symbol(i)])),reverseNames=Object.fromEntries(Object.entries(names).map(([k,v])=>[v,k])),missing=Symbol("missing");
@@ -299,7 +328,7 @@ export function compileGraphCodec(schema, fieldOrder = null, checkBudget=()=>{})
   })};
  }
  function encode(value){
-  ensure(canonicalValid(canonicalSchema,value),"CANONICAL_SCHEMA");
+  if(!canonicalValid(canonicalSchema,value))throw canonicalSchemaError(canonicalSchema,value,canonicalValid);
   const c=encodeCompact(original,groupValue(original,value));ensure(compactValid(compact,c),"COMPACT_SCHEMA");
   const nodes=[];
   function visit(v){
@@ -352,10 +381,10 @@ function costWeights(c,rules){
 // Both passes use one implementation; only trusted schema and policy determine symbols.
 export function createGraphCodec(schema,checkBudget=()=>{}){
  checkBudget();
- const started=performance.now(),baseline=compileGraphCodec(schema,null,checkBudget),baselineFinished=performance.now();
+ const started=performance.now(),prepared=prepareGraphSchema(schema,checkBudget),baseline=compilePreparedGraphCodec(prepared,null,checkBudget),baselineFinished=performance.now();
  const weights=costWeights(baseline,POLICY_BUNDLE.rules);
  const order=Object.keys(baseline.names).sort((a,b)=>(weights[b]||0)-(weights[a]||0)||(a<b?-1:a>b?1:0));
- const ranked=compileGraphCodec(schema,order,checkBudget);
+ const ranked=compilePreparedGraphCodec(prepared,order,checkBudget);
  checkBudget();
  return {...ranked,compilation:{baselineMs:baselineFinished-started,rankedMs:performance.now()-baselineFinished,totalMs:performance.now()-started}};
 }
