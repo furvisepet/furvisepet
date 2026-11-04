@@ -15,7 +15,7 @@ const { recordHistoryReview, historyReviewSignature } = await import("../app/lib
 const pets = [{id:"owned-a",name:"Juniper",user_id:"owner",species:"dog",avoid_ingredients:[],weight_value:91,weight_unit:"kg"}];
 let calls = 0;
 const noProvider = {responses:{create:async()=>{calls++;throw Error("publication provider forbidden");}}};
-async function fixture(direction="asc",set=false) {
+async function fixture(direction="asc",set=false,closed=true) {
   let ticket=bindCompositionalReadTicket({operation:"read",subjectScope:"named",needs:[],episode:null,
     temporal:{from:null,to:null,anchor:null,calendar:null},predicates:[{kind:"text_any",terms:["observation"]}],
     selection:{groupBy:["subject"],union:[{orderBy:[{field:"event_at",direction}],take:{count:1,per:"group"}}]},
@@ -27,7 +27,7 @@ async function fixture(direction="asc",set=false) {
   const read=await retrieveReadTicket(ticket,scope,{page:async({ordering,offset,limit})=>[...all]
     .sort((a,b)=>ordering==="asc"?a.occurred_at.localeCompare(b.occurred_at):b.occurred_at.localeCompare(a.occurred_at)).slice(offset,offset+limit),
     effective:async rows=>({records:rows,reliable:true}),
-    effectiveWindow:async({rows})=>({records:rows,lineageClosed:true,replacementSeedsExhausted:true,sourceLineage:[],graphCalls:1,lineageRows:rows.length,reasons:["no_cross_query_snapshot"]})});
+    effectiveWindow:async({rows})=>({records:rows,lineageClosed:closed,replacementSeedsExhausted:closed,sourceLineage:[],graphCalls:1,lineageRows:rows.length,reasons:["no_cross_query_snapshot",...(closed?[]:["correction_closure_unavailable_or_ambiguous"])]})});
   const spans=all.map(row=>({sourceId:"care:"+row.id,petId:row.pet_profile_id,sourceType:"care_update",field:"value",
     text:row.note,start:0,end:row.note.length,occurredAt:row.occurred_at}));
   const profile={sourceId:"profile:owned-a:weight",petId:"owned-a",sourceType:"profile",field:"value",text:"91 kg",start:0,end:5};
@@ -133,4 +133,44 @@ test("finalization remains deterministic for certified and unavailable ordinary 
     assert.equal(result.validation.valid,true);assert.equal(result.validation.assessment.outcome,unavailable?"limited":"complete");
     assert.equal(calls,0);
   }
+});
+
+test("quantity-free dated recall publishes only certified sources and remains read-only",async()=>{
+ const f=await fixture("asc",true);
+ f.evidence.interpretation.request.quantity=null;
+ f.evidence.scope.requestText="What does the dated observation note say?";
+ const r=await generate(f),v=await validate(f,r);
+ assert.equal(r.model,"server-labs-list");assert.equal(v.valid,true);assert.equal(v.assessment.outcome,"limited");
+ assert.match(r.answer.summary,/may not fully answer your question/);
+ assert.deepEqual(r.labsList.records.map(x=>x.id),f.all.map(x=>x.id));
+ assert.deepEqual(r.relevantContextIds,f.all.map(x=>"care:"+x.id));
+ assert.deepEqual(r.careActions,[]);assert.deepEqual(r.semanticEvents,[]);
+ assert.equal(calls,0);
+});
+test("quantity-free recall cannot publish when correction proof is unavailable",async()=>{
+ const f=await fixture("asc",true);f.evidence.interpretation.request.quantity=null;
+ delete f.evidence.history.ticketCoverage;
+ const r=await generate(f),v=await validate(f,r);
+ assert.equal(r.model,"server-history-unavailable");assert.equal(v.assessment.outcome,"limited");
+ assert.deepEqual(r.relevantContextIds,[]);assert.equal(calls,0);
+});
+
+test("quantity-free dated recall retains partial correction uncertainty and cannot cite unproven effective facts",async()=>{
+ const f=await fixture("asc",true,false);f.evidence.interpretation.request.quantity=null;
+ f.evidence.scope.requestText="What was in the dated observation note?";
+ assert.equal(f.read.coverage.status,"partial");
+ assert.ok(f.read.coverage.reasons.includes("no_cross_query_snapshot"));
+ const r=await generate(f),v=await validate(f,r);
+ assert.equal(r.model,"server-history-unavailable");assert.equal(v.valid,true);
+ assert.equal(v.assessment.outcome,"limited");assert.deepEqual(r.relevantContextIds,[]);
+ assert.doesNotMatch(r.answer.summary,/Observation [123]/);assert.equal(calls,0);
+});
+
+test("quantity-free selected recall keeps its certified citation and remains visibly limited",async()=>{
+ const f=await fixture("asc",false);f.evidence.interpretation.request.quantity=null;
+ f.evidence.scope.requestText="What does the earliest dated observation say?";
+ const r=await generate(f),v=await validate(f,r);
+ assert.equal(r.model,"server-labs-list");assert.equal(v.valid,true);
+ assert.equal(v.assessment.outcome,"limited");assert.match(r.answer.summary,/may not fully answer your question/);
+ assert.deepEqual(r.relevantContextIds,["care:event-1"]);assert.equal(calls,0);
 });

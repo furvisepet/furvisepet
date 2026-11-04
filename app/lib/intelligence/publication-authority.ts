@@ -59,7 +59,7 @@ export function historyPublicationCapability(evidence: AskEvidenceContract,
     reject(!ticket.subjects.petIds.length, "subjects_empty");
     reject(ticket.subjects.petIds.some(id => !evidence.scope.authorizedPetIds.includes(id)), "subject_unauthorized");
   }
-  reject(!["records", "measurement"].includes(request?.quantity || ""), "unsupported_quantity");
+  reject(request?.quantity !== null && !["records", "measurement"].includes(request?.quantity || ""), "unsupported_quantity");
   reject(![undefined, "recall"].includes(evidence.interpretation?.readOperation ?? evidence.interpretation?.operation),
     "unsupported_read_operation");
   if (kind === "plain_result_set") {

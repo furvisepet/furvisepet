@@ -73,3 +73,25 @@ test('dispatch separates certified factual completion from residual completion',
  assert.equal(logs[0].obligations[1].labsClaimsObligationSatisfied,false);
  assert.equal(logs[0].sentToModelGeneration,false);
 });
+
+test('an explicitly quantity-free dated note remains eligible for certified record publication',async()=>{
+ const {evidence,rows}=await fixture();
+ evidence.interpretation.request.quantity=null;
+ evidence.scope.requestText='What did the dated note say about the observation?';
+ assert.deepEqual(historyPublicationCapability(evidence),{supported:true,reasons:[]});
+ const labs=buildLabsList(evidence,rows);
+ assert.ok(labs);assert.equal(labs.records.length,1);
+ assert.equal(labs.records[0].sourceId,'care:source');
+});
+
+test('quantity-free requests cannot authorize foreign subjects, writes, or unspecified quantity shape',async()=>{
+ for(const variant of ['foreign','write','unknown','missing']){
+  const {evidence,rows}=await fixture();evidence.interpretation.request.quantity=null;
+  if(variant==='foreign')evidence.scope.authorizedPetIds=[];
+  if(variant==='write')evidence.interpretation.request.writeJob={};
+  if(variant==='unknown')evidence.interpretation.request.quantity='episodes';
+  if(variant==='missing')delete evidence.interpretation.request.quantity;
+  assert.equal(historyPublicationCapability(evidence).supported,false,variant);
+  assert.equal(buildLabsList(evidence,rows),null,variant);
+ }
+});
