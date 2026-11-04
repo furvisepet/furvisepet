@@ -5,3 +5,9 @@ export function recursiveFixturePlan(plan) {
   return { ...transport, encode: value => transport.encode(value, () => {}),
     decode: value => transport.decode(value, () => {}) };
 }
+
+// Use the runtime's compiled direct transport for fake provider responses.
+export function directFixturePlan(transport) {
+  return { ...transport, encode: value => transport.encode(value, () => {}),
+    decode: value => transport.decode(value, () => {}) };
+}
