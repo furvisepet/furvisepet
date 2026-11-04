@@ -1,5 +1,6 @@
 // Furvise Ask: provider-constrained semantic slots, with canonical server reconstruction.
 // Never grant authority from the provider's JSON Schema: the pinned codec and Binder decide.
+import { makeValidator } from "./ask-wire-codec.mjs";
 import { RECURSIVE_TRANSPORT_LIMITS } from "./ask-wire-recursive.mjs";
 
 const error = (code, field = null) => {
@@ -70,7 +71,7 @@ function buildSlotsSchema(requestSchema) {
     || requestSchema.required.length < 30) error("CANONICAL_SCHEMA_DRIFT");
   const props={};const complex=[];
   for(const [key,s] of Object.entries(requestSchema.properties)) {
-    if(nativeScalar(s)) {
+    if(key==="task" || nativeScalar(s)) {
       props[key] = structuredClone(s);
       // Certain authoritative provider branches permit null for quoted-premise arrays.
       if(key==="premiseQuotes") props[key]={anyOf:[props[key],{type:"null"}]};
@@ -105,7 +106,7 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
     "Return format ask-semantic-slots.v1 and a request OBJECT following the required typed schema.",
     "Do not use graph nodes, field aliases, packed tags or speculative evidence.",
     "All request keys are mandatory. Use null/[] for inactive fields, never omit or invent.",
-    "Simple strings and string arrays are native JSON values. Complex objects/arrays are complete JSON strings (or null when allowed).",
+    "Simple strings and string arrays are native JSON values. The task field is a native object or null. Other complex objects/arrays are complete JSON strings (or null when allowed).",
     "For each complex field, serialize its complete value as valid JSON inside the outer JSON string: double-quote all keys and string values, escape inner double quotes and backslashes for the outer string, and never use comments, trailing commas, markdown, undefined or unquoted names.",
     "readTicket, when non-null, must be a JSON string containing the complete typed ReadTicket object.",
     "The catalogIntentJson variant is exclusively for source-grounded catalog intent. Ordinary requests use the typed " + slots.schema.required.length + "-field request.",
@@ -136,7 +137,7 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
         if(slots.complex.includes(k) && v!==null){
           if(typeof v!=="string" || v.length<2 || v.length>MAX) error("FIELD_FORMAT",k);
           try { request[k]=JSON.parse(v); } catch { error("FIELD_JSON",k); }
-        } else if(!slots.complex.includes(k) && !simpleMatches(slots.schema.properties[k],v)) error("FIELD_TYPE",k);
+        } else if(!slots.complex.includes(k) && (k==="task" ? v!==null && !plain(v) : !simpleMatches(slots.schema.properties[k],v))) error("FIELD_TYPE",k);
         else request[k]=v;
       }
     }
@@ -150,13 +151,21 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
         console.warn("[Ask semantic slots] canonical shape rejected",
           {branch:request.version==="ask-request.v2"?"semantic":"catalog",
             complexFieldCount:slots.complex.length,
-            readTicketPresent:request.readTicket!==null && request.readTicket!==undefined});
+            readTicketPresent:request.readTicket!==null && request.readTicket!==undefined,
+            invalidFields: request.version==="ask-request.v2" ? invalidCanonicalFields(request,checkRuntime) : []});
       throw e;
     }
     checkRuntime();
     const restored=wire.decode(graph);
     checkRuntime();
     return restored;
+  }
+
+  function invalidCanonicalFields(request,checkRuntime) {
+    const valid=makeValidator(canonicalRequestSchema,checkRuntime);
+    return Object.entries(canonicalRequestSchema.properties)
+      .filter(([key,fieldSchema])=>{checkRuntime();return !valid(fieldSchema,request[key]);})
+      .map(([key])=>key);
   }
 
   function simpleMatches(s,v) {

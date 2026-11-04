@@ -256,7 +256,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
   };
   // A parser error may disclose only a static schema field name, never model text.
   const directJsonFields = new Set(["calculatePlan", "storedRead", "removeJob", "stateTransitionJob",
-    "fieldMutationJob", "lifecyclePlan", "appendJob", "readTicket", "task", "writeJob",
+    "fieldMutationJob", "lifecyclePlan", "appendJob", "readTicket", "writeJob",
     "recordSelection", "projection", "evidenceNeeds", "frame"]);
   let directJsonField: string | undefined;
   const parseResponse = (response: Parameters<typeof interpretStructuredProviderResponse>[0], maximumMs: number, reserveMs: number) => {
@@ -309,14 +309,16 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
       } });
     let result = parseResponse(response, ASK_INTERPRETATION_LIMITS.timeoutMs, 24_000);
     let transportRepairUsed = false;
-    if (result.status === "invalid" && result.validationReason === "ASK_DIRECT_FIELD_JSON" && directJsonField) {
+    if (result.status === "invalid" && (result.validationReason === "ASK_WIRE_CANONICAL_SCHEMA"
+      || result.validationReason === "ASK_DIRECT_FIELD_JSON" && directJsonField)) {
+      const validationCode = result.validationReason;
       const field = directJsonField;
       // The rejected response is never reused, logged, or supplied as evidence.
       const repairRequest = { ...request,
-        instructions: request.instructions + "\nA previous response had invalid JSON in one complex field. Produce the entire response again from the original USER sources. Preserve the request and all scope. Do not infer facts or permissions.",
-        input: JSON.stringify({ ...input, transportRepair: { validationCode: "ASK_DIRECT_FIELD_JSON", field } }) };
+        instructions: request.instructions + "\nA previous response failed transport validation. Follow the canonical schema for every field. Produce the entire response again from the original USER sources. Preserve the request and all scope. Do not infer facts or permissions.",
+        input: JSON.stringify({ ...input, transportRepair: { validationCode, field } }) };
       assertAskRequestInputBudget(repairRequest);
-      console.info("[Ask Brain] transport repair", { validationCode: "ASK_DIRECT_FIELD_JSON", field });
+      console.info("[Ask Brain] transport repair", { validationCode, field });
       transportRepairUsed = true;
       const repairedResponse = await executeAdmittedResponsesRequest({ purpose: "interpretation_repair", model,
         maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens, stage: "interpretation",

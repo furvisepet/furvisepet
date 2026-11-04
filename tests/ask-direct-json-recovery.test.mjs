@@ -18,7 +18,7 @@ async function runCase(t,mode){
  const prepared=prepareAskInterpretationRequest(context,'gpt-5.4-mini');
  const canonical={request:{...structuredClone(template),question:text,scope:'named',petNames:['Aster'],topic:'profile'}};
  const good=directFixturePlan(prepared.transport).encode(canonical);
- const bad=structuredClone(good);bad.request.readTicket='{bad private example';
+ const bad=structuredClone(good);bad.request.readTicket=mode==='canonical'?'{}':'{bad private example';
  const store=new MemoryAiGuardTestStore();
  const admission=await admitAiOperation({env,store,feature:'ask',intendedModel:'gpt-5.4-mini',userId:'owner',requestId:'test-'+mode,payload:{case:mode},now:new Date('2039-01-01T00:00:00Z')});
  let calls=0;const purposes=[],events=[];const begin=admission.beginProviderCall.bind(admission);
@@ -26,10 +26,10 @@ async function runCase(t,mode){
  try{
   const invoke=()=>interpretAskQuestion({context,model:'gpt-5.4-mini',onProviderEvent:e=>events.push(e),client:{responses:{create:async req=>{
    calls++;
-   if(calls===2){const input=JSON.parse(req.input);assert.deepEqual(input.transportRepair,{validationCode:'ASK_DIRECT_FIELD_JSON',field:'readTicket'});assert.ok(!req.input.includes('bad private example'));}
+   if(calls===2){const input=JSON.parse(req.input);assert.deepEqual(input.transportRepair,mode==='canonical'?{validationCode:'ASK_WIRE_CANONICAL_SCHEMA'}:{validationCode:'ASK_DIRECT_FIELD_JSON',field:'readTicket'});assert.ok(!req.input.includes('bad private example'));}
    return {status:'completed',output_text:JSON.stringify(calls===1||mode==='bad_twice'?bad:good),usage};
   }}}});
-  if(mode==='success'){const result=await admission.run(invoke);assert.equal(result.request.evidenceBasis,'saved_profile');assert.deepEqual(result.petIds,['pet']);}
+  if(mode!=='bad_twice'){const result=await admission.run(invoke);assert.equal(result.request.evidenceBasis,'saved_profile');assert.deepEqual(result.petIds,['pet']);}
   else await assert.rejects(admission.run(invoke),e=>e.diagnostics?.providerErrorCode==='ASK_INTERPRETATION_REPAIR_JSON');
   assert.equal(calls,2);assert.deepEqual(purposes,['initial','interpretation_repair']);
   assert.equal(events.filter(e=>e.validationDetails==='bounded_transport_repair').length,1);
@@ -38,3 +38,4 @@ async function runCase(t,mode){
 }
 test('one admitted repair reinterprets original user sources and validates before authority',t=>runCase(t,'success'));
 test('a malformed repair fails closed without a third call',t=>runCase(t,'bad_twice'));
+test('canonical shape rejection gets one strict repair from the original sources',t=>runCase(t,'canonical'));
