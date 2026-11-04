@@ -108,3 +108,14 @@ test("provider-valid string may contain malformed nested JSON but never reaches 
  assert.throws(()=>p.decode(bad,()=>{}),e=>e.message==="ASK_DIRECT_FIELD_JSON"&&e.cause?.field==="frame");
  assert.equal(encodeCalls,before);
 });
+
+test("null premise list carries no facts on ordinary reads and general conversation",()=>{
+ const p=plan();
+ for(const basis of ["general","saved_history","saved_profile"]){
+   const request={...structuredClone(fixtures[0].canonical.request),mode:basis==="general"?"conversation":"read",
+     evidenceBasis:basis,calculatePlan:null,premiseQuotes:[]};
+   const wire=p.encode({request},()=>{});
+   wire.request.premiseQuotes=null;
+   assert.deepEqual(p.decode(wire,()=>{}).request.premiseQuotes,[]);
+ }
+});

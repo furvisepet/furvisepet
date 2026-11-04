@@ -111,6 +111,7 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
     "Simple strings and string arrays are native JSON values. The task, storedRead, recordSelection and readTicket fields are native objects or null. evidenceNeeds is a native array, empty when unused. Other complex objects/arrays are complete JSON strings (or null when allowed).",
     "For each complex field, serialize its complete value as valid JSON inside the outer JSON string: double-quote all keys and string values, escape inner double quotes and backslashes for the outer string, and never use comments, trailing commas, markdown, undefined or unquoted names.",
     "readTicket, when non-null, must be the complete typed ReadTicket object, not a JSON string.",
+    "For general conversation or a saved-record read, premiseQuotes is the native empty array []. For supplied_context, quote only facts the user actually supplied. A date or pet name used to locate a saved note is not a supplied premise.",
     "For a general or supplied-context conversation with no requested stored read, calculation, navigation or mutation: mode conversation, scope none, operation general, petNames [], readTicket null, frame null. A selected pet or an incidental name does not authorize a stored read. Preserve actual USER premises and any separately requested action; do not change evidence basis to fit a scope.",
     "For saved_profile: mode read, at least one profileFields entry, quantity null, temporalScope current or null, and scope selected/named/conversation/account. Set readTicket, storedRead, calculatePlan, mutation jobs, task, projection, recordSelection, from, to, episodeTopic, ordinal and frame to null; terms, evidenceNeeds and premiseQuotes are empty. Do not turn the request into another source domain.",
     "The catalogIntentJson variant is exclusively for source-grounded catalog intent. Ordinary requests use the typed " + slots.schema.required.length + "-field request.",
@@ -147,6 +148,12 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
         else request[k]=v;
       }
     }
+    // A null premise list conveys no facts, just like an empty one. Preserve
+    // nonempty lists and all mutation, calculation and supplied-premise validation.
+    if (request.version==="ask-request.v2" && request.premiseQuotes===null
+      && (request.mode==="read" || request.mode==="conversation")
+      && (request.evidenceBasis==="general" || request.evidenceBasis==="saved_history" || request.evidenceBasis==="saved_profile")
+      && request.calculatePlan===null) request.premiseQuotes=[];
     boundedJsonTree(request,checkRuntime);
     checkRuntime();
     // Original canonical codec is authoritative. No repairs, defaults, or field coercion.
