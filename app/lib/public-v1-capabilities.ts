@@ -57,7 +57,7 @@ export function publicV1AskCapability(request: unknown): PublicV1AskCapabilityDe
     return Object.freeze({ available: true, reason: "supported" });
   }
   // The bound conversation-only path drops saved sources before generation.
-  if (record.mode === "conversation" && record.evidenceBasis === "general"
+  if (record.mode === "conversation" && (record.evidenceBasis === "general" || record.evidenceBasis === "supplied_context")
     && record.readTicket == null && record.storedRead == null
     && (!Array.isArray(record.profileFields) || record.profileFields.length === 0)
     && (!Array.isArray(record.evidenceNeeds) || record.evidenceNeeds.length === 0))
