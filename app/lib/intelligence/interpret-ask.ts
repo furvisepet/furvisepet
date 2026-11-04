@@ -324,7 +324,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
       const fieldHints = canonicalFieldHints;
       // The rejected response is never reused, logged, or supplied as evidence.
       const repairRequest = { ...request,
-        instructions: request.instructions + "\nA previous response failed transport validation. Follow the canonical schema for every field. Produce the entire response again from the original USER sources. Preserve the request and all scope. Do not infer facts or permissions.",
+        instructions: request.instructions + "\nA previous response failed transport validation. If fieldHints are present, check those fields together against the same request branch, especially mode, scope and evidenceBasis. Follow the canonical schema for every field. Produce the entire response again from the original USER sources. Preserve the request and all scope. Do not infer facts or permissions.",
         input: JSON.stringify({ ...input, transportRepair: { validationCode, field, ...(fieldHints.length ? { fieldHints } : {}) } }) };
       assertAskRequestInputBudget(repairRequest);
       console.info("[Ask Brain] transport repair", { validationCode, field, fieldHints });
