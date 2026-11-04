@@ -18,7 +18,7 @@ async function runCase(t,mode){
  const prepared=prepareAskInterpretationRequest(context,'gpt-5.4-mini');
  const canonical={request:{...structuredClone(template),question:text,scope:'named',petNames:['Aster'],topic:'profile'}};
  const good=directFixturePlan(prepared.transport).encode(canonical);
- const bad=structuredClone(good);if(mode==='cross_field')bad.request.quantity='records';else bad.request.readTicket=mode==='canonical'?'{}':'{bad private example';
+ const bad=structuredClone(good);if(mode==='cross_field')bad.request.quantity='records';else if(mode==='canonical')bad.request.readTicket={};else bad.request.frame='{bad private example';
  const store=new MemoryAiGuardTestStore();
  const admission=await admitAiOperation({env,store,feature:'ask',intendedModel:'gpt-5.4-mini',userId:'owner',requestId:'test-'+mode,payload:{case:mode},now:new Date('2039-01-01T00:00:00Z')});
  let calls=0;const purposes=[],events=[];const begin=admission.beginProviderCall.bind(admission);
@@ -26,7 +26,7 @@ async function runCase(t,mode){
  try{
   const invoke=()=>interpretAskQuestion({context,model:'gpt-5.4-mini',onProviderEvent:e=>events.push(e),client:{responses:{create:async req=>{
    calls++;
-   if(calls===2){const input=JSON.parse(req.input);if(mode==='cross_field'){assert.equal(input.transportRepair.validationCode,'ASK_WIRE_CANONICAL_SCHEMA');assert.ok(input.transportRepair.fieldHints.includes('quantity'));}else if(mode==='canonical'){assert.equal(input.transportRepair.validationCode,'ASK_WIRE_CANONICAL_SCHEMA');assert.ok(input.transportRepair.fieldHints.includes('readTicket'));}else assert.deepEqual(input.transportRepair,{validationCode:'ASK_DIRECT_FIELD_JSON',field:'readTicket'});assert.ok(!req.input.includes('bad private example'));}
+   if(calls===2){const input=JSON.parse(req.input);if(mode==='cross_field'){assert.equal(input.transportRepair.validationCode,'ASK_WIRE_CANONICAL_SCHEMA');assert.ok(input.transportRepair.fieldHints.includes('quantity'));}else if(mode==='canonical'){assert.equal(input.transportRepair.validationCode,'ASK_WIRE_CANONICAL_SCHEMA');assert.ok(input.transportRepair.fieldHints.includes('readTicket'));}else assert.deepEqual(input.transportRepair,{validationCode:'ASK_DIRECT_FIELD_JSON',field:'frame'});assert.ok(!req.input.includes('bad private example'));}
    return {status:'completed',output_text:JSON.stringify(calls===1||mode==='bad_twice'?bad:good),usage};
   }}}});
   if(mode!=='bad_twice'){const result=await admission.run(invoke);assert.equal(result.request.evidenceBasis,'saved_profile');assert.deepEqual(result.petIds,['pet']);}
@@ -41,3 +41,18 @@ test('a malformed repair fails closed without a third call',t=>runCase(t,'bad_tw
 test('canonical shape rejection gets one strict repair from the original sources',t=>runCase(t,'canonical'));
 
 test('individually valid but conflicting profile fields get bounded schema-key hints',t=>runCase(t,'cross_field'));
+
+test('factored provider schema expands exactly to the provider-compatible direct schema',async()=>{
+ const {createAskProviderWireSchema}=await import('../app/lib/intelligence/ask-wire-provider-schema.ts');
+ const prepared=prepareAskInterpretationRequest(context,'gpt-5.4-mini');
+ const factored=prepared.request.text.format.schema, defs=factored.$defs||{};
+ function expand(value,seen=[]){
+  if(Array.isArray(value))return value.map(v=>expand(v,seen));
+  if(!value||typeof value!=='object')return value;
+  if(Object.hasOwn(value,'$ref')){assert.equal(Object.keys(value).length,1);const prefix='#/$defs/';assert.ok(value.$ref.startsWith(prefix));const key=value.$ref.slice(prefix.length);assert.ok(!seen.includes(key));assert.ok(Object.hasOwn(defs,key));return expand(defs[key],[...seen,key]);}
+  return Object.fromEntries(Object.entries(value).filter(([k])=>k!=='$defs').map(([k,v])=>[k,expand(v,seen)]));
+ }
+ assert.deepEqual(expand(factored),createAskProviderWireSchema(prepared.transport.schema));
+ const branch=prepared.transport.schema.properties.request.anyOf[0];
+ assert.notEqual(branch.properties.readTicket.type,'string');
+});

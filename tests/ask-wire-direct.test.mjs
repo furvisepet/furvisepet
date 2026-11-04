@@ -39,7 +39,7 @@ test("schema forces every required semantic field; scalars are typed and complex
  assert.equal(branch.properties.question.type,"string");
  assert.equal(branch.properties.mode.enum.includes("read"),true);
  assert.equal(branch.properties.petNames.type,"array");
- assert.ok(branch.properties.readTicket.type.includes("null"));
+ assert.deepEqual(branch.properties.readTicket,schema.properties.readTicket);
  for(const field of ["task","storedRead","recordSelection","evidenceNeeds"])
    assert.deepEqual(branch.properties[field],schema.properties[field]);
  assert.equal(p.schema.properties.request.anyOf[1].required[0],"catalogIntentJson");
@@ -57,7 +57,7 @@ test("each existing semantic fixture roundtrips through server-owned graph, neve
    assert.equal(typeof result.request.question,"string");
    for(const field of ["task","storedRead","recordSelection","evidenceNeeds"])
      assert.deepEqual(result.request[field],canonical.request[field]);
-   if(canonical.request.readTicket!==null) assert.equal(typeof result.request.readTicket,"string");
+   if(canonical.request.readTicket!==null) assert.equal(typeof result.request.readTicket,"object");
    assert.deepEqual(p.decode(JSON.parse(JSON.stringify(result)),()=>{}),canonical);
    assert.ok(!Object.hasOwn(result.request,"nodes"));
    passes++;
@@ -101,10 +101,10 @@ test("literal malicious reference text remains data and cannot become a graph ed
 test("provider-valid string may contain malformed nested JSON but never reaches canonical authority",async()=>{
  const {makeValidator}=await import("../app/lib/intelligence/ask-wire-codec.mjs");
  const p=plan(),good=p.encode(structuredClone(fixtures[0].canonical),()=>{});
- const bad=structuredClone(good);bad.request.readTicket="{broken";
+ const bad=structuredClone(good);bad.request.frame="{broken";
  const valid=makeValidator(p.schema);
  assert.equal(valid(p.schema,bad),true);
  const before=encodeCalls;
- assert.throws(()=>p.decode(bad,()=>{}),e=>e.message==="ASK_DIRECT_FIELD_JSON"&&e.cause?.field==="readTicket");
+ assert.throws(()=>p.decode(bad,()=>{}),e=>e.message==="ASK_DIRECT_FIELD_JSON"&&e.cause?.field==="frame");
  assert.equal(encodeCalls,before);
 });
