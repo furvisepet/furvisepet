@@ -1,4 +1,4 @@
-import { recursiveFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
+import { directFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {registerHooks} from 'node:module';
@@ -39,7 +39,7 @@ test('unavailable catalog fails closed without guessed exact handles',()=>admitt
 test('same Brain source-free intent then permitted exact selection; Binder owns record/version',()=>admitted(async()=>{
  const{f,intent}=setup();const row={id:id(4),user_id:id(1),pet_profile_id:f.pet.id,note:'Supplied original.',occurred_at:'2026-09-22T00:00:00Z',created_at:'2026-09-22T00:00:00Z',updated_at:'2026-09-22T00:00:00Z'};
  const order=[];let calls=0;globalThis.__replaceCatalog={rpc:async(name)=>{order.push(name);return{data:[row],error:null};}};
- const prepared=prepareAskInterpretationRequest(f.context,'gpt-5.4-mini'),wire=recursiveFixturePlan(prepared.wire);
+ const prepared=prepareAskInterpretationRequest(f.context,'gpt-5.4-mini'),wire=directFixturePlan(prepared.transport);
  const result=await interpretAskQuestion({context:f.context,model:'gpt-5.4-mini',catalogService:{requestId:'staged-exact',capability:()=>({available:true}),hydrate:permit=>hydratePlanningCatalog(permit,prepared.context,f.db),verify:permit=>verifyPlanningCatalogSource(permit,f.db)},client:{responses:{create:async request=>{
  calls++;order.push('brain-'+calls);const text=JSON.stringify(request);assert.ok(!text.includes(row.id),'opaque provider catalog');
  if(calls===1){assert.ok(!text.includes(row.note));assert.deepEqual(request.text.format.schema,prepared.request.text.format.schema);assert.equal(request.instructions,prepared.request.instructions);assert.equal(request.input,prepared.request.input);return{output_text:JSON.stringify(wire.encode({request:intent})),usage:{input_tokens:0,output_tokens:0}};}
