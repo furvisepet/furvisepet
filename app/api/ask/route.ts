@@ -614,6 +614,19 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         }
       }
       if (!interpretation.clarification && !publicV1Capability.available) {
+        // Only fixed categories and presence flags; never log question or model text.
+        const gateRequest = interpretation.request;
+        const mode = gateRequest?.mode;
+        const basis = gateRequest?.evidenceBasis;
+        console.info("[Ask public gate] limited", {
+          reason: publicV1Capability.reason,
+          mode: mode && ["read", "conversation", "update", "mixed", "clarify"].includes(mode) ? mode : null,
+          evidenceBasis: basis && ["saved_history", "saved_profile", "stored", "supplied_context", "general"].includes(basis) ? basis : null,
+          conversationOnly: interpretation.conversationOnly === true,
+          readTicket: !!gateRequest?.readTicket, storedRead: !!gateRequest?.storedRead,
+          profileFields: !!gateRequest?.profileFields?.length, evidenceNeeds: !!gateRequest?.evidenceNeeds?.length,
+          calculation: !!gateRequest?.calculatePlan,
+        });
         if (creditReserved) {
           const released = await safeReleaseAiCredit({ logicalRequestId: logicalTurnId, payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
           creditReserved = false;

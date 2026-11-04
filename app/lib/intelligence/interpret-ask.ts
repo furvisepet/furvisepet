@@ -199,7 +199,7 @@ export function prepareAskInterpretationRequest(original: InterpretationContext,
       factorProviderCompoundSchemas(factorProviderEnumSchemas(canonicalSchema, checkBudget), checkBudget),
       ASK_REQUEST_INSTRUCTIONS, undefined, checkBudget
     );
-  const transport = createDirectSemanticAskWirePlan(wire, wire.instructions, askRequestSchema(proposedSemanticFrameJsonSchema, context), checkBudget);
+  const transport = createDirectSemanticAskWirePlan(wire, wire.instructions, askRequestSchema(proposedSemanticFrameJsonSchema, context), checkBudget, canonicalSchema);
   const request = { model, max_output_tokens: ASK_INTERPRETATION_LIMITS.outputTokens,
     ...(/^gpt-5\.4(?:-|$)/i.test(model) ? { reasoning: { effort: "none" } } : /^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}),
     instructions: transport.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: createAskProviderWireSchema(transport.schema, checkBudget) } } };
@@ -259,8 +259,10 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     "fieldMutationJob", "lifecyclePlan", "appendJob", "readTicket", "writeJob",
     "projection", "frame"]);
   let directJsonField: string | undefined;
+  let canonicalFieldHints: string[] = [];
   const parseResponse = (response: Parameters<typeof interpretStructuredProviderResponse>[0], maximumMs: number, reserveMs: number) => {
     directJsonField = undefined;
+    canonicalFieldHints = [];
     const check = runtimeCheck(maximumMs, reserveMs);
     let deadlineError: StageDeadlineError | AiAdmissionError | undefined;
     const result = interpretStructuredProviderResponse(response, raw => {
@@ -274,6 +276,11 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
         // The generic parser classifies decoding failures as JSON. A depleted
         // runtime deadline is a timeout/admission failure, never malformed JSON.
         if (error instanceof StageDeadlineError || error instanceof AiAdmissionError) deadlineError = error;
+        if (error instanceof Error && error.message === "ASK_WIRE_CANONICAL_SCHEMA") {
+          const hint = (error.cause as { nearestBranchFields?: unknown } | undefined)?.nearestBranchFields;
+          const allowed = new Set(Object.keys(askRequestSchema(proposedSemanticFrameJsonSchema, context).properties));
+          if (Array.isArray(hint)) canonicalFieldHints = hint.filter((field): field is string => typeof field === "string" && allowed.has(field)).slice(0, 20);
+        }
         if (error instanceof Error && error.message === "ASK_DIRECT_FIELD_JSON") {
           const field = (error.cause as { field?: unknown } | undefined)?.field;
           if (typeof field === "string" && directJsonFields.has(field)) directJsonField = field;
@@ -313,12 +320,13 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
       || result.validationReason === "ASK_DIRECT_FIELD_JSON" && directJsonField)) {
       const validationCode = result.validationReason;
       const field = directJsonField;
+      const fieldHints = canonicalFieldHints;
       // The rejected response is never reused, logged, or supplied as evidence.
       const repairRequest = { ...request,
         instructions: request.instructions + "\nA previous response failed transport validation. Follow the canonical schema for every field. Produce the entire response again from the original USER sources. Preserve the request and all scope. Do not infer facts or permissions.",
-        input: JSON.stringify({ ...input, transportRepair: { validationCode, field } }) };
+        input: JSON.stringify({ ...input, transportRepair: { validationCode, field, ...(fieldHints.length ? { fieldHints } : {}) } }) };
       assertAskRequestInputBudget(repairRequest);
-      console.info("[Ask Brain] transport repair", { validationCode, field });
+      console.info("[Ask Brain] transport repair", { validationCode, field, fieldHints });
       transportRepairUsed = true;
       const repairedResponse = await executeAdmittedResponsesRequest({ purpose: "interpretation_repair", model,
         maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens, stage: "interpretation",

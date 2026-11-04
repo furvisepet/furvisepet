@@ -89,7 +89,8 @@ function buildSlotsSchema(requestSchema) {
   return { schema:{type:"object",additionalProperties:false,required:requestSchema.required.slice(),properties:props}, complex };
 }
 
-export function createDirectSemanticAskWirePlan(wire, originalInstructions, canonicalRequestSchema, checkCompilation = () => {}) {
+/** @param {{properties?: {request?: {anyOf?: object[]}}} | null} canonicalProviderSchema */
+export function createDirectSemanticAskWirePlan(wire, originalInstructions, canonicalRequestSchema, checkCompilation = () => {}, canonicalProviderSchema = null) {
   checkCompilation();
   if (typeof wire?.encode !== "function" || typeof wire?.decode !== "function"
     || typeof originalInstructions !== "string" || originalInstructions.length < 1000) error("COMPILE_CONTRACT");
@@ -110,6 +111,7 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
     "Simple strings and string arrays are native JSON values. The task, storedRead and recordSelection fields are native objects or null. evidenceNeeds is a native array, empty when unused. Other complex objects/arrays are complete JSON strings (or null when allowed).",
     "For each complex field, serialize its complete value as valid JSON inside the outer JSON string: double-quote all keys and string values, escape inner double quotes and backslashes for the outer string, and never use comments, trailing commas, markdown, undefined or unquoted names.",
     "readTicket, when non-null, must be a JSON string containing the complete typed ReadTicket object.",
+    "For saved_profile: mode read, at least one profileFields entry, quantity null, temporalScope current or null, and scope selected/named/conversation/account. Set readTicket, storedRead, calculatePlan, mutation jobs, task, projection, recordSelection, from, to, episodeTopic, ordinal and frame to null; terms, evidenceNeeds and premiseQuotes are empty. Do not turn the request into another source domain.",
     "The catalogIntentJson variant is exclusively for source-grounded catalog intent. Ordinary requests use the typed " + slots.schema.required.length + "-field request.",
     "Use full canonical field names shown to the right of = in FIELDS. The POLICY $ aliases are only reading shorthand.",
     lines[2],"POLICY",...lines.slice(i+1),
@@ -150,12 +152,14 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
     let graph;
     try { graph=wire.encode({request}); }
     catch(e) {
-      if(process.env.NODE_ENV==="production" && e instanceof Error && e.message==="ASK_WIRE_CANONICAL_SCHEMA")
-        console.warn("[Ask semantic slots] canonical shape rejected",
-          {branch:request.version==="ask-request.v2"?"semantic":"catalog",
-            complexFieldCount:slots.complex.length,
-            readTicketPresent:request.readTicket!==null && request.readTicket!==undefined,
-            invalidFields: request.version==="ask-request.v2" ? invalidCanonicalFields(request,checkRuntime) : []});
+      if(e instanceof Error && e.message==="ASK_WIRE_CANONICAL_SCHEMA" && request.version==="ask-request.v2") {
+        const fields=invalidCanonicalFields(request,checkRuntime);
+        const branches=nearestCanonicalFields(request,checkRuntime);
+        if(process.env.NODE_ENV==="production")
+          console.warn("[Ask semantic slots] canonical shape rejected", {branch:"semantic",invalidFields:fields,nearestBranchFields:branches});
+        // Fixed schema keys only; rejected text and values never leave this boundary.
+        throw new Error("ASK_WIRE_CANONICAL_SCHEMA",{cause:{invalidFields:fields,nearestBranchFields:branches}});
+      }
       throw e;
     }
     checkRuntime();
@@ -169,6 +173,24 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
     return Object.entries(canonicalRequestSchema.properties)
       .filter(([key,fieldSchema])=>{checkRuntime();return !valid(fieldSchema,request[key]);})
       .map(([key])=>key);
+  }
+
+  function nearestCanonicalFields(request,checkRuntime) {
+    const variants=canonicalProviderSchema?.properties?.request?.anyOf;
+    if(!Array.isArray(variants)) return [];
+    const valid=makeValidator(canonicalProviderSchema,checkRuntime);
+    const candidates=[];
+    for(const branch of variants) {
+      checkRuntime();
+      if(!plain(branch?.properties) || !branch.properties.version?.enum?.includes("ask-request.v2")) continue;
+      const fields=Object.entries(branch.properties).filter(([key,fieldSchema]) => {
+        checkRuntime(); return Object.hasOwn(canonicalRequestSchema.properties,key) && !valid(fieldSchema,request[key]);
+      }).map(([key])=>key);
+      candidates.push(fields);
+    }
+    if(!candidates.length) return [];
+    const min=Math.min(...candidates.map(fields=>fields.length));
+    return [...new Set(candidates.filter(fields=>fields.length===min).flat())].sort().slice(0,20);
   }
 
   function simpleMatches(s,v) {
