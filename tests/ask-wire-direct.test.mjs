@@ -40,7 +40,8 @@ test("schema forces every required semantic field; scalars are typed and complex
  assert.equal(branch.properties.mode.enum.includes("read"),true);
  assert.equal(branch.properties.petNames.type,"array");
  assert.ok(branch.properties.readTicket.type.includes("null"));
- assert.deepEqual(branch.properties.task,schema.properties.task);
+ for(const field of ["task","storedRead","recordSelection","evidenceNeeds"])
+   assert.deepEqual(branch.properties[field],schema.properties[field]);
  assert.equal(p.schema.properties.request.anyOf[1].required[0],"catalogIntentJson");
  assert.ok(!p.instructions.includes("TAGS\n"));
 });
@@ -54,7 +55,8 @@ test("each existing semantic fixture roundtrips through server-owned graph, neve
    assert.equal(result.format,DIRECT_ASK_FORMAT_VERSION);
    assert.equal(result.request.version,"ask-request.v2");
    assert.equal(typeof result.request.question,"string");
-   assert.deepEqual(result.request.task,canonical.request.task);
+   for(const field of ["task","storedRead","recordSelection","evidenceNeeds"])
+     assert.deepEqual(result.request[field],canonical.request[field]);
    if(canonical.request.readTicket!==null) assert.equal(typeof result.request.readTicket,"string");
    assert.deepEqual(p.decode(JSON.parse(JSON.stringify(result)),()=>{}),canonical);
    assert.ok(!Object.hasOwn(result.request,"nodes"));
@@ -71,6 +73,9 @@ test("malformed, truncated, unexpected or bypass variants are rejected before au
  {...good,request:{...good.request,readTicket:"{broken"}},
  {...good,request:{...good.request,question:42}},
  {...good,request:{...good.request,task:"{broken"}},
+ {...good,request:{...good.request,storedRead:"null"}},
+ {...good,request:{...good.request,recordSelection:"{}"}},
+ {...good,request:{...good.request,evidenceNeeds:"[]"}},
  {...good,request:{...good.request,extra:"unreviewed"}},
  {...good,request:{...good.request,readTicket:"[]"}},
  {...good,request:{catalogIntentJson:JSON.stringify(good.request)}},

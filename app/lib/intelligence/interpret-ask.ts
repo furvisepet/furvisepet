@@ -255,9 +255,9 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     return check;
   };
   // A parser error may disclose only a static schema field name, never model text.
-  const directJsonFields = new Set(["calculatePlan", "storedRead", "removeJob", "stateTransitionJob",
+  const directJsonFields = new Set(["calculatePlan", "removeJob", "stateTransitionJob",
     "fieldMutationJob", "lifecyclePlan", "appendJob", "readTicket", "writeJob",
-    "recordSelection", "projection", "evidenceNeeds", "frame"]);
+    "projection", "frame"]);
   let directJsonField: string | undefined;
   const parseResponse = (response: Parameters<typeof interpretStructuredProviderResponse>[0], maximumMs: number, reserveMs: number) => {
     directJsonField = undefined;

@@ -11,6 +11,7 @@ const plain = v => v !== null && typeof v === "object" && !Array.isArray(v)
 const equal = (x,y) => JSON.stringify(x) === JSON.stringify(y);
 export const DIRECT_ASK_FORMAT_VERSION = "ask-semantic-slots.v1";
 const MAX = RECURSIVE_TRANSPORT_LIMITS.maxSerializedCharacters;
+const nativeStructuredFields = new Set(["task", "storedRead", "recordSelection", "evidenceNeeds"]);
 
 function boundedJsonTree(value, check) {
   let total = 0, containers = 0, chars = 0;
@@ -71,7 +72,7 @@ function buildSlotsSchema(requestSchema) {
     || requestSchema.required.length < 30) error("CANONICAL_SCHEMA_DRIFT");
   const props={};const complex=[];
   for(const [key,s] of Object.entries(requestSchema.properties)) {
-    if(key==="task" || nativeScalar(s)) {
+    if(nativeStructuredFields.has(key) || nativeScalar(s)) {
       props[key] = structuredClone(s);
       // Certain authoritative provider branches permit null for quoted-premise arrays.
       if(key==="premiseQuotes") props[key]={anyOf:[props[key],{type:"null"}]};
@@ -106,7 +107,7 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
     "Return format ask-semantic-slots.v1 and a request OBJECT following the required typed schema.",
     "Do not use graph nodes, field aliases, packed tags or speculative evidence.",
     "All request keys are mandatory. Use null/[] for inactive fields, never omit or invent.",
-    "Simple strings and string arrays are native JSON values. The task field is a native object or null. Other complex objects/arrays are complete JSON strings (or null when allowed).",
+    "Simple strings and string arrays are native JSON values. The task, storedRead and recordSelection fields are native objects or null. evidenceNeeds is a native array, empty when unused. Other complex objects/arrays are complete JSON strings (or null when allowed).",
     "For each complex field, serialize its complete value as valid JSON inside the outer JSON string: double-quote all keys and string values, escape inner double quotes and backslashes for the outer string, and never use comments, trailing commas, markdown, undefined or unquoted names.",
     "readTicket, when non-null, must be a JSON string containing the complete typed ReadTicket object.",
     "The catalogIntentJson variant is exclusively for source-grounded catalog intent. Ordinary requests use the typed " + slots.schema.required.length + "-field request.",
@@ -137,7 +138,9 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
         if(slots.complex.includes(k) && v!==null){
           if(typeof v!=="string" || v.length<2 || v.length>MAX) error("FIELD_FORMAT",k);
           try { request[k]=JSON.parse(v); } catch { error("FIELD_JSON",k); }
-        } else if(!slots.complex.includes(k) && (k==="task" ? v!==null && !plain(v) : !simpleMatches(slots.schema.properties[k],v))) error("FIELD_TYPE",k);
+        } else if(!slots.complex.includes(k) && (nativeStructuredFields.has(k)
+          ? k==="evidenceNeeds" ? !Array.isArray(v) : v!==null && !plain(v)
+          : !simpleMatches(slots.schema.properties[k],v))) error("FIELD_TYPE",k);
         else request[k]=v;
       }
     }
