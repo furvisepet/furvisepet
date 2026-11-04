@@ -20,8 +20,18 @@ grant usage on schema auth, public, extensions to anon,authenticated,service_rol
 grant execute on all functions in schema auth to anon,authenticated,service_role;
 `);
 
-for(const file of readdirSync('supabase/migrations').filter(f=>f.endsWith('.sql') && !f.endsWith('_schedule_owner_note_enrichment.sql')).sort()) {
- await db.exec('begin;\n'+readFileSync(`supabase/migrations/${file}`,'utf8')+'\ncommit;');
+// Historical migration recovered from commit d5513439577eb109e2075466acfa3b02291b41f6.
+ // CI-only fixture: never add this historical artifact to the live migration chain.
+const historical = '20260919083800_ask_task_note_span_v2.sql';
+const files = readdirSync('supabase/migrations').filter(f=>f.endsWith('.sql') && !f.endsWith('_schedule_owner_note_enrichment.sql'));
+if (!files.includes(historical)) files.push(historical);
+for(const file of files.sort()) {
+ const path = file === historical && !readdirSync('supabase/migrations').includes(historical)
+  ? new URL('../fixtures/' + historical, import.meta.url) : `supabase/migrations/${file}`;
+ // The task-writer guard hashes the historical LF source; Windows checkout may use CRLF.
+ const sql = readFileSync(path,'utf8');
+ const canonical = ['20260916020025_ask_task_continuation.sql','20261004233000_guard_canonical_task_writers.sql'].includes(file) ? sql.replace(/\r\n/g,'\n') : sql;
+ await db.exec('begin;\n'+canonical+'\ncommit;');
  await db.query('insert into supabase_migrations.schema_migrations(version,name) values($1,$2)',[file.split('_')[0],file.replace(/^\d+_|\.sql$/g,'')]);
  migrations++;
 }
