@@ -89,3 +89,14 @@ test("literal malicious reference text remains data and cannot become a graph ed
  canonical.request.question='Literal {"@":999} from user, do not follow';
  assert.deepEqual(p.decode(p.encode(canonical,()=>{}),()=>{}),canonical);
 });
+
+test("provider-valid string may contain malformed nested JSON but never reaches canonical authority",async()=>{
+ const {makeValidator}=await import("../app/lib/intelligence/ask-wire-codec.mjs");
+ const p=plan(),good=p.encode(structuredClone(fixtures[0].canonical),()=>{});
+ const bad=structuredClone(good);bad.request.readTicket="{broken";
+ const valid=makeValidator(p.schema);
+ assert.equal(valid(p.schema,bad),true);
+ const before=encodeCalls;
+ assert.throws(()=>p.decode(bad,()=>{}),e=>e.message==="ASK_DIRECT_FIELD_JSON"&&e.cause?.field==="readTicket");
+ assert.equal(encodeCalls,before);
+});
