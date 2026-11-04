@@ -24,7 +24,7 @@ const proposal = readTicket => ({ version: 'ask-request.v2', readTicket, mode: '
   from: null, to: null, episodeTopic: null, ordinal: null, frame: null, evidenceBasis: 'saved_history', premiseQuotes: [] });
 
 // Synthetic proposals isolate diagnostics; the failed live proposal was not captured.
-test('rejected read_since_event logs the entire ticket and missing-anchor rule, then stops after one planner', async t => {
+test('rejected read_since_event logs safe structural diagnostics and stops after one planner', async t => {
   const rejected = ticket(); rejected.temporal.anchor = null;
   const before = structuredClone(rejected);
   const warn = t.mock.method(console, 'warn', () => {});
@@ -41,18 +41,17 @@ test('rejected read_since_event logs the entire ticket and missing-anchor rule, 
   const logs = warn.mock.calls.filter(call => call.arguments[0] === '[Ask Brain] rejected read ticket');
   assert.equal(logs.length, 1);
   const logged = JSON.parse(logs[0].arguments[1]);
-  assert.equal(logged.sourceMessageId, 'source-message');
   assert.equal(logged.errorCode, 'ASK_REQUEST_CONTRACT_READ_TICKET');
   assert.equal(logged.field, 'temporal.anchor');
   assert.equal(logged.rule, 'anchor_iff_read_since_event');
   assert.equal(logged.readTicketPresent, true);
-  assert.deepEqual(logged.readTicket, before);
-  assert.equal(logged.request.operation, 'recall');
-  assert.equal(logged.readTicket.operation, 'read_since_event');
+  assert.equal(logged.readTicketObject, true);
+  assert.equal(logged.predicateCount, 1);
+  assert.doesNotMatch(JSON.stringify(logged), /Bramble|turkey|dental|source-message/);
   assert.deepEqual(rejected, before);
 });
 
-test('cross-field rejection preserves the complete anchor and reports the incompatible strategy', async t => {
+test('cross-field rejection reports the incompatible strategy without private data', async t => {
   const rejected = ticket(); rejected.outputs.strategy = 'event_candidates';
   const warn = t.mock.method(console, 'warn', () => {});
   let calls = 0;
@@ -62,7 +61,7 @@ test('cross-field rejection preserves the complete anchor and reports the incomp
   const logged = JSON.parse(warn.mock.calls.find(call => call.arguments[0] === '[Ask Brain] rejected read ticket').arguments[1]);
   assert.equal(logged.field, 'outputs.strategy');
   assert.equal(logged.rule, 'event_candidates_requires_read_and_predicates');
-  assert.deepEqual(logged.readTicket, rejected);
+  assert.equal(logged.readTicketObject, true);
   assert.equal(calls, 1);
 });
 
@@ -75,7 +74,7 @@ test('request-envelope rejection identifies the envelope field without changing 
   const logged = JSON.parse(warn.mock.calls.find(call => call.arguments[0] === '[Ask Brain] rejected read ticket').arguments[1]);
   assert.equal(logged.field, 'request.evidenceBasis');
   assert.equal(logged.rule, 'request.evidenceBasis');
-  assert.deepEqual(logged.readTicket, rejected.readTicket);
+  assert.equal(logged.readTicketObject, true);
 });
 
 test('missing ticket remains rejected and its absence is explicit in diagnostics', async t => {
@@ -89,7 +88,7 @@ test('missing ticket remains rejected and its absence is explicit in diagnostics
   assert.equal(logged.field, 'readTicket');
   assert.equal(logged.rule, 'saved_history_read_requires_ticket');
   assert.equal(logged.readTicketPresent, false);
-  assert.equal(logged.readTicket, null);
+  assert.equal(logged.readTicketObject, false);
 });
 
 test('field diagnostics keep invalid ordering, dates, predicates and operations rejected', () => {
@@ -172,7 +171,7 @@ test('captured Bramble ticket binds only with needs stripped, through one planne
         const logged = JSON.parse(logs[0].arguments[1]);
         assert.equal(logged.field, 'operation');
         assert.equal(logged.rule, 'read_since_event_incompatible_with_needs');
-        assert.deepEqual(logged.readTicket, original);
+        assert.equal(logged.readTicketObject, true);
       } else {
         const {strategy: _legacyStrategy,...outputs}=candidate.outputs;
         const expected = bindReadTicket({...candidate,outputs}, [pet.id], bindings);
@@ -249,7 +248,7 @@ test('captured Dune ticket binds only with needs stripped, through one planner p
         const logged = JSON.parse(logs[0].arguments[1]);
         assert.equal(logged.field, 'needs');
         assert.equal(logged.rule, 'needs_incompatible_with_single_measurement_read');
-        assert.deepEqual(logged.readTicket, original);
+        assert.equal(logged.readTicketObject, true);
       } else {
         const { strategy, ...outputs } = candidate.outputs;
         const expected = bindCompositionalReadTicket({ ...candidate, outputs,
@@ -423,10 +422,10 @@ test('captured #4 is rejected after one mocked planner with full named diagnosti
   const diagnostic = JSON.parse(logs[0].arguments[1]);
   assert.equal(diagnostic.field, 'temporal.calendar');
   assert.equal(diagnostic.rule, 'calendar_oldest_year_incompatible_with_measurement_limit');
-  assert.deepEqual(diagnostic.readTicket, failedEarliestMeasurementTicket);
+  assert.equal(diagnostic.readTicketObject, true);
 });
 
-test('READ_NEEDS failures retain full needs and parent ticket after one planner', async t => {
+test('READ_NEEDS failures expose counts but not private ticket contents', async t => {
   const valid = structuredClone(capturedDuneTicket.needs[0]);
   const cases = [
     ['bad-array', {}, 'needs', 'array_max_4'],
@@ -460,8 +459,9 @@ test('READ_NEEDS failures retain full needs and parent ticket after one planner'
     const diagnostic = JSON.parse(logs[0].arguments[1]);
     assert.equal(diagnostic.errorCode, 'ASK_REQUEST_CONTRACT_READ_NEEDS');
     assert.equal(diagnostic.field, field); assert.equal(diagnostic.rule, rule);
-    assert.deepEqual(diagnostic.needs, needs);
-    assert.deepEqual(diagnostic.readTicket, before);
+    assert.equal(diagnostic.needsCount, Array.isArray(needs) ? needs.length : null);
+    assert.equal(diagnostic.readTicketObject, true);
+    assert.doesNotMatch(JSON.stringify(diagnostic), /Bramble|turkey|dental/);
     assert.deepEqual(candidate, before);
   });
 });

@@ -100,19 +100,20 @@ export function recoverAskInterpretation(value: unknown, context: Interpretation
       if (reason === "read_ticket" || reason === "read_ticket_required" || reason === "read_needs") {
         const proposal = value as Record<string, unknown>;
         const validation = error instanceof Error ? error.cause as { field?: string; rule?: string } | undefined : undefined;
-        // JSON retains every proposed field, including nested arrays and nulls;
-        // console object inspection can truncate these and hide the failing shape.
-        // This diagnostic is server-only. It never changes the rejected proposal.
+        // Log only server-defined diagnostics and bounded structural counts.
+        // Model-proposed ticket text, names and values may contain private user data.
+        const raw = proposal.readTicket;
+        const ticket = raw && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, unknown> : null;
+        const count = (value: unknown) => Array.isArray(value) ? Math.min(value.length, 100) : null;
         console.warn("[Ask Brain] rejected read ticket", JSON.stringify({
           errorCode: `ASK_REQUEST_CONTRACT_${reason.toUpperCase()}`,
-          sourceMessageId: context.currentTurn?.id ?? null,
           field: validation?.field ?? null,
           rule: validation?.rule ?? validation?.field ?? null,
           readTicketPresent: Object.hasOwn(proposal, "readTicket"),
-          readTicket: proposal.readTicket ?? null,
-          needs: (proposal.readTicket as Record<string, unknown> | null)?.needs ?? null,
-          request: { mode: proposal.mode, operation: proposal.operation, scope: proposal.scope,
-            petNames: proposal.petNames, evidenceBasis: proposal.evidenceBasis, writeJob: proposal.writeJob ?? null },
+          readTicketObject: Boolean(ticket),
+          predicateCount: count(ticket?.predicates),
+          needsCount: count(ticket?.needs),
+          probesCount: count(ticket?.probes),
         }));
       }
       if (reason === "write_job") {
@@ -464,9 +465,8 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
       }
     }
     if (parsed.planningRecovery) throw fail(parsed.planningRecovery, "semantic", metadata);
-    console.info("[Ask Brain] validated", { sourceMessageId: context.currentTurn?.id, mode: parsed.request?.mode,
-      operation: parsed.request?.writeJob?.operation ?? parsed.operation, readTicket: parsed.request?.readTicket || null, writeJob: parsed.request?.writeJob
-        ? { target: parsed.request.writeJob.target, petId: parsed.request.writeJob.petId, bodyStart: parsed.request.writeJob.body.start, bodyEnd: parsed.request.writeJob.body.end } : null });
+    console.info("[Ask Brain] validated", { mode: parsed.request?.mode, operation: parsed.operation,
+      readTicketPresent: Boolean(parsed.request?.readTicket), writeJobPresent: Boolean(parsed.request?.writeJob) });
     onProviderEvent?.({ stage: "interpretation", outcome: "succeeded", model, elapsedMs: Date.now() - started, ...metadata });
     return { ...parsed, ...(context.planningSourceWindow?.omittedPriorUserTurns ? { sourceWindow: context.planningSourceWindow } : {}) };
   } catch (error) {
