@@ -103,7 +103,7 @@ export function parseAskConversationResponse(value) {
     // Keep this product status outside the reviewed body and structured data.
     ...(draft.turn?.finalStage === "COMPLETED" && draft.turn.answerOutcome === "limited"
       && !/\b(?:can['’]?t|cannot|couldn['’]?t|could not|don['’]?t see|do not see|not recorded|not in (?:the )?(?:file|notes?|records?)|missing|does not tell me|not enough (?:information|history|records?))\b/i.test(response.summary)
-      ? { completionNotice: "I found some of this in the saved history, but not enough to answer every part confidently." } : {}),
+      ? { completionNotice: "I couldn't confirm every part of this answer." } : {}),
     supportingText: typeof draft.supportingText === "string" ? cleanText(draft.supportingText) : null,
     suggestedQuestions,
     actions,
