@@ -23,6 +23,12 @@ test("public v1 capability policy is deliberately narrow", () => {
   assert.equal(policy.publicV1AskCapability({ mode: "read", readTicket: {} }).available, true);
   assert.equal(policy.publicV1AskCapability({ mode: "read", storedRead: { domain: "memory" } }).available, true);
   assert.equal(policy.publicV1AskCapability({ mode: "read", profileFields: ["weight"] }).available, true);
+  const conversation = { mode: "conversation", evidenceBasis: "general", profileFields: [] };
+  assert.equal(policy.publicV1AskCapability(conversation).available, true);
+  assert.equal(policy.publicV1AskCapability({ ...conversation, appendJob: {} }).reason, "mutation");
+  assert.equal(policy.publicV1AskCapability({ ...conversation, calculatePlan: {} }).reason, "calculation");
+  for (const companion of [{readTicket: {}}, {storedRead: {}}, {profileFields: ["weight"]}, {evidenceNeeds: [{}]}])
+    assert.equal(policy.publicV1AskCapability({ ...conversation, ...companion }).reason, "unplanned");
   assert.equal(policy.publicV1AskCapability(undefined).reason, "unplanned");
   assert.equal(policy.publicV1AskCapability({ mode: "conversation", calculatePlan: null }).reason, "unplanned");
   assert.equal(policy.publicV1AskCapability({ mode: "read", readTicket: null, calculatePlan: {} }).reason, "calculation");

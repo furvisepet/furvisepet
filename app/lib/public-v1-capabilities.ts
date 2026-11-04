@@ -56,6 +56,12 @@ export function publicV1AskCapability(request: unknown): PublicV1AskCapabilityDe
       return Object.freeze({ available: false, reason: "calculation", message: PUBLIC_V1_CALCULATION_LIMITATION });
     return Object.freeze({ available: true, reason: "supported" });
   }
+  // The bound conversation-only path drops saved sources before generation.
+  if (record.mode === "conversation" && record.evidenceBasis === "general"
+    && record.readTicket == null && record.storedRead == null
+    && (!Array.isArray(record.profileFields) || record.profileFields.length === 0)
+    && (!Array.isArray(record.evidenceNeeds) || record.evidenceNeeds.length === 0))
+    return Object.freeze({ available: true, reason: "supported" });
   if (record.mode === "read" && (record.readTicket !== null && record.readTicket !== undefined
     || record.storedRead !== null && record.storedRead !== undefined
     || Array.isArray(record.profileFields) && record.profileFields.length > 0))
