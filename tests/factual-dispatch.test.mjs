@@ -6,7 +6,7 @@ const {generateContextAwareAskResponse,buildAskContext,buildAskProviderRequest}=
 const {dependsOnStoredState,FACTUAL_UNAVAILABLE,FACTUAL_LIMITATION,factualLimitationFailure}=await import("../app/lib/intelligence/factual-dispatch.ts");
 const {reviewHistoricalAnswer}=await import("../app/lib/intelligence/review-history-narrative.ts");
 const {validateGeneratedAnswer}=await import("../app/lib/intelligence/validation/validate-answer.ts");
-const {reviewTaskCompletion}=await import("../app/lib/intelligence/review-task-completion.ts");
+const {reviewTaskCompletion,conversationReviewProvenance}=await import("../app/lib/intelligence/review-task-completion.ts");
 const {evidenceSource}=await import("../app/lib/intelligence/ask-evidence.ts");
 let calls=0;
 const noProvider={responses:{create:async()=>{calls++;throw Error("FACTUAL_PROVIDER_FORBIDDEN");}}};
@@ -120,4 +120,15 @@ test("ordinary Ask cannot enter the separate Vet Brief legacy retrieval branch",
  const db={from(){databaseCalls++;throw Error("DATABASE_FORBIDDEN");}};
  await assert.rejects(retrieveAskHistory({feature:"ask",currentMessage:"Retrieve prior notes."},db,[pet.id],{plan:{}}),/vet_brief_read_scope_required/);
  assert.equal(databaseCalls,0);
+});
+
+test("conversation review provenance is scoped to source-free turns",()=>{
+ const f=fixture({mode:"conversation",evidenceBasis:"general"});
+ f.evidence.interpretation.conversationOnly=true;
+ assert.deepEqual(conversationReviewProvenance(f.evidence),{savedRecordRetrieval:"not_performed_for_this_turn"});
+ f.evidence.interpretation.request.evidenceBasis="saved_history";
+ assert.equal(conversationReviewProvenance(f.evidence),undefined);
+ f.evidence.interpretation.request.evidenceBasis="general";
+ f.evidence.interpretation.conversationOnly=false;
+ assert.equal(conversationReviewProvenance(f.evidence),undefined);
 });
