@@ -106,6 +106,7 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
     "Do not use graph nodes, field aliases, packed tags or speculative evidence.",
     "All request keys are mandatory. Use null/[] for inactive fields, never omit or invent.",
     "Simple strings and string arrays are native JSON values. Complex objects/arrays are complete JSON strings (or null when allowed).",
+    "For each complex field, serialize its complete value as valid JSON inside the outer JSON string: double-quote all keys and string values, escape inner double quotes and backslashes for the outer string, and never use comments, trailing commas, markdown, undefined or unquoted names.",
     "readTicket, when non-null, must be a JSON string containing the complete typed ReadTicket object.",
     "The catalogIntentJson variant is exclusively for source-grounded catalog intent. Ordinary requests use the typed " + slots.schema.required.length + "-field request.",
     "Use full canonical field names shown to the right of = in FIELDS. The POLICY $ aliases are only reading shorthand.",

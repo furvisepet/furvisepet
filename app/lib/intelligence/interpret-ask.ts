@@ -254,7 +254,13 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     check();
     return check;
   };
+  // A parser error may disclose only a static schema field name, never model text.
+  const directJsonFields = new Set(["calculatePlan", "storedRead", "removeJob", "stateTransitionJob",
+    "fieldMutationJob", "lifecyclePlan", "appendJob", "readTicket", "task", "writeJob",
+    "recordSelection", "projection", "evidenceNeeds", "frame"]);
+  let directJsonField: string | undefined;
   const parseResponse = (response: Parameters<typeof interpretStructuredProviderResponse>[0], maximumMs: number, reserveMs: number) => {
+    directJsonField = undefined;
     const check = runtimeCheck(maximumMs, reserveMs);
     let deadlineError: StageDeadlineError | AiAdmissionError | undefined;
     const result = interpretStructuredProviderResponse(response, raw => {
@@ -268,6 +274,10 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
         // The generic parser classifies decoding failures as JSON. A depleted
         // runtime deadline is a timeout/admission failure, never malformed JSON.
         if (error instanceof StageDeadlineError || error instanceof AiAdmissionError) deadlineError = error;
+        if (error instanceof Error && error.message === "ASK_DIRECT_FIELD_JSON") {
+          const field = (error.cause as { field?: unknown } | undefined)?.field;
+          if (typeof field === "string" && directJsonFields.has(field)) directJsonField = field;
+        }
         throw error;
       }
     });
@@ -286,7 +296,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     { model, elapsedMs: Date.now() - started, providerErrorCode: reason, providerErrorType: kind, ticketArrived, ...extras });
   try {
     const activeClient = client || new OpenAI({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 0 }) as unknown as NonNullable<typeof client>;
-    const response = await executeAdmittedResponsesRequest({ model, maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens,
+    let response = await executeAdmittedResponsesRequest({ model, maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens,
       stage: "interpretation", reserveMs: 24_000,
       request,
       invoke: (request) => {
@@ -297,7 +307,36 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
           return withAskProviderSchemaDiagnostic(request, () => activeClient.responses.create(request as never, { signal }));
         }, boundedProviderTimeout(ASK_INTERPRETATION_LIMITS.timeoutMs, 24_000, "interpretation"));
       } });
-    const result = parseResponse(response, ASK_INTERPRETATION_LIMITS.timeoutMs, 24_000);
+    let result = parseResponse(response, ASK_INTERPRETATION_LIMITS.timeoutMs, 24_000);
+    let transportRepairUsed = false;
+    if (result.status === "invalid" && result.validationReason === "ASK_DIRECT_FIELD_JSON" && directJsonField) {
+      const field = directJsonField;
+      // The rejected response is never reused, logged, or supplied as evidence.
+      const repairRequest = { ...request,
+        instructions: request.instructions + "\nA previous response had invalid JSON in one complex field. Produce the entire response again from the original USER sources. Preserve the request and all scope. Do not infer facts or permissions.",
+        input: JSON.stringify({ ...input, transportRepair: { validationCode: "ASK_DIRECT_FIELD_JSON", field } }) };
+      assertAskRequestInputBudget(repairRequest);
+      console.info("[Ask Brain] transport repair", { validationCode: "ASK_DIRECT_FIELD_JSON", field });
+      transportRepairUsed = true;
+      const repairedResponse = await executeAdmittedResponsesRequest({ purpose: "interpretation_repair", model,
+        maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens, stage: "interpretation",
+        reserveMs: ASK_INTERPRETATION_REPAIR_LIMITS.reserveMs, request: repairRequest,
+        invoke: sent => {
+          onProviderEvent?.({ stage: "interpretation", outcome: "started", model, elapsedMs: Date.now() - started,
+            configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens, validationDetails: "bounded_transport_repair" });
+          return withProviderDeadline(signal => {
+            providerSignal = signal;
+            return withAskProviderSchemaDiagnostic(sent, () => activeClient.responses.create(sent as never, { signal }));
+          }, boundedProviderTimeout(ASK_INTERPRETATION_REPAIR_LIMITS.timeoutMs, ASK_INTERPRETATION_REPAIR_LIMITS.reserveMs, "interpretation"));
+        } });
+      response = repairedResponse;
+      result = parseResponse(repairedResponse, ASK_INTERPRETATION_REPAIR_LIMITS.timeoutMs, ASK_INTERPRETATION_REPAIR_LIMITS.reserveMs);
+      if (result.status !== "completed") {
+        const kind = result.status === "invalid" ? result.parsingAttempted ? "json" : "empty_output" : result.status;
+        throw fail(`ASK_INTERPRETATION_REPAIR_${kind.toUpperCase()}`, kind,
+          { providerEnvelope: structuredProviderEnvelopeDiagnostic(repairedResponse), validationDetails: result.validationReason || undefined });
+      }
+    }
     // Arrival is not validation or authority. Timed-out/late provider results never reach this point.
     const proposal = result.status === "completed" ? result.parsed : null;
     ticketArrived = !!proposal && typeof proposal === "object" && ["readTicket", "appendJob", "writeJob"]
@@ -376,7 +415,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
       if (error instanceof StageDeadlineError || error instanceof AiAdmissionError) throw error;
       const rejected = result.parsed && typeof result.parsed === "object" ? result.parsed as Record<string, unknown> : null;
       const repairableProfileContract = rejected?.mode === "read" && rejected.evidenceBasis === "saved_profile";
-      if (!(error instanceof AskInterpretationValidationError) || error.category !== "semantic" || !repairableProfileContract) {
+      if (transportRepairUsed || !(error instanceof AskInterpretationValidationError) || error.category !== "semantic" || !repairableProfileContract) {
         if (error instanceof AskInterpretationValidationError) throw fail(error.reason, error.category, metadata);
         throw fail("ASK_INTERPRETATION_VALIDATION", "semantic", metadata);
       }
