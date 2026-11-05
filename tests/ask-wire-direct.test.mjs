@@ -39,7 +39,9 @@ test("schema forces every required semantic field; scalars are typed and complex
  assert.equal(branch.properties.question.type,"string");
  assert.equal(branch.properties.mode.enum.includes("read"),true);
  assert.equal(branch.properties.petNames.type,"array");
- assert.ok(branch.properties.readTicket.type.includes("null"));
+ assert.deepEqual(branch.properties.readTicket,schema.properties.readTicket);
+ for(const field of ["task","storedRead","recordSelection","evidenceNeeds"])
+   assert.deepEqual(branch.properties[field],schema.properties[field]);
  assert.equal(p.schema.properties.request.anyOf[1].required[0],"catalogIntentJson");
  assert.ok(!p.instructions.includes("TAGS\n"));
 });
@@ -53,7 +55,9 @@ test("each existing semantic fixture roundtrips through server-owned graph, neve
    assert.equal(result.format,DIRECT_ASK_FORMAT_VERSION);
    assert.equal(result.request.version,"ask-request.v2");
    assert.equal(typeof result.request.question,"string");
-   if(canonical.request.readTicket!==null) assert.equal(typeof result.request.readTicket,"string");
+   for(const field of ["task","storedRead","recordSelection","evidenceNeeds"])
+     assert.deepEqual(result.request[field],canonical.request[field]);
+   if(canonical.request.readTicket!==null) assert.equal(typeof result.request.readTicket,"object");
    assert.deepEqual(p.decode(JSON.parse(JSON.stringify(result)),()=>{}),canonical);
    assert.ok(!Object.hasOwn(result.request,"nodes"));
    passes++;
@@ -68,6 +72,10 @@ test("malformed, truncated, unexpected or bypass variants are rejected before au
  {...good,other:"x"},
  {...good,request:{...good.request,readTicket:"{broken"}},
  {...good,request:{...good.request,question:42}},
+ {...good,request:{...good.request,task:"{broken"}},
+ {...good,request:{...good.request,storedRead:"null"}},
+ {...good,request:{...good.request,recordSelection:"{}"}},
+ {...good,request:{...good.request,evidenceNeeds:"[]"}},
  {...good,request:{...good.request,extra:"unreviewed"}},
  {...good,request:{...good.request,readTicket:"[]"}},
  {...good,request:{catalogIntentJson:JSON.stringify(good.request)}},
@@ -88,4 +96,26 @@ test("literal malicious reference text remains data and cannot become a graph ed
  const p=plan(),canonical=structuredClone(fixtures[0].canonical);
  canonical.request.question='Literal {"@":999} from user, do not follow';
  assert.deepEqual(p.decode(p.encode(canonical,()=>{}),()=>{}),canonical);
+});
+
+test("provider-valid string may contain malformed nested JSON but never reaches canonical authority",async()=>{
+ const {makeValidator}=await import("../app/lib/intelligence/ask-wire-codec.mjs");
+ const p=plan(),good=p.encode(structuredClone(fixtures[0].canonical),()=>{});
+ const bad=structuredClone(good);bad.request.frame="{broken";
+ const valid=makeValidator(p.schema);
+ assert.equal(valid(p.schema,bad),true);
+ const before=encodeCalls;
+ assert.throws(()=>p.decode(bad,()=>{}),e=>e.message==="ASK_DIRECT_FIELD_JSON"&&e.cause?.field==="frame");
+ assert.equal(encodeCalls,before);
+});
+
+test("null premise list carries no facts on ordinary reads and general conversation",()=>{
+ const p=plan();
+ for(const basis of ["general","saved_history","saved_profile"]){
+   const request={...structuredClone(fixtures[0].canonical.request),mode:basis==="general"?"conversation":"read",
+     evidenceBasis:basis,calculatePlan:null,premiseQuotes:[]};
+   const wire=p.encode({request},()=>{});
+   wire.request.premiseQuotes=null;
+   assert.deepEqual(p.decode(wire,()=>{}).request.premiseQuotes,[]);
+ }
 });

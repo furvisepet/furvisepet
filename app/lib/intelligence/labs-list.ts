@@ -1,3 +1,5 @@
+import { scopedReportPublication } from "./scoped-report-publication.ts";
+import { carryScopedReportSidecar } from "./scoped-stored-report.ts";
 import { verifiedAttributedReports, carryAttributedReports, attributedReportSources, type AttributedReportResult } from "./attributed-report-context.ts";
 import { supportedPlainResultSetRead } from "./publication-authority.ts";
 import { certifiedResultSetMatches, resultSetSnapshotMatches } from "./result-set-publication.ts";
@@ -20,9 +22,17 @@ export type LabsList = {
   calculations: [];
   /** Completion metadata only; never consulted for factual source authority. */
   residualRequirementCount?: number;
+  quantityUnspecified?: true;
   petNames?: Record<string, string>;
   presentation?: LabsPresentation;
 };
+// A quantity-free recall can expose certified source wording, but the typed
+// record result alone cannot prove that every part of the original question
+// has been answered. Keep it limited until a separate completion proof exists.
+const quantityNeedsReview = (request: NonNullable<NonNullable<AskEvidenceContract["interpretation"]>["request"]>) =>
+  request.quantity === null && !request.calculatePlan;
+const residualCount = (request: NonNullable<NonNullable<AskEvidenceContract["interpretation"]>["request"]>) =>
+  (request.requirements?.length || 0) + (quantityNeedsReview(request) ? 1 : 0);
 // A model field or a reloaded JSON object cannot mint this source snapshot.
 const snapshots = new WeakMap<LabsList, string>();
 export const readLabsSnapshotMatches = (labs: LabsList) => snapshots.get(labs) === JSON.stringify(labs);
@@ -50,7 +60,7 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
   // Selected reports do not fulfill a distinct count, comparison, aggregation,
   // navigation obligation. Those keep their own review. Format is not authority.
   if (isSelectedRead(ticket) && !operandTransport && (request.task || request.projection || request.evidenceNeeds?.length && !independentNeedsMatch(evidence)
-    || !["records", "measurement"].includes(request.quantity || "")
+    || request.quantity !== null && !["records", "measurement"].includes(request.quantity || "")
     || !["recall", undefined].includes(evidence.interpretation?.readOperation ?? evidence.interpretation?.operation))) return null;
   if (ticket.subjects.petIds.some(id => !evidence.scope.authorizedPetIds.includes(id))
     || rows.some(row => !ticket.subjects.petIds.includes(row.pet_profile_id) || row.deleted_at
@@ -60,9 +70,15 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
   if (coverage.status === "complete" && !rows.length
     || ["complete_empty", "anchor_missing", "unavailable"].includes(coverage.status) && rows.length)
     throw new Error("ASK_LABS_LIST_COVERAGE_SHAPE");
-  if (!resultSetSnapshotMatches(ticket, coverage, rows.map(row => ({ id: row.id, petId: row.pet_profile_id }))))
+  const scopedReport = scopedReportPublication(evidence, rows.map(row => ({
+    id: row.id, petId: row.pet_profile_id, body: row.note ?? row.title ?? "", event_at: row.occurred_at,
+  })));
+  if (!scopedReport && !resultSetSnapshotMatches(ticket, coverage, rows.map(row => ({ id: row.id, petId: row.pet_profile_id })))) {
+    // A rejected partial-report sidecar carries no publishable source authority.
+    if (ticket.authority === "stored_report" && coverage.status === "partial") return null;
     throw new Error("ASK_LABS_RESULT_SET_SNAPSHOT");
-  if (!isSelectedRead(ticket) && !operandTransport
+  }
+  if (!isSelectedRead(ticket) && !operandTransport && !scopedReport
     && !certifiedResultSetMatches(ticket, coverage, rows.map(row => ({ id: row.id, petId: row.pet_profile_id })))) return null;
   // Preserve organ order and exact bodies. With selection, publish only the
   // records its existing receipts certify; never select or match again here.
@@ -87,7 +103,8 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
   if (ticket.attributedContexts?.length && !attributedReports) return null;
   const labs: LabsList = structuredClone({ ticket, coverage, calculations: [],
     ...(attributedReports ? { attributedReports } : {}),
-    ...(request.requirements?.length ? { residualRequirementCount: request.requirements.length } : {}), ...(petNames ? { petNames, presentation } : {}), records: publishable.map(row => ({
+    ...(residualCount(request) ? { residualRequirementCount: residualCount(request) } : {}),
+    ...(quantityNeedsReview(request) ? { quantityUnspecified: true as const } : {}), ...(petNames ? { petNames, presentation } : {}), records: publishable.map(row => ({
     id: row.id, sourceId: careEvidenceId(row.id, evidence.history), petId: row.pet_profile_id, event_at: row.occurred_at,
     // Saving time is source metadata, independent of the event-time selection.
     ...(typeof row.created_at === "string" && Number.isFinite(Date.parse(row.created_at))
@@ -112,7 +129,10 @@ export function labsFactualComponentComplete(labs: LabsList): boolean {
 }
 
 export function serializeLabsList(labs: LabsList): string {
-  if (labs.ticket.authority === "stored_report") return serializeStoredReports(labs);
+  const withLimitation = (text: string) => labs.quantityUnspecified
+    ? [text, "These results may not fully answer your question."].filter(Boolean).join("\n\n")
+    : text;
+  if (labs.ticket.authority === "stored_report") return withLimitation(serializeStoredReports(labs));
   const selected = selectionPublication(labs.ticket, labs.coverage, labs.records);
   if (selected) {
     const groups = selected.certificates.map(certificate => {
@@ -125,8 +145,8 @@ export function serializeLabsList(labs: LabsList): string {
         rows: certificate.selectedEventIds.map(id => labs.records.find(row => row.id === id)!),
         notice: "No matching records were found in this certified selection window." };
     });
-    return renderCertifiedLabs(groups, labs.presentation === undefined ? "prose" : labs.presentation,
-      exhaustiveSelectionLimitation(labs.ticket.outputs.completeness === "exhaustive", labs.coverage));
+    return withLimitation(renderCertifiedLabs(groups, labs.presentation === undefined ? "prose" : labs.presentation,
+      exhaustiveSelectionLimitation(labs.ticket.outputs.completeness === "exhaustive", labs.coverage)));
   }
   const list = labs.records.map(row => `${row.event_at.slice(0, 10)} report: ${JSON.stringify(row.body)}`
     + (row.recorded_at ? ` (saved at ${row.recorded_at})` : "")).join("\n\n");
@@ -136,7 +156,7 @@ export function serializeLabsList(labs: LabsList): string {
     anchor_missing: "I couldn’t identify the event needed to define this history window.",
     unavailable: "I couldn’t retrieve this history window.",
   }[labs.coverage.status];
-  return [list, notice].filter(Boolean).join("\n\n");
+  return withLimitation([list, notice].filter(Boolean).join("\n\n"));
 }
 
 /** Exact quotations with attribution, never an effective-fact sentence. */
@@ -192,7 +212,8 @@ export function labsListReviewFailure(result: AskReasoningResult): string | null
   if (!labs || snapshots.get(labs) !== JSON.stringify(labs)) return "labs_source_snapshot_changed";
   if (JSON.stringify(labs.ticket) !== JSON.stringify(evidence?.interpretation?.request?.readTicket)
     || JSON.stringify(labs.coverage) !== JSON.stringify(evidence?.history?.ticketCoverage)
-    || (labs.residualRequirementCount || 0) !== (evidence?.interpretation?.request?.requirements?.length || 0)
+    || !evidence?.interpretation?.request || (labs.residualRequirementCount || 0) !== residualCount(evidence.interpretation.request)
+    || Boolean(labs.quantityUnspecified) !== quantityNeedsReview(evidence.interpretation.request)
     || evidence?.interpretation?.request?.mode !== "read" || !evidence.scope.readOnlyRecall
     || evidence.interpretation.request.writeJob || evidence.interpretation.request.mutationIntent
     || labs.records.some(row => !evidence.scope.authorizedPetIds.includes(row.petId))) return "labs_ticket_or_coverage_changed";
@@ -218,6 +239,7 @@ export function labsListReviewFailure(result: AskReasoningResult): string | null
 export function carryLabsListSnapshot(source: AskReasoningResult, target: AskReasoningResult) {
   if (labsListReviewFailure(source) || !source.labsList || !target.labsList
     || JSON.stringify(source.labsList) !== JSON.stringify(target.labsList)) throw new Error("ASK_LABS_LIST_CLONE_CHANGED");
+  carryScopedReportSidecar(source.evidenceContract?.history, target.evidenceContract?.history);
   carryAttributedReports(source.evidenceContract?.history?.attributedReports,
     target.evidenceContract?.history?.attributedReports, target.labsList.ticket);
   snapshots.set(target.labsList, snapshots.get(source.labsList)!);

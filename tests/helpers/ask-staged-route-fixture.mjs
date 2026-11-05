@@ -1,3 +1,4 @@
+import { parseRoutineUtterance } from '../../app/lib/intelligence/routine-utterance.ts';
 import {fixtureSemanticsPage} from '../../scripts/audits/helpers/source-semantics-fixture.mjs';
 // Offline execution of the actual POST handlers. Only provider/DB/auth IO is replaced.
 import assert from 'node:assert/strict';
@@ -150,7 +151,7 @@ export function fixture(options={}){
  const persist=handler('../../app/api/ask/route.ts',['persistAssistantAnswer','validAssistantCompletionRow','finalizePersistedAskAnswer'],sandbox,'persistAssistantAnswer');
  sandbox.persistAssistantAnswer=async input=>{state.publications??=[];state.publications.push(input);events.push('publication:persist');return persist(input);};
  }
- Object.assign(sandbox,{safeAskDiagnosticStage,publicAskFailureCode});
+ Object.assign(sandbox,{safeAskDiagnosticStage,publicAskFailureCode,parseRoutineUtterance});
  sandbox.askFailure=handler('../../app/api/ask/route.ts',['askFailure','internalFailureClass'],sandbox,'askFailure');
  if(options.fullCatalogPipeline){
  sandbox.buildSubjectClarificationOrchestration=handler('../../app/api/ask/route.ts',['buildSubjectClarificationOrchestration'],sandbox,'buildSubjectClarificationOrchestration');

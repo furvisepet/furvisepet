@@ -1,3 +1,4 @@
+import { carryScopedReportSidecar } from "../intelligence/scoped-stored-report.ts";
 import { withAskProviderSchemaDiagnostic } from "./ask-provider-schema-diagnostic.ts";
 import { carryAttributedReports } from "../intelligence/attributed-report-context.ts";
 import {carryCalculatePlan,requiresCalculateBinding} from "../furvise-brain/calculate-plan.ts";
@@ -449,6 +450,7 @@ export function buildAskContext(input: BuildContextInput, applyPromptBudget = tr
     .filter(record => !["remembered_detail","operation_receipt","active_concern","active_episode","resolved_episode","product_context"].includes(record.sourceType));
   const sourceEvidence = input.evidenceContract || evidenceForRecords([], input.question, input.profiles.map(profile => profile.id));
   const evidence = structuredClone(storedFacts ? sourceEvidence : languageOnlyEvidence(sourceEvidence));
+  if (storedFacts) carryScopedReportSidecar(sourceEvidence.history, evidence.history);
   const sourceCalculation=sourceEvidence.interpretation?.request?.calculatePlan;
   if(sourceCalculation&&requiresCalculateBinding(sourceCalculation)&&evidence.interpretation?.request?.calculatePlan)
     carryCalculatePlan(sourceCalculation,evidence.interpretation.request.calculatePlan,evidence.interpretation.request.readTicket!);

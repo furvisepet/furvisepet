@@ -3,6 +3,7 @@ import { executeStoredRead } from "../../lib/furvise-brain/stored-read-organ.ts"
 import {resolveRemovePlan} from "../../lib/furvise-brain/remove-job.ts";
 import {prepareBoundRemoveAction} from "../../lib/application-actions/planner.ts";
 import { prepareBoundReplaceAction } from "../../lib/application-actions/planner.ts";
+import { parseRoutineUtterance } from "../../lib/intelligence/routine-utterance.ts";
 import { buildFurvisePlanningContext } from "../../lib/intelligence/planning-context.ts";
 import { isOrdinarySavedHistoryRequest } from "../../lib/intelligence/publication-authority.ts";
 import { prepareAppendTurn } from "../../lib/intelligence/append-turn.ts";
@@ -470,6 +471,18 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
     });
   };
   try {
+    const dateIssue = parseRoutineUtterance(question, liveContext.pet, liveContext.eligiblePets, userId)?.issue;
+    if (dateIssue) {
+      turnLifecycle.route("clarification", "deterministic");
+      turnAuthoritativePetIds = [];
+      contextUsed = { petName: null, usedSources: [] };
+      const clarification = dateIssue === "missing_year"
+        ? "Which year was that care note from? Please repeat your question with the year."
+        : "That date isn’t valid. Please repeat your question with the correct date and year.";
+      orchestration = { ...buildSubjectClarificationOrchestration(question),
+        answer: { title: "Furvise", summary: clarification, sections: [], safetyNote: null },
+        clarificationQuestion: null, handledWithoutAi: true };
+    } else {
     turnLifecycle.route("pet_care", "ai");
     rateGateRef.current = await requireRateLimitedRequest({
       idempotencyKey: requestId,
@@ -601,6 +614,19 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         }
       }
       if (!interpretation.clarification && !publicV1Capability.available) {
+        // Only fixed categories and presence flags; never log question or model text.
+        const gateRequest = interpretation.request;
+        const mode = gateRequest?.mode;
+        const basis = gateRequest?.evidenceBasis;
+        console.info("[Ask public gate] limited", {
+          reason: publicV1Capability.reason,
+          mode: mode && ["read", "conversation", "update", "mixed", "clarify"].includes(mode) ? mode : null,
+          evidenceBasis: basis && ["saved_history", "saved_profile", "stored", "supplied_context", "general"].includes(basis) ? basis : null,
+          conversationOnly: interpretation.conversationOnly === true,
+          readTicket: !!gateRequest?.readTicket, storedRead: !!gateRequest?.storedRead,
+          profileFields: !!gateRequest?.profileFields?.length, evidenceNeeds: !!gateRequest?.evidenceNeeds?.length,
+          calculation: !!gateRequest?.calculatePlan,
+        });
         if (creditReserved) {
           const released = await safeReleaseAiCredit({ logicalRequestId: logicalTurnId, payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
           creditReserved = false;
@@ -794,6 +820,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
       recentlyResolvedConcernIds: turnView.recentlyResolvedConcerns.map((concern) => concern.id),
       safetyLevel: orchestration.safetyLevel,
     });
+    }
     if (orchestration.handledWithoutAi) turnLifecycle.credit("not_required");
   } catch (error) {
     await failAiAdmission(aiAdmission, error, aiAdmissionFinalized, requestId);

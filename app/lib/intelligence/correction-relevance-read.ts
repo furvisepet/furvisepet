@@ -24,7 +24,18 @@ export async function readCorrectionRelevance(input: {
     const page = result.data;
     if (result.error || !page || page.complete !== true || page.limit !== 76
       || !Array.isArray(page.claims) || !Array.isArray(page.sources)
-      || page.claims.length > 76 || page.sources.length > 76) throw Error("source_semantics_incomplete");
+      || page.claims.length > 76 || page.sources.length > 76) {
+      // Only fixed categories leave this boundary: never emit RPC errors, page
+      // contents, source identifiers, request arguments, or unbounded counts.
+      const failure = result.error ? "rpc_error"
+        : !page || typeof page !== "object" || Array.isArray(page) ? "missing_or_malformed_page"
+        : typeof page.complete !== "boolean" || !Array.isArray(page.claims) || !Array.isArray(page.sources) ? "missing_or_malformed_page"
+        : page.limit !== 76 ? "invalid_limit"
+        : page.claims.length > 76 || page.sources.length > 76 ? "count_overflow"
+        : "explicit_incomplete";
+      console.info("[Ask source semantics] unavailable", { failure });
+      throw Error("source_semantics_incomplete");
+    }
     if (page.sources.some((row: CareEntryRow) => row.user_id !== input.ownerId || !input.petIds.includes(row.pet_profile_id) || row.deleted_at))
       throw Error("source_semantics_scope");
     if (page.targets !== undefined) {

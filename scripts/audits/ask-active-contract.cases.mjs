@@ -144,7 +144,7 @@ for(const [name,change]of [
 ])test('strict non-profile proposal cannot repair '+name,async()=>{
  const p=appendProposal();change(p);const ctx=prepareAskInterpretationRequest(sourceContext(appendQuestion),'gpt-5.4-mini').context;
  assert.throws(()=>recoverAskInterpretation(p,ctx),/ASK_REQUEST/);
- if(name==='unknown source reference')await assert.rejects(wireCall(ctx,p,{expectedCalls:0}),/ASK_WIRE_CANONICAL_SCHEMA/);
+ if(name==='unknown source reference')await assert.rejects(wireCall(ctx,p,{expectedCalls:0}),/ASK_DIRECT_FIELD_TYPE/);
  else await assert.rejects(wireCall(ctx,p),e=>e.stage==='interpretation_failed');
 });
 for(const value of [{nodes:[{_:'UNKNOWN_TAG'}]},{request:{version:'ask-request.v99'}},{}])test('malformed wire cannot manufacture an update or authorize repair: '+JSON.stringify(value),async()=>{

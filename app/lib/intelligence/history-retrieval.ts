@@ -1,3 +1,4 @@
+import { certifyScopedStoredReport, bindScopedReportSidecar, isScopedStoredReportCandidate } from "./scoped-stored-report.ts";
 import { retrieveAttributedReports, type AttributedReportResult } from "./attributed-report-context.ts";
 import { wholeAskTaskQuestion } from "./ask-task-continuation.ts";
 import { calendarPeriodContaining, oldestCalendarUnit, relativeYearsAgoWindow } from "./history-periods.ts";
@@ -981,6 +982,35 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
       return { records, reliable: !unreliable, ...(sourceLineage.length ? { sourceLineage } : {}) };
     },
   });
+  // Retain a single candidate only after a fresh scoped recheck. This does not
+  // alter the result-set certificate or any completeness/correction status.
+  const request = context.askInterpretation?.request;
+  const turn = context.currentTurn;
+  let scopedProof: Awaited<ReturnType<typeof certifyScopedStoredReport>> = null;
+  // One observed candidate permits only a partial source quotation, never a complete-set claim.
+  const eligible = originals.filter(candidate => isScopedStoredReportCandidate({
+    userId: context.owner.userId, ownedPetIds: [...owned], ticket, candidate,
+  }));
+  if (result.coverage.status === "partial" && !result.records.length && eligible.length === 1
+    && (result.coverage.effectiveStream?.reduce((n, stream) => n + stream.graphCalls, 0) ?? HISTORY_BUDGET.graphCalls) < HISTORY_BUDGET.graphCalls
+    && request?.mode === "read" && request.evidenceBasis === "saved_history" && request.quantity === null
+    && (context.askInterpretation?.readOperation ?? context.askInterpretation?.operation) === "recall"
+    && (context.askInterpretation?.selection == null || context.askInterpretation.selection === "summary" || context.askInterpretation.selection === "period")
+    && request.question === context.currentMessage && context.askInterpretation?.readOnly
+    && !context.askInterpretation.clarification && turn?.role === "user" && turn.text === context.currentMessage
+    && !request.task && !request.projection && !request.calculatePlan && !request.storedRead
+    && !request.writeJob && !request.appendJob && !request.mutationIntent
+    && !request.removeJob && !request.fieldMutationJob && !request.stateTransitionJob && !request.lifecyclePlan
+    && !request.recordSelection && !request.evidenceNeeds?.length && !request.requirements?.length) {
+    const candidate = eligible[0];
+    coverage.queryCount++;
+    const proof = await certifyScopedStoredReport({ db, userId: context.owner.userId, ownedPetIds: [...owned],
+      ticket, candidate, deadline });
+    if (proof) {
+      result.records.push(candidate);
+      scopedProof = proof;
+    }
+  }
   coverage.attributedReports = await retrieveAttributedReports(ticket, { db, ownerId: context.owner.userId,
     ownedPetIds: [...owned], from, to, deadline });
   coverage.ticketCoverage = result.coverage;
@@ -1032,6 +1062,8 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
   console.info("[Ask Lungs] ticket result", JSON.stringify({ operation: ticket.operation, petIds: ticket.subjects.petIds,
     temporal: ticket.temporal, predicates: ticket.predicates, outputs: ticket.outputs, coverage: result.coverage,
     recordIds: result.records.map(row => row.id), queryCount: coverage.queryCount, durationMs: Date.now() - started }));
+  if (scopedProof && request && turn) bindScopedReportSidecar(coverage, { proof: scopedProof,
+    userId: context.owner.userId, ticket, request, message: context.currentMessage, turnId: turn.id });
   return { ...context, askHistory: { coverage, entries: result.records, originals, ...(result.supportingContext ? { supportingContext: result.supportingContext } : {}) } };
 }
 

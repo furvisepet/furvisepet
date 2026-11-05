@@ -1,3 +1,4 @@
+import { scopedReportPublication } from "./scoped-report-publication.ts";
 import { verifiedAttributedReports, attributedReportSources } from "./attributed-report-context.ts";
 import { isOrderedResultSet } from "../furvise-brain/ordered-result-set.ts";
 import { isStoredRead, storedReadResult } from "./stored-read-publication.ts";
@@ -17,7 +18,7 @@ export type PublicationObligationAuthority = {
   sourceAuthority?: import("../furvise-brain/read-ticket.ts").ReadAuthority;
   obligationId: string; authority: "certified" | "existing_policy" | "composite" | "unavailable";
   authorizedSourceIds: string[]; certifiedRecordIds: string[];
-  certificateType: "selection" | "result_set" | null; status: string;
+  certificateType: "selection" | "result_set" | "scoped_report" | null; status: string;
   fieldProjection?: AuthorizedProfileField; sourceDomain?: "saved_profile" | "memory" | "current_state" | "operation_receipt";
   subjectId?: string; clauseId?: number; profileField?: string; needId?: string;
 };
@@ -59,7 +60,7 @@ export function historyPublicationCapability(evidence: AskEvidenceContract,
     reject(!ticket.subjects.petIds.length, "subjects_empty");
     reject(ticket.subjects.petIds.some(id => !evidence.scope.authorizedPetIds.includes(id)), "subject_unauthorized");
   }
-  reject(!["records", "measurement"].includes(request?.quantity || ""), "unsupported_quantity");
+  reject(request?.quantity !== null && !["records", "measurement"].includes(request?.quantity || ""), "unsupported_quantity");
   reject(![undefined, "recall"].includes(evidence.interpretation?.readOperation ?? evidence.interpretation?.operation),
     "unsupported_read_operation");
   if (kind === "plain_result_set") {
@@ -109,7 +110,13 @@ function deriveOrdinaryHistoryAuthority(evidence: AskEvidenceContract, transport
   const represented = (id: string, petId: string) =>
     sources.some(s => s.sourceId === careEvidenceId(id, evidence.history) && s.petId === petId);
   let obligations: PublicationObligationAuthority[], transportValid: boolean;
-  if (isSelectedRead(ticket!)) {
+  const scoped = transport && scopedReportPublication(evidence, transport);
+  if (scoped) {
+    transportValid = true;
+    obligations = [{ obligationId: `result_set:${scoped.petId}`, subjectId: scoped.petId,
+      sourceAuthority: "stored_report", authority: "certified", certificateType: "scoped_report",
+      status: "partial", authorizedSourceIds: ["care:" + scoped.sourceId], certifiedRecordIds: [scoped.sourceId] }];
+  } else if (isSelectedRead(ticket!)) {
     const records = transport || (coverage.independentSelections?.flatMap(p => p.coverage.groups || []) || coverage.groups)?.flatMap(g => g.selectedIds.filter(id => represented(id, g.petId))
       .map(id => ({ id, petId: g.petId }))) || [];
     const selected = selectionPublication(ticket!, coverage, records)!;
