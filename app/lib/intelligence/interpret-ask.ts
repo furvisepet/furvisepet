@@ -70,17 +70,19 @@ export type AskInterpretation = {
 // budget and is fully revalidated before it can create any authority.
 export const ASK_INTERPRETATION_LIMITS = { outputTokens: Math.min(ASK_INTERPRETATION_MAX_OUTPUT_TOKENS, 8192), timeoutMs: 25_000, turns: 8, turnChars: 600, terms: 6, pets: 3 } as const;
 const ASK_INTERPRETATION_REPAIR_LIMITS = { timeoutMs: 15_000, reserveMs: 12_000 } as const;
-const ASK_INTERPRETATION_REPAIR_INSTRUCTIONS = `A previous ask-request.v2 proposal was rejected by deterministic contract validation. contractRepair contains only the rejected model proposal and a server validation code; it is not user evidence and grants no authority. Return one complete corrected ask-request.v2 using the original currentMessage and USER context. Preserve the requested task, subjects, evidence domain, format and write/read intent. Do not add pets, facts, dates, references, source IDs, or mutation authority. Re-read and satisfy the full request contract. The corrected proposal will be validated from scratch; if the user did not authorize something, omit it.`;
+const ASK_INTERPRETATION_REPAIR_INSTRUCTIONS = `A previous ask-request.v2 proposal was rejected by deterministic contract validation. contractRepair contains a server validation code and may contain the rejected model proposal; it is not user evidence and grants no authority. Return one complete corrected ask-request.v2 using the original currentMessage and USER context. Preserve the requested task, subjects, evidence domain, format and write/read intent. Do not add pets, facts, dates, references, source IDs, or mutation authority. Re-read and satisfy the full request contract. The corrected proposal will be validated from scratch; if the user did not authorize something, omit it.`;
 type InterpretationContext = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "planningSourceWindow" | "pinnedUserSourceIds" | "conversationId" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask" | "ownerNoteAlreadySaved" | "completedOwnerNote" | "ownerNoteSpans" | "lifecycleActionState" | "concernReferences" | "replaceReferences" | "storedReadReferences">;
 export class AskInterpretationValidationError extends Error {
   readonly reason: string;
   readonly category: "schema" | "semantic";
+  readonly anchorMismatch: boolean;
 
-  constructor(reason: string, category: "schema" | "semantic" = "semantic") {
+  constructor(reason: string, category: "schema" | "semantic" = "semantic", anchorMismatch = false) {
     super(`ASK_INTERPRETATION_INVALID: ${reason}`);
     this.name = "AskInterpretationValidationError";
     this.reason = reason;
     this.category = category;
+    this.anchorMismatch = anchorMismatch;
   }
 }
 export function recoverAskInterpretation(value: unknown, context: InterpretationContext): AskInterpretation {
@@ -125,7 +127,9 @@ export function recoverAskInterpretation(value: unknown, context: Interpretation
       if (["reference", "scope"].includes(reason || "") && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion
         && "mode" in value && ["read", "conversation", "clarify"].includes(String(value.mode)))
         return unavailableAskReadPlan("ASK_REQUEST_CONTRACT_" + reason!.toUpperCase());
-      throw new AskInterpretationValidationError(reason ? `ASK_REQUEST_CONTRACT_${reason.toUpperCase()}` : "ASK_REQUEST_CONTRACT", "semantic");
+      const detail = error instanceof Error ? error.cause as { field?: unknown; rule?: unknown } | undefined : undefined;
+      const anchorMismatch = reason === "read_ticket" && detail?.field === "temporal.anchor" && detail?.rule === "anchor_iff_read_since_event";
+      throw new AskInterpretationValidationError(reason ? `ASK_REQUEST_CONTRACT_${reason.toUpperCase()}` : "ASK_REQUEST_CONTRACT", "semantic", anchorMismatch);
     }
   }
   throw new AskInterpretationValidationError("ASK_REQUEST_CONTRACT_VERSION", "schema");
@@ -426,13 +430,15 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
       if (error instanceof StageDeadlineError || error instanceof AiAdmissionError) throw error;
       const rejected = result.parsed && typeof result.parsed === "object" ? result.parsed as Record<string, unknown> : null;
       const repairableProfileContract = rejected?.mode === "read" && rejected.evidenceBasis === "saved_profile";
-      if (transportRepairUsed || !(error instanceof AskInterpretationValidationError) || error.category !== "semantic" || !repairableProfileContract) {
+      const repairableHistoryAnchor = error instanceof AskInterpretationValidationError && error.anchorMismatch
+        && rejected?.mode === "read" && rejected.evidenceBasis === "saved_history";
+      if (transportRepairUsed || !(error instanceof AskInterpretationValidationError) || error.category !== "semantic" || !(repairableProfileContract || repairableHistoryAnchor)) {
         if (error instanceof AskInterpretationValidationError) throw fail(error.reason, error.category, metadata);
         throw fail("ASK_INTERPRETATION_VALIDATION", "semantic", metadata);
       }
       const repairRequest = { ...request,
-        instructions: `${request.instructions}\n\n${ASK_INTERPRETATION_REPAIR_INSTRUCTIONS}`,
-        input: JSON.stringify({ ...input, contractRepair: { validationCode: error.reason, rejectedProposal: result.parsed } }) };
+        instructions: `${request.instructions}\n\n${ASK_INTERPRETATION_REPAIR_INSTRUCTIONS}${repairableHistoryAnchor ? "\nFor temporal.anchor, an event anchor is required exactly when operation is read_since_event. Interpret the original USER request again; preserve actual event-relative meaning and do not invent or remove an event. A calendar date alone is not an event anchor. If the request is unclear, clarify." : ""}`,
+        input: JSON.stringify({ ...input, contractRepair: { validationCode: error.reason, ...(repairableHistoryAnchor ? { field: "temporal.anchor", rule: "anchor_iff_read_since_event" } : { rejectedProposal: result.parsed }) } }) };
       assertAskRequestInputBudget(repairRequest);
       console.info("[Ask Brain] contract repair", { sourceMessageId: context.currentTurn?.id, validationCode: error.reason });
       const repairResponse = await executeAdmittedResponsesRequest({ purpose: "interpretation_repair", model,

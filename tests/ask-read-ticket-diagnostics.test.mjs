@@ -24,7 +24,7 @@ const proposal = readTicket => ({ version: 'ask-request.v2', readTicket, mode: '
   from: null, to: null, episodeTopic: null, ordinal: null, frame: null, evidenceBasis: 'saved_history', premiseQuotes: [] });
 
 // Synthetic proposals isolate diagnostics; the failed live proposal was not captured.
-test('rejected read_since_event logs safe structural diagnostics and stops after one planner', async t => {
+test('rejected read_since_event logs safe structural diagnostics and stops after one rejected repair', async t => {
   const rejected = ticket(); rejected.temporal.anchor = null;
   const before = structuredClone(rejected);
   const warn = t.mock.method(console, 'warn', () => {});
@@ -36,10 +36,10 @@ test('rejected read_since_event logs safe structural diagnostics and stops after
     assert.equal(error.diagnostics.providerErrorCode, 'ASK_REQUEST_CONTRACT_READ_TICKET');
     return true;
   });
-  assert.equal(calls, 1);
-  assert.deepEqual(stages.map(event => [event.stage, event.outcome]), [['interpretation', 'started'], ['interpretation', 'failed']]);
+  assert.equal(calls, 2);
+  assert.deepEqual(stages.map(event => [event.stage, event.outcome]), [['interpretation', 'started'], ['interpretation', 'started'], ['interpretation', 'failed']]);
   const logs = warn.mock.calls.filter(call => call.arguments[0] === '[Ask Brain] rejected read ticket');
-  assert.equal(logs.length, 1);
+  assert.equal(logs.length, 2);
   const logged = JSON.parse(logs[0].arguments[1]);
   assert.equal(logged.errorCode, 'ASK_REQUEST_CONTRACT_READ_TICKET');
   assert.equal(logged.field, 'temporal.anchor');
