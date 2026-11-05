@@ -334,6 +334,7 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
   // A premise list has authority only in the supplied-context branch.
   const suppliedConversation = structuredClone(nonProfile);
   Object.assign(suppliedConversation.properties.evidenceBasis, { type: "string", enum: ["supplied_context"] });
+  Object.assign(suppliedConversation.properties.premiseQuotes, { minItems: 1 });
   Object.assign(suppliedConversation.properties, { mode: { type: "string", enum: ["conversation"] },
     scope: { type: "string", enum: ["none"] }, readTicket: { type: "null" } });
   for (const variant of [nonProfile, chronological, lifecycle]) {

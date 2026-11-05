@@ -21,7 +21,7 @@ const proposal=(question,readTicket=ticket(),patch={})=>({version:'ask-request.v
   question,requirements:[],referenceTurnIds:[],evidenceBasis:'saved_history',scope:'named',petNames:pets.map(p=>p.name),
   operation:'recall',selection:'summary',quantity:'records',topic:'history',terms:[],from:null,to:null,
   episodeTopic:null,ordinal:null,frame:null,premiseQuotes:[],...patch});
-async function mocked(question,readTicket=ticket(),patch={},ctx=context(question),reject=false){
+async function mocked(question,readTicket=ticket(),patch={},ctx=context(question),reject=false,expectedCalls=1){
   let calls=0;
   const pending=interpretAskQuestion({context:ctx,model:'fixture',client:{responses:{create:async request=>{
     calls++;
@@ -32,7 +32,7 @@ async function mocked(question,readTicket=ticket(),patch={},ctx=context(question
     assert.equal(compositional.properties.selection.additionalProperties,false);
     return {output_text:JSON.stringify(proposal(question,readTicket,patch))};
   }}}});
-  if(reject){await assert.rejects(pending);assert.equal(calls,1);return;}
+  if(reject){await assert.rejects(pending);assert.equal(calls,expectedCalls);return;}
   const result=await pending;
   assert.equal(calls,1);
   if(result.request?.readTicket)assert.ok(Object.isFrozen(result.request.readTicket));
@@ -148,7 +148,7 @@ test('I unresolved fact or anchor is rejected rather than guessed into a legal s
   await mocked('latest after that for each',{...ticket(),operation:'read_since_event',
     temporal:{from:null,to:null,anchor:{concept:'',relation:'after'},calendar:null}},{},undefined,true);
 });
-test('J incompatible selectors and invented dimensions still reject with one planner call',async()=>{
+test('J incompatible selectors and invented dimensions reject, including bounded episode repair',async()=>{
   const base=ticket();
   const invalid=[
     {...base,outputs:{...base.outputs,strategy:'chronological'}},
@@ -158,7 +158,7 @@ test('J incompatible selectors and invented dimensions still reject with one pla
     {...base,temporal:{...base.temporal,calendar:'oldest_year'}},
     {...base,episode:{operation:'count',referent:null}},
   ];
-  for(const read of invalid)await mocked('latest for each',read,{},undefined,true);
+  for(const read of invalid)await mocked('latest for each',read,{},undefined,true,read.episode?2:1);
 });
 test('explicit subset and selected scope never widen merely because grouping is present',async()=>{
   const question='latest for Aster and Echo';

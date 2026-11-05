@@ -28,7 +28,7 @@ export async function inspectAskWireContract(request, context) {
  }
  const wire = plans.get(key);
  const plan = createDirectSemanticAskWirePlan(wire, wire.instructions, askRequestSchema(proposedSemanticFrameJsonSchema, selected), () => {});
- assert.deepEqual(request.text.format.schema, createAskProviderWireSchema(plan.schema), "actual wire schema differs from the source-window compiler");
+ assert.deepEqual(request.text.format.schema, factorProviderCompoundSchemas(factorProviderEnumSchemas(createAskProviderWireSchema(plan.schema))), "actual wire schema differs from the source-window compiler");
  assert.equal(request.instructions, plan.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS, "actual policy differs from pinned policy and source adapter");
  return { canonicalSchema, providerSchema, sourceInstructions: ASK_REQUEST_INSTRUCTIONS };
 }
