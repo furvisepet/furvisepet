@@ -1,3 +1,4 @@
+import { carryScopedReportSidecar } from "./scoped-stored-report.ts";
 import { carryAttributedReports } from "./attributed-report-context.ts";
 import { bindStoredReadEvidence } from "./stored-read-publication.ts";
 import { wholeAskTaskQuestion } from "./ask-task-continuation.ts";
@@ -167,6 +168,7 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
     if (!context.askInterpretation) contract.scope.readOnlyRecall = true;
     const history = context.askHistory;
     contract.history = structuredClone(history.coverage);
+    carryScopedReportSidecar(history.coverage, contract.history);
     carryAttributedReports(history.coverage.attributedReports, contract.history.attributedReports,
       context.askInterpretation?.request?.readTicket);
     contract.sources = contract.sources.filter(source => source.source !== "care_entries");

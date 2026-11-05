@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {certifyScopedStoredReport,matchesScopedStoredReport} from '../app/lib/intelligence/scoped-stored-report.ts';
+import {certifyScopedStoredReport,matchesScopedStoredReport,bindScopedReportSidecar,carryScopedReportSidecar,confirmScopedReportTurn,getScopedReportSidecar} from '../app/lib/intelligence/scoped-stored-report.ts';
 const source=()=>({id:'source',user_id:'owner',pet_profile_id:'pet',category:'general',title:null,note:'The evening routine was calm.',severity:null,occurred_at:'2026-09-15T12:00:00Z',created_at:'2026-09-15T14:00:00Z',updated_at:'2026-09-15T14:00:00Z',deleted_at:null});
 const ticket=()=>({authority:'stored_report',operation:'read',subjects:{petIds:['pet']},temporal:{from:'2026-09-15T00:00:00Z',to:'2026-09-16T00:00:00Z',anchor:null,calendar:null},predicates:[{kind:'text_any',terms:['routine']}],outputs:{completeness:'sufficient',ordering:'asc',limit:null,strategy:null}});
 const page=()=>({sources:[source()],claims:[],relations:[],lineage:[],withheld_claim_ids:[],withheld_source_ids:[],truncated:false});
@@ -40,3 +40,21 @@ for(const [name,change] of [
  ['selection',x=>x.t.selection={groupBy:['subject'],union:[]}],
  ['since-event',x=>x.t.operation='read_since_event'],
 ]) test('reject '+name+' before RPC',async()=>{const x={candidate:source(),t:ticket(),ownedPetIds:['pet']};change(x);const r=await read(x);assert.equal(r.proof,null);assert.equal(r.calls,0);});
+
+test('sidecar requires the exact turn, request, and unmodified server clone',async()=>{
+ const t=ticket(), {proof}=await read({t}), request={readTicket:t,question:'question'};
+ const original={status:'partial'}, clone=structuredClone(original);
+ bindScopedReportSidecar(original,{proof,userId:'owner',ticket:t,request,message:'question',turnId:'turn'});
+ carryScopedReportSidecar(original,clone);
+ confirmScopedReportTurn(clone,'other');assert.equal(getScopedReportSidecar(clone,request,'question'),null);
+ confirmScopedReportTurn(clone,'turn');assert.equal(getScopedReportSidecar(clone,request,'question'),proof);
+ assert.equal(getScopedReportSidecar(clone,{...request,question:'different'},'question'),null);
+ assert.equal(getScopedReportSidecar(clone,request,'different'),null);
+ clone.status='complete';assert.equal(getScopedReportSidecar(clone,request,'question'),null);
+ assert.throws(()=>carryScopedReportSidecar(clone,structuredClone(clone)),/ASK_SCOPED_REPORT_CLONE_CHANGED/);
+});
+
+test('yearless cross-year request has no scoped report proof without a concrete bound window',async()=>{
+ const t=ticket();t.temporal.from=null;t.temporal.to=null;
+ const result=await read({t});assert.equal(result.proof,null);assert.equal(result.calls,0);
+});

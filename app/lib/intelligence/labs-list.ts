@@ -1,3 +1,5 @@
+import { scopedReportPublication } from "./scoped-report-publication.ts";
+import { carryScopedReportSidecar } from "./scoped-stored-report.ts";
 import { verifiedAttributedReports, carryAttributedReports, attributedReportSources, type AttributedReportResult } from "./attributed-report-context.ts";
 import { supportedPlainResultSetRead } from "./publication-authority.ts";
 import { certifiedResultSetMatches, resultSetSnapshotMatches } from "./result-set-publication.ts";
@@ -68,9 +70,15 @@ export function buildLabsList(evidence: AskEvidenceContract | undefined, rows: C
   if (coverage.status === "complete" && !rows.length
     || ["complete_empty", "anchor_missing", "unavailable"].includes(coverage.status) && rows.length)
     throw new Error("ASK_LABS_LIST_COVERAGE_SHAPE");
-  if (!resultSetSnapshotMatches(ticket, coverage, rows.map(row => ({ id: row.id, petId: row.pet_profile_id }))))
+  const scopedReport = scopedReportPublication(evidence, rows.map(row => ({
+    id: row.id, petId: row.pet_profile_id, body: row.note ?? row.title ?? "", event_at: row.occurred_at,
+  })));
+  if (!scopedReport && !resultSetSnapshotMatches(ticket, coverage, rows.map(row => ({ id: row.id, petId: row.pet_profile_id })))) {
+    // A rejected partial-report sidecar carries no publishable source authority.
+    if (ticket.authority === "stored_report" && coverage.status === "partial") return null;
     throw new Error("ASK_LABS_RESULT_SET_SNAPSHOT");
-  if (!isSelectedRead(ticket) && !operandTransport
+  }
+  if (!isSelectedRead(ticket) && !operandTransport && !scopedReport
     && !certifiedResultSetMatches(ticket, coverage, rows.map(row => ({ id: row.id, petId: row.pet_profile_id })))) return null;
   // Preserve organ order and exact bodies. With selection, publish only the
   // records its existing receipts certify; never select or match again here.
@@ -231,6 +239,7 @@ export function labsListReviewFailure(result: AskReasoningResult): string | null
 export function carryLabsListSnapshot(source: AskReasoningResult, target: AskReasoningResult) {
   if (labsListReviewFailure(source) || !source.labsList || !target.labsList
     || JSON.stringify(source.labsList) !== JSON.stringify(target.labsList)) throw new Error("ASK_LABS_LIST_CLONE_CHANGED");
+  carryScopedReportSidecar(source.evidenceContract?.history, target.evidenceContract?.history);
   carryAttributedReports(source.evidenceContract?.history?.attributedReports,
     target.evidenceContract?.history?.attributedReports, target.labsList.ticket);
   snapshots.set(target.labsList, snapshots.get(source.labsList)!);
