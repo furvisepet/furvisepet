@@ -24,12 +24,11 @@ const versionFields = ["id", "user_id", "pet_profile_id", "category", "title", "
  * own reviewed graph proof and is deliberately withheld. No absence of other
  * notes, corrections or effective facts follows from this source-only proof.
  */
-export async function certifyScopedStoredReport(input: {
-  db: SupabaseClient; userId: string; ownedPetIds: readonly string[];
-  ticket: ReadTicket; candidate: CareEntryRow; deadline: number;
-}): Promise<ScopedReportProof | null> {
+export function isScopedStoredReportCandidate(input: {
+  userId: string; ownedPetIds: readonly string[]; ticket: ReadTicket; candidate: CareEntryRow;
+}): boolean {
   const { ticket, candidate, userId } = input;
-  if (ticket.authority !== "stored_report" || ticket.operation !== "read"
+  return !(ticket.authority !== "stored_report" || ticket.operation !== "read"
     || ticket.outputs.completeness !== "sufficient" || ticket.outputs.limit !== null
     || ticket.outputs.strategy != null || ticket.selection || ticket.episode || ticket.needs?.length
     || ticket.attributedContexts?.length || ticket.temporal.anchor || ticket.temporal.calendar
@@ -42,8 +41,15 @@ export async function certifyScopedStoredReport(input: {
     || !Number.isFinite(Date.parse(ticket.temporal.from)) || !Number.isFinite(Date.parse(ticket.temporal.to))
     || Date.parse(candidate.occurred_at) < Date.parse(ticket.temporal.from)
     || Date.parse(candidate.occurred_at) >= Date.parse(ticket.temporal.to)
-    || !ticket.predicates.every(predicate => textMatchesReadPredicate((candidate.title || "") + " " + candidate.note, predicate)))
-    return null;
+    || !ticket.predicates.every(predicate => textMatchesReadPredicate((candidate.title || "") + " " + candidate.note, predicate)));
+}
+
+export async function certifyScopedStoredReport(input: {
+  db: SupabaseClient; userId: string; ownedPetIds: readonly string[];
+  ticket: ReadTicket; candidate: CareEntryRow; deadline: number;
+}): Promise<ScopedReportProof | null> {
+  const { ticket, candidate, userId } = input;
+  if (!isScopedStoredReportCandidate(input)) return null;
   const remaining = input.deadline - Date.now();
   if (remaining <= 0) return null;
   try {

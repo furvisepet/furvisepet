@@ -1,4 +1,4 @@
-import { certifyScopedStoredReport, bindScopedReportSidecar } from "./scoped-stored-report.ts";
+import { certifyScopedStoredReport, bindScopedReportSidecar, isScopedStoredReportCandidate } from "./scoped-stored-report.ts";
 import { retrieveAttributedReports, type AttributedReportResult } from "./attributed-report-context.ts";
 import { wholeAskTaskQuestion } from "./ask-task-continuation.ts";
 import { calendarPeriodContaining, oldestCalendarUnit, relativeYearsAgoWindow } from "./history-periods.ts";
@@ -987,7 +987,11 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
   const request = context.askInterpretation?.request;
   const turn = context.currentTurn;
   let scopedProof: Awaited<ReturnType<typeof certifyScopedStoredReport>> = null;
-  if (result.coverage.status === "partial" && !result.records.length && originals.length === 1
+  // One observed candidate permits only a partial source quotation, never a complete-set claim.
+  const eligible = originals.filter(candidate => isScopedStoredReportCandidate({
+    userId: context.owner.userId, ownedPetIds: [...owned], ticket, candidate,
+  }));
+  if (result.coverage.status === "partial" && !result.records.length && eligible.length === 1
     && (result.coverage.effectiveStream?.reduce((n, stream) => n + stream.graphCalls, 0) ?? HISTORY_BUDGET.graphCalls) < HISTORY_BUDGET.graphCalls
     && request?.mode === "read" && request.evidenceBasis === "saved_history" && request.quantity === null
     && (context.askInterpretation?.readOperation ?? context.askInterpretation?.operation) === "recall"
@@ -998,7 +1002,7 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
     && !request.writeJob && !request.appendJob && !request.mutationIntent
     && !request.removeJob && !request.fieldMutationJob && !request.stateTransitionJob && !request.lifecyclePlan
     && !request.recordSelection && !request.evidenceNeeds?.length && !request.requirements?.length) {
-    const candidate = originals[0];
+    const candidate = eligible[0];
     coverage.queryCount++;
     const proof = await certifyScopedStoredReport({ db, userId: context.owner.userId, ownedPetIds: [...owned],
       ticket, candidate, deadline });

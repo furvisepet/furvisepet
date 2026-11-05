@@ -8,11 +8,11 @@ import {stressProposal} from '../scripts/audits/helpers/current-stress-harness.m
 const pet={...templates[0],id:'scoped-pet',name:'Quartz',user_id:ownerId};
 const q="What did Quartz's January 1 2024 note say about routine?";
 const row={...C.row('source','The usual routine included a walk.'),user_id:ownerId,pet_profile_id:pet.id};
-const proposal=stressProposal({authority:'stored_report',selection:'summary',petNames:[pet.name],from:'2024-01-01',to:'2024-01-02',terms:['routine']});
+const proposal=stressProposal({authority:'stored_report',selection:'summary',petNames:[pet.name],from:'2024-01-01',to:'2024-01-02',terms:['routine','schedule','daily routine','bedtime','walk','feeding']});
 proposal.quantity=null;proposal.readTicket.outputs.completeness='sufficient';
-async function run(t, graph, turnId = 'current-turn') {
+async function run(t, graph, turnId = 'current-turn', rows = [row]) {
  clock(t);
- return exercise(q,{fixturePets:[pet],petId:pet.id,conversationPetId:pet.id,rows:[row],messages:[],
+ return exercise(q,{fixturePets:[pet],petId:pet.id,conversationPetId:pet.id,rows,messages:[],
  history:true,interpretationProposal:{...proposal,question:q},expectedProviderCalls:0,expectedReviewCalls:0,
  graph:{sourceSemanticsPage:{complete:false,limit:76,claims:[],sources:[]},...graph},
  prepareContext:ctx=>{ctx.currentTurn={id:turnId,role:'user',text:q,createdAt:'2024-01-04T00:00:00Z'};}
@@ -33,5 +33,28 @@ for(const [name,graph] of [['withheld',{withheld_source_ids:['source']}],['chang
 
 test('a different current turn cannot consume the source proof',async t=>{
  const r=await run(t,{},'different-turn');assert.deepEqual(r.result.reasoning.relevantContextIds,[]);
+ assert.doesNotMatch(r.result.reasoning.answer.summary,/usual routine/);
+});
+
+const unrelated = Array.from({length: 12}, (_, i) => ({
+ ...row, id: 'unrelated-'+i, note:'A coat observation.', title:'General observation'
+}));
+test('many acquired unrelated originals do not hide a single eligible source',async t=>{
+ const r=await run(t,{},'current-turn',[...unrelated,row]);
+ assert.ok(r.context.askHistory.coverage.ticketCoverage.effectiveStream.some(stream => stream.acquiredIds.length > 1));
+ assert.match(r.result.reasoning.answer.summary,/The usual routine included a walk/);
+ assert.deepEqual(r.result.reasoning.relevantContextIds,['care:source']);
+ assert.equal(r.context.askHistory.coverage.ticketCoverage.status,'partial');
+ assert.equal(r.context.askHistory.coverage.ticketCoverage.resultSet.certified,false);
+});
+test('multiple eligible sources remain ambiguous',async t=>{
+ const other={...row,id:'other',note:'The routine was calm.'};
+ const r=await run(t,{},'current-turn',[...unrelated,row,other]);
+ assert.deepEqual(r.result.reasoning.relevantContextIds,[]);
+ assert.doesNotMatch(r.result.reasoning.answer.summary,/usual routine/);
+});
+test('an eligible source withheld on recheck is not quoted among unrelated originals',async t=>{
+ const r=await run(t,{withheld_source_ids:['source']},'current-turn',[...unrelated,row]);
+ assert.deepEqual(r.result.reasoning.relevantContextIds,[]);
  assert.doesNotMatch(r.result.reasoning.answer.summary,/usual routine/);
 });
