@@ -10,11 +10,12 @@ const usage={input_tokens:100,output_tokens:20,total_tokens:120};
 const pet={id:'pet',user_id:'owner',name:'Aster',species:'cat'};
 async function run(t,mode){
  t.mock.method(console,'info',()=>{});t.mock.method(console,'warn',()=>{});
- const event=mode==='event', text=event?'What happened after Aster’s dental visit?':'What did Aster’s September 15 2026 care note say about her routine?';
+ const event=mode==='event', effective=event || mode.startsWith('effective') || mode.startsWith('mixed') || mode.startsWith('ambiguous'), initial=mode.endsWith('initial') || mode==='initial';
+ const text=event?'What happened after the dental visit?':mode.startsWith('effective')?'What is the corrected routine according to the records?':mode.startsWith('mixed')?'What did the note report, and what is the corrected routine?':mode.startsWith('ambiguous')?'What about the routine in the records?':"What did Aster's September 15 2026 care note say about her routine?";
  const currentTurn={id:'current',role:'user',text,createdAt:'2026-09-20T12:00:00Z'};
  const context={owner:{userId:'owner'},pet,eligiblePets:[pet],currentMessage:text,currentTurn,conversationTurns:[currentTurn],conversationId:'conversation',timeZone:'UTC'};
  const prepared=prepareAskInterpretationRequest(context,'gpt-5.4-mini');
- const ticket={authority:'effective_fact',operation:event?'read_since_event':'read',subjectScope:'named',
+ const ticket={authority:effective?'effective_fact':'stored_report',operation:event?'read_since_event':'read',subjectScope:'named',
  temporal:{from:event?null:'2026-09-15T00:00:00Z',to:event?null:'2026-09-16T00:00:00Z',anchor:event?{concept:'dental visit',relation:'after'}:null,calendar:null},
  predicates:[],outputs:{strategy:null,completeness:'sufficient',ordering:'asc',limit:null},searchHints:null,episode:null,selection:null,probes:[]};
  const request={calculatePlan:null,storedRead:null,removeJob:null,stateTransitionJob:null,fieldMutationJob:null,lifecyclePlan:null,appendJob:null,readTicket:ticket,writeJob:null,task:null,temporalScope:'historical',mutationIntent:null,recordSelection:null,profileFields:[],projection:null,version:'ask-request.v2',mode:'read',question:text,requirements:[],evidenceNeeds:[],outputFormat:null,evidenceBasis:'saved_history',premiseQuotes:[],excludedPetNames:[],referenceTurnIds:[],scope:'named',petNames:['Aster'],operation:'recall',selection:'summary',quantity:'records',topic:'history',terms:[],from:event?null:'2026-09-15',to:event?null:'2026-09-16',episodeTopic:null,ordinal:null,frame:null};
@@ -30,14 +31,14 @@ async function run(t,mode){
  admission.beginProviderCall=async x=>{purposes.push(x.purpose??'initial');return begin(x)};
  try {
   const invoke=()=>interpretAskQuestion({context,model:'gpt-5.4-mini',client:{responses:{create:async req=>{
-   calls++; if(calls===2 && mode!=='transport_then_anchor'){const repair=JSON.parse(req.input).contractRepair;assert.equal(repair.field,'temporal.anchor');assert.equal(repair.rule,'anchor_iff_read_since_event');assert.equal(Object.hasOwn(repair,'rejectedProposal'),false);assert.match(req.instructions,/preserve actual event-relative meaning/);assert.match(req.instructions,/Episode reads cannot have text predicates/);}
-   return {status:'completed',output_text:JSON.stringify(mode==='transport_then_anchor'?(calls===1?transportBad:bad):mode==='episode_invalid'?(calls===1?bad:episodeBad):(calls===1||mode==='invalid'?bad:good)),usage};
+   calls++; assert.match(req.instructions,/For a user explicitly asking what a saved note says or reports/);assert.match(req.instructions,/For current, corrected, settled facts or calculations use effective_fact/);assert.match(req.instructions,/mixed request/); if(calls===2 && mode!=='transport_then_anchor'){const repair=JSON.parse(req.input).contractRepair;assert.equal(repair.field,'temporal.anchor');assert.equal(repair.rule,'anchor_iff_read_since_event');assert.equal(Object.hasOwn(repair,'rejectedProposal'),false);assert.match(req.instructions,/preserve actual event-relative meaning/);assert.match(req.instructions,/Episode reads cannot have text predicates/);}
+   return {status:'completed',output_text:JSON.stringify(mode==='transport_then_anchor'?(calls===1?transportBad:bad):mode==='episode_invalid'?(calls===1?bad:episodeBad):(initial?good:calls===1||mode==='invalid'?bad:good)),usage};
   }}}});
   if(mode==='invalid'||mode==='transport_then_anchor'||mode==='episode_invalid') await assert.rejects(admission.run(invoke),e=>e.diagnostics?.providerErrorCode==='ASK_REQUEST_CONTRACT_READ_TICKET');
-  else {const result=await admission.run(invoke);assert.equal(result.request.readTicket.operation,event?'read_since_event':'read');assert.deepEqual(result.request.readTicket.temporal.anchor,ticket.temporal.anchor);assert.deepEqual(result.request.readTicket.subjects.petIds,['pet']);}
-  assert.equal(calls,2);assert.deepEqual(purposes,['initial','interpretation_repair']);
+  else {const result=await admission.run(invoke);assert.equal(result.request.readTicket.operation,event?'read_since_event':'read');assert.deepEqual(result.request.readTicket.temporal.anchor,ticket.temporal.anchor);assert.deepEqual(result.request.readTicket.subjects.petIds,['pet']);assert.equal(result.request.readTicket.authority,effective?'effective_fact':'stored_report');}
+  assert.equal(calls,initial?1:2);assert.deepEqual(purposes,initial?['initial']:['initial','interpretation_repair']);
  } finally {await admission.release();}
- assert.equal(store.getSnapshot('2039-01-01').calls,2);
+ assert.equal(store.getSnapshot('2039-01-01').calls,initial?1:2);
 }
 test('ordinary dated read repairs mismatched anchor',t=>run(t,'date'));
 test('event-relative read repairs without losing its anchor',t=>run(t,'event'));
@@ -52,3 +53,13 @@ test('genuine episode count binds when no incompatible predicates are proposed',
  outputs:{completeness:'sufficient',ordering:'asc',limit:null,strategy:null}};
  assert.equal(bindReadTicket(ticket,['pet']).episode.operation,'count');
 });
+
+test('initial attributed note request retains stored report authority',t=>run(t,'initial'));
+
+test('initial effective fact authority remains effective',t=>run(t,'effective_initial'));
+test('repair retains effective authority for corrected fact',t=>run(t,'effective_repair'));
+test('mixed request retains proposed effective authority initially',t=>run(t,'mixed_initial'));
+test('mixed request retains proposed effective authority in repair',t=>run(t,'mixed_repair'));
+
+test('ambiguous input retains proposed effective authority initially',t=>run(t,'ambiguous_initial'));
+test('ambiguous input retains proposed effective authority in repair',t=>run(t,'ambiguous_repair'));
