@@ -76,13 +76,15 @@ export class AskInterpretationValidationError extends Error {
   readonly reason: string;
   readonly category: "schema" | "semantic";
   readonly anchorMismatch: boolean;
+  readonly episodePredicateMismatch: boolean;
 
-  constructor(reason: string, category: "schema" | "semantic" = "semantic", anchorMismatch = false) {
+  constructor(reason: string, category: "schema" | "semantic" = "semantic", anchorMismatch = false, episodePredicateMismatch = false) {
     super(`ASK_INTERPRETATION_INVALID: ${reason}`);
     this.name = "AskInterpretationValidationError";
     this.reason = reason;
     this.category = category;
     this.anchorMismatch = anchorMismatch;
+    this.episodePredicateMismatch = episodePredicateMismatch;
   }
 }
 export function recoverAskInterpretation(value: unknown, context: InterpretationContext): AskInterpretation {
@@ -129,7 +131,8 @@ export function recoverAskInterpretation(value: unknown, context: Interpretation
         return unavailableAskReadPlan("ASK_REQUEST_CONTRACT_" + reason!.toUpperCase());
       const detail = error instanceof Error ? error.cause as { field?: unknown; rule?: unknown } | undefined : undefined;
       const anchorMismatch = reason === "read_ticket" && detail?.field === "temporal.anchor" && detail?.rule === "anchor_iff_read_since_event";
-      throw new AskInterpretationValidationError(reason ? `ASK_REQUEST_CONTRACT_${reason.toUpperCase()}` : "ASK_REQUEST_CONTRACT", "semantic", anchorMismatch);
+      const episodePredicateMismatch = reason === "read_ticket" && detail?.field === "predicates" && detail?.rule === "incompatible_with_episode";
+      throw new AskInterpretationValidationError(reason ? `ASK_REQUEST_CONTRACT_${reason.toUpperCase()}` : "ASK_REQUEST_CONTRACT", "semantic", anchorMismatch, episodePredicateMismatch);
     }
   }
   throw new AskInterpretationValidationError("ASK_REQUEST_CONTRACT_VERSION", "schema");
@@ -432,13 +435,16 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
       const repairableProfileContract = rejected?.mode === "read" && rejected.evidenceBasis === "saved_profile";
       const repairableHistoryAnchor = error instanceof AskInterpretationValidationError && error.anchorMismatch
         && rejected?.mode === "read" && rejected.evidenceBasis === "saved_history";
-      if (transportRepairUsed || !(error instanceof AskInterpretationValidationError) || error.category !== "semantic" || !(repairableProfileContract || repairableHistoryAnchor)) {
+      const repairableHistoryEpisode = error instanceof AskInterpretationValidationError && error.episodePredicateMismatch
+        && rejected?.mode === "read" && rejected.evidenceBasis === "saved_history";
+      if (transportRepairUsed || !(error instanceof AskInterpretationValidationError) || error.category !== "semantic" || !(repairableProfileContract || repairableHistoryAnchor || repairableHistoryEpisode)) {
         if (error instanceof AskInterpretationValidationError) throw fail(error.reason, error.category, metadata);
         throw fail("ASK_INTERPRETATION_VALIDATION", "semantic", metadata);
       }
       const repairRequest = { ...request,
         instructions: `${request.instructions}\n\n${ASK_INTERPRETATION_REPAIR_INSTRUCTIONS}${repairableHistoryAnchor ? "\nFor temporal.anchor, an event anchor is required exactly when operation is read_since_event. Interpret the original USER request again; preserve actual event-relative meaning and do not invent or remove an event. A calendar date alone is not an event anchor. If the request is unclear, clarify." : ""}`,
-        input: JSON.stringify({ ...input, contractRepair: { validationCode: error.reason, ...(repairableHistoryAnchor ? { field: "temporal.anchor", rule: "anchor_iff_read_since_event" } : { rejectedProposal: result.parsed }) } }) };
+        input: JSON.stringify({ ...input, contractRepair: { validationCode: error.reason, ...(repairableHistoryAnchor ? { field: "temporal.anchor", rule: "anchor_iff_read_since_event" }
+          : repairableHistoryEpisode ? { field: "predicates", rule: "incompatible_with_episode" } : { rejectedProposal: result.parsed }) } }) };
       assertAskRequestInputBudget(repairRequest);
       console.info("[Ask Brain] contract repair", { sourceMessageId: context.currentTurn?.id, validationCode: error.reason });
       const repairResponse = await executeAdmittedResponsesRequest({ purpose: "interpretation_repair", model,
