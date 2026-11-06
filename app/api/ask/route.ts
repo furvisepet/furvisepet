@@ -1,3 +1,4 @@
+import { parseConfirmedTemporalScope } from "../../lib/ask-request-contract.ts";
 import { hydratePlanningCatalog, verifyPlanningCatalogSource } from "../../lib/intelligence/hydrate-planning-catalog.ts";
 import { executeStoredRead } from "../../lib/furvise-brain/stored-read-organ.ts";
 import {resolveRemovePlan} from "../../lib/furvise-brain/remove-job.ts";
@@ -246,18 +247,27 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
     logicalTurnId?: unknown;
     locale?: unknown;
     timeZone?: unknown;
+    confirmedTemporalScope?: unknown;
     mode?: unknown;
   } | null;
   if (body?.mode !== undefined && body.mode !== "note") return askFailure("INVALID_MESSAGE", "Choose a valid submission mode.", 400);
   const noteMode = body?.mode === "note" ? "note" as const : undefined;
+  let confirmedTemporalScope;
+  try { confirmedTemporalScope = parseConfirmedTemporalScope(body?.confirmedTemporalScope); }
+  catch { return askFailure("INVALID_MESSAGE", "Choose a valid date scope.", 400, {}, "request_validation"); }
+
   const question = typeof body?.message === "string" ? body.message.trim() : "";
   const petId = typeof body?.petId === "string" ? body.petId : "";
   const conversationId = typeof body?.conversationId === "string" ? body.conversationId : "";
   const logicalTurnId = typeof body?.logicalTurnId === "string" && isUuid(body.logicalTurnId) ? body.logicalTurnId : "";
   const requestId = logicalTurnId;
   const locale = resolveAskLocale(body?.locale, request.headers.get("accept-language"));
-  let aiCreditPayload = { conversationId, locale, petId, question, ...(noteMode ? { mode: noteMode } : {}), ...(body?.timeZone ? { timeZone: resolveAskTimeZone(body.timeZone) } : {}) };
+  let aiCreditPayload = { conversationId, locale, petId, question, ...(noteMode ? { mode: noteMode } : {}), ...(body?.timeZone ? { timeZone: resolveAskTimeZone(body.timeZone) } : {}), ...(confirmedTemporalScope ? { confirmedTemporalScope } : {}) };
   let aiCreditPayloadHash = hashAiCreditPayload("ask", aiCreditPayload);
+  // Persisted turns do not retain this scope. Never execute a scoped request
+  // until durable identity/reconstruction and interpretation binding exist.
+  if (confirmedTemporalScope) return askFailure("INVALID_MESSAGE", "Date-scoped questions are not available yet.", 400, {}, "request_validation");
+
   logAskStage("authentication succeeded", { requestId });
 
   if (!question || !requestId) {
