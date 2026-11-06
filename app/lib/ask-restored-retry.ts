@@ -1,3 +1,4 @@
+import { assertScopedReplayDisabled } from "./ask-temporal-scope-receipt.ts";
 import type { ConfirmedTemporalScope } from "./ask-request-contract.ts";
 type AskIdentityPayload = { confirmedTemporalScope?: ConfirmedTemporalScope; mode?: "note"; conversationId: string; locale: string; timeZone?: string; petId: string; question: string };
 type OwnedPersistedTurn = { confirmedTemporalScope?: ConfirmedTemporalScope; conversationId: string; question: string | null; userSequence: number };
@@ -11,8 +12,7 @@ export async function claimWithRestoredAskOrigin<T extends object>({ claim, payl
 }): Promise<T> {
   // A persisted turn cannot yet prove the original scoped request. Do not replay,
   // even if a caller supplies or omits a purported scope. Legacy unscoped turns remain supported.
-  if (payload.confirmedTemporalScope !== undefined || persisted?.confirmedTemporalScope !== undefined)
-    throw new Error("ASK_TEMPORAL_SCOPE_DURABILITY_UNAVAILABLE");
+  assertScopedReplayDisabled(payload, persisted);
   let result = await claim(payload);
   if (!persisted || !payload.conversationId || persisted.conversationId !== payload.conversationId
     || persisted.question !== payload.question) return result;
