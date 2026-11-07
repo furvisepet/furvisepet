@@ -169,7 +169,10 @@ export function serializeLabsList(labs: LabsList): string {
 function sourceDate(value: string): string {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return "date unavailable";
-  return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" }).format(date) + " UTC";
+  const day = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" }).format(date);
+  // Preserve time-of-day and millisecond order when two reports share a date.
+  const time = date.toISOString().slice(11, 23);
+  return `${day}, ${time} UTC`;
 }
 
 /** Exact quotations with attribution, never an effective-fact sentence. */

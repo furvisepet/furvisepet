@@ -19,3 +19,13 @@ test('complete reports do not certify present or corrected state',()=>{
  const text=serializeLabsList(fixture('complete'));
  assert.match(text,/what is current or corrected/);
 });
+
+test('same-day saved and event times remain distinct in human-readable UTC',()=>{
+ const data=fixture('complete');
+ data.records[0].event_at='2025-02-03T12:00:12.345Z';
+ data.records[0].recorded_at='2025-02-03T14:05:56.789Z';
+ const text=serializeLabsList(data);
+ assert.match(text,/Feb 3, 2025, 12:00:12\.345 UTC/);
+ assert.match(text,/Feb 3, 2025, 14:05:56\.789 UTC/);
+ assert.doesNotMatch(text,/2025-02-03T/);
+});
