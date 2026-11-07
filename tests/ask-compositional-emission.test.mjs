@@ -1,4 +1,4 @@
-import { inspectAskWireContract } from "./helpers/ask-wire-contract.mjs";
+import { inspectAskWireContract, trackedFixtureProvider, settleFixtureInterpretation } from "./helpers/ask-wire-contract.mjs";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { registerHooks } from 'node:module';
@@ -23,17 +23,18 @@ const proposal=(question,readTicket=ticket(),patch={})=>({version:'ask-request.v
   episodeTopic:null,ordinal:null,frame:null,premiseQuotes:[],...patch});
 async function mocked(question,readTicket=ticket(),patch={},ctx=context(question),reject=false,expectedCalls=1){
   let calls=0;
-  const pending=interpretAskQuestion({context:ctx,model:'fixture',client:{responses:{create:async request=>{
+  const provider=trackedFixtureProvider(async request=>{
     calls++;
-    const requestSchema=(await inspectAskWireContract(request,ctx)).canonicalSchema.properties.request.anyOf.find(s=>s.properties?.evidenceBasis?.enum?.includes('saved_history') && s.properties?.calculatePlan?.type==='null');
+    const requestSchema=(await inspectAskWireContract(request,ctx,{expectedRepair:calls===2?{validationCode:"ASK_REQUEST_CONTRACT_READ_TICKET",field:"predicates",rule:"incompatible_with_episode"}:null})).canonicalSchema.properties.request.anyOf.find(s=>s.properties?.evidenceBasis?.enum?.includes('saved_history') && s.properties?.calculatePlan?.type==='null');
     const schema=requestSchema.properties.readTicket;
     const compositional=schema.anyOf.find(s=>s.properties?.selection.type==='object');
     assert.ok(compositional.required.includes('selection'));
     assert.equal(compositional.properties.selection.additionalProperties,false);
     return {output_text:JSON.stringify(proposal(question,readTicket,patch))};
-  }}}});
-  if(reject){await assert.rejects(pending);assert.equal(calls,expectedCalls);return;}
-  const result=await pending;
+  });
+  const pending=interpretAskQuestion({context:ctx,model:'fixture',client:{responses:{create:provider.create}}});
+  const result=await settleFixtureInterpretation(pending,provider,reject);
+  if(reject){assert.equal(calls,expectedCalls);return;}
   assert.equal(calls,1);
   if(result.request?.readTicket)assert.ok(Object.isFrozen(result.request.readTicket));
   if(result.request?.readTicket?.selection){

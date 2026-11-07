@@ -5,7 +5,7 @@ import { createAskWirePlan } from "../../app/lib/intelligence/ask-wire-policy.mj
 // Test-only cache of exact schema compilations. Each dispatched schema, policy
 // and source snapshot is still compared; decoder rejection tests are separate.
 const plans = new Map();
-export async function inspectAskWireContract(request, context) {
+export async function inspectAskWireContract(request, context, { expectedRepair = null } = {}) {
  const { projectAskInterpretationContext } = await import("../../app/lib/intelligence/interpret-ask.ts");
  const { askSourceWindows, askUserSourceInput, ASK_USER_SOURCE_INSTRUCTIONS } = await import("../../app/lib/intelligence/ask-interpretation-sources.ts");
  const { createAskProviderWireSchema } = await import("../../app/lib/intelligence/ask-wire-provider-schema.ts");
@@ -29,6 +29,43 @@ export async function inspectAskWireContract(request, context) {
  const wire = plans.get(key);
  const plan = createDirectSemanticAskWirePlan(wire, wire.instructions, askRequestSchema(proposedSemanticFrameJsonSchema, selected), () => {});
  assert.deepEqual(request.text.format.schema, factorProviderCompoundSchemas(factorProviderEnumSchemas(createAskProviderWireSchema(plan.schema))), "actual wire schema differs from the source-window compiler");
- assert.equal(request.instructions, plan.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS, "actual policy differs from pinned policy and source adapter");
+ const initialInstructions = plan.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS;
+ if (expectedRepair) {
+   assert.deepEqual(input.contractRepair, expectedRepair, "unexpected bounded repair metadata");
+   assert.ok(request.instructions.startsWith(initialInstructions + "\n\nA previous ask-request.v2 proposal was rejected by deterministic contract validation."),
+     "repair must retain the pinned initial policy and add contract-repair guidance");
+   assert.ok(request.instructions.includes("Do not add pets, facts, dates, references, source IDs, or mutation authority."),
+     "repair must retain its source-authority restriction");
+ } else {
+   assert.equal(input.contractRepair, undefined, "initial call cannot carry repair metadata");
+   assert.equal(request.instructions, initialInstructions, "actual policy differs from pinned policy and source adapter");
+ }
  return { canonicalSchema, providerSchema, sourceInstructions: ASK_REQUEST_INSTRUCTIONS };
+}
+
+// Assertions inside a provider mock otherwise become transport errors when the
+// interpreter wraps the rejection. Keep the original fixture failure visible,
+// including in tests that expect the interpreter itself to reject.
+export function trackedFixtureProvider(create) {
+ let fixtureFailure;
+ return {
+  async create(...args) {
+   try { return await create(...args); }
+   catch (error) { fixtureFailure = error; throw error; }
+  },
+  rethrowFixtureFailure() { if (fixtureFailure !== undefined) throw fixtureFailure; },
+ };
+}
+export async function settleFixtureInterpretation(pending, provider, expectRejection = false) {
+ let result, failure, rejected = false;
+ try { result = await pending; } catch (error) { failure = error; rejected = true; }
+ provider.rethrowFixtureFailure();
+ if (expectRejection) {
+  assert.ok(rejected, "expected interpretation to reject");
+  assert.notEqual(failure?.diagnostics?.providerErrorCode, "ASK_INTERPRETATION_TRANSPORT",
+   "transport failure is not an expected contract rejection");
+  return failure;
+ }
+ if (rejected) throw failure;
+ return result;
 }
