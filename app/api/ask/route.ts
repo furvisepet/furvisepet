@@ -1,3 +1,4 @@
+import { issueAskCitationProof } from "../../lib/ask-citation-proof.ts";
 import { parseConfirmedTemporalScope } from "../../lib/ask-request-contract.ts";
 import { hydratePlanningCatalog, verifyPlanningCatalogSource } from "../../lib/intelligence/hydrate-planning-catalog.ts";
 import { executeStoredRead } from "../../lib/furvise-brain/stored-read-organ.ts";
@@ -1380,6 +1381,7 @@ async function persistAssistantAnswer({
     semanticTrace: semanticTraceForStorage(intelligenceResult.semanticTrace),
   } : null;
   response = attachEpisodeReferences(response, intelligenceResult?.reasoning.evidenceContract?.episodes);
+  Object.assign(response, { citationProof: issueAskCitationProof(intelligenceResult?.reasoning, response, userId) });
   let responseWithTurn = { ...response, turn: turnLifecycle.snapshot() };
   const optionalFailure = (component: AskSubsystem, error: unknown) => {
     turnLifecycle.optionalFailure(component);

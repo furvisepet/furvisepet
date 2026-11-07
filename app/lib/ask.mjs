@@ -99,6 +99,7 @@ export function parseAskConversationResponse(value) {
     ...response,
     answerType,
     directAnswer: response.summary,
+    ...(typeof draft.citationProof === "string" && draft.citationProof.length <= 97000 ? { citationProof: draft.citationProof } : {}),
     // Completion is settled by the server, not inferred from fluent prose.
     // Keep this product status outside the reviewed body and structured data.
     ...(draft.turn?.finalStage === "COMPLETED" && draft.turn.answerOutcome === "limited"

@@ -1,3 +1,5 @@
+import {buildAskConversationResponse,parseAskConversationResponse} from "../app/lib/ask.mjs";
+import {issueAskCitationProof,verifyAskCitationProof} from "../app/lib/ask-citation-proof.ts";
 import * as C from './helpers/calculation-fixture.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -43,6 +45,23 @@ for(const [label,a,b] of [
  assert.match(r.result.reasoning.answer.summary,/which note supersedes another/);
  assert.match(r.result.reasoning.answer.summary,/checked in separate searches/);
  assert.equal(labsListReviewFailure(r.result.reasoning),null);
+ const priorCitationKey=process.env.FURVISE_RATE_LIMIT_HASH_SECRET;
+ process.env.FURVISE_RATE_LIMIT_HASH_SECRET='citation-integration-key-012345678901234567890123456789';
+ t.after(()=>{if(priorCitationKey===undefined)delete process.env.FURVISE_RATE_LIMIT_HASH_SECRET;else process.env.FURVISE_RATE_LIMIT_HASH_SECRET=priorCitationKey;});
+ const proof=issueAskCitationProof(r.result.reasoning,r.result.reasoning.answer,ownerId);
+ assert.ok(proof);
+ assert.ok(verifyAskCitationProof(proof,ownerId,r.result.reasoning.answer));
+ const outbound=buildAskConversationResponse(r.result.reasoning.answer);
+ assert.ok(outbound);
+ const outboundProof=issueAskCitationProof(r.result.reasoning,outbound,ownerId);
+ assert.ok(outboundProof);
+ const replay=parseAskConversationResponse(JSON.parse(JSON.stringify({...outbound,citationProof:outboundProof})));
+ assert.equal(replay.citationProof,outboundProof);
+ assert.ok(verifyAskCitationProof(replay.citationProof,ownerId,replay));
+ assert.equal(verifyAskCitationProof(replay.citationProof,ownerId,{...replay,sections:[] ,summary:replay.summary+' changed'}),null);
+
+ assert.equal(issueAskCitationProof(structuredClone(r.result.reasoning),r.result.reasoning.answer,ownerId),null);
+
  assert.deepEqual(JSON.parse(JSON.stringify(labs)),labs);
  const c=r.context.askHistory.coverage.ticketCoverage;
  assert.ok(c.sourceLineage.length);assert.ok(c.effectiveStream.every(s=>s.storedReportsCertified));
