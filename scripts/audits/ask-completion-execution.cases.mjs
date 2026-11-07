@@ -40,7 +40,7 @@ test('ten-pet CSV projection cannot publish uncertified converted values',async(
  const r=await assertStoredPublicationUnavailable(e);assert.doesNotMatch(JSON.stringify(r.answer),/10000|Pet9,/);
 });
 
-test('deterministic generation can still enter one repair and independent re-review within existing call cap',async t=>{
+test('Ask two-call ceiling cannot be bypassed by review repair or re-review',async t=>{
  clock(t);
  const {runAdmittedAiOperation}=await import('../../app/lib/ai/usage-guard/admission.ts');
  const {MemoryAiGuardTestStore}=await import('../../app/lib/ai/usage-guard/memory-test-store.ts');
@@ -48,8 +48,9 @@ test('deterministic generation can still enter one repair and independent re-rev
  const {executeAdmittedProviderCall}=await import('../../app/lib/ai/usage-guard/provider-call-budget.ts');
  const call=purpose=>executeAdmittedProviderCall({purpose,model:OPENAI_ANALYSIS_MODEL,providerInput:'test',maxOutputTokens:10,invoke:async()=>({usage:{input_tokens:1,output_tokens:1}})});
  await runAdmittedAiOperation({store:new MemoryAiGuardTestStore(),feature:'ask',intendedModel:OPENAI_ANALYSIS_MODEL,env:{NODE_ENV:'test'},payload:{},userId:ownerId,requestId:'deterministic-phases'},async()=>{
-  await call();await call('history_review');await assert.rejects(call('history_rereview'));
-  await call('history_repair');await call('history_rereview');await assert.rejects(call('history_repair'));
+  await call();await call('history_review');
+  await assert.rejects(call('history_repair'), error => error?.reason === 'provider_call_budget_exhausted');
+  await assert.rejects(call('history_rereview'), error => error?.reason === 'provider_phase_out_of_order');
  });
 });
 

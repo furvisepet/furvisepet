@@ -71,6 +71,8 @@ export type AskRequestContract = {
   outputFormat?: "prose" | "bullets" | "table" | "json" | "csv" | null;
   referenceTurnIds: string[];
   quantity: typeof quantities[number];
+  /** First-provider-call, untrusted draft for source-free conversation. Never an evidence carrier. */
+  draftAnswer?: string | null;
 };
 const CALCULATION_OPERAND_ROLES = Object.fromEntries(CALCULATE_OPERATORS.map(operator =>
   [operator,CALCULATION_ROLE_POLICY[operator].description])) as Record<typeof CALCULATE_OPERATORS[number],string>;
@@ -78,8 +80,9 @@ const CALCULATION_OPERAND_ORDER = "Array position is never operand meaning. Ever
 const strings = (maxItems: number, maxLength: number) => ({ type: "array", maxItems, items: { type: "string", minLength: 1, maxLength } });
 export function askRequestSchema(frame: object, context?: Context) {
   const schema = { type: "object", additionalProperties: false,
-    required: ["calculatePlan", "storedRead", "removeJob", "stateTransitionJob", "fieldMutationJob", "lifecyclePlan", "appendJob", "readTicket", "writeJob", "task", "temporalScope", "mutationIntent", "recordSelection", "profileFields", "projection", "version", "mode", "question", "requirements", "evidenceNeeds", "outputFormat", "evidenceBasis", "premiseQuotes", "excludedPetNames", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
+    required: ["calculatePlan", "storedRead", "removeJob", "stateTransitionJob", "fieldMutationJob", "lifecyclePlan", "appendJob", "readTicket", "writeJob", "task", "temporalScope", "mutationIntent", "recordSelection", "profileFields", "projection", "version", "mode", "question", "requirements", "evidenceNeeds", "outputFormat", "evidenceBasis", "premiseQuotes", "excludedPetNames", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame", "draftAnswer"],
     properties: {
+      draftAnswer: { type: ["string", "null"], maxLength: 1800 },
       calculatePlan: calculatePlanSchema,
       storedRead: storedReadSchema(context?.storedReadReferences),
       removeJob: removeJobSchema(context?.replaceReferences),
@@ -430,7 +433,7 @@ const fail = (reason: string, field?: string): never => { throw new Error(`ASK_R
 export function validateAskRequest(value: unknown, context: Context): AskInterpretation {
   if (!value || typeof value !== "object" || Array.isArray(value)) return fail("shape");
   assertAskSourceWindowProposal(value, context);
-  const p = { calculatePlan: null, storedRead: null, removeJob: null, stateTransitionJob: null, fieldMutationJob: null, lifecyclePlan: null, appendJob: null, readTicket: null, writeJob: null, task: null, temporalScope: null, mutationIntent: null, recordSelection: null, profileFields: [], projection: null, evidenceNeeds: [], outputFormat: null, evidenceBasis: null, premiseQuotes: null, excludedPetNames: [], ...value } as Record<string, unknown>; // Older stored v2 contracts predate these optional fields.
+  const p = { calculatePlan: null, storedRead: null, removeJob: null, stateTransitionJob: null, fieldMutationJob: null, lifecyclePlan: null, appendJob: null, readTicket: null, writeJob: null, task: null, temporalScope: null, mutationIntent: null, recordSelection: null, profileFields: [], projection: null, evidenceNeeds: [], outputFormat: null, evidenceBasis: null, premiseQuotes: null, excludedPetNames: [], draftAnswer: null, ...value } as Record<string, unknown>; // Older stored v2 contracts predate these optional fields.
   if (Object.keys(p).sort().join() !== askRequestSchema({}).required.sort().join()) return fail("fields");
   const member = (values: readonly unknown[], value: unknown) => values.includes(value);
   const list = (value: unknown, count: number, size: number): value is string[] => Array.isArray(value) && value.length <= count
@@ -446,6 +449,8 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     || !list(p.requirements, 8, 240) || !list(p.referenceTurnIds, 8, 160) || !list(p.petNames, 20, 100)
     || !Array.isArray(p.terms) || p.terms.length > 6
     || p.terms.some(x => typeof x !== "string" || x.length < 3 || x.length > 32 || !/^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(x))) return fail("schema");
+  if (p.draftAnswer !== null && (typeof p.draftAnswer !== "string"
+    || !p.draftAnswer.trim() || p.draftAnswer.length > 1800)) return fail("draft_answer");
   if (p.scope !== "none" || p.storedRead != null) assertUnambiguousOwnedIdentity(context);
   if (p.evidenceBasis !== "supplied_context" && Array.isArray(p.premiseQuotes) && p.premiseQuotes.length) return fail("premise_domain");
   if (!Array.isArray(p.profileFields) || p.profileFields.some(field => !askRequestSchema({}).properties.profileFields.items.enum.includes(String(field))) || p.profileFields.length > 14) return fail("profile_fields");
@@ -678,7 +683,9 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     // rather than turning a no-write conversation into a failed read contract.
     return { version: "ask-interpretation.v1", operation: "general", readOperation: "general", conversationOnly: true,
       petIds: [], topic: "general conversation", history: null, episodeTopic: null, ordinal: null, readOnly: true,
-      clarification: null, frame: emptyProposedSemanticFrame(), request: { version: ASK_REQUEST_VERSION, task: null,
+      clarification: null, frame: emptyProposedSemanticFrame(),
+      ...(typeof p.draftAnswer === "string" ? { provisionalAnswer: p.draftAnswer.trim() } : {}),
+      request: { version: ASK_REQUEST_VERSION, task: null,
         mode: "conversation", question: context.currentMessage, requirements: [], referenceTurnIds: [],
         quantity: null, evidenceBasis: "general", outputFormat: null } };
   }
@@ -1101,7 +1108,9 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     petIds, ...(explicitWriteTarget && petIds.length === 1 && petIds[0] === explicitWriteTarget
       ? { readPetIds: [...new Set([...petIds, ...needPlan.needs.flatMap(need => need.petIds || [])])] } : {}),
     topic: p.topic, readOnly, clarification, frame,
-    referenceQuestion: p.question as string, ...(conversationOnly ? { conversationOnly: true } : {}),
+    referenceQuestion: p.question as string,
+    ...(conversationOnly ? { conversationOnly: true,
+      ...(typeof p.draftAnswer === "string" ? { provisionalAnswer: p.draftAnswer.trim() } : {}) } : {}),
     episodeTopic: episodeTarget || operation === "count" || operation === "episode" ? p.episodeTopic as AskInterpretation["episodeTopic"] : null,
     ordinal: p.ordinal as AskInterpretation["ordinal"],
     history: readTicket ? { from: readTicket.temporal.from, to: readTicket.temporal.to, terms: [], interpretation: "period" } : historical ? { from: target?.basis === "scoped_register" ? explicitEpisodePeriod!.from : historicalFrom, to: target?.basis === "scoped_register" ? explicitEpisodePeriod!.to : historicalTo, terms: p.terms as string[], interpretation: (p.terms as string[]).length ? "lexical" : from || to ? "period" : "broad_comparison" } : null };

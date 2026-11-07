@@ -49,6 +49,8 @@ export type AskInterpretation = {
   referenceQuestion?: string;
   /** Server-derived general conversation scope; no pet evidence or writes. */
   conversationOnly?: boolean;
+  /** Untrusted source-free draft from interpretation call. Publication requires independent review. */
+  provisionalAnswer?: string;
   /** No saved-data or write authority after failed planning. */
   planningRecovery?: string;
   /** Read intent is independent of current owner assertions. */

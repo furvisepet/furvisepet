@@ -140,6 +140,24 @@ function mockClient(outputs) {
   };
 }
 
+test("source-free interpretation draft reaches independent review without another generation call", async () => {
+  const base = input({ profiles: [], careEntries: [], recentUpdates: [], question: "What causes morning dew?" });
+  const evidence = buildAskContext(base).promptContext.evidenceContract;
+  evidence.scope.authorizedPetIds = [];
+  evidence.interpretation = { request: { mode: "conversation", evidenceBasis: "general", requirements: [], referenceTurnIds: [] } };
+  const client = mockClient([new Error("SECOND_GENERATION_FORBIDDEN")]);
+  const answer = "Dew appears when humid air cools and water vapor condenses onto a surface.";
+  const response = await generateContextAwareAskResponse({ ...base, client, evidenceContract: evidence,
+    conversationOnly: true, provisionalAnswer: answer });
+  assert.equal(client.requests.length, 0);
+  assert.equal(response.answer.summary, answer);
+  assert.deepEqual(response.relevantContextIds, []);
+  assert.deepEqual(response.applicationActions, []);
+  await assert.rejects(generateContextAwareAskResponse({ ...base, client, evidenceContract: evidence,
+    conversationOnly: true, provisionalAnswer: null }), /ASK_CONVERSATION_DRAFT_UNAVAILABLE/);
+  assert.equal(client.requests.length, 0);
+});
+
 test("normal questions use one strict structured provider request and no planner call", async () => {
   const client = mockClient([unified()]);
   const result = await generateContextAwareAskResponse({ ...input(), client });

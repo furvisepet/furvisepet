@@ -94,6 +94,8 @@ export async function runFurviseIntelligence({
   confirmScopedReportTurn(finalEvidence.history, sourceMessageId);
   const reasoning = await generateContextAwareAskResponse({
     evidenceContract: finalEvidence,
+    conversationOnly: context.askInterpretation?.conversationOnly === true,
+    provisionalAnswer: context.askInterpretation?.conversationOnly ? context.askInterpretation.provisionalAnswer : undefined,
     careEntries: context.askHistory?.entries || context.selectedCareEntries,
     concerns: context.activeConcerns,
     dialogueContext: separateDialogue ? context.conversationTurns.filter(turn => turn.id !== sourceMessageId).map(turn => ({ id: turn.id, role: turn.role, text: turn.text, createdAt: turn.createdAt })) : undefined,

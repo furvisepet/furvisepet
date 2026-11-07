@@ -216,6 +216,9 @@ type BuildContextInput = {
 export type GenerateAskReasoningInput = BuildContextInput & {
   apiKey?: string;
   client?: AskReasoningOpenAiClient;
+  /** Source-free first-call draft: unverified until the independent task review. */
+  provisionalAnswer?: string | null;
+  conversationOnly?: boolean;
   locale: string;
   onProviderEvent?: (event: AskProviderEvent) => void;
   semanticFrameRecovery?: Omit<OwnerPreferenceRecoveryContext, "sourceMessage" | "safetyLevel">;
@@ -806,6 +809,32 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     };
   }
   if (dependsOnStoredState(publicationEvidence)) throw Error("STORED_STATE_CANNOT_ENTER_LANGUAGE_GENERATION");
+  // Pure general conversation: interpretation and proposal share the first
+  // provider response. The second physical call is reserved for independent
+  // whole-task review, not another generation or a speculative repair.
+  if (input.conversationOnly) {
+    if (!input.provisionalAnswer?.trim() || input.provisionalAnswer.length > 1800
+      || (publicationEvidence.scope.authorizedPetIds?.length || 0) !== 0
+      || publicationEvidence.history) throw Error("ASK_CONVERSATION_DRAFT_UNAVAILABLE");
+    return {
+      answer: { title: "Furvise", summary: input.provisionalAnswer.trim(), sections: [], safetyNote: null },
+      evidenceContract: publicationEvidence, model: models.primary,
+      userIntent: "general conversation", relevantContextIds: [], referencedRecords: [],
+      safetyLevel: "normal", shoppingSuppressed: true, suggestedFollowUps: [],
+      applicationActions: [], proposedHistoryUpdate: emptyHistoryUpdate(),
+      answerDepth: planAskAnswerDepth({ message: input.question, minimumSafetyLevel: "normal",
+        responseMode: "conversational", recentConversation: input.conversationTurns }),
+      responseMode: "conversational",
+      messageUnderstanding: { ...defaultMessageUnderstanding(input.question),
+        primaryIntent: "question", userIsAskingQuestion: true },
+      intelligenceSafety: { ...defaultIntelligenceSafety("normal"), shoppingSuppressed: true },
+      learnings: [], careActions: [], semanticEvents: [],
+      semanticFrame: emptyProposedSemanticFrame(), semanticFrameValid: true,
+      semanticFrameRecovery: { applied: false, reason: "NOT_ATTEMPTED_FRAME_VALID", validationReason: null },
+      intelligenceMetadata: { confidence: "medium", usedPetContext: false,
+        usedCareHistory: false, usedMemories: false },
+    };
+  }
   const context = buildAskContext(input, true);
   const request = buildProviderRequest(context.promptContext);
   const parseOutput = (rawText: string) => {
