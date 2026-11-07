@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {serializeLabsList} from '../app/lib/intelligence/labs-list.ts';
+import {serializeLabsList,labsListSourceIds} from '../app/lib/intelligence/labs-list.ts';
 const labs=()=>({
  ticket:{authority:'stored_report',operation:'read',subjects:{petIds:['p']},temporal:{from:null,to:null,anchor:null,calendar:null},
   outputs:{completeness:'sufficient',ordering:'asc',limit:null},predicates:[]},
@@ -12,9 +12,10 @@ const labs=()=>({
 test('partial saved-report answer keeps exact source wording and one selection limitation',()=>{
  const text=serializeLabsList(labs());
  assert.ok(text.includes('An exact quote — with punctuation.'));
- assert.match(text,/requested record selection is incomplete/);
+ assert.match(text,/couldn't confirm all matching notes/);
  assert.doesNotMatch(text,/These results may not fully answer your question/);
- assert.match(text,/care:r/);
+ assert.doesNotMatch(text,/care:r/);
+ assert.deepEqual(labsListSourceIds(labs()),['care:r']);
 });
 test('complete saved-report answer retains the independent quantity limitation',()=>{
  const data=labs();data.coverage.status='complete';

@@ -165,6 +165,13 @@ export function serializeLabsList(labs: LabsList): string {
   return withLimitation([list, notice].filter(Boolean).join("\n\n"));
 }
 
+/** Use a labelled UTC date rather than exposing machine timestamps as prose. */
+function sourceDate(value: string): string {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "date unavailable";
+  return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" }).format(date) + " UTC";
+}
+
 /** Exact quotations with attribution, never an effective-fact sentence. */
 function serializeAttributedContext(labs: LabsList): string {
   return (labs.attributedReports?.groups || []).map(group => {
@@ -190,25 +197,27 @@ export function labsListSourceIds(labs: LabsList): string[] {
 function serializeStoredReports(labs: LabsList): string {
   const selected = selectionPublication(labs.ticket, labs.coverage, labs.records);
   const rows = labs.records.map(row => ({
-    subject: escapeLabsText(labs.petNames?.[row.petId] || row.petId), source: escapeLabsText(row.sourceId),
-    recorded: escapeLabsText(row.recorded_at!), event: escapeLabsText(row.event_at), wording: escapeLabsText(JSON.stringify(row.body)),
+    subject: escapeLabsText(labs.petNames?.[row.petId] || "this pet"),
+    recorded: sourceDate(row.recorded_at!), event: sourceDate(row.event_at),
+    // JSON quoting preserves the complete source value, including delimiters and line breaks.
+    wording: escapeLabsText(JSON.stringify(row.body)),
   }));
-  const notice = [
-    "Stored reports only: these quotations do not establish current or corrected facts, or which report supersedes another.",
-    ...(labs.coverage.sourceLineage?.length ? ["Some reports have unresolved correction lineage; no supersession is certified."] : []),
-    ...(labs.coverage.reasons.includes("no_cross_query_snapshot") ? ["These records were checked across separate reads, not one database snapshot."] : []),
-    ...(!labsFactualComponentComplete(labs) ? ["The requested record selection is incomplete."] : []),
-    ...(!rows.length ? ["No report wording is certified for this selection."] : []),
-    ...(selected?.certificates.filter(c => !c.certified).map(c => "No report selection is certified for " + (labs.petNames?.[c.subjectId] || c.subjectId) + ".") || []),
-  ].join(" ");
+  const incomplete = !labsFactualComponentComplete(labs) || Boolean(selected?.certificates.some(c => !c.certified));
+  const notice = (incomplete ? "I couldn't confirm all matching notes. " : "")
+    + "These saved notes don't establish which note supersedes another or what is current or corrected."
+    + (labs.coverage.reasons.includes("no_cross_query_snapshot") ? " They were checked in separate searches." : "");
   if (labs.presentation === "table") return [
-    "| Subject | Source | Recorded at | Stored event time | Exact stored wording |",
-    "| --- | --- | --- | --- | --- |",
-    ...rows.map(r => "| " + [r.subject, r.source, r.recorded, r.event, r.wording].join(" | ") + " |"),
+    "| Pet | Saved | Event | Exact saved wording |",
+    "| --- | --- | --- | --- |",
+    ...rows.map(r => "| " + [r.subject, r.recorded, r.event, r.wording].join(" | ") + " |"),
     "", notice, serializeAttributedContext(labs),
-  ].join("\n");
-  return [...rows.map(r => (labs.presentation === "list" ? "- " : "") + r.subject + " [" + r.source
-    + "] recorded at " + r.recorded + "; stored event time " + r.event + ": " + r.wording), notice, serializeAttributedContext(labs)].filter(Boolean).join("\n\n");
+  ].filter(Boolean).join("\n");
+  return [
+    ...rows.map(r => (labs.presentation === "list" ? "- " : "") + r.subject
+      + ", saved " + r.recorded + " (event " + r.event + "): " + r.wording),
+    ...(rows.length ? [] : ["No note wording could be confirmed for this selection."]),
+    notice, serializeAttributedContext(labs),
+  ].filter(Boolean).join("\n\n");
 }
 
 /** Compare the entire transport against the original returned labs, not just
