@@ -45,3 +45,29 @@ test('concurrent admissions share the same durable two call counter',async()=>{
   await assert.rejects(admitAiOperation(identity),/AI_PROVIDER_BUDGET_EXHAUSTED|operation_call_limit/);
  } finally {await Promise.all([a.release(),b.release()]);}
 });
+
+test('a logical turn cannot be reused for changed content',async()=>{
+ const store=new MemoryAiGuardTestStore();
+ const identity={env,store,feature:'ask',intendedModel:model,userId:'owner',requestId:'stable-turn',payload:{question:'first'}};
+ const a=await admitAiOperation(identity);
+ try {
+  await assert.rejects(admitAiOperation({...identity,payload:{question:'different'}}),/AI_OPERATION_CONFLICT|operation_payload_conflict/);
+ } finally {await a.release();}
+});
+test('releasing an unstarted reservation does not refund an already started call',async()=>{
+ const store=new MemoryAiGuardTestStore();
+ const identity={env,store,feature:'ask',intendedModel:model,userId:'owner',requestId:'started-turn',payload:{question:'example'}};
+ const first=await admitAiOperation(identity);
+ try {
+  const c=await first.beginProviderCall({model,stage:'interpretation',input:'offline',maxOutputTokens:100});
+  await first.recordProviderUsage(c.reservation,model,{inputTokens:1,outputTokens:1,cachedInputTokens:0});
+  await first.reserveNextCall(model);
+  await first.release();
+  const retry=await admitAiOperation(identity);
+  try {
+   const second=await retry.beginProviderCall({model,stage:'interpretation',input:'offline',maxOutputTokens:100});
+   await retry.recordProviderUsage(second.reservation,model,{inputTokens:1,outputTokens:1,cachedInputTokens:0});
+   await assert.rejects(admitAiOperation(identity),/AI_PROVIDER_BUDGET_EXHAUSTED|operation_call_limit/);
+  } finally {await retry.release();}
+ } finally {await first.release();}
+});
