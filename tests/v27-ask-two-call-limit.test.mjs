@@ -23,3 +23,25 @@ for (const scenario of [
   assert.equal(starts,2);
  } finally {await a.release();}
 });
+
+test('a retry shares the logical turn counter instead of opening a fresh two calls',async()=>{
+ const store=new MemoryAiGuardTestStore(), identity={env,store,feature:'ask',intendedModel:model,userId:'owner',requestId:'logical-turn',payload:{question:'example'}};
+ const first=await admitAiOperation(identity);
+ try {
+  for(const stage of ['interpretation','answer_generation']){
+   const c=await first.beginProviderCall({model,stage,input:'offline',maxOutputTokens:100});
+   await first.recordProviderUsage(c.reservation,model,{inputTokens:1,outputTokens:1,cachedInputTokens:0});
+  }
+  await first.fail();
+  await assert.rejects(admitAiOperation(identity),/AI_PROVIDER_BUDGET_EXHAUSTED|operation_call_limit/);
+ } finally {await first.release();}
+});
+test('concurrent admissions share the same durable two call counter',async()=>{
+ const store=new MemoryAiGuardTestStore(), identity={env,store,feature:'ask',intendedModel:model,userId:'owner',requestId:'concurrent-turn',payload:{question:'example'}};
+ const [a,b]=await Promise.all([admitAiOperation(identity),admitAiOperation(identity)]);
+ try {
+  const results=await Promise.all([a,b].map(x=>x.beginProviderCall({model,stage:'interpretation',input:'offline',maxOutputTokens:100})));
+  assert.equal(results.length,2);
+  await assert.rejects(admitAiOperation(identity),/AI_PROVIDER_BUDGET_EXHAUSTED|operation_call_limit/);
+ } finally {await Promise.all([a.release(),b.release()]);}
+});

@@ -40,7 +40,7 @@ dated.request.readTicket.authority='stored_report';dated.request.readTicket.temp
 dated.request.readTicket.attributedContexts=[{recorded:{from:dates[2],to:dates[3]},target:{from:dates[4],to:dates[5]}}];
 datePaths.forEach((p,i)=>set(dated.request.readTicket,p,dates[i]));
 const actualTransport=directFixturePlan(prepareAskInterpretationRequest(context,"gpt-5.4-mini").transport);
-const actualDated=actualTransport.encode(dated),directTicket=JSON.parse(actualDated.request.readTicket);
+const actualDated=actualTransport.encode(dated),directTicket=typeof actualDated.request.readTicket==="string" ? JSON.parse(actualDated.request.readTicket) : structuredClone(actualDated.request.readTicket);
 const directPaths=dates.map(d=>{const paths=stringPaths(directTicket,d);assert.equal(paths.length,1);return paths[0];});
 const datedWire=plan.encode(dated),wirePaths=dates.map(d=>{const paths=stringPaths(datedWire,d);assert.equal(paths.length,1);return paths[0];});
 const valid=['2000-02-29T12:34:56Z','2024-02-29T00:00:00+05:30','2024-02-29T23:59:59.123456789-08:00','2400-02-29T12:34:56+23:59','1900-02-28T00:00:00-00:00','0000-02-29T00:00:00Z','2024-01-01T00:00:00.'+'7'.repeat(512)+'Z'];

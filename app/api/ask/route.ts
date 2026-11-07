@@ -515,7 +515,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
     aiAdmission = await admitAiOperation({
       feature: "ask", intendedModel: model, deadline: execution.deadline,
       operationTtlSeconds: askGuardOperationTtlSeconds,
-      payload: { conversationId: preparedRequest.conversationId, petId, question }, requestId: attemptId, userId,
+      payload: { conversationId: preparedRequest.conversationId, petId, question }, requestId: logicalTurnId, userId,
     });
     turnLifecycle.transition("AI_ADMITTED");
     orchestration = await withTimeout(aiAdmission.run(async () => {
