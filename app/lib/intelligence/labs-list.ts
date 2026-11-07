@@ -132,7 +132,13 @@ export function serializeLabsList(labs: LabsList): string {
   const withLimitation = (text: string) => labs.quantityUnspecified
     ? [text, "These results may not fully answer your question."].filter(Boolean).join("\n\n")
     : text;
-  if (labs.ticket.authority === "stored_report") return withLimitation(serializeStoredReports(labs));
+  // The stored-report serializer already explains an incomplete selection.
+  // Add the generic quantity limitation only when the factual component was
+  // complete and it therefore has no selection limitation of its own.
+  if (labs.ticket.authority === "stored_report") {
+    const text = serializeStoredReports(labs);
+    return labsFactualComponentComplete(labs) ? withLimitation(text) : text;
+  }
   const selected = selectionPublication(labs.ticket, labs.coverage, labs.records);
   if (selected) {
     const groups = selected.certificates.map(certificate => {
