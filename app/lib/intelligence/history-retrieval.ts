@@ -1,4 +1,4 @@
-import { certifyScopedStoredReport, bindScopedReportSidecar, isScopedStoredReportCandidate } from "./scoped-stored-report.ts";
+import { certifyScopedStoredReport, bindScopedReportSidecar, isScopedStoredReportCandidate, findScopedStoredReportCandidate } from "./scoped-stored-report.ts";
 import { retrieveAttributedReports, type AttributedReportResult } from "./attributed-report-context.ts";
 import { wholeAskTaskQuestion } from "./ask-task-continuation.ts";
 import { calendarPeriodContaining, oldestCalendarUnit, relativeYearsAgoWindow } from "./history-periods.ts";
@@ -24,7 +24,7 @@ import type { FurviseLiveContext } from "./types.ts";
 import { askEvidenceScope, careEvidenceId, type Completeness } from "./ask-evidence.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import { resolveEffectiveClaimGraph, type RebuildClaim, type RebuildRelation } from "./v2/projections/rebuild.ts";
-import { retrieveReadTicket, type ReadCoverage } from "../furvise-brain/lungs.ts";
+import { retrieveReadTicket, LUNGS_LIMITS, type ReadCoverage } from "../furvise-brain/lungs.ts";
 
 export const HISTORY_BUDGET = { pageSize: 25, pagesPerPet: 4, totalPages: 20, candidateRows: 64, pets: ASK_HISTORY_MAX_PETS, graphCalls: 6, graphRows: 128, records: 32, chars: 18000, timeMs: 5000 } as const;
 type Cursor = { petId: string; occurredAt: string; id: string };
@@ -988,10 +988,10 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
   const turn = context.currentTurn;
   let scopedProof: Awaited<ReturnType<typeof certifyScopedStoredReport>> = null;
   // One observed candidate permits only a partial source quotation, never a complete-set claim.
-  const eligible = originals.filter(candidate => isScopedStoredReportCandidate({
+  let eligible = originals.filter(candidate => isScopedStoredReportCandidate({
     userId: context.owner.userId, ownedPetIds: [...owned], ticket, candidate,
   }));
-  if (result.coverage.status === "partial" && !result.records.length && eligible.length === 1
+  if (result.coverage.status === "partial" && !result.records.length && eligible.length <= 1
     && (result.coverage.effectiveStream?.reduce((n, stream) => n + stream.graphCalls, 0) ?? HISTORY_BUDGET.graphCalls) < HISTORY_BUDGET.graphCalls
     && request?.mode === "read" && request.evidenceBasis === "saved_history" && request.quantity === null
     && (context.askInterpretation?.readOperation ?? context.askInterpretation?.operation) === "recall"
@@ -1002,9 +1002,30 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
     && !request.writeJob && !request.appendJob && !request.mutationIntent
     && !request.removeJob && !request.fieldMutationJob && !request.stateTransitionJob && !request.lifecyclePlan
     && !request.recordSelection && !request.evidenceNeeds?.length && !request.requirements?.length) {
+    // If the global scan has spare page budget, look inside the ticket's
+    // concrete window. A source still needs the independent recheck below.
+    if (!eligible.length && (pagesByPet.get(ticket.subjects.petIds[0]) || 0) < LUNGS_LIMITS.pages) {
+      const candidate = await findScopedStoredReportCandidate({
+        userId: context.owner.userId, ownedPetIds: [...owned], ticket, from, to, pageSize: LUNGS_LIMITS.pageSize,
+        page: async (windowFrom, windowTo, limit) => {
+          const petId = ticket.subjects.petIds[0];
+          coverage.queryCount++;
+          pagesByPet.set(petId, (pagesByPet.get(petId) || 0) + 1);
+          const page = await withExecutionDeadline(signal => db.from("pet_care_entries").select("*")
+            .eq("user_id", context.owner.userId).eq("pet_profile_id", petId).is("deleted_at", null)
+            .gte("occurred_at", windowFrom).lt("occurred_at", windowTo)
+            .order("occurred_at", { ascending: true }).order("created_at", { ascending: true })
+            .order("id", { ascending: true }).range(0, limit - 1).abortSignal(signal).returns<CareEntryRow[]>(),
+          historyReadRemaining(deadline - 2000));
+          if (page.error || !page.data) throw new Error("ticket_history_unavailable");
+          return page.data;
+        },
+      });
+      if (candidate) { eligible = [candidate]; originals.push(candidate); }
+    }
     const candidate = eligible[0];
-    coverage.queryCount++;
-    const proof = await certifyScopedStoredReport({ db, userId: context.owner.userId, ownedPetIds: [...owned],
+    if (candidate) coverage.queryCount++;
+    const proof = candidate && await certifyScopedStoredReport({ db, userId: context.owner.userId, ownedPetIds: [...owned],
       ticket, candidate, deadline });
     if (proof) {
       result.records.push(candidate);

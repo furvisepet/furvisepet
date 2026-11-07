@@ -44,6 +44,37 @@ export function isScopedStoredReportCandidate(input: {
     || !ticket.predicates.every(predicate => textMatchesReadPredicate((candidate.title || "") + " " + candidate.note, predicate)));
 }
 
+/**
+ * A single exhausted, already-authorized time window can nominate a source for
+ * the existing fresh source proof. It never certifies a result set.
+ */
+export async function findScopedStoredReportCandidate(input: {
+  userId: string; ownedPetIds: readonly string[]; ticket: ReadTicket;
+  from: string; to: string; pageSize: number;
+  page: (from: string, to: string, limit: number) => Promise<CareEntryRow[]>;
+}): Promise<CareEntryRow | null> {
+  const { ticket } = input;
+  if (ticket.authority !== "stored_report" || ticket.operation !== "read"
+    || ticket.outputs.completeness !== "sufficient" || ticket.outputs.limit !== null
+    || ticket.outputs.strategy != null || ticket.selection || ticket.episode || ticket.needs?.length
+    || ticket.attributedContexts?.length || ticket.temporal.anchor || ticket.temporal.calendar
+    || ticket.subjects.petIds.length !== 1 || !input.ownedPetIds.includes(ticket.subjects.petIds[0])
+    || !ticket.temporal.from || !ticket.temporal.to || input.pageSize < 1) return null;
+  const start = Math.max(Date.parse(ticket.temporal.from), Date.parse(input.from));
+  const end = Math.min(Date.parse(ticket.temporal.to), Date.parse(input.to));
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end) return null;
+  try {
+    const rows = await input.page(new Date(start).toISOString(), new Date(end).toISOString(), input.pageSize);
+    // A full page is not proof that this window was exhausted.
+    if (!Array.isArray(rows) || rows.length >= input.pageSize) return null;
+    const matches = rows.filter(candidate => Date.parse(candidate.occurred_at) >= start
+      && Date.parse(candidate.occurred_at) < end && isScopedStoredReportCandidate({ ...input, candidate }));
+    return matches.length === 1 ? matches[0] : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function certifyScopedStoredReport(input: {
   db: SupabaseClient; userId: string; ownedPetIds: readonly string[];
   ticket: ReadTicket; candidate: CareEntryRow; deadline: number;
