@@ -9,7 +9,7 @@ const error = (code, field = null) => {
 const plain = v => v !== null && typeof v === "object" && !Array.isArray(v)
   && [Object.prototype, null].includes(Object.getPrototypeOf(v));
 const equal = (x,y) => JSON.stringify(x) === JSON.stringify(y);
-export const DIRECT_ASK_FORMAT_VERSION = "ask-semantic-slots.v7";
+export const DIRECT_ASK_FORMAT_VERSION = "ask-semantic-slots.v8";
 const MAX = RECURSIVE_TRANSPORT_LIMITS.maxSerializedCharacters;
 const minimumEvidenceContextFields=["mode","evidenceBasis","premiseQuotes","draftAnswer","frame",
   "storedRead","readTicket","calculatePlan"];

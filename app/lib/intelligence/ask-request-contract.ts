@@ -140,6 +140,8 @@ export function askRequestSchema(frame: object, context?: Context) {
  * The root remains an object for Structured Outputs; the nested union makes a
  * saved_profile proposal structurally unable to carry history/write dimensions.
  * The binder below still performs full ownership and semantic validation. */
+const READ_ONLY_NULL_FIELDS = ["appendJob","writeJob","removeJob","fieldMutationJob","stateTransitionJob","mutationIntent","task","frame"] as const;
+
 export function askRequestProviderSchema(frame: object, context?: Context) {
   const profile = structuredClone(askRequestSchema(frame, context));
   Object.assign(profile.properties, {
@@ -400,15 +402,42 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
     const choices=alternatives.filter(choice=>choice.type!=="null");
     if (choices.length) {
       const history=structuredClone(variant);
-      Object.assign(history.properties,{readTicket:{anyOf:structuredClone(choices)},evidenceBasis:{type:"string",enum:["saved_history"]}});
+      Object.assign(history.properties,{readTicket:ticket.type==="object" ? structuredClone(variant.properties.readTicket) : {anyOf:structuredClone(choices)},evidenceBasis:{type:"string",enum:["saved_history"]}});
       variants.push(history);
     }
     return variants;
   };
-  const unboundCatalog = catalogIntentSchema({ anyOf: [deferredReplace, deferredRemove, deferredConcern, lifecycle, profile, ...stored].flatMap(correlateHistory) });
+  // Model proposals use disjoint execution capabilities. A history-read mode
+  // cannot advertise an inactive ticket or a save/correction task. Legacy
+  // internal callers still bind separately; no proposed obligation is erased.
+  const correlateMode = (variant: ReturnType<typeof askRequestSchema>) => variant.properties.mode.enum.flatMap(mode=>{
+    const branch=structuredClone(variant);
+    Object.assign(branch.properties.mode,{enum:[mode]});
+    const inactive=(branch.properties.readTicket as {type?:string}).type==="null";
+    if(mode==="update"&&!inactive)return [];
+    const source=branch.properties.evidenceBasis as {type?:unknown;enum?:unknown[]};
+    let domains=source.type==="null" ? [null] : source.enum?.slice();
+    if(!domains)throw Error("ASK_PROVIDER_MODE_DOMAIN_SCHEMA");
+    if((mode==="read"||mode==="mixed")&&inactive)domains=domains.filter(value=>value!=="saved_history");
+    if(mode==="update")domains=domains.filter(value=>value===null);
+    if(mode==="mixed")domains=domains.filter(value=>value===null||value==="saved_history");
+    if(mode==="read"){
+      for(const field of READ_ONLY_NULL_FIELDS)Object.assign(branch.properties,{[field]:{type:"null"}});
+      if(inactive&&domains.every(value=>value===null||value==="general")){
+        if(!branch.properties.operation.enum.includes("navigate"))return [];
+        domains=domains.filter(value=>value===null);
+        Object.assign(branch.properties.operation,{enum:["navigate"]});
+      }
+    }
+    if(!domains.length)return [];
+    Object.assign(branch.properties.evidenceBasis,{type:domains.every(value=>value===null) ? "null"
+      : domains.includes(null) ? ["string","null"] : "string",enum:domains});
+    return [branch];
+  });
+  const unboundCatalog = catalogIntentSchema({ anyOf: [deferredReplace, deferredRemove, deferredConcern, lifecycle, profile, ...stored].flatMap(correlateHistory).flatMap(correlateMode) });
   return { type: "object", additionalProperties: false, required: ["request"],
     properties: { request: { anyOf: [unboundCatalog, ...[...(!context || premiseQuotes.length ? [premiseCalculation] : []), ...calculations, ...stored, profile, generalConversation, suppliedConversation, nonProfile, chronological, lifecycle, profileMutation, removal,
-      ...(transitionSchema.anyOf.length > 1 ? [transition] : [])].flatMap(correlateHistory)] } } };
+      ...(transitionSchema.anyOf.length > 1 ? [transition] : [])].flatMap(correlateHistory).flatMap(correlateMode)] } } };
 }
 
 export const ASK_REQUEST_INSTRUCTIONS = [
@@ -510,6 +539,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     || [p.profileFields,p.evidenceNeeds,p.terms,p.petNames,p.excludedPetNames].some(value=>!Array.isArray(value)||value.length)
     || p.operation !== "general" || p.selection !== "summary"))
     return fail("conversation_source");
+  if (p.mode === "read" && READ_ONLY_NULL_FIELDS.some(field=>p[field]!==null)) return fail("read_mutation_domain");
   if (p.readTicket !== null && p.evidenceBasis !== "saved_history") return fail("read_ticket_evidence_domain");
   if (p.calculatePlan !== null) {
     if (p.evidenceBasis === "supplied_context") {

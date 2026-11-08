@@ -92,3 +92,15 @@ test("non-null history tickets cannot cross evidence domains in provider grammar
   assert.throws(()=>recoverAskInterpretation(invalid,c),undefined,String(evidenceBasis));
  }
 });
+
+test("saved-history reads and mixed reads require tickets in the provider grammar",()=>{
+ const p=prepared();
+ for(const mode of ["read","mixed"]){
+  assert.throws(()=>p.transport.encode({request:request({mode,readTicket:null})},()=>{}),undefined,mode);
+ }
+});
+test("readonly history cannot carry a correction intent in grammar or Binder",()=>{
+ const c=context(),p=prepared(c),invalid=request({readTicket:ticket(),mutationIntent:"correct_record"});
+ assert.throws(()=>p.transport.encode({request:invalid},()=>{}));
+ assert.throws(()=>recoverAskInterpretation(invalid,c));
+});

@@ -146,7 +146,7 @@ for (const numeric of [false, true]) for (const count of [0, 2, 8, 39])
       const native=expand(request.text.format.schema).properties.request.anyOf[0];
       assert.deepEqual([...native.required].sort(),Object.keys(native.properties).sort());
       assert.ok(native.required.includes("evidenceContext"));
-      assert.equal(request.text.format.schema.properties.format.enum[0], "ask-semantic-slots.v7");
+      assert.equal(request.text.format.schema.properties.format.enum[0], "ask-semantic-slots.v8");
       // The legacy proposal fixture has no provisional answer.
       const canonical = proposal(ctx); canonical.request.draftAnswer = null;
       const proposed = prepared.transport.encode(canonical, check);
