@@ -15,7 +15,9 @@ test("critical AI routes authenticate and enforce owner-scoped identifiers", () 
   assert.match(ask, /\.eq\("user_id", userId\)/);
   assert.match(conversations, /\.eq\("id", id\)[\s\S]*\.eq\("user_id", context\.userId\)/);
   assert.match(memory, /auth\.supabase\.rpc\("manage_furvise_memory"/);
-  assert.match(suggestion, /\.eq\("id", id\)[\s\S]*\.eq\("user_id", auth\.userId\)/);
+  assert.match(suggestion,/await getAuthenticatedApiContext\(request\)/);
+  assert.match(suggestion,/SUGGESTION_CONFLICT[\s\S]*status: 409/);
+  assert.doesNotMatch(suggestion,/\.from\(|\.rpc\(|executeActionCapability|createCanonicalCareAuthorityClient/);
   assert.match(vet, /petId, supabase: auth\.supabase, userId: auth\.userId/);
 });
 

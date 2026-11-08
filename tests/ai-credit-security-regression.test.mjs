@@ -1,3 +1,4 @@
+import {functionSource} from "./helpers/production-function-source.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -211,11 +212,19 @@ test("migration removes client release authority and enforces database identity/
   const claim = askRoute.indexOf("return claimIdempotentOperation");
   const replay = askRoute.indexOf("completed response replayed after canonical identity validation");
   assert.ok(claim >= 0 && replay > claim, "persisted answers replay only after canonical payload claim");
-  const settlement = askRoute.slice(askRoute.indexOf('const incompleteTask ='), askRoute.indexOf('const canonicalResponse ='));
-  assert.match(settlement, /taskExecution.creditDisposition === "release"/);
-  assert.match(settlement, /if \(creditReserved && incompleteTask\)[\s\S]*safeReleaseAiCredit[\s\S]*else if \(creditReserved\)[\s\S]*disposition: "complete"/);
-  assert.doesNotMatch(settlement.slice(settlement.indexOf('else if (creditReserved)')), /safeReleaseAiCredit/);
-  assert.ok(askRoute.indexOf('const taskExecution = assessTaskExecution') > askRoute.indexOf('const carePersistence = resolveAutomaticCareHistoryPresentation'));
+  // Public V1 no longer has task/write settlement. Preserve the financial
+  // boundary against the actual read-only persistence and publication functions.
+  const settlement=functionSource(askRoute,"persistReadOnlyAnswer");
+  const terminal=settlement.indexOf("await finalizePersistedAskAnswer(");
+  const charge=settlement.indexOf("await completeAiCredit(");
+  const release=settlement.indexOf("await safeReleaseAiCredit(");
+  assert.ok(terminal>=0&&terminal<charge&&terminal<release);
+  assert.match(settlement,/if\(input.creditReserved\)[\s\S]*if\(input.limited\)/);
+  assert.match(settlement,/disposition:"complete"[\s\S]*completeAiCredit/);
+  assert.doesNotMatch(settlement.slice(settlement.indexOf("creditsUsed=1")),/safeReleaseAiCredit/);
+  const execution=functionSource(askRoute,"executeAskRequest");
+  assert.match(execution,/buildReadOnlyPublication[\s\S]*limited[\s\S]*persistReadOnlyAnswer/);
+  assert.doesNotMatch(execution,/assessTaskExecution|executeActionCapability|persistCanonicalSuggestions|persistAutomaticCareHistory/);
 });
 
 async function reserve(ledger) {

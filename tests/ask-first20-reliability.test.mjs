@@ -1,3 +1,4 @@
+import {isDeepStrictEqual} from "node:util";
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
@@ -106,13 +107,13 @@ test('dismiss renders canonical saved result and rejects unrecognized results',a
 
 test('finalization retries idempotently and returns only durable fallback state',async()=>{
   for(const succeedsAt of [1,2,Infinity]){
-    let calls=0,reads=0;const persisted={assistantMessage:{id:'m',response_data:{directAnswer:'durable'}}};
+    let calls=0,reads=0;const responseData={directAnswer:'new',turn:{finalStage:'COMPLETED'}};const persisted={assistantMessage:{id:'m',response_data:responseData}};
     const run=extract('app/api/ask/route.ts','finalizePersistedAskAnswer',{
-      finalizeDurableAskAnswer,
+      finalizeDurableAskAnswer,isDeepStrictEqual,AskApiError:Error,FURVISE_ASK_UNAVAILABLE_MESSAGE:'Unavailable',
       finalizeAskAssistantResponse:async()=>++calls===succeedsAt?{data:true,error:null}:{data:null,error:new Error('offline')},
       loadPersistedRequestByConversation:async()=>{reads++;return persisted;},logAskServerError:noop,
     });
-    const result=await run({messageId:'m',responseData:{directAnswer:'new'},requestId:'r'});
+    const result=await run({messageId:'m',responseData,requestId:'r'});
     assert.equal(result,succeedsAt===Infinity?persisted:null);assert.equal(calls,Math.min(2,succeedsAt));assert.equal(reads,succeedsAt===Infinity?1:0);
   }
 });

@@ -1,3 +1,6 @@
+import {functionSource} from "./helpers/production-function-source.mjs";
+import {getAiFeaturePolicy} from "../app/lib/ai/usage-guard/features.ts";
+import {ASK_READ_ONLY_MAX_OUTPUT_TOKENS} from "../app/lib/ask-read-only/limits.ts";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -14,8 +17,10 @@ test("a retry keeps logical identity and receives a distinct safe attempt identi
   assert.match(first, /^[0-9a-f-]{36}$/);
 });
 
-test("Ask allows six phase-bounded calls including structural repair and independent answer re-review", () => {
-  assert.match(read("app/lib/ai/usage-guard/features.ts"), /ask: policy\([^\n]+, 6\)/);
+test("Ask declares the same two-call read-only ceiling enforced by durable admission", () => {
+ const policy=getAiFeaturePolicy("ask");
+ assert.equal(policy.maximumProviderCalls,2);
+ assert.equal(policy.maxOutputTokens,ASK_READ_ONLY_MAX_OUTPUT_TOKENS);
 });
 
 test("logical turn, attempt, persisted message, and financial identities are explicit", () => {
@@ -25,7 +30,7 @@ test("logical turn, attempt, persisted message, and financial identities are exp
   assert.match(route, /candidateKey: requestId/);
   assert.match(route, /beginAskConversationTurn\(\{[\s\S]{0,300}requestId,/);
   assert.match(route, /requestId: creditRequestId/);
-  assert.match(route, /requestId: attemptId/);
+  assert.match(route, /const creditRequestId=attemptId/);
 });
 
 test("persisted answer replay only degrades terminal execution after durable identity and disposition validation", () => {
@@ -39,12 +44,12 @@ test("persisted answer replay only degrades terminal execution after durable ide
   assert.match(settlement, /if \(state\.disposition !== null\) continue/);
   assert.match(settlement, /ledger\.setDisposition\(\{[\s\S]*disposition: "release"/);
   assert.match(settlement, /if \(ledger\.isIntegrityError\(error\)\) throw error/);
-  assert.match(route, /setAiCreditDisposition\([\s\S]*disposition: "complete"[\s\S]*completeAiCredit/);
+  assert.match(route, /setAiCreditDisposition\([\s\S]*disposition:\s*"complete"[\s\S]*completeAiCredit/);
 });
 
 test("AI admission closes only after durable answer persistence", () => {
-  const route = read("app/api/ask/route.ts");
-  const persist = route.indexOf("const persistedResponse = await persistAssistantAnswer");
-  const complete = route.indexOf("finalizeAiAdmissionAfterPersistence", persist);
-  assert.ok(persist >= 0 && complete > persist);
+ const execution=functionSource(read("app/api/ask/route.ts"),"executeAskRequest");
+ const persist=execution.indexOf("const result=await persistReadOnlyAnswer");
+ const complete=execution.indexOf("finalizeAiAdmissionAfterPersistence",persist);
+ assert.ok(persist>=0&&complete>persist);
 });

@@ -71,3 +71,21 @@ test('releasing an unstarted reservation does not refund an already started call
   } finally {await retry.release();}
  } finally {await first.release();}
 });
+
+import {getAiFeaturePolicy} from "../app/lib/ai/usage-guard/features.ts";
+import {ASK_READ_ONLY_MAX_OUTPUT_TOKENS} from "../app/lib/ask-read-only/limits.ts";
+import {estimateProviderCostMicrodollars} from "../app/lib/ai/usage-guard/cost-estimator.ts";
+test("actual Ask admission reserves the bounded read-only envelope instead of the retired output budget",async()=>{
+ const policy=getAiFeaturePolicy("ask"),store=new MemoryAiGuardTestStore(),seen=[];
+ const reserve=store.reserveCall.bind(store);
+ store.reserveCall=async input=>{seen.push(input);return reserve(input)};
+ const a=await admitAiOperation({env,store,feature:"ask",intendedModel:model,userId:"owner",requestId:"bounded-read-reservation",payload:{question:"Example"}});
+ try{
+  assert.equal(policy.maxOutputTokens,ASK_READ_ONLY_MAX_OUTPUT_TOKENS);
+  assert.equal(policy.maximumProviderCalls,2);assert.ok(seen.length>0);
+  const expected=estimateProviderCostMicrodollars(model,{inputTokens:policy.maxInputTokens,outputTokens:ASK_READ_ONLY_MAX_OUTPUT_TOKENS});
+  const retired=estimateProviderCostMicrodollars(model,{inputTokens:policy.maxInputTokens,outputTokens:100000});
+  assert.ok(expected>0&&expected<retired);
+  for(const call of seen){assert.equal(call.reservedCostMicrodollars,expected);assert.equal(call.maximumOperationCalls,2);}
+ }finally{await a.release();}
+});

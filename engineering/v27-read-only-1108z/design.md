@@ -100,3 +100,15 @@ New fault injection against the actual public persistence functions reproduced s
 Both conversation RPCs enforce a 65,536-byte JSONB limit. A citation endpoint Unicode test alone did not qualify conversation persistence. Publication now measures UTF-8 bytes of the entire signed response, reserves space for turn metadata, and returns an honest limited answer retaining only whole exact quotations that fit. The larger citation request contract still supports both full original notes. No source body is truncated or normalized, and no database migration is required.
 
 Exact parent 16ab0e82 live acceptance passed six turns (original quote/citation, profile and history follow-ups, chronological comparison/calculation, free clarification, unrelated supplied-fiction conversation): 12 physical calls, $0.017932 measured and reconciled provider cost. Its full Linux suite was red: 6,039 total, 5,807 passed, 230 failed, one cancelled, one skipped. Those gates remain open. New-candidate acceptance is pending; production remains unchanged.
+
+
+## Reservation alignment and active release contracts
+The interrupted script registration was confirmed absent after reconnection. No uncertain mutation was replayed. The owned workspace remained at a5ad072f with the expected unpublished test/CI edits.
+
+The server admission declaration now matches the actual read-only native provider envelope: two physical calls and at most 2,400 output tokens. An actual MemoryAiGuardTestStore reservation test verifies the smaller declared envelope ($0.0258 versus the retired $0.465 bound for gpt-5.4-mini) and the same durable two-call ceiling. Measured usage remains separately reconciled. No other feature budget was changed.
+
+252 focused and 186 security tests pass locally, including actual native SDK wire/physical-attempt accounting, actual POST error/release cases, durable persistence fault injection, ownership/citation contracts and migrated active replay/security checks. TypeScript, lint, production audit and build pass. Full tests remain unfiltered. Production audit/build now run even after a failed Full tests step, retaining the failed job outcome.
+
+Parent a5ad072f passed ten real signed-in turns with exact quotations/citations, profile/history transitions, two-date and two-pet server arithmetic, general conversation, clarification/no-match honesty, mutation refusal and prompt owner-switch refusal. The twenty physical calls cost $0.027489 reconciled. The source-owner/cross-account HTTP qualification limitations remain explicit.
+
+Exact a5ad072f full Linux CI completed red: 6,051 total, 5,819 pass, 231 fail, zero cancelled, one skipped. The complete log and failure locations were preserved before further changes; no blanket waiver was applied. This candidate requires new exact-SHA preview acceptance and CI.

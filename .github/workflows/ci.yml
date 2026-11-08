@@ -56,8 +56,15 @@ jobs:
           tests/test-bootstrap-loader.test.mjs
           tests/ask-read-only.test.mjs
           tests/ask-read-only-publication-budget.test.mjs
+          tests/ask-read-only-provider-failure-route.test.mjs
           tests/ask-read-only-persistence.test.mjs
           tests/ask-core-invariants.test.mjs
+          tests/ask-first20-reliability.test.mjs
+          tests/security-phase-s1.test.mjs
+          tests/ask-usage-experience.test.mjs
+          tests/ask-reliability-signout.test.mjs
+          tests/ask-pre-provider-retry.test.mjs
+          tests/ai-credit-security-regression.test.mjs
           tests/ask-read-only-route.test.mjs
           tests/ask-read-only-actions.test.mjs
           tests/ask-emergency-preflight.test.mjs
@@ -97,6 +104,8 @@ jobs:
       - name: Full tests
         run: npm test
       - name: Production dependency audit
+        if: ${{ !cancelled() }}
         run: npm audit --omit=dev --audit-level=high
       - name: Production build
+        if: ${{ !cancelled() }}
         run: npm run build

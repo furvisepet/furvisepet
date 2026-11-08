@@ -1,3 +1,4 @@
+import {functionSource} from "./helpers/production-function-source.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -82,32 +83,37 @@ test("conversation cards hide internal usage copy and generic AI headings", () =
 });
 
 test("Ask API verifies pet ownership and persists the user message before generating an answer", () => {
-  assert.match(route, /\.from\("dog_profiles"\)[\s\S]*\.eq\("user_id", userId\)/);
-  assert.match(route, /PET_NOT_FOUND/);
-  assert.match(route, /ensureConversationAndUserMessage/);
-  assert.match(route, /persistAssistantAnswer/);
-  const persistence = route.indexOf("preparedRequest = existingRequest || await ensureConversationAndUserMessage");
-  const generation = route.indexOf("await orchestrateAskTurn");
-  assert.ok(persistence > -1 && persistence < generation);
-  assert.ok(generation < route.lastIndexOf('role: "furvise"'));
-  assert.match(route, /userMessageId:/);
-  assert.match(route, /assistantMessageId:/);
-  assert.match(route, /success: true/);
-  assert.match(route, /askRequestTimeoutMs = ASK_OPERATION_TIMEOUT_MS/);
+ const execution=functionSource(route,"executeAskRequest");
+ assert.match(execution,/\.from\("dog_profiles"\)[\s\S]*\.eq\("user_id", userId\)/);
+ assert.match(execution,/PET_NOT_FOUND/);
+ const persistence=execution.indexOf("preparedRequest = existingRequest || await ensureConversationAndUserMessage");
+ const generation=execution.indexOf("runReadOnlyAsk(");
+ const publication=execution.indexOf("await persistReadOnlyAnswer(");
+ assert.ok(persistence>=0&&persistence<generation&&generation<publication);
+ assert.match(route,/userMessageId:/);assert.match(route,/assistantMessageId:/);
+ assert.match(route,/askRequestTimeoutMs = ASK_OPERATION_TIMEOUT_MS/);
 });
 
 test("assistant persistence failure releases credit and returns a retryable saved-question error", () => {
-  const persistence = route.slice(route.indexOf("async function persistAssistantAnswer"), route.indexOf("async function persistPendingSuggestion"));
-  assert.match(persistence, /completeAskConversationTurn\([\s\S]*safeReleaseAiCredit[\s\S]*askFailure\("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503/);
-  assert.match(persistence, /persistence_failed[\s\S]*safeReleaseAiCredit[\s\S]*askFailure\("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503/);
-  assert.doesNotMatch(persistence.slice(0, persistence.indexOf('logAskStage("assistant message persisted"')), /completeAiCredit/);
+ const persistence=functionSource(route,"persistReadOnlyAnswer");
+ const terminal=persistence.indexOf("await finalizePersistedAskAnswer(");
+ const charge=persistence.indexOf("await completeAiCredit(");
+ assert.ok(terminal>=0&&terminal<charge);
+ assert.match(persistence,/throw new AskApiError\("DATABASE_ERROR",FURVISE_ASK_UNAVAILABLE_MESSAGE,503/);
+ const execution=functionSource(route,"executeAskRequest"),publication=execution.slice(execution.indexOf("buildReadOnlyPublication("));
+ assert.match(publication,/catch\(error\)[\s\S]*safeReleaseAiCredit[\s\S]*handleAskApiError/);
+ assert.match(functionSource(route,"handleAskApiError"),/error instanceof AskApiError[\s\S]*error\.status/);
+ // Actual save failure/lost-acknowledgment settlement is independently exercised
+ // in ask-read-only-persistence.test.mjs, including exact terminal readback.
 });
 
 test("provider diagnostics stay server-side and expose only safe metadata", () => {
-  for (const stage of ["authentication succeeded", "pet ownership succeeded", "context loaded", "user message persisted", "turn orchestrated", "assistant message persisted"]) {
+  for (const stage of ["authentication succeeded", "pet ownership succeeded", "user message persisted"]) {
     assert.match(route, new RegExp(stage));
   }
   assert.match(route, /return buildSuccessfulAskResponse\(/);
+  assert.match(functionSource(route,"executeAskRequest"), /logAskProviderEvent|onProviderEvent/);
+  assert.match(functionSource(route,"persistReadOnlyAnswer"), /emitAskTurnTrace/);
   assert.match(publication, /export function buildSuccessfulAskResponse/);
   assert.match(route, /\[Ask provider\] stage/);
   assert.doesNotMatch(page, /Diagnostic:|debugStage|AI_UNAVAILABLE at|ai_provider/);

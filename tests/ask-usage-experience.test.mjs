@@ -1,3 +1,5 @@
+import ts from "typescript";
+import {functionSource} from "./helpers/production-function-source.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -27,22 +29,22 @@ test("Ask recovery is compact and never exposes internal diagnostics", () => {
 });
 
 test("failed provider or persistence paths do not consume usage", () => {
-  // Select the current outer orchestration catch, not a removed call shape.
-  const orchestrated = route.indexOf('logAskStage("turn orchestrated"');
-  const failureStart = route.indexOf("} catch (error) {", orchestrated);
-  const failureEnd = route.indexOf("if (completedContinuation)", failureStart);
-  assert.ok(orchestrated >= 0 && failureStart > orchestrated && failureEnd > failureStart);
-  const providerFailure = route.slice(failureStart, failureEnd);
-  assert.match(providerFailure, /safeReleaseAiCredit/);
-  assert.doesNotMatch(providerFailure, /completeAiCredit/);
-  const persistenceStart = route.indexOf("async function persistAssistantAnswer");
-  const failedSaveStart = route.indexOf("if (!assistantMessage || messageError)", persistenceStart);
-  const failedSaveEnd = route.indexOf('logAskStage("assistant message persisted"', failedSaveStart);
-  assert.ok(persistenceStart >= 0 && failedSaveStart > persistenceStart && failedSaveEnd > failedSaveStart);
-  const failedSave = route.slice(failedSaveStart, failedSaveEnd);
-  assert.match(failedSave, /safeReleaseAiCredit/);
-  assert.doesNotMatch(failedSave, /completeAiCredit/);
-  assert.equal(route.match(/await completeAiCredit/g)?.length, 2, "foreground completion is retried once");
+  const ast=ts.createSourceFile("route.ts",route,ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);
+  let providerFailure;
+  function visit(node){
+   if(ts.isTryStatement(node)&&node.tryBlock.getText(ast).includes("loadReadOnlyContext("))providerFailure=node.catchClause.block.getText(ast);
+   ts.forEachChild(node,visit);
+  }
+  visit(ast);assert.ok(providerFailure);
+  assert.match(providerFailure,/safeReleaseAiCredit/);
+  assert.doesNotMatch(providerFailure,/completeAiCredit/);
+  const persistence=functionSource(route,"persistReadOnlyAnswer");
+  const terminal=persistence.indexOf("await finalizePersistedAskAnswer(");
+  const charge=persistence.indexOf("await completeAiCredit(");
+  assert.ok(terminal>=0&&terminal<charge);
+  const publication=functionSource(route,"executeAskRequest").slice(functionSource(route,"executeAskRequest").indexOf("buildReadOnlyPublication("));
+  assert.match(publication,/catch\(error\)[\s\S]*safeReleaseAiCredit/);
+  assert.equal((persistence.match(/await completeAiCredit/g)||[]).length,1,"one foreground settlement; recovery belongs to the idempotent ledger");
   assert.match(route, /createAskCreditSettlement/);
   assert.doesNotMatch(route, /async function (?:safeReleaseAiCredit|reconcilePersistedAskCredit)/);
   assert.match(creditSettlement, /getEvents: getAiCreditEventsForLogicalRequest/);
@@ -50,9 +52,11 @@ test("failed provider or persistence paths do not consume usage", () => {
   assert.match(creditSettlement, /optional_credit_reconciliation/);
 });
 
-test("assistant persistence retries idempotently before returning a retryable failure", () => {
-  assert.match(route, /loadPersistedRequestByConversation/);
-  assert.match(route, /assistant message persisted after idempotent retry/);
-  assert.match(route, /completeAskConversationTurn\(\{[\s\S]{0,500}requestId,/);
-  assert.match(route, /askFailure\("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503, \{\}, "persistence_failed"\)/);
+test("assistant persistence recovers owned readback and rejects an unavailable save", () => {
+ const persistence=functionSource(route,"persistReadOnlyAnswer");
+ assert.match(persistence,/loadPersistedRequestByConversation/);
+ assert.match(persistence,/isDeepStrictEqual/);
+ assert.match(persistence,/completeAskConversationTurn\(\{[\s\S]*requestId,/);
+ assert.match(persistence,/new AskApiError\("DATABASE_ERROR",FURVISE_ASK_UNAVAILABLE_MESSAGE,503/);
+ assert.match(functionSource(route,"finalizePersistedAskAnswer"),/finalizeDurableAskAnswer[\s\S]*isDeepStrictEqual/);
 });

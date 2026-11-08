@@ -1,27 +1,20 @@
 {
-  "parentSha": "16ab0e826cbe7d756297d5680b0d8e9fad726ad9",
+  "parentSha": "a5ad072f29373d68571bffd3238c33a832836b82",
   "focused": {
-    "tests": 177,
-    "pass": 177,
+    "tests": 252,
+    "pass": 252,
     "fail": 0
   },
   "security": {
-    "tests": 169,
-    "pass": 169,
+    "tests": 186,
+    "pass": 186,
     "fail": 0
   },
-  "typecheck": "PASS",
-  "lint": {
-    "errors": 0,
-    "warnings": 123
-  },
-  "build": "PASS",
-  "productionDependencyAudit": "PASS_zero_vulnerabilities",
-  "gateReceipts": [
+  "gates": [
     {
       "gate": "focused",
       "exitCode": 0,
-      "sha256": "dc1229796f4981f0a81d47a81fbdd21ddbcaff2de72c531f21f088aaee1e2464"
+      "sha256": "74937e247aa33f70349e0db11919f5d6f3863029075006dc0e0d2639c9970125"
     },
     {
       "gate": "typecheck",
@@ -31,7 +24,7 @@
     {
       "gate": "security",
       "exitCode": 0,
-      "sha256": "508faff6da8fced5cd39118191e735553f619a897b7303441d10f5f5e219059e"
+      "sha256": "a8b3abb029121724cb182521648de5bd3a887539d3ea4ee7f2188da7fec58b12"
     },
     {
       "gate": "lint",
@@ -46,13 +39,13 @@
     {
       "gate": "build",
       "exitCode": 0,
-      "sha256": "a27f6dbbd0c960743b810d5e192c9c2f58dcc0c5d3cd30fda8a7f2bddb36426a"
+      "sha256": "09f6c791bdb001eee57c6c289b7383abec0b3bc8cee2a0f99677e623468aeb30"
     }
   ],
-  "newCandidateLive": "PENDING_exact_sha_preview",
-  "fullCI": "PENDING_new_revision_prior_16ab_FAILURE",
+  "newCandidateLive": "PENDING",
+  "fullCI": "PENDING_new_revision_parent_a5ad072f_FAILED_231",
   "productionChanged": false,
-  "independentReview": "NOT_CONFIGURED_NOT_APPROVED",
-  "anonymousLiveAppPost": "NOT_QUALIFIED_Vercel_protection_only",
-  "authenticatedCrossOwnerHttp": "NOT_QUALIFIED_handler_negatives_only"
+  "independentReview": "NOT_APPROVED",
+  "anonymousApplicationPostLive": "PENDING",
+  "authenticatedCrossOwnerHttp": "NOT_QUALIFIED"
 }
