@@ -76,7 +76,7 @@ test("temporal transport binds operation to anchor while preserving exact source
   {temporal:{...temporal,anchor:{concept:"appointment",relation:"after"}}},
   {authority:"effective_fact",operation:"read_since_event"},
   {temporal:{...temporal,calendar:"oldest_year"}}]){
-  const bad=structuredClone(good);Object.assign(bad.request.readTicket.temporalContext,change);
+  const bad=structuredClone(good);Object.assign(bad.request.evidenceContext.readTicket.temporalContext,change);
   assert.equal(valid(schema,bad),false,JSON.stringify(change));
  }
  const event={...ticket,authority:"effective_fact",operation:"read_since_event",

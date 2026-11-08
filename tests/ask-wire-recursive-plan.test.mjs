@@ -141,8 +141,8 @@ for (const numeric of [false, true]) for (const count of [0, 2, 8, 39])
       assert.equal(request.max_output_tokens, 8192);
       assert.deepEqual(request.reasoning, { effort: "none" });
       assert.equal(request.instructions, prepared.transport.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS);
-      assert.equal(request.text.format.schema.properties.request.anyOf[0].required.length, 34);
-      assert.equal(request.text.format.schema.properties.format.enum[0], "ask-semantic-slots.v4");
+      assert.equal(request.text.format.schema.properties.request.anyOf[0].required.length, 31);
+      assert.equal(request.text.format.schema.properties.format.enum[0], "ask-semantic-slots.v5");
       // The legacy proposal fixture has no provisional answer.
       const canonical = proposal(ctx); canonical.request.draftAnswer = null;
       const proposed = prepared.transport.encode(canonical, check);
@@ -198,7 +198,8 @@ test("final serialized request boundaries reject before dispatch; output/account
 });
 
 test("integration compilation and runtime use fresh operation deadlines without resetting the budget", () => {
-  const { plan } = compiled("no_numeric"), canonical = corpus.fixtures.find(f => f.context === "no_numeric").canonical;
+  const { plan } = compiled("no_numeric"), legacy = corpus.fixtures.find(f => f.context === "no_numeric" && f.canonical.request.evidenceBasis === "saved_profile").canonical;
+  const canonical = { ...legacy, request: { ...legacy.request, draftAnswer: null } }; // Additive field; clock assertions remain unchanged.
   let now = 0; const deadline = new OperationDeadline(50000, () => now);
   const check = () => deadline.allocate("interpretation", 25000, 24000);
   const h = createRecursiveAskPlanHarness(plan, check), recursive = h.encode(canonical, check);

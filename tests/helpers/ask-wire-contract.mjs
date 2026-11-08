@@ -12,7 +12,7 @@ export async function inspectAskWireContract(request, context, { expectedRepair 
  const { ASK_REQUEST_INSTRUCTIONS, askRequestProviderSchema, askRequestSchema } = await import("../../app/lib/intelligence/ask-request-contract.ts");
  const { proposedSemanticFrameJsonSchema } = await import("../../app/lib/intelligence/semantic-frame/schema.ts");
  const { factorProviderEnumSchemas } = await import("../../app/lib/ai/provider-enum-schema.ts");
- const { factorProviderCompoundSchemas } = await import("../../app/lib/ai/provider-compound-schema.ts");
+ const { compactProviderSchemaReferences, factorProviderCompoundSchemas } = await import("../../app/lib/ai/provider-compound-schema.ts");
  const input = JSON.parse(request.input);
  const selected = [...askSourceWindows(projectAskInterpretationContext(context))]
    .find(candidate => JSON.stringify(candidate.planningSourceWindow) === JSON.stringify(input.sourceWindow));
@@ -28,7 +28,7 @@ export async function inspectAskWireContract(request, context, { expectedRepair 
  }
  const wire = plans.get(key);
  const plan = createDirectSemanticAskWirePlan(wire, wire.instructions, askRequestSchema(proposedSemanticFrameJsonSchema, selected), () => {}, canonicalSchema);
- assert.deepEqual(request.text.format.schema, factorProviderCompoundSchemas(factorProviderEnumSchemas(createAskProviderWireSchema(plan.schema))), "actual wire schema differs from the source-window compiler");
+ assert.deepEqual(request.text.format.schema, compactProviderSchemaReferences(factorProviderCompoundSchemas(factorProviderEnumSchemas(createAskProviderWireSchema(plan.schema)),()=>{},true)), "actual wire schema differs from the source-window compiler");
  const initialInstructions = plan.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS;
  if (expectedRepair) {
    assert.deepEqual(input.contractRepair, expectedRepair, "unexpected bounded repair metadata");

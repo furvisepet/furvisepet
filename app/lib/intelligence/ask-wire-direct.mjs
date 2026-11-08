@@ -9,9 +9,10 @@ const error = (code, field = null) => {
 const plain = v => v !== null && typeof v === "object" && !Array.isArray(v)
   && [Object.prototype, null].includes(Object.getPrototypeOf(v));
 const equal = (x,y) => JSON.stringify(x) === JSON.stringify(y);
-export const DIRECT_ASK_FORMAT_VERSION = "ask-semantic-slots.v4";
+export const DIRECT_ASK_FORMAT_VERSION = "ask-semantic-slots.v5";
 const MAX = RECURSIVE_TRANSPORT_LIMITS.maxSerializedCharacters;
-const evidenceContextFields=["mode","evidenceBasis","premiseQuotes","draftAnswer","frame"];
+const evidenceContextFields=["mode","evidenceBasis","premiseQuotes","draftAnswer","frame",
+  "storedRead","readTicket","calculatePlan"];
 const nativeStructuredFields = new Set(["task", "storedRead", "recordSelection", "evidenceNeeds", "readTicket"]);
 
 function boundedJsonTree(value, check) {
@@ -70,7 +71,7 @@ function nullable(s) {
 }
 // Correlate only temporal discriminants, without duplicating full ticket trees.
 function ticketTemporalSchema(schema) {
-  const variants=schema.anyOf.map(branch=>{
+  const variants=(schema.anyOf||[schema]).map(branch=>{
     if(branch.type==="null")return branch;
     const {authority,operation,temporal,...rest}=branch.properties;
     const time=(anchor,calendar=temporal.properties.calendar)=>({
@@ -134,39 +135,38 @@ function buildSlotsSchema(requestSchema) {
 // Flattening these two fields independently admits combinations the codec must
 // reject, wasting the only call available for independent answer review.
 // This is a grammar projection, never a semantic classifier or normalization.
-function evidenceSlotVariants(canonicalProviderSchema, check) {
-  if (canonicalProviderSchema === null) return null;
-  const variants = canonicalProviderSchema?.properties?.request?.anyOf;
-  if (!Array.isArray(variants)) error("CANONICAL_SCHEMA_DRIFT");
-  const groups = new Map();
-  for (const branch of variants) {
+function evidenceSlotVariants(canonicalProviderSchema, check, sharedReadTicketSchema) {
+  if(canonicalProviderSchema===null)return null;
+  const variants=canonicalProviderSchema?.properties?.request?.anyOf;
+  if(!Array.isArray(variants))error("CANONICAL_SCHEMA_DRIFT");
+  const groups=new Map();
+  for(const branch of variants){
     check();
-    const p = branch?.properties;
-    if (!p?.version?.enum?.includes("ask-request.v2")) continue;
-    const basis = p.evidenceBasis, premises = p.premiseQuotes, mode = p.mode, draft = p.draftAnswer;
-    if (!plain(basis) || !plain(premises) || !plain(mode) || !plain(draft)
-      || !(Array.isArray(basis.enum) || basis.type === "null")) error("CANONICAL_SCHEMA_DRIFT");
-    for (const frameAllowed of [false,true]) {
-      const modes=mode.enum.filter(v=>frameAllowed ? ["update","mixed"].includes(v) : !["update","mixed"].includes(v));
+    const p=branch?.properties;
+    if(!p?.version?.enum?.includes("ask-request.v2"))continue;
+    for(const assertionsAllowed of [false,true]){
+      const modes=p.mode.enum.filter(mode=>assertionsAllowed
+        ? ["update","mixed"].includes(mode) : !["update","mixed"].includes(mode));
       if(!modes.length)continue;
-      const scopedMode={...mode,enum:modes};
-      const frame=frameAllowed ? {type:nullable(p.frame)?["string","null"]:"string"} : {type:"null"};
-      const key=JSON.stringify([scopedMode,premises,draft,frame]);
-      if(!groups.has(key))groups.set(key,{mode:scopedMode,premises,draft,frame,values:[]});
-      const group=groups.get(key);
-      for(const value of basis.enum || [null])
-        if(!group.values.includes(value))group.values.push(value);
+      const properties={};
+      for(const key of evidenceContextFields){
+        check();
+        const field=key==="mode"?{...p.mode,enum:modes}
+          :key==="frame"&&!assertionsAllowed?{type:"null"}:p[key];
+        if(!plain(field))error("CANONICAL_SCHEMA_DRIFT");
+        properties[key]=key==="readTicket"?(field.type==="null"?{type:"null"}
+          :nullable(field)?sharedReadTicketSchema:{anyOf:sharedReadTicketSchema.anyOf.filter(branch=>branch.type!=="null")})
+          :nativeStructuredFields.has(key)||nativeScalar(field)?structuredClone(field)
+          :{type:nullable(field)?["string","null"]:"string",
+            description:"Complete canonical "+key+" JSON serialized as a string when non-null."};
+      }
+      const key=JSON.stringify(properties);
+      if(!groups.has(key))groups.set(key,{
+        type:"object",additionalProperties:false,required:evidenceContextFields,properties});
     }
   }
-  if (!groups.size) error("CANONICAL_SCHEMA_DRIFT");
-  return [...groups.values()].map(({mode, premises, draft, frame, values}) => ({
-    type: "object", additionalProperties: false, required: evidenceContextFields,
-    properties: {
-      mode: structuredClone(mode), draftAnswer: structuredClone(draft), frame,
-      evidenceBasis: { type: [...new Set(values.map(v => v === null ? "null" : "string"))], enum: values },
-      premiseQuotes: structuredClone(premises),
-    },
-  }));
+  if(!groups.size)error("CANONICAL_SCHEMA_DRIFT");
+  return [...groups.values()];
 }
 
 /** @param {{properties?: {request?: {anyOf?: object[]}}} | null} canonicalProviderSchema */
@@ -177,7 +177,7 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
   const slots=buildSlotsSchema(canonicalRequestSchema);
   const catalog={type:"object",additionalProperties:false,required:["catalogIntentJson"],
     properties:{catalogIntentJson:{type:"string",description:"Only for a source-grounded catalog intent, serialize the complete ask-catalog-intent.v1 contract."}}};
-  const evidenceVariants=evidenceSlotVariants(canonicalProviderSchema,checkCompilation);
+  const evidenceVariants=evidenceSlotVariants(canonicalProviderSchema,checkCompilation,slots.schema.properties.readTicket);
   const evidenceSchema=evidenceVariants ? {anyOf:evidenceVariants} : null;
   const evidenceValid=evidenceSchema ? makeValidator(evidenceSchema,checkCompilation) : null;
   // Bundle only the correlated fields. Duplicating the entire request for each
@@ -199,16 +199,11 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
     "Return format " + DIRECT_ASK_FORMAT_VERSION + " and a request OBJECT following the required typed schema.",
     "Do not use graph nodes, field aliases, packed tags or speculative evidence.",
     "All request keys are mandatory. Use null/[] for inactive fields, never omit or invent.",
-    ...(evidenceSchema ? ["evidenceContext is a native object containing mode, evidenceBasis, premiseQuotes, draftAnswer and frame together. POLICY uses their canonical field names. Pure conversation must choose general with [] premises or supplied_context with exact nonempty USER premises, and include a concise provisional draft. Null evidence is not a conversation domain. Never invent premises or change intent to fit a branch."] : []),
+    ...(evidenceSchema ? ["evidenceContext is a native typed intent/source tuple. Mode, evidence basis, premises, provisional draft, frame, storedRead, readTicket and calculatePlan belong to ONE canonical source branch. storedRead is Memory/current-state/operation-receipt only; saved care-entry history uses saved_history with readTicket. POLICY uses their canonical field names. Pure conversation must choose general with [] premises or supplied_context with exact nonempty USER premises, and include a concise provisional draft. Null evidence is not a conversation domain. Never invent premises or change intent to fit a branch."] : []),
     "Simple strings and string arrays are native JSON values. The task, storedRead, recordSelection and readTicket fields are native objects or null. evidenceNeeds is a native array, empty when unused. Other complex objects/arrays are complete JSON strings (or null when allowed).",
     "For each complex field, serialize its complete value as valid JSON inside the outer JSON string: double-quote all keys and string values, escape inner double quotes and backslashes for the outer string, and never use comments, trailing commas, markdown, undefined or unquoted names.",
     "readTicket is a native object, not a JSON string. Its temporalContext contains canonical authority, operation and temporal together. read_since_event requires a genuine event anchor; all other operations require anchor null. A concrete calendar date belongs in from/to, never an invented anchor. stored_report permits ordinary read only, without anchor or calendar selector.",
-    "For a question that requires saved care notes, use mode read, evidenceBasis saved_history and the authorized pet scope. Supply the typed readTicket for the requested date and facts; use premiseQuotes [], storedRead null, and no mutation jobs. A date locating the note is not a user-supplied fact about its contents.",
-    "For a single saved-history lookup, put the requested scope, dates, and predicates in the main readTicket. If readTicket includes probes (even null), the outer evidenceNeeds must be []; never send both readTicket.probes and readTicket.needs. Use nonempty probes only for independently requested evidence, each grounded in exact USER text.",
-    "For general conversation or a saved-record read, premiseQuotes is the native empty array []. For supplied_context, quote only facts the user actually supplied. A date or pet name used to locate a saved note is not a supplied premise.",
-    "For a general or supplied-context conversation with no requested stored read, calculation, navigation or mutation: mode conversation, scope none, operation general, petNames [], readTicket null, frame null. A selected pet or an incidental name does not authorize a stored read. Preserve actual USER premises and any separately requested action; do not change evidence basis to fit a scope.",
     "For a pure general or USER-supplied-context conversation, draftAnswer is a concise natural provisional answer to the whole user request based on permitted USER dialogue, preserving fictional and quoted status and all material unknowns. It is untrusted and must undergo independent review; it grants no source, mutation or factual authority. Set draftAnswer null for every other request. Preserve exact user quotations and avoid generated em dashes.",
-    "For saved_profile: mode read, at least one profileFields entry, quantity null, temporalScope current or null, and scope selected/named/conversation/account. Set readTicket, storedRead, calculatePlan, mutation jobs, task, projection, recordSelection, from, to, episodeTopic, ordinal and frame to null; terms, evidenceNeeds and premiseQuotes are empty. Do not turn the request into another source domain.",
     "The catalogIntentJson variant is exclusively for source-grounded catalog intent. Ordinary requests use the typed " + requestSlotsSchema.required.length + "-field request.",
     "Use full canonical field names shown to the right of = in FIELDS. The POLICY $ aliases are only reading shorthand.",
     lines[2],"POLICY",...lines.slice(i+1),
@@ -232,7 +227,14 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
         || required.some(k=>!Object.hasOwn(value.request,k))) error("REQUIRED_FIELDS");
       let values=value.request;
       if(evidenceSchema) {
-        if(!evidenceValid(evidenceSchema,values.evidenceContext)) error("EVIDENCE_CONTEXT");
+        if(!evidenceValid(evidenceSchema,values.evidenceContext)){
+          const context=values.evidenceContext;
+          const failures=evidenceVariants.map(branch=>Object.entries(branch.properties)
+            .filter(([key,field])=>!plain(context)||!evidenceValid(field,context[key])).map(([key])=>key));
+          const size=Math.min(...failures.map(fields=>fields.length));
+          const hints=[...new Set(failures.filter(fields=>fields.length===size).flat())];
+          throw new Error("ASK_WIRE_CANONICAL_SCHEMA",{cause:{invalidFields:[],nearestBranchFields:hints}});
+        }
         const {evidenceContext,...rest}=values;
         values={...rest,...evidenceContext};
       }
@@ -330,8 +332,9 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
       }
     }
     if(evidenceSchema && !Object.hasOwn(request,"catalogIntentJson")) {
-      const {mode,evidenceBasis,premiseQuotes,draftAnswer,frame,...rest}=request;
-      request={...rest,evidenceContext:{mode,evidenceBasis,premiseQuotes,draftAnswer,frame}};
+      const rest={...request},evidenceContext={};
+      for(const key of evidenceContextFields){evidenceContext[key]=rest[key];delete rest[key];}
+      request={...rest,evidenceContext};
     }
     const result={format:DIRECT_ASK_FORMAT_VERSION,request};
     if(JSON.stringify(result).length>MAX) error("RESOURCE_LIMIT");

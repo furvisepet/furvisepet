@@ -31,6 +31,49 @@ jobs:
           FURVISE_PGLITE_MODULE: ${{ runner.temp }}/ask-postgres/node_modules/@electric-sql/pglite/dist/index.js
         run: node scripts/audits/ask-task-continuation.sql.mjs --full-schema
 
+
+  ask-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: test-publishable-key
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Use repository Node version
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Ask source, ownership, repair and physical-call contracts
+        run: >-
+          npm test -- --test-concurrency=1
+          tests/test-bootstrap-loader.test.mjs
+          tests/provider-schema-compact-reference.test.mjs
+          tests/v27-source-plan-contract.test.mjs
+          tests/v27-intent-grammar-boundaries.test.mjs
+          tests/v27-evidence-slot-correlation.test.mjs
+          tests/v27-two-call-source-free.test.mjs
+          tests/v27-review-dispatch-accounting.test.mjs
+          tests/ask-direct-json-recovery.test.mjs
+          tests/v27-citation-endpoint.test.mjs
+          tests/v27-citation-proof.test.mjs
+          tests/v27-ask-two-call-limit.test.mjs
+          tests/ask-sdk-physical-attempts.test.mjs
+          tests/v27-whole-read-ticket-repair.test.mjs
+          tests/ask-compositional-emission.test.mjs
+          tests/ask-completion-integration.test.mjs
+          tests/ask-context-reasoning.test.mjs
+          tests/ask-one-interpreter.test.mjs
+      - name: Complete-request admission and deadline boundaries
+        run: >-
+          npm test -- --test-concurrency=1
+          --test-name-pattern='final direct semantic|final serialized request|integration compilation|only transport instructions'
+          tests/ask-wire-recursive-plan.test.mjs
+
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 90

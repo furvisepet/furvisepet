@@ -19,7 +19,7 @@ async function runCase(t,mode){
  const prepared=prepareAskInterpretationRequest(context,'gpt-5.4-mini');
  const canonical={request:{...structuredClone(template),question:text,scope:'named',petNames:['Aster'],topic:'profile'}};
  const good=directFixturePlan(prepared.transport).encode(canonical);
- const bad=structuredClone(good);if(mode==='cross_field')bad.request.quantity='records';else if(mode==='canonical')bad.request.readTicket={};else bad.request.projection='{bad private example';
+ const bad=structuredClone(good);if(mode==='cross_field')bad.request.quantity='records';else if(mode==='canonical')bad.request.evidenceContext.readTicket={};else bad.request.projection='{bad private example';
  const store=new MemoryAiGuardTestStore();
  const admission=await admitAiOperation({env,store,feature:'ask',intendedModel:'gpt-5.4-mini',userId:'owner',requestId:'test-'+mode,payload:{case:mode},now:new Date('2039-01-01T00:00:00Z')});
  let calls=0;const purposes=[],events=[];const begin=admission.beginProviderCall.bind(admission);
@@ -55,5 +55,5 @@ test('factored provider schema expands exactly to the provider-compatible direct
  }
  assert.deepEqual(expand(factored),createAskProviderWireSchema(prepared.transport.schema));
  const branch=prepared.transport.schema.properties.request.anyOf[0];
- assert.notEqual(branch.properties.readTicket.type,'string');
+ assert.ok(branch.properties.evidenceContext.anyOf.some(v=>v.properties.readTicket.anyOf?.some(t=>t.type==='object')));
 });

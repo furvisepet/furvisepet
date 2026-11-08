@@ -10,7 +10,7 @@ const scalar = new Set(["type", "enum", "const", "required", "minItems", "maxIte
 /** Exact wire-only sharing. Unsupported reference scopes are left unchanged.
  * Canonical plans, annotations, field/branch order and Binder authority are untouched.
  */
-export function factorProviderCompoundSchemas(schema: Schema, checkBudget: () => void = () => {}): Schema {
+export function factorProviderCompoundSchemas(schema: Schema, checkBudget: () => void = () => {}, shareScalarSchemas = false): Schema {
   checkBudget();
   const original = structuredClone(schema);
   function visit(value: unknown, fn: (node: Schema, root: boolean) => Schema, root = false): unknown {
@@ -61,7 +61,8 @@ export function factorProviderCompoundSchemas(schema: Schema, checkBudget: () =>
   const counts = new Map<string, number>();
   const compound = (node: Schema) => !Object.hasOwn(node, "$ref")
     && (Object.hasOwn(node, "properties") || Object.hasOwn(node, "items")
-      || [...lists].some(key => Object.hasOwn(node, key)));
+      || [...lists].some(key => Object.hasOwn(node, key))
+      || shareScalarSchemas && Object.hasOwn(node,"type") && JSON.stringify(node).length > 64);
   visit(original, (node, root) => {
     if (!root && compound(node)) {
       const key = JSON.stringify(node);
@@ -93,4 +94,39 @@ export function factorProviderCompoundSchemas(schema: Schema, checkBudget: () =>
   const result = transform(original, true) as Schema;
   if (names.size) result.$defs = { ...(result.$defs as Schema | undefined), ...added };
   return result;
+}
+
+/** Rename local schema definitions only. Instance fields, enum/source literals,
+ * annotations and expanded constraints are byte-for-byte unchanged.
+ * Unknown scopes are retained rather than risking reference relocation. */
+export function compactProviderSchemaReferences(schema: Schema): Schema {
+  const original = structuredClone(schema);
+  const definitions = original.$defs;
+  if (!definitions || typeof definitions !== "object" || Array.isArray(definitions)) return original;
+  const names = new Map(Object.keys(definitions).map((name, index) => [name, "r" + index]));
+  let safe = true;
+  function visit(value: unknown, root = false): unknown {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+    const node = value as Schema;
+    if (!root && Object.hasOwn(node, "$defs")) safe = false;
+    const copy = { ...node };
+    if (Object.hasOwn(node, "$ref")) {
+      const ref = node.$ref;
+      if (typeof ref !== "string" || !ref.startsWith("#/$defs/") || ref.slice(8).includes("/")) safe = false;
+      else {
+        const key = ref.slice(8).replace(/~1/g, "/").replace(/~0/g, "~");
+        if (!names.has(key)) safe = false;
+        else copy.$ref = "#/$defs/" + names.get(key);
+      }
+    }
+    if (Object.hasOwn(node, "$id") || Object.hasOwn(node, "$dynamicRef") || Object.hasOwn(node, "$anchor")) safe = false;
+    for (const key of maps) if (node[key] && typeof node[key] === "object" && !Array.isArray(node[key]))
+      copy[key] = Object.fromEntries(Object.entries(node[key] as Schema).map(([name, child]) =>
+        [key === "$defs" && root ? names.get(name)! : name, visit(child)]));
+    for (const key of lists) if (Array.isArray(node[key])) copy[key] = (node[key] as unknown[]).map(child => visit(child));
+    for (const key of children) if (node[key] && typeof node[key] === "object") copy[key] = visit(node[key]);
+    return copy;
+  }
+  const result = visit(original, true) as Schema;
+  return safe ? result : original;
 }
