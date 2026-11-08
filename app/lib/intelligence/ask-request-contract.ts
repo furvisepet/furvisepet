@@ -339,7 +339,21 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
   Object.assign(suppliedConversation.properties.evidenceBasis, { type: "string", enum: ["supplied_context"] });
   Object.assign(suppliedConversation.properties.premiseQuotes, { minItems: 1 });
   Object.assign(suppliedConversation.properties, { mode: { type: "string", enum: ["conversation"] },
-    scope: { type: "string", enum: ["none"] }, readTicket: { type: "null" } });
+    scope: { type: "string", enum: ["none"] }, readTicket: { type: "null" },
+    operation: { type: "string", enum: ["general"] },
+    draftAnswer: { type: "string", minLength: 1, maxLength: 1800 } });
+  // Pure dialogue has an explicit evidence domain and a first-call proposal.
+  // Nothing in this branch can carry a saved read, calculation or mutation.
+  for (const field of ["calculatePlan", "storedRead", "removeJob", "stateTransitionJob",
+    "fieldMutationJob", "lifecyclePlan", "appendJob", "writeJob", "task", "frame",
+    "mutationIntent", "projection", "recordSelection"] as const)
+    Object.assign(suppliedConversation.properties, { [field]: { type: "null" } });
+  const generalConversation = structuredClone(suppliedConversation);
+  Object.assign(generalConversation.properties.evidenceBasis, { enum: ["general"] });
+  Object.assign(generalConversation.properties.premiseQuotes, { minItems: 0, maxItems: 0 });
+  for (const variant of [nonProfile, chronological]) {
+    Object.assign(variant.properties.mode, { enum: modes.filter(mode => mode !== "conversation") });
+  }
   for (const variant of [nonProfile, chronological, lifecycle]) {
     Object.assign(variant.properties.evidenceBasis, { ...(Array.isArray(variant.properties.evidenceBasis.enum) ? { enum: variant.properties.evidenceBasis.enum.filter(value => value !== "supplied_context") } : {}) });
     if (variant.properties.premiseQuotes.type !== "null") Object.assign(variant.properties.premiseQuotes, { maxItems: 0 });
@@ -362,7 +376,7 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
   Object.assign(deferredConcern.properties, { stateTransitionJob: unresolvedConcern });
   const unboundCatalog = catalogIntentSchema({ anyOf: [deferredReplace, deferredRemove, deferredConcern, lifecycle, profile, ...stored] });
   return { type: "object", additionalProperties: false, required: ["request"],
-    properties: { request: { anyOf: [unboundCatalog, ...(!context || premiseQuotes.length ? [premiseCalculation] : []), ...calculations, ...stored, profile, suppliedConversation, nonProfile, chronological, lifecycle, profileMutation, removal,
+    properties: { request: { anyOf: [unboundCatalog, ...(!context || premiseQuotes.length ? [premiseCalculation] : []), ...calculations, ...stored, profile, generalConversation, suppliedConversation, nonProfile, chronological, lifecycle, profileMutation, removal,
       ...(transitionSchema.anyOf.length > 1 ? [transition] : [])] } } };
 }
 
@@ -755,6 +769,9 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     Object.assign(p, { mode: "conversation", scope: "none", petNames: [], operation: "general",
       from: null, to: null, terms: [], ordinal: null, episodeTopic: null, frame: null });
   }
+  // Legacy callers also fail closed: an unspecified evidence domain is not
+  // a conversation plan. Do not guess general or rewrite supplied premises.
+  if (p.mode === "conversation" && p.evidenceBasis === null) return fail("conversation_evidence_basis");
   const owned = context.eligiblePets.filter(pet => pet.user_id === context.owner.userId);
   const proposed = p.petNames.map(name => {
     const matches = owned.filter(pet => pet.name?.toLocaleLowerCase() === name.toLocaleLowerCase());

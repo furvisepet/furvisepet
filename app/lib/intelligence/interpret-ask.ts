@@ -217,17 +217,16 @@ export function prepareAskInterpretationRequest(original: InterpretationContext,
     checkBudget();
     return { context, input, wire, transport, request };
   };
-  let chosen: ReturnType<typeof build> | undefined;
-  // Start with mandatory sources. Add only whole recent turns, stopping at
-  // the first oversize candidate; never shrink or rewrite a mandatory source.
-  for (const context of askSourceWindows(projectAskInterpretationContext(original))) {
+  // Try the largest permitted whole-turn window first. Each candidate still
+  // contains all mandatory sources and gets the exact same schema, authority,
+  // compilation deadline and complete-request budget checks. This avoids
+  // recompiling every smaller schema when the largest window already fits.
+  for (const context of [...askSourceWindows(projectAskInterpretationContext(original))].reverse()) {
     checkBudget();
     const candidate = build(context);
-    if (!askRequestFitsInputBudget(candidate.request)) break;
-    chosen = candidate;
+    if (askRequestFitsInputBudget(candidate.request)) return candidate;
   }
   checkBudget();
-  if (chosen) return chosen;
   throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "feature_token_budget_exceeded");
 }
 

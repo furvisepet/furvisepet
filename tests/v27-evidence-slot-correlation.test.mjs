@@ -63,6 +63,59 @@ test('production-format general proposal and independent review use exactly two 
 });
 
 
+test('supplied fictional dialogue draft and independent review fit the same two-call workflow', async () => {
+ const question = 'In a fictional museum, room A opens only after room B closes. Can both rooms be open together?';
+ const draft = 'Under that rule, room A and room B cannot be open at the same time.';
+ const pet = { id:'pet-scope', user_id:'owner', name:'Pet', species:'dog' };
+ const context = { owner:{userId:'owner'},pet,eligiblePets:[pet],currentMessage:question,
+   currentTurn:{id:'turn-1',role:'user',text:question},conversationTurns:[],timeZone:'UTC',
+   careEntries:[],selectedCareEntries:[],memories:[] };
+ const proposal = {version:'ask-request.v2',mode:'conversation',scope:'none',operation:'general',
+   selection:'summary',question,requirements:[],referenceTurnIds:[],petNames:[],excludedPetNames:[],
+   quantity:null,topic:'weather',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,
+   frame:null,evidenceBasis:'supplied_context',premiseQuotes:['room A opens only after room B closes'],outputFormat:null,draftAnswer:draft};
+ const prepared=prepareAskInterpretationRequest(context,"fixture");
+ const full=fullProposal(proposal);
+ const encoded=prepared.transport.encode({request:full},()=>{});
+ const physical=[];
+ const planner = { responses:{ create:async request => {
+   physical.push('interpretation');
+   assert.match(JSON.stringify(request.text.format.schema),/draftAnswer/);
+   assert.equal(validatesProvider(request.text.format.schema,encoded),true);
+   return {output_text:JSON.stringify(encoded)};
+ } } };
+ const interpretation=await interpretAskQuestion({context,model:'fixture',client:planner});
+ assert.equal(interpretation.conversationOnly,true);
+ assert.equal(interpretation.provisionalAnswer,draft);
+ const planned={...context,askInterpretation:interpretation};
+ const evidence=createAskEvidenceContract(planned,[]);
+ const noGenerator={responses:{create:async()=>{physical.push('unexpected-generation');throw Error('GENERATION_CALL_FORBIDDEN');}}};
+ const answer=await generateContextAwareAskResponse({
+   question,requestId:'turn-1',locale:'en-CA',conversationOnly:true,
+   provisionalAnswer:interpretation.provisionalAnswer,evidenceContract:evidence,
+   profiles:[],careEntries:[],memories:[],productFeedback:[],conversationTurns:[],recentUpdates:[],client:noGenerator
+ });
+ const validate=x=>validateGeneratedAnswer(x,planned,'routine',[]);
+ const validation=validate(answer);
+ assert.equal(validation.valid,true,JSON.stringify(validation.errors));
+ const reviewer={responses:{create:async request=>{
+   physical.push('independent-review');
+   assert.match(request.input, /Under that rule/);
+   return {output_text:JSON.stringify({
+     obligations:[{index:0,status:'answered',answerIndexes:[0],actionIndexes:[]}],reason:null,
+     verification:{evidenceSupport:{status:'passed',reason:'The answer preserves the supplied fictional rule.'},
+       subjectDateCorrectness:{status:'not_applicable',reason:'No personal subject or date.'},
+       calculationCorrectness:{status:'not_applicable',reason:'No calculation requested.'}}
+   })};
+ } } };
+ const reviewed=await reviewTaskCompletion({validation,context:planned,requestId:'turn-1',validate,client:reviewer});
+ assert.equal(reviewed.valid,true,JSON.stringify(reviewed.errors));
+ assert.deepEqual(physical,['interpretation','independent-review']);
+ assert.equal(reviewed.response.answer.summary,draft);
+ assert.deepEqual(reviewed.response.referencedRecords,[]);
+});
+
+
 // Complete actual wire shape, not the legacy abbreviated Node proposal bypass.
 function fullProposal(overrides={}) {
  return {
@@ -71,7 +124,7 @@ function fullProposal(overrides={}) {
   task:null,temporalScope:null,mutationIntent:null,recordSelection:null,projection:null,
   profileFields:[],evidenceNeeds:[],terms:[],petNames:[],excludedPetNames:[],
   referenceTurnIds:[],requirements:[],premiseQuotes:[],outputFormat:null,
-  from:null,to:null,ordinal:null,episodeTopic:null,quantity:null,frame:null,draftAnswer:null,
+  from:null,to:null,ordinal:null,episodeTopic:null,quantity:null,frame:null,draftAnswer:"Here is a brief general explanation.",
   version:"ask-request.v2",mode:"conversation",scope:"none",operation:"general",
   selection:"summary",question:"Explain how a hypothetical counter works.",topic:"general",
   evidenceBasis:"general",...overrides
@@ -112,7 +165,7 @@ test("genuine current and prior USER supplied premises survive real grammar and 
    calls++;return {output_text:JSON.stringify(encoded)};
   }}}});
   assert.equal(calls,1);assert.equal(result.request.evidenceBasis,"supplied_context");
-  assert.equal(result.provisionalAnswer,undefined);
+  assert.equal(result.provisionalAnswer,request.draftAnswer);
  }
 });
 test("valid provider shape does not authenticate a fabricated USER premise",async()=>{
