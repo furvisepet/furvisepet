@@ -6,6 +6,13 @@ const {askRequestSchema} = await import("../app/lib/intelligence/ask-request-con
 const {proposedSemanticFrameJsonSchema} = await import("../app/lib/intelligence/semantic-frame/schema.ts");
 const schema=askRequestSchema(proposedSemanticFrameJsonSchema);
 const fixtures=JSON.parse(readFileSync(new URL("./fixtures/ask-wire-codec.json",import.meta.url),"utf8")).fixtures;
+// The frozen codec corpus predates the additive source-free provisional draft.
+// Preserve every corpus field and supply only the inactive new nullable field.
+for(const fixture of fixtures) {
+ const request=fixture.canonical?.request;
+ if(request?.version==="ask-request.v2" && !Object.hasOwn(request,"draftAnswer"))
+  request.draftAnswer=null;
+}
 let encodeCalls=0,decodeCalls=0;
 const mockWire={
  encode(value) {

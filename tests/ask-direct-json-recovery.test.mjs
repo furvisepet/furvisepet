@@ -6,7 +6,8 @@ import {prepareAskInterpretationRequest,interpretAskQuestion} from '../app/lib/i
 import {admitAiOperation} from '../app/lib/ai/usage-guard/admission.ts';
 import {MemoryAiGuardTestStore} from '../app/lib/ai/usage-guard/memory-test-store.ts';
 const corpus=JSON.parse(readFileSync(new URL('./fixtures/ask-wire-codec.json',import.meta.url),'utf8'));
-const template=corpus.fixtures.find(f=>f.canonical.request.evidenceBasis==='saved_profile').canonical.request;
+// The frozen corpus predates the additive nullable draft field.
+const template={...corpus.fixtures.find(f=>f.canonical.request.evidenceBasis==='saved_profile').canonical.request,draftAnswer:null};
 const pet={id:'pet',user_id:'owner',name:'Aster',species:'cat'};
 const text="What is Aster's current profile weight?";
 const currentTurn={id:'current',role:'user',text,createdAt:'2026-09-20T12:00:00Z'};

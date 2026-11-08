@@ -142,8 +142,10 @@ for (const numeric of [false, true]) for (const count of [0, 2, 8, 39])
       assert.deepEqual(request.reasoning, { effort: "none" });
       assert.equal(request.instructions, prepared.transport.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS);
       assert.equal(request.text.format.schema.properties.request.anyOf[0].required.length, 37);
-      assert.equal(request.text.format.schema.properties.format.enum[0], "ask-semantic-slots.v1");
-      const canonical = proposal(ctx), proposed = prepared.transport.encode(canonical, check);
+      assert.equal(request.text.format.schema.properties.format.enum[0], "ask-semantic-slots.v2");
+      // The legacy proposal fixture has no provisional answer.
+      const canonical = proposal(ctx); canonical.request.draftAnswer = null;
+      const proposed = prepared.transport.encode(canonical, check);
       assert.ok(!Object.hasOwn(proposed, "nodes"));
       assert.deepEqual(prepared.transport.decode(JSON.parse(JSON.stringify(proposed)), check), canonical);
       let dispatches = 0;

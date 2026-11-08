@@ -9,7 +9,7 @@ const error = (code, field = null) => {
 const plain = v => v !== null && typeof v === "object" && !Array.isArray(v)
   && [Object.prototype, null].includes(Object.getPrototypeOf(v));
 const equal = (x,y) => JSON.stringify(x) === JSON.stringify(y);
-export const DIRECT_ASK_FORMAT_VERSION = "ask-semantic-slots.v1";
+export const DIRECT_ASK_FORMAT_VERSION = "ask-semantic-slots.v2";
 const MAX = RECURSIVE_TRANSPORT_LIMITS.maxSerializedCharacters;
 const nativeStructuredFields = new Set(["task", "storedRead", "recordSelection", "evidenceNeeds", "readTicket"]);
 
@@ -89,6 +89,38 @@ function buildSlotsSchema(requestSchema) {
   return { schema:{type:"object",additionalProperties:false,required:requestSchema.required.slice(),properties:props}, complex };
 }
 
+// Keep the evidence-domain/premise relationship from the canonical branches.
+// Flattening these two fields independently admits combinations the codec must
+// reject, wasting the only call available for independent answer review.
+// This is a grammar projection, never a semantic classifier or normalization.
+function evidenceSlotVariants(canonicalProviderSchema, check) {
+  if (canonicalProviderSchema === null) return null;
+  const variants = canonicalProviderSchema?.properties?.request?.anyOf;
+  if (!Array.isArray(variants)) error("CANONICAL_SCHEMA_DRIFT");
+  const groups = new Map();
+  for (const branch of variants) {
+    check();
+    const p = branch?.properties;
+    if (!p?.version?.enum?.includes("ask-request.v2")) continue;
+    const basis = p.evidenceBasis, premises = p.premiseQuotes;
+    if (!plain(basis) || !plain(premises)
+      || !(Array.isArray(basis.enum) || basis.type === "null")) error("CANONICAL_SCHEMA_DRIFT");
+    const key = JSON.stringify(premises);
+    if (!groups.has(key)) groups.set(key, { premises, values: [] });
+    const group = groups.get(key);
+    for (const value of basis.enum || [null])
+      if (!group.values.includes(value)) group.values.push(value);
+  }
+  if (!groups.size) error("CANONICAL_SCHEMA_DRIFT");
+  return [...groups.values()].map(({premises, values}) => ({
+    type: "object", additionalProperties: false, required: ["evidenceBasis","premiseQuotes"],
+    properties: {
+      evidenceBasis: { type: [...new Set(values.map(v => v === null ? "null" : "string"))], enum: values },
+      premiseQuotes: structuredClone(premises),
+    },
+  }));
+}
+
 /** @param {{properties?: {request?: {anyOf?: object[]}}} | null} canonicalProviderSchema */
 export function createDirectSemanticAskWirePlan(wire, originalInstructions, canonicalRequestSchema, checkCompilation = () => {}, canonicalProviderSchema = null) {
   checkCompilation();
@@ -97,17 +129,29 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
   const slots=buildSlotsSchema(canonicalRequestSchema);
   const catalog={type:"object",additionalProperties:false,required:["catalogIntentJson"],
     properties:{catalogIntentJson:{type:"string",description:"Only for a source-grounded catalog intent, serialize the complete ask-catalog-intent.v1 contract."}}};
+  const evidenceVariants=evidenceSlotVariants(canonicalProviderSchema,checkCompilation);
+  const evidenceSchema=evidenceVariants ? {anyOf:evidenceVariants} : null;
+  const evidenceValid=evidenceSchema ? makeValidator(evidenceSchema,checkCompilation) : null;
+  // Bundle only the correlated fields. Duplicating the entire request for each
+  // evidence domain needlessly spends the bounded interpretation input budget.
+  const requestSlotsSchema=evidenceSchema ? {
+    ...slots.schema,
+    required:[...slots.schema.required.filter(k=>k!=="evidenceBasis"&&k!=="premiseQuotes"),"evidenceContext"],
+    properties:{...Object.fromEntries(Object.entries(slots.schema.properties)
+      .filter(([k])=>k!=="evidenceBasis"&&k!=="premiseQuotes")),evidenceContext:evidenceSchema},
+  } : slots.schema;
   const schema={type:"object",additionalProperties:false,required:["format","request"],
     properties:{format:{type:"string",enum:[DIRECT_ASK_FORMAT_VERSION]},
-      request:{anyOf:[slots.schema,catalog]}}};
+      request:{anyOf:[requestSlotsSchema,catalog]}}};
   const lines=originalInstructions.split("\n"),i=lines.indexOf("POLICY");
   if(lines.length<5 || !lines[0].includes("nodes: supporting postorder tree;")
     || !lines[1].startsWith("ROOT root.") || !lines[2].startsWith("FIELDS ")
     || i<5 || i>=lines.length-3) error("POLICY_LAYOUT");
   const instructions=[
-    "Return format ask-semantic-slots.v1 and a request OBJECT following the required typed schema.",
+    "Return format " + DIRECT_ASK_FORMAT_VERSION + " and a request OBJECT following the required typed schema.",
     "Do not use graph nodes, field aliases, packed tags or speculative evidence.",
     "All request keys are mandatory. Use null/[] for inactive fields, never omit or invent.",
+    ...(evidenceSchema ? ["evidenceContext is a native object containing evidenceBasis and premiseQuotes together. Their canonical field names in POLICY refer to these nested values. A nonempty premise list is required for supplied_context; never invent a premise or change the evidence domain to fit the schema."] : []),
     "Simple strings and string arrays are native JSON values. The task, storedRead, recordSelection and readTicket fields are native objects or null. evidenceNeeds is a native array, empty when unused. Other complex objects/arrays are complete JSON strings (or null when allowed).",
     "For each complex field, serialize its complete value as valid JSON inside the outer JSON string: double-quote all keys and string values, escape inner double quotes and backslashes for the outer string, and never use comments, trailing commas, markdown, undefined or unquoted names.",
     "readTicket, when non-null, must be the complete typed ReadTicket object, not a JSON string.",
@@ -117,7 +161,7 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
     "For a general or supplied-context conversation with no requested stored read, calculation, navigation or mutation: mode conversation, scope none, operation general, petNames [], readTicket null, frame null. A selected pet or an incidental name does not authorize a stored read. Preserve actual USER premises and any separately requested action; do not change evidence basis to fit a scope.",
     "For a genuinely source-free general conversation only, draftAnswer is a concise natural provisional answer to the whole user request based on permitted USER dialogue. It is untrusted and must undergo independent review; it grants no source, mutation or factual authority. Set draftAnswer null for every other request. Preserve exact user quotations and avoid generated em dashes.",
     "For saved_profile: mode read, at least one profileFields entry, quantity null, temporalScope current or null, and scope selected/named/conversation/account. Set readTicket, storedRead, calculatePlan, mutation jobs, task, projection, recordSelection, from, to, episodeTopic, ordinal and frame to null; terms, evidenceNeeds and premiseQuotes are empty. Do not turn the request into another source domain.",
-    "The catalogIntentJson variant is exclusively for source-grounded catalog intent. Ordinary requests use the typed " + slots.schema.required.length + "-field request.",
+    "The catalogIntentJson variant is exclusively for source-grounded catalog intent. Ordinary requests use the typed " + requestSlotsSchema.required.length + "-field request.",
     "Use full canonical field names shown to the right of = in FIELDS. The POLICY $ aliases are only reading shorthand.",
     lines[2],"POLICY",...lines.slice(i+1),
   ].join("\n");
@@ -135,13 +179,19 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
       catch { error("CATALOG_JSON"); }
       if(!plain(request) || request.version!=="ask-catalog-intent.v1") error("CATALOG_CONTRACT");
     } else {
-      const fields=Object.keys(value.request),required=slots.schema.required;
-      if(fields.length!==required.length || fields.some(k=>!Object.hasOwn(slots.schema.properties,k))
+      const fields=Object.keys(value.request),required=requestSlotsSchema.required;
+      if(fields.length!==required.length || fields.some(k=>!Object.hasOwn(requestSlotsSchema.properties,k))
         || required.some(k=>!Object.hasOwn(value.request,k))) error("REQUIRED_FIELDS");
+      let values=value.request;
+      if(evidenceSchema) {
+        if(!evidenceValid(evidenceSchema,values.evidenceContext)) error("EVIDENCE_CONTEXT");
+        const {evidenceContext,...rest}=values;
+        values={...rest,...evidenceContext};
+      }
       request={};
-      for(const k of required){
+      for(const k of slots.schema.required){
         checkRuntime();
-        const v=value.request[k];
+        const v=values[k];
         if(slots.complex.includes(k) && v!==null){
           if(typeof v!=="string" || v.length<2 || v.length>MAX) error("FIELD_FORMAT",k);
           try { request[k]=JSON.parse(v); } catch { error("FIELD_JSON",k); }
@@ -230,6 +280,10 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
         const v=value.request[k];
         request[k]=slots.complex.includes(k) && v!==null ? JSON.stringify(v) : v;
       }
+    }
+    if(evidenceSchema && !Object.hasOwn(request,"catalogIntentJson")) {
+      const {evidenceBasis,premiseQuotes,...rest}=request;
+      request={...rest,evidenceContext:{evidenceBasis,premiseQuotes}};
     }
     const result={format:DIRECT_ASK_FORMAT_VERSION,request};
     if(JSON.stringify(result).length>MAX) error("RESOURCE_LIMIT");
