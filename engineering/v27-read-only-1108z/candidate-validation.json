@@ -1,0 +1,32 @@
+{
+  "focused": {
+    "tests": 113,
+    "pass": 113,
+    "fail": 0,
+    "log": "read-only-focused11.log"
+  },
+  "security": {
+    "tests": 162,
+    "pass": 162,
+    "fail": 0
+  },
+  "typecheck": "PASS",
+  "lint": {
+    "errors": 0,
+    "warnings": 122
+  },
+  "build": "PASS",
+  "productionDependencyAudit": {
+    "total": 0,
+    "high": 0,
+    "critical": 0
+  },
+  "liveCandidateAcceptance": "pending_new_batch_revision",
+  "priorOriginalQuestion": "PASS_on_17519f6d",
+  "fullCI": "IN_PROGRESS_on_prior_revisions_not_a_pass",
+  "anonymousHttp": {
+    "edge401": true,
+    "app401VerifiedLive": false,
+    "reason": "Vercel protection still required authentication after supported fetch; application handler auth negatives pass in tests"
+  }
+}

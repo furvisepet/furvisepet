@@ -1,0 +1,165 @@
+{
+  "roots": 101,
+  "files": 605,
+  "selected": [
+    {
+      "file": "app\\lib\\ask-read-only\\context.ts",
+      "reachable": true,
+      "importers": [
+        "app\\api\\ask\\route.ts"
+      ]
+    },
+    {
+      "file": "app\\lib\\ask-read-only\\core.mjs",
+      "reachable": true,
+      "importers": [
+        "app\\api\\ask\\route.ts",
+        "app\\lib\\ask-citation-proof.ts"
+      ]
+    },
+    {
+      "file": "app\\lib\\ask-read-only\\data.ts",
+      "reachable": true,
+      "importers": [
+        "app\\api\\ask\\route.ts"
+      ]
+    },
+    {
+      "file": "app\\lib\\ask-read-only\\provider.ts",
+      "reachable": true,
+      "importers": [
+        "app\\api\\ask\\route.ts"
+      ]
+    },
+    {
+      "file": "app\\lib\\ask-request-contract.ts",
+      "reachable": true,
+      "importers": [
+        "app\\api\\ask\\route.ts",
+        "app\\ask\\page.tsx",
+        "app\\lib\\ask-temporal-scope-receipt.ts"
+      ]
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\remove-job.ts",
+      "reachable": true,
+      "importers": [
+        "app\\lib\\application-actions\\capabilities.ts",
+        "app\\lib\\application-actions\\contracts.ts",
+        "app\\lib\\application-actions\\planner.ts",
+        "app\\lib\\furvise-brain\\stored-read-organ.ts",
+        "app\\lib\\intelligence\\ask-request-contract.ts"
+      ]
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\replace-job.ts",
+      "reachable": true,
+      "importers": [
+        "app\\lib\\application-actions\\capabilities.ts",
+        "app\\lib\\application-actions\\contracts.ts",
+        "app\\lib\\application-actions\\planner.ts",
+        "app\\lib\\furvise-brain\\stored-read-organ.ts",
+        "app\\lib\\intelligence\\ask-request-contract.ts",
+        "app\\lib\\intelligence\\canonical-suggestion.ts",
+        "app\\lib\\intelligence\\interpret-ask.ts"
+      ]
+    },
+    {
+      "file": "app\\lib\\intelligence\\append-turn.ts",
+      "reachable": true,
+      "importers": [
+        "app\\api\\ask\\actions\\[messageId]\\route.ts",
+        "app\\api\\ask\\suggestions\\[id]\\route.ts"
+      ]
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-request-contract.ts",
+      "reachable": false,
+      "importers": [
+        "app\\lib\\intelligence\\interpret-ask.ts"
+      ]
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-wire-authority.mjs",
+      "reachable": false,
+      "importers": [
+        "app\\lib\\intelligence\\ask-wire-policy.mjs"
+      ]
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-wire-codec.mjs",
+      "reachable": false,
+      "importers": [
+        "app\\lib\\intelligence\\ask-wire-direct.mjs",
+        "app\\lib\\intelligence\\ask-wire-policy.mjs",
+        "app\\lib\\intelligence\\ask-wire-recursive.mjs"
+      ]
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-wire-direct.mjs",
+      "reachable": false,
+      "importers": [
+        "app\\lib\\intelligence\\interpret-ask.ts"
+      ]
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-wire-policy.generated.mjs",
+      "reachable": false,
+      "importers": [
+        "app\\lib\\intelligence\\ask-wire-codec.mjs",
+        "app\\lib\\intelligence\\ask-wire-policy.mjs"
+      ]
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-wire-policy.mjs",
+      "reachable": false,
+      "importers": [
+        "app\\lib\\intelligence\\interpret-ask.ts"
+      ]
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-wire-provider-schema.ts",
+      "reachable": false,
+      "importers": [
+        "app\\lib\\intelligence\\interpret-ask.ts"
+      ]
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-wire-recursive.mjs",
+      "reachable": false,
+      "importers": [
+        "app\\lib\\intelligence\\ask-wire-direct.mjs",
+        "app\\lib\\intelligence\\interpret-ask.ts"
+      ]
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-wire-schema.mjs",
+      "reachable": false,
+      "importers": [
+        "app\\lib\\intelligence\\ask-wire-codec.mjs"
+      ]
+    },
+    {
+      "file": "app\\lib\\intelligence\\field-mutation-turn.ts",
+      "reachable": false,
+      "importers": []
+    },
+    {
+      "file": "app\\lib\\intelligence\\interpret-ask.ts",
+      "reachable": false,
+      "importers": []
+    },
+    {
+      "file": "app\\lib\\intelligence\\planning-context.ts",
+      "reachable": true,
+      "importers": [
+        "app\\lib\\intelligence\\append-turn.ts"
+      ]
+    },
+    {
+      "file": "app\\lib\\intelligence\\state-transition-turn.ts",
+      "reachable": false,
+      "importers": []
+    }
+  ]
+}

@@ -1,6 +1,8 @@
+import { READ_ONLY_PROFILE_FIELDS } from "../../../lib/ask-read-only/data";
+import type { DogProfileRow } from "../../../lib/supabase";
 import { getAskConversationRequestContext } from "../../../lib/ask-conversation-server";
 import { readBoundedJson, API_BODY_LIMITS } from "../../../lib/security/request";
-import { verifyAskCitationProof, checkedCitationSources, type CitationSourceRow } from "../../../lib/ask-citation-proof";
+import { verifyAskCitationProof, checkedReadOnlyCitationSources, type CitationSourceRow } from "../../../lib/ask-citation-proof";
 
 export async function POST(request: Request) {
  const auth=await getAskConversationRequestContext(request);
@@ -13,16 +15,17 @@ export async function POST(request: Request) {
  if(!proof)return Response.json({error:"These references are unavailable."},{status:404});
  // RLS and explicit owner/subject checks both apply; no service-role read.
  const petIds=[...new Set(proof.sources.map(s=>s.petId))];
- const {data:pets,error:petError}=await Promise.resolve(auth.supabase.from("dog_profiles").select("id")
-  .eq("user_id",auth.userId).in("id",petIds).limit(32).abortSignal(AbortSignal.timeout(5000)).returns<{id:string}[]>())
+ const {data:pets,error:petError}=await Promise.resolve(auth.supabase.from("dog_profiles").select(proof.sources.some(source=>source.kind==="profile")?READ_ONLY_PROFILE_FIELDS:"id,user_id")
+  .eq("user_id",auth.userId).in("id",petIds).limit(32).abortSignal(AbortSignal.timeout(5000)).returns<DogProfileRow[]>())
   .catch(()=>({data:null,error:true}));
  if(petError || !pets || pets.length!==petIds.length || petIds.some(id=>!pets.some(p=>p.id===id)))
   return Response.json({error:"These references are unavailable."},{status:404,headers:{"Cache-Control":"no-store"}});
- const {data,error}=await Promise.resolve(auth.supabase.from("pet_care_entries")
+ const noteIds=proof.sources.filter(source=>source.kind!=="profile").map(source=>source.id);
+ const {data,error}=noteIds.length?await Promise.resolve(auth.supabase.from("pet_care_entries")
   .select("id,user_id,pet_profile_id,note,title,occurred_at,created_at,deleted_at")
-  .eq("user_id",auth.userId).in("id",proof.sources.map(s=>s.id)).is("deleted_at",null).limit(32).abortSignal(AbortSignal.timeout(5000)).returns<CitationSourceRow[]>())
-  .catch(()=>({data:null,error:true}));
- const sources=!error && data ? checkedCitationSources(proof,data) : null;
+  .eq("user_id",auth.userId).in("id",noteIds).is("deleted_at",null).limit(32).abortSignal(AbortSignal.timeout(5000)).returns<CitationSourceRow[]>())
+  .catch(()=>({data:null,error:true})):{data:[],error:null};
+ const sources=!error && data ? checkedReadOnlyCitationSources(proof,data,pets) : null;
  if(!sources)return Response.json({error:"These references have changed or are unavailable."},{status:404,headers:{"Cache-Control":"no-store"}});
  return Response.json({sources},{headers:{"Cache-Control":"no-store"}});
 }

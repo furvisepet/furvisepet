@@ -48,33 +48,21 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci
-      - name: Ask source, ownership, repair and physical-call contracts
+      # The canonical planner is no longer a public execution path. Its retained
+      # historical tests still run in the unfiltered Full tests step below.
+      - name: Read-only conversation, retrieval, citations and physical-call contracts
         run: >-
           npm test -- --test-concurrency=1
           tests/test-bootstrap-loader.test.mjs
-          tests/provider-schema-compact-reference.test.mjs
-          tests/v27-source-plan-contract.test.mjs
-          tests/v27-independent-branch-probe.test.mjs
-          tests/v27-repair-admission-window.test.mjs
-          tests/v27-intent-grammar-boundaries.test.mjs
-          tests/v27-evidence-slot-correlation.test.mjs
-          tests/v27-two-call-source-free.test.mjs
-          tests/v27-review-dispatch-accounting.test.mjs
-          tests/ask-direct-json-recovery.test.mjs
-          tests/v27-citation-endpoint.test.mjs
+          tests/ask-read-only.test.mjs
           tests/v27-citation-proof.test.mjs
-          tests/v27-ask-two-call-limit.test.mjs
+          tests/v27-citation-endpoint.test.mjs
           tests/ask-sdk-physical-attempts.test.mjs
-          tests/v27-whole-read-ticket-repair.test.mjs
-          tests/ask-compositional-emission.test.mjs
-          tests/ask-completion-integration.test.mjs
-          tests/ask-context-reasoning.test.mjs
-          tests/ask-one-interpreter.test.mjs
-      - name: Complete-request admission and deadline boundaries
-        run: >-
-          npm test -- --test-concurrency=1
-          --test-name-pattern='final direct semantic|final serialized request|integration compilation|only transport instructions'
-          tests/ask-wire-recursive-plan.test.mjs
+          tests/v27-ask-two-call-limit.test.mjs
+          tests/ask-credit-settlement.test.mjs
+          tests/ask-admission-settlement.test.mjs
+          tests/ask-restored-retry.test.mjs
+          tests/furvise-brain-durable-answer-finalization.test.mjs
 
   verify:
     runs-on: ubuntu-latest

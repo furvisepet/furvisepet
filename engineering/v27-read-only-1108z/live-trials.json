@@ -12,5 +12,65 @@
     "userCredit": "completed_one_incorrectly_marked_complete_by_model",
     "upstream500": false,
     "nextChange": "bounded lexical fallback plus server-derived limited state and scope diagnostics"
+  },
+  {
+    "requestId": "58f45c8a-3aaf-4047-ae49-347680fe5a60",
+    "calls": 2,
+    "costMicrodollars": 2031,
+    "creditDisposition": "complete",
+    "finalOutcome": "complete",
+    "sources": 0,
+    "readTools": 0,
+    "limited": false,
+    "sha": "17519f6d604f443a826668f435b90b56439b40a0",
+    "deploymentId": "dpl_5qTKWqa6oGS6y93CkY7k9Lgkn8ri",
+    "outcome": "PASS_mutation_refused_and_history_unchanged"
+  },
+  {
+    "requestId": "7fbc63c3-dfc5-42c1-a96b-2fd689e2ed80",
+    "calls": 2,
+    "costMicrodollars": 2468,
+    "creditDisposition": "release",
+    "finalOutcome": "FAILED_RETRYABLE",
+    "errorCode": "ASK_READ_QUOTE_NOT_VERIFIED",
+    "sha": "17519f6d604f443a826668f435b90b56439b40a0",
+    "deploymentId": "dpl_5qTKWqa6oGS6y93CkY7k9Lgkn8ri",
+    "outcome": "NO_GO_comparison_missing_read_and_unverified_quote"
+  },
+  {
+    "requestId": "9cc97524-e6b2-4757-a52e-e0f86082b3d6",
+    "calls": 2,
+    "costMicrodollars": 1943,
+    "creditDisposition": "complete",
+    "finalOutcome": "complete",
+    "sources": 1,
+    "readTools": 1,
+    "limited": false,
+    "sha": "17519f6d604f443a826668f435b90b56439b40a0",
+    "deploymentId": "dpl_5qTKWqa6oGS6y93CkY7k9Lgkn8ri",
+    "outcome": "PASS_source_backed_followup"
+  },
+  {
+    "requestId": "d08aced9-4404-4345-a23e-05a626a2f94d",
+    "calls": 2,
+    "costMicrodollars": 1817,
+    "creditDisposition": "complete",
+    "finalOutcome": "complete",
+    "sources": 1,
+    "readTools": 1,
+    "limited": false,
+    "sha": "17519f6d604f443a826668f435b90b56439b40a0",
+    "deploymentId": "dpl_5qTKWqa6oGS6y93CkY7k9Lgkn8ri",
+    "outcome": "PASS_exact_note_quote_and_verified_citation",
+    "replayVerified": true,
+    "replayProviderCalls": 0
+  },
+  {
+    "sha": "7f4b93f28e49d3384fc086e3829b44d157ba138f",
+    "requestId": "69309f47-8915-48fd-845e-6903a3db6893",
+    "outcome": "PASS_arbitrary_general_question",
+    "providerCallCount": 2,
+    "costMicrodollars": 1851,
+    "readTools": 0
   }
 ]

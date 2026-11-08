@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import { resolveAskHistoryAccess } from "../../lib/intelligence/history-access.ts";
 import type { DogProfileRow } from "../../lib/supabase.ts";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -8,7 +9,7 @@ import { runReadOnlyAsk } from "../../lib/ask-read-only/core.mjs";
 import { loadReadOnlyContext } from "../../lib/ask-read-only/context.ts";
 import { readOnlyProvider } from "../../lib/ask-read-only/provider.ts";
 import { createReadOnlyDataAccess } from "../../lib/ask-read-only/data.ts";
-import { issueReadOnlyCitationProof } from "../../lib/ask-citation-proof.ts";
+import { buildReadOnlyPublication } from "../../lib/ask-read-only/publication.ts";
 import { OperationDeadline } from "../../lib/ai/execution-deadline.ts";
 import { ASK_OPERATION_TIMEOUT_MS, ASK_MAX_QUESTION_CHARACTERS } from "../../lib/ai/ask-execution-limits.ts";
 import { createAskAdmissionSettlement } from "../../lib/ai/ask-admission-settlement.ts";
@@ -317,7 +318,6 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
 
 
   const creditRequestId=attemptId;
-  const turnPetId=petId;
   let creditReserved=false,creditFinalState="not_reserved",providerCallCount=0;
   let generationStage="read_only_context";
   let aiAdmission:AiOperationAdmission|null=null;
@@ -439,25 +439,13 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
 
   try {
   console.info("[Ask read-only] completed", {requestId,providerCallCount,sources:readResult.sources.length,readTools:readResult.coverage.length,limited:readResult.answer.limited});
-  const body=readResult.answer;
-  const contextUsed={petName:profiles[0].name,usedSources:readResult.sources.length?["Verified saved sources"]:[]};
-  const response=buildAskConversationResponse({title:"Furvise",summary:body.answer,sections:[],safetyNote:null},{intent:"general_pet_question",usedContextSummary:contextUsed.usedSources});
-  if(!response)throw new AskApiError("AI_UNAVAILABLE",friendlyAnswerFailure,503,"response_serialization");
-  // Append verified quotes after presentation normalization so their bytes remain exact.
-  response.sections=body.quotes.map((q:{source:string;quote:string},index:number)=>({
-   heading:"Saved note "+(index+1),items:[q.quote]
-  }));
-  response.actions=["copy"];
-  response.applicationActions=[];
-  const citationProof=issueReadOnlyCitationProof(readResult,response,userId);
-  if(readResult.sources.some((source:{kind:string})=>source.kind==="history")&&!citationProof)throw new Error("ASK_READ_CITATION_PROOF_REQUIRED");
-  Object.assign(response,{citationProof,readOnlyEvidence:true});
-  turnLifecycle.transition("ANSWER_VALIDATED").actions(0).outcomes(body.limited?"limited":"complete","not_requested",false);
+  const {response,contextUsed,limited}=buildReadOnlyPublication(readResult,userId,profiles[0].name);
+  turnLifecycle.transition("ANSWER_VALIDATED").actions(0).outcomes(limited?"limited":"complete","not_requested",false);
   const saveMetadata={answerType:"direct_answer",persistenceEligible:false,reason:"read_only_ask"};
    const result=await persistReadOnlyAnswer({supabase,userId,petId,requestId,preparedRequest,response,contextUsed,saveMetadata,turnLifecycle,
-    usage,creditReserved,creditRequestId,payloadHash:aiCreditPayloadHash,limited:body.limited});
+    usage,creditReserved,creditRequestId,payloadHash:aiCreditPayloadHash,limited});
    await finalizeAiAdmissionAfterPersistence({admission:aiAdmission,alreadyFinalized:aiAdmissionFinalized,
-    assessment:{outcome:body.limited?"limited":"complete"} as never,requestId,response:result});
+    assessment:{outcome:limited?"limited":"complete"} as never,requestId,response:result});
    return result;
   } catch(error) {
    await failAiAdmission(aiAdmission,error,aiAdmissionFinalized,requestId);
@@ -479,7 +467,12 @@ async function persistReadOnlyAnswer(input:{
  if(!row) {
   const previous=await loadPersistedRequestByConversation({conversationId,requestId,supabase,userId});
   if(previous?.assistantMessage?.response_data?.turn?.finalStage==="COMPLETED")return completedResponseFromPersisted(previous,input.usage);
-  if(previous?.assistantMessage)row={assistant_message_id:previous.assistantMessage.id};
+  if(previous?.assistantMessage){
+   const {turn:storedTurn,...storedBody}=previous.assistantMessage.response_data??{};
+   void storedTurn;
+   if(!isDeepStrictEqual(storedBody,JSON.parse(JSON.stringify(response))))throw new AskApiError("DATABASE_ERROR",FURVISE_ASK_UNAVAILABLE_MESSAGE,503,"persistence_failed");
+   row={assistant_message_id:previous.assistantMessage.id};
+  }
  }
  if(completion.error&&!row||!row)throw new AskApiError("DATABASE_ERROR",FURVISE_ASK_UNAVAILABLE_MESSAGE,503,"assistant_persistence",completion.error);
  turnLifecycle.transition("ANSWER_PERSISTED");
@@ -883,7 +876,7 @@ function logAskServerError(stage: string, error: unknown, context: Record<string
       errorCode: safeAskOperationalCode((error instanceof AskPipelineError ? error.diagnostics.providerErrorCode : null) || databaseDiagnostic.code || databaseError?.code || stage),
       eventType: "application_error", feature: "ask", operationId: requestId,
       requestId, route: "/api/ask", severity: "high",
-      metadata: { component: stage, finalErrorClass: classifyAskDatabaseFailure(error, 0) },
+      metadata: { component: stage, finalErrorClass: error instanceof AskPipelineError ? "provider" : /^ASK_READ_(?:QUOTE|CALC|TOOL|ANSWER|PET|SOURCE)/.test(databaseError?.code || databaseError?.message || "") ? "read_contract" : classifyAskDatabaseFailure(error, 0) },
     });
   }
   if (process.env.NODE_ENV === "production") return;

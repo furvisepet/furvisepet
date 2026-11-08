@@ -1,3 +1,5 @@
+import type { DogProfileRow } from "./supabase.ts";
+import { serializeReadOnlyProfile } from "./ask-read-only/data.ts";
 import { isReadOnlyResult } from "./ask-read-only/core.mjs";
 import "server-only";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
@@ -7,7 +9,7 @@ import { labsListReviewFailure } from "./intelligence/labs-list.ts";
 
 export type VerifiedAskCitation = { label: string; quote: string; eventAt: string; recordedAt: string };
 type Body = { title?: unknown; summary: string; sections: unknown; safetyNote?: unknown; supportingText?: unknown };
-type Source = { id: string; petId: string; hash: string; event: string; recorded: string };
+type Source = { kind?: "history" | "profile"; id: string; petId: string; hash: string; event: string; recorded: string };
 type Proof = { v: 1; owner: string; body: string; sources: Source[] };
 export const citationBodyHash = (body: Body) => createHash("sha256").update(JSON.stringify([body.title??"Furvise",body.summary,body.sections,body.safetyNote??null,body.supportingText??null])).digest("hex");
 function key() { const value = process.env.FURVISE_RATE_LIMIT_HASH_SECRET; return value && value.length >= 32 ? value : null; }
@@ -35,7 +37,7 @@ export function verifyAskCitationProof(token: unknown, owner: string, body: Body
   const p=JSON.parse(Buffer.from(parts[0],"base64url").toString("utf8")) as Proof;
   if(p.v!==1 || p.owner!==owner || p.body!==citationBodyHash(body) || !Array.isArray(p.sources) || !p.sources.length || p.sources.length>32
    || new Set(p.sources.map(s=>s.id)).size!==p.sources.length
-   || p.sources.some(s=>!s || [s.id,s.petId,s.hash,s.event,s.recorded].some(v=>typeof v!=="string")))return null;
+   || p.sources.some(s=>!s || s.kind!==undefined&&!["history","profile"].includes(s.kind) || [s.id,s.petId,s.hash,s.event,s.recorded].some(v=>typeof v!=="string")))return null;
   return p;
  } catch { return null; }
 }
@@ -52,10 +54,34 @@ export function checkedCitationSources(proof: NonNullable<ReturnType<typeof veri
 export function issueReadOnlyCitationProof(result:unknown,body:Body,owner:string):string|null {
  if(!isReadOnlyResult(result))return null;
  const reviewed=result as {sources:Array<{kind:string;id:string;ownerId:string;petId:string;body:string;eventAt:string;recordedAt:string}>};
- const rows=reviewed.sources.filter(source=>source.kind==="history");
+ const rows=reviewed.sources;
  const secret=key();
  if(!secret||!rows.length||rows.length>32||rows.some(row=>row.ownerId!==owner))return null;
- const sources=rows.map(row=>({id:row.id,petId:row.petId,hash:createHash("sha256").update(row.body).digest("hex"),event:row.eventAt,recorded:row.recordedAt}));
+ const sources=rows.map(row=>({kind:row.kind as "history"|"profile",id:row.id,petId:row.petId,hash:createHash("sha256").update(row.body).digest("hex"),event:row.eventAt,recorded:row.recordedAt}));
  const payload=Buffer.from(JSON.stringify({v:1,owner,body:citationBodyHash(body),sources} satisfies Proof)).toString("base64url");
  return payload+"."+mac(payload,secret);
+}
+
+export function checkedReadOnlyCitationSources(
+ proof:NonNullable<ReturnType<typeof verifyAskCitationProof>>,rows:CitationSourceRow[],profiles:DogProfileRow[]
+):VerifiedAskCitation[]|null {
+ const notes=proof.sources.filter(source=>source.kind!=="profile");
+ if(rows.length!==notes.length)return null;
+ const checked:VerifiedAskCitation[]=[];
+ let noteIndex=0;
+ for(const source of proof.sources){
+  if(source.kind!=="profile"){
+   const row=rows.find(row=>row.id===source.id);
+   const result=checkedCitationSources({...proof,sources:[source]},row?[row]:[]);
+   if(!result)return null;
+   checked.push({...result[0],label:"Saved note "+(++noteIndex)});
+  }else{
+   const row=profiles.find(row=>row.id===source.id);
+   if(!row||row.id!==source.petId||row.user_id!==proof.owner||row.updated_at!==source.event||row.created_at!==source.recorded)return null;
+   const body=serializeReadOnlyProfile(row);
+   if(createHash("sha256").update(body).digest("hex")!==source.hash)return null;
+   checked.push({label:row.name+"'s saved profile",quote:body,eventAt:row.updated_at,recordedAt:row.created_at});
+  }
+ }
+ return checked;
 }

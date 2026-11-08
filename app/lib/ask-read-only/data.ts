@@ -5,19 +5,23 @@ import { calendarBoundaryToInstant } from "../ask-time-zone.ts";
 export type ReadPet = {id:string;ownerId:string;name:string;species:string|null;handle:string};
 export type ReadRequest = {kind:"profile"|"history";pet:ReadPet;from?:string|null;to?:string|null;terms?:string[];offset?:number};
 export type ReadSource = {kind:"profile"|"history";id:string;ownerId:string;petId:string;body:string;eventAt:string;recordedAt:string;handle?:string};
-const PROFILE_FIELDS="id,user_id,name,species,breed,age_value,age_unit,weight_value,weight_unit,current_food,main_concern,wellness_goal,avoid_ingredients,sex,routine_note,lifecycle_status,created_at,updated_at";
+export const READ_ONLY_PROFILE_FIELDS="id,user_id,name,species,breed,age_value,age_unit,weight_value,weight_unit,current_food,main_concern,wellness_goal,avoid_ingredients,monthly_budget,sex,routine_note,lifecycle_status,lifecycle_changed_at,deceased_at,created_at,updated_at";
+export function serializeReadOnlyProfile(row:DogProfileRow) {
+ const record=row as unknown as Record<string,unknown>;
+ return JSON.stringify(Object.fromEntries(READ_ONLY_PROFILE_FIELDS.split(",").filter(key=>!["id","user_id","created_at","updated_at"].includes(key)).map(key=>[key,record[key]??null])));
+}
 export function literalSearch(value:string){return "%"+value.replace(/[\\%_]/g,"\\$&")+"%";}
 function nextDate(value:string){const d=new Date(value+"T00:00:00Z");d.setUTCDate(d.getUTCDate()+1);return d.toISOString().slice(0,10);}
 export function createReadOnlyDataAccess(db:SupabaseClient,ownerId:string,timeZone:string,access?:{from:string;to:string},onRead?:(value:Record<string,unknown>)=>void) {
  return async(request:ReadRequest) => {
   if(request.pet.ownerId!==ownerId)throw new Error("ASK_READ_PET_NOT_AUTHORIZED");
   // RLS remains active. Every query also binds authenticated ownership explicitly.
-  const {data:pet,error:petError}=await db.from("dog_profiles").select(request.kind==="profile"?PROFILE_FIELDS:"id,user_id")
+  const {data:pet,error:petError}=await db.from("dog_profiles").select(request.kind==="profile"?READ_ONLY_PROFILE_FIELDS:"id,user_id")
    .eq("user_id",ownerId).eq("id",request.pet.id).abortSignal(AbortSignal.timeout(5000)).maybeSingle<DogProfileRow>();
   if(petError||!pet||pet.user_id!==ownerId||pet.id!==request.pet.id)throw new Error("ASK_READ_PET_NOT_AUTHORIZED");
   if(request.kind==="profile") {
-   const {id,user_id,created_at,updated_at,...fields}=pet;
-   return {sources:[{kind:"profile",id,ownerId:user_id,petId:id,body:JSON.stringify(fields),eventAt:updated_at,recordedAt:created_at}],total:1,hasMore:false};
+   const {id,user_id,created_at,updated_at}=pet;
+   return {sources:[{kind:"profile",id,ownerId:user_id,petId:id,body:serializeReadOnlyProfile(pet),eventAt:updated_at,recordedAt:created_at}],total:1,hasMore:false};
   }
   const search=async(terms:string[])=>{
    let query=db.from("pet_care_entries").select("id,user_id,pet_profile_id,note,title,occurred_at,created_at,deleted_at",{count:"exact"})
