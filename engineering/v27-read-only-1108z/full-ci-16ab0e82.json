@@ -1,0 +1,18 @@
+{
+  "sourceSha": "16ab0e826cbe7d756297d5680b0d8e9fad726ad9",
+  "runId": 42496080834,
+  "runUrl": "https://github.com/furvisepet/furvisepet/actions/runs/42496080834",
+  "verify": "FAILURE",
+  "focused": "SUCCESS",
+  "database": "SUCCESS",
+  "fullTests": {
+    "total": 6039,
+    "pass": 5807,
+    "fail": 230,
+    "cancelled": 1,
+    "skipped": 1
+  },
+  "logSha256": "c99ebf7f0e2949fe9a3cbbdc94f80555b57f6be3feb81f6d9887a0e2bc794418",
+  "logBytes": 7471093,
+  "notWaived": true
+}

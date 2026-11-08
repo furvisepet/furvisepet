@@ -305,5 +305,83 @@
     "readOperations": 0,
     "creditDisposition": "complete",
     "upstream500": false
+  },
+  {
+    "sha": "16ab0e826cbe7d756297d5680b0d8e9fad726ad9",
+    "deploymentId": "dpl_DaRFWGsppxyJ1hbhc6RAd5nMBYhd",
+    "requestId": "ae720e6e-325f-405e-b225-5e107225cc4a",
+    "outcome": "PASS_unrelated_supplied_fiction_general_answer",
+    "providerCallCount": 2,
+    "costMicrodollars": 2037,
+    "sources": 0,
+    "readTools": 0,
+    "limited": false,
+    "creditDisposition": "complete",
+    "upstream500": false
+  },
+  {
+    "sha": "16ab0e826cbe7d756297d5680b0d8e9fad726ad9",
+    "deploymentId": "dpl_DaRFWGsppxyJ1hbhc6RAd5nMBYhd",
+    "requestId": "db89b01c-0f89-47fc-8698-73140fb75bca",
+    "outcome": "PASS_ambiguous_date_clarification_credit_released_presentation_cleanup_pending",
+    "providerCallCount": 2,
+    "costMicrodollars": 2290,
+    "sources": 0,
+    "readTools": 0,
+    "limited": true,
+    "creditDisposition": "release",
+    "upstream500": false
+  },
+  {
+    "sha": "16ab0e826cbe7d756297d5680b0d8e9fad726ad9",
+    "deploymentId": "dpl_DaRFWGsppxyJ1hbhc6RAd5nMBYhd",
+    "requestId": "3955f4a2-0e76-4b5f-b53a-9d4ad0a9cc3c",
+    "outcome": "PASS_two_date_exact_notes_and_server_calculated_change",
+    "providerCallCount": 2,
+    "costMicrodollars": 5093,
+    "sources": 2,
+    "readTools": 2,
+    "limited": false,
+    "creditDisposition": "complete",
+    "upstream500": false
+  },
+  {
+    "sha": "16ab0e826cbe7d756297d5680b0d8e9fad726ad9",
+    "deploymentId": "dpl_DaRFWGsppxyJ1hbhc6RAd5nMBYhd",
+    "requestId": "69c8c78d-0bd4-4eba-9f5b-b76dc72ab979",
+    "outcome": "PASS_exact_history_followup_after_profile",
+    "providerCallCount": 2,
+    "costMicrodollars": 3861,
+    "sources": 1,
+    "readTools": 1,
+    "limited": false,
+    "creditDisposition": "complete",
+    "upstream500": false
+  },
+  {
+    "sha": "16ab0e826cbe7d756297d5680b0d8e9fad726ad9",
+    "deploymentId": "dpl_DaRFWGsppxyJ1hbhc6RAd5nMBYhd",
+    "requestId": "6e10039f-8e4b-40c8-b25b-92089f35b088",
+    "outcome": "PASS_current_profile_pronoun_followup_with_citation",
+    "providerCallCount": 2,
+    "costMicrodollars": 2400,
+    "sources": 1,
+    "readTools": 1,
+    "limited": false,
+    "creditDisposition": "complete",
+    "upstream500": false
+  },
+  {
+    "sha": "16ab0e826cbe7d756297d5680b0d8e9fad726ad9",
+    "deploymentId": "dpl_DaRFWGsppxyJ1hbhc6RAd5nMBYhd",
+    "requestId": "db331111-425e-4150-b1d9-9b3cb449356f",
+    "outcome": "PASS_original_exact_saved_note_and_verified_citation",
+    "providerCallCount": 2,
+    "costMicrodollars": 2251,
+    "sources": 1,
+    "readTools": 1,
+    "limited": false,
+    "creditDisposition": "complete",
+    "upstream500": false
   }
 ]

@@ -55,6 +55,9 @@ jobs:
           npm test -- --test-concurrency=1
           tests/test-bootstrap-loader.test.mjs
           tests/ask-read-only.test.mjs
+          tests/ask-read-only-publication-budget.test.mjs
+          tests/ask-read-only-persistence.test.mjs
+          tests/ask-core-invariants.test.mjs
           tests/ask-read-only-route.test.mjs
           tests/ask-read-only-actions.test.mjs
           tests/ask-emergency-preflight.test.mjs

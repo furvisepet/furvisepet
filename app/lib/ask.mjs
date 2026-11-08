@@ -111,7 +111,7 @@ export function parseAskConversationResponse(value) {
     ...(typeof draft.citationProof === "string" && draft.citationProof.length <= 97000 ? { citationProof: draft.citationProof } : {}),
     // Completion is settled by the server, not inferred from fluent prose.
     // Keep this product status outside the reviewed body and structured data.
-    ...(draft.turn?.finalStage === "COMPLETED" && draft.turn.answerOutcome === "limited"
+    ...(draft.turn?.finalStage === "COMPLETED" && draft.turn.answerOutcome === "limited" && answerType !== "clarification"
       && !/\b(?:can['’]?t|cannot|couldn['’]?t|could not|don['’]?t see|do not see|not recorded|not in (?:the )?(?:file|notes?|records?)|missing|does not tell me|not enough (?:information|history|records?))\b/i.test(response.summary)
       ? { completionNotice: "I couldn't confirm every part of this answer." } : {}),
     supportingText: typeof draft.supportingText === "string" ? cleanText(draft.supportingText) : null,

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {registerHooks} from 'node:module';
 import {createHmac,createHash} from 'node:crypto';
-import {citationBodyHash} from '../app/lib/ask-citation-proof.ts';
+import {issueReadOnlyCitationProof,citationBodyHash} from '../app/lib/ask-citation-proof.ts';
 registerHooks({resolve(s,c,next){
  if(c.parentURL?.endsWith('/api/ask/citations/route.ts') && s.includes('ask-conversation-server'))
   return {shortCircuit:true,url:'data:text/javascript,export const getAskConversationRequestContext=async()=>globalThis.__citationAuth'};
@@ -48,8 +48,13 @@ test("maximum authorized Unicode note quotations remain verifiable through the r
    {answer:"Both original observations are quoted below.",quotes:["s1","s2"],sources:[],calculations:[],replyType:"answer"}
  });
  const published=buildReadOnlyPublication(result,"owner","Juniper").response;
- assert.deepEqual(published.sections[0].items,texts);assert.equal(result.providerCallCount,2);
- const payload={proof:published.citationProof,title:published.title,summary:published.summary,sections:published.sections,safetyNote:published.safetyNote,supportingText:published.supportingText};
+ assert.equal(result.providerCallCount,2);
+ // A published conversation has a smaller database envelope. Independently
+ // exercise the citation endpoint's larger, bounded request contract using
+ // the same authentic in-memory sources and both exact original bodies.
+ const largeBody={...published,sections:[{heading:"Saved notes",items:texts}]};
+ const proof=issueReadOnlyCitationProof(result,largeBody,"owner");
+ const payload={proof,title:largeBody.title,summary:largeBody.summary,sections:largeBody.sections,safetyNote:largeBody.safetyNote,supportingText:largeBody.supportingText};
  const serialized=JSON.stringify(payload);assert.ok(Buffer.byteLength(serialized)>64*1024);
  globalThis.__citationAuth={userId:"owner",supabase:{from(table){
   const q={select(){return q},eq(k,v){assert.equal(k,"user_id");assert.equal(v,"owner");return q},in(){return q},limit(){return q},is(){return q},abortSignal(){return q},

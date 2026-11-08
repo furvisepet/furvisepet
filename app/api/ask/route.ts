@@ -442,7 +442,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
   console.info("[Ask read-only] completed", {requestId,providerCallCount,sources:readResult.sources.length,readTools:readResult.coverage.length,limited:readResult.answer.limited});
   const {response,contextUsed,limited}=buildReadOnlyPublication(readResult,userId,profiles[0].name);
   turnLifecycle.transition("ANSWER_VALIDATED").actions(0).outcomes(limited?"limited":"complete","not_requested",false);
-  const saveMetadata={answerType:"direct_answer",persistenceEligible:false,reason:"read_only_ask"};
+  const saveMetadata={answerType:response.answerType,persistenceEligible:false,reason:"read_only_ask"};
    const result=await persistReadOnlyAnswer({supabase,userId,petId,requestId,preparedRequest,response,contextUsed,saveMetadata,turnLifecycle,
     usage,creditReserved,creditRequestId,payloadHash:aiCreditPayloadHash,limited});
    await finalizeAiAdmissionAfterPersistence({admission:aiAdmission,alreadyFinalized:aiAdmissionFinalized,
@@ -463,7 +463,7 @@ async function persistReadOnlyAnswer(input:{
  const {supabase,userId,petId,requestId,preparedRequest,response,contextUsed,saveMetadata,turnLifecycle,creditRequestId,payloadHash}=input;
  const {conversationId,userMessageId}=preparedRequest;
  const completion=await completeAskConversationTurn({contextUsed,conversationId,intelligenceValidation:null,persistenceGovernance:null,
-  preview:response.directAnswer.slice(0,220),requestId,responseData:{...response,turn:turnLifecycle.snapshot()},saveMetadata,userId,userMessageId});
+  preview:response.directAnswer.slice(0,220).replace(/[\uD800-\uDBFF]$/,""),requestId,responseData:{...response,turn:turnLifecycle.snapshot()},saveMetadata,userId,userMessageId});
  let row=validAssistantCompletionRow(completion.data);
  if(!row) {
   const previous=await loadPersistedRequestByConversation({conversationId,requestId,supabase,userId});
@@ -477,32 +477,44 @@ async function persistReadOnlyAnswer(input:{
  }
  if(completion.error&&!row||!row)throw new AskApiError("DATABASE_ERROR",FURVISE_ASK_UNAVAILABLE_MESSAGE,503,"assistant_persistence",completion.error);
  turnLifecycle.transition("ANSWER_PERSISTED");
+ // The immutable answer must be recoverable before an irreversible credit
+ // decision. Pending settlement is already a supported durable turn state.
+ if(input.creditReserved)turnLifecycle.credit(input.limited?"release_pending":"completion_pending").settlement(input.limited?"release":"complete","pending");
+ else turnLifecycle.credit("not_required");
+ turnLifecycle.transition("COMPLETED");
+ const carePersistence:CarePersistenceResult={status:"skipped",careEntryIds:[],concernIds:[],errorCode:null,currentSafetyState:null,alreadyPersisted:false};
+ await finalizePersistedAskAnswer({carePersistence,conversationId,messageId:row.assistant_message_id,
+  responseData:{...response,turn:turnLifecycle.snapshot()},requestId,supabase,userId});
  let creditsUsed=0,usage=input.usage;
  if(input.creditReserved) {
   if(input.limited){
-   const released=await safeReleaseAiCredit({logicalRequestId:requestId,payloadHash,requestId:creditRequestId,userId});
-   turnLifecycle.credit(released?"released":"release_pending").settlement("release",released?"reconciled":"pending");
+   try {
+    const released=await safeReleaseAiCredit({logicalRequestId:requestId,payloadHash,requestId:creditRequestId,userId});
+    turnLifecycle.credit(released?"released":"release_pending").settlement("release",released?"reconciled":"pending");
+   }catch(error){
+    if(isAiCreditIntegrityError(error))throw error;
+    turnLifecycle.credit("release_pending").settlement("release","pending");
+    logAskServerError("credit_release_pending",error,{requestId},200);
+   }
   }else{
-   await setAiCreditDisposition({disposition:"complete",feature:"ask",logicalRequestId:requestId,payloadHash,requestId:creditRequestId,userId});
-   turnLifecycle.settlement("complete","pending");
    creditsUsed=1;
    try {
+    await setAiCreditDisposition({disposition:"complete",feature:"ask",logicalRequestId:requestId,payloadHash,requestId:creditRequestId,userId});
     await completeAiCredit({feature:"ask",logicalRequestId:requestId,payloadHash,requestId:creditRequestId,userId});
     turnLifecycle.credit("completed").settlement("complete","reconciled");
    }catch(error){
     if(isAiCreditIntegrityError(error))throw error;
+    // Keep the already durable answer available. Its recorded completion
+    // state remains pending; replay trusts the separate ledger disposition,
+    // never this message as billing authority.
     turnLifecycle.credit("completion_pending");
     logAskServerError("credit_completion",error,{requestId},200);
    }
   }
   usage=await getRemainingAiCredits({feature:"ask",monthlyAiCredits:usage.limit,planId:usage.planId,supabase,userId}).catch(()=>usage);
- }else turnLifecycle.credit("not_required");
- turnLifecycle.transition("COMPLETED");
+ }
  const canonicalResponse={...response,turn:turnLifecycle.snapshot()};
- const carePersistence:CarePersistenceResult={status:"skipped",careEntryIds:[],concernIds:[],errorCode:null,currentSafetyState:null,alreadyPersisted:false};
- const durable=await finalizePersistedAskAnswer({carePersistence,conversationId,messageId:row.assistant_message_id,responseData:canonicalResponse,requestId,supabase,userId});
  emitAskTurnTrace(turnLifecycle.snapshot(),userId,petId);
- if(durable)return completedResponseFromPersisted(durable,usage);
  return buildSuccessfulAskResponse({assistantMessageId:row.assistant_message_id,contextUsed,conversationId,creditsUsed,requestId,response:canonicalResponse,
   saved:true,saveMetadata,safetyLevel:"normal",shoppingSuppressed:false,usage,userMessageId,turn:turnLifecycle.snapshot()});
 }
@@ -710,7 +722,9 @@ async function finalizePersistedAskAnswer(input: {
     },
     createFailure: (failure) => new AskApiError("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503, "persistence_failed", failure),
     isMatchingReadback: (durable) => Boolean(
-      durable?.assistantMessage?.response_data && durable.assistantMessage.id === input.messageId
+      durable?.assistantMessage?.response_data?.turn?.finalStage === "COMPLETED"
+      && durable.assistantMessage.id === input.messageId
+      && isDeepStrictEqual(JSON.parse(JSON.stringify(durable.assistantMessage.response_data)), JSON.parse(JSON.stringify(input.responseData)))
     ),
     onRecoveredReadback: (failure) => {
       logAskServerError("response_finalization_readback", failure, { requestId: input.requestId }, 200);
