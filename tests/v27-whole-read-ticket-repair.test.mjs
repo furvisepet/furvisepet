@@ -1,3 +1,4 @@
+import {nativeKey,nativeValue} from "./helpers/direct-protocol.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { directFixturePlan } from './helpers/recursive-wire-fixture.mjs';
@@ -17,12 +18,13 @@ async function run(t,mode){
  const ticket={authority:event||episode||effective?'effective_fact':'stored_report',operation:event?'read_since_event':'read',subjectScope:'named',temporal:{from:bounded?'2026-04-05T00:00:00Z':null,to:bounded?'2026-04-06T00:00:00Z':null,anchor:event?{concept:'dental visit',relation:'after'}:null,calendar:null},predicates:event||episode?[]:[{kind:'text_any',terms:['routine']}],outputs:{strategy:null,completeness:'sufficient',ordering:'asc',limit:null},searchHints:null,episode:episode?(mode==='membership'?{operation:'membership',referent:{basis:'displayed_list',topic:'breathing',ordinal:'that'}}:{operation:'count',referent:null}):null,selection:null,probes:[]};
  const request={calculatePlan:null,storedRead:null,removeJob:null,stateTransitionJob:null,fieldMutationJob:null,lifecyclePlan:null,appendJob:null,readTicket:ticket,writeJob:null,task:null,temporalScope:'historical',mutationIntent:null,recordSelection:null,profileFields:[],projection:null,version:'ask-request.v2',mode:'read',question:text,requirements:[],evidenceNeeds:[],outputFormat:null,evidenceBasis:'saved_history',premiseQuotes:[],excludedPetNames:[],referenceTurnIds:[],scope:'named',petNames:['Willow'],operation:'recall',selection:'summary',quantity:'records',topic:'history',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:null,draftAnswer:null};
  const good=directFixturePlan(prepared.transport).encode({request}),bad=structuredClone(good),second=structuredClone(good);
+ const K=name=>nativeKey(prepared.transport,name),native=value=>nativeValue(prepared.transport,value);
  const firstEpisode=mode!=='reverse';
- if(firstEpisode){bad.request.evidenceContext.readTicket.temporalContext.operation='read';bad.request.evidenceContext.readTicket.temporalContext.temporal.anchor=null;bad.request.evidenceContext.readTicket.episode={operation:'count',referent:null};bad.request.evidenceContext.readTicket.predicates=[{kind:'text_any',terms:['routine']}];}
- else {bad.request.evidenceContext.readTicket.temporalContext.operation='read';bad.request.evidenceContext.readTicket.temporalContext.temporal.anchor={concept:'visit',relation:'after'};}
- if(mode==='forward'){second.request.evidenceContext.readTicket.temporalContext.operation='read';second.request.evidenceContext.readTicket.temporalContext.temporal.anchor={concept:'visit',relation:'after'};}
+ if(firstEpisode){bad.request.evidenceContext[K('readTicket')][K('temporalContext')][K('operation')]='read';bad.request.evidenceContext[K('readTicket')][K('temporalContext')][K('temporal')][K('anchor')]=null;bad.request.evidenceContext[K('readTicket')][K('episode')]=native({operation:'count',referent:null});bad.request.evidenceContext[K('readTicket')][K('predicates')]=native([{kind:'text_any',terms:['routine']}]);}
+ else {bad.request.evidenceContext[K('readTicket')][K('temporalContext')][K('operation')]='read';bad.request.evidenceContext[K('readTicket')][K('temporalContext')][K('temporal')][K('anchor')]=native({concept:'visit',relation:'after'});}
+ if(mode==='forward'){second.request.evidenceContext[K('readTicket')][K('temporalContext')][K('operation')]='read';second.request.evidenceContext[K('readTicket')][K('temporalContext')][K('temporal')][K('anchor')]=native({concept:'visit',relation:'after'});}
  if(mode==='malformed'){second.format='invalid';}
- if(mode==='reverse'){second.request.evidenceContext.readTicket.episode={operation:'count',referent:null};second.request.evidenceContext.readTicket.predicates=[{kind:'text_any',terms:['routine']}];}
+ if(mode==='reverse'){second.request.evidenceContext[K('readTicket')][K('episode')]=native({operation:'count',referent:null});second.request.evidenceContext[K('readTicket')][K('predicates')]=native([{kind:'text_any',terms:['routine']}]);}
  const store=new MemoryAiGuardTestStore();
  const admission=await admitAiOperation({env,store,feature:'ask',intendedModel:'gpt-5.4-mini',userId:'owner',requestId:'whole-'+mode,payload:{case:mode},now:new Date('2039-01-01T00:00:00Z')});
  let calls=0,firstInput,secondInput,secondInstructions;
@@ -38,6 +40,8 @@ async function run(t,mode){
   assert.equal(calls,2);
   const {contractRepair,transportRepair,...original}=secondInput;
   assert.deepEqual(original,firstInput);
+  // Anchor shape is constrained by transport; episode compatibility remains
+  // an independent semantic Binder check. Preserve both failure boundaries.
   if(firstEpisode)assert.equal(contractRepair.field,"predicates");
   else {assert.equal(transportRepair.validationCode,"ASK_WIRE_CANONICAL_SCHEMA");assert.ok(transportRepair.fieldHints.includes("readTicket"));}
   assert.match(secondInstructions,/check the entire read ticket together/);

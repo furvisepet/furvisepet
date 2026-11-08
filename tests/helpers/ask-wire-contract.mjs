@@ -32,7 +32,7 @@ export async function inspectAskWireContract(request, context, { expectedRepair 
  const initialInstructions = plan.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS;
  if (expectedRepair) {
    assert.deepEqual(input.contractRepair, expectedRepair, "unexpected bounded repair metadata");
-   assert.ok(request.instructions.startsWith(initialInstructions + "\n\nA previous ask-request.v2 proposal was rejected by deterministic contract validation."),
+   assert.ok(request.instructions.startsWith(initialInstructions + "\n\nA previous proposal failed contract validation."),
      "repair must retain the pinned initial policy and add contract-repair guidance");
    assert.ok(request.instructions.includes("Do not add pets, facts, dates, references, source IDs, or mutation authority."),
      "repair must retain its source-authority restriction");

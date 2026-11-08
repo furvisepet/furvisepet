@@ -1,3 +1,4 @@
+import {assertNativeSchemaField} from "./helpers/direct-protocol.mjs";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { registerHooks } from 'node:module';
@@ -32,7 +33,7 @@ test('denied completion review emits no dispatched provider event after two admi
  const physical=[];
  const planner = { responses:{ create:async request => {
    physical.push('interpretation');
-   assert.match(JSON.stringify(request.text.format.schema),/draftAnswer/);
+   assertNativeSchemaField(request,"draftAnswer");
    return {output_text:JSON.stringify(proposal),usage:{input_tokens:1,output_tokens:1}};
  } } };
  const interpretation=await admission.run(()=>interpretAskQuestion({context,model:'gpt-5.4-mini',client:planner}));

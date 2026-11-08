@@ -1,3 +1,4 @@
+import {assertNativeSchemaField} from "./helpers/direct-protocol.mjs";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { registerHooks } from 'node:module';
@@ -23,7 +24,7 @@ test('interpretation draft and independent review use exactly two provider reque
  const physical=[];
  const planner = { responses:{ create:async request => {
    physical.push('interpretation');
-   assert.match(JSON.stringify(request.text.format.schema),/draftAnswer/);
+   assertNativeSchemaField(request,"draftAnswer");
    return {output_text:JSON.stringify(proposal)};
  } } };
  const interpretation=await interpretAskQuestion({context,model:'fixture',client:planner});

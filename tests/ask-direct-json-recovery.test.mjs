@@ -1,3 +1,4 @@
+import {nativeKey,nativeSlot} from "./helpers/direct-protocol.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -19,7 +20,10 @@ async function runCase(t,mode){
  const prepared=prepareAskInterpretationRequest(context,'gpt-5.4-mini');
  const canonical={request:{...structuredClone(template),question:text,scope:'named',petNames:['Aster'],topic:'profile'}};
  const good=directFixturePlan(prepared.transport).encode(canonical);
- const bad=structuredClone(good);if(mode==='cross_field')bad.request.quantity='records';else if(mode==='canonical')bad.request.evidenceContext.readTicket={};else bad.request.projection='{bad private example';
+ // Inactive JSON fields are now rejected by the source grammar before JSON parsing.
+ const bad=structuredClone(good),field=mode==='cross_field'?'quantity':mode==='canonical'?'readTicket':'projection';
+ const slot=nativeSlot(prepared.transport,bad,field);
+ slot.target[slot.key]=mode==='cross_field'?'records':mode==='canonical'?{}:'{bad private example';
  const store=new MemoryAiGuardTestStore();
  const admission=await admitAiOperation({env,store,feature:'ask',intendedModel:'gpt-5.4-mini',userId:'owner',requestId:'test-'+mode,payload:{case:mode},now:new Date('2039-01-01T00:00:00Z')});
  let calls=0;const purposes=[],events=[];const begin=admission.beginProviderCall.bind(admission);
@@ -27,7 +31,7 @@ async function runCase(t,mode){
  try{
   const invoke=()=>interpretAskQuestion({context,model:'gpt-5.4-mini',onProviderEvent:e=>events.push(e),client:{responses:{create:async req=>{
    calls++;
-   if(calls===2){const input=JSON.parse(req.input);if(mode==='cross_field'){assert.equal(input.transportRepair.validationCode,'ASK_WIRE_CANONICAL_SCHEMA');assert.ok(input.transportRepair.fieldHints.includes('quantity'));}else if(mode==='canonical'){assert.equal(input.transportRepair.validationCode,'ASK_WIRE_CANONICAL_SCHEMA');assert.ok(input.transportRepair.fieldHints.includes('readTicket'));}else assert.deepEqual(input.transportRepair,{validationCode:'ASK_DIRECT_FIELD_JSON',field:'projection'});assert.ok(!req.input.includes('bad private example'));}
+   if(calls===2){const input=JSON.parse(req.input);if(mode==='cross_field'){assert.equal(input.transportRepair.validationCode,'ASK_WIRE_CANONICAL_SCHEMA');assert.ok(input.transportRepair.fieldHints.includes('quantity'));}else if(mode==='canonical'){assert.equal(input.transportRepair.validationCode,'ASK_WIRE_CANONICAL_SCHEMA');assert.ok(input.transportRepair.fieldHints.includes('readTicket'));}else {assert.equal(input.transportRepair.validationCode,'ASK_WIRE_CANONICAL_SCHEMA');assert.ok(input.transportRepair.fieldHints.includes('projection'));}assert.ok(!req.input.includes('bad private example'));}
    return {status:'completed',output_text:JSON.stringify(calls===1||mode==='bad_twice'?bad:good),usage};
   }}}});
   if(mode!=='bad_twice'){const result=await admission.run(invoke);assert.equal(result.request.evidenceBasis,'saved_profile');assert.deepEqual(result.petIds,['pet']);}
@@ -55,5 +59,5 @@ test('factored provider schema expands exactly to the provider-compatible direct
  }
  assert.deepEqual(expand(factored),createAskProviderWireSchema(prepared.transport.schema));
  const branch=prepared.transport.schema.properties.request.anyOf[0];
- assert.ok(branch.properties.evidenceContext.anyOf.some(v=>v.properties.readTicket.anyOf?.some(t=>t.type==='object')));
+ assert.ok(branch.properties.evidenceContext.anyOf.some(v=>v.properties[nativeKey(prepared.transport,'readTicket')]?.anyOf?.some(t=>t.type==='object')));
 });

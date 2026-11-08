@@ -1,3 +1,4 @@
+import {nativeKey,nativeValue,nativeSlot} from "./helpers/direct-protocol.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {prepareAskInterpretationRequest,recoverAskInterpretation} from "../app/lib/intelligence/interpret-ask.ts";
@@ -27,7 +28,7 @@ test("conversation cannot borrow an update-only null premise/domain branch or om
   {evidenceBasis:"general",premiseQuotes:null},{draftAnswer:null},{draftAnswer:""},
   {mode:"update",evidenceBasis:"general",premiseQuotes:["Invented"]}
  ]){
-  const bad=structuredClone(wire);Object.assign(bad.request.evidenceContext,change);
+  const bad=structuredClone(wire);Object.assign(bad.request.evidenceContext,nativeValue(prepared.transport,change));
   assert.equal(valid(schema,bad),false,JSON.stringify(change));
   assert.throws(()=>prepared.transport.decode(bad,()=>{}));
  }
@@ -76,7 +77,7 @@ test("temporal transport binds operation to anchor while preserving exact source
   {temporal:{...temporal,anchor:{concept:"appointment",relation:"after"}}},
   {authority:"effective_fact",operation:"read_since_event"},
   {temporal:{...temporal,calendar:"oldest_year"}}]){
-  const bad=structuredClone(good);Object.assign(bad.request.evidenceContext.readTicket.temporalContext,change);
+  const bad=structuredClone(good);Object.assign(bad.request.evidenceContext[nativeKey(p.transport,'readTicket')][nativeKey(p.transport,'temporalContext')],nativeValue(p.transport,change));
   assert.equal(valid(schema,bad),false,JSON.stringify(change));
  }
  const event={...ticket,authority:"effective_fact",operation:"read_since_event",
@@ -86,6 +87,6 @@ test("temporal transport binds operation to anchor while preserving exact source
  assert.equal(valid(schema,eventWire),true);
  assert.deepEqual(p.transport.decode(eventWire,()=>{}).request,eventRequest);
  assert.deepEqual(recoverAskInterpretation(eventRequest,c).request.readTicket.temporal.anchor,event.temporal.anchor);
- const badFrame=structuredClone(good);badFrame.request.evidenceContext.frame="{}";
+ const badFrame=structuredClone(good);nativeSlot(p.transport,badFrame,"frame").target[nativeKey(p.transport,"frame")]="{}";
  assert.equal(valid(schema,badFrame),false);
 });
