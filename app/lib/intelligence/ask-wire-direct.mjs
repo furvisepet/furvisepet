@@ -9,9 +9,9 @@ const error = (code, field = null) => {
 const plain = v => v !== null && typeof v === "object" && !Array.isArray(v)
   && [Object.prototype, null].includes(Object.getPrototypeOf(v));
 const equal = (x,y) => JSON.stringify(x) === JSON.stringify(y);
-export const DIRECT_ASK_FORMAT_VERSION = "ask-semantic-slots.v5";
+export const DIRECT_ASK_FORMAT_VERSION = "ask-semantic-slots.v6";
 const MAX = RECURSIVE_TRANSPORT_LIMITS.maxSerializedCharacters;
-const evidenceContextFields=["mode","evidenceBasis","premiseQuotes","draftAnswer","frame",
+const minimumEvidenceContextFields=["mode","evidenceBasis","premiseQuotes","draftAnswer","frame",
   "storedRead","readTicket","calculatePlan"];
 const nativeStructuredFields = new Set(["task", "storedRead", "recordSelection", "evidenceNeeds", "readTicket"]);
 
@@ -135,7 +135,7 @@ function buildSlotsSchema(requestSchema) {
 // Flattening these two fields independently admits combinations the codec must
 // reject, wasting the only call available for independent answer review.
 // This is a grammar projection, never a semantic classifier or normalization.
-function evidenceSlotVariants(canonicalProviderSchema, check, sharedReadTicketSchema) {
+function evidenceSlotVariants(canonicalProviderSchema, check, evidenceContextFields) {
   if(canonicalProviderSchema===null)return null;
   const variants=canonicalProviderSchema?.properties?.request?.anyOf;
   if(!Array.isArray(variants))error("CANONICAL_SCHEMA_DRIFT");
@@ -154,11 +154,10 @@ function evidenceSlotVariants(canonicalProviderSchema, check, sharedReadTicketSc
         const field=key==="mode"?{...p.mode,enum:modes}
           :key==="frame"&&!assertionsAllowed?{type:"null"}:p[key];
         if(!plain(field))error("CANONICAL_SCHEMA_DRIFT");
-        properties[key]=key==="readTicket"?(field.type==="null"?{type:"null"}
-          :nullable(field)?sharedReadTicketSchema:{anyOf:sharedReadTicketSchema.anyOf.filter(branch=>branch.type!=="null")})
+        properties[key]=key==="readTicket"?(field.type==="null"?{type:"null"}:ticketTemporalSchema(field))
           :nativeStructuredFields.has(key)||nativeScalar(field)?structuredClone(field)
           :{type:nullable(field)?["string","null"]:"string",
-            description:"Complete canonical "+key+" JSON serialized as a string when non-null."};
+            description:"JSON string when non-null."};
       }
       const key=JSON.stringify(properties);
       if(!groups.has(key))groups.set(key,{
@@ -177,8 +176,35 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
   const slots=buildSlotsSchema(canonicalRequestSchema);
   const catalog={type:"object",additionalProperties:false,required:["catalogIntentJson"],
     properties:{catalogIntentJson:{type:"string",description:"Only for a source-grounded catalog intent, serialize the complete ask-catalog-intent.v1 contract."}}};
-  const evidenceVariants=evidenceSlotVariants(canonicalProviderSchema,checkCompilation,slots.schema.properties.readTicket);
-  const evidenceSchema=evidenceVariants ? {anyOf:evidenceVariants} : null;
+  // Project every branch-dependent envelope constraint together. Selecting a
+  // source also selects its operation, subject scope, temporal labels, quantity
+  // and inactive jobs. A hand-maintained subset reintroduces cross-branch plans
+  // whenever the canonical grammar gains a new field or narrows an old one.
+  const semanticBranches=canonicalProviderSchema?.properties?.request?.anyOf
+    ?.filter(branch=>branch.properties?.version?.enum?.includes("ask-request.v2"));
+  const evidenceContextFields=[...new Set([...minimumEvidenceContextFields,
+    ...slots.schema.required.filter(key=>semanticBranches?.some(branch=>
+      JSON.stringify(branch.properties[key])!==JSON.stringify(canonicalRequestSchema.properties[key])))])];
+  const evidenceVariants=evidenceSlotVariants(canonicalProviderSchema,checkCompilation,evidenceContextFields);
+  // A branch discriminator can carry constants exactly. They are schema
+  // constants, not model-inferred evidence or permissive normalization.
+  const fixedValue=field=>{
+    if(field.type==="null")return {value:null};
+    if(Array.isArray(field.enum)&&field.enum.length===1)return {value:field.enum[0]};
+    if(field.type==="array"&&field.maxItems===0)return {value:[]};
+    return null;
+  };
+  const sourceBranches=evidenceVariants?.map((branch,index)=>{
+    const fixed={},properties={sourceBranch:{type:"string",enum:["source"+index]}};
+    for(const [key,field] of Object.entries(branch.properties)){
+      const constant=fixedValue(field);
+      if(constant)fixed[key]=constant.value;else properties[key]=field;
+    }
+    properties.sourceBranch.enum[0]+=":"+Object.entries(fixed).filter(([,v])=>v!==null&&!Array.isArray(v)).map(([,v])=>v).join("/");
+    return {fixed,full:branch,schema:{type:"object",additionalProperties:false,
+      required:Object.keys(properties),properties}};
+  });
+  const evidenceSchema=sourceBranches ? {anyOf:sourceBranches.map(branch=>branch.schema)} : null;
   const evidenceValid=evidenceSchema ? makeValidator(evidenceSchema,checkCompilation) : null;
   // Bundle only the correlated fields. Duplicating the entire request for each
   // evidence domain needlessly spends the bounded interpretation input budget.
@@ -191,22 +217,65 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
   const schema={type:"object",additionalProperties:false,required:["format","request"],
     properties:{format:{type:"string",enum:[DIRECT_ASK_FORMAT_VERSION]},
       request:{anyOf:[requestSlotsSchema,catalog]}}};
+  // Lossless field-name projection for native JSON only. String-serialized
+  // canonical payloads retain their original names and are never rewritten.
+  const names=new Set(),reserved=new Set(["format","request","evidenceContext","sourceBranch"]);
+  const discover=node=>{
+    if(!plain(node))return;
+    if(plain(node.properties))for(const key of Object.keys(node.properties))if(!reserved.has(key))names.add(key);
+    for(const [key,value] of Object.entries(node)){
+      if(["properties","$defs"].includes(key)&&plain(value))Object.values(value).forEach(discover);
+      else if(["anyOf","oneOf","allOf"].includes(key)&&Array.isArray(value))value.forEach(discover);
+      else if(["items","additionalProperties"].includes(key))discover(value);
+    }
+  };
+  discover(schema);
+  const policyFieldLine=originalInstructions.split("\n")[2];
+  const policyAliases=new Map(policyFieldLine.slice(7).split(" ").map(pair=>pair.split("=").reverse()));
+  const usedAliases=new Set([...policyAliases.values(),...names,...reserved]);
+  let aliasSequence=0;
+  const additions=[];
+  const aliases=new Map([...names].map(name=>{
+    let alias=policyAliases.get(name);
+    if(!alias){do{alias="n"+aliasSequence++;}while(usedAliases.has(alias));usedAliases.add(alias);additions.push(alias+"="+name);}
+    return [name,alias];
+  }));
+  const originals=new Map([...aliases].map(([name,alias])=>[alias,name]));
+  const renameSchema=node=>{
+    if(!plain(node))return node;
+    const out={...node};
+    if(plain(node.properties))out.properties=Object.fromEntries(Object.entries(node.properties).map(([key,value])=>[aliases.get(key)||key,renameSchema(value)]));
+    if(Array.isArray(node.required))out.required=node.required.map(key=>aliases.get(key)||key);
+    if(plain(node.$defs))out.$defs=Object.fromEntries(Object.entries(node.$defs).map(([key,value])=>[key,renameSchema(value)]));
+    for(const key of ["anyOf","oneOf","allOf"])if(Array.isArray(node[key]))out[key]=node[key].map(renameSchema);
+    for(const key of ["items","additionalProperties"])if(plain(node[key]))out[key]=renameSchema(node[key]);
+    return out;
+  };
+  const renameValue=(value,reverse)=>{
+    if(Array.isArray(value))return value.map(item=>renameValue(item,reverse));
+    if(!plain(value))return value;
+    const out=Object.create(null);
+    for(const [key,item] of Object.entries(value)){
+      if(reverse&&aliases.has(key)&&!reserved.has(key))
+        throw new Error("ASK_WIRE_CANONICAL_SCHEMA",{cause:{invalidFields:Object.hasOwn(canonicalRequestSchema.properties,key)?[key]:[],nearestBranchFields:Object.hasOwn(canonicalRequestSchema.properties,key)?[key]:[]}});
+      const mapped=(reverse?originals:aliases).get(key)||key;
+      if(Object.hasOwn(out,mapped))throw new Error("ASK_WIRE_CANONICAL_SCHEMA");
+      out[mapped]=renameValue(item,reverse);
+    }
+    return out;
+  };
+  const providerSchema=renameSchema(schema);
   const lines=originalInstructions.split("\n"),i=lines.indexOf("POLICY");
   if(lines.length<5 || !lines[0].includes("nodes: supporting postorder tree;")
     || !lines[1].startsWith("ROOT root.") || !lines[2].startsWith("FIELDS ")
     || i<5 || i>=lines.length-3) error("POLICY_LAYOUT");
   const instructions=[
-    "Return format " + DIRECT_ASK_FORMAT_VERSION + " and a request OBJECT following the required typed schema.",
-    "Do not use graph nodes, field aliases, packed tags or speculative evidence.",
-    "All request keys are mandatory. Use null/[] for inactive fields, never omit or invent.",
-    ...(evidenceSchema ? ["evidenceContext is a native typed intent/source tuple. Mode, evidence basis, premises, provisional draft, frame, storedRead, readTicket and calculatePlan belong to ONE canonical source branch. storedRead is Memory/current-state/operation-receipt only; saved care-entry history uses saved_history with readTicket. POLICY uses their canonical field names. Pure conversation must choose general with [] premises or supplied_context with exact nonempty USER premises, and include a concise provisional draft. Null evidence is not a conversation domain. Never invent premises or change intent to fit a branch."] : []),
-    "Simple strings and string arrays are native JSON values. The task, storedRead, recordSelection and readTicket fields are native objects or null. evidenceNeeds is a native array, empty when unused. Other complex objects/arrays are complete JSON strings (or null when allowed).",
-    "For each complex field, serialize its complete value as valid JSON inside the outer JSON string: double-quote all keys and string values, escape inner double quotes and backslashes for the outer string, and never use comments, trailing commas, markdown, undefined or unquoted names.",
-    "readTicket is a native object, not a JSON string. Its temporalContext contains canonical authority, operation and temporal together. read_since_event requires a genuine event anchor; all other operations require anchor null. A concrete calendar date belongs in from/to, never an invented anchor. stored_report permits ordinary read only, without anchor or calendar selector.",
-    "For a pure general or USER-supplied-context conversation, draftAnswer is a concise natural provisional answer to the whole user request based on permitted USER dialogue, preserving fictional and quoted status and all material unknowns. It is untrusted and must undergo independent review; it grants no source, mutation or factual authority. Set draftAnswer null for every other request. Preserve exact user quotations and avoid generated em dashes.",
-    "The catalogIntentJson variant is exclusively for source-grounded catalog intent. Ordinary requests use the typed " + requestSlotsSchema.required.length + "-field request.",
-    "Use full canonical field names shown to the right of = in FIELDS. The POLICY $ aliases are only reading shorthand.",
-    lines[2],"POLICY",...lines.slice(i+1),
+    "Return "+DIRECT_ASK_FORMAT_VERSION+" native JSON matching the typed schema. Pick exactly one sourceBranch. It restores only the fixed canonical constants named by that branch and inactive null/[] fields. Every other emitted key is required. Never invent evidence or change USER intent to fit a branch.",
+    "FIELDS aliases apply recursively to native JSON keys without the POLICY $ prefix. Keep format, request, evidenceContext and sourceBranch literal. Never alias string values or keys inside JSON-serialized strings. Other complex fields use complete canonical JSON strings, with double-quoted escaped keys/strings; no markdown, comments, omissions or undefined.",
+    "readTicket is native JSON. temporalContext groups authority, operation and temporal: read_since_event requires a genuine event anchor; other operations require null anchor. Calendar dates belong in from/to. stored_report is attributed wording, ordinary read only; effective_fact is settled truth. Saved care entries use saved_history/readTicket. storedRead serves Memory, current state and receipts only.",
+    "A conversation needs general or exact USER supplied_context premises and a concise untrusted draftAnswer for independent review. All other branches have null draftAnswer. Preserve exact USER quotes and their status; no speculative evidence.",
+    "catalogIntentJson is only the complete source-grounded ask-catalog-intent.v1. Ordinary requests follow the native schema. No graph nodes, packed tags or generated em dashes.",
+    lines[2]+(additions.length?" "+additions.join(" "):""),"POLICY",...lines.slice(i+1),
   ].join("\n");
 
   function decode(value, checkRuntime) {
@@ -215,6 +284,7 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
     if(!plain(value) || Object.keys(value).length!==2 || value.format!==DIRECT_ASK_FORMAT_VERSION
       || !plain(value.request)) error("ENVELOPE");
     boundedJsonTree(value,checkRuntime);
+    value=renameValue(value,true);
     let request;
     if(Object.keys(value.request).length===1 && Object.hasOwn(value.request,"catalogIntentJson")) {
       if(typeof value.request.catalogIntentJson!=="string") error("CATALOG_STRING");
@@ -229,14 +299,20 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
       if(evidenceSchema) {
         if(!evidenceValid(evidenceSchema,values.evidenceContext)){
           const context=values.evidenceContext;
-          const failures=evidenceVariants.map(branch=>Object.entries(branch.properties)
-            .filter(([key,field])=>!plain(context)||!evidenceValid(field,context[key])).map(([key])=>key));
+          const selected=sourceBranches.find(branch=>branch.schema.properties.sourceBranch.enum[0]===context?.sourceBranch);
+          const candidates=selected?[selected.schema]:sourceBranches.map(branch=>branch.schema);
+          const failures=candidates.map(branch=>[
+            ...Object.entries(branch.properties).filter(([key,field])=>!plain(context)||!evidenceValid(field,context[key])).map(([key])=>key),
+            ...Object.keys(plain(context)?context:{}).filter(key=>!Object.hasOwn(branch.properties,key))
+          ].filter(key=>Object.hasOwn(canonicalRequestSchema.properties,key)));
           const size=Math.min(...failures.map(fields=>fields.length));
           const hints=[...new Set(failures.filter(fields=>fields.length===size).flat())];
           throw new Error("ASK_WIRE_CANONICAL_SCHEMA",{cause:{invalidFields:[],nearestBranchFields:hints}});
         }
         const {evidenceContext,...rest}=values;
-        values={...rest,...evidenceContext};
+        const branch=sourceBranches.find(branch=>branch.schema.properties.sourceBranch.enum[0]===evidenceContext.sourceBranch);
+        const {sourceBranch,...emitted}=evidenceContext;
+        values={...rest,...structuredClone(branch.fixed),...emitted};
       }
       request={};
       for(const k of slots.schema.required){
@@ -334,13 +410,18 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
     if(evidenceSchema && !Object.hasOwn(request,"catalogIntentJson")) {
       const rest={...request},evidenceContext={};
       for(const key of evidenceContextFields){evidenceContext[key]=rest[key];delete rest[key];}
-      request={...rest,evidenceContext};
+      const valid=makeValidator({anyOf:evidenceVariants},checkRuntime);
+      const branch=sourceBranches.find(branch=>valid(branch.full,evidenceContext));
+      if(!branch)throw new Error("ASK_WIRE_CANONICAL_SCHEMA");
+      const projected={sourceBranch:branch.schema.properties.sourceBranch.enum[0]};
+      for(const key of Object.keys(branch.schema.properties))if(key!=="sourceBranch")projected[key]=evidenceContext[key];
+      request={...rest,evidenceContext:projected};
     }
-    const result={format:DIRECT_ASK_FORMAT_VERSION,request};
+    const result=renameValue({format:DIRECT_ASK_FORMAT_VERSION,request},false);
     if(JSON.stringify(result).length>MAX) error("RESOURCE_LIMIT");
     decode(result,checkRuntime);
     return result;
   }
   checkCompilation();
-  return Object.freeze({schema,instructions,decode,encode});
+  return Object.freeze({schema:providerSchema,instructions,decode,encode,fieldAliases:Object.freeze(Object.fromEntries(aliases))});
 }

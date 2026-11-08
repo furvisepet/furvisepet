@@ -1,0 +1,27 @@
+{
+  "base": "0f5a8e410d97d6cf7efd44a97510998e9853e230",
+  "snapshotFiles": {
+    ".github/workflows/ci.yml": "a87afe8594fd78cc686b418416146ee13948990803784ce9f55681b1c3408412",
+    "app/lib/ai/provider-compound-schema.ts": "67eb6c7a96e1db49945e9a10961fb95f648a2339be3671488f2e9a118a9440f0",
+    "app/lib/intelligence/ask-wire-direct.mjs": "8aedcb697d45ce53bfce7c3ec7b6a07c2f50ddc42530fcb58176048d156b3efb",
+    "app/lib/intelligence/interpret-ask.ts": "8081205981698f0b83d445f048b6305be6092c04d4705b1e4b6da964b3f199de",
+    "package.json": "196859dd4fd409aef2f1ed8842792b01a294b007dd7135379803d2667288fcfd",
+    "tests/ask-direct-json-recovery.test.mjs": "3a933734bb5eb5a01a9934b605deda6bd923f9c10f7a6b0a3cae0ca506cbc6a7",
+    "tests/ask-wire-recursive-plan.test.mjs": "720e07451d48c21f520a5b4ee05a4870ac6297fc27f9978801bd769c453b02b3",
+    "tests/helpers/ask-wire-contract.mjs": "b86d28aa0916194701ae5f39d98611e08d0c63b1689d43b78ece8b01ab3bc32d",
+    "tests/helpers/recursive-wire-fixture.mjs": "b524009e28b4887f93c605d51ada3917a1a60ec369be1c6a5f254a5cf765e277",
+    "tests/helpers/test-bootstrap.mjs": "0e6047285a5b95fd4726fa7b8888d61dccb44a1973617c7717cfa7487eb1fffb",
+    "tests/v27-intent-grammar-boundaries.test.mjs": "727ea6ad7daaf7708891390febe94a2f4c1f7be40c8fa48468ddccc1809d2bf2",
+    "tests/v27-whole-read-ticket-repair.test.mjs": "dfb35ee7c6b7aff3c05e331f30271660572aad3e9e69c044f0af1843145cb5e3",
+    "tests/provider-schema-compact-reference.test.mjs": "86b18df0d58d732fcf1918def509beb48c7bab11850477892fe4f2ca66c7916e",
+    "tests/test-bootstrap-loader.test.mjs": "45007d54458df58f4ae517135a25d6aa7409bd5e822f6c6a282d1090baedf070",
+    "tests/v27-source-plan-contract.test.mjs": "e8f2927c6a56a90713f3ec65655c700a9303727616d8b49917f970ba8ee2c55a"
+  },
+  "foreignOwnerPreserved": "v27-core-1108x",
+  "workspace": "v27-independent-review-1108y",
+  "abortedJob": "v27-review-focused-job-1108y",
+  "abortResolution": "v27-review-focused-abort-ack-1108y",
+  "targetedPassed": 9,
+  "liveAcceptance": false,
+  "paidCalls": 0
+}

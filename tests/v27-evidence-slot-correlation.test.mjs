@@ -27,7 +27,7 @@ test('production-format general proposal and independent review use exactly two 
  const physical=[];
  const planner = { responses:{ create:async request => {
    physical.push('interpretation');
-   assert.match(JSON.stringify(request.text.format.schema),/draftAnswer/);
+   assert.ok(JSON.stringify(request.text.format.schema).includes(JSON.stringify(prepared.transport.fieldAliases.draftAnswer)));
    assert.equal(validatesProvider(request.text.format.schema,encoded),true);
    return {output_text:JSON.stringify(encoded)};
  } } };
@@ -80,7 +80,7 @@ test('supplied fictional dialogue draft and independent review fit the same two-
  const physical=[];
  const planner = { responses:{ create:async request => {
    physical.push('interpretation');
-   assert.match(JSON.stringify(request.text.format.schema),/draftAnswer/);
+   assert.ok(JSON.stringify(request.text.format.schema).includes(JSON.stringify(prepared.transport.fieldAliases.draftAnswer)));
    assert.equal(validatesProvider(request.text.format.schema,encoded),true);
    return {output_text:JSON.stringify(encoded)};
  } } };
