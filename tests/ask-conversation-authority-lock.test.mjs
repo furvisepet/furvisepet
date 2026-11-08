@@ -77,9 +77,10 @@ test("all current Ask API mutation paths use server authority rather than table 
   assert.match(messagesRoute, /appendAskConversationExchange\(/);
   assert.match(conversationRoute, /renameAskConversation\(/);
   assert.match(conversationRoute, /deleteAskConversation\(/);
-  for (const helper of ["beginAskConversationTurn", "completeAskConversationTurn", "updateAskAssistantResponse", "finalizeAskAssistantResponse"]) {
+  for (const helper of ["beginAskConversationTurn", "completeAskConversationTurn", "finalizeAskAssistantResponse"]) {
     assert.match(askRoute, new RegExp(`${helper}\\(`));
   }
+  assert.doesNotMatch(askRoute, /updateAskAssistantResponse/); // Read-only Ask finalizes one immutable body; no action-card rewrites.
   for (const source of [askRoute, conversationsRoute, conversationRoute, messagesRoute]) {
     assert.doesNotMatch(source, /\.from\("ask_conversations"\)[\s\S]{0,500}?\.(?:insert|update|delete)\(/);
     assert.doesNotMatch(source, /\.from\("ask_conversation_messages"\)[\s\S]{0,500}?\.(?:insert|update|delete)\(/);

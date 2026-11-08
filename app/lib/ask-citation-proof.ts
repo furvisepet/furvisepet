@@ -1,3 +1,4 @@
+import { isReadOnlyResult } from "./ask-read-only/core.mjs";
 import "server-only";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import type { AskReasoningResult } from "./ai/ask-reasoning.ts";
@@ -45,4 +46,16 @@ export function checkedCitationSources(proof: NonNullable<ReturnType<typeof veri
  if(matched.some((r,i)=>!r || r.user_id!==proof.owner || r.pet_profile_id!==proof.sources[i].petId || r.deleted_at
   || createHash("sha256").update(r.note??r.title??"").digest("hex")!==proof.sources[i].hash || r.occurred_at!==proof.sources[i].event || r.created_at!==proof.sources[i].recorded))return null;
  return matched.map((r,i)=>({label:"Saved note "+(i+1),quote:r!.note??r!.title??"",eventAt:r!.occurred_at,recordedAt:r!.created_at}));
+}
+
+/** Issued only for a source-validated in-memory read-only result, never a model proof. */
+export function issueReadOnlyCitationProof(result:unknown,body:Body,owner:string):string|null {
+ if(!isReadOnlyResult(result))return null;
+ const reviewed=result as {sources:Array<{kind:string;id:string;ownerId:string;petId:string;body:string;eventAt:string;recordedAt:string}>};
+ const rows=reviewed.sources.filter(source=>source.kind==="history");
+ const secret=key();
+ if(!secret||!rows.length||rows.length>32||rows.some(row=>row.ownerId!==owner))return null;
+ const sources=rows.map(row=>({id:row.id,petId:row.petId,hash:createHash("sha256").update(row.body).digest("hex"),event:row.eventAt,recorded:row.recordedAt}));
+ const payload=Buffer.from(JSON.stringify({v:1,owner,body:citationBodyHash(body),sources} satisfies Proof)).toString("base64url");
+ return payload+"."+mac(payload,secret);
 }
