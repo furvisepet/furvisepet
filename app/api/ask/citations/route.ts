@@ -8,7 +8,7 @@ export async function POST(request: Request) {
  const auth=await getAskConversationRequestContext(request);
  if("response" in auth)return auth.response;
  let input: {proof?:unknown;title?:unknown;summary?:unknown;sections?:unknown;safetyNote?:unknown;supportingText?:unknown};
- try { input=await readBoundedJson(request,API_BODY_LIMITS.standard) as typeof input; }
+ try { input=await readBoundedJson(request,API_BODY_LIMITS.askCitations) as typeof input; }
  catch { return Response.json({error:"These references could not be checked."},{status:400}); }
  if(typeof input?.summary!=="string" || !Array.isArray(input.sections))return Response.json({error:"These references could not be checked."},{status:400});
  const proof=verifyAskCitationProof(input.proof,auth.userId,{title:input.title,summary:input.summary,sections:input.sections,safetyNote:input.safetyNote,supportingText:input.supportingText});

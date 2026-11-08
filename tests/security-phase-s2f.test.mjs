@@ -5,7 +5,7 @@ import test from "node:test";
 const clientKeys = await import("../app/lib/security/idempotency/client.ts");
 
 const source = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-const routes = ["app/api/account/detect-country/route.ts", "app/api/account/product-country/route.ts", "app/api/ask/route.ts", "app/api/ask/conversations/route.ts", "app/api/ask/conversations/[id]/route.ts", "app/api/ask/conversations/[id]/messages/route.ts", "app/api/ask/suggestions/[id]/route.ts", "app/api/care-entries/route.ts", "app/api/care-entries/[id]/route.ts", "app/api/legacy-memories/route.ts", "app/api/memories/[id]/route.ts", "app/api/pets/[id]/route.ts", "app/api/product-feedback/route.ts", "app/api/vet-briefs/draft/route.ts", "app/api/vet-briefs/route.ts"];
+const routes = ["app/api/account/detect-country/route.ts", "app/api/account/product-country/route.ts", "app/api/ask/route.ts", "app/api/ask/conversations/route.ts", "app/api/ask/conversations/[id]/route.ts", "app/api/ask/conversations/[id]/messages/route.ts", "app/api/care-entries/route.ts", "app/api/care-entries/[id]/route.ts", "app/api/legacy-memories/route.ts", "app/api/memories/[id]/route.ts", "app/api/pets/[id]/route.ts", "app/api/product-feedback/route.ts", "app/api/vet-briefs/draft/route.ts", "app/api/vet-briefs/route.ts"];
 
 test("canonical key transport requires UUID v4/v7 and rejects header/body disagreement", () => {
   const requestKey = source("app/lib/security/idempotency/request-key.ts");
@@ -150,4 +150,26 @@ test("identical intentional actions are not deduplicated by message text", () =>
   assert.match(askClient, /retry\?\.logicalTurnId \|\| crypto\.randomUUID\(\)/);
   assert.match(askClient, /logicalTurnId/);
   assert.doesNotMatch(source("app/lib/security/idempotency/payload-hash.ts"), /message text alone/);
+});
+
+// These HTTP methods preserve denial contracts; they do not change application state.
+test("retired Ask action and suggestion endpoints authenticate and deny without a write authority",()=>{
+ for(const path of ["app/api/ask/actions/[messageId]/route.ts","app/api/ask/suggestions/[id]/route.ts"]){
+  const body=source(path);assert.match(body,/await getAuthenticatedApiContext\(request\)/);
+  for(const forbidden of ["executeActionCapability","continueConfirmedAppend","continueCanonicalSuggestion","createCanonicalCareAuthorityClient",".rpc(",".from(",".insert(",".update(",".delete(","askMutations"])assert.ok(!body.includes(forbidden),path+": "+forbidden);
+  assert.match(body,/private, no-store/);
+ }
+ assert.match(source("app/api/ask/actions/[messageId]/route.ts"),/status: 404/);
+ assert.match(source("app/api/ask/suggestions/[id]/route.ts"),/status: 409/);
+});
+
+
+test("retired Ask mutation handlers authenticate and deny without acquiring write or provider authority",()=>{
+ for(const route of ["app/api/ask/actions/[messageId]/route.ts","app/api/ask/suggestions/[id]/route.ts"]){
+  const body=source(route);
+  assert.match(body,/await getAuthenticatedApiContext\(request\)/,route);
+  assert.match(body,/if \("response" in auth\)/,route);
+  assert.match(body,/status: (?:404|409)/,route);
+  assert.doesNotMatch(body,/executeActionCapability|continueConfirmedAppend|continueCanonicalSuggestion|createCanonicalCareAuthorityClient|\.rpc\(|\.insert\(|\.update\(|\.delete\(/,route);
+ }
 });

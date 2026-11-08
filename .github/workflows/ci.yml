@@ -56,12 +56,15 @@ jobs:
           tests/test-bootstrap-loader.test.mjs
           tests/ask-read-only.test.mjs
           tests/ask-read-only-route.test.mjs
+          tests/ask-read-only-actions.test.mjs
           tests/ask-emergency-preflight.test.mjs
           tests/v27-citation-proof.test.mjs
           tests/v27-citation-endpoint.test.mjs
           tests/ask-sdk-physical-attempts.test.mjs
           tests/v27-ask-two-call-limit.test.mjs
           tests/ask-credit-settlement.test.mjs
+          tests/ask-credit-settlement-integrity.test.mjs
+          tests/ask-conversation-concurrency-acceptance.test.mjs
           tests/ask-admission-settlement.test.mjs
           tests/ask-restored-retry.test.mjs
           tests/furvise-brain-durable-answer-finalization.test.mjs

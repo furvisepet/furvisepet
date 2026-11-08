@@ -9,7 +9,7 @@ const pets=[{id:"pet-a",ownerId:"owner-a",name:"Juniper",species:"cat"},{id:"pet
 const input={ownerId:"owner-a",selectedPetId:"pet-a",pets,question:"Read the saved observation.",dialogue:[],now:"2026-11-08T12:00:00Z",timeZone:"America/Los_Angeles"};
 const source={kind:"history",id:"note-a",ownerId:"owner-a",petId:"pet-a",body:"First line.\nSecond line — unchanged.",eventAt:"2026-11-01T08:30:00Z",recordedAt:"2026-11-02T12:00:00Z"};
 const call=(args={},name="search_saved_records",id="call-1")=>({id,name,arguments:JSON.stringify({pet:"p1",from:"2026-11-01",to:"2026-11-01",query:null,offset:0,...args})});
-const final=(extra={})=>({answer:"The saved observation is quoted below.",quotes:["s1"],sources:["s1"],calculations:[],limited:false,...extra});
+const final=(extra={})=>({answer:"The saved observation is quoted below.",quotes:["s1"],sources:["s1"],calculations:[],replyType:"answer",...extra});
 function runner(first={calls:[call()],text:""},answer=final(),read=async()=>({sources:[source],total:1,hasMore:false})){
  const requests=[];return {requests,run:()=>runReadOnlyAsk(input,{read,provider:async(request,phase)=>{requests.push({request,phase});return requests.length===1?first:answer;}})};
 }
@@ -34,11 +34,11 @@ test("cross-pet comparison composes authorized tools without copying identities 
  const result=await r.run();assert.equal(result.sources.length,2);assert.deepEqual(result.sources.map(s=>s.petId),["pet-a","pet-b"]);
 });
 test("ambiguous names and dates can clarify with no history access",async()=>{
- const r=runner({calls:[],text:"Which year do you mean?"},final({answer:"Which year do you mean?",quotes:[],sources:[],limited:true}));
+ const r=runner({calls:[],text:"Which year do you mean?"},final({answer:"Which year do you mean?",quotes:[],sources:[],replyType:"partial"}));
  assert.equal((await r.run()).answer.limited,true);assert.equal(r.requests.length,2);
 });
 test("no matches carries bounded coverage without fabricating a note",async()=>{
- const r=runner(undefined,final({answer:"I could not find a matching saved note in that search.",quotes:[],sources:[],limited:true}),async()=>({sources:[],total:0,hasMore:false}));
+ const r=runner(undefined,final({answer:"I could not find a matching saved note in that search.",quotes:[],sources:[],replyType:"partial"}),async()=>({sources:[],total:0,hasMore:false}));
  const out=await r.run();assert.equal(out.sources.length,0);assert.equal(r.requests[1].request.TOOL_DATA[0].total,0);
 });
 for(const args of [{pet:"owner-b"},{pet:"foreign"},{pet:"pet-a"},{pet:"p3"},{ownerId:"owner-b"},{from:"2026-02-30"},{to:"2025-01-01"},{offset:-1},{offset:257},{query:"x".repeat(161)},{query:"\u0000"},{query:[]},{terms:[]}])
@@ -61,7 +61,7 @@ test("untrusted record instruction stays tool data and cannot execute a mutation
 for(const bad of [final({quotes:[{source:"s1",quote:"Changed quotation."}]}),final({sources:["unknown"]}),final({sources:["unknown"]}),final({quotes:["unknown"]})])
  test("source and exact quote gate fails closed "+JSON.stringify(bad),()=>assert.throws(()=>validateReadOnlyAnswer(bad,[{...source,handle:"s1"}])));
 test("result and source budgets retain honest truncation",async()=>{
- const r=runner(undefined,final({quotes:[],sources:[],answer:"The result is incomplete.",limited:true}),async()=>({sources:Array.from({length:40},(_,i)=>({...source,id:"n"+i,body:"x".repeat(1000)})),total:80,hasMore:true}));
+ const r=runner(undefined,final({quotes:[],sources:[],answer:"The result is incomplete.",replyType:"partial"}),async()=>({sources:Array.from({length:40},(_,i)=>({...source,id:"n"+i,body:"x".repeat(1000)})),total:80,hasMore:true}));
  const result=await r.run();assert.equal(result.coverage[0].truncated,true);assert.ok(r.requests[1].request.TOOL_DATA[0].sources.length<=24);
 });
 for(const error of [new Error("HTTP 500"),new DOMException("Timed out","TimeoutError"),new Error("incomplete"),new Error("budget exhausted")])
@@ -143,7 +143,7 @@ test("real provider adapter requests only read tools, then a compact final schem
  const result=await runReadOnlyAsk(input,{provider:readOnlyProvider("gpt-5.4-mini",event=>events.push(event),client),read:async()=>({sources:[source],total:1})});
  assert.equal(result.providerCallCount,2);assert.equal(wire.length,2);assert.equal(events.filter(e=>e.outcome==="started").length,2);
  assert.equal(wire[0].store,false);assert.deepEqual(wire[0].tools.map(t=>t.name),["read_pet_profile","search_saved_records"]);assert.equal(wire[0].parallel_tool_calls,true);
- assert.ok(!wire[1].tools);assert.deepEqual(wire[1].text.format.schema.required,["answer","quotes","sources","calculations","limited"]);
+ assert.ok(!wire[1].tools);assert.deepEqual(wire[1].text.format.schema.required,["answer","quotes","sources","calculations","replyType"]);
 });
 for(const [name,response] of [
  ["incomplete",{status:"incomplete",output:[],incomplete_details:{reason:"max_output_tokens"}}],
@@ -174,7 +174,7 @@ test("verbatim quote presentation and citation replay preserve whitespace, markd
  assert.ok(parsed);assert.equal(parsed.sections[0].items[0],literal);assert.equal(parsed.readOnlyEvidence,true);
 });
 test("server marks empty reads limited even when the model declares completion",async()=>{
- const result=await runner(undefined,final({answer:"No matching note.",quotes:[],sources:[],limited:false}),async()=>({sources:[],total:0})).run();
+ const result=await runner(undefined,final({answer:"No matching note.",quotes:[],sources:[],replyType:"answer"}),async()=>({sources:[],total:0})).run();
  assert.equal(result.answer.limited,true);
 });
 test("server marks incomplete pages limited independently of model prose",async()=>{
@@ -271,7 +271,7 @@ test("ordinary fictional conversation remains possible without stored sources or
 });
 test("measurement metadata is bounded independently from record text",async()=>{
  const body=Array.from({length:40},(_,i)=>(i+1)+" kg").join("; ");
- const result=await runner(undefined,final({answer:"The returned records are incomplete.",quotes:[],sources:[],limited:true}),async()=>({
+ const result=await runner(undefined,final({answer:"The returned records are incomplete.",quotes:[],sources:[],replyType:"partial"}),async()=>({
   sources:Array.from({length:8},(_,i)=>({...source,id:"measure-"+i,body})),total:8
  })).run();
  const requestResult=result.coverage[0];assert.equal(requestResult.truncated,true);
@@ -351,4 +351,23 @@ test("nullable text query composes broad date reads and literal search without a
   await runner({calls:[call({query})],text:""},undefined,async request=>{selected=request;return {sources:[source]};}).run();
   assert.deepEqual(selected.terms,query?.trim()?[query.trim()]:[]);
  }
+});
+
+test("the server marks a source-free clarification limited from explicit reply type",async()=>{
+ const r=runner({calls:[],text:"Which date do you mean?"},final({answer:"Which date do you mean?",quotes:[],sources:[],replyType:"clarification"}));
+ const result=await r.run();assert.equal(result.answer.limited,true);assert.equal(result.answer.replyType,"clarification");assert.equal(result.providerCallCount,2);
+});
+test("source-free refusals and partial replies cannot be marked complete",async()=>{
+ for(const replyType of ["refusal","partial"]){
+  const result=await runner({calls:[],text:"This request is unavailable."},final({answer:"This request is unavailable.",quotes:[],sources:[],replyType})).run();
+  assert.equal(result.answer.limited,true);
+ }
+});
+test("normal conversation and supplied fictional quotations remain answers",async()=>{
+ const result=await runner({calls:[],text:"A supplied fictional quote."},final({answer:"The quoted character asks a question.",quotes:[],sources:[],replyType:"answer"})).run();
+ assert.equal(result.answer.limited,false);
+});
+test("unknown reply classifications and the retired limited boolean fail closed",()=>{
+ assert.throws(()=>validateReadOnlyAnswer(final({replyType:"done",quotes:[],sources:[]}),[]),/ANSWER_INVALID/);
+ const old=final({quotes:[],sources:[]});delete old.replyType;assert.throws(()=>validateReadOnlyAnswer({...old,limited:false},[]),/ANSWER_INVALID/);
 });

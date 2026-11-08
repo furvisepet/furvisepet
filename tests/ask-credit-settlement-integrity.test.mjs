@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import ts from "typescript";
+import vm from "node:vm";
 
 import {
   hashAiCreditPayload,
@@ -105,10 +107,12 @@ test("canonical replay identity changes for every protected payload field and re
   ]) assert.notEqual(hashAiCreditPayload("ask", changed), payloadHash);
 
   const route = readFileSync("app/api/ask/route.ts", "utf8");
-  const claim = route.indexOf("return claimIdempotentOperation");
-  const replay = route.indexOf("completed response replayed after canonical identity validation");
+  const ast=ts.createSourceFile("route.ts",route,ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);
+  const post=ast.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text==="executeAskRequest").getText(ast);
+  const claim = post.indexOf("return claimIdempotentOperation");
+  const replay = post.indexOf("completed response replayed after canonical identity validation");
   assert.ok(claim >= 0 && replay > claim);
-  assert.doesNotMatch(route.slice(0, claim), /return completedResponseFromPersisted/);
+  assert.doesNotMatch(post.slice(0, claim), /return completedResponseFromPersisted/);
   assert.match(route, /AI_REQUEST_IDENTITY_CONFLICT[\s\S]*IDEMPOTENCY_CONFLICT/);
 });
 
@@ -274,3 +278,17 @@ function success(statusKey, event) {
 
 function failure(message, code = "TEST") { return { data: null, error: { code, message } }; }
 function hasCause(message) { return (error) => error?.cause?.message === message; }
+
+test("actual GET recovery reads an authenticated owner/pet/request scope without admission or credit writes",async()=>{
+ const source=readFileSync("app/api/ask/route.ts","utf8"),ast=ts.createSourceFile("route.ts",source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);
+ const code=ast.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text==="GET").getText(ast).replace(/^export /,"");
+ let selected;const db={},usage={remaining:1};
+ const scope={Response,URL,loadAskRequestContext:async()=>({supabase:db,userId,usage}),isUuid:value=>/^[a-f0-9-]{36}$/.test(value),
+  loadPersistedRequest:async input=>{selected=input;return {assistantMessage:{response_data:{turn:{finalStage:"COMPLETED"}}}};},
+  completedResponseFromPersisted:()=>Response.json({success:true}),handleAskApiError:error=>{throw error;}};
+ const GET=vm.runInNewContext(ts.transpileModule(code,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText+"\nGET",scope);
+ const response=await GET(new Request("https://fixture.invalid/api/ask?requestId="+logicalTurnId+"&petId="+petId));
+ assert.equal(response.status,200);assert.equal(selected.userId,userId);assert.equal(selected.petId,petId);assert.equal(selected.requestId,logicalTurnId);assert.equal(selected.supabase,db);
+ assert.equal(response.headers.get("Cache-Control"),"private, no-store, max-age=0");
+ for(const forbidden of ["admitAiOperation(","reserveAiCredit(","completeAiCredit(","readOnlyProvider(","runReadOnlyAsk("])assert.ok(!code.includes(forbidden),forbidden);
+});
