@@ -53,3 +53,12 @@ and returned-source/measurement enums in the final schema. Profile-only results
 cannot request note quotations. Low reasoning effort is explicit; model, physical
 call cap and token/output budgets are unchanged. No paid retry is made without a
 relevant code change.
+
+
+## Native capability simplification after live qualification
+
+The current implementation exposes two ordinary strict native tools, `read_pet_profile` and `search_saved_records`. Each binds one owner-scoped pet handle. The first physical provider request may return up to four independent tool calls; the server validates every call before executing any read. The second physical request has no tools and renders the answer from bounded evidence. There is no nested `kind` union, batch wrapper, canonical planner, repair round or mutation capability. Multiple date windows and profiles are composed as ordinary native tool calls.
+
+779622a7 passed a real current-profile read with a verified profile citation, then failed the original note question as a follow-up before retrieval with ASK_READ_TOOL_INVALID (one completed physical call, $0.001170, user credit released). Raw private arguments were deliberately not logged, so its precise invalid field is unknown. We do not claim that upstream failed or that this failure was repaired by local tests. Safe rejection telemetry now records known tool names, missing known fields, extra-field count and validity booleans without argument values. The new capability transport requires its own live qualification.
+
+Local native-capability gates: 118 focused and 162 security tests pass, TypeScript, full lint (0 errors/123 pre-existing warnings), and production build pass. The prior exact-SHA Linux focused and database jobs pass; full CI is not declared green. Superseded runs were explicitly cancelled and their partial failure logs preserved. Production remains unchanged and PR remains draft pending independent source-owner review.

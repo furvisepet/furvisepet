@@ -29,5 +29,15 @@
     "app401VerifiedLive": false,
     "reason": "Vercel protection still required authentication after supported fetch; application handler auth negatives pass in tests"
   },
-  "priorComparison": "PASS_on_782796ab"
+  "priorComparison": "PASS_on_782796ab",
+  "nativeCapabilityGates": {
+    "focused": 118,
+    "security": 162,
+    "typecheck": "PASS",
+    "lintErrors": 0,
+    "lintWarnings": 123,
+    "productionBuild": "PASS",
+    "live": "PENDING",
+    "fullCI": "PENDING_NOT_PASS"
+  }
 }

@@ -105,5 +105,29 @@
     "creditDisposition": "release",
     "errorCode": "ASK_READ_QUOTE_NOT_VERIFIED",
     "upstream500": false
+  },
+  {
+    "sha": "779622a74b2b09b57e78ab96a92792f40404ba18",
+    "deploymentId": "dpl_BeUqkL68hKMUKyiHRicjt947rXA9",
+    "requestId": "9523ff45-7c68-4f58-8eae-b77fb79d8286",
+    "outcome": "PASS_current_profile_and_verified_profile_citation",
+    "providerCallCount": 2,
+    "costMicrodollars": 3238,
+    "sources": 1,
+    "readOperations": 1,
+    "creditDisposition": "complete"
+  },
+  {
+    "sha": "779622a74b2b09b57e78ab96a92792f40404ba18",
+    "deploymentId": "dpl_BeUqkL68hKMUKyiHRicjt947rXA9",
+    "requestId": "18ad643f-1cd0-4f85-9a34-364efbfff308",
+    "outcome": "NO_GO_followup_original_note_tool_contract_before_retrieval",
+    "providerCallCount": 1,
+    "costMicrodollars": 1170,
+    "creditDisposition": "release",
+    "errorCode": "ASK_READ_TOOL_INVALID",
+    "upstream500": false,
+    "rawArgumentsLogged": false,
+    "nextChange": "separate native profile/history primitives and value-free structural rejection telemetry"
   }
 ]

@@ -351,6 +351,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
     generationStage="read_only_answer";
     return runReadOnlyAsk({ownerId:userId,selectedPetId:petId,question,now:new Date().toISOString(),
      timeZone:resolveAskTimeZone(aiCreditPayload.timeZone),...readContext},{
+      onSelectionRejected:(details:Record<string,unknown>)=>console.warn("[Ask read-only] selection rejected",{requestId,...details}),
       provider:readOnlyProvider(model,onProviderEvent),read:createReadOnlyDataAccess(supabase,userId,resolveAskTimeZone(aiCreditPayload.timeZone),historyAccess,details=>console.info("[Ask read-only] retrieval",{requestId,selectedHandle:"p"+(readContext.pets.findIndex(p=>p.id===petId)+1),...details}))
      });
    }),execution.deadline.allocate("answer_generation",askRequestTimeoutMs,4000));

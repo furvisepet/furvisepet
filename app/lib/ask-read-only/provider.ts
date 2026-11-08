@@ -10,7 +10,7 @@ export function readOnlyProvider(model:string,onEvent:(event:AskProviderEvent)=>
   const selection=phase==="read_selection",stage=selection?"interpretation":"primary";
   const request:Record<string,unknown>={model,store:false,reasoning:{effort:"low"},max_output_tokens:Math.min(2400,ASK_MAX_OUTPUT_TOKENS),
    instructions:input.instructions,input:[{role:"user",content:JSON.stringify(selection?input.context:{context:input.context,draft:input.draft,TOOL_DATA:input.TOOL_DATA})}],
-   ...(selection?{tools:input.tools,parallel_tool_calls:false}:{text:{format:{type:"json_schema",name:"furvise_read_answer",strict:true,schema:input.schema}}})};
+   ...(selection?{tools:input.tools,parallel_tool_calls:true}:{text:{format:{type:"json_schema",name:"furvise_read_answer",strict:true,schema:input.schema}}})};
   const started=performance.now();
   try {
    const response=await executeAdmittedResponsesRequest({
