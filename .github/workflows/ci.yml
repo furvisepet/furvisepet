@@ -57,6 +57,11 @@ jobs:
           tests/ask-read-only.test.mjs
           tests/ask-read-only-publication-budget.test.mjs
           tests/ask-read-only-provider-failure-route.test.mjs
+          tests/ask-error-ux.test.mjs
+          tests/ask-inflight-navigation.test.mjs
+          tests/navigation-data-freshness.test.mjs
+          tests/public-v1-freeze.test.mjs
+          tests/unified-ai-credits-care-state.test.mjs
           tests/ask-read-only-persistence.test.mjs
           tests/ask-core-invariants.test.mjs
           tests/ask-first20-reliability.test.mjs

@@ -356,6 +356,7 @@ export type AskFailureCode =
   | "TEMPORARY_PROVIDER_FAILURE"
   | "TEMPORARY_DATABASE_FAILURE"
   | "ACTION_FAILED"
+  | "ANSWER_NOT_COMPLETED"
   | "ANSWER_RETRYABLE"
   | "REQUEST_IN_PROGRESS"
   | "REQUEST_IDENTITY_CHANGED";
@@ -373,6 +374,7 @@ export type AskInternalFailure =
   | "database_failure"
   | "action_failure"
   | "request_in_progress"
+  | "answer_not_completed"
   | "answer_retryable"
   | "request_identity_changed";
 
@@ -397,6 +399,7 @@ const publicCodeByFailure: Readonly<Record<AskInternalFailure, AskFailureCode>> 
   database_failure: "TEMPORARY_DATABASE_FAILURE",
   action_failure: "ACTION_FAILED",
   request_in_progress: "REQUEST_IN_PROGRESS",
+  answer_not_completed: "ANSWER_NOT_COMPLETED",
   answer_retryable: "ANSWER_RETRYABLE",
   request_identity_changed: "REQUEST_IDENTITY_CHANGED",
 };
@@ -422,6 +425,7 @@ export function getAskErrorPresentation(code: AskFailureCode, retryAfterSeconds?
     case "ACTION_FAILED": return state("That action didn't finish", "Your answer is still available. Review the action and try it again when you're ready.", true, "retry");
     case "TEMPORARY_DATABASE_FAILURE": return state("That didn't come through cleanly", "Your question is still here. Try it once more. If it keeps happening, send us a screenshot through Contact Us and we'll look into it.", true, "retry");
     case "TEMPORARY_PROVIDER_FAILURE": return state("I couldn't finish that reliably", buildFurviseUnavailableMessage(), true, "retry", retryAfter);
+    case "ANSWER_NOT_COMPLETED": return state("This answer couldn’t be completed", "Your question is saved. Review it before sending a new question.", false, "edit");
     case "ANSWER_RETRYABLE": return state("I couldn't finish that reliably", buildFurviseUnavailableMessage(), true, "retry", retryAfter);
   }
 }

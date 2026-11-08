@@ -1,4 +1,4 @@
-import { isDeepStrictEqual } from "node:util";
+﻿import { isDeepStrictEqual } from "node:util";
 import { resolveAskHistoryAccess } from "../../lib/intelligence/history-access.ts";
 import type { DogProfileRow } from "../../lib/supabase.ts";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -46,7 +46,7 @@ export const maxDuration = 210;
 const askRequestTimeoutMs = ASK_OPERATION_TIMEOUT_MS;
 const askGuardOperationTtlSeconds = 90 * 24 * 60 * 60;
 
-type InternalAskFailureCode = "AI_DAILY_CAP_REACHED" | "AUTH_REQUIRED" | "PET_NOT_FOUND" | "INVALID_MESSAGE" | "IDEMPOTENCY_CONFLICT" | "REQUEST_IN_PROGRESS" | "RATE_LIMITED" | "AI_RATE_LIMITED" | "AI_CREDITS_EXHAUSTED" | "AI_UNAVAILABLE" | "DATABASE_ERROR" | "UNKNOWN_ERROR";
+type InternalAskFailureCode = "ANSWER_NOT_COMPLETED" | "AI_DAILY_CAP_REACHED" | "AUTH_REQUIRED" | "PET_NOT_FOUND" | "INVALID_MESSAGE" | "IDEMPOTENCY_CONFLICT" | "REQUEST_IN_PROGRESS" | "RATE_LIMITED" | "AI_RATE_LIMITED" | "AI_CREDITS_EXHAUSTED" | "AI_UNAVAILABLE" | "DATABASE_ERROR" | "UNKNOWN_ERROR";
 
 type PreparedAskRequest = {
   conversationId: string;
@@ -373,6 +373,18 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
     }
     logAskStage("Ask generation finalized", { creditFinalState, creditReservationId: creditRequestId, providerCallCount, requestId, retryReuse });
     if (rateGateRef.current) await rateGateRef.current.release();
+    // This path needs both selection and independent grounded answer/review.
+    // After a started call, restarting that pipeline cannot fit the same turn's
+    // durable two-call budget. Keep identity/accounting intact and require an
+    // explicit reviewed new question; never offer a futile same-turn retry.
+    // Zero-call infrastructure failures and durable answer GET recovery retain
+    // their existing retry behavior.
+    if (providerCallCount > 0 || (error instanceof AiAdmissionError && error.code === "AI_PROVIDER_BUDGET_EXHAUSTED")) {
+      const stage = error instanceof AskPipelineError ? error.stage : generationStage;
+      logAskServerError(stage, error, { conversationId: preparedRequest.conversationId, petId, requestId }, 503);
+      turnLifecycle.fail(stage, false); emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
+      return askFailure("ANSWER_NOT_COMPLETED", "Your question is saved. Review it before sending a new question.", 503, { retryable: false, requestId }, stage);
+    }
     if (error instanceof RateLimitRejection) {
       const rejection = await error.response.clone().json().catch(() => null) as { code?: string } | null;
       if (rejection?.code === "AI_REQUEST_ALREADY_ACTIVE") {
@@ -779,6 +791,7 @@ function askFailure(code: InternalAskFailureCode, message: string, status: numbe
 }
 
 function internalFailureClass(code: InternalAskFailureCode): AskInternalFailure {
+  if (code === "ANSWER_NOT_COMPLETED") return "answer_not_completed";
   if (code === "AI_DAILY_CAP_REACHED") return "service_daily_limit";
   if (code === "AUTH_REQUIRED") return "auth_required";
   if (code === "PET_NOT_FOUND") return "pet_unavailable";

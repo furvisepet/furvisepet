@@ -1,3 +1,4 @@
+import {functionSource} from "./helpers/production-function-source.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -139,12 +140,14 @@ test("development fallback recognizes only a proven missing usage table", () => 
   });
 });
 
-test("Ask development fallback skips reservations and production still returns a database error", () => {
-  assert.match(askRoute, /process\.env\.NODE_ENV === "development" && isMissingAiUsageTableError\(error\)/);
-  assert.match(askRoute, /buildDevelopmentAiCreditFallback\(planId\)/);
-  assert.match(askRoute, /usage\.ledgerMode === "development_missing_migration"[\s\S]*generateAskHistoryAnswer/);
-  assert.match(askRoute, /else \{[\s\S]*askFailure\("DATABASE_ERROR"[\s\S]*"usage_lookup"/);
-  assert.match(askRoute, /databaseCode:[\s\S]*databaseDetails:[\s\S]*databaseHint:[\s\S]*resource:[\s\S]*userIdPresent:/);
+test("Ask development fallback skips reservations and production still returns a database error",()=>{
+ const entitlements=functionSource(askRoute,"loadAskEntitlementContext");
+ assert.match(entitlements,/process\.env\.NODE_ENV === "development" && isMissingAiUsageTableError\(error\)/);
+ assert.match(entitlements,/buildDevelopmentAiCreditFallback\(planId\)/);
+ assert.match(entitlements,/else \{[\s\S]*askFailure\("DATABASE_ERROR"[\s\S]*"usage_lookup"/);
+ const execution=functionSource(askRoute,"executeAskRequest");
+ assert.match(execution,/if\(usage\.ledgerMode!=="development_missing_migration"\)\{[\s\S]*reserveAiCredit[\s\S]*runReadOnlyAsk/);
+ assert.match(functionSource(askRoute,"logAskServerError"),/getAiCreditLedgerDiagnostic/);
 });
 
 test("a recovery statement is classified before urgent handling and gets one conversational generation", async () => {
@@ -340,23 +343,21 @@ test("resolved concerns reopen when a matching concern returns", () => {
   assert.match(concernResolutionMigration, /v_existing\.status = 'resolved'[\s\S]*status = 'reopened'/);
 });
 
-test("suggestion actions are state-only and never touch the AI ledger", () => {
-  assert.match(suggestionRoute, /continueCanonicalSuggestion/);
-  assert.doesNotMatch(suggestionRoute, /apply_furvise_server_state_suggestion/);
-  assert.match(stateSuggestionMigration, /create or replace function public\.apply_furvise_state_suggestion[\s\S]*insert into public\.pet_care_entries[\s\S]*status = 'resolved'/);
-  assert.doesNotMatch(suggestionRoute, /reserveAiCredit|completeAiCredit|runWithAiCredit/);
+test("public Ask suggestions are unavailable and never touch state or the AI ledger",()=>{
+ assert.match(functionSource(suggestionRoute,"PATCH"),/getAuthenticatedApiContext[\s\S]*SUGGESTION_CONFLICT/);
+ assert.doesNotMatch(suggestionRoute,/continueCanonicalSuggestion|apply_furvise|reserveAiCredit|completeAiCredit|runWithAiCredit|\.rpc\(/);
+ // The historical SQL contract remains covered independently of the closed AI endpoint.
+ assert.match(stateSuggestionMigration,/create or replace function public\.apply_furvise_state_suggestion[\s\S]*insert into public\.pet_care_entries[\s\S]*status = 'resolved'/);
 });
 
-test("Ask reserves before generation and completes only after a saved assistant answer", () => {
-  const reserve = askRoute.indexOf("await reserveAiCredit({");
-  const generation = askRoute.indexOf("generateAskHistoryAnswer", reserve);
-  const assistantInsert = askRoute.indexOf("completeAskConversationTurn({", askRoute.indexOf("async function persistAssistantAnswer"));
-  const complete = askRoute.indexOf("completeAiCredit", assistantInsert);
-  assert.ok(reserve > -1 && reserve < generation);
-  assert.ok(assistantInsert > generation && assistantInsert < complete);
-  assert.match(askRoute, /safeReleaseAiCredit/);
-  assert.match(askRoute, /handledWithoutAi/);
-  assert.match(askRoute, /creditsUsed/);
+test("Ask reserves before generation and completes only after a durable terminal answer",()=>{
+ const execution=functionSource(askRoute,"executeAskRequest"),persist=functionSource(askRoute,"persistReadOnlyAnswer");
+ const reserve=execution.indexOf("await reserveAiCredit({"),generate=execution.indexOf("return runReadOnlyAsk(",reserve);
+ assert.ok(reserve>=0&&generate>reserve);
+ const save=persist.indexOf("await completeAskConversationTurn("),terminal=persist.indexOf("await finalizePersistedAskAnswer("),charge=persist.indexOf("await completeAiCredit(");
+ assert.ok(save>=0&&terminal>save&&charge>terminal);
+ assert.match(execution,/safeReleaseAiCredit/);assert.match(persist,/creditsUsed=1/);
+ assert.match(functionSource(askRoute,"standaloneEmergencyResponse"),/handledWithoutAi/);
 });
 
 test("ownership and RLS remain scoped to the authenticated user", () => {

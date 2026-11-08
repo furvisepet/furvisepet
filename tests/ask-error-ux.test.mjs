@@ -62,3 +62,12 @@ test("retryable failures give a human recovery path", () => {
     assert.match(state.message,/Contact Us/i);
   }
 });
+
+test("a started or exhausted read-only turn requires explicit review instead of a futile retry",()=>{
+ const code=publicAskFailureCode("answer_not_completed");
+ assert.equal(code,"ANSWER_NOT_COMPLETED");
+ const state=getAskErrorPresentation(code);
+ assert.equal(state.retryable,false);assert.equal(state.recommendedAction,"edit");
+ assert.match(state.message,/question is saved/);assert.match(state.message,/new question/);
+ assert.doesNotMatch(state.message,/credit|charged|budget|provider|Try again/i);
+});
