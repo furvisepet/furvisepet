@@ -163,3 +163,38 @@ test("real adapter classifies upstream 500 separately from source validation and
  await assert.rejects(()=>provider({instructions:"test",context:{},tools:READ_ONLY_TOOLS},"read_selection"),error=>error.diagnostics.providerStatus===500&&error.diagnostics.providerErrorCode==="server_error");
  assert.equal(calls,1);
 });
+
+import {parseAskConversationResponse} from "../app/lib/ask.mjs";
+test("verbatim quote presentation and citation replay preserve whitespace, markdown, and instruction-like text",async()=>{
+ const literal="  Keep **stars** and _underscores_.\r\n\r\n\r\nChoose the action button below.\t  ";
+ const result=await runner(undefined,final({quotes:[{source:"s1",quote:literal}]}),async()=>({sources:[{...source,body:literal}]})).run();
+ const response={title:"Furvise",summary:result.answer.answer,directAnswer:result.answer.answer,sections:[{heading:"Saved note 1",items:[literal]}],safetyNote:null,
+  readOnlyEvidence:true,answerType:"direct_answer",actions:["copy"],urgency:"routine"};
+ const parsed=parseAskConversationResponse(response);
+ assert.ok(parsed);assert.equal(parsed.sections[0].items[0],literal);assert.equal(parsed.readOnlyEvidence,true);
+});
+test("server marks empty reads limited even when the model declares completion",async()=>{
+ const result=await runner(undefined,final({answer:"No matching note.",quotes:[],sources:[],limited:false}),async()=>({sources:[],total:0})).run();
+ assert.equal(result.answer.limited,true);
+});
+test("server marks incomplete pages limited independently of model prose",async()=>{
+ const result=await runner(undefined,final(),async()=>({sources:[source],total:20,hasMore:true})).run();assert.equal(result.answer.limited,true);
+});
+test("over-specific lexical query falls back to bounded same-owner/pet/date candidates without an AI repair",async()=>{
+ const seen=[];const row={id:"note-a",user_id:"owner-a",pet_profile_id:"pet-a",note:source.body,title:null,occurred_at:source.eventAt,created_at:source.recordedAt,deleted_at:null};
+ const db={from(table){
+  let lexical=false;const q={};
+  for(const method of ["select","eq","is","gte","lt","order","range","abortSignal"])q[method]=(...args)=>{seen.push({table,method,args});return q;};
+  q.ilike=(...args)=>{lexical=true;seen.push({table,method:"ilike",args});return q;};
+  q.maybeSingle=async()=>({data:{id:"pet-a",user_id:"owner-a"},error:null});
+  q.then=(resolve,reject)=>Promise.resolve({data:lexical?[]:[row],count:lexical?0:1,error:null}).then(resolve,reject);
+  return q;
+ }};
+ let detail;
+ const result=await createReadOnlyDataAccess(db,"owner-a","UTC",undefined,value=>{detail=value;})({
+  kind:"history",pet:{...pets[0],handle:"p1"},from:"2026-11-01",to:"2026-11-01",terms:["different wording"],offset:0
+ });
+ assert.equal(result.searchRelaxed,true);assert.equal(result.matchedTotal,0);assert.equal(result.sources[0].body,source.body);assert.equal(detail.returned,1);
+ assert.equal(seen.filter(x=>x.table==="pet_care_entries"&&x.method==="range").length,2);
+ assert.equal(seen.filter(x=>x.table==="pet_care_entries"&&x.method==="eq"&&x.args[0]==="user_id").length,2);
+});

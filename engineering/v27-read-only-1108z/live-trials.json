@@ -1,0 +1,16 @@
+[
+  {
+    "sha": "7f4b93f28e49d3384fc086e3829b44d157ba138f",
+    "requestId": "485714ba-391d-4c52-9401-3939eb03746d",
+    "deploymentId": "dpl_GeYm4Nu6fay6cSkmLLLp2pH4MbQX",
+    "outcome": "NO_GO_known_saved_note_not_found",
+    "retrievalReached": true,
+    "readTools": 1,
+    "sources": 0,
+    "providerCallCount": 2,
+    "costMicrodollars": 1660,
+    "userCredit": "completed_one_incorrectly_marked_complete_by_model",
+    "upstream500": false,
+    "nextChange": "bounded lexical fallback plus server-derived limited state and scope diagnostics"
+  }
+]

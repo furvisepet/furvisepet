@@ -351,7 +351,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
     generationStage="read_only_answer";
     return runReadOnlyAsk({ownerId:userId,selectedPetId:petId,question,now:new Date().toISOString(),
      timeZone:resolveAskTimeZone(aiCreditPayload.timeZone),...readContext},{
-      provider:readOnlyProvider(model,onProviderEvent),read:createReadOnlyDataAccess(supabase,userId,resolveAskTimeZone(aiCreditPayload.timeZone),historyAccess)
+      provider:readOnlyProvider(model,onProviderEvent),read:createReadOnlyDataAccess(supabase,userId,resolveAskTimeZone(aiCreditPayload.timeZone),historyAccess,details=>console.info("[Ask read-only] retrieval",{requestId,selectedHandle:"p"+(readContext.pets.findIndex(p=>p.id===petId)+1),...details}))
      });
    }),execution.deadline.allocate("answer_generation",askRequestTimeoutMs,4000));
   } catch (error) {
@@ -451,7 +451,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
   response.applicationActions=[];
   const citationProof=issueReadOnlyCitationProof(readResult,response,userId);
   if(readResult.sources.some((source:{kind:string})=>source.kind==="history")&&!citationProof)throw new Error("ASK_READ_CITATION_PROOF_REQUIRED");
-  Object.assign(response,{citationProof});
+  Object.assign(response,{citationProof,readOnlyEvidence:true});
   turnLifecycle.transition("ANSWER_VALIDATED").actions(0).outcomes(body.limited?"limited":"complete","not_requested",false);
   const saveMetadata={answerType:"direct_answer",persistenceEligible:false,reason:"read_only_ask"};
    const result=await persistReadOnlyAnswer({supabase,userId,petId,requestId,preparedRequest,response,contextUsed,saveMetadata,turnLifecycle,
