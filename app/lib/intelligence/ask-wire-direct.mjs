@@ -9,8 +9,9 @@ const error = (code, field = null) => {
 const plain = v => v !== null && typeof v === "object" && !Array.isArray(v)
   && [Object.prototype, null].includes(Object.getPrototypeOf(v));
 const equal = (x,y) => JSON.stringify(x) === JSON.stringify(y);
-export const DIRECT_ASK_FORMAT_VERSION = "ask-semantic-slots.v3";
+export const DIRECT_ASK_FORMAT_VERSION = "ask-semantic-slots.v4";
 const MAX = RECURSIVE_TRANSPORT_LIMITS.maxSerializedCharacters;
+const evidenceContextFields=["mode","evidenceBasis","premiseQuotes","draftAnswer","frame"];
 const nativeStructuredFields = new Set(["task", "storedRead", "recordSelection", "evidenceNeeds", "readTicket"]);
 
 function boundedJsonTree(value, check) {
@@ -67,13 +68,53 @@ function nullable(s) {
   if (Array.isArray(s?.anyOf)) return s.anyOf.some(x => x?.type === "null");
   return false;
 }
+// Correlate only temporal discriminants, without duplicating full ticket trees.
+function ticketTemporalSchema(schema) {
+  const variants=schema.anyOf.map(branch=>{
+    if(branch.type==="null")return branch;
+    const {authority,operation,temporal,...rest}=branch.properties;
+    const time=(anchor,calendar=temporal.properties.calendar)=>({
+      ...temporal,properties:{...temporal.properties,anchor,calendar}});
+    const context=[];
+    const add=(authorityValues,operations,window)=>context.push({
+      type:"object",additionalProperties:false,required:["authority","operation","temporal"],
+      properties:{authority:{type:"string",enum:authorityValues},
+        operation:{type:"string",enum:operations},temporal:window}});
+    if(authority.enum.includes("stored_report"))
+      add(["stored_report"],["read"],time({type:"null"},{type:"null"}));
+    if(authority.enum.includes("effective_fact")){
+      const ordinary=operation.enum.filter(v=>v!=="read_since_event");
+      if(ordinary.length)add(["effective_fact"],ordinary,time({type:"null"}));
+      if(operation.enum.includes("read_since_event"))
+        add(["effective_fact"],["read_since_event"],time({...temporal.properties.anchor,type:"object"},{type:"null"}));
+    }
+    return {...branch,required:[...branch.required.filter(k=>!["authority","operation","temporal"].includes(k)),"temporalContext"],
+      properties:{...rest,temporalContext:{anyOf:context}}};
+  });
+  return {anyOf:variants};
+}
+function packTicket(ticket) {
+  if(ticket===null)return null;
+  const {authority,operation,temporal,...rest}=ticket;
+  return {...rest,temporalContext:{authority,operation,temporal}};
+}
+function unpackTicket(ticket) {
+  if(!plain(ticket) || !plain(ticket.temporalContext)
+    || ["authority","operation","temporal"].some(k=>Object.hasOwn(ticket,k)))
+    throw new Error("ASK_WIRE_CANONICAL_SCHEMA",{cause:{invalidFields:["readTicket"],nearestBranchFields:["readTicket"]}});
+  const {temporalContext,...rest}=ticket;
+  if(Object.keys(temporalContext).sort().join()!=="authority,operation,temporal")
+    throw new Error("ASK_WIRE_CANONICAL_SCHEMA",{cause:{invalidFields:["readTicket"],nearestBranchFields:["readTicket"]}});
+  return {...rest,...temporalContext};
+}
+
 function buildSlotsSchema(requestSchema) {
   if (!schemaKeys(requestSchema) || requestSchema.type!=="object" || requestSchema.additionalProperties!==false
     || requestSchema.required.length < 30) error("CANONICAL_SCHEMA_DRIFT");
   const props={};const complex=[];
   for(const [key,s] of Object.entries(requestSchema.properties)) {
     if(nativeStructuredFields.has(key) || nativeScalar(s)) {
-      props[key] = structuredClone(s);
+      props[key] = key==="readTicket" ? ticketTemporalSchema(s) : structuredClone(s);
       // Certain authoritative provider branches permit null for quoted-premise arrays.
       if(key==="premiseQuotes") props[key]={anyOf:[props[key],{type:"null"}]};
     } else {
@@ -105,17 +146,23 @@ function evidenceSlotVariants(canonicalProviderSchema, check) {
     const basis = p.evidenceBasis, premises = p.premiseQuotes, mode = p.mode, draft = p.draftAnswer;
     if (!plain(basis) || !plain(premises) || !plain(mode) || !plain(draft)
       || !(Array.isArray(basis.enum) || basis.type === "null")) error("CANONICAL_SCHEMA_DRIFT");
-    const key = JSON.stringify([mode, premises, draft]);
-    if (!groups.has(key)) groups.set(key, { mode, premises, draft, values: [] });
-    const group = groups.get(key);
-    for (const value of basis.enum || [null])
-      if (!group.values.includes(value)) group.values.push(value);
+    for (const frameAllowed of [false,true]) {
+      const modes=mode.enum.filter(v=>frameAllowed ? ["update","mixed"].includes(v) : !["update","mixed"].includes(v));
+      if(!modes.length)continue;
+      const scopedMode={...mode,enum:modes};
+      const frame=frameAllowed ? {type:nullable(p.frame)?["string","null"]:"string"} : {type:"null"};
+      const key=JSON.stringify([scopedMode,premises,draft,frame]);
+      if(!groups.has(key))groups.set(key,{mode:scopedMode,premises,draft,frame,values:[]});
+      const group=groups.get(key);
+      for(const value of basis.enum || [null])
+        if(!group.values.includes(value))group.values.push(value);
+    }
   }
   if (!groups.size) error("CANONICAL_SCHEMA_DRIFT");
-  return [...groups.values()].map(({mode, premises, draft, values}) => ({
-    type: "object", additionalProperties: false, required: ["mode","evidenceBasis","premiseQuotes","draftAnswer"],
+  return [...groups.values()].map(({mode, premises, draft, frame, values}) => ({
+    type: "object", additionalProperties: false, required: evidenceContextFields,
     properties: {
-      mode: structuredClone(mode), draftAnswer: structuredClone(draft),
+      mode: structuredClone(mode), draftAnswer: structuredClone(draft), frame,
       evidenceBasis: { type: [...new Set(values.map(v => v === null ? "null" : "string"))], enum: values },
       premiseQuotes: structuredClone(premises),
     },
@@ -137,9 +184,9 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
   // evidence domain needlessly spends the bounded interpretation input budget.
   const requestSlotsSchema=evidenceSchema ? {
     ...slots.schema,
-    required:[...slots.schema.required.filter(k=>!["mode","evidenceBasis","premiseQuotes","draftAnswer"].includes(k)),"evidenceContext"],
+    required:[...slots.schema.required.filter(k=>!evidenceContextFields.includes(k)),"evidenceContext"],
     properties:{...Object.fromEntries(Object.entries(slots.schema.properties)
-      .filter(([k])=>!["mode","evidenceBasis","premiseQuotes","draftAnswer"].includes(k))),evidenceContext:evidenceSchema},
+      .filter(([k])=>!evidenceContextFields.includes(k))),evidenceContext:evidenceSchema},
   } : slots.schema;
   const schema={type:"object",additionalProperties:false,required:["format","request"],
     properties:{format:{type:"string",enum:[DIRECT_ASK_FORMAT_VERSION]},
@@ -152,10 +199,10 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
     "Return format " + DIRECT_ASK_FORMAT_VERSION + " and a request OBJECT following the required typed schema.",
     "Do not use graph nodes, field aliases, packed tags or speculative evidence.",
     "All request keys are mandatory. Use null/[] for inactive fields, never omit or invent.",
-    ...(evidenceSchema ? ["evidenceContext is a native object containing mode, evidenceBasis, premiseQuotes and draftAnswer together. POLICY uses their canonical field names. Pure conversation must choose general with [] premises or supplied_context with exact nonempty USER premises, and include a concise provisional draft. Null evidence is not a conversation domain. Never invent premises or change intent to fit a branch."] : []),
+    ...(evidenceSchema ? ["evidenceContext is a native object containing mode, evidenceBasis, premiseQuotes, draftAnswer and frame together. POLICY uses their canonical field names. Pure conversation must choose general with [] premises or supplied_context with exact nonempty USER premises, and include a concise provisional draft. Null evidence is not a conversation domain. Never invent premises or change intent to fit a branch."] : []),
     "Simple strings and string arrays are native JSON values. The task, storedRead, recordSelection and readTicket fields are native objects or null. evidenceNeeds is a native array, empty when unused. Other complex objects/arrays are complete JSON strings (or null when allowed).",
     "For each complex field, serialize its complete value as valid JSON inside the outer JSON string: double-quote all keys and string values, escape inner double quotes and backslashes for the outer string, and never use comments, trailing commas, markdown, undefined or unquoted names.",
-    "readTicket, when non-null, must be the complete typed ReadTicket object, not a JSON string.",
+    "readTicket is a native object, not a JSON string. Its temporalContext contains canonical authority, operation and temporal together. read_since_event requires a genuine event anchor; all other operations require anchor null. A concrete calendar date belongs in from/to, never an invented anchor. stored_report permits ordinary read only, without anchor or calendar selector.",
     "For a question that requires saved care notes, use mode read, evidenceBasis saved_history and the authorized pet scope. Supply the typed readTicket for the requested date and facts; use premiseQuotes [], storedRead null, and no mutation jobs. A date locating the note is not a user-supplied fact about its contents.",
     "For a single saved-history lookup, put the requested scope, dates, and predicates in the main readTicket. If readTicket includes probes (even null), the outer evidenceNeeds must be []; never send both readTicket.probes and readTicket.needs. Use nonempty probes only for independently requested evidence, each grounded in exact USER text.",
     "For general conversation or a saved-record read, premiseQuotes is the native empty array []. For supplied_context, quote only facts the user actually supplied. A date or pet name used to locate a saved note is not a supplied premise.",
@@ -199,7 +246,7 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
         } else if(!slots.complex.includes(k) && (nativeStructuredFields.has(k)
           ? k==="evidenceNeeds" ? !Array.isArray(v) : v!==null && !plain(v)
           : !simpleMatches(slots.schema.properties[k],v))) error("FIELD_TYPE",k);
-        else request[k]=v;
+        else request[k]=k==="readTicket" && v!==null ? unpackTicket(v) : v;
       }
     }
     // A null premise list conveys no facts, just like an empty one. Preserve
@@ -279,12 +326,12 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
       request={};
       for(const k of required) {
         const v=value.request[k];
-        request[k]=slots.complex.includes(k) && v!==null ? JSON.stringify(v) : v;
+        request[k]=k==="readTicket" ? packTicket(v) : slots.complex.includes(k) && v!==null ? JSON.stringify(v) : v;
       }
     }
     if(evidenceSchema && !Object.hasOwn(request,"catalogIntentJson")) {
-      const {mode,evidenceBasis,premiseQuotes,draftAnswer,...rest}=request;
-      request={...rest,evidenceContext:{mode,evidenceBasis,premiseQuotes,draftAnswer}};
+      const {mode,evidenceBasis,premiseQuotes,draftAnswer,frame,...rest}=request;
+      request={...rest,evidenceContext:{mode,evidenceBasis,premiseQuotes,draftAnswer,frame}};
     }
     const result={format:DIRECT_ASK_FORMAT_VERSION,request};
     if(JSON.stringify(result).length>MAX) error("RESOURCE_LIMIT");

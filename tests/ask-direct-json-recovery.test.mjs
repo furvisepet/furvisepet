@@ -19,7 +19,7 @@ async function runCase(t,mode){
  const prepared=prepareAskInterpretationRequest(context,'gpt-5.4-mini');
  const canonical={request:{...structuredClone(template),question:text,scope:'named',petNames:['Aster'],topic:'profile'}};
  const good=directFixturePlan(prepared.transport).encode(canonical);
- const bad=structuredClone(good);if(mode==='cross_field')bad.request.quantity='records';else if(mode==='canonical')bad.request.readTicket={};else bad.request.frame='{bad private example';
+ const bad=structuredClone(good);if(mode==='cross_field')bad.request.quantity='records';else if(mode==='canonical')bad.request.readTicket={};else bad.request.projection='{bad private example';
  const store=new MemoryAiGuardTestStore();
  const admission=await admitAiOperation({env,store,feature:'ask',intendedModel:'gpt-5.4-mini',userId:'owner',requestId:'test-'+mode,payload:{case:mode},now:new Date('2039-01-01T00:00:00Z')});
  let calls=0;const purposes=[],events=[];const begin=admission.beginProviderCall.bind(admission);
@@ -27,7 +27,7 @@ async function runCase(t,mode){
  try{
   const invoke=()=>interpretAskQuestion({context,model:'gpt-5.4-mini',onProviderEvent:e=>events.push(e),client:{responses:{create:async req=>{
    calls++;
-   if(calls===2){const input=JSON.parse(req.input);if(mode==='cross_field'){assert.equal(input.transportRepair.validationCode,'ASK_WIRE_CANONICAL_SCHEMA');assert.ok(input.transportRepair.fieldHints.includes('quantity'));}else if(mode==='canonical'){assert.equal(input.transportRepair.validationCode,'ASK_WIRE_CANONICAL_SCHEMA');assert.ok(input.transportRepair.fieldHints.includes('readTicket'));}else assert.deepEqual(input.transportRepair,{validationCode:'ASK_DIRECT_FIELD_JSON',field:'frame'});assert.ok(!req.input.includes('bad private example'));}
+   if(calls===2){const input=JSON.parse(req.input);if(mode==='cross_field'){assert.equal(input.transportRepair.validationCode,'ASK_WIRE_CANONICAL_SCHEMA');assert.ok(input.transportRepair.fieldHints.includes('quantity'));}else if(mode==='canonical'){assert.equal(input.transportRepair.validationCode,'ASK_WIRE_CANONICAL_SCHEMA');assert.ok(input.transportRepair.fieldHints.includes('readTicket'));}else assert.deepEqual(input.transportRepair,{validationCode:'ASK_DIRECT_FIELD_JSON',field:'projection'});assert.ok(!req.input.includes('bad private example'));}
    return {status:'completed',output_text:JSON.stringify(calls===1||mode==='bad_twice'?bad:good),usage};
   }}}});
   if(mode!=='bad_twice'){const result=await admission.run(invoke);assert.equal(result.request.evidenceBasis,'saved_profile');assert.deepEqual(result.petIds,['pet']);}

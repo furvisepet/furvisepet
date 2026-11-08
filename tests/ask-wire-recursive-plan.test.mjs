@@ -141,8 +141,8 @@ for (const numeric of [false, true]) for (const count of [0, 2, 8, 39])
       assert.equal(request.max_output_tokens, 8192);
       assert.deepEqual(request.reasoning, { effort: "none" });
       assert.equal(request.instructions, prepared.transport.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS);
-      assert.equal(request.text.format.schema.properties.request.anyOf[0].required.length, 35);
-      assert.equal(request.text.format.schema.properties.format.enum[0], "ask-semantic-slots.v3");
+      assert.equal(request.text.format.schema.properties.request.anyOf[0].required.length, 34);
+      assert.equal(request.text.format.schema.properties.format.enum[0], "ask-semantic-slots.v4");
       // The legacy proposal fixture has no provisional answer.
       const canonical = proposal(ctx); canonical.request.draftAnswer = null;
       const proposed = prepared.transport.encode(canonical, check);

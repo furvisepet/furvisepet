@@ -58,3 +58,34 @@ test("genuine supplied quotations keep literal text, and missing or fabricated p
  assert.throws(()=>recoverAskInterpretation({...request,premiseQuotes:["A fabricated personal fact."]},c),/PREMISE_SOURCE/);
  assert.throws(()=>recoverAskInterpretation({...request,mode:"update"},c),/BASIS_UPDATE/);
 });
+
+test("temporal transport binds operation to anchor while preserving exact source-window instants",()=>{
+ const c=context("Quote the original entry from the requested day.");
+ const p=prepareAskInterpretationRequest(c,"fixture"),schema=expand(p.request.text.format.schema),valid=makeValidator(schema);
+ const temporal={from:"2024-11-03T00:00:00-04:00",to:"2024-11-04T00:00:00-05:00",anchor:null,calendar:null};
+ const ticket={authority:"stored_report",operation:"read",subjectScope:"selected",temporal,
+  predicates:[],outputs:{strategy:null,completeness:"sufficient",ordering:"asc",limit:null},
+  searchHints:null,episode:null,selection:null,probes:[]};
+ const request=proposal({mode:"read",scope:"selected",evidenceBasis:"saved_history",
+  draftAnswer:null,question:c.currentMessage,readTicket:ticket});
+ const good=p.transport.encode({request},()=>{});
+ assert.equal(valid(schema,good),true);
+ assert.deepEqual(p.transport.decode(good,()=>{}).request,request);
+ assert.deepEqual(recoverAskInterpretation(request,c).request.readTicket.temporal,temporal);
+ for(const change of [{operation:"read_since_event"},
+  {temporal:{...temporal,anchor:{concept:"appointment",relation:"after"}}},
+  {authority:"effective_fact",operation:"read_since_event"},
+  {temporal:{...temporal,calendar:"oldest_year"}}]){
+  const bad=structuredClone(good);Object.assign(bad.request.readTicket.temporalContext,change);
+  assert.equal(valid(schema,bad),false,JSON.stringify(change));
+ }
+ const event={...ticket,authority:"effective_fact",operation:"read_since_event",
+  temporal:{from:null,to:null,calendar:null,anchor:{concept:"appointment",relation:"after"}}};
+ const eventRequest={...request,readTicket:event};
+ const eventWire=p.transport.encode({request:eventRequest},()=>{});
+ assert.equal(valid(schema,eventWire),true);
+ assert.deepEqual(p.transport.decode(eventWire,()=>{}).request,eventRequest);
+ assert.deepEqual(recoverAskInterpretation(eventRequest,c).request.readTicket.temporal.anchor,event.temporal.anchor);
+ const badFrame=structuredClone(good);badFrame.request.evidenceContext.frame="{}";
+ assert.equal(valid(schema,badFrame),false);
+});
