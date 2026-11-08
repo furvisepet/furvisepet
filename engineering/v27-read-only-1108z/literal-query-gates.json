@@ -1,0 +1,27 @@
+[
+  {
+    "name": "focused",
+    "exitCode": 0,
+    "log": "read-only-literal-focused.log"
+  },
+  {
+    "name": "security",
+    "exitCode": 0,
+    "log": "read-only-literal-security.log"
+  },
+  {
+    "name": "typecheck",
+    "exitCode": 0,
+    "log": "read-only-literal-typecheck.log"
+  },
+  {
+    "name": "lint",
+    "exitCode": 0,
+    "log": "read-only-literal-lint.log"
+  },
+  {
+    "name": "build",
+    "exitCode": 0,
+    "log": "read-only-literal-build.log"
+  }
+]

@@ -129,5 +129,67 @@
     "upstream500": false,
     "rawArgumentsLogged": false,
     "nextChange": "separate native profile/history primitives and value-free structural rejection telemetry"
+  },
+  {
+    "sha": "dd53d08942eb63ca30c64821813b9af455d13c4d",
+    "deploymentId": "dpl_CLuWY9FMSmv2mQPDjCFf4uhDppVn",
+    "requestId": "94de74a9-5889-4433-a9dc-30ee935efd75",
+    "outcome": "PASS_original_exact_note_and_verified_citation",
+    "providerCallCount": 2,
+    "costMicrodollars": 2270,
+    "sources": 1,
+    "readOperations": 1,
+    "creditDisposition": "complete",
+    "upstream500": false
+  },
+  {
+    "sha": "dd53d08942eb63ca30c64821813b9af455d13c4d",
+    "deploymentId": "dpl_CLuWY9FMSmv2mQPDjCFf4uhDppVn",
+    "requestId": "ddd9e95d-9756-4624-8089-8e23b29a74fb",
+    "outcome": "PASS_two_date_comparison_exact_quotes_and_verified_citations",
+    "providerCallCount": 2,
+    "costMicrodollars": 4252,
+    "sources": 2,
+    "readOperations": 2,
+    "creditDisposition": "complete",
+    "upstream500": false,
+    "calculationProvenance": "correct rendered difference; model did not request server calculation metadata in this trial"
+  },
+  {
+    "sha": "dd53d08942eb63ca30c64821813b9af455d13c4d",
+    "deploymentId": "dpl_CLuWY9FMSmv2mQPDjCFf4uhDppVn",
+    "requestId": "b4d89c5b-64af-4d15-8e45-7e7e9b502d2c",
+    "outcome": "PASS_profile_after_history_and_verified_profile_citation",
+    "providerCallCount": 2,
+    "costMicrodollars": 4065,
+    "sources": 1,
+    "readOperations": 1,
+    "creditDisposition": "complete",
+    "upstream500": false
+  },
+  {
+    "sha": "dd53d08942eb63ca30c64821813b9af455d13c4d",
+    "deploymentId": "dpl_CLuWY9FMSmv2mQPDjCFf4uhDppVn",
+    "requestId": "a5ad3ae6-2b82-42a0-9445-1982aaa3b0eb",
+    "outcome": "NO_GO_history_followup_after_profile_invalid_terms_array",
+    "providerCallCount": 1,
+    "costMicrodollars": 1271,
+    "sources": 0,
+    "readOperations": 0,
+    "creditDisposition": "release",
+    "upstream500": false,
+    "errorCode": "ASK_READ_TOOL_INVALID",
+    "structuralDiagnostic": {
+      "tool": "search_saved_records",
+      "missing": [],
+      "extraCount": 0,
+      "petAuthorized": true,
+      "fromValid": true,
+      "toValid": true,
+      "dateOrder": true,
+      "termsValid": false,
+      "offsetValid": true
+    },
+    "nextChange": "single nullable literal text query replaces the fragile wire term list"
   }
 ]

@@ -39,5 +39,16 @@
     "productionBuild": "PASS",
     "live": "PENDING",
     "fullCI": "PENDING_NOT_PASS"
+  },
+  "literalQueryGates": {
+    "focused": 139,
+    "security": 162,
+    "typecheck": "PASS",
+    "lintErrors": 0,
+    "lintWarnings": 123,
+    "productionBuild": "PASS",
+    "runnerPendingChildRegression": "PASS",
+    "live": "PENDING",
+    "fullCI": "PENDING_NOT_PASS"
   }
 }

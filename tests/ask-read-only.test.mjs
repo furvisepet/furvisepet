@@ -8,7 +8,7 @@ import {issueReadOnlyCitationProof,verifyAskCitationProof,checkedCitationSources
 const pets=[{id:"pet-a",ownerId:"owner-a",name:"Juniper",species:"cat"},{id:"pet-b",ownerId:"owner-a",name:"Moss",species:"dog"},{id:"foreign",ownerId:"owner-b",name:"Other",species:"dog"}];
 const input={ownerId:"owner-a",selectedPetId:"pet-a",pets,question:"Read the saved observation.",dialogue:[],now:"2026-11-08T12:00:00Z",timeZone:"America/Los_Angeles"};
 const source={kind:"history",id:"note-a",ownerId:"owner-a",petId:"pet-a",body:"First line.\nSecond line — unchanged.",eventAt:"2026-11-01T08:30:00Z",recordedAt:"2026-11-02T12:00:00Z"};
-const call=(args={},name="search_saved_records",id="call-1")=>({id,name,arguments:JSON.stringify({pet:"p1",from:"2026-11-01",to:"2026-11-01",terms:[],offset:0,...args})});
+const call=(args={},name="search_saved_records",id="call-1")=>({id,name,arguments:JSON.stringify({pet:"p1",from:"2026-11-01",to:"2026-11-01",query:null,offset:0,...args})});
 const final=(extra={})=>({answer:"The saved observation is quoted below.",quotes:["s1"],sources:["s1"],calculations:[],limited:false,...extra});
 function runner(first={calls:[call()],text:""},answer=final(),read=async()=>({sources:[source],total:1,hasMore:false})){
  const requests=[];return {requests,run:()=>runReadOnlyAsk(input,{read,provider:async(request,phase)=>{requests.push({request,phase});return requests.length===1?first:answer;}})};
@@ -41,7 +41,7 @@ test("no matches carries bounded coverage without fabricating a note",async()=>{
  const r=runner(undefined,final({answer:"I could not find a matching saved note in that search.",quotes:[],sources:[],limited:true}),async()=>({sources:[],total:0,hasMore:false}));
  const out=await r.run();assert.equal(out.sources.length,0);assert.equal(r.requests[1].request.TOOL_DATA[0].total,0);
 });
-for(const args of [{pet:"owner-b"},{pet:"foreign"},{pet:"pet-a"},{pet:"p3"},{ownerId:"owner-b"},{from:"2026-02-30"},{to:"2025-01-01"},{offset:-1},{offset:257},{terms:["x".repeat(81)]},{terms:["\u0000"]}])
+for(const args of [{pet:"owner-b"},{pet:"foreign"},{pet:"pet-a"},{pet:"p3"},{ownerId:"owner-b"},{from:"2026-02-30"},{to:"2025-01-01"},{offset:-1},{offset:257},{query:"x".repeat(161)},{query:"\u0000"},{query:[]},{terms:[]}])
  test("rejects forged or malformed read arguments "+JSON.stringify(args),async()=>{const r=runner({calls:[call(args)],text:""});await assert.rejects(r.run);assert.equal(r.requests.length,1);});
 for(const name of ["write_pet","delete_record","correct_record","append_record","transition_pet","execute_sql"])
  test("mutation and privileged tool absent and rejected: "+name,async()=>{
@@ -203,7 +203,7 @@ import {calculateReadSources} from "../app/lib/ask-read-only/calculations.mjs";
 import {serializeReadOnlyProfile} from "../app/lib/ask-read-only/data.ts";
 import {checkedReadOnlyCitationSources} from "../app/lib/ask-citation-proof.ts";
 test("one native batch carries both date windows, and the server copies selected notes",async()=>{
- const searches=[{pet:"p1",from:"2026-01-02",to:"2026-01-02",terms:[],offset:0},{pet:"p1",from:"2026-09-03",to:"2026-09-03",terms:[],offset:0}];
+ const searches=[{pet:"p1",from:"2026-01-02",to:"2026-01-02",query:null,offset:0},{pet:"p1",from:"2026-09-03",to:"2026-09-03",query:null,offset:0}];
  const seen=[],provider=[];const row1={...source,id:"first",body:"Measured 12.2 kg.",eventAt:"2026-01-02T12:00:00Z"},row2={...source,id:"second",body:"Measured 12.5 kg.",eventAt:"2026-09-03T12:00:00Z"};
  const result=await runReadOnlyAsk(input,{
   provider:async(request)=>{provider.push(request);return provider.length===1?{calls:searches.map((query,index)=>({id:"search-"+index,name:"search_saved_records",arguments:JSON.stringify(query)})),text:""}:
@@ -292,7 +292,7 @@ import {readOnlyToolsForPets,readOnlyAnswerSchemaForSources} from "../app/lib/as
 test("actual provider schemas have disjoint capabilities and owner-scoped handles",()=>{
  const tools=readOnlyToolsForPets([{handle:"p1"},{handle:"p2"}]);
  const profile=new Ajv({strict:false}).compile(tools[0].parameters),history=new Ajv({strict:false}).compile(tools[1].parameters);
- const query={pet:"p1",from:"2026-01-01",to:"2026-01-01",terms:[],offset:0};
+ const query={pet:"p1",from:"2026-01-01",to:"2026-01-01",query:null,offset:0};
  assert.equal(profile({pet:"p1"}),true);assert.equal(history(query),true);
  assert.equal(profile(query),false);assert.equal(history({pet:"p1"}),false);
  for(const validate of [profile,history]){
@@ -301,8 +301,8 @@ test("actual provider schemas have disjoint capabilities and owner-scoped handle
   assert.equal(validate({...good,ownerId:"owner-b"}),false);
   assert.equal(validate({...good,kind:"delete"}),false);
  }
- assert.equal(history({...query,terms:["x".repeat(81)]}),false);
- assert.equal(history({...query,terms:["\u0000"]}),false);
+ assert.equal(history({...query,query:"x".repeat(161)}),false);
+ assert.equal(history({...query,query:"\u0000"}),false);
 });
 test("the actual answer schema excludes profile-as-note quotes and fabricated source or measurement handles",()=>{
  const sources=[{kind:"profile",handle:"s1",measurements:[{handle:"s1:m1"}]},{kind:"history",handle:"s2",measurements:[{handle:"s2:m1"}]}];
@@ -333,7 +333,7 @@ test("profile questions can use only profile data and a verifiable profile citat
 import {readSelectionShape} from "../app/lib/ask-read-only/core.mjs";
 test("selection rejection telemetry records structural facts without arbitrary argument values",()=>{
  const value="PRIVATE_BOGUS_VALUE";
- const shape=readSelectionShape({calls:[call({pet:value,from:value,terms:[value],ownerId:value})]},[{handle:"p1"}]);
+ const shape=readSelectionShape({calls:[call({pet:value,from:value,query:value,ownerId:value})]},[{handle:"p1"}]);
  assert.equal(shape.calls[0].petAuthorized,false);assert.equal(shape.calls[0].fromValid,false);assert.equal(shape.calls[0].extraCount,1);
  assert.ok(!JSON.stringify(shape).includes(value));
 });
@@ -342,5 +342,13 @@ test("a valid first read followed by malformed or foreign read performs no datab
   let reads=0,shape;
   await assert.rejects(()=>runReadOnlyAsk(input,{provider:async()=>({calls:[call(),bad],text:""}),read:async()=>{reads++;return {sources:[]};},onSelectionRejected:value=>{shape=value;}}));
   assert.equal(reads,0);assert.equal(shape.callCount,2);
+ }
+});
+
+test("nullable text query composes broad date reads and literal search without a term-list grammar",async()=>{
+ for(const query of [null,"","   ","follow-up test"]){
+  let selected;
+  await runner({calls:[call({query})],text:""},undefined,async request=>{selected=request;return {sources:[source]};}).run();
+  assert.deepEqual(selected.terms,query?.trim()?[query.trim()]:[]);
  }
 });

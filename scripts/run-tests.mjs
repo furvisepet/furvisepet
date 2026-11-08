@@ -6,8 +6,12 @@ import {spawn} from "node:child_process";
 const args=process.argv.slice(2);
 const flags=process.platform==="win32"?["--no-opt"]:[];
 if(!args.some(arg=>arg.startsWith("--test-concurrency")))flags.push("--test-concurrency=2");
+// Bound otherwise indefinitely pending tests; timeout is a failure, never a skip.
+if(!args.some(arg=>arg.startsWith("--test-timeout")))flags.push("--test-timeout=600000");
 const bootstrap=new URL("../tests/helpers/test-bootstrap.mjs",import.meta.url).href;
-const child=spawn(process.execPath,[...flags,"--import="+bootstrap,"--test",...args],{stdio:"inherit"});
+// An explicitly launched runner owns its workers; do not inherit a parent worker context.
+const env={...process.env};delete env.NODE_TEST_CONTEXT;
+const child=spawn(process.execPath,[...flags,"--import="+bootstrap,"--test",...args],{stdio:"inherit",env});
 child.once("error",error=>{console.error(error.message);process.exitCode=1;});
 child.once("exit",code=>{process.exitCode=code??1;});
 for(const signal of ["SIGINT","SIGTERM"])process.on(signal,()=>child.kill(signal));
