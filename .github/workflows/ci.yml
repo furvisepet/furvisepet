@@ -55,6 +55,7 @@ jobs:
           tests/provider-schema-compact-reference.test.mjs
           tests/v27-source-plan-contract.test.mjs
           tests/v27-independent-branch-probe.test.mjs
+          tests/v27-repair-admission-window.test.mjs
           tests/v27-intent-grammar-boundaries.test.mjs
           tests/v27-evidence-slot-correlation.test.mjs
           tests/v27-two-call-source-free.test.mjs

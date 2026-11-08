@@ -9,7 +9,7 @@ const error = (code, field = null) => {
 const plain = v => v !== null && typeof v === "object" && !Array.isArray(v)
   && [Object.prototype, null].includes(Object.getPrototypeOf(v));
 const equal = (x,y) => JSON.stringify(x) === JSON.stringify(y);
-export const DIRECT_ASK_FORMAT_VERSION = "ask-semantic-slots.v6";
+export const DIRECT_ASK_FORMAT_VERSION = "ask-semantic-slots.v7";
 const MAX = RECURSIVE_TRANSPORT_LIMITS.maxSerializedCharacters;
 const minimumEvidenceContextFields=["mode","evidenceBasis","premiseQuotes","draftAnswer","frame",
   "storedRead","readTicket","calculatePlan"];
@@ -244,6 +244,9 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
   const renameSchema=node=>{
     if(!plain(node))return node;
     const out={...node};
+    // Canonical compilation audits annotations and retains the complete pinned
+    // POLICY. Native JSON Schema needs the asserting keywords only.
+    delete out.description;
     if(plain(node.properties))out.properties=Object.fromEntries(Object.entries(node.properties).map(([key,value])=>[aliases.get(key)||key,renameSchema(value)]));
     if(Array.isArray(node.required))out.required=node.required.map(key=>aliases.get(key)||key);
     if(plain(node.$defs))out.$defs=Object.fromEntries(Object.entries(node.$defs).map(([key,value])=>[key,renameSchema(value)]));
@@ -270,11 +273,11 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
     || !lines[1].startsWith("ROOT root.") || !lines[2].startsWith("FIELDS ")
     || i<5 || i>=lines.length-3) error("POLICY_LAYOUT");
   const instructions=[
-    "Return "+DIRECT_ASK_FORMAT_VERSION+" native JSON matching the typed schema. Pick exactly one sourceBranch. It restores only the fixed canonical constants named by that branch and inactive null/[] fields. Every other emitted key is required. Never invent evidence or change USER intent to fit a branch.",
-    "FIELDS aliases apply recursively to native JSON keys without the POLICY $ prefix. Keep format, request, evidenceContext and sourceBranch literal. Never alias string values or keys inside JSON-serialized strings. Other complex fields use complete canonical JSON strings, with double-quoted escaped keys/strings; no markdown, comments, omissions or undefined.",
-    "readTicket is native JSON. temporalContext groups authority, operation and temporal: read_since_event requires a genuine event anchor; other operations require null anchor. Calendar dates belong in from/to. stored_report is attributed wording, ordinary read only; effective_fact is settled truth. Saved care entries use saved_history/readTicket. storedRead serves Memory, current state and receipts only.",
-    "A conversation needs general or exact USER supplied_context premises and a concise untrusted draftAnswer for independent review. All other branches have null draftAnswer. Preserve exact USER quotes and their status; no speculative evidence.",
-    "catalogIntentJson is only the complete source-grounded ask-catalog-intent.v1. Ordinary requests follow the native schema. No graph nodes, packed tags or generated em dashes.",
+    "Return "+DIRECT_ASK_FORMAT_VERSION+" native JSON. Pick one sourceBranch, restoring only its schema constants and inactive null/[] fields. Emit all required keys. Preserve USER intent; invent no evidence.",
+    "FIELDS aliases apply recursively to native keys without POLICY $. Keep format/request/evidenceContext/sourceBranch literal. Never alias string values or serialized JSON keys. Complex string fields are complete canonical JSON: double-quoted and escaped, no markdown/comments/omissions/undefined.",
+    "readTicket is native JSON; temporalContext binds authority/operation/temporal. Genuine event anchor iff read_since_event; calendar dates use from/to. stored_report quotes recorded wording, ordinary read only; effective_fact reads settled truth. Saved care entries use saved_history/readTicket; storedRead only Memory/current state/receipts.",
+    "conversation requires general or exact USER supplied_context premises and a concise untrusted draftAnswer for independent review; other branches draftAnswer=null. Preserve literal quotes/status; invent no evidence.",
+    "catalogIntentJson encodes only complete source-grounded ask-catalog-intent.v1. Other requests use native schema.",
     lines[2]+(additions.length?" "+additions.join(" "):""),"POLICY",...lines.slice(i+1),
   ].join("\n");
 

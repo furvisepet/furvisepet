@@ -1,0 +1,9 @@
+{
+  "schema": "HistoricalAskWireSchemas.v1",
+  "sourceRevision": "18f2c066665e5011266193e1fb0cc6d9a9eb689d",
+  "canonicalVectorCount": 262,
+  "corpusSha256": "2264ae927ccd4769d81e8dacea639ba1e319f29e186179ee02267a71b8b1da5a",
+  "archiveSha256": "8f74e29612ca93b6de36db726c0d705c8241ff4d2d6f7a4b6e165b253d7052be",
+  "uncompressedSha256": "559f4f8ca4ccb5db47e3781e93bb17122b8b4bff530de9989f9aeadbbfa89f66",
+  "purpose": "Frozen independent ABI proof only. Current source grammar admission and Binder remain separately tested; obsolete vectors gain no runtime authority."
+}

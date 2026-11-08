@@ -382,10 +382,33 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
   Object.assign(deferredRemove.properties, { removeJob: unresolvedRemove });
   const deferredConcern = structuredClone(transition);
   Object.assign(deferredConcern.properties, { stateTransitionJob: unresolvedConcern });
-  const unboundCatalog = catalogIntentSchema({ anyOf: [deferredReplace, deferredRemove, deferredConcern, lifecycle, profile, ...stored] });
+  // A typed history ticket owns a saved-history read. Correlate that source
+  // before projection, including catalog templates. The nullable branch retains
+  // legacy operations; it never silently discards a proposed ticket.
+  const correlateHistory = (variant: ReturnType<typeof askRequestSchema>) => {
+    const ticket = variant.properties.readTicket as { type?: string; anyOf?: Array<Record<string, unknown>> };
+    if (ticket.type === "null") return [variant];
+    const alternatives = Array.isArray(ticket.anyOf) ? ticket.anyOf
+      : ticket.type === "object" ? [variant.properties.readTicket as unknown as Record<string, unknown>] : null;
+    if (!alternatives?.length) throw Error("ASK_PROVIDER_HISTORY_DOMAIN_SCHEMA");
+    const variants: Array<ReturnType<typeof askRequestSchema>> = [];
+    if (alternatives.some(choice=>choice.type==="null")) {
+      const inactive=structuredClone(variant);
+      Object.assign(inactive.properties,{readTicket:{type:"null"}});
+      variants.push(inactive);
+    }
+    const choices=alternatives.filter(choice=>choice.type!=="null");
+    if (choices.length) {
+      const history=structuredClone(variant);
+      Object.assign(history.properties,{readTicket:{anyOf:structuredClone(choices)},evidenceBasis:{type:"string",enum:["saved_history"]}});
+      variants.push(history);
+    }
+    return variants;
+  };
+  const unboundCatalog = catalogIntentSchema({ anyOf: [deferredReplace, deferredRemove, deferredConcern, lifecycle, profile, ...stored].flatMap(correlateHistory) });
   return { type: "object", additionalProperties: false, required: ["request"],
-    properties: { request: { anyOf: [unboundCatalog, ...(!context || premiseQuotes.length ? [premiseCalculation] : []), ...calculations, ...stored, profile, generalConversation, suppliedConversation, nonProfile, chronological, lifecycle, profileMutation, removal,
-      ...(transitionSchema.anyOf.length > 1 ? [transition] : [])] } } };
+    properties: { request: { anyOf: [unboundCatalog, ...[...(!context || premiseQuotes.length ? [premiseCalculation] : []), ...calculations, ...stored, profile, generalConversation, suppliedConversation, nonProfile, chronological, lifecycle, profileMutation, removal,
+      ...(transitionSchema.anyOf.length > 1 ? [transition] : [])].flatMap(correlateHistory)] } } };
 }
 
 export const ASK_REQUEST_INSTRUCTIONS = [
@@ -487,6 +510,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     || [p.profileFields,p.evidenceNeeds,p.terms,p.petNames,p.excludedPetNames].some(value=>!Array.isArray(value)||value.length)
     || p.operation !== "general" || p.selection !== "summary"))
     return fail("conversation_source");
+  if (p.readTicket !== null && p.evidenceBasis !== "saved_history") return fail("read_ticket_evidence_domain");
   if (p.calculatePlan !== null) {
     if (p.evidenceBasis === "supplied_context") {
       if (p.mode!=="read"||p.readTicket!==null||p.scope!=="none"||p.operation!=="recall"||p.selection!=="summary"

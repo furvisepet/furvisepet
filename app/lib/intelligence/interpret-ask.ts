@@ -74,6 +74,21 @@ export const ASK_INTERPRETATION_LIMITS = { outputTokens: Math.min(ASK_INTERPRETA
 const ASK_INTERPRETATION_REPAIR_LIMITS = { timeoutMs: 15_000, reserveMs: 12_000 } as const;
 const ASK_READ_TICKET_REPAIR_INVARIANTS = "Before returning, check the entire read ticket together against all original contract relationships, not just the reported field. An event anchor is present if and only if the ticket operation is read_since_event; a concrete date alone is not an event anchor. Episode, predicate, selection, needs, temporal, authority and output constraints must all remain mutually compatible. Preserve genuine episode, event-relative, attributed-report, effective-fact and mixed obligations; do not drop, invent or rewrite a requested constraint to fit a shape. If the full intent cannot be represented safely, clarify.";
 const ASK_INTERPRETATION_REPAIR_INSTRUCTIONS = `A previous proposal failed contract validation. Return a complete proposal again from the SAME frozen original USER sources and typed schema. contractRepair contains static validation keys only, never evidence or authority. Preserve the requested intent, subjects, references, constraints and operations. Do not add pets, facts, dates, references, source IDs, or mutation authority. ${ASK_READ_TICKET_REPAIR_INVARIANTS}`;
+type AskRepairMetadata =
+  | { transportRepair: { validationCode: string; field?: string; fieldHints?: string[] } }
+  | { contractRepair: { validationCode: string; field?: string; rule?: string } };
+const ASK_ANCHOR_REPAIR_INSTRUCTIONS = "For temporal.anchor, an event anchor is required exactly when operation is read_since_event. Interpret the original USER request again; preserve actual event-relative meaning and do not invent or remove an event. A calendar date alone is not an event anchor. If the request is unclear, clarify.";
+const ASK_TRANSPORT_REPAIR_INSTRUCTIONS = "A previous response failed transport validation. If fieldHints are present, check those fields together against the same request branch, especially mode, scope and evidenceBasis. Follow the canonical schema for every field. Produce the entire response again from the original USER sources. Preserve the request and all scope. Do not infer facts or permissions.";
+export function buildAskInterpretationRepairRequest<T extends { instructions: string; input: string }>(
+  request: T, metadata: AskRepairMetadata, anchor = false,
+): T {
+  // The same immutable original input is used for admission and actual dispatch.
+  const instructions = "transportRepair" in metadata
+    ? "\n" + ASK_TRANSPORT_REPAIR_INSTRUCTIONS + "\n" + ASK_READ_TICKET_REPAIR_INVARIANTS
+    : "\n\n" + ASK_INTERPRETATION_REPAIR_INSTRUCTIONS + (anchor ? "\n" + ASK_ANCHOR_REPAIR_INSTRUCTIONS : "");
+  return { ...request, instructions: request.instructions + instructions,
+    input: JSON.stringify({ ...JSON.parse(request.input), ...metadata }) };
+}
 type InterpretationContext = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "planningSourceWindow" | "pinnedUserSourceIds" | "conversationId" | "currentMessage" | "conversationTurns" | "timeZone" | "currentTurn" | "pendingTask" | "ownerNoteAlreadySaved" | "completedOwnerNote" | "ownerNoteSpans" | "lifecycleActionState" | "concernReferences" | "replaceReferences" | "storedReadReferences">;
 export class AskInterpretationValidationError extends Error {
   readonly reason: string;
@@ -225,7 +240,17 @@ export function prepareAskInterpretationRequest(original: InterpretationContext,
   for (const context of [...askSourceWindows(projectAskInterpretationContext(original))].reverse()) {
     checkBudget();
     const candidate = build(context);
-    if (askRequestFitsInputBudget(candidate.request)) return candidate;
+    // Reserve the same frozen window for either bounded repair path before call 1.
+    // Placeholder validation keys are admission-only upper bounds, never dispatched.
+    const longestKeys = Object.keys(askRequestSchema(proposedSemanticFrameJsonSchema, context).properties)
+      .sort((a,b)=>b.length-a.length).slice(0,20);
+    const repairRequests = [
+      buildAskInterpretationRepairRequest(candidate.request, { transportRepair: {
+        validationCode: "x".repeat(128), field: longestKeys[0], fieldHints: longestKeys } }),
+      buildAskInterpretationRepairRequest(candidate.request, { contractRepair: {
+        validationCode: "x".repeat(128), field: "temporal.anchor", rule: "anchor_iff_read_since_event" } }, true),
+    ];
+    if (askRequestFitsInputBudget(candidate.request) && repairRequests.every(askRequestFitsInputBudget)) return candidate;
   }
   checkBudget();
   throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "feature_token_budget_exceeded");
@@ -332,9 +357,8 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
       const field = directJsonField;
       const fieldHints = canonicalFieldHints;
       // The rejected response is never reused, logged, or supplied as evidence.
-      const repairRequest = { ...request,
-        instructions: request.instructions + "\nA previous response failed transport validation. If fieldHints are present, check those fields together against the same request branch, especially mode, scope and evidenceBasis. Follow the canonical schema for every field. Produce the entire response again from the original USER sources. Preserve the request and all scope. Do not infer facts or permissions." + "\n" + ASK_READ_TICKET_REPAIR_INVARIANTS,
-        input: JSON.stringify({ ...input, transportRepair: { validationCode, field, ...(fieldHints.length ? { fieldHints } : {}) } }) };
+      const repairRequest = buildAskInterpretationRepairRequest(request, {
+        transportRepair: { validationCode, field, ...(fieldHints.length ? { fieldHints } : {}) } });
       assertAskRequestInputBudget(repairRequest);
       console.info("[Ask Brain] transport repair", { validationCode, field, fieldHints });
       transportRepairUsed = true;
@@ -443,10 +467,9 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
         if (error instanceof AskInterpretationValidationError) throw fail(error.reason, error.category, metadata);
         throw fail("ASK_INTERPRETATION_VALIDATION", "semantic", metadata);
       }
-      const repairRequest = { ...request,
-        instructions: `${request.instructions}\n\n${ASK_INTERPRETATION_REPAIR_INSTRUCTIONS}${repairableHistoryAnchor ? "\nFor temporal.anchor, an event anchor is required exactly when operation is read_since_event. Interpret the original USER request again; preserve actual event-relative meaning and do not invent or remove an event. A calendar date alone is not an event anchor. If the request is unclear, clarify." : ""}`,
-        input: JSON.stringify({ ...input, contractRepair: { validationCode: error.reason, ...(repairableHistoryAnchor ? { field: "temporal.anchor", rule: "anchor_iff_read_since_event" }
-          : repairableHistoryEpisode ? { field: "predicates", rule: "incompatible_with_episode" } : {}) } }) };
+      const repairRequest = buildAskInterpretationRepairRequest(request, { contractRepair: {
+        validationCode: error.reason, ...(repairableHistoryAnchor ? { field: "temporal.anchor", rule: "anchor_iff_read_since_event" }
+          : repairableHistoryEpisode ? { field: "predicates", rule: "incompatible_with_episode" } : {}) } }, repairableHistoryAnchor);
       assertAskRequestInputBudget(repairRequest);
       console.info("[Ask Brain] contract repair", { sourceMessageId: context.currentTurn?.id, validationCode: error.reason });
       const repairResponse = await executeAdmittedResponsesRequest({ purpose: "interpretation_repair", model,

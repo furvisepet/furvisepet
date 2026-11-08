@@ -15,3 +15,13 @@ export function assertNativeSchemaField(request,name){
  assert.ok(alias,"missing native field mapping for "+name);
  assert.ok(JSON.stringify(request.text.format.schema).includes(JSON.stringify(alias)),"missing native schema field "+name);
 }
+
+export function nativeSchema(plan,schema){
+ if(!schema || typeof schema!=="object")return schema;
+ const out={...schema};delete out.description;
+ if(schema.properties)out.properties=Object.fromEntries(Object.entries(schema.properties).map(([key,value])=>[nativeKey(plan,key),nativeSchema(plan,value)]));
+ if(schema.required)out.required=schema.required.map(key=>nativeKey(plan,key));
+ for(const key of ["anyOf","oneOf","allOf"])if(Array.isArray(schema[key]))out[key]=schema[key].map(value=>nativeSchema(plan,value));
+ if(schema.items)out.items=nativeSchema(plan,schema.items);
+ return out;
+}

@@ -21,6 +21,7 @@ test("independent outer branch projection probe",()=>{
  const p=prepared(context("Which species is in the selected profile?"));
  const good=p.transport.encode({request:plan},()=>{});
  assert.equal(p.valid(p.schema,good),true);
+ assert.equal(JSON.stringify(p.schema).includes('"description":'),false);
  assert.deepEqual(p.transport.decode(good,()=>{}).request,plan);
  const aliases=new Map(Object.entries(p.transport.fieldAliases));
  const cases={quantity:"records",scope:"none",temporalScope:"historical",profileFields:[],from:"2024-03-10"};
@@ -80,4 +81,14 @@ test("conversation cannot carry any declared stored-read obligation in provider 
   assert.throws(()=>recoverAskInterpretation(invalid,c),undefined,field);
  }
  assert.equal(recoverAskInterpretation(canonical,c).conversationOnly,true);
+});
+
+test("non-null history tickets cannot cross evidence domains in provider grammar or Binder",()=>{
+ const c=context(),p=prepared(c),canonical=request({readTicket:ticket()});
+ assert.equal(p.valid(p.schema,p.transport.encode({request:canonical},()=>{})),true);
+ for(const evidenceBasis of ["general",null,"saved_profile","supplied_context"]){
+  const invalid={...canonical,evidenceBasis};
+  assert.throws(()=>p.transport.encode({request:invalid},()=>{}),undefined,String(evidenceBasis));
+  assert.throws(()=>recoverAskInterpretation(invalid,c),undefined,String(evidenceBasis));
+ }
 });

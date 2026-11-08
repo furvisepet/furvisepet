@@ -1,3 +1,4 @@
+import "./windows-test-runtime.mjs";
 // Test-process loader only: application builds retain the real server-only boundary.
 import { registerHooks } from "node:module";
 import { existsSync, readFileSync } from "node:fs";

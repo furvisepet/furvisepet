@@ -1,3 +1,4 @@
+import {nativeKey,nativeValue,nativeSlot} from "./helpers/direct-protocol.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {bindReadTicket} from '../app/lib/furvise-brain/read-ticket.ts';
@@ -20,21 +21,28 @@ async function run(t,mode){
  predicates:[],outputs:{strategy:null,completeness:'sufficient',ordering:'asc',limit:null},searchHints:null,episode:null,selection:null,probes:[]};
  const request={calculatePlan:null,storedRead:null,removeJob:null,stateTransitionJob:null,fieldMutationJob:null,lifecyclePlan:null,appendJob:null,readTicket:ticket,writeJob:null,task:null,temporalScope:'historical',mutationIntent:null,recordSelection:null,profileFields:[],projection:null,version:'ask-request.v2',mode:'read',question:text,requirements:[],evidenceNeeds:[],outputFormat:null,evidenceBasis:'saved_history',premiseQuotes:[],excludedPetNames:[],referenceTurnIds:[],scope:'named',petNames:['Aster'],operation:'recall',selection:'summary',quantity:'records',topic:'history',terms:[],from:event?null:'2026-09-15',to:event?null:'2026-09-16',episodeTopic:null,ordinal:null,frame:null};
  const plan=directFixturePlan(prepared.transport); const good=plan.encode({request});
- const bad=structuredClone(good);
- const transportBad=structuredClone(good);transportBad.request.frame='{bad';
- const episodeBad=structuredClone(good);episodeBad.request.readTicket.episode={operation:'count',referent:null};episodeBad.request.readTicket.predicates=[{kind:'text_any',terms:['routine']}];
- if(event)bad.request.readTicket.temporal.anchor=null;
- else bad.request.readTicket.temporal.anchor={concept:'visit',relation:'after'};
+ const bad=structuredClone(good),K=n=>nativeKey(plan,n);
+ const transportBad=structuredClone(good);const frameSlot=nativeSlot(plan,transportBad,'frame');frameSlot.target[frameSlot.key]='{bad';
+ const episodeBad=structuredClone(good);episodeBad.request.evidenceContext[K('readTicket')][K('episode')]=nativeValue(plan,{operation:'count',referent:null});episodeBad.request.evidenceContext[K('readTicket')][K('predicates')]=nativeValue(plan,[{kind:'text_any',terms:['routine']}]);
+ if(event)bad.request.evidenceContext[K('readTicket')][K('temporalContext')][K('temporal')][K('anchor')]=null;
+ else bad.request.evidenceContext[K('readTicket')][K('temporalContext')][K('temporal')][K('anchor')]=nativeValue(plan,{concept:'visit',relation:'after'});
  const store=new MemoryAiGuardTestStore();
  const admission=await admitAiOperation({env,store,feature:'ask',intendedModel:'gpt-5.4-mini',userId:'owner',requestId:'anchor-'+mode,payload:{case:mode},now:new Date('2039-01-01T00:00:00Z')});
  let calls=0;const purposes=[];const begin=admission.beginProviderCall.bind(admission);
  admission.beginProviderCall=async x=>{purposes.push(x.purpose??'initial');return begin(x)};
  try {
   const invoke=()=>interpretAskQuestion({context,model:'gpt-5.4-mini',client:{responses:{create:async req=>{
-   calls++; assert.match(req.instructions,/For a user explicitly asking what a saved note says or reports/);assert.match(req.instructions,/For current, corrected, settled facts or calculations use effective_fact/);assert.match(req.instructions,/mixed request/); if(calls===2 && mode!=='transport_then_anchor'){const repair=JSON.parse(req.input).contractRepair;assert.equal(repair.field,'temporal.anchor');assert.equal(repair.rule,'anchor_iff_read_since_event');assert.equal(Object.hasOwn(repair,'rejectedProposal'),false);assert.match(req.instructions,/preserve actual event-relative meaning/);assert.match(req.instructions,/Episode reads cannot have text predicates/);}
+   calls++; assert.match(req.instructions,/For a user explicitly asking what a saved note says or reports/);assert.match(req.instructions,/For current, corrected, settled facts or calculations use effective_fact/);assert.match(req.instructions,/mixed request/); if(calls===2){
+    const payload=JSON.parse(req.input),repair=payload.transportRepair;
+    assert.equal(repair.validationCode,'ASK_WIRE_CANONICAL_SCHEMA');
+    assert.ok(repair.fieldHints.includes(mode==='transport_then_anchor'?'frame':'readTicket'));
+    assert.equal(Object.hasOwn(repair,'rejectedProposal'),false);
+    assert.match(req.instructions,/An event anchor is present if and only if the ticket operation is read_since_event/);
+    assert.match(req.instructions,/Episode, predicate, selection, needs, temporal, authority and output constraints must all remain mutually compatible/);
+   }
    return {status:'completed',output_text:JSON.stringify(mode==='transport_then_anchor'?(calls===1?transportBad:bad):mode==='episode_invalid'?(calls===1?bad:episodeBad):(initial?good:calls===1||mode==='invalid'?bad:good)),usage};
   }}}});
-  if(mode==='invalid'||mode==='transport_then_anchor'||mode==='episode_invalid') await assert.rejects(admission.run(invoke),e=>e.diagnostics?.providerErrorCode==='ASK_REQUEST_CONTRACT_READ_TICKET');
+  if(mode==='invalid'||mode==='transport_then_anchor'||mode==='episode_invalid') await assert.rejects(admission.run(invoke),e=>e.diagnostics?.providerErrorCode===(mode==='episode_invalid'?'ASK_REQUEST_CONTRACT_READ_TICKET':'ASK_INTERPRETATION_REPAIR_JSON'));
   else {const result=await admission.run(invoke);assert.equal(result.request.readTicket.operation,event?'read_since_event':'read');assert.deepEqual(result.request.readTicket.temporal.anchor,ticket.temporal.anchor);assert.deepEqual(result.request.readTicket.subjects.petIds,['pet']);assert.equal(result.request.readTicket.authority,effective?'effective_fact':'stored_report');}
   assert.equal(calls,initial?1:2);assert.deepEqual(purposes,initial?['initial']:['initial','interpretation_repair']);
  } finally {await admission.release();}
