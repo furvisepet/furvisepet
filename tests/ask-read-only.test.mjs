@@ -8,7 +8,7 @@ import {issueReadOnlyCitationProof,verifyAskCitationProof,checkedCitationSources
 const pets=[{id:"pet-a",ownerId:"owner-a",name:"Juniper",species:"cat"},{id:"pet-b",ownerId:"owner-a",name:"Moss",species:"dog"},{id:"foreign",ownerId:"owner-b",name:"Other",species:"dog"}];
 const input={ownerId:"owner-a",selectedPetId:"pet-a",pets,question:"Read the saved observation.",dialogue:[],now:"2026-11-08T12:00:00Z",timeZone:"America/Los_Angeles"};
 const source={kind:"history",id:"note-a",ownerId:"owner-a",petId:"pet-a",body:"First line.\nSecond line — unchanged.",eventAt:"2026-11-01T08:30:00Z",recordedAt:"2026-11-02T12:00:00Z"};
-const call=(args={},name="read_pet_data",id="call-1")=>({id,name:name==="search_saved_records"?"read_pet_data":name,arguments:JSON.stringify({profiles:[],searches:[{pet:"p1",from:"2026-11-01",to:"2026-11-01",terms:[],offset:0,...args}]})});
+const call=(args={},name="read_pet_data",id="call-1")=>({id,name:name==="search_saved_records"?"read_pet_data":name,arguments:JSON.stringify({reads:[{kind:"history",pet:"p1",from:"2026-11-01",to:"2026-11-01",terms:[],offset:0,...args}]})});
 const final=(extra={})=>({answer:"The saved observation is quoted below.",quotes:["s1"],sources:["s1"],calculations:[],limited:false,...extra});
 function runner(first={calls:[call()],text:""},answer=final(),read=async()=>({sources:[source],total:1,hasMore:false})){
  const requests=[];return {requests,run:()=>runReadOnlyAsk(input,{read,provider:async(request,phase)=>{requests.push({request,phase});return requests.length===1?first:answer;}})};
@@ -30,7 +30,7 @@ test("follow-up receives dialogue as context and re-reads evidence",async()=>{
  });assert.equal(requests[0].context.dialogue.length,2);assert.equal(result.sources.length,1);
 });
 test("cross-pet comparison composes authorized tools without copying identities from the model",async()=>{
- const r=runner({calls:[call(),call({pet:"p2"},"search_saved_records","call-2")],text:""},final({sources:["s1","s2"],quotes:[]}),async request=>({sources:[{...source,id:request.pet.id,petId:request.pet.id}],total:1}));
+ const r=runner({calls:[{id:"two-pets",name:"read_pet_data",arguments:JSON.stringify({reads:[{kind:"history",pet:"p1",from:null,to:null,terms:[],offset:0},{kind:"history",pet:"p2",from:null,to:null,terms:[],offset:0}]})}],text:""},final({sources:["s1","s2"],quotes:[]}),async request=>({sources:[{...source,id:request.pet.id,petId:request.pet.id}],total:1}));
  const result=await r.run();assert.equal(result.sources.length,2);assert.deepEqual(result.sources.map(s=>s.petId),["pet-a","pet-b"]);
 });
 test("ambiguous names and dates can clarify with no history access",async()=>{
@@ -206,7 +206,7 @@ test("one native batch carries both date windows, and the server copies selected
  const searches=[{pet:"p1",from:"2026-01-02",to:"2026-01-02",terms:[],offset:0},{pet:"p1",from:"2026-09-03",to:"2026-09-03",terms:[],offset:0}];
  const seen=[],provider=[];const row1={...source,id:"first",body:"Measured 12.2 kg.",eventAt:"2026-01-02T12:00:00Z"},row2={...source,id:"second",body:"Measured 12.5 kg.",eventAt:"2026-09-03T12:00:00Z"};
  const result=await runReadOnlyAsk(input,{
-  provider:async(request)=>{provider.push(request);return provider.length===1?{calls:[{id:"batch",name:"read_pet_data",arguments:JSON.stringify({profiles:[],searches})}],text:""}:
+  provider:async(request)=>{provider.push(request);return provider.length===1?{calls:[{id:"batch",name:"read_pet_data",arguments:JSON.stringify({reads:searches.map(query=>({kind:"history",...query}))})}],text:""}:
    final({answer:"The recorded change is shown below.",quotes:["s1","s2"],sources:[],calculations:[{operation:"difference",operands:["s1:m1","s2:m1"]}]});},
   read:async request=>{seen.push(request);return {sources:[request.from==="2026-01-02"?row1:row2],total:1};}
  });
@@ -230,7 +230,7 @@ test("profile citations bind exact canonical fields and fail after content or ow
  try {
   const row={id:"pet-a",user_id:"owner-a",name:"Juniper",species:"cat",weight_value:4.2,weight_unit:"kg",created_at:"2025-01-01T00:00:00Z",updated_at:"2026-11-01T00:00:00Z"};
   let calls=0;
-  const result=await runReadOnlyAsk(input,{provider:async()=>++calls===1?{calls:[{id:"profile",name:"read_pet_data",arguments:JSON.stringify({profiles:["p1"],searches:[]})}],text:""}:
+  const result=await runReadOnlyAsk(input,{provider:async()=>++calls===1?{calls:[{id:"profile",name:"read_pet_data",arguments:JSON.stringify({reads:[{kind:"profile",pet:"p1"}]})}],text:""}:
    final({answer:"The saved profile records the weight.",quotes:[],sources:["s1"]}),
    read:async()=>({sources:[{kind:"profile",id:row.id,petId:row.id,ownerId:row.user_id,body:serializeReadOnlyProfile(row),eventAt:row.updated_at,recordedAt:row.created_at}],total:1})});
   const body={title:"Furvise",summary:result.answer.answer,sections:[],safetyNote:null};
@@ -285,4 +285,43 @@ test("general conversation may discuss ordinary symbolic labels and example UUID
 test("actual private source identities remain excluded from conversational prose",()=>{
  const id="11111111-1111-4111-8111-111111111111";
  assert.throws(()=>validateReadOnlyAnswer(final({answer:"Internal source "+id,quotes:[]}),[{...source,id,handle:"s1"}]),/INTERNAL_ID/);
+});
+
+import Ajv from "ajv";
+import {readOnlyToolsForPets,readOnlyAnswerSchemaForSources} from "../app/lib/ask-read-only/core.mjs";
+test("the actual compact provider tool schema admits typed mixed reads and cannot exceed four operations",()=>{
+ const tools=readOnlyToolsForPets([{handle:"p1"},{handle:"p2"}]);
+ const validate=new Ajv({strict:false}).compile(tools[0].parameters);
+ const history={kind:"history",pet:"p1",from:"2026-01-01",to:"2026-01-01",terms:[],offset:0};
+ assert.equal(validate({reads:[{kind:"profile",pet:"p1"},history,{...history,pet:"p2"}]}),true);
+ assert.equal(validate({reads:Array.from({length:5},()=>history)}),false);
+ assert.equal(validate({reads:[{kind:"profile",pet:"foreign"}]}),false);
+ assert.equal(validate({reads:[{kind:"profile",pet:"p1",ownerId:"owner-b"}]}),false);
+ assert.equal(validate({reads:[{kind:"delete",pet:"p1"}]}),false);
+ assert.equal(validate({profiles:["p1"],searches:[history]}),false);
+});
+test("the actual answer schema excludes profile-as-note quotes and fabricated source or measurement handles",()=>{
+ const sources=[{kind:"profile",handle:"s1",measurements:[{handle:"s1:m1"}]},{kind:"history",handle:"s2",measurements:[{handle:"s2:m1"}]}];
+ const validate=new Ajv({strict:false}).compile(readOnlyAnswerSchemaForSources(sources));
+ const answer=final({quotes:["s2"],sources:["s1","s2"]});
+ assert.equal(validate(answer),true);
+ assert.equal(validate({...answer,quotes:["s1"]}),false);
+ assert.equal(validate({...answer,sources:["s3"]}),false);
+ assert.equal(validate({...answer,calculations:[{operation:"sum",operands:["s2:m1","missing:m1"]}]}),false);
+ const profileOnly=new Ajv({strict:false}).compile(readOnlyAnswerSchemaForSources([sources[0]]));
+ assert.equal(profileOnly(final({quotes:[],sources:["s1"]})),true);
+ assert.equal(profileOnly(final({quotes:["s1"]})),false);
+ const general=new Ajv({strict:false}).compile(readOnlyAnswerSchemaForSources([]));
+ assert.equal(general(final({quotes:[],sources:[]})),true);
+ assert.equal(general(final()),false);
+});
+test("profile questions can use only profile data and a verifiable profile citation in two physical calls",async()=>{
+ let calls=0,reads=0;
+ const row={id:"pet-a",user_id:"owner-a",name:"Juniper",weight_value:4.2,weight_unit:"kg",current_food:"saved diet",created_at:"2025-01-01T00:00:00Z",updated_at:"2026-11-01T00:00:00Z"};
+ const result=await runReadOnlyAsk({...input,question:"What weight and food are saved in the profile?"},{
+  provider:async(request)=>++calls===1?{calls:[{id:"profile",name:"read_pet_data",arguments:JSON.stringify({reads:[{kind:"profile",pet:"p1"}]})}],text:""}:
+   final({answer:"The saved profile contains the weight and food.",quotes:[],sources:["s1"]}),
+  read:async request=>{reads++;assert.equal(request.kind,"profile");return {sources:[{kind:"profile",id:row.id,petId:row.id,ownerId:row.user_id,body:serializeReadOnlyProfile(row),eventAt:row.updated_at,recordedAt:row.created_at}],total:1};}
+ });
+ assert.equal(calls,2);assert.equal(reads,1);assert.equal(result.sources[0].kind,"profile");assert.equal(result.answer.quotes.length,0);
 });

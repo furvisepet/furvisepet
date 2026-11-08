@@ -44,3 +44,12 @@ The focused CI job now exercises the active read-only path plus unchanged accoun
 SDK attempt, ownership/citation, replay and durable-finalization contracts. The Full
 tests command is unfiltered and retains all old planner tests. Its failures are not
 waived, hidden, or declared green.
+
+The comparison and original quotation both passed live again on 782796ab. A profile
+question then selected history and failed closed on an invalid quote reference
+(two physical calls, $0.003752, user credit released). The next revision uses a
+single max-four typed read array (profile/history), request-local owned-pet enums,
+and returned-source/measurement enums in the final schema. Profile-only results
+cannot request note quotations. Low reasoning effort is explicit; model, physical
+call cap and token/output budgets are unchanged. No paid retry is made without a
+relevant code change.

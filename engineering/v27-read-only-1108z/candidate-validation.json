@@ -1,9 +1,9 @@
 {
   "focused": {
-    "tests": 113,
-    "pass": 113,
+    "tests": 116,
+    "pass": 116,
     "fail": 0,
-    "log": "read-only-focused11.log"
+    "log": "read-only-focused12.log"
   },
   "security": {
     "tests": 162,
@@ -13,7 +13,7 @@
   "typecheck": "PASS",
   "lint": {
     "errors": 0,
-    "warnings": 122
+    "warnings": 123
   },
   "build": "PASS",
   "productionDependencyAudit": {
@@ -21,12 +21,13 @@
     "high": 0,
     "critical": 0
   },
-  "liveCandidateAcceptance": "pending_new_batch_revision",
-  "priorOriginalQuestion": "PASS_on_17519f6d",
+  "liveCandidateAcceptance": "pending_typed_read_catalog_revision",
+  "priorOriginalQuestion": "PASS_on_17519f6d_and_782796ab",
   "fullCI": "IN_PROGRESS_on_prior_revisions_not_a_pass",
   "anonymousHttp": {
     "edge401": true,
     "app401VerifiedLive": false,
     "reason": "Vercel protection still required authentication after supported fetch; application handler auth negatives pass in tests"
-  }
+  },
+  "priorComparison": "PASS_on_782796ab"
 }

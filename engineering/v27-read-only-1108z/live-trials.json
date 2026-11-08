@@ -72,5 +72,38 @@
     "providerCallCount": 2,
     "costMicrodollars": 1851,
     "readTools": 0
+  },
+  {
+    "sha": "782796ab7fcd1e331a3840fe57fdccd31a8be1b9",
+    "deploymentId": "dpl_Dv8Ag2mLDJPu5Ag6fYe9y8iiFpwU",
+    "requestId": "944621c6-fc4f-49c1-8925-2c6c0b232fbe",
+    "outcome": "PASS_two_date_note_comparison_with_source_bound_calculation",
+    "providerCallCount": 2,
+    "costMicrodollars": 2578,
+    "sources": 2,
+    "readOperations": 3,
+    "creditDisposition": "complete"
+  },
+  {
+    "sha": "782796ab7fcd1e331a3840fe57fdccd31a8be1b9",
+    "deploymentId": "dpl_Dv8Ag2mLDJPu5Ag6fYe9y8iiFpwU",
+    "requestId": "19ef139d-d637-4a49-9835-ab2bd8ee8ab0",
+    "outcome": "PASS_original_exact_saved_note_question",
+    "providerCallCount": 2,
+    "costMicrodollars": 2221,
+    "sources": 1,
+    "readOperations": 2,
+    "creditDisposition": "complete"
+  },
+  {
+    "sha": "782796ab7fcd1e331a3840fe57fdccd31a8be1b9",
+    "deploymentId": "dpl_Dv8Ag2mLDJPu5Ag6fYe9y8iiFpwU",
+    "requestId": "d6114415-796d-4a41-b4b2-a7fa812ae12b",
+    "outcome": "NO_GO_profile_question_searched_history_then_invalid_quote_reference",
+    "providerCallCount": 2,
+    "costMicrodollars": 3752,
+    "creditDisposition": "release",
+    "errorCode": "ASK_READ_QUOTE_NOT_VERIFIED",
+    "upstream500": false
   }
 ]
