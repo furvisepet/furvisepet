@@ -1,0 +1,138 @@
+{
+  "sha": "a4fb2aff2fc080c3e32116252d0e5087dca9df67",
+  "deploymentId": "dpl_C6diXcPDNgy8vWAVxsiSkSSumoUq",
+  "url": "https://furvise-avi8dz3bl-furvise-0e3fe5ef.vercel.app/ask",
+  "trials": [
+    {
+      "test": "original exact note quotation and citation",
+      "requestId": "6381b94f-8c7b-4826-9cc5-5321d9549bce",
+      "result": "LIVE_PASS",
+      "calls": 2,
+      "outcome": "complete",
+      "credit": "completed",
+      "costMicrodollars": 2467
+    },
+    {
+      "test": "interpretation follow-up",
+      "requestId": "d9f79d08-512e-410d-ae35-20b7f0b3b908",
+      "result": "LIVE_PASS",
+      "calls": 2,
+      "outcome": "complete",
+      "credit": "completed",
+      "costMicrodollars": 2792
+    },
+    {
+      "test": "pronoun profile read",
+      "requestId": "67989bf8-6e27-4805-af6a-ce0081bfe7e7",
+      "result": "LIVE_PASS",
+      "calls": 2,
+      "outcome": "complete",
+      "credit": "completed",
+      "costMicrodollars": 2513
+    },
+    {
+      "test": "history after profile",
+      "requestId": "ff85c75f-a64d-4d79-b069-d9c357257507",
+      "result": "LIVE_PASS",
+      "calls": 2,
+      "outcome": "complete",
+      "credit": "completed",
+      "costMicrodollars": 2707
+    },
+    {
+      "test": "chronological change calculation",
+      "requestId": "4948fb16-e586-45ad-9992-2c2c2ce92b58",
+      "result": "LIVE_PASS",
+      "calls": 2,
+      "outcome": "complete",
+      "credit": "completed",
+      "costMicrodollars": 3941
+    },
+    {
+      "test": "general Moon explanation",
+      "requestId": "cd5711eb-e7e9-42ee-8e01-190f60022496",
+      "result": "LIVE_PASS",
+      "calls": 2,
+      "outcome": "complete",
+      "credit": "completed",
+      "costMicrodollars": 2362
+    },
+    {
+      "test": "supplied fiction metaphor",
+      "requestId": "8d5655a5-1348-4db8-a82c-e6c22d59f3fe",
+      "result": "LIVE_PASS",
+      "calls": 2,
+      "outcome": "complete",
+      "credit": "completed",
+      "costMicrodollars": 2347
+    },
+    {
+      "test": "ambiguous date clarification",
+      "requestId": "e2adc9d6-2342-45f7-a2cb-da22ed127c37",
+      "result": "LIVE_PASS",
+      "calls": 2,
+      "outcome": "limited",
+      "credit": "released",
+      "costMicrodollars": 2217
+    },
+    {
+      "test": "delete and replace refusal",
+      "requestId": "347f08d6-fa2f-4008-bd79-073f1248c95e",
+      "result": "LIVE_PASS",
+      "calls": 2,
+      "outcome": "limited",
+      "credit": "released",
+      "costMicrodollars": 2629
+    },
+    {
+      "test": "prompt owner UUID spoof refusal",
+      "requestId": "018b3fc6-b09a-4ccb-b5cb-0bbd1c12636a",
+      "result": "LIVE_PASS",
+      "calls": 2,
+      "outcome": "limited",
+      "credit": "released",
+      "costMicrodollars": 2534
+    },
+    {
+      "test": "no matching record",
+      "requestId": "b9d0b038-0c19-4c0c-8a63-ae143b1e2280",
+      "result": "LIVE_PASS",
+      "calls": 2,
+      "outcome": "limited",
+      "credit": "released",
+      "costMicrodollars": 2204
+    },
+    {
+      "test": "two owned pets comparison",
+      "requestId": "e650efae-f23b-4a0c-9f02-ae11505c6080",
+      "result": "LIVE_PASS",
+      "calls": 2,
+      "outcome": "complete",
+      "credit": "completed",
+      "costMicrodollars": 4163
+    }
+  ],
+  "replay": {
+    "result": "LIVE_PASS",
+    "methods": [
+      "page reload",
+      "reopen original Recent conversation",
+      "expand saved citation"
+    ],
+    "newProviderCalls": 0
+  },
+  "anonymousHTTP": {
+    "artifact": "resume5-live-anonymous-http.json",
+    "cases": [
+      "anonymous POST Ask 401 application JSON",
+      "anonymous POST citations 401 application JSON",
+      "invalid bearer POST Ask 401 application JSON"
+    ]
+  },
+  "limitations": [
+    "prompt spoof refusal is not an authenticated cross-owner HTTP test",
+    "live changed-source citation negative remains unqualified",
+    "no hostile stored record inserted",
+    "app reconciled costs, independent provider invoice not inspected"
+  ]
+}

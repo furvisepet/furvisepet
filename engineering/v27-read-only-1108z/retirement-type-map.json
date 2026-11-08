@@ -1,0 +1,2820 @@
+{
+  "source": "48c83346-plus-denial-working-tree",
+  "rootCount": 102,
+  "rootReachable": 559,
+  "targets": [
+    {
+      "file": "app\\lib\\intelligence\\ask-request-contract.ts",
+      "reachableIncludingTypes": true,
+      "rootChain": [
+        "app\\api\\ask\\route.ts",
+        "app\\lib\\intelligence\\types.ts",
+        "app\\lib\\intelligence\\interpret-ask.ts",
+        "app\\lib\\intelligence\\ask-request-contract.ts"
+      ],
+      "importers": [
+        "app\\lib\\furvise-brain\\interpretation-authority.ts",
+        "app\\lib\\intelligence\\interpret-ask.ts",
+        "app\\lib\\intelligence\\task-execution-contract.ts",
+        "tests\\ask-binder-compilation-budget.test.mjs",
+        "tests\\ask-compositional-emission.test.mjs",
+        "tests\\ask-compositional-emission.test.mjs",
+        "tests\\ask-compositional-emission.test.mjs",
+        "tests\\ask-id-free-probes.test.mjs",
+        "tests\\ask-independent-selections.test.mjs",
+        "tests\\ask-latest-saved-care-read.test.mjs",
+        "tests\\ask-live-complex10-regressions.test.mjs",
+        "tests\\ask-one-interpreter.test.mjs",
+        "tests\\ask-provider-root-envelope.test.mjs",
+        "tests\\ask-provider-timestamp-boundary.test.mjs",
+        "tests\\ask-read-ticket-hygiene.test.mjs",
+        "tests\\ask-shared-operation-contracts.test.mjs",
+        "tests\\ask-shared-operation-contracts.test.mjs",
+        "tests\\ask-wire-codec.test.mjs",
+        "tests\\ask-wire-direct.test.mjs",
+        "tests\\ask-wire-integration.test.mjs",
+        "tests\\ask-wire-recursive-plan.test.mjs",
+        "tests\\ask-wire-recursive-prototype.test.mjs",
+        "tests\\calculation-provider-parity.test.mjs",
+        "tests\\canonical-pet-remove.test.mjs",
+        "tests\\canonical-receipt-equivalence.test.mjs",
+        "tests\\canonical-remove.test.mjs",
+        "tests\\canonical-replace-fidelity.test.mjs",
+        "tests\\event-search-migration.test.mjs",
+        "tests\\furvise-conversational-architecture-v1.test.mjs",
+        "tests\\furvise-episode-ticket.test.mjs",
+        "tests\\furvise-lungs.test.mjs",
+        "tests\\furvise-multi-need-ticket.test.mjs",
+        "tests\\furvise-replace-ticket.test.mjs",
+        "tests\\generalized-replace.test.mjs",
+        "tests\\helpers\\ask-wire-contract.mjs",
+        "tests\\helpers\\calculation-public-fixture.mjs",
+        "tests\\helpers\\canonical-replace.mjs",
+        "tests\\helpers\\staged-receipt-audit.mjs",
+        "tests\\history-window-acquisition.test.mjs",
+        "tests\\legacy-read-selection.test.mjs",
+        "tests\\lifecycle-plan.test.mjs",
+        "tests\\live-matrix-offline-repair.test.mjs",
+        "tests\\owner-preference-mutation.test.mjs",
+        "tests\\profile-field-authority.test.mjs",
+        "tests\\profile-mutation-job.test.mjs",
+        "tests\\public-v1-conversation-read.test.mjs",
+        "tests\\read-ticket-provider-parity.test.mjs",
+        "tests\\residual-requirements-contract.test.mjs",
+        "tests\\residual-requirements-contract.test.mjs",
+        "tests\\state-transition-job.test.mjs",
+        "tests\\stored-read-authority.test.mjs",
+        "tests\\stored-read-provider-parity.test.mjs",
+        "tests\\temporal-boundary-migration.test.mjs",
+        "tests\\typed-premise-calculation.test.mjs",
+        "tests\\v27-source-plan-contract.test.mjs",
+        "scripts\\audits\\ask-architecture-contract-probe.mjs",
+        "scripts\\audits\\ask-completion-execution.cases.mjs",
+        "scripts\\audits\\ask-launch-repairs.cases.mjs",
+        "scripts\\audits\\ask-save-completion.cases.mjs",
+        "scripts\\audits\\ask-shared-request-contract.cases.mjs",
+        "scripts\\audits\\ask-stress-architecture.cases.mjs",
+        "scripts\\audits\\ask-task-route.cases.mjs"
+      ]
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-wire-authority.mjs",
+      "reachableIncludingTypes": false,
+      "rootChain": null,
+      "importers": [
+        "app\\lib\\intelligence\\ask-wire-policy.mjs",
+        "tests\\ask-wire-recursive-plan.test.mjs"
+      ]
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-wire-codec.mjs",
+      "reachableIncludingTypes": true,
+      "rootChain": [
+        "app\\api\\ask\\route.ts",
+        "app\\lib\\intelligence\\types.ts",
+        "app\\lib\\intelligence\\interpret-ask.ts",
+        "app\\lib\\intelligence\\ask-wire-direct.mjs",
+        "app\\lib\\intelligence\\ask-wire-codec.mjs"
+      ],
+      "importers": [
+        "app\\lib\\intelligence\\ask-wire-direct.mjs",
+        "app\\lib\\intelligence\\ask-wire-policy.mjs",
+        "app\\lib\\intelligence\\ask-wire-recursive.mjs",
+        "tests\\ask-binder-compilation-budget.test.mjs",
+        "tests\\ask-provider-root-envelope.test.mjs",
+        "tests\\ask-provider-timestamp-boundary.test.mjs",
+        "tests\\ask-wire-codec.test.mjs",
+        "tests\\ask-wire-direct.test.mjs",
+        "tests\\ask-wire-recursive-plan.test.mjs",
+        "tests\\ask-wire-recursive-plan.test.mjs",
+        "tests\\ask-wire-recursive-prototype.test.mjs",
+        "tests\\v27-evidence-slot-correlation.test.mjs",
+        "tests\\v27-independent-branch-probe.test.mjs",
+        "tests\\v27-intent-grammar-boundaries.test.mjs",
+        "tests\\v27-source-plan-contract.test.mjs"
+      ]
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-wire-direct.mjs",
+      "reachableIncludingTypes": true,
+      "rootChain": [
+        "app\\api\\ask\\route.ts",
+        "app\\lib\\intelligence\\types.ts",
+        "app\\lib\\intelligence\\interpret-ask.ts",
+        "app\\lib\\intelligence\\ask-wire-direct.mjs"
+      ],
+      "importers": [
+        "app\\lib\\intelligence\\interpret-ask.ts",
+        "tests\\ask-wire-direct.test.mjs",
+        "tests\\helpers\\ask-wire-contract.mjs"
+      ]
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-wire-policy.generated.mjs",
+      "reachableIncludingTypes": true,
+      "rootChain": [
+        "app\\api\\ask\\route.ts",
+        "app\\lib\\intelligence\\types.ts",
+        "app\\lib\\intelligence\\interpret-ask.ts",
+        "app\\lib\\intelligence\\ask-wire-direct.mjs",
+        "app\\lib\\intelligence\\ask-wire-codec.mjs",
+        "app\\lib\\intelligence\\ask-wire-policy.generated.mjs"
+      ],
+      "importers": [
+        "app\\lib\\intelligence\\ask-wire-codec.mjs",
+        "app\\lib\\intelligence\\ask-wire-policy.mjs",
+        "tests\\ask-independent-selections.test.mjs",
+        "tests\\ask-wire-codec.test.mjs"
+      ]
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-wire-policy.mjs",
+      "reachableIncludingTypes": false,
+      "rootChain": null,
+      "importers": []
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-wire-provider-schema.ts",
+      "reachableIncludingTypes": true,
+      "rootChain": [
+        "app\\api\\ask\\route.ts",
+        "app\\lib\\intelligence\\types.ts",
+        "app\\lib\\intelligence\\interpret-ask.ts",
+        "app\\lib\\intelligence\\ask-wire-provider-schema.ts"
+      ],
+      "importers": [
+        "app\\lib\\intelligence\\interpret-ask.ts",
+        "tests\\ask-direct-json-recovery.test.mjs",
+        "tests\\ask-provider-root-envelope.test.mjs",
+        "tests\\ask-provider-timestamp-boundary.test.mjs",
+        "tests\\ask-recursive-transport.test.mjs",
+        "tests\\ask-wire-integration.test.mjs",
+        "tests\\ask-wire-recursive-plan.test.mjs",
+        "tests\\ask-wire-recursive-prototype.test.mjs",
+        "tests\\helpers\\ask-wire-contract.mjs",
+        "tests\\helpers\\ask-wire-recursive-plan.mjs"
+      ]
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-wire-recursive.mjs",
+      "reachableIncludingTypes": false,
+      "rootChain": null,
+      "importers": []
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-wire-schema.mjs",
+      "reachableIncludingTypes": true,
+      "rootChain": [
+        "app\\api\\ask\\route.ts",
+        "app\\lib\\intelligence\\types.ts",
+        "app\\lib\\intelligence\\interpret-ask.ts",
+        "app\\lib\\intelligence\\ask-wire-direct.mjs",
+        "app\\lib\\intelligence\\ask-wire-codec.mjs",
+        "app\\lib\\intelligence\\ask-wire-schema.mjs"
+      ],
+      "importers": [
+        "app\\lib\\intelligence\\ask-wire-codec.mjs"
+      ]
+    },
+    {
+      "file": "app\\lib\\intelligence\\interpret-ask.ts",
+      "reachableIncludingTypes": true,
+      "rootChain": [
+        "app\\api\\ask\\route.ts",
+        "app\\lib\\intelligence\\types.ts",
+        "app\\lib\\intelligence\\interpret-ask.ts"
+      ],
+      "importers": [
+        "app\\lib\\intelligence\\append-turn.ts",
+        "app\\lib\\intelligence\\ask-evidence.ts",
+        "app\\lib\\intelligence\\ask-request-contract.ts",
+        "app\\lib\\intelligence\\selected-pet-read.ts",
+        "app\\lib\\intelligence\\types.ts",
+        "tests\\ask-anchor-repair.test.mjs",
+        "tests\\ask-binder-compilation-budget.test.mjs",
+        "tests\\ask-compositional-emission.test.mjs",
+        "tests\\ask-contract-repair-route.test.mjs",
+        "tests\\ask-direct-json-recovery.test.mjs",
+        "tests\\ask-episode-repair.test.mjs",
+        "tests\\ask-full-wire-admission.test.mjs",
+        "tests\\ask-id-free-probes.test.mjs",
+        "tests\\ask-input-budget-route.test.mjs",
+        "tests\\ask-interpretation-input-budget.test.mjs",
+        "tests\\ask-interpretation-output-budget.test.mjs",
+        "tests\\ask-interpretation-timeout.test.mjs",
+        "tests\\ask-one-interpreter.test.mjs",
+        "tests\\ask-provider-envelope-diagnostics.test.mjs",
+        "tests\\ask-provider-root-envelope.test.mjs",
+        "tests\\ask-provider-root-envelope.test.mjs",
+        "tests\\ask-provider-timestamp-boundary.test.mjs",
+        "tests\\ask-public-cancellation-route.test.mjs",
+        "tests\\ask-read-ticket-diagnostics.test.mjs",
+        "tests\\ask-read-ticket-hygiene.test.mjs",
+        "tests\\ask-recursive-transport.test.mjs",
+        "tests\\ask-staged-catalog-route.test.mjs",
+        "tests\\ask-wire-integration.test.mjs",
+        "tests\\ask-wire-recursive-plan.test.mjs",
+        "tests\\ask-working-memory-interpretation.test.mjs",
+        "tests\\calculation-result-selection.test.mjs",
+        "tests\\canonical-calculation.test.mjs",
+        "tests\\canonical-calculation.test.mjs",
+        "tests\\canonical-remove.test.mjs",
+        "tests\\canonical-subject-authority.test.mjs",
+        "tests\\furvise-replace-ticket.test.mjs",
+        "tests\\helpers\\ask-route-ordering.mjs",
+        "tests\\helpers\\ask-staged-route-fixture.mjs",
+        "tests\\helpers\\ask-wire-contract.mjs",
+        "tests\\helpers\\staged-operation-fixture.mjs",
+        "tests\\lifecycle-plan.test.mjs",
+        "tests\\owner-preference-mutation.test.mjs",
+        "tests\\profile-mutation-job.test.mjs",
+        "tests\\replace-reference-context.test.mjs",
+        "tests\\stored-read-authority.test.mjs",
+        "tests\\v27-evidence-slot-correlation.test.mjs",
+        "tests\\v27-general-evidence-repair.test.mjs",
+        "tests\\v27-independent-branch-probe.test.mjs",
+        "tests\\v27-intent-grammar-boundaries.test.mjs",
+        "tests\\v27-repair-admission-window.test.mjs",
+        "tests\\v27-review-dispatch-accounting.test.mjs",
+        "tests\\v27-source-plan-contract.test.mjs",
+        "tests\\v27-two-call-source-free.test.mjs",
+        "tests\\v27-whole-read-ticket-repair.test.mjs",
+        "scripts\\audits\\ask-active-contract.cases.mjs",
+        "scripts\\audits\\ask-active-contract.cases.mjs",
+        "scripts\\audits\\ask-continuation-interpreter.live.mjs",
+        "scripts\\audits\\ask-known-failures-unit.cases.mjs",
+        "scripts\\audits\\ask-launch-repairs.cases.mjs",
+        "scripts\\audits\\ask-launch-repairs.cases.mjs",
+        "scripts\\audits\\ask-production-repair.cases.mjs",
+        "scripts\\audits\\ask-production-repair.cases.mjs",
+        "scripts\\audits\\ask-production-repair.cases.mjs",
+        "scripts\\audits\\ask-save-completion.cases.mjs",
+        "scripts\\audits\\ask-shared-request-contract.cases.mjs",
+        "scripts\\audits\\ask-shared-request-contract.cases.mjs",
+        "scripts\\audits\\ask-shared-request-contract.cases.mjs",
+        "scripts\\audits\\ask-shared-request-contract.cases.mjs",
+        "scripts\\audits\\ask-shared-request-contract.cases.mjs",
+        "scripts\\audits\\ask-shared-request-contract.cases.mjs",
+        "scripts\\audits\\ask-shared-request-contract.cases.mjs",
+        "scripts\\audits\\ask-stress-architecture.cases.mjs",
+        "scripts\\audits\\ask-stress-architecture.cases.mjs",
+        "scripts\\audits\\helpers\\episode-organ-fixture.mjs",
+        "scripts\\audits\\helpers\\lifetime-harness.mjs"
+      ]
+    }
+  ],
+  "affected": [
+    {
+      "file": "app\\lib\\intelligence\\ask-request-contract.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\interpretation-authority.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\ask-runtime.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\generate-ask-history.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\calculation-capability-orchestration.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\stored-read-authority.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-lifetime-postgres.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\helpers\\lifetime-harness.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-five-pet-bounded-year.case.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-readiness-five.case.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-three-pet-explicit-episode-comparison.case.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\audit-publication-call-expectations.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\correction-relevance-pipeline.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\event-search-migration.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\factual-dispatch-safety.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\history-window-acquisition.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\scoped-report-route.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\stored-report-authority.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\stress-correction-boundary.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\temporal-boundary-migration.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-active-contract.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-benchmark-preflight.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-benchmark-retrieval.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-candidate-integration.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-completion-execution.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-completion-v3.live.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-context-lineage.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-digestive-recall.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-episode-history.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-episode-membership-contract.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-episode-review-regressions.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-evidence-contract.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-failure-recovery-multi-pet.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-five-year-rerun-continuation.live.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-five-year-rerun.live.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-general-reliability.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-governed-freeform.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-history-stage-2.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-known-failures.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-late-corrections.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-launch-blockers.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-launch-owner-journey.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-launch-repairs.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-launch-retrieval.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-lifetime-completion.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-lifetime-history.audit.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-multi-year-multi-pet.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-period-budget.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-production-repair.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-recorded-completeness.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-remaining-lifetime-evidence.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-remaining-reliability.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-resolution-status.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-runtime-mochi-followup.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-save-completion.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-semantic-stress-multi-pet.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-shared-request-contract.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-stress-architecture.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-subject-continuity.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-task-route.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-ten-pet-five-year-stress.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-three-month-multi-pet.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-v1-stabilization.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\feature-provider-compatibility.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\helpers\\current-stress-harness.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\canonical-receipt-equivalence.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\helpers\\dated-selection-fixture.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\helpers\\episode-organ-fixture.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\helpers\\evidence-publication-fixture.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\vet-brief-complex-retrieval.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-one-interpreter.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\calculation-result-selection.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\canonical-calculation.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\furvise-brain-ask-runtime.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\furvise-episode-ticket.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\furvise-lungs.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\furvise-brain-interpretation-authority.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\interpret-ask.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\append-turn.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\helpers\\ask-route-ordering.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\append-items-authority.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-airway-emergency.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-append-independent-completion.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-emergency-subject-clauses.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-interpretation-output-budget.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-interpretation-timeout.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-provider-envelope-diagnostics.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-provider-error-diagnostics.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-route-ordering.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-unseen-v1-publication-0930.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\furvise-brain-owner-note-gate.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\owner-note-write-isolation.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\public-v1-freeze.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\typed-read-ticket.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\helpers\\ask-staged-route-fixture.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-contract-repair-route.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-input-budget-route.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-lifecycle-role-contract.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-public-cancellation-route.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-staged-catalog-contract.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-staged-catalog-route.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\helpers\\routine-year-route-check.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-evidence.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\ai\\ask-reasoning.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\api\\ask\\route.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\api\\internal\\owner-note-enrichment\\route.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\api\\vet-briefs\\draft\\route.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\ai\\ask-orchestrator.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\ai\\ask-command-router.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-launch-quality-history-prose.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-reliability-repair-1.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-shared-operation-contracts.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\concern-recovery-source.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\furvise-conversational-architecture-v1.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\pending-recovery-persistence.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\unified-ai-credits-care-state.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\ask-citation-proof.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\api\\ask\\citations\\route.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\v27-citation-endpoint.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\components\\ask-citations.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\ask\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\fixtures\\ask-first20-browser.js",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\ask-read-only\\publication.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\ask-read-only.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\v27-citation-proof.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\ask-read-only\\provider.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-execution-plan.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\finalize-ask-answer.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\run-intelligence.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\index.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\ask-answer-finalization.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-mandatory-history-publication.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\helpers\\calculation-public-fixture.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\calculation-capability.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\helpers\\calculation-fixture.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\brain-evidence-domain-composition.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\calculation-dag.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\calculation-operand-roles.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\calculation-provider-parity.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\furvise-temporal-selection.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\helpers\\canonical-calculation-retirement.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-benchmark-retrieval-regressions.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-completed-explicit-targets.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-completion-execution.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-deterministic-calculation-bindings.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-evidence-boundaries.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-final-scope-audit.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-read-recovery.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-repair-calculation-bindings.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\derived-authority-characterization.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\legacy-calculation-retirement.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\scalar-authority-characterization.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-count-algebra.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\measurement-disambiguation.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\provider-compound-schema.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\provider-enum-schema.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\live-matrix-offline-repair.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\history-limitation-receipt.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\profile-presentation-finalization.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\unseen-profile-publication.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\review-history-narrative.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\ask-certificate-bound-publication.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-history-pet-coverage-repair.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-independent-proof-isolation.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-labs-list.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-labs-recorded-time.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-selection-publication.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\certified-sufficient-result-set.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\factual-dispatch.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\helpers\\certified-history-read.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-context-reasoning.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-endpoint-cohort-projection.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\intelligence-phase-3d-governance-validation.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\helpers\\unsupported-stored-publication.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-endpoint-gap-projection.case.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-latest-saved-care-read.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-live-complex10-regressions.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-live20-regressions.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-readiness-1000.case.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-record-inventory.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\event-candidates-analysis.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ordinary-ask-authority-firewall.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\history-labs-transport-authority.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ordered-result-set.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\profile-field-authority.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\state-transition-job.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\calculation-labs.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\history-review-state.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\episode-contract.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-evidence-presentation.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\inspect-ask-publication.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\review-task-completion.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\v27-evidence-slot-correlation.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\v27-review-dispatch-accounting.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\v27-two-call-source-free.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\validation\\validate-answer.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\validation\\index.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\ask-answer-economy-v1-2.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-referent-product-leak-p0.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-next40-reliability.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\episode-history.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\types.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\api\\memories\\[id]\\route.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\api\\vet-briefs\\route.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\ai\\concern-engine.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\ai\\context-builder.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\retrieve-context.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\planning-context.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\helpers\\canonical-receipt.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\conversation-receipt-recovery.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\receipt-discovery-audit.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\ai\\response-planner.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\concern-chronology.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\components\\care-timeline.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\components\\care-log-workspace.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\dogs\\[id]\\care\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\pets\\[id]\\care\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\safety-state.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\product-safety.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\ask-product-persistence-integration.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\run-feature-intelligence.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\state-transition-turn.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\stored-emergency-publication.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\canonical-safety-parser.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\furvise-intelligence-engine.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-care-chronology.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-maple-consistency.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\finalize-ask-publication.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\memory-policy.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\persist-learnings.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\ask-memory-single-authority.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\owner-preference-mutation.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-memory-integrity-p0.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-turn-subject-resolution.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\persist-pending-suggestion.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\helpers\\canonical-suggestion.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\canonical-memory-suggestion.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\canonical-suggestion-continuation.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\generalized-replace-suggestion.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\helpers\\legacy-prose-boundary.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-first20-reliability.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-p0-auxiliary-regressions.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\effective-history-projection.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\semantic-events.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\ask-nutrition-multi-pet-regression.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\semantic-event-intelligence.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\supabase.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\api\\account\\detect-country\\route.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\api\\account\\product-country\\route.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\api\\care-entries\\route.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\api\\care-entries\\[id]\\route.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\api\\legacy-memories\\route.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\api\\product-feedback\\route.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\components\\account-utility.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\components\\app-header.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\components\\homepage-client.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\components\\legal-page-shell.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\contact\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\privacy\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\terms\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\release-notes\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\components\\signed-in-header.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\components\\authenticated-app-chrome.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\layout.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\components\\care-entry-form.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\components\\history-archive.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\history\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\dogs\\[id]\\edit\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\pets\\[id]\\edit\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\dogs\\[id]\\feedback\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\pets\\[id]\\feedback\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\dogs\\[id]\\memories\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\pets\\[id]\\memories\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\fixtures\\ask-memory-browser.js",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\forgot-password\\password-email-form.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\forgot-password\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\ask-read-only\\data.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\ask-safety-context.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\vet-brief\\urgency.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\vet-brief\\prepare.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\vet-brief\\report.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\components\\vet-brief-document.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\vet-brief\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\vet-briefs\\[id]\\print\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\vet-brief\\pdf.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\api\\vet-briefs\\[id]\\pdf\\route.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\vet-brief-lifetime-publication.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\vet-brief-multilingual-pdf.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\vet-brief-report.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\vet-visit-brief.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\check-vet-brief-multilingual-pdf.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\generate-vet-brief-samples.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\vet-brief\\publication-review.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\vet-brief-complex-contract.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\vet-brief-review-warnings.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\vet-brief-scoped-repair.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\vet-brief-closure.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-answer-economy-v1-1.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-emergency-preflight.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-pet-possessive-gerund-p0.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-read-only-route.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-safety-context.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-unseen-v1-0930.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\auth-session.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\account\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\login\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\membership\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\onboarding\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\pets\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\pets\\[id]\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\settings\\data-privacy\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\settings\\security\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\shop\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\today\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\care-entry-api-server.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\effective-history.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\effective-selection.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\independent-selections.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\lungs.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\lungs-needs.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\ordered-result-set.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\publication-authority.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\labs-list.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\muscle.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\calculation-result-selection.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\ordinary-history-publication.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\ask-structured-output-reliability.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\history-review-authority-outcomes.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\helpers\\publication-call-expectations.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-independent-selections.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-independent-stream-proof.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-publication-authority-diagnostics.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\history-publication-capability.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\legacy-read-selection.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\result-read-selection.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\supporting-context.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\v27-report-display-draft.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\v27-stored-report-presentation.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\publication-authority-diagnostics.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\profile-authority-characterization.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\read-selection.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\read-needs.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\read-ticket.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\attributed-report-context.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\attributed-report-context.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\history-retrieval.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\memory-organ.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\furvise-brain-memory-organ.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\episode-membership.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\recorded-inventory.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\recorded-provenance.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\furvise-effective-selection.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\helpers\\calculation-effective-store.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\history-subject-budget.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\calculate-plan.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\calculation-result-binding.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\calculation-capability.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\residual-requirements-contract.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\typed-premise-calculation.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\read-supporting-context.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\read-temporal.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\read-text.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\scoped-stored-report.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\scoped-report-publication.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\scoped-stored-report.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\v27-scoped-window-discovery.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\read-text-semantics.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\read-ticket-provider-schema.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\attributed-report-temporal-authority.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\read-ticket-provider-parity.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\result-selection.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\selection-publication.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\independent-selection-publication.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\typed-read-ticket.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\ask-provider-timestamp-boundary.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\canonical-subject-authority.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\evidence-read-ticket.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\ask-direct-evidence-ticket.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\furvise-read-obligations.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\legacy-read-selection.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\legacy-hint-migration.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\legacy-obligation-migration.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\legacy-selection-expressiveness.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\read-probes.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\ask-id-free-probes.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\result-set-publication.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\supporting-context.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\ask-anchor-repair.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-read-ticket-diagnostics.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\calendar-semantics-analysis.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\furvise-compositional-read.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\furvise-correction-provenance.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\furvise-multi-need-ticket.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-compositional-emission.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\labs-coverage-presentation.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-task-continuation.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\ask-task-continuation.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\furvise-brain-task-gate.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-multi-turn-intent-chaos.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\build-context.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\care-history-policy.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\semantic-event-persistence.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\today.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\pet-home-quality-pass.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\step-2-4-smarter-today.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\today-recent-stability.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\today-v4-final-polish.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\vet-brief\\builder.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\ask-grief-lifecycle-regression.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-answer-economy-v1.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-production-issues-v2.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\care-occurrence.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\calendar-policy-analysis.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\correction-relevance-read.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\canonical-dialogue-origin.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\source-semantics-diagnostic.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-known-failures-unit.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\correction-relevance.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\correction-relevance.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\helpers\\source-semantics-fixture.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\entity-matching.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\entities\\recent-subject-state.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\ai\\recovery-subject.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\explicit-owner-note.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\entities\\resolve-turn-subject.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\lifecycle-plan.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\application-actions\\planner.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\application-actions\\index.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\ask-model-intent-authority.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\field-mutation-turn.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\profile-mutation-job.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\lifecycle-turn.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\lifecycle-plan.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-action-capability-target-freshness-expiry.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-long-form-subject-contract-p0.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\canonical-pet-remove.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\canonical-remove.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\canonical-replace-fidelity.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\furvise-replace-ticket.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\generalized-replace.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\helpers\\canonical-deletion-fixtures.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\helpers\\canonical-remove.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\furvise-heart-receipt.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\helpers\\canonical-replace.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\replace-reference-context.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\pet-lifecycle-migration-v1.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\catalog-intent.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\ai\\usage-guard\\provider-call-budget.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\semantic-frame\\extract-turn-subject.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-full-wire-admission.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-wire-recursive-plan.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\stored-read-organ.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\hydrate-planning-catalog.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\helpers\\staged-operation-fixture.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\helpers\\staged-receipt-audit.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\stored-read-publication.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\helpers\\receipt-catalog-permit.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\replace-reference-context.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-interpretation-input-budget.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\helpers\\lifecycle-unit-authority.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\subject-authority.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\furvise-brain-subject-authority.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-interpretation-sources.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\helpers\\ask-wire-contract.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-mock-diagnostics.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\helpers\\ask-wire-recursive-plan.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\v27-repair-admission-window.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\conversation-read-anchor.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\ask-conversation-subject-continuity-p0.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\helpers\\precanonical-subject.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-subject-continuity.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-user-language-chaos.cases.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\furvise-brain-selected-pet-anchor.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\semantic-observability.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\ask-v2-canonical-claims.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\semantic-frame-reliability.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\semantic-frame-shadow.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\v2\\governance\\entities.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\v2\\governance\\govern-turn.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\ask-correction-projection.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-v2-persistence-hardening.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\semantic-frame-owner-preference-recovery.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\semantic-frame-recovery-integration.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\memory-sources.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\profile-field-authority.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\profile-field-labs.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\profile-presentation-limitation.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\pet-delete-client-state.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\pet-limit.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\components\\pet-limit-screen.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\pet-memory.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\care-log.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\pet-memory.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\pet-profile-api-server.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\api\\pets\\route.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\api\\pets\\[id]\\route.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\pet-profile-save-regression.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\pet-profile-file.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\pet-profile-v2-file.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\remembered-details.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\remembered-details-canonical.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\sign-out.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\update-password\\page.tsx",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\account-country.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\onboarding-current-food.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\onboarding-numeric-field.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\petwise-runtime.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\supabase-browser-client.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\ai\\pet-loss.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\ask-experience.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\ai\\turn-classifier.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\ai\\concern-event-order.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\classify-message.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\ask-experience-v2.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-question-variants.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-death-intent-regressions.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-urgent-presentation-priority.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-context-layout-authority.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\append-job.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\application-actions\\capabilities.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\canonical-suggestion-continuation.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\application-actions\\contracts.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\application-actions\\types.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\ai\\pending-lifecycle.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\application-actions\\policy.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\ai\\ask-internal-product-policy.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\ask-addressed-history.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\ask-conversation-server.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\api\\ask\\conversations\\route.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\api\\ask\\conversations\\[id]\\messages\\route.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\api\\ask\\conversations\\[id]\\route.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\action-organ.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\furvise-brain-action-organ.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-core-invariants.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\ask.mjs",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\ask-publication.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\ask-publication-contract.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\v27-publication-typography.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-completion-presentation.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-conversation-workspace.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-furvise.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-last-mile-integrity.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\canonical-conversation-delete-route.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\fixtures\\ask-conversation-browser.js",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\fixtures\\ask-presentation-browser.js",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\furvise-voice.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\write-contract.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\canonical-suggestion.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\receipt-completion.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\field-mutation-job.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "scripts\\audits\\canonical-suggestion-postgres.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\governed-transition.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\furvise-brain\\state-transition-job.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "scripts\\audits\\canonical-ask-sql-isolation-postgres.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\owner-note-request.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\canonical-ask-sql-isolation.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\helpers\\canonical-ask-postgres.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\canonical-pet-remove-postgres.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\canonical-remove-postgres.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\generalized-replace-postgres.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\source-semantics-postgres.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\source-semantics-upgrade-postgres.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\source-semantics-roundtrip.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\conversation-scope.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\feature-modes.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\governance\\authorize-actions.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\governance\\index.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\governance\\types.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\history-access.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\record-inventory.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\history-obligations.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\ask-fact-obligations.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-history-window-intersection.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\memory-freshness.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\intelligence-phase-3c-memory-freshness.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\memory-sources.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\memory-integrity.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\memory-suggestion.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\live-memory-management.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\cleanup-invalid-furvise-memories.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\memory-lifecycle\\filter-conversation.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\launch-account-memory-product-consistency.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\persistence-destination.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\persistence-partition.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\recovery-governance.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\response-rendering.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\schemas.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\source-note-recall.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\v2\\projections\\legacy-memory.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\vet-brief\\evidence.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\ask-private-review-audit.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\factual-dispatch.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\ask-structured-output-degradation.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\vet-brief-model-routing.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "scripts\\audits\\ask-continuation-interpreter.live.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\ai\\history-source-transport.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\ask-query-transport.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\correction-report.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\evidence-need-coverage.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "tests\\ask-evidence-needs.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-general-reliability-gates.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\exact-record-text.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\ordinary-history-boundary.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "scripts\\audits\\ask-architecture-contract-probe.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\selected-pet-read.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-binder-compilation-budget.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-direct-json-recovery.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-episode-repair.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-provider-root-envelope.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-read-ticket-hygiene.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-recursive-transport.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-wire-integration.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-working-memory-interpretation.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\v27-general-evidence-repair.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\v27-independent-branch-probe.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\v27-intent-grammar-boundaries.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\v27-source-plan-contract.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\v27-whole-read-ticket-repair.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\task-execution-contract.ts",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-wire-codec.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-wire-direct.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\ask-wire-recursive-prototype.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\public-v1-conversation-read.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "tests\\stored-read-provider-parity.test.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-wire-authority.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-wire-policy.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-wire-codec.mjs",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-wire-direct.mjs",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-wire-recursive.mjs",
+      "reachableIncludingTypes": false
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-wire-policy.generated.mjs",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-wire-provider-schema.ts",
+      "reachableIncludingTypes": true
+    },
+    {
+      "file": "app\\lib\\intelligence\\ask-wire-schema.mjs",
+      "reachableIncludingTypes": true
+    }
+  ]
+}

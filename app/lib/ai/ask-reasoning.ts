@@ -1,3 +1,4 @@
+import { carryScopedReportSidecar } from "../intelligence/scoped-stored-report.ts";
 import { withAskProviderSchemaDiagnostic } from "./ask-provider-schema-diagnostic.ts";
 import { carryAttributedReports } from "../intelligence/attributed-report-context.ts";
 import {carryCalculatePlan,requiresCalculateBinding} from "../furvise-brain/calculate-plan.ts";
@@ -215,6 +216,9 @@ type BuildContextInput = {
 export type GenerateAskReasoningInput = BuildContextInput & {
   apiKey?: string;
   client?: AskReasoningOpenAiClient;
+  /** Source-free first-call draft: unverified until the independent task review. */
+  provisionalAnswer?: string | null;
+  conversationOnly?: boolean;
   locale: string;
   onProviderEvent?: (event: AskProviderEvent) => void;
   semanticFrameRecovery?: Omit<OwnerPreferenceRecoveryContext, "sourceMessage" | "safetyLevel">;
@@ -371,6 +375,7 @@ const unifiedInstructions = [
   "Adapt to the conversational act, not only the pet topic. For emotional disclosure without a request for practical steps, acknowledge the feeling briefly and invite the owner to talk with at most one gentle question. Do not automatically turn vulnerability into a checklist or productivity plan. For worry about being a good owner or missing something, with no specific current symptom or request for steps, use responseMode=conversational and answerSections=[]; offer emotional support instead of an unsolicited monitoring list. Do not suggest one-off symptoms can be ignored. When practical help is requested, give useful steps. Follow requested brevity and formatting when compatible with safety and source fidelity.",
   "For a requested response language, write the entire answer and section headings in that language, not an English explanation with one translated sentence. For missed medication doses without the medicine and its instructions, do not give a generic skip/resume schedule or offer to determine a dose; advise checking the prescription missed-dose instructions or contacting the veterinarian, and do not double a dose without those instructions. The direct answer owns the core interpretation, the most important recommendation, and a brief emotional acknowledgement when useful. Every answerSection must add a new decision, action, explanation, or safety signal that is absent from the direct answer. Maximum section and bullet budgets are ceilings, not targets. Never restate the direct answer in a section.",
   "Put prose only in answer. Do not embed hyphen bullets, dot bullets, or numbered-list markers inside answer text. Put genuine list items only in answerSections.items; otherwise write one natural sentence.",
+  "Use a warm, natural tone suited to the question. Avoid em dashes in your own wording. Preserve any exact quotation from the user or saved source without changing its punctuation.",
   "Write like a knowledgeable person helping another person, not like a report generator. Prefer direct everyday wording, short varied sentences, and natural contractions when they fit. Do not narrate internal reasoning, retrieval mechanics, validation, schemas, evidence contracts, profile defaults, source plumbing, or implementation details unless the user explicitly asks about them.",
   "Do not use em dashes in visible answers, headings, bullets, safety notes, or follow-ups. Use a period, comma, colon, or parentheses instead. Avoid generic AI-style headings such as Summary, Key takeaways, What this means, Important, or Bottom line unless the user explicitly asks for that structure.",
   "When several pets share the same finding, say the shared finding once and keep each pet line to the facts that differ. Do not repeat the same disclaimer or label for every pet. Prefer names followed by a colon for compact multi-pet answers.",
@@ -449,6 +454,7 @@ export function buildAskContext(input: BuildContextInput, applyPromptBudget = tr
     .filter(record => !["remembered_detail","operation_receipt","active_concern","active_episode","resolved_episode","product_context"].includes(record.sourceType));
   const sourceEvidence = input.evidenceContract || evidenceForRecords([], input.question, input.profiles.map(profile => profile.id));
   const evidence = structuredClone(storedFacts ? sourceEvidence : languageOnlyEvidence(sourceEvidence));
+  if (storedFacts) carryScopedReportSidecar(sourceEvidence.history, evidence.history);
   const sourceCalculation=sourceEvidence.interpretation?.request?.calculatePlan;
   if(sourceCalculation&&requiresCalculateBinding(sourceCalculation)&&evidence.interpretation?.request?.calculatePlan)
     carryCalculatePlan(sourceCalculation,evidence.interpretation.request.calculatePlan,evidence.interpretation.request.readTicket!);
@@ -803,6 +809,32 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     };
   }
   if (dependsOnStoredState(publicationEvidence)) throw Error("STORED_STATE_CANNOT_ENTER_LANGUAGE_GENERATION");
+  // Pure general conversation: interpretation and proposal share the first
+  // provider response. The second physical call is reserved for independent
+  // whole-task review, not another generation or a speculative repair.
+  if (input.conversationOnly) {
+    if (!input.provisionalAnswer?.trim() || input.provisionalAnswer.length > 1800
+      || (publicationEvidence.scope.authorizedPetIds?.length || 0) !== 0
+      || publicationEvidence.history) throw Error("ASK_CONVERSATION_DRAFT_UNAVAILABLE");
+    return {
+      answer: { title: "Furvise", summary: input.provisionalAnswer.trim(), sections: [], safetyNote: null },
+      evidenceContract: publicationEvidence, model: models.primary,
+      userIntent: "general conversation", relevantContextIds: [], referencedRecords: [],
+      safetyLevel: "normal", shoppingSuppressed: true, suggestedFollowUps: [],
+      applicationActions: [], proposedHistoryUpdate: emptyHistoryUpdate(),
+      answerDepth: planAskAnswerDepth({ message: input.question, minimumSafetyLevel: "normal",
+        responseMode: "conversational", recentConversation: input.conversationTurns }),
+      responseMode: "conversational",
+      messageUnderstanding: { ...defaultMessageUnderstanding(input.question),
+        primaryIntent: "question", userIsAskingQuestion: true },
+      intelligenceSafety: { ...defaultIntelligenceSafety("normal"), shoppingSuppressed: true },
+      learnings: [], careActions: [], semanticEvents: [],
+      semanticFrame: emptyProposedSemanticFrame(), semanticFrameValid: true,
+      semanticFrameRecovery: { applied: false, reason: "NOT_ATTEMPTED_FRAME_VALID", validationReason: null },
+      intelligenceMetadata: { confidence: "medium", usedPetContext: false,
+        usedCareHistory: false, usedMemories: false },
+    };
+  }
   const context = buildAskContext(input, true);
   const request = buildProviderRequest(context.promptContext);
   const parseOutput = (rawText: string) => {

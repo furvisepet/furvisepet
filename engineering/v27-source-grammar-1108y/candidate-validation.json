@@ -1,0 +1,53 @@
+{
+  "format": "ask-semantic-slots.v7",
+  "base": "0f5a8e410d97d6cf7efd44a97510998e9853e230",
+  "candidateParent": "199e518051b55f9f4fccdf6549b434d337dc1a20",
+  "status": "PREVIEW_CANDIDATE_LIVE_ACCEPTANCE_PENDING",
+  "localGates": [
+    {
+      "test": "source-domain",
+      "exit": 0
+    },
+    {
+      "test": "five-pet-admission",
+      "exit": 0
+    },
+    {
+      "test": "whole-ticket",
+      "exit": 0
+    },
+    {
+      "test": "typecheck",
+      "exit": 0
+    },
+    {
+      "test": "lint",
+      "exit": 0
+    },
+    {
+      "test": "security",
+      "exit": 0
+    },
+    {
+      "test": "build",
+      "exit": 0
+    }
+  ],
+  "additional": {
+    "currentV7NearLimitRepair": "PASS; exactly 2 mocked physical calls, unchanged frozen USER window",
+    "historicalCodec": "262 original vectors exact; original corpus SHA-256 unchanged",
+    "sourceDomainRegression": "RED general+ReadTicket accepted before fix; GREEN source grammar and independent Binder after fix",
+    "upstream500": "Distinct ASK_INTERPRETATION_TRANSPORT, exactly 2 physical attempts, no third call",
+    "windows": "npm test launcher plus child bootstrap uses no-opt workaround; optimizing native engine defect not claimed fixed"
+  },
+  "fullCI": {
+    "revision": "199e518051b55f9f4fccdf6549b434d337dc1a20",
+    "run": "42454737364",
+    "tests": 5939,
+    "pass": 5695,
+    "fail": 243,
+    "note": "Earlier revision. Full CI on new candidate pending; failures retained for triage."
+  },
+  "productionChanged": false,
+  "canonicalForeignWorkspaceModified": false
+}

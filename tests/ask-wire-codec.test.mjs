@@ -1,3 +1,4 @@
+import {historicalWireSchema} from "./helpers/historical-wire-schema.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -16,7 +17,7 @@ const sha=s=>createHash("sha256").update(s,"utf8").digest("hex");
 const plans=new Map();
 function plan(name){
  if(!plans.has(name)){
-  const schema=askRequestProviderSchema(proposedSemanticFrameJsonSchema,corpus.contexts[name]);
+  const schema=historicalWireSchema(name);
   plans.set(name,{schema,...createAskWirePlan(schema,ASK_REQUEST_INSTRUCTIONS)});
  }
  return plans.get(name);

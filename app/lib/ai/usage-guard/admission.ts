@@ -177,14 +177,10 @@ export class AiOperationAdmission {
       || purpose === "history_review" && (this.lastPurpose === "history_review" || this.historyRepairStarted))) {
       throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "provider_phase_out_of_order");
     }
-    // Structural repair does not replace semantic review. Each is single-use;
-    // reserve the final independent review before admitting an answer repair.
-    const structuralRepairCalls = Number(this.interpretationRepaired || this.generationRepaired);
-    const maximumCalls = this.feature !== "ask" ? this.policy.maximumProviderCalls
-      : purpose === "history_rereview" ? 5 + structuralRepairCalls
-      : purpose === "history_repair" ? 4 + structuralRepairCalls
-      : purpose === "history_review" ? 3 + structuralRepairCalls
-      : purpose === "generation_repair" ? 3 : 2 + Number(this.interpretationRepaired);
+    // Every Ask provider phase shares a single hard operation ceiling.
+    // A missing review must remain a limited or failed result, never an
+    // implicit approval of unreviewed factual output.
+    const maximumCalls = this.feature === "ask" ? 2 : this.policy.maximumProviderCalls;
     if (this.callNumber >= maximumCalls) throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "provider_call_budget_exhausted");
     const reservedCost = estimateProviderCostMicrodollars(model, { inputTokens: this.policy.maxInputTokens, outputTokens: this.policy.maxOutputTokens });
     if (reservedCost === null) throw new AiAdmissionError("AI_TEMPORARILY_UNAVAILABLE", "unknown_model_pricing");

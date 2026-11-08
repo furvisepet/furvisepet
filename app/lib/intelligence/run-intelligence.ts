@@ -1,3 +1,4 @@
+import { confirmScopedReportTurn } from "./scoped-stored-report.ts";
 import { readHistoryReviewAudit, type HistoryReviewAudit } from "./history-review-state.ts";
 import { enforceAskHistoryAccess } from "./history-access.ts";
 import { safetyTemporalScope } from "../ai/safety-temporal-scope.ts";
@@ -89,8 +90,12 @@ export async function runFurviseIntelligence({
   const separateDialogue = Boolean(context.askHistory || context.askInterpretation?.conversationOnly);
   const safety = resolveSafetyState(context);
   const deterministicUnderstanding = classifyMessageDeterministically(context.currentMessage, context.activeConcerns.length > 0);
+  const finalEvidence = evidenceContract || createAskEvidenceContract(context, readPetIds);
+  confirmScopedReportTurn(finalEvidence.history, sourceMessageId);
   const reasoning = await generateContextAwareAskResponse({
-    evidenceContract: evidenceContract || createAskEvidenceContract(context, readPetIds),
+    evidenceContract: finalEvidence,
+    conversationOnly: context.askInterpretation?.conversationOnly === true,
+    provisionalAnswer: context.askInterpretation?.conversationOnly ? context.askInterpretation.provisionalAnswer : undefined,
     careEntries: context.askHistory?.entries || context.selectedCareEntries,
     concerns: context.activeConcerns,
     dialogueContext: separateDialogue ? context.conversationTurns.filter(turn => turn.id !== sourceMessageId).map(turn => ({ id: turn.id, role: turn.role, text: turn.text, createdAt: turn.createdAt })) : undefined,

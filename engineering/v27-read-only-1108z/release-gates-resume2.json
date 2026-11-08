@@ -1,0 +1,74 @@
+{
+  "basedOn": "48c83346f69cfaddb73da1e2ebcfb577479f42fe",
+  "focused": 160,
+  "security": 169,
+  "typecheck": "PASS",
+  "lint": {
+    "errors": 0,
+    "warnings": 123
+  },
+  "productionBuild": "PASS",
+  "fullCI": "FAILED_on_48c83346_194_fail_1_cancelled",
+  "localGates": [
+    {
+      "name": "focused",
+      "exitCode": 0,
+      "log": "read-only-denial-focused.log"
+    },
+    {
+      "name": "security",
+      "exitCode": 0,
+      "log": "read-only-denial-security.log"
+    },
+    {
+      "name": "typecheck",
+      "exitCode": 0,
+      "log": "read-only-denial-typecheck.log"
+    },
+    {
+      "name": "lint",
+      "exitCode": 0,
+      "log": "read-only-denial-lint.log"
+    },
+    {
+      "name": "build",
+      "exitCode": 0,
+      "log": "read-only-denial-build.log"
+    }
+  ],
+  "focusedCommand": {
+    "exitCode": 0,
+    "log": "read-only-resume2-expanded-focused.log",
+    "files": [
+      "tests/test-bootstrap-loader.test.mjs",
+      "tests/ask-read-only.test.mjs",
+      "tests/ask-read-only-route.test.mjs",
+      "tests/ask-read-only-actions.test.mjs",
+      "tests/ask-emergency-preflight.test.mjs",
+      "tests/v27-citation-proof.test.mjs",
+      "tests/v27-citation-endpoint.test.mjs",
+      "tests/ask-sdk-physical-attempts.test.mjs",
+      "tests/v27-ask-two-call-limit.test.mjs",
+      "tests/ask-credit-settlement.test.mjs",
+      "tests/ask-credit-settlement-integrity.test.mjs",
+      "tests/ask-conversation-concurrency-acceptance.test.mjs",
+      "tests/ask-admission-settlement.test.mjs",
+      "tests/ask-restored-retry.test.mjs",
+      "tests/furvise-brain-durable-answer-finalization.test.mjs"
+    ]
+  },
+  "workingTreeFileSha256": {
+    "app/api/ask/actions/[messageId]/route.ts": "5130078cb6ca25133d184df81aac8798292c5b55200e5eca5ec41042d910f7fd",
+    "app/api/ask/suggestions/[id]/route.ts": "9e100018200b0c06f49f8b3a1f6812fda2ac73181513e0dd809f242f62834f07",
+    "app/api/ask/citations/route.ts": "894327c6f4b229aab79ff4783358b60547e76d617b12a617b6a4937cc27903fb",
+    "app/lib/ask-read-only/core.mjs": "e162c17e1adaf486bfb17e10856d444ac78c1f8c20c8a44b6892b90465966002",
+    "app/lib/security/request.ts": "78958296cc8e4f753c441416a7aae059e638c13262276ebbd2016a2488b0c9b1",
+    "package.json": "6ae8fd69382d22266ed4866176d3226ff975ce672be0c48279877cd3515840ec"
+  },
+  "live": "PENDING_NEW_CANDIDATE",
+  "historicalIncorrectCreditCases": [
+    "485714ba-391d-4c52-9401-3939eb03746d",
+    "4e2e41ef-d35d-41f8-9b8d-a912bc251354"
+  ],
+  "historicalCompensationApplied": false
+}

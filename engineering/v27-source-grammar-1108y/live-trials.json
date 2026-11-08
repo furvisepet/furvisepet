@@ -1,0 +1,27 @@
+{
+  "trials": [
+    {
+      "sha": "d2ab13c4aeace24036f063181f4d747f1cea67af",
+      "deployment": "dpl_EXnrHK7Yyiupwd1jf3PJJXqE2QAo",
+      "requestId": "52743937-92a7-4ffe-b5a1-17bb7892d360",
+      "outcome": "NO_GO_BEFORE_RETRIEVAL",
+      "error": "ASK_REQUEST_CONTRACT_READ_TICKET_REQUIRED",
+      "providerStatus": "completed",
+      "physicalCalls": 1,
+      "inputTokens": 13060,
+      "outputTokens": 280,
+      "reconciledCostUsd": 0.011055,
+      "userCredit": "released",
+      "shape": {
+        "mode": "read",
+        "evidenceBasis": "saved_history",
+        "readTicket": null,
+        "taskIntent": "save",
+        "mutationIntent": "correct_record"
+      },
+      "visibleAnswer": "I couldn't finish that reliably",
+      "upstream500": false
+    }
+  ],
+  "productionChanged": false
+}

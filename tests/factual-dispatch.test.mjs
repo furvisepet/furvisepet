@@ -6,7 +6,7 @@ const {generateContextAwareAskResponse,buildAskContext,buildAskProviderRequest}=
 const {dependsOnStoredState,FACTUAL_UNAVAILABLE,FACTUAL_LIMITATION,factualLimitationFailure}=await import("../app/lib/intelligence/factual-dispatch.ts");
 const {reviewHistoricalAnswer}=await import("../app/lib/intelligence/review-history-narrative.ts");
 const {validateGeneratedAnswer}=await import("../app/lib/intelligence/validation/validate-answer.ts");
-const {reviewTaskCompletion}=await import("../app/lib/intelligence/review-task-completion.ts");
+const {reviewTaskCompletion,conversationReviewProvenance}=await import("../app/lib/intelligence/review-task-completion.ts");
 const {evidenceSource}=await import("../app/lib/intelligence/ask-evidence.ts");
 let calls=0;
 const noProvider={responses:{create:async()=>{calls++;throw Error("FACTUAL_PROVIDER_FORBIDDEN");}}};
@@ -120,4 +120,42 @@ test("ordinary Ask cannot enter the separate Vet Brief legacy retrieval branch",
  const db={from(){databaseCalls++;throw Error("DATABASE_FORBIDDEN");}};
  await assert.rejects(retrieveAskHistory({feature:"ask",currentMessage:"Retrieve prior notes."},db,[pet.id],{plan:{}}),/vet_brief_read_scope_required/);
  assert.equal(databaseCalls,0);
+});
+
+test("conversation review provenance is scoped to source-free turns",()=>{
+ const f=fixture({mode:"conversation",evidenceBasis:"general"});
+ f.evidence.interpretation.conversationOnly=true;
+ assert.deepEqual(conversationReviewProvenance(f.evidence),{savedRecordRetrieval:"not_performed_for_this_turn"});
+ f.evidence.interpretation.request.evidenceBasis="saved_history";
+ assert.equal(conversationReviewProvenance(f.evidence),undefined);
+ f.evidence.interpretation.request.evidenceBasis="general";
+ f.evidence.interpretation.conversationOnly=false;
+ assert.equal(conversationReviewProvenance(f.evidence),undefined);
+});
+
+test("conversation review receives provenance and repairs a rejected retrieval claim",async()=>{
+ const question="Explain how saved notes are protected.";
+ const f=fixture({mode:"conversation",evidenceBasis:"general",outputFormat:"prose"},question);
+ f.evidence.interpretation.conversationOnly=true;
+ f.evidence.interpretation.petIds=[];
+ f.input.client={responses:{create:async()=>({output_text:JSON.stringify({answer:"I checked your saved history. Access is restricted.",answerSections:[],historyNarrative:null,relevantContextIds:[],safetyLevel:"normal",responseMode:"conversational",semanticEvents:[]})})}};
+ const result=await generateContextAwareAskResponse(f.input);
+ f.context.conversationTurns=[];
+ const validate=x=>validateGeneratedAnswer(x,f.context,"routine",[]);
+ const validation=validate(result);assert.equal(validation.valid,true);
+ const requests=[];
+ const checks=good=>({evidenceSupport:{status:good?"passed":"failed",reason:good?"No unsupported retrieval.":"No retrieval was performed."},subjectDateCorrectness:{status:"not_applicable",reason:"No subject or date claim."},calculationCorrectness:{status:"not_applicable",reason:"No calculation."}});
+ const review=good=>({obligations:[{index:0,status:"answered",answerIndexes:[0],actionIndexes:[]}],reason:good?null:"Unperformed retrieval claim.",verification:checks(good)});
+ const client={responses:{create:async request=>{
+  requests.push(request);const payload=JSON.parse(request.input);
+  assert.deepEqual(payload.executionProvenance,{savedRecordRetrieval:"not_performed_for_this_turn"});
+  if(requests.length===1)return {output_text:JSON.stringify(review(false))};
+  if(requests.length===2)return {output_text:JSON.stringify({answer:"Access to saved notes is restricted.",navigation:null})};
+  if(requests.length===3)return {output_text:JSON.stringify(review(true))};
+  throw Error("unexpected call");
+ }}};
+ const output=await reviewTaskCompletion({validation,context:f.context,requestId:"offline-provenance-review",validate,client});
+ assert.equal(requests.length,3);assert.match(requests[0].instructions,/not_performed_for_this_turn/);
+ assert.equal(output.response.answer.summary,"Access to saved notes is restricted.");
+ assert.equal(output.valid,true);assert.doesNotMatch(output.response.answer.summary,/checked your saved history/i);
 });

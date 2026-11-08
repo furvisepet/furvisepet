@@ -5,21 +5,23 @@ import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 const root=process.env.FURVISE_TEST_ROOT||process.cwd();
 const load=p=>import(pathToFileURL(path.join(root,p)).href);
-const {generateContextAwareAskResponse,generateStructuredFeatureResponse,getAskProviderCooldown}=await load('app/lib/ai/ask-reasoning.ts');
+const {generateStructuredFeatureResponse,getAskProviderCooldown}=await load('app/lib/ai/ask-reasoning.ts');
+const {readOnlyProvider}=await load('app/lib/ask-read-only/provider.ts');
+const {readOnlyToolsForPets,readOnlyAnswerSchemaForSources}=await load('app/lib/ask-read-only/core.mjs');
 const {admitAiOperation}=await load('app/lib/ai/usage-guard/admission.ts');
 const {MemoryAiGuardTestStore}=await load('app/lib/ai/usage-guard/memory-test-store.ts');
 const {estimateProviderCostMicrodollars}=await load('app/lib/ai/usage-guard/cost-estimator.ts');
 const model='gpt-5.4-mini',day='2038-06-17';
 const env={NODE_ENV:'test',FURVISE_AI_DAILY_CALL_LIMIT:'20',FURVISE_AI_DAILY_COST_LIMIT_USD:'1',FURVISE_RATE_LIMIT_HASH_SECRET:'offline-retry-identity-fixture-000000'};
 const usage={input_tokens:23,output_tokens:11};
-const general={answer:'Brush gently in short sessions and choose a brush suited to the coat.',answerSections:[],safetyLevel:'normal',responseMode:'practical_guidance',userIntent:'general coat care',relevantContextIds:[],historyNarrative:null,applicationActions:[],semanticEvents:[],messageUnderstanding:{primaryIntent:'question',secondaryIntents:[],userIsAskingQuestion:true,userIsProvidingUpdate:false,userIsCorrectingPriorInformation:false,userIsResolvingConcern:false,userIsProvidingPreference:false,recoveryStatus:'none',recoveryConfidence:1,recoveryEvidence:{outcome:'none',surfaceText:null,targetConcept:null,confidence:1},userIsMakingSmallTalk:false,requestedTopic:'coat care',referencedPet:null,safetyRelevance:'none',needsClarification:false,canAnswerDirectly:true}};
+
 const response=value=>new Response(JSON.stringify({id:'offline-response',object:'response',status:'completed',output:[{type:'message',role:'assistant',status:'completed',content:[{type:'output_text',text:JSON.stringify(value),annotations:[]}]}],usage}),{status:200,headers:{'content-type':'application/json'}});
-for(const fn of ['context','structured'])for(const failure of ['transport',408,429,500,503,'success'])test(`${fn}: exact SDK physical fetch ${failure}`,async t=>{
+for(const fn of ['read_selection','read_answer','structured'])for(const failure of ['transport',408,429,500,503,'success'])test(`${fn}: exact SDK physical fetch ${failure}`,async t=>{
  assert.equal(JSON.parse(readFileSync(path.join(root,'node_modules/openai/package.json'),'utf8')).version,'6.44.0');
  assert.equal(JSON.parse(readFileSync(path.join(root,'package-lock.json'),'utf8')).packages['node_modules/openai'].version,'6.44.0');
  t.mock.method(console,'info',()=>{});t.mock.method(console,'warn',()=>{});
- const saved={OPENAI_ASK_PRIMARY_MODEL:process.env.OPENAI_ASK_PRIMARY_MODEL,OPENAI_ASK_FALLBACK_MODEL:process.env.OPENAI_ASK_FALLBACK_MODEL};
- process.env.OPENAI_ASK_PRIMARY_MODEL=model;process.env.OPENAI_ASK_FALLBACK_MODEL='';
+ const saved={OPENAI_API_KEY:process.env.OPENAI_API_KEY,OPENAI_ASK_PRIMARY_MODEL:process.env.OPENAI_ASK_PRIMARY_MODEL,OPENAI_ASK_FALLBACK_MODEL:process.env.OPENAI_ASK_FALLBACK_MODEL};
+ process.env.OPENAI_API_KEY='offline-physical-test-key';process.env.OPENAI_ASK_PRIMARY_MODEL=model;process.env.OPENAI_ASK_FALLBACK_MODEL='';
  t.after(()=>{for(const [k,v]of Object.entries(saved)){if(v===undefined)delete process.env[k];else process.env[k]=v;}});
  getAskProviderCooldown(model,Infinity);
  const physical=[],events=[],accounting=[];let admitted;
@@ -35,9 +37,13 @@ for(const fn of ['context','structured'])for(const failure of ['transport',408,4
   assert.equal(accounting.filter(x=>x.method==='markCallStarted').length,1);
   if(failure==='transport')throw new TypeError('offline accepted request: connection lost');
   if(failure!=='success')return new Response(JSON.stringify({error:{message:'offline injected status',type:failure===429?'requests':'server_error',code:failure===429?'rate_limit_exceeded':'offline_status'}}),{status:failure,headers:{'content-type':'application/json','retry-after-ms':'1'}});
-  return response(fn==='context'?general:{value:'ok'});
+  return response(fn==='structured'?{value:'ok'}:fn==='read_selection'?'A general explanation.':
+   {answer:'A general explanation.',quotes:[],sources:[],calculations:[],replyType:'answer'});
  });
- const call=()=>fn==='context'?generateContextAwareAskResponse({apiKey:'offline-not-a-credential',profiles:[],careEntries:[],memories:[],productFeedback:[],conversationTurns:[],recentUpdates:[],question:'How can routine coat brushing be made comfortable?',requestId:`retry-${fn}-${failure}`,onProviderEvent:e=>events.push(e)}):generateStructuredFeatureResponse({apiKey:'offline-not-a-credential',input:{question:'Synthetic structured response'},instructions:'Return the structured response.',schemaName:'retry_contract',schema:{type:'object',properties:{value:{type:'string'}},required:['value'],additionalProperties:false},parse:v=>v?.value==='ok'?v:null,onProviderEvent:e=>events.push(e)});
+ const call=()=>fn==='structured'?generateStructuredFeatureResponse({apiKey:'offline-not-a-credential',input:{question:'Synthetic structured response'},instructions:'Return the structured response.',schemaName:'retry_contract',schema:{type:'object',properties:{value:{type:'string'}},required:['value'],additionalProperties:false},parse:v=>v?.value==='ok'?v:null,onProviderEvent:e=>events.push(e)}):readOnlyProvider(model,event=>events.push(event))(
+   fn==='read_selection'?{instructions:'Explain the supplied question or select an authorized read.',context:{question:'An offline question.'},tools:readOnlyToolsForPets([{handle:'p1'}])}:
+   {instructions:'Review the general draft.',context:{question:'An offline question.'},draft:'A general explanation.',TOOL_DATA:[],schema:readOnlyAnswerSchemaForSources([])},
+   fn==='read_selection'?'read_selection':'read_answer');
  let result,error;
  try{result=await admission.run(call);}catch(e){error=e;}
  if(error)await admission.fail(error);else await admission.complete();

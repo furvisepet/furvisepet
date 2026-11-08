@@ -60,8 +60,8 @@ test("emergency guidance is calm, action-first, and makes no persistence claim",
 
 test("provider outage cannot intercept a high-confidence emergency", () => {
   const preflight = route.indexOf("const immediateEmergency = currentLoss === \"confirmed_current\" ? null : detectImmediateAskEmergency(question)");
-  const providerConfiguration = route.indexOf("const model = getAskModelConfiguration().primary", preflight);
-  const semanticExtraction = route.indexOf("await interpretAskQuestion", preflight);
+  const providerConfiguration = route.indexOf("const model=getAskModelConfiguration().primary", preflight);
+  const semanticExtraction = route.indexOf("runReadOnlyAsk(", preflight);
   assert.ok(preflight > -1 && preflight < providerConfiguration && preflight < semanticExtraction);
   assert.match(route.slice(preflight, providerConfiguration), /return standaloneEmergencyResponse/);
 });
@@ -88,7 +88,7 @@ test("malformed or unavailable provider output cannot intercept emergency guidan
   const preflight = route.indexOf("const immediateEmergency = currentLoss === \"confirmed_current\" ? null : detectImmediateAskEmergency(question)");
   const reservation = route.indexOf("await reserveAiCredit", preflight);
   const persistence = route.indexOf("await ensureConversationAndUserMessage", preflight);
-  const semanticExtraction = route.indexOf("await interpretAskQuestion", preflight);
+  const semanticExtraction = route.indexOf("runReadOnlyAsk(", preflight);
   assert.ok(preflight > -1 && preflight < persistence && preflight < reservation && preflight < semanticExtraction);
   const responseFunction = routeFunctionSource("standaloneEmergencyResponse");
   assert.match(responseFunction, /creditsUsed: 0/);
@@ -118,7 +118,7 @@ test("zero remaining does not intercept client submission before the authoritati
 
   const preflight = route.indexOf("const immediateEmergency = currentLoss === \"confirmed_current\" ? null : detectImmediateAskEmergency(question)");
   const entitlementLoad = route.indexOf("await loadAskEntitlementContext(authentication)", preflight);
-  const quotaGate = route.indexOf("if (!usage.allowed) throw new AiCreditLimitError()", entitlementLoad);
+  const quotaGate = route.indexOf("if(!usage.allowed)throw new AiCreditLimitError()", entitlementLoad);
   assert.ok(preflight > -1 && preflight < entitlementLoad && entitlementLoad < quotaGate);
   const emergency = detectImmediateAskEmergency("luna cant breathe");
   assert.ok(emergency);
@@ -128,7 +128,7 @@ test("zero remaining does not intercept client submission before the authoritati
 test("zero remaining normal questions remain blocked by the server quota gate", () => {
   assert.equal(detectImmediateAskEmergency("Should I change Luna's food?"), null);
   const preflight = route.indexOf("const immediateEmergency = currentLoss === \"confirmed_current\" ? null : detectImmediateAskEmergency(question)");
-  const quotaGate = route.indexOf("if (!usage.allowed) throw new AiCreditLimitError()", preflight);
+  const quotaGate = route.indexOf("if(!usage.allowed)throw new AiCreditLimitError()", preflight);
   const quotaResponse = route.indexOf('askFailure("AI_CREDITS_EXHAUSTED"', quotaGate);
   assert.ok(preflight > -1 && preflight < quotaGate && quotaGate < quotaResponse);
   assert.match(askPage, /<AskFailureState code=\{failedRequest\.code\}/);
@@ -142,9 +142,9 @@ test("the Ask request contract has no client-controlled emergency override", () 
     petId: "123e4567-e89b-42d3-a456-426614174001",
     previousResponse: null,
     question: "luna cant breathe",
-    requestId: "123e4567-e89b-42d3-a456-426614174000",
+    logicalTurnId: "123e4567-e89b-42d3-a456-426614174000",
   });
-  assert.deepEqual(Object.keys(payload).sort(), [...ASK_REQUEST_KEYS].filter(key => key !== "timeZone" && key !== "mode").sort());
+  assert.deepEqual(Object.keys(payload).sort(), [...ASK_REQUEST_KEYS].filter(key => key !== "timeZone" && key !== "mode" && key !== "confirmedTemporalScope").sort());
   assert.equal(Object.hasOwn(payload, "emergency"), false);
   assert.equal(Object.hasOwn(payload, "emergencyBypass"), false);
 });

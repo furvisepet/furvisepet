@@ -1,0 +1,74 @@
+{
+  "parentSha": "a4fb2aff2fc080c3e32116252d0e5087dca9df67",
+  "focused": {
+    "tests": 300,
+    "pass": 300,
+    "fail": 0
+  },
+  "security": {
+    "tests": 188,
+    "pass": 188,
+    "fail": 0
+  },
+  "gates": [
+    {
+      "gate": "focused",
+      "exitCode": 0,
+      "sha256": "59b3885fb6a6cb1b526c078e9355cbf2a702c2589f4904e8e2e884575f91407d"
+    },
+    {
+      "gate": "typecheck",
+      "exitCode": 0,
+      "sha256": "0b8b577c04fcd7c7dd407f823698ac5d24821eda7897651ae32fab50f21d5b4f"
+    },
+    {
+      "gate": "security",
+      "exitCode": 0,
+      "sha256": "b86b9720ab7bb3c2c8d4a285e92d87bd9192f5fa8c58647769c6a45fce34aecd"
+    },
+    {
+      "gate": "lint",
+      "exitCode": 0,
+      "sha256": "bd51de6d076025f8d0b0e2fa766cda3cb5193b2a094e1362ac904fab658467ff"
+    },
+    {
+      "gate": "audit",
+      "exitCode": 0,
+      "sha256": "6d8c5c8f3d7684adb070417bd608d01ae90aa3dc26a65af03ffda4955f38d9a3"
+    },
+    {
+      "gate": "build",
+      "exitCode": 0,
+      "sha256": "4d939a9f129037034b6cd2994a0ef3d846ca5855f685e0cfcb22515eb82feff0"
+    }
+  ],
+  "parentLive": {
+    "file": "live-a4fb2aff.json",
+    "logicalTurns": 12,
+    "physicalCalls": 24,
+    "costMicrodollars": 32876
+  },
+  "retryRecovery": {
+    "before": "3 incorrect recovery codes reproduced",
+    "after": "16 failure/UI cases pass; 0-call retry retained"
+  },
+  "contractMigration": {
+    "before": {
+      "tests": 38,
+      "pass": 31,
+      "fail": 7
+    },
+    "after": {
+      "tests": 38,
+      "pass": 38,
+      "fail": 0
+    },
+    "deletedTests": 0
+  },
+  "newCandidateLive": "PENDING",
+  "fullCI": "PENDING_new_revision",
+  "productionChanged": false,
+  "independentReview": "NOT_APPROVED",
+  "anonymousApplicationPostLive": "a4_PASS_3_cases_401",
+  "authenticatedCrossOwnerHttp": "NOT_QUALIFIED"
+}

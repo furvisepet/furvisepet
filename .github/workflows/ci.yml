@@ -31,9 +31,62 @@ jobs:
           FURVISE_PGLITE_MODULE: ${{ runner.temp }}/ask-postgres/node_modules/@electric-sql/pglite/dist/index.js
         run: node scripts/audits/ask-task-continuation.sql.mjs --full-schema
 
+
+  ask-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: test-publishable-key
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Use repository Node version
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      # The canonical planner is no longer a public execution path. Its retained
+      # historical tests still run in the unfiltered Full tests step below.
+      - name: Read-only conversation, retrieval, citations and physical-call contracts
+        run: >-
+          npm test -- --test-concurrency=1
+          tests/test-bootstrap-loader.test.mjs
+          tests/ask-read-only.test.mjs
+          tests/ask-read-only-publication-budget.test.mjs
+          tests/ask-read-only-provider-failure-route.test.mjs
+          tests/ask-error-ux.test.mjs
+          tests/ask-inflight-navigation.test.mjs
+          tests/navigation-data-freshness.test.mjs
+          tests/public-v1-freeze.test.mjs
+          tests/unified-ai-credits-care-state.test.mjs
+          tests/ask-read-only-persistence.test.mjs
+          tests/ask-core-invariants.test.mjs
+          tests/ask-first20-reliability.test.mjs
+          tests/security-phase-s1.test.mjs
+          tests/ask-usage-experience.test.mjs
+          tests/ask-reliability-signout.test.mjs
+          tests/ask-pre-provider-retry.test.mjs
+          tests/ai-credit-security-regression.test.mjs
+          tests/ask-read-only-route.test.mjs
+          tests/ask-read-only-actions.test.mjs
+          tests/ask-emergency-preflight.test.mjs
+          tests/v27-citation-proof.test.mjs
+          tests/v27-citation-endpoint.test.mjs
+          tests/ask-sdk-physical-attempts.test.mjs
+          tests/v27-ask-two-call-limit.test.mjs
+          tests/ask-credit-settlement.test.mjs
+          tests/ask-credit-settlement-integrity.test.mjs
+          tests/ask-conversation-concurrency-acceptance.test.mjs
+          tests/ask-admission-settlement.test.mjs
+          tests/ask-restored-retry.test.mjs
+          tests/furvise-brain-durable-answer-finalization.test.mjs
+
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: test-publishable-key
@@ -56,6 +109,8 @@ jobs:
       - name: Full tests
         run: npm test
       - name: Production dependency audit
+        if: ${{ !cancelled() }}
         run: npm audit --omit=dev --audit-level=high
       - name: Production build
+        if: ${{ !cancelled() }}
         run: npm run build

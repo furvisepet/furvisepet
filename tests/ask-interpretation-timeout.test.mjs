@@ -24,7 +24,11 @@ test('interpretation deadline fails closed through POST: one planner, no retriev
     },
   });
   const pending = f.send();
-  await began;
+  // A stale fixture must fail immediately if POST exits before reaching its
+  // mocked provider. Waiting only on "began" hid this incompatibility for ten minutes.
+  await Promise.race([began,pending.then(response=>{
+    throw new Error("Expected provider boundary was not reached; POST returned "+response.status);
+  })]);
    assert.equal(providerRequest.max_output_tokens, ASK_INTERPRETATION_LIMITS.outputTokens);
   assert.equal(ASK_INTERPRETATION_LIMITS.timeoutMs,25000);
   assert.equal(f.state.planner,1);

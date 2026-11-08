@@ -67,3 +67,9 @@ test('unavailable companion history retains the successful receipt and uncertifi
  assert.ok(f.state.events.indexOf('heart:receipt')<f.state.events.indexOf('read:pet_care_entries'));
  assert.equal(f.state.planner,1);
 });
+
+test('confirmed temporal scope is rejected before planning or persistence when durability is unavailable',async()=>{
+ const f=fixture();const response=await f.send('Read a saved record.',{confirmedTemporalScope:{role:'event_time',from:'2024-03-10T08:00:00Z',to:'2024-03-11T07:00:00Z',timeZone:'America/Los_Angeles',source:'client_user_confirmed'}});
+ const body=await response.json();assert.equal(response.status,400);assert.equal(body.code,'INVALID_MESSAGE');
+ assert.equal(f.state.planner,0);assert.ok(!f.state.events.includes('credit:reserve'));assert.equal(f.rows.ask_conversation_messages.length,0);
+});

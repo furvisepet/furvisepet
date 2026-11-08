@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ASK_CLIENT_TIMEOUT_MS, ASK_MAX_QUESTION_CHARACTERS } from "../lib/ai/ask-execution-limits";
 import { AskAnswerText } from "../components/ask-answer-text";
+import { AskCitations } from "../components/ask-citations";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   type FormEvent,
@@ -68,6 +69,8 @@ type StructuredResponse = {
   directAnswer: string;
   supportingText: string | null;
   completionNotice?: string;
+  citationProof?: string;
+  readOnlyEvidence?: boolean;
   sections: { heading: string; items: string[] }[];
   safetyNote: string | null;
   answerType: AnswerType;
@@ -836,7 +839,8 @@ function FurviseMessage({ lifecycleStatus, message, onAction, onApplicationActio
     {shouldShowAnswerHeading(response.title) ? <h2 className="text-xl font-semibold leading-8 text-[var(--pw-heading)]">{response.title}</h2> : null}
     <AskAnswerText afterHeading={shouldShowAnswerHeading(response.title)} text={response.directAnswer} />
     {response.supportingText ? <p className="mt-3 leading-7 text-[var(--pw-muted)]">{response.supportingText}</p> : null}
-    <AdaptiveSections answerType={response.answerType} sections={response.sections} />
+    <AdaptiveSections answerType={response.answerType} sections={response.sections} verbatim={response.readOnlyEvidence} />
+    <AskCitations proof={response.citationProof} title={response.title} summary={response.summary} sections={response.sections} safetyNote={response.safetyNote} supportingText={response.supportingText} />
     {response.completionNotice ? <aside className="mt-4 rounded-xl border border-[var(--assistant-response-border)] bg-black/[0.018] px-3.5 py-3 text-sm text-[var(--text-secondary)]" data-answer-completion="limited"><p className="font-semibold text-[var(--text-primary)]">What I couldn’t confirm</p><p className="mt-1 leading-6">{response.completionNotice}</p></aside> : null}
     {actions.length ? <div className="mt-4 flex flex-wrap gap-2">{actions.map((action) => <button className={action === "copy" ? quietButton : secondaryButton} key={action} onClick={() => onAction(action, message)} type="button">{formatAction(action)}</button>)}</div> : null}
     {PUBLIC_V1_CAPABILITIES.askMutations && messageVariant !== "CASUAL" && message.suggestion && message.suggestion.status !== "saved" && !message.suggestion.applyStatus ? <StateUpdateSuggestion onAction={onSuggestionAction} suggestion={message.suggestion} /> : null}
@@ -908,8 +912,9 @@ function shouldShowAnswerHeading(title: string) {
   return Boolean(title && !/^(?:Furvise|A\s+good\s+update|Greeting|What is missing|Next step)$/i.test(title.trim()));
 }
 
-function AdaptiveSections({ answerType, sections }: { answerType: AnswerType; sections: StructuredResponse["sections"] }) {
+function AdaptiveSections({ answerType, sections, verbatim = false }: { answerType: AnswerType; sections: StructuredResponse["sections"]; verbatim?: boolean }) {
   if (!sections.length) return null;
+  if (verbatim) return <div className="mt-3 space-y-3">{sections.map((section, index) => <section key={index}><h3 className={sectionHeading}>{section.heading}</h3>{section.items.map((item, itemIndex) => <blockquote className="mt-2 whitespace-pre-wrap border-l-2 border-[var(--assistant-response-accent)] pl-4 [overflow-wrap:anywhere]" key={itemIndex}>{item}</blockquote>)}</section>)}</div>;
   const savedNotes = sections.filter(section => section.heading === "Saved notes");
   if (savedNotes.length) return <>
     <AdaptiveSections answerType={answerType} sections={sections.filter(section => section.heading !== "Saved notes")} />

@@ -1,0 +1,895 @@
+{
+  "sha": "48c83346f69cfaddb73da1e2ebcfb577479f42fe",
+  "runId": 42469361783,
+  "result": {
+    "tests": 6025,
+    "passed": 5829,
+    "failed": 194,
+    "cancelled": 1,
+    "skipped": 1
+  },
+  "failureEntries": [
+    {
+      "file": "tests/ai-credit-security-regression.test.mjs",
+      "test": "migration removes client release authority and enforces database identity/state invariants (3.627017ms)"
+    },
+    {
+      "file": "tests/append-items-authority.test.mjs",
+      "test": "confirmed batch uses one capability, all bound items, and the separate canonical companion read (167.495782ms)"
+    },
+    {
+      "file": "tests/ask-action-capability-security-regressions.test.mjs",
+      "test": "CORRECTION_UI_REFLECTS_AUTHORITATIVE_CAPABILITY_TERMINAL_STATE (3.856214ms)"
+    },
+    {
+      "file": "tests/ask-action-capability-target-freshness-expiry.test.mjs",
+      "test": "positional latest/last target proposals are no longer eligible authority (3.440619ms)"
+    },
+    {
+      "file": "tests/ask-active-contract.test.mjs",
+      "test": "active request, review, evidence and lifetime regressions use the production contract (292077.015524ms)"
+    },
+    {
+      "file": "tests/ask-append-independent-completion.test.mjs",
+      "test": "confirmed append preserves limited whole-task outcome for an exhausted independent lexical miss (160.969816ms)"
+    },
+    {
+      "file": "tests/ask-append-independent-completion.test.mjs",
+      "test": "confirmed append completes certified independent endpoints despite partial scan coverage (68.654172ms)"
+    },
+    {
+      "file": "tests/ask-benchmark-retrieval-regressions.test.mjs",
+      "test": "route proves alternate read widening from current user explicit owned names only (3.747551ms)"
+    },
+    {
+      "file": "tests/ask-care-chronology.test.mjs",
+      "test": "canonical receipt replay crosses the capability boundary without an AI credit (2.248805ms)"
+    },
+    {
+      "file": "tests/ask-care-chronology.test.mjs",
+      "test": "carePersistence metadata is stored with conversation messages (0.934473ms)"
+    },
+    {
+      "file": "tests/ask-compositional-emission.test.mjs",
+      "test": "A latest semantic family: named, household and established pronouns share one selection (10699.619923ms)"
+    },
+    {
+      "file": "tests/ask-compositional-emission.test.mjs",
+      "test": "B earliest semantic family differs only by ascending semantic order (5386.174593ms)"
+    },
+    {
+      "file": "tests/ask-compositional-emission.test.mjs",
+      "test": "C both boundaries are a union, with no new operation (5590.840972ms)"
+    },
+    {
+      "file": "tests/ask-compositional-emission.test.mjs",
+      "test": "D two most recent per subject uses group cardinality, independent of presentation (5358.471923ms)"
+    },
+    {
+      "file": "tests/ask-compositional-emission.test.mjs",
+      "test": "E alternate predicates and different pets execute without application changes (9286.470166ms)"
+    },
+    {
+      "file": "tests/ask-compositional-emission.test.mjs",
+      "test": "F anchored plus grouped binds without a manufactured date (5151.91289ms)"
+    },
+    {
+      "file": "tests/ask-compositional-emission.test.mjs",
+      "test": "explicit temporal windows compose with grouped selection without rewriting the plan (13825.899059ms)"
+    },
+    {
+      "file": "tests/ask-compositional-emission.test.mjs",
+      "test": "G single-subject legacy input becomes one canonical compositional selection (6559.236969ms)"
+    },
+    {
+      "file": "tests/ask-compositional-emission.test.mjs",
+      "test": "H distinct grounded probes retain multi-need retrieval with selection null (12076.507242ms)"
+    },
+    {
+      "file": "tests/ask-compositional-emission.test.mjs",
+      "test": "I unresolved pronouns clarify without adding subjects or invoking another planner (6768.844359ms)"
+    },
+    {
+      "file": "tests/ask-compositional-emission.test.mjs",
+      "test": "I unresolved fact or anchor is rejected rather than guessed into a legal selection (6616.822745ms)"
+    },
+    {
+      "file": "tests/ask-compositional-emission.test.mjs",
+      "test": "J incompatible selectors and invented dimensions reject, including bounded episode repair (5638.344092ms)"
+    },
+    {
+      "file": "tests/ask-compositional-emission.test.mjs",
+      "test": "explicit subset and selected scope never widen merely because grouping is present (7385.128345ms)"
+    },
+    {
+      "file": "tests/ask-compositional-emission.test.mjs",
+      "test": "captured A1 semantics omit strategy; every conflicting legacy strategy still rejects (5639.95506ms)"
+    },
+    {
+      "file": "tests/ask-compositional-emission.test.mjs",
+      "test": "finite chronological input translates; unbounded legacy endpoint strategy fails closed (5335.764062ms)"
+    },
+    {
+      "file": "tests/ask-compositional-emission.test.mjs",
+      "test": "bounded semantic families preserve sufficient through one mocked interpretation each (6056.60866ms)"
+    },
+    {
+      "file": "tests/ask-compositional-emission.test.mjs",
+      "test": "exhaustive listing, existence, absence and count-domain proposals retain exhaustive (5033.932755ms)"
+    },
+    {
+      "file": "tests/ask-compositional-emission.test.mjs",
+      "test": "window and anchor scope compose with either logical completeness requirement (5043.040603ms)"
+    },
+    {
+      "file": "tests/ask-compositional-emission.test.mjs",
+      "test": "whole-history episode counts preserve exhaustive and the existing episode contract (5179.118334ms)"
+    },
+    {
+      "file": "tests/ask-contract-repair-route.test.mjs",
+      "test": "normal Ask route repairs conflicting profile fields before factual context (152.072354ms)"
+    },
+    {
+      "file": "tests/ask-conversation-concurrency-acceptance.test.mjs",
+      "test": "Ask conversation concurrency keeps newest UI state and single mutation authority (4709.071689ms)"
+    },
+    {
+      "file": "tests/ask-conversation-subject-continuity-p0.test.mjs",
+      "test": "two equally recent compatible pets produce a bounded candidate clarification (25.923649ms)"
+    },
+    {
+      "file": "tests/ask-conversation-subject-continuity-p0.test.mjs",
+      "test": "a released Ask attempt receives a new ledger UUID without changing message identity (2.928877ms)"
+    },
+    {
+      "file": "tests/ask-core-invariants.test.mjs",
+      "test": "a durable assistant is persisted before credit completion (7.092518ms)"
+    },
+    {
+      "file": "tests/ask-episode-history.test.mjs",
+      "test": "episode organ counts, durable references and current publication boundary (31138.979747ms)"
+    },
+    {
+      "file": "tests/ask-episode-repair.test.mjs",
+      "test": "initial episode/predicate mismatch repairs to ordinary dated record (8230.665727ms)"
+    },
+    {
+      "file": "tests/ask-episode-repair.test.mjs",
+      "test": "initial mismatch can preserve genuine episode intent (6670.109542ms)"
+    },
+    {
+      "file": "tests/ask-episode-repair.test.mjs",
+      "test": "invalid repair fails closed with no third call (7415.896976ms)"
+    },
+    {
+      "file": "tests/ask-episode-repair.test.mjs",
+      "test": "transport repair consumes the same allowance (6416.624114ms)"
+    },
+    {
+      "file": "tests/ask-grief-lifecycle-regression.test.mjs",
+      "test": "typed loss publication preserves grief and emergency presentation boundaries (6.542057ms)"
+    },
+    {
+      "file": "tests/ask-grief-lifecycle-regression.test.mjs",
+      "test": "a lifecycle plan cannot manufacture unrelated or destructive model actions (2.33638ms)"
+    },
+    {
+      "file": "tests/ask-grief-lifecycle-regression.test.mjs",
+      "test": "provider completion, credits, and idempotent replay are tied to durable assistant persistence (2.617114ms)"
+    },
+    {
+      "file": "tests/ask-grief-lifecycle-regression.test.mjs",
+      "test": "typed lifecycle stays deterministic after Brain and cannot persist extracted death claims (6.726502ms)"
+    },
+    {
+      "file": "tests/ask-grief-lifecycle-regression.test.mjs",
+      "test": "typed correction cancellation uses the existing capability and source-bound receipt (0.961764ms)"
+    },
+    {
+      "file": "tests/ask-grief-lifecycle-regression.test.mjs",
+      "test": "typed lifecycle dispatch uses one Brain before answer generation (0.628492ms)"
+    },
+    {
+      "file": "tests/ask-history-stage-2.test.mjs",
+      "test": "Stage 2 actual historical retrieval/generation/validation regressions (319426.668311ms)"
+    },
+    {
+      "file": "tests/ask-id-free-probes.test.mjs",
+      "test": "two ID-free probes become grounded needs and use existing Lungs (10749.111441ms)"
+    },
+    {
+      "file": "tests/ask-id-free-probes.test.mjs",
+      "test": "a referenced USER span binds to its original turn (5071.370945ms)"
+    },
+    {
+      "file": "tests/ask-id-free-probes.test.mjs",
+      "test": "homogeneous grouped work and synonyms retain one selection across generic predicates (4947.914901ms)"
+    },
+    {
+      "file": "tests/ask-id-free-probes.test.mjs",
+      "test": "distinct dated probes preserve their own typed window and term groups after grounding (10552.583204ms)"
+    },
+    {
+      "file": "tests/ask-inflight-navigation.test.mjs",
+      "test": "server invalidation targets downstream state and never the active Ask route (15.727964ms)"
+    },
+    {
+      "file": "tests/ask-input-budget-route.test.mjs",
+      "test": "actual offline route publishes and persists the source-window omission notice (168.766979ms)"
+    },
+    {
+      "file": "tests/ask-interpretation-input-budget.test.mjs",
+      "test": "oversize repair is rejected before a second SDK call; source window is not changed to make it fit (48897.52794ms)"
+    },
+    {
+      "file": "tests/ask-interpretation-input-budget.test.mjs",
+      "test": "catalog hydration cannot replace the chosen current text, prior sources, or owned identities (18128.450164ms)"
+    },
+    {
+      "file": "tests/ask-interpretation-output-budget.test.mjs",
+      "test": "incomplete interpretation is one call, no repair/Binder/write, and released user credit: 0 (133.711893ms)"
+    },
+    {
+      "file": "tests/ask-interpretation-output-budget.test.mjs",
+      "test": "incomplete interpretation is one call, no repair/Binder/write, and released user credit: 1 (102.54724ms)"
+    },
+    {
+      "file": "tests/ask-interpretation-timeout.test.mjs",
+      "test": "interpretation deadline fails closed through POST: one planner, no retrieve/write, released credit (600098.454186ms)"
+    },
+    {
+      "file": "tests/ask-labs-list.test.mjs",
+      "test": "certified result-set proof cannot fulfill unsupported formats or nullable quantity (17.047312ms)"
+    },
+    {
+      "file": "tests/ask-launch-blockers.test.mjs",
+      "test": "Ask launch blocker regressions with network forbidden (31161.377075ms)"
+    },
+    {
+      "file": "tests/ask-launch-quality-history-prose.test.mjs",
+      "test": "route publishes persistence success only from an effective durable receipt (2.028135ms)"
+    },
+    {
+      "file": "tests/ask-launch-repairs.test.mjs",
+      "test": "launch screenshot regressions exercise the real callback with provider network disabled (18225.738493ms)"
+    },
+    {
+      "file": "tests/ask-lifecycle-role-contract.test.mjs",
+      "test": "tests/ask-lifecycle-role-contract.test.mjs (13082.98648ms)"
+    },
+    {
+      "file": "tests/ask-long-form-subject-contract-p0.test.mjs",
+      "test": "the live Ask route uses the canonical resolver before reasoning and never reconstructs a one-name extraction fallback (4.789559ms)"
+    },
+    {
+      "file": "tests/ask-memory-authority-p0.test.mjs",
+      "test": "retired prose writer has no RPC authority; historical lease contract remains explicit (1.918111ms)"
+    },
+    {
+      "file": "tests/ask-memory-integrity-p0.test.mjs",
+      "test": "all application memory writers cross the shared semantic boundary (2.242717ms)"
+    },
+    {
+      "file": "tests/ask-memory-single-authority.test.mjs",
+      "test": "retired automatic learning persistence cannot execute, claim a receipt or fall back to care writes (2.968181ms)"
+    },
+    {
+      "file": "tests/ask-p0-auxiliary-regressions.test.mjs",
+      "test": "Ask uses four truthful care-history states and never turns an auxiliary failure into answer failure (1.891641ms)"
+    },
+    {
+      "file": "tests/ask-post-review-finalizer-contract.test.mjs",
+      "test": "reviewed Ask effects execute inside the single Brain handoff (1.44257ms)"
+    },
+    {
+      "file": "tests/ask-post-review-finalizer-contract.test.mjs",
+      "test": "Brain executive control owns settlement through final publication (0.267569ms)"
+    },
+    {
+      "file": "tests/ask-post-review-finalizer-contract.test.mjs",
+      "test": "durable replay is handed back to Brain before a second publication (0.2681ms)"
+    },
+    {
+      "file": "tests/ask-pre-provider-retry.test.mjs",
+      "test": "logical turn, attempt, persisted message, and financial identities are explicit (1.795708ms)"
+    },
+    {
+      "file": "tests/ask-pre-provider-retry.test.mjs",
+      "test": "persisted answer replay only degrades terminal execution after durable identity and disposition validation (1.392576ms)"
+    },
+    {
+      "file": "tests/ask-pre-provider-retry.test.mjs",
+      "test": "AI admission closes only after durable answer persistence (4.014435ms)"
+    },
+    {
+      "file": "tests/ask-production-issues-v2.test.mjs",
+      "test": "the production casual pronoun continuation resolves to Mani without the failing subject-frame call (9.421046ms)"
+    },
+    {
+      "file": "tests/ask-production-repair.test.mjs",
+      "test": "production Ask correction and interpretation callback regressions (153937.085404ms)"
+    },
+    {
+      "file": "tests/ask-provider-envelope-diagnostics.test.mjs",
+      "test": "actual Ask route emits the envelope on a single failed interpretation without secret payload (965.730614ms)"
+    },
+    {
+      "file": "tests/ask-provider-error-diagnostics.test.mjs",
+      "test": "actual Ask route logs the safe diagnostic, releases credit, and keeps provider details out of its response (4067.30695ms)"
+    },
+    {
+      "file": "tests/ask-provider-root-envelope.test.mjs",
+      "test": "tests/ask-provider-root-envelope.test.mjs (9392.395544ms)"
+    },
+    {
+      "file": "tests/ask-provider-timestamp-boundary.test.mjs",
+      "test": "tests/ask-provider-timestamp-boundary.test.mjs (14248.841123ms)"
+    },
+    {
+      "file": "tests/ask-public-cancellation-route.test.mjs",
+      "test": "tests/ask-public-cancellation-route.test.mjs (5467.948307ms)"
+    },
+    {
+      "file": "tests/ask-read-ticket-diagnostics.test.mjs",
+      "test": "request-envelope rejection identifies the envelope field without changing the proposed ticket (4934.698415ms)"
+    },
+    {
+      "file": "tests/ask-read-ticket-hygiene.test.mjs",
+      "test": "read conflicts are discarded without creating a task, frame, mutation or extra planner pass (5619.410351ms)"
+    },
+    {
+      "file": "tests/ask-recursive-transport.test.mjs",
+      "test": "actual prepare/parse uses direct transport and retains the original canonical plan (5072.296065ms)"
+    },
+    {
+      "file": "tests/ask-recursive-transport.test.mjs",
+      "test": "repair uses a fresh 12-second reserve after the compilation and initial parse budgets expire (5.77854ms)"
+    },
+    {
+      "file": "tests/ask-recursive-transport.test.mjs",
+      "test": "initial decode honors the initial reserve and reports timeout instead of malformed JSON (6812.945392ms)"
+    },
+    {
+      "file": "tests/ask-recursive-transport.test.mjs",
+      "test": "deadline expiration inside recursive reconstruction escapes the generic JSON error classifier (6690.03285ms)"
+    },
+    {
+      "file": "tests/ask-recursive-transport.test.mjs",
+      "test": "uncooperative provider times out once; a late valid recursive result grants no authority (6450.565857ms)"
+    },
+    {
+      "file": "tests/ask-recursive-transport.test.mjs",
+      "test": "recursive catalog intent is canonically validated before public policy and hydration (6420.759786ms)"
+    },
+    {
+      "file": "tests/ask-recursive-transport.test.mjs",
+      "test": "repair rejection (7164.4067ms)"
+    },
+    {
+      "file": "tests/ask-referent-product-leak-p0.test.mjs",
+      "test": "the live route gates capability copy by explicit product intent and passes discourse focus to reasoning (3.366452ms)"
+    },
+    {
+      "file": "tests/ask-reliability-signout.test.mjs",
+      "test": "Ask API verifies pet ownership and persists the user message before generating an answer (3.844588ms)"
+    },
+    {
+      "file": "tests/ask-reliability-signout.test.mjs",
+      "test": "assistant persistence failure releases credit and returns a retryable saved-question error (0.685107ms)"
+    },
+    {
+      "file": "tests/ask-reliability-signout.test.mjs",
+      "test": "provider diagnostics stay server-side and expose only safe metadata (3.962198ms)"
+    },
+    {
+      "file": "tests/ask-route-ordering.test.mjs",
+      "test": "Cedar: one Brain ticket, no write until click, Heart receipt before real Lungs last-two read (171.564978ms)"
+    },
+    {
+      "file": "tests/ask-route-ordering.test.mjs",
+      "test": "unverified Heart write cannot retrieve or publish weights: {\"noReceipt\":true} (73.8419ms)"
+    },
+    {
+      "file": "tests/ask-route-ordering.test.mjs",
+      "test": "unverified Heart write cannot retrieve or publish weights: {\"dbFailure\":true} (46.685203ms)"
+    },
+    {
+      "file": "tests/ask-route-ordering.test.mjs",
+      "test": "ownership, assistant binding, and cancellation remain deterministic (53.314431ms)"
+    },
+    {
+      "file": "tests/ask-route-ordering.test.mjs",
+      "test": "route has one interpretation and no owner-note or task persistence authority (1.026846ms)"
+    },
+    {
+      "file": "tests/ask-route-ordering.test.mjs",
+      "test": "invalid first append ticket rejects once, with no factual read or write (46.664925ms)"
+    },
+    {
+      "file": "tests/ask-route-ordering.test.mjs",
+      "test": "unavailable companion history retains the successful receipt and uncertified coverage (48.683471ms)"
+    },
+    {
+      "file": "tests/ask-sdk-uncertainty.test.mjs",
+      "test": "context: distinct fallback uncertainty eligible-fallback (24.111777ms)"
+    },
+    {
+      "file": "tests/ask-sdk-uncertainty.test.mjs",
+      "test": "structured: distinct fallback uncertainty eligible-fallback (5.151732ms)"
+    },
+    {
+      "file": "tests/ask-shared-operation-contracts.test.mjs",
+      "test": "a read about a correction drops a contradictory edit hint without granting write authority (0.659741ms)"
+    },
+    {
+      "file": "tests/ask-shared-request-contract.test.mjs",
+      "test": "shared Ask request contract and real pipeline boundaries (483786.333646ms)"
+    },
+    {
+      "file": "tests/ask-staged-catalog-contract.test.mjs",
+      "test": "tests/ask-staged-catalog-contract.test.mjs (12350.236558ms)"
+    },
+    {
+      "file": "tests/ask-staged-catalog-route.test.mjs",
+      "test": "tests/ask-staged-catalog-route.test.mjs (5993.58747ms)"
+    },
+    {
+      "file": "tests/ask-state-suggestion-persistence.test.mjs",
+      "test": "automatic persistence presentation stays separate from canonical suggestion creation (3.163202ms)"
+    },
+    {
+      "file": "tests/ask-state-suggestion-persistence.test.mjs",
+      "test": "conversation copy cannot claim resolution while confirmation is pending (0.882657ms)"
+    },
+    {
+      "file": "tests/ask-stress-architecture.test.mjs",
+      "test": "shared stress architecture boundaries with network forbidden (103997.84908ms)"
+    },
+    {
+      "file": "tests/ask-structured-output-reliability.test.mjs",
+      "test": "canonical mutations remain after provider, schema, answer validation, and governance (12.545597ms)"
+    },
+    {
+      "file": "tests/ask-task-execution-contract.test.mjs",
+      "test": "route settles only after capability execution: succeeded (2.30485ms)"
+    },
+    {
+      "file": "tests/ask-task-execution-contract.test.mjs",
+      "test": "route settles only after capability execution: failed (0.362396ms)"
+    },
+    {
+      "file": "tests/ask-task-route.test.mjs",
+      "test": "admitted HTTP pipeline blocks legacy task execution while preserving source and subject guards (5110.800902ms)"
+    },
+    {
+      "file": "tests/ask-turn-subject-resolution.test.mjs",
+      "test": "Ask keeps conversation binding separate while using the resolved turn pet for context and persistence (3.352434ms)"
+    },
+    {
+      "file": "tests/ask-unseen-v1-publication-0930.test.mjs",
+      "test": "fresh public V1 publication campaign stops on first defect (1202.422565ms)"
+    },
+    {
+      "file": "tests/ask-usage-experience.test.mjs",
+      "test": "failed provider or persistence paths do not consume usage (7.272207ms)"
+    },
+    {
+      "file": "tests/ask-usage-experience.test.mjs",
+      "test": "assistant persistence retries idempotently before returning a retryable failure (1.923108ms)"
+    },
+    {
+      "file": "tests/ask-wire-integration.test.mjs",
+      "test": "actual interpretation admits complete wire snapshots and gives Binder the same canonical plan (5555.854008ms)"
+    },
+    {
+      "file": "tests/ask-wire-integration.test.mjs",
+      "test": "bounded saved_profile repair passes real admission and production wire decoding before Binder (5100.427895ms)"
+    },
+    {
+      "file": "tests/ask-wire-recursive-plan.test.mjs",
+      "test": "final serialized request boundaries reject before dispatch; output/accounting ceilings stay unchanged (6011.389506ms)"
+    },
+    {
+      "file": "tests/ask-working-memory-interpretation.test.mjs",
+      "test": "casual working-memory follow-up reaches the same Brain interpreter (5510.63182ms)"
+    },
+    {
+      "file": "tests/ask-write-read-pressure-acceptance.test.mjs",
+      "test": "Ask mixed read/write pressure preserves one mutation authority and truthful persistence (12600.49693ms)"
+    },
+    {
+      "file": "tests/calculation-capability.test.mjs",
+      "test": "tests/calculation-capability.test.mjs (970.24819ms)"
+    },
+    {
+      "file": "tests/canonical-care-deployment-compatibility.test.mjs",
+      "test": "current Ask mutations use canonical capability identities; retired prose paths have no RPC authority (4.496938ms)"
+    },
+    {
+      "file": "tests/canonical-pet-remove.test.mjs",
+      "test": "one closed REMOVE schema supports care history and the bound subject profile (1553.520022ms)"
+    },
+    {
+      "file": "tests/canonical-pet-remove.test.mjs",
+      "test": "profile REMOVE Binder rejects mixed (0.964639ms)"
+    },
+    {
+      "file": "tests/canonical-remove.test.mjs",
+      "test": "route dispatches canonical removal before factual context and narrative generation (6.793354ms)"
+    },
+    {
+      "file": "tests/canonical-remove.test.mjs",
+      "test": "provider grammar admits only standalone REMOVE and supplied reference handles (1146.897441ms)"
+    },
+    {
+      "file": "tests/canonical-subject-authority.test.mjs",
+      "test": "route has no post-Brain English subject resolver and canonical append exits before legacy generation (8.2386ms)"
+    },
+    {
+      "file": "tests/care-persistence-state-repair.test.mjs",
+      "test": "Ask writes and replay reads the reconciled persistence fields (6.243899ms)"
+    },
+    {
+      "file": "tests/core-loop-stability.test.mjs",
+      "test": "Ask Furvise route keeps usage tracking from masking successful answers (7.980078ms)"
+    },
+    {
+      "file": "tests/core-loop-stability.test.mjs",
+      "test": "Ask Furvise route uses context planning before response persistence (0.854975ms)"
+    },
+    {
+      "file": "tests/furvise-brain-architecture-boundary.test.mjs",
+      "test": "Ask owner-note writes have no direct RPC path and require Heart capability confirmation (3.680696ms)"
+    },
+    {
+      "file": "tests/furvise-brain-architecture-boundary.test.mjs",
+      "test": "model-derived intelligence has no automatic persistence executor (1.047824ms)"
+    },
+    {
+      "file": "tests/furvise-brain-architecture-boundary.test.mjs",
+      "test": "legacy pending tasks cannot recreate mutation parameters or infer subjects after binding (1.05089ms)"
+    },
+    {
+      "file": "tests/furvise-brain-architecture-boundary.test.mjs",
+      "test": "working memory supplies Brain context but cannot replace the canonical interpreter (1.026495ms)"
+    },
+    {
+      "file": "tests/furvise-brain-owner-note-gate.test.mjs",
+      "test": "source-bound proposal has no persistence authority before confirmation (218.112494ms)"
+    },
+    {
+      "file": "tests/furvise-conversational-architecture-v1.test.mjs",
+      "test": "authoritative mutation claims are removed unless an executor verified success (10.241015ms)"
+    },
+    {
+      "file": "tests/furvise-conversational-architecture-v1.test.mjs",
+      "test": "pet characterization and follow-up governance are evidence based (1.742241ms)"
+    },
+    {
+      "file": "tests/furvise-intelligence-engine.test.mjs",
+      "test": "Ask builds current context server-side and verifies both user and pet ownership (8.214084ms)"
+    },
+    {
+      "file": "tests/furvise-intelligence-engine.test.mjs",
+      "test": "valid answers survive nonfatal learning failures and normal credit counters are hidden (1.121862ms)"
+    },
+    {
+      "file": "tests/furvise-replace-ticket.test.mjs",
+      "test": "conflicting reads, append jobs, foreign subjects and ungrounded bodies fail closed (1.968052ms)"
+    },
+    {
+      "file": "tests/furvise-replace-ticket.test.mjs",
+      "test": "Ask dispatches the typed job before narrative generation and keeps its bound target (8.47503ms)"
+    },
+    {
+      "file": "tests/generalized-replace.test.mjs",
+      "test": "route transports canonical target without an English edit selector (2.55132ms)"
+    },
+    {
+      "file": "tests/lifecycle-plan.test.mjs",
+      "test": "lifecycle mutation cannot share authority with an unrelated job or read (1.352984ms)"
+    },
+    {
+      "file": "tests/lifecycle-plan.test.mjs",
+      "test": "provider sees no preloaded pending capability and lifecycle state is hydrated under its permit (7145.011718ms)"
+    },
+    {
+      "file": "tests/lifecycle-plan.test.mjs",
+      "test": "ordinary Ask route consumes typed lifecycle outcomes without a wording-based dispatch (2.826874ms)"
+    },
+    {
+      "file": "tests/lifecycle-plan.test.mjs",
+      "test": "full Binder preserves an active-subject requirement even for advice without a factual read (0.675069ms)"
+    },
+    {
+      "file": "tests/navigation-data-freshness.test.mjs",
+      "test": "successful Ask state mutations publish one scoped freshness version (33.987404ms)"
+    },
+    {
+      "file": "tests/owner-note-write-isolation.test.mjs",
+      "test": "lost write acknowledgment replays the same capability and returns one receipt without AI (215.520802ms)"
+    },
+    {
+      "file": "tests/owner-note-write-isolation.test.mjs",
+      "test": "permission failures never produce success or retry under another identity (77.470258ms)"
+    },
+    {
+      "file": "tests/owner-note-write-isolation.test.mjs",
+      "test": "route interprets before facts and never persists an owner note outside Heart (13.627593ms)"
+    },
+    {
+      "file": "tests/owner-note-write-isolation.test.mjs",
+      "test": "HTTP confirmed save is isolated from model availability: {} (134.191378ms)"
+    },
+    {
+      "file": "tests/owner-note-write-isolation.test.mjs",
+      "test": "HTTP confirmed save is isolated from model availability: {\"mixed\":true} (75.930896ms)"
+    },
+    {
+      "file": "tests/owner-preference-mutation.test.mjs",
+      "test": "provider field grammar excludes cross-domain fields and incompatible set/clear containers (1230.124221ms)"
+    },
+    {
+      "file": "tests/owner-preference-mutation.test.mjs",
+      "test": "raw preference parsers are absent and canonical route stops before factual generation (6.324699ms)"
+    },
+    {
+      "file": "tests/profile-field-authority.test.mjs",
+      "test": "provider grammar makes incompatible saved-profile dimensions unrepresentable (1305.452745ms)"
+    },
+    {
+      "file": "tests/profile-mutation-job.test.mjs",
+      "test": "profile mutation cannot compete with another job or factual request (1.236958ms)"
+    },
+    {
+      "file": "tests/profile-mutation-job.test.mjs",
+      "test": "route dispatch stops before retrieval/generation and legacy profile parser is absent (5.643779ms)"
+    },
+    {
+      "file": "tests/public-v1-freeze.test.mjs",
+      "test": "Ask uses one typed capability boundary before mutation executors (7.598967ms)"
+    },
+    {
+      "file": "tests/read-ticket-provider-parity.test.mjs",
+      "test": "whole Ask provider contract permits ordinary bounded measurement recall (1330.481207ms)"
+    },
+    {
+      "file": "tests/replace-reference-context.test.mjs",
+      "test": "same Brain source-free intent then permitted exact selection; Binder owns record/version (14550.846896ms)"
+    },
+    {
+      "file": "tests/residual-requirements-contract.test.mjs",
+      "test": "provider branches distinguish calculation ownership without classifying language (62.855642ms)"
+    },
+    {
+      "file": "tests/routine-year-clarification.test.mjs",
+      "test": "authenticated Ask route clarifies before provider or note reads (5836.93075ms)"
+    },
+    {
+      "file": "tests/state-transition-job.test.mjs",
+      "test": "provider grammar enumerates supplied handles and rejects mixed authority (1330.32376ms)"
+    },
+    {
+      "file": "tests/state-transition-job.test.mjs",
+      "test": "admitted intent and catalog selection chooses a supplied handle; deterministic preparation adds no provider (7737.883036ms)"
+    },
+    {
+      "file": "tests/state-transition-job.test.mjs",
+      "test": "legacy concern classifiers cannot construct execution targets after Brain (6.647321ms)"
+    },
+    {
+      "file": "tests/state-transition-job.test.mjs",
+      "test": "initial planning is metadata-only; admitted hydration scopes owned concerns and fails closed (5889.508991ms)"
+    },
+    {
+      "file": "tests/stored-read-authority.test.mjs",
+      "test": "provider grammar and Binder carry arbitrary-language stored READ without lexical routing (1040.285531ms)"
+    },
+    {
+      "file": "tests/stored-read-authority.test.mjs",
+      "test": "Brain transport binds opaque receipt READ only after source-bound catalog hydration (7112.473436ms)"
+    },
+    {
+      "file": "tests/stored-read-provider-parity.test.mjs",
+      "test": "StoredRead provider/Binder parity: valid subject memory (404.836323ms)"
+    },
+    {
+      "file": "tests/stored-read-provider-parity.test.mjs",
+      "test": "StoredRead provider/Binder parity: valid owner memory (1.920293ms)"
+    },
+    {
+      "file": "tests/stored-read-provider-parity.test.mjs",
+      "test": "StoredRead provider/Binder parity: valid subject receipt (1.730067ms)"
+    },
+    {
+      "file": "tests/stored-read-provider-parity.test.mjs",
+      "test": "StoredRead provider/Binder parity: valid current state (1.821097ms)"
+    },
+    {
+      "file": "tests/stored-read-provider-parity.test.mjs",
+      "test": "StoredRead provider/Binder parity: receipt without reference valid shape (1.754162ms)"
+    },
+    {
+      "file": "tests/stored-read-provider-parity.test.mjs",
+      "test": "StoredRead provider/Binder parity: valid owner retained receipt (0.896362ms)"
+    },
+    {
+      "file": "tests/stored-read-provider-parity.test.mjs",
+      "test": "Profile provider/Binder parity: profile weight (1.051572ms)"
+    },
+    {
+      "file": "tests/stored-read-provider-parity.test.mjs",
+      "test": "Profile provider/Binder parity: profile multiple fields (0.776388ms)"
+    },
+    {
+      "file": "tests/stored-read-provider-parity.test.mjs",
+      "test": "owner receipt without reference remains a legal unavailable-capable shape (2.884872ms)"
+    },
+    {
+      "file": "tests/stored-read-provider-parity.test.mjs",
+      "test": "owner receipt ownership survives deletion of the former pet (1144.779995ms)"
+    },
+    {
+      "file": "tests/stored-read-provider-parity.test.mjs",
+      "test": "all supported outer subject scopes remain Binder-owned (1.097066ms)"
+    },
+    {
+      "file": "tests/stored-read-provider-parity.test.mjs",
+      "test": "all existing presentation values remain legal without granting execution support (0.741874ms)"
+    },
+    {
+      "file": "tests/typed-read-ticket.test.mjs",
+      "test": "foreign persisted subjects fail in continuation before factual retrieval (4186.570782ms)"
+    },
+    {
+      "file": "tests/unified-ai-credits-care-state.test.mjs",
+      "test": "Ask development fallback skips reservations and production still returns a database error (2.654242ms)"
+    },
+    {
+      "file": "tests/unified-ai-credits-care-state.test.mjs",
+      "test": "Ask reserves before generation and completes only after a saved assistant answer (6.34611ms)"
+    },
+    {
+      "file": "tests/v27-confirmed-temporal-scope.test.mjs",
+      "test": "route gates scoped execution before persisted-request loading or provider calls (7.464406ms)"
+    },
+    {
+      "file": "tests/v27-general-evidence-repair.test.mjs",
+      "test": "empty supplied premise triggers existing bounded transport repair and validates a general response (5662.031912ms)"
+    },
+    {
+      "file": "tests/v27-general-evidence-repair.test.mjs",
+      "test": "valid casual follow-up stays conversation with one call (5255.862585ms)"
+    },
+    {
+      "file": "tests/v27-general-evidence-repair.test.mjs",
+      "test": "repeated invalid output never reaches a validated response or third call (6098.552336ms)"
+    },
+    {
+      "file": "tests/v27-general-evidence-repair.test.mjs",
+      "test": "malformed envelope cannot become a conversation answer (5226.982708ms)"
+    },
+    {
+      "file": "tests/v27-general-evidence-repair.test.mjs",
+      "test": "genuine current user scenario retains its supplied premise (4972.601432ms)"
+    },
+    {
+      "file": "tests/v27-general-evidence-repair.test.mjs",
+      "test": "genuine prior user premise remains attributed to user text (4963.531071ms)"
+    },
+    {
+      "file": "tests/v27-general-evidence-repair.test.mjs",
+      "test": "assistant-only invented premise cannot gain user authority (5428.524621ms)"
+    },
+    {
+      "file": "tests/v27-general-evidence-repair.test.mjs",
+      "test": "mixed mutation and empty supplied premise cannot be normalized into conversation (4946.077632ms)"
+    }
+  ],
+  "files": {
+    "tests/ai-credit-security-regression.test.mjs": 1,
+    "tests/append-items-authority.test.mjs": 1,
+    "tests/ask-action-capability-security-regressions.test.mjs": 1,
+    "tests/ask-action-capability-target-freshness-expiry.test.mjs": 1,
+    "tests/ask-active-contract.test.mjs": 1,
+    "tests/ask-append-independent-completion.test.mjs": 2,
+    "tests/ask-benchmark-retrieval-regressions.test.mjs": 1,
+    "tests/ask-care-chronology.test.mjs": 2,
+    "tests/ask-compositional-emission.test.mjs": 19,
+    "tests/ask-contract-repair-route.test.mjs": 1,
+    "tests/ask-conversation-concurrency-acceptance.test.mjs": 1,
+    "tests/ask-conversation-subject-continuity-p0.test.mjs": 2,
+    "tests/ask-core-invariants.test.mjs": 1,
+    "tests/ask-episode-history.test.mjs": 1,
+    "tests/ask-episode-repair.test.mjs": 4,
+    "tests/ask-grief-lifecycle-regression.test.mjs": 6,
+    "tests/ask-history-stage-2.test.mjs": 1,
+    "tests/ask-id-free-probes.test.mjs": 4,
+    "tests/ask-inflight-navigation.test.mjs": 1,
+    "tests/ask-input-budget-route.test.mjs": 1,
+    "tests/ask-interpretation-input-budget.test.mjs": 2,
+    "tests/ask-interpretation-output-budget.test.mjs": 2,
+    "tests/ask-interpretation-timeout.test.mjs": 1,
+    "tests/ask-labs-list.test.mjs": 1,
+    "tests/ask-launch-blockers.test.mjs": 1,
+    "tests/ask-launch-quality-history-prose.test.mjs": 1,
+    "tests/ask-launch-repairs.test.mjs": 1,
+    "tests/ask-lifecycle-role-contract.test.mjs": 1,
+    "tests/ask-long-form-subject-contract-p0.test.mjs": 1,
+    "tests/ask-memory-authority-p0.test.mjs": 1,
+    "tests/ask-memory-integrity-p0.test.mjs": 1,
+    "tests/ask-memory-single-authority.test.mjs": 1,
+    "tests/ask-p0-auxiliary-regressions.test.mjs": 1,
+    "tests/ask-post-review-finalizer-contract.test.mjs": 3,
+    "tests/ask-pre-provider-retry.test.mjs": 3,
+    "tests/ask-production-issues-v2.test.mjs": 1,
+    "tests/ask-production-repair.test.mjs": 1,
+    "tests/ask-provider-envelope-diagnostics.test.mjs": 1,
+    "tests/ask-provider-error-diagnostics.test.mjs": 1,
+    "tests/ask-provider-root-envelope.test.mjs": 1,
+    "tests/ask-provider-timestamp-boundary.test.mjs": 1,
+    "tests/ask-public-cancellation-route.test.mjs": 1,
+    "tests/ask-read-ticket-diagnostics.test.mjs": 1,
+    "tests/ask-read-ticket-hygiene.test.mjs": 1,
+    "tests/ask-recursive-transport.test.mjs": 7,
+    "tests/ask-referent-product-leak-p0.test.mjs": 1,
+    "tests/ask-reliability-signout.test.mjs": 3,
+    "tests/ask-route-ordering.test.mjs": 7,
+    "tests/ask-sdk-uncertainty.test.mjs": 2,
+    "tests/ask-shared-operation-contracts.test.mjs": 1,
+    "tests/ask-shared-request-contract.test.mjs": 1,
+    "tests/ask-staged-catalog-contract.test.mjs": 1,
+    "tests/ask-staged-catalog-route.test.mjs": 1,
+    "tests/ask-state-suggestion-persistence.test.mjs": 2,
+    "tests/ask-stress-architecture.test.mjs": 1,
+    "tests/ask-structured-output-reliability.test.mjs": 1,
+    "tests/ask-task-execution-contract.test.mjs": 2,
+    "tests/ask-task-route.test.mjs": 1,
+    "tests/ask-turn-subject-resolution.test.mjs": 1,
+    "tests/ask-unseen-v1-publication-0930.test.mjs": 1,
+    "tests/ask-usage-experience.test.mjs": 2,
+    "tests/ask-wire-integration.test.mjs": 2,
+    "tests/ask-wire-recursive-plan.test.mjs": 1,
+    "tests/ask-working-memory-interpretation.test.mjs": 1,
+    "tests/ask-write-read-pressure-acceptance.test.mjs": 1,
+    "tests/calculation-capability.test.mjs": 1,
+    "tests/canonical-care-deployment-compatibility.test.mjs": 1,
+    "tests/canonical-pet-remove.test.mjs": 2,
+    "tests/canonical-remove.test.mjs": 2,
+    "tests/canonical-subject-authority.test.mjs": 1,
+    "tests/care-persistence-state-repair.test.mjs": 1,
+    "tests/core-loop-stability.test.mjs": 2,
+    "tests/furvise-brain-architecture-boundary.test.mjs": 4,
+    "tests/furvise-brain-owner-note-gate.test.mjs": 1,
+    "tests/furvise-conversational-architecture-v1.test.mjs": 2,
+    "tests/furvise-intelligence-engine.test.mjs": 2,
+    "tests/furvise-replace-ticket.test.mjs": 2,
+    "tests/generalized-replace.test.mjs": 1,
+    "tests/lifecycle-plan.test.mjs": 4,
+    "tests/navigation-data-freshness.test.mjs": 1,
+    "tests/owner-note-write-isolation.test.mjs": 5,
+    "tests/owner-preference-mutation.test.mjs": 2,
+    "tests/profile-field-authority.test.mjs": 1,
+    "tests/profile-mutation-job.test.mjs": 2,
+    "tests/public-v1-freeze.test.mjs": 1,
+    "tests/read-ticket-provider-parity.test.mjs": 1,
+    "tests/replace-reference-context.test.mjs": 1,
+    "tests/residual-requirements-contract.test.mjs": 1,
+    "tests/routine-year-clarification.test.mjs": 1,
+    "tests/state-transition-job.test.mjs": 4,
+    "tests/stored-read-authority.test.mjs": 2,
+    "tests/stored-read-provider-parity.test.mjs": 12,
+    "tests/typed-read-ticket.test.mjs": 1,
+    "tests/unified-ai-credits-care-state.test.mjs": 2,
+    "tests/v27-confirmed-temporal-scope.test.mjs": 1,
+    "tests/v27-general-evidence-repair.test.mjs": 8
+  },
+  "fullLogSha256": "a0dd14622067c9eb172156a5d986cbd6f68f66a34905dafc2fb54ab0cf734e6e",
+  "url": "https://github.com/furvisepet/furvisepet/actions/runs/42469361783",
+  "notes": [
+    "Full unfiltered suite failed; no waiver or full-pass claim.",
+    "File grouping is a diagnostic footer parse; authoritative aggregate is 6025 tests, 5829 pass, 194 fail, one cancelled, one skipped.",
+    "Legacy interpretation timeout is now a bounded test failure, not an indefinitely running job.",
+    "Active financial recovery and concurrency contracts were migrated and included in focused CI; historical planner fixtures are retained."
+  ]
+}

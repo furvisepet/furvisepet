@@ -1,5 +1,7 @@
-type AskIdentityPayload = { mode?: "note"; conversationId: string; locale: string; timeZone?: string; petId: string; question: string };
-type OwnedPersistedTurn = { conversationId: string; question: string | null; userSequence: number };
+import { assertScopedReplayDisabled } from "./ask-temporal-scope-receipt.ts";
+import type { ConfirmedTemporalScope } from "./ask-request-contract.ts";
+type AskIdentityPayload = { confirmedTemporalScope?: ConfirmedTemporalScope; mode?: "note"; conversationId: string; locale: string; timeZone?: string; petId: string; question: string };
+type OwnedPersistedTurn = { confirmedTemporalScope?: ConfirmedTemporalScope; conversationId: string; question: string | null; userSequence: number };
 
 /** Recover only known transport versions of an owned turn. Every candidate
  * still passes the original full-payload hash and lease checks. */
@@ -8,6 +10,9 @@ export async function claimWithRestoredAskOrigin<T extends object>({ claim, payl
   payload: AskIdentityPayload;
   persisted: OwnedPersistedTurn | null;
 }): Promise<T> {
+  // A persisted turn cannot yet prove the original scoped request. Do not replay,
+  // even if a caller supplies or omits a purported scope. Legacy unscoped turns remain supported.
+  assertScopedReplayDisabled(payload, persisted);
   let result = await claim(payload);
   if (!persisted || !payload.conversationId || persisted.conversationId !== payload.conversationId
     || persisted.question !== payload.question) return result;

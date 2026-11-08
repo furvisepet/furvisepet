@@ -82,6 +82,14 @@ export function parseAskConversationResponse(value) {
   const clarificationQuestion = cleanOptionalText(draft.clarificationQuestion, 240);
   const applicationActions = clarificationQuestion ? [] : cleanApplicationActions(draft.applicationActions);
   const response = enforceActionResponseCoherence(parsed, applicationActions.length > 0, clarificationQuestion);
+  // This flag controls literal rendering only, never source or mutation authority.
+  // The server citation endpoint independently authenticates the signed source proof.
+  const verbatim = draft.readOnlyEvidence === true && draft.sections.length <= 6
+    && draft.sections.every(section => section && typeof section.heading === "string"
+      && Array.isArray(section.items) && section.items.length <= 8
+      && section.items.every(item => typeof item === "string" && item.length <= 12000))
+    && JSON.stringify(draft.sections).length <= 26000;
+  if (verbatim) response.sections = draft.sections.map(section => ({ heading: section.heading, items: [...section.items] }));
   const answerType = clarificationQuestion
     ? "clarification"
     : ASK_ANSWER_TYPES.includes(draft.answerType) ? draft.answerType : "direct_answer";
@@ -99,11 +107,13 @@ export function parseAskConversationResponse(value) {
     ...response,
     answerType,
     directAnswer: response.summary,
+    ...(verbatim ? { readOnlyEvidence: true } : {}),
+    ...(typeof draft.citationProof === "string" && draft.citationProof.length <= 97000 ? { citationProof: draft.citationProof } : {}),
     // Completion is settled by the server, not inferred from fluent prose.
     // Keep this product status outside the reviewed body and structured data.
-    ...(draft.turn?.finalStage === "COMPLETED" && draft.turn.answerOutcome === "limited"
+    ...(draft.turn?.finalStage === "COMPLETED" && draft.turn.answerOutcome === "limited" && answerType !== "clarification"
       && !/\b(?:can['’]?t|cannot|couldn['’]?t|could not|don['’]?t see|do not see|not recorded|not in (?:the )?(?:file|notes?|records?)|missing|does not tell me|not enough (?:information|history|records?))\b/i.test(response.summary)
-      ? { completionNotice: "I found some of this in the saved history, but not enough to answer every part confidently." } : {}),
+      ? { completionNotice: "I couldn't confirm every part of this answer." } : {}),
     supportingText: typeof draft.supportingText === "string" ? cleanText(draft.supportingText) : null,
     suggestedQuestions,
     actions,

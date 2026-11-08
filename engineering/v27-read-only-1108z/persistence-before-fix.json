@@ -1,0 +1,8 @@
+{
+  "phase": "PRE_FIX_REPRO_NOT_A_PASS",
+  "exitCode": 1,
+  "baseSha": "16ab0e826cbe7d756297d5680b0d8e9fad726ad9",
+  "testSha256": "8892379f346508d7a41cc68ba93646e41a2c93699a33e49547dae8b5c7a31603",
+  "routeSha256": "ccef919e4e8583d184db90c1554b29490544e52ce24c617cff5b4918253ba645",
+  "log": "read-only-persistence-before-fix.log"
+}

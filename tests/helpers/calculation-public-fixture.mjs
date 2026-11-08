@@ -31,7 +31,8 @@ const fixtureRoles={difference:["target","reference"],ratio:["reference","target
 const calculation=(operator="difference",operands=[slot(1),slot(0)],resultUnit="kg",id="c1")=>({id,operator,
  operands:operands.map((o,i)=>({role:fixtureRoles[operator]?.[i]??"member",...o})),resultUnit,precision:null});
 const proposal=calculations=>({operation:"calculate",calculations});
-const envelope=(plan,ticket)=>({version:"ask-request.v2",mode:"read",question:"Calculate from saved observations.",requirements:[],referenceTurnIds:[],
+// Reads have no provisional model answer; retain every existing operand and assertion.
+const envelope=(plan,ticket)=>({version:"ask-request.v2",draftAnswer:null,mode:"read",question:"Calculate from saved observations.",requirements:[],referenceTurnIds:[],
  scope:"named",petNames:[pets[0].name],operation:"recall",selection:"summary",quantity:"measurement",topic:"observations",terms:[],from:null,to:null,
  episodeTopic:null,ordinal:null,frame:null,evidenceBasis:"saved_history",premiseQuotes:[],calculatePlan:plan,readTicket:ticket});
 async function fixture({calculations=[calculation()],sourceRows=rows(),ticket=rawTicket(),subjects=[pets[0]],format="prose",closed=true,limit,storeFactory,resultSelection,question="Calculate from saved observations."}={}){

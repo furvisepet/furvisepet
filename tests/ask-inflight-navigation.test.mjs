@@ -1,3 +1,4 @@
+import {functionSource} from "./helpers/production-function-source.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
@@ -12,18 +13,12 @@ test("Ask marks request activity around exactly one guarded submission", async (
   assert.match(page, /if \(!prompt \|\| composerUnavailable \|\| askRequestActiveRef\.current\) return/);
 });
 
-test("server invalidation targets downstream state and never the active Ask route", async () => {
-  const [route, invalidation] = await Promise.all([
-    text("app/api/ask/route.ts"),
-    text("app/lib/intelligence/revalidate-ask-state.ts"),
-  ]);
-  assert.match(route, /revalidateAskStateViews\(/);
-  assert.match(route, /revalidate-ask-state\.ts/);
-  assert.doesNotMatch(route, /function revalidateAskStateViews/);
-  assert.match(invalidation, /"\/dashboard"/);
-  assert.match(invalidation, /"\/pets"/);
-  assert.match(invalidation, /"\/care-log"/);
-  assert.doesNotMatch(invalidation, /"\/ask"|router\.refresh|location\.reload/);
+test("read-only Ask never invalidates pet data; shared product invalidation remains scoped",async()=>{
+ const [route,invalidation]=await Promise.all([text("app/api/ask/route.ts"),text("app/lib/intelligence/revalidate-ask-state.ts")]);
+ assert.doesNotMatch(functionSource(route,"executeAskRequest"),/revalidateAskStateViews|persistAutomaticCareHistory|persistCanonicalSuggestions|executeActionCapability/);
+ assert.doesNotMatch(functionSource(route,"persistReadOnlyAnswer"),/revalidateAskStateViews|applicationStateChanged:\s*true|intelligencePersistence/);
+ assert.match(invalidation,/"\/dashboard"/);assert.match(invalidation,/"\/pets"/);assert.match(invalidation,/"\/care-log"/);
+ assert.doesNotMatch(invalidation,/"\/ask"|router\.refresh|location\.reload/);
 });
 
 test("major navigation is visibly guarded while Ask is answering", async () => {

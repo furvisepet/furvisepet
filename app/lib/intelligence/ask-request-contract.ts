@@ -71,6 +71,8 @@ export type AskRequestContract = {
   outputFormat?: "prose" | "bullets" | "table" | "json" | "csv" | null;
   referenceTurnIds: string[];
   quantity: typeof quantities[number];
+  /** First-provider-call, untrusted draft for source-free conversation. Never an evidence carrier. */
+  draftAnswer?: string | null;
 };
 const CALCULATION_OPERAND_ROLES = Object.fromEntries(CALCULATE_OPERATORS.map(operator =>
   [operator,CALCULATION_ROLE_POLICY[operator].description])) as Record<typeof CALCULATE_OPERATORS[number],string>;
@@ -78,8 +80,9 @@ const CALCULATION_OPERAND_ORDER = "Array position is never operand meaning. Ever
 const strings = (maxItems: number, maxLength: number) => ({ type: "array", maxItems, items: { type: "string", minLength: 1, maxLength } });
 export function askRequestSchema(frame: object, context?: Context) {
   const schema = { type: "object", additionalProperties: false,
-    required: ["calculatePlan", "storedRead", "removeJob", "stateTransitionJob", "fieldMutationJob", "lifecyclePlan", "appendJob", "readTicket", "writeJob", "task", "temporalScope", "mutationIntent", "recordSelection", "profileFields", "projection", "version", "mode", "question", "requirements", "evidenceNeeds", "outputFormat", "evidenceBasis", "premiseQuotes", "excludedPetNames", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
+    required: ["calculatePlan", "storedRead", "removeJob", "stateTransitionJob", "fieldMutationJob", "lifecyclePlan", "appendJob", "readTicket", "writeJob", "task", "temporalScope", "mutationIntent", "recordSelection", "profileFields", "projection", "version", "mode", "question", "requirements", "evidenceNeeds", "outputFormat", "evidenceBasis", "premiseQuotes", "excludedPetNames", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame", "draftAnswer"],
     properties: {
+      draftAnswer: { type: ["string", "null"], maxLength: 1800 },
       calculatePlan: calculatePlanSchema,
       storedRead: storedReadSchema(context?.storedReadReferences),
       removeJob: removeJobSchema(context?.replaceReferences),
@@ -137,6 +140,8 @@ export function askRequestSchema(frame: object, context?: Context) {
  * The root remains an object for Structured Outputs; the nested union makes a
  * saved_profile proposal structurally unable to carry history/write dimensions.
  * The binder below still performs full ownership and semantic validation. */
+const READ_ONLY_NULL_FIELDS = ["appendJob","writeJob","removeJob","fieldMutationJob","stateTransitionJob","mutationIntent","task","frame"] as const;
+
 export function askRequestProviderSchema(frame: object, context?: Context) {
   const profile = structuredClone(askRequestSchema(frame, context));
   Object.assign(profile.properties, {
@@ -334,8 +339,31 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
   // A premise list has authority only in the supplied-context branch.
   const suppliedConversation = structuredClone(nonProfile);
   Object.assign(suppliedConversation.properties.evidenceBasis, { type: "string", enum: ["supplied_context"] });
+  Object.assign(suppliedConversation.properties.premiseQuotes, { minItems: 1 });
   Object.assign(suppliedConversation.properties, { mode: { type: "string", enum: ["conversation"] },
-    scope: { type: "string", enum: ["none"] }, readTicket: { type: "null" } });
+    scope: { type: "string", enum: ["none"] }, readTicket: { type: "null" },
+    operation: { type: "string", enum: ["general"] },
+    draftAnswer: { type: "string", minLength: 1, maxLength: 1800 } });
+  // Pure dialogue has an explicit evidence domain and a first-call proposal.
+  // Nothing in this branch can carry a saved read, calculation or mutation.
+  for (const field of ["calculatePlan", "storedRead", "removeJob", "stateTransitionJob",
+    "fieldMutationJob", "lifecyclePlan", "appendJob", "writeJob", "task", "frame",
+    "mutationIntent", "projection", "recordSelection"] as const)
+    Object.assign(suppliedConversation.properties, { [field]: { type: "null" } });
+  // Conversation is a source-free capability, not a partial stored read.
+  // Correlate every retrieval-only axis with that capability in the canonical
+  // grammar; a profile/history obligation must select a corresponding read.
+  for (const field of ["quantity", "temporalScope", "from", "to", "episodeTopic", "ordinal"] as const)
+    Object.assign(suppliedConversation.properties, { [field]: { type: "null" } });
+  for (const field of ["profileFields", "evidenceNeeds", "terms", "petNames", "excludedPetNames"] as const)
+    Object.assign(suppliedConversation.properties[field], { maxItems: 0 });
+  Object.assign(suppliedConversation.properties.selection, { enum: ["summary"] });
+  const generalConversation = structuredClone(suppliedConversation);
+  Object.assign(generalConversation.properties.evidenceBasis, { enum: ["general"] });
+  Object.assign(generalConversation.properties.premiseQuotes, { minItems: 0, maxItems: 0 });
+  for (const variant of [nonProfile, chronological]) {
+    Object.assign(variant.properties.mode, { enum: modes.filter(mode => mode !== "conversation") });
+  }
   for (const variant of [nonProfile, chronological, lifecycle]) {
     Object.assign(variant.properties.evidenceBasis, { ...(Array.isArray(variant.properties.evidenceBasis.enum) ? { enum: variant.properties.evidenceBasis.enum.filter(value => value !== "supplied_context") } : {}) });
     if (variant.properties.premiseQuotes.type !== "null") Object.assign(variant.properties.premiseQuotes, { maxItems: 0 });
@@ -356,10 +384,60 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
   Object.assign(deferredRemove.properties, { removeJob: unresolvedRemove });
   const deferredConcern = structuredClone(transition);
   Object.assign(deferredConcern.properties, { stateTransitionJob: unresolvedConcern });
-  const unboundCatalog = catalogIntentSchema({ anyOf: [deferredReplace, deferredRemove, deferredConcern, lifecycle, profile, ...stored] });
+  // A typed history ticket owns a saved-history read. Correlate that source
+  // before projection, including catalog templates. The nullable branch retains
+  // legacy operations; it never silently discards a proposed ticket.
+  const correlateHistory = (variant: ReturnType<typeof askRequestSchema>) => {
+    const ticket = variant.properties.readTicket as { type?: string; anyOf?: Array<Record<string, unknown>> };
+    if (ticket.type === "null") return [variant];
+    const alternatives = Array.isArray(ticket.anyOf) ? ticket.anyOf
+      : ticket.type === "object" ? [variant.properties.readTicket as unknown as Record<string, unknown>] : null;
+    if (!alternatives?.length) throw Error("ASK_PROVIDER_HISTORY_DOMAIN_SCHEMA");
+    const variants: Array<ReturnType<typeof askRequestSchema>> = [];
+    if (alternatives.some(choice=>choice.type==="null")) {
+      const inactive=structuredClone(variant);
+      Object.assign(inactive.properties,{readTicket:{type:"null"}});
+      variants.push(inactive);
+    }
+    const choices=alternatives.filter(choice=>choice.type!=="null");
+    if (choices.length) {
+      const history=structuredClone(variant);
+      Object.assign(history.properties,{readTicket:ticket.type==="object" ? structuredClone(variant.properties.readTicket) : {anyOf:structuredClone(choices)},evidenceBasis:{type:"string",enum:["saved_history"]}});
+      variants.push(history);
+    }
+    return variants;
+  };
+  // Model proposals use disjoint execution capabilities. A history-read mode
+  // cannot advertise an inactive ticket or a save/correction task. Legacy
+  // internal callers still bind separately; no proposed obligation is erased.
+  const correlateMode = (variant: ReturnType<typeof askRequestSchema>) => variant.properties.mode.enum.flatMap(mode=>{
+    const branch=structuredClone(variant);
+    Object.assign(branch.properties.mode,{enum:[mode]});
+    const inactive=(branch.properties.readTicket as {type?:string}).type==="null";
+    if(mode==="update"&&!inactive)return [];
+    const source=branch.properties.evidenceBasis as {type?:unknown;enum?:unknown[]};
+    let domains=source.type==="null" ? [null] : source.enum?.slice();
+    if(!domains)throw Error("ASK_PROVIDER_MODE_DOMAIN_SCHEMA");
+    if((mode==="read"||mode==="mixed")&&inactive)domains=domains.filter(value=>value!=="saved_history");
+    if(mode==="update")domains=domains.filter(value=>value===null);
+    if(mode==="mixed")domains=domains.filter(value=>value===null||value==="saved_history");
+    if(mode==="read"){
+      for(const field of READ_ONLY_NULL_FIELDS)Object.assign(branch.properties,{[field]:{type:"null"}});
+      if(inactive&&domains.every(value=>value===null||value==="general")){
+        if(!branch.properties.operation.enum.includes("navigate"))return [];
+        domains=domains.filter(value=>value===null);
+        Object.assign(branch.properties.operation,{enum:["navigate"]});
+      }
+    }
+    if(!domains.length)return [];
+    Object.assign(branch.properties.evidenceBasis,{type:domains.every(value=>value===null) ? "null"
+      : domains.includes(null) ? ["string","null"] : "string",enum:domains});
+    return [branch];
+  });
+  const unboundCatalog = catalogIntentSchema({ anyOf: [deferredReplace, deferredRemove, deferredConcern, lifecycle, profile, ...stored].flatMap(correlateHistory).flatMap(correlateMode) });
   return { type: "object", additionalProperties: false, required: ["request"],
-    properties: { request: { anyOf: [unboundCatalog, ...(!context || premiseQuotes.length ? [premiseCalculation] : []), ...calculations, ...stored, profile, suppliedConversation, nonProfile, chronological, lifecycle, profileMutation, removal,
-      ...(transitionSchema.anyOf.length > 1 ? [transition] : [])] } } };
+    properties: { request: { anyOf: [unboundCatalog, ...[...(!context || premiseQuotes.length ? [premiseCalculation] : []), ...calculations, ...stored, profile, generalConversation, suppliedConversation, nonProfile, chronological, lifecycle, profileMutation, removal,
+      ...(transitionSchema.anyOf.length > 1 ? [transition] : [])].flatMap(correlateHistory).flatMap(correlateMode)] } } };
 }
 
 export const ASK_REQUEST_INSTRUCTIONS = [
@@ -429,7 +507,7 @@ const fail = (reason: string, field?: string): never => { throw new Error(`ASK_R
 export function validateAskRequest(value: unknown, context: Context): AskInterpretation {
   if (!value || typeof value !== "object" || Array.isArray(value)) return fail("shape");
   assertAskSourceWindowProposal(value, context);
-  const p = { calculatePlan: null, storedRead: null, removeJob: null, stateTransitionJob: null, fieldMutationJob: null, lifecyclePlan: null, appendJob: null, readTicket: null, writeJob: null, task: null, temporalScope: null, mutationIntent: null, recordSelection: null, profileFields: [], projection: null, evidenceNeeds: [], outputFormat: null, evidenceBasis: null, premiseQuotes: null, excludedPetNames: [], ...value } as Record<string, unknown>; // Older stored v2 contracts predate these optional fields.
+  const p = { calculatePlan: null, storedRead: null, removeJob: null, stateTransitionJob: null, fieldMutationJob: null, lifecyclePlan: null, appendJob: null, readTicket: null, writeJob: null, task: null, temporalScope: null, mutationIntent: null, recordSelection: null, profileFields: [], projection: null, evidenceNeeds: [], outputFormat: null, evidenceBasis: null, premiseQuotes: null, excludedPetNames: [], draftAnswer: null, ...value } as Record<string, unknown>; // Older stored v2 contracts predate these optional fields.
   if (Object.keys(p).sort().join() !== askRequestSchema({}).required.sort().join()) return fail("fields");
   const member = (values: readonly unknown[], value: unknown) => values.includes(value);
   const list = (value: unknown, count: number, size: number): value is string[] => Array.isArray(value) && value.length <= count
@@ -445,11 +523,24 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     || !list(p.requirements, 8, 240) || !list(p.referenceTurnIds, 8, 160) || !list(p.petNames, 20, 100)
     || !Array.isArray(p.terms) || p.terms.length > 6
     || p.terms.some(x => typeof x !== "string" || x.length < 3 || x.length > 32 || !/^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(x))) return fail("schema");
+  if (p.draftAnswer !== null && (typeof p.draftAnswer !== "string"
+    || !p.draftAnswer.trim() || p.draftAnswer.length > 1800)) return fail("draft_answer");
   if (p.scope !== "none" || p.storedRead != null) assertUnambiguousOwnedIdentity(context);
   if (p.evidenceBasis !== "supplied_context" && Array.isArray(p.premiseQuotes) && p.premiseQuotes.length) return fail("premise_domain");
   if (!Array.isArray(p.profileFields) || p.profileFields.some(field => !askRequestSchema({}).properties.profileFields.items.enum.includes(String(field))) || p.profileFields.length > 14) return fail("profile_fields");
   if (![null, "historical", "current", "historical_and_current"].includes(p.temporalScope as null | string)) return fail("temporal_scope");
   if (![null, "correct_record"].includes(p.mutationIntent as null | string)) return fail("mutation_intent");
+  // Revalidate the same capability relationship for stored/direct callers.
+  // Never erase declared retrieval obligations to make a conversation pass.
+  if (p.mode === "conversation" && (
+    [p.calculatePlan,p.storedRead,p.readTicket,p.removeJob,p.stateTransitionJob,p.fieldMutationJob,
+      p.lifecyclePlan,p.appendJob,p.writeJob,p.task,p.frame,p.mutationIntent,p.projection,p.recordSelection,
+      p.quantity,p.temporalScope,p.from,p.to,p.episodeTopic,p.ordinal].some(value=>value!==null)
+    || [p.profileFields,p.evidenceNeeds,p.terms,p.petNames,p.excludedPetNames].some(value=>!Array.isArray(value)||value.length)
+    || p.operation !== "general" || p.selection !== "summary"))
+    return fail("conversation_source");
+  if (p.mode === "read" && READ_ONLY_NULL_FIELDS.some(field=>p[field]!==null)) return fail("read_mutation_domain");
+  if (p.readTicket !== null && p.evidenceBasis !== "saved_history") return fail("read_ticket_evidence_domain");
   if (p.calculatePlan !== null) {
     if (p.evidenceBasis === "supplied_context") {
       if (p.mode!=="read"||p.readTicket!==null||p.scope!=="none"||p.operation!=="recall"||p.selection!=="summary"
@@ -677,7 +768,9 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     // rather than turning a no-write conversation into a failed read contract.
     return { version: "ask-interpretation.v1", operation: "general", readOperation: "general", conversationOnly: true,
       petIds: [], topic: "general conversation", history: null, episodeTopic: null, ordinal: null, readOnly: true,
-      clarification: null, frame: emptyProposedSemanticFrame(), request: { version: ASK_REQUEST_VERSION, task: null,
+      clarification: null, frame: emptyProposedSemanticFrame(),
+      ...(typeof p.draftAnswer === "string" ? { provisionalAnswer: p.draftAnswer.trim() } : {}),
+      request: { version: ASK_REQUEST_VERSION, task: null,
         mode: "conversation", question: context.currentMessage, requirements: [], referenceTurnIds: [],
         quantity: null, evidenceBasis: "general", outputFormat: null } };
   }
@@ -747,6 +840,9 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     Object.assign(p, { mode: "conversation", scope: "none", petNames: [], operation: "general",
       from: null, to: null, terms: [], ordinal: null, episodeTopic: null, frame: null });
   }
+  // Legacy callers also fail closed: an unspecified evidence domain is not
+  // a conversation plan. Do not guess general or rewrite supplied premises.
+  if (p.mode === "conversation" && p.evidenceBasis === null) return fail("conversation_evidence_basis");
   const owned = context.eligiblePets.filter(pet => pet.user_id === context.owner.userId);
   const proposed = p.petNames.map(name => {
     const matches = owned.filter(pet => pet.name?.toLocaleLowerCase() === name.toLocaleLowerCase());
@@ -1100,7 +1196,9 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     petIds, ...(explicitWriteTarget && petIds.length === 1 && petIds[0] === explicitWriteTarget
       ? { readPetIds: [...new Set([...petIds, ...needPlan.needs.flatMap(need => need.petIds || [])])] } : {}),
     topic: p.topic, readOnly, clarification, frame,
-    referenceQuestion: p.question as string, ...(conversationOnly ? { conversationOnly: true } : {}),
+    referenceQuestion: p.question as string,
+    ...(conversationOnly ? { conversationOnly: true,
+      ...(typeof p.draftAnswer === "string" ? { provisionalAnswer: p.draftAnswer.trim() } : {}) } : {}),
     episodeTopic: episodeTarget || operation === "count" || operation === "episode" ? p.episodeTopic as AskInterpretation["episodeTopic"] : null,
     ordinal: p.ordinal as AskInterpretation["ordinal"],
     history: readTicket ? { from: readTicket.temporal.from, to: readTicket.temporal.to, terms: [], interpretation: "period" } : historical ? { from: target?.basis === "scoped_register" ? explicitEpisodePeriod!.from : historicalFrom, to: target?.basis === "scoped_register" ? explicitEpisodePeriod!.to : historicalTo, terms: p.terms as string[], interpretation: (p.terms as string[]).length ? "lexical" : from || to ? "period" : "broad_comparison" } : null };

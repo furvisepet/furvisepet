@@ -1,3 +1,4 @@
+import {functionSource} from "./helpers/production-function-source.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -23,26 +24,36 @@ test("public v1 capability policy is deliberately narrow", () => {
   assert.equal(policy.publicV1AskCapability({ mode: "read", readTicket: {} }).available, true);
   assert.equal(policy.publicV1AskCapability({ mode: "read", storedRead: { domain: "memory" } }).available, true);
   assert.equal(policy.publicV1AskCapability({ mode: "read", profileFields: ["weight"] }).available, true);
+  const conversation = { mode: "conversation", evidenceBasis: "general", profileFields: [] };
+  assert.equal(policy.publicV1AskCapability(conversation).available, true);
+  const supplied = { ...conversation, evidenceBasis: "supplied_context" };
+  assert.equal(policy.publicV1AskCapability(supplied).available, true);
+  assert.equal(policy.publicV1AskCapability({ ...supplied, readTicket: {} }).reason, "unplanned");
+  assert.equal(policy.publicV1AskCapability({ ...supplied, calculatePlan: {} }).reason, "calculation");
+  assert.equal(policy.publicV1AskCapability({ ...conversation, appendJob: {} }).reason, "mutation");
+  assert.equal(policy.publicV1AskCapability({ ...conversation, calculatePlan: {} }).reason, "calculation");
+  for (const companion of [{readTicket: {}}, {storedRead: {}}, {profileFields: ["weight"]}, {evidenceNeeds: [{}]}])
+    assert.equal(policy.publicV1AskCapability({ ...conversation, ...companion }).reason, "unplanned");
   assert.equal(policy.publicV1AskCapability(undefined).reason, "unplanned");
   assert.equal(policy.publicV1AskCapability({ mode: "conversation", calculatePlan: null }).reason, "unplanned");
   assert.equal(policy.publicV1AskCapability({ mode: "read", readTicket: null, calculatePlan: {} }).reason, "calculation");
 });
-test("Ask uses one typed capability boundary before mutation executors", () => {
-  const route = read("app/api/ask/route.ts");
-  const gate = route.indexOf("publicV1AskCapability(interpretation.request)");
-  assert.ok(gate > 0);
-  for (const marker of ["if (interpretation.request?.appendJob)","continueLifecyclePlan({","if (interpretation.request?.stateTransitionJob)","if (interpretation.request?.fieldMutationJob)","if (interpretation.request?.removeJob)","const replaceJob = interpretation.request?.writeJob"])
-    assert.ok(route.indexOf(marker) > gate, marker);
-  assert.match(route, /authorizedLearnings: PUBLIC_V1_CAPABILITIES\.askMutations/);
-  assert.doesNotMatch(route, /publicV1RequestHasExcludedAskMutation\(interpretation\.request\)/);
-  assert.doesNotMatch(route, /publicV1RequestIsSupportedAskRead/);
-  assert.match(route, /if \(!PUBLIC_V1_CAPABILITIES\.askMutations\) return \{ applicationActions: \[\], applicationStateChanged: false \};/);
+test("public Ask exposes bounded reads and contains no mutation execution path",()=>{
+ const route=read("app/api/ask/route.ts"),execution=functionSource(route,"executeAskRequest");
+ assert.match(execution,/runReadOnlyAsk/);assert.match(execution,/createReadOnlyDataAccess/);
+ for(const excluded of ["executeActionCapability","continueLifecyclePlan","persistAutomaticCareHistory","persistCanonicalSuggestions","continueCanonicalSuggestion","interpretation.request"])
+  assert.ok(!execution.includes(excluded),excluded);
+ assert.doesNotMatch(route,/from ["'][^"']*(?:action-capability|suggestion-authority|mutation-job|lifecycle-plan)/);
 });
-test("stored Ask effects and new Vet Brief generation are server-blocked", () => {
-  assert.match(read("app/api/ask/actions/[messageId]/route.ts"), /if \(!PUBLIC_V1_CAPABILITIES\.askMutations\) return unavailable\(\);/);
-  assert.match(read("app/api/ask/suggestions/[id]/route.ts"), /Ask suggestions cannot change saved information in the public beta/);
-  assert.match(read("app/api/vet-briefs/draft/route.ts"), /VET_BRIEF_UNAVAILABLE_PUBLIC_V1/);
-  assert.match(read("app/api/vet-briefs/route.ts"), /VET_BRIEF_UNAVAILABLE_PUBLIC_V1/);
+test("stored Ask effects and new Vet Brief generation are server-blocked",()=>{
+ const action=read("app/api/ask/actions/[messageId]/route.ts"),suggestion=read("app/api/ask/suggestions/[id]/route.ts");
+ assert.match(functionSource(action,"POST"),/getAuthenticatedApiContext[\s\S]*return unavailable\(\)/);
+ assert.match(functionSource(action,"unavailable"),/status: 404/);
+ assert.doesNotMatch(action,/executeActionCapability|continueCanonical|reserveAiCredit|\.rpc\(/);
+ assert.match(functionSource(suggestion,"PATCH"),/getAuthenticatedApiContext[\s\S]*SUGGESTION_CONFLICT[\s\S]*status: 409/);
+ assert.doesNotMatch(suggestion,/continueCanonicalSuggestion|apply_furvise|reserveAiCredit|\.rpc\(/);
+ assert.match(read("app/api/vet-briefs/draft/route.ts"),/VET_BRIEF_UNAVAILABLE_PUBLIC_V1/);
+ assert.match(read("app/api/vet-briefs/route.ts"),/VET_BRIEF_UNAVAILABLE_PUBLIC_V1/);
 });
 test("public surfaces do not advertise Ask effects or new Vet Brief generation", () => {
   const ask = read("app/ask/page.tsx");

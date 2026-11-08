@@ -31,7 +31,12 @@ test("emergency safety remains before entitlement and quota", () => {
 test("a durable assistant is persisted before credit completion", () => {
   const route = read("app/api/ask/route.ts");
   const settlement = read("app/lib/ai/ask-credit-settlement.ts");
-  assert.ok(route.indexOf('role: "furvise"') < route.indexOf("completeAiCredit({ feature: \"ask\""));
+  const persistence=route.slice(route.indexOf("async function persistReadOnlyAnswer"),route.indexOf("type CompletedAskResponse"));
+  const initial=persistence.indexOf("await completeAskConversationTurn(");
+  const terminal=persistence.indexOf("await finalizePersistedAskAnswer(");
+  const charge=persistence.indexOf("await completeAiCredit(");
+  const release=persistence.indexOf("await safeReleaseAiCredit(");
+  assert.ok(initial>=0&&initial<terminal&&terminal<charge&&terminal<release);
   assert.match(route, /createAskCreditSettlement/);
   assert.doesNotMatch(route, /async function (?:safeReleaseAiCredit|reconcilePersistedAskCredit)/);
   assert.match(settlement, /optional_credit_reconciliation/);

@@ -1,11 +1,24 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { parseEnv } from "node:util";
 import { isAuthCaptchaEnabled } from "../app/lib/auth-captcha-policy.ts";
-import { requireCaptchaToken, resolveLoginCaptcha } from "../app/lib/security/auth-abuse/captcha.ts";
+import { registerHooks } from "node:module";
 import test from "node:test";
 import { getRateLimitPolicy } from "../app/lib/security/rate-limit/config.ts";
 import { MemoryAuthAbuseTestStore } from "../app/lib/security/auth-abuse/memory-test-store.ts";
+
+registerHooks({
+  resolve(specifier, context, next) {
+    if (specifier === "server-only") return { url: "data:text/javascript,export {};", format: "module", shortCircuit: true };
+    if (specifier.startsWith(".") && context.parentURL?.startsWith("file:")) {
+      const url = new URL(specifier, context.parentURL);
+      if (existsSync(fileURLToPath(url.href + ".ts"))) return next(url.href + ".ts", context);
+    }
+    return next(specifier, context);
+  },
+});
+const { requireCaptchaToken, resolveLoginCaptcha } = await import("../app/lib/security/auth-abuse/captcha.ts");
 
 const source = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const authRoutes = [

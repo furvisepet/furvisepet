@@ -1,3 +1,5 @@
+import {expand} from "../app/lib/intelligence/ask-wire-codec.mjs";
+import {historicalWireSchema} from "./helpers/historical-wire-schema.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -36,7 +38,7 @@ const factored = context => factorProviderCompoundSchemas(factorProviderEnumSche
 const cache = new Map();
 function compiled(context) {
   if (!cache.has(context)) {
-    const schema = factored(corpus.contexts[context]), plan = createAskWirePlan(schema, ASK_REQUEST_INSTRUCTIONS);
+    const schema = historicalWireSchema(context, 'schema'), plan = createAskWirePlan(schema, ASK_REQUEST_INSTRUCTIONS);
     const raw = createGraphCodec(schema), harness = createRecursiveAskPlanHarness(plan, tick);
     const validate = new Ajv().compile(createAskProviderWireSchema(harness.schema));
     cache.set(context, { schema, plan, raw, harness, validate });
@@ -141,9 +143,13 @@ for (const numeric of [false, true]) for (const count of [0, 2, 8, 39])
       assert.equal(request.max_output_tokens, 8192);
       assert.deepEqual(request.reasoning, { effort: "none" });
       assert.equal(request.instructions, prepared.transport.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS);
-      assert.equal(request.text.format.schema.properties.request.anyOf[0].required.length, 37);
-      assert.equal(request.text.format.schema.properties.format.enum[0], "ask-semantic-slots.v1");
-      const canonical = proposal(ctx), proposed = prepared.transport.encode(canonical, check);
+      const native=expand(request.text.format.schema).properties.request.anyOf[0];
+      assert.deepEqual([...native.required].sort(),Object.keys(native.properties).sort());
+      assert.ok(native.required.includes("evidenceContext"));
+      assert.equal(request.text.format.schema.properties.format.enum[0], "ask-semantic-slots.v8");
+      // The legacy proposal fixture has no provisional answer.
+      const canonical = proposal(ctx); canonical.request.draftAnswer = null;
+      const proposed = prepared.transport.encode(canonical, check);
       assert.ok(!Object.hasOwn(proposed, "nodes"));
       assert.deepEqual(prepared.transport.decode(JSON.parse(JSON.stringify(proposed)), check), canonical);
       let dispatches = 0;
@@ -169,8 +175,8 @@ for (const numeric of [false, true]) for (const count of [0, 2, 8, 39])
 
 test("final serialized request boundaries reject before dispatch; output/accounting ceilings stay unchanged", async t => {
   quiet(t);
-  const prepared = indexedPrepared(context(0, false));
-  const h = prepareRecursiveAskRequestHarness(prepared, tick);
+  const prepared = prepareAskInterpretationRequest(context(0, false),model);
+  const h = {request:prepared.request};
   function padded(size) {
     const request = structuredClone(h.request);
     request.instructions += " ".repeat(size - JSON.stringify(request).length);
@@ -196,7 +202,8 @@ test("final serialized request boundaries reject before dispatch; output/account
 });
 
 test("integration compilation and runtime use fresh operation deadlines without resetting the budget", () => {
-  const { plan } = compiled("no_numeric"), canonical = corpus.fixtures.find(f => f.context === "no_numeric").canonical;
+  const { plan } = compiled("no_numeric"), legacy = corpus.fixtures.find(f => f.context === "no_numeric" && f.canonical.request.evidenceBasis === "saved_profile").canonical;
+  const canonical = legacy; // Frozen ABI key parity; clock assertions stay unchanged.
   let now = 0; const deadline = new OperationDeadline(50000, () => now);
   const check = () => deadline.allocate("interpretation", 25000, 24000);
   const h = createRecursiveAskPlanHarness(plan, check), recursive = h.encode(canonical, check);

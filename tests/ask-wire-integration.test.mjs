@@ -56,7 +56,7 @@ test("actual interpretation admits complete wire snapshots and gives Binder the 
    assert.ok(chosen,"positive Binder fixture missing: "+name);
    const actual=await admitted(name,context,plan.encode(chosen.canonical,()=>{}),request=>{
     const total=JSON.stringify(request).length;
-    assert.deepEqual(request.text.format.schema,createAskProviderWireSchema(plan.schema));
+    assert.deepEqual(request.text.format.schema,factorProviderCompoundSchemas(factorProviderEnumSchemas(createAskProviderWireSchema(plan.schema))));
     rows.push({name,schema:JSON.stringify(request.text.format.schema).length,instructions:request.instructions.length,input:request.input.length,total,margin:60000-total});
     console.log(JSON.stringify({kind:"request_size",...rows.at(-1)}));
     if(process.env.FURVISE_WIRE_REPORT)writeFileSync(process.env.FURVISE_WIRE_REPORT,JSON.stringify({status:"in_progress",rows},null,2));
@@ -95,7 +95,7 @@ test("bounded saved_profile repair passes real admission and production wire dec
    const index=requests.length;requests.push(request);
    assert.equal(JSON.stringify(request),snapshots[index]);
    assert.ok(JSON.stringify(request).length<60000);
-   assert.deepEqual(request.text.format.schema,createAskProviderWireSchema(plan.schema));
+   assert.deepEqual(request.text.format.schema,factorProviderCompoundSchemas(factorProviderEnumSchemas(createAskProviderWireSchema(plan.schema))));
    if(index===1){
     const payload=JSON.parse(request.input);
     assert.equal(payload.userSources.find(source=>source.id===payload.currentSourceId).text,context.currentMessage);

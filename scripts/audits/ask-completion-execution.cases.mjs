@@ -23,7 +23,10 @@ test('explicit narrowing and a topic reset do not preserve irrelevant pets',()=>
  const context={owner:{userId:ownerId},eligiblePets:owned,pet:owned[0],conversationTurns:turns,currentMessage:'For that month, give only Birch activity.'};
  assert.deepEqual(validateAskRequest(proposal({petNames:['Birch']}),context).petIds,[owned[1].id]);
  context.conversationTurns=[...turns,{id:'u3',role:'user',text:'Explain cloud storage.'}];context.currentMessage='Explain that further.';
- const p=validateAskRequest(proposal({mode:'conversation',scope:'none',petNames:[],operation:'general',evidenceBasis:'general'}),context);
+ // A topic reset must use a source-free proposal. A stale history obligation
+ // cannot be silently erased merely by changing mode and evidenceBasis.
+ assert.throws(()=>validateAskRequest(proposal({mode:'conversation',scope:'none',petNames:[],operation:'general',evidenceBasis:'general'}),context),/conversation_source/);
+ const p=validateAskRequest(proposal({mode:'conversation',scope:'none',petNames:[],operation:'general',evidenceBasis:'general',quantity:null,terms:[]}),context);
  assert.equal(p.conversationOnly,true);
 });
 test('uncertified calculation history remains source-free and limited',async()=>{
@@ -40,7 +43,7 @@ test('ten-pet CSV projection cannot publish uncertified converted values',async(
  const r=await assertStoredPublicationUnavailable(e);assert.doesNotMatch(JSON.stringify(r.answer),/10000|Pet9,/);
 });
 
-test('deterministic generation can still enter one repair and independent re-review within existing call cap',async t=>{
+test('Ask two-call ceiling cannot be bypassed by review repair or re-review',async t=>{
  clock(t);
  const {runAdmittedAiOperation}=await import('../../app/lib/ai/usage-guard/admission.ts');
  const {MemoryAiGuardTestStore}=await import('../../app/lib/ai/usage-guard/memory-test-store.ts');
@@ -48,12 +51,13 @@ test('deterministic generation can still enter one repair and independent re-rev
  const {executeAdmittedProviderCall}=await import('../../app/lib/ai/usage-guard/provider-call-budget.ts');
  const call=purpose=>executeAdmittedProviderCall({purpose,model:OPENAI_ANALYSIS_MODEL,providerInput:'test',maxOutputTokens:10,invoke:async()=>({usage:{input_tokens:1,output_tokens:1}})});
  await runAdmittedAiOperation({store:new MemoryAiGuardTestStore(),feature:'ask',intendedModel:OPENAI_ANALYSIS_MODEL,env:{NODE_ENV:'test'},payload:{},userId:ownerId,requestId:'deterministic-phases'},async()=>{
-  await call();await call('history_review');await assert.rejects(call('history_rereview'));
-  await call('history_repair');await call('history_rereview');await assert.rejects(call('history_repair'));
+  await call();await call('history_review');
+  await assert.rejects(call('history_repair'), error => error?.reason === 'provider_call_budget_exhausted');
+  await assert.rejects(call('history_rereview'), error => error?.reason === 'provider_phase_out_of_order');
  });
 });
 
-for (const mode of ['read','conversation','clarify']) test('trusted dated USER scope recovers unknown model reference: '+mode,()=>{
+for (const mode of ['read','clarify']) test('trusted dated USER scope recovers unknown model reference: '+mode,()=>{
  const c={owner:{userId:ownerId},eligiblePets:owned,pet:owned[0],conversationTurns:turns,currentMessage:'Rank those two pets for that month.'};
  const result=validateAskRequest(proposal({mode,referenceTurnIds:['invented','a1']}),c);
  assert.deepEqual(result.petIds,[owned[0].id,owned[1].id]);
@@ -63,6 +67,11 @@ for (const mode of ['read','conversation','clarify']) test('trusted dated USER s
  for(const patch of [{mode:'update'},{mode:'mixed'},{evidenceBasis:'supplied_context'}]) assert.throws(()=>validateAskRequest(proposal({...patch,referenceTurnIds:['invented']}),c));
  assert.throws(()=>validateAskRequest(proposal({referenceTurnIds:['invented']}),{...c,conversationTurns:[]}));
 });
+test('a conversation label cannot authorize the dated saved-history obligation',()=>{
+ const c={owner:{userId:ownerId},eligiblePets:owned,pet:owned[0],conversationTurns:turns,currentMessage:'Rank those two pets for that month.'};
+ assert.throws(()=>validateAskRequest(proposal({mode:'conversation',referenceTurnIds:['invented','a1']}),c),/conversation_source/);
+});
+
 for(const format of ['csv','table']) test('projection metadata cannot authorize converted comparison facts: '+format,async()=>{
  const cohort=owned.slice(0,2),rows=cohort.map((p,i)=>care('projection-day'+i,p.id,'2024-04-07','general',p.name+' body weight was '+(i+1)+' kg without equipment.'));
  const e=storedFixture(rows,cohort);e.interpretation={request:{mode:'read',evidenceBasis:'saved_history',outputFormat:format,projection:{nameHeader:'pet',valueHeader:'grams',quantity:'body_mass',unit:'g',order:'name_ascending'}}};

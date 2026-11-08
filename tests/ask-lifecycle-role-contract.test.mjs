@@ -1,4 +1,4 @@
-import { recursiveFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
+import { directFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
 import assert from 'node:assert/strict';import fs from 'node:fs';
 import {fixture,id} from './helpers/ask-staged-route-fixture.mjs';
 const R=new URL('../',import.meta.url).href;
@@ -49,7 +49,7 @@ async function runCase({cancelName='Rowan',selected=11,reverse=false,clauseRever
  try{
   if(throughInterpreter){
    const prepared=prepareAskInterpretationRequest(ctx,'gpt-5.4-mini');
-   const wire=recursiveFixturePlan(prepared.wire),begin=admission.beginProviderCall.bind(admission);let admittedSnapshot,dispatches=0;
+   const wire=directFixturePlan(prepared.transport),begin=admission.beginProviderCall.bind(admission);let admittedSnapshot,dispatches=0;
    admission.beginProviderCall=async x=>{admittedSnapshot=JSON.stringify(x.input);return begin(x);};
    const result=await interpretAskQuestion({context:ctx,model:'gpt-5.4-mini',client:{responses:{create:async request=>{
     dispatches++;stubCalls++;assert.equal(dispatches,1);assert.equal(JSON.stringify(request),admittedSnapshot);assert.deepEqual(request.text.format.schema,prepared.request.text.format.schema);assert.equal(request.instructions,prepared.request.instructions);assert.equal(request.input,prepared.request.input);assert.equal(request.max_output_tokens,8192);

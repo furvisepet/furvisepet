@@ -1,3 +1,5 @@
+import {buildAskConversationResponse,parseAskConversationResponse} from "../app/lib/ask.mjs";
+import {issueAskCitationProof,verifyAskCitationProof} from "../app/lib/ask-citation-proof.ts";
 import * as C from './helpers/calculation-fixture.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -39,10 +41,27 @@ for(const [label,a,b] of [
  assert.deepEqual(labs.records.map(x=>x.recorded_at),rows.map(x=>x.created_at));
  assert.deepEqual(labs.records.map(x=>x.sourceId),rows.map(x=>'care:'+x.id));
  for(const body of [a,b])assert.ok(r.result.reasoning.answer.summary.includes(JSON.stringify(body).replace(/[\\|]/g,'\\$&')));
- assert.match(r.result.reasoning.answer.summary,/Stored reports only/);
- assert.match(r.result.reasoning.answer.summary,/no supersession is certified/);
- assert.match(r.result.reasoning.answer.summary,/not one database snapshot/);
+ assert.match(r.result.reasoning.answer.summary,/These saved notes don.t establish/);
+ assert.match(r.result.reasoning.answer.summary,/which note supersedes another/);
+ assert.match(r.result.reasoning.answer.summary,/checked in separate searches/);
  assert.equal(labsListReviewFailure(r.result.reasoning),null);
+ const priorCitationKey=process.env.FURVISE_RATE_LIMIT_HASH_SECRET;
+ process.env.FURVISE_RATE_LIMIT_HASH_SECRET='citation-integration-key-012345678901234567890123456789';
+ t.after(()=>{if(priorCitationKey===undefined)delete process.env.FURVISE_RATE_LIMIT_HASH_SECRET;else process.env.FURVISE_RATE_LIMIT_HASH_SECRET=priorCitationKey;});
+ const proof=issueAskCitationProof(r.result.reasoning,r.result.reasoning.answer,ownerId);
+ assert.ok(proof);
+ assert.ok(verifyAskCitationProof(proof,ownerId,r.result.reasoning.answer));
+ const outbound=buildAskConversationResponse(r.result.reasoning.answer);
+ assert.ok(outbound);
+ const outboundProof=issueAskCitationProof(r.result.reasoning,outbound,ownerId);
+ assert.ok(outboundProof);
+ const replay=parseAskConversationResponse(JSON.parse(JSON.stringify({...outbound,citationProof:outboundProof})));
+ assert.equal(replay.citationProof,outboundProof);
+ assert.ok(verifyAskCitationProof(replay.citationProof,ownerId,replay));
+ assert.equal(verifyAskCitationProof(replay.citationProof,ownerId,{...replay,sections:[] ,summary:replay.summary+' changed'}),null);
+
+ assert.equal(issueAskCitationProof(structuredClone(r.result.reasoning),r.result.reasoning.answer,ownerId),null);
+
  assert.deepEqual(JSON.parse(JSON.stringify(labs)),labs);
  const c=r.context.askHistory.coverage.ticketCoverage;
  assert.ok(c.sourceLineage.length);assert.ok(c.effectiveStream.every(s=>s.storedReportsCertified));
@@ -130,7 +149,7 @@ test('plain conflicting observations need no correction phrase to remain reports
  const rows=[row('plain-a','Body mass: 11 lb'),row('plain-b','Body mass: 13 lb',2)];
  const r=await run(t,rows);
  assert.deepEqual(r.result.reasoning.labsList.records.map(x=>x.body),rows.map(x=>x.note));
- assert.match(r.result.reasoning.answer.summary,/do not establish current or corrected facts/);
+ assert.match(r.result.reasoning.answer.summary,/what is current or corrected/);
  assert.equal(r.result.reasoning.labsList.coverage.sourceLineage,undefined);
 });
 for(const format of ['list','table'])test('stored quotation publication preserves requested '+format+' format',async t=>{
@@ -138,8 +157,8 @@ for(const format of ['list','table'])test('stored quotation publication preserve
  const r=await run(t,[row('a','Length 4 cm | \u03b1'),row('b','Correction: 5 cm | \u03b2',3)],p,{correctionSources:['b']});
  assert.equal(r.result.reasoning.labsList.presentation,format);
  assert.equal(labsListReviewFailure(r.result.reasoning),null);
- assert.match(r.result.reasoning.answer.summary,/Recorded at|recorded at/);
- assert.match(r.result.reasoning.answer.summary,/Stored reports only/);
+ assert.match(r.result.reasoning.answer.summary,/Saved|saved/);
+ assert.match(r.result.reasoning.answer.summary,/These saved notes don.t establish/);
  if(format==='table')assert.match(r.result.reasoning.answer.summary,/\\\|/);
 });
 test('joint result selection carries report authority and rejects fact relabeling',async t=>{
@@ -179,7 +198,7 @@ for(const authority of ['stored_report','effective_fact'])test('linked supersede
  const r=await run(t,rows,proposition(authority),{graph:{...graph,sourceSemantics:{'linked-new':{classification:'attributed_correction',target:{kind:'source',id:'linked-old'}}}}});
  assert.equal(r.result.reasoning.model,'server-labs-list');
  assert.deepEqual(r.result.reasoning.labsList.records.map(x=>x.id),authority==='stored_report'?['linked-old','linked-new']:['linked-new']);
- if(authority==='stored_report')assert.match(r.result.reasoning.answer.summary,/do not establish current or corrected facts/);
+ if(authority==='stored_report')assert.match(r.result.reasoning.answer.summary,/what is current or corrected/);
 });
 
 for(const authority of ['stored_report','effective_fact'])test('native correction statements remain source-exact without dropping intermediate reports/'+authority,async t=>{

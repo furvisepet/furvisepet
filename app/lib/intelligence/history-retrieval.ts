@@ -1,3 +1,4 @@
+import { certifyScopedStoredReport, bindScopedReportSidecar, isScopedStoredReportCandidate, findScopedStoredReportCandidate } from "./scoped-stored-report.ts";
 import { retrieveAttributedReports, type AttributedReportResult } from "./attributed-report-context.ts";
 import { wholeAskTaskQuestion } from "./ask-task-continuation.ts";
 import { calendarPeriodContaining, oldestCalendarUnit, relativeYearsAgoWindow } from "./history-periods.ts";
@@ -23,7 +24,7 @@ import type { FurviseLiveContext } from "./types.ts";
 import { askEvidenceScope, careEvidenceId, type Completeness } from "./ask-evidence.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import { resolveEffectiveClaimGraph, type RebuildClaim, type RebuildRelation } from "./v2/projections/rebuild.ts";
-import { retrieveReadTicket, type ReadCoverage } from "../furvise-brain/lungs.ts";
+import { retrieveReadTicket, LUNGS_LIMITS, type ReadCoverage } from "../furvise-brain/lungs.ts";
 
 export const HISTORY_BUDGET = { pageSize: 25, pagesPerPet: 4, totalPages: 20, candidateRows: 64, pets: ASK_HISTORY_MAX_PETS, graphCalls: 6, graphRows: 128, records: 32, chars: 18000, timeMs: 5000 } as const;
 type Cursor = { petId: string; occurredAt: string; id: string };
@@ -981,6 +982,56 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
       return { records, reliable: !unreliable, ...(sourceLineage.length ? { sourceLineage } : {}) };
     },
   });
+  // Retain a single candidate only after a fresh scoped recheck. This does not
+  // alter the result-set certificate or any completeness/correction status.
+  const request = context.askInterpretation?.request;
+  const turn = context.currentTurn;
+  let scopedProof: Awaited<ReturnType<typeof certifyScopedStoredReport>> = null;
+  // One observed candidate permits only a partial source quotation, never a complete-set claim.
+  let eligible = originals.filter(candidate => isScopedStoredReportCandidate({
+    userId: context.owner.userId, ownedPetIds: [...owned], ticket, candidate,
+  }));
+  if (result.coverage.status === "partial" && !result.records.length && eligible.length <= 1
+    && (result.coverage.effectiveStream?.reduce((n, stream) => n + stream.graphCalls, 0) ?? HISTORY_BUDGET.graphCalls) < HISTORY_BUDGET.graphCalls
+    && request?.mode === "read" && request.evidenceBasis === "saved_history" && request.quantity === null
+    && (context.askInterpretation?.readOperation ?? context.askInterpretation?.operation) === "recall"
+    && (context.askInterpretation?.selection == null || context.askInterpretation.selection === "summary" || context.askInterpretation.selection === "period")
+    && request.question === context.currentMessage && context.askInterpretation?.readOnly
+    && !context.askInterpretation.clarification && turn?.role === "user" && turn.text === context.currentMessage
+    && !request.task && !request.projection && !request.calculatePlan && !request.storedRead
+    && !request.writeJob && !request.appendJob && !request.mutationIntent
+    && !request.removeJob && !request.fieldMutationJob && !request.stateTransitionJob && !request.lifecyclePlan
+    && !request.recordSelection && !request.evidenceNeeds?.length && !request.requirements?.length) {
+    // If the global scan has spare page budget, look inside the ticket's
+    // concrete window. A source still needs the independent recheck below.
+    if (!eligible.length && (pagesByPet.get(ticket.subjects.petIds[0]) || 0) < LUNGS_LIMITS.pages) {
+      const candidate = await findScopedStoredReportCandidate({
+        userId: context.owner.userId, ownedPetIds: [...owned], ticket, from, to, pageSize: LUNGS_LIMITS.pageSize,
+        page: async (windowFrom, windowTo, limit) => {
+          const petId = ticket.subjects.petIds[0];
+          coverage.queryCount++;
+          pagesByPet.set(petId, (pagesByPet.get(petId) || 0) + 1);
+          const page = await withExecutionDeadline(signal => db.from("pet_care_entries").select("*")
+            .eq("user_id", context.owner.userId).eq("pet_profile_id", petId).is("deleted_at", null)
+            .gte("occurred_at", windowFrom).lt("occurred_at", windowTo)
+            .order("occurred_at", { ascending: true }).order("created_at", { ascending: true })
+            .order("id", { ascending: true }).range(0, limit - 1).abortSignal(signal).returns<CareEntryRow[]>(),
+          historyReadRemaining(deadline - 2000));
+          if (page.error || !page.data) throw new Error("ticket_history_unavailable");
+          return page.data;
+        },
+      });
+      if (candidate) { eligible = [candidate]; originals.push(candidate); }
+    }
+    const candidate = eligible[0];
+    if (candidate) coverage.queryCount++;
+    const proof = candidate && await certifyScopedStoredReport({ db, userId: context.owner.userId, ownedPetIds: [...owned],
+      ticket, candidate, deadline });
+    if (proof) {
+      result.records.push(candidate);
+      scopedProof = proof;
+    }
+  }
   coverage.attributedReports = await retrieveAttributedReports(ticket, { db, ownerId: context.owner.userId,
     ownedPetIds: [...owned], from, to, deadline });
   coverage.ticketCoverage = result.coverage;
@@ -1032,6 +1083,8 @@ async function retrieveTicketHistory(context: FurviseLiveContext, db: SupabaseCl
   console.info("[Ask Lungs] ticket result", JSON.stringify({ operation: ticket.operation, petIds: ticket.subjects.petIds,
     temporal: ticket.temporal, predicates: ticket.predicates, outputs: ticket.outputs, coverage: result.coverage,
     recordIds: result.records.map(row => row.id), queryCount: coverage.queryCount, durationMs: Date.now() - started }));
+  if (scopedProof && request && turn) bindScopedReportSidecar(coverage, { proof: scopedProof,
+    userId: context.owner.userId, ticket, request, message: context.currentMessage, turnId: turn.id });
   return { ...context, askHistory: { coverage, entries: result.records, originals, ...(result.supportingContext ? { supportingContext: result.supportingContext } : {}) } };
 }
 

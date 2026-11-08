@@ -1,3 +1,4 @@
+import {historicalWireSchema} from "./helpers/historical-wire-schema.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -16,7 +17,7 @@ const tick = () => {};
 const plans = new Map();
 function plan(name) {
   if (!plans.has(name)) {
-    const codec = createGraphCodec(askRequestProviderSchema(proposedSemanticFrameJsonSchema, corpus.contexts[name]));
+    const codec = createGraphCodec(historicalWireSchema(name));
     const before = JSON.stringify(codec.schema), prototype = createRecursiveProviderPrototype(codec);
     assert.equal(JSON.stringify(codec.schema), before);
     const valid = new Ajv({ allErrors: false }).compile(createAskProviderWireSchema(prototype.schema));

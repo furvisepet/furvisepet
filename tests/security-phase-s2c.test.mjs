@@ -1,3 +1,4 @@
+import {getAiFeaturePolicy} from "../app/lib/ai/usage-guard/features.ts";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -105,7 +106,8 @@ test("global, feature, daily, emergency, and model checks precede any provider r
 test("feature registry has bounded call, input, context, and output budgets", () => {
   const source = read("app/lib/ai/usage-guard/features.ts");
   for (const feature of ["ask", "care_plan", "product_explanation", "product_query", "product_question", "safety_followup", "vet_brief"]) assert.match(source, new RegExp(`${feature}: policy`));
-  assert.match(source, /ask: policy\([^\n]+4096|ASK_MAX_OUTPUT_TOKENS/);
+  const ask=getAiFeaturePolicy("ask");
+  assert.deepEqual([ask.maxInputTokens,ask.maxInputCharacters,ask.maxOutputTokens,ask.maximumProviderCalls],[20000,80000,2400,2]);
   assert.match(source, /product_query: policy\([^\n]+520, 1\)/);
   assert.match(source, /vet_brief: policy\([^\n]+12_288, 6\)/);
 });

@@ -1,3 +1,4 @@
+import { normalizeCompanionProse } from "./furvise-voice.ts";
 import { mapAskProse } from "./furvise-output.ts";
 import { buildAskConversationResponse, containsActionDependentCopy } from "./ask.mjs";
 import { enforceVerifiedStateClaims, preserveAttributedReportQuotes, preserveFictionalDialogueQuotes, containsUntrustedTerminalMutationClaim, containsUnverifiedStateClaim } from "./application-actions/state-claims.ts";
@@ -23,6 +24,7 @@ export function scrubUntrustedMutationClaim(value: unknown, fallback: string): s
  * policy removes a required clause or an unverified action claim, the reviewer
  * sees the resulting omission and rejects that final text normally. */
 export function canonicalReadPresentation(text: string): string {
+  text = normalizeCompanionProse(text);
   const rendered = buildAskConversationResponse({ title: "Furvise", summary: enforceVerifiedStateClaims(text, false), sections: [], safetyNote: null });
   if (!rendered) return text;
   return scrubUntrustedMutationClaim(rendered.summary, "I can help with that.");
