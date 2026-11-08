@@ -180,14 +180,16 @@ export async function reviewTaskCompletion(input: {
     const stage = purpose === "task_repair" ? "repair" : "verification";
     const reserveMs = purpose === "task_repair" ? 12_000 : 4_000;
     const started = Date.now();
-    input.onProviderEvent?.({ stage, outcome: "started", model, elapsedMs: 0 });
     const providerRequest = { model, instructions: prompt, input: serialized, max_output_tokens: 3200,
           ...(/^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" as const } } : {}),
           text: { format: { type: "json_schema", name: "furvise_task_completion", strict: true, schema } } } as const;
     const output = await executeAdmittedResponsesRequest({ purpose, model, stage, reserveMs, maxOutputTokens: 3200,
-      request: providerRequest, invoke: (providerRequest) => withProviderDeadline(signal =>
-        provider.responses.create(providerRequest, { signal }),
-        boundedProviderTimeout(20_000, reserveMs, stage)) });
+      request: providerRequest, invoke: (providerRequest) => withProviderDeadline(signal => {
+        // Admission can deny a phase before SDK dispatch. Count only admitted
+        // provider attempts, not a proposed review that never reaches the SDK.
+        input.onProviderEvent?.({ stage, outcome: "started", model, elapsedMs: 0 });
+        return provider.responses.create(providerRequest, { signal });
+      }, boundedProviderTimeout(20_000, reserveMs, stage)) });
     input.onProviderEvent?.({ stage, outcome: "succeeded", model, elapsedMs: Date.now() - started });
     const parsed = interpretStructuredProviderResponse(output, raw => JSON.parse(raw) as unknown);
     if (parsed.status !== "completed") throw taskFailure("ASK_TASK_REVIEW_OUTPUT_INVALID");
