@@ -23,5 +23,9 @@
   "abortResolution": "v27-review-focused-abort-ack-1108y",
   "targetedPassed": 9,
   "liveAcceptance": false,
-  "paidCalls": 0
+  "paidCalls": 0,
+  "conversationBoundaryRegression": "red on ce404d73, green after canonical grammar and Binder fix",
+  "currentFocusedPassed": 8,
+  "windowsNpmLauncher": "--no-opt; two-worker default; qualified through normal npm test",
+  "fullCiPending": true
 }

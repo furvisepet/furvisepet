@@ -348,6 +348,14 @@ export function askRequestProviderSchema(frame: object, context?: Context) {
     "fieldMutationJob", "lifecyclePlan", "appendJob", "writeJob", "task", "frame",
     "mutationIntent", "projection", "recordSelection"] as const)
     Object.assign(suppliedConversation.properties, { [field]: { type: "null" } });
+  // Conversation is a source-free capability, not a partial stored read.
+  // Correlate every retrieval-only axis with that capability in the canonical
+  // grammar; a profile/history obligation must select a corresponding read.
+  for (const field of ["quantity", "temporalScope", "from", "to", "episodeTopic", "ordinal"] as const)
+    Object.assign(suppliedConversation.properties, { [field]: { type: "null" } });
+  for (const field of ["profileFields", "evidenceNeeds", "terms", "petNames", "excludedPetNames"] as const)
+    Object.assign(suppliedConversation.properties[field], { maxItems: 0 });
+  Object.assign(suppliedConversation.properties.selection, { enum: ["summary"] });
   const generalConversation = structuredClone(suppliedConversation);
   Object.assign(generalConversation.properties.evidenceBasis, { enum: ["general"] });
   Object.assign(generalConversation.properties.premiseQuotes, { minItems: 0, maxItems: 0 });
@@ -470,6 +478,15 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (!Array.isArray(p.profileFields) || p.profileFields.some(field => !askRequestSchema({}).properties.profileFields.items.enum.includes(String(field))) || p.profileFields.length > 14) return fail("profile_fields");
   if (![null, "historical", "current", "historical_and_current"].includes(p.temporalScope as null | string)) return fail("temporal_scope");
   if (![null, "correct_record"].includes(p.mutationIntent as null | string)) return fail("mutation_intent");
+  // Revalidate the same capability relationship for stored/direct callers.
+  // Never erase declared retrieval obligations to make a conversation pass.
+  if (p.mode === "conversation" && (
+    [p.calculatePlan,p.storedRead,p.readTicket,p.removeJob,p.stateTransitionJob,p.fieldMutationJob,
+      p.lifecyclePlan,p.appendJob,p.writeJob,p.task,p.frame,p.mutationIntent,p.projection,p.recordSelection,
+      p.quantity,p.temporalScope,p.from,p.to,p.episodeTopic,p.ordinal].some(value=>value!==null)
+    || [p.profileFields,p.evidenceNeeds,p.terms,p.petNames,p.excludedPetNames].some(value=>!Array.isArray(value)||value.length)
+    || p.operation !== "general" || p.selection !== "summary"))
+    return fail("conversation_source");
   if (p.calculatePlan !== null) {
     if (p.evidenceBasis === "supplied_context") {
       if (p.mode!=="read"||p.readTicket!==null||p.scope!=="none"||p.operation!=="recall"||p.selection!=="summary"

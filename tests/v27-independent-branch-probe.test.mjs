@@ -1,12 +1,7 @@
 import test from "node:test";
-import {directFixturePlan} from "./helpers/recursive-wire-fixture.mjs";
 import assert from "node:assert/strict";
-import {prepareAskInterpretationRequest,recoverAskInterpretation,interpretAskQuestion} from "../app/lib/intelligence/interpret-ask.ts";
-import {askRequestSchema,askRequestProviderSchema} from "../app/lib/intelligence/ask-request-contract.ts";
-import {proposedSemanticFrameJsonSchema} from "../app/lib/intelligence/semantic-frame/schema.ts";
+import {prepareAskInterpretationRequest,recoverAskInterpretation} from "../app/lib/intelligence/interpret-ask.ts";
 import {makeValidator,expand} from "../app/lib/intelligence/ask-wire-codec.mjs";
-import {admitAiOperation} from "../app/lib/ai/usage-guard/admission.ts";
-import {MemoryAiGuardTestStore} from "../app/lib/ai/usage-guard/memory-test-store.ts";
 const pet={id:"owned-subject",user_id:"owner",name:"Sample",species:"dog"};
 function context(text="Quote the original entry about the maintenance event on March 10, 2024."){
  return {owner:{userId:"owner"},pet,eligiblePets:[pet],currentMessage:text,currentTurn:{id:"user-turn",role:"user",text},conversationTurns:[],timeZone:"America/New_York",conversationId:"fixture-conversation"};
@@ -69,4 +64,20 @@ test("profile history ticket, quoted premise and mutation cross-branch proposals
   assert.equal(p.valid(p.schema,bad),false);
   assert.throws(()=>p.transport.decode(bad,()=>{}));
  }
+});
+
+
+test("conversation cannot carry any declared stored-read obligation in provider grammar or Binder",()=>{
+ const c=context("Explain a general concept."),p=prepared(c);
+ const canonical=request({question:c.currentMessage,mode:"conversation",evidenceBasis:"general",scope:"none",
+ operation:"general",quantity:null,draftAnswer:"A concise general explanation."});
+ const valid=p.transport.encode({request:canonical},()=>{});
+ assert.equal(p.valid(p.schema,valid),true);
+ for(const [field,value] of [["profileFields",["name"]],["evidenceNeeds",[{}]],["terms",["maintenance"]],
+ ["from","2024-03-10"],["quantity","records"],["temporalScope","historical"]]){
+  const invalid={...canonical,[field]:value};
+  assert.throws(()=>p.transport.encode({request:invalid},()=>{}),undefined,field);
+  assert.throws(()=>recoverAskInterpretation(invalid,c),undefined,field);
+ }
+ assert.equal(recoverAskInterpretation(canonical,c).conversationOnly,true);
 });
