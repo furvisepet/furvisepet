@@ -65,6 +65,11 @@ jobs:
           tests/ask-read-only-publication-budget.test.mjs
           tests/ask-read-only-state-claim-publication.test.mjs
           tests/ask-read-only-provider-failure-route.test.mjs
+          tests/ask-read-only-dialogue-coverage.test.mjs
+          tests/ask-public-cancellation-route.test.mjs
+          tests/ask-input-budget-route.test.mjs
+          tests/routine-year-clarification.test.mjs
+          tests/furvise-conversational-architecture-v1.test.mjs
           tests/ask-provider-envelope-diagnostics.test.mjs
           tests/ask-provider-error-diagnostics.test.mjs
           tests/ask-post-review-finalizer-contract.test.mjs
