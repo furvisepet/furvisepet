@@ -31,7 +31,7 @@ function field(f){return f.p.fields[0];}
 function claims(f,text,ids){const o=derivePublicationAuthority(f.e).obligations[0];return publicationClaimFailures(f.e,[{obligationId:o.obligationId,text,sourceIds:ids??o.authorizedSourceIds}]);}
 test('provider grammar makes incompatible saved-profile dimensions unrepresentable',async()=>{
  const {default:Ajv}=await import('ajv');const validate=new Ajv({allErrors:true}).compile(askRequestProviderSchema({}));
- const request={calculatePlan:null,storedRead:null,removeJob:null,stateTransitionJob:null,fieldMutationJob:null,lifecyclePlan:null,appendJob:null,readTicket:null,writeJob:null,task:null,temporalScope:'current',mutationIntent:null,recordSelection:null,
+ const request={draftAnswer:null,calculatePlan:null,storedRead:null,removeJob:null,stateTransitionJob:null,fieldMutationJob:null,lifecyclePlan:null,appendJob:null,readTicket:null,writeJob:null,task:null,temporalScope:'current',mutationIntent:null,recordSelection:null,
   profileFields:['weight'],projection:null,version:'ask-request.v2',mode:'read',question:"What is Milo's saved profile weight?",requirements:[],
   evidenceNeeds:[],outputFormat:null,evidenceBasis:'saved_profile',premiseQuotes:[],excludedPetNames:[],referenceTurnIds:[],scope:'named',petNames:['Milo'],
   operation:'recall',selection:'summary',quantity:null,topic:'profile',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:null};
@@ -41,8 +41,10 @@ test('provider grammar makes incompatible saved-profile dimensions unrepresentab
  assert.equal(validate({request:{...request,outputFormat:'compact'}}),false);
  for(const patch of [{quantity:'records'},{from:'2026-01-01'},{terms:['weight']},{mutationIntent:'correct_record'},{scope:'none'},{profileFields:[]},{frame:{}}])
   assert.equal(validate({request:{...request,...patch}}),false,JSON.stringify(patch));
- const general={...request,temporalScope:null,profileFields:[],mode:'conversation',scope:'none',petNames:[],operation:'general',evidenceBasis:'general'};
+ const general={...request,draftAnswer:'A source-free general response.',temporalScope:null,profileFields:[],mode:'conversation',scope:'none',petNames:[],operation:'general',evidenceBasis:'general'};
  assert.equal(validate({request:general}),true,JSON.stringify(validate.errors));
+ assert.equal(validate({request:{...general,draftAnswer:null}}),false,'general conversation requires its explicit draft');
+ assert.equal(validate({request:{...general,draftAnswer:''}}),false,'empty general draft is invalid');
 });
 for(const key of ['name','species','sex','breed'])test('same canonical authority for saved '+key,()=>{
  const f=fixture({fields:[key]});assert.equal(field(f).storedValue,pet[key]);assert.equal(field(f).state,'present');

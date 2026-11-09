@@ -36,3 +36,20 @@ The public architecture remains two native read tools, at most two physical prov
 PR #517 e08bdabf47cd3c7de16e7184898d5d493a569b86 changes five files. Only CI workflow overlaps this checkpoint; its draft/full-suite scheduling changes are not integrated. Future integration must preserve Ask contract/database jobs and an explicit unfiltered release gate. Its stale care-entry 409 handler does not stop the reported direct RPC caller; that issue remains separate and unverified here.
 
 Keep PR #516 draft. NO-GO pending exact new-SHA full CI, fresh paid authenticated generation acceptance, independent source-owner review and cross-owner security qualification. Production rollback/promotion unchanged; no release authorized.
+
+## Follow-on checkpoint
+
+The first effect-vocabulary patch also classified ordinary in-answer transformations as saved-data changes. Reproduced: 13 tests /12 pass /1 fail. Narrow the speech check for explicit text/math work within an answer; saved-data subjects, application destinations and later mutation claims still require authority. No prompt or question routing changes. Combined route/effect/suggestion cohort: 53/53.
+
+Current local gates: 764 total /763 pass /0 fail /1 existing optional skip; security 517/517; uncached types, lint, production audit and production build pass. JSON gate receipts retain timings and checksums. These are local results, not exact new-SHA GitHub or live model acceptance.
+
+Fixture migrations:
+- Saved-read/profile provider parity: explicitly supply required draftAnswer:null for reads and a nonempty general draft. Add rejection checks for null/empty general drafts; retain all existing malformed-domain/ownership/closed-schema assertions. 93/93.
+- Public suggestion route: six obsolete write/execution expectations now exercise actual authenticated 409 denial with zero database IO. Private SQL locking, receipt identity, owner checks and replay checks retained. Before21/15pass/6fail; after21/21.
+- Public action task tests: two old removed-writer-function tests now ensure claimed succeeded/failed actions cannot dispatch or charge. Preserve other private task/credit assertions.
+- Credit identity source check accepts whitespace formatting while still requiring logical request and physical credit-attempt identity. Combined legacy subject/task cohort25:24pass/1fail; the remaining ambiguity case is a stale public clarification-helper callsite assertion, left visibly red rather than silently removed.
+- Calculation test loader: instrument the unique executeCalculatePlan function body through the TypeScript AST, instead of matching a removed typed local variable. Before import failed; after16/16. No operand, execution-withholding or credit expectation weakened.
+
+Preview 8cca6338: dpl_5obEWjJHRu5uKwTHMvaeeHXbfiWE READY; https://furvise-oujoo3ntr-furvise-0e3fe5ef.vercel.app/ask. Existing authenticated replay and expanded original-note citation pass on that exact preview. Anonymous Ask/citations and invalid bearer return application401 via existing Vercel CLI access; no protection setting changed. Fresh generation remains untested; no additional paid calls. Production deployment remains dpl_FG9JqKxxG9n4tU3oq8bnAedp7rx5.
+
+GitHub run42668544558 on8cca6338: contract/database succeeded; main full suite still in progress when preparing this follow-on. Do not repin this run or replay to the follow-on SHA. Final receipts will be recorded independently without an automatic recursive evidence-only push.

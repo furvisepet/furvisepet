@@ -34,12 +34,22 @@ export function containsUnverifiedStateClaim(value: string) {
   return contains;
 }
 
+function inAnswerWorkSpeech(value: string) {
+  return splitSentencesPreservingFacts(value).map(clause => {
+    // Editing supplied prose or simplifying a formula is work within a reply.
+    // An application destination or saved-data subject still requires authority.
+    if (applicationDestination.test(clause)
+      || /\b(?:profile|history|records?|entries|entry|settings|account|saved|stored|pending|Furvise)\b/i.test(clause)) return clause;
+    return clause.replace(/\b(?:I(?:['’]ve| have)?|we(?:['’]ve| have)?)\s+(?:correct(?:ed)?|edit(?:ed)?|replace(?:d)?|append(?:ed)?|cancell?ed)\s+(?:(?:the|a|this|these|those|your)\s+)?(?:(?:supplied|provided|example|following)\s+)?(?:paragraph|sentence|function|code|formula|expression|equation|calculation|arithmetic|common factors?|terms?|variable|explanation)\b/gi, "In this answer");
+  }).join(" ");
+}
+
 function containsUnquotedStateClaim(value: string) {
   value = askProseOnly(value);
   if (containsNavigationExecutionClaim(value)) return true;
   // A relative clause describing a retrieved measurement is not a receipt.
   // Keep affirmative app writes elsewhere in the same text subject to checks.
-  const speech = value.replace(/\b((?:(?:earliest|latest|first|last|oldest|newest|saved|recorded)\s+)*(?:weight|measurement|temperature|dose|duration|distance|reading))\s+(?:that\s+)?I\s+(?:have\s+)?(?:saved|recorded)\s+(?:for\s+[^.!?;]{1,60}?\s+)?(?=is\b|was\b)/gi, "$1 ");
+  const speech = inAnswerWorkSpeech(value).replace(/\b((?:(?:earliest|latest|first|last|oldest|newest|saved|recorded)\s+)*(?:weight|measurement|temperature|dose|duration|distance|reading))\s+(?:that\s+)?I\s+(?:have\s+)?(?:saved|recorded)\s+(?:for\s+[^.!?;]{1,60}?\s+)?(?=is\b|was\b)/gi, "$1 ");
   if (authoritativeMutationClaim.test(speech)
     || new RegExp(String.raw`\b(?:i['’]m|i am|we['’]re|we are)\s+(?:now\s+)?${effectVerbs(2)}\b[^.!?]{0,120}\b(?:history|log|profile|record|entry|preference|settings|action|task|operation|saved note)\b`, "i").test(speech)) return true;
   for (const clause of splitSentencesPreservingFacts(value)) for (const match of clause.matchAll(passiveMutationClaim)) {

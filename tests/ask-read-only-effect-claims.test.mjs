@@ -37,3 +37,23 @@ test("a verified private effect retains its affirmative prose",()=>{
  const claim="I cancelled the pending correction.";
  assert.equal(enforceVerifiedStateClaims(claim,true),claim);
 });
+
+test("ordinary in-answer text and math transformations are not saved-data effects",()=>{
+ for(const text of [
+  "I corrected the arithmetic: 2 + 2 = 4.",
+  "I cancelled the common factors in the expression.",
+  "I edited the supplied paragraph for clarity.",
+  "I replaced the variable in the example function.",
+  "I appended the explanation below."
+ ]){
+  assert.equal(containsUnverifiedStateClaim(text),false,text);
+  assert.equal(enforceVerifiedStateClaims(text,false),text,text);
+ }
+});
+test("text work cannot conceal a later saved-data effect claim",()=>{
+ for(const text of [
+  "I edited the supplied paragraph and I deleted the saved note.",
+  "I corrected the arithmetic in your profile.",
+  "I replaced the variable in the saved record."
+ ])assert.equal(containsUnverifiedStateClaim(text),true,text);
+});

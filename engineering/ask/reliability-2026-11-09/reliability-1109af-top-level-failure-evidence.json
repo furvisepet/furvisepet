@@ -1,0 +1,46 @@
+[
+  {
+    "file": "tests/ask-lifecycle-role-contract.test.mjs",
+    "progress": "\u2716 tests/ask-lifecycle-role-contract.test.mjs (12590.125856ms)",
+    "errorEvidence": [
+      "{\"result\":\"FAIL\",\"groups\":68,\"error\":{\"message\":\"Expected values to be strictly equal:\\n\\n0 !== 1\\n\",\"stack\":\"AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\\n\\n0 !== 1\\n\\n    at file:///home/runner/work/furvisepet/furvisepet/tests/ask-lifecycle-role-contract.test.mjs:63:31\\n    at async admitted (file:///home/runner/work/furvisepet/furvisepet/tests/ask-lifecycle-role-contract.test.mjs:15:13)\\n    at async file:///home/runner/work/furvisepet/furvisepet/tests/ask-lifecycle-role-contract.test.mjs:78:74\"}}"
+    ]
+  },
+  {
+    "file": "tests/ask-provider-root-envelope.test.mjs",
+    "progress": "\u2716 tests/ask-provider-root-envelope.test.mjs (5104.536618ms)",
+    "errorEvidence": [
+      "Error: ASK_WIRE_CANONICAL_SCHEMA"
+    ]
+  },
+  {
+    "file": "tests/ask-provider-timestamp-boundary.test.mjs",
+    "progress": "\u2716 tests/ask-provider-timestamp-boundary.test.mjs (8226.010957ms)",
+    "errorEvidence": [
+      "Error: ASK_WIRE_CANONICAL_SCHEMA",
+      "Error: ASK_WIRE_CANONICAL_SCHEMA"
+    ]
+  },
+  {
+    "file": "tests/ask-staged-catalog-contract.test.mjs",
+    "progress": "\u2716 tests/ask-staged-catalog-contract.test.mjs (6598.141352ms)",
+    "errorEvidence": [
+      "{\"scope\":\"actual helpers/admission/IO adapter, distinct from full route proof\",\"cases\":[{\"name\":\"owner-scope-cannot-erase-grounded-subject\",\"names\":[\"Cedar\",\"Sable\"],\"reverse\":false,\"sourceCalls\":0},{\"name\":\"owner-scope-cannot-erase-grounded-subject\",\"names\":[\"Cedar\",\"Sable\"],\"reverse\":true,\"sourceCalls\":0},{\"name\":\"owner-scope-cannot-erase-grounded-subject\",\"names\":[\"O'Neil\",\"O Neil\"],\"reverse\":false,\"sourceCalls\":0},{\"name\":\"owner-scope-cannot-erase-grounded-subject\",\"names\":[\"O'Neil\",\"O Neil\"],\"reverse\":true,\"sourceCalls\":0},{\"name\":\"shared-collision-veto\",\"names\":[\"O'Neil\",\"O Neil\"],\"label\":\"named\"},{\"name\":\"shared-collision-veto\",\"names\":[\"O'Neil\",\"O Neil\"],\"label\":\"selected\"},{\"name\":\"shared-collision-veto\",\"names\":[\"O'Neil\",\"O Neil\"],\"label\":\"account\"},{\"name\":\"shared-collision-veto\",\"names\":[\"O'Neil\",\"O Neil\"],\"label\":\"conversation\"},{\"name\":\"owner-scope-cannot-erase-grounded-sub"
+    ]
+  },
+  {
+    "file": "tests/ask-staged-catalog-route.test.mjs",
+    "progress": "\u2716 tests/ask-staged-catalog-route.test.mjs (3358.108997ms)",
+    "errorEvidence": [
+      "{\"scope\":\"actual helpers/admission/IO adapter, distinct from full route proof\",\"cases\":[{\"name\":\"owner-scope-cannot-erase-grounded-subject\",\"names\":[\"Cedar\",\"Sable\"],\"reverse\":false,\"sourceCalls\":0},{\"name\":\"owner-scope-cannot-erase-grounded-subject\",\"names\":[\"Cedar\",\"Sable\"],\"reverse\":true,\"sourceCalls\":0},{\"name\":\"owner-scope-cannot-erase-grounded-subject\",\"names\":[\"O'Neil\",\"O Neil\"],\"reverse\":false,\"sourceCalls\":0},{\"name\":\"owner-scope-cannot-erase-grounded-subject\",\"names\":[\"O'Neil\",\"O Neil\"],\"reverse\":true,\"sourceCalls\":0},{\"name\":\"shared-collision-veto\",\"names\":[\"O'Neil\",\"O Neil\"],\"label\":\"named\"},{\"name\":\"shared-collision-veto\",\"names\":[\"O'Neil\",\"O Neil\"],\"label\":\"selected\"},{\"name\":\"shared-collision-veto\",\"names\":[\"O'Neil\",\"O Neil\"],\"label\":\"account\"},{\"name\":\"shared-collision-veto\",\"names\":[\"O'Neil\",\"O Neil\"],\"label\":\"conversation\"},{\"name\":\"owner-scope-cannot-erase-grounded-sub",
+      "{\"mode\":\"engine-replace\",\"result\":\"FAIL\",\"assertions\":[\"actual-admitted-snapshots-equal-sent\",\"no-domain-effects-before-confirmation\"],\"failure\":{\"name\":\"AssertionError\",\"message\":\"[{\\\"stage\\\":\\\"read_only_context\\\",\\\"message\\\":\\\"loadReadOnlyContext is not defined\\\",\\\"stack\\\":\\\"ReferenceError: loadReadOnlyContext is not defined\\\\n    at evalmachine.<anonymous>:235:33\\\\n    at async POST (evalmachine.<anonymous>:6:20)\\\\n    at async file:///home/runner/work/furvisepet/furvisepet/tests/ask-staged-catalog-route.test.mjs:25:17\\\"}]\\n\\n0 !== 2\\n\",\"stack\":\"AssertionError [ERR_ASSERTION]: [{\\\"stage\\\":\\\"read_only_context\\\",\\\"message\\\":\\\"loadReadOnlyContext is not defined\\\",\\\"stack\\\":\\\"ReferenceError: loadReadOnlyContext is not defined\\\\n    at evalmachine.<anonymous>:235:33\\\\n    at async POST (evalmachine.<anonymous>:6:20)\\\\n    at async file:///home/runner/work/furvisepet/furvisepet/tests/ask-st"
+    ]
+  },
+  {
+    "file": "tests/calculation-capability.test.mjs",
+    "progress": "\u2716 tests/calculation-capability.test.mjs (601.561716ms)",
+    "errorEvidence": [
+      "Error: MUSCLE_OBSERVER_TEST_SEAM_CHANGED"
+    ]
+  }
+]

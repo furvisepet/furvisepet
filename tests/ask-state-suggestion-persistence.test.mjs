@@ -2,6 +2,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
+import {PATCH,request} from "./helpers/ask-read-only-action-routes.mjs";
+import {assertPublicMutationDenied} from "./helpers/ask-public-mutation-boundary.mjs";
+async function deniedSuggestion(body) {
+ let io=0;globalThis.__readOnlyMutationAuth={userId:"owner",supabase:new Proxy({},{get(){io++;throw Error("retired suggestion must not access private IO");}})};
+ const result=await PATCH(request("PATCH",body));assert.equal(result.status,409);assert.equal(result.headers.get("cache-control"),"private, no-store");
+ const data=await result.json();assert.equal(data.code,"SUGGESTION_CONFLICT");assert.equal(data.ok,false);assert.equal(io,0);return data;
+}
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const migration = read("supabase/migrations/20260923213727_bind_ask_suggestions_to_canonical_jobs.sql");
 const suggestionRoute = read("app/api/ask/suggestions/[id]/route.ts");
@@ -13,8 +20,8 @@ const continuation = read("app/lib/intelligence/canonical-suggestion-continuatio
 const canonical = read("app/lib/intelligence/canonical-suggestion.ts");
 const safetyState = read("app/lib/intelligence/safety-state.ts");
 
-test("canonical suggestions execute through the exact governed capability", () => {
-  assert.match(suggestionRoute, /continueCanonicalSuggestion/);
+test("private canonical suggestions retain governed authority while public continuation is unavailable", async () => {
+  await deniedSuggestion({decision:"confirm",canonical_payload:{capabilityId:"claimed",ownerId:"foreign"}});
   assert.match(continuation, /executeActionCapability/);
   assert.match(migration, /for update/);
   assert.match(migration, /public.execute_ask_action_capability/);
@@ -32,9 +39,10 @@ test("retries use exact receipt identity rather than matching state effects", ()
   assert.match(canonical, /isDeepStrictEqual\(meaning\(c.receipt\), meaning\(c.action_payload\)\)/);
 });
 
-test("already-applied suggestions return the existing governed receipt", () => {
+test("private receipts remain exact and public suggestion retries cannot execute", async () => {
   assert.match(migration, /ask_suggestion_receipt_succeeded/);
-  assert.match(suggestionRoute, /"already_applied"/);
+  await deniedSuggestion({decision:"confirm",status:"already_applied",receipt:{id:"claimed"}});
+  await deniedSuggestion({decision:"confirm",status:"already_applied",receipt:{id:"claimed"}});
 });
 
 test("matching concern state alone cannot establish suggestion success", () => {
@@ -48,11 +56,8 @@ test("linked care entries cannot replace canonical receipt verification", () => 
   assert.doesNotMatch(conversationServer, /effectAlreadyPresent/);
 });
 
-test("automatic persistence presentation stays separate from canonical suggestion creation", () => {
-  assert.match(askRoute, /confirmedCarePersistence\?\.status === "persisted"/);
-  assert.match(askRoute, /confirmedCarePersistence.careEntryIds.length > 0/);
-  assert.match(askRoute, /persistCanonicalSuggestions/);
-  assert.match(askRoute, /resolveAutomaticCareHistoryPresentation/);
+test("public Ask publishes a reply without automatic persistence or suggestion creation", async () => {
+  await assertPublicMutationDenied("Save this observation.","I saved this observation.");
   assert.doesNotMatch(askRoute, /const semanticReviewSuggestion/);
 });
 
@@ -92,16 +97,13 @@ test("another user's suggestion cannot be applied", () => {
   assert.match(suggestionRoute, /SUGGESTION_FORBIDDEN/);
 });
 
-test("invalid UI intents return 422 with a stable code", () => {
-  assert.match(suggestionRoute, /SUGGESTION_INVALID/);
-  assert.match(suggestionRoute, /status: 422/);
+test("invalid UI intents cannot reactivate public suggestion execution", async () => {
+  await deniedSuggestion({decision:"invented",ownerId:"foreign",action:"delete"});
   assert.match(migration, /CANONICAL_SUGGESTION_REQUIRED/);
 });
 
-test("database failures use stable errors without factual recovery queries", () => {
-  assert.match(suggestionRoute, /SUGGESTION_PERSISTENCE_FAILED/);
-  assert.match(suggestionRoute, /operationStage/);
-  assert.match(suggestionRoute, /safeErrorForLog/);
+test("disabled suggestions return a stable denial without attempting database recovery", async () => {
+  await deniedSuggestion({decision:"confirm",id:"unavailable-database"});
   assert.doesNotMatch(suggestionRoute, /existingCareEntryId/);
 });
 
@@ -122,9 +124,8 @@ test("distinct source-bound jobs keep distinct canonical capability identities",
   assert.match(continuation, /rebindCanonicalCapabilityAction/);
 });
 
-test("conversation copy cannot claim resolution while confirmation is pending", () => {
-  assert.match(askRoute, /let governedAnswer = enforceAnswerStateClaims/);
-  assert.match(askRoute, /inspectAskPublication/);
+test("public conversation cannot claim resolution while confirmation is pending", async () => {
+  await assertPublicMutationDenied("Resolve the pending concern.","I completed the pending action.");
   assert.doesNotMatch(askRoute, /reconcileResponsePersistenceCopy/);
 });
 
