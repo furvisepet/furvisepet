@@ -1,0 +1,20 @@
+{
+  "redExit": 1,
+  "greenExit": 0,
+  "redCounts": [
+    "tests 29",
+    "pass 28",
+    "fail 1",
+    "cancelled 0",
+    "skipped 0"
+  ],
+  "greenCounts": [
+    "tests 29",
+    "pass 29",
+    "fail 0",
+    "cancelled 0",
+    "skipped 0"
+  ],
+  "cause": "Publication-size fallback replaced the corrected narrative and lost the capability boundary.",
+  "paidCalls": 0
+}

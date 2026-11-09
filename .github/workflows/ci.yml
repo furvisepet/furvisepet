@@ -62,6 +62,7 @@ jobs:
           tests/ask-citation-date.test.mjs
           tests/furvise-voice.test.mjs
           tests/ask-read-only-publication-budget.test.mjs
+          tests/ask-read-only-state-claim-publication.test.mjs
           tests/ask-read-only-provider-failure-route.test.mjs
           tests/ask-provider-envelope-diagnostics.test.mjs
           tests/ask-provider-error-diagnostics.test.mjs

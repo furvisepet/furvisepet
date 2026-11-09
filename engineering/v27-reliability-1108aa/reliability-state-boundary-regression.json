@@ -1,0 +1,23 @@
+{
+  "baseSha": "f619bb93d215ec5e52019a9fe0b0a74f6d467623",
+  "redExit": 1,
+  "greenExit": 0,
+  "redCounts": [
+    "tests 28",
+    "pass 19",
+    "fail 9",
+    "cancelled 0",
+    "skipped 0"
+  ],
+  "greenCounts": [
+    "tests 28",
+    "pass 28",
+    "fail 0",
+    "cancelled 0",
+    "skipped 0"
+  ],
+  "liveObservation": "61ee replay showed joke and generic limitation without visible read-only boundary; raw provider wording is not logged and is unknown.",
+  "deterministicCause": "State-claim filtering removed unsupported execution speech but only supplied the capability fallback when no unrelated prose survived.",
+  "newPaidTurns": 0,
+  "liveAcceptanceForPatch": false
+}

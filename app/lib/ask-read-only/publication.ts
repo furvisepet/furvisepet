@@ -20,8 +20,11 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
  const checked=enforceVerifiedStateClaims(body.answer,false);
  const stateRejected=checked!==body.answer&&(containsUnverifiedStateClaim(body.answer)||containsNavigationExecutionClaim(body.answer));
  let limited=body.limited||stateRejected;
- const summary=stateRejected&&checked==="I can help with that."
-  ?"I can read saved information, but I can’t make changes through Ask.":checked;
+ // A removed execution claim must leave a truthful capability explanation,
+ // even when an unrelated joke or general answer survives the filter.
+ const boundary="I can read saved information, but I can’t make changes or open pages through Ask.";
+ const summary=stateRejected
+  ?boundary+(checked==="I can help with that."?"":" "+checked):checked;
  const contextUsed={petName,usedSources:reviewed.sources.length?["Verified saved sources"]:[]};
  const response=buildAskConversationResponse({title:"Furvise",summary,sections:[],safetyNote:null},
   {intent:"general_pet_question",usedContextSummary:contextUsed.usedSources});
@@ -45,9 +48,10 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
   limited=true;
   // Preserve whole source strings or omit them; never trim an attributed quote.
   // Drop the model narrative so it cannot promise omitted quotations.
-  const summary=reviewed.sources.length
+  const sizeNotice=reviewed.sources.length
    ?"These saved sources exceed the reply size limit. Only whole notes that fit are included below; open Saved sources for the originals, or ask for one note at a time."
    :"This answer exceeds the reply size limit. Please ask for a shorter answer or one part at a time.";
+  const summary=stateRejected?boundary+" "+sizeNotice:sizeNotice;
   response.summary=summary;response.directAnswer=summary;
   response.answerType="direct_answer";
   response.sections=[...(body.calculations.length?[{heading:"Calculation",items:body.calculations.map(calculation=>calculation.text)}]:[]),...coverageSections];
