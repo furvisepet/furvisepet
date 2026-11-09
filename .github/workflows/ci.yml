@@ -5,6 +5,12 @@ on:
     branches:
       - main
   pull_request:
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
+  workflow_dispatch:
+
+concurrency:
+  group: security-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -32,6 +38,7 @@ jobs:
         run: node scripts/audits/ask-task-continuation.sql.mjs --full-schema
 
   verify:
+    name: Fast verification (not release approval)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -53,9 +60,29 @@ jobs:
         run: npm run typecheck
       - name: Focused security tests
         run: npm run test:security
-      - name: Full tests
-        run: npm test
       - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
       - name: Production build
         run: npm run build
+
+  full-tests:
+    name: Full tests (release gate)
+    # Draft PRs stay cheap; marking ready requires the full unfiltered suite.
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: test-publishable-key
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Use repository Node version
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Unfiltered full tests
+        run: npm test
