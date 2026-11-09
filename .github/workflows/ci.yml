@@ -68,6 +68,15 @@ jobs:
           tests/ask-provider-error-diagnostics.test.mjs
           tests/ask-post-review-finalizer-contract.test.mjs
           tests/canonical-care-deployment-compatibility.test.mjs
+          tests/canonical-memory-suggestion.test.mjs
+          tests/canonical-suggestion-continuation.test.mjs
+          tests/core-loop-stability.test.mjs
+          tests/ask-action-capability-v1.test.mjs
+          tests/furvise-intelligence-engine.test.mjs
+          tests/ask-memory-single-authority.test.mjs
+          tests/ask-memory-authority-p0.test.mjs
+          tests/care-entry-write-authority.test.mjs
+          tests/ask-structured-output-reliability.test.mjs
           tests/ask-memory-integrity-p0.test.mjs
           tests/furvise-brain-architecture-boundary.test.mjs
           tests/furvise-brain-owner-note-gate.test.mjs

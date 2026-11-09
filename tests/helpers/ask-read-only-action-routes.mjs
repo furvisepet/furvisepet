@@ -7,4 +7,4 @@ registerHooks({resolve(specifier,context,next){
 export const {POST}=await import("../../app/api/ask/actions/[messageId]/route.ts");
 export const {PATCH}=await import("../../app/api/ask/suggestions/[id]/route.ts");
 export const messageId="11111111-1111-4111-8111-111111111111";
-export const request=(method="POST")=>new Request("https://fixture.invalid/api/ask/disabled",{method,body:JSON.stringify({actionId:messageId,ownerId:"other-owner",decision:"confirm",action:"save"})});
+export const request=(method="POST",body={actionId:messageId,ownerId:"other-owner",decision:"confirm",action:"save"})=>new Request("https://fixture.invalid/api/ask/disabled",{method,body:JSON.stringify(body)});

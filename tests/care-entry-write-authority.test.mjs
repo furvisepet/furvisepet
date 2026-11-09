@@ -39,5 +39,7 @@ test("retained care-entry edit paths call the controlled RPC and Ask writes are 
   assert.match(capabilities, /execute_ask_action_capability/);
   assert.match(capabilities, /confirmFurviseWriteReceipt/);
   assert.match(publicV1, /askMutations:\s*false/);
-  assert.match(actionRoute, /if \(!PUBLIC_V1_CAPABILITIES\.askMutations\) return unavailable\(\);/);
+  assert.match(actionRoute,/getAuthenticatedApiContext\(request\)/);
+  assert.match(actionRoute,/status:\s*404/);
+  assert.doesNotMatch(actionRoute,/executeActionCapability|PUBLIC_V1_CAPABILITIES|\.rpc\(|\.from\(/);
 });

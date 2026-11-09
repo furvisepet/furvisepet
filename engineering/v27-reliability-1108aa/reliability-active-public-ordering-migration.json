@@ -1,0 +1,36 @@
+{
+  "baseSha": "017586144ccf04c0544bc61bb90eb953769d3056",
+  "applicationSourceUnchanged": true,
+  "redExit": 1,
+  "greenExit": 0,
+  "redCounts": [
+    "tests 62",
+    "pass 53",
+    "fail 9",
+    "cancelled 0",
+    "skipped 0"
+  ],
+  "greenCounts": [
+    "tests 62",
+    "pass 62",
+    "fail 0",
+    "cancelled 0",
+    "skipped 0"
+  ],
+  "beforeHashes": {
+    "tests/core-loop-stability.test.mjs": "4ff21a009d578b519d8df10751e0430c732d90ac47430949bc866513e1c9fa69",
+    "tests/ask-action-capability-v1.test.mjs": "652d90e369cca37e2e91a25e00c852dcaa8c8f447fa779bd2a6203cca668fa00",
+    "tests/furvise-intelligence-engine.test.mjs": "52c7686ecde2ab655d9958fbb22159a102e57bf2a3cddb4230d0886018ca827f",
+    "tests/ask-memory-single-authority.test.mjs": "6ac6106ebb3785827e4728346f804d6c710eafeef7e5d58f712391b20bbdd2e4",
+    "tests/ask-memory-authority-p0.test.mjs": "49b0d650fab8abe3fd3a995fa8fbd53111b0ccd270cc03dbcd4a652e01133305",
+    "tests/care-entry-write-authority.test.mjs": "3ccbaeff3e82958ceec8a19d377f43bd6c23ef1521ff6d6ed0fea0a4366cbe81",
+    "tests/ask-structured-output-reliability.test.mjs": "ae044c2021558e2dc5295c2a1b34682590a33ebeb4d9659c855b323bba7a751c"
+  },
+  "preserved": [
+    "all SQL privilege/RLS/lease/freshness/source-identity assertions",
+    "manual care-entry editing RPC and lost-stale-version guards",
+    "retained private capability lifetime, target and message ownership",
+    "retained provider envelope/schema/timeout/call behavior unit tests",
+    "native public failure/credit and durable-before-charge behavior"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "sha": "017586144ccf04c0544bc61bb90eb953769d3056",
+  "deploymentId": "dpl_HL2pQdfcrhYPYiWx3N6xXDTG2a9p",
+  "mode": "existing authenticated conversation replay; no Ask submission",
+  "originalQuoteRendered": true,
+  "originalQuote": "Furvise QA persistence test LG-20261026 — synthetic, not medical data. Baseline alpha.",
+  "generalCodeAndRecallRendered": true,
+  "partialComparisonCoverageRendered": true,
+  "mutationPresentationActual": "Silly cat joke: Why did the cat sit on the computer? Because it wanted to keep an eye on the mouse.",
+  "mutationCompletionNotice": "I couldn't confirm every part of this answer.",
+  "correction": "The earlier 61ee QA receipt overstated the visible refusal explanation. Later replay shows it absent. Raw provider wording is unknown; a corresponding publication gap is fixed offline, without claiming fresh live acceptance.",
+  "newGenerationAcceptance": false,
+  "newPaidTurns": 0,
+  "providerLogsObservedAfterReplay": 0
+}

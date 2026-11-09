@@ -1,0 +1,43 @@
+{
+  "sha": "017586144ccf04c0544bc61bb90eb953769d3056",
+  "runId": 42561469148,
+  "status": "in_progress",
+  "conclusion": null,
+  "jobs": [
+    {
+      "id": 128978604892,
+      "name": "ask-database-contract",
+      "status": "completed",
+      "conclusion": "success",
+      "activeSteps": []
+    },
+    {
+      "id": 128978605216,
+      "name": "verify",
+      "status": "in_progress",
+      "conclusion": null,
+      "activeSteps": [
+        "Full tests"
+      ]
+    },
+    {
+      "id": 128978605270,
+      "name": "ask-contract",
+      "status": "completed",
+      "conclusion": "success",
+      "activeSteps": []
+    }
+  ],
+  "headTree": "58cb716127bf2490bf76906e9cb555c46ad4de75",
+  "mergeSha": "dc12f56d47fcdec3364bcc7c42c4c83bf4986fe4",
+  "mergeTree": "58cb716127bf2490bf76906e9cb555c46ad4de75",
+  "treeParity": true,
+  "pr": {
+    "baseRefOid": "cd77d6730adf99d2a13bc25de008e2e9863d4f26",
+    "headRefOid": "017586144ccf04c0544bc61bb90eb953769d3056",
+    "isDraft": true,
+    "reviewDecision": "",
+    "reviews": []
+  },
+  "codeownersFiles": []
+}

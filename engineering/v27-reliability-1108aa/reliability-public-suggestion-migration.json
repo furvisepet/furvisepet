@@ -1,0 +1,33 @@
+{
+  "baseSha": "017586144ccf04c0544bc61bb90eb953769d3056",
+  "applicationSourceUnchanged": true,
+  "redExit": 1,
+  "greenExit": 0,
+  "redCounts": [
+    "tests 53",
+    "pass 34",
+    "fail 19",
+    "cancelled 0",
+    "skipped 0"
+  ],
+  "greenCounts": [
+    "tests 55",
+    "pass 55",
+    "fail 0",
+    "cancelled 0",
+    "skipped 0"
+  ],
+  "preserved": [
+    "all private capability source/body/date/owner/target/version tamper cases in canonical-suggestion-continuation",
+    "actual private duplicate receipt/idempotency and immutable job tests",
+    "original source-span/local-date helper cases",
+    "all existing anonymous/origin/action identity denials"
+  ],
+  "newPublicContract": "All authenticated Ask suggestion operations deny with 409, private no-store and zero database/provider/workflow access, including caller-enabled flags and stored terminal receipts.",
+  "beforeSourceHashes": {
+    "tests/canonical-memory-suggestion.test.mjs": "5f36d0a7528331279d1f8066d1887ad51c46a690e103f612ecb14643e1505d7b",
+    "tests/canonical-suggestion-continuation.test.mjs": "2f013c55663bf35d6c06e89b9c7f3ce3374a7ff649b822609a6572f9df3a2f09",
+    "tests/ask-read-only-actions.test.mjs": "aa5735ff217d6a7e934c25f48e8a81459088b143312a048f2ae18f32a506dedf",
+    "tests/furvise-brain-owner-note-gate.test.mjs": "de64ffbe0fd2870a2c7b797e44277f6f9d15a128e7547accbb3cd3c3c52c3085"
+  }
+}

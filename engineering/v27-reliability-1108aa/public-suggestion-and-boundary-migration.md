@@ -1,0 +1,19 @@
+# Public suggestion and active boundary contract migration
+
+Application source and dependency lock are unchanged from 017586144ccf04c0544bc61bb90eb953769d3056. No files or tests were deleted. No private capability executor, SQL migration, source-proof verifier or manual CRUD path changed.
+
+Two controlled suites reproduced 28 stale failures:
+- Public suggestion fixture/route expectations: 19 failures before; 55/55 targeted after. The old fixture lacked the authenticated API import and tried to enable retired public AI writes. The actual public PATCH now remains under test for save/edit/dismiss/monitor, stored append/replace/state-transition capabilities, legacy payloads, owner preferences, already-terminal receipts, forged owner/pet/job fields, missing/foreign records and malformed input. Every authenticated case returns the read-only 409 denial, private/no-store, with no database, provider or workflow access. A route-level enabled feature-flag mock cannot restore authority.
+- Active ownership/order/credit/manual CRUD contracts: 9 failures before; 62/62 targeted after. Obsolete Brain entry/finalizer names and public writer-presence assertions are replaced by current read-only context/generation/publication order and real route/finalizer tests.
+
+Retained private continuation tests still execute their real shared binder/capability modules against isolated fixtures. Exact source/body/owner/pet/date/target/version tampering, immutable meaning, duplicate receipt replay and original target binding remain tested. Manual care-entry editing still requires its controlled RPC, authenticated owner/pet/record binding and expected-version freshness. Existing SQL privilege/RLS/lease checks, schema/provider/parser tests, memory authority and transaction tests remain intact. Successful private fixture receipts are not live product writes.
+
+Final local gates: focused 642 total / 641 pass / 0 fail / 1 existing optional skip; expanded security 397/397; TypeScript, lint, production dependency audit and production build passed. The two targeted sets overlap with the expanded gates and are not added as distinct coverage.
+
+Exact 0175 source/merge tree parity, READY preview, signed-in old-conversation replay and three application-level anonymous/invalid-bearer 401 probes were verified without another Ask submission. Original saved-note quote/source dates, comparison disclosure and earlier general answers remained visible. This is durable replay acceptance, not fresh model generation on a later SHA.
+
+Correction to the earlier 61ee QA record is committed explicitly: the mutation case preserved source/no-effect boundaries, but the later visible replay lacked the previously recorded read-only explanation. Raw provider wording is unavailable; the separately committed publication fix addresses a reproduced matching path, without claiming fresh live acceptance. Seven other observed representative cases passed their stated dimensions. Total approved paid iteration remains 16 turns, 32 physical calls and $0.062993; no further paid turn is authorized within that cap.
+
+GitHub full runs 42559969553 and 42561469148 were still in progress at this checkpoint. Their CI was not cancelled. The bounded local read-only observer was deliberately cancelled to permit more engineering in this owned workspace; external CI status must be re-read, not assumed. Earlier completed 61ee full CI remained red (268 failures), and no remaining group is waived.
+
+No CODEOWNERS file was found and PR reviews were empty. Branch-protection/ruleset reads returned HTTP 403, so the independent required-owner gate could not be established. PR #516 remains draft. Production remains unchanged. Release NO-GO pending exact-head full CI, independent review/security gates and newly bounded live acceptance of the latest application fixes.

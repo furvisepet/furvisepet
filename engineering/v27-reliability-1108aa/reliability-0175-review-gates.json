@@ -1,0 +1,11 @@
+{
+  "mainProtection": {
+    "readSucceeded": false,
+    "status": "403"
+  },
+  "rulesets": {
+    "readSucceeded": false,
+    "status": "403"
+  },
+  "codeownersFiles": []
+}

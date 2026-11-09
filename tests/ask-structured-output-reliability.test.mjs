@@ -213,23 +213,21 @@ test("structured Ask extraction separates point-in-time chronology from memory a
   assert.match(reasoning, /active or monitoring only when it creates or changes an ongoing temporary state/);
 });
 
-test("canonical mutations remain after provider, schema, answer validation, and governance", () => {
-  const route = readFileSync(new URL("../app/api/ask/route.ts", import.meta.url), "utf8");
-  const runIndex = route.indexOf("generateAskHistoryAnswer({");
-  const callback = readFileSync(new URL("../app/lib/intelligence/generate-ask-history.ts", import.meta.url), "utf8");
-  assert.ok(callback.indexOf("await retrieveAskHistory(") < callback.indexOf("await runFurviseIntelligence({"));
-  assert.match(callback, /evidenceContract: createAskEvidenceContract\(context, readPetIds\)/);
-  assert.match(callback, /input\.authoritativePetIds = petIds/);
-  const validatedIndex = route.indexOf("logValidatedIntelligence(intelligenceResult, requestId)", runIndex);
-  const finalizationIndex = route.indexOf("return finalizeAskPostReview({");
-  const canonicalWriteIndex = route.indexOf("await completeAskConversationTurn({", finalizationIndex);
-  assert.ok(runIndex > -1 && validatedIndex > runIndex && finalizationIndex > validatedIndex && canonicalWriteIndex > finalizationIndex);
-  assert.match(route.slice(canonicalWriteIndex, canonicalWriteIndex + 600), /intelligenceValidation: intelligenceResult\?\.answerValidation \|\| null/);
-  assert.match(route.slice(canonicalWriteIndex, canonicalWriteIndex + 600), /persistenceGovernance/);
-  assert.doesNotMatch(route, /persistIntelligenceLearnings\(/);
-  const catchIndex = route.indexOf("} catch (error) {", runIndex);
-  assert.ok(catchIndex > runIndex);
-  assert.match(route.slice(catchIndex, catchIndex + 2500), /safeReleaseAiCredit/);
+test("retained history evidence guards coexist with public read-only publication and durable-before-charge ordering",async()=>{
+ const route=readFileSync(new URL("../app/api/ask/route.ts",import.meta.url),"utf8");
+ const callback=readFileSync(new URL("../app/lib/intelligence/generate-ask-history.ts",import.meta.url),"utf8");
+ assert.ok(callback.indexOf("await retrieveAskHistory(")<callback.indexOf("await runFurviseIntelligence({"));
+ assert.match(callback,/evidenceContract: createAskEvidenceContract\(context, readPetIds\)/);
+ assert.match(callback,/input\.authoritativePetIds = petIds/);
+ const entry=route.indexOf("async function executeAskRequest"),context=route.indexOf("loadReadOnlyContext(",entry);
+ const generation=route.indexOf("runReadOnlyAsk({",context),reviewed=route.indexOf("buildReadOnlyPublication(",generation),persisted=route.indexOf("persistReadOnlyAnswer({",reviewed);
+ assert.ok(entry>=0&&context>entry&&generation>context&&reviewed>generation&&persisted>reviewed);
+ assert.doesNotMatch(route,/generateAskHistoryAnswer\(|finalizeAskPostReview\(|persistIntelligenceLearnings\(|executeActionCapability\(/);
+ const {readOnlyPublicationFixture}=await import("./helpers/ask-read-only-publication.mjs");
+ const f=await readOnlyPublicationFixture(),response=await f.run(),body=await response.json();
+ assert.equal(response.status,200);assert.equal(body.turn.actionCount,0);assert.equal(f.calls,2);
+ assert.equal(f.state.finalizationInputs[0].carePersistence.status,"skipped");
+ assert.ok(f.events.indexOf("assistant:terminal")<f.events.indexOf("credit:complete"));
 });
 
 test("retry UI reuses one logical turn with a new server attempt", () => {
