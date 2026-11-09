@@ -1,0 +1,307 @@
+{
+  "sha": "d0c9712908200e86866bb4e45fa6adb5c093b706",
+  "deployment": "dpl_F6hgujf8whCj7UyGvNku7uP6u4EB",
+  "budget": {
+    "maximumTurns": 16,
+    "maximumMicrodollars": 150000,
+    "baselineTurns": 2,
+    "baselineCalls": 4,
+    "baselineMicrodollars": 6920,
+    "candidateTurns": 6,
+    "candidateCalls": 12,
+    "candidateMicrodollars": 22835,
+    "remainingTurns": 8,
+    "remainingMicrodollars": 120245
+  },
+  "results": [
+    {
+      "case": "original_quote",
+      "sha": "d0c9712908200e86866bb4e45fa6adb5c093b706",
+      "question": "What exactly did Cedar's October 26, 2026 nonclinical persistence test note say? Please quote the saved note.",
+      "submitted": true,
+      "actualPending": false,
+      "requestId": "b81fe70f-429c-4bb9-bc88-1f0aa7ce92b3",
+      "calls": 2,
+      "costMicrodollars": 2883,
+      "actual": "The saved note says: \"Furvise QA persistence test LG-20261026 — synthetic, not medical data. Baseline alpha.\"",
+      "citationExpanded": true,
+      "reloadReplay": true,
+      "status": "LIVE_PASS",
+      "at": "2026-11-09T02:28:09.935Z",
+      "sources": 1,
+      "reads": 1,
+      "limited": false,
+      "inputTokens": 2366,
+      "outputTokens": 246,
+      "callReceipts": [
+        {
+          "at": "2026-11-09T02:28:09.933Z",
+          "requestId": "b81fe70f-429c-4bb9-bc88-1f0aa7ce92b3",
+          "call": 2,
+          "input": 1332,
+          "output": 169,
+          "micro": 1760
+        },
+        {
+          "at": "2026-11-09T02:28:07.977Z",
+          "requestId": "b81fe70f-429c-4bb9-bc88-1f0aa7ce92b3",
+          "call": 1,
+          "input": 1034,
+          "output": 77,
+          "micro": 1123
+        }
+      ],
+      "phaseTimings": [
+        {
+          "requestId": "b81fe70f-429c-4bb9-bc88-1f0aa7ce92b3",
+          "stage": "primary",
+          "elapsedMs": 1746
+        },
+        {
+          "requestId": "b81fe70f-429c-4bb9-bc88-1f0aa7ce92b3",
+          "stage": "interpretation",
+          "elapsedMs": 2231
+        }
+      ]
+    },
+    {
+      "case": "unrelated_after_history",
+      "question": "A shadow applies for a job as a paperweight. Give it a one-sentence rejection grounded in physics; do not use pet records.",
+      "submitted": true,
+      "requestId": "ce964f44-7a70-400c-9744-6e5672b93ac2",
+      "calls": 2,
+      "costMicrodollars": 2219,
+      "actual": "Rejected: a shadow has no mass, volume, or structural rigidity, so physics gives it nothing to weigh down paper with.",
+      "status": "LIVE_PASS",
+      "at": "2026-11-09T02:29:06.325Z",
+      "sources": 0,
+      "reads": 0,
+      "limited": false,
+      "inputTokens": 2237,
+      "outputTokens": 120,
+      "callReceipts": [
+        {
+          "at": "2026-11-09T02:29:06.324Z",
+          "requestId": "ce964f44-7a70-400c-9744-6e5672b93ac2",
+          "call": 2,
+          "input": 1132,
+          "output": 79,
+          "micro": 1205
+        },
+        {
+          "at": "2026-11-09T02:29:04.872Z",
+          "requestId": "ce964f44-7a70-400c-9744-6e5672b93ac2",
+          "call": 1,
+          "input": 1105,
+          "output": 41,
+          "micro": 1014
+        }
+      ],
+      "phaseTimings": [
+        {
+          "requestId": "ce964f44-7a70-400c-9744-6e5672b93ac2",
+          "stage": "primary",
+          "elapsedMs": 1452
+        },
+        {
+          "requestId": "ce964f44-7a70-400c-9744-6e5672b93ac2",
+          "stage": "interpretation",
+          "elapsedMs": 1283
+        }
+      ]
+    },
+    {
+      "case": "note_followup_after_general",
+      "question": "In the saved note you quoted earlier, what word comes immediately after 'Baseline'? Quote that phrase, and distinguish it from my shadow question.",
+      "submitted": true,
+      "actual": "The word immediately after “Baseline” is alpha. That comes from the saved note; it’s separate from your shadow question, which I answered without using pet records.",
+      "status": "LIVE_PASS",
+      "requestId": "5be6ab39-bd25-4b05-96cb-dae3a1dd7912",
+      "at": "2026-11-09T02:30:02.088Z",
+      "calls": 2,
+      "sources": 1,
+      "reads": 1,
+      "limited": false,
+      "costMicrodollars": 4328,
+      "inputTokens": 2643,
+      "outputTokens": 521,
+      "callReceipts": [
+        {
+          "at": "2026-11-09T02:30:02.088Z",
+          "requestId": "5be6ab39-bd25-4b05-96cb-dae3a1dd7912",
+          "call": 2,
+          "input": 1471,
+          "output": 391,
+          "micro": 2864
+        },
+        {
+          "at": "2026-11-09T02:29:59.113Z",
+          "requestId": "5be6ab39-bd25-4b05-96cb-dae3a1dd7912",
+          "call": 1,
+          "input": 1172,
+          "output": 130,
+          "micro": 1464
+        }
+      ],
+      "phaseTimings": [
+        {
+          "requestId": "5be6ab39-bd25-4b05-96cb-dae3a1dd7912",
+          "stage": "primary",
+          "elapsedMs": 2883
+        },
+        {
+          "requestId": "5be6ab39-bd25-4b05-96cb-dae3a1dd7912",
+          "stage": "interpretation",
+          "elapsedMs": 1287
+        }
+      ]
+    },
+    {
+      "case": "first_latest_saved_weight_math",
+      "question": "Compare Cedar's earliest and latest saved weights. Show unit conversion and percentage change only if the records support it; say if your search is partial.",
+      "submitted": true,
+      "actual": "Earliest returned 10.81 kg, latest 14.51 kg; difference 3.70 kg; 34.2275670675%; explicitly partial, 16 of 123 for each ordered search.",
+      "status": "PARTIAL_PASS_WITH_DISCLOSURE_DEFECT",
+      "requestId": "de2bac83-8666-4353-8cc6-bd7236bbaff8",
+      "sourceDates": [
+        "2016-10-15 05:00 PDT",
+        "2026-09-15 05:00 PDT"
+      ],
+      "defect": "Runtime literal matchedTotal=0/searchRelaxed=true, but coverage labels 123 broad candidates as matching notes; new patch required before replay.",
+      "at": "2026-11-09T02:30:32.404Z",
+      "calls": 2,
+      "sources": 2,
+      "reads": 2,
+      "limited": true,
+      "costMicrodollars": 8000,
+      "inputTokens": 6255,
+      "outputTokens": 735,
+      "callReceipts": [
+        {
+          "at": "2026-11-09T02:30:32.403Z",
+          "requestId": "de2bac83-8666-4353-8cc6-bd7236bbaff8",
+          "call": 2,
+          "input": 5217,
+          "output": 490,
+          "micro": 6118
+        },
+        {
+          "at": "2026-11-09T02:30:28.199Z",
+          "requestId": "de2bac83-8666-4353-8cc6-bd7236bbaff8",
+          "call": 1,
+          "input": 1038,
+          "output": 245,
+          "micro": 1882
+        }
+      ],
+      "phaseTimings": [
+        {
+          "requestId": "de2bac83-8666-4353-8cc6-bd7236bbaff8",
+          "stage": "primary",
+          "elapsedMs": 3842
+        },
+        {
+          "requestId": "de2bac83-8666-4353-8cc6-bd7236bbaff8",
+          "stage": "interpretation",
+          "elapsedMs": 1962
+        }
+      ]
+    },
+    {
+      "case": "profile_after_history",
+      "question": "Does Cedar's saved profile say dog or cat? Use the profile for this, not history.",
+      "submitted": true,
+      "actual": "Cedar’s saved profile says dog.",
+      "status": "LIVE_PASS",
+      "requestId": "3117c8c7-71ae-457f-a90e-33cac59215a6",
+      "at": "2026-11-09T02:30:48.807Z",
+      "calls": 2,
+      "sources": 1,
+      "reads": 1,
+      "limited": false,
+      "costMicrodollars": 2516,
+      "inputTokens": 2813,
+      "outputTokens": 90,
+      "callReceipts": [
+        {
+          "at": "2026-11-09T02:30:48.806Z",
+          "requestId": "3117c8c7-71ae-457f-a90e-33cac59215a6",
+          "call": 2,
+          "input": 1636,
+          "output": 57,
+          "micro": 1484
+        },
+        {
+          "at": "2026-11-09T02:30:47.927Z",
+          "requestId": "3117c8c7-71ae-457f-a90e-33cac59215a6",
+          "call": 1,
+          "input": 1177,
+          "output": 33,
+          "micro": 1032
+        }
+      ],
+      "phaseTimings": [
+        {
+          "requestId": "3117c8c7-71ae-457f-a90e-33cac59215a6",
+          "stage": "primary",
+          "elapsedMs": 838
+        },
+        {
+          "requestId": "3117c8c7-71ae-457f-a90e-33cac59215a6",
+          "stage": "interpretation",
+          "elapsedMs": 806
+        }
+      ]
+    },
+    {
+      "case": "spanish_exact_quote",
+      "question": "¿Qué decía exactamente la nota guardada de Cedar del 26 de octubre de 2026? Cítala en su idioma original, sin traducir el texto guardado.",
+      "submitted": true,
+      "actual": "La nota guardada decía exactamente: \"Furvise QA persistence test LG-20261026 — synthetic, not medical data. Baseline alpha.\"",
+      "status": "LIVE_PASS",
+      "at": "2026-11-09T02:31:24.915Z",
+      "requestId": "2897845d-a6cb-4104-a084-f233ca4fcf43",
+      "calls": 2,
+      "sources": 1,
+      "reads": 1,
+      "limited": false,
+      "costMicrodollars": 2889,
+      "inputTokens": 2771,
+      "outputTokens": 180,
+      "callReceipts": [
+        {
+          "at": "2026-11-09T02:31:24.914Z",
+          "requestId": "2897845d-a6cb-4104-a084-f233ca4fcf43",
+          "call": 2,
+          "input": 1536,
+          "output": 98,
+          "micro": 1593
+        },
+        {
+          "at": "2026-11-09T02:31:23.752Z",
+          "requestId": "2897845d-a6cb-4104-a084-f233ca4fcf43",
+          "call": 1,
+          "input": 1235,
+          "output": 82,
+          "micro": 1296
+        }
+      ],
+      "phaseTimings": [
+        {
+          "requestId": "2897845d-a6cb-4104-a084-f233ca4fcf43",
+          "stage": "primary",
+          "elapsedMs": 1058
+        },
+        {
+          "requestId": "2897845d-a6cb-4104-a084-f233ca4fcf43",
+          "stage": "interpretation",
+          "elapsedMs": 1003
+        }
+      ]
+    }
+  ],
+  "login": "Originating context later recovered; one supplied login failed, then normal signed-in G/Cedar UI was observed. No authentication bypass or reset.",
+  "citationReplay": "Original quoted source expanded; event and recorded dates matched rendered source, persisted answer and citation returned after page reload. No second Ask submission for replay.",
+  "release": "NO_GO",
+  "note": "Five cases passed their observed dimensions; comparison arithmetic/source facts passed but live coverage label overstated lexical matches. This triggered a new source patch, not a repeated paid question."
+}

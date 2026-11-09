@@ -1,3 +1,13 @@
+# Live-derived search disclosure follow-up
+
+Release remains NO-GO. The originating browser connection and normal sign-in later recovered; the historical browser-blocked statements below are superseded by this checkpoint. Six exact d0c9 live turns used 12 physical calls and $0.022835: original quotation/source expansion/reload replay, unrelated physics, note follow-up, profile, and Spanish source quotation passed. The first/latest weight answer had correct source values/server arithmetic and honest partial coverage, but called 123 broader fallback candidates matching notes despite zero literal matches. That real result triggered this patch before repeating the paid question.
+
+Coverage now labels broader candidates explicitly and discloses literal-search relaxation even when a page is complete. It does not label a complete broadened search partial. No retrieval, auth, citation identity, mutation or call-budget capability changed. The new seven-case regression was 3 pass/4 fail before the fix; all seven pass in a 66-case targeted gate. Current full local gates: 445 total/444 pass/one existing skip; security 199; uncached types, lint, production audit and default build pass. The unchanged 50-case scripted corpus passes; model semantic quality is not scored offline. Exact new-head CI, preview and live recheck are pending at commit creation.
+
+Parent d0c9 full CI: 6,152 tests, 5,883 pass, 268 fail, one skip; all other jobs and gates pass. No full-suite failures are waived. See ci-d0c9-final.json, live-d0c9.json and search-disclosure-followup.json. The complete failure source/assertion index remains in the isolated workspace.
+
+---
+
 # Read-only Ask reliability candidate — 2026-11-08 PST
 
 Status: NO-GO for release; current local gates pass, but exact-candidate live acceptance and full-CI closure remain outstanding. Production remains unchanged. This is an isolated delta on cd77d6730adf99d2a13bc25de008e2e9863d4f26, stacked on draft PR #514.
