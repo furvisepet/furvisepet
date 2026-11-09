@@ -2,6 +2,7 @@ import { getAuthenticatedApiContext } from "../../../lib/authenticated-api-serve
 import { parseCareRequest } from "../../../lib/care-entry-api-server";
 import { prepareCareEntryForUpdate } from "../../../lib/care-log.mjs";
 import { isUuid } from "../../../lib/security/request";
+import { isStaleCareEntryError } from "../../../lib/care-entry-conflict.mjs";
 import { beginIdempotentRateLimitedOperation } from "../../../lib/security/idempotency";
 import type { CareEntryRow } from "../../../lib/supabase";
 
@@ -44,6 +45,7 @@ export async function PATCH(request: Request, routeContext: RouteContext) {
       p_occurred_at: update.occurred_at,
     });
     const data = (rows as CareEntryRow[] | null)?.[0] || null;
+    if (isStaleCareEntryError(error)) return Response.json({ error: "This care entry changed since it was opened. Refresh the latest version before saving.", code: "CARE_ENTRY_CONFLICT", retryable: false }, { status: 409 });
     if (error || !data) return Response.json({ error: "The care entry could not be saved." }, { status: 503 });
     return Response.json({ entry: data });
   });
