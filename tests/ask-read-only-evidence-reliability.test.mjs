@@ -35,7 +35,7 @@ test("both model phases see explicit bounded dialogue coverage",async()=>{
 
  test("ambiguous fractional, ranged and spaced numbers cannot become a different saved measurement",async()=>{
  const {readSourceMeasurements}=await import("../app/lib/ask-read-only/calculations.mjs");
- for(const text of ["1 / 2 kg","1⁄2 kg","4–5 kg","4 – 5 kg","−2 kg","1 234 kg","1\u202f234 kg"])
+ for(const text of ["1 / 2 kg","1⁄2 kg","4–5 kg","4 – 5 kg","4—5 kg","4 — 5 kg","−2 kg","1 234 kg","1\u202f234 kg"])
   assert.deepEqual(readSourceMeasurements(text,"s1"),[],text);
  assert.equal(readSourceMeasurements("Weight: 4.5 kg. Later: 5 kg.","s1").length,2);
  });

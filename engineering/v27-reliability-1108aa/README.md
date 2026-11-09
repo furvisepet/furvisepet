@@ -1,6 +1,6 @@
 # Read-only Ask reliability candidate — 2026-11-08 PST
 
-Status: preview qualification only; production remains unchanged. This is an isolated delta on cd77d6730adf99d2a13bc25de008e2e9863d4f26, stacked on draft PR #514.
+Status: NO-GO for release; current local gates pass, but exact-candidate live acceptance and full-CI closure remain outstanding. Production remains unchanged. This is an isolated delta on cd77d6730adf99d2a13bc25de008e2e9863d4f26, stacked on draft PR #514.
 
 ## Runtime changes
 
@@ -45,6 +45,24 @@ Required release gates remain exact-candidate signed-in unusual-question/citatio
 
 Rollback: abandon this isolated preview candidate and retain the immutable cd77 preview. No database rollback is involved. Production must not be promoted.
 
-## Local build qualification
+## Local build qualification (first candidate, historical)
 
 Final Windows focused 416/416, security 188/188, typecheck, lint and production audit pass. An uncached TypeScript run also passes. The final native Next build compiled but exited during its type-check worker without diagnostics; this is retained as a FAILED local gate. Diagnostic --no-opt could not run through Next because it forwards a forbidden NODE_OPTIONS flag, and --jitless failed because WebAssembly is unavailable. No types/compiler check was suppressed. Publishing this protected draft preview is for independent exact-SHA Linux diagnosis, not a release or a claim of a green local build. Linux CI/Vercel results must be recorded separately.
+
+## Native provider follow-up
+
+This follow-up closes two further defects found while inspecting the active shared-provider invariants. The adapter now reuses the existing safe own-data diagnostic projection, retaining only bounded status/code/type/param/support identity and safe envelope metadata. Unknown codes become "other"; raw provider messages, arbitrary fields and getters are not used. Empty completed responses, reasoning-only output, contradictory completed-with-error and API refusal envelopes stop before a second phase or any record read. A valid function call may still have empty narration, and ordinary general text remains supported. Success events occur after payload validation.
+
+The new 11-case native suite first had nine failures and two positive controls, then passed all 11 after the fix. These are unpaid injected-client tests, complemented by the installed-SDK physical-fetch and late-settlement suites. One intermediate Windows combined run reported a file-level failure without diagnostics; its receipt is retained. The isolated suite and the final full focused/security gates pass. The historical native Windows Node issue is not claimed fixed.
+
+The active complete-wire admission fixture now uses the public 2,400-token declaration on both the sent request and admission boundary. Exact serialization, asynchronous mutation defense, every input component, one-extra-character rejection, daily dollar ceiling and unknown started liability assertions remain. The historical oversized-wire artifact is preserved; its optional external-fixture test is still the one existing skip.
+
+The initial follow-up typecheck caught a response.error type mismatch, which was corrected to the SDK-compatible shape. Uncached TypeScript and the default production build pass after correction; no compiler check was disabled. Full CI on 3d4901f8 also identified a real added regression: a literal em dash in a numeric-range regex violated the application voice invariant. Unicode escaping preserves range detection and original stored text, and the unchanged voice test now passes in the focused gate.
+
+## Current local qualification
+
+Latest local gates: 437 passed, zero failed, one pre-existing optional oversized-wire-fixture skip; security 199/199; uncached TypeScript, lint (zero errors/123 existing warnings), production dependency audit (zero vulnerabilities), and default Windows production build all pass. The 50-case corpus remains 50/50. See followup-validation.json for failed and successful intermediate receipts and raw-log hashes.
+
+The completed parent-candidate Linux run 42538877041 on 3d4901f816b0de7817701f311c2ad6771a810f55 had 6,141 full tests: 5,869 pass, 271 fail, one skip, zero cancelled. Lint, TypeScript, security, audit, production build, database contracts and 416 focused contracts passed. Counts are extracted from exact unindented reporter lines, not nested subprocess output. The voice regression is fixed here, as are two obsolete admission-budget fixtures; remaining full-suite failures are not waived or all declared unrelated. The exact follow-up SHA must receive its own Linux CI and preview qualification.
+
+No agent-dispatched paid candidate QA has occurred after the two cd77 baseline turns. The user reopened Chrome, but the tool still returned the same originating-context error. No password was requested or session extracted, no uncertain Send was repeated, and no alternate browser backend was used. Exact-candidate quotation/citation/replay, diverse real model responses, live cross-owner/source-change negatives, mobile inspection and independent review remain release gates. Production remains unchanged and the PR must remain draft.

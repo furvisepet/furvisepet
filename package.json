@@ -16,7 +16,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test:security": "node scripts/run-tests.mjs tests/security-phase-s2a.test.mjs tests/security-phase-s2b.test.mjs tests/security-phase-s2c.test.mjs tests/security-phase-s2d.test.mjs tests/security-phase-s2e.test.mjs tests/security-phase-s2f.test.mjs tests/security-phase-s2g.test.mjs tests/security-phase-s2h.test.mjs tests/password-capability-state.test.mjs tests/ask-conversation-authority-foundation.test.mjs tests/ask-conversation-authority-lock.test.mjs tests/ask-read-only-actions.test.mjs tests/ask-read-only-provider-failure-route.test.mjs tests/ai-credit-security-regression.test.mjs",
+    "test:security": "node scripts/run-tests.mjs tests/security-phase-s2a.test.mjs tests/security-phase-s2b.test.mjs tests/security-phase-s2c.test.mjs tests/security-phase-s2d.test.mjs tests/security-phase-s2e.test.mjs tests/security-phase-s2f.test.mjs tests/security-phase-s2g.test.mjs tests/security-phase-s2h.test.mjs tests/password-capability-state.test.mjs tests/ask-conversation-authority-foundation.test.mjs tests/ask-conversation-authority-lock.test.mjs tests/ask-read-only-actions.test.mjs tests/ask-read-only-provider-failure-route.test.mjs tests/ask-read-only-native-envelope.test.mjs tests/ai-credit-security-regression.test.mjs",
     "test": "node scripts/run-tests.mjs"
   },
   "dependencies": {

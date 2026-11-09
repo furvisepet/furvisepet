@@ -16,8 +16,8 @@ export function readSourceMeasurements(body,source,kind="history") {
  const pattern=/[+-]?(?:\d+(?:[.,]\d+)?|[.,]\d+)\s*(kg|g|lbs?|oz|cm|mm|m|ml|l|in)\b/giu;
  for(const match of body.matchAll(pattern)){
   const prefix=body.slice(0,match.index),before=prefix.at(-1)??"";
-  if(/[\p{L}\p{N}.,/+\-−–—⁄∕]/u.test(before)
-   ||/[/⁄∕−–—]\s*$/u.test(prefix)
+  if(/[\p{L}\p{N}.,/+\-−–\u2014⁄∕]/u.test(before)
+   ||/[/⁄∕−–\u2014]\s*$/u.test(prefix)
    ||/\d[ \u00a0\u202f]+$/u.test(prefix))continue;
   const parts=/^([+-]?(?:\d+(?:[.,]\d+)?|[.,]\d+))\s*(.+)$/.exec(match[0]);
   if(parts[1].includes(",")&&!/,[0-9]{1,2}$/.test(parts[1]))continue;

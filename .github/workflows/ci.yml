@@ -57,7 +57,9 @@ jobs:
           tests/ask-read-only.test.mjs
           tests/ask-read-only-reliability.test.mjs
           tests/ask-read-only-evidence-reliability.test.mjs
+          tests/ask-read-only-native-envelope.test.mjs
           tests/ask-citation-date.test.mjs
+          tests/furvise-voice.test.mjs
           tests/ask-read-only-publication-budget.test.mjs
           tests/ask-read-only-provider-failure-route.test.mjs
           tests/ask-error-ux.test.mjs
@@ -80,6 +82,7 @@ jobs:
           tests/v27-citation-endpoint.test.mjs
           tests/ask-sdk-physical-attempts.test.mjs
           tests/ask-sdk-uncertainty.test.mjs
+          tests/ask-full-wire-admission.test.mjs
           tests/account-entitlements.test.mjs
           tests/care-persistence-state-repair.test.mjs
           tests/ask-cross-pet-persistence-and-retry.test.mjs

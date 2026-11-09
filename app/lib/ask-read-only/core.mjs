@@ -160,8 +160,8 @@ export async function runReadOnlyAsk(input,deps) {
  // Do not spend a third provider call repairing unsupported prose.
  if(bound.length>0&&answer.sources.length===0&&["answer","partial"].includes(answer.replyType)){
   answer.answer=sources.length
-   ?"I couldn’t verify a source-backed answer from the returned evidence."
-   :"No saved notes were returned by the bounded searches I could inspect. I can’t quote or infer a record that wasn’t returned.";
+   ?"I couldn’t verify an answer using the saved information I found."
+   :"I didn’t find saved information in the searches I could check. I can’t quote a note I haven’t found.";
   answer.replyType="partial";answer.limited=true;
  }
  answer.limited=answer.limited||results.some(result=>result.hasMore||result.hasPrevious||result.truncated)||(bound.length>0&&(sources.length===0||answer.sources.length===0));
