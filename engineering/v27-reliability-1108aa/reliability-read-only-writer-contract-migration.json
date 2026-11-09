@@ -1,0 +1,35 @@
+{
+  "baseSha": "61eed36fec8d3e6180111f8f3d3a52430df6e047",
+  "applicationSourceUnchanged": true,
+  "redExit": 1,
+  "greenExit": 0,
+  "redCounts": [
+    "tests 24",
+    "pass 22",
+    "fail 2",
+    "cancelled 0",
+    "skipped 0"
+  ],
+  "greenCounts": [
+    "tests 24",
+    "pass 24",
+    "fail 0",
+    "cancelled 0",
+    "skipped 0"
+  ],
+  "beforeHashes": {
+    "tests/canonical-care-deployment-compatibility.test.mjs": "07a2352f5c082aaa4f8720ccf443abe82abd9e646f19f37d8313bf3d8ed18a33",
+    "tests/ask-memory-integrity-p0.test.mjs": "4d94cebf934a1a370c8fc607fa00f14a84fc419d1fda78cd491b7cc8b32650b4"
+  },
+  "afterHashes": {
+    "tests/canonical-care-deployment-compatibility.test.mjs": "810b232b6160ef9454b682dd99a5c86d72497d1f328164aeb0a9c302db20e586",
+    "tests/ask-memory-integrity-p0.test.mjs": "fe0a616c3a611afbde379d36eab557b8035ebc41cd4a91e19051e3329c934ff8"
+  },
+  "retained": [
+    "manual memory semantic boundaries",
+    "private capability identity/rebinding checks",
+    "legacy prose persistence modules have no DB authority",
+    "public authentication, private cache headers and write denial",
+    "authenticated current question/pet/conversation binding"
+  ]
+}

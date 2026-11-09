@@ -1,24 +1,32 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { engineFixture as fixture } from "./helpers/ask-route-ordering.mjs";
+import {POST,messageId,request} from "./helpers/ask-read-only-action-routes.mjs";
 
-test("source-bound proposal has no persistence authority before confirmation", async () => {
-  const f=fixture();assert.equal((await f.send()).status,200);
-  assert.equal(f.rows.pet_care_entries.length,2);assert.equal(f.rows.ask_action_capabilities[0].receipt,null);
-  assert.equal(f.state.events.filter(event=>event==='heart:execute').length,0);
+test("public Ask cannot execute even an existing owner-note confirmation", async () => {
+  let databaseCalls=0,providerCalls=0;
+  const oldFetch=globalThis.fetch;
+  globalThis.fetch=async()=>{providerCalls++;throw new Error("disabled confirmation attempted provider access");};
+  globalThis.__readOnlyMutationAuth={userId:"owner",supabase:new Proxy({},{get(){databaseCalls++;throw new Error("disabled confirmation attempted database access");}})};
+  try {
+    const response=await POST(request(),{params:Promise.resolve({messageId})});
+    assert.equal(response.status,404);
+    assert.deepEqual(await response.json(),{error:"That action is no longer available."});
+    assert.equal(response.headers.get("cache-control"),"private, no-store");
+    assert.equal(databaseCalls,0);assert.equal(providerCalls,0);
+  } finally {globalThis.fetch=oldFetch;delete globalThis.__readOnlyMutationAuth;}
 });
 
 import { ownerNoteSourceSpans, explicitNoteTime } from "../app/lib/intelligence/owner-note-request.ts";
 
-// These helpers still feed the active planner/contract. Spans are suggestions,
-// not write authority; the HTTP confirmation invariant above remains mandatory.
+// Retained shared helpers preserve source spans and local dates, without granting
+// write authority. The actual public confirmation-denial invariant is tested above.
 for (const [message, note, companion] of [
   ["Pebble skipped breakfast but ate dinner fine. A bit slower on the evening walk. Save that for today.", "Pebble skipped breakfast but ate dinner fine. A bit slower on the evening walk.", null],
   ["Cedar ate less this morning. Log that, then tell me Cedar's last two weights and whether this note includes a weight.", "Cedar ate less this morning.", "tell me Cedar's last two weights and whether this note includes a weight."],
   ["Log that Cedar refused breakfast. Then list Cedar\u2019s last two weights. This new note has no weight.", "Cedar refused breakfast.", "Then list Cedar\u2019s last two weights. This new note has no weight."],
   ["Save this for today on Aster: drank more water than usual after the walk. Is that the first water note I have, or did I log thirst before?", "drank more water than usual after the walk.", "Is that the first water note I have, or did I log thirst before?"],
   ["Cedar ate normally at dinner today. Log that, then tell me Cedar's last two weights and whether this note includes a weight.", "Cedar ate normally at dinner today.", "tell me Cedar's last two weights and whether this note includes a weight."],
-]) test("active source-span suggestions preserve note and companion: " + message, () => {
+]) test("shared source-span suggestions preserve note and companion: " + message, () => {
   const spans = ownerNoteSourceSpans(message, "source");
   assert.equal(spans.find(span => span.role === "note")?.text, note);
   assert.equal(spans.find(span => span.role === "companion")?.text ?? null, companion);

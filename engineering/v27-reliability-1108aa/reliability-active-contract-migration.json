@@ -1,0 +1,37 @@
+{
+  "baseSha": "61eed36fec8d3e6180111f8f3d3a52430df6e047",
+  "applicationSourceUnchanged": true,
+  "beforeFocused": {
+    "tests": 40,
+    "pass": 35,
+    "fail": 5
+  },
+  "afterExit": 0,
+  "afterCounts": [
+    "tests 58",
+    "pass 58",
+    "fail 0",
+    "cancelled 0",
+    "skipped 0"
+  ],
+  "beforeHashes": {
+    "tests/ask-read-only-provider-failure-route.test.mjs": "0f02820571f8715ccdfde4a87e81ae7811bc388311542f5a34f9e449a21621a2",
+    "tests/ask-read-only-persistence.test.mjs": "972e42554502fccc46fb003f05b44d9cd7e0968cfff10ec2c539a078d9a9736b",
+    "tests/ask-provider-envelope-diagnostics.test.mjs": "58cec21d7132ed5a49342f268cf7ed1a482a330ca321038994d0d7067bb381f0",
+    "tests/ask-provider-error-diagnostics.test.mjs": "b532cf34c3bdce14273849f14c825261a9affe928420ae990b92c24eef47ae21",
+    "tests/ask-post-review-finalizer-contract.test.mjs": "e3c791fc8b497c00554ef433ecd512d836966375b9b5d6779c2f0f76014d03ad",
+    ".github/workflows/ci.yml": "fbf07b1dd45e8245904c0473601e699c987dcbabacc97f7b2a28b90ae807889c",
+    "package.json": "aedbda6ab0fa88dd34d62bc9185edc8c7645e3475cd142579208f78844bd9989"
+  },
+  "afterHashes": {
+    "tests/helpers/ask-read-only-failure-route.mjs": "4263f05050dec7f04e9da82459c4a98a991e97fc78df51e503074537120fe6ce",
+    "tests/ask-read-only-provider-failure-route.test.mjs": "f53a3c6640748a95ffb1ea5137728e771f039ef16fd5eb1bfeed3d60d6f33603",
+    "tests/helpers/ask-read-only-publication.mjs": "01de38c999d240fe1d8cd24f05a1d4d42daab06d5961ea9c9e0715327af2b296",
+    "tests/ask-read-only-persistence.test.mjs": "e03ddb226388abcbb4491167801589ec03591e178e2e81ddceef54ab442415ef",
+    "tests/ask-provider-envelope-diagnostics.test.mjs": "1af464039d0a3696f88440e17c75064f051da359cd4aa6fe66240a6ff36e7ec7",
+    "tests/ask-provider-error-diagnostics.test.mjs": "026e5977f6b00b9a86ba09938cf549646ac953fb70294b215452c3053280cee4",
+    "tests/ask-post-review-finalizer-contract.test.mjs": "00920a5a8502ef7b9c2dc4a4a50913287dfabd9f5e8e279265e4e92183046e2b",
+    ".github/workflows/ci.yml": "9bbea9ad3fe3aa8b91766a9d20c52eecef4e0d1690e8e3c963f2a30cfe33c736",
+    "package.json": "6c460920d7ec331d9937aa963481ad6adc55e936fc95c184f7efd544559c7b5e"
+  }
+}

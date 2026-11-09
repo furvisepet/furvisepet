@@ -1,0 +1,132 @@
+{
+  "baseSha": "61eed36fec8d3e6180111f8f3d3a52430df6e047",
+  "applicationSourceUnchanged": true,
+  "focusedFiles": [
+    "tests/test-bootstrap-loader.test.mjs",
+    "tests/ask-read-only.test.mjs",
+    "tests/ask-read-only-reliability.test.mjs",
+    "tests/ask-read-only-evidence-reliability.test.mjs",
+    "tests/ask-read-only-search-disclosure.test.mjs",
+    "tests/ask-read-only-native-envelope.test.mjs",
+    "tests/ask-citation-date.test.mjs",
+    "tests/furvise-voice.test.mjs",
+    "tests/ask-read-only-publication-budget.test.mjs",
+    "tests/ask-read-only-provider-failure-route.test.mjs",
+    "tests/ask-provider-envelope-diagnostics.test.mjs",
+    "tests/ask-provider-error-diagnostics.test.mjs",
+    "tests/ask-post-review-finalizer-contract.test.mjs",
+    "tests/canonical-care-deployment-compatibility.test.mjs",
+    "tests/ask-memory-integrity-p0.test.mjs",
+    "tests/furvise-brain-architecture-boundary.test.mjs",
+    "tests/furvise-brain-owner-note-gate.test.mjs",
+    "tests/ask-error-ux.test.mjs",
+    "tests/ask-inflight-navigation.test.mjs",
+    "tests/navigation-data-freshness.test.mjs",
+    "tests/public-v1-freeze.test.mjs",
+    "tests/unified-ai-credits-care-state.test.mjs",
+    "tests/ask-read-only-persistence.test.mjs",
+    "tests/ask-core-invariants.test.mjs",
+    "tests/ask-first20-reliability.test.mjs",
+    "tests/security-phase-s1.test.mjs",
+    "tests/ask-usage-experience.test.mjs",
+    "tests/ask-reliability-signout.test.mjs",
+    "tests/ask-pre-provider-retry.test.mjs",
+    "tests/ai-credit-security-regression.test.mjs",
+    "tests/ask-read-only-route.test.mjs",
+    "tests/ask-read-only-actions.test.mjs",
+    "tests/ask-emergency-preflight.test.mjs",
+    "tests/v27-citation-proof.test.mjs",
+    "tests/v27-citation-endpoint.test.mjs",
+    "tests/ask-sdk-physical-attempts.test.mjs",
+    "tests/ask-sdk-uncertainty.test.mjs",
+    "tests/ask-full-wire-admission.test.mjs",
+    "tests/account-entitlements.test.mjs",
+    "tests/care-persistence-state-repair.test.mjs",
+    "tests/ask-cross-pet-persistence-and-retry.test.mjs",
+    "tests/v27-ask-two-call-limit.test.mjs",
+    "tests/ask-credit-settlement.test.mjs",
+    "tests/ask-credit-settlement-integrity.test.mjs",
+    "tests/ask-conversation-concurrency-acceptance.test.mjs",
+    "tests/ask-admission-settlement.test.mjs",
+    "tests/ask-restored-retry.test.mjs",
+    "tests/furvise-brain-durable-answer-finalization.test.mjs"
+  ],
+  "gates": [
+    {
+      "name": "focused",
+      "exit": 0,
+      "seconds": 82.96,
+      "counts": [
+        "tests 523",
+        "pass 522",
+        "fail 0",
+        "cancelled 0",
+        "skipped 1"
+      ],
+      "log": "reliability-contract-migration-focused.log",
+      "sha256": "ee71ea7f3c1babc339835d10a3a8e1f8b604d060470e031db1a7b44abfb5a686"
+    },
+    {
+      "name": "security",
+      "exit": 0,
+      "seconds": 20.1,
+      "counts": [
+        "tests 278",
+        "pass 278",
+        "fail 0",
+        "cancelled 0",
+        "skipped 0"
+      ],
+      "log": "reliability-contract-migration-security.log",
+      "sha256": "a9fd5b28ce94df23b8cec541c203ca1ed517dfdfc3ce631ee9ed7b2db410d3c8"
+    },
+    {
+      "name": "types",
+      "exit": 0,
+      "seconds": 9.62,
+      "counts": [],
+      "log": "reliability-contract-migration-types.log",
+      "sha256": "ae5e1239401b1fe502e2fd35c9428e4b83f58aee70cc5c7688b7c2d231d7b706"
+    },
+    {
+      "name": "lint",
+      "exit": 0,
+      "seconds": 61.85,
+      "counts": [],
+      "log": "reliability-contract-migration-lint.log",
+      "sha256": "fca03ff94d8f3673ea476459e497588bedd33740c8647349025c3a4aeaae77f9"
+    },
+    {
+      "name": "production-audit",
+      "exit": 0,
+      "seconds": 3.0,
+      "counts": [],
+      "log": "reliability-contract-migration-production-audit.log",
+      "sha256": "4b02d4a3c23d969c46bd2041360f80bfcb1fe760d9db864009acdd710f9de601"
+    },
+    {
+      "name": "build",
+      "exit": 0,
+      "seconds": 75.48,
+      "counts": [],
+      "log": "reliability-contract-migration-build.log",
+      "sha256": "ceeaeb976de59faaeda6b63b4eabb9310eca6169bf362178abf940832724d874"
+    }
+  ],
+  "retainedFailedAttempts": [
+    {
+      "name": "security",
+      "exit": 1,
+      "seconds": 20.56,
+      "counts": [
+        "tests 277",
+        "pass 276",
+        "fail 1",
+        "cancelled 0",
+        "skipped 0"
+      ],
+      "log": "reliability-contract-migration-security.log",
+      "sha256": "6f1e0bfd19a5bdc30b4de8ae08ae88ad0d332c8d42c54f9fa6d5769549712849"
+    }
+  ]
+}

@@ -63,6 +63,13 @@ jobs:
           tests/furvise-voice.test.mjs
           tests/ask-read-only-publication-budget.test.mjs
           tests/ask-read-only-provider-failure-route.test.mjs
+          tests/ask-provider-envelope-diagnostics.test.mjs
+          tests/ask-provider-error-diagnostics.test.mjs
+          tests/ask-post-review-finalizer-contract.test.mjs
+          tests/canonical-care-deployment-compatibility.test.mjs
+          tests/ask-memory-integrity-p0.test.mjs
+          tests/furvise-brain-architecture-boundary.test.mjs
+          tests/furvise-brain-owner-note-gate.test.mjs
           tests/ask-error-ux.test.mjs
           tests/ask-inflight-navigation.test.mjs
           tests/navigation-data-freshness.test.mjs

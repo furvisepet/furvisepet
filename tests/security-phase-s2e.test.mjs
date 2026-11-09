@@ -85,7 +85,25 @@ test("Dependabot and CI are least-privilege, lockfile-based, and secret-free", (
   assert.match(ci, /permissions:\s*\n\s*contents: read/);
   assert.match(ci, /npm ci/);
   assert.match(ci, /npm audit --omit=dev --audit-level=high/);
-  assert.doesNotMatch(ci, /secrets\.|permissions:\s*write|pull-requests:\s*write|deploy/i);
+  assertNoPrivilegedCi(ci);
+});
+
+// Standalone test-file arguments are data, not deployment commands. Retain the
+// conservative command/secret guard on every other byte of the workflow.
+function assertNoPrivilegedCi(workflow) {
+  const commands=workflow.replace(/^\s+tests\/[A-Za-z0-9_./-]+\.test\.mjs[ \t]*\r?$/gm,"");
+  assert.doesNotMatch(commands,/secrets\.|permissions:\s*(?:write|write-all)|^\s*[\w-]+:\s*write(?:-all)?(?:\s|$)|deploy/im);
+}
+test("CI guard distinguishes standalone test paths from privileged workflow operations",()=>{
+  assert.doesNotThrow(()=>assertNoPrivilegedCi("          tests/canonical-care-deployment-compatibility.test.mjs\n"));
+  for(const workflow of [
+    "run: vercel deploy --prod", "run: npm run deploy",
+    "uses: vendor/deploy-action@v1", "permissions: write-all",
+    "permissions:\n  contents: write", "permissions:\n  id-token: write",
+    "permissions:\n  pull-requests: write", "env:\n  TOKEN: "+"$"+"{{ secrets.TOKEN }}",
+    "          tests/deployment.test.mjs && vercel deploy",
+    "          tests/deployment.test.mjs "+"$"+"{{ secrets.TOKEN }}"
+  ]) assert.throws(()=>assertNoPrivilegedCi(workflow),undefined,workflow);
 });
 
 test("environment files remain ignored while the placeholder example stays tracked", () => {

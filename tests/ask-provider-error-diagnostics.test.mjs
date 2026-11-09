@@ -51,26 +51,33 @@ test("projection does not execute getters, coercion, serialization or walk cycli
   assert.equal(invoked, 0);
   assert.equal(diagnostic(Object.create({ code: safe.code, requestID: requestId })).code, null);
 });
-test("actual Ask route logs the safe diagnostic, releases credit, and keeps provider details out of its response", async t => {
-  const { fixture } = await import("./helpers/ask-route-ordering.mjs");
-  const logs = []; let calls = 0, schemaHash;
-  t.mock.method(console, "info", (...args) => logs.push(args));
-  t.mock.method(console, "warn", (...args) => logs.push(args));
-  t.mock.method(console, "error", (...args) => logs.push(args));
-  const f = fixture({ creditLedger: true, realProviderLog: true, providerCreate: async request => { schemaHash = createHash("sha256").update(JSON.stringify(request.text.format.schema)).digest("hex"); calls++; throw error(); } });
-  const response = await f.send();
-  const body = await response.json();
-  assert.equal(response.status, 503); assert.equal(calls, 1);
-  const event = logs.find(x => x[0] === "[Ask provider] stage failed")?.[1];
-  assert.deepEqual(event.providerError, { ...safe, schema: { sha256: schemaHash, rule: "unrecognized", path: null } });
-  assert.ok(!JSON.stringify(body).includes(schemaHash));
-  assert.equal(event.providerErrorCode, "ASK_INTERPRETATION_TRANSPORT");
-  assert.equal(event.providerStatus, 400);
-  for (const value of [marker, credential]) assert.ok(!JSON.stringify({ logs, body, errors: f.state.errors }).includes(value));
-  assert.ok(!JSON.stringify(body).includes(requestId));
-  assert.ok(!JSON.stringify(body).includes("invalid_json_schema"));
-  assert.equal(f.rows.ask_action_capabilities.length, 0);
-  assert.deepEqual(f.state.credit, { status: "released", disposition: "release" });
+for(const failedCall of [1,2])test("actual read-only Ask route logs safe diagnostics and releases credit on SDK call "+failedCall,async t=>{
+ const {readOnlyFailureRouteFixture}=await import("./helpers/ask-read-only-failure-route.mjs");
+ const logs=[];let calls=0,wireSchemaHash;
+ t.mock.method(console,"info",(...args)=>logs.push(args));
+ t.mock.method(console,"warn",(...args)=>logs.push(args));
+ t.mock.method(console,"error",(...args)=>logs.push(args));
+ const param=failedCall===1?"tools":"text.format.schema";
+ const nativeClient={responses:{create:async request=>{
+  calls++;
+  if(calls===failedCall){
+   wireSchemaHash=createHash("sha256").update(JSON.stringify(failedCall===1?request.tools:request.text.format.schema)).digest("hex");
+   throw new OpenAI.BadRequestError(400,{code:safe.code,type:safe.type,param,message:marker+credential},marker,new Headers({"x-request-id":requestId}));
+  }
+  return {status:"completed",output:[{type:"function_call",call_id:"read-one",name:"search_saved_records",arguments:JSON.stringify({pet:"p1",from:null,to:null,query:null,offset:0,order:"desc"})}],usage:{input_tokens:8,output_tokens:2}};
+ }}};
+ const f=readOnlyFailureRouteFixture(null,undefined,{nativeClient,realProviderLog:true});
+ const response=await f.send(),body=await response.json();
+ assert.equal(response.status,503);assert.equal(calls,failedCall);assert.equal(f.state.calls,failedCall);assert.equal(f.state.reads,failedCall-1);
+ const event=logs.find(x=>x[0]==="[Ask provider] stage failed")?.[1];
+ assert.deepEqual(event.providerError,{...safe,param});
+ assert.equal(event.providerErrorCode,"invalid_json_schema");assert.equal(event.providerStatus,400);
+ assert.ok(!JSON.stringify(body).includes(wireSchemaHash));
+ for(const value of [marker,credential])assert.ok(!JSON.stringify({logs,body,errors:f.state.errors}).includes(value));
+ assert.ok(!JSON.stringify(body).includes(requestId));assert.ok(!JSON.stringify(body).includes("invalid_json_schema"));
+ assert.deepEqual([...new Set(f.state.tables)],["dog_profiles"]);
+ assert.deepEqual(f.state.credit,{status:"released",disposition:"release"});
+ assert.equal(f.state.traces.at(-1).providerCallCount,failedCall);
 });
 
 test("generation diagnostics preserve request-rate-limit classification without exposing arbitrary types", async () => {
