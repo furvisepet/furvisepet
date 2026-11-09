@@ -66,6 +66,7 @@ jobs:
           tests/ask-read-only-state-claim-publication.test.mjs
           tests/ask-read-only-provider-failure-route.test.mjs
           tests/ask-read-only-dialogue-coverage.test.mjs
+          tests/ask-read-only-follow-up-context.test.mjs
           tests/ask-public-cancellation-route.test.mjs
           tests/ask-input-budget-route.test.mjs
           tests/routine-year-clarification.test.mjs
