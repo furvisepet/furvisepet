@@ -57,6 +57,7 @@ jobs:
           tests/ask-read-only.test.mjs
           tests/ask-read-only-reliability.test.mjs
           tests/ask-read-only-evidence-reliability.test.mjs
+          tests/ask-read-only-omitted-text.test.mjs
           tests/ask-read-only-search-disclosure.test.mjs
           tests/ask-read-only-native-envelope.test.mjs
           tests/ask-citation-date.test.mjs

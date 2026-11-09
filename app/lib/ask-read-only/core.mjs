@@ -125,7 +125,7 @@ export async function runReadOnlyAsk(input,deps) {
   deps.onSelectionRejected?.(readSelectionShape(first,pets));
   throw error;
  }
- let characters=0,measurementCount=0;
+ let characters=0,measurementCount=0,omittedOwnedText=false;
  for(const call of bound) {
   const result=await deps.read(call.request);
   if(!result||!Array.isArray(result.sources))fail("ASK_READ_DATABASE_INVALID");
@@ -138,7 +138,7 @@ export async function runReadOnlyAsk(input,deps) {
    if(source){
     if(["ownerId","petId","body","eventAt","recordedAt"].some(key=>source[key]!==row[key]))fail("ASK_READ_SOURCE_CHANGED");
    }else{
-    if(sources.length>=32||row.body.length>12000||characters+row.body.length>24000){truncated=true;continue;}
+    if(sources.length>=32||row.body.length>12000||characters+row.body.length>24000){truncated=true;omittedOwnedText=true;continue;}
     characters+=row.body.length;
     source={...row,handle:"s"+(sources.length+1)};
     const measurements=readSourceMeasurements(source.body,source.handle,source.kind);
@@ -161,7 +161,9 @@ export async function runReadOnlyAsk(input,deps) {
  if(bound.length>0&&answer.sources.length===0&&["answer","partial"].includes(answer.replyType)){
   answer.answer=sources.length
    ?"I couldn’t verify an answer using the saved information I found."
-   :"I didn’t find saved information in the searches I could check. I can’t quote a note I haven’t found.";
+   :omittedOwnedText
+    ?"Saved information was found, but its text couldn’t fit within Ask’s read limits. I can’t quote omitted text."
+    :"I didn’t find saved information in the searches I could check. I can’t quote a note I haven’t found.";
   answer.replyType="partial";answer.limited=true;
  }
  answer.limited=answer.limited||results.some(result=>result.hasMore||result.hasPrevious||result.truncated)||(bound.length>0&&(sources.length===0||answer.sources.length===0));

@@ -1,0 +1,24 @@
+{
+  "baseSha": "b352e9556cadcde7abeab62f363f969012eb15a6",
+  "redExit": 1,
+  "greenExit": 0,
+  "redCounts": [
+    "tests 28",
+    "pass 26",
+    "fail 2",
+    "cancelled 0",
+    "skipped 0"
+  ],
+  "greenCounts": [
+    "tests 28",
+    "pass 28",
+    "fail 0",
+    "cancelled 0",
+    "skipped 0"
+  ],
+  "cause": "A verified owned record omitted by server read limits used the same no-evidence summary as an empty search.",
+  "fix": "Server-owned omission marker set only after record ownership/type/timestamp validation, distinct from untrusted/metadata-only truncated flags. Honest limit explanation without inventing source text or citations.",
+  "providerCallLimit": 2,
+  "newPaidCalls": 0,
+  "liveAcceptanceForFix": false
+}

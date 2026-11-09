@@ -1,0 +1,141 @@
+{
+  "baseSha": "b352e9556cadcde7abeab62f363f969012eb15a6",
+  "applicationFilesChanged": [
+    "app/lib/ask-read-only/core.mjs"
+  ],
+  "focusedFiles": [
+    "tests/test-bootstrap-loader.test.mjs",
+    "tests/ask-read-only.test.mjs",
+    "tests/ask-read-only-reliability.test.mjs",
+    "tests/ask-read-only-evidence-reliability.test.mjs",
+    "tests/ask-read-only-omitted-text.test.mjs",
+    "tests/ask-read-only-search-disclosure.test.mjs",
+    "tests/ask-read-only-native-envelope.test.mjs",
+    "tests/ask-citation-date.test.mjs",
+    "tests/furvise-voice.test.mjs",
+    "tests/ask-read-only-publication-budget.test.mjs",
+    "tests/ask-read-only-state-claim-publication.test.mjs",
+    "tests/ask-read-only-provider-failure-route.test.mjs",
+    "tests/ask-provider-envelope-diagnostics.test.mjs",
+    "tests/ask-provider-error-diagnostics.test.mjs",
+    "tests/ask-post-review-finalizer-contract.test.mjs",
+    "tests/canonical-care-deployment-compatibility.test.mjs",
+    "tests/canonical-memory-suggestion.test.mjs",
+    "tests/canonical-suggestion-continuation.test.mjs",
+    "tests/core-loop-stability.test.mjs",
+    "tests/ask-action-capability-v1.test.mjs",
+    "tests/furvise-intelligence-engine.test.mjs",
+    "tests/ask-memory-single-authority.test.mjs",
+    "tests/ask-memory-authority-p0.test.mjs",
+    "tests/care-entry-write-authority.test.mjs",
+    "tests/ask-structured-output-reliability.test.mjs",
+    "tests/ask-memory-integrity-p0.test.mjs",
+    "tests/furvise-brain-architecture-boundary.test.mjs",
+    "tests/furvise-brain-owner-note-gate.test.mjs",
+    "tests/ask-error-ux.test.mjs",
+    "tests/ask-inflight-navigation.test.mjs",
+    "tests/navigation-data-freshness.test.mjs",
+    "tests/public-v1-freeze.test.mjs",
+    "tests/unified-ai-credits-care-state.test.mjs",
+    "tests/ask-read-only-persistence.test.mjs",
+    "tests/ask-core-invariants.test.mjs",
+    "tests/ask-first20-reliability.test.mjs",
+    "tests/security-phase-s1.test.mjs",
+    "tests/ask-usage-experience.test.mjs",
+    "tests/ask-reliability-signout.test.mjs",
+    "tests/ask-pre-provider-retry.test.mjs",
+    "tests/ai-credit-security-regression.test.mjs",
+    "tests/ask-read-only-route.test.mjs",
+    "tests/ask-read-only-actions.test.mjs",
+    "tests/ask-emergency-preflight.test.mjs",
+    "tests/v27-citation-proof.test.mjs",
+    "tests/v27-citation-endpoint.test.mjs",
+    "tests/ask-sdk-physical-attempts.test.mjs",
+    "tests/ask-sdk-uncertainty.test.mjs",
+    "tests/ask-full-wire-admission.test.mjs",
+    "tests/account-entitlements.test.mjs",
+    "tests/care-persistence-state-repair.test.mjs",
+    "tests/ask-cross-pet-persistence-and-retry.test.mjs",
+    "tests/v27-ask-two-call-limit.test.mjs",
+    "tests/ask-credit-settlement.test.mjs",
+    "tests/ask-credit-settlement-integrity.test.mjs",
+    "tests/ask-conversation-concurrency-acceptance.test.mjs",
+    "tests/ask-admission-settlement.test.mjs",
+    "tests/ask-restored-retry.test.mjs",
+    "tests/furvise-brain-durable-answer-finalization.test.mjs"
+  ],
+  "gates": [
+    {
+      "name": "focused",
+      "exit": 0,
+      "seconds": 96.07,
+      "counts": [
+        "tests 647",
+        "pass 646",
+        "fail 0",
+        "cancelled 0",
+        "skipped 1"
+      ],
+      "log": "reliability-omitted-text-final-focused.log",
+      "sha256": "3e1887f8795c1582ae607e2af076f7a337a313880bfde5c6de67c303039afdb4"
+    },
+    {
+      "name": "security",
+      "exit": 0,
+      "seconds": 25.59,
+      "counts": [
+        "tests 402",
+        "pass 402",
+        "fail 0",
+        "cancelled 0",
+        "skipped 0"
+      ],
+      "log": "reliability-omitted-text-final-security.log",
+      "sha256": "2d6d90b54c2e6c25cab28a193dec5dff35ee9823f13b53a62d49319e633ce833"
+    },
+    {
+      "name": "types",
+      "exit": 0,
+      "seconds": 9.61,
+      "counts": [],
+      "log": "reliability-omitted-text-final-types.log",
+      "sha256": "ae5e1239401b1fe502e2fd35c9428e4b83f58aee70cc5c7688b7c2d231d7b706"
+    },
+    {
+      "name": "lint",
+      "exit": 0,
+      "seconds": 64.06,
+      "counts": [],
+      "log": "reliability-omitted-text-final-lint.log",
+      "sha256": "fca03ff94d8f3673ea476459e497588bedd33740c8647349025c3a4aeaae77f9"
+    },
+    {
+      "name": "production-audit",
+      "exit": 0,
+      "seconds": 2.42,
+      "counts": [],
+      "log": "reliability-omitted-text-final-production-audit.log",
+      "sha256": "4b02d4a3c23d969c46bd2041360f80bfcb1fe760d9db864009acdd710f9de601"
+    },
+    {
+      "name": "build",
+      "exit": 0,
+      "seconds": 46.53,
+      "counts": [],
+      "log": "reliability-omitted-text-final-build.log",
+      "sha256": "99218c799ed21951f54666d46c213858b29508b23900551136187ab58003b43a"
+    }
+  ],
+  "allDependencyAudit": {
+    "exit": 1,
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 8,
+      "high": 2,
+      "critical": 0,
+      "total": 10
+    },
+    "note": "All dependencies includes dev tools; production audit is separately recorded. Nonzero audit is not a release pass."
+  }
+}
