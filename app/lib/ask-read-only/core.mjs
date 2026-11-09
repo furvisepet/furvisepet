@@ -104,9 +104,12 @@ export function isReadOnlyResult(value) { return !!value && reviewedResults.has(
 export async function runReadOnlyAsk(input,deps) {
  const pets=input.pets.filter(p=>p.ownerId===input.ownerId).map((p,i)=>({...p,handle:"p"+(i+1)}));
  if(!pets.some(p=>p.id===input.selectedPetId))fail("ASK_READ_PET_NOT_AUTHORIZED");
- const dialogue=input.dialogue.slice(-12).map(t=>({role:t.role==="user"?"user":"assistant",text:String(t.text).slice(0,2000)}));
+ const recentDialogue=input.dialogue.slice(-12);
+ const dialogue=recentDialogue.map(t=>({role:t.role==="user"?"user":"assistant",text:String(t.text).slice(0,2000)}));
  while(JSON.stringify(dialogue).length>READ_ONLY_LIMITS.dialogueCharacters)dialogue.shift();
- const dialogueCoverage={partial:!!input.dialogueMayBeIncomplete||input.dialogue.length>dialogue.length,visibleMessages:dialogue.length,omittedKnownMessages:Math.max(0,input.dialogue.length-dialogue.length)};
+ const omittedKnownMessages=Math.max(0,input.dialogue.length-dialogue.length);
+ const truncatedMessages=dialogue.length?recentDialogue.slice(-dialogue.length).filter(turn=>String(turn.text).length>2000).length:0;
+ const dialogueCoverage={partial:!!input.dialogueMayBeIncomplete||omittedKnownMessages>0||truncatedMessages>0,visibleMessages:dialogue.length,omittedKnownMessages,truncatedMessages};
  const context={dialogueCoverage,now:input.now,timeZone:input.timeZone,selectedPet:pets.find(p=>p.id===input.selectedPetId).handle,
  pets:pets.map(p=>({handle:p.handle,name:p.name,species:p.species})),dialogue,question:input.question};
  let calls=0;
@@ -167,7 +170,7 @@ export async function runReadOnlyAsk(input,deps) {
   answer.replyType="partial";answer.limited=true;
  }
  answer.limited=answer.limited||results.some(result=>result.hasMore||result.hasPrevious||result.truncated)||(bound.length>0&&(sources.length===0||answer.sources.length===0));
- const result={answer,sources:sources.filter(s=>answer.sources.includes(s.handle)),providerCallCount:calls,coverage:results.map(({sources,...rest})=>({...rest,returned:sources.length}))};
+ const result={answer,sources:sources.filter(s=>answer.sources.includes(s.handle)),providerCallCount:calls,dialogueCoverage,coverage:results.map(({sources,...rest})=>({...rest,returned:sources.length}))};
  const freeze=value=>{if(value&&typeof value==="object"&&!Object.isFrozen(value)){Object.values(value).forEach(freeze);Object.freeze(value);}};
  freeze(result);reviewedResults.add(result);return result;
 }

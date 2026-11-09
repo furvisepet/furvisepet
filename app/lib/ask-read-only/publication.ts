@@ -16,7 +16,15 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
  const reviewed=result as {answer:{answer:string;replyType:"answer"|"clarification"|"refusal"|"partial";limited:boolean;quotes:Array<{quote:string}>;calculations:Array<{text:string}>};sources:Array<{kind:string}>};
  const body=reviewed.answer;
  const coverageMessages=readCoverageMessages((result as {coverage?:unknown[]}).coverage);
- const coverageSections=coverageMessages.length?[{heading:"Search coverage",items:coverageMessages}]:[];
+ const dialogue=(result as {dialogueCoverage?:{partial?:boolean;omittedKnownMessages?:number;truncatedMessages?:number}}).dialogueCoverage;
+ const contextMessages=dialogue?.partial===true
+  ?[dialogue.omittedKnownMessages||dialogue.truncatedMessages
+   ?"Some earlier conversation text is outside Ask’s current context window. Repeat any older details you want me to use."
+   :"Earlier conversation context may be incomplete. Repeat any older details you want me to use."]:[];
+ const coverageSections=[
+  ...(coverageMessages.length?[{heading:"Search coverage",items:coverageMessages}]:[]),
+  ...(contextMessages.length?[{heading:"Conversation context",items:contextMessages}]:[])
+ ];
  const checked=enforceVerifiedStateClaims(body.answer,false);
  const stateRejected=checked!==body.answer&&(containsUnverifiedStateClaim(body.answer)||containsNavigationExecutionClaim(body.answer));
  let limited=body.limited||stateRejected;
@@ -37,6 +45,7 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
  ];
  response.actions=["copy"];
  response.applicationActions=[];
+ if(contextMessages.length)Object.assign(response,{missingUsefulDetails:[...contextMessages]});
 
  const sign=()=>{
   const citationProof=issueReadOnlyCitationProof(result,response,ownerId);
