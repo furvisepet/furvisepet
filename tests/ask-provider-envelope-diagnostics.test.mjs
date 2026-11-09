@@ -59,7 +59,7 @@ for(const envelope of [
  currentTurn:{id:"synthetic-turn",role:"user",text:"Offline envelope diagnostic."},conversationTurns:[],timeZone:"UTC"};
  let calls=0;const events=[];
  await assert.rejects(interpretAskQuestion({context,model:"gpt-5.4-mini",onProviderEvent:e=>events.push(e),client:{responses:{create:async()=>{calls++;return envelope;}}}}),
- e=>{assert.equal(e.diagnostics.providerErrorCode,"ASK_INTERPRETATION_INCOMPLETE");assert.deepEqual(e.diagnostics.providerEnvelope,diagnostic(envelope));assert.equal(e.diagnostics.parsingAttempted,false);return true;});
+ e=>{assert.ok(e.diagnostics,String(e.stack));assert.equal(e.diagnostics.providerErrorCode,"ASK_INTERPRETATION_INCOMPLETE");assert.deepEqual(e.diagnostics.providerEnvelope,diagnostic(envelope));assert.equal(e.diagnostics.parsingAttempted,false);return true;});
  assert.equal(calls,1);assert.deepEqual(events.at(-1).providerEnvelope,diagnostic(envelope));
 });
 test("route includes the safe projection in its existing operational event",()=>{

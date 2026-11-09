@@ -38,18 +38,18 @@ export function readOnlyFailureRouteFixture(provider,records=[note],options={}){
   ASK_REQUEST_KEYS,parseConfirmedTemporalScope,resolveAskTimeZone,resolveAskHistoryAccess,runReadOnlyAsk,
   ASK_OPERATION_TIMEOUT_MS:150000,ASK_MAX_QUESTION_CHARACTERS:1200,askRequestTimeoutMs:120000,askGuardOperationTtlSeconds:180,
   API_BODY_LIMITS:{ask:10000},RequestBoundaryError:InfrastructureError,RateLimitRejection:InfrastructureError,AiAdmissionError,AiCreditLimitError:InfrastructureError,AiCreditLedgerError:InfrastructureError,
-  loadAskAuthenticationContext:async()=>({supabase:db,userId:id(1)}),readBoundedJson:r=>r.json(),
+  loadAskAuthenticationContext:async()=>options.authentication??({supabase:db,userId:id(1)}),readBoundedJson:r=>r.json(),
   hasOnlyKeys:(v,keys)=>Object.keys(v).every(k=>keys.includes(k)),isUuid:v=>/^[a-f0-9-]{36}$/.test(v),isSecurityUuid:v=>/^[a-f0-9-]{36}$/.test(v),
   resolveAskLocale:()=>"en",hashAiCreditPayload:()=>"payload-hash",classifyCurrentPetLoss:()=>null,detectImmediateAskEmergency:()=>null,
   loadAskEntitlementContext:async()=>({usage:{allowed:true,remaining:5,limit:5,ledgerMode:"database"},planId:"free"}),
   readAskProfiles:async callback=>({...await callback(),diagnostic:{}}),loadPersistedRequest:async()=>null,
   claimWithRestoredAskOrigin:({claim,payload})=>claim(payload),claimIdempotentOperation:async()=>({operation:{execute:callback=>callback(),ownerToken:"offline-owner-token"}}),
-  ensureConversationAndUserMessage:async()=>{state.userMessages++;return {conversationId:id(4),userMessageId:id(5),userSequence:1}},
+  ensureConversationAndUserMessage:async()=>{state.userMessages++;if(options.conversationError)throw options.conversationError;return {conversationId:id(4),userMessageId:id(5),userSequence:1}},
   loadReadOnlyContext:async()=>({pets:[{id:id(2),ownerId:id(1),name:"Juniper",species:"cat"}],dialogue:[],...options.context}),
   requireRateLimitedRequest:async()=>({release:async()=>{state.leaseReleased++}}),getAskModelConfiguration:()=>({primary:options.model??"offline-model"}),getAskProviderCooldown:()=>({active:false}),
   admitAiOperation:async input=>{if(options.admissionError)throw options.admissionError;if(options.admitAiOperation)return options.admitAiOperation(input);return {run:callback=>callback(),complete:async()=>{},fail:async()=>{state.admissionFailed++}}},
   reserveAiCredit:async()=>{state.credit={status:"reserved",disposition:null};return {status:"reserved"}},
-  createReadOnlyDataAccess:()=>async request=>{state.reads++;state.readRequests.push(structuredClone(request));assert.equal(request.pet.id,id(2));return {sources:records,total:records.length}},
+  createReadOnlyDataAccess:()=>async request=>{state.reads++;state.readRequests.push(structuredClone(request));assert.equal(request.pet.id,id(2));if(options.readError)throw options.readError;return {sources:records,total:records.length}},
   readOnlyProvider:(_model,onEvent)=>options.nativeClient
    ?nativeReadOnlyProvider(options.model??"offline-model",event=>{if(event.outcome==="started")state.calls++;state.providerEvents.push(event);onEvent(event);},options.nativeClient)
    :async(request,phase)=>{
@@ -85,5 +85,5 @@ export function readOnlyFailureRouteFixture(provider,records=[note],options={}){
   }}).safeReleaseAiCredit
  });
  const POST=vm.runInNewContext(ts.transpileModule(code,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText+"\nPOST",scope);
- return {state,send:(question="Explain the saved observation.")=>POST(new Request("https://fixture.invalid/api/ask",{method:"POST",body:JSON.stringify({petId:id(2),logicalTurnId:id(6),message:question})}))};
+ return {state,send:(question="Explain the saved observation.",extra={})=>POST(new Request("https://fixture.invalid/api/ask",{method:"POST",body:JSON.stringify({petId:id(2),logicalTurnId:id(6),message:question,...extra})}))};
 }

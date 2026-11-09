@@ -1,3 +1,4 @@
+import {assertPublicMutationDenied} from "./helpers/ask-public-mutation-boundary.mjs";
 import {removeAction} from './helpers/canonical-remove.mjs';
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -87,8 +88,7 @@ test('explicit operation identity survives broad answer citations and never fall
 test("positional latest/last target proposals are no longer eligible authority", async () => {
   assert.equal(await targetAction("care_history.remove", "last"), undefined);
   assert.match(reasoning, /never target the last, latest, recent, or merely eligible record/);
-  assert.match(route, /resolveFurviseActionTargetBindings/);
-  assert.match(route, /targetBindings: actionTargetBindings/);
+  await assertPublicMutationDenied("Delete the latest saved note.", "I deleted the latest saved note.");
 });
 
 test("care edits, removals, and concern transitions all bind target freshness", () => {

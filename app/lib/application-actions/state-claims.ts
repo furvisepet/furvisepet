@@ -1,9 +1,26 @@
 import { mapAskProse, askProseOnly } from "../furvise-output.ts";
 import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
-const authoritativeMutationClaim = /\b(?:i(?:['’]ve| have|['’]ll| will)?|furvise has|we(?:['’]ve| have|['’]ll| will)?)\s+(?:save(?:d)?|log(?:ged)?|add(?:ed)?|delete(?:d)?|remove(?:d)?|forget|forgotten|change(?:d)?|update(?:d)?|archive(?:d)?|prepare(?:d)?|record(?:ed)?|complete(?:d)?|mark(?:ed)?)\b|\bi(?:['’]ll| will)\s+(?:treat|consider)\b[^.!?]{0,120}\bas\s+(?:removed|forgotten|changed|updated|deleted)\b/i;
+// One speech-act vocabulary keeps affirmative, passive and ongoing effect
+// checks aligned. These recognize claimed effects, not question intents.
+const effectVerbForms = [
+ ["save(?:d)?","saved","saving"],["log(?:ged)?","logged","logging"],
+ ["add(?:ed)?","added","adding"],["delete(?:d)?","deleted","deleting"],
+ ["remove(?:d)?","removed","removing"],["forget|forgotten","forgotten","forgetting"],
+ ["change(?:d)?","changed","changing"],["update(?:d)?","updated","updating"],
+ ["archive(?:d)?","archived","archiving"],["prepare(?:d)?","prepared","preparing"],
+ ["record(?:ed)?","recorded","recording"],["complete(?:d)?","completed","completing"],
+ ["mark(?:ed)?","marked","marking"],["cancel(?:l?ed)?","cancell?ed","cancell?ing"],
+ ["correct(?:ed)?","corrected","correcting"],["edit(?:ed)?","edited","editing"],
+ ["append(?:ed)?","appended","appending"],["replace(?:d)?","replaced","replacing"],
+ ["restore(?:d)?","restored","restoring"],["reopen(?:ed)?","reopened","reopening"],
+ ["revert(?:ed)?","reverted","reverting"],["execute(?:d)?","executed","executing"],
+ ["send|sent","sent","sending"],
+] as const;
+const effectVerbs=(form:0|1|2)=>"(?:"+effectVerbForms.map(verb=>verb[form]).join("|")+")";
+const authoritativeMutationClaim = new RegExp(String.raw`\b(?:i(?:['’]ve| have|['’]ll| will)?|furvise has|we(?:['’]ve| have|['’]ll| will)?)\s+${effectVerbs(0)}\b|\bi(?:['’]ll| will)\s+(?:treat|consider)\b[^.!?]{0,120}\bas\s+(?:removed|forgotten|changed|updated|deleted)\b`, "i");
 const assistantOffer = /(?:^|[.!?]\s+)(?:(?:if you want,?\s*)(?:i can(?: also)?|would you like me to)\s+|would you like me to\s+|i can(?: also)?\s+(?:help|assist|save|update|delete|prepare)\b)[^.!?]*[.!?]?/gi;
 
-const passiveMutationClaim = /\b(?:has been|was)\s+(?:(?:just|now|successfully)\s+)?(saved|deleted|removed|forgotten|changed|updated|archived|prepared|recorded|completed|marked)\b/gi;
+const passiveMutationClaim = new RegExp(String.raw`\b(?:has been|was)\s+(?:(?:just|now|successfully)\s+)?(${effectVerbs(1)})\b`, "gi");
 const physicalChangeSubject = /\b(?:food|diet|litter|litter tray|tray(?: location|position|setup)?)\s*$/i;
 const physicalCourseSubject = /\b(?:medication|treatment|antibiotic)\s+course\s*$/i;
 const applicationDestination = /\b(?:in|on|to|from)\s+(?:(?:the|your|her|his|their|its|pet['’]s)\s+)*(?:profile|history|record|entry|preference|settings|account|app|Furvise)\b|\bby\s+Furvise\b/i;
@@ -24,14 +41,14 @@ function containsUnquotedStateClaim(value: string) {
   // Keep affirmative app writes elsewhere in the same text subject to checks.
   const speech = value.replace(/\b((?:(?:earliest|latest|first|last|oldest|newest|saved|recorded)\s+)*(?:weight|measurement|temperature|dose|duration|distance|reading))\s+(?:that\s+)?I\s+(?:have\s+)?(?:saved|recorded)\s+(?:for\s+[^.!?;]{1,60}?\s+)?(?=is\b|was\b)/gi, "$1 ");
   if (authoritativeMutationClaim.test(speech)
-    || /\b(?:i['’]m|i am|we['’]re|we are)\s+(?:now\s+)?(?:saving|recording|updating|deleting|archiving|sending|adding)\b[^.!?]{0,120}\b(?:history|log|profile|record|entry|preference|settings)\b/i.test(speech)) return true;
+    || new RegExp(String.raw`\b(?:i['’]m|i am|we['’]re|we are)\s+(?:now\s+)?${effectVerbs(2)}\b[^.!?]{0,120}\b(?:history|log|profile|record|entry|preference|settings|action|task|operation|saved note)\b`, "i").test(speech)) return true;
   for (const clause of splitSentencesPreservingFacts(value)) for (const match of clause.matchAll(passiveMutationClaim)) {
     const before = clause.slice(0, match.index);
     // Negated speech is not a receipt; a later affirmative clause still is.
     if (isNegatedReceiptSpeech(before)) continue;
     // Attribution prefixes are not the subject of the embedded statement.
     const subject = before.split(/\b(?:says|said|reports|states|documents)\b/i).at(-1) || before;
-    const dataSubject = /\b(?:profile|history|records?|entries|entry|preferences?|settings|account|app|Furvise|preferred language|communication style|booking|appointment|request|task|action|operation)\b/i.test(subject);
+    const dataSubject = /\b(?:profile|history|records?|entries|entry|(?:saved|stored|care|history)\s+notes?|pending\s+corrections?|preferences?|settings|account|app|Furvise|preferred language|communication style|booking|appointment|request|task|action|operation)\b/i.test(subject);
     // Absence in a clinical note does not announce a successful app write.
     const absentClinicalDetail = /\bno\s+(?:[a-z-]+\s+){0,10}$/i.test(subject)
       && !dataSubject
@@ -81,7 +98,7 @@ export function containsNavigationExecutionClaim(value: string) {
   return patterns.some(pattern => [...value.matchAll(pattern)].some(match => !isNegatedReceiptSpeech(value.slice(0, match.index))));
 }
 export function containsUntrustedTerminalMutationClaim(value: string) {
-  const pattern = /\b(profile|history|record|entry|preference|concern|pet|update|change)\s+(?:is\s+|has\s+been\s+|was\s+)?(saved|deleted|removed|forgotten|changed|updated|archived|recorded|completed|marked)\b/gi;
+  const pattern = new RegExp(String.raw`\b(profile|history|record|entry|preference|concern|pet|update|change)\s+(?:is\s+|has\s+been\s+|was\s+)?(${effectVerbs(1)})\b`, "gi");
   for (const match of value.matchAll(pattern)) {
     if (isNegatedReceiptSpeech(value.slice(0, match.index))) continue;
     const subject = match[1].toLowerCase(), verb = match[2].toLowerCase();

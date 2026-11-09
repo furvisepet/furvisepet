@@ -1,3 +1,4 @@
+import {assertPublicMutationDenied} from "./helpers/ask-public-mutation-boundary.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -81,13 +82,12 @@ test("TENANT_SUPPORTING_TEXT_CANNOT_FORGE_MUTATION_CLAIM", () => {
   assert.equal(ordinaryReload.supportingText, "Here are a few things to watch tonight.");
 });
 
-test("CORRECTION_UI_REFLECTS_AUTHORITATIVE_CAPABILITY_TERMINAL_STATE", () => {
+test("CORRECTION_UI_REFLECTS_AUTHORITATIVE_CAPABILITY_TERMINAL_STATE", async () => {
   assert.match(migration, /correction_message\.sequence_number > source_message\.sequence_number/);
   assert.match(migration, /where id = p_capability_id[\s\S]*for update/);
   assert.match(migration, /if v\.status <> 'pending'[\s\S]*return query select v\.receipt, false/);
   const turn = read("app/lib/intelligence/lifecycle-turn.ts");
-  assert.match(route, /continueLifecyclePlan/);
-  assert.match(route, /deterministicApplicationActions = lifecycleOutcome.actions/);
+  await assertPublicMutationDenied("Cancel the pending correction.", "I cancelled the pending correction.");
   assert.match(turn, /result.action.status !== "cancelled"/);
   assert.match(turn, /actions: result \? \[result.action\] : \[\]/);
   assert.match(turn, /LIFECYCLE_CANCELLATION_RECEIPT_MISMATCH/);

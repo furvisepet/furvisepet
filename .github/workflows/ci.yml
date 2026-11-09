@@ -67,6 +67,10 @@ jobs:
           tests/ask-read-only-provider-failure-route.test.mjs
           tests/ask-read-only-dialogue-coverage.test.mjs
           tests/ask-read-only-follow-up-context.test.mjs
+          tests/ask-read-only-effect-claims.test.mjs
+          tests/ask-action-capability-security-regressions.test.mjs
+          tests/ask-action-capability-target-freshness-expiry.test.mjs
+          tests/ask-route-ordering.test.mjs
           tests/ask-public-cancellation-route.test.mjs
           tests/ask-input-budget-route.test.mjs
           tests/routine-year-clarification.test.mjs
