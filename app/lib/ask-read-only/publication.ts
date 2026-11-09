@@ -1,3 +1,4 @@
+import { readCoverageMessages } from "./coverage.mjs";
 import "server-only";
 import { buildAskConversationResponse } from "../ask.mjs";
 import { enforceVerifiedStateClaims, containsUnverifiedStateClaim, containsNavigationExecutionClaim } from "../application-actions/state-claims.ts";
@@ -14,6 +15,8 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
  if(!isReadOnlyResult(result))throw new Error("ASK_READ_RESULT_INVALID");
  const reviewed=result as {answer:{answer:string;replyType:"answer"|"clarification"|"refusal"|"partial";limited:boolean;quotes:Array<{quote:string}>;calculations:Array<{text:string}>};sources:Array<{kind:string}>};
  const body=reviewed.answer;
+ const coverageMessages=readCoverageMessages((result as {coverage?:unknown[]}).coverage);
+ const coverageSections=coverageMessages.length?[{heading:"Search coverage",items:coverageMessages}]:[];
  const checked=enforceVerifiedStateClaims(body.answer,false);
  const stateRejected=checked!==body.answer&&(containsUnverifiedStateClaim(body.answer)||containsNavigationExecutionClaim(body.answer));
  let limited=body.limited||stateRejected;
@@ -26,7 +29,8 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
  response.answerType=body.replyType==="clarification"?"clarification":"direct_answer";
  response.sections=[
   ...(body.quotes.length?[{heading:"Saved notes",items:body.quotes.map(quote=>quote.quote)}]:[]),
-  ...(body.calculations.length?[{heading:"Calculation",items:body.calculations.map(calculation=>calculation.text)}]:[])
+  ...(body.calculations.length?[{heading:"Calculation",items:body.calculations.map(calculation=>calculation.text)}]:[]),
+  ...coverageSections
  ];
  response.actions=["copy"];
  response.applicationActions=[];
@@ -46,18 +50,18 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
    :"This answer exceeds the reply size limit. Please ask for a shorter answer or one part at a time.";
   response.summary=summary;response.directAnswer=summary;
   response.answerType="direct_answer";
-  response.sections=body.calculations.length?[{heading:"Calculation",items:body.calculations.map(calculation=>calculation.text)}]:[];
+  response.sections=[...(body.calculations.length?[{heading:"Calculation",items:body.calculations.map(calculation=>calculation.text)}]:[]),...coverageSections];
   sign();
   const kept:string[]=[];
   for(const quote of body.quotes){
    response.sections=[{heading:"Saved notes",items:[...kept,quote.quote]},
-    ...(body.calculations.length?[{heading:"Calculation",items:body.calculations.map(calculation=>calculation.text)}]:[])];
+    ...(body.calculations.length?[{heading:"Calculation",items:body.calculations.map(calculation=>calculation.text)}]:[]),...coverageSections];
    sign();
    if(publicationBytes(response)<=MAX_READ_ONLY_PUBLICATION_BYTES)kept.push(quote.quote);
   }
   response.sections=[
    ...(kept.length?[{heading:"Saved notes",items:kept}]:[]),
-   ...(body.calculations.length?[{heading:"Calculation",items:body.calculations.map(calculation=>calculation.text)}]:[])
+   ...(body.calculations.length?[{heading:"Calculation",items:body.calculations.map(calculation=>calculation.text)}]:[]),...coverageSections
   ];
   sign();
  }

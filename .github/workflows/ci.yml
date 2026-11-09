@@ -55,6 +55,9 @@ jobs:
           npm test -- --test-concurrency=1
           tests/test-bootstrap-loader.test.mjs
           tests/ask-read-only.test.mjs
+          tests/ask-read-only-reliability.test.mjs
+          tests/ask-read-only-evidence-reliability.test.mjs
+          tests/ask-citation-date.test.mjs
           tests/ask-read-only-publication-budget.test.mjs
           tests/ask-read-only-provider-failure-route.test.mjs
           tests/ask-error-ux.test.mjs
@@ -76,6 +79,10 @@ jobs:
           tests/v27-citation-proof.test.mjs
           tests/v27-citation-endpoint.test.mjs
           tests/ask-sdk-physical-attempts.test.mjs
+          tests/ask-sdk-uncertainty.test.mjs
+          tests/account-entitlements.test.mjs
+          tests/care-persistence-state-repair.test.mjs
+          tests/ask-cross-pet-persistence-and-retry.test.mjs
           tests/v27-ask-two-call-limit.test.mjs
           tests/ask-credit-settlement.test.mjs
           tests/ask-credit-settlement-integrity.test.mjs

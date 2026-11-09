@@ -1,0 +1,2206 @@
+[
+  {
+    "phase": "red",
+    "providerCallsPaid": 0,
+    "cases": [
+      {
+        "fn": "read_selection",
+        "mode": "disconnected",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 3,
+            "providerStatus": null
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_selection",
+        "mode": "http408",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 2,
+            "providerStatus": 408,
+            "providerErrorCode": "offline_status"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_selection",
+        "mode": "http429requests",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 1,
+            "providerStatus": 429,
+            "providerErrorCode": "rate_limit_exceeded"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_selection",
+        "mode": "http500",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 1,
+            "providerStatus": 500,
+            "providerErrorCode": "offline_status"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_selection",
+        "mode": "http503",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 1,
+            "providerStatus": 503,
+            "providerErrorCode": "offline_status"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_selection",
+        "mode": "abort",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 605,
+            "providerStatus": null
+          }
+        },
+        "aborted": true,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_selection",
+        "mode": "late-success",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": null,
+        "aborted": true,
+        "late": true,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 68
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 68
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_selection",
+        "mode": "late-rejection",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 1062,
+            "providerStatus": null
+          }
+        },
+        "aborted": true,
+        "late": true,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_selection",
+        "mode": "missing-usage",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 3,
+            "providerStatus": 503,
+            "providerErrorCode": "AI_TEMPORARILY_UNAVAILABLE"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_selection",
+        "mode": "reconcile-failure",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 3,
+            "providerStatus": 503,
+            "providerErrorCode": "AI_TEMPORARILY_UNAVAILABLE"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_selection",
+        "mode": "uncertain-start",
+        "physicalAttempts": 0,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 0,
+            "providerStatus": 503,
+            "providerErrorCode": "AI_TEMPORARILY_UNAVAILABLE"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_selection",
+        "mode": "success",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": null,
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 68
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 68
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_selection",
+        "mode": "eligible-fallback",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 2,
+            "providerStatus": 429,
+            "providerErrorCode": "rate_limit_exceeded"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 2,
+          "costMicrodollars": 25806
+        },
+        "after": {
+          "calls": 2,
+          "costMicrodollars": 25806
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_answer",
+        "mode": "disconnected",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 3,
+            "providerStatus": null
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_answer",
+        "mode": "http408",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 2,
+            "providerStatus": 408,
+            "providerErrorCode": "offline_status"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_answer",
+        "mode": "http429requests",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 3,
+            "providerStatus": 429,
+            "providerErrorCode": "rate_limit_exceeded"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_answer",
+        "mode": "http500",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 2,
+            "providerStatus": 500,
+            "providerErrorCode": "offline_status"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_answer",
+        "mode": "http503",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 3,
+            "providerStatus": 503,
+            "providerErrorCode": "offline_status"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_answer",
+        "mode": "abort",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 613,
+            "providerStatus": null
+          }
+        },
+        "aborted": true,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_answer",
+        "mode": "late-success",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": null,
+        "aborted": true,
+        "late": true,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 68
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 68
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_answer",
+        "mode": "late-rejection",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 1068,
+            "providerStatus": null
+          }
+        },
+        "aborted": true,
+        "late": true,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_answer",
+        "mode": "missing-usage",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 6,
+            "providerStatus": 503,
+            "providerErrorCode": "AI_TEMPORARILY_UNAVAILABLE"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_answer",
+        "mode": "reconcile-failure",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 3,
+            "providerStatus": 503,
+            "providerErrorCode": "AI_TEMPORARILY_UNAVAILABLE"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_answer",
+        "mode": "uncertain-start",
+        "physicalAttempts": 0,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 0,
+            "providerStatus": 503,
+            "providerErrorCode": "AI_TEMPORARILY_UNAVAILABLE"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_answer",
+        "mode": "success",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": null,
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 68
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 68
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_answer",
+        "mode": "eligible-fallback",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 3,
+            "providerStatus": 429,
+            "providerErrorCode": "rate_limit_exceeded"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 2,
+          "costMicrodollars": 25806
+        },
+        "after": {
+          "calls": 2,
+          "costMicrodollars": 25806
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "structured",
+        "mode": "disconnected",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "Ask provider request failed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 5,
+            "providerStatus": null,
+            "providerErrorType": "UnknownError",
+            "providerErrorCode": "",
+            "providerError": {
+              "status": null,
+              "code": null,
+              "type": null,
+              "param": null,
+              "requestId": null
+            },
+            "timedOut": false
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "structured",
+        "mode": "http408",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "Ask provider request failed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 4,
+            "providerStatus": 408,
+            "providerErrorType": "server_error",
+            "providerErrorCode": "other",
+            "providerError": {
+              "status": 408,
+              "code": "other",
+              "type": "server_error",
+              "param": null,
+              "requestId": null
+            },
+            "timedOut": false
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "structured",
+        "mode": "http429requests",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "Ask provider request failed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 1,
+            "providerStatus": 429,
+            "providerErrorType": "requests",
+            "providerErrorCode": "rate_limit_exceeded",
+            "providerError": {
+              "status": 429,
+              "code": "rate_limit_exceeded",
+              "type": "requests",
+              "param": null,
+              "requestId": null
+            },
+            "timedOut": false
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "structured",
+        "mode": "http500",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "Ask provider request failed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 1,
+            "providerStatus": 500,
+            "providerErrorType": "server_error",
+            "providerErrorCode": "other",
+            "providerError": {
+              "status": 500,
+              "code": "other",
+              "type": "server_error",
+              "param": null,
+              "requestId": null
+            },
+            "timedOut": false
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "structured",
+        "mode": "http503",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "Ask provider request failed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 2,
+            "providerStatus": 503,
+            "providerErrorType": "server_error",
+            "providerErrorCode": "other",
+            "providerError": {
+              "status": 503,
+              "code": "other",
+              "type": "server_error",
+              "param": null,
+              "requestId": null
+            },
+            "timedOut": false
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "structured",
+        "mode": "abort",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_timeout",
+          "message": "Ask provider timed out.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 609,
+            "providerStatus": null,
+            "providerErrorType": "TimeoutError",
+            "providerErrorCode": "ABORT_ERR",
+            "providerError": {
+              "status": null,
+              "code": "ABORT_ERR",
+              "type": "TimeoutError",
+              "param": null,
+              "requestId": null
+            },
+            "timedOut": true
+          }
+        },
+        "aborted": true,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "structured",
+        "mode": "late-success",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_timeout",
+          "message": "Ask provider timed out.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 603,
+            "providerStatus": null,
+            "providerErrorType": "TimeoutError",
+            "providerErrorCode": "ABORT_ERR",
+            "providerError": {
+              "status": null,
+              "code": "ABORT_ERR",
+              "type": "TimeoutError",
+              "param": null,
+              "requestId": null
+            },
+            "timedOut": true
+          }
+        },
+        "aborted": true,
+        "late": true,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "structured",
+        "mode": "late-rejection",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_timeout",
+          "message": "Ask provider timed out.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 601,
+            "providerStatus": null,
+            "providerErrorType": "TimeoutError",
+            "providerErrorCode": "ABORT_ERR",
+            "providerError": {
+              "status": null,
+              "code": "ABORT_ERR",
+              "type": "TimeoutError",
+              "param": null,
+              "requestId": null
+            },
+            "timedOut": true
+          }
+        },
+        "aborted": true,
+        "late": true,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "structured",
+        "mode": "missing-usage",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AiAdmissionError",
+          "reason": "provider_usage_missing",
+          "message": "provider_usage_missing"
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "structured",
+        "mode": "reconcile-failure",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AiAdmissionError",
+          "reason": "provider_usage_reconciliation_failed",
+          "message": "provider_usage_reconciliation_failed"
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "structured",
+        "mode": "uncertain-start",
+        "physicalAttempts": 0,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AiAdmissionError",
+          "reason": "call_start_accounting_uncertain",
+          "message": "call_start_accounting_uncertain"
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "structured",
+        "mode": "success",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": null,
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 68
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 68
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "structured",
+        "mode": "eligible-fallback",
+        "physicalAttempts": 1,
+        "admissionAttempts": 2,
+        "error": {
+          "name": "AiAdmissionError",
+          "reason": "provider_call_budget_exhausted",
+          "message": "provider_call_budget_exhausted"
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 2,
+          "costMicrodollars": 25806
+        },
+        "after": {
+          "calls": 2,
+          "costMicrodollars": 25806
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      }
+    ]
+  },
+  {
+    "phase": "fixed",
+    "providerCallsPaid": 0,
+    "cases": [
+      {
+        "fn": "read_selection",
+        "mode": "disconnected",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 3,
+            "providerStatus": null
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_selection",
+        "mode": "http408",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 2,
+            "providerStatus": 408,
+            "providerErrorCode": "offline_status"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_selection",
+        "mode": "http429requests",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 1,
+            "providerStatus": 429,
+            "providerErrorCode": "rate_limit_exceeded"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_selection",
+        "mode": "http500",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 1,
+            "providerStatus": 500,
+            "providerErrorCode": "offline_status"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_selection",
+        "mode": "http503",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 1,
+            "providerStatus": 503,
+            "providerErrorCode": "offline_status"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_selection",
+        "mode": "abort",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_timeout",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 611,
+            "providerStatus": null,
+            "providerErrorCode": "ABORT_ERR"
+          }
+        },
+        "aborted": true,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_selection",
+        "mode": "late-success",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_timeout",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 617,
+            "providerStatus": null,
+            "providerErrorCode": "ABORT_ERR"
+          }
+        },
+        "aborted": true,
+        "late": true,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_selection",
+        "mode": "late-rejection",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_timeout",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 607,
+            "providerStatus": null,
+            "providerErrorCode": "ABORT_ERR"
+          }
+        },
+        "aborted": true,
+        "late": true,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_selection",
+        "mode": "missing-usage",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 2,
+            "providerStatus": 503,
+            "providerErrorCode": "AI_TEMPORARILY_UNAVAILABLE"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_selection",
+        "mode": "reconcile-failure",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 1,
+            "providerStatus": 503,
+            "providerErrorCode": "AI_TEMPORARILY_UNAVAILABLE"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_selection",
+        "mode": "uncertain-start",
+        "physicalAttempts": 0,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 0,
+            "providerStatus": 503,
+            "providerErrorCode": "AI_TEMPORARILY_UNAVAILABLE"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_selection",
+        "mode": "success",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": null,
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 68
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 68
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_selection",
+        "mode": "eligible-fallback",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 1,
+            "providerStatus": 429,
+            "providerErrorCode": "rate_limit_exceeded"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 2,
+          "costMicrodollars": 25806
+        },
+        "after": {
+          "calls": 2,
+          "costMicrodollars": 25806
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_answer",
+        "mode": "disconnected",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 0,
+            "providerStatus": null
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_answer",
+        "mode": "http408",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 1,
+            "providerStatus": 408,
+            "providerErrorCode": "offline_status"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_answer",
+        "mode": "http429requests",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 0,
+            "providerStatus": 429,
+            "providerErrorCode": "rate_limit_exceeded"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_answer",
+        "mode": "http500",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 0,
+            "providerStatus": 500,
+            "providerErrorCode": "offline_status"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_answer",
+        "mode": "http503",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 1,
+            "providerStatus": 503,
+            "providerErrorCode": "offline_status"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_answer",
+        "mode": "abort",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_timeout",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 611,
+            "providerStatus": null,
+            "providerErrorCode": "ABORT_ERR"
+          }
+        },
+        "aborted": true,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_answer",
+        "mode": "late-success",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_timeout",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 603,
+            "providerStatus": null,
+            "providerErrorCode": "ABORT_ERR"
+          }
+        },
+        "aborted": true,
+        "late": true,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_answer",
+        "mode": "late-rejection",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_timeout",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 601,
+            "providerStatus": null,
+            "providerErrorCode": "ABORT_ERR"
+          }
+        },
+        "aborted": true,
+        "late": true,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_answer",
+        "mode": "missing-usage",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 4,
+            "providerStatus": 503,
+            "providerErrorCode": "AI_TEMPORARILY_UNAVAILABLE"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_answer",
+        "mode": "reconcile-failure",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 2,
+            "providerStatus": 503,
+            "providerErrorCode": "AI_TEMPORARILY_UNAVAILABLE"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_answer",
+        "mode": "uncertain-start",
+        "physicalAttempts": 0,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 0,
+            "providerStatus": 503,
+            "providerErrorCode": "AI_TEMPORARILY_UNAVAILABLE"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_answer",
+        "mode": "success",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": null,
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 68
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 68
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "read_answer",
+        "mode": "eligible-fallback",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "The read-only answer could not be completed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 2,
+            "providerStatus": 429,
+            "providerErrorCode": "rate_limit_exceeded"
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 2,
+          "costMicrodollars": 25806
+        },
+        "after": {
+          "calls": 2,
+          "costMicrodollars": 25806
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "structured",
+        "mode": "disconnected",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "Ask provider request failed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 4,
+            "providerStatus": null,
+            "providerErrorType": "UnknownError",
+            "providerErrorCode": "",
+            "providerError": {
+              "status": null,
+              "code": null,
+              "type": null,
+              "param": null,
+              "requestId": null
+            },
+            "timedOut": false
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "structured",
+        "mode": "http408",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "Ask provider request failed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 5,
+            "providerStatus": 408,
+            "providerErrorType": "server_error",
+            "providerErrorCode": "other",
+            "providerError": {
+              "status": 408,
+              "code": "other",
+              "type": "server_error",
+              "param": null,
+              "requestId": null
+            },
+            "timedOut": false
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "structured",
+        "mode": "http429requests",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "Ask provider request failed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 2,
+            "providerStatus": 429,
+            "providerErrorType": "requests",
+            "providerErrorCode": "rate_limit_exceeded",
+            "providerError": {
+              "status": 429,
+              "code": "rate_limit_exceeded",
+              "type": "requests",
+              "param": null,
+              "requestId": null
+            },
+            "timedOut": false
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "structured",
+        "mode": "http500",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "Ask provider request failed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 1,
+            "providerStatus": 500,
+            "providerErrorType": "server_error",
+            "providerErrorCode": "other",
+            "providerError": {
+              "status": 500,
+              "code": "other",
+              "type": "server_error",
+              "param": null,
+              "requestId": null
+            },
+            "timedOut": false
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "structured",
+        "mode": "http503",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_provider_failed",
+          "message": "Ask provider request failed.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 2,
+            "providerStatus": 503,
+            "providerErrorType": "server_error",
+            "providerErrorCode": "other",
+            "providerError": {
+              "status": 503,
+              "code": "other",
+              "type": "server_error",
+              "param": null,
+              "requestId": null
+            },
+            "timedOut": false
+          }
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "structured",
+        "mode": "abort",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_timeout",
+          "message": "Ask provider timed out.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 608,
+            "providerStatus": null,
+            "providerErrorType": "TimeoutError",
+            "providerErrorCode": "ABORT_ERR",
+            "providerError": {
+              "status": null,
+              "code": "ABORT_ERR",
+              "type": "TimeoutError",
+              "param": null,
+              "requestId": null
+            },
+            "timedOut": true
+          }
+        },
+        "aborted": true,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "structured",
+        "mode": "late-success",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_timeout",
+          "message": "Ask provider timed out.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 612,
+            "providerStatus": null,
+            "providerErrorType": "TimeoutError",
+            "providerErrorCode": "ABORT_ERR",
+            "providerError": {
+              "status": null,
+              "code": "ABORT_ERR",
+              "type": "TimeoutError",
+              "param": null,
+              "requestId": null
+            },
+            "timedOut": true
+          }
+        },
+        "aborted": true,
+        "late": true,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "structured",
+        "mode": "late-rejection",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AskPipelineError",
+          "stage": "primary_timeout",
+          "message": "Ask provider timed out.",
+          "diagnostics": {
+            "model": "gpt-5.4-mini",
+            "elapsedMs": 614,
+            "providerStatus": null,
+            "providerErrorType": "TimeoutError",
+            "providerErrorCode": "ABORT_ERR",
+            "providerError": {
+              "status": null,
+              "code": "ABORT_ERR",
+              "type": "TimeoutError",
+              "param": null,
+              "requestId": null
+            },
+            "timedOut": true
+          }
+        },
+        "aborted": true,
+        "late": true,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "structured",
+        "mode": "missing-usage",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AiAdmissionError",
+          "reason": "provider_usage_missing",
+          "message": "provider_usage_missing"
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "structured",
+        "mode": "reconcile-failure",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AiAdmissionError",
+          "reason": "provider_usage_reconciliation_failed",
+          "message": "provider_usage_reconciliation_failed"
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "structured",
+        "mode": "uncertain-start",
+        "physicalAttempts": 0,
+        "admissionAttempts": 1,
+        "error": {
+          "name": "AiAdmissionError",
+          "reason": "call_start_accounting_uncertain",
+          "message": "call_start_accounting_uncertain"
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 25800
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "structured",
+        "mode": "success",
+        "physicalAttempts": 1,
+        "admissionAttempts": 1,
+        "error": null,
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 1,
+          "costMicrodollars": 68
+        },
+        "after": {
+          "calls": 1,
+          "costMicrodollars": 68
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      },
+      {
+        "fn": "structured",
+        "mode": "eligible-fallback",
+        "physicalAttempts": 1,
+        "admissionAttempts": 2,
+        "error": {
+          "name": "AiAdmissionError",
+          "reason": "provider_call_budget_exhausted",
+          "message": "provider_call_budget_exhausted"
+        },
+        "aborted": false,
+        "late": false,
+        "settled": {
+          "calls": 2,
+          "costMicrodollars": 25806
+        },
+        "after": {
+          "calls": 2,
+          "costMicrodollars": 25806
+        },
+        "accountingUnchangedAfterLateSettlement": true
+      }
+    ]
+  }
+]

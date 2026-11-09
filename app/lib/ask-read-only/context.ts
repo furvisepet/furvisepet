@@ -13,7 +13,7 @@ export async function loadReadOnlyContext(db:SupabaseClient,ownerId:string,petId
  if(owned.length!==pets.data.length||!owned.some(p=>p.id===petId))throw new Error("ASK_READ_PET_NOT_AUTHORIZED");
  const rows=messages.data as DialogueRow[];
  if(!rows.some(row=>row.id===currentMessageId&&row.role==="user"&&row.user_text===question))throw new Error("ASK_READ_SOURCE_NOT_AUTHORIZED");
- return {pets:owned.map(p=>({id:p.id,ownerId:p.user_id,name:p.name,species:p.species})),dialogue:rows.filter(row=>row.id!==currentMessageId).reverse().map(row=>({
+ return {dialogueMayBeIncomplete:rows.length>=13,pets:owned.map(p=>({id:p.id,ownerId:p.user_id,name:p.name,species:p.species})),dialogue:rows.filter(row=>row.id!==currentMessageId).reverse().map(row=>({
   role:row.role==="user"?"user":"assistant",text:row.role==="user"?row.user_text??"":typeof row.response_data?.directAnswer==="string"?row.response_data.directAnswer:""
  }))};
 }

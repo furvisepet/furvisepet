@@ -1,4 +1,5 @@
 import "server-only";
+import { withProviderDeadline } from "../ai/execution-deadline.ts";
 import { ASK_READ_ONLY_MAX_OUTPUT_TOKENS } from "./limits.ts";
 import OpenAI from "openai";
 import { executeAdmittedResponsesRequest, boundedProviderTimeout } from "../ai/usage-guard/provider-call-budget.ts";
@@ -19,7 +20,7 @@ export function readOnlyProvider(model:string,onEvent:(event:AskProviderEvent)=>
     stage:selection?"interpretation":"answer_generation",reserveMs:selection?12000:4000,
     invoke: async wire=>{
      onEvent({stage,outcome:"started",model,elapsedMs:0});
-     return await client.responses.create(wire as never,{signal:AbortSignal.timeout(boundedProviderTimeout(60000,selection?12000:4000))}) as ProviderResponse;
+     return await withProviderDeadline(signal=>client.responses.create(wire as never,{signal}),boundedProviderTimeout(60000,selection?12000:4000,selection?"interpretation":"answer_generation")) as ProviderResponse;
     }
    });
    onEvent({stage,outcome:"succeeded",model,elapsedMs:Math.round(performance.now()-started),inputTokens:response.usage?.input_tokens,outputTokens:response.usage?.output_tokens,finishReason:response.status??null});
@@ -30,9 +31,10 @@ export function readOnlyProvider(model:string,onEvent:(event:AskProviderEvent)=>
    return JSON.parse(text);
   } catch(error) {
    const e=error as {status?:number;code?:string;name?:string};
+   const timedOut=["TimeoutError","AbortError","APIUserAbortError","APIConnectionTimeoutError"].includes(e.name??"");
    onEvent({stage,outcome:"failed",model,elapsedMs:Math.round(performance.now()-started),providerStatus:e.status??null,
-    providerErrorCode:typeof e.code==="string"?e.code.slice(0,100):"ASK_READ_PROVIDER_FAILED",timedOut:e.name==="TimeoutError"||e.name==="AbortError"});
-   throw new AskPipelineError("primary_provider_failed","The read-only answer could not be completed.",{model,elapsedMs:Math.round(performance.now()-started),providerStatus:e.status??null,providerErrorCode:e.code});
+    providerErrorCode:typeof e.code==="string"?e.code.slice(0,100):"ASK_READ_PROVIDER_FAILED",timedOut});
+   throw new AskPipelineError(timedOut?"primary_timeout":"primary_provider_failed","The read-only answer could not be completed.",{model,elapsedMs:Math.round(performance.now()-started),providerStatus:e.status??null,providerErrorCode:e.code});
   }
  };
 }

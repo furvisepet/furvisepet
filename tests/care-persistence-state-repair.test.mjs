@@ -46,8 +46,10 @@ test("Ask reconciliation update is assistant-only, owner-bound, and column-limit
   assert.doesNotMatch(migration, /grant update on public\.ask_conversation_messages/);
 });
 
-test("Ask writes and replay reads the reconciled persistence fields", () => {
-  assert.match(askRoute, /finalizePersistedAskAnswer\(\{[\s\S]*carePersistence,[\s\S]*responseData: canonicalResponse/);
+test("read-only Ask persists an answer with skipped care writes and replay reads reconciliation fields", () => {
+  assert.match(askRoute, /const carePersistence:CarePersistenceResult=\{status:"skipped",careEntryIds:\[\],concernIds:\[\]/);
+  assert.match(askRoute, /await finalizePersistedAskAnswer\(\{carePersistence,[\s\S]*responseData:\{\.\.\.response,turn:turnLifecycle\.snapshot\(\)\}/);
+  assert.ok(askRoute.indexOf("await finalizePersistedAskAnswer({")<askRoute.indexOf("await completeAiCredit({"),"durable answer precedes credit completion");
   assert.match(askRoute, /select\("id, conversation_id, request_id, role, sequence_number, user_text, response_data, save_metadata, context_used, care_persistence"\)/);
   assert.match(askRoute, /existingRequest\?\.assistantMessage\?\.response_data/);
 });

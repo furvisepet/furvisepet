@@ -221,7 +221,7 @@ for(const [operation,value] of [["difference",1],["percent_change",10],["sum",21
 for(const [name,values,ops] of [
  ["invented measurement",measurements,["s1:m2",operands[1]]],
  ["numeric object instead of handle",measurements,[{source:"s1",measurement:"10.0 kg"},operands[1]]],
- ["mixed unit",[{...measurements[0],body:"Measured 10.0 g."},measurements[1]],operands],
+
  ["missing source",measurements,["foreign:m1",operands[1]]],
  ["executable input",measurements,["eval(process.env)",operands[1]]]
 ])test("calculation rejects "+name,()=>assert.throws(()=>calculateReadSources([{operation:"difference",operands:ops}],values)));
@@ -245,7 +245,8 @@ test("profile measurement handles use saved numeric fields and support order-ind
  const profiles=[{kind:"profile",handle:"s1",body:serializeReadOnlyProfile({weight_value:4.2,weight_unit:"kg"}),eventAt:"2026-01-01T00:00:00Z"},
   {kind:"profile",handle:"s2",body:serializeReadOnlyProfile({weight_value:5.1,weight_unit:"kg"}),eventAt:"2026-01-01T00:00:00Z"}];
  assert.equal(calculateReadSources([{operation:"absolute_difference",operands:["s1:m1","s2:m1"]}],profiles)[0].value,0.9);
- assert.throws(()=>calculateReadSources([{operation:"difference",operands:["s1:m1","s2:m1"]}],profiles),/AMBIGUOUS/);
+ const change=calculateReadSources([{operation:"difference",operands:["s1:m1","s2:m1"]}],profiles)[0];
+ assert.equal(change.available,false);assert.equal(change.value,null);assert.match(change.text,/same event time/);
 });
 
 import {buildReadOnlyPublication} from "../app/lib/ask-read-only/publication.ts";
@@ -292,7 +293,7 @@ import {readOnlyToolsForPets,readOnlyAnswerSchemaForSources} from "../app/lib/as
 test("actual provider schemas have disjoint capabilities and owner-scoped handles",()=>{
  const tools=readOnlyToolsForPets([{handle:"p1"},{handle:"p2"}]);
  const profile=new Ajv({strict:false}).compile(tools[0].parameters),history=new Ajv({strict:false}).compile(tools[1].parameters);
- const query={pet:"p1",from:"2026-01-01",to:"2026-01-01",query:null,offset:0};
+ const query={pet:"p1",from:"2026-01-01",to:"2026-01-01",query:null,offset:0,order:"desc"};
  assert.equal(profile({pet:"p1"}),true);assert.equal(history(query),true);
  assert.equal(profile(query),false);assert.equal(history({pet:"p1"}),false);
  for(const validate of [profile,history]){
@@ -302,6 +303,7 @@ test("actual provider schemas have disjoint capabilities and owner-scoped handle
   assert.equal(validate({...good,kind:"delete"}),false);
  }
  assert.equal(history({...query,query:"x".repeat(161)}),false);
+ assert.equal(history({...query,order:"oldest"}),false);
  assert.equal(history({...query,query:"\u0000"}),false);
 });
 test("the actual answer schema excludes profile-as-note quotes and fabricated source or measurement handles",()=>{
@@ -370,4 +372,32 @@ test("normal conversation and supplied fictional quotations remain answers",asyn
 test("unknown reply classifications and the retired limited boolean fail closed",()=>{
  assert.throws(()=>validateReadOnlyAnswer(final({replyType:"done",quotes:[],sources:[]}),[]),/ANSWER_INVALID/);
  const old=final({quotes:[],sources:[]});delete old.replyType;assert.throws(()=>validateReadOnlyAnswer({...old,limited:false},[]),/ANSWER_INVALID/);
+});
+
+import {readSourceMeasurements} from "../app/lib/ask-read-only/calculations.mjs";
+test("compatible saved mass units are converted without altering source text",()=>{
+ const rows=[{...measurements[0],body:"Measured 10.0 g."},measurements[1]];
+ const before=JSON.stringify(rows);
+ for(const ops of [operands,[...operands].reverse()]){
+  const result=calculateReadSources([{operation:"difference",operands:ops}],rows)[0];
+  assert.equal(result.value,10.99);assert.equal(result.unit,"kg");
+ }
+ assert.equal(JSON.stringify(rows),before);
+});
+test("incompatible measurement dimensions return an unavailable explanation, never a number",()=>{
+ const result=calculateReadSources([{operation:"absolute_difference",operands}], [{...measurements[0],body:"Measured 10 cm."},measurements[1]])[0];
+ assert.equal(result.available,false);assert.equal(result.value,null);assert.match(result.text,/incompatible units/);
+});
+test("decimal commas preserve original excerpts and ambiguous grouped numbers are not guessed",()=>{
+ const decimal=readSourceMeasurements("Measured 4,5 kg.","s1");
+ assert.equal(decimal.length,1);assert.equal(decimal[0].value,4.5);assert.equal(decimal[0].excerpt,"4,5 kg");
+ for(const body of ["Measured 1,234 kg.","Measured 1,234.5 kg.","Measured 1.234,5 kg.","Measured 1e3 kg.","Measured 2/3 kg."])
+  assert.deepEqual(readSourceMeasurements(body,"s1"),[],body);
+});
+test("a general answer review receives no internal pet mapping",async()=>{
+ const r=runner({calls:[],text:"A general draft."},final({answer:"A general answer.",quotes:[],sources:[]}));
+ await r.run();
+ assert.equal(r.requests[1].request.context.selectedPet,undefined);
+ assert.equal(r.requests[1].request.context.pets,undefined);
+ assert.equal(r.requests[1].request.context.question,input.question);
 });

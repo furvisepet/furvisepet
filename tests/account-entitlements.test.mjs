@@ -8,6 +8,7 @@ import {
 import { getMonthlyAiAllowance } from "../app/lib/ai/usage-ledger.ts";
 import { getRateLimitPolicy } from "../app/lib/security/rate-limit/config.ts";
 
+import { getAiFeaturePolicy } from "../app/lib/ai/usage-guard/features.ts";
 const migrationPath = "supabase/migrations/20260810010000_add_centralized_account_entitlements.sql";
 const read = (path) => fs.readFileSync(path, "utf8");
 
@@ -85,7 +86,10 @@ test("AI RPC ignores caller allowance and pet trigger uses the DB resolver", () 
 test("internal QA does not alter infrastructure or provider-cost policies", () => {
   assert.deepEqual(getRateLimitPolicy("ASK_AI").user, { limit: 10, windowMs: 60_000 });
   assert.deepEqual(getRateLimitPolicy("ASK_AI").ip, { limit: 30, windowMs: 60_000 });
-  assert.match(read("app/lib/ai/usage-guard/features.ts"), /ask: policy\("ask", "FURVISE_AI_ASK_ENABLED", 20_000, 80_000, Math\.max\(ASK_MAX_OUTPUT_TOKENS, ASK_INTERPRETATION_MAX_OUTPUT_TOKENS\), 6\)/);
+  const policy=getAiFeaturePolicy("ask");
+  assert.equal(policy.maxInputTokens,20_000);assert.equal(policy.maxInputCharacters,80_000);
+  assert.equal(policy.maxOutputTokens,2400);assert.equal(policy.maximumProviderCalls,2);
+  assert.equal(policy.envFlag,"FURVISE_AI_ASK_ENABLED");
   assert.doesNotMatch(read("app/lib/security/rate-limit/config.ts"), /internal_qa|entitlement/i);
   assert.doesNotMatch(read("app/lib/ai/usage-guard/admission.ts"), /internal_qa|entitlement/i);
 });

@@ -1,11 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
+import { formatAskCitationDate as date } from "../lib/ask-citation-date";
 import { getBrowserSupabase } from "../lib/supabase";
 import type { VerifiedAskCitation as Source } from "../lib/ask-citation-proof";
-function date(value:string) {
- const d=new Date(value);
- return Number.isFinite(d.getTime()) ? new Intl.DateTimeFormat(undefined,{dateStyle:"medium",timeStyle:"long",timeZone:"UTC"}).format(d) : "Date unavailable";
-}
 /** Rechecks every mount/replay. No citation is displayed from stored DTO fields alone. */
 export function AskCitations({proof,title,summary,sections,safetyNote,supportingText}:{proof?:string;title:string;summary:string;sections:unknown;safetyNote:string|null;supportingText:string|null}) {
  const identity=JSON.stringify([proof,title,summary,sections,safetyNote,supportingText]);
@@ -37,8 +34,8 @@ export function AskCitations({proof,title,summary,sections,safetyNote,supporting
  return <section aria-label="Saved sources" className="mt-4 space-y-2">
   <p className="text-sm font-semibold">Saved sources</p>
   {sources.map((source,index)=><details key={index} className="rounded-lg border p-3">
-   <summary className="cursor-pointer text-sm">{source.label}: {date(source.recordedAt)}</summary>
-   <p className="mt-2 text-xs">Event: {date(source.eventAt)}</p>
+   <summary className="min-h-11 cursor-pointer break-words py-2 text-sm">{source.label} · Event date: {date(source.eventAt)}</summary>
+   <p className="mt-2 text-xs">Recorded date: {date(source.recordedAt)}</p>
    <blockquote className="mt-2 whitespace-pre-wrap break-words">{source.quote}</blockquote>
   </details>)}
   <p className="text-xs">Exact saved wording. These references do not establish the current or corrected facts.</p>
