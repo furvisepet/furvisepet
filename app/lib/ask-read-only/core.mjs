@@ -1,5 +1,5 @@
 import { restoreReadReferences, describeReadReferences, carryReadReferences } from "./references.mjs";
-import { EVIDENCE_GOALS, HISTORY_PAGE_BUDGET, allocateEvidence } from "./retrieval.mjs";
+import { EVIDENCE_GOALS, HISTORY_PAGE_BUDGET, HISTORY_CANDIDATE_BUDGET, allocateEvidence } from "./retrieval.mjs";
 import { calculateReadSources, readSourceMeasurements } from "./calculations.mjs";
 /**
  * Read-only Ask capability protocol. No canonical intent planner and no mutations.
@@ -182,7 +182,7 @@ export async function runReadOnlyAsk(input,deps) {
  const historyCount=bound.filter(call=>call.request.kind==="history").length;
  const deadlineAt=Date.now()+8000;
  const acquired=await Promise.all(bound.map(async call=>{
-  const result=await deps.read({...call.request,pageBudget:Math.max(1,Math.floor(HISTORY_PAGE_BUDGET/Math.max(1,historyCount))),deadlineAt});
+  const result=await deps.read({...call.request,pageBudget:Math.max(1,Math.floor(HISTORY_PAGE_BUDGET/Math.max(1,historyCount))),candidateBudget:Math.floor(HISTORY_CANDIDATE_BUDGET/Math.max(1,historyCount)),deadlineAt});
   if(!result||!Array.isArray(result.sources))fail("ASK_READ_DATABASE_INVALID");
   return result;
  }));

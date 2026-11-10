@@ -5,7 +5,7 @@ import { calendarBoundaryToInstant } from "../ask-time-zone.ts";
 export type ReadPet = {id:string;ownerId:string;name:string;species:string|null;handle:string};
 import { checkReferencedSources } from "./references.mjs";
 import { discoverHistory } from "./retrieval.mjs";
-export type ReadRequest = {kind:"profile"|"history";pet:ReadPet;from?:string|null;to?:string|null;terms?:string[];offset?:number;order?:"asc"|"desc";goal?:string;recordedFrom?:string|null;recordedTo?:string|null;orderBy?:"event"|"recorded";pageBudget?:number;deadlineAt?:number;referenceTimeZone?:string;sourceIds?:string[];expectedSources?:Array<{id:string;hash:string;eventAt:string;recordedAt:string}>};
+export type ReadRequest = {kind:"profile"|"history";pet:ReadPet;from?:string|null;to?:string|null;terms?:string[];offset?:number;order?:"asc"|"desc";goal?:string;recordedFrom?:string|null;recordedTo?:string|null;orderBy?:"event"|"recorded";pageBudget?:number;candidateBudget?:number;deadlineAt?:number;referenceTimeZone?:string;sourceIds?:string[];expectedSources?:Array<{id:string;hash:string;eventAt:string;recordedAt:string}>};
 export type ReadSource = {kind:"profile"|"history";id:string;ownerId:string;petId:string;body:string;eventAt:string;recordedAt:string;handle?:string};
 export const READ_ONLY_PROFILE_FIELDS="id,user_id,name,species,breed,age_value,age_unit,weight_value,weight_unit,current_food,main_concern,wellness_goal,avoid_ingredients,monthly_budget,sex,routine_note,lifecycle_status,lifecycle_changed_at,deceased_at,created_at,updated_at";
 export function serializeReadOnlyProfile(row:DogProfileRow) {

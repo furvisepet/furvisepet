@@ -3,27 +3,35 @@
 export const EVIDENCE_GOALS = Object.freeze(["exact_quote", "relevant_records", "boundary", "comparison", "complete_set"]);
 export const HISTORY_PAGE_BUDGET = 8;
 export const HISTORY_PAGE_SIZE = 16;
+export const HISTORY_CANDIDATE_BUDGET = 64;
 
 export async function discoverHistory(request, fetchPage) {
  const terms = [...new Set(request.terms ?? [])];
  const budget = Math.max(1, Math.min(HISTORY_PAGE_BUDGET, request.pageBudget ?? 2));
+ const candidateBudget = Math.max(1, Math.min(HISTORY_CANDIDATE_BUDGET, request.candidateBudget ?? HISTORY_CANDIDATE_BUDGET));
  const lanes = terms.length ? [
   { mode: "lexical", terms, offset: request.offset ?? 0, total: null, inspected: 0, pages: 0, exhausted: false },
   { mode: "broader", terms: [], offset: request.offset ?? 0, total: null, inspected: 0, pages: 0, exhausted: false },
  ] : [{ mode: "scoped", terms: [], offset: request.offset ?? 0, total: null, inspected: 0, pages: 0, exhausted: false }];
  const sources = [], seen = new Map(), laneSources = lanes.map(() => []);
- let unavailable = false;
+ let unavailable = false, inspectedRows = 0;
  for (let page = 0; page < budget; page++) {
   const lane = lanes[page % lanes.length];
   const next = lane.exhausted ? lanes.find(value => !value.exhausted) : lane;
   if (!next) break;
+  const remaining = candidateBudget - inspectedRows;
+  if (remaining <= 0) break;
+  // Reserve acquisition capacity for discovery lanes not yet inspected, too.
+  const waiting = lanes.filter(value => !value.exhausted && value.pages === 0).length;
+  const limit = Math.min(HISTORY_PAGE_SIZE, Math.max(1, Math.floor(remaining / Math.max(1, waiting))));
   try {
-   const result = await fetchPage({ terms: next.terms, offset: next.offset, limit: HISTORY_PAGE_SIZE });
-   if (!result || !Array.isArray(result.sources) || result.sources.length > HISTORY_PAGE_SIZE) throw new Error("ASK_READ_DATABASE_INVALID");
+   const result = await fetchPage({ terms: next.terms, offset: next.offset, limit });
+   if (!result || !Array.isArray(result.sources) || result.sources.length > limit) throw new Error("ASK_READ_DATABASE_INVALID");
+   inspectedRows += result.sources.length;
    next.pages++; next.inspected += result.sources.length;
    next.total = Number.isSafeInteger(result.total) && result.total >= 0 ? result.total : null;
    next.exhausted = !result.hasMore;
-   next.offset += HISTORY_PAGE_SIZE;
+   next.offset += limit;
    for (const source of result.sources) {
     const previous = seen.get(source.id);
     if (previous && ["kind", "ownerId", "petId", "body", "eventAt", "recordedAt"].some(key => previous[key] !== source[key])) throw new Error("ASK_READ_SOURCE_CHANGED");

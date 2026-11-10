@@ -49,7 +49,7 @@ test("complete-set acquisition spans pages and stops at exact exhaustion",async(
 });
 test("query/row budget and prior-offset disclosure are bounded",async()=>{
  let pages=0;const result=await discoverHistory({terms:[],pageBudget:100,offset:16},async()=>{pages++;return {sources:Array.from({length:16},(_,i)=>row(pages+":"+i)),hasMore:true,total:1000};});
- assert.equal(pages,8);assert.equal(result.sources.length,128);assert.equal(result.scopeExhausted,false);
+ assert.equal(pages,4);assert.equal(result.sources.length,64);assert.equal(result.scopeExhausted,false);
 });
 test("a failed page preserves acquired evidence and reports unavailable",async()=>{
  let pages=0;const result=await discoverHistory({terms:[],pageBudget:2},async()=>{if(++pages===2)throw Error("ASK_READ_HISTORY_UNAVAILABLE");return {sources:[row("found")],hasMore:true,total:20};});
@@ -63,6 +63,12 @@ test("four goals receive reserved slots instead of first-read dominance",()=>{
  const groups=Array.from({length:4},(_,g)=>Array.from({length:32},(_,i)=>row(g+":"+i,"pet-"+g,"x".repeat(100))));
  const result=allocateEvidence(groups,READ_ONLY_LIMITS);
  assert.equal(result.sources.length,32);assert.deepEqual(result.visible.map(rows=>rows.length),[8,8,8,8]);
+});
+test("candidate reservations retain both discovery lanes inside the raw-row budget",async()=>{
+ const seen=[];const result=await discoverHistory({terms:["hint"],pageBudget:2,candidateBudget:16},async request=>{
+  seen.push(request);return {sources:Array.from({length:request.limit},(_,i)=>row((request.terms.length?"literal":"broad")+i)),total:100,hasMore:true};
+ });
+ assert.deepEqual(seen.map(request=>request.limit),[8,8]);assert.equal(result.sources.length,16);assert.equal(result.scopeExhausted,false);
 });
 test("character reservations preserve diverse sources before redistribution",()=>{
  const result=allocateEvidence([[row("large","pet-a","x".repeat(12000))],[row("b","pet-b","b".repeat(5000))],[row("c","pet-c","c".repeat(5000))],[row("d","pet-d","d".repeat(5000))]],READ_ONLY_LIMITS);
