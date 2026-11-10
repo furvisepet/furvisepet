@@ -1,0 +1,193 @@
+{
+  "runtimeSourceBase": "7bde1502c7fcd39087d12f9008ac8dccb36bd910",
+  "applicationChanged": false,
+  "sourcePins": {
+    "engineering/ask/reliability-2026-11-09/read-contract-migrations-1110b.md": {
+      "sha256": "bbba210a946002b1d4e757f1f1b18cc21633a6be6254f9ec508008c3adb13741",
+      "gitBlob": "37fd739e310c5af783047807a7859db0620fb345"
+    },
+    "tests/ask-grief-lifecycle-regression.test.mjs": {
+      "sha256": "d7343b197f04260f4478739f1c6a8f14d490b7af727f01c548a256f15ea5602f",
+      "gitBlob": "64af7f1dd1d267fe1adcfe4f5154b217f73a0268"
+    },
+    "tests/canonical-pet-remove.test.mjs": {
+      "sha256": "89b3f036000e28cf124543c205b78c0edf1ebb530f7b2f0b397221518fd608a4",
+      "gitBlob": "13b932511e7449e0a6890dedf7439b05a85dd414"
+    },
+    "tests/canonical-remove.test.mjs": {
+      "sha256": "41c9d21f150f6e596726b7b5b6f56ad03afa763b7f7dbdc15ef24e659f676d71",
+      "gitBlob": "d34d6c5f338a249c70327209f7a0946a926fd674"
+    },
+    "tests/furvise-replace-ticket.test.mjs": {
+      "sha256": "d827ceb30b1a700ef474b75b0e6eb8749b96310e7c5c746580950d7ec84b706b",
+      "gitBlob": "6205dc6ac94db75f1b070249d49fe566a1656d20"
+    },
+    "tests/helpers/canonical-replace.mjs": {
+      "sha256": "032593f1a584130584470b48f15d21f3eb43041ee070da2cfbcb457eff103f92",
+      "gitBlob": "be7573acc73eeb0225b6c88496a0d57f6f35fd42"
+    },
+    "tests/lifecycle-plan.test.mjs": {
+      "sha256": "7b15f37e95a21cf71d0118f91cf85aa9b0a450d126c85577a04cfefd38635ef7",
+      "gitBlob": "931f1feb2c72e2fafee52af31e9ccc19d9136938"
+    },
+    "tests/residual-requirements-contract.test.mjs": {
+      "sha256": "ce203ee57be223e73d9df5a28985e8825991960d9a6280b4bf9172d0a9674661",
+      "gitBlob": "d4382ea358a480adf1ae73525bc2adf62613c86c"
+    },
+    "tests/v27-confirmed-temporal-scope.test.mjs": {
+      "sha256": "8a72f659473ca6d1541438a9c96bff712de754ee0d6693947de65eda6a6d0ac3",
+      "gitBlob": "115f27f3c5c4418e10afe1c05bee65f811011d89"
+    }
+  },
+  "gates": [
+    {
+      "phase": "focused",
+      "exit": 0,
+      "seconds": 78.33,
+      "log": "reliability-1109hk-focused.log",
+      "sha256": "3059e43c7fd8f92c55cb1a95028de12e7aefc8224b55f760347d4894f564c070",
+      "counts": {
+        "tests": 764,
+        "pass": 763,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 1
+      },
+      "failedNames": []
+    },
+    {
+      "phase": "security",
+      "exit": 0,
+      "seconds": 22.77,
+      "log": "reliability-1109hk-security.log",
+      "sha256": "cff7c9f56fc67d77e7c2a7a84e205ea12d47ea90fb888530d86f78b67ffcc3c7",
+      "counts": {
+        "tests": 517,
+        "pass": 517,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "failedNames": []
+    },
+    {
+      "phase": "types",
+      "exit": 0,
+      "seconds": 32.03,
+      "log": "reliability-1109hk-types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "counts": {},
+      "failedNames": []
+    },
+    {
+      "phase": "lint",
+      "exit": 0,
+      "seconds": 20.87,
+      "log": "reliability-1109hk-lint.log",
+      "sha256": "f439fa2e9287c5aef5743cd04aa3eeeccd3a767659600400803327cdc2ddb7fb",
+      "counts": {},
+      "failedNames": []
+    },
+    {
+      "phase": "production-audit",
+      "exit": 0,
+      "seconds": 15.33,
+      "log": "reliability-1109hk-production-audit.log",
+      "sha256": "3be5f5a9ad79e97d62265721bc5e826af3acf51aab40b44b42a8b418d6f572ac",
+      "counts": {},
+      "failedNames": [],
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      }
+    },
+    {
+      "phase": "build",
+      "exit": 0,
+      "seconds": 29.1,
+      "log": "reliability-1109hk-build.log",
+      "sha256": "cb344e6494d56e035ccfd21203c88a1ac71c91708e8f7b9d7fa84ed97ec85a03",
+      "counts": {},
+      "failedNames": []
+    }
+  ],
+  "retainedContracts": {
+    "exit": 0,
+    "seconds": 42.58,
+    "counts": {
+      "tests": 228,
+      "pass": 228,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "logSha256": "22e48cbaa5a202f45c608ed51cb7798d9e529fed4edae1d240ab46fad4d3cdde",
+    "failures": [],
+    "sourcePins": {
+      "tests/canonical-pet-remove.test.mjs": "89b3f036000e28cf124543c205b78c0edf1ebb530f7b2f0b397221518fd608a4",
+      "tests/lifecycle-plan.test.mjs": "7b15f37e95a21cf71d0118f91cf85aa9b0a450d126c85577a04cfefd38635ef7",
+      "tests/canonical-remove.test.mjs": "41c9d21f150f6e596726b7b5b6f56ad03afa763b7f7dbdc15ef24e659f676d71",
+      "tests/canonical-replace-fidelity.test.mjs": "6e9399ca0127af2710f8e15c53a9f02d42943fe5e463e647e8af797e1d36bfa7",
+      "tests/furvise-conversational-architecture-v1.test.mjs": "b627f0a9511151a63726543503eacc4b53dd6fd015e07566fd0713b1c58b7845",
+      "tests/generalized-replace.test.mjs": "cb7b232fd1cb82a6454f7c742c7fcb7cd165fa058273c94235f856295cb65096",
+      "tests/replace-reference-context.test.mjs": "38a9541c8d055809af4ce003938558ea77537518f29401a9bd1c1e3f1e07fd63",
+      "tests/stored-read-authority.test.mjs": "0b678d0824db30a1adf341b9963ed4e85077877bfe4cdc0747268a9878e1526c",
+      "tests/furvise-replace-ticket.test.mjs": "d827ceb30b1a700ef474b75b0e6eb8749b96310e7c5c746580950d7ec84b706b",
+      "tests/v27-confirmed-temporal-scope.test.mjs": "8a72f659473ca6d1541438a9c96bff712de754ee0d6693947de65eda6a6d0ac3",
+      "tests/residual-requirements-contract.test.mjs": "ce203ee57be223e73d9df5a28985e8825991960d9a6280b4bf9172d0a9674661",
+      "tests/helpers/canonical-replace.mjs": "032593f1a584130584470b48f15d21f3eb43041ee070da2cfbcb457eff103f92"
+    }
+  },
+  "griefEmergencyCredit": {
+    "exit": 0,
+    "seconds": 3.44,
+    "counts": {
+      "tests": 64,
+      "pass": 64,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "logSha256": "5f61dfbd5bca62b1bc345cd9c1574941772b222549a455753d14a7c59ec05d99",
+    "failures": []
+  },
+  "linuxWireQualification": {
+    "run": 42752423586,
+    "head": "7bde1502c7fcd39087d12f9008ac8dccb36bd910",
+    "linuxWirePassedNames": [
+      "2026-11-10T04:20:36.0979395Z \u2714 final direct semantic request and real admission: five pets, 1200 chars, turns=0, numeric=false (3469.201058ms)",
+      "2026-11-10T04:20:36.0998823Z \u2714 final direct semantic request and real admission: five pets, 1200 chars, turns=2, numeric=false (6918.294676ms)",
+      "2026-11-10T04:20:36.1020470Z \u2714 final direct semantic request and real admission: five pets, 1200 chars, turns=8, numeric=false (24171.591302ms)",
+      "2026-11-10T04:20:36.1036603Z \u2714 final direct semantic request and real admission: five pets, 1200 chars, turns=39, numeric=false (24586.992423ms)",
+      "2026-11-10T04:20:36.1068328Z \u2714 final direct semantic request and real admission: five pets, 1200 chars, turns=0, numeric=true (3397.31071ms)",
+      "2026-11-10T04:20:36.1098160Z \u2714 final direct semantic request and real admission: five pets, 1200 chars, turns=2, numeric=true (6369.250262ms)",
+      "2026-11-10T04:20:36.1118368Z \u2714 final direct semantic request and real admission: five pets, 1200 chars, turns=8, numeric=true (30167.833925ms)",
+      "2026-11-10T04:20:36.1158488Z \u2714 final direct semantic request and real admission: five pets, 1200 chars, turns=39, numeric=true (30503.68892ms)",
+      "2026-11-10T04:20:36.1178588Z \u2714 final serialized request boundaries reject before dispatch; output/accounting ceilings stay unchanged (6506.090768ms)",
+      "2026-11-10T04:20:36.2066034Z \u2714 createAskWirePlan bridge has exact raw-codec and canonical parity for all 262 vectors (24685.242799ms)",
+      "2026-11-10T04:20:36.2067092Z \u2714 bridge rejects malformed roots, noncanonical graphs and forward/reused/unused references (7.592107ms)",
+      "2026-11-10T04:20:36.2068192Z \u2714 only transport instructions change; all semantic policy, tags, aliases and authority remain pinned (5.577224ms)",
+      "2026-11-10T04:20:36.2069033Z \u2714 integration compilation and runtime use fresh operation deadlines without resetting the budget (5.846749ms)"
+    ],
+    "observedPasses": 13,
+    "allThirteen": true,
+    "rawSha256": "210e47ad5aa3da79a8fc74f660674aca621e8e557b7637be4094e946f9f0d637"
+  },
+  "baselineFull": {
+    "tests": 6258,
+    "pass": 6198,
+    "fail": 59,
+    "cancelled": 0,
+    "skipped": 1
+  },
+  "paid": {
+    "turns": 0,
+    "physicalCalls": 0,
+    "spendUsd": 0
+  },
+  "release": "NO_GO"
+}

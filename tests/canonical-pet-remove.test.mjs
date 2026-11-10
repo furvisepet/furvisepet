@@ -20,7 +20,7 @@ function setup(){const f=fixture();f.pet.updated_at='2026-09-22T00:00:00Z';
 test('one closed REMOVE schema supports care history and the bound subject profile',async()=>{
  const f=setup(),s=removeJobSchema();assert.deepEqual(s.anyOf.slice(1).map(x=>x.properties.domain.enum[0]),['care_history','pet_profile']);
  const {default:Ajv}=await import('ajv'),validate=new Ajv().compile(askRequestProviderSchema({},f.context));
- const request={calculatePlan:null,storedRead:null,removeJob:null,stateTransitionJob:null,fieldMutationJob:null,lifecyclePlan:null,appendJob:null,readTicket:null,task:null,temporalScope:null,recordSelection:null,profileFields:[],projection:null,evidenceNeeds:[],outputFormat:null,evidenceBasis:null,premiseQuotes:null,excludedPetNames:[],...f.request};
+ const request={draftAnswer:null,calculatePlan:null,storedRead:null,removeJob:null,stateTransitionJob:null,fieldMutationJob:null,lifecyclePlan:null,appendJob:null,readTicket:null,task:null,temporalScope:null,recordSelection:null,profileFields:[],projection:null,evidenceNeeds:[],outputFormat:null,evidenceBasis:null,premiseQuotes:null,excludedPetNames:[],...f.request};
  assert.equal(validate({request}),true,JSON.stringify(validate.errors));
  for(const target of ['last_event_for_subject',{kind:'exact_record',ref:'invented'},id(7)])assert.equal(validate({request:{...request,removeJob:{...f.proposal,target}}}),false);
  assert.equal(validate({request:{...request,removeJob:{...f.proposal,petId:id(7)}}}),false);
@@ -28,7 +28,7 @@ test('one closed REMOVE schema supports care history and the bound subject profi
 for(const field of ['target','petName','quote','extra','mixed','foreign','recovered'])test('profile REMOVE Binder rejects '+field,()=>{
  const f=setup();if(field==='target')f.proposal.target=id(9);if(field==='petName')f.proposal.petName='Foreign';if(field==='quote')f.proposal.instructionQuote='Invented';
  if(field==='extra')f.proposal.cleanup=true;if(field==='mixed')f.request.readTicket={};if(field==='foreign')f.pet.user_id=id(9);if(field==='recovered')f.context.currentTurn.recoveredReceiptReference=true;
- assert.throws(f.plan,/remove_job/);
+ assert.throws(f.plan,field==='mixed'?/read_ticket_evidence_domain/:/remove_job/);
 });
 test('bound target survives JSON and capability mint without profile facts or an alternate target',async()=>{
  const f=setup(),a=await f.action();assert.equal(a.removeJob.resolvedTarget.recordId,f.pet.id);assert.equal(a.targetSourceId,undefined);
@@ -62,7 +62,12 @@ test('fresh authenticated confirmation reloads receipt after all parent rows are
 test('cancellation does not request destructive authentication; auto cannot execute',async()=>{
  const f=setup(),[cap]=await f.mint(await f.action());
  await assert.rejects(executeActionCapability({capabilityId:cap.id,assistantMessageId:id(6),userId:id(1),mode:'auto'}),/AUTO_NOT_AUTHORIZED/);assert.equal(f.rpcCalls.length,0);
- await executeActionCapability({capabilityId:cap.id,assistantMessageId:id(6),userId:id(1),mode:'cancel'});assert.equal(f.authCalls(),0);assert.equal(f.rpcCalls[0][1].p_mode,'cancel');
+ const input={capabilityId:cap.id,assistantMessageId:id(6),userId:id(1),mode:'cancel'};
+ const cancelled=await executeActionCapability(input);assert.equal(cancelled.action.status,'cancelled');assert.equal(cancelled.changed,false);
+ assert.equal(f.authCalls(),0);assert.equal(f.rpcCalls[0][1].p_mode,'cancel');
+ const replay=await executeActionCapability({...input,mode:'confirm',recentAuthContext:f.auth});
+ assert.deepEqual(replay.action,cancelled.action);assert.equal(replay.changed,false);assert.equal(f.authCalls(),0);
+ assert.equal(f.caps[0].status,'cancelled');
 });
 test('receipt verifier binds pet REMOVE job/source/target and persisted receipt without parent lookup',async()=>{
  const f=setup(),a=await f.action(),r={...a,id:id(5),status:'succeeded'},input={operationId:id(5),authorized:a,returned:r,persistedStatus:'succeeded',persistedReceipt:r};
@@ -70,8 +75,13 @@ test('receipt verifier binds pet REMOVE job/source/target and persisted receipt 
  for(const field of ['petId','sourceMessageId','removeJob','kind','explicitIntent','label','confirmationPolicy']){const changed={...r,[field]:field==='removeJob'?{...r.removeJob,resolvedTarget:{...r.removeJob.resolvedTarget,recordId:id(9)}}:'wrong'};assert.throws(()=>confirmFurviseWriteReceipt({...input,returned:changed,persistedReceipt:changed}),/UNCONFIRMED/);}
  assert.throws(()=>confirmFurviseWriteReceipt({...input,persistedReceipt:null}),/UNCONFIRMED/);
 });
-test('opaque route supplies authenticated context and cannot accept client action semantics',()=>{
- const s=readFileSync(new URL('../app/api/ask/actions/[messageId]/route.ts',import.meta.url),'utf8');assert.match(s,/recentAuthContext: auth/);assert.match(s,/RECENT_AUTH_REQUIRED/);assert.ok(s.includes('hasOnlyKeys(rawBody, ["actionId", "decision"])'));
+test('public action denial does not load private destructive authority',()=>{
+ const route=readFileSync(new URL('../app/api/ask/actions/[messageId]/route.ts',import.meta.url),'utf8');
+ assert.match(route,/getAuthenticatedApiContext/);assert.match(route,/status:\s*404/);
+ assert.doesNotMatch(route,/executeActionCapability|recentAuthContext/);
+ const privateAuthority=readFileSync(new URL('../app/lib/application-actions/capabilities.ts',import.meta.url),'utf8');
+ assert.match(privateAuthority,/requireRecentInteractiveAuthentication\(input\.recentAuthContext\)/);
+ assert.match(privateAuthority,/RECENT_AUTH_REQUIRED/);
 });
 
 // Exercise the real opaque HTTP handler with only auth/Next infrastructure stubbed.
@@ -117,30 +127,37 @@ vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../app/api/ask/actio
   assert.ok(Object.hasOwn(modules,name),name);return modules[name];
  }
 });
-const enabledPOST=enabledExports.POST;
+const publicPOST=enabledExports.POST;
 assert.equal(PUBLIC_V1_CAPABILITIES.askMutations,false);
-for(const decision of ['confirm','cancel'])test('isolated enabled route applies destructive auth only to confirmed server capability: '+decision,async()=>{
+for(const decision of ['confirm','cancel'])test('public denial retains private destructive authentication: '+decision,async()=>{
  const f=setup(),[cap]=await f.mint(await f.action());
- globalThis.__petRemoveAuth={...f.auth,supabase:{auth:{getClaims:async()=>({data:{claims:null}})}}};
+ const missingClaims={...f.auth,supabase:{auth:{getClaims:async()=>({data:{claims:null}})}}};
+ globalThis.__petRemoveAuth=missingClaims;
  const request=new Request('https://offline.invalid/api/ask/actions/'+id(6),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({actionId:cap.id,decision})});
- const result=await enabledPOST(request,{params:Promise.resolve({messageId:id(6)})});
- assert.equal(result.status,decision==='confirm'?401:200);assert.equal(f.rpcCalls.length,decision==='confirm'?0:1);
- if(decision==='confirm')assert.equal((await result.json()).code,'RECENT_AUTH_REQUIRED');
+ const response=await publicPOST(request,{params:Promise.resolve({messageId:id(6)})});
+ assert.equal(response.status,404);assert.equal(f.rpcCalls.length,0);
+ const input={capabilityId:cap.id,assistantMessageId:id(6),userId:id(1),mode:decision,recentAuthContext:missingClaims};
+ if(decision==='confirm')await assert.rejects(()=>executeActionCapability(input),/RECENT_AUTH_REQUIRED/);
+ else {const before=structuredClone([f.rows.dog_profiles,f.rows.pet_care_entries]);const result=await executeActionCapability(input);assert.equal(result.action.status,'cancelled');assert.equal(result.changed,false);assert.equal(f.caps[0].status,'cancelled');assert.deepEqual([f.rows.dog_profiles,f.rows.pet_care_entries],before);}
+ assert.equal(f.rpcCalls.length,decision==='confirm'?0:1);
 });
-test('isolated enabled route rejects client kind and target rather than using them to evade recent auth',async()=>{
+test('client kind and target cannot open the public gate or evade private recent authentication',async()=>{
  const f=setup(),[cap]=await f.mint(await f.action());globalThis.__petRemoveAuth=f.auth;
  const request=new Request('https://offline.invalid/api/ask/actions/'+id(6),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({actionId:cap.id,decision:'confirm',kind:'care_history.add',petId:id(99)})});
- const result=await enabledPOST(request,{params:Promise.resolve({messageId:id(6)})});assert.equal(result.status,400);assert.equal(f.rpcCalls.length,0);
+ const result=await publicPOST(request,{params:Promise.resolve({messageId:id(6)})});assert.equal(result.status,404);assert.equal(f.rpcCalls.length,0);
+ await assert.rejects(()=>executeActionCapability({capabilityId:cap.id,assistantMessageId:id(6),userId:id(1),mode:'confirm',
+  kind:'care_history.add',petId:id(99),recentAuthContext:{...f.auth,supabase:{auth:{getClaims:async()=>({data:{claims:null}})}}}}),/RECENT_AUTH_REQUIRED/);
+ assert.equal(f.rpcCalls.length,0);
 });
 
-test('isolated enabled route accepts fresh auth and replays only the durable receipt',async()=>{
+test('public endpoint stays closed while private fresh authentication replays the durable receipt',async()=>{
  const f=setup(),[cap]=await f.mint(await f.action());globalThis.__petRemoveAuth=f.auth;
  const request=()=>new Request('https://offline.invalid/api/ask/actions/'+id(6),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({actionId:cap.id,decision:'confirm'})});
  const route={params:Promise.resolve({messageId:id(6)})};
- const first=await enabledPOST(request(),route);assert.equal(first.status,200);
- const body=await first.json();assert.equal(body.action.status,'succeeded');assert.equal(f.authCalls(),1);assert.equal(f.rpcCalls.length,1);
- const replay=await enabledPOST(request(),route);assert.equal(replay.status,200);assert.deepEqual((await replay.json()).action,body.action);
- assert.equal(f.authCalls(),1);assert.equal(f.rpcCalls.length,2);
- assert.deepEqual(f.rpcCalls[1],f.rpcCalls[0]);assert.equal(f.caps[0].receipt.status,'succeeded');
- assert.equal(PUBLIC_V1_CAPABILITIES.askMutations,false);
+ assert.equal((await publicPOST(request(),route)).status,404);assert.equal(f.rpcCalls.length,0);
+ const input={capabilityId:cap.id,assistantMessageId:id(6),userId:id(1),mode:'confirm',recentAuthContext:f.auth};
+ const first=await executeActionCapability(input);assert.equal(first.action.status,'succeeded');assert.equal(f.authCalls(),1);assert.equal(f.rpcCalls.length,1);
+ const replay=await executeActionCapability({...input,recentAuthContext:undefined});assert.deepEqual(replay.action,first.action);
+ assert.equal(f.authCalls(),1);assert.equal(f.rpcCalls.length,2);assert.deepEqual(f.rpcCalls[1],f.rpcCalls[0]);
+ assert.equal(f.caps[0].receipt.status,'succeeded');assert.equal(PUBLIC_V1_CAPABILITIES.askMutations,false);
 });

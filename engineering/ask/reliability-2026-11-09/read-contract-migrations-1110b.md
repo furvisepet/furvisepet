@@ -32,7 +32,7 @@ Two nested audit wrappers previously invoked --experimental-transform-types dire
 ## Preview and cost
 
 d0a0 preview dpl_7sSvxQzKxAp6Y7jMCWwBYyQWtWVd is READY. Authenticated normal-browser replay on its stable alias displayed:
-> The saved note says: "Furvise QA persistence test LG-20261026 â€” synthetic, not medical data. Baseline alpha."
+> The saved note says: "Furvise QA persistence test LG-20261026 — synthetic, not medical data. Baseline alpha."
 
 The same saved-source body and Oct26,2026 event02:05:00AM PDT /recorded02:06:38AM PDT appeared. No new question was typed or sent. This does not certify fresh generation. No explicit source-expansion HTTP200 claim is made.
 

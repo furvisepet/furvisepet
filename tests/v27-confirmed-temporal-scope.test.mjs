@@ -58,7 +58,7 @@ test("route gates scoped execution before persisted-request loading or provider 
   const hash = route.indexOf('hashAiCreditPayload("ask", aiCreditPayload)');
   const stop = route.indexOf('if (confirmedTemporalScope) return askFailure');
   const load = route.indexOf("persistedBeforeClaim = await loadPersistedRequest");
-  const provider = route.indexOf("const interpretation = await interpretAskQuestion");
+  const provider = route.indexOf("return runReadOnlyAsk({");
   assert.ok(parse > 0 && parse < hash && hash < stop && stop < load && load < provider);
   assert.match(route, /confirmedTemporalScope \? \{ confirmedTemporalScope \} : \{\}/);
 });

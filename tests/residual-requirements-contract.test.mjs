@@ -28,7 +28,7 @@ test('provider branches distinguish calculation ownership without classifying la
  assert.equal(calculations.length,2);for(const v of calculations)assert.match(v.description,/Saved-history calculation: factual root operands come from the companion ReadTicket/);
  const supplied=variants.filter(v=>v.properties.calculatePlan?.type==='object'&&v.properties.evidenceBasis?.enum?.includes('supplied_context'));
  assert.equal(supplied.length,1);assert.match(supplied[0].description,/exact USER-supplied numeric premises/);
- const reads=variants.filter(v=>v.properties.calculatePlan?.type==='null'&&v.properties.evidenceBasis.enum?.includes('saved_history'));
+ const reads=variants.filter(v=>v.properties.mode?.enum?.includes('read')&&v.properties.calculatePlan?.type==='null'&&v.properties.evidenceBasis.enum?.includes('saved_history'));
  assert.equal(reads.length,2);for(const v of reads){assert.match(v.description,/requires no supported deterministic arithmetic or derivation/);assert.equal(v.properties.requirements.maxItems,8);}
 });
 test('requirements describe non-executable residual work with no factual authority',()=>{
