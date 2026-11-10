@@ -24,16 +24,22 @@ test("reload and retrieval discard tenant-authored mutation authority and termin
   assert.doesNotMatch(retrieval, /parseStoredApplicationActions\(message\.response_data/);
 });
 
-test("confirmation has a capability-only body and neutral guessed, cross-owner, and wrong-message failures", () => {
-  assert.match(actionRoute, /hasOnlyKeys\(rawBody, \["actionId", "decision"\]\)/);
-  assert.match(actionRoute, /isUuid\(body\.actionId\)/);
-  assert.match(actionRoute, /executeActionCapability/);
-  assert.match(actionRoute, /if \(!execution\) return unavailable/);
-  assert.doesNotMatch(actionRoute, /response_data|action_payload|pet_profile_id/);
-  assert.match(migration, /id = p_capability_id and assistant_message_id=p_assistant_message_id and user_id=p_user_id/);
-  assert.match(capability, /p_capability_id: input\.capabilityId/);
-  assert.match(capability, /p_assistant_message_id: input\.assistantMessageId/);
-  assert.match(capability, /p_user_id: input\.userId/);
+test("public confirmations deny execution while private owner and message binding remain mandatory",async()=>{
+ const {POST,messageId,request}=await import("./helpers/ask-read-only-action-routes.mjs");
+ let database=0,provider=0;const previous=globalThis.fetch;
+ globalThis.fetch=async()=>{provider++;throw Error("disabled action attempted network");};
+ globalThis.__readOnlyMutationAuth={userId:"owner",supabase:new Proxy({},{get(){database++;throw Error("disabled action attempted database access");}})};
+ try{
+  const response=await POST(request(),{params:Promise.resolve({messageId})});
+  assert.equal(response.status,404);assert.equal(response.headers.get("cache-control"),"private, no-store");
+  assert.deepEqual(await response.json(),{error:"That action is no longer available."});
+  assert.equal(database,0);assert.equal(provider,0);
+ }finally{globalThis.fetch=previous;delete globalThis.__readOnlyMutationAuth;}
+ assert.doesNotMatch(actionRoute,/executeActionCapability|response_data|action_payload|pet_profile_id|\.rpc\(/);
+ assert.match(migration,/id = p_capability_id and assistant_message_id=p_assistant_message_id and user_id=p_user_id/);
+ assert.match(capability,/p_capability_id: input\.capabilityId/);
+ assert.match(capability,/p_assistant_message_id: input\.assistantMessageId/);
+ assert.match(capability,/p_user_id: input\.userId/);
 });
 
 test("capabilities bind immutable owner, messages, pet, exact target, and policy columns", () => {

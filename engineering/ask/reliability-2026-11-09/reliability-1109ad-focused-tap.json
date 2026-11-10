@@ -1,0 +1,12 @@
+{
+  "exit": 0,
+  "seconds": 73.413,
+  "sha256": "bd79ac7ab9e758c03a4a68400e4d5617b8e3b8217db010258c300740d09d890d",
+  "counts": {
+    "tests": 741,
+    "pass": 740,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 1
+  }
+}

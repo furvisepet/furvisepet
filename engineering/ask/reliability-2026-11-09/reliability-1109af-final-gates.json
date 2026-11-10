@@ -1,0 +1,67 @@
+{
+  "baseSha": "8cca6338330aa739d9915b52d8f5a89245be0e53",
+  "gates": [
+    {
+      "name": "focused",
+      "exit": 0,
+      "timeout": false,
+      "seconds": 80.75,
+      "log": "reliability-1109af-final-focused.log",
+      "sha256": "061a92ed68727054d8637589d8fd4e73502ab6c15df7234cf6304c24fe89b375",
+      "counts": {
+        "tests": 764,
+        "pass": 763,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 1
+      }
+    },
+    {
+      "name": "security",
+      "exit": 0,
+      "timeout": false,
+      "seconds": 40.681,
+      "log": "reliability-1109af-final-security.log",
+      "sha256": "ce1ea111030eb1efd56f2ca405f879628e93eb56f60ec25c79c30deb0a4aa38e",
+      "counts": {
+        "tests": 517,
+        "pass": 517,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "types",
+      "exit": 0,
+      "timeout": false,
+      "seconds": 9.374,
+      "log": "reliability-1109af-final-types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "lint",
+      "exit": 0,
+      "timeout": false,
+      "seconds": 23.515,
+      "log": "reliability-1109af-final-lint.log",
+      "sha256": "449db68c9e3de6943ce4f8e1c12e721485fc05d2051c3831a0ef72a0d8aa3514"
+    },
+    {
+      "name": "production-audit",
+      "exit": 0,
+      "timeout": false,
+      "seconds": 1.524,
+      "log": "reliability-1109af-final-production-audit.log",
+      "sha256": "6d8c5c8f3d7684adb070417bd608d01ae90aa3dc26a65af03ffda4955f38d9a3"
+    },
+    {
+      "name": "build",
+      "exit": 0,
+      "timeout": false,
+      "seconds": 36.611,
+      "log": "reliability-1109af-final-build.log",
+      "sha256": "342edf0412a64806af893525a1316e9f69aa2a67fa822cc586dd8f158ccd608e"
+    }
+  ]
+}

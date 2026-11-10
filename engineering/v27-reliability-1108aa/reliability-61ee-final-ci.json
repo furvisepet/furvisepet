@@ -1,0 +1,1930 @@
+{
+  "sha": "61eed36fec8d3e6180111f8f3d3a52430df6e047",
+  "runId": 42552103710,
+  "status": "completed",
+  "conclusion": "failure",
+  "observedAt": "2026-11-09T03:28:19.523997+00:00",
+  "jobs": [
+    {
+      "id": 128949740994,
+      "name": "ask-contract",
+      "status": "completed",
+      "conclusion": "success",
+      "activeSteps": []
+    },
+    {
+      "id": 128949741190,
+      "name": "verify",
+      "status": "completed",
+      "conclusion": "failure",
+      "activeSteps": []
+    },
+    {
+      "id": 128949741303,
+      "name": "ask-database-contract",
+      "status": "completed",
+      "conclusion": "success",
+      "activeSteps": []
+    }
+  ],
+  "logs": [
+    {
+      "name": "ask-contract",
+      "id": 128949740994,
+      "conclusion": "success",
+      "log": "candidate-61ee-ask-contract.log",
+      "bytes": 160935,
+      "sha256": "14adf4c3bdfe14d968ca6bc6a08f99a6eccc651d6a7d7857bb313d3cef1caa42",
+      "actualCounts": {
+        "tests": 445,
+        "startLogLine": 2173,
+        "pass": 444,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 1
+      },
+      "allRootCountBlocks": [
+        {
+          "tests": 445,
+          "startLogLine": 2173,
+          "pass": 444,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 1
+        }
+      ],
+      "failureLocations": [],
+      "steps": [
+        {
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "name": "Check out repository",
+          "conclusion": "success"
+        },
+        {
+          "name": "Use repository Node version",
+          "conclusion": "success"
+        },
+        {
+          "name": "Install locked dependencies",
+          "conclusion": "success"
+        },
+        {
+          "name": "Read-only conversation, retrieval, citations and physical-call contracts",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Use repository Node version",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Check out repository",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "name": "ask-database-contract",
+      "id": 128949741303,
+      "conclusion": "success",
+      "log": "candidate-61ee-ask-database-contract.log",
+      "bytes": 13911,
+      "sha256": "8f2ee67d14f9314028b8205f8825b8d5af19fed77bcaadb36b578c85e0b6e8c5",
+      "actualCounts": null,
+      "allRootCountBlocks": [],
+      "failureLocations": [],
+      "steps": [
+        {
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "name": "Check out repository",
+          "conclusion": "success"
+        },
+        {
+          "name": "Use repository Node version",
+          "conclusion": "success"
+        },
+        {
+          "name": "Install isolated PostgreSQL test engine",
+          "conclusion": "success"
+        },
+        {
+          "name": "Verify task persistence and credit-related completion boundaries",
+          "conclusion": "success"
+        },
+        {
+          "name": "Verify continuation against repository schema and triggers",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Use repository Node version",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Check out repository",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "name": "verify",
+      "id": 128949741190,
+      "conclusion": "failure",
+      "log": "candidate-61ee-verify.log",
+      "bytes": 7251777,
+      "sha256": "b8ae1b47a7a84358abed043db9f390b9aae7b79305b8ba7c541577a07c933537",
+      "actualCounts": {
+        "tests": 6159,
+        "startLogLine": 31615,
+        "pass": 5890,
+        "fail": 268,
+        "cancelled": 0,
+        "skipped": 1
+      },
+      "allRootCountBlocks": [
+        {
+          "tests": 199,
+          "startLogLine": 655,
+          "pass": 199,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "tests": 1000,
+          "startLogLine": 8929,
+          "pass": 1000,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "tests": 6159,
+          "startLogLine": 31615,
+          "pass": 5890,
+          "fail": 268,
+          "cancelled": 0,
+          "skipped": 1
+        }
+      ],
+      "failureLocations": [
+        {
+          "path": "tests/append-items-authority.test.mjs",
+          "line": 77,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-action-capability-security-regressions.test.mjs",
+          "line": 84,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-action-capability-target-freshness-expiry.test.mjs",
+          "line": 87,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-action-capability-v1.test.mjs",
+          "line": 27,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-active-contract.test.mjs",
+          "line": 4,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-active-contract.cases.mjs",
+          "line": 114,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-active-contract.cases.mjs",
+          "line": 120,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-active-contract.cases.mjs",
+          "line": 128,
+          "column": 99
+        },
+        {
+          "path": "scripts/audits/ask-active-contract.cases.mjs",
+          "line": 128,
+          "column": 99
+        },
+        {
+          "path": "scripts/audits/ask-active-contract.cases.mjs",
+          "line": 128,
+          "column": 99
+        },
+        {
+          "path": "scripts/audits/ask-active-contract.cases.mjs",
+          "line": 128,
+          "column": 99
+        },
+        {
+          "path": "scripts/audits/ask-active-contract.cases.mjs",
+          "line": 133,
+          "column": 187
+        },
+        {
+          "path": "scripts/audits/ask-active-contract.cases.mjs",
+          "line": 133,
+          "column": 187
+        },
+        {
+          "path": "scripts/audits/ask-active-contract.cases.mjs",
+          "line": 133,
+          "column": 187
+        },
+        {
+          "path": "scripts/audits/ask-active-contract.cases.mjs",
+          "line": 144,
+          "column": 3
+        },
+        {
+          "path": "scripts/audits/ask-active-contract.cases.mjs",
+          "line": 144,
+          "column": 3
+        },
+        {
+          "path": "scripts/audits/ask-active-contract.cases.mjs",
+          "line": 144,
+          "column": 3
+        },
+        {
+          "path": "scripts/audits/ask-active-contract.cases.mjs",
+          "line": 144,
+          "column": 3
+        },
+        {
+          "path": "scripts/audits/ask-active-contract.cases.mjs",
+          "line": 150,
+          "column": 91
+        },
+        {
+          "path": "scripts/audits/ask-active-contract.cases.mjs",
+          "line": 150,
+          "column": 91
+        },
+        {
+          "path": "scripts/audits/ask-active-contract.cases.mjs",
+          "line": 150,
+          "column": 91
+        },
+        {
+          "path": "tests/ask-anchor-repair.test.mjs",
+          "line": 51,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-anchor-repair.test.mjs",
+          "line": 52,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-anchor-repair.test.mjs",
+          "line": 53,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-anchor-repair.test.mjs",
+          "line": 55,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-anchor-repair.test.mjs",
+          "line": 57,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-anchor-repair.test.mjs",
+          "line": 65,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-anchor-repair.test.mjs",
+          "line": 67,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-anchor-repair.test.mjs",
+          "line": 68,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-anchor-repair.test.mjs",
+          "line": 69,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-anchor-repair.test.mjs",
+          "line": 70,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-anchor-repair.test.mjs",
+          "line": 72,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-anchor-repair.test.mjs",
+          "line": 73,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-append-independent-completion.test.mjs",
+          "line": 46,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-append-independent-completion.test.mjs",
+          "line": 69,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-benchmark-retrieval-regressions.test.mjs",
+          "line": 34,
+          "column": 4
+        },
+        {
+          "path": "tests/ask-care-chronology.test.mjs",
+          "line": 125,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-care-chronology.test.mjs",
+          "line": 145,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-compositional-emission.test.mjs",
+          "line": 50,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-compositional-emission.test.mjs",
+          "line": 65,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-compositional-emission.test.mjs",
+          "line": 73,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-compositional-emission.test.mjs",
+          "line": 80,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-compositional-emission.test.mjs",
+          "line": 88,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-compositional-emission.test.mjs",
+          "line": 104,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-compositional-emission.test.mjs",
+          "line": 114,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-compositional-emission.test.mjs",
+          "line": 119,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-compositional-emission.test.mjs",
+          "line": 130,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-compositional-emission.test.mjs",
+          "line": 140,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-compositional-emission.test.mjs",
+          "line": 147,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-compositional-emission.test.mjs",
+          "line": 152,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-compositional-emission.test.mjs",
+          "line": 164,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-compositional-emission.test.mjs",
+          "line": 253,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-compositional-emission.test.mjs",
+          "line": 266,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-compositional-emission.test.mjs",
+          "line": 307,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-compositional-emission.test.mjs",
+          "line": 322,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-compositional-emission.test.mjs",
+          "line": 338,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-compositional-emission.test.mjs",
+          "line": 353,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-context-lineage.test.mjs",
+          "line": 4,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-context-lineage.cases.mjs",
+          "line": 9,
+          "column": 35
+        },
+        {
+          "path": "scripts/audits/ask-context-lineage.cases.mjs",
+          "line": 9,
+          "column": 35
+        },
+        {
+          "path": "scripts/audits/ask-context-lineage.cases.mjs",
+          "line": 40,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-contract-repair-route.test.mjs",
+          "line": 12,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-conversation-subject-continuity-p0.test.mjs",
+          "line": 89,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-conversation-subject-continuity-p0.test.mjs",
+          "line": 153,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-direct-json-recovery.test.mjs",
+          "line": 44,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-direct-json-recovery.test.mjs",
+          "line": 45,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-direct-json-recovery.test.mjs",
+          "line": 46,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-direct-json-recovery.test.mjs",
+          "line": 48,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-episode-history.test.mjs",
+          "line": 4,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-episode-history.cases.mjs",
+          "line": 113,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-episode-repair.test.mjs",
+          "line": 37,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-episode-repair.test.mjs",
+          "line": 38,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-episode-repair.test.mjs",
+          "line": 39,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-episode-repair.test.mjs",
+          "line": 40,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-grief-lifecycle-regression.test.mjs",
+          "line": 50,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-grief-lifecycle-regression.test.mjs",
+          "line": 142,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-grief-lifecycle-regression.test.mjs",
+          "line": 324,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-grief-lifecycle-regression.test.mjs",
+          "line": 343,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-grief-lifecycle-regression.test.mjs",
+          "line": 362,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-grief-lifecycle-regression.test.mjs",
+          "line": 372,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-grief-lifecycle-regression.test.mjs",
+          "line": 385,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-history-stage-2.test.mjs",
+          "line": 6,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-history-stage-2.cases.mjs",
+          "line": 178,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-id-free-probes.test.mjs",
+          "line": 37,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-id-free-probes.test.mjs",
+          "line": 80,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-id-free-probes.test.mjs",
+          "line": 88,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-id-free-probes.test.mjs",
+          "line": 134,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-input-budget-route.test.mjs",
+          "line": 11,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-interpretation-input-budget.test.mjs",
+          "line": 36,
+          "column": 2
+        },
+        {
+          "path": "tests/ask-interpretation-input-budget.test.mjs",
+          "line": 36,
+          "column": 2
+        },
+        {
+          "path": "tests/ask-interpretation-input-budget.test.mjs",
+          "line": 36,
+          "column": 2
+        },
+        {
+          "path": "tests/ask-interpretation-input-budget.test.mjs",
+          "line": 36,
+          "column": 2
+        },
+        {
+          "path": "tests/ask-interpretation-input-budget.test.mjs",
+          "line": 36,
+          "column": 2
+        },
+        {
+          "path": "tests/ask-interpretation-input-budget.test.mjs",
+          "line": 36,
+          "column": 2
+        },
+        {
+          "path": "tests/ask-interpretation-input-budget.test.mjs",
+          "line": 36,
+          "column": 2
+        },
+        {
+          "path": "tests/ask-interpretation-input-budget.test.mjs",
+          "line": 36,
+          "column": 2
+        },
+        {
+          "path": "tests/ask-interpretation-input-budget.test.mjs",
+          "line": 128,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-interpretation-input-budget.test.mjs",
+          "line": 143,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-interpretation-input-budget.test.mjs",
+          "line": 155,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-interpretation-input-budget.test.mjs",
+          "line": 175,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-interpretation-output-budget.test.mjs",
+          "line": 26,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-interpretation-output-budget.test.mjs",
+          "line": 40,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-interpretation-output-budget.test.mjs",
+          "line": 52,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-interpretation-output-budget.test.mjs",
+          "line": 70,
+          "column": 2
+        },
+        {
+          "path": "tests/ask-interpretation-output-budget.test.mjs",
+          "line": 70,
+          "column": 2
+        },
+        {
+          "path": "tests/ask-interpretation-timeout.test.mjs",
+          "line": 12,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-labs-list.test.mjs",
+          "line": 139,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-launch-blockers.test.mjs",
+          "line": 4,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-launch-blockers.cases.mjs",
+          "line": 47,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-launch-quality-history-prose.test.mjs",
+          "line": 150,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-launch-repairs.test.mjs",
+          "line": 4,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-launch-repairs.cases.mjs",
+          "line": 162,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-lifecycle-role-contract.test.mjs",
+          "line": 1,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-long-form-subject-contract-p0.test.mjs",
+          "line": 162,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-memory-authority-p0.test.mjs",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-memory-integrity-p0.test.mjs",
+          "line": 300,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-memory-single-authority.test.mjs",
+          "line": 6,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-p0-auxiliary-regressions.test.mjs",
+          "line": 57,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-p0-auxiliary-regressions.test.mjs",
+          "line": 84,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-post-review-finalizer-contract.test.mjs",
+          "line": 15,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-post-review-finalizer-contract.test.mjs",
+          "line": 39,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-post-review-finalizer-contract.test.mjs",
+          "line": 72,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-production-issues-v2.test.mjs",
+          "line": 22,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-production-repair.test.mjs",
+          "line": 4,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-production-repair.cases.mjs",
+          "line": 88,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-production-repair.cases.mjs",
+          "line": 146,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-provider-envelope-diagnostics.test.mjs",
+          "line": 70,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-provider-error-diagnostics.test.mjs",
+          "line": 54,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-provider-root-envelope.test.mjs",
+          "line": 1,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-provider-timestamp-boundary.test.mjs",
+          "line": 1,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-public-cancellation-route.test.mjs",
+          "line": 1,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-read-ticket-diagnostics.test.mjs",
+          "line": 68,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-read-ticket-hygiene.test.mjs",
+          "line": 21,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-recursive-transport.test.mjs",
+          "line": 41,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-recursive-transport.test.mjs",
+          "line": 59,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-recursive-transport.test.mjs",
+          "line": 88,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-recursive-transport.test.mjs",
+          "line": 98,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-recursive-transport.test.mjs",
+          "line": 113,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-recursive-transport.test.mjs",
+          "line": 130,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-recursive-transport.test.mjs",
+          "line": 162,
+          "column": 47
+        },
+        {
+          "path": "tests/ask-recursive-transport.test.mjs",
+          "line": 162,
+          "column": 47
+        },
+        {
+          "path": "tests/ask-referent-product-leak-p0.test.mjs",
+          "line": 121,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-route-ordering.test.mjs",
+          "line": 6,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-route-ordering.test.mjs",
+          "line": 27,
+          "column": 58
+        },
+        {
+          "path": "tests/ask-route-ordering.test.mjs",
+          "line": 27,
+          "column": 58
+        },
+        {
+          "path": "tests/ask-route-ordering.test.mjs",
+          "line": 30,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-route-ordering.test.mjs",
+          "line": 39,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-route-ordering.test.mjs",
+          "line": 48,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-route-ordering.test.mjs",
+          "line": 55,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-shared-operation-contracts.test.mjs",
+          "line": 195,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-shared-request-contract.test.mjs",
+          "line": 4,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 91,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 131,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 228,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 313,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 427,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 488,
+          "column": 141
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 488,
+          "column": 141
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 488,
+          "column": 141
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 488,
+          "column": 141
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 488,
+          "column": 141
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 488,
+          "column": 141
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 488,
+          "column": 141
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 532,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 550,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 576,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 638,
+          "column": 38
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 638,
+          "column": 38
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 657,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 731,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 760,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 1065,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 1237,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 1279,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 1446,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 1524,
+          "column": 38
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 1524,
+          "column": 38
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 1540,
+          "column": 28
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 1540,
+          "column": 28
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 1579,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 1590,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 1615,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 1636,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-shared-request-contract.cases.mjs",
+          "line": 1661,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-staged-catalog-contract.test.mjs",
+          "line": 1,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-staged-catalog-route.test.mjs",
+          "line": 1,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-state-suggestion-persistence.test.mjs",
+          "line": 16,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-state-suggestion-persistence.test.mjs",
+          "line": 35,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-state-suggestion-persistence.test.mjs",
+          "line": 51,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-state-suggestion-persistence.test.mjs",
+          "line": 95,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-state-suggestion-persistence.test.mjs",
+          "line": 101,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-state-suggestion-persistence.test.mjs",
+          "line": 125,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-stress-architecture.test.mjs",
+          "line": 4,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-stress-architecture.cases.mjs",
+          "line": 131,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-stress-architecture.cases.mjs",
+          "line": 131,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-stress-architecture.cases.mjs",
+          "line": 131,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-stress-architecture.cases.mjs",
+          "line": 161,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-structured-output-reliability.test.mjs",
+          "line": 216,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-task-execution-contract.test.mjs",
+          "line": 86,
+          "column": 47
+        },
+        {
+          "path": "tests/ask-task-execution-contract.test.mjs",
+          "line": 86,
+          "column": 47
+        },
+        {
+          "path": "tests/ask-task-route.test.mjs",
+          "line": 4,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-task-route.cases.mjs",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-task-route.cases.mjs",
+          "line": 39,
+          "column": 75
+        },
+        {
+          "path": "scripts/audits/ask-task-route.cases.mjs",
+          "line": 39,
+          "column": 75
+        },
+        {
+          "path": "scripts/audits/ask-task-route.cases.mjs",
+          "line": 39,
+          "column": 75
+        },
+        {
+          "path": "scripts/audits/ask-task-route.cases.mjs",
+          "line": 39,
+          "column": 75
+        },
+        {
+          "path": "scripts/audits/ask-task-route.cases.mjs",
+          "line": 39,
+          "column": 75
+        },
+        {
+          "path": "scripts/audits/ask-task-route.cases.mjs",
+          "line": 76,
+          "column": 1
+        },
+        {
+          "path": "scripts/audits/ask-task-route.cases.mjs",
+          "line": 86,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-turn-subject-resolution.test.mjs",
+          "line": 267,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-unseen-v1-publication-0930.test.mjs",
+          "line": 54,
+          "column": 6
+        },
+        {
+          "path": "tests/ask-wire-integration.test.mjs",
+          "line": 42,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-wire-integration.test.mjs",
+          "line": 73,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-wire-recursive-plan.test.mjs",
+          "line": 131,
+          "column": 3
+        },
+        {
+          "path": "tests/ask-wire-recursive-plan.test.mjs",
+          "line": 131,
+          "column": 3
+        },
+        {
+          "path": "tests/ask-wire-recursive-plan.test.mjs",
+          "line": 131,
+          "column": 3
+        },
+        {
+          "path": "tests/ask-wire-recursive-plan.test.mjs",
+          "line": 131,
+          "column": 3
+        },
+        {
+          "path": "tests/ask-wire-recursive-plan.test.mjs",
+          "line": 131,
+          "column": 3
+        },
+        {
+          "path": "tests/ask-wire-recursive-plan.test.mjs",
+          "line": 131,
+          "column": 3
+        },
+        {
+          "path": "tests/ask-wire-recursive-plan.test.mjs",
+          "line": 131,
+          "column": 3
+        },
+        {
+          "path": "tests/ask-wire-recursive-plan.test.mjs",
+          "line": 131,
+          "column": 3
+        },
+        {
+          "path": "tests/ask-wire-recursive-plan.test.mjs",
+          "line": 176,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-working-memory-interpretation.test.mjs",
+          "line": 38,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-write-read-pressure-acceptance.test.mjs",
+          "line": 13,
+          "column": 1
+        },
+        {
+          "path": "tests/ask-route-ordering.test.mjs",
+          "line": 6,
+          "column": 1
+        },
+        {
+          "path": "tests/calculation-capability.test.mjs",
+          "line": 1,
+          "column": 1
+        },
+        {
+          "path": "tests/canonical-care-deployment-compatibility.test.mjs",
+          "line": 48,
+          "column": 1
+        },
+        {
+          "path": "tests/canonical-memory-suggestion.test.mjs",
+          "line": 35,
+          "column": 57
+        },
+        {
+          "path": "tests/canonical-memory-suggestion.test.mjs",
+          "line": 35,
+          "column": 57
+        },
+        {
+          "path": "tests/canonical-memory-suggestion.test.mjs",
+          "line": 35,
+          "column": 57
+        },
+        {
+          "path": "tests/canonical-memory-suggestion.test.mjs",
+          "line": 35,
+          "column": 57
+        },
+        {
+          "path": "tests/canonical-memory-suggestion.test.mjs",
+          "line": 42,
+          "column": 59
+        },
+        {
+          "path": "tests/canonical-memory-suggestion.test.mjs",
+          "line": 42,
+          "column": 59
+        },
+        {
+          "path": "tests/canonical-memory-suggestion.test.mjs",
+          "line": 42,
+          "column": 59
+        },
+        {
+          "path": "tests/canonical-memory-suggestion.test.mjs",
+          "line": 43,
+          "column": 79
+        },
+        {
+          "path": "tests/canonical-memory-suggestion.test.mjs",
+          "line": 43,
+          "column": 79
+        },
+        {
+          "path": "tests/canonical-memory-suggestion.test.mjs",
+          "line": 43,
+          "column": 79
+        },
+        {
+          "path": "tests/canonical-memory-suggestion.test.mjs",
+          "line": 43,
+          "column": 79
+        },
+        {
+          "path": "tests/canonical-memory-suggestion.test.mjs",
+          "line": 44,
+          "column": 1
+        },
+        {
+          "path": "tests/canonical-memory-suggestion.test.mjs",
+          "line": 45,
+          "column": 1
+        },
+        {
+          "path": "tests/canonical-memory-suggestion.test.mjs",
+          "line": 46,
+          "column": 1
+        },
+        {
+          "path": "tests/canonical-memory-suggestion.test.mjs",
+          "line": 47,
+          "column": 1
+        },
+        {
+          "path": "tests/canonical-memory-suggestion.test.mjs",
+          "line": 48,
+          "column": 1
+        },
+        {
+          "path": "tests/canonical-memory-suggestion.test.mjs",
+          "line": 49,
+          "column": 1
+        },
+        {
+          "path": "tests/canonical-memory-suggestion.test.mjs",
+          "line": 50,
+          "column": 1
+        },
+        {
+          "path": "tests/canonical-pet-remove.test.mjs",
+          "line": 20,
+          "column": 1
+        },
+        {
+          "path": "tests/canonical-pet-remove.test.mjs",
+          "line": 28,
+          "column": 87
+        },
+        {
+          "path": "tests/canonical-pet-remove.test.mjs",
+          "line": 73,
+          "column": 1
+        },
+        {
+          "path": "tests/canonical-pet-remove.test.mjs",
+          "line": 122,
+          "column": 44
+        },
+        {
+          "path": "tests/canonical-pet-remove.test.mjs",
+          "line": 122,
+          "column": 44
+        },
+        {
+          "path": "tests/canonical-pet-remove.test.mjs",
+          "line": 130,
+          "column": 1
+        },
+        {
+          "path": "tests/canonical-pet-remove.test.mjs",
+          "line": 136,
+          "column": 1
+        },
+        {
+          "path": "tests/canonical-remove.test.mjs",
+          "line": 87,
+          "column": 1
+        },
+        {
+          "path": "tests/canonical-remove.test.mjs",
+          "line": 93,
+          "column": 1
+        },
+        {
+          "path": "tests/canonical-subject-authority.test.mjs",
+          "line": 35,
+          "column": 1
+        },
+        {
+          "path": "tests/canonical-suggestion-continuation.test.mjs",
+          "line": 35,
+          "column": 1
+        },
+        {
+          "path": "tests/care-entry-write-authority.test.mjs",
+          "line": 31,
+          "column": 1
+        },
+        {
+          "path": "tests/core-loop-stability.test.mjs",
+          "line": 61,
+          "column": 1
+        },
+        {
+          "path": "tests/core-loop-stability.test.mjs",
+          "line": 77,
+          "column": 1
+        },
+        {
+          "path": "tests/furvise-brain-architecture-boundary.test.mjs",
+          "line": 7,
+          "column": 1
+        },
+        {
+          "path": "tests/furvise-brain-architecture-boundary.test.mjs",
+          "line": 17,
+          "column": 1
+        },
+        {
+          "path": "tests/furvise-brain-architecture-boundary.test.mjs",
+          "line": 25,
+          "column": 1
+        },
+        {
+          "path": "tests/furvise-brain-architecture-boundary.test.mjs",
+          "line": 51,
+          "column": 1
+        },
+        {
+          "path": "tests/furvise-brain-owner-note-gate.test.mjs",
+          "line": 5,
+          "column": 1
+        },
+        {
+          "path": "tests/furvise-conversational-architecture-v1.test.mjs",
+          "line": 98,
+          "column": 1
+        },
+        {
+          "path": "tests/furvise-conversational-architecture-v1.test.mjs",
+          "line": 157,
+          "column": 1
+        },
+        {
+          "path": "tests/furvise-conversational-architecture-v1.test.mjs",
+          "line": 258,
+          "column": 1
+        },
+        {
+          "path": "tests/furvise-intelligence-engine.test.mjs",
+          "line": 49,
+          "column": 1
+        },
+        {
+          "path": "tests/furvise-intelligence-engine.test.mjs",
+          "line": 193,
+          "column": 1
+        },
+        {
+          "path": "tests/furvise-replace-ticket.test.mjs",
+          "line": 132,
+          "column": 1
+        },
+        {
+          "path": "tests/furvise-replace-ticket.test.mjs",
+          "line": 193,
+          "column": 1
+        },
+        {
+          "path": "tests/generalized-replace.test.mjs",
+          "line": 88,
+          "column": 1
+        },
+        {
+          "path": "tests/lifecycle-plan.test.mjs",
+          "line": 142,
+          "column": 1
+        },
+        {
+          "path": "tests/lifecycle-plan.test.mjs",
+          "line": 147,
+          "column": 1
+        },
+        {
+          "path": "tests/lifecycle-plan.test.mjs",
+          "line": 166,
+          "column": 1
+        },
+        {
+          "path": "tests/lifecycle-plan.test.mjs",
+          "line": 175,
+          "column": 1
+        },
+        {
+          "path": "tests/owner-note-write-isolation.test.mjs",
+          "line": 28,
+          "column": 1
+        },
+        {
+          "path": "tests/owner-note-write-isolation.test.mjs",
+          "line": 36,
+          "column": 1
+        },
+        {
+          "path": "tests/owner-note-write-isolation.test.mjs",
+          "line": 58,
+          "column": 1
+        },
+        {
+          "path": "tests/owner-note-write-isolation.test.mjs",
+          "line": 63,
+          "column": 69
+        },
+        {
+          "path": "tests/owner-note-write-isolation.test.mjs",
+          "line": 63,
+          "column": 69
+        },
+        {
+          "path": "tests/owner-preference-mutation.test.mjs",
+          "line": 98,
+          "column": 1
+        },
+        {
+          "path": "tests/owner-preference-mutation.test.mjs",
+          "line": 122,
+          "column": 1
+        },
+        {
+          "path": "tests/profile-field-authority.test.mjs",
+          "line": 32,
+          "column": 1
+        },
+        {
+          "path": "tests/profile-mutation-job.test.mjs",
+          "line": 108,
+          "column": 1
+        },
+        {
+          "path": "tests/profile-mutation-job.test.mjs",
+          "line": 118,
+          "column": 1
+        },
+        {
+          "path": "tests/read-ticket-provider-parity.test.mjs",
+          "line": 68,
+          "column": 1
+        },
+        {
+          "path": "tests/replace-reference-context.test.mjs",
+          "line": 39,
+          "column": 1
+        },
+        {
+          "path": "tests/residual-requirements-contract.test.mjs",
+          "line": 25,
+          "column": 1
+        },
+        {
+          "path": "tests/routine-year-clarification.test.mjs",
+          "line": 24,
+          "column": 1
+        },
+        {
+          "path": "tests/state-transition-job.test.mjs",
+          "line": 105,
+          "column": 1
+        },
+        {
+          "path": "tests/state-transition-job.test.mjs",
+          "line": 134,
+          "column": 1
+        },
+        {
+          "path": "tests/state-transition-job.test.mjs",
+          "line": 144,
+          "column": 1
+        },
+        {
+          "path": "tests/state-transition-job.test.mjs",
+          "line": 175,
+          "column": 1
+        },
+        {
+          "path": "tests/stored-read-authority.test.mjs",
+          "line": 137,
+          "column": 62
+        },
+        {
+          "path": "tests/stored-read-authority.test.mjs",
+          "line": 137,
+          "column": 62
+        },
+        {
+          "path": "tests/stored-read-authority.test.mjs",
+          "line": 137,
+          "column": 62
+        },
+        {
+          "path": "tests/stored-read-authority.test.mjs",
+          "line": 137,
+          "column": 62
+        },
+        {
+          "path": "tests/stored-read-authority.test.mjs",
+          "line": 145,
+          "column": 54
+        },
+        {
+          "path": "tests/stored-read-authority.test.mjs",
+          "line": 145,
+          "column": 54
+        },
+        {
+          "path": "tests/stored-read-authority.test.mjs",
+          "line": 145,
+          "column": 54
+        },
+        {
+          "path": "tests/stored-read-authority.test.mjs",
+          "line": 151,
+          "column": 1
+        },
+        {
+          "path": "tests/stored-read-authority.test.mjs",
+          "line": 156,
+          "column": 1
+        },
+        {
+          "path": "tests/stored-read-authority.test.mjs",
+          "line": 177,
+          "column": 1
+        },
+        {
+          "path": "tests/stored-read-authority.test.mjs",
+          "line": 198,
+          "column": 1
+        },
+        {
+          "path": "tests/stored-read-authority.test.mjs",
+          "line": 266,
+          "column": 1
+        },
+        {
+          "path": "tests/stored-read-provider-parity.test.mjs",
+          "line": 9,
+          "column": 32
+        },
+        {
+          "path": "tests/stored-read-provider-parity.test.mjs",
+          "line": 9,
+          "column": 32
+        },
+        {
+          "path": "tests/stored-read-provider-parity.test.mjs",
+          "line": 9,
+          "column": 32
+        },
+        {
+          "path": "tests/stored-read-provider-parity.test.mjs",
+          "line": 9,
+          "column": 32
+        },
+        {
+          "path": "tests/stored-read-provider-parity.test.mjs",
+          "line": 9,
+          "column": 32
+        },
+        {
+          "path": "tests/stored-read-provider-parity.test.mjs",
+          "line": 9,
+          "column": 32
+        },
+        {
+          "path": "tests/stored-read-provider-parity.test.mjs",
+          "line": 11,
+          "column": 365
+        },
+        {
+          "path": "tests/stored-read-provider-parity.test.mjs",
+          "line": 11,
+          "column": 365
+        },
+        {
+          "path": "tests/stored-read-provider-parity.test.mjs",
+          "line": 14,
+          "column": 1
+        },
+        {
+          "path": "tests/stored-read-provider-parity.test.mjs",
+          "line": 15,
+          "column": 1
+        },
+        {
+          "path": "tests/stored-read-provider-parity.test.mjs",
+          "line": 16,
+          "column": 1
+        },
+        {
+          "path": "tests/stored-read-provider-parity.test.mjs",
+          "line": 17,
+          "column": 1
+        },
+        {
+          "path": "tests/typed-read-ticket.test.mjs",
+          "line": 67,
+          "column": 1
+        },
+        {
+          "path": "tests/v27-confirmed-temporal-scope.test.mjs",
+          "line": 55,
+          "column": 1
+        },
+        {
+          "path": "tests/v27-general-evidence-repair.test.mjs",
+          "line": 22,
+          "column": 1
+        },
+        {
+          "path": "tests/v27-general-evidence-repair.test.mjs",
+          "line": 26,
+          "column": 1
+        },
+        {
+          "path": "tests/v27-general-evidence-repair.test.mjs",
+          "line": 30,
+          "column": 1
+        },
+        {
+          "path": "tests/v27-general-evidence-repair.test.mjs",
+          "line": 33,
+          "column": 1
+        },
+        {
+          "path": "tests/v27-general-evidence-repair.test.mjs",
+          "line": 37,
+          "column": 1
+        },
+        {
+          "path": "tests/v27-general-evidence-repair.test.mjs",
+          "line": 42,
+          "column": 1
+        },
+        {
+          "path": "tests/v27-general-evidence-repair.test.mjs",
+          "line": 48,
+          "column": 1
+        },
+        {
+          "path": "tests/v27-general-evidence-repair.test.mjs",
+          "line": 54,
+          "column": 1
+        },
+        {
+          "path": "tests/v27-review-dispatch-accounting.test.mjs",
+          "line": 13,
+          "column": 1
+        },
+        {
+          "path": "tests/v27-source-plan-contract.test.mjs",
+          "line": 83,
+          "column": 1
+        },
+        {
+          "path": "tests/v27-whole-read-ticket-repair.test.mjs",
+          "line": 53,
+          "column": 1
+        },
+        {
+          "path": "tests/v27-whole-read-ticket-repair.test.mjs",
+          "line": 54,
+          "column": 1
+        },
+        {
+          "path": "tests/v27-whole-read-ticket-repair.test.mjs",
+          "line": 55,
+          "column": 1
+        },
+        {
+          "path": "tests/v27-whole-read-ticket-repair.test.mjs",
+          "line": 56,
+          "column": 1
+        },
+        {
+          "path": "tests/v27-whole-read-ticket-repair.test.mjs",
+          "line": 57,
+          "column": 1
+        },
+        {
+          "path": "tests/v27-whole-read-ticket-repair.test.mjs",
+          "line": 58,
+          "column": 1
+        },
+        {
+          "path": "tests/v27-whole-read-ticket-repair.test.mjs",
+          "line": 59,
+          "column": 1
+        },
+        {
+          "path": "tests/v27-whole-read-ticket-repair.test.mjs",
+          "line": 60,
+          "column": 1
+        }
+      ],
+      "steps": [
+        {
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "name": "Check out repository",
+          "conclusion": "success"
+        },
+        {
+          "name": "Use repository Node version",
+          "conclusion": "success"
+        },
+        {
+          "name": "Install locked dependencies",
+          "conclusion": "success"
+        },
+        {
+          "name": "Lint",
+          "conclusion": "success"
+        },
+        {
+          "name": "TypeScript",
+          "conclusion": "success"
+        },
+        {
+          "name": "Focused security tests",
+          "conclusion": "success"
+        },
+        {
+          "name": "Full tests",
+          "conclusion": "failure"
+        },
+        {
+          "name": "Production dependency audit",
+          "conclusion": "success"
+        },
+        {
+          "name": "Production build",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Use repository Node version",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Post Check out repository",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ]
+    }
+  ]
+}

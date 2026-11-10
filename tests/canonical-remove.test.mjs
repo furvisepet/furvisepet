@@ -1,3 +1,4 @@
+import {assertPublicMutationDenied} from "./helpers/ask-public-mutation-boundary.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -84,16 +85,16 @@ test('arbitrary USER wording enters REMOVE through one Brain proposal, never a c
  assert.equal(calls,1);assert.equal(result.request.removeJob.operation,'remove');assert.equal(result.request.removeJob.target,'last_event_for_subject');
  const resolved=await resolveRemovePlan(result.request.removeJob,f.db,id(1));assert.equal(resolved.resolvedTarget.recordId,f.row.id);
 });
-test('route dispatches canonical removal before factual context and narrative generation',()=>{
- const s=readFileSync(new URL('../app/api/ask/route.ts',import.meta.url),'utf8'),start=s.indexOf('if (interpretation.request?.removeJob)');
- assert.ok(start>0);assert.ok(start<s.indexOf('// A validated ticket precedes every factual context read.'));
- assert.match(s.slice(start,start+1400),/resolveRemovePlan/);assert.doesNotMatch(s.slice(start,start+1100),/question\.includes|\.match\(|RegExp/);
+test('public Ask cannot dispatch removal or publish an unexecuted deletion',async()=>{
+ const route=readFileSync(new URL('../app/api/ask/route.ts',import.meta.url),'utf8');
+ assert.match(route,/runReadOnlyAsk\(/);assert.doesNotMatch(route,/resolveRemovePlan|prepareBoundRemoveAction|interpretAskQuestion/);
+ await assertPublicMutationDenied("Remove my most recent saved note.","I removed your most recent saved note.");
 });
 
 test('provider grammar admits only standalone REMOVE and supplied reference handles',async()=>{
  const {default:Ajv}=await import('ajv'),f=setup(true),schema=askRequestProviderSchema({},f.context);
  const validate=new Ajv({allErrors:true}).compile(schema);
- const base={calculatePlan:null,storedRead:null,removeJob:null,stateTransitionJob:null,fieldMutationJob:null,lifecyclePlan:null,appendJob:null,readTicket:null,task:null,temporalScope:null,
+ const base={draftAnswer:null,calculatePlan:null,storedRead:null,removeJob:null,stateTransitionJob:null,fieldMutationJob:null,lifecyclePlan:null,appendJob:null,readTicket:null,task:null,temporalScope:null,
  recordSelection:null,profileFields:[],projection:null,evidenceNeeds:[],outputFormat:null,evidenceBasis:null,premiseQuotes:null,excludedPetNames:[],...f.request};
  assert.equal(validate({request:base}),true,JSON.stringify(validate.errors));
  assert.equal(validate({request:{...base,removeJob:{...base.removeJob,target:{kind:'exact_record',ref:'invented'}}}}),false);

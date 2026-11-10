@@ -16,7 +16,7 @@ function setup(){
  const f=fixture('Coat looked clean.');f.context.conversationId=id(8);f.rows.ask_conversation_messages[0].conversation_id=id(8);
  const intent=structuredClone(JSON.parse(seed.sent[1].input).intent);
  Object.assign(intent,{ownerScope:null,sourceTurnId:f.source.id,instructionQuote:f.source.text,authorizationQuote:f.source.text,subjects:[{petName:f.pet.name,sourceTurnId:f.source.id,quote:f.source.text,basis:'selected'}]});
- Object.assign(intent.request,f.request,{writeJob:{...f.proposal,target:null,semantics:{classification:'observation',target:null}}});
+ Object.assign(intent.request,f.request,{draftAnswer:null,writeJob:{...f.proposal,target:null,semantics:{classification:'observation',target:null}}});
  return{f,intent};
 }
 async function admitted(fn,seedInterpretation=true){

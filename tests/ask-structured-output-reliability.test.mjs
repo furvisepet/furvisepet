@@ -12,6 +12,7 @@ import {
   generateContextAwareAskResponse,
 } from "../app/lib/ai/ask-reasoning.ts";
 import { interpretStructuredProviderResponse } from "../app/lib/ai/ask-provider.ts";
+import { AI_FEATURE_POLICIES } from "../app/lib/ai/usage-guard/features.ts";
 
 function profile() {
   return {
@@ -66,10 +67,10 @@ function clientWith(responses) {
   };
 }
 
-test("Ask uses one canonical 8192-token native strict structured-output request", () => {
+test("Ask uses one policy-bounded native strict structured-output request", () => {
   const request = buildAskProviderRequest({ currentMessage: "hello" });
   assert.equal(ASK_MAX_OUTPUT_TOKENS, 8192);
-  assert.equal(request.max_output_tokens, ASK_MAX_OUTPUT_TOKENS);
+  assert.equal(request.max_output_tokens, AI_FEATURE_POLICIES.ask.maxOutputTokens);
   assert.equal(request.text.format.type, "json_schema");
   assert.equal(request.text.format.name, "furvise_ask_response");
   assert.equal(request.text.format.strict, true);
@@ -148,8 +149,8 @@ test("one bounded corrected retry can recover from incomplete output", async () 
   const result = await generateContextAwareAskResponse(input(client, (event) => events.push(event)));
   assert.equal(result.safetyLevel, "urgent");
   assert.equal(client.requests.length, 2);
-  assert.equal(client.requests[0].max_output_tokens, ASK_MAX_OUTPUT_TOKENS);
-  assert.equal(client.requests[1].max_output_tokens, ASK_MAX_OUTPUT_TOKENS);
+  assert.equal(client.requests[0].max_output_tokens, AI_FEATURE_POLICIES.ask.maxOutputTokens);
+  assert.equal(client.requests[1].max_output_tokens, AI_FEATURE_POLICIES.ask.maxOutputTokens);
   assert.deepEqual(events.map((event) => `${event.stage}:${event.outcome}`), ["primary:started", "primary:failed", "repair:started", "repair:succeeded"]);
   assert.equal(events[1].providerErrorCode, "ASK_OUTPUT_INCOMPLETE");
   assert.equal(events[1].parsingAttempted, false);
@@ -213,23 +214,21 @@ test("structured Ask extraction separates point-in-time chronology from memory a
   assert.match(reasoning, /active or monitoring only when it creates or changes an ongoing temporary state/);
 });
 
-test("canonical mutations remain after provider, schema, answer validation, and governance", () => {
-  const route = readFileSync(new URL("../app/api/ask/route.ts", import.meta.url), "utf8");
-  const runIndex = route.indexOf("generateAskHistoryAnswer({");
-  const callback = readFileSync(new URL("../app/lib/intelligence/generate-ask-history.ts", import.meta.url), "utf8");
-  assert.ok(callback.indexOf("await retrieveAskHistory(") < callback.indexOf("await runFurviseIntelligence({"));
-  assert.match(callback, /evidenceContract: createAskEvidenceContract\(context, readPetIds\)/);
-  assert.match(callback, /input\.authoritativePetIds = petIds/);
-  const validatedIndex = route.indexOf("logValidatedIntelligence(intelligenceResult, requestId)", runIndex);
-  const finalizationIndex = route.indexOf("return finalizeAskPostReview({");
-  const canonicalWriteIndex = route.indexOf("await completeAskConversationTurn({", finalizationIndex);
-  assert.ok(runIndex > -1 && validatedIndex > runIndex && finalizationIndex > validatedIndex && canonicalWriteIndex > finalizationIndex);
-  assert.match(route.slice(canonicalWriteIndex, canonicalWriteIndex + 600), /intelligenceValidation: intelligenceResult\?\.answerValidation \|\| null/);
-  assert.match(route.slice(canonicalWriteIndex, canonicalWriteIndex + 600), /persistenceGovernance/);
-  assert.doesNotMatch(route, /persistIntelligenceLearnings\(/);
-  const catchIndex = route.indexOf("} catch (error) {", runIndex);
-  assert.ok(catchIndex > runIndex);
-  assert.match(route.slice(catchIndex, catchIndex + 2500), /safeReleaseAiCredit/);
+test("retained history evidence guards coexist with public read-only publication and durable-before-charge ordering",async()=>{
+ const route=readFileSync(new URL("../app/api/ask/route.ts",import.meta.url),"utf8");
+ const callback=readFileSync(new URL("../app/lib/intelligence/generate-ask-history.ts",import.meta.url),"utf8");
+ assert.ok(callback.indexOf("await retrieveAskHistory(")<callback.indexOf("await runFurviseIntelligence({"));
+ assert.match(callback,/evidenceContract: createAskEvidenceContract\(context, readPetIds\)/);
+ assert.match(callback,/input\.authoritativePetIds = petIds/);
+ const entry=route.indexOf("async function executeAskRequest"),context=route.indexOf("loadReadOnlyContext(",entry);
+ const generation=route.indexOf("runReadOnlyAsk({",context),reviewed=route.indexOf("buildReadOnlyPublication(",generation),persisted=route.indexOf("persistReadOnlyAnswer({",reviewed);
+ assert.ok(entry>=0&&context>entry&&generation>context&&reviewed>generation&&persisted>reviewed);
+ assert.doesNotMatch(route,/generateAskHistoryAnswer\(|finalizeAskPostReview\(|persistIntelligenceLearnings\(|executeActionCapability\(/);
+ const {readOnlyPublicationFixture}=await import("./helpers/ask-read-only-publication.mjs");
+ const f=await readOnlyPublicationFixture(),response=await f.run(),body=await response.json();
+ assert.equal(response.status,200);assert.equal(body.turn.actionCount,0);assert.equal(f.calls,2);
+ assert.equal(f.state.finalizationInputs[0].carePersistence.status,"skipped");
+ assert.ok(f.events.indexOf("assistant:terminal")<f.events.indexOf("credit:complete"));
 });
 
 test("retry UI reuses one logical turn with a new server attempt", () => {

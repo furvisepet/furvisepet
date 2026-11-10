@@ -1,0 +1,108 @@
+{
+  "before": {
+    "tests": 7,
+    "pass": 3,
+    "fail": 4
+  },
+  "afterExit": 0,
+  "afterCounts": [
+    "tests 66",
+    "pass 66",
+    "fail 0",
+    "cancelled 0",
+    "skipped 0"
+  ],
+  "liveFinding": {
+    "sha": "d0c9712908200e86866bb4e45fa6adb5c093b706",
+    "requestId": "de2bac83-8666-4353-8cc6-bd7236bbaff8",
+    "literalMatchedTotal": 0,
+    "searchRelaxed": true,
+    "broaderTotal": 123,
+    "returnedPerOrder": 16,
+    "oldLabel": "16 of 123 matching notes returned for this search"
+  },
+  "localGates": [
+    {
+      "gate": "focused",
+      "exit": 0,
+      "seconds": 45.31,
+      "counts": [
+        "tests 445",
+        "pass 444",
+        "fail 0",
+        "cancelled 0",
+        "skipped 1"
+      ]
+    },
+    {
+      "gate": "security",
+      "exit": 0,
+      "seconds": 5.66,
+      "counts": [
+        "tests 199",
+        "pass 199",
+        "fail 0",
+        "cancelled 0",
+        "skipped 0"
+      ]
+    },
+    {
+      "gate": "uncached-typecheck",
+      "exit": 0,
+      "seconds": 9.92,
+      "counts": []
+    },
+    {
+      "gate": "lint",
+      "exit": 0,
+      "seconds": 70.95,
+      "counts": []
+    },
+    {
+      "gate": "production-audit",
+      "exit": 0,
+      "seconds": 7.88,
+      "counts": []
+    },
+    {
+      "gate": "build",
+      "exit": 0,
+      "seconds": 55.83,
+      "counts": []
+    }
+  ],
+  "logs": [
+    {
+      "path": "reliability-search-disclosure-red.log",
+      "sha256": "f31b960898757aebf026c5495750bd0eb3c767fc647c3358b02d848ef016d931"
+    },
+    {
+      "path": "reliability-search-disclosure-green.log",
+      "sha256": "fe5c377267743965bffb3086ebc4f954ea23dfbd3b03596e7d830a19419d1285"
+    },
+    {
+      "path": "reliability-search-final-focused.log",
+      "sha256": "0a441bae33734d2d706bbe3b099ee00900214d7bfa62878c3beebe533fbe77a0"
+    },
+    {
+      "path": "reliability-search-final-security.log",
+      "sha256": "5140f6fafc6b0e7818520c4630f1232e34b4dae0cd9ffae3d9eb517b8730aeb6"
+    },
+    {
+      "path": "reliability-search-final-uncached-typecheck.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reliability-search-final-lint.log",
+      "sha256": "2ff7e8a24d5b35546e34fae609e6f069da35e90009ddd7e6d8046367e5947945"
+    },
+    {
+      "path": "reliability-search-final-production-audit.log",
+      "sha256": "6d8c5c8f3d7684adb070417bd608d01ae90aa3dc26a65af03ffda4955f38d9a3"
+    },
+    {
+      "path": "reliability-search-final-build.log",
+      "sha256": "a5229c61e7479299578485cf977a3913c00db5f12b2fb7627d7c5565d34708bb"
+    }
+  ]
+}

@@ -307,12 +307,18 @@ test("all application memory writers cross the shared semantic boundary", () => 
     "app/api/legacy-memories/route.ts",
     "app/lib/intelligence/memory-suggestion.ts",
   ]) assert.match(read(path), /isEligibleLegacyMemory/, path);
-  assert.match(read("app/api/ask/suggestions/[id]/route.ts"), /continueCanonicalSuggestion/);
+  const suggestionRoute=read("app/api/ask/suggestions/[id]/route.ts");
+  assert.match(suggestionRoute,/getAuthenticatedApiContext\(request\)/);
+  assert.match(suggestionRoute,/status:\s*409/);
+  assert.doesNotMatch(suggestionRoute,/continueCanonicalSuggestion|\.rpc\(|\.from\(/);
   const continuation=read("app/lib/intelligence/canonical-suggestion-continuation.ts");
   assert.match(continuation,/suggestionMatchesCapability/);assert.match(continuation,/rebindCanonicalCapabilityAction/);
   assert.doesNotMatch(read("app/lib/intelligence/persist-learnings.ts"),/\.rpc\(|\.from\(/);
   assert.match(read("app/lib/intelligence/memory-suggestion.ts"), /prepareTypedMemoryCandidate/);
-  assert.match(read("app/api/ask/route.ts"), /currentMessage: sourceMessage/);
+  const askRoute=read("app/api/ask/route.ts");
+  assert.match(askRoute,/loadReadOnlyContext\(\s*supabase\s*,\s*userId\s*,\s*petId\s*,\s*preparedRequest\.conversationId\s*,\s*preparedRequest\.userMessageId\s*,\s*question\s*\)/);
+  assert.match(askRoute,/runReadOnlyAsk\(\{\s*ownerId:\s*userId,\s*selectedPetId:\s*petId,\s*question[,}]/);
+  assert.doesNotMatch(askRoute,/persistCanonicalSuggestions|executeActionCapability/);
 
 });
 

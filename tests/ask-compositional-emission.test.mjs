@@ -25,9 +25,12 @@ async function mocked(question,readTicket=ticket(),patch={},ctx=context(question
   let calls=0;
   const provider=trackedFixtureProvider(async request=>{
     calls++;
-    const requestSchema=(await inspectAskWireContract(request,ctx,{expectedRepair:calls===2?{validationCode:"ASK_REQUEST_CONTRACT_READ_TICKET",field:"predicates",rule:"incompatible_with_episode"}:null})).canonicalSchema.properties.request.anyOf.find(s=>s.properties?.evidenceBasis?.enum?.includes('saved_history') && s.properties?.calculatePlan?.type==='null');
-    const schema=requestSchema.properties.readTicket;
-    const compositional=schema.anyOf.find(s=>s.properties?.selection.type==='object');
+    const {canonicalSchema}=await inspectAskWireContract(request,ctx,{expectedRepair:calls===2?{validationCode:"ASK_REQUEST_CONTRACT_READ_TICKET",field:"predicates",rule:"incompatible_with_episode"}:null});
+    const compositional=canonicalSchema.properties.request.anyOf
+      .filter(s=>s.properties?.evidenceBasis?.enum?.includes('saved_history') && s.properties?.calculatePlan?.type==='null')
+      .flatMap(s=>s.properties.readTicket.anyOf ?? [s.properties.readTicket])
+      .find(s=>s.properties?.selection?.type==='object');
+    assert.ok(compositional,'the provider must expose a closed compositional read ticket');
     assert.ok(compositional.required.includes('selection'));
     assert.equal(compositional.properties.selection.additionalProperties,false);
     return {output_text:JSON.stringify(proposal(question,readTicket,patch))};

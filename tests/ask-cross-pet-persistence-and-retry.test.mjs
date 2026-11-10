@@ -26,11 +26,13 @@ test("cross-pet support remains but final Ask memory persistence is service-only
   assert.match(authorityMigration, /grant execute on function public\.persist_furvise_ask_intelligence[\s\S]*to service_role/);
 });
 
-test("suggestion writes use a stable canonical idempotency identity", () => {
+test("legacy suggestion transport preserves identity while the public route denies mutation", () => {
   const helper = askPage.slice(askPage.indexOf("async function suggestionJson"), askPage.indexOf("function getFriendlySuggestionError"));
   assert.match(helper, /idempotentClientFetch/);
   assert.match(helper, /`suggestion:\$\{method\}:\$\{url\}`/);
   assert.doesNotMatch(helper, /const response = await fetch\(url/);
-  assert.match(suggestionRoute, /beginIdempotentRateLimitedOperation/);
-  assert.match(suggestionRoute, /\.eq\("id", id\)\s*\.eq\("user_id", auth\.userId\)/);
+  assert.match(suggestionRoute, /await getAuthenticatedApiContext\(request\)/);
+  assert.match(suggestionRoute, /status: 409/);assert.match(suggestionRoute, /private, no-store/);
+  assert.ok(suggestionRoute.indexOf("await getAuthenticatedApiContext")<suggestionRoute.lastIndexOf("status: 409"));
+  assert.doesNotMatch(suggestionRoute,/beginIdempotentRateLimitedOperation|executeActionCapability|\.from\(|\.rpc\(/);
 });

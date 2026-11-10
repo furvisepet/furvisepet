@@ -1,14 +1,18 @@
+import ts from 'typescript';
 import {registerHooks} from 'node:module';
 let muscleCalls=0;
 globalThis.__publicCapabilityMuscleCall=()=>{muscleCalls++;};
 registerHooks({load(url,context,next){
  const loaded=next(url,context);
  if(!url.endsWith('/app/lib/furvise-brain/muscle.ts'))return loaded;
- const source=String(loaded.source),needle=' const results:CalculationResult[]=[];';
- if(source.split(needle).length!==2)throw Error('MUSCLE_OBSERVER_TEST_SEAM_CHANGED');
- return {...loaded,source:source.replace(needle,' globalThis.__publicCapabilityMuscleCall();'+needle)};
+ const source=typeof loaded.source==='string'?loaded.source:new TextDecoder().decode(loaded.source);
+ const ast=ts.createSourceFile(url,source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);
+ const functions=ast.statements.filter(node=>ts.isFunctionDeclaration(node)&&node.name?.text==='executeCalculatePlan');
+ if(functions.length!==1||!functions[0].body)throw Error('MUSCLE_OBSERVER_TEST_FUNCTION_MISSING');
+ const at=functions[0].body.getStart(ast)+1;
+ return {...loaded,source:source.slice(0,at)+' globalThis.__publicCapabilityMuscleCall();'+source.slice(at)};
 }});
-const {assert,test,fixture,finish,calculation,slot,rawTicket,pets,bindCalculatePlan,bindTypedReadTicket,buildCalculationLabs,calculationPublicationFailure}=await import('./helpers/calculation-public-fixture.mjs');
+const {assert,test,fixture,finish,calculation,slot,rawTicket,pets,buildCalculationLabs,calculationPublicationFailure}=await import('./helpers/calculation-public-fixture.mjs');
 const {calculationCapability,PUBLIC_V1_SUPPORTED_CALCULATION_OPERATORS:yes,PUBLIC_V1_UNSUPPORTED_CALCULATION_OPERATORS:no,CALCULATION_CAPABILITY_LIMITATION}=await import('../app/lib/intelligence/calculation-capability.ts');
 const {CALCULATE_OPERATORS}=await import('../app/lib/furvise-brain/calculate-plan.ts');
 const {CALCULATION_LIMITATION}=await import('../app/lib/intelligence/calculation-labs.ts');

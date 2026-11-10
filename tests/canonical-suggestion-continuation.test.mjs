@@ -32,11 +32,11 @@ test('linked or similar care entries never mark a pending legacy suggestion save
 test('reload derives canonical success only from its exact durable receipt',async()=>{const f=fixture(),h=harness(f);let [r]=await reconcileAskSuggestions(h.db,owner,[f.s]);assert.equal(r.status,'pending');await h.run();[r]=await reconcileAskSuggestions(h.db,owner,[f.s]);assert.equal(r.status,'saved');assert.equal(r.applyStatus,'applied');f.c.receipt={...f.c.receipt,petId:id(99)};[r]=await reconcileAskSuggestions(h.db,owner,[f.s]);assert.equal(r.status,'pending')});
 test('original target stays fixed during continuation',async()=>{const f=fixture('replace'),h=harness(f);await h.run();assert.equal(h.queries.filter(q=>q.table==='pet_care_entries').length,0);assert.equal(f.s.canonical_payload.targetId,id(11));assert.equal(h.calls[0].args.p_capability_id,cap)});
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
-test('API accepts UI intent only and exposes no legacy factual RPC',()=>{
+test('public API denies suggestion writes; retained private continuation has no client-facing RPC authority',()=>{
  const s=read('app/api/ask/suggestions/[id]/route.ts');
- assert.match(s,/hasOnlyKeys\(rawBody, \["action", "details"\]\)/);
- assert.doesNotMatch(s,/prepareMemorySuggestion|apply_furvise_server_state_suggestion|save_ask_memory_suggestion|payload:.*note/);
- assert.match(s,/continueCanonicalSuggestion/);assert.match(s,/edit_ask_canonical_suggestion/);
+ assert.match(s,/getAuthenticatedApiContext\(request\)/);
+ assert.match(s,/status:\s*409/);assert.match(s,/"Cache-Control": "private, no-store"/);
+ assert.doesNotMatch(s,/prepareMemorySuggestion|apply_furvise_server_state_suggestion|save_ask_memory_suggestion|payload:.*note|continueCanonicalSuggestion|edit_ask_canonical_suggestion|\.rpc\(|\.from\(/);
 });
 test('continuation uses existing binder and Heart; no prose planner or provider',()=>{
  const s=read('app/lib/intelligence/canonical-suggestion-continuation.ts');

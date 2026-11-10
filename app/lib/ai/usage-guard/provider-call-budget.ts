@@ -1,10 +1,20 @@
 import { consumeCatalogContinuationToken, type CatalogContinuationToken } from "../../intelligence/catalog-intent.ts";
 import type { PipelineStage } from "../execution-deadline.ts";
 import { getActiveAiAdmission } from "./context.ts";
+import { getAiFeaturePolicy } from "./features.ts";
+import type { AiGuardFeature } from "./types.ts";
 import { AiAdmissionError } from "./errors.ts";
 
 export type ProviderCallPurpose = "catalog_continuation" | "interpretation_repair" | "generation_repair" | "history_review" | "history_repair" | "history_rereview"
   | "task_review" | "task_repair" | "task_rereview";
+/** Producers declare their server feature's limit; admission still validates independently. */
+export function featureOutputLimit(requestedMaximum: number, fallbackFeature: AiGuardFeature = "ask"): number {
+  if (!Number.isSafeInteger(requestedMaximum) || requestedMaximum <= 0)
+    throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "provider_request_contract_mismatch");
+  const feature = getActiveAiAdmission()?.feature ?? fallbackFeature;
+  return Math.min(requestedMaximum, getAiFeaturePolicy(feature).maxOutputTokens);
+}
+
 /** Both answer routes share one review/repair allowance, never two budgets. */
 export function canonicalReviewPurpose(purpose?: ProviderCallPurpose) {
   if (purpose === "task_review") return "history_review";

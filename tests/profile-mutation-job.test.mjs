@@ -1,3 +1,4 @@
+import {assertPublicMutationDenied} from "./helpers/ask-public-mutation-boundary.mjs";
 import { inspectAskWireContract } from "./helpers/ask-wire-contract.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -109,23 +110,24 @@ test("profile mutation cannot compete with another job or factual request", () =
  const p=proposal("breed","Mixed terrier");
  for (const extra of [{readTicket:{}},{appendJob:{}},{writeJob:{}},{lifecyclePlan:{}},{frame:{}},
  {evidenceBasis:"saved_profile"},{profileFields:["breed"]},{outputFormat:"json"},{mode:"mixed"},{selection:"latest"}])
- assert.throws(()=>validateAskRequest({...request(p),...extra},context(p.instructionQuote)),/profile_mutation_mixed/);
+ assert.throws(()=>validateAskRequest({...request(p),...extra},context(p.instructionQuote)),extra.readTicket ? /read_ticket_evidence_domain/ : /profile_mutation_mixed/);
  const variants=askRequestProviderSchema({}).properties.request.anyOf;
  const mutation=variants.filter(v=>v.properties.version?.enum?.[0]==="ask-request.v2" && v.properties.fieldMutationJob?.anyOf?.some(branch=>branch.type==="object"));
  assert.equal(mutation.length,1);assert.equal(mutation[0].properties.readTicket.type,"null");
  assert.equal(mutation[0].properties.frame.type,"null");
 });
-test("route dispatch stops before retrieval/generation and legacy profile parser is absent", () => {
+test("public Ask refuses profile writes and preserves durable executor restrictions", async () => {
  const route=read("app/api/ask/route.ts");
- assert.ok(route.indexOf("prepareFieldMutationTurn(interpretation.request.fieldMutationJob") <
- route.indexOf("const planningSource = liveContext.currentTurn"));
- assert.match(route,/!\["pet.update_profile", "memory.set_preference", "memory.forget_preference", "pet.mark_deceased"/);
+ assert.match(route,/runReadOnlyAsk\(/);
+ assert.doesNotMatch(route,/prepareAppendTurn|prepareFieldMutationTurn|prepareStateTransitionTurn/);
+ assert.doesNotMatch(route,/prepareFieldMutationTurn|executeFurviseApplicationAction/);
  assert.doesNotMatch(read("app/lib/application-actions/planner.ts"),/exactProfileUpdateCommand/);
  assert.doesNotMatch(route,/executeFurviseApplicationAction/);
  // Existing durable executor remains unsupported for profile writes; do not fake a success receipt.
  const sql=read("supabase/migrations/20260912042534_authorize_ask_actions_by_validated_turn_subject.sql");
  assert.doesNotMatch(sql,/v\.action_kind\s*=\s*'pet\.update_profile'/);
  assert.match(sql,/Unsupported mutation kinds never fall back/);
+ await assertPublicMutationDenied("Set Juniper's breed to mixed terrier.","I updated Juniper's breed.");
 });
 
 test("the single interpreter emits and binds profile semantics without a second provider call", async () => {

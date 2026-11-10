@@ -1,3 +1,5 @@
+import {trackedFixtureProvider,settleFixtureInterpretation} from "./helpers/ask-wire-contract.mjs";
+import {historicalWireSchema} from "./helpers/historical-wire-schema.mjs";
 import { directFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -13,11 +15,10 @@ const {createAskProviderWireSchema}=await import('../app/lib/intelligence/ask-wi
 const {createAskWirePlan}=await import('../app/lib/intelligence/ask-wire-policy.mjs');
 const {expand,makeValidator}=await import('../app/lib/intelligence/ask-wire-codec.mjs');
 const {completeInstantSchema,isCompleteInstant}=await import('../app/lib/furvise-brain/complete-instant.ts');
-const {ASK_REQUEST_INSTRUCTIONS,askRequestProviderSchema}=await import('../app/lib/intelligence/ask-request-contract.ts');
-const {proposedSemanticFrameJsonSchema}=await import('../app/lib/intelligence/semantic-frame/schema.ts');
-const {interpretAskQuestion,projectAskInterpretationContext,ASK_INTERPRETATION_LIMITS,prepareAskInterpretationRequest}=await import('../app/lib/intelligence/interpret-ask.ts');
+const {ASK_REQUEST_INSTRUCTIONS}=await import('../app/lib/intelligence/ask-request-contract.ts');
+const {interpretAskQuestion,ASK_INTERPRETATION_LIMITS,prepareAskInterpretationRequest}=await import('../app/lib/intelligence/interpret-ask.ts');
 const {factorProviderEnumSchemas}=await import('../app/lib/ai/provider-enum-schema.ts');
-const {factorProviderCompoundSchemas}=await import('../app/lib/ai/provider-compound-schema.ts');
+const {factorProviderCompoundSchemas,compactProviderSchemaReferences}=await import('../app/lib/ai/provider-compound-schema.ts');
 const {bindTypedReadTicket}=await import('../app/lib/furvise-brain/typed-read-ticket.ts');
 const {admitAiOperation}=await import('../app/lib/ai/usage-guard/admission.ts');
 const {MemoryAiGuardTestStore}=await import('../app/lib/ai/usage-guard/memory-test-store.ts');
@@ -25,7 +26,7 @@ const {AI_FEATURE_POLICIES}=await import('../app/lib/ai/usage-guard/features.ts'
 const {estimateProviderCostMicrodollars}=await import('../app/lib/ai/usage-guard/cost-estimator.ts');
 const corpus=JSON.parse(readFileSync(new URL('./fixtures/ask-wire-codec.json',import.meta.url),'utf8'));
 const env={NODE_ENV:'test',FURVISE_AI_DAILY_CALL_LIMIT:'20',FURVISE_AI_DAILY_COST_LIMIT_USD:'10',FURVISE_RATE_LIMIT_HASH_SECRET:'offline-wire-identity-fixture-only-0000000000'};
-const canonicalSchema=context=>factorProviderCompoundSchemas(factorProviderEnumSchemas(askRequestProviderSchema(proposedSemanticFrameJsonSchema,projectAskInterpretationContext(context))));
+const canonicalSchema=()=>factorProviderCompoundSchemas(factorProviderEnumSchemas(historicalWireSchema('no_numeric')));
 const context=corpus.contexts.no_numeric;
 const plan=createAskWirePlan(canonicalSchema(context),ASK_REQUEST_INSTRUCTIONS);
 const projected=createAskProviderWireSchema(plan.schema),loose=expand(projected),looseValid=makeValidator(loose);
@@ -40,7 +41,8 @@ dated.request.readTicket.authority='stored_report';dated.request.readTicket.temp
 dated.request.readTicket.attributedContexts=[{recorded:{from:dates[2],to:dates[3]},target:{from:dates[4],to:dates[5]}}];
 datePaths.forEach((p,i)=>set(dated.request.readTicket,p,dates[i]));
 const actualTransport=directFixturePlan(prepareAskInterpretationRequest(context,"gpt-5.4-mini").transport);
-const actualDated=actualTransport.encode(dated),directTicket=typeof actualDated.request.readTicket==="string" ? JSON.parse(actualDated.request.readTicket) : structuredClone(actualDated.request.readTicket);
+const directTicketSlot=actualTransport.fieldAliases.readTicket??'readTicket';
+const actualDated=actualTransport.encode({...dated,request:{...dated.request,draftAnswer:null,frame:null,mutationIntent:null}}),directTicket=typeof actualDated.request.evidenceContext[directTicketSlot]==="string" ? JSON.parse(actualDated.request.evidenceContext[directTicketSlot]) : structuredClone(actualDated.request.evidenceContext[directTicketSlot]);
 const directPaths=dates.map(d=>{const paths=stringPaths(directTicket,d);assert.equal(paths.length,1);return paths[0];});
 const datedWire=plan.encode(dated),wirePaths=dates.map(d=>{const paths=stringPaths(datedWire,d);assert.equal(paths.length,1);return paths[0];});
 const valid=['2000-02-29T12:34:56Z','2024-02-29T00:00:00+05:30','2024-02-29T23:59:59.123456789-08:00','2400-02-29T12:34:56+23:59','1900-02-28T00:00:00-00:00','0000-02-29T00:00:00Z','2024-01-01T00:00:00.'+'7'.repeat(512)+'Z'];
@@ -59,7 +61,7 @@ test('provider projection is detached, deterministic, and removes only exact sch
 test('all 262 canonical codec vectors retain exact original encoding and decoding under provider projection',()=>{
  let count=0;
  for(const name of [...Object.keys(corpus.contexts),'no_context']){
-  const p=createAskWirePlan(askRequestProviderSchema(proposedSemanticFrameJsonSchema,corpus.contexts[name]),ASK_REQUEST_INSTRUCTIONS);
+  const p=createAskWirePlan(historicalWireSchema(name),ASK_REQUEST_INSTRUCTIONS);
   const before=JSON.stringify(p.schema),s=expand(createAskProviderWireSchema(p.schema)),v=makeValidator(s);
   assert.equal(changed(p.schema,createAskProviderWireSchema(p.schema)).length,2);
   for(const f of corpus.fixtures.filter(f=>f.context===name)){const wire=p.encode(f.canonical);assert.deepEqual(wire,{root:f.wire.nodes.at(-1),nodes:f.wire.nodes.slice(0,-1)});assert.ok(v(s,wire));assert.deepEqual(p.decode(wire),f.canonical);count++;}
@@ -87,18 +89,76 @@ test('Binder keeps temporal ordering and attributed report ordering independent 
 test('actual admitted production parser rejects six malformed dates before catalog hydration or successful authority',async t=>{
  quiet(t);const old=process.env.NODE_TEST_CONTEXT;delete process.env.NODE_TEST_CONTEXT;
  try{for(const [i,path]of directPaths.entries()){
-  const wire=structuredClone(actualDated),ticket=JSON.parse(wire.request.readTicket);set(ticket,path,dates[i]+'\n');wire.request.readTicket=JSON.stringify(ticket);const a=await admit('bad-date-'+i);let calls=0,hydrates=0,capabilities=0;const events=[],snapshots=[];const begin=a.beginProviderCall.bind(a);a.beginProviderCall=async x=>{snapshots.push(JSON.stringify(x.input));return begin(x);};
-  try{await assert.rejects(a.run(()=>interpretAskQuestion({context,model:'gpt-5.4-mini',onProviderEvent:e=>events.push(e),catalogService:{requestId:'test',capability:()=>{capabilities++;throw Error('UNEXPECTED_CATALOG_CAPABILITY')},verify:async()=>{},hydrate:async()=>{hydrates++;throw Error('UNEXPECTED_HYDRATE')}},client:{responses:{create:async request=>{calls++;assert.equal(JSON.stringify(request),snapshots.at(-1));assert.ok(Object.isFrozen(request));assert.deepEqual(request.text.format.schema,createAskProviderWireSchema(actualTransport.schema));assert.equal(request.instructions,prepareAskInterpretationRequest(context,'gpt-5.4-mini').request.instructions);assert.equal(request.max_output_tokens,8192);return{status:'completed',output_text:JSON.stringify(wire),usage:{input_tokens:100,output_tokens:50}};}}}})),e=>e.diagnostics?.providerErrorCode==='ASK_INTERPRETATION_JSON');assert.equal(calls,1);assert.equal(hydrates,0);assert.equal(capabilities,0);assert.ok(!events.some(e=>e.outcome==='succeeded'));}finally{await a.release();}
+  const wire=structuredClone(actualDated),packed=wire.request.evidenceContext[directTicketSlot];
+  const ticket=typeof packed==='string'?JSON.parse(packed):structuredClone(packed);
+  set(ticket,path,dates[i]+'\n');
+  wire.request.evidenceContext[directTicketSlot]=typeof packed==='string'?JSON.stringify(ticket):ticket;
+  const a=await admit('bad-date-'+i);let calls=0,hydrates=0,capabilities=0;
+  const events=[],snapshots=[],begin=a.beginProviderCall.bind(a);
+  a.beginProviderCall=async x=>{snapshots.push(JSON.stringify(x.input));return begin(x);};
+  const provider=trackedFixtureProvider(async request=>{
+   calls++;assert.equal(JSON.stringify(request),snapshots.at(-1));assert.ok(Object.isFrozen(request));
+   assert.deepEqual(request.text.format.schema,compactProviderSchemaReferences(factorProviderCompoundSchemas(factorProviderEnumSchemas(createAskProviderWireSchema(actualTransport.schema)),()=>{},true)));
+   const initialInstructions=prepareAskInterpretationRequest(context,'gpt-5.4-mini').request.instructions;
+   if(calls===1){assert.equal(request.instructions,initialInstructions);assert.equal(JSON.parse(request.input).transportRepair,undefined);}
+   else{
+    assert.equal(calls,2,'only one bounded structural repair is admitted');
+    assert.ok(request.instructions.startsWith(initialInstructions+'\n'));
+    assert.ok(JSON.parse(request.input).transportRepair.fieldHints.includes('readTicket'));
+   }
+   assert.equal(request.max_output_tokens,AI_FEATURE_POLICIES.ask.maxOutputTokens);
+   return{status:'completed',output_text:JSON.stringify(wire),usage:{input_tokens:100,output_tokens:0}};
+  });
+  try{
+   const failure=await settleFixtureInterpretation(a.run(()=>interpretAskQuestion({
+    context,model:'gpt-5.4-mini',onProviderEvent:e=>events.push(e),
+    catalogService:{requestId:'test',capability:()=>{capabilities++;throw Error('UNEXPECTED_CATALOG_CAPABILITY')},
+      verify:async()=>{},hydrate:async()=>{hydrates++;throw Error('UNEXPECTED_HYDRATE')}},
+    client:{responses:provider}
+   })),provider,true);
+   assert.equal(failure.diagnostics?.providerErrorCode,'ASK_INTERPRETATION_REPAIR_JSON');
+   assert.equal(calls,2);assert.equal(hydrates,0);assert.equal(capabilities,0);
+   assert.ok(!events.some(e=>e.outcome==='succeeded'));
+  }finally{await a.release();}
  }}finally{if(old===undefined)delete process.env.NODE_TEST_CONTEXT;else process.env.NODE_TEST_CONTEXT=old;}
 });
+
 test('old zero-token failure, direct canonical output, and malformed graph fail closed with one call and no catalog work',async t=>{
  quiet(t);const old=process.env.NODE_TEST_CONTEXT;delete process.env.NODE_TEST_CONTEXT;
  const responses=[{status:'incomplete',incomplete_details:{reason:'max_output_tokens'},output:[],usage:{input_tokens:0,output_tokens:0}},{status:'completed',output_text:JSON.stringify(dated),usage:{input_tokens:1,output_tokens:1}},{status:'completed',output_text:JSON.stringify({nodes:[{F:{'@':1}},{k:'x',m:'y',T:'}]}]'.repeat(400),bp:'replace',b:'subjects',bn:{'@':2},p:[{'@':3}],'F~Y':{'@':4}}]}),usage:{input_tokens:6967,output_tokens:879}}];
  try{for(const [i,response]of responses.entries()){const a=await admit('failure-'+i);let calls=0;try{await assert.rejects(a.run(()=>interpretAskQuestion({context,model:'gpt-5.4-mini',client:{responses:{create:async()=>{calls++;return response;}}}})),e=>e.diagnostics?.providerErrorCode===['ASK_INTERPRETATION_INCOMPLETE','ASK_INTERPRETATION_JSON','ASK_INTERPRETATION_JSON'][i]);assert.equal(calls,1);}finally{await a.release();}}}finally{if(old===undefined)delete process.env.NODE_TEST_CONTEXT;else process.env.NODE_TEST_CONTEXT=old;}
 });
-test('request limits and real phase admission preserve maximum six calls and 465000 microdollars per-call reservation',async t=>{
- quiet(t);assert.equal(ASK_INTERPRETATION_LIMITS.outputTokens,8192);assert.equal(AI_FEATURE_POLICIES.ask.maxOutputTokens,100000);assert.equal(AI_FEATURE_POLICIES.ask.maxInputTokens,20000);assert.equal(AI_FEATURE_POLICIES.ask.maxInputCharacters,80000);assert.equal(AI_FEATURE_POLICIES.ask.maximumProviderCalls,6);assert.equal(estimateProviderCostMicrodollars('gpt-5.4-mini',{inputTokens:20000,outputTokens:100000}),465000);
- const phases=[undefined,'interpretation_repair',undefined,'history_review','history_repair','history_rereview'];const a=await admit('six-call-ceiling');
- try{for(const [i,purpose]of phases.entries()){const call=await a.beginProviderCall({purpose,stage:i<2?'interpretation':'answer_generation',model:'gpt-5.4-mini',maxOutputTokens:8192,input:{test:true}});assert.equal(call.reservation.callNumber,i+1);assert.equal(call.reservation.reservedCostMicrodollars,465000);await a.recordProviderUsage(call.reservation,'gpt-5.4-mini',{inputTokens:0,outputTokens:0});}await assert.rejects(a.beginProviderCall({purpose:'history_rereview',stage:'answer_generation',model:'gpt-5.4-mini',maxOutputTokens:8192,input:{test:true}}));}finally{await a.release();}
- const ordinary=await admit('ordinary-two-call-ceiling');try{for(let i=0;i<2;i++){const c=await ordinary.beginProviderCall({model:'gpt-5.4-mini',stage:i?'answer_generation':'interpretation',maxOutputTokens:8192,input:{test:true}});await ordinary.recordProviderUsage(c.reservation,'gpt-5.4-mini',{inputTokens:0,outputTokens:0});}await assert.rejects(ordinary.beginProviderCall({model:'gpt-5.4-mini',maxOutputTokens:8192,input:{test:true}}));}finally{await ordinary.release();}
+test('request limits and real admission preserve two calls and the current per-call reservation',async t=>{
+ quiet(t);
+ assert.equal(ASK_INTERPRETATION_LIMITS.outputTokens,8192,'retained non-Ask ceiling');
+ const policy=AI_FEATURE_POLICIES.ask;
+ assert.equal(policy.maxOutputTokens,2400);
+ assert.equal(policy.maxInputTokens,20000);
+ assert.equal(policy.maxInputCharacters,80000);
+ assert.equal(policy.maximumProviderCalls,2);
+ const expectedCost=estimateProviderCostMicrodollars('gpt-5.4-mini',{inputTokens:20000,outputTokens:2400});
+ assert.equal(expectedCost,25800);
+ const phases=[undefined,'interpretation_repair',undefined,'history_review','history_repair','history_rereview'];
+ const a=await admit('two-call-phase-ceiling');let dispatched=0;
+ try{
+  for(const [i,purpose]of phases.entries()){
+   const input={purpose,stage:i<2?'interpretation':'answer_generation',model:'gpt-5.4-mini',maxOutputTokens:2400,input:{test:true}};
+   if(i>=2){await assert.rejects(a.beginProviderCall(input));assert.equal(dispatched,2);continue;}
+   const call=await a.beginProviderCall(input);dispatched++;
+   assert.equal(call.reservation.callNumber,i+1);
+   assert.equal(call.reservation.reservedCostMicrodollars,expectedCost);
+   await a.recordProviderUsage(call.reservation,'gpt-5.4-mini',{inputTokens:0,outputTokens:0});
+  }
+  assert.equal(dispatched,2);
+ }finally{await a.release();}
+ const ordinary=await admit('ordinary-two-call-ceiling');
+ try{
+  await assert.rejects(ordinary.beginProviderCall({model:'gpt-5.4-mini',maxOutputTokens:8192,input:{test:true}}));
+  for(let i=0;i<2;i++){
+   const c=await ordinary.beginProviderCall({model:'gpt-5.4-mini',stage:i?'answer_generation':'interpretation',maxOutputTokens:2400,input:{test:true}});
+   assert.equal(c.reservation.callNumber,i+1,'oversized rejection did not reserve a call');
+   await ordinary.recordProviderUsage(c.reservation,'gpt-5.4-mini',{inputTokens:0,outputTokens:0});
+  }
+  await assert.rejects(ordinary.beginProviderCall({model:'gpt-5.4-mini',maxOutputTokens:2400,input:{test:true}}));
+ }finally{await ordinary.release();}
 });

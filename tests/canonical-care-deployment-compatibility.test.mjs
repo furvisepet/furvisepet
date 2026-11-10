@@ -45,9 +45,14 @@ test("Phase 2 performs only the final authority contraction", () => {
   ]) assert.match(phase2, new RegExp(`revoke all on function public\\.${rpc}\\(`));
 });
 
-test("current Ask mutations use canonical capability identities; retired prose paths have no RPC authority",()=>{
+test("public Ask denies mutations; retained private continuations bind canonical capability identities",()=>{
  const route=read('app/api/ask/route.ts'),suggestion=read('app/api/ask/suggestions/[id]/route.ts');
- assert.match(route,/persistCanonicalSuggestions/);assert.match(suggestion,/continueCanonicalSuggestion/);
+ assert.match(route,/runReadOnlyAsk/);
+ assert.doesNotMatch(route,/persistCanonicalSuggestions|executeActionCapability/);
+ assert.match(suggestion,/getAuthenticatedApiContext\(request\)/);
+ assert.match(suggestion,/status:\s*409/);
+ assert.match(suggestion,/"Cache-Control": "private, no-store"/);
+ assert.doesNotMatch(suggestion,/continueCanonicalSuggestion|\.rpc\(|\.from\(/);
  const continuation=read('app/lib/intelligence/canonical-suggestion-continuation.ts');
  assert.match(continuation,/rpc\("persist_ask_canonical_suggestion"/);assert.match(continuation,/p_user_id: input.userId, p_capability_id: action.id/);
  assert.match(continuation,/suggestionMatchesCapability/);assert.match(continuation,/rebindCanonicalCapabilityAction/);assert.match(continuation,/return executeActionCapability/);

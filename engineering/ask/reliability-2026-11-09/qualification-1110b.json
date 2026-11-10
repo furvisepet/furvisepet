@@ -1,0 +1,285 @@
+{
+  "runtimeSourceBase": "d0a0ffdcd513621a5be2c6e362b854db09d35f39",
+  "productionCodeUnchanged": true,
+  "finalCodePins": {
+    "scripts/audits/ask-active-contract.cases.mjs": {
+      "sha256": "246e1388916ad0d045c2aafc94f199b7b6b5f5556a836de56b8c52873a54d4c6",
+      "gitBlob": "2e064337783a45f2070135815b7cd6874f168f42"
+    },
+    "scripts/audits/ask-shared-request-contract.cases.mjs": {
+      "sha256": "ea63fb7aa670137866176e43f780090944665fdb734e5dcc4d158bf2521b5a9b",
+      "gitBlob": "b77759cda5744f4cabbd6cb3b84de1e1e2c5c907"
+    },
+    "tests/ask-active-contract.test.mjs": {
+      "sha256": "961e43e4abc42457cd2abb245b00ea1a98300acd6311787cc189e4e98761abfb",
+      "gitBlob": "075c877c4e9390db26e70e28aa45d3d2ea909976"
+    },
+    "tests/ask-care-chronology.test.mjs": {
+      "sha256": "12a6ed3646673f30fdf70322f9d43235ee783e2528f841200a5b30e5555a7e54",
+      "gitBlob": "7995fa293822cafdd31e1ce1611775e48f26f85a"
+    },
+    "tests/ask-context-reasoning.test.mjs": {
+      "sha256": "b3bc3dc045bfa286bf38199b4b6a059cbc24c94a36429bbbb3e6bbea8c82a0d6",
+      "gitBlob": "cd4b9a0c59201cdaf797658304e98becab466640"
+    },
+    "tests/ask-episode-repair.test.mjs": {
+      "sha256": "8190c3398f5504e8d5e1c3ddab1e40b34b7e8dc2c2de2c072647c4f214d64eba",
+      "gitBlob": "278d5bf80c32a403aaa090cecd023a7eed710fea"
+    },
+    "tests/ask-id-free-probes.test.mjs": {
+      "sha256": "813a202b93f96cc4ba6f3352d3b1c4d296077a33305a64b44763f171f321924d",
+      "gitBlob": "b8645d4a1ac36cf541074bcc9d9d40051bc6ad06"
+    },
+    "tests/ask-p0-auxiliary-regressions.test.mjs": {
+      "sha256": "fe6482ebc8fa26c20b579e00bc853ad8cb014a6bb3edb16259bc2926fe0ccb16",
+      "gitBlob": "e5b16c788f24a7d95f500daa1151cb69e8ea2c94"
+    },
+    "tests/ask-shared-request-contract.test.mjs": {
+      "sha256": "533a31ce9145aa95ac41edac6eb79c810b6b42015a9d9c8070ab6ceffe0a0e6f",
+      "gitBlob": "714152c993390ba3e1aed63207556aef2339d42b"
+    },
+    "tests/ask-wire-integration.test.mjs": {
+      "sha256": "9a553fd2f5965de1b344fe439946810a3daf8f400a0e3b884299e448a687f5c4",
+      "gitBlob": "b5aefd4f9c98e11cbc36f1c476eb49e2c2715578"
+    },
+    "tests/ask-wire-recursive-plan.test.mjs": {
+      "sha256": "fa74b7879ad07437144f06d936c02c89bce33d242c0272cad3751a122337e75c",
+      "gitBlob": "95c341cb0a92a13035f543664978657045d1ae87"
+    },
+    "tests/ask-working-memory-interpretation.test.mjs": {
+      "sha256": "0bde41bbf6c15775d8b6d8f20e84b27f138283293bb3d232fe06e2c27804ba82",
+      "gitBlob": "0f3fde6feb9726c71e87bf1651c73206bf687c48"
+    },
+    "tests/canonical-subject-authority.test.mjs": {
+      "sha256": "5eb6419ea4031c9568b529343f1c3f1d912eb46b177f835d40143fbd9ad21593",
+      "gitBlob": "17baa69a7aff28dbcebbb59de38b0f0a04be2f5c"
+    },
+    "tests/generalized-replace.test.mjs": {
+      "sha256": "cb7b232fd1cb82a6454f7c742c7fcb7cd165fa058273c94235f856295cb65096",
+      "gitBlob": "be1187549a3dee5eb1723d949e73ead232f2b486"
+    },
+    "tests/owner-preference-mutation.test.mjs": {
+      "sha256": "a908bc3dc5a62f23c1d22db7b9ac601cc111d7f3b776a141412e5d5e48fcc933",
+      "gitBlob": "60b4831e184f27d31ed684f90731554714a0cb9d"
+    },
+    "tests/profile-mutation-job.test.mjs": {
+      "sha256": "ee30c2fe40a207c5c10ac350ec21c508f8a562148bb68beb655bcf0915f96a75",
+      "gitBlob": "fb1566252d532ff7f31e7e983e273f9aa7121b9f"
+    },
+    "tests/state-transition-job.test.mjs": {
+      "sha256": "c5e92f80d4efd782e024ccb2cf894a48066ddee55a8c0626b1ba7f0c2f591196",
+      "gitBlob": "dad6ba9bbb578734c84b9287aa969495e2f5fc13"
+    },
+    "tests/ask-wire-native-admission.test.mjs": {
+      "sha256": "65f672dd5abf76f02188de17e836d0b3f34e6744aef91b039ad7a3f470bc2015",
+      "gitBlob": "5ed45216c904ad1e5a0d98dd694e871a39a3451b"
+    }
+  },
+  "gates": [
+    {
+      "phase": "focused",
+      "exit": 0,
+      "seconds": 85.96,
+      "log": "reliability-1109fu-focused.log",
+      "sha256": "0a1a1eee49b1e16506195c856f765e3487f971b9159ec7ab865eec77dd894778",
+      "counts": {
+        "tests": 764,
+        "pass": 763,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 1
+      },
+      "failedNames": []
+    },
+    {
+      "phase": "security",
+      "exit": 0,
+      "seconds": 25.35,
+      "log": "reliability-1109fu-security.log",
+      "sha256": "879cde7275f3f1181f6dfbcc768ab79b3a8cf680673b757d06dc15b45abe35d7",
+      "counts": {
+        "tests": 517,
+        "pass": 517,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "failedNames": []
+    },
+    {
+      "phase": "types",
+      "exit": 0,
+      "seconds": 32.83,
+      "log": "reliability-1109fu-types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "counts": {},
+      "failedNames": []
+    },
+    {
+      "phase": "lint",
+      "exit": "timeout",
+      "seconds": 120.28,
+      "log": "reliability-1109fu-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "counts": {},
+      "failedNames": []
+    },
+    {
+      "phase": "production-audit",
+      "exit": 0,
+      "seconds": 18.78,
+      "log": "reliability-1109fu-production-audit.log",
+      "sha256": "3be5f5a9ad79e97d62265721bc5e826af3acf51aab40b44b42a8b418d6f572ac",
+      "counts": {},
+      "failedNames": [],
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      }
+    },
+    {
+      "phase": "build",
+      "exit": 0,
+      "seconds": 84.1,
+      "log": "reliability-1109fu-build.log",
+      "sha256": "a7e17b873adeedf58712b3fa07f54f3726abd4ed66e17f6bed52bac4ebe69365",
+      "counts": {},
+      "failedNames": []
+    }
+  ],
+  "afterLintCorrection": [
+    {
+      "phase": "full-lint",
+      "exit": 0,
+      "seconds": 20.59,
+      "logSha256": "510e24e323bce47a5b4b02c89dfcb778c8e41ba89a88704e215429cfede088f9",
+      "counts": {},
+      "failures": [],
+      "lintSummary": [
+        "\u2716 127 problems (0 errors, 127 warnings)"
+      ]
+    },
+    {
+      "phase": "split-wire-unfiltered",
+      "exit": 1,
+      "seconds": 137.06,
+      "logSha256": "87585d0ce15fea0f5add2eaeff95fd6e1551946faefe23c2a783b1077c79c853",
+      "counts": {
+        "tests": 5,
+        "pass": 4,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "failures": [
+        "not ok 1 - tests\\\\ask-wire-native-admission.test.mjs"
+      ],
+      "lintSummary": []
+    }
+  ],
+  "priorUnfilteredCohort": [
+    {
+      "name": "migrated-unfiltered",
+      "exit": 0,
+      "seconds": 369.02,
+      "counts": {
+        "tests": 212,
+        "pass": 212,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "logSha256": "363ade76edbd6cf61a02428f02c9038112843505413474ee7b6dd452f90b6ffc",
+      "failedNames": []
+    },
+    {
+      "name": "shared-contract-unfiltered",
+      "exit": 1,
+      "seconds": 20.56,
+      "counts": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "logSha256": "46d76fa86f5234315654a82d51508e8bbbd29656746cc114eb37de93a12b36af",
+      "failedNames": [
+        "not ok 1 - shared Ask request contract and real pipeline boundaries"
+      ]
+    }
+  ],
+  "additionalContracts": [
+    {
+      "name": "replay-contracts",
+      "exit": 0,
+      "seconds": 1.05,
+      "counts": {
+        "tests": 28,
+        "pass": 28,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "logSha256": "f680f5381a45a29521b8b8a00d5f79dd050d8c12c6e4e72a18fa7413b3ac72fd",
+      "failedNames": []
+    },
+    {
+      "name": "new-budget-cases-diagnostic",
+      "exit": 0,
+      "seconds": 1.85,
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "logSha256": "dbe9100ef611f7f18bc1d7e8ffc4a81334d834dd49760a3bc32da17188c18ba6",
+      "failedNames": []
+    },
+    {
+      "name": "shared-unfiltered",
+      "exit": 1,
+      "seconds": 16.27,
+      "counts": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "logSha256": "afefca2b8d8b2df1cc11aae324dd0b8cd651772a2087a20a09c63151bd6d7cfb",
+      "failedNames": [
+        "not ok 1 - shared Ask request contract and real pipeline boundaries"
+      ]
+    },
+    {
+      "name": "active-unfiltered",
+      "exit": 1,
+      "seconds": 0.25,
+      "counts": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "logSha256": "ad5a955b1499003a15ce275d71ae28727e3327745c3abde184ea76daed1218a9",
+      "failedNames": [
+        "not ok 1 - tests\\\\ask-active-contract.test.mjs"
+      ]
+    }
+  ],
+  "newPaid": {
+    "turns": 0,
+    "physicalCalls": 0,
+    "spendUsd": 0
+  },
+  "decision": "NO_GO",
+  "note": "Current Windows native test worker crash is not a test pass. No full-suite count is inferred from targeted checks."
+}

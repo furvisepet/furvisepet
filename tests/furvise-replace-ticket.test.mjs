@@ -1,3 +1,4 @@
+import {assertPublicMutationDenied} from "./helpers/ask-public-mutation-boundary.mjs";
 import { inspectAskWireContract } from "./helpers/ask-wire-contract.mjs";
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -130,18 +131,13 @@ test('a typed persistence prohibition cannot produce an executable replace job',
 });
 
 test('conflicting reads, append jobs, foreign subjects and ungrounded bodies fail closed', () => {
-  for (const change of [
-    p => { p.mode = 'mixed'; p.evidenceBasis = 'saved_history'; },
-    p => { p.mode = 'read'; },
-    p => { p.writeJob.operation = 'append'; },
-    p => { p.petNames = ['Bramble']; p.writeJob.petName = 'Bramble'; },
-    p => { p.writeJob.bodyQuote = 'Cedar ate normally yesterday.'; },
-    p => { p.writeJob.instructionQuote = 'lunch was normal.'; },
-    p => { p.task = { intent: 'save' }; },
-  ]) {
-    const { context, proposal } = fixture(); change(proposal);
-    assert.throws(() => validateAskRequest(proposal, context), /write_job/);
-  }
+ for(const change of [
+  p=>{p.mode='mixed';p.evidenceBasis='saved_history';},p=>{p.mode='read';},p=>{p.writeJob.operation='append';},
+  p=>{p.petNames=['Bramble'];p.writeJob.petName='Bramble';},p=>{p.writeJob.bodyQuote='Cedar ate normally yesterday.';},
+  p=>{p.writeJob.instructionQuote='lunch was normal.';},p=>{p.task={intent:'save'};}
+ ]) { const {context,proposal}=fixture();change(proposal);
+  assert.throws(()=>validateAskRequest(proposal,context),proposal.mode==='read'?/read_mutation_domain/:/write_job/);
+ }
 });
 
 function targetDatabase({ absent = false, error = null } = {}) {
@@ -190,11 +186,8 @@ test('confirmed replacement uses the shipped receipt adapter and cannot succeed 
   }
 });
 
-test('Ask dispatches the typed job before narrative generation and keeps its bound target', () => {
-  const route = readFileSync(new URL('../app/api/ask/route.ts', import.meta.url), 'utf8');
-  const job = route.indexOf('const replaceJob = interpretation.request?.writeJob');
-  assert.ok(job > route.indexOf('const interpretation = await interpretAskQuestion'));
-  assert.ok(job < route.indexOf('return await orchestrateAskTurn'));
-  assert.match(route.slice(job, route.indexOf('const task = interpretation.request?.task', job)), /return \{ \.\.\.careHistoryCorrectionOrchestration/);
-  assert.doesNotMatch(route, /latestHistoryEditTarget|latestEditActions/);
+test('public Ask cannot dispatch replacement or claim a saved note was edited', async()=>{
+ const route=readFileSync(new URL('../app/api/ask/route.ts',import.meta.url),'utf8');
+ assert.match(route,/runReadOnlyAsk\(/);assert.doesNotMatch(route,/resolveReplaceJob|prepareBoundReplaceAction|latestHistoryEditTarget|latestEditActions/);
+ await assertPublicMutationDenied("Replace my last saved note with: Lunch was normal.","I replaced your last saved note.");
 });

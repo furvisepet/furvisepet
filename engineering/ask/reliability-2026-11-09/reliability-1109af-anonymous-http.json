@@ -1,0 +1,24 @@
+{
+  "sha": "8cca6338330aa739d9915b52d8f5a89245be0e53",
+  "deployment": "dpl_5obEWjJHRu5uKwTHMvaeeHXbfiWE",
+  "results": [
+    {
+      "name": "anonymous-ask",
+      "exit": 0,
+      "response": "{\"code\":\"AUTH_REQUIRED\",\"message\":\"Your session expired. Sign in again to continue.\",\"success\":false}\nHTTP_STATUS:401",
+      "stderr": "Vercel CLI 65.11.0 (Node.js 24.19.0)\n! This request bypasses Deployment Protection, so its response doesn't show whether the URL is public.\n\n  To check public access:\n    `curl https://furvise-oujoo3ntr-furvise-0e3fe5ef.vercel.app/api/ask`\n"
+    },
+    {
+      "name": "anonymous-citations",
+      "exit": 0,
+      "response": "{\"error\":\"Authentication required.\"}\nHTTP_STATUS:401",
+      "stderr": "Vercel CLI 65.11.0 (Node.js 24.19.0)\n! This request bypasses Deployment Protection, so its response doesn't show whether the URL is public.\n\n  To check public access:\n    `curl https://furvise-oujoo3ntr-furvise-0e3fe5ef.vercel.app/api/ask/citations`\n"
+    },
+    {
+      "name": "invalid-bearer",
+      "exit": 0,
+      "response": "{\"code\":\"AUTH_REQUIRED\",\"message\":\"Your session expired. Sign in again to continue.\",\"success\":false}\nHTTP_STATUS:401",
+      "stderr": "Vercel CLI 65.11.0 (Node.js 24.19.0)\n! This request bypasses Deployment Protection, so its response doesn't show whether the URL is public.\n\n  To check public access:\n    `curl https://furvise-oujoo3ntr-furvise-0e3fe5ef.vercel.app/api/ask`\n"
+    }
+  ]
+}

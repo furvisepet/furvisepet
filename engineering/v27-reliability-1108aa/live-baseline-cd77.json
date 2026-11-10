@@ -1,0 +1,31 @@
+{
+  "limitTurns": 16,
+  "limitMicro": 150000,
+  "turns": [
+    {
+      "sha": "cd77d6730adf99d2a13bc25de008e2e9863d4f26",
+      "question": "What exactly did Cedar's October 26, 2026 nonclinical persistence test note say? Please quote the saved note.",
+      "status": "ANSWER_PASS_CITATION_REPLAY_PENDING",
+      "case": "baseline_original",
+      "requestId": "0f1ac18e-c246-4bfa-a222-49e3560599d1",
+      "calls": 2,
+      "costMicrodollars": 2520,
+      "reads": 1,
+      "sources": 1,
+      "actual": "The saved note says: \"Furvise QA persistence test LG-20261026 — synthetic, not medical data. Baseline alpha.\""
+    },
+    {
+      "sha": "cd77d6730adf99d2a13bc25de008e2e9863d4f26",
+      "question": "Explain why 0.999… equals 1, but make it a tiny courtroom argument between two fractions. No pet records needed.",
+      "status": "LIVE_PASS",
+      "case": "baseline_unrelated_math_fiction",
+      "requestId": "87b1f9ad-c9a4-4324-93b7-93e61cf73cf8",
+      "calls": 2,
+      "costMicrodollars": 4400,
+      "reads": 0,
+      "sources": 0,
+      "actual": "Courtroom explanation correctly derives 9x=9 and x=1; no saved records retrieved."
+    }
+  ],
+  "start": "2026-11-08T23:14:55.209Z"
+}

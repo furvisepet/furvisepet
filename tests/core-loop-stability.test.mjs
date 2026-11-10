@@ -58,35 +58,33 @@ test("Ask Furvise usage migration tracks monthly counts with owner RLS", () => {
   assert.match(migration, /ask_furvise_usage_touch_updated_at/);
 });
 
-test("Ask Furvise route keeps usage tracking from masking successful answers", () => {
-  const route = read("app/api/ask/route.ts");
-  const answerStart = route.indexOf("await orchestrateAskTurn");
-  const answerFailure = route.indexOf('askFailure("AI_UNAVAILABLE", friendlyAnswerFailure', answerStart);
-  const usageStart = route.indexOf("let nextUsage = usage", answerStart);
-  const increment = route.indexOf("completeAiCredit", usageStart);
-
-  assert.ok(answerStart > -1);
-  assert.ok(answerFailure > answerStart);
-  assert.ok(usageStart > answerFailure);
-  assert.ok(increment > usageStart);
-  assert.match(route, /friendlyAnswerFailure/);
-  assert.doesNotMatch(route, /setup may be incomplete/);
-  assert.match(route, /optionalFailure\("credit_completion"/);
+test("durable read-only answers survive settlement outages without reporting a completed charge",async()=>{
+ const {readOnlyPublicationFixture}=await import("./helpers/ask-read-only-publication.mjs");
+ for(const options of [{failDisposition:true},{failCredit:true}]){
+  const f=await readOnlyPublicationFixture(options),response=await f.run(),body=await response.json();
+  assert.equal(response.status,200);assert.equal(body.success,true);assert.equal(body.persistence.saved,true);
+  assert.equal(f.state.row.response_data.turn.finalStage,"COMPLETED");
+  assert.equal(body.turn.creditState,"completion_pending");assert.equal(body.turn.settlementState,"pending");
+  assert.equal(f.state.credits,0);assert.equal(f.calls,2);assert.equal(f.events.at(-1),"lease:release");
+  assert.equal(f.events.filter(e=>e==="assistant:terminal").length,1);
+ }
+ assert.doesNotMatch(read("app/api/ask/route.ts"),/setup may be incomplete/);
 });
 
-test("Ask Furvise route uses context planning before response persistence", () => {
-  const route = read("app/api/ask/route.ts");
-  const creditSettlement = read("app/lib/ai/ask-credit-settlement.ts");
-  const contextLoad = route.indexOf("await buildFurviseContext");
-  const pipeline = route.indexOf("orchestrateAskTurn", contextLoad);
-  const persistence = route.indexOf("persistAssistantAnswer({", pipeline);
-
-  assert.ok(contextLoad > -1);
-  assert.ok(pipeline > contextLoad);
-  assert.ok(persistence > pipeline);
-  assert.doesNotMatch(route, /generateGroundedAskAnswer|answerSinglePetMemoryQuestion/);
-  assert.equal(route.match(/await completeAiCredit/g)?.length, 2, "foreground completion is retried once");
-  assert.match(route, /createAskCreditSettlement/);
-  assert.match(creditSettlement, /getEvents: getAiCreditEventsForLogicalRequest/);
-  assert.match(creditSettlement, /await ledger\.reconcile/);
+test("public Ask binds context before read-only generation and durable publication",async()=>{
+ const route=read("app/api/ask/route.ts"),creditSettlement=read("app/lib/ai/ask-credit-settlement.ts");
+ const start=route.indexOf("async function executeAskRequest");
+ const contextLoad=route.indexOf("loadReadOnlyContext(",start);
+ const pipeline=route.indexOf("runReadOnlyAsk({",contextLoad);
+ const reviewed=route.indexOf("buildReadOnlyPublication(",pipeline);
+ const persistence=route.indexOf("persistReadOnlyAnswer({",reviewed);
+ assert.ok(start>=0&&contextLoad>start&&pipeline>contextLoad&&reviewed>pipeline&&persistence>reviewed);
+ assert.doesNotMatch(route,/generateGroundedAskAnswer|answerSinglePetMemoryQuestion|prepareAppendTurn|executeActionCapability/);
+ assert.match(route,/createAskCreditSettlement/);
+ assert.match(creditSettlement,/getEvents: getAiCreditEventsForLogicalRequest/);
+ assert.match(creditSettlement,/await ledger\.reconcile/);
+ const {readOnlyPublicationFixture}=await import("./helpers/ask-read-only-publication.mjs");
+ const f=await readOnlyPublicationFixture(),response=await f.run();
+ assert.equal(response.status,200);assert.equal(f.state.credits,1);assert.equal(f.calls,2);
+ assert.ok(f.events.indexOf("assistant:terminal")<f.events.indexOf("credit:complete"));
 });

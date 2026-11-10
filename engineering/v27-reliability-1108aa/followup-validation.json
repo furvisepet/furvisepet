@@ -1,0 +1,163 @@
+{
+  "mode": "offline_no_paid_provider_calls",
+  "parent": "3d4901f816b0de7817701f311c2ad6771a810f55",
+  "nativeEnvelopeBefore": {
+    "tests": 11,
+    "pass": 2,
+    "fail": 9
+  },
+  "nativeEnvelopeAfter": {
+    "tests": 11,
+    "pass": 11,
+    "fail": 0
+  },
+  "finalLocalGates": [
+    {
+      "gate": "focused",
+      "exit": 0,
+      "seconds": 44.12,
+      "counts": [
+        "tests 438",
+        "pass 437",
+        "fail 0",
+        "cancelled 0",
+        "skipped 1"
+      ]
+    },
+    {
+      "gate": "security",
+      "exit": 0,
+      "seconds": 4.98,
+      "counts": [
+        "tests 199",
+        "pass 199",
+        "fail 0",
+        "cancelled 0",
+        "skipped 0"
+      ]
+    },
+    {
+      "gate": "uncached-typecheck",
+      "exit": 0,
+      "seconds": 10.51,
+      "counts": []
+    },
+    {
+      "gate": "lint",
+      "exit": 0,
+      "seconds": 26.03,
+      "counts": []
+    },
+    {
+      "gate": "production-audit",
+      "exit": 0,
+      "seconds": 1.85,
+      "counts": []
+    },
+    {
+      "gate": "build",
+      "exit": 0,
+      "seconds": 37.01,
+      "counts": []
+    }
+  ],
+  "priorFailedGates": [
+    {
+      "gate": "focused",
+      "exit": 0,
+      "seconds": 42.78,
+      "counts": [
+        "tests 435",
+        "pass 434",
+        "fail 0",
+        "cancelled 0",
+        "skipped 1"
+      ]
+    },
+    {
+      "gate": "security",
+      "exit": 0,
+      "seconds": 4.13,
+      "counts": [
+        "tests 199",
+        "pass 199",
+        "fail 0",
+        "cancelled 0",
+        "skipped 0"
+      ]
+    },
+    {
+      "gate": "uncached-typecheck",
+      "exit": 2,
+      "seconds": 21.16,
+      "counts": []
+    },
+    {
+      "gate": "lint",
+      "exit": 0,
+      "seconds": 54.41,
+      "counts": []
+    },
+    {
+      "gate": "production-audit",
+      "exit": 0,
+      "seconds": 1.58,
+      "counts": []
+    },
+    {
+      "gate": "build",
+      "exit": 1,
+      "seconds": 28.73,
+      "counts": []
+    }
+  ],
+  "correctedDefaultBuild": {
+    "gate": "corrected native response type, default Windows production build",
+    "exit": 0,
+    "seconds": 51.53
+  },
+  "unchangedOptionalSkip": "historical external complete-wire artifact not supplied",
+  "nativeWindowsIssueClaimedFixed": false,
+  "rawEvidence": {
+    "reliability-native-envelope-red.log": {
+      "bytes": 6962,
+      "sha256": "a350953a06563eacfa32a1e4f92b34715cef9253e8cc1ba133082e23b4a7f28b"
+    },
+    "reliability-native-envelope-fixed.log": {
+      "bytes": 37569,
+      "sha256": "7b69346053091adecd6704522e8843ea79ad4525bfbf7cf42a0906185c8240ba"
+    },
+    "reliability-native-envelope-isolated.log": {
+      "bytes": 1064,
+      "sha256": "2644a6022d74cd0f142fd103e49fe71fb2c4a752ba3515a1ab30ac93f2e7218a"
+    },
+    "reliability-active-admission-migrated.log": {
+      "bytes": 8037,
+      "sha256": "46806ca4a995f57554c4f15aedfbee881b0f27c9b627a403cdd47cc2ef0ea59e"
+    },
+    "reliability-active-admission-fixed.log": {
+      "bytes": 3162,
+      "sha256": "d4ffc7a45a100931a2e3e8336905b9537bc3adcab666cc723878f5b1f53af4a3"
+    },
+    "reliability-native-type-aligned.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "reliability-voice-and-admission-fixed.log": {
+      "bytes": 5746,
+      "sha256": "a5cf6ed591310b5c96c38a90229b62c949c9398147f39ca3b02bfc8601a7b1e5"
+    },
+    "reliability-release-final-focused.log": {
+      "bytes": 80609,
+      "sha256": "8750cf71f7db8356804a516de11ae2669398c9999ff8f632e9f8c1762d5ce91a"
+    },
+    "reliability-release-final-security.log": {
+      "bytes": 19292,
+      "sha256": "f64cea3e9b953bb26b2e85ffab3072359df5715fe13b09594227e4b2a558e88e"
+    },
+    "reliability-release-final-build.log": {
+      "bytes": 2796,
+      "sha256": "e3cdca7dce6864a208ab6f559c839615b9bcc3fd83844fe338c73426019a43ab"
+    }
+  }
+}

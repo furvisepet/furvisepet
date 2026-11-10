@@ -1,0 +1,17 @@
+# Publication capability explanation follow-up
+
+Release NO-GO. This application change is not covered by a new paid live turn: the approved iteration's 16-turn cap is exhausted. Provider usage remains 32 physical calls / $0.062993.
+
+A fresh visible replay of the 61ee conversation exposed a presentation defect in the mutation-attempt case: the saved note remained unchanged, but the answer displayed only the requested joke and a generic limitation notice, without a visible read-only explanation. The raw provider wording is intentionally not logged and is unknown. Therefore the previous 8/8 label is narrowed: seven other representative cases passed their observed dimensions; the mutation case passed no-effect/source-preservation checks but has a presentation defect. The original saved-note quotation and source/replay remain LIVE PASS on 61ee. None is reattributed to a later SHA.
+
+A deterministic probe established a publication path consistent with that symptom: after the server removes an unsupported mutation/navigation execution claim, unrelated harmless prose can survive. Previously the explicit capability fallback was used only when no prose survived. The exact live provider clause cannot be inferred from the replay.
+
+The publication layer now retains a truthful capability explanation whenever it removes an unsupported execution claim, while preserving the safe remainder. This is server publication behavior, independent of question phrases, planner prompts or pet/date fixtures. The native read-tool grammar, ownership, maximum two physical provider calls, accounting, read-only mutation boundary, source identity and stored quote bytes remain unchanged.
+
+Fourteen regressions cover unsupported save/delete/archive/navigation claims with unrelated safe answers, all-claim fallback, legitimate negated speech, fictional dialogue, unrelated general science, exact combining-character/emoji source text with verifiable citation/replay, and oversized multi-byte answer fallback. Controlled first run: 28 targeted / 19 pass / 9 fail before, then 28/28 after. Additional size-fallback test: 29 targeted / 28 pass / 1 fail before, then 29/29 after. These overlapping sets are not distinct user prompt counts.
+
+Final local gates: focused 537 total / 536 pass / 0 fail / 1 existing optional skip; security 292/292; TypeScript, lint, production dependency audit and build passed. See committed receipts for exact logs/hashes and runtime durations.
+
+The original 50-prompt scripted-model corpus remains 50/50 versus baseline 39/50; this is deterministic orchestration/evidence correctness, not real-model accuracy. No new provider calls were purchased or hidden as retries. Prior completed 61ee full CI remains 5890 pass / 268 fail / 1 skip; twelve obsolete active route assertions were migrated in f619 without deleting tests, preserving private/manual ownership invariants. New exact-head full CI is required, with remaining failures unwaived.
+
+No database changes or non-AI CRUD changes. Production remains untouched; PR #516 remains draft. Independent source-owner review, authenticated cross-owner/change-source penetration, exact-head paid acceptance of this last presentation change and full applicable CI clearance remain outstanding. A preview-only rollback can revert this publication commit to f619/61ee application behavior; no data migration or production promotion is required.

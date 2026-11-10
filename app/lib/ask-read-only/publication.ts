@@ -1,3 +1,4 @@
+import { readCoverageMessages } from "./coverage.mjs";
 import "server-only";
 import { buildAskConversationResponse } from "../ask.mjs";
 import { enforceVerifiedStateClaims, containsUnverifiedStateClaim, containsNavigationExecutionClaim } from "../application-actions/state-claims.ts";
@@ -14,11 +15,24 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
  if(!isReadOnlyResult(result))throw new Error("ASK_READ_RESULT_INVALID");
  const reviewed=result as {answer:{answer:string;replyType:"answer"|"clarification"|"refusal"|"partial";limited:boolean;quotes:Array<{quote:string}>;calculations:Array<{text:string}>};sources:Array<{kind:string}>};
  const body=reviewed.answer;
+ const coverageMessages=readCoverageMessages((result as {coverage?:unknown[]}).coverage);
+ const dialogue=(result as {dialogueCoverage?:{partial?:boolean;omittedKnownMessages?:number;truncatedMessages?:number}}).dialogueCoverage;
+ const contextMessages=dialogue?.partial===true
+  ?[dialogue.omittedKnownMessages||dialogue.truncatedMessages
+   ?"Some earlier conversation text is outside Ask’s current context window. Repeat any older details you want me to use."
+   :"Earlier conversation context may be incomplete. Repeat any older details you want me to use."]:[];
+ const coverageSections=[
+  ...(coverageMessages.length?[{heading:"Search coverage",items:coverageMessages}]:[]),
+  ...(contextMessages.length?[{heading:"Conversation context",items:contextMessages}]:[])
+ ];
  const checked=enforceVerifiedStateClaims(body.answer,false);
  const stateRejected=checked!==body.answer&&(containsUnverifiedStateClaim(body.answer)||containsNavigationExecutionClaim(body.answer));
  let limited=body.limited||stateRejected;
- const summary=stateRejected&&checked==="I can help with that."
-  ?"I can read saved information, but I can’t make changes through Ask.":checked;
+ // A removed execution claim must leave a truthful capability explanation,
+ // even when an unrelated joke or general answer survives the filter.
+ const boundary="I can read saved information, but I can’t make changes or open pages through Ask.";
+ const summary=stateRejected
+  ?boundary+(checked==="I can help with that."?"":" "+checked):checked;
  const contextUsed={petName,usedSources:reviewed.sources.length?["Verified saved sources"]:[]};
  const response=buildAskConversationResponse({title:"Furvise",summary,sections:[],safetyNote:null},
   {intent:"general_pet_question",usedContextSummary:contextUsed.usedSources});
@@ -26,10 +40,12 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
  response.answerType=body.replyType==="clarification"?"clarification":"direct_answer";
  response.sections=[
   ...(body.quotes.length?[{heading:"Saved notes",items:body.quotes.map(quote=>quote.quote)}]:[]),
-  ...(body.calculations.length?[{heading:"Calculation",items:body.calculations.map(calculation=>calculation.text)}]:[])
+  ...(body.calculations.length?[{heading:"Calculation",items:body.calculations.map(calculation=>calculation.text)}]:[]),
+  ...coverageSections
  ];
  response.actions=["copy"];
  response.applicationActions=[];
+ if(contextMessages.length)Object.assign(response,{missingUsefulDetails:[...contextMessages]});
 
  const sign=()=>{
   const citationProof=issueReadOnlyCitationProof(result,response,ownerId);
@@ -41,23 +57,24 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
   limited=true;
   // Preserve whole source strings or omit them; never trim an attributed quote.
   // Drop the model narrative so it cannot promise omitted quotations.
-  const summary=reviewed.sources.length
+  const sizeNotice=reviewed.sources.length
    ?"These saved sources exceed the reply size limit. Only whole notes that fit are included below; open Saved sources for the originals, or ask for one note at a time."
    :"This answer exceeds the reply size limit. Please ask for a shorter answer or one part at a time.";
+  const summary=stateRejected?boundary+" "+sizeNotice:sizeNotice;
   response.summary=summary;response.directAnswer=summary;
   response.answerType="direct_answer";
-  response.sections=body.calculations.length?[{heading:"Calculation",items:body.calculations.map(calculation=>calculation.text)}]:[];
+  response.sections=[...(body.calculations.length?[{heading:"Calculation",items:body.calculations.map(calculation=>calculation.text)}]:[]),...coverageSections];
   sign();
   const kept:string[]=[];
   for(const quote of body.quotes){
    response.sections=[{heading:"Saved notes",items:[...kept,quote.quote]},
-    ...(body.calculations.length?[{heading:"Calculation",items:body.calculations.map(calculation=>calculation.text)}]:[])];
+    ...(body.calculations.length?[{heading:"Calculation",items:body.calculations.map(calculation=>calculation.text)}]:[]),...coverageSections];
    sign();
    if(publicationBytes(response)<=MAX_READ_ONLY_PUBLICATION_BYTES)kept.push(quote.quote);
   }
   response.sections=[
    ...(kept.length?[{heading:"Saved notes",items:kept}]:[]),
-   ...(body.calculations.length?[{heading:"Calculation",items:body.calculations.map(calculation=>calculation.text)}]:[])
+   ...(body.calculations.length?[{heading:"Calculation",items:body.calculations.map(calculation=>calculation.text)}]:[]),...coverageSections
   ];
   sign();
  }

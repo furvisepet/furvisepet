@@ -1,0 +1,34 @@
+{
+  "sha": "017586144ccf04c0544bc61bb90eb953769d3056",
+  "deployment": "dpl_HL2pQdfcrhYPYiWx3N6xXDTG2a9p",
+  "probes": [
+    {
+      "name": "anonymous-ask",
+      "exit": 0,
+      "status": "401",
+      "application": {
+        "code": "AUTH_REQUIRED",
+        "message": "Your session expired. Sign in again to continue.",
+        "success": false
+      }
+    },
+    {
+      "name": "anonymous-citations",
+      "exit": 0,
+      "status": "401",
+      "application": {
+        "error": "Authentication required."
+      }
+    },
+    {
+      "name": "invalid-bearer-ask",
+      "exit": 0,
+      "status": "401",
+      "application": {
+        "code": "AUTH_REQUIRED",
+        "message": "Your session expired. Sign in again to continue.",
+        "success": false
+      }
+    }
+  ]
+}

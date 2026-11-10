@@ -1,3 +1,5 @@
+import {assertPublicMutationDenied} from "./helpers/ask-public-mutation-boundary.mjs";
+import {readOnlySuccessRouteFixture} from "./helpers/ask-read-only-success-route.mjs";
 import {lifecycleUnitAuthority} from './helpers/lifecycle-unit-authority.mjs';
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -47,16 +49,20 @@ const intelligence = readFileSync(new URL("../app/lib/intelligence/run-intellige
 const orchestrator = readFileSync(new URL("../app/lib/ai/ask-orchestrator.ts", import.meta.url), "utf8");
 const actionRoute = readFileSync(new URL("../app/api/ask/actions/[messageId]/route.ts", import.meta.url), "utf8");
 
-test("typed loss publication preserves grief and emergency presentation boundaries", () => {
+test("typed loss publication preserves grief and emergency presentation boundaries", async () => {
   const {action}=typedLifecycle(productionDeathMessage);
   assert.equal(action.kind,"pet.mark_deceased");
   assert.equal(action.confirmationPolicy,"always");
   assert.match(reasoning,/parsed\.responseMode = "grief_support"/);
   assert.match(reasoning,/parsed\.shoppingSuppressed = true/);
   assert.match(route,/currentLoss === "confirmed_current" \? null : detectImmediateAskEmergency\(question\)/);
-  assert.match(route,/const conditionalSafety = conditionalEmergencyGuidance\(question\)/);
+  const readOnlyCore=readFileSync(new URL('../app/lib/ask-read-only/core.mjs',import.meta.url),'utf8');
+ assert.match(readOnlyCore,/Medical guidance must acknowledge uncertainty, avoid diagnosis/);
   assert.match(orchestrator,/aiResult\.responseMode !== "grief_support"/);
   assert.match(orchestrator,/let suggestion = !allowsHistorySuggestions[\s\S]*\? null/);
+
+ const f=readOnlySuccessRouteFixture({answer:"I'm sorry for your loss.",replyType:'answer'});
+ try{const response=await f.send(productionDeathMessage),body=await response.json();assert.equal(response.status,200,JSON.stringify(f.state.errors));assert.equal(body.response.summary,"I'm sorry for your loss.");assert.equal(f.state.calls,2);assert.equal(f.state.reads,0);assert.deepEqual(body.response.applicationActions,[]);assert.equal(body.dataChanged,false);}finally{await f.release();}
 });
 
 test("typed loss proposals preserve uncertainty and hypothetical safety without granting mutation", () => {
@@ -139,12 +145,14 @@ test("the typed lifecycle proposal is server-bound and always requires confirmat
   assert.equal(action.explicitIntent,false);
 });
 
-test("a lifecycle plan cannot manufacture unrelated or destructive model actions", () => {
+test("a lifecycle plan cannot manufacture unrelated or destructive model actions", async () => {
   const {action,context}=typedLifecycle(productionDeathMessage);
   assert.equal(action.kind,"pet.mark_deceased");
   assert.throws(()=>bindLifecyclePlan({pendingDisposition:"keep",transition:{targetPetName:"Mani",toState:"deleted"},
     requiredSubjectState:null,authorizationQuote:productionDeathMessage},context),/lifecycle_plan/);
-  assert.match(route,/reasoning\.applicationActions\.filter\(action =>[\s\S]*!\["pet.update_profile", "memory.set_preference", "memory.forget_preference", "pet.mark_deceased", "pet.mark_active", "pet.archive"\]/);
+  assert.doesNotMatch(route,/prepareBoundLifecycleAction|continueLifecyclePlan/);
+
+ await assertPublicMutationDenied('Archive Cedar.','I archived Cedar.');
 });
 
 test("grief continuity is derived from persisted pending action state, not a follow-up phrase list", () => {
@@ -325,7 +333,7 @@ test("provider completion, credits, and idempotent replay are tied to durable as
   assert.match(route, /operationType: "ask\.submit\.persisted_answer_v2"/);
   assert.match(route, /completed response replayed after canonical identity validation/);
   assert.match(route, /user message reused/);
-  assert.match(route, /const persistedResponse = await persistAssistantAnswer/);
+  assert.match(route,/const result=await persistReadOnlyAnswer/);
   assert.match(route, /finalizeAiAdmissionAfterPersistence/);
   const { createAskAdmissionSettlement } = await import('../app/lib/ai/ask-admission-settlement.ts');
   const calls = [];
@@ -336,20 +344,18 @@ test("provider completion, credits, and idempotent replay are tied to durable as
       requestId: 'fixture', response: new Response(null, { status }), assessment: { outcome } });
   }
   assert.deepEqual(calls, ['ASK_ANSWER_NOT_PERSISTED', 'ASK_ANSWER_LIMITED', 'complete']);
-  assert.match(route, /if \(creditReserved\) \{[\s\S]{0,260}safeReleaseAiCredit/);
+  assert.match(route,/if\s*\(creditReserved\)\s*\{[\s\S]{0,260}safeReleaseAiCredit/);
   assert.match(route, /completeAskConversationTurn\(\{[\s\S]{0,500}requestId,/);
+
+ const f=readOnlySuccessRouteFixture({answer:'Two plus three is five.',replyType:'answer'});
+ try{const response=await f.send("What's 2+3?"),body=await response.json();assert.equal(response.status,200,JSON.stringify(f.state.errors));assert.equal(body.success,true);assert.equal(f.state.calls,2);assert.equal(f.state.credit.status,'completed');assert.equal(f.state.events.filter(e=>e==='credit:complete').length,1);assert.ok(f.state.events.indexOf('assistant:terminal')<f.state.events.indexOf('credit:complete'));assert.equal(f.state.persistedAnswer.response_data.turn.finalStage,'COMPLETED');}finally{await f.release();}
 });
 
-test("typed lifecycle stays deterministic after Brain and cannot persist extracted death claims", () => {
-  const dispatch=route.indexOf("await continueLifecyclePlan(");
-  assert.ok(dispatch>route.indexOf("await interpretAskQuestion("));
-  assert.ok(dispatch<route.indexOf("await generateAskHistoryAnswer("));
-  assert.match(route,/deterministicApplicationActions = lifecycleOutcome.actions/);
-  assert.match(route,/deferHighImpactLifecyclePersistence = true/);
-  assert.doesNotMatch(route,/resolvePendingLifecycleTurn|resolveDurableLifecycleCorrection|requiresLivingPet/);
-  assert.doesNotMatch(route,/await persistIntelligenceLearnings\(/);
-  assert.match(lifecycleTurn,/plan.requiredSubjectState/);
-  assert.match(lifecycleTurn,/result.action.status !== "cancelled"/);
+test("public Ask cannot persist extracted death claims; private lifecycle authority remains bound", async()=>{
+ assert.match(route,/runReadOnlyAsk\(/);assert.doesNotMatch(route,/continueLifecyclePlan|resolvePendingLifecycleTurn|resolveDurableLifecycleCorrection|requiresLivingPet/);
+ assert.doesNotMatch(route,/await persistIntelligenceLearnings\(/);
+ assert.match(lifecycleTurn,/plan.requiredSubjectState/);assert.match(lifecycleTurn,/result.action.status !== "cancelled"/);
+ await assertPublicMutationDenied('Set Cedar to deceased.','I marked Cedar as deceased.');
 });
 
 test("owner-facing lifecycle copy avoids internal product terminology", () => {
@@ -359,34 +365,28 @@ test("owner-facing lifecycle copy avoids internal product terminology", () => {
   assert.match(buildGriefResponseFallback("Mani"), /history can stay/i);
 });
 
-test("typed correction cancellation uses the existing capability and source-bound receipt", () => {
+test("public correction cancellation is denied while private receipts remain source bound", async () => {
   const capabilities=readFileSync(new URL("../app/lib/application-actions/capabilities.ts",import.meta.url),"utf8");
-  assert.match(route,/cancel: cancelActionCapability/);
+  assert.doesNotMatch(route,/cancelActionCapability/);
   assert.match(lifecycleTurn,/correctionSourceMessageId: plan.authorization.sourceMessageId/);
   assert.match(lifecycleTurn,/rebindLifecyclePlan/);
   assert.match(capabilities,/mode: "cancel"/);
   assert.match(capabilities,/p_correction_source_message_id/);
-  assert.match(actionRoute,/executeActionCapability/);
+  assert.match(actionRoute,/getAuthenticatedApiContext/);assert.match(actionRoute,/status:\s*404/);assert.doesNotMatch(actionRoute,/executeActionCapability/);
+
+ await assertPublicMutationDenied('Cancel the pending correction.','I cancelled the pending correction.');
 });
 
-test("typed lifecycle dispatch uses one Brain before answer generation", () => {
-  const start=route.indexOf("const lifecycleOutcome = await continueLifecyclePlan(");
-  const end=route.indexOf("// A validated ticket precedes",start);
-  const branch=route.slice(start,end);
-  assert.ok(start>route.indexOf("await interpretAskQuestion("));
-  assert.ok(end>start&&end<route.indexOf("await generateAskHistoryAnswer("));
-  assert.match(branch,/return lifecyclePlanOrchestration\(lifecycleOutcome\)/);
-  assert.match(branch,/deferHighImpactLifecyclePersistence = true/);
-  for(const name of ["reserveAiCredit","extractTurnSubjectFrame","runFurviseIntelligence","resolveProviderIndependentLossSubject"])
-    assert.equal(branch.includes(name),false);
-  assert.match(route,/handledWithoutAi: orchestration.handledWithoutAi/);
+test("a stellar lifecycle question stays general conversation without a pet planner or private reads", async()=>{
+ const f=readOnlySuccessRouteFixture({answer:'Stars form from gas clouds, fuse lighter elements, and eventually leave remnants.',replyType:'answer'});
+ try{const response=await f.send('What does the lifecycle of a star look like?'),body=await response.json();assert.equal(response.status,200,JSON.stringify(f.state.errors));assert.equal(body.success,true);assert.equal(f.state.calls,2);assert.equal(f.state.reads,0);assert.deepEqual(f.wire,f.admitted);assert.deepEqual(f.wire[0].tools.map(t=>t.name).sort(),['read_pet_profile','search_saved_records']);assert.deepEqual(body.response.applicationActions,[]);assert.equal(body.dataChanged,false);assert.ok(!JSON.stringify(f.wire).includes('ask-semantic-slots'));}finally{await f.release();}
 });
 
-test("confirmation actions remain outside Ask credit accounting and never auto-delete a pet", () => {
+test("public confirmation stays closed and private locking, service-role and confirmation guards remain", () => {
   assert.doesNotMatch(actionRoute, /reserveAiCredit|completeAiCredit|runAdmittedAiOperation|admitAiOperation/);
-  assert.match(actionRoute, /decision/);
-  assert.match(actionRoute, /executeActionCapability/);
-  assert.match(actionRoute, /actionId/);
+  assert.match(actionRoute,/getAuthenticatedApiContext/);
+  assert.match(actionRoute,/status:\s*404/);
+  assert.doesNotMatch(actionRoute,/executeActionCapability|\.rpc\(|\.from\(/);
   const migration = readFileSync(new URL("../supabase/migrations/20260820070956_server_authored_ask_action_capabilities.sql", import.meta.url), "utf8");
   assert.match(migration, /for update/);
   assert.match(migration, /status <> 'pending'/);

@@ -1,36 +1,31 @@
-import { directFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
-import {readFileSync} from "node:fs";
-import {fixture,id} from "./helpers/ask-staged-route-fixture.mjs";
-import {prepareAskInterpretationRequest} from "../app/lib/intelligence/interpret-ask.ts";
-import {admitAiOperation} from "../app/lib/ai/usage-guard/admission.ts";
-import {MemoryAiGuardTestStore} from "../app/lib/ai/usage-guard/memory-test-store.ts";
-const seed=JSON.parse(readFileSync(new URL("./fixtures/ask-catalog-proof-seed.json",import.meta.url),"utf8"));
-const intent={ownerScope:null,...JSON.parse(seed.sent[1].input).intent},question=intent.instructionQuote;
-test("actual offline route publishes and persists the source-window omission notice",async t=>{
- t.mock.method(console,"info",()=>{});t.mock.method(console,"warn",()=>{});
- let prepared,admission,providerFailure,calls=0;
- const f=fixture({creditLedger:true,fullCatalogPipeline:true,
-  admitAiOperation:async input=>admission=await admitAiOperation({...input,store:new MemoryAiGuardTestStore(),env:{NODE_ENV:"test",FURVISE_AI_DAILY_CALL_LIMIT:"20",FURVISE_AI_DAILY_COST_LIMIT_USD:"10",FURVISE_RATE_LIMIT_HASH_SECRET:"offline-route-source-window-test-secret-1234567890"}}),
-  onContext:ctx=>{prepared=prepareAskInterpretationRequest(ctx,"gpt-5.4-mini");},
-  providerCreate:async request=>{try{
-   calls++;assert.ok(calls<=1);const input=JSON.parse(request.input);
-   assert.equal(input.userSources.find(s=>s.id===input.currentSourceId).text,question);
-   assert.ok(input.sourceWindow.omittedPriorUserTurns>0);
-   return {status:"completed",output_text:JSON.stringify(directFixturePlan(prepared.transport).encode({request:intent})),usage:{input_tokens:100,output_tokens:20,total_tokens:120}};
-  }catch(error){providerFailure=error;throw error;}}});
- for(let i=0;i<4;i++)f.rows.dog_profiles.push({...f.rows.dog_profiles[0],id:id(12+i),name:["Aster","Birch","Dahlia","Elm"][i]});
- for(let i=0;i<39;i++)f.rows.ask_conversation_messages.push({id:id(100+i),user_id:id(1),conversation_id:id(21),role:"user",user_text:("Prior message "+i+". "+"Whole prior user text. ".repeat(80)).slice(0,1200),created_at:"2026-09-19T12:"+String(i).padStart(2,"0")+":00Z"});
- const before=structuredClone(f.rows.pet_care_entries);
+import {readOnlySuccessRouteFixture as fixture} from "./helpers/ask-read-only-success-route.mjs";
+const known="Some earlier conversation text is outside Ask’s current context window. Repeat any older details you want me to use.";
+const uncertain="Earlier conversation context may be incomplete. Repeat any older details you want me to use.";
+for(const [name,context,notice] of [
+ ["whole-message omissions",{dialogue:Array.from({length:20},(_,i)=>({role:"user",text:"Earlier message "+i}))},known],
+ ["retained-text clipping",{dialogue:[{role:"user",text:"x".repeat(2500)+"TAIL_NOT_INCLUDED"}]},known],
+ ["upstream context uncertainty",{dialogue:[],dialogueMayBeIncomplete:true},uncertain],
+ ["complete context",{dialogue:[{role:"user",text:"We discussed prime numbers."}]},null]
+])test("actual public route persists honest conversation coverage: "+name,async t=>{
+ t.mock.method(console,"info",()=>{});
+ const question="Explain a prime number.",f=fixture({context,answer:"A prime number has exactly two positive divisors.",replyType:"answer"});
  try{
   const response=await f.send(question),body=await response.json();
-  if(providerFailure)throw providerFailure;
-  assert.equal(response.status,200,JSON.stringify(f.state.errors.map(x=>({stage:x.stage,error:x.error?.message,diagnostics:x.error?.diagnostics}))));
-  const notice=prepared.context.planningSourceWindow.disclosure;
-  assert.ok(notice);assert.ok(body.response.missingUsefulDetails.includes(notice));
-  const persisted=f.rows.ask_conversation_messages.find(row=>row.role==="furvise");
-  assert.ok(persisted.response_data.missingUsefulDetails.includes(notice));
-  assert.deepEqual(f.rows.pet_care_entries,before);assert.equal(calls,1);assert.equal(f.state.permits?.length||0,0);
- }finally{if(admission)await admission.release();}
+  assert.equal(response.status,200,JSON.stringify(f.state.errors));assert.equal(f.state.calls,2);assert.deepEqual(f.wire,f.admitted);assert.equal(f.state.reads,0);
+  const first=JSON.parse(f.wire[0].input[0].content),second=JSON.parse(f.wire[1].input[0].content).context;
+  for(const input of [first,second]){assert.equal(input.question,question);assert.ok(JSON.stringify(input.dialogue).length<=8000);assert.equal(input.dialogueCoverage.partial,!!notice);}
+  assert.ok(!JSON.stringify(f.wire).includes("TAIL_NOT_INCLUDED"));
+  const stored=f.state.persistedAnswer.response_data;
+  if(notice){
+   assert.ok(body.response.missingUsefulDetails.includes(notice));assert.ok(stored.missingUsefulDetails.includes(notice));
+   assert.ok(body.response.sections.some(s=>s.heading==="Conversation context"&&s.items.includes(notice)));
+   assert.deepEqual(stored.sections,body.response.sections);
+  }else assert.ok(!body.response.sections.some(s=>s.heading==="Conversation context"));
+  assert.equal(body.response.summary,"A prime number has exactly two positive divisors.");
+  assert.equal(body.turn.taskOutcome,"complete");assert.equal(body.creditsUsed,1);assert.deepEqual(f.state.credit,{status:"completed",disposition:"complete"});
+  assert.ok(f.state.events.indexOf("assistant:terminal")<f.state.events.indexOf("credit:complete"));
+  assert.equal(body.dataChanged,false);assert.deepEqual(body.response.applicationActions,[]);assert.ok(f.state.tables.every(table=>table==="dog_profiles"));
+ }finally{await f.release();}
 });

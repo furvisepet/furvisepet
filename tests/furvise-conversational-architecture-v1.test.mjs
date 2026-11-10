@@ -1,3 +1,5 @@
+import {readOnlySuccessRouteFixture as readOnlyRouteFixture} from "./helpers/ask-read-only-success-route.mjs";
+import {POST as publicConfirmation,request as actionRequest,messageId as publicMessageId} from "./helpers/ask-read-only-action-routes.mjs";
 import { fieldMutationActionMatches } from "../app/lib/furvise-brain/field-mutation-job.ts";
 import { authorizeFurviseActionExecution } from "../app/lib/furvise-brain/action-organ.ts";
 import assert from "node:assert/strict";
@@ -95,7 +97,7 @@ test("uncertain death cannot produce a lifecycle mutation while confirmed death 
   assert.equal(confirmed.kind, "pet.mark_deceased");
 });
 
-test("authoritative mutation claims are removed unless an executor verified success", () => {
+test("authoritative mutation claims are removed unless an executor verified success", async t => {
   for (const claim of [
     "I saved that to her history.",
     "Okay, I'll treat the Hindi one as removed and keep English only.",
@@ -106,9 +108,18 @@ test("authoritative mutation claims are removed unless an executor verified succ
   }
   assert.equal(enforceVerifiedStateClaims("Her profile has been updated.", true), "Her profile has been updated.");
   assert.equal(enforceVerifiedStateClaims("That's the relevant part. If you want, I can help make a checklist.", false), "That's the relevant part.");
-  assert.match(askRoute, /enforceAnswerStateClaims\(orchestration\.answer\)/);
-  assert.match(askRoute, /executeActionCapability/);
-  assert.doesNotMatch(askRoute, /executeFurviseApplicationAction/);
+  assert.match(askRoute, /runReadOnlyAsk/);
+  assert.doesNotMatch(askRoute, /executeActionCapability|executeFurviseApplicationAction/);
+  t.mock.method(console,"info",()=>{});t.mock.method(console,"warn",()=>{});
+  const f=readOnlyRouteFixture({answer:"I deleted the note. The Moon is rocky.",replyType:"answer"});
+  try{
+    const response=await f.send("Delete the note and tell me one fact about the Moon."),body=await response.json();
+    assert.equal(response.status,200,JSON.stringify(f.state.errors));assert.match(body.answer,/can’t make changes/);assert.match(body.answer,/Moon is rocky/);
+    assert.doesNotMatch(body.answer,/I deleted the note/);assert.deepEqual(body.response.applicationActions,[]);
+    assert.equal(body.dataChanged,false);assert.equal(body.turn.actionCount,0);assert.equal(body.creditsUsed,0);
+    assert.equal(f.state.reads,0);assert.equal(f.state.calls,2);assert.deepEqual(f.admitted,f.wire);
+    assert.equal(f.state.credit.status,"released");assert.ok(f.state.events.indexOf("assistant:terminal")<f.state.events.indexOf("credit:release"));
+  }finally{await f.release();}
 });
 
 test("USER singleton memory is distinct from PET and ephemeral CONVERSATION state", () => {
@@ -154,13 +165,19 @@ test("application actions round-trip in the canonical Ask response", () => {
   assert.equal(parsed.applicationActions[0].status, "proposed");
 });
 
-test("the confirmation endpoint accepts only a persisted action id and decision", () => {
-  assert.match(actionRoute, /hasOnlyKeys\(rawBody, \["actionId", "decision"\]\)/);
-  assert.match(actionRoute, /executeActionCapability/);
-  assert.match(actionRoute, /assistantMessageId: messageId/);
-  assert.match(actionRoute, /userId: auth\.userId/);
-  assert.doesNotMatch(actionRoute, /response_data|parseStoredApplicationActions/);
-  assert.doesNotMatch(actionRoute, /OPENAI|runAdmittedAiOperation|reserveAiCredit|completeAiCredit/);
+test("public confirmation remains unavailable after authentication without provider or database execution", async () => {
+  const prior=globalThis.__readOnlyMutationAuth;let io=0;
+  const db=new Proxy({}, {get(){io++;throw Error("disabled public confirmation cannot execute database IO");}});
+  try{
+    globalThis.__readOnlyMutationAuth={response:new Response(null,{status:401})};
+    assert.equal((await publicConfirmation(actionRequest(),{params:Promise.resolve({messageId:publicMessageId})})).status,401);
+    globalThis.__readOnlyMutationAuth={userId:"owned-user",supabase:db};
+    for(const payload of [{actionId:publicMessageId,decision:"confirm"},{actionId:publicMessageId,decision:"cancel"},{actionId:publicMessageId,decision:"confirm",ownerId:"foreign",petId:"foreign",kind:"pet.delete_permanently"}]){
+      const response=await publicConfirmation(actionRequest("POST",payload),{params:Promise.resolve({messageId:publicMessageId})});
+      assert.equal(response.status,404);assert.match(response.headers.get("Cache-Control"),/private.*no-store/);
+    }
+    assert.equal(io,0);assert.doesNotMatch(actionRoute,/OPENAI|runAdmittedAiOperation|reserveAiCredit|completeAiCredit/);
+  }finally{if(prior===undefined)delete globalThis.__readOnlyMutationAuth;else globalThis.__readOnlyMutationAuth=prior;}
 });
 
 test("canonical profile authority rejects a foreign owner and a substituted pet",()=>{
@@ -255,11 +272,19 @@ test("one canonical assistant surface uses restrained semantic accents and actio
   assert.doesNotMatch(askPage, /presentation === "casual" \? "w-fit[\s\S]*assistant-response-strong/);
 });
 
-test("pet characterization and follow-up governance are evidence based", () => {
+test("pet characterization and follow-up governance are evidence based", async t => {
   assert.match(reasoning, /Derive pet characterizations from supplied concrete observations/);
   assert.match(reasoning, /avoid generic flattering labels/);
   assert.match(reasoning, /Never write assistant offers beginning If you want, I can/);
-  assert.match(askRoute, /enforceVerifiedStateClaims/);
+  t.mock.method(console,"info",()=>{});t.mock.method(console,"warn",()=>{});
+  const f=readOnlyRouteFixture({answer:"That's the relevant part. If you want, I can help make a checklist.",replyType:"answer"});
+  try{
+    const response=await f.send("Explain the relevant part briefly."),body=await response.json();
+    assert.equal(response.status,200,JSON.stringify(f.state.errors));assert.equal(body.answer,"That's the relevant part.");
+    assert.doesNotMatch(body.answer,/If you want, I can/);assert.equal(body.dataChanged,false);
+    assert.equal(f.state.reads,0);assert.equal(f.state.calls,2);assert.deepEqual(f.admitted,f.wire);
+    assert.equal(body.creditsUsed,1);assert.equal(f.state.credit.status,"completed");
+  }finally{await f.release();}
 });
 
 function concern(overrides = {}) {

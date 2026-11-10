@@ -14,9 +14,8 @@ function load(relative) {
   }).outputText, { exports, require: name => name.startsWith('.') ? load(new URL(name, url).href) : require(name) });
   return exports;
 }
-const { assessTaskExecution, typedTaskRequirements } = load('../app/lib/intelligence/task-execution-contract.ts');
+const { assessTaskExecution } = load('../app/lib/intelligence/task-execution-contract.ts');
 const { createAnswerAssessment } = load('../app/lib/intelligence/answer-assessment.ts');
-const { finalizeAskPostReview } = load('../app/lib/furvise-brain/post-review-finalizer.ts');
 const checks = { structuralValidity: 'passed', evidenceSupport: 'passed', subjectDateCorrectness: 'passed', calculationCorrectness: 'not_applicable', taskCompletion: 'passed' };
 const assessment = (overrides = {}) => createAnswerAssessment({ checks: { ...checks, ...overrides }, body: {}, evidence: [] });
 const base = () => ({ assessment: assessment(), completion: [{ index: 0, status: 'answered' }], responseMode: 'answer', actions: [], careWriteRequired: false, careReceipt: { status: 'skipped', careEntryIds: [] } });
@@ -83,46 +82,11 @@ test('unfinished assistant persistence is presented as incomplete without rewrit
   assert.match(result.persistenceWarning, /not confirmed/);
 });
 
-for (const status of ['succeeded', 'failed']) test(`route settles only after capability execution: ${status}`, async () => {
-  const calls = [];
-  const trace = {};
-  const lifecycle = Object.fromEntries(['transition', 'actions', 'credit', 'settlement', 'optionalFailure'].map(key => [key, () => lifecycle]));
-  lifecycle.outcomes = (answer, mutation) => { trace.taskOutcome = mutation === 'failed' ? 'failed' : 'complete'; return lifecycle; };
-  lifecycle.snapshot = () => trace;
-  const proposed = { ...action('proposed'), id: 'capability', kind: 'pet.update' };
-  const receipt = { status: 'skipped', careEntryIds: [] };
-  const fn = routeFunction('persistAssistantAnswer', {
-    finalizeAskPostReview,
-    assessTaskExecution, typedTaskRequirements, PUBLIC_V1_CAPABILITIES: { askMutations: true },
-    prepareAskMemoryAuthorityLearnings: () => [], semanticTraceForStorage: () => null,
-    attachEpisodeReferences: response => response,
-    completeAskConversationTurn: async () => { calls.push('answer'); return { data: [{ assistant_message_id: 'answer' }] }; },
-    validAssistantCompletionRow: rows => rows[0], logAskStage: () => {}, logAskServerError: () => {},
-    parseStoredApplicationActions: actions => actions || [],
-    createActionCapabilities: async ({ actions }) => actions,
-    updateAskAssistantResponse: async () => ({ data: true }),
-    shouldAutoExecuteAction: () => true,
-    runOptionalAskSubsystem: async ({ operation }) => operation(),
-    isSecurityUuid: () => true,
-    executeActionCapability: async () => { calls.push('execute'); return { action: { ...proposed, status }, changed: status === 'succeeded' }; },
-    emitOperationalEvent: () => {}, resolveAutomaticCareHistoryPresentation: () => receipt,
-    persistCanonicalSuggestions: async () => [], createCanonicalCareAuthorityClient: () => ({}),
-    isExplicitCareHistorySaveRequest: () => false,
-    safeReleaseAiCredit: async () => { calls.push('release'); return true; },
-    setAiCreditDisposition: async ({ disposition }) => calls.push(disposition),
-    completeAiCredit: async () => calls.push('charged'),
-    getRemainingAiCredits: async () => ({}),
-    finalizePersistedAskAnswer: async () => { calls.push('finalize'); return null; },
-    didPersistEffectiveAskState: () => false, revalidateAskStateViews: () => {}, emitAskTurnTrace: () => {},
-    buildSuccessfulAskResponse: input => input,
-  });
-  const result = await fn({
-    authorizedPetIds: ['pet'], creditRequestId: 'attempt', creditReserved: true,
-    intelligenceResult: { governance: {}, executionPlan: { learnings: [], careActions: [], semanticEvents: [], noteBatch: [] }, reasoning: { responseMode: 'answer' }, answerValidation: { assessment: assessment(), completion: [{ index: 0, status: 'answered' }] } },
-    preparedRequest: { conversationId: 'conversation', userMessageId: 'user-message' },
-    response: { directAnswer: 'Reviewed answer', applicationActions: [proposed] },
-    sourceMessage: 'An arbitrary supported request', usage: {}, turnLifecycle: lifecycle,
-  });
-  assert.deepEqual(calls, status === 'succeeded' ? ['answer', 'execute', 'complete', 'charged', 'finalize'] : ['answer', 'execute', 'release', 'finalize']);
-  assert.equal(result.creditsUsed, status === 'succeeded' ? 1 : 0);
+for (const status of ['succeeded', 'failed']) test(`public actions cannot execute or charge a claimed capability: ${status}`, async () => {
+ const {POST,messageId,request}=await import('./helpers/ask-read-only-action-routes.mjs');
+ let io=0;globalThis.__readOnlyMutationAuth={userId:'owner',supabase:new Proxy({},{get(){io++;throw Error('disabled public action attempted IO');}})};
+ const response=await POST(request('POST',{decision:'confirm',status,receipt:{id:'claimed'},kind:'pet.update',ownerId:'foreign'}),{params:Promise.resolve({messageId})});
+ assert.equal(response.status,404);assert.deepEqual(await response.json(),{error:'That action is no longer available.'});
+ assert.equal(response.headers.get('cache-control'),'private, no-store');
+ assert.equal(io,0,'no capability execution, history query or credit settlement is permitted');
 });

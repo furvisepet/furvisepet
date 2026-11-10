@@ -21,7 +21,7 @@ test('whole question requires an owned, unambiguous pet and valid calendar date'
   assert.equal(parseRoutineUtterance("What did Cat’s September 15 care note say about his routine?", special, [special], id(1)), null);
 });
 
-test('authenticated Ask route clarifies before provider or note reads', () => {
-  const result = spawnSync(process.execPath, ['--experimental-transform-types', fileURLToPath(new URL('./helpers/routine-year-route-check.mjs', import.meta.url))], { encoding: 'utf8', timeout: 30000 });
+test('authenticated read-only Ask clarifies before history reads within two accounted calls', () => {
+  const result = spawnSync(process.execPath, ['scripts/run-tests.mjs', '--test-concurrency=1', fileURLToPath(new URL('./helpers/routine-year-route-check.mjs', import.meta.url))], { env: {...process.env, NODE_TEST_CONTEXT: undefined}, encoding: 'utf8', timeout: 30000 });
   assert.equal(result.status, 0, result.stdout + result.stderr);
 });

@@ -40,13 +40,14 @@ test("casual working-memory follow-up reaches the same Brain interpreter", async
   const result = await interpretAskQuestion({
     context,
     model: "test-model",
-    client: { responses: { create: async () => { calls++; return reply(readProposal({mode:'conversation',scope:'none',petNames:[],operation:'general',quantity:null,evidenceBasis:'general',readTicket:null,question:source.text,referenceTurnIds:[source.id]})); } } },
+    client: { responses: { create: async () => { calls++; return reply(readProposal({mode:'conversation',scope:'none',petNames:[],operation:'general',selection:'summary',quantity:null,evidenceBasis:'supplied_context',premiseQuotes:[source.text],draftAnswer:'That sounds like a funny moment.',readTicket:null,question:source.text,referenceTurnIds:[source.id]})); } } },
   });
   assert.equal(calls, 1);
   assert.equal(result.conversationOnly, true);
   assert.equal(result.referenceQuestion, source.text);
   assert.deepEqual(result.request.referenceTurnIds, [source.id]);
   assert.equal(result.request.mode, "conversation");
+  assert.equal(result.request.evidenceBasis, "supplied_context");
   assert.deepEqual(result.petIds, []);
 });
 

@@ -59,7 +59,7 @@ for(const envelope of [
  currentTurn:{id:"synthetic-turn",role:"user",text:"Offline envelope diagnostic."},conversationTurns:[],timeZone:"UTC"};
  let calls=0;const events=[];
  await assert.rejects(interpretAskQuestion({context,model:"gpt-5.4-mini",onProviderEvent:e=>events.push(e),client:{responses:{create:async()=>{calls++;return envelope;}}}}),
- e=>{assert.equal(e.diagnostics.providerErrorCode,"ASK_INTERPRETATION_INCOMPLETE");assert.deepEqual(e.diagnostics.providerEnvelope,diagnostic(envelope));assert.equal(e.diagnostics.parsingAttempted,false);return true;});
+ e=>{assert.ok(e.diagnostics,String(e.stack));assert.equal(e.diagnostics.providerErrorCode,"ASK_INTERPRETATION_INCOMPLETE");assert.deepEqual(e.diagnostics.providerEnvelope,diagnostic(envelope));assert.equal(e.diagnostics.parsingAttempted,false);return true;});
  assert.equal(calls,1);assert.deepEqual(events.at(-1).providerEnvelope,diagnostic(envelope));
 });
 test("route includes the safe projection in its existing operational event",()=>{
@@ -67,17 +67,18 @@ test("route includes the safe projection in its existing operational event",()=>
  assert.match(source,/providerEnvelope: event\.providerEnvelope \?\? null/);
 });
 
-test("actual Ask route emits the envelope on a single failed interpretation without secret payload",async t=>{
- const {engineFixture}=await import("./helpers/ask-route-ordering.mjs");
+test("actual read-only Ask route emits the envelope on one failed SDK call without private payload",async t=>{
+ const {readOnlyFailureRouteFixture}=await import("./helpers/ask-read-only-failure-route.mjs");
  const logs=[];t.mock.method(console,"info",()=>{});t.mock.method(console,"warn",(...args)=>logs.push(args));t.mock.method(console,"error",()=>{});
  const marker="PRIVATE_PROVIDER_TEXT_SHOULD_NOT_APPEAR";
  let calls=0;
- const f=engineFixture({creditLedger:true,realProviderLog:true,providerCreate:async()=>{
+ const nativeClient={responses:{create:async()=>{
   calls++;return {status:"incomplete",incomplete_details:{reason:null},output:[{type:"reasoning",status:"incomplete",summary:[{type:"summary_text",text:marker}]}],
-   usage:{input_tokens:0,output_tokens:0},id:marker};
- }});
+   usage:{input_tokens:5,output_tokens:0}};
+ }}};
+ const f=readOnlyFailureRouteFixture(null,undefined,{nativeClient,realProviderLog:true});
  const response=await f.send();
- assert.equal(response.status,503);assert.equal(calls,1);
+ assert.equal(response.status,503);assert.equal(calls,1);assert.equal(f.state.calls,1);assert.equal(f.state.reads,0);
  const event=logs.find(x=>x[0]==="[Ask provider] stage failed")?.[1];
  assert.ok(event?.providerEnvelope);
  assert.equal(event.providerEnvelope.responseStatus,"incomplete");
@@ -85,6 +86,7 @@ test("actual Ask route emits the envelope on a single failed interpretation with
  assert.deepEqual(event.providerEnvelope.outputItems,[{type:"reasoning",status:"incomplete"}]);
  assert.equal(event.providerEnvelope.hasUsage,true);
  assert.ok(!JSON.stringify(logs).includes(marker));
- assert.equal(f.rows.ask_action_capabilities.length,0);
+ assert.deepEqual([...new Set(f.state.tables)],["dog_profiles"]);
  assert.deepEqual(f.state.credit,{status:"released",disposition:"release"});
+ assert.equal(f.state.traces.at(-1).providerCallCount,1);
 });

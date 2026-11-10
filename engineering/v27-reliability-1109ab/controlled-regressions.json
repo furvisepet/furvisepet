@@ -1,0 +1,68 @@
+{
+  "dialogueRed": {
+    "file": "reliability-1109ab-dialogue-red.log",
+    "counts": {
+      "tests": "9",
+      "pass": "0",
+      "fail": "9",
+      "cancelled": "0",
+      "skipped": "0"
+    },
+    "sha256": "e8b6a750c46e2de87a88b188f6c99f43fe62d9e10ba4cf3b0e524b698a7a8d73"
+  },
+  "dialogueIntermediate": {
+    "file": "reliability-1109ab-dialogue-green.log",
+    "counts": {
+      "tests": "76",
+      "pass": "75",
+      "fail": "1",
+      "cancelled": "0",
+      "skipped": "0"
+    },
+    "sha256": "c8de04c989c72409cd088e4186cbe93b544a1a75c0847f217f4ecdd897d3de72"
+  },
+  "nativeRouteGreen": {
+    "file": "reliability-1109ab-active-route-green.log",
+    "counts": {
+      "tests": "27",
+      "pass": "27",
+      "fail": "0",
+      "cancelled": "0",
+      "skipped": "0"
+    },
+    "sha256": "d453c76fdddb783ba1aa9f1d92b7fbf2160844c9da575ce1698e2bc2f0113bf7"
+  },
+  "activeRouteRed": {
+    "file": "reliability-1109ab-active-route-red.log",
+    "counts": {
+      "tests": "4",
+      "pass": "1",
+      "fail": "3",
+      "cancelled": "0",
+      "skipped": "0"
+    },
+    "sha256": "2134a9d18c2872973c6b6dfc5e6d8481523570dbca5bf9e13e0ac5818b457264"
+  },
+  "publicBoundaryRed": {
+    "file": "reliability-1109ab-public-boundary-red.log",
+    "counts": {
+      "tests": "19",
+      "pass": "16",
+      "fail": "3",
+      "cancelled": "0",
+      "skipped": "0"
+    },
+    "sha256": "c4c622361ea8d4d8209e2bd7fe5c2dc95b53e6d6d5f28c7cfdabc08633d55e2a"
+  },
+  "publicBoundaryGreen": {
+    "file": "reliability-1109ab-public-boundary-green.log",
+    "counts": {
+      "tests": "38",
+      "pass": "38",
+      "fail": "0",
+      "cancelled": "0",
+      "skipped": "0"
+    },
+    "sha256": "80c6008e4726371b5d7f921a0f88782d2aaf08ebaf1b796a6feede6f48304d0f"
+  }
+}

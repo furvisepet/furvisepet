@@ -34,7 +34,7 @@ import { historyNarrativeSchema, type HistoryNarrative } from "../intelligence/h
 import OpenAI from "openai";
 import { safeAskProviderErrorDiagnostic, type AskProviderErrorDiagnostic } from "./ask-provider-error-diagnostic.ts";
 import { AiAdmissionError } from "./usage-guard/errors.ts";
-import { boundedProviderTimeout, executeAdmittedResponsesRequest } from "./usage-guard/provider-call-budget.ts";
+import { boundedProviderTimeout, executeAdmittedResponsesRequest, featureOutputLimit } from "./usage-guard/provider-call-budget.ts";
 import type { CareEntryRow, DogMemoryRow, DogProductFeedbackRow, DogProfileRow } from "../supabase.ts";
 import {
   evaluateAskSafetyContext,
@@ -1488,7 +1488,7 @@ export function buildAskProviderRequest(promptContext: object) {
     + "\nUse current USER assertions and supplied premises only. No stored facts are available. Never infer a saved fact, write success or prior record from dialogue. historyNarrative must be null and relevantContextIds must be empty.";
   const schema = conversationOnly ? conversationAnswerSchema(askUnifiedJsonSchema.properties) : governedTurnAnswerSchema(askUnifiedJsonSchema.properties);
   if (!conversationOnly) Object.assign(schema.properties, {historyNarrative:{type:"null"},relevantContextIds:{type:"array",maxItems:0,items:{type:"string"}}});
-  return {max_output_tokens:ASK_MAX_OUTPUT_TOKENS, ...(conversationOnly ? {reasoning:{effort:"medium"}} : {}), instructions:requestInstructions,
+  return {max_output_tokens:featureOutputLimit(ASK_MAX_OUTPUT_TOKENS), ...(conversationOnly ? {reasoning:{effort:"medium"}} : {}), instructions:requestInstructions,
     input:JSON.stringify(languageProviderContext(promptContext)),
     text:{format:{type:"json_schema",name:"furvise_ask_response",strict:true,schema}}};
 }

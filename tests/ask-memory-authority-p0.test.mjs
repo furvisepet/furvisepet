@@ -19,7 +19,8 @@ test("legacy Ask intelligence persistence is no longer a client authority", () =
 test("retired prose writer has no RPC authority; historical lease contract remains explicit",()=>{
  assert.doesNotMatch(persistence,/\.rpc\(|createOperationsAdminClient|persist_furvise_ask_intelligence/);
  assert.doesNotMatch(route,/authorizedLearnings: prepareAskMemoryAuthorityLearnings|persistFurviseIntelligence/);
- assert.match(route,/persistCanonicalSuggestions/);
+ assert.match(route,/runReadOnlyAsk/);
+ assert.doesNotMatch(route,/persistCanonicalSuggestions|prepareAppendTurn|executeActionCapability/);
   assert.match(migration, /Opaque sb_secret keys are authorized by PostgREST as the service_role/);
   assert.doesNotMatch(migration, /request\.jwt\.claim\.role/);
   assert.match(migration, /operation_row\.operation_type = 'ask\.submit\.persisted_answer_v2'/);

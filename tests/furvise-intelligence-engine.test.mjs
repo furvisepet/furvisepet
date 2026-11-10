@@ -46,11 +46,21 @@ function understanding(overrides = {}) {
   };
 }
 
-test("Ask builds current context server-side and verifies both user and pet ownership", () => {
-  assert.match(route, /buildFurviseContext\(\{/);
-  assert.match(retrieval, /from\("dog_profiles"\)[\s\S]*eq\("id", petId\)\.eq\("user_id", userId\)/);
-  assert.match(retrieval, /from\("pet_care_entries"\)[\s\S]*eq\("pet_profile_id", petId\)\.eq\("user_id", userId\)/);
-  assert.doesNotMatch(route, /body\?\.(?:profile|careEntries|memories)/);
+test("public Ask binds server-owned context and rejects another pet's source before answer generation",async()=>{
+ assert.match(route,/loadReadOnlyContext\(\s*supabase\s*,\s*userId\s*,\s*petId/);
+ assert.match(route,/runReadOnlyAsk\(\{\s*ownerId:\s*userId,\s*selectedPetId:\s*petId,\s*question[,}]/);
+ const data=read("app/lib/ask-read-only/data.ts");
+ assert.match(data,/\.eq\("user_id",ownerId\)\.eq\("id",request\.pet\.id\)/);
+ assert.match(data,/\.eq\("user_id",ownerId\)\.eq\("pet_profile_id",request\.pet\.id\)/);
+ // Retained shared retrieval remains owner and pet scoped too.
+ assert.match(retrieval,/from\("dog_profiles"\)[\s\S]*eq\("id", petId\)\.eq\("user_id", userId\)/);
+ assert.match(retrieval,/from\("pet_care_entries"\)[\s\S]*eq\("pet_profile_id", petId\)\.eq\("user_id", userId\)/);
+ assert.doesNotMatch(route,/body\?\.(?:profile|careEntries|memories)/);
+ const {readOnlyFailureRouteFixture,note,selection,id}=await import("./helpers/ask-read-only-failure-route.mjs");
+ const f=readOnlyFailureRouteFixture(async()=>selection,[{...note,petId:id(99)}]);
+ const response=await f.send();assert.equal(response.status,503);
+ assert.equal(f.state.calls,1);assert.equal(f.state.reads,1);assert.equal(f.state.credit.status,"released");
+ assert.ok(f.state.errors.some(e=>String(e.error).includes("NOT_AUTHORIZED")));
 });
 
 test("live retrieval is bounded and includes profile, care, concern, memory, and conversation sources", () => {
@@ -190,9 +200,11 @@ test("the persistence RPC is transactional, ownership-scoped, and preserves the 
   assert.match(migration, /user_id = auth\.uid\(\)/);
 });
 
-test("valid answers survive nonfatal learning failures and normal credit counters are hidden", () => {
+test("public read-only answers use durable publication and keep normal credit counters hidden", () => {
   assert.doesNotMatch(route, /learning_persistence_failed|persistFurviseIntelligence/);
-  assert.match(route, /finalizeAskPostReview/);
+  assert.match(route,/buildReadOnlyPublication/);
+  assert.match(route,/persistReadOnlyAnswer/);
+  assert.doesNotMatch(route,/prepareAppendTurn|executeActionCapability/);
   assert.match(route, /completeAiCredit/);
   assert.match(usageNotice, /if \(usage\.remaining === 0\)/);
   assert.doesNotMatch(usageNotice, /credits? left this month/i);

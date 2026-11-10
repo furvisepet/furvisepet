@@ -1,0 +1,204 @@
+{
+  "sha": "3d4901f816b0de7817701f311c2ad6771a810f55",
+  "runId": 42538877041,
+  "status": "completed",
+  "conclusion": "failure",
+  "jobs": [
+    {
+      "id": 128909165451,
+      "name": "ask-database-contract",
+      "status": "completed",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "name": "Check out repository",
+          "conclusion": "success"
+        },
+        {
+          "name": "Use repository Node version",
+          "conclusion": "success"
+        },
+        {
+          "name": "Install isolated PostgreSQL test engine",
+          "conclusion": "success"
+        },
+        {
+          "name": "Verify task persistence and credit-related completion boundaries",
+          "conclusion": "success"
+        },
+        {
+          "name": "Verify continuation against repository schema and triggers",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Use repository Node version",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Check out repository",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ],
+      "log": "candidate-3d49-ask-database-contract.log",
+      "logBytes": 13911,
+      "logSha256": "78fe047f13000e5796caf66bddb0d096c054af02bbf07e76df7431515747c42e",
+      "counts": {}
+    },
+    {
+      "id": 128909165729,
+      "name": "verify",
+      "status": "completed",
+      "conclusion": "failure",
+      "steps": [
+        {
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "name": "Check out repository",
+          "conclusion": "success"
+        },
+        {
+          "name": "Use repository Node version",
+          "conclusion": "success"
+        },
+        {
+          "name": "Install locked dependencies",
+          "conclusion": "success"
+        },
+        {
+          "name": "Lint",
+          "conclusion": "success"
+        },
+        {
+          "name": "TypeScript",
+          "conclusion": "success"
+        },
+        {
+          "name": "Focused security tests",
+          "conclusion": "success"
+        },
+        {
+          "name": "Full tests",
+          "conclusion": "failure"
+        },
+        {
+          "name": "Production dependency audit",
+          "conclusion": "success"
+        },
+        {
+          "name": "Production build",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Use repository Node version",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Post Check out repository",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ],
+      "log": "candidate-3d49-verify.log",
+      "logBytes": 7256449,
+      "logSha256": "72dc68d389bfd611e50fdb737c8103c712089f195f3413a1ce97f502560ecf2d",
+      "counts": {
+        "tests": 6141,
+        "startLogLine": 31533,
+        "pass": 5869,
+        "fail": 271,
+        "cancelled": 0,
+        "skipped": 1
+      },
+      "countExtraction": "exact unindented timestamped reporter lines; largest complete suite block",
+      "allRootCountBlocks": [
+        {
+          "tests": 188,
+          "startLogLine": 636,
+          "pass": 188,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "tests": 1000,
+          "startLogLine": 8847,
+          "pass": 1000,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "tests": 6141,
+          "startLogLine": 31533,
+          "pass": 5869,
+          "fail": 271,
+          "cancelled": 0,
+          "skipped": 1
+        }
+      ]
+    },
+    {
+      "id": 128909165731,
+      "name": "ask-contract",
+      "status": "completed",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "name": "Check out repository",
+          "conclusion": "success"
+        },
+        {
+          "name": "Use repository Node version",
+          "conclusion": "success"
+        },
+        {
+          "name": "Install locked dependencies",
+          "conclusion": "success"
+        },
+        {
+          "name": "Read-only conversation, retrieval, citations and physical-call contracts",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Use repository Node version",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Check out repository",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ],
+      "log": "candidate-3d49-ask-contract.log",
+      "logBytes": 154067,
+      "logSha256": "f493f03ecbfc65cda1843edd9ebfa44c70af16848c276ce15f6f25b911df05ee",
+      "counts": {
+        "tests": "416",
+        "pass": "416",
+        "fail": "0",
+        "cancelled": "0",
+        "skipped": "0"
+      }
+    }
+  ]
+}

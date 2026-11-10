@@ -8,7 +8,7 @@ const env={NODE_ENV:'test',FURVISE_AI_DAILY_CALL_LIMIT:'20',FURVISE_AI_DAILY_COS
 const usage={input_tokens:100,output_tokens:30};
 const pet={id:'pet',user_id:'owner',name:'Maple',species:'dog'};
 function context(text,prior=[]){const turn={id:'current',role:'user',text,createdAt:'2026-09-20T12:00:00Z'};return {owner:{userId:'owner'},pet,eligiblePets:[pet],currentMessage:text,currentTurn:turn,conversationTurns:[...prior,turn],conversationId:'conversation',timeZone:'UTC'};}
-function request(text,patch={}){return {calculatePlan:null,storedRead:null,removeJob:null,stateTransitionJob:null,fieldMutationJob:null,lifecyclePlan:null,appendJob:null,readTicket:null,writeJob:null,task:null,temporalScope:null,mutationIntent:null,recordSelection:null,profileFields:[],projection:null,version:'ask-request.v2',mode:'conversation',question:text,requirements:[],evidenceNeeds:[],outputFormat:null,evidenceBasis:'general',premiseQuotes:[],excludedPetNames:[],referenceTurnIds:[],scope:'none',petNames:[],operation:'general',selection:'summary',quantity:null,topic:'general',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:null,...patch};}
+function request(text,patch={}){return {draftAnswer:'An offline model draft.',calculatePlan:null,storedRead:null,removeJob:null,stateTransitionJob:null,fieldMutationJob:null,lifecyclePlan:null,appendJob:null,readTicket:null,writeJob:null,task:null,temporalScope:null,mutationIntent:null,recordSelection:null,profileFields:[],projection:null,version:'ask-request.v2',mode:'conversation',question:text,requirements:[],evidenceNeeds:[],outputFormat:null,evidenceBasis:'general',premiseQuotes:[],excludedPetNames:[],referenceTurnIds:[],scope:'none',petNames:[],operation:'general',selection:'summary',quantity:null,topic:'general',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:null,...patch};}
 async function run(text, responses, prior=[]){
  const ctx=context(text,prior),prepared=prepareAskInterpretationRequest(ctx,'gpt-5.4-mini'),plan=directFixturePlan(prepared.transport);
  const good=plan.encode({request:request(text)});
@@ -18,7 +18,7 @@ async function run(text, responses, prior=[]){
  catch(error){return {error,calls,sent,plan};}
  finally{await admission.release();}
 }
-const bad=w=>{w.request.evidenceBasis='supplied_context';w.request.premiseQuotes=[];return w};
+const bad=w=>{w.request.evidenceContext.evidenceBasis='supplied_context';w.request.evidenceContext.premiseQuotes=[];return w};
 test('empty supplied premise triggers existing bounded transport repair and validates a general response',async()=>{
  const x=await run('Which planet has prominent rings?',[bad,w=>w]);
  assert.equal(x.calls,2);assert.ifError(x.error);assert.equal(x.result.request.evidenceBasis,'general');assert.equal(x.result.conversationOnly,true);assert.match(x.sent[1].input,/transportRepair/);
@@ -52,6 +52,6 @@ test('assistant-only invented premise cannot gain user authority',async()=>{
  assert.ok(x.error);assert.equal(x.result,undefined);assert.ok(x.calls<=2);
 });
 test('mixed mutation and empty supplied premise cannot be normalized into conversation',async()=>{
- const x=await run('Save this and explain it.',[w=>{w.request.mode='mixed';w.request.evidenceBasis='supplied_context';w.request.premiseQuotes=[];return w},w=>{w.request.mode='mixed';w.request.evidenceBasis='supplied_context';w.request.premiseQuotes=[];return w}]);
+ const x=await run('Save this and explain it.',[w=>{w.request.evidenceContext.mode='mixed';w.request.evidenceContext.evidenceBasis='supplied_context';w.request.evidenceContext.premiseQuotes=[];return w},w=>{w.request.evidenceContext.mode='mixed';w.request.evidenceContext.evidenceBasis='supplied_context';w.request.evidenceContext.premiseQuotes=[];return w}]);
  assert.ok(x.error);assert.equal(x.result,undefined);assert.ok(x.calls<=2);
 });

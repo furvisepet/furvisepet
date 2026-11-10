@@ -1,3 +1,4 @@
+import {assertPublicMutationDenied} from "./helpers/ask-public-mutation-boundary.mjs";
 import {stagedOperation,sourceFixtureDb} from './helpers/staged-operation-fixture.mjs';
 import {lifecycleUnitAuthority} from './helpers/lifecycle-unit-authority.mjs';
 import assert from "node:assert/strict";
@@ -142,7 +143,7 @@ test("Binder preserves typed intent with arbitrary wording and no semantic regex
 test("lifecycle mutation cannot share authority with an unrelated job or read",()=>{
  const ctx=context(),p=request(ctx,proposal(ctx,{to:"deceased"}));
  for(const change of [{readTicket:{}},{appendJob:{}},{writeJob:{}},{task:{}},{frame:{}},{requirements:["another fact"]},{mode:"mixed"}])
-  assert.throws(()=>validateAskRequest({...p,...change},ctx),/lifecycle_mixed/);
+  assert.throws(()=>validateAskRequest({...p,...change},ctx),Object.hasOwn(change,'readTicket')?/read_ticket_evidence_domain/:/lifecycle_mixed/);
 });
 test("provider sees no preloaded pending capability and lifecycle state is hydrated under its permit",async()=>{
  const ctx=context({actions:[pending()]}),p=request(ctx,proposal(ctx,{to:"deceased"}));
@@ -163,24 +164,26 @@ test("provider lifecycle variant excludes unrelated mutation and read jobs",()=>
  const encoded=JSON.stringify(lifecycle.properties.lifecyclePlan);
  for(const key of ['"petId"','"actionId"','"capabilityId"'])assert.equal(encoded.includes(key),false);
 });
-test("ordinary Ask route consumes typed lifecycle outcomes without a wording-based dispatch",()=>{
+test("public Ask cannot perform a lifecycle transition or dispatch a wording-based write",async()=>{
  const route=readFileSync(new URL("../app/api/ask/route.ts",import.meta.url),"utf8");
- assert.match(route,/continueLifecyclePlan\(\{ plan: interpretation\.request\?\.lifecyclePlan/);
- for(const name of ["resolvePendingLifecycleTurn","resolveDurableLifecycleCorrection","requiresLivingPet","reportsDeath","resolveProviderIndependentLossSubject","ensureConfirmedLossAction"])
+ assert.match(route,/runReadOnlyAsk\(/);
+ for(const name of ["continueLifecyclePlan","resolvePendingLifecycleTurn","resolveDurableLifecycleCorrection","requiresLivingPet","reportsDeath","resolveProviderIndependentLossSubject","ensureConfirmedLossAction"])
   assert.equal(route.includes(name),false,name);
- assert.ok(route.indexOf("continueLifecyclePlan({")<route.indexOf('const replaceJob = interpretation.request?.writeJob'));
- assert.match(route,/cancel: cancelActionCapability/);
+ assert.doesNotMatch(route,/await persistIntelligenceLearnings\(/);
+ await assertPublicMutationDenied("Mark Cedar as deceased.","I marked Cedar as deceased.");
 });
 
-test("full Binder preserves an active-subject requirement even for advice without a factual read",async()=>{
+test("general conversation cannot carry lifecycle authority; private subject conflict performs no action",async()=>{
  const ctx=context({status:"deceased"}),p={...request(ctx,proposal(ctx,{required:"active"})),
   mode:"conversation",evidenceBasis:"general",scope:"named",petNames:["Alpha"]};
- const interpreted=validateAskRequest(p,ctx),plan=interpreted.request.lifecyclePlan;
- assert.deepEqual(plan.subjects,[{petId:"pet-0",petName:"Alpha",state:"deceased"}]);
- assert.equal(plan.transition,null);assert.equal(interpreted.request.readTicket,undefined);
+ assert.throws(()=>validateAskRequest(p,ctx),/conversation_source/);
+ const plan=bindLifecyclePlan(proposal(ctx,{required:"active"}),ctx,[ctx.pet.id]);
+ assert.throws(()=>bindLifecyclePlan(proposal(ctx,{required:"active"}),ctx,["foreign"]),/lifecycle_plan/);
+ assert.deepEqual(plan.subjects,[{petId:"pet-0",petName:"Alpha",state:"deceased"}]);assert.equal(plan.transition,null);
  const outcome=await continueLifecyclePlan({plan,context:ctx,requestId:"r",cancel:async()=>{throw Error("NO_CANCEL");}});
  assert.equal(outcome.kind,"state_conflict");assert.deepEqual(outcome.actions,[]);
 });
+
 test("full Binder keeps profile authority separate from an active-state requirement",()=>{
  const ctx=context({status:"archived"}),p={...request(ctx,proposal(ctx,{required:"active"})),mode:"read",
   evidenceBasis:"saved_profile",profileFields:["name"],operation:"recall"};

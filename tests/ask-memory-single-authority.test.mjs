@@ -9,7 +9,8 @@ test("retired automatic learning persistence cannot execute, claim a receipt or 
  assert.doesNotMatch(read("app/lib/intelligence/persist-learnings.ts"),/\.rpc\(|\.from\(|persistCanonicalCareAction|persistCanonicalSemanticEvents/);
  const route=read("app/api/ask/route.ts");
  assert.doesNotMatch(route,/await persistIntelligenceLearnings\(/);
- assert.match(route,/prepareAppendTurn/);
+ assert.match(route,/runReadOnlyAsk/);
+ assert.doesNotMatch(route,/prepareAppendTurn|persistCanonicalSuggestions|executeActionCapability/);
  assert.match(read("app/lib/application-actions/capabilities.ts"),/confirmFurviseWriteReceipt/);
  const ownerLearning={subjectType:"owner",subjectId:null,category:"communication_preference",
   factKey:"preferred_language",factValue:"French",sourceExcerpt:"Answer in French.",

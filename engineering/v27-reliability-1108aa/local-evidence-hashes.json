@@ -1,0 +1,38 @@
+{
+  "baseline-cd77-full-ci.log": {
+    "bytes": 7284855,
+    "sha256": "5fff55c878e7ceb973a277cc7941310a6c3e7f9374737722b82a02288cb21292"
+  },
+  "reliability-baseline-final.json": {
+    "bytes": 71820,
+    "sha256": "75a688278615467c3dd5eadf32b8839b496a8e54fdf266d4d44d8cb78704a0c4"
+  },
+  "reliability-baseline-strengthened.json": {
+    "bytes": 72803,
+    "sha256": "31f627d20dc1aa7c9375357c1e42bef1f2451fc596844d8afa875fdc20fed9e7"
+  },
+  "reliability-final.json": {
+    "bytes": 81799,
+    "sha256": "b979822dc7cd3bece7a6593aa6a81e41c253ae6eb99327e4301fc58b41828e63"
+  },
+  "reliability-native-uncertainty-red.log": {
+    "bytes": 23666,
+    "sha256": "f959894ea8a0585fb60dafe62863b7aca33ea0cd82b06d08073f732113b86a02"
+  },
+  "reliability-native-uncertainty-fixed.log": {
+    "bytes": 28646,
+    "sha256": "ffd7cb802efff9908c7080e6c04e98dad07a399df42d8921b84e3898c44d9ff5"
+  },
+  "reliability-evidence-fixed.log": {
+    "bytes": 10943,
+    "sha256": "e256bb82792b84efc8c70c03e36f067685f7eeb377f13f3cf151f7ab73780d90"
+  },
+  "reliability-final-gate-build.log": {
+    "bytes": 242,
+    "sha256": "a8054ebf8b5e117587b537d346c1131b0e7375fb76fa3799a1f1339df0c7a199"
+  },
+  "reliability-contract-migrations.log": {
+    "bytes": 4822,
+    "sha256": "f59cf7d89708991c84b5eec9a04190cfe8b89a1ce04ada6f0c0b6fe36b251d45"
+  }
+}

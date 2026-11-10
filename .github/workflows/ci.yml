@@ -55,8 +55,43 @@ jobs:
           npm test -- --test-concurrency=1
           tests/test-bootstrap-loader.test.mjs
           tests/ask-read-only.test.mjs
+          tests/ask-read-only-reliability.test.mjs
+          tests/ask-read-only-evidence-reliability.test.mjs
+          tests/ask-read-only-omitted-text.test.mjs
+          tests/ask-read-only-search-disclosure.test.mjs
+          tests/ask-read-only-native-envelope.test.mjs
+          tests/ask-citation-date.test.mjs
+          tests/furvise-voice.test.mjs
           tests/ask-read-only-publication-budget.test.mjs
+          tests/ask-read-only-state-claim-publication.test.mjs
           tests/ask-read-only-provider-failure-route.test.mjs
+          tests/ask-read-only-dialogue-coverage.test.mjs
+          tests/ask-read-only-follow-up-context.test.mjs
+          tests/ask-read-only-effect-claims.test.mjs
+          tests/ask-action-capability-security-regressions.test.mjs
+          tests/ask-action-capability-target-freshness-expiry.test.mjs
+          tests/ask-route-ordering.test.mjs
+          tests/ask-state-suggestion-persistence.test.mjs
+          tests/ask-public-cancellation-route.test.mjs
+          tests/ask-input-budget-route.test.mjs
+          tests/routine-year-clarification.test.mjs
+          tests/furvise-conversational-architecture-v1.test.mjs
+          tests/ask-provider-envelope-diagnostics.test.mjs
+          tests/ask-provider-error-diagnostics.test.mjs
+          tests/ask-post-review-finalizer-contract.test.mjs
+          tests/canonical-care-deployment-compatibility.test.mjs
+          tests/canonical-memory-suggestion.test.mjs
+          tests/canonical-suggestion-continuation.test.mjs
+          tests/core-loop-stability.test.mjs
+          tests/ask-action-capability-v1.test.mjs
+          tests/furvise-intelligence-engine.test.mjs
+          tests/ask-memory-single-authority.test.mjs
+          tests/ask-memory-authority-p0.test.mjs
+          tests/care-entry-write-authority.test.mjs
+          tests/ask-structured-output-reliability.test.mjs
+          tests/ask-memory-integrity-p0.test.mjs
+          tests/furvise-brain-architecture-boundary.test.mjs
+          tests/furvise-brain-owner-note-gate.test.mjs
           tests/ask-error-ux.test.mjs
           tests/ask-inflight-navigation.test.mjs
           tests/navigation-data-freshness.test.mjs
@@ -76,6 +111,11 @@ jobs:
           tests/v27-citation-proof.test.mjs
           tests/v27-citation-endpoint.test.mjs
           tests/ask-sdk-physical-attempts.test.mjs
+          tests/ask-sdk-uncertainty.test.mjs
+          tests/ask-full-wire-admission.test.mjs
+          tests/account-entitlements.test.mjs
+          tests/care-persistence-state-repair.test.mjs
+          tests/ask-cross-pet-persistence-and-retry.test.mjs
           tests/v27-ask-two-call-limit.test.mjs
           tests/ask-credit-settlement.test.mjs
           tests/ask-credit-settlement-integrity.test.mjs

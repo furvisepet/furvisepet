@@ -18,13 +18,16 @@ const proposal = { version: 'ask-request.v2', mode: 'read', readTicket: ticket, 
   evidenceBasis: 'saved_history', scope: 'selected', petNames: [], operation: 'recall', selection: 'summary', quantity: null,
   topic: 'observations', terms: [], from: null, to: null, episodeTopic: null, ordinal: null, frame: null };
 
-test('read conflicts are discarded without creating a task, frame, mutation or extra planner pass', async () => {
+test('read requests reject mutation carriers without creating authority or an extra planner pass', async t => {
+  t.mock.method(console, 'info', () => {});
+  t.mock.method(console, 'warn', () => {});
   let calls = 0;
-  const raw = { ...proposal, mutationIntent: 'correct_record', task: { intent: 'resume', sourceTurnId: null }, frame: { forged: 'save this' } };
+  const raw = { ...proposal, frame: null };
   const before = structuredClone(raw);
-  const result = await interpretAskQuestion({ context, model: 'fixture', client: { responses: { async create() {
-    calls++; return { output_text: JSON.stringify(raw) };
-  } } } });
+  const client = value => ({ responses: { async create() {
+    calls++; return { output_text: JSON.stringify(value) };
+  } } });
+  const result = await interpretAskQuestion({ context, model: 'fixture', client: client(raw) });
   assert.equal(calls, 1);
   assert.equal(result.readOnly, true);
   assert.equal(result.request.mode, 'read');
@@ -32,6 +35,19 @@ test('read conflicts are discarded without creating a task, frame, mutation or e
   assert.deepEqual(result.frame, emptyProposedSemanticFrame());
   assert.deepEqual(result.request.readTicket.subjects.petIds, ['aster']);
   assert.deepEqual(raw, before);
+  for (const patch of [
+    { frame: { forged: 'save this' } },
+    { mutationIntent: 'correct_record' },
+    { task: { intent: 'resume', sourceTurnId: null } },
+    { writeJob: {} },
+    { mutationIntent: 'correct_record', task: { intent: 'resume', sourceTurnId: null } },
+  ]) {
+    const rejected = { ...raw, ...patch }, snapshot = structuredClone(rejected), start = calls;
+    await assert.rejects(interpretAskQuestion({ context, model: 'fixture', client: client(rejected) }),
+      error => error.diagnostics?.providerErrorCode === 'ASK_REQUEST_CONTRACT_READ_MUTATION_DOMAIN');
+    assert.equal(calls, start + 1, 'mutation authority fails before another provider dispatch');
+    assert.deepEqual(rejected, snapshot);
+  }
   for (const patch of [{ writeJob: {} }, { mode: 'update' }, { readTicket: { ...ticket, predicates: 'invalid' } }]) {
     assert.throws(() => validateAskRequest({ ...raw, ...patch }, context), /ASK_REQUEST_INVALID/);
   }

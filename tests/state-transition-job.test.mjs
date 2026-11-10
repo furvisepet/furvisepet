@@ -1,3 +1,4 @@
+import {assertPublicMutationDenied} from "./helpers/ask-public-mutation-boundary.mjs";
 import {stagedOperation,sourceFixtureDb} from './helpers/staged-operation-fixture.mjs';
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -107,7 +108,7 @@ test("provider grammar enumerates supplied handles and rejects mixed authority",
  const validate=new Ajv({allErrors:true}).compile(askRequestProviderSchema({},c));
  const base={calculatePlan:null,storedRead:null,removeJob:null,...request(proposal()),fieldMutationJob:null,lifecyclePlan:null,appendJob:null,readTicket:null,writeJob:null,task:null,
  temporalScope:null,mutationIntent:null,recordSelection:null,profileFields:[],projection:null,evidenceNeeds:[],
- outputFormat:null,evidenceBasis:null,premiseQuotes:null,excludedPetNames:[]};
+ draftAnswer:null,outputFormat:null,evidenceBasis:null,premiseQuotes:null,excludedPetNames:[]};
  assert.equal(validate({request:base}),true,JSON.stringify(validate.errors));
  assert.equal(validate({request:{...base,stateTransitionJob:{...proposal(),targetRef:"invented"}}}),false);
  for(const extra of [{fieldMutationJob:{}},{lifecyclePlan:{}},{frame:{}},{readTicket:{}},{appendJob:{}},{writeJob:{}},{mode:"mixed"}])
@@ -141,14 +142,15 @@ const r=await stagedOperation({context:c,purpose:'concern',request:request(p),db
 const prepared=prepareStateTransitionTurn(r.result.request.stateTransitionJob,r.context,'r');
 assert.equal(r.calls,2);assert.equal(prepared.orchestration.aiResult,null);assert.equal(prepared.action.stateTransitionJob.concernId,id(3));assert.equal(prepared.action.stateTransitionJob.petId,pet.id);
 });
-test("legacy concern classifiers cannot construct execution targets after Brain",()=>{
+test("public Ask refuses concern transitions while legacy classifiers stay non-executable",async () => {
  const run=read("app/lib/intelligence/run-intelligence.ts"),planner=read("app/lib/application-actions/planner.ts");
  assert.doesNotMatch(run,/buildClearResolutionAction|buildRecurrenceAction|buildSourceGroundedResolutionAction|deterministicStateAction/);
  const branches=planner.slice(planner.indexOf('case "care_state.resolve":'),planner.indexOf('default:',planner.indexOf('case "care_state.resolve":')));
  assert.doesNotMatch(branches,/\.test\(|RegExp|includes\(/);
  assert.match(run,/withoutLegacyConcernTransitions/);
- assert.ok(read("app/api/ask/route.ts").indexOf("prepareStateTransitionTurn(interpretation") <
- read("app/api/ask/route.ts").indexOf("const planningSource = liveContext.currentTurn"));
+ const route=read("app/api/ask/route.ts");assert.match(route,/runReadOnlyAsk\(/);
+ assert.doesNotMatch(route,/prepareAppendTurn|prepareFieldMutationTurn|prepareStateTransitionTurn/);
+ await assertPublicMutationDenied("Mark Juniper's concern as resolved.","I marked Juniper's concern as resolved.");
 });
 test("safety presentation remains independent from canonical target and transition",()=>{
  const c=context("resolved");c.currentMessage="Subject's breathing problem started again.";

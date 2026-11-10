@@ -1,16 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {registerHooks} from "node:module";
 import {readFileSync} from "node:fs";
-registerHooks({resolve(specifier,context,next){
- if(context.parentURL?.includes("/api/ask/")&&specifier.includes("authenticated-api-server"))
-  return {shortCircuit:true,url:"data:text/javascript,export const getAuthenticatedApiContext=async()=>globalThis.__readOnlyMutationAuth"};
- return next(specifier,context);
-}});
-const {POST}=await import("../app/api/ask/actions/[messageId]/route.ts");
-const {PATCH}=await import("../app/api/ask/suggestions/[id]/route.ts");
-const messageId="11111111-1111-4111-8111-111111111111";
-const request=(method="POST")=>new Request("https://fixture.invalid/api/ask/disabled",{method,body:JSON.stringify({actionId:messageId,ownerId:"other-owner",decision:"confirm",action:"save"})});
+import {POST,PATCH,messageId,request} from "./helpers/ask-read-only-action-routes.mjs";
 test("public Ask mutation endpoints retain authenticated denial without any database or provider access",async()=>{
  let calls=0;globalThis.__readOnlyMutationAuth={userId:"owner",supabase:new Proxy({},{get(){calls++;throw new Error("disabled endpoint attempted IO");}})};
  for(const id of [messageId,"22222222-2222-4222-8222-222222222222"]){

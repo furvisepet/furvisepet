@@ -176,7 +176,7 @@ test('old receipt and backward-reference lexical gates are absent from context l
 
 test('provider grammar and Binder carry arbitrary-language stored READ without lexical routing',async()=>{
  const f=fixture();
- const request={...f.request,storedRead:{operation:'read',domain:'memory',scope:'subjects',reference:null,projection:'records'},
+ const request={...f.request,draftAnswer:null,storedRead:{operation:'read',domain:'memory',scope:'subjects',reference:null,projection:'records'},
   mode:'read',mutationIntent:null,writeJob:null,evidenceBasis:'stored',selection:'summary',operation:'recall',frame:null,
   profileFields:[],evidenceNeeds:[],projection:null,recordSelection:null,temporalScope:null,outputFormat:null,premiseQuotes:[],excludedPetNames:[],
   removeJob:null,stateTransitionJob:null,fieldMutationJob:null,lifecyclePlan:null,appendJob:null,readTicket:null,calculatePlan:null};

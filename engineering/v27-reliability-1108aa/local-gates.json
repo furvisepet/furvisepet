@@ -1,0 +1,85 @@
+{
+  "final": [
+    {
+      "gate": "focused",
+      "exit": 0,
+      "seconds": 41.97,
+      "counts": [
+        "tests 416",
+        "pass 416",
+        "fail 0",
+        "cancelled 0",
+        "skipped 0"
+      ]
+    },
+    {
+      "gate": "security",
+      "exit": 0,
+      "seconds": 4.68,
+      "counts": [
+        "tests 188",
+        "pass 188",
+        "fail 0",
+        "cancelled 0",
+        "skipped 0"
+      ]
+    },
+    {
+      "gate": "typecheck",
+      "exit": 0,
+      "seconds": 12.48,
+      "counts": []
+    },
+    {
+      "gate": "lint",
+      "exit": 0,
+      "seconds": 57.29,
+      "counts": []
+    },
+    {
+      "gate": "production-audit",
+      "exit": 0,
+      "seconds": 8.02,
+      "counts": []
+    },
+    {
+      "gate": "build",
+      "exit": 1,
+      "seconds": 21.43,
+      "counts": []
+    }
+  ],
+  "uncachedAndNoOpt": [
+    {
+      "gate": "uncached-typecheck",
+      "exit": 0,
+      "seconds": 14.03,
+      "command": [
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--incremental",
+        "false"
+      ]
+    },
+    {
+      "gate": "diagnostic-no-opt-build",
+      "exit": 9,
+      "seconds": 1.15,
+      "command": [
+        "node",
+        "--no-opt",
+        "node_modules/next/dist/bin/next",
+        "build",
+        "--webpack"
+      ]
+    }
+  ],
+  "jitless": {
+    "gate": "Windows build with supported inherited --jitless diagnostic mode",
+    "exit": 1,
+    "seconds": 1.18,
+    "scope": "local child environment only; no compiler checks skipped"
+  },
+  "nativeV8Fixed": false
+}

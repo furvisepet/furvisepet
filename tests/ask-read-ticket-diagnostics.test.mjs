@@ -65,16 +65,24 @@ test('cross-field rejection reports the incompatible strategy without private da
   assert.equal(calls, 1);
 });
 
-test('request-envelope rejection identifies the envelope field without changing the proposed ticket', async t => {
+test('request-envelope rejection identifies the evidence domain without changing or logging the proposed ticket', async t => {
   const warn = t.mock.method(console, 'warn', () => {});
+  const info = t.mock.method(console, 'info', () => {});
   const rejected = proposal(ticket()); rejected.evidenceBasis = 'general';
-  await assert.rejects(interpretAskQuestion({ context, model: 'fixture', client: { responses: {
-    create: async () => ({ output_text: JSON.stringify(rejected) }),
-  } } }));
-  const logged = JSON.parse(warn.mock.calls.find(call => call.arguments[0] === '[Ask Brain] rejected read ticket').arguments[1]);
-  assert.equal(logged.field, 'request.evidenceBasis');
-  assert.equal(logged.rule, 'request.evidenceBasis');
-  assert.equal(logged.readTicketObject, true);
+  const before = structuredClone(rejected), stages = []; let calls = 0;
+  await assert.rejects(interpretAskQuestion({ context, model: 'fixture',
+    onProviderEvent: event => stages.push(event), client: { responses: {
+      create: async () => { calls++; return { output_text: JSON.stringify(rejected) }; },
+    } } }), error => {
+      assert.equal(error.diagnostics.providerErrorCode, 'ASK_REQUEST_CONTRACT_READ_TICKET_EVIDENCE_DOMAIN');
+      assert.equal(error.diagnostics.ticketArrived, true);
+      return true;
+    });
+  assert.equal(calls, 1, 'invalid evidence cannot gain another provider dispatch');
+  assert.deepEqual(stages.map(event => event.outcome), ['started', 'failed']);
+  assert.deepEqual(rejected, before);
+  const logged = JSON.stringify([...warn.mock.calls,...info.mock.calls].map(call=>call.arguments));
+  assert.doesNotMatch(logged, /Bramble|bramble|turkey|dental|food|eating/);
 });
 
 test('missing ticket remains rejected and its absence is explicit in diagnostics', async t => {
@@ -173,14 +181,14 @@ test('captured Bramble ticket binds only with needs stripped, through one planne
         assert.equal(logged.rule, 'read_since_event_incompatible_with_needs');
         assert.equal(logged.readTicketObject, true);
       } else {
-        const {strategy: _legacyStrategy,...outputs}=candidate.outputs;
+        const outputs={...candidate.outputs}; delete outputs.strategy;
         const expected = bindReadTicket({...candidate,outputs}, [pet.id], bindings);
         const result = await run;
         assert.deepEqual(result.request.readTicket, expected);
         assert.deepEqual(expected.temporal, original.temporal);
         assert.deepEqual(expected.predicates, original.predicates);
         assert.deepEqual(expected.searchHints, original.searchHints);
-        const {strategy: _originalStrategy,...originalOutputs}=original.outputs;
+        const originalOutputs={...original.outputs}; delete originalOutputs.strategy;
         assert.deepEqual(expected.outputs, originalOutputs);
         assert.equal(expected.operation, original.operation);
         assert.equal(warn.mock.calls.length, 0);
@@ -250,7 +258,7 @@ test('captured Dune ticket binds only with needs stripped, through one planner p
         assert.equal(logged.rule, 'needs_incompatible_with_single_measurement_read');
         assert.equal(logged.readTicketObject, true);
       } else {
-        const { strategy, ...outputs } = candidate.outputs;
+        const outputs = { ...candidate.outputs }; delete outputs.strategy;
         const expected = bindCompositionalReadTicket({ ...candidate, outputs,
           selection: { groupBy: ['subject'], union: [{
             orderBy: [{ field: 'event_at', direction: 'asc' }], take: { count: 1, per: 'group' },

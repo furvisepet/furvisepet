@@ -1,3 +1,4 @@
+import {assertPublicMutationDenied} from "./helpers/ask-public-mutation-boundary.mjs";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {readFileSync} from 'node:fs';
@@ -32,10 +33,12 @@ test('owner singleton field semantics never gain a pet from the conversation con
  const result=readInterpretationSubject({...base,request:{fieldMutationJob:{domain:'owner_preference',ownerId:'owner'}}},'other',ownership);
  assert.deepEqual(result.resolution.petIds,[]);assert.equal(result.resolution.petId,null);
 });
-test('route has no post-Brain English subject resolver and canonical append exits before legacy generation',()=>{
+test("public Ask cannot dispatch canonical append or revive an English subject resolver",async () => {
  const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8'),route=read('app/api/ask/route.ts');
  assert.doesNotMatch(route,/resolveAskTurnSubject|resolveDeterministicTurnSubject|extractTurnSubjectFrame/);
- assert.ok(route.indexOf('prepareAppendTurn(')<route.indexOf('readInterpretationSubject(interpretation'));
+ assert.match(route,/runReadOnlyAsk\(/);
+ assert.doesNotMatch(route,/prepareAppendTurn|prepareFieldMutationTurn|prepareStateTransitionTurn/);
  assert.match(read('app/lib/intelligence/run-intelligence.ts'),/request\?\.appendJob\) throw Error\("APPEND_REQUIRES_CONFIRMATION_CAPABILITY"\)/);
  assert.doesNotMatch(read('app/lib/application-actions/planner.ts'),/hasDeterministicUserMutationIntent|exactCareHistoryAddCommand|exactLatestHistoryEditCommand/);
+ await assertPublicMutationDenied("Save a new care note for Juniper.","I saved the note to Juniper's care history.");
 });

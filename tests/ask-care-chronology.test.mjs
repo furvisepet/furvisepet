@@ -127,7 +127,8 @@ test("canonical receipt replay crosses the capability boundary without an AI cre
  assert.match(capabilities,/execute_ask_action_capability/);assert.match(capabilities,/confirmFurviseWriteReceipt/);
  assert.doesNotMatch(capabilities,/admitAiOperation|reserveAiCredit|completeAiCredit|responses.create/);
  assert.doesNotMatch(askRoute,/findExistingCareEventForSaveRequest/);
- assert.match(askRoute,/const confirmedExistingCarePersistence: CarePersistenceResult \| null = null/);
+ assert.match(askRoute,/const saveMetadata=\{answerType:response.answerType,persistenceEligible:false,reason:"read_only_ask"\}/);
+ assert.match(askRoute,/const carePersistence:CarePersistenceResult=\{status:"skipped",careEntryIds:\[\]/);
 });
 
 test("resolved chronology permits unrelated grooming answers", () => {
@@ -144,5 +145,6 @@ test("compatibility repair trusts explicit user messages and structured urgency 
 
 test("carePersistence metadata is stored with conversation messages", () => {
   assert.match(migration, /add column if not exists care_persistence jsonb/);
-  assert.match(askRoute, /finalizePersistedAskAnswer\(\{[\s\S]*carePersistence,[\s\S]*responseData: canonicalResponse/);
+  assert.match(askRoute, /finalizePersistedAskAnswer\(\{carePersistence,[\s\S]*responseData:\{\.\.\.response,turn:turnLifecycle\.snapshot\(\)\}/);
+  assert.match(askRoute,/finalizeAskAssistantResponse/);
 });

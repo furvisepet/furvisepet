@@ -1,3 +1,4 @@
+import {assertPublicMutationDenied} from "./helpers/ask-public-mutation-boundary.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -85,10 +86,11 @@ test('Heart refuses an otherwise matching receipt for a different exact record',
  const f=exact(),authorized=await f.prepare(),receipt={...structuredClone(authorized),id:id(5),status:'succeeded',targetSourceId:'care:'+id(8)};
  assert.throws(()=>confirmFurviseWriteReceipt({operationId:id(5),authorized,returned:receipt,persistedStatus:'succeeded',persistedReceipt:receipt}),/UNCONFIRMED/);
 });
-test('route transports canonical target without an English edit selector',()=>{
+test("public Ask refuses saved-record replacement and retains opaque reference lookup",async () => {
  const route=readFileSync(new URL('../app/api/ask/route.ts',import.meta.url),'utf8');
  assert.doesNotMatch(route,/latestHistoryEditTarget|latestEditActions/);
- assert.match(route,/resolveReplaceJob\(replaceJob/);
+ assert.match(route,/runReadOnlyAsk\(/);assert.doesNotMatch(route,/resolveReplaceJob|prepareReplaceTurn/);
  const loader=readFileSync(new URL('../app/lib/intelligence/replace-reference-context.ts',import.meta.url),'utf8');
  assert.doesNotMatch(loader,/question|currentMessage|\.match\(|\.includes\(.*topic/);
+ await assertPublicMutationDenied("Replace Juniper's latest saved note with rested quietly.","I corrected Juniper's saved note.");
 });

@@ -1,3 +1,4 @@
+import {getAiFeaturePolicy as admittedFeaturePolicy} from "../../app/lib/ai/usage-guard/features.ts";
 import {inspectAskWireContract} from '../../tests/helpers/ask-wire-contract.mjs';
 import * as C from "../../tests/helpers/canonical-calculation-retirement.mjs";
 import {stressProposal,certifiedRows} from './helpers/current-stress-harness.mjs';
@@ -517,7 +518,7 @@ for (const outcome of ['approved', 'empty-body', 'malformed-denial', 'rejected',
       }
       if (calls === 1 && outcome === 'malformed-denial') payload.obligations[0] = { index: 0, status: 'answered', sentenceIndexes: [0] };
       if (outcome === 'truncated-rereview' && calls === 3) {
-        assert.equal(request.max_output_tokens, 8192);
+        assert.equal(request.max_output_tokens, admittedFeaturePolicy('ask').maxOutputTokens);
         return {status:'incomplete', incomplete_details:{reason:'max_output_tokens'}, output_text:JSON.stringify({...payload,approved:true,retainedSentenceIndexes:[0]}), usage:{input_tokens:800,output_tokens:8192}};
       }
       return { status: 'completed', output_text: JSON.stringify(payload), usage: { input_tokens: 800, output_tokens: 200 } };
@@ -529,47 +530,51 @@ for (const outcome of ['approved', 'empty-body', 'malformed-denial', 'rejected',
   assert.equal(r.result.acceptedSemanticEvents.length, 0);
 });
 
-test('real admission lets a valid first proposal reach composition without an interpretation retry', async t => {
+test("native general conversation uses two admitted calls without private retrieval or speculative interpretation repair", async t => {
+ clock(t);
+ const {readOnlySuccessRouteFixture}=await import('../../tests/helpers/ask-read-only-success-route.mjs');
+ const {note}=await import('../../tests/helpers/ask-read-only-failure-route.mjs');
+ const answer="Inertia is an object's resistance to a change in its motion.";
+ const completed=text=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text}]}],usage:{input_tokens:10,output_tokens:10}});
+ const f=readOnlySuccessRouteFixture({providerCreate:async(_request,count)=>completed(count===1?answer:JSON.stringify({answer,sources:[],quotes:[],calculations:[],replyType:'answer'}))});
+ try {
+  const response=await f.send('Explain inertia without pet records.'),body=await response.json();
+  assert.equal(response.status,200,JSON.stringify(f.state.errors));assert.equal(body.success,true);
+  assert.equal(body.response.summary,answer);assert.equal(body.dataChanged,false);
+  assert.equal(f.state.calls,2);assert.equal(f.wire.length,2);assert.deepEqual(f.wire,f.admitted);
+  assert.deepEqual(f.wire[0].tools.map(tool=>tool.name).sort(),['read_pet_profile','search_saved_records']);
+  assert.ok(!JSON.stringify(f.wire).includes('ask-semantic-slots'));
+  assert.ok(!JSON.stringify(f.wire).includes(note.body),'general conversation must not inject private notes');
+  assert.equal(f.state.reads,0);assert.deepEqual(body.response.applicationActions,[]);
+  assert.equal(f.store.getSnapshot('2026-09-04').calls,2);
+  assert.equal(f.state.credit.status,'completed');assert.equal(f.state.events.filter(event=>event==='credit:complete').length,1);
+  assert.ok(f.state.events.indexOf('assistant:terminal')<f.state.events.indexOf('credit:complete'));
+  assert.equal(f.state.persistedAnswer.response_data.turn.finalStage,'COMPLETED');
+ } finally {await f.release();}
+});
+
+test("real admission admits two calls and blocks every additional repair or review before dispatch", async t => {
  clock(t);
  const {runAdmittedAiOperation}=await import('../../app/lib/ai/usage-guard/admission.ts');
  const {MemoryAiGuardTestStore}=await import('../../app/lib/ai/usage-guard/memory-test-store.ts');
  const {OPENAI_ANALYSIS_MODEL}=await import('../../app/lib/ai/config.ts');
  const {executeAdmittedProviderCall}=await import('../../app/lib/ai/usage-guard/provider-call-budget.ts');
- const store=new MemoryAiGuardTestStore();let calls=0;
- await runAdmittedAiOperation({store,feature:'ask',intendedModel:OPENAI_ANALYSIS_MODEL,env:{NODE_ENV:'test'},payload:{},userId:ownerId,requestId:'planner-repair'},async()=>{
-  const r=await exercise('Fictional only: the box is 3 kg. Give the mass.',{taskReviewResponse:true,fixturePets,rows:[],messages:[],history:true,
-   interpretationModel:OPENAI_ANALYSIS_MODEL,interpretationProposal:{},interpretationResponse:async()=>({status:'completed',output_text:JSON.stringify(proposal({mode:'conversation',scope:'none',petNames:[],operation:'general',frame:null,evidenceBasis:'supplied_context',premiseQuotes:[(++calls,'the box is 3 kg')]})),usage:{input_tokens:500,output_tokens:200}}),
-   providerOverrides:{answer:'3 kg'}});
-  assert.equal(r.result.reasoning.answer.summary,'3 kg');assert.equal(calls,1);
-  const forbidden=purpose=>executeAdmittedProviderCall({purpose,model:OPENAI_ANALYSIS_MODEL,maxOutputTokens:100,providerInput:'test',invoke:async()=>{throw Error('must not invoke');}});
-  for(const purpose of [undefined,'interpretation_repair','history_rereview'])await assert.rejects(forbidden(purpose));
+ const {estimateProviderCostMicrodollars}=await import('../../app/lib/ai/usage-guard/cost-estimator.ts');
+ const store=new MemoryAiGuardTestStore();let invoked=0;
+ const call=purpose=>executeAdmittedProviderCall({purpose,model:OPENAI_ANALYSIS_MODEL,maxOutputTokens:100,providerInput:'synthetic',
+  invoke:async()=>{invoked++;return {usage:{input_tokens:10,output_tokens:10}};}});
+ const denied=error=>error.code==='AI_PROVIDER_BUDGET_EXHAUSTED';
+ await runAdmittedAiOperation({store,feature:'ask',intendedModel:OPENAI_ANALYSIS_MODEL,env:{NODE_ENV:'test'},payload:{},userId:ownerId,requestId:'bounded-review'},async()=>{
+  await assert.rejects(call('history_repair'),denied);await assert.rejects(call('history_rereview'),denied);
+  await call();
+  await assert.rejects(call('history_repair'),denied);await assert.rejects(call('history_rereview'),denied);
+  await call();
+  for(const purpose of [undefined,'history_review','history_repair','history_rereview','generation_repair','interpretation_repair'])
+   await assert.rejects(call(purpose),denied);
+  assert.equal(invoked,2,'every denied review or repair must stop before dispatch');
  });
- assert.equal(store.getSnapshot('2026-09-04').calls,3); // one planner + writer + independent task review
-});
-
-test('real admission allows one ordered repair and re-review, charges all five calls and denies a sixth', async t => {
-  clock(t);
-  const { runAdmittedAiOperation } = await import('../../app/lib/ai/usage-guard/admission.ts');
-  const { MemoryAiGuardTestStore } = await import('../../app/lib/ai/usage-guard/memory-test-store.ts');
-  const { OPENAI_ANALYSIS_MODEL } = await import('../../app/lib/ai/config.ts');
-  const { executeAdmittedProviderCall } = await import('../../app/lib/ai/usage-guard/provider-call-budget.ts');
-  const store = new MemoryAiGuardTestStore(); let invoked = 0;
-  const call = purpose => executeAdmittedProviderCall({ purpose, model: OPENAI_ANALYSIS_MODEL, maxOutputTokens: 100,
-    providerInput: 'synthetic', invoke: async () => { invoked++; return { usage: { input_tokens: 10, output_tokens: 10 } }; } });
-  await runAdmittedAiOperation({ store, feature: 'ask', intendedModel: OPENAI_ANALYSIS_MODEL, env: { NODE_ENV: 'test' },
-    payload: {}, userId: ownerId, requestId: 'one-repair' }, async () => {
-    await assert.rejects(call('history_repair'));
-    await assert.rejects(call('history_rereview'));
-    await call();
-    await assert.rejects(call('history_repair'));
-    await assert.rejects(call('history_rereview'));
-    await call(); await call('history_review');
-    await assert.rejects(call()); await assert.rejects(call('history_review'));
-    await call('history_repair'); await assert.rejects(call('history_repair'));
-    await call('history_rereview'); await assert.rejects(call('history_rereview'));
-  });
-  assert.equal(invoked, 5);
-  assert.equal(store.getSnapshot('2026-09-04').calls, 5);
+ const snapshot=store.getSnapshot('2026-09-04'),perCall=estimateProviderCostMicrodollars(OPENAI_ANALYSIS_MODEL,{inputTokens:10,outputTokens:10});
+ assert.notEqual(perCall,null);assert.equal(snapshot.calls,2);assert.equal(snapshot.costMicrodollars,2*perCall);
 });
 
 
@@ -1443,7 +1448,7 @@ test('a note-frequency question reaches ordinary evidence rather than an unrelat
  assert.ok(r.context.askHistory.entries.some(e=>e.id==='noise-note'));
 });
 
-test('generation repair has a single admitted phase followed by independent review', async t => {
+test("generation repair cannot bypass the two-call ceiling or invent review approval", async t => {
  clock(t);
  const {runAdmittedAiOperation}=await import('../../app/lib/ai/usage-guard/admission.ts');
  const {MemoryAiGuardTestStore}=await import('../../app/lib/ai/usage-guard/memory-test-store.ts');
@@ -1452,16 +1457,15 @@ test('generation repair has a single admitted phase followed by independent revi
  const store=new MemoryAiGuardTestStore();let invoked=0;
  const call=purpose=>executeAdmittedProviderCall({purpose,model:OPENAI_ANALYSIS_MODEL,maxOutputTokens:100,providerInput:'synthetic',
   invoke:async()=>{invoked++;return {usage:{input_tokens:10,output_tokens:10}};}});
- await runAdmittedAiOperation({store,feature:'ask',intendedModel:OPENAI_ANALYSIS_MODEL,env:{NODE_ENV:'test'},payload:{},userId:ownerId,requestId:'generation-repair'},async()=>{
-  await assert.rejects(call('generation_repair'));await call();await assert.rejects(call('generation_repair'));await call();
-  await call('generation_repair');
-  for(const purpose of [undefined,'generation_repair','interpretation_repair','history_repair','history_rereview']) await assert.rejects(call(purpose));
-  await call('task_review');
-  for(const purpose of [undefined,'generation_repair','task_review','task_rereview']) await assert.rejects(call(purpose));
-  await call('task_repair'); await call('task_rereview');
-  for(const purpose of [undefined,'generation_repair','task_review','task_repair','task_rereview']) await assert.rejects(call(purpose));
+ const denied=error=>error.code==='AI_PROVIDER_BUDGET_EXHAUSTED';
+ await runAdmittedAiOperation({store,feature:'ask',intendedModel:OPENAI_ANALYSIS_MODEL,env:{NODE_ENV:'test'},payload:{},userId:ownerId,requestId:'generation-two-call-cap'},async()=>{
+  await assert.rejects(call('generation_repair'),denied);await call();
+  await assert.rejects(call('generation_repair'),denied);await call();
+  for(const purpose of [undefined,'generation_repair','interpretation_repair','history_review','history_repair','history_rereview','task_review','task_repair','task_rereview'])
+   await assert.rejects(call(purpose),denied);
+  assert.equal(invoked,2,'an unperformed review cannot create an approval or a third physical call');
  });
- assert.equal(invoked,6);assert.equal(store.getSnapshot('2026-09-04').calls,6);
+ assert.equal(store.getSnapshot('2026-09-04').calls,2);
 });
 
 

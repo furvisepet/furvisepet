@@ -1,81 +1,46 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
+import {isReadOnlyResult} from "../app/lib/ask-read-only/core.mjs";
+import {buildReadOnlyPublication} from "../app/lib/ask-read-only/publication.ts";
+import {readOnlyPublicationFixture as fixture} from "./helpers/ask-read-only-publication.mjs";
 
-const route = readFileSync(new URL("../app/api/ask/route.ts", import.meta.url), "utf8");
-
-function functionSlice(name, nextName) {
-  const start = route.indexOf(`async function ${name}`);
-  assert.ok(start >= 0, `${name} exists`);
-  const end = nextName ? route.indexOf(nextName, start) : route.length;
-  assert.ok(end > start, `${name} has an end boundary`);
-  return route.slice(start, end);
-}
-
-test("reviewed Ask effects execute inside the single Brain handoff", () => {
-  const finalizer = functionSlice("persistAssistantAnswer", "function standaloneEmergencyResponse");
-  const delegate = finalizer.indexOf("return finalizeAskPostReview({");
-  assert.ok(delegate > 0);
-  const prepared = finalizer.slice(0, delegate);
-  for (const stage of [
-    "completeAskConversationTurn({",
-    "createActionCapabilities({",
-    "persistCanonicalSuggestions({",
-    "executeActionCapability({",
-    "resolveAutomaticCareHistoryPresentation({",
-    "assessTaskExecution({",
-  ]) assert.doesNotMatch(prepared, new RegExp(stage.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `${stage} is Brain-owned`);
-  const delegateBody = finalizer.slice(delegate);
-  for (const stage of [
-    "completeAskConversationTurn({",
-    "createActionCapabilities({",
-    "persistCanonicalSuggestions({",
-    "executeActionCapability({",
-    "resolveAutomaticCareHistoryPresentation({",
-    "assessTaskExecution({",
-  ]) assert.ok(delegateBody.includes(stage), `${stage} executes inside Brain handoff`);
+test("only an independently reviewed read-only result can enter durable publication",async()=>{
+ const f=await fixture();
+ assert.equal(isReadOnlyResult(f.readResult),true);
+ assert.deepEqual(f.events,["provider:read_selection","provider:read_answer"]);
+ const unreviewed=structuredClone(f.readResult);
+ assert.deepEqual(unreviewed,f.readResult);
+ assert.equal(isReadOnlyResult(unreviewed),false);
+ assert.throws(()=>buildReadOnlyPublication(unreviewed,f.ownerId,"Juniper"));
+ assert.equal(f.state.row,null);
+ const response=await f.run(),body=await response.json();
+ assert.equal(response.status,200);assert.equal(body.persistence.saved,true);
+ assert.equal(body.turn.actionCount,0);
+ assert.equal(f.calls,2);
+ assert.equal(f.state.finalizationInputs[0].carePersistence.status,"skipped");
+ assert.deepEqual(f.state.finalizationInputs[0].carePersistence.careEntryIds,[]);
+ assert.deepEqual(f.state.finalizationInputs[0].carePersistence.concernIds,[]);
 });
 
-test("Brain executive control owns settlement through final publication", () => {
-  const finalizer = functionSlice("persistAssistantAnswer", "function standaloneEmergencyResponse");
-  assert.match(route, /from "\.\.\/\.\.\/lib\/furvise-brain\/post-review-finalizer\.ts"/);
-  const delegateStart = finalizer.indexOf("return finalizeAskPostReview({");
-  assert.ok(delegateStart > 0);
-  assert.equal(finalizer.split("return finalizeAskPostReview({").length - 1, 1, "there is exactly one Brain terminal handoff");
-  assert.doesNotMatch(finalizer.slice(0, delegateStart), /turnLifecycle\.transition\("COMPLETED"\)/, "route cannot complete before Brain handoff");
-  assert.doesNotMatch(finalizer.slice(0, delegateStart), /buildSuccessfulAskResponse\(/, "route cannot publish success before Brain handoff");
-  const delegate = finalizer.slice(delegateStart);
-  const stages = [
-    "persistReviewedAnswer:",
-    "mintActionCapabilities:",
-    "persistAuthorizedIntelligence:",
-    "executeAuthorizedActions:",
-    "resolveCarePresentation:",
-    "assessTaskCompletion:",
-    "settleCreditDisposition:",
-    "finalizeDurableAnswer:",
-    "invalidateCommittedState:",
-    "publishSuccess:",
-  ];
-  let previous = -1;
-  for (const stage of stages) {
-    const index = delegate.indexOf(stage);
-    assert.ok(index > previous, `${stage} follows the previous Brain stage`);
-    previous = index;
-  }
-  assert.match(delegate, /settleCreditDisposition:[\s\S]*setAiCreditDisposition\(/);
-  assert.match(delegate, /finalizeDurableAnswer:[\s\S]*finalizePersistedAskAnswer\(/);
-  assert.match(delegate, /invalidateCommittedState:[\s\S]*revalidateAskStateViews\(/);
-  assert.match(delegate, /publishSuccess:[\s\S]*buildSuccessfulAskResponse\(/);
+test("durable read-only answer precedes credit disposition, charge and success publication",async()=>{
+ const f=await fixture(),response=await f.run();
+ assert.equal(response.status,200);
+ const ordered=["provider:read_selection","provider:read_answer","assistant:initial","assistant:terminal","credit:intent","credit:complete","response:publish","lease:release"];
+ let previous=-1;
+ for(const event of ordered){const index=f.events.indexOf(event);assert.ok(index>previous,event+" after prior stage: "+f.events.join(","));previous=index;}
+ assert.equal(f.state.credits,1);assert.equal(f.state.terminalWrites,1);
+ assert.equal(f.events.filter(x=>x==="response:publish").length,1);
 });
 
-test("durable replay is handed back to Brain before a second publication", () => {
-  const finalizer = functionSlice("persistAssistantAnswer", "function standaloneEmergencyResponse");
-  const delegate = finalizer.slice(finalizer.indexOf("return finalizeAskPostReview({"));
-  const durable = delegate.indexOf("finalizeDurableAnswer:");
-  const replay = delegate.indexOf('kind: "replay"', durable);
-  const invalidate = delegate.indexOf("invalidateCommittedState:", replay);
-  const publish = delegate.indexOf("publishSuccess:", invalidate);
-  assert.ok(durable >= 0 && replay > durable && invalidate > replay && publish > invalidate);
-  assert.match(delegate.slice(durable, invalidate), /completedResponseFromPersisted\(/);
+test("already completed owned replay preserves its answer without another terminal write or charge",async()=>{
+ const f=await fixture({completedReplay:true}),response=await f.run(),body=await response.json();
+ assert.equal(response.status,200);assert.equal(body.response.summary,"Previously saved answer.");
+ assert.equal(body.response.directAnswer,"Previously saved answer.");
+ assert.equal(body.turn.finalStage,"COMPLETED");
+ assert.equal(body.assistantMessageId,f.state.row.id);
+ assert.equal(f.state.terminalWrites,0);assert.equal(f.state.credits,0);assert.equal(f.state.released,false);
+ assert.ok(f.events.indexOf("assistant:readback")<f.events.indexOf("response:publish"));
+ assert.ok(!f.events.includes("credit:intent"));assert.ok(!f.events.includes("credit:complete"));
+ assert.equal(f.events.filter(x=>x==="response:publish").length,1);
+ assert.equal(f.events.at(-1),"lease:release");assert.equal(f.calls,2);
 });

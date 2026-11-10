@@ -1,0 +1,32 @@
+{
+  "baseSha": "61eed36fec8d3e6180111f8f3d3a52430df6e047",
+  "applicationSourceUnchanged": true,
+  "redExit": 1,
+  "greenExit": 0,
+  "redCounts": [
+    "tests 18",
+    "pass 13",
+    "fail 5",
+    "cancelled 0",
+    "skipped 0"
+  ],
+  "greenCounts": [
+    "tests 18",
+    "pass 18",
+    "fail 0",
+    "cancelled 0",
+    "skipped 0"
+  ],
+  "preserved": [
+    "private capabilities require authorization before RPC",
+    "retained Brain memory authority and interpreter validation",
+    "legacy pending tasks cannot recreate mutation authority",
+    "six source-span/date helper cases",
+    "five public read-only action/auth/origin cases"
+  ],
+  "beforeHashes": {
+    "tests/furvise-brain-architecture-boundary.test.mjs": "a05f7734cf436f888e578c08fc54f955415f84a866acd295f199cbe68df5fcc2",
+    "tests/furvise-brain-owner-note-gate.test.mjs": "85e65fb98e82671768e0d367672dd8948a3f805c61e199e002751bdc279d6c5e",
+    "tests/ask-read-only-actions.test.mjs": "607eea09cb6c9b15f20536f753bc189e814cca6faef38fda87fb2a95c580f122"
+  }
+}
