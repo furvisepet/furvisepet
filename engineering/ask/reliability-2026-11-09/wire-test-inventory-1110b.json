@@ -1,0 +1,52 @@
+{
+  "schema": "ask-wire-test-inventory.v1",
+  "split": {
+    "beforeSha256": "ba9c8ddd3b88e0444b044dc8d5c0253081fefea6235ef4fe34b05deb76cf1420",
+    "inventory": {
+      "syntacticTestCalls": 6,
+      "allTestCallsByteIdentical": true,
+      "before": [
+        "3d5f6c49385c4bbe8602865c33ca44e81ea0ea77a70c1442493d2e4d4aa2efb7",
+        "576cdf8200695b64becaa6a34ddf64471adea348ade9c6cb4d694129f3531c09",
+        "68b26f834892da6aaad6e7adff9321e6852f9c1ca7657ae974a4bc13635a6345",
+        "6d605921caab7aa173b24e79b34314af37163243ed03357841e7ee7c477d6f84",
+        "c4a7068b40f4fca61d24519b7ad7901de0fed89bdb91a34b169aa429d94d99ec",
+        "f4cdcb920414dd3b46944b62de668f5c4d21ad43a1acd9eea513d3a3ff35f74c"
+      ],
+      "after": [
+        "3d5f6c49385c4bbe8602865c33ca44e81ea0ea77a70c1442493d2e4d4aa2efb7",
+        "576cdf8200695b64becaa6a34ddf64471adea348ade9c6cb4d694129f3531c09",
+        "68b26f834892da6aaad6e7adff9321e6852f9c1ca7657ae974a4bc13635a6345",
+        "6d605921caab7aa173b24e79b34314af37163243ed03357841e7ee7c477d6f84",
+        "c4a7068b40f4fca61d24519b7ad7901de0fed89bdb91a34b169aa429d94d99ec",
+        "f4cdcb920414dd3b46944b62de668f5c4d21ad43a1acd9eea513d3a3ff35f74c"
+      ]
+    },
+    "runtimeCases": {
+      "historical": 4,
+      "native": 9
+    },
+    "importsAndCallsites": "git grep found no exact filename callsites; full runner discovers tests",
+    "after": {
+      "tests\\ask-wire-recursive-plan.test.mjs": "cebeb4bc10099ea598f07b633d133ddc91a33ef33df898114ca38304dab65def",
+      "tests\\ask-wire-native-admission.test.mjs": "724eb1d24f56234686d2da3bac57149ac7f38d2ede1eaa693df6fee9ab601256"
+    }
+  },
+  "importCleanup": [
+    {
+      "file": "tests/ask-wire-native-admission.test.mjs",
+      "beforeSha256": "724eb1d24f56234686d2da3bac57149ac7f38d2ede1eaa693df6fee9ab601256",
+      "afterSha256": "65f672dd5abf76f02188de17e836d0b3f34e6744aef91b039ad7a3f470bc2015",
+      "testCallsByteIdentical": true
+    },
+    {
+      "file": "tests/ask-wire-recursive-plan.test.mjs",
+      "beforeSha256": "cebeb4bc10099ea598f07b633d133ddc91a33ef33df898114ca38304dab65def",
+      "afterSha256": "fa74b7879ad07437144f06d936c02c89bce33d242c0272cad3751a122337e75c",
+      "testCallsByteIdentical": true
+    }
+  ],
+  "allTestCallBodiesByteIdentical": true,
+  "allParameterizedContexts": 8,
+  "fullRuntimeCases": 13
+}

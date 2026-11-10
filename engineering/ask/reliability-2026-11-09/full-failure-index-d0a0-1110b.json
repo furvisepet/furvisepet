@@ -1,0 +1,625 @@
+{
+  "run": 42735785102,
+  "head": "d0a0ffdcd513621a5be2c6e362b854db09d35f39",
+  "full": {
+    "tests": 6258,
+    "pass": 6164,
+    "fail": 93,
+    "skip": 1
+  },
+  "detailedBlocks": 93,
+  "files": {
+    "tests/append-items-authority.test.mjs": 1,
+    "tests/ask-active-contract.test.mjs": 1,
+    "tests/ask-append-independent-completion.test.mjs": 2,
+    "tests/ask-benchmark-retrieval-regressions.test.mjs": 1,
+    "tests/ask-care-chronology.test.mjs": 2,
+    "tests/ask-context-reasoning.test.mjs": 2,
+    "tests/ask-contract-repair-route.test.mjs": 1,
+    "tests/ask-conversation-subject-continuity-p0.test.mjs": 1,
+    "tests/ask-episode-history.test.mjs": 1,
+    "tests/ask-episode-repair.test.mjs": 4,
+    "tests/ask-grief-lifecycle-regression.test.mjs": 7,
+    "tests/ask-history-stage-2.test.mjs": 1,
+    "tests/ask-id-free-probes.test.mjs": 4,
+    "tests/ask-interpretation-timeout.test.mjs": 1,
+    "tests/ask-labs-list.test.mjs": 1,
+    "tests/ask-launch-blockers.test.mjs": 1,
+    "tests/ask-launch-quality-history-prose.test.mjs": 1,
+    "tests/ask-launch-repairs.test.mjs": 1,
+    "tests/ask-lifecycle-role-contract.test.mjs": 1,
+    "tests/ask-long-form-subject-contract-p0.test.mjs": 1,
+    "tests/ask-p0-auxiliary-regressions.test.mjs": 2,
+    "tests/ask-production-issues-v2.test.mjs": 1,
+    "tests/ask-production-repair.test.mjs": 1,
+    "tests/ask-provider-timestamp-boundary.test.mjs": 1,
+    "tests/ask-read-ticket-diagnostics.test.mjs": 1,
+    "tests/ask-read-ticket-hygiene.test.mjs": 1,
+    "tests/ask-referent-product-leak-p0.test.mjs": 1,
+    "tests/ask-shared-operation-contracts.test.mjs": 1,
+    "tests/ask-shared-request-contract.test.mjs": 1,
+    "tests/ask-staged-catalog-contract.test.mjs": 1,
+    "tests/ask-staged-catalog-route.test.mjs": 1,
+    "tests/ask-stress-architecture.test.mjs": 1,
+    "tests/ask-task-route.test.mjs": 1,
+    "tests/ask-turn-subject-resolution.test.mjs": 1,
+    "tests/ask-unseen-v1-publication-0930.test.mjs": 1,
+    "tests/ask-wire-integration.test.mjs": 2,
+    "tests/ask-wire-recursive-plan.test.mjs": 9,
+    "tests/ask-working-memory-interpretation.test.mjs": 1,
+    "tests/canonical-pet-remove.test.mjs": 7,
+    "tests/canonical-remove.test.mjs": 2,
+    "tests/canonical-subject-authority.test.mjs": 1,
+    "tests/furvise-replace-ticket.test.mjs": 2,
+    "tests/generalized-replace.test.mjs": 1,
+    "tests/lifecycle-plan.test.mjs": 3,
+    "tests/owner-note-write-isolation.test.mjs": 5,
+    "tests/owner-preference-mutation.test.mjs": 2,
+    "tests/profile-mutation-job.test.mjs": 2,
+    "tests/residual-requirements-contract.test.mjs": 1,
+    "tests/state-transition-job.test.mjs": 2,
+    "tests/typed-read-ticket.test.mjs": 1,
+    "tests/v27-confirmed-temporal-scope.test.mjs": 1
+  },
+  "failures": [
+    {
+      "location": "tests/append-items-authority.test.mjs:77:1",
+      "name": "\u2716 confirmed batch uses one capability, all bound items, and the separate canonical companion read (119.843567ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: [{\"stage\":\"read_only_context\",\"error\":{}}]\n  \n  503 !== 200\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/append-items-authority.test.mjs:81:77)\n      at async Test.run (node:internal/test_runner/test:1409:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {",
+      "sha256": "332ed81d43808ffc83c34bee539b84a1ddb43b18dc7ecff2a309e9b0c56ed0dd"
+    },
+    {
+      "location": "tests/ask-active-contract.test.mjs:4:1",
+      "name": "\u2716 active request, review, evidence and lifetime regressions use the production contract (170118.634149ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: [Ask Brain] proposal {\n    sourceMessageId: undefined,\n    mode: 'read',\n    operation: 'recall',\n    mutationIntent: undefined,\n    taskIntent: null,\n    evidenceBasis: 'saved_history',",
+      "sha256": "0860a9d7f6a1e9d9d532d6958762f7b4be7a3c0540ce34170fae056f4b1f83a5"
+    },
+    {
+      "location": "tests/ask-append-independent-completion.test.mjs:46:1",
+      "name": "\u2716 confirmed append preserves limited whole-task outcome for an exhausted independent lexical miss (108.476232ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: [{\"stage\":\"read_only_context\",\"error\":{}}]\n  \n  503 !== 200\n  \n      at confirmed (file:///home/runner/work/furvisepet/furvisepet/tests/ask-append-independent-completion.test.mjs:31:10)\n      at async TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/ask-append-independent-completion.test.mjs:47:25)\n      at async Test.run (node:internal/test_runner/test:1409:7)",
+      "sha256": "49831c01cd68c4fdbfdd065fce941290bfb7b590d9bf512d000ebf9009e616bd"
+    },
+    {
+      "location": "tests/ask-append-independent-completion.test.mjs:69:1",
+      "name": "\u2716 confirmed append completes certified independent endpoints despite partial scan coverage (43.930787ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: [{\"stage\":\"read_only_context\",\"error\":{}}]\n  \n  503 !== 200\n  \n      at confirmed (file:///home/runner/work/furvisepet/furvisepet/tests/ask-append-independent-completion.test.mjs:31:10)\n      at async TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/ask-append-independent-completion.test.mjs:72:25)\n      at async Test.run (node:internal/test_runner/test:1409:7)",
+      "sha256": "20731b6e46900b8c01dc337af6807bc416a62e04d5d7913f670084570ab7c738"
+    },
+    {
+      "location": "tests/ask-benchmark-retrieval-regressions.test.mjs:34:4",
+      "name": "\u2716 route proves alternate read widening from current user explicit owned names only (1.904564ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /explicitlyNamedOwnedPets\\(question, liveContext\\.eligiblePets \\|\\| \\[\\]\\)\\.map\\(pet => pet\\.id\\)/. Input:\n  \n  '\ufeffimport { isDeepStrictEqual } from \"node:util\";\\n' +\n    'import { resolveAskHistoryAccess } from \"../../lib/intelligence/history-access.ts\";\\n' +\n    'import type { DogProfileRow } from \"../../lib/supabase.ts\";\\n' +\n    'import { createClient, type SupabaseClient } from \"@supabase/supabase-js\";\\n' +\n    'import { buildAskConversationResponse } from \"../../lib/ask.mjs\";\\n' +",
+      "sha256": "f4a9397c01bc56b619ef29c63bc0bff52b409bde79a5a76ce2f0deef7d43a77f"
+    },
+    {
+      "location": "tests/ask-care-chronology.test.mjs:125:1",
+      "name": "\u2716 canonical receipt replay crosses the capability boundary without an AI credit (2.716041ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /const confirmedExistingCarePersistence: CarePersistenceResult \\| null = null/. Input:\n  \n  '\ufeffimport { isDeepStrictEqual } from \"node:util\";\\n' +\n    'import { resolveAskHistoryAccess } from \"../../lib/intelligence/history-access.ts\";\\n' +\n    'import type { DogProfileRow } from \"../../lib/supabase.ts\";\\n' +\n    'import { createClient, type SupabaseClient } from \"@supabase/supabase-js\";\\n' +\n    'import { buildAskConversationResponse } from \"../../lib/ask.mjs\";\\n' +",
+      "sha256": "0fef24a5da6a57ce5f0ea2966320c3cae914c0939d70b4e453661cd2c5905a5c"
+    },
+    {
+      "location": "tests/ask-care-chronology.test.mjs:145:1",
+      "name": "\u2716 carePersistence metadata is stored with conversation messages (1.234359ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /finalizePersistedAskAnswer\\(\\{[\\s\\S]*carePersistence,[\\s\\S]*responseData: canonicalResponse/. Input:\n  \n  '\ufeffimport { isDeepStrictEqual } from \"node:util\";\\n' +\n    'import { resolveAskHistoryAccess } from \"../../lib/intelligence/history-access.ts\";\\n' +\n    'import type { DogProfileRow } from \"../../lib/supabase.ts\";\\n' +\n    'import { createClient, type SupabaseClient } from \"@supabase/supabase-js\";\\n' +\n    'import { buildAskConversationResponse } from \"../../lib/ask.mjs\";\\n' +",
+      "sha256": "c2ae1783154e70914b67f9a97e0a4d0d4f88bf754259c18ec67e0cb33791428f"
+    },
+    {
+      "location": "tests/ask-context-reasoning.test.mjs:161:1",
+      "name": "\u2716 normal questions use one strict structured provider request and no planner call (16.410972ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  2400 !== 8192\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/ask-context-reasoning.test.mjs:169:10)\n      at async Test.run (node:internal/test_runner/test:1409:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {",
+      "sha256": "ae636049d03ed2140b6dbbbe25f64013e5e8fb765a1e724fcbe6ac065b93b16a"
+    },
+    {
+      "location": "tests/ask-context-reasoning.test.mjs:349:1",
+      "name": "\u2716 casual greetings remain short while retaining the safe structured-output budget (7.063802ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  2400 !== 8192\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/ask-context-reasoning.test.mjs:354:10)\n      at async Test.run (node:internal/test_runner/test:1409:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {",
+      "sha256": "c28be7a307286bb89717a7334da52de302ffc873680efe3a40979499964b14a7"
+    },
+    {
+      "location": "tests/ask-contract-repair-route.test.mjs:12:1",
+      "name": "\u2716 normal Ask route repairs conflicting profile fields before factual context (92.658326ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  0 !== 2\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/ask-contract-repair-route.test.mjs:31:10)\n      at async Test.run (node:internal/test_runner/test:1409:7)\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {",
+      "sha256": "201d4beb997c8f843cb5aba308f4738a04051c1ade850acbbcb9c9d991798a28"
+    },
+    {
+      "location": "tests/ask-conversation-subject-continuity-p0.test.mjs:89:1",
+      "name": "\u2716 two equally recent compatible pets produce a bounded candidate clarification (15.757495ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /buildFurviseClarification\\(candidateNames\\)/. Input:\n  \n  '\ufeffimport { isDeepStrictEqual } from \"node:util\";\\n' +\n    'import { resolveAskHistoryAccess } from \"../../lib/intelligence/history-access.ts\";\\n' +\n    'import type { DogProfileRow } from \"../../lib/supabase.ts\";\\n' +\n    'import { createClient, type SupabaseClient } from \"@supabase/supabase-js\";\\n' +\n    'import { buildAskConversationResponse } from \"../../lib/ask.mjs\";\\n' +",
+      "sha256": "713dc4cf1503c4a2cf041ea38a2b891f91f710c990738a44636d51143f6fa779"
+    },
+    {
+      "location": "tests/ask-episode-history.test.mjs:4:1",
+      "name": "\u2716 episode organ counts, durable references and current publication boundary (17168.353365ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: \u2714 two occurrences in one incident and several updates count as one episode (36.848342ms)\n  \u2714 episode organ recurrence, count/list/provenance agree through the real serializer (12.874843ms)\n  \u2714 ambiguous grouping is not promoted from canonical IDs or time distance (5.363533ms)\n  \u2714 episode organ retrieves old decisive membership beyond the recent context window (135.06853ms)\n  \u2714 second one survives intervening turns, reload and new earlier history; that one retains selection (18.004067ms)\n  \u2714 stored reference deletion is explained without substitution (5.240509ms)\n  \u2714 stored reference update is explained without substitution (2.731469ms)",
+      "sha256": "3fd1997b71f7c4c90cf5e4fa348c8f1152e3ec1eb45dae0ae6783321e1d0d413"
+    },
+    {
+      "location": "tests/ask-episode-repair.test.mjs:37:1",
+      "name": "\u2716 initial episode/predicate mismatch repairs to ordinary dated record (4182.310703ms)",
+      "errorExcerpt": "  TypeError [Error]: Cannot set properties of undefined (setting 'episode')\n      at run (file:///home/runner/work/furvisepet/furvisepet/tests/ask-episode-repair.test.mjs:21:32)\n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/ask-episode-repair.test.mjs:37:79)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)\n      at Test.start (node:internal/test_runner/test:1262:17)\n      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)",
+      "sha256": "482589a66c5fcd29cc300c06b6afa78c20cf2efaff5319906a1cba4e98e00d19"
+    },
+    {
+      "location": "tests/ask-episode-repair.test.mjs:38:1",
+      "name": "\u2716 initial mismatch can preserve genuine episode intent (3085.677869ms)",
+      "errorExcerpt": "  TypeError [Error]: Cannot set properties of undefined (setting 'episode')\n      at run (file:///home/runner/work/furvisepet/furvisepet/tests/ask-episode-repair.test.mjs:21:32)\n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/ask-episode-repair.test.mjs:38:64)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)\n      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\n      at Test.postRun (node:internal/test_runner/test:1542:19)",
+      "sha256": "2a2505f280cca523c43b322c1e1f7207a3541415475f2c7aee3b095b7e398670"
+    },
+    {
+      "location": "tests/ask-episode-repair.test.mjs:39:1",
+      "name": "\u2716 invalid repair fails closed with no third call (3474.064204ms)",
+      "errorExcerpt": "  TypeError [Error]: Cannot set properties of undefined (setting 'episode')\n      at run (file:///home/runner/work/furvisepet/furvisepet/tests/ask-episode-repair.test.mjs:21:32)\n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/ask-episode-repair.test.mjs:39:58)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)\n      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\n      at Test.postRun (node:internal/test_runner/test:1542:19)",
+      "sha256": "ad073050e29beb270d7ab7d67afed53a8531357d0e91b69b799b4b6b96d87ede"
+    },
+    {
+      "location": "tests/ask-episode-repair.test.mjs:40:1",
+      "name": "\u2716 transport repair consumes the same allowance (3392.856799ms)",
+      "errorExcerpt": "  TypeError [Error]: Cannot set properties of undefined (setting 'episode')\n      at run (file:///home/runner/work/furvisepet/furvisepet/tests/ask-episode-repair.test.mjs:21:32)\n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/ask-episode-repair.test.mjs:40:56)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)\n      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\n      at Test.postRun (node:internal/test_runner/test:1542:19)",
+      "sha256": "dc766dd2556970a33dc079d8fd91da0aeb766fcdcfef097b20f30006b8aedd04"
+    },
+    {
+      "location": "tests/ask-grief-lifecycle-regression.test.mjs:50:1",
+      "name": "\u2716 typed loss publication preserves grief and emergency presentation boundaries (4.181112ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /const conditionalSafety = conditionalEmergencyGuidance\\(question\\)/. Input:\n  \n  '\ufeffimport { isDeepStrictEqual } from \"node:util\";\\n' +\n    'import { resolveAskHistoryAccess } from \"../../lib/intelligence/history-access.ts\";\\n' +\n    'import type { DogProfileRow } from \"../../lib/supabase.ts\";\\n' +\n    'import { createClient, type SupabaseClient } from \"@supabase/supabase-js\";\\n' +\n    'import { buildAskConversationResponse } from \"../../lib/ask.mjs\";\\n' +",
+      "sha256": "61ac9ea82e70c4945564788cfd288cbc88aa2498382db6c1030f983842413e36"
+    },
+    {
+      "location": "tests/ask-grief-lifecycle-regression.test.mjs:142:1",
+      "name": "\u2716 a lifecycle plan cannot manufacture unrelated or destructive model actions (1.256338ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /reasoning\\.applicationActions\\.filter\\(action =>[\\s\\S]*!\\[\"pet.update_profile\", \"memory.set_preference\", \"memory.forget_preference\", \"pet.mark_deceased\", \"pet.mark_active\", \"pet.archive\"\\]/. Input:\n  \n  '\ufeffimport { isDeepStrictEqual } from \"node:util\";\\n' +\n    'import { resolveAskHistoryAccess } from \"../../lib/intelligence/history-access.ts\";\\n' +\n    'import type { DogProfileRow } from \"../../lib/supabase.ts\";\\n' +\n    'import { createClient, type SupabaseClient } from \"@supabase/supabase-js\";\\n' +\n    'import { buildAskConversationResponse } from \"../../lib/ask.mjs\";\\n' +",
+      "sha256": "1a13c65afd564174ba115e1c8b6faee6e5262dfc3a0262b24db3450bf35e68b5"
+    },
+    {
+      "location": "tests/ask-grief-lifecycle-regression.test.mjs:324:1",
+      "name": "\u2716 provider completion, credits, and idempotent replay are tied to durable assistant persistence (0.898804ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /const persistedResponse = await persistAssistantAnswer/. Input:\n  \n  '\ufeffimport { isDeepStrictEqual } from \"node:util\";\\n' +\n    'import { resolveAskHistoryAccess } from \"../../lib/intelligence/history-access.ts\";\\n' +\n    'import type { DogProfileRow } from \"../../lib/supabase.ts\";\\n' +\n    'import { createClient, type SupabaseClient } from \"@supabase/supabase-js\";\\n' +\n    'import { buildAskConversationResponse } from \"../../lib/ask.mjs\";\\n' +",
+      "sha256": "9429c7c9ed7ecfb1730265c66507d330637acf8faf705c7a4709cb5acde2ee6a"
+    },
+    {
+      "location": "tests/ask-grief-lifecycle-regression.test.mjs:343:1",
+      "name": "\u2716 typed lifecycle stays deterministic after Brain and cannot persist extracted death claims (4.31756ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n  \n    assert.ok(dispatch>route.indexOf(\"await interpretAskQuestion(\"))\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/ask-grief-lifecycle-regression.test.mjs:345:10)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)",
+      "sha256": "60c4aac0e1c3a4cbf025f668ab35dbb26cb6adbc671f4d07c56064b00c4716b4"
+    },
+    {
+      "location": "tests/ask-grief-lifecycle-regression.test.mjs:362:1",
+      "name": "\u2716 typed correction cancellation uses the existing capability and source-bound receipt (0.702682ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /cancel: cancelActionCapability/. Input:\n  \n  '\ufeffimport { isDeepStrictEqual } from \"node:util\";\\n' +\n    'import { resolveAskHistoryAccess } from \"../../lib/intelligence/history-access.ts\";\\n' +\n    'import type { DogProfileRow } from \"../../lib/supabase.ts\";\\n' +\n    'import { createClient, type SupabaseClient } from \"@supabase/supabase-js\";\\n' +\n    'import { buildAskConversationResponse } from \"../../lib/ask.mjs\";\\n' +",
+      "sha256": "7ec13c4641776b6cc7759baf1764de32f0737ca24cddb4501ac61d08803a1aa4"
+    },
+    {
+      "location": "tests/ask-grief-lifecycle-regression.test.mjs:372:1",
+      "name": "\u2716 typed lifecycle dispatch uses one Brain before answer generation (0.507903ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n  \n    assert.ok(start>route.indexOf(\"await interpretAskQuestion(\"))\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/ask-grief-lifecycle-regression.test.mjs:376:10)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)",
+      "sha256": "f520ce19fd6f3443d2bcf507ad0e029ad8e93dae86c6d62a86423b36e6b12530"
+    },
+    {
+      "location": "tests/ask-grief-lifecycle-regression.test.mjs:385:1",
+      "name": "\u2716 confirmation actions remain outside Ask credit accounting and never auto-delete a pet (0.511739ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /decision/. Input:\n  \n  'import { getAuthenticatedApiContext } from \"../../../../lib/authenticated-api-server\";\\n' +\n    'import { isUuid } from \"../../../../lib/security/request\";\\n' +\n    '\\n' +\n    'type RouteContext = { params: Promise<{ messageId: string }> };\\n' +\n    '\\n' +",
+      "sha256": "1cdd0b5ce7506ed6d7f48a763b605e2c07b5ad0f026abf456575d2d348cadcdc"
+    },
+    {
+      "location": "tests/ask-history-stage-2.test.mjs:6:1",
+      "name": "\u2716 Stage 2 actual historical retrieval/generation/validation regressions (189794.56572ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: \u2714 candidate/RPC source version change fails closed: note and claim (4864.841355ms)\n  \u2714 candidate/RPC source version change fails closed: topic (3653.454075ms)\n  \u2714 candidate/RPC source version change fails closed: event date (3117.173145ms)\n  \u2714 candidate/RPC source version change fails closed: pet (3081.076357ms)\n  \u2714 candidate/RPC source version change fails closed: title (2930.234608ms)\n  \u2714 candidate/RPC source version change fails closed: severity (2890.422232ms)\n  \u2714 candidate/RPC source version change fails closed: category (2825.51388ms)",
+      "sha256": "50611c9df14fb5c352cc2bcacd4c901f9af8f38fd0320ec920d19c22cd8521d7"
+    },
+    {
+      "location": "tests/ask-id-free-probes.test.mjs:37:1",
+      "name": "\u2716 two ID-free probes become grounded needs and use existing Lungs (6608.094179ms)",
+      "errorExcerpt": "  Error [AskPipelineError]: I couldn't understand the request reliably this time. Please try again.\n      at fail (file:///home/runner/work/furvisepet/furvisepet/app/lib/intelligence/interpret-ask.ts:275:49)\n      at interpretAskQuestion (file:///home/runner/work/furvisepet/furvisepet/app/lib/intelligence/interpret-ask.ts:474:69)\n      at async run (file:///home/runner/work/furvisepet/furvisepet/tests/ask-id-free-probes.test.mjs:35:10)\n      at async TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/ask-id-free-probes.test.mjs:38:61)\n      at async Test.run (node:internal/test_runner/test:1409:7)\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {",
+      "sha256": "0d5352afca8f8a8f64bac16df96dc2f79f1e063d3befc1bc566bbb15938e0f60"
+    },
+    {
+      "location": "tests/ask-id-free-probes.test.mjs:80:1",
+      "name": "\u2716 a referenced USER span binds to its original turn (3016.480775ms)",
+      "errorExcerpt": "  Error [AskPipelineError]: I couldn't understand the request reliably this time. Please try again.\n      at fail (file:///home/runner/work/furvisepet/furvisepet/app/lib/intelligence/interpret-ask.ts:275:49)\n      at interpretAskQuestion (file:///home/runner/work/furvisepet/furvisepet/app/lib/intelligence/interpret-ask.ts:474:69)\n      at async run (file:///home/runner/work/furvisepet/furvisepet/tests/ask-id-free-probes.test.mjs:35:10)\n      at async TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/ask-id-free-probes.test.mjs:83:10)\n      at async Test.run (node:internal/test_runner/test:1409:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {",
+      "sha256": "b49e528e029244d8f2249fd3c97b5afe8875541aaf9187a707871bd9271672ec"
+    },
+    {
+      "location": "tests/ask-id-free-probes.test.mjs:88:1",
+      "name": "\u2716 homogeneous grouped work and synonyms retain one selection across generic predicates (2922.626897ms)",
+      "errorExcerpt": "  Error [AskPipelineError]: I couldn't understand the request reliably this time. Please try again.\n      at fail (file:///home/runner/work/furvisepet/furvisepet/app/lib/intelligence/interpret-ask.ts:275:49)\n      at interpretAskQuestion (file:///home/runner/work/furvisepet/furvisepet/app/lib/intelligence/interpret-ask.ts:474:69)\n      at async run (file:///home/runner/work/furvisepet/furvisepet/tests/ask-id-free-probes.test.mjs:35:10)\n      at async TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/ask-id-free-probes.test.mjs:94:68)\n      at async Test.run (node:internal/test_runner/test:1409:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {",
+      "sha256": "3fd87f752dea5cb72ba467793aa81ab4bff87d517c686b708b1bf031e48ca61d"
+    },
+    {
+      "location": "tests/ask-id-free-probes.test.mjs:134:1",
+      "name": "\u2716 distinct dated probes preserve their own typed window and term groups after grounding (6091.051368ms)",
+      "errorExcerpt": "  Error [AskPipelineError]: I couldn't understand the request reliably this time. Please try again.\n      at fail (file:///home/runner/work/furvisepet/furvisepet/app/lib/intelligence/interpret-ask.ts:275:49)\n      at interpretAskQuestion (file:///home/runner/work/furvisepet/furvisepet/app/lib/intelligence/interpret-ask.ts:474:69)\n      at async run (file:///home/runner/work/furvisepet/furvisepet/tests/ask-id-free-probes.test.mjs:35:10)\n      at async TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/ask-id-free-probes.test.mjs:140:10)\n      at async Test.run (node:internal/test_runner/test:1409:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {",
+      "sha256": "c586aec320a7f42623f2e4b55519c2a473046329d1e7b307ec2ee16bad1c3531"
+    },
+    {
+      "location": "tests/ask-interpretation-timeout.test.mjs:12:1",
+      "name": "\u2716 interpretation deadline fails closed through POST: one planner, no retrieve/write, released credit (127.953156ms)",
+      "errorExcerpt": "  Error: Expected provider boundary was not reached; POST returned 503\n      at file:///home/runner/work/furvisepet/furvisepet/tests/ask-interpretation-timeout.test.mjs:30:11\n      at async TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/ask-interpretation-timeout.test.mjs:29:3)\n      at async Test.run (node:internal/test_runner/test:1409:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n",
+      "sha256": "b17c91d9bd3a8f36c683aa17b298ecb4ec35152e3398a5d10fb20ec3b13c5cca"
+    },
+    {
+      "location": "tests/ask-labs-list.test.mjs:139:1",
+      "name": "\u2716 certified result-set proof cannot fulfill unsupported formats or nullable quantity (18.133464ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  + actual - expected\n  \n  + 'server-labs-list'\n  - 'server-history-unavailable'\n            ^\n  ",
+      "sha256": "d744fec23ee3ec9a08c246b36fbab1f15fbed5f25228f1b167f27646a8360f9d"
+    },
+    {
+      "location": "tests/ask-launch-blockers.test.mjs:4:1",
+      "name": "\u2716 Ask launch blocker regressions with network forbidden (33699.548638ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: \u2714 profile read preserves 8 owned species (4038.797269ms)\n  \u2714 profile read preserves 9 owned species (3150.263554ms)\n  \u2714 profile read preserves 10 owned species (3075.64211ms)\n  \u2714 profile read preserves 12 owned species (2969.157428ms)\n  \u2714 profile read preserves 20 owned species (3045.010842ms)\n  \u2714 two month aggregation retains both sets of dated breakfast evidence (2919.470433ms)\n  \u2714 dated arithmetic retains both saved observations including the last day (2889.724066ms)",
+      "sha256": "9b90e25cf673592f9c712e348456514cf3ea35b7f02e0e136879e17bbe91ce92"
+    },
+    {
+      "location": "tests/ask-launch-quality-history-prose.test.mjs:150:1",
+      "name": "\u2716 route publishes persistence success only from an effective durable receipt (3.176795ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /resolveAutomaticCareHistoryPresentation/. Input:\n  \n  '\ufeffimport { isDeepStrictEqual } from \"node:util\";\\n' +\n    'import { resolveAskHistoryAccess } from \"../../lib/intelligence/history-access.ts\";\\n' +\n    'import type { DogProfileRow } from \"../../lib/supabase.ts\";\\n' +\n    'import { createClient, type SupabaseClient } from \"@supabase/supabase-js\";\\n' +\n    'import { buildAskConversationResponse } from \"../../lib/ask.mjs\";\\n' +",
+      "sha256": "91d830cb4121638b6fd3eabb0f5f2b127c5841d5905c8bd16333cbef319c632e"
+    },
+    {
+      "location": "tests/ask-launch-repairs.test.mjs:4:1",
+      "name": "\u2716 launch screenshot regressions exercise the real callback with provider network disabled (19336.329992ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: [Ask Brain] proposal {\n    sourceMessageId: undefined,\n    mode: 'update',\n    operation: 'general',\n    mutationIntent: undefined,\n    taskIntent: null,\n    evidenceBasis: null,",
+      "sha256": "d3a45dbfe8d16d555cfa11750957f67466663042c5f3f17c45077f34ad92956b"
+    },
+    {
+      "location": "tests/ask-lifecycle-role-contract.test.mjs:1:1",
+      "name": "\u2716 tests/ask-lifecycle-role-contract.test.mjs (13815.269911ms)",
+      "errorExcerpt": "  'test failed'\n",
+      "sha256": "79ea7770025619d9dbf54f73a08020586fbcfd0280fb5a5fa78d3d5fc4bef0a1"
+    },
+    {
+      "location": "tests/ask-long-form-subject-contract-p0.test.mjs:162:1",
+      "name": "\u2716 the live Ask route uses the canonical resolver before reasoning and never reconstructs a one-name extraction fallback (4.867327ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n  \n    assert.ok(resolver >= 0 && reasoning > resolver)\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/ask-long-form-subject-contract-p0.test.mjs:166:10)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)",
+      "sha256": "9a615b27a8add22edead5c533ec37a3e56569dfbe0e80f5d15c2180eb2b7af24"
+    },
+    {
+      "location": "tests/ask-p0-auxiliary-regressions.test.mjs:57:1",
+      "name": "\u2716 Ask uses four truthful care-history states and never turns an auxiliary failure into answer failure (2.370157ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /finalizeAskPostReview/. Input:\n  \n  '\ufeffimport { isDeepStrictEqual } from \"node:util\";\\n' +\n    'import { resolveAskHistoryAccess } from \"../../lib/intelligence/history-access.ts\";\\n' +\n    'import type { DogProfileRow } from \"../../lib/supabase.ts\";\\n' +\n    'import { createClient, type SupabaseClient } from \"@supabase/supabase-js\";\\n' +\n    'import { buildAskConversationResponse } from \"../../lib/ask.mjs\";\\n' +",
+      "sha256": "341f3cfb1e4d669835a20dd742e79c99a005371f57735d106ee58a3560bae62f"
+    },
+    {
+      "location": "tests/ask-p0-auxiliary-regressions.test.mjs:84:1",
+      "name": "\u2716 history suggestion save and retry are idempotent and never spend another Ask credit (0.397111ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /beginIdempotentRateLimitedOperation/. Input:\n  \n  'import { getAuthenticatedApiContext } from \"../../../../lib/authenticated-api-server\";\\n' +\n    '\\n' +\n    '/** Retain the public denial contract without loading privileged write authority. */\\n' +\n    'export async function PATCH(request: Request) {\\n' +\n    '  const requestId = globalThis.crypto.randomUUID();\\n' +",
+      "sha256": "426421eba4a9916deb875c5eea4f361743309fcdaa1550d274dedaff0480ade7"
+    },
+    {
+      "location": "tests/ask-production-issues-v2.test.mjs:22:1",
+      "name": "\u2716 the production casual pronoun continuation resolves to Mani without the failing subject-frame call (7.298802ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /readInterpretationSubject\\(interpretation/. Input:\n  \n  '\ufeffimport { isDeepStrictEqual } from \"node:util\";\\n' +\n    'import { resolveAskHistoryAccess } from \"../../lib/intelligence/history-access.ts\";\\n' +\n    'import type { DogProfileRow } from \"../../lib/supabase.ts\";\\n' +\n    'import { createClient, type SupabaseClient } from \"@supabase/supabase-js\";\\n' +\n    'import { buildAskConversationResponse } from \"../../lib/ask.mjs\";\\n' +",
+      "sha256": "52b11d1c8d237762066ce52f918e60f87f62d49254c75c246452acf3ee8565e8"
+    },
+    {
+      "location": "tests/ask-production-repair.test.mjs:4:1",
+      "name": "\u2716 production Ask correction and interpretation callback regressions (112022.901247ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: CORRECTION SUMMARY FINAL: \n  I couldn\u2019t certify the requested history result from the available evidence. This does not establish that matching records are absent.\n  [Ask Brain] rejected read ticket {\"errorCode\":\"ASK_REQUEST_CONTRACT_READ_TICKET\",\"field\":\"temporal.from\",\"rule\":\"instant_or_null\",\"readTicketPresent\":true,\"readTicketObject\":true,\"predicateCount\":1,\"needsCount\":null,\"probesCount\":null}\n  INTERPRETATION FAILURE: interpretation_failed ASK_REQUEST_CONTRACT_READ_TICKET EVENTS: 2\n  FOLLOW-UP FINAL: \n  I couldn't verify the earliest matching record for Milo because part of the relevant history could not be fully checked.\n  [Furvise operations] {",
+      "sha256": "153e81518a809074802f7d2b4ad5fe8408765be791501df5e9a0fa853bf2f8e7"
+    },
+    {
+      "location": "tests/ask-provider-timestamp-boundary.test.mjs:1:1",
+      "name": "\u2716 tests/ask-provider-timestamp-boundary.test.mjs (9628.481457ms)",
+      "errorExcerpt": "  'test failed'\n",
+      "sha256": "0bfe7b1486e57616d417931a35be56a3b08054d6b4ffd5b8c1a4463990106c5a"
+    },
+    {
+      "location": "tests/ask-read-ticket-diagnostics.test.mjs:68:1",
+      "name": "\u2716 request-envelope rejection identifies the envelope field without changing the proposed ticket (3749.116809ms)",
+      "errorExcerpt": "  TypeError [Error]: Cannot read properties of undefined (reading 'arguments')\n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/ask-read-ticket-diagnostics.test.mjs:74:115)\n      at async Test.run (node:internal/test_runner/test:1409:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n",
+      "sha256": "0c9bb78e60ff1be865dfe10fa8d8e9bf36575a4c212b8256ce4d47a327b28cb8"
+    },
+    {
+      "location": "tests/ask-read-ticket-hygiene.test.mjs:21:1",
+      "name": "\u2716 read conflicts are discarded without creating a task, frame, mutation or extra planner pass (3655.196438ms)",
+      "errorExcerpt": "  Error [AskPipelineError]: I couldn't understand the request reliably this time. Please try again.\n      at fail (file:///home/runner/work/furvisepet/furvisepet/app/lib/intelligence/interpret-ask.ts:275:49)\n      at interpretAskQuestion (file:///home/runner/work/furvisepet/furvisepet/app/lib/intelligence/interpret-ask.ts:417:27)\n      at async TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/ask-read-ticket-hygiene.test.mjs:25:18)\n      at async Test.run (node:internal/test_runner/test:1409:7)\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {\n    stage: 'interpretation_failed',",
+      "sha256": "0dc388194f14dd2c0e05a765305957a186dec4f2808ff8a48d43f87b646b6afe"
+    },
+    {
+      "location": "tests/ask-referent-product-leak-p0.test.mjs:121:1",
+      "name": "\u2716 the live route gates capability copy by explicit product intent and passes discourse focus to reasoning (2.77454ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /const publicV1Capability = publicV1AskCapability\\(interpretation\\.request\\)/. Input:\n  \n  '\ufeffimport { isDeepStrictEqual } from \"node:util\";\\n' +\n    'import { resolveAskHistoryAccess } from \"../../lib/intelligence/history-access.ts\";\\n' +\n    'import type { DogProfileRow } from \"../../lib/supabase.ts\";\\n' +\n    'import { createClient, type SupabaseClient } from \"@supabase/supabase-js\";\\n' +\n    'import { buildAskConversationResponse } from \"../../lib/ask.mjs\";\\n' +",
+      "sha256": "a39ed8b1c1d4795f74b943d8afa7fe64ae42c153a6362ba35b27b52f30315643"
+    },
+    {
+      "location": "tests/ask-shared-operation-contracts.test.mjs:195:1",
+      "name": "\u2716 a read about a correction drops a contradictory edit hint without granting write authority (0.513621ms)",
+      "errorExcerpt": "  Error: ASK_REQUEST_INVALID:read_mutation_domain\n      at fail (file:///home/runner/work/furvisepet/furvisepet/app/lib/intelligence/ask-request-contract.ts:478:41)\n      at validateAskRequest (file:///home/runner/work/furvisepet/furvisepet/app/lib/intelligence/ask-request-contract.ts:523:16)\n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/ask-shared-operation-contracts.test.mjs:200:15)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)\n      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)",
+      "sha256": "de06b0966f0460ffa91dc3ee03d35652eb3a3d52d5b51f7e580a5505cd3d55ae"
+    },
+    {
+      "location": "tests/ask-shared-request-contract.test.mjs:4:1",
+      "name": "\u2716 shared Ask request contract and real pipeline boundaries (288305.432009ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: [Ask publication authority] {\"phase\":\"labs_eligibility\",\"eligible\":true,\"rejectedBy\":[],\"capability\":{\"supported\":false,\"reasons\":[\"not_ordered_result_set\",\"calculation_present\"]},\"stage\":\"pre_source_validation\",\"selectionPresent\":true,\"mode\":\"read\",\"writeJobPresent\":false,\"mutationIntent\":null,\"episodePresent\":false,\"ticketOperation\":\"read\",\"readOnlyRecall\":true,\"scopeStatus\":\"resolved\",\"task\":null,\"projection\":null,\"evidenceNeeds\":{\"count\":0,\"obligations\":[]},\"quantity\":\"measurement\",\"readOperation\":\"recall\",\"operation\":\"recall\",\"outputFormat\":\"prose\",\"completeness\":\"sufficient\",\"subjectScope\":\"named\",\"subjectIds\":[\"owned-a\"],\"referenceTurnCount\":0,\"residualRequirementCount\":0,\"certificateCount\":1,\"certificates\":[{\"subjectId\":\"owned-a\",\"clauseId\":0,\"selectedEventIds\":[\"source-0\",\"source-1\"],\"certified\":true,\"lineageClosed\":true,\"status\":\"complete\",\"blockingReasons\":[]}],\"selectedEventIds\":[\"source-0\",\"source-1\"],\"transportValid\":true,\"effectiveStream\":[{\"petId\":\"owned-a\",\"lineageClosed\":true,\"replacementSeedsExhausted\":true,\"certifiedSelectedIds\":[\"source-0\",\"source-1\"]}],\"coverage\":\"complete\",\"representation\":\"partial\"}\n  [Ask Labs] dispatch {\n ",
+      "sha256": "a9f2cd04ef667a1ffd83ad043e2b775c62104451c977556ce8858585dea9fe4d"
+    },
+    {
+      "location": "tests/ask-staged-catalog-contract.test.mjs:1:1",
+      "name": "\u2716 tests/ask-staged-catalog-contract.test.mjs (7018.59051ms)",
+      "errorExcerpt": "  'test failed'\n",
+      "sha256": "875497d03e03402ed6873b4c900c735c4e576c87dc9ca38c71e4a4797f0f1fed"
+    },
+    {
+      "location": "tests/ask-staged-catalog-route.test.mjs:1:1",
+      "name": "\u2716 tests/ask-staged-catalog-route.test.mjs (3545.938223ms)",
+      "errorExcerpt": "  'test failed'\n",
+      "sha256": "1375afcba4d24a1af07793561ec8650e0ae523c8838809d67ba098e74b898994"
+    },
+    {
+      "location": "tests/ask-stress-architecture.test.mjs:4:1",
+      "name": "\u2716 shared stress architecture boundaries with network forbidden (59642.953901ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: [Ask Brain] proposal {\n    sourceMessageId: undefined,\n    mode: 'read',\n    operation: 'recall',\n    mutationIntent: undefined,\n    taskIntent: null,\n    evidenceBasis: 'saved_history',",
+      "sha256": "6b566956e79a50c041c43d58ba045a84f9acb3517a865e3ec471c10fba4be378"
+    },
+    {
+      "location": "tests/ask-task-route.test.mjs:4:1",
+      "name": "\u2716 admitted HTTP pipeline blocks legacy task execution while preserving source and subject guards (3200.139254ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: \u2716 actual admitted route refuses another pet before history or mutations and releases its credit (2.485584ms)\n  \u2716 legacy save cannot execute an unconfirmed task or fetch facts (1.379072ms)\n  \u2716 legacy resume cannot execute an unconfirmed task or fetch facts (0.84352ms)\n  \u2716 legacy cancel cannot execute an unconfirmed task or fetch facts (0.991282ms)\n  \u2716 legacy cancel_saved cannot execute an unconfirmed task or fetch facts (0.832747ms)\n  \u2716 legacy failure cannot execute an unconfirmed task or fetch facts (0.858823ms)\n  \u2714 whole-request validation rejects a resumed mixed task recast as only saving (27.090969ms)",
+      "sha256": "8e3b3e86002912d8cf33050c27fc3c9e0ebb54111499ab48dea5e84ea8a947a7"
+    },
+    {
+      "location": "tests/ask-turn-subject-resolution.test.mjs:267:1",
+      "name": "\u2716 Ask keeps conversation binding separate while using the resolved turn pet for context and persistence (3.144906ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /conversationPetId: petId[\\s\\S]*petId: turnPetId/. Input:\n  \n  '\ufeffimport { isDeepStrictEqual } from \"node:util\";\\n' +\n    'import { resolveAskHistoryAccess } from \"../../lib/intelligence/history-access.ts\";\\n' +\n    'import type { DogProfileRow } from \"../../lib/supabase.ts\";\\n' +\n    'import { createClient, type SupabaseClient } from \"@supabase/supabase-js\";\\n' +\n    'import { buildAskConversationResponse } from \"../../lib/ask.mjs\";\\n' +",
+      "sha256": "b99bf7c5d57599c3a774c4a0492df99cdd343f315855b5b429105b6f0a59316b"
+    },
+    {
+      "location": "tests/ask-unseen-v1-publication-0930.test.mjs:54:6",
+      "name": "\u2716 fresh public V1 publication campaign stops on first defect (749.340861ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: [{\"stage\":\"read_only_context\",\"error\":\"ReferenceError: loadReadOnlyContext is not defined\",\"stack\":\"ReferenceError: loadReadOnlyContext is not defined\\n    at evalmachine.<anonymous>:235:33\\n    at async POST (evalmachine.<anonymous>:6:20)\\n    at async Object.execute (file:///home/runner/work/furvisepet/furvisepet/tests/ask-unseen-v1-publication-0930.test.mjs:40:17)\\n    at async TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/ask-unseen-v1-publication-0930.test.mjs:56:45)\\n    at async Test.run (node:internal/test_runner/test:1409:7)\\n    at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\"}]\n  \n  503 !== 200\n  \n      at Object.execute (file:///home/runner/work/furvisepet/furvisepet/tests/ask-unseen-v1-publication-0930.test.mjs:40:47)\n      at async TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/ask-unseen-v1-publication-0930.test.mjs:56:45)\n      at async Test.run (node:internal/test_runner/test:1409:7)",
+      "sha256": "64cda75c6b359de8db3be34e9de628b386fbffc0b768b53f6907dc7c8bf5fee8"
+    },
+    {
+      "location": "tests/ask-wire-integration.test.mjs:42:1",
+      "name": "\u2716 actual interpretation admits complete wire snapshots and gives Binder the same canonical plan (2.106981ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  2400 !== 100000\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/ask-wire-integration.test.mjs:49:10)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)",
+      "sha256": "f35f80116fdcda2cfd507f173ea79e4eb145ba6a2153cc2bd03d1fe9e733650b"
+    },
+    {
+      "location": "tests/ask-wire-integration.test.mjs:73:1",
+      "name": "\u2716 bounded saved_profile repair passes real admission and production wire decoding before Binder (3494.796585ms)",
+      "errorExcerpt": "  Error: ASK_DIRECT_CANONICAL_KEYS\n      at error (file:///home/runner/work/furvisepet/furvisepet/app/lib/intelligence/ask-wire-direct.mjs:7:9)\n      at Object.encode (file:///home/runner/work/furvisepet/furvisepet/app/lib/intelligence/ask-wire-direct.mjs:406:63)\n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/ask-wire-integration.test.mjs:85:23)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)\n      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)",
+      "sha256": "a6afce9438caf5a3c87c9de74f708c3ad28c8eb99a16fa114702f7e2888a222d"
+    },
+    {
+      "location": "tests/ask-wire-recursive-plan.test.mjs:131:3",
+      "name": "\u2716 final direct semantic request and real admission: five pets, 1200 chars, turns=0, numeric=false (3294.667677ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  2400 !== 8192\n  \n      at file:///home/runner/work/furvisepet/furvisepet/tests/ask-wire-recursive-plan.test.mjs:143:14\n      at file:///home/runner/work/furvisepet/furvisepet/tests/ask-wire-recursive-plan.test.mjs:125:42\n      at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:65:14)",
+      "sha256": "113707dbb7e3e6584127b5fc13aa12b7d541bc3d8269029929cd63525d4beeb7"
+    },
+    {
+      "location": "tests/ask-wire-recursive-plan.test.mjs:131:3",
+      "name": "\u2716 final direct semantic request and real admission: five pets, 1200 chars, turns=2, numeric=false (6454.649443ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  2400 !== 8192\n  \n      at file:///home/runner/work/furvisepet/furvisepet/tests/ask-wire-recursive-plan.test.mjs:143:14\n      at file:///home/runner/work/furvisepet/furvisepet/tests/ask-wire-recursive-plan.test.mjs:125:42\n      at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:65:14)",
+      "sha256": "3673aebfd0ed16cf02458a73b1bd8a9c262c45bb92c186877b76560eb86b8d5c"
+    },
+    {
+      "location": "tests/ask-wire-recursive-plan.test.mjs:131:3",
+      "name": "\u2716 final direct semantic request and real admission: five pets, 1200 chars, turns=8, numeric=false (24897.319227ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  2400 !== 8192\n  \n      at file:///home/runner/work/furvisepet/furvisepet/tests/ask-wire-recursive-plan.test.mjs:143:14\n      at file:///home/runner/work/furvisepet/furvisepet/tests/ask-wire-recursive-plan.test.mjs:125:42\n      at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:65:14)",
+      "sha256": "7a9c69c3653ca6ae424f8529ab1985ea06a4b84e6226a4b9b3f96931acb489c7"
+    },
+    {
+      "location": "tests/ask-wire-recursive-plan.test.mjs:131:3",
+      "name": "\u2716 final direct semantic request and real admission: five pets, 1200 chars, turns=39, numeric=false (25591.873933ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  2400 !== 8192\n  \n      at file:///home/runner/work/furvisepet/furvisepet/tests/ask-wire-recursive-plan.test.mjs:143:14\n      at file:///home/runner/work/furvisepet/furvisepet/tests/ask-wire-recursive-plan.test.mjs:125:42\n      at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:65:14)",
+      "sha256": "fc1ed8611dfc852e11cf8555d768b69de26df79eef1109193799f45842e104ee"
+    },
+    {
+      "location": "tests/ask-wire-recursive-plan.test.mjs:131:3",
+      "name": "\u2716 final direct semantic request and real admission: five pets, 1200 chars, turns=0, numeric=true (3714.534824ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  2400 !== 8192\n  \n      at file:///home/runner/work/furvisepet/furvisepet/tests/ask-wire-recursive-plan.test.mjs:143:14\n      at file:///home/runner/work/furvisepet/furvisepet/tests/ask-wire-recursive-plan.test.mjs:125:42\n      at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:65:14)",
+      "sha256": "a2280986d72311f122dbe38f69d3e93e872529ec13acc8735a64f221c3fca8ee"
+    },
+    {
+      "location": "tests/ask-wire-recursive-plan.test.mjs:131:3",
+      "name": "\u2716 final direct semantic request and real admission: five pets, 1200 chars, turns=2, numeric=true (7320.116905ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  2400 !== 8192\n  \n      at file:///home/runner/work/furvisepet/furvisepet/tests/ask-wire-recursive-plan.test.mjs:143:14\n      at file:///home/runner/work/furvisepet/furvisepet/tests/ask-wire-recursive-plan.test.mjs:125:42\n      at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:65:14)",
+      "sha256": "988380222778d102d7de115194a9242e2497841d4d258fabb631baa72a6ff8ec"
+    },
+    {
+      "location": "tests/ask-wire-recursive-plan.test.mjs:131:3",
+      "name": "\u2716 final direct semantic request and real admission: five pets, 1200 chars, turns=8, numeric=true (30594.283276ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  2400 !== 8192\n  \n      at file:///home/runner/work/furvisepet/furvisepet/tests/ask-wire-recursive-plan.test.mjs:143:14\n      at file:///home/runner/work/furvisepet/furvisepet/tests/ask-wire-recursive-plan.test.mjs:125:42\n      at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:65:14)",
+      "sha256": "a5fb1fd9183069fe8269fa0baca042b4784714c5b5287eee484550df0e99ea59"
+    },
+    {
+      "location": "tests/ask-wire-recursive-plan.test.mjs:131:3",
+      "name": "\u2716 final direct semantic request and real admission: five pets, 1200 chars, turns=39, numeric=true (32322.638727ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  2400 !== 8192\n  \n      at file:///home/runner/work/furvisepet/furvisepet/tests/ask-wire-recursive-plan.test.mjs:143:14\n      at file:///home/runner/work/furvisepet/furvisepet/tests/ask-wire-recursive-plan.test.mjs:125:42\n      at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:65:14)",
+      "sha256": "421e1dba2e3a9b074530d9b3c3ebde7a4c65d13f237b9e135b1a7ec7619f496c"
+    },
+    {
+      "location": "tests/ask-wire-recursive-plan.test.mjs:176:1",
+      "name": "\u2716 final serialized request boundaries reject before dispatch; output/accounting ceilings stay unchanged (3479.325884ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false\n  \n  Caught error:\n  \n  AiAdmissionError: provider_request_contract_mismatch\n      at async file:///home/runner/work/furvisepet/furvisepet/tests/ask-wire-recursive-plan.test.mjs:190:5\n      at async admitted (file:///home/runner/work/furvisepet/furvisepet/tests/ask-wire-recursive-plan.test.mjs:125:16)",
+      "sha256": "099529f868821655f0beaceedc835ea034df01362cf79578d06ba12e6d5ec3bd"
+    },
+    {
+      "location": "tests/ask-working-memory-interpretation.test.mjs:38:1",
+      "name": "\u2716 casual working-memory follow-up reaches the same Brain interpreter (3368.982338ms)",
+      "errorExcerpt": "  Error [AskPipelineError]: I couldn't understand the request reliably this time. Please try again.\n      at fail (file:///home/runner/work/furvisepet/furvisepet/app/lib/intelligence/interpret-ask.ts:275:49)\n      at interpretAskQuestion (file:///home/runner/work/furvisepet/furvisepet/app/lib/intelligence/interpret-ask.ts:417:27)\n      at async TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/ask-working-memory-interpretation.test.mjs:40:18)\n      at async Test.run (node:internal/test_runner/test:1409:7)\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {\n    stage: 'interpretation_failed',",
+      "sha256": "77218a9ba43c82a1c07a5759f332362355c6e6674f333ac29cfb301f1efab766"
+    },
+    {
+      "location": "tests/canonical-pet-remove.test.mjs:20:1",
+      "name": "\u2716 one closed REMOVE schema supports care history and the bound subject profile (769.33089ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: [{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"calculatePlan\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"required\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/1/required\",\"params\":{\"missingProperty\":\"draftAnswer\"},\"message\":\"should have required property 'draftAnswer'\"},{\"keyword\":\"required\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/2/required\",\"params\":{\"missingProperty\":\"draftAnswer\"},\"message\":\"should have required property 'draftAnswer'\"},{\"keyword\":\"required\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/3/required\",\"params\":{\"missingProperty\":\"draftAnswer\"},\"message\":\"should have required property 'draftAnswer'\"},{\"keyword\":\"required\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/4/required\",\"params\":{\"missingProperty\":\"draftAnswer\"},\"message\":\"should have required property 'draftAnswer'\"},{\"keyword\":\"required\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/5/required\",\"params\":{\"missingProperty\":\"draftAnswer\"},\"message\":\"should",
+      "sha256": "5d7b3b04efe6e2f98929582f9c98c31f00ac21bda229f0f2991cd9cd75cd491f"
+    },
+    {
+      "location": "tests/canonical-pet-remove.test.mjs:28:87",
+      "name": "\u2716 profile REMOVE Binder rejects mixed (1.62237ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /remove_job/. Input:\n  \n  'Error: ASK_REQUEST_INVALID:read_ticket_evidence_domain'\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/canonical-pet-remove.test.mjs:31:9)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)",
+      "sha256": "7aab0e637174f976fcd5f0fa60e2e592895aba46a79f0e68bb80f7abbddc1c64"
+    },
+    {
+      "location": "tests/canonical-pet-remove.test.mjs:73:1",
+      "name": "\u2716 opaque route supplies authenticated context and cannot accept client action semantics (0.624961ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /recentAuthContext: auth/. Input:\n  \n  'import { getAuthenticatedApiContext } from \"../../../../lib/authenticated-api-server\";\\n' +\n    'import { isUuid } from \"../../../../lib/security/request\";\\n' +\n    '\\n' +\n    'type RouteContext = { params: Promise<{ messageId: string }> };\\n' +\n    '\\n' +",
+      "sha256": "8f2a43241a669abacd81c3b80af9eef40be09aed1c6e819d46bb04d0d9f61ff8"
+    },
+    {
+      "location": "tests/canonical-pet-remove.test.mjs:122:44",
+      "name": "\u2716 isolated enabled route applies destructive auth only to confirmed server capability: confirm (1.176984ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  404 !== 401\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/canonical-pet-remove.test.mjs:127:9)\n      at async Test.run (node:internal/test_runner/test:1409:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {",
+      "sha256": "a99f4393076cc56c9cb075072745f79f75d88484c49d392971729670bae12bfd"
+    },
+    {
+      "location": "tests/canonical-pet-remove.test.mjs:122:44",
+      "name": "\u2716 isolated enabled route applies destructive auth only to confirmed server capability: cancel (1.141503ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  404 !== 200\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/canonical-pet-remove.test.mjs:127:9)\n      at async Test.run (node:internal/test_runner/test:1409:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {",
+      "sha256": "d38ce2b497e63b36879d08fc3db244bfe29b7c0abbf728b640804a0117243a2c"
+    },
+    {
+      "location": "tests/canonical-pet-remove.test.mjs:130:1",
+      "name": "\u2716 isolated enabled route rejects client kind and target rather than using them to evade recent auth (0.879751ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  404 !== 400\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/canonical-pet-remove.test.mjs:133:93)\n      at async Test.run (node:internal/test_runner/test:1409:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {",
+      "sha256": "14032e413f68195ace6ecc8ae79b894ee7dfb8500e6685cae67f9350956dae52"
+    },
+    {
+      "location": "tests/canonical-pet-remove.test.mjs:136:1",
+      "name": "\u2716 isolated enabled route accepts fresh auth and replays only the durable receipt (1.311569ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  404 !== 200\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/canonical-pet-remove.test.mjs:140:56)\n      at async Test.run (node:internal/test_runner/test:1409:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {",
+      "sha256": "59c3d31037f7925cab041f751dc445d27c21b539975e59552d7091baffa50787"
+    },
+    {
+      "location": "tests/canonical-remove.test.mjs:87:1",
+      "name": "\u2716 route dispatches canonical removal before factual context and narrative generation (4.561315ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n  \n    assert.ok(start>0)\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/canonical-remove.test.mjs:89:9)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)",
+      "sha256": "a6d78deac8a002bed3b795f601403ba03b21f16108d48c4424e43257a76f906d"
+    },
+    {
+      "location": "tests/canonical-remove.test.mjs:93:1",
+      "name": "\u2716 provider grammar admits only standalone REMOVE and supplied reference handles (671.315722ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: [{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"calculatePlan\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"storedRead\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"removeJob\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"stateTransitionJob\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"fieldMutationJob\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaP",
+      "sha256": "7a99bd696ef42e4987a234f0e3888146595a19a606fad7e873d923eb4c156d05"
+    },
+    {
+      "location": "tests/canonical-subject-authority.test.mjs:35:1",
+      "name": "\u2716 route has no post-Brain English subject resolver and canonical append exits before legacy generation (4.924738ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n  \n    assert.ok(route.indexOf('prepareAppendTurn(')<route.indexOf('readInterpretationSubject(interpretation'))\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/canonical-subject-authority.test.mjs:38:9)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)",
+      "sha256": "44e418da39c8b00b9d67fae9795b4f8a7499e02a5a91d5c58b06342620c2cc55"
+    },
+    {
+      "location": "tests/furvise-replace-ticket.test.mjs:132:1",
+      "name": "\u2716 conflicting reads, append jobs, foreign subjects and ungrounded bodies fail closed (1.671148ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /write_job/. Input:\n  \n  'Error: ASK_REQUEST_INVALID:read_mutation_domain'\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/furvise-replace-ticket.test.mjs:143:12)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)",
+      "sha256": "a2e153956a3e903ee352a1653590b9f75d3666bbdca2ec344fe887acd9cf6fbd"
+    },
+    {
+      "location": "tests/furvise-replace-ticket.test.mjs:193:1",
+      "name": "\u2716 Ask dispatches the typed job before narrative generation and keeps its bound target (5.697467ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n  \n    assert.ok(job > route.indexOf('const interpretation = await interpretAskQuestion'))\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/furvise-replace-ticket.test.mjs:196:10)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)",
+      "sha256": "ee09fb83daee6c0aee4e8629f6de236c1744006dabbf7b21244c02f8bc4d4a24"
+    },
+    {
+      "location": "tests/generalized-replace.test.mjs:88:1",
+      "name": "\u2716 route transports canonical target without an English edit selector (1.929112ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /resolveReplaceJob\\(replaceJob/. Input:\n  \n  '\ufeffimport { isDeepStrictEqual } from \"node:util\";\\n' +\n    'import { resolveAskHistoryAccess } from \"../../lib/intelligence/history-access.ts\";\\n' +\n    'import type { DogProfileRow } from \"../../lib/supabase.ts\";\\n' +\n    'import { createClient, type SupabaseClient } from \"@supabase/supabase-js\";\\n' +\n    'import { buildAskConversationResponse } from \"../../lib/ask.mjs\";\\n' +",
+      "sha256": "8aab2dc5f1b1a87716c955fb21711d916d62da270237e092c88b9cdc73c6e873"
+    },
+    {
+      "location": "tests/lifecycle-plan.test.mjs:142:1",
+      "name": "\u2716 lifecycle mutation cannot share authority with an unrelated job or read (4.3246ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /lifecycle_mixed/. Input:\n  \n  'Error: ASK_REQUEST_INVALID:read_ticket_evidence_domain'\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/lifecycle-plan.test.mjs:145:10)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)",
+      "sha256": "08b4557a442577b9682b319d52e095d7866d18adcbc671952543634dae7a2132"
+    },
+    {
+      "location": "tests/lifecycle-plan.test.mjs:166:1",
+      "name": "\u2716 ordinary Ask route consumes typed lifecycle outcomes without a wording-based dispatch (2.035113ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /continueLifecyclePlan\\(\\{ plan: interpretation\\.request\\?\\.lifecyclePlan/. Input:\n  \n  '\ufeffimport { isDeepStrictEqual } from \"node:util\";\\n' +\n    'import { resolveAskHistoryAccess } from \"../../lib/intelligence/history-access.ts\";\\n' +\n    'import type { DogProfileRow } from \"../../lib/supabase.ts\";\\n' +\n    'import { createClient, type SupabaseClient } from \"@supabase/supabase-js\";\\n' +\n    'import { buildAskConversationResponse } from \"../../lib/ask.mjs\";\\n' +",
+      "sha256": "cc508434c63c68616a3f11c68ac09682d49dcb303ee820e27024084c0e1dac5b"
+    },
+    {
+      "location": "tests/lifecycle-plan.test.mjs:175:1",
+      "name": "\u2716 full Binder preserves an active-subject requirement even for advice without a factual read (0.555591ms)",
+      "errorExcerpt": "  Error: ASK_REQUEST_INVALID:conversation_source\n      at fail (file:///home/runner/work/furvisepet/furvisepet/app/lib/intelligence/ask-request-contract.ts:478:41)\n      at validateAskRequest (file:///home/runner/work/furvisepet/furvisepet/app/lib/intelligence/ask-request-contract.ts:521:16)\n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/lifecycle-plan.test.mjs:178:20)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)\n      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)",
+      "sha256": "a04381d6629668345eee5df99759e8ec1bce35e8be5129013e8ebfa26f3c80a5"
+    },
+    {
+      "location": "tests/owner-note-write-isolation.test.mjs:28:1",
+      "name": "\u2716 lost write acknowledgment replays the same capability and returns one receipt without AI (138.436411ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  503 !== 200\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/owner-note-write-isolation.test.mjs:29:57)\n      at async Test.run (node:internal/test_runner/test:1409:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {",
+      "sha256": "10ae136a58b36205ec99f05003fd7a5311d7315141691050da9bd76879440626"
+    },
+    {
+      "location": "tests/owner-note-write-isolation.test.mjs:36:1",
+      "name": "\u2716 permission failures never produce success or retry under another identity (48.184847ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  503 !== 200\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/owner-note-write-isolation.test.mjs:37:56)\n      at async Test.run (node:internal/test_runner/test:1409:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {",
+      "sha256": "8282dd88e819c3f42f1695524a84f30957362ab31dbd7a740ab628c876da3f78"
+    },
+    {
+      "location": "tests/owner-note-write-isolation.test.mjs:58:1",
+      "name": "\u2716 route interprets before facts and never persists an owner note outside Heart (4.279393ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n  \n    assert.ok(source.indexOf('await interpretAskQuestion(')<source.indexOf('await buildFurviseContext('))\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/owner-note-write-isolation.test.mjs:61:10)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)",
+      "sha256": "b7451aa0ca9a00381d98c53102a21fbd44cbf9babd68ca4f1078a850d5218377"
+    },
+    {
+      "location": "tests/owner-note-write-isolation.test.mjs:63:69",
+      "name": "\u2716 HTTP confirmed save is isolated from model availability: {} (39.838905ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  503 !== 200\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/owner-note-write-isolation.test.mjs:67:10)\n      at async Test.run (node:internal/test_runner/test:1409:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {",
+      "sha256": "d636cd88114756d869bbfea14f52272a7cb8b0adf94f8f9747ab8c26d1157c9c"
+    },
+    {
+      "location": "tests/owner-note-write-isolation.test.mjs:63:69",
+      "name": "\u2716 HTTP confirmed save is isolated from model availability: {\"mixed\":true} (41.568929ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  503 !== 200\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/owner-note-write-isolation.test.mjs:67:10)\n      at async Test.run (node:internal/test_runner/test:1409:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {",
+      "sha256": "f005e2e88e429d408af7bd31c139d2a2c287e02e73b8a262e31988385f96d07a"
+    },
+    {
+      "location": "tests/owner-preference-mutation.test.mjs:98:1",
+      "name": "\u2716 provider field grammar excludes cross-domain fields and incompatible set/clear containers (826.55929ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: [{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"calculatePlan\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"storedRead\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"removeJob\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"mode\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"question\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/req",
+      "sha256": "a448d00a4a0646a7778c3b795ee0b63f8207219f935e5b722e70a08cf4bbfbe7"
+    },
+    {
+      "location": "tests/owner-preference-mutation.test.mjs:122:1",
+      "name": "\u2716 raw preference parsers are absent and canonical route stops before factual generation (8.700925ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n  \n    assert.ok(route.indexOf(\"prepareFieldMutationTurn(interpretation.request.fieldMutationJob\")<route.indexOf(\"const planningSource = liveContext.currentTurn\"))\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/owner-preference-mutation.test.mjs:127:9)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)",
+      "sha256": "0abc14704ef9c546c5ff618c67206521958a06518c7435065a27c145760e258e"
+    },
+    {
+      "location": "tests/profile-mutation-job.test.mjs:108:1",
+      "name": "\u2716 profile mutation cannot compete with another job or factual request (0.984468ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /profile_mutation_mixed/. Input:\n  \n  'Error: ASK_REQUEST_INVALID:read_ticket_evidence_domain'\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/profile-mutation-job.test.mjs:112:9)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)",
+      "sha256": "1c97e2e65c0e77f7de6c852c24060ab66c236e129de2fe1aa6df8a08096bf618"
+    },
+    {
+      "location": "tests/profile-mutation-job.test.mjs:118:1",
+      "name": "\u2716 route dispatch stops before retrieval/generation and legacy profile parser is absent (9.971723ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n  \n    assert.ok(route.indexOf(\"prepareFieldMutationTurn(interpretation.request.fieldMutationJob\") <\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/profile-mutation-job.test.mjs:120:9)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)",
+      "sha256": "e6b7e269b8010adbe60aac04f526b9d8ec9c8d26b84d788593d164ff6e28ce21"
+    },
+    {
+      "location": "tests/residual-requirements-contract.test.mjs:25:1",
+      "name": "\u2716 provider branches distinguish calculation ownership without classifying language (49.585957ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  7 !== 2\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/residual-requirements-contract.test.mjs:32:9)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)",
+      "sha256": "53eadf888603f2f1a6e6209f144b308c5e7f6ace275bf34e4e787959842bab30"
+    },
+    {
+      "location": "tests/state-transition-job.test.mjs:105:1",
+      "name": "\u2716 provider grammar enumerates supplied handles and rejects mixed authority (552.382408ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: [{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"calculatePlan\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"storedRead\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"removeJob\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"mode\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"question\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/req",
+      "sha256": "240c7b88f391b9bfacbecdb0d2f85da94c869bb7efec3eafb4e0f4da4a9f7785"
+    },
+    {
+      "location": "tests/state-transition-job.test.mjs:144:1",
+      "name": "\u2716 legacy concern classifiers cannot construct execution targets after Brain (4.872773ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n  \n    assert.ok(read(\"app/api/ask/route.ts\").indexOf(\"prepareStateTransitionTurn(interpretation\") <\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/state-transition-job.test.mjs:150:9)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)",
+      "sha256": "6ef18bdb6f70687ec82ae76328e5b7aecddd3e74d0372289beb45a14a6e292ec"
+    },
+    {
+      "location": "tests/typed-read-ticket.test.mjs:67:1",
+      "name": "\u2716 foreign persisted subjects fail in continuation before factual retrieval (2521.078619ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  503 !== 200\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/typed-read-ticket.test.mjs:70:27)\n      at async Test.run (node:internal/test_runner/test:1409:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {",
+      "sha256": "0fc30d284c65cfb93aaf67e1f7baabbd14ca58915ba32c9dfdc0c4cf9a9f6ba9"
+    },
+    {
+      "location": "tests/v27-confirmed-temporal-scope.test.mjs:55:1",
+      "name": "\u2716 route gates scoped execution before persisted-request loading or provider calls (5.055899ms)",
+      "errorExcerpt": "  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n  \n    assert.ok(parse > 0 && parse < hash && hash < stop && stop < load && load < provider)\n  \n      at TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/v27-confirmed-temporal-scope.test.mjs:62:10)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)",
+      "sha256": "401511534d2c746b6a9f7e5e73c89c3a83046e94550c97ae3a95603c7d276cdf"
+    }
+  ],
+  "rawVerifyLogSha256": "4f0600fef844ba8f281d568c49f9a217be0ae5ee90d39538243d0efc658dda4c"
+}

@@ -1,3 +1,4 @@
+import {getAiFeaturePolicy as admittedFeaturePolicy} from "../../app/lib/ai/usage-guard/features.ts";
 import {ticketedProposal} from './helpers/ticketed-proposal.mjs';
 import {assertSourceFreePublication} from './helpers/publication-call-expectations.mjs';
 import * as C from "../../tests/helpers/canonical-calculation-retirement.mjs";
@@ -93,7 +94,7 @@ const {admitAiOperation}=await import('../../app/lib/ai/usage-guard/admission.ts
 const {MemoryAiGuardTestStore}=await import('../../app/lib/ai/usage-guard/memory-test-store.ts');
 const {publicV1AskCapability,PUBLIC_V1_CAPABILITIES}=await import('../../app/lib/public-v1-capabilities.ts');
 const canonicalDefaults=JSON.parse(JSON.parse(readFileSync(new URL('../../tests/fixtures/ask-catalog-proof-seed.json',import.meta.url),'utf8')).sent[1].input).intent.request;
-function full(p){return {...structuredClone(canonicalDefaults),writeJob:null,appendJob:null,removeJob:null,lifecyclePlan:null,stateTransitionJob:null,fieldMutationJob:null,calculatePlan:null,storedRead:null,readTicket:null,task:null,frame:null,mutationIntent:null,profileFields:[],evidenceNeeds:[],requirements:[],referenceTurnIds:[],excludedPetNames:[],...p};}
+function full(p){return {...structuredClone(canonicalDefaults),draftAnswer:null,writeJob:null,appendJob:null,removeJob:null,lifecyclePlan:null,stateTransitionJob:null,fieldMutationJob:null,calculatePlan:null,storedRead:null,readTicket:null,task:null,frame:null,mutationIntent:null,profileFields:[],evidenceNeeds:[],requirements:[],referenceTurnIds:[],excludedPetNames:[],...p};}
 function sourceContext(q){return {...context,conversationId:'current-conversation',currentMessage:q,currentTurn:{id:'current-source',role:'user',text:q,createdAt:'2026-09-04T18:00:00Z'}};}
 const appendQuestion='Milo had a 7 minute play session today. Save this update to care history.';
 const appendProposal=()=>full(proposal(appendQuestion,{mode:'update',evidenceBasis:null,quantity:null,operation:'general',appendJob:{operation:'append',petName:'Milo',companionQuote:null,items:[{bodyQuote:'Milo had a 7 minute play session today.',dateQuote:null,occurredAt:null,semantics:{classification:'observation',target:null}}]}}));
@@ -105,7 +106,7 @@ async function wireCall(ctx,p,{raw=false,catalogService,expectedCalls=1}={}){
   try{const response=raw?p:prepared.transport.encode({request:p},()=>{});
   return await interpretAskQuestion({context:ctx,model:'gpt-5.4-mini',catalogService,client:{responses:{create:async request=>{
    calls++;assert.equal(calls,1,'non-profile repair cannot grant another attempt');
-   assert.equal(request.max_output_tokens,8192);assert.deepEqual(request.reasoning,{effort:'none'});
+   assert.equal(request.max_output_tokens,admittedFeaturePolicy('ask').maxOutputTokens);assert.deepEqual(request.reasoning,{effort:'none'});
    assert.deepEqual(request.text.format.schema,prepared.request.text.format.schema);
    return {status:'completed',output_text:JSON.stringify(response),usage:{input_tokens:12,output_tokens:10}};
   }}}});}finally{assert.equal(calls,expectedCalls);}

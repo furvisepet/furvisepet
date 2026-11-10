@@ -59,10 +59,11 @@ test("Ask uses four truthful care-history states and never turns an auxiliary fa
   assert.equal(getAskCareHistoryState({ suggestion: { status: "pending" } }), "SUGGESTION_AVAILABLE");
   assert.equal(getAskCareHistoryState({ carePersistence: { status: "persisted", careEntryIds: ["entry"] } }), "SAVED");
   assert.equal(getAskCareHistoryState({ carePersistence: { status: "failed", careEntryIds: [] }, suggestion: { status: "pending" } }), "SAVE_FAILED");
-  assert.match(askRoute,/finalizeAskPostReview/);
+  assert.match(askRoute,/runReadOnlyAsk\(/);
+  assert.match(askRoute,/buildReadOnlyPublication\(/);
   assert.match(pendingPersistence,/CANONICAL_SUGGESTION_REQUIRED/);
   assert.doesNotMatch(pendingPersistence,/\.from\(|\.rpc\(/);
-  assert.match(askRoute,/return buildSuccessfulAskResponse\(/);
+  assert.match(askRoute,/buildSuccessfulAskResponse\(/);
   assert.match(publication,/export function buildSuccessfulAskResponse/);
 });
 
@@ -81,9 +82,13 @@ test("started and resolved semantic prose cannot persist or reconcile without ca
   await assertLegacyProseRejected(resolved,'mani is normal now');
 });
 
-test("history suggestion save and retry are idempotent and never spend another Ask credit", () => {
-  assert.match(suggestionRoute, /beginIdempotentRateLimitedOperation/);
-  assert.match(suggestionRoute, /continueCanonicalSuggestion/);
+test("public history suggestion retry is denied without credit while legacy replay UI remains truthful", () => {
+  assert.match(suggestionRoute, /getAuthenticatedApiContext/);
+  assert.match(suggestionRoute, /status: 401/);
+  assert.match(suggestionRoute, /status: 409/);
+  assert.match(suggestionRoute, /SUGGESTION_CONFLICT/);
+  assert.match(suggestionRoute, /private, no-store/);
+  assert.doesNotMatch(suggestionRoute, /beginIdempotentRateLimitedOperation|continueCanonicalSuggestion|executeActionCapability|\.rpc\(|\.from\(/);
   assert.match(read("app/lib/intelligence/canonical-suggestion-continuation.ts"), /rebindCanonicalCapabilityAction/);
   assert.match(read("app/lib/application-actions/capabilities.ts"), /execute_ask_action_capability/);
   assert.doesNotMatch(suggestionRoute, /reserveAiCredit|completeAiCredit|releaseAiCredit|admitAiOperation|generateAsk/);

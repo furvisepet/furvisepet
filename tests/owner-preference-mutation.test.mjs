@@ -1,3 +1,4 @@
+import {assertPublicMutationDenied} from "./helpers/ask-public-mutation-boundary.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -100,7 +101,7 @@ test("provider field grammar excludes cross-domain fields and incompatible set/c
  const validate=new Ajv({allErrors:true}).compile(schema);
  const p=proposal(),base={calculatePlan:null,storedRead:null,removeJob:null,...request(p),stateTransitionJob:null,lifecyclePlan:null,appendJob:null,readTicket:null,writeJob:null,task:null,
  temporalScope:null,mutationIntent:null,recordSelection:null,profileFields:[],projection:null,evidenceNeeds:[],
- outputFormat:null,evidenceBasis:null,premiseQuotes:null,excludedPetNames:[]};
+ draftAnswer:null,outputFormat:null,evidenceBasis:null,premiseQuotes:null,excludedPetNames:[]};
  assert.equal(validate({request:base}),true,JSON.stringify(validate.errors));
  for(const fieldMutationJob of [{...p,petName:"Subject"},{...p,field:"weight"},{...p,operation:"clear_field"},
  {...p,domain:"pet_profile"},{...p,field:"preferred_retailer"}])
@@ -119,13 +120,15 @@ test("canonical preference operations remain exact while the durable executor is
  assert.match(sql,/Unsupported mutation kinds never fall back/);
  assert.match(sql,/v_error := 'That action is not available yet\.'/);
 });
-test("raw preference parsers are absent and canonical route stops before factual generation",()=>{
+test("public Ask refuses preferences while raw preference parsers remain absent",async () => {
  const read=p=>readFileSync(new URL("../"+p,import.meta.url),"utf8");
  assert.doesNotMatch(read("app/lib/application-actions/planner.ts"),/exactPreferenceSetCommand|exactPreferenceForgetCommand/);
  assert.doesNotMatch(read("app/lib/intelligence/memory-integrity.ts"),/hasExplicitPreferenceIntent/);
  const route=read("app/api/ask/route.ts");
- assert.ok(route.indexOf("prepareFieldMutationTurn(interpretation.request.fieldMutationJob")<route.indexOf("const planningSource = liveContext.currentTurn"));
- assert.match(route,/!\["pet.update_profile", "memory.set_preference", "memory.forget_preference"/);
+ assert.match(route,/runReadOnlyAsk\(/);
+ assert.doesNotMatch(route,/prepareAppendTurn|prepareFieldMutationTurn|prepareStateTransitionTurn/);
+ assert.doesNotMatch(route,/prepareFieldMutationTurn|executeFurviseApplicationAction/);
+ await assertPublicMutationDenied("Remember that I prefer metric units.","I saved your preference for metric units.");
 });
 test("one interpreter binds an owner field without using a pet as the semantic subject",async()=>{
  const {interpretAskQuestion}=await import("../app/lib/intelligence/interpret-ask.ts");
