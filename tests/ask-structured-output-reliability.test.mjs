@@ -12,6 +12,7 @@ import {
   generateContextAwareAskResponse,
 } from "../app/lib/ai/ask-reasoning.ts";
 import { interpretStructuredProviderResponse } from "../app/lib/ai/ask-provider.ts";
+import { AI_FEATURE_POLICIES } from "../app/lib/ai/usage-guard/features.ts";
 
 function profile() {
   return {
@@ -66,10 +67,10 @@ function clientWith(responses) {
   };
 }
 
-test("Ask uses one canonical 8192-token native strict structured-output request", () => {
+test("Ask uses one policy-bounded native strict structured-output request", () => {
   const request = buildAskProviderRequest({ currentMessage: "hello" });
   assert.equal(ASK_MAX_OUTPUT_TOKENS, 8192);
-  assert.equal(request.max_output_tokens, ASK_MAX_OUTPUT_TOKENS);
+  assert.equal(request.max_output_tokens, AI_FEATURE_POLICIES.ask.maxOutputTokens);
   assert.equal(request.text.format.type, "json_schema");
   assert.equal(request.text.format.name, "furvise_ask_response");
   assert.equal(request.text.format.strict, true);
@@ -148,8 +149,8 @@ test("one bounded corrected retry can recover from incomplete output", async () 
   const result = await generateContextAwareAskResponse(input(client, (event) => events.push(event)));
   assert.equal(result.safetyLevel, "urgent");
   assert.equal(client.requests.length, 2);
-  assert.equal(client.requests[0].max_output_tokens, ASK_MAX_OUTPUT_TOKENS);
-  assert.equal(client.requests[1].max_output_tokens, ASK_MAX_OUTPUT_TOKENS);
+  assert.equal(client.requests[0].max_output_tokens, AI_FEATURE_POLICIES.ask.maxOutputTokens);
+  assert.equal(client.requests[1].max_output_tokens, AI_FEATURE_POLICIES.ask.maxOutputTokens);
   assert.deepEqual(events.map((event) => `${event.stage}:${event.outcome}`), ["primary:started", "primary:failed", "repair:started", "repair:succeeded"]);
   assert.equal(events[1].providerErrorCode, "ASK_OUTPUT_INCOMPLETE");
   assert.equal(events[1].parsingAttempted, false);

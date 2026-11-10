@@ -14,7 +14,7 @@ import "server-only";
 import OpenAI from "openai";
 import { getAskModelConfiguration, type AskReasoningResult, type AskProviderEvent } from "../ai/ask-reasoning.ts";
 import { withProviderDeadline } from "../ai/execution-deadline.ts";
-import { boundedProviderTimeout, executeAdmittedResponsesRequest } from "../ai/usage-guard/provider-call-budget.ts";
+import { boundedProviderTimeout, executeAdmittedResponsesRequest, featureOutputLimit } from "../ai/usage-guard/provider-call-budget.ts";
 import { interpretStructuredProviderResponse } from "../ai/ask-provider.ts";
 import { parseModelApplicationActions } from "../application-actions/contracts.ts";
 import { prepareFurviseApplicationActions } from "../application-actions/planner.ts";
@@ -180,14 +180,14 @@ export async function reviewTaskCompletion(input: {
     const stage = purpose === "task_repair" ? "repair" : "verification";
     const reserveMs = purpose === "task_repair" ? 12_000 : 4_000;
     const started = Date.now();
-    const providerRequest = { model, instructions: prompt, input: serialized, max_output_tokens: 3200,
+    const providerRequest = { model, instructions: prompt, input: serialized, max_output_tokens: featureOutputLimit(3200),
           ...(/^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" as const } } : {}),
           text: { format: { type: "json_schema", name: "furvise_task_completion", strict: true, schema } } } as const;
-    const output = await executeAdmittedResponsesRequest({ purpose, model, stage, reserveMs, maxOutputTokens: 3200,
+    const output = await executeAdmittedResponsesRequest({ purpose, model, stage, reserveMs, maxOutputTokens: providerRequest.max_output_tokens,
       request: providerRequest, invoke: (providerRequest) => withProviderDeadline(signal => {
         // Admission can deny a phase before SDK dispatch. Count only admitted
         // provider attempts, not a proposed review that never reaches the SDK.
-        input.onProviderEvent?.({ stage, outcome: "started", model, elapsedMs: 0 });
+        input.onProviderEvent?.({ stage, outcome: "started", model, elapsedMs: 0, configuredOutputLimit: providerRequest.max_output_tokens });
         return provider.responses.create(providerRequest, { signal });
       }, boundedProviderTimeout(20_000, reserveMs, stage)) });
     input.onProviderEvent?.({ stage, outcome: "succeeded", model, elapsedMs: Date.now() - started });
