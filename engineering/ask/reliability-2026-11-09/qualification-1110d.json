@@ -1,0 +1,84 @@
+{
+  "sourceBase": "3a77dda0d35f9ae389a4f6f2609d7b1e8741b736",
+  "applicationChanged": false,
+  "utf8CharactersPreserved": true,
+  "sourcePins": {
+    "tests/ask-benchmark-retrieval-regressions.test.mjs": "bb7cf3f8ffe2b53a545132d755bf2a16c42cc76e2ed305e3ce3cafd1d298ce99",
+    "tests/ask-conversation-subject-continuity-p0.test.mjs": "738ac82c22f406da588d0eda694ef3188179596d70fac7e317163620fdf604c7",
+    "tests/ask-long-form-subject-contract-p0.test.mjs": "1909ec07b85d66f376038d33f43509a670812121081db1e9499586ac5d15776e",
+    "tests/ask-provider-timestamp-boundary.test.mjs": "c1f77bfc817fdc7899de9b959c45c6baacaed47ca252bae4221c21e8ac335eec",
+    "tests/ask-read-ticket-diagnostics.test.mjs": "ee6e0004b49d55b3fdf647d51bab3109a2d38ca5f7eac02103cd788cd18e6574",
+    "tests/ask-read-ticket-hygiene.test.mjs": "ce2fec447cf949df1b0828598cd5791606a1e5345bf9176f19597010f5d2f0a8"
+  },
+  "gates": [
+    {
+      "gate": "lint",
+      "exit": 0,
+      "seconds": 6.48,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "counts": {}
+    },
+    {
+      "gate": "diff-check",
+      "exit": 0,
+      "seconds": 0.05,
+      "sha256": "0a6f47042b24a78a97ad6447d8f56823afb950d6f2cfbe31338dceb3c5e1ddca",
+      "counts": {}
+    },
+    {
+      "gate": "cohort",
+      "exit": 0,
+      "seconds": 100.15,
+      "sha256": "1d1b4e97cdef3d26838804bd6a6ab90cc3919471bd58f6188f1bee4f99fb4cef",
+      "counts": {
+        "tests": "65",
+        "pass": "65",
+        "fail": "0",
+        "cancelled": "0",
+        "skipped": "0"
+      }
+    }
+  ],
+  "retainedFailureEvidence": [
+    {
+      "path": "C:\\Users\\gwara\\Furvise-V27-Continue-1110a\\baseline-targets.log",
+      "sha256": "b5470de295c17b4b563a075abb5138e1c1480e2e1c2bd6aaaf9d6d6399671899"
+    },
+    {
+      "path": "C:\\Users\\gwara\\Furvise-V27-Continue-1110a\\ask-provider-timestamp-boundary.test.mjs.baseline.tap",
+      "sha256": "29beb03428e4415058d04907eb92dc434197f11d7b055b52fd4105f478aef99c"
+    },
+    {
+      "path": "C:\\Users\\gwara\\Furvise-V27-Continue-1110a\\ask-read-ticket-diagnostics.test.mjs.baseline.tap",
+      "sha256": "6be4f3ae9287bdf582c1de4ac329bb2f61abc8c9ce7c4d839856a9ec0895ade1"
+    },
+    {
+      "path": "C:\\Users\\gwara\\Furvise-V27-Continue-1110a\\cohort-r8.tap",
+      "sha256": "e0a612e583d514cd9d8fac9643fb298d23f1baddc033b02c9888aa15262a89cf"
+    },
+    {
+      "path": "C:\\Users\\gwara\\Furvise-V27-Continue-1110a\\final-cohort-final-1110a.log",
+      "sha256": "8fac29e45d787eecfb067ce9c6cde17858280a648f702e7162f396e9173f00d1"
+    },
+    {
+      "path": "C:\\Users\\gwara\\Furvise-V27-Continue-1110a\\timestamp-r6.tap",
+      "sha256": "bd62161d46698b42b1f0365611dd62f7a6eb1836b43c5ba8587a093e2c5c8fb2"
+    },
+    {
+      "path": "C:\\Users\\gwara\\Furvise-V27-Continue-1110a\\timestamp-r7.tap",
+      "sha256": "2a500716d00f7fb26212a8ee76b59ec7a7368d0be860b1e50810af3cf84ed200"
+    }
+  ],
+  "transientUtf8EditFailure": {
+    "tests": 65,
+    "pass": 63,
+    "fail": 2,
+    "cause": "One Windows default-codepage edit read corrupted Unicode punctuation; repaired by reversing that single conversion, and original non-ASCII character counts verified against Git in all six files. Final exact-source cohort and zero-warning lint pass."
+  },
+  "readOnlyDiagnosticInterruption": {
+    "job": "v27-1110a-domain-job",
+    "scriptSha256": "bf20d0a26208ed92f6dd082e54dac1ff8d9060f37b793cc3c7bca628e026f508",
+    "execution": null,
+    "effects": "Read-only source inspection, no subprocess/write/provider effects. Supervisor disappeared; completion not inferred. Original job/operation acknowledged without replay."
+  }
+}

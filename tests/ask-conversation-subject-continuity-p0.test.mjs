@@ -1,3 +1,5 @@
+import {id} from "./helpers/ask-read-only-failure-route.mjs";
+import {readOnlySuccessRouteFixture} from "./helpers/ask-read-only-success-route.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -86,7 +88,7 @@ test("a same-turn object mention does not displace the explicit primary subject"
   assert.equal(resolveRecentPronoun(state, "she").entity?.petId, coco.id);
 });
 
-test("two equally recent compatible pets produce a bounded candidate clarification", () => {
+test("two equally recent compatible pets produce a bounded candidate clarification", async () => {
   const message = "She is vomiting.";
   const resolution = resolveAuthoritativeTurnSubject({
     frame: pronounFrame(message, "She"),
@@ -99,8 +101,18 @@ test("two equally recent compatible pets produce a bounded candidate clarificati
   assert.equal(resolution.status, "ambiguous");
   assert.equal(resolution.requiresClarification, true);
   assert.deepEqual(new Set(resolution.candidatePetIds), new Set([mani.id, coco.id]));
-  const route = read("app/api/ask/route.ts");
-  assert.match(route, /buildFurviseClarification\(candidateNames\)/);
+  const f=readOnlySuccessRouteFixture({answer:"Do you mean Mani or Coco?",replyType:"clarification",
+    context:{pets:[{id:id(2),ownerId:id(1),name:"Mani",species:"cat"},{id:id(8),ownerId:id(1),name:"Coco",species:"cat"}],dialogue:[{role:"user",text:"Mani and Coco are both in the bedroom."}]}});
+  try{
+    const response=await f.send(message),body=await response.json();
+    assert.equal(response.status,200,JSON.stringify(f.state.errors));
+    assert.equal(body.response.answerType,"clarification");
+    assert.equal(body.response.directAnswer,"Do you mean Mani or Coco?");
+    assert.deepEqual(body.response.applicationActions,[]);
+    assert.equal(f.state.calls,2);assert.equal(f.state.reads,0);
+    assert.equal(f.state.credit.status,"released");
+    assert.equal(body.dataChanged,false);
+  }finally{await f.release();}
 });
 
 test("clarification rows are advisory and independently understandable next turns resume", () => {

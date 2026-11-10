@@ -1,3 +1,4 @@
+import {readOnlySuccessRouteFixture} from "./helpers/ask-read-only-success-route.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -159,13 +160,21 @@ test("one-name clarification copy and empty verified-state fallback never imply 
   assert.equal(enforceVerifiedStateClaims("I can help with that using the action below.", false), "I can help with that.");
 });
 
-test("the live Ask route uses the canonical resolver before reasoning and never reconstructs a one-name extraction fallback", () => {
+test("the native public route answers the long-form turn without a separate subject extraction call", async () => {
   const route = readFileSync(new URL("../app/api/ask/route.ts", import.meta.url), "utf8");
-  const resolver = route.indexOf("readInterpretationSubject(interpretation");
-  const reasoning = route.indexOf("await generateAskHistoryAnswer");
-  assert.ok(resolver >= 0 && reasoning > resolver);
-  assert.match(route, /liveContext\.eligiblePets\.length >= 2[\s\S]*buildSubjectClarificationOrchestration/);
   assert.doesNotMatch(route, /resolveDeterministicTurnSubject\s*\(/);
+  const f=readOnlySuccessRouteFixture({answer:"Give her space and keep interactions gentle.",replyType:"answer"});
+  try{
+    const response=await f.send(productionRegression),body=await response.json();
+    assert.equal(response.status,200,JSON.stringify(f.state.errors));
+    assert.equal(body.response.answerType,"direct_answer");
+    assert.equal(body.response.directAnswer,"Give her space and keep interactions gentle.");
+    assert.deepEqual(body.response.applicationActions,[]);
+    assert.equal(f.state.calls,2);assert.equal(f.state.reads,0);
+    assert.equal(f.state.credit.status,"completed");
+    assert.equal(f.state.userMessages,1);assert.equal(body.dataChanged,false);
+    assert.deepEqual(f.state.events.filter(event=>event.startsWith("assistant:")),["assistant:initial","assistant:terminal"]);
+  }finally{await f.release();}
 });
 
 function pronounFrame(message, surface) {
