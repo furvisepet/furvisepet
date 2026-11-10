@@ -66,7 +66,7 @@ test('general anchor/operation coupling deliberately remains Binder-only',()=>{
  }
 });
 test('whole Ask provider contract permits ordinary bounded measurement recall',()=>{
- const request={calculatePlan:null,storedRead:null,removeJob:null,stateTransitionJob:null,fieldMutationJob:null,
+ const request={draftAnswer:null,calculatePlan:null,storedRead:null,removeJob:null,stateTransitionJob:null,fieldMutationJob:null,
   lifecyclePlan:null,appendJob:null,readTicket:ticket(),writeJob:null,task:null,temporalScope:'historical',
   mutationIntent:null,recordSelection:null,profileFields:[],projection:null,version:'ask-request.v2',
   mode:'read',question:'What measurement was recorded that day?',requirements:[],evidenceNeeds:[],outputFormat:null,

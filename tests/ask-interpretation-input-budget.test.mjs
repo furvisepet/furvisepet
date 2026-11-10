@@ -2,11 +2,12 @@ import { directFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { prepareAskInterpretationRequest, projectAskInterpretationContext, interpretAskQuestion, recoverAskInterpretation, ASK_INTERPRETATION_LIMITS } from "../app/lib/intelligence/interpret-ask.ts";
+import { prepareAskInterpretationRequest, buildAskInterpretationRepairRequest, projectAskInterpretationContext, interpretAskQuestion, recoverAskInterpretation, ASK_INTERPRETATION_LIMITS } from "../app/lib/intelligence/interpret-ask.ts";
 import { askRequestFitsInputBudget, assertAskRequestInputBudget, askSourceWindows, askUserSourceInput, assertAskSourceWindowProposal } from "../app/lib/intelligence/ask-interpretation-sources.ts";
 import { bindUserSourceSpan } from "../app/lib/furvise-brain/append-job.ts";
 import { admitAiOperation } from "../app/lib/ai/usage-guard/admission.ts";
 import { MemoryAiGuardTestStore } from "../app/lib/ai/usage-guard/memory-test-store.ts";
+import { executeAdmittedResponsesRequest } from "../app/lib/ai/usage-guard/provider-call-budget.ts";
 import { AI_FEATURE_POLICIES } from "../app/lib/ai/usage-guard/features.ts";
 import { estimateInputTokens } from "../app/lib/ai/usage-guard/cost-estimator.ts";
 import { beginCatalogHydration, sealCatalog } from "../app/lib/intelligence/catalog-intent.ts";
@@ -22,7 +23,7 @@ function context(count=0,numeric=false){
   conversationTurns:[...prior,current],conversationId:"conversation",timeZone:"UTC",
   ownerNoteSpans:[{id:"current:0:1200",sourceMessageId:"current",start:0,end:1200,text,role:"source"}]};
 }
-function proposal(ctx){return {...structuredClone(profileTemplate),question:ctx.currentMessage,scope:"named",petNames:["Aster"],topic:"profile"};}
+function proposal(ctx){return {...structuredClone(profileTemplate),draftAnswer:null,question:ctx.currentMessage,scope:"named",petNames:["Aster"],topic:"profile"};}
 const usage={input_tokens:100,output_tokens:20};
 const env={NODE_ENV:"test",FURVISE_AI_DAILY_CALL_LIMIT:"20",FURVISE_AI_DAILY_COST_LIMIT_USD:"10",FURVISE_RATE_LIMIT_HASH_SECRET:"offline-v24-input-budget-fixture"};
 const quiet=t=>{t.mock.method(console,"info",()=>{});t.mock.method(console,"warn",()=>{});};
@@ -44,7 +45,7 @@ for(const numeric of [false,true])for(const count of [0,2,8,39])
   assert.equal(input.sourceSpans.some(s=>Object.hasOwn(s,"text")),false);
   for(const source of input.userSources)assert.deepEqual(source,(({id,text,createdAt})=>({id,text,createdAt}))(ctx.conversationTurns.find(t=>t.id===source.id)));
   assert.ok(askRequestFitsInputBudget(p.request));assert.ok(estimateInputTokens(p.request)<=20000);
-  assert.ok(JSON.stringify(p.request).length<=60000);assert.equal(p.request.max_output_tokens,8192);
+  assert.ok(JSON.stringify(p.request).length<=60000);assert.equal(p.request.max_output_tokens,2400);
   const omitted=ctx.conversationTurns.filter(t=>t.id!=="current"&&!p.context.conversationTurns.some(x=>x.id===t.id));
   for(const source of omitted)assert.equal(JSON.stringify(p.request.text.format.schema).includes('"'+source.id+'"'),false);
   if(omitted.length)assert.match(input.sourceWindow.disclosure,/omitted/);
@@ -140,16 +141,33 @@ test("repair uses identical retained sources and real final-request admission",a
  });assert.equal(calls,2);
 });
 
-test("oversize repair is rejected before a second SDK call; source window is not changed to make it fit",async t=>{
- quiet(t);const ctx=context(39);
- for(const source of ctx.conversationTurns) if(source.id!=="current") source.text="\\".repeat(1200);
- const p=prepareAskInterpretationRequest(ctx,model),bad={...proposal(ctx),petNames:["Unowned subject"],
-  requirements:Array.from({length:8},(_,i)=>(i+" extra obligation ").padEnd(240,"x"))};
- let calls=0;await admitted(ctx,async()=>{
-  await assert.rejects(interpretAskQuestion({context:ctx,model,client:{responses:{create:async()=>{
-   calls++;return {status:"completed",output_text:JSON.stringify(directFixturePlan(p.transport).encode({request:bad})),usage};
-  }}}}),e=>e.reason==="feature_token_budget_exceeded");
- });assert.equal(calls,1);
+test("oversize repair is rejected by real admission before a second SDK call; source window is not changed",async t=>{
+ quiet(t);const ctx=context(0);
+ ctx.pinnedUserSourceIds=ctx.conversationTurns.filter(x=>x.id!=="current").map(x=>x.id);
+ const p=prepareAskInterpretationRequest(ctx,model);
+ assert.equal(p.input.sourceWindow.omittedPriorUserTurns,0);
+ // Model output is no longer echoed into repair. Put the server request at the
+ // real input boundary, then test the actual admission/dispatch layer.
+ let low=0,high=AI_FEATURE_POLICIES.ask.maxInputCharacters+1;
+ while(low+1<high){
+  const mid=Math.floor((low+high)/2),candidate={...p.request,instructions:p.request.instructions+"x".repeat(mid)};
+  if(askRequestFitsInputBudget(candidate))low=mid;else high=mid;
+ }
+ const request={...p.request,instructions:p.request.instructions+"x".repeat(low)};
+ const original=JSON.stringify(request);
+ const repair=buildAskInterpretationRepairRequest(request,{contractRepair:{validationCode:"ASK_REQUEST_CONTRACT_OWNERSHIP"}});
+ assert.ok(askRequestFitsInputBudget(request));assert.equal(askRequestFitsInputBudget(repair),false);
+ assert.deepEqual(JSON.parse(repair.input).userSources,p.input.userSources);
+ assert.deepEqual(JSON.parse(repair.input).sourceWindow,p.input.sourceWindow);
+ let calls=0;
+ await admitted(ctx,async(_a,store)=>{
+  const invoke=async sent=>{calls++;assert.equal(JSON.stringify(sent),original);assert.ok(Object.isFrozen(sent));return {status:"completed",usage};};
+  await executeAdmittedResponsesRequest({model,maxOutputTokens:request.max_output_tokens,request,stage:"interpretation",reserveMs:0,invoke});
+  await assert.rejects(executeAdmittedResponsesRequest({purpose:"interpretation_repair",model,maxOutputTokens:repair.max_output_tokens,request:repair,stage:"interpretation",reserveMs:0,invoke}),
+   e=>e.reason==="feature_token_budget_exceeded");
+  assert.equal(store.getSnapshot("2039-01-01").calls,1);
+ });
+ assert.equal(calls,1);assert.equal(JSON.stringify(request),original);
 });
 
 test("catalog hydration cannot replace the chosen current text, prior sources, or owned identities",async t=>{
@@ -174,7 +192,7 @@ test("catalog hydration cannot replace the chosen current text, prior sources, o
 
 test("existing input, output, call and accounting policy ceilings stay unchanged",()=>{
  assert.equal(AI_FEATURE_POLICIES.ask.maxInputTokens,20000);assert.equal(AI_FEATURE_POLICIES.ask.maxInputCharacters,80000);
- assert.equal(AI_FEATURE_POLICIES.ask.maxOutputTokens,100000);assert.equal(AI_FEATURE_POLICIES.ask.maximumProviderCalls,6);
+ assert.equal(AI_FEATURE_POLICIES.ask.maxOutputTokens,2400);assert.equal(AI_FEATURE_POLICIES.ask.maximumProviderCalls,2);
  assert.equal(ASK_INTERPRETATION_LIMITS.outputTokens,8192);
 });
 

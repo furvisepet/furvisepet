@@ -21,7 +21,9 @@ const { createAskWirePlan }=await import("../app/lib/intelligence/ask-wire-polic
 const corpus=JSON.parse(readFileSync(new URL("./fixtures/ask-wire-codec.json",import.meta.url),"utf8"));
 const prepared=prepareAskInterpretationRequest(corpus.contexts.no_numeric,"gpt-5.4-mini");
 const plan=prepared.wire;
-const canonical=corpus.fixtures.find(f=>f.context==="no_numeric"&&f.canonical.request.evidenceBasis==="saved_profile").canonical;
+// Recorded vectors stay immutable; construct the current required nullable field.
+const canonical=structuredClone(corpus.fixtures.find(f=>f.context==="no_numeric"&&f.canonical.request.evidenceBasis==="saved_profile").canonical);
+canonical.request.draftAnswer=null;
 const wire=plan.encode(canonical);
 const providerSchema=expand(createAskProviderWireSchema(plan.schema)),providerValid=makeValidator(providerSchema);
 const legacy=createGraphCodec(factorProviderCompoundSchemas(factorProviderEnumSchemas(askRequestProviderSchema(proposedSemanticFrameJsonSchema,prepared.context))));
@@ -108,16 +110,40 @@ test("invalid root references, unreachable nodes, reused nodes and noncanonical 
  assert.ok(providerValid(providerSchema,reordered));
  assert.throws(()=>plan.decode(reordered),/ASK_WIRE_(?:INVALID_EDGE|NONCANONICAL_WIRE)/);
 });
-test("transport envelope round-trips all matching canonical families without changing the legacy graph",()=>{
- let count=0;
- for(const fixture of corpus.fixtures.filter(f=>f.context==="no_numeric")){
-  const graph=legacy.encode(fixture.canonical),encoded=plan.encode(fixture.canonical);
+test("current canonical families round-trip while archived cross-branch conflicts fail closed",()=>{
+ // These are explicit contract contradictions, not validity inferred from the
+ // decoder under test. Old codec-shape vectors include deliberately mixed
+ // domains and are no longer all legal provider proposals.
+ const span=(from,to)=>Array.from({length:to-from+1},(_,i)=>from+i);
+ const conflicts=[
+  {indices:span(4,11),why:"supplied conversation has no quoted premise and carries correction intent",matches:r=>r.mode==="conversation"&&r.evidenceBasis==="supplied_context"&&r.premiseQuotes.length===0&&r.mutationIntent==="correct_record"},
+  {indices:[...span(12,19),...span(26,32)],why:"plain saved-history read carries correction intent",matches:r=>r.mode==="read"&&r.evidenceBasis==="saved_history"&&r.mutationIntent==="correct_record"},
+  {indices:[20,21,22],why:"correction/conversation mode has neither a read ticket nor a bound mutation",matches:r=>["conversation","update","mixed"].includes(r.mode)&&r.readTicket===null&&r.writeJob===null&&r.appendJob===null&&r.mutationIntent==="correct_record"},
+  {indices:[24,25,37,38],why:"historical episode recall/correction has no saved-evidence domain",matches:r=>r.mode==="read"&&["general",null].includes(r.evidenceBasis)&&r.operation==="recall"&&r.quantity==="episodes"&&r.temporalScope==="historical"&&r.mutationIntent==="correct_record"},
+  {indices:[33,34],why:"conversation/update mode carries an executable history read",matches:r=>["conversation","update"].includes(r.mode)&&r.readTicket!==null},
+  {indices:[39],why:"plain history read carries correction intent without a frame",matches:r=>r.mode==="read"&&r.readTicket!==null&&r.mutationIntent==="correct_record"&&r.frame===null}
+ ];
+ const validIndices=new Set([0,1,2,3,23,35,36,40,41,42]);
+ let accepted=0,rejected=0,total=0;
+ for(const[index,fixture]of corpus.fixtures.entries()){
+  if(fixture.context!=="no_numeric")continue;
+  total++;const current=structuredClone(fixture.canonical);current.request.draftAnswer=null;
+  const conflict=conflicts.find(rule=>rule.indices.includes(index));
+  if(conflict){
+   assert.ok(conflict.matches(current.request),"Archived fixture "+index+" changed: "+conflict.why);
+   assert.throws(()=>legacy.encode(current),/ASK_WIRE_CANONICAL_SCHEMA/,"Fixture "+index+": "+conflict.why);
+   assert.throws(()=>plan.encode(current),/ASK_WIRE_CANONICAL_SCHEMA/,"Fixture "+index+": "+conflict.why);
+   rejected++;continue;
+  }
+  assert.ok(validIndices.has(index),"Unclassified recorded vector "+index);
+  const graph=legacy.encode(current),encoded=plan.encode(current);
   assert.deepEqual(encoded,{root:graph.nodes.at(-1),nodes:graph.nodes.slice(0,-1)});
   assert.ok(providerValid(providerSchema,encoded));
-  assert.deepEqual(plan.decode(encoded),fixture.canonical);
-  assert.deepEqual(plan.encode(plan.decode(encoded)),encoded);count++;
+  assert.deepEqual(plan.decode(encoded),current);
+  assert.deepEqual(plan.encode(plan.decode(encoded)),encoded);accepted++;
  }
- assert.ok(count>20);
+ assert.deepEqual({accepted,rejected,total},{accepted:10,rejected:33,total:43});
+ assert.deepEqual(corpus.fixtures,JSON.parse(readFileSync(new URL("./fixtures/ask-wire-codec.json",import.meta.url),"utf8")).fixtures);
 });
 test("provider projection checkpoints remain bounded and detached from decoder lifetime",()=>{
  let checks=0;const expired=Error("TEST_COMPILATION_EXPIRED");
@@ -153,7 +179,7 @@ test("production interpreter rejects bad roots before Binder, repair or catalog 
      client:{responses:{create:async request=>{
       calls++;assert.equal(JSON.stringify(request),snapshot);assert.ok(Object.isFrozen(request));
       assert.deepEqual(request.text.format.schema,prepared.request.text.format.schema);
-      assert.equal(request.max_output_tokens,8192);assert.deepEqual(request.reasoning,{effort:"none"});
+      assert.equal(request.max_output_tokens,prepared.request.max_output_tokens);assert.deepEqual(request.reasoning,{effort:"none"});
       return {status:"completed",output_text:JSON.stringify(bad),usage:{input_tokens:10,output_tokens:10}};
      }}}
     })),e=>e.diagnostics?.providerErrorCode==="ASK_INTERPRETATION_JSON");

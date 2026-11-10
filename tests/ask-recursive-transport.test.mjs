@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { prepareAskInterpretationRequest, interpretAskQuestion, recoverAskInterpretation } from "../app/lib/intelligence/interpret-ask.ts";
+import { factorProviderEnumSchemas } from "../app/lib/ai/provider-enum-schema.ts";
+import { compactProviderSchemaReferences,factorProviderCompoundSchemas } from "../app/lib/ai/provider-compound-schema.ts";
 import { createAskProviderWireSchema } from "../app/lib/intelligence/ask-wire-provider-schema.ts";
 import { admitAiOperation } from "../app/lib/ai/usage-guard/admission.ts";
 import { MemoryAiGuardTestStore } from "../app/lib/ai/usage-guard/memory-test-store.ts";
@@ -20,7 +22,7 @@ const ctx = structuredClone(corpus.contexts.no_numeric);
 ctx.currentMessage = "What name is saved for " + ctx.pet.name + "?";
 ctx.currentTurn.text = ctx.currentMessage; ctx.conversationTurns = []; ctx.ownerNoteSpans = [];
 const good = { ...structuredClone(corpus.fixtures.find(f => f.canonical.request.evidenceBasis === "saved_profile").canonical.request),
-  question: ctx.currentMessage, scope: "named", petNames: [ctx.pet.name], topic: "profile" };
+  draftAnswer:null, question: ctx.currentMessage, scope: "named", petNames: [ctx.pet.name], topic: "profile" };
 const prepared = prepareAskInterpretationRequest(ctx, "gpt-5.4-mini");
 const envelope = value => prepared.transport.encode({ request: value }, () => {});
 const completed = value => ({ status: "completed", output_text: JSON.stringify(value), usage: { input_tokens: 10, output_tokens: 10 } });
@@ -39,7 +41,7 @@ function invoke(context, create, extras = {}) {
 }
 
 test("actual prepare/parse uses direct transport and retains the original canonical plan", async t => admitted(t, "recursive-success", async a => {
-  assert.deepEqual(prepared.request.text.format.schema, createAskProviderWireSchema(prepared.transport.schema));
+  assert.deepEqual(prepared.request.text.format.schema, compactProviderSchemaReferences(factorProviderCompoundSchemas(factorProviderEnumSchemas(createAskProviderWireSchema(prepared.transport.schema)),undefined,true)));
   assert.deepEqual(prepared.request.text.format.schema.required, ["format", "request"]);
   assert.deepEqual(prepared.wire.schema.required, ["nodes", "root"]);
   const expected = recoverAskInterpretation(good, prepared.context), response = envelope(good);
@@ -50,7 +52,7 @@ test("actual prepare/parse uses direct transport and retains the original canoni
     calls++; assert.equal(JSON.stringify(request), snapshot); assert.ok(Object.isFrozen(request));
     assert.deepEqual(request.text.format.schema, prepared.request.text.format.schema);
     assert.equal(request.instructions, prepared.request.instructions); assert.equal(request.input, prepared.request.input);
-    assert.equal(request.max_output_tokens, 8192); assert.deepEqual(request.reasoning, { effort: "none" });
+    assert.equal(request.max_output_tokens, prepared.request.max_output_tokens); assert.deepEqual(request.reasoning, { effort: "none" });
     assert.equal(options.signal.aborted, false); return completed(response);
   });
   assert.equal(calls, 1); assert.deepEqual(result, expected);
@@ -73,13 +75,14 @@ test("repair uses a fresh 12-second reserve after the compilation and initial pa
         const original = JSON.parse(sent[0].input);
         assert.deepEqual(input.userSources, original.userSources); assert.deepEqual(input.sourceWindow, original.sourceWindow);
         assert.equal(input.contractRepair.validationCode, "ASK_REQUEST_CONTRACT_OWNERSHIP");
-        assert.deepEqual(input.contractRepair.rejectedProposal, bad);
+        assert.equal(Object.hasOwn(input.contractRepair,"rejectedProposal"),false);
+        assert.ok(!JSON.stringify(input.contractRepair).includes("Unowned subject"));
       }
       // The second response has only 18s left: enough for repair's 12s reserve,
       // but past both the old compilation deadline and the initial 24s reserve.
       clock = a.deadline.expiresAt - (index ? 18000 : 28000);
       return completed(responses[index]);
-    });
+    }).catch(error=>{console.error("Unexpected repair failure",error.diagnostics);throw error;});
     assert.equal(sent.length, 2); assert.equal(accounted.length, 2);
     assert.deepEqual(result, recoverAskInterpretation(good, prepared.context));
   });
@@ -169,7 +172,7 @@ test("provider errors in initial and repair phases keep safe diagnostics and set
       type: "invalid_request_error", param: "text.format.schema", requestID: id,
       headers: { authorization: "sk-proj-OFFLINE_PRIVATE" }, body: { input: marker } });
     await assert.rejects(invoke(ctx, async (request, options) => {
-      calls++; assert.equal(request.max_output_tokens, 8192); assert.deepEqual(request.reasoning, { effort: "none" });
+      calls++; assert.equal(request.max_output_tokens, prepared.request.max_output_tokens); assert.deepEqual(request.reasoning, { effort: "none" });
       assert.equal(options.signal.aborted, false);
       if (repair && calls === 1) return completed(envelope({ ...good, petNames: ["Unowned subject"] }));
       throw thrown;

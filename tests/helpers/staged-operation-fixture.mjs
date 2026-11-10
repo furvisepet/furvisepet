@@ -16,7 +16,7 @@ export function sourceFixtureDb(context,db){
  }};
 }
 export async function stagedOperation({context,purpose,request,db,initial=()=>{},catalog=()=>{}}){
- const p={...structuredClone(defaults),writeJob:null,removeJob:null,stateTransitionJob:null,lifecyclePlan:null,storedRead:null,
+ const p={draftAnswer:null,...structuredClone(defaults),writeJob:null,removeJob:null,stateTransitionJob:null,lifecyclePlan:null,storedRead:null,
   appendJob:null,fieldMutationJob:null,readTicket:null,calculatePlan:null,task:null,frame:null,mutationIntent:null,
   profileFields:[],evidenceNeeds:[],requirements:[],referenceTurnIds:[],excludedPetNames:[],...request,question:context.currentMessage};
  if(purpose==='concern')p.premiseQuotes=null;

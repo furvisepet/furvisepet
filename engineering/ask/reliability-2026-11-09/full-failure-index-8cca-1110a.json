@@ -1,0 +1,1496 @@
+{
+  "schema": "ask-full-failure-index.v1",
+  "run": 42668544558,
+  "head": "8cca6338330aa739d9915b52d8f5a89245be0e53",
+  "checkout": "ae5ea7d9e58cf63b5b3b25e00ca4a0452a94219c",
+  "tree": "ce13931728c8bc8cb0a15c30770988024fe02326",
+  "counts": {
+    "total": 6224,
+    "pass": 6011,
+    "fail": 212,
+    "skip": 1
+  },
+  "detailedCases": 211,
+  "aggregateParentFailures": 1,
+  "rawVerifyLogSha256": "529f3735ab46e37fd303844d10ee9951149fa2f590f93f11c50e060a16439708",
+  "classificationIsNotWaiver": true,
+  "cases": [
+    {
+      "location": "tests/append-items-authority.test.mjs:77:1",
+      "name": "✖ confirmed batch uses one capability, all bound items, and the separate canonical companion read (200.916ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: [{\"stage\":\"read_only_context\",\"error\":{}}]",
+      "diagnosticCategory": "retained route harness lacks current read-only adapter",
+      "indexedExcerptSha256": "7f3c3e30240b7dbbc68a66e9c1d6a4d3e45c71e53bbc35a55707294c2f09804b"
+    },
+    {
+      "location": "tests/ask-active-contract.test.mjs:4:1",
+      "name": "✖ active request, review, evidence and lifetime regressions use the production contract (287550.51567ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: [Ask Brain] proposal {",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "9d2c9882fb241d8600d473dcb8ca93ec29272787ca7e4b90f85b148390072509"
+    },
+    {
+      "location": "tests/ask-anchor-repair.test.mjs:51:1",
+      "name": "✖ ordinary dated read repairs mismatched anchor (13821.373639ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "a18f1caec049200ad8b5bf7a15f20f81aac820d93c4732f909768f63775bfd7c"
+    },
+    {
+      "location": "tests/ask-anchor-repair.test.mjs:52:1",
+      "name": "✖ event-relative read repairs without losing its anchor (10818.430456ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "903697ce81c96ce18ae91cbaf87115fe6ceff950625fe57178fd85d9897d7ac8"
+    },
+    {
+      "location": "tests/ask-anchor-repair.test.mjs:53:1",
+      "name": "✖ invalid repair stops without a third call (12456.892901ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "48d1af6f0909ed7349c5dd727f85c0a4b0831a1ea28fae14e9ba54a68d0988f3"
+    },
+    {
+      "location": "tests/ask-anchor-repair.test.mjs:55:1",
+      "name": "✖ transport repair consumes shared allowance before an anchor failure (12087.525295ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "9f5c7f98ae3885552e6b8d1e595282476e1ff9232f4dbbd58ab2760aecb5b5c5"
+    },
+    {
+      "location": "tests/ask-anchor-repair.test.mjs:57:1",
+      "name": "✖ episode plus text predicate after anchor repair is rejected without a third call (11880.320848ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "520867e055751339beb541c63201da017566f107c864cf99bdd4862a45a52a71"
+    },
+    {
+      "location": "tests/ask-anchor-repair.test.mjs:65:1",
+      "name": "✖ initial attributed note request retains stored report authority (11790.676505ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "57bbdb6e8f6335b8370ae3a4cf637b0bc1a156c9065f6b1bfd61549553b2c5d8"
+    },
+    {
+      "location": "tests/ask-anchor-repair.test.mjs:67:1",
+      "name": "✖ initial effective fact authority remains effective (10196.306525ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "47263694b9dcf3e5993205616d4300a5f3663f25ce0a3ecd8320c684494b9644"
+    },
+    {
+      "location": "tests/ask-anchor-repair.test.mjs:68:1",
+      "name": "✖ repair retains effective authority for corrected fact (10267.35336ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "7873175f25ca03a93119215956d21190c3aa575bdd0b73ec4d0fce8d0f9d9316"
+    },
+    {
+      "location": "tests/ask-anchor-repair.test.mjs:69:1",
+      "name": "✖ mixed request retains proposed effective authority initially (10016.867327ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "3f61b13b3f7237012c2ec13ce5293597f3a8879619f3809f941da50485714466"
+    },
+    {
+      "location": "tests/ask-anchor-repair.test.mjs:70:1",
+      "name": "✖ mixed request retains proposed effective authority in repair (10416.451306ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "e4c1aa602c133e7e9c8d9498836cbcc5b4e7767aa9f9c270e59aae54e6dc2fc1"
+    },
+    {
+      "location": "tests/ask-anchor-repair.test.mjs:72:1",
+      "name": "✖ ambiguous input retains proposed effective authority initially (9993.530614ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "1466de971585adc7e8a840aa6d4f5ab8ce12534e6427b3d7b73c5b0c94a60a34"
+    },
+    {
+      "location": "tests/ask-anchor-repair.test.mjs:73:1",
+      "name": "✖ ambiguous input retains proposed effective authority in repair (10072.473548ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "c69082e4f3a3dc12eab71d0c4f84a2a8a7a163cc1894ffebebec29d1f43842c4"
+    },
+    {
+      "location": "tests/ask-append-independent-completion.test.mjs:46:1",
+      "name": "✖ confirmed append preserves limited whole-task outcome for an exhausted independent lexical miss (150.483962ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: [{\"stage\":\"read_only_context\",\"error\":{}}]",
+      "diagnosticCategory": "retained route harness lacks current read-only adapter",
+      "indexedExcerptSha256": "a1b9a110233395b59aef08814f787e4d1e9ba42d4eb09b78693a767927ec2912"
+    },
+    {
+      "location": "tests/ask-append-independent-completion.test.mjs:69:1",
+      "name": "✖ confirmed append completes certified independent endpoints despite partial scan coverage (51.04637ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: [{\"stage\":\"read_only_context\",\"error\":{}}]",
+      "diagnosticCategory": "retained route harness lacks current read-only adapter",
+      "indexedExcerptSha256": "32900c04579b6345b77d9e47ec721e812b4f4e9a38c438014b3fd8fddf329c95"
+    },
+    {
+      "location": "tests/ask-benchmark-retrieval-regressions.test.mjs:34:4",
+      "name": "✖ route proves alternate read widening from current user explicit owned names only (3.505863ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /explicitlyNamedOwnedPets\\(question, liveContext\\.eligiblePets \\|\\| \\[\\]\\)\\.map\\(pet => pet\\.id\\)/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "0f303c9ff5ce17256d92c273c8ecd17890580aa194b50fd892759ba36f5c9999"
+    },
+    {
+      "location": "tests/ask-care-chronology.test.mjs:125:1",
+      "name": "✖ canonical receipt replay crosses the capability boundary without an AI credit (3.821686ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /const confirmedExistingCarePersistence: CarePersistenceResult \\| null = null/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "6ebb20f4f3a95c228cd09959414aca26714b8e9a472507d5a05ede47e5084f33"
+    },
+    {
+      "location": "tests/ask-care-chronology.test.mjs:145:1",
+      "name": "✖ carePersistence metadata is stored with conversation messages (2.130132ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /finalizePersistedAskAnswer\\(\\{[\\s\\S]*carePersistence,[\\s\\S]*responseData: canonicalResponse/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "0623013078b533d1dbea6786fbcd1055dc6770ea8a07cd911ee42840d0310df4"
+    },
+    {
+      "location": "tests/ask-compositional-emission.test.mjs:50:1",
+      "name": "✖ A latest semantic family: named, household and established pronouns share one selection (11032.706935ms)",
+      "observedError": "TypeError [Error]: Cannot read properties of undefined (reading 'find')",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "e9269368ef699af10c4682f624e654116679c313b34e74bb983ab95307bf2236"
+    },
+    {
+      "location": "tests/ask-compositional-emission.test.mjs:65:1",
+      "name": "✖ B earliest semantic family differs only by ascending semantic order (5710.262515ms)",
+      "observedError": "TypeError [Error]: Cannot read properties of undefined (reading 'find')",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "9175fa390821e9576ad64369cf759ad61f5aaf888512821cf6ec81dcc1d03b97"
+    },
+    {
+      "location": "tests/ask-compositional-emission.test.mjs:73:1",
+      "name": "✖ C both boundaries are a union, with no new operation (5473.380179ms)",
+      "observedError": "TypeError [Error]: Cannot read properties of undefined (reading 'find')",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "14fda5f2d4f5764a4dd2a65d1ce066f4521782a1b3a6b0fe6afd480ce7f0b02d"
+    },
+    {
+      "location": "tests/ask-compositional-emission.test.mjs:80:1",
+      "name": "✖ D two most recent per subject uses group cardinality, independent of presentation (5222.833027ms)",
+      "observedError": "TypeError [Error]: Cannot read properties of undefined (reading 'find')",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "6016178f53fc53798dbaf49496d096fc632d8b761ed39ea7b4f772e0fff14e01"
+    },
+    {
+      "location": "tests/ask-compositional-emission.test.mjs:88:1",
+      "name": "✖ E alternate predicates and different pets execute without application changes (9831.932646ms)",
+      "observedError": "TypeError [Error]: Cannot read properties of undefined (reading 'find')",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "f9fd42318ac2efbd76853e10b586ae7dc6478ea1c2abafa3428a70715ca164cd"
+    },
+    {
+      "location": "tests/ask-compositional-emission.test.mjs:104:1",
+      "name": "✖ F anchored plus grouped binds without a manufactured date (5276.565189ms)",
+      "observedError": "TypeError [Error]: Cannot read properties of undefined (reading 'find')",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "16744ff6c1f266e36c2ea08f0c547595f4d09f634d202321117cd234ebce08da"
+    },
+    {
+      "location": "tests/ask-compositional-emission.test.mjs:114:1",
+      "name": "✖ explicit temporal windows compose with grouped selection without rewriting the plan (13419.42074ms)",
+      "observedError": "TypeError [Error]: Cannot read properties of undefined (reading 'find')",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "40825f1c2488c1d61f7963046c3eadbababf844b10ff13e3defbf99eefd78cb0"
+    },
+    {
+      "location": "tests/ask-compositional-emission.test.mjs:119:1",
+      "name": "✖ G single-subject legacy input becomes one canonical compositional selection (5638.823587ms)",
+      "observedError": "TypeError [Error]: Cannot read properties of undefined (reading 'find')",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "d0e42802183c58838504dc48cd97054848f372b85b5aa90df72fd9bba2afd8cf"
+    },
+    {
+      "location": "tests/ask-compositional-emission.test.mjs:130:1",
+      "name": "✖ H distinct grounded probes retain multi-need retrieval with selection null (11563.933908ms)",
+      "observedError": "TypeError [Error]: Cannot read properties of undefined (reading 'find')",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "7d51cb74d7e0cdfc4d8abbc972fcfc712dbd6142242715c7cbccf887be3f5c43"
+    },
+    {
+      "location": "tests/ask-compositional-emission.test.mjs:140:1",
+      "name": "✖ I unresolved pronouns clarify without adding subjects or invoking another planner (6015.065326ms)",
+      "observedError": "TypeError [Error]: Cannot read properties of undefined (reading 'find')",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "be591f3b0e90928c127f22bf9ae1edfaad5449f9894144d577c1e1100e6f8ac3"
+    },
+    {
+      "location": "tests/ask-compositional-emission.test.mjs:147:1",
+      "name": "✖ I unresolved fact or anchor is rejected rather than guessed into a legal selection (6544.041123ms)",
+      "observedError": "TypeError [Error]: Cannot read properties of undefined (reading 'find')",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "cbc8f9aea1ee850cc0181e9493e1737026c0d0ee77e402ebb2747a19f53b4adb"
+    },
+    {
+      "location": "tests/ask-compositional-emission.test.mjs:152:1",
+      "name": "✖ J incompatible selectors and invented dimensions reject, including bounded episode repair (6415.400707ms)",
+      "observedError": "TypeError [Error]: Cannot read properties of undefined (reading 'find')",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "94cd116580215ef7f1827aad7f9c674b176b7a466c9a3525552ff6c4bbb3f4eb"
+    },
+    {
+      "location": "tests/ask-compositional-emission.test.mjs:164:1",
+      "name": "✖ explicit subset and selected scope never widen merely because grouping is present (6584.712691ms)",
+      "observedError": "TypeError [Error]: Cannot read properties of undefined (reading 'find')",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "66ef87d80e943e9cf5d2c61127eb849a3ee7dbca0db9cac56c8955451e370dea"
+    },
+    {
+      "location": "tests/ask-compositional-emission.test.mjs:253:1",
+      "name": "✖ captured A1 semantics omit strategy; every conflicting legacy strategy still rejects (5479.816169ms)",
+      "observedError": "TypeError [Error]: Cannot read properties of undefined (reading 'find')",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "d1e3f3f1f9dd747c1fc16a53b869716f212d6afb1726deba80b67641ece0ec5f"
+    },
+    {
+      "location": "tests/ask-compositional-emission.test.mjs:266:1",
+      "name": "✖ finite chronological input translates; unbounded legacy endpoint strategy fails closed (5218.318827ms)",
+      "observedError": "TypeError [Error]: Cannot read properties of undefined (reading 'find')",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "1a24ed0c6089597e5d0ad9b272624e3c23a0fc285be192778313bc4842c23cf0"
+    },
+    {
+      "location": "tests/ask-compositional-emission.test.mjs:307:1",
+      "name": "✖ bounded semantic families preserve sufficient through one mocked interpretation each (5287.50765ms)",
+      "observedError": "TypeError [Error]: Cannot read properties of undefined (reading 'find')",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "4d7401ae0f199976d4059d27ebef9a64587870cd76807d5d6515e388254ad1dd"
+    },
+    {
+      "location": "tests/ask-compositional-emission.test.mjs:322:1",
+      "name": "✖ exhaustive listing, existence, absence and count-domain proposals retain exhaustive (5277.357747ms)",
+      "observedError": "TypeError [Error]: Cannot read properties of undefined (reading 'find')",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "829938eb16425b7bc227c874a5ff70421ac024b065db91ec491bb40f10a39e82"
+    },
+    {
+      "location": "tests/ask-compositional-emission.test.mjs:338:1",
+      "name": "✖ window and anchor scope compose with either logical completeness requirement (5306.582289ms)",
+      "observedError": "TypeError [Error]: Cannot read properties of undefined (reading 'find')",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "d9ce2ecc45ba3af807ce887ba2d76f4d6152d94483628168961f8945be524ea5"
+    },
+    {
+      "location": "tests/ask-compositional-emission.test.mjs:353:1",
+      "name": "✖ whole-history episode counts preserve exhaustive and the existing episode contract (5161.078411ms)",
+      "observedError": "TypeError [Error]: Cannot read properties of undefined (reading 'find')",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "edf206d2f158d132892030a5ee1960958b56e0ded4175a859d34393b51ecb58b"
+    },
+    {
+      "location": "tests/ask-context-lineage.test.mjs:4:1",
+      "name": "✖ context recovery uses fresh owned lineage and enforces receipt access (5196.4614ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: [Furvise AI guard] {",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "35d7545d03f59c0dc9304eee2b7d0c8ebf94f8569c4915abeed45b90ebb84a45"
+    },
+    {
+      "location": "tests/ask-contract-repair-route.test.mjs:12:1",
+      "name": "✖ normal Ask route repairs conflicting profile fields before factual context (155.942524ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "dda4869910df36551590e5f6e23d1e83f1cbb15d6efd4f2f72201db42ec58b87"
+    },
+    {
+      "location": "tests/ask-conversation-subject-continuity-p0.test.mjs:89:1",
+      "name": "✖ two equally recent compatible pets produce a bounded candidate clarification (25.7502ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /buildFurviseClarification\\(candidateNames\\)/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "a3e211188c23ccb7856a46b0349f62855a332765f022c288ac151d5d972c2dff"
+    },
+    {
+      "location": "tests/ask-conversation-subject-continuity-p0.test.mjs:153:1",
+      "name": "✖ a released Ask attempt receives a new ledger UUID without changing message identity (2.913316ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /completeAiCredit\\(\\{ feature: \"ask\", logicalRequestId: requestId, payloadHash, requestId: creditRequestId/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "6d0ba09c229fa287e0f05c82ba3973a15fe1163186f3ee75af80cb8f52291c2f"
+    },
+    {
+      "location": "tests/ask-direct-json-recovery.test.mjs:44:1",
+      "name": "✖ one admitted repair reinterprets original user sources and validates before authority (11710.287358ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "8e57ccc64e670ea53407d8d6ed4101ada4d9597830c251b7e8e5b2d829444f78"
+    },
+    {
+      "location": "tests/ask-direct-json-recovery.test.mjs:45:1",
+      "name": "✖ a malformed repair fails closed without a third call (10280.782533ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "22c5a34d25e9872baaebf89a3c2c60dd381eae000eb39a06193669e4f19e8159"
+    },
+    {
+      "location": "tests/ask-direct-json-recovery.test.mjs:46:1",
+      "name": "✖ canonical shape rejection gets one strict repair from the original sources (10526.920548ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "4932b98848b5ab19c31c43fdb0818a57b299d3b5b31fb70c1d954c36dccb647a"
+    },
+    {
+      "location": "tests/ask-direct-json-recovery.test.mjs:48:1",
+      "name": "✖ individually valid but conflicting profile fields get bounded schema-key hints (11994.58161ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "611089c6c6d8aff15cc4a8ea43ca9ad58fce9c6d067a2417ac7bc08d95a8a2e2"
+    },
+    {
+      "location": "tests/ask-episode-history.test.mjs:4:1",
+      "name": "✖ episode organ counts, durable references and current publication boundary (29364.188525ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: ✔ two occurrences in one incident and several updates count as one episode (98.751967ms)",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "df5663bcbc9cda4e4b9b8b4276d9cab09d3502f868ba3ca13a6a55d8e1e29f75"
+    },
+    {
+      "location": "tests/ask-episode-repair.test.mjs:37:1",
+      "name": "✖ initial episode/predicate mismatch repairs to ordinary dated record (7159.834218ms)",
+      "observedError": "TypeError [Error]: Cannot set properties of undefined (setting 'episode')",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "d67241e98b7e2462f547cff9a982d4bb6035d428f18abd600d489b24b962f2bf"
+    },
+    {
+      "location": "tests/ask-episode-repair.test.mjs:38:1",
+      "name": "✖ initial mismatch can preserve genuine episode intent (6781.264584ms)",
+      "observedError": "TypeError [Error]: Cannot set properties of undefined (setting 'episode')",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "b307334bbdc0643b8793e0f35f9dd17ca7c4e6597e55c8c9618f710f3002b063"
+    },
+    {
+      "location": "tests/ask-episode-repair.test.mjs:39:1",
+      "name": "✖ invalid repair fails closed with no third call (6832.630501ms)",
+      "observedError": "TypeError [Error]: Cannot set properties of undefined (setting 'episode')",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "da14ce4c34d919caec4e6c27c1fa7d5a65c4be76f151dc140cdb052cd11c4dcb"
+    },
+    {
+      "location": "tests/ask-episode-repair.test.mjs:40:1",
+      "name": "✖ transport repair consumes the same allowance (6282.46827ms)",
+      "observedError": "TypeError [Error]: Cannot set properties of undefined (setting 'episode')",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "de4a0edc168397f9485649772cff0f015f1fa1a7ba9a8c7ad95d1171bea58deb"
+    },
+    {
+      "location": "tests/ask-grief-lifecycle-regression.test.mjs:50:1",
+      "name": "✖ typed loss publication preserves grief and emergency presentation boundaries (7.238153ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /const conditionalSafety = conditionalEmergencyGuidance\\(question\\)/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "c0f07931260936dbdeace50c32a60d2178bee2e0a6a26a2161586242e1aa06a1"
+    },
+    {
+      "location": "tests/ask-grief-lifecycle-regression.test.mjs:142:1",
+      "name": "✖ a lifecycle plan cannot manufacture unrelated or destructive model actions (3.137662ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /reasoning\\.applicationActions\\.filter\\(action =>[\\s\\S]*!\\[\"pet.update_profile\", \"memory.set_preference\", \"memory.forget_preference\", \"pet.mark_deceased\", \"pet.mark_active\", \"pet.archive\"\\]/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "529183c780023d533e26255e15eccbd8c7dc05ee886e0779ace7ea860c714b85"
+    },
+    {
+      "location": "tests/ask-grief-lifecycle-regression.test.mjs:324:1",
+      "name": "✖ provider completion, credits, and idempotent replay are tied to durable assistant persistence (1.238794ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /const persistedResponse = await persistAssistantAnswer/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "b3c6c4eb0f5ed547e679cb387854ab7e9d25cf47215d503ccb658b364b2f60be"
+    },
+    {
+      "location": "tests/ask-grief-lifecycle-regression.test.mjs:343:1",
+      "name": "✖ typed lifecycle stays deterministic after Brain and cannot persist extracted death claims (12.966368ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "f7ce2aafc7c5e3ee25b10554b56acbda5805b7b02c12ef8dee73e98299daf746"
+    },
+    {
+      "location": "tests/ask-grief-lifecycle-regression.test.mjs:362:1",
+      "name": "✖ typed correction cancellation uses the existing capability and source-bound receipt (6.171139ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /cancel: cancelActionCapability/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "024b09fc94c5f8d1359e38e676ac2d6dbfc4538660a84fab317cdfc26016ea5b"
+    },
+    {
+      "location": "tests/ask-grief-lifecycle-regression.test.mjs:372:1",
+      "name": "✖ typed lifecycle dispatch uses one Brain before answer generation (0.848202ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "402fd1066ca4b913efc85fef6f692be3453b451ad24162ae2532daa2c7888cd3"
+    },
+    {
+      "location": "tests/ask-grief-lifecycle-regression.test.mjs:385:1",
+      "name": "✖ confirmation actions remain outside Ask credit accounting and never auto-delete a pet (0.738337ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /decision/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "98cfb75e8ee236d23affc7e6fec96eb70822334636d6e05c2ab3b3d464a3f4d0"
+    },
+    {
+      "location": "tests/ask-history-stage-2.test.mjs:6:1",
+      "name": "✖ Stage 2 actual historical retrieval/generation/validation regressions (321975.252278ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: ✔ candidate/RPC source version change fails closed: note and claim (7764.014408ms)",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "54997b9b95b724f7fb2933bf0e2d23a9d826747028d6ca0f4f5a2d08c02834df"
+    },
+    {
+      "location": "tests/ask-id-free-probes.test.mjs:37:1",
+      "name": "✖ two ID-free probes become grounded needs and use existing Lungs (11391.061807ms)",
+      "observedError": "Error [AskPipelineError]: I couldn't understand the request reliably this time. Please try again.",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "8354ac6866eba79eb6a5f94395bd4888d7365bec948b66eddb15acf22d6378b2"
+    },
+    {
+      "location": "tests/ask-id-free-probes.test.mjs:80:1",
+      "name": "✖ a referenced USER span binds to its original turn (5235.052957ms)",
+      "observedError": "Error [AskPipelineError]: I couldn't understand the request reliably this time. Please try again.",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "c21d3dad1fee33ca125e4d7fc8b167f679fbd840cbc9226d7a41fa93d3952fcd"
+    },
+    {
+      "location": "tests/ask-id-free-probes.test.mjs:88:1",
+      "name": "✖ homogeneous grouped work and synonyms retain one selection across generic predicates (5450.78278ms)",
+      "observedError": "Error [AskPipelineError]: I couldn't understand the request reliably this time. Please try again.",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "13d346154e62720efda77ef352ae80f5240db9cfcc2c038c91e8f167808e2714"
+    },
+    {
+      "location": "tests/ask-id-free-probes.test.mjs:134:1",
+      "name": "✖ distinct dated probes preserve their own typed window and term groups after grounding (10853.292303ms)",
+      "observedError": "Error [AskPipelineError]: I couldn't understand the request reliably this time. Please try again.",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "848c13eb8bb01c476506cd2748a39fc7041bcfde5135d6d85cc1f54fb02a5364"
+    },
+    {
+      "location": "tests/ask-interpretation-input-budget.test.mjs:36:2",
+      "name": "✖ final request: five pets, 1200 exact characters, 0 prior turns, numeric=false (11473.777422ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "35e1cae8d56eee5ebd41ad8b62c569bc12b088e51882c97d3c6cfb174782620a"
+    },
+    {
+      "location": "tests/ask-interpretation-input-budget.test.mjs:36:2",
+      "name": "✖ final request: five pets, 1200 exact characters, 2 prior turns, numeric=false (21579.622558ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "87fdacf17b326ab9a48cf3c2ed62037e63d85fe6856eba26da7ce1d3876d8f32"
+    },
+    {
+      "location": "tests/ask-interpretation-input-budget.test.mjs:36:2",
+      "name": "✖ final request: five pets, 1200 exact characters, 8 prior turns, numeric=false (82255.483534ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "e259c1a0fe9edb9e3dc6d46f56e633190bb0e1dccc04fc03ec66b7e8ccf1021d"
+    },
+    {
+      "location": "tests/ask-interpretation-input-budget.test.mjs:36:2",
+      "name": "✖ final request: five pets, 1200 exact characters, 39 prior turns, numeric=false (86862.672298ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "5ab75b24fcd2fe72cc730352e0a7bab2e4e9472e154c84152ce56f5b16721ca5"
+    },
+    {
+      "location": "tests/ask-interpretation-input-budget.test.mjs:36:2",
+      "name": "✖ final request: five pets, 1200 exact characters, 0 prior turns, numeric=true (6311.766944ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "25c44349eb1055bacb2d09054c3ba9bb590387944c60fccf74eb8a43d5001ac3"
+    },
+    {
+      "location": "tests/ask-interpretation-input-budget.test.mjs:36:2",
+      "name": "✖ final request: five pets, 1200 exact characters, 2 prior turns, numeric=true (15806.220343ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "c01f837bc46c4bcf01fd3454749cf112504d3f34d81515b09022c73cf441b099"
+    },
+    {
+      "location": "tests/ask-interpretation-input-budget.test.mjs:36:2",
+      "name": "✖ final request: five pets, 1200 exact characters, 8 prior turns, numeric=true (100796.060485ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "ab91e27762f834a8b2bdb1db486d0114315a82b68d1329010fdd7af61ef6a31f"
+    },
+    {
+      "location": "tests/ask-interpretation-input-budget.test.mjs:36:2",
+      "name": "✖ final request: five pets, 1200 exact characters, 39 prior turns, numeric=true (98807.616071ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "16b9d8544d837e848057593c7a974da5e2f76f0b9bceff8d66b5680941029208"
+    },
+    {
+      "location": "tests/ask-interpretation-input-budget.test.mjs:128:1",
+      "name": "✖ repair uses identical retained sources and real final-request admission (11141.852584ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "70192265ae8ee7f093e023def3eb218bc63311800c3a60b4b584c48cfe35b075"
+    },
+    {
+      "location": "tests/ask-interpretation-input-budget.test.mjs:143:1",
+      "name": "✖ oversize repair is rejected before a second SDK call; source window is not changed to make it fit (95980.177395ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "a305cfe03e67681ed613887aa6023f627a47d9ace5e6b682b5ffd2b24655d73b"
+    },
+    {
+      "location": "tests/ask-interpretation-input-budget.test.mjs:155:1",
+      "name": "✖ catalog hydration cannot replace the chosen current text, prior sources, or owned identities (34030.786221ms)",
+      "observedError": "Error: ASK_WIRE_CANONICAL_SCHEMA",
+      "diagnosticCategory": "closed-envelope or cross-branch fixture mismatch",
+      "indexedExcerptSha256": "6de1aed167438f9c73f65705e3e7c12b9fd7ac620a2c7579e25c9721f8e1c8fb"
+    },
+    {
+      "location": "tests/ask-interpretation-input-budget.test.mjs:175:1",
+      "name": "✖ existing input, output, call and accounting policy ceilings stay unchanged (0.466501ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "937f8967a2c9a9a850adeec9ac02dbaacb5a94e0b95835e3dfb47a8e35e74d36"
+    },
+    {
+      "location": "tests/ask-interpretation-output-budget.test.mjs:26:1",
+      "name": "✖ Brain has an independent canonical 100000 budget below the documented model maximum (3.661141ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "2e68778cda0647dca982f46f6b5bbb75b5f20d9d2bef3758b3f09ca6ceaf46af"
+    },
+    {
+      "location": "tests/ask-interpretation-output-budget.test.mjs:40:1",
+      "name": "✖ real admission reserves the entire new output envelope before permitting dispatch (5.792243ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "f5c9283ad1ce58cc77c56b4fb3894a40b95e33d9583ad3918cb3b6a4dfb1b8ca"
+    },
+    {
+      "location": "tests/ask-interpretation-output-budget.test.mjs:52:1",
+      "name": "✖ daily dollar ceiling rejects the larger reservation before any provider call (1.116337ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Missing expected rejection.",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "55461efbbb1cf6a9a0e52eed4cd768555d9f5ed90b6bdf84875673d3afd78e81"
+    },
+    {
+      "location": "tests/ask-interpretation-output-budget.test.mjs:70:2",
+      "name": "✖ incomplete interpretation is one call, no repair/Binder/write, and released user credit: 0 (121.197226ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "5503a905b282482bab2cc670a4ae9886defe8eaae5515d5115f5075a82946a21"
+    },
+    {
+      "location": "tests/ask-interpretation-output-budget.test.mjs:70:2",
+      "name": "✖ incomplete interpretation is one call, no repair/Binder/write, and released user credit: 1 (78.081426ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "5e385792d436b7f6119b34ee310c771e49ff5778a39045ddbd8dab1425ce61af"
+    },
+    {
+      "location": "tests/ask-interpretation-timeout.test.mjs:12:1",
+      "name": "✖ interpretation deadline fails closed through POST: one planner, no retrieve/write, released credit (164.17583ms)",
+      "observedError": "Error: Expected provider boundary was not reached; POST returned 503",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "786196ae059926b69331a4b032d22ee5ad1498eacf62a36c0bd77fdeae464e63"
+    },
+    {
+      "location": "tests/ask-labs-list.test.mjs:139:1",
+      "name": "✖ certified result-set proof cannot fulfill unsupported formats or nullable quantity (22.445203ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "465d73f0b658d7d4da7e8241f5869721259b75e579f1e4e67ececc6814eb4297"
+    },
+    {
+      "location": "tests/ask-launch-blockers.test.mjs:4:1",
+      "name": "✖ Ask launch blocker regressions with network forbidden (56443.819572ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: ✔ profile read preserves 8 owned species (6752.986306ms)",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "f75bd79b819af14ca9a987cc8f1b88332ec6af69aa998489569bce26a19b9197"
+    },
+    {
+      "location": "tests/ask-launch-quality-history-prose.test.mjs:150:1",
+      "name": "✖ route publishes persistence success only from an effective durable receipt (3.187032ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /resolveAutomaticCareHistoryPresentation/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "cf9eac29b9662285d79cc323a61cba708bb792b3b88dfefe52631e8d56ccc922"
+    },
+    {
+      "location": "tests/ask-launch-repairs.test.mjs:4:1",
+      "name": "✖ launch screenshot regressions exercise the real callback with provider network disabled (30043.088757ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: [Ask Brain] proposal {",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "819aa3a773d386501489572a3a36fcd3b9e6a729a8f5770987506f9cc6eb3a27"
+    },
+    {
+      "location": "tests/ask-lifecycle-role-contract.test.mjs:1:1",
+      "name": "✖ tests/ask-lifecycle-role-contract.test.mjs (22134.375212ms)",
+      "observedError": "",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "dff6ffeb4455ee784a774aff6c05474e489f1d5a9a430cad27586dc90f40a2bf"
+    },
+    {
+      "location": "tests/ask-long-form-subject-contract-p0.test.mjs:162:1",
+      "name": "✖ the live Ask route uses the canonical resolver before reasoning and never reconstructs a one-name extraction fallback (6.631444ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "95694a2d604d67d55b3ce0df1bd537118b8a59a40d5045d150cafb8632aa4261"
+    },
+    {
+      "location": "tests/ask-p0-auxiliary-regressions.test.mjs:57:1",
+      "name": "✖ Ask uses four truthful care-history states and never turns an auxiliary failure into answer failure (2.387257ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /finalizeAskPostReview/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "2d68d067d01b3265f3b2c49b7dcb9f62abb6d36d97b9e174bde07a3b6aa9ebf1"
+    },
+    {
+      "location": "tests/ask-p0-auxiliary-regressions.test.mjs:84:1",
+      "name": "✖ history suggestion save and retry are idempotent and never spend another Ask credit (0.556516ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /beginIdempotentRateLimitedOperation/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "6facdb64571049be08fa31039e615ff980b40dbcc54f1fc7a7ae34492f39f0bf"
+    },
+    {
+      "location": "tests/ask-production-issues-v2.test.mjs:22:1",
+      "name": "✖ the production casual pronoun continuation resolves to Mani without the failing subject-frame call (10.389258ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /readInterpretationSubject\\(interpretation/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "06064aeee213d31b5fb7763b4ffbb9077820de2f0cfdb69cd5c63943de349046"
+    },
+    {
+      "location": "tests/ask-production-repair.test.mjs:4:1",
+      "name": "✖ production Ask correction and interpretation callback regressions (144877.296123ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: CORRECTION SUMMARY FINAL:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "41d4c14a748f6b23ef2c7170b55679aa13ac39e81d4db8715d0e3cc8e116ad5d"
+    },
+    {
+      "location": "tests/ask-provider-root-envelope.test.mjs:1:1",
+      "name": "✖ tests/ask-provider-root-envelope.test.mjs (10568.746517ms)",
+      "observedError": "",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "3d8ca24bf6bd830424a8b791ee641cc1f4c3669a73984364f6b56db4691b8194"
+    },
+    {
+      "location": "tests/ask-provider-timestamp-boundary.test.mjs:1:1",
+      "name": "✖ tests/ask-provider-timestamp-boundary.test.mjs (16168.65722ms)",
+      "observedError": "",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "dbbf140ea6122464b2b19c107fb93d7116a68d3c61b498b4b1eefbe4c3b430cf"
+    },
+    {
+      "location": "tests/ask-read-ticket-diagnostics.test.mjs:68:1",
+      "name": "✖ request-envelope rejection identifies the envelope field without changing the proposed ticket (6012.214806ms)",
+      "observedError": "TypeError [Error]: Cannot read properties of undefined (reading 'arguments')",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "b5688ad4cb6a2b7970065705257725a98d69453fa90bd8c44cf5ee4992c4d9a2"
+    },
+    {
+      "location": "tests/ask-read-ticket-hygiene.test.mjs:21:1",
+      "name": "✖ read conflicts are discarded without creating a task, frame, mutation or extra planner pass (6035.197377ms)",
+      "observedError": "Error [AskPipelineError]: I couldn't understand the request reliably this time. Please try again.",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "69527685511045a4920140228d3ff44cacf1ebcca82ad016c10caec5fdb42a9b"
+    },
+    {
+      "location": "tests/ask-recursive-transport.test.mjs:41:1",
+      "name": "✖ actual prepare/parse uses direct transport and retains the original canonical plan (3663.93714ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "663775caf4a1ec29c83c0a51a57708924d1a5b357a7a93dbee4f1b743fe55519"
+    },
+    {
+      "location": "tests/ask-recursive-transport.test.mjs:59:1",
+      "name": "✖ repair uses a fresh 12-second reserve after the compilation and initial parse budgets expire (5.134952ms)",
+      "observedError": "Error: ASK_DIRECT_CANONICAL_KEYS",
+      "diagnosticCategory": "closed-envelope or cross-branch fixture mismatch",
+      "indexedExcerptSha256": "e0b271cdc1a51d6789bff6448785201c6cb402336adbb2b63bf6403533f3523e"
+    },
+    {
+      "location": "tests/ask-recursive-transport.test.mjs:88:1",
+      "name": "✖ initial decode honors the initial reserve and reports timeout instead of malformed JSON (5376.194147ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "ba925d087050a373445b4343b91d4228b3182bbc0974a033528cc888a873a46d"
+    },
+    {
+      "location": "tests/ask-recursive-transport.test.mjs:98:1",
+      "name": "✖ deadline expiration inside recursive reconstruction escapes the generic JSON error classifier (5588.932333ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "4bcf314c8fc076016aaebc8ce3d4f90426c435b0977244649a36f8a4aa5e9c98"
+    },
+    {
+      "location": "tests/ask-recursive-transport.test.mjs:113:1",
+      "name": "✖ uncooperative provider times out once; a late valid recursive result grants no authority (6507.005625ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "e470fbb44196ea3f472d0cf92df3eb83e107069210e736d848cb12b5d32abc86"
+    },
+    {
+      "location": "tests/ask-recursive-transport.test.mjs:130:1",
+      "name": "✖ recursive catalog intent is canonically validated before public policy and hydration (5755.630132ms)",
+      "observedError": "Error: ASK_WIRE_CANONICAL_SCHEMA",
+      "diagnosticCategory": "closed-envelope or cross-branch fixture mismatch",
+      "indexedExcerptSha256": "491225ceaa1798982f09c72dee9bcd304da75c01f095e7234e8ffda01ff0a513"
+    },
+    {
+      "location": "tests/ask-recursive-transport.test.mjs:162:47",
+      "name": "✖ initial rejection (5679.279856ms)",
+      "observedError": "TypeError [Error]: Cannot read properties of undefined (reading 'providerErrorCode')",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "64f48a937af1d83a2dd9e74d5b006b7837148ae0ed609321ff7d6044c1b81803"
+    },
+    {
+      "location": "tests/ask-recursive-transport.test.mjs:162:47",
+      "name": "✖ repair rejection (6569.825579ms)",
+      "observedError": "TypeError [Error]: Cannot read properties of undefined (reading 'providerErrorCode')",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "5e264a065bf384e5ffc805c9ae8197cf181270ab9e189eec1941b1e24f63e832"
+    },
+    {
+      "location": "tests/ask-referent-product-leak-p0.test.mjs:121:1",
+      "name": "✖ the live route gates capability copy by explicit product intent and passes discourse focus to reasoning (3.517033ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /const publicV1Capability = publicV1AskCapability\\(interpretation\\.request\\)/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "e59012815d8cb86641ca2d31867f021405df8c1b1f28b14a5484092ffeb76cd5"
+    },
+    {
+      "location": "tests/ask-shared-operation-contracts.test.mjs:195:1",
+      "name": "✖ a read about a correction drops a contradictory edit hint without granting write authority (0.697264ms)",
+      "observedError": "Error: ASK_REQUEST_INVALID:read_mutation_domain",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "6a6165c3d88fc15db0c1ca8652fb0bb928372c2b4b59a169a7452f0bf521556f"
+    },
+    {
+      "location": "tests/ask-shared-request-contract.test.mjs:4:1",
+      "name": "✖ shared Ask request contract and real pipeline boundaries (484527.244161ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: [Ask publication authority] {\"phase\":\"labs_eligibility\",\"eligible\":true,\"rejectedBy\":[],\"capability\":{\"supported\":false,\"reasons\":[\"not_ordered_result_set\",\"calculation_present\"]},\"stage\":\"pre_source_validation\",\"selectionPresent\":true,\"mode\":\"read\",\"writeJobPresent\":false,\"mutationIntent\":null,\"episodePresent\":false,\"ticketOperation\":\"read\",\"readOnlyRecall\":true,\"scopeStatus\":\"resolved\",\"task\":null,\"projection\":null,\"evidenceNeeds\":{\"count\":0,\"obligations\":[]},\"quantity\":\"me",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "7e2d050398d44de9ea4677fabba5af7ff865a69c51c5cdfd4df777253a3105b8"
+    },
+    {
+      "location": "tests/ask-staged-catalog-contract.test.mjs:1:1",
+      "name": "✖ tests/ask-staged-catalog-contract.test.mjs (9972.883533ms)",
+      "observedError": "",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "4a4c8183ba99b71aa7b71d45a97a7d9aa01351ffeb95de8a8cd2a1abe7fa2487"
+    },
+    {
+      "location": "tests/ask-staged-catalog-route.test.mjs:1:1",
+      "name": "✖ tests/ask-staged-catalog-route.test.mjs (5147.581897ms)",
+      "observedError": "",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "e646c21df97eb8730aeede8c3425707f31fc35c60f7ba39372902009fc9d135a"
+    },
+    {
+      "location": "tests/ask-state-suggestion-persistence.test.mjs:16:1",
+      "name": "✖ canonical suggestions execute through the exact governed capability (3.064147ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /continueCanonicalSuggestion/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "b8d719e16b31d063d35c484b1e0dadf761d5e0411a3bd15827f9d05a656c2484"
+    },
+    {
+      "location": "tests/ask-state-suggestion-persistence.test.mjs:35:1",
+      "name": "✖ already-applied suggestions return the existing governed receipt (1.283307ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /\"already_applied\"/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "cbdf8974c8d728fc61c624c54fde07262620df9980780adb7a69f042c554e651"
+    },
+    {
+      "location": "tests/ask-state-suggestion-persistence.test.mjs:51:1",
+      "name": "✖ automatic persistence presentation stays separate from canonical suggestion creation (1.921858ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /confirmedCarePersistence\\?\\.status === \"persisted\"/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "8a6f0acba043406ad8d8b34ba354287dae7a275e80abbdc2ab2cab799cf649f2"
+    },
+    {
+      "location": "tests/ask-state-suggestion-persistence.test.mjs:95:1",
+      "name": "✖ invalid UI intents return 422 with a stable code (0.427623ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /SUGGESTION_INVALID/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "1e9e7eb067a3501b05ab6e7183206c72a5077e3baa098a2b1bc4fddf3332c348"
+    },
+    {
+      "location": "tests/ask-state-suggestion-persistence.test.mjs:101:1",
+      "name": "✖ database failures use stable errors without factual recovery queries (0.501613ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /SUGGESTION_PERSISTENCE_FAILED/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "ac15baa97ac14217751e9694eb44efb7e59f7e115325be56e68cfaa2fed5d1c2"
+    },
+    {
+      "location": "tests/ask-state-suggestion-persistence.test.mjs:125:1",
+      "name": "✖ conversation copy cannot claim resolution while confirmation is pending (1.168705ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /let governedAnswer = enforceAnswerStateClaims/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "854119d043a4a01964edcabd7c702d2f31502b6429726fd45ed84a5f403e6982"
+    },
+    {
+      "location": "tests/ask-stress-architecture.test.mjs:4:1",
+      "name": "✖ shared stress architecture boundaries with network forbidden (105164.483645ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: [Ask Brain] proposal {",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "a7bb1d7a095b4f0acf5301b6828971bdaf969ad8b70234da8f79e3abfc68fc74"
+    },
+    {
+      "location": "tests/ask-task-execution-contract.test.mjs:86:47",
+      "name": "✖ route settles only after capability execution: succeeded (3.519377ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: persistAssistantAnswer",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "79548a1f6b31e4f2ae4a49c514c2762b3f41eb45b9f0ab9eb8029c2dfbcc8d68"
+    },
+    {
+      "location": "tests/ask-task-execution-contract.test.mjs:86:47",
+      "name": "✖ route settles only after capability execution: failed (0.420896ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: persistAssistantAnswer",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "512bfedacf9b5067b07a1ad5a3e0f5d45488bea8f87230ac9deadea715b3c626"
+    },
+    {
+      "location": "tests/ask-task-route.test.mjs:4:1",
+      "name": "✖ admitted HTTP pipeline blocks legacy task execution while preserving source and subject guards (4654.801976ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: ✖ actual admitted route refuses another pet before history or mutations and releases its credit (3.468158ms)",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "b40cad967d43870303355f5c74d73e89f1b9a81fa20d738c3c4607a0baeb0162"
+    },
+    {
+      "location": "tests/ask-turn-subject-resolution.test.mjs:267:1",
+      "name": "✖ Ask keeps conversation binding separate while using the resolved turn pet for context and persistence (2.967123ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /conversationPetId: petId[\\s\\S]*petId: turnPetId/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "d427059b39c347f1a709f5154c021b674ae9539d600cfb5979bb41430fdd3809"
+    },
+    {
+      "location": "tests/ask-unseen-v1-publication-0930.test.mjs:54:6",
+      "name": "✖ fresh public V1 publication campaign stops on first defect (1045.866811ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: [{\"stage\":\"read_only_context\",\"error\":\"ReferenceError: loadReadOnlyContext is not defined\",\"stack\":\"ReferenceError: loadReadOnlyContext is not defined\\n    at evalmachine.<anonymous>:235:33\\n    at async POST (evalmachine.<anonymous>:6:20)\\n    at async Object.execute (file:///home/runner/work/furvisepet/furvisepet/tests/ask-unseen-v1-publication-0930.test.mjs:40:17)\\n    at async TestContext.<anonymous> (file:///home/runner/work/furvisepet/furvisepet/tests/ask-unseen-v1-publ",
+      "diagnosticCategory": "retained route harness lacks current read-only adapter",
+      "indexedExcerptSha256": "9e780eb43fda5c7b0640d6ab766424c36479e1f82655efe20c58d23bed26d4d7"
+    },
+    {
+      "location": "tests/ask-wire-integration.test.mjs:42:1",
+      "name": "✖ actual interpretation admits complete wire snapshots and gives Binder the same canonical plan (2.901842ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "9a3e0b426419055bbb3332689ff53c06929b3ec003cdf14a540767d29bb4d5ac"
+    },
+    {
+      "location": "tests/ask-wire-integration.test.mjs:73:1",
+      "name": "✖ bounded saved_profile repair passes real admission and production wire decoding before Binder (5661.102183ms)",
+      "observedError": "Error: ASK_DIRECT_CANONICAL_KEYS",
+      "diagnosticCategory": "closed-envelope or cross-branch fixture mismatch",
+      "indexedExcerptSha256": "aabacb5c5e01ff029fb3ccb357ece299940a18847dab69171a065e7997782b72"
+    },
+    {
+      "location": "tests/ask-wire-recursive-plan.test.mjs:131:3",
+      "name": "✖ final direct semantic request and real admission: five pets, 1200 chars, turns=0, numeric=false (5735.052375ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "bb653bc16f9185bf3a6a77c212464eb61ccdf3467f5b3abe30cb4c62f4c7cf56"
+    },
+    {
+      "location": "tests/ask-wire-recursive-plan.test.mjs:131:3",
+      "name": "✖ final direct semantic request and real admission: five pets, 1200 chars, turns=2, numeric=false (10832.379622ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "3355040f6b83da4eabf102ab0c985e3d17274e861c6709735576599966191750"
+    },
+    {
+      "location": "tests/ask-wire-recursive-plan.test.mjs:131:3",
+      "name": "✖ final direct semantic request and real admission: five pets, 1200 chars, turns=8, numeric=false (43295.702596ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "3d8b034f496306323fb5b9c798fa1b09a85cfd32b50d315c98a9ea9ea5863ad3"
+    },
+    {
+      "location": "tests/ask-wire-recursive-plan.test.mjs:131:3",
+      "name": "✖ final direct semantic request and real admission: five pets, 1200 chars, turns=39, numeric=false (43950.109012ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "cb144cd8c3c646f0598f3c4efdcd1c795fbc4aa6ca80d3a229bd404289af0cdb"
+    },
+    {
+      "location": "tests/ask-wire-recursive-plan.test.mjs:131:3",
+      "name": "✖ final direct semantic request and real admission: five pets, 1200 chars, turns=0, numeric=true (6128.277226ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "07d7dbdb07a6790602c176a069c26dbd59993042ad59f53b050a218fb6d0b176"
+    },
+    {
+      "location": "tests/ask-wire-recursive-plan.test.mjs:131:3",
+      "name": "✖ final direct semantic request and real admission: five pets, 1200 chars, turns=2, numeric=true (13833.481809ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "8fe1dbb1bbaa75918e3ab6978867fe1db300a8a5078d2e8605b27985da0b5165"
+    },
+    {
+      "location": "tests/ask-wire-recursive-plan.test.mjs:131:3",
+      "name": "✖ final direct semantic request and real admission: five pets, 1200 chars, turns=8, numeric=true (51948.452536ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "718718efbd96885ba24db5a3361275efae80369aaf7c5aca962a87e9656d65c0"
+    },
+    {
+      "location": "tests/ask-wire-recursive-plan.test.mjs:131:3",
+      "name": "✖ final direct semantic request and real admission: five pets, 1200 chars, turns=39, numeric=true (56020.648061ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "68e28bed0ec8aee5b0b258f06bdbb556b1b48de825f72e7e4ea84c1c33137bc4"
+    },
+    {
+      "location": "tests/ask-wire-recursive-plan.test.mjs:176:1",
+      "name": "✖ final serialized request boundaries reject before dispatch; output/accounting ceilings stay unchanged (5057.377711ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "9b4aa048378c38a54072616a4e96040890f0cd2ae414ed0f7085e42759eb2c3d"
+    },
+    {
+      "location": "tests/ask-working-memory-interpretation.test.mjs:38:1",
+      "name": "✖ casual working-memory follow-up reaches the same Brain interpreter (5509.591969ms)",
+      "observedError": "Error [AskPipelineError]: I couldn't understand the request reliably this time. Please try again.",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "4fccba8bea44acea15ba9b6148fcce1342244db6dd0727c3deaab03a50bb1bc4"
+    },
+    {
+      "location": "tests/calculation-capability.test.mjs:1:1",
+      "name": "✖ tests/calculation-capability.test.mjs (875.513693ms)",
+      "observedError": "",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "b8b05915654cf252c42e4e2ede0b5ff2e960c419f586786e5bf1e3e1834250d1"
+    },
+    {
+      "location": "tests/canonical-pet-remove.test.mjs:20:1",
+      "name": "✖ one closed REMOVE schema supports care history and the bound subject profile (1047.921962ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: [{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"calculatePlan\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"required\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/1/required\",\"params\":{\"missingProperty\":\"draftAnswer\"},\"message\":\"should have required property 'draftAnswer'\"},{\"keyword\":\"required\",\"dataPath\":\".request\",\"schemaPath\":\"#/pr",
+      "diagnosticCategory": "closed-envelope or cross-branch fixture mismatch",
+      "indexedExcerptSha256": "46200d0ccd0622a77c77332c2e8548e390a0d81081231b40eb364fa4805ec6d4"
+    },
+    {
+      "location": "tests/canonical-pet-remove.test.mjs:28:87",
+      "name": "✖ profile REMOVE Binder rejects mixed (1.917188ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /remove_job/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "170b984aaed52ca50eac44b22e3e949da6ad5894104f236672b2e41f49cefa7b"
+    },
+    {
+      "location": "tests/canonical-pet-remove.test.mjs:73:1",
+      "name": "✖ opaque route supplies authenticated context and cannot accept client action semantics (0.742404ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /recentAuthContext: auth/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "9eb5549074a0ab7a895269f51255c7efb722a79f13e0feac8c4be39e0111fbf4"
+    },
+    {
+      "location": "tests/canonical-pet-remove.test.mjs:122:44",
+      "name": "✖ isolated enabled route applies destructive auth only to confirmed server capability: confirm (1.605633ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "96d1fd20c044ee88333fb996ad1a6a8e5ee6b6804828e89bfc49328b62ee14c9"
+    },
+    {
+      "location": "tests/canonical-pet-remove.test.mjs:122:44",
+      "name": "✖ isolated enabled route applies destructive auth only to confirmed server capability: cancel (2.002824ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "e8be3a9d4e878abac001dff8732bb395dac8bfa5e18031b76cb3f0026310bd08"
+    },
+    {
+      "location": "tests/canonical-pet-remove.test.mjs:130:1",
+      "name": "✖ isolated enabled route rejects client kind and target rather than using them to evade recent auth (1.180909ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "a229d9d94bf5a2f229de7f4b09abf6f47db382ae32552477454c36c301c7b052"
+    },
+    {
+      "location": "tests/canonical-pet-remove.test.mjs:136:1",
+      "name": "✖ isolated enabled route accepts fresh auth and replays only the durable receipt (1.184313ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "a91b8db06f253a5d966dec72c26691de32a4de419b99fa776343e40d88737fcb"
+    },
+    {
+      "location": "tests/canonical-remove.test.mjs:87:1",
+      "name": "✖ route dispatches canonical removal before factual context and narrative generation (14.054421ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "4b58fa96abc9a8616a703b332e24a328fd589db6f28ae99f4dba538f40618eb0"
+    },
+    {
+      "location": "tests/canonical-remove.test.mjs:93:1",
+      "name": "✖ provider grammar admits only standalone REMOVE and supplied reference handles (1073.776461ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: [{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"calculatePlan\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"storedRead\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPat",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "c2250a1b562205891549ce99bd25e21058197b649468044fc1e4d327876d439f"
+    },
+    {
+      "location": "tests/canonical-subject-authority.test.mjs:35:1",
+      "name": "✖ route has no post-Brain English subject resolver and canonical append exits before legacy generation (10.115902ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "9c734c21a06e149e7aea513ca49740764f17305a9b12ee03d633df134a557c95"
+    },
+    {
+      "location": "tests/furvise-replace-ticket.test.mjs:132:1",
+      "name": "✖ conflicting reads, append jobs, foreign subjects and ungrounded bodies fail closed (1.398221ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /write_job/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "74fe8863c33920f6078380b6472fd768178980e94fecfdaa6684dfb81198905d"
+    },
+    {
+      "location": "tests/furvise-replace-ticket.test.mjs:193:1",
+      "name": "✖ Ask dispatches the typed job before narrative generation and keeps its bound target (7.056635ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "b46fe7241f16ea9df506394712509b5dff6613c6ddd77f5d273c1164e407aeec"
+    },
+    {
+      "location": "tests/generalized-replace.test.mjs:88:1",
+      "name": "✖ route transports canonical target without an English edit selector (3.387958ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /resolveReplaceJob\\(replaceJob/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "8c96ad74e43e9abb2da8421fda9d2a605fa801b3250612163d12848218fcb878"
+    },
+    {
+      "location": "tests/lifecycle-plan.test.mjs:142:1",
+      "name": "✖ lifecycle mutation cannot share authority with an unrelated job or read (3.122011ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /lifecycle_mixed/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "10e58e77a163e4d625ab2863f1032bcc0015fd407e1e3488a2d966b718c65fc7"
+    },
+    {
+      "location": "tests/lifecycle-plan.test.mjs:147:1",
+      "name": "✖ provider sees no preloaded pending capability and lifecycle state is hydrated under its permit (6653.189515ms)",
+      "observedError": "Error: \"ASK_WIRE_CANONICAL_SCHEMA\"",
+      "diagnosticCategory": "closed-envelope or cross-branch fixture mismatch",
+      "indexedExcerptSha256": "bdfbbd5ee1fa321179f17f34edc71f9496e53a689653ce816fe9c949a8715585"
+    },
+    {
+      "location": "tests/lifecycle-plan.test.mjs:166:1",
+      "name": "✖ ordinary Ask route consumes typed lifecycle outcomes without a wording-based dispatch (2.073459ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /continueLifecyclePlan\\(\\{ plan: interpretation\\.request\\?\\.lifecyclePlan/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "3c664df6eb91c9667f46a02dd1c2406500bcf9922b084cc9f68db2f42c4e7e39"
+    },
+    {
+      "location": "tests/lifecycle-plan.test.mjs:175:1",
+      "name": "✖ full Binder preserves an active-subject requirement even for advice without a factual read (0.639985ms)",
+      "observedError": "Error: ASK_REQUEST_INVALID:conversation_source",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "3179ba8c891e28f819914e577fb086b6df15ceb3286ee85ff61fa5cb1571d1de"
+    },
+    {
+      "location": "tests/owner-note-write-isolation.test.mjs:28:1",
+      "name": "✖ lost write acknowledgment replays the same capability and returns one receipt without AI (165.795463ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "c75c72596c1e17cbd6bf5077b0a62e0aa78a1c2d8af2ea88cd4a442726e629b2"
+    },
+    {
+      "location": "tests/owner-note-write-isolation.test.mjs:36:1",
+      "name": "✖ permission failures never produce success or retry under another identity (65.555703ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "fdad4b3f3a0b538acdbadd58101aa00eebd1ee98aeaa1b83031fc8604bbe4bb5"
+    },
+    {
+      "location": "tests/owner-note-write-isolation.test.mjs:58:1",
+      "name": "✖ route interprets before facts and never persists an owner note outside Heart (10.237037ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "e5e00d876e4d4c33e7d7b55b78e41837224c4be4ef221a5449edfc27f5ebeb66"
+    },
+    {
+      "location": "tests/owner-note-write-isolation.test.mjs:63:69",
+      "name": "✖ HTTP confirmed save is isolated from model availability: {} (80.479884ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "86e1b8422c95fdec6c3f63ab8f66dc7427799cde02bd54ec4fa0b0c57e4107a0"
+    },
+    {
+      "location": "tests/owner-note-write-isolation.test.mjs:63:69",
+      "name": "✖ HTTP confirmed save is isolated from model availability: {\"mixed\":true} (100.72311ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "40751565aff3c912498970dcdf1c11d100eb2793eb797d89027a4049670963ee"
+    },
+    {
+      "location": "tests/owner-preference-mutation.test.mjs:98:1",
+      "name": "✖ provider field grammar excludes cross-domain fields and incompatible set/clear containers (1192.911736ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: [{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"calculatePlan\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"storedRead\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPat",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "5ead9002715776b456b412e3341726aacc2bce4fe809f3ccb3ac8a1a9f4c3bd1"
+    },
+    {
+      "location": "tests/owner-preference-mutation.test.mjs:122:1",
+      "name": "✖ raw preference parsers are absent and canonical route stops before factual generation (12.495613ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "174ccb6fdde2ee47d33bcf8e9f452c0434039d87f3e4c1b4f915dec94ffae3be"
+    },
+    {
+      "location": "tests/profile-field-authority.test.mjs:32:1",
+      "name": "✖ provider grammar makes incompatible saved-profile dimensions unrepresentable (1410.902665ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: [{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"calculatePlan\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"storedRead\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPat",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "e1d28c8e99d81a3d94e0449225cf66cfb5026df69b6df162cd0847ae7b8997ae"
+    },
+    {
+      "location": "tests/profile-mutation-job.test.mjs:108:1",
+      "name": "✖ profile mutation cannot compete with another job or factual request (1.349131ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /profile_mutation_mixed/. Input:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "7c9702d80576aef422aec7ebce45a77273d246ca72542b7ba4ab477a9c2593b2"
+    },
+    {
+      "location": "tests/profile-mutation-job.test.mjs:118:1",
+      "name": "✖ route dispatch stops before retrieval/generation and legacy profile parser is absent (6.169261ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "c4ce34761cfeeb720ca64470755ad6bee76a6738af48792bce43092e69f653df"
+    },
+    {
+      "location": "tests/read-ticket-provider-parity.test.mjs:68:1",
+      "name": "✖ whole Ask provider contract permits ordinary bounded measurement recall (903.407074ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: [{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"calculatePlan\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"storedRead\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPat",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "9a8ccd15a0287b3256afe248da7f6666e1f391fd5b65553d25f9cf46be2e3e5d"
+    },
+    {
+      "location": "tests/replace-reference-context.test.mjs:39:1",
+      "name": "✖ same Brain source-free intent then permitted exact selection; Binder owns record/version (13747.961844ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "eafe283941eedda11d95ce8070d04d266b9b8c9994d412fc15a3de6407c92a09"
+    },
+    {
+      "location": "tests/residual-requirements-contract.test.mjs:25:1",
+      "name": "✖ provider branches distinguish calculation ownership without classifying language (39.396606ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "be921a92b4ba3abd8ea22e1be8dcd823bf02967ba01814841c7dcca6062e9dee"
+    },
+    {
+      "location": "tests/state-transition-job.test.mjs:105:1",
+      "name": "✖ provider grammar enumerates supplied handles and rejects mixed authority (841.572181ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: [{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"calculatePlan\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"storedRead\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPat",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "70b8e82094362524ab8c5cdbf704d2542c3b093ae56ee4998fd14666c7384b28"
+    },
+    {
+      "location": "tests/state-transition-job.test.mjs:134:1",
+      "name": "✖ admitted intent and catalog selection chooses a supplied handle; deterministic preparation adds no provider (6074.435509ms)",
+      "observedError": "Error: \"ASK_WIRE_CANONICAL_SCHEMA\"",
+      "diagnosticCategory": "closed-envelope or cross-branch fixture mismatch",
+      "indexedExcerptSha256": "632303e6440510d59bc681f27bf51efae02f90911a6536b211639bb0516f6541"
+    },
+    {
+      "location": "tests/state-transition-job.test.mjs:144:1",
+      "name": "✖ legacy concern classifiers cannot construct execution targets after Brain (6.737458ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "20013bee4981775578eb510c11c6bb8e8db48577e95165e7d630ffe3dc25e2e8"
+    },
+    {
+      "location": "tests/state-transition-job.test.mjs:175:1",
+      "name": "✖ initial planning is metadata-only; admitted hydration scopes owned concerns and fails closed (5737.493032ms)",
+      "observedError": "Error: \"ASK_WIRE_CANONICAL_SCHEMA\"",
+      "diagnosticCategory": "closed-envelope or cross-branch fixture mismatch",
+      "indexedExcerptSha256": "f6b51ff088b71e3e0a0459b741a4cac4bc4032f03656b45f1468c7bcac452f13"
+    },
+    {
+      "location": "tests/stored-read-authority.test.mjs:137:62",
+      "name": "✖ exact terminal append receipt reads without its subject or conversation rows (9.446213ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "a4baa19c23face24117d94bae584c100b73bd3bd48189751dcdf6719c4262182"
+    },
+    {
+      "location": "tests/stored-read-authority.test.mjs:137:62",
+      "name": "✖ exact terminal replace receipt reads without its subject or conversation rows (8.13741ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "0b9c621ac30f204127b0a06052bfac1087374ff7a5bed2f2867f08e20281e754"
+    },
+    {
+      "location": "tests/stored-read-authority.test.mjs:137:62",
+      "name": "✖ exact terminal remove receipt reads without its subject or conversation rows (1.986267ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "4d31ed423d633f41e651df918b2d299f02c7f6f9a1ed41cc73309c2c26c673f1"
+    },
+    {
+      "location": "tests/stored-read-authority.test.mjs:137:62",
+      "name": "✖ exact terminal pet_remove receipt reads without its subject or conversation rows (1.320326ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "214d6d38b31f146138be257a72036842381a851f8d5ce0508c23f07f05dde071"
+    },
+    {
+      "location": "tests/stored-read-authority.test.mjs:145:54",
+      "name": "✖ receipt status failed cannot become success (2.265676ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "b218c2c32a7602985946afce94a722b55ade4247396a6e91cc65c5da9a43aa6a"
+    },
+    {
+      "location": "tests/stored-read-authority.test.mjs:145:54",
+      "name": "✖ receipt status cancelled cannot become success (1.47612ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "7349179fd6a9d164436393bceef937c3eed82f81191b5a45fb6ce804a5f657f3"
+    },
+    {
+      "location": "tests/stored-read-authority.test.mjs:145:54",
+      "name": "✖ receipt status pending cannot become success (36.271531ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "a6f07090dd3b0a544007124c17cf3f708d2f2ba5938ed26a947a0e6a69f655d9"
+    },
+    {
+      "location": "tests/stored-read-authority.test.mjs:151:1",
+      "name": "✖ foreign, invented and ambiguous operation handles reject (1.674173ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "e0c91e70b51e3d50b315457cff6ad2ecbab148902e59c5c98270e47f8774f736"
+    },
+    {
+      "location": "tests/stored-read-authority.test.mjs:156:1",
+      "name": "✖ changed durable payload/receipt and fake assistant success cannot mint authority (1.874476ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "9f016d6cb3a49f9b566c132c410e0a163a717a531fc43ddcc3282e6aff4e14b0"
+    },
+    {
+      "location": "tests/stored-read-authority.test.mjs:177:1",
+      "name": "✖ provider grammar and Binder carry arbitrary-language stored READ without lexical routing (1070.771692ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: [{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"mode\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"required\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/1/required\",\"params\":{\"missingProperty\":\"draftAnswer\"},\"message\":\"should have required property 'draftAnswer'\"},{\"keyword\":\"required\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/",
+      "diagnosticCategory": "closed-envelope or cross-branch fixture mismatch",
+      "indexedExcerptSha256": "d5563ee8b255e426c473bcf87e63bc26d51825f15e0b01d573f2924a980ab6fa"
+    },
+    {
+      "location": "tests/stored-read-authority.test.mjs:198:1",
+      "name": "✖ receipt reference catalog is bounded and does not require current wording (2.209866ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "6943fd20918ee7783e722975932e612d6e7304a387644ff8a50f8f7302e9537f"
+    },
+    {
+      "location": "tests/stored-read-authority.test.mjs:266:1",
+      "name": "✖ Brain transport binds opaque receipt READ only after source-bound catalog hydration (4.161261ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "4d35653702c14369cc874032f1af8fc40ecae4b57e9ca4b6a0622edf3ef15f25"
+    },
+    {
+      "location": "tests/stored-read-provider-parity.test.mjs:9:32",
+      "name": "✖ StoredRead provider/Binder parity: valid subject memory (553.168669ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: [{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"calculatePlan\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"storedRead\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPat",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "631cd160e99797f97cd7693e330f898340d8257c6e5a1e9e402482d2e1636e07"
+    },
+    {
+      "location": "tests/stored-read-provider-parity.test.mjs:9:32",
+      "name": "✖ StoredRead provider/Binder parity: valid owner memory (1.837032ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: [{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"calculatePlan\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"storedRead\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPat",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "00aad82ae77b5bd20cacb1ce856c28fff248ad1e6b0a9b4dba70b1aff0eed76d"
+    },
+    {
+      "location": "tests/stored-read-provider-parity.test.mjs:9:32",
+      "name": "✖ StoredRead provider/Binder parity: valid subject receipt (4.803993ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: [{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"calculatePlan\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"storedRead\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPat",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "68b7b2620e253e717c2d98a30fdb4c5222193b57534b5a64bfc042da27c26351"
+    },
+    {
+      "location": "tests/stored-read-provider-parity.test.mjs:9:32",
+      "name": "✖ StoredRead provider/Binder parity: valid current state (1.778796ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: [{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"calculatePlan\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"storedRead\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPat",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "fe74d36023b24e9636c727501a5c7b717c62472c2c5a74bdd08ab40bd978d888"
+    },
+    {
+      "location": "tests/stored-read-provider-parity.test.mjs:9:32",
+      "name": "✖ StoredRead provider/Binder parity: receipt without reference valid shape (5.227613ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: [{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"calculatePlan\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"storedRead\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPat",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "4abede6df4b837eb957374e71cf593348872976ca909a5f3b1f469ae37026e6a"
+    },
+    {
+      "location": "tests/stored-read-provider-parity.test.mjs:9:32",
+      "name": "✖ StoredRead provider/Binder parity: valid owner retained receipt (4.314378ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: [{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"calculatePlan\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPath\":\".request\",\"schemaPath\":\"#/properties/request/anyOf/0/additionalProperties\",\"params\":{\"additionalProperty\":\"storedRead\"},\"message\":\"should NOT have additional properties\"},{\"keyword\":\"additionalProperties\",\"dataPat",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "c7fe7e2273ba77b8ffd82d29801e2757bcd99483e18eaa1f64401da313af6903"
+    },
+    {
+      "location": "tests/stored-read-provider-parity.test.mjs:11:365",
+      "name": "✖ Profile provider/Binder parity: profile weight (3.302979ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "b7ab025f016ebb15ecedb5d7e35e97a4e2dbde4977d529204fdd15ebe40e95a4"
+    },
+    {
+      "location": "tests/stored-read-provider-parity.test.mjs:11:365",
+      "name": "✖ Profile provider/Binder parity: profile multiple fields (0.95464ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "46c055b33a4368854b96c4e4d8f5f297e665e6050b7a641113496721963e50ea"
+    },
+    {
+      "location": "tests/stored-read-provider-parity.test.mjs:14:1",
+      "name": "✖ owner receipt without reference remains a legal unavailable-capable shape (2.982457ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "328381ebc9e8501363e36d8fffe98bef37ca612f4d7dbbb6e4586f21f6f94774"
+    },
+    {
+      "location": "tests/stored-read-provider-parity.test.mjs:15:1",
+      "name": "✖ owner receipt ownership survives deletion of the former pet (998.726597ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "4cf52f2ea030848013675406d550ad76d90943e7a82ba2cbd7118cda943bf834"
+    },
+    {
+      "location": "tests/stored-read-provider-parity.test.mjs:16:1",
+      "name": "✖ all supported outer subject scopes remain Binder-owned (1.281541ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "8706f22b9a96579870e0306e6855c4866e41b3e42a1df5496cfe363ddf2f67ec"
+    },
+    {
+      "location": "tests/stored-read-provider-parity.test.mjs:17:1",
+      "name": "✖ all existing presentation values remain legal without granting execution support (0.947992ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "d3a7aaee4d441faa2359daea3012f2d84f009759ee06bdfa5a44c461bb90cd7f"
+    },
+    {
+      "location": "tests/typed-read-ticket.test.mjs:67:1",
+      "name": "✖ foreign persisted subjects fail in continuation before factual retrieval (3979.672715ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "615b0b71db3095be5323998932d90b1001b8ce8b58a291d78faa18c7b4df4532"
+    },
+    {
+      "location": "tests/v27-confirmed-temporal-scope.test.mjs:55:1",
+      "name": "✖ route gates scoped execution before persisted-request loading or provider calls (7.196826ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "5ca8a3dd51e1d4fb11f302c6a194d001f2675ca66086d57d0ce1140e5d7d8d0c"
+    },
+    {
+      "location": "tests/v27-general-evidence-repair.test.mjs:22:1",
+      "name": "✖ empty supplied premise triggers existing bounded transport repair and validates a general response (5832.970478ms)",
+      "observedError": "Error: ASK_WIRE_CANONICAL_SCHEMA",
+      "diagnosticCategory": "closed-envelope or cross-branch fixture mismatch",
+      "indexedExcerptSha256": "ec390fa96c5d5349c0dcbe5d665505c442c7f4b037ce24b09c6a9d73ffe45832"
+    },
+    {
+      "location": "tests/v27-general-evidence-repair.test.mjs:26:1",
+      "name": "✖ valid casual follow-up stays conversation with one call (5137.924957ms)",
+      "observedError": "Error: ASK_WIRE_CANONICAL_SCHEMA",
+      "diagnosticCategory": "closed-envelope or cross-branch fixture mismatch",
+      "indexedExcerptSha256": "b6f1fb899a89c0821693efef0bc14eae8ea418123c31e447d6ec6eba3d85054a"
+    },
+    {
+      "location": "tests/v27-general-evidence-repair.test.mjs:30:1",
+      "name": "✖ repeated invalid output never reaches a validated response or third call (5010.349413ms)",
+      "observedError": "Error: ASK_WIRE_CANONICAL_SCHEMA",
+      "diagnosticCategory": "closed-envelope or cross-branch fixture mismatch",
+      "indexedExcerptSha256": "d53f3920db323ca299bd2cca9c087b48d3b008bb3160385be51c56c3c18b1bd3"
+    },
+    {
+      "location": "tests/v27-general-evidence-repair.test.mjs:33:1",
+      "name": "✖ malformed envelope cannot become a conversation answer (6349.358844ms)",
+      "observedError": "Error: ASK_WIRE_CANONICAL_SCHEMA",
+      "diagnosticCategory": "closed-envelope or cross-branch fixture mismatch",
+      "indexedExcerptSha256": "608c869d4cf0f5f056a1270ab2a3b9a553f54756ecc11e6d632805c01ab4f4b4"
+    },
+    {
+      "location": "tests/v27-general-evidence-repair.test.mjs:37:1",
+      "name": "✖ genuine current user scenario retains its supplied premise (5386.709141ms)",
+      "observedError": "Error: ASK_WIRE_CANONICAL_SCHEMA",
+      "diagnosticCategory": "closed-envelope or cross-branch fixture mismatch",
+      "indexedExcerptSha256": "ee4ee017e5d45c66dafa73ca5fbf69d5e1831a09c2747911b1da396c555ba27e"
+    },
+    {
+      "location": "tests/v27-general-evidence-repair.test.mjs:42:1",
+      "name": "✖ genuine prior user premise remains attributed to user text (5291.546915ms)",
+      "observedError": "Error: ASK_WIRE_CANONICAL_SCHEMA",
+      "diagnosticCategory": "closed-envelope or cross-branch fixture mismatch",
+      "indexedExcerptSha256": "ba9c0f0295515f52758b291e4168033a61595aef4ccac28177efc25040d683b8"
+    },
+    {
+      "location": "tests/v27-general-evidence-repair.test.mjs:48:1",
+      "name": "✖ assistant-only invented premise cannot gain user authority (5127.974004ms)",
+      "observedError": "Error: ASK_WIRE_CANONICAL_SCHEMA",
+      "diagnosticCategory": "closed-envelope or cross-branch fixture mismatch",
+      "indexedExcerptSha256": "16eb2fe050a7a4de621b57424abc612fb930c0fd4989eaafac49f403f40eb761"
+    },
+    {
+      "location": "tests/v27-general-evidence-repair.test.mjs:54:1",
+      "name": "✖ mixed mutation and empty supplied premise cannot be normalized into conversation (4927.577858ms)",
+      "observedError": "Error: ASK_WIRE_CANONICAL_SCHEMA",
+      "diagnosticCategory": "closed-envelope or cross-branch fixture mismatch",
+      "indexedExcerptSha256": "b73acd1efbe31252f924462362ecff0fbf05aab56d91988b9eb355a7107ed72b"
+    },
+    {
+      "location": "tests/v27-review-dispatch-accounting.test.mjs:13:1",
+      "name": "✖ denied completion review emits no dispatched provider event after two admitted attempts (6435.7577ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "301c8f5e201b76c7a0d88534dcc48bb3698ce969380c2145d295e189cde44f6f"
+    },
+    {
+      "location": "tests/v27-source-plan-contract.test.mjs:83:1",
+      "name": "✖ HTTP 500 on the one bounded repair stays a transport failure, with exactly two physical attempts (12751.135208ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "f9d60bbda2c1b742f0d5d04cb3a899a23bcb2a3d8fd92ad9613a36f24af6e197"
+    },
+    {
+      "location": "tests/v27-whole-read-ticket-repair.test.mjs:53:1",
+      "name": "✖ episode mismatch followed by anchor mismatch fails without third call (13163.668313ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "c9dceaf3a99c5dfb0c14b3086f15f83951f9db21d7fdbb43f387d44c23607c59"
+    },
+    {
+      "location": "tests/v27-whole-read-ticket-repair.test.mjs:54:1",
+      "name": "✖ anchor mismatch followed by episode mismatch fails without third call (13251.095015ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "b68f6456a3e8c894d03f405183066ab52a8038e2acd499a6bd039f1929cde402"
+    },
+    {
+      "location": "tests/v27-whole-read-ticket-repair.test.mjs:55:1",
+      "name": "✖ malformed second response fails without third call (11877.976517ms)",
+      "observedError": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "diagnosticCategory": "requires current-source reproduction",
+      "indexedExcerptSha256": "3e63d4afe375809a70828c6170182b8804447aee7441a45fd5ed4b85822d2a7b"
+    },
+    {
+      "location": "tests/v27-whole-read-ticket-repair.test.mjs:56:1",
+      "name": "✖ repair preserves a genuine event-relative read (9780.356439ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "44c5b1e97975cc39c0e61d25b77eca302aef444561effcd4614b539908246d8d"
+    },
+    {
+      "location": "tests/v27-whole-read-ticket-repair.test.mjs:57:1",
+      "name": "✖ repair preserves a genuine episode count (9922.694768ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "918f037f177f43e85e993244cb764b161d79c99feae5ae845977ef1e1d4ebd9d"
+    },
+    {
+      "location": "tests/v27-whole-read-ticket-repair.test.mjs:58:1",
+      "name": "✖ repair preserves a genuine episode membership (11005.483035ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "bb97dd98b87ed84b0d65cfb848510b22c167b5fe0197129e6f574f010c2f6594"
+    },
+    {
+      "location": "tests/v27-whole-read-ticket-repair.test.mjs:59:1",
+      "name": "✖ repair preserves explicitly attributed report authority (11762.34834ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "97673b6c91171ca8f514aff4d137ebb5248285a60c6bf008175e69a4510d9ee6"
+    },
+    {
+      "location": "tests/v27-whole-read-ticket-repair.test.mjs:60:1",
+      "name": "✖ repair preserves genuine effective-fact authority (9894.486277ms)",
+      "observedError": "Error [AiAdmissionError]: feature_token_budget_exceeded",
+      "diagnosticCategory": "request/admission budget mismatch",
+      "indexedExcerptSha256": "d1ab2b7d09ccd0956208f701456c1156b72c3f3db429eb0b6a429f3cfa94f737"
+    }
+  ]
+}
