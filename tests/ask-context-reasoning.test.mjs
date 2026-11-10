@@ -1,3 +1,4 @@
+import {AI_FEATURE_POLICIES} from "../app/lib/ai/usage-guard/features.ts";
 import {certifiedHistoryRead} from "./helpers/certified-history-read.mjs";
 import {assertStoredPublicationUnavailable} from "./helpers/unsupported-stored-publication.mjs";
 function recordFixture(rows){return {scope:{authorizedPetIds:["pet-mani"],requestText:"Typed records."},petNames:{"pet-mani":"Mani"},represented:rows.map(r=>({sourceId:"care:"+r.id,sourceType:"care_update",petId:r.pet_profile_id,text:r.note,occurredAt:r.occurred_at,createdAt:r.created_at}))};}
@@ -162,11 +163,12 @@ test("normal questions use one strict structured provider request and no planner
   const client = mockClient([unified()]);
   const result = await generateContextAwareAskResponse({ ...input(), client });
   assert.equal(client.requests.length, 1);
+  assert.equal(ASK_MAX_OUTPUT_TOKENS, 8192);
   assert.equal(client.requests[0].text.format.strict, true);
   assert.equal(client.requests[0].text.format.schema.properties.historyNarrative.type,"null");
   assert.equal(client.requests[0].text.format.schema.properties.relevantContextIds.maxItems,0);
   assert.equal(client.requests[0].text.format.name, "furvise_ask_response");
-  assert.equal(client.requests[0].max_output_tokens, ASK_MAX_OUTPUT_TOKENS);
+  assert.equal(client.requests[0].max_output_tokens, AI_FEATURE_POLICIES.ask.maxOutputTokens);
   assert.doesNotMatch(client.requests[0].text.format.name, /planner/i);
   assert.equal(result.answer.summary, unified().answer);
 });
@@ -351,7 +353,7 @@ test("casual greetings remain short while retaining the safe structured-output b
   const result = await generateContextAwareAskResponse({ ...input({ question: "yo" }), client });
   assert.equal(result.responseMode, "conversational");
   assert.ok(result.answer.summary.length < 120);
-  assert.equal(client.requests[0].max_output_tokens, ASK_MAX_OUTPUT_TOKENS);
+  assert.equal(client.requests[0].max_output_tokens, AI_FEATURE_POLICIES.ask.maxOutputTokens);
 });
 
 test("general grief support remains functional without granting a lifecycle mutation",async()=>{

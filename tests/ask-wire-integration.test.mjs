@@ -22,7 +22,7 @@ const {admitAiOperation}=await import("../app/lib/ai/usage-guard/admission.ts");
 const {MemoryAiGuardTestStore}=await import("../app/lib/ai/usage-guard/memory-test-store.ts");
 const {AI_FEATURE_POLICIES}=await import("../app/lib/ai/usage-guard/features.ts");
 const {factorProviderEnumSchemas}=await import("../app/lib/ai/provider-enum-schema.ts");
-const {factorProviderCompoundSchemas}=await import("../app/lib/ai/provider-compound-schema.ts");
+const {factorProviderCompoundSchemas,compactProviderSchemaReferences}=await import("../app/lib/ai/provider-compound-schema.ts");
 const projectedSchema=context=>factorProviderCompoundSchemas(factorProviderEnumSchemas(askRequestProviderSchema(proposedSemanticFrameJsonSchema,projectAskInterpretationContext(context))));
 const corpus=JSON.parse(readFileSync(new URL("./fixtures/ask-wire-codec.json",import.meta.url),"utf8"));
 const env={NODE_ENV:"test",FURVISE_AI_DAILY_CALL_LIMIT:"20",FURVISE_AI_DAILY_COST_LIMIT_USD:"1",FURVISE_RATE_LIMIT_HASH_SECRET:"offline-wire-identity-fixture-only-0000000000"};
@@ -46,17 +46,17 @@ test("actual interpretation admits complete wire snapshots and gives Binder the 
  try{
   assert.equal(AI_FEATURE_POLICIES.ask.maxInputTokens,20000);
   assert.equal(AI_FEATURE_POLICIES.ask.maxInputCharacters,80000);
-  assert.equal(AI_FEATURE_POLICIES.ask.maxOutputTokens,100000);
+  assert.equal(AI_FEATURE_POLICIES.ask.maxOutputTokens,2400);
   for(const [name,context] of Object.entries(corpus.contexts)){
    const prepared=prepareAskInterpretationRequest(context,"gpt-5.4-mini"),plan=prepared.transport;
    let chosen,expected;
    for(const f of corpus.fixtures.filter(f=>f.context===name)){
-    try{const r=recoverAskInterpretation(f.canonical.request,prepared.context);if(r.planningRecovery)continue;chosen=f;expected={...r,...(prepared.context.planningSourceWindow.omittedPriorUserTurns?{sourceWindow:prepared.context.planningSourceWindow}:{})};break;}catch{ /* Try the next schema-valid Binder witness. */ }
+    try{const canonical={...structuredClone(f.canonical),request:{...structuredClone(f.canonical.request),draftAnswer:null}};const r=recoverAskInterpretation(canonical.request,prepared.context);if(r.planningRecovery)continue;plan.encode(canonical,()=>{});chosen={...f,canonical};expected={...r,...(prepared.context.planningSourceWindow.omittedPriorUserTurns?{sourceWindow:prepared.context.planningSourceWindow}:{})};break;}catch{ /* Try the next schema-valid Binder witness. */ }
    }
    assert.ok(chosen,"positive Binder fixture missing: "+name);
    const actual=await admitted(name,context,plan.encode(chosen.canonical,()=>{}),request=>{
     const total=JSON.stringify(request).length;
-    assert.deepEqual(request.text.format.schema,factorProviderCompoundSchemas(factorProviderEnumSchemas(createAskProviderWireSchema(plan.schema))));
+    assert.deepEqual(request.text.format.schema,compactProviderSchemaReferences(factorProviderCompoundSchemas(factorProviderEnumSchemas(createAskProviderWireSchema(plan.schema)),undefined,true)));
     rows.push({name,schema:JSON.stringify(request.text.format.schema).length,instructions:request.instructions.length,input:request.input.length,total,margin:60000-total});
     console.log(JSON.stringify({kind:"request_size",...rows.at(-1)}));
     if(process.env.FURVISE_WIRE_REPORT)writeFileSync(process.env.FURVISE_WIRE_REPORT,JSON.stringify({status:"in_progress",rows},null,2));
@@ -79,7 +79,7 @@ test("bounded saved_profile repair passes real admission and production wire dec
   context.currentMessage="What name is saved for the selected pet?";
   context.currentTurn.text=context.currentMessage;
   const canonical=structuredClone(corpus.fixtures.find(f=>f.context==="no_numeric"&&f.canonical.request.evidenceBasis==="saved_profile").canonical);
-  canonical.request.question=context.currentMessage;canonical.request.topic="profile";
+  canonical.request.draftAnswer=null;canonical.request.question=context.currentMessage;canonical.request.topic="profile";
   const invalid=structuredClone(canonical);invalid.request.scope="named";invalid.request.petNames=["Unowned subject"];
   const prepared=prepareAskInterpretationRequest(context,"gpt-5.4-mini"),plan=prepared.transport;
   const goodWire=plan.encode(canonical,()=>{}),badWire=plan.encode(invalid,()=>{});
@@ -95,11 +95,11 @@ test("bounded saved_profile repair passes real admission and production wire dec
    const index=requests.length;requests.push(request);
    assert.equal(JSON.stringify(request),snapshots[index]);
    assert.ok(JSON.stringify(request).length<60000);
-   assert.deepEqual(request.text.format.schema,factorProviderCompoundSchemas(factorProviderEnumSchemas(createAskProviderWireSchema(plan.schema))));
+   assert.deepEqual(request.text.format.schema,compactProviderSchemaReferences(factorProviderCompoundSchemas(factorProviderEnumSchemas(createAskProviderWireSchema(plan.schema)),undefined,true)));
    if(index===1){
     const payload=JSON.parse(request.input);
     assert.equal(payload.userSources.find(source=>source.id===payload.currentSourceId).text,context.currentMessage);
-    assert.deepEqual(payload.contractRepair.rejectedProposal,invalid.request);
+    assert.equal(Object.hasOwn(payload.contractRepair,'rejectedProposal'),false);
     assert.equal(payload.contractRepair.validationCode,"ASK_REQUEST_CONTRACT_OWNERSHIP");
    }
    assert.ok(index<2,"repair must remain bounded");
