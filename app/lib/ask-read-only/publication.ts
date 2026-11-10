@@ -50,7 +50,7 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
  const sign=()=>{
   const citationProof=issueReadOnlyCitationProof(result,response,ownerId);
   if(reviewed.sources.length&&!citationProof)throw new Error("ASK_READ_CITATION_PROOF_REQUIRED");
-  Object.assign(response,{citationProof,readOnlyEvidence:true});
+  Object.assign(response,{citationProof,readOnlyEvidence:true,readOnlyReferences:(result as {readReferences?:unknown}).readReferences});
  };
  sign();
  if(publicationBytes(response)>MAX_READ_ONLY_PUBLICATION_BYTES){
