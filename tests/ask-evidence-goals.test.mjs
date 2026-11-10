@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { discoverHistory, allocateEvidence } from "../app/lib/ask-read-only/retrieval.mjs";
 import { bindReadTool, runReadOnlyAsk, validateReadOnlyAnswer, READ_ONLY_LIMITS, readOnlyToolsForPets } from "../app/lib/ask-read-only/core.mjs";
 import { readCoverageMessages } from "../app/lib/ask-read-only/coverage.mjs";
+import { calculateReadSources, readSourceMeasurements } from "../app/lib/ask-read-only/calculations.mjs";
 const pets=[{id:"pet-a",ownerId:"owner",handle:"p1",name:"Willow",species:"dog"},{id:"pet-b",ownerId:"owner",handle:"p2",name:"Birch",species:"cat"}];
 const row=(id,petId="pet-a",body="An observation.")=>({kind:"history",id,petId,ownerId:"owner",body,eventAt:"2025-04-02T12:00:00Z",recordedAt:"2025-06-04T12:00:00Z"});
 const args=(extra={})=>({pet:"p1",from:null,to:null,query:null,offset:0,order:"desc",goal:"relevant_records",alternatives:[],recordedFrom:null,recordedTo:null,orderBy:"event",...extra});
@@ -97,4 +98,18 @@ test("no-read conversation retains zero private reads and two-call review",async
 test("coverage distinguishes both time axes, discovery and evidence omissions",()=>{
  const [message]=readCoverageMessages([{scope:{pet:"Willow",goal:"complete_set",from:"2025-01-01",to:"2025-01-31",recordedFrom:"2025-03-01",recordedTo:"2025-03-31"},discovery:[{mode:"lexical",inspected:16,total:80,pages:1,exhausted:false},{mode:"broader",inspected:16,total:100,pages:1,exhausted:false}],returned:8,inspected:30,omitted:22,truncated:true,unmet:["evidence_omitted"]}]);
  assert.match(message,/event dates 2025-01/);assert.match(message,/recorded dates 2025-03/);assert.match(message,/22 inspected notes omitted/);assert.match(message,/does not prove every related/);assert.match(message,/partial/);
+});
+test("measurement handles retain nearby meaning without inventing a historical metric",()=>{
+ const values=readSourceMeasurements("Meal portion 120 g.\nBody weight 4 kg.","s1");
+ assert.equal(values[0].metric,null);assert.match(values[0].context,/Meal portion/);assert.match(values[1].context,/Body weight/);
+ assert.doesNotMatch(values[1].context,/Meal portion/);
+});
+test("duplicate operands and cross-pet temporal changes cannot silently yield numbers",()=>{
+ const sources=[{...row("a"),handle:"s1",body:"Weight 4 kg."},{...row("b","pet-b"),handle:"s2",body:"Weight 6 kg.",eventAt:"2025-05-01T12:00:00Z"}];
+ for(const calculation of [{operation:"sum",operands:["s1:m1","s1:m1"]},{operation:"difference",operands:["s1:m1","s2:m1"]}])assert.equal(calculateReadSources([calculation],sources)[0].available,false);
+ assert.equal(calculateReadSources([{operation:"absolute_difference",operands:["s1:m1","s2:m1"]}],sources)[0].value,2);
+});
+test("aggregates disclose selected operands and partial evidence in server text",async()=>{
+ const runner=execute(async()=>({sources:[row("a","pet-a","Weight 4 kg."),{...row("b","pet-a","Weight 6 kg."),eventAt:"2025-05-01T12:00:00Z"}],hasMore:true,total:40}),[args({goal:"complete_set"})],{...output([{kind:"saved",text:"The selected measurements can be combined.",sources:["s1","s2"]}]),calculations:[{operation:"sum",operands:["s1:m1","s2:m1"]}]});
+ const result=await runner.run();assert.equal(result.answer.calculations[0].value,10);assert.match(result.answer.calculations[0].text,/selected measurements only; evidence coverage is partial/);
 });

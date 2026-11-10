@@ -1,3 +1,4 @@
+import { restoreReadReferences, describeReadReferences, carryReadReferences } from "./references.mjs";
 import { EVIDENCE_GOALS, HISTORY_PAGE_BUDGET, allocateEvidence } from "./retrieval.mjs";
 import { calculateReadSources, readSourceMeasurements } from "./calculations.mjs";
 /**
@@ -17,18 +18,19 @@ export const READ_ONLY_TOOLS = [
   orderBy:{type:"string",enum:["event","recorded"],description:"Event dates describe when something happened; recorded dates describe when the note was saved. Use independent bounds for 'recorded in March about January'."},
   query:{type:["string","null"],maxLength:160,pattern:"^[^\\u0000-\\u001f]*$",description:"Primary literal phrase matched against note OR title, or null for a broad bounded search. Use null for a date-specific quotation."},offset:{type:"integer",minimum:0,maximum:256},order:{type:"string",enum:["asc","desc"],description:"Order by orderBy time: asc for earliest first, desc for latest first. Use both ordered searches together to compare earliest and latest."}})}
 ];
-export function readOnlyToolsForPets(pets) {
+export function readOnlyToolsForPets(pets,references=[]) {
  const tools=structuredClone(READ_ONLY_TOOLS),handles=pets.map(pet=>pet.handle);
  for(const tool of tools)tool.parameters.properties.pet.enum=handles;
+ if(references.length)tools.push({type:"function",name:"read_referenced_sources",strict:true,description:"Re-read the exact saved sources from a prior result in this conversation. Reference metadata is not factual evidence. Changed or missing sources require clarification. Use a new search/profile read for current information or a changed scope.",parameters:object({reference:{type:"string",enum:references.map(reference=>reference.handle)}})});
  return tools;
 }
 /** Safe rejection telemetry: structural facts only, never argument values or record text. */
 export function readSelectionShape(first,pets) {
  return {callCount:Array.isArray(first?.calls)?first.calls.length:null,calls:(Array.isArray(first?.calls)?first.calls:[]).slice(0,5).map(call=>{
   let args;try{args=JSON.parse(call.arguments);}catch{return {tool:"invalid_json"};}
-  const known=READ_ONLY_TOOLS.some(tool=>tool.name===call.name);
+  const known=READ_ONLY_TOOLS.some(tool=>tool.name===call.name)||call.name==="read_referenced_sources";
   const properties=plain(args)?Object.keys(args):[];
-  const expected=call.name==="read_pet_profile"?["pet"]:["pet","from","to","query","offset",...["order","goal","alternatives","recordedFrom","recordedTo","orderBy"].filter(key=>Object.hasOwn(args??{},key))];
+  const expected=call.name==="read_referenced_sources"?["reference"]:call.name==="read_pet_profile"?["pet"]:["pet","from","to","query","offset",...["order","goal","alternatives","recordedFrom","recordedTo","orderBy"].filter(key=>Object.hasOwn(args??{},key))];
   return {tool:known?call.name:"unknown",idType:typeof call.id,argumentType:Array.isArray(args)?"array":typeof args,
    missing:expected.filter(key=>!Object.hasOwn(args??{},key)),extraCount:properties.filter(key=>!expected.includes(key)).length,
    petAuthorized:pets.some(pet=>pet.handle===args?.pet),fromValid:args?.from===null||validCalendarDate(args?.from),toValid:args?.to===null||validCalendarDate(args?.to),
@@ -76,7 +78,7 @@ export const READ_ONLY_INSTRUCTIONS = [
  "For a date-specific note quotation, search that local calendar date with query=null; then select the relevant returned note by its actual wording. Never guess missing content or claim complete coverage when the result is truncated or has more pages.",
  "For arithmetic over saved measurements, request calculations using the returned measurement handles. The server computes and displays results; never supply numeric literals or infer missing measurements. Do not guess calculated values or write them into the conversational answer.",
  "Medical guidance must acknowledge uncertainty, avoid diagnosis, and recommend veterinary help when warranted. Recorded owner reports do not prove medical truth.",
- "Previous dialogue is context only and may be incomplete, as dialogueCoverage indicates. Never invent omitted earlier statements or access to other conversations; ask the user to repeat essential missing context. Re-read records for follow-ups about saved facts. Keep internal source IDs and pet handles out of visible prose. Preserve independently answerable question components. Never hide an unavailable saved-data component by presenting a general answer as the whole answer."
+ "Previous dialogue is context only and may be incomplete, as dialogueCoverage indicates. Never invent omitted earlier statements or access to other conversations; ask the user to repeat essential missing context. Re-read records for follow-ups about saved facts. The references array contains bounded prior pet/time/source hints carried across topic interruptions, not facts. Use read_referenced_sources when a prior result is unambiguous; use fresh searches for changed scopes/current facts. If several references could fit, ask which one. Changed, missing or stale referenced sources cannot establish the earlier content; clarify rather than guessing. Keep internal source IDs and pet handles out of visible prose. Preserve independently answerable question components. Never hide an unavailable saved-data component by presenting a general answer as the whole answer."
 ].join("\n");
 function fail(code) { const e=new Error(code);e.code=code;throw e; }
 function plain(v) { return !!v && typeof v==="object" && !Array.isArray(v) && Object.getPrototypeOf(v)===Object.prototype; }
@@ -85,7 +87,13 @@ export function validCalendarDate(v) {
  if(typeof v!=="string"||!/^\d{4}-\d{2}-\d{2}$/.test(v))return false;
  const d=new Date(v+"T00:00:00Z");return Number.isFinite(+d)&&d.toISOString().slice(0,10)===v&&v>="1900-01-01"&&v<="2200-12-31";
 }
-export function bindReadTool(name,args,pets) {
+export function bindReadTool(name,args,pets,references=[]) {
+ if(name==="read_referenced_sources"){
+  if(!keys(args,["reference"]))fail("ASK_READ_TOOL_INVALID");
+  const reference=references.find(reference=>reference.handle===args.reference);
+  if(!reference||!pets.some(pet=>pet.id===reference.request.pet.id))fail("ASK_READ_REFERENCE_UNAVAILABLE");
+  return {...reference.request,terms:[],reference:args.reference};
+ }
  if(!plain(args)||typeof args.pet!=="string")fail("ASK_READ_TOOL_INVALID");
  const pet=pets.find(p=>p.handle===args.pet);
  if(!pet)fail("ASK_READ_PET_NOT_AUTHORIZED");
@@ -146,6 +154,7 @@ export function isReadOnlyResult(value) { return !!value && reviewedResults.has(
 export async function runReadOnlyAsk(input,deps) {
  const pets=input.pets.filter(p=>p.ownerId===input.ownerId).map((p,i)=>({...p,handle:"p"+(i+1)}));
  if(!pets.some(p=>p.id===input.selectedPetId))fail("ASK_READ_PET_NOT_AUTHORIZED");
+ const references=restoreReadReferences(input.readReferences,pets);
  const recentDialogue=input.dialogue.slice(-12);
  const dialogue=recentDialogue.map(t=>({role:t.role==="user"?"user":"assistant",text:String(t.text).slice(0,2000)}));
  while(JSON.stringify(dialogue).length>READ_ONLY_LIMITS.dialogueCharacters)dialogue.shift();
@@ -153,17 +162,17 @@ export async function runReadOnlyAsk(input,deps) {
  const truncatedMessages=dialogue.length?recentDialogue.slice(-dialogue.length).filter(turn=>String(turn.text).length>2000).length:0;
  const dialogueCoverage={partial:!!input.dialogueMayBeIncomplete||omittedKnownMessages>0||truncatedMessages>0,visibleMessages:dialogue.length,omittedKnownMessages,truncatedMessages};
  const context={dialogueCoverage,now:input.now,timeZone:input.timeZone,selectedPet:pets.find(p=>p.id===input.selectedPetId).handle,
- pets:pets.map(p=>({handle:p.handle,name:p.name,species:p.species})),dialogue,question:input.question};
+ pets:pets.map(p=>({handle:p.handle,name:p.name,species:p.species})),references:describeReadReferences(references),dialogue,question:input.question};
  let calls=0;
  const invoke=async(request,phase)=>{if(++calls>2)fail("ASK_READ_PROVIDER_LIMIT");return deps.provider(request,phase);};
- const first=await invoke({instructions:READ_ONLY_INSTRUCTIONS,context,tools:readOnlyToolsForPets(pets)},"read_selection");
+ const first=await invoke({instructions:READ_ONLY_INSTRUCTIONS,context,tools:readOnlyToolsForPets(pets,references)},"read_selection");
  if(!keys(first,["calls","text"])||!Array.isArray(first.calls)||first.calls.length>4||typeof first.text!=="string"||first.text.length>12000)fail("ASK_READ_PROVIDER_INVALID");
  const sources=[],results=[],bound=[];
  try {
   for(const call of first.calls) {
    if(!keys(call,["id","name","arguments"])||typeof call.id!=="string"||!call.id||typeof call.arguments!=="string"||call.arguments.length>5000)fail("ASK_READ_TOOL_INVALID");
    let args;try{args=JSON.parse(call.arguments);}catch{fail("ASK_READ_TOOL_INVALID");}
-   bound.push({id:call.id,request:bindReadTool(call.name,args,pets)});
+   bound.push({id:call.id,request:bindReadTool(call.name,args,pets,references)});
   }
   if(new Set(bound.map(x=>x.id)).size!==bound.length)fail("ASK_READ_TOOL_INVALID");
  } catch(error) {
@@ -206,6 +215,8 @@ export async function runReadOnlyAsk(input,deps) {
   const scopeExhausted=result.scopeExhausted??(!result.hasMore&&scope.offset===0);
   const unmet=[];
   if(result.unavailable)unmet.push("retrieval_unavailable");
+  if(request.referenceLimited)unmet.push("prior_source_selection_omitted");
+  if(result.staleReference)unmet.push("referenced_source_changed_or_missing");
   if(!scopeExhausted)unmet.push("query_scope_not_exhausted");
   if(truncated)unmet.push("evidence_omitted");
   if(!allocation.visible[index].length)unmet.push("no_visible_evidence");
@@ -229,13 +240,21 @@ export async function runReadOnlyAsk(input,deps) {
     :"I didn’t find saved information in the searches I could check. I can’t quote a note I haven’t found.";
   answer.replyType="partial";answer.limited=true;
  }
+ for(let index=0;index<answer.calculations.length;index++){
+  const calculation=answer.calculations[index];
+  if(["sum","mean"].includes(final.calculations[index]?.operation)&&calculation.available!==false){
+   const partial=results.some(result=>result.sources.some(source=>calculation.sourceHandles.includes(source.source))&&(result.unmet.length>0||!result.scopeExhausted));
+   calculation.text+=" — selected measurements only"+(partial?"; evidence coverage is partial.":"; not a certified total of every related measurement.");
+  }
+ }
  for(const result of results){
   if(!result.sources.some(source=>answer.sources.includes(source.source))){
    result.unmet.push("no_selected_support");result.status="partial";
   }
  }
  answer.limited=answer.limited||results.some(result=>result.hasMore||result.hasPrevious||result.truncated||result.unmet.length>0)||(bound.length>0&&(sources.length===0||answer.sources.length===0));
- const result={answer,sources:sources.filter(s=>answer.sources.includes(s.handle)),providerCallCount:calls,dialogueCoverage,coverage:results.map(({sources,...rest})=>({...rest,returned:sources.length}))};
+ const readReferences=carryReadReferences(references,bound.map((call,index)=>({...call,sourceHandles:allocation.visible[index].map(source=>source.handle)})),sources,answer,input.timeZone);
+ const result={answer,readReferences,sources:sources.filter(s=>answer.sources.includes(s.handle)),providerCallCount:calls,dialogueCoverage,coverage:results.map(({sources,...rest})=>({...rest,returned:sources.length}))};
  const freeze=value=>{if(value&&typeof value==="object"&&!Object.isFrozen(value)){Object.values(value).forEach(freeze);Object.freeze(value);}};
  freeze(result);reviewedResults.add(result);return result;
 }

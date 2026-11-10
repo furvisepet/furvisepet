@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createClient } from "@supabase/supabase-js";
 import { createReadOnlyDataAccess, literalSearch } from "../app/lib/ask-read-only/data.ts";
+import { createHash } from "node:crypto";
 const pet={id:"pet-a",ownerId:"owner-a",handle:"p1",name:"Willow",species:"dog"};
 const request={kind:"history",pet,goal:"complete_set",from:"2025-01-01",to:"2025-01-31",recordedFrom:"2025-03-01",recordedTo:"2025-03-31",orderBy:"recorded",order:"asc",offset:0,pageBudget:2,terms:["meal,or(user_id.eq.other)","appetite"]};
 const fixture={id:"note-a",user_id:"owner-a",pet_profile_id:"pet-a",note:"An original observation.",title:"Meal observation",occurred_at:"2025-01-12T12:00:00Z",created_at:"2025-03-12T12:00:00Z",deleted_at:null};
@@ -40,4 +41,12 @@ test("history outage reports a partial goal without inventing empty-history succ
 test("expired retrieval deadline dispatches no history query",async()=>{
  const {read,seen}=setup();const result=await read({...request,deadlineAt:Date.now()-1});
  assert.equal(seen.length,1);assert.equal(result.unavailable,true);
+});
+test("exact-source reference filter stays owner-bound and validates its fingerprint",async()=>{
+ const {read,seen}=setup();
+ const result=await read({...request,terms:[],referenceTimeZone:"UTC",sourceIds:[fixture.id],expectedSources:[{id:fixture.id,hash:createHash("sha256").update(fixture.note).digest("hex"),eventAt:fixture.occurred_at,recordedAt:fixture.created_at}]});
+ assert.equal(result.staleReference,false);assert.equal(result.sources.length,1);
+ const history=seen.find(item=>item.url.pathname.endsWith("pet_care_entries"));
+ assert.equal(history.url.searchParams.get("id"),"in.(note-a)");assert.equal(history.url.searchParams.get("user_id"),"eq.owner-a");
+ assert.ok(history.url.searchParams.getAll("occurred_at").includes("gte.2025-01-01T00:00:00.000Z"));
 });

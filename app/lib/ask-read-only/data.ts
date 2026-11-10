@@ -3,8 +3,9 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { calendarBoundaryToInstant } from "../ask-time-zone.ts";
 export type ReadPet = {id:string;ownerId:string;name:string;species:string|null;handle:string};
+import { checkReferencedSources } from "./references.mjs";
 import { discoverHistory } from "./retrieval.mjs";
-export type ReadRequest = {kind:"profile"|"history";pet:ReadPet;from?:string|null;to?:string|null;terms?:string[];offset?:number;order?:"asc"|"desc";goal?:string;recordedFrom?:string|null;recordedTo?:string|null;orderBy?:"event"|"recorded";pageBudget?:number;deadlineAt?:number};
+export type ReadRequest = {kind:"profile"|"history";pet:ReadPet;from?:string|null;to?:string|null;terms?:string[];offset?:number;order?:"asc"|"desc";goal?:string;recordedFrom?:string|null;recordedTo?:string|null;orderBy?:"event"|"recorded";pageBudget?:number;deadlineAt?:number;referenceTimeZone?:string;sourceIds?:string[];expectedSources?:Array<{id:string;hash:string;eventAt:string;recordedAt:string}>};
 export type ReadSource = {kind:"profile"|"history";id:string;ownerId:string;petId:string;body:string;eventAt:string;recordedAt:string;handle?:string};
 export const READ_ONLY_PROFILE_FIELDS="id,user_id,name,species,breed,age_value,age_unit,weight_value,weight_unit,current_food,main_concern,wellness_goal,avoid_ingredients,monthly_budget,sex,routine_note,lifecycle_status,lifecycle_changed_at,deceased_at,created_at,updated_at";
 export function serializeReadOnlyProfile(row:DogProfileRow) {
@@ -22,19 +23,20 @@ export function createReadOnlyDataAccess(db:SupabaseClient,ownerId:string,timeZo
   if(petError||!pet||pet.user_id!==ownerId||pet.id!==request.pet.id)throw new Error("ASK_READ_PET_NOT_AUTHORIZED");
   if(request.kind==="profile") {
    const {id,user_id,created_at,updated_at}=pet;
-   return {sources:[{kind:"profile",id,ownerId:user_id,petId:id,body:serializeReadOnlyProfile(pet),eventAt:updated_at,recordedAt:created_at}],total:1,hasMore:false};
+   return checkReferencedSources({sources:[{kind:"profile",id,ownerId:user_id,petId:id,body:serializeReadOnlyProfile(pet),eventAt:updated_at,recordedAt:created_at}],total:1,hasMore:false,scopeExhausted:true},request);
   }
-  const result=await discoverHistory(request,async({terms,offset,limit}:{terms:string[];offset:number;limit:number})=>{
+  const discovered=await discoverHistory(request,async({terms,offset,limit}:{terms:string[];offset:number;limit:number})=>{
    const remaining=Math.min(5000,(request.deadlineAt??Date.now()+5000)-Date.now());
    if(remaining<=0)throw new Error("ASK_READ_HISTORY_UNAVAILABLE");
    let query=db.from("pet_care_entries").select("id,user_id,pet_profile_id,note,title,occurred_at,created_at,deleted_at",{count:"exact"})
     .eq("user_id",ownerId).eq("pet_profile_id",request.pet.id).is("deleted_at",null);
+   if(request.sourceIds)query=query.in("id",request.sourceIds);
    // Entitlement/access bounds always apply to event time, independently of the
    // user's additional recorded-time filters. Never relax owner or time bounds.
    if(access)query=query.gte("occurred_at",access.from).lt("occurred_at",access.to);
    for(const [column,from,to] of [["occurred_at",request.from,request.to],["created_at",request.recordedFrom,request.recordedTo]] as const){
-    if(from)query=query.gte(column,calendarBoundaryToInstant(from+"T00:00:00.000Z",timeZone));
-    if(to)query=query.lt(column,calendarBoundaryToInstant(nextDate(to)+"T00:00:00.000Z",timeZone));
+    if(from)query=query.gte(column,calendarBoundaryToInstant(from+"T00:00:00.000Z",request.referenceTimeZone??timeZone));
+    if(to)query=query.lt(column,calendarBoundaryToInstant(nextDate(to)+"T00:00:00.000Z",request.referenceTimeZone??timeZone));
    }
    // Quote PostgREST values as well as escaping LIKE wildcards. A model phrase
    // cannot introduce another filter, column or boolean expression.
@@ -47,6 +49,7 @@ export function createReadOnlyDataAccess(db:SupabaseClient,ownerId:string,timeZo
    return {sources:data.slice(0,limit).map(row=>({kind:"history",id:row.id,ownerId:row.user_id,petId:row.pet_profile_id,
     body:row.note??row.title??"",eventAt:row.occurred_at,recordedAt:row.created_at})),total:count,hasMore:data.length>limit};
   });
+  const result=checkReferencedSources(discovered,request);
   onRead?.({petHandle:request.pet.handle,goal:request.goal??"relevant_records",from:request.from??null,to:request.to??null,
    recordedFrom:request.recordedFrom??null,recordedTo:request.recordedTo??null,orderBy:request.orderBy??"event",termCount:request.terms?.length??0,
    offset:request.offset??0,order:request.order??"desc",matchedTotal:result.matchedTotal,returned:result.sources.length,

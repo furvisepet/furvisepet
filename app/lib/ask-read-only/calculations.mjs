@@ -7,7 +7,7 @@ export function readSourceMeasurements(body,source,kind="history") {
    const value=row?.[field],rawUnit=row?.[unitField];
    if(typeof value!=="number"||!Number.isFinite(value)||typeof rawUnit!=="string"||!/^(kg|g|lb|lbs|oz|years?|months?)$/i.test(rawUnit))continue;
    const unit=rawUnit.toLowerCase().replace(/^lbs$/,"lb").replace(/^years?$/,"years").replace(/^months?$/,"months");
-   values.push({handle:source+":m"+(values.length+1),field,excerpt:field+": "+value+" "+rawUnit,value,unit});
+   values.push({handle:source+":m"+(values.length+1),field,metric:field==="weight_value"?"profile_weight":"profile_age",excerpt:field+": "+value+" "+rawUnit,value,unit});
   }
   return values;
  }
@@ -23,7 +23,7 @@ export function readSourceMeasurements(body,source,kind="history") {
   if(parts[1].includes(",")&&!/,[0-9]{1,2}$/.test(parts[1]))continue;
   const value=Number(parts[1].replace(",","."));
   if(!Number.isFinite(value)||values.length>=32||match[0].length>80)continue;
-  values.push({handle:source+":m"+(values.length+1),excerpt:match[0],value,unit:parts[2].toLowerCase().replace(/^lbs$/,"lb")});
+  values.push({handle:source+":m"+(values.length+1),metric:null,context:body.slice(Math.max(body.lastIndexOf("\n",match.index)+1,match.index-60),Math.min(body.indexOf("\n",match.index)<0?body.length:body.indexOf("\n",match.index),match.index+match[0].length+60)),excerpt:match[0],value,unit:parts[2].toLowerCase().replace(/^lbs$/,"lb")});
  }
  return values;
 }
@@ -37,7 +37,7 @@ const units=Object.freeze({
 });
 export function calculateReadSources(calculations,sources) {
  if(!Array.isArray(calculations)||calculations.length>4)throw new Error("ASK_READ_CALC_INVALID");
- const known=sources.flatMap(source=>(source.measurements??readSourceMeasurements(source.body,source.handle,source.kind)).map(measurement=>({...measurement,source:source.handle,time:Date.parse(source.eventAt)})));
+ const known=sources.flatMap(source=>(source.measurements??readSourceMeasurements(source.body,source.handle,source.kind)).map(measurement=>({...measurement,source:source.handle,petId:source.petId,time:Date.parse(source.eventAt)})));
  return calculations.map(calculation=>{
   if(!calculation||Object.keys(calculation).sort().join(",")!=="operands,operation"
    ||!["difference","absolute_difference","percent_change","sum","mean"].includes(calculation.operation)
@@ -48,6 +48,10 @@ export function calculateReadSources(calculations,sources) {
    return {...value};
   });
   const unavailable=(text,unit)=>({text,sourceHandles:values.map(value=>value.source),value:null,unit,available:false});
+  if(new Set(calculation.operands).size!==calculation.operands.length)return unavailable("The same measurement was selected more than once; this calculation is unavailable.",null);
+  const metrics=values.map(value=>value.metric).filter(Boolean);
+  if(new Set(metrics).size>1)return unavailable("These measurements describe different saved metrics, so this calculation is unavailable.",null);
+  if(["difference","percent_change"].includes(calculation.operation)&&new Set(values.map(value=>value.petId)).size>1)return unavailable("A change over time requires measurements for the same pet. Compare different pets with an absolute difference instead.",null);
   let unit=values[0].unit;
   if(values.some(value=>value.unit!==unit)){
    const dimensions=values.map(value=>units[value.unit]);
