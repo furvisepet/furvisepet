@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {runReadOnlyAsk,bindReadTool,validateReadOnlyAnswer,READ_ONLY_TOOLS,validCalendarDate,isReadOnlyResult} from "../app/lib/ask-read-only/core.mjs";
+import {runReadOnlyAsk,validateReadOnlyAnswer,READ_ONLY_TOOLS,validCalendarDate,isReadOnlyResult} from "../app/lib/ask-read-only/core.mjs";
 import {calendarWindowToInstants} from "../app/lib/ask-time-zone.ts";
 import {createReadOnlyDataAccess,literalSearch} from "../app/lib/ask-read-only/data.ts";
 import {issueReadOnlyCitationProof,verifyAskCitationProof,checkedCitationSources} from "../app/lib/ask-citation-proof.ts";
@@ -112,7 +112,7 @@ test("real data adapter binds owner, pet, deletion, timezone, ordering and bound
  const seen=[];const row={id:"note-a",user_id:"owner-a",pet_profile_id:"pet-a",note:source.body,title:null,occurred_at:source.eventAt,created_at:source.recordedAt,deleted_at:null};
  const db={from(table){
   const q={};
-  for(const method of ["select","eq","is","gte","lt","ilike","order","range","abortSignal"])q[method]=(...args)=>{seen.push({table,method,args:method==="abortSignal"?[]:args});return q;};
+  for(const method of ["select","eq","is","gte","lt","ilike","or","order","range","retry","abortSignal"])q[method]=(...args)=>{seen.push({table,method,args:method==="abortSignal"?[]:args});return q;};
   q.maybeSingle=async()=>({data:{id:"pet-a",user_id:"owner-a"},error:null});
   q.then=(resolve,reject)=>Promise.resolve({data:[row],error:null,count:1}).then(resolve,reject);
   return q;
@@ -143,7 +143,7 @@ test("real provider adapter requests only read tools, then a compact final schem
  const result=await runReadOnlyAsk(input,{provider:readOnlyProvider("gpt-5.4-mini",event=>events.push(event),client),read:async()=>({sources:[source],total:1})});
  assert.equal(result.providerCallCount,2);assert.equal(wire.length,2);assert.equal(events.filter(e=>e.outcome==="started").length,2);
  assert.equal(wire[0].store,false);assert.deepEqual(wire[0].tools.map(t=>t.name),["read_pet_profile","search_saved_records"]);assert.equal(wire[0].parallel_tool_calls,true);
- assert.ok(!wire[1].tools);assert.deepEqual(wire[1].text.format.schema.required,["answer","quotes","sources","calculations","replyType"]);
+ assert.ok(!wire[1].tools);assert.deepEqual(wire[1].text.format.schema.required,["components","quotes","sources","calculations","replyType"]);
 });
 for(const [name,response] of [
  ["incomplete",{status:"incomplete",output:[],incomplete_details:{reason:"max_output_tokens"}}],
@@ -184,8 +184,8 @@ test("over-specific lexical query falls back to bounded same-owner/pet/date cand
  const seen=[];const row={id:"note-a",user_id:"owner-a",pet_profile_id:"pet-a",note:source.body,title:null,occurred_at:source.eventAt,created_at:source.recordedAt,deleted_at:null};
  const db={from(table){
   let lexical=false;const q={};
-  for(const method of ["select","eq","is","gte","lt","order","range","abortSignal"])q[method]=(...args)=>{seen.push({table,method,args});return q;};
-  q.ilike=(...args)=>{lexical=true;seen.push({table,method:"ilike",args});return q;};
+  for(const method of ["select","eq","is","gte","lt","order","range","retry","abortSignal"])q[method]=(...args)=>{seen.push({table,method,args});return q;};
+  q.or=(...args)=>{lexical=true;seen.push({table,method:"ilike",args});return q;};
   q.maybeSingle=async()=>({data:{id:"pet-a",user_id:"owner-a"},error:null});
   q.then=(resolve,reject)=>Promise.resolve({data:lexical?[]:[row],count:lexical?0:1,error:null}).then(resolve,reject);
   return q;
@@ -293,7 +293,7 @@ import {readOnlyToolsForPets,readOnlyAnswerSchemaForSources} from "../app/lib/as
 test("actual provider schemas have disjoint capabilities and owner-scoped handles",()=>{
  const tools=readOnlyToolsForPets([{handle:"p1"},{handle:"p2"}]);
  const profile=new Ajv({strict:false}).compile(tools[0].parameters),history=new Ajv({strict:false}).compile(tools[1].parameters);
- const query={pet:"p1",from:"2026-01-01",to:"2026-01-01",query:null,offset:0,order:"desc"};
+ const query={pet:"p1",from:"2026-01-01",to:"2026-01-01",query:null,offset:0,order:"desc",goal:"exact_quote",alternatives:[],recordedFrom:null,recordedTo:null,orderBy:"event"};
  assert.equal(profile({pet:"p1"}),true);assert.equal(history(query),true);
  assert.equal(profile(query),false);assert.equal(history({pet:"p1"}),false);
  for(const validate of [profile,history]){
@@ -309,23 +309,24 @@ test("actual provider schemas have disjoint capabilities and owner-scoped handle
 test("the actual answer schema excludes profile-as-note quotes and fabricated source or measurement handles",()=>{
  const sources=[{kind:"profile",handle:"s1",measurements:[{handle:"s1:m1"}]},{kind:"history",handle:"s2",measurements:[{handle:"s2:m1"}]}];
  const validate=new Ajv({strict:false}).compile(readOnlyAnswerSchemaForSources(sources));
- const answer=final({quotes:["s2"],sources:["s1","s2"]});
+ const native=extra=>{const value=final(extra);delete value.answer;return {...value,components:[{kind:"general",text:"Explanation.",sources:[]}]};};
+  const answer=native({quotes:["s2"],sources:["s1","s2"]});
  assert.equal(validate(answer),true);
  assert.equal(validate({...answer,quotes:["s1"]}),false);
  assert.equal(validate({...answer,sources:["s3"]}),false);
  assert.equal(validate({...answer,calculations:[{operation:"sum",operands:["s2:m1","missing:m1"]}]}),false);
  const profileOnly=new Ajv({strict:false}).compile(readOnlyAnswerSchemaForSources([sources[0]]));
- assert.equal(profileOnly(final({quotes:[],sources:["s1"]})),true);
- assert.equal(profileOnly(final({quotes:["s1"]})),false);
+ assert.equal(profileOnly(native({quotes:[],sources:["s1"]})),true);
+ assert.equal(profileOnly(native({quotes:["s1"]})),false);
  const general=new Ajv({strict:false}).compile(readOnlyAnswerSchemaForSources([]));
- assert.equal(general(final({quotes:[],sources:[]})),true);
- assert.equal(general(final()),false);
+ assert.equal(general(native({quotes:[],sources:[]})),true);
+ assert.equal(general(native()),false);
 });
 test("profile questions can use only profile data and a verifiable profile citation in two physical calls",async()=>{
  let calls=0,reads=0;
  const row={id:"pet-a",user_id:"owner-a",name:"Juniper",weight_value:4.2,weight_unit:"kg",current_food:"saved diet",created_at:"2025-01-01T00:00:00Z",updated_at:"2026-11-01T00:00:00Z"};
  const result=await runReadOnlyAsk({...input,question:"What weight and food are saved in the profile?"},{
-  provider:async(request)=>++calls===1?{calls:[{id:"profile",name:"read_pet_profile",arguments:JSON.stringify({pet:"p1"})}],text:""}:
+  provider:async()=>++calls===1?{calls:[{id:"profile",name:"read_pet_profile",arguments:JSON.stringify({pet:"p1"})}],text:""}:
    final({answer:"The saved profile contains the weight and food.",quotes:[],sources:["s1"]}),
   read:async request=>{reads++;assert.equal(request.kind,"profile");return {sources:[{kind:"profile",id:row.id,petId:row.id,ownerId:row.user_id,body:serializeReadOnlyProfile(row),eventAt:row.updated_at,recordedAt:row.created_at}],total:1};}
  });
