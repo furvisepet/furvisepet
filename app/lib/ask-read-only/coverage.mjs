@@ -5,19 +5,19 @@ export function readCoverageMessages(coverage=[]) {
   if(!Array.isArray(row.discovery)&&row.unmet?.includes("referenced_source_changed_or_missing"))return pet+": A previously referenced source changed or is missing. Ask for a fresh search or clarify which source you mean; its earlier content was not reconstructed.";
   if(Array.isArray(row.discovery)) {
    const window=(label,from,to)=>from||to?" "+label+" "+(from??"earliest")+" to "+(to??"latest"):"";
-   const lanes=row.discovery.map(lane=>lane.mode+": "+lane.inspected+(Number.isSafeInteger(lane.total)?" of "+lane.total:"")+" candidates inspected in "+lane.pages+" page(s)"+(lane.exhausted?"; query exhausted":"; more or uninspected candidates may remain"));
+   const lanes=row.discovery.map(lane=>lane.mode+": "+lane.inspected+(Number.isSafeInteger(lane.total)?" of "+lane.total:"")+" database candidates examined in "+lane.pages+" database page(s)"+(lane.exhausted?"; query exhausted":"; more or uninspected candidates may remain"));
    const unmet=row.unmet??[];
    return pet+window("event dates",scope.from,scope.to)+window("recorded dates",scope.recordedFrom,scope.recordedTo)
-    +" — "+scope.goal+": "+row.returned+" notes included from "+row.inspected+" distinct inspected candidates. "+lanes.join(". ")+"."
-    +(row.omitted?" "+row.omitted+" inspected notes omitted by the evidence limits; their text was not supplied to the answer model.":"")
+    +" — "+scope.goal+": "+row.returned+" notes supplied to the answer model from "+row.inspected+" distinct database candidates examined. "+lanes.join(". ")+"."
+    +(row.omitted?" "+row.omitted+" examined notes omitted by the evidence limits; their text was not supplied to the answer model.":"")
     +(unmet.includes("prior_source_selection_omitted")?" Only a bounded subset of the earlier result’s sources was retained for this reference.":"")
     +(unmet.includes("referenced_source_changed_or_missing")?" A previously referenced source changed or is missing. Clarify the source or request a fresh search; its earlier content was not reconstructed.":"")
     +(unmet.includes("retrieval_unavailable")?" Part of this retrieval was unavailable.":"")
     +(unmet.includes("no_selected_support")?" The answer did not select supporting evidence for this goal.":"")
     +(row.hasPrevious?" Results before the requested offset were not inspected.":"")
     +(row.truncated?" Some evidence or measurements could not fit within this reply’s limits.":"")
-    +(unmet.length?" This goal has a partial evidence view.":" The compiled query scope was inspected.")
-    +" Candidate discovery does not prove every related record was found. Saved notes describe historical reports, not verified current or corrected facts.";
+    +(unmet.length?" This goal has a partial evidence view.":" All examined notes for this query were supplied.")
+    +" Query exhaustion does not establish semantic completeness or prove every related record was found. Saved notes describe historical reports, not verified current or corrected facts.";
   }
   const window=scope.from||scope.to?" ("+(scope.from??"earliest")+" to "+(scope.to??"latest")+")":"";
   const count=Number.isSafeInteger(row.total)&&row.total>=0?" of "+row.total:"";
