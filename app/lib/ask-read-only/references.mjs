@@ -18,14 +18,14 @@ export function restoreReadReferences(value,pets) {
   if(!["event","recorded"].includes(entry.orderBy)||!["asc","desc"].includes(entry.order)||!EVIDENCE_GOALS.includes(entry.goal))continue;
   if(!Array.isArray(entry.terms)||entry.terms.length>3||entry.terms.some(term=>!text(term,160)))continue;
   if(!Array.isArray(entry.sources)||!entry.sources.length||entry.sources.length>8||entry.sources.some(source=>!source||!text(source.id,128)||!/^([a-f0-9]{64})$/.test(source.hash)||!Number.isFinite(Date.parse(source.eventAt))||!Number.isFinite(Date.parse(source.recordedAt))))continue;
-  restored.push({handle:"r"+(restored.length+1),request:{kind:entry.kind,pet,from:entry.from,to:entry.to,recordedFrom:entry.recordedFrom,recordedTo:entry.recordedTo,orderBy:entry.orderBy,order:entry.order,goal:entry.goal,terms:[...entry.terms],offset:0,sourceIds:entry.sources.map(source=>source.id),referenceTimeZone:entry.timeZone,referenceLimited:entry.limited===true,expectedSources:entry.sources.map(source=>({id:source.id,hash:source.hash,eventAt:source.eventAt,recordedAt:source.recordedAt}))}});
+  restored.push({handle:"r"+(restored.length+1),request:{kind:entry.kind,pet,from:entry.from,to:entry.to,recordedFrom:entry.recordedFrom,recordedTo:entry.recordedTo,orderBy:entry.orderBy,order:entry.order,goal:entry.goal,terms:[...entry.terms],offset:0,sourceIds:entry.sources.map(source=>source.id),referenceTimeZone:entry.timeZone,referenceLimited:entry.limited===true,omittedEventRange:entry.omittedEventRange&&typeof entry.omittedEventRange.from==="string"&&typeof entry.omittedEventRange.to==="string"&&date(entry.omittedEventRange.from)&&date(entry.omittedEventRange.to)&&entry.omittedEventRange.from<=entry.omittedEventRange.to?{from:entry.omittedEventRange.from,to:entry.omittedEventRange.to}:null,expectedSources:entry.sources.map(source=>({id:source.id,hash:source.hash,eventAt:source.eventAt,recordedAt:source.recordedAt}))}});
  }
  return restored;
 }
 export function describeReadReferences(references) {
  return references.map(({handle,request})=>({reference:handle,pet:request.pet.name,petHandle:request.pet.handle,kind:request.kind,goal:request.goal,
   from:request.from,to:request.to,recordedFrom:request.recordedFrom,recordedTo:request.recordedTo,orderBy:request.orderBy,queryHints:request.terms,
-  timeZone:request.referenceTimeZone,sourceCount:request.expectedSources.length,selectionLimited:request.referenceLimited,sourceDates:request.expectedSources.slice(0,4).map(source=>({eventAt:source.eventAt,recordedAt:source.recordedAt}))}));
+  timeZone:request.referenceTimeZone,omittedEventRange:request.omittedEventRange??null,sourceCount:request.expectedSources.length,selectionLimited:request.referenceLimited,sourceDates:request.expectedSources.slice(0,4).map(source=>({eventAt:source.eventAt,recordedAt:source.recordedAt}))}));
 }
 export function carryReadReferences(previous,bound,sources,answer,timeZone) {
  const entries=[];
@@ -34,14 +34,14 @@ export function carryReadReferences(previous,bound,sources,answer,timeZone) {
   const selected=sources.filter(source=>source.petId===request.pet.id&&source.kind===request.kind&&answer.sources.includes(source.handle)&&call.sourceHandles?.includes(source.handle));
   if(!selected.length)continue;
   entries.push({kind:request.kind,petId:request.pet.id,timeZone:request.referenceTimeZone??timeZone,goal:request.goal??"relevant_records",from:request.from??null,to:request.to??null,
-   recordedFrom:request.recordedFrom??null,recordedTo:request.recordedTo??null,orderBy:request.orderBy??"event",order:request.order??"desc",terms:request.terms??[],limited:selected.length>8||request.referenceLimited===true,sources:selected.slice(0,8).map(fingerprint)});
+   recordedFrom:request.recordedFrom??null,recordedTo:request.recordedTo??null,orderBy:request.orderBy??"event",order:request.order??"desc",terms:request.terms??[],omittedEventRange:call.omittedEventRange??request.omittedEventRange??null,limited:selected.length>8||request.referenceLimited===true,sources:selected.slice(0,8).map(fingerprint)});
  }
  // General turns carry the bounded state forward without adding another query.
  for(const {request} of previous)entries.push({kind:request.kind,petId:request.pet.id,timeZone:request.referenceTimeZone??timeZone,goal:request.goal,from:request.from,to:request.to,
-  recordedFrom:request.recordedFrom,recordedTo:request.recordedTo,orderBy:request.orderBy,order:request.order,terms:request.terms,limited:request.referenceLimited===true,sources:request.expectedSources});
+  recordedFrom:request.recordedFrom,recordedTo:request.recordedTo,orderBy:request.orderBy,order:request.order,terms:request.terms,omittedEventRange:request.omittedEventRange??null,limited:request.referenceLimited===true,sources:request.expectedSources});
  const unique=[];
  for(const entry of entries){
-  if(!unique.some(other=>JSON.stringify(other)===JSON.stringify(entry)))unique.push(entry);
+  if(!unique.some(other=>JSON.stringify({...other,terms:[]})===JSON.stringify({...entry,terms:[]})))unique.push(entry);
   if(unique.length===4)break;
  }
  return {version:1,entries:unique};

@@ -5,11 +5,12 @@ export function readCoverageMessages(coverage=[]) {
   if(!Array.isArray(row.discovery)&&row.unmet?.includes("referenced_source_changed_or_missing"))return pet+": A previously referenced source changed or is missing. Ask for a fresh search or clarify which source you mean; its earlier content was not reconstructed.";
   if(Array.isArray(row.discovery)) {
    const window=(label,from,to)=>from||to?" "+label+" "+(from??"earliest")+" to "+(to??"latest"):"";
-   const lanes=row.discovery.map(lane=>lane.mode+": "+lane.inspected+(Number.isSafeInteger(lane.total)?" of "+lane.total:"")+" database candidates examined in "+lane.pages+" database page(s)"+(lane.exhausted?"; query exhausted":"; more or uninspected candidates may remain"));
+   const lanes=row.discovery.map(lane=>lane.mode+": "+lane.inspected+(Number.isSafeInteger(lane.total)?" of "+lane.total:"")+" database candidates examined in "+lane.pages+" database page(s)"+(Number.isSafeInteger(lane.attempts)?"; "+lane.attempts+" DB attempts, "+lane.rawRows+" candidate rows delivered, "+lane.reusedPages+" reused pages, "+lane.sharedCandidates+" shared candidates":"")+(lane.exhausted?"; query exhausted":"; more or uninspected candidates may remain"));
    const unmet=row.unmet??[];
    return pet+window("event dates",scope.from,scope.to)+window("recorded dates",scope.recordedFrom,scope.recordedTo)
     +" — "+scope.goal+": "+row.returned+" notes supplied to the answer model from "+row.inspected+" distinct database candidates examined. "+lanes.join(". ")+"."
     +(row.omitted?" "+row.omitted+" examined notes omitted by the evidence limits; their text was not supplied to the answer model.":"")
+    +(row.omittedEventRange?" Omitted sources have event dates "+row.omittedEventRange.from+" to "+row.omittedEventRange.to+". Ask about that narrower period for another bounded read; it is a fresh search and can repeat boundary-day records.":"")
     +(unmet.includes("prior_source_selection_omitted")?" Only a bounded subset of the earlier result’s sources was retained for this reference.":"")
     +(unmet.includes("referenced_source_changed_or_missing")?" A previously referenced source changed or is missing. Clarify the source or request a fresh search; its earlier content was not reconstructed.":"")
     +(unmet.includes("retrieval_unavailable")?" Part of this retrieval was unavailable.":"")
