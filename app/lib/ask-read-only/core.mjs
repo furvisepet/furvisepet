@@ -1,4 +1,4 @@
-import { CLINICAL_INSTRUCTIONS, clinicalSelectionSchema, validateClinicalAssessment, clinicalAnswerSchema, reviewClinicalAnswer } from "./clinical.mjs";
+import { CLINICAL_INSTRUCTIONS, clinicalSelectionSchema, validateClinicalAssessment, clinicalAnswerSchema, reviewClinicalAnswer, renderMedicationDecision } from "./clinical.mjs";
 import { restoreReadReferences, describeReadReferences, carryReadReferences } from "./references.mjs";
 import { EVIDENCE_GOALS, HISTORY_PAGE_BUDGET, HISTORY_CANDIDATE_BUDGET, allocateEvidence } from "./retrieval.mjs";
 import { calculateReadSources, readSourceMeasurements } from "./calculations.mjs";
@@ -309,6 +309,7 @@ export async function runReadOnlyAsk(input,deps) {
   const reviewed=reviewClinicalAnswer(final,assessment);
   answer=validateReadOnlyAnswer(reviewed.value,sources,input.question);
   if(reviewed.summary) {
+   answer=renderMedicationDecision(answer,reviewed.summary);
    answer.clinicalDecision=reviewed.summary;
    if(reviewed.summary.currentEmergency)answer.clinicalUrgency="urgent";
    if(selectedCalls.length<first.calls.length){answer.limited=true;if(answer.replyType==="answer")answer.replyType="partial";}

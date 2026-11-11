@@ -109,3 +109,28 @@ test("medication handoff wire excludes ordinary wrong-recipient/timing combinati
   assert.equal(error.answerDiagnostic.contactTiming,"prompt");return true;
  });
 });
+
+test("active two-call core removes misleading prose despite compliant medication metadata",async()=>{
+ const a=decisionAnswer();
+ a.components[0].text="Returning to the previous timing would be the safest move. Contact the prescriber if worried.";
+ const out=await runReadOnlyAsk(input,{read:async()=>{throw Error("No read intended");},provider:async(_packet,phase)=>phase==="read_selection"?{safety:decision,text:"",calls:[]}:a});
+ assert.equal(out.providerCallCount,2);
+ assert.equal(out.answer.answer.includes("safest move"),false);
+ assert.match(out.answer.answer,/prescribing veterinarian promptly/);
+ assert.match(out.answer.answer,/medicine name and strength/);
+ assert.equal(out.answer.replyType,"partial");
+});
+test("actual strict adapter distinguishes JSON and clinical shape errors without private output",async()=>{
+ for(const [text,expected] of [["PRIVATE malformed {","ASK_READ_OUTPUT_JSON"],[JSON.stringify({private:"not selection"}),"ASK_READ_CLINICAL_CONTRACT"]]){
+  const events=[],client={responses:{create:async()=>({status:"completed",output_text:"",output:[{type:"message",content:[{type:"output_text",text}]}]})}};
+  const tools=[{name:"read_pet_profile",parameters:{type:"object",properties:{},required:[],additionalProperties:false}}];
+  await assert.rejects(readOnlyProvider("offline",e=>events.push(e),client)({context:{},tools,selectionSchema:clinicalSelectionSchema(tools)},"read_selection"),error=>{
+   assert.equal(error.stage,"primary_invalid_output");
+   assert.equal(error.diagnostics.providerErrorCode,expected);
+   assert.ok(!JSON.stringify(error.diagnostics).includes("PRIVATE"));
+   return true;
+  });
+  const failed=events.find(e=>e.outcome==="failed");
+  assert.equal(JSON.parse(failed.validationDetails).code,expected);
+ }
+});

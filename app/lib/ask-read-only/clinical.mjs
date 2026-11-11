@@ -129,5 +129,38 @@ export function reviewClinicalAnswer(value,initial){
  if(!emergency&&value.components?.some(c=>c.kind==="emergency"))reject("unestablished_current_emergency");
  const clean={...value};delete clean.clinicalReview;
  if(review.handoffIndex>0)clean.components=[value.components[review.handoffIndex],...value.components.filter((_,i)=>i!==review.handoffIndex)];
- return {value:clean,summary:{medicationIntent:decision?"decision":final.medicationIntent,medicationDisposition:review.medicationDisposition,currentEmergency:emergency,conditionalEmergency:conditional,missingContextCount:missing.length,questionsCount:review.questionsForMissingContext.length,contactTiming:review.contactTiming}};
+ return {value:clean,summary:{medicationIntent:decision?"decision":final.medicationIntent,medicationDisposition:review.medicationDisposition,currentEmergency:emergency,conditionalEmergency:conditional,requiredInformation:missing,missingContextCount:missing.length,questionsCount:review.questionsForMissingContext.length,contactTiming:review.contactTiming}};
+}
+
+/**
+ * A display capability, not a semantic medical verifier. If either model pass
+ * recognizes a medication decision, arbitrary generated prose has no display
+ * authority. Only this bounded contact/clarification protocol plus separately
+ * verified quotations, dates and calculations may publish. Classification can
+ * still miss a decision; live clinical review remains a release gate.
+ */
+export function renderMedicationDecision(answer,summary){
+ if(summary?.currentEmergency&&summary.medicationIntent!=="decision"){
+  return {...answer,answer:[
+   "Contact an emergency veterinarian now for immediate assessment. Do not wait for saved-record searches or for a reply here before seeking help.",
+   "Describe the current signs and when they began. If an exposure or medicine is involved, have its packaging available if possible; follow the veterinary team's instructions.",
+   "I cannot establish the diagnosis or a treatment plan here.",
+   ...(answer.quotes.length?["Saved quotations below are historical reports, not an assessment of the current emergency."]:[])
+  ].join("\n\n"),replyType:"partial",limited:true,clinicalUrgency:"urgent"};
+ }
+ if(summary?.medicationIntent!=="decision")return answer;
+ const labels={pet:"which pet this concerns",date:"when each dose was actually given or missed",procedure:"which procedure or treatment this relates to",medicine:"the medicine name and strength",prescription:"the exact prescribed directions",vet_plan:"any instructions the prescribing veterinarian gave for missed doses or restarting"};
+ const missing=summary.requiredInformation??[];
+ const contact=summary.currentEmergency
+  ?"Contact an emergency veterinarian now; the reported situation needs urgent professional assessment. Have the medicine packaging and prescription available if possible."
+  :"Contact the prescribing veterinarian promptly for instructions specific to this medicine and the doses actually given.";
+ const clarification=missing.length?"To help prepare that conversation, please share "+missing.map(key=>labels[key]).join("; ")+".":"Have the medicine label, prescribed directions, actual dose times and any existing veterinarian instructions ready for that conversation.";
+ const verified=answer.quotes.length||answer.calculations.length||answer.presentation?.sourceDates?.length;
+ return {...answer,answer:[contact,
+  "I can help organize the information, but I cannot determine a safe dosing, spacing, tapering or restart plan here. Symptoms appearing stable do not establish that a changed prescription schedule is safe.",
+  clarification,
+  "Record what was actually given and when, what was missed, and any changes you noticed; keep that record separate from the prescribed schedule.",
+  ...(verified?["Any saved quotations below report what was recorded at the time; they do not authorize a current medication decision."]:[]),
+  "This reply is limited to medication clarification and any verified saved material below; other requested guidance remains unresolved."
+ ].join("\n\n"),replyType:"partial",limited:true};
 }
