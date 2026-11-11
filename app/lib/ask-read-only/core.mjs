@@ -40,11 +40,19 @@ export function readSelectionShape(first,pets) {
 }
 export function readOnlyAnswerSchemaForSources(sources) {
  const schema=structuredClone(READ_ONLY_ANSWER_SCHEMA);
+ // The provider contract must enforce the same source-authority boundary as
+ // publication: general/limitation/care guidance cannot carry saved citations.
+ const component=schema.properties.components.items;
+ const saved=structuredClone(component),general=structuredClone(component);
+ saved.properties.kind.enum=["saved"];
+ general.properties.kind.enum=component.properties.kind.enum.filter(kind=>kind!=="saved");
+ general.properties.sources.maxItems=0;
+ schema.properties.components.items={anyOf:sources.length?[saved,general]:[general]};
  const constrain=(array,handles)=>{if(handles.length)array.items.enum=handles;else array.maxItems=0;};
  constrain(schema.properties.sources,sources.map(source=>source.handle));
  constrain(schema.properties.quotes,sources.filter(source=>source.kind==="history").map(source=>source.handle));
  constrain(schema.properties.presentation.properties.sourceDates,sources.map(source=>source.handle));
- for(const component of [schema.properties.components.items]) {
+ for(const component of schema.properties.components.items.anyOf) {
   constrain(component.properties.sources,sources.map(source=>source.handle));
  }
  const measurements=sources.flatMap(source=>(source.measurements??[]).filter(value=>value.metric).map(value=>value.handle));
@@ -84,6 +92,7 @@ export const READ_ONLY_INSTRUCTIONS = [
  "For a date-specific note quotation, search that local calendar date with query=null; then select the relevant returned note by its actual wording. Never guess missing content or claim complete coverage when the result is truncated or has more pages.",
  "For arithmetic over saved measurements, request calculations using the returned measurement handles. The server computes and displays results; never supply numeric literals or infer missing measurements. Select only measurements with the same explicit metric meaning and compatible units; unknown metrics cannot be calculated. Use difference for signed change and percent_change for its percentage, reserving absolute_difference for an undirected magnitude. Do not repeat calculated numbers in narrative; identify the source dates and let Calculation supply results. Do not guess calculated values or write them into the conversational answer.",
  "Medical guidance must acknowledge uncertainty, avoid diagnosis, and recommend veterinary help when warranted. Recorded owner reports do not prove medical truth.",
+ "Do not adopt an unspecified treatment approach as safe or effective. For medication decisions, establish the medicine, prescribed instructions and veterinarian-approved plan before interpreting treatment success. Symptom stability or absence does not establish that a prescription gap, changed timing, reduced dose, taper or substitution is safe. Never recommend, normalize or endorse changing or stretching a prescribed schedule without the prescriber's direction. Direct medication-specific missed-dose, interruption, refill and monitoring decisions to the prescribing veterinarian promptly; observation alone must not substitute for that contact. You may help organize factual questions, labels and symptom logs without choosing a regimen. Do not infer a treatment plan from an ambiguous premise or a historical report.",
  "Previous dialogue is context only and may be incomplete, as dialogueCoverage indicates. Never invent omitted earlier statements or access to other conversations; ask the user to repeat essential missing context. Re-read records for follow-ups about saved facts. The references array contains bounded prior pet/time/source hints carried across topic interruptions, not facts. Use read_referenced_sources when a prior result is unambiguous; use fresh searches for changed scopes/current facts. If several references could fit, ask which one. Changed, missing or stale referenced sources cannot establish the earlier content; clarify rather than guessing. Keep internal source IDs and pet handles out of visible prose. Preserve independently answerable question components. Never hide an unavailable saved-data component by presenting a general answer as the whole answer."
 ].join("\n");
 function fail(code) { const e=new Error(code);e.code=code;throw e; }
@@ -123,6 +132,25 @@ export function bindReadTool(name,args,pets,references=[]) {
   goal:args.goal??"relevant_records",orderBy:args.orderBy??"event",terms:[...new Set([args.query,...(args.alternatives??[])].filter(value=>typeof value==="string"&&value.trim()).map(value=>value.trim()))],offset:args.offset,order:args.order??"desc"};
 }
 export function validateReadOnlyAnswer(value,sources,question="") {
+ try { return validateReadOnlyAnswerValue(value,sources,question); }
+ catch(error) {
+  if(error?.code==="ASK_READ_ANSWER_INVALID"&&!error.answerDiagnostic) {
+   const components=Array.isArray(value?.components)?value.components:[];
+   const known=handle=>sources.some(source=>source.handle===handle);
+   error.answerDiagnostic={
+    category:"answer_shape",field:"answer",
+    componentCount:components.length,
+    nonSavedComponentsWithSources:components.filter(component=>component?.kind!=="saved"&&Array.isArray(component?.sources)&&component.sources.length>0).length,
+    unknownSourceReferences:[value?.sources,value?.presentation?.sourceDates,...components.map(component=>component?.sources)].flatMap(refs=>Array.isArray(refs)?refs:[]).filter(handle=>!known(handle)).length,
+    oversizedComponents:components.filter(component=>typeof component?.text==="string"&&component.text.length>4000).length,
+    presentationPresent:plain(value)&&Object.hasOwn(value,"presentation"),
+    componentsPresent:plain(value)&&Object.hasOwn(value,"components")
+   };
+  }
+  throw error;
+ }
+}
+function validateReadOnlyAnswerValue(value,sources,question="") {
  void question; // Compatibility only: repeating a handle never grants publication authority.
  let presentation={sourceDates:[],contextRequired:true};
  if(plain(value)&&Object.hasOwn(value,"presentation")){
