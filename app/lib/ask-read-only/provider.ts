@@ -29,6 +29,7 @@ export function readOnlyProvider(model:string,onEvent:(event:AskProviderEvent)=>
     }
    });
    providerEnvelope=structuredProviderEnvelopeDiagnostic(response);
+   outputLayout=describeReadOutput(response);
    if(response.status!=="completed"||response.error||!Array.isArray(response.output)||providerEnvelope.hasMessageRefusal)throw Object.assign(new Error("ASK_READ_PROVIDER_INCOMPLETE"),{code:"ASK_READ_PROVIDER_INCOMPLETE"});
    const text=strictSelection||!selection?"":readProviderText(response,true);
    let value;

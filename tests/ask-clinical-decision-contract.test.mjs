@@ -134,3 +134,15 @@ test("actual strict adapter distinguishes JSON and clinical shape errors without
   assert.equal(JSON.parse(failed.validationDetails).code,expected);
  }
 });
+
+test("actual adapter emits phase diagnostics for commentary plus final structured selection",async()=>{
+ const events=[],payload={safety:assessment(),reads:[],draft:""};
+ const client={responses:{create:async()=>({status:"completed",output_text:"Commentary"+JSON.stringify(payload),output:[{type:"message",phase:"commentary",content:[{type:"output_text",text:"Commentary"}]},{type:"message",phase:"final_answer",content:[{type:"output_text",text:JSON.stringify(payload)}]}]})}};
+ const tools=[{name:"read_pet_profile",parameters:{type:"object",properties:{},required:[],additionalProperties:false}}];
+ const out=await readOnlyProvider("offline",e=>events.push(e),client)({context:{},tools,selectionSchema:clinicalSelectionSchema(tools)},"read_selection");
+ assert.equal(out.calls.length,0);
+ const details=JSON.parse(events.find(e=>e.outcome==="succeeded").validationDetails);
+ assert.equal(details.outputLayout.selectedPhase,"final_answer");
+ assert.equal(details.outputLayout.commentaryMessages,1);
+ assert.equal(details.outputLayout.aggregateJsonValid,false);
+});
