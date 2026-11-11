@@ -1,0 +1,12 @@
+{
+  "schema": "AskBenchmarkExposure.v1",
+  "sourceSha256": "f0a0447c8c544aa552a796ec67f6581355c1374e3aa6f891300b856588bdaf78",
+  "exposedBeforeFreezeIds": [
+    "1",
+    "2"
+  ],
+  "holdoutAcceptanceExcludedIds": [
+    "1"
+  ],
+  "reason": "IDs1/2 question text appeared in initial CSV verification output before split; original split preserved, excluded rather than silently reshuffled."
+}

@@ -36,6 +36,13 @@ class BenchmarkContracts(unittest.TestCase):
             with self.assertRaises(ValueError):
                 score(self.rows, self.registry, [record])
 
+    def test_exposed_question_cannot_claim_holdout_acceptance(self):
+        record = self.record()
+        record['sampleType'] = 'holdout'
+        self.registry['holdoutIds'] = ['0']
+        with self.assertRaises(ValueError):
+            score(self.rows, self.registry, [record], exposed_ids=['0'])
+
     def test_ungraded_paid_observation_still_counts_cost_and_execution(self):
         record = self.record()
         record['verdict'] = 'UNVERIFIED'

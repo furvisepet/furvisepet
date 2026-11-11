@@ -54,7 +54,7 @@ def split(rows, source_hash, seed='furvise-1111d-v1', holdout_per_category=10):
             'holdoutIds': sorted(held), 'developmentIds': sorted(development), 'firstSampleIds': sample,
             'questionHashes': {r['ID']: digest(r['User question']) for r in rows}}
 
-def score(rows, registry, results):
+def score(rows, registry, results, exposed_ids=()):
     by_id = {r['ID']: r for r in rows}
     if len({x['id'] for x in results}) != len(results):
         raise ValueError('Duplicate question IDs: retain attempts separately, never inflate denominator')
@@ -65,6 +65,8 @@ def score(rows, registry, results):
     submitted_ids, evaluated_ids = [], []
     for result in results:
         row = by_id[result['id']]
+        if result.get('sampleType') == 'holdout' and (result['id'] not in registry['holdoutIds'] or result['id'] in exposed_ids):
+            raise ValueError('Holdout ID was exposed or is not reserved')
         verdict = result['verdict']
         if verdict not in VERDICTS or result['questionSha256'] != digest(row['User question']):
             raise ValueError('Question or verdict mismatch')
@@ -114,6 +116,7 @@ def main():
     parser.add_argument('csv')
     parser.add_argument('registry')
     parser.add_argument('--results')
+    parser.add_argument('--exposures', help='Exposure ledger; defaults to registry sibling exposure-ledger.json when present')
     parser.add_argument('--output')
     args = parser.parse_args()
     rows, sha = ingest(args.csv)
@@ -130,7 +133,14 @@ def main():
         if args.command == 'sample':
             data = [r for r in rows if r['ID'] in registry['firstSampleIds']]
         else:
-            data = score(rows, registry, json.loads(Path(args.results).read_text(encoding='utf-8')))
+            exposure_path = Path(args.exposures) if args.exposures else Path(args.registry).with_name('exposure-ledger.json')
+            exposed = []
+            if exposure_path.exists():
+                exposure = json.loads(exposure_path.read_text(encoding='utf-8'))
+                if exposure['sourceSha256'] != sha:
+                    raise ValueError('Exposure ledger is for a different source')
+                exposed = exposure['exposedBeforeFreezeIds']
+            data = score(rows, registry, json.loads(Path(args.results).read_text(encoding='utf-8')), exposed)
     rendered = json.dumps(data, ensure_ascii=False, indent=2)
     if args.output:
         Path(args.output).write_text(rendered, encoding='utf-8')
