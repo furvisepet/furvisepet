@@ -52,7 +52,7 @@ export function createReadOnlyDataAccess(db:SupabaseClient,ownerId:string,timeZo
   const result=checkReferencedSources(discovered,request);
   onRead?.({petHandle:request.pet.handle,goal:request.goal??"relevant_records",from:request.from??null,to:request.to??null,
    recordedFrom:request.recordedFrom??null,recordedTo:request.recordedTo??null,orderBy:request.orderBy??"event",termCount:request.terms?.length??0,
-   offset:request.offset??0,order:request.order??"desc",matchedTotal:result.matchedTotal,returned:result.sources.length,
+   referenceRead:!!request.sourceIds,offset:request.offset??0,order:request.order??"desc",matchedTotal:result.matchedTotal,returned:result.sources.length,
    inspected:result.inspected,discovery:result.discovery,hasMore:result.hasMore,searchRelaxed:result.searchRelaxed,scopeExhausted:result.scopeExhausted,unavailable:result.unavailable,timeZone});
   return result;
  };
