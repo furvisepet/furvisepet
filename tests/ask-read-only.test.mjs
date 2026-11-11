@@ -143,7 +143,7 @@ test("real provider adapter requests only read tools, then a compact final schem
  const result=await runReadOnlyAsk(input,{provider:readOnlyProvider("gpt-5.4-mini",event=>events.push(event),client),read:async()=>({sources:[source],total:1})});
  assert.equal(result.providerCallCount,2);assert.equal(wire.length,2);assert.equal(events.filter(e=>e.outcome==="started").length,2);
  assert.equal(wire[0].store,false);assert.deepEqual(wire[0].tools.map(t=>t.name),["read_pet_profile","search_saved_records"]);assert.equal(wire[0].parallel_tool_calls,true);
- assert.ok(!wire[1].tools);assert.deepEqual(wire[1].text.format.schema.required,["components","quotes","sources","calculations","replyType"]);
+ assert.ok(!wire[1].tools);assert.deepEqual(wire[1].text.format.schema.required,["presentation","components","quotes","sources","calculations","replyType"]);
 });
 for(const [name,response] of [
  ["incomplete",{status:"incomplete",output:[],incomplete_details:{reason:"max_output_tokens"}}],
@@ -309,7 +309,7 @@ test("actual provider schemas have disjoint capabilities and owner-scoped handle
 test("the actual answer schema excludes profile-as-note quotes and fabricated source or measurement handles",()=>{
  const sources=[{kind:"profile",handle:"s1",measurements:[{handle:"s1:m1"}]},{kind:"history",handle:"s2",measurements:[{handle:"s2:m1"}]}];
  const validate=new Ajv({strict:false}).compile(readOnlyAnswerSchemaForSources(sources));
- const native=extra=>{const value=final(extra);delete value.answer;return {...value,components:[{kind:"general",text:"Explanation.",sources:[]}]};};
+ const native=extra=>{const value=final(extra);delete value.answer;return {...value,presentation:{sourceDates:[],contextRequired:false},components:[{kind:"general",text:"Explanation.",sources:[]}]};};
   const answer=native({quotes:["s2"],sources:["s1","s2"]});
  assert.equal(validate(answer),true);
  assert.equal(validate({...answer,quotes:["s1"]}),false);

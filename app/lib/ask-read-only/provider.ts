@@ -12,7 +12,7 @@ export function readOnlyProvider(model:string,onEvent:(event:AskProviderEvent)=>
  return async (input:Record<string,unknown>,phase:string) => {
   const selection=phase==="read_selection",stage=selection?"interpretation":"primary";
   const request:Record<string,unknown>={model,store:false,reasoning:{effort:"low"},max_output_tokens:Math.min(ASK_READ_ONLY_MAX_OUTPUT_TOKENS,ASK_MAX_OUTPUT_TOKENS),
-   instructions:input.instructions,input:[{role:"user",content:JSON.stringify(selection?input.context:{context:input.context,draft:input.draft,TOOL_DATA:input.TOOL_DATA})}],
+   instructions:input.instructions,input:[{role:"user",content:JSON.stringify(selection?input.context:{context:input.context,draft:input.draft,TOOL_DATA:input.TOOL_DATA,SOURCE_CATALOG:input.SOURCE_CATALOG})}],
    ...(selection?{tools:input.tools,parallel_tool_calls:true}:{text:{format:{type:"json_schema",name:"furvise_read_answer",strict:true,schema:input.schema}}})};
   const started=performance.now();
   let providerEnvelope:ReturnType<typeof structuredProviderEnvelopeDiagnostic>|undefined;
