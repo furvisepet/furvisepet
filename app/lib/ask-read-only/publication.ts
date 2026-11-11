@@ -13,7 +13,7 @@ const publicationBytes=(response:unknown)=>Buffer.byteLength(JSON.stringify(resp
 /** No stored-text normalization: only the conversational prose passes state-claim checks. */
 export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:string) {
  if(!isReadOnlyResult(result))throw new Error("ASK_READ_RESULT_INVALID");
- const reviewed=result as {answer:{answer:string;replyType:"answer"|"clarification"|"refusal"|"partial";limited:boolean;presentation?:{contextRequired:boolean;sourceDates:Array<{kind:string;eventAt:string;recordedAt:string;pet:string|null}>};quotes:Array<{quote:string}>;calculations:Array<{text:string}>};sources:Array<{kind:string}>};
+ const reviewed=result as {answer:{answer:string;replyType:"answer"|"clarification"|"refusal"|"partial";limited:boolean;clinicalUrgency?:"routine"|"urgent";presentation?:{contextRequired:boolean;sourceDates:Array<{kind:string;eventAt:string;recordedAt:string;pet:string|null}>};quotes:Array<{quote:string}>;calculations:Array<{text:string}>};sources:Array<{kind:string}>};
  const body=reviewed.answer;
  const coverageMessages=readCoverageMessages((result as {coverage?:unknown[]}).coverage);
  const dialogue=(result as {dialogueCoverage?:{partial?:boolean;omittedKnownMessages?:number;truncatedMessages?:number}}).dialogueCoverage;
@@ -38,7 +38,7 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
  const summary=[checkedSummary,...verifiedDetails].join("\n");
  const contextUsed={petName,usedSources:reviewed.sources.length?["Verified saved sources"]:[]};
  const response=buildAskConversationResponse({title:"Furvise",summary,sections:[],safetyNote:null},
-  {intent:"general_pet_question",usedContextSummary:contextUsed.usedSources});
+  {intent:"general_pet_question",urgent:body.clinicalUrgency==="urgent",usedContextSummary:contextUsed.usedSources});
  if(!response)throw new Error("ASK_READ_RESPONSE_INVALID");
  response.answerType=body.replyType==="clarification"?"clarification":"direct_answer";
  response.sections=[
