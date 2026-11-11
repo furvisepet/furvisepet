@@ -1,3 +1,4 @@
+import { decodeClinicalSelection } from "./clinical.mjs";
 import "server-only";
 import { withProviderDeadline } from "../ai/execution-deadline.ts";
 import { ASK_READ_ONLY_MAX_OUTPUT_TOKENS } from "./limits.ts";
@@ -10,10 +11,10 @@ import { safeAskProviderErrorDiagnostic } from "../ai/ask-provider-error-diagnos
 type ProviderResponse = { error?:{code?:string|null;message?:string|null}|null; status?: string; output_text?: string; output?: Array<{type:string;id?:string;name?:string;call_id?:string;arguments?:string;content?:Array<{type:string;text?:string}>}>; usage?:{input_tokens?:number;output_tokens?:number}; incomplete_details?:{reason?:string} };
 export function readOnlyProvider(model:string,onEvent:(event:AskProviderEvent)=>void, client = new OpenAI({apiKey:process.env.OPENAI_API_KEY,maxRetries:0})) {
  return async (input:Record<string,unknown>,phase:string) => {
-  const selection=phase==="read_selection",stage=selection?"interpretation":"primary";
+  const selection=phase==="read_selection",stage=selection?"interpretation":"primary",strictSelection=selection&&!!input.selectionSchema;
   const request:Record<string,unknown>={model,store:false,reasoning:{effort:"low"},max_output_tokens:Math.min(ASK_READ_ONLY_MAX_OUTPUT_TOKENS,ASK_MAX_OUTPUT_TOKENS),
-   instructions:input.instructions,input:[{role:"user",content:JSON.stringify(selection?input.context:{context:input.context,draft:input.draft,TOOL_DATA:input.TOOL_DATA,SOURCE_CATALOG:input.SOURCE_CATALOG})}],
-   ...(selection?{tools:input.tools,parallel_tool_calls:true}:{text:{format:{type:"json_schema",name:"furvise_read_answer",strict:true,schema:input.schema}}})};
+   instructions:input.instructions,input:[{role:"user",content:JSON.stringify(selection?input.context:{context:input.context,draft:input.draft,TOOL_DATA:input.TOOL_DATA,SOURCE_CATALOG:input.SOURCE_CATALOG,CLINICAL_CONSTRAINTS:input.CLINICAL_CONSTRAINTS})}],
+   ...(strictSelection?{text:{format:{type:"json_schema",name:"furvise_read_selection",strict:true,schema:input.selectionSchema}}}:selection?{tools:input.tools,parallel_tool_calls:true}:{text:{format:{type:"json_schema",name:"furvise_read_answer",strict:true,schema:input.schema}}})};
   const started=performance.now();
   let providerEnvelope:ReturnType<typeof structuredProviderEnvelopeDiagnostic>|undefined;
   try {
@@ -29,8 +30,11 @@ export function readOnlyProvider(model:string,onEvent:(event:AskProviderEvent)=>
    if(response.status!=="completed"||response.error||!Array.isArray(response.output)||providerEnvelope.hasMessageRefusal)throw new Error("ASK_READ_PROVIDER_INCOMPLETE");
    const text=response.output_text??response.output.flatMap(item=>item.type==="message"?(item.content??[]).filter(c=>c.type==="output_text").map(c=>c.text??""):[]).join("");
    let value;
-   if(selection){
-    const calls=response.output.filter(item=>item.type==="function_call").map(item=>({id:item.call_id,name:item.name,arguments:item.arguments}));
+   if(strictSelection){
+     if(response.output.some(item=>item.type==="function_call"))throw new Error("ASK_READ_UNEXPECTED_TOOL");
+     value=decodeClinicalSelection(JSON.parse(text),input.tools);
+    }else if(selection){
+     const calls=response.output.filter(item=>item.type==="function_call").map(item=>({id:item.call_id,name:item.name,arguments:item.arguments}));
     if(typeof text!=="string"||(!calls.length&&!text.trim()))throw new Error("ASK_READ_PROVIDER_INCOMPLETE");
     value={text,calls};
    }else{
