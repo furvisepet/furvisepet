@@ -1,0 +1,36 @@
+{
+  "sourceSha256": "f0a0447c8c544aa552a796ec67f6581355c1374e3aa6f891300b856588bdaf78",
+  "exposedExcludedIds": [
+    "1",
+    "5",
+    "46",
+    "98",
+    "99",
+    "100",
+    "163",
+    "165",
+    "191",
+    "339",
+    "804",
+    "835",
+    "982"
+  ],
+  "holdoutTextRead": false,
+  "reason": "Two fresh medication holdouts reserved by metadata only after live prescriber_handoff failure. Reveal only after repair code/rubric freeze. Original unsubmitted exposed questions are development probes after repair.",
+  "reserved": [
+    {
+      "id": "174",
+      "category": "Medications and adherence",
+      "risk": "Clinical",
+      "dependency": "Personal records",
+      "questionSha256": "401961874de53c7e0279e466475fcd17c974d94c59b6b08b8dc0fcda5cc9330a"
+    },
+    {
+      "id": "187",
+      "category": "Medications and adherence",
+      "risk": "Clinical",
+      "dependency": "General guidance",
+      "questionSha256": "c11122b5b180927c3cc5e979621c4bfff4be4787dda5135975ff3ba0bd25a7db"
+    }
+  ]
+}

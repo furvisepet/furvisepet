@@ -12,7 +12,7 @@ const input={ownerId:"owner",selectedPetId:"pet",pets:[{id:"pet",ownerId:"owner"
 test("medication decisions cannot become a complete answer or authorize a regimen",()=>{
  const s=clinicalAnswerSchema(readOnlyAnswerSchemaForSources([]),decision);
  assert.deepEqual(s.properties.replyType.enum,["clarification","partial"]);
- assert.deepEqual(s.properties.clinicalReview.properties.medicationDisposition.enum,["refer_prescriber"]);
+ for(const variant of s.properties.clinicalReview.anyOf)assert.deepEqual(variant.properties.medicationDisposition.enum,["refer_prescriber"]);
  const a=decisionAnswer();a.replyType="answer";
  assert.throws(()=>reviewClinicalAnswer(a,decision),/CLINICAL_CONTRACT/);
  a.replyType="clarification";a.clinicalReview.regimenDecision="approved";
@@ -91,4 +91,21 @@ test("actual answer wire retains clinical constraints alongside evidence",async(
  const wires=[],client={responses:{create:async request=>{wires.push(request);return {status:"completed",output:[{type:"message",content:[{type:"output_text",text:JSON.stringify(answer())}]}]};}}};
  await readOnlyProvider("offline",()=>{},client)({instructions:"Review.",context:{},draft:"",TOOL_DATA:[],SOURCE_CATALOG:[],CLINICAL_CONSTRAINTS:decision,schema:clinicalAnswerSchema(readOnlyAnswerSchemaForSources([]),decision)},"read_answer");
  assert.equal(JSON.parse(wires[0].input[0].content).CLINICAL_CONSTRAINTS.medicationIntent,"decision");
+});
+
+test("medication handoff wire excludes ordinary wrong-recipient/timing combinations without weakening validator",()=>{
+ const schema=clinicalAnswerSchema(readOnlyAnswerSchemaForSources([]),decision);
+ const [ordinary,urgent]=schema.properties.clinicalReview.anyOf;
+ assert.deepEqual(ordinary.properties.contactRecipient.enum,["prescriber"]);
+ assert.deepEqual(ordinary.properties.contactTiming.enum,["prompt","immediate"]);
+ assert.equal(ordinary.properties.handoffIndex.minimum,0);
+ assert.deepEqual(urgent.properties.assessment.properties.scenario.enum,["current"]);
+ assert.deepEqual(urgent.properties.assessment.properties.urgency.enum,["immediate"]);
+ assert.deepEqual(urgent.properties.contactRecipient.enum,["emergency_veterinarian","veterinarian_or_poison_service"]);
+ const a=decisionAnswer();a.clinicalReview.contactRecipient="veterinarian";
+ assert.throws(()=>reviewClinicalAnswer(a,decision),error=>{
+  assert.equal(error.answerDiagnostic.field,"prescriber_handoff");
+  assert.equal(error.answerDiagnostic.contactRecipient,"veterinarian");
+  assert.equal(error.answerDiagnostic.contactTiming,"prompt");return true;
+ });
 });

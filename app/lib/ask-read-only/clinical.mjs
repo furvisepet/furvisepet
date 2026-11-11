@@ -20,9 +20,9 @@ export const CLINICAL_INSTRUCTIONS=[
  "handoffIndex identifies the component with actual actionable professional contact guidance. contactTiming=immediate means contact/seek emergency care now, not monitor, wait for symptoms, finish a log, or book a routine visit. Use emergency_veterinarian or veterinarian_or_poison_service for a current emergency, prescriber for non-emergency medication decisions. Put escalation before checklists or questions. A hypothetical emergency must explicitly be conditional and must not assert it is occurring.",
  "Write context-specific guidance in your own words, not a generic safety script. Clarification/partial replies must directly ask for missing essential context, preserve safe independent content and disclose what cannot be concluded. Quoted notes are historical reports, not current diagnoses or permission to alter treatment."
 ].join("\n");
-function reject(field){
+function reject(field,details={}){
  const error=new Error("ASK_READ_CLINICAL_CONTRACT");error.code="ASK_READ_CLINICAL_CONTRACT";
- error.answerDiagnostic={category:"clinical_contract",field};throw error;
+ error.answerDiagnostic={category:"clinical_contract",field,...details};throw error;
 }
 const keys=(v,expected)=>v&&typeof v==="object"&&!Array.isArray(v)&&Object.keys(v).length===expected.length&&expected.every(k=>Object.hasOwn(v,k));
 export function validateClinicalAssessment(value){
@@ -60,6 +60,34 @@ export function clinicalAnswerSchema(schema,initial){
   contactRecipient:choice(["none","prescriber","veterinarian","emergency_veterinarian","veterinarian_or_poison_service"]),
   questionsForMissingContext:{type:"array",maxItems:6,items:choice(MISSING)}
  });
+ // Constrain first-pass obligations on the generation wire, not just after
+ // paid output. A newly recognized current emergency retains its own branch.
+ const review=out.properties.clinicalReview;
+ const bindContact=(shape,recipients,timings)=>{
+  shape.properties.handoffIndex.minimum=0;
+  shape.properties.contactRecipient.enum=recipients;
+  shape.properties.contactTiming.enum=timings;
+ };
+ if(initial?.scenario==="current"&&initial.urgency==="immediate"){
+  bindContact(review,["emergency_veterinarian","veterinarian_or_poison_service"],["immediate"]);
+ }else if(initial?.medicationIntent==="decision"){
+  const ordinary=structuredClone(review),urgent=structuredClone(review);
+  bindContact(ordinary,["prescriber"],["prompt","immediate"]);
+  // ordinary must not accidentally encode a current emergency whose recipient
+  // would then violate the emergency rule. Keep hypotheses/history distinct.
+  const notCurrent=structuredClone(CLINICAL_ASSESSMENT_SCHEMA);
+  notCurrent.properties.scenario.enum=notCurrent.properties.scenario.enum.filter(v=>v!=="current");
+  const currentNonEmergency=structuredClone(CLINICAL_ASSESSMENT_SCHEMA);
+  currentNonEmergency.properties.scenario.enum=["current"];
+  currentNonEmergency.properties.urgency.enum=["routine","prompt"];
+  ordinary.properties.assessment={anyOf:[notCurrent,currentNonEmergency]};
+  urgent.properties.assessment.properties.scenario.enum=["current"];
+  urgent.properties.assessment.properties.urgency.enum=["immediate"];
+  bindContact(urgent,["emergency_veterinarian","veterinarian_or_poison_service"],["immediate"]);
+  out.properties.clinicalReview={anyOf:[ordinary,urgent]};
+ }else if(["current","uncertain"].includes(initial?.scenario)&&initial.urgency==="prompt"){
+  bindContact(review,["veterinarian","prescriber","emergency_veterinarian"],["prompt","immediate"]);
+ }
  out.required.push("clinicalReview");
  if(initial?.medicationIntent==="decision"||initial?.referent==="essential_unknown")out.properties.replyType.enum=["clarification","partial"];
  return out;
@@ -85,13 +113,18 @@ export function reviewClinicalAnswer(value,initial){
  if((decision||unknown)&&missing.some(k=>!review.questionsForMissingContext.includes(k)))reject("missing_questions");
  const promptContact=[initial,final].some(s=>["current","uncertain"].includes(s?.scenario)&&s.urgency==="prompt");
  const requiresHandoff=decision||emergency||conditional||promptContact;
+ const rejectHandoff=field=>reject(field,{
+  contactTiming:schema.contactTiming.enum.includes(review.contactTiming)?review.contactTiming:"invalid",
+  contactRecipient:schema.contactRecipient.enum.includes(review.contactRecipient)?review.contactRecipient:"invalid",
+  handoffKind:["general","saved","limitation","emergency","conditional_emergency"].includes(value.components?.[review.handoffIndex]?.kind)?value.components[review.handoffIndex].kind:"invalid"
+ });
  if(requiresHandoff||review.handoffIndex>=0){
   const component=value.components?.[review.handoffIndex];
-  if(!component||!["general","limitation","emergency","conditional_emergency"].includes(component.kind)||component.sources?.length)reject("handoff_component");
-  if(emergency&&(review.contactTiming!=="immediate"||!["emergency_veterinarian","veterinarian_or_poison_service"].includes(review.contactRecipient)||component.kind!=="emergency"))reject("emergency_downgrade");
-  if(!emergency&&conditional&&!decision&&(review.contactTiming!=="immediate"||component.kind!=="conditional_emergency"))reject("conditional_handoff");
-  if(decision&&!emergency&&(!["prompt","immediate"].includes(review.contactTiming)||review.contactRecipient!=="prescriber"))reject("prescriber_handoff");
-  if(promptContact&&!decision&&!emergency&&(!["prompt","immediate"].includes(review.contactTiming)||!["veterinarian","prescriber","emergency_veterinarian"].includes(review.contactRecipient)))reject("prompt_handoff");
+  if(!component||!["general","limitation","emergency","conditional_emergency"].includes(component.kind)||component.sources?.length)rejectHandoff("handoff_component");
+  if(emergency&&(review.contactTiming!=="immediate"||!["emergency_veterinarian","veterinarian_or_poison_service"].includes(review.contactRecipient)||component.kind!=="emergency"))rejectHandoff("emergency_downgrade");
+  if(!emergency&&conditional&&!decision&&(review.contactTiming!=="immediate"||component.kind!=="conditional_emergency"))rejectHandoff("conditional_handoff");
+  if(decision&&!emergency&&(!["prompt","immediate"].includes(review.contactTiming)||review.contactRecipient!=="prescriber"))rejectHandoff("prescriber_handoff");
+  if(promptContact&&!decision&&!emergency&&(!["prompt","immediate"].includes(review.contactTiming)||!["veterinarian","prescriber","emergency_veterinarian"].includes(review.contactRecipient)))rejectHandoff("prompt_handoff");
  }else if(review.contactTiming!=="none"||review.contactRecipient!=="none")reject("unbound_handoff");
  if(!emergency&&value.components?.some(c=>c.kind==="emergency"))reject("unestablished_current_emergency");
  const clean={...value};delete clean.clinicalReview;

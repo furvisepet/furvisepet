@@ -381,7 +381,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
     // Zero-call infrastructure failures and durable answer GET recovery retain
     // their existing retry behavior.
     if (providerCallCount > 0 || (error instanceof AiAdmissionError && error.code === "AI_PROVIDER_BUDGET_EXHAUSTED")) {
-      const stage = error instanceof AskPipelineError ? error.stage : /^ASK_READ_(?:INTERNAL_ID|ANSWER|QUOTE|CALC)/.test((error as {code?:string})?.code??"") ? "read_contract" : generationStage;
+      const stage = error instanceof AskPipelineError ? error.stage : /^ASK_READ_(?:INTERNAL_ID|ANSWER|QUOTE|CALC|CLINICAL)/.test((error as {code?:string})?.code??"") ? "read_contract" : generationStage;
       logAskServerError(stage, error, { conversationId: preparedRequest.conversationId, petId, requestId }, 503);
       turnLifecycle.fail(stage, false); emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
       return askFailure("ANSWER_NOT_COMPLETED", "Your question is saved. Review it before sending a new question.", 503, { retryable: false, requestId }, stage);
@@ -905,7 +905,7 @@ function logAskServerError(stage: string, error: unknown, context: Record<string
       errorCode: safeAskOperationalCode((error instanceof AskPipelineError ? error.diagnostics.providerErrorCode : null) || databaseDiagnostic.code || databaseError?.code || stage),
       eventType: "application_error", feature: "ask", operationId: requestId,
       requestId, route: "/api/ask", severity: "high",
-      metadata: { component: stage, finalErrorClass: error instanceof AskPipelineError ? "provider" : /^ASK_READ_(?:QUOTE|CALC|TOOL|ANSWER|INTERNAL_ID|PET|SOURCE)/.test(databaseError?.code || databaseError?.message || "") ? "read_contract" : classifyAskDatabaseFailure(error, 0) },
+      metadata: { component: stage, finalErrorClass: error instanceof AskPipelineError ? "provider" : /^ASK_READ_(?:QUOTE|CALC|TOOL|ANSWER|INTERNAL_ID|PET|SOURCE|CLINICAL)/.test(databaseError?.code || databaseError?.message || "") ? "read_contract" : classifyAskDatabaseFailure(error, 0) },
     });
   }
   if (process.env.NODE_ENV === "production") return;
