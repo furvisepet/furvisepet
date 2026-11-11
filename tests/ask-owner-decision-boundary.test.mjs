@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {renderMedicationDecision} from "../app/lib/ask-read-only/clinical.mjs";
-import {decodeProviderJson,safeReadOutputDiagnostic} from "../app/lib/ask-read-only/provider-output.mjs";
+import {decodeProviderJson,safeReadOutputDiagnostic,describeReadOutput} from "../app/lib/ask-read-only/provider-output.mjs";
 const answer=text=>({answer:text,replyType:"partial",limited:false,quotes:[],calculations:[],presentation:{contextRequired:false,sourceDates:[]},sources:[]});
 const decision={medicationIntent:"decision",currentEmergency:false,requiredInformation:["medicine","prescription","vet_plan"]};
 for(const text of [
@@ -63,4 +63,23 @@ test("current emergency display cannot retain wait-and-see prose",()=>{
  const result=renderMedicationDecision(input,{medicationIntent:"none",currentEmergency:true,requiredInformation:[]});
  assert.match(result.answer,/emergency veterinarian now/);
  assert.equal(result.answer.includes("tomorrow"),false);assert.equal(result.clinicalUrgency,"urgent");
+});
+
+test("phase-aware JSON ignores commentary even when SDK aggregate includes it",()=>{
+ const output=[{type:"reasoning"},{type:"message",phase:"commentary",content:[{type:"output_text",text:"I will inspect the saved records."}]},{type:"message",phase:"final_answer",status:"completed",role:"assistant",content:[{type:"output_text",text:'{"reads":[]}'}]}];
+ const response={output,output_text:'I will inspect the saved records.{"reads":[]}'};
+ assert.deepEqual(decodeProviderJson(response),{reads:[]});
+ assert.deepEqual(describeReadOutput(response),{messages:2,finalMessages:1,unphasedMessages:0,commentaryMessages:1,otherPhaseMessages:0,parseableEligibleMessages:1,aggregateJsonValid:false,selectedPhase:"final_answer"});
+});
+test("a valid JSON commentary message never supplies final authority",()=>{
+ assert.throws(()=>decodeProviderJson({output:[{type:"message",phase:"commentary",content:[{type:"output_text",text:'{"reads":[]}'}]}]}),/ASK_READ_OUTPUT_EMPTY/);
+});
+test("legacy unphased message and split content stay supported without aggregating messages",()=>{
+ assert.deepEqual(decodeProviderJson({output_text:"wrong aggregate",output:[{type:"message",content:[{type:"output_text",text:'{"reads":'},{type:"output_text",text:"[]}"}]}]}),{reads:[]});
+ for(const phase of [undefined,"final_answer"]){
+ assert.throws(()=>decodeProviderJson({output:[1,2].map(()=>({type:"message",phase,content:[{type:"output_text",text:"{}"}]}))}),/ASK_READ_OUTPUT_AMBIGUOUS/);
+ }
+});
+test("incomplete selected message cannot become a successful structured answer",()=>{
+ assert.throws(()=>decodeProviderJson({output:[{type:"message",phase:"final_answer",status:"incomplete",content:[{type:"output_text",text:"{}"}]}]}),/ASK_READ_OUTPUT_INCOMPLETE/);
 });
