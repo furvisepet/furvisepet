@@ -148,18 +148,16 @@ export function validateReadOnlyAnswer(value,sources,question="") {
  const privateIds=sources.flatMap(source=>[source.id,source.petId]).filter(id=>typeof id==="string"&&id.length>=16);
  const rejectIdentifier=category=>{const error=new Error("ASK_READ_INTERNAL_ID");error.code="ASK_READ_INTERNAL_ID";error.answerDiagnostic={category,field:"answer"};throw error;};
  if(privateIds.some(id=>value.answer.includes(id)))rejectIdentifier("private_identifier");
- // Translate only explicit citation syntax for an already selected history source.
- // Never remove arbitrary text, translate pet/measurement handles, or authorize
- // a citation from prose. All remaining opaque handles still fail closed.
+ // A source handle is a reference token, not public prose. Resolve exact known
+ // selected history tokens even when a model omits citation brackets. Never
+ // strip unknown tokens, authorize a source from prose, or translate operands.
  let citationReferencesTranslated=0;
- value.answer=value.answer.replace(/\[(s\d+)\]|\((s\d+)\)/g,(token,bracket,parenthesis)=>{
-  const source=sources.find(row=>row.handle===(bracket??parenthesis)&&row.kind==="history"&&selected.includes(row.handle));
-  if(!source)return token;
+ value.answer=value.answer.replace(/\b(?:p\d+|s\d+)(?::m\d+)?\b/g,token=>{
+  const source=sources.find(row=>row.handle===token&&row.kind==="history"&&selected.includes(row.handle));
+  if(!source)rejectIdentifier(token.startsWith("p")?"opaque_pet_handle":"opaque_source_handle");
   citationReferencesTranslated++;
-  return "(saved note dated "+source.eventAt.slice(0,10)+")";
+  return "saved note with event time "+source.eventAt;
  });
- const opaque=value.answer.match(/\b(?:p\d+|s\d+)(?::m\d+)?\b/g)??[];
- if(opaque.length)rejectIdentifier(opaque.some(handle=>handle.startsWith("p"))?"opaque_pet_handle":"opaque_source_handle");
  return {...value,citationReferencesTranslated,componentValidated,limited:componentLimited||value.replyType!=="answer"||calculations.some(calculation=>calculation.available===false),quotes,sources:selected,calculations};
 }
 const reviewedResults = new WeakSet();
