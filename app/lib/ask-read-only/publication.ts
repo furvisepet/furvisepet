@@ -13,11 +13,11 @@ const publicationBytes=(response:unknown)=>Buffer.byteLength(JSON.stringify(resp
 /** No stored-text normalization: only the conversational prose passes state-claim checks. */
 export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:string) {
  if(!isReadOnlyResult(result))throw new Error("ASK_READ_RESULT_INVALID");
- const reviewed=result as {answer:{answer:string;replyType:"answer"|"clarification"|"refusal"|"partial";limited:boolean;quotes:Array<{quote:string}>;calculations:Array<{text:string}>};sources:Array<{kind:string}>};
+ const reviewed=result as {answer:{answer:string;replyType:"answer"|"clarification"|"refusal"|"partial";limited:boolean;presentation?:{contextRequired:boolean;sourceDates:Array<{kind:string;eventAt:string;recordedAt:string;pet:string|null}>};quotes:Array<{quote:string}>;calculations:Array<{text:string}>};sources:Array<{kind:string}>};
  const body=reviewed.answer;
  const coverageMessages=readCoverageMessages((result as {coverage?:unknown[]}).coverage);
  const dialogue=(result as {dialogueCoverage?:{partial?:boolean;omittedKnownMessages?:number;truncatedMessages?:number}}).dialogueCoverage;
- const contextMessages=dialogue?.partial===true
+ const contextMessages=dialogue?.partial===true&&body.presentation?.contextRequired!==false
   ?[dialogue.omittedKnownMessages||dialogue.truncatedMessages
    ?"Some earlier conversation text is outside Ask’s current context window. Repeat any older details you want me to use."
    :"Earlier conversation context may be incomplete. Repeat any older details you want me to use."]:[];
@@ -31,8 +31,11 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
  // A removed execution claim must leave a truthful capability explanation,
  // even when an unrelated joke or general answer survives the filter.
  const boundary="I can read saved information, but I can’t make changes or open pages through Ask.";
- const summary=stateRejected
+ const checkedSummary=stateRejected
   ?boundary+(checked==="I can help with that."?"":" "+checked):checked;
+ // These values are server-verified result fields, not model prose claiming a write.
+ const verifiedDetails=[...(body.presentation?.sourceDates??[]).map(source=>(source.pet?source.pet+": ":"")+(source.kind==="profile"?"Profile updated: ":"Event date: ")+source.eventAt+(source.kind==="profile"?"; profile created: ":"; recorded date: ")+source.recordedAt+"."),...body.calculations.map(calculation=>calculation.text)];
+ const summary=[checkedSummary,...verifiedDetails].join("\n");
  const contextUsed={petName,usedSources:reviewed.sources.length?["Verified saved sources"]:[]};
  const response=buildAskConversationResponse({title:"Furvise",summary,sections:[],safetyNote:null},
   {intent:"general_pet_question",usedContextSummary:contextUsed.usedSources});

@@ -9,6 +9,7 @@ export function readCoverageMessages(coverage=[]) {
    const unmet=row.unmet??[];
    return pet+window("event dates",scope.from,scope.to)+window("recorded dates",scope.recordedFrom,scope.recordedTo)
     +" — "+scope.goal+": "+row.returned+" notes supplied to the answer model from "+row.inspected+" distinct database candidates examined. "+lanes.join(". ")+"."
+    +(row.sharedCollection?" Goals in this pet/time scope share one candidate acquisition; any lexical lane uses combined hints instead of separate queries for each goal.":"")
     +(row.omitted?" "+row.omitted+" examined notes omitted by the evidence limits; their text was not supplied to the answer model.":"")
     +(row.omittedEventRange?" Omitted sources have event dates "+row.omittedEventRange.from+" to "+row.omittedEventRange.to+". Ask about that narrower period for another bounded read; it is a fresh search and can repeat boundary-day records.":"")
     +(unmet.includes("prior_source_selection_omitted")?" Only a bounded subset of the earlier result’s sources was retained for this reference.":"")

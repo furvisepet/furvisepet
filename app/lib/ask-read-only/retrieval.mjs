@@ -12,7 +12,7 @@ const compare=request=>(a,b)=>{
  return (Date.parse(a[field])-Date.parse(b[field]))*(request.order==="asc"?1:-1)||a.id.localeCompare(b.id);
 };
 function createState(request){
- const terms=[...new Set(request.terms??[])].sort();
+ const terms=request.goal==="complete_set"?[]:[...new Set(request.terms??[])].sort();
  const lane=(mode,terms,excludeTerms=[])=>({mode,terms,excludeTerms,offset:request.offset??0,total:null,inspected:0,pages:0,attempts:0,reusedPages:0,rawRows:0,duplicateRows:0,sharedCandidates:0,exhausted:false,seen:new Map(),sources:[]});
  return {request,lanes:terms.length?[lane("lexical",terms),lane("complementary",[],terms)]:[lane("scoped",[])],cursor:0,seen:new Map(),unavailable:false};
 }
@@ -20,6 +20,7 @@ function resultOf(state,batchAcquisition){
  const {request,lanes}=state,groups=lanes.map(lane=>lane.sources),sources=[];
  for(let i=0;i<Math.max(0,...groups.map(rows=>rows.length));i++)for(const rows of groups)if(rows[i])sources.push(rows[i]);
  if(["complete_set","boundary","comparison"].includes(request.goal))sources.sort(compare(request));
+ else if(request.terms?.length){const rank=row=>request.terms.filter(term=>row.body.toLocaleLowerCase().includes(term.toLocaleLowerCase())).length;sources.sort((a,b)=>rank(b)-rank(a));}
  const lexical=lanes.find(lane=>lane.mode==="lexical");
  return {sources,total:lanes.every(lane=>Number.isSafeInteger(lane.total))?lanes.reduce((sum,lane)=>sum+lane.total,0):null,
   matchedTotal:lexical?.total??null,hasMore:lanes.some(lane=>!lane.exhausted),searchRelaxed:lexical?.total===0,
@@ -36,10 +37,21 @@ export async function discoverHistoryBatch(requests,fetchPage,limits={}){
  const maxPages=Math.max(1,Math.min(HISTORY_PAGE_BUDGET,limits.pages??HISTORY_PAGE_BUDGET));
  const maxRows=Math.max(1,Math.min(HISTORY_CANDIDATE_BUDGET,limits.rows??HISTORY_CANDIDATE_BUDGET));
  const states=[],indices=[],coalesced=new Map(),completeLanes=new Map(),globalSeen=new Map();
+ // Same collection + order + offset can share a union discovery stream before any DB IO.
+ // Opposite orders/axes remain separate until a complete lane can be reused:
+ // a bounded prefix cannot establish another goal's opposite endpoint.
+ const collectionKey=request=>scopeKey(request)+JSON.stringify([request.offset??0,request.orderBy??"event",request.order??"desc"]);
+ const collections=new Map();
+ for(const request of requests){const key=collectionKey(request);collections.set(key,[...(collections.get(key)??[]),request]);}
  for(const request of requests){
-  const key=scopeKey(request)+JSON.stringify([[...new Set(request.terms??[])].sort(),request.offset??0,request.orderBy??"event",request.order??"desc"]);
+  const siblings=collections.get(collectionKey(request));
+  const shared=siblings.length>1&&(new Set(siblings.map(row=>JSON.stringify([...(row.terms??[])].sort()))).size>1||siblings.some(row=>row.goal==="complete_set"));
+  const combinedTerms=siblings.some(row=>row.goal==="complete_set"||!(row.terms?.length))?[]:[...new Set(siblings.flatMap(row=>row.terms??[]))].sort();
+  const acquisitionRequest=shared?{...request,terms:combinedTerms,collectionShared:true}:request;
+  const terms=acquisitionRequest.goal==="complete_set"?[]:[...new Set(acquisitionRequest.terms??[])].sort();
+  const key=collectionKey(request)+JSON.stringify(terms);
   let index=coalesced.get(key);
-  if(index===undefined){index=states.length;coalesced.set(key,index);states.push(createState(request));}
+  if(index===undefined){index=states.length;coalesced.set(key,index);states.push(createState(acquisitionRequest));}
   indices.push(index);
  }
  let attempts=0,pages=0,rawRows=0,reusedPages=0;
@@ -93,10 +105,14 @@ export async function discoverHistoryBatch(requests,fetchPage,limits={}){
   }
   if(!progressed)break;
  }
- const acquisition={attempts,pages,rawRows,distinctCandidates:globalSeen.size,reusedPages,coalescedGoals:requests.length-states.length,pageLimit:maxPages,rowLimit:maxRows};
+ const acquisition={attempts,pages,rawRows,distinctCandidates:globalSeen.size,reusedPages,coalescedGoals:requests.length-states.length,sharedCollectionGoals:requests.filter((_request,i)=>states[indices[i]].request.collectionShared).length,pageLimit:maxPages,rowLimit:maxRows};
  return indices.map((index,i)=>{
   const result=resultOf({...states[index],request:requests[i]},acquisition);
   result.sharedAcquisition=indices.indexOf(index)!==i;
+  result.sharedCollection=!!states[index].request.collectionShared;
+  // Shared lexical counts describe the union query, not each goal's own
+  // predicate. Do not invent per-goal literal counts from note-only bodies.
+  if(result.sharedCollection){result.matchedTotal=null;result.searchRelaxed=false;result.discovery=result.discovery.map(lane=>({...lane,mode:"shared_"+lane.mode}));}
   if(result.sharedAcquisition)result.discovery=result.discovery.map(lane=>({...lane,attempts:0,pages:0,rawRows:0,reusedPages:lane.pages+lane.reusedPages,sharedCandidates:lane.inspected}));
   return result;
  });
@@ -146,11 +162,11 @@ function allocateDistinctEvidence(groups, limits) {
 export function allocateEvidence(groups,limits){
  const unique=[],indices=[],keys=new Map();
  for(const group of groups){
-  const key=JSON.stringify(group.map(identity));
+  const key=JSON.stringify(group.map(identity).sort());
   let index=keys.get(key);
   if(index===undefined){index=unique.length;keys.set(key,index);unique.push(group);}
   indices.push(index);
  }
  const result=allocateDistinctEvidence(unique,limits);
- return {...result,visible:indices.map(index=>result.visible[index]),omitted:indices.map(index=>result.omitted[index])};
+ return {...result,visible:indices.map((index,i)=>{const selected=new Map(result.visible[index].map(source=>[identity(source),source]));return groups[i].map(source=>selected.get(identity(source))).filter(Boolean);}),omitted:indices.map(index=>result.omitted[index])};
 }

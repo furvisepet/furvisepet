@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import * as retrieval from "../app/lib/ask-read-only/retrieval.mjs";
 import {historyTextFilter,createReadOnlyDataAccess} from "../app/lib/ask-read-only/data.ts";
-const request=(pet="fir",terms=[])=>({kind:"history",pet:{id:pet,ownerId:"owner",handle:"p1",name:"Fir"},terms,from:"2025-01-01",to:"2025-12-31",recordedFrom:null,recordedTo:null,orderBy:"event",order:"asc",goal:"complete_set",offset:0});
+const request=(pet="fir",terms=[])=>({kind:"history",pet:{id:pet,ownerId:"owner",handle:"p1",name:"Fir"},terms,from:"2025-01-01",to:"2025-12-31",recordedFrom:null,recordedTo:null,orderBy:"event",order:"asc",goal:"relevant_records",offset:0});
 const rows=(pet,n)=>Array.from({length:n},(_,i)=>({kind:"history",id:pet+"-"+String(i).padStart(3,"0"),ownerId:"owner",petId:pet,body:(i%4===0?"bright":"ordinary")+" observation",eventAt:new Date(Date.UTC(2025,0,1+i)).toISOString(),recordedAt:new Date(Date.UTC(2025,0,2+i)).toISOString()}));
 const fetcher=sets=>async(req,page)=>{
  const selected=(sets[req.pet.id]??[]).filter(row=>(!page.terms.length||page.terms.some(term=>row.body.includes(term)))&&!(page.excludeTerms??[]).some(term=>row.body.includes(term)));
@@ -83,7 +83,7 @@ test("omitted date hints survive persistence without remembering omitted text",a
 });
 
 test("coalesced SQL scopes still retain each goal's evidence ordering",async()=>{
- const req=request("fir",["bright"]),all=rows("fir",36);
+ const req={...request("fir",["bright"]),goal:"complete_set"},all=rows("fir",36);
  const [a,b]=await retrieval.discoverHistoryBatch([{...req,goal:"relevant_records"},req],fetcher({fir:all}));
  assert.equal(a.batchAcquisition.coalescedGoals,1);assert.equal(b.discovery.reduce((n,l)=>n+l.attempts,0),0);
  assert.deepEqual(b.sources.map(s=>s.id),all.map(s=>s.id));
