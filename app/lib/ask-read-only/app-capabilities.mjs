@@ -5,7 +5,7 @@ export const APP_CAPABILITIES=Object.freeze({
  careNotes:{route:CARE_NOTE_UI.route,fields:CARE_NOTE_UI.fields,photoAttachments:CARE_NOTE_UI.photoAttachments,labels:CARE_NOTE_UI},
  history:{route:HISTORY_NOTE_UI.route,search:true,filters:["pet","category","when"],labels:HISTORY_NOTE_UI}
 });
-export const WORKFLOW_INSTRUCTIONS="For questions about Furvise screens or doing something in the app, set workflowIntent and final appHelp.intent. APP_CAPABILITIES describes this build's actual routes/controls, not generic pet-app conventions. Do not invent attachment, upload or edit controls. App help is rendered from that shared capability registry. Ask performs no write/upload/navigation; steps describe what the user can do.";
+export const WORKFLOW_INSTRUCTIONS="Only when the user asks how to use a screen or which controls to operate, set workflowIntent and final appHelp.intent. A request for Ask to retrieve, quote, compare or explain saved information is a data-content request, not a UI workflow: use historyIntent and workflowIntent=none unless navigation/help is independently requested. APP_CAPABILITIES describes this build's actual routes/controls, not generic pet-app conventions. Do not invent attachment, upload or edit controls. App help is rendered from that shared capability registry. Ask performs no write/upload/navigation; steps describe what the user can do.";
 export function renderAppWorkflow(answer,workflow,pets=[],append=false){
  if(!workflow||workflow.intent==="none")return answer;
  const pet=pets.find(p=>p.handle===workflow.pet),name=pet?.name&&!/\b[ps]\d+\b/.test(pet.name)&&!pets.some(p=>p.id===pet.name)?pet.name:"the intended pet";
@@ -17,5 +17,5 @@ export function renderAppWorkflow(answer,workflow,pets=[],append=false){
  else if(workflow.intent==="create_care_note")parts.push(today);
  else if(workflow.intent==="find_care_note")parts.push(find);
  else parts.push("I have verified steps for text notes on Today and finding notes in History. Which screen or task do you mean?");
- return {...answer,answer:(append?answer.answer+"\n\n":"")+parts.join("\n\n"),replyType:workflow.intent==="other"?"clarification":workflow.intent==="care_photo_attachment"?"partial":answer.replyType,limited:answer.limited||workflow.intent==="care_photo_attachment",presentation:{...answer.presentation,contextRequired:false,delivery:"direct"}};
+ return {...answer,answer:(append?answer.answer+"\n\n":"")+parts.join("\n\n"),replyType:workflow.intent==="other"?(append?"partial":"clarification"):workflow.intent==="care_photo_attachment"?"partial":answer.replyType,limited:answer.limited||workflow.intent==="care_photo_attachment"||workflow.intent==="other"&&append,presentation:{...answer.presentation,...(!append?{contextRequired:false}:{}),delivery:"direct"}};
 }

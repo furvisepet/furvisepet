@@ -318,7 +318,9 @@ export async function runReadOnlyAsk(input,deps) {
   answer=validateReadOnlyAnswer(reviewed.value,sources,input.question);
   if(reviewed.summary) {
    answer=renderMedicationDecision(answer,reviewed.policy??reviewed.summary,ownerStatements,sources);
-   answer=renderAppWorkflow(answer,reviewed.workflow,pets,reviewed.policy?.active);
+   const appendWorkflow=!!reviewed.policy?.active||bound.length>0;
+   answer=renderAppWorkflow(answer,reviewed.workflow,pets,appendWorkflow);
+   if(reviewed.workflow?.intent!=="none")deps.onAnswerBoundary?.({outcome:"workflow_selected",firstIntent:first.workflowIntent??"none",finalIntent:reviewed.workflow?.intent??"none",appended:appendWorkflow,readCount:bound.length});
    answer.clinicalDecision=reviewed.summary;
    if(reviewed.summary.currentEmergency)answer.clinicalUrgency="urgent";
    if(selectedCalls.length<first.calls.length){answer.limited=true;if(answer.replyType==="answer")answer.replyType="partial";}

@@ -174,3 +174,15 @@ test("current event needs exact owned dialogue evidence; conditional event does 
   w.safety.eventAssessments=[{event:"collapse",occurrence:"current",ownerStatementRef,ownerQuote}];assert.throws(()=>decodeClinicalSelection(w,tools,context));
  }
 });
+
+test("a workflow collision cannot erase an independently verified saved answer",async()=>{
+ const s=assessment(),source={kind:"history",id:"owned-note-id-123456789",ownerId:"owned",petId:pets[0].id,body:"An original historical observation.",eventAt:"2021-07-05T12:00:00Z",recordedAt:"2021-07-06T12:00:00Z"};
+ const first=wire(s,{workflowIntent:"find_care_note",historyIntent:{requested:true,timeBasis:"event",pet:"p1"},reads:[{name:"search_saved_records",arguments:{pet:"p1",from:null,to:null,goal:"relevant_records",alternatives:[],recordedFrom:null,recordedTo:null,orderBy:"event",query:null,offset:0,order:"asc"}}]});
+ const out=await run(first,final(s,"The original note is quoted below.",{sources:["s1"],quotes:["s1"]}),{},async()=>({sources:[source],total:1}));
+ assert.match(out.result.answer.answer,/^The original note is quoted below/);assert.equal(out.result.answer.quotes[0].quote,source.body);assert.equal(out.requests.length,2);
+});
+test("unrelated exposure boilerplate cannot attach to a non-exposure warning",()=>{
+ const s=assessment({careContext:"current_concern",conditionalEvents:["unable_to_urinate"]});
+ const out=display(s,s,"An unsafe irrelevant draft.");
+ assert.match(out.answer,/If inability to pass urine occurs, contact an emergency veterinarian immediately/);assert.doesNotMatch(out.answer,/poison|harmful exposure|vomiting/);
+});
