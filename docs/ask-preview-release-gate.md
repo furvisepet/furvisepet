@@ -59,3 +59,11 @@ A real current-emergency turn on 931ee3ab passed first-stage current-event valid
 Only a registered first assessment with validated current-event ownership, no source IO and no acquired sources may provide a new source-free urgent partial handoff if final generation or validation fails. Rejected model prose, sources, quotations, calculations and IDs are discarded. The handoff is validated afresh, says the fuller answer is unresolved, and uses no additional provider call. This does not guarantee first-pass clinical recognition, medical correctness, authentication or backend persistence. Those remain qualification risks.
 
 The initial 24-turn / 48-call batch may use at most three additional fresh repair-verification turns (six calls): 27 turns / 54 calls total for this iteration. Every call must reconcile before another submission. The two-call-per-turn and retrieval/source limits remain unchanged.
+
+## Filter-axis authority
+
+The real recorded-day correction on ca5e2538 selected the correct pet but ANDed event-day and recorded-day bounds. The owned note's event day was the previous day, so that query excluded it. The original historyIntent scalar was not captured, so the earlier classification-versus-tool inconsistency cannot be distinguished retrospectively.
+
+The active contract now distinguishes event, recorded, combined and ambiguous FILTER meaning separately from timestamps to display or sort. After original owner/tool/date validation, a canonical single-axis scope removes an unintended opposite-axis predicate. It never copies dates between axes or changes source timestamps. Combined independently requested predicates are preserved; a contradictory missing primary axis fails explicitly before a database read. Typed diagnostics report the selected axis and any removed predicate without private values.
+
+One labeled controlled retest plus fresh date and clinical probes may extend the previously declared batch by four turns/eight calls: 31 turns/62 physical calls maximum for the complete engineering iteration. All earlier failures and costs remain in the ledger; repeats are not counted as fresh generalization.

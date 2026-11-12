@@ -244,3 +244,18 @@ test("actual public POST persists an urgent partial handoff after a final clinic
  assert.match(body.response.directAnswer,/^Contact an emergency veterinarian now/);assert.equal(body.response.urgency,"urgent");
  assert.equal(f.state.calls,2);assert.equal(f.state.reads,0);assert.equal(body.response.turn.finalStage,"COMPLETED");
 });
+
+test("recorded-only retrieval removes an accidental event intersection before owner-bound reads",async()=>{
+ const source={kind:"history",id:"date-source-123456789",ownerId:"owned",petId:pets[0].id,body:"A historical observation.",eventAt:"2024-06-11T12:00:00Z",recordedAt:"2024-06-12T12:00:00Z"};
+ const first=wire(assessment(),{historyIntent:{requested:true,timeBasis:"recorded",pet:"p1"},reads:[{name:"search_saved_records",arguments:{pet:"p1",from:"2024-06-12",to:"2024-06-12",goal:"exact_quote",alternatives:[],recordedFrom:"2024-06-12",recordedTo:"2024-06-12",orderBy:"recorded",query:null,offset:0,order:"asc"}}]});
+ let scope;const out=await run(first,final(assessment(),"The original note follows.",{sources:["s1"],quotes:["s1"]}),{},async request=>{scope=request;return {sources:[source],total:1};});
+ assert.equal(scope.from,null);assert.equal(scope.to,null);assert.equal(scope.recordedFrom,"2024-06-12");assert.equal(out.result.sources[0].eventAt,source.eventAt);
+ assert.ok(out.events.some(e=>e.outcome==="temporal_scope_normalized"&&e.removedAxis==="event"));
+});
+test("independent requested event and recorded constraints survive combined scope",async()=>{
+ const {normalizeReadTemporalScope}=await import("../app/lib/ask-read-only/temporal-scope.mjs");
+ const args={from:"2021-02-01",to:"2021-02-28",recordedFrom:"2021-04-01",recordedTo:"2021-04-30"};
+ assert.deepEqual(normalizeReadTemporalScope("search_saved_records",args,"combined").args,args);
+ const event=normalizeReadTemporalScope("search_saved_records",args,"event").args;assert.equal(event.from,args.from);assert.equal(event.recordedFrom,null);
+ assert.throws(()=>normalizeReadTemporalScope("search_saved_records",{...args,recordedFrom:null,recordedTo:null},"recorded"),/TEMPORAL/);
+});

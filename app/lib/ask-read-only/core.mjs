@@ -1,5 +1,6 @@
 import { CLINICAL_INSTRUCTIONS, clinicalSelectionSchema, validateClinicalAssessment, clinicalAnswerSchema, reviewClinicalAnswer, renderMedicationDecision, ownerStatementCatalog, emergencyHandoffForAssessment } from "./clinical-policy.mjs";
 import { APP_CAPABILITIES, WORKFLOW_INSTRUCTIONS, renderAppWorkflow } from "./app-capabilities.mjs";
+import { normalizeReadTemporalScope } from "./temporal-scope.mjs";
 import { explicitCalendarScopes, recoverBoundedCalendarRead } from "./calendar-scope.mjs";
 import { restoreReadReferences, describeReadReferences, carryReadReferences } from "./references.mjs";
 import { EVIDENCE_GOALS, HISTORY_PAGE_BUDGET, HISTORY_CANDIDATE_BUDGET, allocateEvidence } from "./retrieval.mjs";
@@ -14,10 +15,10 @@ const object = properties => ({type:"object",additionalProperties:false,properti
 export const READ_ONLY_TOOLS = [
  {type:"function",name:"read_pet_profile",strict:true,description:"Read current saved profile fields for one authorized pet: weight, age, food, breed, preferences and lifecycle. Historical notes cannot substitute for a profile.",parameters:object({pet:{type:"string"}})},
  {type:"function",name:"search_saved_records",strict:true,description:"Read a bounded page of dated saved care-history notes for one authorized pet. Dates are inclusive local calendar dates; use a null query for a date-specific quotation. This does not read the current profile. Each call is one evidence goal for one pet/time scope; use multiple calls for comparison sides.",parameters:object({
-  pet:{type:"string"},from:nullableDate,to:nullableDate,
+  pet:{type:"string"},from:{...nullableDate,description:"EVENT occurrence start filter. Null for a recorded-only request; displaying an event date does not constrain it."},to:{...nullableDate,description:"EVENT occurrence end filter. Null for a recorded-only request."},
   goal:{type:"string",enum:[...EVIDENCE_GOALS],description:"What evidence is needed: exact_quote, relevant_records, boundary (earliest/latest), comparison (one side per call), or complete_set."},
   alternatives:{type:"array",maxItems:2,items:{type:"string",minLength:1,maxLength:80},description:"Up to two short alternative literal phrases for the same concept, not additional constraints. No need to guess synonyms for a date-only quotation."},
-  recordedFrom:nullableDate,recordedTo:nullableDate,
+  recordedFrom:{...nullableDate,description:"RECORD creation/save start filter. Null for an event-only request; displaying a recorded date does not constrain it."},recordedTo:{...nullableDate,description:"RECORD creation/save end filter. Null for an event-only request."},
   orderBy:{type:"string",enum:["event","recorded"],description:"Event dates describe when something happened; recorded dates describe when the note was saved. Use independent bounds for 'recorded in March about January'."},
   query:{type:["string","null"],maxLength:160,pattern:"^[^\\u0000-\\u001f]*$",description:"Primary literal phrase matched against note OR title, or null for a broad bounded search. Use null for a date-specific quotation."},offset:{type:"integer",minimum:0,maximum:256},order:{type:"string",enum:["asc","desc"],description:"Order by orderBy time: asc for earliest first, desc for latest first. Use both ordered searches together to compare earliest and latest."}})}
 ];
@@ -242,17 +243,21 @@ export async function runReadOnlyAsk(input,deps) {
  // essential unknown referent. Profile reads can still resolve a pet identity.
  const emergency=assessment?.currentEvents?.length>0||assessment?.scenario==="current"&&assessment.urgency==="immediate";
  const selectedCalls=emergency?[]:assessment?.referent==="essential_unknown"?first.calls.filter(call=>call.name==="read_pet_profile"):first.calls;
- if(assessment)deps.onAnswerBoundary?.({outcome:"clinical_assessed",assessmentVersion:assessment.protocolVersion??1,currentEventCount:assessment.currentEvents?.length??null,conditionalEventCount:assessment.conditionalEvents?.length??null,medicationIntent:assessment.medicationIntent,scenario:assessment.scenario,urgency:assessment.urgency,missingContextCount:assessment.missingContext.length,missingContext:assessment.missingContext,suppressedReads:first.calls.length-selectedCalls.length});
+ if(assessment)deps.onAnswerBoundary?.({outcome:"clinical_assessed",historyTimeBasis:first.historyIntent?.timeBasis??null,assessmentVersion:assessment.protocolVersion??1,currentEventCount:assessment.currentEvents?.length??null,conditionalEventCount:assessment.conditionalEvents?.length??null,medicationIntent:assessment.medicationIntent,scenario:assessment.scenario,urgency:assessment.urgency,missingContextCount:assessment.missingContext.length,missingContext:assessment.missingContext,suppressedReads:first.calls.length-selectedCalls.length});
  const sources=[],results=[],bound=[];
  try {
   for(const call of selectedCalls) {
    if(!keys(call,["id","name","arguments"])||typeof call.id!=="string"||!call.id||typeof call.arguments!=="string"||call.arguments.length>5000)fail("ASK_READ_TOOL_INVALID");
    let args;try{args=JSON.parse(call.arguments);}catch{fail("ASK_READ_TOOL_INVALID");}
-   bound.push({id:call.id,request:bindReadTool(call.name,args,pets,references)});
+   const original=bindReadTool(call.name,args,pets,references);
+   const temporal=normalizeReadTemporalScope(call.name,args,first.historyIntent?.timeBasis);
+   if(temporal.removedAxis)deps.onAnswerBoundary?.({outcome:"temporal_scope_normalized",timeBasis:first.historyIntent.timeBasis,removedAxis:temporal.removedAxis});
+   bound.push({id:call.id,request:temporal.removedAxis?bindReadTool(call.name,temporal.args,pets,references):original});
   }
   if(new Set(bound.map(x=>x.id)).size!==bound.length)fail("ASK_READ_TOOL_INVALID");
  } catch(error) {
   deps.onSelectionRejected?.(readSelectionShape(first,pets));
+  if(error?.answerDiagnostic)deps.onAnswerBoundary?.({outcome:"selection_rejected",...error.answerDiagnostic});
   throw error;
  }
  const historyCount=bound.filter(call=>call.request.kind==="history").length;

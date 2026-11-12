@@ -62,7 +62,7 @@ export const CLINICAL_INSTRUCTIONS=[
  "referent=essential_unknown is for genuinely unresolved pet/source/time/procedure MEANING, not missing clinical authority or the absence of a day within an explicit month/year. Month/year is a complete bounded calendar interval. Do not request a day or permission to search that interval. Missing medicine does not prevent an independently scoped history read.",
  "For a recognized current concern, medication decision, conditional urgent scenario, clinical history or vet summary, final user-visible clinical action text comes from server policy. Classify each event occurrence in clinicalReview.assessment, select useful observationFields and exact ownerStatementRefs. Do not hide extra medical directions in general components; those components are not displayed in these modes. Original saved quotes and server calculations remain available.",
  "Owner statement references identify only the user's visible dialogue or question. Select relevant reported facts for a vet summary, never assistant-generated facts. They are labeled owner reports, not verified saved records or diagnosis. Distinguish a fact not yet supplied here from a fact the owner explicitly says they do not know. Do not invent the owner\'s intent, memory, administrations or symptoms. Ask for unprovided details instead of quoting them as admissions. Historical plan descriptions must remain attributed reports, not permission to change current treatment.",
- "Use historyIntent.requested only when the question asks for owned saved information. Choose event versus recorded time explicitly; ambiguous means clarify the relation, never substitute it. General knowledge and routine planning do not require private history. Use clinical_history for clinical interpretation of a historical symptom or treatment report, not ordinary note/date/quotation/measurement comparison requests. Those use careContext=none unless a clinical decision is actually requested. Respect correction of a pet/date and preserve independently answerable parts."
+ "Use historyIntent.requested only when the question asks for owned saved information. timeBasis governs FILTERS, not dates to DISPLAY or ordering. Choose event or recorded for a single constrained axis; use combined only when the user independently constrains both occurrence and recording time. Requesting both timestamps in the answer does not request two WHERE constraints. ambiguous means clarify the relation, never substitute it. General knowledge and routine planning do not require private history. Use clinical_history for clinical interpretation of a historical symptom or treatment report, not ordinary note/date/quotation/measurement comparison requests. Those use careContext=none unless a clinical decision is actually requested. Respect correction of a pet/date and preserve independently answerable parts."
 ].join("\n");
 function reject(field){const e=new Error("ASK_READ_CLINICAL_CONTRACT");e.code="ASK_READ_CLINICAL_CONTRACT";e.answerDiagnostic={category:"clinical_contract",field};throw e;}
 const keys=(v,expected)=>v&&typeof v==="object"&&!Array.isArray(v)&&Object.keys(v).length===expected.length&&expected.every(k=>Object.hasOwn(v,k));
@@ -102,7 +102,7 @@ export function validateClinicalAssessment(value,ownerStatements=[]){
 export function clinicalSelectionSchema(tools,ownerStatements=[]){
  const schema=legacy.clinicalSelectionSchema(tools);
  schema.properties.safety=assessmentSchema(ownerStatements);
- schema.properties.historyIntent=object({requested:{type:"boolean"},timeBasis:choice(["event","recorded","ambiguous"]),pet:{type:["string","null"],enum:[...tools[0].parameters.properties.pet.enum,null]}});
+ schema.properties.historyIntent=object({requested:{type:"boolean"},timeBasis:choice(["event","recorded","combined","ambiguous"]),pet:{type:["string","null"],enum:[...tools[0].parameters.properties.pet.enum,null]}});
  schema.properties.workflowIntent=choice([...WORKFLOW_INTENTS]);
  schema.required.push("historyIntent","workflowIntent");return schema;
 }
@@ -110,7 +110,7 @@ export function decodeClinicalSelection(value,tools,context={}){
  if(!keys(value,["safety","reads","draft","historyIntent","workflowIntent"])||!Object.hasOwn(value.safety??{},"eventAssessments"))reject("selection_shape");
  const ownerStatements=(context.ownerStatementRefs??[]).map(t=>({ref:t.ref,text:t.question?context.question:context.dialogue?.[t.dialogueIndex]?.text}));
  const safety=validateClinicalAssessment(value.safety,ownerStatements);
- if(!keys(value.historyIntent,["requested","timeBasis","pet"])||typeof value.historyIntent.requested!=="boolean"||!["event","recorded","ambiguous"].includes(value.historyIntent.timeBasis))reject("history_intent");
+ if(!keys(value.historyIntent,["requested","timeBasis","pet"])||typeof value.historyIntent.requested!=="boolean"||!["event","recorded","combined","ambiguous"].includes(value.historyIntent.timeBasis))reject("history_intent");
  if(value.historyIntent.pet!==null&&!tools[0].parameters.properties.pet.enum.includes(value.historyIntent.pet))reject("history_pet");
  if(!WORKFLOW_INTENTS.includes(value.workflowIntent))reject("workflow_intent");
  const base=Object.fromEntries(Object.keys(legacy.CLINICAL_ASSESSMENT_SCHEMA.properties).map(k=>[k,safety[k]]));
