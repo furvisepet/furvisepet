@@ -11,11 +11,11 @@ const task=(extra={})=>({id:"t1",kind:"general_guidance",needsHistory:false,need
 const safety=(extra={})=>({medicationIntent:"none",referent:"clear",missingContext:[],careContext:"none",eventAssessments:[],...extra});
 const completion=(extra={})=>({task:"t1",status:"complete",reason:"none",componentIndexes:[0],sources:[],ownerFacts:[],historyFacts:[],...extra});
 const final=(s,extra={})=>({components:[{kind:"general",text:"An ordinary answer.",sources:[]}],quotes:[],sources:[],calculations:[],replyType:"answer",presentation:{sourceDates:[],contextRequired:false},clinicalReview:{assessment:s,ownerStatementRefs:[],observationFields:[]},appHelp:{intent:"none",pet:null},completion:[completion()],...extra});
-async function execute(plan,s,output,extra={}){
+async function execute(plan,s,output,extra={},plannedReads=[],readRows=[source]){
  let calls=0,reads=[];const requests=[];
  const result=await runReadOnlyAsk({ownerId:"owned",selectedPetId:pet.id,pets:[pet],dialogue:[],question:"An unfamiliar question.",now:"2026-11-12T12:00:00Z",timeZone:"UTC",...extra},{
-  provider:async(req,phase)=>{calls++;requests.push(req);return phase==="read_selection"?decodeComponentSelection({safety:s,reads:[],draft:"",historyIntent:{requested:plan.some(t=>t.needsHistory),timeBasis:"event",pet:null},workflowIntent:"find_care_note",taskPlan:plan},req.tools,req.context,decodeClinicalSelection):output;},
-  read:async r=>{reads.push(r);return {sources:[source],total:1,hasMore:false,scopeExhausted:true};}
+  provider:async(req,phase)=>{calls++;requests.push(req);return phase==="read_selection"?decodeComponentSelection({safety:s,reads:plannedReads,draft:"",historyIntent:{requested:plan.some(t=>t.needsHistory),timeBasis:"event",pet:null},workflowIntent:"find_care_note",taskPlan:plan},req.tools,req.context,decodeClinicalSelection):(typeof output==="function"?output(req):output);},
+  read:async r=>{reads.push(r);return {sources:readRows,total:readRows.length,hasMore:false,scopeExhausted:true};}
  });return {result,calls,reads,requests};
 }
 test("actual two-call core rehydrates selected prior evidence and composes a bounded vet brief",async()=>{
@@ -120,4 +120,23 @@ test("mixed workflow help uses registry text, never model-invented controls, whi
  const s=safety(),plan=[task({kind:"workflow",workflow:"care_photo_attachment"}),task({id:"t2"})];
  const r=await execute(plan,s,final(s,{components:[{kind:"general",text:"Use the Imaginary Image Vault button.",sources:[]},{kind:"general",text:"Keep routines predictable.",sources:[]}],completion:[completion(),completion({task:"t2",componentIndexes:[1]})]}));
  assert.doesNotMatch(r.result.answer.answer,/Imaginary Image Vault/);assert.match(r.result.answer.answer,/Keep routines predictable/);assert.match(r.result.answer.answer,/Something worth remembering/);assert.equal(r.result.answer.taskCompletion[0].status,"complete");assert.equal(r.result.answer.taskCompletion[1].status,"complete");
+});
+
+const boundedRead=[{name:"search_saved_records",arguments:{pet:"p1",from:"2021-03-01",to:"2021-03-31",query:null,offset:0,order:"asc",goal:"exact_quote",alternatives:[],recordedFrom:null,recordedTo:null,orderBy:"event"}}];
+test("record-choice ambiguity permits bounded owned discovery and resolves only its unique admitted candidate",async()=>{
+ const s=safety(),plan=[task({kind:"saved_content",needsHistory:true,pets:["p1"],missing:["which_record"]})];
+ const saved=final(s,{components:[{kind:"saved",text:"The original note follows.",sources:["s1"]}],sources:["s1"],quotes:["s1"],completion:[completion({sources:["s1"]})]});
+ const r=await execute(plan,s,req=>req.SOURCE_CATALOG.length?saved:final(s,{completion:[completion({status:"unresolved",reason:"source_unavailable"})]}),{},boundedRead);
+ assert.equal(r.calls,2);assert.equal(r.reads.length,1);assert.equal(r.result.answer.taskCompletion[0].status,"complete");assert.equal(r.result.answer.quotes[0].quote,source.body);assert.doesNotMatch(r.result.answer.answer,/Which/);
+});
+test("multiple discovered candidates retain one record clarification rather than guessing",async()=>{
+ const s=safety(),plan=[task({kind:"saved_content",needsHistory:true,pets:["p1"],missing:["which_record"]})];
+ const r=await execute(plan,s,final(s,{sources:["s1","s2"],completion:[completion({status:"unresolved",reason:"missing_context",sources:["s1","s2"]})]}),{},boundedRead,[source,{...source,id:"second-choice-private-id",body:"A different historical observation was saved."}]);
+ assert.equal(r.reads.length,1);assert.equal(r.result.answer.replyType,"clarification");assert.equal(r.result.answer.answer,"Which saved result should I use?");assert.equal(r.result.answer.taskCompletion[0].status,"unresolved");
+});
+test("record-choice ambiguity does not authorize an unbounded history scan",async()=>{
+ const s=safety(),plan=[task({kind:"saved_content",needsHistory:true,pets:["p1"],missing:["which_record"]})];
+ const reads=[{...boundedRead[0],arguments:{...boundedRead[0].arguments,from:null,to:null}}];
+ const r=await execute(plan,s,final(s,{completion:[completion({status:"unresolved",reason:"missing_context"})]}),{},reads);
+ assert.equal(r.reads.length,0);assert.equal(r.result.answer.answer,"Which saved result should I use?");
 });

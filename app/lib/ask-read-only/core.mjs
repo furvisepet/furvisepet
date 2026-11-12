@@ -1,4 +1,4 @@
-import { COMPONENT_INSTRUCTIONS, componentSelectionSchema, componentAnswerSchema, fulfillReferenceReads, reviewComponentCompletion, renderTaskCompletion } from "./task-components.mjs";
+import { COMPONENT_INSTRUCTIONS, componentSelectionSchema, componentAnswerSchema, fulfillReferenceReads, reviewComponentCompletion, renderTaskCompletion, resolveRecordDiscovery } from "./task-components.mjs";
 import { CLINICAL_INSTRUCTIONS, clinicalSelectionSchema, validateClinicalAssessment, clinicalAnswerSchema, reviewClinicalAnswer, renderMedicationDecision, ownerStatementCatalog, emergencyHandoffForAssessment } from "./clinical-policy.mjs";
 import { APP_CAPABILITIES, WORKFLOW_INSTRUCTIONS, renderAppWorkflow } from "./app-capabilities.mjs";
 import { normalizeReadTemporalScope } from "./temporal-scope.mjs";
@@ -247,7 +247,7 @@ export async function runReadOnlyAsk(input,deps) {
  const invoke=async(request,phase)=>{if(++calls>2)fail("ASK_READ_PROVIDER_LIMIT");return deps.provider(request,phase);};
  const tools=readOnlyToolsForPets(pets,references);
  let first=await invoke({instructions:READ_ONLY_INSTRUCTIONS+"\n"+CLINICAL_INSTRUCTIONS+"\n"+WORKFLOW_INSTRUCTIONS+"\n"+COMPONENT_INSTRUCTIONS,context,tools,selectionSchema:componentSelectionSchema(clinicalSelectionSchema(tools,ownerStatements),context)},"read_selection");
- const taskPlan=first.taskPlan;
+ let taskPlan=first.taskPlan;
  if(taskPlan){first={...first};delete first.taskPlan;}
  if(!keys(first,Object.hasOwn(first??{},"workflowIntent")?["calls","text","safety","historyIntent","workflowIntent"]:Object.hasOwn(first??{},"historyIntent")?["calls","text","safety","historyIntent"]:Object.hasOwn(first??{},"safety")?["calls","text","safety"]:["calls","text"])||!Array.isArray(first.calls)||first.calls.length>4||typeof first.text!=="string"||first.text.length>12000)fail("ASK_READ_PROVIDER_INVALID");
  if(taskPlan){first.taskPlan=taskPlan;first=fulfillReferenceReads(first,references);context.taskPlan=taskPlan;}
@@ -262,7 +262,10 @@ export async function runReadOnlyAsk(input,deps) {
   if(!taskPlan||call.name==="read_pet_profile")return true;
   let args;try{args=JSON.parse(call.arguments);}catch{return true;} // Normal binder owns invalid-shape rejection.
   const callPet=args.pet??references.find(r=>r.handle===args.reference)?.request.pet.handle;
-  return taskPlan.some(t=>t.needsHistory&&!t.missing.some(v=>["pet","year","date_meaning","which_record"].includes(v))&&(t.reference&&args.reference===t.reference||t.pets.includes(callPet)));
+  const boundedDiscovery=call.name==="search_saved_records"&&!!(args.from&&args.to||args.recordedFrom&&args.recordedTo);
+  const allowed=taskPlan.some(t=>t.needsHistory&&!t.missing.some(v=>["pet","year","date_meaning"].includes(v)||v==="which_record"&&!boundedDiscovery)&&(t.reference&&args.reference===t.reference||t.pets.includes(callPet)));
+  deps.onAnswerBoundary?.({outcome:"task_read_gate",tool:["search_saved_records","read_referenced_sources","read_remaining_records"].includes(call.name)?call.name:"unknown",allowed,boundedDiscovery,tasks:taskPlan.map(t=>({kind:t.kind,needsHistory:t.needsHistory,petScopeCount:t.pets.length,missing:t.missing}))});
+  return allowed;
  };
  const clinicalAuthorityOnly=taskPlan?.some(t=>t.needsHistory&&(t.pets.length||t.reference)&&!t.missing.some(v=>["pet","year","date_meaning","which_record"].includes(v)))&&assessment?.missingContext?.length>0&&assessment.missingContext.every(v=>["medicine","prescription","vet_plan"].includes(v));
  const selectedCalls=(emergency?[]:assessment?.referent==="essential_unknown"&&!clinicalAuthorityOnly?first.calls.filter(call=>call.name==="read_pet_profile"):first.calls).filter(historyAllowed);
@@ -336,6 +339,8 @@ export async function runReadOnlyAsk(input,deps) {
    semanticRecallVerified:false,sourceMeaning:request.kind==="profile"?"current_profile_snapshot":"historical_saved_report",
    status:unmet.length?"partial":"candidate_evidence",unmet});
  }
+ const discovery=resolveRecordDiscovery(taskPlan,bound,results);
+ if(discovery.resolved){taskPlan=discovery.plan;first.taskPlan=taskPlan;context.taskPlan=taskPlan;deps.onAnswerBoundary?.({outcome:"record_ambiguity_resolved",taskCount:discovery.resolved,method:"unique_fully_inspected_bounded_candidate"});}
  const catalog=sources.map(source=>({source:source.handle,kind:source.kind,pet:source.petName,body:source.body,eventAt:source.eventAt,recordedAt:source.recordedAt,measurements:source.measurements}));
  const toolData=results.map(result=>({...result,sources:result.sources.map(({body,...metadata})=>{void body;return metadata;})}));
  let final,finalGenerationError;

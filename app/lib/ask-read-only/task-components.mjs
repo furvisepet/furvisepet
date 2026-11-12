@@ -99,7 +99,7 @@ export function reviewComponentCompletion(final,plan,sources,ownerStatements,pet
  const value={...final,sources:[...new Set([...final.sources,...tasks.flatMap(t=>t.sources)])]};delete value.completion;
  return {value,tasks};
 }
-const missingLabels={pet:"pet",year:"year",date_meaning:"whether you mean the event date or save date",which_record:"which saved result",owner_observation:"observations you want included",medicine:"medicine name and strength",prescription:"exact prescription",vet_plan:"prescriber's instructions"};
+const missingLabels={pet:"pet",year:"year",date_meaning:"whether you mean the event date or save date",which_record:"saved result",owner_observation:"observations you want included",medicine:"medicine name and strength",prescription:"exact prescription",vet_plan:"prescriber's instructions"};
 export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
  if(!tasks)return answer;
  const firstBrief=tasks.find(t=>t.kind==="vet_brief")?.id;
@@ -145,4 +145,20 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
  const dateHandles=[...new Set(tasks.filter(t=>t.includeSourceDates).flatMap(t=>t.sources))].filter(h=>!brief?.historyFacts.some(f=>f.source===h));
  const sourceDates=dateHandles.map(h=>{const s=sources.find(s=>s.handle===h);return {kind:s.kind,eventAt:s.eventAt,recordedAt:s.recordedAt,pet:s.petName??null};});
  return {...answer,answer:text,...(verifiedBriefText?{verifiedBriefText}:{}),...(policy?.active?{ownerReports:brief?[]:[...new Set(tasks.flatMap(t=>t.ownerFacts.map(f=>f.excerpt)))]}:{}),presentation:{...answer.presentation,sourceDates,contextRequired:tasks.some(t=>t.missing.includes("which_record"))&&answer.presentation?.contextRequired===true},taskCompletion:tasks.map(t=>({id:t.id,kind:t.kind,status:t.status,reason:t.reason,sourceCount:t.sources.length})),limited:incomplete.length>0||!!policy?.decision,replyType:!policy?.active&&clarify.length&&tasks.every(t=>t.missing.length)?"clarification":incomplete.length||policy?.decision?"partial":"answer"};
+}
+
+/** Resolve record-choice ambiguity only after a fully inspected bounded search
+ * yields one admitted candidate. Reference hints and partial pages are not proof. */
+export function resolveRecordDiscovery(plan,bound,results){
+ if(!plan)return {plan,resolved:0};let resolved=0;
+ const updated=plan.map(task=>{
+  if(!task.needsHistory||task.reference!==null||task.pets.length!==1||!task.missing.includes("which_record")||task.missing.some(k=>["pet","year","date_meaning"].includes(k)))return task;
+  const searches=bound.map((call,index)=>({request:call.request,result:results[index]})).filter(({request})=>request.kind==="history"&&!request.reference&&request.pet.handle===task.pets[0]);
+  if(searches.length!==1)return task;
+  const {request,result}=searches[0];
+  const bounded=!!(request.from&&request.to||request.recordedFrom&&request.recordedTo);
+  if(!bounded||!result?.queryScopeExhausted||result.truncated||result.hasPrevious||result.hasMore||result.unmet.length||result.inspected!==1||result.sources.length!==1)return task;
+  resolved++;return {...task,missing:task.missing.filter(k=>k!=="which_record")};
+ });
+ return {plan:updated,resolved};
 }
