@@ -242,7 +242,7 @@ export async function runReadOnlyAsk(input,deps) {
  // essential unknown referent. Profile reads can still resolve a pet identity.
  const emergency=assessment?.currentEvents?.length>0||assessment?.scenario==="current"&&assessment.urgency==="immediate";
  const selectedCalls=emergency?[]:assessment?.referent==="essential_unknown"?first.calls.filter(call=>call.name==="read_pet_profile"):first.calls;
- if(assessment)deps.onAnswerBoundary?.({outcome:"clinical_assessed",assessmentVersion:assessment.protocolVersion??1,currentEventCount:assessment.currentEvents?.length??null,conditionalEventCount:assessment.conditionalEvents?.length??null,medicationIntent:assessment.medicationIntent,scenario:assessment.scenario,urgency:assessment.urgency,missingContextCount:assessment.missingContext.length,suppressedReads:first.calls.length-selectedCalls.length});
+ if(assessment)deps.onAnswerBoundary?.({outcome:"clinical_assessed",assessmentVersion:assessment.protocolVersion??1,currentEventCount:assessment.currentEvents?.length??null,conditionalEventCount:assessment.conditionalEvents?.length??null,medicationIntent:assessment.medicationIntent,scenario:assessment.scenario,urgency:assessment.urgency,missingContextCount:assessment.missingContext.length,missingContext:assessment.missingContext,suppressedReads:first.calls.length-selectedCalls.length});
  const sources=[],results=[],bound=[];
  try {
   for(const call of selectedCalls) {
@@ -341,6 +341,10 @@ export async function runReadOnlyAsk(input,deps) {
     ?"Saved information was found, but its text couldn’t fit within Ask’s read limits. I can’t quote omitted text."
     :"I didn’t find saved information in the searches I could check. I can’t quote a note I haven’t found.";
   answer.replyType="partial";answer.limited=true;
+ }
+ if(first.historyIntent?.requested===true&&answer.sources.length===0&&(bound.length>0||first.workflowIntent==="none")){
+  answer.answer+="\n\n"+(bound.length===0?"I did not check saved records for the requested history part.":"I could not supply a verified saved record for the requested history part.");
+  answer.limited=true;if(answer.replyType==="answer")answer.replyType="partial";
  }
  for(let index=0;index<answer.calculations.length;index++){
   const calculation=answer.calculations[index];

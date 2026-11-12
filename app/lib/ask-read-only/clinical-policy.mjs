@@ -171,8 +171,9 @@ export function renderMedicationDecision(answer,policy,ownerStatements=[],source
  if(policy.decision)parts.push("Keep a factual log of actual administrations and missed times, separately from the prescribed schedule. A reported or historical plan is not authority for a new medication decision.");
  const privateIds=sources.flatMap(s=>[s.id,s.petId]).filter(v=>typeof v==="string"&&v.length>=16);
  const ownerReports=policy.ownerRefs.map(ref=>ownerStatements.find(t=>t.ref===ref)).filter(Boolean).filter(t=>!privateIds.some(id=>t.text.includes(id))).map(t=>t.text);
- if(policy.summaryContext)parts.push("The owner reports and original saved notes below can support a vet-call summary. They are not a diagnosis; questions about a changed or missed medicine remain for the prescriber.");
- else if(policy.historical)parts.push("The original saved notes below describe what was recorded at the time, not a verified current condition or a new treatment instruction.");
+ const available=[ownerReports.length?"owner reports":null,answer.sources.length?"original saved notes":null].filter(Boolean);
+ if(policy.summaryContext)parts.push(available.length?"The "+available.join(" and ")+" below can support a vet-call summary. They are not a diagnosis; questions about a changed or missed medicine remain for the prescriber.":"No verified saved notes or selected owner reports are available in this summary. Collect your observations for the veterinarian.");
+ else if(policy.historical)parts.push(answer.sources.length?"The original saved notes below describe what was recorded at the time, not a verified current condition or a new treatment instruction.":"Describe this as a historical report, not a verified current condition or a new treatment instruction. Bring dated records if available, and distinguish what was observed then from any current concerns.");
  if(!parts.length)parts.push("Use the owner reports and original saved notes below as context for your veterinarian.");
  return {...answer,answer:parts.join("\n\n"),clinicalDisplayBounded:true,clinicalUrgency:emergency?"urgent":"routine",ownerReports,replyType:policy.decision?"partial":answer.replyType==="refusal"?"partial":answer.replyType,limited:answer.limited||policy.decision,presentation:{...answer.presentation,delivery:"direct"}};
 }

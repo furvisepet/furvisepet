@@ -186,3 +186,30 @@ test("unrelated exposure boilerplate cannot attach to a non-exposure warning",()
  const out=display(s,s,"An unsafe irrelevant draft.");
  assert.match(out.answer,/If inability to pass urine occurs, contact an emergency veterinarian immediately/);assert.doesNotMatch(out.answer,/poison|harmful exposure|vomiting/);
 });
+
+test("bounded recovery repairs a suppressed planned read without changing other ambiguity rules",async()=>{
+ const s=assessment({referent:"essential_unknown",missingContext:["date"]});
+ const first=wire(s,{historyIntent:{requested:true,timeBasis:"event",pet:"p1"},reads:[{name:"search_saved_records",arguments:{pet:"p1",from:null,to:null,goal:"exact_quote",alternatives:[],recordedFrom:null,recordedTo:null,orderBy:"event",query:null,offset:0,order:"asc"}}]});
+ let scope;const out=await run(first,final(),{question:"Use Willow's September 2023 note instead."},async request=>{scope=request;return {sources:[],total:0};});
+ assert.equal(scope.from,"2023-09-01");assert.equal(scope.to,"2023-09-30");assert.equal(scope.goal,"exact_quote");
+ assert.ok(out.events.some(e=>e.outcome==="calendar_scope_recovered"));
+});
+test("a uniquely named owned pet can resolve a redundant missing-pet flag, never clinical authority",()=>{
+ const raw=decodeClinicalSelection(wire(assessment({referent:"essential_unknown",missingContext:["pet","date"]}),{historyIntent:{requested:true,timeBasis:"recorded",pet:null}}),tools);
+ assert.ok(recoverBoundedCalendarRead(raw,{question:"Willow's notes recorded in November 2025."},pets));
+ assert.equal(recoverBoundedCalendarRead({...raw,safety:{...raw.safety,missingContext:["medicine"]}},{question:"Willow November 2025."},pets),null);
+ assert.equal(recoverBoundedCalendarRead({...raw,calls:[{name:"delete_record"}]},{question:"Willow November 2025."},pets),null);
+});
+test("an unresolved requested record component stays explicit alongside a useful general answer",async()=>{
+ const first=wire(assessment({referent:"essential_unknown",missingContext:["date"]}),{historyIntent:{requested:true,timeBasis:"ambiguous",pet:"p1"}});
+ const out=await run(first,final(assessment(),"Keep a dated list of observations."),{question:"Find her old note and help me keep a diary."});
+ assert.match(out.result.answer.answer,/^Keep a dated list/);assert.match(out.result.answer.answer,/did not check saved records/);assert.equal(out.result.answer.replyType,"partial");
+});
+
+test("historical and summary display never promise saved notes that were not supplied",()=>{
+ const history=assessment({careContext:"clinical_history",scenario:"historical"});
+ const out=display(history,history,"An unsupported original-note promise.");
+ assert.doesNotMatch(out.answer,/original saved notes below/);assert.match(out.answer,/historical report/);
+ const summary=assessment({careContext:"vet_summary"}),brief=display(summary,summary,"A draft.");
+ assert.doesNotMatch(brief.answer,/original saved notes below/);
+});
