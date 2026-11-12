@@ -140,3 +140,11 @@ test("record-choice ambiguity does not authorize an unbounded history scan",asyn
  const r=await execute(plan,s,final(s,{completion:[completion({status:"unresolved",reason:"missing_context"})]}),{},reads);
  assert.equal(r.reads.length,0);assert.equal(r.result.answer.answer,"Which saved result should I use?");
 });
+
+test("duplicate bounded discovery reads resolve one shared record, not two apparent choices",async()=>{
+ const s=safety(),plan=[task({kind:"saved_content",needsHistory:true,pets:["p1"],missing:["which_record"]})];
+ const saved=final(s,{components:[{kind:"saved",text:"The original note follows.",sources:["s1"]}],sources:["s1"],quotes:["s1"],completion:[completion({sources:["s1"]})]});
+ const reads=[...boundedRead,{...boundedRead[0],arguments:{...boundedRead[0].arguments,orderBy:"recorded"}}];
+ const r=await execute(plan,s,saved,{},reads);
+ assert.equal(r.calls,2);assert.equal(r.reads.length,2);assert.equal(r.result.answer.taskCompletion[0].status,"complete");assert.doesNotMatch(r.result.answer.answer,/Which/);assert.equal(r.result.sources.length,1);
+});

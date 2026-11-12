@@ -154,10 +154,16 @@ export function resolveRecordDiscovery(plan,bound,results){
  const updated=plan.map(task=>{
   if(!task.needsHistory||task.reference!==null||task.pets.length!==1||!task.missing.includes("which_record")||task.missing.some(k=>["pet","year","date_meaning"].includes(k)))return task;
   const searches=bound.map((call,index)=>({request:call.request,result:results[index]})).filter(({request})=>request.kind==="history"&&!request.reference&&request.pet.handle===task.pets[0]);
-  if(searches.length!==1)return task;
-  const {request,result}=searches[0];
-  const bounded=!!(request.from&&request.to||request.recordedFrom&&request.recordedTo);
-  if(!bounded||!result?.queryScopeExhausted||result.truncated||result.hasPrevious||result.hasMore||result.unmet.length||result.inspected!==1||result.sources.length!==1)return task;
+  if(!searches.length)return task;
+  // Several discovery lanes or sort orders may describe the same candidate.
+  // Each must be complete; uniqueness belongs to the admitted source union.
+  const unique=new Set();
+  for(const {request,result} of searches){
+   const bounded=!!(request.from&&request.to||request.recordedFrom&&request.recordedTo);
+   if(!bounded||!result?.queryScopeExhausted||result.truncated||result.hasPrevious||result.hasMore||result.unmet.length||result.inspected!==1||result.sources.length!==1)return task;
+   unique.add(result.sources[0].source);
+  }
+  if(unique.size!==1)return task;
   resolved++;return {...task,missing:task.missing.filter(k=>k!=="which_record")};
  });
  return {plan:updated,resolved};
