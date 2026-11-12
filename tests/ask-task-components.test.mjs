@@ -7,7 +7,7 @@ import {decodeComponentSelection,componentSelectionSchema,reviewComponentComplet
 const pet={id:"private-pet-123456789",ownerId:"owned",name:"Willow",species:"cat"};
 const source={kind:"history",id:"private-note-123456789",ownerId:"owned",petId:pet.id,body:"A routine exam recorded normal appetite at that time.",eventAt:"2021-03-12T12:00:00Z",recordedAt:"2021-03-14T12:00:00Z"};
 const reference={version:1,entries:[{kind:"history",petId:pet.id,timeZone:"UTC",goal:"exact_quote",from:"2021-03-01",to:"2021-03-31",recordedFrom:null,recordedTo:null,orderBy:"event",order:"asc",terms:[],limited:false,sources:[{id:source.id,hash:createHash("sha256").update(source.body).digest("hex"),eventAt:source.eventAt,recordedAt:source.recordedAt}]}]};
-const task=(extra={})=>({id:"t1",kind:"general_guidance",needsHistory:false,needsOwnerFacts:false,workflow:"none",pets:[],reference:null,missing:[],...extra});
+const task=(extra={})=>({id:"t1",kind:"general_guidance",needsHistory:false,needsOwnerFacts:false,includeSourceDates:false,workflow:"none",pets:[],reference:null,missing:[],...extra});
 const safety=(extra={})=>({medicationIntent:"none",referent:"clear",missingContext:[],careContext:"none",eventAssessments:[],...extra});
 const completion=(extra={})=>({task:"t1",status:"complete",reason:"none",componentIndexes:[0],sources:[],ownerFacts:[],historyFacts:[],...extra});
 const final=(s,extra={})=>({components:[{kind:"general",text:"An ordinary answer.",sources:[]}],quotes:[],sources:[],calculations:[],replyType:"answer",presentation:{sourceDates:[],contextRequired:false},clinicalReview:{assessment:s,ownerStatementRefs:[],observationFields:[]},appHelp:{intent:"none",pet:null},completion:[completion()],...extra});
@@ -100,4 +100,12 @@ test("one comparison task can bind multiple owned pets without losing typed arit
   return final(s,{components:[{kind:"saved",text:"These are the two saved weight measurements, not a current assessment.",sources:["s1","s2"]}],sources:["s1","s2"],calculations:[{operation:"absolute_difference",timeBasis:"event",operands:["s1:m1","s2:m1"]}],completion:[completion({sources:["s1","s2"]})]});
  },read:async request=>{reads++;return {sources:[rows.find(r=>r.petId===request.pet.id)],total:1,scopeExhausted:true};}});
  assert.equal(count,2);assert.equal(reads,2);assert.equal(result.answer.calculations[0].value,1);assert.equal(result.answer.calculations[0].unit,"kg");assert.equal(result.answer.taskCompletion[0].status,"complete");
+});
+
+test("source dates follow the requested task instead of unsolicited footer selection or a fixed four-date cutoff",()=>{
+ const sources=Array.from({length:5},(_,i)=>({...source,handle:"s"+(i+1),petName:"Willow"}));
+ const t={...task({kind:"saved_content",needsHistory:true}),status:"complete",reason:"none",sources:sources.map(s=>s.handle),historyFacts:[],ownerFacts:[]};
+ const base={answer:"The available facts.",quotes:[],calculations:[],presentation:{sourceDates:[{eventAt:"unsolicited"}]}};
+ assert.equal(renderTaskCompletion(base,[t],sources,null).presentation.sourceDates.length,0);
+ assert.equal(renderTaskCompletion(base,[{...t,includeSourceDates:true}],sources,null).presentation.sourceDates.length,5);
 });

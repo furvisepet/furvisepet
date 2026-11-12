@@ -42,8 +42,7 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
  // These values are server-verified result fields, not model prose claiming a write.
  const verifiedDetails=[...(body.presentation?.sourceDates??[]).map(source=>(source.pet?source.pet+": ":"")+(source.kind==="profile"?"Profile updated: ":"Event date: ")+source.eventAt+(source.kind==="profile"?"; profile created: ":"; recorded date: ")+source.recordedAt+"."),...body.calculations.map(calculation=>calculation.text)];
  const taskCompletion=(body as typeof body & {taskCompletion?:unknown[]}).taskCompletion;
- const visibleDetails=taskCompletion?verifiedDetails.filter((_,index)=>index>=(body.presentation?.sourceDates?.length??0)||(body.presentation?.sourceDates?.length??0)<=4):verifiedDetails;
- const summary=[checkedSummary,...visibleDetails].join("\n");
+ const summary=[checkedSummary,...verifiedDetails].join("\n");
  const contextUsed={petName,usedSources:reviewed.sources.length?["Verified saved sources"]:[]};
  const response=buildAskConversationResponse({title:"Furvise",summary,sections:[],safetyNote:null},
   {intent:"general_pet_question",urgent:body.clinicalUrgency==="urgent",usedContextSummary:contextUsed.usedSources});

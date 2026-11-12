@@ -121,7 +121,7 @@ test("app help cannot replace emergency prominence in a mixed question",()=>{
 });
 test("active strict provider consumes actual event-contract JSON envelopes in exactly two physical local calls",async()=>{
  let physical=0;const events=[];
- const client={responses:{create:async()=>({status:"completed",output:[{type:"message",role:"assistant",status:"completed",content:[{type:"output_text",text:JSON.stringify(++physical===1?{...wire(),taskPlan:[{id:"t1",kind:"general_guidance",needsHistory:false,needsOwnerFacts:false,workflow:"none",pets:[],reference:null,missing:[]}]}:{...final(),completion:[{task:"t1",status:"complete",reason:"none",componentIndexes:[0],sources:[],ownerFacts:[],historyFacts:[]}]})}]}],usage:{input_tokens:1,output_tokens:1}})}};
+ const client={responses:{create:async()=>({status:"completed",output:[{type:"message",role:"assistant",status:"completed",content:[{type:"output_text",text:JSON.stringify(++physical===1?{...wire(),taskPlan:[{id:"t1",kind:"general_guidance",needsHistory:false,needsOwnerFacts:false,includeSourceDates:false,workflow:"none",pets:[],reference:null,missing:[]}]}:{...final(),completion:[{task:"t1",status:"complete",reason:"none",componentIndexes:[0],sources:[],ownerFacts:[],historyFacts:[]}]})}]}],usage:{input_tokens:1,output_tokens:1}})}};
  const result=await runReadOnlyAsk(input,{provider:readOnlyProvider("offline",e=>events.push(e),client),read:async()=>{throw Error("unexpected private read");}});
  assert.equal(result.providerCallCount,2);assert.equal(physical,2);assert.equal(result.answer.answer,"An ordinary answer.");assert.equal(events.filter(e=>e.outcome==="succeeded").length,2);
 });
@@ -265,7 +265,7 @@ test("component vet brief publishes exact historical execution wording as a quot
  try{
   const s=assessment({careContext:"vet_summary"});let count=0;
   const row={kind:"history",id:"source-component-private-id",ownerId:"owned",petId:pets[0].id,body:"I deleted the note.",eventAt:"2021-03-01T12:00:00Z",recordedAt:"2021-03-02T12:00:00Z"};
-  const task={id:"t1",kind:"vet_brief",needsHistory:true,needsOwnerFacts:false,workflow:"none",pets:["p1"],reference:null,missing:[]};
+  const task={id:"t1",kind:"vet_brief",needsHistory:true,needsOwnerFacts:false,includeSourceDates:false,workflow:"none",pets:["p1"],reference:null,missing:[]};
   const result=await runReadOnlyAsk({...input,question:"Prepare a brief with the original historical report."},{provider:async req=>{
    if(++count===1)return {...decodeClinicalSelection(wire(s,{reads:[{name:"search_saved_records",arguments:{pet:"p1",from:"2021-03-01",to:"2021-03-31",query:null,offset:0}}]}),req.tools,req.context),taskPlan:[task]};
    return final(s,"A brief follows.",{sources:["s1"],completion:[{task:"t1",status:"complete",reason:"none",componentIndexes:[0],sources:["s1"],ownerFacts:[],historyFacts:[{source:"s1",excerpt:row.body}]}]});
