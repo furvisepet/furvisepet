@@ -1,3 +1,4 @@
+import { claimFailureCategory } from "./claim-diagnostic.ts";
 import "server-only";
 
 import { idempotencyErrorResponse, replayResponse } from "./errors";
@@ -21,8 +22,8 @@ export async function claimIdempotentOperation(input: ClaimIdempotencyInput): Pr
   let claim;
   try {
     claim = await claimStoredOperation({ key: key.key, leaseSeconds: input.leaseSeconds || 120, operationType: input.operationType, payloadHash, retention: input.retention || "ordinary", userId: input.userId });
-  } catch {
-    logIdempotencyEvent({ elapsedMs: Date.now() - started, errorCode: "BACKEND_UNAVAILABLE", operationType: input.operationType, outcome: "unavailable", requestId });
+  } catch (error) {
+    logIdempotencyEvent({ elapsedMs: Date.now() - started, errorCode: claimFailureCategory(error), operationType: input.operationType, outcome: "unavailable", requestId });
     return { response: idempotencyErrorResponse("IDEMPOTENCY_UNAVAILABLE", requestId, 1) };
   }
   if (!claim) return { response: idempotencyErrorResponse("IDEMPOTENCY_UNAVAILABLE", requestId, 1) };

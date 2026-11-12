@@ -1,3 +1,4 @@
+import { readProviderText, decodeProviderJson, safeReadOutputDiagnostic, describeReadOutput } from "./provider-output.mjs";
 import { decodeClinicalSelection } from "./clinical.mjs";
 import "server-only";
 import { withProviderDeadline } from "../ai/execution-deadline.ts";
@@ -17,6 +18,7 @@ export function readOnlyProvider(model:string,onEvent:(event:AskProviderEvent)=>
    ...(strictSelection?{text:{format:{type:"json_schema",name:"furvise_read_selection",strict:true,schema:input.selectionSchema}}}:selection?{tools:input.tools,parallel_tool_calls:true}:{text:{format:{type:"json_schema",name:"furvise_read_answer",strict:true,schema:input.schema}}})};
   const started=performance.now();
   let providerEnvelope:ReturnType<typeof structuredProviderEnvelopeDiagnostic>|undefined;
+  let outputLayout:ReturnType<typeof describeReadOutput>|undefined;
   try {
    const response=await executeAdmittedResponsesRequest({
     model,maxOutputTokens:request.max_output_tokens as number,request,
@@ -27,29 +29,30 @@ export function readOnlyProvider(model:string,onEvent:(event:AskProviderEvent)=>
     }
    });
    providerEnvelope=structuredProviderEnvelopeDiagnostic(response);
-   if(response.status!=="completed"||response.error||!Array.isArray(response.output)||providerEnvelope.hasMessageRefusal)throw new Error("ASK_READ_PROVIDER_INCOMPLETE");
-   const text=response.output_text??response.output.flatMap(item=>item.type==="message"?(item.content??[]).filter(c=>c.type==="output_text").map(c=>c.text??""):[]).join("");
+   outputLayout=describeReadOutput(response);
+   if(response.status!=="completed"||response.error||!Array.isArray(response.output)||providerEnvelope.hasMessageRefusal)throw Object.assign(new Error("ASK_READ_PROVIDER_INCOMPLETE"),{code:"ASK_READ_PROVIDER_INCOMPLETE"});
+   const text=strictSelection||!selection?"":readProviderText(response,true);
    let value;
    if(strictSelection){
-     if(response.output.some(item=>item.type==="function_call"))throw new Error("ASK_READ_UNEXPECTED_TOOL");
-     value=decodeClinicalSelection(JSON.parse(text),input.tools);
+     value=decodeClinicalSelection(decodeProviderJson(response),input.tools);
     }else if(selection){
      const calls=response.output.filter(item=>item.type==="function_call").map(item=>({id:item.call_id,name:item.name,arguments:item.arguments}));
-    if(typeof text!=="string"||(!calls.length&&!text.trim()))throw new Error("ASK_READ_PROVIDER_INCOMPLETE");
+    if(typeof text!=="string"||(!calls.length&&!text.trim()))throw Object.assign(new Error("ASK_READ_PROVIDER_INCOMPLETE"),{code:"ASK_READ_PROVIDER_INCOMPLETE"});
     value={text,calls};
    }else{
-    if(response.output.some(item=>item.type==="function_call"))throw new Error("ASK_READ_UNEXPECTED_TOOL");
-    value=JSON.parse(text);
+    value=decodeProviderJson(response);
    }
-   onEvent({stage,outcome:"succeeded",model,elapsedMs:Math.round(performance.now()-started),inputTokens:response.usage?.input_tokens,outputTokens:response.usage?.output_tokens,finishReason:response.status??null,providerEnvelope});
+   onEvent({stage,outcome:"succeeded",validationDetails:JSON.stringify({outputLayout}),model,elapsedMs:Math.round(performance.now()-started),inputTokens:response.usage?.input_tokens,outputTokens:response.usage?.output_tokens,finishReason:response.status??null,providerEnvelope});
    return value;
   } catch(error) {
    const providerError=safeAskProviderErrorDiagnostic(error);
    const timedOut=["TimeoutError","AbortError","APIUserAbortError","APIConnectionTimeoutError"].includes(providerError.type??"");
-   const providerErrorCode=providerError.code??(timedOut?"ASK_READ_PROVIDER_TIMEOUT":"ASK_READ_PROVIDER_FAILED");
+   const outputDiagnostic=safeReadOutputDiagnostic(error);
+   const validationDetails=outputDiagnostic?JSON.stringify({...outputDiagnostic,outputLayout}):undefined;
+   const providerErrorCode=outputDiagnostic?.code??providerError.code??(timedOut?"ASK_READ_PROVIDER_TIMEOUT":"ASK_READ_PROVIDER_FAILED");
    onEvent({stage,outcome:"failed",model,elapsedMs:Math.round(performance.now()-started),providerStatus:providerError.status,
-    providerErrorCode,providerError,providerEnvelope,timedOut});
-   throw new AskPipelineError(timedOut?"primary_timeout":"primary_provider_failed","The read-only answer could not be completed.",{model,elapsedMs:Math.round(performance.now()-started),providerStatus:providerError.status,providerErrorCode,providerError,providerEnvelope});
+    providerErrorCode,providerError,providerEnvelope,timedOut,validationDetails});
+   throw new AskPipelineError(timedOut?"primary_timeout":outputDiagnostic?"primary_invalid_output":"primary_provider_failed","The read-only answer could not be completed.",{model,elapsedMs:Math.round(performance.now()-started),providerStatus:providerError.status,providerErrorCode,providerError,providerEnvelope,validationDetails});
   }
  };
 }
