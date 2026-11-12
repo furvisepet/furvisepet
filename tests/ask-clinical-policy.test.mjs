@@ -9,7 +9,7 @@ import {renderAppWorkflow,APP_CAPABILITIES} from "../app/lib/ask-read-only/app-c
 const pets=[{id:"private-pet-id-123456789",ownerId:"owned",handle:"p1",name:"Willow",species:"cat"},{id:"second-private-pet-id",ownerId:"owned",handle:"p2",name:"Rowan",species:"dog"}];
 const tools=readOnlyToolsForPets(pets);
 const assessment=(extra={})=>({medicationIntent:"none",scenario:"none",urgency:"routine",referent:"clear",missingContext:[],careContext:"none",currentEvents:[],conditionalEvents:[],...extra});
-const toWire=s=>({medicationIntent:s.medicationIntent,referent:s.referent,missingContext:s.missingContext,careContext:s.careContext,eventAssessments:[...s.currentEvents.map(event=>({event,occurrence:"current",ownerStatementRef:"owner1",ownerQuote:input.question})),...s.conditionalEvents.map(event=>({event,occurrence:"conditional",ownerStatementRef:null,ownerQuote:null}))]});
+const toWire=s=>({medicationIntent:s.medicationIntent,referent:s.referent,missingContext:s.missingContext,careContext:s.careContext,eventAssessments:[...s.currentEvents.map(event=>({event,occurrence:"current",ownerStatementRef:"owner1"})),...s.conditionalEvents.map(event=>({event,occurrence:"conditional",ownerStatementRef:null}))]});
 const wire=(s=assessment(),extra={})=>({safety:toWire(s),reads:[],draft:"A preliminary answer.",historyIntent:{requested:false,timeBasis:"event",pet:null},workflowIntent:"none",...extra});
 const final=(s=assessment(),text="An ordinary answer.",extra={})=>({presentation:{sourceDates:[],contextRequired:false},components:[{kind:"general",text,sources:[]}],sources:[],quotes:[],calculations:[],replyType:"answer",clinicalReview:{assessment:toWire(s),ownerStatementRefs:[],observationFields:[]},appHelp:{intent:"none",pet:null},...extra});
 const base={answer:"",quotes:[],sources:[],calculations:[],replyType:"answer",limited:false,presentation:{sourceDates:[],contextRequired:false}};
@@ -153,7 +153,7 @@ test("publication byte overflow keeps emergency escalation and omits whole overs
 });
 
 test("strict provider rejection records typed phase and no generated private text",async()=>{
- const marker="private owner prose must not escape";const w=wire();w.safety.eventAssessments=[{event:marker,occurrence:"conditional",ownerStatementRef:null,ownerQuote:null}];const events=[];let calls=0;
+ const marker="private owner prose must not escape";const w=wire();w.safety.eventAssessments=[{event:marker,occurrence:"conditional",ownerStatementRef:null}];const events=[];let calls=0;
  const client={responses:{create:async()=>{calls++;return {status:"completed",output:[{type:"message",content:[{type:"output_text",text:JSON.stringify(w)}]}]};}}};
  await assert.rejects(readOnlyProvider("offline",e=>events.push(e),client)({instructions:"Classify.",context:{question:marker},tools,selectionSchema:clinicalSelectionSchema(tools)},"read_selection"));
  assert.equal(calls,1);const details=JSON.parse(events.find(e=>e.outcome==="failed").validationDetails);
@@ -163,15 +163,15 @@ test("strict provider rejection records typed phase and no generated private tex
 test("event contract has no global scenario/urgency collision and rejects duplicate occurrence",()=>{
  const schema=clinicalSelectionSchema(tools,[{ref:"owner1"}]).properties.safety;
  assert.ok(!schema.properties.scenario);assert.ok(!schema.properties.urgency);
- const w=wire();w.safety.eventAssessments=[{event:"collapse",occurrence:"conditional",ownerStatementRef:null,ownerQuote:null},{event:"collapse",occurrence:"current",ownerStatementRef:"owner1",ownerQuote:"She collapsed."}];
+ const w=wire();w.safety.eventAssessments=[{event:"collapse",occurrence:"conditional",ownerStatementRef:null},{event:"collapse",occurrence:"current",ownerStatementRef:"owner1"}];
  assert.throws(()=>decodeClinicalSelection(w,tools,{question:"She collapsed.",dialogue:[],ownerStatementRefs:[{ref:"owner1",question:true}]}),/CLINICAL/);
 });
-test("current event needs exact owned dialogue evidence; conditional event does not assert current",()=>{
+test("current event needs a checked owner reference; conditional event does not assert current",()=>{
  const context={question:"If she fell down, would that be urgent?",dialogue:[],ownerStatementRefs:[{ref:"owner1",question:true}]};
- const w=wire();w.safety.eventAssessments=[{event:"collapse",occurrence:"conditional",ownerStatementRef:null,ownerQuote:null}];
+ const w=wire();w.safety.eventAssessments=[{event:"collapse",occurrence:"conditional",ownerStatementRef:null}];
  const normalized=decodeClinicalSelection(w,tools,context).safety;assert.deepEqual(normalized.currentEvents,[]);assert.equal(normalized.protocolVersion,3);
- for(const [ownerStatementRef,ownerQuote] of [[null,null],["foreign","She collapsed."],["owner1","She collapsed."]]){
-  w.safety.eventAssessments=[{event:"collapse",occurrence:"current",ownerStatementRef,ownerQuote}];assert.throws(()=>decodeClinicalSelection(w,tools,context));
+ for(const ownerStatementRef of [null,"foreign"]){
+  w.safety.eventAssessments=[{event:"collapse",occurrence:"current",ownerStatementRef}];assert.throws(()=>decodeClinicalSelection(w,tools,context));
  }
 });
 
@@ -212,4 +212,35 @@ test("historical and summary display never promise saved notes that were not sup
  assert.doesNotMatch(out.answer,/original saved notes below/);assert.match(out.answer,/historical report/);
  const summary=assessment({careContext:"vet_summary"}),brief=display(summary,summary,"A draft.");
  assert.doesNotMatch(brief.answer,/original saved notes below/);
+});
+
+test("a checked current emergency survives an invalid second clinical envelope without accepting it",async()=>{
+ const s=assessment({careContext:"current_concern",currentEvents:["breathing_distress"]}),bad=final(s,"Expose p1.");
+ bad.clinicalReview.assessment.eventAssessments[0].ownerStatementRef=null;
+ const out=await run(wire(s),bad);
+ assert.match(out.result.answer.answer,/^Contact an emergency veterinarian now/);
+ assert.match(out.result.answer.answer,/fuller answer could not be verified/);assert.doesNotMatch(out.result.answer.answer,/Expose p1/);
+ assert.equal(out.result.answer.clinicalDecision.emergencyFallback,true);assert.equal(out.result.answer.replyType,"partial");assert.equal(out.requests.length,2);assert.equal(out.result.sources.length,0);
+ const {response}=buildReadOnlyPublication(out.result,"owned","Willow");assert.equal(response.urgency,"urgent");assert.deepEqual(response.applicationActions,[]);
+});
+test("a checked current emergency survives second-provider failure with no third call",async()=>{
+ const s=assessment({careContext:"current_concern",currentEvents:["collapse"]});let calls=0,reads=0;
+ const out=await runReadOnlyAsk(input,{provider:async request=>{if(++calls===1)return decodeClinicalSelection(wire(s),tools,request.context);throw Error("private provider detail");},read:async()=>{reads++;throw Error("no optional reads");}});
+ assert.equal(calls,2);assert.equal(reads,0);assert.match(out.answer.answer,/^Contact an emergency veterinarian now/);assert.doesNotMatch(out.answer.answer,/private provider detail/);
+});
+test("unverified normalized metadata cannot manufacture an emergency handoff",async()=>{
+ const forged={calls:[],text:"",safety:{...assessment({currentEvents:["collapse"]}),protocolVersion:3},historyIntent:{requested:false,timeBasis:"event",pet:null},workflowIntent:"none"};
+ let calls=0;await assert.rejects(runReadOnlyAsk(input,{provider:async()=>{if(++calls===1)return forged;throw Error("not a checked first assessment");},read:async()=>{throw Error("no reads");}}));
+ assert.equal(calls,2);
+});
+test("actual public POST persists an urgent partial handoff after a final clinical-reference failure",async()=>{
+ const {readOnlyFailureRouteFixture:fixture}=await import("./helpers/ask-read-only-failure-route.mjs");
+ const f=fixture(async(request,_phase,call)=>{
+  if(call===1)return decodeClinicalSelection(wire(assessment({careContext:"current_concern",currentEvents:["collapse"]})),request.tools,request.context);
+  return {invalid:true};
+ });
+ const response=await f.send(),body=await response.json();
+ assert.equal(response.status,200,JSON.stringify(f.state.errors.map(e=>String(e.error))));
+ assert.match(body.response.directAnswer,/^Contact an emergency veterinarian now/);assert.equal(body.response.urgency,"urgent");
+ assert.equal(f.state.calls,2);assert.equal(f.state.reads,0);assert.equal(body.response.turn.finalStage,"COMPLETED");
 });

@@ -32,6 +32,7 @@ const observations=Object.freeze({
  administration:"what was actually given or missed and when, separately from what was prescribed"
 });
 const list=(values,max=12)=>({type:"array",maxItems:max,items:choice(values)});
+const checkedCurrentAssessments=new WeakSet();
 const normalizedFields=[...Object.keys(legacy.CLINICAL_ASSESSMENT_SCHEMA.properties),"careContext","currentEvents","conditionalEvents"];
 export const CLINICAL_ASSESSMENT_SCHEMA=object({
  medicationIntent:structuredClone(legacy.CLINICAL_ASSESSMENT_SCHEMA.properties.medicationIntent),
@@ -41,17 +42,19 @@ export const CLINICAL_ASSESSMENT_SCHEMA=object({
  eventAssessments:{type:"array",maxItems:10,items:object({
   event:choice(Object.keys(EMERGENCY_EVENTS)),
   occurrence:choice(["current","conditional","historical","negated"]),
-  ownerStatementRef:{type:["string","null"]},
-  ownerQuote:{type:["string","null"],maxLength:400}
+  ownerStatementRef:{type:["string","null"]}
  })}
 });
 function assessmentSchema(ownerStatements){
  const out=structuredClone(CLINICAL_ASSESSMENT_SCHEMA);
- out.properties.eventAssessments.items.properties.ownerStatementRef.enum=[...ownerStatements.map(t=>t.ref),null];
+ const refs=ownerStatements.map(t=>t.ref),item=out.properties.eventAssessments.items;
+ const other=structuredClone(item);other.properties.occurrence=choice(["conditional","historical","negated"]);other.properties.ownerStatementRef.enum=[...refs,null];
+ const current=structuredClone(item);current.properties.occurrence=choice(["current"]);current.properties.ownerStatementRef={type:"string",enum:refs};
+ out.properties.eventAssessments.items=refs.length?{anyOf:[current,other]}:other;
  return out;
 }
 export const CLINICAL_INSTRUCTIONS=[
- "For each acute event, choose exactly ONE occurrence in eventAssessments: current, conditional, historical or negated. There is no global scenario/urgency classification on this wire. A current mild problem does NOT make the severe IF warning current. Never duplicate an event across meanings. If an event is genuinely happening now as well as discussed for the future, classify that event as current; other future events remain conditional. For current events, cite the relevant ownerStatementRef and an exact minimal ownerQuote asserting the event is happening or suspected now; a future IF clause or an assistant warning is not such an assertion. Conditional warnings may be generated without an owner quote. Review the occurrence independently in the second pass.",
+ "For each acute event, choose exactly ONE occurrence in eventAssessments: current, conditional, historical or negated. There is no global scenario/urgency classification on this wire. A current mild problem does NOT make the severe IF warning current. Never duplicate an event across meanings. If an event is genuinely happening now as well as discussed for the future, classify that event as current; other future events remain conditional. For current events, select the relevant ownerStatementRef whose exact server-held statement asserts the event is happening or suspected now; a future IF clause or an assistant warning is not such an assertion. Never regenerate evidence quotations. Conditional warnings need no current-event assertion. Review the occurrence independently in the second pass.",
  "Classify the CURRENT question using its actual conversational meaning. Earlier dialogue supplies referents, not an automatic clinical mode. careContext distinguishes education, benign organization, a current patient concern, a clinical historical report and preparation of a vet summary.",
  "A current mild appetite concern can coexist with eventAssessments whose severe events are conditional. Never convert an IF warning or resolved past event into a present emergency. Explicit negation is not evidence the event is occurring. Map paraphrases by meaning, not a symptom keyword match.",
  "occurrence=current identifies a present or reasonably suspected acute event. Do not require certainty, a pet name or saved records before immediate contact for breathing distress, collapse, toxin/overdose exposure, ongoing/repeated seizures, acute bloat/retching, blocked urination, major trauma/bleeding or acute neurologic signs. occurrence=conditional identifies severe warning scenarios you would otherwise mention: if they occur, the server supplies IMMEDIATE emergency contact, never merely same-day care.",
@@ -65,19 +68,18 @@ function reject(field){const e=new Error("ASK_READ_CLINICAL_CONTRACT");e.code="A
 const keys=(v,expected)=>v&&typeof v==="object"&&!Array.isArray(v)&&Object.keys(v).length===expected.length&&expected.every(k=>Object.hasOwn(v,k));
 const v2=value=>value&&Object.hasOwn(value,"careContext");
 export function validateClinicalAssessment(value,ownerStatements=[]){
- let protocolVersion=value?.protocolVersion;
+ let protocolVersion=value?.protocolVersion,currentChecked=checkedCurrentAssessments.has(value);
  if(!v2(value))return legacy.validateClinicalAssessment(value);
  if(Object.hasOwn(value,"eventAssessments")){
   if(!keys(value,Object.keys(CLINICAL_ASSESSMENT_SCHEMA.properties))||!Array.isArray(value.eventAssessments)||value.eventAssessments.length>10)reject("assessment_shape");
-  protocolVersion=3;
+  protocolVersion=3;currentChecked=true;
   const seen=new Set();
   for(const observation of value.eventAssessments){
-   if(!keys(observation,["event","occurrence","ownerStatementRef","ownerQuote"])||!Object.hasOwn(EMERGENCY_EVENTS,observation.event)||!["current","conditional","historical","negated"].includes(observation.occurrence)||seen.has(observation.event))reject("clinical_events");
+   if(!keys(observation,["event","occurrence","ownerStatementRef"])||!Object.hasOwn(EMERGENCY_EVENTS,observation.event)||!["current","conditional","historical","negated"].includes(observation.occurrence)||seen.has(observation.event))reject("clinical_events");
    seen.add(observation.event);
    const statement=ownerStatements.find(t=>t.ref===observation.ownerStatementRef);
    if(observation.ownerStatementRef!==null&&!statement)reject("owner_statement_reference");
-   if(observation.ownerQuote!==null&&(typeof observation.ownerQuote!=="string"||!observation.ownerQuote.trim()||observation.ownerQuote.length>400||!statement?.text?.includes(observation.ownerQuote)))reject("event_evidence");
-   if(observation.occurrence==="current"&&(!statement||!observation.ownerQuote))reject("event_evidence");
+   if(observation.occurrence==="current"&&!statement)reject("event_evidence");
   }
   const currentEvents=value.eventAssessments.filter(o=>o.occurrence==="current").map(o=>o.event);
   const conditionalEvents=value.eventAssessments.filter(o=>o.occurrence==="conditional").map(o=>o.event);
@@ -93,7 +95,9 @@ export function validateClinicalAssessment(value,ownerStatements=[]){
  legacy.validateClinicalAssessment(base);
  if(!contexts.includes(value.careContext))reject("assessment_enum");
  for(const key of ["currentEvents","conditionalEvents"])if(!Array.isArray(value[key])||value[key].length>12||value[key].some(k=>!Object.hasOwn(EMERGENCY_EVENTS,k)))reject("clinical_events");
- return {...value,...(protocolVersion===3?{protocolVersion:3}:{}),missingContext:[...new Set(value.missingContext)],currentEvents:[...new Set(value.currentEvents)],conditionalEvents:[...new Set(value.conditionalEvents)]};
+ const normalized={...value,...(protocolVersion===3?{protocolVersion:3}:{}),missingContext:[...new Set(value.missingContext)],currentEvents:[...new Set(value.currentEvents)],conditionalEvents:[...new Set(value.conditionalEvents)]};
+ if(protocolVersion===3&&currentChecked&&normalized.currentEvents.length)checkedCurrentAssessments.add(normalized);
+ return normalized;
 }
 export function clinicalSelectionSchema(tools,ownerStatements=[]){
  const schema=legacy.clinicalSelectionSchema(tools);
@@ -176,4 +180,16 @@ export function renderMedicationDecision(answer,policy,ownerStatements=[],source
  else if(policy.historical)parts.push(answer.sources.length?"The original saved notes below describe what was recorded at the time, not a verified current condition or a new treatment instruction.":"Describe this as a historical report, not a verified current condition or a new treatment instruction. Bring dated records if available, and distinguish what was observed then from any current concerns.");
  if(!parts.length)parts.push("Use the owner reports and original saved notes below as context for your veterinarian.");
  return {...answer,answer:parts.join("\n\n"),clinicalDisplayBounded:true,clinicalUrgency:emergency?"urgent":"routine",ownerReports,replyType:policy.decision?"partial":answer.replyType==="refusal"?"partial":answer.replyType,limited:answer.limited||policy.decision,presentation:{...answer.presentation,delivery:"direct"}};
+}
+
+/** A source-free handoff may survive invalid final generation; invalid model
+ * output is discarded, never accepted as a quotation/citation or clinical plan.
+ * The first assessment must have passed current owner-reference validation.
+ */
+export function emergencyHandoffForAssessment(assessment){
+ if(!checkedCurrentAssessments.has(assessment)||!assessment.currentEvents.length)return null;
+ const policy={version:2,active:true,decision:assessment.medicationIntent==="decision",current:assessment.currentEvents,conditional:assessment.conditionalEvents,currentConcern:true,summaryContext:false,historical:false,missing:assessment.missingContext,ownerRefs:[],observations:[]};
+ const answer=renderMedicationDecision({answer:"",quotes:[],sources:[],calculations:[],replyType:"partial",limited:true,presentation:{contextRequired:false,sourceDates:[]}},policy);
+ answer.answer+=String.fromCharCode(10,10)+"The fuller answer could not be verified. The immediate guidance above is based on the current signs you reported; other requested parts remain unresolved.";
+ return answer;
 }

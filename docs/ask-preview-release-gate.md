@@ -51,3 +51,11 @@ Clinical and product quality may still be PARTIAL even when bounded display chec
 ## Live discovery and repair
 
 On the first candidate 34b97b61, the second real turn falsely framed explicitly conditional red flags as currently occurring. Clinical testing stopped. Runtime evidence showed three current and three conditional events after review. The replacement event contract removes the mixed global scenario/urgency choice, prevents duplicate occurrence entries and requires exact owned dialogue support for current-event claims. It also removes the global-pair fallback that could promote an event independently of its typed occurrence. Fresh qualification remains mandatory; this is not a semantic guarantee.
+
+## Current-emergency delivery boundary
+
+A real current-emergency turn on 931ee3ab passed first-stage current-event validation but failed final publication at the event_evidence contract. Exact missing-reference versus quote-mismatch detail was not captured, so neither subcause is asserted as established. The final wire now selects owner-statement handles instead of regenerating evidence quotes, and requires a non-null allowed owner reference for current events.
+
+Only a registered first assessment with validated current-event ownership, no source IO and no acquired sources may provide a new source-free urgent partial handoff if final generation or validation fails. Rejected model prose, sources, quotations, calculations and IDs are discarded. The handoff is validated afresh, says the fuller answer is unresolved, and uses no additional provider call. This does not guarantee first-pass clinical recognition, medical correctness, authentication or backend persistence. Those remain qualification risks.
+
+The initial 24-turn / 48-call batch may use at most three additional fresh repair-verification turns (six calls): 27 turns / 54 calls total for this iteration. Every call must reconcile before another submission. The two-call-per-turn and retrieval/source limits remain unchanged.
