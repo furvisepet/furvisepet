@@ -1,4 +1,5 @@
 "use client";
+import { CARE_NOTE_UI } from "../lib/care-workflow.mjs";
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -179,7 +180,7 @@ export default function TodayPage() {
 
             <section aria-labelledby="remember-heading" className={styles.composer} data-ui="today-remember-composer">
               <form onSubmit={saveRememberedNote}>
-                <label className="sr-only" htmlFor="today-remember-note">Something worth remembering</label>
+                <label className="sr-only" htmlFor="today-remember-note">{CARE_NOTE_UI.note}</label>
                 <textarea
                   className={styles.rememberInput}
                   id="today-remember-note"
@@ -194,24 +195,24 @@ export default function TodayPage() {
                   onClick={() => setDetailsOpen((current) => !current)}
                   type="button"
                 >
-                  {detailsOpen ? "Hide details" : "Add details"}
+                  {detailsOpen ? "Hide details" : CARE_NOTE_UI.details}
                 </button>
                 {detailsOpen ? (
                   <div className={styles.metadataFields} id="today-remember-details">
                     <label>
-                      <span>Category</span>
+                      <span>{CARE_NOTE_UI.category}</span>
                       <select onChange={(event) => setRememberCategory(event.target.value as CareEntryInput["category"])} value={rememberCategory}>
                         {CARE_ENTRY_CATEGORIES.map((category) => <option key={category} value={category}>{formatCareEntryCategory(category)}</option>)}
                       </select>
                     </label>
                     <label>
-                      <span>When</span>
+                      <span>{CARE_NOTE_UI.when}</span>
                       <input onInput={(event) => setRememberOccurredAt(event.currentTarget.value)} onChange={(event) => setRememberOccurredAt(event.target.value)} type="datetime-local" value={rememberOccurredAt} />
                     </label>
                   </div>
                 ) : null}
                 <button className={styles.primaryAction} data-ui="today-remember-action" disabled={!rememberDraft || rememberSaving} type="submit">
-                  {rememberSaving ? "REMEMBERING" : "REMEMBER"}
+                  {rememberSaving ? "REMEMBERING" : CARE_NOTE_UI.submit}
                 </button>
                 {rememberError ? <p className={styles.error} role="alert">{rememberError}</p> : null}
               </form>

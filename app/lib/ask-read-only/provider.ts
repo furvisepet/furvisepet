@@ -1,3 +1,4 @@
+import { decodeClinicalSelection as decodePolicySelection } from "./clinical-policy.mjs";
 import { readProviderText, decodeProviderJson, safeReadOutputDiagnostic, describeReadOutput } from "./provider-output.mjs";
 import { decodeClinicalSelection } from "./clinical.mjs";
 import "server-only";
@@ -34,7 +35,7 @@ export function readOnlyProvider(model:string,onEvent:(event:AskProviderEvent)=>
    const text=strictSelection||!selection?"":readProviderText(response,true);
    let value;
    if(strictSelection){
-     value=decodeClinicalSelection(decodeProviderJson(response),input.tools);
+     value=(input.selectionSchema&&typeof input.selectionSchema==="object"&&"properties" in input.selectionSchema&&(input.selectionSchema.properties as Record<string,unknown>)?.historyIntent?decodePolicySelection:decodeClinicalSelection)(decodeProviderJson(response),input.tools,input.context&&typeof input.context==="object"?input.context:{});
     }else if(selection){
      const calls=response.output.filter(item=>item.type==="function_call").map(item=>({id:item.call_id,name:item.name,arguments:item.arguments}));
     if(typeof text!=="string"||(!calls.length&&!text.trim()))throw Object.assign(new Error("ASK_READ_PROVIDER_INCOMPLETE"),{code:"ASK_READ_PROVIDER_INCOMPLETE"});
@@ -48,7 +49,7 @@ export function readOnlyProvider(model:string,onEvent:(event:AskProviderEvent)=>
    const providerError=safeAskProviderErrorDiagnostic(error);
    const timedOut=["TimeoutError","AbortError","APIUserAbortError","APIConnectionTimeoutError"].includes(providerError.type??"");
    const outputDiagnostic=safeReadOutputDiagnostic(error);
-   const validationDetails=outputDiagnostic?JSON.stringify({...outputDiagnostic,outputLayout}):undefined;
+   const validationDetails=outputDiagnostic?JSON.stringify({...outputDiagnostic,phase:selection?"read_selection":"read_answer",outputLayout}):undefined;
    const providerErrorCode=outputDiagnostic?.code??providerError.code??(timedOut?"ASK_READ_PROVIDER_TIMEOUT":"ASK_READ_PROVIDER_FAILED");
    onEvent({stage,outcome:"failed",model,elapsedMs:Math.round(performance.now()-started),providerStatus:providerError.status,
     providerErrorCode,providerError,providerEnvelope,timedOut,validationDetails});

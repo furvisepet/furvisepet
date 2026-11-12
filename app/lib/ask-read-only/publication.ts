@@ -42,6 +42,7 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
  if(!response)throw new Error("ASK_READ_RESPONSE_INVALID");
  response.answerType=body.replyType==="clarification"?"clarification":"direct_answer";
  response.sections=[
+  ...((body as typeof body & {ownerReports?:string[]}).ownerReports?.length?[{heading:"Owner reports — not saved-record evidence",items:(body as typeof body & {ownerReports:string[]}).ownerReports}]:[]),
   ...(body.quotes.length?[{heading:"Saved notes",items:body.quotes.map(quote=>quote.quote)}]:[]),
   ...(body.calculations.length?[{heading:"Calculation",items:body.calculations.map(calculation=>calculation.text)}]:[]),
   ...coverageSections
@@ -63,7 +64,9 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
   const sizeNotice=reviewed.sources.length
    ?"These saved sources exceed the reply size limit. Only whole notes that fit are included below; open Saved sources for the originals, or ask for one note at a time."
    :"This answer exceeds the reply size limit. Please ask for a shorter answer or one part at a time.";
-  const summary=stateRejected?boundary+" "+sizeNotice:sizeNotice;
+  // A size fallback may omit whole evidence, never the bounded clinical actions.
+  const preserveClinical=(body as typeof body & {clinicalDisplayBounded?:boolean}).clinicalDisplayBounded===true;
+  const summary=preserveClinical?checkedSummary+"\n\n"+sizeNotice:stateRejected?boundary+" "+sizeNotice:sizeNotice;
   response.summary=summary;response.directAnswer=summary;
   response.answerType="direct_answer";
   response.sections=[...(body.calculations.length?[{heading:"Calculation",items:body.calculations.map(calculation=>calculation.text)}]:[]),...coverageSections];
