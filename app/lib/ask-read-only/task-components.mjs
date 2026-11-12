@@ -114,7 +114,9 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
  });
  const blocked=new Set(tasks.filter(t=>t.status==="unresolved"||t.needsHistory&&!t.sources.length||t.needsOwnerFacts&&!t.ownerFacts.length).flatMap(t=>t.componentIndexes));
  tasks=tasks.map(t=>t.status==="complete"&&t.componentIndexes.some(i=>blocked.has(i))?{...t,status:"partial",reason:"not_answered"}:t);
- const assigned=new Set(tasks.flatMap(t=>t.componentIndexes));
+ const workflowParts=new Set(tasks.filter(t=>t.kind==="workflow").flatMap(t=>t.componentIndexes));
+ tasks=tasks.map(t=>t.kind!=="workflow"&&t.status==="complete"&&t.componentIndexes.some(i=>workflowParts.has(i))?{...t,status:"partial",reason:"not_answered"}:t);
+ const assigned=new Set(tasks.filter(t=>t.kind!=="workflow").flatMap(t=>t.componentIndexes).filter(i=>!workflowParts.has(i)));
  const brief=tasks.find(t=>t.kind==="vet_brief"),clarify=tasks.filter(t=>t.missing.length);
  const incomplete=tasks.filter(t=>t.status!=="complete");
  let text=!policy?.active&&answer.validatedParts?answer.validatedParts.filter(p=>assigned.has(p.index)&&!blocked.has(p.index)).map(p=>p.text).join("\n\n"):answer.answer,verifiedBriefText=null;

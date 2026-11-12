@@ -115,3 +115,9 @@ test("a missing record task cannot publish unsupported record prose or erase an 
  const r=await execute(plan,s,final(s,{components:[{kind:"general",text:"The missing saved note recorded a new diagnosis.",sources:[]},{kind:"general",text:"Rainbows separate sunlight into colours.",sources:[]}],completion:[completion(),completion({task:"t2",componentIndexes:[1]})]}));
  assert.equal(r.reads.length,0);assert.doesNotMatch(r.result.answer.answer,/recorded a new diagnosis/);assert.match(r.result.answer.answer,/Rainbows separate/);assert.match(r.result.answer.answer,/Saved history:.*no verified source/);assert.equal(r.result.answer.taskCompletion[0].status,"unresolved");assert.equal(r.result.answer.taskCompletion[1].status,"complete");
 });
+
+test("mixed workflow help uses registry text, never model-invented controls, while keeping independent content",async()=>{
+ const s=safety(),plan=[task({kind:"workflow",workflow:"care_photo_attachment"}),task({id:"t2"})];
+ const r=await execute(plan,s,final(s,{components:[{kind:"general",text:"Use the Imaginary Image Vault button.",sources:[]},{kind:"general",text:"Keep routines predictable.",sources:[]}],completion:[completion(),completion({task:"t2",componentIndexes:[1]})]}));
+ assert.doesNotMatch(r.result.answer.answer,/Imaginary Image Vault/);assert.match(r.result.answer.answer,/Keep routines predictable/);assert.match(r.result.answer.answer,/Something worth remembering/);assert.equal(r.result.answer.taskCompletion[0].status,"complete");assert.equal(r.result.answer.taskCompletion[1].status,"complete");
+});
