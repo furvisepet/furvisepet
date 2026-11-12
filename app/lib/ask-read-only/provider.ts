@@ -35,7 +35,7 @@ export function readOnlyProvider(model:string,onEvent:(event:AskProviderEvent)=>
    const text=strictSelection||!selection?"":readProviderText(response,true);
    let value;
    if(strictSelection){
-     value=(input.selectionSchema&&typeof input.selectionSchema==="object"&&"properties" in input.selectionSchema&&(input.selectionSchema.properties as Record<string,unknown>)?.historyIntent?decodePolicySelection:decodeClinicalSelection)(decodeProviderJson(response),input.tools);
+     value=(input.selectionSchema&&typeof input.selectionSchema==="object"&&"properties" in input.selectionSchema&&(input.selectionSchema.properties as Record<string,unknown>)?.historyIntent?decodePolicySelection:decodeClinicalSelection)(decodeProviderJson(response),input.tools,input.context&&typeof input.context==="object"?input.context:{});
     }else if(selection){
      const calls=response.output.filter(item=>item.type==="function_call").map(item=>({id:item.call_id,name:item.name,arguments:item.arguments}));
     if(typeof text!=="string"||(!calls.length&&!text.trim()))throw Object.assign(new Error("ASK_READ_PROVIDER_INCOMPLETE"),{code:"ASK_READ_PROVIDER_INCOMPLETE"});

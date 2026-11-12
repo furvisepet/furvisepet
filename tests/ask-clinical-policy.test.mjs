@@ -9,13 +9,14 @@ import {renderAppWorkflow,APP_CAPABILITIES} from "../app/lib/ask-read-only/app-c
 const pets=[{id:"private-pet-id-123456789",ownerId:"owned",handle:"p1",name:"Willow",species:"cat"},{id:"second-private-pet-id",ownerId:"owned",handle:"p2",name:"Rowan",species:"dog"}];
 const tools=readOnlyToolsForPets(pets);
 const assessment=(extra={})=>({medicationIntent:"none",scenario:"none",urgency:"routine",referent:"clear",missingContext:[],careContext:"none",currentEvents:[],conditionalEvents:[],...extra});
-const wire=(s=assessment(),extra={})=>({safety:s,reads:[],draft:"A preliminary answer.",historyIntent:{requested:false,timeBasis:"event",pet:null},workflowIntent:"none",...extra});
-const final=(s=assessment(),text="An ordinary answer.",extra={})=>({presentation:{sourceDates:[],contextRequired:false},components:[{kind:"general",text,sources:[]}],sources:[],quotes:[],calculations:[],replyType:"answer",clinicalReview:{assessment:s,ownerStatementRefs:[],observationFields:[]},appHelp:{intent:"none",pet:null},...extra});
+const toWire=s=>({medicationIntent:s.medicationIntent,referent:s.referent,missingContext:s.missingContext,careContext:s.careContext,eventAssessments:[...s.currentEvents.map(event=>({event,occurrence:"current",ownerStatementRef:"owner1",ownerQuote:input.question})),...s.conditionalEvents.map(event=>({event,occurrence:"conditional",ownerStatementRef:null,ownerQuote:null}))]});
+const wire=(s=assessment(),extra={})=>({safety:toWire(s),reads:[],draft:"A preliminary answer.",historyIntent:{requested:false,timeBasis:"event",pet:null},workflowIntent:"none",...extra});
+const final=(s=assessment(),text="An ordinary answer.",extra={})=>({presentation:{sourceDates:[],contextRequired:false},components:[{kind:"general",text,sources:[]}],sources:[],quotes:[],calculations:[],replyType:"answer",clinicalReview:{assessment:toWire(s),ownerStatementRefs:[],observationFields:[]},appHelp:{intent:"none",pet:null},...extra});
 const base={answer:"",quotes:[],sources:[],calculations:[],replyType:"answer",limited:false,presentation:{sourceDates:[],contextRequired:false}};
 const input={ownerId:"owned",selectedPetId:pets[0].id,pets,dialogue:[],question:"An unfamiliar owner question.",now:"2026-11-11T12:00:00Z",timeZone:"UTC"};
 async function run(first,answer,extraInput={},read=async()=>({sources:[],total:0})){
  let count=0;const requests=[],events=[];
- const result=await runReadOnlyAsk({...input,...extraInput},{read,provider:async(request)=>{requests.push(request);return ++count===1?decodeClinicalSelection(first,tools):answer;},onAnswerBoundary:e=>events.push(e)});
+ const result=await runReadOnlyAsk({...input,...extraInput},{read,provider:async(request)=>{requests.push(request);return ++count===1?decodeClinicalSelection(first,tools,request.context):answer;},onAnswerBoundary:e=>events.push(e)});
  return {result,requests,events};
 }
 function display(first,second,text,extra={}){
@@ -27,7 +28,7 @@ test("strict active selection and final contracts require all typed fields",()=>
  assert.ok(schema.required.includes("workflowIntent"));assert.ok(schema.required.includes("historyIntent"));
  assert.ok(clinicalAnswerSchema(readOnlyAnswerSchemaForSources([]),assessment(),[],pets).required.includes("appHelp"));
  assert.equal(decodeClinicalSelection(wire(),tools).safety.careContext,"none");
- for(const field of ["currentEvents","conditionalEvents","careContext"]){const w=wire();delete w.safety[field];assert.throws(()=>decodeClinicalSelection(w,tools));}
+ for(const field of ["eventAssessments","referent","careContext"]){const w=wire();delete w.safety[field];assert.throws(()=>decodeClinicalSelection(w,tools));}
  const w=wire();w.historyIntent.pet="foreign";assert.throws(()=>decodeClinicalSelection(w,tools));
  assert.throws(()=>reviewClinicalAnswer({...final(),appHelp:{intent:"upload",pet:null}},assessment(),[],pets));
 });
@@ -68,7 +69,7 @@ test("vet summary selects exact visible owner statements and never assistant ass
  const context={dialogue:[{role:"user",text:"She ate less this morning."},{role:"assistant",text:"An unverified diagnosis."}],question:"Help prepare the call."};
  const catalog=ownerStatementCatalog(context,pets,"owned");assert.equal(catalog.length,2);
  const s=assessment({careContext:"vet_summary"});
- const f=final(s,"Unverified diagnosis.",{clinicalReview:{assessment:s,ownerStatementRefs:[catalog[0].ref],observationFields:["appetite","administration"]}});
+ const f=final(s,"Unverified diagnosis.",{clinicalReview:{assessment:toWire(s),ownerStatementRefs:[catalog[0].ref],observationFields:["appetite","administration"]}});
  const reviewed=reviewClinicalAnswer(f,s,catalog,pets),out=renderMedicationDecision(base,reviewed.policy,catalog);
  assert.deepEqual(out.ownerReports,["She ate less this morning."]);assert.doesNotMatch(out.answer,/Unverified diagnosis/);
  assert.throws(()=>reviewClinicalAnswer({...f,clinicalReview:{...f.clinicalReview,ownerStatementRefs:["invented"]}},s,catalog,pets));
@@ -118,7 +119,7 @@ test("app help cannot replace emergency prominence in a mixed question",()=>{
  const out=renderAppWorkflow({...base,answer:"Contact an emergency veterinarian now."},{intent:"find_care_note",pet:"p1"},pets,true);
  assert.match(out.answer,/^Contact an emergency veterinarian now/);assert.match(out.answer,/Open History/);assert.match(out.answer,/LOAD OLDER/);
 });
-test("active strict provider consumes actual v2 JSON envelopes in exactly two physical local calls",async()=>{
+test("active strict provider consumes actual event-contract JSON envelopes in exactly two physical local calls",async()=>{
  let physical=0;const events=[];
  const client={responses:{create:async()=>({status:"completed",output:[{type:"message",role:"assistant",status:"completed",content:[{type:"output_text",text:JSON.stringify(++physical===1?wire():final())}]}],usage:{input_tokens:1,output_tokens:1}})}};
  const result=await runReadOnlyAsk(input,{provider:readOnlyProvider("offline",e=>events.push(e),client),read:async()=>{throw Error("unexpected private read");}});
@@ -127,7 +128,7 @@ test("active strict provider consumes actual v2 JSON envelopes in exactly two ph
 
 test("bounded clinical actions and owner reports survive actual publication",async()=>{
  const s=assessment({careContext:"vet_summary",conditionalEvents:["collapse"]});
- const f=final(s,"Same-day if she collapses.",{clinicalReview:{assessment:s,ownerStatementRefs:["owner1"],observationFields:["onset"]}});
+ const f=final(s,"Same-day if she collapses.",{clinicalReview:{assessment:toWire(s),ownerStatementRefs:["owner1"],observationFields:["onset"]}});
  const {result}=await run(wire(s),f,{question:"She missed breakfast. Help prepare my vet call."});
  const {response:publication}=buildReadOnlyPublication(result,"owned","Willow");
  assert.match(publication.summary,/emergency veterinarian immediately/);
@@ -152,9 +153,24 @@ test("publication byte overflow keeps emergency escalation and omits whole overs
 });
 
 test("strict provider rejection records typed phase and no generated private text",async()=>{
- const marker="private owner prose must not escape";const w=wire();w.safety.currentEvents=[marker];const events=[];let calls=0;
+ const marker="private owner prose must not escape";const w=wire();w.safety.eventAssessments=[{event:marker,occurrence:"conditional",ownerStatementRef:null,ownerQuote:null}];const events=[];let calls=0;
  const client={responses:{create:async()=>{calls++;return {status:"completed",output:[{type:"message",content:[{type:"output_text",text:JSON.stringify(w)}]}]};}}};
  await assert.rejects(readOnlyProvider("offline",e=>events.push(e),client)({instructions:"Classify.",context:{question:marker},tools,selectionSchema:clinicalSelectionSchema(tools)},"read_selection"));
  assert.equal(calls,1);const details=JSON.parse(events.find(e=>e.outcome==="failed").validationDetails);
  assert.equal(details.phase,"read_selection");assert.equal(details.field,"clinical_events");assert.ok(!JSON.stringify(events).includes(marker));
+});
+
+test("event contract has no global scenario/urgency collision and rejects duplicate occurrence",()=>{
+ const schema=clinicalSelectionSchema(tools,[{ref:"owner1"}]).properties.safety;
+ assert.ok(!schema.properties.scenario);assert.ok(!schema.properties.urgency);
+ const w=wire();w.safety.eventAssessments=[{event:"collapse",occurrence:"conditional",ownerStatementRef:null,ownerQuote:null},{event:"collapse",occurrence:"current",ownerStatementRef:"owner1",ownerQuote:"She collapsed."}];
+ assert.throws(()=>decodeClinicalSelection(w,tools,{question:"She collapsed.",dialogue:[],ownerStatementRefs:[{ref:"owner1",question:true}]}),/CLINICAL/);
+});
+test("current event needs exact owned dialogue evidence; conditional event does not assert current",()=>{
+ const context={question:"If she fell down, would that be urgent?",dialogue:[],ownerStatementRefs:[{ref:"owner1",question:true}]};
+ const w=wire();w.safety.eventAssessments=[{event:"collapse",occurrence:"conditional",ownerStatementRef:null,ownerQuote:null}];
+ const normalized=decodeClinicalSelection(w,tools,context).safety;assert.deepEqual(normalized.currentEvents,[]);assert.equal(normalized.protocolVersion,3);
+ for(const [ownerStatementRef,ownerQuote] of [[null,null],["foreign","She collapsed."],["owner1","She collapsed."]]){
+  w.safety.eventAssessments=[{event:"collapse",occurrence:"current",ownerStatementRef,ownerQuote}];assert.throws(()=>decodeClinicalSelection(w,tools,context));
+ }
 });

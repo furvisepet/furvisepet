@@ -4,7 +4,7 @@ Status: NO-GO until the exact candidate completes fresh signed-in qualification.
 
 ## Clinical display contract
 
-Two existing semantic provider passes distinguish a present concern, conditional warning, historical report, general education and benign organization. Current events and conditional events are independent lists. Either pass can establish an obligation; the final pass cannot downgrade a previously recognized medication decision or acute event. Recognized clinical actions are rendered from server-owned policy slots, not generated recommendation prose. No extra model reviewer, third provider call or keyword-only clinical classifier is added.
+Two existing semantic provider passes distinguish a present concern, conditional warning, historical report, general education and benign organization. Each event has one occurrence classification: current, conditional, historical or negated. Current events require a reference to exact owner dialogue text. No global scenario/urgency pair is supplied on the active provider wire. The model still determines the occurrence meaning; an exact quote alone does not prove its temporal semantics. Either pass can establish an obligation; the final pass cannot downgrade a previously recognized medication decision or acute event. Recognized clinical actions are rendered from server-owned policy slots, not generated recommendation prose. No extra model reviewer, third provider call or keyword-only clinical classifier is added.
 
 A model may miss or misclassify an event. Deterministic display enforcement applies only after recognition. This is an explicit release risk. Original saved quotations remain historical evidence, not new treatment authority. Exact user statements can be included separately as owner reports, never as verified saved facts. A finite live pilot cannot establish universal medical correctness.
 
@@ -47,3 +47,7 @@ Cover flowing appetite/medication/vet-summary dialogue; current vs conditional v
 - No saved pet-data changes, production promotion, merge or force push.
 
 Clinical and product quality may still be PARTIAL even when bounded display checks pass. In recognized clinical modes, arbitrary generated prose is suppressed; independently answerable mixed nonclinical details may be incomplete. Qualification must assess this tradeoff openly rather than count policy rendering as intelligence proof.
+
+## Live discovery and repair
+
+On the first candidate 34b97b61, the second real turn falsely framed explicitly conditional red flags as currently occurring. Clinical testing stopped. Runtime evidence showed three current and three conditional events after review. The replacement event contract removes the mixed global scenario/urgency choice, prevents duplicate occurrence entries and requires exact owned dialogue support for current-event claims. It also removes the global-pair fallback that could promote an event independently of its typed occurrence. Fresh qualification remains mandatory; this is not a semantic guarantee.

@@ -232,7 +232,7 @@ export async function runReadOnlyAsk(input,deps) {
  let calls=0;
  const invoke=async(request,phase)=>{if(++calls>2)fail("ASK_READ_PROVIDER_LIMIT");return deps.provider(request,phase);};
  const tools=readOnlyToolsForPets(pets,references);
- let first=await invoke({instructions:READ_ONLY_INSTRUCTIONS+"\n"+CLINICAL_INSTRUCTIONS+"\n"+WORKFLOW_INSTRUCTIONS,context,tools,selectionSchema:clinicalSelectionSchema(tools)},"read_selection");
+ let first=await invoke({instructions:READ_ONLY_INSTRUCTIONS+"\n"+CLINICAL_INSTRUCTIONS+"\n"+WORKFLOW_INSTRUCTIONS,context,tools,selectionSchema:clinicalSelectionSchema(tools,ownerStatements)},"read_selection");
  if(!keys(first,Object.hasOwn(first??{},"workflowIntent")?["calls","text","safety","historyIntent","workflowIntent"]:Object.hasOwn(first??{},"historyIntent")?["calls","text","safety","historyIntent"]:Object.hasOwn(first??{},"safety")?["calls","text","safety"]:["calls","text"])||!Array.isArray(first.calls)||first.calls.length>4||typeof first.text!=="string"||first.text.length>12000)fail("ASK_READ_PROVIDER_INVALID");
  let assessment=Object.hasOwn(first,"safety")?validateClinicalAssessment(first.safety):null;
  const recovered=recoverBoundedCalendarRead(first,context,pets);
@@ -242,7 +242,7 @@ export async function runReadOnlyAsk(input,deps) {
  // essential unknown referent. Profile reads can still resolve a pet identity.
  const emergency=assessment?.currentEvents?.length>0||assessment?.scenario==="current"&&assessment.urgency==="immediate";
  const selectedCalls=emergency?[]:assessment?.referent==="essential_unknown"?first.calls.filter(call=>call.name==="read_pet_profile"):first.calls;
- if(assessment)deps.onAnswerBoundary?.({outcome:"clinical_assessed",medicationIntent:assessment.medicationIntent,scenario:assessment.scenario,urgency:assessment.urgency,missingContextCount:assessment.missingContext.length,suppressedReads:first.calls.length-selectedCalls.length});
+ if(assessment)deps.onAnswerBoundary?.({outcome:"clinical_assessed",assessmentVersion:assessment.protocolVersion??1,currentEventCount:assessment.currentEvents?.length??null,conditionalEventCount:assessment.conditionalEvents?.length??null,medicationIntent:assessment.medicationIntent,scenario:assessment.scenario,urgency:assessment.urgency,missingContextCount:assessment.missingContext.length,suppressedReads:first.calls.length-selectedCalls.length});
  const sources=[],results=[],bound=[];
  try {
   for(const call of selectedCalls) {

@@ -32,44 +32,80 @@ const observations=Object.freeze({
  administration:"what was actually given or missed and when, separately from what was prescribed"
 });
 const list=(values,max=12)=>({type:"array",maxItems:max,items:choice(values)});
+const normalizedFields=[...Object.keys(legacy.CLINICAL_ASSESSMENT_SCHEMA.properties),"careContext","currentEvents","conditionalEvents"];
 export const CLINICAL_ASSESSMENT_SCHEMA=object({
- ...structuredClone(legacy.CLINICAL_ASSESSMENT_SCHEMA.properties),
+ medicationIntent:structuredClone(legacy.CLINICAL_ASSESSMENT_SCHEMA.properties.medicationIntent),
+ referent:structuredClone(legacy.CLINICAL_ASSESSMENT_SCHEMA.properties.referent),
+ missingContext:structuredClone(legacy.CLINICAL_ASSESSMENT_SCHEMA.properties.missingContext),
  careContext:choice(contexts),
- currentEvents:list(Object.keys(EMERGENCY_EVENTS)),
- conditionalEvents:list(Object.keys(EMERGENCY_EVENTS))
+ eventAssessments:{type:"array",maxItems:10,items:object({
+  event:choice(Object.keys(EMERGENCY_EVENTS)),
+  occurrence:choice(["current","conditional","historical","negated"]),
+  ownerStatementRef:{type:["string","null"]},
+  ownerQuote:{type:["string","null"],maxLength:400}
+ })}
 });
+function assessmentSchema(ownerStatements){
+ const out=structuredClone(CLINICAL_ASSESSMENT_SCHEMA);
+ out.properties.eventAssessments.items.properties.ownerStatementRef.enum=[...ownerStatements.map(t=>t.ref),null];
+ return out;
+}
 export const CLINICAL_INSTRUCTIONS=[
+ "For each acute event, choose exactly ONE occurrence in eventAssessments: current, conditional, historical or negated. There is no global scenario/urgency classification on this wire. A current mild problem does NOT make the severe IF warning current. Never duplicate an event across meanings. If an event is genuinely happening now as well as discussed for the future, classify that event as current; other future events remain conditional. For current events, cite the relevant ownerStatementRef and an exact minimal ownerQuote asserting the event is happening or suspected now; a future IF clause or an assistant warning is not such an assertion. Conditional warnings may be generated without an owner quote. Review the occurrence independently in the second pass.",
  "Classify the CURRENT question using its actual conversational meaning. Earlier dialogue supplies referents, not an automatic clinical mode. careContext distinguishes education, benign organization, a current patient concern, a clinical historical report and preparation of a vet summary.",
- "Current and conditional events are INDEPENDENT lists. A current mild appetite concern can have currentEvents=[] and conditionalEvents containing future emergency warning signs. Never convert an IF warning or resolved past event into a present emergency. Explicit negation is not evidence the event is occurring. Map paraphrases by meaning, not a symptom keyword match.",
- "currentEvents identifies a present or reasonably suspected acute event. Do not require certainty, a pet name or saved records before immediate contact for breathing distress, collapse, toxin/overdose exposure, ongoing/repeated seizures, acute bloat/retching, blocked urination, major trauma/bleeding or acute neurologic signs. conditionalEvents lists severe warning scenarios you would otherwise mention: if they occur, the server supplies IMMEDIATE emergency contact, never merely same-day care.",
+ "A current mild appetite concern can coexist with eventAssessments whose severe events are conditional. Never convert an IF warning or resolved past event into a present emergency. Explicit negation is not evidence the event is occurring. Map paraphrases by meaning, not a symptom keyword match.",
+ "occurrence=current identifies a present or reasonably suspected acute event. Do not require certainty, a pet name or saved records before immediate contact for breathing distress, collapse, toxin/overdose exposure, ongoing/repeated seizures, acute bloat/retching, blocked urination, major trauma/bleeding or acute neurologic signs. occurrence=conditional identifies severe warning scenarios you would otherwise mention: if they occur, the server supplies IMMEDIATE emergency contact, never merely same-day care.",
  "Medication intent decision includes asking whether to take, omit, catch up, redose, delay, space, taper, replace or restart prescribed medicine, including indirect claims that a changed approach is working because symptoms seem stable. Do not authorize a regimen. Unknown medicine, exact prescription and prescriber plan belong in missingContext when needed. Organization means logging/reminders/label handling or preparing questions without selecting care. General education can explain concepts without a patient-specific schedule.",
  "referent=essential_unknown is for genuinely unresolved pet/source/time/procedure MEANING, not missing clinical authority or the absence of a day within an explicit month/year. Month/year is a complete bounded calendar interval. Do not request a day or permission to search that interval. Missing medicine does not prevent an independently scoped history read.",
- "For a recognized current concern, medication decision, conditional urgent scenario, clinical history or vet summary, final user-visible clinical action text comes from server policy. Put currentEvents/conditionalEvents in clinicalReview.assessment, select useful observationFields and exact ownerStatementRefs. Do not hide extra medical directions in general components; those components are not displayed in these modes. Original saved quotes and server calculations remain available.",
+ "For a recognized current concern, medication decision, conditional urgent scenario, clinical history or vet summary, final user-visible clinical action text comes from server policy. Classify each event occurrence in clinicalReview.assessment, select useful observationFields and exact ownerStatementRefs. Do not hide extra medical directions in general components; those components are not displayed in these modes. Original saved quotes and server calculations remain available.",
  "Owner statement references identify only the user's visible dialogue or question. Select relevant reported facts for a vet summary, never assistant-generated facts. They are labeled owner reports, not verified saved records or diagnosis. Historical plan descriptions must remain attributed reports, not permission to change current treatment.",
  "Use historyIntent.requested only when the question asks for owned saved information. Choose event versus recorded time explicitly; ambiguous means clarify the relation, never substitute it. General knowledge and routine planning do not require private history. Use clinical_history for clinical interpretation of a historical symptom or treatment report, not ordinary note/date/quotation/measurement comparison requests. Those use careContext=none unless a clinical decision is actually requested. Respect correction of a pet/date and preserve independently answerable parts."
 ].join("\n");
 function reject(field){const e=new Error("ASK_READ_CLINICAL_CONTRACT");e.code="ASK_READ_CLINICAL_CONTRACT";e.answerDiagnostic={category:"clinical_contract",field};throw e;}
 const keys=(v,expected)=>v&&typeof v==="object"&&!Array.isArray(v)&&Object.keys(v).length===expected.length&&expected.every(k=>Object.hasOwn(v,k));
 const v2=value=>value&&Object.hasOwn(value,"careContext");
-export function validateClinicalAssessment(value){
+export function validateClinicalAssessment(value,ownerStatements=[]){
+ let protocolVersion=value?.protocolVersion;
  if(!v2(value))return legacy.validateClinicalAssessment(value);
- if(!keys(value,Object.keys(CLINICAL_ASSESSMENT_SCHEMA.properties)))reject("assessment_shape");
+ if(Object.hasOwn(value,"eventAssessments")){
+  if(!keys(value,Object.keys(CLINICAL_ASSESSMENT_SCHEMA.properties))||!Array.isArray(value.eventAssessments)||value.eventAssessments.length>10)reject("assessment_shape");
+  protocolVersion=3;
+  const seen=new Set();
+  for(const observation of value.eventAssessments){
+   if(!keys(observation,["event","occurrence","ownerStatementRef","ownerQuote"])||!Object.hasOwn(EMERGENCY_EVENTS,observation.event)||!["current","conditional","historical","negated"].includes(observation.occurrence)||seen.has(observation.event))reject("clinical_events");
+   seen.add(observation.event);
+   const statement=ownerStatements.find(t=>t.ref===observation.ownerStatementRef);
+   if(observation.ownerStatementRef!==null&&!statement)reject("owner_statement_reference");
+   if(observation.ownerQuote!==null&&(typeof observation.ownerQuote!=="string"||!observation.ownerQuote.trim()||observation.ownerQuote.length>400||!statement?.text?.includes(observation.ownerQuote)))reject("event_evidence");
+   if(observation.occurrence==="current"&&(!statement||!observation.ownerQuote))reject("event_evidence");
+  }
+  const currentEvents=value.eventAssessments.filter(o=>o.occurrence==="current").map(o=>o.event);
+  const conditionalEvents=value.eventAssessments.filter(o=>o.occurrence==="conditional").map(o=>o.event);
+  // Do not infer an acute current event from a global scenario/urgency pair.
+  // Each event has one occurrence meaning and current claims require owner text.
+  const currentConcern=value.careContext==="current_concern";
+  value={medicationIntent:value.medicationIntent,referent:value.referent,missingContext:value.missingContext,careContext:value.careContext,currentEvents,conditionalEvents,
+   scenario:currentEvents.length||currentConcern?"current":conditionalEvents.length?"hypothetical":value.careContext==="clinical_history"?"historical":"none",
+   urgency:currentEvents.length?"immediate":currentConcern?"prompt":conditionalEvents.length?"immediate":"routine"};
+ }
+ if(!keys(value,Object.hasOwn(value,"protocolVersion")?[...normalizedFields,"protocolVersion"]:normalizedFields)||protocolVersion!=null&&protocolVersion!==3)reject("assessment_shape");
  const base=Object.fromEntries(Object.keys(legacy.CLINICAL_ASSESSMENT_SCHEMA.properties).map(k=>[k,value[k]]));
  legacy.validateClinicalAssessment(base);
  if(!contexts.includes(value.careContext))reject("assessment_enum");
  for(const key of ["currentEvents","conditionalEvents"])if(!Array.isArray(value[key])||value[key].length>12||value[key].some(k=>!Object.hasOwn(EMERGENCY_EVENTS,k)))reject("clinical_events");
- return {...value,missingContext:[...new Set(value.missingContext)],currentEvents:[...new Set(value.currentEvents)],conditionalEvents:[...new Set(value.conditionalEvents)]};
+ return {...value,...(protocolVersion===3?{protocolVersion:3}:{}),missingContext:[...new Set(value.missingContext)],currentEvents:[...new Set(value.currentEvents)],conditionalEvents:[...new Set(value.conditionalEvents)]};
 }
-export function clinicalSelectionSchema(tools){
+export function clinicalSelectionSchema(tools,ownerStatements=[]){
  const schema=legacy.clinicalSelectionSchema(tools);
- schema.properties.safety=structuredClone(CLINICAL_ASSESSMENT_SCHEMA);
+ schema.properties.safety=assessmentSchema(ownerStatements);
  schema.properties.historyIntent=object({requested:{type:"boolean"},timeBasis:choice(["event","recorded","ambiguous"]),pet:{type:["string","null"],enum:[...tools[0].parameters.properties.pet.enum,null]}});
  schema.properties.workflowIntent=choice([...WORKFLOW_INTENTS]);
  schema.required.push("historyIntent","workflowIntent");return schema;
 }
-export function decodeClinicalSelection(value,tools){
- if(!keys(value,["safety","reads","draft","historyIntent","workflowIntent"])||!v2(value.safety))reject("selection_shape");
- const safety=validateClinicalAssessment(value.safety);
+export function decodeClinicalSelection(value,tools,context={}){
+ if(!keys(value,["safety","reads","draft","historyIntent","workflowIntent"])||!Object.hasOwn(value.safety??{},"eventAssessments"))reject("selection_shape");
+ const ownerStatements=(context.ownerStatementRefs??[]).map(t=>({ref:t.ref,text:t.question?context.question:context.dialogue?.[t.dialogueIndex]?.text}));
+ const safety=validateClinicalAssessment(value.safety,ownerStatements);
  if(!keys(value.historyIntent,["requested","timeBasis","pet"])||typeof value.historyIntent.requested!=="boolean"||!["event","recorded","ambiguous"].includes(value.historyIntent.timeBasis))reject("history_intent");
  if(value.historyIntent.pet!==null&&!tools[0].parameters.properties.pet.enum.includes(value.historyIntent.pet))reject("history_pet");
  if(!WORKFLOW_INTENTS.includes(value.workflowIntent))reject("workflow_intent");
@@ -89,7 +125,7 @@ export function clinicalAnswerSchema(schema,initial,ownerStatements=[],pets=[]){
  const out=structuredClone(schema);
  const refs=ownerStatements.map(t=>t.ref);
  out.properties.clinicalReview=object({
-  assessment:structuredClone(CLINICAL_ASSESSMENT_SCHEMA),
+  assessment:assessmentSchema(ownerStatements),
   ownerStatementRefs:{type:"array",maxItems:4,items:{type:"string",...(refs.length?{enum:refs}:{})},...(!refs.length?{maxItems:0}:{})},
   observationFields:list(Object.keys(observations),8)
  });
@@ -102,14 +138,13 @@ export function reviewClinicalAnswer(value,initial,ownerStatements=[],pets=[],wo
  if(!keys(value?.appHelp,["intent","pet"])||!WORKFLOW_INTENTS.includes(value.appHelp.intent)||(value.appHelp.pet!==null&&!pets.some(p=>p.handle===value.appHelp.pet)))reject("app_help");
  const workflow={...value.appHelp,intent:value.appHelp.intent==="none"?workflowIntent:value.appHelp.intent};
  if(!keys(review,["assessment","ownerStatementRefs","observationFields"])||!v2(review.assessment))reject("review_shape");
- const final=validateClinicalAssessment(review.assessment);
+ if(initial.protocolVersion===3&&!Object.hasOwn(review.assessment,"eventAssessments"))reject("review_shape");
+ const final=validateClinicalAssessment(review.assessment,ownerStatements);
  if(!Array.isArray(review.ownerStatementRefs)||review.ownerStatementRefs.length>4||review.ownerStatementRefs.some(ref=>!ownerStatements.some(t=>t.ref===ref)))reject("owner_statement_reference");
  if(!Array.isArray(review.observationFields)||review.observationFields.length>8||review.observationFields.some(k=>!Object.hasOwn(observations,k)))reject("observation_field");
  const states=[initial,final],decision=states.some(s=>s.medicationIntent==="decision");
  const current=[...new Set(states.flatMap(s=>s.currentEvents))],conditional=[...new Set(states.flatMap(s=>s.conditionalEvents))];
  // Keep earlier recognized obligations; a later classification cannot downgrade them.
- if(states.some(s=>s.scenario==="current"&&s.urgency==="immediate")&&!current.length)current.push("other_urgent_signs");
- if(states.some(s=>s.scenario==="hypothetical"&&s.urgency==="immediate")&&!conditional.length)conditional.push("other_urgent_signs");
  const currentConcern=states.some(s=>s.careContext==="current_concern"||["current","uncertain"].includes(s.scenario)&&s.urgency==="prompt");
  const summaryContext=states.some(s=>s.careContext==="vet_summary"),historical=states.some(s=>s.careContext==="clinical_history");
  const active=decision||current.length>0||conditional.length>0||currentConcern||summaryContext||historical;
@@ -117,7 +152,7 @@ export function reviewClinicalAnswer(value,initial,ownerStatements=[],pets=[],wo
  const missing=[...new Set(states.flatMap(s=>s.missingContext))];
  const clean={...value};delete clean.clinicalReview;delete clean.appHelp;
  const policy={version:2,active,decision,current,conditional,currentConcern,summaryContext,historical,missing,ownerRefs:[...new Set(review.ownerStatementRefs)],observations:[...new Set(review.observationFields)]};
- return {value:clean,policy,workflow,summary:{policyVersion:2,medicationIntent:decision?"decision":final.medicationIntent,medicationDisposition:decision?"refer_prescriber":"not_applicable",currentEmergency:current.length>0,conditionalEmergency:conditional.length>0,currentEventCount:current.length,conditionalEventCount:conditional.length,careContext:final.careContext,missingContextCount:missing.length,ownerStatementCount:policy.ownerRefs.length,contactTiming:current.length?"immediate":decision||currentConcern?"prompt":"none"}};
+ return {value:clean,policy,workflow,summary:{policyVersion:2,assessmentVersion:initial.protocolVersion??2,medicationIntent:decision?"decision":final.medicationIntent,medicationDisposition:decision?"refer_prescriber":"not_applicable",currentEmergency:current.length>0,conditionalEmergency:conditional.length>0,currentEventCount:current.length,conditionalEventCount:conditional.length,careContext:final.careContext,missingContextCount:missing.length,ownerStatementCount:policy.ownerRefs.length,contactTiming:current.length?"immediate":decision||currentConcern?"prompt":"none"}};
 }
 export function renderMedicationDecision(answer,policy,ownerStatements=[],sources=[]){
  if(policy?.version!==2)return legacy.renderMedicationDecision(answer,policy);
