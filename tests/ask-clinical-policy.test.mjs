@@ -275,3 +275,19 @@ test("component vet brief publishes exact historical execution wording as a quot
   assert.deepEqual(response.applicationActions,[]);assert.ok(response.citationProof);assert.equal(response.readOnlyTaskCompletion[0].status,"complete");
  }finally{if(prior===undefined)delete process.env.FURVISE_RATE_LIMIT_HASH_SECRET;else process.env.FURVISE_RATE_LIMIT_HASH_SECRET=prior;}
 });
+
+test("publication omissions cannot leave a requested quote component marked complete",async()=>{
+ const prior=process.env.FURVISE_RATE_LIMIT_HASH_SECRET;process.env.FURVISE_RATE_LIMIT_HASH_SECRET="local-only-component-publication-fixture";
+ try{
+  let count=0;const task={id:"t1",kind:"saved_content",needsHistory:true,needsOwnerFacts:false,includeSourceDates:false,workflow:"none",pets:["p1"],reference:null,missing:[]};
+  const rows=Array.from({length:4},(_,i)=>({kind:"history",id:"oversized-private-component-"+i,ownerId:"owned",petId:pets[0].id,body:"猫".repeat(5000)+".",eventAt:"2021-03-01T12:00:00Z",recordedAt:"2021-03-02T12:00:00Z"}));const handles=rows.map((_,i)=>"s"+(i+1));
+  const result=await runReadOnlyAsk(input,{provider:async req=>{
+   if(++count===1)return {...decodeClinicalSelection(wire(assessment(),{reads:[{name:"search_saved_records",arguments:{pet:"p1",from:"2021-03-01",to:"2021-03-31",query:null,offset:0}}]}),req.tools,req.context),taskPlan:[task]};
+   return final(assessment(),"The original notes follow.",{components:[{kind:"saved",text:"The original notes follow.",sources:handles}],sources:handles,quotes:handles,completion:[{task:"t1",status:"complete",reason:"none",componentIndexes:[0],sources:handles,ownerFacts:[],historyFacts:[]}]});
+  },read:async()=>({sources:rows,total:4,scopeExhausted:true})});
+  assert.equal(result.answer.taskCompletion[0].status,"complete");
+  const {response,limited}=buildReadOnlyPublication(result,"owned","Willow");
+  assert.equal(limited,true);assert.equal(response.readOnlyTaskCompletion[0].status,"partial");assert.equal(response.readOnlyTaskCompletion[0].reason,"publication_limit");
+  const kept=response.sections.find(s=>s.heading==="Saved notes")?.items??[];assert.ok(kept.length<4);assert.ok(kept.every(text=>text===rows[0].body));
+ }finally{if(prior===undefined)delete process.env.FURVISE_RATE_LIMIT_HASH_SECRET;else process.env.FURVISE_RATE_LIMIT_HASH_SECRET=prior;}
+});

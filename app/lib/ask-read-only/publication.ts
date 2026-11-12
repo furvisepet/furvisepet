@@ -41,7 +41,8 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
   ?boundary+(checked==="I can help with that."?"":" "+checked):checked;
  // These values are server-verified result fields, not model prose claiming a write.
  const verifiedDetails=[...(body.presentation?.sourceDates??[]).map(source=>(source.pet?source.pet+": ":"")+(source.kind==="profile"?"Profile updated: ":"Event date: ")+source.eventAt+(source.kind==="profile"?"; profile created: ":"; recorded date: ")+source.recordedAt+"."),...body.calculations.map(calculation=>calculation.text)];
- const taskCompletion=(body as typeof body & {taskCompletion?:unknown[]}).taskCompletion;
+ const taskCompletion=(body as typeof body & {taskCompletion?:Array<Record<string,unknown>>}).taskCompletion;
+ let publishedTasks=stateRejected?taskCompletion?.map(task=>task.status==="complete"?{...task,status:"partial",reason:"publication_changed"}:task):taskCompletion;
  const summary=[checkedSummary,...verifiedDetails].join("\n");
  const contextUsed={petName,usedSources:reviewed.sources.length?["Verified saved sources"]:[]};
  const response=buildAskConversationResponse({title:"Furvise",summary,sections:[],safetyNote:null},
@@ -61,7 +62,7 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
  const sign=()=>{
   const citationProof=issueReadOnlyCitationProof(result,response,ownerId);
   if(reviewed.sources.length&&!citationProof)throw new Error("ASK_READ_CITATION_PROOF_REQUIRED");
-  Object.assign(response,{citationProof,readOnlyEvidence:true,readOnlyReferences:(result as {readReferences?:unknown}).readReferences,readOnlyTaskCompletion:taskCompletion});
+  Object.assign(response,{citationProof,readOnlyEvidence:true,readOnlyReferences:(result as {readReferences?:unknown}).readReferences,readOnlyTaskCompletion:publishedTasks});
  };
  sign();
  if(publicationBytes(response)>MAX_READ_ONLY_PUBLICATION_BYTES){
@@ -73,6 +74,7 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
    :"This answer exceeds the reply size limit. Please ask for a shorter answer or one part at a time.";
   // A size fallback may omit whole evidence, never the bounded clinical actions.
   const preserveClinical=(body as typeof body & {clinicalDisplayBounded?:boolean}).clinicalDisplayBounded===true;
+  publishedTasks=publishedTasks?.map(task=>task.status==="complete"&&task.kind!=="calculation"&&!(preserveClinical&&task.kind==="vet_brief")?{...task,status:"partial",reason:"publication_limit"}:task);
   const summary=preserveClinical?checkedSummary+"\n\n"+sizeNotice:stateRejected?boundary+" "+sizeNotice:sizeNotice;
   response.summary=summary;response.directAnswer=summary;
   response.answerType="direct_answer";
