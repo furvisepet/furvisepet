@@ -156,3 +156,19 @@ test("two final selection messages retain first validated plan without another c
  assert.equal(calls,1);assert.equal(out.text,payload.draft);assert.equal(out.calls.length,0);
  assert.equal(JSON.parse(events.find(e=>e.outcome==="succeeded").validationDetails).outputLayout.ignoredEligibleMessages,1);
 });
+
+test("inactive no-contact index cannot reinterpret a historical saved component as a handoff",()=>{
+ const state=assessment({scenario:"historical"}),a=answer(state);
+ a.components=[{kind:"saved",text:"A verified historical report.",sources:["s1"]}];
+ a.clinicalReview.handoffIndex=0;
+ const out=reviewClinicalAnswer(a,state);
+ assert.equal(out.summary.contactTiming,"none");assert.equal(out.value.components[0].kind,"saved");
+});
+test("no-contact metadata cannot disable a required medication or emergency handoff",()=>{
+ const a=decisionAnswer();
+ Object.assign(a.clinicalReview,{contactTiming:"none",contactRecipient:"none",handoffIndex:0});
+ assert.throws(()=>reviewClinicalAnswer(a,decision),/CLINICAL_CONTRACT/);
+ const emergency=assessment({scenario:"current",urgency:"immediate"}),b=answer(emergency);
+ b.clinicalReview.handoffIndex=0;
+ assert.throws(()=>reviewClinicalAnswer(b,emergency),/CLINICAL_CONTRACT/);
+});

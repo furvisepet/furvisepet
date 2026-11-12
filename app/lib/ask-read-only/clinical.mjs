@@ -113,13 +113,17 @@ export function reviewClinicalAnswer(value,initial){
  if((decision||unknown)&&missing.some(k=>!review.questionsForMissingContext.includes(k)))reject("missing_questions");
  const promptContact=[initial,final].some(s=>["current","uncertain"].includes(s?.scenario)&&s.urgency==="prompt");
  const requiresHandoff=decision||emergency||conditional||promptContact;
+ // A no-contact contract has no executable/display handoff. Generated integer
+ // defaults must not turn an unrelated saved component into one. Required care
+ // obligations never take this path; their timing/recipient checks still apply.
+ const handoffIndex=!requiresHandoff&&review.contactTiming==="none"&&review.contactRecipient==="none"?-1:review.handoffIndex;
  const rejectHandoff=field=>reject(field,{
   contactTiming:schema.contactTiming.enum.includes(review.contactTiming)?review.contactTiming:"invalid",
   contactRecipient:schema.contactRecipient.enum.includes(review.contactRecipient)?review.contactRecipient:"invalid",
   handoffKind:["general","saved","limitation","emergency","conditional_emergency"].includes(value.components?.[review.handoffIndex]?.kind)?value.components[review.handoffIndex].kind:"invalid"
  });
- if(requiresHandoff||review.handoffIndex>=0){
-  const component=value.components?.[review.handoffIndex];
+ if(requiresHandoff||handoffIndex>=0){
+  const component=value.components?.[handoffIndex];
   if(!component||!["general","limitation","emergency","conditional_emergency"].includes(component.kind)||component.sources?.length)rejectHandoff("handoff_component");
   if(emergency&&(review.contactTiming!=="immediate"||!["emergency_veterinarian","veterinarian_or_poison_service"].includes(review.contactRecipient)||component.kind!=="emergency"))rejectHandoff("emergency_downgrade");
   if(!emergency&&conditional&&!decision&&(review.contactTiming!=="immediate"||component.kind!=="conditional_emergency"))rejectHandoff("conditional_handoff");
@@ -128,7 +132,7 @@ export function reviewClinicalAnswer(value,initial){
  }else if(review.contactTiming!=="none"||review.contactRecipient!=="none")reject("unbound_handoff");
  if(!emergency&&value.components?.some(c=>c.kind==="emergency"))reject("unestablished_current_emergency");
  const clean={...value};delete clean.clinicalReview;
- if(review.handoffIndex>0)clean.components=[value.components[review.handoffIndex],...value.components.filter((_,i)=>i!==review.handoffIndex)];
+ if(handoffIndex>0)clean.components=[value.components[handoffIndex],...value.components.filter((_,i)=>i!==handoffIndex)];
  return {value:clean,summary:{medicationIntent:decision?"decision":final.medicationIntent,medicationDisposition:review.medicationDisposition,currentEmergency:emergency,conditionalEmergency:conditional,requiredInformation:missing,missingContextCount:missing.length,questionsCount:review.questionsForMissingContext.length,contactTiming:review.contactTiming}};
 }
 
