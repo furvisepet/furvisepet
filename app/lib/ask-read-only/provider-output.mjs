@@ -6,14 +6,14 @@ function fail(code,field){
 const messageText=item=>(item.content??[]).filter(c=>c.type==="output_text"&&typeof c.text==="string").map(c=>c.text).join("");
 const eligible=item=>item.phase==null||item.phase==="final_answer";
 /** output_text is an SDK aggregate, including commentary. It is not a JSON document.
- * Choose one final-answer message, or one legacy unphased message. Never combine
+ * Choose the first eligible message in provider order (the SDK parsed-output
+ * convention). Multiple final messages are valid envelopes. Each selected
+ * document still requires full downstream validation. Never combine
  * independent messages or salvage a JSON substring from surrounding prose.
  */
 export function readProviderText(response,allowEmpty=false){
  const messages=response.output.filter(item=>item.type==="message");
- const finals=messages.filter(item=>item.phase==="final_answer");
- const candidates=finals.length?finals:messages.filter(eligible);
- if(candidates.length>1)fail("ASK_READ_OUTPUT_AMBIGUOUS","message_count");
+ const candidates=messages.filter(eligible);
  const selected=candidates[0];
  if(selected?.status&&selected.status!=="completed")fail("ASK_READ_OUTPUT_INCOMPLETE","message_status");
  if(selected?.role&&selected.role!=="assistant")fail("ASK_READ_OUTPUT_AMBIGUOUS","role");
@@ -37,7 +37,8 @@ export function describeReadOutput(response){
   otherPhaseMessages:count(messages.filter(item=>!eligible(item)&&item.phase!=="commentary")),
   parseableEligibleMessages:count(messages.filter(item=>eligible(item)&&validJson(messageText(item)))),
   aggregateJsonValid:typeof response.output_text==="string"&&validJson(response.output_text),
-  selectedPhase:finals.length===1?"final_answer":finals.length>1||unphased.length>1?"ambiguous":unphased.length===1?"unphased":"none"
+  selectedPhase:messages.find(eligible)?.phase==="final_answer"?"final_answer":messages.some(eligible)?"unphased":"none",
+  selectionPolicy:"first_eligible",ignoredEligibleMessages:Math.max(0,count(messages.filter(eligible))-1)
  };
 }
 export function safeReadOutputDiagnostic(error){

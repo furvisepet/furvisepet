@@ -146,3 +146,13 @@ test("actual adapter emits phase diagnostics for commentary plus final structure
  assert.equal(details.outputLayout.commentaryMessages,1);
  assert.equal(details.outputLayout.aggregateJsonValid,false);
 });
+
+test("two final selection messages retain first validated plan without another call",async()=>{
+ const events=[],payload={safety:assessment(),reads:[],draft:"Canonical first selection."};
+ let calls=0;
+ const client={responses:{create:async()=>{calls++;return {status:"completed",output:[payload,{...payload,draft:"Later distinct document."}].map(value=>({type:"message",phase:"final_answer",content:[{type:"output_text",text:JSON.stringify(value)}]}))};}}};
+ const tools=[{name:"read_pet_profile",parameters:{type:"object",properties:{},required:[],additionalProperties:false}}];
+ const out=await readOnlyProvider("offline",e=>events.push(e),client)({context:{},tools,selectionSchema:clinicalSelectionSchema(tools)},"read_selection");
+ assert.equal(calls,1);assert.equal(out.text,payload.draft);assert.equal(out.calls.length,0);
+ assert.equal(JSON.parse(events.find(e=>e.outcome==="succeeded").validationDetails).outputLayout.ignoredEligibleMessages,1);
+});

@@ -69,7 +69,7 @@ test("phase-aware JSON ignores commentary even when SDK aggregate includes it",(
  const output=[{type:"reasoning"},{type:"message",phase:"commentary",content:[{type:"output_text",text:"I will inspect the saved records."}]},{type:"message",phase:"final_answer",status:"completed",role:"assistant",content:[{type:"output_text",text:'{"reads":[]}'}]}];
  const response={output,output_text:'I will inspect the saved records.{"reads":[]}'};
  assert.deepEqual(decodeProviderJson(response),{reads:[]});
- assert.deepEqual(describeReadOutput(response),{messages:2,finalMessages:1,unphasedMessages:0,commentaryMessages:1,otherPhaseMessages:0,parseableEligibleMessages:1,aggregateJsonValid:false,selectedPhase:"final_answer"});
+ assert.deepEqual(describeReadOutput(response),{messages:2,finalMessages:1,unphasedMessages:0,commentaryMessages:1,otherPhaseMessages:0,parseableEligibleMessages:1,aggregateJsonValid:false,selectedPhase:"final_answer",selectionPolicy:"first_eligible",ignoredEligibleMessages:0});
 });
 test("a valid JSON commentary message never supplies final authority",()=>{
  assert.throws(()=>decodeProviderJson({output:[{type:"message",phase:"commentary",content:[{type:"output_text",text:'{"reads":[]}'}]}]}),/ASK_READ_OUTPUT_EMPTY/);
@@ -77,9 +77,17 @@ test("a valid JSON commentary message never supplies final authority",()=>{
 test("legacy unphased message and split content stay supported without aggregating messages",()=>{
  assert.deepEqual(decodeProviderJson({output_text:"wrong aggregate",output:[{type:"message",content:[{type:"output_text",text:'{"reads":'},{type:"output_text",text:"[]}"}]}]}),{reads:[]});
  for(const phase of [undefined,"final_answer"]){
- assert.throws(()=>decodeProviderJson({output:[1,2].map(()=>({type:"message",phase,content:[{type:"output_text",text:"{}"}]}))}),/ASK_READ_OUTPUT_AMBIGUOUS/);
+ assert.deepEqual(decodeProviderJson({output:[1,2].map(n=>({type:"message",phase,content:[{type:"output_text",text:JSON.stringify({order:n})}]}))}),{order:1});
  }
 });
 test("incomplete selected message cannot become a successful structured answer",()=>{
  assert.throws(()=>decodeProviderJson({output:[{type:"message",phase:"final_answer",status:"incomplete",content:[{type:"output_text",text:"{}"}]}]}),/ASK_READ_OUTPUT_INCOMPLETE/);
+});
+
+test("multiple final documents use first canonical authority without concatenation",()=>{
+ const output=[1,2].map(order=>({type:"message",phase:"final_answer",content:[{type:"output_text",text:JSON.stringify({order})}]}));
+ assert.deepEqual(decodeProviderJson({output,output_text:'{"order":1}{"order":2}'}),{order:1});
+ assert.equal(describeReadOutput({output}).ignoredEligibleMessages,1);
+ output[0].content[0].text="broken JSON";
+ assert.throws(()=>decodeProviderJson({output}),/ASK_READ_OUTPUT_JSON/);
 });
