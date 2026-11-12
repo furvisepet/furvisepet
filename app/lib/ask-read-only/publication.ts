@@ -25,8 +25,14 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
   ...(coverageMessages.length?[{heading:"Search coverage",items:coverageMessages}]:[]),
   ...(contextMessages.length?[{heading:"Conversation context",items:contextMessages}]:[])
  ];
- const checked=enforceVerifiedStateClaims(body.answer,false);
- const stateRejected=checked!==body.answer&&(containsUnverifiedStateClaim(body.answer)||containsNavigationExecutionClaim(body.answer));
+ const protectedBrief=(body as typeof body & {verifiedBriefText?:string}).verifiedBriefText;
+ const briefAt=protectedBrief?body.answer.indexOf(protectedBrief):-1;
+ // Exact verified fact quotations are source/owner data, never execution prose.
+ // Keep them whole while checking the surrounding conversational text.
+ const prose=briefAt>=0?[body.answer.slice(0,briefAt),body.answer.slice(briefAt+protectedBrief!.length)]:[body.answer];
+ const checkedParts=prose.map(text=>text.trim()?enforceVerifiedStateClaims(text,false):text);
+ const checked=briefAt>=0?checkedParts[0]+protectedBrief+checkedParts[1]:checkedParts[0];
+ const stateRejected=prose.some((text,index)=>checkedParts[index]!==text&&(containsUnverifiedStateClaim(text)||containsNavigationExecutionClaim(text)));
  let limited=body.limited||stateRejected;
  // A removed execution claim must leave a truthful capability explanation,
  // even when an unrelated joke or general answer survives the filter.
@@ -35,7 +41,9 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
   ?boundary+(checked==="I can help with that."?"":" "+checked):checked;
  // These values are server-verified result fields, not model prose claiming a write.
  const verifiedDetails=[...(body.presentation?.sourceDates??[]).map(source=>(source.pet?source.pet+": ":"")+(source.kind==="profile"?"Profile updated: ":"Event date: ")+source.eventAt+(source.kind==="profile"?"; profile created: ":"; recorded date: ")+source.recordedAt+"."),...body.calculations.map(calculation=>calculation.text)];
- const summary=[checkedSummary,...verifiedDetails].join("\n");
+ const taskCompletion=(body as typeof body & {taskCompletion?:unknown[]}).taskCompletion;
+ const visibleDetails=taskCompletion?verifiedDetails.filter((_,index)=>index>=(body.presentation?.sourceDates?.length??0)||(body.presentation?.sourceDates?.length??0)<=4):verifiedDetails;
+ const summary=[checkedSummary,...visibleDetails].join("\n");
  const contextUsed={petName,usedSources:reviewed.sources.length?["Verified saved sources"]:[]};
  const response=buildAskConversationResponse({title:"Furvise",summary,sections:[],safetyNote:null},
   {intent:"general_pet_question",urgent:body.clinicalUrgency==="urgent",usedContextSummary:contextUsed.usedSources});
@@ -44,7 +52,7 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
  response.sections=[
   ...((body as typeof body & {ownerReports?:string[]}).ownerReports?.length?[{heading:"Owner reports — not saved-record evidence",items:(body as typeof body & {ownerReports:string[]}).ownerReports}]:[]),
   ...(body.quotes.length?[{heading:"Saved notes",items:body.quotes.map(quote=>quote.quote)}]:[]),
-  ...(body.calculations.length?[{heading:"Calculation",items:body.calculations.map(calculation=>calculation.text)}]:[]),
+  ...(!taskCompletion&&body.calculations.length?[{heading:"Calculation",items:body.calculations.map(calculation=>calculation.text)}]:[]),
   ...coverageSections
  ];
  response.actions=["copy"];
@@ -54,7 +62,7 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
  const sign=()=>{
   const citationProof=issueReadOnlyCitationProof(result,response,ownerId);
   if(reviewed.sources.length&&!citationProof)throw new Error("ASK_READ_CITATION_PROOF_REQUIRED");
-  Object.assign(response,{citationProof,readOnlyEvidence:true,readOnlyReferences:(result as {readReferences?:unknown}).readReferences});
+  Object.assign(response,{citationProof,readOnlyEvidence:true,readOnlyReferences:(result as {readReferences?:unknown}).readReferences,readOnlyTaskCompletion:taskCompletion});
  };
  sign();
  if(publicationBytes(response)>MAX_READ_ONLY_PUBLICATION_BYTES){
