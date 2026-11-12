@@ -104,8 +104,14 @@ test("one comparison task can bind multiple owned pets without losing typed arit
 
 test("source dates follow the requested task instead of unsolicited footer selection or a fixed four-date cutoff",()=>{
  const sources=Array.from({length:5},(_,i)=>({...source,handle:"s"+(i+1),petName:"Willow"}));
- const t={...task({kind:"saved_content",needsHistory:true}),status:"complete",reason:"none",sources:sources.map(s=>s.handle),historyFacts:[],ownerFacts:[]};
+ const t={...task({kind:"saved_content",needsHistory:true}),status:"complete",reason:"none",componentIndexes:[],sources:sources.map(s=>s.handle),historyFacts:[],ownerFacts:[]};
  const base={answer:"The available facts.",quotes:[],calculations:[],presentation:{sourceDates:[{eventAt:"unsolicited"}]}};
  assert.equal(renderTaskCompletion(base,[t],sources,null).presentation.sourceDates.length,0);
  assert.equal(renderTaskCompletion(base,[{...t,includeSourceDates:true}],sources,null).presentation.sourceDates.length,5);
+});
+
+test("a missing record task cannot publish unsupported record prose or erase an independent general answer",async()=>{
+ const s=safety();const plan=[task({kind:"saved_content",needsHistory:true,pets:["p1"]}),task({id:"t2"})];
+ const r=await execute(plan,s,final(s,{components:[{kind:"general",text:"The missing saved note recorded a new diagnosis.",sources:[]},{kind:"general",text:"Rainbows separate sunlight into colours.",sources:[]}],completion:[completion(),completion({task:"t2",componentIndexes:[1]})]}));
+ assert.equal(r.reads.length,0);assert.doesNotMatch(r.result.answer.answer,/recorded a new diagnosis/);assert.match(r.result.answer.answer,/Rainbows separate/);assert.match(r.result.answer.answer,/Saved history:.*no verified source/);assert.equal(r.result.answer.taskCompletion[0].status,"unresolved");assert.equal(r.result.answer.taskCompletion[1].status,"complete");
 });

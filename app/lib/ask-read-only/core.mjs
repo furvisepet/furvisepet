@@ -175,7 +175,7 @@ function validateReadOnlyAnswerValue(value,sources,question="") {
   presentation={sourceDates:[...new Set(p.sourceDates)],contextRequired:p.contextRequired};
   value={...value};delete value.presentation;
  }
- let componentLimited=false,componentValidated=false,clinicalUrgency="routine";
+ let componentLimited=false,componentValidated=false,clinicalUrgency="routine",validatedParts=null;
  if(plain(value)&&Object.hasOwn(value,"components")) {
   if(!keys(value,["components","quotes","sources","calculations","replyType"])||!Array.isArray(value.components)||!value.components.length||value.components.length>8||!Array.isArray(value.sources)||value.sources.length>32||!["answer","clarification","refusal","partial"].includes(value.replyType))rejectAnswer("components");
   const components=value.components.map(component=>{
@@ -189,7 +189,8 @@ function validateReadOnlyAnswerValue(value,sources,question="") {
   // Validated care-escalation components lead the answer without matching a
   // symptom keyword or mistaking a historical/hypothetical sign for a current event.
   const priority=kind=>kind==="emergency"?2:kind==="conditional_emergency"?1:0;
-  const ordered=value.components.map((component,index)=>({kind:component.kind,text:components[index]})).sort((a,b)=>priority(b.kind)-priority(a.kind));
+  const ordered=value.components.map((component,index)=>({index,kind:component.kind,text:components[index]})).sort((a,b)=>priority(b.kind)-priority(a.kind));
+  validatedParts=ordered;
   if(value.components.some(component=>component.kind==="emergency"))clinicalUrgency="urgent";
   const handles=value.components.flatMap(component=>component.sources);
   value={answer:ordered.map(component=>component.text).join("\n\n"),quotes:value.quotes,sources:[...new Set([...value.sources,...handles])],calculations:value.calculations,replyType:componentLimited&&value.replyType==="answer"?"partial":value.replyType};
@@ -214,13 +215,15 @@ function validateReadOnlyAnswerValue(value,sources,question="") {
  // selected history tokens even when a model omits citation brackets. Never
  // strip unknown tokens, authorize a source from prose, or translate operands.
  let citationReferencesTranslated=0;
- value.answer=value.answer.replace(/\b(?:p\d+|s\d+)(?::m\d+)?\b/g,token=>{
+ const translate=(text,count=true)=>text.replace(/\b(?:p\d+|s\d+)(?::m\d+)?\b/g,token=>{
   const source=sources.find(row=>row.handle===token&&row.kind==="history"&&selected.includes(row.handle));
   if(!source)rejectIdentifier(token.startsWith("p")?"opaque_pet_handle":"opaque_source_handle");
-  citationReferencesTranslated++;
+  if(count)citationReferencesTranslated++;
   return "saved note with event time "+source.eventAt;
  });
- return {...value,clinicalUrgency,presentation:{contextRequired:presentation.contextRequired,sourceDates:presentation.sourceDates.map(handle=>{const source=sources.find(row=>row.handle===handle);return {kind:source.kind,eventAt:source.eventAt,recordedAt:source.recordedAt,pet:source.petName??null};})},citationReferencesTranslated,componentValidated,limited:componentLimited||value.replyType!=="answer"||calculations.some(calculation=>calculation.available===false),quotes,sources:selected,calculations};
+ value.answer=translate(value.answer);
+ if(validatedParts)validatedParts=validatedParts.map(part=>({...part,text:translate(part.text,false)}));
+ return {...value,validatedParts,clinicalUrgency,presentation:{contextRequired:presentation.contextRequired,sourceDates:presentation.sourceDates.map(handle=>{const source=sources.find(row=>row.handle===handle);return {kind:source.kind,eventAt:source.eventAt,recordedAt:source.recordedAt,pet:source.petName??null};})},citationReferencesTranslated,componentValidated,limited:componentLimited||value.replyType!=="answer"||calculations.some(calculation=>calculation.available===false),quotes,sources:selected,calculations};
 }
 const reviewedResults = new WeakSet();
 export function isReadOnlyResult(value) { return !!value && reviewedResults.has(value); }
@@ -349,15 +352,15 @@ export async function runReadOnlyAsk(input,deps) {
   if(reviewed.summary) {
    answer.hasTaskBrief=taskPlan?.some(t=>t.kind==="vet_brief")===true;
    answer=renderMedicationDecision(answer,reviewed.policy??reviewed.summary,ownerStatements,sources);
-   const appendWorkflow=!!reviewed.policy?.active||bound.length>0;
-   answer=renderAppWorkflow(answer,reviewed.workflow,pets,appendWorkflow);
-   if(reviewed.workflow?.intent!=="none")deps.onAnswerBoundary?.({outcome:"workflow_selected",firstIntent:first.workflowIntent??"none",finalIntent:reviewed.workflow?.intent??"none",appended:appendWorkflow,readCount:bound.length});
    answer.clinicalDecision=reviewed.summary;
    if(reviewed.summary.currentEmergency)answer.clinicalUrgency="urgent";
    if(selectedCalls.length<first.calls.length){answer.limited=true;if(answer.replyType==="answer")answer.replyType="partial";}
    deps.onAnswerBoundary?.({outcome:"clinical_reviewed",...reviewed.summary});
   }
   answer=renderTaskCompletion(answer,completed.tasks,sources,reviewed.policy,results);
+  const appendWorkflow=!!reviewed.policy?.active||bound.length>0||!!taskPlan?.some(t=>t.kind!=="workflow");
+  answer=renderAppWorkflow(answer,reviewed.workflow,pets,appendWorkflow);
+  if(reviewed.workflow?.intent!=="none"&&reviewed.workflow)deps.onAnswerBoundary?.({outcome:"workflow_selected",firstIntent:first.workflowIntent??"none",finalIntent:reviewed.workflow.intent,appended:appendWorkflow,readCount:bound.length});
   if(completed.tasks)deps.onAnswerBoundary?.({outcome:"components_completed",tasks:answer.taskCompletion});
  }
  catch(error) {

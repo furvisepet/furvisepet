@@ -104,6 +104,7 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
  if(!tasks)return answer;
  const firstBrief=tasks.find(t=>t.kind==="vet_brief")?.id;
  tasks=tasks.map(t=>{
+  if(t.kind==="workflow"&&t.workflow==="other")return {...t,status:"unresolved",reason:"not_supported"};
   if(t.kind==="vet_brief"&&t.id!==firstBrief)return {...t,status:"partial",reason:"not_answered"};
   if(policy?.active&&t.status==="complete"&&(t.kind==="general_guidance"||t.kind==="clarification"&&!t.missing.length||["saved_content","saved_continuation"].includes(t.kind)&&!t.historyFacts.length&&!answer.quotes?.some(q=>t.sources.includes(q.source))||t.kind==="owner_observations"&&!t.ownerFacts.length))return {...t,status:"partial",reason:"not_answered"};
   if(t.kind==="calculation"&&(!answer.calculations?.length||answer.calculations.some(c=>c.available===false)))return {...t,status:"unresolved",reason:"not_answered"};
@@ -111,9 +112,12 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
   if(t.needsHistory&&relevant.some(r=>r.scope.goal==="complete_set"&&(r.omitted>0||r.hasMore||r.hasPrevious||r.truncated)))return {...t,status:"partial",reason:"source_omitted"};
   return t;
  });
+ const blocked=new Set(tasks.filter(t=>t.status==="unresolved"||t.needsHistory&&!t.sources.length||t.needsOwnerFacts&&!t.ownerFacts.length).flatMap(t=>t.componentIndexes));
+ tasks=tasks.map(t=>t.status==="complete"&&t.componentIndexes.some(i=>blocked.has(i))?{...t,status:"partial",reason:"not_answered"}:t);
+ const assigned=new Set(tasks.flatMap(t=>t.componentIndexes));
  const brief=tasks.find(t=>t.kind==="vet_brief"),clarify=tasks.filter(t=>t.missing.length);
  const incomplete=tasks.filter(t=>t.status!=="complete");
- let text=answer.answer,verifiedBriefText=null;
+ let text=!policy?.active&&answer.validatedParts?answer.validatedParts.filter(p=>assigned.has(p.index)&&!blocked.has(p.index)).map(p=>p.text).join("\n\n"):answer.answer,verifiedBriefText=null;
  if(brief){
   const facts=[];
   if(brief.ownerFacts.length)facts.push("Owner-reported observations:\n"+brief.ownerFacts.map(f=>"• "+f.excerpt).join("\n"));
@@ -134,7 +138,7 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
   if(facts.length)text+="\n\nSaved historical facts (not a current diagnosis):\n"+[...new Set(facts)].join("\n");
  }
  const labels={saved_content:"Saved history",saved_continuation:"Remaining history",owner_observations:"Owner observations",calculation:"Calculation",vet_brief:"Vet brief",clarification:"Clarification",general_guidance:"General guidance",workflow:"App steps"};
- const reasonsText={source_unavailable:"The saved-record part remains unresolved: no verified source was supplied for it.",source_omitted:"This part is incomplete because some source bodies were omitted by the evidence limit.",not_supported:"This requested action is unavailable through read-only Ask.",not_answered:"This requested part has not been completed from the available information."};
+ const reasonsText={missing_context:"Essential context for this part is missing; please repeat the relevant details.",source_unavailable:"The saved-record part remains unresolved: no verified source was supplied for it.",source_omitted:"This part is incomplete because some source bodies were omitted by the evidence limit.",not_supported:"This requested action is unavailable through read-only Ask.",not_answered:"This requested part has not been completed from the available information."};
  for(const task of incomplete.filter(t=>!t.missing.length&&t!==brief))if(reasonsText[task.reason]&&!text.includes(reasonsText[task.reason]))text+="\n\n"+labels[task.kind]+": "+reasonsText[task.reason];
  const dateHandles=[...new Set(tasks.filter(t=>t.includeSourceDates).flatMap(t=>t.sources))].filter(h=>!brief?.historyFacts.some(f=>f.source===h));
  const sourceDates=dateHandles.map(h=>{const s=sources.find(s=>s.handle===h);return {kind:s.kind,eventAt:s.eventAt,recordedAt:s.recordedAt,pet:s.petName??null};});
