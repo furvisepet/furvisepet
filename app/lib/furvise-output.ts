@@ -425,7 +425,7 @@ export function getAskErrorPresentation(code: AskFailureCode, retryAfterSeconds?
     case "ACTION_FAILED": return state("That action didn't finish", "Your answer is still available. Review the action and try it again when you're ready.", true, "retry");
     case "TEMPORARY_DATABASE_FAILURE": return state("That didn't come through cleanly", "Your question is still here. Try it once more. If it keeps happening, send us a screenshot through Contact Us and we'll look into it.", true, "retry");
     case "TEMPORARY_PROVIDER_FAILURE": return state("I couldn't finish that reliably", buildFurviseUnavailableMessage(), true, "retry", retryAfter);
-    case "ANSWER_NOT_COMPLETED": return state("This answer couldn’t be completed", "Your question is saved. Review it before sending a new question.", false, "edit");
+    case "ANSWER_NOT_COMPLETED": return state("This answer couldn’t be completed", "Your question is saved, but no verified answer was published. No pet records were changed. Review your question before sending a new one.", false, "edit");
     case "ANSWER_RETRYABLE": return state("I couldn't finish that reliably", buildFurviseUnavailableMessage(), true, "retry", retryAfter);
   }
 }
