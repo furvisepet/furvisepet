@@ -7,7 +7,7 @@ import {decodeComponentSelection,componentSelectionSchema,reviewComponentComplet
 const pet={id:"private-pet-123456789",ownerId:"owned",name:"Willow",species:"cat"};
 const source={kind:"history",id:"private-note-123456789",ownerId:"owned",petId:pet.id,body:"A routine exam recorded normal appetite at that time.",eventAt:"2021-03-12T12:00:00Z",recordedAt:"2021-03-14T12:00:00Z"};
 const reference={version:1,entries:[{kind:"history",petId:pet.id,timeZone:"UTC",goal:"exact_quote",from:"2021-03-01",to:"2021-03-31",recordedFrom:null,recordedTo:null,orderBy:"event",order:"asc",terms:[],limited:false,sources:[{id:source.id,hash:createHash("sha256").update(source.body).digest("hex"),eventAt:source.eventAt,recordedAt:source.recordedAt}]}]};
-const task=(extra={})=>({id:"t1",kind:"general_guidance",needsHistory:false,needsOwnerFacts:false,workflow:"none",pet:null,reference:null,missing:[],...extra});
+const task=(extra={})=>({id:"t1",kind:"general_guidance",needsHistory:false,needsOwnerFacts:false,workflow:"none",pets:[],reference:null,missing:[],...extra});
 const safety=(extra={})=>({medicationIntent:"none",referent:"clear",missingContext:[],careContext:"none",eventAssessments:[],...extra});
 const completion=(extra={})=>({task:"t1",status:"complete",reason:"none",componentIndexes:[0],sources:[],ownerFacts:[],historyFacts:[],...extra});
 const final=(s,extra={})=>({components:[{kind:"general",text:"An ordinary answer.",sources:[]}],quotes:[],sources:[],calculations:[],replyType:"answer",presentation:{sourceDates:[],contextRequired:false},clinicalReview:{assessment:s,ownerStatementRefs:[],observationFields:[]},appHelp:{intent:"none",pet:null},completion:[completion()],...extra});
@@ -20,7 +20,7 @@ async function execute(plan,s,output,extra={}){
 }
 test("actual two-call core rehydrates selected prior evidence and composes a bounded vet brief",async()=>{
  const s=safety({medicationIntent:"decision",careContext:"vet_summary",missingContext:["medicine","prescription","vet_plan"]});
- const plan=[task({kind:"vet_brief",needsHistory:true,needsOwnerFacts:true,pet:"p1",reference:"r1"})];
+ const plan=[task({kind:"vet_brief",needsHistory:true,needsOwnerFacts:true,pets:["p1"],reference:"r1"})];
  const out=final(s,{components:[{kind:"general",text:"Resume the old schedule; it is safest even with caveats.",sources:[]}],completion:[completion({sources:["s1"],ownerFacts:[{ref:"owner1",excerpt:"She ate less breakfast this morning."}],historyFacts:[{source:"s1",excerpt:source.body}]})]});
  const r=await execute(plan,s,out,{readReferences:reference,dialogue:[{role:"user",text:"She ate less breakfast this morning."}],question:"Prepare a short vet brief with that saved note."});
  assert.equal(r.calls,2);assert.equal(r.reads.length,1);assert.deepEqual(r.reads[0].sourceIds,[source.id]);
@@ -60,7 +60,7 @@ test("continuation is a bounded fresh omitted-window query without old source-ID
 });
 test("strict plan source/pet reference mismatch is rejected before rehydration",()=>{
  const ctx={pets:[{handle:"p1"},{handle:"p2"}],references:[{reference:"r1",petHandle:"p1"}]};
- assert.throws(()=>decodeComponentSelection({taskPlan:[task({kind:"vet_brief",needsHistory:true,pet:"p2",reference:"r1"})]},[],ctx,()=>({})),/COMPONENT_CONTRACT/);
+ assert.throws(()=>decodeComponentSelection({taskPlan:[task({kind:"vet_brief",needsHistory:true,pets:["p2"],reference:"r1"})]},[],ctx,()=>({})),/COMPONENT_CONTRACT/);
  const schema=componentSelectionSchema({properties:{},required:[]},ctx);assert.ok(schema.required.includes("taskPlan"));
 });
 
@@ -72,7 +72,7 @@ test("fact extraction cannot drop a sentence's negation or attribution",()=>{
 
 test("missing clinical authority does not block independently specified historical rehydration",async()=>{
  const s=safety({medicationIntent:"decision",referent:"essential_unknown",careContext:"vet_summary",missingContext:["medicine","prescription"]});
- const r=await execute([task({kind:"vet_brief",needsHistory:true,pet:"p1",reference:"r1",missing:["medicine"]})],s,final(s,{completion:[completion({historyFacts:[{source:"s1",excerpt:source.body}]})]}),{readReferences:reference});
+ const r=await execute([task({kind:"vet_brief",needsHistory:true,pets:["p1"],reference:"r1",missing:["medicine"]})],s,final(s,{completion:[completion({historyFacts:[{source:"s1",excerpt:source.body}]})]}),{readReferences:reference});
  assert.equal(r.reads.length,1);assert.match(r.result.answer.answer,/routine exam/);assert.match(r.result.answer.answer,/prescribing veterinarian promptly/);
 });
 
@@ -88,4 +88,16 @@ test("withheld free prose cannot masquerade as a completed component in a bounde
  const t={...task(),status:"complete",reason:"none",sources:[],historyFacts:[],ownerFacts:[]};
  const a=renderTaskCompletion({answer:"Contact the prescribing veterinarian promptly.",quotes:[],calculations:[],presentation:{}},[t],[],{active:true,decision:true});
  assert.equal(a.taskCompletion[0].status,"partial");assert.match(a.answer,/General guidance:.*not been completed/);assert.equal(a.limited,true);
+});
+
+test("one comparison task can bind multiple owned pets without losing typed arithmetic",async()=>{
+ const second={...pet,id:"second-private-pet-123456",name:"Rowan"};
+ const rows=[{...source,body:"Willow weighed 4 kg."},{...source,id:"second-private-source-123456",petId:second.id,body:"Rowan weighed 5 kg."}];let count=0,reads=0;
+ const s=safety();
+ const plan=[task({kind:"calculation",needsHistory:true,pets:["p1","p2"]})];
+ const result=await runReadOnlyAsk({ownerId:"owned",selectedPetId:pet.id,pets:[pet,second],dialogue:[],question:"Compare the two saved weight measurements.",now:"2026-11-12T12:00:00Z",timeZone:"UTC"},{provider:async(req,phase)=>{
+  count++;if(phase==="read_selection")return decodeComponentSelection({safety:s,reads:["p1","p2"].map(pet=>({name:"search_saved_records",arguments:{pet,from:"2021-03-01",to:"2021-03-31",query:null,offset:0,order:"asc",goal:"comparison",alternatives:[],recordedFrom:null,recordedTo:null,orderBy:"event"}})),draft:"",historyIntent:{requested:true,timeBasis:"event",pet:null},workflowIntent:"none",taskPlan:plan},req.tools,req.context,decodeClinicalSelection);
+  return final(s,{components:[{kind:"saved",text:"These are the two saved weight measurements, not a current assessment.",sources:["s1","s2"]}],sources:["s1","s2"],calculations:[{operation:"absolute_difference",timeBasis:"event",operands:["s1:m1","s2:m1"]}],completion:[completion({sources:["s1","s2"]})]});
+ },read:async request=>{reads++;return {sources:[rows.find(r=>r.petId===request.pet.id)],total:1,scopeExhausted:true};}});
+ assert.equal(count,2);assert.equal(reads,2);assert.equal(result.answer.calculations[0].value,1);assert.equal(result.answer.calculations[0].unit,"kg");assert.equal(result.answer.taskCompletion[0].status,"complete");
 });

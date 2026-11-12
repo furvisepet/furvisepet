@@ -258,9 +258,10 @@ export async function runReadOnlyAsk(input,deps) {
  const historyAllowed=call=>{
   if(!taskPlan||call.name==="read_pet_profile")return true;
   let args;try{args=JSON.parse(call.arguments);}catch{return true;} // Normal binder owns invalid-shape rejection.
-  return taskPlan.some(t=>t.needsHistory&&!t.missing.some(v=>["pet","year","date_meaning","which_record"].includes(v))&&(t.reference&&args.reference===t.reference||t.pet!==null&&args.pet===t.pet));
+  const callPet=args.pet??references.find(r=>r.handle===args.reference)?.request.pet.handle;
+  return taskPlan.some(t=>t.needsHistory&&!t.missing.some(v=>["pet","year","date_meaning","which_record"].includes(v))&&(t.reference&&args.reference===t.reference||t.pets.includes(callPet)));
  };
- const clinicalAuthorityOnly=taskPlan?.some(t=>t.needsHistory&&(t.pet||t.reference)&&!t.missing.some(v=>["pet","year","date_meaning","which_record"].includes(v)))&&assessment?.missingContext?.length>0&&assessment.missingContext.every(v=>["medicine","prescription","vet_plan"].includes(v));
+ const clinicalAuthorityOnly=taskPlan?.some(t=>t.needsHistory&&(t.pets.length||t.reference)&&!t.missing.some(v=>["pet","year","date_meaning","which_record"].includes(v)))&&assessment?.missingContext?.length>0&&assessment.missingContext.every(v=>["medicine","prescription","vet_plan"].includes(v));
  const selectedCalls=(emergency?[]:assessment?.referent==="essential_unknown"&&!clinicalAuthorityOnly?first.calls.filter(call=>call.name==="read_pet_profile"):first.calls).filter(historyAllowed);
  if(assessment)deps.onAnswerBoundary?.({outcome:"clinical_assessed",historyTimeBasis:first.historyIntent?.timeBasis??null,assessmentVersion:assessment.protocolVersion??1,currentEventCount:assessment.currentEvents?.length??null,conditionalEventCount:assessment.conditionalEvents?.length??null,medicationIntent:assessment.medicationIntent,scenario:assessment.scenario,urgency:assessment.urgency,missingContextCount:assessment.missingContext.length,missingContext:assessment.missingContext,suppressedReads:first.calls.length-selectedCalls.length});
  const sources=[],results=[],bound=[];

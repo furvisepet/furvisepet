@@ -14,8 +14,8 @@ function reject(field){throw Object.assign(new Error("ASK_READ_COMPONENT_CONTRAC
 export const COMPONENT_INSTRUCTIONS=[
  "Plan every essential requested task separately in taskPlan. saved_content means Ask retrieves/quotes/explains owned records, NOT instructions for finding them. workflow is ONLY an explicit request for how to operate Furvise screens or for an action Ask cannot perform. Do not create a workflow task merely because a question mentions notes, saved dates, history, a diary or a vet brief.",
  "For explicit remaining/continue requests use saved_continuation and the selected reference with an omittedEventRange; read_remaining_records performs a fresh bounded search of that omitted range, not a snapshot cursor. It may repeat same-day boundary records. Do not use the prior eight retained source bodies as the omitted remainder. For a workflow task, workflow selects the actual screen operation; a photo into a care/history note uses care_photo_attachment, not other. For all non-workflow tasks workflow must be none.",
- "A vet_brief is an actual concise handoff: relevant owner-reported observations, dated original historical facts, and questions/unknowns. Set needsHistory when saved notes/results are requested. Set needsOwnerFacts when current/prior user observations must be included (including what I just told you), and always for owner_observations tasks. Do not mark those tasks complete without actual eligible owner facts. Select the relevant retained reference handle and authorized pet, then re-read it. A prior assistant answer or reference metadata is never source evidence. A corrected pet/date overrides a prior result; plan a new scoped read instead. When the referenced result is ambiguous, ask which one rather than choosing arbitrarily.",
- "For any requested saved/profile content or calculation set needsHistory=true and bind pet to the explicitly named or unambiguously established authorized pet. Null pet is unresolved identity, not permission to guess from the selected UI pet. Reference handles carry their own authorized pet. General guidance alone does not require saved reads.",
+ "A vet_brief is an actual concise handoff: relevant owner-reported observations, dated original historical facts, and questions/unknowns. Set needsHistory when saved notes/results are requested. Set needsOwnerFacts when current/prior user observations must be included (including what I just told you), and always for owner_observations tasks. Do not mark those tasks complete without actual eligible owner facts. Select the relevant retained reference handle and authorized pets, then re-read it. A prior assistant answer or reference metadata is never source evidence. A corrected pet/date overrides a prior result; plan a new scoped read instead. When the referenced result is ambiguous, ask which one rather than choosing arbitrarily.",
+ "For any requested saved/profile content or calculation set needsHistory=true and bind pets to all explicitly named or unambiguously established authorized subjects. A comparison/calculation may have multiple pets; keep each tool read pet/time scoped. An empty pets list is not permission to guess from the selected UI pet. A selected reference carries its own authorized pet. General guidance alone does not require saved reads.",
  "missing identifies what is genuinely unresolved. A vague month with no established pet/year requires one pointed pet/year question; do not use the UI-selected pet as evidence of a pronoun. An explicit pet plus month/year is sufficient; do not demand a day. Clinical missing authority must not prevent an independently scoped saved-data task.",
  "In the final completion array account for EACH task ID once. Select componentIndexes for independently answerable ordinary prose, sources for current admitted evidence, and exact factual excerpts for a vet brief. ownerFacts excerpts must be short COMPLETE verbatim sentences preserving negation, attribution and caveats; declarative observations from the selected USER statement, not their request, an assistant assertion, speculation, or a question. historyFacts excerpts must be complete sentences occurring byte-for-byte in an admitted note, preserving negation and attribution. Never generate a diagnosis or regimen directive in these excerpts; historical plans remain historical quotations. Questions for the vet come from the bounded clinical review fields. Do not put extra clinical recommendations into a summary component.",
  "Use complete only when this requested task is actually delivered. Unresolved/partial requires a specific reason. Preserve the other completed tasks. Do not add a generic partial/context notice when all requested components are delivered. Do not repeat server dates or arithmetic in model prose; the server publishes them once. Source omissions limit only the affected task; never claim a complete collection when bodies are omitted."
@@ -24,18 +24,18 @@ export function componentSelectionSchema(base,context){
  const out=structuredClone(base);
  out.properties.taskPlan={type:"array",minItems:1,maxItems:6,items:object({
   id:choice(["t1","t2","t3","t4","t5","t6"]),kind:choice(kinds),needsHistory:{type:"boolean"},needsOwnerFacts:{type:"boolean"},
-  workflow:choice(workflows),pet:nullable(context.pets.map(p=>p.handle)),reference:nullable(context.references.map(r=>r.reference)),
+  workflow:choice(workflows),pets:array(choice(context.pets.map(p=>p.handle)),4),reference:nullable(context.references.map(r=>r.reference)),
   missing:array(choice(missing),7)
  })};out.required.push("taskPlan");return out;
 }
 export function validateTaskPlan(plan,context){
  if(!Array.isArray(plan)||!plan.length||plan.length>6||new Set(plan.map(t=>t?.id)).size!==plan.length)reject("plan");
  for(const t of plan){
-  if(!keys(t,["id","kind","needsHistory","needsOwnerFacts","workflow","pet","reference","missing"])||!/^t[1-6]$/.test(t.id)||!kinds.includes(t.kind)||typeof t.needsHistory!=="boolean"||typeof t.needsOwnerFacts!=="boolean"||!Array.isArray(t.missing)||t.missing.length>7||t.missing.some(v=>!missing.includes(v)))reject("task");
+  if(!keys(t,["id","kind","needsHistory","needsOwnerFacts","workflow","pets","reference","missing"])||!/^t[1-6]$/.test(t.id)||!kinds.includes(t.kind)||typeof t.needsHistory!=="boolean"||typeof t.needsOwnerFacts!=="boolean"||!Array.isArray(t.missing)||t.missing.length>7||t.missing.some(v=>!missing.includes(v)))reject("task");
   if(!workflows.includes(t.workflow)||(t.kind==="workflow")!==(t.workflow!=="none"))reject("workflow_task");
-  if(t.pet!==null&&!context.pets.some(p=>p.handle===t.pet))reject("pet");
+  if(!Array.isArray(t.pets)||t.pets.length>4||t.pets.some(h=>!context.pets.some(p=>p.handle===h)))reject("pet");
   const reference=context.references.find(r=>r.reference===t.reference);
-  if(t.reference!==null&&(!reference||t.pet!==null&&reference.petHandle!==t.pet))reject("reference");
+  if(t.reference!==null&&(!reference||t.pets.length>0&&!t.pets.includes(reference.petHandle)))reject("reference");
  }
  return plan.map(t=>({...t,missing:[...new Set(t.missing)]}));
 }
@@ -84,7 +84,7 @@ export function reviewComponentCompletion(final,plan,sources,ownerStatements,pet
   const historyFacts=e.historyFacts.filter(f=>sources.some(s=>s.handle===f.source&&s.kind==="history"&&completeSentence(s.body,f.excerpt)));
   const ownerFacts=e.ownerFacts.filter(f=>ownerStatements.some(s=>s.ref===f.ref&&completeSentence(s.text,f.excerpt)));
   const selected=[...new Set([...e.sources,...historyFacts.map(f=>f.source)])];
-  if(task.pet!==null&&selected.some(h=>sources.find(s=>s.handle===h).petId!==pets.find(p=>p.handle===task.pet)?.id))reject("task_source_pet");
+  if(task.pets.length>0&&selected.some(h=>!pets.some(p=>task.pets.includes(p.handle)&&p.id===sources.find(s=>s.handle===h).petId)))reject("task_source_pet");
   let status=e.status,reason=e.reason;
   if(task.needsOwnerFacts&&!ownerFacts.length){status="partial";reason="missing_context";}
   if(rejectedFact){status="partial";reason="not_answered";}
@@ -101,7 +101,9 @@ export function reviewComponentCompletion(final,plan,sources,ownerStatements,pet
 const missingLabels={pet:"pet",year:"year",date_meaning:"whether you mean the event date or save date",which_record:"which saved result",owner_observation:"observations you want included",medicine:"medicine name and strength",prescription:"exact prescription",vet_plan:"prescriber's instructions"};
 export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
  if(!tasks)return answer;
+ const firstBrief=tasks.find(t=>t.kind==="vet_brief")?.id;
  tasks=tasks.map(t=>{
+  if(t.kind==="vet_brief"&&t.id!==firstBrief)return {...t,status:"partial",reason:"not_answered"};
   if(policy?.active&&t.status==="complete"&&(t.kind==="general_guidance"||t.kind==="clarification"&&!t.missing.length||["saved_content","saved_continuation"].includes(t.kind)&&!t.historyFacts.length&&!answer.quotes?.some(q=>t.sources.includes(q.source))||t.kind==="owner_observations"&&!t.ownerFacts.length))return {...t,status:"partial",reason:"not_answered"};
   if(t.kind==="calculation"&&(!answer.calculations?.length||answer.calculations.some(c=>c.available===false)))return {...t,status:"unresolved",reason:"not_answered"};
   const relevant=coverage.filter(r=>r.sources.some(s=>t.sources.includes(s.source)));
