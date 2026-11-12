@@ -1,3 +1,4 @@
+import { decodeComponentSelection } from "./task-components.mjs";
 import { decodeClinicalSelection as decodePolicySelection } from "./clinical-policy.mjs";
 import { readProviderText, decodeProviderJson, safeReadOutputDiagnostic, describeReadOutput } from "./provider-output.mjs";
 import { decodeClinicalSelection } from "./clinical.mjs";
@@ -35,7 +36,10 @@ export function readOnlyProvider(model:string,onEvent:(event:AskProviderEvent)=>
    const text=strictSelection||!selection?"":readProviderText(response,true);
    let value;
    if(strictSelection){
-     value=(input.selectionSchema&&typeof input.selectionSchema==="object"&&"properties" in input.selectionSchema&&(input.selectionSchema.properties as Record<string,unknown>)?.historyIntent?decodePolicySelection:decodeClinicalSelection)(decodeProviderJson(response),input.tools,input.context&&typeof input.context==="object"?input.context:{});
+     const schemaProperties=(input.selectionSchema as {properties?:Record<string,unknown>})?.properties;
+     const decoder=schemaProperties?.historyIntent?decodePolicySelection:decodeClinicalSelection;
+     const decoded=decodeProviderJson(response),context=input.context&&typeof input.context==="object"?input.context:{};
+     value=schemaProperties?.taskPlan?decodeComponentSelection(decoded,input.tools,context,decoder):decoder(decoded,input.tools,context);
     }else if(selection){
      const calls=response.output.filter(item=>item.type==="function_call").map(item=>({id:item.call_id,name:item.name,arguments:item.arguments}));
     if(typeof text!=="string"||(!calls.length&&!text.trim()))throw Object.assign(new Error("ASK_READ_PROVIDER_INCOMPLETE"),{code:"ASK_READ_PROVIDER_INCOMPLETE"});
