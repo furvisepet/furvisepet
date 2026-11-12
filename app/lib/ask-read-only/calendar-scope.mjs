@@ -23,17 +23,20 @@ export function explicitCalendarScopes(question){
  return [...new Map(found.map(scope=>[scope.from+"/"+scope.to,scope])).values()];
 }
 export function recoverBoundedCalendarRead(first,context,pets){
- if(first.historyIntent?.requested!==true||!["event","recorded"].includes(first.historyIntent.timeBasis)||first.calls.length>1
-  ||first.safety?.referent!=="essential_unknown"||!first.safety.missingContext.length||first.safety.missingContext.some(k=>!["pet","date"].includes(k)))return null;
+ if(!["event","recorded"].includes(first.historyIntent?.timeBasis)||first.calls.length>1)return null;
  const scopes=explicitCalendarScopes(context.question);if(scopes.length!==1)return null;
  const escaped=name=>name.replace(/[.*+?$^{}()|[\]\\]/g,"\\$&");
  const named=pets.filter(pet=>new RegExp("(?<![\\p{L}\\p{N}])"+escaped(pet.name)+"(?![\\p{L}\\p{N}])","iu").test(context.question));
- if(named.length!==1||first.historyIntent.pet!==null&&first.historyIntent.pet!==named[0].handle)return null;
+ if(named.length!==1)return null;
+ const taskBound=first.calls.length===0&&first.taskPlan?.some(t=>t.kind==="saved_content"&&t.needsHistory&&t.reference===null&&t.pets.length===1&&t.pets[0]===named[0].handle&&t.missing.every(k=>k==="which_record"))
+  &&first.safety?.careContext==="none"&&first.safety.medicationIntent==="none"&&!(first.safety.currentEvents?.length||first.safety.conditionalEvents?.length||first.safety.eventAssessments?.length)&&first.safety.missingContext.every(k=>["pet","date"].includes(k));
+ const legacy=first.historyIntent?.requested===true&&first.safety?.referent==="essential_unknown"&&first.safety.missingContext.length>0&&first.safety.missingContext.every(k=>["pet","date"].includes(k))&&(first.historyIntent.pet===null||first.historyIntent.pet===named[0].handle);
+ if(!taskBound&&!legacy)return null;
  if(first.calls.some(call=>!["search_saved_records","read_referenced_sources","read_pet_profile"].includes(call.name)))return null;
  let planned={};try{planned=JSON.parse(first.calls[0]?.arguments??"{}");}catch{return null;}
  const goal=EVIDENCE_GOALS.includes(planned.goal)?planned.goal:"relevant_records",order=planned.order==="desc"?"desc":"asc";
  const basis=first.historyIntent.timeBasis,scope=scopes[0],event=basis==="event";
- return {first:{...first,text:"",safety:{...first.safety,referent:"clear",missingContext:[]},calls:[{id:"calendar-read",name:"search_saved_records",arguments:JSON.stringify({
+ return {first:{...first,text:"",historyIntent:{...first.historyIntent,requested:true,pet:named[0].handle},safety:{...first.safety,referent:"clear",missingContext:[]},calls:[{id:"calendar-read",name:"search_saved_records",arguments:JSON.stringify({
   pet:named[0].handle,from:event?scope.from:null,to:event?scope.to:null,goal,alternatives:[],
   recordedFrom:event?null:scope.from,recordedTo:event?null:scope.to,orderBy:basis,query:null,offset:0,order
  })}]},diagnostic:{precision:scope.precision,timeBasis:basis,reason:"explicit_owned_pet_calendar_scope"}};

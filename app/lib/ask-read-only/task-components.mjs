@@ -18,7 +18,7 @@ export const COMPONENT_INSTRUCTIONS=[
  "A vet_brief is an actual concise handoff: relevant owner-reported observations, dated original historical facts, and questions/unknowns. Set needsHistory when saved notes/results are requested. Set needsOwnerFacts when current/prior user observations must be included (including what I just told you), and always for owner_observations tasks. Do not mark those tasks complete without actual eligible owner facts. Select the relevant retained reference handle and authorized pets, then re-read it. A prior assistant answer or reference metadata is never source evidence. A corrected pet/date overrides a prior result; plan a new scoped read instead. When the referenced result is ambiguous, ask which one rather than choosing arbitrarily.",
  "For any requested saved/profile content or calculation set needsHistory=true and bind pets to all explicitly named or unambiguously established authorized subjects. A comparison/calculation may have multiple pets; keep each tool read pet/time scoped. An empty pets list is not permission to guess from the selected UI pet. A selected reference carries its own authorized pet. General guidance alone does not require saved reads.",
  "missing identifies what is genuinely unresolved. A vague month with no established pet/year requires one pointed pet/year question; do not use the UI-selected pet as evidence of a pronoun. An explicit pet plus month/year is sufficient; do not demand a day. Clinical missing authority must not prevent an independently scoped saved-data task.",
- "In the final completion array account for EACH task ID once. Select componentIndexes for independently answerable ordinary prose, sources for current admitted evidence, and exact factual excerpts for a vet brief. ownerFacts excerpts must be short COMPLETE verbatim sentences preserving negation, attribution and caveats; declarative observations from the selected USER statement, not their request, an assistant assertion, speculation, or a question. historyFacts excerpts must be complete sentences occurring byte-for-byte in an admitted note, preserving negation and attribution. Never generate a diagnosis or regimen directive in these excerpts; historical plans remain historical quotations. Questions for the vet come from the bounded clinical review fields. Do not put extra clinical recommendations into a summary component.",
+ "In the final completion array account for EACH task ID once. Select componentIndexes for independently answerable ordinary prose, sources for current admitted evidence, and exact factual excerpts for a vet brief. ownerFacts excerpts must be short COMPLETE verbatim sentences preserving negation, attribution and caveats; declarative observations from the selected USER statement, not their request, an assistant assertion, speculation, or a question. historyFacts excerpts must be one or more CONTIGUOUS COMPLETE sentences occurring byte-for-byte in an admitted note, preserving negation and attribution. Never generate a diagnosis or regimen directive in these excerpts; historical plans remain historical quotations. Questions for the vet come from the bounded clinical review fields. Do not put extra clinical recommendations into a summary component.",
  "Use complete only when this requested task is actually delivered. Unresolved/partial requires a specific reason. Preserve the other completed tasks. Do not add a generic partial/context notice when all requested components are delivered. Do not repeat server dates or arithmetic in model prose; the server publishes them once. Source omissions limit only the affected task; never claim a complete collection when bodies are omitted."
 ].join("\n");
 export function componentSelectionSchema(base,context){
@@ -67,7 +67,18 @@ export function componentAnswerSchema(base,plan,sources,ownerStatements){
   historyFacts:array(object({source:choice(handles.length?handles:["unavailable"]),excerpt:exact}),handles.length?6:0)
  })};out.required.push("completion");return out;
 }
-const completeSentence=(body,excerpt)=>[...new Intl.Segmenter("en",{granularity:"sentence"}).segment(body)].some(part=>part.segment.trim()===excerpt);
+const completeSentence=(body,excerpt)=>{
+ const parts=[...new Intl.Segmenter("en",{granularity:"sentence"}).segment(body)];
+ for(let start=0;start<parts.length;start++){
+  let span="";
+  for(let end=start;end<parts.length;end++){
+   span+=parts[end].segment;
+   if(span.trim()===excerpt)return true;
+   if(span.trim().length>excerpt.length)break;
+  }
+ }
+ return false;
+};
 export function reviewComponentCompletion(final,plan,sources,ownerStatements,pets=[]){
  if(!plan)return {value:final,tasks:null};
  const entries=final?.completion;if(!Array.isArray(entries)||entries.length!==plan.length||new Set(entries.map(e=>e?.task)).size!==plan.length)reject("completion");

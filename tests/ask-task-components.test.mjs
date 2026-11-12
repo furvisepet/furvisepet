@@ -148,3 +148,22 @@ test("duplicate bounded discovery reads resolve one shared record, not two appar
  const r=await execute(plan,s,saved,{},reads);
  assert.equal(r.calls,2);assert.equal(r.reads.length,2);assert.equal(r.result.answer.taskCompletion[0].status,"complete");assert.doesNotMatch(r.result.answer.answer,/Which/);assert.equal(r.result.sources.length,1);
 });
+
+test("whole contiguous multi-sentence historical excerpts complete a brief without losing attribution",()=>{
+ const body="The owner reported a change. No diagnosis was recorded.",admitted={...source,handle:"s1",body};
+ const plan=[task({kind:"vet_brief",needsHistory:true,pets:["p1"]})];
+ const out=reviewComponentCompletion(final(safety(),{sources:["s1"],completion:[completion({sources:["s1"],historyFacts:[{source:"s1",excerpt:body}]})]}),plan,[admitted],[],[{...pet,handle:"p1"}]);
+ assert.equal(out.tasks[0].status,"complete");assert.equal(out.tasks[0].historyFacts[0].excerpt,body);
+ for(const excerpt of ["reported a change.","The owner reported a change. A diagnosis was recorded."]){
+  const rejected=reviewComponentCompletion(final(safety(),{sources:["s1"],completion:[completion({sources:["s1"],historyFacts:[{source:"s1",excerpt}]})]}),plan,[admitted],[],[{...pet,handle:"p1"}]);
+  assert.equal(rejected.tasks[0].status,"partial");assert.equal(rejected.tasks[0].historyFacts.length,0);
+ }
+});
+test("authoritative scoped saved task can recover absent discovery despite a redundant date flag",async()=>{
+ const s=safety({missingContext:["date"]}),plan=[task({kind:"saved_content",needsHistory:true,pets:["p1"],missing:["which_record"]})];
+ const saved=final(safety(),{components:[{kind:"saved",text:"The original note follows.",sources:["s1"]}],sources:["s1"],quotes:["s1"],completion:[completion({sources:["s1"]})]});
+ const r=await execute(plan,s,saved,{question:"Please use Willow's March 2021 note."});
+ assert.equal(r.reads.length,1);assert.equal(r.reads[0].from,"2021-03-01");assert.equal(r.reads[0].to,"2021-03-31");assert.equal(r.result.answer.taskCompletion[0].status,"complete");
+ const ambiguous=await execute(plan,s,final(s,{completion:[completion({status:"unresolved",reason:"missing_context"})]}),{question:"Please use her March note."});
+ assert.equal(ambiguous.reads.length,0);
+});
