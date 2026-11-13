@@ -353,7 +353,7 @@ export async function runReadOnlyAsk(input,deps) {
    semanticRecallVerified:false,sourceMeaning:request.kind==="profile"?"current_profile_snapshot":"historical_saved_report",
    status:unmet.length?"partial":"candidate_evidence",unmet});
  }
- const discovery=resolveRecordDiscovery(taskPlan,bound,results);
+ const discovery=resolveRecordDiscovery(taskPlan,bound,results,{question:input.question,timeBasis:first.historyIntent?.timeBasis,pets});
  if(discovery.resolved){taskPlan=discovery.plan;first.taskPlan=taskPlan;context.taskPlan=taskPlan;deps.onAnswerBoundary?.({outcome:"record_ambiguity_resolved",taskCount:discovery.resolved,method:"unique_fully_inspected_bounded_candidate"});}
  const catalog=sources.map(source=>({source:source.handle,kind:source.kind,pet:source.petName,body:source.body,eventAt:source.eventAt,recordedAt:source.recordedAt,measurements:source.measurements}));
  const toolData=results.map(result=>({...result,sources:result.sources.map(({body,...metadata})=>{void body;return metadata;})}));

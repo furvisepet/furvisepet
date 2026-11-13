@@ -1,3 +1,4 @@
+import { explicitCalendarWindow } from "./calendar-scope.mjs";
 import { HISTORY_SYNTHESIS_INSTRUCTIONS, historySynthesisSchema, validateHistorySynthesis, renderHistorySynthesis } from "./history-synthesis.mjs";
 /** Requested work is independent of prose mode. References remain hints until
  * owner-bound rehydration; fact excerpts gain authority only by exact matching. */
@@ -283,10 +284,27 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
 
 /** Resolve record-choice ambiguity only after a fully inspected bounded search
  * yields one admitted candidate. Reference hints and partial pages are not proof. */
-export function resolveRecordDiscovery(plan,bound,results){
+export function resolveRecordDiscovery(plan,bound,results,context=null){
  if(!plan)return {plan,resolved:0};let resolved=0;
  const updated=plan.map(task=>{
-  if(!task.needsHistory||task.reference!==null||task.pets.length!==1||!task.missing.includes("which_record")||task.missing.some(k=>["pet","year","date_meaning"].includes(k)))return task;
+  if(!task.needsHistory||task.pets.length!==1||!task.missing.includes("which_record")||task.missing.some(k=>["pet","year","date_meaning"].includes(k)))return task;
+  // A stale task reference is not the identity of a new corrected-scope read.
+  // Resolve it only from an explicit calendar/owned-pet scope and a fully
+  // inspected unique fresh candidate; never from the old reference metadata.
+  if(task.reference!==null){
+   if(task.kind!=="saved_content"||task.recordMode!=="single"||!context||!["event","recorded"].includes(context.timeBasis)
+    ||plan.some(other=>other!==task&&other.needsHistory&&other.pets.includes(task.pets[0])))return task;
+   const calendar=explicitCalendarWindow(context.question);if(!calendar)return task;
+   const escaped=name=>name.replace(/[.*+?$^{}()|[\]\\]/g,"\\$&");
+   const named=context.pets.filter(p=>new RegExp("(?<![\\p{L}\\p{N}])"+escaped(p.name)+"(?![\\p{L}\\p{N}])","iu").test(context.question));
+   if(named.length!==1||named[0].handle!==task.pets[0])return task;
+   const matching=bound.filter(c=>c.request.pet.handle===task.pets[0]);
+   if(matching.some(c=>c.request.reference||c.request.continuation)||!matching.length)return task;
+   const event=context.timeBasis==="event";
+   if(matching.some(c=>c.request.kind!=="history"||(event
+    ?c.request.from!==calendar.from||c.request.to!==calendar.to||c.request.recordedFrom||c.request.recordedTo
+    :c.request.recordedFrom!==calendar.from||c.request.recordedTo!==calendar.to||c.request.from||c.request.to)))return task;
+  }
   const searches=bound.map((call,index)=>({request:call.request,result:results[index]})).filter(({request})=>request.kind==="history"&&!request.reference&&request.pet.handle===task.pets[0]);
   if(!searches.length)return task;
   // Several discovery lanes or sort orders may describe the same candidate.
@@ -298,7 +316,7 @@ export function resolveRecordDiscovery(plan,bound,results){
    unique.add(result.sources[0].source);
   }
   if(unique.size!==1)return task;
-  resolved++;return {...task,missing:task.missing.filter(k=>k!=="which_record")};
+  resolved++;return {...task,reference:null,missing:task.missing.filter(k=>k!=="which_record")};
  });
  return {plan:updated,resolved};
 }

@@ -373,3 +373,28 @@ test("explicit range recovery rejects comparisons, reversed ranges, multiple pet
  assert.equal(recoverBoundedCalendarRead(first,{question:context.question+" and Maple"},[...pets,{...pet,name:"Maple",id:"second",handle:"p2"}]),null);
  assert.equal(recoverBoundedCalendarRead({...first,historyIntent:{...first.historyIntent,timeBasis:"ambiguous"}},context,pets),null);
 });
+
+test("fresh explicitly corrected scope resolves an obsolete task reference only after unique bound discovery",async()=>{
+ const s=safety(),plan=[task({kind:"saved_content",needsHistory:true,pets:["p1"],reference:"r1",missing:["which_record"],includeSourceDates:true})];
+ const row={...source,id:"new-year-note",eventAt:"2022-03-12T12:00:00Z",recordedAt:"2022-03-14T12:00:00Z"};
+ const reads=[{name:"search_saved_records",arguments:{pet:"p1",from:"2022-03-01",to:"2022-03-31",recordedFrom:null,recordedTo:null,orderBy:"event",goal:"exact_quote",alternatives:[],query:null,offset:0,order:"asc"}}];
+ const saved=final(s,{components:[{kind:"saved",text:"The original note follows.",sources:["s1"]}],sources:["s1"],quotes:["s1"],completion:[completion({sources:["s1"]})]});
+ const r=await execute(plan,s,saved,{question:"Actually I meant March 2022 for Willow. Show that corrected note and both timestamps.",readReferences:reference},reads,[row]);
+ assert.equal(r.calls,2);assert.equal(r.reads.length,1);assert.equal(r.result.answer.taskCompletion[0].status,"complete");assert.doesNotMatch(r.result.answer.answer,/Which saved/);assert.equal(r.result.answer.presentation.sourceDates[0].eventAt,row.eventAt);assert.equal(r.result.answer.presentation.sourceDates[0].recordedAt,row.recordedAt);assert.equal(r.result.answer.quotes[0].quote,row.body);
+});
+
+test("corrected-scope identity does not resolve from partial, competing, unmatched or ambiguous reads",async()=>{
+ const {resolveRecordDiscovery}=await import("../app/lib/ask-read-only/task-components.mjs");
+ const t=task({kind:"saved_content",needsHistory:true,pets:["p1"],reference:"r1",missing:["which_record"]});
+ const request={kind:"history",pet:{...pet,handle:"p1"},from:"2022-03-01",to:"2022-03-31",recordedFrom:null,recordedTo:null};
+ const result={queryScopeExhausted:true,truncated:false,hasPrevious:false,hasMore:false,unmet:[],inspected:1,sources:[{source:"s1"}]};
+ const context={question:"Willow March 2022",timeBasis:"event",pets:[{...pet,handle:"p1"}]};
+ const resolve=(plan=[t],bound=[{request}],results=[result],scope=context)=>resolveRecordDiscovery(plan,bound,results,scope);
+ assert.equal(resolve().resolved,1);assert.equal(resolve().plan[0].reference,null);
+ for(const patch of [{hasMore:true},{hasPrevious:true},{truncated:true},{queryScopeExhausted:false},{unmet:["prior_source_selection_omitted"]},{inspected:2},{sources:[{source:"s1"},{source:"s2"}]}])assert.equal(resolve([t],[{request}],[{...result,...patch}]).resolved,0);
+ for(const patch of [{reference:"r1"},{continuation:{}},{from:"2021-03-01"},{recordedFrom:"2022-03-01"},{pet:{...request.pet,handle:"p2"}}])assert.equal(resolve([t],[{request:{...request,...patch}}]).resolved,0);
+ assert.equal(resolve([t,{...t,id:"t2"}]).resolved,0);
+ assert.equal(resolve([t],[{request}],[result],null).resolved,0);
+ assert.equal(resolve([t],[{request}],[result],{...context,question:"her March 2022"}).resolved,0);
+ assert.equal(resolve([t],[{request}],[result],{...context,timeBasis:"ambiguous"}).resolved,0);
+});
