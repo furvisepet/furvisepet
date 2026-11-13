@@ -99,3 +99,25 @@ test("synthesis citation labels follow published source-card order rather than m
  const out=renderTaskCompletion({answer:"Generated.",validatedParts:[{index:0,text:"Generated."}],sources:["s2","s1"],presentation:{}},[t],[a,b],null,[]);
  assert.ok(out.answer.includes("second original observation.” (Source 2)"));assert.ok(!out.answer.includes("second original observation.” (Source 1)"));
 });
+
+test("actual core keeps a verified single note complete while retaining inherited collection coverage",async()=>{
+ const {runReadOnlyAsk}=await import("../app/lib/ask-read-only/core.mjs");
+ const {decodeComponentSelection}=await import("../app/lib/ask-read-only/task-components.mjs");
+ const {decodeClinicalSelection}=await import("../app/lib/ask-read-only/clinical-policy.mjs");
+ const {createHash}=await import("node:crypto");
+ const pet={id:"owned-private-pet-123456",ownerId:"owned",name:"Pet A",species:"cat"};
+ const rows=Array.from({length:8},(_,i)=>({kind:"history",id:"owned-private-note-123456"+i,ownerId:"owned",petId:pet.id,body:"A complete original historical observation.",eventAt:"2020-01-03T12:00:00Z",recordedAt:"2020-01-04T12:00:00Z"}));
+ const reference={version:1,entries:[{kind:"history",petId:pet.id,timeZone:"UTC",goal:"complete_set",from:"2020-01-01",to:"2020-12-31",recordedFrom:null,recordedTo:null,orderBy:"event",order:"asc",terms:[],limited:true,sources:rows.map(s=>({id:s.id,hash:createHash("sha256").update(s.body).digest("hex"),eventAt:s.eventAt,recordedAt:s.recordedAt}))}]};
+ const safety={medicationIntent:"none",referent:"clear",missingContext:[],careContext:"none",eventAssessments:[]};
+ const plan=[{id:"t1",kind:"saved_content",combineHistory:false,needsHistory:true,needsOwnerFacts:false,includeSourceDates:true,recordMode:"single",workflow:"none",pets:["p1"],reference:"r1",missing:[]}];
+ let calls=0,reads=0;
+ const result=await runReadOnlyAsk({ownerId:"owned",selectedPetId:pet.id,pets:[pet],dialogue:[],question:"Quote that one complete January 2020 note exactly with both dates.",now:"2026-11-13T12:00:00Z",timeZone:"UTC",readReferences:reference},{
+  read:async()=>{reads++;return {sources:rows,total:8,hasMore:false,scopeExhausted:true};},
+  provider:async(req,phase)=>{calls++;if(phase==="read_selection")return decodeComponentSelection({safety,reads:[],draft:"",historyIntent:{requested:true,timeBasis:"event",pet:null},workflowIntent:"none",taskPlan:plan},req.tools,req.context,decodeClinicalSelection);
+   return {components:[{kind:"saved",text:"An exact source-backed observation.",sources:["s1"]}],quotes:["s1"],sources:["s1"],calculations:[],replyType:"answer",presentation:{sourceDates:["s1"],contextRequired:false},clinicalReview:{assessment:safety,ownerStatementRefs:[],observationFields:[]},appHelp:{intent:"none",pet:null},completion:[{task:"t1",status:"complete",reason:"none",componentIndexes:[0],sources:["s1"],ownerFacts:[],historyFacts:[],historySynthesis:[{topic:"historical observation",evidence:[{source:"s1",excerpt:rows[0].body}]}]}]};
+  }
+ });
+ assert.equal(calls,2);assert.equal(reads,1);assert.equal(result.answer.taskCompletion[0].status,"complete");
+ assert.equal(result.answer.limited,false,"verified single-record answer must not inherit collection-only publication limitations");
+ assert.ok(result.coverage[0].unmet.includes("prior_source_selection_omitted"));assert.equal(result.readReferences.entries[0].limited,true);
+});

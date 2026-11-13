@@ -432,7 +432,16 @@ export async function runReadOnlyAsk(input,deps) {
    result.unmet.push("no_selected_support");result.status="partial";
   }
  }
- answer.limited=answer.limited||results.some(result=>result.hasMore||result.hasPrevious||result.truncated||result.unmet.length>0)||(bound.length>0&&(sources.length===0||answer.sources.length===0));
+ // The retained search can be partial while a specifically requested whole
+ // record is fully supplied. Preserve coverage metadata, but do not downgrade
+ // that completed task solely for an inherited earlier selection limit.
+ const singleHistoryTasks=taskPlan?.filter(t=>t.needsHistory)??[];
+ const inheritedSelectionOnly=singleHistoryTasks.length>0
+  &&singleHistoryTasks.every(t=>t.recordMode==="single"&&["saved_content","vet_brief"].includes(t.kind))
+  &&answer.taskCompletion?.every(t=>t.status==="complete")
+  &&bound.length>0&&bound.every(c=>c.request.reference)
+  &&results.every(r=>!r.hasMore&&!r.hasPrevious&&!r.truncated&&r.unmet.every(u=>u==="prior_source_selection_omitted"));
+ answer.limited=answer.limited||(!inheritedSelectionOnly&&results.some(result=>result.hasMore||result.hasPrevious||result.truncated||result.unmet.length>0))||(bound.length>0&&(sources.length===0||answer.sources.length===0));
  const readReferences=carryReadReferences(references,bound.map((call,index)=>({...call,sourceHandles:allocation.visible[index].map(source=>source.handle),omittedEventRange:results[index].omittedEventRange,omittedRange:results[index].omittedRange,queryScopeExhausted:results[index].queryScopeExhausted,continuationValidated:results[index].continuationValidation?.valid===true})),sources,answer,input.timeZone);
  const result={answer,readReferences,sources:sources.filter(s=>answer.sources.includes(s.handle)),providerCallCount:calls,dialogueCoverage,coverage:results.map(({sources,...rest})=>({...rest,returned:sources.length}))};
  const freeze=value=>{if(value&&typeof value==="object"&&!Object.isFrozen(value)){Object.values(value).forEach(freeze);Object.freeze(value);}};
