@@ -27,3 +27,14 @@ Self-hosted runner jobs use local hardware instead of GitHub-hosted runner minut
 
 ## Rollback
 Do not merge the follow-up CI migration if smoke fails. On the runner host: `sudo ./svc.sh stop`, then `sudo ./svc.sh uninstall`. Remove the runner through GitHub settings using a new removal token; do not delete its entry without verifying service status.
+## Using the Windows laptop (Docker Desktop)
+
+A disposable Linux runner on this laptop successfully completed the Furvise smoke test: https://github.com/furvisepet/furvisepet/actions/runs/43415164230
+
+From an ordinary PowerShell window, start Docker Desktop, confirm the Linux engine is running, and run the file run-laptop-ephemeral.ps1 in this directory. GitHub CLI must already be authenticated to the private Furvise repository with runner-management permission.
+
+Each invocation registers ONE ephemeral runner using a fresh short-lived GitHub token, waits for ONE queued job labeled furvise-ci, and removes the Docker container afterward. Repeat for the next job. There is no background auto-start service yet.
+
+This launcher uses the official runner image pinned by digest, does not mount your Windows home directory or Docker socket, drops Linux capabilities, disables privilege escalation, and limits CPU, RAM and process count. Docker containers are not full VM-grade isolation and can reach networks. Never dispatch untrusted fork code or a workflow granting production secrets.
+
+Existing Security CI continues using GitHub-hosted runners until a separate migration is reviewed and proven. The laptop has 16 GB of RAM; the full npm install/test/build workload still requires qualification. No Vercel or Supabase credentials are required.
