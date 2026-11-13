@@ -264,3 +264,12 @@ test("inline source references use compact visible source order without unsolici
  const a=validateReadOnlyAnswer({components:[{kind:"saved",text:"See s2.",sources:["s2"]}],sources:["s2"],quotes:[],calculations:[],replyType:"answer",presentation:{sourceDates:[],contextRequired:false}},rows,"Show the note.");
  assert.equal(a.answer,"See saved note 1.");assert.doesNotMatch(a.answer,/2021|T12/);
 });
+
+test("calendar label repair preserves synthesis within the same sentence and lowercase modal may",()=>{
+ const s={...source,handle:"s1",petName:"Willow"};
+ const t={...task({kind:"saved_content",needsHistory:true,recordMode:"collection",pets:["p1"]}),
+  status:"complete",reason:"none",componentIndexes:[0],sources:["s1"],ownerFacts:[],historyFacts:[{source:"s1",excerpt:s.body}]};
+ const r=renderTaskCompletion({answer:"",validatedParts:[{index:0,text:"Across 2020–2022, the notes describe a stable routine that may vary slightly."}],quotes:[],calculations:[],presentation:{}},[t],[s],null);
+ assert.match(r.answer,/stable routine that may vary slightly/);
+ assert.doesNotMatch(r.answer,/2020|2022/);
+});

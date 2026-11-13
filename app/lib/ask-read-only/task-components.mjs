@@ -149,10 +149,18 @@ export function reviewComponentCompletion(final,plan,sources,ownerStatements,pet
 }
 // Calendar attribution is rendered from the selected original source, not from
 // a generated month/year paraphrase. Independent general tasks are untouched.
-const calendarClaim=/\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|\b(?:19|20|21)\d{2}\b|\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b/i;
 function undatedCollectionSynthesis(text){
- return [...new Intl.Segmenter("en",{granularity:"sentence"}).segment(text)]
-  .filter(part=>!calendarClaim.test(part.segment)&&!/\bMay\b/.test(part.segment)&&!/\b(?:in|during)\s+may\b/i.test(part.segment)).map(part=>part.segment).join("").trim();
+ // Remove an unverified calendar label rather than the sentence's useful
+ // source-supported synthesis. Exact dated details are composed separately.
+ return text
+  .replace(/(^|\n)\s*(?:19|20|21)\d{2}(?:\s*[-–]\s*(?:19|20|21)\d{2})?\s*:\s*/g,"$1")
+  .replace(/\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b(?:\s+(?:19|20|21)\d{2})?/gi,"a saved period")
+  .replace(/\bMay\b(?:\s+(?:19|20|21)\d{2})?/g,"a saved period")
+  .replace(/\b(?:from\s+)?(?:19|20|21)\d{2}(?:-\d{2}-\d{2})?(?:\s*(?:through|to|[-–])\s*(?:19|20|21)\d{2}(?:-\d{2}-\d{2})?)?\b/gi,"the requested period")
+  .replace(/\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b/gi,"a recorded day")
+  .replace(/\b(?:a|an)\s+a saved period\s+(?:entry|note|report|visit)\b/gi,"a saved entry")
+  .replace(/\ba saved period(?:'s)?\s+(?:entry|note|report|visit)\b/gi,"a saved entry")
+  .trim();
 }
 const missingLabels={pet:"pet",year:"year",date_meaning:"whether you mean the event date or save date",which_record:"saved result",owner_observation:"observations you want included",medicine:"medicine name and strength",prescription:"exact prescription",vet_plan:"prescriber's instructions"};
 export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
