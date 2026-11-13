@@ -2,6 +2,9 @@ name: Furvise Self-hosted Runner Smoke
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - infra/furvise-runner-first-pass-20261113
 
 permissions:
   contents: read
