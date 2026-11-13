@@ -14,9 +14,10 @@ const keys=(v,expected)=>v&&typeof v==="object"&&!Array.isArray(v)&&Object.keys(
 function reject(field){throw Object.assign(new Error("ASK_READ_COMPONENT_CONTRACT"),{code:"ASK_READ_COMPONENT_CONTRACT",answerDiagnostic:{category:"component_contract",field}});}
 export const COMPONENT_INSTRUCTIONS=[
  HISTORY_SYNTHESIS_INSTRUCTIONS,
- "For collection summaries, put date-specific observations in historyFacts using the exact admitted source and contiguous original sentence. The server supplies its event/recorded date. Keep component prose to an undated synthesis of patterns and limitations; do not generate month/year-specific paraphrases or citation ranges. Select salient exceptions as historyFacts as well as routine background. Only single source handles may be used as inline references.",
+ "For collection summaries, use concise grounded themes in historySynthesis. Use historyFacts only for salient source-specific dates/details the owner actually requests, using the exact admitted source and contiguous original sentence. Avoid duplicating their wording in historySynthesis. The server supplies its event/recorded date. Keep component prose to an undated synthesis of patterns and limitations; do not generate month/year-specific paraphrases or citation ranges. Select salient exceptions as historyFacts as well as routine background. Only single source handles may be used as inline references.",
  "Set includeSourceDates only for tasks whose source timestamps the owner requests in the answer, not merely because a note has dates. The server publishes those requested verified dates once; do not repeat them in component prose. calculation means arithmetic over saved typed measurements; ordinary math without saved-record dependency belongs general_guidance.",
  "Set recordMode=collection for a set, period summary, comparison, or continuation, single for identifying one record, and none without saved evidence. A collection does not require choosing a single record: which_record must never block collection membership. Plan collection reads with goal=complete_set and explicit owner pet/time scope. Summarize the actual supplied content, source-reported patterns (never infer recurrence from saved mentions) and dated exceptions; never replace synthesis with a timestamp list or only selected quotations. Do not infer clinical advice merely from medical words inside old notes. clinical_guidance is an explicit care interpretation/triage request; ordinary historical reporting is saved_content. Plan every essential requested task separately in taskPlan. saved_content means Ask retrieves/quotes/explains owned records, NOT instructions for finding them. workflow is ONLY an explicit request for how to operate Furvise screens or for an action Ask cannot perform. Do not create a workflow task merely because a question mentions notes, saved dates, history, a diary or a vet brief.",
+ "Set combineHistory=true only when the owner asks to combine or integrate an earlier result and newly fetched/continued history. A combined answer must include relevant exact historical facts or synthesis evidence from BOTH retained_prior and fresh_remainder TOOL_DATA groups. Merely reading or listing their source handles is insufficient; preserve salient earlier exceptions. For all other tasks combineHistory=false.",
  "For explicit remaining/continue requests use saved_continuation and the selected reference with an omittedRange (or legacy omittedEventRange); read_remaining_records performs a fresh bounded search of that omitted range, not a snapshot cursor. It may repeat same-day boundary records. Do not use the prior eight retained source bodies as the omitted remainder. For a workflow task, workflow selects the actual screen operation; a photo into a care/history note uses care_photo_attachment, not other. For all non-workflow tasks workflow must be none.",
  "A vet_brief is an actual concise handoff: relevant owner-reported observations, dated original historical facts, and questions/unknowns. Set needsHistory when saved notes/results are requested. Set needsOwnerFacts when current/prior user observations must be included (including what I just told you), and always for owner_observations tasks. Do not mark those tasks complete without actual eligible owner facts. Select the relevant retained reference handle and authorized pets, then re-read it. A prior assistant answer or reference metadata is never source evidence. For collection integration, rehydrate the original result and relevant continuation results; bounded retained sources are a selection, never the full historical set. Do not discuss evidence completeness or source counts in free prose: the server supplies coverage. Select ownerFacts by the exact sentence handle in ownerFactSentenceRefs; do not regenerate or shorten owner wording. Classify each owner fact by meaning; pet/date corrections and requests are not health observations. A corrected pet/date overrides a prior result; plan a new scoped read instead. When the referenced result is ambiguous, ask which one rather than choosing arbitrarily.",
  "For any requested saved/profile content or calculation set needsHistory=true and bind pets to all explicitly named or unambiguously established authorized subjects. A comparison/calculation may have multiple pets; keep each tool read pet/time scoped. An empty pets list is not permission to guess from the selected UI pet. A selected reference carries its own authorized pet. General guidance alone does not require saved reads. needsOwnerFacts is only for an owner_observations task or a vet_brief that must reproduce actual observations. Preferences, time constraints and plan revisions are ordinary dialogue context, not factual excerpts required before general guidance can be answered.",
@@ -27,18 +28,20 @@ export const COMPONENT_INSTRUCTIONS=[
 export function componentSelectionSchema(base,context){
  const out=structuredClone(base);
  out.properties.taskPlan={type:"array",minItems:1,maxItems:6,items:object({
-  id:choice(["t1","t2","t3","t4","t5","t6"]),kind:choice(kinds),needsHistory:{type:"boolean"},needsOwnerFacts:{type:"boolean"},includeSourceDates:{type:"boolean"},recordMode:choice(["none","single","collection"]),
+  id:choice(["t1","t2","t3","t4","t5","t6"]),kind:choice(kinds),combineHistory:{type:"boolean"},needsHistory:{type:"boolean"},needsOwnerFacts:{type:"boolean"},includeSourceDates:{type:"boolean"},recordMode:choice(["none","single","collection"]),
   workflow:choice(workflows),pets:array(choice(context.pets.map(p=>p.handle)),4),reference:nullable(context.references.map(r=>r.reference)),
   missing:array(choice(missing),7)
  })};
  const withoutHistory=structuredClone(out.properties.taskPlan.items),withHistory=structuredClone(out.properties.taskPlan.items);
- withoutHistory.properties.needsHistory={type:"boolean",enum:[false]};withoutHistory.properties.recordMode=choice(["none"]);
+ withoutHistory.properties.needsHistory={type:"boolean",enum:[false]};withoutHistory.properties.combineHistory={type:"boolean",enum:[false]};withoutHistory.properties.recordMode=choice(["none"]);
  withHistory.properties.needsHistory={type:"boolean",enum:[true]};withHistory.properties.recordMode=choice(["single","collection"]);
  out.properties.taskPlan.items={anyOf:[withoutHistory,withHistory]};out.required.push("taskPlan");return out;
 }
 export function validateTaskPlan(plan,context){
  if(!Array.isArray(plan)||!plan.length||plan.length>6||new Set(plan.map(t=>t?.id)).size!==plan.length)reject("plan");
- for(const t of plan){
+ for(const raw of plan){
+  const t={...raw};delete t.combineHistory;
+  if(Object.hasOwn(raw,"combineHistory")&&(typeof raw.combineHistory!=="boolean"||raw.combineHistory&&!raw.needsHistory))reject("task");
   if(!keys(t,["id","kind","needsHistory","needsOwnerFacts","includeSourceDates","recordMode","workflow","pets","reference","missing"])||!/^t[1-6]$/.test(t.id)||!kinds.includes(t.kind)||typeof t.needsHistory!=="boolean"||typeof t.needsOwnerFacts!=="boolean"||typeof t.includeSourceDates!=="boolean"||!Array.isArray(t.missing)||t.missing.length>7||t.missing.some(v=>!missing.includes(v)))reject("task");
   if(!["none","single","collection"].includes(t.recordMode)||(t.recordMode!=="none")!==t.needsHistory)reject("record_mode");
   if(!workflows.includes(t.workflow)||(t.kind==="workflow")!==(t.workflow!=="none"))reject("workflow_task");
@@ -46,7 +49,7 @@ export function validateTaskPlan(plan,context){
   const reference=context.references.find(r=>r.reference===t.reference);
   if(t.reference!==null&&(!reference||t.pets.length>0&&!t.pets.includes(reference.petHandle)))reject("reference");
  }
- return plan.map(t=>({...t,recordMode:t.kind==="saved_continuation"?"collection":t.recordMode,needsOwnerFacts:t.kind==="owner_observations"||t.kind==="vet_brief"&&t.needsOwnerFacts,missing:[...new Set(t.missing)].filter(k=>(k!=="which_record"||t.recordMode!=="collection"&&t.kind!=="saved_continuation")&&(k!=="owner_observation"||["owner_observations","vet_brief"].includes(t.kind)))}));
+ return plan.map(t=>({...t,combineHistory:t.combineHistory===true,recordMode:t.kind==="saved_continuation"?"collection":t.recordMode,needsOwnerFacts:t.kind==="owner_observations"||t.kind==="vet_brief"&&t.needsOwnerFacts,missing:[...new Set(t.missing)].filter(k=>(k!=="which_record"||t.recordMode!=="collection"&&t.kind!=="saved_continuation")&&(k!=="owner_observation"||["owner_observations","vet_brief"].includes(t.kind)))}));
 }
 export function decodeComponentSelection(value,tools,context,decode){
  const taskPlan=validateTaskPlan(value?.taskPlan,context),clean={...value};delete clean.taskPlan;
@@ -195,6 +198,14 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
   if(t.kind==="vet_brief"&&t.id!==firstBrief)return {...t,status:"partial",reason:"not_answered"};
   if(policy?.active&&t.status==="complete"&&(["general_guidance","clinical_guidance"].includes(t.kind)||t.kind==="clarification"&&!t.missing.length||["saved_content","saved_continuation"].includes(t.kind)&&!t.historyFacts.length&&!answer.quotes?.some(q=>t.sources.includes(q.source))||t.kind==="owner_observations"&&!t.ownerFacts.length))return {...t,status:"partial",reason:"not_answered"};
   if(t.kind==="calculation"&&(!answer.calculations?.length||answer.calculations.some(c=>c.available===false)))return {...t,status:"unresolved",reason:"not_answered"};
+  if(t.combineHistory){
+   const petIds=new Set(sources.filter(s=>t.sources.includes(s.handle)).map(s=>s.petId));
+   const groups=coverage.filter(r=>r.scope.kind!=="profile"&&r.sources.some(s=>sources.some(actual=>actual.handle===s.source&&petIds.has(actual.petId))));
+   const prior=new Set(groups.filter(r=>r.scope.evidenceRole==="retained_prior").flatMap(r=>r.sources.map(s=>s.source)));
+   const fresh=new Set(groups.filter(r=>r.scope.evidenceRole==="fresh_remainder").flatMap(r=>r.sources.map(s=>s.source)));
+   const displayed=[...t.historyFacts.map(f=>f.source),...(!policy?.active?(t.historySynthesis??[]).flatMap(theme=>theme.evidence.map(e=>e.source)):[])];
+   if(!displayed.some(h=>prior.has(h))||!displayed.some(h=>fresh.has(h)))return {...t,status:"partial",reason:"not_answered",combinedEvidenceMissing:true};
+  }
   const relevant=coverage.filter(r=>r.sources.some(s=>t.sources.includes(s.source)));
   if(t.needsHistory&&relevant.some(r=>r.scope.goal==="complete_set"&&(r.omitted>0||r.hasMore||r.hasPrevious||r.truncated||r.unmet?.includes("prior_source_selection_omitted"))))return {...t,status:"partial",reason:"source_omitted"};
   return t;
@@ -217,11 +228,16 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
   const safe=undatedCollectionSynthesis(p.text);removedCalendar||=safe!==p.text.trim();return safe;
  }).filter(Boolean).join("\n\n"):answer.answer,verifiedBriefText=null;
  if(!policy?.active&&!brief&&selectedDatedFacts.length){
-  text+="\n\nSelected dated historical details:\n"+[...new Set(selectedDatedFacts.map(f=>{
+  const rows=selectedDatedFacts.flatMap(f=>{
    const s=sources.find(s=>s.handle===f.source),withRecorded=collectionTasks.some(t=>t.includeSourceDates&&t.historyFacts.includes(f));
-   return "• "+s.petName+" — event "+s.eventAt.slice(0,10)+(withRecorded?"; recorded "+s.recordedAt.slice(0,10):"")+": “"+f.excerpt+"”";
-  }))].join("\n");
+   const alreadyQuoted=collectionTasks.some(t=>t.historySynthesis?.some(theme=>theme.evidence.some(e=>e.source===f.source&&e.excerpt.includes(f.excerpt))));
+   if(alreadyQuoted&&!withRecorded)return [];
+   const index=(answer.sources??[]).indexOf(f.source),citation=index>=0?" (Source "+(index+1)+")":"";
+   return ["• "+s.petName+" — event "+s.eventAt.slice(0,10)+(withRecorded?"; recorded "+s.recordedAt.slice(0,10):"")+(alreadyQuoted?citation:": “"+f.excerpt+"”")];
+  });
+  if(rows.length)text+="\n\nSelected historical dates and details:\n"+[...new Set(rows)].join("\n");
  }
+
  if(removedCalendar&&!selectedDatedFacts.length){
   text+="\n\nI couldn't verify the generated date-specific wording. The source cards retain the original dated records.";
   tasks=tasks.map(t=>collectionTasks.includes(t)?{...t,status:"partial",reason:"not_answered"}:t);
@@ -253,13 +269,15 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
   const relevant=coverage.filter(r=>r.sources.some(s=>task.sources.includes(s.source)));
   const retainedSubset=task.reason==="source_omitted"&&relevant.some(r=>r.unmet?.includes("prior_source_selection_omitted"))
    &&!relevant.some(r=>r.omitted>0||r.hasMore||r.hasPrevious||r.truncated);
-  const detail=retainedSubset?"This part uses only the bounded source selection retained from an earlier result; the other earlier bodies were not re-read for this answer.":reasonsText[task.reason];
+  if(task.historySynthesis!==undefined&&task.reason==="source_omitted"&&relevant.some(r=>r.omitted>0||r.hasMore||r.hasPrevious||r.truncated))continue;
+  const detail=task.combinedEvidenceMissing?"The combined picture is incomplete: it has not selected verified facts from both the earlier and newly fetched records.":retainedSubset?"This part uses only the bounded source selection retained from an earlier result; the other earlier bodies were not re-read for this answer.":reasonsText[task.reason];
   if(detail&&!text.includes(detail))text+="\n\n"+labels[task.kind]+": "+detail;
  }
  const dateHandles=[...new Set(tasks.filter(t=>t.includeSourceDates).flatMap(t=>t.sources))].filter(h=>!brief?.historyFacts.some(f=>f.source===h));
  const sourceDates=dateHandles.filter(h=>!tasks.some(t=>t.recordMode==="collection"&&t.sources.includes(h))).map(h=>{const s=sources.find(s=>s.handle===h);return {kind:s.kind,eventAt:s.eventAt,recordedAt:s.recordedAt,pet:s.petName??null};});
  const historicalSupport=[...new Set(tasks.filter(t=>t.status!=="unresolved").flatMap(t=>[...t.historyFacts.map(f=>f.source),...(t.historySynthesis??[]).flatMap(theme=>theme.evidence.map(e=>e.source))]))].filter(h=>(answer.sources??[]).includes(h));
- return {...answer,answer:text,historicalSupport,...(verifiedBriefText?{verifiedBriefText}:{}),...(policy?.active?{ownerReports:brief?[]:[...new Set(tasks.flatMap(t=>t.ownerFacts.map(f=>f.excerpt)))]}:{}),presentation:{...answer.presentation,sourceDates,contextRequired:tasks.some(t=>t.missing.includes("which_record"))&&answer.presentation?.contextRequired===true},taskCompletion:tasks.map(t=>({id:t.id,kind:t.kind,status:t.status,reason:t.reason,sourceCount:t.sources.length})),limited:incomplete.length>0||!!policy?.decision,replyType:!policy?.active&&clarify.length&&tasks.every(t=>t.missing.length)?"clarification":incomplete.length||policy?.decision?"partial":"answer"};
+ const collectionOnly=collectionTasks.length>0&&!tasks.some(t=>t.needsHistory&&t.recordMode!=="collection")&&!coverage.some(r=>r.scope.goal==="exact_quote");
+ return {...answer,answer:text,historicalSupport,...(collectionOnly?{quotes:[]}:{}),...(verifiedBriefText?{verifiedBriefText}:{}),...(policy?.active?{ownerReports:brief?[]:[...new Set(tasks.flatMap(t=>t.ownerFacts.map(f=>f.excerpt)))]}:{}),presentation:{...answer.presentation,sourceDates,contextRequired:tasks.some(t=>t.missing.includes("which_record"))&&answer.presentation?.contextRequired===true},taskCompletion:tasks.map(t=>({id:t.id,kind:t.kind,status:t.status,reason:t.reason,sourceCount:t.sources.length})),limited:incomplete.length>0||!!policy?.decision,replyType:!policy?.active&&clarify.length&&tasks.every(t=>t.missing.length)?"clarification":incomplete.length||policy?.decision?"partial":"answer"};
 }
 
 /** Resolve record-choice ambiguity only after a fully inspected bounded search

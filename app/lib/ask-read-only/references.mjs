@@ -42,7 +42,7 @@ export function carryReadReferences(previous,bound,sources,answer,timeZone) {
   const completed=request.reference&&bound.some(c=>c.request.continuation?.reference===request.reference&&c.continuationValidated&&c.queryScopeExhausted&&!c.omittedRange);
   const selected=sources.filter(source=>source.petId===request.pet.id&&source.kind===request.kind&&answer.sources.includes(source.handle)&&call.sourceHandles?.includes(source.handle));
   if(!selected.length)continue;
-  const priority=[...(answer.quotes??[]).map(q=>q.source),...(answer.historicalSupport??[]),...(answer.calculations??[]).flatMap(c=>c.sourceHandles??[])];
+  const priority=[...(answer.historicalSupport??[]),...(answer.quotes??[]).map(q=>q.source),...(answer.calculations??[]).flatMap(c=>c.sourceHandles??[])];
   const retained=[...selected].sort((a,b)=>{
    const rank=s=>{const i=priority.indexOf(s.handle);return i<0?priority.length:i;};return rank(a)-rank(b);
   });

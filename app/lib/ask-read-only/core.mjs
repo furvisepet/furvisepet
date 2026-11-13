@@ -327,7 +327,7 @@ export async function runReadOnlyAsk(input,deps) {
   const call=bound[index],result=acquired[index],request=call.request;
   const truncated=!!result.truncated||allocation.omitted[index]>0||allocation.visible[index].some(source=>source.measurements.length<readSourceMeasurements(source.body,source.handle,source.kind,source.petName).length);
   omittedOwnedText=omittedOwnedText||allocation.omitted[index]>0;
-  const scope={pet:request.pet.name,kind:request.kind,goal:request.goal??"profile",from:request.from??null,to:request.to??null,
+  const scope={pet:request.pet.name,kind:request.kind,evidenceRole:request.continuation?"fresh_remainder":request.reference?"retained_prior":"scoped",goal:request.goal??"profile",from:request.from??null,to:request.to??null,
    recordedFrom:request.recordedFrom??null,recordedTo:request.recordedTo??null,orderBy:request.orderBy??"event",
    query:request.terms?.[0]??null,offset:request.offset??0,order:request.order??"desc"};
   const supplied=new Set(allocation.visible[index].map(source=>source.kind+":"+source.id));

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {validateHistorySynthesis,renderHistorySynthesis,historySynthesisSchema} from "../app/lib/ask-read-only/history-synthesis.mjs";
-import {reviewComponentCompletion,renderTaskCompletion,componentAnswerSchema} from "../app/lib/ask-read-only/task-components.mjs";
+import {reviewComponentCompletion,renderTaskCompletion,componentAnswerSchema,validateTaskPlan} from "../app/lib/ask-read-only/task-components.mjs";
 const row=(handle,body,eventAt="2020-01-03T12:00:00Z",extra={})=>({handle,body,eventAt,recordedAt:"2020-02-01T12:00:00Z",petId:"a",petName:"Pet A",kind:"history",...extra});
 const theme=(topic,sources)=>[{topic,evidence:sources.map(s=>({source:s.handle,excerpt:s.body}))}];
 const checked=(t,ss)=>validateHistorySynthesis(t,ss,ss.map(s=>s.handle));
@@ -48,7 +48,7 @@ test("actual completion composer replaces unsupported recurrence but retains use
  const e={task:"t1",status:"complete",reason:"none",componentIndexes:[0],sources:["s1"],ownerFacts:[],historyFacts:[],historySynthesis:theme("mat",[s])};
  const reviewed=reviewComponentCompletion({sources:["s1"],components:[{kind:"saved",text:"Recurring mats worsened over the years.",sources:["s1"]}],completion:[e]},plan,[s],[]);
  const out=renderTaskCompletion({answer:"Recurring mats worsened over the years.",validatedParts:[{index:0,text:"Recurring mats worsened over the years."}],presentation:{}},reviewed.tasks,[s],null,[{scope:{goal:"complete_set"},sources:[{source:"s1"}],omitted:4}]);
- assert.doesNotMatch(out.answer,/Recurring mats worsened/);assert.match(out.answer,/brushed out after the walk/);assert.match(out.answer,/source bodies were omitted/);assert.equal(out.taskCompletion[0].status,"partial");
+ assert.doesNotMatch(out.answer,/Recurring mats worsened/);assert.match(out.answer,/brushed out after the walk/);assert.doesNotMatch(out.answer,/Saved history:.*source bodies were omitted/);assert.equal(out.taskCompletion[0].status,"partial");
 });
 
 test("a generated heading cannot invalidate exact evidence; case uses the original",()=>{const s=row("s1","A mat was brushed out.");assert.match(renderHistorySynthesis(checked(theme("MAT",[s]),[s])),/“mat”/);});
@@ -59,6 +59,29 @@ test("rendered historical facts prioritize retained binder anchors without incre
  const {carryReadReferences}=await import("../app/lib/ask-read-only/references.mjs");
  const sources=Array.from({length:12},(_,i)=>({...row("s"+(i+1),"A verified original report."),id:"id"+i,ownerId:"owner"}));
  const request={kind:"history",pet:{id:"a",ownerId:"owner"},goal:"complete_set",from:"2020-01-01",to:"2020-12-31"};
- const refs=carryReadReferences([],[{request,sourceHandles:sources.map(s=>s.handle)}],sources,{sources:sources.map(s=>s.handle),quotes:[],calculations:[],historicalSupport:["s12","s11"]},"UTC");
+ const refs=carryReadReferences([],[{request,sourceHandles:sources.map(s=>s.handle)}],sources,{sources:sources.map(s=>s.handle),quotes:sources.slice(0,8).map(s=>({source:s.handle})),calculations:[],historicalSupport:["s12","s11"]},"UTC");
  assert.equal(refs.entries[0].sources.length,8);assert.deepEqual(refs.entries[0].sources.slice(0,2).map(s=>s.id),["id11","id10"]);assert.equal(refs.entries[0].limited,true);
+});
+
+test("a grounded collection does not duplicate its quoted facts or unrequested full-body quote list",()=>{
+ const s=row("s1","A mat was brushed out.");
+ const t={id:"t1",kind:"saved_content",needsHistory:true,recordMode:"collection",status:"partial",reason:"source_omitted",pets:[],missing:[],includeSourceDates:true,componentIndexes:[0],sources:["s1"],ownerFacts:[],historyFacts:[{source:"s1",excerpt:s.body}],historySynthesis:checked(theme("mat",[s]),[s])};
+ const a=renderTaskCompletion({answer:"Unused generated prose.",validatedParts:[{index:0,text:"Unused generated prose."}],sources:["s1"],quotes:[{source:"s1",quote:s.body}],presentation:{}},[t],[s],null,[{scope:{goal:"complete_set"},sources:[{source:"s1"}],omitted:4}]);
+ assert.equal(a.answer.split(s.body).length,2);assert.match(a.answer,/event 2020-01-03; recorded 2020-02-01/);assert.deepEqual(a.quotes,[]);assert.equal(a.taskCompletion[0].status,"partial");
+});
+
+test("a combined-history task cannot complete from fresh records alone despite prior reads",()=>{
+ const a=row("s1","An earlier distinctive observation."),b=row("s2","A newly saved observation.","2021-01-01T12:00:00Z");
+ const t={id:"t1",kind:"saved_continuation",needsHistory:true,recordMode:"collection",combineHistory:true,status:"complete",reason:"none",missing:[],componentIndexes:[0],sources:["s2"],ownerFacts:[],historyFacts:[],historySynthesis:checked(theme("observation",[b]),[a,b])};
+ const cov=[{scope:{kind:"history",goal:"complete_set",evidenceRole:"retained_prior"},sources:[{source:"s1"}]},{scope:{kind:"history",goal:"complete_set",evidenceRole:"fresh_remainder"},sources:[{source:"s2"}]}];
+ const input={answer:"Generated.",validatedParts:[{index:0,text:"Generated."}],sources:["s2"],presentation:{}};
+ const failed=renderTaskCompletion(input,[t],[a,b],null,cov);assert.equal(failed.taskCompletion[0].status,"partial");assert.match(failed.answer,/both the earlier and newly fetched/);
+ const supported=renderTaskCompletion({...input,sources:["s1","s2"]},[{...t,sources:["s1","s2"],historySynthesis:checked(theme("observation",[a,b]),[a,b])}],[a,b],null,cov);assert.equal(supported.taskCompletion[0].status,"complete");assert.match(supported.answer,/earlier distinctive/);assert.match(supported.answer,/newly saved/);
+});
+
+test("combined history is an explicit first-pass task contract and never a source-free permission",()=>{
+ const t={id:"t1",kind:"saved_continuation",combineHistory:true,needsHistory:true,needsOwnerFacts:false,includeSourceDates:false,recordMode:"collection",workflow:"none",pets:["p1"],reference:"r1",missing:[]};
+ const ctx={pets:[{handle:"p1"}],references:[{reference:"r1",petHandle:"p1"}]};
+ assert.equal(validateTaskPlan([t],ctx)[0].combineHistory,true);assert.equal(validateTaskPlan([{...t,combineHistory:false}],ctx)[0].combineHistory,false);
+ assert.throws(()=>validateTaskPlan([{...t,needsHistory:false,recordMode:"none"}],ctx),/COMPONENT_CONTRACT/);
 });
