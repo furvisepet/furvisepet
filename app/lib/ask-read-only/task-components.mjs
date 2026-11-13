@@ -190,7 +190,13 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
  }
  const labels={saved_content:"Saved history",saved_continuation:"Remaining history",owner_observations:"Owner observations",calculation:"Calculation",vet_brief:"Vet brief",clarification:"Clarification",general_guidance:"General guidance",clinical_guidance:"Care guidance",workflow:"App steps"};
  const reasonsText={missing_context:"Essential context for this part is missing; please repeat the relevant details.",source_unavailable:"The saved-record part remains unresolved: no verified source was supplied for it.",source_omitted:"This part is incomplete because some source bodies were omitted by the evidence limit.",not_supported:"This requested action is unavailable through read-only Ask.",not_answered:"This requested part has not been completed from the available information."};
- for(const task of incomplete.filter(t=>!t.missing.length&&t!==brief))if(reasonsText[task.reason]&&!text.includes(reasonsText[task.reason]))text+="\n\n"+labels[task.kind]+": "+reasonsText[task.reason];
+ for(const task of incomplete.filter(t=>!t.missing.length&&t!==brief)){
+  const relevant=coverage.filter(r=>r.sources.some(s=>task.sources.includes(s.source)));
+  const retainedSubset=task.reason==="source_omitted"&&relevant.some(r=>r.unmet?.includes("prior_source_selection_omitted"))
+   &&!relevant.some(r=>r.omitted>0||r.hasMore||r.hasPrevious||r.truncated);
+  const detail=retainedSubset?"This part uses only the bounded source selection retained from an earlier result; the other earlier bodies were not re-read for this answer.":reasonsText[task.reason];
+  if(detail&&!text.includes(detail))text+="\n\n"+labels[task.kind]+": "+detail;
+ }
  const dateHandles=[...new Set(tasks.filter(t=>t.includeSourceDates).flatMap(t=>t.sources))].filter(h=>!brief?.historyFacts.some(f=>f.source===h));
  const sourceDates=dateHandles.filter(h=>!tasks.some(t=>t.recordMode==="collection"&&t.sources.includes(h))).map(h=>{const s=sources.find(s=>s.handle===h);return {kind:s.kind,eventAt:s.eventAt,recordedAt:s.recordedAt,pet:s.petName??null};});
  return {...answer,answer:text,...(verifiedBriefText?{verifiedBriefText}:{}),...(policy?.active?{ownerReports:brief?[]:[...new Set(tasks.flatMap(t=>t.ownerFacts.map(f=>f.excerpt)))]}:{}),presentation:{...answer.presentation,sourceDates,contextRequired:tasks.some(t=>t.missing.includes("which_record"))&&answer.presentation?.contextRequired===true},taskCompletion:tasks.map(t=>({id:t.id,kind:t.kind,status:t.status,reason:t.reason,sourceCount:t.sources.length})),limited:incomplete.length>0||!!policy?.decision,replyType:!policy?.active&&clarify.length&&tasks.every(t=>t.missing.length)?"clarification":incomplete.length||policy?.decision?"partial":"answer"};

@@ -38,3 +38,17 @@ This continuation: 0 submitted Ask turns, 0 physical provider calls, USD 0.00. P
 PR527 historical baseline supplied by G: 20 submissions, 5 PASS / 11 PARTIAL / 4 FAIL; 20 published; 40 calls; USD 0.215466. Final SHA subset: 12 turns, 5 PASS / 5 PARTIAL / 2 FAIL; 24 calls; USD 0.136324. The subset is included in the total, never added again.
 Prior #528 live spending remains unreconciled by this continuation; do not combine or present it as zero.
 Remaining blockers: exact-SHA preview verification/deployment and fresh real-app qualification with backend receipt reconciliation. No GO or release-completion claim.
+
+
+## Live repair iteration on 3ac93e64
+After explicit team scoping, Vercel verified deployment dpl_GU1WmiDHURNHfdBmRSmUR5DPV6oJ as READY for exact source SHA. The existing preview alias was reassigned and reloaded in signed-in G Chrome. Earlier team-access diagnosis was incomplete: two teams share the display name Furvise; the application belongs to furvise-0e3fe5ef. No new sign-in or secrets were needed.
+
+Three new real UI submissions, six reconciled physical provider calls, USD 0.050897:
+1. Dune 2019-2021 complete history: PASS for useful bounded synthesis, 36 examined / 32 supplied / 4 omitted; USD 0.018441.
+2. Retained omitted-window continuation: PASS, eight anchors verified and four missing notes actually fetched; October stool observation matched independently read source; USD 0.015440.
+3. Combined overview: PARTIAL, two fresh reference reads (8 original + 4 remainder) and correct historical integration, but generic UI completion alarm duplicated the specific coverage disclosure. The narrative also called a retained-source subset a new admission-limit omission; USD 0.017016.
+
+Runtime traces, persisted answers, source fingerprints/timestamps and individual call receipts were independently inspected. All 32 retained reference locators across the three answers match current owned source hashes/dates. The original partial result and costs are retained.
+
+Repair: generic completion notice now yields only when structured partial tasks all identify source omissions with nonempty verified Search coverage; unrelated unresolved tasks, zero-source results and missing coverage retain the warning. Task rendering distinguishes a retained earlier subset from fresh body-admission overflow. No completion status or evidence limit is upgraded.
+Checks: 91 focused tests, TypeScript, scoped lint and whitespace passed. A fresh different-pet/period live cohort must follow the new preview deployment before acceptance.

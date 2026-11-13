@@ -27,3 +27,16 @@ test('a limited answer that already names the missing evidence does not get a se
  assert.equal(parsed.completionNotice,undefined);
  assert.equal(parsed.summary,summary);
 });
+
+test('a persisted source-only limit uses its specific coverage without a generic failure card',()=>{
+ const stored={...base,readOnlyEvidence:true,
+  sections:[{heading:'Search coverage',items:['Only a bounded subset of the earlier result was retained.']}],
+  readOnlyTaskCompletion:[{id:'t1',status:'partial',reason:'source_omitted',sourceCount:8},{id:'t2',status:'complete',reason:'none',sourceCount:4}],
+  turn:{finalStage:'COMPLETED',answerOutcome:'limited'}};
+ assert.equal(parseAskConversationResponse(JSON.parse(JSON.stringify(stored))).completionNotice,undefined);
+ for(const change of [
+  {readOnlyTaskCompletion:[...stored.readOnlyTaskCompletion,{id:'t3',status:'unresolved',reason:'not_answered',sourceCount:0}]},
+  {readOnlyTaskCompletion:[{id:'t1',status:'partial',reason:'source_omitted',sourceCount:0}]},
+  {sections:[]},{readOnlyEvidence:false}
+ ])assert.ok(parseAskConversationResponse({...stored,...change}).completionNotice);
+});

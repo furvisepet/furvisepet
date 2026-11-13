@@ -233,3 +233,15 @@ test("a collection read cannot erase an independent single-record choice for the
  assert.match(r.result.answer.answer,/Which saved result/);
  assert.doesNotMatch(r.result.answer.answer,/chosen automatically/);
 });
+
+test("retained reference limits are not mislabeled as a new body-admission overflow",()=>{
+ const sources=[{...source,handle:"s1",petName:"Willow"}];
+ const t={...task({kind:"saved_content",needsHistory:true,recordMode:"collection",pets:["p1"]}),status:"complete",reason:"none",componentIndexes:[],sources:["s1"],historyFacts:[],ownerFacts:[]};
+ const coverage=[{scope:{goal:"complete_set"},sources:[{source:"s1"}],omitted:0,hasMore:false,hasPrevious:false,truncated:false,unmet:["prior_source_selection_omitted"]}];
+ const a=renderTaskCompletion({answer:"Available historical observations.",quotes:[],calculations:[],presentation:{}},[t],sources,null,coverage);
+ assert.equal(a.taskCompletion[0].status,"partial");
+ assert.match(a.answer,/retained from an earlier result/);
+ assert.doesNotMatch(a.answer,/omitted by the evidence limit/);
+ const b=renderTaskCompletion({answer:"Available historical observations.",quotes:[],calculations:[],presentation:{}},[t],sources,null,[{...coverage[0],omitted:2}]);
+ assert.match(b.answer,/omitted by the evidence limit/);
+});
