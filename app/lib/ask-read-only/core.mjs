@@ -254,7 +254,7 @@ export async function runReadOnlyAsk(input,deps) {
  let taskPlan=first.taskPlan;
  if(taskPlan){first={...first};delete first.taskPlan;}
  if(!keys(first,Object.hasOwn(first??{},"workflowIntent")?["calls","text","safety","historyIntent","workflowIntent"]:Object.hasOwn(first??{},"historyIntent")?["calls","text","safety","historyIntent"]:Object.hasOwn(first??{},"safety")?["calls","text","safety"]:["calls","text"])||!Array.isArray(first.calls)||first.calls.length>4||typeof first.text!=="string"||first.text.length>12000)fail("ASK_READ_PROVIDER_INVALID");
- if(taskPlan){first.taskPlan=taskPlan;first=fulfillReferenceReads(first,references);context.taskPlan=taskPlan;}
+ if(taskPlan){first.taskPlan=taskPlan;first=fulfillReferenceReads(first,references);taskPlan=first.taskPlan;context.taskPlan=taskPlan;}
  let assessment=Object.hasOwn(first,"safety")?validateClinicalAssessment(first.safety):null;
  const recovered=recoverBoundedCalendarRead(first,context,pets);
  if(recovered){first=recovered.first;assessment=first.safety;deps.onAnswerBoundary?.({outcome:"calendar_scope_recovered",...recovered.diagnostic});}

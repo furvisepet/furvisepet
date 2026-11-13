@@ -41,8 +41,12 @@ export function carryReadReferences(previous,bound,sources,answer,timeZone) {
   const request=call.request;
   const selected=sources.filter(source=>source.petId===request.pet.id&&source.kind===request.kind&&answer.sources.includes(source.handle)&&call.sourceHandles?.includes(source.handle));
   if(!selected.length)continue;
+  const priority=[...(answer.quotes??[]).map(q=>q.source),...(answer.calculations??[]).flatMap(c=>c.sourceHandles??[])];
+  const retained=[...selected].sort((a,b)=>{
+   const rank=s=>{const i=priority.indexOf(s.handle);return i<0?priority.length:i;};return rank(a)-rank(b);
+  });
   entries.push({kind:request.kind,petId:request.pet.id,timeZone:request.referenceTimeZone??timeZone,goal:request.goal??"relevant_records",from:request.from??null,to:request.to??null,
-   recordedFrom:request.recordedFrom??null,recordedTo:request.recordedTo??null,orderBy:request.orderBy??"event",order:request.order??"desc",terms:request.terms??[],omittedRange:call.omittedRange??null,discoveryIncomplete:call.queryScopeExhausted===false,omittedEventRange:call.omittedEventRange??request.omittedEventRange??null,limited:selected.length>8||request.referenceLimited===true,sources:selected.slice(0,8).map(fingerprint)});
+   recordedFrom:request.recordedFrom??null,recordedTo:request.recordedTo??null,orderBy:request.orderBy??"event",order:request.order??"desc",terms:request.terms??[],omittedRange:call.omittedRange??null,discoveryIncomplete:call.queryScopeExhausted===false,omittedEventRange:call.omittedEventRange??request.omittedEventRange??null,limited:selected.length>8||request.referenceLimited===true,sources:retained.slice(0,8).map(fingerprint)});
  }
  // General turns carry the bounded state forward without adding another query.
  for(const prior of previous){const {request}=prior;const completed=bound.some(c=>c.request.continuation?.reference===prior.handle&&c.continuationValidated&&c.queryScopeExhausted&&!c.omittedRange);entries.push({kind:request.kind,petId:request.pet.id,timeZone:request.referenceTimeZone??timeZone,goal:request.goal,from:request.from,to:request.to,

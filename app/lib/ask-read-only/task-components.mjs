@@ -56,8 +56,18 @@ function containedCollection(outer,inner){
 }
 export function fulfillReferenceReads(first,references=[]){
  if(!first.taskPlan)return first;
- const calls=[...first.calls];
- for(const task of first.taskPlan){
+ let calls=[...first.calls];
+ // One component with an explicit remainder read cannot also acquire the old
+ // retained bodies merely because its task label remained saved_content.
+ let taskPlan=first.taskPlan;
+ if(taskPlan.length===1){
+  const t=taskPlan[0];
+  if(t.kind==="saved_content"&&t.needsHistory&&t.reference&&!scopeMissing(t)&&calls.some(c=>c.name==="read_remaining_records"&&JSON.parse(c.arguments).reference===t.reference)){
+   taskPlan=[{...t,kind:"saved_continuation",recordMode:"collection"}];
+   calls=calls.filter(c=>c.name!=="read_referenced_sources"||JSON.parse(c.arguments).reference!==t.reference);
+  }
+ }
+ for(const task of taskPlan){
   if(!task.needsHistory||!task.reference||scopeMissing(task))continue;
   if(task.kind==="saved_continuation"&&!references.some(r=>r.handle===task.reference&&(r.request.omittedRange||r.request.omittedEventRange)))continue;
   const tool=task.kind==="saved_continuation"?"read_remaining_records":"read_referenced_sources";
@@ -69,7 +79,7 @@ export function fulfillReferenceReads(first,references=[]){
    if(!duplicate&&calls.length<4)calls.push({id:"task-read-"+task.id+"-"+i,name:tool,arguments:JSON.stringify({reference:ref.handle})});
   }
  }
- return {...first,calls};
+ return {...first,taskPlan,calls};
 }
 export function componentAnswerSchema(base,plan,sources,ownerStatements){
  if(!plan)return base;

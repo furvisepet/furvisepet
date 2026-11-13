@@ -2,9 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {createHash} from "node:crypto";
 import {runReadOnlyAsk,bindReadTool,readOnlyToolsForPets} from "../app/lib/ask-read-only/core.mjs";
-import {decodeComponentSelection} from "../app/lib/ask-read-only/task-components.mjs";
+import {fulfillReferenceReads,decodeComponentSelection} from "../app/lib/ask-read-only/task-components.mjs";
 import {decodeClinicalSelection} from "../app/lib/ask-read-only/clinical-policy.mjs";
-import {restoreReadReferences,continuationRange} from "../app/lib/ask-read-only/references.mjs";
+import {restoreReadReferences,continuationRange,carryReadReferences} from "../app/lib/ask-read-only/references.mjs";
 import {createReadOnlyDataAccess} from "../app/lib/ask-read-only/data.ts";
 
 const pet={id:"fixture-pet-private-001",ownerId:"fixture-owner",handle:"p1",name:"Maple",species:"cat"};
@@ -88,4 +88,17 @@ test("same-day overlap remains bounded and partial rather than claiming the four
  assert.deepEqual(second.sources.map(s=>s.id),first.sources.map(s=>s.id));
  assert.ok(second.coverage[0].batchAcquisition.attempts<=8);assert.ok(second.coverage[0].batchAcquisition.rawRows<=64);
  assert.deepEqual(second.coverage[0].omittedRange,{axis:"event",from:"2021-07-15",to:"2021-07-15"});
+});
+
+
+test("explicit sole-component remainder read overrides redundant ordinary-content label without old-body read",()=>{
+ const refs=[{handle:"r1",request:{omittedRange:{axis:"event",from:"2022-09-15",to:"2022-12-15"}}}];
+ const first={taskPlan:[task("saved_content",{reference:"r1",missing:[]})],calls:[{id:"remain",name:"read_remaining_records",arguments:'{"reference":"r1"}'},{id:"old",name:"read_referenced_sources",arguments:'{"reference":"r1"}'}]};
+ const r=fulfillReferenceReads(first,refs);assert.equal(r.taskPlan[0].kind,"saved_continuation");assert.equal(r.calls.length,1);assert.equal(r.calls[0].name,"read_remaining_records");
+});
+test("bounded retained anchors prioritize actually quoted exceptions and typed operands over first-read order",()=>{
+ const sources=rows.map((r,i)=>({kind:"history",id:r.id,ownerId:pet.ownerId,petId:pet.id,handle:"s"+(i+1),body:r.note,eventAt:r.occurred_at,recordedAt:r.created_at}));
+ const request={kind:"history",pet,goal:"complete_set",from:"2020-01-01",to:"2022-12-31",terms:[],orderBy:"event",order:"asc"};
+ const result=carryReadReferences([],[{request,sourceHandles:sources.map(s=>s.handle)}],sources,{sources:sources.map(s=>s.handle),quotes:[{source:"s20"}],calculations:[{sourceHandles:["s36"]}]},"UTC");
+ assert.equal(result.entries[0].sources.length,8);assert.equal(result.entries[0].sources[0].id,rows[19].id);assert.equal(result.entries[0].sources[1].id,rows[35].id);assert.equal(result.entries[0].limited,true);
 });
