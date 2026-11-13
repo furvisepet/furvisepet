@@ -34,3 +34,12 @@ test("conditional preambles preserve independent actual emergencies and current 
   "If my cat collapsed I would call the vet, but now my dog is unconscious."
  ])assert.ok(detectImmediateAskEmergency(text),text);
 });
+
+test("event absence in a recovered history cannot create a present collapse",()=>{
+ assert.equal(detectImmediateAskEmergency("Bramble had a collapse episode a few years back, was treated by a veterinarian and recovered. There is no collapse or breathing problem now. For a routine appointment next month, what facts about that old episode should I bring?"),null);
+ assert.equal(detectImmediateAskEmergency("There is no collapse."),null);
+ assert.ok(detectImmediateAskEmergency("There is no collapse, but my dog is struggling to breathe now."));
+ assert.ok(detectImmediateAskEmergency("My dog collapsed and is unconscious now. There is no bleeding."));
+ assert.ok(detectImmediateAskEmergency("My dog will not wake up."));
+ assert.ok(detectImmediateAskEmergency("My dog has uncontrolled bleeding that will not stop."));
+});

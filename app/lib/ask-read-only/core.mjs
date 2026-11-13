@@ -1,6 +1,6 @@
 import { COMPONENT_INSTRUCTIONS, componentSelectionSchema, componentAnswerSchema, fulfillReferenceReads,ownerFactSentences, reviewComponentCompletion, renderTaskCompletion, resolveRecordDiscovery, normalizeTaskRecords } from "./task-components.mjs";
 import { CLINICAL_INSTRUCTIONS, clinicalSelectionSchema, validateClinicalAssessment, clinicalAnswerSchema, reviewClinicalAnswer, renderMedicationDecision, ownerStatementCatalog, emergencyHandoffForAssessment } from "./clinical-policy.mjs";
-import { APP_CAPABILITIES, WORKFLOW_INSTRUCTIONS, renderAppWorkflow } from "./app-capabilities.mjs";
+import { APP_CAPABILITIES, WORKFLOW_INSTRUCTIONS, renderAppWorkflow, supportsAppWorkflow } from "./app-capabilities.mjs";
 import { normalizeReadTemporalScope } from "./temporal-scope.mjs";
 import { explicitCalendarScopes, recoverBoundedCalendarRead } from "./calendar-scope.mjs";
 import { restoreReadReferences, describeReadReferences, carryReadReferences, continuationRange } from "./references.mjs";
@@ -256,6 +256,8 @@ export async function runReadOnlyAsk(input,deps) {
  if(taskPlan){first={...first};delete first.taskPlan;}
  // Reconcile the current-turn discriminator before a stale workflow task can
  // replace ordinary prose. The second call sees the corrected task contract.
+ const workflowSupported=supportsAppWorkflow(input.question);
+ if(!workflowSupported&&Object.hasOwn(first,"workflowIntent"))first.workflowIntent="none";
  if(first.workflowIntent==="none"&&taskPlan?.some(t=>t.kind==="workflow")){
   taskPlan=taskPlan.map(t=>t.kind==="workflow"?{...t,kind:"general_guidance",workflow:"none"}:t);
   first.text="";

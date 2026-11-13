@@ -111,7 +111,7 @@ test("recovery never guesses missing pet, event meaning, multiple periods or gen
  assert.deepEqual(READ_ONLY_LIMITS,{providerCalls:2,tools:4,records:32,page:16,sourceCharacters:24000,dialogueCharacters:8000});
 });
 test("UI-grounded photo help cannot invent an upload button or claim a save",async()=>{
- const {result}=await run(wire(assessment(),{workflowIntent:"care_photo_attachment"}),final(assessment(),"I uploaded your photo."));
+ const {result}=await run(wire(assessment(),{workflowIntent:"care_photo_attachment"}),final(assessment(),"I uploaded your photo."),{question:"How can I attach a photo to a Furvise care note?"});
  const text=result.answer.answer;assert.match(text,/no photo attachment or upload control/);assert.match(text,/Something worth remembering/);assert.match(text,/REMEMBER/);assert.doesNotMatch(text,/I uploaded/);
  assert.equal(APP_CAPABILITIES.ask.canSave,false);assert.equal(APP_CAPABILITIES.careNotes.photoAttachments,false);
 });

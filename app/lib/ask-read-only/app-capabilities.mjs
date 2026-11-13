@@ -6,6 +6,16 @@ export const APP_CAPABILITIES=Object.freeze({
  history:{route:HISTORY_NOTE_UI.route,search:true,filters:["pet","category","when"],labels:HISTORY_NOTE_UI}
 });
 export const WORKFLOW_INSTRUCTIONS="Interpret the CURRENT user request. Older app-help topics do not authorize a workflow on a later unrelated request. A return to an agreed routine or its latest revision is general guidance using the most recent relevant dialogue, including across topic interruptions. Only when the user asks how to use a screen or which controls to operate, set workflowIntent and final appHelp.intent. A request for Ask to retrieve, quote, compare or explain saved information is a data-content request, not a UI workflow: use historyIntent and workflowIntent=none unless navigation/help is independently requested. APP_CAPABILITIES describes this build's actual routes/controls, not generic pet-app conventions. Do not invent attachment, upload or edit controls. App help is rendered from that shared capability registry. Ask performs no write/upload/navigation; steps describe what the user can do.";
+
+/** Current-turn support grants display of app controls only, never data access.
+ * Prior app topics cannot authorize replacing an unrelated owner answer. */
+export function supportsAppWorkflow(question=""){
+ const subject=/\b(?:furvise|app|today|history|notes?|photo|image|picture|screen|buttons?|controls?)\b/i.test(question);
+ const operation=/\b(?:attach|upload|save|log|record|enter|type|add|create|put|open|navigate|tap|click|screen|steps?|controls?)\b/i.test(question)
+  ||/\bhow\b.{0,60}\buse\b/i.test(question);
+ return subject&&operation;
+}
+
 export function renderAppWorkflow(answer,workflow,pets=[],append=false,question=""){
  // Bind current explicit authorized subjects independently of the UI selection.
  const named=pets.filter(p=>typeof p.name==="string"&&p.name.length>0&&

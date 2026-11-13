@@ -13,7 +13,7 @@ const completion=(extra={})=>({task:"t1",status:"complete",reason:"none",compone
 const final=(s,extra={})=>({components:[{kind:"general",text:"An ordinary answer.",sources:[]}],quotes:[],sources:[],calculations:[],replyType:"answer",presentation:{sourceDates:[],contextRequired:false},clinicalReview:{assessment:s,ownerStatementRefs:[],observationFields:[]},appHelp:{intent:"none",pet:null},completion:[completion()],...extra});
 async function execute(plan,s,output,extra={},plannedReads=[],readRows=[source]){
  let calls=0,reads=[];const requests=[];
- const result=await runReadOnlyAsk({ownerId:"owned",selectedPetId:pet.id,pets:[pet],dialogue:[],question:"An unfamiliar question.",now:"2026-11-12T12:00:00Z",timeZone:"UTC",...extra},{
+ const result=await runReadOnlyAsk({ownerId:"owned",selectedPetId:pet.id,pets:[pet],dialogue:[],question:plan.some(t=>t.kind==="workflow")?"How do I enter a photo into a Furvise care note?":"An unfamiliar question.",now:"2026-11-12T12:00:00Z",timeZone:"UTC",...extra},{
   provider:async(req,phase)=>{calls++;requests.push(req);return phase==="read_selection"?decodeComponentSelection({safety:s,reads:plannedReads,draft:"",historyIntent:{requested:plan.some(t=>t.needsHistory),timeBasis:"event",pet:null},workflowIntent:extra.workflowIntent??"find_care_note",taskPlan:plan},req.tools,req.context,decodeClinicalSelection):(typeof output==="function"?output(req):output);},
   read:async r=>{reads.push(r);return {sources:readRows,total:readRows.length,hasMore:false,scopeExhausted:true};}
  });return {result,calls,reads,requests};
@@ -291,4 +291,12 @@ test("app instructions bind explicit owned pet rather than stale UI selection",a
  assert.match(a.answer,/choose Rowan/);assert.doesNotMatch(a.answer,/choose Willow/);
  const b=renderAppWorkflow({answer:"",presentation:{}},{intent:"create_care_note",pet:"p1"},pets,false,"Willow and Rowan both need notes.");
  assert.match(b.answer,/choose the intended pet/);
+});
+
+test("prior workflow agreement cannot authorize controls for an unrelated current routine",async()=>{
+ const s=safety(),r=await execute([task({kind:"workflow",workflow:"create_care_note"})],s,req=>{
+  assert.equal(req.context.taskPlan[0].workflow,"none");
+  return final(s,{components:[{kind:"general",text:"Use the latest three-minute silent routine.",sources:[]}],appHelp:{intent:"create_care_note",pet:"p1"}});
+ },{workflowIntent:"create_care_note",question:"Give Willow a six-minute quiet settling routine beside me, without food or stairs."});
+ assert.match(r.result.answer.answer,/three-minute silent/);assert.doesNotMatch(r.result.answer.answer,/Open Today|REMEMBER/);
 });
