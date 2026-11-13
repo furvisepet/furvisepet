@@ -1,6 +1,6 @@
 import { COMPONENT_INSTRUCTIONS, componentSelectionSchema, componentAnswerSchema, fulfillReferenceReads,ownerFactSentences, reviewComponentCompletion, renderTaskCompletion, resolveRecordDiscovery, normalizeTaskRecords } from "./task-components.mjs";
 import { CLINICAL_INSTRUCTIONS, clinicalSelectionSchema, validateClinicalAssessment, clinicalAnswerSchema, reviewClinicalAnswer, renderMedicationDecision, ownerStatementCatalog, emergencyHandoffForAssessment } from "./clinical-policy.mjs";
-import { APP_CAPABILITIES, WORKFLOW_INSTRUCTIONS, renderAppWorkflow, supportsAppWorkflow } from "./app-capabilities.mjs";
+import { APP_CAPABILITIES, WORKFLOW_INSTRUCTIONS, renderAppWorkflow, supportsAppWorkflow, containsAppControlSteps } from "./app-capabilities.mjs";
 import { normalizeReadTemporalScope } from "./temporal-scope.mjs";
 import { explicitCalendarScopes, recoverBoundedCalendarRead } from "./calendar-scope.mjs";
 import { restoreReadReferences, describeReadReferences, carryReadReferences, continuationRange } from "./references.mjs";
@@ -245,7 +245,7 @@ export async function runReadOnlyAsk(input,deps) {
  pets:pets.map(p=>({handle:p.handle,name:p.name,species:p.species})),references:describeReadReferences(references),dialogue,question:input.question};
  const ownerStatements=ownerStatementCatalog(context,pets,input.ownerId);
  context.ownerFactSentenceRefs=ownerFactSentences(ownerStatements);
- context.appCapabilities=APP_CAPABILITIES;
+ context.appCapabilities=supportsAppWorkflow(input.question)?APP_CAPABILITIES:{ask:APP_CAPABILITIES.ask};
  context.explicitCalendarScopes=explicitCalendarScopes(context.question);
  context.ownerStatementRefs=ownerStatements.map(({ref,dialogueIndex,question})=>({ref,...(question?{question:true}:{dialogueIndex})}));
  let calls=0;
@@ -367,6 +367,14 @@ export async function runReadOnlyAsk(input,deps) {
   const reviewed=reviewClinicalAnswer(completed.value,assessment,ownerStatements,pets,workflowRequested?(first.workflowIntent??"none"):"none");
   if(taskPlan&&reviewed.policy&&!reviewed.policy.decision&&!reviewed.policy.current.length&&!reviewed.policy.conditional.length&&!reviewed.policy.currentConcern&&!taskPlan.some(t=>["vet_brief","clinical_guidance"].includes(t.kind)))reviewed.policy.active=false;
   if(taskPlan&&reviewed.workflow)reviewed.workflow.intent=taskPlan.find(t=>t.kind==="workflow")?.workflow??"none";
+  if(!reviewed.policy?.active&&!supportsAppWorkflow(input.question)&&Array.isArray(reviewed.value.components)){
+   const unrelated=new Set(reviewed.value.components.flatMap((part,index)=>part.kind==="general"&&containsAppControlSteps(part.text)?[index]:[]));
+   if(unrelated.size){
+    reviewed.value={...reviewed.value,components:reviewed.value.components.map((part,index)=>unrelated.has(index)?{kind:"limitation",text:"I couldn't complete this part of your current request.",sources:[]}:part)};
+    if(completed.tasks)completed.tasks=completed.tasks.map(task=>task.componentIndexes.some(index=>unrelated.has(index))?{...task,status:task.status==="unresolved"?"unresolved":"partial",reason:"not_answered"}:task);
+    deps.onAnswerBoundary?.({outcome:"unrequested_app_steps_withheld",componentCount:unrelated.size});
+   }
+  }
   answer=validateReadOnlyAnswer(reviewed.value,sources,input.question);
   if(reviewed.summary) {
    answer.hasTaskBrief=taskPlan?.some(t=>t.kind==="vet_brief")===true;

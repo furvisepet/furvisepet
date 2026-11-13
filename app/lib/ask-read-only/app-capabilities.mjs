@@ -11,7 +11,7 @@ export const WORKFLOW_INSTRUCTIONS="Interpret the CURRENT user request. Older ap
  * Prior app topics cannot authorize replacing an unrelated owner answer. */
 export function supportsAppWorkflow(question=""){
  const subject=/\b(?:furvise|app|today|history|notes?|photo|image|picture|screen|buttons?|controls?)\b/i.test(question);
- const operation=/\b(?:attach|upload|save|log|record|enter|type|add|create|put|open|navigate|tap|click|screen|steps?|controls?)\b/i.test(question)
+ const operation=/\b(?:attach|upload|save|log|record|enter|type|add|create|put|open|navigate|tap|click|screen|buttons?|steps?|controls?)\b/i.test(question)
   ||/\bhow\b.{0,60}\buse\b/i.test(question);
  return subject&&operation;
 }
@@ -32,4 +32,13 @@ export function renderAppWorkflow(answer,workflow,pets=[],append=false,question=
  else if(workflow.intent==="find_care_note")parts.push(find);
  else parts.push("I have verified steps for text notes on Today and finding notes in History. Which screen or task do you mean?");
  return {...answer,answer:(append?answer.answer+"\n\n":"")+parts.join("\n\n"),replyType:workflow.intent==="other"?(append?"partial":"clarification"):workflow.intent==="care_photo_attachment"?"partial":answer.replyType,limited:answer.limited||workflow.intent==="care_photo_attachment"||workflow.intent==="other"&&append,presentation:{...answer.presentation,...(!append?{contextRequired:false}:{}),delivery:"direct"}};
+}
+
+/** Recognize actual registry controls, not arbitrary mentions of notes or dates.
+ * This grants no display/read authority; it detects unrelated generated steps. */
+export function containsAppControlSteps(text=""){
+ const normalized=text.toLocaleLowerCase();
+ return [[CARE_NOTE_UI.note,CARE_NOTE_UI.details,CARE_NOTE_UI.submit],
+  [HISTORY_NOTE_UI.search,HISTORY_NOTE_UI.older]].some(labels=>
+   labels.filter(label=>typeof label==="string"&&label.length>2&&normalized.includes(label.toLocaleLowerCase())).length>=2);
 }

@@ -323,3 +323,14 @@ test("calendar qualifier and list removal keeps clean sentence grammar",()=>{
  assert.match(overview,/monthly care checks and a nutrition review/);
  assert.doesNotMatch(overview,/mid-|late 2020|September|October|November|\.,|,,|and, and/);
 });
+
+test("unrelated raw app-control prose cannot pass as a completed ordinary routine",async()=>{
+ const s=safety(),r=await execute([task()],s,req=>{
+  assert.equal(req.context.appCapabilities.careNotes,undefined);
+  return final(s,{components:[{kind:"general",text:"Use Today. Type into Something worth remembering, open Add details, then press REMEMBER.",sources:[]}]});
+ },{workflowIntent:"none",question:"Revise Willow’s routine to three silent minutes."});
+ assert.doesNotMatch(r.result.answer.answer,/Something worth remembering|Add details|REMEMBER/);
+ assert.equal(r.result.answer.taskCompletion[0].status,"partial");
+ assert.match(r.result.answer.answer,/couldn't complete/);
+ assert.equal(r.calls,2);
+});
