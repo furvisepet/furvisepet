@@ -384,6 +384,7 @@ export async function runReadOnlyAsk(input,deps) {
    if(selectedCalls.length<first.calls.length){answer.limited=true;if(answer.replyType==="answer")answer.replyType="partial";}
    deps.onAnswerBoundary?.({outcome:"clinical_reviewed",...reviewed.summary});
   }
+  if(completed.tasks)deps.onAnswerBoundary?.({outcome:"history_synthesis_reviewed",themes:completed.tasks.reduce((n,t)=>n+(t.historySynthesis?.length??0),0),rejected:completed.tasks.flatMap(t=>t.synthesisDiagnostics??[])});
   answer=renderTaskCompletion(answer,completed.tasks,sources,reviewed.policy,results);
   const appendWorkflow=!!reviewed.policy?.active||bound.length>0||!!taskPlan?.some(t=>t.kind!=="workflow");
   answer=renderAppWorkflow(answer,reviewed.workflow,pets,appendWorkflow,input.question);

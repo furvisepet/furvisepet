@@ -156,7 +156,7 @@ export function reviewComponentCompletion(final,plan,sources,ownerStatements,pet
   if(status==="complete"&&task.kind==="vet_brief"&&(!e.ownerFacts.length&&!e.historyFacts.length||task.needsHistory&&!e.historyFacts.length)){status="partial";reason="not_answered";}
   if(status==="complete"&&!e.componentIndexes.length&&!e.historyFacts.length&&!e.ownerFacts.length&&task.kind!=="workflow"){status="unresolved";reason="not_answered";}
   if(status!=="complete"&&reason==="none")reason="not_answered";
-  return {...task,...e,missing:task.needsOwnerFacts&&!ownerFacts.length?[...new Set([...task.missing,"owner_observation"])]:task.missing,historyFacts,ownerFacts,historySynthesis,status,reason,sources:selected};
+  return {...task,...e,missing:task.needsOwnerFacts&&!ownerFacts.length?[...new Set([...task.missing,"owner_observation"])]:task.missing,historyFacts,ownerFacts,historySynthesis,synthesisDiagnostics,status,reason,sources:selected};
  });
  const value={...final,sources:[...new Set([...final.sources,...tasks.flatMap(t=>t.sources)])]};delete value.completion;
  return {value,tasks};
@@ -258,7 +258,8 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
  }
  const dateHandles=[...new Set(tasks.filter(t=>t.includeSourceDates).flatMap(t=>t.sources))].filter(h=>!brief?.historyFacts.some(f=>f.source===h));
  const sourceDates=dateHandles.filter(h=>!tasks.some(t=>t.recordMode==="collection"&&t.sources.includes(h))).map(h=>{const s=sources.find(s=>s.handle===h);return {kind:s.kind,eventAt:s.eventAt,recordedAt:s.recordedAt,pet:s.petName??null};});
- return {...answer,answer:text,...(verifiedBriefText?{verifiedBriefText}:{}),...(policy?.active?{ownerReports:brief?[]:[...new Set(tasks.flatMap(t=>t.ownerFacts.map(f=>f.excerpt)))]}:{}),presentation:{...answer.presentation,sourceDates,contextRequired:tasks.some(t=>t.missing.includes("which_record"))&&answer.presentation?.contextRequired===true},taskCompletion:tasks.map(t=>({id:t.id,kind:t.kind,status:t.status,reason:t.reason,sourceCount:t.sources.length})),limited:incomplete.length>0||!!policy?.decision,replyType:!policy?.active&&clarify.length&&tasks.every(t=>t.missing.length)?"clarification":incomplete.length||policy?.decision?"partial":"answer"};
+ const historicalSupport=[...new Set(tasks.filter(t=>t.status!=="unresolved").flatMap(t=>[...t.historyFacts.map(f=>f.source),...(t.historySynthesis??[]).flatMap(theme=>theme.evidence.map(e=>e.source))]))].filter(h=>(answer.sources??[]).includes(h));
+ return {...answer,answer:text,historicalSupport,...(verifiedBriefText?{verifiedBriefText}:{}),...(policy?.active?{ownerReports:brief?[]:[...new Set(tasks.flatMap(t=>t.ownerFacts.map(f=>f.excerpt)))]}:{}),presentation:{...answer.presentation,sourceDates,contextRequired:tasks.some(t=>t.missing.includes("which_record"))&&answer.presentation?.contextRequired===true},taskCompletion:tasks.map(t=>({id:t.id,kind:t.kind,status:t.status,reason:t.reason,sourceCount:t.sources.length})),limited:incomplete.length>0||!!policy?.decision,replyType:!policy?.active&&clarify.length&&tasks.every(t=>t.missing.length)?"clarification":incomplete.length||policy?.decision?"partial":"answer"};
 }
 
 /** Resolve record-choice ambiguity only after a fully inspected bounded search

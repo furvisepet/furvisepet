@@ -54,3 +54,11 @@ test("actual completion composer replaces unsupported recurrence but retains use
 test("a generated heading cannot invalidate exact evidence; case uses the original",()=>{const s=row("s1","A mat was brushed out.");assert.match(renderHistorySynthesis(checked(theme("MAT",[s]),[s])),/“mat”/);});
 test("one malformed theme does not cancel independent verified themes",()=>{const s=row("s1","A mat was brushed out.");const d=[];const out=validateHistorySynthesis([...theme("mat",[s]),{topic:"Invented",evidence:[{source:"s1",excerpt:"Invented assertion."}]}],[s],["s1"],d);assert.equal(out.length,1);assert.deepEqual(d,["excerpt"]);});
 test("exact partial text expands to the original full sentence preserving negation",()=>{const s=row("s1","The owner did not report repeated itching after the visit.");const t=theme("itching",[s]);t[0].evidence[0].excerpt="repeated itching after the visit.";const out=renderHistorySynthesis(checked(t,[s]));assert.match(out,/did not report repeated itching/);});
+
+test("rendered historical facts prioritize retained binder anchors without increasing eight-source cap",async()=>{
+ const {carryReadReferences}=await import("../app/lib/ask-read-only/references.mjs");
+ const sources=Array.from({length:12},(_,i)=>({...row("s"+(i+1),"A verified original report."),id:"id"+i,ownerId:"owner"}));
+ const request={kind:"history",pet:{id:"a",ownerId:"owner"},goal:"complete_set",from:"2020-01-01",to:"2020-12-31"};
+ const refs=carryReadReferences([],[{request,sourceHandles:sources.map(s=>s.handle)}],sources,{sources:sources.map(s=>s.handle),quotes:[],calculations:[],historicalSupport:["s12","s11"]},"UTC");
+ assert.equal(refs.entries[0].sources.length,8);assert.deepEqual(refs.entries[0].sources.slice(0,2).map(s=>s.id),["id11","id10"]);assert.equal(refs.entries[0].limited,true);
+});
