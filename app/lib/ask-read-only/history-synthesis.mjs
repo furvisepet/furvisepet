@@ -63,9 +63,9 @@ export function renderHistorySynthesis(themes,citationOrder=[]){
    const rows=theme.evidence.filter(e=>e.petId===petId);
    const unique=[...new Map(rows.map(e=>[e.source,e])).values()];
    const excerpts=[...new Set(unique.map(e=>e.excerpt))];
-   const dates=new Set(unique.map(e=>e.eventAt.slice(0,10)));
+   const timestamps=new Set(unique.map(e=>Date.parse(e.eventAt)));
    const wording=excerpts.map(t=>{const row=unique.find(e=>e.excerpt===t),index=citationOrder.indexOf(row.source);return "“"+t+"”"+(index>=0?" (Source "+(index+1)+")":"");}).join("; ");
-   const reports=unique.length===1?"one selected saved report":unique.length+" selected saved reports on "+dates.size+" event date"+(dates.size===1?"":"s");
+   const reports=unique.length===1?"one selected saved report":unique.length+" selected saved reports with "+timestamps.size+" distinct event timestamp"+(timestamps.size===1?"":"s");
    lines.push((rows[0].pet??"Pet")+" — “"+theme.topic+"”: "+wording+" ("+reports+".)");
   }
  }

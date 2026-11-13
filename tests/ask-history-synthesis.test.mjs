@@ -12,11 +12,11 @@ test("single event cannot gain recurring or worsening paraphrase authority",()=>
 });
 test("duplicated bodies saved later remain reports and one original wording",()=>{
  const a=row("s1","A mat was brushed out."),b={...a,handle:"s2",recordedAt:"2021-09-01T12:00:00Z"};
- const out=renderHistorySynthesis(checked(theme("mat",[a,b]),[a,b]));assert.match(out,/2 selected saved reports on 1 event date/);assert.equal(out.split("A mat was brushed out.").length,2);
+ const out=renderHistorySynthesis(checked(theme("mat",[a,b]),[a,b]));assert.match(out,/2 selected saved reports with 1 distinct event timestamp/);assert.equal(out.split("A mat was brushed out.").length,2);
 });
 test("separated dates establish dated reports, never separate episode inference",()=>{
  const a=row("s1","A mat was brushed out."),b=row("s2","The old mat episode was discussed again.","2021-01-01T12:00:00Z");
- const out=renderHistorySynthesis(checked(theme("mat",[a,b]),[a,b]));assert.match(out,/2 selected saved reports on 2 event dates/);assert.doesNotMatch(out,/2 episodes|recurring mat/);
+ const out=renderHistorySynthesis(checked(theme("mat",[a,b]),[a,b]));assert.match(out,/2 selected saved reports with 2 distinct event timestamps/);assert.doesNotMatch(out,/2 episodes|recurring mat/);
 });
 test("source-reported persistence and a genuinely reported trend stay attributed",()=>{
  const s=row("s1","The owner reported repeated itching that was worsening over three weeks.");
@@ -120,4 +120,10 @@ test("actual core keeps a verified single note complete while retaining inherite
  assert.equal(calls,2);assert.equal(reads,1);assert.equal(result.answer.taskCompletion[0].status,"complete");
  assert.equal(result.answer.limited,false,"verified single-record answer must not inherit collection-only publication limitations");
  assert.ok(result.coverage[0].unmet.includes("prior_source_selection_omitted"));assert.equal(result.readReferences.entries[0].limited,true);
+});
+
+test("event identity normalizes equivalent timezones without claiming distinct local calendar days",()=>{
+ const a=row("s1","A saved report.","2020-01-03T00:30:00Z"),b=row("s2","A saved report.","2020-01-02T16:30:00-08:00");
+ const same=renderHistorySynthesis(checked(theme("saved report",[a,b]),[a,b]));assert.ok(same.includes("2 selected saved reports with 1 distinct event timestamp"));
+ const c={...b,eventAt:"2020-01-03T01:30:00Z"};const different=renderHistorySynthesis(checked(theme("saved report",[a,c]),[a,c]));assert.ok(different.includes("2 distinct event timestamps"));assert.ok(!different.includes("event dates"));
 });
