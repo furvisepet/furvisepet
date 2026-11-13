@@ -16,8 +16,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test:security": "node --import tsx --conditions=react-server --test tests/security-phase-s2a.test.mjs tests/security-phase-s2b.test.mjs tests/security-phase-s2c.test.mjs tests/security-phase-s2d.test.mjs tests/security-phase-s2e.test.mjs tests/security-phase-s2f.test.mjs tests/security-phase-s2g.test.mjs tests/security-phase-s2h.test.mjs tests/password-capability-state.test.mjs tests/ask-conversation-authority-foundation.test.mjs tests/ask-conversation-authority-lock.test.mjs",
-    "test": "node --import tsx --conditions=react-server --test"
+    "test:security": "node --import ./tests/register-typescript-imports.mjs --conditions=react-server --test tests/security-phase-s2a.test.mjs tests/security-phase-s2b.test.mjs tests/security-phase-s2c.test.mjs tests/security-phase-s2d.test.mjs tests/security-phase-s2e.test.mjs tests/security-phase-s2f.test.mjs tests/security-phase-s2g.test.mjs tests/security-phase-s2h.test.mjs tests/password-capability-state.test.mjs tests/ask-conversation-authority-foundation.test.mjs tests/ask-conversation-authority-lock.test.mjs",
+    "test": "node --import ./tests/register-typescript-imports.mjs --conditions=react-server --test"
   },
   "dependencies": {
     "@fontsource/noto-sans-arabic": "5.3.0",
@@ -44,7 +44,6 @@
     "eslint-config-next": "16.3.4",
     "supabase": "^2.111.0",
     "tailwindcss": "^4.3.3",
-    "tsx": "4.20.6",
     "typescript": "^6.0.3"
   },
   "overrides": {
