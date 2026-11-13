@@ -223,7 +223,7 @@ function validateReadOnlyAnswerValue(value,sources,question="") {
   const source=sources.find(row=>row.handle===token&&row.kind==="history"&&selected.includes(row.handle));
   if(!source)rejectIdentifier(token.startsWith("p")?"opaque_pet_handle":"opaque_source_handle");
   if(count)citationReferencesTranslated++;
-  return "saved note with event time "+source.eventAt;
+  return "saved note "+(sources.filter(row=>selected.includes(row.handle)).indexOf(source)+1);
  });
  value.answer=translate(value.answer);
  if(validatedParts)validatedParts=validatedParts.map(part=>({...part,text:translate(part.text,false)}));

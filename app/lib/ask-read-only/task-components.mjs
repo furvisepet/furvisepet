@@ -12,6 +12,7 @@ const nullable=values=>({type:["string","null"],enum:[...values,null]});
 const keys=(v,expected)=>v&&typeof v==="object"&&!Array.isArray(v)&&Object.keys(v).length===expected.length&&expected.every(k=>Object.hasOwn(v,k));
 function reject(field){throw Object.assign(new Error("ASK_READ_COMPONENT_CONTRACT"),{code:"ASK_READ_COMPONENT_CONTRACT",answerDiagnostic:{category:"component_contract",field}});}
 export const COMPONENT_INSTRUCTIONS=[
+ "For collection summaries, put date-specific observations in historyFacts using the exact admitted source and contiguous original sentence. The server supplies its event/recorded date. Keep component prose to an undated synthesis of patterns and limitations; do not generate month/year-specific paraphrases or citation ranges. Select salient exceptions as historyFacts as well as routine background. Only single source handles may be used as inline references.",
  "Set includeSourceDates only for tasks whose source timestamps the owner requests in the answer, not merely because a note has dates. The server publishes those requested verified dates once; do not repeat them in component prose. calculation means arithmetic over saved typed measurements; ordinary math without saved-record dependency belongs general_guidance.",
  "Set recordMode=collection for a set, period summary, comparison, or continuation, single for identifying one record, and none without saved evidence. A collection does not require choosing a single record: which_record must never block collection membership. Plan collection reads with goal=complete_set and explicit owner pet/time scope. Summarize the actual supplied content, relevant recurring patterns and dated exceptions; never replace synthesis with a timestamp list or only selected quotations. Do not infer clinical advice merely from medical words inside old notes. clinical_guidance is an explicit care interpretation/triage request; ordinary historical reporting is saved_content. Plan every essential requested task separately in taskPlan. saved_content means Ask retrieves/quotes/explains owned records, NOT instructions for finding them. workflow is ONLY an explicit request for how to operate Furvise screens or for an action Ask cannot perform. Do not create a workflow task merely because a question mentions notes, saved dates, history, a diary or a vet brief.",
  "For explicit remaining/continue requests use saved_continuation and the selected reference with an omittedRange (or legacy omittedEventRange); read_remaining_records performs a fresh bounded search of that omitted range, not a snapshot cursor. It may repeat same-day boundary records. Do not use the prior eight retained source bodies as the omitted remainder. For a workflow task, workflow selects the actual screen operation; a photo into a care/history note uses care_photo_attachment, not other. For all non-workflow tasks workflow must be none.",
@@ -146,6 +147,13 @@ export function reviewComponentCompletion(final,plan,sources,ownerStatements,pet
  const value={...final,sources:[...new Set([...final.sources,...tasks.flatMap(t=>t.sources)])]};delete value.completion;
  return {value,tasks};
 }
+// Calendar attribution is rendered from the selected original source, not from
+// a generated month/year paraphrase. Independent general tasks are untouched.
+const calendarClaim=/\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|\b(?:19|20|21)\d{2}\b|\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b/i;
+function undatedCollectionSynthesis(text){
+ return [...new Intl.Segmenter("en",{granularity:"sentence"}).segment(text)]
+  .filter(part=>!calendarClaim.test(part.segment)&&!/\bMay\b/.test(part.segment)&&!/\b(?:in|during)\s+may\b/i.test(part.segment)).map(part=>part.segment).join("").trim();
+}
 const missingLabels={pet:"pet",year:"year",date_meaning:"whether you mean the event date or save date",which_record:"saved result",owner_observation:"observations you want included",medicine:"medicine name and strength",prescription:"exact prescription",vet_plan:"prescriber's instructions"};
 export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
  if(!tasks)return answer;
@@ -166,8 +174,24 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
  const calculationParts=new Set(tasks.filter(t=>t.kind==="calculation"&&answer.calculations?.length).flatMap(t=>t.componentIndexes));
  const assigned=new Set(tasks.filter(t=>t.kind!=="workflow").flatMap(t=>t.componentIndexes).filter(i=>!workflowParts.has(i)));
  const brief=tasks.find(t=>t.kind==="vet_brief"),clarify=tasks.filter(t=>t.missing.length);
- const incomplete=tasks.filter(t=>t.status!=="complete");
- let text=!policy?.active&&answer.validatedParts?answer.validatedParts.filter(p=>assigned.has(p.index)&&!blocked.has(p.index)&&!calculationParts.has(p.index)).map(p=>p.text).join("\n\n"):answer.answer,verifiedBriefText=null;
+ const collectionTasks=tasks.filter(t=>t.needsHistory&&t.recordMode==="collection"&&["saved_content","saved_continuation"].includes(t.kind));
+ const collectionParts=new Set(collectionTasks.flatMap(t=>t.componentIndexes));
+ const selectedDatedFacts=collectionTasks.flatMap(t=>t.historyFacts).slice(0,6);
+ let removedCalendar=false;
+ let text=!policy?.active&&answer.validatedParts?answer.validatedParts.filter(p=>assigned.has(p.index)&&!blocked.has(p.index)&&!calculationParts.has(p.index)).map(p=>{
+  if(!collectionParts.has(p.index))return p.text;
+  const safe=undatedCollectionSynthesis(p.text);removedCalendar||=safe!==p.text.trim();return safe;
+ }).filter(Boolean).join("\n\n"):answer.answer,verifiedBriefText=null;
+ if(!policy?.active&&!brief&&selectedDatedFacts.length){
+  text+="\n\nSelected dated historical details:\n"+[...new Set(selectedDatedFacts.map(f=>{
+   const s=sources.find(s=>s.handle===f.source),withRecorded=collectionTasks.some(t=>t.includeSourceDates&&t.historyFacts.includes(f));
+   return "• "+s.petName+" — event "+s.eventAt.slice(0,10)+(withRecorded?"; recorded "+s.recordedAt.slice(0,10):"")+": “"+f.excerpt+"”";
+  }))].join("\n");
+ }
+ if(removedCalendar&&!selectedDatedFacts.length){
+  text+="\n\nI couldn't verify the generated date-specific wording. The source cards retain the original dated records.";
+  tasks=tasks.map(t=>collectionTasks.includes(t)?{...t,status:"partial",reason:"not_answered"}:t);
+ }
  if(brief){
   const facts=[];
   if(brief.ownerFacts.length)facts.push("Owner-reported observations:\n"+brief.ownerFacts.map(f=>"• "+f.excerpt).join("\n"));
@@ -188,6 +212,7 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
   const facts=tasks.flatMap(t=>t.historyFacts).map(f=>{const s=sources.find(s=>s.handle===f.source);return s.petName+" — event "+s.eventAt+"; recorded "+s.recordedAt+": “"+f.excerpt+"”";});
   if(facts.length)text+="\n\nSaved historical facts (not a current diagnosis):\n"+[...new Set(facts)].join("\n");
  }
+ const incomplete=tasks.filter(t=>t.status!=="complete");
  const labels={saved_content:"Saved history",saved_continuation:"Remaining history",owner_observations:"Owner observations",calculation:"Calculation",vet_brief:"Vet brief",clarification:"Clarification",general_guidance:"General guidance",clinical_guidance:"Care guidance",workflow:"App steps"};
  const reasonsText={missing_context:"Essential context for this part is missing; please repeat the relevant details.",source_unavailable:"The saved-record part remains unresolved: no verified source was supplied for it.",source_omitted:"This part is incomplete because some source bodies were omitted by the evidence limit.",not_supported:"This requested action is unavailable through read-only Ask.",not_answered:"This requested part has not been completed from the available information."};
  for(const task of incomplete.filter(t=>!t.missing.length&&t!==brief)){

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {createHash} from "node:crypto";
-import {runReadOnlyAsk,bindReadTool} from "../app/lib/ask-read-only/core.mjs";
+import {runReadOnlyAsk,bindReadTool,validateReadOnlyAnswer} from "../app/lib/ask-read-only/core.mjs";
 import {decodeClinicalSelection} from "../app/lib/ask-read-only/clinical-policy.mjs";
 import {decodeComponentSelection,componentSelectionSchema,reviewComponentCompletion,renderTaskCompletion,validateTaskPlan,ownerFactSentences,fulfillReferenceReads} from "../app/lib/ask-read-only/task-components.mjs";
 const pet={id:"private-pet-123456789",ownerId:"owned",name:"Willow",species:"cat"};
@@ -244,4 +244,23 @@ test("retained reference limits are not mislabeled as a new body-admission overf
  assert.doesNotMatch(a.answer,/omitted by the evidence limit/);
  const b=renderTaskCompletion({answer:"Available historical observations.",quotes:[],calculations:[],presentation:{}},[t],sources,null,[{...coverage[0],omitted:2}]);
  assert.match(b.answer,/omitted by the evidence limit/);
+});
+
+test("collection calendar details come only from the bound exact source while synthesis survives",()=>{
+ const s={...source,handle:"s1",petName:"Willow",body:"The usual measured diet was continued."};
+ const t={...task({kind:"saved_content",needsHistory:true,recordMode:"collection",pets:["p1"],includeSourceDates:true}),
+  status:"complete",reason:"none",componentIndexes:[0],sources:["s1"],ownerFacts:[],
+  historyFacts:[{source:"s1",excerpt:s.body}]};
+ const a=renderTaskCompletion({answer:"",validatedParts:[{index:0,text:"The reports describe a steady routine. An April entry recorded the measured diet."}],quotes:[],calculations:[],presentation:{}},[t],[s],null);
+ assert.match(a.answer,/steady routine/);assert.doesNotMatch(a.answer,/April/);
+ assert.match(a.answer,/event 2021-03-12; recorded 2021-03-14/);
+ assert.match(a.answer,/The usual measured diet was continued/);
+ const b=renderTaskCompletion({answer:"",validatedParts:[{index:0,text:"An April entry recorded the measured diet."}],quotes:[],calculations:[],presentation:{}},[{...t,historyFacts:[]}],[s],null);
+ assert.equal(b.taskCompletion[0].status,"partial");assert.match(b.answer,/couldn't verify/);assert.doesNotMatch(b.answer,/April/);
+});
+
+test("inline source references use compact visible source order without unsolicited timestamps",()=>{
+ const rows=[{...source,handle:"s1",petName:"Willow"},{...source,id:"another-private-note",handle:"s2",petName:"Willow"}];
+ const a=validateReadOnlyAnswer({components:[{kind:"saved",text:"See s2.",sources:["s2"]}],sources:["s2"],quotes:[],calculations:[],replyType:"answer",presentation:{sourceDates:[],contextRequired:false}},rows,"Show the note.");
+ assert.equal(a.answer,"See saved note 1.");assert.doesNotMatch(a.answer,/2021|T12/);
 });

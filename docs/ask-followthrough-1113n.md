@@ -52,3 +52,10 @@ Runtime traces, persisted answers, source fingerprints/timestamps and individual
 
 Repair: generic completion notice now yields only when structured partial tasks all identify source omissions with nonempty verified Search coverage; unrelated unresolved tasks, zero-source results and missing coverage retain the warning. Task rendering distinguishes a retained earlier subset from fresh body-admission overflow. No completion status or evidence limit is upgraded.
 Checks: 91 focused tests, TypeScript, scoped lint and whitespace passed. A fresh different-pet/period live cohort must follow the new preview deployment before acceptance.
+
+
+## Live source-date repair on 252f19f5
+The first fresh Echo 2017-2019 collection cohort retained correct 36/32/4 coverage and a useful food-trial finding, but misattributed a June nutrition detail to July. That turn is FAIL (USD 0.017815; two calls), not erased by later repairs. Inline source ranges also expanded into noisy timestamp prose.
+
+The existing exact historyFacts transport now supplies source-specific calendar details for nonclinical collections. Undated synthesis remains ordinary prose, while generated date-bearing collection sentences yield to exact source excerpts with server-held event/recorded dates. If no eligible exact detail was supplied, the task remains partial and explicitly discloses withheld dated wording. This is a bounded publication rule for recognized calendar expressions, not semantic or veterinary accuracy proof. Independent general, single-record and clinical tasks retain their paths. Inline admitted source handles now render compact visible-source labels instead of repeating timestamps; signed source cards retain identity and dates.
+The repaired focused cohort passed 106 checks before adding the compact-label guard; final checks follow. This is the third deployed candidate envelope; fresh equivalent owner tasks must be tested, with all previous failures/costs retained.
