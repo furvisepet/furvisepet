@@ -211,3 +211,25 @@ test("ordinary plans and constraints cannot be blocked by an observation-excerpt
  const a=renderTaskCompletion({answer:"A useful plan.",validatedParts:[{index:0,text:"A useful plan."}],presentation:{}},reviewed.tasks,[],null);assert.equal(a.answer,"A useful plan.");
  const brief=validateTaskPlan([task({kind:"vet_brief",needsOwnerFacts:true})],ctx);assert.equal(brief[0].needsOwnerFacts,true);
 });
+
+test("a collection read cannot erase an independent single-record choice for the same pet",async()=>{
+ const s=safety(),plan=[
+  task({kind:"saved_content",needsHistory:true,recordMode:"collection",pets:["p1"]}),
+  task({id:"t2",kind:"saved_content",needsHistory:true,recordMode:"single",pets:["p1"],missing:["which_record"]})
+ ];
+ const out=final(s,{components:[
+  {kind:"saved",text:"The supplied reports describe routine historical observations.",sources:["s1","s2"]},
+  {kind:"saved",text:"The unspecified single note was chosen automatically.",sources:["s1"]}
+ ],sources:["s1","s2"],completion:[
+  completion({sources:["s1","s2"]}),
+  completion({task:"t2",componentIndexes:[1],sources:["s1"]})
+ ]});
+ const r=await execute(plan,s,out,{},[{...boundedRead[0],arguments:{...boundedRead[0].arguments,goal:"complete_set"}}],
+  [source,{...source,id:"other-note-private-123456",body:"A second routine historical report was saved."}]);
+ assert.equal(r.reads.length,1);
+ assert.equal(r.result.answer.taskCompletion[0].status,"complete");
+ assert.equal(r.result.answer.taskCompletion[1].status,"unresolved");
+ assert.match(r.result.answer.answer,/supplied reports/);
+ assert.match(r.result.answer.answer,/Which saved result/);
+ assert.doesNotMatch(r.result.answer.answer,/chosen automatically/);
+});

@@ -224,7 +224,11 @@ export function normalizeTaskRecords(plan,bound=[]){
  if(!plan)return plan;
  return plan.map(t=>{
   const matching=bound.filter(c=>t.pets.includes(c.request.pet.handle)&&(!t.reference||c.reference===t.reference));
-  const collection=t.recordMode==="collection"||t.kind==="saved_continuation"||matching.some(c=>c.request.goal==="complete_set"&&!c.request.reference);
+  // A pet match does not identify which requested task a set read serves.
+  // Recover a mislabeled sole history task, but preserve independent single-
+  // record identity when several tasks share that pet.
+  const soleHistoryTask=t.needsHistory&&!plan.some(other=>other!==t&&other.needsHistory&&other.pets.some(p=>t.pets.includes(p)));
+  const collection=t.recordMode==="collection"||t.kind==="saved_continuation"||soleHistoryTask&&matching.some(c=>c.request.goal==="complete_set"&&!c.request.reference);
   const referenced=t.reference&&matching.some(c=>c.reference===t.reference&&(c.request.reference||c.request.continuation));
   return {...t,recordMode:collection?"collection":t.recordMode,missing:t.missing.filter(k=>k!=="which_record"||!collection&&!referenced)};
  });
