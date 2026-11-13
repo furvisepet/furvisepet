@@ -267,7 +267,7 @@ export async function runReadOnlyAsk(input,deps) {
  if(taskPlan){first.taskPlan=taskPlan;first=fulfillReferenceReads(first,references);taskPlan=first.taskPlan;context.taskPlan=taskPlan;}
  let assessment=Object.hasOwn(first,"safety")?validateClinicalAssessment(first.safety):null;
  const recovered=recoverBoundedCalendarRead(first,context,pets);
- if(recovered){first=recovered.first;assessment=first.safety;deps.onAnswerBoundary?.({outcome:"calendar_scope_recovered",...recovered.diagnostic});}
+ if(recovered){first=recovered.first;assessment=first.safety;taskPlan=first.taskPlan;if(taskPlan)context.taskPlan=taskPlan;deps.onAnswerBoundary?.({outcome:"calendar_scope_recovered",...recovered.diagnostic});}
  // No medical lexicon in the executor: carry the structured first-pass meaning.
  // Do not let optional records delay a current emergency, or history guess an
  // essential unknown referent. Profile reads can still resolve a pet identity.

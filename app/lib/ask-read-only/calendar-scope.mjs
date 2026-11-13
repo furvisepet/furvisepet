@@ -28,7 +28,7 @@ export function recoverBoundedCalendarRead(first,context,pets){
  const escaped=name=>name.replace(/[.*+?$^{}()|[\]\\]/g,"\\$&");
  const named=pets.filter(pet=>new RegExp("(?<![\\p{L}\\p{N}])"+escaped(pet.name)+"(?![\\p{L}\\p{N}])","iu").test(context.question));
  if(named.length!==1)return null;
- const taskBound=first.calls.length===0&&first.taskPlan?.some(t=>t.kind==="saved_content"&&t.needsHistory&&t.reference===null&&t.pets.length===1&&t.pets[0]===named[0].handle&&t.missing.every(k=>k==="which_record"))
+ const taskBound=first.calls.length===0&&first.taskPlan?.some(t=>t.kind==="saved_content"&&t.needsHistory&&t.reference===null&&t.pets.length===1&&t.pets[0]===named[0].handle&&t.missing.every(k=>["which_record","date_meaning"].includes(k)))
   &&first.safety?.careContext==="none"&&first.safety.medicationIntent==="none"&&!(first.safety.currentEvents?.length||first.safety.conditionalEvents?.length||first.safety.eventAssessments?.length)&&first.safety.missingContext.every(k=>["pet","date"].includes(k));
  const legacy=first.historyIntent?.requested===true&&first.safety?.referent==="essential_unknown"&&first.safety.missingContext.length>0&&first.safety.missingContext.every(k=>["pet","date"].includes(k))&&(first.historyIntent.pet===null||first.historyIntent.pet===named[0].handle);
  if(!taskBound&&!legacy)return null;
@@ -36,7 +36,12 @@ export function recoverBoundedCalendarRead(first,context,pets){
  let planned={};try{planned=JSON.parse(first.calls[0]?.arguments??"{}");}catch{return null;}
  const goal=EVIDENCE_GOALS.includes(planned.goal)?planned.goal:"relevant_records",order=planned.order==="desc"?"desc":"asc";
  const basis=first.historyIntent.timeBasis,scope=scopes[0],event=basis==="event";
- return {first:{...first,text:"",historyIntent:{...first.historyIntent,requested:true,pet:named[0].handle},safety:{...first.safety,referent:"clear",missingContext:[]},calls:[{id:"calendar-read",name:"search_saved_records",arguments:JSON.stringify({
+ // A concrete first-pass axis plus one explicit owned pet/calendar window
+ // resolves a contradictory date-meaning flag. It does not resolve identity:
+ // which_record remains until bounded discovery proves a unique source.
+ const taskPlan=first.taskPlan?.map(t=>t.kind==="saved_content"&&t.needsHistory&&t.reference===null&&t.pets.length===1&&t.pets[0]===named[0].handle&&t.missing.every(k=>["which_record","date_meaning"].includes(k))
+  ?{...t,missing:t.missing.filter(k=>k!=="date_meaning")}:t);
+ return {first:{...first,...(taskPlan?{taskPlan}:{}),text:"",historyIntent:{...first.historyIntent,requested:true,pet:named[0].handle},safety:{...first.safety,referent:"clear",missingContext:[]},calls:[{id:"calendar-read",name:"search_saved_records",arguments:JSON.stringify({
   pet:named[0].handle,from:event?scope.from:null,to:event?scope.to:null,goal,alternatives:[],
   recordedFrom:event?null:scope.from,recordedTo:event?null:scope.to,orderBy:basis,query:null,offset:0,order
  })}]},diagnostic:{precision:scope.precision,timeBasis:basis,reason:"explicit_owned_pet_calendar_scope"}};

@@ -334,3 +334,18 @@ test("unrelated raw app-control prose cannot pass as a completed ordinary routin
  assert.match(r.result.answer.answer,/couldn't complete/);
  assert.equal(r.calls,2);
 });
+
+test("explicit year correction resolves a contradictory date-meaning flag before the actual task gate",async()=>{
+ const s=safety({missingContext:["date"]}),plan=[task({kind:"saved_content",needsHistory:true,pets:["p1"],missing:["date_meaning"],includeSourceDates:true})];
+ const saved=final(safety(),{components:[{kind:"saved",text:"The original note follows.",sources:["s1"]}],sources:["s1"],quotes:["s1"],completion:[completion({sources:["s1"]})]});
+ const r=await execute(plan,s,saved,{question:"I meant March 2021 for Willow. Replace the old year, keeping event time separate from when it was saved.",dialogue:[{role:"user",text:"Quote Willow's March 2020 event note with both timestamps."}]});
+ assert.equal(r.calls,2);assert.equal(r.reads.length,1);assert.equal(r.reads[0].from,"2021-03-01");assert.equal(r.reads[0].to,"2021-03-31");
+ assert.equal(r.result.answer.taskCompletion[0].status,"complete");assert.doesNotMatch(r.result.answer.answer,/Which|whether you mean/);
+});
+test("date-meaning recovery still requires one explicit owned pet and one explicit calendar scope",async()=>{
+ const s=safety({missingContext:["date"]}),plan=[task({kind:"saved_content",needsHistory:true,pets:["p1"],missing:["date_meaning"]})];
+ for(const question of ["Use her March 2021 note.","Use Willow's March note.","Use Willow's March 2021 and April 2022 notes."]){
+  const r=await execute(plan,s,final(s,{completion:[completion({status:"unresolved",reason:"missing_context"})]}),{question});
+  assert.equal(r.reads.length,0,question);
+ }
+});
