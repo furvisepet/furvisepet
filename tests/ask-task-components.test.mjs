@@ -15,7 +15,7 @@ async function execute(plan,s,output,extra={},plannedReads=[],readRows=[source])
  let calls=0,reads=[];const requests=[];
  const result=await runReadOnlyAsk({ownerId:"owned",selectedPetId:pet.id,pets:[pet],dialogue:[],question:plan.some(t=>t.kind==="workflow")?"How do I enter a photo into a Furvise care note?":"An unfamiliar question.",now:"2026-11-12T12:00:00Z",timeZone:"UTC",...extra},{
   provider:async(req,phase)=>{calls++;requests.push(req);return phase==="read_selection"?decodeComponentSelection({safety:s,reads:plannedReads,draft:"",historyIntent:{requested:plan.some(t=>t.needsHistory),timeBasis:"event",pet:null},workflowIntent:extra.workflowIntent??"find_care_note",taskPlan:plan},req.tools,req.context,decodeClinicalSelection):(typeof output==="function"?output(req):output);},
-  read:async r=>{reads.push(r);return {sources:readRows,total:readRows.length,hasMore:false,scopeExhausted:true};}
+  read:async r=>{reads.push(r);const rows=typeof readRows==="function"?readRows(r):readRows;return {sources:rows,total:rows.length,hasMore:false,scopeExhausted:true};}
  });return {result,calls,reads,requests};
 }
 test("actual two-call core rehydrates selected prior evidence and composes a bounded vet brief",async()=>{
@@ -426,4 +426,29 @@ test("per-source collection review restores a noteworthy original observation om
  },{},[{...boundedRead[0],arguments:{...boundedRead[0].arguments,goal:"complete_set"}}],[source,extraRow]);
  assert.equal(r.calls,2);assert.equal(r.reads.length,1);assert.ok(r.result.answer.answer.includes(extraRow.body));
  assert.doesNotMatch(r.result.answer.answer,/recurring mats|persistent mats/);assert.equal(r.result.answer.historicalSupport[0],"s2");
+});
+
+test("zero-call collection integration plans actual omitted-window IO through the existing binder",async()=>{
+ const fresh={...source,id:"private-new-note-123456789",body:"One coat mat was removed during grooming.",eventAt:"2021-09-15T12:00:00Z",recordedAt:"2021-09-16T12:00:00Z"};
+ const retained=structuredClone(reference);Object.assign(retained.entries[0],{goal:"complete_set",from:"2021-01-01",to:"2021-12-31",limited:true,omittedRange:{axis:"event",from:"2021-09-15",to:"2021-12-15"}});
+ const s=safety(),plan=[task({kind:"saved_content",recordMode:"collection",combineHistory:true,needsHistory:true,pets:["p1"],reference:"r1"})];
+ const out=final(s,{sources:["s1","s2"],completion:[completion({componentIndexes:[],sources:["s1","s2"],historyFacts:[{source:"s1",excerpt:fresh.body},{source:"s2",excerpt:source.body}]})]});
+ const r=await execute(plan,s,out,{readReferences:retained,question:"Read the omitted September through December2021 notes and combine them with the earlier result."},[],request=>request.continuation?[fresh]:[source]);
+ assert.equal(r.calls,2);assert.ok(r.reads.some(q=>q.continuation&&q.from==="2021-09-15"&&q.to==="2021-12-15"&&!q.sourceIds));
+ assert.ok(r.reads.some(q=>q.sourceIds?.includes(source.id)));assert.match(r.result.answer.answer,/One coat mat was removed/);assert.match(r.result.answer.answer,/routine exam/);
+});
+test("zero-call integration promotion is confined to declared collection continuation and preserves missing or changed-scope reads",()=>{
+ const request={kind:"history",pet:{...pet,handle:"p1"},goal:"complete_set",omittedRange:{axis:"event",from:"2021-09-15",to:"2021-12-15"}};
+ const t=task({kind:"saved_content",recordMode:"collection",combineHistory:true,needsHistory:true,pets:["p1"],reference:"r1"});
+ const refs=[{handle:"r1",request}];
+ const resolved=fulfillReferenceReads({calls:[],taskPlan:[t]},refs);
+ assert.equal(resolved.taskPlan[0].kind,"saved_continuation");
+ assert.deepEqual(resolved.calls.map(c=>c.name),["read_remaining_records","read_referenced_sources"]);
+ for(const patch of [{combineHistory:false},{recordMode:"single"},{missing:["year"]},{kind:"vet_brief"}]){
+  const x=fulfillReferenceReads({calls:[],taskPlan:[{...t,...patch}]},refs);
+  assert.ok(!x.calls.some(c=>c.name==="read_remaining_records"));
+ }
+ const scoped={id:"explicit-new-scope",name:"search_saved_records",arguments:JSON.stringify({pet:"p1",from:"2022-01-01",to:"2022-12-31"})};
+ assert.ok(!fulfillReferenceReads({calls:[scoped],taskPlan:[t]},refs).calls.some(c=>c.name==="read_remaining_records"));
+ assert.ok(!fulfillReferenceReads({calls:[],taskPlan:[t]},[{handle:"r1",request:{...request,omittedRange:null}}]).calls.some(c=>c.name==="read_remaining_records"));
 });

@@ -72,7 +72,13 @@ export function fulfillReferenceReads(first,references=[]){
  let taskPlan=first.taskPlan;
  if(taskPlan.length===1){
   const t=taskPlan[0];
-  if(t.kind==="saved_content"&&t.needsHistory&&t.reference&&!scopeMissing(t)&&calls.some(c=>c.name==="read_remaining_records"&&JSON.parse(c.arguments).reference===t.reference)){
+  const selected=references.find(r=>r.handle===t.reference),remaining=selected?.request.omittedRange??selected?.request.omittedEventRange;
+  // combineHistory already declares owner-requested earlier + newly fetched evidence.
+  // A zero-call collection plan must not silently substitute the old selection
+  // for an available omitted interval. Authority still comes from bindReadTool
+  // and the ordinary task gate, never these retained metadata hints alone.
+  const omittedIntegration=calls.length===0&&t.recordMode==="collection"&&t.combineHistory===true&&selected?.request.goal==="complete_set"&&remaining;
+  if(t.kind==="saved_content"&&t.needsHistory&&t.reference&&!scopeMissing(t)&&(omittedIntegration||calls.some(c=>c.name==="read_remaining_records"&&JSON.parse(c.arguments).reference===t.reference))){
    taskPlan=[{...t,kind:"saved_continuation",recordMode:"collection"}];
   }
  }
