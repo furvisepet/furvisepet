@@ -174,7 +174,7 @@ export function reviewComponentCompletion(final,plan,sources,ownerStatements,pet
   if(scopeMissing(task)||task.kind!=="vet_brief"&&task.missing.length){status="unresolved";reason="missing_context";}
   if(task.needsHistory&&!selected.length){status="unresolved";reason="source_unavailable";}
   if(status==="complete"&&task.kind==="vet_brief"&&(!e.ownerFacts.length&&!e.historyFacts.length||task.needsHistory&&!e.historyFacts.length)){status="partial";reason="not_answered";}
-  if(status==="complete"&&!e.componentIndexes.length&&!e.historyFacts.length&&!e.ownerFacts.length&&task.kind!=="workflow"){status="unresolved";reason="not_answered";}
+  if(status==="complete"&&!e.componentIndexes.length&&!e.historyFacts.length&&!e.ownerFacts.length&&!["workflow","calculation"].includes(task.kind)){status="unresolved";reason="not_answered";}
   if(status!=="complete"&&reason==="none")reason="not_answered";
   return {...task,...e,missing:task.needsOwnerFacts&&!ownerFacts.length?[...new Set([...task.missing,"owner_observation"])]:task.missing,historyFacts,ownerFacts,historySynthesis,synthesisDiagnostics,status,reason,sources:selected};
  });
@@ -214,7 +214,10 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
   if(t.kind==="workflow"&&t.workflow==="other")return {...t,status:"unresolved",reason:"not_supported"};
   if(t.kind==="vet_brief"&&t.id!==firstBrief)return {...t,status:"partial",reason:"not_answered"};
   if(policy?.active&&t.status==="complete"&&(["general_guidance","clinical_guidance"].includes(t.kind)||t.kind==="clarification"&&!t.missing.length||["saved_content","saved_continuation"].includes(t.kind)&&!t.historyFacts.length&&!answer.quotes?.some(q=>t.sources.includes(q.source))||t.kind==="owner_observations"&&!t.ownerFacts.length))return {...t,status:"partial",reason:"not_answered"};
-  if(t.kind==="calculation"&&(!answer.calculations?.length||answer.calculations.some(c=>c.available===false)))return {...t,status:"unresolved",reason:"not_answered"};
+  if(t.kind==="calculation"){
+   const scoped=(answer.calculations??[]).filter(c=>Array.isArray(c.sourceHandles)&&c.sourceHandles.length&&c.sourceHandles.every(h=>t.sources.includes(h)));
+   if(!scoped.length||scoped.some(c=>c.available===false)||!t.sources.length||t.sources.some(h=>!scoped.some(c=>c.sourceHandles.includes(h))))return {...t,status:"unresolved",reason:"not_answered"};
+  }
   if(t.combineHistory){
    const petIds=new Set(sources.filter(s=>t.sources.includes(s.handle)).map(s=>s.petId));
    const groups=coverage.filter(r=>r.scope.kind!=="profile"&&r.sources.some(s=>sources.some(actual=>actual.handle===s.source&&petIds.has(actual.petId))));

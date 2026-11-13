@@ -183,7 +183,7 @@ test("retained collection subset remains partial despite model complete declarat
 });
 test("calculation prose yields to deterministic result without removing independent general answer",()=>{
  const base={...task(),status:"complete",reason:"none",sources:[],historyFacts:[],ownerFacts:[]};
- const a=renderTaskCompletion({answer:"Wrong rounded arithmetic. Useful separate guidance.",validatedParts:[{index:0,text:"Wrong rounded arithmetic."},{index:1,text:"Useful separate guidance."}],calculations:[{available:true,text:"Verified arithmetic."}],presentation:{}},[{...base,kind:"calculation",componentIndexes:[0]},{...base,id:"t2",componentIndexes:[1]}],[],null,[]);
+ const a=renderTaskCompletion({answer:"Wrong rounded arithmetic. Useful separate guidance.",validatedParts:[{index:0,text:"Wrong rounded arithmetic."},{index:1,text:"Useful separate guidance."}],calculations:[{available:true,sourceHandles:["s1"],text:"Verified arithmetic."}],presentation:{}},[{...base,kind:"calculation",needsHistory:true,recordMode:"single",sources:["s1"],componentIndexes:[0]},{...base,id:"t2",componentIndexes:[1]}],[{...source,handle:"s1"}],null,[]);
  assert.equal(a.answer,"Useful separate guidance.");assert.equal(a.calculations.length,1);
 });
 test("scope correction cannot complete owner-observation facts in brief",()=>{
@@ -471,4 +471,21 @@ test("an independent ordinary task cannot suppress zero-call bounded collection 
  const collection=task({kind:"saved_content",recordMode:"collection",combineHistory:true,needsHistory:true,pets:["p1"],reference:"r1"});
  const r=fulfillReferenceReads({calls:[],taskPlan:[collection,task({id:"t2"})]},[{handle:"r1",request:req}]);
  assert.equal(r.taskPlan[0].kind,"saved_continuation");assert.equal(r.taskPlan[1].kind,"general_guidance");assert.deepEqual(r.calls.map(c=>c.name),["read_remaining_records","read_referenced_sources"]);
+});
+
+test("server calculation completion needs no generated numeric prose or factual excerpt",()=>{
+ const t=task({kind:"calculation",recordMode:"collection",needsHistory:true,pets:["p1"]}),s={...source,handle:"s1"};
+ const r=reviewComponentCompletion(final(safety(),{completion:[completion({componentIndexes:[],sources:["s1"]})]}),[t],[s],[],[{...pet,handle:"p1"}]);
+ assert.equal(r.tasks[0].status,"complete");
+ const a=renderTaskCompletion({answer:"",validatedParts:[],calculations:[{available:true,sourceHandles:["s1"],text:"Verified server arithmetic."}],sources:["s1"],presentation:{}},r.tasks,[s],null,[]);
+ assert.equal(a.taskCompletion[0].status,"complete");assert.doesNotMatch(a.answer,/not been completed/);
+});
+test("calculation status is scoped to its selected sources and cannot borrow another pet or unavailable result",()=>{
+ const t={...task({kind:"calculation",recordMode:"collection",needsHistory:true,pets:["p1"]}),status:"complete",reason:"none",sources:["s1","s2"],componentIndexes:[],historyFacts:[],ownerFacts:[]};
+ const good={available:true,sourceHandles:["s1","s2"],text:"Verified server arithmetic."},foreign={available:false,sourceHandles:["s3"],text:"Unavailable other pet."};
+ const render=calculations=>renderTaskCompletion({answer:"",validatedParts:[],calculations,sources:["s1","s2"],presentation:{}},[t],[{...source,handle:"s1"},{...source,id:"another",handle:"s2"},{...source,petId:"foreign",handle:"s3"}],null,[]);
+ assert.equal(render([good,foreign]).taskCompletion[0].status,"complete");
+ for(const calculations of [[],[foreign],[{...good,available:false}],[{...good,sourceHandles:["s1"]}],[{...good,sourceHandles:[]}],[{...good,sourceHandles:["s1","s3"]}]]){
+  assert.notEqual(render(calculations).taskCompletion[0].status,"complete");
+ }
 });
