@@ -305,3 +305,17 @@ test("a historical event also negated today is nonacute while conflicting acute 
  assert.throws(()=>validateClinicalAssessment(value([observation("conditional"),observation("historical")]),owners),/ASK_READ_CLINICAL_CONTRACT/);
  assert.throws(()=>validateClinicalAssessment(value([observation("historical"),{...observation("negated"),ownerStatementRef:"forged"}]),owners),/ASK_READ_CLINICAL_CONTRACT/);
 });
+
+test("introduced acute IF directions cannot narrow emergency timing behind an empty assessment",()=>{
+ const text="The old episode resolved. If a collapse happens again and Willow has trouble breathing, repeated episodes, severe weakness, or does not recover normally, seek urgent veterinary care immediately.";
+ const reviewed=reviewClinicalAnswer(final(assessment(),text),assessment(),[],pets);
+ assert.equal(reviewed.policy.active,true);
+ assert.ok(reviewed.policy.conditional.includes("collapse"));
+ assert.deepEqual(reviewed.policy.current,[]);
+ const out=renderMedicationDecision({...base,answer:text},reviewed.policy);
+ assert.match(out.answer,/If .*collapse.*contact an emergency veterinarian immediately/);
+ assert.doesNotMatch(out.answer,/and Willow has|does not recover normally/);
+ assert.doesNotMatch(out.answer,/Contact an emergency veterinarian now/);
+ const ordinary=reviewClinicalAnswer(final(assessment(),"If you find the old discharge report, ask the vet which dates to record."),assessment(),[],pets);
+ assert.equal(ordinary.policy.active,false);
+});

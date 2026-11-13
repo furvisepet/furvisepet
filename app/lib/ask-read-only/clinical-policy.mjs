@@ -141,6 +141,30 @@ export function clinicalAnswerSchema(schema,initial,ownerStatements=[],pets=[]){
  out.properties.appHelp=object({intent:choice([...WORKFLOW_INTENTS]),pet:{type:["string","null"],enum:[...pets.map(p=>p.handle),null]}});
  out.required.push("clinicalReview","appHelp");return out;
 }
+
+// A model's introduced IF warning creates a display obligation even if its
+// structured assessment omitted that warning. This grants no current-event,
+// diagnosis, treatment or source authority. Only server emergency text renders.
+const warningPatterns={
+ breathing_distress:/\b(?:difficulty breathing|trouble breathing|struggling to breathe|cannot breathe|can't breathe|open[- ]mouth breathing|breathing distress)\b/i,
+ collapse:/\b(?:collapse[ds]?|unconscious|unresponsive|loss of consciousness|lose consciousness)\b/i,
+ toxin_exposure:/\b(?:poison(?:ing)?|toxin exposure|overdose)\b/i,
+ repeated_seizures:/\b(?:seizures?|convulsions?)\b/i,
+ swollen_abdomen_retching:/\b(?:bloat|swollen abdomen|unproductive retching)\b/i,
+ unable_to_urinate:/\b(?:cannot urinate|can't urinate|unable to urinate|blocked urination)\b/i,
+ major_trauma_bleeding:/\b(?:major trauma|uncontrolled bleeding|severe bleeding)\b/i,
+ acute_neurologic_change:/\b(?:sudden paralysis|severe loss of coordination)\b/i,
+ heat_emergency:/\bheatstroke\b/i
+};
+function introducedWarningEvents(components=[]){
+ const directed=components.filter(c=>c.kind==="general"&&typeof c.text==="string")
+  .flatMap(c=>c.text.split(/(?<=[.!?])\s+|\n+/))
+  .filter(text=>/\b(?:if|should .{0,40}occur|in case)\b/i.test(text)
+   &&/\b(?:seek|contact|call|go to|urgent|emergency)\b/i.test(text)
+   &&/\b(?:vet(?:erinar\w*)?|clinic|emergency care)\b/i.test(text));
+ return Object.entries(warningPatterns).filter(([,pattern])=>directed.some(text=>pattern.test(text))).map(([event])=>event);
+}
+
 export function reviewClinicalAnswer(value,initial,ownerStatements=[],pets=[],workflowIntent="none"){
  if(!v2(initial))return legacy.reviewClinicalAnswer(value,initial);
  const review=value?.clinicalReview;
@@ -152,7 +176,8 @@ export function reviewClinicalAnswer(value,initial,ownerStatements=[],pets=[],wo
  if(!Array.isArray(review.ownerStatementRefs)||review.ownerStatementRefs.length>4||review.ownerStatementRefs.some(ref=>!ownerStatements.some(t=>t.ref===ref)))reject("owner_statement_reference");
  if(!Array.isArray(review.observationFields)||review.observationFields.length>8||review.observationFields.some(k=>!Object.hasOwn(observations,k)))reject("observation_field");
  const states=[initial,final],decision=states.some(s=>s.medicationIntent==="decision");
- const current=[...new Set(states.flatMap(s=>s.currentEvents))],conditional=[...new Set(states.flatMap(s=>s.conditionalEvents))];
+ const introduced=introducedWarningEvents(value.components);
+ const current=[...new Set(states.flatMap(s=>s.currentEvents))],conditional=[...new Set([...states.flatMap(s=>s.conditionalEvents),...introduced])];
  // Keep earlier recognized obligations; a later classification cannot downgrade them.
  const currentConcern=states.some(s=>s.careContext==="current_concern"||["current","uncertain"].includes(s.scenario)&&s.urgency==="prompt");
  const summaryContext=states.some(s=>s.careContext==="vet_summary"),historical=states.some(s=>s.careContext==="clinical_history");
