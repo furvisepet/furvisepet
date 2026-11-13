@@ -19,7 +19,7 @@
      : "calculationExecution: true, /* full-algebra engine test only */";
    const raw = readFileSync(fileURLToPath(url), "utf8");
    if (raw.split(original).length !== 2) throw Error("ENGINE_POLICY_TEST_SEAM_CHANGED");
-   const source = String(loaded.source);
+   const source = typeof loaded.source === "string" ? loaded.source : Buffer.from(loaded.source).toString("utf8");
    if (!source.includes(original)) return loaded; // Earlier registered test hook.
    if (source.split(original).length !== 2) throw Error("ENGINE_POLICY_TEST_SEAM_CHANGED");
    return { ...loaded, source: source.replace(original, replacement) };
