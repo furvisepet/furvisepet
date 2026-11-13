@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {createHash} from "node:crypto";
 import {runReadOnlyAsk,bindReadTool} from "../app/lib/ask-read-only/core.mjs";
 import {decodeClinicalSelection} from "../app/lib/ask-read-only/clinical-policy.mjs";
-import {decodeComponentSelection,componentSelectionSchema,reviewComponentCompletion,renderTaskCompletion,ownerFactSentences,fulfillReferenceReads} from "../app/lib/ask-read-only/task-components.mjs";
+import {decodeComponentSelection,componentSelectionSchema,reviewComponentCompletion,renderTaskCompletion,validateTaskPlan,ownerFactSentences,fulfillReferenceReads} from "../app/lib/ask-read-only/task-components.mjs";
 const pet={id:"private-pet-123456789",ownerId:"owned",name:"Willow",species:"cat"};
 const source={kind:"history",id:"private-note-123456789",ownerId:"owned",petId:pet.id,body:"A routine exam recorded normal appetite at that time.",eventAt:"2021-03-12T12:00:00Z",recordedAt:"2021-03-14T12:00:00Z"};
 const reference={version:1,entries:[{kind:"history",petId:pet.id,timeZone:"UTC",goal:"exact_quote",from:"2021-03-01",to:"2021-03-31",recordedFrom:null,recordedTo:null,orderBy:"event",order:"asc",terms:[],limited:false,sources:[{id:source.id,hash:createHash("sha256").update(source.body).digest("hex"),eventAt:source.eventAt,recordedAt:source.recordedAt}]}]};
@@ -200,4 +200,14 @@ test("owner observation sentence handles publish exact whole attributed text wit
  const f=final(safety(),{completion:[completion({ownerFacts:[{sentence:"owner1:sentence1",kind:"scope_correction"},{sentence:"owner1:sentence2",kind:"present_observation"}]})]});
  const r=reviewComponentCompletion(f,p,[],statements,[]);assert.deepEqual(r.tasks[0].ownerFacts,[{ref:"owner1",kind:"present_observation",excerpt:"She did not miss medicine; I only misplaced the diary."}]);
  const forged=final(safety(),{completion:[completion({ownerFacts:[{sentence:"owner9:sentence1",kind:"present_observation"}]})]});assert.throws(()=>reviewComponentCompletion(forged,p,[],statements,[]),/COMPONENT_CONTRACT/);
+});
+
+
+test("ordinary plans and constraints cannot be blocked by an observation-excerpt dependency",()=>{
+ const ctx={pets:[{handle:"p1"}],references:[]};
+ const t=task({kind:"general_guidance",needsOwnerFacts:true,missing:["owner_observation"]});
+ const p=validateTaskPlan([t],ctx);assert.equal(p[0].needsOwnerFacts,false);assert.deepEqual(p[0].missing,[]);
+ const reviewed=reviewComponentCompletion(final(safety()),p,[],[],[]);assert.equal(reviewed.tasks[0].status,"complete");
+ const a=renderTaskCompletion({answer:"A useful plan.",validatedParts:[{index:0,text:"A useful plan."}],presentation:{}},reviewed.tasks,[],null);assert.equal(a.answer,"A useful plan.");
+ const brief=validateTaskPlan([task({kind:"vet_brief",needsOwnerFacts:true})],ctx);assert.equal(brief[0].needsOwnerFacts,true);
 });
