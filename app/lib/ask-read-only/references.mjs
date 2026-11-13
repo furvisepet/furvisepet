@@ -4,6 +4,14 @@ const date=value=>value===null||typeof value==="string"&&/^\d{4}-\d{2}-\d{2}$/.t
 const text=(value,length)=>typeof value==="string"&&value.length>0&&value.length<=length&&!/[\u0000-\u001f]/.test(value);
 const fingerprint=source=>({id:source.id,hash:createHash("sha256").update(source.body).digest("hex"),eventAt:source.eventAt,recordedAt:source.recordedAt});
 
+/** Only a server-retained interval inside its original axis scope is usable. */
+export function continuationRange(request){
+ const range=request.omittedRange??(request.omittedEventRange?{axis:"event",...request.omittedEventRange}:null);
+ if(request.kind!=="history"||!range||!["event","recorded"].includes(range.axis)||typeof range.from!=="string"||typeof range.to!=="string"||!date(range.from)||!date(range.to)||range.from>range.to)return null;
+ const lower=range.axis==="recorded"?request.recordedFrom:request.from,upper=range.axis==="recorded"?request.recordedTo:request.to;
+ if(lower&&range.from<lower||upper&&range.to>upper)return null;
+ return {axis:range.axis,from:range.from,to:range.to};
+}
 /** References are navigation hints, not saved facts or capabilities. They are
  * re-bound to today's authorized pets and every use requires a new data read. */
 export function restoreReadReferences(value,pets) {
@@ -18,27 +26,32 @@ export function restoreReadReferences(value,pets) {
   if(!["event","recorded"].includes(entry.orderBy)||!["asc","desc"].includes(entry.order)||!EVIDENCE_GOALS.includes(entry.goal))continue;
   if(!Array.isArray(entry.terms)||entry.terms.length>3||entry.terms.some(term=>!text(term,160)))continue;
   if(!Array.isArray(entry.sources)||!entry.sources.length||entry.sources.length>8||entry.sources.some(source=>!source||!text(source.id,128)||!/^([a-f0-9]{64})$/.test(source.hash)||!Number.isFinite(Date.parse(source.eventAt))||!Number.isFinite(Date.parse(source.recordedAt))))continue;
-  restored.push({handle:"r"+(restored.length+1),request:{kind:entry.kind,pet,from:entry.from,to:entry.to,recordedFrom:entry.recordedFrom,recordedTo:entry.recordedTo,orderBy:entry.orderBy,order:entry.order,goal:entry.goal,terms:[...entry.terms],offset:0,sourceIds:entry.sources.map(source=>source.id),referenceTimeZone:entry.timeZone,referenceLimited:entry.limited===true,omittedEventRange:entry.omittedEventRange&&typeof entry.omittedEventRange.from==="string"&&typeof entry.omittedEventRange.to==="string"&&date(entry.omittedEventRange.from)&&date(entry.omittedEventRange.to)&&entry.omittedEventRange.from<=entry.omittedEventRange.to?{from:entry.omittedEventRange.from,to:entry.omittedEventRange.to}:null,expectedSources:entry.sources.map(source=>({id:source.id,hash:source.hash,eventAt:source.eventAt,recordedAt:source.recordedAt}))}});
+  restored.push({handle:"r"+(restored.length+1),request:{kind:entry.kind,pet,from:entry.from,to:entry.to,recordedFrom:entry.recordedFrom,recordedTo:entry.recordedTo,orderBy:entry.orderBy,order:entry.order,goal:entry.goal,terms:[...entry.terms],offset:0,sourceIds:entry.sources.map(source=>source.id),referenceTimeZone:entry.timeZone,referenceLimited:entry.limited===true,omittedRange:continuationRange(entry),discoveryIncomplete:entry.discoveryIncomplete===true,omittedEventRange:entry.omittedEventRange&&typeof entry.omittedEventRange.from==="string"&&typeof entry.omittedEventRange.to==="string"&&date(entry.omittedEventRange.from)&&date(entry.omittedEventRange.to)&&entry.omittedEventRange.from<=entry.omittedEventRange.to?{from:entry.omittedEventRange.from,to:entry.omittedEventRange.to}:null,expectedSources:entry.sources.map(source=>({id:source.id,hash:source.hash,eventAt:source.eventAt,recordedAt:source.recordedAt}))}});
  }
  return restored;
 }
 export function describeReadReferences(references) {
  return references.map(({handle,request})=>({reference:handle,pet:request.pet.name,petHandle:request.pet.handle,kind:request.kind,goal:request.goal,
   from:request.from,to:request.to,recordedFrom:request.recordedFrom,recordedTo:request.recordedTo,orderBy:request.orderBy,queryHints:request.terms,
-  timeZone:request.referenceTimeZone,omittedEventRange:request.omittedEventRange??null,sourceCount:request.expectedSources.length,selectionLimited:request.referenceLimited,sourceDates:request.expectedSources.slice(0,4).map(source=>({eventAt:source.eventAt,recordedAt:source.recordedAt}))}));
+  timeZone:request.referenceTimeZone,omittedRange:continuationRange(request),discoveryIncomplete:request.discoveryIncomplete===true,omittedEventRange:request.omittedEventRange??null,sourceCount:request.expectedSources.length,selectionLimited:request.referenceLimited,sourceDates:request.expectedSources.slice(0,4).map(source=>({eventAt:source.eventAt,recordedAt:source.recordedAt}))}));
 }
 export function carryReadReferences(previous,bound,sources,answer,timeZone) {
  const entries=[];
  for(const call of bound){
   const request=call.request;
+  const completed=request.reference&&bound.some(c=>c.request.continuation?.reference===request.reference&&c.continuationValidated&&c.queryScopeExhausted&&!c.omittedRange);
   const selected=sources.filter(source=>source.petId===request.pet.id&&source.kind===request.kind&&answer.sources.includes(source.handle)&&call.sourceHandles?.includes(source.handle));
   if(!selected.length)continue;
+  const priority=[...(answer.quotes??[]).map(q=>q.source),...(answer.calculations??[]).flatMap(c=>c.sourceHandles??[])];
+  const retained=[...selected].sort((a,b)=>{
+   const rank=s=>{const i=priority.indexOf(s.handle);return i<0?priority.length:i;};return rank(a)-rank(b);
+  });
   entries.push({kind:request.kind,petId:request.pet.id,timeZone:request.referenceTimeZone??timeZone,goal:request.goal??"relevant_records",from:request.from??null,to:request.to??null,
-   recordedFrom:request.recordedFrom??null,recordedTo:request.recordedTo??null,orderBy:request.orderBy??"event",order:request.order??"desc",terms:request.terms??[],omittedEventRange:call.omittedEventRange??request.omittedEventRange??null,limited:selected.length>8||request.referenceLimited===true,sources:selected.slice(0,8).map(fingerprint)});
+   recordedFrom:request.recordedFrom??null,recordedTo:request.recordedTo??null,orderBy:request.orderBy??"event",order:request.order??"desc",terms:request.terms??[],omittedRange:completed?null:call.omittedRange??null,discoveryIncomplete:call.queryScopeExhausted===false,omittedEventRange:completed?null:call.omittedEventRange??request.omittedEventRange??null,limited:selected.length>8||request.referenceLimited===true,sources:retained.slice(0,8).map(fingerprint)});
  }
  // General turns carry the bounded state forward without adding another query.
- for(const {request} of previous)entries.push({kind:request.kind,petId:request.pet.id,timeZone:request.referenceTimeZone??timeZone,goal:request.goal,from:request.from,to:request.to,
-  recordedFrom:request.recordedFrom,recordedTo:request.recordedTo,orderBy:request.orderBy,order:request.order,terms:request.terms,omittedEventRange:request.omittedEventRange??null,limited:request.referenceLimited===true,sources:request.expectedSources});
+ for(const prior of previous){const {request}=prior;const completed=bound.some(c=>c.request.continuation?.reference===prior.handle&&c.continuationValidated&&c.queryScopeExhausted&&!c.omittedRange);entries.push({kind:request.kind,petId:request.pet.id,timeZone:request.referenceTimeZone??timeZone,goal:request.goal,from:request.from,to:request.to,
+  recordedFrom:request.recordedFrom,recordedTo:request.recordedTo,orderBy:request.orderBy,order:request.order,terms:request.terms,omittedRange:completed?null:continuationRange(request),discoveryIncomplete:request.discoveryIncomplete===true,omittedEventRange:completed?null:request.omittedEventRange??null,limited:request.referenceLimited===true,sources:request.expectedSources});}
  const unique=[];
  for(const entry of entries){
   if(!unique.some(other=>JSON.stringify({...other,terms:[]})===JSON.stringify({...entry,terms:[]})))unique.push(entry);
@@ -52,5 +65,16 @@ export function checkReferencedSources(result,request) {
   const actual=fingerprint(source);
   return ["id","hash","eventAt","recordedAt"].every(key=>expected[key]===actual[key]);
  }));
- return {...result,sources,staleReference:sources.length!==result.sources.length||!!result.scopeExhausted&&sources.length!==request.expectedSources.length};
+ const staleReference=sources.length!==result.sources.length||sources.length!==request.expectedSources.length||result.hasMore===true||result.unavailable===true;
+ // Identity belongs to the complete retained set. A partially matched result
+ // cannot silently stand in for a stale/deleted/changed prior reference.
+ return {...result,sources:staleReference?[]:sources,staleReference};
+}
+
+export function validateContinuationAnchors(result,request){
+ if(!result||result.unavailable||result.hasMore||!result.scopeExhausted||!request.expectedSources?.length)return false;
+ if(new Set(result.sources.map(s=>s.id)).size!==result.sources.length)return false;
+ if(result.sources.some(s=>s.kind!=="history"||s.ownerId!==request.pet.ownerId||s.petId!==request.pet.id))return false;
+ const checked=checkReferencedSources(result,request);
+ return !checked.staleReference&&checked.sources.length===request.expectedSources.length;
 }

@@ -101,6 +101,13 @@ export function parseAskConversationResponse(value) {
   const suggestedQuestions = shouldOfferSuggestedQuestions(interactionMode, answerType)
     ? cleanSuggestedQuestions(draft.suggestedQuestions, response.summary)
     : [];
+  // Specific server task/coverage status already explains this bounded answer.
+  // Do not add a generic failure card, but retain it for any other unresolved work.
+  const sourceLimitExplained = verbatim && Array.isArray(draft.readOnlyTaskCompletion)
+    && draft.readOnlyTaskCompletion.some(task => task?.status === "partial" && task.reason === "source_omitted")
+    && draft.readOnlyTaskCompletion.every(task => task?.status === "complete"
+      || task?.status === "partial" && task.reason === "source_omitted" && task.sourceCount > 0)
+    && response.sections.some(section => section.heading === "Search coverage" && section.items.length > 0);
   const allowedActions = new Set(ASK_ACTIONS_BY_TYPE[answerType]);
   const actions = Array.isArray(draft.actions) ? draft.actions.filter((action) => allowedActions.has(action)).slice(0, 4) : [];
   return {
@@ -111,7 +118,7 @@ export function parseAskConversationResponse(value) {
     ...(typeof draft.citationProof === "string" && draft.citationProof.length <= 97000 ? { citationProof: draft.citationProof } : {}),
     // Completion is settled by the server, not inferred from fluent prose.
     // Keep this product status outside the reviewed body and structured data.
-    ...(draft.turn?.finalStage === "COMPLETED" && draft.turn.answerOutcome === "limited" && answerType !== "clarification"
+    ...(draft.turn?.finalStage === "COMPLETED" && draft.turn.answerOutcome === "limited" && answerType !== "clarification" && !sourceLimitExplained
       && !/\b(?:can['’]?t|cannot|couldn['’]?t|could not|don['’]?t see|do not see|not recorded|not in (?:the )?(?:file|notes?|records?)|missing|does not tell me|not enough (?:information|history|records?))\b/i.test(response.summary)
       ? { completionNotice: "I couldn't confirm every part of this answer." } : {}),
     supportingText: typeof draft.supportingText === "string" ? cleanText(draft.supportingText) : null,

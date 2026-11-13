@@ -111,7 +111,7 @@ test("recovery never guesses missing pet, event meaning, multiple periods or gen
  assert.deepEqual(READ_ONLY_LIMITS,{providerCalls:2,tools:4,records:32,page:16,sourceCharacters:24000,dialogueCharacters:8000});
 });
 test("UI-grounded photo help cannot invent an upload button or claim a save",async()=>{
- const {result}=await run(wire(assessment(),{workflowIntent:"care_photo_attachment"}),final(assessment(),"I uploaded your photo."));
+ const {result}=await run(wire(assessment(),{workflowIntent:"care_photo_attachment"}),final(assessment(),"I uploaded your photo."),{question:"How can I attach a photo to a Furvise care note?"});
  const text=result.answer.answer;assert.match(text,/no photo attachment or upload control/);assert.match(text,/Something worth remembering/);assert.match(text,/REMEMBER/);assert.doesNotMatch(text,/I uploaded/);
  assert.equal(APP_CAPABILITIES.ask.canSave,false);assert.equal(APP_CAPABILITIES.careNotes.photoAttachments,false);
 });
@@ -121,7 +121,7 @@ test("app help cannot replace emergency prominence in a mixed question",()=>{
 });
 test("active strict provider consumes actual event-contract JSON envelopes in exactly two physical local calls",async()=>{
  let physical=0;const events=[];
- const client={responses:{create:async()=>({status:"completed",output:[{type:"message",role:"assistant",status:"completed",content:[{type:"output_text",text:JSON.stringify(++physical===1?{...wire(),taskPlan:[{id:"t1",kind:"general_guidance",needsHistory:false,needsOwnerFacts:false,includeSourceDates:false,workflow:"none",pets:[],reference:null,missing:[]}]}:{...final(),completion:[{task:"t1",status:"complete",reason:"none",componentIndexes:[0],sources:[],ownerFacts:[],historyFacts:[]}]})}]}],usage:{input_tokens:1,output_tokens:1}})}};
+ const client={responses:{create:async()=>({status:"completed",output:[{type:"message",role:"assistant",status:"completed",content:[{type:"output_text",text:JSON.stringify(++physical===1?{...wire(),taskPlan:[{id:"t1",kind:"general_guidance",recordMode:"none",needsHistory:false,needsOwnerFacts:false,includeSourceDates:false,workflow:"none",pets:[],reference:null,missing:[]}]}:{...final(),completion:[{task:"t1",status:"complete",reason:"none",componentIndexes:[0],sources:[],ownerFacts:[],historyFacts:[]}]})}]}],usage:{input_tokens:1,output_tokens:1}})}};
  const result=await runReadOnlyAsk(input,{provider:readOnlyProvider("offline",e=>events.push(e),client),read:async()=>{throw Error("unexpected private read");}});
  assert.equal(result.providerCallCount,2);assert.equal(physical,2);assert.equal(result.answer.answer,"An ordinary answer.");assert.equal(events.filter(e=>e.outcome==="succeeded").length,2);
 });
@@ -265,7 +265,7 @@ test("component vet brief publishes exact historical execution wording as a quot
  try{
   const s=assessment({careContext:"vet_summary"});let count=0;
   const row={kind:"history",id:"source-component-private-id",ownerId:"owned",petId:pets[0].id,body:"I deleted the note.",eventAt:"2021-03-01T12:00:00Z",recordedAt:"2021-03-02T12:00:00Z"};
-  const task={id:"t1",kind:"vet_brief",needsHistory:true,needsOwnerFacts:false,includeSourceDates:false,workflow:"none",pets:["p1"],reference:null,missing:[]};
+  const task={id:"t1",kind:"vet_brief",recordMode:"single",needsHistory:true,needsOwnerFacts:false,includeSourceDates:false,workflow:"none",pets:["p1"],reference:null,missing:[]};
   const result=await runReadOnlyAsk({...input,question:"Prepare a brief with the original historical report."},{provider:async req=>{
    if(++count===1)return {...decodeClinicalSelection(wire(s,{reads:[{name:"search_saved_records",arguments:{pet:"p1",from:"2021-03-01",to:"2021-03-31",query:null,offset:0}}]}),req.tools,req.context),taskPlan:[task]};
    return final(s,"A brief follows.",{sources:["s1"],completion:[{task:"t1",status:"complete",reason:"none",componentIndexes:[0],sources:["s1"],ownerFacts:[],historyFacts:[{source:"s1",excerpt:row.body}]}]});
@@ -279,7 +279,7 @@ test("component vet brief publishes exact historical execution wording as a quot
 test("publication omissions cannot leave a requested quote component marked complete",async()=>{
  const prior=process.env.FURVISE_RATE_LIMIT_HASH_SECRET;process.env.FURVISE_RATE_LIMIT_HASH_SECRET="local-only-component-publication-fixture";
  try{
-  let count=0;const task={id:"t1",kind:"saved_content",needsHistory:true,needsOwnerFacts:false,includeSourceDates:false,workflow:"none",pets:["p1"],reference:null,missing:[]};
+  let count=0;const task={id:"t1",kind:"saved_content",recordMode:"single",needsHistory:true,needsOwnerFacts:false,includeSourceDates:false,workflow:"none",pets:["p1"],reference:null,missing:[]};
   const rows=Array.from({length:4},(_,i)=>({kind:"history",id:"oversized-private-component-"+i,ownerId:"owned",petId:pets[0].id,body:"猫".repeat(5000)+".",eventAt:"2021-03-01T12:00:00Z",recordedAt:"2021-03-02T12:00:00Z"}));const handles=rows.map((_,i)=>"s"+(i+1));
   const result=await runReadOnlyAsk(input,{provider:async req=>{
    if(++count===1)return {...decodeClinicalSelection(wire(assessment(),{reads:[{name:"search_saved_records",arguments:{pet:"p1",from:"2021-03-01",to:"2021-03-31",query:null,offset:0}}]}),req.tools,req.context),taskPlan:[task]};
@@ -290,4 +290,32 @@ test("publication omissions cannot leave a requested quote component marked comp
   assert.equal(limited,true);assert.equal(response.readOnlyTaskCompletion[0].status,"partial");assert.equal(response.readOnlyTaskCompletion[0].reason,"publication_limit");
   const kept=response.sections.find(s=>s.heading==="Saved notes")?.items??[];assert.ok(kept.length<4);assert.ok(kept.every(text=>text===rows[0].body));
  }finally{if(prior===undefined)delete process.env.FURVISE_RATE_LIMIT_HASH_SECRET;else process.env.FURVISE_RATE_LIMIT_HASH_SECRET=prior;}
+});
+
+test("a historical event also negated today is nonacute while conflicting acute occurrences remain rejected",async()=>{
+ const {validateClinicalAssessment,EMERGENCY_EVENTS}=await import("../app/lib/ask-read-only/clinical-policy.mjs");
+ const event=Object.keys(EMERGENCY_EVENTS)[0];
+ const observation=occurrence=>({event,occurrence,ownerStatementRef:"owner1"});
+ const value=events=>({medicationIntent:"none",referent:"clear",missingContext:[],careContext:"clinical_history",eventAssessments:events});
+ const owners=[{ref:"owner1",text:"The old event resolved years ago and is not occurring today."}];
+ const safe=validateClinicalAssessment(value([observation("historical"),observation("negated")]),owners);
+ assert.deepEqual(safe.currentEvents,[]);assert.deepEqual(safe.conditionalEvents,[]);
+ assert.equal(safe.scenario,"historical");
+ assert.throws(()=>validateClinicalAssessment(value([observation("current"),observation("negated")]),owners),/ASK_READ_CLINICAL_CONTRACT/);
+ assert.throws(()=>validateClinicalAssessment(value([observation("conditional"),observation("historical")]),owners),/ASK_READ_CLINICAL_CONTRACT/);
+ assert.throws(()=>validateClinicalAssessment(value([observation("historical"),{...observation("negated"),ownerStatementRef:"forged"}]),owners),/ASK_READ_CLINICAL_CONTRACT/);
+});
+
+test("introduced acute IF directions cannot narrow emergency timing behind an empty assessment",()=>{
+ const text="The old episode resolved. If a collapse happens again and Willow has trouble breathing, repeated episodes, severe weakness, or does not recover normally, seek urgent veterinary care immediately.";
+ const reviewed=reviewClinicalAnswer(final(assessment(),text),assessment(),[],pets);
+ assert.equal(reviewed.policy.active,true);
+ assert.ok(reviewed.policy.conditional.includes("collapse"));
+ assert.deepEqual(reviewed.policy.current,[]);
+ const out=renderMedicationDecision({...base,answer:text},reviewed.policy);
+ assert.match(out.answer,/If .*collapse.*contact an emergency veterinarian immediately/);
+ assert.doesNotMatch(out.answer,/and Willow has|does not recover normally/);
+ assert.doesNotMatch(out.answer,/Contact an emergency veterinarian now/);
+ const ordinary=reviewClinicalAnswer(final(assessment(),"If you find the old discharge report, ask the vet which dates to record."),assessment(),[],pets);
+ assert.equal(ordinary.policy.active,false);
 });

@@ -218,7 +218,13 @@ export function detectImmediateAskEmergency(value: string): ImmediateAskEmergenc
       const resolved = recovery && clause.isCertain && analysis.length > 0 && analysis.every(span => span.isCertain && !span.isNegated)
         && (!emergency || recovery.index > emergency.index || recovery[0].includes(emergency[0]));
       if (resolved) tags.delete(condition);
-      else if (emergency) tags.add(condition);
+      else if (emergency) {
+        // Negation applies to this matched event, not to an entire message.
+        // An absent event cannot create a new alarm or erase another event.
+        const prefix = text.slice(0, emergency.index);
+        const absent = /\b(?:no|without|not)\s+(?:(?:evidence|signs?|episodes?)\s+of\s+)?$/i.test(prefix);
+        if (!absent) tags.add(condition);
+      }
     }
     active.set(subject, tags);
   }

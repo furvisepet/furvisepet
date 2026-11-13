@@ -1,20 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {createHash} from "node:crypto";
-import {runReadOnlyAsk,bindReadTool} from "../app/lib/ask-read-only/core.mjs";
+import {runReadOnlyAsk,bindReadTool,validateReadOnlyAnswer} from "../app/lib/ask-read-only/core.mjs";
 import {decodeClinicalSelection} from "../app/lib/ask-read-only/clinical-policy.mjs";
-import {decodeComponentSelection,componentSelectionSchema,reviewComponentCompletion,renderTaskCompletion} from "../app/lib/ask-read-only/task-components.mjs";
+import {decodeComponentSelection,componentSelectionSchema,reviewComponentCompletion,renderTaskCompletion,validateTaskPlan,ownerFactSentences,fulfillReferenceReads} from "../app/lib/ask-read-only/task-components.mjs";
 const pet={id:"private-pet-123456789",ownerId:"owned",name:"Willow",species:"cat"};
 const source={kind:"history",id:"private-note-123456789",ownerId:"owned",petId:pet.id,body:"A routine exam recorded normal appetite at that time.",eventAt:"2021-03-12T12:00:00Z",recordedAt:"2021-03-14T12:00:00Z"};
 const reference={version:1,entries:[{kind:"history",petId:pet.id,timeZone:"UTC",goal:"exact_quote",from:"2021-03-01",to:"2021-03-31",recordedFrom:null,recordedTo:null,orderBy:"event",order:"asc",terms:[],limited:false,sources:[{id:source.id,hash:createHash("sha256").update(source.body).digest("hex"),eventAt:source.eventAt,recordedAt:source.recordedAt}]}]};
-const task=(extra={})=>({id:"t1",kind:"general_guidance",needsHistory:false,needsOwnerFacts:false,includeSourceDates:false,workflow:"none",pets:[],reference:null,missing:[],...extra});
+const task=(extra={})=>({recordMode:extra.needsHistory?(extra.kind==="saved_continuation"?"collection":"single"):"none",id:"t1",kind:"general_guidance",needsHistory:false,needsOwnerFacts:false,includeSourceDates:false,workflow:"none",pets:[],reference:null,missing:[],...extra});
 const safety=(extra={})=>({medicationIntent:"none",referent:"clear",missingContext:[],careContext:"none",eventAssessments:[],...extra});
 const completion=(extra={})=>({task:"t1",status:"complete",reason:"none",componentIndexes:[0],sources:[],ownerFacts:[],historyFacts:[],...extra});
 const final=(s,extra={})=>({components:[{kind:"general",text:"An ordinary answer.",sources:[]}],quotes:[],sources:[],calculations:[],replyType:"answer",presentation:{sourceDates:[],contextRequired:false},clinicalReview:{assessment:s,ownerStatementRefs:[],observationFields:[]},appHelp:{intent:"none",pet:null},completion:[completion()],...extra});
 async function execute(plan,s,output,extra={},plannedReads=[],readRows=[source]){
  let calls=0,reads=[];const requests=[];
- const result=await runReadOnlyAsk({ownerId:"owned",selectedPetId:pet.id,pets:[pet],dialogue:[],question:"An unfamiliar question.",now:"2026-11-12T12:00:00Z",timeZone:"UTC",...extra},{
-  provider:async(req,phase)=>{calls++;requests.push(req);return phase==="read_selection"?decodeComponentSelection({safety:s,reads:plannedReads,draft:"",historyIntent:{requested:plan.some(t=>t.needsHistory),timeBasis:"event",pet:null},workflowIntent:"find_care_note",taskPlan:plan},req.tools,req.context,decodeClinicalSelection):(typeof output==="function"?output(req):output);},
+ const result=await runReadOnlyAsk({ownerId:"owned",selectedPetId:pet.id,pets:[pet],dialogue:[],question:plan.some(t=>t.kind==="workflow")?"How do I enter a photo into a Furvise care note?":"An unfamiliar question.",now:"2026-11-12T12:00:00Z",timeZone:"UTC",...extra},{
+  provider:async(req,phase)=>{calls++;requests.push(req);return phase==="read_selection"?decodeComponentSelection({safety:s,reads:plannedReads,draft:"",historyIntent:{requested:plan.some(t=>t.needsHistory),timeBasis:"event",pet:null},workflowIntent:extra.workflowIntent??"find_care_note",taskPlan:plan},req.tools,req.context,decodeClinicalSelection):(typeof output==="function"?output(req):output);},
   read:async r=>{reads.push(r);return {sources:readRows,total:readRows.length,hasMore:false,scopeExhausted:true};}
  });return {result,calls,reads,requests};
 }
@@ -166,4 +166,171 @@ test("authoritative scoped saved task can recover absent discovery despite a red
  assert.equal(r.reads.length,1);assert.equal(r.reads[0].from,"2021-03-01");assert.equal(r.reads[0].to,"2021-03-31");assert.equal(r.result.answer.taskCompletion[0].status,"complete");
  const ambiguous=await execute(plan,s,final(s,{completion:[completion({status:"unresolved",reason:"missing_context"})]}),{question:"Please use her March note."});
  assert.equal(ambiguous.reads.length,0);
+});
+
+
+test("collection integration rehydrates contained continuation result but never foreign or wider result",()=>{
+ const outer={kind:"history",goal:"complete_set",pet:{id:"pet",ownerId:"owner"},from:"2019-01-01",to:"2021-12-31",recordedFrom:null,recordedTo:null,terms:[],referenceTimeZone:"UTC"};
+ const refs=[{handle:"r1",request:outer},{handle:"r2",request:{...outer,from:"2021-09-01"}},{handle:"r3",request:{...outer,pet:{id:"other",ownerId:"owner"}}},{handle:"r4",request:{...outer,from:"2018-01-01"}}];
+ const first={calls:[],taskPlan:[task({needsHistory:true,recordMode:"collection",reference:"r1",pets:["p1"]})]};
+ assert.deepEqual(fulfillReferenceReads(first,refs).calls.map(c=>JSON.parse(c.arguments).reference),["r1","r2"]);
+ first.taskPlan[0].recordMode="single";assert.equal(fulfillReferenceReads(first,refs).calls.length,1);
+});
+test("retained collection subset remains partial despite model complete declaration",()=>{
+ const t={...task({kind:"saved_content",needsHistory:true,recordMode:"collection"}),status:"complete",reason:"none",sources:["s1"],componentIndexes:[0],historyFacts:[],ownerFacts:[]};
+ const a=renderTaskCompletion({answer:"Selected reports.",validatedParts:[{index:0,text:"Selected reports."}],calculations:[],presentation:{}},[t],[{...source,handle:"s1"}],null,[{scope:{goal:"complete_set"},sources:[{source:"s1"}],unmet:["prior_source_selection_omitted"]}]);
+ assert.equal(a.taskCompletion[0].reason,"source_omitted");assert.equal(a.taskCompletion[0].status,"partial");
+});
+test("calculation prose yields to deterministic result without removing independent general answer",()=>{
+ const base={...task(),status:"complete",reason:"none",sources:[],historyFacts:[],ownerFacts:[]};
+ const a=renderTaskCompletion({answer:"Wrong rounded arithmetic. Useful separate guidance.",validatedParts:[{index:0,text:"Wrong rounded arithmetic."},{index:1,text:"Useful separate guidance."}],calculations:[{available:true,text:"Verified arithmetic."}],presentation:{}},[{...base,kind:"calculation",componentIndexes:[0]},{...base,id:"t2",componentIndexes:[1]}],[],null,[]);
+ assert.equal(a.answer,"Useful separate guidance.");assert.equal(a.calculations.length,1);
+});
+test("scope correction cannot complete owner-observation facts in brief",()=>{
+ const p=[task({kind:"vet_brief",needsOwnerFacts:true})];const f=final(safety(),{completion:[completion({ownerFacts:[{ref:"owner1",kind:"scope_correction",excerpt:"I meant the other animal."}]})]});
+ const r=reviewComponentCompletion(f,p,[],[{ref:"owner1",text:"I meant the other animal."}],[]);
+ assert.equal(r.tasks[0].ownerFacts.length,0);assert.equal(r.tasks[0].status,"partial");
+});
+
+
+test("owner observation sentence handles publish exact whole attributed text without model retyping",()=>{
+ const statements=[{ref:"owner1",text:"I meant the other animal. She did not miss medicine; I only misplaced the diary. Please prepare a brief."}];
+ const sentences=ownerFactSentences(statements);assert.equal(sentences.length,3);
+ const p=[task({kind:"vet_brief",needsOwnerFacts:true})];
+ const f=final(safety(),{completion:[completion({ownerFacts:[{sentence:"owner1:sentence1",kind:"scope_correction"},{sentence:"owner1:sentence2",kind:"present_observation"}]})]});
+ const r=reviewComponentCompletion(f,p,[],statements,[]);assert.deepEqual(r.tasks[0].ownerFacts,[{ref:"owner1",kind:"present_observation",excerpt:"She did not miss medicine; I only misplaced the diary."}]);
+ const forged=final(safety(),{completion:[completion({ownerFacts:[{sentence:"owner9:sentence1",kind:"present_observation"}]})]});assert.throws(()=>reviewComponentCompletion(forged,p,[],statements,[]),/COMPONENT_CONTRACT/);
+});
+
+
+test("ordinary plans and constraints cannot be blocked by an observation-excerpt dependency",()=>{
+ const ctx={pets:[{handle:"p1"}],references:[]};
+ const t=task({kind:"general_guidance",needsOwnerFacts:true,missing:["owner_observation"]});
+ const p=validateTaskPlan([t],ctx);assert.equal(p[0].needsOwnerFacts,false);assert.deepEqual(p[0].missing,[]);
+ const reviewed=reviewComponentCompletion(final(safety()),p,[],[],[]);assert.equal(reviewed.tasks[0].status,"complete");
+ const a=renderTaskCompletion({answer:"A useful plan.",validatedParts:[{index:0,text:"A useful plan."}],presentation:{}},reviewed.tasks,[],null);assert.equal(a.answer,"A useful plan.");
+ const brief=validateTaskPlan([task({kind:"vet_brief",needsOwnerFacts:true})],ctx);assert.equal(brief[0].needsOwnerFacts,true);
+});
+
+test("a collection read cannot erase an independent single-record choice for the same pet",async()=>{
+ const s=safety(),plan=[
+  task({kind:"saved_content",needsHistory:true,recordMode:"collection",pets:["p1"]}),
+  task({id:"t2",kind:"saved_content",needsHistory:true,recordMode:"single",pets:["p1"],missing:["which_record"]})
+ ];
+ const out=final(s,{components:[
+  {kind:"saved",text:"The supplied reports describe routine historical observations.",sources:["s1","s2"]},
+  {kind:"saved",text:"The unspecified single note was chosen automatically.",sources:["s1"]}
+ ],sources:["s1","s2"],completion:[
+  completion({sources:["s1","s2"]}),
+  completion({task:"t2",componentIndexes:[1],sources:["s1"]})
+ ]});
+ const r=await execute(plan,s,out,{},[{...boundedRead[0],arguments:{...boundedRead[0].arguments,goal:"complete_set"}}],
+  [source,{...source,id:"other-note-private-123456",body:"A second routine historical report was saved."}]);
+ assert.equal(r.reads.length,1);
+ assert.equal(r.result.answer.taskCompletion[0].status,"complete");
+ assert.equal(r.result.answer.taskCompletion[1].status,"unresolved");
+ assert.match(r.result.answer.answer,/supplied reports/);
+ assert.match(r.result.answer.answer,/Which saved result/);
+ assert.doesNotMatch(r.result.answer.answer,/chosen automatically/);
+});
+
+test("retained reference limits are not mislabeled as a new body-admission overflow",()=>{
+ const sources=[{...source,handle:"s1",petName:"Willow"}];
+ const t={...task({kind:"saved_content",needsHistory:true,recordMode:"collection",pets:["p1"]}),status:"complete",reason:"none",componentIndexes:[],sources:["s1"],historyFacts:[],ownerFacts:[]};
+ const coverage=[{scope:{goal:"complete_set"},sources:[{source:"s1"}],omitted:0,hasMore:false,hasPrevious:false,truncated:false,unmet:["prior_source_selection_omitted"]}];
+ const a=renderTaskCompletion({answer:"Available historical observations.",quotes:[],calculations:[],presentation:{}},[t],sources,null,coverage);
+ assert.equal(a.taskCompletion[0].status,"partial");
+ assert.match(a.answer,/retained from an earlier result/);
+ assert.doesNotMatch(a.answer,/omitted by the evidence limit/);
+ const b=renderTaskCompletion({answer:"Available historical observations.",quotes:[],calculations:[],presentation:{}},[t],sources,null,[{...coverage[0],omitted:2}]);
+ assert.match(b.answer,/omitted by the evidence limit/);
+});
+
+test("collection calendar details come only from the bound exact source while synthesis survives",()=>{
+ const s={...source,handle:"s1",petName:"Willow",body:"The usual measured diet was continued."};
+ const t={...task({kind:"saved_content",needsHistory:true,recordMode:"collection",pets:["p1"],includeSourceDates:true}),
+  status:"complete",reason:"none",componentIndexes:[0],sources:["s1"],ownerFacts:[],
+  historyFacts:[{source:"s1",excerpt:s.body}]};
+ const a=renderTaskCompletion({answer:"",validatedParts:[{index:0,text:"The reports describe a steady routine. An April entry recorded the measured diet."}],quotes:[],calculations:[],presentation:{}},[t],[s],null);
+ assert.match(a.answer,/steady routine/);assert.doesNotMatch(a.answer,/April/);
+ assert.match(a.answer,/event 2021-03-12; recorded 2021-03-14/);
+ assert.match(a.answer,/The usual measured diet was continued/);
+ const b=renderTaskCompletion({answer:"",validatedParts:[{index:0,text:"An April entry recorded the measured diet."}],quotes:[],calculations:[],presentation:{}},[{...t,historyFacts:[]}],[s],null);
+ assert.equal(b.taskCompletion[0].status,"partial");assert.match(b.answer,/couldn't verify/);assert.doesNotMatch(b.answer,/April/);
+});
+
+test("inline source references use compact visible source order without unsolicited timestamps",()=>{
+ const rows=[{...source,handle:"s1",petName:"Willow"},{...source,id:"another-private-note",handle:"s2",petName:"Willow"}];
+ const a=validateReadOnlyAnswer({components:[{kind:"saved",text:"See s2.",sources:["s2"]}],sources:["s2"],quotes:[],calculations:[],replyType:"answer",presentation:{sourceDates:[],contextRequired:false}},rows,"Show the note.");
+ assert.equal(a.answer,"See saved note 1.");assert.doesNotMatch(a.answer,/2021|T12/);
+});
+
+test("calendar label repair preserves synthesis within the same sentence and lowercase modal may",()=>{
+ const s={...source,handle:"s1",petName:"Willow"};
+ const t={...task({kind:"saved_content",needsHistory:true,recordMode:"collection",pets:["p1"]}),
+  status:"complete",reason:"none",componentIndexes:[0],sources:["s1"],ownerFacts:[],historyFacts:[{source:"s1",excerpt:s.body}]};
+ const r=renderTaskCompletion({answer:"",validatedParts:[{index:0,text:"Across 2020–2022, the notes describe a stable routine that may vary slightly."}],quotes:[],calculations:[],presentation:{}},[t],[s],null);
+ assert.match(r.answer,/stable routine that may vary slightly/);
+ assert.doesNotMatch(r.answer,/2020|2022/);
+});
+
+test("current no-workflow discriminator prevents stale app task replacing a returned routine",async()=>{
+ const s=safety(),r=await execute([task({kind:"workflow",workflow:"care_photo_attachment"})],s,req=>{
+  assert.equal(req.context.taskPlan[0].kind,"general_guidance");
+  assert.equal(req.draft,"");
+  return final(s,{components:[{kind:"general",text:"Use the revised three-minute quiet settling routine without food or jumping.",sources:[]}],appHelp:{intent:"care_photo_attachment",pet:"p1"}});
+ },{workflowIntent:"none",question:"Return to the latest settling routine after our detour."});
+ assert.match(r.result.answer.answer,/three-minute quiet/);
+ assert.doesNotMatch(r.result.answer.answer,/Today|photo|Something worth remembering/);
+ assert.equal(r.result.answer.taskCompletion[0].kind,"general_guidance");
+});
+test("app instructions bind explicit owned pet rather than stale UI selection",async()=>{
+ const {renderAppWorkflow}=await import("../app/lib/ask-read-only/app-capabilities.mjs");
+ const pets=[{handle:"p1",name:"Willow"},{handle:"p2",name:"Rowan"}];
+ const a=renderAppWorkflow({answer:"",presentation:{}},{intent:"care_photo_attachment",pet:"p1"},pets,false,"How can I put Rowan's photo into a care note?");
+ assert.match(a.answer,/choose Rowan/);assert.doesNotMatch(a.answer,/choose Willow/);
+ const b=renderAppWorkflow({answer:"",presentation:{}},{intent:"create_care_note",pet:"p1"},pets,false,"Willow and Rowan both need notes.");
+ assert.match(b.answer,/choose the intended pet/);
+});
+
+test("prior workflow agreement cannot authorize controls for an unrelated current routine",async()=>{
+ const s=safety(),r=await execute([task({kind:"workflow",workflow:"create_care_note"})],s,req=>{
+  assert.equal(req.context.taskPlan[0].workflow,"none");
+  return final(s,{components:[{kind:"general",text:"Use the latest three-minute silent routine.",sources:[]}],appHelp:{intent:"create_care_note",pet:"p1"}});
+ },{workflowIntent:"create_care_note",question:"Give Willow a six-minute quiet settling routine beside me, without food or stairs."});
+ assert.match(r.result.answer.answer,/three-minute silent/);assert.doesNotMatch(r.result.answer.answer,/Open Today|REMEMBER/);
+});
+
+test("collection synthesis removes calendar labels and generated counts without placeholder prose",()=>{
+ const s={...source,handle:"s1",petName:"Willow"};
+ const t={...task({kind:"saved_content",needsHistory:true,recordMode:"collection",pets:["p1"]}),status:"complete",reason:"none",componentIndexes:[0],sources:["s1"],ownerFacts:[],historyFacts:[{source:"s1",excerpt:s.body}]};
+ const text="Willow’s 2017–2019 record shows a steady routine that may vary slightly. The exception was mild scratching in May 2018. I was able to use 36 saved entries, but four notes were omitted. Weight edges upward from September to December 2019.";
+ const r=renderTaskCompletion({answer:"",validatedParts:[{index:0,text}],quotes:[],calculations:[],presentation:{}},[t],[s],null);
+ const overview=r.answer.split("Selected dated historical details:")[0];
+ assert.match(overview,/Willow’s record shows a steady routine that may vary slightly/);
+ assert.match(overview,/exception was mild scratching/);
+ assert.doesNotMatch(overview,/saved period|requested period|2017|2019|May|September|December|36 saved entries|four notes/);
+});
+
+test("calendar qualifier and list removal keeps clean sentence grammar",()=>{
+ const s={...source,handle:"s1",petName:"Willow"};
+ const t={...task({kind:"saved_content",needsHistory:true,recordMode:"collection",pets:["p1"]}),status:"complete",reason:"none",componentIndexes:[0],sources:["s1"],ownerFacts:[],historyFacts:[{source:"s1",excerpt:s.body}]};
+ const text="Willow’s saved care record through mid-2020 reads like steady preventive care. Stool became more consistent. In late 2020, the notes continue that theme, including monthly care checks in September, October, and November, and a nutrition review.";
+ const r=renderTaskCompletion({answer:"",validatedParts:[{index:0,text}],quotes:[],calculations:[],presentation:{}},[t],[s],null);
+ const overview=r.answer.split("Selected dated historical details:")[0];
+ assert.match(overview,/record reads like steady/);
+ assert.match(overview,/consistent\. The notes continue/);
+ assert.match(overview,/monthly care checks and a nutrition review/);
+ assert.doesNotMatch(overview,/mid-|late 2020|September|October|November|\.,|,,|and, and/);
+});
+
+test("unrelated raw app-control prose cannot pass as a completed ordinary routine",async()=>{
+ const s=safety(),r=await execute([task()],s,req=>{
+  assert.equal(req.context.appCapabilities.careNotes,undefined);
+  return final(s,{components:[{kind:"general",text:"Use Today. Type into Something worth remembering, open Add details, then press REMEMBER.",sources:[]}]});
+ },{workflowIntent:"none",question:"Revise Willow’s routine to three silent minutes."});
+ assert.doesNotMatch(r.result.answer.answer,/Something worth remembering|Add details|REMEMBER/);
+ assert.equal(r.result.answer.taskCompletion[0].status,"partial");
+ assert.match(r.result.answer.answer,/couldn't complete/);
+ assert.equal(r.calls,2);
 });

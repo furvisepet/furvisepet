@@ -73,10 +73,15 @@ export function validateClinicalAssessment(value,ownerStatements=[]){
  if(Object.hasOwn(value,"eventAssessments")){
   if(!keys(value,Object.keys(CLINICAL_ASSESSMENT_SCHEMA.properties))||!Array.isArray(value.eventAssessments)||value.eventAssessments.length>10)reject("assessment_shape");
   protocolVersion=3;currentChecked=true;
-  const seen=new Set();
+  const seen=new Map();
   for(const observation of value.eventAssessments){
-   if(!keys(observation,["event","occurrence","ownerStatementRef"])||!Object.hasOwn(EMERGENCY_EVENTS,observation.event)||!["current","conditional","historical","negated"].includes(observation.occurrence)||seen.has(observation.event))reject("clinical_events");
-   seen.add(observation.event);
+   if(!keys(observation,["event","occurrence","ownerStatementRef"])||!Object.hasOwn(EMERGENCY_EVENTS,observation.event)||!["current","conditional","historical","negated"].includes(observation.occurrence))reject("clinical_events");
+   const previous=seen.get(observation.event);
+   // A recovered past event may also be explicitly negated today. Both are
+   // non-acute. Validate every reference below; never reconcile conflicting
+   // current/conditional meanings or admit an unverified current assertion.
+   if(previous&&![previous,observation.occurrence].every(v=>v==="historical"||v==="negated"))reject("clinical_events");
+   seen.set(observation.event,observation.occurrence);
    const statement=ownerStatements.find(t=>t.ref===observation.ownerStatementRef);
    if(observation.ownerStatementRef!==null&&!statement)reject("owner_statement_reference");
    if(observation.occurrence==="current"&&!statement)reject("event_evidence");
@@ -136,6 +141,30 @@ export function clinicalAnswerSchema(schema,initial,ownerStatements=[],pets=[]){
  out.properties.appHelp=object({intent:choice([...WORKFLOW_INTENTS]),pet:{type:["string","null"],enum:[...pets.map(p=>p.handle),null]}});
  out.required.push("clinicalReview","appHelp");return out;
 }
+
+// A model's introduced IF warning creates a display obligation even if its
+// structured assessment omitted that warning. This grants no current-event,
+// diagnosis, treatment or source authority. Only server emergency text renders.
+const warningPatterns={
+ breathing_distress:/\b(?:difficulty breathing|trouble breathing|struggling to breathe|cannot breathe|can't breathe|open[- ]mouth breathing|breathing distress)\b/i,
+ collapse:/\b(?:collapse[ds]?|unconscious|unresponsive|loss of consciousness|lose consciousness)\b/i,
+ toxin_exposure:/\b(?:poison(?:ing)?|toxin exposure|overdose)\b/i,
+ repeated_seizures:/\b(?:seizures?|convulsions?)\b/i,
+ swollen_abdomen_retching:/\b(?:bloat|swollen abdomen|unproductive retching)\b/i,
+ unable_to_urinate:/\b(?:cannot urinate|can't urinate|unable to urinate|blocked urination)\b/i,
+ major_trauma_bleeding:/\b(?:major trauma|uncontrolled bleeding|severe bleeding)\b/i,
+ acute_neurologic_change:/\b(?:sudden paralysis|severe loss of coordination)\b/i,
+ heat_emergency:/\bheatstroke\b/i
+};
+function introducedWarningEvents(components=[]){
+ const directed=components.filter(c=>c.kind==="general"&&typeof c.text==="string")
+  .flatMap(c=>c.text.split(/(?<=[.!?])\s+|\n+/))
+  .filter(text=>/\b(?:if|should .{0,40}occur|in case)\b/i.test(text)
+   &&/\b(?:seek|contact|call|go to|urgent|emergency)\b/i.test(text)
+   &&/\b(?:vet(?:erinar\w*)?|clinic|emergency care)\b/i.test(text));
+ return Object.entries(warningPatterns).filter(([,pattern])=>directed.some(text=>pattern.test(text))).map(([event])=>event);
+}
+
 export function reviewClinicalAnswer(value,initial,ownerStatements=[],pets=[],workflowIntent="none"){
  if(!v2(initial))return legacy.reviewClinicalAnswer(value,initial);
  const review=value?.clinicalReview;
@@ -147,7 +176,8 @@ export function reviewClinicalAnswer(value,initial,ownerStatements=[],pets=[],wo
  if(!Array.isArray(review.ownerStatementRefs)||review.ownerStatementRefs.length>4||review.ownerStatementRefs.some(ref=>!ownerStatements.some(t=>t.ref===ref)))reject("owner_statement_reference");
  if(!Array.isArray(review.observationFields)||review.observationFields.length>8||review.observationFields.some(k=>!Object.hasOwn(observations,k)))reject("observation_field");
  const states=[initial,final],decision=states.some(s=>s.medicationIntent==="decision");
- const current=[...new Set(states.flatMap(s=>s.currentEvents))],conditional=[...new Set(states.flatMap(s=>s.conditionalEvents))];
+ const introduced=introducedWarningEvents(value.components);
+ const current=[...new Set(states.flatMap(s=>s.currentEvents))],conditional=[...new Set([...states.flatMap(s=>s.conditionalEvents),...introduced])];
  // Keep earlier recognized obligations; a later classification cannot downgrade them.
  const currentConcern=states.some(s=>s.careContext==="current_concern"||["current","uncertain"].includes(s.scenario)&&s.urgency==="prompt");
  const summaryContext=states.some(s=>s.careContext==="vet_summary"),historical=states.some(s=>s.careContext==="clinical_history");
@@ -155,7 +185,7 @@ export function reviewClinicalAnswer(value,initial,ownerStatements=[],pets=[],wo
  if(!active&&value.components?.some(c=>c.kind==="emergency"||c.kind==="conditional_emergency"))reject("unbound_clinical_component");
  const missing=[...new Set(states.flatMap(s=>s.missingContext))];
  const clean={...value};delete clean.clinicalReview;delete clean.appHelp;
- const policy={version:2,active,decision,current,conditional,currentConcern,summaryContext,historical,missing,ownerRefs:[...new Set(review.ownerStatementRefs)],observations:[...new Set(review.observationFields)]};
+ const policy={version:2,active,decision,current,conditional,currentConcern,summaryContext,historical,missing,ownerRefs:[...new Set(review.ownerStatementRefs)],observations:[...new Set(review.observationFields)],briefQuestions:[...new Set(review.observationFields)].map(k=>"What should we record or check about "+observations[k]+"?" )};
  return {value:clean,policy,workflow,summary:{policyVersion:2,assessmentVersion:initial.protocolVersion??2,medicationIntent:decision?"decision":final.medicationIntent,medicationDisposition:decision?"refer_prescriber":"not_applicable",currentEmergency:current.length>0,conditionalEmergency:conditional.length>0,currentEventCount:current.length,conditionalEventCount:conditional.length,careContext:final.careContext,missingContextCount:missing.length,ownerStatementCount:policy.ownerRefs.length,contactTiming:current.length?"immediate":decision||currentConcern?"prompt":"none"}};
 }
 export function renderMedicationDecision(answer,policy,ownerStatements=[],sources=[]){
@@ -170,9 +200,9 @@ export function renderMedicationDecision(answer,policy,ownerStatements=[],source
  if(emergency&&answer.quotes.length)parts.push("Saved quotations below are historical reports, not an assessment of the current emergency. Do not delay emergency contact to review them.");
  if(policy.decision)parts.push("I cannot choose a catch-up dose, spacing, taper, substitution or restart schedule here. Looking stable does not establish that an altered prescription schedule is safe.");
  const missingLabels={pet:"which pet and species this concerns",date:"when the relevant events or administrations occurred",procedure:"which procedure or treatment is meant",medicine:"the medicine name and strength",prescription:"the exact prescribed directions",vet_plan:"the prescriber's existing instructions for this situation"};
- if(policy.missing.length)parts.push("Useful details to clarify: "+policy.missing.map(k=>missingLabels[k]).join("; ")+".");
- if(policy.observations.length)parts.push("For the veterinary conversation, note "+policy.observations.map(k=>observations[k]).join("; ")+".");
- if(policy.decision)parts.push("Keep a factual log of actual administrations and missed times, separately from the prescribed schedule. A reported or historical plan is not authority for a new medication decision.");
+ if(policy.missing.length&&!answer.hasTaskBrief)parts.push("Useful details to clarify: "+policy.missing.map(k=>missingLabels[k]).join("; ")+".");
+ if(policy.observations.length&&!answer.hasTaskBrief)parts.push("For the veterinary conversation, note "+policy.observations.map(k=>observations[k]).join("; ")+".");
+ if(policy.decision&&!answer.hasTaskBrief)parts.push("Keep a factual log of actual administrations and missed times, separately from the prescribed schedule. A reported or historical plan is not authority for a new medication decision.");
  const privateIds=sources.flatMap(s=>[s.id,s.petId]).filter(v=>typeof v==="string"&&v.length>=16);
  const ownerReports=policy.ownerRefs.map(ref=>ownerStatements.find(t=>t.ref===ref)).filter(Boolean).filter(t=>!privateIds.some(id=>t.text.includes(id))).map(t=>t.text);
  const available=[ownerReports.length?"owner reports":null,answer.sources.length?"original saved notes":null].filter(Boolean);

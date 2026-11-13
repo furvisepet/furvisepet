@@ -49,7 +49,7 @@ const units=Object.freeze({
 });
 export function calculateReadSources(calculations,sources) {
  if(!Array.isArray(calculations)||calculations.length>4)throw new Error("ASK_READ_CALC_INVALID");
- const known=sources.flatMap(source=>(source.measurements??readSourceMeasurements(source.body,source.handle,source.kind,source.petName)).map((measurement,index)=>({...measurement,source:source.handle,measurementKey:source.kind+":"+(source.id??source.handle)+":"+index,petId:source.petId,eventTime:Date.parse(source.eventAt),recordedTime:Date.parse(source.recordedAt)})));
+ const known=sources.flatMap(source=>(source.measurements??readSourceMeasurements(source.body,source.handle,source.kind,source.petName)).map((measurement,index)=>({...measurement,source:source.handle,measurementKey:source.kind+":"+(source.id??source.handle)+":"+index,petId:source.petId,petName:source.petName,eventTime:Date.parse(source.eventAt),recordedTime:Date.parse(source.recordedAt)})));
  return calculations.map(calculation=>{
   if(!calculation||!["operands,operation","operands,operation,timeBasis"].includes(Object.keys(calculation).sort().join(","))
    ||!["difference","absolute_difference","percent_change","sum","mean"].includes(calculation.operation)
@@ -97,7 +97,8 @@ export function calculateReadSources(calculations,sources) {
   if(!Number.isFinite(result))return unavailable("The calculation exceeds the supported numeric range.",unit);
   const metric=metrics[0].replaceAll("_"," ");
   const provenance=values.map(value=>new Date(value.time).toISOString()+": "+format(value.value)+" "+unit).join(" → ");
-  return {text:metric+" — "+label+": "+format(result)+(calculation.operation==="percent_change"?"%":" "+unit)+" ("+timeBasis+" dates; "+provenance+")",
+  const petLabels=[...new Set(values.map(v=>v.petName).filter(Boolean))].join(" / ");
+  return {text:(petLabels?petLabels+" — ":"")+metric+" — "+label+": "+(["difference","percent_change"].includes(calculation.operation)&&result>0?"+":"")+format(result)+(calculation.operation==="percent_change"?"%":" "+unit)+" ("+timeBasis+" dates; "+provenance+")",
    metric:metrics[0],timeBasis,operandCount:values.length,sourceHandles:values.map(value=>value.source),value:Number(format(result)),unit:calculation.operation==="percent_change"?"%":unit};
  });
 }
