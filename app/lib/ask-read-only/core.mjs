@@ -1,9 +1,9 @@
-import { COMPONENT_INSTRUCTIONS, componentSelectionSchema, componentAnswerSchema, fulfillReferenceReads, reviewComponentCompletion, renderTaskCompletion, resolveRecordDiscovery } from "./task-components.mjs";
+import { COMPONENT_INSTRUCTIONS, componentSelectionSchema, componentAnswerSchema, fulfillReferenceReads,ownerFactSentences, reviewComponentCompletion, renderTaskCompletion, resolveRecordDiscovery, normalizeTaskRecords } from "./task-components.mjs";
 import { CLINICAL_INSTRUCTIONS, clinicalSelectionSchema, validateClinicalAssessment, clinicalAnswerSchema, reviewClinicalAnswer, renderMedicationDecision, ownerStatementCatalog, emergencyHandoffForAssessment } from "./clinical-policy.mjs";
 import { APP_CAPABILITIES, WORKFLOW_INSTRUCTIONS, renderAppWorkflow } from "./app-capabilities.mjs";
 import { normalizeReadTemporalScope } from "./temporal-scope.mjs";
 import { explicitCalendarScopes, recoverBoundedCalendarRead } from "./calendar-scope.mjs";
-import { restoreReadReferences, describeReadReferences, carryReadReferences } from "./references.mjs";
+import { restoreReadReferences, describeReadReferences, carryReadReferences, continuationRange } from "./references.mjs";
 import { EVIDENCE_GOALS, HISTORY_PAGE_BUDGET, HISTORY_CANDIDATE_BUDGET, allocateEvidence } from "./retrieval.mjs";
 import { calculateReadSources, readSourceMeasurements } from "./calculations.mjs";
 /**
@@ -27,7 +27,7 @@ export function readOnlyToolsForPets(pets,references=[]) {
  const tools=structuredClone(READ_ONLY_TOOLS),handles=pets.map(pet=>pet.handle);
  for(const tool of tools)tool.parameters.properties.pet.enum=handles;
  if(references.length)tools.push({type:"function",name:"read_referenced_sources",strict:true,description:"Re-read the exact saved sources from a prior result in this conversation. Reference metadata is not factual evidence. Changed or missing sources require clarification. Use a new search/profile read for current information or a changed scope.",parameters:object({reference:{type:"string",enum:references.map(reference=>reference.handle)}})});
- if(references.some(r=>r.request.omittedEventRange))tools.push({type:"function",name:"read_remaining_records",strict:true,description:"Fresh bounded search of a prior result’s omitted event-date range. This is not a snapshot cursor and may repeat same-day boundary records. Never rereads only the prior retained bodies as the remainder.",parameters:object({reference:{type:"string",enum:references.filter(r=>r.request.omittedEventRange).map(r=>r.handle)}})});
+ if(references.some(r=>continuationRange(r.request)))tools.push({type:"function",name:"read_remaining_records",strict:true,description:"Fresh bounded search of a prior result’s omitted date-axis interval after current owner/source validation. This is not a snapshot cursor and may repeat same-day boundary records. Never rereads only the prior retained bodies as the remainder.",parameters:object({reference:{type:"string",enum:references.filter(r=>continuationRange(r.request)).map(r=>r.handle)}})});
  return tools;
 }
 /** Safe rejection telemetry: structural facts only, never argument values or record text. */
@@ -112,10 +112,14 @@ export function bindReadTool(name,args,pets,references=[]) {
  if(name==="read_remaining_records"){
   if(!keys(args,["reference"]))fail("ASK_READ_TOOL_INVALID");
   const prior=references.find(r=>r.handle===args.reference)?.request;
-  if(!prior?.omittedEventRange||!pets.some(p=>p.id===prior.pet.id))fail("ASK_READ_REFERENCE_UNAVAILABLE");
-  const {sourceIds,expectedSources,referenceLimited,reference,omittedEventRange,...request}=prior;
-  void sourceIds;void expectedSources;void referenceLimited;void reference;
-  return {...request,from:omittedEventRange.from,to:omittedEventRange.to,terms:[],offset:0,order:"asc",goal:"complete_set"};
+  const range=prior&&continuationRange(prior);
+  if(prior?.kind!=="history"||!range||!pets.some(p=>p.id===prior.pet.id&&p.ownerId===prior.pet.ownerId)||!prior.expectedSources?.length)fail("ASK_READ_REFERENCE_UNAVAILABLE");
+  const competing=references.filter(r=>r.request.pet.id===prior.pet.id&&continuationRange(r.request)).map(r=>JSON.stringify([r.request.from,r.request.to,r.request.recordedFrom,r.request.recordedTo,continuationRange(r.request),r.request.terms]));
+  if(new Set(competing).size>1)fail("ASK_READ_REFERENCE_AMBIGUOUS");
+  const {sourceIds,expectedSources,referenceLimited,reference,omittedEventRange,omittedRange,...request}=prior;
+  void sourceIds;void expectedSources;void referenceLimited;void reference;void omittedEventRange;void omittedRange;
+  const axis=range.axis==="recorded"?{recordedFrom:range.from,recordedTo:range.to}:{from:range.from,to:range.to};
+  return {...request,...axis,offset:0,order:"asc",continuation:{reference:args.reference,range,anchorRequest:prior}};
  }
  if(name==="read_referenced_sources"){
   if(!keys(args,["reference"]))fail("ASK_READ_TOOL_INVALID");
@@ -240,6 +244,7 @@ export async function runReadOnlyAsk(input,deps) {
  const context={dialogueCoverage,now:input.now,timeZone:input.timeZone,selectedPet:pets.find(p=>p.id===input.selectedPetId).handle,
  pets:pets.map(p=>({handle:p.handle,name:p.name,species:p.species})),references:describeReadReferences(references),dialogue,question:input.question};
  const ownerStatements=ownerStatementCatalog(context,pets,input.ownerId);
+ context.ownerFactSentenceRefs=ownerFactSentences(ownerStatements);
  context.appCapabilities=APP_CAPABILITIES;
  context.explicitCalendarScopes=explicitCalendarScopes(context.question);
  context.ownerStatementRefs=ownerStatements.map(({ref,dialogueIndex,question})=>({ref,...(question?{question:true}:{dialogueIndex})}));
@@ -250,7 +255,7 @@ export async function runReadOnlyAsk(input,deps) {
  let taskPlan=first.taskPlan;
  if(taskPlan){first={...first};delete first.taskPlan;}
  if(!keys(first,Object.hasOwn(first??{},"workflowIntent")?["calls","text","safety","historyIntent","workflowIntent"]:Object.hasOwn(first??{},"historyIntent")?["calls","text","safety","historyIntent"]:Object.hasOwn(first??{},"safety")?["calls","text","safety"]:["calls","text"])||!Array.isArray(first.calls)||first.calls.length>4||typeof first.text!=="string"||first.text.length>12000)fail("ASK_READ_PROVIDER_INVALID");
- if(taskPlan){first.taskPlan=taskPlan;first=fulfillReferenceReads(first,references);context.taskPlan=taskPlan;}
+ if(taskPlan){first.taskPlan=taskPlan;first=fulfillReferenceReads(first,references);taskPlan=first.taskPlan;context.taskPlan=taskPlan;}
  let assessment=Object.hasOwn(first,"safety")?validateClinicalAssessment(first.safety):null;
  const recovered=recoverBoundedCalendarRead(first,context,pets);
  if(recovered){first=recovered.first;assessment=first.safety;deps.onAnswerBoundary?.({outcome:"calendar_scope_recovered",...recovered.diagnostic});}
@@ -258,34 +263,32 @@ export async function runReadOnlyAsk(input,deps) {
  // Do not let optional records delay a current emergency, or history guess an
  // essential unknown referent. Profile reads can still resolve a pet identity.
  const emergency=assessment?.currentEvents?.length>0||assessment?.scenario==="current"&&assessment.urgency==="immediate";
- const historyAllowed=call=>{
-  if(!taskPlan||call.name==="read_pet_profile")return true;
-  let args;try{args=JSON.parse(call.arguments);}catch{return true;} // Normal binder owns invalid-shape rejection.
-  const callPet=args.pet??references.find(r=>r.handle===args.reference)?.request.pet.handle;
-  const boundedDiscovery=call.name==="search_saved_records"&&!!(args.from&&args.to||args.recordedFrom&&args.recordedTo);
-  const allowed=taskPlan.some(t=>t.needsHistory&&!t.missing.some(v=>["pet","year","date_meaning"].includes(v)||v==="which_record"&&!boundedDiscovery)&&(t.reference&&args.reference===t.reference||t.pets.includes(callPet)));
-  deps.onAnswerBoundary?.({outcome:"task_read_gate",tool:["search_saved_records","read_referenced_sources","read_remaining_records"].includes(call.name)?call.name:"unknown",allowed,boundedDiscovery,tasks:taskPlan.map(t=>({kind:t.kind,needsHistory:t.needsHistory,petScopeCount:t.pets.length,missing:t.missing}))});
-  return allowed;
- };
- const clinicalAuthorityOnly=taskPlan?.some(t=>t.needsHistory&&(t.pets.length||t.reference)&&!t.missing.some(v=>["pet","year","date_meaning","which_record"].includes(v)))&&assessment?.missingContext?.length>0&&assessment.missingContext.every(v=>["medicine","prescription","vet_plan"].includes(v));
- const selectedCalls=(emergency?[]:assessment?.referent==="essential_unknown"&&!clinicalAuthorityOnly?first.calls.filter(call=>call.name==="read_pet_profile"):first.calls).filter(historyAllowed);
- if(assessment)deps.onAnswerBoundary?.({outcome:"clinical_assessed",historyTimeBasis:first.historyIntent?.timeBasis??null,assessmentVersion:assessment.protocolVersion??1,currentEventCount:assessment.currentEvents?.length??null,conditionalEventCount:assessment.conditionalEvents?.length??null,medicationIntent:assessment.medicationIntent,scenario:assessment.scenario,urgency:assessment.urgency,missingContextCount:assessment.missingContext.length,missingContext:assessment.missingContext,suppressedReads:first.calls.length-selectedCalls.length});
- const sources=[],results=[],bound=[];
- try {
-  for(const call of selectedCalls) {
+ const sources=[],results=[];let candidates=[];
+ try{
+  for(const call of emergency?[]:first.calls){
    if(!keys(call,["id","name","arguments"])||typeof call.id!=="string"||!call.id||typeof call.arguments!=="string"||call.arguments.length>5000)fail("ASK_READ_TOOL_INVALID");
    let args;try{args=JSON.parse(call.arguments);}catch{fail("ASK_READ_TOOL_INVALID");}
    const original=bindReadTool(call.name,args,pets,references);
    const temporal=normalizeReadTemporalScope(call.name,args,first.historyIntent?.timeBasis);
    if(temporal.removedAxis)deps.onAnswerBoundary?.({outcome:"temporal_scope_normalized",timeBasis:first.historyIntent.timeBasis,removedAxis:temporal.removedAxis});
-   bound.push({id:call.id,request:temporal.removedAxis?bindReadTool(call.name,temporal.args,pets,references):original});
+   candidates.push({id:call.id,name:call.name,reference:args.reference??null,request:temporal.removedAxis?bindReadTool(call.name,temporal.args,pets,references):original});
   }
-  if(new Set(bound.map(x=>x.id)).size!==bound.length)fail("ASK_READ_TOOL_INVALID");
- } catch(error) {
-  deps.onSelectionRejected?.(readSelectionShape(first,pets));
-  if(error?.answerDiagnostic)deps.onAnswerBoundary?.({outcome:"selection_rejected",...error.answerDiagnostic});
-  throw error;
- }
+  if(new Set(candidates.map(c=>c.id)).size!==candidates.length)fail("ASK_READ_TOOL_INVALID");
+ }catch(error){deps.onSelectionRejected?.(readSelectionShape(first,pets));throw error;}
+ taskPlan=normalizeTaskRecords(taskPlan,candidates);
+ if(taskPlan){first.taskPlan=taskPlan;context.taskPlan=taskPlan;}
+ const clinicalAuthorityOnly=taskPlan?.some(t=>t.needsHistory&&(t.pets.length||t.reference)&&!t.missing.some(v=>["pet","year","date_meaning","which_record"].includes(v)))&&assessment?.missingContext?.length>0&&assessment.missingContext.every(v=>["medicine","prescription","vet_plan"].includes(v));
+ const bound=candidates.filter(call=>{
+  if(call.request.kind==="profile")return true;
+  if(assessment?.referent==="essential_unknown"&&!clinicalAuthorityOnly)return false;
+  const request=call.request;
+  const bounded=!!(request.from&&request.to||request.recordedFrom&&request.recordedTo||request.reference&&request.expectedSources?.length);
+  const allowed=!taskPlan||taskPlan.some(t=>t.needsHistory&&!t.missing.some(v=>["pet","year","date_meaning"].includes(v)||v==="which_record"&&!bounded)&&(t.reference&&call.reference===t.reference||t.pets.includes(request.pet.handle)));
+  deps.onAnswerBoundary?.({outcome:"task_read_gate",tool:call.name,allowed,boundedDiscovery:bounded,boundReference:!!call.reference,continuation:!!request.continuation,tasks:taskPlan?.map(t=>({kind:t.kind,recordMode:t.recordMode,needsHistory:t.needsHistory,petScopeCount:t.pets.length,missing:t.missing}))});
+  return allowed;
+ });
+ const selectedCalls=bound;
+ if(assessment)deps.onAnswerBoundary?.({outcome:"clinical_assessed",historyTimeBasis:first.historyIntent?.timeBasis??null,assessmentVersion:assessment.protocolVersion??1,currentEventCount:assessment.currentEvents?.length??null,conditionalEventCount:assessment.conditionalEvents?.length??null,medicationIntent:assessment.medicationIntent,scenario:assessment.scenario,urgency:assessment.urgency,missingContextCount:assessment.missingContext.length,missingContext:assessment.missingContext,suppressedReads:first.calls.length-bound.length});
  const historyCount=bound.filter(call=>call.request.kind==="history").length;
  const deadlineAt=Date.now()+8000;
  const requests=bound.map(call=>({...call.request,pageBudget:Math.max(1,Math.floor(HISTORY_PAGE_BUDGET/Math.max(1,historyCount))),candidateBudget:Math.floor(HISTORY_CANDIDATE_BUDGET/Math.max(1,historyCount)),deadlineAt}));
@@ -321,8 +324,9 @@ export async function runReadOnlyAsk(input,deps) {
   const supplied=new Set(allocation.visible[index].map(source=>source.kind+":"+source.id));
   const omittedRows=result.sources.filter(source=>!supplied.has(source.kind+":"+source.id));
   const localDate=instant=>{const parts=new Intl.DateTimeFormat("en",{timeZone:input.timeZone,year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date(instant));return ["year","month","day"].map(type=>parts.find(part=>part.type===type).value).join("-");};
-  const omittedDates=omittedRows.map(source=>localDate(source.eventAt)).sort();
-  const omittedEventRange=request.kind==="history"&&omittedDates.length?{from:omittedDates[0],to:omittedDates.at(-1)}:null;
+  const omittedDates=omittedRows.map(source=>localDate(request.orderBy==="recorded"?source.recordedAt:source.eventAt)).sort();
+  const omittedRange=request.kind==="history"&&omittedDates.length?{axis:request.orderBy==="recorded"?"recorded":"event",from:omittedDates[0],to:omittedDates.at(-1)}:null;
+  const omittedEventRange=omittedRange?.axis==="event"?{from:omittedRange.from,to:omittedRange.to}:null;
   const scopeExhausted=result.scopeExhausted??(!result.hasMore&&scope.offset===0);
   const unmet=[];
   if(result.unavailable)unmet.push("retrieval_unavailable");
@@ -334,7 +338,7 @@ export async function runReadOnlyAsk(input,deps) {
   results.push({call:call.id,scope,sources:allocation.visible[index].map(source=>({source:source.handle,kind:source.kind,pet:request.pet.name,body:source.body,eventAt:source.eventAt,recordedAt:source.recordedAt,measurements:source.measurements})),
    total:result.total??null,hasMore:!!result.hasMore,hasPrevious:scope.kind==="history"&&scope.offset>0,truncated,
    searchRelaxed:!!result.searchRelaxed,matchedTotal:result.matchedTotal??null,discovery:result.discovery??null,
-   batchAcquisition:result.batchAcquisition??null,sharedAcquisition:result.sharedAcquisition??false,sharedCollection:result.sharedCollection??false,omittedEventRange,
+   batchAcquisition:result.batchAcquisition??null,sharedAcquisition:result.sharedAcquisition??false,sharedCollection:result.sharedCollection??false,omittedEventRange,omittedRange,continuationValidation:result.continuationValidation??null,
    inspected:result.inspected??result.sources.length,omitted:allocation.omitted[index],queryScopeExhausted:scopeExhausted,scopeExhausted:scopeExhausted&&!truncated,
    semanticRecallVerified:false,sourceMeaning:request.kind==="profile"?"current_profile_snapshot":"historical_saved_report",
    status:unmet.length?"partial":"candidate_evidence",unmet});
@@ -352,6 +356,7 @@ export async function runReadOnlyAsk(input,deps) {
   const completed=reviewComponentCompletion(final,taskPlan,sources,ownerStatements,pets);
   const workflowRequested=!taskPlan||taskPlan.some(t=>t.kind==="workflow");
   const reviewed=reviewClinicalAnswer(completed.value,assessment,ownerStatements,pets,workflowRequested?(first.workflowIntent??"none"):"none");
+  if(taskPlan&&reviewed.policy&&!reviewed.policy.decision&&!reviewed.policy.current.length&&!reviewed.policy.conditional.length&&!reviewed.policy.currentConcern&&!taskPlan.some(t=>["vet_brief","clinical_guidance"].includes(t.kind)))reviewed.policy.active=false;
   if(taskPlan&&reviewed.workflow)reviewed.workflow.intent=taskPlan.find(t=>t.kind==="workflow")?.workflow??"none";
   answer=validateReadOnlyAnswer(reviewed.value,sources,input.question);
   if(reviewed.summary) {
@@ -410,7 +415,7 @@ export async function runReadOnlyAsk(input,deps) {
   }
  }
  answer.limited=answer.limited||results.some(result=>result.hasMore||result.hasPrevious||result.truncated||result.unmet.length>0)||(bound.length>0&&(sources.length===0||answer.sources.length===0));
- const readReferences=carryReadReferences(references,bound.map((call,index)=>({...call,sourceHandles:allocation.visible[index].map(source=>source.handle),omittedEventRange:results[index].omittedEventRange})),sources,answer,input.timeZone);
+ const readReferences=carryReadReferences(references,bound.map((call,index)=>({...call,sourceHandles:allocation.visible[index].map(source=>source.handle),omittedEventRange:results[index].omittedEventRange,omittedRange:results[index].omittedRange,queryScopeExhausted:results[index].queryScopeExhausted,continuationValidated:results[index].continuationValidation?.valid===true})),sources,answer,input.timeZone);
  const result={answer,readReferences,sources:sources.filter(s=>answer.sources.includes(s.handle)),providerCallCount:calls,dialogueCoverage,coverage:results.map(({sources,...rest})=>({...rest,returned:sources.length}))};
  const freeze=value=>{if(value&&typeof value==="object"&&!Object.isFrozen(value)){Object.values(value).forEach(freeze);Object.freeze(value);}};
  freeze(result);reviewedResults.add(result);return result;

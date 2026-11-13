@@ -1,3 +1,5 @@
+import { buildReadOnlyProviderRequest, describeReadRequest, safeReadAdmissionDiagnostic } from "./provider-request.mjs";
+import { getAiFeaturePolicy } from "../ai/usage-guard/features.ts";
 import { decodeComponentSelection } from "./task-components.mjs";
 import { decodeClinicalSelection as decodePolicySelection } from "./clinical-policy.mjs";
 import { readProviderText, decodeProviderJson, safeReadOutputDiagnostic, describeReadOutput } from "./provider-output.mjs";
@@ -15,13 +17,12 @@ type ProviderResponse = { error?:{code?:string|null;message?:string|null}|null; 
 export function readOnlyProvider(model:string,onEvent:(event:AskProviderEvent)=>void, client = new OpenAI({apiKey:process.env.OPENAI_API_KEY,maxRetries:0})) {
  return async (input:Record<string,unknown>,phase:string) => {
   const selection=phase==="read_selection",stage=selection?"interpretation":"primary",strictSelection=selection&&!!input.selectionSchema;
-  const request:Record<string,unknown>={model,store:false,reasoning:{effort:"low"},max_output_tokens:Math.min(ASK_READ_ONLY_MAX_OUTPUT_TOKENS,ASK_MAX_OUTPUT_TOKENS),
-   instructions:input.instructions,input:[{role:"user",content:JSON.stringify(selection?input.context:{context:input.context,draft:input.draft,TOOL_DATA:input.TOOL_DATA,SOURCE_CATALOG:input.SOURCE_CATALOG,CLINICAL_CONSTRAINTS:input.CLINICAL_CONSTRAINTS})}],
-   ...(strictSelection?{text:{format:{type:"json_schema",name:"furvise_read_selection",strict:true,schema:input.selectionSchema}}}:selection?{tools:input.tools,parallel_tool_calls:true}:{text:{format:{type:"json_schema",name:"furvise_read_answer",strict:true,schema:input.schema}}})};
+  let request:Record<string,unknown>={};
   const started=performance.now();
   let providerEnvelope:ReturnType<typeof structuredProviderEnvelopeDiagnostic>|undefined;
   let outputLayout:ReturnType<typeof describeReadOutput>|undefined;
   try {
+   request=buildReadOnlyProviderRequest(model,input,phase,Math.min(ASK_READ_ONLY_MAX_OUTPUT_TOKENS,ASK_MAX_OUTPUT_TOKENS),getAiFeaturePolicy("ask"));
    const response=await executeAdmittedResponsesRequest({
     model,maxOutputTokens:request.max_output_tokens as number,request,
     stage:selection?"interpretation":"answer_generation",reserveMs:selection?12000:4000,
@@ -47,14 +48,15 @@ export function readOnlyProvider(model:string,onEvent:(event:AskProviderEvent)=>
    }else{
     value=decodeProviderJson(response);
    }
-   onEvent({stage,outcome:"succeeded",validationDetails:JSON.stringify({outputLayout}),model,elapsedMs:Math.round(performance.now()-started),inputTokens:response.usage?.input_tokens,outputTokens:response.usage?.output_tokens,finishReason:response.status??null,providerEnvelope});
+   onEvent({stage,outcome:"succeeded",validationDetails:JSON.stringify({outputLayout,...describeReadRequest(request)}),model,elapsedMs:Math.round(performance.now()-started),inputTokens:response.usage?.input_tokens,outputTokens:response.usage?.output_tokens,finishReason:response.status??null,providerEnvelope});
    return value;
   } catch(error) {
    const providerError=safeAskProviderErrorDiagnostic(error);
    const timedOut=["TimeoutError","AbortError","APIUserAbortError","APIConnectionTimeoutError"].includes(providerError.type??"");
    const outputDiagnostic=safeReadOutputDiagnostic(error);
-   const validationDetails=outputDiagnostic?JSON.stringify({...outputDiagnostic,phase:selection?"read_selection":"read_answer",outputLayout}):undefined;
-   const providerErrorCode=outputDiagnostic?.code??providerError.code??(timedOut?"ASK_READ_PROVIDER_TIMEOUT":"ASK_READ_PROVIDER_FAILED");
+   const admissionDiagnostic=safeReadAdmissionDiagnostic(error);
+   const validationDetails=outputDiagnostic||admissionDiagnostic?JSON.stringify({...outputDiagnostic,...admissionDiagnostic,phase:selection?"read_selection":"read_answer",outputLayout,...(Object.keys(request).length?describeReadRequest(request):{})}):undefined;
+   const providerErrorCode=outputDiagnostic?.code??(admissionDiagnostic?"ASK_READ_ADMISSION_DENIED":null)??providerError.code??(timedOut?"ASK_READ_PROVIDER_TIMEOUT":"ASK_READ_PROVIDER_FAILED");
    onEvent({stage,outcome:"failed",model,elapsedMs:Math.round(performance.now()-started),providerStatus:providerError.status,
     providerErrorCode,providerError,providerEnvelope,timedOut,validationDetails});
    throw new AskPipelineError(timedOut?"primary_timeout":outputDiagnostic?"primary_invalid_output":"primary_provider_failed","The read-only answer could not be completed.",{model,elapsedMs:Math.round(performance.now()-started),providerStatus:providerError.status,providerErrorCode,providerError,providerEnvelope,validationDetails});

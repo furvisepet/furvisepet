@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import {createHash} from "node:crypto";
 import {runReadOnlyAsk,bindReadTool} from "../app/lib/ask-read-only/core.mjs";
 import {decodeClinicalSelection} from "../app/lib/ask-read-only/clinical-policy.mjs";
-import {decodeComponentSelection,componentSelectionSchema,reviewComponentCompletion,renderTaskCompletion} from "../app/lib/ask-read-only/task-components.mjs";
+import {decodeComponentSelection,componentSelectionSchema,reviewComponentCompletion,renderTaskCompletion,validateTaskPlan,ownerFactSentences,fulfillReferenceReads} from "../app/lib/ask-read-only/task-components.mjs";
 const pet={id:"private-pet-123456789",ownerId:"owned",name:"Willow",species:"cat"};
 const source={kind:"history",id:"private-note-123456789",ownerId:"owned",petId:pet.id,body:"A routine exam recorded normal appetite at that time.",eventAt:"2021-03-12T12:00:00Z",recordedAt:"2021-03-14T12:00:00Z"};
 const reference={version:1,entries:[{kind:"history",petId:pet.id,timeZone:"UTC",goal:"exact_quote",from:"2021-03-01",to:"2021-03-31",recordedFrom:null,recordedTo:null,orderBy:"event",order:"asc",terms:[],limited:false,sources:[{id:source.id,hash:createHash("sha256").update(source.body).digest("hex"),eventAt:source.eventAt,recordedAt:source.recordedAt}]}]};
-const task=(extra={})=>({id:"t1",kind:"general_guidance",needsHistory:false,needsOwnerFacts:false,includeSourceDates:false,workflow:"none",pets:[],reference:null,missing:[],...extra});
+const task=(extra={})=>({recordMode:extra.needsHistory?(extra.kind==="saved_continuation"?"collection":"single"):"none",id:"t1",kind:"general_guidance",needsHistory:false,needsOwnerFacts:false,includeSourceDates:false,workflow:"none",pets:[],reference:null,missing:[],...extra});
 const safety=(extra={})=>({medicationIntent:"none",referent:"clear",missingContext:[],careContext:"none",eventAssessments:[],...extra});
 const completion=(extra={})=>({task:"t1",status:"complete",reason:"none",componentIndexes:[0],sources:[],ownerFacts:[],historyFacts:[],...extra});
 const final=(s,extra={})=>({components:[{kind:"general",text:"An ordinary answer.",sources:[]}],quotes:[],sources:[],calculations:[],replyType:"answer",presentation:{sourceDates:[],contextRequired:false},clinicalReview:{assessment:s,ownerStatementRefs:[],observationFields:[]},appHelp:{intent:"none",pet:null},completion:[completion()],...extra});
@@ -166,4 +166,48 @@ test("authoritative scoped saved task can recover absent discovery despite a red
  assert.equal(r.reads.length,1);assert.equal(r.reads[0].from,"2021-03-01");assert.equal(r.reads[0].to,"2021-03-31");assert.equal(r.result.answer.taskCompletion[0].status,"complete");
  const ambiguous=await execute(plan,s,final(s,{completion:[completion({status:"unresolved",reason:"missing_context"})]}),{question:"Please use her March note."});
  assert.equal(ambiguous.reads.length,0);
+});
+
+
+test("collection integration rehydrates contained continuation result but never foreign or wider result",()=>{
+ const outer={kind:"history",goal:"complete_set",pet:{id:"pet",ownerId:"owner"},from:"2019-01-01",to:"2021-12-31",recordedFrom:null,recordedTo:null,terms:[],referenceTimeZone:"UTC"};
+ const refs=[{handle:"r1",request:outer},{handle:"r2",request:{...outer,from:"2021-09-01"}},{handle:"r3",request:{...outer,pet:{id:"other",ownerId:"owner"}}},{handle:"r4",request:{...outer,from:"2018-01-01"}}];
+ const first={calls:[],taskPlan:[task({needsHistory:true,recordMode:"collection",reference:"r1",pets:["p1"]})]};
+ assert.deepEqual(fulfillReferenceReads(first,refs).calls.map(c=>JSON.parse(c.arguments).reference),["r1","r2"]);
+ first.taskPlan[0].recordMode="single";assert.equal(fulfillReferenceReads(first,refs).calls.length,1);
+});
+test("retained collection subset remains partial despite model complete declaration",()=>{
+ const t={...task({kind:"saved_content",needsHistory:true,recordMode:"collection"}),status:"complete",reason:"none",sources:["s1"],componentIndexes:[0],historyFacts:[],ownerFacts:[]};
+ const a=renderTaskCompletion({answer:"Selected reports.",validatedParts:[{index:0,text:"Selected reports."}],calculations:[],presentation:{}},[t],[{...source,handle:"s1"}],null,[{scope:{goal:"complete_set"},sources:[{source:"s1"}],unmet:["prior_source_selection_omitted"]}]);
+ assert.equal(a.taskCompletion[0].reason,"source_omitted");assert.equal(a.taskCompletion[0].status,"partial");
+});
+test("calculation prose yields to deterministic result without removing independent general answer",()=>{
+ const base={...task(),status:"complete",reason:"none",sources:[],historyFacts:[],ownerFacts:[]};
+ const a=renderTaskCompletion({answer:"Wrong rounded arithmetic. Useful separate guidance.",validatedParts:[{index:0,text:"Wrong rounded arithmetic."},{index:1,text:"Useful separate guidance."}],calculations:[{available:true,text:"Verified arithmetic."}],presentation:{}},[{...base,kind:"calculation",componentIndexes:[0]},{...base,id:"t2",componentIndexes:[1]}],[],null,[]);
+ assert.equal(a.answer,"Useful separate guidance.");assert.equal(a.calculations.length,1);
+});
+test("scope correction cannot complete owner-observation facts in brief",()=>{
+ const p=[task({kind:"vet_brief",needsOwnerFacts:true})];const f=final(safety(),{completion:[completion({ownerFacts:[{ref:"owner1",kind:"scope_correction",excerpt:"I meant the other animal."}]})]});
+ const r=reviewComponentCompletion(f,p,[],[{ref:"owner1",text:"I meant the other animal."}],[]);
+ assert.equal(r.tasks[0].ownerFacts.length,0);assert.equal(r.tasks[0].status,"partial");
+});
+
+
+test("owner observation sentence handles publish exact whole attributed text without model retyping",()=>{
+ const statements=[{ref:"owner1",text:"I meant the other animal. She did not miss medicine; I only misplaced the diary. Please prepare a brief."}];
+ const sentences=ownerFactSentences(statements);assert.equal(sentences.length,3);
+ const p=[task({kind:"vet_brief",needsOwnerFacts:true})];
+ const f=final(safety(),{completion:[completion({ownerFacts:[{sentence:"owner1:sentence1",kind:"scope_correction"},{sentence:"owner1:sentence2",kind:"present_observation"}]})]});
+ const r=reviewComponentCompletion(f,p,[],statements,[]);assert.deepEqual(r.tasks[0].ownerFacts,[{ref:"owner1",kind:"present_observation",excerpt:"She did not miss medicine; I only misplaced the diary."}]);
+ const forged=final(safety(),{completion:[completion({ownerFacts:[{sentence:"owner9:sentence1",kind:"present_observation"}]})]});assert.throws(()=>reviewComponentCompletion(forged,p,[],statements,[]),/COMPONENT_CONTRACT/);
+});
+
+
+test("ordinary plans and constraints cannot be blocked by an observation-excerpt dependency",()=>{
+ const ctx={pets:[{handle:"p1"}],references:[]};
+ const t=task({kind:"general_guidance",needsOwnerFacts:true,missing:["owner_observation"]});
+ const p=validateTaskPlan([t],ctx);assert.equal(p[0].needsOwnerFacts,false);assert.deepEqual(p[0].missing,[]);
+ const reviewed=reviewComponentCompletion(final(safety()),p,[],[],[]);assert.equal(reviewed.tasks[0].status,"complete");
+ const a=renderTaskCompletion({answer:"A useful plan.",validatedParts:[{index:0,text:"A useful plan."}],presentation:{}},reviewed.tasks,[],null);assert.equal(a.answer,"A useful plan.");
+ const brief=validateTaskPlan([task({kind:"vet_brief",needsOwnerFacts:true})],ctx);assert.equal(brief[0].needsOwnerFacts,true);
 });
