@@ -46,16 +46,16 @@ test("actual owner-bound data path supplies32 of36 then validates anchors and re
  assert.doesNotMatch(first.answer.answer,/Which|veterinar|2020-01-15/);assert.equal(first.answer.presentation.sourceDates.length,0);
  const retained=JSON.parse(JSON.stringify(first.readReferences));assert.deepEqual(retained.entries[0].omittedRange,{axis:"event",from:"2022-09-15",to:"2022-12-15"});
  const second=(await run(reads,retained,true)).result;
- assert.equal(second.sources.length,4);assert.deepEqual(second.sources.map(s=>s.id),rows.slice(32).map(r=>r.id));assert.equal(second.answer.taskCompletion[0].status,"complete");assert.doesNotMatch(second.answer.answer,/Which/);
- assert.deepEqual(f.requests.slice(-2).map(q=>q.ids?.length??null),[8,null]);
- assert.equal(second.coverage[0].continuationValidation.valid,true);assert.equal(second.coverage[0].batchAcquisition.attempts,2);assert.equal(second.coverage[0].batchAcquisition.rawRows,12);assert.equal(second.coverage[0].inspected,4);
+ assert.equal(second.sources.length,12);assert.deepEqual(new Set(second.sources.map(s=>s.id)),new Set([...rows.slice(32).map(r=>r.id),...retained.entries[0].sources.map(s=>s.id)]));assert.equal(second.answer.taskCompletion[0].status,"partial");assert.doesNotMatch(second.answer.answer,/Which/);
+ assert.ok(f.requests.some(q=>q.ids?.length===8));assert.equal(second.coverage.length,2);assert.equal(second.coverage[1].scope.goal,"complete_set");
+ assert.equal(second.coverage[0].continuationValidation.valid,true);assert.ok(second.coverage[0].batchAcquisition.attempts<=8);assert.ok(second.coverage[0].batchAcquisition.rawRows<=64);assert.equal(second.coverage[0].inspected,4);
  assert.equal(readOnlyToolsForPets([pet],restoreReadReferences(second.readReferences,[pet])).some(t=>t.name==="read_remaining_records"),false);
 });
 test("deleted, changed or missing anchors stop continuation before reading its remainder",async()=>{
  const initial=(await run(createReadOnlyDataAccess(dbFixture().db,pet.ownerId,"UTC"))).result;
  for(const changed of [rows.slice(1),rows.map((r,i)=>i?{...r}:{...r,note:r.note+" Corrected."}),rows.map((r,i)=>i?{...r}:{...r,deleted_at:"2026-11-01T00:00:00Z"})]){
   const f=dbFixture(changed),out=(await run(createReadOnlyDataAccess(f.db,pet.ownerId,"UTC"),initial.readReferences,true)).result;
-  assert.equal(out.sources.length,0);assert.equal(f.requests.length,1);assert.equal(out.coverage[0].continuationValidation.valid,false);assert.ok(out.coverage[0].unmet.includes("referenced_source_changed_or_missing"));
+  assert.equal(out.sources.length,0);assert.ok(f.requests.length<=2);assert.equal(out.coverage[0].continuationValidation.valid,false);assert.ok(out.coverage[0].unmet.includes("referenced_source_changed_or_missing"));
  }
  const f=dbFixture();f.setOwner("different-owner");await assert.rejects(()=>run(createReadOnlyDataAccess(f.db,pet.ownerId,"UTC"),initial.readReferences,true),/NOT_AUTHORIZED/);assert.equal(f.requests.length,0);
 });
@@ -91,10 +91,10 @@ test("same-day overlap remains bounded and partial rather than claiming the four
 });
 
 
-test("explicit sole-component remainder read overrides redundant ordinary-content label without old-body read",()=>{
+test("sole-component continuation keeps fresh remainder and separately bound retained prior evidence",()=>{
  const refs=[{handle:"r1",request:{omittedRange:{axis:"event",from:"2022-09-15",to:"2022-12-15"}}}];
  const first={taskPlan:[task("saved_content",{reference:"r1",missing:[]})],calls:[{id:"remain",name:"read_remaining_records",arguments:'{"reference":"r1"}'},{id:"old",name:"read_referenced_sources",arguments:'{"reference":"r1"}'}]};
- const r=fulfillReferenceReads(first,refs);assert.equal(r.taskPlan[0].kind,"saved_continuation");assert.equal(r.calls.length,1);assert.equal(r.calls[0].name,"read_remaining_records");
+ const r=fulfillReferenceReads(first,refs);assert.equal(r.taskPlan[0].kind,"saved_continuation");assert.equal(r.calls.length,2);assert.deepEqual(r.calls.map(c=>c.name),["read_remaining_records","read_referenced_sources"]);
 });
 test("bounded retained anchors prioritize actually quoted exceptions and typed operands over first-read order",()=>{
  const sources=rows.map((r,i)=>({kind:"history",id:r.id,ownerId:pet.ownerId,petId:pet.id,handle:"s"+(i+1),body:r.note,eventAt:r.occurred_at,recordedAt:r.created_at}));

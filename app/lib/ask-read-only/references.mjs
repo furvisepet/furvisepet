@@ -39,6 +39,7 @@ export function carryReadReferences(previous,bound,sources,answer,timeZone) {
  const entries=[];
  for(const call of bound){
   const request=call.request;
+  const completed=request.reference&&bound.some(c=>c.request.continuation?.reference===request.reference&&c.continuationValidated&&c.queryScopeExhausted&&!c.omittedRange);
   const selected=sources.filter(source=>source.petId===request.pet.id&&source.kind===request.kind&&answer.sources.includes(source.handle)&&call.sourceHandles?.includes(source.handle));
   if(!selected.length)continue;
   const priority=[...(answer.quotes??[]).map(q=>q.source),...(answer.calculations??[]).flatMap(c=>c.sourceHandles??[])];
@@ -46,7 +47,7 @@ export function carryReadReferences(previous,bound,sources,answer,timeZone) {
    const rank=s=>{const i=priority.indexOf(s.handle);return i<0?priority.length:i;};return rank(a)-rank(b);
   });
   entries.push({kind:request.kind,petId:request.pet.id,timeZone:request.referenceTimeZone??timeZone,goal:request.goal??"relevant_records",from:request.from??null,to:request.to??null,
-   recordedFrom:request.recordedFrom??null,recordedTo:request.recordedTo??null,orderBy:request.orderBy??"event",order:request.order??"desc",terms:request.terms??[],omittedRange:call.omittedRange??null,discoveryIncomplete:call.queryScopeExhausted===false,omittedEventRange:call.omittedEventRange??request.omittedEventRange??null,limited:selected.length>8||request.referenceLimited===true,sources:retained.slice(0,8).map(fingerprint)});
+   recordedFrom:request.recordedFrom??null,recordedTo:request.recordedTo??null,orderBy:request.orderBy??"event",order:request.order??"desc",terms:request.terms??[],omittedRange:completed?null:call.omittedRange??null,discoveryIncomplete:call.queryScopeExhausted===false,omittedEventRange:completed?null:call.omittedEventRange??request.omittedEventRange??null,limited:selected.length>8||request.referenceLimited===true,sources:retained.slice(0,8).map(fingerprint)});
  }
  // General turns carry the bounded state forward without adding another query.
  for(const prior of previous){const {request}=prior;const completed=bound.some(c=>c.request.continuation?.reference===prior.handle&&c.continuationValidated&&c.queryScopeExhausted&&!c.omittedRange);entries.push({kind:request.kind,petId:request.pet.id,timeZone:request.referenceTimeZone??timeZone,goal:request.goal,from:request.from,to:request.to,
@@ -64,7 +65,10 @@ export function checkReferencedSources(result,request) {
   const actual=fingerprint(source);
   return ["id","hash","eventAt","recordedAt"].every(key=>expected[key]===actual[key]);
  }));
- return {...result,sources,staleReference:sources.length!==result.sources.length||!!result.scopeExhausted&&sources.length!==request.expectedSources.length};
+ const staleReference=sources.length!==result.sources.length||sources.length!==request.expectedSources.length||result.hasMore===true||result.unavailable===true;
+ // Identity belongs to the complete retained set. A partially matched result
+ // cannot silently stand in for a stale/deleted/changed prior reference.
+ return {...result,sources:staleReference?[]:sources,staleReference};
 }
 
 export function validateContinuationAnchors(result,request){

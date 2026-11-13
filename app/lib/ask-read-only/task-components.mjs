@@ -58,14 +58,13 @@ function containedCollection(outer,inner){
 export function fulfillReferenceReads(first,references=[]){
  if(!first.taskPlan)return first;
  let calls=[...first.calls];
- // One component with an explicit remainder read cannot also acquire the old
- // retained bodies merely because its task label remained saved_content.
+ // Keep remainder membership distinct from retained prior evidence. Both are
+ // owner-bound reads; only the fresh omitted-window result is the remainder.
  let taskPlan=first.taskPlan;
  if(taskPlan.length===1){
   const t=taskPlan[0];
   if(t.kind==="saved_content"&&t.needsHistory&&t.reference&&!scopeMissing(t)&&calls.some(c=>c.name==="read_remaining_records"&&JSON.parse(c.arguments).reference===t.reference)){
    taskPlan=[{...t,kind:"saved_continuation",recordMode:"collection"}];
-   calls=calls.filter(c=>c.name!=="read_referenced_sources"||JSON.parse(c.arguments).reference!==t.reference);
   }
  }
  for(const task of taskPlan){
@@ -78,6 +77,13 @@ export function fulfillReferenceReads(first,references=[]){
   for(const [i,ref] of [selected,...related].filter(Boolean).entries()){
    const duplicate=calls.some(c=>c.name===tool&&JSON.parse(c.arguments).reference===ref.handle);
    if(!duplicate&&calls.length<4)calls.push({id:"task-read-"+task.id+"-"+i,name:tool,arguments:JSON.stringify({reference:ref.handle})});
+  }
+  // A continuation may need an updated combined picture. Anchor validation is
+  // not model-visible evidence. Rehydrate the bounded retained source selection
+  // through its existing binder as a separately scoped result, within the SAME
+  // four-tool/shared acquisition/body/character limits. Never call it remainder.
+  if(task.kind==="saved_continuation"&&selected&&calls.length<4&&!calls.some(c=>c.name==="read_referenced_sources"&&JSON.parse(c.arguments).reference===selected.handle)){
+   calls.push({id:"task-prior-"+task.id,name:"read_referenced_sources",arguments:JSON.stringify({reference:selected.handle})});
   }
  }
  return {...first,taskPlan,calls};
@@ -150,16 +156,20 @@ export function reviewComponentCompletion(final,plan,sources,ownerStatements,pet
 // Calendar attribution is rendered from the selected original source, not from
 // a generated month/year paraphrase. Independent general tasks are untouched.
 function undatedCollectionSynthesis(text){
- // Remove an unverified calendar label rather than the sentence's useful
- // source-supported synthesis. Exact dated details are composed separately.
- return text
-  .replace(/(^|\n)\s*(?:19|20|21)\d{2}(?:\s*[-–]\s*(?:19|20|21)\d{2})?\s*:\s*/g,"$1")
-  .replace(/\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b(?:\s+(?:19|20|21)\d{2})?/gi,"a saved period")
-  .replace(/\bMay\b(?:\s+(?:19|20|21)\d{2})?/g,"a saved period")
-  .replace(/\b(?:from\s+)?(?:19|20|21)\d{2}(?:-\d{2}-\d{2})?(?:\s*(?:through|to|[-–])\s*(?:19|20|21)\d{2}(?:-\d{2}-\d{2})?)?\b/gi,"the requested period")
-  .replace(/\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b/gi,"a recorded day")
-  .replace(/\b(?:a|an)\s+a saved period\s+(?:entry|note|report|visit)\b/gi,"a saved entry")
-  .replace(/\ba saved period(?:'s)?\s+(?:entry|note|report|visit)\b/gi,"a saved entry")
+ // Coverage counts have one authority: the executor's structured coverage.
+ // Keep generated synthesis, and let exact source facts carry calendar labels.
+ const quantities="(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty)";
+ const countClaim=new RegExp("\\b"+quantities+"\\s+(?:(?:saved|owned|distinct|monthly|care|historical)\\s+)*(?:notes|records|entries)\\b","i");
+ const prose=text.split(/(?<=[.!?])\s+/).filter(sentence=>!countClaim.test(sentence)).join(" ");
+ const month="(?:[Jj]an(?:uary)?|[Ff]eb(?:ruary)?|[Mm]ar(?:ch)?|[Aa]pr(?:il)?|May|[Jj]un(?:e)?|[Jj]ul(?:y)?|[Aa]ug(?:ust)?|[Ss]ep(?:tember)?|[Oo]ct(?:ober)?|[Nn]ov(?:ember)?|[Dd]ec(?:ember)?)";
+ const year="(?:19|20|21)\\d{2}(?:-\\d{2}-\\d{2})?";
+ const calendar="(?:"+month+"(?:\\s+\\d{1,2}(?:st|nd|rd|th)?\\b,?)?(?:\\s+"+year+")?|"+year+")";
+ const range=calendar+"(?:\\s*(?:[-–]|through|to|and)\\s*"+calendar+")?";
+ return prose.replace(new RegExp("\\b(?:(?:[Aa]cross|[Ff]rom|[Ii]n|[Dd]uring|[Tt]hrough|[Tt]o|[Bb]y|[Aa]round|[Ss]ince|[Bb]etween)\\s+)?(?:late[- ]|early[- ])?"+range+"\\b","g"),"")
+  .replace(/(^|\n)\s*:\s*/g,"$1")
+  .replace(/[ \t]{2,}/g," ")
+  .replace(/ +([,.!?;:])/g,"$1")
+  .replace(/\bA entry\b/g,"An entry").replace(/\ba entry\b/g,"an entry")
   .trim();
 }
 const missingLabels={pet:"pet",year:"year",date_meaning:"whether you mean the event date or save date",which_record:"saved result",owner_observation:"observations you want included",medicine:"medicine name and strength",prescription:"exact prescription",vet_plan:"prescriber's instructions"};

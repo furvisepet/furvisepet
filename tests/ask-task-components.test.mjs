@@ -300,3 +300,14 @@ test("prior workflow agreement cannot authorize controls for an unrelated curren
  },{workflowIntent:"create_care_note",question:"Give Willow a six-minute quiet settling routine beside me, without food or stairs."});
  assert.match(r.result.answer.answer,/three-minute silent/);assert.doesNotMatch(r.result.answer.answer,/Open Today|REMEMBER/);
 });
+
+test("collection synthesis removes calendar labels and generated counts without placeholder prose",()=>{
+ const s={...source,handle:"s1",petName:"Willow"};
+ const t={...task({kind:"saved_content",needsHistory:true,recordMode:"collection",pets:["p1"]}),status:"complete",reason:"none",componentIndexes:[0],sources:["s1"],ownerFacts:[],historyFacts:[{source:"s1",excerpt:s.body}]};
+ const text="Willow’s 2017–2019 record shows a steady routine that may vary slightly. The exception was mild scratching in May 2018. I was able to use 36 saved entries, but four notes were omitted. Weight edges upward from September to December 2019.";
+ const r=renderTaskCompletion({answer:"",validatedParts:[{index:0,text}],quotes:[],calculations:[],presentation:{}},[t],[s],null);
+ const overview=r.answer.split("Selected dated historical details:")[0];
+ assert.match(overview,/Willow’s record shows a steady routine that may vary slightly/);
+ assert.match(overview,/exception was mild scratching/);
+ assert.doesNotMatch(overview,/saved period|requested period|2017|2019|May|September|December|36 saved entries|four notes/);
+});
