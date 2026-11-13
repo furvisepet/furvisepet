@@ -4,6 +4,14 @@
  * extensionless .ts specifiers for direct Node test execution.
  */
 export async function resolve(specifier, context, nextResolve) {
+  // Only the server-only marker needs React's server export condition.
+  // Applying react-server globally breaks react-dom/server rendering tests.
+  if (specifier === "server-only") {
+    return nextResolve(specifier, {
+      ...context,
+      conditions: [...new Set([...context.conditions, "react-server"])],
+    });
+  }
   try {
     return await nextResolve(specifier, context);
   } catch (error) {
