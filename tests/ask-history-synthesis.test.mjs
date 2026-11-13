@@ -85,3 +85,10 @@ test("combined history is an explicit first-pass task contract and never a sourc
  assert.equal(validateTaskPlan([t],ctx)[0].combineHistory,true);assert.equal(validateTaskPlan([{...t,combineHistory:false}],ctx)[0].combineHistory,false);
  assert.throws(()=>validateTaskPlan([{...t,needsHistory:false,recordMode:"none"}],ctx),/COMPONENT_CONTRACT/);
 });
+
+test("complete single-record evidence does not inherit a prior collection omission status",()=>{
+ const s=row("s1","A complete original historical observation.");
+ const t={id:"t1",kind:"saved_content",needsHistory:true,recordMode:"single",status:"complete",reason:"none",missing:[],componentIndexes:[0],sources:["s1"],ownerFacts:[],historyFacts:[],historySynthesis:checked(theme("historical observation",[s]),[s])};
+ const a=renderTaskCompletion({answer:"Generated.",validatedParts:[{index:0,text:"Generated."}],sources:["s1"],presentation:{}},[t],[s],null,[{scope:{goal:"complete_set"},sources:[{source:"s1"}],unmet:["prior_source_selection_omitted"],omitted:0}]);
+ assert.equal(a.taskCompletion[0].status,"complete");assert.equal(a.replyType,"answer");assert.doesNotMatch(a.answer,/Saved history: This part/);assert.match(a.answer,/complete original historical observation/);
+});

@@ -77,7 +77,7 @@ test("missing clinical authority does not block independently specified historic
 });
 
 test("complete-set omissions and missing server arithmetic remain component-level partials",()=>{
- const p=[{...task({kind:"saved_content",needsHistory:true}),status:"complete",reason:"none",sources:["s1"],historyFacts:[],ownerFacts:[]}];
+ const p=[{...task({kind:"saved_content",needsHistory:true,recordMode:"collection"}),status:"complete",reason:"none",sources:["s1"],historyFacts:[],ownerFacts:[]}];
  const a=renderTaskCompletion({answer:"Available saved facts.",sources:["s1"],calculations:[],presentation:{}},p,[{...source,handle:"s1"}],null,[{scope:{goal:"complete_set"},sources:[{source:"s1"}],omitted:4}]);
  assert.equal(a.taskCompletion[0].status,"partial");assert.equal(a.taskCompletion[0].reason,"source_omitted");
  const b=renderTaskCompletion({answer:"Other useful facts.",calculations:[],presentation:{}},[{...p[0],kind:"calculation"}],[],null);

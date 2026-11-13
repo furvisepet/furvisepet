@@ -207,7 +207,7 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
    if(!displayed.some(h=>prior.has(h))||!displayed.some(h=>fresh.has(h)))return {...t,status:"partial",reason:"not_answered",combinedEvidenceMissing:true};
   }
   const relevant=coverage.filter(r=>r.sources.some(s=>t.sources.includes(s.source)));
-  if(t.needsHistory&&relevant.some(r=>r.scope.goal==="complete_set"&&(r.omitted>0||r.hasMore||r.hasPrevious||r.truncated||r.unmet?.includes("prior_source_selection_omitted"))))return {...t,status:"partial",reason:"source_omitted"};
+  if(t.needsHistory&&t.recordMode==="collection"&&relevant.some(r=>r.scope.goal==="complete_set"&&(r.omitted>0||r.hasMore||r.hasPrevious||r.truncated||r.unmet?.includes("prior_source_selection_omitted"))))return {...t,status:"partial",reason:"source_omitted"};
   return t;
  });
  const blocked=new Set(tasks.filter(t=>t.status==="unresolved"||t.needsHistory&&!t.sources.length||t.needsOwnerFacts&&!t.ownerFacts.length).flatMap(t=>t.componentIndexes));
