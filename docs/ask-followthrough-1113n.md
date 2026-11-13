@@ -75,3 +75,7 @@ This is one additional safety-specific deployment beyond the four-candidate prod
 
 ## Sixth repair: stale workflow task / explicit subject
 Runtime showed routine-return turn 17 had firstIntent=none but taskPlan selected photo workflow, replacing the requested latest routine. Reconcile disagreement before answer call and clear stale draft. Current explicit authorized pet names override stale workflow UI selection; multiple subjects remain unselected. Fresh analogous retesting follows. Extend finite pilot only for this evidenced repair to at most 30 submissions / 60 physical calls, still USD 1 total new spend. Original failures remain. Collection placeholder/count-prose limitations remain open.
+
+
+## Seventh repair: compatible nonacute occurrence duplication
+Historical recovered turn 21 failed publication with clinical_contract/clinical_events, two reconciled calls; no unsafe answer was exposed. Wire enums and shape are constrained, making repeated event occurrence the active rejection path. A historical event may also be negated today. Accept only compatible historical/negated duplicates, validating every owner reference. Conflicting current/conditional meanings still reject; no emergency obligation can be downgraded. Seventh preview repair remains within 30-submission/60-call/USD1 envelope. Fresh analogous historical test required.

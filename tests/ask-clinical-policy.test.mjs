@@ -291,3 +291,17 @@ test("publication omissions cannot leave a requested quote component marked comp
   const kept=response.sections.find(s=>s.heading==="Saved notes")?.items??[];assert.ok(kept.length<4);assert.ok(kept.every(text=>text===rows[0].body));
  }finally{if(prior===undefined)delete process.env.FURVISE_RATE_LIMIT_HASH_SECRET;else process.env.FURVISE_RATE_LIMIT_HASH_SECRET=prior;}
 });
+
+test("a historical event also negated today is nonacute while conflicting acute occurrences remain rejected",async()=>{
+ const {validateClinicalAssessment,EMERGENCY_EVENTS}=await import("../app/lib/ask-read-only/clinical-policy.mjs");
+ const event=Object.keys(EMERGENCY_EVENTS)[0];
+ const observation=occurrence=>({event,occurrence,ownerStatementRef:"owner1"});
+ const value=events=>({medicationIntent:"none",referent:"clear",missingContext:[],careContext:"clinical_history",eventAssessments:events});
+ const owners=[{ref:"owner1",text:"The old event resolved years ago and is not occurring today."}];
+ const safe=validateClinicalAssessment(value([observation("historical"),observation("negated")]),owners);
+ assert.deepEqual(safe.currentEvents,[]);assert.deepEqual(safe.conditionalEvents,[]);
+ assert.equal(safe.scenario,"historical");
+ assert.throws(()=>validateClinicalAssessment(value([observation("current"),observation("negated")]),owners),/ASK_READ_CLINICAL_CONTRACT/);
+ assert.throws(()=>validateClinicalAssessment(value([observation("conditional"),observation("historical")]),owners),/ASK_READ_CLINICAL_CONTRACT/);
+ assert.throws(()=>validateClinicalAssessment(value([observation("historical"),{...observation("negated"),ownerStatementRef:"forged"}]),owners),/ASK_READ_CLINICAL_CONTRACT/);
+});

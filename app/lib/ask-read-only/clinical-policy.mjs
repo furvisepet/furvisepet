@@ -73,10 +73,15 @@ export function validateClinicalAssessment(value,ownerStatements=[]){
  if(Object.hasOwn(value,"eventAssessments")){
   if(!keys(value,Object.keys(CLINICAL_ASSESSMENT_SCHEMA.properties))||!Array.isArray(value.eventAssessments)||value.eventAssessments.length>10)reject("assessment_shape");
   protocolVersion=3;currentChecked=true;
-  const seen=new Set();
+  const seen=new Map();
   for(const observation of value.eventAssessments){
-   if(!keys(observation,["event","occurrence","ownerStatementRef"])||!Object.hasOwn(EMERGENCY_EVENTS,observation.event)||!["current","conditional","historical","negated"].includes(observation.occurrence)||seen.has(observation.event))reject("clinical_events");
-   seen.add(observation.event);
+   if(!keys(observation,["event","occurrence","ownerStatementRef"])||!Object.hasOwn(EMERGENCY_EVENTS,observation.event)||!["current","conditional","historical","negated"].includes(observation.occurrence))reject("clinical_events");
+   const previous=seen.get(observation.event);
+   // A recovered past event may also be explicitly negated today. Both are
+   // non-acute. Validate every reference below; never reconcile conflicting
+   // current/conditional meanings or admit an unverified current assertion.
+   if(previous&&![previous,observation.occurrence].every(v=>v==="historical"||v==="negated"))reject("clinical_events");
+   seen.set(observation.event,observation.occurrence);
    const statement=ownerStatements.find(t=>t.ref===observation.ownerStatementRef);
    if(observation.ownerStatementRef!==null&&!statement)reject("owner_statement_reference");
    if(observation.occurrence==="current"&&!statement)reject("event_evidence");
