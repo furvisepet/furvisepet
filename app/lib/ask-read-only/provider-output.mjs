@@ -43,7 +43,7 @@ export function describeReadOutput(response){
 }
 export function safeReadOutputDiagnostic(error){
  const codes=["ASK_READ_OUTPUT_EMPTY","ASK_READ_OUTPUT_JSON","ASK_READ_OUTPUT_AMBIGUOUS","ASK_READ_OUTPUT_INCOMPLETE","ASK_READ_UNEXPECTED_TOOL","ASK_READ_CLINICAL_CONTRACT","ASK_READ_PROVIDER_INCOMPLETE","ASK_READ_COMPONENT_CONTRACT"];
- const fields=["text","json","message_count","message_status","role","function_call","assessment_shape","assessment_enum","missing_context","scenario_urgency","selection_shape","selection_read","clinical_events","event_evidence","history_intent","history_pet","workflow_intent","app_help","review_shape","owner_statement_reference","observation_field","unbound_clinical_component","plan","task","pet","reference","workflow_task","completion","completion_shape","fact_shape","fact_reference","task_source_pet"];
+ const fields=["text","json","message_count","message_status","role","function_call","assessment_shape","assessment_enum","missing_context","scenario_urgency","selection_shape","selection_read","clinical_events","event_evidence","history_intent","history_pet","workflow_intent","app_help","review_shape","owner_statement_reference","observation_field","unbound_clinical_component","plan","task","record_mode","pet","reference","workflow_task","completion","completion_shape","fact_shape","fact_reference","task_source_pet"];
  const own=(value,key)=>{try{return value&&typeof value==="object"?Object.getOwnPropertyDescriptor(value,key)?.value:undefined;}catch{return undefined;}};
  const code=own(error,"code"),message=own(error,"message"),field=own(own(error,"answerDiagnostic"),"field");
  if(!codes.includes(code)&&!codes.includes(message))return null;

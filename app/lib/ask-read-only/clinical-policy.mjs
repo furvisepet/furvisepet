@@ -170,9 +170,9 @@ export function renderMedicationDecision(answer,policy,ownerStatements=[],source
  if(emergency&&answer.quotes.length)parts.push("Saved quotations below are historical reports, not an assessment of the current emergency. Do not delay emergency contact to review them.");
  if(policy.decision)parts.push("I cannot choose a catch-up dose, spacing, taper, substitution or restart schedule here. Looking stable does not establish that an altered prescription schedule is safe.");
  const missingLabels={pet:"which pet and species this concerns",date:"when the relevant events or administrations occurred",procedure:"which procedure or treatment is meant",medicine:"the medicine name and strength",prescription:"the exact prescribed directions",vet_plan:"the prescriber's existing instructions for this situation"};
- if(policy.missing.length)parts.push("Useful details to clarify: "+policy.missing.map(k=>missingLabels[k]).join("; ")+".");
- if(policy.observations.length)parts.push("For the veterinary conversation, note "+policy.observations.map(k=>observations[k]).join("; ")+".");
- if(policy.decision)parts.push("Keep a factual log of actual administrations and missed times, separately from the prescribed schedule. A reported or historical plan is not authority for a new medication decision.");
+ if(policy.missing.length&&!answer.hasTaskBrief)parts.push("Useful details to clarify: "+policy.missing.map(k=>missingLabels[k]).join("; ")+".");
+ if(policy.observations.length&&!answer.hasTaskBrief)parts.push("For the veterinary conversation, note "+policy.observations.map(k=>observations[k]).join("; ")+".");
+ if(policy.decision&&!answer.hasTaskBrief)parts.push("Keep a factual log of actual administrations and missed times, separately from the prescribed schedule. A reported or historical plan is not authority for a new medication decision.");
  const privateIds=sources.flatMap(s=>[s.id,s.petId]).filter(v=>typeof v==="string"&&v.length>=16);
  const ownerReports=policy.ownerRefs.map(ref=>ownerStatements.find(t=>t.ref===ref)).filter(Boolean).filter(t=>!privateIds.some(id=>t.text.includes(id))).map(t=>t.text);
  const available=[ownerReports.length?"owner reports":null,answer.sources.length?"original saved notes":null].filter(Boolean);

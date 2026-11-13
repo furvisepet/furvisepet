@@ -7,11 +7,13 @@ export function readCoverageMessages(coverage=[]) {
    const window=(label,from,to)=>from||to?" "+label+" "+(from??"earliest")+" to "+(to??"latest"):"";
    const lanes=row.discovery.map(lane=>lane.mode+": "+lane.inspected+(Number.isSafeInteger(lane.total)?" of "+lane.total:"")+" database candidates examined in "+lane.pages+" database page(s)"+(Number.isSafeInteger(lane.attempts)?"; "+lane.attempts+" DB attempts, "+lane.rawRows+" candidate rows delivered, "+lane.reusedPages+" reused pages, "+lane.sharedCandidates+" shared candidates":"")+(lane.exhausted?"; query exhausted":"; more or uninspected candidates may remain"));
    const unmet=row.unmet??[];
+   const remaining=row.omittedRange??(row.omittedEventRange?{axis:"event",...row.omittedEventRange}:null);
    return pet+window("event dates",scope.from,scope.to)+window("recorded dates",scope.recordedFrom,scope.recordedTo)
     +" — "+scope.goal+": "+row.returned+" notes supplied to the answer model from "+row.inspected+" distinct database candidates examined. "+lanes.join(". ")+"."
+    +(row.continuationValidation?" Continuation anchors: "+(row.continuationValidation.valid?"verified":"unavailable or changed")+"; "+row.continuationValidation.attempts+" validation DB attempts, "+row.continuationValidation.rows+" rows checked within the shared acquisition budget.":"")
     +(row.sharedCollection?" Goals in this pet/time scope share one candidate acquisition; any lexical lane uses combined hints instead of separate queries for each goal.":"")
     +(row.omitted?" "+row.omitted+" examined notes omitted by the evidence limits; their text was not supplied to the answer model.":"")
-    +(row.omittedEventRange?" Omitted sources have event dates "+row.omittedEventRange.from+" to "+row.omittedEventRange.to+". Ask about that narrower period for another bounded read; it is a fresh search and can repeat boundary-day records.":"")
+    +(remaining?" Omitted sources have "+remaining.axis+" dates "+remaining.from+" to "+remaining.to+". Ask about that narrower period for another bounded read; it is a fresh search and can repeat boundary-day records.":"")
     +(unmet.includes("prior_source_selection_omitted")?" Only a bounded subset of the earlier result’s sources was retained for this reference.":"")
     +(unmet.includes("referenced_source_changed_or_missing")?" A previously referenced source changed or is missing. Clarify the source or request a fresh search; its earlier content was not reconstructed.":"")
     +(unmet.includes("retrieval_unavailable")?" Part of this retrieval was unavailable.":"")
