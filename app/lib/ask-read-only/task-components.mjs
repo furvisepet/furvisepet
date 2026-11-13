@@ -21,7 +21,7 @@ export const COMPONENT_INSTRUCTIONS=[
  "For collection summaries, use concise grounded themes in historySynthesis. Use historyFacts only for salient source-specific dates/details the owner actually requests, using the exact admitted source and contiguous original sentence. Avoid duplicating their wording in historySynthesis. The server supplies its event/recorded date. Keep component prose to an undated synthesis of patterns and limitations; do not generate month/year-specific paraphrases or citation ranges. Select salient exceptions as historyFacts as well as routine background. Only single source handles may be used as inline references.",
  "Set includeSourceDates only for tasks whose source timestamps the owner requests in the answer, not merely because a note has dates. The server publishes those requested verified dates once; do not repeat them in component prose. calculation means arithmetic over saved typed measurements; ordinary math without saved-record dependency belongs general_guidance.",
  "Set recordMode=collection for a set, period summary, comparison, or continuation, single for identifying one record, and none without saved evidence. A collection does not require choosing a single record: which_record must never block collection membership. Plan collection reads with goal=complete_set and explicit owner pet/time scope. Summarize the actual supplied content, source-reported patterns (never infer recurrence from saved mentions) and dated exceptions; never replace synthesis with a timestamp list or only selected quotations. Do not infer clinical advice merely from medical words inside old notes. clinical_guidance is an explicit care interpretation/triage request; ordinary historical reporting is saved_content. Plan every essential requested task separately in taskPlan. saved_content means Ask retrieves/quotes/explains owned records, NOT instructions for finding them. workflow is ONLY an explicit request for how to operate Furvise screens or for an action Ask cannot perform. Do not create a workflow task merely because a question mentions notes, saved dates, history, a diary or a vet brief.",
- "Set combineHistory=true only when the owner asks to combine or integrate an earlier result and newly fetched/continued history. A combined answer must include relevant exact historical facts or synthesis evidence from BOTH retained_prior and fresh_remainder TOOL_DATA groups. Merely reading or listing their source handles is insufficient; preserve salient earlier exceptions. For all other tasks combineHistory=false.",
+ "One integrated overview of earlier and newly fetched history is ONE collection task, with multiple reads, not separate prior/remainder answer tasks. Set combineHistory=true only when the owner asks to combine or integrate an earlier result and newly fetched/continued history. A combined answer must include relevant exact historical facts or synthesis evidence from BOTH retained_prior and fresh_remainder TOOL_DATA groups. Merely reading or listing their source handles is insufficient; preserve salient earlier exceptions. For all other tasks combineHistory=false.",
  "For explicit remaining/continue requests use saved_continuation and the selected reference with an omittedRange (or legacy omittedEventRange); read_remaining_records performs a fresh bounded search of that omitted range, not a snapshot cursor. It may repeat same-day boundary records. Do not use the prior eight retained source bodies as the omitted remainder. For a workflow task, workflow selects the actual screen operation; a photo into a care/history note uses care_photo_attachment, not other. For all non-workflow tasks workflow must be none.",
  "A vet_brief is an actual concise handoff: relevant owner-reported observations, dated original historical facts, and questions/unknowns. Set needsHistory when saved notes/results are requested. Set needsOwnerFacts when current/prior user observations must be included (including what I just told you), and always for owner_observations tasks. Do not mark those tasks complete without actual eligible owner facts. Select the relevant retained reference handle and authorized pets, then re-read it. A prior assistant answer or reference metadata is never source evidence. For collection integration, rehydrate the original result and relevant continuation results; bounded retained sources are a selection, never the full historical set. Do not discuss evidence completeness or source counts in free prose: the server supplies coverage. Select ownerFacts by the exact sentence handle in ownerFactSentenceRefs; do not regenerate or shorten owner wording. Classify each owner fact by meaning; pet/date corrections and requests are not health observations. A corrected pet/date overrides a prior result; plan a new scoped read instead. When the referenced result is ambiguous, ask which one rather than choosing arbitrarily.",
  "For any requested saved/profile content or calculation set needsHistory=true and bind pets to all explicitly named or unambiguously established authorized subjects. A comparison/calculation may have multiple pets; keep each tool read pet/time scoped. An empty pets list is not permission to guess from the selected UI pet. A selected reference carries its own authorized pet. General guidance alone does not require saved reads. needsOwnerFacts is only for an owner_observations task or a vet_brief that must reproduce actual observations. Preferences, time constraints and plan revisions are ordinary dialogue context, not factual excerpts required before general guidance can be answered.",
@@ -69,19 +69,26 @@ export function fulfillReferenceReads(first,references=[]){
  let calls=[...first.calls];
  // Keep remainder membership distinct from retained prior evidence. Both are
  // owner-bound reads; only the fresh omitted-window result is the remainder.
- let taskPlan=first.taskPlan;
- if(taskPlan.length===1){
-  const t=taskPlan[0];
+ const mergeable=t=>t.needsHistory&&t.recordMode==="collection"&&t.combineHistory===true&&t.reference&&!scopeMissing(t)&&!t.needsOwnerFacts&&["saved_content","saved_continuation"].includes(t.kind);
+ const scope=t=>JSON.stringify([t.reference,[...t.pets].sort(),[...t.missing].sort()]);
+ // Earlier and newly fetched evidence are two reads for ONE integrated
+ // deliverable, not two copies of every theme/fact in the answer wire.
+ let taskPlan=[];
+ for(const task of first.taskPlan){
+  const peer=mergeable(task)&&taskPlan.find(t=>mergeable(t)&&scope(t)===scope(task));
+  if(peer){peer.kind=peer.kind==="saved_continuation"||task.kind==="saved_continuation"?"saved_continuation":"saved_content";peer.includeSourceDates||=task.includeSourceDates;}
+  else taskPlan.push({...task});
+ }
+ taskPlan=taskPlan.map(t=>{
   const selected=references.find(r=>r.handle===t.reference),remaining=selected?.request.omittedRange??selected?.request.omittedEventRange;
-  // combineHistory already declares owner-requested earlier + newly fetched evidence.
-  // A zero-call collection plan must not silently substitute the old selection
-  // for an available omitted interval. Authority still comes from bindReadTool
-  // and the ordinary task gate, never these retained metadata hints alone.
+  // The existing binder and task gate must authorize this range; metadata
+  // never substitutes for current owned-source validation or actual IO.
   const omittedIntegration=calls.length===0&&t.recordMode==="collection"&&t.combineHistory===true&&selected?.request.goal==="complete_set"&&remaining;
   if(t.kind==="saved_content"&&t.needsHistory&&t.reference&&!scopeMissing(t)&&(omittedIntegration||calls.some(c=>c.name==="read_remaining_records"&&JSON.parse(c.arguments).reference===t.reference))){
-   taskPlan=[{...t,kind:"saved_continuation",recordMode:"collection"}];
+   return {...t,kind:"saved_continuation",recordMode:"collection"};
   }
- }
+  return t;
+ });
  for(const task of taskPlan){
   if(!task.needsHistory||!task.reference||scopeMissing(task))continue;
   if(task.kind==="saved_continuation"&&!references.some(r=>r.handle===task.reference&&(r.request.omittedRange||r.request.omittedEventRange)))continue;

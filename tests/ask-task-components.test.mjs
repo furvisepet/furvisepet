@@ -452,3 +452,23 @@ test("zero-call integration promotion is confined to declared collection continu
  assert.ok(!fulfillReferenceReads({calls:[scoped],taskPlan:[t]},refs).calls.some(c=>c.name==="read_remaining_records"));
  assert.ok(!fulfillReferenceReads({calls:[],taskPlan:[t]},[{handle:"r1",request:{...request,omittedRange:null}}]).calls.some(c=>c.name==="read_remaining_records"));
 });
+
+test("one integrated collection deliverable does not duplicate prior and remainder answer tasks",()=>{
+ const req={kind:"history",pet:{...pet,handle:"p1"},goal:"complete_set",omittedRange:{axis:"event",from:"2021-09-15",to:"2021-12-15"}},refs=[{handle:"r1",request:req}];
+ const t=task({kind:"saved_continuation",recordMode:"collection",combineHistory:true,needsHistory:true,pets:["p1"],reference:"r1"});
+ const ordinary=task({id:"t3",kind:"general_guidance"});
+ const r=fulfillReferenceReads({calls:[],taskPlan:[t,{...t,id:"t2",kind:"saved_content",includeSourceDates:true},ordinary]},refs);
+ assert.equal(r.taskPlan.length,2);assert.equal(r.taskPlan[0].kind,"saved_continuation");assert.equal(r.taskPlan[0].includeSourceDates,true);
+ assert.equal(r.taskPlan[1].kind,"general_guidance");assert.deepEqual(r.calls.map(c=>c.name),["read_remaining_records","read_referenced_sources"]);
+ for(const patch of [{reference:"r2"},{pets:["p2"]},{combineHistory:false},{kind:"vet_brief"},{missing:["year"]},{needsOwnerFacts:true},{recordMode:"single"}]){
+  const separate=fulfillReferenceReads({calls:[],taskPlan:[t,{...t,id:"t2",...patch}]},refs);
+  assert.equal(separate.taskPlan.length,2);
+ }
+});
+
+test("an independent ordinary task cannot suppress zero-call bounded collection continuation",()=>{
+ const req={kind:"history",pet:{...pet,handle:"p1"},goal:"complete_set",omittedRange:{axis:"event",from:"2021-09-15",to:"2021-12-15"}};
+ const collection=task({kind:"saved_content",recordMode:"collection",combineHistory:true,needsHistory:true,pets:["p1"],reference:"r1"});
+ const r=fulfillReferenceReads({calls:[],taskPlan:[collection,task({id:"t2"})]},[{handle:"r1",request:req}]);
+ assert.equal(r.taskPlan[0].kind,"saved_continuation");assert.equal(r.taskPlan[1].kind,"general_guidance");assert.deepEqual(r.calls.map(c=>c.name),["read_remaining_records","read_referenced_sources"]);
+});
