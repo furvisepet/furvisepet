@@ -46,7 +46,7 @@ test("Node 24 and npm 11 are the explicit repository runtime policy", () => {
 test("patched Sharp native bindings load with the remediated libvips", () => {
   const sharp = require("sharp");
   assert.equal(sharp.versions.sharp, "0.35.5");
-  assert.equal(sharp.versions.vips, "8.18.6");
+  assert.equal(sharp.versions.vips, "8.18.7");
   assert.equal(typeof sharp(Buffer.from("not-an-image")).metadata, "function");
 });
 
