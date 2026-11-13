@@ -20,3 +20,17 @@ test("current uncertain breathing emergency and conditional-only discussion rema
  assert.equal(detectImmediateAskEmergency("If my dog collapses, what should I do?"),null);
  assert.equal(detectImmediateAskEmergency('The old note says "the dog collapsed". He is well today.'),null);
 });
+
+test("a colon-prefaced future condition cannot become a current emergency",()=>{
+ const failed="I'm planning for a possible future situation, not reporting symptoms now: if a cat ever starts open-mouth breathing or collapses, would waiting for a routine appointment be okay?";
+ assert.equal(detectImmediateAskEmergency(failed),null);
+ assert.equal(detectImmediateAskEmergency("Planning ahead: if a dog becomes unconscious, who should I call?"),null);
+ assert.equal(detectImmediateAskEmergency("A prevention question: unless a cat is struggling to breathe, should I use routine care?"),null);
+});
+test("conditional preambles preserve independent actual emergencies and current colon reports",()=>{
+ for(const text of [
+  "Planning ahead: if a cat collapses, what should I do? But now my dog is unconscious.",
+  "Here is what is happening now: my cat is struggling to breathe.",
+  "If my cat collapsed I would call the vet, but now my dog is unconscious."
+ ])assert.ok(detectImmediateAskEmergency(text),text);
+});

@@ -63,3 +63,11 @@ The repaired focused cohort passed 106 checks before adding the compact-label gu
 
 ## Bounded fourth candidate extension
 The first paid Bramble collection on 7cac770b published exact exception excerpts but lost the useful overview because whole calendar-bearing synthesis sentences were filtered. Preserve this as FAIL with its receipts. The third-candidate envelope is extended by one preview deployment, within the original 24-turn/USD1 ceiling, solely for this evidenced regression. The filter now removes calendar labels while preserving the useful sentence content; exact dated excerpts remain source-bound. A regression covers a year-bearing synthesis and ordinary lowercase modal 'may'. This rule remains bounded English publication handling, not universal semantic proof.
+
+
+## Clinical lane stop and fifth safety repair
+A genuinely fresh future-only cat emergency question on 3582c0f3 triggered the provider-independent current-emergency card, explicitly unsaved, with zero physical provider calls. Stop all further medical submissions on that candidate; preserve it as FAIL_TEMPORAL_FALSE_CURRENT. The prior current-emergency turn escalated immediately but had redundant generic clarification.
+
+Active cause: a colon-prefaced conditional remained inside a discourse preamble, so the shared assertion classifier did not see an initial 'if'. The existing preflight treated severe words in that block as current. Split only colon boundaries that introduce a recognized condition opener, then use the existing clause classifier. Do not suppress an entire message merely because it mentions future planning; independent actual emergencies still escalate.
+
+This is one additional safety-specific deployment beyond the four-candidate product envelope, within 24 submissions/48 calls/USD1. The exact failed prompt is an offline regression, never a fresh live holdout. Reproduced before repair; independent current-clause and colon-current controls are mandatory. Re-enable live clinical testing only after the repaired SHA is READY and verified, with the existing independent AVMA/FDA rubric and fresh analogous questions. No third safety-model call or universal clearance.

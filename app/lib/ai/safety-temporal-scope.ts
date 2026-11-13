@@ -15,7 +15,11 @@ function scopedClauses(message: string) {
     return unquoted.slice(start, from);
   });
   const blocks = scopedSentences.flatMap(sentence => sentence.split(/[,;]?\s+but\s+(?=now\b|today\b|currently\b)/i));
-  const clauses = blocks.flatMap(block => /^(?:hypothetically|suppose|supposing|imagine)\b/i.test(block.trim()) ? [] : analyzeOwnerAssertions(block).clauseSpans);
+  // A discourse preamble before a colon must not hide the condition opener
+  // from the existing assertion classifier. Scope only that following block;
+  // independently reported current clauses remain eligible.
+  const conditionBlocks = blocks.flatMap(block => block.split(/\s*:\s*(?=(?:what\s+if|if|unless|suppose|supposing|assuming|imagine|hypothetical(?:ly)?|even if)\b)/i));
+  const clauses = conditionBlocks.flatMap(block => /^(?:hypothetically|suppose|supposing|imagine)\b/i.test(block.trim()) ? [] : analyzeOwnerAssertions(block).clauseSpans);
   const historical = /\b(?:(?:years?|months?|weeks?) (?:ago|back)|(?:a )?long (?:time|while) ago|a while back|back then|last (?:year|month)|back in (?:19|20)\d{2}|in (?:19|20)\d{2}|(?:old|previous|past|dated) (?:note|record|report)|when .{1,40} (?:puppy|kitten))\b/i;
   const hypothetical = /\b(?:hypothetically|hypothetical|suppose|supposing|imagine)\b/i;
   const current = clauses.filter(clause => !clause.isConditional && !clause.isAttributed
