@@ -5,8 +5,12 @@ export const APP_CAPABILITIES=Object.freeze({
  careNotes:{route:CARE_NOTE_UI.route,fields:CARE_NOTE_UI.fields,photoAttachments:CARE_NOTE_UI.photoAttachments,labels:CARE_NOTE_UI},
  history:{route:HISTORY_NOTE_UI.route,search:true,filters:["pet","category","when"],labels:HISTORY_NOTE_UI}
 });
-export const WORKFLOW_INSTRUCTIONS="Only when the user asks how to use a screen or which controls to operate, set workflowIntent and final appHelp.intent. A request for Ask to retrieve, quote, compare or explain saved information is a data-content request, not a UI workflow: use historyIntent and workflowIntent=none unless navigation/help is independently requested. APP_CAPABILITIES describes this build's actual routes/controls, not generic pet-app conventions. Do not invent attachment, upload or edit controls. App help is rendered from that shared capability registry. Ask performs no write/upload/navigation; steps describe what the user can do.";
-export function renderAppWorkflow(answer,workflow,pets=[],append=false){
+export const WORKFLOW_INSTRUCTIONS="Interpret the CURRENT user request. Older app-help topics do not authorize a workflow on a later unrelated request. A return to an agreed routine or its latest revision is general guidance using the most recent relevant dialogue, including across topic interruptions. Only when the user asks how to use a screen or which controls to operate, set workflowIntent and final appHelp.intent. A request for Ask to retrieve, quote, compare or explain saved information is a data-content request, not a UI workflow: use historyIntent and workflowIntent=none unless navigation/help is independently requested. APP_CAPABILITIES describes this build's actual routes/controls, not generic pet-app conventions. Do not invent attachment, upload or edit controls. App help is rendered from that shared capability registry. Ask performs no write/upload/navigation; steps describe what the user can do.";
+export function renderAppWorkflow(answer,workflow,pets=[],append=false,question=""){
+ // Bind current explicit authorized subjects independently of the UI selection.
+ const named=pets.filter(p=>typeof p.name==="string"&&p.name.length>0&&
+  new RegExp("(?:^|[^\\p{L}\\p{N}_])"+p.name.replace(/[.*+?^$}{()|[\]\\]/g,"\\$&")+"(?=$|[^\\p{L}\\p{N}_])","iu").test(question));
+ if(named.length)workflow={...workflow,pet:named.length===1?named[0].handle:null};
  if(!workflow||workflow.intent==="none")return answer;
  const pet=pets.find(p=>p.handle===workflow.pet),name=pet?.name&&!/\b[ps]\d+\b/.test(pet.name)&&!pets.some(p=>p.id===pet.name)?pet.name:"the intended pet";
  const intro="Ask can read saved information and help draft text, but it cannot upload, save, edit or open pages for you.";

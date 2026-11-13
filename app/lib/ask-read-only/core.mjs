@@ -254,6 +254,13 @@ export async function runReadOnlyAsk(input,deps) {
  let first=await invoke({instructions:READ_ONLY_INSTRUCTIONS+"\n"+CLINICAL_INSTRUCTIONS+"\n"+WORKFLOW_INSTRUCTIONS+"\n"+COMPONENT_INSTRUCTIONS,context,tools,selectionSchema:componentSelectionSchema(clinicalSelectionSchema(tools,ownerStatements),context)},"read_selection");
  let taskPlan=first.taskPlan;
  if(taskPlan){first={...first};delete first.taskPlan;}
+ // Reconcile the current-turn discriminator before a stale workflow task can
+ // replace ordinary prose. The second call sees the corrected task contract.
+ if(first.workflowIntent==="none"&&taskPlan?.some(t=>t.kind==="workflow")){
+  taskPlan=taskPlan.map(t=>t.kind==="workflow"?{...t,kind:"general_guidance",workflow:"none"}:t);
+  first.text="";
+  deps.onAnswerBoundary?.({outcome:"workflow_task_reconciled",reason:"current_intent_none"});
+ }
  if(!keys(first,Object.hasOwn(first??{},"workflowIntent")?["calls","text","safety","historyIntent","workflowIntent"]:Object.hasOwn(first??{},"historyIntent")?["calls","text","safety","historyIntent"]:Object.hasOwn(first??{},"safety")?["calls","text","safety"]:["calls","text"])||!Array.isArray(first.calls)||first.calls.length>4||typeof first.text!=="string"||first.text.length>12000)fail("ASK_READ_PROVIDER_INVALID");
  if(taskPlan){first.taskPlan=taskPlan;first=fulfillReferenceReads(first,references);taskPlan=first.taskPlan;context.taskPlan=taskPlan;}
  let assessment=Object.hasOwn(first,"safety")?validateClinicalAssessment(first.safety):null;
@@ -369,7 +376,7 @@ export async function runReadOnlyAsk(input,deps) {
   }
   answer=renderTaskCompletion(answer,completed.tasks,sources,reviewed.policy,results);
   const appendWorkflow=!!reviewed.policy?.active||bound.length>0||!!taskPlan?.some(t=>t.kind!=="workflow");
-  answer=renderAppWorkflow(answer,reviewed.workflow,pets,appendWorkflow);
+  answer=renderAppWorkflow(answer,reviewed.workflow,pets,appendWorkflow,input.question);
   if(reviewed.workflow?.intent!=="none"&&reviewed.workflow)deps.onAnswerBoundary?.({outcome:"workflow_selected",firstIntent:first.workflowIntent??"none",finalIntent:reviewed.workflow.intent,appended:appendWorkflow,readCount:bound.length});
   if(completed.tasks)deps.onAnswerBoundary?.({outcome:"components_completed",tasks:answer.taskCompletion});
  }

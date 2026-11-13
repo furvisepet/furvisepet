@@ -14,7 +14,7 @@ const final=(s,extra={})=>({components:[{kind:"general",text:"An ordinary answer
 async function execute(plan,s,output,extra={},plannedReads=[],readRows=[source]){
  let calls=0,reads=[];const requests=[];
  const result=await runReadOnlyAsk({ownerId:"owned",selectedPetId:pet.id,pets:[pet],dialogue:[],question:"An unfamiliar question.",now:"2026-11-12T12:00:00Z",timeZone:"UTC",...extra},{
-  provider:async(req,phase)=>{calls++;requests.push(req);return phase==="read_selection"?decodeComponentSelection({safety:s,reads:plannedReads,draft:"",historyIntent:{requested:plan.some(t=>t.needsHistory),timeBasis:"event",pet:null},workflowIntent:"find_care_note",taskPlan:plan},req.tools,req.context,decodeClinicalSelection):(typeof output==="function"?output(req):output);},
+  provider:async(req,phase)=>{calls++;requests.push(req);return phase==="read_selection"?decodeComponentSelection({safety:s,reads:plannedReads,draft:"",historyIntent:{requested:plan.some(t=>t.needsHistory),timeBasis:"event",pet:null},workflowIntent:extra.workflowIntent??"find_care_note",taskPlan:plan},req.tools,req.context,decodeClinicalSelection):(typeof output==="function"?output(req):output);},
   read:async r=>{reads.push(r);return {sources:readRows,total:readRows.length,hasMore:false,scopeExhausted:true};}
  });return {result,calls,reads,requests};
 }
@@ -272,4 +272,23 @@ test("calendar label repair preserves synthesis within the same sentence and low
  const r=renderTaskCompletion({answer:"",validatedParts:[{index:0,text:"Across 2020–2022, the notes describe a stable routine that may vary slightly."}],quotes:[],calculations:[],presentation:{}},[t],[s],null);
  assert.match(r.answer,/stable routine that may vary slightly/);
  assert.doesNotMatch(r.answer,/2020|2022/);
+});
+
+test("current no-workflow discriminator prevents stale app task replacing a returned routine",async()=>{
+ const s=safety(),r=await execute([task({kind:"workflow",workflow:"care_photo_attachment"})],s,req=>{
+  assert.equal(req.context.taskPlan[0].kind,"general_guidance");
+  assert.equal(req.draft,"");
+  return final(s,{components:[{kind:"general",text:"Use the revised three-minute quiet settling routine without food or jumping.",sources:[]}],appHelp:{intent:"care_photo_attachment",pet:"p1"}});
+ },{workflowIntent:"none",question:"Return to the latest settling routine after our detour."});
+ assert.match(r.result.answer.answer,/three-minute quiet/);
+ assert.doesNotMatch(r.result.answer.answer,/Today|photo|Something worth remembering/);
+ assert.equal(r.result.answer.taskCompletion[0].kind,"general_guidance");
+});
+test("app instructions bind explicit owned pet rather than stale UI selection",async()=>{
+ const {renderAppWorkflow}=await import("../app/lib/ask-read-only/app-capabilities.mjs");
+ const pets=[{handle:"p1",name:"Willow"},{handle:"p2",name:"Rowan"}];
+ const a=renderAppWorkflow({answer:"",presentation:{}},{intent:"care_photo_attachment",pet:"p1"},pets,false,"How can I put Rowan's photo into a care note?");
+ assert.match(a.answer,/choose Rowan/);assert.doesNotMatch(a.answer,/choose Willow/);
+ const b=renderAppWorkflow({answer:"",presentation:{}},{intent:"create_care_note",pet:"p1"},pets,false,"Willow and Rowan both need notes.");
+ assert.match(b.answer,/choose the intended pet/);
 });
