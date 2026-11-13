@@ -311,3 +311,15 @@ test("collection synthesis removes calendar labels and generated counts without 
  assert.match(overview,/exception was mild scratching/);
  assert.doesNotMatch(overview,/saved period|requested period|2017|2019|May|September|December|36 saved entries|four notes/);
 });
+
+test("calendar qualifier and list removal keeps clean sentence grammar",()=>{
+ const s={...source,handle:"s1",petName:"Willow"};
+ const t={...task({kind:"saved_content",needsHistory:true,recordMode:"collection",pets:["p1"]}),status:"complete",reason:"none",componentIndexes:[0],sources:["s1"],ownerFacts:[],historyFacts:[{source:"s1",excerpt:s.body}]};
+ const text="Willow’s saved care record through mid-2020 reads like steady preventive care. Stool became more consistent. In late 2020, the notes continue that theme, including monthly care checks in September, October, and November, and a nutrition review.";
+ const r=renderTaskCompletion({answer:"",validatedParts:[{index:0,text}],quotes:[],calculations:[],presentation:{}},[t],[s],null);
+ const overview=r.answer.split("Selected dated historical details:")[0];
+ assert.match(overview,/record reads like steady/);
+ assert.match(overview,/consistent\. The notes continue/);
+ assert.match(overview,/monthly care checks and a nutrition review/);
+ assert.doesNotMatch(overview,/mid-|late 2020|September|October|November|\.,|,,|and, and/);
+});

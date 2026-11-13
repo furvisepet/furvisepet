@@ -164,11 +164,17 @@ function undatedCollectionSynthesis(text){
  const month="(?:[Jj]an(?:uary)?|[Ff]eb(?:ruary)?|[Mm]ar(?:ch)?|[Aa]pr(?:il)?|May|[Jj]un(?:e)?|[Jj]ul(?:y)?|[Aa]ug(?:ust)?|[Ss]ep(?:tember)?|[Oo]ct(?:ober)?|[Nn]ov(?:ember)?|[Dd]ec(?:ember)?)";
  const year="(?:19|20|21)\\d{2}(?:-\\d{2}-\\d{2})?";
  const calendar="(?:"+month+"(?:\\s+\\d{1,2}(?:st|nd|rd|th)?\\b,?)?(?:\\s+"+year+")?|"+year+")";
- const range=calendar+"(?:\\s*(?:[-–]|through|to|and)\\s*"+calendar+")?";
- return prose.replace(new RegExp("\\b(?:(?:[Aa]cross|[Ff]rom|[Ii]n|[Dd]uring|[Tt]hrough|[Tt]o|[Bb]y|[Aa]round|[Ss]ince|[Bb]etween)\\s+)?(?:late[- ]|early[- ])?"+range+"\\b","g"),"")
+ const range=calendar+"(?:\\s*(?:,|[-–]|through|to|and)\\s*(?:and\\s+)?"+calendar+")*";
+ return prose.replace(new RegExp("\\b(?:(?:[Aa]cross|[Ff]rom|[Ii]n|[Dd]uring|[Tt]hrough|[Tt]o|[Bb]y|[Aa]round|[Ss]ince|[Bb]etween)\\s+)?(?:(?:early|mid|late)(?:-to-(?:early|mid|late))?[- ])?"+range+"\\b(?:\\s*,)?","g"),"")
   .replace(/(^|\n)\s*:\s*/g,"$1")
   .replace(/[ \t]{2,}/g," ")
+  .replace(/(?:,\s*){2,}/g,", ")
+  .replace(/,\s*(?:and\s*,\s*)+(?:and\s+)?/gi,", and ")
+  .replace(/([.!?])\s*[,;:]\s*/g,"$1 ")
+  .replace(/\b(?:and|or)\s+(?=[,.;!?])/g,"")
+  .replace(/,\s*([.!?])/g,"$1")
   .replace(/ +([,.!?;:])/g,"$1")
+  .replace(/(^|[.!?]\s+)(\p{Ll})/gu,(_match,separator,letter)=>separator+letter.toUpperCase())
   .replace(/\bA entry\b/g,"An entry").replace(/\ba entry\b/g,"an entry")
   .trim();
 }
