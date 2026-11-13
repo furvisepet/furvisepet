@@ -349,3 +349,27 @@ test("date-meaning recovery still requires one explicit owned pet and one explic
   assert.equal(r.reads.length,0,question);
  }
 });
+
+test("explicit multi-year collection range executes despite historical-context date uncertainty",async()=>{
+ const s=safety({careContext:"clinical_history",missingContext:["date"]}),plan=[task({kind:"saved_content",recordMode:"collection",needsHistory:true,pets:["p1"],missing:["date_meaning"]})];
+ const saved=final(safety({careContext:"clinical_history"}),{components:[{kind:"saved",text:"The selected report follows.",sources:["s1"]}],sources:["s1"],completion:[completion({sources:["s1"],historyFacts:[{source:"s1",excerpt:source.body}]})]});
+ const r=await execute(plan,s,saved,{question:"Put together Willow's complete saved care picture from January 2020 through December 2022, using event dates. Do not turn an isolated change into a recurring condition."});
+ assert.equal(r.calls,2);assert.equal(r.reads.length,1);assert.equal(r.reads[0].from,"2020-01-01");assert.equal(r.reads[0].to,"2022-12-31");assert.equal(r.reads[0].goal,"complete_set");
+ assert.equal(r.result.answer.taskCompletion[0].status,"complete");
+});
+
+test("explicit range recovery rejects comparisons, reversed ranges, multiple pets and medical authority",async()=>{
+ const {explicitCalendarWindow,recoverBoundedCalendarRead}=await import("../app/lib/ask-read-only/calendar-scope.mjs");
+ assert.deepEqual(explicitCalendarWindow("from January 2020 through December 2022"),{from:"2020-01-01",to:"2022-12-31",precision:"range"});
+ for(const q of ["March 2020 and April 2021","from December 2022 through January 2020","January 2020 through December 2022 and May 2023","March with no year"])assert.equal(explicitCalendarWindow(q),null,q);
+ const first={calls:[],text:"",historyIntent:{requested:true,timeBasis:"recorded",pet:"p1"},taskPlan:[task({kind:"saved_content",recordMode:"collection",needsHistory:true,pets:["p1"],missing:["year","date_meaning"]})],safety:{...safety(),scenario:"none",currentEvents:[],conditionalEvents:[]}};
+ const context={question:"Willow's January 2020 through December 2022 saved history"},pets=[{...pet,handle:"p1"}];
+ const recovered=recoverBoundedCalendarRead(first,context,pets),args=JSON.parse(recovered.first.calls[0].arguments);
+ assert.equal(args.from,null);assert.equal(args.to,null);assert.equal(args.recordedFrom,"2020-01-01");assert.equal(args.recordedTo,"2022-12-31");assert.equal(args.goal,"complete_set");assert.deepEqual(recovered.first.taskPlan[0].missing,[]);
+ for(const safetyPatch of [{medicationIntent:"decision"},{scenario:"current"},{scenario:"conditional"},{currentEvents:[{}]},{conditionalEvents:[{}]},{missingContext:["medicine"]}]){
+  assert.equal(recoverBoundedCalendarRead({...first,safety:{...first.safety,...safetyPatch}},context,pets),null);
+  assert.equal(recoverBoundedCalendarRead({...first,safety:{...first.safety,referent:"essential_unknown",missingContext:["date"],...safetyPatch}},context,pets),null);
+ }
+ assert.equal(recoverBoundedCalendarRead(first,{question:context.question+" and Maple"},[...pets,{...pet,name:"Maple",id:"second",handle:"p2"}]),null);
+ assert.equal(recoverBoundedCalendarRead({...first,historyIntent:{...first.historyIntent,timeBasis:"ambiguous"}},context,pets),null);
+});

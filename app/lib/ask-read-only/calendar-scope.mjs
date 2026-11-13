@@ -22,25 +22,40 @@ export function explicitCalendarScopes(question){
  if(monthMentions.length>found.length)return [];
  return [...new Map(found.map(scope=>[scope.from+"/"+scope.to,scope])).values()];
 }
+/** Only an explicit contiguous range joins two windows; independent comparisons
+ * and corrections remain separate. No relative dates or axis inference. */
+export function explicitCalendarWindow(question){
+ const scopes=explicitCalendarScopes(question);
+ if(scopes.length===1)return scopes[0];
+ if(scopes.length!==2)return null;
+ const token="(?:\\b(?:january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\\.?\\s+(?:\\d{1,2},?\\s+)?(?:19|20|21)\\d{2}\\b|\\b(?:19|20|21)\\d{2}-\\d{2}(?:-\\d{2})?\\b)";
+ const ranges=[...String(question).matchAll(new RegExp("("+token+")\\s+(?:through|to|until)\\s+("+token+")","gi"))];
+ if(ranges.length!==1)return null;
+ const left=explicitCalendarScopes(ranges[0][1]),right=explicitCalendarScopes(ranges[0][2]);
+ if(left.length!==1||right.length!==1||left[0].from>right[0].to
+  ||scopes[0].from!==left[0].from||scopes[0].to!==left[0].to||scopes[1].from!==right[0].from||scopes[1].to!==right[0].to)return null;
+ return {from:left[0].from,to:right[0].to,precision:"range"};
+}
 export function recoverBoundedCalendarRead(first,context,pets){
  if(!["event","recorded"].includes(first.historyIntent?.timeBasis)||first.calls.length>1)return null;
- const scopes=explicitCalendarScopes(context.question);if(scopes.length!==1)return null;
+ const calendar=explicitCalendarWindow(context.question);if(!calendar)return null;
  const escaped=name=>name.replace(/[.*+?$^{}()|[\]\\]/g,"\\$&");
  const named=pets.filter(pet=>new RegExp("(?<![\\p{L}\\p{N}])"+escaped(pet.name)+"(?![\\p{L}\\p{N}])","iu").test(context.question));
  if(named.length!==1)return null;
- const taskBound=first.calls.length===0&&first.taskPlan?.some(t=>t.kind==="saved_content"&&t.needsHistory&&t.reference===null&&t.pets.length===1&&t.pets[0]===named[0].handle&&t.missing.every(k=>["which_record","date_meaning"].includes(k)))
-  &&first.safety?.careContext==="none"&&first.safety.medicationIntent==="none"&&!(first.safety.currentEvents?.length||first.safety.conditionalEvents?.length||first.safety.eventAssessments?.length)&&first.safety.missingContext.every(k=>["pet","date"].includes(k));
- const legacy=first.historyIntent?.requested===true&&first.safety?.referent==="essential_unknown"&&first.safety.missingContext.length>0&&first.safety.missingContext.every(k=>["pet","date"].includes(k))&&(first.historyIntent.pet===null||first.historyIntent.pet===named[0].handle);
+ const nonUrgentHistory=["none","clinical_history"].includes(first.safety?.careContext)&&first.safety.medicationIntent==="none"&&[undefined,"none","historical"].includes(first.safety.scenario)&&!(first.safety.currentEvents?.length||first.safety.conditionalEvents?.length);
+ const taskBound=first.calls.length===0&&first.taskPlan?.some(t=>t.kind==="saved_content"&&t.needsHistory&&t.reference===null&&t.pets.length===1&&t.pets[0]===named[0].handle&&t.missing.every(k=>["pet","year","which_record","date_meaning"].includes(k)))
+  &&nonUrgentHistory&&first.safety.missingContext.every(k=>["pet","date"].includes(k));
+ const legacy=nonUrgentHistory&&first.historyIntent?.requested===true&&first.safety?.referent==="essential_unknown"&&first.safety.missingContext.length>0&&first.safety.missingContext.every(k=>["pet","date"].includes(k))&&(first.historyIntent.pet===null||first.historyIntent.pet===named[0].handle);
  if(!taskBound&&!legacy)return null;
  if(first.calls.some(call=>!["search_saved_records","read_referenced_sources","read_pet_profile"].includes(call.name)))return null;
  let planned={};try{planned=JSON.parse(first.calls[0]?.arguments??"{}");}catch{return null;}
- const goal=EVIDENCE_GOALS.includes(planned.goal)?planned.goal:"relevant_records",order=planned.order==="desc"?"desc":"asc";
- const basis=first.historyIntent.timeBasis,scope=scopes[0],event=basis==="event";
+ const goal=EVIDENCE_GOALS.includes(planned.goal)?planned.goal:first.taskPlan?.some(t=>t.kind==="saved_content"&&t.needsHistory&&t.recordMode==="collection"&&t.pets.length===1&&t.pets[0]===named[0].handle)?"complete_set":"relevant_records",order=planned.order==="desc"?"desc":"asc";
+ const basis=first.historyIntent.timeBasis,scope=calendar,event=basis==="event";
  // A concrete first-pass axis plus one explicit owned pet/calendar window
- // resolves a contradictory date-meaning flag. It does not resolve identity:
+ // resolves contradictory pet/year/axis flags. It does not resolve record identity:
  // which_record remains until bounded discovery proves a unique source.
- const taskPlan=first.taskPlan?.map(t=>t.kind==="saved_content"&&t.needsHistory&&t.reference===null&&t.pets.length===1&&t.pets[0]===named[0].handle&&t.missing.every(k=>["which_record","date_meaning"].includes(k))
-  ?{...t,missing:t.missing.filter(k=>k!=="date_meaning")}:t);
+ const taskPlan=first.taskPlan?.map(t=>t.kind==="saved_content"&&t.needsHistory&&t.reference===null&&t.pets.length===1&&t.pets[0]===named[0].handle&&t.missing.every(k=>["pet","year","which_record","date_meaning"].includes(k))
+  ?{...t,missing:t.missing.filter(k=>!["pet","year","date_meaning"].includes(k))}:t);
  return {first:{...first,...(taskPlan?{taskPlan}:{}),text:"",historyIntent:{...first.historyIntent,requested:true,pet:named[0].handle},safety:{...first.safety,referent:"clear",missingContext:[]},calls:[{id:"calendar-read",name:"search_saved_records",arguments:JSON.stringify({
   pet:named[0].handle,from:event?scope.from:null,to:event?scope.to:null,goal,alternatives:[],
   recordedFrom:event?null:scope.from,recordedTo:event?null:scope.to,orderBy:basis,query:null,offset:0,order
