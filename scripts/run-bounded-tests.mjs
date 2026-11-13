@@ -27,6 +27,14 @@ function usesFullAlgebraFixture(path, seen = new Set()) {
   if (cached !== undefined) return cached;
   seen.add(absolute);
   const source = readFileSync(absolute, "utf8");
+  // Acceptance wrappers execute secondary audit files via literal paths.
+  // Their child process needs the same test-only algebra context.
+  for (const match of source.matchAll(/["'](scripts\/audits\/[^"']+\.mjs)["']/g)) {
+    if (usesFullAlgebraFixture(match[1], seen)) {
+      cache.set(absolute, true);
+      return true;
+    }
+  }
   const imports = [...source.matchAll(/(?:from\s*|import\s*(?:\(\s*)?)["'](\.{1,2}\/[^"']+\.mjs)["']/g)];
   for (const match of imports) {
     const target = resolve(dirname(absolute), match[1]);
