@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {createHash} from "node:crypto";
 import {runReadOnlyAsk,bindReadTool} from "../app/lib/ask-read-only/core.mjs";
 import {decodeClinicalSelection} from "../app/lib/ask-read-only/clinical-policy.mjs";
-import {decodeComponentSelection,componentSelectionSchema,reviewComponentCompletion,renderTaskCompletion,fulfillReferenceReads} from "../app/lib/ask-read-only/task-components.mjs";
+import {decodeComponentSelection,componentSelectionSchema,reviewComponentCompletion,renderTaskCompletion,ownerFactSentences,fulfillReferenceReads} from "../app/lib/ask-read-only/task-components.mjs";
 const pet={id:"private-pet-123456789",ownerId:"owned",name:"Willow",species:"cat"};
 const source={kind:"history",id:"private-note-123456789",ownerId:"owned",petId:pet.id,body:"A routine exam recorded normal appetite at that time.",eventAt:"2021-03-12T12:00:00Z",recordedAt:"2021-03-14T12:00:00Z"};
 const reference={version:1,entries:[{kind:"history",petId:pet.id,timeZone:"UTC",goal:"exact_quote",from:"2021-03-01",to:"2021-03-31",recordedFrom:null,recordedTo:null,orderBy:"event",order:"asc",terms:[],limited:false,sources:[{id:source.id,hash:createHash("sha256").update(source.body).digest("hex"),eventAt:source.eventAt,recordedAt:source.recordedAt}]}]};
@@ -190,4 +190,14 @@ test("scope correction cannot complete owner-observation facts in brief",()=>{
  const p=[task({kind:"vet_brief",needsOwnerFacts:true})];const f=final(safety(),{completion:[completion({ownerFacts:[{ref:"owner1",kind:"scope_correction",excerpt:"I meant the other animal."}]})]});
  const r=reviewComponentCompletion(f,p,[],[{ref:"owner1",text:"I meant the other animal."}],[]);
  assert.equal(r.tasks[0].ownerFacts.length,0);assert.equal(r.tasks[0].status,"partial");
+});
+
+
+test("owner observation sentence handles publish exact whole attributed text without model retyping",()=>{
+ const statements=[{ref:"owner1",text:"I meant the other animal. She did not miss medicine; I only misplaced the diary. Please prepare a brief."}];
+ const sentences=ownerFactSentences(statements);assert.equal(sentences.length,3);
+ const p=[task({kind:"vet_brief",needsOwnerFacts:true})];
+ const f=final(safety(),{completion:[completion({ownerFacts:[{sentence:"owner1:sentence1",kind:"scope_correction"},{sentence:"owner1:sentence2",kind:"present_observation"}]})]});
+ const r=reviewComponentCompletion(f,p,[],statements,[]);assert.deepEqual(r.tasks[0].ownerFacts,[{ref:"owner1",kind:"present_observation",excerpt:"She did not miss medicine; I only misplaced the diary."}]);
+ const forged=final(safety(),{completion:[completion({ownerFacts:[{sentence:"owner9:sentence1",kind:"present_observation"}]})]});assert.throws(()=>reviewComponentCompletion(forged,p,[],statements,[]),/COMPONENT_CONTRACT/);
 });

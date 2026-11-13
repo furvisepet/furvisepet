@@ -1,4 +1,4 @@
-import { COMPONENT_INSTRUCTIONS, componentSelectionSchema, componentAnswerSchema, fulfillReferenceReads, reviewComponentCompletion, renderTaskCompletion, resolveRecordDiscovery, normalizeTaskRecords } from "./task-components.mjs";
+import { COMPONENT_INSTRUCTIONS, componentSelectionSchema, componentAnswerSchema, fulfillReferenceReads,ownerFactSentences, reviewComponentCompletion, renderTaskCompletion, resolveRecordDiscovery, normalizeTaskRecords } from "./task-components.mjs";
 import { CLINICAL_INSTRUCTIONS, clinicalSelectionSchema, validateClinicalAssessment, clinicalAnswerSchema, reviewClinicalAnswer, renderMedicationDecision, ownerStatementCatalog, emergencyHandoffForAssessment } from "./clinical-policy.mjs";
 import { APP_CAPABILITIES, WORKFLOW_INSTRUCTIONS, renderAppWorkflow } from "./app-capabilities.mjs";
 import { normalizeReadTemporalScope } from "./temporal-scope.mjs";
@@ -244,6 +244,7 @@ export async function runReadOnlyAsk(input,deps) {
  const context={dialogueCoverage,now:input.now,timeZone:input.timeZone,selectedPet:pets.find(p=>p.id===input.selectedPetId).handle,
  pets:pets.map(p=>({handle:p.handle,name:p.name,species:p.species})),references:describeReadReferences(references),dialogue,question:input.question};
  const ownerStatements=ownerStatementCatalog(context,pets,input.ownerId);
+ context.ownerFactSentenceRefs=ownerFactSentences(ownerStatements);
  context.appCapabilities=APP_CAPABILITIES;
  context.explicitCalendarScopes=explicitCalendarScopes(context.question);
  context.ownerStatementRefs=ownerStatements.map(({ref,dialogueIndex,question})=>({ref,...(question?{question:true}:{dialogueIndex})}));

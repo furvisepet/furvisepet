@@ -15,7 +15,7 @@ export const COMPONENT_INSTRUCTIONS=[
  "Set includeSourceDates only for tasks whose source timestamps the owner requests in the answer, not merely because a note has dates. The server publishes those requested verified dates once; do not repeat them in component prose. calculation means arithmetic over saved typed measurements; ordinary math without saved-record dependency belongs general_guidance.",
  "Set recordMode=collection for a set, period summary, comparison, or continuation, single for identifying one record, and none without saved evidence. A collection does not require choosing a single record: which_record must never block collection membership. Plan collection reads with goal=complete_set and explicit owner pet/time scope. Summarize the actual supplied content, relevant recurring patterns and dated exceptions; never replace synthesis with a timestamp list or only selected quotations. Do not infer clinical advice merely from medical words inside old notes. clinical_guidance is an explicit care interpretation/triage request; ordinary historical reporting is saved_content. Plan every essential requested task separately in taskPlan. saved_content means Ask retrieves/quotes/explains owned records, NOT instructions for finding them. workflow is ONLY an explicit request for how to operate Furvise screens or for an action Ask cannot perform. Do not create a workflow task merely because a question mentions notes, saved dates, history, a diary or a vet brief.",
  "For explicit remaining/continue requests use saved_continuation and the selected reference with an omittedRange (or legacy omittedEventRange); read_remaining_records performs a fresh bounded search of that omitted range, not a snapshot cursor. It may repeat same-day boundary records. Do not use the prior eight retained source bodies as the omitted remainder. For a workflow task, workflow selects the actual screen operation; a photo into a care/history note uses care_photo_attachment, not other. For all non-workflow tasks workflow must be none.",
- "A vet_brief is an actual concise handoff: relevant owner-reported observations, dated original historical facts, and questions/unknowns. Set needsHistory when saved notes/results are requested. Set needsOwnerFacts when current/prior user observations must be included (including what I just told you), and always for owner_observations tasks. Do not mark those tasks complete without actual eligible owner facts. Select the relevant retained reference handle and authorized pets, then re-read it. A prior assistant answer or reference metadata is never source evidence. For collection integration, rehydrate the original result and relevant continuation results; bounded retained sources are a selection, never the full historical set. Do not discuss evidence completeness or source counts in free prose: the server supplies coverage. Classify each owner fact by meaning; pet/date corrections and requests are not health observations. A corrected pet/date overrides a prior result; plan a new scoped read instead. When the referenced result is ambiguous, ask which one rather than choosing arbitrarily.",
+ "A vet_brief is an actual concise handoff: relevant owner-reported observations, dated original historical facts, and questions/unknowns. Set needsHistory when saved notes/results are requested. Set needsOwnerFacts when current/prior user observations must be included (including what I just told you), and always for owner_observations tasks. Do not mark those tasks complete without actual eligible owner facts. Select the relevant retained reference handle and authorized pets, then re-read it. A prior assistant answer or reference metadata is never source evidence. For collection integration, rehydrate the original result and relevant continuation results; bounded retained sources are a selection, never the full historical set. Do not discuss evidence completeness or source counts in free prose: the server supplies coverage. Select ownerFacts by the exact sentence handle in ownerFactSentenceRefs; do not regenerate or shorten owner wording. Classify each owner fact by meaning; pet/date corrections and requests are not health observations. A corrected pet/date overrides a prior result; plan a new scoped read instead. When the referenced result is ambiguous, ask which one rather than choosing arbitrarily.",
  "For any requested saved/profile content or calculation set needsHistory=true and bind pets to all explicitly named or unambiguously established authorized subjects. A comparison/calculation may have multiple pets; keep each tool read pet/time scoped. An empty pets list is not permission to guess from the selected UI pet. A selected reference carries its own authorized pet. General guidance alone does not require saved reads.",
  "missing identifies what is genuinely unresolved. A vague month with no established pet/year requires one pointed pet/year question; do not use the UI-selected pet as evidence of a pronoun. An explicit pet plus month/year is sufficient; do not demand a day. Clinical missing authority must not prevent an independently scoped saved-data task.",
  "In the final completion array account for EACH task ID once. Select componentIndexes for independently answerable ordinary prose, sources for current admitted evidence, and exact factual excerpts for a vet brief. ownerFacts excerpts must be short COMPLETE verbatim sentences preserving negation, attribution and caveats; declarative observations from the selected USER statement, not their request, an assistant assertion, speculation, or a question. historyFacts excerpts must be one or more CONTIGUOUS COMPLETE sentences occurring byte-for-byte in an admitted note, preserving negation and attribution. Never generate a diagnosis or regimen directive in these excerpts; historical plans remain historical quotations. Questions for the vet come from the bounded clinical review fields. Do not put extra clinical recommendations into a summary component.",
@@ -81,14 +81,19 @@ export function fulfillReferenceReads(first,references=[]){
  }
  return {...first,taskPlan,calls};
 }
+export function ownerFactSentences(ownerStatements){
+ return ownerStatements.flatMap(s=>[...new Intl.Segmenter("en",{granularity:"sentence"}).segment(s.text)].flatMap((part,index)=>{
+  const excerpt=part.segment.trim();return excerpt&&excerpt.length<=280?[{sentence:s.ref+":sentence"+(index+1),ref:s.ref,excerpt}]:[];
+ }));
+}
 export function componentAnswerSchema(base,plan,sources,ownerStatements){
  if(!plan)return base;
- const out=structuredClone(base),handles=sources.map(s=>s.handle),refs=ownerStatements.map(s=>s.ref);
- const exact={type:"string",minLength:1,maxLength:280};
+ const out=structuredClone(base),handles=sources.map(s=>s.handle);
+ const exact={type:"string",minLength:1,maxLength:280},sentences=ownerFactSentences(ownerStatements);
  out.properties.completion={type:"array",minItems:plan.length,maxItems:plan.length,items:object({
   task:choice(plan.map(t=>t.id)),status:choice(["complete","partial","unresolved"]),reason:choice(reasons),
   componentIndexes:array({type:"integer",minimum:0,maximum:7},8),sources:array(choice(handles.length?handles:["unavailable"]),handles.length?32:0),
-  ownerFacts:array(object({ref:choice(refs.length?refs:["unavailable"]),kind:choice(["present_observation","past_observation","scope_correction","request"]),excerpt:exact}),refs.length?4:0),
+  ownerFacts:array(object({sentence:choice(sentences.length?sentences.map(s=>s.sentence):["unavailable"]),kind:choice(["present_observation","past_observation","scope_correction","request"])}),sentences.length?4:0),
   historyFacts:array(object({source:choice(handles.length?handles:["unavailable"]),excerpt:exact}),handles.length?6:0)
  })};out.required.push("completion");return out;
 }
@@ -108,7 +113,13 @@ export function reviewComponentCompletion(final,plan,sources,ownerStatements,pet
  if(!plan)return {value:final,tasks:null};
  const entries=final?.completion;if(!Array.isArray(entries)||entries.length!==plan.length||new Set(entries.map(e=>e?.task)).size!==plan.length)reject("completion");
  const tasks=plan.map(task=>{
-  const e=entries.find(e=>e.task===task.id);
+  const raw=entries.find(e=>e.task===task.id);
+  const e=raw&&{...raw,ownerFacts:Array.isArray(raw.ownerFacts)?raw.ownerFacts.map(f=>{
+   if(!keys(f,["sentence","kind"]))return f; // Legacy stored/local adapter compatibility only.
+   const row=ownerFactSentences(ownerStatements).find(s=>s.sentence===f.sentence);
+   if(!row)reject("owner_sentence_reference");
+   return {ref:row.ref,kind:f.kind,excerpt:row.excerpt};
+  }):raw.ownerFacts};
   if(!keys(e,["task","status","reason","componentIndexes","sources","ownerFacts","historyFacts"])||!["complete","partial","unresolved"].includes(e.status)||!reasons.includes(e.reason)||!Array.isArray(e.componentIndexes)||e.componentIndexes.length>8||e.componentIndexes.some(i=>!Number.isInteger(i)||!final.components?.[i])||!Array.isArray(e.sources)||e.sources.length>32||e.sources.some(h=>!sources.some(s=>s.handle===h)))reject("completion_shape");
   let rejectedFact=false;
   for(const [field,refKey,pool,bodyKey] of [["ownerFacts","ref",ownerStatements,"text"],["historyFacts","source",sources,"body"]]){
