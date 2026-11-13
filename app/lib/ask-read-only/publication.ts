@@ -52,7 +52,7 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
  response.answerType=body.replyType==="clarification"?"clarification":"direct_answer";
  response.sections=[
   ...((body as typeof body & {ownerReports?:string[]}).ownerReports?.length?[{heading:"Owner reports — not saved-record evidence",items:(body as typeof body & {ownerReports:string[]}).ownerReports}]:[]),
-  ...(body.quotes.length?[{heading:"Saved notes",items:body.quotes.map(quote=>quote.quote)}]:[]),
+  ...(body.quotes.some(quote=>!checkedSummary.includes(quote.quote))?[{heading:"Saved notes",items:body.quotes.filter(quote=>!checkedSummary.includes(quote.quote)).map(quote=>quote.quote)}]:[]),
   ...(!taskCompletion&&body.calculations.length?[{heading:"Calculation",items:body.calculations.map(calculation=>calculation.text)}]:[]),
   ...coverageSections
  ];

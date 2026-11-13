@@ -155,7 +155,7 @@ export function reviewClinicalAnswer(value,initial,ownerStatements=[],pets=[],wo
  if(!active&&value.components?.some(c=>c.kind==="emergency"||c.kind==="conditional_emergency"))reject("unbound_clinical_component");
  const missing=[...new Set(states.flatMap(s=>s.missingContext))];
  const clean={...value};delete clean.clinicalReview;delete clean.appHelp;
- const policy={version:2,active,decision,current,conditional,currentConcern,summaryContext,historical,missing,ownerRefs:[...new Set(review.ownerStatementRefs)],observations:[...new Set(review.observationFields)]};
+ const policy={version:2,active,decision,current,conditional,currentConcern,summaryContext,historical,missing,ownerRefs:[...new Set(review.ownerStatementRefs)],observations:[...new Set(review.observationFields)],briefQuestions:[...new Set(review.observationFields)].map(k=>"What should we record or check about "+observations[k]+"?" )};
  return {value:clean,policy,workflow,summary:{policyVersion:2,assessmentVersion:initial.protocolVersion??2,medicationIntent:decision?"decision":final.medicationIntent,medicationDisposition:decision?"refer_prescriber":"not_applicable",currentEmergency:current.length>0,conditionalEmergency:conditional.length>0,currentEventCount:current.length,conditionalEventCount:conditional.length,careContext:final.careContext,missingContextCount:missing.length,ownerStatementCount:policy.ownerRefs.length,contactTiming:current.length?"immediate":decision||currentConcern?"prompt":"none"}};
 }
 export function renderMedicationDecision(answer,policy,ownerStatements=[],sources=[]){
