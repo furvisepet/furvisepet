@@ -92,3 +92,10 @@ test("complete single-record evidence does not inherit a prior collection omissi
  const a=renderTaskCompletion({answer:"Generated.",validatedParts:[{index:0,text:"Generated."}],sources:["s1"],presentation:{}},[t],[s],null,[{scope:{goal:"complete_set"},sources:[{source:"s1"}],unmet:["prior_source_selection_omitted"],omitted:0}]);
  assert.equal(a.taskCompletion[0].status,"complete");assert.equal(a.replyType,"answer");assert.doesNotMatch(a.answer,/Saved history: This part/);assert.match(a.answer,/complete original historical observation/);
 });
+
+test("synthesis citation labels follow published source-card order rather than model selection order",()=>{
+ const a=row("s1","The first original observation."),b=row("s2","The second original observation.");
+ const t={id:"t1",kind:"saved_content",needsHistory:true,recordMode:"collection",status:"complete",reason:"none",missing:[],componentIndexes:[0],sources:["s2","s1"],ownerFacts:[],historyFacts:[{source:"s2",excerpt:b.body}],includeSourceDates:true,historySynthesis:checked(theme("second original",[b]),[a,b])};
+ const out=renderTaskCompletion({answer:"Generated.",validatedParts:[{index:0,text:"Generated."}],sources:["s2","s1"],presentation:{}},[t],[a,b],null,[]);
+ assert.ok(out.answer.includes("second original observation.” (Source 2)"));assert.ok(!out.answer.includes("second original observation.” (Source 1)"));
+});

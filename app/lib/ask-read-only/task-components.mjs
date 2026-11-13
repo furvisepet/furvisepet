@@ -220,11 +220,12 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
  const collectionTasks=tasks.filter(t=>t.needsHistory&&t.recordMode==="collection"&&["saved_content","saved_continuation"].includes(t.kind));
  const collectionParts=new Set(collectionTasks.flatMap(t=>t.componentIndexes));
  const selectedDatedFacts=collectionTasks.flatMap(t=>t.historyFacts).slice(0,6);
+ const citationHandles=sources.filter(s=>(answer.sources??[]).includes(s.handle)).map(s=>s.handle);
  let removedCalendar=false;const renderedGrounding=new Set();
  let text=!policy?.active&&answer.validatedParts?answer.validatedParts.filter(p=>assigned.has(p.index)&&!blocked.has(p.index)&&!calculationParts.has(p.index)).map(p=>{
   if(!collectionParts.has(p.index)&&!tasks.some(t=>t.componentIndexes.includes(p.index)&&["saved_content","saved_continuation"].includes(t.kind)&&t.historySynthesis!==undefined))return p.text;
   const grounded=tasks.filter(t=>t.componentIndexes.includes(p.index)&&["saved_content","saved_continuation"].includes(t.kind)&&t.historySynthesis!==undefined);
-  if(grounded.length){const unseen=grounded.filter(t=>!renderedGrounding.has(t.id));grounded.forEach(t=>renderedGrounding.add(t.id));if(!unseen.length)return "";return renderHistorySynthesis(unseen.flatMap(t=>t.historySynthesis??[]),answer.sources)||"The historical synthesis could not be verified against the selected original sentences.";}
+  if(grounded.length){const unseen=grounded.filter(t=>!renderedGrounding.has(t.id));grounded.forEach(t=>renderedGrounding.add(t.id));if(!unseen.length)return "";return renderHistorySynthesis(unseen.flatMap(t=>t.historySynthesis??[]),citationHandles)||"The historical synthesis could not be verified against the selected original sentences.";}
   const safe=undatedCollectionSynthesis(p.text);removedCalendar||=safe!==p.text.trim();return safe;
  }).filter(Boolean).join("\n\n"):answer.answer,verifiedBriefText=null;
  if(!policy?.active&&!brief&&selectedDatedFacts.length){
@@ -232,7 +233,7 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
    const s=sources.find(s=>s.handle===f.source),withRecorded=collectionTasks.some(t=>t.includeSourceDates&&t.historyFacts.includes(f));
    const alreadyQuoted=collectionTasks.some(t=>t.historySynthesis?.some(theme=>theme.evidence.some(e=>e.source===f.source&&e.excerpt.includes(f.excerpt))));
    if(alreadyQuoted&&!withRecorded)return [];
-   const index=(answer.sources??[]).indexOf(f.source),citation=index>=0?" (Source "+(index+1)+")":"";
+   const index=citationHandles.indexOf(f.source),citation=index>=0?" (Source "+(index+1)+")":"";
    return ["• "+s.petName+" — event "+s.eventAt.slice(0,10)+(withRecorded?"; recorded "+s.recordedAt.slice(0,10):"")+(alreadyQuoted?citation:": “"+f.excerpt+"”")];
   });
   if(rows.length)text+="\n\nSelected historical dates and details:\n"+[...new Set(rows)].join("\n");
