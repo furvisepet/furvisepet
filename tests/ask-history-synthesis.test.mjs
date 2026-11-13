@@ -127,3 +127,33 @@ test("event identity normalizes equivalent timezones without claiming distinct l
  const same=renderHistorySynthesis(checked(theme("saved report",[a,b]),[a,b]));assert.ok(same.includes("2 selected saved reports with 1 distinct event timestamp"));
  const c={...b,eventAt:"2020-01-03T01:30:00Z"};const different=renderHistorySynthesis(checked(theme("saved report",[a,c]),[a,c]));assert.ok(different.includes("2 distinct event timestamps"));assert.ok(!different.includes("event dates"));
 });
+
+test("headings retain omitted negation and never promote conditional or negated frequency",()=>{
+ const s=row("s1","No persistent digestive change was reported.");
+ let out=renderHistorySynthesis(checked(theme("persistent digestive change",[s]),[s]));
+ assert.match(out,/— “No persistent digestive change”/);assert.doesNotMatch(out,/— “persistent digestive change”/);
+ for(const body of ["If recurring itching returns, the owner will call.","Recurring itching was not reported."]){
+  const t=row("s2",body);out=renderHistorySynthesis(checked(theme("recurring itching",[t]),[t]));
+  assert.doesNotMatch(out,/— “recurring itching”/i);assert.ok(out.includes(body));
+ }
+});
+test("overlapping themes coalesce per pet without hiding distinct supported reports",()=>{
+ const a=row("s1","Appetite was normal."),b=row("s2","Appetite was normal.","2020-04-01T12:00:00Z");
+ const out=renderHistorySynthesis(checked([...theme("Appetite",[a]),...theme("Appetite",[b])],[a,b]));
+ assert.equal(out.split(" — ").length-1,1);assert.match(out,/2 selected saved reports with 2 distinct event timestamps/);
+ const other={...b,handle:"s3",petId:"b",petName:"Pet B"};
+ assert.equal(renderHistorySynthesis(checked([...theme("Appetite",[a]),...theme("Appetite",[other])],[a,other])).split(" — ").length-1,2);
+});
+test("actual composer renders equivalent source-selection themes once across separate task components",()=>{
+ const s=row("s1","Appetite was normal.");
+ const tasks=[0,1].map(i=>({id:"t"+(i+1),kind:"saved_content",recordMode:"collection",needsHistory:true,needsOwnerFacts:false,includeSourceDates:false,pets:["p1"],missing:[],workflow:"none",status:"complete",reason:"none",sources:["s1"],componentIndexes:[i],historyFacts:[],ownerFacts:[],historySynthesis:checked(theme("Appetite",[s]),[s])}));
+ const out=renderTaskCompletion({answer:"duplicate",sources:["s1"],validatedParts:[{index:0,text:"first"},{index:1,text:"second"}],presentation:{}},tasks,[s],null,[]);
+ assert.equal(out.answer.split(" — ").length-1,1);assert.equal(out.answer.split("Repeated mentions alone").length-1,1);assert.deepEqual(out.historicalSupport,["s1"]);
+});
+
+test("independent source selections retain each actually rendered anchor even when wording matches",()=>{
+ const a=row("s1","Appetite was normal."),b=row("s2","Appetite was normal.","2021-01-03T12:00:00Z"),ss=[a,b];
+ const tasks=ss.map((s,i)=>({id:"t"+(i+1),kind:"saved_content",recordMode:"collection",needsHistory:true,needsOwnerFacts:false,includeSourceDates:false,pets:["p1"],missing:[],workflow:"none",status:"complete",reason:"none",sources:[s.handle],componentIndexes:[i],historyFacts:[],ownerFacts:[],historySynthesis:checked(theme("Appetite",[s]),[s])}));
+ const out=renderTaskCompletion({answer:"two periods",sources:["s1","s2"],validatedParts:[{index:0,text:"first period"},{index:1,text:"second period"}],presentation:{}},tasks,ss,null,[]);
+ assert.equal(out.answer.split(" — ").length-1,2);assert.deepEqual(out.historicalSupport,["s1","s2"]);
+});
