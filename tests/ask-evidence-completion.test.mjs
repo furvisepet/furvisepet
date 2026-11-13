@@ -58,7 +58,7 @@ const collection={...brief,kind:"saved_content",needsHistory:true,recordMode:"co
 const answer=()=>({sources:["s1"],completion:[{task:"t1",status:"complete",reason:"none",sources:["s1"],historyFacts:[],historySynthesis:[{topic:"coat mats",evidence:[{source:"s1",excerpt:body}]}]}]});
 test("source review must cover exactly the admitted collection catalogue without duplicate or forged handles",()=>{
  const schema=evidenceCompletionSchema([collection],[row],[]);
- assert.equal(schema.properties.sourceReview.minItems,1);assert.equal(schema.properties.sourceReview.maxItems,1);
+ assert.equal(schema.properties.sourceReview.type,"object");assert.equal(schema.properties.sourceReview.properties.routine.maxItems,1);
  for(const sourceReview of [[],[{source:"forged",classification:"noteworthy"}],[{source:"s1",classification:"unsupported"}],[{source:"s1",classification:"routine"},{source:"s1",classification:"noteworthy"}]]){
   assert.throws(()=>parseEvidenceCompletion({...answer(),evidenceCompletion:{sourceReview,missingReference:null}},[collection],[row],[],question),/ASK_READ_COMPONENT_CONTRACT/);
  }
@@ -78,4 +78,20 @@ test("source review cannot borrow another task's source or exceed the existing s
  assert.equal(out.value.completion[0].historyFacts.length,6);assert.equal(out.unrendered,1);assert.equal(out.value.completion[0].status,"partial");
  const other=applySourceReview(answer(),[collection],[{...row,handle:"s2"}],[{source:"s2",classification:"noteworthy"}]);
  assert.equal(other.recovered,0);assert.deepEqual(other.value.completion[0].historyFacts,[]);
+});
+
+test("compact collection review partitions all32 sources without per-row object overhead",()=>{
+ const rows=Array.from({length:32},(_,i)=>({...row,id:"note"+i,handle:"s"+(i+1)}));
+ const sourceReview={routine:rows.slice(1).map(s=>s.handle),noteworthy:["s1"],uncertain:[],irrelevant:[]};
+ const schema=evidenceCompletionSchema([collection],rows,[]).properties.sourceReview;
+ assert.equal(schema.type,"object");assert.deepEqual(schema.required,["routine","noteworthy","uncertain","irrelevant"]);
+ const out=parseEvidenceCompletion({...answer(),evidenceCompletion:{sourceReview,missingReference:null}},[collection],rows,[],question);
+ assert.equal(out.review.length,32);assert.equal(out.review.find(x=>x.source==="s1").classification,"noteworthy");
+ const legacy=rows.map(s=>({source:s.handle,classification:s.handle==="s1"?"noteworthy":"routine"}));
+ assert.ok(JSON.stringify(sourceReview).length<JSON.stringify(legacy).length/2);
+ for(const bad of [{...sourceReview,routine:sourceReview.routine.slice(1)},{...sourceReview,uncertain:["s1"]},{...sourceReview,noteworthy:["foreign"]},{...sourceReview,other:[]}]){
+  assert.throws(()=>parseEvidenceCompletion({...answer(),evidenceCompletion:{sourceReview:bad,missingReference:null}},[collection],rows,[],question),/ASK_READ_COMPONENT_CONTRACT/);
+ }
+ const empty=parseEvidenceCompletion({...answer(),evidenceCompletion:{sourceReview:{routine:[],noteworthy:[],uncertain:[],irrelevant:[]},missingReference:null}},[brief],[],[],question);
+ assert.deepEqual(empty.review,[]);
 });

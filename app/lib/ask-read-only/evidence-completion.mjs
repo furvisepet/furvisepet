@@ -9,7 +9,7 @@ const collection=t=>t.needsHistory&&t.recordMode==="collection"&&["saved_content
 const reviewSources=(plan,sources)=>plan?.some(collection)?sources.filter(s=>s.kind==="history"):[];
 
 export const EVIDENCE_COMPLETION_INSTRUCTIONS=[
- "Independently check the current owner request against the first-pass task plan. evidenceCompletion.sourceReview classifies EVERY admitted historical source once for collection tasks: routine, noteworthy, uncertain or irrelevant. Read each actual narrative. A date or ordinary weight difference alone does not make a routine report noteworthy. Mark source-specific unusual changes, exceptions and contrasting observations noteworthy; do not fill every theme with routine boilerplate while skipping those reports. These classifications grant no diagnosis, episode count, recurrence or trend authority. The server can publish a bounded exact original note for noteworthy evidence that the synthesis missed, with its actual historical date.",
+ "Independently check the current owner request against the first-pass task plan. evidenceCompletion.sourceReview partitions EVERY admitted historical source handle exactly once across four arrays: routine, noteworthy, uncertain and irrelevant. Do not repeat per-source object keys or classification labels. For a collection give at most three short themes with at most two representative excerpts each; do not enumerate all routine bodies or duplicate historical facts in themes. Coverage is supplied by the server. Read each actual narrative. A date or ordinary weight difference alone does not make a routine report noteworthy. Mark source-specific unusual changes, exceptions and contrasting observations noteworthy; do not fill every theme with routine boilerplate while skipping those reports. These classifications grant no diagnosis, episode count, recurrence or trend authority. The server can publish a bounded exact original note for noteworthy evidence that the synthesis missed, with its actual historical date.",
  "For a vet brief that explicitly requests a prior saved report, independently check that it was actually read. When SOURCE_CATALOG is empty and eligibleHistorySupplements lists a matching single-note reference, evidenceCompletion.missingReference may select its task and reference plus a verbatim requestExcerpt from the CURRENT owner question. Use this even if the first pass mistakenly marked needsHistory=false or its date basis ambiguous. Otherwise missingReference=null. This selects only an existing owner-bound locator; metadata and prior assistant prose are not factual evidence. The server rehydrates and copies the original historical note without a third model call. Do not invent historyFacts or a prescription plan. A current emergency forbids this recovery. Never request an unrelated historical note merely because a reference exists."
 ].join("\n");
 
@@ -36,16 +36,22 @@ export function supplementCandidates(plan,references,canRecover,context={}){
 export function evidenceCompletionSchema(plan,sources,supplements=[]){
  const handles=reviewSources(plan,sources).map(s=>s.handle);
  return object({
-  sourceReview:{type:"array",minItems:handles.length,maxItems:handles.length,items:object({source:choice(handles.length?handles:["unavailable"]),classification:choice(["routine","noteworthy","uncertain","irrelevant"])})},
+  sourceReview:object(Object.fromEntries(["routine","noteworthy","uncertain","irrelevant"].map(role=>[role,{type:"array",maxItems:handles.length,items:choice(handles.length?handles:["unavailable"])}]))),
   missingReference:{anyOf:[{type:"null"},...supplements.map(s=>object({task:choice([s.task]),reference:choice([s.reference]),requestExcerpt:{type:"string",minLength:10,maxLength:300}}))]}
  });
 }
 export function parseEvidenceCompletion(final,plan,sources,supplements,question){
  if(!Object.hasOwn(final??{},"evidenceCompletion"))return {value:final,review:[],supplement:null}; // Stored/local adapters.
  const review=final.evidenceCompletion,expected=reviewSources(plan,sources).map(s=>s.handle);
- if(!keys(review,["sourceReview","missingReference"])||!Array.isArray(review.sourceReview)||review.sourceReview.length!==expected.length)reject("review_shape");
+ if(!keys(review,["sourceReview","missingReference"]))reject("review_shape");
+ // Active wire partitions handles once, avoiding32 repeated object keys/labels.
+ // Legacy local adapters remain readable; both forms obey the same exact cover.
+ const roles=["routine","noteworthy","uncertain","irrelevant"],raw=review.sourceReview;
+ if(!Array.isArray(raw)&&(!keys(raw,roles)||roles.some(role=>!Array.isArray(raw[role])||raw[role].length>expected.length)))reject("review_shape");
+ const entries=Array.isArray(raw)?raw:roles.flatMap(classification=>raw[classification].map(source=>({source,classification})));
+ if(entries.length!==expected.length)reject("review_shape");
  const ids=new Set();
- for(const r of review.sourceReview){
+ for(const r of entries){
   if(!keys(r,["source","classification"])||!expected.includes(r.source)||ids.has(r.source)||!["routine","noteworthy","uncertain","irrelevant"].includes(r.classification))reject("review_source");
   ids.add(r.source);
  }
@@ -57,7 +63,7 @@ export function parseEvidenceCompletion(final,plan,sources,supplements,question)
   supplement={...candidate,requestExcerpt:r.requestExcerpt};
  }
  const value={...final};delete value.evidenceCompletion;
- return {value,review:review.sourceReview,supplement};
+ return {value,review:entries,supplement};
 }
 
 export function verifySingleReferenceResult(request,result,ownerId){
