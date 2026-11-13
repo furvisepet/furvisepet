@@ -1,3 +1,4 @@
+import { EVIDENCE_COMPLETION_INSTRUCTIONS, evidenceCompletionSchema } from "./evidence-completion.mjs";
 import { explicitCalendarWindow } from "./calendar-scope.mjs";
 import { HISTORY_SYNTHESIS_INSTRUCTIONS, historySynthesisSchema, validateHistorySynthesis, renderHistorySynthesis, visibleHistoryEvidence } from "./history-synthesis.mjs";
 /** Requested work is independent of prose mode. References remain hints until
@@ -15,6 +16,7 @@ const keys=(v,expected)=>v&&typeof v==="object"&&!Array.isArray(v)&&Object.keys(
 function reject(field){throw Object.assign(new Error("ASK_READ_COMPONENT_CONTRACT"),{code:"ASK_READ_COMPONENT_CONTRACT",answerDiagnostic:{category:"component_contract",field}});}
 export const COMPONENT_INSTRUCTIONS=[
  HISTORY_SYNTHESIS_INSTRUCTIONS,
+ EVIDENCE_COMPLETION_INSTRUCTIONS,
  "Each task is an INDEPENDENT owner-requested deliverable, not an output field. Retrieving a particular saved note, its original wording, and when its event happened versus when it was recorded is ONE saved_content task with recordMode=single and includeSourceDates=true. Those timestamps and quotations are source outputs, never an extra general_guidance task. A month/year lookup does not become a collection merely because its note has several requested fields; use exact_quote for the particular note. Use general_guidance only when the owner actually asks a separate ordinary question that needs its own answer. Do not manufacture an unanswered general task from words such as original wording, event time, recorded time or explain the saved note. Before returning taskPlan, check every task against the actual independent request and combine source metadata with its saved_content task. Preserve genuinely separate general, clinical, workflow and calculation requests.",
  "For collection summaries, use concise grounded themes in historySynthesis. Use historyFacts only for salient source-specific dates/details the owner actually requests, using the exact admitted source and contiguous original sentence. Avoid duplicating their wording in historySynthesis. The server supplies its event/recorded date. Keep component prose to an undated synthesis of patterns and limitations; do not generate month/year-specific paraphrases or citation ranges. Select salient exceptions as historyFacts as well as routine background. Only single source handles may be used as inline references.",
  "Set includeSourceDates only for tasks whose source timestamps the owner requests in the answer, not merely because a note has dates. The server publishes those requested verified dates once; do not repeat them in component prose. calculation means arithmetic over saved typed measurements; ordinary math without saved-record dependency belongs general_guidance.",
@@ -100,7 +102,7 @@ export function ownerFactSentences(ownerStatements){
   const excerpt=part.segment.trim();return excerpt&&excerpt.length<=280?[{sentence:s.ref+":sentence"+(index+1),ref:s.ref,excerpt}]:[];
  }));
 }
-export function componentAnswerSchema(base,plan,sources,ownerStatements){
+export function componentAnswerSchema(base,plan,sources,ownerStatements,completionContext={}){
  if(!plan)return base;
  const out=structuredClone(base),handles=sources.map(s=>s.handle);
  const exact={type:"string",minLength:1,maxLength:280},sentences=ownerFactSentences(ownerStatements);
@@ -109,7 +111,7 @@ export function componentAnswerSchema(base,plan,sources,ownerStatements){
   componentIndexes:array({type:"integer",minimum:0,maximum:7},8),sources:array(choice(handles.length?handles:["unavailable"]),handles.length?32:0),
   ownerFacts:array(object({sentence:choice(sentences.length?sentences.map(s=>s.sentence):["unavailable"]),kind:choice(["present_observation","past_observation","scope_correction","request"])}),sentences.length?4:0),
   historyFacts:array(object({source:choice(handles.length?handles:["unavailable"]),excerpt:exact}),handles.length?6:0),historySynthesis:historySynthesisSchema(handles)
- })};out.required.push("completion");return out;
+ })};out.properties.evidenceCompletion=evidenceCompletionSchema(plan,sources,completionContext.supplements??[]);out.required.push("completion","evidenceCompletion");return out;
 }
 const completeSentence=(body,excerpt)=>{
  const parts=[...new Intl.Segmenter("en",{granularity:"sentence"}).segment(body)];

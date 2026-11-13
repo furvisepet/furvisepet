@@ -398,3 +398,32 @@ test("corrected-scope identity does not resolve from partial, competing, unmatch
  assert.equal(resolve([t],[{request}],[result],{...context,question:"her March 2022"}).resolved,0);
  assert.equal(resolve([t],[{request}],[result],{...context,timeBasis:"ambiguous"}).resolved,0);
 });
+
+test("completion check rehydrates requested single historical note for a medication-boundary brief without a third call",async()=>{
+ const s=safety({medicationIntent:"decision",careContext:"vet_summary",missingContext:["medicine","prescription"]});
+ const plan=[task({kind:"vet_brief",needsHistory:false,needsOwnerFacts:true,pets:["p1"],missing:["medicine","prescription"]})];
+ const question="Please include the old report in a short vet brief. I missed medicine and do not know its name or directions.";
+ const r=await execute(plan,s,req=>{
+  const out=final(s,{completion:[completion({ownerFacts:[{ref:"owner1",excerpt:"She ate less lunch today."}]})]});
+  if(req.schema.properties.evidenceCompletion)out.evidenceCompletion={sourceReview:[],missingReference:{task:"t1",reference:"r1",requestExcerpt:"Please include the old report in a short vet brief."}};
+  return out;
+ },{question,readReferences:reference,dialogue:[{role:"user",text:"She ate less lunch today."}]});
+ assert.equal(r.calls,2);assert.equal(r.reads.length,1);assert.deepEqual(r.reads[0].sourceIds,[source.id]);
+ assert.ok(r.result.answer.answer.includes(source.body));assert.match(r.result.answer.answer,/2021-03-12/);assert.match(r.result.answer.answer,/2021-03-14/);
+ assert.match(r.result.answer.answer,/She ate less lunch today/);assert.match(r.result.answer.answer,/prescribing veterinarian promptly/);
+ assert.equal(r.result.coverage[0].scope.compositionOnly,true);
+ const {readCoverageMessages}=await import("../app/lib/ask-read-only/coverage.mjs");
+ const coverage=readCoverageMessages(r.result.coverage).join(" ");
+ assert.match(coverage,/not supplied to the answer model/);assert.doesNotMatch(coverage,/1 notes supplied to the answer model/);
+});
+test("per-source collection review restores a noteworthy original observation omitted from routine themes",async()=>{
+ const extraRow={...source,id:"different-original-id",body:"A few coat mats were removed during grooming. Skin underneath looked normal.",eventAt:"2021-03-20T12:00:00Z"};
+ const plan=[task({kind:"saved_content",needsHistory:true,recordMode:"collection",pets:["p1"]})],s=safety();
+ const r=await execute(plan,s,req=>{
+  const out=final(s,{components:[{kind:"saved",text:"Routine care.",sources:["s1","s2"]}],sources:["s1","s2"],completion:[completion({sources:["s1","s2"],historySynthesis:[{topic:"appetite",evidence:[{source:"s1",excerpt:source.body}]}]})]});
+  if(req.schema.properties.evidenceCompletion)out.evidenceCompletion={sourceReview:[{source:"s1",classification:"routine"},{source:"s2",classification:"noteworthy"}],missingReference:null};
+  return out;
+ },{},[{...boundedRead[0],arguments:{...boundedRead[0].arguments,goal:"complete_set"}}],[source,extraRow]);
+ assert.equal(r.calls,2);assert.equal(r.reads.length,1);assert.ok(r.result.answer.answer.includes(extraRow.body));
+ assert.doesNotMatch(r.result.answer.answer,/recurring mats|persistent mats/);assert.equal(r.result.answer.historicalSupport[0],"s2");
+});
