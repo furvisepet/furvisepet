@@ -16,12 +16,22 @@ export async function resolve(specifier, context, nextResolve) {
     return await nextResolve(specifier, context);
   } catch (error) {
     if (
-      error?.code !== "ERR_MODULE_NOT_FOUND" ||
+      !["ERR_MODULE_NOT_FOUND", "ERR_UNSUPPORTED_DIR_IMPORT"].includes(error?.code) ||
       !/^\.\.?\//.test(specifier) ||
       /\.[a-z0-9]+$/i.test(specifier)
     ) {
       throw error;
     }
-    return nextResolve(specifier + ".ts", context);
+    // Native Node test execution: emulate only common Next.js relative TS and
+    // directory-index resolution, never resolve an unrelated package.
+    for (const candidate of [specifier + ".ts", specifier + "/index.ts"]) {
+      try {
+        return await nextResolve(candidate, context);
+      } catch (candidateError) {
+        if (!["ERR_MODULE_NOT_FOUND", "ERR_UNSUPPORTED_DIR_IMPORT"].includes(candidateError?.code))
+          throw candidateError;
+      }
+    }
+    throw error;
   }
 }

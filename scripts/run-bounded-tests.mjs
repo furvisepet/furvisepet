@@ -50,12 +50,18 @@ if (process.argv.length !== 2) throw Error("Unexpected arguments: the release ga
 const failures = [];
 const maxFailures = 20;
 const baseFlags = ["--experimental-transform-types", "--import", "./tests/register-typescript-imports.mjs"];
-const childEnv = { ...process.env, NODE_OPTIONS: "--max-old-space-size=768" };
+
 let visited = 0;
 async function runOne(file, index) {
   const args = [...baseFlags];
   if (algebra.has(file)) args.push("--import", "./tests/helpers/calculation-engine-policy.mjs");
   args.push("--test", "--test-concurrency=1", file);
+  // Nested acceptance/audit subprocesses inherit the same module loading
+  // conditions. This also ensures the full-algebra fixtures remain test-only.
+  const envFlags = ["--max-old-space-size=768", "--experimental-transform-types",
+    "--import", resolve(repo, "tests/register-typescript-imports.mjs")];
+  if (algebra.has(file)) envFlags.push("--import", resolve(repo, "tests/helpers/calculation-engine-policy.mjs"));
+  const childEnv = { ...process.env, NODE_OPTIONS: envFlags.join(" ") };
   const seconds = /(?:ask-active-contract|integration|end-to-end)/.test(file) ? 420 : 150;
   const launcher = process.platform === "win32" ? process.execPath : "timeout";
   const launchArgs = process.platform === "win32"
