@@ -1,3 +1,4 @@
+import { HISTORY_SYNTHESIS_INSTRUCTIONS, historySynthesisSchema, validateHistorySynthesis, renderHistorySynthesis } from "./history-synthesis.mjs";
 /** Requested work is independent of prose mode. References remain hints until
  * owner-bound rehydration; fact excerpts gain authority only by exact matching. */
 const object=properties=>({type:"object",additionalProperties:false,properties,required:Object.keys(properties)});
@@ -12,6 +13,7 @@ const nullable=values=>({type:["string","null"],enum:[...values,null]});
 const keys=(v,expected)=>v&&typeof v==="object"&&!Array.isArray(v)&&Object.keys(v).length===expected.length&&expected.every(k=>Object.hasOwn(v,k));
 function reject(field){throw Object.assign(new Error("ASK_READ_COMPONENT_CONTRACT"),{code:"ASK_READ_COMPONENT_CONTRACT",answerDiagnostic:{category:"component_contract",field}});}
 export const COMPONENT_INSTRUCTIONS=[
+ HISTORY_SYNTHESIS_INSTRUCTIONS,
  "For collection summaries, put date-specific observations in historyFacts using the exact admitted source and contiguous original sentence. The server supplies its event/recorded date. Keep component prose to an undated synthesis of patterns and limitations; do not generate month/year-specific paraphrases or citation ranges. Select salient exceptions as historyFacts as well as routine background. Only single source handles may be used as inline references.",
  "Set includeSourceDates only for tasks whose source timestamps the owner requests in the answer, not merely because a note has dates. The server publishes those requested verified dates once; do not repeat them in component prose. calculation means arithmetic over saved typed measurements; ordinary math without saved-record dependency belongs general_guidance.",
  "Set recordMode=collection for a set, period summary, comparison, or continuation, single for identifying one record, and none without saved evidence. A collection does not require choosing a single record: which_record must never block collection membership. Plan collection reads with goal=complete_set and explicit owner pet/time scope. Summarize the actual supplied content, relevant recurring patterns and dated exceptions; never replace synthesis with a timestamp list or only selected quotations. Do not infer clinical advice merely from medical words inside old notes. clinical_guidance is an explicit care interpretation/triage request; ordinary historical reporting is saved_content. Plan every essential requested task separately in taskPlan. saved_content means Ask retrieves/quotes/explains owned records, NOT instructions for finding them. workflow is ONLY an explicit request for how to operate Furvise screens or for an action Ask cannot perform. Do not create a workflow task merely because a question mentions notes, saved dates, history, a diary or a vet brief.",
@@ -101,7 +103,7 @@ export function componentAnswerSchema(base,plan,sources,ownerStatements){
   task:choice(plan.map(t=>t.id)),status:choice(["complete","partial","unresolved"]),reason:choice(reasons),
   componentIndexes:array({type:"integer",minimum:0,maximum:7},8),sources:array(choice(handles.length?handles:["unavailable"]),handles.length?32:0),
   ownerFacts:array(object({sentence:choice(sentences.length?sentences.map(s=>s.sentence):["unavailable"]),kind:choice(["present_observation","past_observation","scope_correction","request"])}),sentences.length?4:0),
-  historyFacts:array(object({source:choice(handles.length?handles:["unavailable"]),excerpt:exact}),handles.length?6:0)
+  historyFacts:array(object({source:choice(handles.length?handles:["unavailable"]),excerpt:exact}),handles.length?6:0),historySynthesis:historySynthesisSchema(handles)
  })};out.required.push("completion");return out;
 }
 const completeSentence=(body,excerpt)=>{
@@ -121,7 +123,9 @@ export function reviewComponentCompletion(final,plan,sources,ownerStatements,pet
  const entries=final?.completion;if(!Array.isArray(entries)||entries.length!==plan.length||new Set(entries.map(e=>e?.task)).size!==plan.length)reject("completion");
  const tasks=plan.map(task=>{
   const raw=entries.find(e=>e.task===task.id);
-  const e=raw&&{...raw,ownerFacts:Array.isArray(raw.ownerFacts)?raw.ownerFacts.map(f=>{
+  const strictSynthesis=!!raw&&Object.hasOwn(raw,"historySynthesis");
+  const legacy=raw&&{...raw};if(legacy)delete legacy.historySynthesis;
+  const e=legacy&&{...legacy,ownerFacts:Array.isArray(raw.ownerFacts)?raw.ownerFacts.map(f=>{
    if(!keys(f,["sentence","kind"]))return f; // Legacy stored/local adapter compatibility only.
    const row=ownerFactSentences(ownerStatements).find(s=>s.sentence===f.sentence);
    if(!row)reject("owner_sentence_reference");
@@ -140,7 +144,9 @@ export function reviewComponentCompletion(final,plan,sources,ownerStatements,pet
   const ownerFacts=e.ownerFacts.filter(f=>(!f.kind||["present_observation","past_observation"].includes(f.kind))&&ownerStatements.some(s=>s.ref===f.ref&&completeSentence(s.text,f.excerpt)));
   const selected=[...new Set([...e.sources,...historyFacts.map(f=>f.source)])];
   if(task.pets.length>0&&selected.some(h=>!pets.some(p=>task.pets.includes(p.handle)&&p.id===sources.find(s=>s.handle===h).petId)))reject("task_source_pet");
+  const historySynthesis=strictSynthesis?validateHistorySynthesis(raw.historySynthesis,sources,selected):undefined;
   let status=e.status,reason=e.reason;
+  if(strictSynthesis&&["saved_content","saved_continuation"].includes(task.kind)&&!historySynthesis?.length){status="partial";reason="not_answered";}
   if(task.needsOwnerFacts&&!ownerFacts.length){status="partial";reason="missing_context";}
   if(rejectedFact){status="partial";reason="not_answered";}
   if(scopeMissing(task)||task.kind!=="vet_brief"&&task.missing.length){status="unresolved";reason="missing_context";}
@@ -148,7 +154,7 @@ export function reviewComponentCompletion(final,plan,sources,ownerStatements,pet
   if(status==="complete"&&task.kind==="vet_brief"&&(!e.ownerFacts.length&&!e.historyFacts.length||task.needsHistory&&!e.historyFacts.length)){status="partial";reason="not_answered";}
   if(status==="complete"&&!e.componentIndexes.length&&!e.historyFacts.length&&!e.ownerFacts.length&&task.kind!=="workflow"){status="unresolved";reason="not_answered";}
   if(status!=="complete"&&reason==="none")reason="not_answered";
-  return {...task,...e,missing:task.needsOwnerFacts&&!ownerFacts.length?[...new Set([...task.missing,"owner_observation"])]:task.missing,historyFacts,ownerFacts,status,reason,sources:selected};
+  return {...task,...e,missing:task.needsOwnerFacts&&!ownerFacts.length?[...new Set([...task.missing,"owner_observation"])]:task.missing,historyFacts,ownerFacts,historySynthesis,status,reason,sources:selected};
  });
  const value={...final,sources:[...new Set([...final.sources,...tasks.flatMap(t=>t.sources)])]};delete value.completion;
  return {value,tasks};
@@ -201,9 +207,11 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
  const collectionTasks=tasks.filter(t=>t.needsHistory&&t.recordMode==="collection"&&["saved_content","saved_continuation"].includes(t.kind));
  const collectionParts=new Set(collectionTasks.flatMap(t=>t.componentIndexes));
  const selectedDatedFacts=collectionTasks.flatMap(t=>t.historyFacts).slice(0,6);
- let removedCalendar=false;
+ let removedCalendar=false;const renderedGrounding=new Set();
  let text=!policy?.active&&answer.validatedParts?answer.validatedParts.filter(p=>assigned.has(p.index)&&!blocked.has(p.index)&&!calculationParts.has(p.index)).map(p=>{
-  if(!collectionParts.has(p.index))return p.text;
+  if(!collectionParts.has(p.index)&&!tasks.some(t=>t.componentIndexes.includes(p.index)&&["saved_content","saved_continuation"].includes(t.kind)&&t.historySynthesis!==undefined))return p.text;
+  const grounded=tasks.filter(t=>t.componentIndexes.includes(p.index)&&["saved_content","saved_continuation"].includes(t.kind)&&t.historySynthesis!==undefined);
+  if(grounded.length){const unseen=grounded.filter(t=>!renderedGrounding.has(t.id));grounded.forEach(t=>renderedGrounding.add(t.id));if(!unseen.length)return "";return renderHistorySynthesis(unseen.flatMap(t=>t.historySynthesis??[]),answer.sources)||"The historical synthesis could not be verified against the selected original sentences.";}
   const safe=undatedCollectionSynthesis(p.text);removedCalendar||=safe!==p.text.trim();return safe;
  }).filter(Boolean).join("\n\n"):answer.answer,verifiedBriefText=null;
  if(!policy?.active&&!brief&&selectedDatedFacts.length){

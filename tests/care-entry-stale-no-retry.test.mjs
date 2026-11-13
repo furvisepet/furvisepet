@@ -1,0 +1,14 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+const read=p=>readFileSync(new URL("../"+p,import.meta.url),"utf8");
+const original=read("supabase/migrations/20260823120001_add_controlled_care_entry_update_boundary.sql");
+const live=read("supabase/migrations/20261113094342_fix_care_entry_stale_conflict_no_retry.sql");
+const reconciliation=read("supabase/migrations/20261113101617_reconcile_care_entry_stale_conflict_no_retry.sql");
+const old="errcode = '40001', message = 'CARE_ENTRY_STALE'",fixed="errcode = 'PT409', message = 'CARE_ENTRY_STALE'";
+const transform=body=>{const n=body.split(old).length-1,m=body.split(fixed).length-1;if(n===0&&m===2)return body;if(n!==2||m!==0)throw Error("Unexpected stale-conflict definition");return body.replaceAll(old,fixed);};
+test("historical repair records the exact deployed signature and two-error guard",()=>{assert.match(live,/occurrence_count != 2/);assert.match(live,/p_expected_updated_at timestamp with time zone/);assert.match(live,/EXECUTE replace\(source_sql, old_marker, new_marker\)/);});
+test("repair is only two SQLSTATE substitutions and remains idempotent",()=>{const next=transform(original);assert.equal(next.split(fixed).length-1,2);assert.equal(next.replaceAll(fixed,old),original);assert.equal(transform(next),next);assert.doesNotMatch(next,/errcode = '40001'/);});
+test("authentication, owner/pet checks, locking and optimistic concurrency remain byte-identical",()=>{const next=transform(original);for(const marker of ["v_user_id uuid := auth.uid()","pet.user_id = v_user_id","entry.user_id = v_user_id","entry.pet_profile_id = p_pet_profile_id","entry.deleted_at is null","for update","v_entry.updated_at is distinct from p_expected_updated_at","entry.updated_at = p_expected_updated_at","security definer","set search_path = ''","to authenticated"]){assert.ok(original.includes(marker));assert.equal(next.split(marker).length,original.split(marker).length);}});
+test("definition drift and partial repair fail closed; unrelated serialization errors are untouched",()=>{assert.throws(()=>transform(original.replace(old,"errcode = 'P0001', message = 'CARE_ENTRY_STALE'")));assert.throws(()=>transform(original.replace(old,fixed)));const unrelated="raise exception using errcode = '40001', message = 'OTHER';";assert.ok(transform(original+unrelated).endsWith(unrelated));});
+test("reconciliation does not replace a function snapshot, table rows, grants or settings",()=>{assert.match(reconciliation,/old_count = 0 AND new_count = 2[\s\S]*RETURN/);assert.match(reconciliation,/old_count <> 2 OR new_count <> 0/);assert.match(reconciliation,/EXECUTE replace\(source_sql, old_marker, new_marker\)/);assert.doesNotMatch(reconciliation,/create or replace function|update public\.pet_care_entries|alter system|grant execute/i);});
