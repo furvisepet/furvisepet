@@ -489,3 +489,23 @@ test("calculation status is scoped to its selected sources and cannot borrow ano
   assert.notEqual(render(calculations).taskCompletion[0].status,"complete");
  }
 });
+
+test("an already bounded owner/date read resolves contradictory task pet and year flags before the gate",async()=>{
+ const s=safety(),p=[task({kind:"saved_content",needsHistory:true,pets:["p1"],missing:["pet","year"]})];
+ const out=final(s,{components:[{kind:"saved",text:"Verified original note.",sources:["s1"]}],quotes:["s1"],sources:["s1"],completion:[completion({sources:["s1"],historyFacts:[{source:"s1",excerpt:source.body}]})]});
+ const r=await execute(p,s,out,{question:"Use Willow’s March 2021 original note and both timestamps."},boundedRead);
+ assert.equal(r.calls,2);assert.equal(r.reads.length,1);assert.equal(r.result.answer.taskCompletion[0].status,"complete");assert.doesNotMatch(r.result.answer.answer,/Which pet and year/);
+});
+test("existing-read scope recovery requires the exact explicit owner/pet/calendar axis and preserves clinical guards",async()=>{
+ const {recoverBoundedCalendarRead}=await import("../app/lib/ask-read-only/calendar-scope.mjs");
+ const args={...boundedRead[0].arguments},p=task({kind:"saved_content",needsHistory:true,pets:["p1"],missing:["pet","year"]});
+ const first={calls:[{id:"r",name:"search_saved_records",arguments:JSON.stringify(args)}],taskPlan:[p],historyIntent:{requested:true,timeBasis:"event",pet:"p1"},safety:{...safety(),missingContext:[],currentEvents:[],conditionalEvents:[]}};
+ const ctx={question:"Willow March 2021 original note."},pets=[{...pet,handle:"p1"}];
+ assert.ok(recoverBoundedCalendarRead(first,ctx,pets));
+ for(const patch of [{pet:"p2"},{from:"2020-03-01"},{to:"2020-03-31"},{offset:16},{orderBy:"recorded"},{recordedFrom:"2021-03-01"}]){
+  assert.equal(recoverBoundedCalendarRead({...first,calls:[{...first.calls[0],arguments:JSON.stringify({...args,...patch})}]},ctx,pets),null);
+ }
+ for(const safetyPatch of [{medicationIntent:"decision"},{careContext:"current_concern"},{currentEvents:[{}]},{conditionalEvents:[{}]},{missingContext:["medicine"]}]){
+  assert.equal(recoverBoundedCalendarRead({...first,safety:{...first.safety,...safetyPatch}},ctx,pets),null);
+ }
+});
