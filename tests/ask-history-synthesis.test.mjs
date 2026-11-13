@@ -40,7 +40,7 @@ test("two pets are labeled independently even when phrases match",()=>{
  const out=renderHistorySynthesis(checked(theme("mat",[a,b]),[a,b]));assert.match(out,/Pet A —/);assert.match(out,/Pet B —/);assert.doesNotMatch(out,/2 selected saved reports/);
 });
 test("sparse and empty evidence cannot assert whole-history absence",()=>{assert.equal(checked([{topic:"mat",evidence:[]}],[]),null);assert.equal(renderHistorySynthesis([]),"");const s=row("s1","No mat was seen today.");assert.match(renderHistorySynthesis(checked(theme("mat",[s]),[s])),/omitted periods may change/);});
-test("unanchored headings cannot sneak in recurrence or diagnosis",()=>{const s=row("s1","A mat was brushed out.");assert.equal(checked(theme("Recurring worsening disease",[s]),[s]),null);});
+test("unanchored headings cannot sneak in recurrence or diagnosis",()=>{const s=row("s1","A mat was brushed out.");const out=renderHistorySynthesis(checked(theme("Recurring worsening disease",[s]),[s]));assert.doesNotMatch(out,/Recurring worsening disease/);assert.match(out,/A mat was brushed out/);});
 test("strict live schema supplies no unvalidated historical paraphrase field",()=>{const s=historySynthesisSchema(["s1"]);assert.deepEqual(s.items.required,["topic","evidence"]);assert.equal(s.items.additionalProperties,false);const schema=componentAnswerSchema({properties:{},required:[]},[{id:"t1"}],[{handle:"s1"}],[]);assert.ok(schema.properties.completion.items.required.includes("historySynthesis"));});
 test("actual completion composer replaces unsupported recurrence but retains useful grounded content and partial disclosure",()=>{
  const s=row("s1","A mat was brushed out after the walk.");
@@ -50,3 +50,7 @@ test("actual completion composer replaces unsupported recurrence but retains use
  const out=renderTaskCompletion({answer:"Recurring mats worsened over the years.",validatedParts:[{index:0,text:"Recurring mats worsened over the years."}],presentation:{}},reviewed.tasks,[s],null,[{scope:{goal:"complete_set"},sources:[{source:"s1"}],omitted:4}]);
  assert.doesNotMatch(out.answer,/Recurring mats worsened/);assert.match(out.answer,/brushed out after the walk/);assert.match(out.answer,/source bodies were omitted/);assert.equal(out.taskCompletion[0].status,"partial");
 });
+
+test("a generated heading cannot invalidate exact evidence; case uses the original",()=>{const s=row("s1","A mat was brushed out.");assert.match(renderHistorySynthesis(checked(theme("MAT",[s]),[s])),/“mat”/);});
+test("one malformed theme does not cancel independent verified themes",()=>{const s=row("s1","A mat was brushed out.");const d=[];const out=validateHistorySynthesis([...theme("mat",[s]),{topic:"Invented",evidence:[{source:"s1",excerpt:"Invented assertion."}]}],[s],["s1"],d);assert.equal(out.length,1);assert.deepEqual(d,["excerpt"]);});
+test("exact partial text expands to the original full sentence preserving negation",()=>{const s=row("s1","The owner did not report repeated itching after the visit.");const t=theme("itching",[s]);t[0].evidence[0].excerpt="repeated itching after the visit.";const out=renderHistorySynthesis(checked(t,[s]));assert.match(out,/did not report repeated itching/);});

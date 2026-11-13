@@ -18,22 +18,41 @@ function complete(body,excerpt){
  for(let i=0;i<sentences.length;i++){let span="";for(let j=i;j<sentences.length;j++){span+=sentences[j];if(span.trim()===excerpt)return true;if(span.trim().length>excerpt.length)break;}}
  return false;
 }
-export function validateHistorySynthesis(value,sources,allowed){
- if(!Array.isArray(value)||value.length>4)return null;
+// A unique exact substring can be expanded to its whole original sentence(s).
+// It can never trim negation, invent wording or join disjoint source spans.
+function canonicalExcerpt(body,excerpt){
+ if(complete(body,excerpt))return excerpt;
+ const start=body.indexOf(excerpt);
+ if(excerpt.length<20||start<0||body.indexOf(excerpt,start+1)>=0)return null;
+ const end=start+excerpt.length,parts=[...new Intl.Segmenter("en",{granularity:"sentence"}).segment(body)];
+ const spans=parts.filter(p=>p.index<end&&p.index+p.segment.length>start);
+ const original=spans.map(p=>p.segment).join("").trim();
+ return original.length<=280&&original.includes(excerpt)?original:null;
+}
+export function validateHistorySynthesis(value,sources,allowed,diagnostics=[]){
+ if(!Array.isArray(value)||value.length>4){diagnostics.push("shape");return null;}
  const out=[];
  for(const theme of value){
-  if(!keys(theme,["topic","evidence"])||typeof theme.topic!=="string"||theme.topic.length<2||theme.topic.length>60||/[\r\n“”"<>]/.test(theme.topic)||!Array.isArray(theme.evidence)||!theme.evidence.length||theme.evidence.length>3)return null;
+  if(!keys(theme,["topic","evidence"])||typeof theme.topic!=="string"||!Array.isArray(theme.evidence)||!theme.evidence.length||theme.evidence.length>3){diagnostics.push("theme_shape");continue;}
   const evidence=[];
   for(const e of theme.evidence){
    const source=sources.find(s=>s.handle===e?.source&&s.kind==="history"&&allowed.includes(s.handle));
-   if(!keys(e,["source","excerpt"])||!source||typeof e.excerpt!=="string"||!e.excerpt.trim()||e.excerpt.length>280||!complete(source.body,e.excerpt))return null;
-   evidence.push({...e,petId:source.petId,pet:source.petName,eventAt:source.eventAt,recordedAt:source.recordedAt});
+   if(!keys(e,["source","excerpt"])||!source||typeof e.excerpt!=="string"||!e.excerpt.trim()||e.excerpt.length>280){diagnostics.push("evidence_shape");continue;}
+   const excerpt=canonicalExcerpt(source.body,e.excerpt);
+   if(!excerpt){diagnostics.push("excerpt");continue;}
+   evidence.push({source:e.source,excerpt,petId:source.petId,pet:source.petName,eventAt:source.eventAt,recordedAt:source.recordedAt});
   }
-  // Topic is displayed as an attributed source phrase, never as a new assertion.
-  if(!evidence.some(e=>e.excerpt.includes(theme.topic)))return null;
-  out.push({topic:theme.topic,evidence});
+  if(!evidence.length)continue;
+  // A display heading has no authority to invalidate otherwise exact facts.
+  // Canonicalize case from the original or use a neutral server heading.
+  let topic="Historical observations";
+  if(theme.topic.length>=2&&theme.topic.length<=60&&!/[\r\n“”"<>]/.test(theme.topic)){
+   const row=evidence.find(e=>e.excerpt.toLocaleLowerCase().includes(theme.topic.toLocaleLowerCase()));
+   if(row){const i=row.excerpt.toLocaleLowerCase().indexOf(theme.topic.toLocaleLowerCase());topic=row.excerpt.slice(i,i+theme.topic.length);}
+  }
+  out.push({topic,evidence});
  }
- return out;
+ return out.length||!value.length?out:null;
 }
 export function renderHistorySynthesis(themes,citationOrder=[]){
  const lines=[];
@@ -47,7 +66,7 @@ export function renderHistorySynthesis(themes,citationOrder=[]){
    const dates=new Set(unique.map(e=>e.eventAt.slice(0,10)));
    const wording=excerpts.map(t=>{const row=unique.find(e=>e.excerpt===t),index=citationOrder.indexOf(row.source);return "“"+t+"”"+(index>=0?" (Source "+(index+1)+")":"");}).join("; ");
    const reports=unique.length===1?"one selected saved report":unique.length+" selected saved reports on "+dates.size+" event date"+(dates.size===1?"":"s");
-   lines.push((rows[0].pet??"Pet")+" — source phrase “"+theme.topic+"”: "+wording+" ("+reports+".)");
+   lines.push((rows[0].pet??"Pet")+" — “"+theme.topic+"”: "+wording+" ("+reports+".)");
   }
  }
  if(lines.length)lines.push("These are selected historical reports. Repeated mentions alone do not establish separate episodes, persistence or a trend; omitted periods may change the picture.");
