@@ -15,7 +15,7 @@ function visit(dir) {
   }
 }
 for (const dir of ["test", "tests"]) visit(dir);
-files.sort();
+files.sort((a, b) => Number(/(?:ask-active-contract|integration|end-to-end)/.test(a)) - Number(/(?:ask-active-contract|integration|end-to-end)/.test(b)) || a.localeCompare(b));
 if (files.length < 500) throw Error("Expected at least 500 Furvise test files; found " + files.length);
 
 const cache = new Map();
