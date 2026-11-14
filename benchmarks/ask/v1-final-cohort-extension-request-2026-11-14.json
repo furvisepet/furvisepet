@@ -3,9 +3,9 @@
   "status": "requested_not_authorized",
   "planHash": "4b6362042704afe0fda7906f158de20e64bcd658163d997f6bf8a85abf8b80d2",
   "parentRequestHash": "f712004b6b3c873f55c6a097a54f30228f30582e4c12049adbc2718a117cb78a",
-  "maxTurns": 81,
-  "maxCalls": 162,
+  "maxTurns": 82,
+  "maxCalls": 164,
   "maxNewMicroUSD": 2500000,
-  "maximumReserveDispatches": 49,
-  "reason": "Three actual repaired-source failures consumed51 turns. Approved72 permits21 fresh final-head turns, below original30 minimum. Propose exactly9 additional fresh turns within SAME$2.50 total new-spend ceiling; request is not approval. Original failures, old unknown-only waiver, clinical/source/two-call gates unchanged."
+  "maximumReserveDispatches": 50,
+  "reason": "Four retained repaired-source attempts have consumed52 turns. Approved72 allows20 fresh final-head turns. Propose exactly10 more to meet original30 minimum, within SAME$2.50 total new-spend ceiling. This request is not authority; no distinct final-cohort owner decision exists. Preserve old unknown-only waiver, all failures, source/clinical/two-call gates."
 }

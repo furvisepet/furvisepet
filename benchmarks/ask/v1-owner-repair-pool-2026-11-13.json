@@ -548,6 +548,21 @@
       "releaseReasonRequired": true,
       "frozenAt": "2026-11-14T15:39:54.250330+00:00",
       "exposure": "Fresh nonvisual unknown-detail question frozen before output after observed R46 false which_record prerequisite. Known failure family, no reused tested prompt and no new paid authority."
+    },
+    {
+      "id": "R51",
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "category": "unknown",
+      "conversation": "repair-owner-declared-absence",
+      "question": "What was the name of the person who picked Echo's first nickname? I never entered that person's name in Furvise.",
+      "expected": "Same A04 critical truthful-unknown contract: owner-declared absence is attributed, uniquely named owned Echo binds through existing owner binder; no invented name, false pet/year/record/medicine question, unrelated read, exhaustive DB-absence claim, image offer or generic unfinished-task card. Actual R50 failure/cost retained. No new clinical/record authority.",
+      "dependsOn": [],
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T16:02:27.380774+00:00",
+      "exposure": "Fresh nonvisual owner-declared-absence question frozen before first output after actual R50 pet/year failure. Known failure family, no prompt reuse and no paid authority increase."
     }
   ],
   "additionalEmergencyPublicationRepair": {
@@ -562,5 +577,6 @@
   "generalIdentityRepairFreeze": "2026-11-14T15:11:37.671855+00:00",
   "finalCriticalAnaloguesFreeze": "2026-11-14T15:19:23.415237+00:00",
   "eligibleFinalHeadFreeze": "2026-11-14T15:26:11.693020+00:00",
-  "sourceFreeRecordPrerequisiteRepairFreeze": "2026-11-14T15:39:54.250330+00:00"
+  "sourceFreeRecordPrerequisiteRepairFreeze": "2026-11-14T15:39:54.250330+00:00",
+  "declaredUnavailabilityRepairFreeze": "2026-11-14T16:02:27.380774+00:00"
 }

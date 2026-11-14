@@ -1,3 +1,4 @@
+import {reconcileDeclaredUnavailability,DECLARED_UNAVAILABLE_ANSWER} from "./declared-unavailability.mjs";
 import {requirePronounPet} from "./pronoun-scope.mjs";
 import {recoverAnnualComparison} from "./annual-comparison.mjs";
 import { supplementCandidates, supplementalTaskPlan, parseEvidenceCompletion, verifySingleReferenceResult, applyReferenceCompletion, applySourceReview } from "./evidence-completion.mjs";
@@ -283,6 +284,8 @@ export async function runReadOnlyAsk(input,deps) {
  try{annualComparison=recoverAnnualComparison(first,taskPlan,context,(name,args)=>bindReadTool(name,args,pets,references));}
  catch(error){deps.onSelectionRejected?.(readSelectionShape(first,pets));throw error;}
  if(annualComparison){first=annualComparison.first;taskPlan=annualComparison.plan;deps.onAnswerBoundary?.({outcome:"annual_comparison_scope_recovered",...annualComparison.diagnostic});}
+ const declaredUnavailable=reconcileDeclaredUnavailability(first,taskPlan,context,pets,input.ownerId,handle=>bindReadTool("read_pet_profile",{pet:handle},pets).pet);
+ if(declaredUnavailable){first=declaredUnavailable.first;taskPlan=declaredUnavailable.plan;deps.onAnswerBoundary?.({outcome:"owner_declared_unavailability_bound",declarationCount:1,explicitOwnedSubject:true,grantsRead:false});}
  const namedPet=first.calls.length===0?reconcileNoReadPet(taskPlan,first.safety,context,pets,input.ownerId,handle=>bindReadTool("read_pet_profile",{pet:handle},pets).pet):null;
  if(namedPet){taskPlan=namedPet.plan;first={...first,text:"",safety:namedPet.safety};deps.onAnswerBoundary?.({outcome:"pet_scope_reconciled",method:"explicit_owned_no_read_subject",taskCount:namedPet.resolved,grantsRead:false});}
  deps.onAnswerBoundary?.({outcome:"task_selection_reviewed",historyTimeBasis:first.historyIntent?.timeBasis??null,plannedReadCount:first.calls.length,tasks:taskPlan?.map(t=>({kind:t.kind,recordMode:t.recordMode,combineHistory:t.combineHistory===true,needsHistory:t.needsHistory,needsOwnerFacts:t.needsOwnerFacts,petScopeCount:t.pets.length,boundReference:!!t.reference,missing:t.missing,missingFields:t.missing.join(",")}))});
@@ -455,6 +458,13 @@ export async function runReadOnlyAsk(input,deps) {
   }
   if(completed.tasks)deps.onAnswerBoundary?.({outcome:"history_synthesis_reviewed",themes:completed.tasks.reduce((n,t)=>n+(t.historySynthesis?.length??0),0),rejected:completed.tasks.flatMap(t=>t.synthesisDiagnostics??[])});
   answer=renderTaskCompletion(answer,completed.tasks,sources,reviewed.policy,results);
+   if(declaredUnavailable&&!reviewed.policy?.active){
+    // Owner speech supplies an information limit, not a value or exhaustive search.
+    answer={...answer,answer:DECLARED_UNAVAILABLE_ANSWER,replyType:"answer",limited:false,
+     validatedParts:[{index:0,kind:"general",text:DECLARED_UNAVAILABLE_ANSWER}],
+     presentation:{contextRequired:false,sourceDates:[]},quotes:[],calculations:[],sources:[],
+     taskCompletion:[{id:taskPlan[0].id,kind:"general_guidance",status:"complete",reason:"none",sourceCount:0}]};
+   }
   for(const review of answer.continuationEvidenceReview??[])deps.onAnswerBoundary?.({outcome:"fresh_continuation_composed",...review});
   const appendWorkflow=!!reviewed.policy?.active||bound.length>0||!!taskPlan?.some(t=>t.kind!=="workflow");
   answer=renderAppWorkflow(answer,reviewed.workflow,pets,appendWorkflow,input.question);

@@ -134,7 +134,7 @@ test('actual general-guidance task with explicit owned name clears only false mi
  assert.deepEqual(r.contexts[1].taskPlan[0].pets,['p2']);
  assert.deepEqual(r.contexts[1].taskPlan[0].missing,[]);
  assert.doesNotMatch(r.result.answer.answer,/Which pet/);
- assert.match(r.result.answer.answer,/unrecorded label/);
+ assert.match(r.result.answer.answer,/verified saved answer/);
  assert.equal(r.reads,0);assert.equal(r.calls,2);
 });
 
@@ -160,4 +160,13 @@ test('source-free task cannot acquire a single-record prerequisite after owner s
  assert.deepEqual(r.contexts[1].taskPlan[0].missing,[]);
  assert.doesNotMatch(r.result.answer.answer,/Which saved result/);assert.match(r.result.answer.answer,/unrecorded detail/);
  assert.equal(r.calls,2);assert.equal(r.reads,0);
+});
+
+test('owner-declared absence is not a pet/year lookup and cannot publish an invented value',async()=>{
+ const r=await execute({question:"Who gave Juniper the first toy? I never recorded the giver’s name in Furvise.",plan:[task({kind:'clarification',missing:['pet','year']})],state:safety({referent:'essential_unknown',missingContext:['pet']}),prose:'The giver was Casey.'});
+ assert.doesNotMatch(JSON.stringify(r.result.answer),/Which pet|Which year|Casey/);
+ assert.match(r.result.answer.answer,/you said/i);assert.match(r.result.answer.answer,/verified saved answer/i);
+ assert.deepEqual(r.contexts[1].taskPlan[0].pets,['p2']);
+ assert.deepEqual(r.contexts[1].taskPlan[0].missing,[]);
+ assert.equal(r.reads,0);assert.equal(r.calls,2);assert.equal(r.result.answer.taskCompletion[0].status,'complete');
 });
