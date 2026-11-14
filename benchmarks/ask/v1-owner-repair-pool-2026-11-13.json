@@ -56,6 +56,21 @@
       "releaseReasonRequired": true,
       "exposure": "Fresh question frozen before output. Known failure family; prior R18 FAIL and its original receipt remain retained.",
       "frozenAt": "2026-11-14T06:13:22.456095+00:00"
+    },
+    {
+      "id": "R20",
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "category": "unknown",
+      "conversation": "repair-unavailable-detail-v4",
+      "question": "I have never recorded the embroidery on Echo's old bed. What did it say?",
+      "expected": "Truthful bounded unknown for a uniquely named owned pet and explicitly unrecorded detail. No invented embroidery text, redundant pet/medicine clarification, unrelated read or claim that every database record was searched. Same A04 critical contract; also tests R19's distinction between requested history and actual evidence acquisition.",
+      "dependsOn": [],
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "exposure": "Frozen before this question's first output. Known failure family; all earlier FAILs and costs remain attached to their original SHAs.",
+      "frozenAt": "2026-11-14T06:39:10.655077+00:00"
     }
   ]
 }

@@ -114,14 +114,16 @@ export function fulfillReferenceReads(first,references=[]){
 
 /** Resolve identity, not data availability. Only source-free nonclinical tasks
  * qualify; this grants no read. The existing owner-bound binder checks identity. */
-export function reconcileNoReadPet(plan,safety,context,pets,ownerId,bindPet){
- if(!plan||!safety||!Array.isArray(safety.missingContext)||plan.some(t=>!["saved_content","general_guidance"].includes(t.kind)||t.needsHistory||t.reference||t.needsOwnerFacts)||!["none","education"].includes(safety.careContext)||safety.medicationIntent!=="none"
+// compositionOnly is a server-only phase: acquisition must already be closed.
+// It binds identity for honest unacquired-source presentation, never read authority.
+export function reconcileNoReadPet(plan,safety,context,pets,ownerId,bindPet,compositionOnly=false){
+ if(!plan||!safety||compositionOnly&&plan.length!==1||!Array.isArray(safety.missingContext)||plan.some(t=>!["saved_content","general_guidance"].includes(t.kind)||t.needsHistory&&!compositionOnly||t.reference||t.needsOwnerFacts)||!["none","education"].includes(safety.careContext)||safety.medicationIntent!=="none"
   ||safety.scenario!=="none"||safety.currentEvents?.length||safety.conditionalEvents?.length
   ||safety.missingContext.some(k=>k!=="pet"))return null;
  // With no medication/care intent, prescription authority cannot be a missing
  // field of a source-free saved-detail task. This never grants a clinical plan.
  const inapplicable=new Set(["pet","medicine","prescription","vet_plan"]);
- const eligible=t=>t.kind==="saved_content"&&!t.needsHistory&&t.recordMode==="none"&&!t.reference&&!t.needsOwnerFacts&&t.pets.length<=1&&t.missing.some(k=>inapplicable.has(k));
+ const eligible=t=>t.kind==="saved_content"&&(!t.needsHistory||compositionOnly)&&(t.recordMode==="none"||compositionOnly&&["single","collection"].includes(t.recordMode))&&!t.reference&&!t.needsOwnerFacts&&t.pets.length<=1&&t.missing.some(k=>inapplicable.has(k));
  if(!plan.some(eligible))return null;
  const escaped=name=>name.replace(/[.*+?^{}$()|[\]\\]/g,"\\$&");
  const named=pets.filter(p=>p.ownerId===ownerId&&typeof p.name==="string"&&p.name.trim()
@@ -262,7 +264,7 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
  });
  const blocked=new Set(tasks.filter(t=>t.status==="unresolved"||t.needsHistory&&!t.sources.length||t.needsOwnerFacts&&!t.ownerFacts.length).flatMap(t=>t.componentIndexes));
  tasks=tasks.map(t=>t.status==="complete"&&t.componentIndexes.some(i=>blocked.has(i))?{...t,status:"partial",reason:"not_answered"}:t);
- const unavailableDetails=new Set(tasks.filter(t=>t.kind==="saved_content"&&!t.needsHistory&&t.recordMode==="none"&&!t.reference&&!t.missing.length&&!t.sources.length&&t.reason==="source_unavailable").map(t=>t.id));
+ const unavailableDetails=new Set(tasks.filter(t=>t.kind==="saved_content"&&!t.reference&&!t.missing.length&&!t.sources.length&&t.reason==="source_unavailable").map(t=>t.id));
  const workflowParts=new Set(tasks.filter(t=>t.kind==="workflow").flatMap(t=>t.componentIndexes));
  tasks=tasks.map(t=>t.kind!=="workflow"&&t.status==="complete"&&t.componentIndexes.some(i=>workflowParts.has(i))?{...t,status:"partial",reason:"not_answered"}:t);
  const calculationParts=new Set(tasks.filter(t=>t.kind==="calculation"&&answer.calculations?.length).flatMap(t=>t.componentIndexes));

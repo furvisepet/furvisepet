@@ -365,6 +365,16 @@ export async function runReadOnlyAsk(input,deps) {
  }
  };
  await acquire(bound);
+ // Identity and source acquisition are independent. At this closed boundary an
+ // explicitly named owned pet can be resolved even when no evidence was read.
+ // No recovery, read gate or acquisition is rerun with this presentation plan.
+ const unacquiredPet=first.calls.length===0&&bound.length===0&&sources.length===0&&results.length===0
+  ?reconcileNoReadPet(taskPlan,assessment,context,pets,input.ownerId,handle=>bindReadTool("read_pet_profile",{pet:handle},pets).pet,true):null;
+ if(unacquiredPet){
+  taskPlan=unacquiredPet.plan;assessment=validateClinicalAssessment(unacquiredPet.safety);
+  first={...first,text:"",safety:assessment,taskPlan};context.taskPlan=taskPlan;
+  deps.onAnswerBoundary?.({outcome:"pet_scope_reconciled",method:"explicit_owned_unacquired_subject",taskCount:unacquiredPet.resolved,grantsRead:false});
+ }
  const discovery=resolveRecordDiscovery(taskPlan,bound,results,{question:input.question,timeBasis:first.historyIntent?.timeBasis,pets});
  if(discovery.resolved){taskPlan=discovery.plan;first.taskPlan=taskPlan;context.taskPlan=taskPlan;deps.onAnswerBoundary?.({outcome:"record_ambiguity_resolved",taskCount:discovery.resolved,method:"unique_fully_inspected_bounded_candidate"});}
  const supplements=supplementCandidates(taskPlan,references,!emergency&&first.calls.length===0&&bound.length===0,{question:input.question,pets});

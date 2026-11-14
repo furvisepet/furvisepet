@@ -65,3 +65,28 @@ test('medical authority fields remain untouched for real medication, clinical an
  assert.equal(scope([task({missing:['medicine'],needsHistory:true,recordMode:'single'})]),null);
  assert.equal(scope([task({missing:['medicine'],reference:'r1'})]),null);
 });
+
+for(const recordMode of ['single','collection'])test('unacquired '+recordMode+' evidence keeps identity distinct from source availability',async()=>{
+ const r=await execute({plan:[task({needsHistory:true,recordMode})]});
+ assert.equal(r.calls,2);assert.equal(r.reads,0);
+ assert.doesNotMatch(r.result.answer.answer,/Which pet|blue squares/);
+ assert.match(r.result.answer.answer,/verified saved information/);
+ assert.equal(r.contexts[1].taskPlan[0].needsHistory,true);
+ assert.equal(r.contexts[1].taskPlan[0].recordMode,recordMode);
+ assert.deepEqual(r.contexts[1].taskPlan[0].pets,['p2']);
+ assert.equal(r.result.answer.taskCompletion[0].status,'unresolved');
+ assert.equal(r.result.answer.taskCompletion[0].reason,'source_unavailable');
+});
+test('composition-only identity binding never relaxes the selection-stage history gate',()=>{
+ const p=[task({needsHistory:true,recordMode:'single'})],s={...safety(),scenario:'none',currentEvents:[],conditionalEvents:[]},context={question:"Juniper's old unknown detail"};
+ const binder=h=>owned.find(p=>p.handle===h);
+ assert.equal(reconcileNoReadPet(p,s,context,owned,'owned',binder),null);
+ const r=reconcileNoReadPet(p,s,context,owned,'owned',binder,true);
+ assert.deepEqual(r.plan[0].missing,[]);assert.equal(r.plan[0].needsHistory,true);assert.equal(r.plan[0].recordMode,'single');
+ for(const bad of [[task({needsHistory:true,recordMode:'single',reference:'r1'})],[...p,task({id:'t2',needsHistory:true,recordMode:'single'})]]){
+  assert.equal(reconcileNoReadPet(bad,s,context,owned,'owned',binder,true),null);
+ }
+ for(const patch of [{medicationIntent:'decision'},{careContext:'current_concern'},{scenario:'current'},{missingContext:['medicine']}]){
+  assert.equal(reconcileNoReadPet(p,{...s,...patch},context,owned,'owned',binder,true),null);
+ }
+});
