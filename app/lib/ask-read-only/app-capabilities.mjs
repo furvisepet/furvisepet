@@ -13,7 +13,10 @@ export function supportsAppWorkflow(question=""){
  const subject=/\b(?:furvise|app|today|history|notes?|photo|image|picture|screen|buttons?|controls?)\b/i.test(question);
  const operation=/\b(?:attach|upload|save|log|record|enter|type|add|create|put|open|navigate|tap|click|screen|buttons?|steps?|controls?)\b/i.test(question)
   ||/\bhow\b.{0,60}\buse\b/i.test(question);
- return subject&&operation;
+ // Natural owner questions can ask where/how to browse without naming a
+ // button. This only supplies verified display context; it grants no read.
+ const navigation=/\b(?:where|how)\b[^.!?]{0,80}\b(?:i|we)\b[^.!?]{0,40}\b(?:look|go|browse|search|filter|narrow|find(?!\s+(?:out|whether|if|why|how)\b))\b/i.test(question);
+ return subject&&(operation||navigation);
 }
 
 export function renderAppWorkflow(answer,workflow,pets=[],append=false,question=""){
