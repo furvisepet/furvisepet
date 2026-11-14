@@ -1,3 +1,6 @@
+import {persistEmergencyHistory} from "../../app/lib/ask-read-only/emergency-history.ts";
+import {buildAskConversationResponse} from "../../app/lib/ask.mjs";
+import {buildImmediateEmergencyGuidance,detectImmediateAskEmergency} from "../../app/lib/ask-safety-context.ts";
 import {readOnlyProvider as nativeReadOnlyProvider} from "../../app/lib/ask-read-only/provider.ts";
 import {safeAskProviderErrorDiagnostic} from "../../app/lib/ai/ask-provider-error-diagnostic.ts";
 import assert from "node:assert/strict";
@@ -23,24 +26,24 @@ import {publicAskFailureCode,FURVISE_ANSWER_UNAVAILABLE_MESSAGE} from "../../app
 globalThis.fetch=async()=>{throw Error("Offline route tests forbid network");};
 const source=readFileSync(new URL("../../app/api/ask/route.ts",import.meta.url),"utf8");
 const ast=ts.createSourceFile("route.ts",source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);
-const names=["POST","executeAskRequest","withTimeout","askFailure","internalFailureClass","logAskProviderEvent","safeAskOperationalCode","persistReadOnlyAnswer","finalizePersistedAskAnswer","validAssistantCompletionRow","completedResponseFromPersisted","AskApiError"];
+const names=["standaloneEmergencyResponse","POST","executeAskRequest","withTimeout","askFailure","internalFailureClass","logAskProviderEvent","safeAskOperationalCode","persistReadOnlyAnswer","finalizePersistedAskAnswer","validAssistantCompletionRow","completedResponseFromPersisted","AskApiError"];
 const code=ast.statements.filter(n=>(ts.isFunctionDeclaration(n)||ts.isClassDeclaration(n))&&names.includes(n.name?.text)).map(n=>n.getText(ast).replace(/^export /,"")).join("\n");
 export const id=n=>"77777777-7777-4777-8777-"+String(n).padStart(12,"0");
 const selected={id:id(2),user_id:id(1),name:"Juniper",species:"cat"};
 export const note={kind:"history",id:id(3),ownerId:id(1),petId:id(2),body:"A saved observation.",eventAt:"2025-06-01T12:00:00Z",recordedAt:"2025-06-02T12:00:00Z"};
 export const selection={calls:[{id:"read",name:"search_saved_records",arguments:JSON.stringify({pet:"p1",from:null,to:null,query:null,offset:0})}],text:""};
 export function readOnlyFailureRouteFixture(provider,records=[note],options={}){
- const state={calls:0,reads:0,credit:null,traces:[],errors:[],leaseReleased:0,admissionFailed:0,userMessages:0,tables:[],providerEvents:[],operationalEvents:[],events:[],persistedAnswer:null,readRequests:[]};
+ const state={calls:0,reads:0,credit:null,traces:[],errors:[],leaseReleased:0,admissionFailed:0,userMessages:0,tables:[],providerEvents:[],operationalEvents:[],events:[],persistedAnswer:null,readRequests:[],emergencyWrites:0};
  const noop=()=>{};class InfrastructureError extends Error{}
  const q={select(){return q},eq(){return q},neq(){return q},retry(){return q},order(){return q},limit(){return q},abortSignal(){return q},async returns(){return {data:[selected],error:null}}};
- const db={from(table){state.tables.push(table);assert.equal(table,"dog_profiles","only profile admission may use this database fixture");return q}};
+ const db={from(table){state.tables.push(table);if(options.emergency&&table==="ask_conversations"){const query={select(){return query},eq(k,v){if(k==="user_id")assert.equal(v,id(1));if(k==="id")query.owned=v===id(4);return query},retry(){return query},abortSignal(){return query},async maybeSingle(){return {data:query.owned?{id:id(4),pet_profile_id:id(2)}:null,error:null}}};return query;}assert.equal(table,"dog_profiles","only profile admission may use this database fixture");return q}};
  const scope={Request,Response,Headers,AbortSignal,setTimeout,clearTimeout,console:options.realProviderLog?console:{info:noop,warn:noop},AskTurnLifecycle,deriveAskAttemptId,OperationDeadline,AskPipelineError,
   ASK_REQUEST_KEYS,parseConfirmedTemporalScope,resolveAskTimeZone,resolveAskHistoryAccess,runReadOnlyAsk,
   ASK_OPERATION_TIMEOUT_MS:150000,ASK_MAX_QUESTION_CHARACTERS:1200,askRequestTimeoutMs:120000,askGuardOperationTtlSeconds:180,
   API_BODY_LIMITS:{ask:10000},RequestBoundaryError:InfrastructureError,RateLimitRejection:InfrastructureError,AiAdmissionError,AiCreditLimitError:InfrastructureError,AiCreditLedgerError:InfrastructureError,
   loadAskAuthenticationContext:async()=>options.authentication??({supabase:db,userId:id(1)}),readBoundedJson:r=>r.json(),
   hasOnlyKeys:(v,keys)=>Object.keys(v).every(k=>keys.includes(k)),isUuid:v=>/^[a-f0-9-]{36}$/.test(v),isSecurityUuid:v=>/^[a-f0-9-]{36}$/.test(v),
-  resolveAskLocale:()=>"en",hashAiCreditPayload:()=>"payload-hash",classifyCurrentPetLoss:()=>null,detectImmediateAskEmergency:()=>null,
+  resolveAskLocale:()=>"en",hashAiCreditPayload:()=>"payload-hash",classifyCurrentPetLoss:()=>null,detectImmediateAskEmergency:options.emergency?detectImmediateAskEmergency:()=>null,buildImmediateEmergencyGuidance,buildAskConversationResponse,persistEmergencyHistory,EMERGENCY_SAVE_METADATA:{answerType:"urgent_guidance",persistenceEligible:false,reason:"deterministic_emergency_preflight"},
   loadAskEntitlementContext:async()=>({usage:{allowed:true,remaining:5,limit:5,ledgerMode:"database"},planId:"free"}),
   readAskProfiles:async callback=>({...await callback(),diagnostic:{}}),loadPersistedRequest:async()=>null,
   claimWithRestoredAskOrigin:({claim,payload})=>claim(payload),claimIdempotentOperation:async()=>({operation:{execute:callback=>callback(),ownerToken:"offline-owner-token"}}),
@@ -60,6 +63,13 @@ export function readOnlyFailureRouteFixture(provider,records=[note],options={}){
   emitAskTurnTrace:trace=>state.traces.push(trace),isProviderRateLimit:()=>false,
   safeAskProviderErrorDiagnostic,emitOperationalEvent:event=>state.operationalEvents.push(event),
   isDeepStrictEqual,buildReadOnlyPublication,finalizeDurableAskAnswer,buildSuccessfulAskResponse,isAiCreditIntegrityError,
+  createAskConversationExchange:async input=>{
+   if(input.userId!==id(1)||input.petId!==id(2)||options.emergencyWriteError)return {data:null,error:{code:"42501"}};
+   state.emergencyWrites++;state.userMessages++;
+   state.persistedAnswer={id:id(7),request_id:input.requestId,context_used:input.contextUsed,save_metadata:input.saveMetadata,response_data:structuredClone(input.responseData)};
+   return {data:[{conversation_id:id(4),message_id:id(5),message_request_id:input.requestId,message_role:"user",message_user_text:input.userText,message_sequence_number:1},{conversation_id:id(4),message_id:id(7),message_request_id:input.requestId,message_role:"furvise",message_response_data:structuredClone(input.responseData),message_save_metadata:structuredClone(input.saveMetadata),message_context_used:structuredClone(input.contextUsed),message_sequence_number:2}],error:null};
+  },
+  appendAskConversationExchange:async()=>{throw Error("Unexpected append in new-conversation fixture");},
   completeAskConversationTurn:async input=>{
    assert.equal(input.userId,id(1));state.events.push("assistant:initial");
    state.persistedAnswer={id:id(7),request_id:input.requestId,context_used:input.contextUsed,save_metadata:input.saveMetadata,response_data:structuredClone(input.responseData)};
@@ -85,5 +95,5 @@ export function readOnlyFailureRouteFixture(provider,records=[note],options={}){
   }}).safeReleaseAiCredit
  });
  const POST=vm.runInNewContext(ts.transpileModule(code,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText+"\nPOST",scope);
- return {state,send:(question="Explain the saved observation.",extra={})=>POST(new Request("https://fixture.invalid/api/ask",{method:"POST",body:JSON.stringify({petId:id(2),logicalTurnId:id(6),message:question,...extra})}))};
+ return {state,replayEmergency:async()=>{assert.ok(state.persistedAnswer);const r=scope.completedResponseFromPersisted({conversationId:id(4),userMessageId:id(5),userSequence:1,assistantMessage:state.persistedAnswer},{remaining:5,limit:5,planId:"free"});return r.json();},send:(question="Explain the saved observation.",extra={})=>POST(new Request("https://fixture.invalid/api/ask",{method:"POST",body:JSON.stringify({petId:id(2),logicalTurnId:id(6),message:question,...extra})}))};
 }

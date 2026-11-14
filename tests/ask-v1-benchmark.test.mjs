@@ -109,3 +109,27 @@ test('an unregistered additional case cannot dispatch',()=>{const f=fixture();f.
 
 test('repair pool cannot replay an exposed added question',()=>{const extra=JSON.parse(readFileSync(new URL('../benchmarks/ask/v1-owner-repair-pool-2026-11-13.json',import.meta.url))).cases[0];assert.throws(()=>validateCohort(plan(),[promptHash(extra.question)]));});
 test('additional repair candidates do not raise the16-reserve-dispatch ceiling',()=>{const f=fixture();f.caseId='R17';f.results=original.cases.filter(c=>c.cohort==='repair-reserve').map(c=>result(c.id));f.pin.repairReason='synthetic fixture';f.pin.repairEvidenceHash=H;assert.throws(()=>dispatchGate(f),/reserve dispatch ceiling/);});
+
+const zeroLogicalId="99999999-9999-4999-8999-000000000001",zeroRequestId="99999999-9999-4999-8999-000000000002";
+function zeroResult(extra={}){
+ return result("A25",{operationId:zeroLogicalId,requestId:zeroRequestId,calls:[],providerTimesMs:[],verdict:"FAIL",published:false,zeroProviderExecution:{schema:"AskZeroProviderExecution.v1",operationKind:"operational_event",routeType:"emergency",executionMode:"deterministic",providerCallCount:0,logicalOperationId:zeroLogicalId,requestId:zeroRequestId,terminalEvidenceHash:H},...extra});
+}
+test("original deterministic zero-provider emergency uses its actual operational UUID without inventing a cost receipt",()=>{
+ const r=zeroResult();assert.doesNotThrow(()=>validateResult(r,plan()));assert.deepEqual(usage([r]),{physicalCalls:0,knownMicroUSD:0,unknown:0,totalMicroUSD:0});
+});
+for(const [field,value] of [["schema","other"],["operationKind","provider"],["routeType","pet_care"],["executionMode","ai"],["providerCallCount",1],["logicalOperationId",zeroRequestId],["requestId",zeroLogicalId],["terminalEvidenceHash",null]]){
+ test("zero-provider proof rejects mismatched "+field,()=>{const r=zeroResult();r.zeroProviderExecution[field]=value;assert.throws(()=>validateResult(r,plan()));});
+}
+test("empty calls without original zero-execution proof cannot hide a dispatched or unreconciled call",()=>{
+ const r=zeroResult();delete r.zeroProviderExecution;assert.throws(()=>validateResult(r,plan()));
+ const paid=result();paid.zeroProviderExecution=zeroResult().zeroProviderExecution;assert.throws(()=>validateResult(paid,plan()));
+});
+test("a genuine zero-call mode never reconciles the old unknown actual",()=>{
+ const r=result();r.calls[1].actualMicroUSD=null;assert.equal(usage([zeroResult(),r]).unknown,1);assert.equal(usage([zeroResult(),r]).totalMicroUSD,null);
+});
+test("safe urgent output without publication remains a functional FAIL",()=>{
+ assert.throws(()=>validateResult(zeroResult({verdict:"PASS"}),plan()));const r=zeroResult();assert.equal(summarize(plan(),[r],S,H).perSha[S].FAIL,1);
+});
+test("confirmed durable zero-provider emergency may pass but never adds physical calls or paid turns",()=>{
+ const r=zeroResult({published:true,verdict:"PASS"});assert.doesNotThrow(()=>validateResult(r,plan()));assert.equal(usage([r]).physicalCalls,0);
+});

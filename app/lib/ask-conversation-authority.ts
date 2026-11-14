@@ -32,9 +32,10 @@ function createAskConversationAuthorityClient() {
   });
 }
 
-async function callAskConversationAuthority(name: string, parameters: Record<string, unknown>) {
+async function callAskConversationAuthority(name: string, parameters: Record<string, unknown>, signal?: AbortSignal) {
   try {
-    const { data, error, status } = await createAskConversationAuthorityClient().rpc(name, parameters);
+    const query = createAskConversationAuthorityClient().rpc(name, parameters);
+    const { data, error, status } = await (signal ? query.retry(false).abortSignal(signal) : query);
     if (error) console.warn("[Ask conversation authority] RPC failure", { operation: name,
       code: /^[A-Z0-9_]{1,40}$/.test(error.code || "") ? error.code : "unknown", status });
     return { data: data as unknown, error: error ? { ...error, status } : null };
@@ -44,6 +45,7 @@ async function callAskConversationAuthority(name: string, parameters: Record<str
 }
 
 export function createAskConversationExchange(input: {
+  signal?: AbortSignal;
   contextUsed: unknown;
   petId: string;
   preview: string;
@@ -64,10 +66,11 @@ export function createAskConversationExchange(input: {
     p_title: input.title,
     p_user_id: input.userId,
     p_user_text: input.userText,
-  });
+  }, input.signal);
 }
 
 export function appendAskConversationExchange(input: {
+  signal?: AbortSignal;
   contextUsed: unknown;
   conversationId: string;
   preview: string;
@@ -86,7 +89,7 @@ export function appendAskConversationExchange(input: {
     p_save_metadata: input.saveMetadata,
     p_user_id: input.userId,
     p_user_text: input.userText,
-  });
+  }, input.signal);
 }
 
 export function beginAskConversationTurn(input: {

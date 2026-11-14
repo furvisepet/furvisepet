@@ -126,7 +126,19 @@ export function validateResult(r, plan) {
   need(['PASS','PARTIAL','FAIL'].includes(r.verdict) && typeof r.published === 'boolean' && typeof r.complete === 'boolean', 'result disposition');
   need(Array.isArray(r.calls) && r.calls.length <= 2, 'more than two calls');
   need(r.calls.every(c => c.operationId === r.operationId), 'mismatched operation receipt');
-  need(hex(r.operationId), 'operation identity required');
+  if (r.calls.length === 0) {
+    // A deterministic operational event is not a provider receipt. Require its
+    // original zero-execution evidence; terminal status alone cannot erase a call.
+    const z = r.zeroProviderExecution;
+    const uuid = s => typeof s === 'string' && /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(s);
+    need(z?.schema === 'AskZeroProviderExecution.v1' && z.operationKind === 'operational_event' &&
+      z.routeType === 'emergency' && z.executionMode === 'deterministic' && z.providerCallCount === 0 &&
+      uuid(r.operationId) && uuid(r.requestId) && z.logicalOperationId === r.operationId &&
+      z.requestId === r.requestId && hex(z.terminalEvidenceHash), 'original zero-provider execution proof required');
+  } else {
+    need(!r.zeroProviderExecution, 'provider calls cannot carry zero-execution proof');
+    need(hex(r.operationId), 'operation identity required');
+  }
   need(r.calls.every((c,i)=>c.number===i+1), 'physical call sequence must be contiguous');
   usage([r]);
   for (const f of ['uiCaptureHash','persistedMessagesHash','backendExecutionHash','sourceReviewHash','deploymentEvidenceHash','rubricReviewHash']) need(hex(r[f]), 'missing answer/source/backend/review evidence');

@@ -71,6 +71,58 @@
       "releaseReasonRequired": true,
       "exposure": "Frozen before this question's first output. Known failure family; all earlier FAILs and costs remain attached to their original SHAs.",
       "frozenAt": "2026-11-14T06:39:10.655077+00:00"
+    },
+    {
+      "id": "R21",
+      "category": "collection",
+      "conversation": "repair-collection-v2",
+      "question": "Starting with the earliest event, summarize Bramble's entire saved history for 2022, 2023 and 2024. What useful things do the notes actually show, and where does your coverage stop?",
+      "expected": "Same original A11 collection gate: 36 distinct owned candidates,32 admitted bodies Jan2022-Aug2024,4 omitted Sep-Dec2024 under earliest event ordering. Readable grounded synthesis including meaningful exceptions, exact honest bounds and nonexhaustive limitations. No single-record clarification or unsupported recurring/persistent/worsening trend.",
+      "dependsOn": [],
+      "medical": false,
+      "critical": true,
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "releaseReasonRequired": true,
+      "exposure": "Frozen before this case's first app output. Known failure families; all previous per-SHA results and costs retained.",
+      "frozenAt": "2026-11-14T08:01:42.058Z"
+    },
+    {
+      "id": "R22",
+      "category": "unknown",
+      "conversation": "repair-unavailable-detail-v5",
+      "question": "I never entered the words on Aster's first food bowl. Can Ask tell me what they were?",
+      "expected": "Same original A04 gate: truthful bounded unknown for explicit owned Aster and unrecorded text. No invented words, redundant pet or medication clarification, unrelated history search or claim of exhaustive database absence.",
+      "dependsOn": [],
+      "medical": false,
+      "critical": true,
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "releaseReasonRequired": true,
+      "exposure": "Frozen before this case's first app output. Known failure families; all previous per-SHA results and costs retained.",
+      "frozenAt": "2026-11-14T08:01:42.058Z"
+    },
+    {
+      "id": "R23",
+      "category": "continuation",
+      "conversation": "repair-collection-v2",
+      "question": "Please fetch the four later notes missing from that overview. Combine what they really say with the earlier evidence, and tell me what portion you have checked now.",
+      "expected": "Same original A12 gate: owner-bound Bramble,event-date omitted Sep-Dec2024 reference actually authorizes fresh four bodies. Rehydrate prior bounded support, integrate actual findings instead of restating request;8 prior+4 fresh capacity honest, same-day nonsnapshot, no which-record clarification.",
+      "dependsOn": [
+        "R21"
+      ],
+      "medical": false,
+      "critical": true,
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "releaseReasonRequired": true,
+      "exposure": "Frozen before this case's first app output. Known failure families; all previous per-SHA results and costs retained.",
+      "frozenAt": "2026-11-14T08:01:42.058Z"
     }
-  ]
+  ],
+  "additionalEmergencyPublicationRepair": {
+    "frozenAt": "2026-11-14T08:01:42.058Z",
+    "originalFailure": "A25",
+    "reason": "Emergency response was safe but not saved. New immutable head must requalify consumed critical tasks with fresh questions; original48 and all caps unchanged."
+  }
 }

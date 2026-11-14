@@ -2,10 +2,10 @@ import {selectionFixture,answerFixture,sdkFixture,ordinaryTask} from "./helpers/
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {engineFixture as emergencyFixture,cedar,id as legacyId} from "./helpers/ask-route-ordering.mjs";
+import {cedar,id as legacyId} from "./helpers/ask-route-ordering.mjs";
 import {ownerNoteSourceSpans} from "../app/lib/intelligence/owner-note-request.ts";
 import {readOnlySuccessRouteFixture as fixture} from "./helpers/ask-read-only-success-route.mjs";
-import {id,note} from "./helpers/ask-read-only-failure-route.mjs";
+import {id,note,readOnlyFailureRouteFixture} from "./helpers/ask-read-only-failure-route.mjs";
 import {POST as confirm,request as confirmRequest,messageId} from "./helpers/ask-read-only-action-routes.mjs";
 
 function wire(output){return {status:"completed",output,usage:{input_tokens:1000,output_tokens:80}};}
@@ -68,10 +68,14 @@ test("public confirmation stays unavailable across owner, message and decision s
  }
  assert.equal(count(),0);
 });
-test("fixed emergency response requires no Brain, factual read, capability, or save",async()=>{
- const f=emergencyFixture({modelDown:true});const result=await(await f.send("Cedar cannot breathe. Save this note.")).json();
- assert.equal(result.success,true);assert.match(result.response.directAnswer,/emergency veterinarian/);assert.equal(f.state.planner,0);
- assert.equal(f.rows.pet_care_entries.length,2);assert.equal(f.rows.ask_action_capabilities.length,0);assert.deepEqual(f.state.events,[]);
+test("fixed emergency response uses bounded Ask history but no Brain, factual read, credit or care save",async()=>{
+ const f=readOnlyFailureRouteFixture(()=>{throw Error("NO_PROVIDER");},[],{emergency:true});
+ const result=await(await f.send("Cedar cannot breathe. Save this note.")).json();
+ assert.equal(result.success,true);assert.match(result.response.directAnswer,/emergency veterinarian/);
+ assert.equal(f.state.calls,0);assert.equal(f.state.reads,0);assert.equal(f.state.credit,null);assert.deepEqual(f.state.tables,[]);
+ assert.equal(result.dataChanged,false);assert.equal(result.carePersistence.status,"skipped");assert.equal(result.saveMetadata.persistenceEligible,false);
+ assert.equal(result.persistence.saved,true);assert.equal(f.state.emergencyWrites,1);assert.equal(f.state.userMessages,1);
+ assert.equal(f.state.persistedAnswer.response_data.turn.providerCallCount,0);
 });
 test("public conversation uses the native bounded path; retained planning context does not acquire history",async()=>{
  const f=fixture({answer:"A prime number has two positive divisors.",replyType:"answer"});
