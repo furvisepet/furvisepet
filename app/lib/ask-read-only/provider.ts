@@ -1,3 +1,4 @@
+import { decodeSourceSentenceWire } from "./source-sentence-wire.mjs";
 import { randomUUID } from "node:crypto";
 import { buildReadOnlyProviderRequest, describeReadRequest, safeReadAdmissionDiagnostic } from "./provider-request.mjs";
 import { getAiFeaturePolicy } from "../ai/usage-guard/features.ts";
@@ -49,7 +50,7 @@ export function readOnlyProvider(model:string,onEvent:(event:AskProviderEvent)=>
     if(typeof text!=="string"||(!calls.length&&!text.trim()))throw Object.assign(new Error("ASK_READ_PROVIDER_INCOMPLETE"),{code:"ASK_READ_PROVIDER_INCOMPLETE"});
     value={text,calls};
    }else{
-    value=decodeProviderJson(response);
+    value=decodeSourceSentenceWire(decodeProviderJson(response),input);
    }
    onEvent({stage,outcome:"succeeded",validationDetails:JSON.stringify({outputLayout,clientRequestId,...describeReadRequest(request)}),model,elapsedMs:Math.round(performance.now()-started),inputTokens:response.usage?.input_tokens,outputTokens:response.usage?.output_tokens,finishReason:response.status??null,providerEnvelope});
    return value;

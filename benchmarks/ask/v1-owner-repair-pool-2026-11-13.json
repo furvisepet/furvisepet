@@ -26,6 +26,21 @@
       "critical": true,
       "releaseReasonRequired": true,
       "exposure": "Fresh repair analogue frozen after A04 failure and before this case's first app output; not an unseen failure family."
+    },
+    {
+      "id": "R18",
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "category": "unknown",
+      "conversation": "repair-unavailable-detail-v2",
+      "question": "What material was Aster's first travel mat made from? I have never entered its material in Furvise.",
+      "expected": "Honest bounded unknown. Explicit Aster is not missing pet identity. Do not invent a material, search unrelated history, claim exhaustive database absence, or ask which pet. Same behavioral requirement as A04; fresh different-pet/detail question.",
+      "dependsOn": [],
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "exposure": "Fresh analogue frozen before its first output; the failure family is previously seen, and all earlier failures/passes remain attached to their exact SHAs.",
+      "frozenAt": "2026-11-14T05:54:01.387274+00:00"
     }
   ]
 }

@@ -1,0 +1,31 @@
+{
+  "schema": "AskV1SentenceWireVerification.v1",
+  "recordedAt": "2026-11-14T06:02:43.495756+00:00",
+  "baseSha": "fe23dc559f2d5a96f299d377ce4df82ad8e8bc47",
+  "sourceSha256": {
+    "app/lib/ask-read-only/provider-request.mjs": "5f5557a166dc9aba773b92a12a480e15f33ab44cd00c5b083afa792f1126a46e",
+    "app/lib/ask-read-only/provider.ts": "ed49fb74f7b2f36a5111acf520c736783e99e501248d900389a236c405707e08",
+    "app/lib/ask-read-only/source-sentence-wire.mjs": "62f78e4bbad1a9c0293e8efdb9b95af5912eac7904bede54342324db326fdddd",
+    "benchmarks/ask/v1-owner-repair-pool-2026-11-13.json": "6bb3597a861d50222ec88d71139675c53a841022006af0a250b411a4476157ee",
+    "benchmarks/ask/v1-repair-equivalence-2026-11-14.json": "f0f6901ede4c54c78e19ffba5f1c478ce1b52082ecc6ca61df50b69cccf86eea",
+    "tests/ask-read-only-wire-qualification.test.mjs": "77c182fb273825364e21330358304fc21cb0c75e75ebc31730b7d585399d8622",
+    "tests/ask-source-sentence-wire.test.mjs": "f4e9cfc9e37a8095158d9616f34a00f336cd222c90a59822efaa72d38a634c30"
+  },
+  "completeFocused": {
+    "tests": 99,
+    "pass": 99,
+    "fail": 0,
+    "logSha256": "de3274f89687eca2b5af57d9af70628ca31466d8bebcb3ac70a5cbcada56e6dd"
+  },
+  "broadRuns": "cancelled; not suite success",
+  "standaloneTypeLint": "pending",
+  "exactHeadBuild": "pending preview",
+  "liveCandidate": "not submitted",
+  "priorNewSession": {
+    "turns": 6,
+    "physicalCalls": 12,
+    "knownMicroUSD": 68360,
+    "newUnknown": 0
+  },
+  "originalUnknownStillUnresolved": true
+}

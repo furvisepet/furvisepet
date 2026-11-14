@@ -1,3 +1,4 @@
+import {prepareSourceSentenceWire} from "../app/lib/ask-read-only/source-sentence-wire.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import Ajv from 'ajv';
@@ -31,17 +32,17 @@ test('both real Ask schemas share exact repeated constraints while preserving ev
   const input={instructions:'All original safety instructions remain.',context,selectionSchema:selection,schema:final,draft:'',SOURCE_CATALOG:sources.map(({handle,...s})=>({source:handle,...s})),TOOL_DATA:[{scope:{goal:'complete_set'},inspected:36,omitted:4,sources:sources.map(s=>({source:s.handle}))}]};
   const before=structuredClone(input),wire=buildReadOnlyProviderRequest('model',input,phase,2400,policy),compact=wire.text.format.schema;
   assert.ok(compact.$defs,'active wire must use shared schema definitions');
-  assert.deepEqual(expand(compact),schema);assert.deepEqual(input,before);
+  assert.deepEqual(expand(compact),phase==="read_answer"?prepareSourceSentenceWire(input).schema:schema);assert.deepEqual(input,before);
   assert.ok(JSON.stringify(compact).length<JSON.stringify(schema).length);
   const expandedWire=structuredClone(wire);expandedWire.text.format.schema=schema;
   t.diagnostic(JSON.stringify({phase,schemaCharactersBefore:JSON.stringify(schema).length,schemaCharactersAfter:JSON.stringify(compact).length,requestCharactersBefore:JSON.stringify(expandedWire).length,requestCharactersAfter:JSON.stringify(wire).length,admittedBodies:32,examinedCandidates:36}));
   const validate=new Ajv({strict:false}).compile(compact);
   assert.equal(validate({}),false);
-  assert.equal(wire.instructions,input.instructions);assert.equal(wire.max_output_tokens,2400);assert.equal(wire.store,false);
+  assert.ok(wire.instructions.startsWith(input.instructions));assert.equal(wire.max_output_tokens,2400);assert.equal(wire.store,false);
   assert.equal(wire.input.at(-1).content,context.question);
   if(phase==='read_answer'){
    const packet=JSON.parse(wire.input[0].content);
-   assert.deepEqual(packet.SOURCE_CATALOG,input.SOURCE_CATALOG);assert.equal(packet.TOOL_DATA[0].omitted,4);
+   assert.deepEqual(packet.SOURCE_CATALOG.map(({sentences,...s})=>({...s,body:sentences.join("")})),input.SOURCE_CATALOG);assert.equal(packet.TOOL_DATA[0].omitted,4);
   }
  }
 });
