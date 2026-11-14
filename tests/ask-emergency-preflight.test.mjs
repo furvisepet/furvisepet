@@ -92,7 +92,11 @@ test("malformed or unavailable provider output cannot intercept emergency guidan
   assert.ok(preflight > -1 && preflight < persistence && preflight < reservation && preflight < semanticExtraction);
   const responseFunction = routeFunctionSource("standaloneEmergencyResponse");
   assert.match(responseFunction, /creditsUsed: 0/);
-  assert.match(responseFunction, /persistence: \{ saved: false/);
+  assert.match(responseFunction, /const saved = history\?\.status === "confirmed"/);
+  assert.match(responseFunction, /persistence: \{ saved,/);
+  assert.match(responseFunction, /history\?\.status === "confirmed" \? history\.receipt : \{\}/);
+  assert.match(responseFunction, /Emergency guidance was not saved to history/);
+  assert.match(responseFunction, /carePersistence: \{ status: "skipped"/);
   assert.match(responseFunction, /handledWithoutAi: true/);
   assert.doesNotMatch(responseFunction, /usage|remainingCredits|conversationId|userMessageId/);
 });

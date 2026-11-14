@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {readFileSync,writeFileSync} from 'node:fs';
 import {detectImmediateAskEmergency} from '../app/lib/ask-safety-context.ts';
-import {fixture} from './helpers/ask-route-ordering.mjs';
+import {readOnlyFailureRouteFixture} from './helpers/ask-read-only-failure-route.mjs';
 
 const frozen=JSON.parse(readFileSync(new URL('./fixtures/emergency-subject-clauses-regression.json',import.meta.url),'utf8'));
 const emergencies=[
@@ -43,15 +43,17 @@ for(const conjunction of ['while','whereas'])for(const [message,urgent]of [
 ])test('contrast context: '+message,()=>assert.equal(!!detectImmediateAskEmergency(message),urgent));
 
 async function urgentRoute(message,journal){
- const f=fixture({creditLedger:true,realEmergencyResponse:true,providerCreate:async()=>{throw Error('URGENT_MUST_NOT_PLAN');}});
- const before=structuredClone(f.rows),r=await f.send(message),body=await r.json();
- const actual={http:r.status,plannerCalls:f.state.planner,safety:body.safety?.level,events:f.state.events,rowsUnchanged:JSON.stringify(f.rows)===JSON.stringify(before),saved:body.persistence?.saved,creditsUsed:body.creditsUsed,capabilities:f.rows.ask_action_capabilities.length};
+ const f=readOnlyFailureRouteFixture(()=>{throw Error("URGENT_MUST_NOT_CALL_PROVIDER");},[],{emergency:true});
+ const r=await f.send(message),body=await r.json();
+ const actual={http:r.status,plannerCalls:f.state.calls,safety:body.safety?.level,saved:body.persistence?.saved,creditsUsed:body.creditsUsed,careReads:f.state.reads,queriedTables:f.state.tables};
  if(journal&&process.env.FURVISE_SUBJECT_ROUTE_JOURNAL)
-  writeFileSync(process.env.FURVISE_SUBJECT_ROUTE_JOURNAL,JSON.stringify({scenario:frozen.sourceScenario.id,expected:frozen.sourceScenario.expected,actual},null,2),{flag:'wx'});
- assert.equal(r.status,200);assert.equal(actual.plannerCalls,0);assert.equal(actual.safety,'urgent');
- assert.deepEqual(f.rows,before);assert.deepEqual(f.state.events,[]);assert.equal(body.persistence.saved,false);assert.equal(body.dataChanged,false);assert.equal(body.creditsUsed,0);assert.equal(actual.capabilities,0);assert.equal(f.state.credit,null);
+  writeFileSync(process.env.FURVISE_SUBJECT_ROUTE_JOURNAL,JSON.stringify({scenario:frozen.sourceScenario.id,originalOracle:frozen.sourceScenario.expected,actual,contractChange:"Only owner-bound Ask publication may persist; no care/profile effects."},null,2),{flag:"wx"});
+ assert.equal(r.status,200);assert.equal(actual.plannerCalls,0);assert.equal(actual.safety,"urgent");
+ assert.equal(body.persistence.saved,true);assert.equal(body.dataChanged,false);assert.equal(body.creditsUsed,0);
+ assert.equal(body.carePersistence.status,"skipped");assert.equal(f.state.credit,null);
+ assert.equal(f.state.reads,0);assert.deepEqual(f.state.tables,[]);assert.equal(f.state.emergencyWrites,1);assert.equal(f.state.userMessages,1);
 }
-test('RC1001-007 separate frozen regression preserves campaign oracle',async()=>{
+test('RC1001-007 frozen input preserves urgent subject isolation with current chat publication',async()=>{
  assert.equal(frozen.sourceScenario.id,'RC1001-007');
  await urgentRoute(frozen.sourceScenario.input.question,true);
 });

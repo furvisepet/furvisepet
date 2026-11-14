@@ -1,0 +1,124 @@
+{
+  "parentSha": "faa882b2be36d43d629ae889515556114601bc02",
+  "focusedEmergency": {
+    "tests": 108,
+    "pass": 108,
+    "fail": 0,
+    "complete": true
+  },
+  "fullAskNewHead": "PENDING",
+  "checks": {
+    "pronoun-security-complete": {
+      "command": [
+        "node",
+        "scripts/run-tests.mjs",
+        "--test-concurrency=1",
+        "--test-timeout=30000",
+        "tests/security-phase-s2a.test.mjs",
+        "tests/security-phase-s2b.test.mjs",
+        "tests/security-phase-s2c.test.mjs",
+        "tests/security-phase-s2d.test.mjs",
+        "tests/security-phase-s2e.test.mjs",
+        "tests/security-phase-s2f.test.mjs",
+        "tests/security-phase-s2g.test.mjs",
+        "tests/security-phase-s2h.test.mjs",
+        "tests/password-capability-state.test.mjs",
+        "tests/ask-conversation-authority-foundation.test.mjs",
+        "tests/ask-conversation-authority-lock.test.mjs",
+        "tests/ask-read-only-actions.test.mjs",
+        "tests/ask-read-only-provider-failure-route.test.mjs",
+        "tests/ask-read-only-native-envelope.test.mjs",
+        "tests/ai-credit-security-regression.test.mjs",
+        "tests/ask-provider-envelope-diagnostics.test.mjs",
+        "tests/ask-provider-error-diagnostics.test.mjs",
+        "tests/ask-post-review-finalizer-contract.test.mjs",
+        "tests/canonical-care-deployment-compatibility.test.mjs",
+        "tests/ask-memory-integrity-p0.test.mjs",
+        "tests/furvise-brain-architecture-boundary.test.mjs",
+        "tests/furvise-brain-owner-note-gate.test.mjs",
+        "tests/ask-read-only-state-claim-publication.test.mjs",
+        "tests/canonical-memory-suggestion.test.mjs",
+        "tests/canonical-suggestion-continuation.test.mjs",
+        "tests/core-loop-stability.test.mjs",
+        "tests/ask-action-capability-v1.test.mjs",
+        "tests/furvise-intelligence-engine.test.mjs",
+        "tests/ask-memory-single-authority.test.mjs",
+        "tests/ask-memory-authority-p0.test.mjs",
+        "tests/care-entry-write-authority.test.mjs",
+        "tests/ask-structured-output-reliability.test.mjs",
+        "tests/ask-read-only-omitted-text.test.mjs",
+        "tests/ask-read-only-dialogue-coverage.test.mjs",
+        "tests/ask-read-only-follow-up-context.test.mjs",
+        "tests/ask-read-only-effect-claims.test.mjs",
+        "tests/ask-action-capability-security-regressions.test.mjs",
+        "tests/ask-action-capability-target-freshness-expiry.test.mjs",
+        "tests/ask-route-ordering.test.mjs",
+        "tests/ask-state-suggestion-persistence.test.mjs",
+        "tests/ask-public-cancellation-route.test.mjs",
+        "tests/ask-input-budget-route.test.mjs",
+        "tests/furvise-conversational-architecture-v1.test.mjs"
+      ],
+      "exitCode": 0,
+      "seconds": 88.5,
+      "tail": "ed (1.5693ms)\n\u2714 all browser state-changing routes use the central framework (18.319ms)\n\u2714 all paid provider entry routes claim before the provider call (1.9383ms)\n\u2714 message, profile, care, memory, conversation, and brief inserts carry request uniqueness (4.6276ms)\n\u2714 cleanup is dry-run by default, bounded, service-only, and excludes active financial work (3.5309ms)\n\u2714 first-party mutation fetches reuse an unresolved key and never persist private payloads (2.9507ms)\n\u2714 client rerender, retry, and canonical completion follow the key lifecycle (41.931ms)\n\u2714 identical intentional actions are not deduplicated by message text (4.3203ms)\n\u2714 retired Ask action and suggestion endpoints authenticate and deny without a write authority (5.3979ms)\n\u2714 retired Ask mutation handlers authenticate and deny without acquiring write or provider authority (3.4123ms)\n\u2714 browser Auth calls are mediated by same-origin application routes (8.0825ms)\n\u2714 signup, recovery, resend, and login OTP start require and forward a CAPTCHA token (5.63ms)\n\u2714 CAPTCHA tokens remain transient and reset after every protected client submission (5.9026ms)\n\u2714 production cannot activate the explicit CAPTCHA development bypass (2.6306ms)\n\u2714 email sign-in defers CAPTCHA to the password step while server-side challenge enforcement remains layered (6.9127ms)\n\u2714 credential and email-send Auth responses remain neutral while account routing returns only a bounded flow (5.64ms)\n\u2714 Auth policies use the canonical registry with the reviewed windows (1.8003ms)\n\u2714 distributed Auth store enforces windows and exact replay fingerprints (0.304ms)\n\u2714 email normalization is bounded and limiter identities are dedicated HMACs (4.5646ms)\n\u2714 failed-login tracking counts credential failures, challenges temporarily, and clears on success (3.3627ms)\n\u2714 all public Auth mutations require an explicit same-origin browser request (12.677ms)\n\u2714 rejected Auth requests cannot send email before CAPTCHA, limit, and replay decisions (5.1526ms)\n\u2714 pre-provider infrastructure failures release email-operation replay claims (6.0521ms)\n\u2714 password policy is length-only, bounded, and does not mutate passwords (3.0153ms)\n\u2714 recovery redirects are server-selected and password update requires verified session (6.6446ms)\n\u2714 password recovery completion has a dedicated fail-closed policy (0.1721ms)\n\u2714 confirmation is required at the authoritative AI-credit reservation boundary (3.3042ms)\n\u2714 application workspace and entitlement remain keyed to canonical auth user (6.1489ms)\n\u2714 Auth logs and client code do not log secrets or raw account identifiers (12.191ms)\n\u2714 Auth APIs expose no permissive CORS and CAPTCHA is not added to product features (12.7284ms)\n\u2714 Turnstile browser origins are exact and conditional in report-only CSP (1.4566ms)\n\u2714 example configuration rejects missing or malformed challenges without leaking template values (1.6664ms)\n\u2714 progressive login still challenges on server demand and validates every supplied challenge (1.4634ms)\n\u2714 operational metadata is explicitly allowlisted and secret-like fields are dropped (2.7638ms)\n\u2714 event adapter failures cannot crash requests and critical events use the interface (3.3447ms)\n\u2714 safe support references contain no actor, email, narrative, or stack (1.1634ms)\n\u2714 public health is shallow and reveals no dependency details (1.5076ms)\n\u2714 readiness requires a timing-safe operator secret and returns only safe component states (1.6863ms)\n\u2714 readiness uses bounded timeouts and never calls OpenAI (1.7179ms)\n\u2714 account deletion authenticates, validates origin, requires current-session recent auth and exact confirmation (1.5972ms)\n\u2714 account deletion requires canonical idempotency and destructive distributed limits (0.1411ms)\n\u2714 application deletion is transactional and Auth deletion follows it (0.2707ms)\n\u2714 partial Auth deletion creates reconciliation state and disables the identity (0.2562ms)\n\u2714 account deletion never uses GET and private responses do not cache (0.1528ms)\n\u2714 export authenticates, requires current-session recent auth, origin protection, idempotency and bounded rate policy (1.4483ms)\n\u2714 export is owner-filtered, bounded, private, attached, and strips internal fields (1.7282ms)\n\u2714 export includes the documented user categories and excludes operational stores (1.4741ms)\n\u2714 operational cleanup defaults dry-run, requires apply confirmation and bounds batches (2.0898ms)\n\u2714 cleanup and diagnostics are service-only (1.0665ms)\n\u2714 integrity diagnostics cover orphan, memory, credit, idempotency and deletion failures with counts only (2.2192ms)\n\u2714 production validation fails required configuration while AI-disabled mode omits OpenAI (3.4429ms)\n\u2714 client bundle receives no new server operational credentials (4.4206ms)\n\u2714 operator documentation distinguishes preparation from active external services (8.1223ms)\n\u2714 deployment and incident runbooks avoid destructive database rollback guidance (3.4087ms)\n\u2139 tests 517\n\u2139 suites 0\n\u2139 pass 517\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 87930.182\n\n"
+    },
+    "pronoun-type": {
+      "command": [
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "--noEmit"
+      ],
+      "exitCode": 0,
+      "seconds": 9.58,
+      "tail": "\n"
+    },
+    "pronoun-lint": {
+      "command": [
+        "node",
+        "node_modules/eslint/bin/eslint.js",
+        "app/lib/ask-read-only/core.mjs",
+        "app/lib/ask-read-only/task-components.mjs",
+        "app/lib/ask-read-only/corrected-reference.mjs",
+        "scripts/audits/ask-v1-benchmark.mjs",
+        "tests/ask-v1-benchmark.test.mjs",
+        "tests/ask-corrected-reference.test.mjs",
+        "tests/ask-unavailable-owner-detail.test.mjs",
+        "tests/ask-task-components.test.mjs",
+        "app/lib/ask-read-only/annual-comparison.mjs",
+        "app/lib/ask-read-only/references.mjs",
+        "tests/ask-annual-comparison.test.mjs",
+        "app/lib/ask-read-only/pronoun-scope.mjs",
+        "tests/ask-pronoun-scope.test.mjs",
+        "app/lib/ai/safety-temporal-scope.ts",
+        "tests/ask-read-only-emergency-preflight-scope.test.mjs",
+        "tests/ask-airway-emergency.test.mjs",
+        "tests/ask-emergency-subject-clauses.test.mjs",
+        "tests/ask-emergency-preflight.test.mjs"
+      ],
+      "exitCode": 0,
+      "seconds": 20.17,
+      "tail": "\n"
+    },
+    "pronoun-diff": {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exitCode": 0,
+      "seconds": 0.12,
+      "tail": "\n"
+    },
+    "pronoun-build": {
+      "command": [
+        "node",
+        "node_modules/next/dist/bin/next",
+        "build",
+        "--webpack"
+      ],
+      "exitCode": 0,
+      "seconds": 87.84,
+      "tail": "\u25b2 Next.js 16.4.5 (webpack)\n\u2713 Running next.config.ts took 386ms\n\n  Creating an optimized production build ...\n\u2713 Compiled successfully in 22.0s\n  Running TypeScript ...\n  Finished TypeScript in 27.5s ...\n  Collecting page data using 31 workers ...\n  Generating static pages using 31 workers (0/44) ...\n  Generating static pages using 31 workers (11/44) \n  Generating static pages using 31 workers (22/44) \n  Generating static pages using 31 workers (33/44) \n\u2713 Generating static pages using 31 workers (44/44) in 4.3s\n  Finalizing page optimization ...\n  Collecting build traces ...\n\nRoute (app)\n\u250c \u25cb /\n\u251c \u25cb /_not-found\n\u251c \u0192 /account\n\u251c \u0192 /admin\n\u251c \u0192 /api/account/change-password\n\u251c \u0192 /api/account/delete\n\u251c \u0192 /api/account/detect-country\n\u251c \u0192 /api/account/entitlements\n\u251c \u0192 /api/account/export\n\u251c \u0192 /api/account/product-country\n\u251c \u0192 /api/admin/dashboard\n\u251c \u0192 /api/admin/exclusions\n\u251c \u0192 /api/ask\n\u251c \u0192 /api/ask/actions/[messageId]\n\u251c \u0192 /api/ask/citations\n\u251c \u0192 /api/ask/conversations\n\u251c \u0192 /api/ask/conversations/[id]\n\u251c \u0192 /api/ask/conversations/[id]/messages\n\u251c \u0192 /api/ask/suggestions/[id]\n\u251c \u0192 /api/auth/account-route\n\u251c \u0192 /api/auth/login\n\u251c \u0192 /api/auth/login-otp/start\n\u251c \u0192 /api/auth/oauth\n\u251c \u0192 /api/auth/recovery\n\u251c \u0192 /api/auth/recovery/continue\n\u251c \u0192 /api/auth/resend\n\u251c \u0192 /api/auth/signup\n\u251c \u0192 /api/auth/update-password\n\u251c \u0192 /api/auth/verify-email-otp\n\u251c \u0192 /api/billing/checkout\n\u251c \u0192 /api/billing/portal\n\u251c \u0192 /api/billing/webhook\n\u251c \u0192 /api/care-entries\n\u251c \u0192 /api/care-entries/[id]\n\u251c \u0192 /api/contact\n\u251c \u0192 /api/health\n\u251c \u0192 /api/internal/owner-note-enrichment\n\u251c \u0192 /api/legacy-memories\n\u251c \u0192 /api/memories/[id]\n\u251c \u0192 /api/pets\n\u251c \u0192 /api/pets/[id]\n\u251c \u0192 /api/product-feedback\n\u251c \u0192 /api/readiness\n\u251c \u0192 /api/telemetry/activity\n\u251c \u0192 /api/vet-briefs\n\u251c \u0192 /api/vet-briefs/[id]\n\u251c \u0192 /api/vet-briefs/[id]/pdf\n\u251c \u0192 /api/vet-briefs/draft\n\u251c \u0192 /ask\n\u251c \u0192 /auth/callback\n\u251c \u0192 /care-log\n\u251c \u25cb /contact\n\u251c \u0192 /dashboard\n\u251c \u0192 /dogs/[id]/care\n\u251c \u0192 /dogs/[id]/edit\n\u251c \u0192 /dogs/[id]/feedback\n\u251c \u0192 /dogs/[id]/memories\n\u251c \u0192 /forgot-password\n\u251c \u0192 /history\n\u251c \u25cb /login\n\u251c \u0192 /membership\n\u251c \u0192 /onboarding\n\u251c \u0192 /pets\n\u251c \u0192 /pets/[id]\n\u251c \u0192 /pets/[id]/care\n\u251c \u0192 /pets/[id]/edit\n\u251c \u0192 /pets/[id]/feedback\n\u251c \u0192 /pets/[id]/memories\n\u251c \u25cb /privacy\n\u251c \u25cb /release-notes\n\u251c \u0192 /reset-password/confirm\n\u251c \u0192 /results\n\u251c \u25cb /robots.txt\n\u251c \u0192 /settings/data-privacy\n\u251c \u0192 /settings/security\n\u251c \u0192 /shop\n\u251c \u25cb /sitemap.xml\n\u251c \u25cb /terms\n\u251c \u0192 /today\n\u251c \u0192 /update-password\n\u251c \u0192 /vet-brief\n\u2514 \u0192 /vet-briefs/[id]/print\n\n\n\u0192 Proxy (Middleware)\n\n\u25cb  (Static)   prerendered as static content\n\u0192  (Dynamic)  server-rendered on demand\n\n\n"
+    }
+  }
+}

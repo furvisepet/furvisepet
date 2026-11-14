@@ -1,0 +1,140 @@
+{
+  "turns": 38,
+  "PASS": 23,
+  "PARTIAL": 2,
+  "FAIL": 13,
+  "published": 34,
+  "explicitUnpublished": 4,
+  "newKnownMicroUSD": 494015,
+  "newUnknown": 0,
+  "calls": 68,
+  "actualReceipts": 68,
+  "bySha": {
+    "83ae3b9a5c2aa4dfbaece087d8637c08a0393476": {
+      "turns": 4,
+      "PASS": 3,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "published": 4,
+      "calls": 8,
+      "microUSD": 36905
+    },
+    "fe23dc559f2d5a96f299d377ce4df82ad8e8bc47": {
+      "turns": 2,
+      "PASS": 1,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "published": 1,
+      "calls": 4,
+      "microUSD": 31455
+    },
+    "5b24f4fe9dc893b63312b07738e935c971fb8db0": {
+      "turns": 1,
+      "PASS": 0,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "published": 1,
+      "calls": 2,
+      "microUSD": 8487
+    },
+    "575ab6f09643ad8b0c817b0d93bab92948e2e887": {
+      "turns": 1,
+      "PASS": 0,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "published": 1,
+      "calls": 2,
+      "microUSD": 8753
+    },
+    "094c8b319733ecbccb0c223dd69e2e678c5f5187": {
+      "turns": 7,
+      "PASS": 6,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "published": 6,
+      "calls": 12,
+      "microUSD": 89000
+    },
+    "19ea5ee91691ae32d7ba95e1e6e0c202117ecb3a": {
+      "turns": 4,
+      "PASS": 3,
+      "PARTIAL": 1,
+      "FAIL": 0,
+      "published": 4,
+      "calls": 6,
+      "microUSD": 54748
+    },
+    "7a0905a82b36ddca316296a10ad8bbeb53dddc13": {
+      "turns": 4,
+      "PASS": 3,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "published": 3,
+      "calls": 7,
+      "microUSD": 62904
+    },
+    "fb5c6342e3e2ddd0bd854b87a8b130c9fa7e27be": {
+      "turns": 7,
+      "PASS": 5,
+      "PARTIAL": 0,
+      "FAIL": 2,
+      "published": 7,
+      "calls": 14,
+      "microUSD": 118893
+    },
+    "932532b10f05addc281ae46c58a165bda3099ebf": {
+      "turns": 2,
+      "PASS": 1,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "published": 2,
+      "calls": 4,
+      "microUSD": 16243
+    },
+    "27317891ba56afaa78ef480328b2b5c297c8f21a": {
+      "turns": 1,
+      "PASS": 0,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "published": 1,
+      "calls": 2,
+      "microUSD": 12881
+    },
+    "3a3f0febbea809c40fdedb7bae191c1798a6d6ed": {
+      "turns": 2,
+      "PASS": 1,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "published": 2,
+      "calls": 4,
+      "microUSD": 34371
+    },
+    "7fd209ce54a090559f27301878e4c2ee93afa228": {
+      "turns": 1,
+      "PASS": 0,
+      "PARTIAL": 1,
+      "FAIL": 0,
+      "published": 1,
+      "calls": 2,
+      "microUSD": 12473
+    },
+    "f15a769cf7cc0368d004816439af64c4bbfbd9a7": {
+      "turns": 1,
+      "PASS": 0,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "published": 0,
+      "calls": 1,
+      "microUSD": 6902
+    },
+    "faa882b2be36d43d629ae889515556114601bc02": {
+      "turns": 1,
+      "PASS": 0,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "published": 1,
+      "calls": 0,
+      "microUSD": 0
+    }
+  }
+}
