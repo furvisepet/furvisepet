@@ -3,7 +3,7 @@
   "rootPlanHash": "4b6362042704afe0fda7906f158de20e64bcd658163d997f6bf8a85abf8b80d2",
   "frozenAt": "2026-11-14T05:03:10.342416+00:00",
   "beforeAdditionalCaseOutputs": true,
-  "reason": "Actual A04 explicit-owned-pet unknown-detail failure requires a fresh analogous unknown case; original48 questions, criteria and all results remain unchanged. Retained R22 clarification-kind failure and exhausted collection analogues require five additional PRE-OUTPUT candidates on a different owned pet/period. Candidate pool71 is not71authorized live turns; original48/96/16 active.",
+  "reason": "Actual A04 explicit-owned-pet unknown-detail failure requires a fresh analogous unknown case; original48 questions, criteria and all results remain unchanged. Retained R22 clarification-kind failure and exhausted collection analogues require five additional PRE-OUTPUT candidates on a different owned pet/period. Candidate pool72 is not72authorized live turns; original48/96/16 active.",
   "originalFailureCase": "A04",
   "originalFailureEvidenceSha256": "04b3934c74e33f4b78655e80d78222ae47ee1a6aea37e4101ed201ac12199f1a",
   "paidLimitsUnchanged": {
@@ -376,6 +376,21 @@
       "releaseReasonRequired": true,
       "frozenAt": "2026-11-14T11:32:06.324Z",
       "exposure": "Fresh analogue of actual A21 failure, frozen before first output against independently pinned original endpoint bodies; changed pet/period, no tested prompt reused."
+    },
+    {
+      "id": "R40",
+      "category": "clarification",
+      "conversation": "repair-unestablished-pronoun",
+      "question": "Can you tell me what he weighed in September?",
+      "expected": "Fresh conversation with multiple owned pets and only UI-selected Cedar: ask the necessary pet and year, not a weight or a guessed selected-pet history read. Concise scope clarification, no invented value, unnecessary medication/which-record question or private read before subject/year established.",
+      "medical": false,
+      "critical": true,
+      "dependsOn": [],
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T12:02:58.240Z",
+      "exposure": "Fresh analogue of actual A16 PARTIAL; different pronoun/month, frozen before first output, no tested prompt reused."
     }
   ],
   "additionalEmergencyPublicationRepair": {

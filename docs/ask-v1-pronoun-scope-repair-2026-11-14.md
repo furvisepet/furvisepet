@@ -1,0 +1,19 @@
+A16 on7fd209ce safely read no records and invented no weight, but asked only for year in a fresh “she/inMay” question with multiple owned pets and no established antecedent. Under the frozen scope rubric this is PARTIAL, not PASS. Exact UI, task diagnostics and receipts are retained:$0.012473 for2actual calls.
+
+The new boundary requires a pet before private-history IO when a third-person pronoun has no explicit current owned name, owner-established dialogue name or retained reference. UI selection alone is not an antecedent. It clears UI-only task/intent pet scope, preserves year and other missing fields, discards unsupported draft text and suppresses guessed reads. Original reads still pass the existing binder for malformed/foreign-locator rejection before suppression; this grants no read. Single-owned-pet, named/established-reference, ordinary source-free guidance and clinical/medication/urgent paths are preserved.
+
+Sixteen new regressions include actual two-call orchestration asking pet+year with0reads, profile-read suppression, owner-vs-assistant authority, established subjects and medical exclusions. The complete focused445-case Ask suite and complete517-case security suite, type/lint and production build are recorded adjacent. The FULL Ask suite is NOT YET RUN on this source; parent7fd209ce passed664. A final unchanged-source full run is required after the remaining app cohort. No prior full-suite or live pass transfers automatically.
+
+Retained36-turn ledger:23PASS/2PARTIAL/11FAIL,33durable publications/3explicit unpublished outcomes,67physical calls/67actual receipts,$0.487113 NEW,no new unknown. R32 remains a protocol FAIL despite a correct functional answer; no intent was backdated. Every earlier failure/partial and per-SHA cost remains intact. A tested prompt is not a fresh holdout.
+
+The supplied prior48-turn baseline remains separate:96attempts/95actual receipts,$0.862480 known+the original unknown second call. Combined supplied/current:84turns,163attempts/162actual receipts,$1.349593 known plus that same old unknown; not all historical PR527 pilots. A terminal state never reconciles a null actual receipt.
+
+Original48turn/96call/16reserve/$2.50 NEW authority remains active:36turns/16reserves consumed,12initial turns left. The pending70turn/140call/38reserve request keeps the SAME$2.50 ceiling and requires a DISTINCT actual G decision bound to its exact request hash. It is NOT approval.72pre-output frozen candidate questions are a pool, not72app submissions. Original launch criteria and retrieval caps8pages/64candidates/32bodies/24kcharacters/max2provider calls are unchanged.
+
+R40 is a fresh pronoun/month analogue for A16's pet/year clarification gate, frozen before first output. It is not dispatched under an exhausted reserve: finish remaining authorized initial questions first, then request extension only when that cap blocks the next fresh qualification batch.
+
+Official independent veterinary/FDA criteria remain frozen at6876788da0326037af67d04e9d868177c2dcc815191c0d2eba445a267c604c41. Final-source clinical cases remain UNVERIFIED. Unsafe advice stops further medical prompts until offline repair/review and a new verified SHA. Prior bounded observations are not clinician signoff or veterinary accuracy clearance.
+
+PT409 migrations remain unchanged. No production merge/promotion, Supabase tool write, pet care/profile mutation, branch-protection change, runner setup or infrastructure/memory upgrade occurred. GitHub required checks are separately billing-blocked; Forge PR531 is draft and unqualified.
+
+Status:NO-GO pending exact-source fresh app qualification, final complete Ask run and external release gates. This repair is verified by focused checks/build and must still be tested in the real app on fresh analogous questions within valid authority.

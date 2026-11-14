@@ -1,3 +1,4 @@
+import {requirePronounPet} from "./pronoun-scope.mjs";
 import {recoverAnnualComparison} from "./annual-comparison.mjs";
 import { supplementCandidates, supplementalTaskPlan, parseEvidenceCompletion, verifySingleReferenceResult, applyReferenceCompletion, applySourceReview } from "./evidence-completion.mjs";
 import { COMPONENT_INSTRUCTIONS, componentSelectionSchema, componentAnswerSchema, fulfillReferenceReads,ownerFactSentences, reviewComponentCompletion, renderTaskCompletion, resolveRecordDiscovery, normalizeTaskRecords, reconcileNoReadPet } from "./task-components.mjs";
@@ -274,6 +275,10 @@ export async function runReadOnlyAsk(input,deps) {
   deps.onAnswerBoundary?.({outcome:"workflow_task_reconciled",reason:"current_intent_none"});
  }
  if(!keys(first,Object.hasOwn(first??{},"workflowIntent")?["calls","text","safety","historyIntent","workflowIntent"]:Object.hasOwn(first??{},"historyIntent")?["calls","text","safety","historyIntent"]:Object.hasOwn(first??{},"safety")?["calls","text","safety"]:["calls","text"])||!Array.isArray(first.calls)||first.calls.length>4||typeof first.text!=="string"||first.text.length>12000)fail("ASK_READ_PROVIDER_INVALID");
+ let pronounScope;
+ try{pronounScope=requirePronounPet(first,taskPlan,context,input.dialogue,(name,args)=>bindReadTool(name,args,pets,references));}
+ catch(error){deps.onSelectionRejected?.(readSelectionShape(first,pets));throw error;}
+ if(pronounScope){first=pronounScope.first;taskPlan=pronounScope.plan;deps.onAnswerBoundary?.({outcome:"unestablished_pronoun_scope_required",...pronounScope.diagnostic});}
  let annualComparison;
  try{annualComparison=recoverAnnualComparison(first,taskPlan,context,(name,args)=>bindReadTool(name,args,pets,references));}
  catch(error){deps.onSelectionRejected?.(readSelectionShape(first,pets));throw error;}
