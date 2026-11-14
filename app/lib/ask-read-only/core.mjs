@@ -313,6 +313,8 @@ export async function runReadOnlyAsk(input,deps) {
   }
   if(new Set(candidates.map(c=>c.id)).size!==candidates.length)fail("ASK_READ_TOOL_INVALID");
  }catch(error){deps.onSelectionRejected?.(readSelectionShape(first,pets));throw error;}
+ // Cardinality follows bound collection membership before scope flags gate IO.
+ taskPlan=normalizeTaskRecords(taskPlan,candidates);
  const calculationScope=reconcilePlannedAnnualCalculation(first,taskPlan,context,candidates);
  if(calculationScope){taskPlan=calculationScope.plan;first.text="";deps.onAnswerBoundary?.({outcome:"calculation_date_scope_reconciled",...calculationScope.diagnostic});}
  taskPlan=normalizeTaskRecords(taskPlan,candidates);

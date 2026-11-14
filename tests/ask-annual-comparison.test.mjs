@@ -166,7 +166,7 @@ test("planned comparison scope resolves only date flag without adding or changin
 });
 for(const [name,change]of [
  ["ambiguous axis",f=>f.first.historyIntent.timeBasis="ambiguous"],
- ["missing year",f=>f.plan[0].missing.push("year")],
+
  ["missing medicine",f=>f.first.safety.missingContext=["medicine"]],
  ["medication decision",f=>f.first.safety.medicationIntent="decision"],
  ["current event",f=>f.first.safety.currentEvents=[{}]],
@@ -229,3 +229,66 @@ for(const [name,change] of [
 ])test("combined annual recovery rejects "+name,()=>{const f=combinedFixture();change(f);assert.equal(recoverAnnualComparison(f.first,f.plan,f.context,f.bind),null);});
 
 test("native null calculation identity preserves actual changed search and signed unchanged rehydration",async()=>{const r=await execute(false,false,true,true);assert.equal(r.calls,2);assert.equal(r.reads.length,2);assert.equal(r.reads.find(x=>x.pet.id===pets[0].id).reference,"r1");assert.equal(r.reads.find(x=>x.pet.id===pets[1].id).from,"2023-01-01");assert.deepEqual(r.result.answer.calculations.map(c=>c.value),[1,10,.5,12.5]);assert.ok(r.result.answer.taskCompletion.every(t=>t.status==="complete"));});
+
+test("literal owned pet/year scopes survive contradictory flags on four endpoint reads",async()=>{
+ let physical=0,reads=0;const events=[];
+ const all=[...maple,...oldJuniper];
+ const result=await runReadOnlyAsk({ownerId:"owner",selectedPetId:pets[0].id,pets,readReferences:{version:1,entries:[]},dialogue:[],question:"For Maple in 2024 and Juniper in 2024, compare each pet's earliest and latest weigh-ins in kilograms and percent.",now:"2026-11-14T00:00:00Z",timeZone:"UTC"},{
+ onAnswerBoundary:e=>events.push(e),
+ provider:async(req,phase)=>{physical++;
+  if(phase==="read_selection")return decodeComponentSelection({safety:safety(),reads:pets.flatMap(p=>["asc","desc"].map(order=>({name:"search_saved_records",arguments:{...args(p.handle,"2024"),goal:"boundary",order,query:"weight",alternatives:["weighed"]}}))),draft:"Which date axis?",historyIntent:{requested:true,timeBasis:"event",pet:null},workflowIntent:"none",taskPlan:pets.map((p,i)=>task("t"+(i+1),p.handle,{recordMode:"collection",missing:["pet","year"]}))},req.tools,req.context,decodeClinicalSelection);
+  assert.equal(req.SOURCE_CATALOG.length,4,"legitimate planned reads must reach acquisition");
+  const calculations=[];for(const name of ["Maple","Juniper"]){const rows=req.SOURCE_CATALOG.filter(r=>r.pet===name).sort((a,b)=>a.eventAt.localeCompare(b.eventAt));for(const operation of ["difference","percent_change"])calculations.push({operation,operands:rows.map(r=>r.measurements[0].handle)});}
+  return {components:[{kind:"general",text:"Verified historical comparisons.",sources:[]}],quotes:[],sources:req.SOURCE_CATALOG.map(r=>r.source),calculations,replyType:"answer",presentation:{sourceDates:[],contextRequired:false},clinicalReview:{assessment:safety(),ownerStatementRefs:[],observationFields:[]},appHelp:{intent:"none",pet:null},completion:req.context.taskPlan.map(t=>({task:t.id,status:"complete",reason:"none",componentIndexes:[],sources:req.SOURCE_CATALOG.filter(r=>r.pet===req.context.pets.find(p=>p.handle===t.pets[0]).name).map(r=>r.source),ownerFacts:[],historyFacts:[]}))};
+ },
+ read:async r=>{reads++;const sources=all.filter(s=>s.petId===r.pet.id);return {sources,total:sources.length,hasMore:false,scopeExhausted:true};}
+ });
+ assert.equal(physical,2);assert.equal(reads,4);
+ assert.deepEqual(result.answer.calculations.map(c=>c.value),[1,10,1,20]);
+ assert.doesNotMatch(result.answer.answer,/event date or.*save date|Which date axis/i);
+ assert.ok(events.some(e=>e.outcome==="calculation_date_scope_reconciled"));
+});
+
+test("literal scopes clear contradictory pet/year/date flags without altering bound reads",()=>{const f=plannedFixture();f.plan[0].missing=["pet","year","date_meaning"];const before=structuredClone(f.bound);const r=reconcilePlannedAnnualCalculation(f.first,f.plan,f.context,f.bound);assert.ok(r);assert.deepEqual(r.plan[0].missing,[]);assert.deepEqual(f.bound,before);});
+test("an allowed measurement filter remains part of each bound endpoint scope",()=>{const f=plannedFixture();f.bound=f.bound.flatMap(c=>["asc","desc"].map(order=>({...c,request:{...c.request,goal:"boundary",order,terms:["weight","weighed"]}})));f.context.question="For Maple in 2024 and Juniper in 2023, compare earliest and latest weights.";f.plan[0].missing=["pet","year"];const before=structuredClone(f.bound);assert.ok(reconcilePlannedAnnualCalculation(f.first,f.plan,f.context,f.bound));assert.deepEqual(f.bound,before);f.bound[1].request.order="asc";assert.equal(reconcilePlannedAnnualCalculation(f.first,f.plan,f.context,f.bound),null);});
+
+test("typed weight filter accepts its complete body-weight label without changing evidence scope",()=>{const f=plannedFixture();f.bound[0].request.terms=["body weight"];assert.ok(reconcilePlannedAnnualCalculation(f.first,f.plan,f.context,f.bound));});
+function referencedPlannedFixture(){
+ const f=plannedFixture();f.context.question="Keep Maple at 2024; use Juniper in 2023 instead. Recalculate both.";
+ f.plan[0].missing=["pet","year"];f.context.references=f.bound.map((c,i)=>({reference:"r"+(i+1),petHandle:c.request.pet.handle,kind:"history",from:c.request.from,to:c.request.to,recordedFrom:null,recordedTo:null,orderBy:"event",selectionLimited:false,discoveryIncomplete:false,omittedRange:null,omittedEventRange:null}));
+ f.bound[0]={name:"read_referenced_sources",request:{...f.bound[0].request,reference:"r1"}};return f;
+}
+test("an existing owned annual reference may prove unchanged-side scope before the gate",()=>{const f=referencedPlannedFixture(),before=structuredClone(f.bound);const r=reconcilePlannedAnnualCalculation(f.first,f.plan,f.context,f.bound);assert.ok(r);assert.deepEqual(r.plan[0].missing,[]);assert.deepEqual(f.bound,before);assert.equal(r.diagnostic.grantsAdditionalReads,false);});
+for(const [name,change] of [
+ ["missing",f=>f.context.references=[]],
+ ["foreign pet",f=>f.context.references[0].petHandle="p99"],
+ ["different year",f=>f.context.references[0].from="2023-01-01"],
+ ["partial",f=>f.context.references[0].selectionLimited=true],
+ ["omitted",f=>f.context.references[0].omittedRange={from:"2024-03-01",to:"2024-04-01"}],
+ ["discovery limited",f=>f.context.references[0].discoveryIncomplete=true],
+ ["axis mismatch",f=>f.context.references[0].orderBy="recorded"]
+])test("planned reference scope stays unresolved when "+name,()=>{const f=referencedPlannedFixture();change(f);assert.equal(reconcilePlannedAnnualCalculation(f.first,f.plan,f.context,f.bound),null);});
+
+test("exact referenced bodies need no pagination offset and never admit extra third-pet reads",()=>{const f=referencedPlannedFixture();delete f.bound[0].request.offset;assert.ok(reconcilePlannedAnnualCalculation(f.first,f.plan,f.context,f.bound));const before=structuredClone(f.bound);f.bound.push(...before.map(c=>({...c,request:{...c.request,pet:{handle:"p99"}}})));assert.equal(reconcilePlannedAnnualCalculation(f.first,f.plan,f.context,f.bound),null);});
+
+test("first-to-last means bounded endpoints rather than a relative last-year request",()=>{const f=plannedFixture();f.context.question="What were Maple's first-to-last weight changes for 2024, and Juniper's for 2023?";f.plan[0].missing=["pet","year"];assert.ok(reconcilePlannedAnnualCalculation(f.first,f.plan,f.context,f.bound));});
+test("a last-year phrase never cancels explicit relative-time uncertainty",()=>{const f=plannedFixture();f.context.question="For Maple in 2024 and Juniper in 2023, compare last year with this year.";assert.equal(reconcilePlannedAnnualCalculation(f.first,f.plan,f.context,f.bound),null);});
+
+test("calculation cardinality is reconciled before literal pet/year proof and the read gate",async()=>{
+ let physical=0,reads=0;const events=[];
+ const all=[...maple,...oldJuniper];
+ const result=await runReadOnlyAsk({ownerId:"owner",selectedPetId:pets[0].id,pets,readReferences:{version:1,entries:[]},dialogue:[],question:"For Maple in 2024 and Juniper in 2024, compare each pet's earliest and latest weigh-ins in kilograms and percent.",now:"2026-11-14T00:00:00Z",timeZone:"UTC"},{
+ onAnswerBoundary:e=>events.push(e),
+ provider:async(req,phase)=>{physical++;
+  if(phase==="read_selection")return decodeComponentSelection({safety:safety(),reads:pets.flatMap(p=>["asc","desc"].map(order=>({name:"search_saved_records",arguments:{...args(p.handle,"2024"),goal:"boundary",order,query:"weight",alternatives:["weighed"]}}))),draft:"Which date axis?",historyIntent:{requested:true,timeBasis:"event",pet:null},workflowIntent:"none",taskPlan:pets.map((p,i)=>task("t"+(i+1),p.handle,{recordMode:"single",missing:["which_record","pet","year"]}))},req.tools,req.context,decodeClinicalSelection);
+  assert.equal(req.SOURCE_CATALOG.length,4,"legitimate planned reads must reach acquisition");
+  const calculations=[];for(const name of ["Maple","Juniper"]){const rows=req.SOURCE_CATALOG.filter(r=>r.pet===name).sort((a,b)=>a.eventAt.localeCompare(b.eventAt));for(const operation of ["difference","percent_change"])calculations.push({operation,operands:rows.map(r=>r.measurements[0].handle)});}
+  return {components:[{kind:"general",text:"Verified historical comparisons.",sources:[]}],quotes:[],sources:req.SOURCE_CATALOG.map(r=>r.source),calculations,replyType:"answer",presentation:{sourceDates:[],contextRequired:false},clinicalReview:{assessment:safety(),ownerStatementRefs:[],observationFields:[]},appHelp:{intent:"none",pet:null},completion:req.context.taskPlan.map(t=>({task:t.id,status:"complete",reason:"none",componentIndexes:[],sources:req.SOURCE_CATALOG.filter(r=>r.pet===req.context.pets.find(p=>p.handle===t.pets[0]).name).map(r=>r.source),ownerFacts:[],historyFacts:[]}))};
+ },
+ read:async r=>{reads++;const sources=all.filter(s=>s.petId===r.pet.id);return {sources,total:sources.length,hasMore:false,scopeExhausted:true};}
+ });
+ assert.equal(physical,2);assert.equal(reads,4);
+ assert.deepEqual(result.answer.calculations.map(c=>c.value),[1,10,1,20]);
+ assert.doesNotMatch(result.answer.answer,/event date or.*save date|Which date axis/i);
+ assert.ok(events.some(e=>e.outcome==="calculation_date_scope_reconciled"));
+});

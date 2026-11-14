@@ -886,6 +886,38 @@
       "dependsOn": [
         "R70"
       ]
+    },
+    {
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T22:54:28.997446+00:00",
+      "exposure": "Fresh different pets/years frozen before outputs after R70 contradictory pet/year flags suppressed4 bounded reads. Original FAIL/cost retained. Literal-scope proof removes only disproved prerequisites and changes no read; same90/180/58/SAMEUSD2.50 authority and caps.",
+      "id": "R72",
+      "category": "arithmetic",
+      "conversation": "repair-literal-planned-scope",
+      "question": "What were Bramble's first-to-last weight changes for 2020, and Cedar's for 2018? Give the kilogram and percentage change for each pet.",
+      "expected": "Actual owner-bound event endpoint reads and4 server math results. Bramble4.09->4.10,+.01kg;Cedar11.31->11.77,+.46kg; exact frozen percentages, pet/year labels, original source bodies/instants and honest scope. No false pet/year/date prerequisite, source identity or request-budget/publication failure.",
+      "dependsOn": []
+    },
+    {
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T22:54:28.997446+00:00",
+      "exposure": "Fresh different pets/years frozen before outputs after R70 contradictory pet/year flags suppressed4 bounded reads. Original FAIL/cost retained. Literal-scope proof removes only disproved prerequisites and changes no read; same90/180/58/SAMEUSD2.50 authority and caps.",
+      "id": "R73",
+      "category": "correction",
+      "conversation": "repair-literal-planned-scope",
+      "question": "For Cedar, use 2017 rather than 2018; keep Bramble's 2020 comparison unchanged. Recalculate both using the saved measurements.",
+      "expected": "AfterR72PASSsameSHA actual fresh Cedar2017 plus signed owner-bound Bramble2020 rehydration. Cedar10.99->11.25,+.26kg;Bramble4.09->4.10,+.01kg; exact frozen percentages/labels/source bodies/dates. No assistant cached operands, wrong year/pet, redundant prerequisite, reference rejection, admission or publication failure.",
+      "dependsOn": [
+        "R72"
+      ]
     }
   ],
   "additionalEmergencyPublicationRepair": {

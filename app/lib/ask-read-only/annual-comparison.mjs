@@ -86,24 +86,34 @@ export function recoverAnnualComparison(first,plan,context,bind){
  return {first:{...first,text:"",calls,safety:{...s,referent:"clear",missingContext:[]},historyIntent:{...first.historyIntent,requested:true,timeBasis:axis,pet:null}},plan:tasks,diagnostic:{method:"explicit_owned_annual_comparison",timeBasis:axis,correctedReads:1,rehydratedReads:1}};
 }
 
-/** Resolve only a redundant task flag against independently literal annual
+/** Resolve redundant scope flags against independently literal annual
  * membership AND already owner-bound ordinary reads. No read is created here. */
 export function reconcilePlannedAnnualCalculation(first,plan,context,bound){
- if(!Array.isArray(plan)||plan.length<1||plan.length>2||!Array.isArray(bound)||bound.length!==2||!context?.question||!Array.isArray(context.pets))return null;
- if(!plan.some(t=>t.missing.includes("date_meaning"))||plan.some(t=>t.kind!=="calculation"||!t.needsHistory||t.needsOwnerFacts||t.recordMode!=="collection"||t.reference!==null||t.missing.some(k=>k!=="date_meaning")))return null;
+ if(!Array.isArray(plan)||plan.length<1||plan.length>2||!Array.isArray(bound)||![2,4].includes(bound.length)||!context?.question||!Array.isArray(context.pets))return null;
+ const provable=new Set(["pet","year","date_meaning"]);
+ if(!plan.some(t=>t.missing.some(k=>provable.has(k)))||plan.some(t=>t.kind!=="calculation"||!t.needsHistory||t.needsOwnerFacts||t.recordMode!=="collection"||t.reference!==null||t.missing.some(k=>!provable.has(k))))return null;
  const safety=first.safety,axis=first.historyIntent?.timeBasis;
  if(first.historyIntent?.requested!==true||!["event","recorded"].includes(axis)||!safety||safety.medicationIntent!=="none"||!["none","education"].includes(safety.careContext)||![undefined,"none"].includes(safety.scenario)||safety.currentEvents?.length||safety.conditionalEvents?.length||safety.currentConcern===true||!Array.isArray(safety.missingContext)||safety.missingContext.length)return null;
  const text=context.question;
- if(/["“”\x60]|\b(?:feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|quarter|today|yesterday|tomorrow|last|next|if|suppose|hypothetical|before|after|since)\b|\b\d{4}-\d{2}/iu.test(text)||!/\bjan(?:uary)?\b/i.test(text)||!/\bdec(?:ember)?\b/i.test(text))return null;
+ if(/["“”\x60]|\b(?:feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|quarter|today|yesterday|tomorrow|next|if|suppose|hypothetical|before|after|since)\b|\b\d{4}-\d{2}/iu.test(text))return null;
+ // Annual wording needs no month qualifier. Any explicit endpoint months must be paired.
+ const hasJanuary=/\bjan(?:uary)?\b/i.test(text),hasDecember=/\bdec(?:ember)?\b/i.test(text);if(hasJanuary!==hasDecember)return null;
+ if(/\blast\s+(?:year|month|week|day)\b/i.test(text))return null;
  if(axis==="event"&&/\b(?:saved|recorded|entered|logged)\s+(?:in|on|during)\b/iu.test(text)||axis==="recorded"&&/\b(?:happened|occurred|event dates?)\b/iu.test(text))return null;
  if(axis==="recorded"&&!/\b(?:saved|recorded|entered|logged)\s+(?:in|on|during)\b/iu.test(text))return null;
- const named=subjects(text,context.pets);if(!named)return null;
+ const named=subjects(text,context.pets);if(!named||bound.some(c=>!named.some(n=>n.pet.handle===c.request?.pet?.handle)))return null;
  const plannedPets=[...new Set(plan.flatMap(t=>t.pets))];
  if(plannedPets.length!==2||plannedPets.some(h=>!named.some(n=>n.pet.handle===h)))return null;
  for(const n of named){
-  const reads=bound.filter(c=>c.request?.pet?.handle===n.pet.handle);if(reads.length!==1)return null;
-  const c=reads[0],r=c.request;
-  if(c.name!=="search_saved_records"||r.kind!=="history"||r.reference||r.continuation||!["comparison","complete_set"].includes(r.goal)||r.offset!==0||r.orderBy!==axis||annual(r,axis)!==n.year||r.terms?.length)return null;
+  const reads=bound.filter(c=>c.request?.pet?.handle===n.pet.handle);if(![1,2].includes(reads.length))return null;
+  if(reads.length===2&&(new Set(reads.map(c=>c.request.order)).size!==2||reads.some(c=>!["asc","desc"].includes(c.request.order))))return null;
+  for(const c of reads){const r=c.request;
+   if(!["search_saved_records","read_referenced_sources"].includes(c.name)||r.kind!=="history"||r.continuation||!["comparison","complete_set",...(reads.length===2?["boundary"]:[])].includes(r.goal)||(c.name==="read_referenced_sources"?![undefined,0].includes(r.offset):r.offset!==0)||r.orderBy!==axis||annual(r,axis)!==n.year||r.terms?.some(term=>!/^(?:body\s+weight|weights?|weighed|weigh(?:ing)?|weigh[- ]?ins?|kg|kilograms?)$/i.test(term.trim())))return null;
+   if(c.name==="read_referenced_sources"){
+    const ref=context.references?.find(ref=>ref.reference===r.reference&&ref.petHandle===n.pet.handle);
+    if(!ref||ref.kind!=="history"||ref.orderBy!==axis||annual(ref,axis)!==n.year||ref.selectionLimited||ref.discoveryIncomplete||ref.omittedRange||ref.omittedEventRange)return null;
+   }else if(r.reference)return null;
+  }
  }
- return {plan:plan.map(t=>({...t,missing:t.missing.filter(k=>k!=="date_meaning")})),diagnostic:{method:"literal_two_pet_annual_planned_reads",timeBasis:axis,petCount:2,readCount:2,grantsAdditionalReads:false}};
+ return {plan:plan.map(t=>({...t,missing:t.missing.filter(k=>!provable.has(k))})),diagnostic:{method:"literal_two_pet_annual_planned_reads",timeBasis:axis,petCount:2,readCount:bound.length,grantsAdditionalReads:false}};
 }
