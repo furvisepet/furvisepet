@@ -83,13 +83,13 @@ export function dispatchGate({plan, frozen, approval, pin, oldReceipt, results =
   for (const key of ['maxTurns','maxCalls','maxNewMicroUSD']) need(amount(approval[key]) && approval[key] > 0 && approval[key] <= plan.requestedEnvelope[key], 'approval exceeds frozen envelope');
   // Preparing a finite extension does not grant it. The old G decision cannot
   // be reused: a distinct new owner message must bind this exact request. The
-  // original cohort/launch criteria and physical-call/USD ceilings stay frozen.
+  // original cohort/launch criteria and USD ceiling stay frozen; any extra calls\n  // need this distinct explicit owner decision.
   let limits={maxTurns:approval.maxTurns,maxCalls:approval.maxCalls,maxNewMicroUSD:approval.maxNewMicroUSD,maximumReserveDispatches:16};
   const extension=approval.sessionExtension;
   if(extension){
     need(extensionRequest.schema==='AskV1SessionExtensionRequest.v1' && extensionRequest.status==='requested_not_authorized' &&
-      extensionRequest.planHash===frozen.planHash && extensionRequest.maxTurns===52 && extensionRequest.maxCalls===96 &&
-      extensionRequest.maxNewMicroUSD===2500000 && extensionRequest.maximumReserveDispatches===20, 'bounded extension request mismatch');
+      extensionRequest.planHash===frozen.planHash && extensionRequest.maxTurns===56 && extensionRequest.maxCalls===104 &&
+      extensionRequest.maxNewMicroUSD===2500000 && extensionRequest.maximumReserveDispatches===24, 'bounded extension request mismatch');
     need(approval.maxTurns===48 && approval.maxCalls===96 && approval.maxNewMicroUSD===2500000 &&
       extension.schema==='AskV1SessionExtensionApproval.v1' && extension.status==='approved' && extension.owner==='G' &&
       extension.planHash===frozen.planHash && extension.originalApprovalEvidenceHash===approval.messageEvidenceHash &&

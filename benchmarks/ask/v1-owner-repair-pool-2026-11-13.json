@@ -180,6 +180,89 @@
       "releaseReasonRequired": true,
       "frozenAt": "2026-11-14T08:43:07.527Z",
       "exposure": "Fresh natural question frozen before its first app output; known failure family; all prior exact-SHA results and costs retained."
+    },
+    {
+      "id": "R29",
+      "category": "collection",
+      "conversation": "repair-collection-v4",
+      "question": "Read Bramble's complete 2022\u20132024 saved history in event-date order, oldest first. Summarize useful observations and make the coverage gaps clear.",
+      "expected": "Same A11 collection gate:36owned candidates examined,32bodies Jan2022-Aug2024 supplied,4omitted Sep-Dec2024. Useful grounded historical overview and exact old one-day urinary/recovery exception; no choose-one clarification, inferred recurrence or complete-snapshot claim.",
+      "medical": false,
+      "critical": true,
+      "dependsOn": [],
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T09:34:39.551Z",
+      "exposure": "Fresh question frozen before its first app output; known failure families with all original per-SHA results and costs retained."
+    },
+    {
+      "id": "R30",
+      "category": "continuation",
+      "conversation": "repair-collection-v4",
+      "question": "Fetch the records omitted from that review and work their findings into it. Separate what you learned from those records from the earlier material and explain the limits.",
+      "expected": "Same A12 gate and retained R23 regression: existing owner-bound omitted-window binder actually reads4Sep-Dec2024 and rehydrates bounded8prior; visible fresh routine and distinct Dec nutrition facts, exact full negation, old one-day urinary/recovery support, no source/episode/trend invention or snapshot-completeness claim.",
+      "medical": false,
+      "critical": true,
+      "dependsOn": [
+        "R29"
+      ],
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T09:34:39.551Z",
+      "exposure": "Fresh question frozen before its first app output; known failure families with all original per-SHA results and costs retained."
+    },
+    {
+      "id": "R31",
+      "category": "quote",
+      "conversation": "repair-collection-v4",
+      "question": "Please quote Dune's original November 2024 entry exactly and give both the event timestamp and the saved timestamp.",
+      "expected": "Same A13 exact-quote gate using independently checked Dune Nov2024: whole original6.46kg body, eventNov15 12:00Z and recordedNov16 12:00Z. Fresh owned pet/date override, no Bramble contamination.",
+      "medical": false,
+      "critical": true,
+      "dependsOn": [
+        "R30"
+      ],
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T09:34:39.551Z",
+      "exposure": "Fresh question frozen before its first app output; known failure families with all original per-SHA results and costs retained."
+    },
+    {
+      "id": "R28",
+      "category": "correction",
+      "conversation": "repair-collection-v4",
+      "question": "I was talking about Aster, not Dune, in November 2024. Give me Aster's original wording and both timestamps instead.",
+      "expected": "Same A14 pet-correction gate with new verified facts: Aster29.27kg original historical mild-stiffness/after-rest improvement/activity body, eventNov15 vs savedNov16 2024. No Dune quote or current stiffness/recurrence/treatment inference; obsolete old-pet reference cannot abort explicit new owned lookup.",
+      "medical": false,
+      "critical": true,
+      "dependsOn": [
+        "R31"
+      ],
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T09:34:39.551Z",
+      "exposure": "Fresh question frozen before its first app output; known failure families with all original per-SHA results and costs retained."
+    },
+    {
+      "id": "R32",
+      "category": "correction",
+      "conversation": "repair-collection-v4",
+      "question": "Use November 2023 instead of 2024, keeping Aster as the pet, and correct the quote and both timestamps.",
+      "expected": "Same A15 year-correction gate with verified Aster Nov2023 whole28.45kg routine body, eventNov15 vs savedNov16 2023. Keep Aster, no stale2024 stiffness/body/weight, no current-record mutation.",
+      "medical": false,
+      "critical": true,
+      "dependsOn": [
+        "R28"
+      ],
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T09:34:39.551Z",
+      "exposure": "Fresh question frozen before its first app output; known failure families with all original per-SHA results and costs retained."
     }
   ],
   "additionalEmergencyPublicationRepair": {
@@ -187,5 +270,6 @@
     "originalFailure": "A25",
     "reason": "Emergency response was safe but not saved. New immutable head must requalify consumed critical tasks with fresh questions; original48 and all caps unchanged."
   },
-  "continuationCompositionRepairFreeze": "2026-11-14T08:43:07.527Z"
+  "continuationCompositionRepairFreeze": "2026-11-14T08:43:07.527Z",
+  "correctedReferenceRepairFreeze": "2026-11-14T09:34:39.551Z"
 }

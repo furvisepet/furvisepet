@@ -140,7 +140,7 @@ test("a prepared extension request is not approval and the original owner decisi
  const f=fixture();f.caseId="R17";f.results=original.cases.filter(c=>c.cohort==="repair-reserve").map(c=>result(c.id));f.pin.repairReason="synthetic repair";f.pin.repairEvidenceHash=H;assert.throws(()=>dispatchGate(f),/reserve dispatch ceiling/);
  f.approval.sessionExtension=extensionRequest;assert.throws(()=>dispatchGate(f));
 });
-test("only a distinct new owner decision can permit the requested bounded reserve extension without more dollars or calls",()=>{
+test("only a distinct new owner decision can permit the requested bounded reserve extension within only the exact newly requested finite limits and unchanged dollars",()=>{
  const f=fixture();f.caseId="R17";f.results=original.cases.filter(c=>c.cohort==="repair-reserve").map(c=>result(c.id));f.pin.repairReason="synthetic repair";f.pin.repairEvidenceHash=H;f.approval.sessionExtension=extension(f);
  const gate=dispatchGate(f);assert.equal(gate.sessionExtensionEvidenceHash,"e".repeat(64));assert.equal(gate.maxCalls,2);
 });

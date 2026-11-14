@@ -2,9 +2,9 @@
   "schema": "AskV1SessionExtensionRequest.v1",
   "status": "requested_not_authorized",
   "planHash": "4b6362042704afe0fda7906f158de20e64bcd658163d997f6bf8a85abf8b80d2",
-  "maxTurns": 52,
-  "maxCalls": 96,
+  "maxTurns": 56,
+  "maxCalls": 104,
   "maxNewMicroUSD": 2500000,
-  "maximumReserveDispatches": 20,
-  "reason": "Retained R23 real-app PARTIAL after19 dispatched turns leaves29 under the original48-turn cap, below30 fresh final-SHA turns and roughly30 paid turns after deterministic emergencies. Request only4 additional turns and4 additional reserve dispatches; call and USD ceilings unchanged. This file and its implementation do not grant authorization."
+  "maximumReserveDispatches": 24,
+  "reason": "After23 actual turns including retained A14 reference-contract FAIL, a new exact SHA must requalify at least30 fresh turns and roughly30 paid turns after deterministic emergencies. Request8additional turns,8additional physical-call capacity and8additional reserve dispatches above the original48/96/16; USD cap stays$2.50. This request is not approval; default48/96/16 remains active until a distinct G decision."
 }

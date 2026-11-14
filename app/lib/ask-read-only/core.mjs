@@ -253,6 +253,14 @@ export async function runReadOnlyAsk(input,deps) {
  const invoke=async(request,phase)=>{if(++calls>2)fail("ASK_READ_PROVIDER_LIMIT");return deps.provider(request,phase);};
  const tools=readOnlyToolsForPets(pets,references);
  let first=await invoke({instructions:READ_ONLY_INSTRUCTIONS+"\n"+CLINICAL_INSTRUCTIONS+"\n"+WORKFLOW_INSTRUCTIONS+"\n"+COMPONENT_INSTRUCTIONS,context,tools,selectionSchema:componentSelectionSchema(clinicalSelectionSchema(tools,ownerStatements),context)},"read_selection");
+ if(Object.hasOwn(first,"scopeCorrection")){
+  const correction=first.scopeCorrection;
+  if(!keys(correction,["method","calendarPrecision","timeBasis","discardedReference","discardedReferenceRead"])
+   ||correction.method!=="explicit_owned_calendar_correction"||!["day","month","range"].includes(correction.calendarPrecision)
+   ||!["event","recorded"].includes(correction.timeBasis)||correction.discardedReference!==true||typeof correction.discardedReferenceRead!=="boolean")fail("ASK_READ_PROVIDER_INVALID");
+  deps.onAnswerBoundary?.({outcome:"reference_scope_corrected",...correction});
+  first={...first};delete first.scopeCorrection;
+ }
  let taskPlan=first.taskPlan;
  if(taskPlan){first={...first};delete first.taskPlan;}
  // Reconcile the current-turn discriminator before a stale workflow task can
