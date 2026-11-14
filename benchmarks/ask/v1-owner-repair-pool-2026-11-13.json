@@ -694,6 +694,38 @@
         "R58"
       ],
       "beforeAction": "reload same signed-in conversation; verify messages persisted"
+    },
+    {
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T17:38:28.093905+00:00",
+      "exposure": "Fresh different-owned-pet equivalent after R52 zero-read FAIL. Independent original36 source bodies frozen before outputs. Preserve prior costs/outcomes. No paid authority expansion.",
+      "id": "R60",
+      "category": "collection",
+      "conversation": "repair-dune-window",
+      "question": "Please summarize Dune's whole saved history for 2017, 2018 and 2019, oldest events first. Highlight meaningful observations across those years and explain the gaps in what you could read.",
+      "expected": "Actual owner-bound acquisition,36examined32admitted Jan2017-Aug2019,4omittedSep-Dec2019. Useful routine appetite/activity/nutrition overview with historical Feb2018 single grooming mats removed and normal underlying skin in main prose; not recurring/persistent/current problem. Avoid six early routine timestamp dump and source-unavailable/which-record fiction. Exact source quotations/citations, honest nonexhaustive non-snapshot coverage.",
+      "dependsOn": []
+    },
+    {
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T17:38:28.093905+00:00",
+      "exposure": "Fresh different-owned-pet equivalent after R52 zero-read FAIL. Independent original36 source bodies frozen before outputs. Preserve prior costs/outcomes. No paid authority expansion.",
+      "id": "R61",
+      "category": "continuation",
+      "conversation": "repair-dune-window",
+      "question": "Read the four notes that were left out and fold their new information into the overview. Which previous notes did you recheck, and what can we still not conclude?",
+      "expected": "After sameSHA R60PASS: existing owner-bound binder actually fetches4Sep-Dec2019notes plus8retainedprior. Routine Sep5.34/Oct5.38/Nov5.43kg and Dec5.47kg normal appetite/usual measured diet/no persistent digestive change; integrate fresh facts and earlier Feb2018 single mats note when retained. Exact distinction new omitted interval vs bounded earlier subset and honest non-snapshot limitations; no recurrence/whole-history recheck/medical regimen or choose-one clarification.",
+      "dependsOn": [
+        "R60"
+      ]
     }
   ],
   "additionalEmergencyPublicationRepair": {
@@ -710,5 +742,11 @@
   "eligibleFinalHeadFreeze": "2026-11-14T15:26:11.693020+00:00",
   "sourceFreeRecordPrerequisiteRepairFreeze": "2026-11-14T15:39:54.250330+00:00",
   "declaredUnavailabilityRepairFreeze": "2026-11-14T16:02:27.380774+00:00",
-  "collectionCompositionRepairFreeze": "2026-11-14T17:19:16.319215+00:00"
+  "collectionCompositionRepairFreeze": "2026-11-14T17:19:16.319215+00:00",
+  "emptyCollectionReadRepairFreeze": {
+    "frozenAt": "2026-11-14T17:38:28.093905+00:00",
+    "retainedFailure": "R52",
+    "independentGoldenSHA256": "24f80a113889346b87ecd208259a66e8eb275b94ad757ce032d9c8bd1c3daf60",
+    "paidLimitsUnchanged": true
+  }
 }

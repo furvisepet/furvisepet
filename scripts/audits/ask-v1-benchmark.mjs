@@ -18,7 +18,7 @@ export function benchmarkCases(plan) {
   if (repairPool.rootPlanHash !== hash(plan)) return plan.cases;
   need(repairPool.beforeAdditionalCaseOutputs === true && hex(repairPool.originalFailureEvidenceSha256) && Number.isFinite(Date.parse(repairPool.frozenAt)), 'repair supplement provenance');
   need(repairPool.paidLimitsUnchanged.turns===48 && repairPool.paidLimitsUnchanged.physicalCalls===96 && repairPool.paidLimitsUnchanged.newMicroUSD===2500000 && repairPool.paidLimitsUnchanged.maximumReserveDispatches===16, 'repair supplement cannot raise caps');
-  need(repairPool.cases.length<=43 && repairPool.cases.every(c=>c.cohort==='repair-reserve' && c.releaseReasonRequired===true), 'bounded repair candidate pool');
+  need(repairPool.cases.length<=45 && repairPool.cases.every(c=>c.cohort==='repair-reserve' && c.releaseReasonRequired===true), 'bounded repair candidate pool');
   return [...plan.cases,...repairPool.cases];
 }
 export function validateCohort(plan, exposedHashes = []) {
@@ -103,13 +103,13 @@ export function dispatchGate({plan, frozen, approval, pin, oldReceipt, results =
   }
   // A prepared final-cohort request cannot renew the72-turn decision.
   // Only a third, distinct actual G decision chained to the approved extension
-  // may unlock its exact finite89/178/57 limits; dollars never increase.
+  // may unlock its exact finite90/180/58 limits; dollars never increase.
   const finalExtension=approval.finalCohortExtension;
   if(finalExtension){
     need(extension && finalExtensionRequest.schema==='AskV1FinalCohortExtensionRequest.v1' &&
       finalExtensionRequest.status==='requested_not_authorized' && finalExtensionRequest.planHash===frozen.planHash &&
-      finalExtensionRequest.parentRequestHash===hash(extensionRequest) && finalExtensionRequest.maxTurns===89 &&
-      finalExtensionRequest.maxCalls===178 && finalExtensionRequest.maximumReserveDispatches===57 &&
+      finalExtensionRequest.parentRequestHash===hash(extensionRequest) && finalExtensionRequest.maxTurns===90 &&
+      finalExtensionRequest.maxCalls===180 && finalExtensionRequest.maximumReserveDispatches===58 &&
       finalExtensionRequest.maxNewMicroUSD===2500000, 'bounded final-cohort request mismatch');
     need(finalExtension.schema==='AskV1FinalCohortExtensionApproval.v1' && finalExtension.status==='approved' &&
       finalExtension.owner==='G' && finalExtension.planHash===frozen.planHash &&

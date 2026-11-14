@@ -164,7 +164,7 @@ test("a new explicit session decision never waives a NEW null provider receipt",
 
 test("fresh image repair candidates never expand paid authority or weaken launch criteria",()=>{
  const extras=JSON.parse(readFileSync(new URL('../benchmarks/ask/v1-owner-repair-pool-2026-11-13.json',import.meta.url)));
- assert.equal(extras.cases.length,43);
+ assert.equal(extras.cases.length,45);
  assert.equal(extras.cases.find(c=>c.id==='R45').beforeAction,'reload same signed-in conversation; verify messages persisted');
  const f=fixture();f.caseId='R42';f.results=Array.from({length:48},(_,i)=>result(original.cases[i].id,{verdict:'FAIL'}));
  assert.throws(()=>dispatchGate(f),/ceiling/);
@@ -184,7 +184,7 @@ test('registered candidates and an unapproved final request never raise the actu
  const f=full72Fixture();assert.equal(f.results.length,72);assert.throws(()=>dispatchGate(f),/ceiling/);
  f.approval.finalCohortExtension=finalRequest;assert.throws(()=>dispatchGate(f));
 });
-test('only a distinct chained owner decision unlocks exactly17 more turns within the original dollars',()=>{
+test('only a distinct chained owner decision unlocks exactly18 more turns within the original dollars',()=>{
  const f=full72Fixture();f.approval.finalCohortExtension=finalDecision(f);
  assert.equal(dispatchGate(f).finalCohortExtensionEvidenceHash,'f'.repeat(64));assert.equal(finalRequest.maxNewMicroUSD,2500000);
 });

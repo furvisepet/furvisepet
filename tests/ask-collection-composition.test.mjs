@@ -30,7 +30,27 @@ test("actual32-of36 composition reserves facts for late reviewed exceptions and 
  read:createReadOnlyDataAccess(f.db,pet.ownerId,"UTC"),provider:async(req,phase)=>{
   calls++;
   if(phase==="read_selection")return decodeComponentSelection({safety:safety(),reads:[{name:"search_saved_records",arguments:{pet:"p1",from:"2020-01-01",to:"2022-12-31",recordedFrom:null,recordedTo:null,goal:"complete_set",alternatives:[],orderBy:"event",order:"asc",query:null,offset:0}}],draft:"",historyIntent:{requested:true,timeBasis:"event",pet:"p1"},workflowIntent:"none",taskPlan:[{id:"t1",kind:"saved_content",combineHistory:false,needsHistory:true,needsOwnerFacts:false,includeSourceDates:true,recordMode:"collection",workflow:"none",pets:["p1"],reference:null,missing:[]}]},req.tools,req.context,decodeClinicalSelection);
-  const catalog=req.SOURCE_CATALOG,handles=catalog.map(s=>s.source),noteworthy=catalog.filter((s,i)=>texts.has(i)).map(s=>s.source);
+  const catalog=req.SOURCE_CATALOG;assert.equal(catalog.length,32,"explicit collection must acquire through the owner-bound source path");const handles=catalog.map(s=>s.source),noteworthy=catalog.filter((s,i)=>texts.has(i)).map(s=>s.source);
+  return {components:[{kind:"saved",text:"The historical overview.",sources:handles}],sources:handles,quotes:[],calculations:[],replyType:"partial",presentation:{sourceDates:[],contextRequired:false},clinicalReview:{assessment:safety(),ownerStatementRefs:[],observationFields:[]},appHelp:{intent:"none",pet:null},completion:[{task:"t1",status:"partial",reason:"source_omitted",componentIndexes:[0],sources:handles,ownerFacts:[],historyFacts:catalog.slice(0,6).map(s=>({source:s.source,excerpt:s.body})),historySynthesis:[{topic:"normal appetite",evidence:[{source:catalog[0].source,excerpt:routine}]}]}],evidenceCompletion:{sourceReview:{routine:handles.filter(h=>!noteworthy.includes(h)),noteworthy,uncertain:[],irrelevant:[]},missingReference:null}};
+ }});
+ assert.equal(calls,2);assert.equal(result.coverage[0].inspected,36);assert.equal(result.coverage[0].omitted,4);assert.equal(result.sources.length,32);
+ assert.ok(result.answer.answer.includes(rows[26].note),"later food transition must be in the actual narrative, not merely a source card");
+ assert.ok(result.answer.answer.includes(rows[4].note));
+ assert.match(result.answer.answer,/28 selected saved reports/);
+ assert.ok(result.answer.answer.indexOf("event2020-05-15".replace("event","event "))<result.answer.answer.indexOf("event2022-03-15".replace("event","event ")));
+ assert.equal(result.answer.taskCompletion[0].reason,"source_omitted");
+ assert.equal(result.readReferences.entries[0].sources.length,8);assert.ok(result.readReferences.entries[0].sources.some(s=>s.id===rows[26].id),"late salient fact must survive owner-bound continuation retention");
+ assert.deepEqual(result.readReferences.entries[0].omittedRange,{axis:"event",from:"2022-09-15",to:"2022-12-15"});
+ assert.ok(f.requests.length<=8);
+});
+
+test("explicit enumerated-year collection acquires through existing owner binder when interpretation omits every read",async()=>{
+ const f=fixture();let calls=0;
+ const result=await runReadOnlyAsk({ownerId:pet.ownerId,selectedPetId:pet.id,pets:[pet],question:"Review Maple's complete saved history for 2020, 2021 and 2022, starting with the oldest events. Give a useful overall picture.",dialogue:[],now:"2026-11-14T00:00:00Z",timeZone:"UTC"},{
+ read:createReadOnlyDataAccess(f.db,pet.ownerId,"UTC"),provider:async(req,phase)=>{
+  calls++;
+  if(phase==="read_selection")return decodeComponentSelection({safety:{...safety(),careContext:"vet_summary"},reads:[],draft:"",historyIntent:{requested:true,timeBasis:"event",pet:"p1"},workflowIntent:"none",taskPlan:[{id:"t1",kind:"saved_content",combineHistory:false,needsHistory:true,needsOwnerFacts:false,includeSourceDates:true,recordMode:"collection",workflow:"none",pets:["p1"],reference:null,missing:[]}]},req.tools,req.context,decodeClinicalSelection);
+  const catalog=req.SOURCE_CATALOG;assert.equal(catalog.length,32,"explicit collection must acquire through the owner-bound source path");const handles=catalog.map(s=>s.source),noteworthy=catalog.filter((s,i)=>texts.has(i)).map(s=>s.source);
   return {components:[{kind:"saved",text:"The historical overview.",sources:handles}],sources:handles,quotes:[],calculations:[],replyType:"partial",presentation:{sourceDates:[],contextRequired:false},clinicalReview:{assessment:safety(),ownerStatementRefs:[],observationFields:[]},appHelp:{intent:"none",pet:null},completion:[{task:"t1",status:"partial",reason:"source_omitted",componentIndexes:[0],sources:handles,ownerFacts:[],historyFacts:catalog.slice(0,6).map(s=>({source:s.source,excerpt:s.body})),historySynthesis:[{topic:"normal appetite",evidence:[{source:catalog[0].source,excerpt:routine}]}]}],evidenceCompletion:{sourceReview:{routine:handles.filter(h=>!noteworthy.includes(h)),noteworthy,uncertain:[],irrelevant:[]},missingReference:null}};
  }});
  assert.equal(calls,2);assert.equal(result.coverage[0].inspected,36);assert.equal(result.coverage[0].omitted,4);assert.equal(result.sources.length,32);

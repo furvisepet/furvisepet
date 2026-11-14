@@ -36,9 +36,26 @@ export function explicitCalendarWindow(question){
   ||scopes[0].from!==left[0].from||scopes[0].to!==left[0].to||scopes[1].from!==right[0].from||scopes[1].to!==right[0].to)return null;
  return {from:left[0].from,to:right[0].to,precision:"range"};
 }
+/** Literal full-year collection membership only. Comparisons, gaps, relative
+ * bounds, month/day scopes and quoted examples cannot become a wider search. */
+export function explicitCollectionYearWindow(question){
+ const text=String(question);
+ if(/["“”\x60]/.test(text)||explicitCalendarScopes(text).length||/\b(?:before|after|since|until|earlier|later|last|next)\b/i.test(text))return null;
+ const year="(?:19|20|21)\\d{2}|2200",token="(?:"+year+")";
+ const all=[...text.matchAll(new RegExp("\\b"+token+"\\b","g"))].map(m=>Number(m[0]));
+ if(!all.length||new Set(all).size!==all.length)return null;
+ const matches=[...text.matchAll(new RegExp("\\b(?:for|in|during|from)\\s+("+token+"(?:\\s*(?:,\\s*(?:and\\s+)?|and\\s+|through\\s+|to\\s+|[-–]\\s*)"+token+")*)\\b","gi"))];
+ if(matches.length!==1)return null;
+ const matched=[...matches[0][1].matchAll(new RegExp("\\b"+token+"\\b","g"))].map(m=>Number(m[0]));
+ if(matched.length!==all.length||matched.some((v,i)=>v!==all[i]))return null;
+ const explicitRange=/\b(?:through|to)\b|[-–]/i.test(matches[0][1]);
+ if(explicitRange?(all.length!==2||all[0]>all[1]):all.some((v,i)=>i>0&&v!==all[i-1]+1))return null;
+ return {from:all[0]+"-01-01",to:all.at(-1)+"-12-31",precision:"year_collection"};
+}
 export function recoverBoundedCalendarRead(first,context,pets){
  if(!["event","recorded"].includes(first.historyIntent?.timeBasis)||first.calls.length>1)return null;
- const calendar=explicitCalendarWindow(context.question);if(!calendar)return null;
+ const soleCollection=first.taskPlan?.length===1&&first.taskPlan[0].kind==="saved_content"&&first.taskPlan[0].needsHistory&&first.taskPlan[0].recordMode==="collection"&&!first.taskPlan[0].needsOwnerFacts&&first.taskPlan[0].reference===null&&first.taskPlan[0].missing.length===0&&first.historyIntent.requested===true;
+ const calendar=explicitCalendarWindow(context.question)??(soleCollection?explicitCollectionYearWindow(context.question):null);if(!calendar)return null;
  const escaped=name=>name.replace(/[.*+?$^{}()|[\]\\]/g,"\\$&");
  const named=pets.filter(pet=>new RegExp("(?<![\\p{L}\\p{N}])"+escaped(pet.name)+"(?![\\p{L}\\p{N}])","iu").test(context.question));
  if(named.length!==1)return null;
@@ -47,7 +64,7 @@ export function recoverBoundedCalendarRead(first,context,pets){
  const basis=first.historyIntent.timeBasis,event=basis==="event";
  const matchingPlanned=first.calls.length===1&&first.calls[0].name==="search_saved_records"&&planned.pet===named[0].handle&&planned.offset===0&&(planned.orderBy??basis)===basis
   &&(event?planned.from===calendar.from&&planned.to===calendar.to&&planned.recordedFrom==null&&planned.recordedTo==null:planned.recordedFrom===calendar.from&&planned.recordedTo===calendar.to&&planned.from==null&&planned.to==null);
- const nonUrgentHistory=["none","clinical_history"].includes(first.safety?.careContext)&&first.safety.medicationIntent==="none"&&[undefined,"none","historical"].includes(first.safety.scenario)&&!(first.safety.currentEvents?.length||first.safety.conditionalEvents?.length);
+ const nonUrgentHistory=(["none","clinical_history"].includes(first.safety?.careContext)||soleCollection&&first.calls.length===0&&first.safety?.careContext==="vet_summary"&&first.safety.missingContext.length===0)&&first.safety.medicationIntent==="none"&&[undefined,"none","historical"].includes(first.safety.scenario)&&!(first.safety.currentEvents?.length||first.safety.conditionalEvents?.length);
  const taskBound=(first.calls.length===0||matchingPlanned)&&first.taskPlan?.some(t=>t.kind==="saved_content"&&t.needsHistory&&t.reference===null&&t.pets.length===1&&t.pets[0]===named[0].handle&&t.missing.every(k=>["pet","year","which_record","date_meaning"].includes(k)))
   &&nonUrgentHistory&&first.safety.missingContext.every(k=>["pet","date"].includes(k));
  const legacy=nonUrgentHistory&&first.historyIntent?.requested===true&&first.safety?.referent==="essential_unknown"&&first.safety.missingContext.length>0&&first.safety.missingContext.every(k=>["pet","date"].includes(k))&&(first.historyIntent.pet===null||first.historyIntent.pet===named[0].handle);
