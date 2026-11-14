@@ -758,6 +758,38 @@
       "dependsOn": [
         "R62"
       ]
+    },
+    {
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T21:41:39.018293+00:00",
+      "exposure": "Fresh pet/year windows frozen before outputs after R62 redundant-date-flag read suppression FAIL. Original FAIL/cost retained. Same paid/provider/source caps.",
+      "id": "R64",
+      "category": "arithmetic",
+      "conversation": "repair-date-proof-math",
+      "question": "Compare Cedar's January and December 2022 weights with Echo's January and December 2023 weights. Give each pet's change in kilograms and percent.",
+      "expected": "Four exact owner-bound server calculations: Cedar2022 12.77->13.23,+.46kg; Echo2023 6.46->6.54,+.08kg. Correct independently frozen percentages, pet/year labels and original endpoint bodies/instants. Actually execute bounded planned event reads; no false event/save clarification, unbound read or invented arithmetic.",
+      "dependsOn": []
+    },
+    {
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T21:41:39.018293+00:00",
+      "exposure": "Fresh pet/year windows frozen before outputs after R62 redundant-date-flag read suppression FAIL. Original FAIL/cost retained. Same paid/provider/source caps.",
+      "id": "R65",
+      "category": "correction",
+      "conversation": "repair-date-proof-math",
+      "question": "For Echo, use 2022 rather than 2023; keep Cedar's 2022 side unchanged. Recompute the two labeled comparisons from saved measurements.",
+      "expected": "After R64PASSsameSHA: fresh Echo2022 and real owner-bound rehydration of Cedar2022 endpoints; Echo6.12->6.41,+.29kg; Cedar12.77->13.23,+.46kg. Exact frozen percentages and labels, no old Echo2023 value/cache authority/reference-contract/date-flag/publication failure. Unchanged caps and2calls.",
+      "dependsOn": [
+        "R64"
+      ]
     }
   ],
   "additionalEmergencyPublicationRepair": {
@@ -785,6 +817,12 @@
     "frozenAt": "2026-11-14T21:20:44.940122+00:00",
     "retainedFail": "R39",
     "goldenSHA256": "0c3799763c329fad49202483a7cf4723112556bf7bc0bf32abfc38125ecf6c15",
+    "paidLimitsUnchanged": true
+  },
+  "calculationDateProofFreeze": {
+    "frozenAt": "2026-11-14T21:41:39.018293+00:00",
+    "retainedFailure": "R62",
+    "independentGoldenSHA256": "64e5945d8acc8ac2a41066b6e2156cc1ab83cc2c9e45642aefdd09ef7a351231",
     "paidLimitsUnchanged": true
   }
 }

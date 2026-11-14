@@ -12,7 +12,7 @@ const dates=y=>[{eventAt:y+"-01-15T12:00:00Z",recordedAt:y+"-01-16T12:00:00Z"},{
 const ref=(pet,i)=>({reference:"r"+i,petHandle:pet.handle,pet:pet.name,kind:"history",goal:"complete_set",from:"2024-01-01",to:"2024-12-31",recordedFrom:null,recordedTo:null,orderBy:"event",timeZone:"UTC",sourceCount:2,sourceDates:dates("2024"),selectionLimited:false,discoveryIncomplete:false,omittedRange:null,omittedEventRange:null});
 const task=(id,pet,patch={})=>({id,kind:"calculation",combineHistory:false,needsHistory:true,needsOwnerFacts:false,includeSourceDates:false,recordMode:"single",workflow:"none",pets:[pet],reference:null,missing:[],...patch});
 function fixture(){
- const context={question:"For Juniper use 2023, not 2024, but leave Maple's 2024 comparison unchanged.",pets,references:pets.map((p,i)=>ref(p,i+1)),timeZone:"UTC"};
+ const context={question:"For Juniper use 2023, not 2024, but leave Maple's 2024 comparison unchanged.",pets:[...pets],references:pets.map((p,i)=>ref(p,i+1)),timeZone:"UTC"};
  const plan=[task("t1","p2",{missing:["pet","date_meaning"]}),task("t2","p1",{needsHistory:false,recordMode:"none"})];
  const first={calls:[{id:"new",name:"search_saved_records",arguments:JSON.stringify(args("p2","2023"))}],text:"Old numbers are not authority.",safety:safety(),historyIntent:{requested:true,timeBasis:"event",pet:"p2"},workflowIntent:"none"};
  let bindings=0;
@@ -131,4 +131,67 @@ for(const [label,patch] of [
  read:async()=>{reads++;throw Error("FORBIDDEN_READ");}
  }),/ASK_READ_COMPONENT_CONTRACT/);
  assert.equal(reads,0);assert.equal(physical,1);
+});
+
+test("actual initial two-pet annual calculation reads survive a redundant date-axis flag",async()=>{
+ let physical=0,reads=0;const events=[];
+ const all=[...maple,...oldJuniper];
+ const result=await runReadOnlyAsk({ownerId:"owner",selectedPetId:pets[0].id,pets,readReferences:{version:1,entries:[]},dialogue:[],question:"For Maple during 2024 and Juniper during 2024, compare each pet's January weight with its December weight in kilograms and percent.",now:"2026-11-14T00:00:00Z",timeZone:"UTC"},{
+ onAnswerBoundary:e=>events.push(e),
+ provider:async(req,phase)=>{physical++;
+  if(phase==="read_selection")return decodeComponentSelection({safety:safety(),reads:pets.map(p=>({name:"search_saved_records",arguments:args(p.handle,"2024")})),draft:"Which date axis?",historyIntent:{requested:true,timeBasis:"event",pet:null},workflowIntent:"none",taskPlan:[task("t1","p1",{pets:["p1","p2"],recordMode:"collection",missing:["date_meaning"]})]},req.tools,req.context,decodeClinicalSelection);
+  assert.equal(req.SOURCE_CATALOG.length,4,"legitimate planned reads must reach acquisition");
+  const calculations=[];for(const name of ["Maple","Juniper"]){const rows=req.SOURCE_CATALOG.filter(r=>r.pet===name).sort((a,b)=>a.eventAt.localeCompare(b.eventAt));for(const operation of ["difference","percent_change"])calculations.push({operation,operands:rows.map(r=>r.measurements[0].handle)});}
+  return {components:[{kind:"general",text:"Verified historical comparisons.",sources:[]}],quotes:[],sources:req.SOURCE_CATALOG.map(r=>r.source),calculations,replyType:"answer",presentation:{sourceDates:[],contextRequired:false},clinicalReview:{assessment:safety(),ownerStatementRefs:[],observationFields:[]},appHelp:{intent:"none",pet:null},completion:[{task:"t1",status:"complete",reason:"none",componentIndexes:[],sources:req.SOURCE_CATALOG.map(r=>r.source),ownerFacts:[],historyFacts:[]}]};
+ },
+ read:async r=>{reads++;const sources=all.filter(s=>s.petId===r.pet.id);return {sources,total:sources.length,hasMore:false,scopeExhausted:true};}
+ });
+ assert.equal(physical,2);assert.equal(reads,2);
+ assert.deepEqual(result.answer.calculations.map(c=>c.value),[1,10,1,20]);
+ assert.doesNotMatch(result.answer.answer,/event date or.*save date|Which date axis/i);
+ assert.ok(events.some(e=>e.outcome==="calculation_date_scope_reconciled"));
+});
+
+const {reconcilePlannedAnnualCalculation}=await import("../app/lib/ask-read-only/annual-comparison.mjs");
+function plannedFixture(){
+ const context={question:"For Maple during 2024 and Juniper during 2023, compare January weight with December weight.",pets};
+ const first={historyIntent:{requested:true,timeBasis:"event",pet:null},safety:safety()};
+ const plan=[task("t1","p1",{pets:["p1","p2"],recordMode:"collection",missing:["date_meaning"]})];
+ const bound=pets.map((p,i)=>({name:"search_saved_records",request:{kind:"history",...args(p.handle,i?"2023":"2024"),pet:p,terms:[]}}));
+ return {first,plan,context,bound};
+}
+test("planned comparison scope resolves only date flag without adding or changing a read",()=>{
+ const f=plannedFixture(),before=structuredClone(f.bound),r=reconcilePlannedAnnualCalculation(f.first,f.plan,f.context,f.bound);
+ assert.ok(r);assert.deepEqual(r.plan[0].missing,[]);assert.deepEqual(f.bound,before);assert.equal(r.diagnostic.grantsAdditionalReads,false);
+});
+for(const [name,change]of [
+ ["ambiguous axis",f=>f.first.historyIntent.timeBasis="ambiguous"],
+ ["missing year",f=>f.plan[0].missing.push("year")],
+ ["missing medicine",f=>f.first.safety.missingContext=["medicine"]],
+ ["medication decision",f=>f.first.safety.medicationIntent="decision"],
+ ["current event",f=>f.first.safety.currentEvents=[{}]],
+ ["conditional event",f=>f.first.safety.conditionalEvents=[{}]],
+ ["clinical task",f=>f.plan[0].kind="clinical_guidance"],
+ ["independent ordinary task",f=>f.plan.push(task("t2","p1",{kind:"general_guidance",needsHistory:false,recordMode:"none"}))],
+ ["owner facts",f=>f.plan[0].needsOwnerFacts=true],
+ ["unknown task pet",f=>f.plan[0].pets=["p1","p99"]],
+ ["a reference",f=>f.plan[0].reference="r1"],
+ ["foreign bound pet",f=>f.bound[0].request.pet={...pets[0],handle:"p99"}],
+ ["mismatched year",f=>f.bound[1].request.from="2022-01-01"],
+ ["month scope",f=>f.bound[1].request.to="2023-01-31"],
+ ["saved/event conflict",f=>f.context.question="For Maple recorded in 2024 and Juniper recorded in 2023, compare January with December."],
+ ["missing December",f=>f.context.question="For Maple during2024 and Juniper during2023, compare January weights."],
+ ["hypothetical",f=>f.context.question="If "+f.context.question],
+ ["text-filtered search",f=>f.bound[0].request.terms=["growth"]],
+ ["continuation",f=>f.bound[0].request.continuation={}],
+ ["extra read",f=>f.bound.push(f.bound[0])],
+ ["duplicate side",f=>f.bound[1].request.pet=pets[0]]
+])test("planned comparison date flag stays unresolved for "+name,()=>{const f=plannedFixture();change(f);assert.equal(reconcilePlannedAnnualCalculation(f.first,f.plan,f.context,f.bound),null);});
+
+test("recorded planned comparisons need an explicit owner saved-date instruction",()=>{
+ const f=plannedFixture();f.first.historyIntent.timeBasis="recorded";
+ for(const c of f.bound){c.request.orderBy="recorded";c.request.recordedFrom=c.request.from;c.request.recordedTo=c.request.to;c.request.from=null;c.request.to=null;}
+ assert.equal(reconcilePlannedAnnualCalculation(f.first,f.plan,f.context,f.bound),null);
+ f.context.question="For Maple recorded in 2024 and Juniper recorded in 2023, compare January weights with December weights.";
+ assert.ok(reconcilePlannedAnnualCalculation(f.first,f.plan,f.context,f.bound));
 });

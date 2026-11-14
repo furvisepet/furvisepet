@@ -1,6 +1,6 @@
 import {reconcileDeclaredUnavailability,DECLARED_UNAVAILABLE_ANSWER} from "./declared-unavailability.mjs";
 import {requirePronounPet} from "./pronoun-scope.mjs";
-import {recoverAnnualComparison} from "./annual-comparison.mjs";
+import {recoverAnnualComparison,reconcilePlannedAnnualCalculation} from "./annual-comparison.mjs";
 import { supplementCandidates, supplementalTaskPlan, parseEvidenceCompletion, verifySingleReferenceResult, applyReferenceCompletion, applySourceReview } from "./evidence-completion.mjs";
 import {reconcileConditionalEducation, COMPONENT_INSTRUCTIONS, componentSelectionSchema, componentAnswerSchema, validateTaskPlan, fulfillReferenceReads,ownerFactSentences, reviewComponentCompletion, renderTaskCompletion, resolveRecordDiscovery, normalizeTaskRecords, reconcileNoReadPet } from "./task-components.mjs";
 import { CLINICAL_INSTRUCTIONS, clinicalSelectionSchema, validateClinicalAssessment, clinicalAnswerSchema, reviewClinicalAnswer, renderMedicationDecision, ownerStatementCatalog, emergencyHandoffForAssessment } from "./clinical-policy.mjs";
@@ -313,6 +313,8 @@ export async function runReadOnlyAsk(input,deps) {
   }
   if(new Set(candidates.map(c=>c.id)).size!==candidates.length)fail("ASK_READ_TOOL_INVALID");
  }catch(error){deps.onSelectionRejected?.(readSelectionShape(first,pets));throw error;}
+ const calculationScope=reconcilePlannedAnnualCalculation(first,taskPlan,context,candidates);
+ if(calculationScope){taskPlan=calculationScope.plan;first.text="";deps.onAnswerBoundary?.({outcome:"calculation_date_scope_reconciled",...calculationScope.diagnostic});}
  taskPlan=normalizeTaskRecords(taskPlan,candidates);
  if(taskPlan){first.taskPlan=taskPlan;context.taskPlan=taskPlan;}
  const gateReads=(proposed,plan)=>{
