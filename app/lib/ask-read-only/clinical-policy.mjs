@@ -132,6 +132,15 @@ export function ownerStatementCatalog(context,pets,ownerId){
 export function clinicalAnswerSchema(schema,initial,ownerStatements=[],pets=[]){
  if(!v2(initial))return legacy.clinicalAnswerSchema(schema,initial);
  const out=structuredClone(schema);
+ // V3 urgency comes from independent typed review and server rendering, not free-form directives.
+ if(initial.protocolVersion===3){
+  const items=out.properties.components?.items;
+  for(const component of items?.anyOf??(items?[items]:[])){
+   const kind=component.properties?.kind;if(!Array.isArray(kind?.enum))continue;
+   kind.enum=kind.enum.filter(k=>!["emergency","conditional_emergency"].includes(k));
+   kind.description="General education, verified saved facts or limitations. Classify current and conditional urgency in clinicalReview.assessment.eventAssessments; only server-owned emergency text is published.";
+  }
+ }
  const refs=ownerStatements.map(t=>t.ref);
  out.properties.clinicalReview=object({
   assessment:assessmentSchema(ownerStatements),
