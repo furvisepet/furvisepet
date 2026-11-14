@@ -1,13 +1,26 @@
-// Engine regression suites intentionally exercise the complete algebra, including
-// operators unavailable in the public product. This loader exists ONLY in tests.
-// Public capability tests import calculation-public-fixture.mjs directly and use
-// the real policy. Production has no enablement parameter or environment bypass.
-import { registerHooks } from "node:module";
-registerHooks({ load(url, context, next) {
- const loaded = next(url, context);
- if (!url.endsWith("/app/lib/intelligence/calculation-capability.ts")) return loaded;
- const source = String(loaded.source);
- const original = "!PUBLIC_V1_SUPPORTED_CALCULATION_OPERATORS.includes(node.operator)";
- if (source.split(original).length !== 2) throw Error("ENGINE_POLICY_TEST_SEAM_CHANGED");
- return { ...loaded, source: source.replace(original, "false /* full-algebra engine test only */") };
-} });
+// Full-algebra engine fixture only. Production remains public-v1 restricted.
+ // Public capability regressions import calculation-public-fixture.mjs without
+ // this hook and must continue to test the actual disabled product behavior.
+ import { readFileSync } from "node:fs";
+ import { registerHooks } from "node:module";
+ import { fileURLToPath } from "node:url";
+ const CALCULATION_ENGINE = "/app/lib/intelligence/calculation-capability.ts";
+ const PUBLIC_CAPABILITY = "/app/lib/public-v1-capabilities.ts";
+ registerHooks({ load(url, context, next) {
+   const loaded = next(url, context);
+   const matchesEngine = url.endsWith(CALCULATION_ENGINE);
+   const matchesPublicGate = url.endsWith(PUBLIC_CAPABILITY);
+   if (!matchesEngine && !matchesPublicGate) return loaded;
+   const original = matchesEngine
+     ? "!PUBLIC_V1_SUPPORTED_CALCULATION_OPERATORS.includes(node.operator)"
+     : "calculationExecution: false,";
+   const replacement = matchesEngine
+     ? "false /* full-algebra engine test only */"
+     : "calculationExecution: true, /* full-algebra engine test only */";
+   const raw = readFileSync(fileURLToPath(url), "utf8");
+   if (raw.split(original).length !== 2) throw Error("ENGINE_POLICY_TEST_SEAM_CHANGED");
+   const source = typeof loaded.source === "string" ? loaded.source : Buffer.from(loaded.source).toString("utf8");
+   if (!source.includes(original)) return loaded; // Earlier registered test hook.
+   if (source.split(original).length !== 2) throw Error("ENGINE_POLICY_TEST_SEAM_CHANGED");
+   return { ...loaded, source: source.replace(original, replacement) };
+ } });

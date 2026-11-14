@@ -1,0 +1,31 @@
+name: Furvise Self-hosted Runner Smoke
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Linux runner qualification
+    runs-on: [self-hosted, Linux, X64, furvise-ci]
+    timeout-minutes: 5
+    steps:
+      - name: Confirm isolated Linux runner
+        shell: bash
+        run: |
+          test "$(uname -s)" = Linux
+          test "$(uname -m)" = x86_64
+          echo "Runner: ${RUNNER_NAME}"
+          echo "OS: $(uname -s)"
+      - name: Verify repository checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify checkout contents
+        shell: bash
+        run: |
+          test -f package.json
+          test -d .github/workflows
+          git rev-parse --is-inside-work-tree

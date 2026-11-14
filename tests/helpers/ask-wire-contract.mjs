@@ -1,4 +1,9 @@
-import { recursiveFixturePlan } from "./recursive-wire-fixture.mjs";
+import { createDirectSemanticAskWirePlan } from "../../app/lib/intelligence/ask-wire-direct.mjs";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+const Ajv = createRequire(import.meta.url)("ajv");
+const baselineCorpus = JSON.parse(readFileSync(new URL("../fixtures/ask-wire-codec.json", import.meta.url), "utf8"));
+const canonicalBase = baselineCorpus.fixtures.find(item => item.canonical?.request?.evidenceBasis === "saved_history" && item.canonical.request.calculatePlan === null).canonical.request;
 import assert from "node:assert/strict";
 import { createAskWirePlan } from "../../app/lib/intelligence/ask-wire-policy.mjs";
 
@@ -9,7 +14,7 @@ export async function inspectAskWireContract(request, context) {
  const { projectAskInterpretationContext } = await import("../../app/lib/intelligence/interpret-ask.ts");
  const { askSourceWindows, askUserSourceInput, ASK_USER_SOURCE_INSTRUCTIONS } = await import("../../app/lib/intelligence/ask-interpretation-sources.ts");
  const { createAskProviderWireSchema } = await import("../../app/lib/intelligence/ask-wire-provider-schema.ts");
- const { ASK_REQUEST_INSTRUCTIONS, askRequestProviderSchema } = await import("../../app/lib/intelligence/ask-request-contract.ts");
+ const { ASK_REQUEST_INSTRUCTIONS, askRequestProviderSchema, askRequestSchema } = await import("../../app/lib/intelligence/ask-request-contract.ts");
  const { proposedSemanticFrameJsonSchema } = await import("../../app/lib/intelligence/semantic-frame/schema.ts");
  const { factorProviderEnumSchemas } = await import("../../app/lib/ai/provider-enum-schema.ts");
  const { factorProviderCompoundSchemas } = await import("../../app/lib/ai/provider-compound-schema.ts");
@@ -26,8 +31,22 @@ export async function inspectAskWireContract(request, context) {
    if (plans.size >= 16) plans.delete(plans.keys().next().value);
    plans.set(key, createAskWirePlan(providerSchema, ASK_REQUEST_INSTRUCTIONS));
  }
- const plan = recursiveFixturePlan(plans.get(key));
+ const wire = plans.get(key);
+ const plan = createDirectSemanticAskWirePlan(wire, wire.instructions, askRequestSchema(proposedSemanticFrameJsonSchema, selected));
  assert.deepEqual(request.text.format.schema, createAskProviderWireSchema(plan.schema), "actual wire schema differs from the source-window compiler");
  assert.equal(request.instructions, plan.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS, "actual policy differs from pinned policy and source adapter");
- return { canonicalSchema, providerSchema, sourceInstructions: ASK_REQUEST_INSTRUCTIONS };
+ return { canonicalSchema, providerSchema, sourceInstructions: ASK_REQUEST_INSTRUCTIONS,
+  encodeResponse: proposal => {
+   const candidate = { ...structuredClone(canonicalBase), ...proposal };
+   if (candidate.readTicket && typeof candidate.readTicket === "object") {
+     // Legacy fixture's internal needs are never provider-authorized fields.
+     // Convert to the exact identity-free provider contract, not a trusted need.
+     const { needs: _trustedNeeds, ...providerTicket } = candidate.readTicket;
+     candidate.readTicket = { ...providerTicket, probes: providerTicket.probes ?? [] };
+   }
+   const historyBranch = canonicalSchema.properties.request.anyOf.find(item => item.properties?.evidenceBasis?.enum?.includes("saved_history") && item.properties?.calculatePlan?.type === "null");
+   const validator = new Ajv({allErrors:true}).compile(historyBranch);
+   if (!validator(candidate)) throw Error("TEST_MOCK_SCHEMA_ERRORS "+JSON.stringify(validator.errors.slice(0,20)));
+   return JSON.stringify(plan.encode({ request: candidate }, () => {}));
+  } };
 }

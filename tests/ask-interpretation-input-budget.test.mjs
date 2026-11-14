@@ -1,4 +1,11 @@
 import { recursiveFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
+import { createDirectSemanticAskWirePlan } from "../app/lib/intelligence/ask-wire-direct.mjs";
+import { askRequestSchema } from "../app/lib/intelligence/ask-request-contract.ts";
+import { proposedSemanticFrameJsonSchema } from "../app/lib/intelligence/semantic-frame/schema.ts";
+function providerWireResponse(prepared, candidate) {
+ const plan=createDirectSemanticAskWirePlan(prepared.wire,prepared.wire.instructions,askRequestSchema(proposedSemanticFrameJsonSchema,prepared.context));
+ return JSON.stringify(plan.encode({request:candidate},()=>{}));
+}
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -53,7 +60,7 @@ for(const numeric of [false,true])for(const count of [0,2,8,39])
    const result=await interpretAskQuestion({context:ctx,model,client:{responses:{create:async request=>{
     calls++;assert.equal(JSON.stringify(request),snapshots.at(-1));assert.ok(Object.isFrozen(request));
     assert.equal(JSON.stringify(request).length,JSON.stringify(p.request).length);
-    return {status:"completed",output_text:JSON.stringify(recursiveFixturePlan(p.wire).encode({request:proposal(ctx)})),usage};
+    return {status:"completed",output_text:providerWireResponse(p,proposal(ctx)),usage};
    }}}});
    assert.deepEqual(result.petIds,["pet-0"]);
   });assert.equal(calls,1);
@@ -117,7 +124,7 @@ test("repair uses identical retained sources and real final-request admission",a
    assert.equal(JSON.stringify(request),snapshots[calls]);const input=JSON.parse(request.input);
    assert.deepEqual(input.userSources,p.input.userSources);assert.deepEqual(input.sourceWindow,p.input.sourceWindow);
    assert.deepEqual(request.text.format.schema,p.request.text.format.schema);
-   const candidate=calls++?good:bad;return {status:"completed",output_text:JSON.stringify(recursiveFixturePlan(p.wire).encode({request:candidate})),usage};
+   const candidate=calls++?good:bad;return {status:"completed",output_text:providerWireResponse(p,candidate),usage};
   }}}});assert.deepEqual(result.petIds,["pet-0"]);assert.equal(snapshots.length,2);
  });assert.equal(calls,2);
 });
@@ -127,7 +134,7 @@ test("oversize repair is rejected before a second SDK call; source window is not
   requirements:Array.from({length:8},(_,i)=>(i+" extra obligation ").padEnd(240,"x"))};
  let calls=0;await admitted(ctx,async()=>{
   await assert.rejects(interpretAskQuestion({context:ctx,model,client:{responses:{create:async()=>{
-   calls++;return {status:"completed",output_text:JSON.stringify(recursiveFixturePlan(p.wire).encode({request:bad})),usage};
+   calls++;return {status:"completed",output_text:providerWireResponse(p,bad),usage};
   }}}}),e=>e.reason==="feature_token_budget_exceeded");
  });assert.equal(calls,1);
 });
@@ -138,7 +145,7 @@ test("catalog hydration cannot replace the chosen current text, prior sources, o
   lifecyclePlan:{pendingDisposition:"keep",transition:{targetPetName:"Aster",toState:"deceased"},requiredSubjectState:null,authorizationQuote:ctx.currentMessage}};
  const intent={version:"ask-catalog-intent.v1",purpose:"lifecycle",scope:"subjects",ownerScope:null,sourceTurnId:"current",instructionQuote:ctx.currentMessage,authorizationQuote:ctx.currentMessage,
   subjects:[{basis:"named",petName:"Aster",sourceTurnId:"current",quote:"Aster"}],request};
- const encodedIntent=recursiveFixturePlan(p.wire).encode({request:intent});
+ const encodedIntent=JSON.parse(providerWireResponse(p,intent));
  let calls=0,hydrates=0;
  await admitted(ctx,async()=>{
   const result=await interpretAskQuestion({context:ctx,model,client:{responses:{create:async()=>{calls++;return {status:"completed",output_text:JSON.stringify(encodedIntent),usage};}}},
