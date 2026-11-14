@@ -3,7 +3,7 @@
   "rootPlanHash": "4b6362042704afe0fda7906f158de20e64bcd658163d997f6bf8a85abf8b80d2",
   "frozenAt": "2026-11-14T05:03:10.342416+00:00",
   "beforeAdditionalCaseOutputs": true,
-  "reason": "Actual A04 explicit-owned-pet unknown-detail failure requires a fresh analogous unknown case; original48 questions, criteria and all results remain unchanged. Retained R22 clarification-kind failure and exhausted collection analogues require five additional PRE-OUTPUT candidates on a different owned pet/period. Candidate pool73 is not72authorized live turns; original48/96/16 active. A05's retained contract failure requires one new pre-output capability analogue. Candidate inventory is not paid authorization.",
+  "reason": "Actual A04 explicit-owned-pet unknown-detail failure requires a fresh analogous unknown case; original48 questions, criteria and all results remain unchanged. Retained R22 clarification-kind failure and exhausted collection analogues require five additional PRE-OUTPUT candidates on a different owned pet/period. Candidate pool73 is not72authorized live turns; original48/96/16 active. A05's retained contract failure requires one new pre-output capability analogue. Candidate inventory is not paid authorization. R37 retained PARTIAL requires fresh unknown analogue and final-head routine/detour/reload candidates. Original root cohort and launch standard unchanged;72/144/40 authorization and SAME$2.50 come only from separate owner decision.",
   "originalFailureCase": "A04",
   "originalFailureEvidenceSha256": "04b3934c74e33f4b78655e80d78222ae47ee1a6aea37e4101ed201ac12199f1a",
   "paidLimitsUnchanged": {
@@ -185,7 +185,7 @@
       "id": "R29",
       "category": "collection",
       "conversation": "repair-collection-v4",
-      "question": "Read Bramble's complete 2022\u20132024 saved history in event-date order, oldest first. Summarize useful observations and make the coverage gaps clear.",
+      "question": "Read Bramble's complete 2022–2024 saved history in event-date order, oldest first. Summarize useful observations and make the coverage gaps clear.",
       "expected": "Same A11 collection gate:36owned candidates examined,32bodies Jan2022-Aug2024 supplied,4omitted Sep-Dec2024. Useful grounded historical overview and exact old one-day urinary/recovery exception; no choose-one clarification, inferred recurrence or complete-snapshot claim.",
       "medical": false,
       "critical": true,
@@ -406,6 +406,73 @@
       "releaseReasonRequired": true,
       "frozenAt": "2026-11-14T12:23:46.255Z",
       "exposure": "Fresh different-pet/action wording analogue of actual A05 workflow-task contract failure, frozen before output. No replay."
+    },
+    {
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "exposure": "Frozen before first output on repaired image-capability source. Known failure families; all prior per-SHA results and costs remain retained. Candidate inventory does not change paid authority.",
+      "id": "R42",
+      "category": "unknown",
+      "conversation": "repair-image-offer-unknown",
+      "question": "I never saved the wording of the label inside Dune's first travel box. What did the label say?",
+      "expected": "Truthful bounded unknown for explicitly owned Dune and unrecorded wording. No invented text, pet or medication clarification, unrelated read, exhaustive absence claim, image-reading offer or invitation to upload. Same original A04 gate and actual R37 capability failure.",
+      "dependsOn": [],
+      "frozenAt": "2026-11-14T15:01:25.115731+00:00"
+    },
+    {
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "exposure": "Frozen before first output on repaired image-capability source. Known failure families; all prior per-SHA results and costs remain retained. Candidate inventory does not change paid authority.",
+      "id": "R43",
+      "category": "navigation",
+      "conversation": "reserve-1",
+      "question": "A quick detour: where in Furvise can I narrow down older saved notes to one pet and a particular period?",
+      "expected": "Concise verified History guidance with Pet/When filters and searching; no actual navigation/save or invented controls. Retain routine for later return.",
+      "dependsOn": [
+        "R03"
+      ],
+      "frozenAt": "2026-11-14T15:01:25.115731+00:00"
+    },
+    {
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "exposure": "Frozen before first output on repaired image-capability source. Known failure families; all prior per-SHA results and costs remain retained. Candidate inventory does not change paid authority.",
+      "id": "R44",
+      "category": "continuity",
+      "conversation": "reserve-1",
+      "question": "Back to Echo's one-minute routine: replace the towel with a cotton mat and keep every other limit we agreed.",
+      "expected": "Return after unrelated History topic to Echo, one minute, cotton mat, no food rewards and no chasing. Useful concise revised routine, no record mutation, older cushion/towel not retained.",
+      "dependsOn": [
+        "R43"
+      ],
+      "frozenAt": "2026-11-14T15:01:25.115731+00:00"
+    },
+    {
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "exposure": "Frozen before first output on repaired image-capability source. Known failure families; all prior per-SHA results and costs remain retained. Candidate inventory does not change paid authority.",
+      "id": "R45",
+      "category": "continuity",
+      "conversation": "reserve-1",
+      "question": "What is Echo's latest routine now, and which limits should I keep?",
+      "expected": "After actual reload same saved conversation, recall Echo/one minute/cotton mat/no food rewards/no chasing using persisted recent owner dialogue; concise useful recap, no older towel/cushion or saved profile claim. Equivalent to original A10 actual-reload continuity gate with changed owner constraints.",
+      "dependsOn": [
+        "R44"
+      ],
+      "beforeAction": "reload same signed-in conversation; verify messages persisted",
+      "frozenAt": "2026-11-14T15:01:25.115731+00:00"
     }
   ],
   "additionalEmergencyPublicationRepair": {
@@ -415,5 +482,6 @@
   },
   "continuationCompositionRepairFreeze": "2026-11-14T08:43:07.527Z",
   "correctedReferenceRepairFreeze": "2026-11-14T09:34:39.551Z",
-  "capabilityRepairFreeze": "2026-11-14T12:23:46.255Z"
+  "capabilityRepairFreeze": "2026-11-14T12:23:46.255Z",
+  "imageCapabilityRepairFreeze": "2026-11-14T15:01:25.115731+00:00"
 }

@@ -69,3 +69,12 @@ test("publication size fallback retains the capability boundary without overflow
  const replay=parseAskConversationResponse({...response,turn:{finalStage:"COMPLETED",answerOutcome:"limited"}});
  assert.equal(replay.summary,response.summary);assert.equal(replay.completionNotice,undefined);
 });
+
+test("unsupported conditional image offer cannot survive final publication",async()=>{
+ const answer="I can’t tell the unrecorded inscription. If you have a clear photo of the collar or tag, I can help read it.";
+ const {response,limited}=buildReadOnlyPublication(await resultFor(answer),"owner","Juniper");
+ assert.ok(response.summary.startsWith("I can’t tell the unrecorded inscription."));
+ assert.doesNotMatch(response.summary,/I can help read it/);
+ assert.match(response.summary,/text.only|can.t.*(?:photo|image)/i);
+ assert.equal(limited,true);
+});

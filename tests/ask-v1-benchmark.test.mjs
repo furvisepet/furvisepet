@@ -161,3 +161,13 @@ for(const [name,mutate] of [
 test("a new explicit session decision never waives a NEW null provider receipt",()=>{
  const f=fixture();f.approval.sessionExtension=extension(f);f.results=[result("A02",{verdict:"FAIL"})];f.results[0].calls[1].actualMicroUSD=null;assert.throws(()=>dispatchGate(f),/unresolved dispatched operation/);
 });
+
+test("fresh image repair candidates never expand paid authority or weaken launch criteria",()=>{
+ const extras=JSON.parse(readFileSync(new URL('../benchmarks/ask/v1-owner-repair-pool-2026-11-13.json',import.meta.url)));
+ assert.equal(extras.cases.length,29);
+ assert.equal(extras.cases.find(c=>c.id==='R45').beforeAction,'reload same signed-in conversation; verify messages persisted');
+ const f=fixture();f.caseId='R42';f.results=Array.from({length:48},(_,i)=>result(original.cases[i].id,{verdict:'FAIL'}));
+ assert.throws(()=>dispatchGate(f),/ceiling/);
+ assert.equal(original.launch.minimumFreshFinalSha,30);
+ assert.equal(original.requestedEnvelope.maxNewMicroUSD,2500000);
+});

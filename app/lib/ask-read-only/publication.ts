@@ -1,3 +1,4 @@
+import { enforceImageCapability, IMAGE_CAPABILITY_BOUNDARY } from "./image-capability.ts";
 import { readCoverageMessages } from "./coverage.mjs";
 import "server-only";
 import { buildAskConversationResponse } from "../ask.mjs";
@@ -30,20 +31,23 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
  // Exact verified fact quotations are source/owner data, never execution prose.
  // Keep them whole while checking the surrounding conversational text.
  const prose=briefAt>=0?[body.answer.slice(0,briefAt),body.answer.slice(briefAt+protectedBrief!.length)]:[body.answer];
- const checkedParts=prose.map(text=>text.trim()?enforceVerifiedStateClaims(text,false):text);
+ const imageParts=prose.map(text=>enforceImageCapability(text,body.quotes.map(quote=>quote.quote)));
+ const imageRejected=imageParts.some(part=>part.changed);
+ const checkedParts=imageParts.map(part=>part.text.trim()?enforceVerifiedStateClaims(part.text,false):part.text);
  const checked=briefAt>=0?checkedParts[0]+protectedBrief+checkedParts[1]:checkedParts[0];
  const stateRejected=prose.some((text,index)=>checkedParts[index]!==text&&(containsUnverifiedStateClaim(text)||containsNavigationExecutionClaim(text)));
- let limited=body.limited||stateRejected;
+ let limited=body.limited||stateRejected||imageRejected;
  // A removed execution claim must leave a truthful capability explanation,
  // even when an unrelated joke or general answer survives the filter.
  const boundary="I can read saved information, but I can’t make changes or open pages through Ask.";
- const checkedSummary=stateRejected
+ const stateSummary=stateRejected
   ?boundary+(checked==="I can help with that."?"":" "+checked):checked;
+ const checkedSummary=imageRejected?[stateSummary==="I can help with that."?"":stateSummary,IMAGE_CAPABILITY_BOUNDARY].filter(Boolean).join(" "):stateSummary;
  // These values are server-verified result fields, not model prose claiming a write.
  const dateDetails=(body.presentation?.sourceDates??[]).filter(source=>!(checkedSummary.includes(source.eventAt.slice(0,10))&&checkedSummary.includes(source.recordedAt.slice(0,10))));
  const verifiedDetails=[...dateDetails.map(source=>(source.pet?source.pet+": ":"")+(source.kind==="profile"?"Profile updated: ":"Event date: ")+source.eventAt+(source.kind==="profile"?"; profile created: ":"; recorded date: ")+source.recordedAt+"."),...body.calculations.map(calculation=>calculation.text)];
  const taskCompletion=(body as typeof body & {taskCompletion?:Array<Record<string,unknown>>}).taskCompletion;
- let publishedTasks=stateRejected?taskCompletion?.map(task=>task.status==="complete"?{...task,status:"partial",reason:"publication_changed"}:task):taskCompletion;
+ let publishedTasks=stateRejected||imageRejected?taskCompletion?.map(task=>task.status==="complete"?{...task,status:"partial",reason:"publication_changed"}:task):taskCompletion;
  const summary=[checkedSummary,...verifiedDetails].join("\n");
  const contextUsed={petName,usedSources:reviewed.sources.length?["Verified saved sources"]:[]};
  const response=buildAskConversationResponse({title:"Furvise",summary,sections:[],safetyNote:null},

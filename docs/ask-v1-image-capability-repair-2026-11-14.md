@@ -1,0 +1,5 @@
+# Text-only Ask capability repair
+A fresh signed-in unknown-detail answer correctly declined to invent unrecorded text but then offered to read a photo. The original PARTIAL and physical cost remain in the private per-SHA ledger.
+The shared registry now explicitly declares that Ask cannot read images; both existing model phases receive this limit. Final publication removes unsupported first-person image-reading offers and upload invitations, retaining the useful answer and providing a concise typed-text alternative. Verified quotations stay opaque; clinical guidance, negation and owner-directed veterinary photo sharing are preserved.
+No provider call, source cap, care/profile mutation or production deployment is added. Fresh repair candidates are pre-output questions, not additional paid authority; the separate approved72-turn/144-call/40-reserve session retains its original $2.50 total new-spend ceiling.
+Observed red regression:14 pass/1 fail before repair. Initial repaired focused60/60, security518/518, TypeScript/lint and production build passed. Final checked SHA and live qualification are recorded separately; this document does not grant release approval.
