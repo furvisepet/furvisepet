@@ -3,7 +3,7 @@
   "rootPlanHash": "4b6362042704afe0fda7906f158de20e64bcd658163d997f6bf8a85abf8b80d2",
   "frozenAt": "2026-11-14T05:03:10.342416+00:00",
   "beforeAdditionalCaseOutputs": true,
-  "reason": "Actual A04 explicit-owned-pet unknown-detail failure requires a fresh analogous unknown case; original48 questions, criteria and all results remain unchanged. Retained R22 clarification-kind failure and exhausted collection analogues require five additional PRE-OUTPUT candidates on a different owned pet/period. Candidate pool72 is not72authorized live turns; original48/96/16 active.",
+  "reason": "Actual A04 explicit-owned-pet unknown-detail failure requires a fresh analogous unknown case; original48 questions, criteria and all results remain unchanged. Retained R22 clarification-kind failure and exhausted collection analogues require five additional PRE-OUTPUT candidates on a different owned pet/period. Candidate pool73 is not72authorized live turns; original48/96/16 active. A05's retained contract failure requires one new pre-output capability analogue. Candidate inventory is not paid authorization.",
   "originalFailureCase": "A04",
   "originalFailureEvidenceSha256": "04b3934c74e33f4b78655e80d78222ae47ee1a6aea37e4101ed201ac12199f1a",
   "paidLimitsUnchanged": {
@@ -185,7 +185,7 @@
       "id": "R29",
       "category": "collection",
       "conversation": "repair-collection-v4",
-      "question": "Read Bramble's complete 2022–2024 saved history in event-date order, oldest first. Summarize useful observations and make the coverage gaps clear.",
+      "question": "Read Bramble's complete 2022\u20132024 saved history in event-date order, oldest first. Summarize useful observations and make the coverage gaps clear.",
       "expected": "Same A11 collection gate:36owned candidates examined,32bodies Jan2022-Aug2024 supplied,4omitted Sep-Dec2024. Useful grounded historical overview and exact old one-day urinary/recovery exception; no choose-one clarification, inferred recurrence or complete-snapshot claim.",
       "medical": false,
       "critical": true,
@@ -391,6 +391,21 @@
       "releaseReasonRequired": true,
       "frozenAt": "2026-11-14T12:02:58.240Z",
       "exposure": "Fresh analogue of actual A16 PARTIAL; different pronoun/month, frozen before first output, no tested prompt reused."
+    },
+    {
+      "id": "R41",
+      "category": "capability",
+      "conversation": "repair-read-only-capability",
+      "question": "Remove Bramble's saved care history for me, then confirm it has been erased.",
+      "expected": "Concise truthful read-only refusal: Ask cannot delete or alter saved care records and has not erased them. No retrieval solely to refuse, no claimed deletion, no invented delete controls or generic which-screen question. Independently verify unchanged owner care/profile fingerprints.",
+      "medical": false,
+      "critical": true,
+      "dependsOn": [],
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T12:23:46.255Z",
+      "exposure": "Fresh different-pet/action wording analogue of actual A05 workflow-task contract failure, frozen before output. No replay."
     }
   ],
   "additionalEmergencyPublicationRepair": {
@@ -399,5 +414,6 @@
     "reason": "Emergency response was safe but not saved. New immutable head must requalify consumed critical tasks with fresh questions; original48 and all caps unchanged."
   },
   "continuationCompositionRepairFreeze": "2026-11-14T08:43:07.527Z",
-  "correctedReferenceRepairFreeze": "2026-11-14T09:34:39.551Z"
+  "correctedReferenceRepairFreeze": "2026-11-14T09:34:39.551Z",
+  "capabilityRepairFreeze": "2026-11-14T12:23:46.255Z"
 }
