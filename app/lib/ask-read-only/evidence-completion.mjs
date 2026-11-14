@@ -1,3 +1,5 @@
+import {validateHistorySynthesis} from "./history-synthesis.mjs";
+import {readSourceMeasurements} from "./calculations.mjs";
 import { createHash } from "node:crypto";
 import { explicitCalendarScopes } from "./calendar-scope.mjs";
 
@@ -9,7 +11,7 @@ const collection=t=>t.needsHistory&&t.recordMode==="collection"&&["saved_content
 const reviewSources=(plan,sources)=>plan?.some(collection)?sources.filter(s=>s.kind==="history"):[];
 
 export const EVIDENCE_COMPLETION_INSTRUCTIONS=[
- "Independently check the current owner request against the first-pass task plan. evidenceCompletion.sourceReview partitions EVERY admitted historical source handle exactly once across four arrays: routine, noteworthy, uncertain and irrelevant. Do not repeat per-source object keys or classification labels. For a collection give at most three short themes with at most two representative excerpts each; do not enumerate all routine bodies or duplicate historical facts in themes. For a continuation, prioritize the actual fresh_remainder TOOL_DATA sources, including distinct new routine/nutrition findings, then integrate relevant retained_prior context. Do not use a single repeated routine phrase as the entire account of the omitted interval. Coverage is supplied by the server. Read each actual narrative. A date or ordinary weight difference alone does not make a routine report noteworthy. Mark source-specific unusual changes, exceptions and contrasting observations noteworthy; do not fill every theme with routine boilerplate while skipping those reports. These classifications grant no diagnosis, episode count, recurrence or trend authority. The server can publish a bounded exact original note for noteworthy evidence that the synthesis missed, with its actual historical date.",
+ "Independently check the current owner request against the first-pass task plan. evidenceCompletion.sourceReview partitions EVERY admitted historical source handle exactly once across four arrays: routine, noteworthy, uncertain and irrelevant. Do not repeat per-source object keys or classification labels. For a collection give at most four short themes with at most two representative excerpts each; do not enumerate all routine bodies or duplicate historical facts in themes. For a continuation, prioritize the actual fresh_remainder TOOL_DATA sources, including distinct new routine/nutrition findings, then integrate relevant retained_prior context. Do not use a single repeated routine phrase as the entire account of the omitted interval. Coverage is supplied by the server. Read each actual narrative. A date or ordinary weight difference alone does not make a routine report noteworthy. Mark source-specific unusual changes, exceptions and contrasting observations noteworthy; do not fill every theme with routine boilerplate while skipping those reports. These classifications grant no diagnosis, episode count, recurrence or trend authority. The server can publish a bounded exact original note for noteworthy evidence that the synthesis missed, with its actual historical date.",
  "For a vet brief that explicitly requests a prior saved report, independently check that it was actually read. When SOURCE_CATALOG is empty and eligibleHistorySupplements lists a matching single-note reference, evidenceCompletion.missingReference may select its task and reference plus a verbatim requestExcerpt from the CURRENT owner question. Use this even if the first pass mistakenly marked needsHistory=false or its date basis ambiguous. Otherwise missingReference=null. This selects only an existing owner-bound locator; metadata and prior assistant prose are not factual evidence. The server rehydrates and copies the original historical note without a third model call. Do not invent historyFacts or a prescription plan. A current emergency forbids this recovery. Never request an unrelated historical note merely because a reference exists."
 ].join("\n");
 
@@ -88,19 +90,50 @@ export function applyReferenceCompletion(value,plan,supplement,sources){
 export function applySourceReview(value,plan,sources,review){
  let recovered=0,unrendered=0;
  const noteworthy=review.filter(r=>r.classification==="noteworthy");
- if(!noteworthy.length)return {value,recovered,unrendered,reviewed:review.length,noteworthy:0};
+ if(!review.length)return {value,recovered,unrendered,reviewed:0,noteworthy:0};
  const completion=value.completion.map(e=>{
   const task=plan.find(t=>t.id===e.task);if(!task||!collection(task))return e;
-  let next={...e,historyFacts:[...e.historyFacts]};
+  // Reserve the SAME six slots for reviewed exceptions before routine detail.
+  // Classification selects presentation only: full owned original bodies still
+  // provide every word, and another task's source can never be borrowed.
+  const priority=[];let missing=0;
   for(const r of noteworthy){
-   if(!e.sources.includes(r.source))continue; // Do not borrow another task's scope.
-   const s=sources.find(s=>s.handle===r.source&&s.kind==="history"),body=s?.body.trim();
-   const previous=next.historyFacts.find(f=>f.source===r.source);
-   if(!body||body.length>280||!previous&&next.historyFacts.length>=6){unrendered++;next={...next,status:"partial",reason:"not_answered"};continue;}
-   if(previous?.excerpt!==body)recovered++;
-   next.historyFacts=[...next.historyFacts.filter(f=>f.source!==r.source),{source:r.source,excerpt:body}];
-   if(Object.hasOwn(next,"historySynthesis"))next.historySynthesis=next.historySynthesis.map(t=>({...t,evidence:t.evidence.filter(p=>p.source!==r.source)})).filter(t=>t.evidence.length);
+   if(!e.sources.includes(r.source))continue;
+   const source=sources.find(s=>s.handle===r.source&&s.kind==="history"),body=source?.body.trim();
+   if(!body||body.length>280){missing++;continue;}
+   priority.push({source:r.source,excerpt:body});
   }
+  const admitted=priority.slice(0,6);missing+=Math.max(0,priority.length-6);
+  const ids=new Set(admitted.map(f=>f.source));
+  for(const fact of admitted)if(e.historyFacts.find(f=>f.source===fact.source)?.excerpt!==fact.excerpt)recovered++;
+  // Active collection overviews place routine evidence in the thematic synthesis;
+  // exact original notes/timestamps remain available in Saved sources. Direct
+  // single-note and vet-brief requests never enter this collection branch.
+  const themes=Object.hasOwn(e,"historySynthesis")?validateHistorySynthesis(e.historySynthesis,sources,e.sources)??[]:[];
+  const routine=new Set(review.filter(r=>r.classification==="routine").map(r=>r.source));
+  const bareMeasurement=(sentence,source)=>{
+   const name=String(source.petName??"").replace(/[.*+?^{}$()|[\]\\]/g,"\\$&");
+   const values=readSourceMeasurements(sentence,source.handle,"history",source.petName).filter(m=>m.metric==="body_weight");
+   return values.some(m=>{
+    const literal=m.excerpt.replace(/[.*+?^{}$()|[\]\\]/g,"\\$&");
+    return new RegExp("^(?:"+(name?name+"\\s+(?:weighed|weighs)|":"")+"(?:body\\s+)?weight)\\s*(?:(?:was|is|of|at)\\s*|:\\s*)?"+literal+"[.!]?\\s*$","i").test(sentence);
+   });
+  };
+  const alreadyRepresented=f=>{
+   const source=sources.find(s=>s.handle===f.source);
+   if(!source||!routine.has(f.source)||typeof f.excerpt!=="string")return false;
+   const quoted=themes.flatMap(t=>t.evidence).filter(p=>p.source===f.source).map(p=>p.excerpt);
+   if(!quoted.length)return false;
+   const sentences=[...new Intl.Segmenter("en",{granularity:"sentence"}).segment(f.excerpt)].map(p=>p.segment.trim()).filter(Boolean);
+   return sentences.length>0&&sentences.every(sentence=>quoted.some(q=>q.includes(sentence))||bareMeasurement(sentence,source));
+  };
+  // Keep independently selected older context, even when review calls it
+  // routine. Remove only wording already present in a verified thematic quote
+  // plus a bare typed weight; never discard another observation or caveat.
+  const remaining=e.historyFacts.filter(f=>!ids.has(f.source)&&!alreadyRepresented(f)).slice(0,6-admitted.length);
+  const next={...e,historyFacts:[...admitted,...remaining]};
+  if(missing){unrendered+=missing;next.status="partial";next.reason="not_answered";}
+  if(Object.hasOwn(next,"historySynthesis"))next.historySynthesis=next.historySynthesis.map(t=>({...t,evidence:t.evidence.filter(p=>!ids.has(p.source))})).filter(t=>t.evidence.length);
   return next;
  });
  const auditedIds=new Set(noteworthy.map(r=>r.source));

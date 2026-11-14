@@ -95,3 +95,21 @@ test("compact collection review partitions all32 sources without per-row object 
  const empty=parseEvidenceCompletion({...answer(),evidenceCompletion:{sourceReview:{routine:[],noteworthy:[],uncertain:[],irrelevant:[]},missingReference:null}},[brief],[],[],question);
  assert.deepEqual(empty.review,[]);
 });
+
+test("routine facts disappear only when all their nonmeasurement wording is already quoted",()=>{
+ const routine="Routine reports described usual activity.",base={...row,petName:"Maple",body:"Maple weighed 4.00 kg. "+routine};
+ const value=answer();value.completion[0].historyFacts=[{source:"s1",excerpt:base.body}];value.completion[0].historySynthesis=[{topic:"usual activity",evidence:[{source:"s1",excerpt:routine}]}];
+ const reviewed=applySourceReview(value,[collection],[base],[{source:"s1",classification:"routine"}]);
+ assert.deepEqual(reviewed.value.completion[0].historyFacts,[]);assert.equal(reviewed.value.completion[0].historySynthesis.length,1);
+ for(const body of ["Maple weighed 4.00 kg after a stressful incident. "+routine,base.body+" One brief concern was reported and resolved."]){
+  const v=structuredClone(value);v.completion[0].historyFacts[0].excerpt=body;
+  const kept=applySourceReview(v,[collection],[{...base,body}],[{source:"s1",classification:"routine"}]);
+  assert.equal(kept.value.completion[0].historyFacts[0].excerpt,body);
+ }
+});
+test("collection salience never removes independently requested single-note or vet-brief facts",()=>{
+ for(const kind of ["saved_content","vet_brief"]){
+  const t={...collection,kind,recordMode:"single"},v=answer();v.completion[0].historyFacts=[{source:"s1",excerpt:body}];
+  const out=applySourceReview(v,[t],[row],[{source:"s1",classification:"routine"}]);assert.deepEqual(out.value.completion[0].historyFacts,v.completion[0].historyFacts);
+ }
+});

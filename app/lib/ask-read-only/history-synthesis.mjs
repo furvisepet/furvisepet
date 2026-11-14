@@ -74,9 +74,19 @@ export function validateHistorySynthesis(value,sources,allowed,diagnostics=[]){
    if(!keys(e,["source","excerpt"])||!source||typeof e.excerpt!=="string"||!e.excerpt.trim()||e.excerpt.length>280){diagnostics.push("evidence_shape");continue;}
    const excerpt=canonicalExcerpt(source.body,e.excerpt);
    if(!excerpt){diagnostics.push("excerpt");continue;}
-   evidence.push({source:e.source,excerpt,petId:source.petId,pet:source.petName,eventAt:source.eventAt,recordedAt:source.recordedAt});
+   evidence.push({source:e.source,recordId:source.id??source.handle,excerpt,petId:source.petId,pet:source.petName,eventAt:source.eventAt,recordedAt:source.recordedAt});
   }
   if(!evidence.length)continue;
+  // A representative quote can describe many admitted reports. Expand only
+  // byte-identical complete original sentences within this selected pet/scope;
+  // this counts reports, never independently verified clinical episodes.
+  for(const original of [...evidence])for(const source of sources){
+   if(source.kind!=="history"||source.petId!==original.petId||!allowed.includes(source.handle)
+    ||evidence.some(e=>(e.recordId??e.source)===(source.id??source.handle)&&e.excerpt===original.excerpt)
+    ||!complete(source.body,original.excerpt))continue;
+   evidence.push({source:source.handle,recordId:source.id??source.handle,excerpt:original.excerpt,petId:source.petId,pet:source.petName,eventAt:source.eventAt,recordedAt:source.recordedAt});
+  }
+
   // A display heading has no authority to invalidate otherwise exact facts.
   // Canonicalize case from the original or use a neutral server heading.
   let topic="Historical observations";
@@ -95,7 +105,7 @@ export function validateHistorySynthesis(value,sources,allowed,diagnostics=[]){
 export function renderHistorySynthesis(themes,citationOrder=[],freshHandles=[]){
  const lines=[];
  for(const theme of coalescedThemes(themes)){
-  const unique=[...new Map(theme.evidence.map(e=>[e.source,e])).values()],shown=representativeRows(theme);
+  const unique=[...new Map(theme.evidence.map(e=>[e.recordId??e.source,e])).values()],shown=representativeRows(theme);
   const timestamps=new Set(unique.map(e=>Date.parse(e.eventAt)));
   const wording=shown.map(row=>{const index=citationOrder.indexOf(row.source);return "“"+row.excerpt+"”"+(index>=0?" (Source "+(index+1)+")":"");}).join("; ");
   const reports=unique.length===1?"one selected saved report":unique.length+" selected saved reports with "+timestamps.size+" distinct event timestamp"+(timestamps.size===1?"":"s");
@@ -103,6 +113,6 @@ export function renderHistorySynthesis(themes,citationOrder=[],freshHandles=[]){
   const origin=fresh.length?" Read from the omitted interval: "+fresh.length+" selected saved report"+(fresh.length===1?"":"s")+"; event dates "+dates[0]+(dates.length>1?" to "+dates.at(-1):"")+".":"";
   lines.push((unique[0].pet??"Pet")+" — “"+theme.topic+"”: "+wording+" ("+reports+".)"+origin);
  }
- if(lines.length)lines.push("These are selected historical reports. Repeated mentions alone do not establish separate episodes, persistence or a trend; omitted periods may change the picture.");
+ if(lines.length)lines.push("These are selected historical reports. Repeated mentions alone do not establish separate episodes, persistence or a clinical trend; omitted periods may change the picture.");
  return lines.join("\n\n");
 }

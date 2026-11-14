@@ -3,7 +3,7 @@
   "rootPlanHash": "4b6362042704afe0fda7906f158de20e64bcd658163d997f6bf8a85abf8b80d2",
   "frozenAt": "2026-11-14T05:03:10.342416+00:00",
   "beforeAdditionalCaseOutputs": true,
-  "reason": "Actual A04 explicit-owned-pet unknown-detail failure requires a fresh analogous unknown case; original48 questions, criteria and all results remain unchanged. Retained R22 clarification-kind failure and exhausted collection analogues require five additional PRE-OUTPUT candidates on a different owned pet/period. Candidate pool73 is not72authorized live turns; original48/96/16 active. A05's retained contract failure requires one new pre-output capability analogue. Candidate inventory is not paid authorization. R37 retained PARTIAL requires fresh unknown analogue and final-head routine/detour/reload candidates. Original root cohort and launch standard unchanged;72/144/40 authorization and SAME$2.50 come only from separate owner decision.",
+  "reason": "Actual A04 explicit-owned-pet unknown-detail failure requires a fresh analogous unknown case; original48 questions, criteria and all results remain unchanged. Retained R22 clarification-kind failure and exhausted collection analogues require five additional PRE-OUTPUT candidates on a different owned pet/period. Candidate pool73 is not72authorized live turns; original48/96/16 active. A05's retained contract failure requires one new pre-output capability analogue. Candidate inventory is not paid authorization. R37 retained PARTIAL requires fresh unknown analogue and final-head routine/detour/reload candidates. Original root cohort and launch standard unchanged;72/144/40 authorization and SAME$2.50 come only from separate owner decision. R33 retained PARTIAL requires different owned Echo2017-2019 collection and continuation; prior final-head unknown/routine/reload passes cannot transfer, so fresh natural analogues are frozen before outputs. Candidate inventory is not paid authority.",
   "originalFailureCase": "A04",
   "originalFailureEvidenceSha256": "04b3934c74e33f4b78655e80d78222ae47ee1a6aea37e4101ed201ac12199f1a",
   "paidLimitsUnchanged": {
@@ -563,6 +563,137 @@
       "releaseReasonRequired": true,
       "frozenAt": "2026-11-14T16:02:27.380774+00:00",
       "exposure": "Fresh nonvisual owner-declared-absence question frozen before first output after actual R50 pet/year failure. Known failure family, no prompt reuse and no paid authority increase."
+    },
+    {
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T17:19:16.319215+00:00",
+      "exposure": "Fresh natural question frozen before output after R33 composition PARTIAL. Prior passes/failures/costs remain on their original SHAs. Known repair families; no prompt reuse, source cap increase or paid authorization.",
+      "id": "R52",
+      "category": "collection",
+      "conversation": "repair-echo-window",
+      "question": "Review Echo's complete saved history for 2017, 2018 and 2019, starting with the oldest events. Give me the useful overall picture, the notable changes and a clear account of what you could not read.",
+      "expected": "36owned monthly candidates,32admitted Jan2017-Aug2019,fourSep-Dec2019omitted. Useful cross-period appetite/activity/routine evidence, actual April2019 gradual seven-day sensitive-stomach food trial with normal appetite/more consistent stool, no current diagnosis or inferred recurrence. Reviewed later exception must appear in main overview, not only source cards; no first-six routine timestamp dump or which-record clarification. Honest source/non-snapshot limits.",
+      "dependsOn": []
+    },
+    {
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T17:19:16.319215+00:00",
+      "exposure": "Fresh natural question frozen before output after R33 composition PARTIAL. Prior passes/failures/costs remain on their original SHAs. Known repair families; no prompt reuse, source cap increase or paid authorization.",
+      "id": "R53",
+      "category": "continuation",
+      "conversation": "repair-echo-window",
+      "question": "Please read the notes left out at the end and update the overview with what they actually add. Tell me which earlier notes you rechecked and what is still limited.",
+      "expected": "Follow R52sameSHA and conversation. Existing owner-bound retained omitted-window binder actually reads4Sep-Dec2019 and8prior, retaining salient April2019 food-trial source within eight anchors. Integrate actual new routine5.67/5.71/5.76kg and Dec5.81kg measured-diet/normal-appetite/no persistent-digestive-change body with older dated food trial. Separate fresh/prior facts, honest bounded earlier subset and fresh nonsnapshot caveats. No all-history recheck claim, missing note choice, prescription or current/recurrence inference.",
+      "dependsOn": [
+        "R52"
+      ]
+    },
+    {
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T17:19:16.319215+00:00",
+      "exposure": "Fresh natural question frozen before output after R33 composition PARTIAL. Prior passes/failures/costs remain on their original SHAs. Known repair families; no prompt reuse, source cap increase or paid authorization.",
+      "id": "R54",
+      "category": "unknown",
+      "conversation": "repair-unknown-after-collection",
+      "question": "I have never logged who picked the name for Dune's first sleeping basket. Who picked that name?",
+      "expected": "Same original A04 gate on final source: truthful owner-attributed unknown with unique owned Dune; no invented person, false pet/year/record/medicine clarification, source scan, exhaustive absence claim, image offer or generic unfinished card. Owner declaration is not stored evidence.",
+      "dependsOn": []
+    },
+    {
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T17:19:16.319215+00:00",
+      "exposure": "Fresh natural question frozen before output after R33 composition PARTIAL. Prior passes/failures/costs remain on their original SHAs. Known repair families; no prompt reuse, source cap increase or paid authorization.",
+      "id": "R55",
+      "category": "continuity",
+      "conversation": "repair-dune-routine",
+      "question": "Draft a four-minute calm indoor routine for Dune using a folded mat. No treats and no running.",
+      "expected": "Useful four-minute calm draft for Dune/folded mat/no treats/no running; no invented training/clinical facts or save claim.",
+      "dependsOn": []
+    },
+    {
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T17:19:16.319215+00:00",
+      "exposure": "Fresh natural question frozen before output after R33 composition PARTIAL. Prior passes/failures/costs remain on their original SHAs. Known repair families; no prompt reuse, source cap increase or paid authorization.",
+      "id": "R56",
+      "category": "continuity",
+      "conversation": "repair-dune-routine",
+      "question": "Make Dune's routine ninety seconds and use a plain blanket instead of the folded mat. Keep the other limits.",
+      "expected": "Dune/90seconds/plain blanket/no treats/no running; preserve original relevant constraints and no stale four-minute requirement or saved-profile claim.",
+      "dependsOn": [
+        "R55"
+      ]
+    },
+    {
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T17:19:16.319215+00:00",
+      "exposure": "Fresh natural question frozen before output after R33 composition PARTIAL. Prior passes/failures/costs remain on their original SHAs. Known repair families; no prompt reuse, source cap increase or paid authorization.",
+      "id": "R57",
+      "category": "navigation",
+      "conversation": "repair-dune-routine",
+      "question": "Small detour: I have a snapshot of Dune's mat setup. Can a Today text note include that photo, or how should I record what matters?",
+      "expected": "Verified Today text-note workaround with unavailable direct photo attachment, no Ask image-reading/upload/save claims or invented controls; relevant concise UI help. Retain routine for later return.",
+      "dependsOn": [
+        "R56"
+      ]
+    },
+    {
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T17:19:16.319215+00:00",
+      "exposure": "Fresh natural question frozen before output after R33 composition PARTIAL. Prior passes/failures/costs remain on their original SHAs. Known repair families; no prompt reuse, source cap increase or paid authorization.",
+      "id": "R58",
+      "category": "continuity",
+      "conversation": "repair-dune-routine",
+      "question": "Back to Dune's latest routine: swap the blanket for an ordinary bath mat, keeping the duration and the other limits.",
+      "expected": "After photo-help detour, retain Dune/90seconds/no treats/no running, change surface to bath mat; no old folded mat/blanket as current or irrelevant app steps/save claim.",
+      "dependsOn": [
+        "R57"
+      ]
+    },
+    {
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T17:19:16.319215+00:00",
+      "exposure": "Fresh natural question frozen before output after R33 composition PARTIAL. Prior passes/failures/costs remain on their original SHAs. Known repair families; no prompt reuse, source cap increase or paid authorization.",
+      "id": "R59",
+      "category": "continuity",
+      "conversation": "repair-dune-routine",
+      "question": "Please recap Dune's current routine and all its limits.",
+      "expected": "After actual same-owner conversation reload/reopen, explicitly recover Dune/90seconds/bath mat/no treats/no running from persisted owner dialogue. No stale durations/surfaces or saved-profile claim. Actual interaction/backend proof required.",
+      "dependsOn": [
+        "R58"
+      ],
+      "beforeAction": "reload same signed-in conversation; verify messages persisted"
     }
   ],
   "additionalEmergencyPublicationRepair": {
@@ -578,5 +709,6 @@
   "finalCriticalAnaloguesFreeze": "2026-11-14T15:19:23.415237+00:00",
   "eligibleFinalHeadFreeze": "2026-11-14T15:26:11.693020+00:00",
   "sourceFreeRecordPrerequisiteRepairFreeze": "2026-11-14T15:39:54.250330+00:00",
-  "declaredUnavailabilityRepairFreeze": "2026-11-14T16:02:27.380774+00:00"
+  "declaredUnavailabilityRepairFreeze": "2026-11-14T16:02:27.380774+00:00",
+  "collectionCompositionRepairFreeze": "2026-11-14T17:19:16.319215+00:00"
 }

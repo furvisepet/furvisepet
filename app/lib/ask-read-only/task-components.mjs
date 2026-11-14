@@ -325,7 +325,8 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
  const brief=tasks.find(t=>t.kind==="vet_brief"),clarify=tasks.filter(t=>t.missing.length);
  const collectionTasks=tasks.filter(t=>t.needsHistory&&t.recordMode==="collection"&&["saved_content","saved_continuation"].includes(t.kind));
  const collectionParts=new Set(collectionTasks.flatMap(t=>t.componentIndexes));
- const selectedDatedFacts=collectionTasks.flatMap(t=>t.historyFacts).slice(0,6);
+ const dateDirection=coverage[0]?.scope?.order==="desc"?-1:1;
+ const selectedDatedFacts=collectionTasks.flatMap(t=>t.historyFacts).slice(0,6).sort((a,b)=>dateDirection*(Date.parse(sources.find(s=>s.handle===a.source).eventAt)-Date.parse(sources.find(s=>s.handle===b.source).eventAt)));
  const citationHandles=sources.filter(s=>(answer.sources??[]).includes(s.handle)).map(s=>s.handle);
  let removedCalendar=false;const renderedGrounding=new Set(),renderedEvidence=[];
  const groundingKey=t=>JSON.stringify([t.kind,t.recordMode,[...t.sources].sort()]);

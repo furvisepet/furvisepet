@@ -157,3 +157,18 @@ test("independent source selections retain each actually rendered anchor even wh
  const out=renderTaskCompletion({answer:"two periods",sources:["s1","s2"],validatedParts:[{index:0,text:"first period"},{index:1,text:"second period"}],presentation:{}},tasks,ss,null,[]);
  assert.equal(out.answer.split(" — ").length-1,2);assert.deepEqual(out.historicalSupport,["s1","s2"]);
 });
+
+test("a representative sentence counts only exact complete admitted same-pet reports",()=>{
+ const a=row("s1","No new skin concern was recorded.","2020-01-03T12:00:00Z",{id:"n1"});
+ const b=row("s2",a.body,"2021-01-03T12:00:00Z",{id:"n2"});
+ const omitted=row("s3",a.body,"2022-01-03T12:00:00Z",{id:"n3"});
+ const foreign=row("s4",a.body,"2023-01-03T12:00:00Z",{id:"n4",petId:"b",petName:"Other pet"});
+ const conditional=row("s5","If no new skin concern was recorded, ask the owner to confirm.","2024-01-03T12:00:00Z",{id:"n5"});
+ const out=validateHistorySynthesis(theme("skin concern",[a]),[a,b,omitted,foreign,conditional],["s1","s2","s4","s5"]);
+ const text=renderHistorySynthesis(out);assert.match(text,/2 selected saved reports with 2 distinct event timestamps/);assert.ok(text.includes(a.body));assert.doesNotMatch(text,/Other pet|3 selected|recurring|persistent skin/);assert.ok(!text.includes("event dates"));
+});
+test("replayed handles for one physical record do not inflate a representative report count",()=>{
+ const a=row("s1","No new concern was reported.",undefined,{id:"same-owned-record"});
+ const replay={...a,handle:"s2"};
+ const text=renderHistorySynthesis(validateHistorySynthesis(theme("concern",[a]),[a,replay],["s1","s2"]));assert.match(text,/one selected saved report/);assert.doesNotMatch(text,/2 selected/);
+});
