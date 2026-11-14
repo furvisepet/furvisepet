@@ -70,7 +70,7 @@ async function runOne(file, index) {
     "--import", resolve(repo, "tests/register-typescript-imports.mjs")];
   if (algebra.has(file)) envFlags.push("--import", resolve(repo, "tests/helpers/calculation-engine-policy.mjs"));
   const childEnv = { ...process.env, NODE_OPTIONS: envFlags.join(" ") };
-  const seconds = /(?:ask-active-contract|integration|end-to-end)/.test(file) ? 420 : 150;
+  const seconds = /(?:ask-active-contract|integration|end-to-end|ask-interpretation-input-budget)/.test(file) ? 420 : 150;
   const launcher = process.platform === "win32" ? process.execPath : "timeout";
   const launchArgs = process.platform === "win32"
     ? args : ["-k", "5s", String(seconds)+"s", process.execPath, ...args];
