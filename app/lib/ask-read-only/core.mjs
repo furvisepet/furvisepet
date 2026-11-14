@@ -1,7 +1,7 @@
 import {requirePronounPet} from "./pronoun-scope.mjs";
 import {recoverAnnualComparison} from "./annual-comparison.mjs";
 import { supplementCandidates, supplementalTaskPlan, parseEvidenceCompletion, verifySingleReferenceResult, applyReferenceCompletion, applySourceReview } from "./evidence-completion.mjs";
-import { COMPONENT_INSTRUCTIONS, componentSelectionSchema, componentAnswerSchema, fulfillReferenceReads,ownerFactSentences, reviewComponentCompletion, renderTaskCompletion, resolveRecordDiscovery, normalizeTaskRecords, reconcileNoReadPet } from "./task-components.mjs";
+import {reconcileConditionalEducation, COMPONENT_INSTRUCTIONS, componentSelectionSchema, componentAnswerSchema, fulfillReferenceReads,ownerFactSentences, reviewComponentCompletion, renderTaskCompletion, resolveRecordDiscovery, normalizeTaskRecords, reconcileNoReadPet } from "./task-components.mjs";
 import { CLINICAL_INSTRUCTIONS, clinicalSelectionSchema, validateClinicalAssessment, clinicalAnswerSchema, reviewClinicalAnswer, renderMedicationDecision, ownerStatementCatalog, emergencyHandoffForAssessment } from "./clinical-policy.mjs";
 import { APP_CAPABILITIES, WORKFLOW_INSTRUCTIONS, renderAppWorkflow, supportsAppWorkflow, containsAppControlSteps } from "./app-capabilities.mjs";
 import { normalizeReadTemporalScope } from "./temporal-scope.mjs";
@@ -288,6 +288,8 @@ export async function runReadOnlyAsk(input,deps) {
  deps.onAnswerBoundary?.({outcome:"task_selection_reviewed",historyTimeBasis:first.historyIntent?.timeBasis??null,plannedReadCount:first.calls.length,tasks:taskPlan?.map(t=>({kind:t.kind,recordMode:t.recordMode,combineHistory:t.combineHistory===true,needsHistory:t.needsHistory,needsOwnerFacts:t.needsOwnerFacts,petScopeCount:t.pets.length,boundReference:!!t.reference,missing:t.missing,missingFields:t.missing.join(",")}))});
  if(taskPlan){first.taskPlan=taskPlan;first=fulfillReferenceReads(first,references);taskPlan=first.taskPlan;context.taskPlan=taskPlan;}
  let assessment=Object.hasOwn(first,"safety")?validateClinicalAssessment(first.safety):null;
+ const education=reconcileConditionalEducation(taskPlan,assessment,first.calls);
+ if(education){taskPlan=education;first={...first,text:"",taskPlan};context.taskPlan=taskPlan;deps.onAnswerBoundary?.({outcome:"conditional_education_task_reconciled",taskCount:1,grantsRead:false});}
  const recovered=recoverBoundedCalendarRead(first,context,pets);
  if(recovered){first=recovered.first;assessment=first.safety;taskPlan=first.taskPlan;if(taskPlan)context.taskPlan=taskPlan;deps.onAnswerBoundary?.({outcome:"calendar_scope_recovered",...recovered.diagnostic});}
  // No medical lexicon in the executor: carry the structured first-pass meaning.

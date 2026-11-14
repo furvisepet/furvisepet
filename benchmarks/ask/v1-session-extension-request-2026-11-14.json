@@ -2,9 +2,9 @@
   "schema": "AskV1SessionExtensionRequest.v1",
   "status": "requested_not_authorized",
   "planHash": "4b6362042704afe0fda7906f158de20e64bcd658163d997f6bf8a85abf8b80d2",
-  "maxTurns": 70,
-  "maxCalls": 140,
+  "maxTurns": 72,
+  "maxCalls": 144,
   "maxNewMicroUSD": 2500000,
-  "maximumReserveDispatches": 38,
-  "reason": "After38actual turns including retained zero-provider A27 false-current-urgency FAIL, an offline-reviewed new exact source must requalify. Request22additional turns,44additional physical-call capacity and22additional reserves above original48/96/16, keeping SAME$2.50 NEW ceiling.73frozen candidates are not73authorized submissions.10initial cases remain; distinct approval would permit32fresh final-source turns, approximately29paid plus three genuine deterministic emergency turns if no further source repair. Original48 and launch criteria unchanged. NOT approval: original48/96/16 remains active pending distinct G decision."
+  "maximumReserveDispatches": 40,
+  "reason": "After39retained actual turns including A28 functional PARTIAL (safe conditional urgency plus false unfinished notices), an additional coherent completion repair needs a new exact final SHA. Request24additional turns/48additional physical-call capacity/24additional reserves above original48/96/16, SAME$2.50NEW ceiling. This is two more turns than the earlier unapproved70-turn proposal, specifically to preserve33fresh final-source turns, approximately30paid after genuine zero-provider emergencies. Nine original initial cases remain;24fresh reserves use already frozen candidates, including R14 for A28 and R03 after R02.73candidates are not73submissions. Original launch criteria and original48/96/16 limits remain active until distinct G approval bound to this exact request. No new unknown billing is waived."
 }
