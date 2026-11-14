@@ -44,3 +44,24 @@ test('unknown detail limit preserves an independent useful general answer',()=>{
 test('already admitted exact evidence is preserved rather than treated as unavailable',()=>{const row={handle:'s1',kind:'history',petId:pets[0].id,body:'One historical observation was saved.'};const f={components:[{kind:'saved',text:'Original observation.',sources:['s1']}],sources:['s1'],completion:[{task:'t1',status:'complete',reason:'none',componentIndexes:[0],sources:['s1'],ownerFacts:[],historyFacts:[{source:'s1',excerpt:row.body}]}]};const r=reviewComponentCompletion(f,[task({missing:[]})],[row],[],owned);assert.equal(r.tasks[0].status,'complete');assert.equal(r.tasks[0].historyFacts[0].excerpt,row.body);});
 
 test('no-read reconciliation cannot clear a global ambiguity for an independent history task',()=>assert.equal(scope([task(),task({id:'t2',needsHistory:true,recordMode:'single',missing:[]})]),null));
+
+test('nonclinical source-free detail cannot inherit a medicine clarification field',async()=>{
+ const r=await execute({plan:[task({missing:['medicine']})]});
+ assert.equal(r.calls,2);assert.equal(r.reads,0);
+ assert.doesNotMatch(r.result.answer.answer,/Which medicine|blue squares/);
+ assert.match(r.result.answer.answer,/verified saved information/);
+ assert.deepEqual(r.contexts[1].taskPlan[0].missing,[]);
+ assert.deepEqual(r.contexts[1].taskPlan[0].pets,['p2']);
+});
+test('no-read contract repair removes inapplicable medical fields but preserves independent date ambiguity',()=>{
+ const r=scope([task({missing:['pet','medicine','year']})]);
+ assert.deepEqual(r.plan[0].missing,['year']);
+});
+test('medical authority fields remain untouched for real medication, clinical and reference-dependent work',()=>{
+ for(const patch of [{medicationIntent:'decision'},{careContext:'current_concern'},{scenario:'current'}]){
+  const base={...safety(),scenario:'none',currentEvents:[],conditionalEvents:[],...patch};
+  assert.equal(scope([task({missing:['medicine']})],base),null);
+ }
+ assert.equal(scope([task({missing:['medicine'],needsHistory:true,recordMode:'single'})]),null);
+ assert.equal(scope([task({missing:['medicine'],reference:'r1'})]),null);
+});

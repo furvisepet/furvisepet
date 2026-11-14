@@ -118,7 +118,10 @@ export function reconcileNoReadPet(plan,safety,context,pets,ownerId,bindPet){
  if(!plan||!safety||!Array.isArray(safety.missingContext)||plan.some(t=>!["saved_content","general_guidance"].includes(t.kind)||t.needsHistory||t.reference||t.needsOwnerFacts)||!["none","education"].includes(safety.careContext)||safety.medicationIntent!=="none"
   ||safety.scenario!=="none"||safety.currentEvents?.length||safety.conditionalEvents?.length
   ||safety.missingContext.some(k=>k!=="pet"))return null;
- const eligible=t=>t.kind==="saved_content"&&!t.needsHistory&&t.recordMode==="none"&&!t.reference&&!t.needsOwnerFacts&&t.pets.length<=1&&t.missing.includes("pet");
+ // With no medication/care intent, prescription authority cannot be a missing
+ // field of a source-free saved-detail task. This never grants a clinical plan.
+ const inapplicable=new Set(["pet","medicine","prescription","vet_plan"]);
+ const eligible=t=>t.kind==="saved_content"&&!t.needsHistory&&t.recordMode==="none"&&!t.reference&&!t.needsOwnerFacts&&t.pets.length<=1&&t.missing.some(k=>inapplicable.has(k));
  if(!plan.some(eligible))return null;
  const escaped=name=>name.replace(/[.*+?^{}$()|[\]\\]/g,"\\$&");
  const named=pets.filter(p=>p.ownerId===ownerId&&typeof p.name==="string"&&p.name.trim()
@@ -129,7 +132,7 @@ export function reconcileNoReadPet(plan,safety,context,pets,ownerId,bindPet){
  let resolved=0;
  const updated=plan.map(t=>{
   if(!eligible(t))return t;
-  resolved++;return {...t,pets:[pet.handle],missing:t.missing.filter(k=>k!=="pet")};
+  resolved++;return {...t,pets:[pet.handle],missing:t.missing.filter(k=>!inapplicable.has(k))};
  });
  if(!resolved)return null;
  const missingContext=safety.missingContext.filter(k=>k!=="pet");
