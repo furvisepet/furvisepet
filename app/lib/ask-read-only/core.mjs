@@ -1,5 +1,5 @@
 import { supplementCandidates, supplementalTaskPlan, parseEvidenceCompletion, verifySingleReferenceResult, applyReferenceCompletion, applySourceReview } from "./evidence-completion.mjs";
-import { COMPONENT_INSTRUCTIONS, componentSelectionSchema, componentAnswerSchema, fulfillReferenceReads,ownerFactSentences, reviewComponentCompletion, renderTaskCompletion, resolveRecordDiscovery, normalizeTaskRecords } from "./task-components.mjs";
+import { COMPONENT_INSTRUCTIONS, componentSelectionSchema, componentAnswerSchema, fulfillReferenceReads,ownerFactSentences, reviewComponentCompletion, renderTaskCompletion, resolveRecordDiscovery, normalizeTaskRecords, reconcileNoReadPet } from "./task-components.mjs";
 import { CLINICAL_INSTRUCTIONS, clinicalSelectionSchema, validateClinicalAssessment, clinicalAnswerSchema, reviewClinicalAnswer, renderMedicationDecision, ownerStatementCatalog, emergencyHandoffForAssessment } from "./clinical-policy.mjs";
 import { APP_CAPABILITIES, WORKFLOW_INSTRUCTIONS, renderAppWorkflow, supportsAppWorkflow, containsAppControlSteps } from "./app-capabilities.mjs";
 import { normalizeReadTemporalScope } from "./temporal-scope.mjs";
@@ -265,6 +265,8 @@ export async function runReadOnlyAsk(input,deps) {
   deps.onAnswerBoundary?.({outcome:"workflow_task_reconciled",reason:"current_intent_none"});
  }
  if(!keys(first,Object.hasOwn(first??{},"workflowIntent")?["calls","text","safety","historyIntent","workflowIntent"]:Object.hasOwn(first??{},"historyIntent")?["calls","text","safety","historyIntent"]:Object.hasOwn(first??{},"safety")?["calls","text","safety"]:["calls","text"])||!Array.isArray(first.calls)||first.calls.length>4||typeof first.text!=="string"||first.text.length>12000)fail("ASK_READ_PROVIDER_INVALID");
+ const namedPet=first.calls.length===0?reconcileNoReadPet(taskPlan,first.safety,context,pets,input.ownerId,handle=>bindReadTool("read_pet_profile",{pet:handle},pets).pet):null;
+ if(namedPet){taskPlan=namedPet.plan;first={...first,text:"",safety:namedPet.safety};deps.onAnswerBoundary?.({outcome:"pet_scope_reconciled",method:"explicit_owned_no_read_subject",taskCount:namedPet.resolved,grantsRead:false});}
  deps.onAnswerBoundary?.({outcome:"task_selection_reviewed",historyTimeBasis:first.historyIntent?.timeBasis??null,plannedReadCount:first.calls.length,tasks:taskPlan?.map(t=>({kind:t.kind,recordMode:t.recordMode,combineHistory:t.combineHistory===true,needsHistory:t.needsHistory,petScopeCount:t.pets.length,boundReference:!!t.reference,missing:t.missing,missingFields:t.missing.join(",")}))});
  if(taskPlan){first.taskPlan=taskPlan;first=fulfillReferenceReads(first,references);taskPlan=first.taskPlan;context.taskPlan=taskPlan;}
  let assessment=Object.hasOwn(first,"safety")?validateClinicalAssessment(first.safety):null;

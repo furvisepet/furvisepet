@@ -4,6 +4,7 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from 'n
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const repairPolicy = JSON.parse(readFileSync(new URL('../../benchmarks/ask/v1-repair-equivalence-2026-11-14.json', import.meta.url),'utf8'));
+const repairPool = JSON.parse(readFileSync(new URL('../../benchmarks/ask/v1-owner-repair-pool-2026-11-13.json', import.meta.url),'utf8'));
 export const OLD_OPERATION = '0c425bc762024c82caa290d6ec0420e41c7d02b79b7c3fca237070aa2e6165c4';
 export const hash = value => createHash('sha256').update(typeof value === 'string' ? value : JSON.stringify(value)).digest('hex');
 export const promptHash = value => hash(value.normalize('NFKC').trim().replace(/\s+/gu, ' ').toLowerCase());
@@ -11,19 +12,27 @@ const need = (ok, why) => { if (!ok) throw Error(why); };
 const hex = (s, n = 64) => typeof s === 'string' && new RegExp('^[a-f0-9]{' + n + '}$').test(s);
 const amount = n => Number.isSafeInteger(n) && n >= 0;
 const unique = values => new Set(values).size === values.length;
+export function benchmarkCases(plan) {
+  if (repairPool.rootPlanHash !== hash(plan)) return plan.cases;
+  need(repairPool.beforeAdditionalCaseOutputs === true && hex(repairPool.originalFailureEvidenceSha256) && Number.isFinite(Date.parse(repairPool.frozenAt)), 'repair supplement provenance');
+  need(repairPool.paidLimitsUnchanged.turns===48 && repairPool.paidLimitsUnchanged.physicalCalls===96 && repairPool.paidLimitsUnchanged.newMicroUSD===2500000 && repairPool.paidLimitsUnchanged.maximumReserveDispatches===16, 'repair supplement cannot raise caps');
+  need(repairPool.cases.length<=16 && repairPool.cases.every(c=>c.cohort==='repair-reserve' && c.releaseReasonRequired===true), 'bounded repair candidate pool');
+  return [...plan.cases,...repairPool.cases];
+}
 export function validateCohort(plan, exposedHashes = []) {
   need(plan.schema === 'FurviseAskV1Cohort.v1', 'cohort schema');
   need(plan.frozenBeforeOutputs === true, 'pre-output freeze required');
   need(plan.cases.length === 48, '48 cases required');
   need(plan.cases.filter(c => c.cohort === 'initial').length === 32, '32 initial cases');
   need(plan.cases.filter(c => c.cohort === 'repair-reserve').length === 16, '16 reserve cases');
-  need(unique(plan.cases.map(c => c.id)), 'duplicate case identity');
-  need(unique(plan.cases.map(c => promptHash(c.question))), 'duplicate normalized question');
-  for (const [i, c] of plan.cases.entries()) {
+  const candidates=benchmarkCases(plan);
+  need(unique(candidates.map(c => c.id)), 'duplicate case identity');
+  need(unique(candidates.map(c => promptHash(c.question))), 'duplicate normalized question');
+  for (const [i, c] of candidates.entries()) {
     need(c.partition === 'A' && c.question?.trim() && c.expected?.trim(), 'question and independent expectation');
     need(typeof c.medical === 'boolean' && typeof c.critical === 'boolean', 'risk classification');
     need(!exposedHashes.includes(promptHash(c.question)), 'previously exposed question is not fresh');
-    need(c.dependsOn.every(id => plan.cases.slice(0, i).some(p => p.id === id)), 'forward or missing dependency');
+    need(c.dependsOn.every(id => candidates.slice(0, i).some(p => p.id === id)), 'forward or missing dependency');
   }
   need(JSON.stringify(plan.requestedEnvelope) === JSON.stringify({maxTurns:48,maxCalls:96,maxNewMicroUSD:2500000,initialTurns:32,reserveTurns:16,authorization:null}), 'frozen envelope changed');
   need(JSON.stringify(plan.sourceLimits) === JSON.stringify({pages:8,candidates:64,bodies:32,characters:24000,priorRetainedBodies:8,providerCallsPerTurn:2}), 'source or call limits changed');
@@ -31,7 +40,7 @@ export function validateCohort(plan, exposedHashes = []) {
   return plan;
 }
 function equivalent(plan, caseId, replacedId, reviewHash, reviewedAt, dispatchedAt) {
-  const c = plan.cases.find(c=>c.id===caseId), old = plan.cases.find(c=>c.id===replacedId);
+  const c = benchmarkCases(plan).find(c=>c.id===caseId), old = benchmarkCases(plan).find(c=>c.id===replacedId);
   need(repairPolicy.planHash===hash(plan) && c?.cohort==='repair-reserve' && old?.cohort==='initial' && repairPolicy.allowed[caseId]?.includes(replacedId) && c.category===old.category, 'unfrozen repair equivalence');
   need(hex(reviewHash) && Number.isFinite(Date.parse(reviewedAt)) && Number.isFinite(Date.parse(dispatchedAt)) && Date.parse(reviewedAt)<=Date.parse(dispatchedAt), 'independent equivalence review must precede dispatch');
 }
@@ -81,7 +90,7 @@ export function dispatchGate({plan, frozen, approval, pin, oldReceipt, results =
   need(pin.ownerVerified === true && pin.ownedPetsVerified === true, 'signed-in owner and pets required');
   need(Number.isFinite(Date.parse(pin.verifiedAt)) && now - Date.parse(pin.verifiedAt) >= 0 && now - Date.parse(pin.verifiedAt) <= 15 * 60000, 'preview pin stale');
   need(Array.isArray(pendingIntents) && pendingIntents.length === 0, 'uncertain dispatch intent blocks paid tests');
-  const c = plan.cases.find(c => c.id === caseId); need(c, 'unknown case');
+  const c = benchmarkCases(plan).find(c => c.id === caseId); need(c, 'unknown case');
   need(!results.some(r => r.caseId === caseId || r.questionHash === promptHash(c.question)), 'case consumed; do not replay');
   results.forEach(r=>validateResult(r,plan));
   need(c.dependsOn.every(id => results.some(r => (r.caseId === id || r.replaces === id) && r.sha === pin.sha && r.verdict === 'PASS' && r.published)), 'dependency not verified on this SHA');
@@ -90,7 +99,10 @@ export function dispatchGate({plan, frozen, approval, pin, oldReceipt, results =
   need(results.length < approval.maxTurns && u.physicalCalls + 2 <= approval.maxCalls, 'turn or physical-call ceiling');
   // Reserve the original two-call worst-case amount BEFORE dispatch.
   need(amount(pin.maxTurnMicroUSD) && pin.maxTurnMicroUSD > 0 && u.knownMicroUSD + pin.maxTurnMicroUSD <= approval.maxNewMicroUSD, 'new-cost ceiling');
-  if (c.cohort === 'repair-reserve') need(pin.repairReason?.trim() && hex(pin.repairEvidenceHash), 'evidence-backed reserve use required');
+  if (c.cohort === 'repair-reserve') {
+    need(results.filter(r=>benchmarkCases(plan).find(c=>c.id===r.caseId)?.cohort==='repair-reserve').length<16, 'reserve dispatch ceiling');
+    need(pin.repairReason?.trim() && hex(pin.repairEvidenceHash), 'evidence-backed reserve use required');
+  }
   if (pin.replaces) {
     equivalent(plan,caseId,pin.replaces,pin.equivalenceReviewHash,pin.equivalenceReviewedAt,new Date(now).toISOString());
     need(results.some(r=>r.caseId===pin.replaces && r.sha!==pin.sha), 'original prior-SHA result required for replacement');
@@ -109,7 +121,7 @@ export function recordIntent(path, gate) {
   writeOnce(path, {...gate,state:'DISPATCH_UNCERTAIN_UNTIL_ORIGINAL_RECEIPTS',createdAt:new Date().toISOString()});
 }
 export function validateResult(r, plan) {
-  const c = plan.cases.find(c => c.id === r.caseId); need(c, 'unknown result case');
+  const c = benchmarkCases(plan).find(c => c.id === r.caseId); need(c, 'unknown result case');
   need(r.partition === 'A' && r.questionHash === promptHash(c.question) && hex(r.sha,40), 'fresh result identity');
   need(['PASS','PARTIAL','FAIL'].includes(r.verdict) && typeof r.published === 'boolean' && typeof r.complete === 'boolean', 'result disposition');
   need(Array.isArray(r.calls) && r.calls.length <= 2, 'more than two calls');
@@ -137,17 +149,17 @@ export function summarize(plan, results, finalSha, integrityAfterHash = null) {
   for (const r of results) {
     const row = perSha[r.sha] ||= {attempts:0,published:0,PASS:0,PARTIAL:0,FAIL:0,categories:{}};
     row.attempts++; row.published += Number(r.published); row[r.verdict]++;
-    const category = plan.cases.find(c => c.id === r.caseId).category;
+    const category = benchmarkCases(plan).find(c => c.id === r.caseId).category;
     const sub = row.categories[category] ||= {PASS:0,PARTIAL:0,FAIL:0}; sub[r.verdict]++;
   }
   const final = results.filter(r => r.sha === finalSha), n = final.length;
   const criticalPass = plan.cases.filter(c=>c.cohort==='initial' && (c.critical || c.beforeAction)).every(c=>final.some(r=>(r.caseId===c.id || r.replaces===c.id) && r.verdict==='PASS'));
   const initialCategories = [...new Set(plan.cases.filter(c=>c.cohort==='initial').map(c=>c.category))];
-  const categoryCoverage = initialCategories.every(category => final.some(r=>plan.cases.find(c=>c.id===r.caseId).category===category));
+  const categoryCoverage = initialCategories.every(category => final.some(r=>benchmarkCases(plan).find(c=>c.id===r.caseId).category===category));
   const requiredBehaviors = ['collection','continuation','quote','correction','arithmetic','brief','navigation','clinical-current','clinical-past','clinical-future','medication','mixed','continuity','clarification','unknown','frequency','chronology','capability','education'];
-  const allBehaviorGates = requiredBehaviors.every(category => final.some(r=>plan.cases.find(c=>c.id===r.caseId).category===category && r.verdict==='PASS'));
+  const allBehaviorGates = requiredBehaviors.every(category => final.some(r=>benchmarkCases(plan).find(c=>c.id===r.caseId).category===category && r.verdict==='PASS'));
   const ready = n >= plan.launch.minimumFreshFinalSha && final.filter(r=>r.verdict==='PASS').length/n >= plan.launch.minimumPassRate && !final.some(r=>r.verdict==='FAIL') && criticalPass && categoryCoverage && allBehaviorGates && !final.some(r=>r.unsafeMedical || r.ownerMutation || !r.sourceIntegrity) && allUsage.unknown===0 && hex(integrityAfterHash);
-  return {release:ready?'FUNCTIONAL_COHORT_PASS_PENDING_EXTERNAL_RELEASE_GATES':'NO_GO',finalSha,freshFinalShaTurns:n,notRunCases:plan.cases.filter(c=>!results.some(r=>r.caseId===c.id)).map(c=>c.id),perSha,usage:allUsage,offlineAndRegressionExcluded:true,statisticalGuarantee:false};
+  return {release:ready?'FUNCTIONAL_COHORT_PASS_PENDING_EXTERNAL_RELEASE_GATES':'NO_GO',finalSha,freshFinalShaTurns:n,notRunCases:benchmarkCases(plan).filter(c=>!results.some(r=>r.caseId===c.id)).map(c=>c.id),perSha,usage:allUsage,offlineAndRegressionExcluded:true,statisticalGuarantee:false};
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [command,path] = process.argv.slice(2);

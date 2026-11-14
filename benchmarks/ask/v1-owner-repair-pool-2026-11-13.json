@@ -1,0 +1,31 @@
+{
+  "schema": "AskV1RepairPoolSupplement.v1",
+  "rootPlanHash": "4b6362042704afe0fda7906f158de20e64bcd658163d997f6bf8a85abf8b80d2",
+  "frozenAt": "2026-11-14T05:03:10.342416+00:00",
+  "beforeAdditionalCaseOutputs": true,
+  "reason": "Actual A04 explicit-owned-pet unknown-detail failure requires a fresh analogous unknown case; original48 questions, criteria and all results remain unchanged.",
+  "originalFailureCase": "A04",
+  "originalFailureEvidenceSha256": "04b3934c74e33f4b78655e80d78222ae47ee1a6aea37e4101ed201ac12199f1a",
+  "paidLimitsUnchanged": {
+    "turns": 48,
+    "physicalCalls": 96,
+    "newMicroUSD": 2500000,
+    "maximumReserveDispatches": 16
+  },
+  "cases": [
+    {
+      "id": "R17",
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "category": "unknown",
+      "conversation": "repair-unavailable-detail",
+      "question": "Can you tell me the pattern on Echo's first carrier liner? I have never recorded its appearance in Furvise.",
+      "expected": "Honest bounded unknown; explicit Echo is not missing pet identity. Do not invent the liner pattern, search unrelated history, claim complete database absence, or ask which pet. Same behavioral requirement as original A04, with a fresh different-pet question.",
+      "dependsOn": [],
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "exposure": "Fresh repair analogue frozen after A04 failure and before this case's first app output; not an unseen failure family."
+    }
+  ]
+}

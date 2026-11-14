@@ -36,7 +36,11 @@
     ],
     "R16": [
       "A32"
+    ],
+    "R17": [
+      "A04"
     ]
   },
-  "rule": "One fresh reserved turn may replace only one listed prior-SHA case after independent pre-dispatch review of the original behavioral requirements against independently pinned replacement facts. Original pet/date/numeric literals are replaced by the new question's verified scope, never copied as facts. Preserve the original result and cost. Logic-only owner-supplied examples cannot replace saved-source recurrence qualification. No unlisted replacement, reused prompt, current-SHA retry, or pass transfer."
+  "rule": "One fresh reserved turn may replace only one listed prior-SHA case after independent pre-dispatch review of the original behavioral requirements against independently pinned replacement facts. Original pet/date/numeric literals are replaced by the new question's verified scope, never copied as facts. Preserve the original result and cost. Logic-only owner-supplied examples cannot replace saved-source recurrence qualification. No unlisted replacement, reused prompt, current-SHA retry, or pass transfer.",
+  "supplement": "v1-owner-repair-pool-2026-11-13.json"
 }

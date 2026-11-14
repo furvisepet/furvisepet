@@ -25,6 +25,7 @@ export const COMPONENT_INSTRUCTIONS=[
  "For explicit remaining/continue requests use saved_continuation and the selected reference with an omittedRange (or legacy omittedEventRange); read_remaining_records performs a fresh bounded search of that omitted range, not a snapshot cursor. It may repeat same-day boundary records. Do not use the prior eight retained source bodies as the omitted remainder. For a workflow task, workflow selects the actual screen operation; a photo into a care/history note uses care_photo_attachment, not other. For all non-workflow tasks workflow must be none.",
  "A vet_brief is an actual concise handoff: relevant owner-reported observations, dated original historical facts, and questions/unknowns. Set needsHistory when saved notes/results are requested. Set needsOwnerFacts when current/prior user observations must be included (including what I just told you), and always for owner_observations tasks. Do not mark those tasks complete without actual eligible owner facts. Select the relevant retained reference handle and authorized pets, then re-read it. A prior assistant answer or reference metadata is never source evidence. For collection integration, rehydrate the original result and relevant continuation results; bounded retained sources are a selection, never the full historical set. Do not discuss evidence completeness or source counts in free prose: the server supplies coverage. Select ownerFacts by the exact sentence handle in ownerFactSentenceRefs; do not regenerate or shorten owner wording. Classify each owner fact by meaning; pet/date corrections and requests are not health observations. A corrected pet/date overrides a prior result; plan a new scoped read instead. When the referenced result is ambiguous, ask which one rather than choosing arbitrarily.",
  "For any requested saved/profile content or calculation set needsHistory=true and bind pets to all explicitly named or unambiguously established authorized subjects. A comparison/calculation may have multiple pets; keep each tool read pet/time scoped. An empty pets list is not permission to guess from the selected UI pet. A selected reference carries its own authorized pet. General guidance alone does not require saved reads. needsOwnerFacts is only for an owner_observations task or a vet_brief that must reproduce actual observations. Preferences, time constraints and plan revisions are ordinary dialogue context, not factual excerpts required before general guidance can be answered.",
+ "An unknown or explicitly unrecorded detail is not a missing pet identity. When the owner says the detail was never entered, do not search unrelated history or invent its value. Explain the information limit. If a saved fact may exist and retrieval is requested, needsHistory must remain true and the real scope must be resolved.",
  "missing identifies what is genuinely unresolved. A vague month with no established pet/year requires one pointed pet/year question; do not use the UI-selected pet as evidence of a pronoun. An explicit pet plus month/year is sufficient; do not demand a day. A follow-up pet/year correction overrides the old result and requires a new bounded search. Preserve the established date axis unless the owner changes it. Requesting both event and recorded timestamps is display metadata, not date-axis ambiguity: asking when an event happened and when its note was saved must not create date_meaning or suppress the read. Clinical missing authority must not prevent an independently scoped saved-data task.",
  "In the final completion array account for EACH task ID once. Select componentIndexes for independently answerable ordinary prose, sources for current admitted evidence, and exact factual excerpts for a vet brief. ownerFacts excerpts must be short COMPLETE verbatim sentences preserving negation, attribution and caveats; declarative observations from the selected USER statement, not their request, an assistant assertion, speculation, or a question. historyFacts excerpts must be one or more CONTIGUOUS COMPLETE sentences occurring byte-for-byte in an admitted note, preserving negation and attribution. Never generate a diagnosis or regimen directive in these excerpts; historical plans remain historical quotations. Questions for the vet come from the bounded clinical review fields. Do not put extra clinical recommendations into a summary component.",
  "Use complete only when this requested task is actually delivered. Unresolved/partial requires a specific reason. Preserve the other completed tasks. Do not add a generic partial/context notice when all requested components are delivered. Do not repeat server dates or arithmetic in model prose; the server publishes them once. Source omissions limit only the affected task; never claim a complete collection when bodies are omitted."
@@ -110,6 +111,31 @@ export function fulfillReferenceReads(first,references=[]){
  }
  return {...first,taskPlan,calls};
 }
+
+/** Resolve identity, not data availability. Only source-free nonclinical tasks
+ * qualify; this grants no read. The existing owner-bound binder checks identity. */
+export function reconcileNoReadPet(plan,safety,context,pets,ownerId,bindPet){
+ if(!plan||!safety||!Array.isArray(safety.missingContext)||plan.some(t=>!["saved_content","general_guidance"].includes(t.kind)||t.needsHistory||t.reference||t.needsOwnerFacts)||!["none","education"].includes(safety.careContext)||safety.medicationIntent!=="none"
+  ||safety.scenario!=="none"||safety.currentEvents?.length||safety.conditionalEvents?.length
+  ||safety.missingContext.some(k=>k!=="pet"))return null;
+ const eligible=t=>t.kind==="saved_content"&&!t.needsHistory&&t.recordMode==="none"&&!t.reference&&!t.needsOwnerFacts&&t.pets.length<=1&&t.missing.includes("pet");
+ if(!plan.some(eligible))return null;
+ const escaped=name=>name.replace(/[.*+?^{}$()|[\]\\]/g,"\\$&");
+ const named=pets.filter(p=>p.ownerId===ownerId&&typeof p.name==="string"&&p.name.trim()
+  &&new RegExp("(?<![\\p{L}\\p{N}])"+escaped(p.name)+"(?![\\p{L}\\p{N}])","iu").test(context.question));
+ if(named.length!==1)return null;
+ const pet=bindPet(named[0].handle);
+ if(!pet||pet.id!==named[0].id||pet.ownerId!==ownerId)return null;
+ let resolved=0;
+ const updated=plan.map(t=>{
+  if(!eligible(t))return t;
+  resolved++;return {...t,pets:[pet.handle],missing:t.missing.filter(k=>k!=="pet")};
+ });
+ if(!resolved)return null;
+ const missingContext=safety.missingContext.filter(k=>k!=="pet");
+ return {plan:updated,safety:{...safety,missingContext,referent:missingContext.length?safety.referent:"clear"},resolved};
+}
+
 export function ownerFactSentences(ownerStatements){
  return ownerStatements.flatMap(s=>[...new Intl.Segmenter("en",{granularity:"sentence"}).segment(s.text)].flatMap((part,index)=>{
   const excerpt=part.segment.trim();return excerpt&&excerpt.length<=280?[{sentence:s.ref+":sentence"+(index+1),ref:s.ref,excerpt}]:[];
@@ -173,6 +199,7 @@ export function reviewComponentCompletion(final,plan,sources,ownerStatements,pet
   if(rejectedFact){status="partial";reason="not_answered";}
   if(scopeMissing(task)||task.kind!=="vet_brief"&&task.missing.length){status="unresolved";reason="missing_context";}
   if(task.needsHistory&&!selected.length){status="unresolved";reason="source_unavailable";}
+  if(task.kind==="saved_content"&&!task.needsHistory&&task.recordMode==="none"&&!task.reference&&!task.missing.length&&!selected.length){status="unresolved";reason="source_unavailable";}
   if(status==="complete"&&task.kind==="vet_brief"&&(!e.ownerFacts.length&&!e.historyFacts.length||task.needsHistory&&!e.historyFacts.length)){status="partial";reason="not_answered";}
   if(status==="complete"&&!e.componentIndexes.length&&!e.historyFacts.length&&!e.ownerFacts.length&&!["workflow","calculation"].includes(task.kind)){status="unresolved";reason="not_answered";}
   if(status!=="complete"&&reason==="none")reason="not_answered";
@@ -232,6 +259,7 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
  });
  const blocked=new Set(tasks.filter(t=>t.status==="unresolved"||t.needsHistory&&!t.sources.length||t.needsOwnerFacts&&!t.ownerFacts.length).flatMap(t=>t.componentIndexes));
  tasks=tasks.map(t=>t.status==="complete"&&t.componentIndexes.some(i=>blocked.has(i))?{...t,status:"partial",reason:"not_answered"}:t);
+ const unavailableDetails=new Set(tasks.filter(t=>t.kind==="saved_content"&&!t.needsHistory&&t.recordMode==="none"&&!t.reference&&!t.missing.length&&!t.sources.length&&t.reason==="source_unavailable").map(t=>t.id));
  const workflowParts=new Set(tasks.filter(t=>t.kind==="workflow").flatMap(t=>t.componentIndexes));
  tasks=tasks.map(t=>t.kind!=="workflow"&&t.status==="complete"&&t.componentIndexes.some(i=>workflowParts.has(i))?{...t,status:"partial",reason:"not_answered"}:t);
  const calculationParts=new Set(tasks.filter(t=>t.kind==="calculation"&&answer.calculations?.length).flatMap(t=>t.componentIndexes));
@@ -281,6 +309,10 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
   text=[policy?.active?answer.answer:null,verifiedBriefText].filter(Boolean).join("\n\n");
   answer={...answer,ownerReports:[],presentation:{...answer.presentation,sourceDates:[]}};
  }
+ if(unavailableDetails.size){
+  const detail=unavailableDetails.size===1?"that detail":"those details",pronoun=unavailableDetails.size===1?"it":"them";
+  text=[text,"I don't have verified saved information for "+detail+", so I can't answer "+pronoun+" from Furvise."].filter(Boolean).join("\n\n");
+ }
  if(clarify.length){
   const fields=[...new Set(clarify.flatMap(t=>t.missing.filter(k=>!policy?.active||!["medicine","prescription","vet_plan"].includes(k)).filter(k=>k!=="pet"||!policy?.current?.length&&!policy?.conditional?.length||t.needsHistory)))];
   const question="Which "+fields.map(f=>missingLabels[f]).join(" and ")+" should I use?";
@@ -293,7 +325,7 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
  const incomplete=tasks.filter(t=>t.status!=="complete");
  const labels={saved_content:"Saved history",saved_continuation:"Remaining history",owner_observations:"Owner observations",calculation:"Calculation",vet_brief:"Vet brief",clarification:"Clarification",general_guidance:"General guidance",clinical_guidance:"Care guidance",workflow:"App steps"};
  const reasonsText={missing_context:"Essential context for this part is missing; please repeat the relevant details.",source_unavailable:"The saved-record part remains unresolved: no verified source was supplied for it.",source_omitted:"This part is incomplete because some source bodies were omitted by the evidence limit.",not_supported:"This requested action is unavailable through read-only Ask.",not_answered:"This requested part has not been completed from the available information."};
- for(const task of incomplete.filter(t=>!t.missing.length&&t!==brief)){
+ for(const task of incomplete.filter(t=>!t.missing.length&&t!==brief&&!unavailableDetails.has(t.id))){
   const relevant=coverage.filter(r=>r.sources.some(s=>task.sources.includes(s.source)));
   const retainedSubset=task.reason==="source_omitted"&&relevant.some(r=>r.unmet?.includes("prior_source_selection_omitted"))
    &&!relevant.some(r=>r.omitted>0||r.hasMore||r.hasPrevious||r.truncated);
