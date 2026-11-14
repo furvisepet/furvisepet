@@ -1,3 +1,4 @@
+import {selectionFixture,answerFixture,sdkFixture} from "./helpers/ask-read-only-wire-fixtures.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
@@ -125,7 +126,7 @@ test("real data adapter binds owner, pet, deletion, timezone, ordering and bound
  assert.ok(seen.some(x=>x.method==="is"&&x.args[0]==="deleted_at"&&x.args[1]===null));
  assert.ok(seen.some(x=>x.method==="gte"&&x.args[1]==="2026-11-01T07:00:00.000Z"));
  assert.ok(seen.some(x=>x.method==="lt"&&x.args[1]==="2026-11-02T08:00:00.000Z"));
- assert.ok(seen.some(x=>x.method==="range"&&x.args[0]===16&&x.args[1]===32));
+ assert.ok(seen.some(x=>x.method==="range"&&x.args[0]===16&&x.args[1]===31));
  assert.ok(!seen.some(x=>["insert","update","delete","rpc"].includes(x.method)));
 });
 test("read adapter rejects foreign pet before issuing any database query",async()=>{
@@ -133,18 +134,20 @@ test("read adapter rejects foreign pet before issuing any database query",async(
 });
 
 import {readOnlyProvider} from "../app/lib/ask-read-only/provider.ts";
-test("real provider adapter requests only read tools, then a compact final schema, with no retry",async()=>{
+test("real provider adapter uses strict current selection and final wire contracts with no retry",async()=>{
  const wire=[],events=[];
+ const read={name:"search_saved_records",arguments:{pet:"p1",from:"2026-11-01",to:"2026-11-01",query:null,offset:0,goal:"exact_quote",alternatives:[],recordedFrom:null,recordedTo:null,orderBy:"event",order:"asc"}};
  const client={responses:{async create(request){
   wire.push(request);
-  return wire.length===1?{status:"completed",output:[{type:"function_call",call_id:"c1",name:"search_saved_records",arguments:call().arguments}],usage:{input_tokens:100,output_tokens:40}}:
-   {status:"completed",output:[{type:"message",content:[{type:"output_text",text:JSON.stringify(final())}]}],usage:{input_tokens:150,output_tokens:60}};
+  return sdkFixture(request,wire.length===1?selectionFixture({reads:[read]}):answerFixture({text:"The saved observation is quoted below.",sources:["s1"],quotes:["s1"],replyType:"answer"}));
  }}};
  const result=await runReadOnlyAsk(input,{provider:readOnlyProvider("gpt-5.4-mini",event=>events.push(event),client),read:async()=>({sources:[source],total:1})});
  assert.equal(result.providerCallCount,2);assert.equal(wire.length,2);assert.equal(events.filter(e=>e.outcome==="started").length,2);
- assert.equal(wire[0].store,false);assert.deepEqual(wire[0].tools.map(t=>t.name),["read_pet_profile","search_saved_records"]);assert.equal(wire[0].parallel_tool_calls,true);
- assert.ok(!wire[1].tools);assert.deepEqual(wire[1].text.format.schema.required,["presentation","components","quotes","sources","calculations","replyType"]);
+ assert.equal(wire[0].store,false);assert.equal(wire[0].tools,undefined);assert.equal(wire[0].text.format.name,"furvise_read_selection");
+ assert.equal(wire[1].tools,undefined);assert.equal(wire[1].text.format.name,"furvise_read_answer");
+ assert.ok(wire[1].text.format.schema.required.includes("completion"));assert.ok(wire[1].text.format.schema.required.includes("clinicalReview"));
 });
+
 for(const [name,response] of [
  ["incomplete",{status:"incomplete",output:[],incomplete_details:{reason:"max_output_tokens"}}],
  ["missing envelope",{output:[]}],
@@ -185,7 +188,7 @@ test("over-specific lexical query falls back to bounded same-owner/pet/date cand
  const db={from(table){
   let lexical=false;const q={};
   for(const method of ["select","eq","is","gte","lt","order","range","retry","abortSignal"])q[method]=(...args)=>{seen.push({table,method,args});return q;};
-  q.or=(...args)=>{lexical=true;seen.push({table,method:"ilike",args});return q;};
+  q.or=(...args)=>{lexical=!args[0].includes(".not.ilike.");seen.push({table,method:"ilike",args});return q;};
   q.maybeSingle=async()=>({data:{id:"pet-a",user_id:"owner-a"},error:null});
   q.then=(resolve,reject)=>Promise.resolve({data:lexical?[]:[row],count:lexical?0:1,error:null}).then(resolve,reject);
   return q;
@@ -204,7 +207,7 @@ import {serializeReadOnlyProfile} from "../app/lib/ask-read-only/data.ts";
 import {checkedReadOnlyCitationSources} from "../app/lib/ask-citation-proof.ts";
 test("one native batch carries both date windows, and the server copies selected notes",async()=>{
  const searches=[{pet:"p1",from:"2026-01-02",to:"2026-01-02",query:null,offset:0},{pet:"p1",from:"2026-09-03",to:"2026-09-03",query:null,offset:0}];
- const seen=[],provider=[];const row1={...source,id:"first",body:"Measured 12.2 kg.",eventAt:"2026-01-02T12:00:00Z"},row2={...source,id:"second",body:"Measured 12.5 kg.",eventAt:"2026-09-03T12:00:00Z"};
+ const seen=[],provider=[];const row1={...source,id:"first",body:"Body weight: 12.2 kg.",eventAt:"2026-01-02T12:00:00Z"},row2={...source,id:"second",body:"Body weight: 12.5 kg.",eventAt:"2026-09-03T12:00:00Z"};
  const result=await runReadOnlyAsk(input,{
   provider:async(request)=>{provider.push(request);return provider.length===1?{calls:searches.map((query,index)=>({id:"search-"+index,name:"search_saved_records",arguments:JSON.stringify(query)})),text:""}:
    final({answer:"The recorded change is shown below.",quotes:["s1","s2"],sources:[],calculations:[{operation:"difference",operands:["s1:m1","s2:m1"]}]});},
@@ -212,9 +215,9 @@ test("one native batch carries both date windows, and the server copies selected
  });
  assert.equal(provider.length,2);assert.equal(seen.length,2);assert.deepEqual(result.answer.quotes.map(q=>q.quote),[row1.body,row2.body]);
  assert.deepEqual(result.answer.sources,["s1","s2"]);assert.equal(result.answer.calculations[0].value,0.3);
- assert.equal(result.answer.calculations[0].text,"Change from earlier to later: 0.3 kg");
+ assert.match(result.answer.calculations[0].text,/Juniper — body weight — Change from earlier to later: \+0.3 kg/);
 });
-const measurements=[{...source,handle:"s1",body:"Measured 10.0 kg.",eventAt:"2026-01-01T00:00:00Z"},{...source,id:"other",handle:"s2",body:"Measured 11.0 kg.",eventAt:"2026-02-01T00:00:00Z"}];
+const measurements=[{...source,handle:"s1",body:"Body weight: 10.0 kg.",eventAt:"2026-01-01T00:00:00Z"},{...source,id:"other",handle:"s2",body:"Body weight: 11.0 kg.",eventAt:"2026-02-01T00:00:00Z"}];
 const operands=["s1:m1","s2:m1"];
 for(const [operation,value] of [["difference",1],["percent_change",10],["sum",21],["mean",10.5]])
  test("source-bound deterministic "+operation,()=>{assert.equal(calculateReadSources([{operation,operands:[...operands].reverse()}],measurements)[0].value,value);});
@@ -278,8 +281,8 @@ test("measurement metadata is bounded independently from record text",async()=>{
  const requestResult=result.coverage[0];assert.equal(requestResult.truncated,true);
 });
 
-test("general conversation may discuss ordinary symbolic labels and example UUIDs",async()=>{
- const text="Let s1 and s2 be sets. An example UUID is 00000000-0000-4000-8000-000000000000.";
+test("general conversation may discuss non-reserved symbolic labels and example UUIDs",async()=>{
+ const text="Let A and B be sets. An example UUID is 00000000-0000-4000-8000-000000000000.";
  const result=await runner({calls:[],text},final({answer:text,quotes:[],sources:[]})).run();
  assert.equal(result.answer.answer,text);
 });
@@ -377,7 +380,7 @@ test("unknown reply classifications and the retired limited boolean fail closed"
 
 import {readSourceMeasurements} from "../app/lib/ask-read-only/calculations.mjs";
 test("compatible saved mass units are converted without altering source text",()=>{
- const rows=[{...measurements[0],body:"Measured 10.0 g."},measurements[1]];
+ const rows=[{...measurements[0],body:"Body weight: 10.0 g."},measurements[1]];
  const before=JSON.stringify(rows);
  for(const ops of [operands,[...operands].reverse()]){
   const result=calculateReadSources([{operation:"difference",operands:ops}],rows)[0];
@@ -386,8 +389,8 @@ test("compatible saved mass units are converted without altering source text",()
  assert.equal(JSON.stringify(rows),before);
 });
 test("incompatible measurement dimensions return an unavailable explanation, never a number",()=>{
- const result=calculateReadSources([{operation:"absolute_difference",operands}], [{...measurements[0],body:"Measured 10 cm."},measurements[1]])[0];
- assert.equal(result.available,false);assert.equal(result.value,null);assert.match(result.text,/incompatible units/);
+ const result=calculateReadSources([{operation:"absolute_difference",operands}], [{...measurements[0],body:"Body length: 10 cm."},measurements[1]])[0];
+ assert.equal(result.available,false);assert.equal(result.value,null);assert.match(result.text,/different saved metrics/);
 });
 test("decimal commas preserve original excerpts and ambiguous grouped numbers are not guessed",()=>{
  const decimal=readSourceMeasurements("Measured 4,5 kg.","s1");
@@ -395,10 +398,12 @@ test("decimal commas preserve original excerpts and ambiguous grouped numbers ar
  for(const body of ["Measured 1,234 kg.","Measured 1,234.5 kg.","Measured 1.234,5 kg.","Measured 1e3 kg.","Measured 2/3 kg."])
   assert.deepEqual(readSourceMeasurements(body,"s1"),[],body);
 });
-test("a general answer review receives no internal pet mapping",async()=>{
+test("a general answer review receives only owned display handles, never private identities",async()=>{
  const r=runner({calls:[],text:"A general draft."},final({answer:"A general answer.",quotes:[],sources:[]}));
  await r.run();
- assert.equal(r.requests[1].request.context.selectedPet,undefined);
- assert.equal(r.requests[1].request.context.pets,undefined);
+ assert.equal(r.requests[1].request.context.selectedPet,"p1");
+ assert.deepEqual(r.requests[1].request.context.pets,[{handle:"p1",name:"Juniper",species:"cat"},{handle:"p2",name:"Moss",species:"dog"}]);
+ assert.ok(!JSON.stringify(r.requests[1].request.context).includes("owner-a"));
+ assert.ok(!JSON.stringify(r.requests[1].request.context).includes("pet-a"));
  assert.equal(r.requests[1].request.context.question,input.question);
 });

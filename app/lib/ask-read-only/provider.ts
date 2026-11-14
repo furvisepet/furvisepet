@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { buildReadOnlyProviderRequest, describeReadRequest, safeReadAdmissionDiagnostic } from "./provider-request.mjs";
 import { getAiFeaturePolicy } from "../ai/usage-guard/features.ts";
 import { decodeComponentSelection } from "./task-components.mjs";
@@ -18,6 +19,7 @@ export function readOnlyProvider(model:string,onEvent:(event:AskProviderEvent)=>
  return async (input:Record<string,unknown>,phase:string) => {
   const selection=phase==="read_selection",stage=selection?"interpretation":"primary",strictSelection=selection&&!!input.selectionSchema;
   let request:Record<string,unknown>={};
+  let clientRequestId:string|undefined;
   const started=performance.now();
   let providerEnvelope:ReturnType<typeof structuredProviderEnvelopeDiagnostic>|undefined;
   let outputLayout:ReturnType<typeof describeReadOutput>|undefined;
@@ -27,8 +29,9 @@ export function readOnlyProvider(model:string,onEvent:(event:AskProviderEvent)=>
     model,maxOutputTokens:request.max_output_tokens as number,request,
     stage:selection?"interpretation":"answer_generation",reserveMs:selection?12000:4000,
     invoke: async wire=>{
-     onEvent({stage,outcome:"started",model,elapsedMs:0});
-     return await withProviderDeadline(signal=>client.responses.create(wire as never,{signal}),boundedProviderTimeout(60000,selection?12000:4000,selection?"interpretation":"answer_generation")) as ProviderResponse;
+     clientRequestId=randomUUID();
+     onEvent({stage,outcome:"started",model,elapsedMs:0,validationDetails:JSON.stringify({clientRequestId,...describeReadRequest(request)})});
+     return await withProviderDeadline(signal=>client.responses.create(wire as never,{signal,headers:{"X-Client-Request-Id":clientRequestId}}),boundedProviderTimeout(60000,selection?12000:4000,selection?"interpretation":"answer_generation")) as ProviderResponse;
     }
    });
    providerEnvelope=structuredProviderEnvelopeDiagnostic(response);
@@ -48,14 +51,14 @@ export function readOnlyProvider(model:string,onEvent:(event:AskProviderEvent)=>
    }else{
     value=decodeProviderJson(response);
    }
-   onEvent({stage,outcome:"succeeded",validationDetails:JSON.stringify({outputLayout,...describeReadRequest(request)}),model,elapsedMs:Math.round(performance.now()-started),inputTokens:response.usage?.input_tokens,outputTokens:response.usage?.output_tokens,finishReason:response.status??null,providerEnvelope});
+   onEvent({stage,outcome:"succeeded",validationDetails:JSON.stringify({outputLayout,clientRequestId,...describeReadRequest(request)}),model,elapsedMs:Math.round(performance.now()-started),inputTokens:response.usage?.input_tokens,outputTokens:response.usage?.output_tokens,finishReason:response.status??null,providerEnvelope});
    return value;
   } catch(error) {
    const providerError=safeAskProviderErrorDiagnostic(error);
    const timedOut=["TimeoutError","AbortError","APIUserAbortError","APIConnectionTimeoutError"].includes(providerError.type??"");
    const outputDiagnostic=safeReadOutputDiagnostic(error);
    const admissionDiagnostic=safeReadAdmissionDiagnostic(error);
-   const validationDetails=outputDiagnostic||admissionDiagnostic?JSON.stringify({...outputDiagnostic,...admissionDiagnostic,phase:selection?"read_selection":"read_answer",outputLayout,...(Object.keys(request).length?describeReadRequest(request):{})}):undefined;
+   const validationDetails=outputDiagnostic||admissionDiagnostic||Object.keys(request).length?JSON.stringify({...outputDiagnostic,...admissionDiagnostic,phase:selection?"read_selection":"read_answer",outputLayout,clientRequestId,...(Object.keys(request).length?describeReadRequest(request):{})}):undefined;
    const providerErrorCode=outputDiagnostic?.code??(admissionDiagnostic?"ASK_READ_ADMISSION_DENIED":null)??providerError.code??(timedOut?"ASK_READ_PROVIDER_TIMEOUT":"ASK_READ_PROVIDER_FAILED");
    onEvent({stage,outcome:"failed",model,elapsedMs:Math.round(performance.now()-started),providerStatus:providerError.status,
     providerErrorCode,providerError,providerEnvelope,timedOut,validationDetails});

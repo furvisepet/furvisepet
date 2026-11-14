@@ -1,3 +1,4 @@
+import {selectionFixture,sdkFixture} from "./helpers/ask-read-only-wire-fixtures.mjs";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -57,14 +58,14 @@ for(const failedCall of [1,2])test("actual read-only Ask route logs safe diagnos
  t.mock.method(console,"info",(...args)=>logs.push(args));
  t.mock.method(console,"warn",(...args)=>logs.push(args));
  t.mock.method(console,"error",(...args)=>logs.push(args));
- const param=failedCall===1?"tools":"text.format.schema";
+ const param="text.format.schema";
  const nativeClient={responses:{create:async request=>{
   calls++;
   if(calls===failedCall){
-   wireSchemaHash=createHash("sha256").update(JSON.stringify(failedCall===1?request.tools:request.text.format.schema)).digest("hex");
+   wireSchemaHash=createHash("sha256").update(JSON.stringify(request.text.format.schema)).digest("hex");
    throw new OpenAI.BadRequestError(400,{code:safe.code,type:safe.type,param,message:marker+credential},marker,new Headers({"x-request-id":requestId}));
   }
-  return {status:"completed",output:[{type:"function_call",call_id:"read-one",name:"search_saved_records",arguments:JSON.stringify({pet:"p1",from:null,to:null,query:null,offset:0,order:"desc"})}],usage:{input_tokens:8,output_tokens:2}};
+  return sdkFixture(request,selectionFixture({reads:[{name:"search_saved_records",arguments:{pet:"p1",from:null,to:null,query:null,offset:0,order:"desc",goal:"relevant_records",alternatives:[],recordedFrom:null,recordedTo:null,orderBy:"event"}}]}));
  }}};
  const f=readOnlyFailureRouteFixture(null,undefined,{nativeClient,realProviderLog:true});
  const response=await f.send(),body=await response.json();

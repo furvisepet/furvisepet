@@ -6,11 +6,11 @@ const source={kind:"history",handle:"s1",id:"private-note-123456789",petId:"priv
 const answer=text=>({components:[{kind:"saved",text,sources:["s1"]}],sources:["s1"],quotes:["s1"],calculations:[],replyType:"answer"});
 test("selected bracket citations render public provenance without editing the exact quote",()=>{
  const a=validateReadOnlyAnswer(answer("The observation was recorded [s1]."),[source]);
- assert.equal(a.answer,"The observation was recorded [saved note with event time 2025-05-03T12:00:00Z].");
+ assert.equal(a.answer,"The observation was recorded [saved note 1].");
  assert.equal(a.citationReferencesTranslated,1);assert.equal(a.quotes[0].quote,source.body);
 });
 test("parenthesized citations use the same checked source",()=>{
- assert.match(validateReadOnlyAnswer(answer("Recorded (s1)."),[source]).answer,/saved note with event time 2025-05-03T12:00:00Z/);
+ assert.match(validateReadOnlyAnswer(answer("Recorded (s1)."),[source]).answer,/saved note 1/);
 });
 for(const [text,category] of [[source.id,"private_identifier"],[source.petId,"private_identifier"],["unselected [s2]","opaque_source_handle"],["pet p1","opaque_pet_handle"],["measurement [s1:m1]","opaque_source_handle"]]){
  test("unsafe prose remains rejected: "+category+" "+text.slice(0,8),()=>{
@@ -25,7 +25,7 @@ test("coverage separates query exhaustion, admitted evidence and semantic recall
 
 test("standalone selected source tokens publish public provenance, never raw handles",()=>{
  const a=validateReadOnlyAnswer(answer("This was recorded in s1."),[source]);
- assert.equal(a.answer,"This was recorded in saved note with event time 2025-05-03T12:00:00Z.");
+ assert.equal(a.answer,"This was recorded in saved note 1.");
  assert.equal(a.citationReferencesTranslated,1);
 });
 test("a known but unselected source cannot acquire authority from prose",()=>{

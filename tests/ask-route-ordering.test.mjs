@@ -1,3 +1,4 @@
+import {selectionFixture,answerFixture,sdkFixture,ordinaryTask} from "./helpers/ask-read-only-wire-fixtures.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
@@ -9,7 +10,7 @@ import {POST as confirm,request as confirmRequest,messageId} from "./helpers/ask
 
 function wire(output){return {status:"completed",output,usage:{input_tokens:1000,output_tokens:80}};}
 function selection(name="search_saved_records",args={pet:"p1",from:null,to:null,query:null,offset:0,order:"desc"}){
- return wire([{type:"function_call",id:"fc_read",call_id:"read",name,arguments:JSON.stringify(args)}]);
+ return answer(selectionFixture({reads:[{name,arguments:{goal:"relevant_records",alternatives:[],recordedFrom:null,recordedTo:null,orderBy:"event",...args}}]}));
 }
 function answer(value){return wire([{type:"message",content:[{type:"output_text",text:JSON.stringify(value)}]}]);}
 function deniedAuth(){let io=0;globalThis.__readOnlyMutationAuth={userId:id(1),supabase:new Proxy({},{get(){io++;throw Error("disabled action attempted IO");}})};return ()=>io;}
@@ -17,7 +18,17 @@ function deniedAuth(){let io=0;globalThis.__readOnlyMutationAuth={userId:id(1),s
 test("combined note-save and history request can read exact evidence without a write or pending confirmation",async()=>{
  const secret=process.env.FURVISE_RATE_LIMIT_HASH_SECRET;process.env.FURVISE_RATE_LIMIT_HASH_SECRET="synthetic-route-ordering-proof-secret-1109ad";
  const records=[{...note,id:id(8),body:"Juniper weighed 4.5 kg.",eventAt:"2026-09-15T12:00:00Z"},note];
- const f=fixture({records,providerCreate:(_request,n)=>n===1?selection():answer({answer:"I can read the saved notes, but I cannot save a new one through Ask.",quotes:["s1","s2"],sources:["s1","s2"],calculations:[],replyType:"partial"})});
+ const savedTask={...ordinaryTask(true),recordMode:"collection"},unsupported={...ordinaryTask(),id:"t2"};
+ const f=fixture({records,providerCreate:(request,n)=>{
+  if(n===1){
+   const v=selectionFixture({reads:[{name:"search_saved_records",arguments:{pet:"p1",from:null,to:null,query:null,offset:0,order:"desc",goal:"exact_quote",alternatives:[],recordedFrom:null,recordedTo:null,orderBy:"event"}}],task:savedTask});
+   v.taskPlan.push(unsupported);return sdkFixture(request,v);
+  }
+  const v=answerFixture({text:"The saved notes are quoted below.",sources:["s1","s2"],quotes:["s1","s2"],replyType:"partial",task:savedTask});
+  v.components.push({kind:"limitation",text:"Ask cannot save a new note.",sources:[]});
+  v.completion.push({task:"t2",status:"unresolved",reason:"not_supported",componentIndexes:[1],sources:[],ownerFacts:[],historyFacts:[],historySynthesis:[]});
+  v.evidenceCompletion.sourceReview.routine=["s1","s2"];return sdkFixture(request,v);
+ }});
  try{
   const response=await f.send("Save Juniper refused lunch, then show the two most recent notes."),body=await response.json();
   assert.equal(response.status,200,JSON.stringify(f.state.errors));assert.equal(f.state.calls,2);assert.equal(f.state.reads,1);
