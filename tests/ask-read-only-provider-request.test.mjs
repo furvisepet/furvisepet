@@ -36,3 +36,13 @@ test("native chronological roles end with the actual current request without dup
   assert.equal(context.dialogue.length,4);assert.equal(context.question,input.context.question);
  }
 });
+
+test("four-goal request keeps all evidence and owner coverage while omitting transport diagnostics",()=>{
+ const source={source:"s1",kind:"history",pet:"Maple",body:"Maple weighed 10 kg. Appetite stayed normal.",eventAt:"2024-01-15T12:00:00Z",recordedAt:"2024-01-16T12:00:00Z",measurements:[{handle:"s1:m1",value:10,unit:"kg",metric:"body_weight"}]};
+ const row={call:"c1",scope:{pet:"Maple",petHandle:"p1",kind:"history",goal:"comparison",from:"2024-01-01",to:"2024-12-31",orderBy:"event",evidenceRole:"scoped"},sources:[source],inspected:36,omitted:4,total:36,hasMore:false,truncated:true,queryScopeExhausted:true,scopeExhausted:false,semanticRecallVerified:false,sourceMeaning:"historical_saved_report",status:"partial",unmet:["evidence_omitted"],omittedRange:{axis:"event",from:"2024-09-01",to:"2024-12-31"},discovery:{internalTrace:"transport-only ".repeat(50)},batchAcquisition:{internalTrace:"same executor statistics ".repeat(50)},continuationValidation:{internalTrace:"anchor validation ".repeat(50)}};
+ const input={instructions:"bounded rules ".repeat(3500),context:{question:"Compare the original measured weights."},draft:"",SOURCE_CATALOG:[source],TOOL_DATA:Array.from({length:4},(_,i)=>({...row,call:"c"+i})),schema:{type:"object"},CLINICAL_CONSTRAINTS:{medicationIntent:"none"}};
+ const before=structuredClone(input),wire=buildReadOnlyProviderRequest("model",input,"read_answer",2400,policy),data=JSON.parse(wire.input[0].content);
+ assert.deepEqual(input,before);assert.deepEqual(data.SOURCE_CATALOG,[source]);assert.equal(data.TOOL_DATA.length,4);
+ for(const packed of data.TOOL_DATA){for(const k of ["discovery","batchAcquisition","continuationValidation"])assert.equal(Object.hasOwn(packed,k),false);for(const k of ["scope","inspected","omitted","total","hasMore","truncated","queryScopeExhausted","scopeExhausted","semanticRecallVerified","sourceMeaning","status","unmet","omittedRange"])assert.deepEqual(packed[k],row[k]);}
+ assert.deepEqual(data.CLINICAL_CONSTRAINTS,input.CLINICAL_CONSTRAINTS);assert.ok(describeReadRequest(wire).estimatedInputTokens<=20000);
+});

@@ -552,3 +552,15 @@ test("actual two-call owner-statement reasoning survives an irrelevant raw owner
  assert.equal(r.requests[1].context.taskPlan[0].needsOwnerFacts,false);
  assert.deepEqual(r.requests[1].context.taskPlan[0].missing,[]);
 });
+
+test("distinct bound endpoint reads establish one calculation collection without a single-record choice",async()=>{
+ const {normalizeTaskRecords}=await import("../app/lib/ask-read-only/task-components.mjs");
+ const task={id:"t1",kind:"calculation",needsHistory:true,recordMode:"single",pets:["p1"],reference:null,missing:["which_record"]};
+ const first={name:"search_saved_records",request:{kind:"history",pet:{handle:"p1"},from:"2024-01-01",to:"2024-12-31",orderBy:"event",order:"asc",offset:0,goal:"boundary"}};
+ const last={...first,request:{...first.request,order:"desc"}};
+ assert.deepEqual(normalizeTaskRecords([task],[first,last])[0].missing,[]);assert.equal(normalizeTaskRecords([task],[first,last])[0].recordMode,"collection");
+ for(const reads of [[first],[first,structuredClone(first)],[first,{...last,request:{...last.request,pet:{handle:"p2"}}}]]){
+  const t=normalizeTaskRecords([task],reads)[0];assert.equal(t.recordMode,"single");assert.deepEqual(t.missing,["which_record"]);
+ }
+ const separate={...task,id:"t2"};assert.equal(normalizeTaskRecords([task,separate],[first,last])[0].recordMode,"single");
+});

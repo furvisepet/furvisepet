@@ -164,7 +164,7 @@ test("a new explicit session decision never waives a NEW null provider receipt",
 
 test("fresh image repair candidates never expand paid authority or weaken launch criteria",()=>{
  const extras=JSON.parse(readFileSync(new URL('../benchmarks/ask/v1-owner-repair-pool-2026-11-13.json',import.meta.url)));
- assert.equal(extras.cases.length,53);
+ assert.equal(extras.cases.length,55);
  assert.equal(extras.cases.find(c=>c.id==='R45').beforeAction,'reload same signed-in conversation; verify messages persisted');
  const f=fixture();f.caseId='R42';f.results=Array.from({length:48},(_,i)=>result(original.cases[i].id,{verdict:'FAIL'}));
  assert.throws(()=>dispatchGate(f),/ceiling/);

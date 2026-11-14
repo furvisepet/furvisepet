@@ -854,6 +854,38 @@
       "dependsOn": [
         "R68"
       ]
+    },
+    {
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T22:36:02.524621+00:00",
+      "exposure": "Fresh distinct pets/years frozen before outputs after R68 primary-request budget admission FAIL. Original first physical cost/failure retained; no second call dispatched. Packing drops only transport diagnostics, preserves actual source/coverage, unchanged token/source/provider caps.",
+      "id": "R70",
+      "category": "arithmetic",
+      "conversation": "repair-endpoint-request-packing",
+      "question": "For Aster in 2020 and Dune in 2018, compare each pet's earliest and latest weigh-ins within that year. Give kilogram and percentage changes with clear pet labels.",
+      "expected": "Actually acquire correct owned endpoints; Aster25.99->26.51,+.52kg;Dune5.07->5.35,+.28kg; exact independent percentages, four server math results, correct original source bodies/instants, honest bounds. No admission failure, invented answer, or which-record cancellation of two endpoint reads.",
+      "dependsOn": []
+    },
+    {
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T22:36:02.524621+00:00",
+      "exposure": "Fresh distinct pets/years frozen before outputs after R68 primary-request budget admission FAIL. Original first physical cost/failure retained; no second call dispatched. Packing drops only transport diagnostics, preserves actual source/coverage, unchanged token/source/provider caps.",
+      "id": "R71",
+      "category": "correction",
+      "conversation": "repair-endpoint-request-packing",
+      "question": "Use Dune's 2017 year instead of 2018, while keeping Aster's 2020 side unchanged. Recalculate the two labeled comparisons.",
+      "expected": "AfterR70PASSsameSHA actual fresh Dune2017 plus signed owner-bound Aster2020 rehydration; Dune4.95->5.02,+.07kg;Aster25.99->26.51,+.52kg; exact independent percentages and pet/year labels. No cached assistant operands/reference rejection/date-flag/read-budget suppression/publication failure. Unchanged caps.",
+      "dependsOn": [
+        "R70"
+      ]
     }
   ],
   "additionalEmergencyPublicationRepair": {

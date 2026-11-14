@@ -459,7 +459,8 @@ export function normalizeTaskRecords(plan,bound=[]){
   // Recover a mislabeled sole history task, but preserve independent single-
   // record identity when several tasks share that pet.
   const soleHistoryTask=t.needsHistory&&!plan.some(other=>other!==t&&other.needsHistory&&other.pets.some(p=>t.pets.includes(p)));
-  const collection=t.recordMode==="collection"||t.kind==="saved_continuation"||soleHistoryTask&&matching.some(c=>c.request.goal==="complete_set"&&!c.request.reference);
+  const calculationScopes=new Set(t.kind==="calculation"?matching.filter(c=>c.request.kind==="history"&&!c.request.reference&&!c.request.continuation).map(c=>JSON.stringify([c.name,c.request.from,c.request.to,c.request.recordedFrom,c.request.recordedTo,c.request.orderBy,c.request.order,c.request.offset,c.request.terms])):[]);
+  const collection=t.recordMode==="collection"||t.kind==="saved_continuation"||soleHistoryTask&&(calculationScopes.size>1||matching.some(c=>c.request.goal==="complete_set"&&!c.request.reference));
   const referenced=t.reference&&matching.some(c=>c.reference===t.reference&&(c.request.reference||c.request.continuation));
   return {...t,recordMode:collection?"collection":t.recordMode,missing:t.missing.filter(k=>k!=="which_record"||!collection&&!referenced)};
  });
