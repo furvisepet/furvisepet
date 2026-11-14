@@ -18,7 +18,7 @@ export function benchmarkCases(plan) {
   if (repairPool.rootPlanHash !== hash(plan)) return plan.cases;
   need(repairPool.beforeAdditionalCaseOutputs === true && hex(repairPool.originalFailureEvidenceSha256) && Number.isFinite(Date.parse(repairPool.frozenAt)), 'repair supplement provenance');
   need(repairPool.paidLimitsUnchanged.turns===48 && repairPool.paidLimitsUnchanged.physicalCalls===96 && repairPool.paidLimitsUnchanged.newMicroUSD===2500000 && repairPool.paidLimitsUnchanged.maximumReserveDispatches===16, 'repair supplement cannot raise caps');
-  need(repairPool.cases.length<=51 && repairPool.cases.every(c=>c.cohort==='repair-reserve' && c.releaseReasonRequired===true), 'bounded repair candidate pool');
+  need(repairPool.cases.length<=53 && repairPool.cases.every(c=>c.cohort==='repair-reserve' && c.releaseReasonRequired===true), 'bounded repair candidate pool');
   return [...plan.cases,...repairPool.cases];
 }
 export function validateCohort(plan, exposedHashes = []) {

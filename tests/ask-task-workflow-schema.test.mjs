@@ -52,3 +52,16 @@ test("source-free native task variants cannot emit a single-record prerequisite"
  const actual=validateTaskPlan([task({kind:"saved_content",needsHistory:true,recordMode:"single",missing:["which_record"]})],context);
  assert.deepEqual(actual[0].missing,["which_record"]);
 });
+
+test("native calculation tasks separate collection membership from single reference identity",()=>{
+ const c={pets:[{handle:"p1"},{handle:"p2"}],references:[{reference:"r1",petHandle:"p1"},{reference:"r2",petHandle:"p2"}]};
+ const variants=componentSelectionSchema({properties:{},required:[]},c).properties.taskPlan.items.anyOf;
+ const calculations=variants.filter(v=>v.properties.kind.enum.includes("calculation"));assert.ok(calculations.length);
+ for(const v of calculations)assert.deepEqual(v.properties.reference,{type:"null",enum:[null]});
+ const saved=variants.filter(v=>v.properties.kind.enum.includes("saved_content"));assert.ok(saved.some(v=>v.properties.reference.type!=="null"),"saved-record identity retains authorized locators");
+});
+test("native null calculation identity does not weaken runtime unknown/foreign reference rejection",()=>{
+ const c={pets:[{handle:"p1"},{handle:"p2"}],references:[{reference:"r1",petHandle:"p1"},{reference:"r2",petHandle:"p2"}]};
+ for(const reference of ["forged",["r1","r2"],"r2"])assert.throws(()=>validateTaskPlan([task({kind:"calculation",needsHistory:true,recordMode:"collection",pets:["p1"],reference})],c),/COMPONENT_CONTRACT/);
+ assert.doesNotThrow(()=>validateTaskPlan([task({kind:"calculation",needsHistory:true,recordMode:"collection",pets:["p1","p2"],reference:null})],c));
+});

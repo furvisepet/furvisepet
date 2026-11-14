@@ -822,6 +822,38 @@
       "dependsOn": [
         "R66"
       ]
+    },
+    {
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T22:17:37.404872+00:00",
+      "exposure": "Fresh different pet/year windows frozen before outputs after R67 first-pass reference-contract FAIL. Exact raw selected invalid reference unavailable; no claim of reconstructing it. Native schema separates calculation collection membership from read-tool source identity. Old failures/costs retained; no paid/source cap increase.",
+      "id": "R68",
+      "category": "arithmetic",
+      "conversation": "repair-native-calculation-identity",
+      "question": "Compare Cedar's first and last weights from 2019 with Echo's first and last weights from 2018. Show each pet's change in kilograms and percent.",
+      "expected": "Actual owner-bound endpoint acquisition; Cedar11.83->12.08,+.25kg;Echo5.38->5.68,+.30kg; four server calculations with independently frozen percentages, pet/year labels, original source bodies/instants. No false single-record/date question or cached assistant operands.",
+      "dependsOn": []
+    },
+    {
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T22:17:37.404872+00:00",
+      "exposure": "Fresh different pet/year windows frozen before outputs after R67 first-pass reference-contract FAIL. Exact raw selected invalid reference unavailable; no claim of reconstructing it. Native schema separates calculation collection membership from read-tool source identity. Old failures/costs retained; no paid/source cap increase.",
+      "id": "R69",
+      "category": "correction",
+      "conversation": "repair-native-calculation-identity",
+      "question": "Keep Cedar's 2019 comparison, but change Echo to 2019 rather than 2018. Recalculate both from the saved measurements.",
+      "expected": "AfterR68PASSsameSHA actual fresh Echo2019 plus signed owner-bound Cedar2019 rehydration. Echo5.72->5.81,+.09kg;Cedar11.83->12.08,+.25kg; independently frozen percentages/labels/quotes/dates, no first-pass reference rejection or redundant date-meaning gate. Actual publication, same2calls and source caps.",
+      "dependsOn": [
+        "R68"
+      ]
     }
   ],
   "additionalEmergencyPublicationRepair": {
