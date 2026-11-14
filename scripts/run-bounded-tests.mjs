@@ -59,55 +59,89 @@ const failures = [];
 const maxFailures = 20;
 const baseFlags = ["--experimental-transform-types", "--import", "./tests/register-typescript-imports.mjs"];
 
+function discoverCases(file, env) {
+  if (file !== "tests/ask-interpretation-input-budget.test.mjs") return [null];
+  // This source has one eight-case matrix and nine independent named tests.
+  // Fail closed on changed declarations, so no test is silently excluded.
+  const source = readFileSync(resolve(repo, file), "utf8");
+  const matrix = "for(const numeric of [false,true])for(const count of [0,2,8,39])";
+  const prefix = 'test("final request: five pets, 1200 exact characters, "+count+" prior turns, numeric="+numeric';
+  if (!source.includes(matrix) || !source.includes(prefix))
+    throw Error("INPUT_BUDGET_MATRIX_CHANGED");
+  const staticNames = [...source.matchAll(/(?:^|\n)\s*test\("([^"]+)"\s*,/g)].map(m => m[1]);
+  if (staticNames.length !== 9 || new Set(staticNames).size !== 9)
+    throw Error("INPUT_BUDGET_NAMED_TESTS_CHANGED " + staticNames.length);
+  const matrixNames = [false, true].flatMap(numeric =>
+    [0,2,8,39].map(count =>
+      "final request: five pets, 1200 exact characters, " + count + " prior turns, numeric=" + numeric));
+  const names = [...matrixNames, ...staticNames];
+  if (names.length !== 17 || new Set(names).size !== names.length)
+    throw Error("INPUT_BUDGET_TEST_COUNT_CHANGED " + names.length);
+  console.log("INPUT_BUDGET_ISOLATION_CASES=" + names.length);
+  return names;
+}
+const regexEscape = value => value.replace(/[|\\{}()[\]^$+*?.]/g, "\\$&");
 let visited = 0;
 async function runOne(file, index) {
-  const args = [...baseFlags];
-  if (algebra.has(file)) args.push("--import", "./tests/helpers/calculation-engine-policy.mjs");
-  args.push("--test", "--test-concurrency=1", file);
-  // Nested acceptance/audit subprocesses inherit the same module loading
-  // conditions. This also ensures the full-algebra fixtures remain test-only.
-  const envFlags = ["--max-old-space-size=768", "--experimental-transform-types",
-    "--import", resolve(repo, "tests/register-typescript-imports.mjs")];
+  const flags = [...baseFlags];
+  if (algebra.has(file)) flags.push("--import", "./tests/helpers/calculation-engine-policy.mjs");
+  const envFlags = [
+    "--max-old-space-size=768", "--experimental-transform-types",
+    "--import", resolve(repo, "tests/register-typescript-imports.mjs"),
+  ];
   if (algebra.has(file)) envFlags.push("--import", resolve(repo, "tests/helpers/calculation-engine-policy.mjs"));
   const childEnv = { ...process.env, NODE_OPTIONS: envFlags.join(" ") };
-  const seconds = /(?:ask-active-contract|integration|end-to-end|ask-interpretation-input-budget)/.test(file) ? 420 : 150;
-  const launcher = process.platform === "win32" ? process.execPath : "timeout";
-  const launchArgs = process.platform === "win32"
-    ? args : ["-k", "5s", String(seconds)+"s", process.execPath, ...args];
-  let output = "";
-  const started = performance.now();
-  console.log("START " + (index+1) + "/" + files.length + " " + file + " timeout=" + seconds + "s");
-  return await new Promise(resolvePromise => {
-    let settled = false;
-    const child = spawn(launcher, launchArgs, { cwd: repo, env: childEnv, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
-    const capture = chunk => {
-      output += chunk.toString("utf8");
-      if (output.length > 120000) output = output.slice(-120000);
-    };
-    child.stdout.on("data", capture);
-    child.stderr.on("data", capture);
-    const heartbeat = setInterval(() => {
-      console.log("STILL_RUNNING " + file + " seconds=" + Math.round((performance.now()-started)/1000));
-    }, 20000);
-    const windowsTimeout = process.platform === "win32"
-      ? setTimeout(() => child.kill("SIGKILL"), seconds*1000) : null;
-    function finish(code, signal, error) {
-      if (settled) return;
-      settled = true;
-      clearInterval(heartbeat);
-      if (windowsTimeout) clearTimeout(windowsTimeout);
-      const duration = Math.round((performance.now()-started)/1000);
-      const passed = code === 0 && !error;
-      console.log((passed ? "PASS " : "FAIL ") + (index+1) + "/" + files.length + " seconds=" + duration + " status=" + code + " " + file);
-      if (!passed) {
-        failures.push({file, code, signal, error:error?.message||null});
-        console.log("FAILURE_DETAIL " + file + "\n" + output.slice(-9000));
+  const caseNames = discoverCases(file, childEnv);
+  let filePassed = true;
+  for (const [caseIndex, testName] of caseNames.entries()) {
+    const args = [...flags, "--test", "--test-concurrency=1"];
+    if (testName) args.push("--test-name-pattern=^" + regexEscape(testName) + "$");
+    args.push(file);
+    const seconds = testName ? 150 : /(?:ask-active-contract|integration|end-to-end|ask-interpretation-input-budget)/.test(file) ? 420 : 150;
+    const launcher = process.platform === "win32" ? process.execPath : "timeout";
+    const launchArgs = process.platform === "win32"
+      ? args : ["-k", "5s", String(seconds)+"s", process.execPath, ...args];
+    let output = "";
+    const started = performance.now();
+    const context = testName ? (" case=" + (caseIndex+1) + "/" + caseNames.length + " " + testName) : "";
+    console.log("START " + (index+1) + "/" + files.length + " " + file + context + " timeout=" + seconds + "s");
+    const passed = await new Promise(resolvePromise => {
+      let settled = false;
+      const child = spawn(launcher, launchArgs, {
+        cwd: repo, env: childEnv, windowsHide: true, stdio: ["ignore", "pipe", "pipe"],
+      });
+      const capture = chunk => {
+        output += chunk.toString("utf8");
+        if (output.length > 120000) output = output.slice(-120000);
+      };
+      child.stdout.on("data", capture);
+      child.stderr.on("data", capture);
+      const heartbeat = setInterval(() => {
+        console.log("STILL_RUNNING " + file + context + " seconds=" + Math.round((performance.now()-started)/1000));
+      }, 20000);
+      const windowsTimeout = process.platform === "win32"
+        ? setTimeout(() => child.kill("SIGKILL"), seconds*1000) : null;
+      function finish(code, signal, error) {
+        if (settled) return;
+        settled = true;
+        clearInterval(heartbeat);
+        if (windowsTimeout) clearTimeout(windowsTimeout);
+        const duration = Math.round((performance.now()-started)/1000);
+        const ok = code === 0 && !error;
+        console.log((ok ? "PASS " : "FAIL ") + (index+1) + "/" + files.length + " seconds=" + duration + " status=" + code + " " + file + context);
+        if (!ok) {
+          failures.push({file, testName, code, signal, error:error?.message||null});
+          console.log("FAILURE_DETAIL " + file + context + "\n" + output.slice(-9000));
+        }
+        resolvePromise(ok);
       }
-      resolvePromise(passed);
-    }
-    child.on("error", error => finish(null, null, error));
-    child.on("close", (code, signal) => finish(code, signal));
-  });
+      child.on("error", error => finish(null, null, error));
+      child.on("close", (code, signal) => finish(code, signal));
+    });
+    if (!passed) filePassed = false;
+    if (failures.length >= maxFailures) break;
+  }
+  return filePassed;
 }
 for (let i=0; i<files.length; i++) {
   await runOne(files[i], i);
