@@ -3,7 +3,7 @@
   "rootPlanHash": "4b6362042704afe0fda7906f158de20e64bcd658163d997f6bf8a85abf8b80d2",
   "frozenAt": "2026-11-14T05:03:10.342416+00:00",
   "beforeAdditionalCaseOutputs": true,
-  "reason": "Actual A04 explicit-owned-pet unknown-detail failure requires a fresh analogous unknown case; original48 questions, criteria and all results remain unchanged. Retained R22 clarification-kind failure and exhausted collection analogues require five additional PRE-OUTPUT candidates on a different owned pet/period. Candidate pool69 is not69authorized live turns; original48/96/16 active.",
+  "reason": "Actual A04 explicit-owned-pet unknown-detail failure requires a fresh analogous unknown case; original48 questions, criteria and all results remain unchanged. Retained R22 clarification-kind failure and exhausted collection analogues require five additional PRE-OUTPUT candidates on a different owned pet/period. Candidate pool70 is not70authorized live turns; original48/96/16 active.",
   "originalFailureCase": "A04",
   "originalFailureEvidenceSha256": "04b3934c74e33f4b78655e80d78222ae47ee1a6aea37e4101ed201ac12199f1a",
   "paidLimitsUnchanged": {
@@ -344,6 +344,21 @@
       "question": "I have not recorded Cedar's original collar inscription in Furvise. Can you tell me the inscription?",
       "expected": "Explicit owned Cedar resolved throughbinder, truthful lack of verified inscription and no invented letters, no Which pet, no medicine clarification, no irrelevant source scan or exhaustive-absence claim. RetainedR22 failure repaired; no tested prompt reused.",
       "dependsOn": []
+    },
+    {
+      "id": "R38",
+      "category": "frequency",
+      "conversation": "repair-single-historical-report",
+      "question": "Does Aster's May 2018 saved note establish separate recurring ear-scratching episodes, or only a report covering several days? Give the original context for your answer.",
+      "expected": "Independently pinned May2018 original24.91kg several-day scratching, normal appetite/energy and settled-after-followup wording is one saved report, not demonstrated distinct episodes, persistence/worsening/current illness. Quote original full context with bound source, no diagnosis/regimen; useful bounded conclusion.",
+      "dependsOn": [],
+      "medical": false,
+      "critical": true,
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T10:42:45.518Z",
+      "exposure": "New question frozen before any app output; different owned pet/period from earlier Dune grooming test, already independently inspected original source. Not an unseen failure family."
     }
   ],
   "additionalEmergencyPublicationRepair": {

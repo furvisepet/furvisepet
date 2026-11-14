@@ -509,3 +509,32 @@ test("existing-read scope recovery requires the exact explicit owner/pet/calenda
   assert.equal(recoverBoundedCalendarRead({...first,safety:{...first.safety,...safetyPatch}},ctx,pets),null);
  }
 });
+
+test("source-free notebook episode reasoning does not need a database timestamp axis",async()=>{
+ const s=safety(),prose="Two mentions of the same described episode do not establish two separate events.";
+ const r=await execute([task({missing:["date_meaning"]})],s,final(s,{components:[{kind:"general",text:prose,sources:[]}]}),{question:"A later diary entry refers back to the earlier incident. Does that prove two incidents?",workflowIntent:"none"});
+ assert.equal(r.calls,2);assert.equal(r.reads.length,0);
+ assert.equal(r.result.answer.answer,prose);
+ assert.deepEqual(r.requests[1].context.taskPlan[0].missing,[]);
+ assert.equal(r.result.answer.taskCompletion[0].status,"complete");
+});
+const axisContext={pets:[{handle:"p1"}],references:[{reference:"r1",petHandle:"p1"}]};
+for(const extra of [
+ {kind:"saved_content",needsHistory:true,recordMode:"single"},
+ {needsHistory:true,recordMode:"single"},
+ {reference:"r1"},{kind:"clinical_guidance"},{kind:"vet_brief"},
+ {kind:"workflow",workflow:"find_care_note"},{needsOwnerFacts:true}
+])test("timestamp axis remains meaningful outside source-free ordinary reasoning "+JSON.stringify(extra),()=>{
+ const p=validateTaskPlan([task({missing:["date_meaning"],...extra})],axisContext);
+ assert.deepEqual(p[0].missing,["date_meaning"]);
+});
+test("source-free axis cleanup never clears genuine pet/year or prescribing authority",()=>{
+ const p=validateTaskPlan([task({missing:["pet","year","date_meaning","medicine","prescription","vet_plan"]})],axisContext);
+ assert.deepEqual(p[0].missing,["pet","year","medicine","prescription","vet_plan"]);
+});
+test("a genuine timestamp-axis clarification is a readable pointed question",()=>{
+ const a=renderTaskCompletion({answer:"",validatedParts:[],sources:[],calculations:[],presentation:{}},[
+ {...task({kind:"saved_content",needsHistory:true,recordMode:"single",missing:["date_meaning"]}),componentIndexes:[],sources:[],historyFacts:[],ownerFacts:[],status:"unresolved",reason:"missing_context"}
+ ],[],null);
+ assert.equal(a.answer,"Should I use the event date or the save date?");
+});
