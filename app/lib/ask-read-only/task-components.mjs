@@ -1,3 +1,4 @@
+import {completeFreshHistory} from "./continuation-evidence.mjs";
 import { EVIDENCE_COMPLETION_INSTRUCTIONS, evidenceCompletionSchema } from "./evidence-completion.mjs";
 import { explicitCalendarWindow } from "./calendar-scope.mjs";
 import { HISTORY_SYNTHESIS_INSTRUCTIONS, historySynthesisSchema, validateHistorySynthesis, renderHistorySynthesis, visibleHistoryEvidence } from "./history-synthesis.mjs";
@@ -241,6 +242,12 @@ function undatedCollectionSynthesis(text){
 const missingLabels={pet:"pet",year:"year",date_meaning:"whether you mean the event date or save date",which_record:"saved result",owner_observation:"observations you want included",medicine:"medicine name and strength",prescription:"exact prescription",vet_plan:"prescriber's instructions"};
 export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
  if(!tasks)return answer;
+ if(!policy?.active){
+  tasks=completeFreshHistory(tasks,sources,coverage);
+  // These handles come from the already owner/reference-bound acquisition,
+  // not a model claim of membership or permission for another read.
+  answer={...answer,sources:[...new Set([...(answer.sources??[]),...tasks.flatMap(t=>t.freshRepresentedHandles??[])])]};
+ }
  const firstBrief=tasks.find(t=>t.kind==="vet_brief")?.id;
  tasks=tasks.map(t=>{
   if(t.kind==="workflow"&&t.workflow==="other")return {...t,status:"unresolved",reason:"not_supported"};
@@ -284,18 +291,22 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
     const keys=new Set(grounded.map(groundingKey)),peers=eligibleGrounding.filter(t=>keys.has(groundingKey(t))),unseen=peers.filter(t=>!renderedGrounding.has(t.id));
     peers.forEach(t=>renderedGrounding.add(t.id));if(!unseen.length)return "";
     const themes=unseen.flatMap(t=>t.historySynthesis??[]);renderedEvidence.push(...visibleHistoryEvidence(themes));
-    return renderHistorySynthesis(themes,citationHandles)||"The historical synthesis could not be verified against the selected original sentences.";
+    return renderHistorySynthesis(themes,citationHandles,tasks.flatMap(t=>t.freshSourceHandles??[]))||"The historical synthesis could not be verified against the selected original sentences.";
    }
   const safe=undatedCollectionSynthesis(p.text);removedCalendar||=safe!==p.text.trim();return safe;
  }).filter(Boolean).join("\n\n"):answer.answer,verifiedBriefText=null;
  if(!policy?.active&&!brief&&selectedDatedFacts.length){
+  const freshHandles=new Set(tasks.flatMap(t=>t.freshSourceHandles??[])),freshRows=[];
   const rows=selectedDatedFacts.flatMap(f=>{
    const s=sources.find(s=>s.handle===f.source),withRecorded=collectionTasks.some(t=>t.includeSourceDates&&t.historyFacts.includes(f));
    const alreadyQuoted=renderedEvidence.some(e=>e.source===f.source&&e.excerpt.includes(f.excerpt));
    if(alreadyQuoted&&!withRecorded)return [];
    const index=citationHandles.indexOf(f.source),citation=index>=0?" (Source "+(index+1)+")":"";
-   return ["• "+s.petName+" — event "+s.eventAt.slice(0,10)+(withRecorded?"; recorded "+s.recordedAt.slice(0,10):"")+(alreadyQuoted?citation:": “"+f.excerpt+"”")];
+   const row="• "+s.petName+" — event "+s.eventAt.slice(0,10)+(withRecorded?"; recorded "+s.recordedAt.slice(0,10):"")+(alreadyQuoted?citation:": “"+f.excerpt+"”");
+   if(freshHandles.has(f.source)){freshRows.push(row);return [];}
+   return [row];
   });
+  if(freshRows.length)text+="\n\nNewly read omitted-interval notes:\n"+[...new Set(freshRows)].join("\n");
   if(rows.length)text+="\n\nSelected historical dates and details:\n"+[...new Set(rows)].join("\n");
  }
 
@@ -335,14 +346,14 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
   const retainedSubset=task.reason==="source_omitted"&&relevant.some(r=>r.unmet?.includes("prior_source_selection_omitted"))
    &&!relevant.some(r=>r.omitted>0||r.hasMore||r.hasPrevious||r.truncated);
   if(task.historySynthesis!==undefined&&task.reason==="source_omitted"&&relevant.some(r=>r.omitted>0||r.hasMore||r.hasPrevious||r.truncated))continue;
-  const detail=task.combinedEvidenceMissing?"The combined picture is incomplete: it has not selected verified facts from both the earlier and newly fetched records.":retainedSubset?"This part uses only the bounded source selection retained from an earlier result; the other earlier bodies were not re-read for this answer.":reasonsText[task.reason];
+  const detail=task.freshEvidenceMissing?"Some freshly read notes could not be represented within this bounded answer; the combined findings remain incomplete.":task.combinedEvidenceMissing?"The combined picture is incomplete: it has not selected verified facts from both the earlier and newly fetched records.":retainedSubset?"This part uses only the bounded source selection retained from an earlier result; the other earlier bodies were not re-read for this answer.":reasonsText[task.reason];
   if(detail&&!text.includes(detail))text+="\n\n"+labels[task.kind]+": "+detail;
  }
  const dateHandles=[...new Set(tasks.filter(t=>t.includeSourceDates).flatMap(t=>t.sources))].filter(h=>!brief?.historyFacts.some(f=>f.source===h));
  const sourceDates=dateHandles.filter(h=>!tasks.some(t=>t.recordMode==="collection"&&t.sources.includes(h))).map(h=>{const s=sources.find(s=>s.handle===h);return {kind:s.kind,eventAt:s.eventAt,recordedAt:s.recordedAt,pet:s.petName??null};});
  const historicalSupport=[...new Set([...tasks.filter(t=>t.status!=="unresolved").flatMap(t=>t.historyFacts.map(f=>f.source)),...renderedEvidence.map(e=>e.source)])].filter(h=>(answer.sources??[]).includes(h));
  const collectionOnly=collectionTasks.length>0&&!tasks.some(t=>t.needsHistory&&t.recordMode!=="collection")&&!coverage.some(r=>r.scope.goal==="exact_quote");
- return {...answer,answer:text,historicalSupport,...(collectionOnly?{quotes:[]}:{}),...(verifiedBriefText?{verifiedBriefText}:{}),...(policy?.active?{ownerReports:brief?[]:[...new Set(tasks.flatMap(t=>t.ownerFacts.map(f=>f.excerpt)))]}:{}),presentation:{...answer.presentation,sourceDates,contextRequired:tasks.some(t=>t.missing.includes("which_record"))&&answer.presentation?.contextRequired===true},taskCompletion:tasks.map(t=>({id:t.id,kind:t.kind,status:t.status,reason:t.reason,sourceCount:t.sources.length})),limited:incomplete.length>0||!!policy?.decision,replyType:!policy?.active&&clarify.length&&tasks.every(t=>t.missing.length)?"clarification":incomplete.length||policy?.decision?"partial":"answer"};
+ return {...answer,answer:text,historicalSupport,continuationEvidenceReview:tasks.flatMap(t=>t.continuationEvidenceReview?[{task:t.id,...t.continuationEvidenceReview}]:[]),...(collectionOnly?{quotes:[]}:{}),...(verifiedBriefText?{verifiedBriefText}:{}),...(policy?.active?{ownerReports:brief?[]:[...new Set(tasks.flatMap(t=>t.ownerFacts.map(f=>f.excerpt)))]}:{}),presentation:{...answer.presentation,sourceDates,contextRequired:tasks.some(t=>t.missing.includes("which_record"))&&answer.presentation?.contextRequired===true},taskCompletion:tasks.map(t=>({id:t.id,kind:t.kind,status:t.status,reason:t.reason,sourceCount:t.sources.length})),limited:incomplete.length>0||!!policy?.decision,replyType:!policy?.active&&clarify.length&&tasks.every(t=>t.missing.length)?"clarification":incomplete.length||policy?.decision?"partial":"answer"};
 }
 
 /** Resolve record-choice ambiguity only after a fully inspected bounded search

@@ -92,14 +92,16 @@ export function validateHistorySynthesis(value,sources,allowed,diagnostics=[]){
  }
  return out.length||!value.length?out:null;
 }
-export function renderHistorySynthesis(themes,citationOrder=[]){
+export function renderHistorySynthesis(themes,citationOrder=[],freshHandles=[]){
  const lines=[];
  for(const theme of coalescedThemes(themes)){
   const unique=[...new Map(theme.evidence.map(e=>[e.source,e])).values()],shown=representativeRows(theme);
   const timestamps=new Set(unique.map(e=>Date.parse(e.eventAt)));
   const wording=shown.map(row=>{const index=citationOrder.indexOf(row.source);return "“"+row.excerpt+"”"+(index>=0?" (Source "+(index+1)+")":"");}).join("; ");
   const reports=unique.length===1?"one selected saved report":unique.length+" selected saved reports with "+timestamps.size+" distinct event timestamp"+(timestamps.size===1?"":"s");
-  lines.push((unique[0].pet??"Pet")+" — “"+theme.topic+"”: "+wording+" ("+reports+".)");
+  const fresh=unique.filter(e=>freshHandles.includes(e.source)),dates=[...new Set(fresh.map(e=>e.eventAt.slice(0,10)))].sort();
+  const origin=fresh.length?" Read from the omitted interval: "+fresh.length+" selected saved report"+(fresh.length===1?"":"s")+"; event dates "+dates[0]+(dates.length>1?" to "+dates.at(-1):"")+".":"";
+  lines.push((unique[0].pet??"Pet")+" — “"+theme.topic+"”: "+wording+" ("+reports+".)"+origin);
  }
  if(lines.length)lines.push("These are selected historical reports. Repeated mentions alone do not establish separate episodes, persistence or a trend; omitted periods may change the picture.");
  return lines.join("\n\n");

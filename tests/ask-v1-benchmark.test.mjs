@@ -133,3 +133,31 @@ test("safe urgent output without publication remains a functional FAIL",()=>{
 test("confirmed durable zero-provider emergency may pass but never adds physical calls or paid turns",()=>{
  const r=zeroResult({published:true,verdict:"PASS"});assert.doesNotThrow(()=>validateResult(r,plan()));assert.equal(usage([r]).physicalCalls,0);
 });
+
+const extensionRequest=JSON.parse(readFileSync(new URL("../benchmarks/ask/v1-session-extension-request-2026-11-14.json",import.meta.url),"utf8"));
+const extension=f=>({...extensionRequest,schema:"AskV1SessionExtensionApproval.v1",status:"approved",owner:"G",originalApprovalEvidenceHash:f.approval.messageEvidenceHash,requestHash:hash(extensionRequest),messageEvidenceHash:"e".repeat(64),messageQuote:"Synthetic new owner-decision fixture only; not actual authorization.",approvedAt:new Date().toISOString()});
+test("a prepared extension request is not approval and the original owner decision still stops at16 reserve dispatches",()=>{
+ const f=fixture();f.caseId="R17";f.results=original.cases.filter(c=>c.cohort==="repair-reserve").map(c=>result(c.id));f.pin.repairReason="synthetic repair";f.pin.repairEvidenceHash=H;assert.throws(()=>dispatchGate(f),/reserve dispatch ceiling/);
+ f.approval.sessionExtension=extensionRequest;assert.throws(()=>dispatchGate(f));
+});
+test("only a distinct new owner decision can permit the requested bounded reserve extension without more dollars or calls",()=>{
+ const f=fixture();f.caseId="R17";f.results=original.cases.filter(c=>c.cohort==="repair-reserve").map(c=>result(c.id));f.pin.repairReason="synthetic repair";f.pin.repairEvidenceHash=H;f.approval.sessionExtension=extension(f);
+ const gate=dispatchGate(f);assert.equal(gate.sessionExtensionEvidenceHash,"e".repeat(64));assert.equal(gate.maxCalls,2);
+});
+for(const [name,mutate] of [
+ ["reused original owner receipt",(e,f)=>e.messageEvidenceHash=f.approval.messageEvidenceHash],
+ ["no new approval",(e)=>e.status="requested_not_authorized"],
+ ["wrong owner",(e)=>e.owner="Other"],
+ ["wrong request hash",(e)=>e.requestHash=H],
+ ["wrong original approval",(e)=>e.originalApprovalEvidenceHash="c".repeat(64)],
+ ["expanded dollars",(e)=>e.maxNewMicroUSD++],
+ ["expanded calls",(e)=>e.maxCalls++],
+ ["expanded turns",(e)=>e.maxTurns++],
+ ["expanded reserve",(e)=>e.maximumReserveDispatches++],
+ ["missing decision evidence",(e)=>e.messageQuote=""]
+])test("session extension refuses "+name,()=>{
+ const f=fixture();f.approval.sessionExtension=extension(f);mutate(f.approval.sessionExtension,f);assert.throws(()=>dispatchGate(f));
+});
+test("a new explicit session decision never waives a NEW null provider receipt",()=>{
+ const f=fixture();f.approval.sessionExtension=extension(f);f.results=[result("A02",{verdict:"FAIL"})];f.results[0].calls[1].actualMicroUSD=null;assert.throws(()=>dispatchGate(f),/unresolved dispatched operation/);
+});

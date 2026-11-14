@@ -338,7 +338,7 @@ export async function runReadOnlyAsk(input,deps) {
   const call=readCalls[index],result=acquired[index],request=call.request;
   const truncated=!!result.truncated||allocation.omitted[index]>0||allocation.visible[index].some(source=>source.measurements.length<readSourceMeasurements(source.body,source.handle,source.kind,source.petName).length);
   omittedOwnedText=omittedOwnedText||allocation.omitted[index]>0;
-  const scope={pet:request.pet.name,kind:request.kind,...(call.completionLiteral?{compositionOnly:true}:{}),evidenceRole:request.continuation?"fresh_remainder":request.reference?"retained_prior":"scoped",goal:request.goal??"profile",from:request.from??null,to:request.to??null,
+  const scope={pet:request.pet.name,petHandle:request.pet.handle,reference:call.reference??request.continuation?.reference??null,kind:request.kind,...(call.completionLiteral?{compositionOnly:true}:{}),evidenceRole:request.continuation?"fresh_remainder":request.reference?"retained_prior":"scoped",goal:request.goal??"profile",from:request.from??null,to:request.to??null,
    recordedFrom:request.recordedFrom??null,recordedTo:request.recordedTo??null,orderBy:request.orderBy??"event",
    query:request.terms?.[0]??null,offset:request.offset??0,order:request.order??"desc"};
   const supplied=new Set(allocation.visible[index].map(source=>source.kind+":"+source.id));
@@ -428,6 +428,7 @@ export async function runReadOnlyAsk(input,deps) {
   }
   if(completed.tasks)deps.onAnswerBoundary?.({outcome:"history_synthesis_reviewed",themes:completed.tasks.reduce((n,t)=>n+(t.historySynthesis?.length??0),0),rejected:completed.tasks.flatMap(t=>t.synthesisDiagnostics??[])});
   answer=renderTaskCompletion(answer,completed.tasks,sources,reviewed.policy,results);
+  for(const review of answer.continuationEvidenceReview??[])deps.onAnswerBoundary?.({outcome:"fresh_continuation_composed",...review});
   const appendWorkflow=!!reviewed.policy?.active||bound.length>0||!!taskPlan?.some(t=>t.kind!=="workflow");
   answer=renderAppWorkflow(answer,reviewed.workflow,pets,appendWorkflow,input.question);
   if(reviewed.workflow?.intent!=="none"&&reviewed.workflow)deps.onAnswerBoundary?.({outcome:"workflow_selected",firstIntent:first.workflowIntent??"none",finalIntent:reviewed.workflow.intent,appended:appendWorkflow,readCount:bound.length});
