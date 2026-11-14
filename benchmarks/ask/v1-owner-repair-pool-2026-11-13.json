@@ -3,7 +3,7 @@
   "rootPlanHash": "4b6362042704afe0fda7906f158de20e64bcd658163d997f6bf8a85abf8b80d2",
   "frozenAt": "2026-11-14T05:03:10.342416+00:00",
   "beforeAdditionalCaseOutputs": true,
-  "reason": "Actual A04 explicit-owned-pet unknown-detail failure requires a fresh analogous unknown case; original48 questions, criteria and all results remain unchanged. Retained R22 clarification-kind failure and exhausted collection analogues require five additional PRE-OUTPUT candidates on a different owned pet/period. Candidate pool70 is not70authorized live turns; original48/96/16 active.",
+  "reason": "Actual A04 explicit-owned-pet unknown-detail failure requires a fresh analogous unknown case; original48 questions, criteria and all results remain unchanged. Retained R22 clarification-kind failure and exhausted collection analogues require five additional PRE-OUTPUT candidates on a different owned pet/period. Candidate pool71 is not71authorized live turns; original48/96/16 active.",
   "originalFailureCase": "A04",
   "originalFailureEvidenceSha256": "04b3934c74e33f4b78655e80d78222ae47ee1a6aea37e4101ed201ac12199f1a",
   "paidLimitsUnchanged": {
@@ -359,6 +359,23 @@
       "releaseReasonRequired": true,
       "frozenAt": "2026-11-14T10:42:45.518Z",
       "exposure": "New question frozen before any app output; different owned pet/period from earlier Dune grooming test, already independently inspected original source. Not an unseen failure family."
+    },
+    {
+      "id": "R39",
+      "category": "correction",
+      "conversation": "reserve-8",
+      "question": "Switch Aster's side to 2023 rather than 2024; keep Dune's 2023 side as it is.",
+      "expected": "Follow R09 on same exact SHA. Actually fetch Aster2023 and owner-bound rehydrate Dune2023 endpoints; independently pinned Aster28.02->28.54,+.52kg,+1.85581727337616%; Dune6.09->6.17,+.08kg,+1.3136288998358% unchanged. Correct pet/year/time labels, real source bodies, no cached assistant-number authority or unnecessary pet/date clarification.",
+      "medical": false,
+      "critical": true,
+      "dependsOn": [
+        "R09"
+      ],
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T11:32:06.324Z",
+      "exposure": "Fresh analogue of actual A21 failure, frozen before first output against independently pinned original endpoint bodies; changed pet/period, no tested prompt reused."
     }
   ],
   "additionalEmergencyPublicationRepair": {

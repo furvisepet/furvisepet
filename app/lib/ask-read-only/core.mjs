@@ -1,10 +1,11 @@
+import {recoverAnnualComparison} from "./annual-comparison.mjs";
 import { supplementCandidates, supplementalTaskPlan, parseEvidenceCompletion, verifySingleReferenceResult, applyReferenceCompletion, applySourceReview } from "./evidence-completion.mjs";
 import { COMPONENT_INSTRUCTIONS, componentSelectionSchema, componentAnswerSchema, fulfillReferenceReads,ownerFactSentences, reviewComponentCompletion, renderTaskCompletion, resolveRecordDiscovery, normalizeTaskRecords, reconcileNoReadPet } from "./task-components.mjs";
 import { CLINICAL_INSTRUCTIONS, clinicalSelectionSchema, validateClinicalAssessment, clinicalAnswerSchema, reviewClinicalAnswer, renderMedicationDecision, ownerStatementCatalog, emergencyHandoffForAssessment } from "./clinical-policy.mjs";
 import { APP_CAPABILITIES, WORKFLOW_INSTRUCTIONS, renderAppWorkflow, supportsAppWorkflow, containsAppControlSteps } from "./app-capabilities.mjs";
 import { normalizeReadTemporalScope } from "./temporal-scope.mjs";
 import { explicitCalendarScopes, recoverBoundedCalendarRead } from "./calendar-scope.mjs";
-import { restoreReadReferences, describeReadReferences, carryReadReferences, continuationRange } from "./references.mjs";
+import { restoreReadReferences, describeReadReferences, carryReadReferences, continuationRange, checkReferencedSources } from "./references.mjs";
 import { EVIDENCE_GOALS, HISTORY_PAGE_BUDGET, HISTORY_CANDIDATE_BUDGET, allocateEvidence } from "./retrieval.mjs";
 import { calculateReadSources, readSourceMeasurements } from "./calculations.mjs";
 /**
@@ -273,6 +274,10 @@ export async function runReadOnlyAsk(input,deps) {
   deps.onAnswerBoundary?.({outcome:"workflow_task_reconciled",reason:"current_intent_none"});
  }
  if(!keys(first,Object.hasOwn(first??{},"workflowIntent")?["calls","text","safety","historyIntent","workflowIntent"]:Object.hasOwn(first??{},"historyIntent")?["calls","text","safety","historyIntent"]:Object.hasOwn(first??{},"safety")?["calls","text","safety"]:["calls","text"])||!Array.isArray(first.calls)||first.calls.length>4||typeof first.text!=="string"||first.text.length>12000)fail("ASK_READ_PROVIDER_INVALID");
+ let annualComparison;
+ try{annualComparison=recoverAnnualComparison(first,taskPlan,context,(name,args)=>bindReadTool(name,args,pets,references));}
+ catch(error){deps.onSelectionRejected?.(readSelectionShape(first,pets));throw error;}
+ if(annualComparison){first=annualComparison.first;taskPlan=annualComparison.plan;deps.onAnswerBoundary?.({outcome:"annual_comparison_scope_recovered",...annualComparison.diagnostic});}
  const namedPet=first.calls.length===0?reconcileNoReadPet(taskPlan,first.safety,context,pets,input.ownerId,handle=>bindReadTool("read_pet_profile",{pet:handle},pets).pet):null;
  if(namedPet){taskPlan=namedPet.plan;first={...first,text:"",safety:namedPet.safety};deps.onAnswerBoundary?.({outcome:"pet_scope_reconciled",method:"explicit_owned_no_read_subject",taskCount:namedPet.resolved,grantsRead:false});}
  deps.onAnswerBoundary?.({outcome:"task_selection_reviewed",historyTimeBasis:first.historyIntent?.timeBasis??null,plannedReadCount:first.calls.length,tasks:taskPlan?.map(t=>({kind:t.kind,recordMode:t.recordMode,combineHistory:t.combineHistory===true,needsHistory:t.needsHistory,needsOwnerFacts:t.needsOwnerFacts,petScopeCount:t.pets.length,boundReference:!!t.reference,missing:t.missing,missingFields:t.missing.join(",")}))});
@@ -330,6 +335,13 @@ export async function runReadOnlyAsk(input,deps) {
   const key=row.kind+":"+row.id,previous=known.get(key);
   if(previous&&["ownerId","petId","body","eventAt","recordedAt"].some(key=>previous[key]!==row[key]))fail("ASK_READ_SOURCE_CHANGED");
   known.set(key,row);
+ }
+ // Adapters already verify signed retained sources; enforce the same exact
+ // fingerprint set again at the core admission boundary before model exposure.
+ // Fresh omitted-window results are distinct from their validation anchors.
+ for(let i=0;i<readCalls.length;i++){
+  const request=readCalls[i].request;
+  if(request.reference&&!request.continuation&&request.expectedSources)acquired[i]=checkReferencedSources(acquired[i],request);
  }
  const allocation=allocateEvidence(acquired.map(result=>result.sources),READ_ONLY_LIMITS);
  sources.push(...allocation.sources);

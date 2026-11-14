@@ -65,10 +65,10 @@ export function checkReferencedSources(result,request) {
   const actual=fingerprint(source);
   return ["id","hash","eventAt","recordedAt"].every(key=>expected[key]===actual[key]);
  }));
- const staleReference=sources.length!==result.sources.length||sources.length!==request.expectedSources.length||result.hasMore===true||result.unavailable===true;
+ const staleReference=result.staleReference===true||new Set(result.sources.map(s=>s.kind+":"+s.id)).size!==result.sources.length||new Set(request.expectedSources.map(s=>s.id)).size!==request.expectedSources.length||sources.length!==result.sources.length||sources.length!==request.expectedSources.length||result.hasMore===true||result.unavailable===true;
  // Identity belongs to the complete retained set. A partially matched result
  // cannot silently stand in for a stale/deleted/changed prior reference.
- return {...result,sources:staleReference?[]:sources,staleReference};
+ return {...result,inspected:result.inspected??new Set(result.sources.map(s=>s.kind+":"+s.id)).size,sources:staleReference?[]:sources,staleReference};
 }
 
 export function validateContinuationAnchors(result,request){

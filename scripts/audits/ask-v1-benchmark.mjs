@@ -17,7 +17,7 @@ export function benchmarkCases(plan) {
   if (repairPool.rootPlanHash !== hash(plan)) return plan.cases;
   need(repairPool.beforeAdditionalCaseOutputs === true && hex(repairPool.originalFailureEvidenceSha256) && Number.isFinite(Date.parse(repairPool.frozenAt)), 'repair supplement provenance');
   need(repairPool.paidLimitsUnchanged.turns===48 && repairPool.paidLimitsUnchanged.physicalCalls===96 && repairPool.paidLimitsUnchanged.newMicroUSD===2500000 && repairPool.paidLimitsUnchanged.maximumReserveDispatches===16, 'repair supplement cannot raise caps');
-  need(repairPool.cases.length<=22 && repairPool.cases.every(c=>c.cohort==='repair-reserve' && c.releaseReasonRequired===true), 'bounded repair candidate pool');
+  need(repairPool.cases.length<=23 && repairPool.cases.every(c=>c.cohort==='repair-reserve' && c.releaseReasonRequired===true), 'bounded repair candidate pool');
   return [...plan.cases,...repairPool.cases];
 }
 export function validateCohort(plan, exposedHashes = []) {
@@ -88,8 +88,8 @@ export function dispatchGate({plan, frozen, approval, pin, oldReceipt, results =
   const extension=approval.sessionExtension;
   if(extension){
     need(extensionRequest.schema==='AskV1SessionExtensionRequest.v1' && extensionRequest.status==='requested_not_authorized' &&
-      extensionRequest.planHash===frozen.planHash && extensionRequest.maxTurns===68 && extensionRequest.maxCalls===136 &&
-      extensionRequest.maxNewMicroUSD===2500000 && extensionRequest.maximumReserveDispatches===36, 'bounded extension request mismatch');
+      extensionRequest.planHash===frozen.planHash && extensionRequest.maxTurns===70 && extensionRequest.maxCalls===140 &&
+      extensionRequest.maxNewMicroUSD===2500000 && extensionRequest.maximumReserveDispatches===38, 'bounded extension request mismatch');
     need(approval.maxTurns===48 && approval.maxCalls===96 && approval.maxNewMicroUSD===2500000 &&
       extension.schema==='AskV1SessionExtensionApproval.v1' && extension.status==='approved' && extension.owner==='G' &&
       extension.planHash===frozen.planHash && extension.originalApprovalEvidenceHash===approval.messageEvidenceHash &&

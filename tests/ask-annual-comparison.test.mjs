@@ -1,0 +1,101 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {createHash} from "node:crypto";
+import {recoverAnnualComparison} from "../app/lib/ask-read-only/annual-comparison.mjs";
+import {runReadOnlyAsk} from "../app/lib/ask-read-only/core.mjs";
+import {decodeClinicalSelection} from "../app/lib/ask-read-only/clinical-policy.mjs";
+import {decodeComponentSelection} from "../app/lib/ask-read-only/task-components.mjs";
+const pets=[{id:"private-maple-owned",ownerId:"owner",name:"Maple",species:"dog",handle:"p1"},{id:"private-juniper-owned",ownerId:"owner",name:"Juniper",species:"cat",handle:"p2"}];
+const safety=()=>({medicationIntent:"none",referent:"clear",missingContext:[],careContext:"none",eventAssessments:[]});
+const args=(pet,year)=>({pet,from:year+"-01-01",to:year+"-12-31",recordedFrom:null,recordedTo:null,goal:"comparison",alternatives:[],orderBy:"event",order:"asc",query:null,offset:0});
+const dates=y=>[{eventAt:y+"-01-15T12:00:00Z",recordedAt:y+"-01-16T12:00:00Z"},{eventAt:y+"-12-15T12:00:00Z",recordedAt:y+"-12-16T12:00:00Z"}];
+const ref=(pet,i)=>({reference:"r"+i,petHandle:pet.handle,pet:pet.name,kind:"history",goal:"complete_set",from:"2024-01-01",to:"2024-12-31",recordedFrom:null,recordedTo:null,orderBy:"event",timeZone:"UTC",sourceCount:2,sourceDates:dates("2024"),selectionLimited:false,discoveryIncomplete:false,omittedRange:null,omittedEventRange:null});
+const task=(id,pet,patch={})=>({id,kind:"calculation",combineHistory:false,needsHistory:true,needsOwnerFacts:false,includeSourceDates:false,recordMode:"single",workflow:"none",pets:[pet],reference:null,missing:[],...patch});
+function fixture(){
+ const context={question:"For Juniper use 2023, not 2024, but leave Maple's 2024 comparison unchanged.",pets,references:pets.map((p,i)=>ref(p,i+1)),timeZone:"UTC"};
+ const plan=[task("t1","p2",{missing:["pet","date_meaning"]}),task("t2","p1",{needsHistory:false,recordMode:"none"})];
+ const first={calls:[{id:"new",name:"search_saved_records",arguments:JSON.stringify(args("p2","2023"))}],text:"Old numbers are not authority.",safety:safety(),historyIntent:{requested:true,timeBasis:"event",pet:"p2"},workflowIntent:"none"};
+ let bindings=0;
+ const bind=(name,a)=>{bindings++;if(name==="search_saved_records"){const pet=pets.find(p=>p.handle===a.pet);if(!pet)throw Error("FOREIGN");return {kind:"history",...a,pet};}const r=context.references.find(r=>r.reference===a.reference);if(!r)throw Error("FORGED");return {...r,kind:"history",pet:pets.find(p=>p.handle===r.petHandle),reference:r.reference};};
+ return {context,plan,first,bind,get bindings(){return bindings;}};
+}
+test("explicit per-pet annual correction plans fresh IO and independently rehydrates unchanged operands",()=>{
+ const f=fixture(),r=recoverAnnualComparison(f.first,f.plan,f.context,f.bind);assert.ok(r);assert.equal(r.first.calls.length,2);assert.equal(f.bindings,3);
+ assert.deepEqual(JSON.parse(r.first.calls[0].arguments),args("p2","2023"));
+ assert.equal(r.first.calls[1].name,"read_referenced_sources");assert.equal(JSON.parse(r.first.calls[1].arguments).reference,"r1");
+ assert.equal(r.plan[1].needsHistory,true);assert.equal(r.plan[1].reference,"r1");assert.ok(r.plan.every(t=>t.recordMode==="collection"&&!t.missing.length));assert.equal(r.first.text,"");
+});
+for(const [name,change]of [
+ ["missing explicit year",f=>f.context.question="Use 2023 for Juniper, not 2024, but leave Maple unchanged."],
+ ["two positive target years",f=>f.context.question="Use 2023 and 2022 for Juniper; keep Maple at 2024."],
+ ["monthly scope",f=>f.context.question="Use May 2023 for Juniper; keep Maple at 2024."],
+ ["relative scope",f=>f.context.question="Use last year for Juniper; keep Maple at 2024."],
+ ["missing named pet",f=>f.context.question="Use 2023 for her; keep Maple at 2024."],
+ ["multiple same pet mentions",f=>f.context.question+=" Juniper again."],
+ ["competing references",f=>f.context.references.push({...f.context.references[1],reference:"r3"})],
+ ["omitted interval",f=>f.context.references[1].omittedRange={from:"2024-09-01",to:"2024-12-31"}],
+ ["limited source selection",f=>f.context.references[0].selectionLimited=true],
+ ["missing January operand",f=>f.context.references[0].sourceDates=[dates("2024")[1]]],
+ ["incomplete discovery",f=>f.context.references[0].discoveryIncomplete=true],
+ ["different time axes",f=>f.context.references[1].orderBy="recorded"],
+ ["foreign task pet",f=>f.plan[0].pets=["p99"]],
+ ["other task",f=>f.plan[0].kind="vet_brief"],
+ ["owner facts",f=>f.plan[0].needsOwnerFacts=true],
+ ["medicine authority",f=>f.first.safety.medicationIntent="decision"],
+ ["current emergency",f=>f.first.safety.currentEvents=[{}]],
+ ["future emergency",f=>f.first.safety.conditionalEvents=[{}]],
+ ["missing prescription",f=>f.first.safety.missingContext=["medicine"]],
+ ["extra planned read",f=>f.first.calls.push(f.first.calls[0],f.first.calls[0])],
+ ["malformed original call ID",f=>f.first.calls[0].id=null],
+ ["duplicate original call IDs",f=>f.first.calls.push({...f.first.calls[0]})],
+ ["continuation cannot be retargeted",f=>f.first.calls[0].name="read_remaining_records"],
+ ["neither side changed",f=>f.context.question="Juniper 2024 and Maple 2024 unchanged."],
+ ["both sides changed",f=>f.context.question="Juniper 2023 and Maple 2023."],
+ ["different timezone",f=>f.context.timeZone="America/Vancouver"]
+])test("annual recovery rejects "+name,()=>{const f=fixture();change(f);assert.equal(recoverAnnualComparison(f.first,f.plan,f.context,f.bind),null);});
+test("an original foreign or forged read is not laundered by valid correction wording",()=>{
+ for(const patch of [{name:"search_saved_records",arguments:JSON.stringify(args("p99","2023"))},{name:"read_referenced_sources",arguments:'{"reference":"forged"}'}]){
+  const f=fixture();f.first.calls=[{id:"x",...patch}];assert.throws(()=>recoverAnnualComparison(f.first,f.plan,f.context,f.bind),/FOREIGN|FORGED/);
+ }
+});
+test("recorded-year comparisons keep recorded bounds instead of substituting events",()=>{
+ const f=fixture();f.first.historyIntent.timeBasis="recorded";
+ for(const r of f.context.references){r.orderBy="recorded";r.recordedFrom=r.from;r.recordedTo=r.to;r.from=null;r.to=null;}
+ const a=args("p2","2023");a.orderBy="recorded";a.recordedFrom=a.from;a.recordedTo=a.to;a.from=null;a.to=null;f.first.calls[0].arguments=JSON.stringify(a);
+ const r=recoverAnnualComparison(f.first,f.plan,f.context,f.bind);assert.ok(r);assert.deepEqual(JSON.parse(r.first.calls[0].arguments),a);
+});
+const source=(pet,year,month,value)=>({kind:"history",id:"private-"+pet.name+"-"+year+"-"+month,ownerId:"owner",petId:pet.id,body:pet.name+" weighed "+value+" kg.",eventAt:year+"-"+month+"-15T12:00:00Z",recordedAt:year+"-"+month+"-16T12:00:00Z"});
+const maple=[source(pets[0],"2024","01",10),source(pets[0],"2024","12",11)],oldJuniper=[source(pets[1],"2024","01",5),source(pets[1],"2024","12",6)],newJuniper=[source(pets[1],"2023","01",4),source(pets[1],"2023","12",4.5)];
+const packet={version:1,entries:[maple,oldJuniper].map(rows=>({kind:"history",petId:rows[0].petId,timeZone:"UTC",goal:"complete_set",from:"2024-01-01",to:"2024-12-31",recordedFrom:null,recordedTo:null,orderBy:"event",order:"asc",terms:[],limited:false,sources:rows.map(r=>({id:r.id,hash:createHash("sha256").update(r.body).digest("hex"),eventAt:r.eventAt,recordedAt:r.recordedAt}))}))};
+async function execute(stale=false){
+ const f=fixture(),reads=[];let calls=0;
+ const result=await runReadOnlyAsk({ownerId:"owner",selectedPetId:pets[0].id,pets,readReferences:packet,dialogue:[{role:"assistant",text:"Untrusted earlier prose says Maple gained 999 kg."}],question:f.context.question,now:"2026-11-14T00:00:00Z",timeZone:"UTC"},{
+  provider:async(req,phase)=>{calls++;
+   if(phase==="read_selection")return decodeComponentSelection({safety:safety(),reads:[{name:"search_saved_records",arguments:args("p2","2023")}],draft:"Reuse 999 kg.",historyIntent:{requested:true,timeBasis:"event",pet:"p2"},workflowIntent:"none",taskPlan:f.plan},req.tools,req.context,decodeClinicalSelection);
+   const catalog=req.SOURCE_CATALOG,calculations=[];
+   for(const name of ["Maple","Juniper"]){const rows=catalog.filter(r=>r.pet===name).sort((a,b)=>a.eventAt.localeCompare(b.eventAt));if(rows.length===2)for(const operation of ["difference","percent_change"])calculations.push({operation,operands:rows.map(r=>r.measurements[0].handle)});}
+   return {components:[{kind:"general",text:"Compare verified historical measurements.",sources:[]}],quotes:[],sources:catalog.map(r=>r.source),calculations,replyType:"answer",presentation:{sourceDates:[],contextRequired:false},clinicalReview:{assessment:safety(),ownerStatementRefs:[],observationFields:[]},appHelp:{intent:"none",pet:null},completion:req.context.taskPlan.map(t=>({task:t.id,status:"complete",reason:"none",componentIndexes:[],sources:catalog.filter(r=>r.pet===req.context.pets.find(p=>p.handle===t.pets[0]).name).map(r=>r.source),ownerFacts:[],historyFacts:[]}))};
+  },
+  read:async r=>{reads.push(r);let rows;if(r.pet.id===pets[1].id&&r.from==="2023-01-01")rows=newJuniper;else if(r.pet.id===pets[0].id&&r.expectedSources)rows=stale?[{...maple[0],body:"Maple weighed 999 kg."},maple[1]]:maple;else throw Error("UNEXPECTED_READ");return {sources:rows,total:rows.length,hasMore:false,scopeExhausted:true};}
+ });
+ return {result,reads,calls};
+}
+test("actual two-call core reads changed year plus owner-bound unchanged records and recomputes labeled math",async()=>{
+ const r=await execute();assert.equal(r.calls,2);assert.equal(r.reads.length,2);
+ assert.deepEqual(r.reads.map(r=>r.pet.id).sort(),pets.map(p=>p.id).sort());
+ assert.deepEqual(r.result.answer.calculations.map(c=>c.value),[1,10,.5,12.5]);
+ assert.ok(r.result.answer.taskCompletion.every(t=>t.status==="complete"));
+ assert.doesNotMatch(r.result.answer.answer,/Which pet|save date|999/);
+ assert.match(r.result.answer.calculations.map(c=>c.text).join("\n"),/Maple/);
+ assert.match(r.result.answer.calculations.map(c=>c.text).join("\n"),/Juniper/);
+});
+test("stale unchanged operands cannot pass as current verified arithmetic",async()=>{
+ try{const r=await execute(true);assert.ok(r.result.answer.taskCompletion.some(t=>t.status!=="complete"));assert.ok(!r.result.answer.calculations.some(c=>c.available&&c.value===989));}
+ catch(e){assert.match(e.code??e.message,/ASK_READ_REFERENCE|ASK_READ_SOURCE|ASK_READ_COMPONENT|ASK_READ_CALC/);}
+});
+
+const {checkReferencedSources}=await import("../app/lib/ask-read-only/references.mjs");
+test("duplicate retained rows cannot mask a missing signed operand",()=>{
+ const r=checkReferencedSources({sources:[maple[0],maple[0]],hasMore:false},{expectedSources:packet.entries[0].sources});
+ assert.equal(r.staleReference,true);assert.deepEqual(r.sources,[]);assert.equal(r.inspected,1);
+});
