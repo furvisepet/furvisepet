@@ -33,17 +33,20 @@ function subjects(question,pets){
  * resolves scope, never values. Both the changed search and unchanged source
  * rehydration pass the existing owner-bound binder; acquisition stays bounded. */
 export function recoverAnnualComparison(first,plan,context,bind){
- if(typeof bind!=="function"||!Array.isArray(plan)||plan.length!==2||!Array.isArray(context?.pets)||!Array.isArray(context.references)||typeof context.question!=="string")return null;
- if(plan.some(t=>t.kind!=="calculation"||t.needsOwnerFacts||t.pets.length!==1||t.missing.some(k=>!scopeFields.has(k)))||new Set(plan.map(t=>t.pets[0])).size!==2)return null;
+ if(typeof bind!=="function"||!Array.isArray(plan)||!Array.isArray(context?.pets)||!Array.isArray(context.references)||typeof context.question!=="string")return null;
+ const combined=plan.length===1&&plan[0].pets?.length===2&&new Set(plan[0].pets).size===2;
+ if(!combined&&(plan.length!==2||plan.some(t=>t.pets.length!==1)||new Set(plan.map(t=>t.pets[0])).size!==2))return null;
+ if(plan.some(t=>t.kind!=="calculation"||t.needsOwnerFacts||t.missing.some(k=>!scopeFields.has(k))))return null;
+ if(combined&&(!Array.isArray(first.calls)||first.calls.length!==2))return null;
  const s=first.safety;
  if(!s||s.medicationIntent!=="none"||!["none","education"].includes(s.careContext)||![undefined,"none"].includes(s.scenario)||s.currentEvents?.length||s.conditionalEvents?.length||s.currentConcern===true||!Array.isArray(s.missingContext)||s.missingContext.some(k=>!["pet","date"].includes(k)))return null;
  if(!Array.isArray(first.calls)||first.calls.length>2||new Set(first.calls.map(c=>c?.id)).size!==first.calls.length)return null;
  // Never widen a month, day, relative interval or hypothetical request to a year.
  if(/\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|quarter|today|yesterday|tomorrow|last|next|if|suppose|hypothetical)\b|\b\d{4}-\d{2}/iu.test(context.question))return null;
- const named=subjects(context.question,context.pets);if(!named||plan.some(t=>!named.some(n=>n.pet.handle===t.pets[0])))return null;
+ const named=subjects(context.question,context.pets);if(!named||plan.some(t=>t.pets.some(h=>!named.some(n=>n.pet.handle===h))))return null;
  const axes=new Set(context.references.filter(r=>r.kind==="history"&&named.some(n=>n.pet.handle===r.petHandle)).map(r=>r.orderBy));
  if(axes.size!==1)return null;
- const axis=[...axes][0];if(!["event","recorded"].includes(axis)||!["ambiguous",axis].includes(first.historyIntent?.timeBasis))return null;
+ const axis=[...axes][0];if(!["event","recorded"].includes(axis)||!["ambiguous",axis,...(combined?["combined"]:[])].includes(first.historyIntent?.timeBasis))return null;
  if(axis==="event"&&/\b(?:saved|recorded|entered|logged)\s+(?:in|on|during)\b/iu.test(context.question))return null;
  if(axis==="recorded"&&/\b(?:happened|occurred|event dates?)\b/iu.test(context.question))return null;
  const scopes=[];
@@ -53,7 +56,7 @@ export function recoverAnnualComparison(first,plan,context,bind){
   const r=refs[0],old=annual(r,axis),dateKey=axis==="event"?"eventAt":"recordedAt";
   if(r.selectionLimited||r.discoveryIncomplete||r.omittedRange||r.omittedEventRange||r.sourceCount<2||r.sourceCount>8||!Array.isArray(r.sourceDates)||!r.sourceDates.some(d=>d[dateKey]?.startsWith(old+"-01-"))||!r.sourceDates.some(d=>d[dateKey]?.startsWith(old+"-12-")))return null;
   if(context.timeZone&&r.timeZone!==context.timeZone)return null;
-  const t=plan.find(t=>t.pets[0]===n.pet.handle);
+  const t=combined?plan[0]:plan.find(t=>t.pets[0]===n.pet.handle);
   // A known hint can have been attached to the other requested side. The
   // explicit two-pet/year scopes above choose membership; identity is checked
   // separately. Unknown/foreign/third-pet hints never gain authority here.
@@ -63,20 +66,23 @@ export function recoverAnnualComparison(first,plan,context,bind){
  if(scopes.filter(n=>n.changed).length!==1||!scopes.some(n=>!n.changed))return null;
  // Validate original planned reads before replacing any scope; forged/foreign
  // locators or malformed tool arguments cannot be laundered by this recovery.
+ const originalSides=new Set();
  for(const call of first.calls){
   if(!call||Object.keys(call).sort().join(",")!=="arguments,id,name"||typeof call.id!=="string"||!call.id||typeof call.arguments!=="string"||call.arguments.length>5000||!["search_saved_records","read_referenced_sources"].includes(call.name))return null;
   let args;try{args=JSON.parse(call.arguments);}catch{return null;}
   const request=bind(call.name,args),n=scopes.find(n=>n.pet.handle===request.pet?.handle);
-  if(!n||request.kind!=="history"||request.continuation)return null;
+  if(!n||request.kind!=="history"||request.continuation||combined&&originalSides.has(n.pet.handle))return null;
+  originalSides.add(n.pet.handle);
   if(call.name==="read_referenced_sources"){if(args.reference!==n.ref.reference)return null;}
   else {const y=annual(request,axis);if(!y||![n.old,n.year].includes(y)||request.orderBy!==axis||args.offset!==0)return null;}
  }
- const calls=[],tasks=plan.map(t=>{
-  const n=scopes.find(n=>n.task===t),event=axis==="event";
+ if(combined&&originalSides.size!==2)return null;
+ const calls=scopes.map(n=>{
+  const t=n.task,event=axis==="event";
   const call=n.changed?{id:"annual-correction-"+t.id,name:"search_saved_records",arguments:JSON.stringify({pet:n.pet.handle,from:event?n.year+"-01-01":null,to:event?n.year+"-12-31":null,recordedFrom:event?null:n.year+"-01-01",recordedTo:event?null:n.year+"-12-31",goal:"comparison",alternatives:[],orderBy:axis,order:"asc",query:null,offset:0})}:{id:"annual-rehydrate-"+t.id,name:"read_referenced_sources",arguments:JSON.stringify({reference:n.ref.reference})};
-  bind(call.name,JSON.parse(call.arguments));calls.push(call);
-  return {...t,needsHistory:true,recordMode:"collection",combineHistory:false,reference:n.changed?null:n.ref.reference,missing:t.missing.filter(k=>!scopeFields.has(k))};
+  bind(call.name,JSON.parse(call.arguments));return call;
  });
+ const tasks=plan.map(t=>{const n=combined?null:scopes.find(n=>n.task===t);return {...t,needsHistory:true,recordMode:"collection",combineHistory:false,reference:combined||n.changed?null:n.ref.reference,missing:t.missing.filter(k=>!scopeFields.has(k))};});
  return {first:{...first,text:"",calls,safety:{...s,referent:"clear",missingContext:[]},historyIntent:{...first.historyIntent,requested:true,timeBasis:axis,pet:null}},plan:tasks,diagnostic:{method:"explicit_owned_annual_comparison",timeBasis:axis,correctedReads:1,rehydratedReads:1}};
 }
 

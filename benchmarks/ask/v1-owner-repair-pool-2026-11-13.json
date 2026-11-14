@@ -790,6 +790,38 @@
       "dependsOn": [
         "R64"
       ]
+    },
+    {
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T21:59:32.369568+00:00",
+      "exposure": "Fresh different pets/years frozen before outputs after R65 combined-task annual correction FAIL; original fail/cost retained. No paid/source cap increase.",
+      "id": "R66",
+      "category": "arithmetic",
+      "conversation": "repair-combined-annual-math",
+      "question": "Using their saved measurements, compare Dune's January-to-December 2020 weight change with Bramble's January-to-December 2022 change. Show kilograms and percentages separately for each pet.",
+      "expected": "Actual owner-bound annual event endpoint reads; Dune5.52->5.60,+.08kg,+1.44927536231884%;Bramble4.19->4.41,+.22kg,+5.25059665871121%. Four labeled server calculations and exact independently frozen original source identities/instants. No false date/record clarification or stale numeric prose.",
+      "dependsOn": []
+    },
+    {
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T21:59:32.369568+00:00",
+      "exposure": "Fresh different pets/years frozen before outputs after R65 combined-task annual correction FAIL; original fail/cost retained. No paid/source cap increase.",
+      "id": "R67",
+      "category": "correction",
+      "conversation": "repair-combined-annual-math",
+      "question": "Use Bramble's 2021 measurements instead of 2022; leave Dune's 2020 comparison unchanged and recalculate both.",
+      "expected": "AfterR66PASSsameSHA fresh Bramble2021 read plus actual signed owner-bound Dune2020 rehydration. Bramble4.14->4.36,+.22kg,+5.31400966183576%;Dune5.52->5.60,+.08kg,+1.44927536231884%. Correct axes/pets/years/labels/calculations, no combined-task/date-flag/read suppression/publication error. No cached assistant operands.",
+      "dependsOn": [
+        "R66"
+      ]
     }
   ],
   "additionalEmergencyPublicationRepair": {

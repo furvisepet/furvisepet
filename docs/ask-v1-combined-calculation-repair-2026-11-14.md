@@ -1,0 +1,7 @@
+# Combined annual calculation recovery
+
+R65 on d6960e06 published a date-axis clarification and acquired zero facts. Trace: one two-pet calculation task, combined history time basis, date_meaning, two planned reads (new-year search and retained-source read), both suppressed. R64's correctly computed comparison and R65 FAIL/cost stay at that SHA.
+
+Recovery now recognizes one combined calculation deliverable as well as two individual calculation tasks. Literal owned pet/year scopes and unique bounded retained references determine each side independently. A combined model declaration can resolve to the unique retained event/recorded axis only with two valid distinct original bound sides. Changed scope reads fresh; unchanged scope rehydrates signed source identities. The combined task holds no false single-record identity. Existing owner binder, stale/hash/coverage/clinical/extra-read/ambiguous/foreign guards remain; no source or provider cap increase.
+
+A failing actual two-call combined-shape regression reproduced zero reads before repair. New positive and negative tests cover both representations and reject competing/partial/omitted/foreign/missing/clinical/axis-conflicting scopes. R66/R67 are pre-output fresh pet/year analogues with independent original endpoint goldens; prior questions cannot count as unseen. Launch still needs the original complete immutable-SHA cohort; no inherited pass transfer.
