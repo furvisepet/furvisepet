@@ -473,6 +473,21 @@
       ],
       "beforeAction": "reload same signed-in conversation; verify messages persisted",
       "frozenAt": "2026-11-14T15:01:25.115731+00:00"
+    },
+    {
+      "id": "R46",
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "category": "unknown",
+      "conversation": "repair-explicit-general-subject",
+      "question": "The lettering on Bramble's old carrier handle was never entered in Furvise. What did that lettering say?",
+      "expected": "Same A04 truthful unknown gate and actual R42 regression: unique explicit owned Bramble is resolved before final composition even when model selects general_guidance; no redundant pet/medicine question, invented wording, unrelated read or image-reading offer. No saved-fact authority is acquired by pet identity alone.",
+      "dependsOn": [],
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T15:11:37.671855+00:00",
+      "exposure": "Fresh analogous owner question frozen before first output; actual R42 FAIL and both actual-cost receipts retained. No tested prompt reused; no budget increase."
     }
   ],
   "additionalEmergencyPublicationRepair": {
@@ -483,5 +498,6 @@
   "continuationCompositionRepairFreeze": "2026-11-14T08:43:07.527Z",
   "correctedReferenceRepairFreeze": "2026-11-14T09:34:39.551Z",
   "capabilityRepairFreeze": "2026-11-14T12:23:46.255Z",
-  "imageCapabilityRepairFreeze": "2026-11-14T15:01:25.115731+00:00"
+  "imageCapabilityRepairFreeze": "2026-11-14T15:01:25.115731+00:00",
+  "generalIdentityRepairFreeze": "2026-11-14T15:11:37.671855+00:00"
 }

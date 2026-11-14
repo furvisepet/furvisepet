@@ -155,7 +155,10 @@ export function reconcileNoReadPet(plan,safety,context,pets,ownerId,bindPet,comp
  // With no medication/care intent, prescription authority cannot be a missing
  // field of a source-free saved-detail task. This never grants a clinical plan.
  const inapplicable=new Set(["pet","medicine","prescription","vet_plan"]);
- const eligible=t=>clarificationDetail(t)||t.kind==="saved_content"&&(!t.needsHistory||compositionOnly)&&(t.recordMode==="none"||compositionOnly&&["single","collection"].includes(t.recordMode))&&!t.reference&&!t.needsOwnerFacts&&t.pets.length<=1&&t.missing.some(k=>inapplicable.has(k));
+ // A general answer still has an owner-bound subject. Resolve identity only;
+ // never grant a saved fact, acquisition, medical authority or new scope.
+ const generalIdentity=t=>t.kind==="general_guidance"&&!t.needsHistory&&t.recordMode==="none"&&!t.reference&&!t.needsOwnerFacts&&t.pets.length<=1&&t.missing.includes("pet");
+ const eligible=t=>generalIdentity(t)||clarificationDetail(t)||t.kind==="saved_content"&&(!t.needsHistory||compositionOnly)&&(t.recordMode==="none"||compositionOnly&&["single","collection"].includes(t.recordMode))&&!t.reference&&!t.needsOwnerFacts&&t.pets.length<=1&&t.missing.some(k=>inapplicable.has(k));
  if(!plan.some(eligible))return null;
  const escaped=name=>name.replace(/[.*+?^{}$()|[\]\\]/g,"\\$&");
  const named=pets.filter(p=>p.ownerId===ownerId&&typeof p.name==="string"&&p.name.trim()
@@ -166,7 +169,7 @@ export function reconcileNoReadPet(plan,safety,context,pets,ownerId,bindPet,comp
  let resolved=0;
  const updated=plan.map(t=>{
   if(!eligible(t))return t;
-  resolved++;return {...t,kind:clarificationDetail(t)?"saved_content":t.kind,pets:[pet.handle],missing:t.missing.filter(k=>!inapplicable.has(k))};
+  resolved++;return {...t,kind:clarificationDetail(t)?"saved_content":t.kind,pets:[pet.handle],missing:t.missing.filter(k=>generalIdentity(t)?k!=="pet":!inapplicable.has(k))};
  });
  if(!resolved)return null;
  const missingContext=safety.missingContext.filter(k=>k!=="pet");

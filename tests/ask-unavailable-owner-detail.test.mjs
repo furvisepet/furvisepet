@@ -39,7 +39,7 @@ test('missing names, pronouns and Unicode substring matches do not resolve ident
 test('duplicate, competing, foreign and removed pet identities remain unresolved',()=>{assert.equal(scope([task()],undefined,'Willow and Juniper'),null);assert.equal(scope([task()],undefined,'Juniper',[...owned,{...owned[1],id:'duplicate-id',handle:'p3'}]),null);assert.equal(scope([task()],undefined,'Foreign',[...owned,{...owned[1],name:'Foreign',ownerId:'other',handle:'p3'}]),null);assert.equal(scope([task()],undefined,'Juniper',[owned[0]]),null);});
 test('binder ownership and identity drift is rejected without read authority',()=>{for(const patch of [{ownerId:'other'},{id:'changed-id'}])assert.equal(scope(undefined,undefined,undefined,undefined,()=>({...owned[1],...patch})),null);});
 test('source-free identity repair never resolves clinical authority or urgency',()=>{const base={...safety(),scenario:'none',currentEvents:[],conditionalEvents:[]};for(const patch of [{medicationIntent:'decision'},{careContext:'current_concern'},{scenario:'current'},{currentEvents:['collapse']},{conditionalEvents:['breathing_distress']},{missingContext:['medicine']}])assert.equal(scope([task()],{...base,...patch}),null);});
-test('reads, signed references, multi-pet scope and owner facts are not inferred by no-read reconciliation',()=>{for(const patch of [{needsHistory:true,recordMode:'single'},{reference:'r1'},{pets:['p1','p2']},{needsOwnerFacts:true},{kind:'vet_brief'},{kind:'general_guidance'}])assert.equal(scope([task(patch)]),null);});
+test('reads, signed references, multi-pet scope and owner facts are not inferred by no-read reconciliation',()=>{for(const patch of [{needsHistory:true,recordMode:'single'},{reference:'r1'},{pets:['p1','p2']},{needsOwnerFacts:true},{kind:'vet_brief'}])assert.equal(scope([task(patch)]),null);});
 test('unknown detail limit preserves an independent useful general answer',()=>{const unavailable={...task({pets:['p2'],missing:[]}),status:'unresolved',reason:'source_unavailable',sources:[],componentIndexes:[0],ownerFacts:[],historyFacts:[]},general={...task({id:'t2',kind:'general_guidance',pets:[],missing:[]}),status:'complete',reason:'none',sources:[],componentIndexes:[1],ownerFacts:[],historyFacts:[]};const a=renderTaskCompletion({answer:'',validatedParts:[{index:0,text:'Invented blue squares.'},{index:1,text:'A useful independent explanation.'}],quotes:[],sources:[],calculations:[],presentation:{}},[unavailable,general],[],null);assert.match(a.answer,/useful independent explanation/);assert.match(a.answer,/verified saved information/);assert.doesNotMatch(a.answer,/blue squares|Which pet|Saved history:/);});
 test('already admitted exact evidence is preserved rather than treated as unavailable',()=>{const row={handle:'s1',kind:'history',petId:pets[0].id,body:'One historical observation was saved.'};const f={components:[{kind:'saved',text:'Original observation.',sources:['s1']}],sources:['s1'],completion:[{task:'t1',status:'complete',reason:'none',componentIndexes:[0],sources:['s1'],ownerFacts:[],historyFacts:[{source:'s1',excerpt:row.body}]}]};const r=reviewComponentCompletion(f,[task({missing:[]})],[row],[],owned);assert.equal(r.tasks[0].status,'complete');assert.equal(r.tasks[0].historyFacts[0].excerpt,row.body);});
 
@@ -127,4 +127,30 @@ test('clarification cannot clear real medical authority or emergency scope',()=>
  const p=[task({kind:'clarification'})],s={...safety(),scenario:'none',currentEvents:[],conditionalEvents:[]};
  for(const patch of [{medicationIntent:'decision'},{careContext:'current_concern'},{scenario:'current'},{currentEvents:['collapse']},{conditionalEvents:['breathing_distress']},{missingContext:['medicine']}])
   assert.equal(reconcileNoReadPet(p,{...s,...patch},{question:"Juniper's bowl"},owned,'owned',h=>owned.find(p=>p.handle===h),true),null);
+});
+
+test('actual general-guidance task with explicit owned name clears only false missing pet before final generation',async()=>{
+ const r=await execute({question:"I never saved the text on Juniper’s old carrier label. What did it say?",plan:[task({kind:'general_guidance'})],state:safety({referent:'essential_unknown',missingContext:['pet']}),prose:'I do not have verified wording for the unrecorded label.'});
+ assert.deepEqual(r.contexts[1].taskPlan[0].pets,['p2']);
+ assert.deepEqual(r.contexts[1].taskPlan[0].missing,[]);
+ assert.doesNotMatch(r.result.answer.answer,/Which pet/);
+ assert.match(r.result.answer.answer,/unrecorded label/);
+ assert.equal(r.reads,0);assert.equal(r.calls,2);
+});
+
+test('source-free general identity keeps independent missing fields and its general kind',()=>{
+ const p=[task({kind:'general_guidance',missing:['pet','year']})];
+ const r=scope(p);
+ assert.equal(r.plan[0].kind,'general_guidance');assert.deepEqual(r.plan[0].pets,['p2']);assert.deepEqual(r.plan[0].missing,['year']);
+});
+test('general guidance cannot gain a reference, history, multiple subjects or owner evidence through identity repair',()=>{
+ for(const patch of [{needsHistory:true},{recordMode:'single'},{reference:'r1'},{pets:['p1','p2']},{needsOwnerFacts:true}])
+  assert.equal(scope([task({kind:'general_guidance',...patch})]),null);
+});
+test('general identity still rejects foreign, changed, duplicate and unnamed subjects',()=>{
+ const p=[task({kind:'general_guidance'})];
+ assert.equal(scope(p,undefined,'Her label'),null);
+ assert.equal(scope(p,undefined,'Willow and Juniper'),null);
+ assert.equal(scope(p,undefined,undefined,[...owned,{...owned[1],handle:'p3'}]),null);
+ for(const patch of [{ownerId:'foreign'},{id:'changed'}])assert.equal(scope(p,undefined,undefined,undefined,()=>({...owned[1],...patch})),null);
 });
