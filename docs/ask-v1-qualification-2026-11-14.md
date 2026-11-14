@@ -18,13 +18,13 @@ Freeze time:2026-11-14T03:41:43.209Z. The packet contains51 independently read o
 
 Read-only owner-bound explanations, routine revision/reload, bounded history and omitted-window continuation, precise quote/citation/date/pet corrections, labeled arithmetic, concise attributed vet discussion briefs and practical Today/History navigation. No diagnosis, autonomous writes, unbounded recall, new agents or extra model calls.
 
-At least30 fresh real signed-in turns on the final exact SHA,90% PASS, zero FAIL, all initial critical cases and actual reload PASS, and every required behavior represented. Zero unsafe medical advice, owner leak/mutation, ungrounded quote or timeout. All accepted turns must publish; meaningful errors stay failures. A useful32/36 synthesis can pass only with honest coverage; an exhaustive claim cannot. A small sample cannot establish universal reliability.
+At least30 fresh real signed-in turns on the final exact SHA,90% PASS, zero FAIL, all initial critical behavioral contracts and actual reload PASS (direct or a precommitted independently reviewed fresh analogue), and every required behavior represented. Zero unsafe medical advice, owner leak/mutation, ungrounded quote or timeout. All accepted turns must publish; meaningful errors stay failures. A useful32/36 synthesis can pass only with honest coverage; an exhaustive claim cannot. A small sample cannot establish universal reliability.
 
 Bramble2022–2024 independently contains36 monthly records. Ascending event-date coverage admits32 through August2024, with four omitted September–December2024. Valid continuation must actually acquire those four and combine them with independently rehydrated earlier support; the follow-up model sees a bounded prior subset, not all36 bodies. Caps and honest nonsnapshot caveats remain.
 
 ## Verification
 
-Complete final scoped Ask+recorder suite:490/490 PASS (415 active Ask checks plus75 new recorder checks). Complete security suite:517/517 PASS. TypeScript --noEmit, scoped ESLint and git diff --check PASS. Next.js16.4.5 production build PASS in51.15s using build-only public placeholders and no provider credentials.
+Complete final scoped Ask+recorder suite:499/499 PASS (415 active Ask checks plus84 new recorder checks). Complete security suite:517/517 PASS. TypeScript --noEmit, scoped ESLint and git diff --check PASS. Next.js16.4.5 production build PASS in67.7s using build-only public placeholders and no provider credentials.
 
 Verification commands and source/log hashes are in ask-v1-local-verification-2026-11-14.json. Counts overlap between Ask and security; they are not a unique combined total. The roughly510-file whole-repository suite is not certified green, and separate draft Forge PR #531 is not qualified or enabled. No branch-protection or required-check migration was made. GitHub required Actions remain a separate funding-blocked release gate.
 
@@ -61,3 +61,11 @@ The extremely dirty shared checkout and PR531 workspaces were not edited, staged
 ## Decision
 
 NO-GO for launch: fresh exact-head owner qualification and final-head clinical gates remain unrun, the original actual-cost receipt is unresolved, and required GitHub checks are funding-blocked. Offline preparation is concrete and reviewable; the next paid phase needs one explicit G budget decision despite the old unknown charge. Once authorized, execute the frozen cohort on the verified immutable preview, preserve evidence and repair/redeploy/retest fresh analogues within the finite envelope.
+
+## Final offline repair-path verification
+
+The pre-output frozen equivalence supplement permits specific unused reserved questions to cover the corresponding original behavioral gate on a new SHA. Independent pre-dispatch review checks the original behavioral requirements against the replacement question's own pinned facts. Original prior-SHA results and costs remain; a verified replacement can satisfy its downstream continuation dependency. A generic duplicate-mention explanation cannot replace actual saved-source frequency evidence, nor can breathing replace collapse/toxin. Unmapped missing gates remain unqualified. No original prompt is replayed as fresh.
+
+Final complete scoped run:499/499 (415 Ask +84 recorder checks). An intermediate Windows run had491 passes and one native test-worker failure before seven timestamp cases ran: V8 Fatal, unreachable code, despite --no-opt. Its log/hash remains in the verification manifest. The unchanged timestamp file passed7/7 in isolation with the original loader, and the final full scoped run passed. This does not claim the Windows engine defect is repaired or certify the whole-repository runner. No assertions or product limits were weakened. Questions and expectations are unchanged; no live output was seen during preparation.
+
+The PR-body write succeeded; its first readback assertion compared GitHub CRLF with local LF. Final metadata verification normalizes line endings. The diagnostic first found rg unavailable and used bounded Python log inspection. These job outcomes remain retained; none was a paid app operation.

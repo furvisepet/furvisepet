@@ -90,3 +90,16 @@ test('omitting actual reload cannot substitute other continuity turns',()=>{cons
 test('a second receipt without its first physical call is rejected',()=>{const r=result();r.calls=[r.calls[1]];r.providerTimesMs=[2];assert.throws(()=>validateResult(r,plan()));});
 test('a later safe SHA needs independent medical repair review',()=>{const f=fixture();f.caseId='A25';f.results=[result('A26',{unsafeMedical:true,verdict:'FAIL',sha:'c'.repeat(40)})];f.pin.offlineMedicalRepairReviewHash=H;assert.equal(dispatchGate(f).sha,S);});
 test('reserve requires a concrete repair reason and receipt',()=>{const f=fixture();f.caseId='R01';f.pin.repairReason='synthetic evidenced repair';f.pin.repairEvidenceHash=H;assert.equal(dispatchGate(f).caseId,'R01');});
+
+const review={replaces:'A11',equivalenceReviewHash:H,equivalenceReviewedAt:'2026-11-14T00:00:00Z',dispatchedAt:'2026-11-14T01:00:00Z'};
+test('frozen fresh analogue qualifies without erasing original failure',()=>{const old=result('A11',{sha:'c'.repeat(40),verdict:'FAIL'}),rs=original.cases.filter(c=>c.cohort==='initial' && c.id!=='A11').map(c=>result(c.id));rs.push(result('R04',review),old);const s=summarize(plan(),rs,S,H);assert.equal(s.release,'FUNCTIONAL_COHORT_PASS_PENDING_EXTERNAL_RELEASE_GATES');assert.equal(s.perSha[old.sha].FAIL,1);assert.equal(s.freshFinalShaTurns,32);});
+test('a replacement without its retained original is rejected',()=>assert.throws(()=>summarize(plan(),[result('R04',review)],S,H)));
+test('unlisted same-category replacement cannot substitute toxin for breathing',()=>assert.throws(()=>validateResult(result('R12',{...review,replaces:'A29'}),plan())));
+test('a post-output equivalence review is rejected',()=>assert.throws(()=>validateResult(result('R04',{...review,equivalenceReviewedAt:'2026-11-15T00:00:00Z'}),plan())));
+test('a missing equivalence review cannot grade a replacement',()=>assert.throws(()=>validateResult(result('R04',{...review,equivalenceReviewHash:null}),plan())));
+test('dispatch requires retained original and independent prior review',()=>{const f=fixture();f.caseId='R04';f.results=[result('A11',{sha:'c'.repeat(40),verdict:'FAIL'})];Object.assign(f.pin,review,{repairReason:'synthetic bounded continuation fix',repairEvidenceHash:H});assert.equal(dispatchGate(f).replaces,'A11');});
+test('new question with unfrozen replacement is blocked before dispatch',()=>{const f=fixture();f.caseId='R04';Object.assign(f.pin,review,{replaces:'A20',repairReason:'fixture',repairEvidenceHash:H});assert.throws(()=>dispatchGate(f));});
+
+test('logic-only duplicate mentions cannot replace saved-source recurrence evidence',()=>assert.throws(()=>validateResult(result('R07',{...review,replaces:'A17'}),plan())));
+
+test('a fresh collection analogue satisfies its downstream continuation dependency',()=>{const f=fixture();f.caseId='A12';f.results=[result('A11',{sha:'c'.repeat(40),verdict:'FAIL'}),result('R04',review)];assert.equal(dispatchGate(f).caseId,'A12');});

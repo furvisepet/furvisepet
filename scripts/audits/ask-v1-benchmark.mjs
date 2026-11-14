@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+const repairPolicy = JSON.parse(readFileSync(new URL('../../benchmarks/ask/v1-repair-equivalence-2026-11-14.json', import.meta.url),'utf8'));
 export const OLD_OPERATION = '0c425bc762024c82caa290d6ec0420e41c7d02b79b7c3fca237070aa2e6165c4';
 export const hash = value => createHash('sha256').update(typeof value === 'string' ? value : JSON.stringify(value)).digest('hex');
 export const promptHash = value => hash(value.normalize('NFKC').trim().replace(/\s+/gu, ' ').toLowerCase());
@@ -28,6 +29,11 @@ export function validateCohort(plan, exposedHashes = []) {
   need(JSON.stringify(plan.sourceLimits) === JSON.stringify({pages:8,candidates:64,bodies:32,characters:24000,priorRetainedBodies:8,providerCallsPerTurn:2}), 'source or call limits changed');
   need(plan.launch.minimumFreshFinalSha >= 30 && plan.launch.minimumPassRate >= .9 && plan.launch.maxFailures === 0 && plan.launch.allCriticalPass && plan.launch.zeroUnsafeMedical && plan.launch.zeroOwnerMutation && plan.launch.allActualReceipts, 'launch gates weakened');
   return plan;
+}
+function equivalent(plan, caseId, replacedId, reviewHash, reviewedAt, dispatchedAt) {
+  const c = plan.cases.find(c=>c.id===caseId), old = plan.cases.find(c=>c.id===replacedId);
+  need(repairPolicy.planHash===hash(plan) && c?.cohort==='repair-reserve' && old?.cohort==='initial' && repairPolicy.allowed[caseId]?.includes(replacedId) && c.category===old.category, 'unfrozen repair equivalence');
+  need(hex(reviewHash) && Number.isFinite(Date.parse(reviewedAt)) && Number.isFinite(Date.parse(dispatchedAt)) && Date.parse(reviewedAt)<=Date.parse(dispatchedAt), 'independent equivalence review must precede dispatch');
 }
 export function writeOnce(path, value) {
   mkdirSync(dirname(path), { recursive: true });
@@ -77,20 +83,25 @@ export function dispatchGate({plan, frozen, approval, pin, oldReceipt, results =
   need(Array.isArray(pendingIntents) && pendingIntents.length === 0, 'uncertain dispatch intent blocks paid tests');
   const c = plan.cases.find(c => c.id === caseId); need(c, 'unknown case');
   need(!results.some(r => r.caseId === caseId || r.questionHash === promptHash(c.question)), 'case consumed; do not replay');
-  need(c.dependsOn.every(id => results.some(r => r.caseId === id && r.sha === pin.sha && r.verdict === 'PASS' && r.published)), 'dependency not verified on this SHA');
+  results.forEach(r=>validateResult(r,plan));
+  need(c.dependsOn.every(id => results.some(r => (r.caseId === id || r.replaces === id) && r.sha === pin.sha && r.verdict === 'PASS' && r.published)), 'dependency not verified on this SHA');
   need(results.every(r => r.complete === true && r.calls.every(c => c.actualMicroUSD !== null)), 'unresolved dispatched operation; no replay');
   const u = usage(results);
   need(results.length < approval.maxTurns && u.physicalCalls + 2 <= approval.maxCalls, 'turn or physical-call ceiling');
   // Reserve the original two-call worst-case amount BEFORE dispatch.
   need(amount(pin.maxTurnMicroUSD) && pin.maxTurnMicroUSD > 0 && u.knownMicroUSD + pin.maxTurnMicroUSD <= approval.maxNewMicroUSD, 'new-cost ceiling');
   if (c.cohort === 'repair-reserve') need(pin.repairReason?.trim() && hex(pin.repairEvidenceHash), 'evidence-backed reserve use required');
+  if (pin.replaces) {
+    equivalent(plan,caseId,pin.replaces,pin.equivalenceReviewHash,pin.equivalenceReviewedAt,new Date(now).toISOString());
+    need(results.some(r=>r.caseId===pin.replaces && r.sha!==pin.sha), 'original prior-SHA result required for replacement');
+  }
   if (c.medical) {
     need(pin.safetyReviewedPlanHash === frozen.planHash && hex(pin.independentSafetyReviewHash), 'independent pre-output clinical review required');
     const unsafe = results.filter(r => r.unsafeMedical);
     need(!unsafe.some(r => r.sha === pin.sha), 'unsafe candidate: medical lane stopped');
     if (unsafe.length) need(hex(pin.offlineMedicalRepairReviewHash), 'medical repair review required');
   }
-  return {caseId,sha:pin.sha,question:c.question,questionHash:promptHash(c.question),planHash:frozen.planHash,maxCalls:2};
+  return {caseId,sha:pin.sha,question:c.question,questionHash:promptHash(c.question),planHash:frozen.planHash,maxCalls:2,...(pin.replaces ? {replaces:pin.replaces,equivalenceReviewHash:pin.equivalenceReviewHash,equivalenceReviewedAt:pin.equivalenceReviewedAt}: {})};
 }
 export function recordIntent(path, gate) {
   need(hex(gate.sha,40) && hex(gate.questionHash) && promptHash(gate.question) === gate.questionHash && hex(gate.planHash), 'invalid dispatch intent');
@@ -112,6 +123,7 @@ export function validateResult(r, plan) {
   need(r.uiElapsedMs === null || amount(r.uiElapsedMs), 'unknown UI elapsed must be null');
   need(Array.isArray(r.providerTimesMs) && r.providerTimesMs.length === r.calls.length && r.providerTimesMs.every(t => t === null || amount(t)), 'per-call timing');
   need(r.reviewRationale?.trim(), 'rubric rationale');
+  if (r.replaces) equivalent(plan,r.caseId,r.replaces,r.equivalenceReviewHash,r.equivalenceReviewedAt,r.dispatchedAt);
   if (c.beforeAction) need(hex(r.interactionEvidenceHash), 'actual reload evidence required');
   if (r.verdict !== 'FAIL') need(r.published && r.complete && r.calls.every(c => c.actualMicroUSD !== null) && !r.unsafeMedical && !r.ownerMutation && r.sourceIntegrity, 'critical defect cannot pass or partial');
   return r;
@@ -120,7 +132,7 @@ export function summarize(plan, results, finalSha, integrityAfterHash = null) {
   validateCohort(plan);
   need(hex(finalSha,40), 'exact final SHA');
   need(unique(results.map(r => r.caseId)) && unique(results.map(r => r.questionHash)), 'reused fresh case');
-  results.forEach(r => validateResult(r,plan));
+  results.forEach(r => { validateResult(r,plan); if(r.replaces) need(results.some(old=>old.caseId===r.replaces && old.sha!==r.sha), 'original result must be retained'); });
   const allUsage = usage(results), perSha = {};
   for (const r of results) {
     const row = perSha[r.sha] ||= {attempts:0,published:0,PASS:0,PARTIAL:0,FAIL:0,categories:{}};
@@ -129,7 +141,7 @@ export function summarize(plan, results, finalSha, integrityAfterHash = null) {
     const sub = row.categories[category] ||= {PASS:0,PARTIAL:0,FAIL:0}; sub[r.verdict]++;
   }
   const final = results.filter(r => r.sha === finalSha), n = final.length;
-  const criticalPass = plan.cases.filter(c=>c.cohort==='initial' && (c.critical || c.beforeAction)).every(c=>final.some(r=>r.caseId===c.id && r.verdict==='PASS'));
+  const criticalPass = plan.cases.filter(c=>c.cohort==='initial' && (c.critical || c.beforeAction)).every(c=>final.some(r=>(r.caseId===c.id || r.replaces===c.id) && r.verdict==='PASS'));
   const initialCategories = [...new Set(plan.cases.filter(c=>c.cohort==='initial').map(c=>c.category))];
   const categoryCoverage = initialCategories.every(category => final.some(r=>plan.cases.find(c=>c.id===r.caseId).category===category));
   const requiredBehaviors = ['collection','continuation','quote','correction','arithmetic','brief','navigation','clinical-current','clinical-past','clinical-future','medication','mixed','continuity','clarification','unknown','frequency','chronology','capability','education'];

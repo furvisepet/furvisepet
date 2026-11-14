@@ -135,7 +135,7 @@
     }
   },
   "finalChecks": {
-    "ask-final": {
+    "ask-qualified-final": {
       "command": [
         "node",
         "scripts/run-tests.mjs",
@@ -172,11 +172,11 @@
         "tests/ask-v1-benchmark.test.mjs"
       ],
       "exit": 0,
-      "seconds": 131.674152,
-      "logSha256": "cfd805ea5ec555d31e22666f24b9989b3d6bd5d5dce2253c61c6cfb0218c7b1a",
-      "tail": "oyment SHA blocks dispatch (0.8746ms)\n\u2714 preview not READY blocks dispatch (0.4562ms)\n\u2714 account unverified blocks dispatch (0.4529ms)\n\u2714 pets unverified blocks dispatch (0.4885ms)\n\u2714 stale pin blocks dispatch (0.5341ms)\n\u2714 future pin blocks dispatch (0.7117ms)\n\u2714 uncertain intent blocks dispatch (0.7455ms)\n\u2714 new unknown receipt blocks dispatch (0.9357ms)\n\u2714 case reused blocks dispatch (0.6074ms)\n\u2714 insufficient reserved budget blocks dispatch (0.6012ms)\n\u2714 call ceiling blocks dispatch (0.9136ms)\n\u2714 dependency missing blocks dispatch (0.553ms)\n\u2714 dependency on older SHA blocks dispatch (0.6826ms)\n\u2714 unreviewed clinical lane blocks dispatch (0.7654ms)\n\u2714 unsafe clinical candidate blocks dispatch (0.9134ms)\n\u2714 new medical SHA without repair review blocks dispatch (0.6773ms)\n\u2714 reserve without repair evidence blocks dispatch (0.7164ms)\n\u2714 settlement cannot turn an unknown actual into zero (0.9927ms)\n\u2714 duplicate physical receipt rejected (0.128ms)\n\u2714 third physical call rejected (0.268ms)\n\u2714 missing uiCaptureHash cannot grade (0.2154ms)\n\u2714 missing persistedMessagesHash cannot grade (0.1297ms)\n\u2714 missing backendExecutionHash cannot grade (0.1304ms)\n\u2714 missing sourceReviewHash cannot grade (0.1144ms)\n\u2714 missing deploymentEvidenceHash cannot grade (0.1121ms)\n\u2714 missing rubricReviewHash cannot grade (0.1207ms)\n\u2714 unsafeMedical cannot be partial (0.1647ms)\n\u2714 ownerMutation cannot be partial (0.1156ms)\n\u2714 unpublished answer is a failure (0.1344ms)\n\u2714 unknown actual cannot pass (0.1385ms)\n\u2714 uncertain operation retained as FAIL, not erased (0.7517ms)\n\u2714 zero live turns never releases (1.5209ms)\n\u2714 older SHA passes never transfer (0.5232ms)\n\u2714 synthetic complete cohort can only pass functional gate, not external launch gates (1.5577ms)\n\u2714 one failure prevents release and remains per SHA (1.1675ms)\n\u2714 critical partial prevents release (0.9897ms)\n\u2714 missing integrity after-check prevents functional acceptance (1.1475ms)\n\u2714 write-once intent blocks physical replay (2.544ms)\n\u2714 reload cannot be claimed without an interaction capture (0.2162ms)\n\u2714 omitting a critical initial case cannot hide it in the denominator (2.9147ms)\n\u2714 omitting actual reload cannot substitute other continuity turns (1.1921ms)\n\u2714 a second receipt without its first physical call is rejected (0.3385ms)\n\u2714 a later safe SHA needs independent medical repair review (0.6674ms)\n\u2714 reserve requires a concrete repair reason and receipt (0.5771ms)\n\u2139 tests 490\n\u2139 suites 0\n\u2139 pass 490\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 131552.6784\n"
+      "seconds": 286.883446,
+      "logSha256": "635813cd4c2ddb4397e9840539f3ad5fd896822f94436ff8348637192b5acff2",
+      "tail": "\n\u2714 duplicate physical receipt rejected (0.097ms)\n\u2714 third physical call rejected (0.143ms)\n\u2714 missing uiCaptureHash cannot grade (0.1419ms)\n\u2714 missing persistedMessagesHash cannot grade (0.1062ms)\n\u2714 missing backendExecutionHash cannot grade (0.1ms)\n\u2714 missing sourceReviewHash cannot grade (0.104ms)\n\u2714 missing deploymentEvidenceHash cannot grade (0.0939ms)\n\u2714 missing rubricReviewHash cannot grade (0.0909ms)\n\u2714 unsafeMedical cannot be partial (0.1338ms)\n\u2714 ownerMutation cannot be partial (0.0985ms)\n\u2714 unpublished answer is a failure (0.1148ms)\n\u2714 unknown actual cannot pass (0.1176ms)\n\u2714 uncertain operation retained as FAIL, not erased (0.5956ms)\n\u2714 zero live turns never releases (0.7799ms)\n\u2714 older SHA passes never transfer (0.6008ms)\n\u2714 synthetic complete cohort can only pass functional gate, not external launch gates (1.5155ms)\n\u2714 one failure prevents release and remains per SHA (1.0567ms)\n\u2714 critical partial prevents release (0.8979ms)\n\u2714 missing integrity after-check prevents functional acceptance (0.9358ms)\n\u2714 write-once intent blocks physical replay (2.8093ms)\n\u2714 reload cannot be claimed without an interaction capture (0.2799ms)\n\u2714 omitting a critical initial case cannot hide it in the denominator (0.8949ms)\n\u2714 omitting actual reload cannot substitute other continuity turns (0.9389ms)\n\u2714 a second receipt without its first physical call is rejected (0.1671ms)\n\u2714 a later safe SHA needs independent medical repair review (0.612ms)\n\u2714 reserve requires a concrete repair reason and receipt (0.4972ms)\n\u2714 frozen fresh analogue qualifies without erasing original failure (1.3248ms)\n\u2714 a replacement without its retained original is rejected (0.4622ms)\n\u2714 unlisted same-category replacement cannot substitute toxin for breathing (0.2238ms)\n\u2714 a post-output equivalence review is rejected (0.1943ms)\n\u2714 a missing equivalence review cannot grade a replacement (0.8905ms)\n\u2714 dispatch requires retained original and independent prior review (0.7393ms)\n\u2714 new question with unfrozen replacement is blocked before dispatch (0.576ms)\n\u2714 logic-only duplicate mentions cannot replace saved-source recurrence evidence (0.2212ms)\n\u2714 a fresh collection analogue satisfies its downstream continuation dependency (0.5802ms)\n\u2139 tests 499\n\u2139 suites 0\n\u2139 pass 499\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 286774.2468\n"
     },
-    "lint-final": {
+    "lint-qualified-final": {
       "command": [
         "node",
         "node_modules/eslint/bin/eslint.js",
@@ -184,45 +184,46 @@
         "tests/ask-v1-benchmark.test.mjs"
       ],
       "exit": 0,
-      "seconds": 4.603707,
+      "seconds": 8.579657,
       "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "tail": ""
     },
-    "diff-final": {
+    "diff-qualified-final": {
       "command": [
         "git",
         "diff",
         "--check"
       ],
       "exit": 0,
-      "seconds": 0.066788,
-      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "tail": ""
+      "seconds": 0.042164,
+      "logSha256": "d1b52f85f980da875ec234df17f986b161d601a25e51a2afae33c8b5c495d92f",
+      "tail": "warning: in the working copy of 'benchmarks/ask/v1-launch-standard-2026-11-13.md', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/audits/ask-v1-benchmark.mjs', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'tests/ask-v1-benchmark.test.mjs', LF will be replaced by CRLF the next time Git touches it\n"
     }
   },
   "productionBuild": {
     "exit": 0,
-    "seconds": 51.147297,
+    "seconds": 67.699973,
+    "placeholderEnvironmentOnly": true,
+    "logSha256": "517384c1fa740ca9a810d304630588188e1e5114647182d5b9f32c0effc75c60",
     "command": [
       "node",
       "node_modules/next/dist/bin/next",
       "build",
       "--webpack"
-    ],
-    "placeholderEnvironmentOnly": true,
-    "logSha256": "a4937c77b7e370e45587cdc0522ce38ec60caac5899219c697d240fea4ba103d"
+    ]
   },
   "testedFileHashes": {
-    "scripts/audits/ask-v1-benchmark.mjs": "a05eef91cd2f9661006ce2ccfb184532386fbedf2b55bec69b64d01e13c344c7",
-    "tests/ask-v1-benchmark.test.mjs": "14c3370be8ed79c37ad98c94f87922ec0c9e36c7bce81f6653bc8f1c4612eeb1",
+    "scripts/audits/ask-v1-benchmark.mjs": "ccc5acafcbd267a09aca395734abb676bebae62c526cfefc2e532271c075db1a",
+    "tests/ask-v1-benchmark.test.mjs": "5d60292eecdabfb53a0c2074fdc58a39b3297133e6b9296037827ec7bd6ca1c8",
     "benchmarks/ask/v1-owner-cohort-2026-11-13.json": "60ee92ae7d76efd2b74e37ca8817402add39c22574480a07a575d74bf478789d",
-    "benchmarks/ask/v1-launch-standard-2026-11-13.md": "52b1a4617cbd3c6a6ff696ae1db84e4c010375cf48d50795d503f1465464b602",
+    "benchmarks/ask/v1-launch-standard-2026-11-13.md": "bc0829b35d9fd406c15ee8b0ecd27aea01d38bda69a64676c524128009d52878",
     "benchmarks/ask/v1-exposure-2026-11-13.json": "b93afcd591dce1c6b7e974454b85827d9feb0744464727f88fb8a5b0eff54810",
-    "benchmarks/ask/v1-freeze-2026-11-13.json": "4c79e55466cf78943498caec337670ca69a411bb1f17dd9b5b1d1e5ce39791a9"
+    "benchmarks/ask/v1-freeze-2026-11-13.json": "4c79e55466cf78943498caec337670ca69a411bb1f17dd9b5b1d1e5ce39791a9",
+    "benchmarks/ask/v1-repair-equivalence-2026-11-14.json": "58b954de646f1c03256ed6c96b97fb1cddbcd82249253a4355b799f795d214d4"
   },
   "runtimeDiffFromBaseline": "",
-  "completeScopedAskChecks": 490,
-  "newRecorderChecks": 75,
+  "completeScopedAskChecks": 499,
+  "newRecorderChecks": 84,
   "completeSecurityChecks": 517,
   "overlapNotUniqueTotal": true,
   "wholeRepositoryCertified": false,
@@ -232,5 +233,85 @@
   "newProviderCalls": 0,
   "newActualMicroUSD": 0,
   "release": "NO_GO",
-  "approval": "PENDING"
+  "approval": "PENDING",
+  "parent": "bdc698337367483e9d9e07812f67d7df19b0d69e",
+  "retainedNativeFailure": {
+    "file": "tests/ask-provider-timestamp-boundary.test.mjs",
+    "runtime": "Windows Node24.19.0 --no-opt",
+    "failure": "V8 Fatal: unreachable code before test cases",
+    "observedPass": 491,
+    "observedFail": 1,
+    "missingTimestampCases": 7,
+    "logSha256": "179493338d56cc5ad7eaf2decd574f9873039c623835c556443131b4471fede8",
+    "isolatedOriginalCasesPassed": 7,
+    "isolatedLogSha256": "5249f3632d1b12663bac8edb9d9980c687d208f90b9b3b0473521ca4140d4b99",
+    "engineFixed": false
+  },
+  "retainedIntermediateChecks": {
+    "ask-repair-final": {
+      "command": [
+        "node",
+        "scripts/run-tests.mjs",
+        "--test-concurrency=1",
+        "--test-timeout=20000",
+        "tests/ask-read-only.test.mjs",
+        "tests/ask-input-budget-route.test.mjs",
+        "tests/ask-public-cancellation-route.test.mjs",
+        "tests/ask-read-only-wire-qualification.test.mjs",
+        "tests/ask-read-only-provider-request.test.mjs",
+        "tests/ask-provider-deadline.test.mjs",
+        "tests/ask-clinical-policy.test.mjs",
+        "tests/ask-clinical-decision-contract.test.mjs",
+        "tests/ask-urgency-components.test.mjs",
+        "tests/ask-collection-continuation.test.mjs",
+        "tests/ask-task-components.test.mjs",
+        "tests/ask-task-continuation.test.mjs",
+        "tests/ask-task-execution-contract.test.mjs",
+        "tests/ask-task-route.test.mjs",
+        "tests/ask-history-synthesis.test.mjs",
+        "tests/ask-evidence-completion.test.mjs",
+        "tests/ask-typed-operands.test.mjs",
+        "tests/ask-read-only-dialogue-coverage.test.mjs",
+        "tests/ask-read-only-follow-up-context.test.mjs",
+        "tests/ask-reference-persistence.test.mjs",
+        "tests/ask-read-only-emergency-preflight-scope.test.mjs",
+        "tests/ask-read-only-provider-failure-route.test.mjs",
+        "tests/ask-read-only-native-envelope.test.mjs",
+        "tests/ask-read-only-publication-contract.test.mjs",
+        "tests/ask-read-only-publication-budget.test.mjs",
+        "tests/ask-live-diagnostic.test.mjs",
+        "tests/ask-provider-timestamp-boundary.test.mjs",
+        "tests/ask-recursive-transport.test.mjs",
+        "tests/ask-v1-benchmark.test.mjs"
+      ],
+      "exit": 0,
+      "seconds": 131.205915,
+      "logSha256": "7ce089b2e10e2b2fdb93e84cfc5c33e947d8e7018600fa2641ff2c1e9a7ce019",
+      "tail": "arget blocks dispatch (0.4795ms)\n\u2714 production host blocks dispatch (0.442ms)\n\u2714 foreign hostname suffix blocks dispatch (0.4183ms)\n\u2714 dirty checkout blocks dispatch (0.8471ms)\n\u2714 wrong deployment SHA blocks dispatch (0.4439ms)\n\u2714 preview not READY blocks dispatch (0.4558ms)\n\u2714 account unverified blocks dispatch (0.4481ms)\n\u2714 pets unverified blocks dispatch (0.4373ms)\n\u2714 stale pin blocks dispatch (0.4641ms)\n\u2714 future pin blocks dispatch (0.4865ms)\n\u2714 uncertain intent blocks dispatch (0.5037ms)\n\u2714 new unknown receipt blocks dispatch (0.6308ms)\n\u2714 case reused blocks dispatch (0.4726ms)\n\u2714 insufficient reserved budget blocks dispatch (1.048ms)\n\u2714 call ceiling blocks dispatch (0.676ms)\n\u2714 dependency missing blocks dispatch (0.5214ms)\n\u2714 dependency on older SHA blocks dispatch (0.6624ms)\n\u2714 unreviewed clinical lane blocks dispatch (0.5125ms)\n\u2714 unsafe clinical candidate blocks dispatch (0.5745ms)\n\u2714 new medical SHA without repair review blocks dispatch (0.5957ms)\n\u2714 reserve without repair evidence blocks dispatch (0.5197ms)\n\u2714 settlement cannot turn an unknown actual into zero (0.9082ms)\n\u2714 duplicate physical receipt rejected (0.126ms)\n\u2714 third physical call rejected (0.2816ms)\n\u2714 missing uiCaptureHash cannot grade (0.1852ms)\n\u2714 missing persistedMessagesHash cannot grade (0.1273ms)\n\u2714 missing backendExecutionHash cannot grade (0.1076ms)\n\u2714 missing sourceReviewHash cannot grade (0.099ms)\n\u2714 missing deploymentEvidenceHash cannot grade (0.0955ms)\n\u2714 missing rubricReviewHash cannot grade (0.1072ms)\n\u2714 unsafeMedical cannot be partial (0.1416ms)\n\u2714 ownerMutation cannot be partial (0.0957ms)\n\u2714 unpublished answer is a failure (0.1085ms)\n\u2714 unknown actual cannot pass (0.1085ms)\n\u2714 uncertain operation retained as FAIL, not erased (0.6292ms)\n\u2714 zero live turns never releases (0.7409ms)\n\u2714 older SHA passes never transfer (0.3799ms)\n\u2714 synthetic complete cohort can only pass functional gate, not external launch gates (1.3261ms)\n\u2714 one failure prevents release and remains per SHA (0.9488ms)\n\u2714 critical partial prevents release (0.8787ms)\n\u2714 missing integrity after-check prevents functional acceptance (0.8639ms)\n\u2714 write-once intent blocks physical replay (2.8142ms)\n\u2714 reload cannot be claimed without an interaction capture (0.2681ms)\n\u2714 omitting a critical initial case cannot hide it in the denominator (0.9975ms)\n\u2714 omitting actual reload cannot substitute other continuity turns (1.1087ms)\n\u2714 a second receipt without its first physical call is rejected (0.2373ms)\n\u2714 a later safe SHA needs independent medical repair review (0.6076ms)\n\u2714 reserve requires a concrete repair reason and receipt (0.5753ms)\n\u2714 frozen fresh analogue qualifies without erasing original failure (1.356ms)\n\u2714 a replacement without its retained original is rejected (0.4388ms)\n\u2714 unlisted same-category replacement cannot substitute toxin for breathing (0.213ms)\n\u2714 a post-output equivalence review is rejected (0.1785ms)\n\u2714 a missing equivalence review cannot grade a replacement (0.1624ms)\n\u2714 dispatch requires retained original and independent prior review (0.9243ms)\n\u2714 new question with unfrozen replacement is blocked before dispatch (0.495ms)\n\u2139 tests 497\n\u2139 suites 0\n\u2139 pass 497\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 131080.8538\n"
+    },
+    "lint-repair-final": {
+      "command": [
+        "node",
+        "node_modules/eslint/bin/eslint.js",
+        "scripts/audits/ask-v1-benchmark.mjs",
+        "tests/ask-v1-benchmark.test.mjs"
+      ],
+      "exit": 0,
+      "seconds": 7.092407,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tail": ""
+    },
+    "diff-repair-final": {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 0.043274,
+      "logSha256": "d1b52f85f980da875ec234df17f986b161d601a25e51a2afae33c8b5c495d92f",
+      "tail": "warning: in the working copy of 'benchmarks/ask/v1-launch-standard-2026-11-13.md', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/audits/ask-v1-benchmark.mjs', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'tests/ask-v1-benchmark.test.mjs', LF will be replaced by CRLF the next time Git touches it\n"
+    }
+  },
+  "repairEquivalence": "Frozen pre-output; independent pre-dispatch review; original prior-SHA failure/cost retained; verified aliases satisfy continuation dependencies; logic-only recurrence cannot replace saved-source evidence."
 }
