@@ -1,0 +1,11 @@
+{
+  "schema": "AskV1FinalCohortExtensionRequest.v1",
+  "status": "requested_not_authorized",
+  "planHash": "4b6362042704afe0fda7906f158de20e64bcd658163d997f6bf8a85abf8b80d2",
+  "parentRequestHash": "f712004b6b3c873f55c6a097a54f30228f30582e4c12049adbc2718a117cb78a",
+  "maxTurns": 80,
+  "maxCalls": 160,
+  "maxNewMicroUSD": 2500000,
+  "maximumReserveDispatches": 48,
+  "reason": "Two actual repaired-source failures consumed50 turns. The already approved72-turn limit allows only22 fresh final-head turns, below the original30 minimum. This request proposes exactly8 additional fresh turns within the SAME$2.50 total new-spend ceiling. Preparing it grants no authority. Retain every original failure/receipt, old unknown waiver only, unchanged launch/clinical/source/two-provider gates."
+}

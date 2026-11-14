@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 const repairPolicy = JSON.parse(readFileSync(new URL('../../benchmarks/ask/v1-repair-equivalence-2026-11-14.json', import.meta.url),'utf8'));
 const repairPool = JSON.parse(readFileSync(new URL('../../benchmarks/ask/v1-owner-repair-pool-2026-11-13.json', import.meta.url),'utf8'));
 const extensionRequest = JSON.parse(readFileSync(new URL('../../benchmarks/ask/v1-session-extension-request-2026-11-14.json', import.meta.url),'utf8'));
+const finalExtensionRequest = JSON.parse(readFileSync(new URL('../../benchmarks/ask/v1-final-cohort-extension-request-2026-11-14.json', import.meta.url),'utf8'));
 export const OLD_OPERATION = '0c425bc762024c82caa290d6ec0420e41c7d02b79b7c3fca237070aa2e6165c4';
 export const hash = value => createHash('sha256').update(typeof value === 'string' ? value : JSON.stringify(value)).digest('hex');
 export const promptHash = value => hash(value.normalize('NFKC').trim().replace(/\s+/gu, ' ').toLowerCase());
@@ -17,7 +18,7 @@ export function benchmarkCases(plan) {
   if (repairPool.rootPlanHash !== hash(plan)) return plan.cases;
   need(repairPool.beforeAdditionalCaseOutputs === true && hex(repairPool.originalFailureEvidenceSha256) && Number.isFinite(Date.parse(repairPool.frozenAt)), 'repair supplement provenance');
   need(repairPool.paidLimitsUnchanged.turns===48 && repairPool.paidLimitsUnchanged.physicalCalls===96 && repairPool.paidLimitsUnchanged.newMicroUSD===2500000 && repairPool.paidLimitsUnchanged.maximumReserveDispatches===16, 'repair supplement cannot raise caps');
-  need(repairPool.cases.length<=32 && repairPool.cases.every(c=>c.cohort==='repair-reserve' && c.releaseReasonRequired===true), 'bounded repair candidate pool');
+  need(repairPool.cases.length<=33 && repairPool.cases.every(c=>c.cohort==='repair-reserve' && c.releaseReasonRequired===true), 'bounded repair candidate pool');
   return [...plan.cases,...repairPool.cases];
 }
 export function validateCohort(plan, exposedHashes = []) {
@@ -100,6 +101,27 @@ export function dispatchGate({plan, frozen, approval, pin, oldReceipt, results =
       need(extension[field]===extensionRequest[field], 'extension exceeds requested finite limits');
     limits={maxTurns:extension.maxTurns,maxCalls:extension.maxCalls,maxNewMicroUSD:extension.maxNewMicroUSD,maximumReserveDispatches:extension.maximumReserveDispatches};
   }
+  // A prepared final-cohort request cannot renew the72-turn decision.
+  // Only a third, distinct actual G decision chained to the approved extension
+  // may unlock its exact finite80/160/48 limits; dollars never increase.
+  const finalExtension=approval.finalCohortExtension;
+  if(finalExtension){
+    need(extension && finalExtensionRequest.schema==='AskV1FinalCohortExtensionRequest.v1' &&
+      finalExtensionRequest.status==='requested_not_authorized' && finalExtensionRequest.planHash===frozen.planHash &&
+      finalExtensionRequest.parentRequestHash===hash(extensionRequest) && finalExtensionRequest.maxTurns===80 &&
+      finalExtensionRequest.maxCalls===160 && finalExtensionRequest.maximumReserveDispatches===48 &&
+      finalExtensionRequest.maxNewMicroUSD===2500000, 'bounded final-cohort request mismatch');
+    need(finalExtension.schema==='AskV1FinalCohortExtensionApproval.v1' && finalExtension.status==='approved' &&
+      finalExtension.owner==='G' && finalExtension.planHash===frozen.planHash &&
+      finalExtension.parentApprovalEvidenceHash===extension.messageEvidenceHash &&
+      finalExtension.requestHash===hash(finalExtensionRequest) && hex(finalExtension.messageEvidenceHash) &&
+      ![approval.messageEvidenceHash,extension.messageEvidenceHash].includes(finalExtension.messageEvidenceHash) &&
+      finalExtension.messageQuote?.trim() && Number.isFinite(Date.parse(finalExtension.approvedAt)) &&
+      Date.parse(finalExtension.approvedAt)<=now, 'distinct final-cohort owner decision required');
+    for(const field of ['maxTurns','maxCalls','maxNewMicroUSD','maximumReserveDispatches'])
+      need(finalExtension[field]===finalExtensionRequest[field], 'final-cohort approval exceeds proposed limits');
+    limits={maxTurns:finalExtension.maxTurns,maxCalls:finalExtension.maxCalls,maxNewMicroUSD:finalExtension.maxNewMicroUSD,maximumReserveDispatches:finalExtension.maximumReserveDispatches};
+  }
   need(oldReceipt.operationId === OLD_OPERATION && (oldReceipt.actualMicroUSD === null || amount(oldReceipt.actualMicroUSD)), 'original receipt identity');
   if (oldReceipt.actualMicroUSD === null) need(approval.acceptedUnknownOperation === OLD_OPERATION && approval.proceedDespiteUnknown === true, 'original unknown charge blocks paid tests');
   else need(hex(oldReceipt.receiptHash), 'original actual requires billing evidence');
@@ -133,7 +155,7 @@ export function dispatchGate({plan, frozen, approval, pin, oldReceipt, results =
     need(!unsafe.some(r => r.sha === pin.sha), 'unsafe candidate: medical lane stopped');
     if (unsafe.length) need(hex(pin.offlineMedicalRepairReviewHash), 'medical repair review required');
   }
-  return {caseId,sha:pin.sha,question:c.question,questionHash:promptHash(c.question),planHash:frozen.planHash,maxCalls:2,...(extension?{sessionExtensionEvidenceHash:extension.messageEvidenceHash,sessionExtensionRequestHash:hash(extensionRequest)}:{}),...(pin.replaces ? {replaces:pin.replaces,equivalenceReviewHash:pin.equivalenceReviewHash,equivalenceReviewedAt:pin.equivalenceReviewedAt}: {})};
+  return {caseId,sha:pin.sha,question:c.question,...(finalExtension?{finalCohortExtensionEvidenceHash:finalExtension.messageEvidenceHash,finalCohortExtensionRequestHash:hash(finalExtensionRequest)}:{}),questionHash:promptHash(c.question),planHash:frozen.planHash,maxCalls:2,...(extension?{sessionExtensionEvidenceHash:extension.messageEvidenceHash,sessionExtensionRequestHash:hash(extensionRequest)}:{}),...(pin.replaces ? {replaces:pin.replaces,equivalenceReviewHash:pin.equivalenceReviewHash,equivalenceReviewedAt:pin.equivalenceReviewedAt}: {})};
 }
 export function recordIntent(path, gate) {
   need(hex(gate.sha,40) && hex(gate.questionHash) && promptHash(gate.question) === gate.questionHash && hex(gate.planHash), 'invalid dispatch intent');

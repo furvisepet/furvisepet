@@ -159,15 +159,51 @@ for(const [name,mutate] of [
  const f=fixture();f.approval.sessionExtension=extension(f);mutate(f.approval.sessionExtension,f);assert.throws(()=>dispatchGate(f));
 });
 test("a new explicit session decision never waives a NEW null provider receipt",()=>{
- const f=fixture();f.approval.sessionExtension=extension(f);f.results=[result("A02",{verdict:"FAIL"})];f.results[0].calls[1].actualMicroUSD=null;assert.throws(()=>dispatchGate(f),/unresolved dispatched operation/);
+ const f=fixture();f.approval.sessionExtension=extension(f);f.results=[result("A02",{verdict:"FAIL"})];f.results[0].verdict='FAIL';f.results[0].calls[1].actualMicroUSD=null;assert.throws(()=>dispatchGate(f),/unresolved dispatched operation/);
 });
 
 test("fresh image repair candidates never expand paid authority or weaken launch criteria",()=>{
  const extras=JSON.parse(readFileSync(new URL('../benchmarks/ask/v1-owner-repair-pool-2026-11-13.json',import.meta.url)));
- assert.equal(extras.cases.length,32);
+ assert.equal(extras.cases.length,33);
  assert.equal(extras.cases.find(c=>c.id==='R45').beforeAction,'reload same signed-in conversation; verify messages persisted');
  const f=fixture();f.caseId='R42';f.results=Array.from({length:48},(_,i)=>result(original.cases[i].id,{verdict:'FAIL'}));
  assert.throws(()=>dispatchGate(f),/ceiling/);
  assert.equal(original.launch.minimumFreshFinalSha,30);
  assert.equal(original.requestedEnvelope.maxNewMicroUSD,2500000);
+});
+
+const finalRequest=JSON.parse(readFileSync(new URL('../benchmarks/ask/v1-final-cohort-extension-request-2026-11-14.json',import.meta.url),'utf8'));
+function full72Fixture(){
+ const f=fixture();f.caseId='R49';f.approval.sessionExtension=extension(f);f.pin.repairReason='synthetic repair';f.pin.repairEvidenceHash=H;
+ const extras=JSON.parse(readFileSync(new URL('../benchmarks/ask/v1-owner-repair-pool-2026-11-13.json',import.meta.url),'utf8')).cases;
+ f.results=[...original.cases.map(c=>result(c.id)),...extras.slice(0,24).map(c=>result('A01',{caseId:c.id,questionHash:promptHash(c.question),operationId:hash(c.id),calls:[{operationId:hash(c.id),number:1,actualMicroUSD:1,receiptHash:H},{operationId:hash(c.id),number:2,actualMicroUSD:1,receiptHash:H}]}))];
+ return f;
+}
+const finalDecision=f=>({...finalRequest,schema:'AskV1FinalCohortExtensionApproval.v1',status:'approved',owner:'G',parentApprovalEvidenceHash:f.approval.sessionExtension.messageEvidenceHash,requestHash:hash(finalRequest),messageEvidenceHash:'f'.repeat(64),messageQuote:'Synthetic third owner-decision fixture; not actual authorization.',approvedAt:new Date().toISOString()});
+test('registered candidates and an unapproved final request never raise the actually approved72-turn ceiling',()=>{
+ const f=full72Fixture();assert.equal(f.results.length,72);assert.throws(()=>dispatchGate(f),/ceiling/);
+ f.approval.finalCohortExtension=finalRequest;assert.throws(()=>dispatchGate(f));
+});
+test('only a distinct chained owner decision unlocks exactly8 more turns within the original dollars',()=>{
+ const f=full72Fixture();f.approval.finalCohortExtension=finalDecision(f);
+ assert.equal(dispatchGate(f).finalCohortExtensionEvidenceHash,'f'.repeat(64));assert.equal(finalRequest.maxNewMicroUSD,2500000);
+});
+for(const [name,mutate] of [
+ ['reuse original receipt',(e,f)=>e.messageEvidenceHash=f.approval.messageEvidenceHash],
+ ['reuse72-turn receipt',(e,f)=>e.messageEvidenceHash=f.approval.sessionExtension.messageEvidenceHash],
+ ['wrong parent',(e)=>e.parentApprovalEvidenceHash=H],
+ ['wrong request',(e)=>e.requestHash=H],
+ ['no actual decision',(e)=>e.status='requested_not_authorized'],
+ ['higher dollars',(e)=>e.maxNewMicroUSD++],
+ ['higher calls',(e)=>e.maxCalls++],
+ ['higher turns',(e)=>e.maxTurns++],
+ ['higher reserves',(e)=>e.maximumReserveDispatches++]
+])test('final-cohort extension rejects '+name,()=>{
+ const f=full72Fixture();f.approval.finalCohortExtension=finalDecision(f);mutate(f.approval.finalCohortExtension,f);assert.throws(()=>dispatchGate(f));
+});
+test('even a new final-cohort decision cannot waive a NEW null physical receipt',()=>{
+ const f=full72Fixture();f.approval.finalCohortExtension=finalDecision(f);f.results[0].verdict='FAIL';f.results[0].calls[1].actualMicroUSD=null;assert.throws(()=>dispatchGate(f),/unresolved dispatched operation/);
+});
+test('an unused continuation with a consumed old-SHA parent never becomes an eligible fresh final-head turn',()=>{
+ const f=fixture();f.caseId='R05';f.results=[result('R04',{sha:'c'.repeat(40)})];f.pin.repairReason='fixture';f.pin.repairEvidenceHash=H;f.approval.sessionExtension=extension(f);assert.throws(()=>dispatchGate(f),/dependency not verified/);
 });
