@@ -53,7 +53,11 @@ export function recoverAnnualComparison(first,plan,context,bind){
   const r=refs[0],old=annual(r,axis),dateKey=axis==="event"?"eventAt":"recordedAt";
   if(r.selectionLimited||r.discoveryIncomplete||r.omittedRange||r.omittedEventRange||r.sourceCount<2||r.sourceCount>8||!Array.isArray(r.sourceDates)||!r.sourceDates.some(d=>d[dateKey]?.startsWith(old+"-01-"))||!r.sourceDates.some(d=>d[dateKey]?.startsWith(old+"-12-")))return null;
   if(context.timeZone&&r.timeZone!==context.timeZone)return null;
-  const t=plan.find(t=>t.pets[0]===n.pet.handle);if(t.reference!==null&&t.reference!==r.reference)return null;
+  const t=plan.find(t=>t.pets[0]===n.pet.handle);
+  // A known hint can have been attached to the other requested side. The
+  // explicit two-pet/year scopes above choose membership; identity is checked
+  // separately. Unknown/foreign/third-pet hints never gain authority here.
+  if(t.reference!==null&&!context.references.some(ref=>ref.reference===t.reference&&named.some(n=>n.pet.handle===ref.petHandle)))return null;
   scopes.push({...n,ref:r,old,task:t,changed:old!==n.year});
  }
  if(scopes.filter(n=>n.changed).length!==1||!scopes.some(n=>!n.changed))return null;

@@ -2,7 +2,7 @@ import {reconcileDeclaredUnavailability,DECLARED_UNAVAILABLE_ANSWER} from "./dec
 import {requirePronounPet} from "./pronoun-scope.mjs";
 import {recoverAnnualComparison} from "./annual-comparison.mjs";
 import { supplementCandidates, supplementalTaskPlan, parseEvidenceCompletion, verifySingleReferenceResult, applyReferenceCompletion, applySourceReview } from "./evidence-completion.mjs";
-import {reconcileConditionalEducation, COMPONENT_INSTRUCTIONS, componentSelectionSchema, componentAnswerSchema, fulfillReferenceReads,ownerFactSentences, reviewComponentCompletion, renderTaskCompletion, resolveRecordDiscovery, normalizeTaskRecords, reconcileNoReadPet } from "./task-components.mjs";
+import {reconcileConditionalEducation, COMPONENT_INSTRUCTIONS, componentSelectionSchema, componentAnswerSchema, validateTaskPlan, fulfillReferenceReads,ownerFactSentences, reviewComponentCompletion, renderTaskCompletion, resolveRecordDiscovery, normalizeTaskRecords, reconcileNoReadPet } from "./task-components.mjs";
 import { CLINICAL_INSTRUCTIONS, clinicalSelectionSchema, validateClinicalAssessment, clinicalAnswerSchema, reviewClinicalAnswer, renderMedicationDecision, ownerStatementCatalog, emergencyHandoffForAssessment } from "./clinical-policy.mjs";
 import { APP_CAPABILITIES, WORKFLOW_INSTRUCTIONS, renderAppWorkflow, supportsAppWorkflow, containsAppControlSteps } from "./app-capabilities.mjs";
 import { normalizeReadTemporalScope } from "./temporal-scope.mjs";
@@ -284,6 +284,8 @@ export async function runReadOnlyAsk(input,deps) {
  try{annualComparison=recoverAnnualComparison(first,taskPlan,context,(name,args)=>bindReadTool(name,args,pets,references));}
  catch(error){deps.onSelectionRejected?.(readSelectionShape(first,pets));throw error;}
  if(annualComparison){first=annualComparison.first;taskPlan=annualComparison.plan;deps.onAnswerBoundary?.({outcome:"annual_comparison_scope_recovered",...annualComparison.diagnostic});}
+ // Any deferred task/reference pet relation must be strict before acquisition.
+ if(taskPlan)taskPlan=validateTaskPlan(taskPlan,context);
  const declaredUnavailable=reconcileDeclaredUnavailability(first,taskPlan,context,pets,input.ownerId,handle=>bindReadTool("read_pet_profile",{pet:handle},pets).pet);
  if(declaredUnavailable){first=declaredUnavailable.first;taskPlan=declaredUnavailable.plan;deps.onAnswerBoundary?.({outcome:"owner_declared_unavailability_bound",declarationCount:1,explicitOwnedSubject:true,grantsRead:false});}
  const namedPet=first.calls.length===0?reconcileNoReadPet(taskPlan,first.safety,context,pets,input.ownerId,handle=>bindReadTool("read_pet_profile",{pet:handle},pets).pet):null;

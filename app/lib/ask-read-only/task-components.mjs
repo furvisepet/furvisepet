@@ -15,7 +15,7 @@ const reasons=["none","missing_context","source_unavailable","source_omitted","n
 const array=(items,maxItems)=>({type:"array",items,maxItems});
 const nullable=values=>({type:["string","null"],enum:[...values,null]});
 const keys=(v,expected)=>v&&typeof v==="object"&&!Array.isArray(v)&&Object.keys(v).length===expected.length&&expected.every(k=>Object.hasOwn(v,k));
-function reject(field){throw Object.assign(new Error("ASK_READ_COMPONENT_CONTRACT"),{code:"ASK_READ_COMPONENT_CONTRACT",answerDiagnostic:{category:"component_contract",field}});}
+function reject(field,detail={}){throw Object.assign(new Error("ASK_READ_COMPONENT_CONTRACT"),{code:"ASK_READ_COMPONENT_CONTRACT",answerDiagnostic:{category:"component_contract",field,...detail}});}
 export const COMPONENT_INSTRUCTIONS=[
  HISTORY_SYNTHESIS_INSTRUCTIONS,
  EVIDENCE_COMPLETION_INSTRUCTIONS,
@@ -68,7 +68,7 @@ function checkedTaskPlan(plan,context,deferKnownReferencePet=false){
   if(!workflows.includes(t.workflow)||(t.kind==="workflow")!==(t.workflow!=="none"))reject("workflow_task");
   if(!Array.isArray(t.pets)||t.pets.length>4||t.pets.some(h=>!context.pets.some(p=>p.handle===h)))reject("pet");
   const reference=context.references.find(r=>r.reference===t.reference);
-  if(t.reference!==null&&(!reference||!deferKnownReferencePet&&t.pets.length>0&&!t.pets.includes(reference.petHandle)))reject("reference");
+  if(t.reference!==null&&(!reference||!deferKnownReferencePet&&t.pets.length>0&&!t.pets.includes(reference.petHandle)))reject("reference",{referenceIssue:reference?"pet_membership":"unknown_locator"});
  }
  // Normalize dependent fields first. Applicability must never consult an
  // irrelevant RAW flag that has already been removed from the task contract.
@@ -83,7 +83,12 @@ export function decodeComponentSelection(value,tools,context,decode){
  checkedTaskPlan(value?.taskPlan,context,true);
  const clean={...value};delete clean.taskPlan;
  const first=decode(clean,tools,context),corrected=reconcileCorrectedReference(first,value?.taskPlan,context);
- const taskPlan=validateTaskPlan(corrected?.taskPlan??value?.taskPlan,context);
+ const candidate=corrected?.taskPlan??value?.taskPlan;
+ // Two-side calculation hints may await the existing annual-scope recovery.
+ // Known locator identity remains mandatory NOW; strict pet membership is
+ // enforced again by the core before any read can be admitted.
+ const annualCandidate=candidate.length===2&&candidate.every(t=>t.kind==="calculation"&&t.pets.length===1&&!t.needsOwnerFacts)&&new Set(candidate.map(t=>t.pets[0])).size===2;
+ const taskPlan=annualCandidate?checkedTaskPlan(candidate,context,true):validateTaskPlan(candidate,context);
  const selected=corrected??first;
  const changedPrerequisites=(corrected?.taskPlan??value.taskPlan).some(t=>t.missing.some(field=>!taskPlan.find(checked=>checked.id===t.id)?.missing.includes(field)));
  return {...selected,text:changedPrerequisites?"":selected.text,taskPlan};

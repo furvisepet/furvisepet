@@ -67,8 +67,8 @@ test("recorded-year comparisons keep recorded bounds instead of substituting eve
 const source=(pet,year,month,value)=>({kind:"history",id:"private-"+pet.name+"-"+year+"-"+month,ownerId:"owner",petId:pet.id,body:pet.name+" weighed "+value+" kg.",eventAt:year+"-"+month+"-15T12:00:00Z",recordedAt:year+"-"+month+"-16T12:00:00Z"});
 const maple=[source(pets[0],"2024","01",10),source(pets[0],"2024","12",11)],oldJuniper=[source(pets[1],"2024","01",5),source(pets[1],"2024","12",6)],newJuniper=[source(pets[1],"2023","01",4),source(pets[1],"2023","12",4.5)];
 const packet={version:1,entries:[maple,oldJuniper].map(rows=>({kind:"history",petId:rows[0].petId,timeZone:"UTC",goal:"complete_set",from:"2024-01-01",to:"2024-12-31",recordedFrom:null,recordedTo:null,orderBy:"event",order:"asc",terms:[],limited:false,sources:rows.map(r=>({id:r.id,hash:createHash("sha256").update(r.body).digest("hex"),eventAt:r.eventAt,recordedAt:r.recordedAt}))}))};
-async function execute(stale=false){
- const f=fixture(),reads=[];let calls=0;
+async function execute(stale=false,misassigned=false){
+ const f=fixture(),reads=[];let calls=0;if(misassigned){f.plan[0].reference="r1";f.plan[1]={...f.plan[1],needsHistory:true,recordMode:"collection",reference:"r2"};}
  const result=await runReadOnlyAsk({ownerId:"owner",selectedPetId:pets[0].id,pets,readReferences:packet,dialogue:[{role:"assistant",text:"Untrusted earlier prose says Maple gained 999 kg."}],question:f.context.question,now:"2026-11-14T00:00:00Z",timeZone:"UTC"},{
   provider:async(req,phase)=>{calls++;
    if(phase==="read_selection")return decodeComponentSelection({safety:safety(),reads:[{name:"search_saved_records",arguments:args("p2","2023")}],draft:"Reuse 999 kg.",historyIntent:{requested:true,timeBasis:"event",pet:"p2"},workflowIntent:"none",taskPlan:f.plan},req.tools,req.context,decodeClinicalSelection);
@@ -98,4 +98,37 @@ const {checkReferencedSources}=await import("../app/lib/ask-read-only/references
 test("duplicate retained rows cannot mask a missing signed operand",()=>{
  const r=checkReferencedSources({sources:[maple[0],maple[0]],hasMore:false},{expectedSources:packet.entries[0].sources});
  assert.equal(r.staleReference,true);assert.deepEqual(r.sources,[]);assert.equal(r.inspected,1);
+});
+
+test("actual two-call annual correction reconciles known cross-assigned task hints before strict IO validation",async()=>{
+ const r=await execute(false,true);
+ assert.equal(r.calls,2);assert.equal(r.reads.length,2);
+ assert.deepEqual(r.result.answer.calculations.map(c=>c.value),[1,10,.5,12.5]);
+ assert.ok(r.result.answer.taskCompletion.every(t=>t.status==="complete"));
+ assert.equal(r.reads.find(x=>x.pet.id===pets[1].id).from,"2023-01-01");
+ assert.equal(r.reads.find(x=>x.pet.id===pets[0].id).reference,"r1");
+});
+test("known reference identity remains distinct from corrected annual task membership",()=>{
+ const f=fixture();f.plan[0].reference="r1";f.plan[1].reference="r2";
+ const r=recoverAnnualComparison(f.first,f.plan,f.context,f.bind);assert.ok(r);
+ assert.equal(r.plan[0].reference,null);assert.equal(r.plan[1].reference,"r1");
+});
+test("a third known owned pet hint cannot be laundered into a two-pet correction",()=>{
+ const f=fixture();f.context.pets.push({id:"third",ownerId:"owner",name:"Birch",handle:"p3"});f.context.references.push({...ref(f.context.pets[2],3)});
+ f.plan[0].reference="r3";assert.equal(recoverAnnualComparison(f.first,f.plan,f.context,f.bind),null);
+});
+
+for(const [label,patch] of [
+ ["unmatched annual wording",f=>f.context.question="For Juniper use May 2023; keep Maple's 2024 side."],
+ ["clinical authority",f=>f.firstSafety={...safety(),medicationIntent:"decision"}],
+ ["third-pet reference",f=>f.third=true]
+])test("deferred known task membership still rejects before IO: "+label,async()=>{
+ const f=fixture();patch(f);let reads=0,physical=0;
+ const extra=f.third?[{...pets[0],id:"third-private",handle:"p3",name:"Birch"}]:[];
+ const refs=f.third?{version:1,entries:[...packet.entries,{...packet.entries[0],petId:"third-private"}]}:packet;
+ await assert.rejects(()=>runReadOnlyAsk({ownerId:"owner",selectedPetId:pets[0].id,pets:[...pets,...extra],question:f.context.question,dialogue:[],readReferences:refs,now:"2026-11-14T00:00:00Z",timeZone:"UTC"},{
+ provider:async(req,phase)=>{physical++;assert.equal(phase,"read_selection");const plan=[task("t1","p2",{reference:f.third?"r3":"r1"}),task("t2","p1",{reference:"r2"})];return decodeComponentSelection({safety:f.firstSafety??safety(),reads:[],draft:"",historyIntent:{requested:true,timeBasis:"event",pet:null},workflowIntent:"none",taskPlan:plan},req.tools,req.context,decodeClinicalSelection);},
+ read:async()=>{reads++;throw Error("FORBIDDEN_READ");}
+ }),/ASK_READ_COMPONENT_CONTRACT/);
+ assert.equal(reads,0);assert.equal(physical,1);
 });

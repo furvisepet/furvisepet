@@ -153,6 +153,12 @@
     ],
     "R61": [
       "A12"
+    ],
+    "R62": [
+      "A20"
+    ],
+    "R63": [
+      "A21"
     ]
   },
   "rule": "One fresh reserved turn may replace only one listed prior-SHA case after independent pre-dispatch review of the original behavioral requirements against independently pinned replacement facts. Original pet/date/numeric literals are replaced by the new question's verified scope, never copied as facts. Preserve the original result and cost. Logic-only owner-supplied examples cannot replace saved-source recurrence qualification. No unlisted replacement, reused prompt, current-SHA retry, or pass transfer.",
@@ -173,5 +179,6 @@
   "sourceFreeRecordPrerequisiteRepairFreeze": "2026-11-14T15:39:54.250330+00:00",
   "declaredUnavailabilityRepairFreeze": "2026-11-14T16:02:27.380774+00:00",
   "collectionCompositionRepairFreeze": "2026-11-14T17:19:16.319215+00:00",
-  "emptyCollectionReadRepairFreeze": "2026-11-14T17:38:28.093905+00:00"
+  "emptyCollectionReadRepairFreeze": "2026-11-14T17:38:28.093905+00:00",
+  "referenceMembershipRepairFreeze": "2026-11-14T21:20:44.940122+00:00"
 }

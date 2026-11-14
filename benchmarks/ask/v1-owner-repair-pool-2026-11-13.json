@@ -726,6 +726,38 @@
       "dependsOn": [
         "R60"
       ]
+    },
+    {
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T21:20:44.940122+00:00",
+      "exposure": "Fresh different pet/year arithmetic pair frozen before outputs after R39 reference-contract FAIL. Prior results/costs retained. Independent exact endpoint goldens, no pass transfer or paid/source cap increase.",
+      "id": "R62",
+      "category": "arithmetic",
+      "conversation": "repair-reference-math",
+      "question": "For Cedar during 2021 and Echo during 2020, compare each pet's January weight with its December weight. Show each change in kilograms and percent with the pet and year clearly labeled.",
+      "expected": "Actual owned endpoint reads and four server calculations: Cedar12.46->12.92,+.46kg,+3.69181380417335%;Echo5.85->5.94,+.09kg,+1.53846153846155%. Correct distinct pets/years and January-December event axis; verified original bodies, no invented combined/unlabeled calculation.",
+      "dependsOn": []
+    },
+    {
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T21:20:44.940122+00:00",
+      "exposure": "Fresh different pet/year arithmetic pair frozen before outputs after R39 reference-contract FAIL. Prior results/costs retained. Independent exact endpoint goldens, no pass transfer or paid/source cap increase.",
+      "id": "R63",
+      "category": "correction",
+      "conversation": "repair-reference-math",
+      "question": "Change Echo's side to 2021 instead of 2020, while keeping Cedar's 2021 side unchanged. Recalculate both labeled comparisons from the saved notes.",
+      "expected": "After R62PASS sameSHA: fresh Echo2021 and owner-bound Cedar2021 operand rehydration; independent exact Echo5.98->6.28,+.30kg,+5.01672240802675%;Cedar12.46->12.92,+.46kg,+3.69181380417335%. No reference-contract/publication failure, stale Echo2020 fact, assistant-prose authority or missing-pet/year clarification. Two calls, unchanged caps.",
+      "dependsOn": [
+        "R62"
+      ]
     }
   ],
   "additionalEmergencyPublicationRepair": {
@@ -747,6 +779,12 @@
     "frozenAt": "2026-11-14T17:38:28.093905+00:00",
     "retainedFailure": "R52",
     "independentGoldenSHA256": "24f80a113889346b87ecd208259a66e8eb275b94ad757ce032d9c8bd1c3daf60",
+    "paidLimitsUnchanged": true
+  },
+  "referenceMembershipRepairFreeze": {
+    "frozenAt": "2026-11-14T21:20:44.940122+00:00",
+    "retainedFail": "R39",
+    "goldenSHA256": "0c3799763c329fad49202483a7cf4723112556bf7bc0bf32abfc38125ecf6c15",
     "paidLimitsUnchanged": true
   }
 }
