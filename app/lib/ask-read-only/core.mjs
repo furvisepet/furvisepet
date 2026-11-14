@@ -275,7 +275,7 @@ export async function runReadOnlyAsk(input,deps) {
  if(!keys(first,Object.hasOwn(first??{},"workflowIntent")?["calls","text","safety","historyIntent","workflowIntent"]:Object.hasOwn(first??{},"historyIntent")?["calls","text","safety","historyIntent"]:Object.hasOwn(first??{},"safety")?["calls","text","safety"]:["calls","text"])||!Array.isArray(first.calls)||first.calls.length>4||typeof first.text!=="string"||first.text.length>12000)fail("ASK_READ_PROVIDER_INVALID");
  const namedPet=first.calls.length===0?reconcileNoReadPet(taskPlan,first.safety,context,pets,input.ownerId,handle=>bindReadTool("read_pet_profile",{pet:handle},pets).pet):null;
  if(namedPet){taskPlan=namedPet.plan;first={...first,text:"",safety:namedPet.safety};deps.onAnswerBoundary?.({outcome:"pet_scope_reconciled",method:"explicit_owned_no_read_subject",taskCount:namedPet.resolved,grantsRead:false});}
- deps.onAnswerBoundary?.({outcome:"task_selection_reviewed",historyTimeBasis:first.historyIntent?.timeBasis??null,plannedReadCount:first.calls.length,tasks:taskPlan?.map(t=>({kind:t.kind,recordMode:t.recordMode,combineHistory:t.combineHistory===true,needsHistory:t.needsHistory,petScopeCount:t.pets.length,boundReference:!!t.reference,missing:t.missing,missingFields:t.missing.join(",")}))});
+ deps.onAnswerBoundary?.({outcome:"task_selection_reviewed",historyTimeBasis:first.historyIntent?.timeBasis??null,plannedReadCount:first.calls.length,tasks:taskPlan?.map(t=>({kind:t.kind,recordMode:t.recordMode,combineHistory:t.combineHistory===true,needsHistory:t.needsHistory,needsOwnerFacts:t.needsOwnerFacts,petScopeCount:t.pets.length,boundReference:!!t.reference,missing:t.missing,missingFields:t.missing.join(",")}))});
  if(taskPlan){first.taskPlan=taskPlan;first=fulfillReferenceReads(first,references);taskPlan=first.taskPlan;context.taskPlan=taskPlan;}
  let assessment=Object.hasOwn(first,"safety")?validateClinicalAssessment(first.safety):null;
  const recovered=recoverBoundedCalendarRead(first,context,pets);
@@ -306,7 +306,7 @@ export async function runReadOnlyAsk(input,deps) {
   const request=call.request;
   const bounded=!!(request.from&&request.to||request.recordedFrom&&request.recordedTo||request.reference&&request.expectedSources?.length);
   const allowed=!plan||plan.some(t=>t.needsHistory&&!t.missing.some(v=>["pet","year","date_meaning"].includes(v)||v==="which_record"&&!bounded)&&(t.reference&&call.reference===t.reference||t.pets.includes(request.pet.handle)));
-  deps.onAnswerBoundary?.({outcome:"task_read_gate",tool:call.name,allowed,boundedDiscovery:bounded,boundReference:!!call.reference,continuation:!!request.continuation,tasks:plan?.map(t=>({kind:t.kind,recordMode:t.recordMode,needsHistory:t.needsHistory,petScopeCount:t.pets.length,missing:t.missing}))});
+  deps.onAnswerBoundary?.({outcome:"task_read_gate",tool:call.name,allowed,boundedDiscovery:bounded,boundReference:!!call.reference,continuation:!!request.continuation,tasks:plan?.map(t=>({kind:t.kind,recordMode:t.recordMode,needsHistory:t.needsHistory,needsOwnerFacts:t.needsOwnerFacts,petScopeCount:t.pets.length,missing:t.missing}))});
   return allowed;
  });
  };

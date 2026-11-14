@@ -57,7 +57,10 @@ function checkedTaskPlan(plan,context,deferKnownReferencePet=false){
   const reference=context.references.find(r=>r.reference===t.reference);
   if(t.reference!==null&&(!reference||!deferKnownReferencePet&&t.pets.length>0&&!t.pets.includes(reference.petHandle)))reject("reference");
  }
- return plan.map(t=>({...t,combineHistory:t.combineHistory===true,recordMode:t.kind==="saved_continuation"?"collection":t.recordMode,needsOwnerFacts:t.kind==="owner_observations"||t.kind==="vet_brief"&&t.needsOwnerFacts,missing:[...new Set(t.missing)].filter(k=>(k!=="which_record"||t.recordMode!=="collection"&&t.kind!=="saved_continuation")&&(k!=="owner_observation"||["owner_observations","vet_brief"].includes(t.kind))&&(k!=="date_meaning"||t.kind!=="general_guidance"||t.needsHistory||t.reference!==null||t.needsOwnerFacts))}));
+ // Normalize dependent fields first. Applicability must never consult an
+ // irrelevant RAW flag that has already been removed from the task contract.
+ return plan.map(t=>({...t,combineHistory:t.combineHistory===true,recordMode:t.kind==="saved_continuation"?"collection":t.recordMode,needsOwnerFacts:t.kind==="owner_observations"||t.kind==="vet_brief"&&t.needsOwnerFacts,missing:[...new Set(t.missing)]}))
+  .map(t=>({...t,missing:t.missing.filter(k=>(k!=="which_record"||t.recordMode!=="collection"&&t.kind!=="saved_continuation")&&(k!=="owner_observation"||["owner_observations","vet_brief"].includes(t.kind))&&(k!=="date_meaning"||t.kind!=="general_guidance"||t.needsHistory||t.reference!==null||t.needsOwnerFacts))}));
 }
 export function validateTaskPlan(plan,context){return checkedTaskPlan(plan,context);}
 export function decodeComponentSelection(value,tools,context,decode){

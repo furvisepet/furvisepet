@@ -523,7 +523,7 @@ for(const extra of [
  {kind:"saved_content",needsHistory:true,recordMode:"single"},
  {needsHistory:true,recordMode:"single"},
  {reference:"r1"},{kind:"clinical_guidance"},{kind:"vet_brief"},
- {kind:"workflow",workflow:"find_care_note"},{needsOwnerFacts:true}
+ {kind:"workflow",workflow:"find_care_note"},{kind:"owner_observations",needsOwnerFacts:true}
 ])test("timestamp axis remains meaningful outside source-free ordinary reasoning "+JSON.stringify(extra),()=>{
  const p=validateTaskPlan([task({missing:["date_meaning"],...extra})],axisContext);
  assert.deepEqual(p[0].missing,["date_meaning"]);
@@ -537,4 +537,18 @@ test("a genuine timestamp-axis clarification is a readable pointed question",()=
  {...task({kind:"saved_content",needsHistory:true,recordMode:"single",missing:["date_meaning"]}),componentIndexes:[],sources:[],historyFacts:[],ownerFacts:[],status:"unresolved",reason:"missing_context"}
  ],[],null);
  assert.equal(a.answer,"Should I use the event date or the save date?");
+});
+
+test("general task field applicability uses normalized owner-fact requirements",()=>{
+ const p=validateTaskPlan([task({needsOwnerFacts:true,missing:["date_meaning","year"]})],axisContext);
+ assert.equal(p[0].needsOwnerFacts,false);
+ assert.deepEqual(p[0].missing,["year"]);
+});
+test("actual two-call owner-statement reasoning survives an irrelevant raw owner-fact flag",async()=>{
+ const s=safety({careContext:"education"}),prose="Those statements conflict; they do not establish a worsening pattern.";
+ const r=await execute([task({needsOwnerFacts:true,missing:["date_meaning"]})],s,final(s,{components:[{kind:"general",text:prose,sources:[]}]}),{question:"Two owner-supplied descriptions disagree about the same period. Can that prove worsening?",workflowIntent:"none"});
+ assert.equal(r.calls,2);assert.equal(r.reads.length,0);
+ assert.equal(r.result.answer.answer,prose);
+ assert.equal(r.requests[1].context.taskPlan[0].needsOwnerFacts,false);
+ assert.deepEqual(r.requests[1].context.taskPlan[0].missing,[]);
 });

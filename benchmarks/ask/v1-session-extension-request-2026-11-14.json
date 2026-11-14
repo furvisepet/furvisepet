@@ -2,9 +2,9 @@
   "schema": "AskV1SessionExtensionRequest.v1",
   "status": "requested_not_authorized",
   "planHash": "4b6362042704afe0fda7906f158de20e64bcd658163d997f6bf8a85abf8b80d2",
-  "maxTurns": 66,
-  "maxCalls": 132,
+  "maxTurns": 68,
+  "maxCalls": 136,
   "maxNewMicroUSD": 2500000,
-  "maximumReserveDispatches": 34,
-  "reason": "After32actual turns including retained source-free A18 timestamp-axis FAIL, the repaired source must freshly requalify. Request18additional turns,36additional physical-call capacity and18additional repair reserves above original48/96/16, within unchanged$2.50 NEW cap. The70pre-output frozen candidates are a pool, not70app queries. With16initial cases remaining, an explicitly authorized18reserve extension can support34fresh final-source turns, roughly31paid after deterministic emergencies, if no more source repair. This is NOT approval; original48/96/16 stays active until a distinct new G decision bound to this exact request."
+  "maximumReserveDispatches": 36,
+  "reason": "After33actual turns and retained A19 normalization-order FAIL, a newly repaired exact source must requalify. Request20additional turns,40additional physical-call capacity and20additional reserves above original48/96/16, keeping the SAME$2.50 NEW ceiling. The70frozen candidates are only a pool.15initial cases remain; a distinct authorized extension permits a34fresh-final-source cohort with roughly31paid turns after deterministic emergencies and one spare slot, if no further source repair. No original result or criterion is erased/weakened. This is NOT approval; original48/96/16 remains active until a distinct new G decision bound to this exact request."
 }

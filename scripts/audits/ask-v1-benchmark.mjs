@@ -88,8 +88,8 @@ export function dispatchGate({plan, frozen, approval, pin, oldReceipt, results =
   const extension=approval.sessionExtension;
   if(extension){
     need(extensionRequest.schema==='AskV1SessionExtensionRequest.v1' && extensionRequest.status==='requested_not_authorized' &&
-      extensionRequest.planHash===frozen.planHash && extensionRequest.maxTurns===66 && extensionRequest.maxCalls===132 &&
-      extensionRequest.maxNewMicroUSD===2500000 && extensionRequest.maximumReserveDispatches===34, 'bounded extension request mismatch');
+      extensionRequest.planHash===frozen.planHash && extensionRequest.maxTurns===68 && extensionRequest.maxCalls===136 &&
+      extensionRequest.maxNewMicroUSD===2500000 && extensionRequest.maximumReserveDispatches===36, 'bounded extension request mismatch');
     need(approval.maxTurns===48 && approval.maxCalls===96 && approval.maxNewMicroUSD===2500000 &&
       extension.schema==='AskV1SessionExtensionApproval.v1' && extension.status==='approved' && extension.owner==='G' &&
       extension.planHash===frozen.planHash && extension.originalApprovalEvidenceHash===approval.messageEvidenceHash &&
