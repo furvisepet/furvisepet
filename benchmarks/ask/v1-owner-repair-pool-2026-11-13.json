@@ -533,6 +533,21 @@
       "releaseReasonRequired": true,
       "exposure": "Frozen before first output. Independent ordinary-science question supplies an eligible final-head turn because unused R05 depends on an already consumed old-SHA parent and cannot be silently replayed. Candidate count does not grant paid authority.",
       "frozenAt": "2026-11-14T15:26:11.693020+00:00"
+    },
+    {
+      "id": "R50",
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "category": "unknown",
+      "conversation": "repair-unavailable-not-record-choice",
+      "question": "Who gave Cedar his first toy? I never recorded the giver's name in Furvise.",
+      "expected": "Same original A04 gate: truthful bounded unknown, uniquely owned Cedar resolved through existing binder; no invented person/name, pet/record/medicine clarification, irrelevant read, exhaustive absence claim or unavailable image-reading offer. Source-free information absence is not an ambiguous single saved record. Actual R46 FAIL and costs retained.",
+      "dependsOn": [],
+      "medical": false,
+      "critical": true,
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T15:39:54.250330+00:00",
+      "exposure": "Fresh nonvisual unknown-detail question frozen before output after observed R46 false which_record prerequisite. Known failure family, no reused tested prompt and no new paid authority."
     }
   ],
   "additionalEmergencyPublicationRepair": {
@@ -546,5 +561,6 @@
   "imageCapabilityRepairFreeze": "2026-11-14T15:01:25.115731+00:00",
   "generalIdentityRepairFreeze": "2026-11-14T15:11:37.671855+00:00",
   "finalCriticalAnaloguesFreeze": "2026-11-14T15:19:23.415237+00:00",
-  "eligibleFinalHeadFreeze": "2026-11-14T15:26:11.693020+00:00"
+  "eligibleFinalHeadFreeze": "2026-11-14T15:26:11.693020+00:00",
+  "sourceFreeRecordPrerequisiteRepairFreeze": "2026-11-14T15:39:54.250330+00:00"
 }

@@ -29,7 +29,7 @@ export const COMPONENT_INSTRUCTIONS=[
  "A corrected multi-pet calculation keeps each pet and year independent. The unchanged comparison still needs its owned reference operands re-read; an earlier assistant number is not evidence. Plan a fresh bounded read for the changed period and owner-bound rehydration for the unchanged side as history-dependent calculation tasks.",
  "For any requested saved/profile content or calculation set needsHistory=true and bind pets to all explicitly named or unambiguously established authorized subjects. A comparison/calculation may have multiple pets; keep each tool read pet/time scoped. An empty pets list is not permission to guess from the selected UI pet. A selected reference carries its own authorized pet. General guidance alone does not require saved reads. needsOwnerFacts is only for an owner_observations task or a vet_brief that must reproduce actual observations. Preferences, time constraints and plan revisions are ordinary dialogue context, not factual excerpts required before general guidance can be answered.",
  "The date_meaning field means the database event-versus-save filter axis. It cannot block a source-free general explanation or reasoning about owner-supplied statements. If no saved retrieval is needed, answer the stated reasoning question without requesting a database date axis.",
- "An unknown or explicitly unrecorded detail is not a missing pet identity. When the owner says the detail was never entered, do not search unrelated history or invent its value. Explain the information limit. If a saved fact may exist and retrieval is requested, needsHistory must remain true and the real scope must be resolved.",
+ "which_record means identifying ONE saved record with needsHistory=true and recordMode=single. It is not an information-unavailable flag and cannot apply to a source-free task or a collection. An unknown or explicitly unrecorded detail is not a missing pet identity or a missing saved-result choice. When the owner says the detail was never entered, do not search unrelated history or invent its value. Explain the information limit. If a saved fact may exist and retrieval is requested, needsHistory must remain true and the real scope must be resolved.",
  "missing identifies what is genuinely unresolved. A vague month with no established pet/year requires one pointed pet/year question; do not use the UI-selected pet as evidence of a pronoun. An explicit pet plus month/year is sufficient; do not demand a day. A follow-up pet/year correction overrides the old result and requires a new bounded search. Preserve the established date axis unless the owner changes it. Requesting both event and recorded timestamps is display metadata, not date-axis ambiguity: asking when an event happened and when its note was saved must not create date_meaning or suppress the read. Clinical missing authority must not prevent an independently scoped saved-data task.",
  "In the final completion array account for EACH task ID once. Select componentIndexes for independently answerable ordinary prose, sources for current admitted evidence, and exact factual excerpts for a vet brief. ownerFacts excerpts must be short COMPLETE verbatim sentences preserving negation, attribution and caveats; declarative observations from the selected USER statement, not their request, an assistant assertion, speculation, or a question. historyFacts excerpts must be one or more CONTIGUOUS COMPLETE sentences occurring byte-for-byte in an admitted note, preserving negation and attribution. Never generate a diagnosis or regimen directive in these excerpts; historical plans remain historical quotations. Questions for the vet come from the bounded clinical review fields. Do not put extra clinical recommendations into a summary component.",
  "Use complete only when this requested task is actually delivered. Unresolved/partial requires a specific reason. Preserve the other completed tasks. Do not add a generic partial/context notice when all requested components are delivered. Do not repeat server dates or arithmetic in model prose; the server publishes them once. Source omissions limit only the affected task; never claim a complete collection when bodies are omitted."
@@ -43,6 +43,7 @@ export function componentSelectionSchema(base,context){
  })};
  const withoutHistory=structuredClone(out.properties.taskPlan.items),withHistory=structuredClone(out.properties.taskPlan.items);
  withoutHistory.properties.needsHistory={type:"boolean",enum:[false]};withoutHistory.properties.combineHistory={type:"boolean",enum:[false]};withoutHistory.properties.recordMode=choice(["none"]);
+ withoutHistory.properties.missing=array(choice(missing.filter(field=>field!=="which_record")),7);
  withHistory.properties.needsHistory={type:"boolean",enum:[true]};withHistory.properties.recordMode=choice(["single","collection"]);
  // Encode the same kind/workflow relation enforced by checkedTaskPlan.
   // Independent enum fields otherwise allow a schema-valid but unusable packet.
@@ -71,7 +72,7 @@ function checkedTaskPlan(plan,context,deferKnownReferencePet=false){
  // Normalize dependent fields first. Applicability must never consult an
  // irrelevant RAW flag that has already been removed from the task contract.
  return plan.map(t=>({...t,combineHistory:t.combineHistory===true,recordMode:t.kind==="saved_continuation"?"collection":t.recordMode,needsOwnerFacts:t.kind==="owner_observations"||t.kind==="vet_brief"&&t.needsOwnerFacts,missing:[...new Set(t.missing)]}))
-  .map(t=>({...t,missing:t.missing.filter(k=>(k!=="which_record"||t.recordMode!=="collection"&&t.kind!=="saved_continuation")&&(k!=="owner_observation"||["owner_observations","vet_brief"].includes(t.kind))&&(k!=="date_meaning"||t.kind!=="general_guidance"||t.needsHistory||t.reference!==null||t.needsOwnerFacts))}));
+  .map(t=>({...t,missing:t.missing.filter(k=>(k!=="which_record"||t.needsHistory&&t.recordMode==="single"&&t.kind!=="saved_continuation")&&(k!=="owner_observation"||["owner_observations","vet_brief"].includes(t.kind))&&(k!=="date_meaning"||t.kind!=="general_guidance"||t.needsHistory||t.reference!==null||t.needsOwnerFacts))}));
 }
 export function validateTaskPlan(plan,context){return checkedTaskPlan(plan,context);}
 export function decodeComponentSelection(value,tools,context,decode){
@@ -82,7 +83,9 @@ export function decodeComponentSelection(value,tools,context,decode){
  const clean={...value};delete clean.taskPlan;
  const first=decode(clean,tools,context),corrected=reconcileCorrectedReference(first,value?.taskPlan,context);
  const taskPlan=validateTaskPlan(corrected?.taskPlan??value?.taskPlan,context);
- return {...(corrected??first),taskPlan};
+ const selected=corrected??first;
+ const changedPrerequisites=(corrected?.taskPlan??value.taskPlan).some(t=>t.missing.some(field=>!taskPlan.find(checked=>checked.id===t.id)?.missing.includes(field)));
+ return {...selected,text:changedPrerequisites?"":selected.text,taskPlan};
 }
 function containedCollection(outer,inner){
  if(outer.kind!=="history"||inner.kind!=="history"||outer.pet.id!==inner.pet.id||outer.pet.ownerId!==inner.pet.ownerId||outer.referenceTimeZone!==inner.referenceTimeZone||JSON.stringify(outer.terms)!==JSON.stringify(inner.terms))return false;

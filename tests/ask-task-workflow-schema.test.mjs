@@ -41,3 +41,14 @@ for(const verb of ["delete","edit","save","upload"])test("two-call capability re
  assert.equal(calls,2);assert.equal(reads,0);assert.match(result.answer.answer,/read-only/);assert.doesNotMatch(result.answer.answer,/Which screen|To add a text note|Open Today/);
  assert.equal(result.answer.replyType,"refusal");
 });
+
+test("source-free native task variants cannot emit a single-record prerequisite",()=>{
+ for(const variant of schema.anyOf)if(variant.properties.needsHistory.enum?.includes(false))
+  assert.ok(!variant.properties.missing.items.enum.includes("which_record"));
+ for(const kind of ["general_guidance","saved_content","clarification"]){
+  const plan=validateTaskPlan([task({kind,missing:["which_record","pet","year"]})],context);
+  assert.deepEqual(plan[0].missing,["pet","year"]);
+ }
+ const actual=validateTaskPlan([task({kind:"saved_content",needsHistory:true,recordMode:"single",missing:["which_record"]})],context);
+ assert.deepEqual(actual[0].missing,["which_record"]);
+});

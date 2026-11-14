@@ -154,3 +154,10 @@ test('general identity still rejects foreign, changed, duplicate and unnamed sub
  assert.equal(scope(p,undefined,undefined,[...owned,{...owned[1],handle:'p3'}]),null);
  for(const patch of [{ownerId:'foreign'},{id:'changed'}])assert.equal(scope(p,undefined,undefined,undefined,()=>({...owned[1],...patch})),null);
 });
+
+test('source-free task cannot acquire a single-record prerequisite after owner says the detail was not recorded',async()=>{
+ const r=await execute({plan:[task({kind:'general_guidance',pets:['p2'],missing:['which_record']})],state:safety(),prose:'I do not have verified wording for that unrecorded detail.'});
+ assert.deepEqual(r.contexts[1].taskPlan[0].missing,[]);
+ assert.doesNotMatch(r.result.answer.answer,/Which saved result/);assert.match(r.result.answer.answer,/unrecorded detail/);
+ assert.equal(r.calls,2);assert.equal(r.reads,0);
+});
