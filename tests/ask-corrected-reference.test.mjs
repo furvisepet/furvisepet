@@ -77,3 +77,12 @@ test("two independent history tasks cannot share the correction shortcut",()=>{
 test("malformed plans and unknown locators reject before lower-level decoding; only known scope mismatch can be reconsidered",()=>{
  for(const patch of [{reference:"forged"},{unexpected:"field"},{pets:["p99"]}]){const f=fixture();Object.assign(f.plan[0],patch);let decoded=0;assert.throws(()=>decodeComponentSelection({taskPlan:f.plan},[],f.context,()=>{decoded++;return f.first;}),/ASK_READ_COMPONENT_CONTRACT/);assert.equal(decoded,0);}
 });
+
+test("corrected owned pet names are literal even with regular-expression punctuation",()=>{
+ for(const name of ["Juniper (Jr.)","Juni.per+","Juni[per]","Juni$per"]){
+  const f=fixture("I meant "+name+", not Maple, for November 2024.");
+  f.context.pets=[pets[0],{...pets[1],name}];
+  const r=reconcileCorrectedReference(f.first,f.plan,f.context);
+  assert.ok(r,name);assert.equal(JSON.parse(r.calls[0].arguments).pet,"p2");
+ }
+});

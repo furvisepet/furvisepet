@@ -7,7 +7,7 @@ function positiveOwnedPets(question,pets){
  const mentions=[];
  for(const pet of pets){
   if(typeof pet.name!=="string"||!pet.name)return [];
-  const escaped=pet.name.replace(/[.*+?^$()|[\]\\{}]/g,"\\MODULE");
+  const escaped=pet.name.replace(/[.*+?^$()|[\]\\{}]/g,"\\$&");
   for(const m of question.matchAll(new RegExp("(?<![\\p{L}\\p{N}])"+escaped+"(?![\\p{L}\\p{N}])","giu"))){
    const prefix=question.slice(Math.max(0,m.index-45),m.index);
    mentions.push({pet,start:m.index,end:m.index+m[0].length,negative:/\b(?:not|instead of|rather than|excluding|except)\s*$/iu.test(prefix)});

@@ -90,3 +90,41 @@ test('composition-only identity binding never relaxes the selection-stage histor
   assert.equal(reconcileNoReadPet(p,{...s,...patch},context,owned,'owned',binder,true),null);
  }
 });
+
+test('actual source-free clarification plan cannot ask again for an explicitly named owned pet',async()=>{
+ const r=await execute({plan:[task({kind:'clarification'})]});
+ assert.equal(r.calls,2);assert.equal(r.reads,0);
+ assert.doesNotMatch(r.result.answer.answer,/Which pet|blue squares/);
+ assert.match(r.result.answer.answer,/verified saved information/);
+ assert.deepEqual(r.contexts[1].taskPlan[0].pets,['p2']);
+ assert.deepEqual(r.contexts[1].taskPlan[0].missing,[]);
+ assert.equal(r.result.answer.taskCompletion[0].reason,'source_unavailable');
+});
+test('clarification identity repair is closed-acquisition composition only',()=>{
+ const p=[task({kind:'clarification'})],s={...safety(),scenario:'none',currentEvents:[],conditionalEvents:[]},context={question:"Juniper's unrecorded bowl words"};
+ const bind=h=>owned.find(p=>p.handle===h);
+ assert.equal(reconcileNoReadPet(p,s,context,owned,'owned',bind),null);
+ const r=reconcileNoReadPet(p,s,context,owned,'owned',bind,true);
+ assert.equal(r.plan[0].kind,'saved_content');
+ assert.equal(r.plan[0].needsHistory,false);
+ assert.equal(r.plan[0].recordMode,'none');
+ assert.deepEqual(r.plan[0].missing,[]);
+});
+for(const patch of [
+ {missing:['pet','year']},{missing:['medicine']},{missing:['pet','which_record']},
+ {missing:[]},{needsHistory:true,recordMode:'single'},
+ {reference:'r1'},{needsOwnerFacts:true},{pets:['p1','p2']}
+])test('source-free clarification keeps unresolved independent scope '+JSON.stringify(patch),()=>{
+ const p=[task({kind:'clarification',...patch})],s={...safety(),scenario:'none',currentEvents:[],conditionalEvents:[]};
+ assert.equal(reconcileNoReadPet(p,s,{question:"Juniper's old detail"},owned,'owned',h=>owned.find(p=>p.handle===h),true),null);
+});
+test('clarification cannot borrow a missing explicit pet from UI, duplicate or foreign names',()=>{
+ const p=[task({kind:'clarification'})],s={...safety(),scenario:'none',currentEvents:[],conditionalEvents:[]};
+ for(const question of ['Her first bowl.','Juniperberry bowl.','Willow and Juniper bowl.','Foreign bowl.'])
+  assert.equal(reconcileNoReadPet(p,s,{question},owned,'owned',h=>owned.find(p=>p.handle===h),true),null);
+});
+test('clarification cannot clear real medical authority or emergency scope',()=>{
+ const p=[task({kind:'clarification'})],s={...safety(),scenario:'none',currentEvents:[],conditionalEvents:[]};
+ for(const patch of [{medicationIntent:'decision'},{careContext:'current_concern'},{scenario:'current'},{currentEvents:['collapse']},{conditionalEvents:['breathing_distress']},{missingContext:['medicine']}])
+  assert.equal(reconcileNoReadPet(p,{...s,...patch},{question:"Juniper's bowl"},owned,'owned',h=>owned.find(p=>p.handle===h),true),null);
+});

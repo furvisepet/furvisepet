@@ -126,13 +126,21 @@ export function fulfillReferenceReads(first,references=[]){
 // compositionOnly is a server-only phase: acquisition must already be closed.
 // It binds identity for honest unacquired-source presentation, never read authority.
 export function reconcileNoReadPet(plan,safety,context,pets,ownerId,bindPet,compositionOnly=false){
- if(!plan||!safety||compositionOnly&&plan.length!==1||!Array.isArray(safety.missingContext)||plan.some(t=>!["saved_content","general_guidance"].includes(t.kind)||t.needsHistory&&!compositionOnly||t.reference||t.needsOwnerFacts)||!["none","education"].includes(safety.careContext)||safety.medicationIntent!=="none"
+ // A model may call a source-free unknown detail "clarification" instead of
+ // "saved_content". Once acquisition is CLOSED, a sole missing-pet task can
+ // resolve an explicit owned name without acquiring evidence or inventing the
+ // private detail. Canonical saved_content then uses the existing unavailable-
+ // source renderer; this grants neither a read nor a factual answer.
+ const clarificationDetail=t=>compositionOnly&&plan?.length===1&&t.kind==="clarification"
+  &&!t.needsHistory&&t.recordMode==="none"&&!t.reference&&!t.needsOwnerFacts
+  &&t.pets.length<=1&&t.missing.length===1&&t.missing[0]==="pet";
+ if(!plan||!safety||compositionOnly&&plan.length!==1||!Array.isArray(safety.missingContext)||plan.some(t=>(!["saved_content","general_guidance"].includes(t.kind)&&!clarificationDetail(t))||t.needsHistory&&!compositionOnly||t.reference||t.needsOwnerFacts)||!["none","education"].includes(safety.careContext)||safety.medicationIntent!=="none"
   ||safety.scenario!=="none"||safety.currentEvents?.length||safety.conditionalEvents?.length
   ||safety.missingContext.some(k=>k!=="pet"))return null;
  // With no medication/care intent, prescription authority cannot be a missing
  // field of a source-free saved-detail task. This never grants a clinical plan.
  const inapplicable=new Set(["pet","medicine","prescription","vet_plan"]);
- const eligible=t=>t.kind==="saved_content"&&(!t.needsHistory||compositionOnly)&&(t.recordMode==="none"||compositionOnly&&["single","collection"].includes(t.recordMode))&&!t.reference&&!t.needsOwnerFacts&&t.pets.length<=1&&t.missing.some(k=>inapplicable.has(k));
+ const eligible=t=>clarificationDetail(t)||t.kind==="saved_content"&&(!t.needsHistory||compositionOnly)&&(t.recordMode==="none"||compositionOnly&&["single","collection"].includes(t.recordMode))&&!t.reference&&!t.needsOwnerFacts&&t.pets.length<=1&&t.missing.some(k=>inapplicable.has(k));
  if(!plan.some(eligible))return null;
  const escaped=name=>name.replace(/[.*+?^{}$()|[\]\\]/g,"\\$&");
  const named=pets.filter(p=>p.ownerId===ownerId&&typeof p.name==="string"&&p.name.trim()
@@ -143,7 +151,7 @@ export function reconcileNoReadPet(plan,safety,context,pets,ownerId,bindPet,comp
  let resolved=0;
  const updated=plan.map(t=>{
   if(!eligible(t))return t;
-  resolved++;return {...t,pets:[pet.handle],missing:t.missing.filter(k=>!inapplicable.has(k))};
+  resolved++;return {...t,kind:clarificationDetail(t)?"saved_content":t.kind,pets:[pet.handle],missing:t.missing.filter(k=>!inapplicable.has(k))};
  });
  if(!resolved)return null;
  const missingContext=safety.missingContext.filter(k=>k!=="pet");

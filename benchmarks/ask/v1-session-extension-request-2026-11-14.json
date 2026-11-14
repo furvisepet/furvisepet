@@ -2,9 +2,9 @@
   "schema": "AskV1SessionExtensionRequest.v1",
   "status": "requested_not_authorized",
   "planHash": "4b6362042704afe0fda7906f158de20e64bcd658163d997f6bf8a85abf8b80d2",
-  "maxTurns": 56,
-  "maxCalls": 104,
+  "maxTurns": 64,
+  "maxCalls": 128,
   "maxNewMicroUSD": 2500000,
-  "maximumReserveDispatches": 24,
-  "reason": "After23 actual turns including retained A14 reference-contract FAIL, a new exact SHA must requalify at least30 fresh turns and roughly30 paid turns after deterministic emergencies. Request8additional turns,8additional physical-call capacity and8additional reserve dispatches above the original48/96/16; USD cap stays$2.50. This request is not approval; default48/96/16 remains active until a distinct G decision."
+  "maximumReserveDispatches": 32,
+  "reason": "After30 actual turns and a new functional R22 FAIL plus retained R32 protocol deviation, final-source requalification cannot inherit older passes. Request16additional turns,32additional physical-call capacity and16additional reserve dispatches above original48/96/16, using only 69 pre-output frozen candidates, including five different-scope repair alternatives. Final head can receive34fresh turns including roughly31paid and deterministic emergencies if no further source repair. Total NEW USD remains$2.50. This is not approval; original48/96/16 stays active until a distinct G decision bound to this request. No reused prompt or erased failure."
 }

@@ -3,7 +3,7 @@
   "rootPlanHash": "4b6362042704afe0fda7906f158de20e64bcd658163d997f6bf8a85abf8b80d2",
   "frozenAt": "2026-11-14T05:03:10.342416+00:00",
   "beforeAdditionalCaseOutputs": true,
-  "reason": "Actual A04 explicit-owned-pet unknown-detail failure requires a fresh analogous unknown case; original48 questions, criteria and all results remain unchanged.",
+  "reason": "Actual A04 explicit-owned-pet unknown-detail failure requires a fresh analogous unknown case; original48 questions, criteria and all results remain unchanged. Retained R22 clarification-kind failure and exhausted collection analogues require five additional PRE-OUTPUT candidates on a different owned pet/period. Candidate pool69 is not69authorized live turns; original48/96/16 active.",
   "originalFailureCase": "A04",
   "originalFailureEvidenceSha256": "04b3934c74e33f4b78655e80d78222ae47ee1a6aea37e4101ed201ac12199f1a",
   "paidLimitsUnchanged": {
@@ -185,7 +185,7 @@
       "id": "R29",
       "category": "collection",
       "conversation": "repair-collection-v4",
-      "question": "Read Bramble's complete 2022\u20132024 saved history in event-date order, oldest first. Summarize useful observations and make the coverage gaps clear.",
+      "question": "Read Bramble's complete 2022–2024 saved history in event-date order, oldest first. Summarize useful observations and make the coverage gaps clear.",
       "expected": "Same A11 collection gate:36owned candidates examined,32bodies Jan2022-Aug2024 supplied,4omitted Sep-Dec2024. Useful grounded historical overview and exact old one-day urinary/recovery exception; no choose-one clarification, inferred recurrence or complete-snapshot claim.",
       "medical": false,
       "critical": true,
@@ -263,6 +263,87 @@
       "releaseReasonRequired": true,
       "frozenAt": "2026-11-14T09:34:39.551Z",
       "exposure": "Fresh question frozen before its first app output; known failure families with all original per-SHA results and costs retained."
+    },
+    {
+      "medical": false,
+      "critical": true,
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T10:18:27.415Z",
+      "exposure": "Fresh wording frozen before first app output; independently inspected owner-scoped evidence, no prior tested prompt reused.",
+      "id": "R33",
+      "category": "collection",
+      "conversation": "repair-alternate-owner-history",
+      "question": "Give me a useful overview of Aster's entire 2018 through 2020 saved history, working from the oldest event forward. Tell me precisely which part your evidence leaves out.",
+      "expected": "36owned candidates,32admitted Jan2018-Aug2020,fourSep-Dec2020omitted. Useful appetite/activity historical context and exact May2018 several-day ear-scratching/recovery note; source-reported days do not establish recurring episodes or current disease. No choose-one clarification or snapshot completeness.",
+      "dependsOn": []
+    },
+    {
+      "medical": false,
+      "critical": true,
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T10:18:27.415Z",
+      "exposure": "Fresh wording frozen before first app output; independently inspected owner-scoped evidence, no prior tested prompt reused.",
+      "id": "R34",
+      "category": "continuation",
+      "conversation": "repair-alternate-owner-history",
+      "question": "Read the missing end of that period now and bring its findings into the overview. What did those newly read notes add, and how much of the earlier material did you recheck?",
+      "expected": "Existing owner-bound omitted-window reference actually acquires4Sep-Dec2020 and bounded8prior; fresh routine+exact Dec nutrition/no persistent digestive change integrated with oldMay2018 ear recovery. Honest retained-prior subset, fresh/nonsnapshot same-day caveats; no history-wide recurrence/trend.",
+      "dependsOn": [
+        "R33"
+      ]
+    },
+    {
+      "medical": false,
+      "critical": true,
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T10:18:27.415Z",
+      "exposure": "Fresh wording frozen before first app output; independently inspected owner-scoped evidence, no prior tested prompt reused.",
+      "id": "R35",
+      "category": "correction",
+      "conversation": "repair-alternate-owner-history",
+      "question": "I meant Dune's November 2023 note rather than Echo's. Correct the original quotation and the event and saved times for Dune.",
+      "expected": "New owned DuneNov2023lookup despite Echo reference; exact6.13kg whole routine note,eventNov15 12Z/savedNov16 12Z. No oldEcho body, no mutation, no whichpet.",
+      "dependsOn": [
+        "R06"
+      ]
+    },
+    {
+      "medical": false,
+      "critical": true,
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T10:18:27.415Z",
+      "exposure": "Fresh wording frozen before first app output; independently inspected owner-scoped evidence, no prior tested prompt reused.",
+      "id": "R36",
+      "category": "correction",
+      "conversation": "repair-alternate-owner-history",
+      "question": "Keep Dune, but change that to November 2022. Give the corrected original text and both timestamps.",
+      "expected": "DuneNov2022freshlookup, exact6.00kg whole routine body,eventNov15/savedNov16 2022 12Z. No stale2023source or invented correction write.",
+      "dependsOn": [
+        "R35"
+      ]
+    },
+    {
+      "medical": false,
+      "critical": true,
+      "partition": "A",
+      "cohort": "repair-reserve",
+      "releaseReasonRequired": true,
+      "frozenAt": "2026-11-14T10:18:27.415Z",
+      "exposure": "Fresh wording frozen before first app output; independently inspected owner-scoped evidence, no prior tested prompt reused.",
+      "id": "R37",
+      "category": "unknown",
+      "conversation": "repair-source-free-clarification-v2",
+      "question": "I have not recorded Cedar's original collar inscription in Furvise. Can you tell me the inscription?",
+      "expected": "Explicit owned Cedar resolved throughbinder, truthful lack of verified inscription and no invented letters, no Which pet, no medicine clarification, no irrelevant source scan or exhaustive-absence claim. RetainedR22 failure repaired; no tested prompt reused.",
+      "dependsOn": []
     }
   ],
   "additionalEmergencyPublicationRepair": {

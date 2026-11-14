@@ -84,6 +84,21 @@
     ],
     "R32": [
       "A15"
+    ],
+    "R33": [
+      "A11"
+    ],
+    "R34": [
+      "A12"
+    ],
+    "R35": [
+      "A14"
+    ],
+    "R36": [
+      "A15"
+    ],
+    "R37": [
+      "A04"
     ]
   },
   "rule": "One fresh reserved turn may replace only one listed prior-SHA case after independent pre-dispatch review of the original behavioral requirements against independently pinned replacement facts. Original pet/date/numeric literals are replaced by the new question's verified scope, never copied as facts. Preserve the original result and cost. Logic-only owner-supplied examples cannot replace saved-source recurrence qualification. No unlisted replacement, reused prompt, current-SHA retry, or pass transfer.",
