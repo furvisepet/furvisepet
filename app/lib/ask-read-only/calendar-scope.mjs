@@ -2,6 +2,26 @@ import {EVIDENCE_GOALS} from "./retrieval.mjs";
 /** Explicit calendar recognition only: no relative-time or event/recorded guessing. */
 const months=["january","february","march","april","may","june","july","august","september","october","november","december"];
 const aliases=months.flatMap((name,index)=>[[name,index],[name.slice(0,3),index]]);
+/** Missing a calendar year is distinct from an ambiguous database date axis.
+ * This only repairs a blocked, explicitly owned single-note clarification;
+ * it grants no read and never manufactures a year from the selected UI pet. */
+export function reconcileMissingCalendarYear(first,plan,context){
+ if(first.calls.length||!plan||first.safety?.medicationIntent!=="none"||first.safety.currentEvents?.length||first.safety.conditionalEvents?.length)return null;
+ const text=String(context.question),month=new RegExp("\\b(?:"+aliases.map(([name])=>name).join("|")+")\\b","i");
+ if(!month.test(text)||/\b(?:19|20|21)\d{2}\b|\b(?:last|this|next|previous|latest|earliest)\b/i.test(text))return null;
+ const explicitMissing=/\b(?:not|never|haven't|didn't)\s+(?:specified|given|provided|mentioned|entered|said)\s+(?:the |a )?year\b|\b(?:year is (?:unknown|missing)|(?:don't|do not) know (?:the|which) year)\b/i.test(text);
+ if(!explicitMissing&&((context.references??[]).length||(context.dialogue??[]).some(t=>/\b(?:19|20|21)\d{2}\b/.test(t.text))))return null;
+ if(/\b(?:event date or|save date or|event versus|recorded versus|which date|whether)\b/i.test(text))return null;
+ const escape=name=>name.replace(/[.*+?^$()|{}\[\]\\]/g,c=>"\\"+c);
+ const named=context.pets.filter(p=>new RegExp("(?<![\\p{L}\\p{N}])"+escape(p.name)+"(?![\\p{L}\\p{N}])","iu").test(text));
+ if(named.length!==1)return null;
+ let changed=false;
+ const updated=plan.map(t=>{
+  if(t.kind!=="saved_content"||!t.needsHistory||t.recordMode!=="single"||t.reference||t.needsOwnerFacts||t.pets.length!==1||t.pets[0]!==named[0].handle||t.missing.some(k=>!["year","date_meaning","which_record"].includes(k)))return t;
+  changed=true;return {...t,missing:["year"]};
+ });
+ return changed?updated:null;
+}
 export function explicitCalendarScopes(question){
  const text=String(question).toLowerCase(),found=[];
  const named=/\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\.?\s+(?:(\d{1,2}),?\s+)?((?:19|20|21)\d{2}|2200)\b/g;

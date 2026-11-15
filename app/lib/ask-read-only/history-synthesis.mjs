@@ -60,8 +60,31 @@ function representativeRows(theme){
  for(const e of theme.evidence)if(!shown.some(s=>s.excerpt===e.excerpt)&&shown.length<2)shown.push(e);
  return shown;
 }
-export function visibleHistoryEvidence(themes){
- return coalescedThemes(themes).flatMap(representativeRows);
+export function visibleHistoryEvidence(themes,all=false){
+ return coalescedThemes(themes).flatMap(t=>all?t.evidence:representativeRows(t));
+}
+/** Chronology is server-owned metadata attached to exact validated sentences.
+ * Include routine and exceptional evidence without generated dated paraphrases.
+ * These are selected reports, never inferred clinical episodes or persistence. */
+export function renderHistoryTimeline(themes,citationOrder=[],options={}){
+ const axis=options.orderBy==="recorded"?"recordedAt":"eventAt",direction=options.order==="desc"?-1:1,groups=new Map();
+ for(const e of visibleHistoryEvidence(themes,true)){
+  if(!groups.has(e.source))groups.set(e.source,{...e,excerpts:[]});
+  const row=groups.get(e.source);if(!row.excerpts.includes(e.excerpt))row.excerpts.push(e.excerpt);
+ }
+ const rows=[...groups.values()].sort((a,b)=>direction*(Date.parse(a[axis])-Date.parse(b[axis]))||a.source.localeCompare(b.source));
+ const lines=[],shown=[];let characters=0;
+ for(const row of rows){
+  const index=citationOrder.indexOf(row.source),dates="event "+row.eventAt.slice(0,10)+(options.includeRecorded?"; recorded "+row.recordedAt.slice(0,10):"");
+  const text="• "+(row.pet??"Pet")+": "+dates+": "+row.excerpts.map(e=>"“"+e+"”").join("; ")+(index>=0?" (Source "+(index+1)+")":"");
+  if(characters+text.length>9000)break;
+  characters+=text.length;lines.push(text);shown.push(...visibleHistoryEvidence(themes,true).filter(e=>e.source===row.source));
+ }
+ const omitted=rows.length-lines.length;
+ if(lines.length)lines.unshift("Selected verified observations in "+(axis==="eventAt"?"event-date":"recorded-date")+" order:");
+ if(lines.length)lines.push("These are selected historical reports. Repeated mentions alone do not establish separate episodes, persistence or a clinical trend; omitted periods may change the picture.");
+ if(omitted)lines.push(omitted+" additional selected reports could not be displayed within this bounded timeline.");
+ return {text:lines.join("\n"),evidence:shown,omitted};
 }
 export function validateHistorySynthesis(value,sources,allowed,diagnostics=[]){
  if(!Array.isArray(value)||value.length>4){diagnostics.push("shape");return null;}

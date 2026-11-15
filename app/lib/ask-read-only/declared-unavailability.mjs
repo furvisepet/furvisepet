@@ -7,7 +7,7 @@ export function reconcileDeclaredUnavailability(first,plan,context,pets,ownerId,
   ||safety.currentEvents?.length||safety.conditionalEvents?.length
   ||!Array.isArray(safety.missingContext)||safety.missingContext.some(k=>!["pet","date"].includes(k)))return null;
  const task=plan[0];
- if(!task||!Array.isArray(task.pets)||!Array.isArray(task.missing)||!["general_guidance","saved_content","clarification"].includes(task.kind)||task.needsHistory||task.recordMode!=="none"
+ if(!task||!Array.isArray(task.pets)||!Array.isArray(task.missing)||!["general_guidance","saved_content","clarification"].includes(task.kind)||!["none","single"].includes(task.recordMode)
   ||task.reference||task.needsOwnerFacts||task.pets.length>1
   ||task.missing.some(k=>!["pet","year","date_meaning","which_record"].includes(k)))return null;
  const question=context.question;
@@ -26,7 +26,7 @@ export function reconcileDeclaredUnavailability(first,plan,context,pets,ownerId,
  if(named.length!==1)return null;
  const pet=bindPet(named[0].handle);
  if(!pet||pet.ownerId!==ownerId||pet.id!==named[0].id)return null;
- const corrected={...task,kind:"general_guidance",pets:[pet.handle],missing:[],includeSourceDates:false};
+ const corrected={...task,kind:"general_guidance",needsHistory:false,recordMode:"none",pets:[pet.handle],missing:[],includeSourceDates:false};
  return {declaration:declarations[0],plan:[corrected],first:{...first,text:"",safety:{...safety,referent:"clear",missingContext:[]}}};
 }
 export const DECLARED_UNAVAILABLE_ANSWER="You said that detail wasn’t recorded. I don’t have a verified saved answer for it.";

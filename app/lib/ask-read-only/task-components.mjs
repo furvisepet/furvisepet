@@ -3,7 +3,7 @@ import {reconcileCorrectedReference} from "./corrected-reference.mjs";
 import {completeFreshHistory} from "./continuation-evidence.mjs";
 import { EVIDENCE_COMPLETION_INSTRUCTIONS, evidenceCompletionSchema } from "./evidence-completion.mjs";
 import { explicitCalendarWindow } from "./calendar-scope.mjs";
-import { HISTORY_SYNTHESIS_INSTRUCTIONS, historySynthesisSchema, validateHistorySynthesis, renderHistorySynthesis, visibleHistoryEvidence } from "./history-synthesis.mjs";
+import { HISTORY_SYNTHESIS_INSTRUCTIONS, historySynthesisSchema, validateHistorySynthesis, renderHistorySynthesis, renderHistoryTimeline, visibleHistoryEvidence } from "./history-synthesis.mjs";
 /** Requested work is independent of prose mode. References remain hints until
  * owner-bound rehydration; fact excerpts gain authority only by exact matching. */
 const object=properties=>({type:"object",additionalProperties:false,properties,required:Object.keys(properties)});
@@ -21,6 +21,7 @@ export const COMPONENT_INSTRUCTIONS=[
  MEASUREMENT_INSTRUCTIONS,
  HISTORY_SYNTHESIS_INSTRUCTIONS,
  EVIDENCE_COMPLETION_INSTRUCTIONS,
+ "An actual request to draft a note, message, summary or handoff FOR the veterinarian is vet_brief, including when the owner supplies only current observations. It is not general_guidance merely because no saved lookup or diagnosis is requested. Use the exact owner sentence handles, separate observations from questions, and select relevant observationFields for useful vet questions. General education about how to prepare a note is different from drafting the requested handoff.",
  "A fully scoped needsHistory collection requires an actual read in the first read selection. An empty read list is not proof that saved information is unavailable. Use the owned pet and explicit event/recorded period; never let a generic summary label cancel the requested acquisition.",
  "Each task is an INDEPENDENT owner-requested deliverable, not an output field. Retrieving a particular saved note, its original wording, and when its event happened versus when it was recorded is ONE saved_content task with recordMode=single and includeSourceDates=true. Those timestamps and quotations are source outputs, never an extra general_guidance task. A month/year lookup does not become a collection merely because its note has several requested fields; use exact_quote for the particular note. Use general_guidance only when the owner actually asks a separate ordinary question that needs its own answer. Do not manufacture an unanswered general task from words such as original wording, event time, recorded time or explain the saved note. Before returning taskPlan, check every task against the actual independent request and combine source metadata with its saved_content task. Preserve genuinely separate general, clinical, workflow and calculation requests.",
  "Missing medicine, prescription or vet_plan authority belongs to its clinical task, not the identity of an independently named owned pet and dated saved note. Keep those clinical prerequisites intact while planning the separate bounded saved lookup. Asking for BOTH event and recorded timestamps requests display fields, not a choice between which timestamp to show. Use the explicit retrieval axis and calendar scope; only genuinely unresolved pet, period or axis requires clarification. Never copy a clinical missing field onto independent saved-record identity.",
@@ -59,7 +60,8 @@ export function componentSelectionSchema(base,context){
    workflow.properties.kind=choice(["workflow"]);
    workflow.properties.workflow=choice(workflows.filter(intent=>intent!=="none"));
    const calculation=structuredClone(ordinary);calculation.properties.kind=choice(["calculation"]);calculation.properties.reference={type:"null",enum:[null]};
-    return [ordinary,workflow,calculation];
+   calculation.properties.needsHistory={type:"boolean",enum:[true]};calculation.properties.needsOwnerFacts={type:"boolean",enum:[false]};calculation.properties.recordMode=choice(["collection"]);calculation.properties.pets.minItems=1;
+    return history===withHistory?[ordinary,workflow,calculation]:[ordinary,workflow];
   });
   out.properties.taskPlan.items={anyOf:variants};out.required.push("taskPlan");return out;
 }
@@ -77,7 +79,7 @@ function checkedTaskPlan(plan,context,deferKnownReferencePet=false){
  }
  // Normalize dependent fields first. Applicability must never consult an
  // irrelevant RAW flag that has already been removed from the task contract.
- return plan.map(t=>({...t,combineHistory:t.combineHistory===true,recordMode:t.kind==="saved_continuation"?"collection":t.recordMode,needsOwnerFacts:t.kind==="owner_observations"||t.kind==="vet_brief"&&t.needsOwnerFacts,missing:[...new Set(t.missing)]}))
+ return plan.map(t=>({...t,combineHistory:t.combineHistory===true,needsHistory:t.needsHistory||!!t.reference&&["saved_content","saved_continuation"].includes(t.kind),recordMode:t.kind==="saved_continuation"?"collection":t.reference&&t.kind==="saved_content"&&t.recordMode==="none"?"single":t.recordMode,needsOwnerFacts:t.kind==="owner_observations"||t.kind==="vet_brief"&&t.needsOwnerFacts,missing:[...new Set(t.missing)]}))
   .map(t=>({...t,missing:t.missing.filter(k=>(k!=="which_record"||t.needsHistory&&t.recordMode==="single"&&t.kind!=="saved_continuation")&&(k!=="owner_observation"||["owner_observations","vet_brief"].includes(t.kind))&&(k!=="date_meaning"||t.kind!=="general_guidance"||t.needsHistory||t.reference!==null||t.needsOwnerFacts))}));
 }
 export function validateTaskPlan(plan,context){return checkedTaskPlan(plan,context);}
@@ -339,7 +341,7 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
  const dateDirection=coverage[0]?.scope?.order==="desc"?-1:1;
  const selectedDatedFacts=collectionTasks.flatMap(t=>t.historyFacts).slice(0,6).sort((a,b)=>dateDirection*(Date.parse(sources.find(s=>s.handle===a.source).eventAt)-Date.parse(sources.find(s=>s.handle===b.source).eventAt)));
  const citationHandles=sources.filter(s=>(answer.sources??[]).includes(s.handle)).map(s=>s.handle);
- let removedCalendar=false;const renderedGrounding=new Set(),renderedEvidence=[];
+ let removedCalendar=false;const renderedGrounding=new Set(),renderedEvidence=[],renderedDatedHandles=new Set();
  const groundingKey=t=>JSON.stringify([t.kind,t.recordMode,[...t.sources].sort()]);
  const eligibleGrounding=tasks.filter(t=>["saved_content","saved_continuation"].includes(t.kind)&&t.historySynthesis!==undefined&&t.componentIndexes.some(i=>assigned.has(i)&&!blocked.has(i)&&!calculationParts.has(i)));
  let text=!policy?.active&&answer.validatedParts?answer.validatedParts.filter(p=>assigned.has(p.index)&&!blocked.has(p.index)&&!calculationParts.has(p.index)).map(p=>{
@@ -348,7 +350,15 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
   if(grounded.length){
     const keys=new Set(grounded.map(groundingKey)),peers=eligibleGrounding.filter(t=>keys.has(groundingKey(t))),unseen=peers.filter(t=>!renderedGrounding.has(t.id));
     peers.forEach(t=>renderedGrounding.add(t.id));if(!unseen.length)return "";
-    const themes=unseen.flatMap(t=>t.historySynthesis??[]);renderedEvidence.push(...visibleHistoryEvidence(themes));
+    const themes=unseen.flatMap(t=>t.historySynthesis??[]);
+    if(unseen.some(t=>t.recordMode==="collection")){
+     const facts=unseen.flatMap(t=>t.historyFacts.map(f=>{const s=sources.find(s=>s.handle===f.source);return {topic:"Historical observations",evidence:[{...f,petId:s.petId,pet:s.petName,eventAt:s.eventAt,recordedAt:s.recordedAt}]};}));
+     const timeline=renderHistoryTimeline([...themes,...facts],citationHandles,{orderBy:coverage[0]?.scope.orderBy,order:coverage[0]?.scope.order,includeRecorded:unseen.some(t=>t.includeSourceDates)});
+     renderedEvidence.push(...timeline.evidence);timeline.evidence.forEach(e=>renderedDatedHandles.add(e.source));
+     if(timeline.omitted)unseen.forEach(t=>{t.status="partial";t.reason="not_answered";});
+     return timeline.text||"The historical synthesis could not be verified against the selected original sentences.";
+    }
+    renderedEvidence.push(...visibleHistoryEvidence(themes));
     return renderHistorySynthesis(themes,citationHandles,tasks.flatMap(t=>t.freshSourceHandles??[]))||"The historical synthesis could not be verified against the selected original sentences.";
    }
   const safe=undatedCollectionSynthesis(p.text);removedCalendar||=safe!==p.text.trim();return safe;
@@ -356,6 +366,7 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
  if(!policy?.active&&!brief&&selectedDatedFacts.length){
   const freshHandles=new Set(tasks.flatMap(t=>t.freshSourceHandles??[])),freshRows=[];
   const rows=selectedDatedFacts.flatMap(f=>{
+   if(renderedDatedHandles.has(f.source))return [];
    const s=sources.find(s=>s.handle===f.source),withRecorded=collectionTasks.some(t=>t.includeSourceDates&&t.historyFacts.includes(f));
    const alreadyQuoted=renderedEvidence.some(e=>e.source===f.source&&e.excerpt.includes(f.excerpt));
    if(alreadyQuoted&&!withRecorded)return [];

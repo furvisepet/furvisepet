@@ -7,7 +7,7 @@ import {reconcileConditionalEducation, COMPONENT_INSTRUCTIONS, componentSelectio
 import { CLINICAL_INSTRUCTIONS, clinicalSelectionSchema, validateClinicalAssessment, clinicalAnswerSchema, reviewClinicalAnswer, renderMedicationDecision, ownerStatementCatalog, emergencyHandoffForAssessment } from "./clinical-policy.mjs";
 import { APP_CAPABILITIES, WORKFLOW_INSTRUCTIONS, renderAppWorkflow, supportsAppWorkflow, containsAppControlSteps } from "./app-capabilities.mjs";
 import { normalizeReadTemporalScope } from "./temporal-scope.mjs";
-import { explicitCalendarScopes, recoverBoundedCalendarRead, reconcilePlannedSavedDates } from "./calendar-scope.mjs";
+import { explicitCalendarScopes, recoverBoundedCalendarRead, reconcilePlannedSavedDates, reconcileMissingCalendarYear } from "./calendar-scope.mjs";
 import { restoreReadReferences, describeReadReferences, carryReadReferences, continuationRange, checkReferencedSources } from "./references.mjs";
 import { EVIDENCE_GOALS, HISTORY_PAGE_BUDGET, HISTORY_CANDIDATE_BUDGET, allocateEvidence } from "./retrieval.mjs";
 import { calculateReadSources, readSourceMeasurements } from "./calculations.mjs";
@@ -282,7 +282,9 @@ export async function runReadOnlyAsk(input,deps) {
   deps.onAnswerBoundary?.({outcome:"workflow_task_reconciled",reason:"current_intent_none"});
  }
  if(!keys(first,Object.hasOwn(first??{},"workflowIntent")?["calls","text","safety","historyIntent","workflowIntent"]:Object.hasOwn(first??{},"historyIntent")?["calls","text","safety","historyIntent"]:Object.hasOwn(first??{},"safety")?["calls","text","safety"]:["calls","text"])||!Array.isArray(first.calls)||first.calls.length>4||typeof first.text!=="string"||first.text.length>12000)fail("ASK_READ_PROVIDER_INVALID");
- const compiledMeasurements=compileMeasurementRequests(measurementRequests,first,taskPlan,context,(name,args)=>bindReadTool(name,args,pets,references));
+ let compiledMeasurements;
+ try{compiledMeasurements=compileMeasurementRequests(measurementRequests,first,taskPlan,context,(name,args)=>bindReadTool(name,args,pets,references));}
+ catch(error){deps.onSelectionRejected?.({...readSelectionShape(first,pets),measurementDiagnostic:error.answerDiagnostic??null});throw error;}
  if(compiledMeasurements){
   first={...first,text:"",calls:compiledMeasurements.calls,historyIntent:{...first.historyIntent,requested:true,timeBasis:new Set(measurementRequests.map(q=>q.timeBasis)).size===1?measurementRequests[0].timeBasis:"combined"}};
   taskPlan=compiledMeasurements.plan;measurementBindings=compiledMeasurements.bindings;
@@ -301,6 +303,8 @@ export async function runReadOnlyAsk(input,deps) {
  if(annualComparison){first=annualComparison.first;taskPlan=annualComparison.plan;deps.onAnswerBoundary?.({outcome:"annual_comparison_scope_recovered",...annualComparison.diagnostic});}
  // Any deferred task/reference pet relation must be strict before acquisition.
  if(taskPlan)taskPlan=validateTaskPlan(taskPlan,context);
+ const missingYear=reconcileMissingCalendarYear(first,taskPlan,context);
+ if(missingYear){taskPlan=missingYear;first.text="";deps.onAnswerBoundary?.({outcome:"calendar_year_clarification_reconciled",grantsRead:false});}
  const declaredUnavailable=reconcileDeclaredUnavailability(first,taskPlan,context,pets,input.ownerId,handle=>bindReadTool("read_pet_profile",{pet:handle},pets).pet);
  if(declaredUnavailable){first=declaredUnavailable.first;taskPlan=declaredUnavailable.plan;deps.onAnswerBoundary?.({outcome:"owner_declared_unavailability_bound",declarationCount:1,explicitOwnedSubject:true,grantsRead:false});}
  const namedPet=first.calls.length===0?reconcileNoReadPet(taskPlan,first.safety,context,pets,input.ownerId,handle=>bindReadTool("read_pet_profile",{pet:handle},pets).pet):null;
