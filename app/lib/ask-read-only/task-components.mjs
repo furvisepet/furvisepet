@@ -1,3 +1,4 @@
+import {measurementRequestSchema,MEASUREMENT_INSTRUCTIONS} from "./measurement-requests.mjs";
 import {reconcileCorrectedReference} from "./corrected-reference.mjs";
 import {completeFreshHistory} from "./continuation-evidence.mjs";
 import { EVIDENCE_COMPLETION_INSTRUCTIONS, evidenceCompletionSchema } from "./evidence-completion.mjs";
@@ -17,6 +18,7 @@ const nullable=values=>({type:["string","null"],enum:[...values,null]});
 const keys=(v,expected)=>v&&typeof v==="object"&&!Array.isArray(v)&&Object.keys(v).length===expected.length&&expected.every(k=>Object.hasOwn(v,k));
 function reject(field,detail={}){throw Object.assign(new Error("ASK_READ_COMPONENT_CONTRACT"),{code:"ASK_READ_COMPONENT_CONTRACT",answerDiagnostic:{category:"component_contract",field,...detail}});}
 export const COMPONENT_INSTRUCTIONS=[
+ MEASUREMENT_INSTRUCTIONS,
  HISTORY_SYNTHESIS_INSTRUCTIONS,
  EVIDENCE_COMPLETION_INSTRUCTIONS,
  "A fully scoped needsHistory collection requires an actual read in the first read selection. An empty read list is not proof that saved information is unavailable. Use the owned pet and explicit event/recorded period; never let a generic summary label cancel the requested acquisition.",
@@ -38,6 +40,7 @@ export const COMPONENT_INSTRUCTIONS=[
 ].join("\n");
 export function componentSelectionSchema(base,context){
  const out=structuredClone(base);
+ out.properties.measurementRequests=measurementRequestSchema(context);out.required.push("measurementRequests");
  out.properties.taskPlan={type:"array",minItems:1,maxItems:6,items:object({
   id:choice(["t1","t2","t3","t4","t5","t6"]),kind:choice(kinds),combineHistory:{type:"boolean"},needsHistory:{type:"boolean"},needsOwnerFacts:{type:"boolean"},includeSourceDates:{type:"boolean"},recordMode:choice(["none","single","collection"]),
   workflow:choice(workflows),pets:array(choice(context.pets.map(p=>p.handle)),4),reference:nullable(context.references.map(r=>r.reference)),
@@ -83,7 +86,7 @@ export function decodeComponentSelection(value,tools,context,decode){
  // Only a KNOWN reference's old pet can await a current-scope correction; final
  // validation below is always strict, and no IO has been admitted at this stage.
  checkedTaskPlan(value?.taskPlan,context,true);
- const clean={...value};delete clean.taskPlan;
+ const clean={...value};delete clean.taskPlan;delete clean.measurementRequests;
  const first=decode(clean,tools,context),corrected=reconcileCorrectedReference(first,value?.taskPlan,context);
  const candidate=corrected?.taskPlan??value?.taskPlan;
  // Two-side calculation hints may await the existing annual-scope recovery.
@@ -93,7 +96,7 @@ export function decodeComponentSelection(value,tools,context,decode){
  const taskPlan=annualCandidate?checkedTaskPlan(candidate,context,true):validateTaskPlan(candidate,context);
  const selected=corrected??first;
  const changedPrerequisites=(corrected?.taskPlan??value.taskPlan).some(t=>t.missing.some(field=>!taskPlan.find(checked=>checked.id===t.id)?.missing.includes(field)));
- return {...selected,text:changedPrerequisites?"":selected.text,taskPlan};
+ return {...selected,...(Object.hasOwn(value,"measurementRequests")?{measurementRequests:value.measurementRequests}:{}),text:changedPrerequisites?"":selected.text,taskPlan};
 }
 function containedCollection(outer,inner){
  if(outer.kind!=="history"||inner.kind!=="history"||outer.pet.id!==inner.pet.id||outer.pet.ownerId!==inner.pet.ownerId||outer.referenceTimeZone!==inner.referenceTimeZone||JSON.stringify(outer.terms)!==JSON.stringify(inner.terms))return false;
@@ -305,7 +308,7 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
  tasks=tasks.map(t=>{
   if(t.kind==="workflow"&&t.workflow==="other")return {...t,status:"unresolved",reason:"not_supported"};
   if(t.kind==="vet_brief"&&t.id!==firstBrief)return {...t,status:"partial",reason:"not_answered"};
-  const boundedClinicalDelivery=t.kind==="clinical_guidance"&&answer.clinicalDisplayBounded===true&&!policy?.decision&&!!(policy?.current?.length||policy?.conditional?.length)&&!t.needsHistory&&!t.needsOwnerFacts&&!t.missing.length&&t.reference===null&&!t.sources.length;
+  const boundedClinicalDelivery=t.kind==="clinical_guidance"&&answer.clinicalDisplayBounded===true&&!policy?.decision&&!!(policy?.current?.length||policy?.conditional?.length||policy?.historicalOnly)&&!t.needsHistory&&!t.needsOwnerFacts&&!t.missing.length&&t.reference===null&&!t.sources.length;
    if(policy?.active&&t.status==="complete"&&(["general_guidance","clinical_guidance"].includes(t.kind)&&!boundedClinicalDelivery||t.kind==="clarification"&&!t.missing.length||["saved_content","saved_continuation"].includes(t.kind)&&!t.historyFacts.length&&!answer.quotes?.some(q=>t.sources.includes(q.source))||t.kind==="owner_observations"&&!t.ownerFacts.length))return {...t,status:"partial",reason:"not_answered"};
   if(t.kind==="calculation"){
    const scoped=(answer.calculations??[]).filter(c=>Array.isArray(c.sourceHandles)&&c.sourceHandles.length&&c.sourceHandles.every(h=>t.sources.includes(h)));
