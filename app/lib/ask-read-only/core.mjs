@@ -8,7 +8,7 @@ import {recoverAnnualComparison,reconcilePlannedAnnualCalculation} from "./annua
 import { supplementCandidates, supplementalTaskPlan, parseEvidenceCompletion, verifySingleReferenceResult, applyReferenceCompletion, applySourceReview } from "./evidence-completion.mjs";
 import {reconcileConditionalEducation, COMPONENT_INSTRUCTIONS, componentSelectionSchema, componentAnswerSchema, validateTaskPlan, fulfillReferenceReads,ownerFactSentences, reviewComponentCompletion, renderTaskCompletion, resolveRecordDiscovery, normalizeTaskRecords, reconcileNoReadPet } from "./task-components.mjs";
 import { CLINICAL_INSTRUCTIONS, clinicalSelectionSchema, validateClinicalAssessment, clinicalAnswerSchema, reviewClinicalAnswer, renderMedicationDecision, ownerStatementCatalog, emergencyHandoffForAssessment } from "./clinical-policy.mjs";
-import { APP_CAPABILITIES, WORKFLOW_INSTRUCTIONS, renderAppWorkflow, supportsAppWorkflow, containsAppControlSteps } from "./app-capabilities.mjs";
+import { APP_CAPABILITIES, WORKFLOW_INSTRUCTIONS, renderAppWorkflow, supportsAppWorkflow, containsAppControlSteps, explicitHistoryControlRequest } from "./app-capabilities.mjs";
 import { normalizeReadTemporalScope } from "./temporal-scope.mjs";
 import { explicitCalendarScopes, recoverBoundedCalendarRead, reconcilePlannedSavedDates, reconcileMissingCalendarYear } from "./calendar-scope.mjs";
 import { restoreReadReferences, describeReadReferences, carryReadReferences, continuationRange, checkReferencedSources } from "./references.mjs";
@@ -281,6 +281,11 @@ export async function runReadOnlyAsk(input,deps) {
  // Reconcile the current-turn discriminator before a stale workflow task can
  // replace ordinary prose. The second call sees the corrected task contract.
  const workflowSupported=supportsAppWorkflow(input.question);
+ if(explicitHistoryControlRequest(input.question)&&first.calls.length===0&&taskPlan?.length===1&&!taskPlan[0].needsHistory&&!taskPlan[0].needsOwnerFacts&&!taskPlan[0].reference
+  &&first.safety?.medicationIntent==="none"&&!first.safety.currentEvents?.length&&!first.safety.conditionalEvents?.length&&["none","education"].includes(first.safety.careContext)){
+  first={...first,workflowIntent:"find_care_note",text:""};
+  taskPlan=[{...taskPlan[0],kind:"workflow",workflow:"find_care_note",recordMode:"none",missing:[]}];
+ }
  if(!workflowSupported&&Object.hasOwn(first,"workflowIntent"))first.workflowIntent="none";
  if(first.workflowIntent==="none"&&taskPlan?.some(t=>t.kind==="workflow")){
   taskPlan=taskPlan.map(t=>t.kind==="workflow"?{...t,kind:"general_guidance",workflow:"none"}:t);

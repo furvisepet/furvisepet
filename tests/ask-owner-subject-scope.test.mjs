@@ -148,3 +148,12 @@ test("newly recognized final emergency survives discarded wrong-pet prose",async
  assert.doesNotMatch(r.result.answer.answer,/Cedar|wait\./);
  assert.equal(r.result.answer.clinicalDecision.emergencyFallback,true);
 });
+
+test("explicit History controls request gets actual registry directions instead of redundant screen clarification",async()=>{
+ const r=await execute("I want to browse Echo's activity notes myself. Which History controls should I start with? Directions only.","Which screen or task do you mean?");
+ assert.equal(r.reads,0);
+ assert.match(r.result.answer.answer,/Open History/);
+ assert.match(r.result.answer.answer,/Pet, Category or When/);
+ assert.match(r.result.answer.answer,/older results/);
+ assert.doesNotMatch(r.result.answer.answer,/Which screen or task/);
+});

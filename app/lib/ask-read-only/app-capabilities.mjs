@@ -45,3 +45,10 @@ export function containsAppControlSteps(text=""){
   [HISTORY_NOTE_UI.search,HISTORY_NOTE_UI.older]].some(labels=>
    labels.filter(label=>typeof label==="string"&&label.length>2&&normalized.includes(label.toLocaleLowerCase())).length>=2);
 }
+
+/** An explicitly named screen plus a controls question is already a UI target. */
+export function explicitHistoryControlRequest(question=""){
+ return supportsAppWorkflow(question)&&/\bhistory\s+(?:controls?|filters?|screen|page)\b/iu.test(question)
+  &&/\b(?:which|how|where|directions)\b/iu.test(question)
+  &&!/\b(?:save|edit|delete|change|update)\b/iu.test(question);
+}

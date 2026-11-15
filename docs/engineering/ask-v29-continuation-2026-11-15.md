@@ -24,13 +24,14 @@ Status: NO-GO for release. No paid provider calls in this continuation before re
 6. Honor an explicit never-logged detail before speculative history acquisition. Validate the proposed locators before suppressing them; this does not grant saved facts.
 7. Preserve whole original note text for a completed standalone exact-quotation request. Full source timestamp instants are not considered delivered merely because their calendar dates appeared.
 8. Keep future-only conditional warnings free of inappropriate source-free historical-report instructions.
-9. Clarify instructions for visible conversational routine recall after reload, the limits of one-note evidence, and separating owner requests from observations in vet briefs. These instruction changes require live verification.
+9. Bind an explicit History-controls question to the existing History navigation registry instead of asking which screen. This grants no data read.
+10. Clarify instructions for visible conversational routine recall after reload, the limits of one-note evidence, and separating owner requests from observations in vet briefs. These instruction changes require live verification.
 
 ## Validation
 
-- 116/116 focused tests passed, including 15 new tests and existing component/live-failure boundary checks.
+- 117/117 focused tests passed, including 16 new tests and existing component/live-failure boundary checks.
 - Next route type generation passed; TypeScript passed.
-- Targeted lint and diff whitespace checks are required before commit.
+- Targeted lint passed with zero warnings; diff whitespace checks passed.
 - A SHA-matched READY Vercel preview is required before paid testing.
 - These checks are deployment prerequisites. They are not online benchmark passes or a claim that every observed failure is resolved.
 - No broad security campaign, production deployment, profile/care writes, migration or branch-protection change was performed. PR #531 and all foreign workspace claims remain untouched.
