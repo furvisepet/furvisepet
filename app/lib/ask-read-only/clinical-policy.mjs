@@ -162,7 +162,7 @@ export function clinicalAnswerSchema(schema,initial,ownerStatements=[],pets=[]){
 // structured assessment omitted that warning. This grants no current-event,
 // diagnosis, treatment or source authority. Only server emergency text renders.
 const warningPatterns={
- breathing_distress:/\b(?:difficulty breathing|trouble breathing|struggling to breathe|cannot breathe|can't breathe|open[- ]mouth breathing|breathing distress)\b/i,
+ breathing_distress:/\b(?:difficulty breathing|trouble breathing|breathing trouble|struggling to breathe|cannot breathe|can't breathe|open[- ]mouth breathing|breathing distress)\b/i,
  collapse:/\b(?:collapse[ds]?|unconscious|unresponsive|loss of consciousness|lose consciousness)\b/i,
  toxin_exposure:/\b(?:poison(?:ing)?|toxin exposure|overdose)\b/i,
  repeated_seizures:/\b(?:seizures?|convulsions?)\b/i,
@@ -176,7 +176,7 @@ function introducedWarningEvents(components=[]){
  const directed=components.filter(c=>c.kind==="general"&&typeof c.text==="string")
   .flatMap(c=>c.text.split(/(?<=[.!?])\s+|\n+/))
   .filter(text=>/\b(?:if|should .{0,40}occur|in case)\b/i.test(text)
-   &&/\b(?:seek|contact|call|go to|urgent|emergency)\b/i.test(text)
+   &&/\b(?:seek|contact|call|go to|urgent|emergency|check(?:ed)?|assess(?:ed)?|evaluat(?:e|ed)|see|seen)\b/i.test(text)
    &&/\b(?:vet(?:erinar\w*)?|clinic|emergency care)\b/i.test(text));
  return Object.entries(warningPatterns).filter(([,pattern])=>directed.some(text=>pattern.test(text))).map(([event])=>event);
 }
@@ -198,7 +198,7 @@ export function reviewClinicalAnswer(value,initial,ownerStatements=[],pets=[],wo
  const current=[...new Set(states.flatMap(s=>s.currentEvents))],conditional=[...new Set([...states.flatMap(s=>s.conditionalEvents),...introduced])];
  // Keep earlier recognized obligations; a later classification cannot downgrade them.
  const currentConcern=concern?concern.occurrence==="current":states.some(s=>s.careContext==="current_concern"||["current","uncertain"].includes(s.scenario)&&s.urgency==="prompt");
- const summaryContext=states.some(s=>s.careContext==="vet_summary"),historical=states.some(s=>s.careContext==="clinical_history")||!!concern&&["historical","resolved","negated"].includes(concern.occurrence);
+ const summaryContext=states.some(s=>s.careContext==="vet_summary"),historical=concern?["historical","resolved","negated"].includes(concern.occurrence):states.some(s=>s.careContext==="clinical_history");
  const historicalOnly=!!concern&&historical&&!currentConcern&&!current.length&&!conditional.length&&!decision&&!summaryContext;
  const active=decision||current.length>0||conditional.length>0||currentConcern||summaryContext||historical;
  if(!active&&value.components?.some(c=>c.kind==="emergency"||c.kind==="conditional_emergency"))reject("unbound_clinical_component");

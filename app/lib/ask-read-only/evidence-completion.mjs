@@ -11,7 +11,7 @@ const collection=t=>t.needsHistory&&t.recordMode==="collection"&&["saved_content
 const reviewSources=(plan,sources)=>plan?.some(collection)?sources.filter(s=>s.kind==="history"):[];
 
 export const EVIDENCE_COMPLETION_INSTRUCTIONS=[
- "Independently check the current owner request against the first-pass task plan. evidenceCompletion.sourceReview partitions EVERY admitted historical source handle exactly once across four arrays: routine, noteworthy, uncertain and irrelevant. Do not repeat per-source object keys or classification labels. For a collection give at most four short themes with at most two representative excerpts each; do not enumerate all routine bodies or duplicate historical facts in themes. For a continuation, prioritize the actual fresh_remainder TOOL_DATA sources, including distinct new routine/nutrition findings, then integrate relevant retained_prior context. Do not use a single repeated routine phrase as the entire account of the omitted interval. Coverage is supplied by the server. Read each actual narrative. A date or ordinary weight difference alone does not make a routine report noteworthy. Mark source-specific unusual changes, exceptions and contrasting observations noteworthy; do not fill every theme with routine boilerplate while skipping those reports. These classifications grant no diagnosis, episode count, recurrence or trend authority. The server can publish a bounded exact original note for noteworthy evidence that the synthesis missed, with its actual historical date.",
+ "Independently check the current owner request against the first-pass task plan. evidenceCompletion.sourceReview is an object with one required key for EVERY admitted historical source handle; assign each key one classification: routine, noteworthy, uncertain or irrelevant. For a collection give at most four short themes with at most two representative excerpts each; do not enumerate all routine bodies or duplicate historical facts in themes. For a continuation, prioritize the actual fresh_remainder TOOL_DATA sources, including distinct new routine/nutrition findings, then integrate relevant retained_prior context. Do not use a single repeated routine phrase as the entire account of the omitted interval. Coverage is supplied by the server. Read each actual narrative. A date or ordinary weight difference alone does not make a routine report noteworthy. Mark source-specific unusual changes, exceptions and contrasting observations noteworthy; do not fill every theme with routine boilerplate while skipping those reports. These classifications grant no diagnosis, episode count, recurrence or trend authority. The server can publish a bounded exact original note for noteworthy evidence that the synthesis missed, with its actual historical date.",
  "For a vet brief that explicitly requests a prior saved report, independently check that it was actually read. When SOURCE_CATALOG is empty and eligibleHistorySupplements lists a matching single-note reference, evidenceCompletion.missingReference may select its task and reference plus a verbatim requestExcerpt from the CURRENT owner question. Use this even if the first pass mistakenly marked needsHistory=false or its date basis ambiguous. Otherwise missingReference=null. This selects only an existing owner-bound locator; metadata and prior assistant prose are not factual evidence. The server rehydrates and copies the original historical note without a third model call. Do not invent historyFacts or a prescription plan. A current emergency forbids this recovery. Never request an unrelated historical note merely because a reference exists."
 ].join("\n");
 
@@ -38,7 +38,7 @@ export function supplementCandidates(plan,references,canRecover,context={}){
 export function evidenceCompletionSchema(plan,sources,supplements=[]){
  const handles=reviewSources(plan,sources).map(s=>s.handle);
  return object({
-  sourceReview:object(Object.fromEntries(["routine","noteworthy","uncertain","irrelevant"].map(role=>[role,{type:"array",maxItems:handles.length,items:choice(handles.length?handles:["unavailable"])}]))),
+  sourceReview:object(Object.fromEntries(handles.map(handle=>[handle,choice(["routine","noteworthy","uncertain","irrelevant"])]))),
   missingReference:{anyOf:[{type:"null"},...supplements.map(s=>object({task:choice([s.task]),reference:choice([s.reference]),requestExcerpt:{type:"string",minLength:10,maxLength:300}}))]}
  });
 }
@@ -46,11 +46,12 @@ export function parseEvidenceCompletion(final,plan,sources,supplements,question)
  if(!Object.hasOwn(final??{},"evidenceCompletion"))return {value:final,review:[],supplement:null}; // Stored/local adapters.
  const review=final.evidenceCompletion,expected=reviewSources(plan,sources).map(s=>s.handle);
  if(!keys(review,["sourceReview","missingReference"]))reject("review_shape");
- // Active wire partitions handles once, avoiding32 repeated object keys/labels.
- // Legacy local adapters remain readable; both forms obey the same exact cover.
+ // Required per-source keys encode exact coverage in the live schema. Legacy
+ // partitions/adapters remain readable but never waive membership or uniqueness.
  const roles=["routine","noteworthy","uncertain","irrelevant"],raw=review.sourceReview;
- if(!Array.isArray(raw)&&(!keys(raw,roles)||roles.some(role=>!Array.isArray(raw[role])||raw[role].length>expected.length)))reject("review_shape");
- const entries=Array.isArray(raw)?raw:roles.flatMap(classification=>raw[classification].map(source=>({source,classification})));
+ const keyed=keys(raw,expected)&&expected.every(source=>roles.includes(raw[source]));
+ if(!keyed&&!Array.isArray(raw)&&(!keys(raw,roles)||roles.some(role=>!Array.isArray(raw[role])||raw[role].length>expected.length)))reject("review_shape");
+ const entries=keyed?expected.map(source=>({source,classification:raw[source]})):Array.isArray(raw)?raw:roles.flatMap(classification=>raw[classification].map(source=>({source,classification})));
  if(entries.length!==expected.length)reject("review_shape");
  const ids=new Set();
  for(const r of entries){

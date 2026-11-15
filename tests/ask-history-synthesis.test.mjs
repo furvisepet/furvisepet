@@ -148,14 +148,14 @@ test("actual composer renders equivalent source-selection themes once across sep
  const s=row("s1","Appetite was normal.");
  const tasks=[0,1].map(i=>({id:"t"+(i+1),kind:"saved_content",recordMode:"collection",needsHistory:true,needsOwnerFacts:false,includeSourceDates:false,pets:["p1"],missing:[],workflow:"none",status:"complete",reason:"none",sources:["s1"],componentIndexes:[i],historyFacts:[],ownerFacts:[],historySynthesis:checked(theme("Appetite",[s]),[s])}));
  const out=renderTaskCompletion({answer:"duplicate",sources:["s1"],validatedParts:[{index:0,text:"first"},{index:1,text:"second"}],presentation:{}},tasks,[s],null,[]);
- assert.equal((out.answer.match(/(?:^|\n\n)Pet [AB]: /g)??[]).length,1);assert.equal(out.answer.split("Repeated mentions alone").length-1,1);assert.deepEqual(out.historicalSupport,["s1"]);
+ assert.equal(out.answer.split("Appetite was normal.").length-1,1);assert.equal(out.answer.split("Repeated mentions alone").length-1,1);assert.deepEqual(out.historicalSupport,["s1"]);
 });
 
 test("independent source selections retain each actually rendered anchor even when wording matches",()=>{
  const a=row("s1","Appetite was normal."),b=row("s2","Appetite was normal.","2021-01-03T12:00:00Z"),ss=[a,b];
  const tasks=ss.map((s,i)=>({id:"t"+(i+1),kind:"saved_content",recordMode:"collection",needsHistory:true,needsOwnerFacts:false,includeSourceDates:false,pets:["p1"],missing:[],workflow:"none",status:"complete",reason:"none",sources:[s.handle],componentIndexes:[i],historyFacts:[],ownerFacts:[],historySynthesis:checked(theme("Appetite",[s]),[s])}));
  const out=renderTaskCompletion({answer:"two periods",sources:["s1","s2"],validatedParts:[{index:0,text:"first period"},{index:1,text:"second period"}],presentation:{}},tasks,ss,null,[]);
- assert.equal((out.answer.match(/(?:^|\n\n)Pet [AB]: /g)??[]).length,2);assert.deepEqual(out.historicalSupport,["s1","s2"]);
+ assert.equal(out.answer.split("Appetite was normal.").length-1,2);assert.ok(out.answer.indexOf("2020-01-03")<out.answer.indexOf("2021-01-03"));assert.deepEqual(out.historicalSupport,["s1","s2"]);
 });
 
 test("a representative sentence counts only exact complete admitted same-pet reports",()=>{
