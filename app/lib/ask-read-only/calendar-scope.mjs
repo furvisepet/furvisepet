@@ -82,3 +82,26 @@ export function recoverBoundedCalendarRead(first,context,pets){
   recordedFrom:event?null:scope.from,recordedTo:event?null:scope.to,orderBy:basis,query:null,offset:0,order
  })}]},diagnostic:{precision:scope.precision,timeBasis:basis,reason:matchingPlanned?"matching_owned_pet_calendar_read":"explicit_owned_pet_calendar_scope"}};
 }
+
+/** Displaying both source timestamps does not make an independently scoped
+ * note lookup ambiguous. Only reconcile an existing owner-bound ordinary read;
+ * clinical authority and single-record identity remain separate prerequisites. */
+export function reconcilePlannedSavedDates(first,plan,context,bound){
+ if(!Array.isArray(plan)||!Array.isArray(bound)||bound.length!==1||first.historyIntent?.requested!==true||!["event","recorded"].includes(first.historyIntent.timeBasis))return null;
+ const tasks=plan.filter(t=>t.needsHistory),task=tasks[0];
+ if(tasks.length!==1||task.kind!=="saved_content"||task.recordMode!=="single"||task.needsOwnerFacts||!task.includeSourceDates||task.reference!==null||task.pets.length!==1||!task.missing.includes("date_meaning")||task.missing.some(k=>!["date_meaning","which_record"].includes(k)))return null;
+ const safety=first.safety;
+ if(!safety||safety.currentEvents?.length||safety.scenario==="current"&&safety.urgency==="immediate")return null;
+ const text=String(context.question);
+ if(!/\bboth\s+(?:timestamps|dates)\b/i.test(text)||/["“”\x60]/.test(text))return null;
+ const calendar=explicitCalendarWindow(text);if(!calendar||!["month","day"].includes(calendar.precision))return null;
+ const years=[...new Set([...text.matchAll(/\b(?:19|20|21)\d{2}\b/g)].map(m=>m[0]))];
+ if(years.length!==1||years[0]!==calendar.from.slice(0,4))return null;
+ const escaped=name=>name.replace(/[.*+?^$\x7b\x7d()|[\]\\]/g,"\\$&");
+ const named=context.pets.filter(p=>new RegExp("(?<![\\p{L}\\p{N}])"+escaped(p.name)+"(?![\\p{L}\\p{N}])","iu").test(text));
+ if(named.length!==1||named[0].handle!==task.pets[0])return null;
+ const call=bound[0],r=call.request,axis=first.historyIntent.timeBasis;
+ if(call.name!=="search_saved_records"||call.reference||r.kind!=="history"||r.reference||r.continuation||r.expectedSources||r.pet.handle!==task.pets[0]||r.offset!==0||r.orderBy!==axis||!["exact_quote","relevant_records"].includes(r.goal))return null;
+ if(axis==="event"?(r.from!==calendar.from||r.to!==calendar.to||r.recordedFrom||r.recordedTo):(r.recordedFrom!==calendar.from||r.recordedTo!==calendar.to||r.from||r.to))return null;
+ return {plan:plan.map(t=>t===task?{...t,missing:t.missing.filter(k=>k!=="date_meaning")}:t),diagnostic:{method:"literal_owned_note_both_timestamps",timeBasis:axis,grantsAdditionalReads:false}};
+}

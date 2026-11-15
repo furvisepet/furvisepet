@@ -164,7 +164,7 @@ test("a new explicit session decision never waives a NEW null provider receipt",
 
 test("fresh image repair candidates never expand paid authority or weaken launch criteria",()=>{
  const extras=JSON.parse(readFileSync(new URL('../benchmarks/ask/v1-owner-repair-pool-2026-11-13.json',import.meta.url)));
- assert.equal(extras.cases.length,58);
+ assert.equal(extras.cases.length,59);
  assert.equal(extras.cases.find(c=>c.id==='R45').beforeAction,'reload same signed-in conversation; verify messages persisted');
  const f=fixture();f.caseId='R42';f.results=Array.from({length:48},(_,i)=>result(original.cases[i].id,{verdict:'FAIL'}));
  assert.throws(()=>dispatchGate(f),/ceiling/);
@@ -206,4 +206,14 @@ test('even a new final-cohort decision cannot waive a NEW null physical receipt'
 });
 test('an unused continuation with a consumed old-SHA parent never becomes an eligible fresh final-head turn',()=>{
  const f=fixture();f.caseId='R05';f.results=[result('R04',{sha:'c'.repeat(40)})];f.pin.repairReason='fixture';f.pin.repairEvidenceHash=H;f.approval.sessionExtension=extension(f);assert.throws(()=>dispatchGate(f),/dependency not verified/);
+});
+
+test("fresh mixed historical-date analogue does not increase any paid dispatch limit",()=>{
+ const pool=JSON.parse(readFileSync(new URL("../benchmarks/ask/v1-owner-repair-pool-2026-11-13.json",import.meta.url),"utf8"));
+ const c=pool.cases.find(c=>c.id==="R75");assert.equal(c.category,"mixed");assert.equal(c.medical,true);assert.equal(c.critical,true);
+ assert.deepEqual(pool.paidLimitsUnchanged,{turns:48,physicalCalls:96,newMicroUSD:2500000,maximumReserveDispatches:16});
+ assert.equal(finalRequest.maxTurns,90);assert.equal(finalRequest.maxCalls,180);assert.equal(finalRequest.maximumReserveDispatches,58);assert.equal(finalRequest.maxNewMicroUSD,2500000);
+ const f=full72Fixture();f.caseId="R75";f.approval.finalCohortExtension=finalDecision(f);
+ f.results=[...f.results,...pool.cases.filter(c=>!f.results.some(r=>r.caseId===c.id)&&c.id!=="R75").slice(0,18).map(c=>result("A01",{caseId:c.id,questionHash:promptHash(c.question),operationId:hash(c.id),calls:[{operationId:hash(c.id),number:1,actualMicroUSD:1,receiptHash:H},{operationId:hash(c.id),number:2,actualMicroUSD:1,receiptHash:H}]}))];
+ assert.equal(f.results.length,90);assert.throws(()=>dispatchGate(f),/ceiling/);
 });

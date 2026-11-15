@@ -192,6 +192,9 @@
     ],
     "R74": [
       "A27"
+    ],
+    "R75": [
+      "A32"
     ]
   },
   "rule": "One fresh reserved turn may replace only one listed prior-SHA case after independent pre-dispatch review of the original behavioral requirements against independently pinned replacement facts. Original pet/date/numeric literals are replaced by the new question's verified scope, never copied as facts. Preserve the original result and cost. Logic-only owner-supplied examples cannot replace saved-source recurrence qualification. No unlisted replacement, reused prompt, current-SHA retry, or pass transfer.",
@@ -219,5 +222,6 @@
   "nativeCalculationIdentityRepairFreeze": "2026-11-14T22:17:37.404872+00:00",
   "endpointRequestPackingRepairFreeze": "2026-11-14T22:36:02.524621+00:00",
   "literalPlannedScopeRepairFreeze": "2026-11-14T22:54:28.997446+00:00",
-  "nativeClinicalFrameRepairFreeze": "2026-11-14T23:27:53.763706+00:00"
+  "nativeClinicalFrameRepairFreeze": "2026-11-14T23:27:53.763706+00:00",
+  "independentSavedDatesRepairFreeze": "2026-11-15T01:14:22.609841+00:00"
 }

@@ -564,3 +564,77 @@ test("distinct bound endpoint reads establish one calculation collection without
  }
  const separate={...task,id:"t2"};assert.equal(normalizeTaskRecords([task,separate],[first,last])[0].recordMode,"single");
 });
+
+async function mixedTimestampLookup({axis="event",rows=[source],exhausted=true,question="Willow is acting normally today. I cannot name a missed prescription. Should I double up? Separately, quote the saved March 2021 exam note and both timestamps.",missing=["date_meaning","which_record"]}={}){
+ const s=safety({medicationIntent:"decision",referent:"essential_unknown",careContext:"current_concern",missingContext:["medicine","prescription","vet_plan"]});
+ const plan=[task({kind:"clinical_guidance",pets:["p1"],missing:["medicine","prescription","vet_plan"]}),task({id:"t2",kind:"saved_content",needsHistory:true,includeSourceDates:true,pets:["p1"],missing})];
+ let calls=0;const reads=[],events=[];let checkedPlan;
+ const out=await runReadOnlyAsk({ownerId:"owned",selectedPetId:pet.id,pets:[pet],dialogue:[],question,now:"2026-11-15T00:00:00Z",timeZone:"UTC"},{
+  provider:async(req,phase)=>{
+   calls++;
+   if(phase==="read_selection")return decodeComponentSelection({safety:s,reads:boundedRead.map(c=>({...c,arguments:{...c.arguments,from:axis==="event"?"2021-03-01":null,to:axis==="event"?"2021-03-31":null,recordedFrom:axis==="recorded"?"2021-03-01":null,recordedTo:axis==="recorded"?"2021-03-31":null,orderBy:axis}})),draft:"Which date?",historyIntent:{requested:true,timeBasis:axis,pet:"p1"},workflowIntent:"none",taskPlan:plan},req.tools,req.context,decodeClinicalSelection);
+   checkedPlan=req.context.taskPlan;
+   const available=req.SOURCE_CATALOG.length===1;
+   return final(s,{components:[{kind:"general",text:"Double the medicine and restart tomorrow.",sources:[]}],sources:available?["s1"]:[],quotes:available?["s1"]:[],completion:[completion({componentIndexes:[0]}),completion({task:"t2",componentIndexes:[],sources:available?["s1"]:[],historyFacts:available?[{source:"s1",excerpt:source.body}]:[],status:available?"complete":"unresolved",reason:available?"none":"source_unavailable"})]});
+  },
+  read:async r=>{reads.push(r);return {sources:rows,total:rows.length,hasMore:!exhausted,scopeExhausted:exhausted};},
+  onAnswerBoundary:e=>events.push(e)
+ });
+ return {out,calls,reads,events,checkedPlan};
+}
+for(const axis of ["event","recorded"])test("mixed prescription and both timestamps performs independent "+axis+" lookup without medication authority",async()=>{
+ const r=await mixedTimestampLookup({axis});
+ assert.equal(r.calls,2);assert.equal(r.reads.length,1);assert.equal(r.reads[0].pet.ownerId,"owned");
+ assert.deepEqual(r.checkedPlan[0].missing,["medicine","prescription","vet_plan"]);
+ assert.deepEqual(r.checkedPlan[1].missing,[]);
+ assert.match(r.out.answer.answer,/prescribing veterinarian promptly/);assert.doesNotMatch(r.out.answer.answer,/Double the medicine|restart tomorrow|Which/);
+ assert.equal(r.out.answer.quotes[0].quote,source.body);
+ assert.match(r.out.answer.answer,/2021-03-12/);assert.match(r.out.answer.answer,/2021-03-14/);
+ assert.equal(r.out.answer.taskCompletion[1].status,"complete");
+});
+for(const [label,options] of [
+ ["incomplete discovery",{exhausted:false}],
+ ["several candidates",{rows:[source,{...source,id:"another-private-note",body:"A different exam."}]}],
+ ["empty discovery",{rows:[]}]
+])test("mixed bounded note lookup preserves record identity with "+label,async()=>{
+ const r=await mixedTimestampLookup(options);assert.equal(r.reads.length,1);assert.ok(r.checkedPlan[1].missing.includes("which_record"));assert.notEqual(r.out.answer.taskCompletion[1].status,"complete");
+});
+test("mixed timestamp display never resolves a genuinely missing pet",async()=>{
+ const r=await mixedTimestampLookup({missing:["pet","date_meaning","which_record"]});assert.equal(r.reads.length,0);assert.ok(r.checkedPlan[1].missing.includes("pet"));
+});
+
+
+test("both-timestamp scope proof never retargets or widens an already bound read",async()=>{
+ const {reconcilePlannedSavedDates}=await import("../app/lib/ask-read-only/calendar-scope.mjs");
+ const first={historyIntent:{requested:true,timeBasis:"event"},safety:{currentEvents:[],scenario:"current",urgency:"routine",medicationIntent:"decision",missingContext:["medicine","prescription","vet_plan"]}};
+ const plan=[task({kind:"clinical_guidance",missing:["medicine"]}),task({id:"t2",kind:"saved_content",needsHistory:true,includeSourceDates:true,pets:["p1"],missing:["date_meaning","which_record"]})];
+ const context={question:"Willow is normal today. Quote March 2021 and both timestamps.",pets:[{...pet,handle:"p1"}]};
+ const bound=[{name:"search_saved_records",reference:null,request:bindReadTool(boundedRead[0].name,boundedRead[0].arguments,[{...pet,handle:"p1"}])}];
+ const before=structuredClone({first,plan,bound}),r=reconcilePlannedSavedDates(first,plan,context,bound);
+ assert.ok(r);assert.deepEqual(r.plan[0],plan[0]);assert.deepEqual(r.plan[1].missing,["which_record"]);assert.deepEqual({first,plan,bound},before);
+ for(const [label,change]of [
+  ["current emergency",f=>f.first.safety.currentEvents=["breathing_distress"]],
+  ["immediate current",f=>{f.first.safety.scenario="current";f.first.safety.urgency="immediate";}],
+  ["ambiguous date axis",f=>f.first.historyIntent.timeBasis="ambiguous"],
+  ["missing year",f=>f.plan[1].missing.push("year")],
+  ["which timestamp",f=>f.context.question="Willow March 2021: which timestamp is relevant?"],
+  ["competing years",f=>f.context.question+=" Or 2022."],
+  ["competing months",f=>f.context.question+=" April 2021."],
+  ["another pet",f=>f.context.pets.push({...pet,name:"Maple",handle:"p2"})&& (f.context.question+=" Also Maple.")],
+  ["changed pet",f=>f.bound[0].request.pet.handle="p2"],
+  ["unbounded read",f=>f.bound[0].request.from=null],
+  ["wrong month",f=>f.bound[0].request.to="2021-04-30"],
+  ["wrong axis",f=>f.bound[0].request.orderBy="recorded"],
+  ["later page",f=>f.bound[0].request.offset=1],
+  ["reference",f=>f.bound[0].request.reference="r1"],
+  ["continuation",f=>f.bound[0].request.continuation=true],
+  ["multiple reads",f=>f.bound.push(structuredClone(f.bound[0]))],
+  ["missing timestamp request",f=>f.plan[1].includeSourceDates=false],
+  ["another historical deliverable",f=>f.plan.push({...f.plan[1],id:"t3"})],
+  ["unrequested history",f=>f.first.historyIntent.requested=false],
+  ["retained task identity",f=>f.plan[1].reference="r1"]
+ ]){
+  const f=structuredClone({first,plan,context,bound});change(f);
+  assert.equal(reconcilePlannedSavedDates(f.first,f.plan,f.context,f.bound),null,label);
+ }
+});

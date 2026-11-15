@@ -6,7 +6,7 @@ import {reconcileConditionalEducation, COMPONENT_INSTRUCTIONS, componentSelectio
 import { CLINICAL_INSTRUCTIONS, clinicalSelectionSchema, validateClinicalAssessment, clinicalAnswerSchema, reviewClinicalAnswer, renderMedicationDecision, ownerStatementCatalog, emergencyHandoffForAssessment } from "./clinical-policy.mjs";
 import { APP_CAPABILITIES, WORKFLOW_INSTRUCTIONS, renderAppWorkflow, supportsAppWorkflow, containsAppControlSteps } from "./app-capabilities.mjs";
 import { normalizeReadTemporalScope } from "./temporal-scope.mjs";
-import { explicitCalendarScopes, recoverBoundedCalendarRead } from "./calendar-scope.mjs";
+import { explicitCalendarScopes, recoverBoundedCalendarRead, reconcilePlannedSavedDates } from "./calendar-scope.mjs";
 import { restoreReadReferences, describeReadReferences, carryReadReferences, continuationRange, checkReferencedSources } from "./references.mjs";
 import { EVIDENCE_GOALS, HISTORY_PAGE_BUDGET, HISTORY_CANDIDATE_BUDGET, allocateEvidence } from "./retrieval.mjs";
 import { calculateReadSources, readSourceMeasurements } from "./calculations.mjs";
@@ -320,15 +320,17 @@ export async function runReadOnlyAsk(input,deps) {
  const calculationScope=reconcilePlannedAnnualCalculation(first,taskPlan,context,candidates);
  if(calculationScope){taskPlan=calculationScope.plan;first.text="";deps.onAnswerBoundary?.({outcome:"calculation_date_scope_reconciled",...calculationScope.diagnostic});}
  taskPlan=normalizeTaskRecords(taskPlan,candidates);
+ const savedDates=reconcilePlannedSavedDates(first,taskPlan,context,candidates);
+ if(savedDates){taskPlan=savedDates.plan;first.text="";deps.onAnswerBoundary?.({outcome:"saved_date_display_scope_reconciled",...savedDates.diagnostic});}
  if(taskPlan){first.taskPlan=taskPlan;context.taskPlan=taskPlan;}
  const gateReads=(proposed,plan)=>{
- const clinicalAuthorityOnly=plan?.some(t=>t.needsHistory&&(t.pets.length||t.reference)&&!t.missing.some(v=>["pet","year","date_meaning","which_record"].includes(v)))&&assessment?.missingContext?.length>0&&assessment.missingContext.every(v=>["medicine","prescription","vet_plan"].includes(v));
+ const clinicalAuthorityOnly=assessment?.missingContext?.length>0&&assessment.missingContext.every(v=>["medicine","prescription","vet_plan"].includes(v));
  return proposed.filter(call=>{
   if(call.request.kind==="profile")return true;
-  if(assessment?.referent==="essential_unknown"&&!clinicalAuthorityOnly)return false;
   const request=call.request;
   const bounded=!!(request.from&&request.to||request.recordedFrom&&request.recordedTo||request.reference&&request.expectedSources?.length);
   const allowed=!plan||plan.some(t=>t.needsHistory&&!t.missing.some(v=>["pet","year","date_meaning"].includes(v)||v==="which_record"&&!bounded)&&(t.reference&&call.reference===t.reference||t.pets.includes(request.pet.handle)));
+  if(assessment?.referent==="essential_unknown"&&!(plan&&allowed&&clinicalAuthorityOnly))return false;
   deps.onAnswerBoundary?.({outcome:"task_read_gate",tool:call.name,allowed,boundedDiscovery:bounded,boundReference:!!call.reference,continuation:!!request.continuation,tasks:plan?.map(t=>({kind:t.kind,recordMode:t.recordMode,needsHistory:t.needsHistory,needsOwnerFacts:t.needsOwnerFacts,petScopeCount:t.pets.length,missing:t.missing}))});
   return allowed;
  });
