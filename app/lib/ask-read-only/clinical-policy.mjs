@@ -54,6 +54,8 @@ function assessmentSchema(ownerStatements){
  return out;
 }
 export const CLINICAL_INSTRUCTIONS=[
+ "The final concernReview independently reviews NON-EMERGENCY occurrence from concernSentences, preserving natural tense, explicit negation and owner corrections. Select the exact sentence handle asserting the current concern; an old report, a resolved problem, a question about an emergency today, or explicit absence of current symptoms is not a current assertion. Historical and negated statements may coexist. Do not retain a mistaken preliminary current_concern label. Current acute event obligations are reviewed separately and cannot be downgraded here. Do not introduce irrelevant observation fields. For a past-only question, answer the evidence question directly without diagnosing or giving blanket medical clearance.",
+
  "For each acute event, choose exactly ONE occurrence in eventAssessments: current, conditional, historical or negated. There is no global scenario/urgency classification on this wire. A current mild problem does NOT make the severe IF warning current. Never duplicate an event across meanings. If an event is genuinely happening now as well as discussed for the future, classify that event as current; other future events remain conditional. For current events, select the relevant ownerStatementRef whose exact server-held statement asserts the event is happening or suspected now; a future IF clause or an assistant warning is not such an assertion. Never regenerate evidence quotations. Conditional warnings need no current-event assertion. Review the occurrence independently in the second pass.",
  "Classify the CURRENT question using its actual conversational meaning. Earlier dialogue supplies referents, not an automatic clinical mode. careContext distinguishes education, benign organization, a current patient concern, a clinical historical report and preparation of a vet summary.",
  "A current mild appetite concern can coexist with eventAssessments whose severe events are conditional. Never convert an IF warning or resolved past event into a present emergency. Explicit negation is not evidence the event is occurring. Map paraphrases by meaning, not a symptom keyword match.",
@@ -129,6 +131,10 @@ export function ownerStatementCatalog(context,pets,ownerId){
  return items.filter(t=>typeof t.text==="string"&&t.text.length<=1200&&!denied.some(id=>t.text.includes(id))&&!/\b[ps]\d+(?::m\d+)?\b/.test(t.text))
  .map((t,index)=>({...t,ref:"owner"+(index+1)}));
 }
+// Sentence handles preserve the original tense, negation and attribution.
+export function concernSentenceCatalog(ownerStatements=[]){
+ return ownerStatements.flatMap(row=>row.text.split(/(?<=[.!?])\s+/).map((text,i)=>({handle:row.ref+":c"+(i+1),text:text.trim(),ownerStatementRef:row.ref})));
+}
 export function clinicalAnswerSchema(schema,initial,ownerStatements=[],pets=[]){
  if(!v2(initial))return legacy.clinicalAnswerSchema(schema,initial);
  const out=structuredClone(schema);
@@ -143,6 +149,7 @@ export function clinicalAnswerSchema(schema,initial,ownerStatements=[],pets=[]){
  }
  const refs=ownerStatements.map(t=>t.ref);
  out.properties.clinicalReview=object({
+  concernReview:object({occurrence:choice(["current","historical","resolved","negated","conditional","none"]),sentence:{type:["string","null"],enum:[...concernSentenceCatalog(ownerStatements).map(s=>s.handle),null],description:JSON.stringify(concernSentenceCatalog(ownerStatements))}}),
   assessment:assessmentSchema(ownerStatements),
   ownerStatementRefs:{type:"array",maxItems:4,items:{type:"string",...(refs.length?{enum:refs}:{})},...(!refs.length?{maxItems:0}:{})},
   observationFields:list(Object.keys(observations),8)
@@ -179,7 +186,9 @@ export function reviewClinicalAnswer(value,initial,ownerStatements=[],pets=[],wo
  const review=value?.clinicalReview;
  if(!keys(value?.appHelp,["intent","pet"])||!WORKFLOW_INTENTS.includes(value.appHelp.intent)||(value.appHelp.pet!==null&&!pets.some(p=>p.handle===value.appHelp.pet)))reject("app_help");
  const workflow={...value.appHelp,intent:value.appHelp.intent==="none"?workflowIntent:value.appHelp.intent};
- if(!keys(review,["assessment","ownerStatementRefs","observationFields"])||!v2(review.assessment))reject("review_shape");
+ if(!(keys(review,["assessment","ownerStatementRefs","observationFields"])||keys(review,["assessment","ownerStatementRefs","observationFields","concernReview"]))||!v2(review.assessment))reject("review_shape");
+ const concern=review.concernReview;
+ if(concern&&(!keys(concern,["occurrence","sentence"])||!["current","historical","resolved","negated","conditional","none"].includes(concern.occurrence)||concern.sentence!==null&&!concernSentenceCatalog(ownerStatements).some(s=>s.handle===concern.sentence)||concern.occurrence==="current"&&concern.sentence===null))reject("concern_evidence");
  if(initial.protocolVersion===3&&!Object.hasOwn(review.assessment,"eventAssessments"))reject("review_shape");
  const final=validateClinicalAssessment(review.assessment,ownerStatements);
  if(!Array.isArray(review.ownerStatementRefs)||review.ownerStatementRefs.length>4||review.ownerStatementRefs.some(ref=>!ownerStatements.some(t=>t.ref===ref)))reject("owner_statement_reference");
@@ -188,13 +197,14 @@ export function reviewClinicalAnswer(value,initial,ownerStatements=[],pets=[],wo
  const introduced=introducedWarningEvents(value.components);
  const current=[...new Set(states.flatMap(s=>s.currentEvents))],conditional=[...new Set([...states.flatMap(s=>s.conditionalEvents),...introduced])];
  // Keep earlier recognized obligations; a later classification cannot downgrade them.
- const currentConcern=states.some(s=>s.careContext==="current_concern"||["current","uncertain"].includes(s.scenario)&&s.urgency==="prompt");
- const summaryContext=states.some(s=>s.careContext==="vet_summary"),historical=states.some(s=>s.careContext==="clinical_history");
+ const currentConcern=concern?concern.occurrence==="current":states.some(s=>s.careContext==="current_concern"||["current","uncertain"].includes(s.scenario)&&s.urgency==="prompt");
+ const summaryContext=states.some(s=>s.careContext==="vet_summary"),historical=states.some(s=>s.careContext==="clinical_history")||!!concern&&["historical","resolved","negated"].includes(concern.occurrence);
+ const historicalOnly=!!concern&&historical&&!currentConcern&&!current.length&&!conditional.length&&!decision&&!summaryContext;
  const active=decision||current.length>0||conditional.length>0||currentConcern||summaryContext||historical;
  if(!active&&value.components?.some(c=>c.kind==="emergency"||c.kind==="conditional_emergency"))reject("unbound_clinical_component");
  const missing=[...new Set(states.flatMap(s=>s.missingContext))];
  const clean={...value};delete clean.clinicalReview;delete clean.appHelp;
- const policy={version:2,active,decision,current,conditional,currentConcern,summaryContext,historical,missing,ownerRefs:[...new Set(review.ownerStatementRefs)],observations:[...new Set(review.observationFields)],briefQuestions:[...new Set(review.observationFields)].map(k=>"What should we record or check about "+observations[k]+"?" )};
+ const policy={version:2,active,decision,historicalOnly,current,conditional,currentConcern,summaryContext,historical,missing,ownerRefs:[...new Set(review.ownerStatementRefs)],observations:historicalOnly?[]:[...new Set(review.observationFields)],briefQuestions:[...new Set(review.observationFields)].map(k=>"What should we record or check about "+observations[k]+"?" )};
  return {value:clean,policy,workflow,summary:{policyVersion:2,assessmentVersion:initial.protocolVersion??2,medicationIntent:decision?"decision":final.medicationIntent,medicationDisposition:decision?"refer_prescriber":"not_applicable",currentEmergency:current.length>0,conditionalEmergency:conditional.length>0,currentEventCount:current.length,conditionalEventCount:conditional.length,careContext:final.careContext,missingContextCount:missing.length,ownerStatementCount:policy.ownerRefs.length,contactTiming:current.length?"immediate":decision||currentConcern?"prompt":"none"}};
 }
 export function renderMedicationDecision(answer,policy,ownerStatements=[],sources=[]){
@@ -216,6 +226,7 @@ export function renderMedicationDecision(answer,policy,ownerStatements=[],source
  const ownerReports=policy.ownerRefs.map(ref=>ownerStatements.find(t=>t.ref===ref)).filter(Boolean).filter(t=>!privateIds.some(id=>t.text.includes(id))).map(t=>t.text);
  const available=[ownerReports.length?"owner reports":null,answer.sources.length?"original saved notes":null].filter(Boolean);
  if(policy.summaryContext&&!answer.hasTaskBrief)parts.push(available.length?"The "+available.join(" and ")+" below can support a vet-call summary. They are not a diagnosis; questions about a changed or missed medicine remain for the prescriber.":"No verified saved notes or selected owner reports are available in this summary. Collect your observations for the veterinarian.");
+ else if(policy.historicalOnly&&!answer.hasTaskBrief)parts.push("A historical or resolved report by itself does not establish a current emergency. It describes what was reported then, not an assessment of current health. If new severe signs occur, contact an emergency veterinarian immediately.");
  else if(policy.historical&&!answer.hasTaskBrief)parts.push(answer.sources.length?"The original saved notes below describe what was recorded at the time, not a verified current condition or a new treatment instruction.":"Describe this as a historical report, not a verified current condition or a new treatment instruction. Bring dated records if available, and distinguish what was observed then from any current concerns.");
  if(!parts.length&&!answer.hasTaskBrief)parts.push("Use the owner reports and original saved notes below as context for your veterinarian.");
  return {...answer,answer:parts.join("\n\n"),clinicalDisplayBounded:true,clinicalUrgency:emergency?"urgent":"routine",ownerReports,replyType:policy.decision?"partial":answer.replyType==="refusal"?"partial":answer.replyType,limited:answer.limited||policy.decision,presentation:{...answer.presentation,delivery:"direct"}};

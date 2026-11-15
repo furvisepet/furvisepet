@@ -17,7 +17,7 @@ import { safeAskProviderErrorDiagnostic } from "../ai/ask-provider-error-diagnos
 
 type ProviderResponse = { error?:{code?:string|null;message?:string|null}|null; status?: string; output_text?: string; output?: Array<{type:string;id?:string;name?:string;call_id?:string;arguments?:string;content?:Array<{type:string;text?:string}>}>; usage?:{input_tokens?:number;output_tokens?:number}; incomplete_details?:{reason?:string} };
 export function readOnlyProvider(model:string,onEvent:(event:AskProviderEvent)=>void, client = new OpenAI({apiKey:process.env.OPENAI_API_KEY,maxRetries:0})) {
- return async (input:Record<string,unknown>,phase:string) => {
+ const provider = async (input:Record<string,unknown>,phase:string) => {
   const selection=phase==="read_selection",stage=selection?"interpretation":"primary",strictSelection=selection&&!!input.selectionSchema;
   let request:Record<string,unknown>={};
   let clientRequestId:string|undefined;
@@ -66,4 +66,9 @@ export function readOnlyProvider(model:string,onEvent:(event:AskProviderEvent)=>
    throw new AskPipelineError(timedOut?"primary_timeout":outputDiagnostic?"primary_invalid_output":"primary_provider_failed","The read-only answer could not be completed.",{model,elapsedMs:Math.round(performance.now()-started),providerStatus:providerError.status,providerErrorCode,providerError,providerEnvelope,validationDetails});
   }
  };
+ return Object.assign(provider,{fits:(input:Record<string,unknown>,phase:string)=>{
+  try {buildReadOnlyProviderRequest(model,input,phase,Math.min(ASK_READ_ONLY_MAX_OUTPUT_TOKENS,ASK_MAX_OUTPUT_TOKENS),getAiFeaturePolicy("ask"));return true;}
+  catch(error){if((error as {code?:string})?.code==="ASK_READ_INPUT_BUDGET")return false;throw error;}
+ }});
+
 }
