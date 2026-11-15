@@ -164,7 +164,7 @@ test("a new explicit session decision never waives a NEW null provider receipt",
 
 test("fresh image repair candidates never expand paid authority or weaken launch criteria",()=>{
  const extras=JSON.parse(readFileSync(new URL('../benchmarks/ask/v1-owner-repair-pool-2026-11-13.json',import.meta.url)));
- assert.equal(extras.cases.length,59);
+ assert.equal(extras.cases.length,60);
  assert.equal(extras.cases.find(c=>c.id==='R45').beforeAction,'reload same signed-in conversation; verify messages persisted');
  const f=fixture();f.caseId='R42';f.results=Array.from({length:48},(_,i)=>result(original.cases[i].id,{verdict:'FAIL'}));
  assert.throws(()=>dispatchGate(f),/ceiling/);
@@ -210,7 +210,7 @@ test('an unused continuation with a consumed old-SHA parent never becomes an eli
 
 test("fresh mixed historical-date analogue does not increase any paid dispatch limit",()=>{
  const pool=JSON.parse(readFileSync(new URL("../benchmarks/ask/v1-owner-repair-pool-2026-11-13.json",import.meta.url),"utf8"));
- const c=pool.cases.find(c=>c.id==="R75");assert.equal(c.category,"mixed");assert.equal(c.medical,true);assert.equal(c.critical,true);
+ const c=pool.cases.find(c=>c.id==="R75");assert.equal(c.category,"mixed");assert.equal(c.medical,true);assert.equal(c.critical,true);assert.equal(pool.cases.find(c=>c.id==="R76").category,"mixed");
  assert.deepEqual(pool.paidLimitsUnchanged,{turns:48,physicalCalls:96,newMicroUSD:2500000,maximumReserveDispatches:16});
  assert.equal(finalRequest.maxTurns,90);assert.equal(finalRequest.maxCalls,180);assert.equal(finalRequest.maximumReserveDispatches,58);assert.equal(finalRequest.maxNewMicroUSD,2500000);
  const f=full72Fixture();f.caseId="R75";f.approval.finalCohortExtension=finalDecision(f);

@@ -565,9 +565,9 @@ test("distinct bound endpoint reads establish one calculation collection without
  const separate={...task,id:"t2"};assert.equal(normalizeTaskRecords([task,separate],[first,last])[0].recordMode,"single");
 });
 
-async function mixedTimestampLookup({axis="event",rows=[source],exhausted=true,question="Willow is acting normally today. I cannot name a missed prescription. Should I double up? Separately, quote the saved March 2021 exam note and both timestamps.",missing=["date_meaning","which_record"]}={}){
+async function mixedTimestampLookup({axis="event",rows=[source],exhausted=true,question="Willow is acting normally today. I cannot name a missed prescription. Should I double up? Separately, quote the saved March 2021 exam note and both timestamps.",missing=["date_meaning","which_record"],sourceDates=true}={}){
  const s=safety({medicationIntent:"decision",referent:"essential_unknown",careContext:"current_concern",missingContext:["medicine","prescription","vet_plan"]});
- const plan=[task({kind:"clinical_guidance",pets:["p1"],missing:["medicine","prescription","vet_plan"]}),task({id:"t2",kind:"saved_content",needsHistory:true,includeSourceDates:true,pets:["p1"],missing})];
+ const plan=[task({kind:"clinical_guidance",pets:["p1"],missing:["medicine","prescription","vet_plan"]}),task({id:"t2",kind:"saved_content",needsHistory:true,includeSourceDates:sourceDates,pets:["p1"],missing})];
  let calls=0;const reads=[],events=[];let checkedPlan;
  const out=await runReadOnlyAsk({ownerId:"owned",selectedPetId:pet.id,pets:[pet],dialogue:[],question,now:"2026-11-15T00:00:00Z",timeZone:"UTC"},{
   provider:async(req,phase)=>{
@@ -600,7 +600,7 @@ for(const [label,options] of [
  const r=await mixedTimestampLookup(options);assert.equal(r.reads.length,1);assert.ok(r.checkedPlan[1].missing.includes("which_record"));assert.notEqual(r.out.answer.taskCompletion[1].status,"complete");
 });
 test("mixed timestamp display never resolves a genuinely missing pet",async()=>{
- const r=await mixedTimestampLookup({missing:["pet","date_meaning","which_record"]});assert.equal(r.reads.length,0);assert.ok(r.checkedPlan[1].missing.includes("pet"));
+ const r=await mixedTimestampLookup({question:"My cat is normal today. I cannot name the prescription. Quote the saved March 2021 exam note with both timestamps.",missing:["pet","date_meaning","which_record"]});assert.equal(r.reads.length,0);assert.ok(r.checkedPlan[1].missing.includes("pet"));
 });
 
 
@@ -616,7 +616,7 @@ test("both-timestamp scope proof never retargets or widens an already bound read
   ["current emergency",f=>f.first.safety.currentEvents=["breathing_distress"]],
   ["immediate current",f=>{f.first.safety.scenario="current";f.first.safety.urgency="immediate";}],
   ["ambiguous date axis",f=>f.first.historyIntent.timeBasis="ambiguous"],
-  ["missing year",f=>f.plan[1].missing.push("year")],
+  ["missing year",f=>{f.plan[1].missing.push("year");f.context.question="Willow March note and both timestamps.";}],
   ["which timestamp",f=>f.context.question="Willow March 2021: which timestamp is relevant?"],
   ["competing years",f=>f.context.question+=" Or 2022."],
   ["competing months",f=>f.context.question+=" April 2021."],
@@ -629,7 +629,7 @@ test("both-timestamp scope proof never retargets or widens an already bound read
   ["reference",f=>f.bound[0].request.reference="r1"],
   ["continuation",f=>f.bound[0].request.continuation=true],
   ["multiple reads",f=>f.bound.push(structuredClone(f.bound[0]))],
-  ["missing timestamp request",f=>f.plan[1].includeSourceDates=false],
+  ["missing timestamp request",f=>{f.plan[1].includeSourceDates=false;f.context.question="Willow March 2021 saved note.";}],
   ["another historical deliverable",f=>f.plan.push({...f.plan[1],id:"t3"})],
   ["unrequested history",f=>f.first.historyIntent.requested=false],
   ["retained task identity",f=>f.plan[1].reference="r1"]
@@ -637,4 +637,16 @@ test("both-timestamp scope proof never retargets or widens an already bound read
   const f=structuredClone({first,plan,context,bound});change(f);
   assert.equal(reconcilePlannedSavedDates(f.first,f.plan,f.context,f.bound),null,label);
  }
+});
+
+test("trace-shaped redundant saved pet flag cannot cancel an explicit owned monthly medication-plus-note request",async()=>{
+ const r=await mixedTimestampLookup({missing:["pet","which_record"]});
+ assert.equal(r.reads.length,1);assert.equal(r.calls,2);assert.deepEqual(r.checkedPlan[1].missing,[]);
+ assert.deepEqual(r.checkedPlan[0].missing,["medicine","prescription","vet_plan"]);
+ assert.equal(r.out.answer.quotes[0].quote,source.body);assert.doesNotMatch(r.out.answer.answer,/Which pet|Double the medicine|restart tomorrow/);
+});
+test("literal both-timestamp request survives contradictory saved output-date flag after bound scope proof",async()=>{
+ const r=await mixedTimestampLookup({missing:["pet","year","date_meaning","which_record"],sourceDates:false});
+ assert.equal(r.reads.length,1);assert.equal(r.calls,2);assert.equal(r.checkedPlan[1].includeSourceDates,true);assert.deepEqual(r.checkedPlan[1].missing,[]);
+ assert.match(r.out.answer.answer,/2021-03-12/);assert.match(r.out.answer.answer,/2021-03-14/);
 });
