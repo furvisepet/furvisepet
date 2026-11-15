@@ -1,0 +1,73 @@
+{
+  "schema": "AskV1UnacquiredIdentityVerification.v1",
+  "recordedAt": "2026-11-14T06:45:23.195636+00:00",
+  "baseSha": "575ab6f09643ad8b0c817b0d93bab92948e2e887",
+  "sourceSha256": {
+    "app/lib/ask-read-only/core.mjs": "fee295e3a42e1ba659a79d2df1fa4304e45478b5a68bbf09f8afa97ef28e7f3b",
+    "app/lib/ask-read-only/task-components.mjs": "59f91285d0e19695d3cc889c1c667fcb013e24ca0e88634a097578aa9526a59f",
+    "tests/ask-unavailable-owner-detail.test.mjs": "9eef3c3f1be6a577a2fedaa9a3cd82a33ee4de6976422ca285261176fdb508e0",
+    "tests/ask-task-components.test.mjs": "84788c6e01746c3c6856a384786c99642438b2d6b4de416f9e5306787e588890",
+    "benchmarks/ask/v1-owner-repair-pool-2026-11-13.json": "c9a9e6b484b2a2158e1b144ca488239d0e8627bec6377d628bc963c20120038b",
+    "benchmarks/ask/v1-repair-equivalence-2026-11-14.json": "c74be55682dcfd339059631cc1eb7239201077d6a81cbf9dd6116c3972dd3c35",
+    "docs/ask-v1-unacquired-identity-repair-2026-11-13.md": "f83e461c4c279d3c0b7e3398dbc5561fba6aac5c1759aceb182158cc7e302766"
+  },
+  "completeFocused": {
+    "tests": 287,
+    "pass": 287,
+    "fail": 0,
+    "logSha256": "22c94e0582147479403e3adb4c04620a4039bb5432a30282b462f568b658bfed"
+  },
+  "checks": {
+    "late-type": {
+      "command": [
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "--noEmit"
+      ],
+      "exitCode": 0,
+      "seconds": 13.71,
+      "tail": ""
+    },
+    "late-lint": {
+      "command": [
+        "node",
+        "node_modules/eslint/bin/eslint.js",
+        "app/lib/ask-read-only/core.mjs",
+        "app/lib/ask-read-only/task-components.mjs",
+        "tests/ask-unavailable-owner-detail.test.mjs",
+        "tests/ask-task-components.test.mjs"
+      ],
+      "exitCode": 0,
+      "seconds": 16.27,
+      "tail": ""
+    },
+    "late-diff": {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exitCode": 0,
+      "seconds": 0.09,
+      "tail": ""
+    },
+    "late-build": {
+      "command": [
+        "node",
+        "node_modules/next/dist/bin/next",
+        "build",
+        "--webpack"
+      ],
+      "exitCode": 0,
+      "seconds": 62.22,
+      "publicBuildPlaceholdersOnly": true
+    }
+  },
+  "fullChildScopedChecks": "pending; parent526/517 not transferred",
+  "newSession": {
+    "turns": 8,
+    "calls": 16,
+    "actualMicroUSD": 85600,
+    "unknown": 0
+  }
+}

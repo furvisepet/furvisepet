@@ -1,0 +1,8 @@
+# Explicit collection acquisition repair
+R52 on a85e4143 is retained FAIL: the first model selected a fully scoped saved-content collection with event axis but zero read calls. The answer then falsely implied saved information was unavailable. Two physical calls actual$0.014574 are reconciled.
+
+Recognize literal consecutive full-year collection membership and explicit ranges only when the sole declared task requests history, has no missing scope/owner-fact prerequisite or retained reference, and the owner names exactly one authorized pet. The existing binder, task gate, database ownership/deletion checks and all source/page/body/character limits still authorize and execute the read. A redundant generic vet-summary care-context label alone cannot cancel this nonmedical collection; medication/current/conditional events and missing authority remain excluded. No extra provider call is added.
+
+A two-call core/data-binder regression first failed with an empty admitted catalogue and now reads36/32+4 while retaining later meaningful evidence. Negative fixtures reject gaps, comparisons, reversed order, relative or quoted years, month/day scope, foreign/ambiguous pets, independent tasks, references and clinical prerequisites. Original single-note calendar semantics remain unchanged.
+
+Fresh Dune history/continuation questions are independently frozen before outputs with original owner-scoped36-row goldens. These are repair candidates, not authority. Approved72/144/40/SAME$2.50 remains enforced. A revised90-turn proposal is unapproved. No prior pass transfers, production or owner-record mutation.

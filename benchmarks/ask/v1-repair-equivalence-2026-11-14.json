@@ -1,0 +1,231 @@
+{
+  "schema": "AskV1RepairEquivalence.v1",
+  "frozenAt": "2026-11-14T03:58:52.575Z",
+  "beforeAnyOutputs": true,
+  "planHash": "4b6362042704afe0fda7906f158de20e64bcd658163d997f6bf8a85abf8b80d2",
+  "allowed": {
+    "R04": [
+      "A11"
+    ],
+    "R05": [
+      "A12"
+    ],
+    "R06": [
+      "A13"
+    ],
+    "R08": [
+      "A19"
+    ],
+    "R09": [
+      "A20"
+    ],
+    "R11": [
+      "A24"
+    ],
+    "R12": [
+      "A25"
+    ],
+    "R13": [
+      "A27"
+    ],
+    "R14": [
+      "A28"
+    ],
+    "R15": [
+      "A30"
+    ],
+    "R16": [
+      "A32"
+    ],
+    "R17": [
+      "A04"
+    ],
+    "R18": [
+      "A04"
+    ],
+    "R19": [
+      "A04"
+    ],
+    "R20": [
+      "A04"
+    ],
+    "R21": [
+      "A11"
+    ],
+    "R22": [
+      "A04"
+    ],
+    "R23": [
+      "A12"
+    ],
+    "R24": [
+      "A25"
+    ],
+    "R25": [
+      "A26"
+    ],
+    "R26": [
+      "A11"
+    ],
+    "R27": [
+      "A12"
+    ],
+    "R29": [
+      "A11"
+    ],
+    "R30": [
+      "A12"
+    ],
+    "R31": [
+      "A13"
+    ],
+    "R28": [
+      "A14"
+    ],
+    "R32": [
+      "A15"
+    ],
+    "R33": [
+      "A11"
+    ],
+    "R34": [
+      "A12"
+    ],
+    "R35": [
+      "A14"
+    ],
+    "R36": [
+      "A15"
+    ],
+    "R37": [
+      "A04"
+    ],
+    "R38": [
+      "A17"
+    ],
+    "R07": [
+      "A18"
+    ],
+    "R39": [
+      "A21"
+    ],
+    "R40": [
+      "A16"
+    ],
+    "R41": [
+      "A05"
+    ],
+    "R42": [
+      "A04"
+    ],
+    "R45": [
+      "A10"
+    ],
+    "R46": [
+      "A04"
+    ],
+    "R47": [
+      "A29"
+    ],
+    "R48": [
+      "A31"
+    ],
+    "R50": [
+      "A04"
+    ],
+    "R51": [
+      "A04"
+    ],
+    "R52": [
+      "A11"
+    ],
+    "R53": [
+      "A12"
+    ],
+    "R54": [
+      "A04"
+    ],
+    "R59": [
+      "A10"
+    ],
+    "R60": [
+      "A11"
+    ],
+    "R61": [
+      "A12"
+    ],
+    "R62": [
+      "A20"
+    ],
+    "R63": [
+      "A21"
+    ],
+    "R64": [
+      "A20"
+    ],
+    "R65": [
+      "A21"
+    ],
+    "R66": [
+      "A20"
+    ],
+    "R67": [
+      "A21"
+    ],
+    "R68": [
+      "A20"
+    ],
+    "R69": [
+      "A21"
+    ],
+    "R70": [
+      "A20"
+    ],
+    "R71": [
+      "A21"
+    ],
+    "R72": [
+      "A20"
+    ],
+    "R73": [
+      "A21"
+    ],
+    "R74": [
+      "A27"
+    ],
+    "R75": [
+      "A32"
+    ],
+    "R76": [
+      "A32"
+    ]
+  },
+  "rule": "One fresh reserved turn may replace only one listed prior-SHA case after independent pre-dispatch review of the original behavioral requirements against independently pinned replacement facts. Original pet/date/numeric literals are replaced by the new question's verified scope, never copied as facts. Preserve the original result and cost. Logic-only owner-supplied examples cannot replace saved-source recurrence qualification. No unlisted replacement, reused prompt, current-SHA retry, or pass transfer.",
+  "supplement": "v1-owner-repair-pool-2026-11-13.json",
+  "additionalPreOutputFreeze": "2026-11-14T05:54:01.387274+00:00",
+  "additionalR19PreOutputFreeze": "2026-11-14T06:13:22.456095+00:00",
+  "additionalR20PreOutputFreeze": "2026-11-14T06:39:10.655077+00:00",
+  "additionalEmergencyPublicationRepairFreeze": "2026-11-14T08:01:42.058Z",
+  "continuationCompositionRepairFreeze": "2026-11-14T08:43:07.527Z",
+  "correctedReferenceRepairFreeze": "2026-11-14T09:34:39.551Z",
+  "ordinaryTimestampScopeRepairFreeze": "2026-11-14T10:42:45.518Z",
+  "annualComparisonRepairFreeze": "2026-11-14T11:32:06.324Z",
+  "pronounScopeRepairFreeze": "2026-11-14T12:02:58.240Z",
+  "capabilityRepairFreeze": "2026-11-14T12:23:46.255Z",
+  "imageCapabilityRepairFreeze": "2026-11-14T15:01:25.115731+00:00",
+  "generalIdentityRepairFreeze": "2026-11-14T15:11:37.671855+00:00",
+  "finalCriticalAnaloguesFreeze": "2026-11-14T15:19:23.415237+00:00",
+  "sourceFreeRecordPrerequisiteRepairFreeze": "2026-11-14T15:39:54.250330+00:00",
+  "declaredUnavailabilityRepairFreeze": "2026-11-14T16:02:27.380774+00:00",
+  "collectionCompositionRepairFreeze": "2026-11-14T17:19:16.319215+00:00",
+  "emptyCollectionReadRepairFreeze": "2026-11-14T17:38:28.093905+00:00",
+  "referenceMembershipRepairFreeze": "2026-11-14T21:20:44.940122+00:00",
+  "calculationDateProofFreeze": "2026-11-14T21:41:39.018293+00:00",
+  "combinedCalculationRepairFreeze": "2026-11-14T21:59:32.369568+00:00",
+  "nativeCalculationIdentityRepairFreeze": "2026-11-14T22:17:37.404872+00:00",
+  "endpointRequestPackingRepairFreeze": "2026-11-14T22:36:02.524621+00:00",
+  "literalPlannedScopeRepairFreeze": "2026-11-14T22:54:28.997446+00:00",
+  "nativeClinicalFrameRepairFreeze": "2026-11-14T23:27:53.763706+00:00",
+  "independentSavedDatesRepairFreeze": "2026-11-15T01:14:22.609841+00:00",
+  "independentOwnedPetScopeRepairFreeze": "2026-11-15T01:31:28.213021+00:00"
+}

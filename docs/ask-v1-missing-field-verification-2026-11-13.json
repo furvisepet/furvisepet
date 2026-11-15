@@ -1,0 +1,27 @@
+{
+  "schema": "AskV1MissingFieldRepairVerification.v1",
+  "recordedAt": "2026-11-14T06:15:14.890492+00:00",
+  "baseSha": "5b24f4fe9dc893b63312b07738e935c971fb8db0",
+  "sourceSha256": {
+    "app/lib/ask-read-only/task-components.mjs": "42f676f6337f719aac4038579643e5bf43d2d3c7135326df816e077cbf882cc3",
+    "tests/ask-unavailable-owner-detail.test.mjs": "3717af04029f3450300599a4936ba89d50e388a68b273f00b136229b71c997aa",
+    "tests/ask-clinical-policy.test.mjs": "b77168b3de05876ca7a46c0ad11a43bb8b257cc2dfa16cdbb21d3f14b7cb7207",
+    "benchmarks/ask/v1-owner-repair-pool-2026-11-13.json": "6ef41cdab182cbabb50930ef5f2b4d9c4a38a4a49dae6895bb82e1f52b654ab1",
+    "benchmarks/ask/v1-repair-equivalence-2026-11-14.json": "fc2aebe9b71ffa289b7d7b963716a0debb7ea6b0fb2c5d183c9277482f3ac8f7",
+    "docs/ask-v1-missing-field-repair-2026-11-13.md": "237041488d14aa48a8198547804eb6f968cd8b525961ba6b2f5ff1f1b34ba72a"
+  },
+  "completeFocused": {
+    "tests": 200,
+    "pass": 200,
+    "fail": 0,
+    "maxOldSpaceMB": 96,
+    "logSha256": "06ee0d072d32a8bf0e4e510ecd9f701694226422174ae081fd0b94935ed07691"
+  },
+  "fullScoped": "pending; prior cancelled runs not green",
+  "newSession": {
+    "turns": 7,
+    "calls": 14,
+    "actualMicroUSD": 76847,
+    "unknown": 0
+  }
+}

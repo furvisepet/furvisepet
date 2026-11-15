@@ -1,0 +1,11 @@
+{
+  "schema": "AskV1FinalCohortExtensionRequest.v1",
+  "status": "requested_not_authorized",
+  "planHash": "4b6362042704afe0fda7906f158de20e64bcd658163d997f6bf8a85abf8b80d2",
+  "parentRequestHash": "f712004b6b3c873f55c6a097a54f30228f30582e4c12049adbc2718a117cb78a",
+  "maxTurns": 90,
+  "maxCalls": 180,
+  "maxNewMicroUSD": 2500000,
+  "maximumReserveDispatches": 58,
+  "reason": "R52 zero-read FAIL retained on a85e4143:60 turns consumed. Approved72 permits12 fresh repaired-head turns. Propose18 more to meet original30 minimum on one final SHA within SAME$2.50 total new ceiling. NOT authorization. Original unknown-only waiver, source/safety/two-call gates unchanged."
+}

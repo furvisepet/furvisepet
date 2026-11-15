@@ -1,15 +1,16 @@
+import {selectionFixture,answerFixture,sdkFixture,ordinaryTask} from "./helpers/ask-read-only-wire-fixtures.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {engineFixture as emergencyFixture,cedar,id as legacyId} from "./helpers/ask-route-ordering.mjs";
+import {cedar,id as legacyId} from "./helpers/ask-route-ordering.mjs";
 import {ownerNoteSourceSpans} from "../app/lib/intelligence/owner-note-request.ts";
 import {readOnlySuccessRouteFixture as fixture} from "./helpers/ask-read-only-success-route.mjs";
-import {id,note} from "./helpers/ask-read-only-failure-route.mjs";
+import {id,note,readOnlyFailureRouteFixture} from "./helpers/ask-read-only-failure-route.mjs";
 import {POST as confirm,request as confirmRequest,messageId} from "./helpers/ask-read-only-action-routes.mjs";
 
 function wire(output){return {status:"completed",output,usage:{input_tokens:1000,output_tokens:80}};}
 function selection(name="search_saved_records",args={pet:"p1",from:null,to:null,query:null,offset:0,order:"desc"}){
- return wire([{type:"function_call",id:"fc_read",call_id:"read",name,arguments:JSON.stringify(args)}]);
+ return answer(selectionFixture({reads:[{name,arguments:{goal:"relevant_records",alternatives:[],recordedFrom:null,recordedTo:null,orderBy:"event",...args}}]}));
 }
 function answer(value){return wire([{type:"message",content:[{type:"output_text",text:JSON.stringify(value)}]}]);}
 function deniedAuth(){let io=0;globalThis.__readOnlyMutationAuth={userId:id(1),supabase:new Proxy({},{get(){io++;throw Error("disabled action attempted IO");}})};return ()=>io;}
@@ -17,7 +18,17 @@ function deniedAuth(){let io=0;globalThis.__readOnlyMutationAuth={userId:id(1),s
 test("combined note-save and history request can read exact evidence without a write or pending confirmation",async()=>{
  const secret=process.env.FURVISE_RATE_LIMIT_HASH_SECRET;process.env.FURVISE_RATE_LIMIT_HASH_SECRET="synthetic-route-ordering-proof-secret-1109ad";
  const records=[{...note,id:id(8),body:"Juniper weighed 4.5 kg.",eventAt:"2026-09-15T12:00:00Z"},note];
- const f=fixture({records,providerCreate:(_request,n)=>n===1?selection():answer({answer:"I can read the saved notes, but I cannot save a new one through Ask.",quotes:["s1","s2"],sources:["s1","s2"],calculations:[],replyType:"partial"})});
+ const savedTask={...ordinaryTask(true),recordMode:"collection"},unsupported={...ordinaryTask(),id:"t2"};
+ const f=fixture({records,providerCreate:(request,n)=>{
+  if(n===1){
+   const v=selectionFixture({reads:[{name:"search_saved_records",arguments:{pet:"p1",from:null,to:null,query:null,offset:0,order:"desc",goal:"exact_quote",alternatives:[],recordedFrom:null,recordedTo:null,orderBy:"event"}}],task:savedTask});
+   v.taskPlan.push(unsupported);return sdkFixture(request,v);
+  }
+  const v=answerFixture({text:"The saved notes are quoted below.",sources:["s1","s2"],quotes:["s1","s2"],replyType:"partial",task:savedTask});
+  v.components.push({kind:"limitation",text:"Ask cannot save a new note.",sources:[]});
+  v.completion.push({task:"t2",status:"unresolved",reason:"not_supported",componentIndexes:[1],sources:[],ownerFacts:[],historyFacts:[],historySynthesis:[]});
+  v.evidenceCompletion.sourceReview.routine=["s1","s2"];return sdkFixture(request,v);
+ }});
  try{
   const response=await f.send("Save Juniper refused lunch, then show the two most recent notes."),body=await response.json();
   assert.equal(response.status,200,JSON.stringify(f.state.errors));assert.equal(f.state.calls,2);assert.equal(f.state.reads,1);
@@ -57,10 +68,14 @@ test("public confirmation stays unavailable across owner, message and decision s
  }
  assert.equal(count(),0);
 });
-test("fixed emergency response requires no Brain, factual read, capability, or save",async()=>{
- const f=emergencyFixture({modelDown:true});const result=await(await f.send("Cedar cannot breathe. Save this note.")).json();
- assert.equal(result.success,true);assert.match(result.response.directAnswer,/emergency veterinarian/);assert.equal(f.state.planner,0);
- assert.equal(f.rows.pet_care_entries.length,2);assert.equal(f.rows.ask_action_capabilities.length,0);assert.deepEqual(f.state.events,[]);
+test("fixed emergency response uses bounded Ask history but no Brain, factual read, credit or care save",async()=>{
+ const f=readOnlyFailureRouteFixture(()=>{throw Error("NO_PROVIDER");},[],{emergency:true});
+ const result=await(await f.send("Cedar cannot breathe. Save this note.")).json();
+ assert.equal(result.success,true);assert.match(result.response.directAnswer,/emergency veterinarian/);
+ assert.equal(f.state.calls,0);assert.equal(f.state.reads,0);assert.equal(f.state.credit,null);assert.deepEqual(f.state.tables,[]);
+ assert.equal(result.dataChanged,false);assert.equal(result.carePersistence.status,"skipped");assert.equal(result.saveMetadata.persistenceEligible,false);
+ assert.equal(result.persistence.saved,true);assert.equal(f.state.emergencyWrites,1);assert.equal(f.state.userMessages,1);
+ assert.equal(f.state.persistedAnswer.response_data.turn.providerCallCount,0);
 });
 test("public conversation uses the native bounded path; retained planning context does not acquire history",async()=>{
  const f=fixture({answer:"A prime number has two positive divisors.",replyType:"answer"});

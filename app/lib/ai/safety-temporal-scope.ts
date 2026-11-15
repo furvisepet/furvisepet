@@ -20,7 +20,7 @@ function scopedClauses(message: string) {
   // independently reported current clauses remain eligible.
   const conditionBlocks = blocks.flatMap(block => block.split(/\s*:\s*(?=(?:what\s+if|if|unless|suppose|supposing|assuming|imagine|hypothetical(?:ly)?|even if)\b)/i));
   const clauses = conditionBlocks.flatMap(block => /^(?:hypothetically|suppose|supposing|imagine)\b/i.test(block.trim()) ? [] : analyzeOwnerAssertions(block).clauseSpans);
-  const historical = /\b(?:(?:years?|months?|weeks?) (?:ago|back)|(?:a )?long (?:time|while) ago|a while back|back then|last (?:year|month)|back in (?:19|20)\d{2}|in (?:19|20)\d{2}|(?:old|previous|past|dated) (?:note|record|report)|when .{1,40} (?:puppy|kitten))\b/i;
+  const historical = /\b(?:(?:years?|months?|weeks?) (?:ago|back)|(?:a )?long (?:time|while) ago|a while back|back then|last (?:year|month|winter|spring|summer|autumn|fall)|back in (?:19|20)\d{2}|in (?:19|20)\d{2}|(?:old|previous|past|dated) (?:note|record|report)|when .{1,40} (?:puppy|kitten))\b/i;
   const hypothetical = /\b(?:hypothetically|hypothetical|suppose|supposing|imagine)\b/i;
   const current = clauses.filter(clause => !clause.isConditional && !clause.isAttributed
     && !historical.test(clause.text) && !hypothetical.test(clause.text));

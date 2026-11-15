@@ -1,0 +1,1374 @@
+{
+  "schema": "AskRetainedRedactedLedger.v1",
+  "asOf": "2026-11-14T12:09:38.591715+00:00",
+  "turns": 36,
+  "published": 33,
+  "explicitMeaningfulErrors": 3,
+  "PASS": 23,
+  "PARTIAL": 2,
+  "FAIL": 11,
+  "protocolDeviationFailures": 1,
+  "functionalFailures": 10,
+  "physicalCalls": 67,
+  "actualMicroUSD": 487113,
+  "newUnknownReceipts": 0,
+  "perSha": {
+    "83ae3b9a5c2aa4dfbaece087d8637c08a0393476": {
+      "turns": 4,
+      "published": 4,
+      "PASS": 3,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "physicalCalls": 8,
+      "actualMicroUSD": 36905
+    },
+    "fe23dc559f2d5a96f299d377ce4df82ad8e8bc47": {
+      "turns": 2,
+      "published": 1,
+      "PASS": 1,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "physicalCalls": 4,
+      "actualMicroUSD": 31455
+    },
+    "5b24f4fe9dc893b63312b07738e935c971fb8db0": {
+      "turns": 1,
+      "published": 1,
+      "PASS": 0,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "physicalCalls": 2,
+      "actualMicroUSD": 8487
+    },
+    "575ab6f09643ad8b0c817b0d93bab92948e2e887": {
+      "turns": 1,
+      "published": 1,
+      "PASS": 0,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "physicalCalls": 2,
+      "actualMicroUSD": 8753
+    },
+    "094c8b319733ecbccb0c223dd69e2e678c5f5187": {
+      "turns": 7,
+      "published": 6,
+      "PASS": 6,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "physicalCalls": 12,
+      "actualMicroUSD": 89000
+    },
+    "19ea5ee91691ae32d7ba95e1e6e0c202117ecb3a": {
+      "turns": 4,
+      "published": 4,
+      "PASS": 3,
+      "PARTIAL": 1,
+      "FAIL": 0,
+      "physicalCalls": 6,
+      "actualMicroUSD": 54748
+    },
+    "7a0905a82b36ddca316296a10ad8bbeb53dddc13": {
+      "turns": 4,
+      "published": 3,
+      "PASS": 3,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "physicalCalls": 7,
+      "actualMicroUSD": 62904
+    },
+    "fb5c6342e3e2ddd0bd854b87a8b130c9fa7e27be": {
+      "turns": 7,
+      "published": 7,
+      "PASS": 5,
+      "PARTIAL": 0,
+      "FAIL": 2,
+      "physicalCalls": 14,
+      "actualMicroUSD": 118893
+    },
+    "932532b10f05addc281ae46c58a165bda3099ebf": {
+      "turns": 2,
+      "published": 2,
+      "PASS": 1,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "physicalCalls": 4,
+      "actualMicroUSD": 16243
+    },
+    "27317891ba56afaa78ef480328b2b5c297c8f21a": {
+      "turns": 1,
+      "published": 1,
+      "PASS": 0,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "physicalCalls": 2,
+      "actualMicroUSD": 12881
+    },
+    "3a3f0febbea809c40fdedb7bae191c1798a6d6ed": {
+      "turns": 2,
+      "published": 2,
+      "PASS": 1,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "physicalCalls": 4,
+      "actualMicroUSD": 34371
+    },
+    "7fd209ce54a090559f27301878e4c2ee93afa228": {
+      "turns": 1,
+      "published": 1,
+      "PASS": 0,
+      "PARTIAL": 1,
+      "FAIL": 0,
+      "physicalCalls": 2,
+      "actualMicroUSD": 12473
+    }
+  },
+  "results": [
+    {
+      "caseId": "A01",
+      "sha": "83ae3b9a5c2aa4dfbaece087d8637c08a0393476",
+      "verdict": "PASS",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "86ade493c345c665efe73c7e9d87fdeba28e785241c51b55ca1942f411b208f3",
+      "uiCaptureHash": "b315da2923f0d1d5fd42d7314257515ca82882ef5d73b30d7695a4e926dae3e6",
+      "persistedMessagesHash": "d7f77d4d7ed7698c55c6bd5340fc4c8935bc1f896843a3b7fb1e60ebb73fc90f",
+      "backendExecutionHash": "8e00c6cca872ca9c3ba4b440a564cd3e323fcd6113a3b3bfce31ed53a54b4e5c",
+      "sourceReviewHash": "5de775a80caebd1d4c9104aedb285ee34b923480705f64362b5e126876492be3",
+      "deploymentEvidenceHash": "a41a2e8d1e5563509bc9bc72151ea6440921efc808233b91d692f475912af3a7",
+      "rubricReviewHash": "e2a722ddb4da562de55b121925331557db114ec1d96e3e87b2d6a289cd20ae4d",
+      "providerTimesMs": [
+        2712,
+        2426
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 11165,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 5268,
+          "receiptHash": "0a4f2cbb57bf15d4ff1702450a41aae6cab8285c49b235dab962f4c3c57cd273"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 5897,
+          "receiptHash": "c72d650d79548bf645807bd32201ca25ff261b8eac7977004cfab7d51dcbf21c"
+        }
+      ]
+    },
+    {
+      "caseId": "A02",
+      "sha": "83ae3b9a5c2aa4dfbaece087d8637c08a0393476",
+      "verdict": "PASS",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "69e28a7676a21c2c6d5e00c6231fedd008cd2331169cc73ca71a618d5ee59715",
+      "uiCaptureHash": "3c2fa57fd7027e106a0a1c95fd6ea84c69acb66cd7a570f230bba96541bc2a74",
+      "persistedMessagesHash": "617185de74a36bf79141cde12d82bae50a17f75dfbc3ca312958ccd375de1f23",
+      "backendExecutionHash": "927655ed962724f5125410bc3cc16c3040192b25b0a99202aefb7c45eba60848",
+      "sourceReviewHash": "1dcbc7d300951dc373549d866701a117be3ce87b5a3b793321ee97afc76f8133",
+      "deploymentEvidenceHash": "a41a2e8d1e5563509bc9bc72151ea6440921efc808233b91d692f475912af3a7",
+      "rubricReviewHash": "25a162fc8c60909851ba7a06ee8c22723973f5980f03364fc46cde413afe5d41",
+      "providerTimesMs": [
+        3440,
+        2098
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 12466,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 6490,
+          "receiptHash": "462d4c269ba59b5c9b74361aaf3e543fcdee4b30d049b5154dbcbaec528fc79d"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 5976,
+          "receiptHash": "e6aaf17b2d6421fe7b0e9810d51dc79bacdebea7463193526096defbcbe8d66f"
+        }
+      ]
+    },
+    {
+      "caseId": "A03",
+      "sha": "83ae3b9a5c2aa4dfbaece087d8637c08a0393476",
+      "verdict": "PASS",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "74f705280f08552bee1dc76edf386dbcf06390e0b52f4a77a6abba6080440078",
+      "uiCaptureHash": "c077153eb4bf3f7bd21699e7fa5ce563aa7b676d555dcc1dbdf3372c241d1e7c",
+      "persistedMessagesHash": "dd4c9ff3715f455ccebc3d449d5dce87b5a928b667529d05378b3192c7cdc8c2",
+      "backendExecutionHash": "fa3c840137ff3a3c7c7a8da3cd887d3ed8955aec5da496a35fbb3fcc2ecf0764",
+      "sourceReviewHash": "1dcbc7d300951dc373549d866701a117be3ce87b5a3b793321ee97afc76f8133",
+      "deploymentEvidenceHash": "a41a2e8d1e5563509bc9bc72151ea6440921efc808233b91d692f475912af3a7",
+      "rubricReviewHash": "725a89b0af3b5c84ab8fa51e2fb1eae8fe535f6d05958574d9acaf89719c2184",
+      "providerTimesMs": [
+        2451,
+        2093
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 8310,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 1941,
+          "receiptHash": "9b497da7078c775c87c7d7d33513137548142d2578ddd37f4476089ba46ca871"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 6369,
+          "receiptHash": "27ae1e609a9c765dd6b5fbf646868ea523d5ed500c71565eb14b8262744ee11d"
+        }
+      ]
+    },
+    {
+      "caseId": "A04",
+      "sha": "83ae3b9a5c2aa4dfbaece087d8637c08a0393476",
+      "verdict": "FAIL",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "dbd4b056fa93f213527bbb606861fed68d588bd471c25813f65cac01217a33d3",
+      "uiCaptureHash": "97f95f6bbf270c1c4e6ea0a1fc803e399d65682268f4318c94c95efdda0b84c5",
+      "persistedMessagesHash": "2049d07c40f78bd882f6caf842f05080e7df592509b03f9588fcae78500fdb37",
+      "backendExecutionHash": "c17c54a3d344509a4b5bf32aa64ccca2f75b664a13fb527ee6069c80d056bcc8",
+      "sourceReviewHash": "1dcbc7d300951dc373549d866701a117be3ce87b5a3b793321ee97afc76f8133",
+      "deploymentEvidenceHash": "a41a2e8d1e5563509bc9bc72151ea6440921efc808233b91d692f475912af3a7",
+      "rubricReviewHash": "81f2aab2a389fc33717c6eb6c979494d81d6787c8047d7fb1d512101f1a4b204",
+      "providerTimesMs": [
+        2653,
+        2119
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 4964,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 2103,
+          "receiptHash": "ebe15194b3fe06b1903e2540f852c0ef9b95ffde3e1dc7977a81cec37211660e"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 2861,
+          "receiptHash": "b21b73cc606c8be87264eb78f8e761f6cdf9489024bb189957fb08974f044cc1"
+        }
+      ]
+    },
+    {
+      "caseId": "R17",
+      "sha": "fe23dc559f2d5a96f299d377ce4df82ad8e8bc47",
+      "verdict": "PASS",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "91a05b4d49bef216f5b911cca9c7cbf0ee4385fc7dd9690abc913fbfdaabdede",
+      "uiCaptureHash": "476938668cfdf3aa5885a2116e6c3460be146cfec516487a6e82e0ac2172b39b",
+      "persistedMessagesHash": "769574e3cb5bbab45c6a7cc8d88a6d51c90f9c6401cb643e262ca6ac788ac67b",
+      "backendExecutionHash": "105440bd1a5e0cc01732f8af3ac6e503759bcaf1354a3de940cd82972e531599",
+      "sourceReviewHash": "1dcbc7d300951dc373549d866701a117be3ce87b5a3b793321ee97afc76f8133",
+      "deploymentEvidenceHash": "9573e0d76dc4ca46d355b9b53f7ebdc872886fb579810951fea5f5b0d408aaf2",
+      "rubricReviewHash": "3800160deb79826252cba495e93fa137a6da0afddd2efeebe47d8abb4a0c99b8",
+      "providerTimesMs": [
+        2789,
+        1907
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 7556,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 3444,
+          "receiptHash": "6bc36cd81242569e42839ee93fe28470b73e523b7fbbecda3a2527ecb5536e63"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 4112,
+          "receiptHash": "6be101c77813f7cd16b0eeff20689c40a6c494e61465f4f86f85e8ed48f264bf"
+        }
+      ]
+    },
+    {
+      "caseId": "A11",
+      "sha": "fe23dc559f2d5a96f299d377ce4df82ad8e8bc47",
+      "verdict": "FAIL",
+      "published": false,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "6acf4ae84e47b12a0ad46e4c2e9ad8476d312933990f7d0e63e5cede9e9de3e0",
+      "uiCaptureHash": "d544b7959a91e3215c44270f9a7e1262ab4b90de4080a27158738e84834ba443",
+      "persistedMessagesHash": "42266f22a322f3aff2e9b42eee5bf249d5cf37e00ffa0d5d1d0e7bd25bd274b2",
+      "backendExecutionHash": "969b8348ce4aecb5d8fe3251887466b66583d8d33941aec052073c209736e48d",
+      "sourceReviewHash": "33ab4c918710e3455c39a298e177155de299438bb765ba355fdc939332eef40f",
+      "deploymentEvidenceHash": "9573e0d76dc4ca46d355b9b53f7ebdc872886fb579810951fea5f5b0d408aaf2",
+      "rubricReviewHash": "6760ff0a85b1f0b1d35eb226eda36f7c5868f9972c667864491b51369fa39cee",
+      "providerTimesMs": [
+        4723,
+        null
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 23899,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 4046,
+          "receiptHash": "ed5ad6188dc83891e9c3afb79fbe98617f24ae4c6b921b59974009e7265b3382"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 19853,
+          "receiptHash": "c984ba08e65df9c7a72030d399c919dbd32006491f3eac676580ef33cb5c6f57"
+        }
+      ]
+    },
+    {
+      "caseId": "R18",
+      "sha": "5b24f4fe9dc893b63312b07738e935c971fb8db0",
+      "verdict": "FAIL",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "8dfc9e8531175903e84cd39fbe0aadfcbc95a1a22208df3f930dd0461d9be818",
+      "uiCaptureHash": "dcdc1e7d982dc062b5e6cb4967b1ad4aeb71d835ff316bece6be32357c52f1f3",
+      "persistedMessagesHash": "6b15e90220a59b42595feda9f3be8bac051531377d12d9581b83c7ab00bff6ac",
+      "backendExecutionHash": "716d97a3c987c9c1bd227573eaf6cca5d46824174ab6cd824f26179501463e8f",
+      "sourceReviewHash": "1dcbc7d300951dc373549d866701a117be3ce87b5a3b793321ee97afc76f8133",
+      "deploymentEvidenceHash": "29e9335168531ec9d52064b213f0e969af33077464eaec47458a9f7390e609b5",
+      "rubricReviewHash": "955b0ae112752fcd685ff52b4e47e36852ec13ce2226d93443ca5ce781b3221a",
+      "providerTimesMs": [
+        3285,
+        2565
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 8487,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 1980,
+          "receiptHash": "a0f3b70301529da48136dfaa9b55ac7ad178213c3b83b4127606750150a54573"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 6507,
+          "receiptHash": "ceaaaf41548ec3a817fa60ed30610686400c8f2b9c91c1efd2631b959c41fbbd"
+        }
+      ]
+    },
+    {
+      "caseId": "R19",
+      "sha": "575ab6f09643ad8b0c817b0d93bab92948e2e887",
+      "verdict": "FAIL",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "b14e29ea56f3dd41780ce03ac925d2580860917b840cc643c45d7688731fd8ca",
+      "uiCaptureHash": "3ec2ccf095222c013b4c6c551d4fb9e5c5439adcfaa831b430348f7c750bf30f",
+      "persistedMessagesHash": "e66873627a7592577c4cce9013e1bbbf688e45c79bf673a16ec628703ca2c227",
+      "backendExecutionHash": "6ce0e39cd1d1d0cec314795019feabe308e42fcc25d125b0f88fafa9e7e57242",
+      "sourceReviewHash": "1dcbc7d300951dc373549d866701a117be3ce87b5a3b793321ee97afc76f8133",
+      "deploymentEvidenceHash": "9da64d9cd2a49bb3e9dcf39e21f84957fc494c370cb53653e22c8910aa30e9d9",
+      "rubricReviewHash": "a1e91c64a8bcb483046eb5833a0d5556079fdeb572301474a7f92ab63d40d2bd",
+      "providerTimesMs": [
+        2841,
+        3176
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 8753,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 1931,
+          "receiptHash": "7d3990c95cb475bb53f5dea028b2f96411264deb01a28dfdbb6d5289b989c1fd"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 6822,
+          "receiptHash": "584f0c17045accdb69861b98dc1fe85917b2cab6da8961889b8fb5400ddbfbc6"
+        }
+      ]
+    },
+    {
+      "caseId": "R04",
+      "sha": "094c8b319733ecbccb0c223dd69e2e678c5f5187",
+      "verdict": "PASS",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "a9bb47b08f7d48e3ecda0dcdd29c43242eda1bea351c6437e2606ef34903bfa8",
+      "uiCaptureHash": "be72d52d992e985849c9ae5d805544f59a550c66b63acc43d1c479ce7b4c6e78",
+      "persistedMessagesHash": "bd1d22724a475d71a1b8f94ae1c0c75015caeb781f521f952218b950ba96f345",
+      "backendExecutionHash": "0857a3b7206d5e67c6ec3616babe4f65a17fb6410f2b33773052cf1caf1b15eb",
+      "sourceReviewHash": "501af6058abe0d313c43b4adb38f568ff4940c3b11cac470d6bc8fa342e9099f",
+      "deploymentEvidenceHash": "002fdf06ee6bfb56bad44a9a248613d95e614c01010408a17d1175b3c9f197e4",
+      "rubricReviewHash": "aecc5e3b6fca57edd052e34d34577bd6be06c6c982f3f1aaa950c306cd04e7f7",
+      "providerTimesMs": [
+        3407,
+        10139
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 26380,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 6425,
+          "receiptHash": "c3bb456ecd4975febf800015e2d9e1e8a665b6c5f0f3f95693fbadb4f3372130"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 19955,
+          "receiptHash": "4c2867255938764c25da32f96140eee20b8754b65b169e0c3d3a494195470a14"
+        }
+      ]
+    },
+    {
+      "caseId": "A12",
+      "sha": "094c8b319733ecbccb0c223dd69e2e678c5f5187",
+      "verdict": "PASS",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "ed378e119a020c5fd8a9286f9cad4f23a363f1bf94a2116b535985fe038a8af0",
+      "uiCaptureHash": "55b0fddf7dc690174b721fac89a27d3cf0e84125dd0460c3646ede32bb696fe1",
+      "persistedMessagesHash": "5ee1d90573d9bf7d2cef11914f9ca6caedf59933354d4e5a31e7619dfa26b058",
+      "backendExecutionHash": "e5ff2cad95a7728b53ffaf9ca120218ddc46f9b4f6b16ab8bdb2895ba751f9f2",
+      "sourceReviewHash": "bad86d4f1368b0c692f7d5bcfee6b7a26704c5d9c8122a9fced76b8a2475f5ac",
+      "deploymentEvidenceHash": "002fdf06ee6bfb56bad44a9a248613d95e614c01010408a17d1175b3c9f197e4",
+      "rubricReviewHash": "456763a26570ac145083fb14e132ebd11d6457d00f5239dd74257a3d3abd646f",
+      "providerTimesMs": [
+        2433,
+        5564
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 21181,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 6866,
+          "receiptHash": "8d2ed88fb1a998d7c52a384fc888aca25d0fa52fa230c0327e083d81dfb6e18d"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 14315,
+          "receiptHash": "58d2db80f06ae24a2fad07df864d8a5c3f96b4959680b144c8a4a75f60b3fc93"
+        }
+      ]
+    },
+    {
+      "caseId": "R20",
+      "sha": "094c8b319733ecbccb0c223dd69e2e678c5f5187",
+      "verdict": "PASS",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "e6c176f8f71012912c464ef86854a0f896ff551be176abaeedbfb69a004e0be3",
+      "uiCaptureHash": "6fdb3d80b2dd3a0dea73d080ef0abaca8925c6ca052d52a93ded320007bd4df7",
+      "persistedMessagesHash": "4bba9720bbdb755fac02b1ea9e1a91a1fe0fd2274c7dfa1eda35d3f32aad5920",
+      "backendExecutionHash": "1546fc27b71cab56432c2b8ee0e1828b1d74094bf777e48b4670aabd4f0c023a",
+      "sourceReviewHash": "1dcbc7d300951dc373549d866701a117be3ce87b5a3b793321ee97afc76f8133",
+      "deploymentEvidenceHash": "002fdf06ee6bfb56bad44a9a248613d95e614c01010408a17d1175b3c9f197e4",
+      "rubricReviewHash": "09cc2ef5bf059f536e7fa29bc310687704bbafa00491beedd53360f0ba0c8ccc",
+      "providerTimesMs": [
+        2029,
+        2604
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 4729,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 1806,
+          "receiptHash": "b6cc913d946e2c79f597d0cb337d9e349c3e2caf042b9d2730572446fde447b7"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 2923,
+          "receiptHash": "40b7655a11c63ae5ab152a92d76a82af7381d98eb7531a90fc0197f743a03f61"
+        }
+      ]
+    },
+    {
+      "caseId": "A32",
+      "sha": "094c8b319733ecbccb0c223dd69e2e678c5f5187",
+      "verdict": "PASS",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "731d31eebd033dae2d324f323374d8df45857913cd6cce956c3b82edac65a95e",
+      "uiCaptureHash": "55fddb0a92bea33293c8071399a1131527e90b1ced3ec16f918e87e9759f32d4",
+      "persistedMessagesHash": "427d07e3ac4e1d60214c664c992dafe94c761310ab288a358995b21aadba79db",
+      "backendExecutionHash": "371620767e409081188a87382628d6ca4882a071f80439ddc62b98f20bd3fb90",
+      "sourceReviewHash": "c9ecc2f431a77165bac59645f6faccef9210ae50c4630885cb40d3314c92f706",
+      "deploymentEvidenceHash": "9052972f800e5fa4fbd2b96c27f80c5048e9e555970eb8c4467d5ff3ad1e0cfb",
+      "rubricReviewHash": "5d18de6d854fd0d40a053545b8d20decb0c8fdcd5d6d9fcb110a157aab4f2de2",
+      "providerTimesMs": [
+        8777,
+        4730
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 15949,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 6909,
+          "receiptHash": "2b66e0d44e46f038561d7c170098ca901d7671a92b601945f253d1a84356de84"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 9040,
+          "receiptHash": "72f99c38a66f2c2643dc98fb006535441bb8e7c41a54c85a19ebbf38fc30bd4e"
+        }
+      ]
+    },
+    {
+      "caseId": "A30",
+      "sha": "094c8b319733ecbccb0c223dd69e2e678c5f5187",
+      "verdict": "PASS",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "a32bb7f08cea56df9d8f5a1ffae1fa8f36955f57077b828070de628bd720a82a",
+      "uiCaptureHash": "dec097c35462ee12e5c358c12ae47c9ec86625118b84e15f402df011e18a059b",
+      "persistedMessagesHash": "2a4af1d652a252bfdb59b2fe03e4c6930b1ee432187338834c24f26801300882",
+      "backendExecutionHash": "f2e46fac8ea3ffd108c47ecee1c5ea6109c34a306778890e3bc6c287cd866413",
+      "sourceReviewHash": "1dcbc7d300951dc373549d866701a117be3ce87b5a3b793321ee97afc76f8133",
+      "deploymentEvidenceHash": "9052972f800e5fa4fbd2b96c27f80c5048e9e555970eb8c4467d5ff3ad1e0cfb",
+      "rubricReviewHash": "8bffa39d572f7256aa53db780f3ad6dec48d4d750e1618d0a8dc2c002c314b8b",
+      "providerTimesMs": [
+        3030,
+        3670
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 6705,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 2733,
+          "receiptHash": "b28ba26767886a66fd7acbde7ec96a511635f40aae72af42eb4ebbf2cc0c8529"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 3972,
+          "receiptHash": "130fcd418289ae681d1e1a7ef95e463211e95c17dc2ab5d66e71ef9620999114"
+        }
+      ]
+    },
+    {
+      "caseId": "A24",
+      "sha": "094c8b319733ecbccb0c223dd69e2e678c5f5187",
+      "verdict": "PASS",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "79ddab0621c08f4bf9e2a0678405e9af83b37910c723245106f1ebfe541f0ef8",
+      "uiCaptureHash": "b08ba831fb5eb9b16ecd13ba8985705ef15ef97fd7960bff4565b367e82f4d48",
+      "persistedMessagesHash": "10e5e04910ca427d8b1a37ac46f93e1845c3b5f737cf61bf8c74caa1a4392e7f",
+      "backendExecutionHash": "fda04238710b1d512fc8846941ab84efb3ce7c04e1ea0936ebe21a858a3769fe",
+      "sourceReviewHash": "c363082b1fa6b3b6f0eaa3df1bb03ef3e082309a5ef6a5a76078b214e756667d",
+      "deploymentEvidenceHash": "9052972f800e5fa4fbd2b96c27f80c5048e9e555970eb8c4467d5ff3ad1e0cfb",
+      "rubricReviewHash": "8a638acd1c3582f4260500cf13101aff9633e637bb8839120a5b9fc04f4f1c10",
+      "providerTimesMs": [
+        5305,
+        3857
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 14056,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 5423,
+          "receiptHash": "f2224fd2ddee7bbe85549ab7492f12d52181066b1c3ce48d6c591e8d870c648b"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 8633,
+          "receiptHash": "72c70748698078e918745787bd6c4571e5c80fc51200b03090fe0620308a0224"
+        }
+      ]
+    },
+    {
+      "caseId": "A25",
+      "sha": "094c8b319733ecbccb0c223dd69e2e678c5f5187",
+      "verdict": "FAIL",
+      "published": false,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "2e2cde474400a616658ab17cc2f18e719a6b5f2b8b3efb33c6961e4304567e13",
+      "uiCaptureHash": "7fe510491d651a92932cb7f1e1cc56327b016aad0a4b5d79e6fbcb7feb248201",
+      "persistedMessagesHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "backendExecutionHash": "25ca043d640e570e07c776b8627c83645487c330a66b536b3c70cc7533b3a70d",
+      "sourceReviewHash": "50958aac81b101d6718aed94a8c59d7c97c0105787014c8a05333814a68ac70b",
+      "deploymentEvidenceHash": "9052972f800e5fa4fbd2b96c27f80c5048e9e555970eb8c4467d5ff3ad1e0cfb",
+      "rubricReviewHash": "0d897c549388dd4ba35fa3687d0942b6d3bcb28c55dba61c592748b06e9dac03",
+      "providerTimesMs": [],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 0,
+      "actualMicroUSD": 0,
+      "calls": []
+    },
+    {
+      "caseId": "R12",
+      "sha": "19ea5ee91691ae32d7ba95e1e6e0c202117ecb3a",
+      "verdict": "PASS",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "7e54d38d1b584ae32f46469fce4349b51a029db39f2adc24063d3ab640877501",
+      "uiCaptureHash": "fabc3dbbba68e50eb97d24de5bde509077494b911adad5d5484ee10d4132fd34",
+      "persistedMessagesHash": "bdcb59d4026feaa93239a0f65fe0e51c2a214e36eda6528161f9537c053a5f6d",
+      "backendExecutionHash": "6d37dd60904877b2a843ffb9aa6f660010074b7273f2cf8bef7fe523ff6781bd",
+      "sourceReviewHash": "1dcbc7d300951dc373549d866701a117be3ce87b5a3b793321ee97afc76f8133",
+      "deploymentEvidenceHash": "e34598035d2563e48e5815b4f2077d3b58c2e875f69325eb3d0b8d1b75e8da6c",
+      "rubricReviewHash": "c67db3ab24de2211622fc7773e7f43c1d3863bdb86a8ab5ca2224773ce89e2eb",
+      "providerTimesMs": [
+        3657,
+        2810
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 12580,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 6158,
+          "receiptHash": "8eec8def5d1c5a93e92243d0218bd016a03fc1538ac3ae4405397ec4f709ecef"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 6422,
+          "receiptHash": "84ac272196f8f01a41bab1b051c0c370041ae7bf17e605e2622ec3cf13c1609d"
+        }
+      ]
+    },
+    {
+      "caseId": "A26",
+      "sha": "19ea5ee91691ae32d7ba95e1e6e0c202117ecb3a",
+      "verdict": "PASS",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "326d52cc1d8ee51acdfed4f51c49339bc37e398dbf081739c4c79d351e953c0f",
+      "uiCaptureHash": "c3ff185defe7cd1a911d8337ca60b2f67dcb01d550c34d08e2956d7cef36064d",
+      "persistedMessagesHash": "8eec67db0dc358cefc45473eed755da9a28b4eb3fdf17509d6c05ee0f231551f",
+      "backendExecutionHash": "a93dd5491032e4c009fa7af51453474af1ea1654ae5aba21771176024d6ece26",
+      "sourceReviewHash": "df2607f27e873d7ca1e721ab2dc2cfb7afac268a2a171500e64954865efd0824",
+      "deploymentEvidenceHash": "e34598035d2563e48e5815b4f2077d3b58c2e875f69325eb3d0b8d1b75e8da6c",
+      "rubricReviewHash": "c912f3110f4f7896d709a6204010e94640f248c786d53aefcb7f8ac36dea35ab",
+      "providerTimesMs": [],
+      "interactionEvidenceHash": "1a6ae4502dfc408f8b44958f4ca1024f7aaec56cf23d456e9fcd39860621b110",
+      "protocolDeviation": null,
+      "physicalCalls": 0,
+      "actualMicroUSD": 0,
+      "calls": []
+    },
+    {
+      "caseId": "R21",
+      "sha": "19ea5ee91691ae32d7ba95e1e6e0c202117ecb3a",
+      "verdict": "PASS",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "061904e219e1be552fb21d78277056be72b7369fa5ba9cfdeb4024fe2f192e29",
+      "uiCaptureHash": "67dc0fbb24d14a1cba835e9c1a6a694979c1ca43472a36d6dbe290fd8fef0b2a",
+      "persistedMessagesHash": "93830a20864c287b1e1946a7b419b65c8d61f09477571890f16237d9559f228e",
+      "backendExecutionHash": "dbba81e740a7f5895910b262c82260243fc1917645a9ed911f99be35e5a20453",
+      "sourceReviewHash": "37fbffde40ee54ca28a2bb576c2003ce68c37163f0190fe032da8e652df9aa5e",
+      "deploymentEvidenceHash": "e34598035d2563e48e5815b4f2077d3b58c2e875f69325eb3d0b8d1b75e8da6c",
+      "rubricReviewHash": "8aa49c0b445929f92d1a189342ed1db7f2869a3b69e7a638899e226acb83da3f",
+      "providerTimesMs": [
+        3605,
+        5092
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 22007,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 7240,
+          "receiptHash": "d48ce6c87ecc96bb0e6e62a47953c25d5c0ab3e69e88a01dd597e6324063409a"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 14767,
+          "receiptHash": "305700744425bb15e8ef7251cee470808afc9e7d10d88a078ed36f1b05722e4e"
+        }
+      ]
+    },
+    {
+      "caseId": "R23",
+      "sha": "19ea5ee91691ae32d7ba95e1e6e0c202117ecb3a",
+      "verdict": "PARTIAL",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "5021383c00c0c2df8b01d4f709393a7f0e1f14267156f539a94e5b63c4a4479a",
+      "uiCaptureHash": "c7776786d4c6c17ea92b6780d3d5fd76238b46d8b4d3deb7bd1846b076100004",
+      "persistedMessagesHash": "552e7158bedfb13d9695a664d58bb5e2d82643a286bca366338b0d95a6fb5aba",
+      "backendExecutionHash": "d34313056321761eb4681c30eeb4c2b86315895642e68df750b2e72a65aa6416",
+      "sourceReviewHash": "8f51a6d311dcf6fb57f17ca183fc39dac6e3cae7ebbf25ea375c733ef4c563f4",
+      "deploymentEvidenceHash": "e34598035d2563e48e5815b4f2077d3b58c2e875f69325eb3d0b8d1b75e8da6c",
+      "rubricReviewHash": "8dccc65ce5f7a28628b554a9b1e72cf2b1c3d62304dd1d9948d275a95e8d56a7",
+      "providerTimesMs": [
+        3881,
+        8239
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 20161,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 5318,
+          "receiptHash": "e72208150d5d9d704d2911fa80d5505c175dcb993456a122d9fc49a1b82fe98b"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 14843,
+          "receiptHash": "b9f741085b9cf1c558c4d6a2167bc9c469c505628de531e9a3436e02cbb4e3fa"
+        }
+      ]
+    },
+    {
+      "caseId": "R26",
+      "sha": "7a0905a82b36ddca316296a10ad8bbeb53dddc13",
+      "verdict": "PASS",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "ba8ca71ea6b0f446288c218076b1b16cf28d5eb6d64af423675cde4d4877f0f8",
+      "uiCaptureHash": "8272b7b24f47b1808f4e9b9bf80ed92e3e6557501eecb493776608bffcf0e7db",
+      "persistedMessagesHash": "74e0be119df351a0581fc2edfeb4e52ebde47243f1c4bcade21e749eb589a9d6",
+      "backendExecutionHash": "0845b1bec4722e26cb5a97f187eb97d2c455473233ec10567ae14d8b97cb56ee",
+      "sourceReviewHash": "4a368ef330c1e9b0fe65d067589eea55150f645f5ea22e28e5c2fdf5b29dd3fb",
+      "deploymentEvidenceHash": "09811ef7da2569a173f01250bc1195ddbf1f9e03112384d0a06a192f1b9169f1",
+      "rubricReviewHash": "d520064daf7c6fc9bde2461ca44084f35762b5e89c10b3eddc9e6eca172ee5af",
+      "providerTimesMs": [
+        5455,
+        5949
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 18603,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 4740,
+          "receiptHash": "42cc349af37a4ca8c0bd228e03820990df2ce87710b098514af2ad6b2c4668ee"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 13863,
+          "receiptHash": "9499d05bbecf0aa50b54575fa0beb2f6fbbd3c166730da065ef8f713dee3e4cf"
+        }
+      ]
+    },
+    {
+      "caseId": "R27",
+      "sha": "7a0905a82b36ddca316296a10ad8bbeb53dddc13",
+      "verdict": "PASS",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "0caa6f15a36a08adad2d7bf0d0e503586099eb78e44b4be6668e74ad4a786449",
+      "uiCaptureHash": "c3c0acb540fb187e4d2d6377009ededb79afcad9feca16be79ad8e09b06cf800",
+      "persistedMessagesHash": "1bd057d4f61cc189941c2273ea0c5c6aba3c6ece05e8fee3a9048ab5bfa13f81",
+      "backendExecutionHash": "5e0fa0ca685785daf5075ff76d18c79b417c35af3ff36a8699d4ea4596a6b301",
+      "sourceReviewHash": "80e1197147b955ce04f46d34d73bca6798df93ee194fa11eb787c720165b013f",
+      "deploymentEvidenceHash": "09811ef7da2569a173f01250bc1195ddbf1f9e03112384d0a06a192f1b9169f1",
+      "rubricReviewHash": "d7b2719f09dfc0c2f4635e85a66700073b4d47bea883cee1b91c4a547a6ad70e",
+      "providerTimesMs": [
+        4514,
+        8155
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 18207,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 6709,
+          "receiptHash": "dbbd484d6e1676b183566507a71b5bda741cdb71a6df573205f79fa110a45782"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 11498,
+          "receiptHash": "30c277bb8fcfcc15effa49cbfb246f95a9ceefa379e724da539a843e7e331a21"
+        }
+      ]
+    },
+    {
+      "caseId": "A13",
+      "sha": "7a0905a82b36ddca316296a10ad8bbeb53dddc13",
+      "verdict": "PASS",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "8cafa11a5e52325452ac7ca94c0abb681296bbf36a008cf6e299350e71ee1d26",
+      "uiCaptureHash": "dfacf2f65eb6764458f6c653404bd7b2e7370da83df1f80cafc65e4246f696ae",
+      "persistedMessagesHash": "baf6a4491e20c792936953ea1499d1ce9f416defb6f97fc3c2fbd2ea804ffba0",
+      "backendExecutionHash": "56d4daea3a2a343b4b5e07fb5b7aaffc17cee223bff8500b4bd36282e0f7541e",
+      "sourceReviewHash": "5fe636b4658d42e7cafb7cf0885c92ee5abd4b4584f94b7ead2ee8ea3069dcb9",
+      "deploymentEvidenceHash": "09811ef7da2569a173f01250bc1195ddbf1f9e03112384d0a06a192f1b9169f1",
+      "rubricReviewHash": "5378b5303e0479c80a7cf3a529b33ade49fab10a2f3d0c296c40179b6d3399bb",
+      "providerTimesMs": [
+        5053,
+        3576
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 18105,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 9360,
+          "receiptHash": "126c744feafe5eae7bdf5d27f979aed9400a94b74054f4596dcaa1fcee9457f9"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 8745,
+          "receiptHash": "b2cc8de6f45251b37864911c0ec4e53387061ca82472c0ca041844af200571c4"
+        }
+      ]
+    },
+    {
+      "caseId": "A14",
+      "sha": "7a0905a82b36ddca316296a10ad8bbeb53dddc13",
+      "verdict": "FAIL",
+      "published": false,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "99d5b80d646821c67cafe744c08b755994d58d3b698bfffedd5e01f4da2ef972",
+      "uiCaptureHash": "33abdc7195c2cad1c07e1fd9dc2c69c17368c6b04f9c371066b76a4f701ff304",
+      "persistedMessagesHash": "dd1bb5a37446c6afc323b2dec6e93abaeb427f60b9a0dba834acbc6317c40dd2",
+      "backendExecutionHash": "487ee5b4dd5796ca323e1fb43d0e2e01f294a197b31d4e0c38785ef3135daa75",
+      "sourceReviewHash": "d211f9aaac9f1428b74cc45fd79723d4fd5bf03fab46e1e7a93376d0ff571b53",
+      "deploymentEvidenceHash": "09811ef7da2569a173f01250bc1195ddbf1f9e03112384d0a06a192f1b9169f1",
+      "rubricReviewHash": "c26bb0a0198e1b49e9ee6d6dee45d795bf990196bc8df99f3b491c5dbd8b2ab6",
+      "providerTimesMs": [
+        2994
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 1,
+      "actualMicroUSD": 7989,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 7989,
+          "receiptHash": "2334eb6a6b140ea5c87587d28b3bef80fa7186185982601e13111d9202f1b537"
+        }
+      ]
+    },
+    {
+      "caseId": "R29",
+      "sha": "fb5c6342e3e2ddd0bd854b87a8b130c9fa7e27be",
+      "verdict": "PASS",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "d81e4522a3daf84cdecccd4f5157fd8c9849c00e63c7d27453b6767633b66f43",
+      "uiCaptureHash": "32fd1ff55e669bb0e0a80847997967f05df53d98c9b61aad4dca39630feffcb4",
+      "persistedMessagesHash": "09038d39a317869ab07959a0428a9e49bc93b16a7cf0cafc2c2ac3d772309d5f",
+      "backendExecutionHash": "3eb2cf737b672ba1de1ba7d58a7c3cc24a0d7bd017fe99c575a04b789326a2b3",
+      "sourceReviewHash": "049e6ae8b2d5e2e401d30df56c984632c34511185253365f0dc8cee3890ac511",
+      "deploymentEvidenceHash": "e5d6b736bd57e49c275e456f8e3a5b38e76603bc32126b00b76c295d4e3d6b5a",
+      "rubricReviewHash": "c53765b3d4142115526bb03b9a58ec224480e06661d1b69a24576085cf0d3f0b",
+      "providerTimesMs": [
+        4359,
+        5375
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 18673,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 6555,
+          "receiptHash": "bb4c1010258d5eadf4dcca090762ab60451f0658144ee4f734f11d9bbe5d8e00"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 12118,
+          "receiptHash": "27a45553a9f9e3d357183d2f7b2050c24eba34a0b13dde149706727b938a1914"
+        }
+      ]
+    },
+    {
+      "caseId": "R30",
+      "sha": "fb5c6342e3e2ddd0bd854b87a8b130c9fa7e27be",
+      "verdict": "PASS",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "7ccbcf0bdc86f44ecee144454cd973792286947d5762cf2a19b8cf0fa4e5ad2b",
+      "uiCaptureHash": "a64354332ef8cdf78b797777d5e17539f53008c576abef4aa94aea211e40e220",
+      "persistedMessagesHash": "f451d85751ebdbd92faf76d8f39a23def15e2273d20ba8876d9198bd5b6c3a74",
+      "backendExecutionHash": "c27c366010de306f2154caa91a27a22f0fef5c9543273e70801f9c2f675dfdd5",
+      "sourceReviewHash": "e0132e3e46a87dc2d1a60ff0760d740c950e1d1e75f1ba202589457e66b18fc7",
+      "deploymentEvidenceHash": "e5d6b736bd57e49c275e456f8e3a5b38e76603bc32126b00b76c295d4e3d6b5a",
+      "rubricReviewHash": "232ef7c9c884569e48be39e06e792531ab2ae5d73b65ae0576b3ac3f5d79963d",
+      "providerTimesMs": [
+        3499,
+        9294
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 21081,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 5938,
+          "receiptHash": "02fece87cb7e3ed5c97e794107b5fa15ba8b1e3a0c08b8bac7794b41e759710f"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 15143,
+          "receiptHash": "d780f249dbc2ef380be6ac2aa43226225afe7a70d0ac0ec279ad15cbea831f5f"
+        }
+      ]
+    },
+    {
+      "caseId": "R31",
+      "sha": "fb5c6342e3e2ddd0bd854b87a8b130c9fa7e27be",
+      "verdict": "PASS",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "78a314d959338d2adb4d0851385f0c1717aa9361957e7ae7433886d2cacef498",
+      "uiCaptureHash": "48fdd6068b66081e8cb983d3fc2d612672678f7c49a2cc4b4f63485598e46caf",
+      "persistedMessagesHash": "72d2c1c1e431ab207375ecd3a4ebdc0e260dff0bb720ae0189f9131189e72efd",
+      "backendExecutionHash": "ef7a5367e1a62b55f4396f136f2a142cf5a2d10bcdc92b9096690133b168f223",
+      "sourceReviewHash": "b0cf960035b0b889211e3aace288e716a91f3ea6cc25143eb535fd1992844a99",
+      "deploymentEvidenceHash": "e5d6b736bd57e49c275e456f8e3a5b38e76603bc32126b00b76c295d4e3d6b5a",
+      "rubricReviewHash": "dc9fbd62b0242c61db234c0decbc3ec84e1cf4bb8c90b20dcaa6a2aeb3753f3c",
+      "providerTimesMs": [
+        4568,
+        2389
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 14815,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 9020,
+          "receiptHash": "76515db048d44cc6f01742230859060c5a082ca213ecd1222d90ef9324604735"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 5795,
+          "receiptHash": "64d53d8eb07b31d2540fbad2656420e22c624cbd8c6aec602b48a49b3fff760b"
+        }
+      ]
+    },
+    {
+      "caseId": "R28",
+      "sha": "fb5c6342e3e2ddd0bd854b87a8b130c9fa7e27be",
+      "verdict": "PASS",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "43c57a9af0e3c01ec56a63973bee9d93f1dc73d55a23206bcaaed6ae0fd456b9",
+      "uiCaptureHash": "6f8f756a035a9fa707cd7a5e9395d67f106ef02e0973f8426e7006e444125310",
+      "persistedMessagesHash": "47233520b5ba9b718208d314ba5f097a3c1e77355e380aa458a9567b47832a40",
+      "backendExecutionHash": "8ca557e9b44062fd5e8532b35d76167a6966a9eb01ef67f3a9bac85ae44d4cc2",
+      "sourceReviewHash": "6789ed3558a50390b64de678e249308f2da8354ce88f8d11defa611c147647fd",
+      "deploymentEvidenceHash": "e5d6b736bd57e49c275e456f8e3a5b38e76603bc32126b00b76c295d4e3d6b5a",
+      "rubricReviewHash": "f7abad90883836799dd5d87e511856a761671da2bb9369529922b84e18092e7d",
+      "providerTimesMs": [
+        5381,
+        3478
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 20064,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 10033,
+          "receiptHash": "52d6c9c0954061c3353d06fa591fa4e1b423669acf9473756389f93adfa002c9"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 10031,
+          "receiptHash": "5188b1b06ef391aa768821f4c478efa6a59bb93df18228065c164bd7264aa641"
+        }
+      ]
+    },
+    {
+      "caseId": "R32",
+      "sha": "fb5c6342e3e2ddd0bd854b87a8b130c9fa7e27be",
+      "verdict": "FAIL",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": false,
+      "questionHash": "ae897f90d12e7426123fe9b872d0664d18121ba416c0e6c2321fc4a86e8df590",
+      "uiCaptureHash": "7a1bf21aa69ca12af70d77630f96de96a85d08750a564e501aeaf5c87aa3c40c",
+      "persistedMessagesHash": "15fed6e15327af9763372065b87d7c4e292703fb359c57fb3e62ad682f755764",
+      "backendExecutionHash": "e145da6b1d5ca61d481e3379756df54e67fd7a24ba66ec7534ba623de6f63a97",
+      "sourceReviewHash": "310e7d93ed2e2ac1b9fbbdcecbbc11e0cec9abc924608ba52249462d7eb2307c",
+      "deploymentEvidenceHash": "e5d6b736bd57e49c275e456f8e3a5b38e76603bc32126b00b76c295d4e3d6b5a",
+      "rubricReviewHash": "d2521f28635d7196979256445fb22b38c23836060d5768f4164a1153137b3595",
+      "providerTimesMs": [
+        3184,
+        2239
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": {
+        "kind": "DISPATCH_AFTER_PREP_REJECTION",
+        "preDispatchIntentExisted": false,
+        "gateFailure": "original prior-SHA result required for replacement",
+        "noBackdatedIntent": true,
+        "remediation": "Require successful original prepare job and exact dispatchPrepared case/SHA token before browser Send; consume token before click; failure prevents browser action."
+      },
+      "physicalCalls": 2,
+      "actualMicroUSD": 17911,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 8969,
+          "receiptHash": "eeeeba4b9af7f2423d8e2733731cd640e4e0be482b099dd52666233e59dd1c30"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 8942,
+          "receiptHash": "5e01f8ebdbffbbd2dac6ac91ac62f59fd3ccf8f8035e8470aefa50e52f3bb730"
+        }
+      ]
+    },
+    {
+      "caseId": "A15",
+      "sha": "fb5c6342e3e2ddd0bd854b87a8b130c9fa7e27be",
+      "verdict": "PASS",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "4d0579ec4eabbbd676de1c90814f8a6618083f23c50661166ea4ac4923f756b5",
+      "uiCaptureHash": "4e67cd9e54b6e598ea412a77b0c2219a878de55b6d381c4c38bcc670cca8c96b",
+      "persistedMessagesHash": "af98671c92a661b59e0a7b460438f8c9099b5db11810189eda07c53627caa607",
+      "backendExecutionHash": "ba69e9eaf65b8b0fb2fe0928d953d16185ef867f461700bb90ec914ea95da5c6",
+      "sourceReviewHash": "f8869958ad70cee0d590a936a964bd631f65ab9c95b77b6355a265e2f8dd91a9",
+      "deploymentEvidenceHash": "e5d6b736bd57e49c275e456f8e3a5b38e76603bc32126b00b76c295d4e3d6b5a",
+      "rubricReviewHash": "189d0e5a312f54882aa5f4079ddf0274a710252f8079d8a808f9e8dd3fd423fe",
+      "providerTimesMs": [
+        3410,
+        2685
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 18022,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 8605,
+          "receiptHash": "10cc84b6881ec8e6605bc89940224c3adc80335bea9f85b5ec45f8216d63690c"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 9417,
+          "receiptHash": "15e84fd87a22c581bb7fc937599ac72114fdbae3930cb078b216924e3ffa8bc1"
+        }
+      ]
+    },
+    {
+      "caseId": "R22",
+      "sha": "fb5c6342e3e2ddd0bd854b87a8b130c9fa7e27be",
+      "verdict": "FAIL",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "d4d23f4f30322cf02e4754fc5ab3bc27c6b8ec9934a8f8a80647053a4bfcd72e",
+      "uiCaptureHash": "33320d6219701a5d46012592a1586a736434c2f84abb66faa570768593ae7680",
+      "persistedMessagesHash": "0682aa4dcb796f23c0c581ec080825f979b445a6ea7e16d7bfc5996277e22044",
+      "backendExecutionHash": "df96abc08947df323cf96c9ddeb3a50ce0725987659b2ec77cf7e2c6259f97a7",
+      "sourceReviewHash": "1dcbc7d300951dc373549d866701a117be3ce87b5a3b793321ee97afc76f8133",
+      "deploymentEvidenceHash": "e5d6b736bd57e49c275e456f8e3a5b38e76603bc32126b00b76c295d4e3d6b5a",
+      "rubricReviewHash": "a902de05883eb0a0983f30dfd1035edf171df0bb121a1d8b60c2dba241d5cea6",
+      "providerTimesMs": [
+        2013,
+        2620
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 8327,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 1942,
+          "receiptHash": "b778a7f98d1b24ea97938880a20b3077c060da77d3488baff2fd6c24547e3452"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 6385,
+          "receiptHash": "4cf7a2cda6d30ec2de0d5693473eb8616527e439670cec9d81786f2137dcbcad"
+        }
+      ]
+    },
+    {
+      "caseId": "A17",
+      "sha": "932532b10f05addc281ae46c58a165bda3099ebf",
+      "verdict": "PASS",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "8632a6e4ffbc8f4dca4c792c6a4393e2905e42d8fff58684b195fdc2495d3fea",
+      "uiCaptureHash": "3bcf803badf2d67536e09d440a99fc04488db6fd255ffbc896b84a9da7d83969",
+      "persistedMessagesHash": "a39b40eed748bf55030b3ef91dfc6b7c3d3de3a2714d66735b6c6b134975c86b",
+      "backendExecutionHash": "b10c0158ba16bbafc057b8b230652fba152680443845718c7aa739507b989413",
+      "sourceReviewHash": "f97e6fe5947c1baecb7dab6f3e9e1e525806e8ce1a1b04e0f678099f966dd431",
+      "deploymentEvidenceHash": "198005c955c53eff78ac12717c3032afd6f094a64a2f50032913ad587c1a6770",
+      "rubricReviewHash": "e9f0ecf153fd6d6c58e6773eb0c0194bc65d6a502a80cac276f9f1597c7d36fe",
+      "providerTimesMs": [
+        4740,
+        2673
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 11321,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 3944,
+          "receiptHash": "9c75644a19ee4ada389aa47a2e6895eac1b03448804f2119e7b2fd60310549c4"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 7377,
+          "receiptHash": "57155a52fe1fddfa4377a1adcf73a36b9de53f30f0ab1f5cc807c644499cbc80"
+        }
+      ]
+    },
+    {
+      "caseId": "A18",
+      "sha": "932532b10f05addc281ae46c58a165bda3099ebf",
+      "verdict": "FAIL",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "18f9596cf9aa65c5708d4fbff5b2850a5bf52704e81d4aad7777e2a39fbe33b2",
+      "uiCaptureHash": "fe0360d77736c6e400aaf4d9350191b6c8c2965021e946369c6f2f837f2110fd",
+      "persistedMessagesHash": "1f0dadc541ffcdfde748e598a778fafc5dbc447d0949459c9ae04119229cf016",
+      "backendExecutionHash": "2530fbe5de102dfb5c22c46e99d6d4552057dcb511019cd47041cd5a7e52529c",
+      "sourceReviewHash": "1dcbc7d300951dc373549d866701a117be3ce87b5a3b793321ee97afc76f8133",
+      "deploymentEvidenceHash": "198005c955c53eff78ac12717c3032afd6f094a64a2f50032913ad587c1a6770",
+      "rubricReviewHash": "08b2a3274e4d8fb0d5d609b1b8195ced833ff325e434b8ab12ab9844b48c4577",
+      "providerTimesMs": [
+        1816,
+        2484
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 4922,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 2038,
+          "receiptHash": "16d4159353d86577e0e83e1251db45aaff924c05816c20aa9c7e8c6bacd90171"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 2884,
+          "receiptHash": "b05de5c24c63363e0231f600eb642ac5ea71a5e1c13a5f4737b944221f8ad527"
+        }
+      ]
+    },
+    {
+      "caseId": "A19",
+      "sha": "27317891ba56afaa78ef480328b2b5c297c8f21a",
+      "verdict": "FAIL",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "b968b5fd29f2680e4ec0f4a3f59468a4075472c36b13555ed45c2a8b41645ceb",
+      "uiCaptureHash": "00b1ef161a4ff31518df0f76ba42de4f7935844a0e6a72538a3c78a3b9521f2f",
+      "persistedMessagesHash": "0032c769a81762fa53a30ae0c60b631b9f98a7458c1f1283bb617c6da555af7c",
+      "backendExecutionHash": "332bf7268b91340584d0f7dc5a152d846e0f20d956439450a6d539d628472f09",
+      "sourceReviewHash": "1dcbc7d300951dc373549d866701a117be3ce87b5a3b793321ee97afc76f8133",
+      "deploymentEvidenceHash": "8ff52390fff0f3c04a14d6b836dd564938b6d4ca07cf4c13135537c0a8bf747a",
+      "rubricReviewHash": "5d56a0c8d25b72f7354abfa5773d7f5412330a325a4098865c0b29c6ca37ed76",
+      "providerTimesMs": [
+        3389,
+        3476
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 12881,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 5799,
+          "receiptHash": "66cc477c220a9a2270c85cdaec6fc922500bd2f483ad4cfbe34f936d77ec1594"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 7082,
+          "receiptHash": "6088e23a4ad620a74500be5fe20118498b337c49a309031be59f5ad9c17c8bfb"
+        }
+      ]
+    },
+    {
+      "caseId": "A20",
+      "sha": "3a3f0febbea809c40fdedb7bae191c1798a6d6ed",
+      "verdict": "PASS",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "3edcf0ab171097d302db364c68560face646b8162d4efbe18bb76cb0648d5051",
+      "uiCaptureHash": "566bf3c3f5ed12360b271c414be861723fe0b9268fbb1023ad2cf8fe02311942",
+      "persistedMessagesHash": "c3dfc718b657ac610b7c6085d7611d883cebc82b394175670409ec928ced0f9d",
+      "backendExecutionHash": "dae3e6a6cec3bdbb4ee4bb866978ef4b944da3684a194f3c7360ddaf280b65a9",
+      "sourceReviewHash": "9357222951a8cc9eeb84e23045d8ac823929cfc247c5ae3f6e9319707527e86c",
+      "deploymentEvidenceHash": "9d7d1cc18afb8bed53edd801a88d8e631b5acf583dbe56f961ba27ba73b76eae",
+      "rubricReviewHash": "9b9b9d7080c4d243abbc9dd862d7d384dad1d32cd205875cc0fcb3d3ae0f696a",
+      "providerTimesMs": [
+        6772,
+        3468
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 17427,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 6460,
+          "receiptHash": "945d9353fb16689101d9ce9599479311c2f80220a27267d67e1ff39ae4fbbcc3"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 10967,
+          "receiptHash": "b72c79e3836f7cd68decd777393edf072fc83f4ca4765d95ebf5d09a71e2901e"
+        }
+      ]
+    },
+    {
+      "caseId": "A21",
+      "sha": "3a3f0febbea809c40fdedb7bae191c1798a6d6ed",
+      "verdict": "FAIL",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "61ed8fc3af2c0e3e2af509e624872d5ac999a8ff1528fc99406ac8171b615b73",
+      "uiCaptureHash": "541e5f8865849c1eb049787ea7204831f97ccdce9bb6a6bf77a2a4d0f2a58a32",
+      "persistedMessagesHash": "2b67502b0d321aaba56c381feda12b5a44bca9b8b8ef7ce8badf3ec880b9fdd7",
+      "backendExecutionHash": "cda4cbed51de6afc1b89f6891c9d141eff8e1db86fca673eca6b788ae621e02c",
+      "sourceReviewHash": "1d9f6d1796bb96bf4f7e24511a2805d83d0e80468d6c8e2b7e4dcf926579e5e2",
+      "deploymentEvidenceHash": "9d7d1cc18afb8bed53edd801a88d8e631b5acf583dbe56f961ba27ba73b76eae",
+      "rubricReviewHash": "208cd5dd4d525b01171b8a958ac17b87b039a34ece95574fd4dd922470749a5d",
+      "providerTimesMs": [
+        4620,
+        2636
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 16944,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 8958,
+          "receiptHash": "5e6867a866a025c7654fd28256e18c1f9e4fd73418a2e06fcca09bb54d21c008"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 7986,
+          "receiptHash": "aee89442d5c90b4a6edf1f497184a7fc43678cd177ea4c69f64e02c3e9e9f2cb"
+        }
+      ]
+    },
+    {
+      "caseId": "A16",
+      "sha": "7fd209ce54a090559f27301878e4c2ee93afa228",
+      "verdict": "PARTIAL",
+      "published": true,
+      "complete": true,
+      "qualifiedBenchmark": null,
+      "questionHash": "9a0b5c57995675fd9d213d0db820d3b8a73a530eed573940dbdf63801c8171ce",
+      "uiCaptureHash": "638fb5c1ceaab97ceeef0b804e3084ab91cb816c47d45a182786c7abb98b64b5",
+      "persistedMessagesHash": "a941781bfe1d7db92a827a08358c3982a49d11a90d2d037924fb25c58c3dedc5",
+      "backendExecutionHash": "7340c2673a7cdf1908653a6d7130a17b7e834b2bced5f401fc53ab0fd6966ffe",
+      "sourceReviewHash": "1dcbc7d300951dc373549d866701a117be3ce87b5a3b793321ee97afc76f8133",
+      "deploymentEvidenceHash": "0a965a2c9128e6e54d5468f92eaaa84bf051950c2e8c02a995f06db574ee3642",
+      "rubricReviewHash": "eab50a9603c7ea246534cf2432d297c6a69feadf61a8e58d98b18c337614c888",
+      "providerTimesMs": [
+        3614,
+        2429
+      ],
+      "interactionEvidenceHash": null,
+      "protocolDeviation": null,
+      "physicalCalls": 2,
+      "actualMicroUSD": 12473,
+      "calls": [
+        {
+          "number": 1,
+          "actualMicroUSD": 6392,
+          "receiptHash": "8c9a8d26e26a8ed52ff6ca7d41f1e1d890703208829a4420ad303400be230c74"
+        },
+        {
+          "number": 2,
+          "actualMicroUSD": 6081,
+          "receiptHash": "a005695ee9a089a50439d8ceaa264b5c4d097d134e51fdb8fa6edf3b4a446d34"
+        }
+      ]
+    }
+  ],
+  "priorSuppliedBaseline": {
+    "turns": 48,
+    "physicalAttempts": 96,
+    "actualReceipts": 95,
+    "knownMicroUSD": 862480,
+    "unknownActuals": 1
+  },
+  "combinedSuppliedAndCurrent": {
+    "turns": 84,
+    "physicalAttempts": 163,
+    "actualReceipts": 162,
+    "knownMicroUSD": 1349593,
+    "unknownActuals": 1
+  },
+  "protection": "All original FAIL/PARTIAL and costs retained; no pass transfer; R32 protocol FAIL not a qualified PASS; not a ledger of every earlier PR527 pilot."
+}

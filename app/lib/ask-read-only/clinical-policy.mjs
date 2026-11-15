@@ -132,6 +132,15 @@ export function ownerStatementCatalog(context,pets,ownerId){
 export function clinicalAnswerSchema(schema,initial,ownerStatements=[],pets=[]){
  if(!v2(initial))return legacy.clinicalAnswerSchema(schema,initial);
  const out=structuredClone(schema);
+ // V3 urgency comes from independent typed review and server rendering, not free-form directives.
+ if(initial.protocolVersion===3){
+  const items=out.properties.components?.items;
+  for(const component of items?.anyOf??(items?[items]:[])){
+   const kind=component.properties?.kind;if(!Array.isArray(kind?.enum))continue;
+   kind.enum=kind.enum.filter(k=>!["emergency","conditional_emergency"].includes(k));
+   kind.description="General education, verified saved facts or limitations. Classify current and conditional urgency in clinicalReview.assessment.eventAssessments; only server-owned emergency text is published.";
+  }
+ }
  const refs=ownerStatements.map(t=>t.ref);
  out.properties.clinicalReview=object({
   assessment:assessmentSchema(ownerStatements),
@@ -195,7 +204,7 @@ export function renderMedicationDecision(answer,policy,ownerStatements=[],source
  if(emergency)parts.push("Contact an emergency veterinarian now for immediate assessment. Do not wait for saved-record searches, additional questions or a reply here."+(policy.current.includes("toxin_exposure")?" An animal poison service can also provide urgent professional advice about the possible exposure.":""));
  else if(policy.decision)parts.push("Contact the prescribing veterinarian promptly for instructions specific to this medicine and what was actually given or missed.");
  else if(policy.currentConcern)parts.push("Contact your veterinarian promptly about the current change; the cause cannot be determined from this conversation.");
- if(policy.conditional.length)parts.push("If "+policy.conditional.map(k=>EMERGENCY_EVENTS[k]).join("; or ")+" occurs, contact an emergency veterinarian immediately."+(policy.conditional.includes("toxin_exposure")?" For possible harmful exposure, contact a veterinarian or animal poison service immediately rather than waiting for symptoms.":"")+(!emergency?" These are conditional warning signs, not a claim that they are happening now.":""));
+ if(policy.conditional.length)parts.push("If "+policy.conditional.map(k=>EMERGENCY_EVENTS[k]).join("; or ")+" occurs, contact an emergency veterinarian immediately."+(policy.conditional.includes("collapse")?" Seek that immediate advice even if the pet gets up or seems to recover quickly.":"")+(policy.conditional.includes("toxin_exposure")?" For possible harmful exposure, contact a veterinarian or animal poison service immediately rather than waiting for symptoms.":"")+(!emergency?" These are conditional warning signs, not a claim that they are happening now.":""));
  if(policy.current.includes("toxin_exposure")||policy.conditional.includes("toxin_exposure"))parts.push("Do not induce vomiting or give home treatments unless a veterinarian or animal poison professional specifically directs you.");
  if(emergency&&answer.quotes.length)parts.push("Saved quotations below are historical reports, not an assessment of the current emergency. Do not delay emergency contact to review them.");
  if(policy.decision)parts.push("I cannot choose a catch-up dose, spacing, taper, substitution or restart schedule here. Looking stable does not establish that an altered prescription schedule is safe.");

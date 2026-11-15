@@ -1,15 +1,22 @@
-/** Canonical wire assembly. Source bodies/provenance stay in SOURCE_CATALOG;
+import { prepareSourceSentenceWire } from "./source-sentence-wire.mjs";
+import { factorProviderCompoundSchemas, compactProviderSchemaReferences } from "../ai/provider-compound-schema.ts";
+/** Canonical wire assembly. Transport-only discovery/batch/anchor diagnostics stay server-side.
+ * All owner-visible coverage, omissions, scopes and source bodies remain intact.
+ * Source bodies/provenance stay in SOURCE_CATALOG;
  * per-goal metadata references it without repeating measurements/timestamps. */
 export function buildReadOnlyProviderRequest(model,input,phase,maxOutputTokens,policy){
  const selection=phase==="read_selection",strictSelection=selection&&!!input.selectionSchema;
+ // Share only byte-identical schema nodes; source data and all expanded constraints remain intact.
+ const compactSchema=schema=>schema&&typeof schema==="object"&&!Array.isArray(schema)?compactProviderSchemaReferences(factorProviderCompoundSchemas(schema,()=>{},true)):schema;
+ const sentenceWire=selection?null:prepareSourceSentenceWire(input);
  const context=input.context??{}, {dialogue=[],question,...wireContext}=context;
  const data=selection?wireContext:{context:wireContext,draft:input.draft,
-  TOOL_DATA:input.TOOL_DATA?.map(row=>({...row,sources:row.sources.map(source=>({source:source.source}))})),
-  SOURCE_CATALOG:input.SOURCE_CATALOG,CLINICAL_CONSTRAINTS:input.CLINICAL_CONSTRAINTS};
- const request={model,store:false,reasoning:{effort:"low"},max_output_tokens:maxOutputTokens,instructions:input.instructions,input:[{role:"user",content:JSON.stringify(data)},
+  TOOL_DATA:input.TOOL_DATA?.map(({discovery,batchAcquisition,continuationValidation,...row})=>{void discovery;void batchAcquisition;void continuationValidation;return {...row,sources:row.sources.map(source=>({source:source.source}))};}),
+  SOURCE_CATALOG:sentenceWire.catalog,CLINICAL_CONSTRAINTS:input.CLINICAL_CONSTRAINTS};
+ const request={model,store:false,reasoning:{effort:"low"},max_output_tokens:maxOutputTokens,instructions:input.instructions+(sentenceWire?.instructions?"\n"+sentenceWire.instructions:""),input:[{role:"user",content:JSON.stringify(data)},
    ...dialogue.map((turn,index)=>({role:turn.role==="user"?"user":"assistant",content:"Prior dialogue ["+index+"]:\n"+turn.text})),
    ...(typeof question==="string"&&question.length?[{role:"user",content:question}]:[])],
-  ...(strictSelection?{text:{format:{type:"json_schema",name:"furvise_read_selection",strict:true,schema:input.selectionSchema}}}:selection?{tools:input.tools,parallel_tool_calls:true}:{text:{format:{type:"json_schema",name:"furvise_read_answer",strict:true,schema:input.schema}}})};
+  ...(strictSelection?{text:{format:{type:"json_schema",name:"furvise_read_selection",strict:true,schema:compactSchema(input.selectionSchema)}}}:selection?{tools:input.tools,parallel_tool_calls:true}:{text:{format:{type:"json_schema",name:"furvise_read_answer",strict:true,schema:compactSchema(sentenceWire.schema)}}})};
  const within=()=>{
   const chars=JSON.stringify(request).length;
   return chars<=policy.maxInputCharacters&&Math.ceil(chars/3)<=policy.maxInputTokens;

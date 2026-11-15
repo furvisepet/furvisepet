@@ -10,6 +10,7 @@ import { loadReadOnlyContext } from "../../lib/ask-read-only/context.ts";
 import { readOnlyProvider } from "../../lib/ask-read-only/provider.ts";
 import { createReadOnlyDataAccess } from "../../lib/ask-read-only/data.ts";
 import { buildReadOnlyPublication } from "../../lib/ask-read-only/publication.ts";
+import { persistEmergencyHistory, type EmergencyHistoryResult } from "../../lib/ask-read-only/emergency-history.ts";
 import { OperationDeadline } from "../../lib/ai/execution-deadline.ts";
 import { ASK_OPERATION_TIMEOUT_MS, ASK_MAX_QUESTION_CHARACTERS } from "../../lib/ai/ask-execution-limits.ts";
 import { createAskAdmissionSettlement } from "../../lib/ai/ask-admission-settlement.ts";
@@ -36,7 +37,7 @@ import { claimWithRestoredAskOrigin } from "../../lib/ask-restored-retry.ts";
 import { validateSensitiveRequestOriginResponse } from "../../lib/security/headers/origin-policy.ts";
 import { recoverTransientRead } from "../../lib/security/read-recovery.ts";
 import { readAskProfiles, classifyAskDatabaseFailure } from "../../lib/ask-profile-read.ts";
-import { beginAskConversationTurn, completeAskConversationTurn, finalizeAskAssistantResponse } from "../../lib/ask-conversation-authority.ts";
+import { appendAskConversationExchange, createAskConversationExchange, beginAskConversationTurn, completeAskConversationTurn, finalizeAskAssistantResponse } from "../../lib/ask-conversation-authority.ts";
 import { finalizeDurableAskAnswer } from "../../lib/furvise-brain/durable-answer-finalization.ts";
 import { buildSuccessfulAskResponse } from "../../lib/intelligence/finalize-ask-publication.ts";
 import type { CarePersistenceResult } from "../../lib/intelligence/types.ts";
@@ -45,6 +46,7 @@ const friendlyAnswerFailure = FURVISE_ANSWER_UNAVAILABLE_MESSAGE;
 export const maxDuration = 210;
 const askRequestTimeoutMs = ASK_OPERATION_TIMEOUT_MS;
 const askGuardOperationTtlSeconds = 90 * 24 * 60 * 60;
+const EMERGENCY_SAVE_METADATA = { answerType: "urgent_guidance", persistenceEligible: false, reason: "deterministic_emergency_preflight" };
 
 type InternalAskFailureCode = "ANSWER_NOT_COMPLETED" | "AI_DAILY_CAP_REACHED" | "AUTH_REQUIRED" | "PET_NOT_FOUND" | "INVALID_MESSAGE" | "IDEMPOTENCY_CONFLICT" | "REQUEST_IN_PROGRESS" | "RATE_LIMITED" | "AI_RATE_LIMITED" | "AI_CREDITS_EXHAUSTED" | "AI_UNAVAILABLE" | "DATABASE_ERROR" | "UNKNOWN_ERROR";
 
@@ -184,14 +186,35 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
     });
     if (!response) return askFailure("UNKNOWN_ERROR", "Contact an emergency veterinarian or clinic now.", 500, {}, "emergency_preflight");
     logAskStage("provider-independent emergency preflight handled", { emergencyTags: immediateEmergency.tags, requestId });
-    emergencyTurn.transition("ANSWER_VALIDATED").transition("COMPLETED");
-    emitAskTurnTrace(emergencyTurn.snapshot(), userId, petId);
-    return standaloneEmergencyResponse({
-      contextUsed: { petName: null, usedSources: [] },
-      requestId,
-      response,
-      turn: emergencyTurn.snapshot(),
+    emergencyTurn.transition("ANSWER_VALIDATED").credit("not_required").outcomes("complete", "not_requested", false);
+    const contextUsed = { petName: null, usedSources: [] };
+    // Prospective terminal data becomes durable only inside the owner-bound
+    // atomic exchange. No patient/profile fact is inferred from the UI container.
+    const proposedTurn: AskTurnTrace = { ...emergencyTurn.snapshot(), finalStage: "COMPLETED" };
+    const history = await persistEmergencyHistory({
+      userId, petId, conversationId, requestId, question, contextUsed, signal: request.signal,
+      responseData: { ...response, turn: proposedTurn }, saveMetadata: EMERGENCY_SAVE_METADATA,
+    }, {
+      claim: () => requireRateLimitedRequest({ idempotencyKey: requestId,
+        payload: { conversationId, petId, question }, policy: "ASK_AI", request, requestId, route: "/api/ask", userId }),
+      conversation: async (id, owner, signal) => {
+        const result = await supabase.from("ask_conversations").select("id,pet_profile_id")
+          .eq("id", id).eq("user_id", owner).retry(false).abortSignal(signal)
+          .maybeSingle<{ id: string; pet_profile_id: string }>();
+        if (result.error) throw new Error("EMERGENCY_HISTORY_UNAVAILABLE");
+        return result.data;
+      },
+      create: input => createAskConversationExchange(input),
+      append: input => appendAskConversationExchange(input),
     });
+    if (history.status === "confirmed") emergencyTurn.transition("ANSWER_PERSISTED");
+    else {
+      emergencyTurn.outcomes("limited", "not_requested", false);
+      logAskStage("emergency history unconfirmed", { requestId, reason: history.reason });
+    }
+    emergencyTurn.transition("COMPLETED");
+    emitAskTurnTrace(emergencyTurn.snapshot(), userId, petId);
+    return standaloneEmergencyResponse({ contextUsed, requestId, response, turn: emergencyTurn.snapshot(), history });
   }
 
   let context: Awaited<ReturnType<typeof loadAskEntitlementContext>>;
@@ -628,13 +651,16 @@ function standaloneEmergencyResponse({
   requestId,
   response,
   turn,
+  history,
 }: {
   contextUsed: unknown;
   requestId: string;
   response: CompletedAskResponse;
   turn: AskTurnTrace;
+  history?: EmergencyHistoryResult;
 }) {
-  logAskStage("standalone emergency response serialized", { requestId });
+  const saved = history?.status === "confirmed";
+  logAskStage("provider-independent emergency response serialized", { requestId, saved });
   return Response.json({
     answer: response.directAnswer,
     concern: null,
@@ -643,12 +669,16 @@ function standaloneEmergencyResponse({
     handledWithoutAi: true,
     dataChanged: false,
     carePersistence: { status: "skipped", careEntryIds: [], concernIds: [], errorCode: null, currentSafetyState: null, alreadyPersisted: false },
-    persistence: { saved: false, warning: "Emergency guidance was not saved to history." },
+    requestId,
+    ...(history?.status === "confirmed" ? history.receipt : {}),
+    persistence: { saved, ...(!saved ? { warning: history?.status === "unconfirmed"
+      ? "Emergency guidance is shown, but saving it to history could not be confirmed."
+      : "Emergency guidance was not saved to history." } : {}) },
     persistenceMode: "none",
     proposedHistoryUpdate: null,
-    response,
+    response: { ...response, turn },
     safety: { level: "urgent", shoppingSuppressed: true },
-    saveMetadata: { answerType: "urgent_guidance", persistenceEligible: false, reason: "deterministic_emergency_preflight" },
+    saveMetadata: EMERGENCY_SAVE_METADATA,
     success: true,
     turn,
   });
@@ -761,6 +791,7 @@ function completedResponseFromPersisted(state: PersistedRequestState, usage: AiC
     conversationId: state.conversationId,
     requestId: assistantMessage.request_id || "",
     response,
+    handledWithoutAi: response.turn?.routeType === "emergency" && response.turn.executionMode === "deterministic" && response.turn.providerCallCount === 0,
     saved: true,
     persistenceWarning,
     saveMetadata: assistantMessage.save_metadata,

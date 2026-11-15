@@ -15,7 +15,7 @@ async function execute(plan,s,output,extra={},plannedReads=[],readRows=[source])
  let calls=0,reads=[];const requests=[];
  const result=await runReadOnlyAsk({ownerId:"owned",selectedPetId:pet.id,pets:[pet],dialogue:[],question:plan.some(t=>t.kind==="workflow")?"How do I enter a photo into a Furvise care note?":"An unfamiliar question.",now:"2026-11-12T12:00:00Z",timeZone:"UTC",...extra},{
   provider:async(req,phase)=>{calls++;requests.push(req);return phase==="read_selection"?decodeComponentSelection({safety:s,reads:plannedReads,draft:"",historyIntent:{requested:plan.some(t=>t.needsHistory),timeBasis:"event",pet:null},workflowIntent:extra.workflowIntent??"find_care_note",taskPlan:plan},req.tools,req.context,decodeClinicalSelection):(typeof output==="function"?output(req):output);},
-  read:async r=>{reads.push(r);return {sources:readRows,total:readRows.length,hasMore:false,scopeExhausted:true};}
+  read:async r=>{reads.push(r);const rows=typeof readRows==="function"?readRows(r):readRows;return {sources:rows,total:rows.length,hasMore:false,scopeExhausted:true};}
  });return {result,calls,reads,requests};
 }
 test("actual two-call core rehydrates selected prior evidence and composes a bounded vet brief",async()=>{
@@ -77,7 +77,7 @@ test("missing clinical authority does not block independently specified historic
 });
 
 test("complete-set omissions and missing server arithmetic remain component-level partials",()=>{
- const p=[{...task({kind:"saved_content",needsHistory:true}),status:"complete",reason:"none",sources:["s1"],historyFacts:[],ownerFacts:[]}];
+ const p=[{...task({kind:"saved_content",needsHistory:true,recordMode:"collection"}),status:"complete",reason:"none",sources:["s1"],historyFacts:[],ownerFacts:[]}];
  const a=renderTaskCompletion({answer:"Available saved facts.",sources:["s1"],calculations:[],presentation:{}},p,[{...source,handle:"s1"}],null,[{scope:{goal:"complete_set"},sources:[{source:"s1"}],omitted:4}]);
  assert.equal(a.taskCompletion[0].status,"partial");assert.equal(a.taskCompletion[0].reason,"source_omitted");
  const b=renderTaskCompletion({answer:"Other useful facts.",calculations:[],presentation:{}},[{...p[0],kind:"calculation"}],[],null);
@@ -113,7 +113,7 @@ test("source dates follow the requested task instead of unsolicited footer selec
 test("a missing record task cannot publish unsupported record prose or erase an independent general answer",async()=>{
  const s=safety();const plan=[task({kind:"saved_content",needsHistory:true,pets:["p1"]}),task({id:"t2"})];
  const r=await execute(plan,s,final(s,{components:[{kind:"general",text:"The missing saved note recorded a new diagnosis.",sources:[]},{kind:"general",text:"Rainbows separate sunlight into colours.",sources:[]}],completion:[completion(),completion({task:"t2",componentIndexes:[1]})]}));
- assert.equal(r.reads.length,0);assert.doesNotMatch(r.result.answer.answer,/recorded a new diagnosis/);assert.match(r.result.answer.answer,/Rainbows separate/);assert.match(r.result.answer.answer,/Saved history:.*no verified source/);assert.equal(r.result.answer.taskCompletion[0].status,"unresolved");assert.equal(r.result.answer.taskCompletion[1].status,"complete");
+ assert.equal(r.reads.length,0);assert.doesNotMatch(r.result.answer.answer,/recorded a new diagnosis/);assert.match(r.result.answer.answer,/Rainbows separate/);assert.match(r.result.answer.answer,/I don't have verified saved information/);assert.equal(r.result.answer.taskCompletion[0].status,"unresolved");assert.equal(r.result.answer.taskCompletion[1].status,"complete");
 });
 
 test("mixed workflow help uses registry text, never model-invented controls, while keeping independent content",async()=>{
@@ -183,7 +183,7 @@ test("retained collection subset remains partial despite model complete declarat
 });
 test("calculation prose yields to deterministic result without removing independent general answer",()=>{
  const base={...task(),status:"complete",reason:"none",sources:[],historyFacts:[],ownerFacts:[]};
- const a=renderTaskCompletion({answer:"Wrong rounded arithmetic. Useful separate guidance.",validatedParts:[{index:0,text:"Wrong rounded arithmetic."},{index:1,text:"Useful separate guidance."}],calculations:[{available:true,text:"Verified arithmetic."}],presentation:{}},[{...base,kind:"calculation",componentIndexes:[0]},{...base,id:"t2",componentIndexes:[1]}],[],null,[]);
+ const a=renderTaskCompletion({answer:"Wrong rounded arithmetic. Useful separate guidance.",validatedParts:[{index:0,text:"Wrong rounded arithmetic."},{index:1,text:"Useful separate guidance."}],calculations:[{available:true,sourceHandles:["s1"],text:"Verified arithmetic."}],presentation:{}},[{...base,kind:"calculation",needsHistory:true,recordMode:"single",sources:["s1"],componentIndexes:[0]},{...base,id:"t2",componentIndexes:[1]}],[{...source,handle:"s1"}],null,[]);
  assert.equal(a.answer,"Useful separate guidance.");assert.equal(a.calculations.length,1);
 });
 test("scope correction cannot complete owner-observation facts in brief",()=>{
@@ -333,4 +333,320 @@ test("unrelated raw app-control prose cannot pass as a completed ordinary routin
  assert.equal(r.result.answer.taskCompletion[0].status,"partial");
  assert.match(r.result.answer.answer,/couldn't complete/);
  assert.equal(r.calls,2);
+});
+
+test("explicit year correction resolves a contradictory date-meaning flag before the actual task gate",async()=>{
+ const s=safety({missingContext:["date"]}),plan=[task({kind:"saved_content",needsHistory:true,pets:["p1"],missing:["date_meaning"],includeSourceDates:true})];
+ const saved=final(safety(),{components:[{kind:"saved",text:"The original note follows.",sources:["s1"]}],sources:["s1"],quotes:["s1"],completion:[completion({sources:["s1"]})]});
+ const r=await execute(plan,s,saved,{question:"I meant March 2021 for Willow. Replace the old year, keeping event time separate from when it was saved.",dialogue:[{role:"user",text:"Quote Willow's March 2020 event note with both timestamps."}]});
+ assert.equal(r.calls,2);assert.equal(r.reads.length,1);assert.equal(r.reads[0].from,"2021-03-01");assert.equal(r.reads[0].to,"2021-03-31");
+ assert.equal(r.result.answer.taskCompletion[0].status,"complete");assert.doesNotMatch(r.result.answer.answer,/Which|whether you mean/);
+});
+test("date-meaning recovery still requires one explicit owned pet and one explicit calendar scope",async()=>{
+ const s=safety({missingContext:["date"]}),plan=[task({kind:"saved_content",needsHistory:true,pets:["p1"],missing:["date_meaning"]})];
+ for(const question of ["Use her March 2021 note.","Use Willow's March note.","Use Willow's March 2021 and April 2022 notes."]){
+  const r=await execute(plan,s,final(s,{completion:[completion({status:"unresolved",reason:"missing_context"})]}),{question});
+  assert.equal(r.reads.length,0,question);
+ }
+});
+
+test("explicit multi-year collection range executes despite historical-context date uncertainty",async()=>{
+ const s=safety({careContext:"clinical_history",missingContext:["date"]}),plan=[task({kind:"saved_content",recordMode:"collection",needsHistory:true,pets:["p1"],missing:["date_meaning"]})];
+ const saved=final(safety({careContext:"clinical_history"}),{components:[{kind:"saved",text:"The selected report follows.",sources:["s1"]}],sources:["s1"],completion:[completion({sources:["s1"],historyFacts:[{source:"s1",excerpt:source.body}]})]});
+ const r=await execute(plan,s,saved,{question:"Put together Willow's complete saved care picture from January 2020 through December 2022, using event dates. Do not turn an isolated change into a recurring condition."});
+ assert.equal(r.calls,2);assert.equal(r.reads.length,1);assert.equal(r.reads[0].from,"2020-01-01");assert.equal(r.reads[0].to,"2022-12-31");assert.equal(r.reads[0].goal,"complete_set");
+ assert.equal(r.result.answer.taskCompletion[0].status,"complete");
+});
+
+test("explicit range recovery rejects comparisons, reversed ranges, multiple pets and medical authority",async()=>{
+ const {explicitCalendarWindow,recoverBoundedCalendarRead}=await import("../app/lib/ask-read-only/calendar-scope.mjs");
+ assert.deepEqual(explicitCalendarWindow("from January 2020 through December 2022"),{from:"2020-01-01",to:"2022-12-31",precision:"range"});
+ for(const q of ["March 2020 and April 2021","from December 2022 through January 2020","January 2020 through December 2022 and May 2023","March with no year"])assert.equal(explicitCalendarWindow(q),null,q);
+ const first={calls:[],text:"",historyIntent:{requested:true,timeBasis:"recorded",pet:"p1"},taskPlan:[task({kind:"saved_content",recordMode:"collection",needsHistory:true,pets:["p1"],missing:["year","date_meaning"]})],safety:{...safety(),scenario:"none",currentEvents:[],conditionalEvents:[]}};
+ const context={question:"Willow's January 2020 through December 2022 saved history"},pets=[{...pet,handle:"p1"}];
+ const recovered=recoverBoundedCalendarRead(first,context,pets),args=JSON.parse(recovered.first.calls[0].arguments);
+ assert.equal(args.from,null);assert.equal(args.to,null);assert.equal(args.recordedFrom,"2020-01-01");assert.equal(args.recordedTo,"2022-12-31");assert.equal(args.goal,"complete_set");assert.deepEqual(recovered.first.taskPlan[0].missing,[]);
+ for(const safetyPatch of [{medicationIntent:"decision"},{scenario:"current"},{scenario:"conditional"},{currentEvents:[{}]},{conditionalEvents:[{}]},{missingContext:["medicine"]}]){
+  assert.equal(recoverBoundedCalendarRead({...first,safety:{...first.safety,...safetyPatch}},context,pets),null);
+  assert.equal(recoverBoundedCalendarRead({...first,safety:{...first.safety,referent:"essential_unknown",missingContext:["date"],...safetyPatch}},context,pets),null);
+ }
+ assert.equal(recoverBoundedCalendarRead(first,{question:context.question+" and Maple"},[...pets,{...pet,name:"Maple",id:"second",handle:"p2"}]),null);
+ assert.equal(recoverBoundedCalendarRead({...first,historyIntent:{...first.historyIntent,timeBasis:"ambiguous"}},context,pets),null);
+});
+
+test("fresh explicitly corrected scope resolves an obsolete task reference only after unique bound discovery",async()=>{
+ const s=safety(),plan=[task({kind:"saved_content",needsHistory:true,pets:["p1"],reference:"r1",missing:["which_record"],includeSourceDates:true})];
+ const row={...source,id:"new-year-note",eventAt:"2022-03-12T12:00:00Z",recordedAt:"2022-03-14T12:00:00Z"};
+ const reads=[{name:"search_saved_records",arguments:{pet:"p1",from:"2022-03-01",to:"2022-03-31",recordedFrom:null,recordedTo:null,orderBy:"event",goal:"exact_quote",alternatives:[],query:null,offset:0,order:"asc"}}];
+ const saved=final(s,{components:[{kind:"saved",text:"The original note follows.",sources:["s1"]}],sources:["s1"],quotes:["s1"],completion:[completion({sources:["s1"]})]});
+ const r=await execute(plan,s,saved,{question:"Actually I meant March 2022 for Willow. Show that corrected note and both timestamps.",readReferences:reference},reads,[row]);
+ assert.equal(r.calls,2);assert.equal(r.reads.length,1);assert.equal(r.result.answer.taskCompletion[0].status,"complete");assert.doesNotMatch(r.result.answer.answer,/Which saved/);assert.equal(r.result.answer.presentation.sourceDates[0].eventAt,row.eventAt);assert.equal(r.result.answer.presentation.sourceDates[0].recordedAt,row.recordedAt);assert.equal(r.result.answer.quotes[0].quote,row.body);
+});
+
+test("corrected-scope identity does not resolve from partial, competing, unmatched or ambiguous reads",async()=>{
+ const {resolveRecordDiscovery}=await import("../app/lib/ask-read-only/task-components.mjs");
+ const t=task({kind:"saved_content",needsHistory:true,pets:["p1"],reference:"r1",missing:["which_record"]});
+ const request={kind:"history",pet:{...pet,handle:"p1"},from:"2022-03-01",to:"2022-03-31",recordedFrom:null,recordedTo:null};
+ const result={queryScopeExhausted:true,truncated:false,hasPrevious:false,hasMore:false,unmet:[],inspected:1,sources:[{source:"s1"}]};
+ const context={question:"Willow March 2022",timeBasis:"event",pets:[{...pet,handle:"p1"}]};
+ const resolve=(plan=[t],bound=[{request}],results=[result],scope=context)=>resolveRecordDiscovery(plan,bound,results,scope);
+ assert.equal(resolve().resolved,1);assert.equal(resolve().plan[0].reference,null);
+ for(const patch of [{hasMore:true},{hasPrevious:true},{truncated:true},{queryScopeExhausted:false},{unmet:["prior_source_selection_omitted"]},{inspected:2},{sources:[{source:"s1"},{source:"s2"}]}])assert.equal(resolve([t],[{request}],[{...result,...patch}]).resolved,0);
+ for(const patch of [{reference:"r1"},{continuation:{}},{from:"2021-03-01"},{recordedFrom:"2022-03-01"},{pet:{...request.pet,handle:"p2"}}])assert.equal(resolve([t],[{request:{...request,...patch}}]).resolved,0);
+ assert.equal(resolve([t,{...t,id:"t2"}]).resolved,0);
+ assert.equal(resolve([t],[{request}],[result],null).resolved,0);
+ assert.equal(resolve([t],[{request}],[result],{...context,question:"her March 2022"}).resolved,0);
+ assert.equal(resolve([t],[{request}],[result],{...context,timeBasis:"ambiguous"}).resolved,0);
+});
+
+test("completion check rehydrates requested single historical note for a medication-boundary brief without a third call",async()=>{
+ const s=safety({medicationIntent:"decision",careContext:"vet_summary",missingContext:["medicine","prescription"]});
+ const plan=[task({kind:"vet_brief",needsHistory:false,needsOwnerFacts:true,pets:["p1"],missing:["medicine","prescription"]})];
+ const question="Please include the old report in a short vet brief. I missed medicine and do not know its name or directions.";
+ const r=await execute(plan,s,req=>{
+  const out=final(s,{completion:[completion({ownerFacts:[{ref:"owner1",excerpt:"She ate less lunch today."}]})]});
+  if(req.schema.properties.evidenceCompletion)out.evidenceCompletion={sourceReview:[],missingReference:{task:"t1",reference:"r1",requestExcerpt:"Please include the old report in a short vet brief."}};
+  return out;
+ },{question,readReferences:reference,dialogue:[{role:"user",text:"She ate less lunch today."}]});
+ assert.equal(r.calls,2);assert.equal(r.reads.length,1);assert.deepEqual(r.reads[0].sourceIds,[source.id]);
+ assert.ok(r.result.answer.answer.includes(source.body));assert.match(r.result.answer.answer,/2021-03-12/);assert.match(r.result.answer.answer,/2021-03-14/);
+ assert.match(r.result.answer.answer,/She ate less lunch today/);assert.match(r.result.answer.answer,/prescribing veterinarian promptly/);
+ assert.equal(r.result.coverage[0].scope.compositionOnly,true);
+ const {readCoverageMessages}=await import("../app/lib/ask-read-only/coverage.mjs");
+ const coverage=readCoverageMessages(r.result.coverage).join(" ");
+ assert.match(coverage,/not supplied to the answer model/);assert.doesNotMatch(coverage,/1 notes supplied to the answer model/);
+});
+test("per-source collection review restores a noteworthy original observation omitted from routine themes",async()=>{
+ const extraRow={...source,id:"different-original-id",body:"A few coat mats were removed during grooming. Skin underneath looked normal.",eventAt:"2021-03-20T12:00:00Z"};
+ const plan=[task({kind:"saved_content",needsHistory:true,recordMode:"collection",pets:["p1"]})],s=safety();
+ const r=await execute(plan,s,req=>{
+  const out=final(s,{components:[{kind:"saved",text:"Routine care.",sources:["s1","s2"]}],sources:["s1","s2"],completion:[completion({sources:["s1","s2"],historySynthesis:[{topic:"appetite",evidence:[{source:"s1",excerpt:source.body}]}]})]});
+  if(req.schema.properties.evidenceCompletion)out.evidenceCompletion={sourceReview:[{source:"s1",classification:"routine"},{source:"s2",classification:"noteworthy"}],missingReference:null};
+  return out;
+ },{},[{...boundedRead[0],arguments:{...boundedRead[0].arguments,goal:"complete_set"}}],[source,extraRow]);
+ assert.equal(r.calls,2);assert.equal(r.reads.length,1);assert.ok(r.result.answer.answer.includes(extraRow.body));
+ assert.doesNotMatch(r.result.answer.answer,/recurring mats|persistent mats/);assert.equal(r.result.answer.historicalSupport[0],"s2");
+});
+
+test("zero-call collection integration plans actual omitted-window IO through the existing binder",async()=>{
+ const fresh={...source,id:"private-new-note-123456789",body:"One coat mat was removed during grooming.",eventAt:"2021-09-15T12:00:00Z",recordedAt:"2021-09-16T12:00:00Z"};
+ const retained=structuredClone(reference);Object.assign(retained.entries[0],{goal:"complete_set",from:"2021-01-01",to:"2021-12-31",limited:true,omittedRange:{axis:"event",from:"2021-09-15",to:"2021-12-15"}});
+ const s=safety(),plan=[task({kind:"saved_content",recordMode:"collection",combineHistory:true,needsHistory:true,pets:["p1"],reference:"r1"})];
+ const out=final(s,{sources:["s1","s2"],completion:[completion({componentIndexes:[],sources:["s1","s2"],historyFacts:[{source:"s1",excerpt:fresh.body},{source:"s2",excerpt:source.body}]})]});
+ const r=await execute(plan,s,out,{readReferences:retained,question:"Read the omitted September through December2021 notes and combine them with the earlier result."},[],request=>request.continuation?[fresh]:[source]);
+ assert.equal(r.calls,2);assert.ok(r.reads.some(q=>q.continuation&&q.from==="2021-09-15"&&q.to==="2021-12-15"&&!q.sourceIds));
+ assert.ok(r.reads.some(q=>q.sourceIds?.includes(source.id)));assert.match(r.result.answer.answer,/One coat mat was removed/);assert.match(r.result.answer.answer,/routine exam/);
+});
+test("zero-call integration promotion is confined to declared collection continuation and preserves missing or changed-scope reads",()=>{
+ const request={kind:"history",pet:{...pet,handle:"p1"},goal:"complete_set",omittedRange:{axis:"event",from:"2021-09-15",to:"2021-12-15"}};
+ const t=task({kind:"saved_content",recordMode:"collection",combineHistory:true,needsHistory:true,pets:["p1"],reference:"r1"});
+ const refs=[{handle:"r1",request}];
+ const resolved=fulfillReferenceReads({calls:[],taskPlan:[t]},refs);
+ assert.equal(resolved.taskPlan[0].kind,"saved_continuation");
+ assert.deepEqual(resolved.calls.map(c=>c.name),["read_remaining_records","read_referenced_sources"]);
+ for(const patch of [{combineHistory:false},{recordMode:"single"},{missing:["year"]},{kind:"vet_brief"}]){
+  const x=fulfillReferenceReads({calls:[],taskPlan:[{...t,...patch}]},refs);
+  assert.ok(!x.calls.some(c=>c.name==="read_remaining_records"));
+ }
+ const scoped={id:"explicit-new-scope",name:"search_saved_records",arguments:JSON.stringify({pet:"p1",from:"2022-01-01",to:"2022-12-31"})};
+ assert.ok(!fulfillReferenceReads({calls:[scoped],taskPlan:[t]},refs).calls.some(c=>c.name==="read_remaining_records"));
+ assert.ok(!fulfillReferenceReads({calls:[],taskPlan:[t]},[{handle:"r1",request:{...request,omittedRange:null}}]).calls.some(c=>c.name==="read_remaining_records"));
+});
+
+test("one integrated collection deliverable does not duplicate prior and remainder answer tasks",()=>{
+ const req={kind:"history",pet:{...pet,handle:"p1"},goal:"complete_set",omittedRange:{axis:"event",from:"2021-09-15",to:"2021-12-15"}},refs=[{handle:"r1",request:req}];
+ const t=task({kind:"saved_continuation",recordMode:"collection",combineHistory:true,needsHistory:true,pets:["p1"],reference:"r1"});
+ const ordinary=task({id:"t3",kind:"general_guidance"});
+ const r=fulfillReferenceReads({calls:[],taskPlan:[t,{...t,id:"t2",kind:"saved_content",includeSourceDates:true},ordinary]},refs);
+ assert.equal(r.taskPlan.length,2);assert.equal(r.taskPlan[0].kind,"saved_continuation");assert.equal(r.taskPlan[0].includeSourceDates,true);
+ assert.equal(r.taskPlan[1].kind,"general_guidance");assert.deepEqual(r.calls.map(c=>c.name),["read_remaining_records","read_referenced_sources"]);
+ for(const patch of [{reference:"r2"},{pets:["p2"]},{combineHistory:false},{kind:"vet_brief"},{missing:["year"]},{needsOwnerFacts:true},{recordMode:"single"}]){
+  const separate=fulfillReferenceReads({calls:[],taskPlan:[t,{...t,id:"t2",...patch}]},refs);
+  assert.equal(separate.taskPlan.length,2);
+ }
+});
+
+test("an independent ordinary task cannot suppress zero-call bounded collection continuation",()=>{
+ const req={kind:"history",pet:{...pet,handle:"p1"},goal:"complete_set",omittedRange:{axis:"event",from:"2021-09-15",to:"2021-12-15"}};
+ const collection=task({kind:"saved_content",recordMode:"collection",combineHistory:true,needsHistory:true,pets:["p1"],reference:"r1"});
+ const r=fulfillReferenceReads({calls:[],taskPlan:[collection,task({id:"t2"})]},[{handle:"r1",request:req}]);
+ assert.equal(r.taskPlan[0].kind,"saved_continuation");assert.equal(r.taskPlan[1].kind,"general_guidance");assert.deepEqual(r.calls.map(c=>c.name),["read_remaining_records","read_referenced_sources"]);
+});
+
+test("server calculation completion needs no generated numeric prose or factual excerpt",()=>{
+ const t=task({kind:"calculation",recordMode:"collection",needsHistory:true,pets:["p1"]}),s={...source,handle:"s1"};
+ const r=reviewComponentCompletion(final(safety(),{completion:[completion({componentIndexes:[],sources:["s1"]})]}),[t],[s],[],[{...pet,handle:"p1"}]);
+ assert.equal(r.tasks[0].status,"complete");
+ const a=renderTaskCompletion({answer:"",validatedParts:[],calculations:[{available:true,sourceHandles:["s1"],text:"Verified server arithmetic."}],sources:["s1"],presentation:{}},r.tasks,[s],null,[]);
+ assert.equal(a.taskCompletion[0].status,"complete");assert.doesNotMatch(a.answer,/not been completed/);
+});
+test("calculation status is scoped to its selected sources and cannot borrow another pet or unavailable result",()=>{
+ const t={...task({kind:"calculation",recordMode:"collection",needsHistory:true,pets:["p1"]}),status:"complete",reason:"none",sources:["s1","s2"],componentIndexes:[],historyFacts:[],ownerFacts:[]};
+ const good={available:true,sourceHandles:["s1","s2"],text:"Verified server arithmetic."},foreign={available:false,sourceHandles:["s3"],text:"Unavailable other pet."};
+ const render=calculations=>renderTaskCompletion({answer:"",validatedParts:[],calculations,sources:["s1","s2"],presentation:{}},[t],[{...source,handle:"s1"},{...source,id:"another",handle:"s2"},{...source,petId:"foreign",handle:"s3"}],null,[]);
+ assert.equal(render([good,foreign]).taskCompletion[0].status,"complete");
+ for(const calculations of [[],[foreign],[{...good,available:false}],[{...good,sourceHandles:["s1"]}],[{...good,sourceHandles:[]}],[{...good,sourceHandles:["s1","s3"]}]]){
+  assert.notEqual(render(calculations).taskCompletion[0].status,"complete");
+ }
+});
+
+test("an already bounded owner/date read resolves contradictory task pet and year flags before the gate",async()=>{
+ const s=safety(),p=[task({kind:"saved_content",needsHistory:true,pets:["p1"],missing:["pet","year"]})];
+ const out=final(s,{components:[{kind:"saved",text:"Verified original note.",sources:["s1"]}],quotes:["s1"],sources:["s1"],completion:[completion({sources:["s1"],historyFacts:[{source:"s1",excerpt:source.body}]})]});
+ const r=await execute(p,s,out,{question:"Use Willow’s March 2021 original note and both timestamps."},boundedRead);
+ assert.equal(r.calls,2);assert.equal(r.reads.length,1);assert.equal(r.result.answer.taskCompletion[0].status,"complete");assert.doesNotMatch(r.result.answer.answer,/Which pet and year/);
+});
+test("existing-read scope recovery requires the exact explicit owner/pet/calendar axis and preserves clinical guards",async()=>{
+ const {recoverBoundedCalendarRead}=await import("../app/lib/ask-read-only/calendar-scope.mjs");
+ const args={...boundedRead[0].arguments},p=task({kind:"saved_content",needsHistory:true,pets:["p1"],missing:["pet","year"]});
+ const first={calls:[{id:"r",name:"search_saved_records",arguments:JSON.stringify(args)}],taskPlan:[p],historyIntent:{requested:true,timeBasis:"event",pet:"p1"},safety:{...safety(),missingContext:[],currentEvents:[],conditionalEvents:[]}};
+ const ctx={question:"Willow March 2021 original note."},pets=[{...pet,handle:"p1"}];
+ assert.ok(recoverBoundedCalendarRead(first,ctx,pets));
+ for(const patch of [{pet:"p2"},{from:"2020-03-01"},{to:"2020-03-31"},{offset:16},{orderBy:"recorded"},{recordedFrom:"2021-03-01"}]){
+  assert.equal(recoverBoundedCalendarRead({...first,calls:[{...first.calls[0],arguments:JSON.stringify({...args,...patch})}]},ctx,pets),null);
+ }
+ for(const safetyPatch of [{medicationIntent:"decision"},{careContext:"current_concern"},{currentEvents:[{}]},{conditionalEvents:[{}]},{missingContext:["medicine"]}]){
+  assert.equal(recoverBoundedCalendarRead({...first,safety:{...first.safety,...safetyPatch}},ctx,pets),null);
+ }
+});
+
+test("source-free notebook episode reasoning does not need a database timestamp axis",async()=>{
+ const s=safety(),prose="Two mentions of the same described episode do not establish two separate events.";
+ const r=await execute([task({missing:["date_meaning"]})],s,final(s,{components:[{kind:"general",text:prose,sources:[]}]}),{question:"A later diary entry refers back to the earlier incident. Does that prove two incidents?",workflowIntent:"none"});
+ assert.equal(r.calls,2);assert.equal(r.reads.length,0);
+ assert.equal(r.result.answer.answer,prose);
+ assert.deepEqual(r.requests[1].context.taskPlan[0].missing,[]);
+ assert.equal(r.result.answer.taskCompletion[0].status,"complete");
+});
+const axisContext={pets:[{handle:"p1"}],references:[{reference:"r1",petHandle:"p1"}]};
+for(const extra of [
+ {kind:"saved_content",needsHistory:true,recordMode:"single"},
+ {needsHistory:true,recordMode:"single"},
+ {reference:"r1"},{kind:"clinical_guidance"},{kind:"vet_brief"},
+ {kind:"workflow",workflow:"find_care_note"},{kind:"owner_observations",needsOwnerFacts:true}
+])test("timestamp axis remains meaningful outside source-free ordinary reasoning "+JSON.stringify(extra),()=>{
+ const p=validateTaskPlan([task({missing:["date_meaning"],...extra})],axisContext);
+ assert.deepEqual(p[0].missing,["date_meaning"]);
+});
+test("source-free axis cleanup never clears genuine pet/year or prescribing authority",()=>{
+ const p=validateTaskPlan([task({missing:["pet","year","date_meaning","medicine","prescription","vet_plan"]})],axisContext);
+ assert.deepEqual(p[0].missing,["pet","year","medicine","prescription","vet_plan"]);
+});
+test("a genuine timestamp-axis clarification is a readable pointed question",()=>{
+ const a=renderTaskCompletion({answer:"",validatedParts:[],sources:[],calculations:[],presentation:{}},[
+ {...task({kind:"saved_content",needsHistory:true,recordMode:"single",missing:["date_meaning"]}),componentIndexes:[],sources:[],historyFacts:[],ownerFacts:[],status:"unresolved",reason:"missing_context"}
+ ],[],null);
+ assert.equal(a.answer,"Should I use the event date or the save date?");
+});
+
+test("general task field applicability uses normalized owner-fact requirements",()=>{
+ const p=validateTaskPlan([task({needsOwnerFacts:true,missing:["date_meaning","year"]})],axisContext);
+ assert.equal(p[0].needsOwnerFacts,false);
+ assert.deepEqual(p[0].missing,["year"]);
+});
+test("actual two-call owner-statement reasoning survives an irrelevant raw owner-fact flag",async()=>{
+ const s=safety({careContext:"education"}),prose="Those statements conflict; they do not establish a worsening pattern.";
+ const r=await execute([task({needsOwnerFacts:true,missing:["date_meaning"]})],s,final(s,{components:[{kind:"general",text:prose,sources:[]}]}),{question:"Two owner-supplied descriptions disagree about the same period. Can that prove worsening?",workflowIntent:"none"});
+ assert.equal(r.calls,2);assert.equal(r.reads.length,0);
+ assert.equal(r.result.answer.answer,prose);
+ assert.equal(r.requests[1].context.taskPlan[0].needsOwnerFacts,false);
+ assert.deepEqual(r.requests[1].context.taskPlan[0].missing,[]);
+});
+
+test("distinct bound endpoint reads establish one calculation collection without a single-record choice",async()=>{
+ const {normalizeTaskRecords}=await import("../app/lib/ask-read-only/task-components.mjs");
+ const task={id:"t1",kind:"calculation",needsHistory:true,recordMode:"single",pets:["p1"],reference:null,missing:["which_record"]};
+ const first={name:"search_saved_records",request:{kind:"history",pet:{handle:"p1"},from:"2024-01-01",to:"2024-12-31",orderBy:"event",order:"asc",offset:0,goal:"boundary"}};
+ const last={...first,request:{...first.request,order:"desc"}};
+ assert.deepEqual(normalizeTaskRecords([task],[first,last])[0].missing,[]);assert.equal(normalizeTaskRecords([task],[first,last])[0].recordMode,"collection");
+ for(const reads of [[first],[first,structuredClone(first)],[first,{...last,request:{...last.request,pet:{handle:"p2"}}}]]){
+  const t=normalizeTaskRecords([task],reads)[0];assert.equal(t.recordMode,"single");assert.deepEqual(t.missing,["which_record"]);
+ }
+ const separate={...task,id:"t2"};assert.equal(normalizeTaskRecords([task,separate],[first,last])[0].recordMode,"single");
+});
+
+async function mixedTimestampLookup({axis="event",rows=[source],exhausted=true,question="Willow is acting normally today. I cannot name a missed prescription. Should I double up? Separately, quote the saved March 2021 exam note and both timestamps.",missing=["date_meaning","which_record"],sourceDates=true}={}){
+ const s=safety({medicationIntent:"decision",referent:"essential_unknown",careContext:"current_concern",missingContext:["medicine","prescription","vet_plan"]});
+ const plan=[task({kind:"clinical_guidance",pets:["p1"],missing:["medicine","prescription","vet_plan"]}),task({id:"t2",kind:"saved_content",needsHistory:true,includeSourceDates:sourceDates,pets:["p1"],missing})];
+ let calls=0;const reads=[],events=[];let checkedPlan;
+ const out=await runReadOnlyAsk({ownerId:"owned",selectedPetId:pet.id,pets:[pet],dialogue:[],question,now:"2026-11-15T00:00:00Z",timeZone:"UTC"},{
+  provider:async(req,phase)=>{
+   calls++;
+   if(phase==="read_selection")return decodeComponentSelection({safety:s,reads:boundedRead.map(c=>({...c,arguments:{...c.arguments,from:axis==="event"?"2021-03-01":null,to:axis==="event"?"2021-03-31":null,recordedFrom:axis==="recorded"?"2021-03-01":null,recordedTo:axis==="recorded"?"2021-03-31":null,orderBy:axis}})),draft:"Which date?",historyIntent:{requested:true,timeBasis:axis,pet:"p1"},workflowIntent:"none",taskPlan:plan},req.tools,req.context,decodeClinicalSelection);
+   checkedPlan=req.context.taskPlan;
+   const available=req.SOURCE_CATALOG.length===1;
+   return final(s,{components:[{kind:"general",text:"Double the medicine and restart tomorrow.",sources:[]}],sources:available?["s1"]:[],quotes:available?["s1"]:[],completion:[completion({componentIndexes:[0]}),completion({task:"t2",componentIndexes:[],sources:available?["s1"]:[],historyFacts:available?[{source:"s1",excerpt:source.body}]:[],status:available?"complete":"unresolved",reason:available?"none":"source_unavailable"})]});
+  },
+  read:async r=>{reads.push(r);return {sources:rows,total:rows.length,hasMore:!exhausted,scopeExhausted:exhausted};},
+  onAnswerBoundary:e=>events.push(e)
+ });
+ return {out,calls,reads,events,checkedPlan};
+}
+for(const axis of ["event","recorded"])test("mixed prescription and both timestamps performs independent "+axis+" lookup without medication authority",async()=>{
+ const r=await mixedTimestampLookup({axis});
+ assert.equal(r.calls,2);assert.equal(r.reads.length,1);assert.equal(r.reads[0].pet.ownerId,"owned");
+ assert.deepEqual(r.checkedPlan[0].missing,["medicine","prescription","vet_plan"]);
+ assert.deepEqual(r.checkedPlan[1].missing,[]);
+ assert.match(r.out.answer.answer,/prescribing veterinarian promptly/);assert.doesNotMatch(r.out.answer.answer,/Double the medicine|restart tomorrow|Which/);
+ assert.equal(r.out.answer.quotes[0].quote,source.body);
+ assert.match(r.out.answer.answer,/2021-03-12/);assert.match(r.out.answer.answer,/2021-03-14/);
+ assert.equal(r.out.answer.taskCompletion[1].status,"complete");
+});
+for(const [label,options] of [
+ ["incomplete discovery",{exhausted:false}],
+ ["several candidates",{rows:[source,{...source,id:"another-private-note",body:"A different exam."}]}],
+ ["empty discovery",{rows:[]}]
+])test("mixed bounded note lookup preserves record identity with "+label,async()=>{
+ const r=await mixedTimestampLookup(options);assert.equal(r.reads.length,1);assert.ok(r.checkedPlan[1].missing.includes("which_record"));assert.notEqual(r.out.answer.taskCompletion[1].status,"complete");
+});
+test("mixed timestamp display never resolves a genuinely missing pet",async()=>{
+ const r=await mixedTimestampLookup({question:"My cat is normal today. I cannot name the prescription. Quote the saved March 2021 exam note with both timestamps.",missing:["pet","date_meaning","which_record"]});assert.equal(r.reads.length,0);assert.ok(r.checkedPlan[1].missing.includes("pet"));
+});
+
+
+test("both-timestamp scope proof never retargets or widens an already bound read",async()=>{
+ const {reconcilePlannedSavedDates}=await import("../app/lib/ask-read-only/calendar-scope.mjs");
+ const first={historyIntent:{requested:true,timeBasis:"event"},safety:{currentEvents:[],scenario:"current",urgency:"routine",medicationIntent:"decision",missingContext:["medicine","prescription","vet_plan"]}};
+ const plan=[task({kind:"clinical_guidance",missing:["medicine"]}),task({id:"t2",kind:"saved_content",needsHistory:true,includeSourceDates:true,pets:["p1"],missing:["date_meaning","which_record"]})];
+ const context={question:"Willow is normal today. Quote March 2021 and both timestamps.",pets:[{...pet,handle:"p1"}]};
+ const bound=[{name:"search_saved_records",reference:null,request:bindReadTool(boundedRead[0].name,boundedRead[0].arguments,[{...pet,handle:"p1"}])}];
+ const before=structuredClone({first,plan,bound}),r=reconcilePlannedSavedDates(first,plan,context,bound);
+ assert.ok(r);assert.deepEqual(r.plan[0],plan[0]);assert.deepEqual(r.plan[1].missing,["which_record"]);assert.deepEqual({first,plan,bound},before);
+ for(const [label,change]of [
+  ["current emergency",f=>f.first.safety.currentEvents=["breathing_distress"]],
+  ["immediate current",f=>{f.first.safety.scenario="current";f.first.safety.urgency="immediate";}],
+  ["ambiguous date axis",f=>f.first.historyIntent.timeBasis="ambiguous"],
+  ["missing year",f=>{f.plan[1].missing.push("year");f.context.question="Willow March note and both timestamps.";}],
+  ["which timestamp",f=>f.context.question="Willow March 2021: which timestamp is relevant?"],
+  ["competing years",f=>f.context.question+=" Or 2022."],
+  ["competing months",f=>f.context.question+=" April 2021."],
+  ["another pet",f=>f.context.pets.push({...pet,name:"Maple",handle:"p2"})&& (f.context.question+=" Also Maple.")],
+  ["changed pet",f=>f.bound[0].request.pet.handle="p2"],
+  ["unbounded read",f=>f.bound[0].request.from=null],
+  ["wrong month",f=>f.bound[0].request.to="2021-04-30"],
+  ["wrong axis",f=>f.bound[0].request.orderBy="recorded"],
+  ["later page",f=>f.bound[0].request.offset=1],
+  ["reference",f=>f.bound[0].request.reference="r1"],
+  ["continuation",f=>f.bound[0].request.continuation=true],
+  ["multiple reads",f=>f.bound.push(structuredClone(f.bound[0]))],
+  ["missing timestamp request",f=>{f.plan[1].includeSourceDates=false;f.context.question="Willow March 2021 saved note.";}],
+  ["another historical deliverable",f=>f.plan.push({...f.plan[1],id:"t3"})],
+  ["unrequested history",f=>f.first.historyIntent.requested=false],
+  ["retained task identity",f=>f.plan[1].reference="r1"]
+ ]){
+  const f=structuredClone({first,plan,context,bound});change(f);
+  assert.equal(reconcilePlannedSavedDates(f.first,f.plan,f.context,f.bound),null,label);
+ }
+});
+
+test("trace-shaped redundant saved pet flag cannot cancel an explicit owned monthly medication-plus-note request",async()=>{
+ const r=await mixedTimestampLookup({missing:["pet","which_record"]});
+ assert.equal(r.reads.length,1);assert.equal(r.calls,2);assert.deepEqual(r.checkedPlan[1].missing,[]);
+ assert.deepEqual(r.checkedPlan[0].missing,["medicine","prescription","vet_plan"]);
+ assert.equal(r.out.answer.quotes[0].quote,source.body);assert.doesNotMatch(r.out.answer.answer,/Which pet|Double the medicine|restart tomorrow/);
+});
+test("literal both-timestamp request survives contradictory saved output-date flag after bound scope proof",async()=>{
+ const r=await mixedTimestampLookup({missing:["pet","year","date_meaning","which_record"],sourceDates:false});
+ assert.equal(r.reads.length,1);assert.equal(r.calls,2);assert.equal(r.checkedPlan[1].includeSourceDates,true);assert.deepEqual(r.checkedPlan[1].missing,[]);
+ assert.match(r.out.answer.answer,/2021-03-12/);assert.match(r.out.answer.answer,/2021-03-14/);
 });

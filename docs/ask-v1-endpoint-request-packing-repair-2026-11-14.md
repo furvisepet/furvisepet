@@ -1,0 +1,9 @@
+# Endpoint evidence and request packing
+
+R68 on e15a0ca6 reached four allowed bounded reads, then primary request admission rejected 60,614 serialized characters /20,205 estimated tokens. Exactly one physical provider call had an actual receipt; no second model answered or dispatched. Its FAIL/cost and exact UI error remain. The failed request's original full source catalog was not persisted, so independently expected endpoint rows must not be represented as recovered actual acquired bodies.
+
+Provider wire packing now leaves transport-only discovery/batch/anchor-validation diagnostics server-side. All original admitted bodies and typed operands, pet/source/timestamp identities, owner question/dialogue, clinical constraints, requested scopes, source counts, omissions, exhaustion flags and unmet requirements remain intact. Server rendering retains the complete original metadata. No source, character, token or call cap increases, content truncation or extra model calls.
+
+Distinct already-bound endpoint searches for a sole calculation deliverable establish collection cardinality, even if first-pass recordMode says single. They clear which_record without granting any new read; one read, duplicate identical read scopes, foreign pet sides and competing independent same-pet tasks retain identity requirements. Red regressions reproduced admission rejection and the wrong record prerequisite. Original source/clinical/deadline regressions run through the normal local test harness; a direct-node server-only resolution failure is retained separately as a harness invocation error.
+
+R70/R71 are pre-output fresh pet/year analogues with independent original endpoint goldens, not repeats. Every earlier failure and cost remains under its tested SHA. Final fresh clinical and complete immutable-head release qualification remain unverified until actually run.

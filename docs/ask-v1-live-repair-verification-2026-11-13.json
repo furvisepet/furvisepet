@@ -1,0 +1,181 @@
+{
+  "base": "83ae3b9a5c2aa4dfbaece087d8637c08a0393476",
+  "checks": {
+    "repair-ask-complete": {
+      "command": [
+        "node",
+        "scripts/run-tests.mjs",
+        "--test-concurrency=1",
+        "--test-timeout=20000",
+        "tests/ask-read-only.test.mjs",
+        "tests/ask-input-budget-route.test.mjs",
+        "tests/ask-public-cancellation-route.test.mjs",
+        "tests/ask-read-only-wire-qualification.test.mjs",
+        "tests/ask-read-only-provider-request.test.mjs",
+        "tests/ask-provider-deadline.test.mjs",
+        "tests/ask-clinical-policy.test.mjs",
+        "tests/ask-clinical-decision-contract.test.mjs",
+        "tests/ask-urgency-components.test.mjs",
+        "tests/ask-collection-continuation.test.mjs",
+        "tests/ask-task-components.test.mjs",
+        "tests/ask-task-continuation.test.mjs",
+        "tests/ask-task-execution-contract.test.mjs",
+        "tests/ask-task-route.test.mjs",
+        "tests/ask-history-synthesis.test.mjs",
+        "tests/ask-evidence-completion.test.mjs",
+        "tests/ask-typed-operands.test.mjs",
+        "tests/ask-read-only-dialogue-coverage.test.mjs",
+        "tests/ask-read-only-follow-up-context.test.mjs",
+        "tests/ask-reference-persistence.test.mjs",
+        "tests/ask-read-only-emergency-preflight-scope.test.mjs",
+        "tests/ask-read-only-provider-failure-route.test.mjs",
+        "tests/ask-read-only-native-envelope.test.mjs",
+        "tests/ask-read-only-publication-contract.test.mjs",
+        "tests/ask-read-only-publication-budget.test.mjs",
+        "tests/ask-live-diagnostic.test.mjs",
+        "tests/ask-provider-timestamp-boundary.test.mjs",
+        "tests/ask-recursive-transport.test.mjs",
+        "tests/ask-v1-benchmark.test.mjs",
+        "tests/ask-unavailable-owner-detail.test.mjs"
+      ],
+      "exit": 0,
+      "seconds": 127.689712,
+      "logSha256": "abc76af261191f46fdc6eafecd01f7274f0844e855c428418f6b6b68ee01e646",
+      "tail": " (0.1973ms)\n\u2714 missing persistedMessagesHash cannot grade (0.1605ms)\n\u2714 missing backendExecutionHash cannot grade (0.1529ms)\n\u2714 missing sourceReviewHash cannot grade (0.1412ms)\n\u2714 missing deploymentEvidenceHash cannot grade (0.1361ms)\n\u2714 missing rubricReviewHash cannot grade (0.1344ms)\n\u2714 unsafeMedical cannot be partial (0.1935ms)\n\u2714 ownerMutation cannot be partial (0.155ms)\n\u2714 unpublished answer is a failure (0.1724ms)\n\u2714 unknown actual cannot pass (0.1614ms)\n\u2714 uncertain operation retained as FAIL, not erased (1.2902ms)\n\u2714 zero live turns never releases (0.5067ms)\n\u2714 older SHA passes never transfer (0.6358ms)\n\u2714 synthetic complete cohort can only pass functional gate, not external launch gates (40.3165ms)\n\u2714 one failure prevents release and remains per SHA (38.44ms)\n\u2714 critical partial prevents release (22.5321ms)\n\u2714 missing integrity after-check prevents functional acceptance (37.1503ms)\n\u2714 write-once intent blocks physical replay (2.5048ms)\n\u2714 reload cannot be claimed without an interaction capture (0.2714ms)\n\u2714 omitting a critical initial case cannot hide it in the denominator (37.0963ms)\n\u2714 omitting actual reload cannot substitute other continuity turns (36.2309ms)\n\u2714 a second receipt without its first physical call is rejected (0.3006ms)\n\u2714 a later safe SHA needs independent medical repair review (0.7286ms)\n\u2714 reserve requires a concrete repair reason and receipt (0.641ms)\n\u2714 frozen fresh analogue qualifies without erasing original failure (45.7866ms)\n\u2714 a replacement without its retained original is rejected (0.9219ms)\n\u2714 unlisted same-category replacement cannot substitute toxin for breathing (0.4038ms)\n\u2714 a post-output equivalence review is rejected (0.3461ms)\n\u2714 a missing equivalence review cannot grade a replacement (0.3276ms)\n\u2714 dispatch requires retained original and independent prior review (1.0228ms)\n\u2714 new question with unfrozen replacement is blocked before dispatch (0.839ms)\n\u2714 logic-only duplicate mentions cannot replace saved-source recurrence evidence (0.4244ms)\n\u2714 a fresh collection analogue satisfies its downstream continuation dependency (0.9376ms)\n\u2714 registered fresh unknown analogue preserves original failure and original48-question freeze (41.7552ms)\n\u2714 an unregistered additional case cannot dispatch (0.9736ms)\n\u2714 repair pool cannot replay an exposed added question (1.1717ms)\n\u2714 additional repair candidates do not raise the16-reserve-dispatch ceiling (3.3218ms)\n\u2139 tests 515\n\u2139 suites 0\n\u2139 pass 515\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 127575.8324\n"
+    },
+    "repair-security-complete": {
+      "command": [
+        "node",
+        "scripts/run-tests.mjs",
+        "--test-concurrency=1",
+        "--test-timeout=30000",
+        "tests/security-phase-s2a.test.mjs",
+        "tests/security-phase-s2b.test.mjs",
+        "tests/security-phase-s2c.test.mjs",
+        "tests/security-phase-s2d.test.mjs",
+        "tests/security-phase-s2e.test.mjs",
+        "tests/security-phase-s2f.test.mjs",
+        "tests/security-phase-s2g.test.mjs",
+        "tests/security-phase-s2h.test.mjs",
+        "tests/password-capability-state.test.mjs",
+        "tests/ask-conversation-authority-foundation.test.mjs",
+        "tests/ask-conversation-authority-lock.test.mjs",
+        "tests/ask-read-only-actions.test.mjs",
+        "tests/ask-read-only-provider-failure-route.test.mjs",
+        "tests/ask-read-only-native-envelope.test.mjs",
+        "tests/ai-credit-security-regression.test.mjs",
+        "tests/ask-provider-envelope-diagnostics.test.mjs",
+        "tests/ask-provider-error-diagnostics.test.mjs",
+        "tests/ask-post-review-finalizer-contract.test.mjs",
+        "tests/canonical-care-deployment-compatibility.test.mjs",
+        "tests/ask-memory-integrity-p0.test.mjs",
+        "tests/furvise-brain-architecture-boundary.test.mjs",
+        "tests/furvise-brain-owner-note-gate.test.mjs",
+        "tests/ask-read-only-state-claim-publication.test.mjs",
+        "tests/canonical-memory-suggestion.test.mjs",
+        "tests/canonical-suggestion-continuation.test.mjs",
+        "tests/core-loop-stability.test.mjs",
+        "tests/ask-action-capability-v1.test.mjs",
+        "tests/furvise-intelligence-engine.test.mjs",
+        "tests/ask-memory-single-authority.test.mjs",
+        "tests/ask-memory-authority-p0.test.mjs",
+        "tests/care-entry-write-authority.test.mjs",
+        "tests/ask-structured-output-reliability.test.mjs",
+        "tests/ask-read-only-omitted-text.test.mjs",
+        "tests/ask-read-only-dialogue-coverage.test.mjs",
+        "tests/ask-read-only-follow-up-context.test.mjs",
+        "tests/ask-read-only-effect-claims.test.mjs",
+        "tests/ask-action-capability-security-regressions.test.mjs",
+        "tests/ask-action-capability-target-freshness-expiry.test.mjs",
+        "tests/ask-route-ordering.test.mjs",
+        "tests/ask-state-suggestion-persistence.test.mjs",
+        "tests/ask-public-cancellation-route.test.mjs",
+        "tests/ask-input-budget-route.test.mjs",
+        "tests/furvise-conversational-architecture-v1.test.mjs"
+      ],
+      "exit": 0,
+      "seconds": 42.677557,
+      "logSha256": "972c61393f844f82f7d60bb842a3e748edfbbe66b3b66bbbba06a1b39aa5de28",
+      "tail": ".1719ms)\n\u2714 Auth logs and client code do not log secrets or raw account identifiers (7.4534ms)\n\u2714 Auth APIs expose no permissive CORS and CAPTCHA is not added to product features (7.1053ms)\n\u2714 Turnstile browser origins are exact and conditional in report-only CSP (0.5053ms)\n\u2714 example configuration rejects missing or malformed challenges without leaking template values (1.1789ms)\n\u2714 progressive login still challenges on server demand and validates every supplied challenge (0.6128ms)\n\u2714 operational metadata is explicitly allowlisted and secret-like fields are dropped (1.7764ms)\n\u2714 event adapter failures cannot crash requests and critical events use the interface (2.3437ms)\n\u2714 safe support references contain no actor, email, narrative, or stack (0.6563ms)\n\u2714 public health is shallow and reveals no dependency details (1.17ms)\n\u2714 readiness requires a timing-safe operator secret and returns only safe component states (0.9531ms)\n\u2714 readiness uses bounded timeouts and never calls OpenAI (0.5417ms)\n\u2714 account deletion authenticates, validates origin, requires current-session recent auth and exact confirmation (1.084ms)\n\u2714 account deletion requires canonical idempotency and destructive distributed limits (0.091ms)\n\u2714 application deletion is transactional and Auth deletion follows it (0.1609ms)\n\u2714 partial Auth deletion creates reconciliation state and disables the identity (0.1817ms)\n\u2714 account deletion never uses GET and private responses do not cache (0.1922ms)\n\u2714 export authenticates, requires current-session recent auth, origin protection, idempotency and bounded rate policy (0.879ms)\n\u2714 export is owner-filtered, bounded, private, attached, and strips internal fields (0.5588ms)\n\u2714 export includes the documented user categories and excludes operational stores (1.2103ms)\n\u2714 operational cleanup defaults dry-run, requires apply confirmation and bounds batches (1.259ms)\n\u2714 cleanup and diagnostics are service-only (0.221ms)\n\u2714 integrity diagnostics cover orphan, memory, credit, idempotency and deletion failures with counts only (1.0427ms)\n\u2714 production validation fails required configuration while AI-disabled mode omits OpenAI (1.8158ms)\n\u2714 client bundle receives no new server operational credentials (2.2121ms)\n\u2714 operator documentation distinguishes preparation from active external services (4.3451ms)\n\u2714 deployment and incident runbooks avoid destructive database rollback guidance (1.3677ms)\n\u2139 tests 517\n\u2139 suites 0\n\u2139 pass 517\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 42565.307\n"
+    },
+    "repair-typecheck": {
+      "command": [
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "--noEmit"
+      ],
+      "exit": 0,
+      "seconds": 8.889921,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tail": ""
+    },
+    "repair-lint": {
+      "command": [
+        "node",
+        "node_modules/eslint/bin/eslint.js",
+        "app/lib/ask-read-only/core.mjs",
+        "app/lib/ask-read-only/task-components.mjs",
+        "scripts/audits/ask-v1-benchmark.mjs",
+        "tests/ask-v1-benchmark.test.mjs",
+        "tests/ask-unavailable-owner-detail.test.mjs"
+      ],
+      "exit": 0,
+      "seconds": 19.619843,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tail": ""
+    },
+    "repair-diff": {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 0.395802,
+      "logSha256": "7000c84403f6a2dfa83d012071c3e493a92aa2b01e9e2f29c50dd09632faf508",
+      "tail": "warning: in the working copy of 'app/lib/ask-read-only/core.mjs', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'app/lib/ask-read-only/task-components.mjs', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'benchmarks/ask/v1-repair-equivalence-2026-11-14.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/audits/ask-v1-benchmark.mjs', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'tests/ask-v1-benchmark.test.mjs', LF will be replaced by CRLF the next time Git touches it\n"
+    }
+  },
+  "build": {
+    "exit": 0,
+    "seconds": 46.99041,
+    "command": [
+      "node",
+      "node_modules/next/dist/bin/next",
+      "build",
+      "--webpack"
+    ],
+    "placeholderEnvironmentOnly": true,
+    "logSha256": "9817b9c9088f812188263ce0b1922178e54cc3ed91c7e1b38d09ede351ebebed"
+  },
+  "sourceHashes": {
+    "app/lib/ask-read-only/core.mjs": "dc90c116977fe751718619de07aaa44592d40caaf8bac3c66e48db239686b341",
+    "app/lib/ask-read-only/task-components.mjs": "350ba0f399052740cf2310562f6d2b0f181493a5dd5fc3887fa50c46b8f18ae6",
+    "scripts/audits/ask-v1-benchmark.mjs": "d791ba71622675f97b7fd2d20feef4d52c4044ca11849de3f71063860e4ddfac",
+    "tests/ask-v1-benchmark.test.mjs": "be6afa9f14c4bf907a53cea66a2765a96fc65208da508ed8933532ac0b015ab6",
+    "tests/ask-unavailable-owner-detail.test.mjs": "eaad0966341cb5f7f643341ce2abc801329307893b36b31ba7cc2626250f0f5e",
+    "benchmarks/ask/v1-owner-repair-pool-2026-11-13.json": "d5561a9a65c05a6640ee7dcbc4b92b279f907813ee03e1208460a695a273159b",
+    "benchmarks/ask/v1-repair-equivalence-2026-11-14.json": "2d9bf537f29266f09e34ea7633cbc048c1fb0305ffb9d066e1e4dd931cabb767",
+    "benchmarks/ask/v1-clinical-review-2026-11-13.json": "6876788da0326037af67d04e9d868177c2dcc815191c0d2eba445a267c604c41"
+  },
+  "liveBeforeRepair": {
+    "turns": 4,
+    "PASS": 3,
+    "PARTIAL": 0,
+    "FAIL": 1,
+    "calls": 8,
+    "actualMicroUSD": 36905,
+    "unknown": 0
+  },
+  "newCandidateLiveTurns": 0,
+  "oldActualChargeStillUnknown": true,
+  "oldChargeExceptionExplicitlyApproved": true,
+  "limits": {
+    "turns": 48,
+    "calls": 96,
+    "newMicroUSD": 2500000,
+    "reserveDispatches": 16
+  },
+  "providerCallsPerTurnUnchanged": 2,
+  "wholeRepositoryCertified": false
+}

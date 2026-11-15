@@ -120,8 +120,9 @@ test("app help cannot replace emergency prominence in a mixed question",()=>{
  assert.match(out.answer,/^Contact an emergency veterinarian now/);assert.match(out.answer,/Open History/);assert.match(out.answer,/LOAD OLDER/);
 });
 test("active strict provider consumes actual event-contract JSON envelopes in exactly two physical local calls",async()=>{
+ const Ajv=(await import("ajv")).default;const validateWire=new Ajv({strict:false});
  let physical=0;const events=[];
- const client={responses:{create:async()=>({status:"completed",output:[{type:"message",role:"assistant",status:"completed",content:[{type:"output_text",text:JSON.stringify(++physical===1?{...wire(),taskPlan:[{id:"t1",kind:"general_guidance",recordMode:"none",needsHistory:false,needsOwnerFacts:false,includeSourceDates:false,workflow:"none",pets:[],reference:null,missing:[]}]}:{...final(),completion:[{task:"t1",status:"complete",reason:"none",componentIndexes:[0],sources:[],ownerFacts:[],historyFacts:[]}]})}]}],usage:{input_tokens:1,output_tokens:1}})}};
+ const client={responses:{create:async request=>{const envelope=({status:"completed",output:[{type:"message",role:"assistant",status:"completed",content:[{type:"output_text",text:JSON.stringify(++physical===1?{...wire(),taskPlan:[{id:"t1",kind:"general_guidance",combineHistory:false,recordMode:"none",needsHistory:false,needsOwnerFacts:false,includeSourceDates:false,workflow:"none",pets:[],reference:null,missing:[]}]}:{...final(),completion:[{task:"t1",status:"complete",reason:"none",componentIndexes:[0],sources:[],ownerFacts:[],historyFacts:[],historySynthesis:[]}],evidenceCompletion:{sourceReview:{routine:[],noteworthy:[],uncertain:[],irrelevant:[]},missingReference:null}})}]}],usage:{input_tokens:1,output_tokens:1}});const validate=validateWire.compile(request.text.format.schema);assert.ok(validate(JSON.parse(envelope.output[0].content[0].text)),JSON.stringify(validate.errors));return envelope;}}};
  const result=await runReadOnlyAsk(input,{provider:readOnlyProvider("offline",e=>events.push(e),client),read:async()=>{throw Error("unexpected private read");}});
  assert.equal(result.providerCallCount,2);assert.equal(physical,2);assert.equal(result.answer.answer,"An ordinary answer.");assert.equal(events.filter(e=>e.outcome==="succeeded").length,2);
 });
@@ -318,4 +319,34 @@ test("introduced acute IF directions cannot narrow emergency timing behind an em
  assert.doesNotMatch(out.answer,/Contact an emergency veterinarian now/);
  const ordinary=reviewClinicalAnswer(final(assessment(),"If you find the old discharge report, ask the vet which dates to record."),assessment(),[],pets);
  assert.equal(ordinary.policy.active,false);
+});
+
+test("native historical education uses bounded v3 review without legacy emergency component authority",async()=>{
+ const {decodeComponentSelection}=await import("../app/lib/ask-read-only/task-components.mjs");
+ let physical=0,reads=0;const safety={medicationIntent:"none",referent:"clear",missingContext:[],careContext:"none",eventAssessments:[]};
+ const task={id:"t1",kind:"clinical_guidance",combineHistory:false,needsHistory:false,needsOwnerFacts:false,includeSourceDates:false,recordMode:"none",workflow:"none",pets:["p1"],reference:null,missing:[]};
+ const out=await runReadOnlyAsk({...input,question:"My cat had a resolved breathing episode years ago and breathes normally now. Does that past event alone establish an emergency today?"},{
+  read:async()=>{reads++;throw Error("No historical source was requested");},
+  provider:async(req,phase)=>{physical++;
+   if(phase==="read_selection")return decodeComponentSelection({safety,reads:[],draft:"",historyIntent:{requested:false,timeBasis:"ambiguous",pet:null},workflowIntent:"none",taskPlan:[task]},req.tools,req.context,decodeClinicalSelection);
+   for(const v of req.schema.properties.components.items.anyOf)assert.ok(v.properties.kind.enum.every(k=>!["emergency","conditional_emergency"].includes(k)),"v3 must not request legacy free-form urgency components");
+   assert.doesNotMatch(req.instructions,/IF\/THEN emergency guidance in a conditional_emergency component/);
+   assert.ok(req.schema.properties.clinicalReview.properties.assessment.properties.eventAssessments,"independent occurrence review remains available");
+   return {components:[{kind:"general",text:"A resolved episode years ago does not by itself establish a current emergency. That is not a diagnosis of the old event or a guarantee of present health.",sources:[]}],quotes:[],sources:[],calculations:[],replyType:"answer",presentation:{sourceDates:[],contextRequired:false},clinicalReview:{assessment:safety,ownerStatementRefs:[],observationFields:[]},appHelp:{intent:"none",pet:null},completion:[{task:"t1",status:"complete",reason:"none",componentIndexes:[0],sources:[],ownerFacts:[],historyFacts:[]}]};
+  }
+ });
+ assert.equal(physical,2);assert.equal(reads,0);assert.match(out.answer.answer,/does not by itself establish a current emergency/);assert.doesNotMatch(out.answer.answer,/Contact an emergency veterinarian now/);
+ const checked=decodeClinicalSelection(wire(),tools).safety;
+ assert.throws(()=>reviewClinicalAnswer({...final(),components:[{kind:"conditional_emergency",text:"Unbound directive.",sources:[]}]},checked,[],pets),/CLINICAL_CONTRACT/,"runtime rejection is not weakened");
+});
+test("native general-only components cannot suppress an independently reviewed current emergency",async()=>{
+ const {decodeComponentSelection}=await import("../app/lib/ask-read-only/task-components.mjs");
+ let physical=0;const initial={medicationIntent:"none",referent:"clear",missingContext:[],careContext:"none",eventAssessments:[]};
+ const current={...initial,careContext:"current_concern",eventAssessments:[{event:"breathing_distress",occurrence:"current",ownerStatementRef:"owner1"}]};
+ const task={id:"t1",kind:"clinical_guidance",combineHistory:false,needsHistory:false,needsOwnerFacts:false,includeSourceDates:false,recordMode:"none",workflow:"none",pets:["p1"],reference:null,missing:[]};
+ const out=await runReadOnlyAsk({...input,question:"My cat is struggling to breathe right now."},{read:async()=>{throw Error("No delay");},provider:async(req,phase)=>{
+  physical++;if(phase==="read_selection")return decodeComponentSelection({safety:initial,reads:[],draft:"",historyIntent:{requested:false,timeBasis:"event",pet:null},workflowIntent:"none",taskPlan:[task]},req.tools,req.context,decodeClinicalSelection);
+  return {components:[{kind:"general",text:"Wait until tomorrow.",sources:[]}],quotes:[],sources:[],calculations:[],replyType:"answer",presentation:{sourceDates:[],contextRequired:false},clinicalReview:{assessment:current,ownerStatementRefs:[],observationFields:[]},appHelp:{intent:"none",pet:null},completion:[{task:"t1",status:"complete",reason:"none",componentIndexes:[],sources:[],ownerFacts:[],historyFacts:[]}]};
+ }});
+ assert.equal(physical,2);assert.match(out.answer.answer,/^Contact an emergency veterinarian now/);assert.doesNotMatch(out.answer.answer,/Wait until tomorrow/);assert.equal(out.answer.clinicalUrgency,"urgent");
 });

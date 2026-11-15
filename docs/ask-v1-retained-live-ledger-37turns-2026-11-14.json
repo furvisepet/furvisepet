@@ -1,0 +1,131 @@
+{
+  "turns": 37,
+  "PASS": 23,
+  "PARTIAL": 2,
+  "FAIL": 12,
+  "published": 33,
+  "explicitUnpublished": 4,
+  "calls": 68,
+  "actualReceipts": 68,
+  "newKnownMicroUSD": 494015,
+  "newUnknown": 0,
+  "bySha": {
+    "27317891": {
+      "turns": 1,
+      "PASS": 0,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "published": 1,
+      "calls": 2,
+      "microUSD": 12881
+    },
+    "83ae3b9a": {
+      "turns": 4,
+      "PASS": 3,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "published": 4,
+      "calls": 8,
+      "microUSD": 36905
+    },
+    "fe23dc55": {
+      "turns": 2,
+      "PASS": 1,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "published": 1,
+      "calls": 4,
+      "microUSD": 31455
+    },
+    "5b24f4fe": {
+      "turns": 1,
+      "PASS": 0,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "published": 1,
+      "calls": 2,
+      "microUSD": 8487
+    },
+    "575ab6f0": {
+      "turns": 1,
+      "PASS": 0,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "published": 1,
+      "calls": 2,
+      "microUSD": 8753
+    },
+    "094c8b31": {
+      "turns": 7,
+      "PASS": 6,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "published": 6,
+      "calls": 12,
+      "microUSD": 89000
+    },
+    "19ea5ee9": {
+      "turns": 4,
+      "PASS": 3,
+      "PARTIAL": 1,
+      "FAIL": 0,
+      "published": 4,
+      "calls": 6,
+      "microUSD": 54748
+    },
+    "7a0905a8": {
+      "turns": 4,
+      "PASS": 3,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "published": 3,
+      "calls": 7,
+      "microUSD": 62904
+    },
+    "fb5c6342": {
+      "turns": 7,
+      "PASS": 5,
+      "PARTIAL": 0,
+      "FAIL": 2,
+      "published": 7,
+      "calls": 14,
+      "microUSD": 118893
+    },
+    "932532b1": {
+      "turns": 2,
+      "PASS": 1,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "published": 2,
+      "calls": 4,
+      "microUSD": 16243
+    },
+    "3a3f0feb": {
+      "turns": 2,
+      "PASS": 1,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "published": 2,
+      "calls": 4,
+      "microUSD": 34371
+    },
+    "7fd209ce": {
+      "turns": 1,
+      "PASS": 0,
+      "PARTIAL": 1,
+      "FAIL": 0,
+      "published": 1,
+      "calls": 2,
+      "microUSD": 12473
+    },
+    "f15a769c": {
+      "turns": 1,
+      "PASS": 0,
+      "PARTIAL": 0,
+      "FAIL": 1,
+      "published": 0,
+      "calls": 1,
+      "microUSD": 6902
+    }
+  }
+}

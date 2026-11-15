@@ -1,0 +1,195 @@
+{
+  "schema": "AskUnknownClarificationVerification.v1",
+  "parent": "fb5c6342e3e2ddd0bd854b87a8b130c9fa7e27be",
+  "checkedAt": "2026-11-14T10:34:55.063712+00:00",
+  "fullSuiteSourceHashes": {
+    "app/lib/ask-read-only/task-components.mjs": "3f2055aa377dd0294b4d3e2a93a43840bd6297284162843d5e512a2245627827",
+    "app/lib/ask-read-only/corrected-reference.mjs": "b19d182e4a13a004ac8a80de52ad20f616fda22f83271103e83770aa17242ec5",
+    "tests/ask-unavailable-owner-detail.test.mjs": "356b18ebbec63304c5c174ea1c3dc4bf67968a8255a3c3efa37b6c661149aab7",
+    "tests/ask-corrected-reference.test.mjs": "c8142b96afb82a454b0a89fc351369e011bd74e453b72cd9b4a3b0e175f4812c",
+    "scripts/audits/ask-v1-benchmark.mjs": "bfbe7899aeb056a3b66b6c15c5f9625f02527868625619c92a4db8dff6aa108c",
+    "benchmarks/ask/v1-owner-repair-pool-2026-11-13.json": "5e7cb03b42273c4156c78eead797c4b12b95399ca2f706b7ba5fbf0aee87f0ac",
+    "benchmarks/ask/v1-repair-equivalence-2026-11-14.json": "71259acb7f7b88288baf616d83382103f05c8570d29a9e964c94931503638a76",
+    "benchmarks/ask/v1-session-extension-request-2026-11-14.json": "dfe60cb8489aed5ff7396d1b4fe9871acf12b5a299649d5d862716d33c5b58c5"
+  },
+  "publishedSourceHashes": {
+    "app/lib/ask-read-only/task-components.mjs": "3f2055aa377dd0294b4d3e2a93a43840bd6297284162843d5e512a2245627827",
+    "app/lib/ask-read-only/corrected-reference.mjs": "b19d182e4a13a004ac8a80de52ad20f616fda22f83271103e83770aa17242ec5",
+    "tests/ask-unavailable-owner-detail.test.mjs": "356b18ebbec63304c5c174ea1c3dc4bf67968a8255a3c3efa37b6c661149aab7",
+    "tests/ask-corrected-reference.test.mjs": "c8142b96afb82a454b0a89fc351369e011bd74e453b72cd9b4a3b0e175f4812c",
+    "scripts/audits/ask-v1-benchmark.mjs": "bfbe7899aeb056a3b66b6c15c5f9625f02527868625619c92a4db8dff6aa108c",
+    "benchmarks/ask/v1-owner-repair-pool-2026-11-13.json": "c5ec981422f1a7ad675a66b1a3c0784e567fdec68d6d998306e4f160bd279080",
+    "benchmarks/ask/v1-repair-equivalence-2026-11-14.json": "71259acb7f7b88288baf616d83382103f05c8570d29a9e964c94931503638a76",
+    "benchmarks/ask/v1-session-extension-request-2026-11-14.json": "bf9b9288e53359d76e1cb83b2f1e5305039dea7d5ac1da95ac190b41a88446f4"
+  },
+  "metadataOnlyCountErratum": [
+    {
+      "path": "benchmarks/ask/v1-owner-repair-pool-2026-11-13.json",
+      "difference": "explanatory reason only; actual array69 and cap21 unchanged",
+      "before": "5e7cb03b42273c4156c78eead797c4b12b95399ca2f706b7ba5fbf0aee87f0ac",
+      "after": "c5ec981422f1a7ad675a66b1a3c0784e567fdec68d6d998306e4f160bd279080"
+    },
+    {
+      "path": "benchmarks/ask/v1-session-extension-request-2026-11-14.json",
+      "difference": "explanatory reason only; actual array69 and cap21 unchanged",
+      "before": "dfe60cb8489aed5ff7396d1b4fe9871acf12b5a299649d5d862716d33c5b58c5",
+      "after": "bf9b9288e53359d76e1cb83b2f1e5305039dea7d5ac1da95ac190b41a88446f4"
+    }
+  ],
+  "checks": {
+    "qualification-ask-complete": {
+      "command": [
+        "node",
+        "scripts/run-tests.mjs",
+        "--test-concurrency=1",
+        "--test-timeout=20000",
+        "tests/ask-read-only.test.mjs",
+        "tests/ask-input-budget-route.test.mjs",
+        "tests/ask-public-cancellation-route.test.mjs",
+        "tests/ask-read-only-wire-qualification.test.mjs",
+        "tests/ask-read-only-provider-request.test.mjs",
+        "tests/ask-provider-deadline.test.mjs",
+        "tests/ask-clinical-policy.test.mjs",
+        "tests/ask-clinical-decision-contract.test.mjs",
+        "tests/ask-urgency-components.test.mjs",
+        "tests/ask-collection-continuation.test.mjs",
+        "tests/ask-task-components.test.mjs",
+        "tests/ask-task-continuation.test.mjs",
+        "tests/ask-task-execution-contract.test.mjs",
+        "tests/ask-task-route.test.mjs",
+        "tests/ask-history-synthesis.test.mjs",
+        "tests/ask-evidence-completion.test.mjs",
+        "tests/ask-typed-operands.test.mjs",
+        "tests/ask-read-only-dialogue-coverage.test.mjs",
+        "tests/ask-read-only-follow-up-context.test.mjs",
+        "tests/ask-reference-persistence.test.mjs",
+        "tests/ask-read-only-emergency-preflight-scope.test.mjs",
+        "tests/ask-read-only-provider-failure-route.test.mjs",
+        "tests/ask-read-only-native-envelope.test.mjs",
+        "tests/ask-read-only-publication-contract.test.mjs",
+        "tests/ask-read-only-publication-budget.test.mjs",
+        "tests/ask-live-diagnostic.test.mjs",
+        "tests/ask-provider-timestamp-boundary.test.mjs",
+        "tests/ask-recursive-transport.test.mjs",
+        "tests/ask-v1-benchmark.test.mjs",
+        "tests/ask-unavailable-owner-detail.test.mjs",
+        "tests/ask-source-sentence-wire.test.mjs",
+        "tests/ask-emergency-history.test.mjs",
+        "tests/ask-emergency-history-route.test.mjs",
+        "tests/ask-continuation-evidence.test.mjs",
+        "tests/ask-corrected-reference.test.mjs"
+      ],
+      "exitCode": 0,
+      "seconds": 351.07,
+      "tail": "ks dispatch (1.3429ms)\n\u2714 preview not READY blocks dispatch (1.1982ms)\n\u2714 account unverified blocks dispatch (0.9724ms)\n\u2714 pets unverified blocks dispatch (0.9486ms)\n\u2714 stale pin blocks dispatch (0.9087ms)\n\u2714 future pin blocks dispatch (0.9679ms)\n\u2714 uncertain intent blocks dispatch (1.3267ms)\n\u2714 new unknown receipt blocks dispatch (1.622ms)\n\u2714 case reused blocks dispatch (1.0855ms)\n\u2714 insufficient reserved budget blocks dispatch (1.0419ms)\n\u2714 call ceiling blocks dispatch (2.0664ms)\n\u2714 dependency missing blocks dispatch (1.1303ms)\n\u2714 dependency on older SHA blocks dispatch (1.918ms)\n\u2714 unreviewed clinical lane blocks dispatch (1.3212ms)\n\u2714 unsafe clinical candidate blocks dispatch (1.2397ms)\n\u2714 new medical SHA without repair review blocks dispatch (1.1447ms)\n\u2714 reserve without repair evidence blocks dispatch (0.9558ms)\n\u2714 settlement cannot turn an unknown actual into zero (1.2098ms)\n\u2714 duplicate physical receipt rejected (0.1524ms)\n\u2714 third physical call rejected (0.3831ms)\n\u2714 missing uiCaptureHash cannot grade (0.745ms)\n\u2714 missing persistedMessagesHash cannot grade (0.8285ms)\n\u2714 missing backendExecutionHash cannot grade (0.7697ms)\n\u2714 missing sourceReviewHash cannot grade (0.5482ms)\n\u2714 missing deploymentEvidenceHash cannot grade (0.3107ms)\n\u2714 missing rubricReviewHash cannot grade (0.2463ms)\n\u2714 unsafeMedical cannot be partial (1.8294ms)\n\u2714 ownerMutation cannot be partial (0.3259ms)\n\u2714 unpublished answer is a failure (0.322ms)\n\u2714 unknown actual cannot pass (0.2954ms)\n\u2714 uncertain operation retained as FAIL, not erased (1.7527ms)\n\u2714 zero live turns never releases (0.8127ms)\n\u2714 older SHA passes never transfer (1.0307ms)\n\u2714 synthetic complete cohort can only pass functional gate, not external launch gates (57.5114ms)\n\u2714 one failure prevents release and remains per SHA (58.8095ms)\n\u2714 critical partial prevents release (40.5854ms)\n\u2714 missing integrity after-check prevents functional acceptance (59.7141ms)\n\u2714 write-once intent blocks physical replay (5.7662ms)\n\u2714 reload cannot be claimed without an interaction capture (0.7391ms)\n\u2714 omitting a critical initial case cannot hide it in the denominator (57.4448ms)\n\u2714 omitting actual reload cannot substitute other continuity turns (57.6914ms)\n\u2714 a second receipt without its first physical call is rejected (0.4669ms)\n\u2714 a later safe SHA needs independent medical repair review (1.1674ms)\n\u2714 reserve requires a concrete repair reason and receipt (1.0129ms)\n\u2714 frozen fresh analogue qualifies without erasing original failure (61.4461ms)\n\u2714 a replacement without its retained original is rejected (1.2519ms)\n\u2714 unlisted same-category replacement cannot substitute toxin for breathing (0.6621ms)\n\u2714 a post-output equivalence review is rejected (0.5541ms)\n\u2714 a missing equivalence review cannot grade a replacement (0.5375ms)\n\u2714 dispatch requires retained original and independent prior review (1.6571ms)\n\u2714 new question with unfrozen replacement is blocked before dispatch (2.2233ms)\n\u2714 logic-only duplicate mentions cannot replace saved-source recurrence evidence (0.5656ms)\n\u2714 a fresh collection analogue satisfies its downstream continuation dependency (1.4291ms)\n\u2714 registered fresh unknown analogue preserves original failure and original48-question freeze (63.2737ms)\n\u2714 an unregistered additional case cannot dispatch (1.6675ms)\n\u2714 repair pool cannot replay an exposed added question (1.1162ms)\n\u2714 additional repair candidates do not raise the16-reserve-dispatch ceiling (4.26ms)\n\u2714 original deterministic zero-provider emergency uses its actual operational UUID without inventing a cost receipt (0.6998ms)\n\u2714 zero-provider proof rejects mismatched schema (0.3424ms)\n\u2714 zero-provider proof rejects mismatched operationKind (0.2615ms)\n\u2714 zero-provider proof rejects mismatched routeType (0.7505ms)\n\u2714 zero-provider proof rejects mismatched executionMode (0.3177ms)\n\u2714 zero-provider proof rejects mismatched providerCallCount (0.3197ms)\n\u2714 zero-provider proof rejects mismatched logicalOperationId (0.4323ms)\n\u2714 zero-provider proof rejects mismatched requestId (0.5414ms)\n\u2714 zero-provider proof rejects mismatched terminalEvidenceHash (0.3107ms)\n\u2714 empty calls without original zero-execution proof cannot hide a dispatched or unreconciled call (0.5802ms)\n\u2714 a genuine zero-call mode never reconciles the old unknown actual (0.1224ms)\n\u2714 safe urgent output without publication remains a functional FAIL (2.8896ms)\n\u2714 confirmed durable zero-provider emergency may pass but never adds physical calls or paid turns (0.4034ms)\n\u2714 a prepared extension request is not approval and the original owner decision still stops at16 reserve dispatches (5.2159ms)\n\u2714 only a distinct new owner decision can permit the requested bounded reserve extension within only the exact newly requested finite limits and unchanged dollars (5.1247ms)\n\u2714 session extension refuses reused original owner receipt (1.0948ms)\n\u2714 session extension refuses no new approval (1.4787ms)\n\u2714 session extension refuses wrong owner (0.8744ms)\n\u2714 session extension refuses wrong request hash (0.8539ms)\n\u2714 session extension refuses wrong original approval (0.8764ms)\n\u2714 session extension refuses expanded dollars (1.0342ms)\n\u2714 session extension refuses expanded calls (0.9213ms)\n\u2714 session extension refuses expanded turns (0.8734ms)\n\u2714 session extension refuses expanded reserve (0.8465ms)\n\u2714 session extension refuses missing decision evidence (0.8991ms)\n\u2714 a new explicit session decision never waives a NEW null provider receipt (1.1759ms)\n\u2139 tests 620\n\u2139 suites 0\n\u2139 pass 620\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 350918.1049\n"
+    },
+    "qualification-security-complete": {
+      "command": [
+        "node",
+        "scripts/run-tests.mjs",
+        "--test-concurrency=1",
+        "--test-timeout=30000",
+        "tests/security-phase-s2a.test.mjs",
+        "tests/security-phase-s2b.test.mjs",
+        "tests/security-phase-s2c.test.mjs",
+        "tests/security-phase-s2d.test.mjs",
+        "tests/security-phase-s2e.test.mjs",
+        "tests/security-phase-s2f.test.mjs",
+        "tests/security-phase-s2g.test.mjs",
+        "tests/security-phase-s2h.test.mjs",
+        "tests/password-capability-state.test.mjs",
+        "tests/ask-conversation-authority-foundation.test.mjs",
+        "tests/ask-conversation-authority-lock.test.mjs",
+        "tests/ask-read-only-actions.test.mjs",
+        "tests/ask-read-only-provider-failure-route.test.mjs",
+        "tests/ask-read-only-native-envelope.test.mjs",
+        "tests/ai-credit-security-regression.test.mjs",
+        "tests/ask-provider-envelope-diagnostics.test.mjs",
+        "tests/ask-provider-error-diagnostics.test.mjs",
+        "tests/ask-post-review-finalizer-contract.test.mjs",
+        "tests/canonical-care-deployment-compatibility.test.mjs",
+        "tests/ask-memory-integrity-p0.test.mjs",
+        "tests/furvise-brain-architecture-boundary.test.mjs",
+        "tests/furvise-brain-owner-note-gate.test.mjs",
+        "tests/ask-read-only-state-claim-publication.test.mjs",
+        "tests/canonical-memory-suggestion.test.mjs",
+        "tests/canonical-suggestion-continuation.test.mjs",
+        "tests/core-loop-stability.test.mjs",
+        "tests/ask-action-capability-v1.test.mjs",
+        "tests/furvise-intelligence-engine.test.mjs",
+        "tests/ask-memory-single-authority.test.mjs",
+        "tests/ask-memory-authority-p0.test.mjs",
+        "tests/care-entry-write-authority.test.mjs",
+        "tests/ask-structured-output-reliability.test.mjs",
+        "tests/ask-read-only-omitted-text.test.mjs",
+        "tests/ask-read-only-dialogue-coverage.test.mjs",
+        "tests/ask-read-only-follow-up-context.test.mjs",
+        "tests/ask-read-only-effect-claims.test.mjs",
+        "tests/ask-action-capability-security-regressions.test.mjs",
+        "tests/ask-action-capability-target-freshness-expiry.test.mjs",
+        "tests/ask-route-ordering.test.mjs",
+        "tests/ask-state-suggestion-persistence.test.mjs",
+        "tests/ask-public-cancellation-route.test.mjs",
+        "tests/ask-input-budget-route.test.mjs",
+        "tests/furvise-conversational-architecture-v1.test.mjs"
+      ],
+      "exitCode": 0,
+      "seconds": 72.44,
+      "tail": "ic, versioned, and excludes transport fields (1.9685ms)\n\u2714 database claim is atomic and one key is scoped by owner and operation (2.1142ms)\n\u2714 idempotency authority is service-only and normal users have no table or RPC grant (2.8425ms)\n\u2714 canonical response, conflict, and in-progress contracts are stable and private (1.9054ms)\n\u2714 completion is stored before a replay can return and 5xx remains retryable (1.7037ms)\n\u2714 completed replay precedes rate limiting while new execution remains rate limited (1.6482ms)\n\u2714 all browser state-changing routes use the central framework (18.8871ms)\n\u2714 all paid provider entry routes claim before the provider call (3.4827ms)\n\u2714 message, profile, care, memory, conversation, and brief inserts carry request uniqueness (6.6081ms)\n\u2714 cleanup is dry-run by default, bounded, service-only, and excludes active financial work (3.2345ms)\n\u2714 first-party mutation fetches reuse an unresolved key and never persist private payloads (3.0262ms)\n\u2714 client rerender, retry, and canonical completion follow the key lifecycle (38.3287ms)\n\u2714 identical intentional actions are not deduplicated by message text (3.2776ms)\n\u2714 retired Ask action and suggestion endpoints authenticate and deny without a write authority (4.8527ms)\n\u2714 retired Ask mutation handlers authenticate and deny without acquiring write or provider authority (2.6666ms)\n\u2714 browser Auth calls are mediated by same-origin application routes (8.8001ms)\n\u2714 signup, recovery, resend, and login OTP start require and forward a CAPTCHA token (5.0801ms)\n\u2714 CAPTCHA tokens remain transient and reset after every protected client submission (6.3552ms)\n\u2714 production cannot activate the explicit CAPTCHA development bypass (2.6024ms)\n\u2714 email sign-in defers CAPTCHA to the password step while server-side challenge enforcement remains layered (5.9223ms)\n\u2714 credential and email-send Auth responses remain neutral while account routing returns only a bounded flow (4.2489ms)\n\u2714 Auth policies use the canonical registry with the reviewed windows (2.296ms)\n\u2714 distributed Auth store enforces windows and exact replay fingerprints (0.291ms)\n\u2714 email normalization is bounded and limiter identities are dedicated HMACs (5.0345ms)\n\u2714 failed-login tracking counts credential failures, challenges temporarily, and clears on success (2.8906ms)\n\u2714 all public Auth mutations require an explicit same-origin browser request (12.8272ms)\n\u2714 rejected Auth requests cannot send email before CAPTCHA, limit, and replay decisions (4.6256ms)\n\u2714 pre-provider infrastructure failures release email-operation replay claims (4.7152ms)\n\u2714 password policy is length-only, bounded, and does not mutate passwords (3.5866ms)\n\u2714 recovery redirects are server-selected and password update requires verified session (6.6967ms)\n\u2714 password recovery completion has a dedicated fail-closed policy (0.1621ms)\n\u2714 confirmation is required at the authoritative AI-credit reservation boundary (1.6119ms)\n\u2714 application workspace and entitlement remain keyed to canonical auth user (4.3008ms)\n\u2714 Auth logs and client code do not log secrets or raw account identifiers (12.5693ms)\n\u2714 Auth APIs expose no permissive CORS and CAPTCHA is not added to product features (13.4717ms)\n\u2714 Turnstile browser origins are exact and conditional in report-only CSP (1.6536ms)\n\u2714 example configuration rejects missing or malformed challenges without leaking template values (1.7708ms)\n\u2714 progressive login still challenges on server demand and validates every supplied challenge (1.3747ms)\n\u2714 operational metadata is explicitly allowlisted and secret-like fields are dropped (2.5444ms)\n\u2714 event adapter failures cannot crash requests and critical events use the interface (3.5974ms)\n\u2714 safe support references contain no actor, email, narrative, or stack (1.3796ms)\n\u2714 public health is shallow and reveals no dependency details (1.7257ms)\n\u2714 readiness requires a timing-safe operator secret and returns only safe component states (1.6864ms)\n\u2714 readiness uses bounded timeouts and never calls OpenAI (1.6959ms)\n\u2714 account deletion authenticates, validates origin, requires current-session recent auth and exact confirmation (1.5214ms)\n\u2714 account deletion requires canonical idempotency and destructive distributed limits (0.1269ms)\n\u2714 application deletion is transactional and Auth deletion follows it (0.2411ms)\n\u2714 partial Auth deletion creates reconciliation state and disables the identity (0.2373ms)\n\u2714 account deletion never uses GET and private responses do not cache (0.1516ms)\n\u2714 export authenticates, requires current-session recent auth, origin protection, idempotency and bounded rate policy (1.5654ms)\n\u2714 export is owner-filtered, bounded, private, attached, and strips internal fields (1.6568ms)\n\u2714 export includes the documented user categories and excludes operational stores (1.6001ms)\n\u2714 operational cleanup defaults dry-run, requires apply confirmation and bounds batches (1.7887ms)\n\u2714 cleanup and diagnostics are service-only (0.3054ms)\n\u2714 integrity diagnostics cover orphan, memory, credit, idempotency and deletion failures with counts only (2.3989ms)\n\u2714 production validation fails required configuration while AI-disabled mode omits OpenAI (3.2938ms)\n\u2714 client bundle receives no new server operational credentials (4.2783ms)\n\u2714 operator documentation distinguishes preparation from active external services (10.501ms)\n\u2714 deployment and incident runbooks avoid destructive database rollback guidance (3.2536ms)\n\u2139 tests 517\n\u2139 suites 0\n\u2139 pass 517\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 72281.9659\n"
+    },
+    "qualification-type": {
+      "command": [
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "--noEmit"
+      ],
+      "exitCode": 0,
+      "seconds": 8.72,
+      "tail": ""
+    },
+    "qualification-lint": {
+      "command": [
+        "node",
+        "node_modules/eslint/bin/eslint.js",
+        "app/lib/ask-read-only/core.mjs",
+        "app/lib/ask-read-only/task-components.mjs",
+        "app/lib/ask-read-only/corrected-reference.mjs",
+        "scripts/audits/ask-v1-benchmark.mjs",
+        "tests/ask-v1-benchmark.test.mjs",
+        "tests/ask-corrected-reference.test.mjs",
+        "tests/ask-unavailable-owner-detail.test.mjs"
+      ],
+      "exitCode": 0,
+      "seconds": 13.11,
+      "tail": ""
+    },
+    "qualification-diff": {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exitCode": 0,
+      "seconds": 0.07,
+      "tail": ""
+    },
+    "qualification-build": {
+      "command": [
+        "node",
+        "node_modules/next/dist/bin/next",
+        "build",
+        "--webpack"
+      ],
+      "exitCode": 0,
+      "seconds": 58.66,
+      "tail": "\u25b2 Next.js 16.4.5 (webpack)\n\u2713 Running next.config.ts took 153ms\n\n  Creating an optimized production build ...\n\u2713 Compiled successfully in 18.8s\n  Running TypeScript ...\n  Finished TypeScript in 8.8s ...\n  Collecting page data using 31 workers ...\n  Generating static pages using 31 workers (0/44) ...\n  Generating static pages using 31 workers (11/44) \n  Generating static pages using 31 workers (22/44) \n  Generating static pages using 31 workers (33/44) \n\u2713 Generating static pages using 31 workers (44/44) in 4.4s\n  Finalizing page optimization ...\n  Collecting build traces ...\n\nRoute (app)\n\u250c \u25cb /\n\u251c \u25cb /_not-found\n\u251c \u0192 /account\n\u251c \u0192 /admin\n\u251c \u0192 /api/account/change-password\n\u251c \u0192 /api/account/delete\n\u251c \u0192 /api/account/detect-country\n\u251c \u0192 /api/account/entitlements\n\u251c \u0192 /api/account/export\n\u251c \u0192 /api/account/product-country\n\u251c \u0192 /api/admin/dashboard\n\u251c \u0192 /api/admin/exclusions\n\u251c \u0192 /api/ask\n\u251c \u0192 /api/ask/actions/[messageId]\n\u251c \u0192 /api/ask/citations\n\u251c \u0192 /api/ask/conversations\n\u251c \u0192 /api/ask/conversations/[id]\n\u251c \u0192 /api/ask/conversations/[id]/messages\n\u251c \u0192 /api/ask/suggestions/[id]\n\u251c \u0192 /api/auth/account-route\n\u251c \u0192 /api/auth/login\n\u251c \u0192 /api/auth/login-otp/start\n\u251c \u0192 /api/auth/oauth\n\u251c \u0192 /api/auth/recovery\n\u251c \u0192 /api/auth/recovery/continue\n\u251c \u0192 /api/auth/resend\n\u251c \u0192 /api/auth/signup\n\u251c \u0192 /api/auth/update-password\n\u251c \u0192 /api/auth/verify-email-otp\n\u251c \u0192 /api/billing/checkout\n\u251c \u0192 /api/billing/portal\n\u251c \u0192 /api/billing/webhook\n\u251c \u0192 /api/care-entries\n\u251c \u0192 /api/care-entries/[id]\n\u251c \u0192 /api/contact\n\u251c \u0192 /api/health\n\u251c \u0192 /api/internal/owner-note-enrichment\n\u251c \u0192 /api/legacy-memories\n\u251c \u0192 /api/memories/[id]\n\u251c \u0192 /api/pets\n\u251c \u0192 /api/pets/[id]\n\u251c \u0192 /api/product-feedback\n\u251c \u0192 /api/readiness\n\u251c \u0192 /api/telemetry/activity\n\u251c \u0192 /api/vet-briefs\n\u251c \u0192 /api/vet-briefs/[id]\n\u251c \u0192 /api/vet-briefs/[id]/pdf\n\u251c \u0192 /api/vet-briefs/draft\n\u251c \u0192 /ask\n\u251c \u0192 /auth/callback\n\u251c \u0192 /care-log\n\u251c \u25cb /contact\n\u251c \u0192 /dashboard\n\u251c \u0192 /dogs/[id]/care\n\u251c \u0192 /dogs/[id]/edit\n\u251c \u0192 /dogs/[id]/feedback\n\u251c \u0192 /dogs/[id]/memories\n\u251c \u0192 /forgot-password\n\u251c \u0192 /history\n\u251c \u25cb /login\n\u251c \u0192 /membership\n\u251c \u0192 /onboarding\n\u251c \u0192 /pets\n\u251c \u0192 /pets/[id]\n\u251c \u0192 /pets/[id]/care\n\u251c \u0192 /pets/[id]/edit\n\u251c \u0192 /pets/[id]/feedback\n\u251c \u0192 /pets/[id]/memories\n\u251c \u25cb /privacy\n\u251c \u25cb /release-notes\n\u251c \u0192 /reset-password/confirm\n\u251c \u0192 /results\n\u251c \u25cb /robots.txt\n\u251c \u0192 /settings/data-privacy\n\u251c \u0192 /settings/security\n\u251c \u0192 /shop\n\u251c \u25cb /sitemap.xml\n\u251c \u25cb /terms\n\u251c \u0192 /today\n\u251c \u0192 /update-password\n\u251c \u0192 /vet-brief\n\u2514 \u0192 /vet-briefs/[id]/print\n\n\n\u0192 Proxy (Middleware)\n\n\u25cb  (Static)   prerendered as static content\n\u0192  (Dynamic)  server-rendered on demand\n\n",
+      "publicBuildPlaceholdersOnly": true
+    }
+  },
+  "metadataFocusedRecheck": {
+    "exitCode": 0,
+    "tail": "\u2714 a fresh collection analogue satisfies its downstream continuation dependency (1.427ms)\n\u2714 registered fresh unknown analogue preserves original failure and original48-question freeze (63.5723ms)\n\u2714 an unregistered additional case cannot dispatch (1.247ms)\n\u2714 repair pool cannot replay an exposed added question (1.0844ms)\n\u2714 additional repair candidates do not raise the16-reserve-dispatch ceiling (4.3986ms)\n\u2714 original deterministic zero-provider emergency uses its actual operational UUID without inventing a cost receipt (0.6244ms)\n\u2714 zero-provider proof rejects mismatched schema (0.4033ms)\n\u2714 zero-provider proof rejects mismatched operationKind (0.2703ms)\n\u2714 zero-provider proof rejects mismatched routeType (0.2325ms)\n\u2714 zero-provider proof rejects mismatched executionMode (0.2125ms)\n\u2714 zero-provider proof rejects mismatched providerCallCount (0.2051ms)\n\u2714 zero-provider proof rejects mismatched logicalOperationId (0.1997ms)\n\u2714 zero-provider proof rejects mismatched requestId (0.2407ms)\n\u2714 zero-provider proof rejects mismatched terminalEvidenceHash (0.3305ms)\n\u2714 empty calls without original zero-execution proof cannot hide a dispatched or unreconciled call (0.5336ms)\n\u2714 a genuine zero-call mode never reconciles the old unknown actual (0.1115ms)\n\u2714 safe urgent output without publication remains a functional FAIL (1.8871ms)\n\u2714 confirmed durable zero-provider emergency may pass but never adds physical calls or paid turns (0.363ms)\n\u2714 a prepared extension request is not approval and the original owner decision still stops at16 reserve dispatches (5.0704ms)\n\u2714 only a distinct new owner decision can permit the requested bounded reserve extension within only the exact newly requested finite limits and unchanged dollars (4.7266ms)\n\u2714 session extension refuses reused original owner receipt (1.0932ms)\n\u2714 session extension refuses no new approval (0.9152ms)\n\u2714 session extension refuses wrong owner (0.8731ms)\n\u2714 session extension refuses wrong request hash (0.8557ms)\n\u2714 session extension refuses wrong original approval (0.9099ms)\n\u2714 session extension refuses expanded dollars (0.9074ms)\n\u2714 session extension refuses expanded calls (1.6686ms)\n\u2714 session extension refuses expanded turns (0.9569ms)\n\u2714 session extension refuses expanded reserve (0.8891ms)\n\u2714 session extension refuses missing decision evidence (0.9069ms)\n\u2714 a new explicit session decision never waives a NEW null provider receipt (1.1483ms)\n\u2139 tests 114\n\u2139 suites 0\n\u2139 pass 114\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 959.3833\n"
+  },
+  "scope": "Complete620Ask/517security scoped suites, type/lint/build. Entire repository not claimed green. Two explanatory reason strings corrected from70to69 after complete checks; no question/expectation, case-array, executable logic or app/build input changed. Benchmark focused suite reran green.",
+  "liveStatus": "Current source not yet live-qualified; all older per-SHA results remain separate."
+}

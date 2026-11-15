@@ -57,7 +57,7 @@ test("first-pass emergency suppresses optional record IO and strips draft withou
 test("essential unknown meaning suppresses history while preserving independent components",async()=>{
  const s=assessment({referent:"essential_unknown",missingContext:["procedure"]}),a=answer(s,{replyType:"clarification"});
  a.clinicalReview.questionsForMissingContext=["procedure"];
- const out=await runReadOnlyAsk(input,{read:async()=>{throw Error("Irrelevant history must not run");},provider:async(_p,phase)=>phase==="read_selection"?{safety:s,text:"",calls:[{id:"x",name:"search_saved_records",arguments:"{}"}]}:a});
+ const out=await runReadOnlyAsk(input,{read:async()=>{throw Error("Irrelevant history must not run");},provider:async(_p,phase)=>phase==="read_selection"?{safety:s,text:"",calls:[{id:"x",name:"search_saved_records",arguments:JSON.stringify({pet:"p1",from:"2020-01-01",to:"2020-12-31",query:null,offset:0})}]}:a});
  assert.ok(out.answer.answer.includes("Independent"));assert.equal(out.providerCallCount,2);
 });
 test("actual provider adapter requests strict first-pass safety and bounded reads",async()=>{

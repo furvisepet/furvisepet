@@ -42,7 +42,7 @@ export function carryReadReferences(previous,bound,sources,answer,timeZone) {
   const completed=request.reference&&bound.some(c=>c.request.continuation?.reference===request.reference&&c.continuationValidated&&c.queryScopeExhausted&&!c.omittedRange);
   const selected=sources.filter(source=>source.petId===request.pet.id&&source.kind===request.kind&&answer.sources.includes(source.handle)&&call.sourceHandles?.includes(source.handle));
   if(!selected.length)continue;
-  const priority=[...(answer.quotes??[]).map(q=>q.source),...(answer.calculations??[]).flatMap(c=>c.sourceHandles??[])];
+  const priority=[...(answer.historicalSupport??[]),...(answer.quotes??[]).map(q=>q.source),...(answer.calculations??[]).flatMap(c=>c.sourceHandles??[])];
   const retained=[...selected].sort((a,b)=>{
    const rank=s=>{const i=priority.indexOf(s.handle);return i<0?priority.length:i;};return rank(a)-rank(b);
   });
@@ -65,10 +65,10 @@ export function checkReferencedSources(result,request) {
   const actual=fingerprint(source);
   return ["id","hash","eventAt","recordedAt"].every(key=>expected[key]===actual[key]);
  }));
- const staleReference=sources.length!==result.sources.length||sources.length!==request.expectedSources.length||result.hasMore===true||result.unavailable===true;
+ const staleReference=result.staleReference===true||new Set(result.sources.map(s=>s.kind+":"+s.id)).size!==result.sources.length||new Set(request.expectedSources.map(s=>s.id)).size!==request.expectedSources.length||sources.length!==result.sources.length||sources.length!==request.expectedSources.length||result.hasMore===true||result.unavailable===true;
  // Identity belongs to the complete retained set. A partially matched result
  // cannot silently stand in for a stale/deleted/changed prior reference.
- return {...result,sources:staleReference?[]:sources,staleReference};
+ return {...result,inspected:result.inspected??new Set(result.sources.map(s=>s.kind+":"+s.id)).size,sources:staleReference?[]:sources,staleReference};
 }
 
 export function validateContinuationAnchors(result,request){

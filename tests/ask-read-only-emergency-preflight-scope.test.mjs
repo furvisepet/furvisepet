@@ -43,3 +43,29 @@ test("event absence in a recovered history cannot create a present collapse",()=
  assert.ok(detectImmediateAskEmergency("My dog will not wake up."));
  assert.ok(detectImmediateAskEmergency("My dog has uncontrolled bleeding that will not stop."));
 });
+
+
+test("a recovered seasonal event is historical even when the owner asks about emergency status now",()=>{
+ for(const season of ["winter","spring","summer","autumn","fall"]){
+  const text="My dog collapsed once last "+season+", recovered, and is behaving normally today. Does that old event by itself mean an emergency is happening now?";
+  assert.equal(detectImmediateAskEmergency(text),null,season);
+  assert.ok(currentSafetyClauses(text).every(c=>!c.text.includes("collapsed")),season);
+ }
+});
+test("seasonal history never hides a separately reported actual current emergency",()=>{
+ for(const text of [
+  "My dog collapsed last winter and recovered. But now she is unconscious.",
+  "My cat was unconscious last summer. My dog is struggling to breathe now.",
+  "My dog collapsed last autumn, but she is unconscious now.",
+  "My dog collapsed a few minutes ago and has got up again.",
+  "My dog has collapsed just now.",
+  "I think my dog is unconscious now."
+ ])assert.ok(detectImmediateAskEmergency(text),text);
+});
+test("conditional, negated and quoted seasonal emergencies remain non-current",()=>{
+ for(const text of [
+  "If my dog collapses next winter, what should I do?",
+  "My dog did not collapse last winter and has no collapse now.",
+  'The note says "my dog collapsed last winter". She is normal now.'
+ ])assert.equal(detectImmediateAskEmergency(text),null,text);
+});

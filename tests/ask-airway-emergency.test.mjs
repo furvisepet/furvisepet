@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync, writeFileSync } from "node:fs";
 import { detectImmediateAskEmergency, detectAskConcernTags, conditionalEmergencyGuidance } from "../app/lib/ask-safety-context.ts";
-import { fixture } from "./helpers/ask-route-ordering.mjs";
+import {readOnlyFailureRouteFixture} from "./helpers/ask-read-only-failure-route.mjs";
 
 const frozen = JSON.parse(readFileSync(new URL("./fixtures/airway-emergency-regression.json", import.meta.url), "utf8"));
 const cases = [
@@ -59,38 +59,28 @@ test("airway concern vocabulary is shared without duplicate tags or hypothetical
 });
 
 async function urgentRoute(message, expected, journalName) {
-  const f = fixture({ creditLedger: true, realEmergencyResponse: true,
-    providerCreate: () => { throw Error("Emergency must not reach planner"); } });
-  const before = structuredClone(f.rows);
-  const response = await f.send(message);
-  const body = await response.json();
-  const proof = { http: response.status, plannerCalls: f.state.planner, events: f.state.events,
-    safety: body.safety?.level, creditsUsed: body.creditsUsed,
-    saved: body.persistence?.saved, rowsUnchanged: JSON.stringify(f.rows) === JSON.stringify(before) };
-  if (journalName && process.env.FURVISE_AIRWAY_JOURNAL)
-    writeFileSync(process.env.FURVISE_AIRWAY_JOURNAL, JSON.stringify({ sourceScenario: journalName, expected, actual: proof }, null, 2), { flag: "wx" });
-  assert.equal(response.status, expected.http);
-  assert.equal(f.state.planner, expected.plannerCalls);
-  assert.equal(body.safety?.level, expected.safety);
-  assert.match(JSON.stringify(body.response), new RegExp(expected.guidancePattern, "i"));
-  assert.equal(body.handledWithoutAi, true);
-  assert.equal(body.creditsUsed, 0);
-  assert.equal(body.persistence.saved, false);
-  assert.equal(body.dataChanged, false);
-  assert.equal(body.proposedHistoryUpdate, null);
-  assert.equal(body.carePersistence.status, "skipped");
-  assert.deepEqual(f.rows, before);
-  assert.equal(f.rows.ask_action_capabilities.length, expected.capabilities);
-  assert.equal(f.state.credit, null);
-  assert.deepEqual(f.state.events.filter(e => e !== "rate:release"), []);
-  assert.equal(f.state.publications?.length || 0, 0);
+  const f=readOnlyFailureRouteFixture(()=>{throw Error("Emergency must not reach provider");},[],{emergency:true});
+  const response=await f.send(message),body=await response.json();
+  const proof={http:response.status,plannerCalls:f.state.calls,safety:body.safety?.level,
+    creditsUsed:body.creditsUsed,saved:body.persistence?.saved,careReads:f.state.reads,queriedTables:f.state.tables};
+  if(journalName&&process.env.FURVISE_AIRWAY_JOURNAL)
+    writeFileSync(process.env.FURVISE_AIRWAY_JOURNAL,JSON.stringify({sourceScenario:journalName,originalOracle:expected,actual:proof,contractChange:"Emergency Ask exchange may persist; care/profile writes remain forbidden."},null,2),{flag:"wx"});
+  assert.equal(response.status,expected.http);
+  assert.equal(f.state.calls,expected.plannerCalls);
+  assert.equal(body.safety?.level,expected.safety);
+  assert.match(JSON.stringify(body.response),new RegExp(expected.guidancePattern,"i"));
+  assert.equal(body.handledWithoutAi,true);assert.equal(body.creditsUsed,0);
+  assert.equal(body.persistence.saved,true);assert.equal(body.dataChanged,false);
+  assert.equal(body.proposedHistoryUpdate,null);assert.equal(body.carePersistence.status,"skipped");
+  assert.equal(f.state.credit,null);assert.equal(f.state.reads,0);assert.deepEqual(f.state.tables,[]);
+  assert.equal(f.state.emergencyWrites,1);assert.equal(f.state.userMessages,1);
   return body;
 }
-test("FC2150-017 separate repair regression preserves frozen input and oracle", async () => {
+test("FC2150-017 frozen input preserves urgent zero-provider/no-care contract with current chat publication", async () => {
   assert.equal(frozen.sourceScenario.id, "FC2150-017");
   await urgentRoute(frozen.sourceScenario.input.question, frozen.sourceScenario.expected, frozen.sourceScenario.id);
 });
-test("acute obstruction with another subject's companion work exits the real route before side effects", async () => {
+test("acute obstruction with another subject's companion work exits the real route before provider or care effects", async () => {
   await urgentRoute("My cat has an obstructed airway now. Save that and find my dog's oldest meal note.",
     frozen.sourceScenario.expected);
 });

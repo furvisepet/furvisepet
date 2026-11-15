@@ -1,7 +1,12 @@
 /** Authoritative query coverage, independent of model wording. No internal handles. */
 export function readCoverageMessages(coverage=[]) {
- return coverage.filter(row=>row.unmet?.length||row.discovery||row.searchRelaxed||row.hasMore||row.hasPrevious||row.truncated).map(row=>{
+ return coverage.filter(row=>row.scope?.compositionOnly||row.unmet?.length||row.discovery||row.searchRelaxed||row.hasMore||row.hasPrevious||row.truncated).map(row=>{
   const scope=row.scope??{},pet=typeof scope.pet==="string"?scope.pet:"This pet";
+  if(scope.compositionOnly){
+   if(row.unmet?.includes("referenced_source_changed_or_missing"))return pet+": The referenced historical note changed or is missing; its earlier content was not reconstructed.";
+   if(row.returned>0&&scope.literalQuoted===true&&!row.unmet?.includes("no_selected_support"))return pet+": "+row.returned+" saved note re-read for a verified original quotation. Its fresh text was not supplied to the answer model. This rechecks the selected note, not the whole earlier collection.";
+   return pet+": The requested historical note could not be included as a complete verified quotation within this brief. No fresh note text was supplied to the answer model.";
+  }
   if(!Array.isArray(row.discovery)&&row.unmet?.includes("referenced_source_changed_or_missing"))return pet+": A previously referenced source changed or is missing. Ask for a fresh search or clarify which source you mean; its earlier content was not reconstructed.";
   if(Array.isArray(row.discovery)) {
    const window=(label,from,to)=>from||to?" "+label+" "+(from??"earliest")+" to "+(to??"latest"):"";

@@ -13,7 +13,7 @@ for(const question of questions)test("public read-only POST refuses without doma
  try{
   const response=await f.send(question),body=await response.json();
   assert.equal(response.status,200,JSON.stringify(f.state.errors));
-  assert.equal(body.success,true);assert.match(body.answer,/can’t cancel actions or change records/);
+  assert.equal(body.success,true);assert.match(body.answer,/requested action is unavailable through read-only Ask/);
   assert.equal(body.dataChanged,false);assert.equal(body.carePersistence.status,"skipped");assert.equal(body.intelligencePersistence.saved,false);
   assert.deepEqual(body.response.applicationActions,[]);assert.equal(body.turn.actionCount,0);assert.equal(body.turn.mutationOutcome,"not_requested");
   assert.equal(f.state.reads,0);assert.ok(f.state.tables.every(table=>table==="dog_profiles"));
