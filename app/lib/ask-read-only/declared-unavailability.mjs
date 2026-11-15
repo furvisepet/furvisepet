@@ -1,13 +1,13 @@
 /** Current owner speech about unavailable information is not a record locator.
  * This conservative boundary grants no acquisition or factual value. */
-export function reconcileDeclaredUnavailability(first,plan,context,pets,ownerId,bindPet){
+export function reconcileDeclaredUnavailability(first,plan,context,pets,ownerId,bindPet,bindRead){
  const safety=first?.safety;
- if(first?.calls?.length!==0||first.workflowIntent&&first.workflowIntent!=="none"||plan?.length!==1||!safety
+ if(!Array.isArray(first?.calls)||first.workflowIntent&&first.workflowIntent!=="none"||plan?.length!==1||!safety
   ||safety.medicationIntent!=="none"||safety.careContext!=="none"||safety.scenario!=="none"
   ||safety.currentEvents?.length||safety.conditionalEvents?.length
   ||!Array.isArray(safety.missingContext)||safety.missingContext.some(k=>!["pet","date"].includes(k)))return null;
  const task=plan[0];
- if(!task||!Array.isArray(task.pets)||!Array.isArray(task.missing)||!["general_guidance","saved_content","clarification"].includes(task.kind)||!["none","single"].includes(task.recordMode)
+ if(!task||!Array.isArray(task.pets)||!Array.isArray(task.missing)||!["general_guidance","saved_content","clarification"].includes(task.kind)||!["none","single","collection"].includes(task.recordMode)
   ||task.reference||task.needsOwnerFacts||task.pets.length>1
   ||task.missing.some(k=>!["pet","year","date_meaning","which_record"].includes(k)))return null;
  const question=context.question;
@@ -26,7 +26,13 @@ export function reconcileDeclaredUnavailability(first,plan,context,pets,ownerId,
  if(named.length!==1)return null;
  const pet=bindPet(named[0].handle);
  if(!pet||pet.ownerId!==ownerId||pet.id!==named[0].id)return null;
+ // Suppress speculative acquisition only after validating every proposed locator.
+ for(const call of first.calls){
+  if(typeof bindRead!=="function"||!call||Object.keys(call).sort().join(",")!=="arguments,id,name"||typeof call.arguments!=="string")return null;
+  const request=bindRead(call.name,JSON.parse(call.arguments));
+  if(!["search_saved_records","read_pet_profile"].includes(call.name)||request.pet.id!==pet.id||request.pet.ownerId!==ownerId)return null;
+ }
  const corrected={...task,kind:"general_guidance",needsHistory:false,recordMode:"none",pets:[pet.handle],missing:[],includeSourceDates:false};
- return {declaration:declarations[0],plan:[corrected],first:{...first,text:"",safety:{...safety,referent:"clear",missingContext:[]}}};
+ return {declaration:declarations[0],plan:[corrected],first:{...first,calls:[],historyIntent:first.historyIntent?{...first.historyIntent,requested:false}:first.historyIntent,text:"",safety:{...safety,referent:"clear",missingContext:[]}}};
 }
 export const DECLARED_UNAVAILABLE_ANSWER="You said that detail wasn’t recorded. I don’t have a verified saved answer for it.";

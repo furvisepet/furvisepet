@@ -1,3 +1,4 @@
+import {namedOwnedPets} from "./subject-scope.mjs";
 const object=properties=>({type:"object",additionalProperties:false,properties,required:Object.keys(properties)});
 const operations=["difference","percent_change"];
 const metrics=["body_weight","food_mass","body_length"];
@@ -10,7 +11,6 @@ export function measurementRequestSchema(context){
 }
 export const MEASUREMENT_INSTRUCTIONS="For each saved-measurement signed change or percentage change, supply measurementRequests with ONE independently owned pet per request and separate start/finish endpoint scopes. Resolve the owner's actual endpoint period, including a shared period in a two-pet question. Fresh endpoints use precise calendar windows (a named month means that whole month), reference=null. For the same endpoints follow-up, select each retained result's reference, from=to=null; re-read BOTH endpoints. Never use the earlier assistant's numeric result as input. If scope is ambiguous, ask a pointed clarification and leave measurementRequests empty. Task reference stays null; measurement tasks are collections even when endpoints are single notes. Use event dates unless the owner explicitly selects recording time. Percent change uses the earlier measurement as denominator, never the difference or final value. The server selects unique typed measurements and computes; never put literal operands or computed numbers in prose. Include separate requests for two pets and never use another pet's source. This plan supplies reads; do not omit it merely because no read tool was chosen. Other requests use measurementRequests=[].";
 const keys=(v,k)=>v&&typeof v==="object"&&!Array.isArray(v)&&Object.keys(v).sort().join(",")===[...k].sort().join(",");
-const esc=s=>s.replace(/[.*+?^$()|{}\[\]\\]/g,c=>"\\"+c);
 function invalid(field){throw Object.assign(new Error("ASK_READ_MEASUREMENT_SCOPE"),{code:"ASK_READ_MEASUREMENT_SCOPE",answerDiagnostic:{category:"measurement_scope",field}});}
 export function compileMeasurementRequests(requests,first,plan,context,bind){
  if(!Array.isArray(requests)||requests.length>2)invalid("request_shape");
@@ -31,8 +31,9 @@ export function compileMeasurementRequests(requests,first,plan,context,bind){
     call={id:"measurement-"+i+"-"+side,name:"read_referenced_sources",arguments:JSON.stringify({reference:e.reference})};
    }else{
     if(typeof e.from!=="string"||typeof e.to!=="string"||e.from>e.to)invalid("fresh_endpoint_dates");
-    const named=context.pets.filter(p=>new RegExp("(?<![\\p{L}\\p{N}])"+esc(p.name)+"(?![\\p{L}\\p{N}])","iu").test(context.question));
-    if(!named.some(p=>p.handle===q.pet)||context.pets.filter(p=>p.name.toLocaleLowerCase()===pet.name.toLocaleLowerCase()).length!==1)invalid("fresh_endpoint_subject");
+    const named=namedOwnedPets(context.question,context.pets);
+    const antecedent=context.ownerSubjectScope?.method==="prior_owner"&&context.ownerSubjectScope.pets.length===1&&context.ownerSubjectScope.pets[0]===q.pet;
+    if((!named.some(p=>p.handle===q.pet)&&!antecedent)||context.pets.filter(p=>p.name.toLocaleLowerCase()===pet.name.toLocaleLowerCase()).length!==1)invalid("fresh_endpoint_subject");
     const event=q.timeBasis==="event";
     call={id:"measurement-"+i+"-"+side,name:"search_saved_records",arguments:JSON.stringify({pet:q.pet,from:event?e.from:null,to:event?e.to:null,recordedFrom:event?null:e.from,recordedTo:event?null:e.to,goal:"comparison",alternatives:[],orderBy:q.timeBasis,order:"asc",query:null,offset:0})};
    }
