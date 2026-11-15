@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { discoverHistory, allocateEvidence } from "../app/lib/ask-read-only/retrieval.mjs";
+import { discoverHistory, discoverHistoryBatch, allocateEvidence } from "../app/lib/ask-read-only/retrieval.mjs";
 import { bindReadTool, runReadOnlyAsk, validateReadOnlyAnswer, READ_ONLY_LIMITS, readOnlyToolsForPets } from "../app/lib/ask-read-only/core.mjs";
 import { readCoverageMessages } from "../app/lib/ask-read-only/coverage.mjs";
 import { calculateReadSources, readSourceMeasurements } from "../app/lib/ask-read-only/calculations.mjs";
@@ -33,7 +33,7 @@ test("nonzero lexical hits do not suppress complementary discovery",async()=>{
  const result=await discoverHistory({terms:["literal","alternative"],pageBudget:2},async request=>{
   seen.push(request);return {sources:[row(request.terms.length?"weak":"relevant")],total:1,hasMore:false};
  });
- assert.equal(seen.length,2);assert.deepEqual(seen[0].terms,["literal","alternative"]);assert.deepEqual(seen[1].terms,[]);
+ assert.equal(seen.length,2);assert.deepEqual(seen[0].terms,["alternative","literal"]);assert.deepEqual(seen[1].terms,[]);
  assert.deepEqual(result.sources.map(source=>source.id),["weak","relevant"]);assert.equal(result.matchedTotal,1);assert.equal(result.semanticRecallVerified,false);
 });
 test("lexical and broader candidates interleave before allocation",async()=>{
@@ -103,7 +103,7 @@ test("no-read conversation retains zero private reads and two-call review",async
 });
 test("coverage distinguishes both time axes, discovery and evidence omissions",()=>{
  const [message]=readCoverageMessages([{scope:{pet:"Willow",goal:"complete_set",from:"2025-01-01",to:"2025-01-31",recordedFrom:"2025-03-01",recordedTo:"2025-03-31"},discovery:[{mode:"lexical",inspected:16,total:80,pages:1,exhausted:false},{mode:"broader",inspected:16,total:100,pages:1,exhausted:false}],returned:8,inspected:30,omitted:22,truncated:true,unmet:["evidence_omitted"]}]);
- assert.match(message,/event dates 2025-01/);assert.match(message,/recorded dates 2025-03/);assert.match(message,/22 inspected notes omitted/);assert.match(message,/does not prove every related/);assert.match(message,/partial/);
+ assert.match(message,/event dates 2025-01/);assert.match(message,/recorded dates 2025-03/);assert.match(message,/22 examined notes omitted/);assert.match(message,/does not establish semantic completeness or prove every related/);assert.match(message,/partial/);
 });
 test("measurement handles retain nearby meaning without inventing a historical metric",()=>{
  const values=readSourceMeasurements("Meal portion 120 g.\nBody weight 4 kg.","s1");
@@ -118,4 +118,21 @@ test("duplicate operands and cross-pet temporal changes cannot silently yield nu
 test("aggregates disclose selected operands and partial evidence in server text",async()=>{
  const runner=execute(async()=>({sources:[row("a","pet-a","Weight 4 kg."),{...row("b","pet-a","Weight 6 kg."),eventAt:"2025-05-01T12:00:00Z"}],hasMore:true,total:40}),[args({goal:"complete_set"})],{...output([{kind:"saved",text:"The selected measurements can be combined.",sources:["s1","s2"]}]),calculations:[{operation:"sum",operands:["s1:m1","s2:m1"]}]});
  const result=await runner.run();assert.equal(result.answer.calculations[0].value,10);assert.match(result.answer.calculations[0].text,/selected measurements only; evidence coverage is partial/);
+});
+
+// Exercise the shared allocator too: reserving rows repeatedly across every
+// active lane must not strand rows when the eight-page limit is reached.
+test("four independent scopes reserve all discovery lanes without stranding raw rows",async()=>{
+ const requests=Array.from({length:4},(_,i)=>({pet:{ownerId:"owner",id:"pet-"+i},terms:["hint"],goal:"relevant_records"}));
+ const seen=[];
+ const results=await discoverHistoryBatch(requests,async(request,page)=>{
+  seen.push({pet:request.pet.id,...page});
+  return {sources:Array.from({length:page.limit},(_,i)=>row(request.pet.id+":"+(page.terms.length?"literal":"complementary")+i,request.pet.id)),total:100,hasMore:true};
+ },{pages:8,rows:64});
+ assert.equal(seen.length,8);assert.deepEqual(seen.map(page=>page.limit),Array(8).fill(8));
+ for(const result of results){
+  assert.deepEqual(result.discovery.map(lane=>lane.rawRows),[8,8]);
+  assert.equal(result.sources.length,16);assert.equal(result.scopeExhausted,false);
+  assert.equal(result.batchAcquisition.rawRows,64);assert.equal(result.batchAcquisition.attempts,8);
+ }
 });
