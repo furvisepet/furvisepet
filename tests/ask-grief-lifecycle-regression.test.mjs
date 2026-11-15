@@ -379,7 +379,7 @@ test("public correction cancellation is denied while private receipts remain sou
 
 test("a stellar lifecycle question stays general conversation without a pet planner or private reads", async()=>{
  const f=readOnlySuccessRouteFixture({answer:'Stars form from gas clouds, fuse lighter elements, and eventually leave remnants.',replyType:'answer'});
- try{const response=await f.send('What does the lifecycle of a star look like?'),body=await response.json();assert.equal(response.status,200,JSON.stringify(f.state.errors));assert.equal(body.success,true);assert.equal(f.state.calls,2);assert.equal(f.state.reads,0);assert.deepEqual(f.wire,f.admitted);assert.deepEqual(f.wire[0].tools.map(t=>t.name).sort(),['read_pet_profile','search_saved_records']);assert.deepEqual(body.response.applicationActions,[]);assert.equal(body.dataChanged,false);assert.ok(!JSON.stringify(f.wire).includes('ask-semantic-slots'));}finally{await f.release();}
+ try{const response=await f.send('What does the lifecycle of a star look like?'),body=await response.json();assert.equal(response.status,200,JSON.stringify(f.state.errors));assert.equal(body.success,true);assert.equal(f.state.calls,2);assert.equal(f.state.reads,0);assert.deepEqual(f.wire,f.admitted);assert.equal(f.wire[0].text.format.type,'json_schema');assert.deepEqual(f.wire[0].text.format.schema.properties.reads.items.anyOf.flatMap(v=>v.properties.name.enum).sort(),['read_pet_profile','search_saved_records']);assert.deepEqual(body.response.applicationActions,[]);assert.equal(body.dataChanged,false);assert.ok(!JSON.stringify(f.wire).includes('ask-semantic-slots'));}finally{await f.release();}
 });
 
 test("public confirmation stays closed and private locking, service-role and confirmation guards remain", () => {

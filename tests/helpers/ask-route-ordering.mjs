@@ -116,9 +116,30 @@ export function fixture(options={}){
   }});
  if(options.realEmergencyResponse) sandbox.standaloneEmergencyResponse=handler('../../app/api/ask/route.ts',
   ['standaloneEmergencyResponse'],sandbox,'standaloneEmergencyResponse');
+
+ // Retained append-engine proof: call the private production functions directly.
+ // The default send/confirm methods below continue to exercise the closed public routes.
+ const sendRetainedAppend=async(message=cedar)=>{
+  try{
+   await sandbox.ensureConversationAndUserMessage({question:message});
+   const context=await buildFurvisePlanningContext({supabase:db,userId:id(1),petId:options.petId||pet.id,conversationId:id(21),sourceMessageId:id(31),currentMessage:message,locale:'en',timeZone:'UTC'});
+   const interpretation=await sandbox.interpretAskQuestion({context,model:'gpt-5.4-mini'});
+   return await prepareAppendTurn({context,interpretation,requestId:id(41),userMessageId:id(31),conversationId:id(21),supabase:db,usage:{},turnLifecycle:new AskTurnLifecycle(id(41),id(42))});
+  }catch(error){errors.push({error});return Response.json({error:String(error)},{status:503});}
+ };
+ const confirmRetainedAppend=async(actionId=id(71),decision='confirm',messageId=id(61))=>{
+  try{
+   const executed=await executeActionCapability({capabilityId:actionId,assistantMessageId:messageId,userId:options.confirmOwner||id(1),mode:decision});
+   if(!executed)return Response.json({success:false},{status:404});
+   const continuation=await continueConfirmedAppend({supabase:db,userId:options.confirmOwner||id(1),assistantMessageId:messageId,action:executed.action});
+   return Response.json({success:true,...executed,continuation});
+  }catch(error){errors.push({error});return Response.json({error:String(error)},{status:503});}
+ };
  const post=handler('../../app/api/ask/route.ts',['POST','executeAskRequest','enforceAnswerStateClaims'],sandbox);
  const confirm=handler('../../app/api/ask/actions/[messageId]/route.ts',['POST','unavailable','revalidateActionViews'],{...sandbox,executeActionCapability,continueConfirmedAppend,getAuthenticatedApiContext:async()=>({supabase:db,userId:options.confirmOwner||id(1)}),emitOperationalEvent:noop,revalidatePath:noop});
- return {state,rows,db,send:(message=cedar,extra={})=>post(new Request('https://fixture.invalid/api/ask',{method:'POST',body:JSON.stringify({petId:options.petId||pet.id,logicalTurnId:id(41),message,...extra})})),confirm:(actionId=id(71),decision='confirm',messageId=id(61))=>confirm(new Request('https://fixture.invalid/api/ask/actions/'+messageId,{method:'POST',body:JSON.stringify({actionId,decision})}),{params:Promise.resolve({messageId})})};
+ return {state,rows,db,sendRetainedAppend,confirmRetainedAppend,send:(message=cedar,extra={})=>post(new Request('https://fixture.invalid/api/ask',{method:'POST',body:JSON.stringify({petId:options.petId||pet.id,logicalTurnId:id(41),message,...extra})})),confirm:(actionId=id(71),decision='confirm',messageId=id(61))=>confirm(new Request('https://fixture.invalid/api/ask/actions/'+messageId,{method:'POST',body:JSON.stringify({actionId,decision})}),{params:Promise.resolve({messageId})})};
 }
 
 export const engineFixture=(options={})=>fixture({...options,engineCapabilities:true});
+
+export const appendEngineFixture=(options={})=>{const f=fixture({...options,engineCapabilities:true});return {...f,send:f.sendRetainedAppend,confirm:f.confirmRetainedAppend};};

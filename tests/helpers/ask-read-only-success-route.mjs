@@ -1,4 +1,4 @@
-import {selectionFixture,answerFixture,sdkFixture} from "./ask-read-only-wire-fixtures.mjs";
+import {selectionFixture,answerFixture,sdkFixture,ordinaryTask} from "./ask-read-only-wire-fixtures.mjs";
 import assert from "node:assert/strict";
 import {readOnlyFailureRouteFixture,note} from "./ask-read-only-failure-route.mjs";
 import {admitAiOperation} from "../../app/lib/ai/usage-guard/admission.ts";
@@ -11,7 +11,8 @@ export function readOnlySuccessRouteFixture(options={}){
   assert.ok(wire.length<=2,"no hidden physical provider call");
   if(options.providerCreate)return options.providerCreate(request,wire.length);
   const text=options.answer??"I can read saved information, but I can’t cancel actions or change records through Ask.";
-  return sdkFixture(request,wire.length===1?selectionFixture({draft:text}):answerFixture({text,replyType:options.replyType??"refusal"}));
+  const task=options.replyType==="clarification"?{...ordinaryTask(),kind:"clarification"}:undefined;
+  return sdkFixture(request,wire.length===1?selectionFixture({draft:text,task}):answerFixture({text,replyType:options.replyType??"refusal",task}));
  }}};
  const f=readOnlyFailureRouteFixture(()=>{throw Error("native SDK fixture must handle provider IO");},options.records??[note],{
   ...options,model:"gpt-5.4-mini",nativeClient:client,

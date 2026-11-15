@@ -52,7 +52,7 @@ export function readOnlyFailureRouteFixture(provider,records=[note],options={}){
   requireRateLimitedRequest:async()=>({release:async()=>{state.leaseReleased++}}),getAskModelConfiguration:()=>({primary:options.model??"offline-model"}),getAskProviderCooldown:()=>({active:false}),
   admitAiOperation:async input=>{if(options.admissionError)throw options.admissionError;if(options.admitAiOperation)return options.admitAiOperation(input);return {run:callback=>callback(),complete:async()=>{},fail:async()=>{state.admissionFailed++}}},
   reserveAiCredit:async()=>{state.credit={status:"reserved",disposition:null};return {status:"reserved"}},
-  createReadOnlyDataAccess:()=>async request=>{state.reads++;state.readRequests.push(structuredClone(request));assert.equal(request.pet.id,id(2));if(options.readError)throw options.readError;return {sources:records,total:records.length}},
+  createReadOnlyDataAccess:()=>async request=>{state.reads++;state.readRequests.push(structuredClone(request));assert.equal(request.pet.id,id(2));if(options.readError)throw options.readError;return {sources:records,total:records.length,...options.readCoverage}},
   readOnlyProvider:(_model,onEvent)=>options.nativeClient
    ?nativeReadOnlyProvider(options.model??"offline-model",event=>{if(event.outcome==="started")state.calls++;state.providerEvents.push(event);onEvent(event);},options.nativeClient)
    :async(request,phase)=>{

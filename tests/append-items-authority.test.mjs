@@ -5,7 +5,7 @@ import {validateAppendJob,appendJobProposal,readBoundAppendJob,bindAppendSourceD
 import {receiptCompletionText,requestedAppendItems} from '../app/lib/intelligence/receipt-completion.ts';
 import {confirmFurviseWriteReceipt} from '../app/lib/furvise-brain/write-contract.ts';
 import {parseStoredApplicationActions} from '../app/lib/application-actions/contracts.ts';
-import {engineFixture as fixture,id,proposal} from './helpers/ask-route-ordering.mjs';
+import {appendEngineFixture as fixture,id,proposal} from './helpers/ask-route-ordering.mjs';
 const pet={id:'owned',user_id:'owner',name:'Subject'};
 const source=text=>({id:'turn',role:'user',text,createdAt:'2026-09-20T12:00:00Z'});
 const item=(bodyQuote,dateQuote=null,occurredAt=null)=>({bodyQuote,dateQuote,occurredAt});

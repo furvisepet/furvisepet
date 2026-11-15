@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {fixture} from './helpers/ask-staged-route-fixture.mjs';
+import {retainedInterpreterFixture as fixture} from './helpers/ask-staged-route-fixture.mjs';
 import {directFixturePlan} from './helpers/recursive-wire-fixture.mjs';
 import {prepareAskInterpretationRequest} from '../app/lib/intelligence/interpret-ask.ts';
 import {admitAiOperation} from '../app/lib/ai/usage-guard/admission.ts';
@@ -9,7 +9,7 @@ import {MemoryAiGuardTestStore} from '../app/lib/ai/usage-guard/memory-test-stor
 const corpus=JSON.parse(readFileSync(new URL('./fixtures/ask-wire-codec.json',import.meta.url),'utf8'));
 const template=corpus.fixtures.find(f=>f.canonical.request.evidenceBasis==='saved_profile').canonical.request;
 const env={NODE_ENV:'test',FURVISE_AI_DAILY_CALL_LIMIT:'20',FURVISE_AI_DAILY_COST_LIMIT_USD:'10',FURVISE_RATE_LIMIT_HASH_SECRET:'offline-fixture-identity-'.repeat(3)};
-test('normal Ask route repairs conflicting profile fields before factual context',async t=>{
+test('retained private interpreter repairs conflicting profile fields before factual context',async t=>{
  t.mock.method(console,'info',()=>{});t.mock.method(console,'warn',()=>{});
  let prepared,admission,calls=0;const interpretations=[];
  const question="What's Cedar's current profile weight?";

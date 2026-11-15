@@ -68,6 +68,6 @@ test("a started or exhausted read-only turn requires explicit review instead of 
  assert.equal(code,"ANSWER_NOT_COMPLETED");
  const state=getAskErrorPresentation(code);
  assert.equal(state.retryable,false);assert.equal(state.recommendedAction,"edit");
- assert.match(state.message,/question is saved/);assert.match(state.message,/new question/);
+ assert.match(state.message,/question is saved/);assert.match(state.message,/Review your question before sending a new one/);
  assert.doesNotMatch(state.message,/credit|charged|budget|provider|Try again/i);
 });

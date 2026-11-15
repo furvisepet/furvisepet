@@ -1,3 +1,4 @@
+import {selectionFixture,answerFixture,sdkFixture,ordinaryTask} from "./ask-read-only-wire-fixtures.mjs";
 import assert from "node:assert/strict";
 import {readOnlySuccessRouteFixture as fixture} from "./ask-read-only-success-route.mjs";
 import {note} from "./ask-read-only-failure-route.mjs";
@@ -33,10 +34,14 @@ try{
  const prior=process.env.FURVISE_RATE_LIMIT_HASH_SECRET;process.env.FURVISE_RATE_LIMIT_HASH_SECRET="offline-native-date-route-citation-secret";
  try{
   const body="  Exact saved routine.\r\nSpacing stays.\t  ",record={...note,body,eventAt:"2026-09-15T12:00:00Z",recordedAt:"2026-09-16T12:00:00Z"};
-  const f=fixture({records:[record],providerCreate:async(request,call)=>call===1
-   ?{status:"completed",output:[{type:"function_call",call_id:"history",name:"search_saved_records",arguments:JSON.stringify({pet:"p1",from:"2026-09-15",to:"2026-09-15",query:null,offset:0,order:"desc"})}],usage:{input_tokens:100,output_tokens:20}}
-   :{status:"completed",output:[{type:"message",content:[{type:"output_text",text:JSON.stringify({answer:"The saved observation is quoted below.",quotes:["s1"],sources:["s1"],calculations:[],replyType:"answer"})}]}],usage:{input_tokens:100,output_tokens:40}}
-  });
+  const task=ordinaryTask(true);
+  const read={name:"search_saved_records",arguments:{pet:"p1",from:"2026-09-15",to:"2026-09-15",query:null,offset:0,order:"desc",goal:"exact_quote",alternatives:[],recordedFrom:null,recordedTo:null,orderBy:"event"}};
+  const f=fixture({records:[record],readCoverage:{hasMore:false,scopeExhausted:true},providerCreate:async(request,call)=>{
+   if(call===1)return sdkFixture(request,selectionFixture({reads:[read],task}));
+   const value=answerFixture({text:"The saved observation is quoted below.",sources:["s1"],quotes:["s1"],replyType:"answer",task});
+   value.completion[0].historyFacts=[{source:"s1",firstSentence:1,lastSentence:2}];
+   return sdkFixture(request,value);
+  }});
   try{
    const response=await f.send("Quote Juniper’s September 15, 2026 saved routine note exactly."),result=await response.json();
    assert.equal(response.status,200,JSON.stringify(f.state.errors));assert.equal(f.state.reads,1);assert.equal(f.state.readRequests[0].from,"2026-09-15");assert.equal(f.state.readRequests[0].to,"2026-09-15");

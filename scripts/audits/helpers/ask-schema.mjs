@@ -30,7 +30,7 @@ for(const file of files.sort()) {
   ? new URL('../fixtures/' + historical, import.meta.url) : `supabase/migrations/${file}`;
  // The task-writer guard hashes the historical LF source; Windows checkout may use CRLF.
  const sql = readFileSync(path,'utf8');
- const canonical = ['20260916020025_ask_task_continuation.sql','20261004233000_guard_canonical_task_writers.sql'].includes(file) ? sql.replace(/\r\n/g,'\n') : sql;
+ const canonical = ['20260916020025_ask_task_continuation.sql',historical,'20261004233000_guard_canonical_task_writers.sql'].includes(file) ? sql.replace(/\r\n/g,'\n') : sql;
  await db.exec('begin;\n'+canonical+'\ncommit;');
  await db.query('insert into supabase_migrations.schema_migrations(version,name) values($1,$2)',[file.split('_')[0],file.replace(/^\d+_|\.sql$/g,'')]);
  migrations++;

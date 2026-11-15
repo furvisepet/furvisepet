@@ -357,7 +357,7 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
    const alreadyQuoted=renderedEvidence.some(e=>e.source===f.source&&e.excerpt.includes(f.excerpt));
    if(alreadyQuoted&&!withRecorded)return [];
    const index=citationHandles.indexOf(f.source),citation=index>=0?" (Source "+(index+1)+")":"";
-   const row="• "+s.petName+" — event "+s.eventAt.slice(0,10)+(withRecorded?"; recorded "+s.recordedAt.slice(0,10):"")+(alreadyQuoted?citation:": “"+f.excerpt+"”");
+   const row="• "+s.petName+": event "+s.eventAt.slice(0,10)+(withRecorded?"; recorded "+s.recordedAt.slice(0,10):"")+(alreadyQuoted?citation:": “"+f.excerpt+"”");
    if(freshHandles.has(f.source)){freshRows.push(row);return [];}
    return [row];
   });
@@ -372,7 +372,7 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
  if(brief){
   const facts=[];
   if(brief.ownerFacts.length)facts.push("Owner-reported observations:\n"+brief.ownerFacts.map(f=>"• "+f.excerpt).join("\n"));
-  if(brief.historyFacts.length)facts.push("Saved historical background (not a current diagnosis):\n"+brief.historyFacts.map(f=>{const s=sources.find(s=>s.handle===f.source);return "• "+s.petName+" — event "+s.eventAt+"; recorded "+s.recordedAt+": “"+f.excerpt+"”";}).join("\n"));
+  if(brief.historyFacts.length)facts.push("Saved historical background (not a current diagnosis):\n"+brief.historyFacts.map(f=>{const s=sources.find(s=>s.handle===f.source);return "• "+s.petName+": event "+s.eventAt+"; recorded "+s.recordedAt+": “"+f.excerpt+"”";}).join("\n"));
   if(brief.needsHistory&&!brief.historyFacts.length)facts.push("Historical background remains unresolved: no source-backed historical fact was supplied for this brief. Referenced records must be re-read and verified.");
   if(policy?.briefQuestions?.length)facts.push("Questions and unknowns for the veterinarian:\n"+policy.briefQuestions.map(q=>"• "+q).join("\n"));
   if(policy?.missing?.length)facts.push("Details to confirm for the veterinarian (not supplied here): "+policy.missing.map(k=>missingLabels[k]??k).join("; ")+".");
@@ -390,7 +390,7 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
   if(fields.length)text=!policy?.active&&tasks.every(t=>t.missing.length)?question:text+"\n\n"+question;
  }
  if(policy?.active&&!brief){
-  const facts=tasks.flatMap(t=>t.historyFacts).map(f=>{const s=sources.find(s=>s.handle===f.source);return s.petName+" — event "+s.eventAt+"; recorded "+s.recordedAt+": “"+f.excerpt+"”";});
+  const facts=tasks.flatMap(t=>t.historyFacts).map(f=>{const s=sources.find(s=>s.handle===f.source);return s.petName+": event "+s.eventAt+"; recorded "+s.recordedAt+": “"+f.excerpt+"”";});
   if(facts.length)text+="\n\nSaved historical facts (not a current diagnosis):\n"+[...new Set(facts)].join("\n");
  }
  const incomplete=tasks.filter(t=>t.status!=="complete");
@@ -406,9 +406,12 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
  }
  const dateHandles=[...new Set(tasks.filter(t=>t.includeSourceDates).flatMap(t=>t.sources))].filter(h=>!brief?.historyFacts.some(f=>f.source===h));
  const sourceDates=dateHandles.filter(h=>!tasks.some(t=>t.recordMode==="collection"&&t.sources.includes(h))).map(h=>{const s=sources.find(s=>s.handle===h);return {kind:s.kind,eventAt:s.eventAt,recordedAt:s.recordedAt,pet:s.petName??null};});
+ // A delivered clarification question is still an incomplete owner request.
+ // Preserve the native reply type only for source-free clarification tasks.
+ const clarificationOnly=!policy?.active&&answer.replyType==="clarification"&&tasks.length>0&&tasks.every(t=>t.kind==="clarification"&&!t.needsHistory&&!t.needsOwnerFacts&&t.reference===null&&!t.sources.length);
  const historicalSupport=[...new Set([...tasks.filter(t=>t.status!=="unresolved").flatMap(t=>t.historyFacts.map(f=>f.source)),...renderedEvidence.map(e=>e.source)])].filter(h=>(answer.sources??[]).includes(h));
  const collectionOnly=collectionTasks.length>0&&!tasks.some(t=>t.needsHistory&&t.recordMode!=="collection")&&!coverage.some(r=>r.scope.goal==="exact_quote");
- return {...answer,answer:text,historicalSupport,continuationEvidenceReview:tasks.flatMap(t=>t.continuationEvidenceReview?[{task:t.id,...t.continuationEvidenceReview}]:[]),...(collectionOnly?{quotes:[]}:{}),...(verifiedBriefText?{verifiedBriefText}:{}),...(policy?.active?{ownerReports:brief?[]:[...new Set(tasks.flatMap(t=>t.ownerFacts.map(f=>f.excerpt)))]}:{}),presentation:{...answer.presentation,sourceDates,contextRequired:tasks.some(t=>t.missing.includes("which_record"))&&answer.presentation?.contextRequired===true},taskCompletion:tasks.map(t=>({id:t.id,kind:t.kind,status:t.status,reason:t.reason,sourceCount:t.sources.length})),limited:incomplete.length>0||!!policy?.decision,replyType:!policy?.active&&clarify.length&&tasks.every(t=>t.missing.length)?"clarification":incomplete.length||policy?.decision?"partial":answer.replyType==="refusal"&&!policy?.active&&tasks.every(t=>t.kind==="general_guidance"&&!t.needsHistory&&!t.needsOwnerFacts&&t.status==="complete")?"refusal":"answer"};
+ return {...answer,answer:text,historicalSupport,continuationEvidenceReview:tasks.flatMap(t=>t.continuationEvidenceReview?[{task:t.id,...t.continuationEvidenceReview}]:[]),...(collectionOnly?{quotes:[]}:{}),...(verifiedBriefText?{verifiedBriefText}:{}),...(policy?.active?{ownerReports:brief?[]:[...new Set(tasks.flatMap(t=>t.ownerFacts.map(f=>f.excerpt)))]}:{}),presentation:{...answer.presentation,sourceDates,contextRequired:tasks.some(t=>t.missing.includes("which_record"))&&answer.presentation?.contextRequired===true},taskCompletion:tasks.map(t=>({id:t.id,kind:t.kind,status:t.status,reason:t.reason,sourceCount:t.sources.length})),limited:incomplete.length>0||!!policy?.decision||clarificationOnly,replyType:clarificationOnly?"clarification":!policy?.active&&clarify.length&&tasks.every(t=>t.missing.length)?"clarification":incomplete.length||policy?.decision?"partial":answer.replyType==="refusal"&&!policy?.active&&tasks.every(t=>t.kind==="general_guidance"&&!t.needsHistory&&!t.needsOwnerFacts&&t.status==="complete")?"refusal":"answer"};
 }
 
 /** Resolve record-choice ambiguity only after a fully inspected bounded search

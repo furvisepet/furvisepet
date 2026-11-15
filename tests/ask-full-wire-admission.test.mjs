@@ -38,7 +38,7 @@ test('full-wire regression: native read selection admits its entire dispatched t
    return {status:'incomplete',incomplete_details:{reason:'max_output_tokens'},output:[],usage};}}})({
     instructions:'Select an owned read or answer a general question.',context:{question:'Describe routine coat care.'},
     tools:readOnlyToolsForPets([{handle:'p1'}])},'read_selection')),
-  e=>e.stage==='primary_provider_failed'&&e.diagnostics?.providerEnvelope?.responseStatus==='incomplete');
+  e=>e.stage==='primary_invalid_output'&&e.diagnostics?.providerErrorCode==='ASK_READ_PROVIDER_INCOMPLETE'&&e.diagnostics?.providerEnvelope?.responseStatus==='incomplete');
  assert.equal(calls,1);assert.equal(admitted?.tools?.length,2,'native tool contract must be admitted');
  assert.equal(JSON.stringify(admitted),JSON.stringify(sent));
  assert.equal(sent.max_output_tokens,2400);

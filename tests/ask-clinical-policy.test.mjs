@@ -134,7 +134,7 @@ test("bounded clinical actions and owner reports survive actual publication",asy
  const {response:publication}=buildReadOnlyPublication(result,"owned","Willow");
  assert.match(publication.summary,/emergency veterinarian immediately/);
  assert.doesNotMatch(publication.summary,/Same-day/);
- assert.ok(publication.sections.some(s=>s.heading==="Owner reports — not saved-record evidence"&&s.items[0]==="She missed breakfast. Help prepare my vet call."));
+ assert.ok(publication.sections.some(s=>s.heading==="Owner reports: not saved-record evidence"&&s.items[0]==="She missed breakfast. Help prepare my vet call."));
  assert.deepEqual(publication.applicationActions,[]);assert.ok(publication.actions.includes("copy"));
 });
 
