@@ -67,7 +67,9 @@ export async function discoverHistoryBatch(requests,fetchPage,limits={}){
    if(!lane)continue;
    const key=scopeKey(state.request)+JSON.stringify([lane.terms,lane.excludeTerms]);
    const cached=completeLanes.get(key);
-   const waiting=states.filter(other=>!other.unavailable&&other.lanes.some(l=>!l.exhausted)).length;
+   // Reserve raw rows for each discovery lane before any lane can spend the
+   // remaining budget. Once every lane has had a page, redistribute unused rows.
+   const waiting=states.reduce((count,other)=>count+(other.unavailable?0:other.lanes.filter(l=>!l.exhausted&&l.attempts+l.reusedPages===0).length),0);
    const limit=cached?HISTORY_PAGE_SIZE:Math.min(HISTORY_PAGE_SIZE,(maxRows>rawRows?Math.max(1,Math.floor((maxRows-rawRows)/Math.max(1,waiting))):0));
    if(!cached&&(attempts>=maxPages||limit<1))continue;
    let result;

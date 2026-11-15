@@ -158,10 +158,23 @@ export function fixture(options={}){
  sandbox.getRemainingAiCredits=async()=>({allowed:true,remaining:5,limit:5,ledgerMode:'database'});
  sandbox.revalidateAskStateViews=()=>{};
  }
+
+ // Private retained interpreter proof, separate from the current public read-only POST.
+ const sendRetainedInterpretation=async(message=cedar)=>{
+  try{
+   await sandbox.ensureConversationAndUserMessage({question:message});
+   const context=await buildFurvisePlanningContext({supabase:db,userId:id(1),petId:options.petId||pet.id,conversationId:id(21),sourceMessageId:id(31),currentMessage:message,locale:'en',timeZone:'UTC'});
+   await sandbox.interpretAskQuestion({context,model:'gpt-5.4-mini'});
+   await sandbox.buildFurviseContext({context});
+   throw Error('Retained fixture must stop before an answer');
+  }catch(error){errors.push({error,message:String(error)});return Response.json({error:String(error)},{status:503});}
+ };
  const post=handler('../../app/api/ask/route.ts',['POST','executeAskRequest','enforceAnswerStateClaims'],sandbox);
  const confirm=handler('../../app/api/ask/actions/[messageId]/route.ts',['POST','unavailable','revalidateActionViews'],{...sandbox,executeActionCapability,continueConfirmedAppend,getAuthenticatedApiContext:async()=>({supabase:db,userId:options.confirmOwner||id(1)}),emitOperationalEvent:noop,revalidatePath:noop});
- return {state,rows,db,send:(message=cedar)=>post(new Request('https://fixture.invalid/api/ask',{method:'POST',body:JSON.stringify({petId:options.petId||pet.id,logicalTurnId:id(41),message})})),confirm:(actionId=id(71),decision='confirm',messageId=id(61))=>confirm(new Request('https://fixture.invalid/api/ask/actions/'+messageId,{method:'POST',body:JSON.stringify({actionId,decision})}),{params:Promise.resolve({messageId})})};
+ return {state,rows,db,sendRetainedInterpretation,send:(message=cedar)=>post(new Request('https://fixture.invalid/api/ask',{method:'POST',body:JSON.stringify({petId:options.petId||pet.id,logicalTurnId:id(41),message})})),confirm:(actionId=id(71),decision='confirm',messageId=id(61))=>confirm(new Request('https://fixture.invalid/api/ask/actions/'+messageId,{method:'POST',body:JSON.stringify({actionId,decision})}),{params:Promise.resolve({messageId})})};
 }
 
 export const engineFixture=(options={})=>fixture({...options,engineCapabilities:true});
 
+
+export const retainedInterpreterFixture=(options={})=>{const f=fixture(options);return {...f,send:f.sendRetainedInterpretation};};

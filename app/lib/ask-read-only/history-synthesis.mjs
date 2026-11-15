@@ -111,7 +111,7 @@ export function renderHistorySynthesis(themes,citationOrder=[],freshHandles=[]){
   const reports=unique.length===1?"one selected saved report":unique.length+" selected saved reports with "+timestamps.size+" distinct event timestamp"+(timestamps.size===1?"":"s");
   const fresh=unique.filter(e=>freshHandles.includes(e.source)),dates=[...new Set(fresh.map(e=>e.eventAt.slice(0,10)))].sort();
   const origin=fresh.length?" Read from the omitted interval: "+fresh.length+" selected saved report"+(fresh.length===1?"":"s")+"; event dates "+dates[0]+(dates.length>1?" to "+dates.at(-1):"")+".":"";
-  lines.push((unique[0].pet??"Pet")+" — “"+theme.topic+"”: "+wording+" ("+reports+".)"+origin);
+  lines.push((unique[0].pet??"Pet")+": “"+theme.topic+"”: "+wording+" ("+reports+".)"+origin);
  }
  if(lines.length)lines.push("These are selected historical reports. Repeated mentions alone do not establish separate episodes, persistence or a clinical trend; omitted periods may change the picture.");
  return lines.join("\n\n");

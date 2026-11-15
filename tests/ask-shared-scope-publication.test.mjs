@@ -46,7 +46,7 @@ test("deterministic calculation is part of the main narrative with verified oper
  const input={ownerId:"owner",selectedPetId:pet.id,pets:[pet],question:"Compare the two dated weights.",dialogue:[],now:"2024-12-31T00:00:00Z",timeZone:"UTC"};
  const result=await runReadOnlyAsk(input,{read:async()=>({sources,total:2}),provider:async(_p,phase)=>phase==="read_selection"?{calls:[{id:"a",name:"search_saved_records",arguments:JSON.stringify({pet:"p1",from:null,to:null,query:null,offset:0})}],text:""}:{presentation:{sourceDates:[],contextRequired:false},components:[{kind:"saved",text:"The historical body weight increased.",sources:["s1","s2"]}],sources:[],quotes:[],calculations:[{operation:"difference",timeBasis:"event",operands:["s1:m1","s2:m1"]}],replyType:"answer"}});
  const old=process.env.FURVISE_RATE_LIMIT_HASH_SECRET;process.env.FURVISE_RATE_LIMIT_HASH_SECRET="safe-regression-fixture-value-at-least-32-characters";
- try{const {response}=buildReadOnlyPublication(result,"owner",pet.name);assert.ok(response.directAnswer.includes("Change from earlier to later: 1 kg"));assert.ok(response.directAnswer.includes(sources[0].eventAt.slice(0,10)));assert.ok(response.directAnswer.includes(sources[1].eventAt.slice(0,10)));}
+ try{const {response}=buildReadOnlyPublication(result,"owner",pet.name);assert.ok(response.directAnswer.includes("Change from earlier to later: +1 kg"));assert.ok(response.directAnswer.includes(sources[0].eventAt.slice(0,10)));assert.ok(response.directAnswer.includes(sources[1].eventAt.slice(0,10)));}
  finally{if(old===undefined)delete process.env.FURVISE_RATE_LIMIT_HASH_SECRET;else process.env.FURVISE_RATE_LIMIT_HASH_SECRET=old;}
 });
 test("permuted shared collections retain source fairness and goal order",async()=>{

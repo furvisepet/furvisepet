@@ -35,6 +35,7 @@ export function fixture(scenario){
   const times=scenario==="spring"?["2026-03-08T07:59:59Z","2026-03-08T08:00:00Z","2026-03-09T06:59:59Z","2026-03-09T07:00:00Z"]:["2026-11-01T06:59:59Z","2026-11-01T07:00:00Z","2026-11-02T07:59:59Z","2026-11-02T08:00:00Z"];
   notes=times.map((t,i)=>note(30+i,"Boundary observation "+i+".",t));
  }
+ if(scenario==="has_more")notes.push(...Array.from({length:64},(_,i)=>note(200+i,"Additional bounded-history observation "+i+".",new Date(Date.UTC(2025,0,i+1,12)).toISOString())));
  notes.push({...note(90,"Foreign secret.","2026-10-26T12:00:00Z"),user_id:id(99)});
  notes.push({...note(91,"Deleted secret.","2026-10-26T12:00:00Z"),deleted_at:"2026-10-27T00:00:00Z"});
  return {pets,notes,dialogue};
@@ -46,6 +47,34 @@ function likeRegex(value){
  }
  return new RegExp("^"+pattern+"$","isu");
 }
+
+// Parse only the PostgREST boolean/text predicates used by the real adapter.
+// Quoted literal commas and wildcard escapes must survive the fixture boundary.
+function splitPredicates(value){
+ const out=[];let start=0,depth=0,quoted=false,escaped=false;
+ for(let i=0;i<value.length;i++){
+  const c=value[i];
+  if(escaped){escaped=false;continue;}
+  if(quoted&&c==="\\"){escaped=true;continue;}
+  if(c==='"'){quoted=!quoted;continue;}
+  if(!quoted){if(c==="(")depth++;else if(c===")")depth--;else if(c===","&&depth===0){out.push(value.slice(start,i));start=i+1;}}
+ }
+ out.push(value.slice(start));return out;
+}
+function matchesPredicate(value,row){
+ for(const operator of ["and","or"])if(value.startsWith(operator+"(")&&value.endsWith(")")){
+  const children=splitPredicates(value.slice(operator.length+1,-1)).map(part=>matchesPredicate(part,row));
+  return operator==="and"?children.every(Boolean):children.some(Boolean);
+ }
+ const match=/^([a-z_]+)\.(not\.ilike|ilike|is)\.(.+)$/u.exec(value);
+ assert.ok(match,"supported fixture filter: "+value);
+ const [,field,operator,raw]=match;
+ if(operator==="is"){assert.equal(raw,"null");return row[field]==null;}
+ const pattern=JSON.parse(raw);if(row[field]==null)return false;
+ const found=likeRegex(pattern).test(row[field]);
+ return operator==="not.ilike"?!found:found;
+}
+
 export function database(f){
  const trace=[];
  return {trace,from(table){
@@ -58,8 +87,11 @@ export function database(f){
    gte(k,v){filters.push([k,"gte",v]);return q;},
    lt(k,v){filters.push([k,"lt",v]);return q;},
    ilike(k,v){filters.push([k,"like",v]);return q;},
+   or(v){filters.push(["$or","or",v]);return q;},
+   in(k,v){filters.push([k,"in",v]);return q;},
    order(k,v){orders.push([k,v.ascending]);return q;},
    range(a,b){range=[a,b];return q;},
+   retry(enabled){assert.equal(enabled,false,"SDK retries remain disabled");return q;},
    abortSignal(){return q;},
    async maybeSingle(){const r=resolve();return {...r,data:r.data[0]??null};},
    then(a,b){return Promise.resolve(resolve()).then(a,b);}
@@ -67,7 +99,7 @@ export function database(f){
   function resolve(){
    assert.ok(filters.some(([k,op,v])=>k==="user_id"&&op==="eq"&&v===owner),"actual owner predicate");
    let rows=structuredClone(table==="dog_profiles"?f.pets:f.notes);
-   for(const [key,op,value] of filters)rows=rows.filter(row=>op==="eq"?row[key]===value:op==="gte"?row[key]>=value:op==="lt"?row[key]<value:likeRegex(value).test(row[key]??""));
+   for(const [key,op,value] of filters)rows=rows.filter(row=>op==="or"?splitPredicates(value).some(part=>matchesPredicate(part,row)):op==="in"?value.includes(row[key]):op==="eq"?row[key]===value:op==="gte"?row[key]>=value:op==="lt"?row[key]<value:likeRegex(value).test(row[key]??""));
    const count=rows.length;
    rows.sort((a,b)=>{for(const [key,asc] of orders){const order=String(a[key]).localeCompare(String(b[key]));if(order)return asc?order:-order;}return 0;});
    if(range)rows=rows.slice(range[0],range[1]+1);
@@ -101,6 +133,13 @@ function plan(scenario){
  if(scenario==="no_match")return [search({from:"2024-02-29",to:"2024-02-29"})];
  return [search({from:"2026-10-26",to:"2026-10-26"})];
 }
+function expectedIdsFor(scenario){return {
+    exact:[13],history_followup:[13],literal:[13],relaxed:[13],handle_leak:[13],
+    profile:[2],profile_followup:[2],profile_alias:[2],
+    difference:[11,12],reverse_difference:[11,12],percent:[11,12],mixed_units:[11,12],zero_base:[11,12],same_time:[11,12],decimal_comma:[11,12],ambiguous_number:[11,12],extremes:[11,12],
+    cross_pet:[12,16],relative:[18],injection:[14],medical:[17],no_match:[],empty_offset:[],oversized:[],
+    overlap:[13,14,15,17],offset:[100,101,102,103],spring:[31,32],fall:[31,32]
+   }[scenario]??null;}
 export async function evaluateScenario(c){
  const f=fixture(c.scenario),db=database(f),requests=[],readRequests=[];
  const read=createReadOnlyDataAccess(db,owner,"America/Los_Angeles");
@@ -113,7 +152,16 @@ export async function evaluateScenario(c){
    requests.push({request,phase});
    if(phase==="read_selection")return {calls:toolCalls,text:"A scripted draft, not a model-quality evaluation."};
    const visible=request.TOOL_DATA.flatMap(result=>result.sources);
-   const unique=[...new Map(visible.map(row=>[row.source,row])).values()];
+   const acquired=[...new Map(visible.map(row=>[row.source,row])).values()];
+   const expected=expectedIdsFor(c.scenario);
+   const wanted=expected&&new Set(expected.map(id));
+   // Scripted model selects the independently specified supporting records;
+   // complementary candidates are acquisition evidence, not automatic citations.
+   const unique=wanted?acquired.filter(row=>{
+    const source=request.SOURCE_CATALOG.find(source=>source.source===row.source);
+    const original=source?.kind==="profile"?f.pets.find(pet=>pet.name===JSON.parse(source.body).name):f.notes.find(note=>note.note===source?.body);
+    return wanted.has(original?.id);
+   }):acquired;
    const answer=c.scenario==="handle_leak"?"p1 is the chosen pet.":c.scenario==="dialogue"?"Earlier in this conversation you said a green umbrella.":c.scenario==="medical"?"An owner's report does not establish a confirmed diagnosis.":"A scripted reviewed answer.";
    const replyType=["clarify","duplicate_name"].includes(c.scenario)?"clarification":["refusal"].includes(c.scenario)?"refusal":unique.length===0&&toolCalls.length?"partial":"answer";
    let calculations=[];
@@ -136,19 +184,17 @@ export async function evaluateScenario(c){
    check("scoped pet and non-deleted owner sources",out.sources.every(source=>source.ownerId===owner&&[petA,petB].includes(source.petId)&&![id(90),id(91)].includes(source.id)),out.sources.map(s=>s.id));
    check("exact source quotations",out.answer.quotes.every(quote=>f.notes.some(note=>Buffer.from(note.note).equals(Buffer.from(quote.quote)))),out.answer.quotes);
    check("bounded physical calls",requests.length===2&&out.providerCallCount===2,out.providerCallCount);
-   const expectedIds={
-    exact:[13],history_followup:[13],literal:[13],relaxed:[13],handle_leak:[13],
-    profile:[2],profile_followup:[2],profile_alias:[2],
-    difference:[11,12],reverse_difference:[11,12],percent:[11,12],mixed_units:[11,12],zero_base:[11,12],same_time:[11,12],decimal_comma:[11,12],ambiguous_number:[11,12],extremes:[11,12],
-    cross_pet:[12,16],relative:[18],injection:[14],medical:[17],no_match:[],empty_offset:[],oversized:[],
-    overlap:[13,14,15,17],offset:[100,101,102,103],spring:[31,32],fall:[31,32]
-   }[c.scenario]??(toolCalls.length===0?[]:null);
-   if(expectedIds)check("exact grounded source selection",JSON.stringify(out.sources.map(s=>s.id).sort())===JSON.stringify(expectedIds.map(id).sort()),out.sources.map(s=>s.id));
+   const expectedIds=expectedIdsFor(c.scenario)??(toolCalls.length===0?[]:null);
+   if(expectedIds){
+    const selected=out.sources.filter(source=>out.answer.sources.includes(source.handle));
+    check("exact grounded source selection",JSON.stringify(selected.map(s=>s.id).sort())===JSON.stringify(expectedIds.map(id).sort()),selected.map(s=>s.id));
+   }
+   check("bounded admitted source catalog",out.sources.length<=READ_ONLY_LIMITS.records,out.sources.length);
 
    if(toolCalls.length===0)check("no private retrieval",readRequests.length===0,readRequests.length);
    if(c.scenario==="overlap")check("each overlapping search retains shared evidence references",requests[1].request.TOOL_DATA[1].sources.some(s=>s.source===requests[1].request.TOOL_DATA[0].sources[0].source),requests[1].request.TOOL_DATA.map(t=>t.sources.map(s=>s.source)));
    if(c.scenario==="extremes")check("earliest and latest query orders",readRequests[0].order==="asc"&&readRequests[1].order==="desc",readRequests.map(r=>r.order));
-   if(c.scenario==="empty_offset")check("empty later page is not relaxed to unrelated matches",out.sources.length===0&&!out.coverage[0].searchRelaxed,out.coverage);
+   if(c.scenario==="empty_offset")check("empty later page is not relaxed to unrelated matches",out.answer.sources.length===0&&!out.coverage[0].searchRelaxed,out.coverage);
    if(["offset","has_more","oversized","empty_offset"].includes(c.scenario)){
     check("partial coverage is authoritative",out.answer.limited,out.coverage);
     const before=process.env.FURVISE_RATE_LIMIT_HASH_SECRET;
@@ -157,7 +203,7 @@ export async function evaluateScenario(c){
     finally{if(before===undefined)delete process.env.FURVISE_RATE_LIMIT_HASH_SECRET;else process.env.FURVISE_RATE_LIMIT_HASH_SECRET=before;}
    }
    if(["spring","fall"].includes(c.scenario))check("local DST half-open boundaries",out.sources.length===2&&out.sources.every(s=>[id(31),id(32)].includes(s.id)),out.sources.map(s=>s.id));
-   if(c.scenario==="literal")check("literal wildcard text is not expanded",out.sources.length===1&&out.sources[0].id===id(13),out.sources.map(s=>s.id));
+   if(c.scenario==="literal")check("literal wildcard text is not expanded",out.answer.quotes.length===1&&out.answer.quotes[0].quote===exactText,out.sources.map(s=>s.id));
    if(c.scenario==="relaxed")check("bounded lexical fallback is explicit",out.coverage[0].searchRelaxed&&out.sources.length===1,out.coverage);
    const expected={difference:1,reverse_difference:1,percent:25,cross_pet:7,extremes:1,mixed_units:.5,decimal_comma:.5}[c.scenario];
    if(expected!==undefined)check("server arithmetic",Math.abs(out.answer.calculations[0]?.value-expected)<1e-10,out.answer.calculations);

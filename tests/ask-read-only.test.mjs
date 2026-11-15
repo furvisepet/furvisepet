@@ -215,7 +215,7 @@ test("one native batch carries both date windows, and the server copies selected
  });
  assert.equal(provider.length,2);assert.equal(seen.length,2);assert.deepEqual(result.answer.quotes.map(q=>q.quote),[row1.body,row2.body]);
  assert.deepEqual(result.answer.sources,["s1","s2"]);assert.equal(result.answer.calculations[0].value,0.3);
- assert.match(result.answer.calculations[0].text,/Juniper — body weight — Change from earlier to later: \+0.3 kg/);
+ assert.match(result.answer.calculations[0].text,/Juniper: body weight: Change from earlier to later: \+0.3 kg/);
 });
 const measurements=[{...source,handle:"s1",body:"Body weight: 10.0 kg.",eventAt:"2026-01-01T00:00:00Z"},{...source,id:"other",handle:"s2",body:"Body weight: 11.0 kg.",eventAt:"2026-02-01T00:00:00Z"}];
 const operands=["s1:m1","s2:m1"];

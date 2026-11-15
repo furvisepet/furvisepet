@@ -11,6 +11,7 @@ import {OperationDeadline} from "../app/lib/ai/execution-deadline.ts";
 import {AskTurnLifecycle,deriveAskAttemptId} from "../app/lib/ai/ask-turn-model.ts";
 import {buildAskConversationResponse} from "../app/lib/ask.mjs";
 import {detectImmediateAskEmergency,buildImmediateEmergencyGuidance} from "../app/lib/ask-safety-context.ts";
+import {persistEmergencyHistory} from "../app/lib/ask-read-only/emergency-history.ts";
 import {classifyCurrentPetLoss} from "../app/lib/ai/pet-loss.ts";
 const source=readFileSync(new URL("../app/api/ask/route.ts",import.meta.url),"utf8");
 const ast=ts.createSourceFile("route.ts",source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);
@@ -19,7 +20,8 @@ const functions=ast.statements.filter(node=>ts.isFunctionDeclaration(node)&&name
 function routeFixture(authentication={supabase:{from(){throw new Error("unexpected private data access");}},userId:"fixture-owner"}){
  const counters={auth:0,entitlement:0,provider:0};
  const scope={Request,Response,Headers,AbortSignal,OperationDeadline,AskTurnLifecycle,deriveAskAttemptId,buildAskConversationResponse,
-  detectImmediateAskEmergency,buildImmediateEmergencyGuidance,classifyCurrentPetLoss,ASK_REQUEST_KEYS,parseConfirmedTemporalScope,
+  detectImmediateAskEmergency,buildImmediateEmergencyGuidance,classifyCurrentPetLoss,ASK_REQUEST_KEYS,parseConfirmedTemporalScope,persistEmergencyHistory,
+  EMERGENCY_SAVE_METADATA:{answerType:"urgent_guidance",persistenceEligible:false,reason:"deterministic_emergency_preflight"},
   ASK_OPERATION_TIMEOUT_MS:150000,ASK_MAX_QUESTION_CHARACTERS:1200,API_BODY_LIMITS:{ask:10000},RequestBoundaryError:Error,
   loadAskAuthenticationContext:async()=>{counters.auth++;return authentication;},readBoundedJson:request=>request.json(),
   hasOnlyKeys:(value,keys)=>value&&Object.keys(value).every(key=>keys.includes(key)),isUuid:value=>/^[a-f0-9-]{36}$/.test(value),

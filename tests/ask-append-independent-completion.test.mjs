@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { engineFixture, id, proposal } from "./helpers/ask-route-ordering.mjs";
+import { appendEngineFixture, id, proposal } from "./helpers/ask-route-ordering.mjs";
 import { labsTaskComplete, serializeLabsList } from "../app/lib/intelligence/labs-list.ts";
 import { selectionPublication } from "../app/lib/intelligence/selection-publication.ts";
 
@@ -25,7 +25,7 @@ const row = (n, note) => ({ id: id(100 + n), user_id: id(1), pet_profile_id: id(
   created_at: "2026-09-01T11:00:00Z", updated_at: "2026-09-01T11:00:00Z" });
 
 async function confirmed(rows) {
-  const f = engineFixture({ proposal: request() });
+  const f = appendEngineFixture({ proposal: request() });
   f.rows.pet_care_entries.splice(0, Infinity, ...rows);
   const sent = await f.send(message);
   assert.equal(sent.status, 200, JSON.stringify(f.state.errors));

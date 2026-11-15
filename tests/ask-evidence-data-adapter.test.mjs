@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createReadOnlyDataAccess, literalSearch } from "../app/lib/ask-read-only/data.ts";
 import { createHash } from "node:crypto";
 const pet={id:"pet-a",ownerId:"owner-a",handle:"p1",name:"Willow",species:"dog"};
-const request={kind:"history",pet,goal:"complete_set",from:"2025-01-01",to:"2025-01-31",recordedFrom:"2025-03-01",recordedTo:"2025-03-31",orderBy:"recorded",order:"asc",offset:0,pageBudget:2,terms:["meal,or(user_id.eq.other)","appetite"]};
+const request={kind:"history",pet,goal:"relevant_records",from:"2025-01-01",to:"2025-01-31",recordedFrom:"2025-03-01",recordedTo:"2025-03-31",orderBy:"recorded",order:"asc",offset:0,pageBudget:2,terms:["meal,or(user_id.eq.other)","appetite"]};
 const fixture={id:"note-a",user_id:"owner-a",pet_profile_id:"pet-a",note:"An original observation.",title:"Meal observation",occurred_at:"2025-01-12T12:00:00Z",created_at:"2025-03-12T12:00:00Z",deleted_at:null};
 function setup({foreign=false,failHistory=false}={}){
  const seen=[];
@@ -25,11 +25,12 @@ test("real SDK query builder preserves ownership and both calendar scopes on all
   const p=url.searchParams;assert.equal(method,"GET");assert.equal(p.get("user_id"),"eq.owner-a");assert.equal(p.get("pet_profile_id"),"eq.pet-a");assert.equal(p.get("deleted_at"),"is.null");
   assert.ok(p.getAll("occurred_at").includes("gte.2025-01-01T08:00:00.000Z"));assert.ok(p.getAll("occurred_at").includes("lt.2025-02-01T08:00:00.000Z"));
   assert.deepEqual(p.getAll("created_at"),["gte.2025-03-01T08:00:00.000Z","lt.2025-04-01T07:00:00.000Z"]);
-  assert.equal(p.get("order"),"created_at.asc,id.asc");assert.equal(p.get("limit"),"17");
+  assert.equal(p.get("order"),"created_at.asc,id.asc");assert.equal(p.get("limit"),"16");
  }
  assert.ok(history[0].url.searchParams.get("or").includes('note.ilike.'+JSON.stringify(literalSearch(request.terms[0]))));
  assert.ok(history[0].url.searchParams.get("or").includes('title.ilike."%appetite%"'));
- assert.equal(history[1].url.searchParams.has("or"),false);
+ const complement=history[1].url.searchParams.get("or");
+ for(const column of ["note","title"])for(const term of request.terms){assert.ok(complement.includes(column+".is.null"));assert.ok(complement.includes(column+".not.ilike."+JSON.stringify(literalSearch(term))));}
 });
 test("SDK response ownership violations still fail closed",async()=>{
  const {read}=setup({foreign:true});await assert.rejects(()=>read(request),/NOT_AUTHORIZED/);
