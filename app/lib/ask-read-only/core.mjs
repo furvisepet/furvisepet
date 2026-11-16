@@ -19,7 +19,7 @@ import { calculateReadSources, readSourceMeasurements } from "./calculations.mjs
  * Read-only Ask capability protocol. No canonical intent planner and no mutations.
  * Dependencies are injected so the exact orchestration is exercised without paid calls.
  */
-export const READ_ONLY_LIMITS = Object.freeze({ providerCalls: 2, tools: 4, records: 32, page: 16, sourceCharacters: 24000, dialogueCharacters: 8000 });
+export const READ_ONLY_LIMITS = Object.freeze({ providerCalls: 2, tools: 4, records: 48, page: 16, sourceCharacters: 24000, dialogueCharacters: 8000 });
 const nullableDate = { type: ["string", "null"], pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", description: "YYYY-MM-DD in the user's calendar, or null. Ask about an ambiguous year rather than guessing." };
 const object = properties => ({type:"object",additionalProperties:false,properties,required:Object.keys(properties)});
 export const READ_ONLY_TOOLS = [
@@ -427,7 +427,9 @@ export async function runReadOnlyAsk(input,deps) {
   const call=readCalls[index],result=acquired[index],request=call.request;
   const truncated=!!result.truncated||allocation.omitted[index]>0||allocation.visible[index].some(source=>source.measurements.length<readSourceMeasurements(source.body,source.handle,source.kind,source.petName).length);
   omittedOwnedText=omittedOwnedText||allocation.omitted[index]>0;
-  const scope={pet:request.pet.name,petHandle:request.pet.handle,reference:call.reference??request.continuation?.reference??null,kind:request.kind,...(call.completionLiteral?{compositionOnly:true}:{}),evidenceRole:request.continuation?"fresh_remainder":request.reference?"retained_prior":"scoped",goal:request.goal??"profile",from:request.from??null,to:request.to??null,
+  const combined=taskPlan?.filter(t=>t.combineHistory&&t.reference&&t.pets.includes(request.pet.handle))??[];
+   const compositionReference=combined.length===1?combined[0].reference:null;
+   const scope={pet:request.pet.name,petHandle:request.pet.handle,reference:call.reference??request.continuation?.reference??compositionReference,kind:request.kind,...(call.completionLiteral?{compositionOnly:true}:{}),evidenceRole:request.continuation?"fresh_remainder":request.reference?"retained_prior":compositionReference?"fresh_scoped":"scoped",goal:request.goal??"profile",from:request.from??null,to:request.to??null,
    recordedFrom:request.recordedFrom??null,recordedTo:request.recordedTo??null,orderBy:request.orderBy??"event",
    query:request.terms?.[0]??null,offset:request.offset??0,order:request.order??"desc"};
   const supplied=new Set(allocation.visible[index].map(source=>source.kind+":"+source.id));

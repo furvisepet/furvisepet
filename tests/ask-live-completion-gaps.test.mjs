@@ -120,3 +120,15 @@ test("whole original quote completes independently of empty collection synthesis
  const rendered=preserveRequestedOriginal(answer,reviewed.tasks,[source],"Quote Echo's full original.",true);
  assert.equal(rendered.answer,answer.answer);assert.equal(rendered.quotes[0].quote,source.body);assert.equal(rendered.presentation.sourceDates[0].eventAt,source.eventAt);
 });
+
+import {completeFreshHistory} from "../app/lib/ask-read-only/continuation-evidence.mjs";
+test("explicit fresh scoped originals integrate with a retained overview even without omitted-range metadata",()=>{
+ const prior={...rows[0],handle:"s1",petName:"Echo"},fresh={...rows[1],handle:"s2",petName:"Echo"};
+ const t={...task({kind:"saved_content",recordMode:"collection",reference:"r1",combineHistory:true}),status:"complete",reason:"none",sources:["s1"],historyFacts:[{source:"s1",excerpt:prior.body}],ownerFacts:[],historySynthesis:[],componentIndexes:[0]};
+ const group={scope:{kind:"history",evidenceRole:"fresh_scoped",reference:"r1",petHandle:"p2",pet:"Echo"},sources:[{source:"s2",kind:"history",pet:"Echo",body:fresh.body,eventAt:fresh.eventAt,recordedAt:fresh.recordedAt}]};
+ const got=completeFreshHistory([t],[prior,fresh],[group])[0];
+ assert.ok(got.sources.includes("s2"));assert.equal(got.historyFacts.find(f=>f.source==="s2").excerpt,fresh.body);
+ assert.equal(got.continuationEvidenceReview.freshSourceCount,1);
+ assert.equal(completeFreshHistory([t],[prior,fresh],[{...group,scope:{...group.scope,reference:"other"}}])[0],t);
+ assert.equal(completeFreshHistory([{...t,missing:["year"]}],[prior,fresh],[group])[0].freshSourceHandles,undefined);
+});

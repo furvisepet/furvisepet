@@ -323,7 +323,7 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
    const petIds=new Set(sources.filter(s=>t.sources.includes(s.handle)).map(s=>s.petId));
    const groups=coverage.filter(r=>r.scope.kind!=="profile"&&r.sources.some(s=>sources.some(actual=>actual.handle===s.source&&petIds.has(actual.petId))));
    const prior=new Set(groups.filter(r=>r.scope.evidenceRole==="retained_prior").flatMap(r=>r.sources.map(s=>s.source)));
-   const fresh=new Set(groups.filter(r=>r.scope.evidenceRole==="fresh_remainder").flatMap(r=>r.sources.map(s=>s.source)));
+   const fresh=new Set(groups.filter(r=>["fresh_remainder","fresh_scoped"].includes(r.scope.evidenceRole)).flatMap(r=>r.sources.map(s=>s.source)));
    const displayed=[...t.historyFacts.map(f=>f.source),...(!policy?.active?(t.historySynthesis??[]).flatMap(theme=>theme.evidence.map(e=>e.source)):[])];
    if(!displayed.some(h=>prior.has(h))||!displayed.some(h=>fresh.has(h)))return {...t,status:"partial",reason:"not_answered",combinedEvidenceMissing:true};
   }

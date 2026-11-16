@@ -9,7 +9,7 @@ registerHooks({resolve(specifier,context,next){
  }
  return next(specifier,context);
 }});
-import {readOnlyFailureRouteFixture as fixture,note,selection} from "./helpers/ask-read-only-failure-route.mjs";
+import {readOnlyFailureRouteFixture as fixture,note} from "./helpers/ask-read-only-failure-route.mjs";
 const {ASK_INTERPRETATION_MAX_OUTPUT_TOKENS: cap, ASK_MAX_OUTPUT_TOKENS: answerCap} = await import('../app/lib/ai/ask-provider.ts');
 const {ASK_INTERPRETATION_LIMITS,interpretAskQuestion} = await import('../app/lib/intelligence/interpret-ask.ts');
 const {buildAskProviderRequest} = await import('../app/lib/ai/ask-reasoning.ts');
@@ -18,7 +18,7 @@ const {admitAiOperation} = await import('../app/lib/ai/usage-guard/admission.ts'
 const {MemoryAiGuardTestStore} = await import('../app/lib/ai/usage-guard/memory-test-store.ts');
 const {estimateProviderCostMicrodollars: cost} = await import('../app/lib/ai/usage-guard/cost-estimator.ts');
 const model='gpt-5.4-mini', day='2032-02-06';
-const environment={NODE_ENV:'test',FURVISE_AI_DAILY_CALL_LIMIT:'1',FURVISE_AI_DAILY_COST_LIMIT_USD:'0.0258',
+const environment={NODE_ENV:'test',FURVISE_AI_DAILY_CALL_LIMIT:'1',FURVISE_AI_DAILY_COST_LIMIT_USD:'0.060000',
  FURVISE_RATE_LIMIT_HASH_SECRET:'offline-budget-fixture-only-not-a-credential'};
 const admit=(store,env=environment)=>admitAiOperation({env,store,feature:'ask',intendedModel:model,
  userId:'budget-owner',requestId:'budget-attempt',payload:{question:'offline'},now:new Date(day+'T00:00:00Z')});
@@ -29,9 +29,9 @@ test('legacy provider ceilings remain independent from the read-only Ask admissi
   assert.equal(ASK_INTERPRETATION_LIMITS.outputTokens,Math.min(cap,8192));
  assert.equal(answerCap,8192);
  assert.equal(buildAskProviderRequest({currentMessage:'hello'}).max_output_tokens,policies.ask.maxOutputTokens);
- assert.equal(policies.ask.maxOutputTokens,2400);assert.equal(policies.ask.maximumProviderCalls,2);
- assert.equal(policies.ask.maxInputTokens,20000);
- assert.equal(policies.ask.maxInputCharacters,80000);
+ assert.equal(policies.ask.maxOutputTokens,8000);assert.equal(policies.ask.maximumProviderCalls,2);
+ assert.equal(policies.ask.maxInputTokens,32000);
+ assert.equal(policies.ask.maxInputCharacters,128000);
  assert.equal(policies.vet_brief.maxOutputTokens,12288);
  for(const [feature,expected] of Object.entries({product_explanation:360,product_query:520,product_question:650,safety_followup:650}))
   assert.equal(policies[feature].maxOutputTokens,expected);
@@ -41,7 +41,7 @@ test('real admission reserves the entire new output envelope before permitting d
  t.mock.method(console,'info',()=>{});
  const store=new MemoryAiGuardTestStore(),a=await admit(store);
  const expected=cost(model,{inputTokens:policies.ask.maxInputTokens,outputTokens:policies.ask.maxOutputTokens});
- assert.equal(expected,25800);
+ assert.equal(expected,60000);
  assert.deepEqual(store.getSnapshot(day),{calls:1,costMicrodollars:expected});
  const call=await a.beginProviderCall({model,input:{question:'offline'},maxOutputTokens:policies.ask.maxOutputTokens});
  assert.equal(call.reservation.reservedCostMicrodollars,expected);
@@ -52,7 +52,7 @@ test('real admission reserves the entire new output envelope before permitting d
 test('daily dollar ceiling rejects the larger reservation before any provider call',async t=>{
  t.mock.method(console,'info',()=>{});
  const store=new MemoryAiGuardTestStore();
- await assert.rejects(admit(store,{...environment,FURVISE_AI_DAILY_COST_LIMIT_USD:'0.025799'}),
+ await assert.rejects(admit(store,{...environment,FURVISE_AI_DAILY_COST_LIMIT_USD:'0.059999'}),
   e=>e.reason==='daily_cost_limit');
  assert.deepEqual(store.getSnapshot(day),{calls:0,costMicrodollars:0});
 });
@@ -73,13 +73,13 @@ for(const output of [[],[{type:'message',status:'incomplete',content:[{type:'out
   let calls=0,sent;const records=[structuredClone(note)],before=structuredClone(records);
   const nativeClient={responses:{create:async request=>{
    sent=request;calls++;
-   if(calls<failedCall)return {status:'completed',output:[{type:'function_call',call_id:'read',name:'search_saved_records',arguments:selection.calls[0].arguments}],usage:{input_tokens:1,output_tokens:1}};
+   if(calls<failedCall)return {status:'completed',output:[{type:'message',status:'completed',role:'assistant',content:[{type:'output_text',text:JSON.stringify({"safety":{"medicationIntent":"none","referent":"clear","missingContext":[],"careContext":"none","eventAssessments":[]},"reads":[{"name":"search_saved_records","arguments":{"pet":"p1","from":"2025-06-01","to":"2025-06-30","query":null,"offset":0,"goal":"exact_quote","alternatives":[],"recordedFrom":null,"recordedTo":null,"orderBy":"event","order":"asc"}}],"draft":"","historyIntent":{"requested":true,"timeBasis":"event","pet":"p1"},"workflowIntent":"none","taskPlan":[{"id":"t1","kind":"saved_content","combineHistory":false,"needsHistory":true,"needsOwnerFacts":false,"includeSourceDates":false,"recordMode":"single","workflow":"none","pets":["p1"],"reference":null,"missing":[]}],"measurementRequests":[]})}]}],usage:{input_tokens:1,output_tokens:1}};
    return {status:'incomplete',incomplete_details:{reason:'max_output_tokens'},output,usage:{input_tokens:1,output_tokens:1}};
   }}};
   const f=fixture(()=>{throw Error('must use real native parser')},records,{nativeClient,model:'offline-fixture'});
   const response=await f.send();
   assert.equal(response.status,503);
-  assert.equal(calls,failedCall);assert.equal(f.state.calls,failedCall);
+  assert.equal(calls,failedCall,JSON.stringify({provider:f.state.providerEvents,errors:f.state.errors,traces:f.state.traces,reads:f.state.reads}));assert.equal(f.state.calls,failedCall);
   assert.equal(f.state.reads,failedCall-1);
   assert.equal(sent.max_output_tokens,policies.ask.maxOutputTokens);
   assert.equal(sent.model,'offline-fixture');
