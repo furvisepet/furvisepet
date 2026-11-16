@@ -23,3 +23,8 @@ No SQL guard, migration, production schema or fixture was weakened to hide the f
 ## Reviewed runtime patch
 
 The second trusted run, 43848012473 at 3cfd1e56, passed TypeScript, release/security tests and production audit, then the repository-wide Linux ESLint process exited 139 (segmentation fault) under automatically selected Node 24.22.3. This was not a lint finding or a GitHub billing rejection. The workflow now pins Node 24.19.0, matching the previously locally validated patch and remaining within the repository's Node 24 policy. Lint core dumps are disabled; neither the lint gate nor its scope is waived. One bounded rerun is used to test runtime parity; the independent missing-v2 migration blocker remains.
+
+
+## Recovered historical prerequisite
+
+The missing V2 migration is restored from the exact Git and live migration-history source. See task-writer-recovery-20261116.md for hashes, 141-migration fresh replay, V1/V2 continuation and PT409 evidence. The earlier missing-signature failure above remains a historical receipt, not the current local result.
