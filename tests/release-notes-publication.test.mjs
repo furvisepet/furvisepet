@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import sitemap from "../app/sitemap.ts";
 import { FURVISE_V1_RELEASE, getV1ReleaseForPage } from "../app/lib/release-notes.ts";
 
 test("the unshipped V1 announcement has no release date and is excluded from public production notes", () => {
@@ -16,4 +17,8 @@ test("preview copy includes Ask and the journal without a readiness guarantee", 
   assert.doesNotMatch(text, /90%|100%|guaranteed|coming soon/i);
   assert.match(text, /does not diagnose/);
   assert.match(text, /incomplete or wrong/);
+});
+
+test("the production sitemap excludes release notes until a dated release is published", () => {
+  assert.equal(sitemap().some(entry => new URL(entry.url).pathname === "/release-notes"), false);
 });

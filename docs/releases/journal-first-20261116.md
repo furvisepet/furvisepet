@@ -101,8 +101,14 @@ All author-owned branches remain preserved. “Defer” means not included whole
 
 ## V1 announcement update
 
-The actual public `https://www.furvise.com/release-notes` returned HTTP 200 and a September 15, 2026 **Public beta** article, not an existing V1 announcement. The source was inline `app/release-notes/page.tsx`; there was no CMS or release data file. The historical beta article is preserved and marked historical rather than deleted.
+The actual public `https://www.furvise.com/release-notes` returned HTTP 200 and a September 15, 2026 **Public beta** article, not an existing V1 announcement. The source was inline `app/release-notes/page.tsx`; there was no CMS or release data file. G subsequently authorized removing that article from the public experience. Its exact article source is archived at `docs/releases/archive/2026-09-15-public-beta.md`; the route, metadata and sitemap no longer expose the beta update.
 
 Canonical V1 copy now lives in `app/lib/release-notes.ts`, status **draft**, release date **null**. It is visible only in preview, explicitly “Draft — not released,” with noindex metadata. Production excludes it until a reviewed launch commit marks the final verified copy published and supplies the actual release date. Homepage “Public beta” branding remains until then. The draft includes Ask, not “coming soon,” and makes no reliability percentage or unsupported feature claim.
 
 V1-draft update validation: 311 release tests passed; TypeScript and focused notes lint passed; production-mode build with preview environment passed. See [the complete V1 launch gates](v1-launch-gates.md).
+
+## Authorized beta removal and existing-runner update
+
+The September beta article is removed from the candidate's public release page. Production gets a neutral release-notes page until a real release is published; no fake date or V1 launch announcement is introduced. Preview alone shows the explicitly unpublished V1 draft. The release-notes sitemap entry now depends on an actual published release/date, and the Git archive is not a public route.
+
+The existing runner is reused by a separate trusted-branch-only workflow; original PR workflows/check names remain unchanged. See [the runner scope and bounds](trusted-runner-20261116.md). This update passed 319 release tests, 162 focused security tests, TypeScript and scoped lint locally before push. CI and final build receipts remain separate, exact-SHA evidence in PR #536.

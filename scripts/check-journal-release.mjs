@@ -40,6 +40,8 @@ const files = [
   "today-page-polish.test.mjs",
   "today-recent-stability.test.mjs",
   "today-v4-final-polish.test.mjs",
+  "marketing-homepage-v2.test.mjs",
+  "trusted-release-workflow.test.mjs",
   "release-notes-publication.test.mjs",
   "ai-availability.test.mjs",
   "pet-history-delete-controls.test.mjs",
@@ -48,5 +50,5 @@ const files = [
   "password-capability-state.test.mjs"
 ];
 const env = { ...process.env, FURVISE_AI_ENABLED: "false", FURVISE_AI_MEMORY_EXTRACTION_ENABLED: "false", OPENAI_API_KEY: "" };
-const result = spawnSync(process.execPath, ["--import", "./scripts/audits/offline-network-guard.mjs", "--import", "./tests/helpers/register-release-typescript.mjs", "--test", "--test-concurrency=1", ...files.map(file => "tests/" + file)], { env, stdio: "inherit" });
+const result = spawnSync(process.execPath, ["--import", "./scripts/audits/offline-network-guard.mjs", "--import", "./tests/helpers/register-release-typescript.mjs", "--test", "--test-concurrency=1", "--test-reporter=tap", ...files.map(file => "tests/" + file)], { env, stdio: "inherit" });
 process.exit(result.status ?? 1);

@@ -38,19 +38,23 @@ test("two visual sections share a grid and stack at smaller widths", () => {
   assert.match(homepage, /does not diagnose or replace veterinary care/);
 });
 
-test("release notes are public, dated, linkable, and included in discovery", () => {
+test("release notes keep public navigation while unpublished entries stay out of discovery", () => {
   assert.match(release, /path: "\/release-notes"/);
-  assert.match(release, /<time dateTime="2026-09-15"/);
-  assert.match(release, /id="september-15-2026"/);
-  assert.match(release, /href="#september-15-2026"/);
+  assert.doesNotMatch(release, /september-15-2026|2026-09-15/);
+  assert.match(release, /No published release updates/);
   assert.doesNotMatch(release, /getAuthenticatedApiContext|redirect\("\/login/);
   assert.match(read("app/sitemap.ts"), /canonicalUrl\("\/release-notes"\)/);
   assert.match(read("app/components/site-footer.tsx"), /href:"\/release-notes",label:"Release notes"/);
-  assert.match(release, /Answers can be incomplete or wrong/);
+  assert.match(read("app/lib/release-notes.ts"), /Answers can be incomplete or wrong/);
 });
 
-test("approved Furvise artwork remains byte-for-byte unchanged", () => {
-  const hash = (path) => createHash("sha256").update(readFileSync(new URL(`../${path}`, import.meta.url))).digest("hex");
+test("approved Furvise artwork keeps canonical SVG content and exact image bytes", () => {
+  const hash = (path) => {
+    const bytes = readFileSync(new URL(`../${path}`, import.meta.url));
+    // Git checks text SVGs out as CRLF on Windows; binary artwork stays byte-exact.
+    const content = path.endsWith(".svg") ? bytes.toString("utf8").replace(/\r\n/g, "\n") : bytes;
+    return createHash("sha256").update(content).digest("hex");
+  };
   assert.equal(hash("public/brand/furvise-logo.svg"), "15103e452559f4f29b0492a6731782ecd680992f62798be95ddc7aba544f3b00");
   assert.equal(hash("public/brand/furvise-wordmark.svg"), "5ce60b7d3134b5aaf00f4a4a799f46443a9eb0fd23b04724a545ad15f7c248b8");
   assert.equal(hash("public/brand/furvise-heron.svg"), "5bc3424afd22bba0391d302494c506455df9ef3a2221525c32a033e8dda0dd0b");

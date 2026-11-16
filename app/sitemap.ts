@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { canonicalUrl } from "./lib/seo";
+import { getV1ReleaseForPage } from "./lib/release-notes";
 
 const significantUpdates = {
   homepage: "2026-09-15",
@@ -8,8 +9,9 @@ const significantUpdates = {
 } as const;
 
 export default function sitemap(): MetadataRoute.Sitemap {
+  const publishedRelease = getV1ReleaseForPage();
   return [
-    { url: canonicalUrl("/release-notes"), lastModified: "2026-09-15", changeFrequency: "weekly", priority: 0.6 },
+    ...(publishedRelease?.publishedAt ? [{ url: canonicalUrl("/release-notes"), lastModified: publishedRelease.publishedAt, changeFrequency: "weekly" as const, priority: 0.6 }] : []),
     { url: canonicalUrl("/contact"), lastModified: "2026-09-15", changeFrequency: "monthly", priority: 0.4 },
     {
       url: canonicalUrl(),
