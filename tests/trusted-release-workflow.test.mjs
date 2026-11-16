@@ -28,6 +28,8 @@ test("one bounded job reuses the existing runner without privileges or deploymen
   const checkout = job.steps.find(step => step.uses?.startsWith("actions/checkout@"));
   assert.equal(checkout.with["persist-credentials"], false);
   assert.equal(checkout.with.ref, "${{ github.sha }}");
+  const setup = job.steps.find(step => step.uses?.startsWith("actions/setup-node@"));
+  assert.equal(setup.with["node-version"], "24.19.0");
   const first = job.steps[0].run;
   assert.match(first, /furvise-grok-v16-ci/);
   assert.match(first, /3221225472/);

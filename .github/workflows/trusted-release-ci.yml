@@ -67,10 +67,10 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
           fetch-depth: 1
-      - name: Use repository Node version
+      - name: Use reviewed Node 24 patch
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version-file: .nvmrc
+          node-version: 24.19.0
       - name: Install locked dependencies without lifecycle scripts
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: TypeScript
@@ -82,7 +82,9 @@ jobs:
       - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
       - name: Lint
-        run: npm run lint
+        run: |
+          ulimit -c 0
+          npm run lint
       - name: Production build with two Next workers
         run: npm run build
       - name: Verify built public notes and zero-provider disabled state
