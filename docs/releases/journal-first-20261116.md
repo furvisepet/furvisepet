@@ -2,20 +2,21 @@
 
 Canonical integration branch: `release/journal-first-20261116`, based on remotely verified main `0b4259a821413e8655d9a43ec435bf2aec68a770`.
 
-This release pauses paid AI work. It does not qualify or launch Ask V1. Journal, Today, History, profiles and account remain the release focus.
+G's updated V1 gate requires functional Ask alongside Journal, Today, History and profiles. The credit-exhaustion pause is temporary staging behavior, not a V1 product scope cut. NO-GO for production V1 until the selected Mini-backed Ask candidate passes fresh signed-in online qualification after recharge. No paid calls are authorized now.
+The current source retains main's Ask engine; the latest stacked Ask rewrite is NOT integrated or launch-qualified by this PR. Selecting/consolidating and qualifying that engine remains explicit release work, not a post-launch deferral.
 
 ## Release matrix
 
 | Decision | Scope | Evidence / boundary |
 |---|---|---|
-| KEEP | Existing profiles, journal, Today, mobile navigation, auth/account, privacy and ownership controls | Retained main behavior; 45-file journal release regression command |
+| KEEP | Existing profiles, journal, Today, mobile navigation, auth/account, privacy and ownership controls | Retained main behavior; 46-file journal release regression command |
 | KEEP / CONSOLIDATE | History note editing, opened-revision RPC, draft retention, private responses and revision-bound idempotency | Extracted only the coherent care paths from PR #511 at `68ea9ba78ec505fa7fccc57dd7f34ed76f2f9d9a`; old production already contains this source family |
 | KEEP | Owner-only backend/configuration predicates | PR #511 source; never returns keys or credential values |
 | KEEP | Production PT409 incident source migration and guarded reconciliation | PR #530 source; live function read-only verified PT409 in both stale branches; no migration executed |
 | REFACTOR | AI availability and memory extraction gate | One global switch now also stops optional enrichment; Ask shows an unavailable state and stops POST before credits/conversation writes |
 | REFACTOR | Release validation | One serial, external-fetch-blocked command, shared TypeScript test loader, two-worker build |
 | KEEP / UPDATE | Dependencies | Next/eslint-config-next 16.4.6, sharp override 0.35.5; compatible transitive zod/source-map-js updates; provider, React, Supabase and billing APIs unchanged |
-| DEFER | Full Ask draft stack #514, #516, #519–530, #532–535 | Unqualified live holdout; no paid tests, model upgrade or bulk merge |
+| REQUIRED IN V1 / INTEGRATION AND LIVE GATE PENDING | Full Ask draft stack #514, #516, #519–530, #532–535 | Unqualified live holdout; no paid tests, model upgrade or bulk merge |
 | DEFER | PR #531 experimental runner | Separate work; untouched |
 | DEFER | Blanket dependency group merges #508/#518 and remaining drafts | Selective remediation only; no automatic upgrades across auth/provider/React APIs |
 | ARCHIVE PROPOSAL ONLY | Superseded branches, PRs, live worktrees and historical reports | Inventory below; no deletion or closure while ownership/dependencies/recovery need review |
@@ -28,7 +29,8 @@ Project alias: `furvise-furvise-0e3fe5ef.vercel.app`.
 The actual public domains `www.furvise.com` and `furvise.vercel.app` instead point to READY CLI deployment `dpl_4Rd7ysXy4yRkRVatNby8vqmM7Frg` (`furvise-n74dko8e5-furvise-0e3fe5ef.vercel.app`), also with unknown Git SHA. Preserve BOTH rollback mappings; the single project alias is not the whole production routing state. `furvise.com` is configured as a 308 redirect to `www.furvise.com`.
 Do not label the CLI deployment as main or a PR SHA. Of the 400 returned source-file fingerprints, 391 match PR #511; four differ and five are absent there. This is partial provenance, not exact source identity.
 
-Production must be staged using production env without assigning domains, tested, then promoted through ordinary protections. A READY preview alone is not approval.
+Production must be staged using production env without assigning domains, tested, then promoted through ordinary protections. A READY preview alone is not approval. Production V1 additionally requires functional Ask, explicit Mini model selection, fresh independent online cohort and holdout qualification, and no critical clinical/ownership/citation incident. Credits are exhausted; do not probe or benchmark the provider.
+No merge/promotion or V1 publication is permitted while these gates remain unmet.
 
 ## Data / migration boundaries
 
@@ -88,7 +90,7 @@ All author-owned branches remain preserved. “Defer” means not included whole
 ## Local checks before staging
 
 - npm ci: passed.
-- Journal release tests: 309 passed, zero failures/skips, external fetch blocked.
+- Journal release tests: 311 passed, zero failures/skips, external fetch blocked.
 - TypeScript: passed.
 - ESLint: zero errors, 119 warnings repository-wide; existing warnings are not silently labeled clean.
 - Production dependency audit: 4 vulnerable packages before (1 critical, 3 high), zero afterward.
@@ -96,3 +98,11 @@ All author-owned branches remain preserved. “Defer” means not included whole
 - Existing focused security selection: 162 passed, zero failures/skips; Sharp 0.35.5 / libvips 8.18.7 bindings loaded.
 - Paid provider calls: zero during this release task.
 - Online signed-in staging, production-env build, CI receipts and post-deploy checks remain separate gates; append exact receipts before promotion.
+
+## V1 announcement update
+
+The actual public `https://www.furvise.com/release-notes` returned HTTP 200 and a September 15, 2026 **Public beta** article, not an existing V1 announcement. The source was inline `app/release-notes/page.tsx`; there was no CMS or release data file. The historical beta article is preserved and marked historical rather than deleted.
+
+Canonical V1 copy now lives in `app/lib/release-notes.ts`, status **draft**, release date **null**. It is visible only in preview, explicitly “Draft — not released,” with noindex metadata. Production excludes it until a reviewed launch commit marks the final verified copy published and supplies the actual release date. Homepage “Public beta” branding remains until then. The draft includes Ask, not “coming soon,” and makes no reliability percentage or unsupported feature claim.
+
+V1-draft update validation: 311 release tests passed; TypeScript and focused notes lint passed; production-mode build with preview environment passed. See [the complete V1 launch gates](v1-launch-gates.md).

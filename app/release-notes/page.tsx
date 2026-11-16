@@ -1,10 +1,22 @@
 import Link from "next/link";
+import { V1ReleaseNote } from "../components/v1-release-note";
+import { getV1ReleaseForPage } from "../lib/release-notes";
+
+const preview = process.env.VERCEL_ENV === "preview";
+const v1 = getV1ReleaseForPage({ preview });
 import { PageHeader } from "../components/product-primitives";
 import { SiteFooter } from "../components/site-footer";
 import { PublicPageHeader } from "../components/homepage-client";
 import { createPublicPageMetadata } from "../lib/seo";
 
-export const metadata = createPublicPageMetadata({ title: "Release notes", description: "What changed in Furvise, how it works, and where it still needs improvement. Updates from the public beta.", path: "/release-notes" });
+export const metadata = {
+  ...createPublicPageMetadata({
+    title: v1 ? `Furvise V1 release notes${v1.status === "draft" ? " — draft" : ""}` : "Release notes",
+    description: v1 ? `${v1.status === "draft" ? "Unpublished draft. " : ""}${v1.summary}` : "What changed in Furvise, how it works, and where it still needs improvement. Earlier public-beta updates.",
+    path: "/release-notes",
+  }),
+  ...(preview ? { robots: { index: false, follow: false } } : {}),
+};
 
 const sections = [
   ["saving-notes", "Saving care notes"],
@@ -19,9 +31,10 @@ export default function ReleaseNotesPage() {
     <div className="homepage-site homepage-refined release-notes-page">
       <PublicPageHeader />
       <main className="release-main">
-        <div className="release-heading"><PageHeader eyebrow="Release notes · September 15, 2026" title="Building Furvise for everyday pet care" supportingText="An update on care notes, answers about your pet’s history, and what we’re still improving in the public beta." /></div>
+        <div className="release-heading"><PageHeader eyebrow={v1 ? `Release notes · ${v1.status === "draft" ? "V1 draft — not released" : "V1"}` : "Release notes · September 15, 2026"} title={v1 ? "Furvise V1" : "Building Furvise for everyday pet care"} supportingText={v1 ? v1.summary : "An update on care notes, answers about your pet’s history, and what we’re still improving in the public beta."} /></div>
         <div className="release-layout">
           <aside className="release-index">
+            {v1 ? <a className="release-date-link" href={`#${v1.id}`}>{v1.status === "draft" ? "V1 draft — not released" : "Furvise V1"}</a> : null}
             <a className="release-date-link" href="#september-15-2026">September 15, 2026</a>
             <nav aria-label="In this update">
               {sections.map(([id, label]) => <a key={id} href={`#${id}`}>{label}</a>)}
@@ -29,8 +42,10 @@ export default function ReleaseNotesPage() {
             <Link href="/contact">Report a problem ↗</Link>
           </aside>
           <div>
+            {v1 ? <V1ReleaseNote release={v1} /> : null}
             <article id="september-15-2026" className="release-entry">
               <div className="release-dateline"><time dateTime="2026-09-15">September 15, 2026</time><span>Public beta</span></div>
+              <p><strong>Historical public-beta update.</strong> This dated entry describes earlier testing. It is not the Furvise V1 announcement.</p>
               <p className="release-introduction">Most pet care happens at home. You notice a change, try a different food, or want to remember something for the next appointment. Furvise gives you a place to record those details and return to them later.</p>
               <p>During testing, we found cases where a simple request to save a note failed because Ask couldn’t confidently interpret it. We also found questions where missing history prevented an otherwise useful answer. This update addresses those problems and adds a way to report issues directly from the app.</p>
 

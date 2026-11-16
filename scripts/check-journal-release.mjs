@@ -40,6 +40,7 @@ const files = [
   "today-page-polish.test.mjs",
   "today-recent-stability.test.mjs",
   "today-v4-final-polish.test.mjs",
+  "release-notes-publication.test.mjs",
   "ai-availability.test.mjs",
   "pet-history-delete-controls.test.mjs",
   "effective-history-projection.test.mjs",
