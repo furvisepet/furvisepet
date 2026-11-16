@@ -111,3 +111,14 @@ a mitigation under qualification, not a proven hardware/V8 root cause. App build
 PGlite keep their normal runtime; no test is removed, weakened or retried automatically.
 Database checks run before app tests so a later independent worker crash cannot hide
 the replay result. The bounded unfiltered source suite has a 600-second hard timeout.
+
+
+Trusted run 43854525252 at 2215a19e confirmed the repaired fresh replay remotely:
+31 minimal V1, 31 full-schema V1, 31 full-schema V2 and 15 recovery assertions passed.
+319 release tests, 162 security tests, TypeScript, lint and audit passed. Next compiled
+successfully, then its separate type-check worker exited with only “Failed to type check”
+and no diagnostic; standalone TypeScript had passed. No OOM or compiler root cause is proven.
+The next finite CI attempt applies --jitless to the build step only, preserving all type
+checks and normal production/Vercel runtime. PGlite retains normal WebAssembly support.
+The independent full source suite runs after an earlier build failure too, but cannot turn
+a failed job green. There is no automatic retry loop or swallowed exit status.

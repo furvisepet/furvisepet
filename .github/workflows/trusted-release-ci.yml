@@ -72,6 +72,7 @@ jobs:
         with:
           node-version: 24.19.0
       - name: Install locked dependencies without lifecycle scripts
+        id: locked-dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
       # Prove fresh migration replay before independent app checks; never waive it.
       - name: Install isolated database contract engine
@@ -98,9 +99,12 @@ jobs:
           ulimit -c 0
           npm run lint
       - name: Production build with two Next workers
+        env:
+          NODE_OPTIONS: --max-old-space-size=1536 --jitless
         run: npm run build
       - name: Verify built public notes and zero-provider disabled state
         run: node scripts/check-release-notes-http.mjs
       - name: Bounded full source suite without provider access
+        if: ${{ !cancelled() && steps.locked-dependencies.outcome == 'success' }}
         run: |
           timeout --signal=TERM --kill-after=15s 600s node --jitless --import ./scripts/audits/offline-network-guard.mjs --import ./tests/helpers/register-release-typescript.mjs --test --test-concurrency=1 --test-reporter=tap
