@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { verifySourceSemanticsReadiness } from './source-semantics-readiness.sql.mjs';
 import { initializeAskSchema } from './helpers/ask-schema.mjs';
 const engine = process.env.FURVISE_PGLITE_MODULE || '@electric-sql/pglite';
 const base = import.meta.resolve(engine);
@@ -27,6 +28,9 @@ try {
   await db.exec('begin;\n'+source+'\ncommit;');
   assert.deepEqual(await snapshot(),before);recoveryChecks++;
  }});
+ await verifySourceSemanticsReadiness(db);
+ const readiness=(await db.query("select md5(replace(pg_get_functiondef('public.furvise_security_compatibility_snapshot_v2_pre_billing(text[])'::regprocedure),chr(13),'')) as hash")).rows[0].hash;
+ assert.equal(readiness,'16d10be55a3d87bfad9fc2213fd8fcfc');recoveryChecks++;
  const final = await snapshot();
  assert.equal(final.owner,'postgres');recoveryChecks++;
  assert.equal(final.prosecdef,true);recoveryChecks++;

@@ -82,23 +82,37 @@ provider calls are part of this recovery. Beta removal is candidate-only, V1 not
 draft/unpublished, and production remains NO-GO pending all launch gates.
 
 
-## Additional live readiness drift — blocked, not silently omitted
+## Additional live readiness drift — recovered from reviewed source
 
-Read-only ledger inventory found 132 installed migration records versus the source chain
-(the live October 5 release batches multiple source files). The live October 24
-qualify_source_semantics_readiness record has no same-name source migration. Its exact
-18,401-byte SQL was recovered from the live migration ledger, SHA-256
-e998ede0a0d6a8df44ef51f7a596480bb6a1a2ec1ec875da43afc3d81785df9c.
-An isolated trial at that historical position FAILED with SQLSTATE P0001,
-SOURCE_SEMANTICS_READINESS_BASE_MISMATCH. Its required original snapshot preimage has
-MD5 2876a1af35c7dd1f549c81e1d47754d3. The current installed qualified snapshot has MD5
-16d10be55a3d87bfad9fc2213fd8fcfc. The failed trial and original SQL are retained under
-ignored release-evidence; the incompatible proposal is NOT part of executable migrations.
+Read-only ledger inventory found 132 installed records; the October 5 release batches
+multiple source files. The October 24 qualify_source_semantics_readiness record was
+missing from the candidate migration chain. The first exact live-ledger trial rejected
+the repository preimage with SQLSTATE P0001, SOURCE_SEMANTICS_READINESS_BASE_MISMATCH.
+That failure and SQL remain retained under ignored release-evidence.
 
-Do not relax that guard or claim full live-schema parity. Recover the authentic
-pre-qualification snapshot/prerequisite chain before adopting this additional migration.
-The 141-migration replay and task-writer hash parity prove the targeted missing-writer
-repair only; they do not erase this separate, now documented live-only readiness drift.
+Wider all-path Git history recovered the reviewed original in commit
+5a0257e7b4d998cf5220aa2e9d8cd9279fc36cd9:
+20261024184310_qualify_source_semantics_readiness.sql, 18,520 bytes,
+SHA-256 86730be127b4834cb60cc65dfc036ea82f3388a51bc456bc25e4aaea4f4ef52d.
+Its only differences from the live-ledger SQL are an explanatory comment and the
+already-reviewed two exact preimage hashes: deployed 2876a1af35c7dd1f549c81e1d47754d3,
+repository c21d27cd9806e80731ceee492337be8b. No new accepted hash was invented.
+
+Restore that Git migration and original source-semantics-readiness.sql.mjs unchanged.
+Restore the same commit's required migration-name entry in app readiness. The original
+audit passes: no compatibility failures, all four readers authenticated-only, an unknown
+browser-callable definer and altered reader denied in rollback-only test transactions.
+The resulting qualified function has MD5 16d10be55a3d87bfad9fc2213fd8fcfc, exactly live.
+
+Final disposable chain: 142 repository migrations, with the documented hosted scheduler
+exclusion; 16 recovery/hash/privilege/PT409 assertions plus the original readiness audit.
+Live migration identity is 20261024184418 / qualify_source_semantics_readiness; recovered
+Git identity is 20261024184310 / the same name. This is documented historical timestamp
+drift, not permission to backfill/rerun it on production. Do not use --include-all or
+automatically apply restored history: the deployed final definition already matches.
+The other unmatched ledger labels are the version-prefixed memory-semantic-integrity
+name and the documented October 5 batched release. No additional unmatched migration
+name remains. This scoped comparison does not claim a complete hosted platform clone.
 
 ## Native test worker crash
 
