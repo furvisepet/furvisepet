@@ -25,3 +25,5 @@ trigger, read-only token and immutable actions remain. Existing verify and
 ask-database-contract workflow/names are unchanged. PR536 is placed in draft
 before push to pause its original full checks; skipped checks are not passed.
 No runner/Docker restart, duplicate runner, rule bypass or production promotion.
+
+First scoped CI43970885706 exited127 before tests because optional /usr/bin/time was absent. The wrapper was removed without installing tooling or changing test selection. No crash was observed; the corrected run remains separately evidenced in PR536.
