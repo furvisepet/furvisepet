@@ -136,3 +136,20 @@ The next finite CI attempt applies --jitless to the build step only, preserving 
 checks and normal production/Vercel runtime. PGlite retains normal WebAssembly support.
 The independent full source suite runs after an earlier build failure too, but cannot turn
 a failed job green. There is no automatic retry loop or swallowed exit status.
+
+
+## Final diagnostic correction
+
+Run 43855149310 confirmed --jitless is incompatible with this Next build:
+ReferenceError: WebAssembly is not defined. That build-step flag was removed.
+Unit-test worker wrappers retain their tested mode; PGlite and Next builds require
+WebAssembly. Build heap is bounded to 1 GiB per process within the unchanged 3 GiB
+container; cgroup memory.events/peak are printed before/after with exit status preserved.
+This instrumentation distinguishes resource evidence from speculation.
+
+The same run's unfiltered source suite hit its 600-second cap (exit 124), after fixture
+SyntaxError in tests/ask-input-budget-route.test.mjs and interruption in
+tests/ask-interpretation-input-budget.test.mjs. This is a real failing gate, not a full
+suite pass. The superseded e6a3d66b run was explicitly canceled to avoid repeating the
+known incompatible build while this correction was prepared; it is not counted green.
+No production deployment, provider call, runner reconfiguration or original-check bypass.

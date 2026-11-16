@@ -100,8 +100,11 @@ jobs:
           npm run lint
       - name: Production build with two Next workers
         env:
-          NODE_OPTIONS: --max-old-space-size=1536 --jitless
-        run: npm run build
+          NODE_OPTIONS: --max-old-space-size=1024
+        run: |
+          trap 'result=$?; cat /sys/fs/cgroup/memory.events; cat /sys/fs/cgroup/memory.peak; exit "$result"' EXIT
+          cat /sys/fs/cgroup/memory.events
+          npm run build
       - name: Verify built public notes and zero-provider disabled state
         run: node scripts/check-release-notes-http.mjs
       - name: Bounded full source suite without provider access
