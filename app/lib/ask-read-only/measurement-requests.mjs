@@ -74,3 +74,23 @@ export function resolveMeasurementRequests(bindings,results,sources){
   return {task:q.task,petName:q.petName,reason:available?null:a.length>1||b.length>1?"ambiguous":!a.length||!b.length?"unavailable":"chronology",available,sources:available?[a[0].source,b[0].source]:[],calculation:available?{operation:q.operation,timeBasis:q.timeBasis,operands:[a[0].handle,b[0].handle]}:null};
  });
 }
+
+/** Recover only a declared percentage follow-up with one owner antecedent and
+ * exactly two fingerprint-backed comparison locators. Values are reread later. */
+export function recoverRetainedPercentageRequests(requests,first,plan,context){
+ if(!Array.isArray(requests)||requests.length||first.calls?.length||plan?.length!==1)return null;
+ const task=plan[0],scope=context.ownerSubjectScope;
+ if(task.kind!=="calculation"||!task.needsHistory||task.needsOwnerFacts||task.reference||task.missing.length||task.pets.length!==1||scope?.pets.length!==1||scope.pets[0]!==task.pets[0])return null;
+ const question=String(context.question);
+ if(!/\b(?:percentage|percent)\b/iu.test(question)||!/\b(?:that|same|those)\b/iu.test(question)||/\b(?:19|20|21)\d{2}\b/u.test(question))return null;
+ const prior=[...(context.dialogue??[])].reverse().find(row=>row.role==="user");
+ if(!prior||!/\b(?:body[- ]weight|weight)\b/iu.test(prior.text)||/\b(?:food|length|height|dose)\b/iu.test(prior.text))return null;
+ const references=(context.references??[]).filter(r=>r.kind==="history"&&r.petHandle===task.pets[0]&&r.goal==="comparison");
+ if(references.length!==2||references.some(r=>r.sourceCount!==1)||references[0].orderBy!==references[1].orderBy||!["event","recorded"].includes(references[0].orderBy))return null;
+ const basis=references[0].orderBy,lo=basis==="event"?"from":"recordedFrom",hi=basis==="event"?"to":"recordedTo";
+ if(references.some(r=>!r[lo]||!r[hi]||(basis==="event"?(r.recordedFrom||r.recordedTo):(r.from||r.to))))return null;
+ const ordered=[...references].sort((a,b)=>a[lo].localeCompare(b[lo]));
+ if(ordered[0][hi]>=ordered[1][lo])return null;
+ return [{task:task.id,pet:task.pets[0],metric:"body_weight",operation:"percent_change",timeBasis:basis,
+  start:{from:null,to:null,reference:ordered[0].reference},finish:{from:null,to:null,reference:ordered[1].reference}}];
+}

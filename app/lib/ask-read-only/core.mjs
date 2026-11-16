@@ -1,7 +1,8 @@
+import {reconcileHistoricalDelivery} from "./historical-delivery.mjs";
 import {preserveRequestedOriginal} from "./original-quotation.mjs";
 import {bindExplicitContinuationWindow} from "./continuation-window.mjs";
 import {ownerSubjectScope,assertGeneratedSubject,SUBJECT_INSTRUCTIONS,DIALOGUE_TASK_INSTRUCTIONS} from "./subject-scope.mjs";
-import {compileMeasurementRequests,resolveMeasurementRequests} from "./measurement-requests.mjs";
+import {compileMeasurementRequests,resolveMeasurementRequests,recoverRetainedPercentageRequests} from "./measurement-requests.mjs";
 import {reconcileDeclaredUnavailability,DECLARED_UNAVAILABLE_ANSWER} from "./declared-unavailability.mjs";
 import {requirePronounPet} from "./pronoun-scope.mjs";
 import {recoverAnnualComparison,reconcilePlannedAnnualCalculation} from "./annual-comparison.mjs";
@@ -274,7 +275,7 @@ export async function runReadOnlyAsk(input,deps) {
   first={...first};delete first.scopeCorrection;
  }
  let measurementBindings=[],measurementResolution=[];
- const measurementRequests=first.measurementRequests??[];
+ let measurementRequests=first.measurementRequests??[];
  if(Object.hasOwn(first,"measurementRequests")){first={...first};delete first.measurementRequests;}
  let taskPlan=first.taskPlan;
  if(taskPlan){first={...first};delete first.taskPlan;}
@@ -293,6 +294,8 @@ export async function runReadOnlyAsk(input,deps) {
   deps.onAnswerBoundary?.({outcome:"workflow_task_reconciled",reason:"current_intent_none"});
  }
  if(!keys(first,Object.hasOwn(first??{},"workflowIntent")?["calls","text","safety","historyIntent","workflowIntent"]:Object.hasOwn(first??{},"historyIntent")?["calls","text","safety","historyIntent"]:Object.hasOwn(first??{},"safety")?["calls","text","safety"]:["calls","text"])||!Array.isArray(first.calls)||first.calls.length>4||typeof first.text!=="string"||first.text.length>12000)fail("ASK_READ_PROVIDER_INVALID");
+ const recoveredPercentage=recoverRetainedPercentageRequests(measurementRequests,first,taskPlan,context);
+ if(recoveredPercentage){measurementRequests=recoveredPercentage;deps.onAnswerBoundary?.({outcome:"retained_percentage_plan_recovered",endpointCount:2,usesAssistantValues:false});}
  let compiledMeasurements;
  try{compiledMeasurements=compileMeasurementRequests(measurementRequests,first,taskPlan,context,(name,args)=>bindReadTool(name,args,pets,references));}
  catch(error){deps.onSelectionRejected?.({...readSelectionShape(first,pets),measurementDiagnostic:error.answerDiagnostic??null});throw error;}
@@ -524,6 +527,8 @@ export async function runReadOnlyAsk(input,deps) {
    deps.onAnswerBoundary?.({outcome:"clinical_reviewed",...reviewed.summary});
   }
   if(completed.tasks)deps.onAnswerBoundary?.({outcome:"history_synthesis_reviewed",themes:completed.tasks.reduce((n,t)=>n+(t.historySynthesis?.length??0),0),rejected:completed.tasks.flatMap(t=>t.synthesisDiagnostics??[])});
+  const historicalTasks=reconcileHistoricalDelivery(completed.tasks,reviewed.policy,input.question,bound.length,sources.length);
+  if(historicalTasks!==completed.tasks){completed.tasks=historicalTasks;deps.onAnswerBoundary?.({outcome:"source_free_historical_delivery_reconciled",taskCount:historicalTasks.length,grantsRead:false});}
   answer=renderTaskCompletion(answer,completed.tasks,sources,reviewed.policy,results);
   answer=preserveRequestedOriginal(answer,completed.tasks,sources,input.question,reviewed.policy?.active);
    for(const unresolved of measurementResolution.filter(r=>!r.available)){

@@ -1,6 +1,6 @@
 # Furvise Ask V1: Check v29 continuation, 2026-11-15
 
-Status: NO-GO for release. No paid provider calls in this continuation before renewed authorization.
+Status: NO-GO for release. G renewed testing authorization with "we have open budget". The first six real online regressions on b57323b8 completed at 4 PASS / 1 PARTIAL / 1 FAIL; all 12 calls reconciled at $0.084096 actual. These remain separate from a new fresh cohort.
 
 ## Recovered baseline
 
@@ -29,7 +29,7 @@ Status: NO-GO for release. No paid provider calls in this continuation before re
 
 ## Validation
 
-- 117/117 focused tests passed, including 16 new tests and existing component/live-failure boundary checks.
+- 123/123 focused tests passed, including 22 new tests and existing component/live-failure boundary checks.
 - Next route type generation passed; TypeScript passed.
 - Targeted lint passed with zero warnings; diff whitespace checks passed.
 - A SHA-matched READY Vercel preview is required before paid testing.
@@ -38,11 +38,11 @@ Status: NO-GO for release. No paid provider calls in this continuation before re
 
 ## Bounded live continuation after explicit authorization
 
-Suggested allowance: at most $1.10 new actual cost and 132 physical calls total:
-- Old regression group: at most $0.10 / 12 calls.
-- One new independently frozen 30-question cohort: at most $0.50 / 60 calls.
-- Only if the new cohort reaches at least 27/30 FULL PASS with zero critical incidents: a separately frozen 30-question holdout, at most $0.50 / 60 calls.
-No unused allowance implies another cohort or indefinite iteration.
+G's later explicit authorization, "we have open budget", supersedes the previous monetary ceilings. Testing continues in reviewable batches: regressions, a new distinct frozen 30-question cohort, then a separately frozen holdout only after >=27/30 FULL PASS. Repair real failures and freeze new questions for a subsequent cohort when needed; never promise indefinite asynchronous work. Reconcile every new actual provider cost and preserve all failed attempts. Open budget does not waive incident stops, source ownership, data-write limits, production approval, or the independent holdout gate.
+
+The first live regression batch revealed two remaining gaps and led to additional source fixes:
+- Recover a missing percentage measurement plan only from one owner-established subject, a body-weight antecedent and exactly two nonoverlapping fingerprint-backed comparison locators. Re-read both originals; never reuse assistant numbers.
+- Render the independently reviewed source-free historical urgency answer without a spurious unavailable-record task when the owner asked for no saved evidence. Explicit saved-record questions and actual reads retain their evidence requirements.
 
 Freeze each cohort's distinct prompts, category rubric, expected outcomes and independent source goldens before any answers. Compare exact prompts against recovered prior cohorts; retain question-overlap evidence. Use the actual signed-in online deployed Ask UI on the exact preview SHA. Capture every visible answer and request ID, and reconcile every physical call to actual cost receipts before the next submission. Include failed and dependent attempts in their original denominator; PARTIAL is not PASS.
 
