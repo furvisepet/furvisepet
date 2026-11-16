@@ -1,3 +1,4 @@
+import { isAskEnabled } from "../../lib/ai/availability.ts";
 import { hydratePlanningCatalog, verifyPlanningCatalogSource } from "../../lib/intelligence/hydrate-planning-catalog.ts";
 import { executeStoredRead } from "../../lib/furvise-brain/stored-read-organ.ts";
 import {resolveRemovePlan} from "../../lib/furvise-brain/remove-job.ts";
@@ -202,6 +203,12 @@ export async function GET(request: Request) {
 
 type AskRequestExecution = { deadline: OperationDeadline; durable?: { conversationId: string; userMessageId: string; logicalTurnId: string } };
 export async function POST(request: Request) {
+  // Stop before authentication lookups, conversation writes, credits or provider admission.
+  if (!isAskEnabled()) return Response.json({
+    code: "AI_FEATURE_UNAVAILABLE",
+    error: "Ask is taking a break. Your journal, History and pet profiles are still available.",
+  }, { status: 503, headers: { "Cache-Control": "private, no-store, max-age=0" } });
+
   const execution: AskRequestExecution = { deadline: new OperationDeadline(ASK_OPERATION_TIMEOUT_MS) };
   let response: Response;
   try { response = await executeAskRequest(request, execution); }

@@ -1,3 +1,4 @@
+import { isAiEnabled } from "../availability.ts";
 import type { AiGuardFeature } from "./types";
 import { getAiFeaturePolicy } from "./features";
 
@@ -9,7 +10,7 @@ export function getAiGuardConfig(env: Record<string, string | undefined> = proce
     callLimit,
     configured: callLimit > 0 && costLimitMicrodollars > 0,
     costLimitMicrodollars,
-    enabled: env.FURVISE_AI_ENABLED !== "false",
+    enabled: isAiEnabled(env),
     operationTtlSeconds: 26 * 60 * 60,
     production,
   };
@@ -20,7 +21,7 @@ export function isAiFeatureEnabled(feature: AiGuardFeature, env: Record<string, 
 }
 
 export function isAiMemoryExtractionEnabled(env: Record<string, string | undefined> = process.env) {
-  return env.FURVISE_AI_MEMORY_EXTRACTION_ENABLED !== "false";
+  return isAiEnabled(env) && env.FURVISE_AI_MEMORY_EXTRACTION_ENABLED !== "false";
 }
 
 export function parseUsdToMicrodollars(value: string | undefined) {

@@ -135,7 +135,8 @@ test("global shutdown is server-only and memory extraction can be disabled witho
   const env = read(".env.example");
   const config = read("app/lib/ai/usage-guard/config.ts");
   assert.doesNotMatch(env, /NEXT_PUBLIC_FURVISE_AI|NEXT_PUBLIC_UPSTASH/);
-  assert.match(config, /FURVISE_AI_ENABLED/);
+  assert.match(read("app/lib/ai/availability.ts"), /FURVISE_AI_ENABLED/);
+  assert.match(config, /enabled: isAiEnabled\(env\)/);
   assert.match(config, /FURVISE_AI_MEMORY_EXTRACTION_ENABLED/);
   assert.match(read("app/lib/intelligence/run-intelligence.ts"), /isAiMemoryExtractionEnabled/);
   assert.match(read("app/lib/intelligence/run-feature-intelligence.ts"), /isAiMemoryExtractionEnabled/);
