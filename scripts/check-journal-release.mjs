@@ -44,6 +44,7 @@ const files = [
   "trusted-release-workflow.test.mjs",
   "release-notes-publication.test.mjs",
   "ai-availability.test.mjs",
+  "ask-availability-route-fixture.test.mjs",
   "pet-history-delete-controls.test.mjs",
   "effective-history-projection.test.mjs",
   "owner-config-semantics.test.mjs",

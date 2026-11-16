@@ -21,6 +21,7 @@ registerHooks({
     if (url === "release-test:server-only") return { format: "module", source: "export {};", shortCircuit: true };
     if (url.startsWith("file:") && /\.tsx?$/.test(url)) {
       const source = ts.transpileModule(readFileSync(fileURLToPath(url), "utf8"), {
+        fileName: fileURLToPath(url),
         compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
       }).outputText;
       return { format: "module", source, shortCircuit: true };
