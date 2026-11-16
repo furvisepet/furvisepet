@@ -103,3 +103,9 @@ The next repair addresses conditional clinical rendering suppressing ordinary ex
 Targeted deployment prerequisites: 47 passed, TypeScript clean, scoped lint clean. Five older assertions in ask-continuation-evidence / ask-declared-unavailability also fail identically at the unchanged parent SHA; comparison logs preserve that baseline. No broad suite or offline result replaces online qualification.
 
 The next qualification requires 30 NEW frozen questions and a NEW independently frozen holdout. Each cohort remains capped at 60 physical calls and $12 actual despite G's open-budget authorization. Preview-branch daily call guard increased from 400 to 600 to permit the finite pair; daily $30 guard retained. No production environment changes.
+
+### Follow-up online regressions on 5c8d6a84
+
+Five separate signed-in regressions: 4 PASS / 1 PARTIAL, 10 calls, $0.176445 actual. Sleep explanation, full original, explicit event-axis comparison and resolved-history urgency now pass. Unknown non-owned-pet weight still became a vague write-capability refusal; this is a retained PARTIAL, never a qualifying score. A transient database connector failure paused paid testing; all receipts were recovered before continuation.
+
+The next small repair renders an explicit owner-declared absent-pet information limit only for the observed zero-read, source-free unsupported notice, preserving the independent completed answer. It refuses known pets, actual reads, ambiguous declarations and write requests. 48 focused checks, TypeScript and scoped lint pass. Fresh qualification remains pending.

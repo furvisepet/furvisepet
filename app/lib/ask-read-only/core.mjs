@@ -3,7 +3,7 @@ import {preserveRequestedOriginal} from "./original-quotation.mjs";
 import {bindExplicitContinuationWindow,reconcileContinuationAxis} from "./continuation-window.mjs";
 import {ownerSubjectScope,assertGeneratedSubject,SUBJECT_INSTRUCTIONS,DIALOGUE_TASK_INSTRUCTIONS} from "./subject-scope.mjs";
 import {reconcileExplicitMeasurementAxis,compileMeasurementRequests,resolveMeasurementRequests,recoverRetainedPercentageRequests} from "./measurement-requests.mjs";
-import {reconcileDeclaredUnavailability,DECLARED_UNAVAILABLE_ANSWER} from "./declared-unavailability.mjs";
+import {reconcileDeclaredUnavailability,DECLARED_UNAVAILABLE_ANSWER,renderDeclaredAbsentPet} from "./declared-unavailability.mjs";
 import {requirePronounPet} from "./pronoun-scope.mjs";
 import {recoverAnnualComparison,reconcilePlannedAnnualCalculation} from "./annual-comparison.mjs";
 import { supplementCandidates, supplementalTaskPlan, parseEvidenceCompletion, verifySingleReferenceResult, applyReferenceCompletion, applySourceReview } from "./evidence-completion.mjs";
@@ -550,6 +550,7 @@ export async function runReadOnlyAsk(input,deps) {
      presentation:{contextRequired:false,sourceDates:[]},quotes:[],calculations:[],sources:[],
      taskCompletion:[{id:taskPlan[0].id,kind:"general_guidance",status:"complete",reason:"none",sourceCount:0}]};
    }
+  if(!reviewed.policy?.active)answer=renderDeclaredAbsentPet(answer,input.question,pets,bound.length);
   for(const review of answer.continuationEvidenceReview??[])deps.onAnswerBoundary?.({outcome:"fresh_continuation_composed",...review});
   const appendWorkflow=!!reviewed.policy?.active||bound.length>0||!!taskPlan?.some(t=>t.kind!=="workflow");
   answer=renderAppWorkflow(answer,reviewed.workflow,pets,appendWorkflow,input.question);

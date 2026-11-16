@@ -38,3 +38,25 @@ export function reconcileDeclaredUnavailability(first,plan,context,pets,ownerId,
  return {declaration:declarations[0],plan:[corrected],first:{...first,calls:[],historyIntent:first.historyIntent?{...first.historyIntent,requested:false}:first.historyIntent,text:"",safety:{...safety,referent:"clear",missingContext:[]}}};
 }
 export const DECLARED_UNAVAILABLE_ANSWER="You said that detail wasn’t recorded. I don’t have a verified saved answer for it.";
+
+/** An owner-declared absent pet is an information limit, not a write action.
+ * Correct only the specific generic capability notice after zero-read delivery.
+ * This does not assert another account's facts or grant a lookup. */
+export function renderDeclaredAbsentPet(answer,question,pets,readCount){
+ if(readCount!==0||answer.sources?.length||!Array.isArray(answer.taskCompletion)
+  ||/\b(?:save|edit|delete|upload|create|remove|change)\b/iu.test(question))return answer;
+ const declarations=[...question.matchAll(/\b([\p{Lu}][\p{L}\p{M}'-]{0,39})\s+(?:is\s+not|isn't)\s+(?:an?\s+)?(?:owned|saved)\s+pet\b/gu)];
+ if(declarations.length!==1)return answer;
+ const name=declarations[0][1];
+ if(pets.some(p=>p.name?.toLocaleLowerCase()===name.toLocaleLowerCase()))return answer;
+ const escaped=name.replace(/[.*+?^$()|[\]\\{}]/g,"\\$&");
+ const detail=question.match(new RegExp("\\b"+escaped+"['’]s\\s+(?:body\\s+)?(weight|age)\\b","iu"))?.[1];
+ if(!detail)return answer;
+ const unsupported=answer.taskCompletion.filter(t=>t.kind==="general_guidance"&&t.reason==="not_supported"&&t.status==="unresolved"&&t.sourceCount===0);
+ const notice="General guidance: This requested action is unavailable through read-only Ask.";
+ if(unsupported.length!==1||!answer.answer.includes(notice))return answer;
+ const text="You said "+name+" isn't a saved pet in this account. I don't have a verified saved "+detail+" for "+name+".";
+ const taskCompletion=answer.taskCompletion.map(t=>t===unsupported[0]?{...t,status:"complete",reason:"none"}:t);
+ const limited=taskCompletion.some(t=>t.status!=="complete");
+ return {...answer,answer:answer.answer.replace(notice,text),taskCompletion,limited,replyType:limited?"partial":"answer"};
+}

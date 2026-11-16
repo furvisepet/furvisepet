@@ -60,3 +60,14 @@ test("bounded-reference warning gives original scope and exact re-read instants,
  assert.match(text,/Re-read original event instants: 2022-04-15T12:00:00Z/);
  assert.match(text,/individual dates and contents are not established/);
 });
+
+import {renderDeclaredAbsentPet} from "../app/lib/ask-read-only/declared-unavailability.mjs";
+test("explicit absent-pet information limit replaces only the unsupported read notice and preserves independent prose",()=>{
+ const a={answer:"Cats knead as a comfort behavior.\n\nGeneral guidance: This requested action is unavailable through read-only Ask.",sources:[],taskCompletion:[{id:"t1",kind:"general_guidance",reason:"not_supported",status:"unresolved",sourceCount:0},{id:"t2",kind:"general_guidance",reason:"none",status:"complete",sourceCount:0}],limited:true,replyType:"partial"};
+ const q="Nova is not an owned pet in my account. Can you get Nova's weight? Separately, why do cats knead?";
+ const out=renderDeclaredAbsentPet(a,q,[{name:"Juniper"}],0);
+ assert.match(out.answer,/Cats knead/);assert.match(out.answer,/don't have a verified saved weight for Nova/);assert.equal(out.limited,false);assert.ok(out.taskCompletion.every(t=>t.status==="complete"));
+ for(const [question,pets,reads] of [[q,[{name:"Nova"}],0],[q,[],1],[q.replace("get","save"),[],0],[q.replace("is not","might not be"),[],0]]){
+  assert.equal(renderDeclaredAbsentPet(a,question,pets,reads),a);
+ }
+});
