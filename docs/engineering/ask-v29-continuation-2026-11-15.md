@@ -29,7 +29,7 @@ Status: NO-GO for release. G renewed testing authorization with "we have open bu
 
 ## Validation
 
-- 123/123 focused tests passed, including 22 new tests and existing component/live-failure boundary checks.
+- 125/125 focused tests passed, including 24 new tests and existing component/live-failure boundary checks.
 - Next route type generation passed; TypeScript passed.
 - Targeted lint passed with zero warnings; diff whitespace checks passed.
 - A SHA-matched READY Vercel preview is required before paid testing.
@@ -49,3 +49,11 @@ Freeze each cohort's distinct prompts, category rubric, expected outcomes and in
 Stop paid submissions at the first cap, any unknown new actual cost, unsafe medical answer, wrong-pet clinical/ownership incident or fabricated citation. Preserve the incident and failed answer. Do not silently rerun, replace questions, combine scores across SHAs, or run the holdout below 27/30. No launch preparation until both cohorts independently meet 27/30 and zero critical incidents.
 
 Remaining live uncertainty includes reload recall, history UI directions, exact quotation/timestamps, the previously unpublished first comparison, honest evidence-limit explanations, vet-brief observation selection and the real model's use of the new identity contract.
+
+## Second repair regression batch, exact SHA 72d8b0e3
+
+Three old cases: 2 PASS / 1 PARTIAL / 0 FAIL, six calls / $0.044146 actual. The direct Dune comparison and nameless percentage follow-up pass; percentage is +0.354609929078% with 5.64kg divisor. The historical Echo answer remains safe and owner-correct but adds a duplicate unfinished general-guidance notice. The following change consolidates only the source-free, independently reviewed historical delivery of one explicit urgency question; it preserves checked owner reports and binds explicit owner identity without granting any read.
+
+Combined new regression work since G's open-budget renewal: 18 physical calls / $0.128242 actual, all reconciled. No critical medical, wrong-pet or fabricated-citation incident has been observed in these new regressions. This is not a fresh-cohort score.
+
+The first fresh 30-question plan was frozen before any fresh answers: 51 independently read source goldens; zero exact overlaps across 142 distinct prompts in 640 checked prior JSON artifacts. No fresh question has been answered yet. The source SHA changed before fresh execution; the old unused freeze remains preserved and the same unanswered expectations will be re-pinned to the final READY SHA before submission.

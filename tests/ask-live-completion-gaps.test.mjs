@@ -63,3 +63,19 @@ test("actual core publishes the source-free historical answer without fabricated
  assert.doesNotMatch(result.answer.answer,/saved information|has not been completed|remains unresolved/i);
  assert.equal(result.answer.taskCompletion.length,1);assert.equal(result.answer.taskCompletion[0].status,"complete");
 });
+
+test("one historical urgency question does not render duplicate general and clinical notices",()=>{
+ const tasks=[displayTask(),displayTask({id:"t2",kind:"clinical_guidance"})];
+ const clean=reconcileHistoricalDelivery(tasks,policy,"The limp is long resolved with no signs today. Does that make this urgent now?",0,0);
+ assert.equal(clean.length,1);assert.equal(clean[0].kind,"clinical_guidance");assert.equal(clean[0].status,"complete");
+ assert.equal(reconcileHistoricalDelivery(tasks,policy,"Is that urgent and why do cats purr?",0,0),tasks);
+ assert.equal(reconcileHistoricalDelivery(tasks,policy,"Is that urgent? Why do cats purr?",0,0),tasks);
+});
+
+test("source-free urgency delivery can preserve verified owner facts and explicit identity without granting a read",()=>{
+ const tasks=[displayTask({pets:["p1"]}),displayTask({id:"t2",kind:"clinical_guidance",pets:["p2"],ownerFacts:[{ref:"owner1",excerpt:"Echo's old limp is resolved."}]})];
+ const scope={method:"explicit_owner",pets:["p2"]};
+ const clean=reconcileHistoricalDelivery(tasks,policy,"Echo's old limp is resolved. Is that urgent now?",0,0,scope);
+ assert.equal(clean.length,1);assert.deepEqual(clean[0].pets,["p2"]);assert.equal(clean[0].ownerFacts.length,1);
+ assert.equal(reconcileHistoricalDelivery(tasks,policy,"Echo's old limp is resolved. Is that urgent now?",1,0,scope),tasks);
+});

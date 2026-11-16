@@ -527,7 +527,7 @@ export async function runReadOnlyAsk(input,deps) {
    deps.onAnswerBoundary?.({outcome:"clinical_reviewed",...reviewed.summary});
   }
   if(completed.tasks)deps.onAnswerBoundary?.({outcome:"history_synthesis_reviewed",themes:completed.tasks.reduce((n,t)=>n+(t.historySynthesis?.length??0),0),rejected:completed.tasks.flatMap(t=>t.synthesisDiagnostics??[])});
-  const historicalTasks=reconcileHistoricalDelivery(completed.tasks,reviewed.policy,input.question,bound.length,sources.length);
+  const historicalTasks=reconcileHistoricalDelivery(completed.tasks,reviewed.policy,input.question,bound.length,sources.length,subjectScope);
   if(historicalTasks!==completed.tasks){completed.tasks=historicalTasks;deps.onAnswerBoundary?.({outcome:"source_free_historical_delivery_reconciled",taskCount:historicalTasks.length,grantsRead:false});}
   answer=renderTaskCompletion(answer,completed.tasks,sources,reviewed.policy,results);
   answer=preserveRequestedOriginal(answer,completed.tasks,sources,input.question,reviewed.policy?.active);
