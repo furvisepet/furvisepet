@@ -79,14 +79,6 @@ jobs:
         run: npm run test:release
       - name: Existing focused security selection with external fetch blocked
         run: node scripts/check-security-release.mjs
-      - name: Install isolated database contract engine
-        run: npm install --prefix "$RUNNER_TEMP/furvise-postgres" --no-save --ignore-scripts --no-audit --no-fund @electric-sql/pglite@0.5.8
-      - name: Existing database contracts, serial and disposable
-        env:
-          FURVISE_PGLITE_MODULE: ${{ runner.temp }}/furvise-postgres/node_modules/@electric-sql/pglite/dist/index.js
-        run: |
-          node --import ./scripts/audits/offline-network-guard.mjs scripts/audits/ask-task-continuation.sql.mjs
-          node --import ./scripts/audits/offline-network-guard.mjs scripts/audits/ask-task-continuation.sql.mjs --full-schema
       - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
       - name: Lint
@@ -95,3 +87,12 @@ jobs:
         run: npm run build
       - name: Verify built public notes and zero-provider disabled state
         run: node scripts/check-release-notes-http.mjs
+      # Keep this failing gate after independent app verification; never waive it.
+      - name: Install isolated database contract engine
+        run: npm install --prefix "$RUNNER_TEMP/furvise-postgres" --no-save --ignore-scripts --no-audit --no-fund @electric-sql/pglite@0.5.8
+      - name: Existing database contracts, serial and disposable
+        env:
+          FURVISE_PGLITE_MODULE: ${{ runner.temp }}/furvise-postgres/node_modules/@electric-sql/pglite/dist/index.js
+        run: |
+          node --import ./scripts/audits/offline-network-guard.mjs scripts/audits/ask-task-continuation.sql.mjs
+          node --import ./scripts/audits/offline-network-guard.mjs scripts/audits/ask-task-continuation.sql.mjs --full-schema

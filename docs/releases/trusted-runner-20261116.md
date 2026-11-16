@@ -13,3 +13,9 @@ The trusted profile runs journal/publication/ownership regressions, the existing
 Local pre-push validation: 319 release tests and 162 security tests passed; TypeScript and scoped lint passed. The artwork hashes were verified against commit 06adc805; only SVG CRLF checkout normalization in the test changed, not the artwork. One initial Windows History UI worker failed without a diagnostic; its isolated nine cases and the subsequent complete release run passed. The original failure log remains in private evidence.
 
 Actual GitHub execution and the exact preview SHA/status are recorded in PR #536 after push. An online listener alone is not a CI pass, and account-level billing can still block assignment. Main, PR #531, the dirty shared checkout, care records and profiles are outside this change.
+
+## First actual runner execution
+
+Run [43847119030](https://github.com/furvisepet/furvisepet/actions/runs/43847119030), SHA 6b135920, executed on runner ID 27 / furvise-grok-v16-ci. Resource checks, exact checkout, Node, npm ci, TypeScript, 319 release tests and 162 focused security tests passed. The minimal PostgreSQL contract passed 31 assertions. The full repository migration replay failed at `20261004233000_guard_canonical_task_writers.sql`: `TASK_WRITER_REQUIRED_SIGNATURE_MISSING: public.apply_ask_task_v2(uuid,uuid,uuid,text,uuid,text,text,uuid,uuid,integer,timestamptz,text,boolean)`. This branch contains the guard but no defining migration for that function.
+
+No SQL guard, migration, production schema or fixture was weakened to hide the failure. Independent lint/audit/build/HTTP checks now run before the database contracts; a database failure still makes the overall job fail. This reveals a pre-existing canonical migration dependency gap and remains a release blocker. Original GitHub-hosted PR checks are separately blocked by account payment/spending limits.
