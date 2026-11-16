@@ -6,9 +6,8 @@ const yaml = createRequire(import.meta.url)("js-yaml");
 const source = readFileSync(new URL("../.github/workflows/trusted-release-ci.yml", import.meta.url), "utf8");
 const workflow = yaml.load(source);
 
-test("laptop CI accepts only the reviewed owner's release push or pinned dispatch", () => {
-  assert.deepEqual(Object.keys(workflow.on).sort(), ["push", "workflow_dispatch"]);
-  assert.deepEqual(workflow.on.push.branches, ["release/journal-first-20261116"]);
+test("laptop CI is manual, SHA-pinned and restricted to the reviewed owner", () => {
+  assert.deepEqual(Object.keys(workflow.on), ["workflow_dispatch"]);
   assert.equal(workflow.on.workflow_dispatch.inputs.expected_sha.required, true);
   const guard = workflow.jobs["trusted-release"].if;
   for (const clause of ["github.repository == 'furvisepet/furvisepet'", "github.actor == 'furvisepet'", "github.ref == 'refs/heads/release/journal-first-20261116'"]) assert.ok(guard.includes(clause));
@@ -37,7 +36,7 @@ test("one bounded job reuses the existing runner without privileges or deploymen
   assert.match(first, /EXPECTED_SHA.*GITHUB_SHA/);
 });
 
-test("push defaults to the bounded subset and never starts a full check", () => {
+test("manual validation defaults to the bounded subset and never implies a full pass", () => {
   const scope=workflow.on.workflow_dispatch.inputs.validation_scope;
   assert.equal(scope.required,true);
   assert.equal(scope.default,"targeted");

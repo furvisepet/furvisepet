@@ -1,8 +1,6 @@
 name: Trusted Release CI
 
 on:
-  push:
-    branches: [release/journal-first-20261116]
   workflow_dispatch:
     inputs:
       expected_sha:
@@ -30,7 +28,7 @@ jobs:
       github.repository == 'furvisepet/furvisepet' &&
       github.actor == 'furvisepet' &&
       github.ref == 'refs/heads/release/journal-first-20261116' &&
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      github.event_name == 'workflow_dispatch'
     runs-on: [self-hosted, Linux, X64, furvise-ci]
     timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && inputs.validation_scope == 'full' && 25 || 3 }}
     env:
