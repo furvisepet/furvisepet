@@ -220,7 +220,7 @@ export function CareLogWorkspace({ petProfileId = "", scope }: Props) {
 
   async function saveEntry(input: CareEntryInput) {
     const normalized = normalizeCareEntryDraft(input) as CareEntryInput;
-    return editingEntry ? updateCareEntry(editingEntry.id, normalized) : createCareEntry(normalized);
+    return editingEntry ? updateCareEntry(editingEntry.id, normalized, {}, editingEntry.updated_at) : createCareEntry(normalized);
   }
 
   function handleSaved(entry: CareEntryRow) {

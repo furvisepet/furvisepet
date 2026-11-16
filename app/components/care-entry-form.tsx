@@ -3,6 +3,7 @@
 import { useId, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import type { CareEntryInput, CareEntryRow } from "../lib/supabase";
+import { CARE_ENTRY_STALE_MESSAGE } from "../lib/care-entry-conflict";
 import {
   CARE_ENTRY_CATEGORIES,
   CARE_ENTRY_SEVERITIES,
@@ -111,7 +112,11 @@ export function CareEntryForm({
       }
     } catch (saveError) {
       logCareEntrySaveFailure(saveError, initialEntry ? "update" : "insert");
-      setFormError("Furvise could not save this update. Please try again.");
+      setFormError(
+        initialEntry && saveError instanceof Error && saveError.message === CARE_ENTRY_STALE_MESSAGE
+          ? "This note changed after you opened it. This edit was not saved. Copy your draft before reloading this page, then reopen the latest saved note."
+          : "Furvise could not save this update. Please try again.",
+      );
     } finally {
       setSubmitting(false);
     }
