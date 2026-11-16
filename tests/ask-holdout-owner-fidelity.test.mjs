@@ -79,3 +79,50 @@ test("History category guidance uses actual registry values beyond Activity",()=
   assert.ok(out.answer.includes("Pet: Juniper; Category: "+label));
  }
 });
+
+import {explicitHistoryControlRequest} from "../app/lib/ask-read-only/app-capabilities.mjs";
+import {runReadOnlyAsk} from "../app/lib/ask-read-only/core.mjs";
+import {decodeClinicalSelection} from "../app/lib/ask-read-only/clinical-policy.mjs";
+import {decodeComponentSelection} from "../app/lib/ask-read-only/task-components.mjs";
+test("History target and controls can occur in separate clauses",()=>{
+ assert.equal(explicitHistoryControlRequest("Help me browse Juniper's food notes in History myself. Which visible controls and pet/category selections should I use?"),true);
+ assert.equal(explicitHistoryControlRequest("Which controls should I use to delete History notes?"),false);
+});
+test("actual source pipeline preserves whole originals, timestamp meaning and coverage instants across the body-free boundary",async()=>{
+ const pet={id:"private-owner-pet-2026",ownerId:"owner",name:"Juniper",species:"dog"};
+ const row={kind:"history",id:"private-original-2026",ownerId:"owner",petId:pet.id,body:"Juniper weighed 8.20 kg. A routine grooming check was recorded.",eventAt:"2021-05-15T12:00:00Z",recordedAt:"2021-05-16T12:00:00Z"};
+ const s=wire(),task={id:"t1",kind:"saved_content",needsHistory:true,needsOwnerFacts:false,includeSourceDates:false,recordMode:"collection",workflow:"none",pets:["p1"],reference:null,missing:[]};
+ let reads=0;
+ const result=await runReadOnlyAsk({ownerId:"owner",selectedPetId:pet.id,pets:[pet],dialogue:[],question:"Show Juniper's complete May 2021 original and both full instants. Explain what each timestamp means.",now:"2026-11-15T12:00:00Z",timeZone:"UTC"},{
+  provider:async(req,phase)=>phase==="read_selection"?decodeComponentSelection({safety:s,reads:[],draft:"",historyIntent:{requested:true,timeBasis:"event",pet:"p1"},workflowIntent:"none",taskPlan:[task],measurementRequests:[]},req.tools,req.context,decodeClinicalSelection):{
+   components:[{kind:"saved",text:"A selected saved statement.",sources:["s1"]}],quotes:[],sources:["s1"],calculations:[],replyType:"answer",presentation:{sourceDates:[],contextRequired:false},
+   clinicalReview:{assessment:s,concernReview:{occurrence:"none",sentence:null,pastReportSentence:null},ownerStatementRefs:[],observationFields:[]},appHelp:{intent:"none",pet:null},
+   completion:[{task:"t1",status:"complete",reason:"none",componentIndexes:[0],sources:["s1"],ownerFacts:[],historyFacts:[]}]
+  },
+  read:async request=>{reads++;assert.equal(request.goal,"exact_quote");return {sources:[row],total:1,scopeExhausted:true};}
+ });
+ assert.equal(reads,1);assert.equal(result.answer.quotes[0].quote,row.body);
+ assert.match(result.answer.answer,/Event time refers to the reported care occurrence/);
+ assert.equal(result.answer.presentation.sourceDates[0].eventAt,row.eventAt);
+ assert.equal(result.coverage[0].sources,undefined);
+ assert.deepEqual(result.coverage[0].sourceInstants,[{eventAt:row.eventAt,recordedAt:row.recordedAt}]);
+ const coverage=readCoverageMessages([{...result.coverage[0],discovery:[],unmet:["prior_source_selection_omitted"]}]).join(" ");
+ assert.ok(coverage.includes(row.eventAt));assert.doesNotMatch(coverage,/instants: none/);
+});
+test("current normality plus a future warning does not acquire historical-report boilerplate",()=>{
+ const s=wire({careContext:"education",eventAssessments:[conditional]});
+ const value={components:[],appHelp:{intent:"none",pet:null},clinicalReview:{assessment:s,concernReview:{occurrence:"negated",sentence:"owner1:c2",pastReportSentence:null},ownerStatementRefs:[],observationFields:[]}};
+ const r=reviewClinicalAnswer(value,validateClinicalAssessment(wire({careContext:"clinical_history",eventAssessments:[conditional]}),owners),owners,[]);
+ assert.equal(r.policy.historicalOnly,false);
+ const out=renderMedicationDecision(base,r.policy,owners);
+ assert.match(out.answer,/If .*emergency veterinarian immediately/);
+ assert.doesNotMatch(out.answer,/historical|resolved report|Describe this/);
+});
+test("a separately selected actual past report keeps direct historical reasoning without downgrading current urgency",()=>{
+ const s=wire({careContext:"clinical_history",eventAssessments:[conditional]});
+ const value={components:[],appHelp:{intent:"none",pet:null},clinicalReview:{assessment:s,concernReview:{occurrence:"negated",sentence:"owner1:c2",pastReportSentence:"owner1:c1"},ownerStatementRefs:[],observationFields:[]}};
+ const r=reviewClinicalAnswer(value,validateClinicalAssessment(s,owners),owners,[]);
+ assert.equal(r.policy.historicalOnly,true);assert.match(renderMedicationDecision(base,r.policy,owners).answer,/^A historical or resolved report by itself/);
+ const bad=structuredClone(value);bad.clinicalReview.concernReview.pastReportSentence="unowned-sentence";
+ assert.throws(()=>reviewClinicalAnswer(bad,validateClinicalAssessment(s,owners),owners,[]),/CLINICAL_CONTRACT/);
+});

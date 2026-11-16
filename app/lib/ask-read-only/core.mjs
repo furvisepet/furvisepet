@@ -615,7 +615,7 @@ export async function runReadOnlyAsk(input,deps) {
   &&results.every(r=>!r.hasMore&&!r.hasPrevious&&!r.truncated&&r.unmet.every(u=>u==="prior_source_selection_omitted"));
  answer.limited=answer.limited||(!inheritedSelectionOnly&&results.some(result=>result.hasMore||result.hasPrevious||result.truncated||result.unmet.length>0))||(bound.length>0&&(sources.length===0||answer.sources.length===0));
  const readReferences=carryReadReferences(references,bound.map((call,index)=>({...call,sourceHandles:results[index].sources.map(source=>source.source),omittedEventRange:results[index].omittedEventRange,omittedRange:results[index].omittedRange,queryScopeExhausted:results[index].queryScopeExhausted,continuationValidated:results[index].continuationValidation?.valid===true&&!call.request.explicitIntervalOverride})),sources,answer,input.timeZone);
- const result={answer,readReferences,sources:sources.filter(s=>answer.sources.includes(s.handle)),providerCallCount:calls,dialogueCoverage,coverage:results.map(({sources,...rest})=>({...rest,returned:sources.length}))};
+ const result={answer,readReferences,sources:sources.filter(s=>answer.sources.includes(s.handle)),providerCallCount:calls,dialogueCoverage,coverage:results.map(({sources,...rest})=>({...rest,returned:sources.length,sourceInstants:sources.map(({eventAt,recordedAt})=>({eventAt,recordedAt}))}))};
  const freeze=value=>{if(value&&typeof value==="object"&&!Object.isFrozen(value)){Object.values(value).forEach(freeze);Object.freeze(value);}};
  freeze(result);reviewedResults.add(result);return result;
 }

@@ -52,7 +52,7 @@ export function containsAppControlSteps(text=""){
 
 /** An explicitly named screen plus a controls question is already a UI target. */
 export function explicitHistoryControlRequest(question=""){
- return supportsAppWorkflow(question)&&/\bhistory\s+(?:controls?|filters?|screen|page)\b/iu.test(question)
+ return supportsAppWorkflow(question)&&/\bhistory\b/iu.test(question)&&/\b(?:controls?|filters?|screen|page|selections?)\b/iu.test(question)
   &&/\b(?:which|how|where|directions)\b/iu.test(question)
   &&!/\b(?:save|edit|delete|change|update)\b/iu.test(question);
 }

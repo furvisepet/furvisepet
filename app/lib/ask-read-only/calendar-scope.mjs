@@ -1,3 +1,4 @@
+import {requestsWholeOriginal} from "./original-quotation.mjs";
 import {positiveOwnedPets} from "./subject-scope.mjs";
 import {EVIDENCE_GOALS} from "./retrieval.mjs";
 /** Explicit calendar recognition only: no relative-time or event/recorded guessing. */
@@ -133,7 +134,7 @@ export function recoverIndependentOriginalRead(first,plan,context){
  if(!plan||first.calls.length>1||first.historyIntent?.requested!==true)return null;
  const q=String(context.question);
  const display=/\b(?:(?:both|two)\s+(?:(?:full|complete)\s+)?(?:timestamps|timestamp\s+instants|dates)|event\s+and\s+(?:saved|recorded)\s+(?:timestamps|dates))\b/iu.test(q)||/\bevent\s+timestamp\b/iu.test(q)&&/\b(?:saved|recorded)\s+timestamp\b/iu.test(q);
- if(!display||/["\x60]/u.test(q))return null;
+ if(!(display||requestsWholeOriginal(q))||/["\x60]/u.test(q))return null;
  const calendar=explicitCalendarWindow(q);if(!calendar||!["month","day"].includes(calendar.precision))return null;
  const named=positiveOwnedPets(q,context.pets);
  if(named.length!==1)return null;
@@ -148,7 +149,7 @@ export function recoverIndependentOriginalRead(first,plan,context){
   if(args.pet!==task.pets[0]||args.offset!==0||!["exact_quote","relevant_records","complete_set"].includes(args.goal)||args.query!==null||args.alternatives?.length)return null;
   if(event?(args.from!==calendar.from||args.to!==calendar.to||args.recordedFrom||args.recordedTo):(args.recordedFrom!==calendar.from||args.recordedTo!==calendar.to||args.from||args.to))return null;
  }
- const updated=plan.map(t=>t===task?{...t,recordMode:"single",includeSourceDates:true,missing:t.missing.filter(k=>!["pet","year","date_meaning"].includes(k))}:t);
+ const updated=plan.map(t=>t===task?{...t,recordMode:"single",includeSourceDates:t.includeSourceDates||display||/\b(?:timestamps?|instants?|event\s+dates?|recorded\s+dates?|saved\s+dates?)\b/iu.test(q),missing:t.missing.filter(k=>!["pet","year","date_meaning"].includes(k))}:t);
  const calls=[{id:first.calls[0]?.id??"original-calendar-read",name:"search_saved_records",arguments:JSON.stringify({pet:task.pets[0],from:event?calendar.from:null,to:event?calendar.to:null,recordedFrom:event?null:calendar.from,recordedTo:event?null:calendar.to,orderBy:basis,query:null,alternatives:[],goal:"exact_quote",offset:0,order:"asc"})}];
  return {first:{...first,text:"",calls,historyIntent:{...first.historyIntent,timeBasis:basis,pet:task.pets[0]}},plan:updated};
 }

@@ -3,8 +3,8 @@
 export function retainedSelectionDescription(row){
  const scope=row.scope??{},axis=scope.orderBy==="recorded"?"recorded":"event";
  const from=axis==="event"?scope.from:scope.recordedFrom,to=axis==="event"?scope.to:scope.recordedTo;
- const dates=[...new Set((row.sources??[]).map(s=>s[axis==="event"?"eventAt":"recordedAt"]).filter(v=>typeof v==="string"))].sort();
- return "Original reference scope: "+axis+" dates "+(from??"earliest")+" to "+(to??"latest")+". Re-read original "+axis+" instants: "+(dates.join(", ")||"none")+". Other original bodies within that scope were not re-read; their individual dates and contents are not established by this retained selection.";
+ const dates=[...new Set((row.sourceInstants??row.sources??[]).map(s=>s[axis==="event"?"eventAt":"recordedAt"]).filter(v=>typeof v==="string"))].sort();
+ return "Original reference scope: "+axis+" dates "+(from??"earliest")+" to "+(to??"latest")+". Re-read original "+axis+" instants: "+(dates.join(", ")||(row.returned>0?"not included in this coverage metadata":"none"))+". Other original bodies within that scope were not re-read; their individual dates and contents are not established by this retained selection.";
 }
 /** Authoritative query coverage, independent of model wording. No internal handles. */
 export function readCoverageMessages(coverage=[]) {

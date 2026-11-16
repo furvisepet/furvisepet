@@ -54,6 +54,7 @@ function assessmentSchema(ownerStatements){
  return out;
 }
 export const CLINICAL_INSTRUCTIONS=[
+ "The final concernReview separately selects pastReportSentence only for a relevant actual owner-reported past/resolved episode. No symptoms today, acting normally now, and hypothetical future warnings do not themselves assert any past report. Do not add historical-report boilerplate to future-only education. This selection cannot cancel any recognized current acute event.",
  "The final concernReview independently reviews NON-EMERGENCY occurrence from concernSentences, preserving natural tense, explicit negation and owner corrections. Select the exact sentence handle asserting the current concern; an old report, a resolved problem, a question about an emergency today, or explicit absence of current symptoms is not a current assertion. Historical and negated statements may coexist. Do not retain a mistaken preliminary current_concern label. Current acute event obligations are reviewed separately and cannot be downgraded here. Do not introduce irrelevant observation fields. For a past-only question, answer the evidence question directly without diagnosing or giving blanket medical clearance.",
 
  "For each acute event, choose exactly ONE occurrence in eventAssessments: current, conditional, historical or negated. There is no global scenario/urgency classification on this wire. A current mild problem does NOT make the severe IF warning current. Never duplicate an event across meanings. If an event is genuinely happening now as well as discussed for the future, classify that event as current; other future events remain conditional. For current events, select the relevant ownerStatementRef whose exact server-held statement asserts the event is happening or suspected now; a future IF clause or an assistant warning is not such an assertion. Never regenerate evidence quotations. Conditional warnings need no current-event assertion. Review the occurrence independently in the second pass.",
@@ -150,7 +151,7 @@ export function clinicalAnswerSchema(schema,initial,ownerStatements=[],pets=[]){
  }
  const refs=ownerStatements.map(t=>t.ref);
  out.properties.clinicalReview=object({
-  concernReview:object({occurrence:choice(["current","historical","resolved","negated","conditional","none"]),sentence:{type:["string","null"],enum:[...concernSentenceCatalog(ownerStatements).map(s=>s.handle),null],description:JSON.stringify(concernSentenceCatalog(ownerStatements))}}),
+  concernReview:object({occurrence:choice(["current","historical","resolved","negated","conditional","none"]),sentence:{type:["string","null"],enum:[...concernSentenceCatalog(ownerStatements).map(s=>s.handle),null],description:JSON.stringify(concernSentenceCatalog(ownerStatements))},pastReportSentence:{type:["string","null"],enum:[...concernSentenceCatalog(ownerStatements).map(s=>s.handle),null],description:"Exact owner sentence asserting a relevant actual past or resolved report. Null when the owner only says there are no symptoms today or asks a future IF question. A negation alone is not a historical episode."}}),
   assessment:assessmentSchema(ownerStatements),
   ownerStatementRefs:{type:"array",maxItems:4,items:{type:"string",...(refs.length?{enum:refs}:{})},...(!refs.length?{maxItems:0}:{})},
   observationFields:list(Object.keys(observations),8)
@@ -189,7 +190,7 @@ export function reviewClinicalAnswer(value,initial,ownerStatements=[],pets=[],wo
  const workflow={...value.appHelp,intent:value.appHelp.intent==="none"?workflowIntent:value.appHelp.intent};
  if(!(keys(review,["assessment","ownerStatementRefs","observationFields"])||keys(review,["assessment","ownerStatementRefs","observationFields","concernReview"]))||!v2(review.assessment))reject("review_shape");
  const concern=review.concernReview;
- if(concern&&(!keys(concern,["occurrence","sentence"])||!["current","historical","resolved","negated","conditional","none"].includes(concern.occurrence)||concern.sentence!==null&&!concernSentenceCatalog(ownerStatements).some(s=>s.handle===concern.sentence)||concern.occurrence==="current"&&concern.sentence===null))reject("concern_evidence");
+ if(concern&&(!(keys(concern,["occurrence","sentence"])||keys(concern,["occurrence","sentence","pastReportSentence"]))||Object.hasOwn(concern,"pastReportSentence")&&concern.pastReportSentence!==null&&!concernSentenceCatalog(ownerStatements).some(s=>s.handle===concern.pastReportSentence)||!["current","historical","resolved","negated","conditional","none"].includes(concern.occurrence)||concern.sentence!==null&&!concernSentenceCatalog(ownerStatements).some(s=>s.handle===concern.sentence)||concern.occurrence==="current"&&concern.sentence===null))reject("concern_evidence");
  if(initial.protocolVersion===3&&!Object.hasOwn(review.assessment,"eventAssessments"))reject("review_shape");
  const final=validateClinicalAssessment(review.assessment,ownerStatements);
  if(!Array.isArray(review.ownerStatementRefs)||review.ownerStatementRefs.length>4||review.ownerStatementRefs.some(ref=>!ownerStatements.some(t=>t.ref===ref)))reject("owner_statement_reference");
@@ -199,7 +200,7 @@ export function reviewClinicalAnswer(value,initial,ownerStatements=[],pets=[],wo
  const current=[...new Set(states.flatMap(s=>s.currentEvents))],conditional=[...new Set([...states.flatMap(s=>s.conditionalEvents),...introduced])];
  // Keep earlier recognized obligations; a later classification cannot downgrade them.
  const currentConcern=concern?concern.occurrence==="current":states.some(s=>s.careContext==="current_concern"||["current","uncertain"].includes(s.scenario)&&s.urgency==="prompt");
- const summaryContext=states.some(s=>s.careContext==="vet_summary"),historical=concern?["historical","resolved","negated"].includes(concern.occurrence):states.some(s=>s.careContext==="clinical_history");
+ const summaryContext=states.some(s=>s.careContext==="vet_summary"),historical=concern?Object.hasOwn(concern,"pastReportSentence")?concern.pastReportSentence!==null:["historical","resolved","negated"].includes(concern.occurrence):states.some(s=>s.careContext==="clinical_history");
  const historicalOnly=!!concern&&historical&&!currentConcern&&!current.length&&!decision&&!summaryContext;
  const educationalOnly=!decision&&!current.length&&!currentConcern&&!summaryContext&&!historical&&states.every(s=>["none","education"].includes(s.careContext));
  const active=decision||current.length>0||conditional.length>0||currentConcern||summaryContext||historical;

@@ -113,3 +113,22 @@ The next small repair renders an explicit owner-declared absent-pet information 
 ### Category guidance before the next frozen pair
 
 Source inspection found History category display still hard-coded Activity. It now uses the same CARE_ENTRY_CATEGORIES / formatCareEntryCategory registry as the actual form, selecting a category only when one recognized choice is present. Grooming and Food choices are covered. 49 focused checks and scoped lint pass; TypeScript passed immediately before this MJS-only change. No new cohort answer was used for this correction.
+
+## Final e6694e46 online result and quota stop
+
+Exact online-tested source e6694e464524a701933b04e4278ceed33a03942a; READY dpl_3AxsjGPG4rNxxJHBPgYVWBkb7uTf.
+Fresh X: 27 PASS / 3 PARTIAL / 0 FAIL, 56 physical calls, $1.189917 reconciled actual.
+Independently frozen Y: 18 PASS / 2 PARTIAL / 2 FAIL / 8 UNANSWERED, 43 physical calls. $0.845458 reconciled actual across 42 calls, plus ONE UNKNOWN actual-cost call. This is an incomplete, unqualified holdout, not 90%. Its maximum possible full-pass total is 26/30 even if all remaining questions passed.
+
+Y22 returned HTTP429, provider type insufficient_quota, provider request req_d6166b2aff524b10b8642536d3a3e401. No verified answer published. Exact cost operation 0babdac23cd81249efedfd1022dd3f9ce05ea4ac827baf3280741c854525016a, call1, gpt-5.4, actual_microdollars NULL. Paid testing stopped immediately once observed; no retry and no inferred zero. ledger.json unknownStop=true, unknownCostCase=Y22. Total continuation testing: 400 physical calls, 399 with known actual receipts totaling $6.331622, plus this one unknown. The separate historical unknown remains separately unknown; original exhausted 60-call cohort costs are not merged into this total.
+
+No critical medical, wrong-pet ownership or fabricated-citation incident observed in W/V/J/X/Y. Care data remained at 628 entries and digest b847c0f3e6a9ec902345d670cea72ea7. No care/profile writes, production deployment, CI branch changes or protection bypass were performed.
+
+## Post-cohort source repairs: not online-qualified
+
+Coverage deliberately stripped original bodies and their timestamps before rendering, so the new timestamp list falsely showed none. The body-free coverage now carries only event/recorded instants, and a missing metadata list cannot claim no re-read sources.
+Whole-original acquisition and rendering now share the same intent check; requesting full event/recorded instants no longer relies on a particular adjacent timestamps phrase. Timestamp explanations work when phrased as explain what each timestamp means; the existing replace-the-quotation form remains supported.
+An explicit History screen and controls question can span clauses; it no longer requires adjacent History controls wording.
+Clinical concern review now selects an exact actual past-report sentence independently of current normality/negation. No symptoms today and future IF questions do not themselves establish a past report. Current acute obligations cannot be downgraded.
+
+Validation: 53 focused checks pass, TypeScript clean, scoped lint clean. These checks do not substitute for the stopped online holdout. This new repair commit remains NO-GO until provider quota is restored, the unknown cost is reconciled from authoritative evidence, and a completely new distinct frozen 30-question cohort plus independently frozen holdout each achieve >=27/30 on the exact new SHA/preview with zero critical incidents. Do not replay Y22 or reuse X/Y as qualifying cohorts.
