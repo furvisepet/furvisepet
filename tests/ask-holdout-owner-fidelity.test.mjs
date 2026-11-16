@@ -71,3 +71,11 @@ test("explicit absent-pet information limit replaces only the unsupported read n
   assert.equal(renderDeclaredAbsentPet(a,question,pets,reads),a);
  }
 });
+
+import {renderAppWorkflow} from "../app/lib/ask-read-only/app-capabilities.mjs";
+test("History category guidance uses actual registry values beyond Activity",()=>{
+ for(const [word,label] of [["grooming","Grooming"],["food","Food"]]){
+  const out=renderAppWorkflow({answer:"",presentation:{}},{intent:"find_care_note",pet:"p1"},[{handle:"p1",name:"Juniper",id:"owned-pet"}],false,"How do I use History to find Juniper\'s "+word+" entries?");
+  assert.ok(out.answer.includes("Pet: Juniper; Category: "+label));
+ }
+});

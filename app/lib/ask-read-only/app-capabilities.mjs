@@ -1,3 +1,4 @@
+import {CARE_ENTRY_CATEGORIES,formatCareEntryCategory} from "../care-log.mjs";
 import {CARE_NOTE_UI,HISTORY_NOTE_UI} from "../care-workflow.mjs";
 export const WORKFLOW_INTENTS=Object.freeze(["none","create_care_note","find_care_note","care_photo_attachment","other"]);
 export const APP_CAPABILITIES=Object.freeze({
@@ -28,7 +29,8 @@ export function renderAppWorkflow(answer,workflow,pets=[],append=false,question=
  const pet=pets.find(p=>p.handle===workflow.pet),name=pet?.name&&!/\b[ps]\d+\b/.test(pet.name)&&!pets.some(p=>p.id===pet.name)?pet.name:"the intended pet";
  const intro="Ask can read saved information and help draft text, but it cannot upload, save, edit or open pages for you.";
  const today="To add a text note yourself:\n1. Open Today and choose "+name+".\n2. Enter the information in “"+CARE_NOTE_UI.note+"”.\n3. Use “"+CARE_NOTE_UI.details+"” if you want to set "+CARE_NOTE_UI.category+" and "+CARE_NOTE_UI.when+".\n4. Select “"+CARE_NOTE_UI.submit+"” and check that the note appears in Recent.";
- const category=/\bactivity\b/i.test(question)?"Activity":null;
+ const categories=CARE_ENTRY_CATEGORIES.map(formatCareEntryCategory).filter(label=>new RegExp("\\b"+label.replace(/[.*+?^$()|[\]\\{}]/g,"\\$&")+"\\b","iu").test(question));
+ const category=categories.length===1?categories[0]:null;
   const filterChoices=[named.length===1?"Pet: "+name:null,category?"Category: "+category:null].filter(Boolean);
   const find="To find a saved note yourself:\n1. Open History.\n2. Use “"+HISTORY_NOTE_UI.search+"” and the Pet, Category or When filters."+(filterChoices.length?" Choose "+filterChoices.join("; ")+".":"")+"\n3. Select a result to read it. Use “"+HISTORY_NOTE_UI.older+"” if you need older results.";
  const parts=[intro];
