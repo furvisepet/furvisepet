@@ -1,6 +1,6 @@
 import type { DogProfileRow } from "./supabase.ts";
 import { serializeReadOnlyProfile } from "./ask-read-only/data.ts";
-import { isReadOnlyResult } from "./ask-read-only/core.mjs";
+import { isReadOnlyResult, READ_ONLY_LIMITS } from "./ask-read-only/core.mjs";
 import "server-only";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import type { AskReasoningResult } from "./ai/ask-reasoning.ts";
@@ -35,7 +35,7 @@ export function verifyAskCitationProof(token: unknown, owner: string, body: Body
  if(!timingSafeEqual(Buffer.from(parts[1],"hex"),Buffer.from(mac(parts[0],secret),"hex")))return null;
  try {
   const p=JSON.parse(Buffer.from(parts[0],"base64url").toString("utf8")) as Proof;
-  if(p.v!==1 || p.owner!==owner || p.body!==citationBodyHash(body) || !Array.isArray(p.sources) || !p.sources.length || p.sources.length>32
+  if(p.v!==1 || p.owner!==owner || p.body!==citationBodyHash(body) || !Array.isArray(p.sources) || !p.sources.length || p.sources.length>READ_ONLY_LIMITS.records
    || new Set(p.sources.map(s=>s.id)).size!==p.sources.length
    || p.sources.some(s=>!s || s.kind!==undefined&&!["history","profile"].includes(s.kind) || [s.id,s.petId,s.hash,s.event,s.recorded].some(v=>typeof v!=="string")))return null;
   return p;
@@ -56,7 +56,7 @@ export function issueReadOnlyCitationProof(result:unknown,body:Body,owner:string
  const reviewed=result as {sources:Array<{kind:string;id:string;ownerId:string;petId:string;body:string;eventAt:string;recordedAt:string}>};
  const rows=reviewed.sources;
  const secret=key();
- if(!secret||!rows.length||rows.length>32||rows.some(row=>row.ownerId!==owner))return null;
+ if(!secret||!rows.length||rows.length>READ_ONLY_LIMITS.records||rows.some(row=>row.ownerId!==owner))return null;
  const sources=rows.map(row=>({kind:row.kind as "history"|"profile",id:row.id,petId:row.petId,hash:createHash("sha256").update(row.body).digest("hex"),event:row.eventAt,recorded:row.recordedAt}));
  const payload=Buffer.from(JSON.stringify({v:1,owner,body:citationBodyHash(body),sources} satisfies Proof)).toString("base64url");
  return payload+"."+mac(payload,secret);

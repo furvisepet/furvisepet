@@ -21,8 +21,10 @@ export const COMPONENT_INSTRUCTIONS=[
  MEASUREMENT_INSTRUCTIONS,
  HISTORY_SYNTHESIS_INSTRUCTIONS,
  EVIDENCE_COMPLETION_INSTRUCTIONS,
+ "When an owner explicitly says a named animal is not a saved/owned pet, state plainly that its requested saved fact is unavailable. That read request is not a write capability question and must not become a generic read-only-action refusal. Answer each independent ordinary question as well. Do not fetch another pet or ask which pet when the absence is explicit.",
  "An actual request to draft a note, message, summary or handoff FOR the veterinarian is vet_brief, including when the owner supplies only current observations. It is not general_guidance merely because no saved lookup or diagnosis is requested. Use the exact owner sentence handles, separate observations from questions, and select relevant observationFields for useful vet questions. General education about how to prepare a note is different from drafting the requested handoff.",
  "A fully scoped needsHistory collection requires an actual read in the first read selection. An empty read list is not proof that saved information is unavailable. Use the owned pet and explicit event/recorded period; never let a generic summary label cancel the requested acquisition.",
+ "An entire original care note means the complete original body, including opening measurement sentences. It remains one single-record exact_quote request, regardless of whether its timestamps are phrased separately as the full event timestamp and full saved timestamp.",
  "Each task is an INDEPENDENT owner-requested deliverable, not an output field. Retrieving a particular saved note, its original wording, and when its event happened versus when it was recorded is ONE saved_content task with recordMode=single and includeSourceDates=true. Those timestamps and quotations are source outputs, never an extra general_guidance task. A month/year lookup does not become a collection merely because its note has several requested fields; use exact_quote for the particular note. Use general_guidance only when the owner actually asks a separate ordinary question that needs its own answer. Do not manufacture an unanswered general task from words such as original wording, event time, recorded time or explain the saved note. Before returning taskPlan, check every task against the actual independent request and combine source metadata with its saved_content task. Preserve genuinely separate general, clinical, workflow and calculation requests.",
  "Missing medicine, prescription or vet_plan authority belongs to its clinical task, not the identity of an independently named owned pet and dated saved note. Keep those clinical prerequisites intact while planning the separate bounded saved lookup. Asking for BOTH event and recorded timestamps requests display fields, not a choice between which timestamp to show. Use the explicit retrieval axis and calendar scope; only genuinely unresolved pet, period or axis requires clarification. Never copy a clinical missing field onto independent saved-record identity.",
  "For collection summaries, use concise grounded themes in historySynthesis. Use historyFacts only for salient source-specific dates/details the owner actually requests, using the exact admitted source and contiguous original sentence. Avoid duplicating their wording in historySynthesis. The server supplies its event/recorded date. Keep component prose to an undated synthesis of patterns and limitations; do not generate month/year-specific paraphrases or citation ranges. Select salient exceptions as historyFacts as well as routine background. Only single source handles may be used as inline references.",
@@ -55,13 +57,16 @@ export function componentSelectionSchema(base,context){
   // Independent enum fields otherwise allow a schema-valid but unusable packet.
   const variants=[withoutHistory,withHistory].flatMap(history=>{
    const ordinary=structuredClone(history),workflow=structuredClone(history);
-   ordinary.properties.kind=choice(kinds.filter(kind=>kind!=="workflow"&&kind!=="calculation"));
+   ordinary.properties.kind=choice(history===withoutHistory?["general_guidance","clinical_guidance","owner_observations","vet_brief","clarification"]:["saved_content","saved_continuation","owner_observations","vet_brief","clinical_guidance","clarification"]);
    ordinary.properties.workflow=choice(["none"]);
    workflow.properties.kind=choice(["workflow"]);
    workflow.properties.workflow=choice(workflows.filter(intent=>intent!=="none"));
    const calculation=structuredClone(ordinary);calculation.properties.kind=choice(["calculation"]);calculation.properties.reference={type:"null",enum:[null]};
    calculation.properties.needsHistory={type:"boolean",enum:[true]};calculation.properties.needsOwnerFacts={type:"boolean",enum:[false]};calculation.properties.recordMode=choice(["collection"]);calculation.properties.pets.minItems=1;
-    return history===withHistory?[ordinary,workflow,calculation]:[ordinary,workflow];
+    const general=structuredClone(ordinary);general.properties.kind=choice(["general_guidance"]);general.properties.reference={type:"null",enum:[null]};general.properties.missing.maxItems=0;general.properties.needsOwnerFacts={type:"boolean",enum:[false]};general.properties.includeSourceDates={type:"boolean",enum:[false]};
+    const saved=structuredClone(ordinary);saved.properties.kind=choice(["saved_content","saved_continuation"]);saved.properties.needsOwnerFacts={type:"boolean",enum:[false]};saved.properties.missing=array(choice(["pet","year","date_meaning","which_record"]),4);
+    ordinary.properties.kind=choice(["clinical_guidance","owner_observations","vet_brief","clarification"]);
+    return history===withHistory?[saved,ordinary,workflow,calculation]:[general,ordinary,workflow];
   });
   out.properties.taskPlan.items={anyOf:variants};out.required.push("taskPlan");return out;
 }
@@ -225,7 +230,8 @@ export function reviewComponentCompletion(final,plan,sources,ownerStatements,pet
  const entries=final?.completion;if(!Array.isArray(entries)||entries.length!==plan.length||new Set(entries.map(e=>e?.task)).size!==plan.length)reject("completion");
  const tasks=plan.map(task=>{
   const raw=entries.find(e=>e.task===task.id);
-  const strictSynthesis=!!raw&&Object.hasOwn(raw,"historySynthesis");
+  const originalQuoted=task.kind==="saved_content"&&task.recordMode==="single"&&!task.missing.length&&!task.needsOwnerFacts&&raw?.sources?.length===1&&final.quotes?.includes(raw.sources[0])&&sources.some(s=>s.handle===raw.sources[0]&&s.kind==="history");
+   const strictSynthesis=!!raw&&Object.hasOwn(raw,"historySynthesis")&&!originalQuoted;
   const legacy=raw&&{...raw};if(legacy)delete legacy.historySynthesis;
   const e=legacy&&{...legacy,ownerFacts:Array.isArray(raw.ownerFacts)?raw.ownerFacts.map(f=>{
    if(!keys(f,["sentence","kind"]))return f; // Legacy stored/local adapter compatibility only.
@@ -249,8 +255,8 @@ export function reviewComponentCompletion(final,plan,sources,ownerStatements,pet
   const historySynthesis=strictSynthesis?(synthesis?.length?synthesis:historyFacts.map(f=>({topic:"Historical observations",evidence:[{...f,petId:sources.find(s=>s.handle===f.source).petId,pet:sources.find(s=>s.handle===f.source).petName,eventAt:sources.find(s=>s.handle===f.source).eventAt,recordedAt:sources.find(s=>s.handle===f.source).recordedAt}]}))):undefined;
   const selected=[...new Set([...e.sources,...historyFacts.map(f=>f.source),...(historySynthesis??[]).flatMap(t=>t.evidence.map(e=>e.source))])];
   if(task.pets.length>0&&selected.some(h=>!pets.some(p=>task.pets.includes(p.handle)&&p.id===sources.find(s=>s.handle===h).petId)))reject("task_source_pet");
-  let status=e.status,reason=e.reason;
-  if(strictSynthesis&&["saved_content","saved_continuation"].includes(task.kind)&&(!historySynthesis?.length||synthesisDiagnostics.length)){status="partial";reason="not_answered";}
+  let status=originalQuoted?"complete":e.status,reason=originalQuoted?"none":e.reason;
+  if(strictSynthesis&&["saved_content","saved_continuation"].includes(task.kind)&&task.recordMode==="collection"&&(!historySynthesis?.length||synthesisDiagnostics.length)){status="partial";reason="not_answered";}
   if(task.needsOwnerFacts&&!ownerFacts.length){status="partial";reason="missing_context";}
   if(rejectedFact){status="partial";reason="not_answered";}
   if(scopeMissing(task)||task.kind!=="vet_brief"&&task.missing.length){status="unresolved";reason="missing_context";}
@@ -311,7 +317,7 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
   if(t.kind==="workflow"&&t.workflow==="other")return {...t,status:"unresolved",reason:"not_supported"};
   if(t.kind==="vet_brief"&&t.id!==firstBrief)return {...t,status:"partial",reason:"not_answered"};
   const boundedClinicalDelivery=t.kind==="clinical_guidance"&&answer.clinicalDisplayBounded===true&&!policy?.decision&&!!(policy?.current?.length||policy?.conditional?.length||policy?.historicalOnly)&&!t.needsHistory&&!t.needsOwnerFacts&&!t.missing.length&&t.reference===null&&!t.sources.length;
-   if(policy?.active&&t.status==="complete"&&(["general_guidance","clinical_guidance"].includes(t.kind)&&!boundedClinicalDelivery||t.kind==="clarification"&&!t.missing.length||["saved_content","saved_continuation"].includes(t.kind)&&!t.historyFacts.length&&!answer.quotes?.some(q=>t.sources.includes(q.source))||t.kind==="owner_observations"&&!t.ownerFacts.length))return {...t,status:"partial",reason:"not_answered"};
+   if(policy?.active&&t.status==="complete"&&(["general_guidance","clinical_guidance"].includes(t.kind)&&!boundedClinicalDelivery&&!(policy.educationalOnly&&answer.validatedParts?.some(p=>p.kind==="general"&&t.componentIndexes.includes(p.index)))||t.kind==="clarification"&&!t.missing.length||["saved_content","saved_continuation"].includes(t.kind)&&!t.historyFacts.length&&!answer.quotes?.some(q=>t.sources.includes(q.source))||t.kind==="owner_observations"&&!t.ownerFacts.length))return {...t,status:"partial",reason:"not_answered"};
   if(t.kind==="calculation"){
    const scoped=(answer.calculations??[]).filter(c=>Array.isArray(c.sourceHandles)&&c.sourceHandles.length&&c.sourceHandles.every(h=>t.sources.includes(h)));
    if(!scoped.length||scoped.some(c=>c.available===false)||!t.sources.length||t.sources.some(h=>!scoped.some(c=>c.sourceHandles.includes(h))))return {...t,status:"unresolved",reason:"not_answered"};
@@ -320,7 +326,7 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
    const petIds=new Set(sources.filter(s=>t.sources.includes(s.handle)).map(s=>s.petId));
    const groups=coverage.filter(r=>r.scope.kind!=="profile"&&r.sources.some(s=>sources.some(actual=>actual.handle===s.source&&petIds.has(actual.petId))));
    const prior=new Set(groups.filter(r=>r.scope.evidenceRole==="retained_prior").flatMap(r=>r.sources.map(s=>s.source)));
-   const fresh=new Set(groups.filter(r=>r.scope.evidenceRole==="fresh_remainder").flatMap(r=>r.sources.map(s=>s.source)));
+   const fresh=new Set(groups.filter(r=>["fresh_remainder","fresh_scoped"].includes(r.scope.evidenceRole)).flatMap(r=>r.sources.map(s=>s.source)));
    const displayed=[...t.historyFacts.map(f=>f.source),...(!policy?.active?(t.historySynthesis??[]).flatMap(theme=>theme.evidence.map(e=>e.source)):[])];
    if(!displayed.some(h=>prior.has(h))||!displayed.some(h=>fresh.has(h)))return {...t,status:"partial",reason:"not_answered",combinedEvidenceMissing:true};
   }

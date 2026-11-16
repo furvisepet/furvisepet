@@ -7,12 +7,12 @@ import {validateHistorySynthesis} from "./history-synthesis.mjs";
 export function completeFreshHistory(tasks,sources,coverage){
  if(!tasks)return tasks;
  return tasks.map(task=>{
-  if(task.kind!=="saved_continuation"||task.recordMode!=="collection"||!task.needsHistory
+  if(!["saved_continuation","saved_content"].includes(task.kind)||task.kind==="saved_content"&&!task.combineHistory||task.recordMode!=="collection"||!task.needsHistory
    ||typeof task.reference!=="string"||!task.reference||task.status==="unresolved"||task.missing.length||!Array.isArray(task.historySynthesis))return task;
   const catalog=new Map(sources.filter(s=>s.kind==="history").map(s=>[s.handle,s]));
   const fresh=new Map();
   for(const group of coverage){
-   if(group.scope.kind!=="history"||group.scope.evidenceRole!=="fresh_remainder"
+   if(group.scope.kind!=="history"||!["fresh_remainder","fresh_scoped"].includes(group.scope.evidenceRole)
     ||group.scope.reference!==task.reference||!task.pets.includes(group.scope.petHandle))continue;
    for(const row of group.sources){
     const s=catalog.get(row.source);

@@ -1,3 +1,4 @@
+import {namedOwnedPets} from "./subject-scope.mjs";
 const object=properties=>({type:"object",additionalProperties:false,properties,required:Object.keys(properties)});
 const operations=["difference","percent_change"];
 const metrics=["body_weight","food_mass","body_length"];
@@ -10,8 +11,17 @@ export function measurementRequestSchema(context){
 }
 export const MEASUREMENT_INSTRUCTIONS="For each saved-measurement signed change or percentage change, supply measurementRequests with ONE independently owned pet per request and separate start/finish endpoint scopes. Resolve the owner's actual endpoint period, including a shared period in a two-pet question. Fresh endpoints use precise calendar windows (a named month means that whole month), reference=null. For the same endpoints follow-up, select each retained result's reference, from=to=null; re-read BOTH endpoints. Never use the earlier assistant's numeric result as input. If scope is ambiguous, ask a pointed clarification and leave measurementRequests empty. Task reference stays null; measurement tasks are collections even when endpoints are single notes. Use event dates unless the owner explicitly selects recording time. Percent change uses the earlier measurement as denominator, never the difference or final value. The server selects unique typed measurements and computes; never put literal operands or computed numbers in prose. Include separate requests for two pets and never use another pet's source. This plan supplies reads; do not omit it merely because no read tool was chosen. Other requests use measurementRequests=[].";
 const keys=(v,k)=>v&&typeof v==="object"&&!Array.isArray(v)&&Object.keys(v).sort().join(",")===[...k].sort().join(",");
-const esc=s=>s.replace(/[.*+?^$()|{}\[\]\\]/g,c=>"\\"+c);
 function invalid(field){throw Object.assign(new Error("ASK_READ_MEASUREMENT_SCOPE"),{code:"ASK_READ_MEASUREMENT_SCOPE",answerDiagnostic:{category:"measurement_scope",field}});}
+/** An explicitly requested single date axis overrides a contradictory model
+ * hint before fresh endpoint IO. Retained fingerprint-bound locators are never
+ * silently reinterpreted as a different axis. */
+export function reconcileExplicitMeasurementAxis(requests,question){
+ const event=/\bevent\s+(?:dates?|times?|timestamps?)\b/iu.test(question);
+ const recorded=/\b(?:recorded|saved|recording)\s+(?:dates?|times?|timestamps?)\b/iu.test(question);
+ if(event===recorded)return requests;
+ const axis=event?"event":"recorded";
+ return requests.map(q=>q.start?.reference===null&&q.finish?.reference===null?{...q,timeBasis:axis}:q);
+}
 export function compileMeasurementRequests(requests,first,plan,context,bind){
  if(!Array.isArray(requests)||requests.length>2)invalid("request_shape");
  if(!requests.length)return null;
@@ -31,8 +41,9 @@ export function compileMeasurementRequests(requests,first,plan,context,bind){
     call={id:"measurement-"+i+"-"+side,name:"read_referenced_sources",arguments:JSON.stringify({reference:e.reference})};
    }else{
     if(typeof e.from!=="string"||typeof e.to!=="string"||e.from>e.to)invalid("fresh_endpoint_dates");
-    const named=context.pets.filter(p=>new RegExp("(?<![\\p{L}\\p{N}])"+esc(p.name)+"(?![\\p{L}\\p{N}])","iu").test(context.question));
-    if(!named.some(p=>p.handle===q.pet)||context.pets.filter(p=>p.name.toLocaleLowerCase()===pet.name.toLocaleLowerCase()).length!==1)invalid("fresh_endpoint_subject");
+    const named=namedOwnedPets(context.question,context.pets);
+    const antecedent=context.ownerSubjectScope?.method==="prior_owner"&&context.ownerSubjectScope.pets.length===1&&context.ownerSubjectScope.pets[0]===q.pet;
+    if((!named.some(p=>p.handle===q.pet)&&!antecedent)||context.pets.filter(p=>p.name.toLocaleLowerCase()===pet.name.toLocaleLowerCase()).length!==1)invalid("fresh_endpoint_subject");
     const event=q.timeBasis==="event";
     call={id:"measurement-"+i+"-"+side,name:"search_saved_records",arguments:JSON.stringify({pet:q.pet,from:event?e.from:null,to:event?e.to:null,recordedFrom:event?null:e.from,recordedTo:event?null:e.to,goal:"comparison",alternatives:[],orderBy:q.timeBasis,order:"asc",query:null,offset:0})};
    }
@@ -72,4 +83,24 @@ export function resolveMeasurementRequests(bindings,results,sources){
   const available=a.length===1&&b.length===1&&a[0].handle!==b[0].handle&&a[0].petId===b[0].petId&&a[0].time<b[0].time;
   return {task:q.task,petName:q.petName,reason:available?null:a.length>1||b.length>1?"ambiguous":!a.length||!b.length?"unavailable":"chronology",available,sources:available?[a[0].source,b[0].source]:[],calculation:available?{operation:q.operation,timeBasis:q.timeBasis,operands:[a[0].handle,b[0].handle]}:null};
  });
+}
+
+/** Recover only a declared percentage follow-up with one owner antecedent and
+ * exactly two fingerprint-backed comparison locators. Values are reread later. */
+export function recoverRetainedPercentageRequests(requests,first,plan,context){
+ if(!Array.isArray(requests)||requests.length||first.calls?.length||plan?.length!==1)return null;
+ const task=plan[0],scope=context.ownerSubjectScope;
+ if(task.kind!=="calculation"||!task.needsHistory||task.needsOwnerFacts||task.reference||task.missing.length||task.pets.length!==1||scope?.pets.length!==1||scope.pets[0]!==task.pets[0])return null;
+ const question=String(context.question);
+ if(!/\b(?:percentage|percent)\b/iu.test(question)||!/\b(?:that|same|those)\b/iu.test(question)||/\b(?:19|20|21)\d{2}\b/u.test(question))return null;
+ const prior=[...(context.dialogue??[])].reverse().find(row=>row.role==="user");
+ if(!prior||!/\b(?:body[- ]weight|weight)\b/iu.test(prior.text)||/\b(?:food|length|height|dose)\b/iu.test(prior.text))return null;
+ const references=(context.references??[]).filter(r=>r.kind==="history"&&r.petHandle===task.pets[0]&&r.goal==="comparison");
+ if(references.length!==2||references.some(r=>r.sourceCount!==1)||references[0].orderBy!==references[1].orderBy||!["event","recorded"].includes(references[0].orderBy))return null;
+ const basis=references[0].orderBy,lo=basis==="event"?"from":"recordedFrom",hi=basis==="event"?"to":"recordedTo";
+ if(references.some(r=>!r[lo]||!r[hi]||(basis==="event"?(r.recordedFrom||r.recordedTo):(r.from||r.to))))return null;
+ const ordered=[...references].sort((a,b)=>a[lo].localeCompare(b[lo]));
+ if(ordered[0][hi]>=ordered[1][lo])return null;
+ return [{task:task.id,pet:task.pets[0],metric:"body_weight",operation:"percent_change",timeBasis:basis,
+  start:{from:null,to:null,reference:ordered[0].reference},finish:{from:null,to:null,reference:ordered[1].reference}}];
 }

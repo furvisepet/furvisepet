@@ -46,3 +46,11 @@ test("four-goal request keeps all evidence and owner coverage while omitting tra
  for(const packed of data.TOOL_DATA){for(const k of ["discovery","batchAcquisition","continuationValidation"])assert.equal(Object.hasOwn(packed,k),false);for(const k of ["scope","inspected","omitted","total","hasMore","truncated","queryScopeExhausted","scopeExhausted","semanticRecallVerified","sourceMeaning","status","unmet","omittedRange"])assert.deepEqual(packed[k],row[k]);}
  assert.deepEqual(data.CLINICAL_CONSTRAINTS,input.CLINICAL_CONSTRAINTS);assert.ok(describeReadRequest(wire).estimatedInputTokens<=20000);
 });
+
+test("quality candidate uses supported low reasoning while the mini candidate retains its own setting",()=>{
+ const input={instructions:"Answer concisely.",context:{dialogue:[],question:"Hello."},tools:[]};
+ const full=buildReadOnlyProviderRequest("gpt-5.4",input,"read_selection",8000,policy);
+ const mini=buildReadOnlyProviderRequest("gpt-5.4-mini",input,"read_selection",8000,policy);
+ assert.deepEqual(full.reasoning,{effort:"low"});assert.deepEqual(mini.reasoning,{effort:"medium"});
+ assert.equal(full.max_output_tokens,8000);
+});
