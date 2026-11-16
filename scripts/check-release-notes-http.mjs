@@ -30,7 +30,7 @@ try {
   const html = await notes.text();
   assert.match(html, /No published release updates/);
   assert.doesNotMatch(html, /september-15-2026|2026-09-15|Building Furvise for everyday pet care|Historical public-beta update/);
-  assert.doesNotMatch(html, /Your pet&#x27;s story|Your pet's story|Furvise V1 release notes/);
+  assert.doesNotMatch(html, /id="furvise-v1"|Furvise V1 release notes|Your pet(?:&#x27;|')s story, in your own words/);
   assert.match(html, /noindex/);
   const sitemap = await (await fetch(base + "/sitemap.xml", { signal: AbortSignal.timeout(5000) })).text();
   assert.doesNotMatch(sitemap, /<loc>[^<]*\/release-notes<\/loc>/);
@@ -38,7 +38,7 @@ try {
   assert.equal(archived.status, 404);
   const availability = await fetch(base + "/api/ai/availability", { signal: AbortSignal.timeout(5000) });
   assert.deepEqual(await availability.json(), { ask: false });
-  const blocked = await fetch(base + "/api/ask", { method: "POST", headers: { "content-type": "application/json" }, body: "{}", signal: AbortSignal.timeout(5000) });
+  const blocked = await fetch(base + "/api/ask", { method: "POST", headers: { "content-type": "application/json", origin: base }, body: "{}", signal: AbortSignal.timeout(5000) });
   assert.equal(blocked.status, 503);
   assert.equal((await blocked.json()).code, "AI_FEATURE_UNAVAILABLE");
   console.log("PASS: beta absent, V1 unpublished, sitemap clean, AI disabled; no prompt sent.");
