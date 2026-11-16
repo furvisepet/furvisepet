@@ -132,7 +132,7 @@ export function reconcilePlannedSavedDates(first,plan,context,bound){
 export function recoverIndependentOriginalRead(first,plan,context){
  if(!plan||first.calls.length>1||first.historyIntent?.requested!==true)return null;
  const q=String(context.question);
- const display=/\b(?:(?:both|two)\s+(?:(?:full|complete)\s+)?(?:timestamps|timestamp\s+instants|dates)|event\s+and\s+(?:saved|recorded)\s+(?:timestamps|dates))\b/iu.test(q);
+ const display=/\b(?:(?:both|two)\s+(?:(?:full|complete)\s+)?(?:timestamps|timestamp\s+instants|dates)|event\s+and\s+(?:saved|recorded)\s+(?:timestamps|dates))\b/iu.test(q)||/\bevent\s+timestamp\b/iu.test(q)&&/\b(?:saved|recorded)\s+timestamp\b/iu.test(q);
  if(!display||/["\x60]/u.test(q))return null;
  const calendar=explicitCalendarWindow(q);if(!calendar||!["month","day"].includes(calendar.precision))return null;
  const named=positiveOwnedPets(q,context.pets);

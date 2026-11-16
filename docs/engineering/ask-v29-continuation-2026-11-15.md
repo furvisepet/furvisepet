@@ -89,3 +89,17 @@ Candidate db108de41190e75197eff1a7313a0f0cc76464fe was stopped unqualified after
 The next preview compares the existing registered GPT-5.4 model with low reasoning, using the existing API connection. Official GPT-5.4 documentation fetched2026-11-16 confirms low reasoning/structured output and Standard rates matching the existing registry: input$2.50, cached input$0.25, output$15.00 per million tokens. Source: https://developers.openai.com/api/docs/models/gpt-5.4 . The branch-specific preview override OPENAI_ASK_PRIMARY_MODEL=gpt-5.4 applies only to codex/ask-identity-continuation-1115. No global or production model setting changed. This is a distinct qualification candidate; mini has not met90%.
 
 Each next fresh30-question cohort and independent holdout is capped at60physical calls and$12actual, with critical/unknown-cost stops. Branch-specific preview daily guard is$30/400calls to cover both finite cohorts plus prior measured work. Request transport and reservation keep32000input/8000output token ceilings and2calls. No fallback/repair call is added. All launch/cleanup decisions remain NO-GO until one exact configuration passes both cohorts.
+
+## GPT-5.4 low candidate: complete fresh W and independent holdout V
+
+Exact tested source: 6e97603df197122ee4704673cfce6fd2ba7bf5da.
+READY deployment: dpl_HJDhraH4iPyRiXhtVaUqWsuNqGMN.
+Fresh W: 28 PASS / 2 PARTIAL / 0 FAIL; 58 physical calls; $1.334862 actual.
+Independently frozen V: 24 PASS / 4 PARTIAL / 2 FAIL; 60 physical calls; $1.263621 actual.
+Zero critical medical, wrong-pet ownership or fabricated-citation incidents observed; all new costs reconciled. Care count 628 and content digest b847c0f3e6a9ec902345d670cea72ea7 unchanged. NO-GO: holdout below 27/30. Prior scores remain immutable, per-SHA separate.
+
+The next repair addresses conditional clinical rendering suppressing ordinary explanations, past-only questions losing the direct historical conclusion when conditional warnings coexist, separately worded full-original timestamp requests, explicit measurement date-axis contradictions, unknown-pet wording, and precise bounded-reference scope disclosure. Current emergency and medication authority remain independent. Fresh endpoint axes may follow an explicit owner request; retained locators are not reinterpreted.
+
+Targeted deployment prerequisites: 47 passed, TypeScript clean, scoped lint clean. Five older assertions in ask-continuation-evidence / ask-declared-unavailability also fail identically at the unchanged parent SHA; comparison logs preserve that baseline. No broad suite or offline result replaces online qualification.
+
+The next qualification requires 30 NEW frozen questions and a NEW independently frozen holdout. Each cohort remains capped at 60 physical calls and $12 actual despite G's open-budget authorization. Preview-branch daily call guard increased from 400 to 600 to permit the finite pair; daily $30 guard retained. No production environment changes.

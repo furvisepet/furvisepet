@@ -12,6 +12,16 @@ export function measurementRequestSchema(context){
 export const MEASUREMENT_INSTRUCTIONS="For each saved-measurement signed change or percentage change, supply measurementRequests with ONE independently owned pet per request and separate start/finish endpoint scopes. Resolve the owner's actual endpoint period, including a shared period in a two-pet question. Fresh endpoints use precise calendar windows (a named month means that whole month), reference=null. For the same endpoints follow-up, select each retained result's reference, from=to=null; re-read BOTH endpoints. Never use the earlier assistant's numeric result as input. If scope is ambiguous, ask a pointed clarification and leave measurementRequests empty. Task reference stays null; measurement tasks are collections even when endpoints are single notes. Use event dates unless the owner explicitly selects recording time. Percent change uses the earlier measurement as denominator, never the difference or final value. The server selects unique typed measurements and computes; never put literal operands or computed numbers in prose. Include separate requests for two pets and never use another pet's source. This plan supplies reads; do not omit it merely because no read tool was chosen. Other requests use measurementRequests=[].";
 const keys=(v,k)=>v&&typeof v==="object"&&!Array.isArray(v)&&Object.keys(v).sort().join(",")===[...k].sort().join(",");
 function invalid(field){throw Object.assign(new Error("ASK_READ_MEASUREMENT_SCOPE"),{code:"ASK_READ_MEASUREMENT_SCOPE",answerDiagnostic:{category:"measurement_scope",field}});}
+/** An explicitly requested single date axis overrides a contradictory model
+ * hint before fresh endpoint IO. Retained fingerprint-bound locators are never
+ * silently reinterpreted as a different axis. */
+export function reconcileExplicitMeasurementAxis(requests,question){
+ const event=/\bevent\s+(?:dates?|times?|timestamps?)\b/iu.test(question);
+ const recorded=/\b(?:recorded|saved|recording)\s+(?:dates?|times?|timestamps?)\b/iu.test(question);
+ if(event===recorded)return requests;
+ const axis=event?"event":"recorded";
+ return requests.map(q=>q.start?.reference===null&&q.finish?.reference===null?{...q,timeBasis:axis}:q);
+}
 export function compileMeasurementRequests(requests,first,plan,context,bind){
  if(!Array.isArray(requests)||requests.length>2)invalid("request_shape");
  if(!requests.length)return null;

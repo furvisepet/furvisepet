@@ -2,7 +2,7 @@ import {reconcileHistoricalDelivery} from "./historical-delivery.mjs";
 import {preserveRequestedOriginal} from "./original-quotation.mjs";
 import {bindExplicitContinuationWindow,reconcileContinuationAxis} from "./continuation-window.mjs";
 import {ownerSubjectScope,assertGeneratedSubject,SUBJECT_INSTRUCTIONS,DIALOGUE_TASK_INSTRUCTIONS} from "./subject-scope.mjs";
-import {compileMeasurementRequests,resolveMeasurementRequests,recoverRetainedPercentageRequests} from "./measurement-requests.mjs";
+import {reconcileExplicitMeasurementAxis,compileMeasurementRequests,resolveMeasurementRequests,recoverRetainedPercentageRequests} from "./measurement-requests.mjs";
 import {reconcileDeclaredUnavailability,DECLARED_UNAVAILABLE_ANSWER} from "./declared-unavailability.mjs";
 import {requirePronounPet} from "./pronoun-scope.mjs";
 import {recoverAnnualComparison,reconcilePlannedAnnualCalculation} from "./annual-comparison.mjs";
@@ -296,6 +296,7 @@ export async function runReadOnlyAsk(input,deps) {
  if(!keys(first,Object.hasOwn(first??{},"workflowIntent")?["calls","text","safety","historyIntent","workflowIntent"]:Object.hasOwn(first??{},"historyIntent")?["calls","text","safety","historyIntent"]:Object.hasOwn(first??{},"safety")?["calls","text","safety"]:["calls","text"])||!Array.isArray(first.calls)||first.calls.length>4||typeof first.text!=="string"||first.text.length>12000)fail("ASK_READ_PROVIDER_INVALID");
  const recoveredPercentage=recoverRetainedPercentageRequests(measurementRequests,first,taskPlan,context);
  if(recoveredPercentage){measurementRequests=recoveredPercentage;deps.onAnswerBoundary?.({outcome:"retained_percentage_plan_recovered",endpointCount:2,usesAssistantValues:false});}
+ measurementRequests=reconcileExplicitMeasurementAxis(measurementRequests,input.question);
  let compiledMeasurements;
  try{compiledMeasurements=compileMeasurementRequests(measurementRequests,first,taskPlan,context,(name,args)=>bindReadTool(name,args,pets,references));}
  catch(error){deps.onSelectionRejected?.({...readSelectionShape(first,pets),measurementDiagnostic:error.answerDiagnostic??null});throw error;}
