@@ -28,3 +28,15 @@ export function bindExplicitContinuationWindow(request,question,pets){
  return {...request,[lo]:scope.from,[hi]:scope.to,offset:0,explicitIntervalOverride:true,
   continuation:{...request.continuation,range:{axis,from:scope.from,to:scope.to}}};
 }
+
+/** An explicit narrower continuation changes bounds, not its established axis. */
+export function reconcileContinuationAxis(first,plan,references,question,pets){
+ if(!plan||!sharedYearMonthRange(question)||/\b(?:instead|switch|change)\b.{0,30}\b(?:event|saved|recorded)\b/iu.test(question))return null;
+ const named=namedOwnedPets(question,pets);if(named.length!==1)return null;
+ const eligible=plan.filter(t=>t.kind==="saved_continuation"&&t.needsHistory&&t.reference&&t.pets.length===1&&t.pets[0]===named[0].handle&&t.missing.includes("date_meaning")&&t.missing.every(k=>k==="date_meaning"));
+ if(eligible.length!==1)return null;
+ const ref=references.find(r=>r.handle===eligible[0].reference),basis=ref?.request?.orderBy;
+ if(!["event","recorded"].includes(basis))return null;
+ if(first.historyIntent?.timeBasis!=="ambiguous"&&first.historyIntent?.timeBasis!==basis)return null;
+ return {first:{...first,text:"",historyIntent:{...first.historyIntent,requested:true,timeBasis:basis}},plan:plan.map(t=>t===eligible[0]?{...t,missing:[]}:t)};
+}

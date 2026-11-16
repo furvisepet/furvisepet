@@ -28,7 +28,9 @@ export function renderAppWorkflow(answer,workflow,pets=[],append=false,question=
  const pet=pets.find(p=>p.handle===workflow.pet),name=pet?.name&&!/\b[ps]\d+\b/.test(pet.name)&&!pets.some(p=>p.id===pet.name)?pet.name:"the intended pet";
  const intro="Ask can read saved information and help draft text, but it cannot upload, save, edit or open pages for you.";
  const today="To add a text note yourself:\n1. Open Today and choose "+name+".\n2. Enter the information in “"+CARE_NOTE_UI.note+"”.\n3. Use “"+CARE_NOTE_UI.details+"” if you want to set "+CARE_NOTE_UI.category+" and "+CARE_NOTE_UI.when+".\n4. Select “"+CARE_NOTE_UI.submit+"” and check that the note appears in Recent.";
- const find="To find a saved note yourself:\n1. Open History.\n2. Use “"+HISTORY_NOTE_UI.search+"” and the Pet, Category or When filters.\n3. Select a result to read it. Use “"+HISTORY_NOTE_UI.older+"” if you need older results.";
+ const category=/\bactivity\b/i.test(question)?"Activity":null;
+  const filterChoices=[named.length===1?"Pet: "+name:null,category?"Category: "+category:null].filter(Boolean);
+  const find="To find a saved note yourself:\n1. Open History.\n2. Use “"+HISTORY_NOTE_UI.search+"” and the Pet, Category or When filters."+(filterChoices.length?" Choose "+filterChoices.join("; ")+".":"")+"\n3. Select a result to read it. Use “"+HISTORY_NOTE_UI.older+"” if you need older results.";
  const parts=[intro];
  if(workflow.intent==="care_photo_attachment")parts.push("The current care-note flow is text-only; it has no photo attachment or upload control. You can keep the photo in your own files and transcribe the relevant information as a text note.",today);
  else if(workflow.intent==="create_care_note")parts.push("Care notes accept text, not direct photo attachments. If your observation is in a photo, transcribe its contents first.",today);

@@ -107,12 +107,12 @@ import {createHash} from "node:crypto";
 import {preserveRequestedOriginal} from "../app/lib/ask-read-only/original-quotation.mjs";
 test("exact quotation keeps the whole original sentence order and requested timestamp instants",()=>{
  const source={handle:"s1",kind:"history",body:"First original sentence. Second original sentence.",petName:"Echo",eventAt:"2021-08-14T19:15:00Z",recordedAt:"2021-08-16T08:30:00Z"};
- const tasks=[{kind:"saved_content",recordMode:"single",status:"complete",sources:["s1"],includeSourceDates:true}];
+ const tasks=[{kind:"saved_content",needsHistory:true,recordMode:"single",status:"complete",sources:["s1"],includeSourceDates:true}];
  const out=preserveRequestedOriginal({answer:"Second original sentence. First original sentence.",presentation:{}},tasks,[source],"Replace the quotation and the two timestamps.");
  assert.equal(out.quotes[0].quote,source.body);
  assert.doesNotMatch(out.answer,/Second original/);
  assert.equal(out.presentation.sourceDates[0].eventAt,source.eventAt);
- assert.equal(preserveRequestedOriginal(out,tasks,[source],"Replace the quotation",true),out);
+ assert.equal(preserveRequestedOriginal(out,tasks,[source],"Replace the quotation",true).answer,out.answer);
 });
 test("actual core suppresses never-logged detail reads before acquisition",async()=>{
  const s=safety(),plan=[{id:"t1",kind:"saved_content",recordMode:"collection",needsHistory:true,needsOwnerFacts:false,includeSourceDates:false,workflow:"none",pets:["p2"],reference:null,missing:[]}];

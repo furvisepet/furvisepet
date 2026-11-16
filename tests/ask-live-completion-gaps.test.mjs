@@ -79,3 +79,44 @@ test("source-free urgency delivery can preserve verified owner facts and explici
  assert.equal(clean.length,1);assert.deepEqual(clean[0].pets,["p2"]);assert.equal(clean[0].ownerFacts.length,1);
  assert.equal(reconcileHistoricalDelivery(tasks,policy,"Echo's old limp is resolved. Is that urgent now?",1,0,scope),tasks);
 });
+
+import {recoverIndependentOriginalRead} from "../app/lib/ask-read-only/calendar-scope.mjs";
+import {reconcileContinuationAxis} from "../app/lib/ask-read-only/continuation-window.mjs";
+import {componentSelectionSchema,reviewComponentCompletion} from "../app/lib/ask-read-only/task-components.mjs";
+import {preserveRequestedOriginal} from "../app/lib/ask-read-only/original-quotation.mjs";
+test("general provider variant cannot carry record or medication prerequisites",()=>{
+ const variants=componentSelectionSchema({properties:{},required:[]},{pets:[{handle:"p1"}],references:[]}).properties.taskPlan.items.anyOf;
+ const general=variants.filter(v=>v.properties.kind.enum.includes("general_guidance"));assert.equal(general.length,1);
+ assert.deepEqual(general[0].properties.needsHistory.enum,[false]);assert.equal(general[0].properties.missing.maxItems,0);
+ assert.ok(variants.filter(v=>v.properties.kind.enum.includes("saved_content")).every(v=>v.properties.needsHistory.enum[0]===true));
+});
+test("independent original lookup keeps missing medicine authority while resolving display-date ambiguity",()=>{
+ const plan=[task({kind:"clinical_guidance",needsHistory:false,recordMode:"none",missing:["medicine","prescription"]}),task({id:"t2",kind:"saved_content",recordMode:"single",missing:["date_meaning"]})];
+ const safety={medicationIntent:"decision",referent:"essential_unknown",missingContext:["medicine","prescription"],currentEvents:[],scenario:"none"};
+ const first={calls:[],safety,historyIntent:{requested:true,timeBasis:"ambiguous",pet:null}};
+ const ctx={pets:[{handle:"p2",name:"Echo"}],question:"Quote Echo's July 2024 original and give its event and saved timestamps."};
+ const got=recoverIndependentOriginalRead(first,plan,ctx);
+ assert.ok(got);assert.equal(got.first.safety,safety);assert.deepEqual(got.plan[0].missing,["medicine","prescription"]);
+ assert.deepEqual(got.plan[1].missing,[]);assert.equal(got.plan[1].includeSourceDates,true);
+ const args=JSON.parse(got.first.calls[0].arguments);assert.equal(args.from,"2024-07-01");assert.equal(args.goal,"exact_quote");
+ assert.equal(recoverIndependentOriginalRead(first,plan,{...ctx,question:"Quote Echo's July original and give event and saved timestamps."}),null);
+ assert.equal(recoverIndependentOriginalRead({...first,safety:{...safety,currentEvents:["collapse"]}},plan,ctx),null);
+});
+test("narrow continuation inherits only its matching owned reference date axis",()=>{
+ const plan=[task({kind:"saved_continuation",reference:"r1",missing:["date_meaning"]})];
+ const first={historyIntent:{requested:true,timeBasis:"ambiguous"},calls:[]};
+ const ref={handle:"r1",request:{orderBy:"event"}};
+ const ctxPets=[{handle:"p2",id:"echo",name:"Echo"}];
+ const got=reconcileContinuationAxis(first,plan,[ref],"Read Echo's October through December 2024 originals.",ctxPets);
+ assert.equal(got.first.historyIntent.timeBasis,"event");assert.deepEqual(got.plan[0].missing,[]);
+ assert.equal(reconcileContinuationAxis(first,plan,[],"Read Echo's October through December 2024 originals.",ctxPets),null);
+});
+test("whole original quote completes independently of empty collection synthesis and retains clinical text",()=>{
+ const source={...rows[0],handle:"s1",petName:"Echo"};
+ const plan=[task({kind:"saved_content",recordMode:"single",includeSourceDates:true})];
+ const final={components:[{kind:"saved",text:"Original.",sources:["s1"]}],sources:["s1"],quotes:["s1"],completion:[{task:"t1",status:"partial",reason:"not_answered",componentIndexes:[0],sources:["s1"],ownerFacts:[],historyFacts:[],historySynthesis:[]}]};
+ const reviewed=reviewComponentCompletion(final,plan,[source],[],[{...pets[1],handle:"p2"}]);assert.equal(reviewed.tasks[0].status,"complete");
+ const answer={answer:"Contact the prescriber. Do not choose a catch-up regimen.",sources:["s1"],quotes:[],presentation:{}};
+ const rendered=preserveRequestedOriginal(answer,reviewed.tasks,[source],"Quote Echo's full original.",true);
+ assert.equal(rendered.answer,answer.answer);assert.equal(rendered.quotes[0].quote,source.body);assert.equal(rendered.presentation.sourceDates[0].eventAt,source.eventAt);
+});

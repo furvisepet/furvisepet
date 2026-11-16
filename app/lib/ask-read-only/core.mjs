@@ -1,6 +1,6 @@
 import {reconcileHistoricalDelivery} from "./historical-delivery.mjs";
 import {preserveRequestedOriginal} from "./original-quotation.mjs";
-import {bindExplicitContinuationWindow} from "./continuation-window.mjs";
+import {bindExplicitContinuationWindow,reconcileContinuationAxis} from "./continuation-window.mjs";
 import {ownerSubjectScope,assertGeneratedSubject,SUBJECT_INSTRUCTIONS,DIALOGUE_TASK_INSTRUCTIONS} from "./subject-scope.mjs";
 import {compileMeasurementRequests,resolveMeasurementRequests,recoverRetainedPercentageRequests} from "./measurement-requests.mjs";
 import {reconcileDeclaredUnavailability,DECLARED_UNAVAILABLE_ANSWER} from "./declared-unavailability.mjs";
@@ -11,7 +11,7 @@ import {reconcileConditionalEducation, COMPONENT_INSTRUCTIONS, componentSelectio
 import { CLINICAL_INSTRUCTIONS, clinicalSelectionSchema, validateClinicalAssessment, clinicalAnswerSchema, reviewClinicalAnswer, renderMedicationDecision, ownerStatementCatalog, emergencyHandoffForAssessment } from "./clinical-policy.mjs";
 import { APP_CAPABILITIES, WORKFLOW_INSTRUCTIONS, renderAppWorkflow, supportsAppWorkflow, containsAppControlSteps, explicitHistoryControlRequest } from "./app-capabilities.mjs";
 import { normalizeReadTemporalScope } from "./temporal-scope.mjs";
-import { explicitCalendarScopes, recoverBoundedCalendarRead, reconcilePlannedSavedDates, reconcileMissingCalendarYear } from "./calendar-scope.mjs";
+import { explicitCalendarScopes, recoverBoundedCalendarRead, reconcilePlannedSavedDates, reconcileMissingCalendarYear,recoverIndependentOriginalRead } from "./calendar-scope.mjs";
 import { restoreReadReferences, describeReadReferences, carryReadReferences, continuationRange, checkReferencedSources } from "./references.mjs";
 import { EVIDENCE_GOALS, HISTORY_PAGE_BUDGET, HISTORY_CANDIDATE_BUDGET, allocateEvidence } from "./retrieval.mjs";
 import { calculateReadSources, readSourceMeasurements } from "./calculations.mjs";
@@ -319,6 +319,10 @@ export async function runReadOnlyAsk(input,deps) {
  if(taskPlan)taskPlan=validateTaskPlan(taskPlan,context);
  const missingYear=reconcileMissingCalendarYear(first,taskPlan,context);
  if(missingYear){taskPlan=missingYear;first.text="";deps.onAnswerBoundary?.({outcome:"calendar_year_clarification_reconciled",grantsRead:false});}
+ const originalRead=recoverIndependentOriginalRead(first,taskPlan,context);
+ if(originalRead){first=originalRead.first;taskPlan=originalRead.plan;deps.onAnswerBoundary?.({outcome:"independent_original_scope_bound",preservesClinicalAuthority:true});}
+ const continuationAxis=reconcileContinuationAxis(first,taskPlan,references,input.question,pets);
+ if(continuationAxis){first=continuationAxis.first;taskPlan=continuationAxis.plan;deps.onAnswerBoundary?.({outcome:"continuation_axis_retained",grantsUnscopedRead:false});}
  const declaredUnavailable=reconcileDeclaredUnavailability(first,taskPlan,context,pets,input.ownerId,handle=>bindReadTool("read_pet_profile",{pet:handle},pets).pet,(name,args)=>bindReadTool(name,args,pets,references));
  if(declaredUnavailable){first=declaredUnavailable.first;taskPlan=declaredUnavailable.plan;deps.onAnswerBoundary?.({outcome:"owner_declared_unavailability_bound",declarationCount:1,explicitOwnedSubject:true,grantsRead:false});}
  const namedPet=first.calls.length===0?reconcileNoReadPet(taskPlan,first.safety,context,pets,input.ownerId,handle=>bindReadTool("read_pet_profile",{pet:handle},pets).pet):null;

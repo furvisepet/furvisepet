@@ -1,11 +1,15 @@
-/** One independently selected original is quoted by the server, never rebuilt
- * from reordered model excerpts. Mixed or unresolved requests keep their pipeline. */
+/** Quote one verified original as a whole; model synthesis is not required for
+ * verbatim source delivery. Independently bounded clinical guidance is retained. */
 export function preserveRequestedOriginal(answer,tasks,sources,question,clinicalActive=false){
- if(clinicalActive||tasks?.length!==1||tasks[0].kind!=="saved_content"||tasks[0].recordMode!=="single"||tasks[0].status!=="complete"||!/\b(?:verbatim|full original|exact (?:quote|quotation|wording)|replace the quotation)\b/iu.test(question))return answer;
- const selected=sources.filter(s=>s.kind==="history"&&tasks[0].sources.includes(s.handle));
+ const history=tasks?.filter(t=>t.needsHistory),task=history?.[0];
+ if(history?.length!==1||task.kind!=="saved_content"||task.recordMode!=="single"||task.status!=="complete"||!/\b(?:quote|quotation|wording|verbatim|original)\b/iu.test(question)||!/\b(?:full|exact|exactly|original|verbatim|replace\s+(?:the|that)\s+quotation)\b/iu.test(question))return answer;
+ const selected=sources.filter(s=>s.kind==="history"&&task.sources.includes(s.handle));
  if(selected.length!==1)return answer;
  const source=selected[0];
- return {...answer,answer:"Here is the original saved note.",validatedParts:[{index:0,kind:"saved",text:"Here is the original saved note."}],
-  quotes:[{source:source.handle,quote:source.body}],sources:[source.handle],
-  presentation:{...answer.presentation,sourceDates:tasks[0].includeSourceDates?[{kind:source.kind,eventAt:source.eventAt,recordedAt:source.recordedAt,pet:source.petName??null}]:answer.presentation?.sourceDates??[]}};
+ const meaning=/\b(?:explain|difference)\b/iu.test(question)&&/\b(?:event|happened)\b/iu.test(question)&&/\b(?:saved|recorded)\b/iu.test(question)
+  ?" The event timestamp records when the care was reported to have happened; the recorded timestamp is when the note was saved. Saving the note later does not establish a second care event or verify current health.":"";
+ const text=clinicalActive?answer.answer:"Here is the original saved note."+meaning;
+ return {...answer,answer:text,validatedParts:clinicalActive?answer.validatedParts:[{index:0,kind:"saved",text}],
+  quotes:[{source:source.handle,quote:source.body}],sources:[...new Set([...(answer.sources??[]),source.handle])],
+  presentation:{...answer.presentation,sourceDates:task.includeSourceDates?[{kind:source.kind,eventAt:source.eventAt,recordedAt:source.recordedAt,pet:source.petName??null}]:answer.presentation?.sourceDates??[]}};
 }

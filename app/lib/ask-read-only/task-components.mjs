@@ -55,13 +55,15 @@ export function componentSelectionSchema(base,context){
   // Independent enum fields otherwise allow a schema-valid but unusable packet.
   const variants=[withoutHistory,withHistory].flatMap(history=>{
    const ordinary=structuredClone(history),workflow=structuredClone(history);
-   ordinary.properties.kind=choice(kinds.filter(kind=>kind!=="workflow"&&kind!=="calculation"));
+   ordinary.properties.kind=choice(history===withoutHistory?["general_guidance","clinical_guidance","owner_observations","vet_brief","clarification"]:["saved_content","saved_continuation","owner_observations","vet_brief","clinical_guidance","clarification"]);
    ordinary.properties.workflow=choice(["none"]);
    workflow.properties.kind=choice(["workflow"]);
    workflow.properties.workflow=choice(workflows.filter(intent=>intent!=="none"));
    const calculation=structuredClone(ordinary);calculation.properties.kind=choice(["calculation"]);calculation.properties.reference={type:"null",enum:[null]};
    calculation.properties.needsHistory={type:"boolean",enum:[true]};calculation.properties.needsOwnerFacts={type:"boolean",enum:[false]};calculation.properties.recordMode=choice(["collection"]);calculation.properties.pets.minItems=1;
-    return history===withHistory?[ordinary,workflow,calculation]:[ordinary,workflow];
+    const general=structuredClone(ordinary);general.properties.kind=choice(["general_guidance"]);general.properties.reference={type:"null",enum:[null]};general.properties.missing.maxItems=0;general.properties.needsOwnerFacts={type:"boolean",enum:[false]};general.properties.includeSourceDates={type:"boolean",enum:[false]};
+    if(history===withoutHistory)ordinary.properties.kind=choice(["clinical_guidance","owner_observations","vet_brief","clarification"]);
+    return history===withHistory?[ordinary,workflow,calculation]:[general,ordinary,workflow];
   });
   out.properties.taskPlan.items={anyOf:variants};out.required.push("taskPlan");return out;
 }
@@ -225,7 +227,8 @@ export function reviewComponentCompletion(final,plan,sources,ownerStatements,pet
  const entries=final?.completion;if(!Array.isArray(entries)||entries.length!==plan.length||new Set(entries.map(e=>e?.task)).size!==plan.length)reject("completion");
  const tasks=plan.map(task=>{
   const raw=entries.find(e=>e.task===task.id);
-  const strictSynthesis=!!raw&&Object.hasOwn(raw,"historySynthesis");
+  const originalQuoted=task.kind==="saved_content"&&task.recordMode==="single"&&!task.missing.length&&!task.needsOwnerFacts&&raw?.sources?.length===1&&final.quotes?.includes(raw.sources[0])&&sources.some(s=>s.handle===raw.sources[0]&&s.kind==="history");
+   const strictSynthesis=!!raw&&Object.hasOwn(raw,"historySynthesis")&&!originalQuoted;
   const legacy=raw&&{...raw};if(legacy)delete legacy.historySynthesis;
   const e=legacy&&{...legacy,ownerFacts:Array.isArray(raw.ownerFacts)?raw.ownerFacts.map(f=>{
    if(!keys(f,["sentence","kind"]))return f; // Legacy stored/local adapter compatibility only.
@@ -249,8 +252,8 @@ export function reviewComponentCompletion(final,plan,sources,ownerStatements,pet
   const historySynthesis=strictSynthesis?(synthesis?.length?synthesis:historyFacts.map(f=>({topic:"Historical observations",evidence:[{...f,petId:sources.find(s=>s.handle===f.source).petId,pet:sources.find(s=>s.handle===f.source).petName,eventAt:sources.find(s=>s.handle===f.source).eventAt,recordedAt:sources.find(s=>s.handle===f.source).recordedAt}]}))):undefined;
   const selected=[...new Set([...e.sources,...historyFacts.map(f=>f.source),...(historySynthesis??[]).flatMap(t=>t.evidence.map(e=>e.source))])];
   if(task.pets.length>0&&selected.some(h=>!pets.some(p=>task.pets.includes(p.handle)&&p.id===sources.find(s=>s.handle===h).petId)))reject("task_source_pet");
-  let status=e.status,reason=e.reason;
-  if(strictSynthesis&&["saved_content","saved_continuation"].includes(task.kind)&&(!historySynthesis?.length||synthesisDiagnostics.length)){status="partial";reason="not_answered";}
+  let status=originalQuoted?"complete":e.status,reason=originalQuoted?"none":e.reason;
+  if(strictSynthesis&&["saved_content","saved_continuation"].includes(task.kind)&&task.recordMode==="collection"&&(!historySynthesis?.length||synthesisDiagnostics.length)){status="partial";reason="not_answered";}
   if(task.needsOwnerFacts&&!ownerFacts.length){status="partial";reason="missing_context";}
   if(rejectedFact){status="partial";reason="not_answered";}
   if(scopeMissing(task)||task.kind!=="vet_brief"&&task.missing.length){status="unresolved";reason="missing_context";}

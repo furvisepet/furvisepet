@@ -57,3 +57,10 @@ Three old cases: 2 PASS / 1 PARTIAL / 0 FAIL, six calls / $0.044146 actual. The 
 Combined new regression work since G's open-budget renewal: 18 physical calls / $0.128242 actual, all reconciled. No critical medical, wrong-pet or fabricated-citation incident has been observed in these new regressions. This is not a fresh-cohort score.
 
 The first fresh 30-question plan was frozen before any fresh answers: 51 independently read source goldens; zero exact overlaps across 142 distinct prompts in 640 checked prior JSON artifacts. No fresh question has been answered yet. The source SHA changed before fresh execution; the old unused freeze remains preserved and the same unanswered expectations will be re-pinned to the final READY SHA before submission.
+
+
+## Online cohort and next repair, 2026-11-16
+
+SHA `2c101d7e8fb8cbccb6343bba24ab15fe33230735`: 19 PASS / 6 PARTIAL / 5 FAIL (63.3% FULL PASS), 60 physical calls, $0.392788 actual reconciled receipts. No new critical medical, wrong-pet or fabricated-citation incident observed. NO-GO; holdout unused. Real reload/reopen continuity, nameless percentage, multi-pet arithmetic, vet brief and acute/conditional clinical cases passed. General/creative routing, collection coverage/continuation, year-correction completion notice, evidence-limit reasoning and mixed medication/quote delivery failed or were partial. Private immutable N01–N30 files retain every question, UI answer, score, runtime pin and actual receipt. Care count628 and digest `b847c0f3e6a9ec902345d670cea72ea7` unchanged.
+
+Follow-up source repairs tighten provider task kind/dependency variants, remove collection-synthesis requirements from whole-original quoting, independently bind explicit owned dated originals despite missing medicine authority, preserve continuation date axes, and provide explicit History filter values. Same model now uses medium reasoning effort. Validation:142 focused tests passed; TypeScript and scoped lint with zero warnings passed. These checks are deployment prerequisites only. A new distinct online cohort is required; no score carries across SHA.

@@ -13,10 +13,10 @@ const workflows=["none","create_care_note","find_care_note","care_photo_attachme
 for(const needsHistory of [false,true])test("provider schema matches decoder workflow relation with history="+needsHistory,()=>{
  for(const kind of kinds)for(const workflow of workflows){
   const t=task({kind,workflow,needsHistory,recordMode:needsHistory?"collection":"none"});
-  const valid=(kind==="workflow")===(workflow!=="none");
+  const valid=(kind==="workflow")===(workflow!=="none")&&(needsHistory?kind!=="general_guidance":!["saved_content","saved_continuation","calculation"].includes(kind));
   assert.equal(accepts(t),valid,JSON.stringify(t));
   if(valid)assert.doesNotThrow(()=>validateTaskPlan([t],context));
-  else assert.throws(()=>validateTaskPlan([t],context),/COMPONENT_CONTRACT/);
+  else if((kind==="workflow")!==(workflow!=="none"))assert.throws(()=>validateTaskPlan([t],context),/COMPONENT_CONTRACT/); // Legacy packets remain decodable; new provider packets use stricter kind/dependency variants.
  }
 });
 test("read-only mutation capabilities are explicit and instructions agree on task kind",()=>{
