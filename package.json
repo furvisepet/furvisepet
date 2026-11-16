@@ -17,7 +17,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test:security": "node --test tests/security-phase-s2a.test.mjs tests/security-phase-s2b.test.mjs tests/security-phase-s2c.test.mjs tests/security-phase-s2d.test.mjs tests/security-phase-s2e.test.mjs tests/security-phase-s2f.test.mjs tests/security-phase-s2g.test.mjs tests/security-phase-s2h.test.mjs tests/password-capability-state.test.mjs tests/ask-conversation-authority-foundation.test.mjs tests/ask-conversation-authority-lock.test.mjs",
-    "test": "node --test",
+    "test": "node --import ./scripts/audits/offline-network-guard.mjs --import ./tests/helpers/register-release-typescript.mjs --test --test-concurrency=2 --test-timeout=180000 --test-reporter=tap",
     "test:release": "node scripts/check-journal-release.mjs"
   },
   "dependencies": {

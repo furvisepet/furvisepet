@@ -43,6 +43,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
+      OPENAI_API_KEY: ""
+      FURVISE_AI_ASK_ENABLED: "false"
       FURVISE_AI_ENABLED: "false"
       FURVISE_AI_MEMORY_EXTRACTION_ENABLED: "false"
       NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
@@ -62,7 +64,7 @@ jobs:
       - name: TypeScript
         run: npm run typecheck
       - name: Focused security tests
-        run: npm run test:security
+        run: node scripts/check-security-release.mjs
       - name: Journal release regressions
         run: npm run test:release
       - name: Full tests

@@ -29,10 +29,10 @@ jobs:
       github.actor == 'furvisepet' &&
       github.ref == 'refs/heads/release/journal-first-20261116' &&
       github.event_name == 'workflow_dispatch'
-    runs-on: [self-hosted, Linux, X64, furvise-ci]
-    timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && inputs.validation_scope == 'full' && 25 || 3 }}
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && inputs.validation_scope == 'full' && 40 || 5 }}
     env:
-      NODE_OPTIONS: --max-old-space-size=1536
+      NODE_OPTIONS: --max-old-space-size=4096
       UV_THREADPOOL_SIZE: "2"
       FURVISE_AI_ENABLED: "false"
       FURVISE_AI_ASK_ENABLED: "false"
@@ -45,30 +45,19 @@ jobs:
       run:
         shell: bash
     steps:
-      - name: Verify existing runner and hard resource bounds
+      - name: Verify hosted runner and exact reviewed SHA
         env:
-          EXPECTED_SHA: ${{ inputs.expected_sha || github.sha }}
-          VALIDATION_SCOPE: ${{ github.event_name == 'workflow_dispatch' && inputs.validation_scope == 'full' && 'full' || 'targeted' }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
         run: |
           set -euo pipefail
-          test "$RUNNER_NAME" = "furvise-grok-v16-ci"
+          test "$RUNNER_ENVIRONMENT" = "github-hosted"
           test "$RUNNER_OS" = "Linux"
           test "$RUNNER_ARCH" = "X64"
           [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
           test "$EXPECTED_SHA" = "$GITHUB_SHA"
-          memory_max=$(cat /sys/fs/cgroup/memory.max)
-          read -r cpu_quota cpu_period < /sys/fs/cgroup/cpu.max
-          [[ "$memory_max" =~ ^[0-9]+$ ]]
-          [[ "$cpu_quota" =~ ^[0-9]+$ ]]
-          [[ "$cpu_period" =~ ^[0-9]+$ ]]
-          test "$memory_max" -le 3221225472
-          test "$memory_max" -ge 2147483648
-          test "$cpu_period" -gt 0
-          test "$cpu_quota" -le "$((cpu_period * 2))"
-          if [ "$VALIDATION_SCOPE" = targeted ]; then
-            test "$(awk '/MemAvailable/ {print $2}' /proc/meminfo)" -ge 2097152
-          fi
-          printf 'Reviewed SHA: %s; memory cap: %s; CPU quota/period: %s/%s\n' "$GITHUB_SHA" "$memory_max" "$cpu_quota" "$cpu_period"
+          printf 'Reviewed SHA: %s\n' "$GITHUB_SHA"
+          nproc
+          free -m
       - name: Check out exact trusted commit
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -83,7 +72,7 @@ jobs:
         id: locked-dependencies
         env:
           NODE_OPTIONS: --max-old-space-size=384
-        run: timeout --signal=TERM --kill-after=5s 75s npm ci --ignore-scripts --no-audit --no-fund --maxsockets=1
+        run: timeout --signal=TERM --kill-after=5s 180s npm ci --ignore-scripts --no-audit --no-fund --maxsockets=1
       # Prove fresh migration replay before independent app checks; never waive it.
       - name: Repaired fixture subset (24 tests)
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.validation_scope != 'full' }}
@@ -131,15 +120,25 @@ jobs:
       - name: Production build with two Next workers
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.validation_scope == 'full' }}
         env:
-          NODE_OPTIONS: --max-old-space-size=1024
+          NODE_OPTIONS: --max-old-space-size=4096
         run: |
-          trap 'result=$?; cat /sys/fs/cgroup/memory.events; cat /sys/fs/cgroup/memory.peak; exit "$result"' EXIT
-          cat /sys/fs/cgroup/memory.events
-          npm run build
+          set -euo pipefail
+          mkdir -p ci-evidence
+          npm run build 2>&1 | tee ci-evidence/build.log
       - name: Verify built public notes and zero-provider disabled state
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.validation_scope == 'full' }}
         run: node scripts/check-release-notes-http.mjs
       - name: Bounded full source suite without provider access
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.validation_scope == 'full' && !cancelled() && steps.locked-dependencies.outcome == 'success' }}
         run: |
-          timeout --signal=TERM --kill-after=15s 600s node --jitless --import ./scripts/audits/offline-network-guard.mjs --import ./tests/helpers/register-release-typescript.mjs --test --test-concurrency=1 --test-reporter=tap
+          set -euo pipefail
+          mkdir -p ci-evidence
+          timeout --signal=TERM --kill-after=15s 1200s npm test 2>&1 | tee ci-evidence/full-source.log
+      - name: Retain build and full-source logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-qualification-${{ github.sha }}-${{ github.run_attempt }}
+          path: ci-evidence/*.log
+          if-no-files-found: warn
+          retention-days: 7
