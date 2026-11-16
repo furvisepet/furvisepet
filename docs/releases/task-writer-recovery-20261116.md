@@ -80,3 +80,34 @@ connected; the previous cross-origin rejection is not bypassed. No login failure
 Functional Mini Ask remains a separate V1 launch requirement. No model prompts or paid
 provider calls are part of this recovery. Beta removal is candidate-only, V1 notes are
 draft/unpublished, and production remains NO-GO pending all launch gates.
+
+
+## Additional live readiness drift — blocked, not silently omitted
+
+Read-only ledger inventory found 132 installed migration records versus the source chain
+(the live October 5 release batches multiple source files). The live October 24
+qualify_source_semantics_readiness record has no same-name source migration. Its exact
+18,401-byte SQL was recovered from the live migration ledger, SHA-256
+e998ede0a0d6a8df44ef51f7a596480bb6a1a2ec1ec875da43afc3d81785df9c.
+An isolated trial at that historical position FAILED with SQLSTATE P0001,
+SOURCE_SEMANTICS_READINESS_BASE_MISMATCH. Its required original snapshot preimage has
+MD5 2876a1af35c7dd1f549c81e1d47754d3. The current installed qualified snapshot has MD5
+16d10be55a3d87bfad9fc2213fd8fcfc. The failed trial and original SQL are retained under
+ignored release-evidence; the incompatible proposal is NOT part of executable migrations.
+
+Do not relax that guard or claim full live-schema parity. Recover the authentic
+pre-qualification snapshot/prerequisite chain before adopting this additional migration.
+The 141-migration replay and task-writer hash parity prove the targeted missing-writer
+repair only; they do not erase this separate, now documented live-only readiness drift.
+
+## Native test worker crash
+
+Trusted run 43853735416 at 2f3ba1cf stopped in release tests with SIGSEGV in the mobile
+navigation and password-capability workers. TypeScript passed; subsequent checks were
+skipped. This was a native worker crash, not a reported assertion failure or proven OOM.
+Test-only wrappers now use Node --jitless to avoid JIT compilation; 14 affected tests
+and the full 319-test release selection passed locally with that runtime mode. This is
+a mitigation under qualification, not a proven hardware/V8 root cause. App builds and
+PGlite keep their normal runtime; no test is removed, weakened or retried automatically.
+Database checks run before app tests so a later independent worker crash cannot hide
+the replay result. The bounded unfiltered source suite has a 600-second hard timeout.

@@ -8,7 +8,7 @@ if (command.shift() !== "node" || command.shift() !== "--test" ||
   throw new Error("Review the changed security test command before running it here.");
 }
 const result = spawnSync(process.execPath, [
-  "--import", "./scripts/audits/offline-network-guard.mjs",
+  "--jitless", "--import", "./scripts/audits/offline-network-guard.mjs",
   "--import", "./tests/helpers/register-release-typescript.mjs",
   "--test", "--test-concurrency=1", "--test-reporter=tap", ...command,
 ], {
