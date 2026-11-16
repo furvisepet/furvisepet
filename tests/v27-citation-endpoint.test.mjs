@@ -70,3 +70,32 @@ test("citation payloads above their bounded envelope fail before any source quer
  const response=await POST(new Request("https://fixture.invalid/api/ask/citations",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({proof:"invalid",summary:"x".repeat(API_BODY_LIMITS.askCitations+1),sections:[]})}));
  assert.equal(response.status,400);assert.equal(reads,0);
 });
+
+import {enforceVerifiedStateClaims} from "../app/lib/application-actions/state-claims.ts";
+test("36 reviewed originals publish and rehydrate through the actual citation endpoint without a32-row truncation",async t=>{
+ const prior=process.env.FURVISE_RATE_LIMIT_HASH_SECRET;
+ process.env.FURVISE_RATE_LIMIT_HASH_SECRET="bounded-source-capacity-fixture-key-123456";
+ t.after(()=>{if(prior===undefined)delete process.env.FURVISE_RATE_LIMIT_HASH_SECRET;else process.env.FURVISE_RATE_LIMIT_HASH_SECRET=prior;});
+ const records=Array.from({length:36},(_,i)=>({kind:"history",id:"capacity-original-"+i,ownerId:"owner",petId:"pet",body:"Original monthly observation "+i+".",eventAt:new Date(Date.UTC(2022+Math.floor(i/12),i%12,15,12)).toISOString(),recordedAt:new Date(Date.UTC(2022+Math.floor(i/12),i%12,16,12)).toISOString()}));
+ let calls=0;
+ const result=await runReadOnlyAsk({ownerId:"owner",selectedPetId:"pet",pets:[{id:"pet",ownerId:"owner",name:"Juniper",species:"cat"}],question:"Review the saved collection.",dialogue:[],now:"2026-01-01T00:00:00Z",timeZone:"UTC"},{
+ read:async()=>({sources:records,total:36,scopeExhausted:true}),
+ provider:async()=>++calls===1?{calls:[{id:"read",name:"search_saved_records",arguments:JSON.stringify({pet:"p1",from:null,to:null,query:null,offset:0})}],text:""}:
+ {components:[{kind:"saved",text:"Earlier original reports.",sources:records.slice(0,18).map((_,i)=>"s"+(i+1))},{kind:"saved",text:"Later original reports.",sources:records.slice(18).map((_,i)=>"s"+(i+19))}],sources:[],quotes:[],calculations:[],replyType:"answer",presentation:{sourceDates:[],contextRequired:false}}
+ });
+ assert.equal(result.sources.length,36);
+ const body=buildReadOnlyPublication(result,"owner","Juniper").response;
+ const limits=[];
+ globalThis.__citationAuth={userId:"owner",supabase:{from(table){
+  let limit;const q={select(){return q},eq(k,v){assert.equal(v,"owner");return q},in(){return q},limit(n){limit=n;limits.push({table,n});return q},is(){return q},abortSignal(){return q},
+   async returns(){return {data:table==="dog_profiles"?[{id:"pet",user_id:"owner"}]:records.slice(0,limit).map(r=>({id:r.id,user_id:r.ownerId,pet_profile_id:r.petId,note:r.body,title:null,occurred_at:r.eventAt,created_at:r.recordedAt,deleted_at:null})),error:null};}};return q;
+ }}};
+ const response=await POST(new Request("https://fixture.invalid/api/ask/citations",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...body,proof:body.citationProof})}));
+ assert.equal(response.status,200);const data=await response.json();assert.equal(data.sources.length,36);
+ assert.deepEqual(data.sources.map(s=>s.quote),records.map(r=>r.body));
+ assert.equal(limits.find(l=>l.table==="pet_care_entries").n,48);
+});
+test("source timestamp meaning is an explanation rather than a claimed new save",()=>{
+ const text="Event time refers to the reported care occurrence; recorded time refers to the entry’s creation.";
+ assert.equal(enforceVerifiedStateClaims(text,false),text);
+});

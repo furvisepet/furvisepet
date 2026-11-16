@@ -192,7 +192,7 @@ function validateReadOnlyAnswerValue(value,sources,question="") {
  }
  let componentLimited=false,componentValidated=false,clinicalUrgency="routine",validatedParts=null;
  if(plain(value)&&Object.hasOwn(value,"components")) {
-  if(!keys(value,["components","quotes","sources","calculations","replyType"])||!Array.isArray(value.components)||!value.components.length||value.components.length>8||!Array.isArray(value.sources)||value.sources.length>32||!["answer","clarification","refusal","partial"].includes(value.replyType))rejectAnswer("components");
+  if(!keys(value,["components","quotes","sources","calculations","replyType"])||!Array.isArray(value.components)||!value.components.length||value.components.length>8||!Array.isArray(value.sources)||value.sources.length>READ_ONLY_LIMITS.records||!["answer","clarification","refusal","partial"].includes(value.replyType))rejectAnswer("components");
   const components=value.components.map(component=>{
    if(!keys(component,["kind","text","sources"])||!["general","saved","limitation","emergency","conditional_emergency"].includes(component.kind)||typeof component.text!=="string"||!component.text.trim()||component.text.length>4000
     ||!Array.isArray(component.sources)||component.sources.length>32||component.sources.some(handle=>typeof handle!=="string"||!sources.some(source=>source.handle===handle)))rejectAnswer("component_shape");
@@ -213,7 +213,7 @@ function validateReadOnlyAnswerValue(value,sources,question="") {
   componentValidated=true;
  }
  if(!keys(value,["answer","quotes","sources","calculations","replyType"])||typeof value.answer!=="string"||!value.answer.trim()||value.answer.length>12000
-  ||!["answer","clarification","refusal","partial"].includes(value.replyType)||!Array.isArray(value.quotes)||value.quotes.length>6||!Array.isArray(value.sources)||value.sources.length>32
+  ||!["answer","clarification","refusal","partial"].includes(value.replyType)||!Array.isArray(value.quotes)||value.quotes.length>6||!Array.isArray(value.sources)||value.sources.length>READ_ONLY_LIMITS.records
   ||value.sources.some(s=>typeof s!=="string"||!sources.some(row=>row.handle===s)))rejectAnswer("answer_shape");
  const quotes=[...new Set(value.quotes)].map(handle=>{
   if(typeof handle!=="string")fail("ASK_READ_QUOTE_INVALID");
@@ -552,6 +552,7 @@ export async function runReadOnlyAsk(input,deps) {
   for(const review of answer.continuationEvidenceReview??[])deps.onAnswerBoundary?.({outcome:"fresh_continuation_composed",...review});
   const appendWorkflow=!!reviewed.policy?.active||bound.length>0||!!taskPlan?.some(t=>t.kind!=="workflow");
   answer=renderAppWorkflow(answer,reviewed.workflow,pets,appendWorkflow,input.question);
+   if(!reviewed.policy?.active&&sources.length===0&&completed.tasks?.length===1&&completed.tasks[0].kind==="general_guidance"&&completed.tasks[0].status==="complete"&&/\b(?:no|without)\b[^.!?]{0,60}\b(?:blank|empty)\s+lines?\b/iu.test(input.question))answer={...answer,answer:answer.answer.split(/\r?\n/u).filter(line=>line.trim()).join("\n")};
   if(reviewed.workflow?.intent!=="none"&&reviewed.workflow)deps.onAnswerBoundary?.({outcome:"workflow_selected",firstIntent:first.workflowIntent??"none",finalIntent:reviewed.workflow.intent,appended:appendWorkflow,readCount:bound.length});
   if(completed.tasks)deps.onAnswerBoundary?.({outcome:"components_completed",tasks:answer.taskCompletion});
  }

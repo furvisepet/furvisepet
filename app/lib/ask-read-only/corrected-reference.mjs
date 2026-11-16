@@ -1,21 +1,9 @@
+import {positiveOwnedPets} from "./subject-scope.mjs";
 import {explicitCalendarWindow} from "./calendar-scope.mjs";
 
 /** A current explicit owned-pet/calendar lookup can replace an old reference
  * HINT. This grants no reference read and never retargets an omitted interval:
  * the new ordinary search still goes through the existing owner-bound binder. */
-function positiveOwnedPets(question,pets){
- const mentions=[];
- for(const pet of pets){
-  if(typeof pet.name!=="string"||!pet.name)return [];
-  const escaped=pet.name.replace(/[.*+?^$()|[\]\\{}]/g,"\\$&");
-  for(const m of question.matchAll(new RegExp("(?<![\\p{L}\\p{N}])"+escaped+"(?![\\p{L}\\p{N}])","giu"))){
-   const prefix=question.slice(Math.max(0,m.index-45),m.index);
-   mentions.push({pet,start:m.index,end:m.index+m[0].length,negative:/\b(?:not|instead of|rather than|excluding|except)\s*$/iu.test(prefix)});
-  }
- }
- if(mentions.some((m,i)=>mentions.some((n,j)=>i!==j&&m.start<n.end&&n.start<m.end&&m.pet.handle!==n.pet.handle)))return [];
- return [...new Map(mentions.filter(m=>!m.negative).map(m=>[m.pet.handle,m.pet])).values()];
-}
 export function reconcileCorrectedReference(first,plan,context){
  if(!Array.isArray(plan)||!plan.length||plan.length>6||!context?.question||!Array.isArray(context.pets)||!Array.isArray(context.references))return null;
  const historical=plan.filter(t=>t?.needsHistory===true);

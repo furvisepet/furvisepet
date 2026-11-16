@@ -17,7 +17,9 @@ export function reconcileDeclaredUnavailability(first,plan,context,pets,ownerId,
   if(sentence.length>280||sentence.includes("?")||/\b(?:until|since|before|after|but|except|only|maybe|perhaps|whether|if|unless|should|would|could|nothing)\b/i.test(sentence))return false;
   const text=sentence.normalize("NFKC").replaceAll("’","'");
   return /^I\s+(?:(?:have|had)\s+(?:not|never)|haven't|hadn't|never|did\s+not|didn't)\s+(?:ever\s+)?(?:recorded|entered|saved|logged|described|(?:written|wrote) down)\b/i.test(text)
-   ||/^(?:the|this|that)\b[^.!?]{1,180}\b(?:(?:was|were)\s+(?:never|not)|(?:has|have)\s+(?:never|not)\s+been)\s+(?:recorded|entered|saved|logged|described)\b/i.test(text);
+   ||/^(?:the|this|that)\b[^.!?]{1,180}\b(?:(?:was|were)\s+(?:never|not)|(?:has|have)\s+(?:never|not)\s+been)\s+(?:recorded|entered|saved|logged|described)\b/i.test(text)
+    ||pets.some(p=>p.ownerId===ownerId&&typeof p.name==="string"&&p.name.trim()
+    &&new RegExp("^"+p.name.replace(/[.*+?^{}$()|[\]\\]/g,"\\$&")+"'s\\s+[^.!?]{1,160}\\b(?:(?:has|have)\\s+(?:never|not)\\s+been|(?:was|were)\\s+(?:never|not))\\s+(?:recorded|entered|saved|logged|described)\\s+by\\s+me[.!]?$","iu").test(text));
  });
  if(declarations.length!==1)return null;
  const escape=name=>name.replace(/[.*+?^{}$()|[\]\\]/g,"\\$&");

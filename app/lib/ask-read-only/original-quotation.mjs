@@ -7,7 +7,7 @@ export function preserveRequestedOriginal(answer,tasks,sources,question,clinical
  if(selected.length!==1)return answer;
  const source=selected[0];
  const meaning=/\b(?:explain|difference)\b/iu.test(question)&&/\b(?:event|happened)\b/iu.test(question)&&/\b(?:saved|recorded)\b/iu.test(question)
-  ?" The event timestamp records when the care was reported to have happened; the recorded timestamp is when the note was saved. Saving the note later does not establish a second care event or verify current health.":"";
+  ?" Event time refers to the reported care occurrence; recorded time refers to the entry’s creation. Saving the note later does not establish a second care event or verify current health.":"";
  const text=clinicalActive?answer.answer:"Here is the original saved note."+meaning;
  return {...answer,answer:text,validatedParts:clinicalActive?answer.validatedParts:[{index:0,kind:"saved",text}],
   quotes:[{source:source.handle,quote:source.body}],sources:[...new Set([...(answer.sources??[]),source.handle])],

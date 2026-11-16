@@ -1,3 +1,4 @@
+import { READ_ONLY_LIMITS } from "../../../lib/ask-read-only/core.mjs";
 import { READ_ONLY_PROFILE_FIELDS } from "../../../lib/ask-read-only/data";
 import type { DogProfileRow } from "../../../lib/supabase";
 import { getAskConversationRequestContext } from "../../../lib/ask-conversation-server";
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
  const noteIds=proof.sources.filter(source=>source.kind!=="profile").map(source=>source.id);
  const {data,error}=noteIds.length?await Promise.resolve(auth.supabase.from("pet_care_entries")
   .select("id,user_id,pet_profile_id,note,title,occurred_at,created_at,deleted_at")
-  .eq("user_id",auth.userId).in("id",noteIds).is("deleted_at",null).limit(32).abortSignal(AbortSignal.timeout(5000)).returns<CitationSourceRow[]>())
+  .eq("user_id",auth.userId).in("id",noteIds).is("deleted_at",null).limit(READ_ONLY_LIMITS.records).abortSignal(AbortSignal.timeout(5000)).returns<CitationSourceRow[]>())
   .catch(()=>({data:null,error:true})):{data:[],error:null};
  const sources=!error && data ? checkedReadOnlyCitationSources(proof,data,pets) : null;
  if(!sources)return Response.json({error:"These references have changed or are unavailable."},{status:404,headers:{"Cache-Control":"no-store"}});

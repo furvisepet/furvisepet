@@ -132,3 +132,35 @@ test("explicit fresh scoped originals integrate with a retained overview even wi
  assert.equal(completeFreshHistory([t],[prior,fresh],[{...group,scope:{...group.scope,reference:"other"}}])[0],t);
  assert.equal(completeFreshHistory([{...t,missing:["year"]}],[prior,fresh],[group])[0].freshSourceHandles,undefined);
 });
+
+import {validateReadOnlyAnswer,READ_ONLY_LIMITS} from "../app/lib/ask-read-only/core.mjs";
+import {ownerSubjectScope,assertGeneratedSubject} from "../app/lib/ask-read-only/subject-scope.mjs";
+import {reconcileDeclaredUnavailability} from "../app/lib/ask-read-only/declared-unavailability.mjs";
+test("canonical source union admits36 reviewed originals while rejecting over the48-source budget",()=>{
+ const sources=Array.from({length:49},(_,i)=>({handle:"s"+(i+1),kind:"history",id:"source-"+i,petId:"echo",body:"Original "+i+".",eventAt:"2024-01-15T12:00:00Z",recordedAt:"2024-01-16T12:00:00Z"}));
+ const value=count=>({components:[{kind:"saved",text:"Earlier originals.",sources:sources.slice(0,24).map(s=>s.handle)},{kind:"saved",text:"Later originals.",sources:sources.slice(24,count).map(s=>s.handle)}],sources:[],quotes:[],calculations:[],replyType:"answer",presentation:{sourceDates:[],contextRequired:false}});
+ assert.equal(READ_ONLY_LIMITS.records,48);assert.equal(validateReadOnlyAnswer(value(36),sources.slice(0,36)).sources.length,36);
+ assert.throws(()=>validateReadOnlyAnswer(value(49),sources),/ASK_READ_ANSWER_INVALID/);
+});
+test("explicit corrected pet excludes the negated old pet from identity and generated acknowledgments",()=>{
+ const p=pets.map((p,i)=>({...p,handle:"p"+(i+1)}));
+ const scope=ownerSubjectScope("Use Echo's June 2024 original, not Cedar's.",[],p);assert.deepEqual(scope.pets,["p2"]);
+ assert.doesNotThrow(()=>assertGeneratedSubject({components:[{text:"Echo's original, not Cedar's."}]},scope,p));
+ assert.throws(()=>assertGeneratedSubject({components:[{text:"Cedar needs emergency care."}]},scope,p),/SUBJECT_SCOPE/);
+});
+test("passive owner never-logged declaration resolves without an invented saved task or read",()=>{
+ const p=pets.map((p,i)=>({...p,handle:"p"+(i+1)}));
+ const first={calls:[],workflowIntent:"none",safety:{medicationIntent:"none",careContext:"none",scenario:"none",currentEvents:[],conditionalEvents:[],missingContext:[]},historyIntent:{requested:false,timeBasis:"event"}};
+ const plan=[task({kind:"general_guidance",recordMode:"none",needsHistory:false})];
+ const got=reconcileDeclaredUnavailability(first,plan,{question:"Echo's bed brand has never been logged by me. Is there a recorded brand?"},p,"owner",h=>p.find(p=>p.handle===h));
+ assert.ok(got);assert.equal(got.first.calls.length,0);assert.deepEqual(got.plan[0].missing,[]);
+ assert.equal(reconcileDeclaredUnavailability(first,plan,{question:"Maybe Echo's bed brand has never been logged by me. Is there a recorded brand?"},p,"owner",h=>p.find(p=>p.handle===h)),null);
+});
+test("actual two-call general layout preserves explicit no-blank-lines request",async()=>{
+ const result=await runReadOnlyAsk({ownerId:"owner",selectedPetId:pets[0].id,pets,dialogue:[],question:"Write exactly two friendly lines. No heading or blank lines.",now:"2026-11-16T00:00:00Z",timeZone:"UTC"},{
+ provider:async(req,phase)=>phase==="read_selection"?decodeComponentSelection({safety:rawSafety,reads:[],draft:"",historyIntent:{requested:false,timeBasis:"event",pet:null},workflowIntent:"none",taskPlan:[task({kind:"general_guidance",needsHistory:false,recordMode:"none",pets:[]})],measurementRequests:[]},req.tools,req.context,decodeClinicalSelection):
+ {components:[{kind:"general",text:"Hello from the kettle.",sources:[]},{kind:"general",text:"Welcome from the cup.",sources:[]}],quotes:[],sources:[],calculations:[],replyType:"answer",presentation:{sourceDates:[],contextRequired:false},clinicalReview:{assessment:rawSafety,ownerStatementRefs:[],observationFields:[]},appHelp:{intent:"none",pet:null},completion:[{task:"t1",status:"complete",reason:"none",componentIndexes:[0,1],sources:[],ownerFacts:[],historyFacts:[]}]},
+ read:async()=>{throw Error("Unexpected record read");}
+ });
+ assert.equal(result.answer.answer,"Hello from the kettle.\nWelcome from the cup.");
+});

@@ -1,3 +1,4 @@
+import {positiveOwnedPets} from "./subject-scope.mjs";
 import {EVIDENCE_GOALS} from "./retrieval.mjs";
 /** Explicit calendar recognition only: no relative-time or event/recorded guessing. */
 const months=["january","february","march","april","may","june","july","august","september","october","november","december"];
@@ -131,10 +132,10 @@ export function reconcilePlannedSavedDates(first,plan,context,bound){
 export function recoverIndependentOriginalRead(first,plan,context){
  if(!plan||first.calls.length>1||first.historyIntent?.requested!==true)return null;
  const q=String(context.question);
- const display=/\b(?:both\s+(?:full\s+)?(?:timestamps|timestamp\s+instants|dates)|event\s+and\s+(?:saved|recorded)\s+(?:timestamps|dates))\b/iu.test(q);
+ const display=/\b(?:(?:both|two)\s+(?:(?:full|complete)\s+)?(?:timestamps|timestamp\s+instants|dates)|event\s+and\s+(?:saved|recorded)\s+(?:timestamps|dates))\b/iu.test(q);
  if(!display||/["\x60]/u.test(q))return null;
  const calendar=explicitCalendarWindow(q);if(!calendar||!["month","day"].includes(calendar.precision))return null;
- const named=context.pets.filter(p=>new RegExp("(?<![\\p{L}\\p{N}])"+p.name.replace(/[.*+?^{}()|[\]\\$]/g,"\\$&")+"(?![\\p{L}\\p{N}])","iu").test(q));
+ const named=positiveOwnedPets(q,context.pets);
  if(named.length!==1)return null;
  const history=plan.filter(t=>t.needsHistory),task=history[0];
  if(history.length!==1||task.kind!=="saved_content"||task.reference!==null||task.needsOwnerFacts||task.pets.length!==1||task.pets[0]!==named[0].handle||task.missing.some(k=>!["pet","year","date_meaning","which_record"].includes(k)))return null;

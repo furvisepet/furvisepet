@@ -62,8 +62,9 @@ export function componentSelectionSchema(base,context){
    const calculation=structuredClone(ordinary);calculation.properties.kind=choice(["calculation"]);calculation.properties.reference={type:"null",enum:[null]};
    calculation.properties.needsHistory={type:"boolean",enum:[true]};calculation.properties.needsOwnerFacts={type:"boolean",enum:[false]};calculation.properties.recordMode=choice(["collection"]);calculation.properties.pets.minItems=1;
     const general=structuredClone(ordinary);general.properties.kind=choice(["general_guidance"]);general.properties.reference={type:"null",enum:[null]};general.properties.missing.maxItems=0;general.properties.needsOwnerFacts={type:"boolean",enum:[false]};general.properties.includeSourceDates={type:"boolean",enum:[false]};
-    if(history===withoutHistory)ordinary.properties.kind=choice(["clinical_guidance","owner_observations","vet_brief","clarification"]);
-    return history===withHistory?[ordinary,workflow,calculation]:[general,ordinary,workflow];
+    const saved=structuredClone(ordinary);saved.properties.kind=choice(["saved_content","saved_continuation"]);saved.properties.needsOwnerFacts={type:"boolean",enum:[false]};saved.properties.missing=array(choice(["pet","year","date_meaning","which_record"]),4);
+    ordinary.properties.kind=choice(["clinical_guidance","owner_observations","vet_brief","clarification"]);
+    return history===withHistory?[saved,ordinary,workflow,calculation]:[general,ordinary,workflow];
   });
   out.properties.taskPlan.items={anyOf:variants};out.required.push("taskPlan");return out;
 }
