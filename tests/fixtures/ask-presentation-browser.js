@@ -21,8 +21,9 @@ try {
  });
  flushSync(()=>createRoot(document.getElementById('root')).render(h('div',null,...reloaded.map((text,index)=>h('article',{'data-case':index,key:index},h(AskAnswerText,{text}))))));
  const first=document.querySelector('[data-case="0"]');
- if((first.textContent.match(/^- /gm)||[]).length!==2) throw Error('Two-point layout lost after reload/render');
- if(first.querySelectorAll('p').length!==2) throw Error('Coverage limitation is not separated from answer');
+ const pointItems=Array.from(first.querySelectorAll('ul > li'));
+ if(pointItems.length!==2 || !pointItems[0].textContent.includes('July') || !pointItems[1].textContent.includes('August')) throw Error('Two-point semantic list lost after reload/render');
+ if(first.querySelectorAll('p').length!==1 || !first.querySelector('p').textContent.includes('not necessarily every event')) throw Error('Coverage limitation is not separated from answer');
  if(!first.querySelector('p').className.includes('whitespace-pre-wrap')) throw Error('Line-break preserving production class absent');
  if(!/^1\. /m.test(document.querySelector('[data-case="1"]').textContent)) throw Error('Numbered layout lost');
  if(/^- /m.test(document.querySelector('[data-case="2"]').textContent)) throw Error('Paragraph request still displays bullets');
