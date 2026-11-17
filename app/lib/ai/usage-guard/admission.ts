@@ -3,7 +3,7 @@ import { ASK_OPERATION_TIMEOUT_MS } from "../ask-execution-limits.ts";
 
 import { randomUUID } from "node:crypto";
 import { ASK_BUNDLE_SLOTS, ASK_BUNDLE_OUTPUT_CEILING } from "./whole-ask-reservation.ts";
-import { getRateLimitBackendConfig } from "../../security/rate-limit/config";
+import { getRateLimitBackendConfig, isRateLimitEnabled } from "../../security/rate-limit/config";
 import { fingerprintRateLimitPayload } from "../../security/rate-limit/keys";
 import { OPENAI_ANALYSIS_MODEL } from "../config";
 import { requireApprovedAiModel } from "../model-policy";
@@ -41,6 +41,8 @@ export async function admitAiOperation(input: {
   // provider feature must remain disabled until it gains its own bounded path.
   if (config.launchProtection && input.feature !== "ask")
     return deny("AI_FEATURE_UNAVAILABLE", "funded_mode_ask_only");
+  if (config.launchProtection && !isRateLimitEnabled(env as NodeJS.ProcessEnv))
+    return deny("AI_TEMPORARILY_UNAVAILABLE", "abuse_rate_limiter_disabled");
   if (!config.configured) return deny("AI_TEMPORARILY_UNAVAILABLE", "daily_guard_not_configured");
   if (config.qualificationMode && config.qualificationLimitMicrodollars <= 0) return deny("AI_TEMPORARILY_UNAVAILABLE", "qualification_total_budget_unconfigured");
   if (!getModelPrice(intendedModel) && !(config.production === false && env.FURVISE_AI_ALLOW_UNKNOWN_MODEL_IN_DEVELOPMENT === "true")) return deny("AI_TEMPORARILY_UNAVAILABLE", "unknown_model_pricing");

@@ -11,6 +11,7 @@ const env = {
  FURVISE_AI_LAUNCH_PROTECTION_ENABLED:"true", FURVISE_AI_FUNDED_CEILING_USD:"20.00",
  FURVISE_AI_QUALIFICATION_MODE:"true", FURVISE_AI_QUALIFICATION_TOTAL_COST_LIMIT_USD:"4.00",
  FURVISE_AI_DAILY_CALL_LIMIT:"1", FURVISE_AI_DAILY_COST_LIMIT_USD:"0.01",
+ FURVISE_RATE_LIMIT_ENABLED:"true",
  FURVISE_RATE_LIMIT_HASH_SECRET:"local-only-test-secret-for-ai-launch-protection-111111",
 };
 const mk = (store,id=randomUUID(),e=env)=>admitAiOperation({
@@ -61,8 +62,9 @@ test("funding loss or operator stop fails closed; production requires explicit s
  const c=getAiGuardConfig({...env,VERCEL_ENV:"production",NODE_ENV:"production"},true);
  assert.equal(c.enabled,false);
  assert.equal(c.configured,false);
- const approved=getAiGuardConfig({...env,VERCEL_ENV:"production",NODE_ENV:"production",FURVISE_AI_PRODUCTION_LAUNCH_APPROVED:"true"},true);
+ const approved=getAiGuardConfig({...env,VERCEL_ENV:"production",VERCEL_GIT_COMMIT_REF:"main",NODE_ENV:"production",FURVISE_AI_PRODUCTION_LAUNCH_APPROVED:"true"},true);
  assert.equal(approved.wholeAskQualification,true);
+ await assert.rejects(mk(store,randomUUID(),{...env,FURVISE_RATE_LIMIT_ENABLED:"false"}),e=>e.reason==="abuse_rate_limiter_disabled");
 });
 test("funded Redis Lua preserves historical qualification ledger and only meters global daily call totals",()=>{
  assert.match(RESERVE_WHOLE_ASK_LUA,/local funded = fundedLimit > 0/);
