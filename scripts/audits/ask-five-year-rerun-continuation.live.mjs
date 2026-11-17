@@ -18,7 +18,7 @@ const {enforceVerifiedStateClaims}=await import('../../app/lib/application-actio
 const {presentationOnlyAskResponse}=await import('../../app/lib/ask-conversation-server.ts');
 const {resolveAskHistoryAccess}=await import('../../app/lib/intelligence/history-access.ts');
 const model=getAskModelConfiguration().primary;
-assert.equal(model,'gpt-5.4-mini','Live budget supports only the verified configured model');
+throw new Error('LEGACY_LIVE_QUALIFICATION_DISABLED: fresh non-5.4 model and audited cost ledger required.');
 assert.ok(process.argv.includes('--dry-run')||process.env.OPENAI_API_KEY,'Existing key required');
 const ledgerPath=new URL('../../docs/ask-five-year-rerun-continuation-budget.json',import.meta.url);
 if(existsSync(ledgerPath))throw Error('Refusing to overwrite rerun ledger');

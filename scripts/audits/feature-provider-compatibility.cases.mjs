@@ -8,12 +8,12 @@ registerHooks({resolve(s,c,next){
 await import('./helpers/lifetime-harness.mjs');
 const {generateStructuredFeatureResponse}=await import('../../app/lib/ai/ask-reasoning.ts');
 const invoke=()=>generateStructuredFeatureResponse({apiKey:'synthetic-test-only',input:{},instructions:'Test',schema:{type:'object'},schemaName:'test',parse:v=>v});
-for(const model of ['gpt-5.4-mini','gpt-5-mini','gpt-4.1-mini']) test('structured feature wire parameters: '+model,async t=>{
+for(const model of ['gpt-6-luna','gpt-5-mini','gpt-4.1-mini']) test('structured feature wire parameters: '+model,async t=>{
  const prior=process.env.OPENAI_ASK_PRIMARY_MODEL;
  process.env.OPENAI_ASK_PRIMARY_MODEL=model;
  t.after(()=>{if(prior===undefined)delete process.env.OPENAI_ASK_PRIMARY_MODEL;else process.env.OPENAI_ASK_PRIMARY_MODEL=prior;});
  globalThis.__featureProvider=async request=>{
-  if(model.startsWith('gpt-5')) assert.equal(Object.hasOwn(request,'temperature'),false);
+  if(/^gpt-(?:5|6)/.test(model)) assert.equal(Object.hasOwn(request,'temperature'),false);
   else assert.equal(request.temperature,0.2);
   return {status:'completed',output_text:'{"ok":true}',usage:{input_tokens:1,output_tokens:1}};
  };
@@ -55,7 +55,7 @@ test('actual Vet Brief feature runner reaches compatible request and document va
 });
 test('fallback rebuilds sampling compatibility for its own model',async t=>{
  const oldPrimary=process.env.OPENAI_ASK_PRIMARY_MODEL,oldFallback=process.env.OPENAI_ASK_FALLBACK_MODEL;
- process.env.OPENAI_ASK_PRIMARY_MODEL='gpt-5.4-mini';process.env.OPENAI_ASK_FALLBACK_MODEL='gpt-4.1-mini';
+ process.env.OPENAI_ASK_PRIMARY_MODEL='gpt-6-luna';process.env.OPENAI_ASK_FALLBACK_MODEL='gpt-4.1-mini';
  t.after(()=>{
   if(oldPrimary===undefined)delete process.env.OPENAI_ASK_PRIMARY_MODEL;else process.env.OPENAI_ASK_PRIMARY_MODEL=oldPrimary;
   if(oldFallback===undefined)delete process.env.OPENAI_ASK_FALLBACK_MODEL;else process.env.OPENAI_ASK_FALLBACK_MODEL=oldFallback;

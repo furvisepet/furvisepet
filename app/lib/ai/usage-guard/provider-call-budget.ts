@@ -2,6 +2,7 @@ import { consumeCatalogContinuationToken, type CatalogContinuationToken } from "
 import type { PipelineStage } from "../execution-deadline.ts";
 import { getActiveAiAdmission } from "./context.ts";
 import { AiAdmissionError } from "./errors.ts";
+import { requireApprovedAiModel } from "../model-policy.ts";
 
 export type ProviderCallPurpose = "catalog_continuation" | "interpretation_repair" | "generation_repair" | "history_review" | "history_repair" | "history_rereview"
   | "task_review" | "task_repair" | "task_rereview";
@@ -23,6 +24,8 @@ export async function executeAdmittedProviderCall<T>(input: {
   model: string;
   providerInput: unknown;
 }) {
+  // Reject unapproved names before test overrides, admission, retry or any SDK call.
+  requireApprovedAiModel(input.model);
   input = { ...input, purpose: canonicalReviewPurpose(input.purpose) };
   if (input.purpose === "catalog_continuation") {
     if (input.stage !== "catalog_continuation") throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "catalog_authority_wrong_phase");

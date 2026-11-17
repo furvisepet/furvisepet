@@ -98,12 +98,12 @@ function sourceContext(q){return {...context,conversationId:'current-conversatio
 const appendQuestion='Milo had a 7 minute play session today. Save this update to care history.';
 const appendProposal=()=>full(proposal(appendQuestion,{mode:'update',evidenceBasis:null,quantity:null,operation:'general',appendJob:{operation:'append',petName:'Milo',companionQuote:null,items:[{bodyQuote:'Milo had a 7 minute play session today.',dateQuote:null,occurredAt:null,semantics:{classification:'observation',target:null}}]}}));
 async function wireCall(ctx,p,{raw=false,catalogService,expectedCalls=1}={}){
- const a=await admitAiOperation({feature:'ask',userId:ownerId,requestId:crypto.randomUUID(),payload:{fixture:'active-contract'},intendedModel:'gpt-5.4-mini',env:{NODE_ENV:'test',FURVISE_AI_DAILY_CALL_LIMIT:'20',FURVISE_AI_DAILY_COST_LIMIT_USD:'1'},store:new MemoryAiGuardTestStore()});
+ const a=await admitAiOperation({feature:'ask',userId:ownerId,requestId:crypto.randomUUID(),payload:{fixture:'active-contract'},intendedModel:'gpt-6-luna',env:{NODE_ENV:'test',FURVISE_AI_DAILY_CALL_LIMIT:'20',FURVISE_AI_DAILY_COST_LIMIT_USD:'1'},store:new MemoryAiGuardTestStore()});
  const prior=process.env.NODE_TEST_CONTEXT;delete process.env.NODE_TEST_CONTEXT;let calls=0;
  try{return await a.run(async()=>{
-  const prepared=prepareAskInterpretationRequest(ctx,'gpt-5.4-mini');
+  const prepared=prepareAskInterpretationRequest(ctx,'gpt-6-luna');
   try{const response=raw?p:prepared.transport.encode({request:p},()=>{});
-  return await interpretAskQuestion({context:ctx,model:'gpt-5.4-mini',catalogService,client:{responses:{create:async request=>{
+  return await interpretAskQuestion({context:ctx,model:'gpt-6-luna',catalogService,client:{responses:{create:async request=>{
    calls++;assert.equal(calls,1,'non-profile repair cannot grant another attempt');
    assert.equal(request.max_output_tokens,8192);assert.deepEqual(request.reasoning,{effort:'none'});
    assert.deepEqual(request.text.format.schema,prepared.request.text.format.schema);
@@ -142,7 +142,7 @@ for(const [name,change]of [
  ['unknown source reference',p=>p.referenceTurnIds=['not-a-user-turn']],
  ['missing canonical job',p=>p.appendJob=null],
 ])test('strict non-profile proposal cannot repair '+name,async()=>{
- const p=appendProposal();change(p);const ctx=prepareAskInterpretationRequest(sourceContext(appendQuestion),'gpt-5.4-mini').context;
+ const p=appendProposal();change(p);const ctx=prepareAskInterpretationRequest(sourceContext(appendQuestion),'gpt-6-luna').context;
  assert.throws(()=>recoverAskInterpretation(p,ctx),/ASK_REQUEST/);
  if(name==='unknown source reference')await assert.rejects(wireCall(ctx,p,{expectedCalls:0}),error=>error.message==='ASK_DIRECT_FIELD_TYPE'&&error.cause?.field==='referenceTurnIds');
  else await assert.rejects(wireCall(ctx,p),e=>e.stage==='interpretation_failed');

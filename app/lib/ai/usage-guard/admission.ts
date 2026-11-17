@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { getRateLimitBackendConfig } from "../../security/rate-limit/config";
 import { fingerprintRateLimitPayload } from "../../security/rate-limit/keys";
 import { OPENAI_ANALYSIS_MODEL } from "../config";
+import { requireApprovedAiModel } from "../model-policy";
 import { getAiGuardConfig, isAiFeatureEnabled } from "./config";
 import { estimateInputTokens, estimateProviderCostMicrodollars, getModelPrice } from "./cost-estimator";
 import { getConfiguredAiGuardStore, secondsUntilUtcBucketExpiry, utcDay } from "./daily-usage-store";
@@ -27,6 +28,7 @@ export async function admitAiOperation(input: {
   const config = getAiGuardConfig(env);
   const policy = getAiFeaturePolicy(input.feature);
   const intendedModel = input.intendedModel || OPENAI_ANALYSIS_MODEL;
+  requireApprovedAiModel(intendedModel);
   const deny = async (code: ConstructorParameters<typeof AiAdmissionError>[0], reason: string, status = 503) => {
     logAiGuardEvent("admission denied", { allowed: false, denialReason: reason, durationMs: Date.now() - startedAt, feature: input.feature, model: intendedModel, operationId: "denied", requestId: input.requestId });
     await safeMetric(input.metrics || noopAiGuardMetrics, { allowed: false, durationMs: Date.now() - startedAt, feature: input.feature, reason });
@@ -107,6 +109,7 @@ export class AiOperationAdmission {
   }
 
   async beginProviderCall(input: { purpose?: "catalog_continuation" | "interpretation_repair" | "generation_repair" | "history_review" | "history_repair" | "history_rereview"; input: unknown; maxOutputTokens: number; model: string; stage?: string }) {
+    requireApprovedAiModel(input.model);
     if (this.catalogTerminal) throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "catalog_terminal");
     if (this.deadline ? this.deadline.remainingMs() <= 0 : Date.now() >= this.providerDeadlineAt) throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "provider_deadline_exhausted");
     if (this.queued && (input.purpose === "catalog_continuation" || input.purpose === "interpretation_repair" || input.purpose === "generation_repair" || input.purpose === "history_repair" || input.purpose === "history_rereview"))
@@ -160,6 +163,7 @@ export class AiOperationAdmission {
   async release() { await this.releaseQueued(); }
 
   async reserveNextCall(model: string, purpose?: "catalog_continuation" | "interpretation_repair" | "generation_repair" | "history_review" | "history_repair" | "history_rereview") {
+    requireApprovedAiModel(model);
     if (this.catalogTerminal) throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "catalog_terminal");
     if (purpose === "catalog_continuation") this.assertCatalogPlanningPhase();
     if (this.feature === "ask" && purpose === "interpretation_repair" && (this.callNumber !== 1 || this.interpretationRepaired)) {

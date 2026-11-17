@@ -18,7 +18,7 @@ const {interpretAskQuestion}=await import('../../app/lib/intelligence/interpret-
 const {getAskModelConfiguration}=await import('../../app/lib/ai/ask-reasoning.ts');
 const {runWithAiAdmission}=await import('../../app/lib/ai/usage-guard/context.ts');
 const model=getAskModelConfiguration().primary;
-assert.equal(model,'gpt-5.4-mini','Review budget before testing a different model');
+throw new Error('LEGACY_LIVE_QUALIFICATION_DISABLED: fresh non-5.4 model and audited cost ledger required.');
 const {default:OpenAI}=await import('openai');
 const provider=new OpenAI({apiKey:process.env.OPENAI_API_KEY,maxRetries:0});
 const originalFetch=globalThis.fetch;
