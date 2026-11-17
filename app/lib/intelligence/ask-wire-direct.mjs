@@ -157,6 +157,7 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
             if(typeof v!=="string"||v.length<2||v.length>MAX){matches=false;break;}
             try{candidate[k]=JSON.parse(v);}catch{matches=false;break;}
           }else if(!variant.complex.includes(k) && !simpleMatches(variant.schema.properties[k],v)){
+            if(variants.length===1)error("FIELD_TYPE",k);
             matches=false;break;
           }else candidate[k]=v;
         }
@@ -218,7 +219,9 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
           decode({format:DIRECT_ASK_FORMAT_VERSION,request:encoded},checkRuntime);
           candidate=encoded;break;
         }catch(e){
-          if(!(e instanceof Error)||!e.message.startsWith("ASK_"))throw e;
+          // Keep precise single-shape semantic field errors while retaining
+          // server-enforced branch validation.
+          if(variants.length===1 || !(e instanceof Error)||!e.message.startsWith("ASK_"))throw e;
         }
       }
       if(candidate===null)error("CANONICAL_BRANCH");
