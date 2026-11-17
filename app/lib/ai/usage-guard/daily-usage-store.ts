@@ -52,12 +52,24 @@ local reserved = tonumber(redis.call('HGET', KEYS[3], 'cost') or '0')
 local actual = tonumber(ARGV[1])
 if not actual or actual < 0 then return {-1, -1} end
 local qualified = redis.call('HGET', KEYS[3], 'qualification') == '1'
+local funded = redis.call('HGET', KEYS[3], 'funded') == '1'
+if funded and redis.call('EXISTS', KEYS[6]) ~= 1 then
+  redis.call('SET', KEYS[5], '{"disabled":true,"reason":"funded_ledger_missing"}')
+  return {-1, -1, 1}
+end
 if qualified and redis.call('EXISTS', KEYS[4]) ~= 1 then
   redis.call('SET', KEYS[5], '{"disabled":true,"reason":"qualification_ledger_missing"}')
   return {-1, -1, 1}
 end
 local cost = redis.call('INCRBY', KEYS[2], actual - reserved)
 local overshoot = 0
+if funded then
+  redis.call('INCRBY', KEYS[6], actual - reserved)
+  if actual > reserved then
+    redis.call('SET', KEYS[5], '{"disabled":true,"reason":"funded_cost_underreserved"}')
+    overshoot = 1
+  end
+end
 if qualified then
   redis.call('INCRBY', KEYS[4], actual - reserved)
   if actual > reserved then
@@ -76,6 +88,7 @@ if redis.call('HGET', KEYS[4], 'state') ~= 'reserved' then return 0 end
 local cost = tonumber(redis.call('HGET', KEYS[4], 'cost') or '0')
 redis.call('DECR', KEYS[1]); redis.call('DECRBY', KEYS[2], cost); redis.call('DECR', KEYS[3]); redis.call('DECR', KEYS[5])
 if redis.call('HGET', KEYS[4], 'qualification') == '1' then redis.call('DECRBY', KEYS[6], cost) end
+if redis.call('HGET', KEYS[4], 'funded') == '1' then redis.call('DECRBY', KEYS[7], cost) end
 redis.call('DEL', KEYS[4])
 return 1
 `;
@@ -110,10 +123,10 @@ export class RedisAiGuardStore implements AiGuardStore {
   async reserveWholeAsk(input: {
     callIds: string[]; operationId: string; day: string; ttlSeconds: number; operationTtlSeconds: number;
     callLimit: number; costLimitMicrodollars: number; qualificationLimitMicrodollars: number;
-    perCallMicrodollars: number;
+    perCallMicrodollars: number; fundedLimitMicrodollars?: number;
   }) {
     if (input.callIds.length !== 6 || new Set(input.callIds).size !== 6
-      || input.qualificationLimitMicrodollars <= 0) throw new Error("AI_WHOLE_ASK_INVALID");
+      || (input.fundedLimitMicrodollars || input.qualificationLimitMicrodollars) <= 0) throw new Error("AI_WHOLE_ASK_INVALID");
     const keys = [
       PREFIX + ":day:" + input.day + ":calls",
       PREFIX + ":day:" + input.day + ":cost",
@@ -122,17 +135,19 @@ export class RedisAiGuardStore implements AiGuardStore {
       PREFIX + ":qualification:v1-mini-20261117:reserved_total",
       PREFIX + ":emergency",
       ...input.callIds.map(id => PREFIX + ":call:" + id),
+      PREFIX + ":funded:v1:reserved_total",
     ];
     const result = await this.redis.eval<string[], number[]>(RESERVE_WHOLE_ASK_LUA, keys, [
       "6", String(input.perCallMicrodollars), String(input.callLimit),
       String(input.costLimitMicrodollars), String(input.qualificationLimitMicrodollars),
       input.day, String(input.ttlSeconds), String(input.operationTtlSeconds),
+      String(input.fundedLimitMicrodollars || 0),
     ]);
     const snapshot = { calls: Number(result[1]), costMicrodollars: Number(result[2]) };
     if (result[0] === 1) return { allowed: true as const, snapshot };
     const reason = result[3] === 1 ? "daily_call_limit" as const
       : result[3] === 2 ? "daily_cost_limit" as const
-      : result[3] === 4 ? "qualification_total_limit" as const
+      : result[3] === 4 ? (input.fundedLimitMicrodollars ? "funded_ceiling_reached" as const : "qualification_total_limit" as const)
       : result[3] === 6 ? "operation_conflict" as const
       : result[3] === 7 ? "emergency_disabled" as const : "operation_invalid" as const;
     return { allowed: false as const, reason, snapshot };
@@ -145,7 +160,7 @@ export class RedisAiGuardStore implements AiGuardStore {
     const reservationKey = `${PREFIX}:call:${input.callId}`;
     const day = await this.redis.hget<string>(reservationKey, "day");
     if (!day) throw new Error("AI_CALL_RESERVATION_MISSING");
-    const result = await this.redis.eval<string[], number[]>(RECONCILE_SCRIPT, [`${PREFIX}:day:${day}:calls`, `${PREFIX}:day:${day}:cost`, reservationKey, `${PREFIX}:qualification:v1-mini-20261117:reserved_total`, `${PREFIX}:emergency`], [String(input.actualCostMicrodollars)]);
+    const result = await this.redis.eval<string[], number[]>(RECONCILE_SCRIPT, [`${PREFIX}:day:${day}:calls`, `${PREFIX}:day:${day}:cost`, reservationKey, `${PREFIX}:qualification:v1-mini-20261117:reserved_total`, `${PREFIX}:emergency`, `${PREFIX}:funded:v1:reserved_total`], [String(input.actualCostMicrodollars)]);
     if (result[0] < 0 || result[2] === 1) throw new Error("AI_CALL_RECONCILIATION_FAILED");
     return { calls: Number(result[0]), costMicrodollars: Number(result[1]) };
   }
@@ -179,5 +194,5 @@ export function secondsUntilUtcBucketExpiry(now = new Date()) {
 }
 
 function dailyKeys(day: string, feature: string, callId: string, operationId: string) {
-  return [`${PREFIX}:day:${day}:calls`, `${PREFIX}:day:${day}:cost`, `${PREFIX}:day:${day}:feature:${feature}:calls`, `${PREFIX}:call:${callId}`, `${PREFIX}:operation:${operationId}:calls`, `${PREFIX}:qualification:v1-mini-20261117:reserved_total`];
+  return [`${PREFIX}:day:${day}:calls`, `${PREFIX}:day:${day}:cost`, `${PREFIX}:day:${day}:feature:${feature}:calls`, `${PREFIX}:call:${callId}`, `${PREFIX}:operation:${operationId}:calls`, `${PREFIX}:qualification:v1-mini-20261117:reserved_total`, `${PREFIX}:funded:v1:reserved_total`];
 }

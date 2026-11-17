@@ -37,6 +37,10 @@ export async function admitAiOperation(input: {
   };
   if (!config.enabled) return deny("AI_TEMPORARILY_UNAVAILABLE", "global_disabled");
   if (!isAiFeatureEnabled(input.feature, env)) return deny("AI_FEATURE_UNAVAILABLE", "feature_disabled");
+  // The funded whole-question envelope currently covers Ask only. Any other
+  // provider feature must remain disabled until it gains its own bounded path.
+  if (config.launchProtection && input.feature !== "ask")
+    return deny("AI_FEATURE_UNAVAILABLE", "funded_mode_ask_only");
   if (!config.configured) return deny("AI_TEMPORARILY_UNAVAILABLE", "daily_guard_not_configured");
   if (config.qualificationMode && config.qualificationLimitMicrodollars <= 0) return deny("AI_TEMPORARILY_UNAVAILABLE", "qualification_total_budget_unconfigured");
   if (!getModelPrice(intendedModel) && !(config.production === false && env.FURVISE_AI_ALLOW_UNKNOWN_MODEL_IN_DEVELOPMENT === "true")) return deny("AI_TEMPORARILY_UNAVAILABLE", "unknown_model_pricing");
@@ -128,7 +132,7 @@ export class AiOperationAdmission {
         operationTtlSeconds: this.operationTtlSeconds, callLimit: this.config.callLimit,
         costLimitMicrodollars: this.config.costLimitMicrodollars,
         qualificationLimitMicrodollars: this.config.qualificationLimitMicrodollars,
-        perCallMicrodollars: price,
+        perCallMicrodollars: price, fundedLimitMicrodollars: this.config.fundedLimitMicrodollars,
       });
     } catch {
       throw new AiAdmissionError("AI_TEMPORARILY_UNAVAILABLE", "whole_ask_accounting_unavailable");

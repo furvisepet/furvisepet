@@ -1,13 +1,21 @@
 import type { AiDailySnapshot, AiGuardStore } from "./types";
 
 export class MemoryAiGuardTestStore implements AiGuardStore {
-  private calls = new Map<string, { cost: number; day: string; feature: string; operationId: string; started: boolean; state: string; qualification: boolean }>();
+  private calls = new Map<string, { cost: number; day: string; feature: string; operationId: string; started: boolean; state: string; qualification: boolean; funded?: boolean }>();
   private operations = new Map<string, { fingerprint: string; state: string }>();
   private operationCalls = new Map<string, number>();
   private snapshots = new Map<string, AiDailySnapshot>();
   private emergency = { disabled: false, reason: null as string | null, updatedAt: null as string | null };
   // Same in-memory instance models a persistent shared Redis ledger across dates and requests.
   private qualificationTotal: number | null = null;
+  private fundedTotal: number | null = null;
+  seedFundedLedger(initialMicrodollars: number) {
+    if (this.fundedTotal !== null || !Number.isSafeInteger(initialMicrodollars) || initialMicrodollars < 0)
+      throw new Error("FUNDED_LEDGER_ALREADY_SET_OR_INVALID");
+    this.fundedTotal = initialMicrodollars;
+  }
+  getFundedTotal() { return this.fundedTotal; }
+  simulateFundedLedgerLoss() { this.fundedTotal = null; }
   seedQualificationLedger(initialMicrodollars = 0) {
     if (this.qualificationTotal !== null || !Number.isSafeInteger(initialMicrodollars) || initialMicrodollars < 0) throw new Error("QUALIFICATION_LEDGER_ALREADY_SET_OR_INVALID");
     this.qualificationTotal = initialMicrodollars;
@@ -45,26 +53,32 @@ export class MemoryAiGuardTestStore implements AiGuardStore {
   async reserveWholeAsk(input: {
     callIds: string[]; operationId: string; day: string; ttlSeconds: number; operationTtlSeconds: number;
     callLimit: number; costLimitMicrodollars: number; qualificationLimitMicrodollars: number;
-    perCallMicrodollars: number;
+    perCallMicrodollars: number; fundedLimitMicrodollars?: number;
   }) {
+    const funded = (input.fundedLimitMicrodollars || 0) > 0;
     const snapshot = this.snapshots.get(input.day) || { calls: 0, costMicrodollars: 0 };
-    const deny = (reason: "daily_call_limit" | "daily_cost_limit" | "qualification_total_limit" | "operation_conflict" | "operation_invalid") =>
+    const deny = (reason: "daily_call_limit" | "daily_cost_limit" | "qualification_total_limit" | "funded_ceiling_reached" | "operation_conflict" | "operation_invalid") =>
       ({ allowed: false as const, reason, snapshot: { ...snapshot } });
     const slots = input.callIds.length, amount = slots * input.perCallMicrodollars;
     if (slots !== 6 || new Set(input.callIds).size !== 6 || !Number.isSafeInteger(amount) || amount < 1) return deny("operation_invalid");
     if (this.emergency.disabled) return { allowed: false as const, reason: "emergency_disabled" as const, snapshot: { ...snapshot } };
     if (input.callIds.some(id => this.calls.has(id))
       || (this.operationCalls.get(input.operationId) || 0) !== 0) return deny("operation_conflict");
-    if (snapshot.calls + slots > input.callLimit) return deny("daily_call_limit");
-    if (snapshot.costMicrodollars + amount > input.costLimitMicrodollars) return deny("daily_cost_limit");
-    if (this.qualificationTotal === null || this.qualificationTotal + amount > input.qualificationLimitMicrodollars)
+    if (!funded && snapshot.calls + slots > input.callLimit) return deny("daily_call_limit");
+    if (!funded && snapshot.costMicrodollars + amount > input.costLimitMicrodollars) return deny("daily_cost_limit");
+    if (funded) {
+      if (this.fundedTotal === null || this.fundedTotal + amount > input.fundedLimitMicrodollars!)
+        return deny("funded_ceiling_reached");
+    } else if (this.qualificationTotal === null || this.qualificationTotal + amount > input.qualificationLimitMicrodollars)
       return deny("qualification_total_limit");
     snapshot.calls += slots; snapshot.costMicrodollars += amount;
-    this.snapshots.set(input.day,snapshot);this.qualificationTotal += amount;
+    this.snapshots.set(input.day,snapshot);
+    if (funded) this.fundedTotal! += amount;
+    else this.qualificationTotal! += amount;
     this.operationCalls.set(input.operationId,slots);
     for (const callId of input.callIds) this.calls.set(callId, {
       cost: input.perCallMicrodollars, day: input.day, feature: "ask",
-      operationId: input.operationId, started: false, state: "reserved", qualification: true,
+      operationId: input.operationId, started: false, state: "reserved", qualification: !funded, funded,
     });
     return { allowed: true as const, snapshot: { ...snapshot } };
   }
@@ -75,19 +89,25 @@ export class MemoryAiGuardTestStore implements AiGuardStore {
     if (item.state === "completed") return { ...snapshot };
     if (!Number.isSafeInteger(input.actualCostMicrodollars) || input.actualCostMicrodollars < 0) throw new Error("INVALID_COST");
     if (item.qualification && this.qualificationTotal === null) { this.setEmergency(true, "qualification_ledger_missing"); throw new Error("QUALIFICATION_LEDGER_MISSING"); }
+    if (item.funded && this.fundedTotal === null) { this.setEmergency(true, "funded_ledger_missing"); throw new Error("FUNDED_LEDGER_MISSING"); }
     snapshot.costMicrodollars += input.actualCostMicrodollars - item.cost;
     if (item.qualification) {
       this.qualificationTotal! += input.actualCostMicrodollars - item.cost;
       if (input.actualCostMicrodollars > item.cost) this.setEmergency(true, "qualification_cost_underreserved");
     }
+    if (item.funded) {
+      this.fundedTotal! += input.actualCostMicrodollars - item.cost;
+      if (input.actualCostMicrodollars > item.cost) this.setEmergency(true, "funded_cost_underreserved");
+    }
     item.cost = input.actualCostMicrodollars; item.state = "completed";
-    if (item.qualification && this.emergency.disabled) throw new Error("QUALIFICATION_UNDERRESERVED");
+    if ((item.qualification || item.funded) && this.emergency.disabled) throw new Error("COST_UNDERRESERVED");
     return { ...snapshot };
   }
   async releaseUnstartedCall(input: { callId: string }) {
     const item = this.calls.get(input.callId); if (!item || item.started) return;
     const snapshot = this.snapshots.get(item.day)!; snapshot.calls -= 1; snapshot.costMicrodollars -= item.cost;
     if (item.qualification && this.qualificationTotal !== null) this.qualificationTotal -= item.cost;
+    if (item.funded && this.fundedTotal !== null) this.fundedTotal -= item.cost;
     this.calls.delete(input.callId);
     this.operationCalls.set(item.operationId, Math.max(0, (this.operationCalls.get(item.operationId) || 1) - 1));
   }

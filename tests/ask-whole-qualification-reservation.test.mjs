@@ -98,7 +98,7 @@ test("preview-only mode cannot be inherited by production, and a missing ledger 
  assert.equal(fromProd.getAiGuardConfig({...env,FURVISE_AI_WHOLE_ASK_RESERVATION_ENABLED:"false"},true).wholeAskQualification,false);
 });
 test("Redis admission verifies every slot, ledger, emergency stop, and never expires lifetime key",()=>{
- assert.match(RESERVE_WHOLE_ASK_LUA,/for i=7,#KEYS do/);
+ assert.match(RESERVE_WHOLE_ASK_LUA,/for i=7,#KEYS-1 do/);
  assert.match(RESERVE_WHOLE_ASK_LUA,/lifetime \+ amount >/);
  assert.match(RESERVE_WHOLE_ASK_LUA,/calls \+ count >/);
  assert.match(RESERVE_WHOLE_ASK_LUA,/spent \+ amount >/);

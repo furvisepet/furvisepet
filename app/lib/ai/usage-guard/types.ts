@@ -46,9 +46,9 @@ export type AiGuardStore = {
   reserveWholeAsk?(input: {
     callIds: string[]; operationId: string; day: string; ttlSeconds: number; operationTtlSeconds: number;
     callLimit: number; costLimitMicrodollars: number; qualificationLimitMicrodollars: number;
-    perCallMicrodollars: number;
+    perCallMicrodollars: number; fundedLimitMicrodollars?: number;
   }): Promise<{ allowed: true; snapshot: AiDailySnapshot } |
-    { allowed: false; snapshot: AiDailySnapshot; reason: "daily_call_limit" | "daily_cost_limit" | "qualification_total_limit" | "operation_conflict" | "emergency_disabled" | "operation_invalid" }>;
+    { allowed: false; snapshot: AiDailySnapshot; reason: "daily_call_limit" | "daily_cost_limit" | "qualification_total_limit" | "funded_ceiling_reached" | "operation_conflict" | "emergency_disabled" | "operation_invalid" }>;
   markCallStarted(input: { callId: string }): Promise<void>;
   reconcileCall(input: { actualCostMicrodollars: number; callId: string }): Promise<AiDailySnapshot>;
   releaseUnstartedCall(input: { callId: string }): Promise<void>;
