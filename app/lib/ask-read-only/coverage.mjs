@@ -9,7 +9,7 @@ export function readCoverageMessages(coverage=[]) {
    const unmet=row.unmet??[];
    const remaining=row.omittedRange??(row.omittedEventRange?{axis:"event",...row.omittedEventRange}:null);
    return pet+window("event dates",scope.from,scope.to)+window("recorded dates",scope.recordedFrom,scope.recordedTo)
-    +" — "+scope.goal+": "+row.returned+" notes supplied to the answer model from "+row.inspected+" distinct database candidates examined. "+lanes.join(". ")+"."
+    +"  -  "+scope.goal+": "+row.returned+" notes supplied to the answer model from "+row.inspected+" distinct database candidates examined. "+lanes.join(". ")+"."
     +(row.continuationValidation?" Continuation anchors: "+(row.continuationValidation.valid?"verified":"unavailable or changed")+"; "+row.continuationValidation.attempts+" validation DB attempts, "+row.continuationValidation.rows+" rows checked within the shared acquisition budget.":"")
     +(row.sharedCollection?" Goals in this pet/time scope share one candidate acquisition; any lexical lane uses combined hints instead of separate queries for each goal.":"")
     +(row.omitted?" "+row.omitted+" examined notes omitted by the evidence limits; their text was not supplied to the answer model.":"")

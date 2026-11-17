@@ -1,3 +1,4 @@
+import { isExplicitAskMutationCommand } from "../app/lib/ai/turn-classifier.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -113,4 +114,13 @@ test("restored V1 path is read-only and remains after funded admission", () => {
   assert.equal(READ_ONLY_LIMITS.providerCalls, 2);
   assert.ok(READ_ONLY_TOOLS.every(t => ["read_pet_profile", "search_saved_records"].includes(t.name)));
   assert.equal(route.includes("readOnlyPublication = buildReadOnlyPublication("), true);
+});
+test("explicit Save and Cancel stay on the existing governed path", () => {
+  for (const q of ["Save Kestrel ate 43 g of salmon. Then show the last two recorded weights.",
+    "Cancel Rowan's pending archive action.", "cancel the note",
+    "Can you save this?", "keep that as a note"]) assert.equal(isExplicitAskMutationCommand(q), true, q);
+  for (const q of ["hi", "What did I save yesterday?", "What is the latest saved journal note?",
+    "Explain why dogs enjoy routine"]) assert.equal(isExplicitAskMutationCommand(q), false, q);
+  const route = readFileSync(new URL("../app/api/ask/route.ts", import.meta.url), "utf8");
+  assert.ok(route.includes("!isExplicitAskMutationCommand(question)"));
 });

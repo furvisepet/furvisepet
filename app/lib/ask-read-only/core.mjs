@@ -419,11 +419,11 @@ export async function runReadOnlyAsk(input,deps) {
   const calculation=answer.calculations[index];
   if(["difference","percent_change"].includes(final.calculations[index]?.operation)&&calculation.available!==false){
    const partial=results.some(result=>result.sources.some(source=>calculation.sourceHandles.includes(source.source))&&(result.unmet.length>0||!result.scopeExhausted));
-   if(partial)calculation.text+=" — selected endpoints; evidence coverage is partial.";
+   if(partial)calculation.text+="  -  selected endpoints; evidence coverage is partial.";
   }
   if(["sum","mean"].includes(final.calculations[index]?.operation)&&calculation.available!==false){
    const partial=results.some(result=>result.sources.some(source=>calculation.sourceHandles.includes(source.source))&&(result.unmet.length>0||!result.scopeExhausted));
-   calculation.text+=" — selected measurements only"+(partial?"; evidence coverage is partial.":"; not a certified total of every related measurement.");
+   calculation.text+="  -  selected measurements only"+(partial?"; evidence coverage is partial.":"; not a certified total of every related measurement.");
   }
  }
  for(const result of results){

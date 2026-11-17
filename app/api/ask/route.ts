@@ -21,7 +21,7 @@ import { createAskAdmissionSettlement } from "../../lib/ai/ask-admission-settlem
 import { createAskCreditSettlement } from "../../lib/ai/ask-credit-settlement.ts";
 import { resolveAskHistoryAccess } from "../../lib/intelligence/history-access.ts";
 import { persistCanonicalSuggestions } from "../../lib/intelligence/canonical-suggestion-continuation.ts";
-import { classifyUserTurn } from "../../lib/ai/turn-classifier.ts";
+import { classifyUserTurn, isExplicitAskMutationCommand } from "../../lib/ai/turn-classifier.ts";
 import { generateAskHistoryAnswer } from "../../lib/intelligence/generate-ask-history.ts";
 import { runReadOnlyAsk } from "../../lib/ask-read-only/core.mjs";
 import { loadReadOnlyContext } from "../../lib/ask-read-only/context.ts";
@@ -531,7 +531,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
       }
       const recentConversation = liveContext.conversationTurns.filter((turn) => turn.id !== preparedRequest.userMessageId);
       generationStage = "interpretation";
-      if (!noteMode && petId !== "all" && !PUBLIC_V1_CAPABILITIES.askMutations) {
+      if (!noteMode && petId !== "all" && !PUBLIC_V1_CAPABILITIES.askMutations && !isExplicitAskMutationCommand(question)) {
          // Restore the proven V1 read-only engine, within current authentication,
          // idempotency, rate, whole-Ask funded admission and provider accounting.
          // The signed-in owner and the selected pet are checked again by the
@@ -981,7 +981,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
       }, 200);
     }
   }
-  let governedAnswer = completedReadOnly ? orchestration.answer : enforceAnswerStateClaims(orchestration.answer);
+  let governedAnswer = enforceAnswerStateClaims(orchestration.answer);
   if (reasoning?.responseMode === "grief_support"
     && governedAnswer.summary === "I can help with that.") {
     governedAnswer = { ...governedAnswer, summary: buildGriefResponseFallback(liveContext.pet.name || "your pet") };

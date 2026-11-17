@@ -210,3 +210,14 @@ function explicitTerminalRecovery(message: string) {
   const boundedNoMore = /\bno\s+(?:more|further)\s+[\p{L}\p{N}'-]+(?:\s+(?:since|after|for)\b|[.!?]|$)/iu.test(message);
   return restoredBaselinePattern.test(message) || noRecurrence || boundedNoMore;
 }
+
+/** Conservative V1 dispatch gate. Nonread instructions stay on the existing
+ * governed operation/limitation path. This does not grant write authority. */
+export function isExplicitAskMutationCommand(message: string): boolean {
+  const action = "(?:save|remember|store|record|log|add|create|edit|update|modify|change|correct|delete|remove|archive|restore|cancel|undo|apply|confirm|resume|mark|replace|set)";
+  const start = new RegExp("^(?:please\\s+)?"+action+"\\b", "i");
+  const request = new RegExp("^(?:can|could|would|will)\\s+you\\s+(?:please\\s+)?"+action+"\\b", "i");
+  const compound = new RegExp("\\b(?:and|then)\\s+(?:please\\s+)?"+action+"\\b", "i");
+  return start.test(message.trim()) || request.test(message.trim()) || compound.test(message)
+    || /\bkeep (?:that|this|it) as (?:a )?(?:note|record)\b/i.test(message);
+}

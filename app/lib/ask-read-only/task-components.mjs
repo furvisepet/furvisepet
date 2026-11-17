@@ -209,7 +209,7 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
  if(!policy?.active&&!brief&&selectedDatedFacts.length){
   text+="\n\nSelected dated historical details:\n"+[...new Set(selectedDatedFacts.map(f=>{
    const s=sources.find(s=>s.handle===f.source),withRecorded=collectionTasks.some(t=>t.includeSourceDates&&t.historyFacts.includes(f));
-   return "• "+s.petName+" — event "+s.eventAt.slice(0,10)+(withRecorded?"; recorded "+s.recordedAt.slice(0,10):"")+": “"+f.excerpt+"”";
+   return "• "+s.petName+"  -  event "+s.eventAt.slice(0,10)+(withRecorded?"; recorded "+s.recordedAt.slice(0,10):"")+": “"+f.excerpt+"”";
   }))].join("\n");
  }
  if(removedCalendar&&!selectedDatedFacts.length){
@@ -219,7 +219,7 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
  if(brief){
   const facts=[];
   if(brief.ownerFacts.length)facts.push("Owner-reported observations:\n"+brief.ownerFacts.map(f=>"• "+f.excerpt).join("\n"));
-  if(brief.historyFacts.length)facts.push("Saved historical background (not a current diagnosis):\n"+brief.historyFacts.map(f=>{const s=sources.find(s=>s.handle===f.source);return "• "+s.petName+" — event "+s.eventAt+"; recorded "+s.recordedAt+": “"+f.excerpt+"”";}).join("\n"));
+  if(brief.historyFacts.length)facts.push("Saved historical background (not a current diagnosis):\n"+brief.historyFacts.map(f=>{const s=sources.find(s=>s.handle===f.source);return "• "+s.petName+"  -  event "+s.eventAt+"; recorded "+s.recordedAt+": “"+f.excerpt+"”";}).join("\n"));
   if(brief.needsHistory&&!brief.historyFacts.length)facts.push("Historical background remains unresolved: no source-backed historical fact was supplied for this brief. Referenced records must be re-read and verified.");
   if(policy?.briefQuestions?.length)facts.push("Questions and unknowns for the veterinarian:\n"+policy.briefQuestions.map(q=>"• "+q).join("\n"));
   if(policy?.missing?.length)facts.push("Details to confirm for the veterinarian (not supplied here): "+policy.missing.map(k=>missingLabels[k]??k).join("; ")+".");
@@ -233,7 +233,7 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
   if(fields.length)text=!policy?.active&&tasks.every(t=>t.missing.length)?question:text+"\n\n"+question;
  }
  if(policy?.active&&!brief){
-  const facts=tasks.flatMap(t=>t.historyFacts).map(f=>{const s=sources.find(s=>s.handle===f.source);return s.petName+" — event "+s.eventAt+"; recorded "+s.recordedAt+": “"+f.excerpt+"”";});
+  const facts=tasks.flatMap(t=>t.historyFacts).map(f=>{const s=sources.find(s=>s.handle===f.source);return s.petName+"  -  event "+s.eventAt+"; recorded "+s.recordedAt+": “"+f.excerpt+"”";});
   if(facts.length)text+="\n\nSaved historical facts (not a current diagnosis):\n"+[...new Set(facts)].join("\n");
  }
  const incomplete=tasks.filter(t=>t.status!=="complete");
