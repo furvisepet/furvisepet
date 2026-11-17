@@ -428,7 +428,7 @@ export function getAskModelConfiguration(env: Record<string, string | undefined>
  * Planning and every non-brief schema preserve the existing Ask routing. */
 export function getStructuredFeatureModelConfiguration(schemaName: string, env: Record<string, string | undefined> = process.env) {
   return schemaName === "vet_brief_content" || schemaName === "vet_brief_review"
-    ? { primary: "gpt-6.1-terra", fallback: null, primaryUsedDefault: false }
+    ? { primary: OPENAI_ANALYSIS_MODEL, fallback: null, primaryUsedDefault: false }
     : getAskModelConfiguration(env);
 }
 

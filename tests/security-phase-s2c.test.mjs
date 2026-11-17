@@ -84,13 +84,13 @@ test("Redis-backed emergency state is represented independently from environment
 });
 
 test("pricing is centralized, fixed-point, and unknown models never imply zero cost", () => {
-  const price = getModelPrice("gpt-6-luna");
-  assert.equal(price.inputMicrodollarsPerMillionTokens, 100_000);
-  assert.equal(price.cachedInputMicrodollarsPerMillionTokens, 10_000);
-  assert.equal(price.outputMicrodollarsPerMillionTokens, 500_000);
-  assert.equal(estimateProviderCostMicrodollars("gpt-6-luna", { inputTokens: 1_000_000, outputTokens: 1_000_000 }), 600_000);
+  const price = getModelPrice("gpt-5.4-mini");
+  assert.equal(price.inputMicrodollarsPerMillionTokens, 750_000);
+  assert.equal(price.cachedInputMicrodollarsPerMillionTokens, 75_000);
+  assert.equal(price.outputMicrodollarsPerMillionTokens, 4_500_000);
+  assert.equal(estimateProviderCostMicrodollars("gpt-5.4-mini", { inputTokens: 1_000_000, outputTokens: 1_000_000 }), 5_250_000);
   assert.equal(getModelPrice("gpt-5.4"), null);
-  assert.equal(getModelPrice("gpt-5.4-mini"), null);
+  assert.equal(getModelPrice("gpt-6.1-terra"), null);
   assert.equal(estimateProviderCostMicrodollars("unknown-model", { inputTokens: 1, outputTokens: 1 }), null);
   assert.equal(estimateInputTokens("x".repeat(3_001)), 1_001);
 });

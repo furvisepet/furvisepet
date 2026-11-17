@@ -1,21 +1,13 @@
 import type { AiModelPrice, ProviderUsage } from "./types";
 
 export const AI_MODEL_PRICING: Record<string, AiModelPrice> = {
-  "gpt-6-luna": {
-    cachedInputMicrodollarsPerMillionTokens: 10_000,
+  "gpt-5.4-mini": {
+    cachedInputMicrodollarsPerMillionTokens: 75_000,
     effectiveDate: "2026-11-16",
-    inputMicrodollarsPerMillionTokens: 100_000,
-    model: "gpt-6-luna",
-    outputMicrodollarsPerMillionTokens: 500_000,
-    source: "Official OpenAI Standard pricing: https://developers.openai.com/api/docs/models/gpt-6-luna",
-  },
-  "gpt-6.1-terra": {
-    cachedInputMicrodollarsPerMillionTokens: 50_000,
-    effectiveDate: "2026-11-16",
-    inputMicrodollarsPerMillionTokens: 1_000_000,
-    model: "gpt-6.1-terra",
-    outputMicrodollarsPerMillionTokens: 5_000_000,
-    source: "Official OpenAI Standard pricing: https://developers.openai.com/api/docs/models/gpt-6.1-terra",
+    inputMicrodollarsPerMillionTokens: 750_000,
+    model: "gpt-5.4-mini",
+    outputMicrodollarsPerMillionTokens: 4_500_000,
+    source: "Official OpenAI Standard pricing: https://developers.openai.com/api/docs/models/gpt-5.4-mini",
   },
 };
 export function getModelPrice(model: string) { return AI_MODEL_PRICING[model] || null; }

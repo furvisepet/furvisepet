@@ -67,7 +67,7 @@ test('non-profile invalid references fail after one attempt and never authorize 
  const {interpretAskQuestion}=await import('../../app/lib/intelligence/interpret-ask.ts');
  for(const repeatInvalid of [false,true]){
   const calls=[];const client={responses:{create:async request=>{calls.push(request);return {status:'completed',output_text:JSON.stringify(proposal({referenceTurnIds:calls.length===1||repeatInvalid?['invented-turn']:[]})),usage:{input_tokens:12,output_tokens:8}}}}};
-  await assert.rejects(interpretAskQuestion({context,model:'gpt-6-luna',client}),e=>e.stage==='interpretation_failed'&&e.diagnostics.providerErrorCode==='ASK_REQUEST_CONTRACT_REFERENCE');
+  await assert.rejects(interpretAskQuestion({context,model:'gpt-5.4-mini',client}),e=>e.stage==='interpretation_failed'&&e.diagnostics.providerErrorCode==='ASK_REQUEST_CONTRACT_REFERENCE');
   assert.equal(calls.length,1);assert.equal(calls[0].max_output_tokens,8192);assert.deepEqual(calls[0].reasoning,{effort:'none'});
  }
 });
