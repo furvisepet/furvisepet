@@ -65,38 +65,52 @@ function nullable(s) {
   if (Array.isArray(s?.anyOf)) return s.anyOf.some(x => x?.type === "null");
   return false;
 }
-function buildSlotsSchema(requestSchema) {
+function buildSlotsSchema(requestSchema, legacyStructuralMode=false) {
   if (!schemaKeys(requestSchema) || requestSchema.type!=="object" || requestSchema.additionalProperties!==false
     || requestSchema.required.length < 30) error("CANONICAL_SCHEMA_DRIFT");
-  const props={};const complex=[];
-  for(const [key,s] of Object.entries(requestSchema.properties)) {
-    if(nativeScalar(s)) {
-      props[key] = structuredClone(s);
-      // Certain authoritative provider branches permit null for quoted-premise arrays.
-      if(key==="premiseQuotes") props[key]={anyOf:[props[key],{type:"null"}]};
-    } else {
+  const props={},complex=[];
+  for(const [key,field] of Object.entries(requestSchema.properties)){
+    if(nativeScalar(field)){
+      props[key]=structuredClone(field);
+      if(legacyStructuralMode && key==="premiseQuotes")props[key]={anyOf:[props[key],{type:"null"}]};
+
+    }else{
       complex.push(key);
-      props[key] = {
-        type: nullable(s) ? ["string","null"] : "string",
-        description: key === "readTicket"
-          ? "If needed, JSON-serialize the complete typed ReadTicket object (all required subfields); otherwise null."
-          : "If non-null, a JSON-serialized canonical value for " + key + ". Do not omit.",
-      };
+      props[key]={type:nullable(field)?["string","null"]:"string",
+        description:key==="readTicket"
+          ?"If needed, JSON-serialize the complete typed ReadTicket object (all required subfields); otherwise null."
+          :"If non-null, JSON-serialize the complete canonical value for "+key+". Do not omit."};
     }
   }
-  return { schema:{type:"object",additionalProperties:false,required:requestSchema.required.slice(),properties:props}, complex };
+  return {schema:{type:"object",additionalProperties:false,required:requestSchema.required.slice(),properties:props},complex};
+}
+function buildSlotVariants(contract) {
+  // The exact reviewed provider contract is an anyOf of mutually restricted
+  // semantic branches. Never replace it with the broader structural base schema.
+  const branches=Array.isArray(contract?.anyOf)?contract.anyOf:[contract];
+  const result=[],seen=new Set();
+  for(const branch of branches){
+    // Catalog intent is handled in its own isolated envelope below.
+    if(!schemaKeys(branch)||branch.required.length<30)continue;
+    const variant=buildSlotsSchema(branch,!Array.isArray(contract?.anyOf));
+    const fingerprint=JSON.stringify(variant.schema);
+    if(!seen.has(fingerprint)){seen.add(fingerprint);result.push(variant);}
+  }
+  if(!result.length)error("CANONICAL_SCHEMA_DRIFT");
+  return result;
 }
 
 export function createDirectSemanticAskWirePlan(wire, originalInstructions, canonicalRequestSchema, checkCompilation = () => {}) {
   checkCompilation();
   if (typeof wire?.encode !== "function" || typeof wire?.decode !== "function"
     || typeof originalInstructions !== "string" || originalInstructions.length < 1000) error("COMPILE_CONTRACT");
-  const slots=buildSlotsSchema(canonicalRequestSchema);
+  const variants=buildSlotVariants(canonicalRequestSchema);
+  const slots=variants[0];
   const catalog={type:"object",additionalProperties:false,required:["catalogIntentJson"],
     properties:{catalogIntentJson:{type:"string",description:"Only for a source-grounded catalog intent, serialize the complete ask-catalog-intent.v1 contract."}}};
   const schema={type:"object",additionalProperties:false,required:["format","request"],
     properties:{format:{type:"string",enum:[DIRECT_ASK_FORMAT_VERSION]},
-      request:{anyOf:[slots.schema,catalog]}}};
+      request:{anyOf:[...variants.map(v=>v.schema),catalog]}}};
   const lines=originalInstructions.split("\n"),i=lines.indexOf("POLICY");
   if(lines.length<5 || !lines[0].includes("nodes: supporting postorder tree;")
     || !lines[1].startsWith("ROOT root.") || !lines[2].startsWith("FIELDS ")
@@ -107,6 +121,8 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
     "All request keys are mandatory. Use null/[] for inactive fields, never omit or invent.",
     "Simple strings and string arrays are native JSON values. Complex objects/arrays are complete JSON strings (or null when allowed).",
     "readTicket, when non-null, must be a JSON string containing the complete typed ReadTicket object.",
+    "The request schema is a union of restricted branches. Choose exactly the branch matching the task: saved_profile requires nonempty profileFields and no history ticket; saved_history uses the typed readTicket; ordinary supplied/general conversation has no saved-data authority.",
+    "Inactive fields must follow the chosen branch's null/empty/enum constraints, not merely the common field names.",
     "The catalogIntentJson variant is exclusively for source-grounded catalog intent. Ordinary requests use the typed " + slots.schema.required.length + "-field request.",
     "Use full canonical field names shown to the right of = in FIELDS. The POLICY $ aliases are only reading shorthand.",
     lines[2],"POLICY",...lines.slice(i+1),
@@ -128,16 +144,26 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
       const fields=Object.keys(value.request),required=slots.schema.required;
       if(fields.length!==required.length || fields.some(k=>!Object.hasOwn(slots.schema.properties,k))
         || required.some(k=>!Object.hasOwn(value.request,k))) error("REQUIRED_FIELDS");
-      request={};
-      for(const k of required){
+      let decoded=null;
+      // Decode only a model-facing branch that accepts every scalar/null constraint.
+      // The canonical codec below independently enforces nested typed objects,
+      // model identity and all server-owned authorization rules.
+      for(const variant of variants){
         checkRuntime();
-        const v=value.request[k];
-        if(slots.complex.includes(k) && v!==null){
-          if(typeof v!=="string" || v.length<2 || v.length>MAX) error("FIELD_FORMAT",k);
-          try { request[k]=JSON.parse(v); } catch { error("FIELD_JSON",k); }
-        } else if(!slots.complex.includes(k) && !simpleMatches(slots.schema.properties[k],v)) error("FIELD_TYPE",k);
-        else request[k]=v;
+        const candidate={};let matches=true;
+        for(const k of required){
+          const v=value.request[k];
+          if(variant.complex.includes(k) && v!==null){
+            if(typeof v!=="string"||v.length<2||v.length>MAX){matches=false;break;}
+            try{candidate[k]=JSON.parse(v);}catch{matches=false;break;}
+          }else if(!variant.complex.includes(k) && !simpleMatches(variant.schema.properties[k],v)){
+            matches=false;break;
+          }else candidate[k]=v;
+        }
+        if(matches){decoded=candidate;break;}
       }
+      if(decoded===null)error("BRANCH_SCHEMA");
+      request=decoded;
     }
     boundedJsonTree(request,checkRuntime);
     checkRuntime();
@@ -179,11 +205,24 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
       const required=slots.schema.required;
       if(Object.keys(value.request).length!==required.length
         || required.some(k=>!Object.hasOwn(value.request,k))) error("CANONICAL_KEYS");
-      request={};
-      for(const k of required) {
-        const v=value.request[k];
-        request[k]=slots.complex.includes(k) && v!==null ? JSON.stringify(v) : v;
+      // Render each reviewed branch's scalar/JSON representation and retain the
+      // one that round-trips through the independent canonical graph validator.
+      let candidate=null;
+      for(const variant of variants){
+        const encoded={};
+        for(const k of required){
+          const v=value.request[k];
+          encoded[k]=variant.complex.includes(k)&&v!==null?JSON.stringify(v):v;
+        }
+        try{
+          decode({format:DIRECT_ASK_FORMAT_VERSION,request:encoded},checkRuntime);
+          candidate=encoded;break;
+        }catch(e){
+          if(!(e instanceof Error)||!e.message.startsWith("ASK_"))throw e;
+        }
       }
+      if(candidate===null)error("CANONICAL_BRANCH");
+      request=candidate;
     }
     const result={format:DIRECT_ASK_FORMAT_VERSION,request};
     if(JSON.stringify(result).length>MAX) error("RESOURCE_LIMIT");
