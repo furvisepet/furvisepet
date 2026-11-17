@@ -83,7 +83,7 @@ export function fixture(options={}){
  ensureConversationAndUserMessage:async({question})=>{rows.ask_conversation_messages.push({id:id(31),user_id:id(1),conversation_id:id(21),role:'user',user_text:question,sequence_number:1,created_at:'2026-09-20T12:00:00Z'});return{conversationId:id(21),userMessageId:id(31),userSequence:1};},
  requireRateLimitedRequest:async()=>({release:async()=>events.push('rate:release')}),reportOptionalContextRecovery:noop,recordContextRecoveryOnTurn:noop,
  derivePendingLifecycleAssertion:()=>null,getPetLifecycleStatus:()=> 'active',resolveDurableLifecycleCorrection:()=>null,deriveAskTurnView:()=>({contextUsed:{usedSources:[]},concerns:[],recentlyResolvedConcerns:[]}),
- getAskModelConfiguration:()=>({primary:'offline-fixture'}),getAskProviderCooldown:()=>({active:false}),askGuardOperationTtlSeconds:180,askRequestTimeoutMs:120000,
+ getAskModelConfiguration:()=>({primary:'gpt-5.4-mini'}),getAskProviderCooldown:()=>({active:false}),askGuardOperationTtlSeconds:180,askRequestTimeoutMs:120000,
  admitAiOperation:async()=>({run:cb=>cb(),complete:async()=>{},fail:async()=>{}}),withTimeout:p=>p,
  interpretAskQuestion:async input=>{events.push('brain');return interpretAskQuestion({...input,client:{responses:{create:async(request,providerOptions)=>{state.planner++;if(options.providerCreate)return options.providerCreate(request,providerOptions);if(options.modelDown)throw Error('offline provider');return {output_text:JSON.stringify(options.proposal||proposal())};}}}});},logAskProviderEvent:noop,
  buildSubjectClarificationOrchestration:()=>({intent:'clarification',answer:{},safetyLevel:'normal',handledWithoutAi:true}),
