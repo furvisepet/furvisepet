@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createDirectSemanticAskWirePlan } from "../app/lib/intelligence/ask-wire-direct.mjs";
 import { createGraphCodec } from "../app/lib/intelligence/ask-wire-codec.mjs";
-const {askRequestProviderSchema}=await import("../app/lib/intelligence/ask-request-contract.ts");
+const {askRequestProviderSchema,askRequestSchema}=await import("../app/lib/intelligence/ask-request-contract.ts");
 const {proposedSemanticFrameJsonSchema}=await import("../app/lib/intelligence/semantic-frame/schema.ts");
 const providerSchema=askRequestProviderSchema(proposedSemanticFrameJsonSchema);
 const branches=providerSchema.properties.request.anyOf;
@@ -59,8 +59,18 @@ test("saved_history may not claim saved_profile or suppress required read scope"
  assert.throws(()=>p.decode({...wire,request:{...wire.request,evidenceBasis:"saved_profile"}},()=>{}));
  assert.throws(()=>p.decode({...wire,request:{...wire.request,readTicket:null}},()=>{}));
 });
-test("production interpretation uses the provider branch union, not the broad structural schema",()=>{
+test("compact runtime wire stays materially smaller than the full branch union",()=>{
+ const compact=createDirectSemanticAskWirePlan(codec,policy,askRequestSchema(proposedSemanticFrameJsonSchema),()=>{});
+ const compactBytes=JSON.stringify(compact.schema).length;
+ const unionBytes=JSON.stringify(p.schema).length;
+ assert.ok(compactBytes < unionBytes/3,"compact="+compactBytes+" union="+unionBytes);
+ assert.ok(compact.instructions.includes("saved_profile requires nonempty profileFields"));
+ assert.ok(compact.instructions.includes("saved_history uses the typed readTicket"));
+});
+test("production uses compact semantic slots to fit bounded input while preserving strict canonical review",()=>{
  const src=readFileSync(new URL("../app/lib/intelligence/interpret-ask.ts",import.meta.url),"utf8");
- assert.match(src,/createDirectSemanticAskWirePlan\(wire, wire\.instructions, canonicalSchema\.properties\.request, checkBudget\)/);
+ assert.match(src,/createDirectSemanticAskWirePlan\(wire, wire\.instructions, askRequestSchema\(proposedSemanticFrameJsonSchema, context\), checkBudget\)/);
+ assert.match(src,/const canonicalSchema = askRequestProviderSchema/);
+ assert.match(src,/const wire = createAskWirePlan/);
 });
 console.log("VALID_CANONICAL_FIXTURES",valid.length);
