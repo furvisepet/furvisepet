@@ -143,7 +143,13 @@ test("bounded canonical wire repair uses at most one additional funded call and 
    client:{responses:{create:async request=>{
     calls++;assert.ok(calls<=2,"one bounded repair, never a loop");
     assert.ok(JSON.stringify(request).length<=60000);
-    assert.deepEqual(request.text.format.schema,prepared.request.text.format.schema);
+    if(calls===1) assert.deepEqual(request.text.format.schema,prepared.request.text.format.schema);
+    else {
+      assert.notDeepEqual(request.text.format.schema,prepared.request.text.format.schema);
+      const options=request.text.format.schema.properties.request.anyOf;
+      assert.equal(options.length,2,"one saved-history branch and catalog alternative");
+      assert.ok(options[0].properties.evidenceBasis.enum.includes("saved_history"));
+    }
     if(calls===2){
       const sent=JSON.parse(request.input);
       assert.equal(sent.contractRepair.validationCode,"ASK_WIRE_CANONICAL_SCHEMA");

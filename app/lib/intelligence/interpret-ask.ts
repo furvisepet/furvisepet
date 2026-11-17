@@ -205,7 +205,7 @@ export function prepareAskInterpretationRequest(original: InterpretationContext,
     instructions: transport.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: createAskProviderWireSchema(transport.schema, checkBudget) } } };
 
     checkBudget();
-    return { context, input, wire, transport, request };
+    return { context, input, wire, transport, request, providerContract: canonicalSchema.properties.request };
   };
   let chosen: ReturnType<typeof build> | undefined;
   // Start with mandatory sources. Add only whole recent turns, stopping at
@@ -221,6 +221,36 @@ export function prepareAskInterpretationRequest(original: InterpretationContext,
   throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "feature_token_budget_exceeded");
 }
 
+// Use an untrusted failed proposal only to select a smaller, reviewed model-facing
+// repair grammar. The original canonical decoder and Binder still validate everything.
+function savedHistoryRepairBranch(rawText: string | null, providerContract: unknown): Record<string, unknown> | null {
+  if (!rawText || rawText.length > RECURSIVE_TRANSPORT_LIMITS.maxSerializedCharacters) return null;
+  let proposal: Record<string, unknown>;
+  try {
+    const envelope = JSON.parse(rawText) as { request?: unknown };
+    if (!envelope || typeof envelope.request !== "object" || envelope.request === null || Array.isArray(envelope.request)) return null;
+    proposal = envelope.request as Record<string, unknown>;
+  } catch { return null; }
+  if (proposal.evidenceBasis !== "saved_history") return null;
+  let chronological = false;
+  if (typeof proposal.readTicket === "string" && proposal.readTicket.length < 20_000) {
+    try {
+      const ticket = JSON.parse(proposal.readTicket) as { outputs?: { strategy?: unknown } };
+      chronological = ticket?.outputs?.strategy === "chronological";
+    } catch { /* Invalid nested JSON is left invalid; the provider must regenerate it. */ }
+  }
+  const branches = (providerContract as { anyOf?: unknown[] })?.anyOf;
+  if (!Array.isArray(branches)) return null;
+  for (const candidate of branches) {
+    const branch = candidate as { properties?: Record<string, { type?: unknown; enum?: unknown[]; maxItems?: number }> };
+    const p = branch?.properties;
+    if (!p?.evidenceBasis?.enum?.includes("saved_history") || p.calculatePlan?.type !== "null") continue;
+    if ((p.evidenceNeeds?.maxItems === 0) !== chronological) continue;
+    return candidate as Record<string, unknown>;
+  }
+  return null;
+}
+
 export async function interpretAskQuestion({ context, model, client, onProviderEvent, catalogService }: {
   context: InterpretationContext; model: string; catalogService?: AskCatalogService;
   onProviderEvent?: (event: AskProviderEvent) => void;
@@ -228,7 +258,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
 }): Promise<AskInterpretation> {
   const prepared = prepareAskInterpretationRequest(context, model);
   context = prepared.context;
-  const { input, wire, transport, request } = prepared;
+  const { input, wire, transport, request, providerContract } = prepared;
   const parseWireRequest = (raw: string, checkRuntime: () => void): unknown => {
     checkRuntime();
     const value: unknown = JSON.parse(raw);
@@ -305,10 +335,17 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     // the already-budgeted interpretation repair phase exactly one chance.
     // Revalidate from scratch; never coerce, project, or accept invalid fields.
     if (result.status === "invalid" && result.validationReason === "ASK_WIRE_CANONICAL_SCHEMA") {
+      const repairInstructions = ASK_INTERPRETATION_REPAIR_INSTRUCTIONS
+        + "\nChoose one canonical request branch. For saved_history, use a complete typed readTicket; when its outputs.strategy is chronological, evidenceNeeds must be []. For saved_profile, readTicket is null and profileFields nonempty. Inactive fields must be null/[] exactly as the canonical branch requires. Do not invent ownership, source IDs, facts or new tasks.";
+      const branch = savedHistoryRepairBranch(result.rawText, providerContract);
+      const repairTransport = branch
+        ? createDirectSemanticAskWirePlan(wire, wire.instructions, branch) : null;
       const repairRequest = { ...request,
-        instructions: request.instructions + "\n\n" + ASK_INTERPRETATION_REPAIR_INSTRUCTIONS
-          + "\nChoose one canonical request branch. For saved_history, use a complete typed readTicket; when its outputs.strategy is chronological, evidenceNeeds must be []. For saved_profile, readTicket is null and profileFields nonempty. Inactive fields must be null/[] exactly as the canonical branch requires. Do not invent ownership, source IDs, facts or new tasks.",
+        instructions: (repairTransport ? repairTransport.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS : request.instructions)
+          + "\n\n" + repairInstructions,
         input: JSON.stringify({ ...input, contractRepair: { validationCode: "ASK_WIRE_CANONICAL_SCHEMA" } }),
+        text: repairTransport ? { format: { type: "json_schema" as const, name: "furvise_ask_interpretation",
+          strict: true, schema: createAskProviderWireSchema(repairTransport.schema) } } : request.text,
       };
       assertAskRequestInputBudget(repairRequest);
       wireRepairUsed = true;
