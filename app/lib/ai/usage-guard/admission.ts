@@ -25,7 +25,7 @@ export async function admitAiOperation(input: {
 }) {
   const startedAt = Date.now();
   const env = input.env || process.env;
-  const config = getAiGuardConfig(env);
+  const config = getAiGuardConfig(env, true);
   const policy = getAiFeaturePolicy(input.feature);
   const intendedModel = input.intendedModel || OPENAI_ANALYSIS_MODEL;
   requireApprovedAiModel(intendedModel);

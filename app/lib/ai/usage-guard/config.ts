@@ -2,13 +2,13 @@ import { isAiEnabled } from "../availability.ts";
 import type { AiGuardFeature } from "./types";
 import { getAiFeaturePolicy } from "./features";
 
-export function getAiGuardConfig(env: Record<string, string | undefined> = process.env) {
+export function getAiGuardConfig(env: Record<string, string | undefined> = process.env, providerAdmission = false) {
   const production = env.NODE_ENV === "production";
   const callLimit = positiveInteger(env.FURVISE_AI_DAILY_CALL_LIMIT, production ? 0 : 1_000);
   const costLimitMicrodollars = parseUsdToMicrodollars(env.FURVISE_AI_DAILY_COST_LIMIT_USD) ?? (production ? 0 : 50_000_000);
-  const qualificationMode = env.FURVISE_AI_QUALIFICATION_MODE === "true" || (env.VERCEL_ENV === "preview" && env.VERCEL_GIT_COMMIT_REF === "release/journal-first-20261116");
+  const qualificationMode = providerAdmission && (env.FURVISE_AI_QUALIFICATION_MODE === "true" || (env.VERCEL_ENV === "preview" && env.VERCEL_GIT_COMMIT_REF === "release/journal-first-20261116"));
   // A qualification deployment has no budget unless an explicit aggregate ceiling is set.
-  const requestedQualificationLimit = parseUsdToMicrodollars(env.FURVISE_AI_QUALIFICATION_TOTAL_COST_LIMIT_USD) ?? 0;
+  const requestedQualificationLimit = qualificationMode ? (parseUsdToMicrodollars(env.FURVISE_AI_QUALIFICATION_TOTAL_COST_LIMIT_USD) ?? 0) : 0;
   const qualificationLimitMicrodollars = qualificationMode && requestedQualificationLimit <= 5_000_000 ? requestedQualificationLimit : 0;
   return {
     qualificationMode, qualificationLimitMicrodollars,

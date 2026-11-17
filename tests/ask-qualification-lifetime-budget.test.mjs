@@ -97,6 +97,8 @@ test("preview requires explicitly bounded aggregate cap before AI admission", ()
   assert.match(config,/env.VERCEL_ENV === "preview"/);
   assert.match(config,/requestedQualificationLimit <= 5_000_000/);
   assert.match(admission,/qualification_total_budget_unconfigured/);
+  assert.match(admission,/getAiGuardConfig\(env, true\)/);
+  assert.match(config,/providerAdmission &&/);
 });
 test("full-sized and unreviewed models cannot be dispatched", () => {
   requireApprovedAiModel("gpt-5.4-mini");
