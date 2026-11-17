@@ -41,7 +41,8 @@ export type AiGuardStore = {
   reserveCall(input: {
     callId: string; callLimit: number; costLimitMicrodollars: number; day: string; feature: AiGuardFeature;
     maximumOperationCalls: number; operationCallTtlSeconds: number; operationId: string; reservedCostMicrodollars: number; ttlSeconds: number;
-  }): Promise<{ allowed: true; reused: boolean; snapshot: AiDailySnapshot } | { allowed: false; reason: "daily_call_limit" | "daily_cost_limit" | "operation_call_limit"; snapshot: AiDailySnapshot }>;
+    qualificationLimitMicrodollars?: number;
+  }): Promise<{ allowed: true; reused: boolean; snapshot: AiDailySnapshot } | { allowed: false; reason: "daily_call_limit" | "daily_cost_limit" | "operation_call_limit" | "qualification_total_limit"; snapshot: AiDailySnapshot }>;
   markCallStarted(input: { callId: string }): Promise<void>;
   reconcileCall(input: { actualCostMicrodollars: number; callId: string }): Promise<AiDailySnapshot>;
   releaseUnstartedCall(input: { callId: string }): Promise<void>;

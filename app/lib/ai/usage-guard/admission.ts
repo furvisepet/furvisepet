@@ -37,6 +37,7 @@ export async function admitAiOperation(input: {
   if (!config.enabled) return deny("AI_TEMPORARILY_UNAVAILABLE", "global_disabled");
   if (!isAiFeatureEnabled(input.feature, env)) return deny("AI_FEATURE_UNAVAILABLE", "feature_disabled");
   if (!config.configured) return deny("AI_TEMPORARILY_UNAVAILABLE", "daily_guard_not_configured");
+  if (config.qualificationMode && config.qualificationLimitMicrodollars <= 0) return deny("AI_TEMPORARILY_UNAVAILABLE", "qualification_total_budget_unconfigured");
   if (!getModelPrice(intendedModel) && !(config.production === false && env.FURVISE_AI_ALLOW_UNKNOWN_MODEL_IN_DEVELOPMENT === "true")) return deny("AI_TEMPORARILY_UNAVAILABLE", "unknown_model_pricing");
   const backend = getRateLimitBackendConfig(env as NodeJS.ProcessEnv);
   const store = input.store || getConfiguredAiGuardStore();
@@ -190,13 +191,22 @@ export class AiOperationAdmission {
       : purpose === "history_review" ? 3 + structuralRepairCalls
       : purpose === "generation_repair" ? 3 : 2 + Number(this.interpretationRepaired);
     if (this.callNumber >= maximumCalls) throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "provider_call_budget_exhausted");
-    const reservedCost = estimateProviderCostMicrodollars(model, { inputTokens: this.policy.maxInputTokens, outputTokens: this.policy.maxOutputTokens });
+    // Qualification reserves the feature's full input/output ceilings, not an
+    // average chars/3 estimate. The UTF-16 character ceiling bounds the
+    // serialized text even when tokenization is much denser than estimated.
+    const ceilingInputTokens = this.config.qualificationMode
+      ? Math.max(this.policy.maxInputTokens, this.policy.maxInputCharacters * 4 + 2_048)
+      : this.policy.maxInputTokens;
+    const ceilingOutputTokens = this.policy.maxOutputTokens;
+    const reservedCost = this.config.qualificationMode
+      ? estimateProviderCostMicrodollars(model, { inputTokens: ceilingInputTokens, outputTokens: ceilingOutputTokens })
+      : estimateProviderCostMicrodollars(model, { inputTokens: this.policy.maxInputTokens, outputTokens: this.policy.maxOutputTokens });
     if (reservedCost === null) throw new AiAdmissionError("AI_TEMPORARILY_UNAVAILABLE", "unknown_model_pricing");
     const nextNumber = this.callNumber + 1;
     const callId = `${this.operationId}:${randomUUID()}`;
     let result;
     try {
-      result = await this.store.reserveCall({ callId, callLimit: this.config.callLimit, costLimitMicrodollars: this.config.costLimitMicrodollars, day: utcDay(this.now), feature: this.feature, maximumOperationCalls: maximumCalls, operationCallTtlSeconds: this.operationTtlSeconds, operationId: this.operationId, reservedCostMicrodollars: reservedCost, ttlSeconds: secondsUntilUtcBucketExpiry(this.now) });
+      result = await this.store.reserveCall({ callId, callLimit: this.config.callLimit, costLimitMicrodollars: this.config.costLimitMicrodollars, day: utcDay(this.now), feature: this.feature, maximumOperationCalls: maximumCalls, operationCallTtlSeconds: this.operationTtlSeconds, operationId: this.operationId, reservedCostMicrodollars: reservedCost, ttlSeconds: secondsUntilUtcBucketExpiry(this.now), qualificationLimitMicrodollars: this.config.qualificationLimitMicrodollars });
     } catch {
       logAiGuardEvent("provider call denied", {
         allowed: false,
