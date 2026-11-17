@@ -34,7 +34,7 @@ test('production reproduction: completed interpretation usage must emit a provid
   const events = [];
   // One deliberately invalid date reproduces the opaque post-usage failure.
   // It is NOT evidence that this field caused the reported live 503.
-  await assert.rejects(interpretAskQuestion({context: {...base.context, currentMessage: 'When was the earliest vomiting report?'}, model: 'gpt-5-mini',
+  await assert.rejects(interpretAskQuestion({context: {...base.context, currentMessage: 'When was the earliest vomiting report?'}, model: 'gpt-5.4-mini',
     onProviderEvent: event => events.push(event), client: {responses: {async create() {
       return {status: 'completed', output_text: JSON.stringify(requestProposal(plan({operation: 'recall', readOperation: 'recall', subject: 'conversation', petNames: [], selection: 'earliest', terms: ['vomit'], from: '2011-02-30', to: '2012-01-01'}), 'When was the earliest vomiting report?')), usage: {input_tokens: 500, output_tokens: 220}};
     }}}}), error => {

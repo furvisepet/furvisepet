@@ -51,7 +51,7 @@ function generatedResult(overrides = {}) {
     suggestedFollowUps: [],
     proposedHistoryUpdate: { shouldOffer: false, category: null, title: null, details: null, severity: null, resolvesConcernId: null },
     responseMode: "conversational",
-    model: "test-model",
+    model: "gpt-5.4-mini",
     ...overrides,
   };
 }

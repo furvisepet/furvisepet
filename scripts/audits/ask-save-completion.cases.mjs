@@ -182,7 +182,7 @@ test('navigation mode conflict fails closed without reinterpretation or write au
  const {interpretAskQuestion}=await import('../../app/lib/intelligence/interpret-ask.ts');
  const {emptyProposedSemanticFrame}=await import('../../app/lib/intelligence/semantic-frame/extract-frame.ts');
  const events=[],seen=[],replies=[{...plan,mode:'mixed',frame:emptyProposedSemanticFrame()},plan];
- await assert.rejects(interpretAskQuestion({context,model:'gpt-5-mini',onProviderEvent:e=>events.push(e),client:mock(replies,seen)}),
+ await assert.rejects(interpretAskQuestion({context,model:'gpt-5.4-mini',onProviderEvent:e=>events.push(e),client:mock(replies,seen)}),
   error=>error.name==='AskPipelineError');
  assert.equal(seen.length,1);assert.equal(replies.length,1,'No second semantic interpretation is allowed');
  assert.ok(events.some(e=>e.providerErrorCode==='ASK_REQUEST_CONTRACT_NAVIGATION'));

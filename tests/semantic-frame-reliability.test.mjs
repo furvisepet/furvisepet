@@ -47,7 +47,7 @@ function analyze(message, semanticFrame, options = {}) {
     activeEpisodes: options.activeEpisodes || [], acceptedCareActions: options.acceptedCareActions || [], acceptedLearnings: options.acceptedLearnings || [],
     acceptedSemanticEvents: options.acceptedSemanticEvents || [], conversationTurns: options.conversationTurns || [], eligiblePets: pets, frame: semanticFrame,
     message, ownerId: "owner-1", requestId: `trace-${options.trace || "fixture"}`, selectedPetId: options.selectedPetId || "pet-luna",
-    sourceMessageId: "message-1", reasoning: { model: "fixture", semanticFrameValid: true, messageUnderstanding: { needsClarification: false } },
+    sourceMessageId: "message-1", reasoning: { model: "gpt-5.4-mini", semanticFrameValid: true, messageUnderstanding: { needsClarification: false } },
   });
 }
 

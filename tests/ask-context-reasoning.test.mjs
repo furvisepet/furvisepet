@@ -222,12 +222,12 @@ test("long Ask context is ranked and truncated deterministically", () => {
   assert.ok(first.records.length < careEntries.length);
 });
 
-test("one primary and optional fallback model replace planner and responder configuration", () => {
-  assert.deepEqual(getAskModelConfiguration({ OPENAI_ASK_MODEL: "primary", OPENAI_ASK_FALLBACK_MODEL: "fallback" }), {
-    primary: "primary", fallback: "fallback", primaryUsedDefault: false,
+test("approved Mini config is explicit and expensive model names are denied", () => {
+  assert.deepEqual(getAskModelConfiguration({ OPENAI_ASK_MODEL: "gpt-5.4-mini", OPENAI_ASK_FALLBACK_MODEL: "gpt-5.4-mini" }), {
+    primary: "gpt-5.4-mini", fallback: "gpt-5.4-mini", primaryUsedDefault: false,
   });
+  assert.throws(() => getAskModelConfiguration({ OPENAI_ASK_MODEL: "gpt-5.4" }), error => error.reason === "unapproved_provider_model");
 });
-
 test("conversational context excludes stored candidates while preserving a bounded USER premise carrier",()=>{
  const careEntries=Array.from({length:20},(_,i)=>care({id:"care-"+i,note:"STORED_NOTE_SENTINEL"}));
  const memories=Array.from({length:12},(_,i)=>({id:"memory-"+i,user_id:"user-1",dog_profile_id:"pet-mani",type:"routine",text:"STORED_MEMORY_SENTINEL",confidence:"high",source:"owner",created_at:"2026-07-20T00:00:00Z"}));
@@ -396,32 +396,16 @@ test("an observational assessment question is repaired locally when the model on
   assert.notEqual(result.answer.summary, "Is Mani putting any weight on it, or is Mani holding the leg up?");
 });
 
-test("a token-based 429 retries once with a distinct fallback model and same request context", async () => {
-  const previousPrimary = process.env.OPENAI_ASK_MODEL;
-  const previousFallback = process.env.OPENAI_ASK_FALLBACK_MODEL;
-  process.env.OPENAI_ASK_MODEL = "primary-model";
-  process.env.OPENAI_ASK_FALLBACK_MODEL = "fallback-model";
-  const limited = new Error("limited"); limited.status = 429; limited.code = "rate_limit_exceeded"; limited.type = "tokens"; limited.headers = { "retry-after": "0" };
-  const client = mockClient([limited, unified()]);
-  try {
-    const result = await generateContextAwareAskResponse({ ...input(), client });
-    assert.equal(client.requests.length, 2);
-    assert.equal(client.requests[0].model, "primary-model");
-    assert.equal(client.requests[1].model, "fallback-model");
-    assert.equal(client.requests[1].max_output_tokens, client.requests[0].max_output_tokens);
-    assert.equal(result.model, "fallback-model");
-  } finally {
-    if (previousPrimary === undefined) delete process.env.OPENAI_ASK_MODEL; else process.env.OPENAI_ASK_MODEL = previousPrimary;
-    if (previousFallback === undefined) delete process.env.OPENAI_ASK_FALLBACK_MODEL; else process.env.OPENAI_ASK_FALLBACK_MODEL = previousFallback;
-  }
+test("a token-based recovery cannot configure an unapproved full-size fallback", () => {
+  assert.throws(() => getAskModelConfiguration({OPENAI_ASK_PRIMARY_MODEL:"gpt-5.4-mini", OPENAI_ASK_FALLBACK_MODEL:"gpt-5.4"}),
+    error => error.reason === "unapproved_provider_model");
 });
-
 test("a requests-based 429 never retries the same or fallback model immediately", async () => {
   clearAskProviderCooldownsForTests();
   const previousPrimary = process.env.OPENAI_ASK_PRIMARY_MODEL;
   const previousFallback = process.env.OPENAI_ASK_FALLBACK_MODEL;
-  process.env.OPENAI_ASK_PRIMARY_MODEL = "rate-limited-model";
-  process.env.OPENAI_ASK_FALLBACK_MODEL = "other-model";
+  process.env.OPENAI_ASK_PRIMARY_MODEL = "gpt-5.4-mini";
+  process.env.OPENAI_ASK_FALLBACK_MODEL = "gpt-5.4-mini";
   const limited = new Error("limited"); limited.status = 429; limited.code = "rate_limit_exceeded"; limited.type = "requests"; limited.headers = { "retry-after": "4" };
   const client = mockClient([limited, unified()]);
   try {
@@ -439,8 +423,8 @@ test("a requests-based 429 never retries the same or fallback model immediately"
 test("missing or same-model fallback is skipped safely", async () => {
   const previousPrimary = process.env.OPENAI_ASK_PRIMARY_MODEL;
   const previousFallback = process.env.OPENAI_ASK_FALLBACK_MODEL;
-  process.env.OPENAI_ASK_PRIMARY_MODEL = "same-model";
-  process.env.OPENAI_ASK_FALLBACK_MODEL = "same-model";
+  process.env.OPENAI_ASK_PRIMARY_MODEL = "gpt-5.4-mini";
+  process.env.OPENAI_ASK_FALLBACK_MODEL = "gpt-5.4-mini";
   const limited = new Error("limited"); limited.status = 429; limited.code = "rate_limit_exceeded"; limited.type = "tokens";
   const client = mockClient([limited, unified()]);
   try {

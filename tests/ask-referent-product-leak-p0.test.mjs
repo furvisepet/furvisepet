@@ -130,7 +130,7 @@ test("the live route gates capability copy by explicit product intent and passes
 function reasoning(answer) {
   return {
     answer, userIntent: "question", relevantContextIds: [], referencedRecords: [], safetyLevel: "monitor",
-    shoppingSuppressed: false, suggestedFollowUps: [], responseMode: "practical_guidance", model: "test",
+    shoppingSuppressed: false, suggestedFollowUps: [], responseMode: "practical_guidance", model: "gpt-5.4-mini",
     proposedHistoryUpdate: { shouldOffer: false, category: null, title: null, details: null, severity: null, resolvesConcernId: null },
     messageUnderstanding: {}, intelligenceSafety: { level: "monitor", reason: "", requiresImmediateAction: false, shoppingSuppressed: false },
     learnings: [], careActions: [], semanticEvents: [],

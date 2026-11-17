@@ -631,7 +631,7 @@ function reasoning(overrides = {}) {
     suggestedFollowUps: [],
     proposedHistoryUpdate: { shouldOffer: false, category: null, title: null, details: null, severity: null, resolvesConcernId: null },
     responseMode: "practical_guidance",
-    model: "mock-provider",
+    model: "gpt-5.4-mini",
     messageUnderstanding: {},
     intelligenceSafety: { level: "routine", reason: "", requiresImmediateAction: false, shoppingSuppressed: false },
     learnings: [],

@@ -80,7 +80,7 @@ test('Heart requires exact job, target and durable terminal receipt',async()=>{
 });
 test('arbitrary USER wording enters REMOVE through one Brain proposal, never a command parser',async()=>{
  const f=setup(false);let calls=0;
- const result=await interpretAskQuestion({context:f.context,model:'test',client:{responses:{create:async()=>{calls++;return {output_text:JSON.stringify(f.request)};}}}});
+ const result=await interpretAskQuestion({context:f.context,model:'gpt-5.4-mini',client:{responses:{create:async()=>{calls++;return {output_text:JSON.stringify(f.request)};}}}});
  assert.equal(calls,1);assert.equal(result.request.removeJob.operation,'remove');assert.equal(result.request.removeJob.target,'last_event_for_subject');
  const resolved=await resolveRemovePlan(result.request.removeJob,f.db,id(1));assert.equal(resolved.resolvedTarget.recordId,f.row.id);
 });

@@ -29,7 +29,7 @@ test('rejected read_since_event logs the entire ticket and missing-anchor rule, 
   const before = structuredClone(rejected);
   const warn = t.mock.method(console, 'warn', () => {});
   const stages = []; let calls = 0;
-  await assert.rejects(interpretAskQuestion({ context, model: 'fixture',
+  await assert.rejects(interpretAskQuestion({ context, model: 'gpt-5.4-mini',
     onProviderEvent: event => stages.push(event),
     client: { responses: { create: async () => { calls++; return { output_text: JSON.stringify(proposal(rejected)) }; } } },
   }), error => {
@@ -56,7 +56,7 @@ test('cross-field rejection preserves the complete anchor and reports the incomp
   const rejected = ticket(); rejected.outputs.strategy = 'event_candidates';
   const warn = t.mock.method(console, 'warn', () => {});
   let calls = 0;
-  await assert.rejects(interpretAskQuestion({ context, model: 'fixture', client: { responses: {
+  await assert.rejects(interpretAskQuestion({ context, model: 'gpt-5.4-mini', client: { responses: {
     create: async () => { calls++; return { output_text: JSON.stringify(proposal(rejected)) }; },
   } } }));
   const logged = JSON.parse(warn.mock.calls.find(call => call.arguments[0] === '[Ask Brain] rejected read ticket').arguments[1]);
@@ -69,7 +69,7 @@ test('cross-field rejection preserves the complete anchor and reports the incomp
 test('request-envelope rejection identifies the envelope field without changing the proposed ticket', async t => {
   const warn = t.mock.method(console, 'warn', () => {});
   const rejected = proposal(ticket()); rejected.evidenceBasis = 'general';
-  await assert.rejects(interpretAskQuestion({ context, model: 'fixture', client: { responses: {
+  await assert.rejects(interpretAskQuestion({ context, model: 'gpt-5.4-mini', client: { responses: {
     create: async () => ({ output_text: JSON.stringify(rejected) }),
   } } }));
   const logged = JSON.parse(warn.mock.calls.find(call => call.arguments[0] === '[Ask Brain] rejected read ticket').arguments[1]);
@@ -81,7 +81,7 @@ test('request-envelope rejection identifies the envelope field without changing 
 test('missing ticket remains rejected and its absence is explicit in diagnostics', async t => {
   const warn = t.mock.method(console, 'warn', () => {});
   const rejected = proposal(undefined); delete rejected.readTicket;
-  await assert.rejects(interpretAskQuestion({ context, model: 'fixture', client: { responses: {
+  await assert.rejects(interpretAskQuestion({ context, model: 'gpt-5.4-mini', client: { responses: {
     create: async () => ({ output_text: JSON.stringify(rejected) }),
   } } }));
   const logged = JSON.parse(warn.mock.calls.find(call => call.arguments[0] === '[Ask Brain] rejected read ticket').arguments[1]);
@@ -113,7 +113,7 @@ test('field diagnostics keep invalid ordering, dates, predicates and operations 
 test('a legal dental ticket still binds without rejection or a second planner', async t => {
   const warn = t.mock.method(console, 'warn', () => {});
   let calls = 0;
-  const result = await interpretAskQuestion({ context, model: 'fixture', client: { responses: {
+  const result = await interpretAskQuestion({ context, model: 'gpt-5.4-mini', client: { responses: {
     create: async () => { calls++; return { output_text: JSON.stringify(proposal(ticket())) }; },
   } } });
   assert.equal(result.request.readTicket.operation, 'read_since_event');
@@ -153,7 +153,7 @@ test('captured Bramble ticket binds only with needs stripped, through one planne
         quote: question, sourceTurnId: null, petNames: ['Bramble'], terms: ['food', 'eating'], order: 'context',
       }] };
       if (variant !== 'retained') envelope.evidenceNeeds = []; // Duplicate captured scaffolding, not an independent obligation.
-      const run = interpretAskQuestion({ context, model: 'fixture',
+      const run = interpretAskQuestion({ context, model: 'gpt-5.4-mini',
         onProviderEvent: event => stages.push(event),
         client: { responses: { create: async request => {
           calls++;
@@ -229,7 +229,7 @@ test('captured Dune ticket binds only with needs stripped, through one planner p
         topic: 'weight', terms: ['weight'], selection: 'earliest', evidenceNeeds: variant === 'retained' ? [{
           quote: question, sourceTurnId: null, petNames: ['Dune'], terms: ['weight'], order: 'earliest',
         }] : [] };
-      const run = interpretAskQuestion({ context, model: 'fixture',
+      const run = interpretAskQuestion({ context, model: 'gpt-5.4-mini',
         onProviderEvent: event => stages.push(event),
         client: { responses: { create: async request => {
           calls++;
@@ -357,7 +357,7 @@ test('earliest measurement uses one calendar-free planner ticket and retains the
       t.mock.method(console, 'info', () => {});
       let calls = 0;
       const plannerContext = { ...context, currentTurn: { ...context.currentTurn, id: thread } };
-      const result = await interpretAskQuestion({ context: plannerContext, model: 'fixture',
+      const result = await interpretAskQuestion({ context: plannerContext, model: 'gpt-5.4-mini',
         client: { responses: { create: async request => {
           calls++;
           const contract = await inspectAskWireContract(request,plannerContext);
@@ -411,7 +411,7 @@ test('captured #4 is rejected after one mocked planner with full named diagnosti
   const warn = t.mock.method(console, 'warn', () => {});
   t.mock.method(console, 'info', () => {});
   let calls = 0;
-  await assert.rejects(interpretAskQuestion({ context, model: 'fixture',
+  await assert.rejects(interpretAskQuestion({ context, model: 'gpt-5.4-mini',
     client: { responses: { create: async () => {
       calls++;
       return { output_text: JSON.stringify(proposal(structuredClone(failedEarliestMeasurementTicket))) };
@@ -447,7 +447,7 @@ test('READ_NEEDS failures retain full needs and parent ticket after one planner'
     const envelope = { ...proposal(candidate), evidenceNeeds: [{
       quote: question, sourceTurnId: null, petNames: ['Bramble'], terms: ['weight'], order: 'earliest',
     }] };
-    await assert.rejects(interpretAskQuestion({ context, model: 'fixture',
+    await assert.rejects(interpretAskQuestion({ context, model: 'gpt-5.4-mini',
       onProviderEvent: event => stages.push(event),
       client: { responses: { create: async () => {
         calls++; return { output_text: JSON.stringify(envelope) };

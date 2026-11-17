@@ -23,7 +23,7 @@ const proposal=(question,readTicket=ticket(),patch={})=>({version:'ask-request.v
   episodeTopic:null,ordinal:null,frame:null,premiseQuotes:[],...patch});
 async function mocked(question,readTicket=ticket(),patch={},ctx=context(question),reject=false){
   let calls=0;
-  const pending=interpretAskQuestion({context:ctx,model:'fixture',client:{responses:{create:async request=>{
+  const pending=interpretAskQuestion({context:ctx,model:'gpt-5.4-mini',client:{responses:{create:async request=>{
     calls++;
     const requestSchema=(await inspectAskWireContract(request,ctx)).canonicalSchema.properties.request.anyOf.find(s=>s.properties?.evidenceBasis?.enum?.includes('saved_history') && s.properties?.calculatePlan?.type==='null');
     const schema=requestSchema.properties.readTicket;

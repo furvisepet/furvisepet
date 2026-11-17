@@ -30,7 +30,7 @@ test('two fresh Dune fixtures use one interpreter call each and return the same 
  const results=[];
  for(const id of ['fresh-a','fresh-b']){
   let calls=0;const initial=context();initial.currentTurn.id=id;
-  const interpretation=await interpretAskQuestion({context:initial,model:'fixture',client:{responses:{create:async()=>{calls++;return {output_text:JSON.stringify(proposal)};}}}});
+  const interpretation=await interpretAskQuestion({context:initial,model:'gpt-5.4-mini',client:{responses:{create:async()=>{calls++;return {output_text:JSON.stringify(proposal)};}}}});
   const planned={...initial,askInterpretation:interpretation};
   const brain=buildAskBrainTurn({context:planned,logicalTurnId:id,authoritativePetIds:[pet.id]});
   const read=await retrieveFurviseMemory(planned,db(),brain);
@@ -75,7 +75,7 @@ test('missing Brain or missing read ticket never invokes text-based memory fallb
 test('invalid planner output fails once without a repair pass or mutation authority',async()=>{
  for(const output of [{...proposal,readTicket:null},{...proposal,mode:'update',readTicket:null,writeJob:{}}]){
   let calls=0;
-  await assert.rejects(interpretAskQuestion({context:context(),model:'fixture',client:{responses:{create:async()=>{calls++;return {output_text:JSON.stringify(output)};}}}}));
+  await assert.rejects(interpretAskQuestion({context:context(),model:'gpt-5.4-mini',client:{responses:{create:async()=>{calls++;return {output_text:JSON.stringify(output)};}}}}));
   assert.equal(calls,1);
  }
 });

@@ -131,7 +131,7 @@ test("route dispatch stops before retrieval/generation and legacy profile parser
 test("the single interpreter emits and binds profile semantics without a second provider call", async () => {
  const {interpretAskQuestion}=await import("../app/lib/intelligence/interpret-ask.ts");
  const p=proposal("current_food","Recipe A"),c=context(p.instructionQuote);let calls=0;
- const interpreted=await interpretAskQuestion({context:c,model:"offline-fixture",client:{responses:{create:async r=>{
+ const interpreted=await interpretAskQuestion({context:c,model:"gpt-5.4-mini",client:{responses:{create:async r=>{
   calls++;assert.equal(calls,1);
   const schema=(await inspectAskWireContract(r,c)).canonicalSchema;
   assert.ok(JSON.stringify(schema).includes("fieldMutationJob"));

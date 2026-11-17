@@ -130,7 +130,7 @@ test("raw preference parsers are absent and canonical route stops before factual
 test("one interpreter binds an owner field without using a pet as the semantic subject",async()=>{
  const {interpretAskQuestion}=await import("../app/lib/intelligence/interpret-ask.ts");
  const p=proposal("preferred_units","imperial"),c=context(p.instructionQuote);let calls=0;
- const interpreted=await interpretAskQuestion({context:c,model:"offline-fixture",client:{responses:{create:async()=>{
+ const interpreted=await interpretAskQuestion({context:c,model:"gpt-5.4-mini",client:{responses:{create:async()=>{
   assert.equal(++calls,1);return {output_text:JSON.stringify({request:request(p)})};
  }}}});
  assert.equal(calls,1);assert.deepEqual(interpreted.petIds,[]);

@@ -147,7 +147,7 @@ test('premise source validation accepts the first exact proposal and rejects inv
  const currentMessage='Fictional comparison: the crate is 7 kg; the box is 3 kg.';
  for(const quote of ['the crate is 7 kg','the crate weighs 7 kg']){
   let calls=0;const p=proposal({mode:'conversation',scope:'none',petNames:[],operation:'general',frame:null,evidenceBasis:'supplied_context',premiseQuotes:[quote]});
-  const pending=interpretAskQuestion({context:{...context,currentMessage},model:'gpt-5-mini',client:{responses:{async create(){calls++;return{status:'completed',output_text:JSON.stringify(p)};}}}});
+  const pending=interpretAskQuestion({context:{...context,currentMessage},model:'gpt-5.4-mini',client:{responses:{async create(){calls++;return{status:'completed',output_text:JSON.stringify(p)};}}}});
   if(quote==='the crate is 7 kg'){const r=await pending;assert.equal(r.conversationOnly,true);assert.deepEqual(r.petIds,[]);}
   else await assert.rejects(pending,/understand the request reliably/);
   assert.equal(calls,1);
@@ -160,7 +160,7 @@ test('a rejected premise cannot trigger another interpretation granting foreign 
  for(const patch of [{mode:'update'}, {evidenceBasis:'saved_history',scope:'named',petNames:['Foreign']}]) {
   let calls=0;
   const p=proposal({evidenceBasis:'supplied_context',premiseQuotes:['the box is 3 kg'],frame:null});
-  await assert.rejects(interpretAskQuestion({context:{...context,currentMessage:'the box is 3 kg'},model:'gpt-5-mini',
+  await assert.rejects(interpretAskQuestion({context:{...context,currentMessage:'the box is 3 kg'},model:'gpt-5.4-mini',
    client:{responses:{async create(){calls++;return {status:'completed',output_text:JSON.stringify(calls===1?{...p,premiseQuotes:['invented']}:{...p,...patch})};}}}}));
   assert.equal(calls,1);
  }
@@ -1045,7 +1045,7 @@ test('missing supplied premises reject once while an exact nonnumeric hypothetic
  const currentMessage='Hypothetical: a dog cannot breathe. Which task takes priority?';
  for(const premiseQuotes of [[],['a dog cannot breathe']]){
   let calls=0;const p=proposal({mode:'conversation',scope:'none',petNames:[],operation:'general',frame:null,evidenceBasis:'supplied_context',premiseQuotes});
-  const pending=interpretAskQuestion({context:{...context,currentMessage},model:'gpt-5-mini',client:{responses:{async create(){calls++;return{status:'completed',output_text:JSON.stringify(p)};}}}});
+  const pending=interpretAskQuestion({context:{...context,currentMessage},model:'gpt-5.4-mini',client:{responses:{async create(){calls++;return{status:'completed',output_text:JSON.stringify(p)};}}}});
   if(premiseQuotes.length){const r=await pending;assert.equal(r.conversationOnly,true);assert.equal(r.readOnly,true);}
   else await assert.rejects(pending,/understand the request reliably/);assert.equal(calls,1);
  }
@@ -1470,7 +1470,7 @@ test('mixed observation arithmetic cannot turn an invalid correction into a seco
  for(const [name,unit] of [['Aster','kg'],['Bramble','ml'],['Cedar','min']]){
   const currentMessage=`${name} previously had 7 ${unit}. Today ${name} had 3 ${unit}. Calculate the change and log today's observation.`;
   let calls=0;const p=proposal({mode:'mixed',petNames:[name],evidenceBasis:'supplied_context',mutationIntent:'correct_record',operation:'comparison',question:currentMessage,frame:emptyProposedSemanticFrame()});
-  await assert.rejects(interpretAskQuestion({context:{...context,currentMessage},model:'gpt-5-mini',client:{responses:{async create(){calls++;return{status:'completed',output_text:JSON.stringify(p)};}}}}));
+  await assert.rejects(interpretAskQuestion({context:{...context,currentMessage},model:'gpt-5.4-mini',client:{responses:{async create(){calls++;return{status:'completed',output_text:JSON.stringify(p)};}}}}));
   assert.equal(calls,1);
  }
 });
@@ -1604,7 +1604,7 @@ test('profile contract mistakes get one bounded repair with full ownership reval
  for(const invalidRepair of [false,true]) {
   let calls=0;
   const good=proposal({evidenceBasis:'saved_profile',profileFields:['weight'],frame:null});
-  const pending=interpretAskQuestion({context:{...context,currentMessage:'What is Aster’s current saved weight? Say if empty.'},model:'gpt-5-mini',
+  const pending=interpretAskQuestion({context:{...context,currentMessage:'What is Aster’s current saved weight? Say if empty.'},model:'gpt-5.4-mini',
    client:{responses:{async create(){calls++;return {status:'completed',output_text:JSON.stringify(calls===1?{...good,quantity:'records'}:invalidRepair?{...good,petNames:['Foreign']}:good)};}}}});
   if(invalidRepair) await assert.rejects(pending);
   else assert.deepEqual((await pending).request.profileFields,['weight']);
@@ -1661,7 +1661,7 @@ test('mixed historical questions retain independently scoped evidence needs',()=
 test('read mode discards contradictory mutation hints without a provider repair', async () => {
  const {interpretAskQuestion}=await import('../../app/lib/intelligence/interpret-ask.ts');
  let calls=0;
- const result=await interpretAskQuestion({context:{...context,currentMessage:'What is recorded about Aster?'},model:'gpt-5-mini',
+ const result=await interpretAskQuestion({context:{...context,currentMessage:'What is recorded about Aster?'},model:'gpt-5.4-mini',
   client:{responses:{async create(request){calls++;
    const checked=await inspectAskWireContract(request,{...context,currentMessage:'What is recorded about Aster?'});
    const branches=checked.canonicalSchema.properties.request.anyOf.filter(branch=>branch.properties.referenceTurnIds);
@@ -1724,7 +1724,7 @@ test('interpretation uses the user calendar day across the UTC date boundary',as
  clock(t);t.mock.timers.setTime(Date.parse('2026-09-16T06:00:00Z'));
  const {interpretAskQuestion}=await import('../../app/lib/intelligence/interpret-ask.ts');
  let input;
- await interpretAskQuestion({context:{...context,currentMessage:'Show today’s notes.',timeZone:'America/Vancouver'},model:'gpt-5-mini',
+ await interpretAskQuestion({context:{...context,currentMessage:'Show today’s notes.',timeZone:'America/Vancouver'},model:'gpt-5.4-mini',
   client:{responses:{async create(request){input=JSON.parse(request.input);return {status:'completed',output_text:JSON.stringify(proposal({question:'Show today’s notes.'})),usage:{input_tokens:1,output_tokens:1}};}}}});
  assert.equal(input.today,'2026-09-15');assert.equal(input.timeZone,'America/Vancouver');
 });

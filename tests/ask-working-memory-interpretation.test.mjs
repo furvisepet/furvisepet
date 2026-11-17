@@ -39,7 +39,7 @@ test("casual working-memory follow-up reaches the same Brain interpreter", async
   let calls = 0;
   const result = await interpretAskQuestion({
     context,
-    model: "test-model",
+    model: "gpt-5.4-mini",
     client: { responses: { create: async () => { calls++; return reply(readProposal({mode:'conversation',scope:'none',petNames:[],operation:'general',quantity:null,evidenceBasis:'general',readTicket:null,question:source.text,referenceTurnIds:[source.id]})); } } },
   });
   assert.equal(calls, 1);
@@ -54,7 +54,7 @@ test("fresh history question still requires semantic interpretation", async () =
   let calls = 0;
   await assert.rejects(interpretAskQuestion({
     context: { ...context, currentMessage: "what do you think about his weight history?", currentTurn: {...context.currentTurn,text:"what do you think about his weight history?"} },
-    model: "test-model",
+    model: "gpt-5.4-mini",
     client: { responses: { create: async () => { calls++; throw new Error("expected provider path"); } } },
   }));
   assert.equal(calls, 1);
@@ -73,7 +73,7 @@ test("immediate saved-note readback reaches Brain and retains the receipt refere
   const result = await interpretAskQuestion({
     context: { ...context, currentMessage: "What did I just save for Pebble?", conversationTurns: [saveTurn],
       currentTurn: { id: "current-read", role: "user", text: "What did I just save for Pebble?", createdAt: "2026-09-18T20:00:01.000Z" } },
-    model: "test-model",
+    model: "gpt-5.4-mini",
     client: { responses: { create: async () => { calls++; return reply(readProposal({referenceTurnIds:['save-turn']})); } } },
   });
   assert.equal(calls, 1);
@@ -92,7 +92,7 @@ test("a different named pet also reaches Brain instead of a readback shortcut", 
   await assert.rejects(interpretAskQuestion({
     context: { ...context, eligiblePets: [...context.eligiblePets, bramble], currentMessage: "What did I just save for Bramble?", conversationTurns: [saveTurn],
       currentTurn: { id: "current-read", role: "user", text: "What did I just save for Bramble?", createdAt: "2026-09-18T20:00:01.000Z" } },
-    model: "test-model",
+    model: "gpt-5.4-mini",
     client: { responses: { create: async () => { calls++; throw new Error("expected provider path"); } } },
   }));
   assert.equal(calls, 1);
@@ -103,7 +103,7 @@ test("latest named saved-history weight reaches Brain",async()=>{
   const q="Look at Pebble's latest weight.";
   const result=await interpretAskQuestion({
     context:{...context,currentMessage:q,currentTurn:{id:"latest-weight",role:"user",text:q,createdAt:"2026-09-18T23:00:00.000Z"}},
-    model:"test-model",client:{responses:{create:async()=>{calls++;return reply(readProposal({topic:"weight"}));}}},
+    model:"gpt-5.4-mini",client:{responses:{create:async()=>{calls++;return reply(readProposal({topic:"weight"}));}}},
   });
   assert.equal(calls,1);
   assert.equal(result.request.evidenceBasis,"saved_history");
@@ -120,7 +120,7 @@ test("since-event named history read reaches Brain instead of a phrase shortcut"
   const q="Since Pebble's dental, what did I write about eating or food? Don't guess months I didn't log.";
   await assert.rejects(interpretAskQuestion({
     context:{...context,currentMessage:q,currentTurn:{id:"since-anchor",role:"user",text:q,createdAt:"2026-09-18T23:00:01.000Z"}},
-    model:"test-model",client:{responses:{create:async()=>{calls++;throw new Error("expected provider path");}}},
+    model:"gpt-5.4-mini",client:{responses:{create:async()=>{calls++;throw new Error("expected provider path");}}},
   }));
   assert.equal(calls,1);
 });
@@ -130,7 +130,7 @@ test("explicit profile weight reaches Brain",async()=>{
   const q="What is Pebble's current profile weight?";
   await assert.rejects(interpretAskQuestion({
     context:{...context,currentMessage:q,currentTurn:{id:"profile-weight",role:"user",text:q,createdAt:"2026-09-18T23:00:02.000Z"}},
-    model:"test-model",client:{responses:{create:async()=>{calls++;throw new Error("expected provider path");}}},
+    model:"gpt-5.4-mini",client:{responses:{create:async()=>{calls++;throw new Error("expected provider path");}}},
   }));
   assert.equal(calls,1);
 });
@@ -141,7 +141,7 @@ test("completed mixed-save companion reaches Brain without authorizing another w
   const result=await interpretAskQuestion({
     context:{...context,ownerNoteAlreadySaved:true,completedOwnerNote:{sourceMessageId:"save",petId:"pebble",entryIds:["row"],note:"Pebble ate less at lunch today."},
       currentMessage:q,currentTurn:{id:"mixed-read",role:"user",text:q,createdAt:"2026-09-18T23:10:00.000Z"}},
-    model:"test-model",client:{responses:{create:async()=>{calls++;return reply(readProposal());}}},
+    model:"gpt-5.4-mini",client:{responses:{create:async()=>{calls++;return reply(readProposal());}}},
   });
   assert.equal(calls,1);
   assert.equal(result.request.evidenceBasis,"saved_history");

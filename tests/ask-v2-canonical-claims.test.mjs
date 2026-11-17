@@ -317,7 +317,7 @@ test("shadow observability compares legacy and v2 without retaining message reas
     conversationTurns: [], eligiblePets: pets, frame: semanticFrame, message, ownerId,
     requestId: "v2-observation", selectedPetId: pets[1].id,
     sourceMessageId: "20000000-0000-4000-8000-000000000001",
-    reasoning: { model: "test", semanticFrameValid: true, messageUnderstanding: { needsClarification: false } },
+    reasoning: { model: "gpt-5.4-mini", semanticFrameValid: true, messageUnderstanding: { needsClarification: false } },
   });
   assert.equal(analysis.trace.v2.status, "governed");
   assert.equal(analysis.trace.v2.observation.proposedClaimCount, 1);

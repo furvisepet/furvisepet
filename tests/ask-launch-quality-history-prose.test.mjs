@@ -169,7 +169,7 @@ function reasoning(answer) {
     suggestedFollowUps: [],
     proposedHistoryUpdate: { shouldOffer: true, category: "symptom", title: "Care changes", details: "Track these changes.", severity: "moderate", resolvesConcernId: null },
     responseMode: "practical_guidance",
-    model: "test",
+    model: "gpt-5.4-mini",
     messageUnderstanding: {},
     intelligenceSafety: { level: "caution", reason: "Several changes", requiresImmediateAction: false, shoppingSuppressed: false },
     learnings: [],

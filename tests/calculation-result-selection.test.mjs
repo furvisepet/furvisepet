@@ -241,7 +241,7 @@ test("source-bound result selection survives the real Brain and memory path",asy
  const initial={owner:{userId:"owner"},pet:pets[0],eligiblePets:pets,currentMessage:"Calculate from saved observations above 0.2 kg.",
  conversationTurns:[],timeZone:"UTC",currentTurn:{id:"turn",role:"user",text:"Calculate from saved observations above 0.2 kg."},
  careEntries:[],selectedCareEntries:[],memories:[],activeConcerns:[],recentlyResolvedConcerns:[]};
- const interpretation=await interpretAskQuestion({context:initial,model:"fixture",client:{responses:{create:async()=>{
+ const interpretation=await interpretAskQuestion({context:initial,model:"gpt-5.4-mini",client:{responses:{create:async()=>{
  brainCalls++;return {output_text:JSON.stringify(envelope({...proposal([calculation()]),resultSelection:selection("desc",1,filter("gt","0.2 kg"))},rawTicket()))};}}}});
  const planned={...initial,askInterpretation:interpretation};
  const brain=buildAskBrainTurn({context:planned,logicalTurnId:"turn",authoritativePetIds:[pets[0].id]});

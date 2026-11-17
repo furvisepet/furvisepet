@@ -111,7 +111,7 @@ test("generation failed-response diagnostics exclude raw provider messages and a
         Object.defineProperty(response, "_request_id", { value: requestId, enumerable: false });
         return response;
       } });
-  await assert.rejects(run({ client: {}, model: "offline", onEvent: e => events.push(e), parseOutput: () => assert.fail("failed provider response cannot parse"),
+  await assert.rejects(run({ client: {}, model: "gpt-5.4-mini", onEvent: e => events.push(e), parseOutput: () => assert.fail("failed provider response cannot parse"),
     request: { max_output_tokens: 8192 }, stage: "primary", timeoutMs: 1000 }), e => {
     assert.equal(e.stage, "primary_invalid_output"); assert.equal(e.diagnostics.providerErrorCode, "other");
     assert.ok(!e.message.includes(marker)); assert.ok(!JSON.stringify(e).includes(marker));

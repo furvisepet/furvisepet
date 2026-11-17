@@ -52,11 +52,11 @@ test('SDK user-abort caused by our deadline is classified as timeout',async t=>{
  const client={responses:{create:async(_request,{signal})=>new Promise((_resolve,reject)=>{
   signal.addEventListener('abort',()=>{const error=new Error('sensitive text');error.name='APIUserAbortError';reject(error);},{once:true});
  })}};
- await assert.rejects(interpretAskQuestion({context,model:'gpt-5-mini',client}),e=>e.diagnostics.timedOut===true&&e.diagnostics.providerErrorCode==='ASK_INTERPRETATION_TIMEOUT'&&!JSON.stringify(e.diagnostics).includes('sensitive'));
+ await assert.rejects(interpretAskQuestion({context,model:'gpt-5.4-mini',client}),e=>e.diagnostics.timedOut===true&&e.diagnostics.providerErrorCode==='ASK_INTERPRETATION_TIMEOUT'&&!JSON.stringify(e.diagnostics).includes('sensitive'));
 });
 test('ordinary connection failure is not mislabeled timeout',async()=>{
  const client={responses:{create:async()=>{const e=new Error('secret transport');e.name='APIConnectionError';throw e;}}};
- await assert.rejects(interpretAskQuestion({context,model:'gpt-5-mini',client}),e=>e.diagnostics.timedOut===false&&e.diagnostics.providerErrorCode==='ASK_INTERPRETATION_TRANSPORT');
+ await assert.rejects(interpretAskQuestion({context,model:'gpt-5.4-mini',client}),e=>e.diagnostics.timedOut===false&&e.diagnostics.providerErrorCode==='ASK_INTERPRETATION_TRANSPORT');
 });
 
 
@@ -67,7 +67,7 @@ test('HTTP rejection and invalid JSON never retry',async()=>{
  calls++;if(mode==='http'){const e=new Error('rejected');e.status=429;throw e;}
  return {status:'completed',output_text:'invalid',usage:{input_tokens:1,output_tokens:1}};
  }}};
- await assert.rejects(interpretAskQuestion({context,model:'gpt-5-mini',client}));assert.equal(calls,1);
+ await assert.rejects(interpretAskQuestion({context,model:'gpt-5.4-mini',client}));assert.equal(calls,1);
  }
 });
 
@@ -81,6 +81,6 @@ test('a valid interpretation taking sixteen seconds survives the former cutoff',
   const abort=()=>{clearTimeout(timer);const e=new Error('aborted');e.name='APIUserAbortError';reject(e);};
   signal.addEventListener('abort',abort,{once:true});
  })}};
- const result=await interpretAskQuestion({context,model:'gpt-5-mini',client});
+ const result=await interpretAskQuestion({context,model:'gpt-5.4-mini',client});
  assert.equal(result.readOnly,true);assert.equal(calls,1);
 });
