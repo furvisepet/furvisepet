@@ -3,6 +3,7 @@ import "server-only";
 import { Redis } from "@upstash/redis";
 import { getRateLimitBackendConfig } from "../../security/rate-limit/config";
 import type { AiGuardStore } from "./types";
+import { RESERVE_WHOLE_ASK_LUA } from "./whole-ask-reservation.ts";
 
 const PREFIX = "furvise:ai:v1";
 
@@ -104,6 +105,36 @@ export class RedisAiGuardStore implements AiGuardStore {
     if (result[0] === 1) return { allowed: true as const, reused: result[1] === 1, snapshot };
     const reason = result[4] === 1 ? "daily_call_limit" as const
       : result[4] === 2 ? "daily_cost_limit" as const : result[4] === 4 ? "qualification_total_limit" as const : "operation_call_limit" as const;
+    return { allowed: false as const, reason, snapshot };
+  }
+  async reserveWholeAsk(input: {
+    callIds: string[]; operationId: string; day: string; ttlSeconds: number; operationTtlSeconds: number;
+    callLimit: number; costLimitMicrodollars: number; qualificationLimitMicrodollars: number;
+    perCallMicrodollars: number;
+  }) {
+    if (input.callIds.length !== 6 || new Set(input.callIds).size !== 6
+      || input.qualificationLimitMicrodollars <= 0) throw new Error("AI_WHOLE_ASK_INVALID");
+    const keys = [
+      PREFIX + ":day:" + input.day + ":calls",
+      PREFIX + ":day:" + input.day + ":cost",
+      PREFIX + ":day:" + input.day + ":feature:ask:calls",
+      PREFIX + ":operation:" + input.operationId + ":calls",
+      PREFIX + ":qualification:v1-mini-20261117:reserved_total",
+      PREFIX + ":emergency",
+      ...input.callIds.map(id => PREFIX + ":call:" + id),
+    ];
+    const result = await this.redis.eval<string[], number[]>(RESERVE_WHOLE_ASK_LUA, keys, [
+      "6", String(input.perCallMicrodollars), String(input.callLimit),
+      String(input.costLimitMicrodollars), String(input.qualificationLimitMicrodollars),
+      input.day, String(input.ttlSeconds), String(input.operationTtlSeconds),
+    ]);
+    const snapshot = { calls: Number(result[1]), costMicrodollars: Number(result[2]) };
+    if (result[0] === 1) return { allowed: true as const, snapshot };
+    const reason = result[3] === 1 ? "daily_call_limit" as const
+      : result[3] === 2 ? "daily_cost_limit" as const
+      : result[3] === 4 ? "qualification_total_limit" as const
+      : result[3] === 6 ? "operation_conflict" as const
+      : result[3] === 7 ? "emergency_disabled" as const : "operation_invalid" as const;
     return { allowed: false as const, reason, snapshot };
   }
   async markCallStarted(input: { callId: string }) {

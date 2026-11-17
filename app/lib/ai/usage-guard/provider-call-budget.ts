@@ -3,6 +3,7 @@ import type { PipelineStage } from "../execution-deadline.ts";
 import { getActiveAiAdmission } from "./context.ts";
 import { AiAdmissionError } from "./errors.ts";
 import { requireApprovedAiModel } from "../model-policy.ts";
+import { ASK_BUNDLE_OUTPUT_CEILING } from "./whole-ask-reservation.ts";
 
 export type ProviderCallPurpose = "catalog_continuation" | "interpretation_repair" | "generation_repair" | "history_review" | "history_repair" | "history_rereview"
   | "task_review" | "task_repair" | "task_rereview";
@@ -97,10 +98,13 @@ export async function executeAdmittedResponsesRequest<R extends Record<string, u
     || !Number.isSafeInteger(input.maxOutputTokens) || input.maxOutputTokens <= 0) {
     throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "provider_request_contract_mismatch");
   }
+  const outputTokens = getActiveAiAdmission()?.wholeAskPrepaid
+    ? Math.min(input.maxOutputTokens, ASK_BUNDLE_OUTPUT_CEILING) : input.maxOutputTokens;
+  if (outputTokens !== input.maxOutputTokens) Object.assign(request, { max_output_tokens: outputTokens });
   freezeProviderRequest(request);
   return executeAdmittedProviderCall({
     purpose: input.purpose, catalogAuthorization: input.catalogAuthorization, reserveMs: input.reserveMs, stage: input.stage,
-    model: input.model, maxOutputTokens: input.maxOutputTokens,
+    model: input.model, maxOutputTokens: outputTokens,
     providerInput: request, invoke: () => input.invoke(request),
   });
 }

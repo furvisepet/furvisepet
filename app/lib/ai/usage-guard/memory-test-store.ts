@@ -42,6 +42,32 @@ export class MemoryAiGuardTestStore implements AiGuardStore {
     this.operationCalls.set(input.operationId, (this.operationCalls.get(input.operationId) || 0) + 1);
     return { allowed: true as const, reused: false, snapshot: { ...snapshot } };
   }
+  async reserveWholeAsk(input: {
+    callIds: string[]; operationId: string; day: string; ttlSeconds: number; operationTtlSeconds: number;
+    callLimit: number; costLimitMicrodollars: number; qualificationLimitMicrodollars: number;
+    perCallMicrodollars: number;
+  }) {
+    const snapshot = this.snapshots.get(input.day) || { calls: 0, costMicrodollars: 0 };
+    const deny = (reason: "daily_call_limit" | "daily_cost_limit" | "qualification_total_limit" | "operation_conflict" | "operation_invalid") =>
+      ({ allowed: false as const, reason, snapshot: { ...snapshot } });
+    const slots = input.callIds.length, amount = slots * input.perCallMicrodollars;
+    if (slots !== 6 || new Set(input.callIds).size !== 6 || !Number.isSafeInteger(amount) || amount < 1) return deny("operation_invalid");
+    if (this.emergency.disabled) return { allowed: false as const, reason: "emergency_disabled" as const, snapshot: { ...snapshot } };
+    if (input.callIds.some(id => this.calls.has(id))
+      || (this.operationCalls.get(input.operationId) || 0) !== 0) return deny("operation_conflict");
+    if (snapshot.calls + slots > input.callLimit) return deny("daily_call_limit");
+    if (snapshot.costMicrodollars + amount > input.costLimitMicrodollars) return deny("daily_cost_limit");
+    if (this.qualificationTotal === null || this.qualificationTotal + amount > input.qualificationLimitMicrodollars)
+      return deny("qualification_total_limit");
+    snapshot.calls += slots; snapshot.costMicrodollars += amount;
+    this.snapshots.set(input.day,snapshot);this.qualificationTotal += amount;
+    this.operationCalls.set(input.operationId,slots);
+    for (const callId of input.callIds) this.calls.set(callId, {
+      cost: input.perCallMicrodollars, day: input.day, feature: "ask",
+      operationId: input.operationId, started: false, state: "reserved", qualification: true,
+    });
+    return { allowed: true as const, snapshot: { ...snapshot } };
+  }
   async markCallStarted(input: { callId: string }) { const item = this.calls.get(input.callId); if (!item) throw new Error("CALL_RESERVATION_MISSING"); item.started = true; item.state = "started"; }
   async reconcileCall(input: { actualCostMicrodollars: number; callId: string }) {
     const item = this.calls.get(input.callId); if (!item) throw new Error("CALL_RESERVATION_MISSING");

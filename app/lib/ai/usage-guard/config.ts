@@ -11,6 +11,10 @@ export function getAiGuardConfig(env: Record<string, string | undefined> = proce
   const requestedQualificationLimit = qualificationMode ? (parseUsdToMicrodollars(env.FURVISE_AI_QUALIFICATION_TOTAL_COST_LIMIT_USD) ?? 0) : 0;
   const qualificationLimitMicrodollars = qualificationMode && requestedQualificationLimit <= 5_000_000 ? requestedQualificationLimit : 0;
   return {
+    // Explicit preview-only opt-in. Never inherits into production or local mode.
+    wholeAskQualification: qualificationMode && env.VERCEL_ENV === "preview"
+      && env.VERCEL_GIT_COMMIT_REF === "release/journal-first-20261116"
+      && env.FURVISE_AI_WHOLE_ASK_RESERVATION_ENABLED === "true",
     qualificationMode, qualificationLimitMicrodollars,
     callLimit,
     configured: callLimit > 0 && costLimitMicrodollars > 0,
