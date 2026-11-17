@@ -296,12 +296,44 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
           return withAskProviderSchemaDiagnostic(request, () => activeClient.responses.create(request as never, { signal }));
         }, boundedProviderTimeout(ASK_INTERPRETATION_LIMITS.timeoutMs, 24_000, "interpretation"));
       } });
-    const result = parseResponse(response, ASK_INTERPRETATION_LIMITS.timeoutMs, 24_000);
+    let result = parseResponse(response, ASK_INTERPRETATION_LIMITS.timeoutMs, 24_000);
+    let wireRepairUsed = false;
+    let settledResponse = response;
+    // A completed Mini reply can meet the provider's broad structural schema
+    // yet fail the original branch-specific canonical codec. Unlike semantic
+    // Binder errors, this error occurs BEFORE a proposal is available. Give
+    // the already-budgeted interpretation repair phase exactly one chance.
+    // Revalidate from scratch; never coerce, project, or accept invalid fields.
+    if (result.status === "invalid" && result.validationReason === "ASK_WIRE_CANONICAL_SCHEMA") {
+      const repairRequest = { ...request,
+        instructions: request.instructions + "\n\n" + ASK_INTERPRETATION_REPAIR_INSTRUCTIONS
+          + "\nChoose one canonical request branch. For saved_history, use a complete typed readTicket; when its outputs.strategy is chronological, evidenceNeeds must be []. For saved_profile, readTicket is null and profileFields nonempty. Inactive fields must be null/[] exactly as the canonical branch requires. Do not invent ownership, source IDs, facts or new tasks.",
+        input: JSON.stringify({ ...input, contractRepair: { validationCode: "ASK_WIRE_CANONICAL_SCHEMA" } }),
+      };
+      assertAskRequestInputBudget(repairRequest);
+      wireRepairUsed = true;
+      console.info("[Ask Brain] bounded wire contract repair", { validationCode: "ASK_WIRE_CANONICAL_SCHEMA" });
+      const repairResponse = await executeAdmittedResponsesRequest({ purpose: "interpretation_repair", model,
+        maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens,
+        stage: "interpretation", reserveMs: ASK_INTERPRETATION_REPAIR_LIMITS.reserveMs,
+        request: repairRequest,
+        invoke: (sent) => {
+          onProviderEvent?.({ stage: "interpretation", outcome: "started", model, elapsedMs: Date.now() - started,
+            configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens, validationDetails: "bounded_wire_contract_repair" });
+          return withProviderDeadline(signal => {
+            providerSignal = signal;
+            return withAskProviderSchemaDiagnostic(sent, () => activeClient.responses.create(sent as never, { signal }));
+          }, boundedProviderTimeout(ASK_INTERPRETATION_REPAIR_LIMITS.timeoutMs, ASK_INTERPRETATION_REPAIR_LIMITS.reserveMs, "interpretation"));
+        },
+      });
+      settledResponse = repairResponse;
+      result = parseResponse(repairResponse, ASK_INTERPRETATION_REPAIR_LIMITS.timeoutMs, ASK_INTERPRETATION_REPAIR_LIMITS.reserveMs);
+    }
     // Arrival is not validation or authority. Timed-out/late provider results never reach this point.
     const proposal = result.status === "completed" ? result.parsed : null;
     ticketArrived = !!proposal && typeof proposal === "object" && ["readTicket", "appendJob", "writeJob"]
       .some(key => key in proposal && (proposal as Record<string, unknown>)[key] != null);
-    let metadata = { providerEnvelope: structuredProviderEnvelopeDiagnostic(response), inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens,
+    let metadata = { providerEnvelope: structuredProviderEnvelopeDiagnostic(settledResponse), inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens,
       parsingAttempted: result.parsingAttempted, configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens, validationDetails: result.validationReason || undefined, ticketArrived };
     if (result.status !== "completed") {
       const kind = result.status === "invalid" ? result.parsingAttempted ? "json" : "empty_output" : result.status;
@@ -375,7 +407,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
       if (error instanceof StageDeadlineError || error instanceof AiAdmissionError) throw error;
       const rejected = result.parsed && typeof result.parsed === "object" ? result.parsed as Record<string, unknown> : null;
       const repairableProfileContract = rejected?.mode === "read" && rejected.evidenceBasis === "saved_profile";
-      if (!(error instanceof AskInterpretationValidationError) || error.category !== "semantic" || !repairableProfileContract) {
+      if (wireRepairUsed || !(error instanceof AskInterpretationValidationError) || error.category !== "semantic" || !repairableProfileContract) {
         if (error instanceof AskInterpretationValidationError) throw fail(error.reason, error.category, metadata);
         throw fail("ASK_INTERPRETATION_VALIDATION", "semantic", metadata);
       }
