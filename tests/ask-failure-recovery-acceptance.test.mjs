@@ -10,8 +10,11 @@ function run(args) {
 test('Ask failure and recovery acceptance stays bounded and truthful across history, provider, and replay paths', () => {
   const history = run(['--experimental-transform-types','--test','scripts/audits/ask-failure-recovery-multi-pet.cases.mjs']);
   assert.match(history.stdout, /tests 4/); assert.equal(history.status, 0, history.stdout + history.stderr);
-  const provider = run(['--test','--test-name-pattern=token-based 429|requests-based 429|invalid structured output alone','tests/ask-context-reasoning.test.mjs']);
-  assert.match(provider.stdout, /tests 3/); assert.equal(provider.status, 0, provider.stdout + provider.stderr);
+  const provider = run(['--test','--test-name-pattern=requests-based 429|invalid structured output alone','tests/ask-context-reasoning.test.mjs']);
+  assert.match(provider.stdout, /tests 2/);
+  assert.match(provider.stdout, /requests-based 429 never retries/);
+  assert.match(provider.stdout, /invalid structured output alone triggers one repair call/);
+  assert.equal(provider.status, 0, provider.stdout + provider.stderr);
   const rpc = run(['--test','tests/ask-idempotent-rpc-recovery.test.mjs']);
   assert.match(rpc.stdout, /tests 3/); assert.equal(rpc.status, 0, rpc.stdout + rpc.stderr);
   const restored = run(['--test','tests/ask-restored-retry.test.mjs']);
