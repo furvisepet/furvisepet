@@ -11,7 +11,8 @@ export function getAiGuardConfig(env: Record<string, string | undefined> = proce
   const launchProtection = providerAdmission && env.FURVISE_AI_LAUNCH_PROTECTION_ENABLED === "true";
   const fundedLimitMicrodollars = launchProtection
     ? (parseUsdToMicrodollars(env.FURVISE_AI_FUNDED_CEILING_USD) ?? 0) : 0;
-  const productionApproved = env.VERCEL_ENV !== "production"
+  // Owner-only configuration views must not read or infer launch-control secrets.
+  const productionApproved = !providerAdmission || env.VERCEL_ENV !== "production"
     || env.FURVISE_AI_PRODUCTION_LAUNCH_APPROVED === "true";
   const qualificationMode = !launchProtection && providerAdmission && (env.FURVISE_AI_QUALIFICATION_MODE === "true" || (env.VERCEL_ENV === "preview" && env.VERCEL_GIT_COMMIT_REF === "release/journal-first-20261116"));
   // A qualification deployment has no budget unless an explicit aggregate ceiling is set.
@@ -20,8 +21,9 @@ export function getAiGuardConfig(env: Record<string, string | undefined> = proce
   return {
     // Shared funded protection is deployable only with explicit switches;
     // old qualification remains scoped to the approved preview branch.
-    wholeAskQualification: env.FURVISE_AI_WHOLE_ASK_RESERVATION_ENABLED === "true" &&
-      (launchProtection && productionApproved ||
+    wholeAskQualification: providerAdmission
+      && env.FURVISE_AI_WHOLE_ASK_RESERVATION_ENABLED === "true"
+      && (launchProtection && productionApproved ||
         qualificationMode && env.VERCEL_ENV === "preview"
         && env.VERCEL_GIT_COMMIT_REF === "release/journal-first-20261116"),
     launchProtection, fundedLimitMicrodollars, qualificationMode, qualificationLimitMicrodollars,
